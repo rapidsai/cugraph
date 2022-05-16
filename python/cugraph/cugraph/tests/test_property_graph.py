@@ -33,7 +33,7 @@ except ImportError:
 
 import cugraph
 from cugraph.generators import rmat
-from cugraph.tests import utils
+from cugraph.testing import utils
 
 # =============================================================================
 # Test data

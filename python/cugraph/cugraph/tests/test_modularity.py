@@ -18,7 +18,7 @@ import pytest
 
 import cudf
 import cugraph
-from cugraph.tests import utils
+from cugraph.testing import utils
 from cugraph.utilities import ensure_cugraph_obj_for_nx
 
 import networkx as nx

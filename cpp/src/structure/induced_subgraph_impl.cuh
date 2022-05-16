@@ -82,6 +82,7 @@ extract_induced_subgraphs(
       "Invalid input argument: subgraph_offsets is not sorted.");
     auto vertex_partition =
       vertex_partition_device_view_t<vertex_t, multi_gpu>(graph_view.local_vertex_partition_view());
+
     CUGRAPH_EXPECTS(
       thrust::count_if(handle.get_thrust_policy(),
                        subgraph_vertices,
@@ -116,7 +117,7 @@ extract_induced_subgraphs(
 
   // 2. extract induced subgraphs
 
-  if (multi_gpu) {
+  if constexpr (multi_gpu) {
     CUGRAPH_FAIL("Unimplemented.");
     return std::make_tuple(rmm::device_uvector<vertex_t>(0, handle.get_stream()),
                            rmm::device_uvector<vertex_t>(0, handle.get_stream()),

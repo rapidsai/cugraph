@@ -106,7 +106,17 @@ class simpleGraphImpl:
                 "names not found in input. Recheck the source and "
                 "destination parameters"
             )
+        df_columns = s_col + d_col
 
+        if edge_attr is not None:
+            if not (set([edge_attr]).issubset(set(input_df.columns))):
+                raise ValueError(
+                    "edge_attr column name not found in input."
+                    "Recheck the edge_attr parameter")
+            self.properties.weighted = True
+            df_columns.append(edge_attr)
+
+        input_df = input_df[df_columns]
         # FIXME: check if the consolidated graph fits on the
         # device before gathering all the edge lists
 
@@ -146,20 +156,13 @@ class simpleGraphImpl:
             if type(source) is list and type(destination) is list:
                 raise ValueError("set renumber to True for multi column ids")
 
-        # Populate graph edgelist
-        source_col = elist[source]
-        dest_col = elist[destination]
-
-        if edge_attr is not None:
-            self.properties.weighted = True
-            value_col = elist[edge_attr]
-        else:
-            value_col = None
-
+        # The dataframe will be symmetrized iff the graph is undirected
+        # otherwise the inital dataframe will be returned. Duplicated edges
+        # will be dropped unless the graph is a MultiGraph(Not Implemented yet)
         # TODO: Update Symmetrize to work on Graph and/or DataFrame
-        if value_col is not None:
+        if edge_attr is not None:
             source_col, dest_col, value_col = symmetrize(
-                source_col, dest_col, value_col,
+                elist, source, destination, edge_attr,
                 multi=self.properties.multi_edge,
                 symmetrize=not self.properties.directed)
             if isinstance(value_col, cudf.DataFrame):
@@ -168,8 +171,9 @@ class simpleGraphImpl:
                     value_dict[i] = value_col[i]
                 value_col = value_dict
         else:
+            value_col = None
             source_col, dest_col = symmetrize(
-                source_col, dest_col, multi=self.properties.multi_edge,
+                elist, source, destination, multi=self.properties.multi_edge,
                 symmetrize=not self.properties.directed)
 
         self.edgelist = simpleGraphImpl.EdgeList(source_col, dest_col,
@@ -754,10 +758,10 @@ class simpleGraphImpl:
             df = self.edgelist.edgelist_df
             if self.edgelist.weights:
                 source_col, dest_col, value_col = symmetrize(
-                    df["src"], df["dst"], df["weights"]
+                    df, 'src', 'dst', 'weights'
                 )
             else:
-                source_col, dest_col = symmetrize(df["src"], df["dst"])
+                source_col, dest_col = symmetrize(df, 'src', "dst")
                 value_col = None
             G.edgelist = simpleGraphImpl.EdgeList(source_col, dest_col,
                                                   value_col)

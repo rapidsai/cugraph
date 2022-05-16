@@ -49,8 +49,8 @@
 #include <vector>
 
 namespace cugraph {
-
 namespace detail {
+namespace original {
 
 /**
  * @brief Projects zip input onto the lower dim zip output, where lower dimension components are
@@ -158,7 +158,8 @@ void update_input_by_rank(raft::handle_t const& handle,
                           device_vec_t<gpu_t>& d_ranks,
                           gpu_t)
 {
-  auto&& [rx_tpl_v_r, rx_counts] = detail::shuffle_to_gpus(handle, graph_view, begin, end, gpu_t{});
+  auto&& [rx_tpl_v_r, rx_counts] =
+    detail::original::shuffle_to_gpus(handle, graph_view, begin, end, gpu_t{});
 
   // filter rx_tpl_v_r and rx_counts vector by rank:
   //
@@ -309,7 +310,7 @@ shuffle_to_target_gpu_ids(raft::handle_t const& handle,
 template <typename graph_view_t,
           typename gpu_t,
           typename index_t  = typename graph_view_t::edge_type,
-          typename seeder_t = detail::clock_seeding_t<uint64_t>>
+          typename seeder_t = cugraph::detail::original::clock_seeding_t<uint64_t>>
 std::tuple<device_vec_t<typename graph_view_t::vertex_type>,
            device_vec_t<typename graph_view_t::vertex_type>,
            device_vec_t<gpu_t>,
@@ -381,10 +382,10 @@ uniform_nbr_sample_impl(
         //
         device_vec_t<edge_t> d_rnd_indices(d_new_in.size() * k_level, handle.get_stream());
 
-        cugraph_ops::Rng rng(row_rank + level);
-        cugraph_ops::get_sampling_index(detail::raw_ptr(d_rnd_indices),
-                                        rng,
-                                        detail::raw_const_ptr(d_out_degs),
+        raft::random::RngState rng_state(row_rank + level);
+        cugraph_ops::get_sampling_index(detail::original::raw_ptr(d_rnd_indices),
+                                        rng_state,
+                                        detail::original::raw_const_ptr(d_out_degs),
                                         static_cast<edge_t>(d_out_degs.size()),
                                         static_cast<int32_t>(k_level),
                                         flag_replacement,
@@ -472,6 +473,7 @@ uniform_nbr_sample_impl(
   }
 }
 
+}  // namespace original
 }  // namespace detail
 
 template <typename graph_view_t, typename gpu_t, typename index_t>
@@ -496,8 +498,8 @@ uniform_nbr_sample(raft::handle_t const& handle,
   // shuffle input data to its corresponding rank;
   // (Note: shuffle prims require mutable iterators)
   //
-  detail::device_vec_t<vertex_t> d_start_vs(num_starting_vs, handle.get_stream());
-  detail::device_vec_t<gpu_t> d_ranks(num_starting_vs, handle.get_stream());
+  detail::original::device_vec_t<vertex_t> d_start_vs(num_starting_vs, handle.get_stream());
+  detail::original::device_vec_t<gpu_t> d_ranks(num_starting_vs, handle.get_stream());
   // ...hence copy required:
   //
   thrust::copy_n(handle.get_thrust_policy(), ptr_d_start, num_starting_vs, d_start_vs.begin());
@@ -511,38 +513,38 @@ uniform_nbr_sample(raft::handle_t const& handle,
   auto next_in_zip_end =
     thrust::make_zip_iterator(thrust::make_tuple(d_start_vs.end(), d_ranks.end()));
 
-  detail::update_input_by_rank(handle,
-                               graph_view,
-                               next_in_zip_begin,
-                               next_in_zip_end,
-                               self_rank,
-                               d_start_vs,
-                               d_ranks,
-                               gpu_t{});
+  detail::original::update_input_by_rank(handle,
+                                         graph_view,
+                                         next_in_zip_begin,
+                                         next_in_zip_end,
+                                         self_rank,
+                                         d_start_vs,
+                                         d_ranks,
+                                         gpu_t{});
 
   // preamble step for out-degree info:
   //
   auto&& [global_degree_offsets, global_out_degrees] =
-    detail::get_global_degree_information(handle, graph_view);
-  auto&& global_adjacency_list_offsets = detail::get_global_adjacency_offset(
+    detail::original::get_global_degree_information(handle, graph_view);
+  auto&& global_adjacency_list_offsets = detail::original::get_global_adjacency_offset(
     handle, graph_view, global_degree_offsets, global_out_degrees);
 
   // extract output quad SOA:
   //
   auto&& [d_src, d_dst, d_gpus, d_indices] =
-    detail::uniform_nbr_sample_impl(handle,
-                                    graph_view,
-                                    d_start_vs,
-                                    d_ranks,
-                                    h_fan_out,
-                                    global_out_degrees,
-                                    global_degree_offsets,
-                                    global_adjacency_list_offsets,
-                                    flag_replacement);
+    detail::original::uniform_nbr_sample_impl(handle,
+                                              graph_view,
+                                              d_start_vs,
+                                              d_ranks,
+                                              h_fan_out,
+                                              global_out_degrees,
+                                              global_degree_offsets,
+                                              global_adjacency_list_offsets,
+                                              flag_replacement);
 
   // shuffle quad SOA by d_gpus:
   //
-  return detail::shuffle_to_target_gpu_ids(handle, d_src, d_dst, d_gpus, d_indices);
+  return detail::original::shuffle_to_target_gpu_ids(handle, d_src, d_dst, d_gpus, d_indices);
 }
 
 }  // namespace cugraph
