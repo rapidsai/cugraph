@@ -71,3 +71,6 @@ uniform_neighborhood_sampling = experimental_warning_wrapper(EXPERIMENTAL__unifo
 
 from pylibcugraph.katz_centrality import EXPERIMENTAL__katz_centrality
 katz_centrality = experimental_warning_wrapper(EXPERIMENTAL__katz_centrality)
+
+from pylibcugraph.triangle_count import EXPERIMENTAL__triangle_count
+triangle_count = experimental_warning_wrapper(EXPERIMENTAL__triangle_count)

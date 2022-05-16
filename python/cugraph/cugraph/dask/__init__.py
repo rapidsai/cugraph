@@ -17,5 +17,6 @@ from .traversal.bfs import bfs
 from .traversal.sssp import sssp
 from .common.read_utils import get_chunksize
 from .community.louvain import louvain
+from .community.triangle_count import triangle_count
 from .centrality.katz_centrality import katz_centrality
 from .components.connectivity import weakly_connected_components
