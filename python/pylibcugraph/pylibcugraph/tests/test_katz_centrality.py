@@ -19,6 +19,7 @@ from pylibcugraph import (ResourceHandle,
                           SGGraph,
                           )
 from pylibcugraph.experimental import katz_centrality
+from cugraph.testing import utils
 import pathlib
 import pylibcugraph
 
