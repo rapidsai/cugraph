@@ -205,6 +205,7 @@ struct accumulate_vertex_property_t {
  * first (inclusive) vertex (assigned to this process in multi-GPU). `vertex_value_output_last`
  * (exclusive) is deduced as @p vertex_value_output_first + @p
  * graph_view.local_vertex_partition_range_size().
+ * @param A flag to run expensive checks for input arguments (if set to `true`).
  */
 template <typename GraphViewType,
           typename EdgePartitionSrcValueInputWrapper,
