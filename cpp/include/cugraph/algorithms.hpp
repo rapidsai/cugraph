@@ -1503,6 +1503,7 @@ void core_number(raft::handle_t const& handle,
 
 /**
  * @brief Multi-GPU Uniform Neighborhood Sampling.
+ * @deprecated will be removed later in this release (22.06)
  *
  * @tparam graph_view_t Type of graph view.
  * @tparam gpu_t Type of rank (GPU) indices;
@@ -1535,6 +1536,39 @@ uniform_nbr_sample(raft::handle_t const& handle,
                    size_t num_starting_vertices,
                    std::vector<int> const& h_fan_out,
                    bool with_replacement = true);
+
+/**
+ * @brief Uniform Neighborhood Sampling.
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam weight_t Type of edge weights. Needs to be a floating point type.
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param graph_view Graph View object to generate NBR Sampling on.
+ * @param starting_vertices Device span of starting vertex IDs for the NBR Sampling.
+ * @param fan_out Host span defining branching out (fan-out) degree per source vertex for each
+ * level
+ * @param with_replacement boolean flag specifying if random sampling is done with replacement
+ * (true); or, without replacement (false); default = true;
+ * @param seed A seed to initialize the random number generator
+ * @return tuple device vectors (vertex_t source_vertex, vertex_t destination_vertex, weight_t wgt)
+ */
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          bool store_transposed,
+          bool multi_gpu>
+std::
+  tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>, rmm::device_uvector<weight_t>>
+  uniform_nbr_sample(
+    raft::handle_t const& handle,
+    graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> const& graph_view,
+    raft::device_span<vertex_t> starting_vertices,
+    raft::host_span<const int> fan_out,
+    bool with_replacement = true,
+    uint64_t seed         = 0);
 
 /*
  * @brief Compute triangle counts.

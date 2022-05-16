@@ -318,7 +318,7 @@ class Louvain {
           pair_first,
           pair_first + current_graph_view_.local_vertex_partition_range_size(),
           [key_func =
-             cugraph::detail::compute_gpu_id_from_vertex_t<vertex_t>{
+             cugraph::detail::compute_gpu_id_from_ext_vertex_t<vertex_t>{
                comm_size}] __device__(auto val) { return key_func(thrust::get<0>(val)); },
           handle_.get_stream());
 
@@ -435,7 +435,7 @@ class Louvain {
     rmm::device_uvector<weight_t> vertex_cluster_weights_v(0, handle_.get_stream());
     edge_partition_src_property_t<graph_view_t, weight_t> src_cluster_weights(handle_);
     if constexpr (graph_view_t::is_multi_gpu) {
-      cugraph::detail::compute_gpu_id_from_vertex_t<vertex_t> vertex_to_gpu_id_op{
+      cugraph::detail::compute_gpu_id_from_ext_vertex_t<vertex_t> vertex_to_gpu_id_op{
         handle_.get_comms().get_size()};
 
       vertex_cluster_weights_v = cugraph::collect_values_for_keys(handle_.get_comms(),
