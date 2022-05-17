@@ -12,7 +12,6 @@
 # limitations under the License.
 
 from cugraph.community import louvain_wrapper
-from cugraph.structure.graph_classes import Graph
 from cugraph.utilities import (ensure_cugraph_obj_for_nx,
                                df_score_to_dictionary,
                                )
@@ -35,6 +34,7 @@ def louvain(G, max_iter=100, resolution=1.):
         The graph descriptor should contain the connectivity information
         and weights. The adjacency list will be computed if not already
         present.
+        The current implementation only supports undirected graphs.
 
     max_iter : integer, optional (default=100)
         This controls the maximum number of levels/iterations of the Louvain
@@ -77,8 +77,8 @@ def louvain(G, max_iter=100, resolution=1.):
 
     G, isNx = ensure_cugraph_obj_for_nx(G)
 
-    if type(G) is not Graph:
-        raise Exception("input graph must be undirected")
+    if G.is_directed():
+        raise ValueError("input graph must be undirected")
 
     parts, modularity_score = louvain_wrapper.louvain(
         G, max_iter, resolution
