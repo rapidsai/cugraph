@@ -12,7 +12,6 @@
 # limitations under the License.
 
 from cugraph.community import leiden_wrapper
-from cugraph.structure.graph_classes import Graph
 from cugraph.utilities import (ensure_cugraph_obj_for_nx,
                                df_score_to_dictionary,
                                )
@@ -33,6 +32,8 @@ def leiden(G, max_iter=100, resolution=1.):
     ----------
     G : cugraph.Graph
         cuGraph graph descriptor of type Graph
+
+        The current implementation only supports undirected graphs.
 
         The adjacency list will be computed if not already present.
 
@@ -76,8 +77,8 @@ def leiden(G, max_iter=100, resolution=1.):
     """
     G, isNx = ensure_cugraph_obj_for_nx(G)
 
-    if type(G) is not Graph:
-        raise Exception(f"input graph must be undirected was {type(G)}")
+    if G.is_directed():
+        raise ValueError("input graph must be undirected")
 
     parts, modularity_score = leiden_wrapper.leiden(
         G, max_iter, resolution
