@@ -39,6 +39,7 @@
 namespace cugraph {
 namespace detail {
 
+
 // FIXME: personalization_vector_size is confusing in OPG (local or aggregate?)
 template <typename GraphViewType, typename result_t>
 void pagerank(
@@ -55,6 +56,14 @@ void pagerank(
   bool has_initial_guess,
   bool do_expensive_check)
 {
+
+  /**
+   * TODO: Add masking to the following prims:
+   * 1. count_if_v
+   * 2. count_if_e
+   * 3. transform_reduce_v
+   * 4.
+   */
   using vertex_t = typename GraphViewType::vertex_type;
   using weight_t = typename GraphViewType::weight_type;
 
@@ -290,7 +299,7 @@ void pagerank(
   }
 }
 
-}  // namespace detail
+}  // namespace detail5
 
 template <typename vertex_t, typename edge_t, typename weight_t, typename result_t, bool multi_gpu>
 void pagerank(raft::handle_t const& handle,

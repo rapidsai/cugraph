@@ -95,6 +95,7 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
   graph_t(raft::handle_t const& handle,
           std::vector<edgelist_t<vertex_t, edge_t, weight_t>> const& edgelists,
           graph_meta_t<vertex_t, edge_t, multi_gpu> meta,
+          graph_mask_t &mask,
           bool do_expensive_check = false);
 
   graph_t(raft::handle_t const& handle,
@@ -102,6 +103,7 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
           std::vector<rmm::device_uvector<vertex_t>>&& edgelist_dst_partitions,
           std::optional<std::vector<rmm::device_uvector<weight_t>>>&& edge_weight_partitions,
           graph_meta_t<vertex_t, edge_t, multi_gpu> meta,
+          std::vector<graph_mask_t>&& mask,
           bool do_expensive_check = false);
 
   /**
@@ -210,7 +212,8 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
                                            (*local_sorted_unique_edge_dsts_).size()}
           : std::nullopt,
         local_sorted_unique_edge_dst_offsets_,
-      });
+      },
+      mask_);
   }
 
   std::tuple<rmm::device_uvector<vertex_t>,
@@ -224,6 +227,8 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
   std::vector<rmm::device_uvector<edge_t>> edge_partition_offsets_{};
   std::vector<rmm::device_uvector<vertex_t>> edge_partition_indices_{};
   std::optional<std::vector<rmm::device_uvector<weight_t>>> edge_partition_weights_{std::nullopt};
+
+  std::vector<graph_mask_t> mask_{};
 
   // nzd: nonzero (local) degree, relevant only if segment_offsets.size() > 0
   std::optional<std::vector<rmm::device_uvector<vertex_t>>> edge_partition_dcs_nzd_vertices_{
@@ -273,6 +278,7 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
           rmm::device_uvector<vertex_t>&& edgelist_dsts,
           std::optional<rmm::device_uvector<weight_t>>&& edgelist_weights,
           graph_meta_t<vertex_t, edge_t, multi_gpu> meta,
+          graph_mask_t &mask,
           bool do_expensive_check = false);
 
   /**
@@ -342,7 +348,9 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
       graph_view_meta_t<vertex_t, edge_t, multi_gpu>{this->number_of_vertices(),
                                                      this->number_of_edges(),
                                                      this->graph_properties(),
-                                                     segment_offsets_});
+                                                     segment_offsets_},
+      mask_
+      );
   }
 
   // FIXME: possibley to be added later;
@@ -387,7 +395,8 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
           rmm::device_uvector<edge_t>&& offsets,
           rmm::device_uvector<vertex_t>&& indices,
           std::optional<rmm::device_uvector<weight_t>>&& weights,
-          std::optional<std::vector<vertex_t>>&& segment_offsets)
+          std::optional<std::vector<vertex_t>>&& segment_offsets),
+          graph_mask_t &mask,
     : detail::graph_base_t<vertex_t, edge_t, weight_t>(
         handle, number_of_vertices, number_of_edges, properties),
       offsets_(std::move(offsets)),
@@ -403,6 +412,7 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
 
   // segment offsets based on vertex degree, relevant only if sorted_by_global_degree is true
   std::optional<std::vector<vertex_t>> segment_offsets_{};
+  graph_mask_t mask_{};
 };
 
 template <typename T, typename Enable = void>

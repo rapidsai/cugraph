@@ -40,6 +40,21 @@ namespace serializer {
 class serializer_t;  // forward...
 }
 
+struct graph_mask_t {
+public:
+    graph_mask_t(bool const* edges, bool const* vertices, bool complement = false):
+        edges_(edges), vertices_(vertices), complement_(complement)
+
+    bool is_complemented() const { return complement_; }
+    bool *edges() const { return edges_; }
+    bool *vertices() const { return vertices_; }
+
+private:
+    bool complement_;
+    bool const* edges_{nullptr};
+    bool const* vertices_{nullptr};
+};
+
 /**
  * @brief store vertex partitioning map
  *
@@ -383,7 +398,8 @@ class graph_view_t<vertex_t,
                std::optional<std::vector<weight_t const*>> const& edge_partition_weights,
                std::optional<std::vector<vertex_t const*>> const& edge_partition_dcs_nzd_vertices,
                std::optional<std::vector<vertex_t>> const& edge_partition_dcs_nzd_vertex_counts,
-               graph_view_meta_t<vertex_t, edge_t, multi_gpu> meta);
+               graph_view_meta_t<vertex_t, edge_t, multi_gpu> meta,
+               std::vector<graph_mask_t const &> const& mask);
 
   bool is_weighted() const { return edge_partition_weights_.has_value(); }
 
@@ -642,6 +658,7 @@ class graph_view_t<vertex_t,
  private:
   std::vector<edge_t const*> edge_partition_offsets_{};
   std::vector<vertex_t const*> edge_partition_indices_{};
+
   std::optional<std::vector<weight_t const*>> edge_partition_weights_{};
 
   // relevant only if we use the CSR + DCSR (or CSC + DCSC) hybrid format
@@ -663,6 +680,8 @@ class graph_view_t<vertex_t,
   std::optional<vertex_t const*> local_sorted_unique_edge_dst_first_{std::nullopt};
   std::optional<vertex_t const*> local_sorted_unique_edge_dst_last_{std::nullopt};
   std::optional<std::vector<vertex_t>> local_sorted_unique_edge_dst_offsets_{std::nullopt};
+
+  std::vector<graph_mask_t const &> &mask_{};
 };
 
 // single-GPU version
@@ -689,7 +708,8 @@ class graph_view_t<vertex_t,
                edge_t const* offsets,
                vertex_t const* indices,
                std::optional<weight_t const*> weights,
-               graph_view_meta_t<vertex_t, edge_t, multi_gpu> meta);
+               graph_view_meta_t<vertex_t, edge_t, multi_gpu> meta,
+               graph_mask_t &mask);
 
   bool is_weighted() const { return weights_.has_value(); }
 
@@ -858,6 +878,8 @@ class graph_view_t<vertex_t,
 
   // segment offsets based on vertex degree, relevant only if vertex IDs are renumbered
   std::optional<std::vector<vertex_t>> segment_offsets_{std::nullopt};
+
+  graph_mask_t &mask_{nullptr};
 };
 
 }  // namespace cugraph
