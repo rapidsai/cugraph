@@ -71,7 +71,7 @@ from cugraph.components import (
     strongly_connected_components,
 )
 
-from cugraph.link_analysis import pagerank, hits, hits2
+from cugraph.link_analysis import pagerank, hits
 
 from cugraph.link_prediction import (
     jaccard,
