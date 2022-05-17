@@ -12,7 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import sys
+import subprocess
 from pathlib import Path
+import time
 
 import pytest
 
@@ -29,8 +32,39 @@ _data = {"karate": {"csv_file_name":
 ###############################################################################
 ## fixtures
 
-@pytest.fixture
-def client():
+@pytest.fixture(scope="module")
+def server():
+    from gaas_server import server
+    server_file = server.__file__
+    server_process = None
+
+    with subprocess.Popen([sys.executable, server_file],
+                          stdout=subprocess.PIPE,
+                          stderr=subprocess.STDOUT,
+                          text=True) as server_process:
+        try:
+            print("\nLaunched GaaS server, waiting for it to start...",
+                  end="", flush=True)
+            o = server_process.stdout.readline()
+            if "Starting GaaS..." in o :
+                time.sleep(1)
+                print("started.", flush=True)
+            else:
+                raise RuntimeError(f"error starting server: {o}")
+        except:
+            if server_process.poll() is None:
+                server_process.terminate()
+            raise
+
+        yield
+
+        print("\nTerminating server...", end="", flush=True)
+        server_process.terminate()
+        print("done.", flush=True)
+
+
+@pytest.fixture(scope="function")
+def client(server):
     from gaas_client import GaasClient, defaults
 
     client = GaasClient(defaults.host, defaults.port)
@@ -45,7 +79,7 @@ def client():
     client.close()
 
 
-@pytest.fixture
+@pytest.fixture(scope="function")
 def client_with_csv_loaded(client):
     test_data = _data["karate"]
     client.load_csv_as_edge_data(test_data["csv_file_name"],
