@@ -114,8 +114,11 @@ def sssp(input_graph, source):
         dst_col_name = input_graph.renumber_map.renumbered_dst_col_name
 
         source = input_graph.lookup_internal_vertex_id(
-            cudf.Series([source])).compute()
+            cudf.Series([source])).fillna(-1).compute()
         source = source.iloc[0]
+
+        if source < 0:
+            raise ValueError('Invalid source vertex')
     else:
         # If the input graph was created with renumbering disabled (Graph(...,
         # renumber=False), the above compute_renumber_edge_list() call will not

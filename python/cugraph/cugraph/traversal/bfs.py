@@ -12,6 +12,7 @@
 # limitations under the License.
 
 import cudf
+import dask_cudf
 
 from cugraph.traversal import bfs_wrapper
 from cugraph.structure.graph_classes import Graph, DiGraph
@@ -35,6 +36,8 @@ def _ensure_args(G, start, i_start, directed):
     if (start is None) and (i_start is None):
         raise TypeError("must specify 'start' or 'i_start', but not both")
 
+    start = start if start is not None else i_start
+
     G_type = type(G)
     # Check for Graph-type inputs
     if (G_type in [Graph, DiGraph]) or is_nx_graph_type(G_type):
@@ -42,7 +45,49 @@ def _ensure_args(G, start, i_start, directed):
             raise TypeError("'directed' cannot be specified for a "
                             "Graph-type input")
 
-    start = start if start is not None else i_start
+        # ensure start vertex is valid
+        invalid_vertex_err = ValueError('A provided vertex was not valid')
+        if is_nx_graph_type(G_type):
+            if start not in G:
+                raise invalid_vertex_err
+        else:
+            if not isinstance(start, cudf.DataFrame):
+                if not isinstance(start, dask_cudf.DataFrame):
+                    start = cudf.DataFrame(
+                        {'starts': cudf.Series(start)}
+                    )
+
+            if G.is_renumbered():
+                validlen = len(
+                    G.renumber_map.to_internal_vertex_id(
+                        start,
+                        start.columns
+                    ).dropna()
+                )
+                if validlen < len(start):
+                    raise invalid_vertex_err
+            else:
+                el = G.edgelist.edgelist_df[["src", "dst"]]
+                col = start.columns[0]
+                null_l = el \
+                    .merge(
+                        start[col].rename('src'),
+                        on='src',
+                        how='right'
+                    ) \
+                    .dst.isnull() \
+                    .sum()
+                null_r = el \
+                    .merge(
+                        start[col].rename('dst'),
+                        on='dst',
+                        how='right'
+                    ) \
+                    .src.isnull() \
+                    .sum()
+                if null_l + null_r > 0:
+                    raise invalid_vertex_err
+
     if directed is None:
         directed = True
 
@@ -165,17 +210,24 @@ def bfs(G,
     # FIXME: allow nx_weight_attr to be specified
     (G, input_type) = ensure_cugraph_obj(
         G, nx_weight_attr="weight",
-        matrix_graph_type=Graph(directed=directed))
+        matrix_graph_type=Graph(directed=directed)
+    )
 
     # The BFS C++ extension assumes the start vertex is a cudf.Series object,
     # and operates on internal vertex IDs if renumbered.
+    is_dataframe = isinstance(start, cudf.DataFrame) or \
+        isinstance(start, dask_cudf.DataFrame)
     if G.renumbered is True:
-        if isinstance(start, cudf.DataFrame):
+        if is_dataframe:
             start = G.lookup_internal_vertex_id(start, start.columns)
         else:
             start = G.lookup_internal_vertex_id(cudf.Series(start))
+
     else:
-        start = cudf.Series(start)
+        if is_dataframe:
+            start = start[start.columns[0]]
+        else:
+            start = cudf.Series(start, name='starts')
 
     df = bfs_wrapper.bfs(G, start, depth_limit)
     if G.renumbered:

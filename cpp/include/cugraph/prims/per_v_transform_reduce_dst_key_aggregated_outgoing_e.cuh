@@ -160,7 +160,7 @@ struct reduce_with_init_t {
  * @tparam ValueIterator Type of the iterator for values in (key, value) pairs.
  * @tparam KeyAggregatedEdgeOp Type of the quinary key-aggregated edge operator.
  * @tparam ReduceOp Type of the binary reduction operator.
- * @tparam T Type of the initial value for reduction over the key-aggregated outgoing edges.
+ * @tparam T Type of the initial value for per-vertex reduction.
  * @tparam VertexValueOutputIterator Type of the iterator for vertex output property variables.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
