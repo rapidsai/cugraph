@@ -1,4 +1,4 @@
-# Copyright (c) 2021, NVIDIA CORPORATION.
+# Copyright (c) 2021-2022, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -87,6 +87,8 @@ def run(algos,
                   "wcc": funcs.wcc,
                   "katz": funcs.katz,
                   "wcc": funcs.wcc,
+                  "hits": funcs.hits,
+                  "neighborhood_sampling": funcs.neighborhood_sampling,
                  }
 
     if algos:

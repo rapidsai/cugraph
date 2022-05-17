@@ -35,6 +35,13 @@ with warnings.catch_warnings():
 print("Networkx version : {} ".format(nx.__version__))
 
 
+# =============================================================================
+# Pytest Setup / Teardown - called for each test function
+# =============================================================================
+def setup_function():
+    gc.collect()
+
+
 # These ground truth files have been created by running the networkx ktruss
 # function on reference graphs. Currently networkx ktruss has an error such
 # that nx.k_truss(G,k-2) gives the expected result for running ktruss with
@@ -101,7 +108,6 @@ def test_unsupported_cuda_version():
                     f"{__unsupported_cuda_version} environment.")
 @pytest.mark.parametrize("graph_file, nx_ground_truth", utils.DATASETS_KTRUSS)
 def test_ktruss_subgraph_Graph(graph_file, nx_ground_truth):
-    gc.collect()
 
     k = 5
     cu_M = utils.read_csv_file(graph_file)
@@ -117,7 +123,6 @@ def test_ktruss_subgraph_Graph(graph_file, nx_ground_truth):
                     f"{__unsupported_cuda_version} environment.")
 @pytest.mark.parametrize("graph_file, nx_ground_truth", utils.DATASETS_KTRUSS)
 def test_ktruss_subgraph_Graph_nx(graph_file, nx_ground_truth):
-    gc.collect()
 
     k = 5
     M = utils.read_csv_for_nx(graph_file, read_weights_in_sp=True)
@@ -129,3 +134,22 @@ def test_ktruss_subgraph_Graph_nx(graph_file, nx_ground_truth):
     k_truss_nx = nx.k_truss(G, k)
 
     assert nx.is_isomorphic(k_subgraph, k_truss_nx)
+
+
+@pytest.mark.skipif((__cuda_version == __unsupported_cuda_version),
+                    reason="skipping on unsupported CUDA "
+                    f"{__unsupported_cuda_version} environment.")
+def test_ktruss_subgraph_directed_Graph():
+    input_data_path = (utils.RAPIDS_DATASET_ROOT_DIR_PATH /
+                       "karate-asymmetric.csv").as_posix()
+    k = 5
+    edgevals = True
+    cu_M = utils.read_csv_file(input_data_path)
+    G = cugraph.Graph(directed=True)
+    if edgevals:
+        G.from_cudf_edgelist(cu_M, source="0", destination="1", edge_attr="2")
+    else:
+        G.from_cudf_edgelist(cu_M, source="0", destination="1")
+
+    with pytest.raises(ValueError):
+        cugraph.k_truss(G, k)
