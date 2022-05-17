@@ -34,3 +34,5 @@ from pylibcugraph.sssp import sssp
 from pylibcugraph.hits import hits
 
 from pylibcugraph.node2vec import node2vec
+
+from pylibcugraph.bfs import bfs

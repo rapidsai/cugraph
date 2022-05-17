@@ -13,12 +13,16 @@
 # limitations under the License.
 #
 
-from collections.abc import Iterable
+from pylibcugraph.experimental import (MGGraph,
+                                       ResourceHandle,
+                                       GraphProperties,
+                                       bfs as pylibcugraph_bfs,
+                                       )
 
+from collections.abc import Iterable
 from dask.distributed import wait, default_client
 from cugraph.dask.common.input_utils import (get_distributed_data,
                                              get_vertex_partition_offsets)
-from cugraph.dask.traversal import mg_bfs_wrapper as mg_bfs
 import cugraph.dask.comms.comms as Comms
 import cudf
 import dask_cudf
@@ -52,6 +56,55 @@ def call_bfs(sID,
                          start,
                          depth_limit,
                          return_distances)
+
+def _call_plc_mg_bfs(
+    sID,
+    data,
+    sources,
+    depth_limit,
+    src_col_name,
+    dst_col_name,
+    num_edges,
+    direction_optimizing=False,
+    do_expensive_check=False,
+    return_predecessors=True):
+    comms_handle = Comms.get_handle(sID)
+    resource_handle = ResourceHandle(comms_handle.getHandle())
+
+    srcs = data[0][src_col_name]
+    dsts = data[0][dst_col_name]
+    weights = data[0]['value'] \
+        if 'value' in data[0].columns \
+        else cudf.Series((srcs + 1) / (srcs + 1), dtype='float32')
+
+
+    mg = MGGraph(
+        resource_handle = resource_handle,
+        graph_properties = GraphProperties(is_symmetric=False, is_multigraph=False),
+        src_array = srcs,
+        dst_array = dsts,
+        weights = weights,
+        store_transposed = False,
+        num_edges = num_edges,
+        do_expensive_check = do_expensive_check
+    )
+
+    distances, predecessors, vertices = \
+        pylibcugraph_bfs(
+            resource_handle,    
+            mg,
+            sources,
+            direction_optimizing,
+            depth_limit if depth_limit is not None else -1,
+            return_predecessors,
+            do_expensive_check
+        )
+    
+    return cudf.DataFrame({
+        'distance': cudf.Series(distances),
+        'vertex': cudf.Series(vertices),
+        'predecessor': cudf.Series(predecessors),
+    })
 
 
 def bfs(input_graph,
@@ -176,17 +229,16 @@ def bfs(input_graph,
         dst_col_name = input_graph.destination_columns
 
     result = [client.submit(
-              call_bfs,
+              _call_plc_mg_bfs,
               Comms.get_session_id(),
               wf[1],
-              src_col_name,
-              dst_col_name,
-              num_verts,
-              num_edges,
-              vertex_partition_offsets,
-              input_graph.aggregate_segment_offsets,
               start[idx],
               depth_limit,
+              src_col_name,
+              dst_col_name,
+              num_edges,
+              False,
+              False,
               return_distances,
               workers=[wf[0]])
               for idx, wf in enumerate(data.worker_to_parts.items())]
