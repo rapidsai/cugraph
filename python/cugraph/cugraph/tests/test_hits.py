@@ -93,7 +93,7 @@ def test_nx_hits(benchmark, input_combo):
 def test_hits(benchmark, input_expected_output):
     G = utils.generate_cugraph_graph_from_file(
         input_expected_output["graph_file"])
-    cugraph_hits = benchmark(cugraph.hits2,
+    cugraph_hits = benchmark(cugraph.hits,
                              G,
                              input_expected_output["max_iter"],
                              input_expected_output["tol"])
