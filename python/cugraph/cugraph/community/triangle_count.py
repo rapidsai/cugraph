@@ -11,8 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import cugraph.community as community
-# from cugraph.community import triangle_count_wrapper
+from cugraph.community import triangle_count_wrapper
 from cugraph.structure.graph_classes import Graph
 from cugraph.utilities import ensure_cugraph_obj_for_nx
 
@@ -54,6 +53,6 @@ def triangles(G):
     if type(G) is not Graph:
         raise Exception("input graph must be undirected")
 
-    result = community.triangle_count_wrapper.triangles(G)
+    result = triangle_count_wrapper.triangles(G)
 
     return result
