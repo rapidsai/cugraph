@@ -1023,8 +1023,6 @@ void update_v_frontier_from_outgoing_e(
   // vertex property is updated by multiple v_op invocations with the same vertex but with different
   // tags.
   VertexValueOutputIterator vertex_value_output_first,
-  // FIXME: this takes (tagged-)vertex ID in addition, think about consistency with the other
-  // primitives.
   VertexOp v_op)
 {
   static_assert(!GraphViewType::is_storage_transposed,
