@@ -131,8 +131,8 @@ def test_dask_katz_centrality_nstart(dask_client, directed):
     estimate["values"] = 0.5
 
     mg_estimate_res = dcg.katz_centrality(dg, alpha=katz_alpha,
-                                           nstart=estimate,
-                                           max_iter=50, tol=1e-6)
+                                          nstart=estimate,
+                                          max_iter=50, tol=1e-6)
     mg_estimate_res = mg_estimate_res.compute()
 
     err = 0
