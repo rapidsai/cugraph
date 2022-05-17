@@ -193,6 +193,8 @@ class simpleGraphImpl:
             source column name or array of column names
         destination : str or array-like, optional (default='destination')
             destination column name or array of column names
+        weight : str or array-like, optional (default='weight')
+            weight column name or array of column names
 
         Returns
         -------
