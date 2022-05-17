@@ -69,7 +69,7 @@ graph_reference(vertex_t const* p_src_vertices,
 
 struct Graph_Usecase {
   bool test_weighted{false};
-  bool multi_graph{false};
+  bool multigraph{false};
   bool check_correctness{true};
 };
 
@@ -130,7 +130,7 @@ class Tests_Graph : public ::testing::TestWithParam<std::tuple<Graph_Usecase, in
       edgelist,
       cugraph::graph_meta_t<vertex_t, edge_t, false>{
         number_of_vertices,
-        cugraph::graph_properties_t{is_symmetric, graph_usecase.multi_graph},
+        cugraph::graph_properties_t{is_symmetric, graph_usecase.multigraph},
         std::nullopt},
       true);
 

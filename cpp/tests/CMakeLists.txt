@@ -496,6 +496,10 @@ ConfigureTest(RANDOM_WALKS_VISITOR_TEST visitors/rw_test.cu)
 ConfigureTest(CORE_NUMBER_TEST cores/core_number_test.cpp)
 
 ###################################################################################################
+# - Triangle Count tests --------------------------------------------------------------------------
+ConfigureTest(TRIANGLE_COUNT_TEST community/triangle_count_test.cpp)
+
+###################################################################################################
 # - MG tests --------------------------------------------------------------------------------------
 
 if(BUILD_CUGRAPH_MG_TESTS)
@@ -573,6 +577,10 @@ if(BUILD_CUGRAPH_MG_TESTS)
         ###########################################################################################
         # - MG Core Number tests ------------------------------------------------------------------
         ConfigureTestMG(MG_CORE_NUMBER_TEST cores/mg_core_number_test.cpp)
+
+        ###########################################################################################
+        # - MG TRIANGLE COUNT tests ---------------------------------------------------------------
+        ConfigureTestMG(MG_TRIANGLE_COUNT_TEST community/mg_triangle_count_test.cpp)
 
         ###########################################################################################
         # - MG PRIMS COUNT_IF_V tests -------------------------------------------------------------
