@@ -12,7 +12,7 @@
 # limitations under the License.
 
 import cugraph.community as community
-#from cugraph.community import triangle_count_wrapper
+# from cugraph.community import triangle_count_wrapper
 from cugraph.structure.graph_classes import Graph
 from cugraph.utilities import ensure_cugraph_obj_for_nx
 

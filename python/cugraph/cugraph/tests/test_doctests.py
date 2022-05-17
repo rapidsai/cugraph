@@ -35,6 +35,7 @@ datasets = utils.RAPIDS_DATASET_ROOT_DIR_PATH
 
 cuda_version_string = ".".join([str(n) for n in cuda.runtime.get_version()])
 
+
 def _is_public_name(name):
     return not name.startswith("_")
 
@@ -108,11 +109,12 @@ def _fetch_doctests():
 
 
 def skip_docstring(docstring):
-    # Depending on different builds or architectures, some examples will not work.
-    # This 
+    # Depending on different builds or architectures, some examples
+    # won't work.
     first_line = docstring.examples[0].source
-    #breakpoint()
-    if re.search("does not run on CUDA", first_line) and cuda_version_string in first_line:
+
+    if re.search("does not run on CUDA", first_line) and \
+       cuda_version_string in first_line:
         return True
     return False
 
@@ -140,7 +142,7 @@ class TestDoctests:
         if skip_docstring(docstring):
             print("Skipped!")
             return
-        
+
         optionflags = doctest.ELLIPSIS | doctest.NORMALIZE_WHITESPACE
         runner = doctest.DocTestRunner(optionflags=optionflags)
         np.random.seed(6)

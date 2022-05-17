@@ -23,6 +23,7 @@ from pylibcugraph import (ResourceHandle,
                           )
 import cudf
 
+
 def hits2(G, max_iter=100, tol=1.0e-5, nstart=None, normalized=True):
     # Input validation
 
@@ -34,27 +35,27 @@ def hits2(G, max_iter=100, tol=1.0e-5, nstart=None, normalized=True):
     dsts = G.edgelist.edgelist_df['dst']
     # edge weights are not used for this algorithm
     weights = G.edgelist.edgelist_df['src'] * 0.0
-    #breakpoint()
+    # breakpoint()
 
     resource_handle = ResourceHandle()
     graph_props = GraphProperties(is_multigraph=G.is_multigraph())
     store_transposed = False
     renumber = False
     do_expensive_check = False
-    initial_hubs_guess_vertices = None
-    initial_hubs_guess_values = None
+    init_hubs_guess_vertices = None
+    init_hubs_guess_values = None
 
     if nstart is not None:
-        initial_hubs_guess_vertices = nstart['vertex']
-        initial_hubs_guess_values = nstart['values']
+        init_hubs_guess_vertices = nstart['vertex']
+        init_hubs_guess_values = nstart['values']
 
     sg = SGGraph(resource_handle, graph_props, srcs, dsts, weights,
                  store_transposed, renumber, do_expensive_check)
-    
+
     vertices, hubs, authorities = pylibcugraph_hits(resource_handle, sg, tol,
                                                     max_iter,
-                                                    initial_hubs_guess_vertices,
-                                                    initial_hubs_guess_values,
+                                                    init_hubs_guess_vertices,
+                                                    init_hubs_guess_values,
                                                     normalized,
                                                     do_expensive_check)
     results = cudf.DataFrame()
@@ -64,9 +65,10 @@ def hits2(G, max_iter=100, tol=1.0e-5, nstart=None, normalized=True):
 
     if isNx is True:
         d1 = df_score_to_dictionary(results[["vertex", "hubs"]], "hubs")
-        d2 = df_score_to_dictionary(results[["vertex", "authorities"]], "authorities")
-        results = (d1, d2) 
-    
+        d2 = df_score_to_dictionary(results[["vertex", "authorities"]],
+                                    "authorities")
+        results = (d1, d2)
+
     if G.renumbered:
         results = G.unrenumber(results, "vertex")
 
