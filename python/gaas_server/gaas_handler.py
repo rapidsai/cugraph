@@ -44,6 +44,13 @@ class GaasHandler:
         return int(time.time()) - self.__start_time
 
     def load_graph_creation_extensions(self, extension_dir_path):
+        """
+        Loads ("imports") all modules matching the pattern *_extension.py in the
+        directory specified by extension_dir_path.
+
+        The modules are searched and their functions are called (if a match is
+        found) when call_graph_creation_extension() is called.
+        """
         extension_dir = Path(extension_dir_path)
 
         if (not extension_dir.exists()) or (not extension_dir.is_dir()):
@@ -69,6 +76,21 @@ class GaasHandler:
 
     def call_graph_creation_extension(self, func_name,
                                       func_args_repr, func_kwargs_repr):
+        """
+        Calls the graph creation extension function func_name and passes it the
+        eval'd func_args_repr and func_kwargs_repr objects.
+
+        The arg/kwarg reprs are eval'd prior to calling in order to pass actual
+        python objects to func_name (this is needed to allow arbitrary arg
+        objects to be serialized as part of the RPC call from the
+        client).
+
+        func_name cannot be a private name (name starting with __).
+
+        All loaded extension modules are checked when searching for func_name,
+        and the first extension module that contains it will have its function
+        called.
+        """
         if not(func_name.startswith("__")):
             for module in self.__graph_creation_extensions.values():
                 # Ignore private functions
@@ -103,6 +125,9 @@ class GaasHandler:
             raise GaasError(f"invalid graph_id {graph_id}")
 
     def get_graph_ids(self):
+        """
+        Returns a list of the graph IDs currently in use.
+        """
         return list(self.__graph_objs.keys())
 
     def load_csv_as_vertex_data(self,
@@ -115,6 +140,11 @@ class GaasHandler:
                                 property_columns,
                                 graph_id
                                 ):
+        """
+        Given a CSV csv_file_name present on the server's file system, read it
+        and apply it as edge data to the graph specified by graph_id, or the
+        default graph if not specified.
+        """
         pG = self._get_graph(graph_id)
         if header == -1:
             header = "infer"
@@ -141,6 +171,11 @@ class GaasHandler:
                               property_columns,
                               graph_id
                               ):
+        """
+        Given a CSV csv_file_name present on the server's file system, read it
+        and apply it as vertex data to the graph specified by graph_id, or the
+        default graph if not specified.
+        """
         pG = self._get_graph(graph_id)
         # FIXME: error check that file exists
         # FIXME: error check that edgelist read correctly
@@ -158,6 +193,9 @@ class GaasHandler:
                          property_columns=property_columns)
 
     def get_num_edges(self, graph_id):
+        """
+        Return the number of edges for the graph specified by graph_id.
+        """
         pG = self._get_graph(graph_id)
         # FIXME: ensure non-PropertyGraphs that compute num_edges differently
         # work too.
@@ -197,6 +235,7 @@ class GaasHandler:
     def node2vec(self, start_vertices, max_depth, graph_id):
         """
         """
+        # FIXME: finish docstring above
         # FIXME: exception handling
         G = self._get_graph(graph_id)
         if isinstance(G, PropertyGraph):
@@ -227,6 +266,14 @@ class GaasHandler:
     # "Protected" interface - used for both implementation and test/debug. Will
     # not be exposed to a GaaS client.
     def _get_graph(self, graph_id):
+        """
+        Return the cuGraph Graph object (likely a PropertyGraph) associated with
+        graph_id.
+
+        If the graph_id is the default graph ID and the default graph has not
+        been created, then instantiate a new PropertyGraph as the default graph
+        and return it.
+        """
         pG = self.__graph_objs.get(graph_id)
         if pG is None:
             # Always create the default graph if it does not exist
@@ -240,6 +287,10 @@ class GaasHandler:
     ############################################################################
     # Private
     def __add_graph(self, G):
+        """
+        Create a new graph ID for G and add G to the internal mapping of graph
+        instance:graph ID.
+        """
         gid = self.__next_graph_id
         self.__graph_objs[gid] = G
         self.__next_graph_id += 1
