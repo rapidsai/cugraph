@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import os
 import sys
 import subprocess
 from pathlib import Path
@@ -49,11 +50,21 @@ def server(graph_creation_extension1):
     graph_creation_extension_dir = graph_creation_extension1
     client = GaasClient(host, port)
 
+    # pytest will update sys.path based on the tests it discovers, and for this
+    # source tree, an entry for the parent of this "tests" directory will be
+    # added. The parent to this "tests" directory also allows imports to find
+    # the GaaS sources, so in oder to ensure the server that's started is also
+    # using the same sources, the PYTHONPATH env should be set to the sys.path
+    # being used in this process.
+    env_dict = os.environ.copy()
+    env_dict["PYTHONPATH"] = ":".join(sys.path)
+
     with subprocess.Popen(
             [sys.executable, server_file,
              "--host", host,
              "--port", str(port),
              "--graph-creation-extension-dir", graph_creation_extension_dir],
+            env=env_dict,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             text=True) as server_process:
@@ -191,7 +202,6 @@ def test_call_graph_creation_extension(client):
 
 def test_load_and_call_graph_creation_extension(client,
                                                 graph_creation_extension2):
-
     """
     Tests calling a user-defined server-side graph creation extension from the
     GaaS client.
