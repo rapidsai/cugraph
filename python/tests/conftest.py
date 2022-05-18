@@ -17,7 +17,19 @@ from tempfile import TemporaryDirectory
 
 import pytest
 
-graph_creation_extension_file_contents = """
+graph_creation_extension1_file_contents = """
+import cudf
+from cugraph.experimental import PropertyGraph
+
+def custom_graph_creation_function():
+   edgelist = cudf.DataFrame(columns=['src', 'dst'],
+                             data=[(0, 77), (1, 88), (2, 99)])
+   pG = PropertyGraph()
+   pG.add_edge_data(edgelist, vertex_col_names=('src', 'dst'))
+   return pG
+"""
+
+graph_creation_extension2_file_contents = """
 import cudf
 from cugraph.experimental import PropertyGraph
 
@@ -25,21 +37,33 @@ def __my_private_function():
    pass
 
 def my_graph_creation_function(arg1, arg2):
-   edgelist = cudf.DataFrame(columns=[arg1, arg2], data=[(0,1), (88,99)])
+   edgelist = cudf.DataFrame(columns=[arg1, arg2], data=[(0, 1), (88, 99)])
    pG = PropertyGraph()
    pG.add_edge_data(edgelist, vertex_col_names=(arg1, arg2))
    return pG
 """
 
-@pytest.fixture
-def graph_creation_extension():
+@pytest.fixture(scope="module")
+def graph_creation_extension1():
+    with TemporaryDirectory() as tmp_extension_dir:
+        # write graph creation extension .py file
+        graph_creation_extension_file = open(
+            Path(tmp_extension_dir)/"custom_graph_creation_extension.py",
+            "w")
+        print(graph_creation_extension1_file_contents,
+              file=graph_creation_extension_file,
+              flush=True)
 
+        yield tmp_extension_dir
+
+@pytest.fixture(scope="module")
+def graph_creation_extension2():
     with TemporaryDirectory() as tmp_extension_dir:
         # write graph creation extension .py file
         graph_creation_extension_file = open(
             Path(tmp_extension_dir)/"my_graph_creation_extension.py",
             "w")
-        print(graph_creation_extension_file_contents,
+        print(graph_creation_extension2_file_contents,
               file=graph_creation_extension_file,
               flush=True)
 

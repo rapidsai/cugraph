@@ -23,22 +23,24 @@ import pytest
 ###############################################################################
 ## tests
 
-def test_load_and_call_graph_creation_extension(graph_creation_extension):
+def test_load_and_call_graph_creation_extension(graph_creation_extension2):
     """
     Ensures load_extensions reads the extensions and makes the new APIs they add
     available.
     """
     from gaas_server.gaas_handler import GaasHandler
+    from gaas_client.exceptions import GaasError
+
     handler = GaasHandler()
 
-    extension_dir = graph_creation_extension
+    extension_dir = graph_creation_extension2
 
     # DNE
-    with pytest.raises(NotADirectoryError):
+    with pytest.raises(GaasError):
         handler.load_graph_creation_extensions("/path/that/does/not/exist")
 
     # Exists, but is a file
-    with pytest.raises(NotADirectoryError):
+    with pytest.raises(GaasError):
         handler.load_graph_creation_extensions(__file__)
 
     # Load the extension and call the function defined in it
@@ -46,17 +48,17 @@ def test_load_and_call_graph_creation_extension(graph_creation_extension):
     assert num_files_read == 1
 
     # Private function should not be callable
-    with pytest.raises(AttributeError):
+    with pytest.raises(GaasError):
         handler.call_graph_creation_extension("__my_private_function",
                                               "()", "{}")
 
     # Function which DNE in the extension
-    with pytest.raises(AttributeError):
+    with pytest.raises(GaasError):
         handler.call_graph_creation_extension("bad_function_name",
                                               "()", "{}")
 
     # Wrong number of args
-    with pytest.raises(TypeError):
+    with pytest.raises(GaasError):
         handler.call_graph_creation_extension("my_graph_creation_function",
                                               "('a',)", "{}")
 
@@ -73,14 +75,16 @@ def test_load_and_call_graph_creation_extension(graph_creation_extension):
     assert ("a" in edge_props) and ("b" in edge_props)
 
 
-def test_load_and_unload_graph_creation_extension(graph_creation_extension):
+def test_load_and_unload_graph_creation_extension(graph_creation_extension2):
     """
     Ensure extensions can be unloaded.
     """
     from gaas_server.gaas_handler import GaasHandler
+    from gaas_client.exceptions import GaasError
+
     handler = GaasHandler()
 
-    extension_dir = graph_creation_extension
+    extension_dir = graph_creation_extension2
 
     # Load the extensions and ensure it can be called.
     handler.load_graph_creation_extensions(extension_dir)
@@ -91,6 +95,23 @@ def test_load_and_unload_graph_creation_extension(graph_creation_extension):
     # Unload then try to run the same call again, which should fail
     handler.unload_graph_creation_extensions()
 
-    with pytest.raises(AttributeError):
+    with pytest.raises(GaasError):
         handler.call_graph_creation_extension(
             "my_graph_creation_function", "('a', 'b')", "{}")
+
+
+def test_load_and_unload_graph_creation_extension_no_args(
+        graph_creation_extension1):
+    """
+    Test graph_creation_extension1 which contains an extension with no args.
+    """
+    from gaas_server.gaas_handler import GaasHandler
+    handler = GaasHandler()
+
+    extension_dir = graph_creation_extension1
+
+    # Load the extensions and ensure it can be called.
+    handler.load_graph_creation_extensions(extension_dir)
+    new_graph_ID = handler.call_graph_creation_extension(
+        "custom_graph_creation_function", "()", "{}")
+    assert new_graph_ID in handler.get_graph_ids()

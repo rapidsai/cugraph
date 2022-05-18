@@ -17,6 +17,7 @@ import subprocess
 from pathlib import Path
 import time
 
+from thriftpy2.transport import TTransportException
 import pytest
 
 _this_dir = Path(__file__).parent
@@ -33,31 +34,53 @@ _data = {"karate": {"csv_file_name":
 ## fixtures
 
 @pytest.fixture(scope="module")
-def server():
+def server(graph_creation_extension1):
+    """
+    Start a GaaS server, stop it when done with the fixture.  This also uses
+    graph_creation_extension1 to preload a graph creation extension.
+    """
     from gaas_server import server
+    from gaas_client import GaasClient
+
     server_file = server.__file__
     server_process = None
+    host = "localhost"
+    port = 9090
+    graph_creation_extension_dir = graph_creation_extension1
+    client = GaasClient(host, port)
 
-    with subprocess.Popen([sys.executable, server_file],
-                          stdout=subprocess.PIPE,
-                          stderr=subprocess.STDOUT,
-                          text=True) as server_process:
+    with subprocess.Popen(
+            [sys.executable, server_file,
+             "--host", host,
+             "--port", str(port),
+             "--graph-creation-extension-dir", graph_creation_extension_dir],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True) as server_process:
         try:
             print("\nLaunched GaaS server, waiting for it to start...",
                   end="", flush=True)
-            o = server_process.stdout.readline()
-            if "Starting GaaS..." in o :
-                time.sleep(1)
-                print("started.", flush=True)
-            else:
-                raise RuntimeError(f"error starting server: {o}")
+            max_retries = 10
+            retries = 0
+            while retries < max_retries:
+                try:
+                    client.uptime()
+                    print("started.")
+                    break
+                except TTransportException:
+                    time.sleep(1)
+                    retries += 1
+            if retries >= max_retries:
+                raise RuntimeError("error starting server")
         except:
             if server_process.poll() is None:
                 server_process.terminate()
             raise
 
+        # yield control to the tests
         yield
 
+        # tests are done, now stop the server
         print("\nTerminating server...", end="", flush=True)
         server_process.terminate()
         print("done.", flush=True)
@@ -68,12 +91,11 @@ def client(server):
     from gaas_client import GaasClient, defaults
 
     client = GaasClient(defaults.host, defaults.port)
-    # FIXME: this ensures a server that was running from a previous test is
-    # empty. Consider a different way to test using a new server instance.
+
     for gid in client.get_graph_ids():
         client.delete_graph(gid)
 
-    client.unload_graph_creation_extensions()
+    #client.unload_graph_creation_extensions()
 
     yield client
     client.close()
@@ -151,15 +173,32 @@ def test_extract_subgraph(client_with_csv_loaded):
     assert Gid in client.get_graph_ids()
 
 
+def test_call_graph_creation_extension(client):
+    """
+    Ensure the graph creation extension preloaded by the server fixture is
+    callable.
+    """
+    new_graph_ID = client.call_graph_creation_extension(
+        "custom_graph_creation_function")
+
+    assert new_graph_ID in client.get_graph_ids()
+
+    # Inspect the PG and ensure it was created from
+    # custom_graph_creation_function
+    # FIXME: add client APIs to allow for a more thorough test of the graph
+    assert client.get_num_edges(new_graph_ID) == 3
+
+
 def test_load_and_call_graph_creation_extension(client,
-                                                graph_creation_extension):
+                                                graph_creation_extension2):
+
     """
     Tests calling a user-defined server-side graph creation extension from the
     GaaS client.
     """
     # The graph_creation_extension returns the tmp dir created which contains
     # the extension
-    extension_dir = graph_creation_extension
+    extension_dir = graph_creation_extension2
 
     num_files_loaded = client.load_graph_creation_extensions(extension_dir)
     assert num_files_loaded == 1

@@ -14,6 +14,7 @@
 
 from pathlib import Path
 import importlib
+import time
 
 import cudf
 import cugraph
@@ -32,15 +33,21 @@ class GaasHandler:
         self.__next_graph_id = defaults.graph_id + 1
         self.__graph_objs = {}
         self.__graph_creation_extensions = {}
+        self.__start_time = int(time.time())
 
     ############################################################################
     # Environment management
+    def uptime(self):
+        """
+        Return the server uptime in seconds. This is often used as a "ping".
+        """
+        return int(time.time()) - self.__start_time
 
     def load_graph_creation_extensions(self, extension_dir_path):
         extension_dir = Path(extension_dir_path)
 
         if (not extension_dir.exists()) or (not extension_dir.is_dir()):
-            raise NotADirectoryError(extension_dir)
+            raise GaasError(f"bad directory: {extension_dir}")
 
         num_files_read = 0
 
@@ -69,10 +76,14 @@ class GaasHandler:
                 if func is not None:
                     func_args = eval(func_args_repr)
                     func_kwargs = eval(func_kwargs_repr)
-                    graph_obj = func(*func_args, **func_kwargs)
+                    try:
+                        graph_obj = func(*func_args, **func_kwargs)
+                    except:
+                        # FIXME: raise a more detailed error
+                        raise GaasError(f"error running {func_name}")
                     return self.__add_graph(graph_obj)
 
-        raise AttributeError(func_name)
+        raise GaasError(f"{func_name} is not a graph creation extension")
 
     ############################################################################
     # Graph management

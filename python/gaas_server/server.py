@@ -60,7 +60,6 @@ if __name__ == "__main__":
                             "functions from")
     args = arg_parser.parse_args()
     handler = create_handler(args.graph_creation_extension_dir)
-
-    print('Starting GaaS...', flush=True)
+    print("Starting GaaS...", flush=True)
     start_server_blocking(handler, args.host, args.port)
-    print('done.')
+    print("done.")

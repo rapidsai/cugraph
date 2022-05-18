@@ -43,6 +43,8 @@ struct Node2vecResult {
 
 service GaasService {
 
+  i32 uptime()
+
   i32 create_graph() throws(1:GaasError e),
 
   void delete_graph(1:i32 graph_id) throws (1:GaasError e),

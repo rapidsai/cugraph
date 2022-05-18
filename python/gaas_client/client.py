@@ -141,6 +141,29 @@ class GaasClient:
     ############################################################################
     # Environment management
     @__server_connection
+    def uptime(self):
+        """
+        Return the server uptime in seconds. This is often used as a "ping".
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        uptime : int
+            The time in seconds the server has been running.
+
+        Examples
+        --------
+        >>> from gaas_client import GaasClient
+        >>> client = GaasClient()
+        >>> client.uptime()
+        >>> 32
+        """
+        return self.__client.uptime()
+
+    @__server_connection
     def load_graph_creation_extensions(self, extension_dir_path):
         """
         Loads the extensions for graph creation present in the directory
