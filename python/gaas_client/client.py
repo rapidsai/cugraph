@@ -108,7 +108,8 @@ class GaasClient:
             self.__client = create_client(self.host, self.port)
 
     def close(self):
-        """Closes a connection to the server if one has been established, allowing
+        """
+        Closes a connection to the server if one has been established, allowing
         other clients to access the server. This method is called automatically
         for all APIs that access the server if self.hold_open is False.
 
@@ -215,7 +216,8 @@ class GaasClient:
     @__server_connection
     def call_graph_creation_extension(self, func_name,
                                       *func_args, **func_kwargs):
-        """Calls a graph creation extension on the server that was previously
+        """
+        Calls a graph creation extension on the server that was previously
         loaded by a prior call to load_graph_creation_extensions(), then returns
         the graph ID of the graph created by the extension.
 
@@ -584,8 +586,9 @@ class GaasClient:
         Examples
         --------
         >>>
-
         """
+        # FIXME: finish docstring above
+
         # FIXME: convert defaults to type needed by the Thrift API. These will
         # be changing to different types.
         create_using = create_using or ""
@@ -628,6 +631,8 @@ class GaasClient:
         --------
         >>>
         """
+        # FIXME: finish docstring above
+
         # start_vertices must be a list (cannot just be an iterable), and assume
         # return value is tuple of python lists on host.
         if not isinstance(start_vertices, list):
