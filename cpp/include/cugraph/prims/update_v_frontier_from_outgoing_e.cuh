@@ -57,8 +57,8 @@ namespace detail {
 
 int32_t constexpr update_v_frontier_from_outgoing_e_kernel_block_size = 512;
 
-// we cannot use std::iterator_traits<Iterator>::value_type if Iterator is void* (reference to void
-// is not allowed)
+// we cannot use thrust::iterator_traits<Iterator>::value_type if Iterator is void* (reference to
+// void is not allowed)
 template <typename PayloadIterator, typename Enable = void>
 struct optional_payload_buffer_value_type_t;
 
@@ -66,7 +66,7 @@ template <typename PayloadIterator>
 struct optional_payload_buffer_value_type_t<
   PayloadIterator,
   std::enable_if_t<!std::is_same_v<PayloadIterator, void*>>> {
-  using value = typename std::iterator_traits<PayloadIterator>::value_type;
+  using value = typename thrust::iterator_traits<PayloadIterator>::value_type;
 };
 
 template <typename PayloadIterator>
@@ -190,7 +190,7 @@ __device__ void push_buffer_element(vertex_t dst,
                                     BufferPayloadOutputIterator buffer_payload_output_first,
                                     size_t buffer_idx)
 {
-  using key_t = typename std::iterator_traits<BufferKeyOutputIterator>::value_type;
+  using key_t = typename thrust::iterator_traits<BufferKeyOutputIterator>::value_type;
   using payload_t =
     typename optional_payload_buffer_value_type_t<BufferPayloadOutputIterator>::value;
 
@@ -234,9 +234,9 @@ __global__ void update_v_frontier_from_outgoing_e_hypersparse(
   using vertex_t = typename GraphViewType::vertex_type;
   using edge_t   = typename GraphViewType::edge_type;
   using weight_t = typename GraphViewType::weight_type;
-  using key_t    = typename std::iterator_traits<KeyIterator>::value_type;
+  using key_t    = typename thrust::iterator_traits<KeyIterator>::value_type;
   static_assert(
-    std::is_same_v<key_t, typename std::iterator_traits<BufferKeyOutputIterator>::value_type>);
+    std::is_same_v<key_t, typename thrust::iterator_traits<BufferKeyOutputIterator>::value_type>);
   using payload_t =
     typename optional_payload_buffer_value_type_t<BufferPayloadOutputIterator>::value;
   using e_op_result_t = typename evaluate_edge_op<GraphViewType,
@@ -403,9 +403,9 @@ __global__ void update_v_frontier_from_outgoing_e_low_degree(
   using vertex_t = typename GraphViewType::vertex_type;
   using edge_t   = typename GraphViewType::edge_type;
   using weight_t = typename GraphViewType::weight_type;
-  using key_t    = typename std::iterator_traits<KeyIterator>::value_type;
+  using key_t    = typename thrust::iterator_traits<KeyIterator>::value_type;
   static_assert(
-    std::is_same_v<key_t, typename std::iterator_traits<BufferKeyOutputIterator>::value_type>);
+    std::is_same_v<key_t, typename thrust::iterator_traits<BufferKeyOutputIterator>::value_type>);
   using payload_t =
     typename optional_payload_buffer_value_type_t<BufferPayloadOutputIterator>::value;
   using e_op_result_t = typename evaluate_edge_op<GraphViewType,
@@ -563,9 +563,9 @@ __global__ void update_v_frontier_from_outgoing_e_mid_degree(
   using vertex_t = typename GraphViewType::vertex_type;
   using edge_t   = typename GraphViewType::edge_type;
   using weight_t = typename GraphViewType::weight_type;
-  using key_t    = typename std::iterator_traits<KeyIterator>::value_type;
+  using key_t    = typename thrust::iterator_traits<KeyIterator>::value_type;
   static_assert(
-    std::is_same_v<key_t, typename std::iterator_traits<BufferKeyOutputIterator>::value_type>);
+    std::is_same_v<key_t, typename thrust::iterator_traits<BufferKeyOutputIterator>::value_type>);
   using payload_t =
     typename optional_payload_buffer_value_type_t<BufferPayloadOutputIterator>::value;
   using e_op_result_t = typename evaluate_edge_op<GraphViewType,
@@ -670,9 +670,9 @@ __global__ void update_v_frontier_from_outgoing_e_high_degree(
   using vertex_t = typename GraphViewType::vertex_type;
   using edge_t   = typename GraphViewType::edge_type;
   using weight_t = typename GraphViewType::weight_type;
-  using key_t    = typename std::iterator_traits<KeyIterator>::value_type;
+  using key_t    = typename thrust::iterator_traits<KeyIterator>::value_type;
   static_assert(
-    std::is_same_v<key_t, typename std::iterator_traits<BufferKeyOutputIterator>::value_type>);
+    std::is_same_v<key_t, typename thrust::iterator_traits<BufferKeyOutputIterator>::value_type>);
   using payload_t =
     typename optional_payload_buffer_value_type_t<BufferPayloadOutputIterator>::value;
   using e_op_result_t = typename evaluate_edge_op<GraphViewType,
@@ -760,7 +760,7 @@ size_t sort_and_reduce_buffer_elements(raft::handle_t const& handle,
                                        size_t num_buffer_elements,
                                        ReduceOp reduce_op)
 {
-  using key_t = typename std::iterator_traits<BufferKeyOutputIterator>::value_type;
+  using key_t = typename thrust::iterator_traits<BufferKeyOutputIterator>::value_type;
   using payload_t =
     typename optional_payload_buffer_value_type_t<BufferPayloadOutputIterator>::value;
 
