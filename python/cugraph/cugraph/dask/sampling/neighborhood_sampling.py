@@ -34,7 +34,6 @@ def call_nbr_sampling(sID,
                       num_edges,
                       do_expensive_check,
                       start_list,
-                      info_list,
                       h_fan_out,
                       with_replacement):
 
@@ -62,7 +61,6 @@ def call_nbr_sampling(sID,
     ret_val = uniform_neighborhood_sampling(handle,
                                             mg,
                                             start_list,
-                                            info_list,
                                             h_fan_out,
                                             with_replacement,
                                             do_expensive_check)
@@ -73,20 +71,17 @@ def convert_to_cudf(cp_arrays):
     """
     Creates a cudf DataFrame from cupy arrays from pylibcugraph wrapper
     """
-    cupy_sources, cupy_destinations, cupy_labels, cupy_indices = cp_arrays
-    # cupy_sources, cupy_destinations, cupy_labels, cupy_indices,
-    #    cupy_counts = cp_arrays
+    cupy_sources, cupy_destinations, cupy_indices = cp_arrays
+
     df = cudf.DataFrame()
     df["sources"] = cupy_sources
     df["destinations"] = cupy_destinations
-    df["labels"] = cupy_labels
     df["indices"] = cupy_indices
-    # df["counts"] = cupy_counts
     return df
 
 
 def EXPERIMENTAL__uniform_neighborhood(input_graph,
-                                       start_info_list,
+                                       start_list,
                                        fanout_vals,
                                        with_replacement=True):
     """
@@ -99,10 +94,8 @@ def EXPERIMENTAL__uniform_neighborhood(input_graph,
         cuGraph graph, which contains connectivity information as dask cudf
         edge list dataframe
 
-    start_info_list : tuple of list or cudf.Series (int32)
-        Tuple of a list of starting vertices for sampling, along with a
-        corresponding list of label for reorganizing results after sending
-        the input to different callers.
+    start_info_list : list or cudf.Series (int32)
+        a list of starting vertices for sampling
 
     fanout_vals : list (int32)
         List of branching out (fan-out) degrees per starting vertex for each
@@ -120,8 +113,6 @@ def EXPERIMENTAL__uniform_neighborhood(input_graph,
             Contains the source vertices from the sampling result
         ddf['destinations']: dask_cudf.Series
             Contains the destination vertices from the sampling result
-        ddf['labels']: dask_cudf.Series
-            Contains the start labels from the sampling result
         ddf['indices']: dask_cudf.Series
             Contains the indices from the sampling result for path
             reconstruction
@@ -135,18 +126,12 @@ def EXPERIMENTAL__uniform_neighborhood(input_graph,
     input_graph.compute_renumber_edge_list(
         transposed=False, legacy_renum_only=True)
 
-    start_list, info_list = start_info_list
-
     if isinstance(start_list, list):
         start_list = cudf.Series(start_list)
         if start_list.dtype != 'int32':
             raise ValueError(f"'start_list' must have int32 values, "
                              f"got: {start_list.dtype}")
-    if isinstance(info_list, list):
-        info_list = cudf.Series(info_list)
-        if info_list.dtype != 'int32':
-            raise ValueError(f"'info_list' must have int32 values, "
-                             f"got: {info_list.dtype}")
+
     # fanout_vals must be a host array!
     # FIXME: ensure other sequence types (eg. cudf Series) can be handled.
     if isinstance(fanout_vals, list):
@@ -177,7 +162,6 @@ def EXPERIMENTAL__uniform_neighborhood(input_graph,
                             num_edges,
                             do_expensive_check,
                             start_list,
-                            info_list,
                             fanout_vals,
                             with_replacement,
                             workers=[wf[0]])
