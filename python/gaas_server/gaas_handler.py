@@ -288,8 +288,8 @@ class GaasHandler:
     # Private
     def __add_graph(self, G):
         """
-        Create a new graph ID for G and add G to the internal mapping of graph
-        instance:graph ID.
+        Create a new graph ID for G and add G to the internal mapping of
+        graph ID:graph instance.
         """
         gid = self.__next_graph_id
         self.__graph_objs[gid] = G
