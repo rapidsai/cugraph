@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2022, NVIDIA CORPORATION.
+# Copyright (c) 2022, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -11,6 +11,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from cugraph.proto.components import strong_connected_component
-from cugraph.proto.structure  import find_bicliques
-from cugraph.proto.sampling import uniform_neighborhood
+# FIXME: The directory proto should be deleted once the the experimental
+# uniform neighborhood sampling is completed
+
+from .sampling.uniform_neighborhood_sampling import EXPERIMENTAL__uniform_neighborhood_sampling
+uniform_neighborhood_sampling = EXPERIMENTAL__uniform_neighborhood_sampling
