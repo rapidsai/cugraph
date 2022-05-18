@@ -17,7 +17,6 @@
 # cython: language_level = 3
 
 cimport cugraph.traversal.sssp as c_sssp
-cimport cugraph.traversal.bfs as c_bfs
 from cugraph.structure.graph_utilities cimport *
 from cugraph.structure import graph_primtypes_wrapper
 from libcpp cimport bool

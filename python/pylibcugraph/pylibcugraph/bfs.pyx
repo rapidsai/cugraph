@@ -39,7 +39,7 @@ from pylibcugraph.graphs cimport (
 )
 
 def bfs(ResourceHandle handle, _GPUGraph graph, 
-        sources, bool_t direction_optimizing, int64_t depth_limit, 
+        sources, bool_t direction_optimizing, size_t depth_limit, 
         bool_t compute_predecessors, bool_t do_expensive_check):
     try:
         import cupy
@@ -48,7 +48,7 @@ def bfs(ResourceHandle handle, _GPUGraph graph,
                            "be imported")
     assert_CAI_type(sources, "sources")
 
-    if depth_limit < 0:
+    if depth_limit == 0:
         depth_limit = INT_MAX
 
     cdef cugraph_resource_handle_t* c_resource_handle_ptr = \
@@ -60,6 +60,7 @@ def bfs(ResourceHandle handle, _GPUGraph graph,
 
     cdef uintptr_t cai_sources_ptr = \
         sources.__cuda_array_interface__["data"][0]
+
     cdef cugraph_type_erased_device_array_view_t* sources_view_ptr = \
         cugraph_type_erased_device_array_view_create(
             <void*>cai_sources_ptr,
@@ -80,9 +81,6 @@ def bfs(ResourceHandle handle, _GPUGraph graph,
         &error_ptr
     )
     assert_success(error_code, error_ptr, "cugraph_bfs")
-
-    # deallocate the no-longer needed sources array
-    cugraph_type_erased_device_array_view_free(sources_view_ptr)
 
     # Extract individual device array pointers from result
     cdef cugraph_type_erased_device_array_view_t* distances_ptr = \
