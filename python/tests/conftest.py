@@ -43,6 +43,17 @@ def my_graph_creation_function(arg1, arg2):
    return pG
 """
 
+graph_creation_extension_long_running_file_contents = """
+import time
+import cudf
+from cugraph.experimental import PropertyGraph
+
+def long_running_graph_creation_function():
+   time.sleep(10)
+   pG = PropertyGraph()
+   return pG
+"""
+
 @pytest.fixture(scope="module")
 def graph_creation_extension1():
     with TemporaryDirectory() as tmp_extension_dir:
@@ -64,6 +75,19 @@ def graph_creation_extension2():
             Path(tmp_extension_dir)/"my_graph_creation_extension.py",
             "w")
         print(graph_creation_extension2_file_contents,
+              file=graph_creation_extension_file,
+              flush=True)
+
+        yield tmp_extension_dir
+
+@pytest.fixture(scope="module")
+def graph_creation_extension_long_running():
+    with TemporaryDirectory() as tmp_extension_dir:
+        # write graph creation extension .py file
+        graph_creation_extension_file = open(
+            Path(tmp_extension_dir)/"long_running_graph_creation_extension.py",
+            "w")
+        print(graph_creation_extension_long_running_file_contents,
               file=graph_creation_extension_file,
               flush=True)
 

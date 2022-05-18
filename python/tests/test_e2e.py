@@ -184,22 +184,6 @@ def test_extract_subgraph(client_with_csv_loaded):
     assert Gid in client.get_graph_ids()
 
 
-def test_call_graph_creation_extension(client):
-    """
-    Ensure the graph creation extension preloaded by the server fixture is
-    callable.
-    """
-    new_graph_ID = client.call_graph_creation_extension(
-        "custom_graph_creation_function")
-
-    assert new_graph_ID in client.get_graph_ids()
-
-    # Inspect the PG and ensure it was created from
-    # custom_graph_creation_function
-    # FIXME: add client APIs to allow for a more thorough test of the graph
-    assert client.get_num_edges(new_graph_ID) == 3
-
-
 def test_load_and_call_graph_creation_extension(client,
                                                 graph_creation_extension2):
     """
@@ -221,3 +205,43 @@ def test_load_and_call_graph_creation_extension(client,
     # Inspect the PG and ensure it was created from my_graph_creation_function
     # FIXME: add client APIs to allow for a more thorough test of the graph
     assert client.get_num_edges(new_graph_ID) == 2
+
+
+def test_load_and_call_graph_creation_long_running_extension(
+        client,
+        graph_creation_extension_long_running):
+    """
+    Tests calling a user-defined server-side graph creation extension from the
+    GaaS client.
+    """
+    # The graph_creation_extension returns the tmp dir created which contains
+    # the extension
+    extension_dir = graph_creation_extension_long_running
+
+    num_files_loaded = client.load_graph_creation_extensions(extension_dir)
+    assert num_files_loaded == 1
+
+    new_graph_ID = client.call_graph_creation_extension(
+        "long_running_graph_creation_function")
+
+    assert new_graph_ID in client.get_graph_ids()
+
+    # Inspect the PG and ensure it was created from my_graph_creation_function
+    # FIXME: add client APIs to allow for a more thorough test of the graph
+    assert client.get_num_edges(new_graph_ID) == 0
+
+
+def test_call_graph_creation_extension(client):
+    """
+    Ensure the graph creation extension preloaded by the server fixture is
+    callable.
+    """
+    new_graph_ID = client.call_graph_creation_extension(
+        "custom_graph_creation_function")
+
+    assert new_graph_ID in client.get_graph_ids()
+
+    # Inspect the PG and ensure it was created from
+    # custom_graph_creation_function
+    # FIXME: add client APIs to allow for a more thorough test of the graph
+    assert client.get_num_edges(new_graph_ID) == 3

@@ -15,6 +15,7 @@
 from pathlib import Path
 import importlib
 import time
+import traceback
 
 import cudf
 import cugraph
@@ -100,9 +101,10 @@ class GaasHandler:
                     func_kwargs = eval(func_kwargs_repr)
                     try:
                         graph_obj = func(*func_args, **func_kwargs)
-                    except:
+                    except Exception:
                         # FIXME: raise a more detailed error
-                        raise GaasError(f"error running {func_name}")
+                        raise GaasError(f"error running {func_name} : "
+                                        f"{traceback.format_exc()}")
                     return self.__add_graph(graph_obj)
 
         raise GaasError(f"{func_name} is not a graph creation extension")

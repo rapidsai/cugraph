@@ -121,13 +121,19 @@ def create_server(handler, host, port):
     """
     return make_server(spec.GaasService, handler, host, port)
 
-def create_client(host, port):
+
+def create_client(host, port, call_timeout=90000):
     """
     Return a client object that will make calls on a server listening on
     host/port.
+
+    The call_timeout value defaults to 90 seconds, and is used for setting the
+    timeout for server API calls when using the client created here - if a call
+    does not return in call_timeout milliseconds, an exception is raised.
     """
     try:
-        return make_client(spec.GaasService, host=host, port=port)
+        return make_client(spec.GaasService, host=host, port=port,
+                           timeout=call_timeout)
     except thriftpy2.transport.TTransportException:
         # Rasie a GaaS exception in order to completely encapsulate all Thrift
         # details in this module. If this was not done, callers of this function

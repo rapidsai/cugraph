@@ -76,11 +76,13 @@ class GaasClient:
             return ret_val
         return wrapped_method
 
-    def open(self):
+    def open(self, call_timeout=90000):
         """
         Opens a connection to the server at self.host/self.port if one is not
         already established. close() must be called in order to allow other
         connections from other clients to be made.
+
+        This call does nothing if a connection to the server is already open.
 
         Note: all APIs that access the server will call this method
         automatically, followed automatically by a call to close(), so calling
@@ -89,7 +91,9 @@ class GaasClient:
 
         Parameters
         ----------
-        None
+        call_timeout : int (default is 90000)
+            Time in millisecods that calls to the server using this open
+            connection must return by.
 
         Returns
         -------
@@ -103,9 +107,11 @@ class GaasClient:
         >>> # clients cannot connect until a client API call completes or
         >>> # close() is manually called.
         >>> client.open()
+
         """
         if self.__client is None:
-            self.__client = create_client(self.host, self.port)
+            self.__client = create_client(self.host, self.port,
+                                          call_timeout=call_timeout)
 
     def close(self):
         """
