@@ -192,9 +192,6 @@ void sssp(raft::handle_t const& handle,
       thrust::make_zip_iterator(thrust::make_tuple(distances, predecessor_first)),
       [near_far_threshold] __device__(auto v, auto v_val, auto pushed_val) {
         auto new_dist = thrust::get<0>(pushed_val);
-        auto idx      = new_dist < v_val
-                          ? (new_dist < near_far_threshold ? bucket_idx_next_near : bucket_idx_far)
-                          : vertex_frontier_t<vertex_t>::kInvalidBucketIdx;
         return new_dist < v_val
                  ? thrust::optional<thrust::tuple<size_t, decltype(pushed_val)>>{thrust::make_tuple(
                      new_dist < near_far_threshold ? bucket_idx_next_near : bucket_idx_far,
