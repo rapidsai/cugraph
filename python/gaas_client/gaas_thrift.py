@@ -17,6 +17,7 @@ import io
 import thriftpy2
 from thriftpy2.rpc import make_server, make_client
 
+
 # This is the Thrift input file as a string rather than a separate file. This
 # allows the Thrift input to be contained within the module that's responsible
 # for all Thrift-specific details rather than a separate .thrift file.
@@ -24,8 +25,8 @@ from thriftpy2.rpc import make_server, make_client
 # thriftpy2 (https://github.com/Thriftpy/thriftpy2) is being used here instead
 # of Apache Thrift since it offers an easier-to-use API exclusively for Python
 # which is still compatible with servers/cleints using Apache Thrift (Apache
-# Thrift can be used from a variety of different languages) and offers roughly
-# the same performance.
+# Thrift can be used from a variety of different languages) while offering
+# approximately the same performance.
 #
 # See the Apache Thrift tutorial for Python for examples:
 # https://thrift.apache.org/tutorial/py.html
@@ -125,4 +126,19 @@ def create_client(host, port):
     Return a client object that will make calls on a server listening on
     host/port.
     """
-    return make_client(spec.GaasService, host=host, port=port)
+    try:
+        return make_client(spec.GaasService, host=host, port=port)
+    except thriftpy2.transport.TTransportException:
+        # Rasie a GaaS exception in order to completely encapsulate all Thrift
+        # details in this module. If this was not done, callers of this function
+        # would have to import thriftpy2 in order to catch the
+        # TTransportException, which then leaks thriftpy2.
+        #
+        # NOTE: normally the GaasError exception is imported from the
+        # gaas_client.exceptions module, but since
+        # gaas_client.exceptions.GaasError is actually defined from the spec in
+        # this module, just use it directly from spec.
+        #
+        # FIXME: this exception could use more detail
+        raise spec.GaasError("could not create a client session with a "
+                             "GaaS server")

@@ -14,8 +14,8 @@
 
 from functools import wraps
 
-from . import defaults
-from .gaas_thrift import create_client
+from gaas_client import defaults
+from gaas_client.gaas_thrift import create_client
 
 
 class GaasClient:

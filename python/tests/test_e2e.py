@@ -18,7 +18,6 @@ import subprocess
 from pathlib import Path
 import time
 
-from thriftpy2.transport import TTransportException
 import pytest
 
 _this_dir = Path(__file__).parent
@@ -42,6 +41,7 @@ def server(graph_creation_extension1):
     """
     from gaas_server import server
     from gaas_client import GaasClient
+    from gaas_client.exceptions import GaasError
 
     server_file = server.__file__
     server_process = None
@@ -78,7 +78,7 @@ def server(graph_creation_extension1):
                     client.uptime()
                     print("started.")
                     break
-                except TTransportException:
+                except GaasError:
                     time.sleep(1)
                     retries += 1
             if retries >= max_retries:
