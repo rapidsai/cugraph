@@ -22,6 +22,7 @@
 #include <cugraph/prims/reduce_op.cuh>
 #include <cugraph/utilities/dataframe_buffer.cuh>
 #include <cugraph/utilities/device_comm.cuh>
+#include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/host_scalar_comm.cuh>
 #include <cugraph/utilities/shuffle_comm.cuh>
@@ -81,13 +82,13 @@ struct optional_payload_buffer_value_type_t<
 // function-in-constexpr-if-fun)
 #if 1
 template <typename payload_t, std::enable_if_t<std::is_same_v<payload_t, void>>* = nullptr>
-std::byte allocate_optional_payload_buffer(size_t size, cudaStream_t stream)
+std::byte allocate_optional_payload_buffer(size_t size, rmm::cuda_stream_view stream)
 {
   return std::byte{0};  // dummy
 }
 
 template <typename payload_t, std::enable_if_t<!std::is_same_v<payload_t, void>>* = nullptr>
-auto allocate_optional_payload_buffer(size_t size, cudaStream_t stream)
+auto allocate_optional_payload_buffer(size_t size, rmm::cuda_stream_view stream)
 {
   return allocate_dataframe_buffer<payload_t>(size, stream);
 }
@@ -101,12 +102,46 @@ void* get_optional_payload_buffer_begin(std::byte& optional_payload_buffer)
 template <typename payload_t, std::enable_if_t<!std::is_same_v<payload_t, void>>* = nullptr>
 auto get_optional_payload_buffer_begin(
   std::add_lvalue_reference_t<decltype(allocate_dataframe_buffer<payload_t>(
-    size_t{0}, cudaStream_t{nullptr}))> optional_payload_buffer)
+    size_t{0}, rmm::cuda_stream_view{}))> optional_payload_buffer)
 {
   return get_dataframe_buffer_begin(optional_payload_buffer);
 }
+
+template <typename payload_t, std::enable_if_t<std::is_same_v<payload_t, void>>* = nullptr>
+void resize_optional_payload_buffer(std::byte& optional_payload_buffer,
+                                    size_t new_buffer_size,
+                                    rmm::cuda_stream_view stream_view)
+{
+  return;
+}
+
+template <typename payload_t, std::enable_if_t<!std::is_same_v<payload_t, void>>* = nullptr>
+void resize_optional_payload_buffer(
+  std::add_lvalue_reference_t<decltype(allocate_dataframe_buffer<payload_t>(
+    size_t{0}, rmm::cuda_stream_view{}))> optional_payload_buffer,
+  size_t new_buffer_size,
+  rmm::cuda_stream_view stream_view)
+{
+  return resize_dataframe_buffer(optional_payload_buffer, new_buffer_size, stream_view);
+}
+
+template <typename payload_t, std::enable_if_t<std::is_same_v<payload_t, void>>* = nullptr>
+void shrink_to_fit_optional_payload_buffer(std::byte& optional_payload_buffer,
+                                           rmm::cuda_stream_view stream_view)
+{
+  return;
+}
+
+template <typename payload_t, std::enable_if_t<!std::is_same_v<payload_t, void>>* = nullptr>
+void shrink_to_fit_optional_payload_buffer(
+  std::add_lvalue_reference_t<decltype(allocate_dataframe_buffer<payload_t>(
+    size_t{0}, rmm::cuda_stream_view{}))> optional_payload_buffer,
+  rmm::cuda_stream_view stream_view)
+{
+  return shrink_to_fit_dataframe_buffer(optional_payload_buffer, stream_view);
+}
 #else
-auto allocate_optional_payload_buffer = [](size_t size, cudaStream_t stream) {
+auto allocate_optional_payload_buffer = [](size_t size, rmm::cuda_stream_view stream) {
   if constexpr (std::is_same_v<payload_t, void>) {
     return std::byte{0};  // dummy
   } else {
@@ -753,67 +788,73 @@ __global__ void update_v_frontier_from_outgoing_e_high_degree(
   }
 }
 
-template <typename BufferKeyOutputIterator, typename BufferPayloadOutputIterator, typename ReduceOp>
-size_t sort_and_reduce_buffer_elements(raft::handle_t const& handle,
-                                       BufferKeyOutputIterator buffer_key_output_first,
-                                       BufferPayloadOutputIterator buffer_payload_output_first,
-                                       size_t num_buffer_elements,
-                                       ReduceOp reduce_op)
+template <typename key_t, typename payload_t, typename ReduceOp>
+auto sort_and_reduce_buffer_elements(
+  raft::handle_t const& handle,
+  std::add_rvalue_reference_t<
+    decltype(allocate_dataframe_buffer<key_t>(0, rmm::cuda_stream_view{}))> key_buffer,
+  std::add_rvalue_reference_t<decltype(
+    allocate_optional_payload_buffer<payload_t>(0, rmm::cuda_stream_view{}))> payload_buffer,
+  ReduceOp reduce_op)
 {
-  using key_t = typename thrust::iterator_traits<BufferKeyOutputIterator>::value_type;
-  using payload_t =
-    typename optional_payload_buffer_value_type_t<BufferPayloadOutputIterator>::value;
-
-  auto execution_policy = handle.get_thrust_policy();
   if constexpr (std::is_same_v<payload_t, void>) {
-    thrust::sort(
-      execution_policy, buffer_key_output_first, buffer_key_output_first + num_buffer_elements);
+    thrust::sort(handle.get_thrust_policy(),
+                 get_dataframe_buffer_begin(key_buffer),
+                 get_dataframe_buffer_end(key_buffer));
   } else {
-    thrust::sort_by_key(execution_policy,
-                        buffer_key_output_first,
-                        buffer_key_output_first + num_buffer_elements,
-                        buffer_payload_output_first);
+    thrust::sort_by_key(handle.get_thrust_policy(),
+                        get_dataframe_buffer_begin(key_buffer),
+                        get_dataframe_buffer_end(key_buffer),
+                        get_optional_payload_buffer_begin<payload_t>(payload_buffer));
   }
 
-  size_t num_reduced_buffer_elements{};
   if constexpr (std::is_same_v<payload_t, void>) {
-    auto it = thrust::unique(
-      execution_policy, buffer_key_output_first, buffer_key_output_first + num_buffer_elements);
-    num_reduced_buffer_elements =
-      static_cast<size_t>(thrust::distance(buffer_key_output_first, it));
+    auto it = thrust::unique(handle.get_thrust_policy(),
+                             get_dataframe_buffer_begin(key_buffer),
+                             get_dataframe_buffer_end(key_buffer));
+    resize_dataframe_buffer(
+      key_buffer,
+      static_cast<size_t>(thrust::distance(get_dataframe_buffer_begin(key_buffer), it)),
+      handle.get_stream());
+    shrink_to_fit_dataframe_buffer(key_buffer, handle.get_stream());
   } else if constexpr (std::is_same_v<ReduceOp, reduce_op::any<typename ReduceOp::type>>) {
-    auto it = thrust::unique_by_key(execution_policy,
-                                    buffer_key_output_first,
-                                    buffer_key_output_first + num_buffer_elements,
-                                    buffer_payload_output_first);
-    num_reduced_buffer_elements =
-      static_cast<size_t>(thrust::distance(buffer_key_output_first, thrust::get<0>(it)));
+    auto it = thrust::unique_by_key(handle.get_thrust_policy(),
+                                    get_dataframe_buffer_begin(key_buffer),
+                                    get_dataframe_buffer_end(key_buffer),
+                                    get_optional_payload_buffer_begin<payload_t>(payload_buffer));
+    resize_dataframe_buffer(key_buffer,
+                            static_cast<size_t>(thrust::distance(
+                              get_dataframe_buffer_begin(key_buffer), thrust::get<0>(it))),
+                            handle.get_stream());
+    resize_dataframe_buffer(payload_buffer, size_dataframe_buffer(key_buffer), handle.get_stream());
+    shrink_to_fit_dataframe_buffer(key_buffer, handle.get_stream());
+    shrink_to_fit_dataframe_buffer(payload_buffer, handle.get_stream());
   } else {
-    rmm::device_uvector<key_t> keys(num_buffer_elements, handle.get_stream());
-    auto value_buffer =
-      allocate_dataframe_buffer<payload_t>(num_buffer_elements, handle.get_stream());
-    auto it = thrust::reduce_by_key(execution_policy,
-                                    buffer_key_output_first,
-                                    buffer_key_output_first + num_buffer_elements,
-                                    buffer_payload_output_first,
-                                    keys.begin(),
-                                    get_dataframe_buffer_begin(value_buffer),
-                                    thrust::equal_to<key_t>(),
-                                    reduce_op);
-    num_reduced_buffer_elements =
-      static_cast<size_t>(thrust::distance(keys.begin(), thrust::get<0>(it)));
-    // FIXME: this copy can be replaced by move
-    thrust::copy(execution_policy,
-                 keys.begin(),
-                 keys.begin() + num_reduced_buffer_elements,
-                 buffer_key_output_first);
-    thrust::copy(execution_policy,
-                 get_dataframe_buffer_begin(value_buffer),
-                 get_dataframe_buffer_begin(value_buffer) + num_reduced_buffer_elements,
-                 buffer_payload_output_first);
+    auto num_uniques =
+      thrust::count_if(handle.get_thrust_policy(),
+                       thrust::make_counting_iterator(size_t{0}),
+                       thrust::make_counting_iterator(size_dataframe_buffer(key_buffer)),
+                       is_first_in_run_t<decltype(get_dataframe_buffer_begin(key_buffer))>{
+                         get_dataframe_buffer_begin(key_buffer)});
+
+    auto new_key_buffer = allocate_dataframe_buffer<key_t>(num_uniques, handle.get_stream());
+    auto new_payload_buffer =
+      allocate_dataframe_buffer<payload_t>(num_uniques, handle.get_stream());
+
+    thrust::reduce_by_key(handle.get_thrust_policy(),
+                          get_dataframe_buffer_begin(key_buffer),
+                          get_dataframe_buffer_end(key_buffer),
+                          get_optional_payload_buffer_begin<payload_t>(payload_buffer),
+                          get_dataframe_buffer_begin(new_key_buffer),
+                          get_dataframe_buffer_begin(new_payload_buffer),
+                          thrust::equal_to<key_t>(),
+                          reduce_op);
+
+    key_buffer     = std::move(new_key_buffer);
+    payload_buffer = std::move(new_payload_buffer);
   }
 
-  return num_reduced_buffer_elements;
+  return std::make_tuple(std::move(key_buffer), std::move(payload_buffer));
 }
 
 }  // namespace detail
@@ -837,17 +878,14 @@ typename GraphViewType::edge_type compute_num_out_nbrs_from_frontier(
 
   auto const& cur_frontier_bucket = frontier.bucket(cur_frontier_bucket_idx);
   vertex_t const* local_frontier_vertex_first{nullptr};
-  vertex_t const* local_frontier_vertex_last{nullptr};
   if constexpr (std::is_same_v<key_t, vertex_t>) {
     local_frontier_vertex_first = cur_frontier_bucket.begin();
-    local_frontier_vertex_last  = cur_frontier_bucket.end();
   } else {
     local_frontier_vertex_first = thrust::get<0>(cur_frontier_bucket.begin().get_iterator_tuple());
-    local_frontier_vertex_last  = thrust::get<0>(cur_frontier_bucket.end().get_iterator_tuple());
   }
 
   std::vector<size_t> local_frontier_sizes{};
-  if (GraphViewType::is_multi_gpu) {
+  if constexpr (GraphViewType::is_multi_gpu) {
     auto& col_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
     local_frontier_sizes =
       host_scalar_allgather(col_comm, cur_frontier_bucket.size(), handle.get_stream());
@@ -860,7 +898,7 @@ typename GraphViewType::edge_type compute_num_out_nbrs_from_frontier(
         graph_view.local_edge_partition_view(i));
 
     auto execution_policy = handle.get_thrust_policy();
-    if (GraphViewType::is_multi_gpu) {
+    if constexpr (GraphViewType::is_multi_gpu) {
       auto& col_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
       auto const col_comm_rank = col_comm.get_rank();
 
@@ -919,7 +957,7 @@ typename GraphViewType::edge_type compute_num_out_nbrs_from_frontier(
       ret += thrust::transform_reduce(
         execution_policy,
         local_frontier_vertex_first,
-        local_frontier_vertex_last,
+        local_frontier_vertex_first + cur_frontier_bucket.size(),
         [edge_partition] __device__(auto major) {
           auto major_offset = edge_partition.major_offset_from_major_nocheck(major);
           return edge_partition.local_degree(major_offset);
@@ -1044,7 +1082,7 @@ void update_v_frontier_from_outgoing_e(
     detail::allocate_optional_payload_buffer<payload_t>(size_t{0}, handle.get_stream());
   rmm::device_scalar<size_t> buffer_idx(size_t{0}, handle.get_stream());
   std::vector<size_t> local_frontier_sizes{};
-  if (GraphViewType::is_multi_gpu) {
+  if constexpr (GraphViewType::is_multi_gpu) {
     auto& col_comm       = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
     local_frontier_sizes = host_scalar_allgather(
       col_comm,
@@ -1062,7 +1100,7 @@ void update_v_frontier_from_outgoing_e(
     auto edge_partition_frontier_key_buffer =
       allocate_dataframe_buffer<key_t>(size_t{0}, handle.get_stream());
     vertex_t edge_partition_frontier_size = static_cast<vertex_t>(local_frontier_sizes[i]);
-    if (GraphViewType::is_multi_gpu) {
+    if constexpr (GraphViewType::is_multi_gpu) {
       auto& col_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
       auto const col_comm_rank = col_comm.get_rank();
 
@@ -1268,13 +1306,16 @@ void update_v_frontier_from_outgoing_e(
 
   // 2. reduce the buffer
 
-  auto num_buffer_elements = detail::sort_and_reduce_buffer_elements(
-    handle,
-    get_dataframe_buffer_begin(key_buffer),
-    detail::get_optional_payload_buffer_begin<payload_t>(payload_buffer),
-    buffer_idx.value(handle.get_stream()),
-    reduce_op);
-  if (GraphViewType::is_multi_gpu) {
+  resize_dataframe_buffer(key_buffer, buffer_idx.value(handle.get_stream()), handle.get_stream());
+  detail::resize_optional_payload_buffer<payload_t>(
+    payload_buffer, size_dataframe_buffer(key_buffer), handle.get_stream());
+  shrink_to_fit_dataframe_buffer(key_buffer, handle.get_stream());
+  detail::shrink_to_fit_optional_payload_buffer<payload_t>(payload_buffer, handle.get_stream());
+
+  std::tie(key_buffer, payload_buffer) =
+    detail::sort_and_reduce_buffer_elements<key_t, payload_t, ReduceOp>(
+      handle, std::move(key_buffer), std::move(payload_buffer), reduce_op);
+  if constexpr (GraphViewType::is_multi_gpu) {
     // FIXME: this step is unnecessary if row_comm_size== 1
     auto& comm               = handle.get_comms();
     auto& row_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
@@ -1300,7 +1341,7 @@ void update_v_frontier_from_outgoing_e(
     }
     thrust::lower_bound(handle.get_thrust_policy(),
                         src_first,
-                        src_first + num_buffer_elements,
+                        src_first + size_dataframe_buffer(key_buffer),
                         d_vertex_lasts.begin(),
                         d_vertex_lasts.end(),
                         d_tx_buffer_last_boundaries.begin());
@@ -1326,19 +1367,17 @@ void update_v_frontier_from_outgoing_e(
       payload_buffer = std::move(rx_payload_buffer);
     }
 
-    num_buffer_elements = detail::sort_and_reduce_buffer_elements(
-      handle,
-      get_dataframe_buffer_begin(key_buffer),
-      detail::get_optional_payload_buffer_begin<payload_t>(payload_buffer),
-      size_dataframe_buffer(key_buffer),
-      reduce_op);
+    std::tie(key_buffer, payload_buffer) =
+      detail::sort_and_reduce_buffer_elements<key_t, payload_t, ReduceOp>(
+        handle, std::move(key_buffer), std::move(payload_buffer), reduce_op);
   }
 
   // 3. update vertex property values and frontier
 
-  if (num_buffer_elements > 0) {
+  if (size_dataframe_buffer(key_buffer) > 0) {
     assert(frontier.num_buckets() <= std::numeric_limits<uint8_t>::max());
-    rmm::device_uvector<uint8_t> bucket_indices(num_buffer_elements, handle.get_stream());
+    rmm::device_uvector<uint8_t> bucket_indices(size_dataframe_buffer(key_buffer),
+                                                handle.get_stream());
 
     auto vertex_partition = vertex_partition_device_view_t<vertex_t, GraphViewType::is_multi_gpu>(
       graph_view.local_vertex_partition_view());
@@ -1350,7 +1389,7 @@ void update_v_frontier_from_outgoing_e(
       thrust::transform(
         handle.get_thrust_policy(),
         key_payload_pair_first,
-        key_payload_pair_first + num_buffer_elements,
+        key_payload_pair_first + size_dataframe_buffer(key_buffer),
         bucket_indices.begin(),
         [vertex_value_input_first,
          vertex_value_output_first,
@@ -1381,7 +1420,7 @@ void update_v_frontier_from_outgoing_e(
     } else {
       thrust::transform(handle.get_thrust_policy(),
                         get_dataframe_buffer_begin(key_buffer),
-                        get_dataframe_buffer_begin(key_buffer) + num_buffer_elements,
+                        get_dataframe_buffer_begin(key_buffer) + size_dataframe_buffer(key_buffer),
                         bucket_indices.begin(),
                         detail::update_v_frontier_call_v_op_t<vertex_t,
                                                               VertexValueInputIterator,
@@ -1402,7 +1441,7 @@ void update_v_frontier_from_outgoing_e(
       thrust::distance(bucket_key_pair_first,
                        thrust::remove_if(handle.get_thrust_policy(),
                                          bucket_key_pair_first,
-                                         bucket_key_pair_first + num_buffer_elements,
+                                         bucket_key_pair_first + bucket_indices.size(),
                                          detail::check_invalid_bucket_idx_t<key_t>())),
       handle.get_stream());
     resize_dataframe_buffer(key_buffer, bucket_indices.size(), handle.get_stream());
