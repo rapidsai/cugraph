@@ -21,6 +21,7 @@
 #include <cugraph/prims/detail/nbr_intersection.cuh>
 #include <cugraph/prims/edge_partition_src_dst_property.cuh>
 #include <cugraph/prims/property_op_utils.cuh>
+#include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/error.hpp>
 
 #include <raft/handle.hpp>
@@ -105,7 +106,7 @@ std::tuple<rmm::device_uvector<vertex_t>, ValueBuffer> sort_and_reduce_by_vertic
   auto num_uniques = thrust::count_if(handle.get_thrust_policy(),
                                       thrust::make_counting_iterator(size_t{0}),
                                       thrust::make_counting_iterator(vertices.size()),
-                                      detail::is_first_in_run_t<vertex_t>{vertices.data()});
+                                      detail::is_first_in_run_t<vertex_t const*>{vertices.data()});
   rmm::device_uvector<vertex_t> reduced_vertices(num_uniques, handle.get_stream());
   auto reduced_value_buffer = allocate_dataframe_buffer<value_t>(num_uniques, handle.get_stream());
   thrust::reduce_by_key(handle.get_thrust_policy(),
@@ -425,7 +426,7 @@ void per_v_transform_reduce_dst_nbr_intersection_of_e_endpoints(
         thrust::count_if(handle.get_thrust_policy(),
                          thrust::make_counting_iterator(size_t{0}),
                          thrust::make_counting_iterator(merged_vertices.size()),
-                         detail::is_first_in_run_t<vertex_t>{merged_vertices.data()});
+                         detail::is_first_in_run_t<vertex_t const*>{merged_vertices.data()});
       rmm::device_uvector<vertex_t> reduced_vertices(num_uniques, handle.get_stream());
       auto reduced_value_buffer = allocate_dataframe_buffer<T>(num_uniques, handle.get_stream());
       thrust::reduce_by_key(handle.get_thrust_policy(),
