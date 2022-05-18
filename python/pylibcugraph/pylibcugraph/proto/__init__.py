@@ -14,5 +14,6 @@
 # FIXME: The directory proto should be deleted once the the experimental
 # uniform neighborhood sampling is completed
 
-from .sampling.uniform_neighborhood_sampling import EXPERIMENTAL__uniform_neighborhood_sampling
-uniform_neighborhood_sampling = EXPERIMENTAL__uniform_neighborhood_sampling
+#from .sampling.uniform_neighborhood_sampling import EXPERIMENTAL__uniform_neighborhood_sampling
+from .sampling.uniform_neighborhood_sampling import uniform_neighborhood_sampling
+#uniform_neighborhood_sampling = EXPERIMENTAL__uniform_neighborhood_sampling
