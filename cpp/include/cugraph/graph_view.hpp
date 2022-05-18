@@ -40,20 +40,23 @@ namespace serializer {
 class serializer_t;  // forward...
 }
 
-struct graph_mask_t {
+template <typename mask_t = bool>
+class graph_mask_t {
 public:
-    graph_mask_t(std::optional<bool const*> &edges, std::optional<bool const*> &vertices, bool complement = false):
+    graph_mask_t(std::optional<mask_t const*> &edges,
+                 std::optional<mask_t const*> &vertices,
+                 bool complement = false):
         edges_(edges), vertices_(vertices), complement_(complement) {}
 
-    bool is_complemented()  { return complement_; }
-    std::optional<bool const*> edges() { return edges_; }
-    std::optional<bool const*> vertices() { return vertices_; }
+    bool is_complemented() const  { return complement_; }
+    std::optional<mask_t const *> edges() const { return edges_; }
+    std::optional<mask_t const *> vertices() const { return vertices_; }
 
 
 private:
-    bool complement_;
-    std::optional<bool const*> edges_{std::nullopt};
-    std::optional<bool const*> vertices_{std::nullopt};
+    bool const complement_ = false;
+    std::optional<mask_t const *> const edges_{std::nullopt};
+    std::optional<mask_t const *> const vertices_{std::nullopt};
 };
 
 /**
@@ -400,7 +403,7 @@ class graph_view_t<vertex_t,
                std::optional<std::vector<vertex_t const*>> const& edge_partition_dcs_nzd_vertices,
                std::optional<std::vector<vertex_t>> const& edge_partition_dcs_nzd_vertex_counts,
                graph_view_meta_t<vertex_t, edge_t, multi_gpu> meta,
-               std::optional<std::vector<graph_mask_t const*>> const& mask);
+               std::optional<std::vector<graph_mask_t<bool> const*>> const& mask);
 
   bool is_weighted() const { return edge_partition_weights_.has_value(); }
 
@@ -684,7 +687,7 @@ class graph_view_t<vertex_t,
   std::optional<vertex_t const*> local_sorted_unique_edge_dst_last_{std::nullopt};
   std::optional<std::vector<vertex_t>> local_sorted_unique_edge_dst_offsets_{std::nullopt};
 
-  std::optional<std::vector<graph_mask_t const*>> const& mask_{std::nullopt};
+  std::optional<std::vector<graph_mask_t<bool> const*>> mask_{std::nullopt};
 };
 
 // single-GPU version
@@ -712,7 +715,7 @@ class graph_view_t<vertex_t,
                vertex_t const* indices,
                std::optional<weight_t const*> weights,
                graph_view_meta_t<vertex_t, edge_t, multi_gpu> meta,
-               std::optional<graph_mask_t const> mask);
+               std::optional<graph_mask_t<bool> const> mask);
 
   bool is_weighted() const { return weights_.has_value(); }
 
@@ -884,7 +887,7 @@ class graph_view_t<vertex_t,
   // segment offsets based on vertex degree, relevant only if vertex IDs are renumbered
   std::optional<std::vector<vertex_t>> segment_offsets_{std::nullopt};
 
-  std::optional<graph_mask_t const> mask_{std::nullopt};
+  std::optional<graph_mask_t<bool> const> const mask_{std::nullopt};
 };
 
 }  // namespace cugraph
