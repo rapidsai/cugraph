@@ -17,7 +17,6 @@ import dask_cudf
 import pytest
 import pandas as pd
 import cudf
-from cudf.testing import assert_frame_equal, assert_series_equal
 from cugraph.tests.utils import RAPIDS_DATASET_ROOT_DIR_PATH
 
 # If the rapids-pytest-benchmark plugin is installed, the "gpubenchmark"
@@ -67,6 +66,7 @@ def df_type_id(dataframe_type):
         return s+"dask_cudf.core.DataFrame"
     return s+"?"
 
+
 df_types_fixture_params = utils.genFixtureParamsProduct((df_types, df_type_id))
 
 
@@ -98,6 +98,7 @@ def net_PropertyGraph(request):
 
     return pG
 
+
 @pytest.fixture(scope="module", params=df_types_fixture_params)
 def net_MGPropertyGraph(dask_client):
     """
@@ -118,7 +119,6 @@ def net_MGPropertyGraph(dask_client):
         dtype=["int32", "int32", "float32"],
     )
 
-
     def modify_dataset(df):
         temp_df = cudf.DataFrame()
         temp_df['src'] = df['src']+1000
@@ -134,31 +134,13 @@ def net_MGPropertyGraph(dask_client):
     return dpG
 
 
-def test_select_vertices_from_previous_selection(net_MGPropertyGraph):
-    """
-    Ensures that the intersection of vertices of multiple types (only vertices
-    that are both type A and type B) can be selected.
-    """
-    from cugraph.dask.structure import PropertyGraph
-
-
-def test_extract_subgraph(net_MGPropertyGraph):
-    """
-    Valid query that only matches a single vertex.
-    """
-    pG = net_MGPropertyGraph
-    print(pG.num_vertices)
-
-
 def test_extract_subgraph_no_query(net_MGPropertyGraph, net_PropertyGraph):
     """
     Call extract with no args, should result in the entire property graph.
     """
     dpG = net_MGPropertyGraph
     pG = net_PropertyGraph
-    print(pG.num_vertices)
     assert pG.num_edges == dpG.num_edges
     assert pG.num_vertices == dpG.num_vertices
     subgraph = pG.extract_subgraph(allow_multi_edges=False)
-    assert type(pG.edges) == dask_cudf.DataFrame
-    
+    assert type(subgraph.edges) == dask_cudf.DataFrame

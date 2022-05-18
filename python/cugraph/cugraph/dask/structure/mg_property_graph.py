@@ -111,10 +111,8 @@ class EXPERIMENTAL__MGPropertyGraph:
         self.__vertex_prop_eval_dict = {}
         self.__edge_prop_eval_dict = {}
 
-
         self.__dataframe_type = dask_cudf.DataFrame
         self.__series_type = dask_cudf.Series
-
 
         # The dtypes for each column in each DataFrame.  This is required since
         # merge operations can often change the dtypes to accommodate NaN
@@ -144,7 +142,7 @@ class EXPERIMENTAL__MGPropertyGraph:
         self.__num_vertices = 0
         vert_sers = self.__get_all_vertices_series()
         if vert_sers:
-                self.__num_vertices.concat(vert_sers).nunique()
+            self.__num_vertices.concat(vert_sers).nunique()
         return self.__num_vertices
 
     @property
@@ -314,7 +312,6 @@ class EXPERIMENTAL__MGPropertyGraph:
                        for n in self.__vertex_prop_dataframe.columns])
         self.__vertex_prop_eval_dict.update(latest)
 
-
     def add_edge_data(self,
                       dataframe,
                       vertex_col_names,
@@ -388,13 +385,13 @@ class EXPERIMENTAL__MGPropertyGraph:
                 {self.src_col_name: dataframe[vertex_col_names[0]].dtype,
                  self.dst_col_name: dataframe[vertex_col_names[1]].dtype,
                  self.edge_id_col_name: "Int64"})
-            self.__edge_prop_dataframe = dask_cudf.from_cudf(temp_dataframe,
-                      npartitions=self.__num_workers)
+            self.__edge_prop_dataframe = \
+                dask_cudf.from_cudf(temp_dataframe,
+                                    npartitions=self.__num_workers)
         # NOTE: This copies the incoming DataFrame in order to add the new
         # columns. The copied DataFrame is then merged (another copy) and then
         # deleted when out-of-scope.
         tmp_df = dataframe.copy()
-       
         tmp_df[self.src_col_name] = tmp_df[vertex_col_names[0]]
         tmp_df[self.dst_col_name] = tmp_df[vertex_col_names[1]]
         # FIXME: handle case of a type_name column already being in tmp_df
@@ -787,8 +784,8 @@ class EXPERIMENTAL__MGPropertyGraph:
         dst = edge_prop_df[self.dst_col_name]
         edge_id = edge_prop_df[self.edge_id_col_name]
         return dask_cudf.DataFrame({self.src_col_name: src,
-                                      self.dst_col_name: dst,
-                                      self.edge_id_col_name: edge_id})
+                                    self.dst_col_name: dst,
+                                    self.edge_id_col_name: edge_id})
 
     def __add_edge_ids(self):
         """
@@ -797,19 +794,19 @@ class EXPERIMENTAL__MGPropertyGraph:
         """
         prev_eid = -1 if self.__last_edge_id is None else self.__last_edge_id
 #        nans = self.__edge_prop_dataframe[self.edge_id_col_name].isna()
-        nans = self.__edge_prop_dataframe[self.edge_id_col_name].isna().compute()
+        nans = \
+            self.__edge_prop_dataframe[self.edge_id_col_name].isna().compute()
         if nans.any():
             indices = nans.index[nans]
             num_indices = len(indices)
             starting_eid = prev_eid + 1
             self.__edge_prop_dataframe.reindex()
-            temp_df = self.__edge_prop_dataframe
-            cudf_series = cudf.Series(range(starting_eid, starting_eid + num_indices))
-            dask_series = dask_cudf.from_cudf(cudf_series,self.__num_workers)
+            cudf_series = \
+                cudf.Series(range(starting_eid, starting_eid + num_indices))
+            dask_series = dask_cudf.from_cudf(cudf_series, self.__num_workers)
             self.__edge_prop_dataframe[self.edge_id_col_name]\
                 .iloc[indices] = dask_series
             self.__last_edge_id = starting_eid + num_indices - 1
-
 
     def __get_all_vertices_series(self):
         """
@@ -865,4 +862,3 @@ class EXPERIMENTAL__MGPropertyGraph:
                 dtype_str = dtype_str.title()
             if str(df[col].dtype) != dtype_str:
                 df[col] = df[col].astype(dtype_str)
-                

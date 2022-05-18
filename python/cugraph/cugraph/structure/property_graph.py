@@ -17,11 +17,8 @@ import cugraph
 from cugraph.utilities.utils import import_optional, MissingModule
 
 pd = import_optional("pandas")
-dask_cudf = import_optional("dask_cudf")
 
 _dataframe_types = [cudf.DataFrame]
-if not isinstance(dask_cudf, MissingModule):
-    _dataframe_types.append(dask_cudf.DataFrame)
 if not isinstance(pd, MissingModule):
     _dataframe_types.append(pd.DataFrame)
 
@@ -333,7 +330,6 @@ class EXPERIMENTAL__PropertyGraph:
                        for n in self.__vertex_prop_dataframe.columns])
         self.__vertex_prop_eval_dict.update(latest)
 
-
     def add_edge_data(self,
                       dataframe,
                       vertex_col_names,
@@ -369,7 +365,6 @@ class EXPERIMENTAL__PropertyGraph:
         --------
         >>>
         """
-        breakpoint()
         if type(dataframe) not in _dataframe_types:
             raise TypeError("dataframe must be one of the following types: "
                             f"{_dataframe_types}, got: {type(dataframe)}")
@@ -413,20 +408,12 @@ class EXPERIMENTAL__PropertyGraph:
                                 self.edge_id_col_name,
                                 self.type_col_name]
         if self.__edge_prop_dataframe is None:
-            if type(dataframe) == dask_cudf.DataFrame:
-                breakpoint()
-                temp_dataframe = pd.DataFrame(columns=default_edge_columns)
-                from dask.dataframe import from_pandas
-                self.__edge_prop_dataframe = from_pandas(temp_dataframe, chunksize=10303)
-                breakpoint()
-            else:
-                self.__edge_prop_dataframe = \
-                    self.__dataframe_type(columns=default_edge_columns)
+            self.__edge_prop_dataframe = \
+                self.__dataframe_type(columns=default_edge_columns)
             # Initialize the new columns to the same dtype as the appropriate
             # column in the incoming dataframe, since the initial merge may not
             # result in the same dtype. (see
             # https://github.com/rapidsai/cudf/issues/9981)
-            breakpoint()
             self.__update_dataframe_dtypes(
                 self.__edge_prop_dataframe,
                 {self.src_col_name: dataframe[vertex_col_names[0]].dtype,
@@ -811,13 +798,6 @@ class EXPERIMENTAL__PropertyGraph:
         # FIXME: also add vertex_data
 
         return G
-    @classmethod
-    def modify_data(df):
-        temp_df = cudf.DataFrame()
-        temp_df['src'] = df['src']+1000
-        temp_df['dst'] = df['dst']+1000
-        temp_df['value'] = df['value']
-        return cudf.concat([df, temp_df])
 
     @classmethod
     def has_duplicate_edges(cls, df):
@@ -910,7 +890,6 @@ class EXPERIMENTAL__PropertyGraph:
         integer dtypes, needed to accommodate NA values in columns.
         """
         for (col, dtype) in column_dtype_dict.items():
-            breakpoint()
             # If the DataFrame is Pandas and the dtype is an integer type,
             # ensure a nullable integer array is used by specifying the correct
             # dtype. The alias for these dtypes is simply a capitalized string
@@ -923,7 +902,7 @@ class EXPERIMENTAL__PropertyGraph:
                 # Assigning to df[col] produces a (false?) warning with Pandas,
                 # but assigning to df.loc[:,col] does not update the df in
                 # cudf, so do one or the other based on type.
-                if type(df) is not pd.DataFrame:
+                if type(df) is cudf.DataFrame:
                     df[col] = df[col].astype(dtype_str)
                 else:
                     df.loc[:, col] = df[col].astype(dtype_str)
