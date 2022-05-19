@@ -124,9 +124,22 @@ class simpleDistributedGraphImpl:
         #
 
         # FIXME: Edge Attribute not handled
+        # FIXME: the parameter below is no longer used for unrenumbering
         self.properties.renumbered = renumber
         self.source_columns = source
         self.destination_columns = destination
+
+    @property
+    def renumbered(self):
+        # This property is now used to determine if a dataframe was renumbered
+        # by checking the column name. Only the renumbered dataframes will have
+        # their column names renamed to 'renumbered_src' and 'renumbered_dst'
+        renumbered_vertex_col_names = ["renumbered_src", "renumbered_dst"]
+        if self.edgelist.edgelist_df is not None and not (
+            set(renumbered_vertex_col_names).issubset(
+                set(self.edgelist.edgelist_df.columns))):
+            return False
+        return True
 
     def view_edge_list(self):
         """
@@ -464,7 +477,9 @@ class simpleDistributedGraphImpl:
         ddf = self.edgelist.edgelist_df
         return ddf[ddf["src"] == n]["dst"].reset_index(drop=True)
 
-    def compute_renumber_edge_list(self, transposed=False):
+    def compute_renumber_edge_list(self,
+                                   transposed=False,
+                                   legacy_renum_only=False):
         """
         Compute a renumbered edge list
         This function works in the MNMG pipeline and will transform
@@ -486,13 +501,12 @@ class simpleDistributedGraphImpl:
             If True, renumber with the intent to make a CSC-like
             structure.  If False, renumber with the intent to make
             a CSR-like structure.  Defaults to False.
-        """
-        # FIXME:  What to do about edge_attr???
-        #         currently ignored for MNMG
 
-        # FIXME: this is confusing - in the code below,
-        # self.properties.renumbered needs to be interpreted as "needs to be
-        # renumbered", everywhere else it means "has been renumbered".
+        legacy_renum_only : (optional) bool
+            if True, The C++ renumbering will not be triggered.
+            This parameter is added for new algos following the
+            C/Pylibcugraph path
+        """
         if not self.properties.renumbered:
             self.edgelist = self.EdgeList(self.input_df)
             self.renumber_map = None
@@ -507,10 +521,13 @@ class simpleDistributedGraphImpl:
                 del self.edgelist
 
             renumbered_ddf, number_map, aggregate_segment_offsets = \
-                NumberMap.renumber_and_segment(self.input_df,
-                                               self.source_columns,
-                                               self.destination_columns,
-                                               store_transposed=transposed)
+                NumberMap.renumber_and_segment(
+                    self.input_df,
+                    self.source_columns,
+                    self.destination_columns,
+                    store_transposed=transposed,
+                    legacy_renum_only=legacy_renum_only)
+
             self.edgelist = self.EdgeList(renumbered_ddf)
             self.renumber_map = number_map
             self.aggregate_segment_offsets = aggregate_segment_offsets

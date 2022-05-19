@@ -893,7 +893,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
  * @tparam EdgePartitionDstValueInputWrapper Type of the wrapper for edge partition destination
  * property values.
  * @tparam EdgeOp Type of the quaternary (or quinary) edge operator.
- * @tparam T Type of the initial value for reduction over the incoming edges.
+ * @tparam T Type of the initial value for per-vertex reduction.
  * @tparam VertexValueOutputIterator Type of the iterator for vertex output property variables.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
@@ -916,6 +916,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
  * (inclusive) vertex (assigned to this process in multi-GPU). `vertex_value_output_last`
  * (exclusive) is deduced as @p vertex_value_output_first + @p
  * graph_view.local_vertex_partition_range_size().
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  */
 template <typename GraphViewType,
           typename EdgePartitionSrcValueInputWrapper,
@@ -930,8 +931,13 @@ void per_v_transform_reduce_incoming_e(
   EdgePartitionDstValueInputWrapper edge_partition_dst_value_input,
   EdgeOp e_op,
   T init,
-  VertexValueOutputIterator vertex_value_output_first)
+  VertexValueOutputIterator vertex_value_output_first,
+  bool do_expensive_check = false)
 {
+  if (do_expensive_check) {
+    // currently, nothing to do
+  }
+
   detail::per_v_transform_reduce_e<true>(handle,
                                          graph_view,
                                          edge_partition_src_value_input,
@@ -952,7 +958,7 @@ void per_v_transform_reduce_incoming_e(
  * @tparam EdgePartitionDstValueInputWrapper Type of the wrapper for edge partition destination
  * property values.
  * @tparam EdgeOp Type of the quaternary (or quinary) edge operator.
- * @tparam T Type of the initial value for reduction over the outgoing edges.
+ * @tparam T Type of the initial value for per-vertex reduction.
  * @tparam VertexValueOutputIterator Type of the iterator for vertex output property variables.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
@@ -975,6 +981,7 @@ void per_v_transform_reduce_incoming_e(
  * first (inclusive) vertex (assigned to this process in multi-GPU). `vertex_value_output_last`
  * (exclusive) is deduced as @p vertex_value_output_first + @p
  * graph_view.local_vertex_partition_range_size().
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  */
 template <typename GraphViewType,
           typename EdgePartitionSrcValueInputWrapper,
@@ -989,8 +996,13 @@ void per_v_transform_reduce_outgoing_e(
   EdgePartitionDstValueInputWrapper edge_partition_dst_value_input,
   EdgeOp e_op,
   T init,
-  VertexValueOutputIterator vertex_value_output_first)
+  VertexValueOutputIterator vertex_value_output_first,
+  bool do_expensive_check = false)
 {
+  if (do_expensive_check) {
+    // currently, nothing to do
+  }
+
   detail::per_v_transform_reduce_e<false>(handle,
                                           graph_view,
                                           edge_partition_src_value_input,
