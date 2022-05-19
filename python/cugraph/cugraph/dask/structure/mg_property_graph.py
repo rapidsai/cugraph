@@ -601,7 +601,7 @@ class EXPERIMENTAL__MGPropertyGraph:
         # FIXME: this allows anything to be instantiated does not check that
         # the type is a valid Graph type.
         elif type(create_using) is type(type):
-            G = create_using()
+            G = create_using(cugraph.Graph)
         else:
             raise TypeError("create_using must be a cugraph.Graph "
                             "(or subclass) type or instance, got: "
