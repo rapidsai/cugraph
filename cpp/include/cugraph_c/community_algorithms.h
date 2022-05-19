@@ -72,7 +72,6 @@ cugraph_type_erased_device_array_view_t* cugraph_triangle_count_result_get_count
  */
 void cugraph_triangle_count_result_free(cugraph_triangle_count_result_t* result);
 
-
 /**
  * @brief     Opaque heirarchical clustering output
  */
@@ -87,7 +86,7 @@ typedef struct {
  * @param [in]  graph        Pointer to graph.  NOTE: Graph might be modified if the storage
  *                           needs to be transposed
  * @param [in]  max_level    Maximum level in hierarchy
- * @param [in]  resolution   Resolution parameter (gamma) in modularity formula.  
+ * @param [in]  resolution   Resolution parameter (gamma) in modularity formula.
  *                           This changes the size of the communities.  Higher resolutions
  *                           lead to more smaller communities, lower resolutions lead to
  *                           fewer larger communities.
@@ -124,7 +123,6 @@ cugraph_type_erased_device_array_view_t* cugraph_heirarchical_clustering_result_
  * @param [in] result     The result from a sampling algorithm
  */
 void cugraph_heirarchical_clustering_result_free(cugraph_heirarchical_clustering_result_t* result);
-
 
 #ifdef __cplusplus
 }
