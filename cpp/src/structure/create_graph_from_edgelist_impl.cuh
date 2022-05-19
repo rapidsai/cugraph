@@ -326,10 +326,7 @@ create_graph_from_edgelist_impl(raft::handle_t const& handle,
                                                          meta.number_of_edges,
                                                          graph_properties,
                                                          meta.partition,
-                                                         meta.segment_offsets},
-
-      std::nullopt // TODO: Pass mask here
- ),
+                                                         meta.segment_offsets}),
     std::optional<rmm::device_uvector<vertex_t>>{std::move(renumber_map_labels)},
      );
 }
@@ -401,9 +398,7 @@ create_graph_from_edgelist_impl(raft::handle_t const& handle,
       cugraph::graph_meta_t<vertex_t, edge_t, multi_gpu>{
         num_vertices,
         graph_properties,
-        renumber ? std::optional<std::vector<vertex_t>>{meta.segment_offsets} : std::nullopt},
-      std::nullopt // TODO: Pass Mask here
-    ),
+        renumber ? std::optional<std::vector<vertex_t>>{meta.segment_offsets} : std::nullopt}),
     std::move(renumber_map_labels),
     );
 }
