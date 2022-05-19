@@ -406,7 +406,7 @@ void renumber_ext_vertices(raft::handle_t const& handle,
         renumber_map_labels + (local_int_vertex_last - local_int_vertex_first),
         thrust::make_counting_iterator(local_int_vertex_first),
         std::move(sorted_unique_ext_vertices),
-        detail::compute_gpu_id_from_vertex_t<vertex_t>{comm_size},
+        detail::compute_gpu_id_from_ext_vertex_t<vertex_t>{comm_size},
         handle.get_stream());
 
     renumber_map_ptr.reset();

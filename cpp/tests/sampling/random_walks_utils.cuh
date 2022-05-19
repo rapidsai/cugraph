@@ -33,7 +33,7 @@ namespace cugraph {
 namespace test {
 
 template <typename value_t>
-using vector_test_t = cugraph::detail::device_vec_t<value_t>;  // for debug purposes
+using vector_test_t = cugraph::detail::original::device_vec_t<value_t>;  // for debug purposes
 
 // host side utility to check a if a sequence of vertices is connected:
 //
@@ -212,17 +212,25 @@ bool host_check_query_rw(raft::handle_t const& handle,
   std::vector<index_t> w_sizes(num_paths);
   std::vector<index_t> w_offsets(num_paths);
 
-  raft::update_host(
-    v_sizes.data(), cugraph::detail::raw_const_ptr(d_v_sizes), num_paths, handle.get_stream());
+  raft::update_host(v_sizes.data(),
+                    cugraph::detail::original::raw_const_ptr(d_v_sizes),
+                    num_paths,
+                    handle.get_stream());
 
-  raft::update_host(
-    v_offsets.data(), cugraph::detail::raw_const_ptr(d_v_offsets), num_paths, handle.get_stream());
+  raft::update_host(v_offsets.data(),
+                    cugraph::detail::original::raw_const_ptr(d_v_offsets),
+                    num_paths,
+                    handle.get_stream());
 
-  raft::update_host(
-    w_sizes.data(), cugraph::detail::raw_const_ptr(d_w_sizes), num_paths, handle.get_stream());
+  raft::update_host(w_sizes.data(),
+                    cugraph::detail::original::raw_const_ptr(d_w_sizes),
+                    num_paths,
+                    handle.get_stream());
 
-  raft::update_host(
-    w_offsets.data(), cugraph::detail::raw_const_ptr(d_w_offsets), num_paths, handle.get_stream());
+  raft::update_host(w_offsets.data(),
+                    cugraph::detail::original::raw_const_ptr(d_w_offsets),
+                    num_paths,
+                    handle.get_stream());
 
   index_t crt_v_offset = 0;
   index_t crt_w_offset = 0;

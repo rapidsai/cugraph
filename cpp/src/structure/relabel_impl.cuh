@@ -57,7 +57,7 @@ void relabel(raft::handle_t const& handle,
     auto& comm           = handle.get_comms();
     auto const comm_size = comm.get_size();
 
-    auto key_func = detail::compute_gpu_id_from_vertex_t<vertex_t>{comm_size};
+    auto key_func = detail::compute_gpu_id_from_ext_vertex_t<vertex_t>{comm_size};
 
     // find unique old labels (to be relabeled)
 
@@ -75,8 +75,8 @@ void relabel(raft::handle_t const& handle,
 
     rmm::device_uvector<vertex_t> new_labels_for_unique_old_labels(0, handle.get_stream());
     {
-      // shuffle the old_new_label_pairs based on applying the compute_gpu_id_from_vertex_t functor
-      // to the old labels
+      // shuffle the old_new_label_pairs based on applying the compute_gpu_id_from_ext_vertex_t
+      // functor to the old labels
 
       rmm::device_uvector<vertex_t> rx_label_pair_old_labels(0, handle.get_stream());
       rmm::device_uvector<vertex_t> rx_label_pair_new_labels(0, handle.get_stream());
