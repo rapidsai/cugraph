@@ -86,8 +86,7 @@ uniform_nbr_sample_impl(
 
     rmm::device_uvector<vertex_t> d_out_src(0, handle.get_stream());
     rmm::device_uvector<vertex_t> d_out_dst(0, handle.get_stream());
-    auto d_out_indices =
-      thrust::make_optional(rmm::device_uvector<weight_t>(0, handle.get_stream()));
+    auto d_out_indices = std::make_optional(rmm::device_uvector<weight_t>(0, handle.get_stream()));
 
     if (k_level != 0) {
       // extract out-degs(sources):
