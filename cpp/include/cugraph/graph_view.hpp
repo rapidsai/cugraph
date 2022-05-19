@@ -42,23 +42,24 @@ class serializer_t;  // forward...
 
 template <typename mask_t = bool>
 struct graph_mask_t {
-public:
-    graph_mask_t() = default;
+ public:
+  graph_mask_t() = default;
 
-    graph_mask_t(std::optional<mask_t const*> &edges,
-                 std::optional<mask_t const*> &vertices,
-                 bool complement = false):
-        edges_(edges), vertices_(vertices), complement_(complement) {}
+  graph_mask_t(std::optional<mask_t const*>& edges,
+               std::optional<mask_t const*>& vertices,
+               bool complement = false)
+    : edges_(edges), vertices_(vertices), complement_(complement)
+  {
+  }
 
-    bool is_complemented() const  { return complement_; }
-    std::optional<mask_t const *> edges() const { return edges_; }
-    std::optional<mask_t const *> vertices() const { return vertices_; }
+  bool is_complemented() const { return complement_; }
+  std::optional<mask_t const*> edges() const { return edges_; }
+  std::optional<mask_t const*> vertices() const { return vertices_; }
 
-
-private:
-    bool complement_ = false;
-    std::optional<mask_t const *> edges_{std::nullopt};
-    std::optional<mask_t const *> vertices_{std::nullopt};
+ private:
+  bool complement_ = false;
+  std::optional<mask_t const*> edges_{std::nullopt};
+  std::optional<mask_t const*> vertices_{std::nullopt};
 };
 
 /**
