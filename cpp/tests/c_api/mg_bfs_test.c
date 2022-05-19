@@ -72,6 +72,8 @@ int generic_bfs_test(
                          TRUE,
                          &paths_result,
                          &ret_error);
+                         
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "cugraph_bfs failed.");
 
   cugraph_type_erased_device_array_view_t* vertices;
