@@ -70,6 +70,7 @@ struct transform_reduce_call_v_op_t {
  * future) implementations of graph primitives may check whether @p ReduceOp is a known type (or has
  * known member variables) to take a more optimized code path. See the documentation in the
  * reduce_op.cuh file for instructions on writing custom reduction operators.
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  * @return T Transformed and reduced input vertex property values.
  */
 template <typename GraphViewType,
@@ -82,9 +83,14 @@ T transform_reduce_v(raft::handle_t const& handle,
                      VertexValueInputIterator vertex_value_input_first,
                      VertexOp v_op,
                      T init,
-                     ReduceOp reduce_op)
+                     ReduceOp reduce_op,
+                     bool do_expensive_check = false)
 {
   using vertex_t = typename GraphViewType::vertex_type;
+
+  if (do_expensive_check) {
+    // currently, nothing to do
+  }
 
   return reduce_v(
     handle,
@@ -116,6 +122,7 @@ T transform_reduce_v(raft::handle_t const& handle,
  * [0, @p graph_view.local_vertex_partition_range_size())) and returns a transformed value to be
  * reduced.
  * @param init Initial value to be added to the transform-reduced input vertex property values.
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  * @return T Transformed and reduced input vertex property values.
  */
 template <typename GraphViewType, typename VertexValueInputIterator, typename VertexOp, typename T>
@@ -123,8 +130,13 @@ T transform_reduce_v(raft::handle_t const& handle,
                      GraphViewType const& graph_view,
                      VertexValueInputIterator vertex_value_input_first,
                      VertexOp v_op,
-                     T init)
+                     T init,
+                     bool do_expensive_check = false)
 {
+  if (do_expensive_check) {
+    // currently, nothing to do
+  }
+
   return transform_reduce_v(
     handle, graph_view, vertex_value_input_first, v_op, init, reduce_op::plus<T>{});
 }
@@ -146,18 +158,24 @@ T transform_reduce_v(raft::handle_t const& handle,
  * @param v_op Binary operator takes vertex ID and *(@p vertex_value_input_first + i) (where i is
  * [0, @p graph_view.local_vertex_partition_range_size())) and returns a transformed value to be
  * reduced.
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  * @return Transformed and reduced input vertex property values.
  */
 template <typename GraphViewType, typename VertexValueInputIterator, typename VertexOp>
 auto transform_reduce_v(raft::handle_t const& handle,
                         GraphViewType const& graph_view,
                         VertexValueInputIterator vertex_value_input_first,
-                        VertexOp v_op)
+                        VertexOp v_op,
+                        bool do_expensive_check = false)
 {
   using vertex_t = typename GraphViewType::vertex_type;
   using vertex_value_input_t =
     typename thrust::iterator_traits<VertexValueInputIterator>::value_type;
   using T = std::invoke_result_t<VertexOp, vertex_t, vertex_value_input_t>;
+
+  if (do_expensive_check) {
+    // currently, nothing to do
+  }
 
   return transform_reduce_v(
     handle, graph_view, vertex_value_input_first, v_op, T{}, reduce_op::plus<T>{});
