@@ -19,7 +19,6 @@ from pylibcugraph import (ResourceHandle,
                           SGGraph)
 from pylibcugraph.experimental import eigenvector_centrality
 from cugraph.testing import utils
-import pylibcugraph
 
 
 TOY = utils.RAPIDS_DATASET_ROOT_DIR_PATH/'toy_graph.csv'
