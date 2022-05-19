@@ -52,6 +52,7 @@ namespace cugraph {
  * future) implementations of graph primitives may check whether @p ReduceOp is a known type (or has
  * known member variables) to take a more optimized code path. See the documentation in the
  * reduce_op.cuh file for instructions on writing custom reduction operators.
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  * @return T Reduced input vertex property values.
  */
 template <typename GraphViewType, typename ReduceOp, typename VertexValueInputIterator, typename T>
@@ -59,7 +60,8 @@ T reduce_v(raft::handle_t const& handle,
            GraphViewType const& graph_view,
            VertexValueInputIterator vertex_value_input_first,
            T init,
-           ReduceOp reduce_op)
+           ReduceOp reduce_op,
+           bool do_expensive_check = false)
 {
   using vertex_t = typename GraphViewType::vertex_type;
 
@@ -67,6 +69,10 @@ T reduce_v(raft::handle_t const& handle,
     std::is_same_v<
       std::remove_cv_t<typename thrust::iterator_traits<VertexValueInputIterator>::value_type>,
       std::remove_cv_t<T>>);
+
+  if (do_expensive_check) {
+    // currently, nothing to do
+  }
 
   if (graph_view.number_of_vertices() == vertex_t{0}) { return init; }
 
@@ -183,14 +189,20 @@ T reduce_v(raft::handle_t const& handle,
  * (inclusive) vertex (assigned to this process in multi-GPU). `vertex_value_input_last` (exclusive)
  * is deduced as @p vertex_value_input_first + @p graph_view.local_vertex_partition_range_size().
  * @param init Initial value to be added to the reduced input vertex property values.
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  * @return T Reduced input vertex property values.
  */
 template <typename GraphViewType, typename VertexValueInputIterator, typename T>
 T reduce_v(raft::handle_t const& handle,
            GraphViewType const& graph_view,
            VertexValueInputIterator vertex_value_input_first,
-           T init)
+           T init,
+           bool do_expensive_check = false)
 {
+  if (do_expensive_check) {
+    // currently, nothing to do
+  }
+
   return reduce_v(handle, graph_view, vertex_value_input_first, init, reduce_op::plus<T>{});
 }
 
@@ -209,15 +221,21 @@ T reduce_v(raft::handle_t const& handle,
  * @param vertex_value_input_first Iterator pointing to the vertex property values for the first
  * (inclusive) vertex (assigned to this process in multi-GPU). `vertex_value_input_last` (exclusive)
  * is deduced as @p vertex_value_input_first + @p graph_view.local_vertex_partition_range_size().
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  * @return Reduced input vertex property values.
  */
 template <typename GraphViewType, typename VertexValueInputIterator>
 auto reduce_v(raft::handle_t const& handle,
               GraphViewType const& graph_view,
-              VertexValueInputIterator vertex_value_input_first)
+              VertexValueInputIterator vertex_value_input_first,
+              bool do_expensive_check = false)
 {
   using T =
     std::remove_cv_t<typename thrust::iterator_traits<VertexValueInputIterator>::value_type>;
+
+  if (do_expensive_check) {
+    // currently, nothing to do
+  }
 
   return reduce_v(handle, graph_view, vertex_value_input_first, T{}, reduce_op::plus<T>{});
 }
