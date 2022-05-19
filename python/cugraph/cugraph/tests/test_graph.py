@@ -665,6 +665,7 @@ def test_neighbors(graph_file):
         nx_neighbors.sort()
         assert cu_neighbors == nx_neighbors
 
+
 # Test
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_to_pandas_edgelist(graph_file):
