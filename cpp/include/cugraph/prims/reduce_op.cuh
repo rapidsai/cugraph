@@ -24,7 +24,7 @@ namespace cugraph {
 namespace reduce_op {
 
 // Guidance on writing a custom reduction operator.
-// 1. It is advised to add a "using type = type_of_the_reduced_values" statement.
+// 1. It is required to add an "using type = type_of_the_reduced_values" statement.
 // 2. A custom reduction operator MUST be side-effect free. We use thrust::reduce internally to
 // implement reductions in multiple primitives. The current (version 1.16)  implementation of thrust
 // reduce rounds up the number of invocations based on the CUDA block size and discards the values
