@@ -96,7 +96,7 @@ def EXPERIMENTAL__eigenvector_centrality(ResourceHandle resource_handle,
                                                 do_expensive_check,
                                                 &result_ptr,
                                                 &error_ptr)
-    assert_success(error_code, error_ptr, "cugraph_katz_centrality")
+    assert_success(error_code, error_ptr, "cugraph_eigenvector_centrality")
 
     # Extract individual device array pointers from result and copy to cupy
     # arrays for returning.

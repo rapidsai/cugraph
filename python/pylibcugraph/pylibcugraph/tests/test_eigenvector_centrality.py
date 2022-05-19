@@ -18,11 +18,11 @@ from pylibcugraph import (ResourceHandle,
                           GraphProperties,
                           SGGraph)
 from pylibcugraph.experimental import eigenvector_centrality
-import pathlib
+from cugraph.testing import utils
 import pylibcugraph
 
 
-datasets = pathlib.Path(pylibcugraph.__path__[0]).parent.parent.parent
+TOY = utils.RAPIDS_DATASET_ROOT_DIR_PATH/'toy_graph.csv'
 
 
 # =============================================================================
@@ -57,7 +57,7 @@ def _generic_eigenvector_test(src_arr,
                 store_transposed=False, renumber=False,
                 do_expensive_check=True)
 
-    (vertices, centralities) = eigenvector_centrality(resource_handle, G, None,
+    (vertices, centralities) = eigenvector_centrality(resource_handle, G,
                                                       epsilon, max_iterations,
                                                       do_expensive_check=False)
 
@@ -77,7 +77,7 @@ def _generic_eigenvector_test(src_arr,
 def test_eigenvector():
     num_edges = 8
     num_vertices = 6
-    graph_data = np.genfromtxt(datasets / 'datasets/toy_graph.csv',
+    graph_data = np.genfromtxt(TOY,
                                delimiter=' ')
     src = cp.asarray(graph_data[:, 0], dtype=np.int32)
     dst = cp.asarray(graph_data[:, 1], dtype=np.int32)
