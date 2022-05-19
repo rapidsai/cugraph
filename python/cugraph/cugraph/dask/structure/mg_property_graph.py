@@ -422,68 +422,7 @@ class EXPERIMENTAL__MGPropertyGraph:
         self.__edge_prop_eval_dict.update(latest)
 
     def select_vertices(self, expr, from_previous_selection=None):
-        """
-        Evaluate expr and return a PropertySelection object representing the
-        vertices that match the expression.
-
-        Parameters
-        ----------
-        expr : string
-            A python expression using property names and operators to select
-            specific vertices.
-        from_previous_selection : PropertySelection
-            A PropertySelection instance returned from a prior call to
-            select_vertices() that can be used to select a subset of vertices
-            to evaluate the expression against. This allows for a selection of
-            the intersection of vertices of multiple types (eg. all vertices
-            that are both type A and type B)
-
-        Returns
-        -------
-        PropertySelection instance to be used for calls to extract_subgraph()
-        in order to construct a Graph containing only specific vertices.
-
-        Examples
-        --------
-        >>>
-        """
-        # FIXME: check types
-
-        # Check if the expr is to be evaluated in the context of properties
-        # from only the previously selected vertices (as opposed to all
-        # properties from all vertices)
-        if (from_previous_selection is not None) and \
-           (from_previous_selection.vertex_selections is not None):
-            previously_selected_rows = self.__vertex_prop_dataframe[
-                from_previous_selection.vertex_selections]
-            verts_from_previously_selected_rows = \
-                previously_selected_rows[self.vertex_col_name]
-            # get all the rows from the entire __vertex_prop_dataframe that
-            # contain those verts
-            rows_with_verts = \
-                self.__vertex_prop_dataframe[self.vertex_col_name]\
-                    .isin(verts_from_previously_selected_rows)
-            rows_to_eval = self.__vertex_prop_dataframe[rows_with_verts]
-            locals = dict([(n, rows_to_eval[n])
-                           for n in rows_to_eval.columns])
-        else:
-            locals = self.__vertex_prop_eval_dict
-
-        globals = {}
-        selected_col = eval(expr, globals, locals)
-
-        num_rows = len(self.__vertex_prop_dataframe)
-        # Ensure the column is the same size as the DataFrame, then replace any
-        # NA values with False to represent rows that should not be selected.
-        # This ensures the selected column can be applied to the entire
-        # __vertex_prop_dataframe to determine which rows to use when creating
-        # a Graph from a query.
-        if num_rows != len(selected_col):
-            selected_col = selected_col.reindex(range(num_rows), copy=False)
-            selected_col.fillna(False, inplace=True)
-
-        return EXPERIMENTAL__MGPropertySelection(
-            vertex_selection_series=selected_col)
+        raise NotImplementedError
 
     def select_edges(self, expr):
         """
@@ -611,69 +550,7 @@ class EXPERIMENTAL__MGPropertyGraph:
             allow_multi_edges=allow_multi_edges)
 
     def annotate_dataframe(self, df, G, edge_vertex_col_names):
-        """
-        Add properties to df that represent the vertices and edges in graph G.
-
-        Parameters
-        ----------
-        df : cudf.DataFrame or pandas.DataFrame
-            A DataFrame containing edges identified by edge_vertex_col_names
-            which will have properties for those edges added to it.
-        G : cugraph.Graph (or subclass of) instance.
-            Graph containing the edges specified in df. The Graph instance must
-            have been generated from a prior call to extract_subgraph() in
-            order to have the edge meta-data used to look up the correct
-            properties.
-        edge_vertex_col_names : tuple of strings
-            The column names in df that represent the source and destination
-            vertices, used for identifying edges.
-
-        Returns
-        -------
-        A copy of df with additional columns corresponding to properties for
-        the edge in the row.
-        FIXME: also provide the ability to annotate vertex data.
-
-        Examples
-        --------
-        >>>
-        """
-        # FIXME: check all args
-        (src_col_name, dst_col_name) = edge_vertex_col_names
-
-        df_type = type(df)
-        if df_type is not self.__dataframe_type:
-            raise TypeError(f"df type {df_type} does not match DataFrame type "
-                            f"{self.__dataframe_type} used in PropertyGraph")
-
-        if hasattr(G, "edge_data"):
-            edge_info_df = G.edge_data
-        else:
-            raise AttributeError("Graph G does not have attribute 'edge_data'")
-
-        # New result includes only properties from the src/dst edges identified
-        # by edge IDs. All other data in df is merged based on src/dst values.
-        # NOTE: results from MultiGraph graphs will have to include edge IDs!
-        edge_props_df = edge_info_df.merge(self.__edge_prop_dataframe,
-                                           how="inner")
-
-        # FIXME: also allow edge ID col to be passed in and renamed.
-        new_df = df.rename(columns={src_col_name: self.src_col_name,
-                                    dst_col_name: self.dst_col_name})
-        new_df = new_df.merge(edge_props_df)
-        # restore the original src/dst column names
-        new_df.rename(columns={self.src_col_name: src_col_name,
-                               self.dst_col_name: dst_col_name},
-                      inplace=True)
-
-        # restore the original dtypes
-        self.__update_dataframe_dtypes(new_df, self.__edge_prop_dtypes)
-        for col in df.columns:
-            new_df[col] = new_df[col].astype(df[col].dtype)
-
-        # FIXME: consider removing internal columns (_EDGE_ID_, etc.) and
-        # columns from edge types not included in the edges in df.
-        return new_df
+       raise NotImplementedError()
 
     def edge_props_to_graph(self,
                             edge_prop_df,
@@ -800,12 +677,12 @@ class EXPERIMENTAL__MGPropertyGraph:
             indices = nans.index[nans]
             num_indices = len(indices)
             starting_eid = prev_eid + 1
-            self.__edge_prop_dataframe.reindex()
             cudf_series = \
                 cudf.Series(range(starting_eid, starting_eid + num_indices))
             dask_series = dask_cudf.from_cudf(cudf_series, self.__num_workers)
-            self.__edge_prop_dataframe[self.edge_id_col_name]\
-                .iloc[indices] = dask_series
+            self.__edge_prop_dataframe[self.edge_id_col_name] = dask_series
+            breakpoint()
+#            self.__edge_prop_dataframe.reindex()
             self.__last_edge_id = starting_eid + num_indices - 1
 
     def __get_all_vertices_series(self):
