@@ -591,6 +591,7 @@ per_src_dst_key_transform_reduce_e(
  * transformed value to be reduced to (source key, value) pairs.
  * @param init Initial value to be added to the value in each transform-reduced (source key, value)
  * pair.
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  * @return std::tuple Tuple of rmm::device_uvector<typename GraphView::vertex_type> and
  * rmm::device_uvector<T> (if T is arithmetic scalar) or a tuple of rmm::device_uvector objects (if
  * T is a thrust::tuple type of arithmetic scalar types, one rmm::device_uvector object per scalar
@@ -609,11 +610,16 @@ auto per_src_key_transform_reduce_e(
   EdgePartitionDstValueInputWrapper edge_partition_dst_value_input,
   EdgePartitionSrcKeyInputWrapper edge_partition_src_key_input,
   EdgeOp e_op,
-  T init)
+  T init,
+  bool do_expensive_check = false)
 {
   static_assert(is_arithmetic_or_thrust_tuple_of_arithmetic<T>::value);
   static_assert(std::is_same<typename EdgePartitionSrcKeyInputWrapper::value_type,
                              typename GraphViewType::vertex_type>::value);
+
+  if (do_expensive_check) {
+    // currently, nothing to do
+  }
 
   return detail::per_src_dst_key_transform_reduce_e<true>(handle,
                                                           graph_view,
@@ -663,6 +669,7 @@ auto per_src_key_transform_reduce_e(
  * transformed value to be reduced to (destination key, value) pairs.
  * @param init Initial value to be added to the value in each transform-reduced (destination key,
  * value) pair.
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  * @return std::tuple Tuple of rmm::device_uvector<typename GraphView::vertex_type> and
  * rmm::device_uvector<T> (if T is arithmetic scalar) or a tuple of rmm::device_uvector objects (if
  * T is a thrust::tuple type of arithmetic scalar types, one rmm::device_uvector object per scalar
@@ -681,11 +688,16 @@ auto per_dst_key_transform_reduce_e(
   EdgePartitionDstValueInputWrapper edge_partition_dst_value_input,
   EdgePartitionDstKeyInputWrapper edge_partition_dst_key_input,
   EdgeOp e_op,
-  T init)
+  T init,
+  bool do_expensive_check = false)
 {
   static_assert(is_arithmetic_or_thrust_tuple_of_arithmetic<T>::value);
   static_assert(std::is_same<typename EdgePartitionDstKeyInputWrapper::value_type,
                              typename GraphViewType::vertex_type>::value);
+
+  if (do_expensive_check) {
+    // currently, nothing to do
+  }
 
   return detail::per_src_dst_key_transform_reduce_e<false>(handle,
                                                            graph_view,
