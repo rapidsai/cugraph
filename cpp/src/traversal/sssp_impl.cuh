@@ -21,8 +21,9 @@
 #include <cugraph/prims/edge_partition_src_dst_property.cuh>
 #include <cugraph/prims/reduce_op.cuh>
 #include <cugraph/prims/transform_reduce_e.cuh>
+#include <cugraph/prims/transform_reduce_v_frontier_outgoing_e_by_dst.cuh>
 #include <cugraph/prims/update_edge_partition_src_dst_property.cuh>
-#include <cugraph/prims/update_v_frontier_from_outgoing_e.cuh>
+#include <cugraph/prims/update_v_frontier.cuh>
 #include <cugraph/prims/vertex_frontier.cuh>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/vertex_partition_device_view.cuh>
