@@ -50,7 +50,7 @@ int generic_experimental_uniform_neighbor_sample_test(const cugraph_resource_han
   cugraph_type_erased_device_array_view_t* d_start_view = NULL;
   cugraph_type_erased_host_array_view_t* h_fan_out_view = NULL;
 
-  ret_code = create_mg_test_graph_with_ids(
+  ret_code = create_mg_test_graph_with_edge_ids(
     handle, h_src, h_dst, h_idx, num_edges, store_transposed, FALSE, &graph, &ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "graph creation failed.");
 
