@@ -908,11 +908,10 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
   graph_t(raft::handle_t const& handle,
           std::vector<edgelist_t<vertex_t, edge_t, weight_t>> const& edgelists,
           graph_meta_t<vertex_t, edge_t, multi_gpu> meta,
-          std::optional<graph_mask_t<bool>> mask,
           bool do_expensive_check)
   : detail::graph_base_t<vertex_t, edge_t, weight_t>(
       handle, meta.number_of_vertices, meta.number_of_edges, meta.properties),
-    partition_(meta.partition), mask_(mask)
+    partition_(meta.partition)
 {
   auto is_weighted = edgelists[0].p_edge_weights.has_value();
   auto use_dcs =
@@ -1011,11 +1010,10 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
           std::vector<rmm::device_uvector<vertex_t>>&& edgelist_dst_partitions,
           std::optional<std::vector<rmm::device_uvector<weight_t>>>&& edgelist_weight_partitions,
           graph_meta_t<vertex_t, edge_t, multi_gpu> meta,
-          std::optional<std::vector<graph_mask_t<bool> *>>&& mask,
           bool do_expensive_check)
   : detail::graph_base_t<vertex_t, edge_t, weight_t>(
       handle, meta.number_of_vertices, meta.number_of_edges, meta.properties),
-    partition_(meta.partition), mask_(mask)
+    partition_(meta.partition)
 {
   CUGRAPH_EXPECTS(
     edgelist_src_partitions.size() == edgelist_dst_partitions.size(),
@@ -1149,13 +1147,12 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
   graph_t(raft::handle_t const& handle,
           edgelist_t<vertex_t, edge_t, weight_t> const& edgelist,
           graph_meta_t<vertex_t, edge_t, multi_gpu> meta,
-          std::optional<graph_mask_t<bool>> const& mask,
           bool do_expensive_check)
   : detail::graph_base_t<vertex_t, edge_t, weight_t>(
       handle, meta.number_of_vertices, edgelist.number_of_edges, meta.properties),
     offsets_(rmm::device_uvector<edge_t>(0, handle.get_stream())),
     indices_(rmm::device_uvector<vertex_t>(0, handle.get_stream())),
-    segment_offsets_(meta.segment_offsets), mask_(mask)
+    segment_offsets_(meta.segment_offsets)
 {
   check_graph_constructor_input_arguments<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
     handle, edgelist, meta, do_expensive_check);
@@ -1192,13 +1189,12 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
           rmm::device_uvector<vertex_t>&& edgelist_dsts,
           std::optional<rmm::device_uvector<weight_t>>&& edgelist_weights,
           graph_meta_t<vertex_t, edge_t, multi_gpu> meta,
-          std::optional<graph_mask_t<bool>> && mask,
           bool do_expensive_check)
   : detail::graph_base_t<vertex_t, edge_t, weight_t>(
       handle, meta.number_of_vertices, static_cast<edge_t>(edgelist_srcs.size()), meta.properties),
     offsets_(rmm::device_uvector<edge_t>(0, handle.get_stream())),
     indices_(rmm::device_uvector<vertex_t>(0, handle.get_stream())),
-    segment_offsets_(meta.segment_offsets), mask_(mask)
+    segment_offsets_(meta.segment_offsets)
 {
   CUGRAPH_EXPECTS(edgelist_srcs.size() == edgelist_dsts.size(),
                   "Invalid input argument: edgelist_srcs.size() != edgelist_dsts.size().");

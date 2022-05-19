@@ -95,7 +95,6 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
   graph_t(raft::handle_t const& handle,
           std::vector<edgelist_t<vertex_t, edge_t, weight_t>> const& edgelists,
           graph_meta_t<vertex_t, edge_t, multi_gpu> meta,
-          std::optional<graph_mask_t<bool>> mask,
           bool do_expensive_check = false);
 
   graph_t(raft::handle_t const& handle,
@@ -103,7 +102,6 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
           std::vector<rmm::device_uvector<vertex_t>>&& edgelist_dst_partitions,
           std::optional<std::vector<rmm::device_uvector<weight_t>>>&& edge_weight_partitions,
           graph_meta_t<vertex_t, edge_t, multi_gpu> meta,
-          std::optional<std::vector<graph_mask_t<bool> *>>&& mask,
           bool do_expensive_check = false);
 
   /**
@@ -158,15 +156,11 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
 
   bool is_weighted() const { return edge_partition_weights_.has_value(); }
 
-  bool has_mask() const { return mask_.has_value(); }
-
-  graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> view() const
+  graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> view(
+          std::optional<std::vector<graph_mask_t<bool> const*>>  mask = std::nullopt) const
   {
     std::vector<edge_t const*> offsets(edge_partition_offsets_.size(), nullptr);
     std::vector<vertex_t const*> indices(edge_partition_indices_.size(), nullptr);
-    std::optional<std::vector<graph_mask_t<bool> const*>> masks =
-            std::make_optional<std::vector<graph_mask_t<bool> const*>>(has_mask() ? (*mask_).size() : 0, nullptr);
-
 
     auto weights = edge_partition_weights_ ? std::make_optional<std::vector<weight_t const*>>(
                                                (*edge_partition_weights_).size(), nullptr)
@@ -186,10 +180,6 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
       if (dcs_nzd_vertices) {
         (*dcs_nzd_vertices)[i]      = (*edge_partition_dcs_nzd_vertices_)[i].data();
         (*dcs_nzd_vertex_counts)[i] = (*edge_partition_dcs_nzd_vertex_counts_)[i];
-      }
-
-      if(has_mask()) {
-          (*masks)[i] = (*mask_)[i];
       }
     }
 
@@ -222,7 +212,7 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
                                            (*local_sorted_unique_edge_dsts_).size()}
           : std::nullopt,
         local_sorted_unique_edge_dst_offsets_,
-      }, masks);
+      }, mask.has_value() ? mask : std::nullopt);
 
   }
 
@@ -255,8 +245,6 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
   std::optional<std::vector<vertex_t>> local_sorted_unique_edge_src_offsets_{std::nullopt};
   std::optional<std::vector<vertex_t>> local_sorted_unique_edge_dst_offsets_{std::nullopt};
 
-  std::optional<std::vector<graph_mask_t<bool>*>> mask_{std::nullopt};
-
 };
 
 // single-GPU version
@@ -282,7 +270,6 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
   graph_t(raft::handle_t const& handle,
           edgelist_t<vertex_t, edge_t, weight_t> const& edgelist,
           graph_meta_t<vertex_t, edge_t, multi_gpu> meta,
-          std::optional<graph_mask_t<bool>> const& mask,
           bool do_expensive_check = false);
 
   graph_t(raft::handle_t const& handle,
@@ -290,7 +277,6 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
           rmm::device_uvector<vertex_t>&& edgelist_dsts,
           std::optional<rmm::device_uvector<weight_t>>&& edgelist_weights,
           graph_meta_t<vertex_t, edge_t, multi_gpu> meta,
-          std::optional<graph_mask_t<bool>> && mask,
           bool do_expensive_check = false);
 
   /**
@@ -350,9 +336,8 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
 
   bool is_weighted() const { return weights_.has_value(); }
 
-  bool has_mask() const { return mask_.has_value(); }
-
-  graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> view() const
+  graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> view(
+          std::optional<graph_mask_t<bool> const> mask = std::nullopt) const
   {
     return graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
       *(this->handle_ptr()),
@@ -363,7 +348,7 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
                                                      this->number_of_edges(),
                                                      this->graph_properties(),
                                                      segment_offsets_},
-      mask_
+      mask
       );
   }
 
@@ -409,15 +394,13 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
           rmm::device_uvector<edge_t>&& offsets,
           rmm::device_uvector<vertex_t>&& indices,
           std::optional<rmm::device_uvector<weight_t>>&& weights,
-          std::optional<std::vector<vertex_t>>&& segment_offsets,
-          std::optional<graph_mask_t<bool>> && mask)
+          std::optional<std::vector<vertex_t>>&& segment_offsets)
     : detail::graph_base_t<vertex_t, edge_t, weight_t>(
         handle, number_of_vertices, number_of_edges, properties),
       offsets_(std::move(offsets)),
       indices_(std::move(indices)),
       weights_(std::move(weights)),
-      segment_offsets_(std::move(segment_offsets)),
-       mask_(std::move(mask)) {}
+      segment_offsets_(std::move(segment_offsets)) {}
 
   rmm::device_uvector<edge_t> offsets_;
   rmm::device_uvector<vertex_t> indices_;
@@ -425,7 +408,6 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
 
   // segment offsets based on vertex degree, relevant only if sorted_by_global_degree is true
   std::optional<std::vector<vertex_t>> segment_offsets_{};
-  std::optional<graph_mask_t<bool>> mask_{std::nullopt};
 };
 
 template <typename T, typename Enable = void>

@@ -173,8 +173,7 @@ std::unique_ptr<graph_t<vertex_t, edge_t, weight_t, transposed, multi_gpu>> crea
       // FIXME: disable (key, value) pairs at this moment (should be enabled once fully tuned).
       std::numeric_limits<vertex_t>::max(),
       std::numeric_limits<vertex_t>::max()},
-    std::nullopt, // TODO: Populate mask
-    graph_container.do_expensive_check);
+      graph_container.do_expensive_check);
 }
 
 template <typename vertex_t,
@@ -205,7 +204,6 @@ std::unique_ptr<graph_t<vertex_t, edge_t, weight_t, transposed, multi_gpu>> crea
             static_cast<vertex_t const*>(graph_container.segment_offsets) +
               graph_container.num_segments + 1)
         : std::nullopt},
-    std::nullopt, // TODO: Populate mask
     graph_container.do_expensive_check);
 }
 
