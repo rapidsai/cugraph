@@ -448,6 +448,10 @@ ConfigureTest(PAGERANK_TEST link_analysis/pagerank_test.cpp)
 ConfigureTest(KATZ_CENTRALITY_TEST centrality/katz_centrality_test.cpp)
 
 ###################################################################################################
+# - EIGENVECTOR_CENTRALITY tests -------------------------------------------------------------------------
+ConfigureTest(EIGENVECTOR_CENTRALITY_TEST centrality/eigenvector_centrality_test.cpp)
+
+###################################################################################################
 # - WEAKLY CONNECTED COMPONENTS tests -------------------------------------------------------------
 ConfigureTest(WEAKLY_CONNECTED_COMPONENTS_TEST components/weakly_connected_components_test.cpp)
 
@@ -537,6 +541,10 @@ if(BUILD_CUGRAPH_MG_TESTS)
         ###########################################################################################
         # - MG KATZ CENTRALITY tests --------------------------------------------------------------
         ConfigureTestMG(MG_KATZ_CENTRALITY_TEST centrality/mg_katz_centrality_test.cpp)
+
+        ###########################################################################################
+        # - MG EIGENVECTOR CENTRALITY tests --------------------------------------------------------------
+        ConfigureTestMG(MG_EIGENVECTOR_CENTRALITY_TEST centrality/mg_eigenvector_centrality_test.cpp)
 
         ###########################################################################################
         # - MG BFS tests --------------------------------------------------------------------------
