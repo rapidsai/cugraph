@@ -77,10 +77,6 @@ int generic_eigenvector_centrality_test(vertex_t* h_src,
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "copy_to_host failed.");
 
   for (int i = 0; (i < num_vertices) && (test_ret_value == 0); ++i) {
-    printf("%d : %g\n", h_vertices[i], h_centralities[i]);
-  }
-
-  for (int i = 0; (i < num_vertices) && (test_ret_value == 0); ++i) {
     TEST_ASSERT(test_ret_value,
                 nearlyEqual(h_result[h_vertices[i]], h_centralities[i], 0.001),
                 "centralities results don't match");

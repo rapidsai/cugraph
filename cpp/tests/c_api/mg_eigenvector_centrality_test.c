@@ -78,10 +78,6 @@ int generic_eigenvector_centrality_test(const cugraph_resource_handle_t* handle,
   size_t num_local_vertices = cugraph_type_erased_device_array_view_size(vertices);
 
   for (int i = 0; (i < num_local_vertices) && (test_ret_value == 0); ++i) {
-    printf("%d : %g\n", h_vertices[i], h_centralities[i]);
-  }
-
-  for (int i = 0; (i < num_local_vertices) && (test_ret_value == 0); ++i) {
     TEST_ASSERT(test_ret_value,
                 nearlyEqual(h_result[h_vertices[i]], h_centralities[i], 0.001),
                 "eigenvector centrality results don't match");
