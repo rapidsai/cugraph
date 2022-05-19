@@ -224,15 +224,14 @@ void bfs(raft::handle_t const& handle,
       }
 
       auto [new_frontier_vertex_buffer, predecessor_buffer] =
-        transform_reduce_v_frontier_outgoing_e_by_dst(
-          handle,
-          push_graph_view,
-          vertex_frontier.bucket(bucket_idx_cur).begin(),
-          vertex_frontier.bucket(bucket_idx_cur).end(),
-          dummy_property_t<vertex_t>{}.device_view(),
-          dummy_property_t<vertex_t>{}.device_view(),
+        transform_reduce_v_frontier_outgoing_e_by_dst(handle,
+                                                      push_graph_view,
+                                                      vertex_frontier,
+                                                      bucket_idx_cur,
+                                                      dummy_property_t<vertex_t>{}.device_view(),
+                                                      dummy_property_t<vertex_t>{}.device_view(),
 #if 1
-          e_op,
+                                                      e_op,
 #else
           // FIXME: need to test more about the performance trade-offs between additional
           // communication in updating dst_visited_flags (+ using atomics) vs reduced number of
@@ -249,7 +248,7 @@ void bfs(raft::handle_t const& handle,
             return push ? thrust::optional<vertex_t>{src} : thrust::nullopt;
           },
 #endif
-          reduce_op::any<vertex_t>());
+                                                      reduce_op::any<vertex_t>());
 
       update_v_frontier(
         handle,

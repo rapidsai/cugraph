@@ -971,24 +971,24 @@ typename GraphViewType::edge_type compute_num_out_nbrs_from_frontier(
  * either be VertexFrontierType::kInvalidBucketIdx or an index in @p next_frontier_bucket_indices.
  */
 template <typename GraphViewType,
+          typename VertexFrontierType,
           typename EdgePartitionSrcValueInputWrapper,
           typename EdgePartitionDstValueInputWrapper,
-          typename KeyIterator,
           typename EdgeOp,
           typename ReduceOp>
 std::conditional_t<
   !std::is_same_v<typename ReduceOp::type, void>,
-  std::tuple<decltype(allocate_dataframe_buffer<typename thrust::iterator_traits<
-                        KeyIterator>::value_type>(0, rmm::cuda_stream_view{})),
+  std::tuple<decltype(allocate_dataframe_buffer<typename VertexFrontierType::key_type>(
+               0, rmm::cuda_stream_view{})),
              decltype(detail::allocate_optional_payload_buffer<typename ReduceOp::type>(
                0, rmm::cuda_stream_view{}))>,
-  decltype(allocate_dataframe_buffer<typename thrust::iterator_traits<KeyIterator>::value_type>(
-    0, rmm::cuda_stream_view{}))>
+  decltype(
+    allocate_dataframe_buffer<typename VertexFrontierType::key_type>(0, rmm::cuda_stream_view{}))>
 transform_reduce_v_frontier_outgoing_e_by_dst(
   raft::handle_t const& handle,
   GraphViewType const& graph_view,
-  KeyIterator frontier_key_first,
-  KeyIterator frontier_key_last,
+  VertexFrontierType const& frontier,
+  size_t cur_frontier_bucket_idx,
   EdgePartitionSrcValueInputWrapper edge_partition_src_value_input,
   EdgePartitionDstValueInputWrapper edge_partition_dst_value_input,
   EdgeOp e_op,
@@ -1001,10 +1001,13 @@ transform_reduce_v_frontier_outgoing_e_by_dst(
   using vertex_t  = typename GraphViewType::vertex_type;
   using edge_t    = typename GraphViewType::edge_type;
   using weight_t  = typename GraphViewType::weight_type;
-  using key_t     = typename thrust::iterator_traits<KeyIterator>::value_type;
+  using key_t     = typename VertexFrontierType::key_type;
   using payload_t = typename ReduceOp::type;
 
   if (do_expensive_check) {}
+
+  auto frontier_key_first = frontier.bucket(cur_frontier_bucket_idx).begin();
+  auto frontier_key_last  = frontier.bucket(cur_frontier_bucket_idx).end();
 
   // 1. fill the buffer
 

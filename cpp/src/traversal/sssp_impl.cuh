@@ -166,8 +166,8 @@ void sssp(raft::handle_t const& handle,
       transform_reduce_v_frontier_outgoing_e_by_dst(
         handle,
         push_graph_view,
-        vertex_frontier.bucket(bucket_idx_cur_near).begin(),
-        vertex_frontier.bucket(bucket_idx_cur_near).end(),
+        vertex_frontier,
+        bucket_idx_cur_near,
         GraphViewType::is_multi_gpu
           ? edge_partition_src_distances.device_view()
           : detail::edge_partition_major_property_device_view_t<vertex_t, weight_t const*>(
