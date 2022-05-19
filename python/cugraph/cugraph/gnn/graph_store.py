@@ -130,7 +130,7 @@ class CuGraphStore:
                                       by="dst",
                                       n_samples=fanout)
 
-        return filtered_list['src'].values,  filtered_list['dst'].values
+        return filtered_list['dst'].values, filtered_list['src'].values
 
     def node_subgraph(self,
                       nodes=None,
