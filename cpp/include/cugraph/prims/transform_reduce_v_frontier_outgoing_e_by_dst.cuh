@@ -1004,7 +1004,12 @@ transform_reduce_v_frontier_outgoing_e_by_dst(
   using key_t     = typename VertexFrontierType::key_type;
   using payload_t = typename ReduceOp::type;
 
-  if (do_expensive_check) {}
+  CUGRAPH_EXPECTS(cur_frontier_bucket_idx < frontier.num_buckets(),
+                  "Invalid input argument: invalid current bucket index.");
+
+  if (do_expensive_check) {
+    // currently, nothing to do
+  }
 
   auto frontier_key_first = frontier.bucket(cur_frontier_bucket_idx).begin();
   auto frontier_key_last  = frontier.bucket(cur_frontier_bucket_idx).end();

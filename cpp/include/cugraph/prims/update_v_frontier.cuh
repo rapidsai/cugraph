@@ -132,7 +132,16 @@ void update_v_frontier(raft::handle_t const& handle,
   static_assert(std::is_rvalue_reference_v<decltype(key_buffer)>);
   static_assert(std::is_rvalue_reference_v<decltype(payload_buffer)>);
 
-  if (do_expensive_check) {}
+  std::for_each(next_frontier_bucket_indices.begin(),
+                next_frontier_bucket_indices.end(),
+                [&frontier](auto idx) {
+                  CUGRAPH_EXPECTS(idx < frontier.num_buckets(),
+                                  "Invalid input argument: invalid next bucket indices.");
+                });
+
+  if (do_expensive_check) {
+    // currently, nothing to do
+  }
 
   if (size_dataframe_buffer(key_buffer) > 0) {
     assert(frontier.num_buckets() <= std::numeric_limits<uint8_t>::max());
@@ -219,7 +228,16 @@ void update_v_frontier(raft::handle_t const& handle,
 
   static_assert(std::is_rvalue_reference_v<decltype(key_buffer)>);
 
-  if (do_expensive_check) {}
+  std::for_each(next_frontier_bucket_indices.begin(),
+                next_frontier_bucket_indices.end(),
+                [&frontier](auto idx) {
+                  CUGRAPH_EXPECTS(idx < frontier.num_buckets(),
+                                  "Invalid input argument: invalid next bucket indices.");
+                });
+
+  if (do_expensive_check) {
+    // currently, nothing to do
+  }
 
   if (size_dataframe_buffer(key_buffer) > 0) {
     assert(frontier.num_buckets() <= std::numeric_limits<uint8_t>::max());
