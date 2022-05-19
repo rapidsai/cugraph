@@ -25,16 +25,16 @@ typedef int32_t vertex_t;
 typedef int32_t edge_t;
 typedef float weight_t;
 
-int create_test_graph_with_ids(const cugraph_resource_handle_t* p_handle,
-                               vertex_t* h_src,
-                               vertex_t* h_dst,
-                               edge_t* h_ids,
-                               size_t num_edges,
-                               bool_t store_transposed,
-                               bool_t renumber,
-                               bool_t is_symmetric,
-                               cugraph_graph_t** p_graph,
-                               cugraph_error_t** ret_error)
+int create_test_graph_with_edge_ids(const cugraph_resource_handle_t* p_handle,
+                                    vertex_t* h_src,
+                                    vertex_t* h_dst,
+                                    edge_t* h_ids,
+                                    size_t num_edges,
+                                    bool_t store_transposed,
+                                    bool_t renumber,
+                                    bool_t is_symmetric,
+                                    cugraph_graph_t** p_graph,
+                                    cugraph_error_t** ret_error)
 {
   int test_ret_value = 0;
   cugraph_error_code_t ret_code;
@@ -139,7 +139,7 @@ int generic_experimental_uniform_neighbor_sample_test(vertex_t* h_src,
   handle = cugraph_create_resource_handle(NULL);
   TEST_ASSERT(test_ret_value, handle != NULL, "resource handle creation failed.");
 
-  ret_code = create_test_graph_with_ids(
+  ret_code = create_test_graph_with_edge_ids(
     handle, h_src, h_dst, h_ids, num_edges, store_transposed, renumber, FALSE, &graph, &ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "graph creation failed.");
 
