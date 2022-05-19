@@ -52,6 +52,7 @@ namespace cugraph {
  * @param e_op Quaternary (or quinary) operator takes edge source, edge destination, (optional edge
  * weight), property values for the source, and property values for the destination and returns if
  * this edge should be included in the returned count.
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  * @return GraphViewType::edge_type Number of times @p e_op returned true.
  */
 template <typename GraphViewType,
@@ -63,10 +64,15 @@ typename GraphViewType::edge_type count_if_e(
   GraphViewType const& graph_view,
   EdgePartitionSrcValueInputWrapper edge_partition_src_value_input,
   EdgePartitionDstValueInputWrapper edge_partition_dst_value_input,
-  EdgeOp e_op)
+  EdgeOp e_op,
+  bool do_expensive_check = false)
 {
   using vertex_t = typename GraphViewType::vertex_type;
   using edge_t   = typename GraphViewType::edge_type;
+
+  if (do_expensive_check) {
+    // currently, nothing to do
+  }
 
   return transform_reduce_e(handle,
                             graph_view,

@@ -243,8 +243,8 @@ add_library(cugraph
     src/visitors/bfs_visitor.cpp
     src/visitors/rw_visitor.cpp
     src/visitors/graph_make_visitor.cpp
-    src/community/triangle_counts_sg.cu
-    src/community/triangle_counts_mg.cu
+    src/community/triangle_count_sg.cu
+    src/community/triangle_count_mg.cu
 )
 
 set_target_properties(cugraph
@@ -374,6 +374,7 @@ add_library(cugraph_c
         src/c_api/sssp.cpp
         src/c_api/extract_paths.cpp
         src/c_api/random_walks.cpp
+        src/c_api/triangle_count.cpp
         src/c_api/uniform_neighbor_sampling.cpp
         src/c_api/labeling_result.cpp
         src/c_api/weakly_connected_components.cpp

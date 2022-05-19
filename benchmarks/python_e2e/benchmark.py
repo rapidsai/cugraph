@@ -1,4 +1,4 @@
-# Copyright (c) 2021, NVIDIA CORPORATION.
+# Copyright (c) 2021-2022, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -88,9 +88,14 @@ class BenchmarkRun:
 
         #add starting node to algos: BFS and SSSP
         for i, algo in enumerate (algo_func_param_list):
-            if benchmark(algo).name in ["bfs", "sssp"]:
+            if benchmark(algo).name in ["bfs", "sssp", "neighborhood_sampling"]:
                 param={}
                 param["start"]=self.input_dataframe['src'].head()[0]
+                if benchmark(algo).name in ["neighborhood_sampling"]:
+                    start = [param.pop("start")]
+                    labels = [0]
+                    param["start_info_list"] = (start, labels)
+                    param["fanout_vals"] = [1]
                 algo_func_param_list[i]=(algo,)+(param,)
 
         self.algos = []
@@ -125,7 +130,8 @@ class BenchmarkRun:
         self.results.append(result)
 
         #algos with transposed=True : PageRank, Katz
-        #algos with transposed=False: BFS, SSSP, Louvain
+        #algos with transposed=False: BFS, SSSP, Louvain, HITS, Neighborhood_sampling
+        #algos supporting the legacy_renum_only: HITS, Neighborhood_sampling
         for i in range(len(self.algos)):
             if self.algos[i][0].name in ["pagerank", "katz"]: #set transpose=True when renumbering
                 if self.algos[i][0].name == "katz" and self.construct_graph.name == "from_dask_cudf_edgelist":
@@ -141,6 +147,9 @@ class BenchmarkRun:
                     self.algos[i][1]["alpha"] = katz_alpha
                 if hasattr(G, "compute_renumber_edge_list"):
                     G.compute_renumber_edge_list(transposed=True)
+            elif self.algos[i][0].name in ["neighborhood_sampling", "hits"]:
+                if hasattr(G, "compute_renumber_edge_list"):
+                    G.compute_renumber_edge_list(transposed=False, legacy_renum_only=True)
             else: #set transpose=False when renumbering
                 self.__log("running compute_renumber_edge_list...", end="")
                 if hasattr(G, "compute_renumber_edge_list"):

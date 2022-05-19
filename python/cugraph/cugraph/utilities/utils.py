@@ -476,3 +476,26 @@ def create_random_bipartite(v1, v2, size, dtype):
                          renumber=False)
 
     return df1['src'], g, a
+
+
+def sample_groups(df, by, n_samples):
+    # Sample n_samples in the df frm by column
+
+    # Step 1
+    # first, shuffle the dataframe and reset its index,
+    # so that the ordering of values within each group
+    # is made random:
+    df = df.sample(frac=1).reset_index(drop=True)
+
+    # Step 2
+    # add an integer-encoded version of the "by" column,
+    # since the rank aggregation seems not to work for
+    # non-numeric data
+    df["_"] = df[by].astype("category").cat.codes
+
+    # Step 3
+    # now do a "rank" aggregation and filter out only
+    # the first N_SAMPLES ranks.
+    result = df.loc[df.groupby(by)["_"].rank("first") <= n_samples, :]
+    del result["_"]
+    return result

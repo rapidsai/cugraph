@@ -12,7 +12,6 @@
 # limitations under the License.
 
 from cugraph.community import triangle_count_wrapper
-from cugraph.structure.graph_classes import Graph
 from cugraph.utilities import ensure_cugraph_obj_for_nx
 
 
@@ -28,7 +27,8 @@ def triangles(G):
     ----------
     G : cugraph.graph or networkx.Graph
         cuGraph graph descriptor, should contain the connectivity information,
-        (edge weights are not used in this algorithm)
+        (edge weights are not used in this algorithm).
+        The current implementation only supports undirected graphs.
 
     Returns
     -------
@@ -50,8 +50,8 @@ def triangles(G):
 
     G, _ = ensure_cugraph_obj_for_nx(G)
 
-    if type(G) is not Graph:
-        raise Exception("input graph must be undirected")
+    if G.is_directed():
+        raise ValueError("input graph must be undirected")
 
     result = triangle_count_wrapper.triangles(G)
 
