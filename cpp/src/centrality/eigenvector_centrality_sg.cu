@@ -18,50 +18,50 @@
 namespace cugraph {
 
 // SG instantiation
-template void eigenvector_centrality(
+template rmm::device_uvector<float> eigenvector_centrality(
   raft::handle_t const& handle,
   graph_view_t<int32_t, int32_t, float, true, false> const& graph_view,
-  raft::device_span<float> centralities,
+  std::optional<raft::device_span<float const>> initial_centralities,
   float epsilon,
   size_t max_iterations,
   bool do_expensive_check);
 
-template void eigenvector_centrality(
+template rmm::device_uvector<float> eigenvector_centrality(
   raft::handle_t const& handle,
   graph_view_t<int32_t, int64_t, float, true, false> const& graph_view,
-  raft::device_span<float> centralities,
+  std::optional<raft::device_span<float const>> initial_centralities,
   float epsilon,
   size_t max_iterations,
   bool do_expensive_check);
 
-template void eigenvector_centrality(
+template rmm::device_uvector<float> eigenvector_centrality(
   raft::handle_t const& handle,
   graph_view_t<int64_t, int64_t, float, true, false> const& graph_view,
-  raft::device_span<float> centralities,
+  std::optional<raft::device_span<float const>> initial_centralities,
   float epsilon,
   size_t max_iterations,
   bool do_expensive_check);
 
-template void eigenvector_centrality(
+template rmm::device_uvector<double> eigenvector_centrality(
   raft::handle_t const& handle,
   graph_view_t<int32_t, int32_t, double, true, false> const& graph_view,
-  raft::device_span<double> centralities,
+  std::optional<raft::device_span<double const>> initial_centralities,
   double epsilon,
   size_t max_iterations,
   bool do_expensive_check);
 
-template void eigenvector_centrality(
+template rmm::device_uvector<double> eigenvector_centrality(
   raft::handle_t const& handle,
   graph_view_t<int32_t, int64_t, double, true, false> const& graph_view,
-  raft::device_span<double> centralities,
+  std::optional<raft::device_span<double const>> initial_centralities,
   double epsilon,
   size_t max_iterations,
   bool do_expensive_check);
 
-template void eigenvector_centrality(
+template rmm::device_uvector<double> eigenvector_centrality(
   raft::handle_t const& handle,
   graph_view_t<int64_t, int64_t, double, true, false> const& graph_view,
-  raft::device_span<double> centralities,
+  std::optional<raft::device_span<double const>> initial_centralities,
   double epsilon,
   size_t max_iterations,
   bool do_expensive_check);

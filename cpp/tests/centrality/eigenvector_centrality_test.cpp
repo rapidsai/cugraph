@@ -149,10 +149,10 @@ class Tests_EigenvectorCentrality
       hr_clock.start();
     }
 
-    cugraph::eigenvector_centrality(
+    d_centralities = cugraph::eigenvector_centrality(
       handle,
       graph_view,
-      raft::device_span<weight_t>{d_centralities.data(), d_centralities.size()},
+      std::optional<raft::device_span<weight_t const>>{},
       epsilon,
       eigenvector_usecase.max_iterations,
       false);

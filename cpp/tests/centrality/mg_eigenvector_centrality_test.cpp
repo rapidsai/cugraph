@@ -109,10 +109,11 @@ class Tests_MGEigenvectorCentrality
       hr_clock.start();
     }
 
-    cugraph::eigenvector_centrality(
+    d_mg_centralities = cugraph::eigenvector_centrality(
       handle,
       mg_graph_view,
-      raft::device_span<weight_t>{d_mg_centralities.data(), d_mg_centralities.size()},
+      std::optional<raft::device_span<weight_t const>>{},
+      //std::make_optional(raft::device_span<weight_t const>{d_mg_centralities.data(), d_mg_centralities.size()}),
       epsilon,
       eigenvector_usecase.max_iterations,
       false);
@@ -153,10 +154,11 @@ class Tests_MGEigenvectorCentrality
         rmm::device_uvector<weight_t> d_sg_centralities(sg_graph_view.number_of_vertices(),
                                                         handle.get_stream());
 
-        cugraph::eigenvector_centrality(
+        d_sg_centralities = cugraph::eigenvector_centrality(
           handle,
           sg_graph_view,
-          raft::device_span<weight_t>{d_sg_centralities.data(), d_sg_centralities.size()},
+          std::optional<raft::device_span<weight_t const>>{},
+          //std::make_optional(raft::device_span<weight_t const>{d_sg_centralities.data(), d_sg_centralities.size()}),
           epsilon,
           eigenvector_usecase.max_iterations,
           false);

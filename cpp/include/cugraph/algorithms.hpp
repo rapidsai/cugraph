@@ -1237,18 +1237,19 @@ void pagerank(raft::handle_t const& handle,
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Graph view object.
- * @param centralities Device span where we should store the eigenvector centralities
+ * @param initial_centralities Optional device span containing initial values for the eigenvector centralities
  * @param epsilon Error tolerance to check convergence. Convergence is assumed if the sum of the
  * differences in eigenvector centrality values between two consecutive iterations is less than the
  * number of vertices in the graph multiplied by @p epsilon.
  * @param max_iterations Maximum number of power iterations.
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
+ * @return device vector containing the centralities.
  */
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
-void eigenvector_centrality(
+rmm::device_uvector<weight_t> eigenvector_centrality(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, weight_t, true, multi_gpu> const& graph_view,
-  raft::device_span<weight_t> centralities,
+  std::optional<raft::device_span<weight_t const>> initial_centralities,
   weight_t epsilon,
   size_t max_iterations   = 500,
   bool do_expensive_check = false);

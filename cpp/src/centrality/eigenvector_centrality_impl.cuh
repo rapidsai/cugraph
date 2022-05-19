@@ -41,17 +41,17 @@ namespace cugraph {
 namespace detail {
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
-void eigenvector_centrality(
+rmm::device_uvector<weight_t> eigenvector_centrality(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, weight_t, true, multi_gpu> const& pull_graph_view,
-  raft::device_span<weight_t> centralities,
+  std::optional<raft::device_span<weight_t const>> initial_centralities,
   weight_t epsilon,
   size_t max_iterations,
   bool do_expensive_check)
 {
   using GraphViewType     = graph_view_t<vertex_t, edge_t, weight_t, true, multi_gpu>;
   auto const num_vertices = pull_graph_view.number_of_vertices();
-  if (num_vertices == 0) { return; }
+  if (num_vertices == 0) { return rmm::device_uvector<weight_t>(0, handle.get_stream()); }
 
   if (do_expensive_check) {
     if (pull_graph_view.is_weighted()) {
@@ -66,10 +66,19 @@ void eigenvector_centrality(
     }
   }
 
-  thrust::fill(handle.get_thrust_policy(),
-               centralities.begin(),
-               centralities.end(),
-               weight_t{1.0} / static_cast<weight_t>(num_vertices));
+  rmm::device_uvector<weight_t> centralities(pull_graph_view.local_vertex_partition_range_size(),
+                                             handle.get_stream());
+  if (initial_centralities) {
+    thrust::copy(handle.get_thrust_policy(),
+                 initial_centralities->begin(),
+                 initial_centralities->end(),
+                 centralities.begin());
+  } else {
+    thrust::fill(handle.get_thrust_policy(),
+                 centralities.begin(),
+                 centralities.end(),
+                 weight_t{1.0} / static_cast<weight_t>(num_vertices));
+  }
 
   // Power iteration
   rmm::device_uvector<weight_t> old_centralities(centralities.size(), handle.get_stream());
@@ -125,15 +134,17 @@ void eigenvector_centrality(
       CUGRAPH_FAIL("Eigenvector Centrality failed to converge.");
     }
   }
+
+  return centralities;
 }
 
 }  // namespace detail
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
-void eigenvector_centrality(
+rmm::device_uvector<weight_t> eigenvector_centrality(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, weight_t, true, multi_gpu> const& graph_view,
-  raft::device_span<weight_t> centralities,
+  std::optional<raft::device_span<weight_t const>> initial_centralities,
   weight_t epsilon,
   size_t max_iterations,
   bool do_expensive_check)
@@ -144,12 +155,13 @@ void eigenvector_centrality(
                 "weight_t should be a floating-point type.");
 
   CUGRAPH_EXPECTS(epsilon >= 0.0, "Invalid input argument: epsilon should be non-negative.");
-  CUGRAPH_EXPECTS(
-    centralities.size() == static_cast<size_t>(graph_view.local_vertex_partition_range_size()),
-    "Centralities should be same size as vertex range");
+  if (initial_centralities)
+    CUGRAPH_EXPECTS(initial_centralities->size() ==
+                      static_cast<size_t>(graph_view.local_vertex_partition_range_size()),
+                    "Centralities should be same size as vertex range");
 
-  detail::eigenvector_centrality(
-    handle, graph_view, centralities, epsilon, max_iterations, do_expensive_check);
+  return detail::eigenvector_centrality(
+    handle, graph_view, initial_centralities, epsilon, max_iterations, do_expensive_check);
 }
 
 }  // namespace cugraph
