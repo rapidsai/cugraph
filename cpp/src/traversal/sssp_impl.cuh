@@ -185,9 +185,7 @@ void sssp(raft::handle_t const& handle,
             threshold         = old_distance < threshold ? old_distance : threshold;
           }
           if (new_distance >= threshold) { push = false; }
-          return push ? thrust::optional<thrust::tuple<weight_t, vertex_t>>{thrust::make_tuple(
-                          new_distance, src)}
-                      : thrust::nullopt;
+          return thrust::make_tuple(push, thrust::make_tuple(new_distance, src));
         },
         reduce_op::minimum<thrust::tuple<weight_t, vertex_t>>());
 

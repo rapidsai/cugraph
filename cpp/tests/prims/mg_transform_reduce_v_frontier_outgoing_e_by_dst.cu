@@ -177,8 +177,8 @@ class Tests_MG_TransformReduceVFrontierOutgoingEByDst
                                        cugraph::get_dataframe_buffer_cbegin(mg_property_buffer),
                                        mg_dst_properties);
 
-    constexpr size_t bucket_idx_cur  = 0;
-    constexpr size_t num_buckets     = 1;
+    constexpr size_t bucket_idx_cur = 0;
+    constexpr size_t num_buckets    = 1;
 
     cugraph::vertex_frontier_t<vertex_t, void, is_multi_gpu> mg_vertex_frontier(handle,
                                                                                 num_buckets);
@@ -200,9 +200,7 @@ class Tests_MG_TransformReduceVFrontierOutgoingEByDst
         mg_src_properties.device_view(),
         mg_dst_properties.device_view(),
         [] __device__(vertex_t src, vertex_t dst, auto src_val, auto dst_val) {
-          thrust::optional<edge_t> result;
-          if (src_val < dst_val) { result.emplace(edge_t{1}); }
-          return result;
+          return thrust::make_tuple(src_val < dst_val, edge_t{1});
         },
         cugraph::reduce_op::plus<edge_t>());
 
@@ -287,9 +285,7 @@ class Tests_MG_TransformReduceVFrontierOutgoingEByDst
             sg_src_properties.device_view(),
             sg_dst_properties.device_view(),
             [] __device__(vertex_t src, vertex_t dst, auto src_val, auto dst_val) {
-              thrust::optional<edge_t> result;
-              if (src_val < dst_val) { result.emplace(edge_t{1}); }
-              return result;
+              return thrust::make_tuple(src_val < dst_val, edge_t{1});
             },
             cugraph::reduce_op::plus<edge_t>());
 

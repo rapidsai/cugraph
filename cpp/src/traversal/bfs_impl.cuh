@@ -57,27 +57,27 @@ struct e_op_t {
                // will eat-up more memory with no benefit in performance in large-scale).
   vertex_t dst_first{};  // relevant only if multi_gpu is true
 
-  __device__ thrust::optional<vertex_t> operator()(vertex_t src,
-                                                   vertex_t dst,
-                                                   thrust::nullopt_t,
-                                                   thrust::nullopt_t) const
+  __device__ thrust::tuple<bool, vertex_t> operator()(vertex_t src,
+                                                      vertex_t dst,
+                                                      thrust::nullopt_t,
+                                                      thrust::nullopt_t) const
   {
-    thrust::optional<vertex_t> ret{};
+    bool push{};
     if constexpr (multi_gpu) {
       auto dst_offset = dst - dst_first;
       auto old        = atomicOr(visited_flags.get_iter(dst_offset), uint8_t{1});
-      ret             = old == uint8_t{0} ? thrust::optional<vertex_t>{src} : thrust::nullopt;
+      push            = (old == uint8_t{0});
     } else {
       auto mask = uint32_t{1} << (dst % (sizeof(uint32_t) * 8));
       if (*(prev_visited_flags + (dst / (sizeof(uint32_t) * 8))) &
           mask) {  // check if unvisited in previous iterations
-        ret = thrust::nullopt;
+        push = false;
       } else {  // check if unvisited in this iteration as well
         auto old = atomicOr(visited_flags + (dst / (sizeof(uint32_t) * 8)), mask);
-        ret      = (old & mask) == 0 ? thrust::optional<vertex_t>{src} : thrust::nullopt;
+        push     = ((old & mask) == 0);
       }
     }
-    return ret;
+    return thrust::make_tuple(push, src);
   }
 };
 
@@ -245,7 +245,7 @@ void bfs(raft::handle_t const& handle,
                   vertex_partition.local_vertex_partition_offset_from_vertex_nocheck(dst));
               if (distance != invalid_distance) { push = false; }
             }
-            return push ? thrust::optional<vertex_t>{src} : thrust::nullopt;
+            return thrust::make_tuple(push, src);
           },
 #endif
                                                       reduce_op::any<vertex_t>());

@@ -554,8 +554,7 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
             *(edge_buffer_first + edge_idx) =
               tag >= old ? thrust::make_tuple(tag, old) : thrust::make_tuple(old, tag);
           }
-          return (old == invalid_component_id<vertex_t>::value) ? thrust::optional<vertex_t>{tag}
-                                                                : thrust::nullopt;
+          return thrust::make_tuple(old == invalid_component_id<vertex_t>::value, tag);
         },
         reduce_op::null());
 

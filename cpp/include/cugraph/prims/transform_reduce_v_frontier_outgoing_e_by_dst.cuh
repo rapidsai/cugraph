@@ -178,12 +178,12 @@ __device__ void push_buffer_element(vertex_t dst,
     *(buffer_key_output_first + buffer_idx) = dst;
   } else if constexpr (std::is_same_v<key_t, vertex_t> && !std::is_same_v<payload_t, void>) {
     *(buffer_key_output_first + buffer_idx)     = dst;
-    *(buffer_payload_output_first + buffer_idx) = *e_op_result;
+    *(buffer_payload_output_first + buffer_idx) = thrust::get<1>(e_op_result);
   } else if constexpr (!std::is_same_v<key_t, vertex_t> && std::is_same_v<payload_t, void>) {
-    *(buffer_key_output_first + buffer_idx) = thrust::make_tuple(dst, *e_op_result);
+    *(buffer_key_output_first + buffer_idx) = thrust::make_tuple(dst, thrust::get<1>(e_op_result));
   } else {
-    *(buffer_key_output_first + buffer_idx) = thrust::make_tuple(dst, thrust::get<0>(*e_op_result));
-    *(buffer_payload_output_first + buffer_idx) = thrust::get<1>(*e_op_result);
+    *(buffer_key_output_first + buffer_idx) = thrust::make_tuple(dst, thrust::get<1>(e_op_result));
+    *(buffer_payload_output_first + buffer_idx) = thrust::get<2>(e_op_result);
   }
 }
 
@@ -331,8 +331,8 @@ __global__ void update_v_frontier_from_outgoing_e_hypersparse(
                                  edge_partition_dst_value_input.get(dst_offset),
                                  e_op);
       }
-      auto ballot_e_op =
-        __ballot_sync(uint32_t{0xffffffff}, e_op_result ? uint32_t{1} : uint32_t{0});
+      auto ballot_e_op = __ballot_sync(uint32_t{0xffffffff},
+                                       thrust::get<0>(e_op_result) ? uint32_t{1} : uint32_t{0});
       if (ballot_e_op) {
         if (lane_id == 0) {
           auto increment = __popc(ballot_e_op);
@@ -342,7 +342,7 @@ __global__ void update_v_frontier_from_outgoing_e_hypersparse(
                                           static_cast<unsigned long long int>(increment)));
         }
         __syncwarp();
-        if (e_op_result) {
+        if (thrust::get<0>(e_op_result)) {
           auto buffer_warp_offset =
             static_cast<edge_t>(__popc(ballot_e_op & ~(uint32_t{0xffffffff} << lane_id)));
           push_buffer_element(dst,
@@ -491,7 +491,8 @@ __global__ void update_v_frontier_from_outgoing_e_low_degree(
                                  edge_partition_dst_value_input.get(dst_offset),
                                  e_op);
       }
-      auto ballot = __ballot_sync(uint32_t{0xffffffff}, e_op_result ? uint32_t{1} : uint32_t{0});
+      auto ballot = __ballot_sync(uint32_t{0xffffffff},
+                                  thrust::get<0>(e_op_result) ? uint32_t{1} : uint32_t{0});
       if (ballot > 0) {
         if (lane_id == 0) {
           auto increment = __popc(ballot);
@@ -501,7 +502,7 @@ __global__ void update_v_frontier_from_outgoing_e_low_degree(
                                           static_cast<unsigned long long int>(increment)));
         }
         __syncwarp();
-        if (e_op_result) {
+        if (thrust::get<0>(e_op_result)) {
           auto buffer_warp_offset =
             static_cast<edge_t>(__popc(ballot & ~(uint32_t{0xffffffff} << lane_id)));
           push_buffer_element(dst,
@@ -598,7 +599,8 @@ __global__ void update_v_frontier_from_outgoing_e_mid_degree(
                                  edge_partition_dst_value_input.get(dst_offset),
                                  e_op);
       }
-      auto ballot = __ballot_sync(uint32_t{0xffffffff}, e_op_result ? uint32_t{1} : uint32_t{0});
+      auto ballot = __ballot_sync(uint32_t{0xffffffff},
+                                  thrust::get<0>(e_op_result) ? uint32_t{1} : uint32_t{0});
       if (ballot > 0) {
         if (lane_id == 0) {
           auto increment = __popc(ballot);
@@ -608,7 +610,7 @@ __global__ void update_v_frontier_from_outgoing_e_mid_degree(
                                           static_cast<unsigned long long int>(increment)));
         }
         __syncwarp();
-        if (e_op_result) {
+        if (thrust::get<0>(e_op_result)) {
           auto buffer_warp_offset =
             static_cast<edge_t>(__popc(ballot & ~(uint32_t{0xffffffff} << lane_id)));
           push_buffer_element(dst,
@@ -707,9 +709,10 @@ __global__ void update_v_frontier_from_outgoing_e_high_degree(
                                  e_op);
       }
       BlockScan(temp_storage)
-        .ExclusiveSum(e_op_result ? edge_t{1} : edge_t{0}, buffer_block_offset);
+        .ExclusiveSum(thrust::get<0>(e_op_result) ? edge_t{1} : edge_t{0}, buffer_block_offset);
       if (threadIdx.x == (blockDim.x - 1)) {
-        auto increment = buffer_block_offset + (e_op_result ? edge_t{1} : edge_t{0});
+        auto increment =
+          buffer_block_offset + (thrust::get<0>(e_op_result) ? edge_t{1} : edge_t{0});
         static_assert(sizeof(unsigned long long int) == sizeof(size_t));
         buffer_block_start_idx = increment > 0
                                    ? static_cast<size_t>(atomicAdd(
@@ -718,7 +721,7 @@ __global__ void update_v_frontier_from_outgoing_e_high_degree(
                                    : size_t{0} /* dummy */;
       }
       __syncthreads();
-      if (e_op_result) {
+      if (thrust::get<0>(e_op_result)) {
         push_buffer_element(dst,
                             e_op_result,
                             buffer_key_output_first,

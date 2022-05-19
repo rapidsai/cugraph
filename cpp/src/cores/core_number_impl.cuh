@@ -203,7 +203,7 @@ void core_number(raft::handle_t const& handle,
               dummy_property_t<vertex_t>{}.device_view(),
               dst_core_numbers.device_view(),
               [k, delta] __device__(vertex_t src, vertex_t dst, auto, auto dst_val) {
-                return dst_val >= k ? thrust::optional<edge_t>{delta} : thrust::nullopt;
+                return thrust::make_tuple(dst_val >= k, delta);
               },
               reduce_op::plus<edge_t>());
 
