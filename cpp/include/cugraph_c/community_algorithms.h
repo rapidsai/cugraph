@@ -41,7 +41,7 @@ typedef struct {
  *                           the entire set of vertices in the graph is processed
  * @param [in]  do_expensive_check
  *                           A flag to run expensive checks for input arguments (if set to true)
- * @param [in]  result       Output from the triangle_count call
+ * @param [out] result       Output from the triangle_count call
  * @param [out] error        Pointer to an error object storing details of any error.  Will
  *                           be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
@@ -71,6 +71,60 @@ cugraph_type_erased_device_array_view_t* cugraph_triangle_count_result_get_count
  * @param [in] result     The result from a sampling algorithm
  */
 void cugraph_triangle_count_result_free(cugraph_triangle_count_result_t* result);
+
+
+/**
+ * @brief     Opaque heirarchical clustering output
+ */
+typedef struct {
+  int32_t align_;
+} cugraph_heirarchical_clustering_result_t;
+
+/**
+ * @brief     Compute Louvain
+ *
+ * @param [in]  handle       Handle for accessing resources
+ * @param [in]  graph        Pointer to graph.  NOTE: Graph might be modified if the storage
+ *                           needs to be transposed
+ * @param [in]  max_level    Maximum level in hierarchy
+ * @param [in]  resolution   Resolution parameter (gamma) in modularity formula.  
+ *                           This changes the size of the communities.  Higher resolutions
+ *                           lead to more smaller communities, lower resolutions lead to
+ *                           fewer larger communities.
+ * @param [in]  do_expensive_check
+ *                           A flag to run expensive checks for input arguments (if set to true)
+ * @param [out] result       Output from the Louvain call
+ * @param [out] error        Pointer to an error object storing details of any error.  Will
+ *                           be populated if error code is not CUGRAPH_SUCCESS
+ * @return error code
+ */
+cugraph_error_code_t cugraph_louvain(const cugraph_resource_handle_t* handle,
+                                     cugraph_graph_t* graph,
+                                     size_t max_level,
+                                     double resolution,
+                                     bool_t do_expensive_check,
+                                     cugraph_heirarchical_clustering_result_t** result,
+                                     cugraph_error_t** error);
+
+/**
+ * @brief     Get heirarchical clustering vertices
+ */
+cugraph_type_erased_device_array_view_t* cugraph_heirarchical_clustering_result_get_vertices(
+  cugraph_heirarchical_clustering_result_t* result);
+
+/**
+ * @brief     Get heirarchical clustering clusters
+ */
+cugraph_type_erased_device_array_view_t* cugraph_heirarchical_clustering_result_get_clusters(
+  cugraph_heirarchical_clustering_result_t* result);
+
+/**
+ * @brief     Free a heirarchical clustering result
+ *
+ * @param [in] result     The result from a sampling algorithm
+ */
+void cugraph_heirarchical_clustering_result_free(cugraph_heirarchical_clustering_result_t* result);
+
 
 #ifdef __cplusplus
 }
