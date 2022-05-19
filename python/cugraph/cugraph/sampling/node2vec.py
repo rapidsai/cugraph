@@ -110,7 +110,6 @@ def node2vec(G,
         start_vertices = [start_vertices]
 
     if isinstance(start_vertices, list):
-        # start_vertices = cudf.Series(start_vertices)
         start_vertices = cudf.Series(start_vertices, dtype='int32')
         if start_vertices.dtype != 'int32':
             raise ValueError(f"'start_vertices' must have int32 values, "
