@@ -20,8 +20,6 @@
 #include <cugraph_c/graph.h>
 #include <cugraph_c/resource_handle.h>
 
-#include <cugraph_c/centrality_algorithms.h>
-
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -405,4 +403,6 @@ void cugraph_sample_result_free(cugraph_sample_result_t* result);
 }
 #endif
 
+#include <cugraph_c/centrality_algorithms.h>
+#include <cugraph_c/community_algorithms.h>
 #include <cugraph_c/labeling_algorithms.h>

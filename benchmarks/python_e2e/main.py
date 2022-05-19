@@ -87,6 +87,8 @@ def run(algos,
                   "wcc": funcs.wcc,
                   "katz": funcs.katz,
                   "wcc": funcs.wcc,
+                  "hits": funcs.hits,
+                  "neighborhood_sampling": funcs.neighborhood_sampling,
                  }
 
     if algos:
