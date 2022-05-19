@@ -202,7 +202,7 @@ class simpleGraphImpl:
         """
 
         gdf = self.view_edge_list()
-        if self.weighted:
+        if self.properties.weighted:
             gdf.rename(columns={'src': source, 'dst': destination,
                        'weight': weight}, inplace=True)
         else:

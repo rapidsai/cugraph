@@ -665,6 +665,17 @@ def test_neighbors(graph_file):
         nx_neighbors.sort()
         assert cu_neighbors == nx_neighbors
 
+# Test
+@pytest.mark.parametrize("graph_file", utils.DATASETS)
+def test_to_pandas_edgelist(graph_file):
+    cu_M = utils.read_csv_file(graph_file)
+
+    G = cugraph.Graph()
+    G.from_cudf_edgelist(cu_M, source="0", destination="1")
+
+    assert 's' in G.to_pandas_edgelist('s', 'd').columns
+    assert 's' in G.to_pandas_edgelist(source='s', destination='d').columns
+
 
 def test_graph_init_with_multigraph():
     """
