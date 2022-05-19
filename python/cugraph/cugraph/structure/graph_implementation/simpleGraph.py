@@ -182,7 +182,7 @@ class simpleGraphImpl:
         if self.batch_enabled:
             self._replicate_edgelist()
 
-    def to_pandas_edgelist(self, source='source', destination='destination',
+    def to_pandas_edgelist(self, source='src', destination='dst',
                            weight='weight'):
         """
         Returns the graph edge list as a Pandas DataFrame.
