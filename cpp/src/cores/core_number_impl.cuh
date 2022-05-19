@@ -62,6 +62,8 @@ void core_number(raft::handle_t const& handle,
 
   CUGRAPH_EXPECTS(graph_view.is_symmetric(),
                   "Invalid input argument: core_number currently supports only undirected graphs.");
+  CUGRAPH_EXPECTS(!graph_view.is_multigraph(),
+                  "Invalid input argument: core_number currently does not support multi-graphs.");
   CUGRAPH_EXPECTS((degree_type == k_core_degree_type_t::IN) ||
                     (degree_type == k_core_degree_type_t::OUT) ||
                     (degree_type == k_core_degree_type_t::INOUT),
@@ -71,10 +73,6 @@ void core_number(raft::handle_t const& handle,
   if (do_expensive_check) {
     CUGRAPH_EXPECTS(graph_view.count_self_loops(handle) == 0,
                     "Invalid input argument: graph_view has self-loops.");
-    if (graph_view.is_multigraph()) {
-      CUGRAPH_EXPECTS(graph_view.count_multi_edges(handle) == 0,
-                      "Invalid input argument: graph_view has multi-edges.");
-    }
   }
 
   // initialize core_numbers to degrees

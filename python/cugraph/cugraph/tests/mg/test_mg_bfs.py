@@ -101,6 +101,36 @@ def test_dask_bfs(dask_client, directed):
 #    is_single_gpu(), reason="skipping MG testing on Single GPU system"
 # )
 @pytest.mark.parametrize("directed", IS_DIRECTED)
+def test_dask_bfs_invalid_start(dask_client, directed):
+    source_vertex = 10
+    input_data_path = (RAPIDS_DATASET_ROOT_DIR_PATH /
+                       "netscience.csv").as_posix()
+
+    print(f"dataset={input_data_path}")
+    chunksize = dcg.get_chunksize(input_data_path)
+
+    el = dask_cudf.read_csv(
+        input_data_path,
+        chunksize=chunksize,
+        delimiter=" ",
+        names=["src", "dst", "value"],
+        dtype=["int32", "int32", "float32"],
+    )
+    newval = max(el.src.max().compute(), el.dst.max().compute()) + 1
+    el.src = el.src.replace(source_vertex, newval)
+    el.dst = el.dst.replace(source_vertex, newval)
+
+    G = cugraph.Graph(directed=directed)
+    G.from_dask_cudf_edgelist(el, 'src', 'dst')
+
+    with pytest.raises(ValueError):
+        dcg.bfs(G, source_vertex).compute()
+
+
+# @pytest.mark.skipif(
+#    is_single_gpu(), reason="skipping MG testing on Single GPU system"
+# )
+@pytest.mark.parametrize("directed", IS_DIRECTED)
 def test_dask_bfs_multi_column_depthlimit(dask_client, directed):
     gc.collect()
 
