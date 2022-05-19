@@ -193,18 +193,26 @@ void core_number(raft::handle_t const& handle,
         // mask-out/delete edges.
         if (graph_view.is_symmetric() || ((degree_type == k_core_degree_type_t::IN) ||
                                           (degree_type == k_core_degree_type_t::INOUT))) {
-          update_v_frontier_from_outgoing_e(
+          auto [new_frontier_vertex_buffer, delta_buffer] =
+            transform_reduce_v_frontier_outgoing_e_by_dst(
+              handle,
+              graph_view,
+              vertex_frontier.bucket(bucket_idx_cur).begin(),
+              vertex_frontier.bucket(bucket_idx_cur).end(),
+              dummy_property_t<vertex_t>{}.device_view(),
+              dst_core_numbers.device_view(),
+              [k, delta] __device__(vertex_t src, vertex_t dst, auto, auto dst_val) {
+                return dst_val >= k ? thrust::optional<edge_t>{delta} : thrust::nullopt;
+              },
+              reduce_op::plus<edge_t>());
+
+          update_v_frontier(
             handle,
             graph_view,
+            std::move(new_frontier_vertex_buffer),
+            std::move(delta_buffer),
             vertex_frontier,
-            bucket_idx_cur,
             std::vector<size_t>{bucket_idx_next},
-            dummy_property_t<vertex_t>{}.device_view(),
-            dst_core_numbers.device_view(),
-            [k, delta] __device__(vertex_t src, vertex_t dst, auto, auto dst_val) {
-              return dst_val >= k ? thrust::optional<edge_t>{delta} : thrust::nullopt;
-            },
-            reduce_op::plus<edge_t>(),
             core_numbers,
             core_numbers,
             [k_first,

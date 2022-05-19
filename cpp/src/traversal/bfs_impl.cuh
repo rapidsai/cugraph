@@ -222,32 +222,41 @@ void bfs(raft::handle_t const& handle,
         e_op.prev_visited_flags = prev_visited_flags.data();
       }
 
-      update_v_frontier_from_outgoing_e(
+      auto [new_frontier_vertex_buffer, predecessor_buffer] =
+        transform_reduce_v_frontier_outgoing_e_by_dst(
+          handle,
+          push_graph_view,
+          vertex_frontier.bucket(bucket_idx_cur).begin(),
+          vertex_frontier.bucket(bucket_idx_cur).end(),
+          dummy_property_t<vertex_t>{}.device_view(),
+          dummy_property_t<vertex_t>{}.device_view(),
+#if 1
+          e_op,
+#else
+          // FIXME: need to test more about the performance trade-offs between additional
+          // communication in updating dst_visited_flags (+ using atomics) vs reduced number of
+          // pushes (leading to both less computation & communication in reduction)
+          [vertex_partition, distances] __device__(
+            vertex_t src, vertex_t dst, auto src_val, auto dst_val) {
+            auto push = true;
+            if (vertex_partition.in_local_vertex_partition_range_nocheck(dst)) {
+              auto distance =
+                *(distances +
+                  vertex_partition.local_vertex_partition_offset_from_vertex_nocheck(dst));
+              if (distance != invalid_distance) { push = false; }
+            }
+            return push ? thrust::optional<vertex_t>{src} : thrust::nullopt;
+          },
+#endif
+          reduce_op::any<vertex_t>());
+
+      update_v_frontier(
         handle,
         push_graph_view,
+        std::move(new_frontier_vertex_buffer),
+        std::move(predecessor_buffer),
         vertex_frontier,
-        bucket_idx_cur,
         std::vector<size_t>{bucket_idx_next},
-        dummy_property_t<vertex_t>{}.device_view(),
-        dummy_property_t<vertex_t>{}.device_view(),
-#if 1
-        e_op,
-#else
-        // FIXME: need to test more about the performance trade-offs between additional
-        // communication in updating dst_visited_flags (+ using atomics) vs reduced number of pushes
-        // (leading to both less computation & communication in reduction)
-        [vertex_partition, distances] __device__(
-          vertex_t src, vertex_t dst, auto src_val, auto dst_val) {
-          auto push = true;
-          if (vertex_partition.in_local_vertex_partition_range_nocheck(dst)) {
-            auto distance = *(
-              distances + vertex_partition.local_vertex_partition_offset_from_vertex_nocheck(dst));
-            if (distance != invalid_distance) { push = false; }
-          }
-          return push ? thrust::optional<vertex_t>{src} : thrust::nullopt;
-        },
-#endif
-        reduce_op::any<vertex_t>(),
         distances,
         thrust::make_zip_iterator(thrust::make_tuple(distances, predecessor_first)),
         [depth] __device__(auto v, auto v_val, auto pushed_val) {

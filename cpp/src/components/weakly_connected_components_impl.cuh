@@ -523,13 +523,11 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
       auto old_num_edge_inserts = num_edge_inserts.value(handle.get_stream());
       resize_dataframe_buffer(edge_buffer, old_num_edge_inserts + max_pushes, handle.get_stream());
 
-      update_v_frontier_from_outgoing_e(
+      auto new_frontier_tagged_vertex_buffer = transform_reduce_v_frontier_outgoing_e_by_dst(
         handle,
         level_graph_view,
-        vertex_frontier,
-        bucket_idx_cur,
-        GraphViewType::is_multi_gpu ? std::vector<size_t>{bucket_idx_next, bucket_idx_conflict}
-                                    : std::vector<size_t>{bucket_idx_next},
+        vertex_frontier.bucket(bucket_idx_cur).begin(),
+        vertex_frontier.bucket(bucket_idx_cur).end(),
         dummy_property_t<vertex_t>{}.device_view(),
         dummy_property_t<vertex_t>{}.device_view(),
         [col_components =
@@ -558,15 +556,23 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
           return (old == invalid_component_id<vertex_t>::value) ? thrust::optional<vertex_t>{tag}
                                                                 : thrust::nullopt;
         },
-        reduce_op::null(),
-        thrust::make_constant_iterator(0) /* dummy */,
-        thrust::make_discard_iterator() /* dummy */,
-        v_op_t<GraphViewType>{vertex_partition,
-                              level_components,
-                              get_dataframe_buffer_begin(edge_buffer),
-                              num_edge_inserts.data(),
-                              bucket_idx_next,
-                              bucket_idx_conflict});
+        reduce_op::null());
+
+      update_v_frontier(handle,
+                        level_graph_view,
+                        std::move(new_frontier_tagged_vertex_buffer),
+                        vertex_frontier,
+                        GraphViewType::is_multi_gpu
+                          ? std::vector<size_t>{bucket_idx_next, bucket_idx_conflict}
+                          : std::vector<size_t>{bucket_idx_next},
+                        thrust::make_constant_iterator(0) /* dummy */,
+                        thrust::make_discard_iterator() /* dummy */,
+                        v_op_t<GraphViewType>{vertex_partition,
+                                              level_components,
+                                              get_dataframe_buffer_begin(edge_buffer),
+                                              num_edge_inserts.data(),
+                                              bucket_idx_next,
+                                              bucket_idx_conflict});
 
       if (GraphViewType::is_multi_gpu) {
         auto cur_num_edge_inserts = num_edge_inserts.value(handle.get_stream());
