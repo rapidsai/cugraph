@@ -126,6 +126,7 @@ def _convert_df_to_output_type(df, input_type):
     else:
         raise TypeError(f"input type {input_type} is not a supported type.")
 
+
 def _call_plc_bfs(G, sources, depth_limit, do_expensive_check=False,
                  direction_optimizing=False, return_predecessors=True):
     handle = ResourceHandle()
@@ -137,11 +138,11 @@ def _call_plc_bfs(G, sources, depth_limit, do_expensive_check=False,
         else cudf.Series((srcs + 1) / (srcs + 1), dtype='float32')
 
     sg = SGGraph(
-        resource_handle = handle, 
-        graph_properties = GraphProperties(is_multigraph=G.is_multigraph()), 
-        src_array = srcs, 
-        dst_array = dsts, 
-        weight_array = weights,
+        resource_handle=handle,
+        graph_properties=GraphProperties(is_multigraph=G.is_multigraph()),
+        src_array=srcs,
+        dst_array=dsts,
+        weight_array=weights,
         store_transposed=False,
         renumber=False,
         do_expensive_check=do_expensive_check
@@ -149,7 +150,7 @@ def _call_plc_bfs(G, sources, depth_limit, do_expensive_check=False,
 
     distances, predecessors, vertices = \
         pylibcugraph_bfs(
-            handle,    
+            handle,
             sg,
             sources,
             direction_optimizing,
@@ -157,13 +158,12 @@ def _call_plc_bfs(G, sources, depth_limit, do_expensive_check=False,
             return_predecessors,
             do_expensive_check
         )
-    
+
     return cudf.DataFrame({
         'distance': cudf.Series(distances),
         'vertex': cudf.Series(vertices),
         'predecessor': cudf.Series(predecessors),
     })
-    
 
 
 def bfs(G,
@@ -274,7 +274,12 @@ def bfs(G,
         else:
             start = cudf.Series(start, name='starts')
 
-    df = _call_plc_bfs(G, start, depth_limit, return_predecessors=return_predecessors)
+    df = _call_plc_bfs(
+        G, 
+        start, 
+        depth_limit, 
+        return_predecessors=return_predecessors
+    )
     if G.renumbered:
         df = G.unrenumber(df, "vertex")
         df = G.unrenumber(df, "predecessor")

@@ -19,7 +19,6 @@ from pylibcugraph.experimental import (MGGraph,
                                        bfs as pylibcugraph_bfs,
                                        )
 
-from collections.abc import Iterable
 from dask.distributed import wait, default_client
 from cugraph.dask.common.input_utils import (get_distributed_data,
                                              get_vertex_partition_offsets)
@@ -27,18 +26,19 @@ import cugraph.dask.comms.comms as Comms
 import cudf
 import dask_cudf
 
+
 def _call_plc_mg_bfs(
-    sID,
-    data,
-    sources,
-    depth_limit,
-    src_col_name,
-    dst_col_name,
-    graph_properties,
-    num_edges,
-    direction_optimizing=False,
-    do_expensive_check=False,
-    return_predecessors=True):
+                    sID,
+                    data,
+                    sources,
+                    depth_limit,
+                    src_col_name,
+                    dst_col_name,
+                    graph_properties,
+                    num_edges,
+                    direction_optimizing=False,
+                    do_expensive_check=False,
+                    return_predecessors=True):
     comms_handle = Comms.get_handle(sID)
     resource_handle = ResourceHandle(comms_handle.getHandle())
 
@@ -49,14 +49,14 @@ def _call_plc_mg_bfs(
         else cudf.Series((srcs + 1) / (srcs + 1), dtype='float32')
 
     mg = MGGraph(
-        resource_handle = resource_handle,
-        graph_properties = graph_properties,
-        src_array = srcs,
-        dst_array = dsts,
-        weight_array = weights,
-        store_transposed = False,
-        num_edges = num_edges,
-        do_expensive_check = do_expensive_check
+        resource_handle=resource_handle,
+        graph_properties=graph_properties,
+        src_array=srcs,
+        dst_array=dsts,
+        weight_array=weights,
+        store_transposed=False,
+        num_edges=num_edges,
+        do_expensive_check=do_expensive_check
     )
 
     res = \
@@ -69,8 +69,9 @@ def _call_plc_mg_bfs(
             return_predecessors,
             True
         )
-    
+
     return res
+
 
 def convert_to_cudf(cp_arrays):
     """
@@ -82,6 +83,7 @@ def convert_to_cudf(cp_arrays):
     df["distance"] = cupy_distances
     df["predecessor"] = cupy_predecessors
     return df
+
 
 def bfs(input_graph,
         start,
@@ -145,7 +147,6 @@ def bfs(input_graph,
     input_graph.compute_renumber_edge_list(transposed=False)
     ddf = input_graph.edgelist.edgelist_df
     vertex_partition_offsets = get_vertex_partition_offsets(input_graph)
-    num_verts = vertex_partition_offsets.iloc[-1]
 
     graph_properties = GraphProperties(
         is_multigraph=False)
@@ -157,10 +158,9 @@ def bfs(input_graph,
     dst_col_name = input_graph.renumber_map.renumbered_dst_col_name
     renumber_ddf = input_graph.renumber_map.implementation.ddf
     col_names = input_graph.renumber_map.implementation.col_names
-    
-    if isinstance(start,
-                    dask_cudf.DataFrame) or isinstance(start,
-                                                        cudf.DataFrame):
+
+    if isinstance(start, dask_cudf.DataFrame) \
+            or isinstance(start, cudf.DataFrame):
         tmp_df = start
         tmp_col_names = start.columns
     else:
@@ -180,14 +180,16 @@ def bfs(input_graph,
         x = df[0].merge(tmp_df, on=tmp_col_names, how='inner')
         return x['global_id']
 
-    start = [client.submit(df_merge,
-                            wf[1],
-                            tmp_ddf,
-                            col_names,
-                            workers=[wf[0]])
-                for idx, wf in enumerate(renumber_data.worker_to_parts.items()
-                                        )
-                ]
+    start = [
+        client.submit(
+            df_merge,
+            wf[1],
+            tmp_ddf,
+            col_names,
+            workers=[wf[0]]
+        )
+        for idx, wf in enumerate(renumber_data.worker_to_parts.items())
+    ]
 
     def count_src(df):
         return len(df)
