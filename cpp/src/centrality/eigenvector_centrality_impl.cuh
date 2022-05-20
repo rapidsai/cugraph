@@ -31,7 +31,6 @@
 #include <rmm/exec_policy.hpp>
 
 #include <thrust/fill.h>
-#include <thrust/for_each.h>
 #include <thrust/iterator/constant_iterator.h>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/transform.h>
