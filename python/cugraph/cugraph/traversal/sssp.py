@@ -15,13 +15,17 @@ import numpy as np
 
 import cudf
 from cugraph.structure import Graph, DiGraph, MultiGraph, MultiDiGraph
-from cugraph.traversal import sssp_wrapper
 from cugraph.utilities import (ensure_cugraph_obj,
                                is_matrix_type,
                                is_cp_matrix_type,
                                is_nx_graph_type,
                                cupy_package as cp,
                                )
+from pylibcugraph import sssp as pylibcugraph_sssp
+from pylibcugraph.experimental import (ResourceHandle,
+                                       GraphProperties,
+                                       SGGraph,
+                                      )
 
 
 def _ensure_args(G, source, method, directed,
@@ -121,6 +125,40 @@ def _convert_df_to_output_type(df, input_type, return_predecessors):
     else:
         raise TypeError(f"input type {input_type} is not a supported type.")
 
+def _call_plc_sssp(G, source, cutoff, compute_predecessors=True, do_expensive_check=False):
+    srcs = G.edgelist.edgelist_df['src'].astype('int32')
+    dsts = G.edgelist.edgelist_df['dst'].astype('int32')
+    weights = G.edgelist.edgelist_df['weights'].astype('float32') \
+        if 'weights' in G.edgelist.edgelist_df \
+        else cudf.Series((srcs + 1) / (srcs + 1), dtype='float32')
+
+    handle = ResourceHandle()
+
+    sg = SGGraph(
+        resource_handle=handle,
+        graph_properties=GraphProperties(is_multigraph=G.is_multigraph()),
+        src_array=srcs,
+        dst_array=dsts,
+        weight_array=weights,
+        store_transposed=False,
+        renumber=False,
+        do_expensive_check=do_expensive_check
+    )
+
+    vertices, distances, predecessors = pylibcugraph_sssp(
+        resource_handle=handle,
+        graph=sg,
+        source=source,
+        cutoff=cutoff,
+        compute_predecessors=compute_predecessors,
+        do_expensive_check=do_expensive_check
+    )
+
+    return cudf.DataFrame({
+        'distance': cudf.Series(distances),
+        'vertex': cudf.Series(vertices),
+        'predecessor': cudf.Series(predecessors),
+    })
 
 # FIXME: if G is a Nx type, the weight attribute is assumed to be "weight", if
 # set. An additional optional parameter for the weight attr name when accepting
@@ -134,7 +172,8 @@ def sssp(G,
          return_predecessors=None,
          unweighted=None,
          overwrite=None,
-         indices=None):
+         indices=None,
+         cutoff=None):
     """
     Compute the distance and predecessors for shortest paths from the specified
     source to all the vertices in the graph. The distances column will store
@@ -153,6 +192,8 @@ def sssp(G,
         point values.
     source : int
         Index of the source vertex.
+    cutoff : double, optional (default = None)
+        Maximum edge weight sum considered by the algorithm
 
     Returns
     -------
@@ -213,8 +254,12 @@ def sssp(G,
     if source is cudf.NA:
         raise ValueError(
             "Starting vertex should be between 0 to number of vertices")
+    
+    if cutoff is None:
+        cutoff = np.inf
 
-    df = sssp_wrapper.sssp(G, source)
+    # compute_predecessors MUST be true in the current version of sssp
+    df = _call_plc_sssp(G, source, cutoff, compute_predecessors=True)
 
     if G.renumbered:
         df = G.unrenumber(df, "vertex")
