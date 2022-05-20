@@ -57,10 +57,10 @@ struct e_op_t {
                // will eat-up more memory with no benefit in performance in large-scale).
   vertex_t dst_first{};  // relevant only if multi_gpu is true
 
-  __device__ thrust::tuple<bool, vertex_t> operator()(vertex_t src,
-                                                      vertex_t dst,
-                                                      thrust::nullopt_t,
-                                                      thrust::nullopt_t) const
+  __device__ thrust::optional<vertex_t> operator()(vertex_t src,
+                                                   vertex_t dst,
+                                                   thrust::nullopt_t,
+                                                   thrust::nullopt_t) const
   {
     bool push{};
     if constexpr (multi_gpu) {
@@ -77,7 +77,7 @@ struct e_op_t {
         push     = ((old & mask) == 0);
       }
     }
-    return thrust::make_tuple(push, src);
+    return push ? thrust::optional<vertex_t>{src} : thrust::nullopt;
   }
 };
 
@@ -260,11 +260,12 @@ void bfs(raft::handle_t const& handle,
         distances,
         thrust::make_zip_iterator(thrust::make_tuple(distances, predecessor_first)),
         [depth] __device__(auto v, auto v_val, auto pushed_val) {
-          return (v_val == invalid_distance)
-                   ? thrust::optional<
-                       thrust::tuple<size_t, thrust::tuple<vertex_t, vertex_t>>>{thrust::make_tuple(
-                       bucket_idx_next, thrust::make_tuple(depth + 1, pushed_val))}
-                   : thrust::nullopt;
+          auto update = (v_val == invalid_distance);
+          return thrust::make_tuple(
+            update ? thrust::optional<size_t>{bucket_idx_next} : thrust::nullopt,
+            update ? thrust::optional<thrust::tuple<vertex_t, vertex_t>>{thrust::make_tuple(
+                       depth + 1, pushed_val)}
+                   : thrust::nullopt);
         });
 
       vertex_frontier.bucket(bucket_idx_cur).clear();

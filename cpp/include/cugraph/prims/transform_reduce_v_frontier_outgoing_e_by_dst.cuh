@@ -157,12 +157,12 @@ __device__ void push_buffer_element(vertex_t dst,
     *(buffer_key_output_first + buffer_idx) = dst;
   } else if constexpr (std::is_same_v<key_t, vertex_t> && !std::is_same_v<payload_t, void>) {
     *(buffer_key_output_first + buffer_idx)     = dst;
-    *(buffer_payload_output_first + buffer_idx) = thrust::get<1>(e_op_result);
+    *(buffer_payload_output_first + buffer_idx) = *e_op_result;
   } else if constexpr (!std::is_same_v<key_t, vertex_t> && std::is_same_v<payload_t, void>) {
-    *(buffer_key_output_first + buffer_idx) = thrust::make_tuple(dst, thrust::get<1>(e_op_result));
+    *(buffer_key_output_first + buffer_idx) = thrust::make_tuple(dst, *e_op_result);
   } else {
-    *(buffer_key_output_first + buffer_idx) = thrust::make_tuple(dst, thrust::get<1>(e_op_result));
-    *(buffer_payload_output_first + buffer_idx) = thrust::get<2>(e_op_result);
+    *(buffer_key_output_first + buffer_idx) = thrust::make_tuple(dst, thrust::get<0>(*e_op_result));
+    *(buffer_payload_output_first + buffer_idx) = thrust::get<1>(*e_op_result);
   }
 }
 
@@ -310,8 +310,8 @@ __global__ void update_v_frontier_from_outgoing_e_hypersparse(
                                  edge_partition_dst_value_input.get(dst_offset),
                                  e_op);
       }
-      auto ballot_e_op = __ballot_sync(uint32_t{0xffffffff},
-                                       thrust::get<0>(e_op_result) ? uint32_t{1} : uint32_t{0});
+      auto ballot_e_op =
+        __ballot_sync(uint32_t{0xffffffff}, e_op_result ? uint32_t{1} : uint32_t{0});
       if (ballot_e_op) {
         if (lane_id == 0) {
           auto increment = __popc(ballot_e_op);
@@ -321,7 +321,7 @@ __global__ void update_v_frontier_from_outgoing_e_hypersparse(
                                           static_cast<unsigned long long int>(increment)));
         }
         __syncwarp();
-        if (thrust::get<0>(e_op_result)) {
+        if (e_op_result) {
           auto buffer_warp_offset =
             static_cast<edge_t>(__popc(ballot_e_op & ~(uint32_t{0xffffffff} << lane_id)));
           push_buffer_element(dst,
@@ -470,8 +470,7 @@ __global__ void update_v_frontier_from_outgoing_e_low_degree(
                                  edge_partition_dst_value_input.get(dst_offset),
                                  e_op);
       }
-      auto ballot = __ballot_sync(uint32_t{0xffffffff},
-                                  thrust::get<0>(e_op_result) ? uint32_t{1} : uint32_t{0});
+      auto ballot = __ballot_sync(uint32_t{0xffffffff}, e_op_result ? uint32_t{1} : uint32_t{0});
       if (ballot > 0) {
         if (lane_id == 0) {
           auto increment = __popc(ballot);
@@ -481,7 +480,7 @@ __global__ void update_v_frontier_from_outgoing_e_low_degree(
                                           static_cast<unsigned long long int>(increment)));
         }
         __syncwarp();
-        if (thrust::get<0>(e_op_result)) {
+        if (e_op_result) {
           auto buffer_warp_offset =
             static_cast<edge_t>(__popc(ballot & ~(uint32_t{0xffffffff} << lane_id)));
           push_buffer_element(dst,
@@ -578,8 +577,7 @@ __global__ void update_v_frontier_from_outgoing_e_mid_degree(
                                  edge_partition_dst_value_input.get(dst_offset),
                                  e_op);
       }
-      auto ballot = __ballot_sync(uint32_t{0xffffffff},
-                                  thrust::get<0>(e_op_result) ? uint32_t{1} : uint32_t{0});
+      auto ballot = __ballot_sync(uint32_t{0xffffffff}, e_op_result ? uint32_t{1} : uint32_t{0});
       if (ballot > 0) {
         if (lane_id == 0) {
           auto increment = __popc(ballot);
@@ -589,7 +587,7 @@ __global__ void update_v_frontier_from_outgoing_e_mid_degree(
                                           static_cast<unsigned long long int>(increment)));
         }
         __syncwarp();
-        if (thrust::get<0>(e_op_result)) {
+        if (e_op_result) {
           auto buffer_warp_offset =
             static_cast<edge_t>(__popc(ballot & ~(uint32_t{0xffffffff} << lane_id)));
           push_buffer_element(dst,
@@ -688,10 +686,9 @@ __global__ void update_v_frontier_from_outgoing_e_high_degree(
                                  e_op);
       }
       BlockScan(temp_storage)
-        .ExclusiveSum(thrust::get<0>(e_op_result) ? edge_t{1} : edge_t{0}, buffer_block_offset);
+        .ExclusiveSum(e_op_result ? edge_t{1} : edge_t{0}, buffer_block_offset);
       if (threadIdx.x == (blockDim.x - 1)) {
-        auto increment =
-          buffer_block_offset + (thrust::get<0>(e_op_result) ? edge_t{1} : edge_t{0});
+        auto increment = buffer_block_offset + (e_op_result ? edge_t{1} : edge_t{0});
         static_assert(sizeof(unsigned long long int) == sizeof(size_t));
         buffer_block_start_idx = increment > 0
                                    ? static_cast<size_t>(atomicAdd(
@@ -700,7 +697,7 @@ __global__ void update_v_frontier_from_outgoing_e_high_degree(
                                    : size_t{0} /* dummy */;
       }
       __syncthreads();
-      if (thrust::get<0>(e_op_result)) {
+      if (e_op_result) {
         push_buffer_element(dst,
                             e_op_result,
                             buffer_key_output_first,
@@ -894,10 +891,13 @@ typename GraphViewType::edge_type compute_num_out_nbrs_from_frontier(
   return ret;
 }
 
-// FIXME: this documentation needs to be updated due to (tagged-)vertex support
 /**
- * @brief Update (tagged-)vertex frontier and (tagged-)vertex property values iterating over the
- * outgoing edges from the vertices in the current frontier.
+ * @brief Iterate over outgoing edges from the current vertex frontier and reduce valid edge functor
+ * outputs by (tagged-)destination ID.
+ *
+ * Edge functor outputs are thrust::optional objects and invalid if thrust::nullopt. Vertices are
+ * assumed to be tagged if VertexFrontierType::key_type is a tuple of a vertex type and a tag type
+ * (VertexFrontierType::key_type is identical to a vertex type otherwise).
  *
  * @tparam GraphViewType Type of the passed non-owning graph object.
  * @tparam VertexFrontierType Type of the vertex frontier class which abstracts vertex frontier
@@ -908,9 +908,6 @@ typename GraphViewType::edge_type compute_num_out_nbrs_from_frontier(
  * property values.
  * @tparam EdgeOp Type of the quaternary (or quinary) edge operator.
  * @tparam ReduceOp Type of the binary reduction operator.
- * @tparam VertexValueInputIterator Type of the iterator for vertex property values.
- * @tparam VertexValueOutputIterator Type of the iterator for vertex property variables.
- * @tparam VertexOp Type of the binary vertex operator.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Non-owning graph object.
@@ -918,8 +915,6 @@ typename GraphViewType::edge_type compute_num_out_nbrs_from_frontier(
  * includes multiple bucket objects.
  * @param cur_frontier_bucket_idx Index of the vertex frontier bucket holding vertices for the
  * current iteration.
- * @param next_frontier_bucket_indices Indices of the vertex frontier buckets to store new frontier
- * vertices for the next iteration.
  * @param edge_partition_src_value_input Device-copyable wrapper used to access source input
  * property values (for the edge sources assigned to this process in multi-GPU). Use either
  * cugraph::edge_partition_src_property_t::device_view() (if @p e_op needs to access source property
@@ -931,26 +926,20 @@ typename GraphViewType::edge_type compute_num_out_nbrs_from_frontier(
  * property values) or cugraph::dummy_property_t::device_view() (if @p e_op does not access
  * destination property values). Use update_edge_partition_dst_property to fill the wrapper.
  * @param e_op Quaternary (or quinary) operator takes edge source, edge destination, (optional edge
- * weight), property values for the source, and property values for the destination and returns a
- * value to be reduced using the @p reduce_op.
+ * weight), property values for the source, and property values for the destination and returns
+ * 1) thrust::nullopt (if invalid and to be discarded); 2) dummy (but valid) thrust::optional object
+ * (e.g. thrust::optional<std::byte>{std::byte{0}}, if vertices are not tagged and ReduceOp::type is
+ * void); 3) a tag (if vertices are tagged and ReduceOp::type is void); 4) a value to be reduced
+ * using the @p reduce_op (if vertices are not tagged and ReduceOp::type is not void); or 5) a tuple
+ * of a tag and a value to be reduced (if vertices are tagged and ReduceOp::type is not void).
  * @param reduce_op Binary operator that takes two input arguments and reduce the two values to one.
  * There are pre-defined reduction operators in include/cugraph/prims/reduce_op.cuh. It is
  * recommended to use the pre-defined reduction operators whenever possible as the current (and
  * future) implementations of graph primitives may check whether @p ReduceOp is a known type (or has
  * known member variables) to take a more optimized code path. See the documentation in the
  * reduce_op.cuh file for instructions on writing custom reduction operators.
- * @param vertex_value_input_first Iterator pointing to the vertex property values for the first
- * (inclusive) vertex (assigned to this process in multi-GPU). `vertex_value_input_last` (exclusive)
- * is deduced as @p vertex_value_input_first + @p graph_view.local_vertex_partition_range_size().
- * @param vertex_value_output_first Iterator pointing to the vertex property variables for the first
- * (inclusive) vertex (assigned to this process in multi-GPU). `vertex_value_output_last`
- * (exclusive) is deduced as @p vertex_value_output_first + @p
- * graph_view.local_vertex_partition_range_size().
- * @param v_op Ternary operator takes (tagged-)vertex ID, *(@p vertex_value_input_first + i) (where
- * i is [0, @p graph_view.local_vertex_partition_range_size())) and reduced value of the @p e_op
- * outputs for this vertex and returns the target bucket index (for frontier update) and new vertex
- * property values (to update *(@p vertex_value_output_first + i)). The target bucket index should
- * either be VertexFrontierType::kInvalidBucketIdx or an index in @p next_frontier_bucket_indices.
+ * @return Tuple of key values and payload values (if ReduceOp::type is not void) or just key values
+ * (if ReduceOp::type is void).
  */
 template <typename GraphViewType,
           typename VertexFrontierType,

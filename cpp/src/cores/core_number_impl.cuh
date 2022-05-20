@@ -203,7 +203,7 @@ void core_number(raft::handle_t const& handle,
               dummy_property_t<vertex_t>{}.device_view(),
               dst_core_numbers.device_view(),
               [k, delta] __device__(vertex_t src, vertex_t dst, auto, auto dst_val) {
-                return thrust::make_tuple(dst_val >= k, delta);
+                return dst_val >= k ? thrust::optional<edge_t>{delta} : thrust::nullopt;
               },
               reduce_op::plus<edge_t>());
 
@@ -226,8 +226,8 @@ void core_number(raft::handle_t const& handle,
               auto new_core_number = v_val >= pushed_val ? v_val - pushed_val : edge_t{0};
               new_core_number      = new_core_number < (k - delta) ? (k - delta) : new_core_number;
               new_core_number      = new_core_number < k_first ? edge_t{0} : new_core_number;
-              return thrust::optional<thrust::tuple<size_t, edge_t>>{
-                thrust::make_tuple(bucket_idx_next, new_core_number)};
+              return thrust::make_tuple(thrust::optional<size_t>{bucket_idx_next},
+                                        thrust::optional<edge_t>{new_core_number});
             });
         }
 

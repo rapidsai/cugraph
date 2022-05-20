@@ -90,16 +90,21 @@ struct e_op_t {
   {
     if constexpr (std::is_same_v<key_t, vertex_t>) {
       if constexpr (std::is_same_v<payload_t, void>) {
-        return thrust::make_tuple(src_val < dst_val);
+        return src_val < dst_val ? thrust::optional<std::byte>{std::byte{0}} /* dummy */
+                                 : thrust::nullopt;
       } else {
-        return thrust::make_tuple(src_val < dst_val, static_cast<payload_t>(1));
+        return src_val < dst_val ? thrust::optional<payload_t>{static_cast<payload_t>(1)}
+                                 : thrust::nullopt;
       }
     } else {
       auto tag = thrust::get<1>(optionally_tagged_src);
       if constexpr (std::is_same_v<payload_t, void>) {
-        return thrust::make_tuple(src_val < dst_val, tag);
+        return src_val < dst_val ? thrust::optional<decltype(tag)>{tag} : thrust::nullopt;
       } else {
-        return thrust::make_tuple(src_val < dst_val, tag, static_cast<payload_t>(1));
+        return src_val < dst_val
+                 ? thrust::optional<thrust::tuple<decltype(tag), payload_t>>{thrust::make_tuple(
+                     tag, static_cast<payload_t>(1))}
+                 : thrust::nullopt;
       }
     }
   }

@@ -185,7 +185,9 @@ void sssp(raft::handle_t const& handle,
             threshold         = old_distance < threshold ? old_distance : threshold;
           }
           if (new_distance >= threshold) { push = false; }
-          return thrust::make_tuple(push, thrust::make_tuple(new_distance, src));
+          return push ? thrust::optional<thrust::tuple<weight_t, vertex_t>>{thrust::make_tuple(
+                          new_distance, src)}
+                      : thrust::nullopt;
         },
         reduce_op::minimum<thrust::tuple<weight_t, vertex_t>>());
 
@@ -200,11 +202,13 @@ void sssp(raft::handle_t const& handle,
       thrust::make_zip_iterator(thrust::make_tuple(distances, predecessor_first)),
       [near_far_threshold] __device__(auto v, auto v_val, auto pushed_val) {
         auto new_dist = thrust::get<0>(pushed_val);
-        return new_dist < v_val
-                 ? thrust::optional<thrust::tuple<size_t, decltype(pushed_val)>>{thrust::make_tuple(
-                     new_dist < near_far_threshold ? bucket_idx_next_near : bucket_idx_far,
-                     pushed_val)}
-                 : thrust::nullopt;
+        auto update   = (new_dist < v_val);
+        return thrust::make_tuple(
+          update ? thrust::optional<size_t>{new_dist < near_far_threshold ? bucket_idx_next_near
+                                                                          : bucket_idx_far}
+                 : thrust::nullopt,
+          update ? thrust::optional<thrust::tuple<weight_t, vertex_t>>{pushed_val}
+                 : thrust::nullopt);
       });
 
     vertex_frontier.bucket(bucket_idx_cur_near).clear();

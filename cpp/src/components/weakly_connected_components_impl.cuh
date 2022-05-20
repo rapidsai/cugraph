@@ -184,7 +184,8 @@ struct v_op_t {
   size_t bucket_idx_conflict{};  // relevant only if GraphViewType::is_multi_gpu is true
 
   template <bool multi_gpu = GraphViewType::is_multi_gpu>
-  __device__ std::enable_if_t<multi_gpu, thrust::optional<thrust::tuple<size_t, std::byte>>>
+  __device__ std::enable_if_t<multi_gpu,
+                              thrust::tuple<thrust::optional<size_t>, thrust::optional<std::byte>>>
   operator()(thrust::tuple<vertex_type, vertex_type> tagged_v, int /* v_val */) const
   {
     auto tag = thrust::get<1>(tagged_v);
@@ -195,22 +196,23 @@ struct v_op_t {
     auto old =
       atomicCAS(level_components + v_offset, invalid_component_id<vertex_type>::value, tag);
     if (old != invalid_component_id<vertex_type>::value && old != tag) {  // conflict
-      return thrust::optional<thrust::tuple<size_t, std::byte>>{
-        thrust::make_tuple(bucket_idx_conflict, std::byte{0} /* dummy */)};
+      return thrust::make_tuple(thrust::optional<size_t>{bucket_idx_conflict},
+                                thrust::optional<std::byte>{std::byte{0}} /* dummy */);
     } else {
-      return (old == invalid_component_id<vertex_type>::value)
-               ? thrust::optional<thrust::tuple<size_t, std::byte>>{thrust::make_tuple(
-                   bucket_idx_next, std::byte{0} /* dummy */)}
-               : thrust::nullopt;
+      auto update = (old == invalid_component_id<vertex_type>::value);
+      return thrust::make_tuple(
+        update ? thrust::optional<size_t>{bucket_idx_next} : thrust::nullopt,
+        update ? thrust::optional<std::byte>{std::byte{0}} /* dummy */ : thrust::nullopt);
     }
   }
 
   template <bool multi_gpu = GraphViewType::is_multi_gpu>
-  __device__ std::enable_if_t<!multi_gpu, thrust::optional<thrust::tuple<size_t, std::byte>>>
+  __device__ std::enable_if_t<!multi_gpu,
+                              thrust::tuple<thrust::optional<size_t>, thrust::optional<std::byte>>>
   operator()(thrust::tuple<vertex_type, vertex_type> /* tagged_v */, int /* v_val */) const
   {
-    return thrust::optional<thrust::tuple<size_t, std::byte>>{
-      thrust::make_tuple(bucket_idx_next, std::byte{0} /* dummy */)};
+    return thrust::make_tuple(thrust::optional<size_t>{bucket_idx_next},
+                              thrust::optional<std::byte>{std::byte{0}} /* dummy */);
   }
 };
 
@@ -554,7 +556,8 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
             *(edge_buffer_first + edge_idx) =
               tag >= old ? thrust::make_tuple(tag, old) : thrust::make_tuple(old, tag);
           }
-          return thrust::make_tuple(old == invalid_component_id<vertex_t>::value, tag);
+          return old == invalid_component_id<vertex_t>::value ? thrust::optional<vertex_t>{tag}
+                                                              : thrust::nullopt;
         },
         reduce_op::null());
 
