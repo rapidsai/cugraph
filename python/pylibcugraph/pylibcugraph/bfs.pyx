@@ -1,5 +1,5 @@
 from libc.stdint cimport uintptr_t
-from libc.stdint cimport int64_t
+from libc.stdint cimport int32_t
 from libc.limits cimport INT_MAX
 
 from pylibcugraph.resource_handle cimport ResourceHandle
@@ -12,6 +12,8 @@ from pylibcugraph._cugraph_c.algorithms cimport (
     cugraph_paths_result_free,
 )
 from pylibcugraph._cugraph_c.array cimport (
+    cugraph_type_erased_device_array_view,
+    cugraph_type_erased_device_array_t,
     cugraph_type_erased_device_array_view_t,
     cugraph_type_erased_device_array_view_create,
     cugraph_type_erased_device_array_view_free,

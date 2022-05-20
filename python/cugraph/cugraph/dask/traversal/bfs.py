@@ -34,6 +34,7 @@ def _call_plc_mg_bfs(
     depth_limit,
     src_col_name,
     dst_col_name,
+    graph_properties,
     num_edges,
     direction_optimizing=False,
     do_expensive_check=False,
@@ -41,18 +42,18 @@ def _call_plc_mg_bfs(
     comms_handle = Comms.get_handle(sID)
     resource_handle = ResourceHandle(comms_handle.getHandle())
 
-    srcs = data[0][src_col_name]
-    dsts = data[0][dst_col_name]
-    weights = data[0]['value'] \
+    srcs = cudf.Series(data[0][src_col_name], dtype='int32')
+    dsts = cudf.Series(data[0][dst_col_name], dtype='int32')
+    weights = cudf.Series(data[0]['value'], dtype='float32') \
         if 'value' in data[0].columns \
         else cudf.Series((srcs + 1) / (srcs + 1), dtype='float32')
 
     mg = MGGraph(
         resource_handle = resource_handle,
-        graph_properties = GraphProperties(is_symmetric=False, is_multigraph=False),
+        graph_properties = graph_properties,
         src_array = srcs,
         dst_array = dsts,
-        weight_array = weights,
+        weight_array = None,
         store_transposed = False,
         num_edges = num_edges,
         do_expensive_check = do_expensive_check
@@ -61,7 +62,8 @@ def _call_plc_mg_bfs(
     print({
         'resource_handle': resource_handle,
         'mg': mg,
-        'sources': f'length {len(sources)}, type {type(sources)}',
+        'sources': f'type {type(sources)}',
+        'weights': f'{weights}',
         'direction_optimizing': direction_optimizing,
         'depth_limit': depth_limit,
         'return_predecessors': return_predecessors,
@@ -78,7 +80,7 @@ def _call_plc_mg_bfs(
             direction_optimizing,
             depth_limit if depth_limit is not None else 0,
             return_predecessors,
-            do_expensive_check
+            True
         )
     
     return res
@@ -153,64 +155,39 @@ def bfs(input_graph,
 
     client = default_client()
 
-    input_graph.compute_renumber_edge_list(transposed=False,)
+    input_graph.compute_renumber_edge_list(transposed=False, legacy_renum_only=True)
     ddf = input_graph.edgelist.edgelist_df
     vertex_partition_offsets = get_vertex_partition_offsets(input_graph)
     num_verts = vertex_partition_offsets.iloc[-1]
 
+    graph_properties = GraphProperties(
+        is_multigraph=False)
+
     num_edges = len(ddf)
     data = get_distributed_data(ddf)
 
-    def df_merge(df, tmp_df, tmp_col_names):
-        x = df[0].merge(tmp_df, on=tmp_col_names, how='inner')
-        return x['global_id']
-
     src_col_name = input_graph.renumber_map.renumbered_src_col_name
     dst_col_name = input_graph.renumber_map.renumbered_dst_col_name
-    renumber_ddf = input_graph.renumber_map.implementation.ddf
-    col_names = input_graph.renumber_map.implementation.col_names
-    if isinstance(start,
-                    dask_cudf.DataFrame) or isinstance(start,
-                                                        cudf.DataFrame):
-        tmp_df = start
-        tmp_col_names = start.columns
-    else:
-        tmp_df = cudf.DataFrame()
-        tmp_df["0"] = cudf.Series(start)
-        tmp_col_names = ["0"]
 
-    original_start_len = len(tmp_df)
+    start_list = cudf.Series(start)
+    if input_graph.renumbered:
+        start_list = input_graph.lookup_internal_vertex_id(
+            start_list).compute()
 
-    tmp_ddf = tmp_df[tmp_col_names].rename(
-        columns=dict(zip(tmp_col_names, col_names)))
-    for name in col_names:
-        tmp_ddf[name] = tmp_ddf[name].astype(renumber_ddf[name].dtype)
-    renumber_data = get_distributed_data(renumber_ddf)
-    start = [client.submit(df_merge,
-                            wf[1],
-                            tmp_ddf,
-                            col_names,
-                            workers=[wf[0]])
-                for idx, wf in enumerate(renumber_data.worker_to_parts.items()
-                                        )
-                ]
-
-    def count_src(df):
-        return len(df)
-
-    count_src_results = client.map(count_src, start)
-    cg = client.gather(count_src_results)
-    if sum(cg) < original_start_len:
-        raise ValueError('At least one start vertex provided was invalid')
+    #count_src_results = client.map(count_src, start)
+    #cg = client.gather(count_src_results)
+    #if sum(cg) < original_start_len:
+    #    raise ValueError('At least one start vertex provided was invalid')
 
     cupy_result = [client.submit(
               _call_plc_mg_bfs,
               Comms.get_session_id(),
               wf[1],
-              start[idx],
+              start,
               depth_limit,
               src_col_name,
               dst_col_name,
+              graph_properties,
               num_edges,
               False,
               True,
