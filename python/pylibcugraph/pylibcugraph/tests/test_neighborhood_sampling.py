@@ -18,8 +18,8 @@ import cudf
 from pylibcugraph import (MGGraph,
                           ResourceHandle,
                           GraphProperties,
-                          uniform_neighborhood_sampling,
                           )
+from pylibcugraph.experimental import uniform_neighborhood_sampling
 
 
 # =============================================================================
