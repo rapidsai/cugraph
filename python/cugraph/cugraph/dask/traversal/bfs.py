@@ -53,24 +53,11 @@ def _call_plc_mg_bfs(
         graph_properties = graph_properties,
         src_array = srcs,
         dst_array = dsts,
-        weight_array = None,
+        weight_array = weights,
         store_transposed = False,
         num_edges = num_edges,
         do_expensive_check = do_expensive_check
     )
-
-    print({
-        'resource_handle': resource_handle,
-        'mg': mg,
-        'sources': f'type {type(sources)}',
-        'weights': f'{weights}',
-        'direction_optimizing': direction_optimizing,
-        'depth_limit': depth_limit,
-        'return_predecessors': return_predecessors,
-        'do_expensive_check': do_expensive_check,
-        'data': data,
-        'sources': sources
-    })
 
     res = \
         pylibcugraph_bfs(
@@ -155,7 +142,7 @@ def bfs(input_graph,
 
     client = default_client()
 
-    input_graph.compute_renumber_edge_list(transposed=False, legacy_renum_only=True)
+    input_graph.compute_renumber_edge_list(transposed=False)
     ddf = input_graph.edgelist.edgelist_df
     vertex_partition_offsets = get_vertex_partition_offsets(input_graph)
     num_verts = vertex_partition_offsets.iloc[-1]
@@ -168,22 +155,53 @@ def bfs(input_graph,
 
     src_col_name = input_graph.renumber_map.renumbered_src_col_name
     dst_col_name = input_graph.renumber_map.renumbered_dst_col_name
+    renumber_ddf = input_graph.renumber_map.implementation.ddf
+    col_names = input_graph.renumber_map.implementation.col_names
+    
+    if isinstance(start,
+                    dask_cudf.DataFrame) or isinstance(start,
+                                                        cudf.DataFrame):
+        tmp_df = start
+        tmp_col_names = start.columns
+    else:
+        tmp_df = cudf.DataFrame()
+        tmp_df["0"] = cudf.Series(start)
+        tmp_col_names = ["0"]
 
-    start_list = cudf.Series(start)
-    if input_graph.renumbered:
-        start_list = input_graph.lookup_internal_vertex_id(
-            start_list).compute()
+    original_start_len = len(tmp_df)
 
-    #count_src_results = client.map(count_src, start)
-    #cg = client.gather(count_src_results)
-    #if sum(cg) < original_start_len:
-    #    raise ValueError('At least one start vertex provided was invalid')
+    tmp_ddf = tmp_df[tmp_col_names].rename(
+        columns=dict(zip(tmp_col_names, col_names)))
+    for name in col_names:
+        tmp_ddf[name] = tmp_ddf[name].astype(renumber_ddf[name].dtype)
+    renumber_data = get_distributed_data(renumber_ddf)
+
+    def df_merge(df, tmp_df, tmp_col_names):
+        x = df[0].merge(tmp_df, on=tmp_col_names, how='inner')
+        return x['global_id']
+
+    start = [client.submit(df_merge,
+                            wf[1],
+                            tmp_ddf,
+                            col_names,
+                            workers=[wf[0]])
+                for idx, wf in enumerate(renumber_data.worker_to_parts.items()
+                                        )
+                ]
+
+    def count_src(df):
+        return len(df)
+
+    count_src_results = client.map(count_src, start)
+    cg = client.gather(count_src_results)
+    if sum(cg) < original_start_len:
+        raise ValueError('At least one start vertex provided was invalid')
 
     cupy_result = [client.submit(
               _call_plc_mg_bfs,
               Comms.get_session_id(),
               wf[1],
-              start,
+              start[idx],
               depth_limit,
               src_col_name,
               dst_col_name,
@@ -195,17 +213,13 @@ def bfs(input_graph,
               workers=[wf[0]])
               for idx, wf in enumerate(data.worker_to_parts.items())]
     wait(cupy_result)
-    print('wait 1')
-    print('wait 2')
+
     cudf_result = [client.submit(convert_to_cudf,
                                  cp_arrays)
                    for cp_arrays in cupy_result]
-    print('wait 3')
     wait(cudf_result)
-    print('wait 4')
 
     ddf = dask_cudf.from_delayed(cudf_result)
-    print('wait 5')
 
     if input_graph.renumbered:
         ddf = input_graph.unrenumber(ddf, 'vertex')

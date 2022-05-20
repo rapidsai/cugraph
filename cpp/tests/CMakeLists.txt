@@ -1,4 +1,4 @@
-﻿#=============================================================================
+﻿z#=============================================================================
 # Copyright (c) 2019-2022, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -636,6 +636,7 @@ if(BUILD_CUGRAPH_MG_TESTS)
         # - MG C API tests ------------------------------------------------------------------------
         ConfigureCTestMG(MG_CAPI_CREATE_GRAPH c_api/mg_create_graph_test.c c_api/mg_test_utils.cpp)
         ConfigureCTestMG(MG_CAPI_PAGERANK c_api/mg_pagerank_test.c c_api/mg_test_utils.cpp)
+        ConfigureCTestMG(MG_CAPI_BFS c_api/mg_bfs_test.c c_api/mg_test_utils.cpp)
         ConfigureCTestMG(MG_CAPI_SSSP c_api/mg_sssp_test.c c_api/mg_test_utils.cpp)
         ConfigureCTestMG(MG_CAPI_WEAKLY_CONNECTED_COMPONENTS c_api/mg_weakly_connected_components_test.c c_api/mg_test_utils.cpp)
         ConfigureCTestMG(MG_CAPI_STRONGLY_CONNECTED_COMPONENTS c_api/mg_strongly_connected_components_test.c c_api/mg_test_utils.cpp)
