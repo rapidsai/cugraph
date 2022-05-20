@@ -16,8 +16,8 @@
 from pylibcugraph.experimental import (MGGraph,
                                        ResourceHandle,
                                        GraphProperties,
-                                       bfs as pylibcugraph_bfs,
                                        )
+from pylibcugraph import bfs as pylibcugraph_bfs
 
 from dask.distributed import wait, default_client
 from cugraph.dask.common.input_utils import get_distributed_data
