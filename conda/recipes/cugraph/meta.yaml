@@ -21,34 +21,36 @@ build:
   script_env:
     - PARALLEL_LEVEL
   ignore_run_exports_from:
-    - nvcc_linux-64 # [linux64]
-    - nvcc_linux-aarch64 # [aarch64]
+    - {{ compiler('cuda') }}
 
 requirements:
   build:
     - {{ compiler('c') }}
     - {{ compiler('cxx') }}
     - {{ compiler('cuda') }} {{ cuda_version }}
-    - sysroot_linux-64 {{ sysroot_version }}  # [linux64]
-    - sysroot_linux-aarch64 {{ sysroot_version }}  # [aarch64]
+    - sysroot_{{ target_platform }} {{ sysroot_version }}
   host:
-    - python
+    - python x.x
     - cython>=0.29,<0.30
-    - libcugraph={{ version }}.*
-    - libraft-headers {{ minor_version }}.*
-    - pyraft {{ minor_version }}.*
-    - cudf={{ minor_version }}.*
+    - libcugraph={{ version }}
+    - libraft-headers {{ minor_version }}
+    - pyraft {{ minor_version }}
+    - cudf={{ minor_version }}
     - ucx-py {{ ucx_py_version }}
     - ucx-proc=*=gpu
     - cudatoolkit {{ cuda_version }}.*
-    - libraft-headers {{ minor_version }}.*
+    - libraft-headers {{ minor_version }}
   run:
-    - python
+    - python x.x
     - pylibcugraph={{ version }}
     - libcugraph={{ version }}
     - libraft-headers {{ minor_version }}
     - pyraft {{ minor_version }}
     - cudf={{ minor_version }}
+    - dask-cudf {{ minor_version }}
+    - dask-cuda {{ minor_version }}
+    - dask>=2022.03.0
+    - distributed>=2022.03.0
     - ucx-py {{ ucx_py_version }}
     - ucx-proc=*=gpu
     - {{ pin_compatible('cudatoolkit', max_pin='x', min_pin='x') }}
