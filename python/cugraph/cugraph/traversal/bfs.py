@@ -128,7 +128,7 @@ def _convert_df_to_output_type(df, input_type):
 
 
 def _call_plc_bfs(G, sources, depth_limit, do_expensive_check=False,
-                 direction_optimizing=False, return_predecessors=True):
+                  direction_optimizing=False, return_predecessors=True):
     handle = ResourceHandle()
 
     srcs = G.edgelist.edgelist_df['src']
@@ -275,9 +275,9 @@ def bfs(G,
             start = cudf.Series(start, name='starts')
 
     df = _call_plc_bfs(
-        G, 
-        start, 
-        depth_limit, 
+        G,
+        start,
+        depth_limit,
         return_predecessors=return_predecessors
     )
     if G.renumbered:

@@ -20,8 +20,7 @@ from pylibcugraph.experimental import (MGGraph,
                                        )
 
 from dask.distributed import wait, default_client
-from cugraph.dask.common.input_utils import (get_distributed_data,
-                                             get_vertex_partition_offsets)
+from cugraph.dask.common.input_utils import get_distributed_data
 import cugraph.dask.comms.comms as Comms
 import cudf
 import dask_cudf
@@ -146,7 +145,6 @@ def bfs(input_graph,
 
     input_graph.compute_renumber_edge_list(transposed=False)
     ddf = input_graph.edgelist.edgelist_df
-    vertex_partition_offsets = get_vertex_partition_offsets(input_graph)
 
     graph_properties = GraphProperties(
         is_multigraph=False)
