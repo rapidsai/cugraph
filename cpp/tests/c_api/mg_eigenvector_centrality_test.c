@@ -33,7 +33,6 @@ int generic_eigenvector_centrality_test(const cugraph_resource_handle_t* handle,
                                         size_t num_vertices,
                                         size_t num_edges,
                                         bool_t store_transposed,
-                                        double alpha,
                                         double epsilon,
                                         size_t max_iterations)
 {
@@ -93,19 +92,19 @@ int generic_eigenvector_centrality_test(const cugraph_resource_handle_t* handle,
 
 int test_eigenvector_centrality(const cugraph_resource_handle_t* handle)
 {
-  size_t num_edges    = 8;
+  size_t num_edges    = 16;
   size_t num_vertices = 6;
 
-  vertex_t h_src[]    = {0, 1, 1, 2, 2, 2, 3, 4};
-  vertex_t h_dst[]    = {1, 3, 4, 0, 1, 3, 5, 5};
-  weight_t h_wgt[]    = {0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
-  weight_t h_result[] = {0.0915528, 0.168382, 0.0656831, 0.191468, 0.120677, 0.362237};
+  vertex_t h_src[] = {0, 1, 1, 2, 2, 2, 3, 4, 1, 3, 4, 0, 1, 3, 5, 5};
+  vertex_t h_dst[] = {1, 3, 4, 0, 1, 3, 5, 5, 0, 1, 1, 2, 2, 2, 3, 4};
+  weight_t h_wgt[] = {
+    0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f, 0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
+  weight_t h_result[] = {0.236374, 0.292046, 0.458369, 0.605472, 0.190544, 0.495814};
 
-  double alpha          = 0.95;
-  double epsilon        = 0.0001;
-  size_t max_iterations = 20;
+  double epsilon      = 1e-6;
+  size_t max_iterations = 200;
 
-  // Pagerank wants store_transposed = TRUE
+  // Eigenvector centrality wants store_transposed = TRUE
   return generic_eigenvector_centrality_test(handle,
                                              h_src,
                                              h_dst,
@@ -114,7 +113,6 @@ int test_eigenvector_centrality(const cugraph_resource_handle_t* handle)
                                              num_vertices,
                                              num_edges,
                                              TRUE,
-                                             alpha,
                                              epsilon,
                                              max_iterations);
 }
