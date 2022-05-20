@@ -25,7 +25,7 @@ from pylibcugraph import sssp as pylibcugraph_sssp
 from pylibcugraph.experimental import (ResourceHandle,
                                        GraphProperties,
                                        SGGraph,
-                                      )
+                                       )
 
 
 def _ensure_args(G, source, method, directed,
@@ -125,7 +125,13 @@ def _convert_df_to_output_type(df, input_type, return_predecessors):
     else:
         raise TypeError(f"input type {input_type} is not a supported type.")
 
-def _call_plc_sssp(G, source, cutoff, compute_predecessors=True, do_expensive_check=False):
+
+def _call_plc_sssp(
+        G, 
+        source, 
+        cutoff, 
+        compute_predecessors=True, 
+        do_expensive_check=False):
     srcs = G.edgelist.edgelist_df['src'].astype('int32')
     dsts = G.edgelist.edgelist_df['dst'].astype('int32')
     weights = G.edgelist.edgelist_df['weights'].astype('float32') \
@@ -254,7 +260,7 @@ def sssp(G,
     if source is cudf.NA:
         raise ValueError(
             "Starting vertex should be between 0 to number of vertices")
-    
+
     if cutoff is None:
         cutoff = np.inf
 
