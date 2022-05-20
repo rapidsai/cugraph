@@ -26,23 +26,22 @@ typedef int32_t edge_t;
 typedef float weight_t;
 
 int generic_eigenvector_centrality_test(vertex_t* h_src,
-                          vertex_t* h_dst,
-                          weight_t* h_wgt,
-                          weight_t* h_result,
-                          size_t num_vertices,
-                          size_t num_edges,
-                          bool_t store_transposed,
-                          double alpha,
-                          double epsilon,
-                          size_t max_iterations)
+                                        vertex_t* h_dst,
+                                        weight_t* h_wgt,
+                                        weight_t* h_result,
+                                        size_t num_vertices,
+                                        size_t num_edges,
+                                        bool_t store_transposed,
+                                        double epsilon,
+                                        size_t max_iterations)
 {
   int test_ret_value = 0;
 
   cugraph_error_code_t ret_code = CUGRAPH_SUCCESS;
   cugraph_error_t* ret_error;
 
-  cugraph_resource_handle_t* p_handle = NULL;
-  cugraph_graph_t* p_graph            = NULL;
+  cugraph_resource_handle_t* p_handle   = NULL;
+  cugraph_graph_t* p_graph              = NULL;
   cugraph_centrality_result_t* p_result = NULL;
 
   p_handle = cugraph_create_resource_handle(NULL);
@@ -56,12 +55,14 @@ int generic_eigenvector_centrality_test(vertex_t* h_src,
 
   ret_code = cugraph_eigenvector_centrality(
     p_handle, p_graph, epsilon, max_iterations, FALSE, &p_result, &ret_error);
-  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "cugraph_eigenvector_centrality failed.");
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
+  TEST_ASSERT(
+    test_ret_value, ret_code == CUGRAPH_SUCCESS, "cugraph_eigenvector_centrality failed.");
 
   cugraph_type_erased_device_array_view_t* vertices;
   cugraph_type_erased_device_array_view_t* centralities;
 
-  vertices  = cugraph_centrality_result_get_vertices(p_result);
+  vertices     = cugraph_centrality_result_get_vertices(p_result);
   centralities = cugraph_centrality_result_get_values(p_result);
 
   vertex_t h_vertices[num_vertices];
@@ -91,21 +92,21 @@ int generic_eigenvector_centrality_test(vertex_t* h_src,
 
 int test_eigenvector_centrality()
 {
-  size_t num_edges    = 8;
+  size_t num_edges    = 16;
   size_t num_vertices = 6;
 
-  vertex_t h_src[]    = {0, 1, 1, 2, 2, 2, 3, 4};
-  vertex_t h_dst[]    = {1, 3, 4, 0, 1, 3, 5, 5};
-  weight_t h_wgt[]    = {0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
-  weight_t h_result[] = {0.0915528, 0.168382, 0.0656831, 0.191468, 0.120677, 0.362237};
+  vertex_t h_src[] = {0, 1, 1, 2, 2, 2, 3, 4, 1, 3, 4, 0, 1, 3, 5, 5};
+  vertex_t h_dst[] = {1, 3, 4, 0, 1, 3, 5, 5, 0, 1, 1, 2, 2, 2, 3, 4};
+  weight_t h_wgt[] = {
+    0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f, 0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
+  weight_t h_result[] = {0.236325, 0.292055, 0.458457, 0.60533, 0.190498, 0.495942};
 
-  double alpha          = 0.95;
-  double epsilon        = 0.0001;
-  size_t max_iterations = 20;
+  double epsilon        = 1e-6;
+  size_t max_iterations = 200;
 
-  // Pagerank wants store_transposed = TRUE
+  // Eigenvector centrality wants store_transposed = TRUE
   return generic_eigenvector_centrality_test(
-    h_src, h_dst, h_wgt, h_result, num_vertices, num_edges, TRUE, alpha, epsilon, max_iterations);
+    h_src, h_dst, h_wgt, h_result, num_vertices, num_edges, TRUE, epsilon, max_iterations);
 }
 
 /******************************************************************************/
