@@ -77,10 +77,6 @@ struct optional_payload_buffer_value_type_t<
   using value = void;
 };
 
-// FIXME: to silence the spurious warning (missing return statement ...) due to the nvcc bug
-// (https://stackoverflow.com/questions/64523302/cuda-missing-return-statement-at-end-of-non-void-
-// function-in-constexpr-if-fun)
-#if 1
 template <typename payload_t, std::enable_if_t<std::is_same_v<payload_t, void>>* = nullptr>
 std::byte allocate_optional_payload_buffer(size_t size, rmm::cuda_stream_view stream)
 {
@@ -140,23 +136,6 @@ void shrink_to_fit_optional_payload_buffer(
 {
   return shrink_to_fit_dataframe_buffer(optional_payload_buffer, stream_view);
 }
-#else
-auto allocate_optional_payload_buffer = [](size_t size, rmm::cuda_stream_view stream) {
-  if constexpr (std::is_same_v<payload_t, void>) {
-    return std::byte{0};  // dummy
-  } else {
-    return allocate_dataframe_buffer<payload_t>(size, stream);
-  }
-};
-
-auto get_optional_payload_buffer_begin = [](auto& optional_payload_buffer) {
-  if constexpr (std::is_same_v<payload_t, void>) {
-    return static_cast<std::byte*>(nullptr);
-  } else {
-    return get_dataframe_buffer_begin(optional_payload_buffer);
-  }
-};
-#endif
 
 template <typename vertex_t,
           typename e_op_result_t,

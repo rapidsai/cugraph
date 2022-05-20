@@ -16,11 +16,8 @@
 #pragma once
 
 #include <cugraph/graph_view.hpp>
-#include <cugraph/prims/property_op_utils.cuh>
 #include <cugraph/utilities/dataframe_buffer.cuh>
-#include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/error.hpp>
-#include <cugraph/utilities/thrust_tuple_utils.cuh>
 
 #include <raft/cudart_utils.h>
 #include <raft/handle.hpp>
