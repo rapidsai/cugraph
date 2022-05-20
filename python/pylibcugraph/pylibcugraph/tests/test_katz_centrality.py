@@ -14,11 +14,17 @@
 import pytest
 import cupy as cp
 import numpy as np
-from pylibcugraph.experimental import (ResourceHandle,
-                                       GraphProperties,
-                                       SGGraph,
-                                       katz_centrality)
-from pylibcugraph.testing import utils
+from pylibcugraph import (ResourceHandle,
+                          GraphProperties,
+                          SGGraph,
+                          )
+from pylibcugraph.experimental import katz_centrality
+from cugraph.testing import utils
+import pathlib
+import pylibcugraph
+
+
+datasets = pathlib.Path(pylibcugraph.__path__[0]).parent.parent.parent
 
 
 # =============================================================================
