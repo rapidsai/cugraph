@@ -413,7 +413,6 @@ class EXPERIMENTAL__MGPropertyGraph:
         self.__edge_prop_dtypes.update(new_col_info)
         self.__edge_prop_dataframe = \
             self.__edge_prop_dataframe.merge(tmp_df, how="outer")
-
         self.__add_edge_ids()
 
         # Update the vertex eval dict with the latest column instances
@@ -550,7 +549,7 @@ class EXPERIMENTAL__MGPropertyGraph:
             allow_multi_edges=allow_multi_edges)
 
     def annotate_dataframe(self, df, G, edge_vertex_col_names):
-       raise NotImplementedError()
+        raise NotImplementedError()
 
     def edge_props_to_graph(self,
                             edge_prop_df,
@@ -681,7 +680,6 @@ class EXPERIMENTAL__MGPropertyGraph:
                 cudf.Series(range(starting_eid, starting_eid + num_indices))
             dask_series = dask_cudf.from_cudf(cudf_series, self.__num_workers)
             self.__edge_prop_dataframe[self.edge_id_col_name] = dask_series
-            breakpoint()
 #            self.__edge_prop_dataframe.reindex()
             self.__last_edge_id = starting_eid + num_indices - 1
 

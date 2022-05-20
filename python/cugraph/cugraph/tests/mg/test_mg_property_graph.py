@@ -27,7 +27,6 @@ from cugraph.testing import utils
 # pytest-benchmark.
 
 import cugraph
-from cugraph.tests import utils
 
 
 # Placeholder for a directed Graph instance. This is not constructed here in
