@@ -170,7 +170,7 @@ struct accumulate_vertex_property_t {
  * vertex; invoke a user-provided functor per intersection, and reduce the functor output
  * values (thrust::tuple of three values having the same type: one for source, one for destination,
  * and one for every vertex in the intersection) per-vertex. We may add
- * per_v_transform_reduce_triplet_of_dst_nbr_intersection_of_e_endpoints in the future to allow
+ * transform_reduce_triplet_of_dst_nbr_intersection_of_e_endpoints_by_v in the future to allow
  * emitting different values for different vertices in the intersection of edge endpoints. This
  * function is inspired by thrust::transfrom_reduce().
  *
@@ -214,7 +214,7 @@ template <typename GraphViewType,
           typename IntersectionOp,
           typename T,
           typename VertexValueOutputIterator>
-void per_v_transform_reduce_dst_nbr_intersection_of_e_endpoints(
+void transform_reduce_dst_nbr_intersection_of_e_endpoints_by_v(
   raft::handle_t const& handle,
   GraphViewType const& graph_view,
   EdgePartitionSrcValueInputWrapper edge_partition_src_value_input,

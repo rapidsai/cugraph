@@ -341,7 +341,7 @@ void triangle_count(raft::handle_t const& handle,
     cur_graph_counts.resize(cur_graph_view.local_vertex_partition_range_size(),
                             handle.get_stream());
 
-    per_v_transform_reduce_dst_nbr_intersection_of_e_endpoints(
+    transform_reduce_dst_nbr_intersection_of_e_endpoints_by_v(
       handle,
       cur_graph_view,
       dummy_property_t<vertex_t>{}.device_view(),

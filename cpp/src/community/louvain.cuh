@@ -544,7 +544,7 @@ class Louvain {
         handle_, current_graph_view_, next_clusters_v_.begin(), dst_clusters_cache_);
     }
 
-    std::tie(cluster_keys_v_, cluster_weights_v_) = cugraph::per_src_key_transform_reduce_e(
+    std::tie(cluster_keys_v_, cluster_weights_v_) = cugraph::transform_reduce_e_by_src_key(
       handle_,
       current_graph_view_,
       dummy_property_t<vertex_t>{}.device_view(),
