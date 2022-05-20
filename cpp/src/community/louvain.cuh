@@ -21,10 +21,10 @@
 #include <cugraph/graph_functions.hpp>
 
 #include <cugraph/prims/edge_partition_src_dst_property.cuh>
-#include <cugraph/prims/per_src_dst_key_transform_reduce_e.cuh>
 #include <cugraph/prims/per_v_transform_reduce_dst_key_aggregated_outgoing_e.cuh>
 #include <cugraph/prims/per_v_transform_reduce_incoming_outgoing_e.cuh>
 #include <cugraph/prims/transform_reduce_e.cuh>
+#include <cugraph/prims/transform_reduce_e_by_src_dst_key.cuh>
 #include <cugraph/prims/update_edge_partition_src_dst_property.cuh>
 #include <cugraph/utilities/collect_comm.cuh>
 
