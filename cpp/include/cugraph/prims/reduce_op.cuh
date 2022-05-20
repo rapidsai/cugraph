@@ -24,7 +24,7 @@ namespace cugraph {
 namespace reduce_op {
 
 // Guidance on writing a custom reduction operator.
-// 1. It is required to add an "using type = type_of_the_reduced_values" statement.
+// 1. It is required to add an "using value_type = type_of_the_reduced_values" statement.
 // 2. A custom reduction operator MUST be side-effect free. We use thrust::reduce internally to
 // implement reductions in multiple primitives. The current (version 1.16)  implementation of thrust
 // reduce rounds up the number of invocations based on the CUDA block size and discards the values
@@ -47,14 +47,14 @@ namespace reduce_op {
 
 // in case there is no payload to reduce
 struct null {
-  using type = void;
+  using value_type = void;
 };
 
 // Binary reduction operator selecting any of the two input arguments, T should be arithmetic types
 // or thrust tuple of arithmetic types.
 template <typename T>
 struct any {
-  using type                          = T;
+  using value_type                    = T;
   static constexpr bool pure_function = true;  // this can be called in any process
 
   __host__ __device__ T operator()(T const& lhs, T const& rhs) const { return lhs; }
@@ -64,7 +64,7 @@ struct any {
 // operator <), T should be arithmetic types or thrust tuple of arithmetic types.
 template <typename T>
 struct minimum {
-  using type                          = T;
+  using value_type                    = T;
   static constexpr bool pure_function = true;  // this can be called in any process
   static constexpr raft::comms::op_t compatible_raft_comms_op = raft::comms::op_t::MIN;
   inline static T const identity_element                      = max_identity_element<T>();
@@ -79,7 +79,7 @@ struct minimum {
 // operator <), T should be arithmetic types or thrust tuple of arithmetic types.
 template <typename T>
 struct maximum {
-  using type                          = T;
+  using value_type                    = T;
   static constexpr bool pure_function = true;  // this can be called in any process
   static constexpr raft::comms::op_t compatible_raft_comms_op = raft::comms::op_t::MAX;
   inline static T const identity_element                      = min_identity_element<T>();
@@ -94,7 +94,7 @@ struct maximum {
 // tuple of arithmetic types.
 template <typename T>
 struct plus {
-  using type                          = T;
+  using value_type                    = T;
   static constexpr bool pure_function = true;  // this can be called in any process
   static constexpr raft::comms::op_t compatible_raft_comms_op = raft::comms::op_t::SUM;
   inline static T const identity_element                      = T{};
@@ -117,7 +117,7 @@ template <typename ReduceOp>
 inline constexpr bool has_compatible_raft_comms_op_v =
   has_compatible_raft_comms_op<ReduceOp>::value;
 
-template <typename ReduceOp, typename = typename ReduceOp::type>
+template <typename ReduceOp, typename = typename ReduceOp::value_type>
 struct has_identity_element : std::false_type {
 };
 

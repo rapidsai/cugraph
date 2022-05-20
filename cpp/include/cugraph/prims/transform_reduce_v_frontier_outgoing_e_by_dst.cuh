@@ -738,7 +738,7 @@ auto sort_and_reduce_buffer_elements(
       static_cast<size_t>(thrust::distance(get_dataframe_buffer_begin(key_buffer), it)),
       handle.get_stream());
     shrink_to_fit_dataframe_buffer(key_buffer, handle.get_stream());
-  } else if constexpr (std::is_same_v<ReduceOp, reduce_op::any<typename ReduceOp::type>>) {
+  } else if constexpr (std::is_same_v<ReduceOp, reduce_op::any<typename ReduceOp::value_type>>) {
     auto it = thrust::unique_by_key(handle.get_thrust_policy(),
                                     get_dataframe_buffer_begin(key_buffer),
                                     get_dataframe_buffer_end(key_buffer),
@@ -928,18 +928,19 @@ typename GraphViewType::edge_type compute_num_out_nbrs_from_frontier(
  * @param e_op Quaternary (or quinary) operator takes edge source, edge destination, (optional edge
  * weight), property values for the source, and property values for the destination and returns
  * 1) thrust::nullopt (if invalid and to be discarded); 2) dummy (but valid) thrust::optional object
- * (e.g. thrust::optional<std::byte>{std::byte{0}}, if vertices are not tagged and ReduceOp::type is
- * void); 3) a tag (if vertices are tagged and ReduceOp::type is void); 4) a value to be reduced
- * using the @p reduce_op (if vertices are not tagged and ReduceOp::type is not void); or 5) a tuple
- * of a tag and a value to be reduced (if vertices are tagged and ReduceOp::type is not void).
+ * (e.g. thrust::optional<std::byte>{std::byte{0}}, if vertices are not tagged and
+ * ReduceOp::value_type is void); 3) a tag (if vertices are tagged and ReduceOp::value_type is
+ * void); 4) a value to be reduced using the @p reduce_op (if vertices are not tagged and
+ * ReduceOp::value_type is not void); or 5) a tuple of a tag and a value to be reduced (if vertices
+ * are tagged and ReduceOp::value_type is not void).
  * @param reduce_op Binary operator that takes two input arguments and reduce the two values to one.
  * There are pre-defined reduction operators in include/cugraph/prims/reduce_op.cuh. It is
  * recommended to use the pre-defined reduction operators whenever possible as the current (and
  * future) implementations of graph primitives may check whether @p ReduceOp is a known type (or has
  * known member variables) to take a more optimized code path. See the documentation in the
  * reduce_op.cuh file for instructions on writing custom reduction operators.
- * @return Tuple of key values and payload values (if ReduceOp::type is not void) or just key values
- * (if ReduceOp::type is void).
+ * @return Tuple of key values and payload values (if ReduceOp::value_type is not void) or just key
+ * values (if ReduceOp::value_type is void).
  */
 template <typename GraphViewType,
           typename VertexFrontierType,
@@ -948,10 +949,10 @@ template <typename GraphViewType,
           typename EdgeOp,
           typename ReduceOp>
 std::conditional_t<
-  !std::is_same_v<typename ReduceOp::type, void>,
+  !std::is_same_v<typename ReduceOp::value_type, void>,
   std::tuple<decltype(allocate_dataframe_buffer<typename VertexFrontierType::key_type>(
                0, rmm::cuda_stream_view{})),
-             decltype(detail::allocate_optional_payload_buffer<typename ReduceOp::type>(
+             decltype(detail::allocate_optional_payload_buffer<typename ReduceOp::value_type>(
                0, rmm::cuda_stream_view{}))>,
   decltype(
     allocate_dataframe_buffer<typename VertexFrontierType::key_type>(0, rmm::cuda_stream_view{}))>
@@ -973,7 +974,7 @@ transform_reduce_v_frontier_outgoing_e_by_dst(
   using edge_t    = typename GraphViewType::edge_type;
   using weight_t  = typename GraphViewType::weight_type;
   using key_t     = typename VertexFrontierType::key_type;
-  using payload_t = typename ReduceOp::type;
+  using payload_t = typename ReduceOp::value_type;
 
   CUGRAPH_EXPECTS(cur_frontier_bucket_idx < frontier.num_buckets(),
                   "Invalid input argument: invalid current bucket index.");
