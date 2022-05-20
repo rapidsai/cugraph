@@ -16,6 +16,9 @@
 
 from libc.stdint cimport uintptr_t
 
+# FIXME: Added this
+import numpy
+
 from pylibcugraph._cugraph_c.resource_handle cimport (
     bool_t,
     data_type_id_t,
@@ -51,9 +54,11 @@ from pylibcugraph.graphs cimport (
     _GPUGraph,
     MGGraph,
 )
+# FIXME: added copy_to_cupy_array_
 from pylibcugraph.utils cimport (
     assert_success,
     copy_to_cupy_array,
+    copy_to_cupy_array_ids,
     assert_CAI_type,
     assert_AI_type,
     get_c_type_from_numpy_type,
@@ -147,11 +152,13 @@ def EXPERIMENTAL__uniform_neighborhood_sampling(ResourceHandle resource_handle,
         cugraph_sample_result_get_destinations(result_ptr)
     cdef cugraph_type_erased_device_array_view_t* index_ptr = \
         cugraph_sample_result_get_index(result_ptr)
-
-
+    
+   
     cupy_sources = copy_to_cupy_array(c_resource_handle_ptr, src_ptr)
     cupy_destinations = copy_to_cupy_array(c_resource_handle_ptr, dst_ptr)
-    cupy_indices = copy_to_cupy_array(c_resource_handle_ptr, index_ptr)
+    cupy_indices = copy_to_cupy_array_ids(c_resource_handle_ptr, index_ptr)
+    #print("indices are \n", cupy_indices)
+    #print("type is ", cupy_indices.dtype)
 
     cugraph_sample_result_free(result_ptr)
     cugraph_type_erased_device_array_view_free(start_ptr)
