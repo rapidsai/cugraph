@@ -16,8 +16,7 @@
 from collections.abc import Iterable
 
 from dask.distributed import wait, default_client
-from cugraph.dask.common.input_utils import (get_distributed_data,
-                                             get_vertex_partition_offsets)
+from cugraph.dask.common.input_utils import get_distributed_data
 import cugraph.dask.comms.comms as Comms
 import cupy
 import cudf
@@ -25,8 +24,7 @@ import dask_cudf
 from pylibcugraph import sssp as pylibcugraph_sssp
 from pylibcugraph.experimental import (ResourceHandle,
                                        GraphProperties,
-                                       MGGraph,
-                                      )
+                                       MGGraph)
 
 
 def _call_plc_sssp(
@@ -75,6 +73,7 @@ def _call_plc_sssp(
         'predecessor': cudf.Series(predecessors),
     })
 
+
 def sssp(input_graph, source, cutoff=None):
     """
     Compute the distance and predecessors for shortest paths from the specified
@@ -94,7 +93,7 @@ def sssp(input_graph, source, cutoff=None):
 
     source : Integer
         Specify source vertex
-    
+
     cutoff : double, optional (default = None)
         Maximum edge weight sum considered by the algorithm
 

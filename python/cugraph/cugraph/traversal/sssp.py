@@ -127,10 +127,10 @@ def _convert_df_to_output_type(df, input_type, return_predecessors):
 
 
 def _call_plc_sssp(
-        G, 
-        source, 
-        cutoff, 
-        compute_predecessors=True, 
+        G,
+        source,
+        cutoff,
+        compute_predecessors=True,
         do_expensive_check=False):
     srcs = G.edgelist.edgelist_df['src'].astype('int32')
     dsts = G.edgelist.edgelist_df['dst'].astype('int32')
@@ -165,6 +165,7 @@ def _call_plc_sssp(
         'vertex': cudf.Series(vertices),
         'predecessor': cudf.Series(predecessors),
     })
+
 
 # FIXME: if G is a Nx type, the weight attribute is assumed to be "weight", if
 # set. An additional optional parameter for the weight attr name when accepting
