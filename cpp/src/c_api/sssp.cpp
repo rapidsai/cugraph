@@ -87,7 +87,7 @@ struct sssp_functor : public abstract_functor {
       rmm::device_uvector<vertex_t> predecessors(0, handle_.get_stream());
 
       if (compute_predecessors_) {
-        predecessors.resize(graph->number_of_vertices(), handle_.get_stream());
+        predecessors.resize(graph_view.local_vertex_partition_range_size(), handle_.get_stream());
       }
 
       vertex_t src = static_cast<vertex_t>(source_);
@@ -98,7 +98,7 @@ struct sssp_functor : public abstract_functor {
       //
       renumber_ext_vertices<vertex_t, multi_gpu>(handle_,
                                                  source_ids.data(),
-                                                 1,
+                                                 source_ids.size(),
                                                  number_map->data(),
                                                  graph_view.local_vertex_partition_range_first(),
                                                  graph_view.local_vertex_partition_range_last(),
