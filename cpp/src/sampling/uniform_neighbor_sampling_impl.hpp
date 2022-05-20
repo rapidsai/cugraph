@@ -103,13 +103,16 @@ uniform_nbr_sample_impl(
       raft::random::RngState rng_state(seed);
       seed += d_rnd_indices.size() * row_comm_size;
 
-      cugraph_ops::get_sampling_index(d_rnd_indices.data(),
-                                      rng_state,
-                                      d_out_degs.data(),
-                                      static_cast<edge_t>(d_out_degs.size()),
-                                      static_cast<int32_t>(k_level),
-                                      with_replacement,
-                                      handle.get_stream());
+      if (d_rnd_indices.size() > 0) {
+        // FIXME: This cugraph_ops function does not handle 0 inputs properly
+        cugraph_ops::get_sampling_index(d_rnd_indices.data(),
+                                        rng_state,
+                                        d_out_degs.data(),
+                                        static_cast<edge_t>(d_out_degs.size()),
+                                        static_cast<int32_t>(k_level),
+                                        with_replacement,
+                                        handle.get_stream());
+      }
 
       std::tie(d_out_src, d_out_dst, d_out_indices) =
         gather_local_edges(handle,
