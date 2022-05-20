@@ -1237,7 +1237,8 @@ void pagerank(raft::handle_t const& handle,
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Graph view object.
- * @param initial_centralities Optional device span containing initial values for the eigenvector centralities
+ * @param initial_centralities Optional device span containing initial values for the eigenvector
+ * centralities
  * @param epsilon Error tolerance to check convergence. Convergence is assumed if the sum of the
  * differences in eigenvector centrality values between two consecutive iterations is less than the
  * number of vertices in the graph multiplied by @p epsilon.

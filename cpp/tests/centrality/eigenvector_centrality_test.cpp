@@ -149,13 +149,13 @@ class Tests_EigenvectorCentrality
       hr_clock.start();
     }
 
-    d_centralities = cugraph::eigenvector_centrality(
-      handle,
-      graph_view,
-      std::optional<raft::device_span<weight_t const>>{},
-      epsilon,
-      eigenvector_usecase.max_iterations,
-      false);
+    d_centralities =
+      cugraph::eigenvector_centrality(handle,
+                                      graph_view,
+                                      std::optional<raft::device_span<weight_t const>>{},
+                                      epsilon,
+                                      eigenvector_usecase.max_iterations,
+                                      false);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement

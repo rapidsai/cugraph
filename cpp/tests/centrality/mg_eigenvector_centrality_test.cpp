@@ -109,14 +109,15 @@ class Tests_MGEigenvectorCentrality
       hr_clock.start();
     }
 
-    d_mg_centralities = cugraph::eigenvector_centrality(
-      handle,
-      mg_graph_view,
-      std::optional<raft::device_span<weight_t const>>{},
-      //std::make_optional(raft::device_span<weight_t const>{d_mg_centralities.data(), d_mg_centralities.size()}),
-      epsilon,
-      eigenvector_usecase.max_iterations,
-      false);
+    d_mg_centralities =
+      cugraph::eigenvector_centrality(handle,
+                                      mg_graph_view,
+                                      std::optional<raft::device_span<weight_t const>>{},
+                                      // std::make_optional(raft::device_span<weight_t
+                                      // const>{d_mg_centralities.data(), d_mg_centralities.size()}),
+                                      epsilon,
+                                      eigenvector_usecase.max_iterations,
+                                      false);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -158,7 +159,8 @@ class Tests_MGEigenvectorCentrality
           handle,
           sg_graph_view,
           std::optional<raft::device_span<weight_t const>>{},
-          //std::make_optional(raft::device_span<weight_t const>{d_sg_centralities.data(), d_sg_centralities.size()}),
+          // std::make_optional(raft::device_span<weight_t const>{d_sg_centralities.data(),
+          // d_sg_centralities.size()}),
           epsilon,
           eigenvector_usecase.max_iterations,
           false);
