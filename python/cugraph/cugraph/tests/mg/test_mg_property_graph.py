@@ -17,7 +17,8 @@ import dask_cudf
 import pytest
 import pandas as pd
 import cudf
-from cugraph.tests.utils import RAPIDS_DATASET_ROOT_DIR_PATH
+from cugraph.testing.utils import RAPIDS_DATASET_ROOT_DIR_PATH
+from cugraph.testing import utils
 
 # If the rapids-pytest-benchmark plugin is installed, the "gpubenchmark"
 # fixture will be available automatically. Check that this fixture is available
