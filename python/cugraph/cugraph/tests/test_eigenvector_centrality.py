@@ -22,7 +22,7 @@ from cugraph.testing import utils
 import networkx as nx
 
 # This toy graph is used in multiple tests throughout libcugraph_c and pylib.
-TOY_DATASET = utils.RAPIDS_DATASET_ROOT_DIR_PATH/"toy_graph.csv"
+TOY = utils.RAPIDS_DATASET_ROOT_DIR_PATH/"toy_graph.csv"
 
 
 # =============================================================================
@@ -70,7 +70,7 @@ def test_eigenvector_centrality(graph_file):
 
 @pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
 def test_eigenvector_centrality_nx(graph_file):
-    """
+
     NM = utils.read_csv_for_nx(graph_file)
 
     Gnx = nx.from_pandas_edgelist(
@@ -93,8 +93,6 @@ def test_eigenvector_centrality_nx(graph_file):
             err = err + 1
     print("Mismatches:", err)
     assert err < (0.1 * len(ck))
-    """
-    assert False
 
 
 @pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
@@ -111,7 +109,6 @@ def test_eigenvector_centrality_multi_column(graph_file):
     G2 = cugraph.Graph(directed=True)
     G2.from_cudf_edgelist(cu_M, source="src_0", destination="dst_0")
 
-    """
     k_df_exp = cugraph.eigenvector_centrality(G2)
     k_df_exp = k_df_exp.sort_values("vertex").reset_index(drop=True)
 
@@ -128,14 +125,12 @@ def test_eigenvector_centrality_multi_column(graph_file):
     top_exp = topKVertices(k_df_exp, "eigenvector_centrality", 10)
 
     assert top_res.equals(top_exp)
-    """
-    assert False
 
 
-@pytest.mark.parametrize("graph_file", [TOY_DATASET])
+@pytest.mark.parametrize("graph_file", [TOY])
 def test_eigenvector_centrality_toy(graph_file):
     # This test is based off of libcugraph_c and pylibcugraph tests
-    df = cudf.read_csv(TOY_DATASET, delimiter=' ',
+    df = cudf.read_csv(graph_file, delimiter=' ',
                        dtype=['int32', 'int32', 'float32'], header=None)
     G = cugraph.Graph(directed=True)
     G.from_cudf_edgelist(df, source='0', destination='1', edge_attr='2')

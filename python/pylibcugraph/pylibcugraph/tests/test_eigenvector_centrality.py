@@ -77,8 +77,7 @@ def _generic_eigenvector_test(src_arr,
 def test_eigenvector():
     num_edges = 16
     num_vertices = 6
-    graph_data = np.genfromtxt(TOY,
-                               delimiter=' ')
+    graph_data = np.genfromtxt(TOY, delimiter=' ')
     src = cp.asarray(graph_data[:, 0], dtype=np.int32)
     dst = cp.asarray(graph_data[:, 1], dtype=np.int32)
     wgt = cp.asarray(graph_data[:, 2], dtype=np.float32)

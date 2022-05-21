@@ -21,6 +21,9 @@ from pylibcugraph.experimental import katz_centrality
 from pylibcugraph.testing import utils
 
 
+TOY = utils.RAPIDS_DATASET_ROOT_DIR_PATH/'toy_graph_undirected.csv'
+
+
 # =============================================================================
 # Test helpers
 # =============================================================================
@@ -75,8 +78,7 @@ def _generic_katz_test(src_arr,
 def test_katz():
     num_edges = 8
     num_vertices = 6
-    graph_data = np.genfromtxt(
-        utils.RAPIDS_DATASET_ROOT_DIR_PATH / 'toy_graph.csv', delimiter=' ')
+    graph_data = np.genfromtxt(TOY, delimiter=' ')
     src = cp.asarray(graph_data[:, 0], dtype=np.int32)
     dst = cp.asarray(graph_data[:, 1], dtype=np.int32)
     wgt = cp.asarray(graph_data[:, 2], dtype=np.float32)
