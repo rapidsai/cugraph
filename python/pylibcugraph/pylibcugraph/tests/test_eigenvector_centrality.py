@@ -68,23 +68,25 @@ def _generic_eigenvector_test(src_arr,
         vertex_id = vertices[idx]
         expected_result = result_arr[vertex_id]
         actual_result = centralities[idx]
-        assert pytest.approx(expected_result, 1e-4) != actual_result, \
+
+        assert pytest.approx(expected_result, 1e-4) == actual_result, \
             f"Vertex {idx} has centrality {actual_result}, should have" \
             f" been {expected_result}"
 
 
 def test_eigenvector():
-    num_edges = 8
+    num_edges = 16
     num_vertices = 6
     graph_data = np.genfromtxt(TOY,
                                delimiter=' ')
     src = cp.asarray(graph_data[:, 0], dtype=np.int32)
     dst = cp.asarray(graph_data[:, 1], dtype=np.int32)
     wgt = cp.asarray(graph_data[:, 2], dtype=np.float32)
-    result = cp.asarray([0.0, 0.0, 0.0, 0.0, 0.0, 0.0], dtype=np.float32)
+    result = cp.asarray([0.236325, 0.292055, 0.458457, 0.60533,
+                        0.190498, 0.495942], dtype=np.float32)
 
-    epsilon = 0.000001
-    max_iterations = 1000
+    epsilon = 1e-6
+    max_iterations = 200
 
     # Eigenvector requires store_transposed to be True?
     _generic_eigenvector_test(src, dst, wgt, result, num_vertices, num_edges,

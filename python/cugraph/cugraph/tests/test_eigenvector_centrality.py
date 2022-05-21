@@ -140,9 +140,9 @@ def test_eigenvector_centrality_toy(graph_file):
     G = cugraph.Graph(directed=True)
     G.from_cudf_edgelist(df, source='0', destination='1', edge_attr='2')
 
-    tol = 0.000001
-    max_iter = 1000
-    centralities = [0, 0, 0, 0, 0, 0]
+    tol = 1e-6
+    max_iter = 200
+    centralities = [0.236325, 0.292055, 0.458457, 0.60533, 0.190498, 0.495942]
 
     ck = cugraph.eigenvector_centrality(G, tol=tol, max_iter=max_iter)
 
@@ -150,6 +150,6 @@ def test_eigenvector_centrality_toy(graph_file):
     for vertex in ck["vertex"].to_pandas():
         expected_score = centralities[vertex]
         actual_score = ck["eigenvector_centrality"].iloc[vertex]
-        assert pytest.approx(expected_score, abs=1e-2) == actual_score, \
+        assert pytest.approx(expected_score, abs=1e-4) == actual_score, \
             f"Eigenvector centrality score is {actual_score}, should have" \
-            f"been {expected_score}"
+            f" been {expected_score}"
