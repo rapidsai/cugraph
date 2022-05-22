@@ -252,28 +252,11 @@ class GaasHandler:
         # FIXME: consider a better API on PG for getting tabular vertex data, or
         # just make the "internal" _vertex_prop_dataframe a proper public API.
         # FIXME: this should not assume _vertex_prop_dataframe != None
-        df = pG._vertex_prop_dataframe
+        df = self.__get_dataframe_from_user_props(pG._vertex_prop_dataframe)
 
-        try:
-            # index_or_indices and null_replacement_value are considered
-            # "unions", meaning only one of their members will have a value.
-            i = self.__get_value_from_union(index_or_indices)
-            n = self.__get_value_from_union(null_replacement_value)
-
-            # FIXME: dask_cudf does not support iloc
-            rows_df = df.iloc[i]
-            # drop internal PG columns since those are not part of the user data
-            rows_df.drop(axis=1, inplace=True, errors="ignore",
-                         columns=[pG.vertex_col_name, pG.src_col_name,
-                                  pG.dst_col_name, pG.type_col_name,
-                                  pG.edge_id_col_name, pG.vertex_id_col_name,
-                                  pG.weight_col_name])
-
-            rows_numpy = rows_df.to_numpy(na_value=n)
-            return rows_numpy.dumps()
-
-        except:
-            raise GaasError(f"{traceback.format_exc()}\n{rows_df=}\n\n{n=}")
+        return self.__get_dataframe_rows_as_numpy_bytes(df,
+                                                        index_or_indices,
+                                                        null_replacement_value)
 
     ############################################################################
     # Algos
@@ -341,8 +324,62 @@ class GaasHandler:
         self.__next_graph_id += 1
         return gid
 
+    def __get_dataframe_from_user_props(self, dataframe):
+        """
+        """
+        internal_columns=[PropertyGraph.vertex_col_name,
+                          PropertyGraph.src_col_name,
+                          PropertyGraph.dst_col_name,
+                          PropertyGraph.type_col_name,
+                          PropertyGraph.edge_id_col_name,
+                          PropertyGraph.vertex_id_col_name,
+                          PropertyGraph.weight_col_name]
+
+        # Create a list of user-visible columns by removing the internals while
+        # preserving order
+        all_user_columns = list(dataframe.columns)
+        for col_name in internal_columns:
+            if col_name in all_user_columns:
+                all_user_columns.remove(col_name)
+
+        # This should NOT be a copy of the dataframe data
+        return dataframe[all_user_columns]
+
+    def __get_dataframe_rows_as_numpy_bytes(self,
+                                            dataframe,
+                                            index_or_indices,
+                                            null_replacement_value):
+        """
+        """
+        try:
+            # index_or_indices and null_replacement_value are considered
+            # "unions", meaning only one of their members will have a value.
+            i = self.__get_value_from_union(index_or_indices)
+            n = self.__get_value_from_union(null_replacement_value)
+
+            # index -1 is the entire table
+            if isinstance(i, int) and (i < -1):
+                raise IndexError(f"an index must be -1 or greater, got {i}")
+            elif i == -1:
+                rows_df = dataframe
+            else:
+                # FIXME: dask_cudf does not support iloc
+                rows_df = dataframe.iloc[i]
+
+            # This needs to be a copy of the df data to replace NA values
+            # FIXME: should something other than a numpy type be serialized to
+            # prevent a copy? (note: any other type required to be de-serialzed
+            # on the client end could add dependencies on the client)
+            rows_numpy = rows_df.to_numpy(na_value=n)
+            return rows_numpy.dumps()
+
+        except:
+            raise GaasError(f"{traceback.format_exc()}")
+
     @staticmethod
     def __get_value_from_union(union):
+        """
+        """
         not_members = set(["default_spec", "thrift_spec", "read", "write"])
         attrs = [a for a in dir(union)
                     if not(a.startswith("_")) and a not in not_members]

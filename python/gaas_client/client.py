@@ -613,7 +613,7 @@ class GaasClient:
 
     @__server_connection
     def get_graph_vertex_dataframe_rows(self,
-                                        index_or_indices,
+                                        index_or_indices=-1,
                                         null_replacement_value=0,
                                         graph_id=defaults.graph_id
                                         ):
@@ -622,7 +622,9 @@ class GaasClient:
 
         Parameters
         ----------
-        indices :
+        index_or_indices :
+
+        null_replacement_value : number or string (default 0)
 
         graph_id : int, default is defaults.graph_id
            The graph ID to extract the subgraph from. If the ID passed is not
