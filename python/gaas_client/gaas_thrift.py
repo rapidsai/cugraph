@@ -117,6 +117,18 @@ service GaasService {
                                          2:Value null_replacement_value
                                          3:i32 graph_id
                                          ) throws (1:GaasError e),
+
+  list<i64> get_graph_vertex_dataframe_shape(1:i32 graph_id
+                                             ) throws (1:GaasError e),
+
+  binary get_graph_edge_dataframe_rows(1:DataframeRowIndex index_or_indices,
+                                       2:Value null_replacement_value
+                                       3:i32 graph_id
+                                       ) throws (1:GaasError e),
+
+  list<i64> get_graph_edge_dataframe_shape(1:i32 graph_id
+                                           ) throws (1:GaasError e),
+
 }
 """
 

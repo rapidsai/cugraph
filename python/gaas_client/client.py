@@ -639,29 +639,68 @@ class GaasClient:
         """
         # FIXME: finish docstring above
 
-        # FIXME: do not assume all values are int32
-        if isinstance(index_or_indices, Sequence):
-            df_row_index_obj = DataframeRowIndex(int32_indices=index_or_indices)
-        else:
-            df_row_index_obj = DataframeRowIndex(int32_index=index_or_indices)
-
-        # FIXME: handle differrent null_replacement_value types
-        if isinstance(null_replacement_value, int):
-            value_obj = Value(int32_value=null_replacement_value)
-        elif isinstance(null_replacement_value, str):
-            value_obj = Value(string_value=null_replacement_value)
-        elif isinstance(null_replacement_value, bool):
-            value_obj = Value(bool_value=null_replacement_value)
-        else:
-            raise TypeError("null_replacement_value must be one of the "
-                            "following types: [int, str, bool], got "
-                            f"{type(null_replacement_value)}")
+        df_row_index_obj = self.__get_dataframe_row_index_obj(index_or_indices)
+        null_replacement_value_obj = self.__get_value_obj(
+            null_replacement_value, val_name="null_replacement_value")
 
         ndarray_bytes = \
             self.__client.get_graph_vertex_dataframe_rows(
-                df_row_index_obj, value_obj, graph_id)
+                df_row_index_obj, null_replacement_value_obj, graph_id)
 
         return numpy.loads(ndarray_bytes)
+
+
+    @__server_connection
+    def get_graph_vertex_dataframe_shape(self,
+                                         graph_id=defaults.graph_id
+                                         ):
+        return tuple(self.__client.get_graph_vertex_dataframe_shape(graph_id))
+
+
+    @__server_connection
+    def get_graph_edge_dataframe_rows(self,
+                                      index_or_indices=-1,
+                                      null_replacement_value=0,
+                                      graph_id=defaults.graph_id
+                                      ):
+        """
+        Returns ...
+
+        Parameters
+        ----------
+        index_or_indices :
+
+        null_replacement_value : number or string (default 0)
+
+        graph_id : int, default is defaults.graph_id
+           The graph ID to extract the subgraph from. If the ID passed is not
+           valid on the server, GaaSError is raised.
+
+        Returns
+        -------
+
+        Examples
+        --------
+        >>>
+        """
+        # FIXME: finish docstring above
+
+        df_row_index_obj = self.__get_dataframe_row_index_obj(index_or_indices)
+        null_replacement_value_obj = self.__get_value_obj(
+            null_replacement_value, val_name="null_replacement_value")
+
+        ndarray_bytes = \
+            self.__client.get_graph_edge_dataframe_rows(
+                df_row_index_obj, null_replacement_value_obj, graph_id)
+
+        return numpy.loads(ndarray_bytes)
+
+
+    @__server_connection
+    def get_graph_edge_dataframe_shape(self,
+                                         graph_id=defaults.graph_id
+                                         ):
+        return tuple(self.__client.get_graph_edge_dataframe_shape(graph_id))
 
 
     ############################################################################
@@ -716,3 +755,29 @@ class GaasClient:
         pagerank
         """
         raise NotImplementedError
+
+    ############################################################################
+    # Private
+    @staticmethod
+    def __get_dataframe_row_index_obj(index_or_indices):
+        # FIXME: do not assume all values are int32
+        if isinstance(index_or_indices, Sequence):
+            df_row_index_obj = DataframeRowIndex(int32_indices=index_or_indices)
+        else:
+            df_row_index_obj = DataframeRowIndex(int32_index=index_or_indices)
+        return df_row_index_obj
+
+    @staticmethod
+    def __get_value_obj(val, val_name="value"):
+        # FIXME: handle differrent val types
+        if isinstance(val, int):
+            value_obj = Value(int32_value=val)
+        elif isinstance(val, str):
+            value_obj = Value(string_value=val)
+        elif isinstance(val, bool):
+            value_obj = Value(bool_value=val)
+        else:
+            raise TypeError(f"{val_name} must be one of the "
+                            "following types: [int, str, bool], got "
+                            f"{type(val)}")
+        return value_obj

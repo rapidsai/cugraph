@@ -258,6 +258,43 @@ class GaasHandler:
                                                         index_or_indices,
                                                         null_replacement_value)
 
+    def get_graph_vertex_dataframe_shape(self, graph_id):
+        """
+        """
+        pG = self._get_graph(graph_id)
+        # FIXME: consider a better API on PG for getting tabular vertex data, or
+        # just make the "internal" _vertex_prop_dataframe a proper public API.
+        # FIXME: this should not assume _vertex_prop_dataframe != None
+        df = self.__get_dataframe_from_user_props(pG._vertex_prop_dataframe)
+        return df.shape
+
+    def get_graph_edge_dataframe_rows(self,
+                                      index_or_indices,
+                                      null_replacement_value,
+                                      graph_id):
+        """
+        """
+        pG = self._get_graph(graph_id)
+
+        # FIXME: consider a better API on PG for getting tabular edge data, or
+        # just make the "internal" _edge_prop_dataframe a proper public API.
+        # FIXME: this should not assume _edge_prop_dataframe != None
+        df = self.__get_dataframe_from_user_props(pG._edge_prop_dataframe)
+
+        return self.__get_dataframe_rows_as_numpy_bytes(df,
+                                                        index_or_indices,
+                                                        null_replacement_value)
+
+    def get_graph_edge_dataframe_shape(self, graph_id):
+        """
+        """
+        pG = self._get_graph(graph_id)
+        # FIXME: consider a better API on PG for getting tabular edge data, or
+        # just make the "internal" _edge_prop_dataframe a proper public API.
+        # FIXME: this should not assume _edge_prop_dataframe != None
+        df = self.__get_dataframe_from_user_props(pG._edge_prop_dataframe)
+        return df.shape
+
     ############################################################################
     # Algos
     def node2vec(self, start_vertices, max_depth, graph_id):
