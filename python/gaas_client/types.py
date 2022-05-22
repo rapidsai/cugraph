@@ -14,4 +14,7 @@
 
 from gaas_client.gaas_thrift import spec
 
+Value = spec.Value
+NDArrayBytes = spec.NDArrayBytes
+DataframeRowIndex = spec.DataframeRowIndex
 Node2vecResult = spec.Node2vecResult

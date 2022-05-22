@@ -13,8 +13,12 @@
 # limitations under the License.
 
 from functools import wraps
+from collections.abc import Sequence
+
+import numpy
 
 from gaas_client import defaults
+from gaas_client.types import Value, DataframeRowIndex
 from gaas_client.gaas_thrift import create_client
 
 
@@ -606,6 +610,60 @@ class GaasClient:
                                               default_edge_weight,
                                               allow_multi_edges,
                                               graph_id)
+
+    @__server_connection
+    def get_graph_vertex_dataframe_rows(self,
+                                        index_or_indices,
+                                        null_replacement_value=0,
+                                        graph_id=defaults.graph_id
+                                        ):
+        """
+        Returns ...
+
+        Parameters
+        ----------
+        indices :
+
+        graph_id : int, default is defaults.graph_id
+           The graph ID to extract the subgraph from. If the ID passed is not
+           valid on the server, GaaSError is raised.
+
+        Returns
+        -------
+
+        Examples
+        --------
+        >>>
+        """
+        # FIXME: finish docstring above
+
+        # FIXME: do not assume all values are int32
+        if isinstance(index_or_indices, Sequence):
+            df_row_index_obj = DataframeRowIndex(int32_indices=index_or_indices)
+        else:
+            df_row_index_obj = DataframeRowIndex(int32_index=index_or_indices)
+
+        # FIXME: handle differrent null_replacement_value types
+        if isinstance(null_replacement_value, int):
+            value_obj = Value(int32_value=null_replacement_value)
+        elif isinstance(null_replacement_value, str):
+            value_obj = Value(string_value=null_replacement_value)
+        elif isinstance(null_replacement_value, bool):
+            value_obj = Value(bool_value=null_replacement_value)
+        else:
+            raise TypeError("null_replacement_value must be one of the "
+                            "following types: [int, str, bool], got "
+                            f"{type(null_replacement_value)}")
+
+        ndarray_bytes_data = \
+            self.__client.get_graph_vertex_dataframe_rows(
+                df_row_index_obj, value_obj, graph_id)
+
+        #row_data = numpy.ndarray(buffer=bytes(ndarray_bytes_data.bytes),
+        #                         shape=tuple(ndarray_bytes_data.shape),
+        #                         dtype=ndarray_bytes_data.dtype)
+        row_data = numpy.loads(ndarray_bytes_data.bytes)
+        return row_data
 
 
     ############################################################################

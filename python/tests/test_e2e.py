@@ -15,19 +15,11 @@
 import os
 import sys
 import subprocess
-from pathlib import Path
 import time
 
 import pytest
 
-_this_dir = Path(__file__).parent
-
-_data = {"karate": {"csv_file_name":
-                    (_this_dir/"karate.csv").absolute().as_posix(),
-                    "dtypes": ["int32", "int32", "float32"],
-                    "num_edges": 156,
-                    },
-         }
+from . import data
 
 
 ###############################################################################
@@ -50,55 +42,69 @@ def server(graph_creation_extension1):
     graph_creation_extension_dir = graph_creation_extension1
     client = GaasClient(host, port)
 
-    # pytest will update sys.path based on the tests it discovers, and for this
-    # source tree, an entry for the parent of this "tests" directory will be
-    # added. The parent to this "tests" directory also allows imports to find
-    # the GaaS sources, so in oder to ensure the server that's started is also
-    # using the same sources, the PYTHONPATH env should be set to the sys.path
-    # being used in this process.
-    env_dict = os.environ.copy()
-    env_dict["PYTHONPATH"] = ":".join(sys.path)
-
-    with subprocess.Popen(
-            [sys.executable, server_file,
-             "--host", host,
-             "--port", str(port),
-             "--graph-creation-extension-dir", graph_creation_extension_dir],
-            env=env_dict,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            text=True) as server_process:
-        try:
-            print("\nLaunched GaaS server, waiting for it to start...",
-                  end="", flush=True)
-            max_retries = 10
-            retries = 0
-            while retries < max_retries:
-                try:
-                    client.uptime()
-                    print("started.")
-                    break
-                except GaasError:
-                    time.sleep(1)
-                    retries += 1
-            if retries >= max_retries:
-                raise RuntimeError("error starting server")
-        except:
-            if server_process.poll() is None:
-                server_process.terminate()
-            raise
-
-        # yield control to the tests
+    try:
+        client.uptime()
+        print("\nfound running server, assuming it should be used for testing!")
         yield
 
-        # tests are done, now stop the server
-        print("\nTerminating server...", end="", flush=True)
-        server_process.terminate()
-        print("done.", flush=True)
+    except GaasError:
+        # A server was not found, so start one for testing then stop it when
+        # testing is done.
+
+        # pytest will update sys.path based on the tests it discovers, and for
+        # this source tree, an entry for the parent of this "tests" directory
+        # will be added. The parent to this "tests" directory also allows
+        # imports to find the GaaS sources, so in oder to ensure the server
+        # that's started is also using the same sources, the PYTHONPATH env
+        # should be set to the sys.path being used in this process.
+        env_dict = os.environ.copy()
+        env_dict["PYTHONPATH"] = ":".join(sys.path)
+
+        with subprocess.Popen(
+                [sys.executable, server_file,
+                 "--host", host,
+                 "--port", str(port),
+                 "--graph-creation-extension-dir",
+                 graph_creation_extension_dir],
+                env=env_dict,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True) as server_process:
+            try:
+                print("\nLaunched GaaS server, waiting for it to start...",
+                      end="", flush=True)
+                max_retries = 10
+                retries = 0
+                while retries < max_retries:
+                    try:
+                        client.uptime()
+                        print("started.")
+                        break
+                    except GaasError:
+                        time.sleep(1)
+                        retries += 1
+                if retries >= max_retries:
+                    raise RuntimeError("error starting server")
+            except:
+                if server_process.poll() is None:
+                    server_process.terminate()
+                raise
+
+            # yield control to the tests
+            yield
+
+            # tests are done, now stop the server
+            print("\nTerminating server...", end="", flush=True)
+            server_process.terminate()
+            print("done.", flush=True)
 
 
 @pytest.fixture(scope="function")
 def client(server):
+    """
+    Creates a client instance to the running server, closes the client when the
+    fixture is no longer used by tests.
+    """
     from gaas_client import GaasClient, defaults
 
     client = GaasClient(defaults.host, defaults.port)
@@ -108,13 +114,19 @@ def client(server):
 
     #client.unload_graph_creation_extensions()
 
+    # yield control to the tests
     yield client
+
+    # tests are done, now stop the server
     client.close()
 
 
 @pytest.fixture(scope="function")
-def client_with_csv_loaded(client):
-    test_data = _data["karate"]
+def client_with_edgelist_csv_loaded(client):
+    """
+    Loads the karate CSV into the default graph on the server.
+    """
+    test_data = data.edgelist_csv_data["karate"]
     client.load_csv_as_edge_data(test_data["csv_file_name"],
                                  dtypes=test_data["dtypes"],
                                  vertex_col_names=["0", "1"],
@@ -123,17 +135,68 @@ def client_with_csv_loaded(client):
     return (client, test_data)
 
 
+@pytest.fixture(scope="function")
+def client_with_property_csvs_loaded(client):
+    """
+    Loads each of the vertex and edge property CSVs into the default graph on
+    the server.
+    """
+    merchants = data.property_csv_data["merchants"]
+    users = data.property_csv_data["users"]
+    taxpayers = data.property_csv_data["taxpayers"]
+    transactions = data.property_csv_data["transactions"]
+    relationships = data.property_csv_data["relationships"]
+    referrals = data.property_csv_data["referrals"]
+
+    client.load_csv_as_vertex_data(merchants["csv_file_name"],
+                                   dtypes=merchants["dtypes"],
+                                   vertex_col_name=merchants["vert_col_name"],
+                                   header=0,
+                                   type_name="merchants")
+    client.load_csv_as_vertex_data(users["csv_file_name"],
+                                   dtypes=users["dtypes"],
+                                   vertex_col_name=users["vert_col_name"],
+                                   header=0,
+                                   type_name="users")
+    client.load_csv_as_vertex_data(taxpayers["csv_file_name"],
+                                   dtypes=taxpayers["dtypes"],
+                                   vertex_col_name=taxpayers["vert_col_name"],
+                                   header=0,
+                                   type_name="taxpayers")
+
+    client.load_csv_as_edge_data(transactions["csv_file_name"],
+                                 dtypes=transactions["dtypes"],
+                                 vertex_col_names=\
+                                 transactions["vert_col_names"],
+                                 header=0,
+                                 type_name="transactions")
+    client.load_csv_as_edge_data(relationships["csv_file_name"],
+                                 dtypes=relationships["dtypes"],
+                                 vertex_col_names=\
+                                 relationships["vert_col_names"],
+                                 header=0,
+                                 type_name="relationships")
+    client.load_csv_as_edge_data(referrals["csv_file_name"],
+                                 dtypes=referrals["dtypes"],
+                                 vertex_col_names=referrals["vert_col_names"],
+                                 header=0,
+                                 type_name="referrals")
+
+    assert client.get_graph_ids() == [0]
+    return client
+
+
 ###############################################################################
 ## tests
 
-def test_get_num_edges_default_graph(client_with_csv_loaded):
-    (client, test_data) = client_with_csv_loaded
+def test_get_num_edges_default_graph(client_with_edgelist_csv_loaded):
+    (client, test_data) = client_with_edgelist_csv_loaded
     assert client.get_num_edges() == test_data["num_edges"]
 
 def test_load_csv_as_edge_data_nondefault_graph(client):
     from gaas_client.exceptions import GaasError
 
-    test_data = _data["karate"]
+    test_data = data.edgelist_csv_data["karate"]
 
     with pytest.raises(GaasError):
         client.load_csv_as_edge_data(test_data["csv_file_name"],
@@ -142,10 +205,10 @@ def test_load_csv_as_edge_data_nondefault_graph(client):
                                      type_name="",
                                      graph_id=9999)
 
-def test_get_num_edges_nondefault_graph(client_with_csv_loaded):
+def test_get_num_edges_nondefault_graph(client_with_edgelist_csv_loaded):
     from gaas_client.exceptions import GaasError
 
-    (client, test_data) = client_with_csv_loaded
+    (client, test_data) = client_with_edgelist_csv_loaded
     with pytest.raises(GaasError):
         client.get_num_edges(9999)
 
@@ -160,8 +223,8 @@ def test_get_num_edges_nondefault_graph(client_with_csv_loaded):
     assert client.get_num_edges(new_graph_id) == test_data["num_edges"]
 
 
-def test_node2vec(client_with_csv_loaded):
-    (client, test_data) = client_with_csv_loaded
+def test_node2vec(client_with_edgelist_csv_loaded):
+    (client, test_data) = client_with_edgelist_csv_loaded
     extracted_gid = client.extract_subgraph()
     start_vertices = 11
     max_depth = 2
@@ -173,8 +236,8 @@ def test_node2vec(client_with_csv_loaded):
     assert isinstance(path_sizes, list) and len(path_sizes)
 
 
-def test_extract_subgraph(client_with_csv_loaded):
-    (client, test_data) = client_with_csv_loaded
+def test_extract_subgraph(client_with_edgelist_csv_loaded):
+    (client, test_data) = client_with_edgelist_csv_loaded
     Gid = client.extract_subgraph(create_using=None,
                                   selection=None,
                                   edge_weight_property="2",
@@ -245,3 +308,10 @@ def test_call_graph_creation_extension(client):
     # custom_graph_creation_function
     # FIXME: add client APIs to allow for a more thorough test of the graph
     assert client.get_num_edges(new_graph_ID) == 3
+
+
+def test_get_graph_vertex_dataframe_rows(client_with_property_csvs_loaded):
+    client = client_with_property_csvs_loaded
+
+    np_array_data = client.get_graph_vertex_dataframe_rows([0, 1, 2])
+    breakpoint()

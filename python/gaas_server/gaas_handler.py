@@ -23,7 +23,7 @@ from cugraph.experimental import PropertyGraph
 
 from gaas_client import defaults
 from gaas_client.exceptions import GaasError
-from gaas_client.types import Node2vecResult
+from gaas_client.types import Node2vecResult, NDArrayBytes
 
 
 class GaasHandler:
@@ -101,7 +101,7 @@ class GaasHandler:
                     func_kwargs = eval(func_kwargs_repr)
                     try:
                         graph_obj = func(*func_args, **func_kwargs)
-                    except Exception:
+                    except:
                         # FIXME: raise a more detailed error
                         raise GaasError(f"error running {func_name} : "
                                         f"{traceback.format_exc()}")
@@ -154,14 +154,17 @@ class GaasHandler:
             header = None
         # FIXME: error check that file exists
         # FIXME: error check that edgelist was read correctly
-        gdf = cudf.read_csv(csv_file_name,
-                            delimiter=delimiter,
-                            dtype=dtypes,
-                            header=header)
-        pG.add_vertex_data(gdf,
-                           type_name=type_name,
-                           vertex_col_name=vertex_col_name,
-                           property_columns=property_columns)
+        try:
+            gdf = cudf.read_csv(csv_file_name,
+                                delimiter=delimiter,
+                                dtype=dtypes,
+                                header=header)
+            pG.add_vertex_data(gdf,
+                               type_name=type_name,
+                               vertex_col_name=vertex_col_name,
+                               property_columns=property_columns)
+        except:
+            raise GaasError(f"{traceback.format_exc()}")
 
     def load_csv_as_edge_data(self,
                               csv_file_name,
@@ -185,14 +188,17 @@ class GaasHandler:
             header = "infer"
         elif header == -2:
             header = None
-        gdf = cudf.read_csv(csv_file_name,
-                            delimiter=delimiter,
-                            dtype=dtypes,
-                            header=header)
-        pG.add_edge_data(gdf,
-                         type_name=type_name,
-                         vertex_col_names=vertex_col_names,
-                         property_columns=property_columns)
+        try:
+            gdf = cudf.read_csv(csv_file_name,
+                                delimiter=delimiter,
+                                dtype=dtypes,
+                                header=header)
+            pG.add_edge_data(gdf,
+                             type_name=type_name,
+                             vertex_col_names=vertex_col_names,
+                             property_columns=property_columns)
+        except:
+            raise GaasError(f"{traceback.format_exc()}")
 
     def get_num_edges(self, graph_id):
         """
@@ -224,13 +230,54 @@ class GaasHandler:
         selection = selection or None
         edge_weight_property = edge_weight_property or None
 
-        G = pG.extract_subgraph(create_using,
-                                selection,
-                                edge_weight_property,
-                                default_edge_weight,
-                                allow_multi_edges)
+        try:
+            G = pG.extract_subgraph(create_using,
+                                    selection,
+                                    edge_weight_property,
+                                    default_edge_weight,
+                                    allow_multi_edges)
+        except:
+            raise GaasError(f"{traceback.format_exc()}")
 
         return self.__add_graph(G)
+
+    def get_graph_vertex_dataframe_rows(self,
+                                        index_or_indices,
+                                        null_replacement_value,
+                                        graph_id):
+        """
+        """
+        pG = self._get_graph(graph_id)
+
+        # FIXME: consider a better API on PG for getting tabular vertex data, or
+        # just make the "internal" _vertex_prop_dataframe a proper public API.
+        # FIXME: this should not assume _vertex_prop_dataframe != None
+        df = pG._vertex_prop_dataframe
+
+        try:
+            # index_or_indices and null_replacement_value are considered
+            # "unions", meaning only one of their members will have a value.
+            i = self.__get_value_from_union(index_or_indices)
+            n = self.__get_value_from_union(null_replacement_value)
+
+            # FIXME: dask_cudf does not support iloc
+            rows_df = df.iloc[i]
+            # drop internal PG columns since those are not part of the user data
+            rows_df.drop(axis=1, inplace=True, errors="ignore",
+                         columns=[pG.vertex_col_name, pG.src_col_name,
+                                  pG.dst_col_name, pG.type_col_name,
+                                  pG.edge_id_col_name, pG.vertex_id_col_name,
+                                  pG.weight_col_name])
+
+            rows_numpy = rows_df.to_numpy(na_value=n)
+            print(f"\n\n{rows_numpy.tobytes()}\n{rows_numpy.dumps()}\n{rows_numpy.shape}\n{rows_numpy.dtype}\n")
+            row_data = NDArrayBytes(bytes=rows_numpy.dumps(),
+                                shape=rows_numpy.shape,
+                                dtype=str(rows_numpy.dtype))
+            return row_data
+
+        except:
+            raise GaasError(f"{traceback.format_exc()}\n{rows_df=}\n\n{n=}")
 
     ############################################################################
     # Algos
@@ -297,3 +344,15 @@ class GaasHandler:
         self.__graph_objs[gid] = G
         self.__next_graph_id += 1
         return gid
+
+    @staticmethod
+    def __get_value_from_union(union):
+        not_members = set(["default_spec", "thrift_spec", "read", "write"])
+        attrs = [a for a in dir(union)
+                    if not(a.startswith("_")) and a not in not_members]
+        for a in attrs:
+            val = getattr(union, a)
+            if val is not None:
+                return val
+
+        return None
