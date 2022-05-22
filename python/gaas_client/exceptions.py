@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .gaas_thrift import spec
+from gaas_client.gaas_thrift import spec
 
+# FIXME: add more fine-grained exceptions!
 GaasError = spec.GaasError

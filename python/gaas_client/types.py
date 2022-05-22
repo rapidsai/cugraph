@@ -12,6 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .gaas_thrift import spec
+from gaas_client.gaas_thrift import spec
 
 Node2vecResult = spec.Node2vecResult

@@ -14,8 +14,8 @@
 
 from functools import wraps
 
-from . import defaults
-from .gaas_thrift import create_client
+from gaas_client import defaults
+from gaas_client.gaas_thrift import create_client
 
 
 class GaasClient:
@@ -76,11 +76,13 @@ class GaasClient:
             return ret_val
         return wrapped_method
 
-    def open(self):
+    def open(self, call_timeout=90000):
         """
         Opens a connection to the server at self.host/self.port if one is not
         already established. close() must be called in order to allow other
         connections from other clients to be made.
+
+        This call does nothing if a connection to the server is already open.
 
         Note: all APIs that access the server will call this method
         automatically, followed automatically by a call to close(), so calling
@@ -89,7 +91,9 @@ class GaasClient:
 
         Parameters
         ----------
-        None
+        call_timeout : int (default is 90000)
+            Time in millisecods that calls to the server using this open
+            connection must return by.
 
         Returns
         -------
@@ -103,12 +107,15 @@ class GaasClient:
         >>> # clients cannot connect until a client API call completes or
         >>> # close() is manually called.
         >>> client.open()
+
         """
         if self.__client is None:
-            self.__client = create_client(self.host, self.port)
+            self.__client = create_client(self.host, self.port,
+                                          call_timeout=call_timeout)
 
     def close(self):
-        """Closes a connection to the server if one has been established, allowing
+        """
+        Closes a connection to the server if one has been established, allowing
         other clients to access the server. This method is called automatically
         for all APIs that access the server if self.hold_open is False.
 
@@ -137,6 +144,131 @@ class GaasClient:
         if self.__client is not None:
             self.__client.close()
             self.__client = None
+
+    ############################################################################
+    # Environment management
+    @__server_connection
+    def uptime(self):
+        """
+        Return the server uptime in seconds. This is often used as a "ping".
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        uptime : int
+            The time in seconds the server has been running.
+
+        Examples
+        --------
+        >>> from gaas_client import GaasClient
+        >>> client = GaasClient()
+        >>> client.uptime()
+        >>> 32
+        """
+        return self.__client.uptime()
+
+    @__server_connection
+    def load_graph_creation_extensions(self, extension_dir_path):
+        """
+        Loads the extensions for graph creation present in the directory
+        specified by extension_dir_path.
+
+        Parameters
+        ----------
+        extension_dir_path : string
+            Path to the directory containing the extension files (.py source
+            files). This directory must be readable by the server.
+
+        Returns
+        -------
+        num_files_read : int
+            Number of extension files read in the extension_dir_path directory.
+
+        Examples
+        --------
+        >>> from gaas_client import GaasClient
+        >>> client = GaasClient()
+        >>> num_files_read = client.load_graph_creation_extensions(
+        ... "/some/server/side/directory")
+        >>>
+        """
+        return self.__client.load_graph_creation_extensions(extension_dir_path)
+
+    @__server_connection
+    def unload_graph_creation_extensions(self):
+        """
+        Removes all extensions for graph creation previously loaded.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        None
+
+        Examples
+        --------
+        >>> from gaas_client import GaasClient
+        >>> client = GaasClient()
+        >>> client.unload_graph_creation_extensions()
+        >>>
+        """
+        return self.__client.unload_graph_creation_extensions()
+
+    @__server_connection
+    def call_graph_creation_extension(self, func_name,
+                                      *func_args, **func_kwargs):
+        """
+        Calls a graph creation extension on the server that was previously
+        loaded by a prior call to load_graph_creation_extensions(), then returns
+        the graph ID of the graph created by the extension.
+
+        Parameters
+        ----------
+        func_name : string
+            The name of the server-side extension function loaded by a prior
+            call to load_graph_creation_extensions(). All graph creation
+            extension functions are expected to return a new graph.
+
+        *func_args : string, int, list, dictionary (optional)
+            The positional args to pass to func_name. Note that func_args are
+            converted to their string representation using repr() on the client,
+            then restored to python objects on the server using eval(), and
+            therefore only objects that can be restored server-side with eval()
+            are supported.
+
+        **func_kwargs : string, int, list, dictionary
+            The keyword args to pass to func_name. Note that func_kwargs are
+            converted to their string representation using repr() on the client,
+            then restored to python objects on the server using eval(), and
+            therefore only objects that can be restored server-side with eval()
+            are supported.
+
+        Returns
+        -------
+        graph_id : int
+            unique graph ID
+
+        Examples
+        --------
+        >>> from gaas_client import GaasClient
+        >>> client = GaasClient()
+        >>> # Load the extension file containing "my_complex_create_graph()"
+        >>> client.load_graph_creation_extensions("/some/server/side/directory")
+        >>> new_graph_id = client.call_graph_creation_extension(
+        ... "my_complex_create_graph",
+        ... "/path/to/csv/on/server/graph.csv",
+        ... clean_data=True)
+        >>>
+        """
+        func_args_repr = repr(func_args)
+        func_kwargs_repr = repr(func_kwargs)
+        return self.__client.call_graph_creation_extension(
+            func_name, func_args_repr, func_kwargs_repr)
 
     ############################################################################
     # Graph management
@@ -460,8 +592,9 @@ class GaasClient:
         Examples
         --------
         >>>
-
         """
+        # FIXME: finish docstring above
+
         # FIXME: convert defaults to type needed by the Thrift API. These will
         # be changing to different types.
         create_using = create_using or ""
@@ -504,6 +637,8 @@ class GaasClient:
         --------
         >>>
         """
+        # FIXME: finish docstring above
+
         # start_vertices must be a list (cannot just be an iterable), and assume
         # return value is tuple of python lists on host.
         if not isinstance(start_vertices, list):
