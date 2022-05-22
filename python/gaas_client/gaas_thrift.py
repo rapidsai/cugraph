@@ -42,6 +42,20 @@ struct Node2vecResult {
   3:list<i32> path_sizes
 }
 
+union DataframeRowIndex {
+  1:i32 int32_index
+  2:i64 int64_index
+  3:list<i32> int32_indices
+  4:list<i64> int64_indices
+}
+
+union Value {
+  1:i32 int32_value
+  2:i64 int64_value
+  3:string string_value
+  4:bool bool_value
+}
+
 service GaasService {
 
   i32 uptime()
@@ -97,6 +111,12 @@ service GaasService {
                                     2:string func_args_repr,
                                     3:string func_kwargs_repr
                                     ) throws (1:GaasError e),
+
+
+  binary get_graph_vertex_dataframe_rows(1:DataframeRowIndex index_or_indices,
+                                         2:Value null_replacement_value
+                                         3:i32 graph_id
+                                         ) throws (1:GaasError e),
 }
 """
 
@@ -145,6 +165,7 @@ def create_client(host, port, call_timeout=90000):
         # gaas_client.exceptions.GaasError is actually defined from the spec in
         # this module, just use it directly from spec.
         #
-        # FIXME: this exception could use more detail
+        # FIXME: may need to have additional thrift exception handlers
+        # FIXME: this exception being raised could use more detail
         raise spec.GaasError("could not create a client session with a "
                              "GaaS server")
