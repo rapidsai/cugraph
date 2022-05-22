@@ -42,12 +42,6 @@ struct Node2vecResult {
   3:list<i32> path_sizes
 }
 
-struct NDArrayBytes {
-  1:binary bytes
-  2:list<i64> shape
-  3:string dtype
-}
-
 union DataframeRowIndex {
   1:i32 int32_index
   2:i64 int64_index
@@ -118,11 +112,11 @@ service GaasService {
                                     3:string func_kwargs_repr
                                     ) throws (1:GaasError e),
 
-  NDArrayBytes
-  get_graph_vertex_dataframe_rows(1:DataframeRowIndex index_or_indices,
-                                  2:Value null_replacement_value
-                                  3:i32 graph_id
-                                  ) throws (1:GaasError e),
+
+  binary get_graph_vertex_dataframe_rows(1:DataframeRowIndex index_or_indices,
+                                         2:Value null_replacement_value
+                                         3:i32 graph_id
+                                         ) throws (1:GaasError e),
 }
 """
 

@@ -655,15 +655,11 @@ class GaasClient:
                             "following types: [int, str, bool], got "
                             f"{type(null_replacement_value)}")
 
-        ndarray_bytes_data = \
+        ndarray_bytes = \
             self.__client.get_graph_vertex_dataframe_rows(
                 df_row_index_obj, value_obj, graph_id)
 
-        #row_data = numpy.ndarray(buffer=bytes(ndarray_bytes_data.bytes),
-        #                         shape=tuple(ndarray_bytes_data.shape),
-        #                         dtype=ndarray_bytes_data.dtype)
-        row_data = numpy.loads(ndarray_bytes_data.bytes)
-        return row_data
+        return numpy.loads(ndarray_bytes)
 
 
     ############################################################################

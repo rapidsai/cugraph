@@ -313,5 +313,9 @@ def test_call_graph_creation_extension(client):
 def test_get_graph_vertex_dataframe_rows(client_with_property_csvs_loaded):
     client = client_with_property_csvs_loaded
 
-    np_array_data = client.get_graph_vertex_dataframe_rows([0, 1, 2])
-    breakpoint()
+    np_array = client.get_graph_vertex_dataframe_rows([0, 1, 2])
+    assert len(np_array) == 3
+    # FIXME: do not hardcode these values, get them from the input data directly
+    assert np_array.shape == (3, 11)
+    assert np_array[0][0] == 11
+    assert np_array[0][5] == "north"

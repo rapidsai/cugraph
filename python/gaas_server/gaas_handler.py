@@ -23,7 +23,7 @@ from cugraph.experimental import PropertyGraph
 
 from gaas_client import defaults
 from gaas_client.exceptions import GaasError
-from gaas_client.types import Node2vecResult, NDArrayBytes
+from gaas_client.types import Node2vecResult
 
 
 class GaasHandler:
@@ -270,11 +270,7 @@ class GaasHandler:
                                   pG.weight_col_name])
 
             rows_numpy = rows_df.to_numpy(na_value=n)
-            print(f"\n\n{rows_numpy.tobytes()}\n{rows_numpy.dumps()}\n{rows_numpy.shape}\n{rows_numpy.dtype}\n")
-            row_data = NDArrayBytes(bytes=rows_numpy.dumps(),
-                                shape=rows_numpy.shape,
-                                dtype=str(rows_numpy.dtype))
-            return row_data
+            return rows_numpy.dumps()
 
         except:
             raise GaasError(f"{traceback.format_exc()}\n{rows_df=}\n\n{n=}")
