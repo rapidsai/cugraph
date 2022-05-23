@@ -392,8 +392,13 @@ class EXPERIMENTAL__MGPropertyGraph:
         # columns. The copied DataFrame is then merged (another copy) and then
         # deleted when out-of-scope.
         tmp_df = dataframe.copy()
+        row_count = len(tmp_df.index)
+        cudf_series = \
+                cudf.Series(range(0, row_count)).reindex()
+        dask_series = dask_cudf.from_cudf(cudf_series, self.__num_workers)
         tmp_df[self.src_col_name] = tmp_df[vertex_col_names[0]]
         tmp_df[self.dst_col_name] = tmp_df[vertex_col_names[1]]
+        tmp_df[self.edge_id_col_name] = dask_series
         # FIXME: handle case of a type_name column already being in tmp_df
         tmp_df[self.type_col_name] = type_name
 
@@ -413,7 +418,8 @@ class EXPERIMENTAL__MGPropertyGraph:
         self.__edge_prop_dtypes.update(new_col_info)
         self.__edge_prop_dataframe = \
             self.__edge_prop_dataframe.merge(tmp_df, how="outer")
-        self.__add_edge_ids()
+#        self.__add_edge_ids()
+
 
         # Update the vertex eval dict with the latest column instances
         latest = dict([(n, self.__edge_prop_dataframe[n])
@@ -668,35 +674,36 @@ class EXPERIMENTAL__MGPropertyGraph:
         Replace nans with unique edge IDs. Edge IDs are simply numbers
         incremented by 1 for each edge.
         """
-        prev_eid = -1 if self.__last_edge_id is None else self.__last_edge_id
-#        nans = self.__edge_prop_dataframe[self.edge_id_col_name].isna()
-        nans = \
-            self.__edge_prop_dataframe[self.edge_id_col_name].isna().compute()
-        if nans.any():
-            indices = nans.index[nans]
-            num_indices = len(indices)
-            starting_eid = prev_eid + 1
-            cudf_series = \
-                cudf.Series(range(starting_eid, starting_eid + num_indices))
-            dask_series = dask_cudf.from_cudf(cudf_series, self.__num_workers)
-            self.__edge_prop_dataframe[self.edge_id_col_name] = dask_series
-#            self.__edge_prop_dataframe.reindex()
-            self.__last_edge_id = starting_eid + num_indices - 1
+        pass
+#         prev_eid = -1 if self.__last_edge_id is None else self.__last_edge_id
+# #        nans = self.__edge_prop_dataframe[self.edge_id_col_name].isna()
+#         nans = \
+#             self.__edge_prop_dataframe[self.edge_id_col_name].isna().compute()
+#         if nans.any():
+#             indices = nans.index[nans]
+#             num_indices = len(indices)
+#             starting_eid = prev_eid + 1
+#             cudf_series = \
+#                 cudf.Series(range(starting_eid, starting_eid + num_indices))
+#             dask_series = dask_cudf.from_cudf(cudf_series, self.__num_workers)
+# #            self.__edge_prop_dataframe.assign(self.edge_id_col_name=dask_series)
+# #            self.__edge_prop_dataframe.reindex()
+#             self.__last_edge_id = starting_eid + num_indices - 1
 
-    def __get_all_vertices_series(self):
-        """
-        Return a list of all Series objects that contain vertices from all
-        tables.
-        """
-        vpd = self.__vertex_prop_dataframe
-        epd = self.__edge_prop_dataframe
-        vert_sers = []
-        if vpd is not None:
-            vert_sers.append(vpd[self.vertex_col_name])
-        if epd is not None:
-            vert_sers.append(epd[self.src_col_name])
-            vert_sers.append(epd[self.dst_col_name])
-        return vert_sers
+#     def __get_all_vertices_series(self):
+#         """
+#         Return a list of all Series objects that contain vertices from all
+#         tables.
+#         """
+#         vpd = self.__vertex_prop_dataframe
+#         epd = self.__edge_prop_dataframe
+#         vert_sers = []
+#         if vpd is not None:
+#             vert_sers.append(vpd[self.vertex_col_name])
+#         if epd is not None:
+#             vert_sers.append(epd[self.src_col_name])
+#             vert_sers.append(epd[self.dst_col_name])
+#         return vert_sers
 
     @staticmethod
     def __gen_unique_name(current_names, prefix="col"):
