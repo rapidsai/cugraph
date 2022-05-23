@@ -71,7 +71,7 @@ CUGRAPH_DEPS=(cudf rmm)
 LIBCUGRAPH_DEPS=(cudf rmm)
 
 gpuci_logger "Install required packages"
-gpuci_conda_retry install -c nvidia -c rapidsai -c rapidsai-nightly -c conda-forge \
+gpuci_mamba_retry install -c nvidia -c rapidsai -c rapidsai-nightly -c conda-forge \
       "cudf=${MINOR_VERSION}" \
       "rmm=${MINOR_VERSION}" \
       "cudatoolkit=$CUDA_REL" \
