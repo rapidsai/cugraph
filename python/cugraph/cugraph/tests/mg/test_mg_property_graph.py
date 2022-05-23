@@ -141,6 +141,6 @@ def test_extract_subgraph_no_query(net_MGPropertyGraph, net_PropertyGraph):
     pG = net_PropertyGraph
     assert pG.num_edges == dpG.num_edges
     print(dpG.num_edges)
-#    assert pG.num_vertices == dpG.num_vertices
-#    subgraph = pG.extract_subgraph(allow_multi_edges=False)
-#    assert type(subgraph.edges) == dask_cudf.DataFrame
+    assert pG.num_vertices == dpG.num_vertices
+    dask_subgraph = dpG.extract_subgraph(allow_multi_edges=False)
+    print(type(dask_subgraph))

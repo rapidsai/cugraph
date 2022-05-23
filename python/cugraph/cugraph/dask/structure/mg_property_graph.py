@@ -22,7 +22,7 @@ class EXPERIMENTAL__MGPropertySelection:
     """
     Instances of this class are returned from the PropertyGraph.select_*()
     methods and can be used by the PropertyGraph.extract_subgraph() method to
-    extrac a Graph containing vertices and edges with only the selected
+    extract a Graph containing vertices and edges with only the selected
     properties.
     """
     def __init__(self,
@@ -133,16 +133,16 @@ class EXPERIMENTAL__MGPropertyGraph:
         else:
             self.__num_workers = num_workers
 
-    # PropertyGraph read-only attributes
     @property
     def num_vertices(self):
         if self.__num_vertices is not None:
             return self.__num_vertices
-
         self.__num_vertices = 0
         vert_sers = self.__get_all_vertices_series()
         if vert_sers:
-            self.__num_vertices.concat(vert_sers).nunique()
+            if self.__series_type is dask_cudf.Series:
+                vert_count = dask_cudf.concat(vert_sers).nunique()
+                self.__num_vertices = vert_count.compute()
         return self.__num_vertices
 
     @property
@@ -393,6 +393,7 @@ class EXPERIMENTAL__MGPropertyGraph:
         # deleted when out-of-scope.
         tmp_df = dataframe.copy()
         row_count = len(tmp_df.index)
+        # FIXME: Find a better way to create the edge id
         cudf_index_series = \
             cudf.Series(range(0, row_count))
         dask_series = \
@@ -400,7 +401,6 @@ class EXPERIMENTAL__MGPropertyGraph:
         dask_series = dask_series.reset_index(drop=True)
         tmp_df[self.src_col_name] = tmp_df[vertex_col_names[0]]
         tmp_df[self.dst_col_name] = tmp_df[vertex_col_names[1]]
-#        tmp_df = tmp_df.reset_index().set_index('index')
         tmp_df[self.edge_id_col_name] = dask_series
 
         # FIXME: handle case of a type_name column already being in tmp_df
@@ -503,6 +503,7 @@ class EXPERIMENTAL__MGPropertyGraph:
         --------
         >>>
         """
+
         if (selection is not None) and \
            not isinstance(selection, EXPERIMENTAL__MGPropertySelection):
             raise TypeError("selection must be an instance of "
@@ -548,7 +549,6 @@ class EXPERIMENTAL__MGPropertyGraph:
         # values. Restore the original dtypes in the resulting edges df prior
         # to creating a Graph.
         self.__update_dataframe_dtypes(edges, self.__edge_prop_dtypes)
-
         return self.edge_props_to_graph(
             edges,
             create_using=create_using,
@@ -569,7 +569,6 @@ class EXPERIMENTAL__MGPropertyGraph:
         Create and return a Graph from the edges in edge_prop_df.
         """
         # FIXME: check default_edge_weight is valid
-
         if edge_weight_property:
             if edge_weight_property not in edge_prop_df.columns:
                 raise ValueError("edge_weight_property "
@@ -608,7 +607,7 @@ class EXPERIMENTAL__MGPropertyGraph:
         # FIXME: this allows anything to be instantiated does not check that
         # the type is a valid Graph type.
         elif type(create_using) is type(type):
-            G = create_using(cugraph.Graph)
+            G = create_using()
         else:
             raise TypeError("create_using must be a cugraph.Graph "
                             "(or subclass) type or instance, got: "
@@ -618,7 +617,7 @@ class EXPERIMENTAL__MGPropertyGraph:
         # non-MultiGraphs would result in ambiguous edge properties.
         # FIXME: make allow_multi_edges accept "auto" for use with MultiGraph
         if (allow_multi_edges is False) and \
-           self.has_duplicate_edges(edge_prop_df):
+           self.has_duplicate_edges(edge_prop_df).compute():
             if create_using:
                 if type(create_using) is type:
                     t = create_using.__name__
@@ -650,7 +649,8 @@ class EXPERIMENTAL__MGPropertyGraph:
         Return True if df has >1 of the same src, dst pair
         """
         # FIXME: this can be very expensive for large DataFrames
-        if df.empty:
+        # empty not supported by dask
+        if len(df.columns) == 0:
             return False
 
         def has_duplicate_dst(df):
@@ -664,12 +664,9 @@ class EXPERIMENTAL__MGPropertyGraph:
         Returns a DataFrame containing the src vertex, dst vertex, and edge_id
         values from edge_prop_df.
         """
-        src = edge_prop_df[self.src_col_name]
-        dst = edge_prop_df[self.dst_col_name]
-        edge_id = edge_prop_df[self.edge_id_col_name]
-        return dask_cudf.DataFrame({self.src_col_name: src,
-                                    self.dst_col_name: dst,
-                                    self.edge_id_col_name: edge_id})
+        return edge_prop_df[[self.src_col_name,
+                             self.dst_col_name,
+                             self.edge_id_col_name]]
 
     def __add_edge_ids(self):
         """
@@ -691,20 +688,20 @@ class EXPERIMENTAL__MGPropertyGraph:
 #               dask_cudf.from_cudf(cudf_series, self.__num_workers)
 #             self.__last_edge_id = starting_eid + num_indices - 1
 
-#     def __get_all_vertices_series(self):
-#         """
-#         Return a list of all Series objects that contain vertices from all
-#         tables.
-#         """
-#         vpd = self.__vertex_prop_dataframe
-#         epd = self.__edge_prop_dataframe
-#         vert_sers = []
-#         if vpd is not None:
-#             vert_sers.append(vpd[self.vertex_col_name])
-#         if epd is not None:
-#             vert_sers.append(epd[self.src_col_name])
-#             vert_sers.append(epd[self.dst_col_name])
-#         return vert_sers
+    def __get_all_vertices_series(self):
+        """
+        Return a list of all Series objects that contain vertices from all
+        tables.
+        """
+        vpd = self.__vertex_prop_dataframe
+        epd = self.__edge_prop_dataframe
+        vert_sers = []
+        if vpd is not None:
+            vert_sers.append(vpd[self.vertex_col_name])
+        if epd is not None:
+            vert_sers.append(epd[self.src_col_name])
+            vert_sers.append(epd[self.dst_col_name])
+        return vert_sers
 
     @staticmethod
     def __gen_unique_name(current_names, prefix="col"):
