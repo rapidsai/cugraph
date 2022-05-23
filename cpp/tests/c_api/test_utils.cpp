@@ -118,15 +118,15 @@ extern "C" int create_test_graph(const cugraph_resource_handle_t* p_handle,
 }
 
 extern "C" int create_test_graph_double(const cugraph_resource_handle_t* p_handle,
-                                 int32_t* h_src,
-                                 int32_t* h_dst,
-                                 double* h_wgt,
-                                 size_t num_edges,
-                                 bool_t store_transposed,
-                                 bool_t renumber,
-                                 bool_t is_symmetric,
-                                 cugraph_graph_t** p_graph,
-                                 cugraph_error_t** ret_error)
+                                        int32_t* h_src,
+                                        int32_t* h_dst,
+                                        double* h_wgt,
+                                        size_t num_edges,
+                                        bool_t store_transposed,
+                                        bool_t renumber,
+                                        bool_t is_symmetric,
+                                        cugraph_graph_t** p_graph,
+                                        cugraph_error_t** ret_error)
 {
   int test_ret_value = 0;
   cugraph_error_code_t ret_code;

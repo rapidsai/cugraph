@@ -81,12 +81,6 @@ int generic_sssp_test(vertex_t* h_src,
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "copy_to_host failed.");
 
   for (int i = 0; (i < num_vertices) && (test_ret_value == 0); ++i) {
-    if (!nearlyEqual(expected_distances[h_vertices[i]], h_distances[i], EPSILON))
-      printf("Vertex %d, computed distance %g, expected distance %g\n",
-             h_vertices[i],
-             h_distances[i],
-             expected_distances[h_vertices[i]]);
-
     TEST_ASSERT(test_ret_value,
                 nearlyEqual(expected_distances[h_vertices[i]], h_distances[i], EPSILON),
                 "sssp distances don't match");
@@ -161,12 +155,6 @@ int generic_sssp_test_double(vertex_t* h_src,
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "copy_to_host failed.");
 
   for (int i = 0; (i < num_vertices) && (test_ret_value == 0); ++i) {
-    if (!nearlyEqual(expected_distances[h_vertices[i]], h_distances[i], EPSILON))
-      printf("Vertex %d, computed distance %g, expected distance %g\n",
-             h_vertices[i],
-             h_distances[i],
-             expected_distances[h_vertices[i]]);
-
     TEST_ASSERT(test_ret_value,
                 nearlyEqualDouble(expected_distances[h_vertices[i]], h_distances[i], EPSILON),
                 "sssp distances don't match");

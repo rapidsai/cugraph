@@ -63,15 +63,15 @@ int create_test_graph(const cugraph_resource_handle_t* p_handle,
                       cugraph_error_t** ret_error);
 
 int create_test_graph_double(const cugraph_resource_handle_t* p_handle,
-                      int32_t* h_src,
-                      int32_t* h_dst,
-                      double* h_wgt,
-                      size_t num_edges,
-                      bool_t store_transposed,
-                      bool_t renumber,
-                      bool_t is_symmetric,
-                      cugraph_graph_t** p_graph,
-                      cugraph_error_t** ret_error);
+                             int32_t* h_src,
+                             int32_t* h_dst,
+                             double* h_wgt,
+                             size_t num_edges,
+                             bool_t store_transposed,
+                             bool_t renumber,
+                             bool_t is_symmetric,
+                             cugraph_graph_t** p_graph,
+                             cugraph_error_t** ret_error);
 
 void* create_raft_handle(int prows);
 void free_raft_handle(void* raft_handle);
