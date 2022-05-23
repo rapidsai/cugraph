@@ -448,6 +448,10 @@ ConfigureTest(PAGERANK_TEST link_analysis/pagerank_test.cpp)
 ConfigureTest(KATZ_CENTRALITY_TEST centrality/katz_centrality_test.cpp)
 
 ###################################################################################################
+# - EIGENVECTOR_CENTRALITY tests -------------------------------------------------------------------------
+ConfigureTest(EIGENVECTOR_CENTRALITY_TEST centrality/eigenvector_centrality_test.cpp)
+
+###################################################################################################
 # - WEAKLY CONNECTED COMPONENTS tests -------------------------------------------------------------
 ConfigureTest(WEAKLY_CONNECTED_COMPONENTS_TEST components/weakly_connected_components_test.cpp)
 
@@ -547,6 +551,10 @@ if(BUILD_CUGRAPH_MG_TESTS)
         ConfigureTestMG(MG_KATZ_CENTRALITY_TEST centrality/mg_katz_centrality_test.cpp)
 
         ###########################################################################################
+        # - MG EIGENVECTOR CENTRALITY tests --------------------------------------------------------------
+        ConfigureTestMG(MG_EIGENVECTOR_CENTRALITY_TEST centrality/mg_eigenvector_centrality_test.cpp)
+
+        ###########################################################################################
         # - MG BFS tests --------------------------------------------------------------------------
         ConfigureTestMG(MG_BFS_TEST traversal/mg_bfs_test.cpp)
 
@@ -636,6 +644,8 @@ if(BUILD_CUGRAPH_MG_TESTS)
         # - MG C API tests ------------------------------------------------------------------------
         ConfigureCTestMG(MG_CAPI_CREATE_GRAPH c_api/mg_create_graph_test.c c_api/mg_test_utils.cpp)
         ConfigureCTestMG(MG_CAPI_PAGERANK c_api/mg_pagerank_test.c c_api/mg_test_utils.cpp)
+        ConfigureCTestMG(MG_CAPI_BFS c_api/mg_bfs_test.c c_api/mg_test_utils.cpp)
+        ConfigureCTestMG(MG_CAPI_SSSP c_api/mg_sssp_test.c c_api/mg_test_utils.cpp)
         ConfigureCTestMG(MG_CAPI_WEAKLY_CONNECTED_COMPONENTS c_api/mg_weakly_connected_components_test.c c_api/mg_test_utils.cpp)
         ConfigureCTestMG(MG_CAPI_STRONGLY_CONNECTED_COMPONENTS c_api/mg_strongly_connected_components_test.c c_api/mg_test_utils.cpp)
         ConfigureCTestMG(MG_CAPI_KATZ c_api/mg_katz_test.c c_api/mg_test_utils.cpp)
