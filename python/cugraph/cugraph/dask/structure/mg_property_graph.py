@@ -393,12 +393,16 @@ class EXPERIMENTAL__MGPropertyGraph:
         # deleted when out-of-scope.
         tmp_df = dataframe.copy()
         row_count = len(tmp_df.index)
-        cudf_series = \
-                cudf.Series(range(0, row_count)).reindex()
-        dask_series = dask_cudf.from_cudf(cudf_series, self.__num_workers)
+        cudf_index_series = \
+            cudf.Series(range(0, row_count))
+        dask_series = \
+            dask_cudf.from_cudf(cudf_index_series, self.__num_workers)
+        dask_series = dask_series.reset_index(drop=True)
         tmp_df[self.src_col_name] = tmp_df[vertex_col_names[0]]
         tmp_df[self.dst_col_name] = tmp_df[vertex_col_names[1]]
+#        tmp_df = tmp_df.reset_index().set_index('index')
         tmp_df[self.edge_id_col_name] = dask_series
+
         # FIXME: handle case of a type_name column already being in tmp_df
         tmp_df[self.type_col_name] = type_name
 
@@ -419,8 +423,6 @@ class EXPERIMENTAL__MGPropertyGraph:
         self.__edge_prop_dataframe = \
             self.__edge_prop_dataframe.merge(tmp_df, how="outer")
 #        self.__add_edge_ids()
-
-
         # Update the vertex eval dict with the latest column instances
         latest = dict([(n, self.__edge_prop_dataframe[n])
                        for n in self.__edge_prop_dataframe.columns])
@@ -685,9 +687,8 @@ class EXPERIMENTAL__MGPropertyGraph:
 #             starting_eid = prev_eid + 1
 #             cudf_series = \
 #                 cudf.Series(range(starting_eid, starting_eid + num_indices))
-#             dask_series = dask_cudf.from_cudf(cudf_series, self.__num_workers)
-# #            self.__edge_prop_dataframe.assign(self.edge_id_col_name=dask_series)
-# #            self.__edge_prop_dataframe.reindex()
+#             dask_series =\
+#               dask_cudf.from_cudf(cudf_series, self.__num_workers)
 #             self.__last_edge_id = starting_eid + num_indices - 1
 
 #     def __get_all_vertices_series(self):
