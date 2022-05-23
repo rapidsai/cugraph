@@ -23,7 +23,7 @@ import cupy
 
 
 def eigenvector_centrality(
-    G, max_iter=100, tol=1.0e-6, nstart=None, normalized=True
+    G, max_iter=100, tol=1.0e-6, normalized=True
 ):
     """
     Compute the eigenvector centrality for a graph G.
@@ -52,14 +52,6 @@ def eigenvector_centrality(
         numerical roundoff. Usually values between 1e-2 and 1e-6 are
         acceptable.
 
-    nstart : cudf.Dataframe, optional (default=None)
-        GPU Dataframe containing the initial guess for eigenvector centrality.
-
-        nstart['vertex'] : cudf.Series
-            Contains the vertex identifiers
-        nstart['values'] : cudf.Series
-            Contains the eigenvector centrality values of vertices
-
     normalized : bool, optional, default=True
         If True normalize the resulting eigenvector centrality values
 
@@ -79,7 +71,7 @@ def eigenvector_centrality(
     ...                     dtype=['int32', 'int32', 'float32'], header=None)
     >>> G = cugraph.Graph()
     >>> G.from_cudf_edgelist(gdf, source='0', destination='1')
-    >>> # ec = cugraph.eigenvector_centrality(G)
+    >>> ec = cugraph.eigenvector_centrality(G)
 
     """
     if (not isinstance(max_iter, int)) or max_iter <= 0:
@@ -98,15 +90,6 @@ def eigenvector_centrality(
         # FIXME: If weights column is not imported, a weights column of 1s
         # with type hardcoded to float32 is passed into wrapper
         weights = cudf.Series(cupy.ones(srcs.size, dtype="float32"))
-
-    if nstart is not None:
-        if G.renumbered is True:
-            if len(G.renumber_map.implementation.col_names) > 1:
-                cols = nstart.columns[:-1].to_list()
-            else:
-                cols = 'vertex'
-            nstart = G.add_internal_vertex_id(nstart, 'vertex', cols)
-            nstart = nstart[nstart.columns[0]]
 
     resource_handle = ResourceHandle()
     graph_props = GraphProperties(is_multigraph=G.is_multigraph())

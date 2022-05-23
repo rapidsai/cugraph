@@ -40,3 +40,10 @@ Eigenvector Centrality
    :toctree: api/
 
    cugraph.centrality.eigenvector_centrality
+
+Eigenvector Centrality (MG)
+---------------------------
+.. autosummary::
+   :toctree: api/
+
+   cugraph.dask.centrality.eigenvector_centrality.eigenvector_centrality
