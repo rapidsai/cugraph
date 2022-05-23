@@ -313,71 +313,62 @@ def test_call_graph_creation_extension(client):
 def test_get_graph_vertex_dataframe_rows(client_with_property_csvs_loaded):
     client = client_with_property_csvs_loaded
 
-    np_array = client.get_graph_vertex_dataframe_rows([0, 1, 2])
-    # FIXME: verify the internal PG dataframes preserve order after various
-    # operations, since these tests assume a specific ordering.
-    # FIXME: do not hardcode these values, get them from the input data directly
+    # FIXME: do not hardcode the shape values, get them from the input data.
+    np_array_all_rows = client.get_graph_vertex_dataframe_rows()
+    assert np_array_all_rows.shape == (16, 11)
+
+    # The remaining tests get individual rows - compare those to the all_rows
+    # retrieved earlier.
+    rows = [0, 1, 2]
+    np_array = client.get_graph_vertex_dataframe_rows(rows)
     assert np_array.shape == (3, 11)
-    assert np_array[2][0] == 21
-    assert np_array[2][5] == "east"
+    for (idx, all_rows_idx) in enumerate(rows):
+        assert (np_array[idx] == np_array_all_rows[all_rows_idx]).all()
 
     np_array = client.get_graph_vertex_dataframe_rows(0)
     assert np_array.shape == (1, 11)
-    assert np_array[0][0] == 11
-    assert np_array[0][5] == "north"
+    assert (np_array[0] == np_array_all_rows[0]).all()
 
     np_array = client.get_graph_vertex_dataframe_rows(1)
     assert np_array.shape == (1, 11)
-    assert np_array[0][0] == 4
-    assert np_array[0][5] == "south"
-
-    np_array = client.get_graph_vertex_dataframe_rows()
-    assert np_array.shape == (16, 11)
-    assert np_array[0][0] == 11
-    assert np_array[0][5] == "north"
-    assert np_array[15][9] == 78634
+    assert (np_array[0] == np_array_all_rows[1]).all()
 
 
 def test_get_graph_vertex_dataframe_shape(client_with_property_csvs_loaded):
     client = client_with_property_csvs_loaded
 
     shape = client.get_graph_vertex_dataframe_shape()
-    # FIXME: do not hardcode these values, get them from the input data directly
+    # FIXME: do not hardcode the shape values, get them from the input data.
     assert shape == (16, 11)
 
 
 def test_get_graph_edge_dataframe_rows(client_with_property_csvs_loaded):
     client = client_with_property_csvs_loaded
 
-    np_array = client.get_graph_edge_dataframe_rows([0, 1, 2])
+    # FIXME: do not hardcode the shape values, get them from the input data.
+    np_array_all_rows = client.get_graph_edge_dataframe_rows()
+    assert np_array_all_rows.shape == (17, 10)
 
-    # FIXME: verify the internal PG dataframes preserve order after various
-    # operations, since these tests assume a specific ordering.
-    # FIXME: do not hardcode these values, get them from the input data directly
+    # The remaining tests get individual rows - compare those to the all_rows
+    # retrieved earlier.
+    rows = [0, 1, 2]
+    np_array = client.get_graph_edge_dataframe_rows(rows)
     assert np_array.shape == (3, 10)
-    assert np_array[2][0] == 78634
-    assert np_array[2][5] == "DEBIT"
+    for (idx, all_rows_idx) in enumerate(rows):
+        assert (np_array[idx] == np_array_all_rows[all_rows_idx]).all()
 
     np_array = client.get_graph_edge_dataframe_rows(0)
     assert np_array.shape == (1, 10)
-    assert np_array[0][0] == 89021
-    assert np_array[0][5] == "MC"
+    assert (np_array[0] == np_array_all_rows[0]).all()
 
     np_array = client.get_graph_edge_dataframe_rows(1)
     assert np_array.shape == (1, 10)
-    assert np_array[0][0] == 89216
-    assert np_array[0][5] == "CASH"
-
-    np_array = client.get_graph_edge_dataframe_rows()
-    assert np_array.shape == (17, 10)
-    assert np_array[0][0] == 89021
-    assert np_array[0][5] == "MC"
-    assert np_array[16][9] == 4
+    assert (np_array[0] == np_array_all_rows[1]).all()
 
 
 def test_get_graph_edge_dataframe_shape(client_with_property_csvs_loaded):
     client = client_with_property_csvs_loaded
 
     shape = client.get_graph_edge_dataframe_shape()
-    # FIXME: do not hardcode these values, get them from the input data directly
+    # FIXME: do not hardcode the shape values, get them from the input data.
     assert shape == (17, 10)
