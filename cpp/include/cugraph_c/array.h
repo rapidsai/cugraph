@@ -88,6 +88,30 @@ cugraph_type_erased_device_array_view_t* cugraph_type_erased_device_array_view(
   cugraph_type_erased_device_array_t* array);
 
 /**
+ * @brief Create a type erased device array view with a different type
+ *
+ *    Create a type erased device array view from
+ *    a type erased device array treating the underlying
+ *    pointer as a different type.
+ *
+ *    Note: This is only viable when the underlying types are the same size.  That
+ *    is, you can switch between INT32 and FLOAT32, or between INT64 and FLOAT64.
+ *    But if the types are different sizes this will be an error.
+ *
+ * @param [in]  array        Pointer to the type erased device array
+ * @param [in]  dtype        The type to cast the pointer to
+ * @param [out] result_view  Address where to put the allocated device view
+ * @param [out] error        Pointer to an error object storing details of any error.  Will
+ *                           be populated if error code is not CUGRAPH_SUCCESS
+ * @return error code
+ */
+cugraph_error_code_t cugraph_type_erased_device_array_view_as_type(
+  cugraph_type_erased_device_array_t* array,
+  data_type_id_t dtype,
+  cugraph_type_erased_device_array_view_t** result_view,
+  cugraph_error_t** error);
+
+/**
  * @brief    Create a type erased device array view from
  *           a raw device pointer.
  *
