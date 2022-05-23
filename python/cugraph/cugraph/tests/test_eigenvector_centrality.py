@@ -95,6 +95,8 @@ def test_eigenvector_centrality_nx(graph_file):
     assert err < (0.1 * len(ck))
 
 
+# TODO: Uncomment this test when/if nstart is supported for eigen centrality
+"""
 @pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
 def test_eigenvector_centrality_multi_column(graph_file):
     cu_M = utils.read_csv_file(graph_file)
@@ -125,6 +127,7 @@ def test_eigenvector_centrality_multi_column(graph_file):
     top_exp = topKVertices(k_df_exp, "eigenvector_centrality", 10)
 
     assert top_res.equals(top_exp)
+"""
 
 
 @pytest.mark.parametrize("graph_file", [TOY])
