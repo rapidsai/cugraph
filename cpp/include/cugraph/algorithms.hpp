@@ -1574,6 +1574,14 @@ uniform_nbr_sample(raft::handle_t const& handle,
 /**
  * @brief Uniform Neighborhood Sampling.
  *
+ * This function traverses from a set of starting vertices, traversing outgoing edges and 
+ * randomly selects from these outgoing neighbors to extract a subgraph.
+ *
+ * Output from this function a set of tuples (src, dst, weight, count), identifying the randomly
+ * selected edges.  src is the source vertex, dst is the destination vertex, weight is the weight
+ * of the edge and count identifies the number of times this edge was encountered during the
+ * sampling of this graph (so it is >= 1).
+ *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
  * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
  * @tparam weight_t Type of edge weights. Needs to be a floating point type.
@@ -1587,7 +1595,7 @@ uniform_nbr_sample(raft::handle_t const& handle,
  * @param with_replacement boolean flag specifying if random sampling is done with replacement
  * (true); or, without replacement (false); default = true;
  * @param seed A seed to initialize the random number generator
- * @return tuple device vectors (vertex_t source_vertex, vertex_t destination_vertex, weight_t wgt,
+ * @return tuple device vectors (vertex_t source_vertex, vertex_t destination_vertex, weight_t weight,
  * edge_t count)
  */
 template <typename vertex_t,
