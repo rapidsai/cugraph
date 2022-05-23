@@ -706,6 +706,32 @@ class GaasClient:
     ############################################################################
     # Algos
     @__server_connection
+    def batched_ego_graphs(self, seeds, radius=1, graph_id=defaults.graph_id):
+        """
+        Parameters
+        ----------
+
+        Returns
+        -------
+
+        Examples
+        --------
+        >>>
+        """
+        # FIXME: finish docstring above
+
+        if not isinstance(seeds, list):
+            seeds = [seeds]
+        batched_ego_graphs_result = self.__client.batched_ego_graphs(seeds,
+                                                                     radius,
+                                                                     graph_id)
+        return (batched_ego_graphs_result.src_verts,
+                batched_ego_graphs_result.dst_verts,
+                batched_ego_graphs_result.edge_weights,
+                batched_ego_graphs_result.seeds_offsets)
+
+
+    @__server_connection
     def node2vec(self, start_vertices, max_depth, graph_id=defaults.graph_id):
         """
         Computes random walks for each node in 'start_vertices', under the
@@ -713,10 +739,6 @@ class GaasClient:
 
         Parameters
         ----------
-        G : cuGraph.Graph or networkx.Graph
-            The graph can be either directed (DiGraph) or undirected (Graph).
-            Weights in the graph are ignored.
-
         start_vertices: int or list or cudf.Series or cudf.DataFrame
             A single node or a list or a cudf.Series of nodes from which to run
             the random walks. In case of multi-column vertices it should be
@@ -743,8 +765,6 @@ class GaasClient:
         node2vec_result = self.__client.node2vec(start_vertices,
                                                  max_depth,
                                                  graph_id)
-        # Hide the generated Thrift result type for node2vec and instead return
-        # a tuple of lists)
         return (node2vec_result.vertex_paths,
                 node2vec_result.edge_weights,
                 node2vec_result.path_sizes)

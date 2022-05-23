@@ -36,6 +36,13 @@ exception GaasError {
   1:string message
 }
 
+struct BatchedEgoGraphsResult {
+  1:list<i32> src_verts
+  2:list<i32> dst_verts
+  3:list<double> edge_weights
+  4:list<i32> seeds_offsets
+}
+
 struct Node2vecResult {
   1:list<i32> vertex_paths
   2:list<double> edge_weights
@@ -87,6 +94,12 @@ service GaasService {
                              ) throws (1:GaasError e),
 
   i32 get_num_edges(1:i32 graph_id) throws(1:GaasError e),
+
+  BatchedEgoGraphsResult
+  batched_ego_graphs(1:list<i32> seeds,
+                     2:i32 radius,
+                     3:i32 graph_id
+                     ) throws (1:GaasError e),
 
   Node2vecResult
   node2vec(1:list<i32> start_vertices,

@@ -16,6 +16,7 @@ import os
 import sys
 import subprocess
 import time
+from collections.abc import Sequence
 
 import pytest
 
@@ -317,6 +318,8 @@ def test_get_graph_vertex_dataframe_rows(client_with_property_csvs_loaded):
     np_array_all_rows = client.get_graph_vertex_dataframe_rows()
     assert np_array_all_rows.shape == (16, 11)
 
+    breakpoint()
+
     # The remaining tests get individual rows - compare those to the all_rows
     # retrieved earlier.
     rows = [0, 1, 2]
@@ -372,3 +375,24 @@ def test_get_graph_edge_dataframe_shape(client_with_property_csvs_loaded):
     shape = client.get_graph_edge_dataframe_shape()
     # FIXME: do not hardcode the shape values, get them from the input data.
     assert shape == (17, 10)
+
+
+def test_batched_ego_graphs(client_with_edgelist_csv_loaded):
+    (client, test_data) = client_with_edgelist_csv_loaded
+
+    extracted_gid = client.extract_subgraph()
+
+    # These are known vertex IDs in the default graph loaded
+    seeds = [0, 1, 2]
+    results_lists = client.batched_ego_graphs(
+        seeds, radius=1, graph_id=extracted_gid)
+
+    (srcs, dsts, weights, seeds_offsets) = results_lists
+
+    assert isinstance(srcs, Sequence)
+    assert isinstance(dsts, Sequence)
+    assert isinstance(weights, Sequence)
+    assert len(srcs) == len(dsts) == len(weights)
+
+    assert isinstance(seeds_offsets, Sequence)
+    assert len(srcs) == seeds_offsets[-1]

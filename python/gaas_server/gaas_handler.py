@@ -23,7 +23,7 @@ from cugraph.experimental import PropertyGraph
 
 from gaas_client import defaults
 from gaas_client.exceptions import GaasError
-from gaas_client.types import Node2vecResult
+from gaas_client.types import BatchedEgoGraphsResult, Node2vecResult
 
 
 class GaasHandler:
@@ -297,6 +297,36 @@ class GaasHandler:
 
     ############################################################################
     # Algos
+    def batched_ego_graphs(self, seeds, radius, graph_id):
+        """
+        """
+        # FIXME: finish docstring above
+        # FIXME: exception handling
+        G = self._get_graph(graph_id)
+        if isinstance(G, PropertyGraph):
+            raise GaasError("batched_ego_graphs() cannot operate directly on "
+                            "a graph with properties, call extract_subgraph() "
+                            "then call batched_ego_graphs() on the extracted "
+                            "subgraph instead.")
+        try:
+            # FIXME: this should not be needed, need to update
+            # cugraph.batched_ego_graphs to also accept a list
+            seeds = cudf.Series(seeds, dtype="int32")
+
+            (ego_edge_list, seeds_offsets) = \
+                cugraph.batched_ego_graphs(G, seeds, radius)
+
+            batched_ego_graphs_result = BatchedEgoGraphsResult(
+                src_verts=ego_edge_list["src"].to_arrow().to_pylist(),
+                dst_verts=ego_edge_list["dst"].to_arrow().to_pylist(),
+                edge_weights=ego_edge_list["weight"].to_arrow().to_pylist(),
+                seeds_offsets=seeds_offsets.to_arrow().to_pylist()
+            )
+        except:
+            raise GaasError(f"{traceback.format_exc()}")
+
+        return batched_ego_graphs_result
+
     def node2vec(self, start_vertices, max_depth, graph_id):
         """
         """
@@ -308,18 +338,22 @@ class GaasHandler:
                             " properties, call extract_subgraph() then call "
                             "node2vec() on the extracted subgraph instead.")
 
-        # FIXME: this should not be needed, need to update cugraph.node2vec to
-        # also accept a list
-        start_vertices = cudf.Series(start_vertices, dtype="int32")
+        try:
+            # FIXME: this should not be needed, need to update cugraph.node2vec to
+            # also accept a list
+            start_vertices = cudf.Series(start_vertices, dtype="int32")
 
-        (paths, weights, path_sizes) = \
-            cugraph.node2vec(G, start_vertices, max_depth)
+            (paths, weights, path_sizes) = \
+                cugraph.node2vec(G, start_vertices, max_depth)
 
-        node2vec_result = Node2vecResult(
-            vertex_paths = paths.to_arrow().to_pylist(),
-            edge_weights = weights.to_arrow().to_pylist(),
-            path_sizes = path_sizes.to_arrow().to_pylist()
-        )
+            node2vec_result = Node2vecResult(
+                vertex_paths = paths.to_arrow().to_pylist(),
+                edge_weights = weights.to_arrow().to_pylist(),
+                path_sizes = path_sizes.to_arrow().to_pylist()
+            )
+        except:
+            raise GaasError(f"{traceback.format_exc()}")
+
         return node2vec_result
 
     def pagerank(self, graph_id):
