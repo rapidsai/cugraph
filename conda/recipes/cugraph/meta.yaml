@@ -19,13 +19,17 @@ build:
   number: {{ GIT_DESCRIBE_NUMBER }}
   string: cuda{{ cuda_major }}_py{{ py_version }}_{{ GIT_DESCRIBE_HASH }}_{{ GIT_DESCRIBE_NUMBER }}
   script_env:
-    - CC
-    - CXX
-    - CUDAHOSTCXX
     - PARALLEL_LEVEL
+  ignore_run_exports_from:
+    - {{ compiler('cuda') }}
 
 requirements:
   build:
+    - {{ compiler('c') }}
+    - {{ compiler('cxx') }}
+    - {{ compiler('cuda') }} {{ cuda_version }}
+    - sysroot_{{ target_platform }} {{ sysroot_version }}
+  host:
     - python x.x
     - cython>=0.29,<0.30
     - libcugraph={{ version }}
