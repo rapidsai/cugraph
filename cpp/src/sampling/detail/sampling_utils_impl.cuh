@@ -921,7 +921,8 @@ count_and_remove_duplicates(raft::handle_t const& handle,
 
   thrust::fill(handle.get_thrust_policy(), count.begin(), count.end(), edge_t{1});
 
-  auto tuple_iter = thrust::make_zip_iterator(thrust::make_tuple(src.begin(), dst.begin(), wgt.begin()));
+  auto tuple_iter =
+    thrust::make_zip_iterator(thrust::make_tuple(src.begin(), dst.begin(), wgt.begin()));
 
   auto end_iter = thrust::reduce_by_key(handle.get_thrust_policy(),
                                         tuple_iter,

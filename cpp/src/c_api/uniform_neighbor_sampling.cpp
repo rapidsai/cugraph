@@ -265,8 +265,7 @@ struct experimental_uniform_neighbor_sampling_functor : public cugraph::c_api::a
         nullptr,
         new cugraph::c_api::cugraph_type_erased_device_array_t(weights, graph_->weight_type_),
         nullptr,
-        new cugraph::c_api::cugraph_type_erased_device_array_t(counts, graph_->edge_type_)
-      };
+        new cugraph::c_api::cugraph_type_erased_device_array_t(counts, graph_->edge_type_)};
     }
   }
 };

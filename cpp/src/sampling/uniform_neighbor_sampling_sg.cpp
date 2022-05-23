@@ -20,58 +20,70 @@
 
 namespace cugraph {
 
-template std::
-tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>, rmm::device_uvector<float>, rmm::device_uvector<int32_t>>
-  uniform_nbr_sample(raft::handle_t const& handle,
-                     graph_view_t<int32_t, int32_t, float, false, false> const& graph_view,
-                     raft::device_span<int32_t> starting_vertices,
-                     raft::host_span<const int> fan_out,
-                     bool with_replacement,
-                     uint64_t seed);
+template std::tuple<rmm::device_uvector<int32_t>,
+                    rmm::device_uvector<int32_t>,
+                    rmm::device_uvector<float>,
+                    rmm::device_uvector<int32_t>>
+uniform_nbr_sample(raft::handle_t const& handle,
+                   graph_view_t<int32_t, int32_t, float, false, false> const& graph_view,
+                   raft::device_span<int32_t> starting_vertices,
+                   raft::host_span<const int> fan_out,
+                   bool with_replacement,
+                   uint64_t seed);
 
-template std::
-tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>, rmm::device_uvector<float>, rmm::device_uvector<int64_t>>
-  uniform_nbr_sample(raft::handle_t const& handle,
-                     graph_view_t<int32_t, int64_t, float, false, false> const& graph_view,
-                     raft::device_span<int32_t> starting_vertices,
-                     raft::host_span<const int> fan_out,
-                     bool with_replacement,
-                     uint64_t seed);
+template std::tuple<rmm::device_uvector<int32_t>,
+                    rmm::device_uvector<int32_t>,
+                    rmm::device_uvector<float>,
+                    rmm::device_uvector<int64_t>>
+uniform_nbr_sample(raft::handle_t const& handle,
+                   graph_view_t<int32_t, int64_t, float, false, false> const& graph_view,
+                   raft::device_span<int32_t> starting_vertices,
+                   raft::host_span<const int> fan_out,
+                   bool with_replacement,
+                   uint64_t seed);
 
-template std::
-  tuple<rmm::device_uvector<int64_t>, rmm::device_uvector<int64_t>, rmm::device_uvector<float>, rmm::device_uvector<int64_t>>
-  uniform_nbr_sample(raft::handle_t const& handle,
-                     graph_view_t<int64_t, int64_t, float, false, false> const& graph_view,
-                     raft::device_span<int64_t> starting_vertices,
-                     raft::host_span<const int> fan_out,
-                     bool with_replacement,
-                     uint64_t seed);
+template std::tuple<rmm::device_uvector<int64_t>,
+                    rmm::device_uvector<int64_t>,
+                    rmm::device_uvector<float>,
+                    rmm::device_uvector<int64_t>>
+uniform_nbr_sample(raft::handle_t const& handle,
+                   graph_view_t<int64_t, int64_t, float, false, false> const& graph_view,
+                   raft::device_span<int64_t> starting_vertices,
+                   raft::host_span<const int> fan_out,
+                   bool with_replacement,
+                   uint64_t seed);
 
-template std::
-  tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>, rmm::device_uvector<double>, rmm::device_uvector<int32_t>>
-  uniform_nbr_sample(raft::handle_t const& handle,
-                     graph_view_t<int32_t, int32_t, double, false, false> const& graph_view,
-                     raft::device_span<int32_t> starting_vertices,
-                     raft::host_span<const int> fan_out,
-                     bool with_replacement,
-                     uint64_t seed);
+template std::tuple<rmm::device_uvector<int32_t>,
+                    rmm::device_uvector<int32_t>,
+                    rmm::device_uvector<double>,
+                    rmm::device_uvector<int32_t>>
+uniform_nbr_sample(raft::handle_t const& handle,
+                   graph_view_t<int32_t, int32_t, double, false, false> const& graph_view,
+                   raft::device_span<int32_t> starting_vertices,
+                   raft::host_span<const int> fan_out,
+                   bool with_replacement,
+                   uint64_t seed);
 
-template std::
-  tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>, rmm::device_uvector<double>, rmm::device_uvector<int64_t>>
-  uniform_nbr_sample(raft::handle_t const& handle,
-                     graph_view_t<int32_t, int64_t, double, false, false> const& graph_view,
-                     raft::device_span<int32_t> starting_vertices,
-                     raft::host_span<const int> fan_out,
-                     bool with_replacement,
-                     uint64_t seed);
+template std::tuple<rmm::device_uvector<int32_t>,
+                    rmm::device_uvector<int32_t>,
+                    rmm::device_uvector<double>,
+                    rmm::device_uvector<int64_t>>
+uniform_nbr_sample(raft::handle_t const& handle,
+                   graph_view_t<int32_t, int64_t, double, false, false> const& graph_view,
+                   raft::device_span<int32_t> starting_vertices,
+                   raft::host_span<const int> fan_out,
+                   bool with_replacement,
+                   uint64_t seed);
 
-template std::
-  tuple<rmm::device_uvector<int64_t>, rmm::device_uvector<int64_t>, rmm::device_uvector<double>, rmm::device_uvector<int64_t>>
-  uniform_nbr_sample(raft::handle_t const& handle,
-                     graph_view_t<int64_t, int64_t, double, false, false> const& graph_view,
-                     raft::device_span<int64_t> starting_vertices,
-                     raft::host_span<const int> fan_out,
-                     bool with_replacement,
-                     uint64_t seed);
+template std::tuple<rmm::device_uvector<int64_t>,
+                    rmm::device_uvector<int64_t>,
+                    rmm::device_uvector<double>,
+                    rmm::device_uvector<int64_t>>
+uniform_nbr_sample(raft::handle_t const& handle,
+                   graph_view_t<int64_t, int64_t, double, false, false> const& graph_view,
+                   raft::device_span<int64_t> starting_vertices,
+                   raft::host_span<const int> fan_out,
+                   bool with_replacement,
+                   uint64_t seed);
 
 }  // namespace cugraph
