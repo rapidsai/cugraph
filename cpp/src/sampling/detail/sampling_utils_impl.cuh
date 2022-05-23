@@ -907,5 +907,38 @@ gather_one_hop_edgelist(
   return std::make_tuple(std::move(majors), std::move(minors), std::move(weights));
 }
 
+template <typename vertex_t, typename edge_t, typename weight_t>
+std::tuple<rmm::device_uvector<vertex_t>,
+           rmm::device_uvector<vertex_t>,
+           rmm::device_uvector<weight_t>,
+           rmm::device_uvector<edge_t>>
+count_and_remove_duplicates(raft::handle_t const& handle,
+                            rmm::device_uvector<vertex_t>&& src,
+                            rmm::device_uvector<vertex_t>&& dst,
+                            rmm::device_uvector<weight_t>&& wgt)
+{
+  rmm::device_uvector<edge_t> count(src.size(), handle.get_stream());
+
+  thrust::fill(handle.get_thrust_policy(), count.begin(), count.end(), edge_t{1});
+
+  auto tuple_iter = thrust::make_zip_iterator(thrust::make_tuple(src.begin(), dst.begin(), wgt.begin()));
+
+  auto end_iter = thrust::reduce_by_key(handle.get_thrust_policy(),
+                                        tuple_iter,
+                                        tuple_iter + src.size(),
+                                        count.begin(),
+                                        tuple_iter,
+                                        count.begin());
+
+  size_t sz = thrust::distance(tuple_iter, end_iter.first);
+
+  src.resize(sz, handle.get_stream());
+  dst.resize(sz, handle.get_stream());
+  wgt.resize(sz, handle.get_stream());
+  count.resize(sz, handle.get_stream());
+
+  return std::make_tuple(std::move(src), std::move(dst), std::move(wgt), std::move(count));
+}
+
 }  // namespace detail
 }  // namespace cugraph

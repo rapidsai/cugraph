@@ -35,11 +35,13 @@ struct cugraph_sample_result_t {
   bool experimental_{true};
   cugraph_type_erased_device_array_t* src_{nullptr};
   cugraph_type_erased_device_array_t* dst_{nullptr};
-  // FIXME: Will be deleted once experimental replaces curren
+  // FIXME: Will be deleted once experimental replaces current
   cugraph_type_erased_device_array_t* label_{nullptr};
   cugraph_type_erased_device_array_t* index_{nullptr};
-  // FIXME: Will be deleted once experimental replaces curren
+  // FIXME: Will be deleted once experimental replaces current
   cugraph_type_erased_host_array_t* count_{nullptr};
+  // FIXME: Rename to count_ once experimental replaces current
+  cugraph_type_erased_device_array_t* experimental_count_{nullptr};
 };
 
 }  // namespace c_api
@@ -233,7 +235,7 @@ struct experimental_uniform_neighbor_sampling_functor : public cugraph::c_api::a
         graph_view.local_vertex_partition_range_last(),
         false);
 
-      auto&& [srcs, dsts, weights] = cugraph::uniform_nbr_sample(
+      auto&& [srcs, dsts, weights, counts] = cugraph::uniform_nbr_sample(
         handle_,
         graph_view,
         raft::device_span<vertex_t>(start.data(), start.size()),
@@ -262,7 +264,9 @@ struct experimental_uniform_neighbor_sampling_functor : public cugraph::c_api::a
         new cugraph::c_api::cugraph_type_erased_device_array_t(dsts, graph_->vertex_type_),
         nullptr,
         new cugraph::c_api::cugraph_type_erased_device_array_t(weights, graph_->weight_type_),
-        nullptr};
+        nullptr,
+        new cugraph::c_api::cugraph_type_erased_device_array_t(counts, graph_->edge_type_)
+      };
     }
   }
 };

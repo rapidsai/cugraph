@@ -1587,7 +1587,7 @@ uniform_nbr_sample(raft::handle_t const& handle,
  * @param with_replacement boolean flag specifying if random sampling is done with replacement
  * (true); or, without replacement (false); default = true;
  * @param seed A seed to initialize the random number generator
- * @return tuple device vectors (vertex_t source_vertex, vertex_t destination_vertex, weight_t wgt)
+ * @return tuple device vectors (vertex_t source_vertex, vertex_t destination_vertex, weight_t wgt, edge_t count)
  */
 template <typename vertex_t,
           typename edge_t,
@@ -1595,7 +1595,7 @@ template <typename vertex_t,
           bool store_transposed,
           bool multi_gpu>
 std::
-  tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>, rmm::device_uvector<weight_t>>
+tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>, rmm::device_uvector<weight_t>, rmm::device_uvector<edge_t>>
   uniform_nbr_sample(
     raft::handle_t const& handle,
     graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> const& graph_view,

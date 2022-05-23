@@ -95,7 +95,8 @@ class Tests_MG_Nbr_Sampling
 
     std::vector<int> h_fan_out{indices_per_source};  // depth = 1
 
-    auto&& [d_src_out, d_dst_out, d_indices] = cugraph::uniform_nbr_sample(
+
+    auto&& [d_src_out, d_dst_out, d_indices, d_counts] = cugraph::uniform_nbr_sample(
       handle,
       mg_graph_view,
       raft::device_span<vertex_t>(random_sources.data(), random_sources.size()),
