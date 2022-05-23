@@ -15,8 +15,8 @@ import cudf
 import cugraph
 from cugraph.experimental import PropertyGraph
 from cugraph.community.egonet import batched_ego_graphs
-import cupy
-import random
+from cugraph.utilities.utils import sample_groups
+
 import numpy as np
 
 
@@ -110,27 +110,27 @@ class CuGraphStore:
         ego_edge_list, seeds_offsets = batched_ego_graphs(_g,
                                                           current_seeds,
                                                           radius=1)
-        all_parents = cupy.ndarray(0)
-        all_children = cupy.ndarray(0)
         # filter and get a certain size neighborhood
-        for i in range(1, len(seeds_offsets)):
-            pos0 = seeds_offsets.values_host[i-1]
-            pos1 = seeds_offsets.values_host[i]
-            edge_list = ego_edge_list[pos0:pos1]
-            # get randomness fanout
-            filtered_list = edge_list[edge_list['dst'] == current_seeds[i-1]]
 
-            # get sampled_list
-            if len(filtered_list) > fanout:
-                sampled_indices = random.sample(
-                        filtered_list.index.to_arrow().to_pylist(), fanout)
-                filtered_list = filtered_list.reindex(index=sampled_indices)
+        # Step 1
+        # Get Filtered List of ego_edge_list corresposing to current_seeds
+        # We filter by creating a series of destination nodes
+        # corresponding to the offsets and filtering non matching vallues
 
-            children = cupy.asarray(filtered_list['src'])
-            parents = cupy.asarray(filtered_list['dst'])
-            all_parents = cupy.append(all_parents, parents)
-            all_children = cupy.append(all_children, children)
-        return all_parents, all_children
+        seeds_offsets_s = cudf.Series(seeds_offsets).values
+        offset_lens = seeds_offsets_s[1:] - seeds_offsets_s[0:-1]
+        dst_seeds = current_seeds.repeat(offset_lens)
+        dst_seeds.index = ego_edge_list.index
+        filtered_list = ego_edge_list[ego_edge_list["dst"] == dst_seeds]
+
+        # Step 2
+        # Sample Fan Out
+        # for each dst take maximum of fanout samples
+        filtered_list = sample_groups(filtered_list,
+                                      by="dst",
+                                      n_samples=fanout)
+
+        return filtered_list['dst'].values, filtered_list['src'].values
 
     def node_subgraph(self,
                       nodes=None,

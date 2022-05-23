@@ -384,6 +384,7 @@ __global__ void trasnform_reduce_e_high_degree(
  * weight), property values for the source, and property values for the destination and returns a
  * value to be reduced.
  * @param init Initial value to be added to the reduced @p edge_op outputs.
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  * @return T Transform-reduced @p edge_op outputs.
  */
 template <typename GraphViewType,
@@ -396,13 +397,18 @@ T transform_reduce_e(raft::handle_t const& handle,
                      EdgePartitionSrcValueInputWrapper edge_partition_src_value_input,
                      EdgePartitionDstValueInputWrapper edge_partition_dst_value_input,
                      EdgeOp e_op,
-                     T init)
+                     T init,
+                     bool do_expensive_check = false)
 {
   static_assert(is_arithmetic_or_thrust_tuple_of_arithmetic<T>::value);
 
   using vertex_t = typename GraphViewType::vertex_type;
   using edge_t   = typename GraphViewType::edge_type;
   using weight_t = typename GraphViewType::weight_type;
+
+  if (do_expensive_check) {
+    // currently, nothing to do
+  }
 
   property_op<T, thrust::plus> edge_property_add{};
 
@@ -547,6 +553,7 @@ T transform_reduce_e(raft::handle_t const& handle,
  * @param e_op Quaternary (or quinary) operator takes edge source, edge destination, (optional edge
  * weight), property values for the source, and property values for the destination and returns a
  * value to be reduced.
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  * @return Transform-reduced @p edge_op outputs.
  */
 template <typename GraphViewType,
@@ -557,7 +564,8 @@ auto transform_reduce_e(raft::handle_t const& handle,
                         GraphViewType const& graph_view,
                         EdgePartitionSrcValueInputWrapper edge_partition_src_value_input,
                         EdgePartitionDstValueInputWrapper edge_partition_dst_value_input,
-                        EdgeOp e_op)
+                        EdgeOp e_op,
+                        bool do_expensive_check = false)
 {
   using vertex_t    = typename GraphViewType::vertex_type;
   using weight_t    = typename GraphViewType::weight_type;
@@ -565,6 +573,10 @@ auto transform_reduce_e(raft::handle_t const& handle,
   using dst_value_t = typename EdgePartitionDstValueInputWrapper::value_type;
   using T           = typename detail::
     edge_op_result_type<vertex_t, vertex_t, weight_t, src_value_t, dst_value_t, EdgeOp>::type;
+
+  if (do_expensive_check) {
+    // currently, nothing to do
+  }
 
   return transform_reduce_e(
     handle, graph_view, edge_partition_src_value_input, edge_partition_dst_value_input, e_op, T{});
