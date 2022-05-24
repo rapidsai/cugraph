@@ -37,10 +37,10 @@ exception GaasError {
 }
 
 struct BatchedEgoGraphsResult {
-  1:binary src_verts
-  2:binary dst_verts
-  3:binary edge_weights
-  4:binary seeds_offsets
+  1:list<i32> src_verts
+  2:list<i32> dst_verts
+  3:list<double> edge_weights
+  4:list<i32> seeds_offsets
 }
 
 struct Node2vecResult {

@@ -229,7 +229,7 @@ class GaasHandler:
             dst_mask = G.edge_data[PropertyGraph.dst_col_name] == \
                 dst_vert_IDs[i]
             value = G.edge_data[src_mask & dst_mask]\
-                [PropertyGraph.edge_id_col_name].to_arrow()[0].as_py()
+                [PropertyGraph.edge_id_col_name].values_host[0]
             edge_IDs.append(value)
 
         return edge_IDs
@@ -348,13 +348,20 @@ class GaasHandler:
             st2=time.time()
             print("  ----- [GaaS] -----> copying to host", flush=True)
             print(f"  ----- [GaaS] -----> {len(ego_edge_list['src'])} num edges", flush=True)
+            #batched_ego_graphs_result = BatchedEgoGraphsResult(
+            #    src_verts=ego_edge_list["src"].values_host.tobytes(),  #int32
+            #    dst_verts=ego_edge_list["dst"].values_host.tobytes(),  #int32
+            #    edge_weights=ego_edge_list["weight"].values_host.tobytes(),  #float64
+            #    seeds_offsets=seeds_offsets.values_host.tobytes()  #int64
+            #)
             batched_ego_graphs_result = BatchedEgoGraphsResult(
-                src_verts=ego_edge_list["src"].values_host.tobytes(),  #int32
-                dst_verts=ego_edge_list["dst"].values_host.tobytes(),  #int32
-                edge_weights=ego_edge_list["weight"].values_host.tobytes(),  #float64
-                seeds_offsets=seeds_offsets.values_host.tobytes()  #int64
+                src_verts=ego_edge_list["src"].values_host,
+                dst_verts=ego_edge_list["dst"].values_host,
+                edge_weights=ego_edge_list["weight"].values_host,
+                seeds_offsets=seeds_offsets.values_host
             )
             print(f"  ----- [GaaS] -----> FINISHED copying to host, time was: {time.time()-st2}s", flush=True)
+            return batched_ego_graphs_result
         except:
             raise GaasError(f"{traceback.format_exc()}")
 
@@ -381,9 +388,9 @@ class GaasHandler:
                 cugraph.node2vec(G, start_vertices, max_depth)
 
             node2vec_result = Node2vecResult(
-                vertex_paths = paths.to_arrow().to_pylist(),
-                edge_weights = weights.to_arrow().to_pylist(),
-                path_sizes = path_sizes.to_arrow().to_pylist()
+                vertex_paths = paths.values_host,
+                edge_weights = weights.values_host,
+                path_sizes = path_sizes.values_host,
             )
         except:
             raise GaasError(f"{traceback.format_exc()}")

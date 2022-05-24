@@ -736,12 +736,16 @@ class GaasClient:
         batched_ego_graphs_result = self.__client.batched_ego_graphs(seeds,
                                                                      radius,
                                                                      graph_id)
-        # FIXME: ensure dtypes are correct for values returned from cugraph.batched_ego_graphs() in gaas_handler.py
-        return (numpy.frombuffer(batched_ego_graphs_result.src_verts, dtype="int32"),
-                numpy.frombuffer(batched_ego_graphs_result.dst_verts, dtype="int32"),
-                numpy.frombuffer(batched_ego_graphs_result.edge_weights, dtype="float64"),
-                numpy.frombuffer(batched_ego_graphs_result.seeds_offsets, dtype="int64"))
 
+        # FIXME: ensure dtypes are correct for values returned from cugraph.batched_ego_graphs() in gaas_handler.py
+        #return (numpy.frombuffer(batched_ego_graphs_result.src_verts, dtype="int32"),
+        #        numpy.frombuffer(batched_ego_graphs_result.dst_verts, dtype="int32"),
+        #        numpy.frombuffer(batched_ego_graphs_result.edge_weights, dtype="float64"),
+        #        numpy.frombuffer(batched_ego_graphs_result.seeds_offsets, dtype="int64"))
+        return (batched_ego_graphs_result.src_verts,
+                batched_ego_graphs_result.dst_verts,
+                batched_ego_graphs_result.edge_weights,
+                batched_ego_graphs_result.seeds_offsets)
 
     @__server_connection
     def node2vec(self, start_vertices, max_depth, graph_id=defaults.graph_id):
