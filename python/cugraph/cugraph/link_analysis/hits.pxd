@@ -11,14 +11,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from cugraph.utilities.api_tools import deprecated_warning_wrapper
+from libcpp cimport bool
 
-from .link_analysis.pagerank import pagerank
-from .link_analysis.hits import hits
-from .traversal.bfs import bfs
-from .traversal.sssp import sssp
-from .common.read_utils import get_chunksize
-from .community.louvain import louvain
-from .centrality.katz_centrality import katz_centrality
-katz_centrality = deprecated_warning_wrapper(katz_centrality)
-from .components.connectivity import weakly_connected_components
+from cugraph.structure.graph_utilities cimport graph_container_t
+from raft.common.handle cimport handle_t
+
+
+cdef extern from "cugraph/utilities/cython.hpp" namespace "cugraph::cython":
+    cdef void call_hits[vertex_t,weight_t](
+        const handle_t &handle,
+        const graph_container_t &g,
+        weight_t *hubs,
+        weight_t *authorities,
+        int max_iter,
+        weight_t tolerance,
+        const weight_t *starting_value,
+        bool normalized) except +

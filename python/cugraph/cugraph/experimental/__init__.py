@@ -18,3 +18,10 @@ PropertyGraph = experimental_warning_wrapper(EXPERIMENTAL__PropertyGraph)
 
 from cugraph.structure.property_graph import EXPERIMENTAL__PropertySelection
 PropertySelection = experimental_warning_wrapper(EXPERIMENTAL__PropertySelection)
+
+from cugraph.experimental.link_analysis.hits import EXPERIMENTAL__hits
+hits = experimental_warning_wrapper(EXPERIMENTAL__hits)
+
+from cugraph.experimental.dask.centrality.katz_centrality import \
+    EXPERIMENTAL__katz_centrality
+katz_centrality = experimental_warning_wrapper(EXPERIMENTAL__katz_centrality)

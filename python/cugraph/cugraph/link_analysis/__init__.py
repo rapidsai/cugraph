@@ -11,5 +11,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from cugraph.utilities.api_tools import deprecated_warning_wrapper
+
 from cugraph.link_analysis.pagerank import pagerank
 from cugraph.link_analysis.hits import hits
+hits = deprecated_warning_wrapper(hits)
