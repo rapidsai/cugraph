@@ -71,10 +71,6 @@ struct triangle_count_functor : public cugraph::c_api::abstract_functor {
     if constexpr (!cugraph::is_candidate<vertex_t, edge_t, weight_t>::value) {
       unsupported();
     } else {
-#if 1
-      error_code_            = CUGRAPH_NOT_IMPLEMENTED;
-      error_->error_message_ = "Triangle Counting not implemented yet";
-#else
       // triangle counting expects store_transposed == false
       if constexpr (store_transposed) {
         error_code_ = cugraph::c_api::
@@ -101,6 +97,10 @@ struct triangle_count_functor : public cugraph::c_api::abstract_functor {
         raft::copy(
           vertices.data(), vertices_->as_type<vertex_t>(), vertices.size(), handle_.get_stream());
 
+        if constexpr (multi_gpu) {
+          vertices = cugraph::detail::shuffle_ext_vertices_by_gpu_id(handle_, std::move(vertices));
+        }
+
         cugraph::renumber_ext_vertices<vertex_t, multi_gpu>(
           handle_,
           vertices.data(),
@@ -113,8 +113,7 @@ struct triangle_count_functor : public cugraph::c_api::abstract_functor {
         counts.resize(graph_view.local_vertex_partition_range_size(), handle_.get_stream());
       }
 
-      // cugraph::triangle_count<vertex_t, edge_t, weight_t, multi_gpu>(
-      cugraph::triangle_counts<vertex_t, edge_t, weight_t, multi_gpu>(
+      cugraph::triangle_count<vertex_t, edge_t, weight_t, multi_gpu>(
         handle_,
         graph_view,
         vertices_ == nullptr
@@ -126,12 +125,21 @@ struct triangle_count_functor : public cugraph::c_api::abstract_functor {
       if (vertices_ == nullptr) {
         vertices.resize(graph_view.local_vertex_partition_range_size(), handle_.get_stream());
         raft::copy(vertices.data(), number_map->data(), vertices.size(), handle_.get_stream());
+      } else {
+        std::vector<vertex_t> vertex_partition_range_lasts =
+          graph_view.vertex_partition_range_lasts();
+
+        cugraph::unrenumber_int_vertices<vertex_t, multi_gpu>(handle_,
+                                                              vertices.data(),
+                                                              vertices.size(),
+                                                              number_map->data(),
+                                                              vertex_partition_range_lasts,
+                                                              do_expensive_check_);
       }
 
       result_ = new cugraph::c_api::cugraph_triangle_count_result_t{
         new cugraph::c_api::cugraph_type_erased_device_array_t(vertices, graph_->vertex_type_),
         new cugraph::c_api::cugraph_type_erased_device_array_t(counts, graph_->edge_type_)};
-#endif
     }
   }
 };

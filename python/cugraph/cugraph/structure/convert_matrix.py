@@ -309,7 +309,7 @@ def from_pandas_edgelist(df,
     return G
 
 
-def to_pandas_edgelist(G, source='source', destination='destination'):
+def to_pandas_edgelist(G, source='src', destination='dst'):
     """
     Returns the graph edge list as a Pandas DataFrame.
 
