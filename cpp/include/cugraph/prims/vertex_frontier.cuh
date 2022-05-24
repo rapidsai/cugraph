@@ -357,7 +357,7 @@ class vertex_frontier_t {
       thrust::make_zip_iterator(thrust::make_tuple(bucket_indices.begin(), this_bucket.begin()));
     auto new_this_bucket_size = static_cast<size_t>(thrust::distance(
       pair_first,
-      thrust::stable_partition(  // stalbe_partition to maintain sorted order within each bucket
+      thrust::stable_partition(  // stable_partition to maintain sorted order within each bucket
         handle_ptr_->get_thrust_policy(),
         pair_first,
         pair_first + bucket_indices.size(),
@@ -397,7 +397,7 @@ class vertex_frontier_t {
     } else if (to_bucket_indices.size() == 2) {
       auto next_bucket_size = static_cast<size_t>(thrust::distance(
         pair_first,
-        thrust::stable_partition(  // stalbe_partition to maintain sorted order within each bucket
+        thrust::stable_partition(  // stable_partition to maintain sorted order within each bucket
           handle_ptr_->get_thrust_policy(),
           pair_first,
           pair_last,
@@ -410,7 +410,7 @@ class vertex_frontier_t {
         next_bucket_size,
         static_cast<size_t>(thrust::distance(pair_first + next_bucket_size, pair_last))};
     } else {
-      thrust::stable_sort(  // stalbe_sort to maintain sorted order within each bucket
+      thrust::stable_sort(  // stable_sort to maintain sorted order within each bucket
         handle_ptr_->get_thrust_policy(),
         pair_first,
         pair_last,
