@@ -17,10 +17,10 @@
 #pragma once
 
 #include <cugraph/detail/decompress_edge_partition.cuh>
-#include <cugraph/detail/graph_utils.cuh>
 #include <cugraph/edge_partition_device_view.cuh>
 #include <cugraph/partition_manager.hpp>
 #include <cugraph/utilities/device_comm.cuh>
+#include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/host_scalar_comm.cuh>
 
 #include <raft/handle.hpp>
@@ -923,11 +923,11 @@ count_and_remove_duplicates(raft::handle_t const& handle,
 
   thrust::sort(handle.get_thrust_policy(), tuple_iter_begin, tuple_iter_begin + src.size());
 
-  auto num_uniques =
-    thrust::count_if(handle.get_thrust_policy(),
-                     thrust::make_counting_iterator(size_t{0}),
-                     thrust::make_counting_iterator(src.size()),
-                     detail::is_first_in_run_pair_t<vertex_t>{src.data(), dst.data()});
+  auto pair_first  = thrust::make_zip_iterator(thrust::make_tuple(src.begin(), dst.begin()));
+  auto num_uniques = thrust::count_if(handle.get_thrust_policy(),
+                                      thrust::make_counting_iterator(size_t{0}),
+                                      thrust::make_counting_iterator(src.size()),
+                                      detail::is_first_in_run_t<decltype(pair_first)>{pair_first});
 
   rmm::device_uvector<vertex_t> result_src(num_uniques, handle.get_stream());
   rmm::device_uvector<vertex_t> result_dst(num_uniques, handle.get_stream());
