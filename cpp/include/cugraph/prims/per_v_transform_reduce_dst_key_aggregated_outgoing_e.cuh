@@ -147,7 +147,7 @@ struct reduce_with_init_t {
  * @brief Iterate over every vertex's destination key-aggregated outgoing edges to update vertex
  * property values.
  *
- * This function is inspired by thrust::transfrom_reduce().
+ * This function is inspired by thrust::transform_reduce().
  * Unlike per_v_transform_reduce_outgoing_e, this function first aggregates outgoing edges by
  * destination keys to support two level reduction for every vertex.
  *

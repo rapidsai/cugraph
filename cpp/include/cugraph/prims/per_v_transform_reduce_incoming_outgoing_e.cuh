@@ -885,7 +885,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
 /**
  * @brief Iterate over every vertex's incoming edges to update vertex properties.
  *
- * This function is inspired by thrust::transfrom_reduce.
+ * This function is inspired by thrust::transform_reduce.
  *
  * @tparam GraphViewType Type of the passed non-owning graph object.
  * @tparam EdgePartitionSrcValueInputWrapper Type of the wrapper for edge partition source property
@@ -950,7 +950,7 @@ void per_v_transform_reduce_incoming_e(
 /**
  * @brief Iterate over every vertex's outgoing edges to update vertex properties.
  *
- * This function is inspired by thrust::transfrom_reduce().
+ * This function is inspired by thrust::transform_reduce().
  *
  * @tparam GraphViewType Type of the passed non-owning graph object.
  * @tparam EdgePartitionSrcValueInputWrapper Type of the wrapper for edge partition source property
