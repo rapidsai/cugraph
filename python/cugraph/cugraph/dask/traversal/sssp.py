@@ -46,7 +46,7 @@ def _call_plc_sssp(
     weights = data[0]['value'] \
         if 'value' in data[0].columns \
         else cudf.Series((srcs + 1) / (srcs + 1), dtype='float32')
-    if weights.dtype not in ('float32','double'):
+    if weights.dtype not in ('float32', 'double'):
         weights = weights.astype('double')
 
     mg = MGGraph(

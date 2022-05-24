@@ -137,7 +137,7 @@ def _call_plc_sssp(
     weights = G.edgelist.edgelist_df['weights'] \
         if 'weights' in G.edgelist.edgelist_df \
         else cudf.Series((srcs + 1) / (srcs + 1), dtype='float32')
-    if weights.dtype not in ('float32','double'):
+    if weights.dtype not in ('float32', 'double'):
         weights = weights.astype('double')
 
     handle = ResourceHandle()
