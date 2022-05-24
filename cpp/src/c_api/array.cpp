@@ -364,3 +364,28 @@ extern "C" cugraph_error_code_t cugraph_type_erased_device_array_view_copy(
     return CUGRAPH_UNKNOWN_ERROR;
   }
 }
+
+extern "C" cugraph_error_code_t cugraph_type_erased_device_array_view_as_type(
+  cugraph_type_erased_device_array_t* array,
+  data_type_id_t dtype,
+  cugraph_type_erased_device_array_view_t** result_view,
+  cugraph_error_t** error)
+{
+  auto internal_pointer =
+    reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_t*>(array);
+
+  if (data_type_sz[dtype] == data_type_sz[internal_pointer->type_]) {
+    *result_view = reinterpret_cast<cugraph_type_erased_device_array_view_t*>(
+      new cugraph::c_api::cugraph_type_erased_device_array_view_t{internal_pointer->data_.data(),
+                                                                  internal_pointer->size_,
+                                                                  internal_pointer->data_.size(),
+                                                                  dtype});
+    return CUGRAPH_SUCCESS;
+  } else {
+    std::stringstream ss;
+    ss << "Could not treat type " << internal_pointer->type_ << " as type " << dtype;
+    auto tmp_error = new cugraph::c_api::cugraph_error_t{ss.str().c_str()};
+    *error         = reinterpret_cast<cugraph_error_t*>(tmp_error);
+    return CUGRAPH_INVALID_INPUT;
+  }
+}
