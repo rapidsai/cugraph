@@ -67,6 +67,17 @@ service GaasService {
 
   i32 uptime()
 
+  i32 load_graph_creation_extensions(1:string extension_dir_path
+                                     ) throws (1:GaasError e),
+
+  void unload_graph_creation_extensions(),
+
+  i32 call_graph_creation_extension(1:string func_name,
+                                    2:string func_args_repr,
+                                    3:string func_kwargs_repr
+                                    ) throws (1:GaasError e),
+
+
   i32 create_graph() throws(1:GaasError e),
 
   void delete_graph(1:i32 graph_id) throws (1:GaasError e),
@@ -95,17 +106,10 @@ service GaasService {
 
   i32 get_num_edges(1:i32 graph_id) throws(1:GaasError e),
 
-  BatchedEgoGraphsResult
-  batched_ego_graphs(1:list<i32> seeds,
-                     2:i32 radius,
-                     3:i32 graph_id
-                     ) throws (1:GaasError e),
-
-  Node2vecResult
-  node2vec(1:list<i32> start_vertices,
-           2:i32 max_depth,
-           3:i32 graph_id
-           ) throws (1:GaasError e),
+  list<i32> get_edge_IDs_for_vertices(1:list<i32> src_vert_IDs,
+                                      2:list<i32> dst_vert_IDs,
+                                      3:i32 graph_id
+                             ) throws (1:GaasError e),
 
   i32 extract_subgraph(1:string create_using,
                        2:string selection,
@@ -114,17 +118,6 @@ service GaasService {
                        5:bool allow_multi_edges,
                        6:i32 graph_id
                        ) throws (1:GaasError e),
-
-  i32 load_graph_creation_extensions(1:string extension_dir_path
-                                     ) throws (1:GaasError e),
-
-  void unload_graph_creation_extensions(),
-
-  i32 call_graph_creation_extension(1:string func_name,
-                                    2:string func_args_repr,
-                                    3:string func_kwargs_repr
-                                    ) throws (1:GaasError e),
-
 
   binary get_graph_vertex_dataframe_rows(1:DataframeRowIndex index_or_indices,
                                          2:Value null_replacement_value
@@ -141,6 +134,19 @@ service GaasService {
 
   list<i64> get_graph_edge_dataframe_shape(1:i32 graph_id
                                            ) throws (1:GaasError e),
+
+  BatchedEgoGraphsResult
+  batched_ego_graphs(1:list<i32> seeds,
+                     2:i32 radius,
+                     3:i32 graph_id
+                     ) throws (1:GaasError e),
+
+  Node2vecResult
+  node2vec(1:list<i32> start_vertices,
+           2:i32 max_depth,
+           3:i32 graph_id
+           ) throws (1:GaasError e),
+
 
 }
 """

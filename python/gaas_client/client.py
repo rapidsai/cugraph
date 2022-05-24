@@ -80,7 +80,7 @@ class GaasClient:
             return ret_val
         return wrapped_method
 
-    def open(self, call_timeout=90000):
+    def open(self, call_timeout=900000):
         """
         Opens a connection to the server at self.host/self.port if one is not
         already established. close() must be called in order to allow other
@@ -95,7 +95,7 @@ class GaasClient:
 
         Parameters
         ----------
-        call_timeout : int (default is 90000)
+        call_timeout : int (default is 900000)
             Time in millisecods that calls to the server using this open
             connection must return by.
 
@@ -540,6 +540,17 @@ class GaasClient:
         10000
         """
         return self.__client.get_num_edges(graph_id)
+
+    @__server_connection
+    def get_edge_IDs_for_vertices(self, src_vert_IDs, dst_vert_IDs,
+                                  graph_id=defaults.graph_id):
+        """
+        """
+        # FIXME: finish docstring above
+        # FIXME: add type checking
+        return self.__client.get_edge_IDs_for_vertices(src_vert_IDs,
+                                                       dst_vert_IDs,
+                                                       graph_id)
 
     @__server_connection
     def extract_subgraph(self,

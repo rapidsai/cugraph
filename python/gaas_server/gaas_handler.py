@@ -209,6 +209,31 @@ class GaasHandler:
         # work too.
         return pG.num_edges
 
+    def get_edge_IDs_for_vertices(self, src_vert_IDs, dst_vert_IDs, graph_id):
+        """
+        """
+        # FIXME: write docstring above
+        G = self._get_graph(graph_id)
+        if isinstance(G, PropertyGraph):
+            # FIXME: also support PropertyGraph instances
+            raise GaasError("get_edge_IDs_for_vertices() only accepts an "
+                            "extracted subgraph ID, got a PropertyGraph ID.")
+
+        # Lookup each edge ID in the graph edge_data (created during
+        # extract_subgraph())
+        edge_IDs = []
+        num_edges = len(src_vert_IDs)
+        for i in range(num_edges):
+            src_mask = G.edge_data[PropertyGraph.src_col_name] == \
+                src_vert_IDs[i]
+            dst_mask = G.edge_data[PropertyGraph.dst_col_name] == \
+                dst_vert_IDs[i]
+            value = G.edge_data[src_mask & dst_mask]\
+                [PropertyGraph.edge_id_col_name].to_arrow()[0].as_py()
+            edge_IDs.append(value)
+
+        return edge_IDs
+
     def extract_subgraph(self,
                          create_using,
                          selection,
@@ -300,6 +325,8 @@ class GaasHandler:
     def batched_ego_graphs(self, seeds, radius, graph_id):
         """
         """
+        st=time.time()
+        print("\n----- [GaaS] -----> starting egonet", flush=True)
         # FIXME: finish docstring above
         # FIXME: exception handling
         G = self._get_graph(graph_id)
@@ -312,19 +339,24 @@ class GaasHandler:
             # FIXME: this should not be needed, need to update
             # cugraph.batched_ego_graphs to also accept a list
             seeds = cudf.Series(seeds, dtype="int32")
-
+            st2=time.time()
+            print("  ----- [GaaS] -----> calling cuGraph", flush=True)
             (ego_edge_list, seeds_offsets) = \
                 cugraph.batched_ego_graphs(G, seeds, radius)
-
+            print(f"  ----- [GaaS] -----> FINISHED calling cuGraph, time was: {time.time()-st2}s", flush=True)
+            st2=time.time()
+            print("  ----- [GaaS] -----> copying to host", flush=True)
             batched_ego_graphs_result = BatchedEgoGraphsResult(
                 src_verts=ego_edge_list["src"].to_arrow().to_pylist(),
                 dst_verts=ego_edge_list["dst"].to_arrow().to_pylist(),
                 edge_weights=ego_edge_list["weight"].to_arrow().to_pylist(),
                 seeds_offsets=seeds_offsets.to_arrow().to_pylist()
             )
+            print(f"  ----- [GaaS] -----> FINISHED copying to host, time was: {time.time()-st2}s", flush=True)
         except:
             raise GaasError(f"{traceback.format_exc()}")
 
+        print(f"----- [GaaS] -----> FINISHED egonet, time was: {time.time()-st}s", flush=True)
         return batched_ego_graphs_result
 
     def node2vec(self, start_vertices, max_depth, graph_id):

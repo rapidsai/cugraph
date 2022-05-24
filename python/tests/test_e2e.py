@@ -396,3 +396,17 @@ def test_batched_ego_graphs(client_with_edgelist_csv_loaded):
 
     assert isinstance(seeds_offsets, Sequence)
     assert len(srcs) == seeds_offsets[-1]
+
+
+def test_get_edge_IDs_for_vertices(client_with_edgelist_csv_loaded):
+    (client, test_data) = client_with_edgelist_csv_loaded
+
+    extracted_gid = client.extract_subgraph()
+
+    srcs = [1, 2, 3]
+    dsts = [0, 0, 0]
+
+    edge_IDs = client.get_edge_IDs_for_vertices(srcs, dsts,
+                                                graph_id=extracted_gid)
+
+    assert len(edge_IDs) == len(srcs)
