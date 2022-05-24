@@ -65,8 +65,8 @@ from pylibcugraph.utils cimport (
 )
 
 
-def EXPERIMENTAL__uniform_neighborhood_sampling(ResourceHandle resource_handle,
-                               MGGraph input_graph,
+def EXPERIMENTAL__uniform_neighbor_sample(ResourceHandle resource_handle,
+                               _GPUGraph input_graph,
                                start_list,
                                h_fan_out,
                                bool_t with_replacement,

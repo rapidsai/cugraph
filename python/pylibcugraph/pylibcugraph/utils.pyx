@@ -154,6 +154,7 @@ cdef copy_to_cupy_array(
 cdef copy_to_cupy_array_ids(
    cugraph_resource_handle_t* c_resource_handle_ptr,
    cugraph_type_erased_device_array_view_t* device_array_view_ptr):
+    # FIXME: Update this docstring
     """
     Copy the contents from a device array view as returned by various cugraph_*
     APIs to a new cupy device array, typically intended to be used as a return
@@ -164,17 +165,11 @@ cdef copy_to_cupy_array_ids(
     cdef c_type = cugraph_type_erased_device_array_view_type(
         device_array_view_ptr)
 
-    #cdef c_type = data_type_id_t.INT32
     array_size = cugraph_type_erased_device_array_view_size(
         device_array_view_ptr)
 
     cupy_array = cupy.zeros(
         array_size, dtype=get_numpy_edge_ids_type_from_c_weight_type(c_type))
-
-    """
-    cupy_array = cupy.zeros(
-        array_size, dtype=numpy.int32)
-    """
 
     cdef uintptr_t cupy_array_ptr = \
         cupy_array.__cuda_array_interface__["data"][0]

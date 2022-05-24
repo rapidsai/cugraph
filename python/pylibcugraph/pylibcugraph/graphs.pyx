@@ -298,7 +298,6 @@ cdef class MGGraph(_GPUGraph):
         cdef uintptr_t cai_weights_ptr = \
             weight_array.__cuda_array_interface__["data"][0]
         cdef cugraph_type_erased_device_array_view_t* weights_view_ptr
-        print("the weight array type is ", weight_array.dtype)
         
         if weight_array.dtype in [numpy.int32, numpy.int64]:
             weights_view_ptr = \

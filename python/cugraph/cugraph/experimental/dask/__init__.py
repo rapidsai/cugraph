@@ -13,7 +13,7 @@
 
 from cugraph.utilities.api_tools import experimental_warning_wrapper
 
-from cugraph.dask.sampling.neighborhood_sampling import \
-    EXPERIMENTAL__uniform_neighborhood
-uniform_neighborhood_sampling = \
-    experimental_warning_wrapper(EXPERIMENTAL__uniform_neighborhood)
+from cugraph.dask.sampling.uniform_neighbor_sample import \
+    uniform_neighbor_sample
+uniform_neighbor_sample = \
+    experimental_warning_wrapper(uniform_neighbor_sample)

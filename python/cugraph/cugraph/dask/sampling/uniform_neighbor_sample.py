@@ -18,17 +18,20 @@ from dask.distributed import wait, default_client
 import dask_cudf
 import cudf
 
-from pylibcugraph.experimental import (MGGraph,
-                                       ResourceHandle,
-                                       GraphProperties,
-                                       uniform_neighborhood_sampling,
-                                       )
+from pylibcugraph.experimental import (
+    MGGraph,
+    ResourceHandle,
+    GraphProperties,
+    uniform_neighbor_sample as pylibcugraph_uniform_neighbor_sample,
+    )
 from cugraph.dask.common.input_utils import get_distributed_data
 from cugraph.dask.comms import comms as Comms
 
 
 def call_nbr_sampling(sID,
                       data,
+                      idx,
+                      num_edges_per_partition,
                       src_col_name,
                       dst_col_name,
                       num_edges,
@@ -43,9 +46,15 @@ def call_nbr_sampling(sID,
     graph_properties = GraphProperties(is_symmetric=False, is_multigraph=False)
     srcs = data[0][src_col_name]
     dsts = data[0][dst_col_name]
-    weights = None
+    # Weights are not currently supported. Create an edge_ids
+    # column of the same type as the vertices. They will be
+    # ignored during the algo computation
+    # FIXME: Drop the edge_ids once weights are supported
+    edge_ids = None
     if "value" in data[0].columns:
-        weights = data[0]['value']
+        start = sum(num_edges_per_partition[:idx])
+        end = start + num_edges_per_partition[idx]
+        edge_ids = cudf.Series(range(start, end), dtype=srcs.dtype)
 
     store_transposed = False
 
@@ -53,17 +62,17 @@ def call_nbr_sampling(sID,
                  graph_properties,
                  srcs,
                  dsts,
-                 weights,
+                 edge_ids,
                  store_transposed,
                  num_edges,
                  do_expensive_check)
 
-    ret_val = uniform_neighborhood_sampling(handle,
-                                            mg,
-                                            start_list,
-                                            h_fan_out,
-                                            with_replacement,
-                                            do_expensive_check)
+    ret_val = pylibcugraph_uniform_neighbor_sample(handle,
+                                                   mg,
+                                                   start_list,
+                                                   h_fan_out,
+                                                   with_replacement,
+                                                   do_expensive_check)
     return ret_val
 
 
@@ -80,10 +89,10 @@ def convert_to_cudf(cp_arrays):
     return df
 
 
-def EXPERIMENTAL__uniform_neighborhood(input_graph,
-                                       start_list,
-                                       fanout_vals,
-                                       with_replacement=True):
+def uniform_neighbor_sample(input_graph,
+                            start_list,
+                            fanout_vals,
+                            with_replacement=True):
     """
     Does neighborhood sampling, which samples nodes from a graph based on the
     current node's neighbors, with a corresponding fanout value at each hop.
@@ -94,7 +103,7 @@ def EXPERIMENTAL__uniform_neighborhood(input_graph,
         cuGraph graph, which contains connectivity information as dask cudf
         edge list dataframe
 
-    start_info_list : list or cudf.Series (int32)
+    start_list : list or cudf.Series (int32)
         a list of starting vertices for sampling
 
     fanout_vals : list (int32)
@@ -126,6 +135,9 @@ def EXPERIMENTAL__uniform_neighborhood(input_graph,
     input_graph.compute_renumber_edge_list(
         transposed=False, legacy_renum_only=True)
 
+    if isinstance(start_list, int):
+        start_list = [start_list]
+
     if isinstance(start_list, list):
         start_list = cudf.Series(start_list)
         if start_list.dtype != 'int32':
@@ -140,12 +152,16 @@ def EXPERIMENTAL__uniform_neighborhood(input_graph,
         raise TypeError("fanout_vals must be a list, "
                         f"got: {type(fanout_vals)}")
 
+    # FIXME: Add graph property for multigraph
     ddf = input_graph.edgelist.edgelist_df
-    num_edges = len(ddf)
-    data = get_distributed_data(ddf)
-
     src_col_name = input_graph.renumber_map.renumbered_src_col_name
     dst_col_name = input_graph.renumber_map.renumbered_dst_col_name
+
+    num_edges_per_partition = [len(
+        ddf.get_partition(p)) for p in range(ddf.npartitions)]
+
+    num_edges = len(ddf)
+    data = get_distributed_data(ddf)
 
     # start_list uses "external" vertex IDs, but if the graph has been
     # renumbered, the start vertex IDs must also be renumbered.
@@ -157,6 +173,8 @@ def EXPERIMENTAL__uniform_neighborhood(input_graph,
     result = [client.submit(call_nbr_sampling,
                             Comms.get_session_id(),
                             wf[1],
+                            idx,
+                            num_edges_per_partition,
                             src_col_name,
                             dst_col_name,
                             num_edges,
@@ -177,7 +195,7 @@ def EXPERIMENTAL__uniform_neighborhood(input_graph,
 
     ddf = dask_cudf.from_delayed(cudf_result)
     if input_graph.renumbered:
-        ddf = input_graph.unrenumber(ddf, "sources")
-        ddf = input_graph.unrenumber(ddf, "destinations")
+        ddf = input_graph.unrenumber(ddf, "sources", preserve_order=True)
+        ddf = input_graph.unrenumber(ddf, "destinations", preserve_order=True)
 
     return ddf
