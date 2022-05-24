@@ -343,14 +343,16 @@ class GaasHandler:
             print("  ----- [GaaS] -----> calling cuGraph", flush=True)
             (ego_edge_list, seeds_offsets) = \
                 cugraph.batched_ego_graphs(G, seeds, radius)
+
             print(f"  ----- [GaaS] -----> FINISHED calling cuGraph, time was: {time.time()-st2}s", flush=True)
             st2=time.time()
             print("  ----- [GaaS] -----> copying to host", flush=True)
+            print(f"  ----- [GaaS] -----> {len(ego_edge_list['src'])} num edges", flush=True)
             batched_ego_graphs_result = BatchedEgoGraphsResult(
-                src_verts=ego_edge_list["src"].to_arrow().to_pylist(),
-                dst_verts=ego_edge_list["dst"].to_arrow().to_pylist(),
-                edge_weights=ego_edge_list["weight"].to_arrow().to_pylist(),
-                seeds_offsets=seeds_offsets.to_arrow().to_pylist()
+                src_verts=ego_edge_list["src"].values_host.tobytes(),  #int32
+                dst_verts=ego_edge_list["dst"].values_host.tobytes(),  #int32
+                edge_weights=ego_edge_list["weight"].values_host.tobytes(),  #float64
+                seeds_offsets=seeds_offsets.values_host.tobytes()  #int64
             )
             print(f"  ----- [GaaS] -----> FINISHED copying to host, time was: {time.time()-st2}s", flush=True)
         except:
