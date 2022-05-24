@@ -18,11 +18,12 @@ from dask.distributed import wait, default_client
 import dask_cudf
 import cudf
 
-from pylibcugraph.proto import uniform_neighborhood_sampling
-from pylibcugraph.experimental import (MGGraph,
-                                       ResourceHandle,
-                                       GraphProperties,
-                                       )
+from pylibcugraph.experimental import (
+    MGGraph,
+    ResourceHandle,
+    GraphProperties,
+    neighborhood_sampling as pylibcugraph_neighborhood_sampling
+    )
 
 
 from cugraph.dask.common.input_utils import get_distributed_data
@@ -61,13 +62,13 @@ def call_nbr_sampling(sID,
                  num_edges,
                  do_expensive_check)
 
-    ret_val = uniform_neighborhood_sampling(handle,
-                                            mg,
-                                            start_list,
-                                            info_list,
-                                            h_fan_out,
-                                            with_replacement,
-                                            do_expensive_check)
+    ret_val = pylibcugraph_neighborhood_sampling(handle,
+                                                 mg,
+                                                 start_list,
+                                                 info_list,
+                                                 h_fan_out,
+                                                 with_replacement,
+                                                 do_expensive_check)
     return ret_val
 
 
@@ -87,10 +88,10 @@ def convert_to_cudf(cp_arrays):
     return df
 
 
-def uniform_neighborhood(input_graph,
-                         start_info_list,
-                         fanout_vals,
-                         with_replacement=True):
+def neighborhood_sampling(input_graph,
+                          start_info_list,
+                          fanout_vals,
+                          with_replacement=True):
     """
     Does neighborhood sampling, which samples nodes from a graph based on the
     current node's neighbors, with a corresponding fanout value at each hop.

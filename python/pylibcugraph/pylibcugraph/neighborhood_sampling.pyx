@@ -14,6 +14,7 @@
 # Have cython use python 3 syntax
 # cython: language_level = 3
 
+import warnings
 from libc.stdint cimport uintptr_t
 
 from pylibcugraph._cugraph_c.resource_handle cimport (
@@ -61,13 +62,13 @@ from pylibcugraph.utils cimport (
 )
 
 
-def uniform_neighborhood_sampling(ResourceHandle resource_handle,
-                               MGGraph input_graph,
-                               start_list,
-                               labels_list,
-                               h_fan_out,
-                               bool_t with_replacement,
-                               bool_t do_expensive_check):
+def neighborhood_sampling(ResourceHandle resource_handle,
+                          MGGraph input_graph,
+                          start_list,
+                          labels_list,
+                          h_fan_out,
+                          bool_t with_replacement,
+                          bool_t do_expensive_check):
     """
     Does neighborhood sampling, which samples nodes from a graph based on the
     current node's neighbors, with a corresponding fanout value at each hop.
@@ -109,6 +110,10 @@ def uniform_neighborhood_sampling(ResourceHandle resource_handle,
     array containing the indices for reconstructing paths.
 
     """
+    warning_msg = ("This call is deprecated and will be removed"
+                   "in the next release")
+    warnings.warn(warning_msg, PendingDeprecationWarning)
+    
     cdef cugraph_resource_handle_t* c_resource_handle_ptr = \
         resource_handle.c_resource_handle_ptr
     cdef cugraph_graph_t* c_graph_ptr = input_graph.c_graph_ptr

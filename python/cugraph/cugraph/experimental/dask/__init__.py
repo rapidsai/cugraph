@@ -17,3 +17,7 @@ from cugraph.dask.sampling.uniform_neighbor_sample import \
     uniform_neighbor_sample
 uniform_neighbor_sample = \
     experimental_warning_wrapper(uniform_neighbor_sample)
+
+# FIXME: This call is deprecated and will be removed in the next release
+from cugraph.dask.sampling.neighborhood_sampling import \
+    neighborhood_sampling
