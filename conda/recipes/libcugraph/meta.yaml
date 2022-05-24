@@ -16,9 +16,6 @@ source:
 
 build:
   script_env:
-    - CC
-    - CXX
-    - CUDAHOSTCXX
     - PARALLEL_LEVEL
     - VERSION_SUFFIX
     - CMAKE_GENERATOR
@@ -34,6 +31,10 @@ build:
 requirements:
   build:
     - cmake {{ cmake_version }}
+    - {{ compiler('c') }}
+    - {{ compiler('cxx') }}
+    - {{ compiler('cuda') }} {{ cuda_version }}
+    - sysroot_{{ target_platform }} {{ sysroot_version }}
   host:
     - doxygen {{ doxygen_version }}
     - cudatoolkit {{ cuda_version }}.*
@@ -54,6 +55,8 @@ outputs:
     build:
       number: {{ GIT_DESCRIBE_NUMBER }}
       string: cuda{{ cuda_major }}_{{ GIT_DESCRIBE_HASH }}_{{ GIT_DESCRIBE_NUMBER }}
+      ignore_run_exports_from:
+        - {{ compiler('cuda') }}
     requirements:
       build:
         - cmake {{ cmake_version }}
@@ -76,6 +79,8 @@ outputs:
     build:
       number: {{ GIT_DESCRIBE_NUMBER }}
       string: cuda{{ cuda_major }}_{{ GIT_DESCRIBE_HASH }}_{{ GIT_DESCRIBE_NUMBER }}
+      ignore_run_exports_from:
+        - {{ compiler('cuda') }}
     requirements:
       build:
         - cmake {{ cmake_version }}
@@ -96,6 +101,8 @@ outputs:
     build:
       number: {{ GIT_DESCRIBE_NUMBER }}
       string: cuda{{ cuda_major }}_{{ GIT_DESCRIBE_HASH }}_{{ GIT_DESCRIBE_NUMBER }}
+      ignore_run_exports_from:
+        - {{ compiler('cuda') }}
     requirements:
       build:
         - cmake {{ cmake_version }}

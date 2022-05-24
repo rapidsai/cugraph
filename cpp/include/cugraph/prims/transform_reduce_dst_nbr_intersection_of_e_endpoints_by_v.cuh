@@ -252,11 +252,10 @@ void transform_reduce_dst_nbr_intersection_of_e_endpoints_by_v(
     d_vertex_partition_range_lasts_in_edge_partition_minor_range =
       rmm::device_uvector<vertex_t>(row_comm_size, handle.get_stream());
     auto h_vertex_partition_range_lasts = graph_view.vertex_partition_range_lasts();
-    raft::update_device(
-      (*d_vertex_partition_range_lasts_in_edge_partition_minor_range).data(),
-      h_vertex_partition_range_lasts.data() + row_comm_size * col_comm_rank,
-      h_vertex_partition_range_lasts.size() + row_comm_size * (col_comm_rank + int{1}),
-      handle.get_stream());
+    raft::update_device((*d_vertex_partition_range_lasts_in_edge_partition_minor_range).data(),
+                        h_vertex_partition_range_lasts.data() + row_comm_size * col_comm_rank,
+                        row_comm_size,
+                        handle.get_stream());
   }
 
   for (size_t i = 0; i < graph_view.number_of_local_edge_partitions(); ++i) {

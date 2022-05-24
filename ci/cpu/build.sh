@@ -78,6 +78,8 @@ else
   CONDA_LOCAL_CHANNEL="ci/artifacts/cugraph/cpu/.conda-bld/"
 fi
 
+# FIXME: Move boa install to gpuci/rapidsai
+gpuci_mamba_retry install -c conda-forge boa
 
 ###############################################################################
 # BUILD - Conda package builds
@@ -86,9 +88,9 @@ fi
 if [ "$BUILD_LIBCUGRAPH" == '1' ]; then
   gpuci_logger "Building conda package for libcugraph and libcugraph_etl"
   if [[ -z "$PROJECT_FLASH" || "$PROJECT_FLASH" == "0" ]]; then
-    gpuci_conda_retry build --no-build-id --croot ${CONDA_BLD_DIR} conda/recipes/libcugraph
+    gpuci_conda_retry mambabuild --no-build-id --croot ${CONDA_BLD_DIR} conda/recipes/libcugraph
   else
-    gpuci_conda_retry build --no-build-id --croot ${CONDA_BLD_DIR} --dirty --no-remove-work-dir conda/recipes/libcugraph
+    gpuci_conda_retry mambabuild --no-build-id --croot ${CONDA_BLD_DIR} --dirty --no-remove-work-dir conda/recipes/libcugraph
     mkdir -p ${CONDA_BLD_DIR}/libcugraph
     mv ${CONDA_BLD_DIR}/work ${CONDA_BLD_DIR}/libcugraph/work
   fi
@@ -101,11 +103,11 @@ fi
 if [ "$BUILD_CUGRAPH" == "1" ]; then
   gpuci_logger "Building conda packages for pylibcugraph and cugraph"
   if [[ -z "$PROJECT_FLASH" || "$PROJECT_FLASH" == "0" ]]; then
-    gpuci_conda_retry build --no-build-id --croot ${CONDA_BLD_DIR} conda/recipes/pylibcugraph --python=$PYTHON
-    gpuci_conda_retry build --no-build-id --croot ${CONDA_BLD_DIR} conda/recipes/cugraph --python=$PYTHON
+    gpuci_conda_retry mambabuild --no-build-id --croot ${CONDA_BLD_DIR} conda/recipes/pylibcugraph --python=$PYTHON
+    gpuci_conda_retry mambabuild --no-build-id --croot ${CONDA_BLD_DIR} conda/recipes/cugraph --python=$PYTHON
   else
-    gpuci_conda_retry build --no-build-id --croot ${CONDA_BLD_DIR} conda/recipes/pylibcugraph -c ${CONDA_LOCAL_CHANNEL} --dirty --no-remove-work-dir --python=$PYTHON
-    gpuci_conda_retry build --no-build-id --croot ${CONDA_BLD_DIR} conda/recipes/cugraph -c ${CONDA_LOCAL_CHANNEL} --dirty --no-remove-work-dir --python=$PYTHON
+    gpuci_conda_retry mambabuild --no-build-id --croot ${CONDA_BLD_DIR} conda/recipes/pylibcugraph -c ${CONDA_LOCAL_CHANNEL} --dirty --no-remove-work-dir --python=$PYTHON
+    gpuci_conda_retry mambabuild --no-build-id --croot ${CONDA_BLD_DIR} conda/recipes/cugraph -c ${CONDA_LOCAL_CHANNEL} --dirty --no-remove-work-dir --python=$PYTHON
     mkdir -p ${CONDA_BLD_DIR}/cugraph
     mv ${CONDA_BLD_DIR}/work ${CONDA_BLD_DIR}/cugraph/work
   fi
