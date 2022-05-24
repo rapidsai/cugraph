@@ -183,8 +183,6 @@ class NumberMap:
             self.numbered = False
 
         def to_internal_vertex_id(self, ddf, col_names):
-            print("mapping is \n", self.ddf.compute())
-            print("Original df is \n", ddf.compute())
             tmp_ddf = ddf[col_names].rename(
                 columns=dict(zip(col_names, self.col_names)))
             for name in self.col_names:
@@ -650,7 +648,6 @@ class NumberMap:
                 else:
                     renumber_map.implementation.ddf = renumbering_map.rename(
                         columns={'original_ids': '0', 'new_ids': 'global_id'})
-                renumber_map.implementation.numbered = True
                 return renumbered_df, renumber_map, aggregate_segment_offsets
 
             else:
@@ -681,7 +678,6 @@ class NumberMap:
                         columns={
                             'original_ids': '0', 'new_ids': 'id'}, copy=False)
 
-                renumber_map.implementation.numbered = True
                 return renumbered_df, renumber_map, segment_offsets
             else:
                 # There is no aggregate_segment_offsets since the
