@@ -29,8 +29,8 @@ def experimental_warning_wrapper(obj):
     have a public name within the experimental namespace so it can be easily
     discovered and used.
     """
-    api_tools.experimental_warning_wrapper(obj)
+    return api_tools.experimental_warning_wrapper(obj)
 
 
 def promoted_experimental_warning_wrapper(obj):
-    api_tools.promoted_experimental_warning_wrapper(obj)
+    return api_tools.promoted_experimental_warning_wrapper(obj)
