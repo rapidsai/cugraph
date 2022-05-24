@@ -66,3 +66,23 @@ int create_mg_test_graph(const cugraph_resource_handle_t* p_handle,
                          bool_t is_symmetric,
                          cugraph_graph_t** p_graph,
                          cugraph_error_t** ret_error);
+
+int create_mg_test_graph_double(const cugraph_resource_handle_t* p_handle,
+                                int32_t* h_src,
+                                int32_t* h_dst,
+                                double* h_wgt,
+                                size_t num_edges,
+                                bool_t store_transposed,
+                                bool_t is_symmetric,
+                                cugraph_graph_t** p_graph,
+                                cugraph_error_t** ret_error);
+
+int create_mg_test_graph_with_edge_ids(const cugraph_resource_handle_t* p_handle,
+                                       int32_t* h_src,
+                                       int32_t* h_dst,
+                                       int32_t* h_idx,
+                                       size_t num_edges,
+                                       bool_t store_transposed,
+                                       bool_t is_symmetric,
+                                       cugraph_graph_t** p_graph,
+                                       cugraph_error_t** ret_error);

@@ -41,11 +41,13 @@ def _call_plc_sssp(
     comms_handle = Comms.get_handle(sID)
     resource_handle = ResourceHandle(comms_handle.getHandle())
 
-    srcs = cudf.Series(data[0][src_col_name], dtype='int32')
-    dsts = cudf.Series(data[0][dst_col_name], dtype='int32')
-    weights = cudf.Series(data[0]['value'], dtype='float32') \
+    srcs = data[0][src_col_name]
+    dsts = data[0][dst_col_name]
+    weights = data[0]['value'] \
         if 'value' in data[0].columns \
         else cudf.Series((srcs + 1) / (srcs + 1), dtype='float32')
+    if weights.dtype not in ('float32','double'):
+        weights = weights.astype('double')
 
     mg = MGGraph(
         resource_handle=resource_handle,

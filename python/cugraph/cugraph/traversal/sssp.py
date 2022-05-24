@@ -132,11 +132,13 @@ def _call_plc_sssp(
         cutoff,
         compute_predecessors=True,
         do_expensive_check=False):
-    srcs = G.edgelist.edgelist_df['src'].astype('int32')
-    dsts = G.edgelist.edgelist_df['dst'].astype('int32')
-    weights = G.edgelist.edgelist_df['weights'].astype('float32') \
+    srcs = G.edgelist.edgelist_df['src']
+    dsts = G.edgelist.edgelist_df['dst']
+    weights = G.edgelist.edgelist_df['weights'] \
         if 'weights' in G.edgelist.edgelist_df \
         else cudf.Series((srcs + 1) / (srcs + 1), dtype='float32')
+    if weights.dtype not in ('float32','double'):
+        weights = weights.astype('double')
 
     handle = ResourceHandle()
 
@@ -160,11 +162,14 @@ def _call_plc_sssp(
         do_expensive_check=do_expensive_check
     )
 
-    return cudf.DataFrame({
+    df = cudf.DataFrame({
         'distance': cudf.Series(distances),
         'vertex': cudf.Series(vertices),
         'predecessor': cudf.Series(predecessors),
     })
+
+    print(df)
+    return df
 
 
 # FIXME: if G is a Nx type, the weight attribute is assumed to be "weight", if
