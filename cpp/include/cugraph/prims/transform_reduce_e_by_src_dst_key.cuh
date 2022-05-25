@@ -32,7 +32,7 @@ namespace cugraph {
 namespace detail {
 
 // FIXME: block size requires tuning
-int32_t constexpr per_src_dst_key_transform_reduce_e_kernel_block_size = 128;
+int32_t constexpr transform_reduce_e_by_src_dst_key_kernel_block_size = 128;
 
 template <bool edge_partition_src_key,
           typename GraphViewType,
@@ -225,7 +225,7 @@ __global__ void transform_reduce_by_src_dst_key_mid_degree(
   using weight_t = typename GraphViewType::weight_type;
 
   auto const tid = threadIdx.x + blockIdx.x * blockDim.x;
-  static_assert(per_src_dst_key_transform_reduce_e_kernel_block_size % raft::warp_size() == 0);
+  static_assert(transform_reduce_e_by_src_dst_key_kernel_block_size % raft::warp_size() == 0);
   auto const lane_id = tid % raft::warp_size();
   auto major_start_offset =
     static_cast<size_t>(major_range_first - edge_partition.major_range_first());
@@ -352,7 +352,7 @@ template <bool edge_partition_src_key,
           typename T>
 std::tuple<rmm::device_uvector<typename GraphViewType::vertex_type>,
            decltype(allocate_dataframe_buffer<T>(0, cudaStream_t{nullptr}))>
-per_src_dst_key_transform_reduce_e(
+transform_reduce_e_by_src_dst_key(
   raft::handle_t const& handle,
   GraphViewType const& graph_view,
   EdgePartitionSrcValueInputWrapper edge_partition_src_value_input,
@@ -414,7 +414,7 @@ per_src_dst_key_transform_reduce_e(
         if ((*segment_offsets)[1] > 0) {
           raft::grid_1d_block_t update_grid(
             (*segment_offsets)[1],
-            detail::per_src_dst_key_transform_reduce_e_kernel_block_size,
+            detail::transform_reduce_e_by_src_dst_key_kernel_block_size,
             handle.get_device_properties().maxGridSize[0]);
           detail::transform_reduce_by_src_dst_key_high_degree<edge_partition_src_key, GraphViewType>
             <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
@@ -431,7 +431,7 @@ per_src_dst_key_transform_reduce_e(
         if ((*segment_offsets)[2] - (*segment_offsets)[1] > 0) {
           raft::grid_1d_warp_t update_grid(
             (*segment_offsets)[2] - (*segment_offsets)[1],
-            detail::per_src_dst_key_transform_reduce_e_kernel_block_size,
+            detail::transform_reduce_e_by_src_dst_key_kernel_block_size,
             handle.get_device_properties().maxGridSize[0]);
           detail::transform_reduce_by_src_dst_key_mid_degree<edge_partition_src_key, GraphViewType>
             <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
@@ -448,7 +448,7 @@ per_src_dst_key_transform_reduce_e(
         if ((*segment_offsets)[3] - (*segment_offsets)[2] > 0) {
           raft::grid_1d_thread_t update_grid(
             (*segment_offsets)[3] - (*segment_offsets)[2],
-            detail::per_src_dst_key_transform_reduce_e_kernel_block_size,
+            detail::transform_reduce_e_by_src_dst_key_kernel_block_size,
             handle.get_device_properties().maxGridSize[0]);
           detail::transform_reduce_by_src_dst_key_low_degree<edge_partition_src_key, GraphViewType>
             <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
@@ -466,7 +466,7 @@ per_src_dst_key_transform_reduce_e(
             (*(edge_partition.dcs_nzd_vertex_count()) > 0)) {
           raft::grid_1d_thread_t update_grid(
             *(edge_partition.dcs_nzd_vertex_count()),
-            detail::per_src_dst_key_transform_reduce_e_kernel_block_size,
+            detail::transform_reduce_e_by_src_dst_key_kernel_block_size,
             handle.get_device_properties().maxGridSize[0]);
           detail::transform_reduce_by_src_dst_key_hypersparse<edge_partition_src_key, GraphViewType>
             <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
@@ -482,7 +482,7 @@ per_src_dst_key_transform_reduce_e(
       } else {
         raft::grid_1d_thread_t update_grid(
           edge_partition.major_range_size(),
-          detail::per_src_dst_key_transform_reduce_e_kernel_block_size,
+          detail::transform_reduce_e_by_src_dst_key_kernel_block_size,
           handle.get_device_properties().maxGridSize[0]);
 
         detail::transform_reduce_by_src_dst_key_low_degree<edge_partition_src_key, GraphViewType>
@@ -553,8 +553,6 @@ per_src_dst_key_transform_reduce_e(
 
 }  // namespace detail
 
-// FIXME: EdgeOp & VertexOp in update_frontier_v_push_if_out_nbr concatenates push inidicator or
-// bucket idx with the value while EdgeOp here does not. This is inconsistent. Better be fixed.
 /**
  * @brief Iterate over the entire set of edges and reduce @p edge_op outputs to (key, value) pairs.
  *
@@ -603,15 +601,14 @@ template <typename GraphViewType,
           typename EdgePartitionSrcKeyInputWrapper,
           typename EdgeOp,
           typename T>
-auto per_src_key_transform_reduce_e(
-  raft::handle_t const& handle,
-  GraphViewType const& graph_view,
-  EdgePartitionSrcValueInputWrapper edge_partition_src_value_input,
-  EdgePartitionDstValueInputWrapper edge_partition_dst_value_input,
-  EdgePartitionSrcKeyInputWrapper edge_partition_src_key_input,
-  EdgeOp e_op,
-  T init,
-  bool do_expensive_check = false)
+auto transform_reduce_e_by_src_key(raft::handle_t const& handle,
+                                   GraphViewType const& graph_view,
+                                   EdgePartitionSrcValueInputWrapper edge_partition_src_value_input,
+                                   EdgePartitionDstValueInputWrapper edge_partition_dst_value_input,
+                                   EdgePartitionSrcKeyInputWrapper edge_partition_src_key_input,
+                                   EdgeOp e_op,
+                                   T init,
+                                   bool do_expensive_check = false)
 {
   static_assert(is_arithmetic_or_thrust_tuple_of_arithmetic<T>::value);
   static_assert(std::is_same<typename EdgePartitionSrcKeyInputWrapper::value_type,
@@ -621,17 +618,15 @@ auto per_src_key_transform_reduce_e(
     // currently, nothing to do
   }
 
-  return detail::per_src_dst_key_transform_reduce_e<true>(handle,
-                                                          graph_view,
-                                                          edge_partition_src_value_input,
-                                                          edge_partition_dst_value_input,
-                                                          edge_partition_src_key_input,
-                                                          e_op,
-                                                          init);
+  return detail::transform_reduce_e_by_src_dst_key<true>(handle,
+                                                         graph_view,
+                                                         edge_partition_src_value_input,
+                                                         edge_partition_dst_value_input,
+                                                         edge_partition_src_key_input,
+                                                         e_op,
+                                                         init);
 }
 
-// FIXME: EdgeOp & VertexOp in update_frontier_v_push_if_out_nbr concatenates push inidicator or
-// bucket idx with the value while EdgeOp here does not. This is inconsistent. Better be fixed.
 /**
  * @brief Iterate over the entire set of edges and reduce @p edge_op outputs to (key, value) pairs.
  *
@@ -681,15 +676,14 @@ template <typename GraphViewType,
           typename EdgePartitionDstKeyInputWrapper,
           typename EdgeOp,
           typename T>
-auto per_dst_key_transform_reduce_e(
-  raft::handle_t const& handle,
-  GraphViewType const& graph_view,
-  EdgePartitionSrcValueInputWrapper edge_partition_src_value_input,
-  EdgePartitionDstValueInputWrapper edge_partition_dst_value_input,
-  EdgePartitionDstKeyInputWrapper edge_partition_dst_key_input,
-  EdgeOp e_op,
-  T init,
-  bool do_expensive_check = false)
+auto transform_reduce_e_by_dst_key(raft::handle_t const& handle,
+                                   GraphViewType const& graph_view,
+                                   EdgePartitionSrcValueInputWrapper edge_partition_src_value_input,
+                                   EdgePartitionDstValueInputWrapper edge_partition_dst_value_input,
+                                   EdgePartitionDstKeyInputWrapper edge_partition_dst_key_input,
+                                   EdgeOp e_op,
+                                   T init,
+                                   bool do_expensive_check = false)
 {
   static_assert(is_arithmetic_or_thrust_tuple_of_arithmetic<T>::value);
   static_assert(std::is_same<typename EdgePartitionDstKeyInputWrapper::value_type,
@@ -699,13 +693,13 @@ auto per_dst_key_transform_reduce_e(
     // currently, nothing to do
   }
 
-  return detail::per_src_dst_key_transform_reduce_e<false>(handle,
-                                                           graph_view,
-                                                           edge_partition_src_value_input,
-                                                           edge_partition_dst_value_input,
-                                                           edge_partition_dst_key_input,
-                                                           e_op,
-                                                           init);
+  return detail::transform_reduce_e_by_src_dst_key<false>(handle,
+                                                          graph_view,
+                                                          edge_partition_src_value_input,
+                                                          edge_partition_dst_value_input,
+                                                          edge_partition_dst_key_input,
+                                                          e_op,
+                                                          init);
 }
 
 }  // namespace cugraph

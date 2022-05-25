@@ -21,8 +21,9 @@
 #include <cugraph/prims/edge_partition_src_dst_property.cuh>
 #include <cugraph/prims/reduce_op.cuh>
 #include <cugraph/prims/transform_reduce_e.cuh>
+#include <cugraph/prims/transform_reduce_v_frontier_outgoing_e_by_dst.cuh>
 #include <cugraph/prims/update_edge_partition_src_dst_property.cuh>
-#include <cugraph/prims/update_v_frontier_from_outgoing_e.cuh>
+#include <cugraph/prims/update_v_frontier.cuh>
 #include <cugraph/prims/vertex_frontier.cuh>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/vertex_partition_device_view.cuh>
@@ -161,45 +162,53 @@ void sssp(raft::handle_t const& handle,
     auto vertex_partition = vertex_partition_device_view_t<vertex_t, GraphViewType::is_multi_gpu>(
       push_graph_view.local_vertex_partition_view());
 
-    update_v_frontier_from_outgoing_e(
+    auto [new_frontier_vertex_buffer, distance_predecessor_buffer] =
+      transform_reduce_v_frontier_outgoing_e_by_dst(
+        handle,
+        push_graph_view,
+        vertex_frontier,
+        bucket_idx_cur_near,
+        GraphViewType::is_multi_gpu
+          ? edge_partition_src_distances.device_view()
+          : detail::edge_partition_major_property_device_view_t<vertex_t, weight_t const*>(
+              distances),
+        dummy_property_t<vertex_t>{}.device_view(),
+        [vertex_partition, distances, cutoff] __device__(
+          vertex_t src, vertex_t dst, weight_t w, auto src_val, auto) {
+          auto push         = true;
+          auto new_distance = src_val + w;
+          auto threshold    = cutoff;
+          if (vertex_partition.in_local_vertex_partition_range_nocheck(dst)) {
+            auto local_vertex_offset =
+              vertex_partition.local_vertex_partition_offset_from_vertex_nocheck(dst);
+            auto old_distance = *(distances + local_vertex_offset);
+            threshold         = old_distance < threshold ? old_distance : threshold;
+          }
+          if (new_distance >= threshold) { push = false; }
+          return push ? thrust::optional<thrust::tuple<weight_t, vertex_t>>{thrust::make_tuple(
+                          new_distance, src)}
+                      : thrust::nullopt;
+        },
+        reduce_op::minimum<thrust::tuple<weight_t, vertex_t>>());
+
+    update_v_frontier(
       handle,
       push_graph_view,
+      std::move(new_frontier_vertex_buffer),
+      std::move(distance_predecessor_buffer),
       vertex_frontier,
-      bucket_idx_cur_near,
       std::vector<size_t>{bucket_idx_next_near, bucket_idx_far},
-      GraphViewType::is_multi_gpu
-        ? edge_partition_src_distances.device_view()
-        : detail::edge_partition_major_property_device_view_t<vertex_t, weight_t const*>(distances),
-      dummy_property_t<vertex_t>{}.device_view(),
-      [vertex_partition, distances, cutoff] __device__(
-        vertex_t src, vertex_t dst, weight_t w, auto src_val, auto) {
-        auto push         = true;
-        auto new_distance = src_val + w;
-        auto threshold    = cutoff;
-        if (vertex_partition.in_local_vertex_partition_range_nocheck(dst)) {
-          auto local_vertex_offset =
-            vertex_partition.local_vertex_partition_offset_from_vertex_nocheck(dst);
-          auto old_distance = *(distances + local_vertex_offset);
-          threshold         = old_distance < threshold ? old_distance : threshold;
-        }
-        if (new_distance >= threshold) { push = false; }
-        return push ? thrust::optional<thrust::tuple<weight_t, vertex_t>>{thrust::make_tuple(
-                        new_distance, src)}
-                    : thrust::nullopt;
-      },
-      reduce_op::minimum<thrust::tuple<weight_t, vertex_t>>(),
       distances,
       thrust::make_zip_iterator(thrust::make_tuple(distances, predecessor_first)),
       [near_far_threshold] __device__(auto v, auto v_val, auto pushed_val) {
         auto new_dist = thrust::get<0>(pushed_val);
-        auto idx      = new_dist < v_val
-                          ? (new_dist < near_far_threshold ? bucket_idx_next_near : bucket_idx_far)
-                          : vertex_frontier_t<vertex_t>::kInvalidBucketIdx;
-        return new_dist < v_val
-                 ? thrust::optional<thrust::tuple<size_t, decltype(pushed_val)>>{thrust::make_tuple(
-                     new_dist < near_far_threshold ? bucket_idx_next_near : bucket_idx_far,
-                     pushed_val)}
-                 : thrust::nullopt;
+        auto update   = (new_dist < v_val);
+        return thrust::make_tuple(
+          update ? thrust::optional<size_t>{new_dist < near_far_threshold ? bucket_idx_next_near
+                                                                          : bucket_idx_far}
+                 : thrust::nullopt,
+          update ? thrust::optional<thrust::tuple<weight_t, vertex_t>>{pushed_val}
+                 : thrust::nullopt);
       });
 
     vertex_frontier.bucket(bucket_idx_cur_near).clear();
