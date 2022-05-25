@@ -19,8 +19,9 @@
 #include <cugraph/graph_view.hpp>
 #include <cugraph/prims/edge_partition_src_dst_property.cuh>
 #include <cugraph/prims/reduce_v.cuh>
+#include <cugraph/prims/transform_reduce_v_frontier_outgoing_e_by_dst.cuh>
 #include <cugraph/prims/update_edge_partition_src_dst_property.cuh>
-#include <cugraph/prims/update_v_frontier_from_outgoing_e.cuh>
+#include <cugraph/prims/update_v_frontier.cuh>
 #include <cugraph/prims/vertex_frontier.cuh>
 #include <cugraph/utilities/error.hpp>
 
@@ -193,18 +194,26 @@ void core_number(raft::handle_t const& handle,
         // mask-out/delete edges.
         if (graph_view.is_symmetric() || ((degree_type == k_core_degree_type_t::IN) ||
                                           (degree_type == k_core_degree_type_t::INOUT))) {
-          update_v_frontier_from_outgoing_e(
+          auto [new_frontier_vertex_buffer, delta_buffer] =
+            transform_reduce_v_frontier_outgoing_e_by_dst(
+              handle,
+              graph_view,
+              vertex_frontier,
+              bucket_idx_cur,
+              dummy_property_t<vertex_t>{}.device_view(),
+              dst_core_numbers.device_view(),
+              [k, delta] __device__(vertex_t src, vertex_t dst, auto, auto dst_val) {
+                return dst_val >= k ? thrust::optional<edge_t>{delta} : thrust::nullopt;
+              },
+              reduce_op::plus<edge_t>());
+
+          update_v_frontier(
             handle,
             graph_view,
+            std::move(new_frontier_vertex_buffer),
+            std::move(delta_buffer),
             vertex_frontier,
-            bucket_idx_cur,
             std::vector<size_t>{bucket_idx_next},
-            dummy_property_t<vertex_t>{}.device_view(),
-            dst_core_numbers.device_view(),
-            [k, delta] __device__(vertex_t src, vertex_t dst, auto, auto dst_val) {
-              return dst_val >= k ? thrust::optional<edge_t>{delta} : thrust::nullopt;
-            },
-            reduce_op::plus<edge_t>(),
             core_numbers,
             core_numbers,
             [k_first,
@@ -217,8 +226,8 @@ void core_number(raft::handle_t const& handle,
               auto new_core_number = v_val >= pushed_val ? v_val - pushed_val : edge_t{0};
               new_core_number      = new_core_number < (k - delta) ? (k - delta) : new_core_number;
               new_core_number      = new_core_number < k_first ? edge_t{0} : new_core_number;
-              return thrust::optional<thrust::tuple<size_t, edge_t>>{
-                thrust::make_tuple(bucket_idx_next, new_core_number)};
+              return thrust::make_tuple(thrust::optional<size_t>{bucket_idx_next},
+                                        thrust::optional<edge_t>{new_core_number});
             });
         }
 
