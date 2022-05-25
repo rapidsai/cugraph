@@ -24,8 +24,8 @@
 
 #include <rmm/device_uvector.hpp>
 
-#include <thrust/remove.h>
 #include <thrust/distance.h>
+#include <thrust/remove.h>
 
 namespace cugraph {
 namespace test {

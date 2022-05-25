@@ -26,12 +26,12 @@
 #include <rmm/exec_policy.hpp>
 
 #include <ctime>
-#include <thrust/transform.h>
+#include <thrust/copy.h>
+#include <thrust/distance.h>
 #include <thrust/fill.h>
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/remove.h>
-#include <thrust/distance.h>
-#include <thrust/copy.h>
+#include <thrust/transform.h>
 
 #include <cugraph/legacy/graph.hpp>
 

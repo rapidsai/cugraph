@@ -26,11 +26,11 @@
 #include <rmm/device_vector.hpp>
 #include <rmm/exec_policy.hpp>
 
-#include <thrust/scan.h>
-#include <thrust/transform.h>
-#include <thrust/iterator/zip_iterator.h>
-#include <thrust/sort.h>
 #include <thrust/copy.h>
+#include <thrust/iterator/zip_iterator.h>
+#include <thrust/scan.h>
+#include <thrust/sort.h>
+#include <thrust/transform.h>
 #include <thrust/unique.h>
 
 namespace cugraph {

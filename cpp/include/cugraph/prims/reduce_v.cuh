@@ -24,10 +24,10 @@
 #include <raft/handle.hpp>
 #include <rmm/device_scalar.hpp>
 
-#include <thrust/execution_policy.h>
-#include <thrust/reduce.h>
-#include <thrust/iterator/iterator_traits.h>
 #include <thrust/copy.h>
+#include <thrust/execution_policy.h>
+#include <thrust/iterator/iterator_traits.h>
+#include <thrust/reduce.h>
 
 namespace cugraph {
 

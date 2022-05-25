@@ -24,14 +24,14 @@
 
 #include <thrust/binary_search.h>
 #include <thrust/distance.h>
+#include <thrust/fill.h>
 #include <thrust/iterator/constant_iterator.h>
 #include <thrust/iterator/counting_iterator.h>
-#include <thrust/iterator/transform_iterator.h>
-#include <thrust/optional.h>
 #include <thrust/iterator/iterator_traits.h>
-#include <thrust/fill.h>
-#include <thrust/tuple.h>
+#include <thrust/iterator/transform_iterator.h>
 #include <thrust/iterator/zip_iterator.h>
+#include <thrust/optional.h>
+#include <thrust/tuple.h>
 
 #include <optional>
 #include <type_traits>

@@ -26,8 +26,8 @@
 #include <thrust/for_each.h>
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/optional.h>
-#include <thrust/tuple.h>
 #include <thrust/sequence.h>
+#include <thrust/tuple.h>
 
 #include <optional>
 #include <tuple>

@@ -19,13 +19,13 @@
 #include <raft/random/rng.cuh>
 
 #include <rmm/exec_policy.hpp>
-#include <thrust/sequence.h>
+#include <thrust/functional.h>
 #include <thrust/iterator/zip_iterator.h>
+#include <thrust/reduce.h>
+#include <thrust/sequence.h>
+#include <thrust/transform.h>
 #include <thrust/transform_reduce.h>
 #include <thrust/tuple.h>
-#include <thrust/functional.h>
-#include <thrust/reduce.h>
-#include <thrust/transform.h>
 
 namespace cugraph {
 namespace detail {

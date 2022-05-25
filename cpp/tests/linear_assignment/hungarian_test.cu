@@ -24,9 +24,9 @@
 #include "gtest/gtest.h"
 
 #include <thrust/equal.h>
-#include <thrust/random.h>
 #include <thrust/for_each.h>
 #include <thrust/iterator/counting_iterator.h>
+#include <thrust/random.h>
 
 __global__ void setup_generator(curandState* state)
 {

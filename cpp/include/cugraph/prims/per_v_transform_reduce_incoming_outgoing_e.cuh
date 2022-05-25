@@ -31,17 +31,17 @@
 
 #include <cub/cub.cuh>
 #include <thrust/distance.h>
+#include <thrust/execution_policy.h>
+#include <thrust/fill.h>
+#include <thrust/for_each.h>
 #include <thrust/functional.h>
+#include <thrust/iterator/counting_iterator.h>
+#include <thrust/iterator/transform_iterator.h>
+#include <thrust/optional.h>
+#include <thrust/scatter.h>
 #include <thrust/transform_reduce.h>
 #include <thrust/tuple.h>
 #include <thrust/type_traits/integer_sequence.h>
-#include <thrust/optional.h>
-#include <thrust/iterator/counting_iterator.h>
-#include <thrust/for_each.h>
-#include <thrust/execution_policy.h>
-#include <thrust/fill.h>
-#include <thrust/scatter.h>
-#include <thrust/iterator/transform_iterator.h>
 
 #include <numeric>
 #include <type_traits>

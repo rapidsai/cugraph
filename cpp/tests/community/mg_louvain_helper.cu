@@ -24,18 +24,18 @@
 
 #include <rmm/exec_policy.hpp>
 
-#include <thrust/for_each.h>
-#include <thrust/reduce.h>
-#include <thrust/transform.h>
-#include <thrust/iterator/counting_iterator.h>
-#include <thrust/fill.h>
 #include <thrust/copy.h>
-#include <thrust/iterator/zip_iterator.h>
-#include <thrust/tuple.h>
-#include <thrust/sort.h>
 #include <thrust/distance.h>
-#include <thrust/unique.h>
+#include <thrust/fill.h>
+#include <thrust/for_each.h>
 #include <thrust/functional.h>
+#include <thrust/iterator/counting_iterator.h>
+#include <thrust/iterator/zip_iterator.h>
+#include <thrust/reduce.h>
+#include <thrust/sort.h>
+#include <thrust/transform.h>
+#include <thrust/tuple.h>
+#include <thrust/unique.h>
 
 namespace cugraph {
 namespace test {

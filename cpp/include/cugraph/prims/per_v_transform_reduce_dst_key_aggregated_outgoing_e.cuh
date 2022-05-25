@@ -33,21 +33,21 @@
 #include <rmm/mr/device/per_device_resource.hpp>
 #include <rmm/mr/device/polymorphic_allocator.hpp>
 
-#include <thrust/tuple.h>
-#include <thrust/distance.h>
-#include <thrust/iterator/zip_iterator.h>
-#include <thrust/functional.h>
-#include <thrust/iterator/transform_iterator.h>
 #include <thrust/copy.h>
-#include <thrust/iterator/constant_iterator.h>
-#include <thrust/sort.h>
 #include <thrust/count.h>
-#include <thrust/iterator/counting_iterator.h>
-#include <thrust/reduce.h>
-#include <thrust/unique.h>
-#include <thrust/transform.h>
+#include <thrust/distance.h>
 #include <thrust/fill.h>
+#include <thrust/functional.h>
+#include <thrust/iterator/constant_iterator.h>
+#include <thrust/iterator/counting_iterator.h>
+#include <thrust/iterator/transform_iterator.h>
+#include <thrust/iterator/zip_iterator.h>
+#include <thrust/reduce.h>
 #include <thrust/scatter.h>
+#include <thrust/sort.h>
+#include <thrust/transform.h>
+#include <thrust/tuple.h>
+#include <thrust/unique.h>
 
 #include <type_traits>
 

@@ -36,20 +36,20 @@
 
 #include <cub/cub.cuh>
 #include <thrust/binary_search.h>
+#include <thrust/copy.h>
 #include <thrust/distance.h>
 #include <thrust/functional.h>
 #include <thrust/iterator/constant_iterator.h>
 #include <thrust/iterator/zip_iterator.h>
+#include <thrust/optional.h>
+#include <thrust/reduce.h>
+#include <thrust/remove.h>
+#include <thrust/sort.h>
+#include <thrust/transform.h>
 #include <thrust/transform_reduce.h>
 #include <thrust/tuple.h>
 #include <thrust/type_traits/integer_sequence.h>
-#include <thrust/optional.h>
-#include <thrust/sort.h>
 #include <thrust/unique.h>
-#include <thrust/reduce.h>
-#include <thrust/copy.h>
-#include <thrust/transform.h>
-#include <thrust/remove.h>
 
 #include <algorithm>
 #include <cstdlib>

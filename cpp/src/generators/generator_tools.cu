@@ -22,16 +22,16 @@
 
 #include <rmm/device_uvector.hpp>
 
+#include <thrust/copy.h>
+#include <thrust/distance.h>
+#include <thrust/execution_policy.h>
 #include <thrust/for_each.h>
 #include <thrust/iterator/zip_iterator.h>
+#include <thrust/partition.h>
+#include <thrust/sort.h>
 #include <thrust/transform.h>
 #include <thrust/tuple.h>
-#include <thrust/execution_policy.h>
-#include <thrust/sort.h>
 #include <thrust/unique.h>
-#include <thrust/distance.h>
-#include <thrust/partition.h>
-#include <thrust/copy.h>
 
 #include <numeric>
 

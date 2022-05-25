@@ -22,11 +22,11 @@
 
 #include <rmm/exec_policy.hpp>
 
-#include <thrust/iterator/zip_iterator.h>
-#include <thrust/tuple.h>
-#include <thrust/iterator/transform_iterator.h>
 #include <thrust/fill.h>
+#include <thrust/iterator/transform_iterator.h>
+#include <thrust/iterator/zip_iterator.h>
 #include <thrust/scatter.h>
+#include <thrust/tuple.h>
 
 #include <tuple>
 

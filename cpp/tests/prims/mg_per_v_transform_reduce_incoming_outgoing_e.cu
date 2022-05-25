@@ -39,12 +39,12 @@
 #include <rmm/device_uvector.hpp>
 #include <sstream>
 #include <thrust/count.h>
-#include <thrust/equal.h>
-#include <thrust/tuple.h>
-#include <thrust/functional.h>
-#include <thrust/transform.h>
-#include <thrust/iterator/counting_iterator.h>
 #include <thrust/distance.h>
+#include <thrust/equal.h>
+#include <thrust/functional.h>
+#include <thrust/iterator/counting_iterator.h>
+#include <thrust/transform.h>
+#include <thrust/tuple.h>
 
 #include <gtest/gtest.h>
 

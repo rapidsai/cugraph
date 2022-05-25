@@ -20,12 +20,12 @@
 #include <raft/cudart_utils.h>
 #include <rmm/device_uvector.hpp>
 
-#include <thrust/sequence.h>
-#include <thrust/iterator/zip_iterator.h>
-#include <thrust/tuple.h>
-#include <thrust/iterator/counting_iterator.h>
 #include <thrust/copy.h>
+#include <thrust/iterator/counting_iterator.h>
 #include <thrust/iterator/transform_iterator.h>
+#include <thrust/iterator/zip_iterator.h>
+#include <thrust/sequence.h>
+#include <thrust/tuple.h>
 
 #include <numeric>
 

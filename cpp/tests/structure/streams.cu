@@ -20,8 +20,8 @@
 #include <rmm/device_uvector.hpp>
 #include <rmm/exec_policy.hpp>
 #include <rmm/mr/device/cuda_memory_resource.hpp>
-#include <thrust/transform.h>
 #include <thrust/functional.h>
+#include <thrust/transform.h>
 struct StreamTest : public ::testing::Test {
 };
 TEST_F(StreamTest, basic_test)

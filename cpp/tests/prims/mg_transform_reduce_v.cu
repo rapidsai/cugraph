@@ -35,8 +35,8 @@
 #include <rmm/device_uvector.hpp>
 #include <thrust/count.h>
 #include <thrust/functional.h>
-#include <thrust/tuple.h>
 #include <thrust/iterator/counting_iterator.h>
+#include <thrust/tuple.h>
 
 #include <gtest/gtest.h>
 

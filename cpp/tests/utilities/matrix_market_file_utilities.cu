@@ -25,10 +25,10 @@
 #include <raft/cudart_utils.h>
 #include <rmm/exec_policy.hpp>
 
-#include <thrust/sequence.h>
 #include <thrust/distance.h>
-#include <thrust/remove.h>
 #include <thrust/iterator/zip_iterator.h>
+#include <thrust/remove.h>
+#include <thrust/sequence.h>
 #include <thrust/tuple.h>
 
 #include <cstdint>

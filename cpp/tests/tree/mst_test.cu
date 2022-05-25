@@ -32,9 +32,9 @@
 #include <cmath>
 
 #include "../src/converters/COOtoCSR.cuh"
+#include <thrust/device_ptr.h>
 #include <thrust/iterator/constant_iterator.h>
 #include <thrust/reduce.h>
-#include <thrust/device_ptr.h>
 
 typedef struct Mst_Usecase_t {
   std::string matrix_file;

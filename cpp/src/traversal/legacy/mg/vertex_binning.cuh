@@ -20,8 +20,8 @@
 #include "vertex_binning_kernels.cuh"
 #include <rmm/device_vector.hpp>
 
-#include <thrust/host_vector.h>
 #include <thrust/fill.h>
+#include <thrust/host_vector.h>
 
 namespace cugraph {
 

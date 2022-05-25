@@ -20,10 +20,10 @@
 #include <rmm/device_uvector.hpp>
 
 #include <cub/cub.cuh>
-#include <thrust/iterator/discard_iterator.h>
-#include <thrust/tuple.h>
 #include <thrust/iterator/detail/any_assign.h>
+#include <thrust/iterator/discard_iterator.h>
 #include <thrust/memory.h>
+#include <thrust/tuple.h>
 
 #include <array>
 #include <type_traits>

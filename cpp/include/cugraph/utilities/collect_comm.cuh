@@ -26,18 +26,18 @@
 #include <rmm/mr/device/per_device_resource.hpp>
 #include <rmm/mr/device/polymorphic_allocator.hpp>
 
+#include <thrust/adjacent_difference.h>
 #include <thrust/binary_search.h>
+#include <thrust/copy.h>
 #include <thrust/distance.h>
+#include <thrust/find.h>
+#include <thrust/functional.h>
 #include <thrust/iterator/iterator_traits.h>
 #include <thrust/iterator/zip_iterator.h>
-#include <thrust/functional.h>
-#include <thrust/copy.h>
 #include <thrust/sort.h>
-#include <thrust/unique.h>
-#include <thrust/tuple.h>
-#include <thrust/adjacent_difference.h>
 #include <thrust/transform.h>
-#include <thrust/find.h>
+#include <thrust/tuple.h>
+#include <thrust/unique.h>
 
 #include <iterator>
 #include <memory>
