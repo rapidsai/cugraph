@@ -168,7 +168,6 @@ def _call_plc_sssp(
         'predecessor': cudf.Series(predecessors),
     })
 
-    print(df)
     return df
 
 
@@ -245,6 +244,11 @@ def sssp(G,
     >>> G = cugraph.Graph()
     >>> G.from_cudf_edgelist(M, source='0', destination='1')
     >>> distances = cugraph.sssp(G, 0)
+    >>> distances
+            distance  vertex  predecessor
+    ...       ...     ...         ...
+    ...       ...     ...         ...
+    ...       ...     ...         ...
 
     """
     (source, directed, return_predecessors) = _ensure_args(
