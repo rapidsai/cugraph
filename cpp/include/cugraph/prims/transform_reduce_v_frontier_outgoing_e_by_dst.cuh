@@ -22,6 +22,7 @@
 #include <cugraph/prims/reduce_op.cuh>
 #include <cugraph/utilities/dataframe_buffer.cuh>
 #include <cugraph/utilities/device_comm.cuh>
+#include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/host_scalar_comm.cuh>
 #include <cugraph/utilities/shuffle_comm.cuh>
@@ -57,8 +58,8 @@ namespace detail {
 
 int32_t constexpr update_v_frontier_from_outgoing_e_kernel_block_size = 512;
 
-// we cannot use std::iterator_traits<Iterator>::value_type if Iterator is void* (reference to void
-// is not allowed)
+// we cannot use thrust::iterator_traits<Iterator>::value_type if Iterator is void* (reference to
+// void is not allowed)
 template <typename PayloadIterator, typename Enable = void>
 struct optional_payload_buffer_value_type_t;
 
@@ -66,7 +67,7 @@ template <typename PayloadIterator>
 struct optional_payload_buffer_value_type_t<
   PayloadIterator,
   std::enable_if_t<!std::is_same_v<PayloadIterator, void*>>> {
-  using value = typename std::iterator_traits<PayloadIterator>::value_type;
+  using value = typename thrust::iterator_traits<PayloadIterator>::value_type;
 };
 
 template <typename PayloadIterator>
@@ -76,18 +77,14 @@ struct optional_payload_buffer_value_type_t<
   using value = void;
 };
 
-// FIXME: to silence the spurious warning (missing return statement ...) due to the nvcc bug
-// (https://stackoverflow.com/questions/64523302/cuda-missing-return-statement-at-end-of-non-void-
-// function-in-constexpr-if-fun)
-#if 1
 template <typename payload_t, std::enable_if_t<std::is_same_v<payload_t, void>>* = nullptr>
-std::byte allocate_optional_payload_buffer(size_t size, cudaStream_t stream)
+std::byte allocate_optional_payload_buffer(size_t size, rmm::cuda_stream_view stream)
 {
   return std::byte{0};  // dummy
 }
 
 template <typename payload_t, std::enable_if_t<!std::is_same_v<payload_t, void>>* = nullptr>
-auto allocate_optional_payload_buffer(size_t size, cudaStream_t stream)
+auto allocate_optional_payload_buffer(size_t size, rmm::cuda_stream_view stream)
 {
   return allocate_dataframe_buffer<payload_t>(size, stream);
 }
@@ -101,84 +98,44 @@ void* get_optional_payload_buffer_begin(std::byte& optional_payload_buffer)
 template <typename payload_t, std::enable_if_t<!std::is_same_v<payload_t, void>>* = nullptr>
 auto get_optional_payload_buffer_begin(
   std::add_lvalue_reference_t<decltype(allocate_dataframe_buffer<payload_t>(
-    size_t{0}, cudaStream_t{nullptr}))> optional_payload_buffer)
+    size_t{0}, rmm::cuda_stream_view{}))> optional_payload_buffer)
 {
   return get_dataframe_buffer_begin(optional_payload_buffer);
 }
-#else
-auto allocate_optional_payload_buffer = [](size_t size, cudaStream_t stream) {
-  if constexpr (std::is_same_v<payload_t, void>) {
-    return std::byte{0};  // dummy
-  } else {
-    return allocate_dataframe_buffer<payload_t>(size, stream);
-  }
-};
 
-auto get_optional_payload_buffer_begin = [](auto& optional_payload_buffer) {
-  if constexpr (std::is_same_v<payload_t, void>) {
-    return static_cast<std::byte*>(nullptr);
-  } else {
-    return get_dataframe_buffer_begin(optional_payload_buffer);
-  }
-};
-#endif
+template <typename payload_t, std::enable_if_t<std::is_same_v<payload_t, void>>* = nullptr>
+void resize_optional_payload_buffer(std::byte& optional_payload_buffer,
+                                    size_t new_buffer_size,
+                                    rmm::cuda_stream_view stream_view)
+{
+  return;
+}
 
-// FIXME: a temporary workaround for cudaErrorInvalidDeviceFunction error when device lambda is used
-// in the else part in if constexpr else statement that involves device lambda
-template <typename vertex_t,
-          typename VertexValueInputIterator,
-          typename VertexValueOutputIterator,
-          typename VertexOp,
-          typename key_t,
-          bool multi_gpu>
-struct update_v_frontier_call_v_op_t {
-  VertexValueInputIterator vertex_value_input_first{};
-  VertexValueOutputIterator vertex_value_output_first{};
-  VertexOp v_op{};
-  vertex_partition_device_view_t<vertex_t, multi_gpu> vertex_partition{};
-  size_t invalid_bucket_idx;
+template <typename payload_t, std::enable_if_t<!std::is_same_v<payload_t, void>>* = nullptr>
+void resize_optional_payload_buffer(
+  std::add_lvalue_reference_t<decltype(allocate_dataframe_buffer<payload_t>(
+    size_t{0}, rmm::cuda_stream_view{}))> optional_payload_buffer,
+  size_t new_buffer_size,
+  rmm::cuda_stream_view stream_view)
+{
+  return resize_dataframe_buffer(optional_payload_buffer, new_buffer_size, stream_view);
+}
 
-  template <typename key_type = key_t, typename vertex_type = vertex_t>
-  __device__ std::enable_if_t<std::is_same_v<key_type, vertex_type>, uint8_t> operator()(
-    key_t key) const
-  {
-    auto v_offset    = vertex_partition.local_vertex_partition_offset_from_vertex_nocheck(key);
-    auto v_val       = *(vertex_value_input_first + v_offset);
-    auto v_op_result = v_op(key, v_val);
-    if (v_op_result) {
-      *(vertex_value_output_first + v_offset) = thrust::get<1>(*v_op_result);
-      return static_cast<uint8_t>(thrust::get<0>(*v_op_result));
-    } else {
-      return std::numeric_limits<uint8_t>::max();
-    }
-  }
+template <typename payload_t, std::enable_if_t<std::is_same_v<payload_t, void>>* = nullptr>
+void shrink_to_fit_optional_payload_buffer(std::byte& optional_payload_buffer,
+                                           rmm::cuda_stream_view stream_view)
+{
+  return;
+}
 
-  template <typename key_type = key_t, typename vertex_type = vertex_t>
-  __device__ std::enable_if_t<!std::is_same_v<key_type, vertex_type>, uint8_t> operator()(
-    key_t key) const
-  {
-    auto v_offset =
-      vertex_partition.local_vertex_partition_offset_from_vertex_nocheck(thrust::get<0>(key));
-    auto v_val       = *(vertex_value_input_first + v_offset);
-    auto v_op_result = v_op(key, v_val);
-    if (v_op_result) {
-      *(vertex_value_output_first + v_offset) = thrust::get<1>(*v_op_result);
-      return static_cast<uint8_t>(thrust::get<0>(*v_op_result));
-    } else {
-      return std::numeric_limits<uint8_t>::max();
-    }
-  }
-};
-
-// FIXME: a temporary workaround for cudaErrorInvalidDeviceFunction error when device lambda is used
-// after if constexpr else statement that involves device lambda (bug report submitted)
-template <typename key_t>
-struct check_invalid_bucket_idx_t {
-  __device__ bool operator()(thrust::tuple<uint8_t, key_t> pair)
-  {
-    return thrust::get<0>(pair) == std::numeric_limits<uint8_t>::max();
-  }
-};
+template <typename payload_t, std::enable_if_t<!std::is_same_v<payload_t, void>>* = nullptr>
+void shrink_to_fit_optional_payload_buffer(
+  std::add_lvalue_reference_t<decltype(allocate_dataframe_buffer<payload_t>(
+    size_t{0}, rmm::cuda_stream_view{}))> optional_payload_buffer,
+  rmm::cuda_stream_view stream_view)
+{
+  return shrink_to_fit_dataframe_buffer(optional_payload_buffer, stream_view);
+}
 
 template <typename vertex_t,
           typename e_op_result_t,
@@ -190,7 +147,7 @@ __device__ void push_buffer_element(vertex_t dst,
                                     BufferPayloadOutputIterator buffer_payload_output_first,
                                     size_t buffer_idx)
 {
-  using key_t = typename std::iterator_traits<BufferKeyOutputIterator>::value_type;
+  using key_t = typename thrust::iterator_traits<BufferKeyOutputIterator>::value_type;
   using payload_t =
     typename optional_payload_buffer_value_type_t<BufferPayloadOutputIterator>::value;
 
@@ -234,9 +191,9 @@ __global__ void update_v_frontier_from_outgoing_e_hypersparse(
   using vertex_t = typename GraphViewType::vertex_type;
   using edge_t   = typename GraphViewType::edge_type;
   using weight_t = typename GraphViewType::weight_type;
-  using key_t    = typename std::iterator_traits<KeyIterator>::value_type;
+  using key_t    = typename thrust::iterator_traits<KeyIterator>::value_type;
   static_assert(
-    std::is_same_v<key_t, typename std::iterator_traits<BufferKeyOutputIterator>::value_type>);
+    std::is_same_v<key_t, typename thrust::iterator_traits<BufferKeyOutputIterator>::value_type>);
   using payload_t =
     typename optional_payload_buffer_value_type_t<BufferPayloadOutputIterator>::value;
   using e_op_result_t = typename evaluate_edge_op<GraphViewType,
@@ -403,9 +360,9 @@ __global__ void update_v_frontier_from_outgoing_e_low_degree(
   using vertex_t = typename GraphViewType::vertex_type;
   using edge_t   = typename GraphViewType::edge_type;
   using weight_t = typename GraphViewType::weight_type;
-  using key_t    = typename std::iterator_traits<KeyIterator>::value_type;
+  using key_t    = typename thrust::iterator_traits<KeyIterator>::value_type;
   static_assert(
-    std::is_same_v<key_t, typename std::iterator_traits<BufferKeyOutputIterator>::value_type>);
+    std::is_same_v<key_t, typename thrust::iterator_traits<BufferKeyOutputIterator>::value_type>);
   using payload_t =
     typename optional_payload_buffer_value_type_t<BufferPayloadOutputIterator>::value;
   using e_op_result_t = typename evaluate_edge_op<GraphViewType,
@@ -563,9 +520,9 @@ __global__ void update_v_frontier_from_outgoing_e_mid_degree(
   using vertex_t = typename GraphViewType::vertex_type;
   using edge_t   = typename GraphViewType::edge_type;
   using weight_t = typename GraphViewType::weight_type;
-  using key_t    = typename std::iterator_traits<KeyIterator>::value_type;
+  using key_t    = typename thrust::iterator_traits<KeyIterator>::value_type;
   static_assert(
-    std::is_same_v<key_t, typename std::iterator_traits<BufferKeyOutputIterator>::value_type>);
+    std::is_same_v<key_t, typename thrust::iterator_traits<BufferKeyOutputIterator>::value_type>);
   using payload_t =
     typename optional_payload_buffer_value_type_t<BufferPayloadOutputIterator>::value;
   using e_op_result_t = typename evaluate_edge_op<GraphViewType,
@@ -670,9 +627,9 @@ __global__ void update_v_frontier_from_outgoing_e_high_degree(
   using vertex_t = typename GraphViewType::vertex_type;
   using edge_t   = typename GraphViewType::edge_type;
   using weight_t = typename GraphViewType::weight_type;
-  using key_t    = typename std::iterator_traits<KeyIterator>::value_type;
+  using key_t    = typename thrust::iterator_traits<KeyIterator>::value_type;
   static_assert(
-    std::is_same_v<key_t, typename std::iterator_traits<BufferKeyOutputIterator>::value_type>);
+    std::is_same_v<key_t, typename thrust::iterator_traits<BufferKeyOutputIterator>::value_type>);
   using payload_t =
     typename optional_payload_buffer_value_type_t<BufferPayloadOutputIterator>::value;
   using e_op_result_t = typename evaluate_edge_op<GraphViewType,
@@ -753,67 +710,72 @@ __global__ void update_v_frontier_from_outgoing_e_high_degree(
   }
 }
 
-template <typename BufferKeyOutputIterator, typename BufferPayloadOutputIterator, typename ReduceOp>
-size_t sort_and_reduce_buffer_elements(raft::handle_t const& handle,
-                                       BufferKeyOutputIterator buffer_key_output_first,
-                                       BufferPayloadOutputIterator buffer_payload_output_first,
-                                       size_t num_buffer_elements,
-                                       ReduceOp reduce_op)
+template <typename key_t, typename payload_t, typename ReduceOp>
+auto sort_and_reduce_buffer_elements(
+  raft::handle_t const& handle,
+  decltype(allocate_dataframe_buffer<key_t>(0, rmm::cuda_stream_view{}))&& key_buffer,
+  decltype(allocate_optional_payload_buffer<payload_t>(0,
+                                                       rmm::cuda_stream_view{}))&& payload_buffer,
+  ReduceOp reduce_op)
 {
-  using key_t = typename std::iterator_traits<BufferKeyOutputIterator>::value_type;
-  using payload_t =
-    typename optional_payload_buffer_value_type_t<BufferPayloadOutputIterator>::value;
-
-  auto execution_policy = handle.get_thrust_policy();
   if constexpr (std::is_same_v<payload_t, void>) {
-    thrust::sort(
-      execution_policy, buffer_key_output_first, buffer_key_output_first + num_buffer_elements);
+    thrust::sort(handle.get_thrust_policy(),
+                 get_dataframe_buffer_begin(key_buffer),
+                 get_dataframe_buffer_end(key_buffer));
   } else {
-    thrust::sort_by_key(execution_policy,
-                        buffer_key_output_first,
-                        buffer_key_output_first + num_buffer_elements,
-                        buffer_payload_output_first);
+    thrust::sort_by_key(handle.get_thrust_policy(),
+                        get_dataframe_buffer_begin(key_buffer),
+                        get_dataframe_buffer_end(key_buffer),
+                        get_optional_payload_buffer_begin<payload_t>(payload_buffer));
   }
 
-  size_t num_reduced_buffer_elements{};
   if constexpr (std::is_same_v<payload_t, void>) {
-    auto it = thrust::unique(
-      execution_policy, buffer_key_output_first, buffer_key_output_first + num_buffer_elements);
-    num_reduced_buffer_elements =
-      static_cast<size_t>(thrust::distance(buffer_key_output_first, it));
-  } else if constexpr (std::is_same_v<ReduceOp, reduce_op::any<typename ReduceOp::type>>) {
-    auto it = thrust::unique_by_key(execution_policy,
-                                    buffer_key_output_first,
-                                    buffer_key_output_first + num_buffer_elements,
-                                    buffer_payload_output_first);
-    num_reduced_buffer_elements =
-      static_cast<size_t>(thrust::distance(buffer_key_output_first, thrust::get<0>(it)));
+    auto it = thrust::unique(handle.get_thrust_policy(),
+                             get_dataframe_buffer_begin(key_buffer),
+                             get_dataframe_buffer_end(key_buffer));
+    resize_dataframe_buffer(
+      key_buffer,
+      static_cast<size_t>(thrust::distance(get_dataframe_buffer_begin(key_buffer), it)),
+      handle.get_stream());
+    shrink_to_fit_dataframe_buffer(key_buffer, handle.get_stream());
+  } else if constexpr (std::is_same_v<ReduceOp, reduce_op::any<typename ReduceOp::value_type>>) {
+    auto it = thrust::unique_by_key(handle.get_thrust_policy(),
+                                    get_dataframe_buffer_begin(key_buffer),
+                                    get_dataframe_buffer_end(key_buffer),
+                                    get_optional_payload_buffer_begin<payload_t>(payload_buffer));
+    resize_dataframe_buffer(key_buffer,
+                            static_cast<size_t>(thrust::distance(
+                              get_dataframe_buffer_begin(key_buffer), thrust::get<0>(it))),
+                            handle.get_stream());
+    resize_dataframe_buffer(payload_buffer, size_dataframe_buffer(key_buffer), handle.get_stream());
+    shrink_to_fit_dataframe_buffer(key_buffer, handle.get_stream());
+    shrink_to_fit_dataframe_buffer(payload_buffer, handle.get_stream());
   } else {
-    rmm::device_uvector<key_t> keys(num_buffer_elements, handle.get_stream());
-    auto value_buffer =
-      allocate_dataframe_buffer<payload_t>(num_buffer_elements, handle.get_stream());
-    auto it = thrust::reduce_by_key(execution_policy,
-                                    buffer_key_output_first,
-                                    buffer_key_output_first + num_buffer_elements,
-                                    buffer_payload_output_first,
-                                    keys.begin(),
-                                    get_dataframe_buffer_begin(value_buffer),
-                                    thrust::equal_to<key_t>(),
-                                    reduce_op);
-    num_reduced_buffer_elements =
-      static_cast<size_t>(thrust::distance(keys.begin(), thrust::get<0>(it)));
-    // FIXME: this copy can be replaced by move
-    thrust::copy(execution_policy,
-                 keys.begin(),
-                 keys.begin() + num_reduced_buffer_elements,
-                 buffer_key_output_first);
-    thrust::copy(execution_policy,
-                 get_dataframe_buffer_begin(value_buffer),
-                 get_dataframe_buffer_begin(value_buffer) + num_reduced_buffer_elements,
-                 buffer_payload_output_first);
+    auto num_uniques =
+      thrust::count_if(handle.get_thrust_policy(),
+                       thrust::make_counting_iterator(size_t{0}),
+                       thrust::make_counting_iterator(size_dataframe_buffer(key_buffer)),
+                       is_first_in_run_t<decltype(get_dataframe_buffer_begin(key_buffer))>{
+                         get_dataframe_buffer_begin(key_buffer)});
+
+    auto new_key_buffer = allocate_dataframe_buffer<key_t>(num_uniques, handle.get_stream());
+    auto new_payload_buffer =
+      allocate_dataframe_buffer<payload_t>(num_uniques, handle.get_stream());
+
+    thrust::reduce_by_key(handle.get_thrust_policy(),
+                          get_dataframe_buffer_begin(key_buffer),
+                          get_dataframe_buffer_end(key_buffer),
+                          get_optional_payload_buffer_begin<payload_t>(payload_buffer),
+                          get_dataframe_buffer_begin(new_key_buffer),
+                          get_dataframe_buffer_begin(new_payload_buffer),
+                          thrust::equal_to<key_t>(),
+                          reduce_op);
+
+    key_buffer     = std::move(new_key_buffer);
+    payload_buffer = std::move(new_payload_buffer);
   }
 
-  return num_reduced_buffer_elements;
+  return std::make_tuple(std::move(key_buffer), std::move(payload_buffer));
 }
 
 }  // namespace detail
@@ -837,17 +799,14 @@ typename GraphViewType::edge_type compute_num_out_nbrs_from_frontier(
 
   auto const& cur_frontier_bucket = frontier.bucket(cur_frontier_bucket_idx);
   vertex_t const* local_frontier_vertex_first{nullptr};
-  vertex_t const* local_frontier_vertex_last{nullptr};
   if constexpr (std::is_same_v<key_t, vertex_t>) {
     local_frontier_vertex_first = cur_frontier_bucket.begin();
-    local_frontier_vertex_last  = cur_frontier_bucket.end();
   } else {
     local_frontier_vertex_first = thrust::get<0>(cur_frontier_bucket.begin().get_iterator_tuple());
-    local_frontier_vertex_last  = thrust::get<0>(cur_frontier_bucket.end().get_iterator_tuple());
   }
 
   std::vector<size_t> local_frontier_sizes{};
-  if (GraphViewType::is_multi_gpu) {
+  if constexpr (GraphViewType::is_multi_gpu) {
     auto& col_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
     local_frontier_sizes =
       host_scalar_allgather(col_comm, cur_frontier_bucket.size(), handle.get_stream());
@@ -860,7 +819,7 @@ typename GraphViewType::edge_type compute_num_out_nbrs_from_frontier(
         graph_view.local_edge_partition_view(i));
 
     auto execution_policy = handle.get_thrust_policy();
-    if (GraphViewType::is_multi_gpu) {
+    if constexpr (GraphViewType::is_multi_gpu) {
       auto& col_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
       auto const col_comm_rank = col_comm.get_rank();
 
@@ -919,7 +878,7 @@ typename GraphViewType::edge_type compute_num_out_nbrs_from_frontier(
       ret += thrust::transform_reduce(
         execution_policy,
         local_frontier_vertex_first,
-        local_frontier_vertex_last,
+        local_frontier_vertex_first + cur_frontier_bucket.size(),
         [edge_partition] __device__(auto major) {
           auto major_offset = edge_partition.major_offset_from_major_nocheck(major);
           return edge_partition.local_degree(major_offset);
@@ -932,10 +891,13 @@ typename GraphViewType::edge_type compute_num_out_nbrs_from_frontier(
   return ret;
 }
 
-// FIXME: this documentation needs to be updated due to (tagged-)vertex support
 /**
- * @brief Update (tagged-)vertex frontier and (tagged-)vertex property values iterating over the
- * outgoing edges from the vertices in the current frontier.
+ * @brief Iterate over outgoing edges from the current vertex frontier and reduce valid edge functor
+ * outputs by (tagged-)destination ID.
+ *
+ * Edge functor outputs are thrust::optional objects and invalid if thrust::nullopt. Vertices are
+ * assumed to be tagged if VertexFrontierType::key_type is a tuple of a vertex type and a tag type
+ * (VertexFrontierType::key_type is identical to a vertex type otherwise).
  *
  * @tparam GraphViewType Type of the passed non-owning graph object.
  * @tparam VertexFrontierType Type of the vertex frontier class which abstracts vertex frontier
@@ -946,9 +908,6 @@ typename GraphViewType::edge_type compute_num_out_nbrs_from_frontier(
  * property values.
  * @tparam EdgeOp Type of the quaternary (or quinary) edge operator.
  * @tparam ReduceOp Type of the binary reduction operator.
- * @tparam VertexValueInputIterator Type of the iterator for vertex property values.
- * @tparam VertexValueOutputIterator Type of the iterator for vertex property variables.
- * @tparam VertexOp Type of the binary vertex operator.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Non-owning graph object.
@@ -956,8 +915,6 @@ typename GraphViewType::edge_type compute_num_out_nbrs_from_frontier(
  * includes multiple bucket objects.
  * @param cur_frontier_bucket_idx Index of the vertex frontier bucket holding vertices for the
  * current iteration.
- * @param next_frontier_bucket_indices Indices of the vertex frontier buckets to store new frontier
- * vertices for the next iteration.
  * @param edge_partition_src_value_input Device-copyable wrapper used to access source input
  * property values (for the edge sources assigned to this process in multi-GPU). Use either
  * cugraph::edge_partition_src_property_t::device_view() (if @p e_op needs to access source property
@@ -969,63 +926,46 @@ typename GraphViewType::edge_type compute_num_out_nbrs_from_frontier(
  * property values) or cugraph::dummy_property_t::device_view() (if @p e_op does not access
  * destination property values). Use update_edge_partition_dst_property to fill the wrapper.
  * @param e_op Quaternary (or quinary) operator takes edge source, edge destination, (optional edge
- * weight), property values for the source, and property values for the destination and returns a
- * value to be reduced using the @p reduce_op.
+ * weight), property values for the source, and property values for the destination and returns
+ * 1) thrust::nullopt (if invalid and to be discarded); 2) dummy (but valid) thrust::optional object
+ * (e.g. thrust::optional<std::byte>{std::byte{0}}, if vertices are not tagged and
+ * ReduceOp::value_type is void); 3) a tag (if vertices are tagged and ReduceOp::value_type is
+ * void); 4) a value to be reduced using the @p reduce_op (if vertices are not tagged and
+ * ReduceOp::value_type is not void); or 5) a tuple of a tag and a value to be reduced (if vertices
+ * are tagged and ReduceOp::value_type is not void).
  * @param reduce_op Binary operator that takes two input arguments and reduce the two values to one.
  * There are pre-defined reduction operators in include/cugraph/prims/reduce_op.cuh. It is
  * recommended to use the pre-defined reduction operators whenever possible as the current (and
  * future) implementations of graph primitives may check whether @p ReduceOp is a known type (or has
  * known member variables) to take a more optimized code path. See the documentation in the
  * reduce_op.cuh file for instructions on writing custom reduction operators.
- * @param vertex_value_input_first Iterator pointing to the vertex property values for the first
- * (inclusive) vertex (assigned to this process in multi-GPU). `vertex_value_input_last` (exclusive)
- * is deduced as @p vertex_value_input_first + @p graph_view.local_vertex_partition_range_size().
- * @param vertex_value_output_first Iterator pointing to the vertex property variables for the first
- * (inclusive) vertex (assigned to this process in multi-GPU). `vertex_value_output_last`
- * (exclusive) is deduced as @p vertex_value_output_first + @p
- * graph_view.local_vertex_partition_range_size().
- * @param v_op Ternary operator takes (tagged-)vertex ID, *(@p vertex_value_input_first + i) (where
- * i is [0, @p graph_view.local_vertex_partition_range_size())) and reduced value of the @p e_op
- * outputs for this vertex and returns the target bucket index (for frontier update) and new vertex
- * property values (to update *(@p vertex_value_output_first + i)). The target bucket index should
- * either be VertexFrontierType::kInvalidBucketIdx or an index in @p next_frontier_bucket_indices.
+ * @return Tuple of key values and payload values (if ReduceOp::value_type is not void) or just key
+ * values (if ReduceOp::value_type is void).
  */
 template <typename GraphViewType,
           typename VertexFrontierType,
           typename EdgePartitionSrcValueInputWrapper,
           typename EdgePartitionDstValueInputWrapper,
           typename EdgeOp,
-          typename ReduceOp,
-          typename VertexValueInputIterator,
-          typename VertexValueOutputIterator,
-          typename VertexOp>
-void update_v_frontier_from_outgoing_e(
+          typename ReduceOp>
+std::conditional_t<
+  !std::is_same_v<typename ReduceOp::value_type, void>,
+  std::tuple<decltype(allocate_dataframe_buffer<typename VertexFrontierType::key_type>(
+               0, rmm::cuda_stream_view{})),
+             decltype(detail::allocate_optional_payload_buffer<typename ReduceOp::value_type>(
+               0, rmm::cuda_stream_view{}))>,
+  decltype(
+    allocate_dataframe_buffer<typename VertexFrontierType::key_type>(0, rmm::cuda_stream_view{}))>
+transform_reduce_v_frontier_outgoing_e_by_dst(
   raft::handle_t const& handle,
   GraphViewType const& graph_view,
-  VertexFrontierType& frontier,
+  VertexFrontierType const& frontier,
   size_t cur_frontier_bucket_idx,
-  std::vector<size_t> const& next_frontier_bucket_indices,
-  // FIXME: if vertices in the frontier are tagged, we should have an option to access with (vertex,
-  // tag) pair (currently we can access only with vertex, we may use cuco::static_map for this
-  // purpose)
   EdgePartitionSrcValueInputWrapper edge_partition_src_value_input,
   EdgePartitionDstValueInputWrapper edge_partition_dst_value_input,
   EdgeOp e_op,
   ReduceOp reduce_op,
-  // FIXME: if vertices in the frontier are tagged, we should have an option to access with (vertex,
-  // tag) pair (currently we can access only with vertex, we may use cuco::static_map for this
-  // purpose)
-  VertexValueInputIterator vertex_value_input_first,
-  // FIXME: if vertices in the frontier are tagged, we should have an option to access with (vertex,
-  // tag) pair (currently we can access only with vertex, we may use cuco::static_map for this
-  // purpose)
-  // FIXME: currently, it is undefined behavior if vertices in the frontier are tagged and the same
-  // vertex property is updated by multiple v_op invocations with the same vertex but with different
-  // tags.
-  VertexValueOutputIterator vertex_value_output_first,
-  // FIXME: this takes (tagged-)vertex ID in addition, think about consistency with the other
-  // primitives.
-  VertexOp v_op)
+  bool do_expensive_check = false)
 {
   static_assert(!GraphViewType::is_storage_transposed,
                 "GraphViewType should support the push model.");
@@ -1034,7 +974,14 @@ void update_v_frontier_from_outgoing_e(
   using edge_t    = typename GraphViewType::edge_type;
   using weight_t  = typename GraphViewType::weight_type;
   using key_t     = typename VertexFrontierType::key_type;
-  using payload_t = typename ReduceOp::type;
+  using payload_t = typename ReduceOp::value_type;
+
+  CUGRAPH_EXPECTS(cur_frontier_bucket_idx < frontier.num_buckets(),
+                  "Invalid input argument: invalid current bucket index.");
+
+  if (do_expensive_check) {
+    // currently, nothing to do
+  }
 
   auto frontier_key_first = frontier.bucket(cur_frontier_bucket_idx).begin();
   auto frontier_key_last  = frontier.bucket(cur_frontier_bucket_idx).end();
@@ -1046,7 +993,7 @@ void update_v_frontier_from_outgoing_e(
     detail::allocate_optional_payload_buffer<payload_t>(size_t{0}, handle.get_stream());
   rmm::device_scalar<size_t> buffer_idx(size_t{0}, handle.get_stream());
   std::vector<size_t> local_frontier_sizes{};
-  if (GraphViewType::is_multi_gpu) {
+  if constexpr (GraphViewType::is_multi_gpu) {
     auto& col_comm       = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
     local_frontier_sizes = host_scalar_allgather(
       col_comm,
@@ -1064,7 +1011,7 @@ void update_v_frontier_from_outgoing_e(
     auto edge_partition_frontier_key_buffer =
       allocate_dataframe_buffer<key_t>(size_t{0}, handle.get_stream());
     vertex_t edge_partition_frontier_size = static_cast<vertex_t>(local_frontier_sizes[i]);
-    if (GraphViewType::is_multi_gpu) {
+    if constexpr (GraphViewType::is_multi_gpu) {
       auto& col_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
       auto const col_comm_rank = col_comm.get_rank();
 
@@ -1270,13 +1217,16 @@ void update_v_frontier_from_outgoing_e(
 
   // 2. reduce the buffer
 
-  auto num_buffer_elements = detail::sort_and_reduce_buffer_elements(
-    handle,
-    get_dataframe_buffer_begin(key_buffer),
-    detail::get_optional_payload_buffer_begin<payload_t>(payload_buffer),
-    buffer_idx.value(handle.get_stream()),
-    reduce_op);
-  if (GraphViewType::is_multi_gpu) {
+  resize_dataframe_buffer(key_buffer, buffer_idx.value(handle.get_stream()), handle.get_stream());
+  detail::resize_optional_payload_buffer<payload_t>(
+    payload_buffer, size_dataframe_buffer(key_buffer), handle.get_stream());
+  shrink_to_fit_dataframe_buffer(key_buffer, handle.get_stream());
+  detail::shrink_to_fit_optional_payload_buffer<payload_t>(payload_buffer, handle.get_stream());
+
+  std::tie(key_buffer, payload_buffer) =
+    detail::sort_and_reduce_buffer_elements<key_t, payload_t, ReduceOp>(
+      handle, std::move(key_buffer), std::move(payload_buffer), reduce_op);
+  if constexpr (GraphViewType::is_multi_gpu) {
     // FIXME: this step is unnecessary if row_comm_size== 1
     auto& comm               = handle.get_comms();
     auto& row_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
@@ -1302,7 +1252,7 @@ void update_v_frontier_from_outgoing_e(
     }
     thrust::lower_bound(handle.get_thrust_policy(),
                         src_first,
-                        src_first + num_buffer_elements,
+                        src_first + size_dataframe_buffer(key_buffer),
                         d_vertex_lasts.begin(),
                         d_vertex_lasts.end(),
                         d_tx_buffer_last_boundaries.begin());
@@ -1328,93 +1278,15 @@ void update_v_frontier_from_outgoing_e(
       payload_buffer = std::move(rx_payload_buffer);
     }
 
-    num_buffer_elements = detail::sort_and_reduce_buffer_elements(
-      handle,
-      get_dataframe_buffer_begin(key_buffer),
-      detail::get_optional_payload_buffer_begin<payload_t>(payload_buffer),
-      size_dataframe_buffer(key_buffer),
-      reduce_op);
+    std::tie(key_buffer, payload_buffer) =
+      detail::sort_and_reduce_buffer_elements<key_t, payload_t, ReduceOp>(
+        handle, std::move(key_buffer), std::move(payload_buffer), reduce_op);
   }
 
-  // 3. update vertex property values and frontier
-
-  if (num_buffer_elements > 0) {
-    assert(frontier.num_buckets() <= std::numeric_limits<uint8_t>::max());
-    rmm::device_uvector<uint8_t> bucket_indices(num_buffer_elements, handle.get_stream());
-
-    auto vertex_partition = vertex_partition_device_view_t<vertex_t, GraphViewType::is_multi_gpu>(
-      graph_view.local_vertex_partition_view());
-
-    if constexpr (!std::is_same_v<payload_t, void>) {
-      auto key_payload_pair_first = thrust::make_zip_iterator(
-        thrust::make_tuple(get_dataframe_buffer_begin(key_buffer),
-                           detail::get_optional_payload_buffer_begin<payload_t>(payload_buffer)));
-      thrust::transform(
-        handle.get_thrust_policy(),
-        key_payload_pair_first,
-        key_payload_pair_first + num_buffer_elements,
-        bucket_indices.begin(),
-        [vertex_value_input_first,
-         vertex_value_output_first,
-         v_op,
-         vertex_partition,
-         invalid_bucket_idx = VertexFrontierType::kInvalidBucketIdx] __device__(auto pair) {
-          auto key     = thrust::get<0>(pair);
-          auto payload = thrust::get<1>(pair);
-          vertex_t v_offset{};
-          if constexpr (std::is_same_v<key_t, vertex_t>) {
-            v_offset = vertex_partition.local_vertex_partition_offset_from_vertex_nocheck(key);
-          } else {
-            v_offset = vertex_partition.local_vertex_partition_offset_from_vertex_nocheck(
-              thrust::get<0>(key));
-          }
-          auto v_val       = *(vertex_value_input_first + v_offset);
-          auto v_op_result = v_op(key, v_val, payload);
-          if (v_op_result) {
-            *(vertex_value_output_first + v_offset) = thrust::get<1>(*v_op_result);
-            return static_cast<uint8_t>(thrust::get<0>(*v_op_result));
-          } else {
-            return std::numeric_limits<uint8_t>::max();
-          }
-        });
-
-      resize_dataframe_buffer(payload_buffer, size_t{0}, handle.get_stream());
-      shrink_to_fit_dataframe_buffer(payload_buffer, handle.get_stream());
-    } else {
-      thrust::transform(handle.get_thrust_policy(),
-                        get_dataframe_buffer_begin(key_buffer),
-                        get_dataframe_buffer_begin(key_buffer) + num_buffer_elements,
-                        bucket_indices.begin(),
-                        detail::update_v_frontier_call_v_op_t<vertex_t,
-                                                              VertexValueInputIterator,
-                                                              VertexValueOutputIterator,
-                                                              VertexOp,
-                                                              key_t,
-                                                              GraphViewType::is_multi_gpu>{
-                          vertex_value_input_first,
-                          vertex_value_output_first,
-                          v_op,
-                          vertex_partition,
-                          VertexFrontierType::kInvalidBucketIdx});
-    }
-
-    auto bucket_key_pair_first = thrust::make_zip_iterator(
-      thrust::make_tuple(bucket_indices.begin(), get_dataframe_buffer_begin(key_buffer)));
-    bucket_indices.resize(
-      thrust::distance(bucket_key_pair_first,
-                       thrust::remove_if(handle.get_thrust_policy(),
-                                         bucket_key_pair_first,
-                                         bucket_key_pair_first + num_buffer_elements,
-                                         detail::check_invalid_bucket_idx_t<key_t>())),
-      handle.get_stream());
-    resize_dataframe_buffer(key_buffer, bucket_indices.size(), handle.get_stream());
-    bucket_indices.shrink_to_fit(handle.get_stream());
-    shrink_to_fit_dataframe_buffer(key_buffer, handle.get_stream());
-
-    frontier.insert_to_buckets(bucket_indices.begin(),
-                               bucket_indices.end(),
-                               get_dataframe_buffer_begin(key_buffer),
-                               next_frontier_bucket_indices);
+  if constexpr (!std::is_same_v<payload_t, void>) {
+    return std::make_tuple(std::move(key_buffer), std::move(payload_buffer));
+  } else {
+    return key_buffer;
   }
 }
 

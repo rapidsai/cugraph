@@ -1222,6 +1222,40 @@ void pagerank(raft::handle_t const& handle,
               bool do_expensive_check = false);
 
 /**
+ * @brief Compute Eigenvector Centrality scores.
+ *
+ * This function computes eigenvector centrality scores using the power method.
+ *
+ * @throws cugraph::logic_error on erroneous input arguments or if fails to converge before @p
+ * max_iterations.
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam weight_t Type of edge weights. Needs to be a floating point type.
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
+ * or multi-GPU (true).
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param graph_view Graph view object.
+ * @param initial_centralities Optional device span containing initial values for the eigenvector
+ * centralities
+ * @param epsilon Error tolerance to check convergence. Convergence is assumed if the sum of the
+ * differences in eigenvector centrality values between two consecutive iterations is less than the
+ * number of vertices in the graph multiplied by @p epsilon.
+ * @param max_iterations Maximum number of power iterations.
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
+ * @return device vector containing the centralities.
+ */
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+rmm::device_uvector<weight_t> eigenvector_centrality(
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, weight_t, true, multi_gpu> const& graph_view,
+  std::optional<raft::device_span<weight_t const>> initial_centralities,
+  weight_t epsilon,
+  size_t max_iterations   = 500,
+  bool do_expensive_check = false);
+
+/**
  * @brief Compute HITS scores.
  *
  * This function computes HITS scores for the vertices of a graph
@@ -1540,6 +1574,14 @@ uniform_nbr_sample(raft::handle_t const& handle,
 /**
  * @brief Uniform Neighborhood Sampling.
  *
+ * This function traverses from a set of starting vertices, traversing outgoing edges and
+ * randomly selects from these outgoing neighbors to extract a subgraph.
+ *
+ * Output from this function a set of tuples (src, dst, weight, count), identifying the randomly
+ * selected edges.  src is the source vertex, dst is the destination vertex, weight is the weight
+ * of the edge and count identifies the number of times this edge was encountered during the
+ * sampling of this graph (so it is >= 1).
+ *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
  * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
  * @tparam weight_t Type of edge weights. Needs to be a floating point type.
@@ -1553,22 +1595,25 @@ uniform_nbr_sample(raft::handle_t const& handle,
  * @param with_replacement boolean flag specifying if random sampling is done with replacement
  * (true); or, without replacement (false); default = true;
  * @param seed A seed to initialize the random number generator
- * @return tuple device vectors (vertex_t source_vertex, vertex_t destination_vertex, weight_t wgt)
+ * @return tuple device vectors (vertex_t source_vertex, vertex_t destination_vertex, weight_t
+ * weight, edge_t count)
  */
 template <typename vertex_t,
           typename edge_t,
           typename weight_t,
           bool store_transposed,
           bool multi_gpu>
-std::
-  tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>, rmm::device_uvector<weight_t>>
-  uniform_nbr_sample(
-    raft::handle_t const& handle,
-    graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> const& graph_view,
-    raft::device_span<vertex_t> starting_vertices,
-    raft::host_span<const int> fan_out,
-    bool with_replacement = true,
-    uint64_t seed         = 0);
+std::tuple<rmm::device_uvector<vertex_t>,
+           rmm::device_uvector<vertex_t>,
+           rmm::device_uvector<weight_t>,
+           rmm::device_uvector<edge_t>>
+uniform_nbr_sample(
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> const& graph_view,
+  raft::device_span<vertex_t> starting_vertices,
+  raft::host_span<const int> fan_out,
+  bool with_replacement = true,
+  uint64_t seed         = 0);
 
 /*
  * @brief Compute triangle counts.
@@ -1591,10 +1636,10 @@ std::
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  */
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
-void triangle_counts(raft::handle_t const& handle,
-                     graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
-                     std::optional<raft::device_span<vertex_t>> vertices,
-                     raft::device_span<edge_t> counts,
-                     bool do_expensive_check = false);
+void triangle_count(raft::handle_t const& handle,
+                    graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
+                    std::optional<raft::device_span<vertex_t const>> vertices,
+                    raft::device_span<edge_t> counts,
+                    bool do_expensive_check = false);
 
 }  // namespace cugraph

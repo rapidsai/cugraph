@@ -448,6 +448,10 @@ ConfigureTest(PAGERANK_TEST link_analysis/pagerank_test.cpp)
 ConfigureTest(KATZ_CENTRALITY_TEST centrality/katz_centrality_test.cpp)
 
 ###################################################################################################
+# - EIGENVECTOR_CENTRALITY tests -------------------------------------------------------------------------
+ConfigureTest(EIGENVECTOR_CENTRALITY_TEST centrality/eigenvector_centrality_test.cpp)
+
+###################################################################################################
 # - WEAKLY CONNECTED COMPONENTS tests -------------------------------------------------------------
 ConfigureTest(WEAKLY_CONNECTED_COMPONENTS_TEST components/weakly_connected_components_test.cpp)
 
@@ -494,6 +498,10 @@ ConfigureTest(RANDOM_WALKS_VISITOR_TEST visitors/rw_test.cu)
 ###################################################################################################
 # - Core Number tests -----------------------------------------------------------------------------
 ConfigureTest(CORE_NUMBER_TEST cores/core_number_test.cpp)
+
+###################################################################################################
+# - Triangle Count tests --------------------------------------------------------------------------
+ConfigureTest(TRIANGLE_COUNT_TEST community/triangle_count_test.cpp)
 
 ###################################################################################################
 # - MG tests --------------------------------------------------------------------------------------
@@ -543,6 +551,10 @@ if(BUILD_CUGRAPH_MG_TESTS)
         ConfigureTestMG(MG_KATZ_CENTRALITY_TEST centrality/mg_katz_centrality_test.cpp)
 
         ###########################################################################################
+        # - MG EIGENVECTOR CENTRALITY tests --------------------------------------------------------------
+        ConfigureTestMG(MG_EIGENVECTOR_CENTRALITY_TEST centrality/mg_eigenvector_centrality_test.cpp)
+
+        ###########################################################################################
         # - MG BFS tests --------------------------------------------------------------------------
         ConfigureTestMG(MG_BFS_TEST traversal/mg_bfs_test.cpp)
 
@@ -575,13 +587,17 @@ if(BUILD_CUGRAPH_MG_TESTS)
         ConfigureTestMG(MG_CORE_NUMBER_TEST cores/mg_core_number_test.cpp)
 
         ###########################################################################################
+        # - MG TRIANGLE COUNT tests ---------------------------------------------------------------
+        ConfigureTestMG(MG_TRIANGLE_COUNT_TEST community/mg_triangle_count_test.cpp)
+
+        ###########################################################################################
         # - MG PRIMS COUNT_IF_V tests -------------------------------------------------------------
         ConfigureTestMG(MG_COUNT_IF_V_TEST prims/mg_count_if_v.cu)
 
         ###########################################################################################
-        # - MG PRIMS UPDATE_V_FRONTIER_FROM_OUTGOING_E tests --------------------------------------
-        ConfigureTestMG(MG_UPDATE_V_FRONTIER_FROM_OUTGOING_E_TEST
-                        prims/mg_update_v_frontier_from_outgoing_e.cu)
+        # - MG PRIMS TRANSFORM_REDUCE_V_FRONTIER_OUTGOING_E_BY_DST tests --------------------------
+        ConfigureTestMG(MG_TRANSFORM_REDUCE_V_FRONTIER_OUTGOING_E_BY_DST_TEST
+                        prims/mg_transform_reduce_v_frontier_outgoing_e_by_dst.cu)
 
         ###########################################################################################
         # - MG PRIMS REDUCE_V tests ---------------------------------------------------------------
@@ -628,12 +644,16 @@ if(BUILD_CUGRAPH_MG_TESTS)
         # - MG C API tests ------------------------------------------------------------------------
         ConfigureCTestMG(MG_CAPI_CREATE_GRAPH c_api/mg_create_graph_test.c c_api/mg_test_utils.cpp)
         ConfigureCTestMG(MG_CAPI_PAGERANK c_api/mg_pagerank_test.c c_api/mg_test_utils.cpp)
+        ConfigureCTestMG(MG_CAPI_BFS c_api/mg_bfs_test.c c_api/mg_test_utils.cpp)
+        ConfigureCTestMG(MG_CAPI_SSSP c_api/mg_sssp_test.c c_api/mg_test_utils.cpp)
         ConfigureCTestMG(MG_CAPI_WEAKLY_CONNECTED_COMPONENTS c_api/mg_weakly_connected_components_test.c c_api/mg_test_utils.cpp)
         ConfigureCTestMG(MG_CAPI_STRONGLY_CONNECTED_COMPONENTS c_api/mg_strongly_connected_components_test.c c_api/mg_test_utils.cpp)
         ConfigureCTestMG(MG_CAPI_KATZ c_api/mg_katz_test.c c_api/mg_test_utils.cpp)
         ConfigureCTestMG(MG_CAPI_EIGENVECTOR_CENTRALITY c_api/mg_eigenvector_centrality_test.c c_api/mg_test_utils.cpp)
         ConfigureCTestMG(MG_CAPI_HITS c_api/mg_hits_test.c c_api/mg_test_utils.cpp)
         ConfigureCTestMG(MG_CAPI_UNIFORM_NEIGHBOR_SAMPLE c_api/mg_uniform_neighbor_sample_test.c c_api/mg_test_utils.cpp)
+        ConfigureCTestMG(MG_CAPI_TRIANGLE_COUNT c_api/mg_triangle_count_test.c c_api/mg_test_utils.cpp)
+        ConfigureCTestMG(MG_CAPI_LOUVAIN c_api/mg_louvain_test.c c_api/mg_test_utils.cpp)
     else()
        message(FATAL_ERROR "OpenMPI NOT found, cannot build MG tests.")
     endif()
@@ -684,6 +704,8 @@ ConfigureCTest(CAPI_NODE2VEC_TEST c_api/node2vec_test.c)
 ConfigureCTest(CAPI_WEAKLY_CONNECTED_COMPONENTS c_api/weakly_connected_components_test.c)
 ConfigureCTest(CAPI_STRONGLY_CONNECTED_COMPONENTS c_api/strongly_connected_components_test.c)
 ConfigureCTest(CAPI_UNIFORM_NEIGHBOR_SAMPLE c_api/uniform_neighbor_sample_test.c)
+ConfigureCTest(CAPI_TRIANGLE_COUNT c_api/triangle_count_test.c)
+ConfigureCTest(CAPI_LOUVAIN c_api/louvain_test.c)
 
 ###################################################################################################
 ### enable testing ################################################################################

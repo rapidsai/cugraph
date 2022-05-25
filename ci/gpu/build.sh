@@ -106,11 +106,14 @@ else
     gpuci_logger "Installing libcugraph-tests"
     gpuci_mamba_retry install -c ${CONDA_ARTIFACT_PATH} libcugraph libcugraph_etl libcugraph-tests
 
+    # TODO: Move boa install to gpuci/rapidsai
+    gpuci_mamba_retry install boa
+
     gpuci_logger "Building and installing pylibcugraph and cugraph..."
     export CONDA_BLD_DIR="${WORKSPACE}/.conda-bld"
     export VERSION_SUFFIX=""
-    gpuci_conda_retry build conda/recipes/pylibcugraph --no-build-id --croot ${CONDA_BLD_DIR} -c ${CONDA_ARTIFACT_PATH} --python=${PYTHON}
-    gpuci_conda_retry build conda/recipes/cugraph --no-build-id --croot ${CONDA_BLD_DIR} -c ${CONDA_ARTIFACT_PATH} --python=${PYTHON}
+    gpuci_conda_retry mambabuild conda/recipes/pylibcugraph --no-build-id --croot ${CONDA_BLD_DIR} -c ${CONDA_ARTIFACT_PATH} --python=${PYTHON}
+    gpuci_conda_retry mambabuild conda/recipes/cugraph --no-build-id --croot ${CONDA_BLD_DIR} -c ${CONDA_ARTIFACT_PATH} --python=${PYTHON}
     gpuci_mamba_retry install cugraph pylibcugraph -c ${CONDA_BLD_DIR} -c ${CONDA_ARTIFACT_PATH}
 fi
 

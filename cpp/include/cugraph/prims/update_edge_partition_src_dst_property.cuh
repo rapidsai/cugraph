@@ -459,6 +459,7 @@ void update_edge_partition_minor_property(
  * @param edge_partition_src_property_output Device-copyable wrapper used to store source property
  * values (for the edge sources assigned to this process in multi-GPU). Use
  * cugraph::edge_partition_src_property_t::device_view().
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  */
 template <typename GraphViewType, typename VertexPropertyInputIterator>
 void update_edge_partition_src_property(
@@ -468,8 +469,13 @@ void update_edge_partition_src_property(
   edge_partition_src_property_t<
     GraphViewType,
     typename std::iterator_traits<VertexPropertyInputIterator>::value_type>&
-    edge_partition_src_property_output)
+    edge_partition_src_property_output,
+  bool do_expensive_check = false)
 {
+  if (do_expensive_check) {
+    // currently, nothing to do
+  }
+
   if constexpr (GraphViewType::is_storage_transposed) {
     update_edge_partition_minor_property(
       handle, graph_view, vertex_property_input_first, edge_partition_src_property_output);
@@ -502,6 +508,7 @@ void update_edge_partition_src_property(
  * @param edge_partition_src_property_output Device-copyable wrapper used to store source property
  * values (for the edge sources assigned to this process in multi-GPU). Use
  * cugraph::edge_partition_src_property_t::device_view().
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  */
 template <typename GraphViewType, typename VertexIterator, typename VertexPropertyInputIterator>
 void update_edge_partition_src_property(
@@ -513,8 +520,29 @@ void update_edge_partition_src_property(
   edge_partition_src_property_t<
     GraphViewType,
     typename std::iterator_traits<VertexPropertyInputIterator>::value_type>&
-    edge_partition_src_property_output)
+    edge_partition_src_property_output,
+  bool do_expensive_check = false)
 {
+  if (do_expensive_check) {
+    auto num_invalids = thrust::count_if(
+      handle.get_thrust_policy(),
+      vertex_first,
+      vertex_last,
+      [local_vertex_partition_range_first = graph_view.local_vertex_partition_range_first(),
+       local_vertex_partition_range_last =
+         graph_view.local_vertex_partition_range_last()] __device__(auto v) {
+        return (v < local_vertex_partition_range_first) || (v >= local_vertex_partition_range_last);
+      });
+    if constexpr (GraphViewType::is_multi_gpu) {
+      auto& comm = handle.get_comms();
+      num_invalids =
+        host_scalar_allreduce(comm, num_invalids, raft::comms::op_t::SUM, handle.get_stream());
+    }
+    CUGRAPH_EXPECTS(
+      num_invalids == 0,
+      "Invalid input argument: invalid or non-local vertices in [vertex_first, vertex_last).");
+  }
+
   if constexpr (GraphViewType::is_storage_transposed) {
     detail::update_edge_partition_minor_property(handle,
                                                  graph_view,
@@ -551,6 +579,7 @@ void update_edge_partition_src_property(
  * @param edge_partition_dst_property_output Device-copyable wrapper used to store destination
  * property values (for the edge destinations assigned to this process in multi-GPU). Use
  * cugraph::edge_partition_dst_property_t::device_view().
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  */
 template <typename GraphViewType, typename VertexPropertyInputIterator>
 void update_edge_partition_dst_property(
@@ -560,8 +589,13 @@ void update_edge_partition_dst_property(
   edge_partition_dst_property_t<
     GraphViewType,
     typename std::iterator_traits<VertexPropertyInputIterator>::value_type>&
-    edge_partition_dst_property_output)
+    edge_partition_dst_property_output,
+  bool do_expensive_check = false)
 {
+  if (do_expensive_check) {
+    // currently, nothing to do
+  }
+
   if constexpr (GraphViewType::is_storage_transposed) {
     detail::update_edge_partition_major_property(
       handle, graph_view, vertex_property_input_first, edge_partition_dst_property_output);
@@ -595,6 +629,7 @@ void update_edge_partition_dst_property(
  * @param edge_partition_dst_property_output Device-copyable wrapper used to store destination
  * property values (for the edge destinations assigned to this process in multi-GPU). Use
  * cugraph::edge_partition_dst_property_t::device_view().
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  */
 template <typename GraphViewType, typename VertexIterator, typename VertexPropertyInputIterator>
 void update_edge_partition_dst_property(
@@ -606,8 +641,29 @@ void update_edge_partition_dst_property(
   edge_partition_dst_property_t<
     GraphViewType,
     typename std::iterator_traits<VertexPropertyInputIterator>::value_type>&
-    edge_partition_dst_property_output)
+    edge_partition_dst_property_output,
+  bool do_expensive_check = false)
 {
+  if (do_expensive_check) {
+    auto num_invalids = thrust::count_if(
+      handle.get_thrust_policy(),
+      vertex_first,
+      vertex_last,
+      [local_vertex_partition_range_first = graph_view.local_vertex_partition_range_first(),
+       local_vertex_partition_range_last =
+         graph_view.local_vertex_partition_range_last()] __device__(auto v) {
+        return (v < local_vertex_partition_range_first) || (v >= local_vertex_partition_range_last);
+      });
+    if constexpr (GraphViewType::is_multi_gpu) {
+      auto& comm = handle.get_comms();
+      num_invalids =
+        host_scalar_allreduce(comm, num_invalids, raft::comms::op_t::SUM, handle.get_stream());
+    }
+    CUGRAPH_EXPECTS(
+      num_invalids == 0,
+      "Invalid input argument: invalid or non-local vertices in [vertex_first, vertex_last).");
+  }
+
   if constexpr (GraphViewType::is_storage_transposed) {
     detail::update_edge_partition_major_property(handle,
                                                  graph_view,

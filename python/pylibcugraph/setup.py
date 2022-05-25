@@ -122,7 +122,7 @@ EXTENSIONS = [
                   os.path.join(os.sys.prefix, "lib")
               ],
               libraries=['cudart', 'cusparse', 'cusolver', 'cugraph', 'nccl',
-                         'cugraph_c'],
+                         'cugraph_c', 'cublas'],
               language='c++',
               extra_compile_args=['-std=c++17'])
 ]

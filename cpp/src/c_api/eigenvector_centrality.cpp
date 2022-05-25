@@ -78,22 +78,12 @@ struct eigenvector_centrality_functor : public cugraph::c_api::abstract_functor 
 
       auto number_map = reinterpret_cast<rmm::device_uvector<vertex_t>*>(graph_->number_map_);
 
-      rmm::device_uvector<weight_t> centralities(graph_view.local_vertex_partition_range_size(),
-                                                 handle_.get_stream());
-
-      // FIXME:  For now we'll call pagerank which returns a similarly formatted thing
-      cugraph::pagerank<vertex_t, edge_t, weight_t, weight_t, multi_gpu>(
+      auto centralities = cugraph::eigenvector_centrality<vertex_t, edge_t, weight_t, multi_gpu>(
         handle_,
         graph_view,
-        std::nullopt,
-        std::nullopt,
-        std::nullopt,
-        std::nullopt,
-        centralities.data(),
-        weight_t{0.95},
+        std::optional<raft::device_span<weight_t>>{},
         static_cast<weight_t>(epsilon_),
         max_iterations_,
-        false,
         do_expensive_check_);
 
       rmm::device_uvector<vertex_t> vertex_ids(graph_view.local_vertex_partition_range_size(),

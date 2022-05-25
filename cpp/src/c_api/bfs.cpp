@@ -23,6 +23,7 @@
 #include <c_api/utils.hpp>
 
 #include <cugraph/algorithms.hpp>
+#include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/graph_functions.hpp>
 
@@ -89,15 +90,23 @@ struct bfs_functor : public abstract_functor {
       rmm::device_uvector<vertex_t> predecessors(0, handle_.get_stream());
 
       if (compute_predecessors_) {
-        predecessors.resize(graph->number_of_vertices(), handle_.get_stream());
+        predecessors.resize(graph_view.local_vertex_partition_range_size(), handle_.get_stream());
+      }
+
+      rmm::device_uvector<vertex_t> sources(sources_->size_, handle_.get_stream());
+      raft::copy(
+        sources.data(), sources_->as_type<vertex_t>(), sources_->size_, handle_.get_stream());
+
+      if constexpr (multi_gpu) {
+        sources = detail::shuffle_ext_vertices_by_gpu_id(handle_, std::move(sources));
       }
 
       //
       // Need to renumber sources
       //
       renumber_ext_vertices<vertex_t, multi_gpu>(handle_,
-                                                 sources_->as_type<vertex_t>(),
-                                                 sources_->size_,
+                                                 sources.data(),
+                                                 sources.size(),
                                                  number_map->data(),
                                                  graph_view.local_vertex_partition_range_first(),
                                                  graph_view.local_vertex_partition_range_last(),
@@ -108,8 +117,8 @@ struct bfs_functor : public abstract_functor {
         graph_view,
         distances.data(),
         compute_predecessors_ ? predecessors.data() : nullptr,
-        sources_->as_type<vertex_t>(),
-        sources_->size_,
+        sources.data(),
+        sources.size(),
         direction_optimizing_,
         static_cast<vertex_t>(depth_limit_),
         do_expensive_check_);

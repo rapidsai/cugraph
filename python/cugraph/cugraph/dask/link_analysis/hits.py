@@ -154,9 +154,12 @@ def hits(input_graph, tol=1.0e-5, max_iter=100,  nstart=None, normalized=True):
 
     client = default_client()
 
-    # FIXME Still compute renumbering at this layer in case str
-    # vertex ID are passed
-    input_graph.compute_renumber_edge_list(transposed=False)
+    # FIXME: 'legacy_renum_only' will not trigger the C++ renumbering
+    # In the future, once all the algos follow the C/Pylibcugraph path,
+    # compute_renumber_edge_list will only be used for multicolumn and
+    # string vertices since the renumbering will be done in pylibcugraph
+    input_graph.compute_renumber_edge_list(
+        transposed=False, legacy_renum_only=True)
     ddf = input_graph.edgelist.edgelist_df
 
     graph_properties = GraphProperties(
@@ -205,6 +208,7 @@ def hits(input_graph, tol=1.0e-5, max_iter=100,  nstart=None, normalized=True):
     wait(cudf_result)
 
     ddf = dask_cudf.from_delayed(cudf_result)
+
     if input_graph.renumbered:
         return input_graph.unrenumber(ddf, 'vertex')
 
