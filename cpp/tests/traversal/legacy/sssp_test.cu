@@ -21,6 +21,7 @@
 #include <rmm/device_vector.hpp>
 
 #include <thrust/fill.h>
+#include <thrust/memory.h>
 
 #include <algorithm>
 #include <queue>

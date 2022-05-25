@@ -22,6 +22,7 @@
 
 #include <thrust/execution_policy.h>
 #include <thrust/sort.h>
+#include <thrust/iterator/zip_iterator.h>
 
 #include <gtest/gtest.h>
 

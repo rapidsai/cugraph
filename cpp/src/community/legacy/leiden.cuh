@@ -19,6 +19,12 @@
 
 #include <rmm/device_uvector.hpp>
 
+#include <thrust/copy.h>
+#include <thrust/for_each.h>
+#include <thrust/iterator/counting_iterator.h>
+#include <thrust/reduce.h>
+#include <thrust/sequence.h>
+
 namespace cugraph {
 namespace legacy {
 

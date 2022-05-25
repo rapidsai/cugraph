@@ -23,6 +23,14 @@
 
 #include <thrust/for_each.h>
 #include <thrust/random.h>
+#include <thrust/reduce.h>
+#include <thrust/functional.h>
+#include <thrust/transform.h>
+#include <thrust/iterator/counting_iterator.h>
+#include <thrust/sequence.h>
+#include <thrust/copy.h>
+#include <thrust/distance.h>
+#include <thrust/fill.h>
 
 #include <iostream>
 #include <limits>

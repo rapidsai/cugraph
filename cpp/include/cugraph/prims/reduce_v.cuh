@@ -26,6 +26,8 @@
 
 #include <thrust/execution_policy.h>
 #include <thrust/reduce.h>
+#include <thrust/iterator/iterator_traits.h>
+#include <thrust/copy.h>
 
 namespace cugraph {
 

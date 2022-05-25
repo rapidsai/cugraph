@@ -20,6 +20,14 @@
 #include <cugraph/utilities/error.hpp>
 #include <rmm/device_vector.hpp>
 #include <rmm/exec_policy.hpp>
+
+#include <thrust/tuple.h>
+#include <thrust/iterator/zip_iterator.h>
+#include <thrust/copy.h>
+#include <thrust/distance.h>
+#include <thrust/scatter.h>
+#include <thrust/count.h>
+
 //#include <nvgraph_gdf.h>
 
 namespace cugraph {

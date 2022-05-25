@@ -36,6 +36,17 @@
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/iterator/transform_iterator.h>
 #include <thrust/sort.h>
+#include <thrust/transform.h>
+#include <thrust/fill.h>
+#include <thrust/for_each.h>
+#include <thrust/tabulate.h>
+#include <thrust/functional.h>
+#include <thrust/optional.h>
+#include <thrust/tuple.h>
+#include <thrust/transform_reduce.h>
+#include <thrust/extrema.h>
+#include <thrust/iterator/zip_iterator.h>
+#include <thrust/binary_search.h>
 
 #include <algorithm>
 #include <cstdint>

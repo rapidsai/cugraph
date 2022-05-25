@@ -20,6 +20,8 @@
 #include <thrust/find.h>
 #include <thrust/for_each.h>
 #include <thrust/iterator/counting_iterator.h>
+#include <thrust/execution_policy.h>
+#include <thrust/transform.h>
 
 #include <type_traits>
 //

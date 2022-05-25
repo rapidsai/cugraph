@@ -18,6 +18,7 @@
 #include <rmm/exec_policy.hpp>
 
 #include <thrust/sort.h>
+#include <thrust/sequence.h>
 
 namespace cugraph {
 namespace test {

@@ -21,6 +21,9 @@
 #include <raft/handle.hpp>
 #include <rmm/exec_policy.hpp>
 
+#include <thrust/iterator/counting_iterator.h>
+#include <thrust/sequence.h>
+
 namespace cugraph {
 
 template <typename vertex_t, bool multi_gpu>

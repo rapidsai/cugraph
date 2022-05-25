@@ -22,6 +22,9 @@
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/path_retrieval.hpp>
 
+#include <thrust/sequence.h>
+#include <thrust/sort.h>
+
 namespace cugraph {
 namespace detail {
 

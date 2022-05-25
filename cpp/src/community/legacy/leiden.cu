@@ -19,6 +19,9 @@
 
 #include <rmm/device_uvector.hpp>
 
+#include <thrust/copy.h>
+#include <thrust/iterator/counting_iterator.h>
+
 namespace cugraph {
 
 template <typename vertex_t, typename edge_t, typename weight_t>

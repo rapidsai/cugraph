@@ -38,6 +38,9 @@
 
 #include <gtest/gtest.h>
 
+#include <thrust/transform.h>
+#include <thrust/iterator/counting_iterator.h>
+
 #include <iterator>
 #include <limits>
 #include <vector>

@@ -22,6 +22,11 @@
 
 #include <rmm/exec_policy.hpp>
 #include <thrust/random.h>
+#include <thrust/iterator/counting_iterator.h>
+#include <thrust/transform.h>
+#include <thrust/sequence.h>
+#include <thrust/sort.h>
+#include <thrust/copy.h>
 
 #include <ctime>
 

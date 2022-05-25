@@ -34,6 +34,11 @@
 #include <thrust/execution_policy.h>
 #include <thrust/gather.h>
 #include <thrust/iterator/permutation_iterator.h>
+#include <thrust/iterator/transform_iterator.h>
+#include <thrust/distance.h>
+#include <thrust/for_each.h>
+#include <thrust/iterator/counting_iterator.h>
+#include <thrust/scatter.h>
 
 #include <algorithm>
 #include <numeric>

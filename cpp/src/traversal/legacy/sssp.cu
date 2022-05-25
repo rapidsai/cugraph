@@ -22,6 +22,8 @@
 
 #include <cugraph/legacy/graph.hpp>
 
+#include <thrust/memory.h>
+
 #include "sssp.cuh"
 #include "sssp_kernels.cuh"
 #include "traversal_common.cuh"

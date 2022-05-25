@@ -27,6 +27,20 @@
 
 #include <raft/handle.hpp>
 
+#include <thrust/copy.h>
+#include <thrust/iterator/transform_iterator.h>
+#include <thrust/iterator/zip_iterator.h>
+#include <thrust/transform.h>
+#include <thrust/tuple.h>
+#include <thrust/distance.h>
+#include <thrust/iterator/counting_iterator.h>
+#include <thrust/for_each.h>
+#include <thrust/partition.h>
+#include <thrust/optional.h>
+#include <thrust/remove.h>
+#include <thrust/reduce.h>
+#include <thrust/functional.h>
+
 #include <cstddef>
 
 namespace cugraph {

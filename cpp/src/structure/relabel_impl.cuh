@@ -32,6 +32,12 @@
 #include <thrust/iterator/discard_iterator.h>
 #include <thrust/sort.h>
 #include <thrust/tuple.h>
+#include <thrust/distance.h>
+#include <thrust/unique.h>
+#include <thrust/iterator/zip_iterator.h>
+#include <thrust/functional.h>
+#include <thrust/transform.h>
+#include <thrust/count.h>
 
 #include <algorithm>
 #include <iterator>

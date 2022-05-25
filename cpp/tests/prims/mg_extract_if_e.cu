@@ -37,6 +37,12 @@
 #include <rmm/device_uvector.hpp>
 #include <thrust/equal.h>
 #include <thrust/reduce.h>
+#include <thrust/tuple.h>
+#include <thrust/transform.h>
+#include <thrust/iterator/counting_iterator.h>
+#include <thrust/iterator/zip_iterator.h>
+#include <thrust/sort.h>
+#include <thrust/iterator/iterator_traits.h>
 
 #include <gtest/gtest.h>
 

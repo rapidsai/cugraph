@@ -21,6 +21,8 @@
 #include <raft/handle.hpp>
 #include <rmm/device_uvector.hpp>
 
+#include <thrust/tuple.h>
+
 #include <numeric>
 #include <type_traits>
 

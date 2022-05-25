@@ -25,6 +25,14 @@
 
 #include <raft/handle.hpp>
 
+#include <thrust/optional.h>
+#include <thrust/tuple.h>
+#include <thrust/sort.h>
+#include <thrust/count.h>
+#include <thrust/iterator/counting_iterator.h>
+#include <thrust/reduce.h>
+#include <thrust/copy.h>
+
 #include <type_traits>
 
 namespace cugraph {

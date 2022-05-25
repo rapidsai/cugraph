@@ -32,6 +32,10 @@
 #include <thrust/reduce.h>
 #include <thrust/sequence.h>
 #include <thrust/unique.h>
+#include <thrust/sort.h>
+#include <thrust/distance.h>
+#include <thrust/device_vector.h>
+#include <thrust/transform.h>
 
 #include <algorithm>
 #include <iterator>

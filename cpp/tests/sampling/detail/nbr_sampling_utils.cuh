@@ -44,6 +44,12 @@
 #include <thrust/sort.h>
 #include <thrust/transform.h>
 #include <thrust/tuple.h>
+#include <thrust/functional.h>
+#include <thrust/tabulate.h>
+#include <thrust/fill.h>
+#include <thrust/iterator/counting_iterator.h>
+#include <thrust/distance.h>
+#include <thrust/remove.h>
 
 #include <algorithm>
 #include <cassert>

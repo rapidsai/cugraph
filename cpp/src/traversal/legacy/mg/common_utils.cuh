@@ -22,6 +22,15 @@
 #include <rmm/device_vector.hpp>
 #include <rmm/exec_policy.hpp>
 #include <thrust/host_vector.h>
+#include <thrust/copy.h>
+#include <thrust/iterator/counting_iterator.h>
+#include <thrust/scan.h>
+#include <thrust/execution_policy.h>
+#include <thrust/for_each.h>
+#include <thrust/sort.h>
+#include <thrust/unique.h>
+#include <thrust/fill.h>
+#include <thrust/extrema.h>
 
 #include <raft/cudart_utils.h>
 #include <raft/handle.hpp>

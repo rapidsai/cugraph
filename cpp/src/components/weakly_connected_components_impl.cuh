@@ -39,6 +39,19 @@
 #include <thrust/optional.h>
 #include <thrust/shuffle.h>
 #include <thrust/tuple.h>
+#include <thrust/distance.h>
+#include <thrust/transform.h>
+#include <thrust/scan.h>
+#include <thrust/binary_search.h>
+#include <thrust/partition.h>
+#include <thrust/random.h>
+#include <thrust/transform_reduce.h>
+#include <thrust/functional.h>
+#include <thrust/sort.h>
+#include <thrust/for_each.h>
+#include <thrust/merge.h>
+#include <thrust/unique.h>
+#include <thrust/sequence.h>
 
 #include <algorithm>
 #include <limits>

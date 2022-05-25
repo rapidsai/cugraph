@@ -23,6 +23,7 @@
 #include <thrust/distance.h>
 #include <thrust/optional.h>
 #include <thrust/tuple.h>
+#include <thrust/execution_policy.h>
 
 #include <cassert>
 #include <optional>

@@ -27,6 +27,16 @@
 #include <thrust/iterator/constant_iterator.h>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/tuple.h>
+#include <thrust/fill.h>
+#include <thrust/distance.h>
+#include <thrust/merge.h>
+#include <thrust/unique.h>
+#include <thrust/copy.h>
+#include <thrust/transform.h>
+#include <thrust/remove.h>
+#include <thrust/partition.h>
+#include <thrust/sort.h>
+#include <thrust/reduce.h>
 
 #include <cinttypes>
 #include <cstddef>

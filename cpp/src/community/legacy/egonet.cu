@@ -27,6 +27,11 @@
 
 #include <ctime>
 #include <thrust/transform.h>
+#include <thrust/fill.h>
+#include <thrust/iterator/counting_iterator.h>
+#include <thrust/remove.h>
+#include <thrust/distance.h>
+#include <thrust/copy.h>
 
 #include <cugraph/legacy/graph.hpp>
 

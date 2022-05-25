@@ -27,6 +27,16 @@
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/sort.h>
 #include <thrust/transform.h>
+#include <thrust/device_ptr.h>
+#include <thrust/transform_reduce.h>
+#include <thrust/reduce.h>
+#include <thrust/iterator/constant_iterator.h>
+#include <thrust/fill.h>
+#include <thrust/scatter.h>
+#include <thrust/copy.h>
+#include <thrust/sequence.h>
+#include <thrust/execution_policy.h>
+#include <thrust/extrema.h>
 
 namespace cugraph {
 namespace detail {

@@ -29,6 +29,9 @@
 
 #include <thrust/device_vector.h>
 #include <thrust/host_vector.h>
+#include <thrust/device_ptr.h>
+#include <thrust/copy.h>
+#include <thrust/sequence.h>
 
 #include <fstream>
 #include <queue>

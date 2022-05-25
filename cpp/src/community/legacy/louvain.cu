@@ -17,8 +17,11 @@
 #include <community/flatten_dendrogram.cuh>
 #include <community/legacy/louvain.cuh>
 #include <cugraph/graph.hpp>
+#include <cugraph/legacy/eidir_graph.hpp>
 
 #include <rmm/device_uvector.hpp>
+
+#include <thrust/sequence.h>
 
 namespace cugraph {
 
@@ -120,5 +123,3 @@ template std::pair<size_t, double> louvain(raft::handle_t const&,
                                            size_t,
                                            double);
 }  // namespace cugraph
-
-#include <cugraph/legacy/eidir_graph.hpp>

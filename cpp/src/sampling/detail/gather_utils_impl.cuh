@@ -32,6 +32,15 @@
 #include <thrust/remove.h>
 #include <thrust/sort.h>
 #include <thrust/tabulate.h>
+#include <thrust/fill.h>
+#include <thrust/memory.h>
+#include <thrust/scan.h>
+#include <thrust/transform.h>
+#include <thrust/functional.h>
+#include <thrust/iterator/zip_iterator.h>
+#include <thrust/tuple.h>
+#include <thrust/transform_reduce.h>
+#include <thrust/optional.h>
 
 #include <rmm/device_uvector.hpp>
 

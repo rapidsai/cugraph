@@ -26,6 +26,9 @@
 #include <cugraph/legacy/graph.hpp>
 #include <cugraph/utilities/error.hpp>
 
+#include <thrust/fill.h>
+#include <thrust/reduce.h>
+
 #include "exact_repulsion.cuh"
 #include "fa2_kernels.cuh"
 #include "utils.hpp"

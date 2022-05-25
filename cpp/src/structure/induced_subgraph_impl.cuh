@@ -29,6 +29,16 @@
 #include <thrust/gather.h>
 #include <thrust/sort.h>
 #include <thrust/tuple.h>
+#include <thrust/count.h>
+#include <thrust/iterator/counting_iterator.h>
+#include <thrust/execution_policy.h>
+#include <thrust/transform.h>
+#include <thrust/distance.h>
+#include <thrust/optional.h>
+#include <thrust/scan.h>
+#include <thrust/for_each.h>
+#include <thrust/iterator/zip_iterator.h>
+#include <thrust/iterator/constant_iterator.h>
 
 #include <tuple>
 

@@ -26,6 +26,11 @@
 
 #include <raft/handle.hpp>
 
+#include <thrust/tuple.h>
+#include <thrust/iterator/zip_iterator.h>
+#include <thrust/distance.h>
+#include <thrust/remove.h>
+
 #include <cstdint>
 #include <numeric>
 #include <optional>

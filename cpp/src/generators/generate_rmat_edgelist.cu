@@ -23,6 +23,8 @@
 
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/tuple.h>
+#include <thrust/transform.h>
+#include <thrust/iterator/counting_iterator.h>
 
 #include <random>
 #include <rmm/detail/error.hpp>

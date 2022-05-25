@@ -41,6 +41,8 @@
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/reduce.h>
 #include <thrust/scatter.h>
+#include <thrust/distance.h>
+#include <thrust/tuple.h>
 
 #include <numeric>
 #include <vector>

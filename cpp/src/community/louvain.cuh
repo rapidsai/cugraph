@@ -33,6 +33,14 @@
 
 #include <thrust/binary_search.h>
 #include <thrust/transform_reduce.h>
+#include <thrust/tuple.h>
+#include <thrust/optional.h>
+#include <thrust/sequence.h>
+#include <thrust/functional.h>
+#include <thrust/iterator/zip_iterator.h>
+#include <thrust/sort.h>
+#include <thrust/transform.h>
+#include <thrust/execution_policy.h>
 
 //#define TIMING
 

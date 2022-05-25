@@ -22,6 +22,10 @@
 #include <rmm/device_vector.hpp>
 #include <rmm/exec_policy.hpp>
 
+#include <thrust/for_each.h>
+#include <thrust/iterator/counting_iterator.h>
+#include <thrust/count.h>
+
 namespace {
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool has_weight>

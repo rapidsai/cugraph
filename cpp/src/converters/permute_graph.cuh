@@ -20,6 +20,9 @@
 #include <rmm/exec_policy.hpp>
 #include <utilities/graph_utils.cuh>
 
+#include <thrust/copy.h>
+#include <thrust/transform.h>
+
 namespace cugraph {
 namespace detail {
 

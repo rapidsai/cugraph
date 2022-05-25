@@ -36,6 +36,13 @@
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/transform.h>
 #include <thrust/tuple.h>
+#include <thrust/extrema.h>
+#include <thrust/remove.h>
+#include <thrust/distance.h>
+#include <thrust/count.h>
+#include <thrust/transform_reduce.h>
+#include <thrust/tabulate.h>
+#include <thrust/for_each.h>
 
 namespace cugraph {
 

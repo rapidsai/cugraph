@@ -37,6 +37,9 @@
 #include <thrust/optional.h>
 #include <thrust/transform.h>
 #include <thrust/tuple.h>
+#include <thrust/count.h>
+#include <thrust/for_each.h>
+#include <thrust/copy.h>
 
 #include <limits>
 #include <type_traits>

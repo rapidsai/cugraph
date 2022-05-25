@@ -35,6 +35,12 @@
 #include <rmm/device_scalar.hpp>
 #include <rmm/device_uvector.hpp>
 #include <thrust/reduce.h>
+#include <thrust/functional.h>
+#include <thrust/tuple.h>
+#include <thrust/iterator/zip_iterator.h>
+#include <thrust/transform.h>
+#include <thrust/iterator/counting_iterator.h>
+#include <thrust/distance.h>
 
 #include <gtest/gtest.h>
 

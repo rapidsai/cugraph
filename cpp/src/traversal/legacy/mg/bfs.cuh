@@ -22,6 +22,8 @@
 #include <raft/handle.hpp>
 #include <rmm/device_vector.hpp>
 
+#include <thrust/fill.h>
+
 namespace cugraph {
 
 namespace mg {

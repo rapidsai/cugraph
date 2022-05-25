@@ -25,6 +25,8 @@
 
 #include <thrust/equal.h>
 #include <thrust/random.h>
+#include <thrust/for_each.h>
+#include <thrust/iterator/counting_iterator.h>
 
 __global__ void setup_generator(curandState* state)
 {

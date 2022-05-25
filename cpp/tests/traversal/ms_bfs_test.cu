@@ -34,6 +34,10 @@
 #include <thrust/extrema.h>
 #include <thrust/sequence.h>
 #include <thrust/transform.h>
+#include <thrust/reduce.h>
+#include <thrust/functional.h>
+#include <thrust/copy.h>
+#include <thrust/replace.h>
 
 #include <gtest/gtest.h>
 

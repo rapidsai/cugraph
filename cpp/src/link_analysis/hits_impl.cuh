@@ -26,6 +26,11 @@
 
 #include <thrust/fill.h>
 #include <thrust/transform.h>
+#include <thrust/iterator/constant_iterator.h>
+#include <thrust/functional.h>
+#include <thrust/iterator/zip_iterator.h>
+#include <thrust/tuple.h>
+#include <thrust/copy.h>
 
 namespace cugraph {
 namespace detail {

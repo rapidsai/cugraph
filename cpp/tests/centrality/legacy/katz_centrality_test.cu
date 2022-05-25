@@ -27,6 +27,12 @@
 #include <rmm/device_vector.hpp>
 
 #include <thrust/device_ptr.h>
+#include <thrust/sequence.h>
+#include <thrust/sort.h>
+#include <thrust/functional.h>
+#include <thrust/copy.h>
+#include <thrust/reduce.h>
+#include <thrust/memory.h>
 
 #include <fstream>
 

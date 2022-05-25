@@ -33,6 +33,8 @@
 #include <thrust/set_operations.h>
 #include <thrust/sort.h>
 #include <thrust/tuple.h>
+#include <thrust/remove.h>
+#include <thrust/transform.h>
 
 #include <algorithm>
 #include <optional>

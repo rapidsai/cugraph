@@ -37,6 +37,11 @@
 #include <thrust/reduce.h>
 #include <thrust/transform.h>
 #include <thrust/tuple.h>
+#include <thrust/distance.h>
+#include <thrust/binary_search.h>
+#include <thrust/sort.h>
+#include <thrust/tabulate.h>
+#include <thrust/adjacent_difference.h>
 
 #include "rw_traversals.hpp"
 

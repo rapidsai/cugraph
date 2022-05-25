@@ -35,6 +35,9 @@
 #include <thrust/sort.h>
 #include <thrust/transform.h>
 #include <thrust/tuple.h>
+#include <thrust/functional.h>
+#include <thrust/unique.h>
+#include <thrust/distance.h>
 
 namespace cugraph {
 

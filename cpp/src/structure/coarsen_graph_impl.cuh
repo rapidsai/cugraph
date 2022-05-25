@@ -35,6 +35,15 @@
 #include <thrust/scan.h>
 #include <thrust/sort.h>
 #include <thrust/tuple.h>
+#include <thrust/iterator/zip_iterator.h>
+#include <thrust/count.h>
+#include <thrust/iterator/counting_iterator.h>
+#include <thrust/reduce.h>
+#include <thrust/distance.h>
+#include <thrust/unique.h>
+#include <thrust/transform.h>
+#include <thrust/remove.h>
+#include <thrust/partition.h>
 
 #include <algorithm>
 #include <iterator>

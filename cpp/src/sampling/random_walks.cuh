@@ -45,6 +45,10 @@
 #include <thrust/transform.h>
 #include <thrust/transform_scan.h>
 #include <thrust/tuple.h>
+#include <thrust/for_each.h>
+#include <thrust/scatter.h>
+#include <thrust/distance.h>
+#include <thrust/functional.h>
 
 #include <cassert>
 #include <cstdlib>  // FIXME: requirement for temporary std::getenv()
