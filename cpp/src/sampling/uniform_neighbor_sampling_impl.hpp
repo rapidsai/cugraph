@@ -44,8 +44,16 @@ std::tuple<rmm::device_uvector<typename graph_view_t::vertex_type>,
            rmm::device_uvector<typename graph_view_t::weight_type>>
 uniform_nbr_sample_impl(
   raft::handle_t const& handle,
+
+  // We never actually use the graph_view in this function...
+  // (though since it's available we can pull off the mask).
   graph_view_t const& graph_view,
+
+  // List of vertices to sample.
   rmm::device_uvector<typename graph_view_t::vertex_type>& d_in,
+
+  // vector of branching out (fan-out) degree per source vertex for each level
+  // parameter used for obtaining local out-degree information
   raft::host_span<const int> h_fan_out,
   rmm::device_uvector<typename graph_view_t::edge_type> const& global_out_degrees,
   rmm::device_uvector<typename graph_view_t::edge_type> const& global_degree_offsets,
@@ -64,6 +72,8 @@ uniform_nbr_sample_impl(
 
   rmm::device_uvector<vertex_t> d_result_src(0, handle.get_stream());
   rmm::device_uvector<vertex_t> d_result_dst(0, handle.get_stream());
+
+
   auto d_result_indices =
     thrust::make_optional(rmm::device_uvector<weight_t>(0, handle.get_stream()));
 
@@ -93,6 +103,8 @@ uniform_nbr_sample_impl(
       // extract out-degs(sources):
       auto&& d_out_degs =
         get_active_major_global_degrees(handle, graph_view, d_in, global_out_degrees);
+
+      // TODO: Should we do a mask step first?
 
       // eliminate 0 degree vertices
       std::tie(d_in, d_out_degs) =
@@ -168,14 +180,20 @@ std::
     bool with_replacement,
     uint64_t seed)
 {
+
+  // TODO: Probably don't need to filter this.
   rmm::device_uvector<vertex_t> d_start_vs(starting_vertices.size(), handle.get_stream());
   raft::copy(
     d_start_vs.data(), starting_vertices.data(), starting_vertices.size(), handle.get_stream());
 
   // preamble step for out-degree info:
   //
+
+  // TODO: This probably needs to filter based on the mask.
   auto&& [global_degree_offsets, global_out_degrees] =
     detail::get_global_degree_information(handle, graph_view);
+
+  // TODO: This probably needs to filter based on the mask
   auto&& global_adjacency_list_offsets = detail::get_global_adjacency_offset(
     handle, graph_view, global_degree_offsets, global_out_degrees);
 

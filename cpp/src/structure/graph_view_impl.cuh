@@ -439,7 +439,7 @@ graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enabl
                std::optional<std::vector<vertex_t const*>> const& edge_partition_dcs_nzd_vertices,
                std::optional<std::vector<vertex_t>> const& edge_partition_dcs_nzd_vertex_counts,
                graph_view_meta_t<vertex_t, edge_t, multi_gpu> meta,
-               std::optional<std::vector<graph_mask_t<bool>*>> mask = std::nullopt)
+               std::optional<std::vector<graph_mask_t<vertex_t, edge_t>*>> mask = std::nullopt)
   : detail::graph_base_t<vertex_t, edge_t, weight_t>(
       handle, meta.number_of_vertices, meta.number_of_edges, meta.properties),
     edge_partition_offsets_(edge_partition_offsets),
@@ -518,7 +518,7 @@ graph_view_t<
                                               vertex_t const* indices,
                                               std::optional<weight_t const*> weights,
                                               graph_view_meta_t<vertex_t, edge_t, multi_gpu> meta,
-                                              std::optional<graph_mask_t<bool>> mask = std::nullopt)
+                                              std::optional<graph_mask_t<vertex_t, edge_t>> mask = std::nullopt)
   : detail::graph_base_t<vertex_t, edge_t, weight_t>(
       handle, meta.number_of_vertices, meta.number_of_edges, meta.properties),
     offsets_(offsets),
