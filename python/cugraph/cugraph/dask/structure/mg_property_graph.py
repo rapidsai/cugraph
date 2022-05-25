@@ -268,8 +268,10 @@ class EXPERIMENTAL__MGPropertyGraph:
         # type as the incoming dataframe.
         default_vertex_columns = [self.vertex_col_name, self.type_col_name]
         if self.__vertex_prop_dataframe is None:
+            temp_dataframe = cudf.DataFrame(columns=default_vertex_columns)
             self.__vertex_prop_dataframe = \
-                dask_cudf.DataFrame(columns=default_vertex_columns)
+                dask_cudf.from_cudf(temp_dataframe,
+                                    npartitions=self.__num_workers)
             # Initialize the new columns to the same dtype as the appropriate
             # column in the incoming dataframe, since the initial merge may not
             # result in the same dtype. (see
@@ -503,7 +505,6 @@ class EXPERIMENTAL__MGPropertyGraph:
         --------
         >>>
         """
-
         if (selection is not None) and \
            not isinstance(selection, EXPERIMENTAL__MGPropertySelection):
             raise TypeError("selection must be an instance of "

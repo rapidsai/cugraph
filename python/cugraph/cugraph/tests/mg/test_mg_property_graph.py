@@ -118,15 +118,6 @@ def net_MGPropertyGraph(dask_client):
         names=["src", "dst", "value"],
         dtype=["int32", "int32", "float32"],
     )
-    # def modify_dataset(df):
-    #     temp_df = cudf.DataFrame()
-    #     temp_df['src'] = df['src']+1000
-    #     temp_df['dst'] = df['dst']+1000
-    #     temp_df['value'] = df['value']
-    #     return cudf.concat([df, temp_df])
-
-    # meta = ddf._meta
-    # ddf = ddf.map_partitions(modify_dataset, meta=meta)
 
     dpG = MGPropertyGraph()
     dpG.add_edge_data(ddf, ("src", "dst"))
@@ -142,5 +133,32 @@ def test_extract_subgraph_no_query(net_MGPropertyGraph, net_PropertyGraph):
     assert pG.num_edges == dpG.num_edges
     print(dpG.num_edges)
     assert pG.num_vertices == dpG.num_vertices
+    # tests that the edges are the same in the sg and mg property graph
+    sg_df = pG.edges.sort_values(by=['_SRC_', '_DST_']).reset_index(drop=True)
+    mg_df = dpG.edges.compute().sort_values(by=['_SRC_', '_DST_'])
+    mg_df = mg_df.reset_index(drop=True)
+    assert (sg_df.equals(mg_df))
+    subgraph = pG.extract_subgraph(allow_multi_edges=False)
     dask_subgraph = dpG.extract_subgraph(allow_multi_edges=False)
-    print(type(dask_subgraph))
+    sg_subgraph_df = \
+        subgraph.edgelist.edgelist_df.sort_values(by=['_SRC_', '_DST_'])
+    sg_subgraph_df = sg_subgraph_df.reset_index(drop=True)
+    mg_subgraph_df = \
+        dask_subgraph.edges.compute().sort_values(by=['_SRC_', '_DST_'])
+    mg_subgraph_df = mg_subgraph_df.reset_index(drop=True)
+    assert (sg_subgraph_df.equals(mg_subgraph_df))
+    assert dpG == pG
+
+
+def test_add_vertex_properties(net_MGPropertyGraph, net_PropertyGraph):
+
+    dpG = net_MGPropertyGraph
+    pG = net_PropertyGraph
+    assert pG.num_edges == dpG.num_edges
+    print(dpG.num_edges)
+    assert pG.num_vertices == dpG.num_vertices
+    df = cudf.DataFrame({"a": [1, 2, 3], "addedData": [4, 5, 6]})
+    pG.add_vertex_data(df, vertex_col_name="a")
+    dask_df = dask_cudf.from_cudf(df, npartitions=2)
+    dpG.add_vertex_data(dask_df, vertex_col_name="a")
+#    breakpoint()
