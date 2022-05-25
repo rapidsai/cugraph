@@ -89,15 +89,18 @@ def _find_doctests_in_obj(finder, obj, obj_name, criteria=None):
         if inspect.isfunction(member):
             yield from _find_doctests_in_docstring(finder, member)
         if inspect.isclass(member):
-            if _module_from_library(member, obj_name):
+            if member.__module__ and _module_from_library(member, obj_name):
                 yield from _find_doctests_in_docstring(finder, member)
 
 
 def _find_doctests_in_docstring(finder, member):
     for docstring in finder.find(member):
-        if docstring.examples:
-            if 'dask' not in str(docstring):
-                yield docstring
+        has_examples = docstring.examples
+        is_dask = 'dask' in str(docstring)
+        is_experimental = 'EXPERIMENTAL' in str(docstring)
+        # if has_examples and not is_dask:
+        if has_examples and not is_dask and not is_experimental:
+            yield docstring
 
 
 def _fetch_doctests():

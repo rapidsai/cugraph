@@ -11,6 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import warnings
 from cugraph.link_analysis import hits_wrapper
 from cugraph.utilities import (ensure_cugraph_obj_for_nx,
                                df_score_to_dictionary,
@@ -79,6 +80,9 @@ def hits(G, max_iter=100, tol=1.0e-5, nstart=None, normalized=True):
     >>> hits = cugraph.hits(G, max_iter = 50)
 
     """
+    warning_msg = ("This call is deprecated and will be refactored "
+                   "in the next release")
+    warnings.warn(warning_msg, PendingDeprecationWarning)
 
     G, isNx = ensure_cugraph_obj_for_nx(G)
 

@@ -13,6 +13,7 @@
 # limitations under the License.
 #
 
+import warnings
 from dask.distributed import wait, default_client
 from cugraph.dask.common.input_utils import (get_distributed_data,
                                              get_vertex_partition_offsets)
@@ -148,6 +149,10 @@ def katz_centrality(input_graph,
     >>> pr = dcg.katz_centrality(dg)
 
     """
+    warning_msg = ("This call is deprecated and will be refactored "
+                   "in the next release")
+    warnings.warn(warning_msg, PendingDeprecationWarning)
+
     nstart = None
 
     client = default_client()

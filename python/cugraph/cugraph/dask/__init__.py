@@ -11,8 +11,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from cugraph.utilities.api_tools import deprecated_warning_wrapper
-
 from .link_analysis.pagerank import pagerank
 from .link_analysis.hits import hits
 from .traversal.bfs import bfs
@@ -20,5 +18,4 @@ from .traversal.sssp import sssp
 from .common.read_utils import get_chunksize
 from .community.louvain import louvain
 from .centrality.katz_centrality import katz_centrality
-katz_centrality = deprecated_warning_wrapper(katz_centrality)
 from .components.connectivity import weakly_connected_components

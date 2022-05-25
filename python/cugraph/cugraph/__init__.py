@@ -11,8 +11,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from cugraph.utilities.api_tools import deprecated_warning_wrapper
-
 from cugraph.community import (
     ecg,
     ktruss_subgraph,
@@ -74,7 +72,6 @@ from cugraph.components import (
 )
 
 from cugraph.link_analysis import pagerank, hits
-hits = deprecated_warning_wrapper(hits)
 
 from cugraph.link_prediction import (
     jaccard,
