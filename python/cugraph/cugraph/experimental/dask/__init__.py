@@ -19,6 +19,6 @@ uniform_neighborhood_sampling = \
     experimental_warning_wrapper(EXPERIMENTAL__uniform_neighborhood)
 
 from cugraph.dask.community.triangle_count import \
-    EXPERIMENTAL__triangle_count
+    triangle_count
 triangle_count = \
-    experimental_warning_wrapper(EXPERIMENTAL__triangle_count)
+    experimental_warning_wrapper(triangle_count)

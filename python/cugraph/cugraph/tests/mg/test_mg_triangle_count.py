@@ -55,7 +55,7 @@ datasets = utils.DATASETS_UNDIRECTED
 
 fixture_params = utils.genFixtureParamsProduct((datasets, "graph_file"),
                                                (HAS_START_LIST, "start_list"),
-                                               (IS_WEIGHTED), "is_weighted"
+                                               (IS_WEIGHTED, "is_weighted"),
                                                )
 
 
@@ -138,7 +138,6 @@ def input_expected_output(input_combo):
     return input_combo
 
 
-@pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
 def test_triangles(dask_client, benchmark, input_expected_output):
 
     dg = input_expected_output["MGGraph"]

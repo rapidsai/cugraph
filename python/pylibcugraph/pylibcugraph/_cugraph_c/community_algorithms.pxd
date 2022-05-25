@@ -34,7 +34,7 @@ from pylibcugraph._cugraph_c.graph cimport (
 cdef extern from "cugraph_c/community_algorithms.h":
     ###########################################################################
     # triangle_count
-    ctypedef struct cugraph_triangle_count_result_t;
+    ctypedef struct cugraph_triangle_count_result_t:
         pass
 
     cdef cugraph_type_erased_device_array_view_t* \
