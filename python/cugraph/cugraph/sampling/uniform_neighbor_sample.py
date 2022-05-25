@@ -26,7 +26,8 @@ import cudf
 def uniform_neighbor_sample(G,
                             start_list,
                             fanout_vals,
-                            with_replacement=True):
+                            with_replacement=True,
+                            is_edge_ids=False):
     """
     Does neighborhood sampling, which samples nodes from a graph based on the
     current node's neighbors, with a corresponding fanout value at each hop.
@@ -47,6 +48,10 @@ def uniform_neighbor_sample(G,
     with_replacement: bool, optional (default=True)
         Flag to specify if the random sampling is done with replacement
 
+    is_edge_ids: bool, (default=False)
+        Flag to specify if the input graph's weights were passed as edge_ids.
+        If true, the input graph's weight will be treated as edge ids
+
     Returns
     -------
     result : cudf.DataFrame
@@ -65,8 +70,8 @@ def uniform_neighbor_sample(G,
         start_list = [start_list]
 
     if isinstance(start_list, list):
-        start_list = cudf.Series(start_list, dtype='int32')
-        if start_list.dtype != 'int32':
+        start_list = cudf.Series(start_list, dtype="int32")
+        if start_list.dtype != "int32":
             raise ValueError(f"'start_list' must have int32 values, "
                              f"got: {start_list.dtype}")
 
@@ -87,11 +92,11 @@ def uniform_neighbor_sample(G,
 
     srcs = G.edgelist.edgelist_df['src']
     dsts = G.edgelist.edgelist_df['dst']
-    # Weights are not currently supported. Create an edge_ids
-    # column of type same type as the vertices which will be
-    # ignored when computing the algo
-    # FIXME: Drop the edge_ids once weights are supported
-    edge_ids = cudf.Series(range(len(srcs)), dtype=srcs.dtype)
+    weights = G.edgelist.edgelist_df['weights']
+
+    if is_edge_ids and weights.dtype not in ['int32', 'in64']:
+        raise ValueError(f"Graph weights must have int32 or int64 values "
+                         f"if they are edge ids, got: {weights.dtype}")
 
     if srcs.dtype != 'int32':
         raise ValueError(f"Graph vertices must have int32 values, "
@@ -103,13 +108,13 @@ def uniform_neighbor_sample(G,
     renumber = False
     do_expensive_check = False
 
-    sg = SGGraph(resource_handle, graph_props, srcs, dsts, edge_ids,
+    sg = SGGraph(resource_handle, graph_props, srcs, dsts, weights,
                  store_transposed, renumber, do_expensive_check)
 
     sources, destinations, indices = \
         pylibcugraph_uniform_neighbor_sample(resource_handle, sg, start_list,
                                              fanout_vals, with_replacement,
-                                             do_expensive_check)
+                                             is_edge_ids, do_expensive_check)
 
     df = cudf.DataFrame()
     df["sources"] = sources

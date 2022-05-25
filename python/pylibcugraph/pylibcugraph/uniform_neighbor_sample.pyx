@@ -35,6 +35,7 @@ from pylibcugraph._cugraph_c.array cimport (
     cugraph_type_erased_host_array_view_t,
     cugraph_type_erased_host_array_view_create,
     cugraph_type_erased_host_array_view_free,
+    cugraph_type_erased_device_array_view_type,
 )
 from pylibcugraph._cugraph_c.graph cimport (
     cugraph_graph_t,
@@ -70,6 +71,7 @@ def EXPERIMENTAL__uniform_neighbor_sample(ResourceHandle resource_handle,
                                start_list,
                                h_fan_out,
                                bool_t with_replacement,
+                               bool_t is_edge_ids,
                                bool_t do_expensive_check):
     """
     Does neighborhood sampling, which samples nodes from a graph based on the
@@ -94,6 +96,10 @@ def EXPERIMENTAL__uniform_neighbor_sample(ResourceHandle resource_handle,
     with_replacement: bool
         If true, sampling procedure is done with replacement (the same vertex
         can be selected multiple times in the same step).
+    
+    is_edge_ids: bool
+       Flag to specify if the weights were passed as edge_ids.
+       If true, the input graph's weight will be treated as edge ids
 
     do_expensive_check: bool
         If True, performs more extensive tests on the inputs to ensure
@@ -144,7 +150,7 @@ def EXPERIMENTAL__uniform_neighbor_sample(ResourceHandle resource_handle,
         do_expensive_check,
         &result_ptr,
         &error_ptr)
-    assert_success(error_code, error_ptr, "uniform_nbr_sample")
+    assert_success(error_code, error_ptr, "cugraph_uniform_neighbor_sample")
 
     cdef cugraph_type_erased_device_array_view_t* src_ptr = \
         cugraph_sample_result_get_sources(result_ptr)
@@ -156,9 +162,13 @@ def EXPERIMENTAL__uniform_neighbor_sample(ResourceHandle resource_handle,
    
     cupy_sources = copy_to_cupy_array(c_resource_handle_ptr, src_ptr)
     cupy_destinations = copy_to_cupy_array(c_resource_handle_ptr, dst_ptr)
-    cupy_indices = copy_to_cupy_array_ids(c_resource_handle_ptr, index_ptr)
-    #print("indices are \n", cupy_indices)
-    #print("type is ", cupy_indices.dtype)
+ 
+    
+    if is_edge_ids:
+        cupy_indices = copy_to_cupy_array_ids(c_resource_handle_ptr, index_ptr)
+    else:
+        cupy_indices = copy_to_cupy_array(c_resource_handle_ptr, index_ptr)
+
 
     cugraph_sample_result_free(result_ptr)
     cugraph_type_erased_device_array_view_free(start_ptr)

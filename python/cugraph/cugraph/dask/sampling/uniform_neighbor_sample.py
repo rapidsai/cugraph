@@ -30,15 +30,14 @@ from cugraph.dask.comms import comms as Comms
 
 def call_nbr_sampling(sID,
                       data,
-                      idx,
-                      num_edges_per_partition,
                       src_col_name,
                       dst_col_name,
                       num_edges,
                       do_expensive_check,
                       start_list,
                       h_fan_out,
-                      with_replacement):
+                      with_replacement,
+                      is_edge_ids):
 
     # Preparation for graph creation
     handle = Comms.get_handle(sID)
@@ -46,15 +45,9 @@ def call_nbr_sampling(sID,
     graph_properties = GraphProperties(is_symmetric=False, is_multigraph=False)
     srcs = data[0][src_col_name]
     dsts = data[0][dst_col_name]
-    # Weights are not currently supported. Create an edge_ids
-    # column of the same type as the vertices. They will be
-    # ignored during the algo computation
-    # FIXME: Drop the edge_ids once weights are supported
-    edge_ids = None
+    weights = None
     if "value" in data[0].columns:
-        start = sum(num_edges_per_partition[:idx])
-        end = start + num_edges_per_partition[idx]
-        edge_ids = cudf.Series(range(start, end), dtype=srcs.dtype)
+        weights = data[0]['value']
 
     store_transposed = False
 
@@ -62,7 +55,7 @@ def call_nbr_sampling(sID,
                  graph_properties,
                  srcs,
                  dsts,
-                 edge_ids,
+                 weights,
                  store_transposed,
                  num_edges,
                  do_expensive_check)
@@ -72,6 +65,7 @@ def call_nbr_sampling(sID,
                                                    start_list,
                                                    h_fan_out,
                                                    with_replacement,
+                                                   is_edge_ids,
                                                    do_expensive_check)
     return ret_val
 
@@ -92,7 +86,8 @@ def convert_to_cudf(cp_arrays):
 def uniform_neighbor_sample(input_graph,
                             start_list,
                             fanout_vals,
-                            with_replacement=True):
+                            with_replacement=True,
+                            is_edge_ids=False):
     """
     Does neighborhood sampling, which samples nodes from a graph based on the
     current node's neighbors, with a corresponding fanout value at each hop.
@@ -112,6 +107,10 @@ def uniform_neighbor_sample(input_graph,
 
     with_replacement: bool, optional (default=True)
         Flag to specify if the random sampling is done with replacement
+
+    is_edge_ids: bool, (default=False)
+        Flag to specify if the weights were passed as edge_ids.
+        If true, the input graph's weight will be treated as edge ids
 
     Returns
     -------
@@ -140,7 +139,7 @@ def uniform_neighbor_sample(input_graph,
 
     if isinstance(start_list, list):
         start_list = cudf.Series(start_list)
-        if start_list.dtype != 'int32':
+        if start_list.dtype != "int32":
             raise ValueError(f"'start_list' must have int32 values, "
                              f"got: {start_list.dtype}")
 
@@ -157,8 +156,11 @@ def uniform_neighbor_sample(input_graph,
     src_col_name = input_graph.renumber_map.renumbered_src_col_name
     dst_col_name = input_graph.renumber_map.renumbered_dst_col_name
 
-    num_edges_per_partition = [len(
-        ddf.get_partition(p)) for p in range(ddf.npartitions)]
+    weight_t = ddf["value"].dtype
+
+    if is_edge_ids and weight_t not in ["int32", "in64"]:
+        raise ValueError(f"Graph weights must have int32 or int64 values "
+                         f"if they are edge ids, got: {weight_t}")
 
     num_edges = len(ddf)
     data = get_distributed_data(ddf)
@@ -173,8 +175,6 @@ def uniform_neighbor_sample(input_graph,
     result = [client.submit(call_nbr_sampling,
                             Comms.get_session_id(),
                             wf[1],
-                            idx,
-                            num_edges_per_partition,
                             src_col_name,
                             dst_col_name,
                             num_edges,
@@ -182,6 +182,7 @@ def uniform_neighbor_sample(input_graph,
                             start_list,
                             fanout_vals,
                             with_replacement,
+                            is_edge_ids,
                             workers=[wf[0]])
               for idx, wf in enumerate(data.worker_to_parts.items())]
 
