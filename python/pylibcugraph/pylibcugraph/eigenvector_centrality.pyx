@@ -79,6 +79,29 @@ def eigenvector_centrality(ResourceHandle resource_handle,
 
     do_expensive_check : bool_t
         A flag to run expensive checks for input arguments if True.
+
+    Returns
+    -------
+    A tuple of device arrays, where the first item in the tuple is a device
+    array containing the vertices and the second item in the tuple is a device
+    array containing the eigenvector centrality scores for the corresponding
+    vertices.
+
+    Examples
+    --------
+    >>> import pylibcugraph, cupy, numpy
+    >>> srcs = cupy.asarray([0, 1, 2], dtype=numpy.int32)
+    >>> dsts = cupy.asarray([1, 2, 3], dtype=numpy.int32)
+    >>> weights = cupy.asarray([1.0, 1.0, 1.0], dtype=numpy.float32)
+    >>> resource_handle = pylibcugraph.ResourceHandle()
+    >>> graph_props = pylibcugraph.GraphProperties(
+    ...     is_symmetric=False, is_multigraph=False)
+    >>> G = pylibcugraph.SGGraph(
+    ...     resource_handle, graph_props, srcs, dsts, weights,
+    ...     store_transposed=True, renumber=False, do_expensive_check=False)
+    >>> (vertices, values) = pylibcugraph.eigenvector_centrality(
+                                resource_handle, G, 1e-6, 1000, False)
+
     """
 
     cdef cugraph_resource_handle_t* c_resource_handle_ptr = \

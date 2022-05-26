@@ -19,7 +19,7 @@ import cugraph
 import dask_cudf
 import cudf
 from cugraph.dask.common.mg_utils import is_single_gpu
-from cugraph.testing.utils import RAPIDS_DATASET_ROOT_DIR_PATH
+from cugraph.testing.utils import DATASETS
 
 
 # =============================================================================
@@ -38,9 +38,9 @@ IS_DIRECTED = [True, False]
     is_single_gpu(), reason="skipping MG testing on Single GPU system"
 )
 @pytest.mark.parametrize("directed", IS_DIRECTED)
-def test_dask_eigenvector_centrality(dask_client, directed):
-    input_data_path = (RAPIDS_DATASET_ROOT_DIR_PATH /
-                       "karate.csv").as_posix()
+@pytest.mark.parametrize("input_data_path", DATASETS)
+def test_dask_eigenvector_centrality(dask_client, directed, input_data_path):
+    input_data_path = input_data_path.as_posix()
     print(f"dataset={input_data_path}")
     chunksize = dcg.get_chunksize(input_data_path)
     ddf = dask_cudf.read_csv(

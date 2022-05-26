@@ -101,7 +101,6 @@ def eigenvector_centrality(
     sg = SGGraph(resource_handle, graph_props, srcs, dsts, weights,
                  store_transposed, renumber, do_expensive_check)
 
-    # vertices, values = pylibcugraph_eigenvector(resource_handle, sg, nstart,
     vertices, values = pylib_eigen(resource_handle, sg,
                                    tol, max_iter,
                                    do_expensive_check)
