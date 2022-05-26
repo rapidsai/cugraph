@@ -394,16 +394,13 @@ class EXPERIMENTAL__MGPropertyGraph:
         # columns. The copied DataFrame is then merged (another copy) and then
         # deleted when out-of-scope.
         tmp_df = dataframe.copy()
-        row_count = len(tmp_df.index)
         # FIXME: Find a better way to create the edge id
-        cudf_index_series = \
-            cudf.Series(range(0, row_count))
-        dask_series = \
-            dask_cudf.from_cudf(cudf_index_series, self.__num_workers)
-        dask_series = dask_series.reset_index(drop=True)
+
         tmp_df[self.src_col_name] = tmp_df[vertex_col_names[0]]
         tmp_df[self.dst_col_name] = tmp_df[vertex_col_names[1]]
-        tmp_df[self.edge_id_col_name] = dask_series
+        tmp_df = tmp_df.assign(idx=1)
+        tmp_df[self.edge_id_col_name] = tmp_df.idx.cumsum() - 1
+        tmp_df.persist()
 
         # FIXME: handle case of a type_name column already being in tmp_df
         tmp_df[self.type_col_name] = type_name
