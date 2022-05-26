@@ -22,10 +22,9 @@ from cugraph.utilities import (ensure_cugraph_obj,
                                cupy_package as cp,
                                )
 from pylibcugraph import sssp as pylibcugraph_sssp
-from pylibcugraph.experimental import (ResourceHandle,
-                                       GraphProperties,
-                                       SGGraph,
-                                       )
+from pylibcugraph import (ResourceHandle,
+                          GraphProperties,
+                          SGGraph)
 
 
 def _ensure_args(G, source, method, directed,

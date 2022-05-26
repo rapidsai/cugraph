@@ -22,9 +22,9 @@ import cupy
 import cudf
 import dask_cudf
 from pylibcugraph import sssp as pylibcugraph_sssp
-from pylibcugraph.experimental import (ResourceHandle,
-                                       GraphProperties,
-                                       MGGraph)
+from pylibcugraph import (ResourceHandle,
+                          GraphProperties,
+                          MGGraph)
 
 
 def _call_plc_sssp(
