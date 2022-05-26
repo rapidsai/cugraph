@@ -112,13 +112,13 @@ def node2vec(ResourceHandle resource_handle,
     >>> dsts = cupy.asarray([1, 2, 3], dtype=numpy.int32)
     >>> seeds = cupy.asarray([0, 0, 1], dtype=numpy.int32)
     >>> weights = cupy.asarray([1.0, 1.0, 1.0], dtype=numpy.float32)
-    >>> resource_handle = pylibcugraph.experimental.ResourceHandle()
-    >>> graph_props = pylibcugraph.experimental.GraphProperties(
+    >>> resource_handle = pylibcugraph.ResourceHandle()
+    >>> graph_props = pylibcugraph.GraphProperties(
     ...     is_symmetric=False, is_multigraph=False)
-    >>> G = pylibcugraph.experimental.SGGraph(
+    >>> G = pylibcugraph.SGGraph(
     ...     resource_handle, graph_props, srcs, dsts, weights,
     ...     store_transposed=False, renumber=False, do_expensive_check=False)
-    >>> (paths, weights, sizes) = pylibcugraph.experimental.node2vec(
+    >>> (paths, weights, sizes) = pylibcugraph.node2vec(
     ...                             resource_handle, G, seeds, 3, True, 1.0, 1.0)
 
     """

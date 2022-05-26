@@ -230,6 +230,8 @@ add_library(cugraph
     src/link_analysis/pagerank_mg.cu
     src/centrality/katz_centrality_sg.cu
     src/centrality/katz_centrality_mg.cu
+    src/centrality/eigenvector_centrality_sg.cu
+    src/centrality/eigenvector_centrality_mg.cu
     src/serialization/serializer.cu
     src/tree/mst.cu
     src/components/weakly_connected_components_sg.cu
@@ -374,6 +376,7 @@ add_library(cugraph_c
         src/c_api/sssp.cpp
         src/c_api/extract_paths.cpp
         src/c_api/random_walks.cpp
+        src/c_api/louvain.cpp
         src/c_api/triangle_count.cpp
         src/c_api/uniform_neighbor_sampling.cpp
         src/c_api/labeling_result.cpp
