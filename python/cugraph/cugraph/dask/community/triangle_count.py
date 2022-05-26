@@ -20,12 +20,13 @@ import cugraph.dask.comms.comms as Comms
 import dask_cudf
 import cudf
 
-from pylibcugraph.experimental import (
-    ResourceHandle,
-    GraphProperties,
-    MGGraph,
-    triangle_count as pylicugraph_triangle_count
-    )
+from pylibcugraph import triangle_count as \
+    pylibcugraph_triangle_count
+
+from pylibcugraph import (ResourceHandle,
+                          GraphProperties,
+                          MGGraph
+                          )
 
 
 def call_triangles(sID,
@@ -56,10 +57,10 @@ def call_triangles(sID,
                  num_edges,
                  do_expensive_check)
 
-    result = pylicugraph_triangle_count(h,
-                                        mg,
-                                        start_list,
-                                        do_expensive_check)
+    result = pylibcugraph_triangle_count(h,
+                                         mg,
+                                         start_list,
+                                         do_expensive_check)
 
     return result
 

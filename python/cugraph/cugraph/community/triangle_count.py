@@ -14,14 +14,16 @@
 from cugraph.utilities import ensure_cugraph_obj_for_nx
 import cudf
 
-from pylibcugraph.experimental import (
-    ResourceHandle,
-    GraphProperties,
-    SGGraph,
-    triangle_count as pylicugraph_triangle_count,
-    )
+from pylibcugraph import triangle_count as \
+    pylibcugraph_triangle_count
+
+from pylibcugraph import (ResourceHandle,
+                          GraphProperties,
+                          SGGraph
+                          )
 
 
+# FIXME: rename this to triangle_conut to match the MG implmentation
 def triangles(G, start_list=None):
     """
     Compute the number of triangles (cycles of length three) in the
@@ -104,7 +106,7 @@ def triangles(G, start_list=None):
     sg = SGGraph(resource_handle, graph_props, srcs, dsts, weights,
                  store_transposed, renumber, do_expensive_check)
 
-    vertex, counts = pylicugraph_triangle_count(
+    vertex, counts = pylibcugraph_triangle_count(
         resource_handle, sg, start_list, do_expensive_check)
 
     df = cudf.DataFrame()
