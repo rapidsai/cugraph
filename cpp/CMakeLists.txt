@@ -29,6 +29,9 @@ rapids_cuda_init_architectures(CUGRAPH)
 
 project(CUGRAPH VERSION 22.08.00 LANGUAGES C CXX CUDA)
 
+include(${rapids-cmake-dir}/cpm/package_override.cmake)
+rapids_cpm_package_override(${CMAKE_CURRENT_SOURCE_DIR}/versions.json)
+
 if(CMAKE_CUDA_COMPILER_ID STREQUAL "NVIDIA" AND
    CMAKE_CUDA_COMPILER_VERSION VERSION_LESS 11.0)
     message(FATAL_ERROR "CUDA compiler version must be at least 11.0")
