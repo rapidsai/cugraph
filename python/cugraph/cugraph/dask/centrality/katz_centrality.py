@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2022, NVIDIA CORPORATION.
+# Copyright (c) 2022, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,18 +13,25 @@
 # limitations under the License.
 #
 
-import warnings
 from dask.distributed import wait, default_client
 from cugraph.dask.common.input_utils import (get_distributed_data,
                                              get_vertex_partition_offsets)
-from cugraph.dask.centrality import\
-    mg_katz_centrality_wrapper as mg_katz_centrality
+from pylibcugraph import (ResourceHandle,
+                          GraphProperties,
+                          MGGraph,
+                          katz_centrality as pylibcugraph_katz
+                          )
 import cugraph.dask.comms.comms as Comms
 import dask_cudf
+import cudf
+import cupy
 
 
 def call_katz_centrality(sID,
                          data,
+                         graph_properties,
+                         store_transposed,
+                         do_expensive_check,
                          src_col_name,
                          dst_col_name,
                          num_verts,
@@ -37,35 +44,54 @@ def call_katz_centrality(sID,
                          tol,
                          nstart,
                          normalized):
-    wid = Comms.get_worker_id(sID)
     handle = Comms.get_handle(sID)
-    local_size = len(aggregate_segment_offsets) // Comms.get_n_workers(sID)
-    segment_offsets = \
-        aggregate_segment_offsets[local_size * wid: local_size * (wid + 1)]
-    return mg_katz_centrality.mg_katz_centrality(data[0],
-                                                 src_col_name,
-                                                 dst_col_name,
-                                                 num_verts,
-                                                 num_edges,
-                                                 vertex_partition_offsets,
-                                                 wid,
-                                                 handle,
-                                                 segment_offsets,
-                                                 alpha,
-                                                 beta,
-                                                 max_iter,
-                                                 tol,
-                                                 nstart,
-                                                 normalized)
+    h = ResourceHandle(handle.getHandle())
+    srcs = data[0][src_col_name]
+    dsts = data[0][dst_col_name]
+    weights = cudf.Series(cupy.ones(srcs.size, dtype="float32"))
+
+    if "value" in data[0].columns:
+        weights = data[0]['value']
+
+    initial_hubs_guess_values = None
+    if nstart:
+        initial_hubs_guess_values = nstart["values"]
+
+    mg = MGGraph(h,
+                 graph_properties,
+                 srcs,
+                 dsts,
+                 weights,
+                 store_transposed,
+                 num_edges,
+                 do_expensive_check)
+
+    result = pylibcugraph_katz(h,
+                               mg,
+                               initial_hubs_guess_values,
+                               alpha,
+                               beta,
+                               tol,
+                               max_iter,
+                               do_expensive_check)
+    return result
 
 
-def katz_centrality(input_graph,
-                    alpha=None,
-                    beta=None,
-                    max_iter=100,
-                    tol=1.0e-5,
-                    nstart=None,
-                    normalized=True):
+def convert_to_cudf(cp_arrays):
+    """
+    create a cudf DataFrame from cupy arrays
+    """
+    cupy_vertices, cupy_values = cp_arrays
+    df = cudf.DataFrame()
+    df["vertex"] = cupy_vertices
+    df["katz_centrality"] = cupy_values
+    return df
+
+
+def katz_centrality(
+    input_graph, alpha=None, beta=1.0, max_iter=100, tol=1.0e-6,
+    nstart=None, normalized=True
+):
     """
     Compute the Katz centrality for the nodes of the graph G.
 
@@ -90,8 +116,9 @@ def katz_centrality(input_graph,
             guarantee that it will never exceed alpha_max thus in turn
             fulfilling the requirement for convergence.
 
-    beta : None
-        A weight scalar - currently Not Supported
+    beta : float, optional (default=None)
+        Weight scalar added to each vertex's new Katz Centrality score in every
+        iteration. If beta is not specified then it is set as 1.0.
 
     max_iter : int, optional (default=100)
         The maximum number of iterations before an answer is returned. This can
@@ -110,8 +137,8 @@ def katz_centrality(input_graph,
         acceptable.
 
     nstart : dask_cudf.Dataframe, optional (default=None)
-        GPU Dataframe containing the initial guess for katz centrality.
-        Not supported.
+        Distributed GPU Dataframe containing the initial guess for katz
+        centrality.
 
         nstart['vertex'] : dask_cudf.Series
             Contains the vertex identifiers
@@ -149,43 +176,63 @@ def katz_centrality(input_graph,
     >>> pr = dcg.katz_centrality(dg)
 
     """
-    warning_msg = ("This call is deprecated and will be refactored "
-                   "in the next release")
-    warnings.warn(warning_msg, PendingDeprecationWarning)
-
-    nstart = None
-
     client = default_client()
 
-    input_graph.compute_renumber_edge_list(transposed=True)
-    ddf = input_graph.edgelist.edgelist_df
-    vertex_partition_offsets = get_vertex_partition_offsets(input_graph)
-    num_verts = vertex_partition_offsets.iloc[-1]
-    num_edges = len(ddf)
-    data = get_distributed_data(ddf)
+    graph_properties = GraphProperties(
+        is_multigraph=False)
+
+    store_transposed = False
+    do_expensive_check = False
 
     src_col_name = input_graph.renumber_map.renumbered_src_col_name
     dst_col_name = input_graph.renumber_map.renumbered_dst_col_name
 
-    result = [client.submit(call_katz_centrality,
-                            Comms.get_session_id(),
-                            wf[1],
-                            src_col_name,
-                            dst_col_name,
-                            num_verts,
-                            num_edges,
-                            vertex_partition_offsets,
-                            input_graph.aggregate_segment_offsets,
-                            alpha,
-                            beta,
-                            max_iter,
-                            tol,
-                            nstart,
-                            normalized,
-                            workers=[wf[0]])
-              for idx, wf in enumerate(data.worker_to_parts.items())]
-    wait(result)
-    ddf = dask_cudf.from_delayed(result)
+    # FIXME Move this call to the function creating a directed
+    # graph from a dask dataframe because duplicated edges need
+    # to be dropped
+    ddf = input_graph.edgelist.edgelist_df
+    ddf = ddf.map_partitions(
+        lambda df: df.drop_duplicates(subset=[src_col_name, dst_col_name]))
+
+    num_edges = len(ddf)
+    data = get_distributed_data(ddf)
+
+    input_graph.compute_renumber_edge_list(transposed=True)
+    vertex_partition_offsets = get_vertex_partition_offsets(input_graph)
+    num_verts = vertex_partition_offsets.iloc[-1]
+
+    cupy_result = [client.submit(call_katz_centrality,
+                                 Comms.get_session_id(),
+                                 wf[1],
+                                 graph_properties,
+                                 store_transposed,
+                                 do_expensive_check,
+                                 src_col_name,
+                                 dst_col_name,
+                                 num_verts,
+                                 num_edges,
+                                 vertex_partition_offsets,
+                                 input_graph.aggregate_segment_offsets,
+                                 alpha,
+                                 beta,
+                                 max_iter,
+                                 tol,
+                                 nstart,
+                                 normalized,
+                                 workers=[wf[0]])
+                   for idx, wf in enumerate(data.worker_to_parts.items())]
+
+    wait(cupy_result)
+
+    cudf_result = [client.submit(convert_to_cudf,
+                                 cp_arrays,
+                                 workers=client.who_has(
+                                     cp_arrays)[cp_arrays.key])
+                   for cp_arrays in cupy_result]
+
+    wait(cudf_result)
+
+    ddf = dask_cudf.from_delayed(cudf_result)
     if input_graph.renumbered:
         return input_graph.unrenumber(ddf, 'vertex')
 

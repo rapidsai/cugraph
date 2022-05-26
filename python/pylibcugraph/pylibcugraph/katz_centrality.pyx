@@ -54,14 +54,14 @@ from pylibcugraph.utils cimport (
 )
 
 
-def EXPERIMENTAL__katz_centrality(ResourceHandle resource_handle,
-                                  _GPUGraph graph,
-                                  betas,
-                                  double alpha,
-                                  double beta,
-                                  double epsilon,
-                                  size_t max_iterations,
-                                  bool_t do_expensive_check):
+def katz_centrality(ResourceHandle resource_handle,
+                    _GPUGraph graph,
+                    betas,
+                    double alpha,
+                    double beta,
+                    double epsilon,
+                    size_t max_iterations,
+                    bool_t do_expensive_check):
     """
     Compute the Katz centrality for the nodes of the graph. This implementation
     is based on a relaxed version of Katz defined by Foster with a reduced
@@ -97,6 +97,12 @@ def EXPERIMENTAL__katz_centrality(ResourceHandle resource_handle,
 
     do_expensive_check : bool_t
         A flag to run expensive checks for input arguments if True.
+    
+    Returns
+    -------
+
+    Examples
+    --------
 
     """
 
