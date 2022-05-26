@@ -81,10 +81,8 @@ cdef get_numpy_type_from_c_type(data_type_id_t c_type):
     elif c_type == data_type_id_t.INT64:
         return numpy.int64
     elif c_type == data_type_id_t.FLOAT32:
-        print("This is a float32")
         return numpy.float32
     elif c_type == data_type_id_t.FLOAT64:
-        print("this is a float64")
         return numpy.float64
     else:
         raise RuntimeError("Internal error: got invalid data type enum value "

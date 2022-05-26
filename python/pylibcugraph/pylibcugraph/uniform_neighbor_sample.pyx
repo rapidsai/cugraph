@@ -158,17 +158,14 @@ def EXPERIMENTAL__uniform_neighbor_sample(ResourceHandle resource_handle,
         cugraph_sample_result_get_destinations(result_ptr)
     cdef cugraph_type_erased_device_array_view_t* index_ptr = \
         cugraph_sample_result_get_index(result_ptr)
-    
-   
+
     cupy_sources = copy_to_cupy_array(c_resource_handle_ptr, src_ptr)
     cupy_destinations = copy_to_cupy_array(c_resource_handle_ptr, dst_ptr)
  
-    
     if is_edge_ids:
         cupy_indices = copy_to_cupy_array_ids(c_resource_handle_ptr, index_ptr)
     else:
         cupy_indices = copy_to_cupy_array(c_resource_handle_ptr, index_ptr)
-
 
     cugraph_sample_result_free(result_ptr)
     cugraph_type_erased_device_array_view_free(start_ptr)
