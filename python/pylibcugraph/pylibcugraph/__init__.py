@@ -36,5 +36,3 @@ from pylibcugraph.hits import hits
 from pylibcugraph.node2vec import node2vec
 
 from pylibcugraph.bfs import bfs
-
-from pylibcugraph.triangle_count import triangle_count

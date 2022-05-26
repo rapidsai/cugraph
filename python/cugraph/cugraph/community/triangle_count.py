@@ -11,23 +11,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from cugraph.community import triangle_count_wrapper
 from cugraph.utilities import ensure_cugraph_obj_for_nx
-import cudf
-
-from pylibcugraph import triangle_count as \
-    pylibcugraph_triangle_count
-
-from pylibcugraph import (ResourceHandle,
-                          GraphProperties,
-                          SGGraph
-                          )
+import warnings
 
 
-# FIXME: rename this to triangle_conut to match the MG implmentation
-def triangles(G, start_list=None):
+def triangles(G):
     """
     Compute the number of triangles (cycles of length three) in the
     input graph.
+
+    Unlike NetworkX, this algorithm simply returns the total number of
+    triangle and not the number per vertex.
 
     Parameters
     ----------
@@ -36,19 +31,11 @@ def triangles(G, start_list=None):
         (edge weights are not used in this algorithm).
         The current implementation only supports undirected graphs.
 
-    start_list : list or cudf.Series (int32), optional (default=None)
-        list of vertices for triangle count. if None the entire set of vertices
-        in the graph is processed
-
     Returns
     -------
-    result : cudf.DataFrame
-        GPU data frame containing 2 cudf.Series
-
-    ddf['vertex']: cudf.Series
-            Contains the triangle counting vertices
-    ddf['counts']: cudf.Series
-        Contains the triangle counting counts
+    count : int64
+        A 64 bit integer whose value gives the number of triangles in the
+        graph.
 
     Examples
     --------
@@ -61,61 +48,15 @@ def triangles(G, start_list=None):
     >>> count = cugraph.triangles(G)
 
     """
+    warning_msg = ("This call is deprecated and will be refactored "
+                   "in the next release")
+    warnings.warn(warning_msg, PendingDeprecationWarning)
 
     G, _ = ensure_cugraph_obj_for_nx(G)
 
     if G.is_directed():
         raise ValueError("input graph must be undirected")
 
-    if start_list is not None:
-        if isinstance(start_list, int):
-            start_list = [start_list]
-        if isinstance(start_list, list):
-            start_list = cudf.Series(start_list)
-            if start_list.dtype != 'int32':
-                raise ValueError(f"'start_list' must have int32 values, "
-                                 f"got: {start_list.dtype}")
-        if not isinstance(start_list, cudf.Series):
-            raise TypeError(
-                    f"'start_list' must be either a list or a cudf.Series,"
-                    f"got: {start_list.dtype}")
+    result = triangle_count_wrapper.triangles(G)
 
-        if G.renumbered is True:
-            if isinstance(start_list, cudf.DataFrame):
-                start_list = G.lookup_internal_vertex_id(
-                    start_list, start_list.columns)
-            else:
-                start_list = G.lookup_internal_vertex_id(start_list)
-
-    srcs = G.edgelist.edgelist_df['src']
-    dsts = G.edgelist.edgelist_df['dst']
-    weights = G.edgelist.edgelist_df['weights']
-
-    if srcs.dtype != 'int32':
-        raise ValueError(f"Graph vertices must have int32 values, "
-                         f"got: {srcs.dtype}")
-
-    resource_handle = ResourceHandle()
-    graph_props = GraphProperties(
-        is_symmetric=True, is_multigraph=G.is_multigraph())
-    store_transposed = False
-
-    # FIXME:  This should be based on the renumber parameter set when creating
-    # the graph
-    renumber = False
-    do_expensive_check = False
-
-    sg = SGGraph(resource_handle, graph_props, srcs, dsts, weights,
-                 store_transposed, renumber, do_expensive_check)
-
-    vertex, counts = pylibcugraph_triangle_count(
-        resource_handle, sg, start_list, do_expensive_check)
-
-    df = cudf.DataFrame()
-    df["vertex"] = vertex
-    df["counts"] = counts
-
-    if G.renumbered:
-        df = G.unrenumber(df, "vertex")
-
-    return df
+    return result

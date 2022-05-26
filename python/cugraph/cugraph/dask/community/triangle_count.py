@@ -20,7 +20,7 @@ import cugraph.dask.comms.comms as Comms
 import dask_cudf
 import cudf
 
-from pylibcugraph import triangle_count as \
+from pylibcugraph.experimental import triangle_count as \
     pylibcugraph_triangle_count
 
 from pylibcugraph import (ResourceHandle,
