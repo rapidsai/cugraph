@@ -94,7 +94,7 @@ def EXPERIMENTAL__triangle_count(ResourceHandle resource_handle,
         resource_handle.c_resource_handle_ptr
     cdef cugraph_graph_t* c_graph_ptr = graph.c_graph_ptr
 
-    assert_CAI_type(start_list, "start_list")
+    assert_CAI_type(start_list, "start_list", allow_None=True)
 
     cdef cugraph_triangle_count_result_t* result_ptr
     cdef cugraph_error_code_t error_code

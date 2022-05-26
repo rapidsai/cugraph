@@ -86,7 +86,8 @@ def triangle_count(input_graph,
     ----------
     G : cugraph.graph
         cuGraph graph descriptor, should contain the connectivity information,
-        #FIXME: Are edge weights support in the MG implementation?
+        (edge weights are not used in this algorithm).
+        The current implementation only supports undirected graphs.
 
     start_list : list or cudf.Series (int32), optional (default=None)
         list of starting vertices for triangle count.
@@ -97,7 +98,7 @@ def triangle_count(input_graph,
         GPU distributed data frame containing 2 dask_cudf.Series
 
     ddf['vertex']: dask_cudf.Series
-            Contains thetriangle counting vertices
+            Contains the triangle counting vertices
     ddf['counts']: dask_cudf.Series
         Contains the triangle counting counts
     """
@@ -106,18 +107,27 @@ def triangle_count(input_graph,
     # In the future, once all the algos follow the C/Pylibcugraph path,
     # compute_renumber_edge_list will only be used for multicolumn and
     # string vertices since the renumbering will be done in pylibcugraph
-    input_graph.compute_renumber_edge_list(transposed=False)
+    input_graph.compute_renumber_edge_list(
+        transposed=False, legacy_renum_only=True)
 
     if start_list is not None:
-        if not isinstance(start_list, (cudf.Series, list)):
-            raise TypeError(
-                    f"'start_list' must be either a list or a cudf.Series,"
-                    f"got: {start_list.dtype}")
+        if isinstance(start_list, int):
+            start_list = [start_list]
         if isinstance(start_list, list):
             start_list = cudf.Series(start_list)
             if start_list.dtype != 'int32':
                 raise ValueError(f"'start_list' must have int32 values, "
                                  f"got: {start_list.dtype}")
+        if not isinstance(start_list, cudf.Series):
+            raise TypeError(
+                    f"'start_list' must be either a list or a cudf.Series,"
+                    f"got: {start_list.dtype}")
+
+        # start_list uses "external" vertex IDs, but since the graph has been
+        # renumbered, the start vertex IDs must also be renumbered.
+        if input_graph.renumbered:
+            start_list = input_graph.lookup_internal_vertex_id(
+                start_list).compute()
 
     ddf = input_graph.edgelist.edgelist_df
 
@@ -127,17 +137,13 @@ def triangle_count(input_graph,
     graph_properties = GraphProperties(
         is_multigraph=False)
     store_transposed = False
-    do_expensive_check = False
+    do_expensive_check = True
 
     num_edges = len(ddf)
     data = get_distributed_data(ddf)
 
     src_col_name = input_graph.renumber_map.renumbered_src_col_name
     dst_col_name = input_graph.renumber_map.renumbered_dst_col_name
-
-    # start_list uses "external" vertex IDs, but since the graph has been
-    # renumbered, the start vertex IDs must also be renumbered.
-    start_list = input_graph.lookup_internal_vertex_id(start_list).compute()
 
     result = [client.submit(call_triangles,
                             Comms.get_session_id(),
