@@ -14,8 +14,8 @@
 from pylibcugraph import (ResourceHandle,
                           GraphProperties,
                           SGGraph,
+                          katz_centrality as pylibcugraph_katz
                           )
-from pylibcugraph.experimental import katz_centrality as pylibcugraph_katz
 from cugraph.utilities import (ensure_cugraph_obj_for_nx,
                                df_score_to_dictionary,
                                )

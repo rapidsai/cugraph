@@ -16,8 +16,8 @@ import cupy as cp
 import numpy as np
 from pylibcugraph import (ResourceHandle,
                           GraphProperties,
-                          SGGraph)
-from pylibcugraph.experimental import katz_centrality
+                          SGGraph,
+                          katz_centrality)
 from pylibcugraph.testing import utils
 
 

@@ -16,11 +16,11 @@
 from dask.distributed import wait, default_client
 from cugraph.dask.common.input_utils import (get_distributed_data,
                                              get_vertex_partition_offsets)
-from pylibcugraph.experimental import (ResourceHandle,
-                                       GraphProperties,
-                                       MGGraph,
-                                       eigenvector_centrality as pylib_eigen
-                                       )
+from pylibcugraph import (ResourceHandle,
+                          GraphProperties,
+                          MGGraph,
+                          eigenvector_centrality as pylib_eigen
+                          )
 import cugraph.dask.comms.comms as Comms
 import dask_cudf
 import cudf

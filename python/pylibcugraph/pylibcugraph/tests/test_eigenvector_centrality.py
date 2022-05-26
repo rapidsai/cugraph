@@ -16,8 +16,8 @@ import cupy as cp
 import numpy as np
 from pylibcugraph import (ResourceHandle,
                           GraphProperties,
-                          SGGraph)
-from pylibcugraph.experimental import eigenvector_centrality
+                          SGGraph,
+                          eigenvector_centrality)
 from cugraph.testing import utils
 
 

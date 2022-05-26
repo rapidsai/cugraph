@@ -13,8 +13,9 @@
 
 from pylibcugraph import (ResourceHandle,
                           GraphProperties,
-                          SGGraph)
-from pylibcugraph.experimental import eigenvector_centrality as pylib_eigen
+                          SGGraph,
+                          eigenvector_centrality as pylib_eigen
+                          )
 from cugraph.utilities import (ensure_cugraph_obj_for_nx,
                                df_score_to_dictionary,
                                )
