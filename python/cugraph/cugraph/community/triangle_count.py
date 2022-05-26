@@ -86,7 +86,7 @@ def triangles(G, start_list=None):
             else:
                 start_list = G.lookup_internal_vertex_id(start_list)
 
-        srcs = G.edgelist.edgelist_df['src']
+    srcs = G.edgelist.edgelist_df['src']
     dsts = G.edgelist.edgelist_df['dst']
     weights = G.edgelist.edgelist_df['weights']
 
