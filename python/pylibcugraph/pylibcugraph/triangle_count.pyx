@@ -72,8 +72,8 @@ def triangle_count(ResourceHandle resource_handle,
         The input graph, for Multi-GPU operations.
 
     start_list: device array type
-        Device array containing the list of starting vertices for
-        triangle counting.
+        Device array containing the list of vertices for triangle counting.
+        If 'None' the entire set of vertices in the graph is processed
     
     do_expensive_check: bool
         If True, performs more extensive tests on the inputs to ensure

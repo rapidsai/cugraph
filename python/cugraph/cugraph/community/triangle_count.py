@@ -37,7 +37,8 @@ def triangles(G, start_list=None):
         The current implementation only supports undirected graphs.
 
     start_list : list or cudf.Series (int32), optional (default=None)
-        list of starting vertices for triangle count.
+        list of vertices for triangle count. if None the entire set of vertices
+        in the graph is processed
 
     Returns
     -------
