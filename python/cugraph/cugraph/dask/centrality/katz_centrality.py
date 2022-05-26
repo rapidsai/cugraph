@@ -151,8 +151,8 @@ def katz_centrality(
     Returns
     -------
     katz_centrality : dask_cudf.DataFrame
-        GPU data frame containing two dask_cudf.Series of size V: the
-        vertex identifiers and the corresponding katz centrality values.
+        GPU distributed data frame containing two dask_cudf.Series of size V:
+        the vertex identifiers and the corresponding katz centrality values.
 
         ddf['vertex'] : dask_cudf.Series
             Contains the vertex identifiers
@@ -187,17 +187,13 @@ def katz_centrality(
     src_col_name = input_graph.renumber_map.renumbered_src_col_name
     dst_col_name = input_graph.renumber_map.renumbered_dst_col_name
 
-    # FIXME Move this call to the function creating a directed
-    # graph from a dask dataframe because duplicated edges need
-    # to be dropped
     ddf = input_graph.edgelist.edgelist_df
-    ddf = ddf.map_partitions(
-        lambda df: df.drop_duplicates(subset=[src_col_name, dst_col_name]))
 
     num_edges = len(ddf)
     data = get_distributed_data(ddf)
 
-    input_graph.compute_renumber_edge_list(transposed=True)
+    input_graph.compute_renumber_edge_list(transposed=True,
+                                           legacy_renum_only=True)
     vertex_partition_offsets = get_vertex_partition_offsets(input_graph)
     num_verts = vertex_partition_offsets.iloc[-1]
 
