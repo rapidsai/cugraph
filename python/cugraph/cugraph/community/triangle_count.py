@@ -96,7 +96,8 @@ def triangles(G, start_list=None):
                          f"got: {srcs.dtype}")
 
     resource_handle = ResourceHandle()
-    graph_props = GraphProperties(is_multigraph=G.is_multigraph())
+    graph_props = GraphProperties(
+        is_symmetric=True, is_multigraph=G.is_multigraph())
     store_transposed = False
 
     # FIXME:  This should be based on the renumber parameter set when creating

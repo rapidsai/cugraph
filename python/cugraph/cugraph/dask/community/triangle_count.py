@@ -138,7 +138,7 @@ def triangle_count(input_graph,
     # do_expensive_check must be derived from the input_graph.
     # For now, they are hardcoded.
     graph_properties = GraphProperties(
-        is_multigraph=False)
+        is_symmetric=True, is_multigraph=False)
     store_transposed = False
     do_expensive_check = True
 
