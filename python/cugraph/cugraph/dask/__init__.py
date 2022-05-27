@@ -20,3 +20,4 @@ from .community.louvain import louvain
 from .community.triangle_count import triangle_count
 from .centrality.katz_centrality import katz_centrality
 from .components.connectivity import weakly_connected_components
+from .centrality.eigenvector_centrality import eigenvector_centrality
