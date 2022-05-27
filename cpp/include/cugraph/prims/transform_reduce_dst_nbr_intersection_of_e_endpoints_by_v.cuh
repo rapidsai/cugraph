@@ -21,6 +21,7 @@
 #include <cugraph/prims/detail/nbr_intersection.cuh>
 #include <cugraph/prims/edge_partition_src_dst_property.cuh>
 #include <cugraph/prims/property_op_utils.cuh>
+#include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/error.hpp>
 
 #include <raft/handle.hpp>
@@ -105,7 +106,7 @@ std::tuple<rmm::device_uvector<vertex_t>, ValueBuffer> sort_and_reduce_by_vertic
   auto num_uniques = thrust::count_if(handle.get_thrust_policy(),
                                       thrust::make_counting_iterator(size_t{0}),
                                       thrust::make_counting_iterator(vertices.size()),
-                                      detail::is_first_in_run_t<vertex_t>{vertices.data()});
+                                      detail::is_first_in_run_t<vertex_t const*>{vertices.data()});
   rmm::device_uvector<vertex_t> reduced_vertices(num_uniques, handle.get_stream());
   auto reduced_value_buffer = allocate_dataframe_buffer<value_t>(num_uniques, handle.get_stream());
   thrust::reduce_by_key(handle.get_thrust_policy(),
@@ -169,7 +170,7 @@ struct accumulate_vertex_property_t {
  * vertex; invoke a user-provided functor per intersection, and reduce the functor output
  * values (thrust::tuple of three values having the same type: one for source, one for destination,
  * and one for every vertex in the intersection) per-vertex. We may add
- * per_v_transform_reduce_triplet_of_dst_nbr_intersection_of_e_endpoints in the future to allow
+ * transform_reduce_triplet_of_dst_nbr_intersection_of_e_endpoints_by_v in the future to allow
  * emitting different values for different vertices in the intersection of edge endpoints. This
  * function is inspired by thrust::transfrom_reduce().
  *
@@ -213,7 +214,7 @@ template <typename GraphViewType,
           typename IntersectionOp,
           typename T,
           typename VertexValueOutputIterator>
-void per_v_transform_reduce_dst_nbr_intersection_of_e_endpoints(
+void transform_reduce_dst_nbr_intersection_of_e_endpoints_by_v(
   raft::handle_t const& handle,
   GraphViewType const& graph_view,
   EdgePartitionSrcValueInputWrapper edge_partition_src_value_input,
@@ -424,7 +425,7 @@ void per_v_transform_reduce_dst_nbr_intersection_of_e_endpoints(
         thrust::count_if(handle.get_thrust_policy(),
                          thrust::make_counting_iterator(size_t{0}),
                          thrust::make_counting_iterator(merged_vertices.size()),
-                         detail::is_first_in_run_t<vertex_t>{merged_vertices.data()});
+                         detail::is_first_in_run_t<vertex_t const*>{merged_vertices.data()});
       rmm::device_uvector<vertex_t> reduced_vertices(num_uniques, handle.get_stream());
       auto reduced_value_buffer = allocate_dataframe_buffer<T>(num_uniques, handle.get_stream());
       thrust::reduce_by_key(handle.get_thrust_policy(),

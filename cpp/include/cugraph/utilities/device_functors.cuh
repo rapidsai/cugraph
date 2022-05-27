@@ -24,6 +24,7 @@
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/iterator/transform_iterator.h>
 
+#include <cstddef>
 #include <tuple>
 #include <vector>
 
@@ -48,6 +49,16 @@ struct multiplier_t {
   T multiplier{};
 
   __device__ T operator()(T input) const { return input * multiplier; }
+};
+
+template <typename Iterator>
+struct is_first_in_run_t {
+  Iterator iter{};
+
+  __device__ bool operator()(size_t i) const
+  {
+    return (i == 0) || (*(iter + (i - 1)) != *(iter + i));
+  }
 };
 
 template <typename T>

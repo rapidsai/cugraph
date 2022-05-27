@@ -595,9 +595,9 @@ if(BUILD_CUGRAPH_MG_TESTS)
         ConfigureTestMG(MG_COUNT_IF_V_TEST prims/mg_count_if_v.cu)
 
         ###########################################################################################
-        # - MG PRIMS UPDATE_V_FRONTIER_FROM_OUTGOING_E tests --------------------------------------
-        ConfigureTestMG(MG_UPDATE_V_FRONTIER_FROM_OUTGOING_E_TEST
-                        prims/mg_update_v_frontier_from_outgoing_e.cu)
+        # - MG PRIMS TRANSFORM_REDUCE_V_FRONTIER_OUTGOING_E_BY_DST tests --------------------------
+        ConfigureTestMG(MG_TRANSFORM_REDUCE_V_FRONTIER_OUTGOING_E_BY_DST_TEST
+                        prims/mg_transform_reduce_v_frontier_outgoing_e_by_dst.cu)
 
         ###########################################################################################
         # - MG PRIMS REDUCE_V tests ---------------------------------------------------------------
