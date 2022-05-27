@@ -110,7 +110,7 @@ def louvain(input_graph, max_iter=100, resolution=1.0):
     ...                          chunksize=chunksize, delimiter=" ",
     ...                          names=["src", "dst", "value"],
     ...                          dtype=["int32", "int32", "float32"])
-    >>> dg = cugraph.Graph(directed=True)
+    >>> dg = cugraph.Graph()
     >>> dg.from_dask_cudf_edgelist(ddf, source='src', destination='dst',
     ...                            edge_attr='value')
     >>> parts, modularity_score = dcg.louvain(dg)

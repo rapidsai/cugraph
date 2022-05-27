@@ -17,11 +17,11 @@ import numpy as np
 from pylibcugraph import (ResourceHandle,
                           GraphProperties,
                           SGGraph,
-                          katz_centrality)
-from pylibcugraph.testing import utils
+                          eigenvector_centrality)
+from cugraph.testing import utils
 
 
-TOY = utils.RAPIDS_DATASET_ROOT_DIR_PATH/'toy_graph_undirected.csv'
+TOY = utils.RAPIDS_DATASET_ROOT_DIR_PATH/'toy_graph.csv'
 
 
 # =============================================================================
@@ -37,20 +37,18 @@ def _get_param_args(param_name, param_values):
             [pytest.param(v, id=f"{param_name}={v}") for v in param_values])
 
 
-def _generic_katz_test(src_arr,
-                       dst_arr,
-                       wgt_arr,
-                       result_arr,
-                       num_vertices,
-                       num_edges,
-                       store_transposed,
-                       alpha,
-                       beta,
-                       epsilon,
-                       max_iterations):
+def _generic_eigenvector_test(src_arr,
+                              dst_arr,
+                              wgt_arr,
+                              result_arr,
+                              num_vertices,
+                              num_edges,
+                              store_transposed,
+                              epsilon,
+                              max_iterations):
     """
-    Builds a graph from the input arrays and runs katz using the other args,
-    similar to how katz is tested in libcugraph.
+    Builds a graph from the input arrays and runs eigen using the other args,
+    similar to how eigen is tested in libcugraph.
     """
     resource_handle = ResourceHandle()
     graph_props = GraphProperties(is_symmetric=False, is_multigraph=False)
@@ -58,9 +56,9 @@ def _generic_katz_test(src_arr,
                 store_transposed=False, renumber=False,
                 do_expensive_check=True)
 
-    (vertices, centralities) = katz_centrality(resource_handle, G, None, alpha,
-                                               beta, epsilon, max_iterations,
-                                               do_expensive_check=False)
+    (vertices, centralities) = eigenvector_centrality(resource_handle, G,
+                                                      epsilon, max_iterations,
+                                                      do_expensive_check=False)
 
     result_arr = result_arr.get()
     vertices = vertices.get()
@@ -70,25 +68,25 @@ def _generic_katz_test(src_arr,
         vertex_id = vertices[idx]
         expected_result = result_arr[vertex_id]
         actual_result = centralities[idx]
-        if pytest.approx(expected_result, 1e-4) != actual_result:
-            raise ValueError(f"Vertex {idx} has centrality {actual_result}"
-                             f", should have been {expected_result}")
+
+        assert pytest.approx(expected_result, 1e-4) == actual_result, \
+            f"Vertex {idx} has centrality {actual_result}, should have" \
+            f" been {expected_result}"
 
 
-def test_katz():
-    num_edges = 8
+def test_eigenvector():
+    num_edges = 16
     num_vertices = 6
     graph_data = np.genfromtxt(TOY, delimiter=' ')
     src = cp.asarray(graph_data[:, 0], dtype=np.int32)
     dst = cp.asarray(graph_data[:, 1], dtype=np.int32)
     wgt = cp.asarray(graph_data[:, 2], dtype=np.float32)
-    result = cp.asarray([0.410614, 0.403211, 0.390689, 0.415175, 0.395125,
-                        0.433226], dtype=np.float32)
-    alpha = 0.01
-    beta = 1.0
-    epsilon = 0.000001
-    max_iterations = 1000
+    result = cp.asarray([0.236325, 0.292055, 0.458457, 0.60533,
+                        0.190498, 0.495942], dtype=np.float32)
 
-    # Katz requires store_transposed to be True
-    _generic_katz_test(src, dst, wgt, result, num_vertices, num_edges, True,
-                       alpha, beta, epsilon, max_iterations)
+    epsilon = 1e-6
+    max_iterations = 200
+
+    # Eigenvector requires store_transposed to be True?
+    _generic_eigenvector_test(src, dst, wgt, result, num_vertices, num_edges,
+                              True, epsilon, max_iterations)

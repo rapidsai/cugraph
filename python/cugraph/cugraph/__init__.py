@@ -61,6 +61,7 @@ from cugraph.centrality import (
     edge_betweenness_centrality,
     katz_centrality,
     degree_centrality,
+    eigenvector_centrality,
 )
 
 from cugraph.cores import core_number, k_core
