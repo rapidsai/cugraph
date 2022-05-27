@@ -175,6 +175,16 @@ gather_one_hop_edgelist(
   GraphViewType const& graph_view,
   const rmm::device_uvector<typename GraphViewType::vertex_type>& active_majors);
 
+template <typename vertex_t, typename edge_t, typename weight_t>
+std::tuple<rmm::device_uvector<vertex_t>,
+           rmm::device_uvector<vertex_t>,
+           rmm::device_uvector<weight_t>,
+           rmm::device_uvector<edge_t>>
+count_and_remove_duplicates(raft::handle_t const& handle,
+                            rmm::device_uvector<vertex_t>&& src,
+                            rmm::device_uvector<vertex_t>&& dst,
+                            rmm::device_uvector<weight_t>&& wgt);
+
 }  // namespace detail
 
 }  // namespace cugraph
