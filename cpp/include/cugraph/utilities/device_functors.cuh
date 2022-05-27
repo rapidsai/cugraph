@@ -50,6 +50,14 @@ struct multiplier_t {
   __device__ T operator()(T input) const { return input * multiplier; }
 };
 
+template <typename T>
+struct multiply_and_add_t {
+  T multiplier{};
+  T adder{};
+
+  __device__ T operator()(T input) const { return input * multiplier + adder; }
+};
+
 }  // namespace detail
 
 }  // namespace cugraph
