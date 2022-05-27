@@ -20,8 +20,6 @@ from pylibcugraph import (ResourceHandle,
                           katz_centrality
                           )
 from cugraph.testing import utils
-import pathlib
-import pylibcugraph
 
 
 TOY = utils.RAPIDS_DATASET_ROOT_DIR_PATH/'toy_graph_undirected.csv'
