@@ -308,11 +308,12 @@ class EXPERIMENTAL__MGPropertyGraph:
 
         self.__vertex_prop_dataframe = \
             self.__vertex_prop_dataframe.merge(tmp_df, how="outer")
-
+        self.__vertex_prop_dataframe.reset_index()
         # Update the vertex eval dict with the latest column instances
         latest = dict([(n, self.__vertex_prop_dataframe[n])
                        for n in self.__vertex_prop_dataframe.columns])
         self.__vertex_prop_eval_dict.update(latest)
+    
 
     def add_edge_data(self,
                       dataframe,
@@ -395,12 +396,18 @@ class EXPERIMENTAL__MGPropertyGraph:
         # deleted when out-of-scope.
         tmp_df = dataframe.copy()
         # FIXME: Find a better way to create the edge id
-
+        prev_eid = -1 if self.__last_edge_id is None else self.__last_edge_id
         tmp_df[self.src_col_name] = tmp_df[vertex_col_names[0]]
         tmp_df[self.dst_col_name] = tmp_df[vertex_col_names[1]]
-        tmp_df = tmp_df.assign(idx=1)
-        tmp_df[self.edge_id_col_name] = tmp_df.idx.cumsum() - 1
-        tmp_df.persist()
+        starting_eid = prev_eid + 1
+        data_size = len(tmp_df.compute().index)
+        cudf_series = \
+                 cudf.Series(range(starting_eid, starting_eid + data_size))
+        dask_series =\
+               dask_cudf.from_cudf(cudf_series, self.__num_workers)
+        self.__last_edge_id = starting_eid + data_size
+        tmp_df[self.edge_id_col_name] = dask_series
+        tmp_df.reset_index()
 
         # FIXME: handle case of a type_name column already being in tmp_df
         tmp_df[self.type_col_name] = type_name

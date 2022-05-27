@@ -160,9 +160,67 @@ def net_PropertyGraph(request):
 
     return pG
 
+@pytest.fixture(scope="module", params=df_types_fixture_params)
+def dataset1_PropertyGraph(request):
+    """
+    Fixture which returns an instance of a PropertyGraph with vertex and edge
+    data added from dataset1, parameterized for different DataFrame types.
+    """
+    dataframe_type = request.param[0]
+    from cugraph.experimental import PropertyGraph
+
+    (merchants, users, taxpayers,
+     transactions, relationships, referrals) = dataset1.values()
+
+    pG = PropertyGraph()
+
+    # Vertex and edge data is added as one or more DataFrames; either a Pandas
+    # DataFrame to keep data on the CPU, a cuDF DataFrame to keep data on GPU,
+    # or a dask_cudf DataFrame to keep data on distributed GPUs.
+
+    # For dataset1: vertices are merchants and users, edges are transactions,
+    # relationships, and referrals.
+
+    # property_columns=None (the default) means all columns except
+    # vertex_col_name will be used as properties for the vertices/edges.
+
+    pG.add_vertex_data(dataframe_type(columns=merchants[0],
+                                      data=merchants[1]),
+                       type_name="merchants",
+                       vertex_col_name="merchant_id",
+                       property_columns=None)
+    pG.add_vertex_data(dataframe_type(columns=users[0],
+                                      data=users[1]),
+                       type_name="users",
+                       vertex_col_name="user_id",
+                       property_columns=None)
+    pG.add_vertex_data(dataframe_type(columns=taxpayers[0],
+                                      data=taxpayers[1]),
+                       type_name="taxpayers",
+                       vertex_col_name="payer_id",
+                       property_columns=None)
+
+    pG.add_edge_data(dataframe_type(columns=transactions[0],
+                                    data=transactions[1]),
+                     type_name="transactions",
+                     vertex_col_names=("user_id", "merchant_id"),
+                     property_columns=None)
+    pG.add_edge_data(dataframe_type(columns=relationships[0],
+                                    data=relationships[1]),
+                     type_name="relationships",
+                     vertex_col_names=("user_id_1", "user_id_2"),
+                     property_columns=None)
+    pG.add_edge_data(dataframe_type(columns=referrals[0],
+                                    data=referrals[1]),
+                     type_name="referrals",
+                     vertex_col_names=("user_id_1",
+                                       "user_id_2"),
+                     property_columns=None)
+
+    return pG
 
 @pytest.fixture(scope="module")
-def dataset1_PropertyGraph(dask_client):
+def dataset1_MGPropertyGraph(dask_client):
     """
     Fixture which returns an instance of a PropertyGraph with vertex and edge
     data added from dataset1, parameterized for different DataFrame types.
@@ -293,6 +351,36 @@ def test_add_vertex_properties(net_MGPropertyGraph, net_PropertyGraph):
     dpG.add_vertex_data(dask_df, vertex_col_name="a")
 
 
-def test_adding_fixture(dataset1_PropertyGraph):
-    dpG = dataset1_PropertyGraph
-    print(dpG.data_edges.columns.compute())
+def test_adding_fixture(dataset1_PropertyGraph, dataset1_MGPropertyGraph):
+    sgpG = dataset1_PropertyGraph
+    mgPG = dataset1_MGPropertyGraph
+    subgraph = sgpG.extract_subgraph(allow_multi_edges=True)
+    dask_subgraph = mgPG.extract_subgraph(allow_multi_edges=True)
+    sg_subgraph_df = \
+        subgraph.edge_data.sort_values(by=list(subgraph.edge_data.columns))
+    sg_subgraph_df = sg_subgraph_df.reset_index(drop=True)
+    mg_subgraph_df = dask_subgraph.edge_data.compute()
+    mg_subgraph_df = \
+        mg_subgraph_df.sort_values(by=list(mg_subgraph_df.columns))
+    mg_subgraph_df = mg_subgraph_df.reset_index(drop=True)
+    breakpoint()
+    assert (sg_subgraph_df.equals(mg_subgraph_df))
+
+
+def test_frame_data(dataset1_PropertyGraph, dataset1_MGPropertyGraph):
+    sgpG = dataset1_PropertyGraph
+    mgpG = dataset1_MGPropertyGraph
+
+    edge_sort_col = [ '_SRC_',  '_DST_', '_TYPE_']
+    vert_sort_col = ['_VERTEX_', '_TYPE_']
+    # vertex_prop_dataframe
+    sg_vp_df = sgpG._vertex_prop_dataframe.sort_values(by=vert_sort_col).reset_index(drop=True)
+    mg_vp_df = mgpG._vertex_prop_dataframe.compute().sort_values(by=vert_sort_col).reset_index(drop=True)
+    breakpoint()
+    assert (sg_vp_df.fillna(True).equals(mg_vp_df.fillna(True)))
+
+    # get_edge_prop_dataframe
+    sg_ep_df = sgpG._edge_prop_dataframe.sort_values(by=edge_sort_col).reset_index(drop=True)
+    mg_ep_df = mgpG._edge_prop_dataframe.compute().sort_values(by=edge_sort_col).reset_index(drop=True)
+    assert (sg_ep_df.equals(mg_ep_df))
+
