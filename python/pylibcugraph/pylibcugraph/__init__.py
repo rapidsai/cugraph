@@ -27,6 +27,8 @@ from pylibcugraph.resource_handle import ResourceHandle
 
 from pylibcugraph.graph_properties import GraphProperties
 
+from pylibcugraph.eigenvector_centrality import eigenvector_centrality
+
 from pylibcugraph.katz_centrality import katz_centrality
 
 from pylibcugraph.pagerank import pagerank

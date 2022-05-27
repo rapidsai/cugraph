@@ -41,7 +41,8 @@ namespace detail {
 template <typename graph_view_t>
 std::tuple<rmm::device_uvector<typename graph_view_t::vertex_type>,
            rmm::device_uvector<typename graph_view_t::vertex_type>,
-           rmm::device_uvector<typename graph_view_t::weight_type>>
+           rmm::device_uvector<typename graph_view_t::weight_type>,
+           rmm::device_uvector<typename graph_view_t::edge_type>>
 uniform_nbr_sample_impl(
   raft::handle_t const& handle,
   graph_view_t const& graph_view,
@@ -150,8 +151,8 @@ uniform_nbr_sample_impl(
     ++level;
   }
 
-  return std::make_tuple(
-    std::move(d_result_src), std::move(d_result_dst), std::move(*d_result_indices));
+  return count_and_remove_duplicates<vertex_t, edge_t, weight_t>(
+    handle, std::move(d_result_src), std::move(d_result_dst), std::move(*d_result_indices));
 }
 }  // namespace detail
 
@@ -160,15 +161,17 @@ template <typename vertex_t,
           typename weight_t,
           bool store_transposed,
           bool multi_gpu>
-std::
-  tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>, rmm::device_uvector<weight_t>>
-  uniform_nbr_sample(
-    raft::handle_t const& handle,
-    graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> const& graph_view,
-    raft::device_span<vertex_t> starting_vertices,
-    raft::host_span<const int> fan_out,
-    bool with_replacement,
-    uint64_t seed)
+std::tuple<rmm::device_uvector<vertex_t>,
+           rmm::device_uvector<vertex_t>,
+           rmm::device_uvector<weight_t>,
+           rmm::device_uvector<edge_t>>
+uniform_nbr_sample(
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> const& graph_view,
+  raft::device_span<vertex_t> starting_vertices,
+  raft::host_span<const int> fan_out,
+  bool with_replacement,
+  uint64_t seed)
 {
   rmm::device_uvector<vertex_t> d_start_vs(starting_vertices.size(), handle.get_stream());
   raft::copy(

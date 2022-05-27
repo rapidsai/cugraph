@@ -204,7 +204,7 @@ extern "C" cugraph_error_code_t cugraph_sg_graph_create(
                "Invalid input arguments: src type != dst type.",
                *error);
 
-  CAPI_EXPECTS(!weights || (p_weights->size_ == p_src->size_),
+  CAPI_EXPECTS((weights == nullptr) || (p_weights->size_ == p_src->size_),
                CUGRAPH_INVALID_INPUT,
                "Invalid input arguments: src size != weights size.",
                *error);
@@ -218,7 +218,7 @@ extern "C" cugraph_error_code_t cugraph_sg_graph_create(
     edge_type = data_type_id_t::INT64;
   }
 
-  if (!weights) {
+  if (weights != nullptr) {
     weight_type = p_weights->type_;
   } else {
     weight_type = data_type_id_t::FLOAT32;
