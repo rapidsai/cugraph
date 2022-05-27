@@ -313,7 +313,6 @@ class EXPERIMENTAL__MGPropertyGraph:
         latest = dict([(n, self.__vertex_prop_dataframe[n])
                        for n in self.__vertex_prop_dataframe.columns])
         self.__vertex_prop_eval_dict.update(latest)
-    
 
     def add_edge_data(self,
                       dataframe,
@@ -402,9 +401,9 @@ class EXPERIMENTAL__MGPropertyGraph:
         starting_eid = prev_eid + 1
         data_size = len(tmp_df.compute().index)
         cudf_series = \
-                 cudf.Series(range(starting_eid, starting_eid + data_size))
+            cudf.Series(range(starting_eid, starting_eid + data_size))
         dask_series =\
-               dask_cudf.from_cudf(cudf_series, self.__num_workers)
+            dask_cudf.from_cudf(cudf_series, self.__num_workers)
         dask_series = dask_series.reset_index(drop=True)
         self.__last_edge_id = starting_eid + data_size
         tmp_df = tmp_df.reset_index(drop=True)
@@ -670,7 +669,6 @@ class EXPERIMENTAL__MGPropertyGraph:
         return edge_prop_df[[self.src_col_name,
                              self.dst_col_name,
                              self.edge_id_col_name]]
-
 
     def __get_all_vertices_series(self):
         """

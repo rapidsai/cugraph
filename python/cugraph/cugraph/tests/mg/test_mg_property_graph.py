@@ -160,6 +160,7 @@ def net_PropertyGraph(request):
 
     return pG
 
+
 @pytest.fixture(scope="module", params=df_types_fixture_params)
 def dataset1_PropertyGraph(request):
     """
@@ -216,8 +217,8 @@ def dataset1_PropertyGraph(request):
                      vertex_col_names=("user_id_1",
                                        "user_id_2"),
                      property_columns=None)
-
     return pG
+
 
 @pytest.fixture(scope="module")
 def dataset1_MGPropertyGraph(dask_client):
@@ -334,7 +335,8 @@ def test_extract_subgraph_no_query(net_MGPropertyGraph, net_PropertyGraph):
     mg_subgraph_df = \
         mg_subgraph_df.sort_values(by=list(mg_subgraph_df.columns))
     mg_subgraph_df = mg_subgraph_df.reset_index(drop=True)
-    assert (sg_subgraph_df[['_SRC_', '_DST_']].equals(mg_subgraph_df[['_SRC_', '_DST_']]))
+    assert (sg_subgraph_df[['_SRC_', '_DST_']]
+            .equals(mg_subgraph_df[['_SRC_', '_DST_']]))
 
 
 def test_adding_fixture(dataset1_PropertyGraph, dataset1_MGPropertyGraph):
@@ -349,22 +351,26 @@ def test_adding_fixture(dataset1_PropertyGraph, dataset1_MGPropertyGraph):
     mg_subgraph_df = \
         mg_subgraph_df.sort_values(by=list(mg_subgraph_df.columns))
     mg_subgraph_df = mg_subgraph_df.reset_index(drop=True)
-    assert (sg_subgraph_df[['_SRC_', '_DST_']].equals(mg_subgraph_df[['_SRC_', '_DST_']]))
+    assert (sg_subgraph_df[['_SRC_', '_DST_']]
+            .equals(mg_subgraph_df[['_SRC_', '_DST_']]))
 
 
 def test_frame_data(dataset1_PropertyGraph, dataset1_MGPropertyGraph):
     sgpG = dataset1_PropertyGraph
     mgpG = dataset1_MGPropertyGraph
 
-    edge_sort_col = [ '_SRC_', '_DST_', '_TYPE_']
+    edge_sort_col = ['_SRC_', '_DST_', '_TYPE_']
     vert_sort_col = ['_VERTEX_', '_TYPE_']
     # vertex_prop_dataframe
-    sg_vp_df = sgpG._vertex_prop_dataframe.sort_values(by=vert_sort_col).reset_index(drop=True)
-    mg_vp_df = mgpG._vertex_prop_dataframe.compute().sort_values(by=vert_sort_col).reset_index(drop=True)
+    sg_vp_df = sgpG._vertex_prop_dataframe.\
+        sort_values(by=vert_sort_col).reset_index(drop=True)
+    mg_vp_df = mgpG._vertex_prop_dataframe.compute()\
+        .sort_values(by=vert_sort_col).reset_index(drop=True)
     assert (sg_vp_df['_VERTEX_'].equals(mg_vp_df['_VERTEX_']))
 
     # get_edge_prop_dataframe
-    sg_ep_df = sgpG._edge_prop_dataframe.sort_values(by=edge_sort_col).reset_index(drop=True)
-    mg_ep_df = mgpG._edge_prop_dataframe.compute().sort_values(by=edge_sort_col).reset_index(drop=True)
+    sg_ep_df = sgpG._edge_prop_dataframe\
+        .sort_values(by=edge_sort_col).reset_index(drop=True)
+    mg_ep_df = mgpG._edge_prop_dataframe\
+        .compute().sort_values(by=edge_sort_col).reset_index(drop=True)
     assert (sg_ep_df['_SRC_'].equals(mg_ep_df['_SRC_']))
-
