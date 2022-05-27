@@ -15,7 +15,7 @@ from pylibcugraph import (ResourceHandle,
                           GraphProperties,
                           SGGraph,
                           )
-from pylibcugraph.experimental import uniform_neighbor_sample as \
+from pylibcugraph import uniform_neighbor_sample as \
     pylibcugraph_uniform_neighbor_sample
 
 import numpy
@@ -93,10 +93,12 @@ def uniform_neighbor_sample(G,
     srcs = G.edgelist.edgelist_df['src']
     dsts = G.edgelist.edgelist_df['dst']
     weights = G.edgelist.edgelist_df['weights']
+    weight_t = weights.dtype
 
-    if is_edge_ids and weights.dtype not in ['int32', 'in64']:
-        raise ValueError(f"Graph weights must have int32 or int64 values "
-                         f"if they are edge ids, got: {weights.dtype}")
+    if weight_t == "int32":
+        weights = weights.astype("float32")
+    if weight_t == "int64":
+        weights = weights.astype("float64")
 
     if srcs.dtype != 'int32':
         raise ValueError(f"Graph vertices must have int32 values, "
@@ -114,12 +116,18 @@ def uniform_neighbor_sample(G,
     sources, destinations, indices = \
         pylibcugraph_uniform_neighbor_sample(resource_handle, sg, start_list,
                                              fanout_vals, with_replacement,
-                                             is_edge_ids, do_expensive_check)
+                                             do_expensive_check)
 
     df = cudf.DataFrame()
     df["sources"] = sources
     df["destinations"] = destinations
     df["indices"] = indices
+    if weight_t == "int32":
+        df["indices"] = indices.astype("int32")
+    elif weight_t == "int64":
+        df["indices"] = indices.astype("int64")
+    else:
+        df["indices"] = indices
 
     if G.renumbered:
         df = G.unrenumber(df, "sources", preserve_order=True)

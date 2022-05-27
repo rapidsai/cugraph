@@ -15,7 +15,6 @@
 # cython: language_level = 3
 
 from libc.stdint cimport uintptr_t
-import numpy
 
 from pylibcugraph._cugraph_c.resource_handle cimport (
     bool_t,
@@ -55,7 +54,6 @@ from pylibcugraph.utils cimport (
     assert_success,
     assert_CAI_type,
     get_c_type_from_numpy_type,
-    get_c_weight_type_from_numpy_edge_ids_type,
 )
 
 
@@ -166,22 +164,11 @@ cdef class SGGraph(_GPUGraph):
 
         cdef uintptr_t cai_weights_ptr = \
             weight_array.__cuda_array_interface__["data"][0]
-        
-        cdef cugraph_type_erased_device_array_view_t* weights_view_ptr
-
-        if weight_array.dtype in [numpy.int32, numpy.int64]:
-            weights_view_ptr = \
-                cugraph_type_erased_device_array_view_create(
-                    <void*>cai_weights_ptr,
-                    len(weight_array),
-                    get_c_weight_type_from_numpy_edge_ids_type(
-                        weight_array.dtype))
-        else:
-            weights_view_ptr = \
-                cugraph_type_erased_device_array_view_create(
-                    <void*>cai_weights_ptr,
-                    len(weight_array),
-                    get_c_type_from_numpy_type(weight_array.dtype))
+        cdef cugraph_type_erased_device_array_view_t* weights_view_ptr = \
+            cugraph_type_erased_device_array_view_create(
+                <void*>cai_weights_ptr,
+                len(weight_array),
+                get_c_type_from_numpy_type(weight_array.dtype))
 
         error_code = cugraph_sg_graph_create(
             resource_handle.c_resource_handle_ptr,
@@ -297,21 +284,11 @@ cdef class MGGraph(_GPUGraph):
 
         cdef uintptr_t cai_weights_ptr = \
             weight_array.__cuda_array_interface__["data"][0]
-        cdef cugraph_type_erased_device_array_view_t* weights_view_ptr
-        
-        if weight_array.dtype in [numpy.int32, numpy.int64]:
-            weights_view_ptr = \
-                cugraph_type_erased_device_array_view_create(
-                    <void*>cai_weights_ptr,
-                    len(weight_array),
-                    get_c_weight_type_from_numpy_edge_ids_type(
-                        weight_array.dtype))
-        else:
-            weights_view_ptr = \
-                cugraph_type_erased_device_array_view_create(
-                    <void*>cai_weights_ptr,
-                    len(weight_array),
-                    get_c_type_from_numpy_type(weight_array.dtype))
+        cdef cugraph_type_erased_device_array_view_t* weights_view_ptr = \
+            cugraph_type_erased_device_array_view_create(
+                <void*>cai_weights_ptr,
+                len(weight_array),
+                get_c_type_from_numpy_type(weight_array.dtype))
 
         error_code = cugraph_mg_graph_create(
             resource_handle.c_resource_handle_ptr,

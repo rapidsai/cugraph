@@ -23,7 +23,7 @@ from pylibcugraph import (ResourceHandle,
                           MGGraph
                           )
 
-from pylibcugraph.experimental import \
+from pylibcugraph import \
     uniform_neighbor_sample as pylibcugraph_uniform_neighbor_sample
 
 from cugraph.dask.common.input_utils import get_distributed_data
@@ -38,8 +38,7 @@ def call_nbr_sampling(sID,
                       do_expensive_check,
                       start_list,
                       h_fan_out,
-                      with_replacement,
-                      is_edge_ids):
+                      with_replacement):
 
     # Preparation for graph creation
     handle = Comms.get_handle(sID)
@@ -67,12 +66,11 @@ def call_nbr_sampling(sID,
                                                    start_list,
                                                    h_fan_out,
                                                    with_replacement,
-                                                   is_edge_ids,
                                                    do_expensive_check)
     return ret_val
 
 
-def convert_to_cudf(cp_arrays):
+def convert_to_cudf(cp_arrays, weight_t):
     """
     Creates a cudf DataFrame from cupy arrays from pylibcugraph wrapper
     """
@@ -82,14 +80,19 @@ def convert_to_cudf(cp_arrays):
     df["sources"] = cupy_sources
     df["destinations"] = cupy_destinations
     df["indices"] = cupy_indices
+
+    if weight_t == "int32":
+        df.indices = df.indices.astype("int32")
+    elif weight_t == "int64":
+        df.indices = df.indices.astype("int64")
+
     return df
 
 
 def uniform_neighbor_sample(input_graph,
                             start_list,
                             fanout_vals,
-                            with_replacement=True,
-                            is_edge_ids=False):
+                            with_replacement=True):
     """
     Does neighborhood sampling, which samples nodes from a graph based on the
     current node's neighbors, with a corresponding fanout value at each hop.
@@ -110,9 +113,6 @@ def uniform_neighbor_sample(input_graph,
     with_replacement: bool, optional (default=True)
         Flag to specify if the random sampling is done with replacement
 
-    is_edge_ids: bool, (default=False)
-        Flag to specify if the weights were passed as edge_ids.
-        If true, the input graph's weight will be treated as edge ids
 
     Returns
     -------
@@ -153,16 +153,15 @@ def uniform_neighbor_sample(input_graph,
         raise TypeError("fanout_vals must be a list, "
                         f"got: {type(fanout_vals)}")
 
-    # FIXME: Add graph property for multigraph
     ddf = input_graph.edgelist.edgelist_df
     src_col_name = input_graph.renumber_map.renumbered_src_col_name
     dst_col_name = input_graph.renumber_map.renumbered_dst_col_name
 
     weight_t = ddf["value"].dtype
-
-    if is_edge_ids and weight_t not in ["int32", "in64"]:
-        raise ValueError(f"Graph weights must have int32 or int64 values "
-                         f"if they are edge ids, got: {weight_t}")
+    if weight_t == "int32":
+        ddf = ddf.astype({"value": "float32"})
+    elif weight_t == "int64":
+        ddf = ddf.astype({"value": "float64"})
 
     num_edges = len(ddf)
     data = get_distributed_data(ddf)
@@ -184,14 +183,13 @@ def uniform_neighbor_sample(input_graph,
                             start_list,
                             fanout_vals,
                             with_replacement,
-                            is_edge_ids,
                             workers=[wf[0]])
               for idx, wf in enumerate(data.worker_to_parts.items())]
 
     wait(result)
 
     cudf_result = [client.submit(convert_to_cudf,
-                                 cp_arrays)
+                                 cp_arrays, weight_t)
                    for cp_arrays in result]
 
     wait(cudf_result)

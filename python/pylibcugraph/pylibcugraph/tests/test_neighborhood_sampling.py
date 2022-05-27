@@ -19,7 +19,7 @@ from pylibcugraph import (MGGraph,
                           ResourceHandle,
                           GraphProperties,
                           )
-from pylibcugraph.experimental import uniform_neighbor_sample
+from pylibcugraph import uniform_neighbor_sample
 
 
 # =============================================================================

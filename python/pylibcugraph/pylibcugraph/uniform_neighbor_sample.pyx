@@ -66,13 +66,12 @@ from pylibcugraph.utils cimport (
 )
 
 
-def EXPERIMENTAL__uniform_neighbor_sample(ResourceHandle resource_handle,
-                               _GPUGraph input_graph,
-                               start_list,
-                               h_fan_out,
-                               bool_t with_replacement,
-                               bool_t is_edge_ids,
-                               bool_t do_expensive_check):
+def uniform_neighbor_sample(ResourceHandle resource_handle,
+                            _GPUGraph input_graph,
+                            start_list,
+                            h_fan_out,
+                            bool_t with_replacement,
+                            bool_t do_expensive_check):
     """
     Does neighborhood sampling, which samples nodes from a graph based on the
     current node's neighbors, with a corresponding fanout value at each hop.
@@ -96,10 +95,6 @@ def EXPERIMENTAL__uniform_neighbor_sample(ResourceHandle resource_handle,
     with_replacement: bool
         If true, sampling procedure is done with replacement (the same vertex
         can be selected multiple times in the same step).
-    
-    is_edge_ids: bool
-       Flag to specify if the weights were passed as edge_ids.
-       If true, the input graph's weight will be treated as edge ids
 
     do_expensive_check: bool
         If True, performs more extensive tests on the inputs to ensure
@@ -161,11 +156,7 @@ def EXPERIMENTAL__uniform_neighbor_sample(ResourceHandle resource_handle,
 
     cupy_sources = copy_to_cupy_array(c_resource_handle_ptr, src_ptr)
     cupy_destinations = copy_to_cupy_array(c_resource_handle_ptr, dst_ptr)
- 
-    if is_edge_ids:
-        cupy_indices = copy_to_cupy_array_ids(c_resource_handle_ptr, index_ptr)
-    else:
-        cupy_indices = copy_to_cupy_array(c_resource_handle_ptr, index_ptr)
+    cupy_indices = copy_to_cupy_array(c_resource_handle_ptr, index_ptr)
 
     cugraph_sample_result_free(result_ptr)
     cugraph_type_erased_device_array_view_free(start_ptr)

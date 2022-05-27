@@ -66,11 +66,5 @@ hits = promoted_experimental_warning_wrapper(hits)
 from pylibcugraph.node2vec import node2vec
 node2vec = promoted_experimental_warning_wrapper(node2vec)
 
-from pylibcugraph.uniform_neighbor_sample import EXPERIMENTAL__uniform_neighbor_sample
-uniform_neighbor_sample = experimental_warning_wrapper(EXPERIMENTAL__uniform_neighbor_sample)
-
-# FIXME: This call is deprecated and will be removed in the next release
-from pylibcugraph.neighborhood_sampling import neighborhood_sampling
-
 from pylibcugraph.katz_centrality import EXPERIMENTAL__katz_centrality
 katz_centrality = experimental_warning_wrapper(EXPERIMENTAL__katz_centrality)

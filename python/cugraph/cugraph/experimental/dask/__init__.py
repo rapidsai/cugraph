@@ -10,14 +10,3 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-from cugraph.utilities.api_tools import experimental_warning_wrapper
-
-from cugraph.dask.sampling.uniform_neighbor_sample import \
-    uniform_neighbor_sample
-uniform_neighbor_sample = \
-    experimental_warning_wrapper(uniform_neighbor_sample)
-
-# FIXME: This call is deprecated and will be removed in the next release
-from cugraph.dask.sampling.neighborhood_sampling import \
-    neighborhood_sampling

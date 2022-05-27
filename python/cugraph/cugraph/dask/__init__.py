@@ -20,5 +20,3 @@ from .community.louvain import louvain
 from .centrality.katz_centrality import katz_centrality
 from .components.connectivity import weakly_connected_components
 from .sampling.uniform_neighbor_sample import uniform_neighbor_sample
-# FIXME: This call is deprecated and will be removed next release
-from .sampling.neighborhood_sampling import neighborhood_sampling

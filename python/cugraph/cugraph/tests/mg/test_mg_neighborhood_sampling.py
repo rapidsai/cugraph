@@ -53,7 +53,7 @@ def _get_param_args(param_name, param_values):
 @pytest.mark.parametrize("directed", IS_DIRECTED)
 def test_mg_neighborhood_sampling_simple(dask_client, directed):
 
-    from cugraph.experimental.dask import uniform_neighborhood_sampling
+    from cugraph.dask import uniform_neighbor_sample
 
     df = cudf.DataFrame({"src": cudf.Series([0, 1, 1, 2, 2, 2, 3, 4],
                                             dtype="int32"),
@@ -71,13 +71,12 @@ def test_mg_neighborhood_sampling_simple(dask_client, directed):
     # TODO: Incomplete, include more testing for tree graph as well as
     # for larger graphs
     start_list = cudf.Series([0, 1], dtype="int32")
-    info_list = cudf.Series([0, 0], dtype="int32")
     fanout_vals = [1, 1]
     with_replacement = True
-    result_nbr = uniform_neighborhood_sampling(G,
-                                               (start_list, info_list),
-                                               fanout_vals,
-                                               with_replacement)
+    result_nbr = uniform_neighbor_sample(G,
+                                         start_list,
+                                         fanout_vals,
+                                         with_replacement)
     result_nbr = result_nbr.compute()
 
     # Since the validity of results have (probably) been tested at both the C++
@@ -99,7 +98,7 @@ def test_mg_neighborhood_sampling_simple(dask_client, directed):
 @pytest.mark.skip(reason="Currently hangs, awaiting fix in algo")
 def test_mg_neighborhood_sampling_tree(dask_client, directed):
 
-    from cugraph.experimental.dask import uniform_neighborhood_sampling
+    from cugraph.dask import uniform_neighbor_sample
 
     input_data_path = (utils.RAPIDS_DATASET_ROOT_DIR_PATH /
                        "small_tree.csv").as_posix()
@@ -119,13 +118,12 @@ def test_mg_neighborhood_sampling_tree(dask_client, directed):
     # TODO: Incomplete, include more testing for tree graph as well as
     # for larger graphs
     start_list = cudf.Series([0, 0], dtype="int32")
-    info_list = cudf.Series([0, 0], dtype="int32")
     fanout_vals = [4, 1, 3]
     with_replacement = True
-    result_nbr = uniform_neighborhood_sampling(G,
-                                               (start_list, info_list),
-                                               fanout_vals,
-                                               with_replacement)
+    result_nbr = uniform_neighbor_sample(G,
+                                         start_list,
+                                         fanout_vals,
+                                         with_replacement)
     result_nbr = result_nbr.compute()
 
     # Since the validity of results have (probably) been tested at both the C++

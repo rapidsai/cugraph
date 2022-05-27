@@ -154,14 +154,11 @@ cdef copy_to_cupy_array(
 cdef copy_to_cupy_array_ids(
    cugraph_resource_handle_t* c_resource_handle_ptr,
    cugraph_type_erased_device_array_view_t* device_array_view_ptr):
-    # FIXME: Update this docstring
     """
     Copy the contents from a device array view as returned by various cugraph_*
     APIs to a new cupy device array, typically intended to be used as a return
-    value from pylibcugraph APIs.
+    value from pylibcugraph APIs then convert float to int
     """
-
-
     cdef c_type = cugraph_type_erased_device_array_view_type(
         device_array_view_ptr)
 
