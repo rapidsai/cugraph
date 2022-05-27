@@ -57,8 +57,8 @@ def EXPERIMENTAL__triangle_count(G, start_list=None):
     ...                     dtype=['int32', 'int32', 'float32'],
     ...                     header=None)
     >>> G = cugraph.Graph()
-    >>> G.from_cudf_edgelist(gdf, source='0', destination='1')
-    >>> count = cugraph.triangles(G)
+    >>> G.from_cudf_edgelist(gdf, source='0', destination='1', edge_attr=2)
+    >>> count = cugraph.experimental.triangle_count(G)
 
     """
 

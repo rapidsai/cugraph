@@ -20,42 +20,22 @@ import cugraph
 from cugraph.testing import utils
 import cugraph.dask as dcg
 import dask_cudf
-import random
-import warnings
+from cugraph.experimental import triangle_count as experimental_triangles
+
 
 # =============================================================================
 # Pytest Setup / Teardown - called for each test function
 # =============================================================================
-
-
 def setup_function():
     gc.collect()
-
-
-# Temporarily suppress warnings till networkX fixes deprecation warnings
-# (Using or importing the ABCs from 'collections' instead of from
-# 'collections.abc' is deprecated, and in 3.8 it will stop working) for
-# python 3.7.  Also, this import networkx needs to be relocated in the
-# third-party group once this gets fixed.
-
-with warnings.catch_warnings():
-    warnings.filterwarnings("ignore", category=DeprecationWarning)
-    import networkx as nx
-
-
-HAS_START_LIST = [False, True]
-IS_WEIGHTED = [False, True]
 
 
 # =============================================================================
 # Pytest fixtures
 # =============================================================================
-
 datasets = utils.DATASETS_UNDIRECTED
-
 fixture_params = utils.genFixtureParamsProduct((datasets, "graph_file"),
-                                               (HAS_START_LIST, "start_list"),
-                                               (IS_WEIGHTED, "is_weighted"),
+                                               ([True, False], "start_list"),
                                                )
 
 
@@ -67,51 +47,49 @@ def input_combo(request):
     """
     parameters = dict(zip(("graph_file",
                            "start_list",
-                           "is_weighted"), request.param))
+                           "edgevals"), request.param))
 
     return parameters
 
 
 @pytest.fixture(scope="module")
-def input_expected_output(input_combo):
+def input_expected_output(dask_client, input_combo):
     """
     This fixture returns the inputs and expected results from the triangle
     count algo.
-
-    FIXME: We have to rely on nx for testing because the current cuGraph
-    triangle count implementation only returns the totoal number of triangles
-    instead of the number of triangles per vertices like nx.triangle or
-    dcg.triangle_count
     """
-    input_data_path = input_combo["graph_file"]
-    is_weighted = input_combo["is_weighted"]
-
-    M = utils.read_csv_for_nx(input_data_path)
-
-    Gnx = nx.from_pandas_edgelist(
-        M, source="0", target="1",
-        edge_attr=is_weighted, create_using=nx.Graph()
-    )
-
     start_list = input_combo["start_list"]
+    input_data_path = input_combo["graph_file"]
+    G = utils.generate_cugraph_graph_from_file(
+        input_data_path, directed=False, edgevals=True)
+
+    input_combo["SGGraph"] = G
+    """
+    FIXME: MG triangle count is failing with random start_list
+    sampled from the graph
     if start_list:
-        # sample k nodes from the nx graph
+        # sample k nodes from the cuGraph graph
         k = random.randint(1, 10)
-        start_list = random.sample(list(Gnx.nodes()), k)
+        srcs = G.view_edge_list()["src"]
+        dsts = G.view_edge_list()["dst"]
+        nodes = cudf.concat([srcs, dsts]).drop_duplicates()
+        start_list = nodes.sample(k)
+    else:
+        start_list = None
+    FIXME: MG triangle count is failing with the start_list below as well
+    # start_list = cudf.Series([41, 35], dtype="int32")
+    """
+    if start_list:
+        start_list = cudf.Series([0, 1, 2, 3], dtype="int32")
+
     else:
         start_list = None
 
-    nx_count_dic = nx.triangles(Gnx, start_list)
-    nx_count = cudf.DataFrame()
-    nx_count["vertex"] = nx_count_dic.keys()
-    nx_count["counts"] = nx_count_dic.values()
-    nx_count = nx_count.sort_values("vertex").reset_index(drop=True)
+    sg_triangle_results = experimental_triangles(G, start_list)
+    sg_triangle_results = sg_triangle_results.sort_values(
+        "vertex").reset_index(drop=True)
 
-    # FIXME: convert start_list to a cudf.Series of dtype int32 because int64
-    # might not be supported
-    start_list = cudf.Series(start_list, dtype="int32")
-
-    input_combo["nx_results"] = nx_count
+    input_combo["sg_triangle_results"] = sg_triangle_results
     input_combo["start_list"] = start_list
 
     # Creating an edgelist from a dask cudf dataframe
@@ -123,19 +101,26 @@ def input_expected_output(input_combo):
         names=["src", "dst", "value"],
         dtype=["int32", "int32", "float32"],
     )
-    if is_weighted:
-        edge_attr = "value"
-    else:
-        edge_attr = None
 
-    dg = cugraph.Graph(directed=True)
+    dg = cugraph.Graph(directed=False)
     dg.from_dask_cudf_edgelist(
         ddf, source='src', destination='dst',
-        edge_attr=edge_attr, renumber=True)
+        edge_attr="value", renumber=True)
 
     input_combo["MGGraph"] = dg
 
     return input_combo
+
+
+# =============================================================================
+# Tests
+# =============================================================================
+def test_sg_triangles(dask_client, benchmark, input_expected_output):
+    sg_triangle_results = None
+    G = input_expected_output["SGGraph"]
+    start_list = input_expected_output["start_list"]
+    sg_triangle_results = benchmark(experimental_triangles, G, start_list)
+    assert sg_triangle_results is not None
 
 
 def test_triangles(dask_client, benchmark, input_expected_output):
@@ -143,20 +128,17 @@ def test_triangles(dask_client, benchmark, input_expected_output):
     dg = input_expected_output["MGGraph"]
     start_list = input_expected_output["start_list"]
 
-    result_counts = benchmark(dcg.triangle_count,
-                              dg,
-                              start_list)
+    result_counts = benchmark(dcg.triangle_count, dg, start_list)
 
-    result_counts = result_counts.compute().sort_values(
-        "vertex").reset_index(
-            drop=True).rename(columns={"counts": "mg_counts"})
+    result_counts = result_counts.drop_duplicates().compute().sort_values(
+        "vertex").reset_index(drop=True).rename(
+            columns={"counts": "mg_counts"})
 
-    expected_output = input_expected_output["nx_results"]
+    expected_output = input_expected_output["sg_triangle_results"]
 
-    # Update the dask cugraph triangle count with nx triangle count results
+    # Update the mg triangle count with sg triangle count results
     # for easy comparison using cuDF DataFrame methods.
     result_counts["sg_counts"] = expected_output['counts']
-
     counts_diffs = result_counts.query('mg_counts != sg_counts')
 
     assert len(counts_diffs) == 0

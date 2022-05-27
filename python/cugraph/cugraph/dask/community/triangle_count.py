@@ -85,7 +85,7 @@ def triangle_count(input_graph,
 
     Parameters
     ----------
-    G : cugraph.graph
+    input_graph : cugraph.graph
         cuGraph graph descriptor, should contain the connectivity information,
         (edge weights are not used in this algorithm).
         The current implementation only supports undirected graphs.
@@ -105,6 +105,8 @@ def triangle_count(input_graph,
     ddf['counts']: dask_cudf.Series
         Contains the triangle counting counts
     """
+    if input_graph.is_directed():
+        raise ValueError("input graph must be undirected")
     # Initialize dask client
     client = default_client()
     # In the future, once all the algos follow the C/Pylibcugraph path,
