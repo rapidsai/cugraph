@@ -74,6 +74,8 @@ service GaasService {
 
   i32 get_num_edges(1:i32 graph_id) throws(1:GaasError e),
 
+  i32 get_num_vertices(1:i32 graph_id) throws(1:GaasError e),
+
   Node2vecResult
   node2vec(1:list<i32> start_vertices,
            2:i32 max_depth,

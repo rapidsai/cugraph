@@ -203,6 +203,10 @@ class GaasHandler:
         # work too.
         return pG.num_edges
 
+    def get_num_vertices(self, graph_id):
+        pG = self._get_graph(graph_id)
+        return pG.num_vertices
+
     def extract_subgraph(self,
                          create_using,
                          selection,
