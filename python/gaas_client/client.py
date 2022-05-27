@@ -13,8 +13,12 @@
 # limitations under the License.
 
 from functools import wraps
+from collections.abc import Sequence
+
+import numpy
 
 from gaas_client import defaults
+from gaas_client.types import Value, DataframeRowIndex
 from gaas_client.gaas_thrift import create_client
 
 
@@ -76,7 +80,7 @@ class GaasClient:
             return ret_val
         return wrapped_method
 
-    def open(self, call_timeout=90000):
+    def open(self, call_timeout=900000):
         """
         Opens a connection to the server at self.host/self.port if one is not
         already established. close() must be called in order to allow other
@@ -91,7 +95,7 @@ class GaasClient:
 
         Parameters
         ----------
-        call_timeout : int (default is 90000)
+        call_timeout : int (default is 900000)
             Time in millisecods that calls to the server using this open
             connection must return by.
 
@@ -566,6 +570,17 @@ class GaasClient:
         return self.__client.get_num_edges(graph_id)
 
     @__server_connection
+    def get_edge_IDs_for_vertices(self, src_vert_IDs, dst_vert_IDs,
+                                  graph_id=defaults.graph_id):
+        """
+        """
+        # FIXME: finish docstring above
+        # FIXME: add type checking
+        return self.__client.get_edge_IDs_for_vertices(src_vert_IDs,
+                                                       dst_vert_IDs,
+                                                       graph_id)
+
+    @__server_connection
     def extract_subgraph(self,
                          create_using=None,
                          selection=None,
@@ -635,9 +650,131 @@ class GaasClient:
                                               allow_multi_edges,
                                               graph_id)
 
+    @__server_connection
+    def get_graph_vertex_dataframe_rows(self,
+                                        index_or_indices=-1,
+                                        null_replacement_value=0,
+                                        graph_id=defaults.graph_id
+                                        ):
+        """
+        Returns ...
+
+        Parameters
+        ----------
+        index_or_indices :
+
+        null_replacement_value : number or string (default 0)
+
+        graph_id : int, default is defaults.graph_id
+           The graph ID to extract the subgraph from. If the ID passed is not
+           valid on the server, GaaSError is raised.
+
+        Returns
+        -------
+
+        Examples
+        --------
+        >>>
+        """
+        # FIXME: finish docstring above
+
+        df_row_index_obj = self.__get_dataframe_row_index_obj(index_or_indices)
+        null_replacement_value_obj = self.__get_value_obj(
+            null_replacement_value, val_name="null_replacement_value")
+
+        ndarray_bytes = \
+            self.__client.get_graph_vertex_dataframe_rows(
+                df_row_index_obj, null_replacement_value_obj, graph_id)
+
+        return numpy.loads(ndarray_bytes)
+
+
+    @__server_connection
+    def get_graph_vertex_dataframe_shape(self,
+                                         graph_id=defaults.graph_id
+                                         ):
+        return tuple(self.__client.get_graph_vertex_dataframe_shape(graph_id))
+
+
+    @__server_connection
+    def get_graph_edge_dataframe_rows(self,
+                                      index_or_indices=-1,
+                                      null_replacement_value=0,
+                                      graph_id=defaults.graph_id
+                                      ):
+        """
+        Returns ...
+
+        Parameters
+        ----------
+        index_or_indices :
+
+        null_replacement_value : number or string (default 0)
+
+        graph_id : int, default is defaults.graph_id
+           The graph ID to extract the subgraph from. If the ID passed is not
+           valid on the server, GaaSError is raised.
+
+        Returns
+        -------
+
+        Examples
+        --------
+        >>>
+        """
+        # FIXME: finish docstring above
+
+        df_row_index_obj = self.__get_dataframe_row_index_obj(index_or_indices)
+        null_replacement_value_obj = self.__get_value_obj(
+            null_replacement_value, val_name="null_replacement_value")
+
+        ndarray_bytes = \
+            self.__client.get_graph_edge_dataframe_rows(
+                df_row_index_obj, null_replacement_value_obj, graph_id)
+
+        return numpy.loads(ndarray_bytes)
+
+
+    @__server_connection
+    def get_graph_edge_dataframe_shape(self,
+                                         graph_id=defaults.graph_id
+                                         ):
+        return tuple(self.__client.get_graph_edge_dataframe_shape(graph_id))
+
 
     ############################################################################
     # Algos
+    @__server_connection
+    def batched_ego_graphs(self, seeds, radius=1, graph_id=defaults.graph_id):
+        """
+        Parameters
+        ----------
+
+        Returns
+        -------
+
+        Examples
+        --------
+        >>>
+        """
+        # FIXME: finish docstring above
+
+        if not isinstance(seeds, list):
+            seeds = [seeds]
+        batched_ego_graphs_result = self.__client.batched_ego_graphs(seeds,
+                                                                     radius,
+                                                                     graph_id)
+
+        # FIXME: ensure dtypes are correct for values returned from cugraph.batched_ego_graphs() in gaas_handler.py
+        #return (numpy.frombuffer(batched_ego_graphs_result.src_verts, dtype="int32"),
+        #        numpy.frombuffer(batched_ego_graphs_result.dst_verts, dtype="int32"),
+        #        numpy.frombuffer(batched_ego_graphs_result.edge_weights, dtype="float64"),
+        #        numpy.frombuffer(batched_ego_graphs_result.seeds_offsets, dtype="int64"))
+        return (batched_ego_graphs_result.src_verts,
+                batched_ego_graphs_result.dst_verts,
+                batched_ego_graphs_result.edge_weights,
+                batched_ego_graphs_result.seeds_offsets)
+
     @__server_connection
     def node2vec(self, start_vertices, max_depth, graph_id=defaults.graph_id):
         """
@@ -646,10 +783,6 @@ class GaasClient:
 
         Parameters
         ----------
-        G : cuGraph.Graph or networkx.Graph
-            The graph can be either directed (DiGraph) or undirected (Graph).
-            Weights in the graph are ignored.
-
         start_vertices: int or list or cudf.Series or cudf.DataFrame
             A single node or a list or a cudf.Series of nodes from which to run
             the random walks. In case of multi-column vertices it should be
@@ -676,8 +809,6 @@ class GaasClient:
         node2vec_result = self.__client.node2vec(start_vertices,
                                                  max_depth,
                                                  graph_id)
-        # Hide the generated Thrift result type for node2vec and instead return
-        # a tuple of lists)
         return (node2vec_result.vertex_paths,
                 node2vec_result.edge_weights,
                 node2vec_result.path_sizes)
@@ -688,3 +819,29 @@ class GaasClient:
         pagerank
         """
         raise NotImplementedError
+
+    ############################################################################
+    # Private
+    @staticmethod
+    def __get_dataframe_row_index_obj(index_or_indices):
+        # FIXME: do not assume all values are int32
+        if isinstance(index_or_indices, Sequence):
+            df_row_index_obj = DataframeRowIndex(int32_indices=index_or_indices)
+        else:
+            df_row_index_obj = DataframeRowIndex(int32_index=index_or_indices)
+        return df_row_index_obj
+
+    @staticmethod
+    def __get_value_obj(val, val_name="value"):
+        # FIXME: handle differrent val types
+        if isinstance(val, int):
+            value_obj = Value(int32_value=val)
+        elif isinstance(val, str):
+            value_obj = Value(string_value=val)
+        elif isinstance(val, bool):
+            value_obj = Value(bool_value=val)
+        else:
+            raise TypeError(f"{val_name} must be one of the "
+                            "following types: [int, str, bool], got "
+                            f"{type(val)}")
+        return value_obj
