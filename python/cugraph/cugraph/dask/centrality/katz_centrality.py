@@ -42,7 +42,7 @@ def call_katz_centrality(sID,
                          beta,
                          max_iter,
                          tol,
-                         nstart,
+                         initial_hubs_guess_values,
                          normalized):
     handle = Comms.get_handle(sID)
     h = ResourceHandle(handle.getHandle())
@@ -52,10 +52,6 @@ def call_katz_centrality(sID,
 
     if "value" in data[0].columns:
         weights = data[0]['value']
-
-    initial_hubs_guess_values = None
-    if nstart:
-        initial_hubs_guess_values = nstart["values"]
 
     mg = MGGraph(h,
                  graph_properties,
@@ -192,10 +188,24 @@ def katz_centrality(
     num_edges = len(ddf)
     data = get_distributed_data(ddf)
 
+    # FIXME: Incorporate legacy_renum_only=True to only trigger the python
+    # renumbering when more support is added in the C/C++ API
     input_graph.compute_renumber_edge_list(transposed=True,
-                                           legacy_renum_only=True)
+                                           legacy_renum_only=False)
     vertex_partition_offsets = get_vertex_partition_offsets(input_graph)
     num_verts = vertex_partition_offsets.iloc[-1]
+
+    initial_hubs_guess_values = None
+    if nstart:
+        if input_graph.renumbered:
+            if len(input_graph.renumber_map.implementation.col_names) > 1:
+                cols = nstart.columns[:-1].to_list()
+            else:
+                cols = 'vertex'
+            nstart = input_graph.add_internal_vertex_id(nstart, 'vertex', cols)
+            initial_hubs_guess_values = nstart[nstart.columns[0]].compute()
+        else:
+            initial_hubs_guess_values = nstart["values"].compute()
 
     cupy_result = [client.submit(call_katz_centrality,
                                  Comms.get_session_id(),
@@ -213,7 +223,7 @@ def katz_centrality(
                                  beta,
                                  max_iter,
                                  tol,
-                                 nstart,
+                                 initial_hubs_guess_values,
                                  normalized,
                                  workers=[wf[0]])
                    for idx, wf in enumerate(data.worker_to_parts.items())]
