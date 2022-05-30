@@ -187,16 +187,19 @@ class simpleGraphImpl:
         if self.batch_enabled:
             self._replicate_edgelist()
 
-    def to_pandas_edgelist(self, source='source', destination='destination'):
+    def to_pandas_edgelist(self, source='src', destination='dst',
+                           weight='weights'):
         """
         Returns the graph edge list as a Pandas DataFrame.
 
         Parameters
         ----------
-        source : str or array-like, optional (default='source')
+        source : str or array-like, optional (default='src')
             source column name or array of column names
-        destination : str or array-like, optional (default='destination')
+        destination : str or array-like, optional (default='dst')
             destination column name or array of column names
+        weight : str or array-like, optional (default='weight')
+            weight column name or array of column names
 
         Returns
         -------
@@ -204,6 +207,12 @@ class simpleGraphImpl:
         """
 
         gdf = self.view_edge_list()
+        if self.properties.weighted:
+            gdf.rename(columns={'src': source, 'dst': destination,
+                       'weight': weight}, inplace=True)
+        else:
+            gdf.rename(columns={'src': source,
+                       'dst': destination}, inplace=True)
         return gdf.to_pandas()
 
     def to_pandas_adjacency(self):

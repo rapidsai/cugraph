@@ -21,6 +21,7 @@
 #include <cugraph/graph_view.hpp>
 #include <cugraph/utilities/collect_comm.cuh>
 #include <cugraph/utilities/dataframe_buffer.cuh>
+#include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/host_scalar_comm.cuh>
 #include <cugraph/utilities/misc_utils.cuh>
@@ -549,11 +550,11 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
                             key_pair_first + rx_majors.size(),
                             rx_key_aggregated_edge_weights.begin());
       }
-      auto num_uniques = thrust::count_if(
-        handle.get_thrust_policy(),
-        thrust::make_counting_iterator(size_t{0}),
-        thrust::make_counting_iterator(rx_majors.size()),
-        detail::is_first_in_run_pair_t<vertex_t>{rx_majors.data(), rx_minor_keys.data()});
+      auto num_uniques =
+        thrust::count_if(handle.get_thrust_policy(),
+                         thrust::make_counting_iterator(size_t{0}),
+                         thrust::make_counting_iterator(rx_majors.size()),
+                         detail::is_first_in_run_t<decltype(key_pair_first)>{key_pair_first});
       tmp_majors.resize(num_uniques, handle.get_stream());
       tmp_minor_keys.resize(tmp_majors.size(), handle.get_stream());
       tmp_key_aggregated_edge_weights.resize(tmp_majors.size(), handle.get_stream());
@@ -652,10 +653,11 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
     tmp_key_aggregated_edge_weights.shrink_to_fit(handle.get_stream());
 
     {
-      auto num_uniques = thrust::count_if(handle.get_thrust_policy(),
-                                          thrust::make_counting_iterator(size_t{0}),
-                                          thrust::make_counting_iterator(tmp_majors.size()),
-                                          detail::is_first_in_run_t<vertex_t>{tmp_majors.data()});
+      auto num_uniques =
+        thrust::count_if(handle.get_thrust_policy(),
+                         thrust::make_counting_iterator(size_t{0}),
+                         thrust::make_counting_iterator(tmp_majors.size()),
+                         detail::is_first_in_run_t<vertex_t const*>{tmp_majors.data()});
       rmm::device_uvector<vertex_t> unique_majors(num_uniques, handle.get_stream());
       auto reduced_e_op_result_buffer =
         allocate_dataframe_buffer<T>(unique_majors.size(), handle.get_stream());
@@ -725,7 +727,7 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
     auto num_uniques = thrust::count_if(handle.get_thrust_policy(),
                                         thrust::make_counting_iterator(size_t{0}),
                                         thrust::make_counting_iterator(majors.size()),
-                                        detail::is_first_in_run_t<vertex_t>{majors.data()});
+                                        detail::is_first_in_run_t<vertex_t const*>{majors.data()});
     rmm::device_uvector<vertex_t> unique_majors(num_uniques, handle.get_stream());
     auto reduced_e_op_result_buffer =
       allocate_dataframe_buffer<T>(unique_majors.size(), handle.get_stream());

@@ -35,7 +35,7 @@ from pylibcugraph._cugraph_c.graph cimport (
 )
 from pylibcugraph._cugraph_c.centrality_algorithms cimport (
     cugraph_centrality_result_t,
-    cugraph_katz_centrality,
+    cugraph_eigenvector_centrality,
     cugraph_centrality_result_get_vertices,
     cugraph_centrality_result_get_values,
     cugraph_centrality_result_free,
@@ -54,18 +54,13 @@ from pylibcugraph.utils cimport (
 )
 
 
-def katz_centrality(ResourceHandle resource_handle,
-                    _GPUGraph graph,
-                    betas,
-                    double alpha,
-                    double beta,
-                    double epsilon,
-                    size_t max_iterations,
-                    bool_t do_expensive_check):
+def eigenvector_centrality(ResourceHandle resource_handle,
+                           _GPUGraph graph,
+                           double epsilon,
+                           size_t max_iterations,
+                           bool_t do_expensive_check):
     """
-    Compute the Katz centrality for the nodes of the graph. This implementation
-    is based on a relaxed version of Katz defined by Foster with a reduced
-    computational complexity of O(n+m)
+    Compute the Eigenvector centrality for the nodes of the graph.
 
     Parameters
     ----------
@@ -76,27 +71,36 @@ def katz_centrality(ResourceHandle resource_handle,
     graph : SGGraph
         The input graph.
 
-    betas : device array type
-        Device array containing the values to be added to each vertex's new
-        Katz Centrality score in every iteration. If set to None then beta is
-        used for all vertices.
-
-    alpha : double
-        The attenuation factor, should be smaller than the inverse of the
-        maximum eigenvalue of the graph
-
-    beta : double
-        Constant value to be added to each vertex's new Katz Centrality score
-        in every iteration. Relevant only when betas is None
-
     epsilon : double
         Error tolerance to check convergence
 
     max_iterations: size_t
-        Maximum number of Katz Centrality iterations
+        Maximum number of Eignevector Centrality iterations
 
     do_expensive_check : bool_t
         A flag to run expensive checks for input arguments if True.
+
+    Returns
+    -------
+    A tuple of device arrays, where the first item in the tuple is a device
+    array containing the vertices and the second item in the tuple is a device
+    array containing the eigenvector centrality scores for the corresponding
+    vertices.
+
+    Examples
+    --------
+    >>> import pylibcugraph, cupy, numpy
+    >>> srcs = cupy.asarray([0, 1, 2], dtype=numpy.int32)
+    >>> dsts = cupy.asarray([1, 2, 3], dtype=numpy.int32)
+    >>> weights = cupy.asarray([1.0, 1.0, 1.0], dtype=numpy.float32)
+    >>> resource_handle = pylibcugraph.ResourceHandle()
+    >>> graph_props = pylibcugraph.GraphProperties(
+    ...     is_symmetric=False, is_multigraph=False)
+    >>> G = pylibcugraph.SGGraph(
+    ...     resource_handle, graph_props, srcs, dsts, weights,
+    ...     store_transposed=True, renumber=False, do_expensive_check=False)
+    >>> (vertices, values) = pylibcugraph.eigenvector_centrality(
+                                resource_handle, G, 1e-6, 1000, False)
 
     """
 
@@ -108,30 +112,14 @@ def katz_centrality(ResourceHandle resource_handle,
     cdef cugraph_error_code_t error_code
     cdef cugraph_error_t* error_ptr
 
-    cdef uintptr_t cai_betas_ptr 
-    cdef cugraph_type_erased_device_array_view_t* betas_ptr
-    
-    if betas is not None:
-        cai_betas_ptr = betas.__cuda_array_interface__["data"][0]
-        betas_ptr = \
-            cugraph_type_erased_device_array_view_create(
-                <void*>cai_betas_ptr,
-                len(betas),
-                get_c_type_from_numpy_type(betas.dtype))
-    else:
-        betas_ptr = NULL
-
-    error_code = cugraph_katz_centrality(c_resource_handle_ptr,
-                                         c_graph_ptr,
-                                         betas_ptr,
-                                         alpha,
-                                         beta,
-                                         epsilon,
-                                         max_iterations,
-                                         do_expensive_check,
-                                         &result_ptr,
-                                         &error_ptr)
-    assert_success(error_code, error_ptr, "cugraph_katz_centrality")
+    error_code = cugraph_eigenvector_centrality(c_resource_handle_ptr,
+                                                c_graph_ptr,
+                                                epsilon,
+                                                max_iterations,
+                                                do_expensive_check,
+                                                &result_ptr,
+                                                &error_ptr)
+    assert_success(error_code, error_ptr, "cugraph_eigenvector_centrality")
 
     # Extract individual device array pointers from result and copy to cupy
     # arrays for returning.
@@ -144,6 +132,5 @@ def katz_centrality(ResourceHandle resource_handle,
     cupy_values = copy_to_cupy_array(c_resource_handle_ptr, values_ptr)
 
     cugraph_centrality_result_free(result_ptr)
-    cugraph_type_erased_device_array_view_free(betas_ptr)
 
     return (cupy_vertices, cupy_values)

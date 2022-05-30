@@ -20,6 +20,7 @@
 #include <cugraph/edge_partition_device_view.cuh>
 #include <cugraph/partition_manager.hpp>
 #include <cugraph/utilities/device_comm.cuh>
+#include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/host_scalar_comm.cuh>
 
 #include <raft/handle.hpp>
@@ -905,6 +906,47 @@ gather_one_hop_edgelist(
   }
 
   return std::make_tuple(std::move(majors), std::move(minors), std::move(weights));
+}
+
+template <typename vertex_t, typename edge_t, typename weight_t>
+std::tuple<rmm::device_uvector<vertex_t>,
+           rmm::device_uvector<vertex_t>,
+           rmm::device_uvector<weight_t>,
+           rmm::device_uvector<edge_t>>
+count_and_remove_duplicates(raft::handle_t const& handle,
+                            rmm::device_uvector<vertex_t>&& src,
+                            rmm::device_uvector<vertex_t>&& dst,
+                            rmm::device_uvector<weight_t>&& wgt)
+{
+  auto tuple_iter_begin =
+    thrust::make_zip_iterator(thrust::make_tuple(src.begin(), dst.begin(), wgt.begin()));
+
+  thrust::sort(handle.get_thrust_policy(), tuple_iter_begin, tuple_iter_begin + src.size());
+
+  auto pair_first  = thrust::make_zip_iterator(thrust::make_tuple(src.begin(), dst.begin()));
+  auto num_uniques = thrust::count_if(handle.get_thrust_policy(),
+                                      thrust::make_counting_iterator(size_t{0}),
+                                      thrust::make_counting_iterator(src.size()),
+                                      detail::is_first_in_run_t<decltype(pair_first)>{pair_first});
+
+  rmm::device_uvector<vertex_t> result_src(num_uniques, handle.get_stream());
+  rmm::device_uvector<vertex_t> result_dst(num_uniques, handle.get_stream());
+  rmm::device_uvector<weight_t> result_wgt(num_uniques, handle.get_stream());
+  rmm::device_uvector<edge_t> result_count(num_uniques, handle.get_stream());
+
+  rmm::device_uvector<edge_t> count(src.size(), handle.get_stream());
+  thrust::fill(handle.get_thrust_policy(), count.begin(), count.end(), edge_t{1});
+
+  thrust::reduce_by_key(handle.get_thrust_policy(),
+                        tuple_iter_begin,
+                        tuple_iter_begin + src.size(),
+                        count.begin(),
+                        thrust::make_zip_iterator(thrust::make_tuple(
+                          result_src.begin(), result_dst.begin(), result_wgt.begin())),
+                        result_count.begin());
+
+  return std::make_tuple(
+    std::move(result_src), std::move(result_dst), std::move(result_wgt), std::move(result_count));
 }
 
 }  // namespace detail
