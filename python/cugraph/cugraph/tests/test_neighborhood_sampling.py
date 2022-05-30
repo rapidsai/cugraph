@@ -13,12 +13,10 @@
 import pandas as pd
 import gc
 import pytest
-import cugraph.dask as dcg
 import cugraph
-import dask_cudf
 import cudf
 from cugraph.testing import utils
-from cugraph.dask import uniform_neighbor_sample
+from cugraph import uniform_neighbor_sample
 import random
 
 
@@ -61,34 +59,33 @@ def input_combo(request):
     input_data_path = parameters["graph_file"]
     directed = parameters["directed"]
 
-    chunksize = dcg.get_chunksize(input_data_path)
-    ddf = dask_cudf.read_csv(
+    df = cudf.read_csv(
         input_data_path,
-        chunksize=chunksize,
         delimiter=" ",
         names=["src", "dst", "value"],
         dtype=["int32", "int32", indices_type],
-    )
+        )
 
-    dg = cugraph.Graph(directed=directed)
-    dg.from_dask_cudf_edgelist(
-        ddf, source='src', destination='dst', edge_attr='value')
+    G = cugraph.Graph(directed=directed)
+    G.from_cudf_edgelist(
+        df, source='src', destination='dst',
+        edge_attr='value', legacy_renum_only=True)
 
-    parameters["MGGraph"] = dg
+    parameters["Graph"] = G
 
     # sample k vertices from the cuGraph graph
     k = random.randint(1, 10)
-    srcs = dg.input_df["src"]
-    dsts = dg.input_df["dst"]
+    srcs = G.view_edge_list()["src"]
+    dsts = G.view_edge_list()["dst"]
 
-    vertices = dask_cudf.concat([srcs, dsts]).drop_duplicates().compute()
+    vertices = cudf.concat([srcs, dsts]).drop_duplicates()
+
     start_list = vertices.sample(k)
-
     # Generate a random fanout_vals list of length k
     fanout_vals = [random.randint(1, k) for _ in range(k)]
 
-    # These prints are for debugging purposes since the vertices and the
-    # fanout_vals are randomly sampled/chosen
+    # These prints are for debugging purposes since the vertices and
+    # the fanout_vals are randomly sampled/chosen
     print("start_list: \n", start_list)
     print("fanout_vals: ", fanout_vals)
 
@@ -98,12 +95,25 @@ def input_combo(request):
     return parameters
 
 
-def test_mg_neighborhood_sampling_simple(dask_client, input_combo):
+def test_neighborhood_sampling_simple(input_combo):
 
-    dg = input_combo["MGGraph"]
+    G = input_combo["Graph"]
 
-    input_df = dg.input_df
-    result_nbr = uniform_neighbor_sample(dg,
+    #
+    # Make sure the old C++ renumbering was skipped because:
+    #    1) Pylibcugraph already does renumbering
+    #    2) Uniform neighborhood sampling allows int32 weights
+    #       which are not supported by the C++ renumbering
+    # This should be 'True' only for string vertices and multi columns vertices
+    #
+
+    assert G.renumbered is False
+    # Retrieve the input dataframe.
+    # FIXME: in simpleGraph and simpleDistributedGraph, G.edgelist.edgelist_df
+    # should be 'None' if the datasets was never renumbered
+    input_df = G.edgelist.edgelist_df
+
+    result_nbr = uniform_neighbor_sample(G,
                                          input_combo["start_list"],
                                          input_combo["fanout_vals"],
                                          input_combo["with_replacement"])
@@ -113,56 +123,68 @@ def test_mg_neighborhood_sampling_simple(dask_client, input_combo):
     result_nbr = result_nbr.drop_duplicates()
 
     # FIXME: The indices are not included in the comparison because garbage
-    # value are intermittently retuned. This observation is observed when
-    # passing float weights
+    # value are intermittently retuned. This observation is observed
+    # when passing float weights
     join = result_nbr.merge(
         input_df, left_on=[*result_nbr.columns[:2]],
         right_on=[*input_df.columns[:2]])
+
     if len(result_nbr) != len(join):
         join2 = input_df.merge(
             result_nbr, how='left', left_on=[*input_df.columns],
             right_on=[*result_nbr.columns])
+
         pd.set_option('display.max_rows', 500)
         print('df1 = \n', input_df.sort_values([*input_df.columns]))
-        print('df2 = \n', result_nbr.sort_values(
-            [*result_nbr.columns]).compute())
-        print('join2 = \n', join2.sort_values(
-            [*input_df.columns]).compute().to_pandas().query(
-                'sources.isnull()', engine='python'))
+        print('df2 = \n', result_nbr.sort_values([*result_nbr.columns]))
+        print('join2 = \n', join2.sort_values([*input_df.columns])
+              .to_pandas().query('sources.isnull()', engine='python'))
 
     assert len(join) == len(result_nbr)
     # Ensure the right indices type is returned
     assert result_nbr['indices'].dtype == input_combo["indices_type"]
 
-    start_list = input_combo["start_list"].to_pandas()
-    result_nbr_vertices = dask_cudf.concat(
-        [result_nbr["sources"], result_nbr["destinations"]]). \
-        drop_duplicates().compute().reset_index(drop=True)
+    start_list = input_combo["start_list"]
 
-    result_nbr_vertices = result_nbr_vertices.to_pandas()
+    result_nbr_vertices = cudf.concat(
+        [result_nbr["sources"], result_nbr["destinations"]]) \
+        .drop_duplicates().reset_index(drop=True)
 
-    # The vertices in start_list must be a subsets of the vertices
-    # in the result
-    assert set(start_list).issubset(set(result_nbr_vertices))
+    assert set(
+        start_list.to_pandas()).issubset(
+            set(result_nbr_vertices.to_pandas()))
 
 
 @pytest.mark.parametrize("directed", IS_DIRECTED)
-def test_mg_neighborhood_sampling_tree(dask_client, directed):
+def test_mg_neighborhood_sampling_tree(directed):
 
     input_data_path = (utils.RAPIDS_DATASET_ROOT_DIR_PATH /
                        "small_tree.csv").as_posix()
-    chunksize = dcg.get_chunksize(input_data_path)
 
-    ddf = dask_cudf.read_csv(
+    df = cudf.read_csv(
         input_data_path,
-        chunksize=chunksize,
         delimiter=" ",
         names=["src", "dst", "value"],
         dtype=["int32", "int32", "float32"],
-    )
+        )
 
     G = cugraph.Graph(directed=directed)
-    G.from_dask_cudf_edgelist(ddf, "src", "dst", "value")
+    G.from_cudf_edgelist(df, "src", "dst", "value", legacy_renum_only=True)
+
+    #
+    # Make sure the old C++ renumbering was skipped because:
+    #    1) Pylibcugraph already does renumbering
+    #    2) Uniform neighborhood sampling allows int32 weights
+    #       which are not supported by the C++ renumbering
+    # This should be 'True' only for string vertices and multi columns vertices
+    #
+
+    assert G.renumbered is False
+
+    # Retrieve the input dataframe.
+    # input_df != df if 'directed = False' because df will be symmetrized
+    # internally.
+    input_df = G.edgelist.edgelist_df
 
     # TODO: Incomplete, include more testing for tree graph as well as
     # for larger graphs
@@ -176,9 +198,6 @@ def test_mg_neighborhood_sampling_tree(dask_client, directed):
 
     result_nbr = result_nbr.drop_duplicates()
 
-    # input_df != ddf if 'directed = False' because ddf will be symmetrized
-    # internally.
-    input_df = G.input_df
     join = result_nbr.merge(
         input_df, left_on=[*result_nbr.columns[:2]],
         right_on=[*input_df.columns[:2]])
@@ -191,13 +210,9 @@ def test_mg_neighborhood_sampling_tree(dask_client, directed):
     assert result_nbr['destinations'].dtype == "int32"
     assert result_nbr['indices'].dtype == "float32"
 
-    result_nbr_vertices = dask_cudf.concat(
+    result_nbr_vertices = cudf.concat(
         [result_nbr["sources"], result_nbr["destinations"]]). \
-        drop_duplicates().compute().reset_index(drop=True)
+        drop_duplicates().reset_index(drop=True)
 
-    result_nbr_vertices = result_nbr_vertices.to_pandas()
-    start_list = start_list.to_pandas()
-
-    # The vertices in start_list must be a subsets of the vertices
-    # in the result
-    assert set(start_list).issubset(set(result_nbr_vertices))
+    assert set(
+        start_list.to_pandas()).issubset(set(result_nbr_vertices.to_pandas()))

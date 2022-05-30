@@ -48,10 +48,6 @@ def uniform_neighbor_sample(G,
     with_replacement: bool, optional (default=True)
         Flag to specify if the random sampling is done with replacement
 
-    is_edge_ids: bool, (default=False)
-        Flag to specify if the input graph's weights were passed as edge_ids.
-        If true, the input graph's weight will be treated as edge ids
-
     Returns
     -------
     result : cudf.DataFrame
