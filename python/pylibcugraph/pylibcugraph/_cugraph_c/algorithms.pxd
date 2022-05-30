@@ -171,20 +171,8 @@ cdef extern from "cugraph_c/algorithms.h":
             cugraph_sample_result_t* result
         )
     
-    # FIXME: This will be obsolete when the older mechanism is removed
-    cdef cugraph_type_erased_device_array_view_t* \
-        cugraph_sample_result_get_start_labels(
-            cugraph_sample_result_t* result
-        )
-    
     cdef cugraph_type_erased_device_array_view_t* \
         cugraph_sample_result_get_index(
-            cugraph_sample_result_t* result
-        )
-    
-    # FIXME: This will be obsolete when the older mechanism is removed
-    cdef cugraph_type_erased_host_array_view_t* \
-        cugraph_sample_result_get_counts(
             cugraph_sample_result_t* result
         )
     
@@ -192,23 +180,7 @@ cdef extern from "cugraph_c/algorithms.h":
         cugraph_sample_result_free(
             cugraph_sample_result_t* result
         )
-    
-    # uniform neighborhood sampling
-    # FIXME: This older API will be phased out in favor of
-    # the experimental one below
-    cdef cugraph_error_code_t \
-        cugraph_uniform_neighbor_sample(
-            const cugraph_resource_handle_t* handle,
-            cugraph_graph_t* graph,
-            const cugraph_type_erased_device_array_view_t* start,
-            const cugraph_type_erased_device_array_view_t* start_labels,
-            const cugraph_type_erased_host_array_view_t* fan_out,
-            bool_t without_replacement,
-            bool_t do_expensive_check,
-            cugraph_sample_result_t** result,
-            cugraph_error_t** error
-        )
-    
+        
     # uniform neighborhood sampling
     cdef cugraph_error_code_t \
         cugraph_experimental_uniform_neighbor_sample(
