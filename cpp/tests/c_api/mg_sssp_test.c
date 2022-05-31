@@ -24,27 +24,12 @@
 
 typedef int32_t vertex_t;
 typedef int32_t edge_t;
-<<<<<<< HEAD
-typedef float weight_t;
-
-const weight_t EPSILON = 0.001;
-=======
 
 const float EPSILON = 0.001;
->>>>>>> 008273ba2d6c345b2ae682437fb1aba201622189
 
 int generic_sssp_test(const cugraph_resource_handle_t* p_handle,
                       vertex_t* h_src,
                       vertex_t* h_dst,
-<<<<<<< HEAD
-                      weight_t* h_wgt,
-                      vertex_t source,
-                      weight_t const* expected_distances,
-                      vertex_t const* expected_predecessors,
-                      size_t num_vertices,
-                      size_t num_edges,
-                      weight_t cutoff,
-=======
                       float* h_wgt,
                       vertex_t source,
                       float const* expected_distances,
@@ -52,7 +37,6 @@ int generic_sssp_test(const cugraph_resource_handle_t* p_handle,
                       size_t num_vertices,
                       size_t num_edges,
                       float cutoff,
->>>>>>> 008273ba2d6c345b2ae682437fb1aba201622189
                       bool_t store_transposed)
 {
   int test_ret_value = 0;
@@ -79,11 +63,7 @@ int generic_sssp_test(const cugraph_resource_handle_t* p_handle,
   predecessors = cugraph_paths_result_get_predecessors(p_result);
 
   vertex_t h_vertices[num_vertices];
-<<<<<<< HEAD
-  weight_t h_distances[num_vertices];
-=======
   float h_distances[num_vertices];
->>>>>>> 008273ba2d6c345b2ae682437fb1aba201622189
   vertex_t h_predecessors[num_vertices];
 
   ret_code = cugraph_type_erased_device_array_view_copy_to_host(
@@ -120,8 +100,6 @@ int generic_sssp_test(const cugraph_resource_handle_t* p_handle,
   return test_ret_value;
 }
 
-<<<<<<< HEAD
-=======
 int generic_sssp_test_double(const cugraph_resource_handle_t* p_handle,
                       vertex_t* h_src,
                       vertex_t* h_dst,
@@ -195,7 +173,6 @@ int generic_sssp_test_double(const cugraph_resource_handle_t* p_handle,
   return test_ret_value;
 }
 
->>>>>>> 008273ba2d6c345b2ae682437fb1aba201622189
 int test_sssp(const cugraph_resource_handle_t* p_handle)
 {
   size_t num_edges    = 8;
@@ -203,13 +180,8 @@ int test_sssp(const cugraph_resource_handle_t* p_handle)
 
   vertex_t src[]                   = {0, 1, 1, 2, 2, 2, 3, 4};
   vertex_t dst[]                   = {1, 3, 4, 0, 1, 3, 5, 5};
-<<<<<<< HEAD
-  weight_t wgt[]                   = {0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
-  weight_t expected_distances[]    = {0.0f, 0.1f, FLT_MAX, 2.2f, 1.2f, 4.4f};
-=======
   float wgt[]                   = {0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
   float expected_distances[]    = {0.0f, 0.1f, FLT_MAX, 2.2f, 1.2f, 4.4f};
->>>>>>> 008273ba2d6c345b2ae682437fb1aba201622189
   vertex_t expected_predecessors[] = {-1, 0, -1, 1, 1, 4};
 
   // Bfs wants store_transposed = FALSE
@@ -233,13 +205,8 @@ int test_sssp_with_transpose(const cugraph_resource_handle_t* p_handle)
 
   vertex_t src[]                   = {0, 1, 1, 2, 2, 2, 3, 4};
   vertex_t dst[]                   = {1, 3, 4, 0, 1, 3, 5, 5};
-<<<<<<< HEAD
-  weight_t wgt[]                   = {0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
-  weight_t expected_distances[]    = {0.0f, 0.1f, FLT_MAX, 2.2f, 1.2f, 4.4f};
-=======
   float wgt[]                   = {0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
   float expected_distances[]    = {0.0f, 0.1f, FLT_MAX, 2.2f, 1.2f, 4.4f};
->>>>>>> 008273ba2d6c345b2ae682437fb1aba201622189
   vertex_t expected_predecessors[] = {-1, 0, -1, 1, 1, 4};
 
   // Bfs wants store_transposed = FALSE
@@ -257,8 +224,6 @@ int test_sssp_with_transpose(const cugraph_resource_handle_t* p_handle)
                            TRUE);
 }
 
-<<<<<<< HEAD
-=======
 int test_sssp_with_transpose_double(const cugraph_resource_handle_t* p_handle)
 {
   size_t num_edges    = 8;
@@ -285,7 +250,6 @@ int test_sssp_with_transpose_double(const cugraph_resource_handle_t* p_handle)
                            TRUE);
 }
 
->>>>>>> 008273ba2d6c345b2ae682437fb1aba201622189
 /******************************************************************************/
 
 int main(int argc, char** argv)
@@ -312,10 +276,7 @@ int main(int argc, char** argv)
   int result        = 0;
   result |= RUN_MG_TEST(test_sssp, handle);
   result |= RUN_MG_TEST(test_sssp_with_transpose, handle);
-<<<<<<< HEAD
-=======
   result |= RUN_MG_TEST(test_sssp_with_transpose_double, handle);
->>>>>>> 008273ba2d6c345b2ae682437fb1aba201622189
 
   cugraph_free_resource_handle(handle);
   free_raft_handle(raft_handle);
