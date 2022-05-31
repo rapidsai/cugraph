@@ -90,7 +90,7 @@ def triangle_count(input_graph,
         (edge weights are not used in this algorithm).
         The current implementation only supports undirected graphs.
 
-    start_list : list or cudf.Series (int32), optional (default=None)
+    start_list : not supported
         list of vertices for triangle count. if None the entire set of vertices
         in the graph is processed
 
@@ -105,6 +105,8 @@ def triangle_count(input_graph,
     ddf['counts']: dask_cudf.Series
         Contains the triangle counting counts
     """
+    # FIXME: start_list is disabled
+    start_list = None
     if input_graph.is_directed():
         raise ValueError("input graph must be undirected")
     # Initialize dask client

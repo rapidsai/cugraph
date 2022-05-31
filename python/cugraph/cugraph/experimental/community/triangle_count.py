@@ -36,7 +36,7 @@ def EXPERIMENTAL__triangle_count(G, start_list=None):
         (edge weights are not used in this algorithm).
         The current implementation only supports undirected graphs.
 
-    start_list : list or cudf.Series (int32), optional (default=None)
+    start_list : not supported
         list of vertices for triangle count. if None the entire set of vertices
         in the graph is processed
 
@@ -61,7 +61,8 @@ def EXPERIMENTAL__triangle_count(G, start_list=None):
     >>> count = cugraph.experimental.triangle_count(G)
 
     """
-
+    # FIXME: start_list is disabled
+    start_list = None
     G, _ = ensure_cugraph_obj_for_nx(G)
 
     if G.is_directed():
