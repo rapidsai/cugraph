@@ -183,8 +183,11 @@ def bfs(G,
         information. Edge weights, if present, should be single or double
         precision floating point values.
 
-    start : Integer, optional (default=None)
-        The index of the graph vertex from which the traversal begins
+    start : Integer or list, optional (default=None)
+        The id of the graph vertex from which the traversal begins, or
+        if a list, the index from which the traversal begins in each 
+        component of the graph.  Passing in multiple start vertices
+        from the same component results in undefined behavior.
 
     depth_limit : Integer or None, optional (default=None)
         Limit the depth of the search
