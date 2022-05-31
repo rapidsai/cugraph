@@ -186,8 +186,8 @@ def bfs(G,
     start : Integer or list, optional (default=None)
         The id of the graph vertex from which the traversal begins, or
         if a list, the vertex from which the traversal begins in each
-        component of the graph.  Passing in multiple start vertices
-        from the same component results in undefined behavior.
+        component of the graph.  Only one vertex per connected
+        component of the graph is allowed.
 
     depth_limit : Integer or None, optional (default=None)
         Limit the depth of the search
