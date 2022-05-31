@@ -20,3 +20,4 @@ from .common.read_utils import get_n_workers
 from .community.louvain import louvain
 from .centrality.katz_centrality import katz_centrality
 from .components.connectivity import weakly_connected_components
+from .centrality.eigenvector_centrality import eigenvector_centrality
