@@ -21,6 +21,7 @@
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/partition_manager.hpp>
+#include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/host_scalar_comm.cuh>
 #include <cugraph/utilities/misc_utils.cuh>
@@ -489,6 +490,94 @@ update_local_sorted_unique_edge_majors_minors(
   // if # unique edge majors/minors << V / row_comm_size|col_comm_size, store unique edge
   // majors/minors to support storing edge major/minor properties in (key, value) pairs.
 
+  // 1. Update local_sorted_unique_edge_minors & local_sorted_unique_edge_minor_offsets
+
+  {
+    auto [minor_range_first, minor_range_last] = meta.partition.local_edge_partition_minor_range();
+    auto minor_range_size = meta.partition.local_edge_partition_minor_range_size();
+    rmm::device_uvector<uint32_t> minor_bitmaps(
+      (minor_range_size + (sizeof(uint32_t) * 8 - 1)) / (sizeof(uint32_t) * 8),
+      handle.get_stream());
+    thrust::fill(
+      handle.get_thrust_policy(), minor_bitmaps.begin(), minor_bitmaps.end(), uint32_t{0});
+    for (size_t i = 0; i < edge_partition_indices.size(); ++i) {
+      thrust::for_each(handle.get_thrust_policy(),
+                       edge_partition_indices[i].begin(),
+                       edge_partition_indices[i].end(),
+                       atomic_or_bitmap_t<vertex_t>{minor_bitmaps.data(), minor_range_first});
+    }
+
+    auto count_first = thrust::make_transform_iterator(minor_bitmaps.begin(), popc_t<vertex_t>{});
+    auto num_local_unique_edge_minors = thrust::reduce(
+      handle.get_thrust_policy(), count_first, count_first + minor_bitmaps.size(), vertex_t{0});
+
+    auto max_minor_properties_fill_ratio = host_scalar_allreduce(
+      comm,
+      static_cast<double>(num_local_unique_edge_minors) / static_cast<double>(minor_range_size),
+      raft::comms::op_t::MAX,
+      handle.get_stream());
+
+    if (max_minor_properties_fill_ratio <
+        detail::edge_partition_src_dst_property_values_kv_pair_fill_ratio_threshold) {
+      local_sorted_unique_edge_minors =
+        rmm::device_uvector<vertex_t>(num_local_unique_edge_minors, handle.get_stream());
+#if 1  // FIXME: work-around for the 32 bit integer overflow issue in thrust::remove,
+       // thrust::remove_if, and thrust::copy_if (https://github.com/NVIDIA/thrust/issues/1302)
+      size_t num_copied{0};
+      size_t num_scanned{0};
+      while (num_scanned < static_cast<size_t>(minor_range_size)) {
+        size_t this_scan_size =
+          std::min(size_t{1} << 30,
+                   static_cast<size_t>(minor_range_last - (minor_range_first + num_scanned)));
+        num_copied += static_cast<size_t>(thrust::distance(
+          (*local_sorted_unique_edge_minors).begin() + num_copied,
+          thrust::copy_if(
+            handle.get_thrust_policy(),
+            thrust::make_counting_iterator(minor_range_first + num_scanned),
+            thrust::make_counting_iterator(minor_range_first + num_scanned + this_scan_size),
+            (*local_sorted_unique_edge_minors).begin() + num_copied,
+            cugraph::detail::check_bit_set_t<vertex_t>{minor_bitmaps.data(), minor_range_first})));
+        num_scanned += this_scan_size;
+      }
+#else
+      thrust::copy_if(
+        handle.get_thrust_policy(),
+        thrust::make_counting_iterator(minor_range_first),
+        thrust::make_counting_iterator(minor_range_last),
+        (*local_sorted_unique_edge_minors).begin(),
+        cugraph::detail::check_bit_set_t<vertex_t>{minor_bitmaps.data(), minor_range_first});
+#endif
+
+      std::vector<vertex_t> h_vertex_partition_firsts(row_comm_size - 1);
+      for (int i = 1; i < row_comm_size; ++i) {
+        h_vertex_partition_firsts[i - 1] =
+          meta.partition.vertex_partition_range_first(col_comm_rank * row_comm_size + i);
+      }
+      rmm::device_uvector<vertex_t> d_vertex_partition_firsts(h_vertex_partition_firsts.size(),
+                                                              handle.get_stream());
+      raft::update_device(d_vertex_partition_firsts.data(),
+                          h_vertex_partition_firsts.data(),
+                          h_vertex_partition_firsts.size(),
+                          handle.get_stream());
+      rmm::device_uvector<vertex_t> d_key_offsets(d_vertex_partition_firsts.size(),
+                                                  handle.get_stream());
+      thrust::lower_bound(handle.get_thrust_policy(),
+                          (*local_sorted_unique_edge_minors).begin(),
+                          (*local_sorted_unique_edge_minors).end(),
+                          d_vertex_partition_firsts.begin(),
+                          d_vertex_partition_firsts.end(),
+                          d_key_offsets.begin());
+      std::vector<vertex_t> h_key_offsets(row_comm_size + 1, vertex_t{0});
+      h_key_offsets.back() = static_cast<vertex_t>((*local_sorted_unique_edge_minors).size());
+      raft::update_host(
+        h_key_offsets.data() + 1, d_key_offsets.data(), d_key_offsets.size(), handle.get_stream());
+
+      local_sorted_unique_edge_minor_offsets = std::move(h_key_offsets);
+    }
+  }
+
+  // 2. Update local_sorted_unique_edge_majors & local_sorted_unique_edge_major_offsets
+
   vertex_t num_local_unique_edge_majors{0};
   for (size_t i = 0; i < edge_partition_offsets.size(); ++i) {
     num_local_unique_edge_majors += thrust::count_if(
@@ -498,41 +587,21 @@ update_local_sorted_unique_edge_majors_minors(
       has_nzd_t<vertex_t, edge_t>{edge_partition_offsets[i].data(), vertex_t{0}});
   }
 
-  auto [minor_range_first, minor_range_last] = meta.partition.local_edge_partition_minor_range();
-  rmm::device_uvector<uint32_t> minor_bitmaps(
-    ((minor_range_last - minor_range_first) + sizeof(uint32_t) * 8 - 1) / (sizeof(uint32_t) * 8),
-    handle.get_stream());
-  thrust::fill(handle.get_thrust_policy(), minor_bitmaps.begin(), minor_bitmaps.end(), uint32_t{0});
-  for (size_t i = 0; i < edge_partition_indices.size(); ++i) {
-    thrust::for_each(handle.get_thrust_policy(),
-                     edge_partition_indices[i].begin(),
-                     edge_partition_indices[i].end(),
-                     atomic_or_bitmap_t<vertex_t>{minor_bitmaps.data(), minor_range_first});
-  }
-
-  auto count_first = thrust::make_transform_iterator(minor_bitmaps.begin(), popc_t<vertex_t>{});
-  auto num_local_unique_edge_minors = thrust::reduce(
-    handle.get_thrust_policy(), count_first, count_first + minor_bitmaps.size(), vertex_t{0});
-
-  minor_bitmaps.resize(0, handle.get_stream());
-  minor_bitmaps.shrink_to_fit(handle.get_stream());
-
   vertex_t aggregate_major_range_size{0};
   for (size_t i = 0; i < meta.partition.number_of_local_edge_partitions(); ++i) {
     aggregate_major_range_size += meta.partition.local_edge_partition_major_range_size(i);
   }
-  auto minor_size = meta.partition.local_edge_partition_minor_range_size();
+
   auto max_major_properties_fill_ratio =
     host_scalar_allreduce(comm,
                           static_cast<double>(num_local_unique_edge_majors) /
                             static_cast<double>(aggregate_major_range_size),
                           raft::comms::op_t::MAX,
                           handle.get_stream());
-  auto max_minor_properties_fill_ratio = host_scalar_allreduce(
-    comm,
-    static_cast<double>(num_local_unique_edge_minors) / static_cast<double>(minor_size),
-    raft::comms::op_t::MAX,
-    handle.get_stream());
+  std::cout << "max_major_properties_fill_ratio=" << max_major_properties_fill_ratio
+            << " threshold="
+            << detail::edge_partition_src_dst_property_values_kv_pair_fill_ratio_threshold
+            << std::endl;
 
   if (max_major_properties_fill_ratio <
       detail::edge_partition_src_dst_property_values_kv_pair_fill_ratio_threshold) {
@@ -548,6 +617,10 @@ update_local_sorted_unique_edge_majors_minors(
                                             [(*(meta.segment_offsets)).size() * i +
                                              detail::num_sparse_segments_per_vertex_partition]}
                 : std::nullopt;
+      CUGRAPH_EXPECTS(
+        (use_dcs ? *major_hypersparse_first : major_range_last) - major_range_first <
+          std::numeric_limits<int32_t>::max(),
+        "copy_if will fail (https://github.com/NVIDIA/thrust/issues/1302), work-around required.");
       cur_size += thrust::distance(
         (*local_sorted_unique_edge_majors).data() + cur_size,
         thrust::copy_if(
@@ -592,73 +665,6 @@ update_local_sorted_unique_edge_majors_minors(
       h_key_offsets.data() + 1, d_key_offsets.data(), d_key_offsets.size(), handle.get_stream());
 
     local_sorted_unique_edge_major_offsets = std::move(h_key_offsets);
-  }
-
-  if (max_minor_properties_fill_ratio <
-      detail::edge_partition_src_dst_property_values_kv_pair_fill_ratio_threshold) {
-    local_sorted_unique_edge_minors = rmm::device_uvector<vertex_t>(0, handle.get_stream());
-    for (size_t i = 0; i < edge_partition_indices.size(); ++i) {
-      rmm::device_uvector<vertex_t> tmp_minors(edge_partition_indices[i].size(),
-                                               handle.get_stream());
-      thrust::copy(handle.get_thrust_policy(),
-                   edge_partition_indices[i].begin(),
-                   edge_partition_indices[i].end(),
-                   tmp_minors.begin());
-      thrust::sort(handle.get_thrust_policy(), tmp_minors.begin(), tmp_minors.end());
-      tmp_minors.resize(
-        thrust::distance(
-          tmp_minors.begin(),
-          thrust::unique(handle.get_thrust_policy(), tmp_minors.begin(), tmp_minors.end())),
-        handle.get_stream());
-      auto cur_size = (*local_sorted_unique_edge_minors).size();
-      if (cur_size == 0) {
-        (*local_sorted_unique_edge_minors) = std::move(tmp_minors);
-      } else {
-        (*local_sorted_unique_edge_minors)
-          .resize((*local_sorted_unique_edge_minors).size() + tmp_minors.size(),
-                  handle.get_stream());
-        thrust::copy(handle.get_thrust_policy(),
-                     tmp_minors.begin(),
-                     tmp_minors.end(),
-                     (*local_sorted_unique_edge_minors).begin() + cur_size);
-      }
-    }
-    thrust::sort(handle.get_thrust_policy(),
-                 (*local_sorted_unique_edge_minors).begin(),
-                 (*local_sorted_unique_edge_minors).end());
-    (*local_sorted_unique_edge_minors)
-      .resize(thrust::distance((*local_sorted_unique_edge_minors).begin(),
-                               thrust::unique(handle.get_thrust_policy(),
-                                              (*local_sorted_unique_edge_minors).begin(),
-                                              (*local_sorted_unique_edge_minors).end())),
-              handle.get_stream());
-    (*local_sorted_unique_edge_minors).shrink_to_fit(handle.get_stream());
-
-    std::vector<vertex_t> h_vertex_partition_firsts(row_comm_size - 1);
-    for (int i = 1; i < row_comm_size; ++i) {
-      h_vertex_partition_firsts[i - 1] =
-        meta.partition.vertex_partition_range_first(col_comm_rank * row_comm_size + i);
-    }
-    rmm::device_uvector<vertex_t> d_vertex_partition_firsts(h_vertex_partition_firsts.size(),
-                                                            handle.get_stream());
-    raft::update_device(d_vertex_partition_firsts.data(),
-                        h_vertex_partition_firsts.data(),
-                        h_vertex_partition_firsts.size(),
-                        handle.get_stream());
-    rmm::device_uvector<vertex_t> d_key_offsets(d_vertex_partition_firsts.size(),
-                                                handle.get_stream());
-    thrust::lower_bound(handle.get_thrust_policy(),
-                        (*local_sorted_unique_edge_minors).begin(),
-                        (*local_sorted_unique_edge_minors).end(),
-                        d_vertex_partition_firsts.begin(),
-                        d_vertex_partition_firsts.end(),
-                        d_key_offsets.begin());
-    std::vector<vertex_t> h_key_offsets(row_comm_size + 1, vertex_t{0});
-    h_key_offsets.back() = static_cast<vertex_t>((*local_sorted_unique_edge_minors).size());
-    raft::update_host(
-      h_key_offsets.data() + 1, d_key_offsets.data(), d_key_offsets.size(), handle.get_stream());
-
-    local_sorted_unique_edge_minor_offsets = std::move(h_key_offsets);
   }
 
   return std::make_tuple(std::move(local_sorted_unique_edge_majors),
@@ -769,6 +775,9 @@ compress_edgelist(edgelist_t<vertex_t, edge_t, weight_t> const& edgelist,
     auto pair_first = thrust::make_zip_iterator(
       thrust::make_tuple((*dcs_nzd_vertices).begin(),
                          offsets.begin() + (*major_hypersparse_first - major_range_first)));
+    CUGRAPH_EXPECTS(
+      (*dcs_nzd_vertices).size() < std::numeric_limits<int32_t>::max(),
+      "remove_if will fail (https://github.com/NVIDIA/thrust/issues/1302), work-around required.");
     (*dcs_nzd_vertices)
       .resize(thrust::distance(pair_first,
                                thrust::remove_if(rmm::exec_policy(stream_view),
