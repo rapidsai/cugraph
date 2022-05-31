@@ -23,6 +23,7 @@
 #include <cugraph/graph_view.hpp>
 #include <cugraph/prims/edge_partition_src_dst_property.cuh>
 #include <cugraph/prims/update_edge_partition_src_dst_property.cuh>
+#include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/error.hpp>
 
 #include <raft/handle.hpp>
@@ -79,11 +80,11 @@ groupby_e_and_coarsen_edgelist(rmm::device_uvector<vertex_t>&& edgelist_majors,
                         pair_first + edgelist_majors.size(),
                         (*edgelist_weights).begin());
 
-    auto num_uniques = thrust::count_if(
-      rmm::exec_policy(stream_view),
-      thrust::make_counting_iterator(size_t{0}),
-      thrust::make_counting_iterator(edgelist_majors.size()),
-      detail::is_first_in_run_pair_t<vertex_t>{edgelist_majors.data(), edgelist_minors.data()});
+    auto num_uniques =
+      thrust::count_if(rmm::exec_policy(stream_view),
+                       thrust::make_counting_iterator(size_t{0}),
+                       thrust::make_counting_iterator(edgelist_majors.size()),
+                       detail::is_first_in_run_t<decltype(pair_first)>{pair_first});
 
     rmm::device_uvector<vertex_t> tmp_edgelist_majors(num_uniques, stream_view);
     rmm::device_uvector<vertex_t> tmp_edgelist_minors(tmp_edgelist_majors.size(), stream_view);

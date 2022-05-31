@@ -95,24 +95,5 @@ struct compute_partition_id_from_edge_t {
   }
 };
 
-template <typename vertex_t>
-struct is_first_in_run_t {
-  vertex_t const* vertices{nullptr};
-  __device__ bool operator()(size_t i) const
-  {
-    return (i == 0) || (vertices[i - 1] != vertices[i]);
-  }
-};
-
-template <typename vertex_t>
-struct is_first_in_run_pair_t {
-  vertex_t const* vertices0{nullptr};
-  vertex_t const* vertices1{nullptr};
-  __device__ bool operator()(size_t i) const
-  {
-    return (i == 0) || ((vertices0[i - 1] != vertices0[i]) || (vertices1[i - 1] != vertices1[i]));
-  }
-};
-
 }  // namespace detail
 }  // namespace cugraph

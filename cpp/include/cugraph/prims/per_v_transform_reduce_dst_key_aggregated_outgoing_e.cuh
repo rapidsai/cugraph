@@ -21,6 +21,7 @@
 #include <cugraph/graph_view.hpp>
 #include <cugraph/utilities/collect_comm.cuh>
 #include <cugraph/utilities/dataframe_buffer.cuh>
+#include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/host_scalar_comm.cuh>
 #include <cugraph/utilities/misc_utils.cuh>
@@ -198,6 +199,7 @@ struct reduce_with_init_t {
  * first (inclusive) vertex (assigned to this process in multi-GPU). `vertex_value_output_last`
  * (exclusive) is deduced as @p vertex_value_output_first + @p
  * graph_view.local_vertex_partition_range_size().
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  */
 template <typename GraphViewType,
           typename EdgePartitionSrcValueInputWrapper,
@@ -219,7 +221,8 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
   KeyAggregatedEdgeOp key_aggregated_e_op,
   T init,
   ReduceOp reduce_op,
-  VertexValueOutputIterator vertex_value_output_first)
+  VertexValueOutputIterator vertex_value_output_first,
+  bool do_expensive_check = false)
 {
   static_assert(!GraphViewType::is_storage_transposed,
                 "GraphViewType should support the push model.");
@@ -233,6 +236,46 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
   using value_t  = typename std::iterator_traits<ValueIterator>::value_type;
 
   double constexpr load_factor = 0.7;
+
+  if (do_expensive_check) {
+    rmm::device_uvector<vertex_t> keys(thrust::distance(map_unique_key_first, map_unique_key_last),
+                                       handle.get_stream());
+    thrust::copy(
+      handle.get_thrust_policy(), map_unique_key_first, map_unique_key_last, keys.begin());
+    thrust::sort(handle.get_thrust_policy(), keys.begin(), keys.end());
+    auto has_duplicates =
+      (thrust::unique(handle.get_thrust_policy(), keys.begin(), keys.end()) != keys.end());
+
+    if constexpr (GraphViewType::is_multi_gpu) {
+      auto& comm           = handle.get_comms();
+      auto const comm_size = comm.get_size();
+      auto const comm_rank = comm.get_rank();
+
+      auto num_invalid_keys = thrust::count_if(
+        handle.get_thrust_policy(),
+        map_unique_key_first,
+        map_unique_key_last,
+        [comm_rank,
+         key_func = detail::compute_gpu_id_from_ext_vertex_t<vertex_t>{
+           comm_size}] __device__(auto key) { return key_func(key) != comm_rank; });
+      num_invalid_keys =
+        host_scalar_allreduce(comm, num_invalid_keys, raft::comms::op_t::SUM, handle.get_stream());
+      CUGRAPH_EXPECTS(
+        num_invalid_keys == 0,
+        "Invalid input argument: map (unique key, value) pairs should be pre-shuffled.");
+
+      has_duplicates =
+        host_scalar_allreduce(
+          comm, has_duplicates ? int{1} : int{0}, raft::comms::op_t::MAX, handle.get_stream()) ==
+            int{1}
+          ? true
+          : false;
+    }
+
+    CUGRAPH_EXPECTS(has_duplicates == false,
+                    "Invalid input argument: there are duplicates in [map_unique_key_first, "
+                    "map_unique_key_last).");
+  }
 
   auto total_global_mem = handle.get_device_properties().totalGlobalMem;
   auto element_size     = sizeof(vertex_t) * 2 + sizeof(weight_t);
@@ -507,11 +550,11 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
                             key_pair_first + rx_majors.size(),
                             rx_key_aggregated_edge_weights.begin());
       }
-      auto num_uniques = thrust::count_if(
-        handle.get_thrust_policy(),
-        thrust::make_counting_iterator(size_t{0}),
-        thrust::make_counting_iterator(rx_majors.size()),
-        detail::is_first_in_run_pair_t<vertex_t>{rx_majors.data(), rx_minor_keys.data()});
+      auto num_uniques =
+        thrust::count_if(handle.get_thrust_policy(),
+                         thrust::make_counting_iterator(size_t{0}),
+                         thrust::make_counting_iterator(rx_majors.size()),
+                         detail::is_first_in_run_t<decltype(key_pair_first)>{key_pair_first});
       tmp_majors.resize(num_uniques, handle.get_stream());
       tmp_minor_keys.resize(tmp_majors.size(), handle.get_stream());
       tmp_key_aggregated_edge_weights.resize(tmp_majors.size(), handle.get_stream());
@@ -610,10 +653,11 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
     tmp_key_aggregated_edge_weights.shrink_to_fit(handle.get_stream());
 
     {
-      auto num_uniques = thrust::count_if(handle.get_thrust_policy(),
-                                          thrust::make_counting_iterator(size_t{0}),
-                                          thrust::make_counting_iterator(tmp_majors.size()),
-                                          detail::is_first_in_run_t<vertex_t>{tmp_majors.data()});
+      auto num_uniques =
+        thrust::count_if(handle.get_thrust_policy(),
+                         thrust::make_counting_iterator(size_t{0}),
+                         thrust::make_counting_iterator(tmp_majors.size()),
+                         detail::is_first_in_run_t<vertex_t const*>{tmp_majors.data()});
       rmm::device_uvector<vertex_t> unique_majors(num_uniques, handle.get_stream());
       auto reduced_e_op_result_buffer =
         allocate_dataframe_buffer<T>(unique_majors.size(), handle.get_stream());
@@ -683,7 +727,7 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
     auto num_uniques = thrust::count_if(handle.get_thrust_policy(),
                                         thrust::make_counting_iterator(size_t{0}),
                                         thrust::make_counting_iterator(majors.size()),
-                                        detail::is_first_in_run_t<vertex_t>{majors.data()});
+                                        detail::is_first_in_run_t<vertex_t const*>{majors.data()});
     rmm::device_uvector<vertex_t> unique_majors(num_uniques, handle.get_stream());
     auto reduced_e_op_result_buffer =
       allocate_dataframe_buffer<T>(unique_majors.size(), handle.get_stream());

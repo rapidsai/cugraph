@@ -113,6 +113,7 @@ struct call_e_op_t {
  * weight), property values for the source, and property values for the destination and returns a
  * boolean value to designate whether to include this edge in the returned edge list (if true is
  * returned) or not (if false is returned).
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  * @return std::tuple<rmm::device_uvector<typename GraphViewType::vertex_type>,
  * rmm::device_uvector<typename GraphViewType::vertex_type>,
  * std::optional<rmm::device_uvector<typename GraphViewType::weight_type>>> Tuple storing an
@@ -129,11 +130,16 @@ extract_if_e(raft::handle_t const& handle,
              GraphViewType const& graph_view,
              EdgePartitionSrcValueInputWrapper edge_partition_src_value_input,
              EdgePartitionDstValueInputWrapper edge_partition_dst_value_input,
-             EdgeOp e_op)
+             EdgeOp e_op,
+             bool do_expensive_check = false)
 {
   using vertex_t = typename GraphViewType::vertex_type;
   using edge_t   = typename GraphViewType::edge_type;
   using weight_t = typename GraphViewType::weight_type;
+
+  if (do_expensive_check) {
+    // currently, nothing to do
+  }
 
   std::vector<size_t> edgelist_edge_counts(graph_view.number_of_local_edge_partitions(), size_t{0});
   for (size_t i = 0; i < edgelist_edge_counts.size(); ++i) {

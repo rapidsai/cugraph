@@ -49,6 +49,8 @@ int run_sg_test(int (*test)(), const char* test_name);
 #define RUN_TEST(test_name) run_sg_test(test_name, #test_name)
 
 int nearlyEqual(float a, float b, float epsilon);
+int nearlyEqualDouble(double a, double b, double epsilon);
+
 int create_test_graph(const cugraph_resource_handle_t* p_handle,
                       int32_t* h_src,
                       int32_t* h_dst,
@@ -59,6 +61,17 @@ int create_test_graph(const cugraph_resource_handle_t* p_handle,
                       bool_t is_symmetric,
                       cugraph_graph_t** p_graph,
                       cugraph_error_t** ret_error);
+
+int create_test_graph_double(const cugraph_resource_handle_t* p_handle,
+                             int32_t* h_src,
+                             int32_t* h_dst,
+                             double* h_wgt,
+                             size_t num_edges,
+                             bool_t store_transposed,
+                             bool_t renumber,
+                             bool_t is_symmetric,
+                             cugraph_graph_t** p_graph,
+                             cugraph_error_t** ret_error);
 
 void* create_raft_handle(int prows);
 void free_raft_handle(void* raft_handle);

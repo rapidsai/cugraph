@@ -14,7 +14,12 @@
 import cudf
 import dask_cudf
 
-from cugraph.traversal import bfs_wrapper
+from pylibcugraph.experimental import (ResourceHandle,
+                                       GraphProperties,
+                                       SGGraph,
+                                       )
+from pylibcugraph import bfs as pylibcugraph_bfs
+
 from cugraph.structure.graph_classes import Graph, DiGraph
 from cugraph.utilities import (ensure_cugraph_obj,
                                is_matrix_type,
@@ -122,12 +127,51 @@ def _convert_df_to_output_type(df, input_type):
         raise TypeError(f"input type {input_type} is not a supported type.")
 
 
+def _call_plc_bfs(G, sources, depth_limit, do_expensive_check=False,
+                  direction_optimizing=False, return_predecessors=True):
+    handle = ResourceHandle()
+
+    srcs = G.edgelist.edgelist_df['src']
+    dsts = G.edgelist.edgelist_df['dst']
+    weights = G.edgelist.edgelist_df['weights'] \
+        if 'weights' in G.edgelist.edgelist_df \
+        else cudf.Series((srcs + 1) / (srcs + 1), dtype='float32')
+
+    sg = SGGraph(
+        resource_handle=handle,
+        graph_properties=GraphProperties(is_multigraph=G.is_multigraph()),
+        src_array=srcs,
+        dst_array=dsts,
+        weight_array=weights,
+        store_transposed=False,
+        renumber=False,
+        do_expensive_check=do_expensive_check
+    )
+
+    distances, predecessors, vertices = \
+        pylibcugraph_bfs(
+            handle,
+            sg,
+            sources,
+            direction_optimizing,
+            depth_limit if depth_limit is not None else -1,
+            return_predecessors,
+            do_expensive_check
+        )
+
+    return cudf.DataFrame({
+        'distance': cudf.Series(distances),
+        'vertex': cudf.Series(vertices),
+        'predecessor': cudf.Series(predecessors),
+    })
+
+
 def bfs(G,
         start=None,
         depth_limit=None,
         i_start=None,
         directed=None,
-        return_predecessors=None):
+        return_predecessors=True):
     """
     Find the distances and predecessors for a breadth first traversal of a
     graph.
@@ -157,8 +201,9 @@ def bfs(G,
         If True, then convert the input matrix to a directed cugraph.Graph,
         otherwise an undirected cugraph.Graph object will be used.
 
-    return_predecessors :
-
+    return_predecessors : bool, optional (default=True)
+        Whether to return the predecessors for each vertex (returns -1
+        for each vertex otherwise)
 
     Returns
     -------
@@ -229,7 +274,12 @@ def bfs(G,
         else:
             start = cudf.Series(start, name='starts')
 
-    df = bfs_wrapper.bfs(G, start, depth_limit)
+    df = _call_plc_bfs(
+        G,
+        start,
+        depth_limit,
+        return_predecessors=return_predecessors
+    )
     if G.renumbered:
         df = G.unrenumber(df, "vertex")
         df = G.unrenumber(df, "predecessor")
