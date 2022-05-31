@@ -123,7 +123,7 @@ template rmm::device_uvector<int64_t> get_active_major_global_degrees(
 
 template std::tuple<rmm::device_uvector<int32_t>,
                     rmm::device_uvector<int32_t>,
-                    thrust::optional<rmm::device_uvector<float>>>
+                    std::optional<rmm::device_uvector<float>>>
 gather_local_edges(raft::handle_t const& handle,
                    graph_view_t<int32_t, int32_t, float, false, false> const& graph_view,
                    const rmm::device_uvector<int32_t>& active_majors,
@@ -134,7 +134,7 @@ gather_local_edges(raft::handle_t const& handle,
 
 template std::tuple<rmm::device_uvector<int32_t>,
                     rmm::device_uvector<int32_t>,
-                    thrust::optional<rmm::device_uvector<float>>>
+                    std::optional<rmm::device_uvector<float>>>
 gather_local_edges(raft::handle_t const& handle,
                    graph_view_t<int32_t, int64_t, float, false, false> const& graph_view,
                    const rmm::device_uvector<int32_t>& active_majors,
@@ -145,7 +145,7 @@ gather_local_edges(raft::handle_t const& handle,
 
 template std::tuple<rmm::device_uvector<int64_t>,
                     rmm::device_uvector<int64_t>,
-                    thrust::optional<rmm::device_uvector<float>>>
+                    std::optional<rmm::device_uvector<float>>>
 gather_local_edges(raft::handle_t const& handle,
                    graph_view_t<int64_t, int64_t, float, false, false> const& graph_view,
                    const rmm::device_uvector<int64_t>& active_majors,
@@ -156,7 +156,7 @@ gather_local_edges(raft::handle_t const& handle,
 
 template std::tuple<rmm::device_uvector<int32_t>,
                     rmm::device_uvector<int32_t>,
-                    thrust::optional<rmm::device_uvector<double>>>
+                    std::optional<rmm::device_uvector<double>>>
 gather_local_edges(raft::handle_t const& handle,
                    graph_view_t<int32_t, int32_t, double, false, false> const& graph_view,
                    const rmm::device_uvector<int32_t>& active_majors,
@@ -167,7 +167,7 @@ gather_local_edges(raft::handle_t const& handle,
 
 template std::tuple<rmm::device_uvector<int32_t>,
                     rmm::device_uvector<int32_t>,
-                    thrust::optional<rmm::device_uvector<double>>>
+                    std::optional<rmm::device_uvector<double>>>
 gather_local_edges(raft::handle_t const& handle,
                    graph_view_t<int32_t, int64_t, double, false, false> const& graph_view,
                    const rmm::device_uvector<int32_t>& active_majors,
@@ -178,7 +178,7 @@ gather_local_edges(raft::handle_t const& handle,
 
 template std::tuple<rmm::device_uvector<int64_t>,
                     rmm::device_uvector<int64_t>,
-                    thrust::optional<rmm::device_uvector<double>>>
+                    std::optional<rmm::device_uvector<double>>>
 gather_local_edges(raft::handle_t const& handle,
                    graph_view_t<int64_t, int64_t, double, false, false> const& graph_view,
                    const rmm::device_uvector<int64_t>& active_majors,
@@ -189,45 +189,100 @@ gather_local_edges(raft::handle_t const& handle,
 
 template std::tuple<rmm::device_uvector<int32_t>,
                     rmm::device_uvector<int32_t>,
-                    thrust::optional<rmm::device_uvector<float>>>
+                    std::optional<rmm::device_uvector<float>>>
 gather_one_hop_edgelist(raft::handle_t const& handle,
                         graph_view_t<int32_t, int32_t, float, false, false> const& graph_view,
                         rmm::device_uvector<int32_t> const& active_majors);
 
 template std::tuple<rmm::device_uvector<int32_t>,
                     rmm::device_uvector<int32_t>,
-                    thrust::optional<rmm::device_uvector<float>>>
+                    std::optional<rmm::device_uvector<float>>>
 gather_one_hop_edgelist(raft::handle_t const& handle,
                         graph_view_t<int32_t, int64_t, float, false, false> const& graph_view,
                         rmm::device_uvector<int32_t> const& active_majors);
 
 template std::tuple<rmm::device_uvector<int64_t>,
                     rmm::device_uvector<int64_t>,
-                    thrust::optional<rmm::device_uvector<float>>>
+                    std::optional<rmm::device_uvector<float>>>
 gather_one_hop_edgelist(raft::handle_t const& handle,
                         graph_view_t<int64_t, int64_t, float, false, false> const& graph_view,
                         rmm::device_uvector<int64_t> const& active_majors);
 
 template std::tuple<rmm::device_uvector<int32_t>,
                     rmm::device_uvector<int32_t>,
-                    thrust::optional<rmm::device_uvector<double>>>
+                    std::optional<rmm::device_uvector<double>>>
 gather_one_hop_edgelist(raft::handle_t const& handle,
                         graph_view_t<int32_t, int32_t, double, false, false> const& graph_view,
                         rmm::device_uvector<int32_t> const& active_majors);
 
 template std::tuple<rmm::device_uvector<int32_t>,
                     rmm::device_uvector<int32_t>,
-                    thrust::optional<rmm::device_uvector<double>>>
+                    std::optional<rmm::device_uvector<double>>>
 gather_one_hop_edgelist(raft::handle_t const& handle,
                         graph_view_t<int32_t, int64_t, double, false, false> const& graph_view,
                         rmm::device_uvector<int32_t> const& active_majors);
 
 template std::tuple<rmm::device_uvector<int64_t>,
                     rmm::device_uvector<int64_t>,
-                    thrust::optional<rmm::device_uvector<double>>>
+                    std::optional<rmm::device_uvector<double>>>
 gather_one_hop_edgelist(raft::handle_t const& handle,
                         graph_view_t<int64_t, int64_t, double, false, false> const& graph_view,
                         rmm::device_uvector<int64_t> const& active_majors);
+
+//  Only need to build once, not separately for SG/MG
+template std::tuple<rmm::device_uvector<int32_t>,
+                    rmm::device_uvector<int32_t>,
+                    rmm::device_uvector<float>,
+                    rmm::device_uvector<int32_t>>
+count_and_remove_duplicates(raft::handle_t const& handle,
+                            rmm::device_uvector<int32_t>&& src,
+                            rmm::device_uvector<int32_t>&& dst,
+                            rmm::device_uvector<float>&& wgt);
+
+template std::tuple<rmm::device_uvector<int32_t>,
+                    rmm::device_uvector<int32_t>,
+                    rmm::device_uvector<float>,
+                    rmm::device_uvector<int64_t>>
+count_and_remove_duplicates(raft::handle_t const& handle,
+                            rmm::device_uvector<int32_t>&& src,
+                            rmm::device_uvector<int32_t>&& dst,
+                            rmm::device_uvector<float>&& wgt);
+
+template std::tuple<rmm::device_uvector<int64_t>,
+                    rmm::device_uvector<int64_t>,
+                    rmm::device_uvector<float>,
+                    rmm::device_uvector<int64_t>>
+count_and_remove_duplicates(raft::handle_t const& handle,
+                            rmm::device_uvector<int64_t>&& src,
+                            rmm::device_uvector<int64_t>&& dst,
+                            rmm::device_uvector<float>&& wgt);
+
+template std::tuple<rmm::device_uvector<int32_t>,
+                    rmm::device_uvector<int32_t>,
+                    rmm::device_uvector<double>,
+                    rmm::device_uvector<int32_t>>
+count_and_remove_duplicates(raft::handle_t const& handle,
+                            rmm::device_uvector<int32_t>&& src,
+                            rmm::device_uvector<int32_t>&& dst,
+                            rmm::device_uvector<double>&& wgt);
+
+template std::tuple<rmm::device_uvector<int32_t>,
+                    rmm::device_uvector<int32_t>,
+                    rmm::device_uvector<double>,
+                    rmm::device_uvector<int64_t>>
+count_and_remove_duplicates(raft::handle_t const& handle,
+                            rmm::device_uvector<int32_t>&& src,
+                            rmm::device_uvector<int32_t>&& dst,
+                            rmm::device_uvector<double>&& wgt);
+
+template std::tuple<rmm::device_uvector<int64_t>,
+                    rmm::device_uvector<int64_t>,
+                    rmm::device_uvector<double>,
+                    rmm::device_uvector<int64_t>>
+count_and_remove_duplicates(raft::handle_t const& handle,
+                            rmm::device_uvector<int64_t>&& src,
+                            rmm::device_uvector<int64_t>&& dst,
+                            rmm::device_uvector<double>&& wgt);
 
 }  // namespace detail
 }  // namespace cugraph

@@ -47,7 +47,7 @@ int generic_triangle_count_test(const cugraph_resource_handle_t* handle,
   cugraph_type_erased_device_array_view_t* p_start_view = NULL;
 
   ret_code = create_mg_test_graph(
-    handle, h_src, h_dst, h_wgt, num_edges, store_transposed, FALSE, &p_graph, &ret_error);
+    handle, h_src, h_dst, h_wgt, num_edges, store_transposed, TRUE, &p_graph, &ret_error);
 
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "create_mg_test_graph failed.");
 
@@ -64,10 +64,7 @@ int generic_triangle_count_test(const cugraph_resource_handle_t* handle,
   }
 
   ret_code = cugraph_triangle_count(handle, p_graph, p_start_view, FALSE, &p_result, &ret_error);
-#if 1
-  TEST_ASSERT(test_ret_value, ret_code != CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
-  TEST_ALWAYS_ASSERT(ret_code != CUGRAPH_SUCCESS, "cugraph_triangle_count expected to fail.");
-#else
+
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
   TEST_ALWAYS_ASSERT(ret_code == CUGRAPH_SUCCESS, "cugraph_triangle_count failed.");
 
@@ -82,8 +79,10 @@ int generic_triangle_count_test(const cugraph_resource_handle_t* handle,
                 cugraph_type_erased_device_array_view_size(vertices) == num_results,
                 "invalid number of results");
 
-    vertex_t h_vertices[num_results];
-    edge_t h_counts[num_results];
+    vertex_t num_local_results = cugraph_type_erased_device_array_view_size(vertices);
+
+    vertex_t h_vertices[num_local_results];
+    edge_t h_counts[num_local_results];
 
     ret_code = cugraph_type_erased_device_array_view_copy_to_host(
       handle, (byte_t*)h_vertices, vertices, &ret_error);
@@ -93,14 +92,13 @@ int generic_triangle_count_test(const cugraph_resource_handle_t* handle,
       handle, (byte_t*)h_counts, counts, &ret_error);
     TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "copy_to_host failed.");
 
-    for (int i = 0; (i < num_vertices) && (test_ret_value == 0); ++i) {
+    for (int i = 0; (i < num_local_results) && (test_ret_value == 0); ++i) {
       TEST_ASSERT(
         test_ret_value, h_result[h_vertices[i]] == h_counts[i], "counts results don't match");
     }
 
     cugraph_triangle_count_result_free(p_result);
   }
-#endif
 
   cugraph_mg_graph_free(p_graph);
   cugraph_error_free(ret_error);
@@ -110,15 +108,18 @@ int generic_triangle_count_test(const cugraph_resource_handle_t* handle,
 
 int test_triangle_count(const cugraph_resource_handle_t* handle)
 {
-  size_t num_edges    = 8;
+  size_t num_edges    = 16;
   size_t num_vertices = 6;
-  size_t num_results  = 3;
+  size_t num_results  = 4;
 
-  vertex_t h_src[]   = {0, 1, 1, 2, 2, 2, 3, 4};
-  vertex_t h_dst[]   = {1, 3, 4, 0, 1, 3, 5, 5};
-  weight_t h_wgt[]   = {0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
-  vertex_t h_verts[] = {0, 1, 2};
-  edge_t h_result[]  = {0, 0, 0};
+  vertex_t h_src[]   = {0, 1, 1, 2, 2, 2, 3, 4,
+                        1, 3, 4, 0, 1, 3, 5, 5};
+  vertex_t h_dst[]   = {1, 3, 4, 0, 1, 3, 5, 5,
+                        0, 1, 1, 2, 2, 2, 3, 4};
+  weight_t h_wgt[]   = {0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f,
+                        0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
+  vertex_t h_verts[] = {0, 1, 2, 4};
+  edge_t h_result[]  = {1, 2, 2, 0};
 
   // Triangle Count wants store_transposed = FALSE
   return generic_triangle_count_test(

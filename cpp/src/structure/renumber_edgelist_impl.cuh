@@ -20,6 +20,7 @@
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/utilities/device_comm.cuh>
+#include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/host_scalar_comm.cuh>
 #include <cugraph/utilities/shuffle_comm.cuh>
@@ -287,10 +288,11 @@ std::tuple<rmm::device_uvector<vertex_t>, std::vector<vertex_t>> compute_renumbe
                      tmp_majors.begin());
         thrust::sort(
           rmm::exec_policy(loop_stream), tmp_majors.begin(), tmp_majors.begin() + this_chunk_size);
-        auto num_unique_majors = thrust::count_if(rmm::exec_policy(loop_stream),
-                                                  thrust::make_counting_iterator(size_t{0}),
-                                                  thrust::make_counting_iterator(this_chunk_size),
-                                                  is_first_in_run_t<vertex_t>{tmp_majors.data()});
+        auto num_unique_majors =
+          thrust::count_if(rmm::exec_policy(loop_stream),
+                           thrust::make_counting_iterator(size_t{0}),
+                           thrust::make_counting_iterator(this_chunk_size),
+                           is_first_in_run_t<vertex_t const*>{tmp_majors.data()});
         rmm::device_uvector<vertex_t> tmp_keys(num_unique_majors, loop_stream);
         rmm::device_uvector<edge_t> tmp_values(num_unique_majors, loop_stream);
         thrust::reduce_by_key(rmm::exec_policy(loop_stream),
@@ -332,10 +334,11 @@ std::tuple<rmm::device_uvector<vertex_t>, std::vector<vertex_t>> compute_renumbe
                  edgelist_majors[0] + edgelist_edge_counts[0],
                  tmp_majors.begin());
     thrust::sort(handle.get_thrust_policy(), tmp_majors.begin(), tmp_majors.end());
-    auto num_unique_majors = thrust::count_if(handle.get_thrust_policy(),
-                                              thrust::make_counting_iterator(size_t{0}),
-                                              thrust::make_counting_iterator(tmp_majors.size()),
-                                              is_first_in_run_t<vertex_t>{tmp_majors.data()});
+    auto num_unique_majors =
+      thrust::count_if(handle.get_thrust_policy(),
+                       thrust::make_counting_iterator(size_t{0}),
+                       thrust::make_counting_iterator(tmp_majors.size()),
+                       is_first_in_run_t<vertex_t const*>{tmp_majors.data()});
     rmm::device_uvector<vertex_t> tmp_keys(num_unique_majors, handle.get_stream());
     rmm::device_uvector<edge_t> tmp_values(num_unique_majors, handle.get_stream());
     thrust::reduce_by_key(handle.get_thrust_policy(),

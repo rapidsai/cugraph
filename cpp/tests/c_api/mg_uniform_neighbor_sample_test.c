@@ -28,7 +28,7 @@ typedef float weight_t;
 int generic_experimental_uniform_neighbor_sample_test(const cugraph_resource_handle_t* handle,
                                                       vertex_t* h_src,
                                                       vertex_t* h_dst,
-                                                      weight_t* h_wgt,
+                                                      edge_t* h_idx,
                                                       size_t num_vertices,
                                                       size_t num_edges,
                                                       vertex_t* h_start,
@@ -50,8 +50,8 @@ int generic_experimental_uniform_neighbor_sample_test(const cugraph_resource_han
   cugraph_type_erased_device_array_view_t* d_start_view = NULL;
   cugraph_type_erased_host_array_view_t* h_fan_out_view = NULL;
 
-  ret_code = create_mg_test_graph(
-    handle, h_src, h_dst, h_wgt, num_edges, store_transposed, FALSE, &graph, &ret_error);
+  ret_code = create_mg_test_graph_with_edge_ids(
+    handle, h_src, h_dst, h_idx, num_edges, store_transposed, FALSE, &graph, &ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "graph creation failed.");
 
   ret_code =
@@ -69,8 +69,6 @@ int generic_experimental_uniform_neighbor_sample_test(const cugraph_resource_han
   ret_code = cugraph_experimental_uniform_neighbor_sample(
     handle, graph, d_start_view, h_fan_out_view, with_replacement, FALSE, &result, &ret_error);
 
-#if 0
-  // FIXME:  cugraph_experimental_uniform_neighbor_sample is not implemented yet
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "uniform_neighbor_sample failed.");
 
@@ -78,9 +76,9 @@ int generic_experimental_uniform_neighbor_sample_test(const cugraph_resource_han
   cugraph_type_erased_device_array_view_t* dsts;
   cugraph_type_erased_device_array_view_t* index;
 
-  srcs   = cugraph_sample_result_get_sources(result);
-  dsts   = cugraph_sample_result_get_destinations(result);
-  index  = cugraph_sample_result_get_index(result);
+  srcs  = cugraph_sample_result_get_sources(result);
+  dsts  = cugraph_sample_result_get_destinations(result);
+  index = cugraph_sample_result_get_index(result);
 
   size_t result_size = cugraph_type_erased_device_array_view_size(srcs);
 
@@ -105,31 +103,20 @@ int generic_experimental_uniform_neighbor_sample_test(const cugraph_resource_han
   //  NOTE:  The C++ tester does a more thorough validation.  For our purposes
   //  here we will do a simpler validation, merely checking that all edges
   //  are actually part of the graph
-  weight_t M[num_vertices][num_vertices];
+  edge_t M[num_vertices][num_vertices];
 
   for (int i = 0; i < num_vertices; ++i)
     for (int j = 0; j < num_vertices; ++j)
-      M[i][j] = 0.0;
+      M[i][j] = -1;
 
   for (int i = 0; i < num_edges; ++i)
-    M[h_src[i]][h_dst[i]] = h_wgt[i];
+    M[h_src[i]][h_dst[i]] = h_idx[i];
 
   for (int i = 0; (i < result_size) && (test_ret_value == 0); ++i) {
     TEST_ASSERT(test_ret_value,
-                M[h_srcs[i]][h_dsts[i]] > 0.0,
+                M[h_srcs[i]][h_dsts[i]] >= 0,
                 "uniform_neighbor_sample got edge that doesn't exist");
-
-    bool_t found = FALSE;
-    for (int j = 0; j < num_starts; ++j)
-      found = found || (h_labels[i] == h_start_label[j]);
-
-    TEST_ASSERT(test_ret_value, found, "invalid label");
   }
-#else
-  TEST_ASSERT(test_ret_value,
-              ret_code != CUGRAPH_SUCCESS,
-              "cugraph_experimental_uniform_neighbor_sample expected to fail in SG test");
-#endif
 
   cugraph_type_erased_host_array_view_free(h_fan_out_view);
 
@@ -308,14 +295,14 @@ int test_experimental_uniform_neighbor_sample(const cugraph_resource_handle_t* h
 
   vertex_t src[]   = {0, 1, 1, 2, 2, 2, 3, 4};
   vertex_t dst[]   = {1, 3, 4, 0, 1, 3, 5, 5};
-  weight_t wgt[]   = {0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
+  edge_t idx[]     = {0, 1, 2, 3, 4, 5, 6, 7};
   vertex_t start[] = {2, 2};
   int fan_out[]    = {1, 2};
 
   return generic_experimental_uniform_neighbor_sample_test(handle,
                                                            src,
                                                            dst,
-                                                           wgt,
+                                                           idx,
                                                            num_vertices,
                                                            num_edges,
                                                            start,

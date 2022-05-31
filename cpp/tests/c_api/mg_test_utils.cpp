@@ -191,3 +191,203 @@ extern "C" int create_mg_test_graph(const cugraph_resource_handle_t* handle,
 
   return test_ret_value;
 }
+
+/*
+ * Simple function to create an MG test graph from COO arrays.  COO is
+ * assumed to be defined entirely on rank 0 and will be shuffled to
+ * the proper location.
+ */
+extern "C" int create_mg_test_graph_double(const cugraph_resource_handle_t* handle,
+                                           int32_t* h_src,
+                                           int32_t* h_dst,
+                                           double* h_wgt,
+                                           size_t num_edges,
+                                           bool_t store_transposed,
+                                           bool_t is_symmetric,
+                                           cugraph_graph_t** p_graph,
+                                           cugraph_error_t** ret_error)
+{
+  int test_ret_value = 0;
+  cugraph_error_code_t ret_code;
+  cugraph_graph_properties_t properties;
+
+  properties.is_symmetric  = is_symmetric;
+  properties.is_multigraph = FALSE;
+
+  data_type_id_t vertex_tid = INT32;
+  data_type_id_t edge_tid   = INT32;
+  data_type_id_t weight_tid = FLOAT64;
+
+  cugraph_type_erased_device_array_t* src;
+  cugraph_type_erased_device_array_t* dst;
+  cugraph_type_erased_device_array_t* wgt;
+  cugraph_type_erased_device_array_view_t* src_view;
+  cugraph_type_erased_device_array_view_t* dst_view;
+  cugraph_type_erased_device_array_view_t* wgt_view;
+
+  int rank = 0;
+
+  rank = cugraph_resource_handle_get_rank(handle);
+
+  if (rank == 0) {
+    ret_code =
+      cugraph_type_erased_device_array_create(handle, num_edges, vertex_tid, &src, ret_error);
+    TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "src create failed.");
+    TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, cugraph_error_message(*ret_error));
+
+    ret_code =
+      cugraph_type_erased_device_array_create(handle, num_edges, vertex_tid, &dst, ret_error);
+    TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "dst create failed.");
+
+    ret_code =
+      cugraph_type_erased_device_array_create(handle, num_edges, weight_tid, &wgt, ret_error);
+    TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "wgt create failed.");
+  } else {
+    ret_code = cugraph_type_erased_device_array_create(handle, 0, vertex_tid, &src, ret_error);
+    TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "src create failed.");
+    TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, cugraph_error_message(*ret_error));
+
+    ret_code = cugraph_type_erased_device_array_create(handle, 0, vertex_tid, &dst, ret_error);
+    TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "dst create failed.");
+
+    ret_code = cugraph_type_erased_device_array_create(handle, 0, weight_tid, &wgt, ret_error);
+    TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "wgt create failed.");
+  }
+
+  src_view = cugraph_type_erased_device_array_view(src);
+  dst_view = cugraph_type_erased_device_array_view(dst);
+  wgt_view = cugraph_type_erased_device_array_view(wgt);
+
+  ret_code = cugraph_type_erased_device_array_view_copy_from_host(
+    handle, src_view, (byte_t*)h_src, ret_error);
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "src copy_from_host failed.");
+
+  ret_code = cugraph_type_erased_device_array_view_copy_from_host(
+    handle, dst_view, (byte_t*)h_dst, ret_error);
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "dst copy_from_host failed.");
+
+  ret_code = cugraph_type_erased_device_array_view_copy_from_host(
+    handle, wgt_view, (byte_t*)h_wgt, ret_error);
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "wgt copy_from_host failed.");
+
+  ret_code = cugraph_mg_graph_create(handle,
+                                     &properties,
+                                     src_view,
+                                     dst_view,
+                                     wgt_view,
+                                     store_transposed,
+                                     num_edges,
+                                     FALSE,
+                                     p_graph,
+                                     ret_error);
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "graph creation failed.");
+
+  cugraph_type_erased_device_array_view_free(wgt_view);
+  cugraph_type_erased_device_array_view_free(dst_view);
+  cugraph_type_erased_device_array_view_free(src_view);
+  cugraph_type_erased_device_array_free(wgt);
+  cugraph_type_erased_device_array_free(dst);
+  cugraph_type_erased_device_array_free(src);
+
+  return test_ret_value;
+}
+
+extern "C" int create_mg_test_graph_with_edge_ids(const cugraph_resource_handle_t* handle,
+                                                  int32_t* h_src,
+                                                  int32_t* h_dst,
+                                                  int32_t* h_idx,
+                                                  size_t num_edges,
+                                                  bool_t store_transposed,
+                                                  bool_t is_symmetric,
+                                                  cugraph_graph_t** p_graph,
+                                                  cugraph_error_t** ret_error)
+{
+  int test_ret_value = 0;
+  cugraph_error_code_t ret_code;
+  cugraph_graph_properties_t properties;
+
+  properties.is_symmetric  = is_symmetric;
+  properties.is_multigraph = FALSE;
+
+  data_type_id_t vertex_tid = INT32;
+  data_type_id_t edge_tid   = INT32;
+  data_type_id_t weight_tid = FLOAT32;
+
+  cugraph_type_erased_device_array_t* src;
+  cugraph_type_erased_device_array_t* dst;
+  cugraph_type_erased_device_array_t* idx;
+  cugraph_type_erased_device_array_view_t* src_view;
+  cugraph_type_erased_device_array_view_t* dst_view;
+  cugraph_type_erased_device_array_view_t* idx_view;
+  cugraph_type_erased_device_array_view_t* wgt_view;
+
+  int rank = 0;
+
+  rank = cugraph_resource_handle_get_rank(handle);
+
+  if (rank == 0) {
+    ret_code =
+      cugraph_type_erased_device_array_create(handle, num_edges, vertex_tid, &src, ret_error);
+    TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "src create failed.");
+    TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, cugraph_error_message(*ret_error));
+
+    ret_code =
+      cugraph_type_erased_device_array_create(handle, num_edges, vertex_tid, &dst, ret_error);
+    TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "dst create failed.");
+
+    ret_code =
+      cugraph_type_erased_device_array_create(handle, num_edges, weight_tid, &idx, ret_error);
+    TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "idx create failed.");
+  } else {
+    ret_code = cugraph_type_erased_device_array_create(handle, 0, vertex_tid, &src, ret_error);
+    TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "src create failed.");
+    TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, cugraph_error_message(*ret_error));
+
+    ret_code = cugraph_type_erased_device_array_create(handle, 0, vertex_tid, &dst, ret_error);
+    TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "dst create failed.");
+
+    ret_code = cugraph_type_erased_device_array_create(handle, 0, weight_tid, &idx, ret_error);
+    TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "wgt create failed.");
+  }
+
+  src_view = cugraph_type_erased_device_array_view(src);
+  dst_view = cugraph_type_erased_device_array_view(dst);
+  idx_view = cugraph_type_erased_device_array_view(idx);
+
+  ret_code = cugraph_type_erased_device_array_view_copy_from_host(
+    handle, src_view, (byte_t*)h_src, ret_error);
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "src copy_from_host failed.");
+
+  ret_code = cugraph_type_erased_device_array_view_copy_from_host(
+    handle, dst_view, (byte_t*)h_dst, ret_error);
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "dst copy_from_host failed.");
+
+  ret_code = cugraph_type_erased_device_array_view_copy_from_host(
+    handle, idx_view, (byte_t*)h_idx, ret_error);
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "wgt copy_from_host failed.");
+
+  ret_code = cugraph_type_erased_device_array_view_as_type(idx, weight_tid, &wgt_view, ret_error);
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "wgt cast from idx failed.");
+
+  ret_code = cugraph_mg_graph_create(handle,
+                                     &properties,
+                                     src_view,
+                                     dst_view,
+                                     wgt_view,
+                                     store_transposed,
+                                     num_edges,
+                                     FALSE,
+                                     p_graph,
+                                     ret_error);
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "graph creation failed.");
+
+  cugraph_type_erased_device_array_view_free(wgt_view);
+  cugraph_type_erased_device_array_view_free(idx_view);
+  cugraph_type_erased_device_array_view_free(dst_view);
+  cugraph_type_erased_device_array_view_free(src_view);
+  cugraph_type_erased_device_array_free(idx);
+  cugraph_type_erased_device_array_free(dst);
+  cugraph_type_erased_device_array_free(src);
+
+  return test_ret_value;
+}

@@ -20,8 +20,9 @@
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/prims/edge_partition_src_dst_property.cuh>
+#include <cugraph/prims/transform_reduce_v_frontier_outgoing_e_by_dst.cuh>
 #include <cugraph/prims/update_edge_partition_src_dst_property.cuh>
-#include <cugraph/prims/update_v_frontier_from_outgoing_e.cuh>
+#include <cugraph/prims/update_v_frontier.cuh>
 #include <cugraph/prims/vertex_frontier.cuh>
 #include <cugraph/utilities/device_comm.cuh>
 #include <cugraph/utilities/error.hpp>
@@ -183,7 +184,8 @@ struct v_op_t {
   size_t bucket_idx_conflict{};  // relevant only if GraphViewType::is_multi_gpu is true
 
   template <bool multi_gpu = GraphViewType::is_multi_gpu>
-  __device__ std::enable_if_t<multi_gpu, thrust::optional<thrust::tuple<size_t, std::byte>>>
+  __device__ std::enable_if_t<multi_gpu,
+                              thrust::tuple<thrust::optional<size_t>, thrust::optional<std::byte>>>
   operator()(thrust::tuple<vertex_type, vertex_type> tagged_v, int /* v_val */) const
   {
     auto tag = thrust::get<1>(tagged_v);
@@ -194,22 +196,23 @@ struct v_op_t {
     auto old =
       atomicCAS(level_components + v_offset, invalid_component_id<vertex_type>::value, tag);
     if (old != invalid_component_id<vertex_type>::value && old != tag) {  // conflict
-      return thrust::optional<thrust::tuple<size_t, std::byte>>{
-        thrust::make_tuple(bucket_idx_conflict, std::byte{0} /* dummy */)};
+      return thrust::make_tuple(thrust::optional<size_t>{bucket_idx_conflict},
+                                thrust::optional<std::byte>{std::byte{0}} /* dummy */);
     } else {
-      return (old == invalid_component_id<vertex_type>::value)
-               ? thrust::optional<thrust::tuple<size_t, std::byte>>{thrust::make_tuple(
-                   bucket_idx_next, std::byte{0} /* dummy */)}
-               : thrust::nullopt;
+      auto update = (old == invalid_component_id<vertex_type>::value);
+      return thrust::make_tuple(
+        update ? thrust::optional<size_t>{bucket_idx_next} : thrust::nullopt,
+        update ? thrust::optional<std::byte>{std::byte{0}} /* dummy */ : thrust::nullopt);
     }
   }
 
   template <bool multi_gpu = GraphViewType::is_multi_gpu>
-  __device__ std::enable_if_t<!multi_gpu, thrust::optional<thrust::tuple<size_t, std::byte>>>
+  __device__ std::enable_if_t<!multi_gpu,
+                              thrust::tuple<thrust::optional<size_t>, thrust::optional<std::byte>>>
   operator()(thrust::tuple<vertex_type, vertex_type> /* tagged_v */, int /* v_val */) const
   {
-    return thrust::optional<thrust::tuple<size_t, std::byte>>{
-      thrust::make_tuple(bucket_idx_next, std::byte{0} /* dummy */)};
+    return thrust::make_tuple(thrust::optional<size_t>{bucket_idx_next},
+                              thrust::optional<std::byte>{std::byte{0}} /* dummy */);
   }
 };
 
@@ -523,13 +526,11 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
       auto old_num_edge_inserts = num_edge_inserts.value(handle.get_stream());
       resize_dataframe_buffer(edge_buffer, old_num_edge_inserts + max_pushes, handle.get_stream());
 
-      update_v_frontier_from_outgoing_e(
+      auto new_frontier_tagged_vertex_buffer = transform_reduce_v_frontier_outgoing_e_by_dst(
         handle,
         level_graph_view,
         vertex_frontier,
         bucket_idx_cur,
-        GraphViewType::is_multi_gpu ? std::vector<size_t>{bucket_idx_next, bucket_idx_conflict}
-                                    : std::vector<size_t>{bucket_idx_next},
         dummy_property_t<vertex_t>{}.device_view(),
         dummy_property_t<vertex_t>{}.device_view(),
         [col_components =
@@ -555,18 +556,26 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
             *(edge_buffer_first + edge_idx) =
               tag >= old ? thrust::make_tuple(tag, old) : thrust::make_tuple(old, tag);
           }
-          return (old == invalid_component_id<vertex_t>::value) ? thrust::optional<vertex_t>{tag}
-                                                                : thrust::nullopt;
+          return old == invalid_component_id<vertex_t>::value ? thrust::optional<vertex_t>{tag}
+                                                              : thrust::nullopt;
         },
-        reduce_op::null(),
-        thrust::make_constant_iterator(0) /* dummy */,
-        thrust::make_discard_iterator() /* dummy */,
-        v_op_t<GraphViewType>{vertex_partition,
-                              level_components,
-                              get_dataframe_buffer_begin(edge_buffer),
-                              num_edge_inserts.data(),
-                              bucket_idx_next,
-                              bucket_idx_conflict});
+        reduce_op::null());
+
+      update_v_frontier(handle,
+                        level_graph_view,
+                        std::move(new_frontier_tagged_vertex_buffer),
+                        vertex_frontier,
+                        GraphViewType::is_multi_gpu
+                          ? std::vector<size_t>{bucket_idx_next, bucket_idx_conflict}
+                          : std::vector<size_t>{bucket_idx_next},
+                        thrust::make_constant_iterator(0) /* dummy */,
+                        thrust::make_discard_iterator() /* dummy */,
+                        v_op_t<GraphViewType>{vertex_partition,
+                                              level_components,
+                                              get_dataframe_buffer_begin(edge_buffer),
+                                              num_edge_inserts.data(),
+                                              bucket_idx_next,
+                                              bucket_idx_conflict});
 
       if (GraphViewType::is_multi_gpu) {
         auto cur_num_edge_inserts = num_edge_inserts.value(handle.get_stream());

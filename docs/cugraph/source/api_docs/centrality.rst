@@ -33,3 +33,17 @@ Degree Centrality
    :toctree: api/
 
    cugraph.degree_centrality
+
+Eigenvector Centrality
+----------------------
+.. autosummary::
+   :toctree: api/
+
+   cugraph.centrality.eigenvector_centrality
+
+Eigenvector Centrality (MG)
+---------------------------
+.. autosummary::
+   :toctree: api/
+
+   cugraph.dask.centrality.eigenvector_centrality.eigenvector_centrality
