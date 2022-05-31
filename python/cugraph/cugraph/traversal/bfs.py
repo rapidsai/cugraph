@@ -185,7 +185,7 @@ def bfs(G,
 
     start : Integer or list, optional (default=None)
         The id of the graph vertex from which the traversal begins, or
-        if a list, the vertex from which the traversal begins in each 
+        if a list, the vertex from which the traversal begins in each
         component of the graph.  Passing in multiple start vertices
         from the same component results in undefined behavior.
 
