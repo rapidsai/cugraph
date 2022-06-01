@@ -18,7 +18,7 @@ from pylibcugraph import (ResourceHandle,
                           GraphProperties,
                           SGGraph,
                           eigenvector_centrality)
-from cugraph.testing import utils
+from pylibcugraph.testing import utils
 
 
 TOY = utils.RAPIDS_DATASET_ROOT_DIR_PATH/'toy_graph.csv'

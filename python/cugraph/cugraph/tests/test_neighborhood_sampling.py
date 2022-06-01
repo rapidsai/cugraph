@@ -156,7 +156,7 @@ def test_neighborhood_sampling_simple(input_combo):
 
 
 @pytest.mark.parametrize("directed", IS_DIRECTED)
-def test_mg_neighborhood_sampling_tree(directed):
+def test_neighborhood_sampling_tree(directed):
 
     input_data_path = (utils.RAPIDS_DATASET_ROOT_DIR_PATH /
                        "small_tree.csv").as_posix()
