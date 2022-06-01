@@ -13,6 +13,7 @@
 
 from cugraph.community import triangle_count_wrapper
 from cugraph.utilities import ensure_cugraph_obj_for_nx
+import warnings
 
 
 def triangles(G):
@@ -47,6 +48,9 @@ def triangles(G):
     >>> count = cugraph.triangles(G)
 
     """
+    warning_msg = ("This call is deprecated and will be refactored "
+                   "in the next release")
+    warnings.warn(warning_msg, PendingDeprecationWarning)
 
     G, _ = ensure_cugraph_obj_for_nx(G)
 
