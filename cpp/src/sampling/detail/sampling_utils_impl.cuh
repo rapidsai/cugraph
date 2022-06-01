@@ -503,7 +503,7 @@ gather_local_edges(
           auto row_hypersparse_idx =
             partitions[partition_id].major_hypersparse_idx_from_major_nocheck(major);
           if (row_hypersparse_idx) {
-            location_in_segment = *(row_hypersparse_idx)-id_begin[partition_id];
+            location_in_segment = *row_hypersparse_idx;
           } else {
             minors[index] = invalid_vertex_id;
             return;
