@@ -198,7 +198,6 @@ add_library(cugraph
     src/cores/core_number_mg.cu
     src/traversal/two_hop_neighbors.cu
     src/components/connectivity.cu
-    src/centrality/legacy/katz_centrality.cu
     src/centrality/betweenness_centrality.cu
     src/generators/generate_rmat_edgelist.cu
     src/generators/generator_tools.cu
