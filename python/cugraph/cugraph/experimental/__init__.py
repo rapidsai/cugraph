@@ -25,3 +25,6 @@ MGPropertyGraph = experimental_warning_wrapper(EXPERIMENTAL__MGPropertyGraph)
 from cugraph.dask.structure.mg_property_graph import EXPERIMENTAL__MGPropertySelection
 MGPropertySelection = experimental_warning_wrapper(EXPERIMENTAL__MGPropertySelection)
 
+from cugraph.experimental.community.triangle_count import \
+    EXPERIMENTAL__triangle_count
+triangle_count = experimental_warning_wrapper(EXPERIMENTAL__triangle_count)
