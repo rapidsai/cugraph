@@ -18,3 +18,7 @@ PropertyGraph = experimental_warning_wrapper(EXPERIMENTAL__PropertyGraph)
 
 from cugraph.structure.property_graph import EXPERIMENTAL__PropertySelection
 PropertySelection = experimental_warning_wrapper(EXPERIMENTAL__PropertySelection)
+
+from cugraph.experimental.community.triangle_count import \
+    EXPERIMENTAL__triangle_count
+triangle_count = experimental_warning_wrapper(EXPERIMENTAL__triangle_count)
