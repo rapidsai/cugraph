@@ -18,11 +18,14 @@ from dask.distributed import wait, default_client
 import dask_cudf
 import cudf
 
-from pylibcugraph.experimental import (MGGraph,
-                                       ResourceHandle,
-                                       GraphProperties,
-                                       uniform_neighborhood_sampling,
-                                       )
+from pylibcugraph import (ResourceHandle,
+                          GraphProperties,
+                          MGGraph
+                          )
+
+from pylibcugraph import \
+    uniform_neighbor_sample as pylibcugraph_uniform_neighbor_sample
+
 from cugraph.dask.common.input_utils import get_distributed_data
 from cugraph.dask.comms import comms as Comms
 
@@ -34,7 +37,6 @@ def call_nbr_sampling(sID,
                       num_edges,
                       do_expensive_check,
                       start_list,
-                      info_list,
                       h_fan_out,
                       with_replacement):
 
@@ -59,36 +61,38 @@ def call_nbr_sampling(sID,
                  num_edges,
                  do_expensive_check)
 
-    ret_val = uniform_neighborhood_sampling(handle,
-                                            mg,
-                                            start_list,
-                                            info_list,
-                                            h_fan_out,
-                                            with_replacement,
-                                            do_expensive_check)
+    ret_val = pylibcugraph_uniform_neighbor_sample(handle,
+                                                   mg,
+                                                   start_list,
+                                                   h_fan_out,
+                                                   with_replacement,
+                                                   do_expensive_check)
     return ret_val
 
 
-def convert_to_cudf(cp_arrays):
+def convert_to_cudf(cp_arrays, weight_t):
     """
     Creates a cudf DataFrame from cupy arrays from pylibcugraph wrapper
     """
-    cupy_sources, cupy_destinations, cupy_labels, cupy_indices = cp_arrays
-    # cupy_sources, cupy_destinations, cupy_labels, cupy_indices,
-    #    cupy_counts = cp_arrays
+    cupy_sources, cupy_destinations, cupy_indices = cp_arrays
+
     df = cudf.DataFrame()
     df["sources"] = cupy_sources
     df["destinations"] = cupy_destinations
-    df["labels"] = cupy_labels
     df["indices"] = cupy_indices
-    # df["counts"] = cupy_counts
+
+    if weight_t == "int32":
+        df.indices = df.indices.astype("int32")
+    elif weight_t == "int64":
+        df.indices = df.indices.astype("int64")
+
     return df
 
 
-def EXPERIMENTAL__uniform_neighborhood(input_graph,
-                                       start_info_list,
-                                       fanout_vals,
-                                       with_replacement=True):
+def uniform_neighbor_sample(input_graph,
+                            start_list,
+                            fanout_vals,
+                            with_replacement=True):
     """
     Does neighborhood sampling, which samples nodes from a graph based on the
     current node's neighbors, with a corresponding fanout value at each hop.
@@ -99,10 +103,8 @@ def EXPERIMENTAL__uniform_neighborhood(input_graph,
         cuGraph graph, which contains connectivity information as dask cudf
         edge list dataframe
 
-    start_info_list : tuple of list or cudf.Series (int32)
-        Tuple of a list of starting vertices for sampling, along with a
-        corresponding list of label for reorganizing results after sending
-        the input to different callers.
+    start_list : list or cudf.Series (int32)
+        a list of starting vertices for sampling
 
     fanout_vals : list (int32)
         List of branching out (fan-out) degrees per starting vertex for each
@@ -110,6 +112,7 @@ def EXPERIMENTAL__uniform_neighborhood(input_graph,
 
     with_replacement: bool, optional (default=True)
         Flag to specify if the random sampling is done with replacement
+
 
     Returns
     -------
@@ -120,8 +123,6 @@ def EXPERIMENTAL__uniform_neighborhood(input_graph,
             Contains the source vertices from the sampling result
         ddf['destinations']: dask_cudf.Series
             Contains the destination vertices from the sampling result
-        ddf['labels']: dask_cudf.Series
-            Contains the start labels from the sampling result
         ddf['indices']: dask_cudf.Series
             Contains the indices from the sampling result for path
             reconstruction
@@ -135,18 +136,15 @@ def EXPERIMENTAL__uniform_neighborhood(input_graph,
     input_graph.compute_renumber_edge_list(
         transposed=False, legacy_renum_only=True)
 
-    start_list, info_list = start_info_list
+    if isinstance(start_list, int):
+        start_list = [start_list]
 
     if isinstance(start_list, list):
         start_list = cudf.Series(start_list)
-        if start_list.dtype != 'int32':
+        if start_list.dtype != "int32":
             raise ValueError(f"'start_list' must have int32 values, "
                              f"got: {start_list.dtype}")
-    if isinstance(info_list, list):
-        info_list = cudf.Series(info_list)
-        if info_list.dtype != 'int32':
-            raise ValueError(f"'info_list' must have int32 values, "
-                             f"got: {info_list.dtype}")
+
     # fanout_vals must be a host array!
     # FIXME: ensure other sequence types (eg. cudf Series) can be handled.
     if isinstance(fanout_vals, list):
@@ -156,11 +154,17 @@ def EXPERIMENTAL__uniform_neighborhood(input_graph,
                         f"got: {type(fanout_vals)}")
 
     ddf = input_graph.edgelist.edgelist_df
-    num_edges = len(ddf)
-    data = get_distributed_data(ddf)
-
     src_col_name = input_graph.renumber_map.renumbered_src_col_name
     dst_col_name = input_graph.renumber_map.renumbered_dst_col_name
+
+    weight_t = ddf["value"].dtype
+    if weight_t == "int32":
+        ddf = ddf.astype({"value": "float32"})
+    elif weight_t == "int64":
+        ddf = ddf.astype({"value": "float64"})
+
+    num_edges = len(ddf)
+    data = get_distributed_data(ddf)
 
     # start_list uses "external" vertex IDs, but if the graph has been
     # renumbered, the start vertex IDs must also be renumbered.
@@ -177,7 +181,6 @@ def EXPERIMENTAL__uniform_neighborhood(input_graph,
                             num_edges,
                             do_expensive_check,
                             start_list,
-                            info_list,
                             fanout_vals,
                             with_replacement,
                             workers=[wf[0]])
@@ -186,14 +189,14 @@ def EXPERIMENTAL__uniform_neighborhood(input_graph,
     wait(result)
 
     cudf_result = [client.submit(convert_to_cudf,
-                                 cp_arrays)
+                                 cp_arrays, weight_t)
                    for cp_arrays in result]
 
     wait(cudf_result)
 
     ddf = dask_cudf.from_delayed(cudf_result)
     if input_graph.renumbered:
-        ddf = input_graph.unrenumber(ddf, "sources")
-        ddf = input_graph.unrenumber(ddf, "destinations")
+        ddf = input_graph.unrenumber(ddf, "sources", preserve_order=True)
+        ddf = input_graph.unrenumber(ddf, "destinations", preserve_order=True)
 
     return ddf

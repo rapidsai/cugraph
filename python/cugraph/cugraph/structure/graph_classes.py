@@ -98,7 +98,8 @@ class Graph:
         source="source",
         destination="destination",
         edge_attr=None,
-        renumber=True
+        renumber=True,
+        legacy_renum_only=False
     ):
         """
         Initialize a graph from the edge list. It is an error to call this
@@ -150,11 +151,13 @@ class Graph:
         elif (self._Impl.edgelist is not None or
               self._Impl.adjlist is not None):
             raise RuntimeError("Graph already has values")
-        self._Impl._simpleGraphImpl__from_edgelist(input_df,
-                                                   source=source,
-                                                   destination=destination,
-                                                   edge_attr=edge_attr,
-                                                   renumber=renumber)
+        self._Impl._simpleGraphImpl__from_edgelist(
+            input_df,
+            source=source,
+            destination=destination,
+            edge_attr=edge_attr,
+            renumber=renumber,
+            legacy_renum_only=legacy_renum_only)
 
     def from_cudf_adjlist(self, offset_col, index_col, value_col=None):
         """
