@@ -16,9 +16,6 @@
 
 from libc.stdint cimport uintptr_t
 
-# FIXME: Added this
-import numpy
-
 from pylibcugraph._cugraph_c.resource_handle cimport (
     bool_t,
     data_type_id_t,
@@ -55,11 +52,9 @@ from pylibcugraph.graphs cimport (
     _GPUGraph,
     MGGraph,
 )
-# FIXME: added copy_to_cupy_array_
 from pylibcugraph.utils cimport (
     assert_success,
     copy_to_cupy_array,
-    copy_to_cupy_array_ids,
     assert_CAI_type,
     assert_AI_type,
     get_c_type_from_numpy_type,
