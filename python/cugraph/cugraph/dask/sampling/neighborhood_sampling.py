@@ -114,7 +114,7 @@ def EXPERIMENTAL__uniform_neighborhood(input_graph,
     Returns
     -------
     result : dask_cudf.DataFrame
-        GPU data frame containing two dask_cudf.Series
+        GPU distributed data frame containing 4 dask_cudf.Series
 
         ddf['sources']: dask_cudf.Series
             Contains the source vertices from the sampling result
