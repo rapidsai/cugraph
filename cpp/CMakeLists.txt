@@ -361,7 +361,6 @@ endif()
 # - C-API library --------------------------------------------------------------
 
 add_library(cugraph_c
-        src/c_api/cugraph_api.cpp
         src/c_api/resource_handle.cpp
         src/c_api/array.cpp
         src/c_api/error.cpp
