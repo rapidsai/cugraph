@@ -455,9 +455,12 @@ std::vector<vertex_t> aggregate_segment_offsets(raft::handle_t const& handle,
 
 template <typename vertex_t, typename edge_t, bool store_transposed, bool multi_gpu>
 std::enable_if_t<multi_gpu,
-                 std::tuple<std::optional<rmm::device_uvector<vertex_t>>,
-                            std::optional<std::vector<vertex_t>>,
+                 std::tuple<std::optional<std::vector<rmm::device_uvector<vertex_t>>>,
+                            std::optional<std::vector<rmm::device_uvector<vertex_t>>>,
+                            std::optional<vertex_t>,
                             std::optional<rmm::device_uvector<vertex_t>>,
+                            std::optional<rmm::device_uvector<vertex_t>>,
+                            std::optional<vertex_t>,
                             std::optional<std::vector<vertex_t>>>>
 update_local_sorted_unique_edge_majors_minors(
   raft::handle_t const& handle,
@@ -470,22 +473,26 @@ update_local_sorted_unique_edge_majors_minors(
 {
   auto& comm               = handle.get_comms();
   auto& row_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
-  auto const row_comm_rank = row_comm.get_rank();
   auto const row_comm_size = row_comm.get_size();
   auto& col_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
   auto const col_comm_rank = col_comm.get_rank();
-  auto const col_comm_size = col_comm.get_size();
 
   auto use_dcs =
     meta.segment_offsets
       ? ((*(meta.segment_offsets)).size() > (detail::num_sparse_segments_per_vertex_partition + 1))
       : false;
 
-  std::optional<rmm::device_uvector<vertex_t>> local_sorted_unique_edge_majors{std::nullopt};
-  std::optional<std::vector<vertex_t>> local_sorted_unique_edge_major_offsets{std::nullopt};
-
+  std::optional<std::vector<rmm::device_uvector<vertex_t>>> local_sorted_unique_edge_majors{
+    std::nullopt};
+  std::optional<std::vector<rmm::device_uvector<vertex_t>>>
+    local_sorted_unique_edge_major_chunk_start_offsets{std::nullopt};
+  std::optional<vertex_t> local_sorted_unique_edge_major_chunk_size{std::nullopt};
   std::optional<rmm::device_uvector<vertex_t>> local_sorted_unique_edge_minors{std::nullopt};
-  std::optional<std::vector<vertex_t>> local_sorted_unique_edge_minor_offsets{std::nullopt};
+  std::optional<rmm::device_uvector<vertex_t>> local_sorted_unique_edge_minor_chunk_start_offsets{
+    std::nullopt};
+  std::optional<vertex_t> local_sorted_unique_edge_minor_chunk_size{std::nullopt};
+  std::optional<std::vector<vertex_t>> local_sorted_unique_edge_minor_vertex_partition_offsets{
+    std::nullopt};
 
   // if # unique edge majors/minors << V / row_comm_size|col_comm_size, store unique edge
   // majors/minors to support storing edge major/minor properties in (key, value) pairs.
@@ -519,8 +526,11 @@ update_local_sorted_unique_edge_majors_minors(
 
     if (max_minor_properties_fill_ratio <
         detail::edge_partition_src_dst_property_values_kv_pair_fill_ratio_threshold) {
-      local_sorted_unique_edge_minors =
-        rmm::device_uvector<vertex_t>(num_local_unique_edge_minors, handle.get_stream());
+      auto const chunk_size =
+        std::min(static_cast<size_t>(1.0 / max_minor_properties_fill_ratio), size_t{1024});
+
+      rmm::device_uvector<vertex_t> unique_edge_minors(num_local_unique_edge_minors,
+                                                       handle.get_stream());
 #if 1  // FIXME: work-around for the 32 bit integer overflow issue in thrust::remove,
        // thrust::remove_if, and thrust::copy_if (https://github.com/NVIDIA/thrust/issues/1302)
       size_t num_copied{0};
@@ -530,12 +540,12 @@ update_local_sorted_unique_edge_majors_minors(
           std::min(size_t{1} << 30,
                    static_cast<size_t>(minor_range_last - (minor_range_first + num_scanned)));
         num_copied += static_cast<size_t>(thrust::distance(
-          (*local_sorted_unique_edge_minors).begin() + num_copied,
+          unique_edge_minors.begin() + num_copied,
           thrust::copy_if(
             handle.get_thrust_policy(),
             thrust::make_counting_iterator(minor_range_first + num_scanned),
             thrust::make_counting_iterator(minor_range_first + num_scanned + this_scan_size),
-            (*local_sorted_unique_edge_minors).begin() + num_copied,
+            unique_edge_minors.begin() + num_copied,
             cugraph::detail::check_bit_set_t<vertex_t>{minor_bitmaps.data(), minor_range_first})));
         num_scanned += this_scan_size;
       }
@@ -544,9 +554,26 @@ update_local_sorted_unique_edge_majors_minors(
         handle.get_thrust_policy(),
         thrust::make_counting_iterator(minor_range_first),
         thrust::make_counting_iterator(minor_range_last),
-        (*local_sorted_unique_edge_minors).begin(),
+        unique_edge_minors.begin(),
         cugraph::detail::check_bit_set_t<vertex_t>{minor_bitmaps.data(), minor_range_first});
 #endif
+
+      auto num_chunks =
+        static_cast<size_t>((minor_range_size + (chunk_size - size_t{1})) / chunk_size);
+      rmm::device_uvector<vertex_t> unique_edge_minor_chunk_start_offsets(num_chunks + size_t{1},
+                                                                          handle.get_stream());
+
+      auto chunk_start_vertex_first = thrust::make_transform_iterator(
+        thrust::make_counting_iterator(vertex_t{0}),
+        detail::multiply_and_add_t<vertex_t>{static_cast<vertex_t>(chunk_size), minor_range_first});
+      thrust::lower_bound(handle.get_thrust_policy(),
+                          unique_edge_minors.begin(),
+                          unique_edge_minors.end(),
+                          chunk_start_vertex_first,
+                          chunk_start_vertex_first + num_chunks,
+                          unique_edge_minor_chunk_start_offsets.begin());
+      unique_edge_minor_chunk_start_offsets.set_element(
+        num_chunks, static_cast<vertex_t>(unique_edge_minors.size()), handle.get_stream());
 
       std::vector<vertex_t> h_vertex_partition_firsts(row_comm_size - 1);
       for (int i = 1; i < row_comm_size; ++i) {
@@ -561,31 +588,38 @@ update_local_sorted_unique_edge_majors_minors(
                           handle.get_stream());
       rmm::device_uvector<vertex_t> d_key_offsets(d_vertex_partition_firsts.size(),
                                                   handle.get_stream());
+
       thrust::lower_bound(handle.get_thrust_policy(),
-                          (*local_sorted_unique_edge_minors).begin(),
-                          (*local_sorted_unique_edge_minors).end(),
+                          unique_edge_minors.begin(),
+                          unique_edge_minors.end(),
                           d_vertex_partition_firsts.begin(),
                           d_vertex_partition_firsts.end(),
                           d_key_offsets.begin());
       std::vector<vertex_t> h_key_offsets(row_comm_size + 1, vertex_t{0});
-      h_key_offsets.back() = static_cast<vertex_t>((*local_sorted_unique_edge_minors).size());
+      h_key_offsets.back() = static_cast<vertex_t>(unique_edge_minors.size());
       raft::update_host(
         h_key_offsets.data() + 1, d_key_offsets.data(), d_key_offsets.size(), handle.get_stream());
 
-      local_sorted_unique_edge_minor_offsets = std::move(h_key_offsets);
+      local_sorted_unique_edge_minors = std::move(unique_edge_minors);
+      local_sorted_unique_edge_minor_chunk_start_offsets =
+        std::move(unique_edge_minor_chunk_start_offsets);
+      local_sorted_unique_edge_minor_chunk_size               = chunk_size;
+      local_sorted_unique_edge_minor_vertex_partition_offsets = std::move(h_key_offsets);
     }
   }
 
   // 2. Update local_sorted_unique_edge_majors & local_sorted_unique_edge_major_offsets
 
-  vertex_t num_local_unique_edge_majors{0};
+  std::vector<vertex_t> num_local_unique_edge_major_counts(edge_partition_offsets.size());
   for (size_t i = 0; i < edge_partition_offsets.size(); ++i) {
-    num_local_unique_edge_majors += thrust::count_if(
+    num_local_unique_edge_major_counts[i] += thrust::count_if(
       handle.get_thrust_policy(),
       thrust::make_counting_iterator(vertex_t{0}),
       thrust::make_counting_iterator(static_cast<vertex_t>(edge_partition_offsets[i].size() - 1)),
       has_nzd_t<vertex_t, edge_t>{edge_partition_offsets[i].data(), vertex_t{0}});
   }
+  auto num_local_unique_edge_majors = std::reduce(num_local_unique_edge_major_counts.begin(),
+                                                  num_local_unique_edge_major_counts.end());
 
   vertex_t aggregate_major_range_size{0};
   for (size_t i = 0; i < meta.partition.number_of_local_edge_partitions(); ++i) {
@@ -605,72 +639,73 @@ update_local_sorted_unique_edge_majors_minors(
 
   if (max_major_properties_fill_ratio <
       detail::edge_partition_src_dst_property_values_kv_pair_fill_ratio_threshold) {
-    local_sorted_unique_edge_majors =
-      rmm::device_uvector<vertex_t>(num_local_unique_edge_majors, handle.get_stream());
-    size_t cur_size{0};
+    auto const chunk_size =
+      std::min(static_cast<size_t>(1.0 / max_major_properties_fill_ratio), size_t{1024});
+
+    (*local_sorted_unique_edge_majors).reserve(edge_partition_offsets.size());
+    (*local_sorted_unique_edge_major_chunk_start_offsets).reserve(edge_partition_offsets.size());
     for (size_t i = 0; i < edge_partition_offsets.size(); ++i) {
       auto [major_range_first, major_range_last] =
         meta.partition.local_edge_partition_major_range(i);
-      auto major_hypersparse_first =
-        use_dcs ? std::optional<vertex_t>{major_range_first +
-                                          (*edge_partition_segment_offsets)
-                                            [(*(meta.segment_offsets)).size() * i +
-                                             detail::num_sparse_segments_per_vertex_partition]}
-                : std::nullopt;
+      auto sparse_range_last =
+        use_dcs
+          ? (major_range_first +
+             (*edge_partition_segment_offsets)[(*(meta.segment_offsets)).size() * i +
+                                               detail::num_sparse_segments_per_vertex_partition])
+          : major_range_last;
+
+      rmm::device_uvector<vertex_t> unique_edge_majors(num_local_unique_edge_major_counts[i],
+                                                       handle.get_stream());
       CUGRAPH_EXPECTS(
-        (use_dcs ? *major_hypersparse_first : major_range_last) - major_range_first <
-          std::numeric_limits<int32_t>::max(),
+        sparse_range_last - major_range_first < std::numeric_limits<int32_t>::max(),
         "copy_if will fail (https://github.com/NVIDIA/thrust/issues/1302), work-around required.");
-      cur_size += thrust::distance(
-        (*local_sorted_unique_edge_majors).data() + cur_size,
+      auto cur_size = thrust::distance(
+        unique_edge_majors.begin(),
         thrust::copy_if(
           handle.get_thrust_policy(),
           thrust::make_counting_iterator(major_range_first),
-          thrust::make_counting_iterator(use_dcs ? *major_hypersparse_first : major_range_last),
-          (*local_sorted_unique_edge_majors).data() + cur_size,
+          thrust::make_counting_iterator(sparse_range_last),
+          unique_edge_majors.begin(),
           has_nzd_t<vertex_t, edge_t>{edge_partition_offsets[i].data(), major_range_first}));
       if (use_dcs) {
         thrust::copy(handle.get_thrust_policy(),
                      (*edge_partition_dcs_nzd_vertices)[i].begin(),
                      (*edge_partition_dcs_nzd_vertices)[i].begin() +
                        (*edge_partition_dcs_nzd_vertex_counts)[i],
-                     (*local_sorted_unique_edge_majors).data() + cur_size);
-        cur_size += (*edge_partition_dcs_nzd_vertex_counts)[i];
+                     unique_edge_majors.begin() + cur_size);
       }
-    }
-    assert(cur_size == num_local_unique_edge_majors);
 
-    std::vector<vertex_t> h_vertex_partition_firsts(col_comm_size - 1);
-    for (int i = 1; i < col_comm_size; ++i) {
-      h_vertex_partition_firsts[i - 1] =
-        meta.partition.vertex_partition_range_first(i * row_comm_size + row_comm_rank);
-    }
-    rmm::device_uvector<vertex_t> d_vertex_partition_firsts(h_vertex_partition_firsts.size(),
-                                                            handle.get_stream());
-    raft::update_device(d_vertex_partition_firsts.data(),
-                        h_vertex_partition_firsts.data(),
-                        h_vertex_partition_firsts.size(),
-                        handle.get_stream());
-    rmm::device_uvector<vertex_t> d_key_offsets(d_vertex_partition_firsts.size(),
-                                                handle.get_stream());
-    thrust::lower_bound(handle.get_thrust_policy(),
-                        (*local_sorted_unique_edge_majors).begin(),
-                        (*local_sorted_unique_edge_majors).end(),
-                        d_vertex_partition_firsts.begin(),
-                        d_vertex_partition_firsts.end(),
-                        d_key_offsets.begin());
-    std::vector<vertex_t> h_key_offsets(col_comm_size + 1, vertex_t{0});
-    h_key_offsets.back() = static_cast<vertex_t>((*local_sorted_unique_edge_majors).size());
-    raft::update_host(
-      h_key_offsets.data() + 1, d_key_offsets.data(), d_key_offsets.size(), handle.get_stream());
+      auto num_chunks = static_cast<size_t>(
+        ((major_range_last - major_range_first) + (chunk_size - size_t{1})) / chunk_size);
+      rmm::device_uvector<vertex_t> unique_edge_major_chunk_start_offsets(num_chunks + size_t{1},
+                                                                          handle.get_stream());
 
-    local_sorted_unique_edge_major_offsets = std::move(h_key_offsets);
+      auto chunk_start_vertex_first = thrust::make_transform_iterator(
+        thrust::make_counting_iterator(vertex_t{0}),
+        detail::multiply_and_add_t<vertex_t>{static_cast<vertex_t>(chunk_size), major_range_first});
+      thrust::lower_bound(handle.get_thrust_policy(),
+                          unique_edge_majors.begin(),
+                          unique_edge_majors.end(),
+                          chunk_start_vertex_first,
+                          chunk_start_vertex_first + num_chunks,
+                          unique_edge_major_chunk_start_offsets.begin());
+      unique_edge_major_chunk_start_offsets.set_element(
+        num_chunks, static_cast<vertex_t>(unique_edge_majors.size()), handle.get_stream());
+
+      (*local_sorted_unique_edge_majors).push_back(std::move(unique_edge_majors));
+      (*local_sorted_unique_edge_major_chunk_start_offsets)
+        .push_back(std::move(unique_edge_major_chunk_start_offsets));
+    }
+    local_sorted_unique_edge_major_chunk_size = chunk_size;
   }
 
   return std::make_tuple(std::move(local_sorted_unique_edge_majors),
-                         std::move(local_sorted_unique_edge_major_offsets),
+                         std::move(local_sorted_unique_edge_major_chunk_start_offsets),
+                         std::move(local_sorted_unique_edge_major_chunk_size),
                          std::move(local_sorted_unique_edge_minors),
-                         std::move(local_sorted_unique_edge_minor_offsets));
+                         std::move(local_sorted_unique_edge_minor_chunk_start_offsets),
+                         std::move(local_sorted_unique_edge_minor_chunk_size),
+                         std::move(local_sorted_unique_edge_minor_vertex_partition_offsets));
 }
 
 // compress edge list (COO) to CSR (or CSC) or CSR + DCSR (CSC + DCSC) hybrid
@@ -992,20 +1027,39 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
 
   // update local sorted unique edge sources/destinations (only if key, value pair will be used)
 
-  std::tie(store_transposed ? local_sorted_unique_edge_dsts_ : local_sorted_unique_edge_srcs_,
-           store_transposed ? local_sorted_unique_edge_dst_offsets_
-                            : local_sorted_unique_edge_src_offsets_,
-           store_transposed ? local_sorted_unique_edge_srcs_ : local_sorted_unique_edge_dsts_,
-           store_transposed ? local_sorted_unique_edge_src_offsets_
-                            : local_sorted_unique_edge_dst_offsets_) =
-    update_local_sorted_unique_edge_majors_minors<vertex_t, edge_t, store_transposed, multi_gpu>(
-      handle,
-      meta,
-      edge_partition_segment_offsets_,
-      edge_partition_offsets_,
-      edge_partition_indices_,
-      edge_partition_dcs_nzd_vertices_,
-      edge_partition_dcs_nzd_vertex_counts_);
+  if constexpr (store_transposed) {
+    std::tie(local_sorted_unique_edge_dsts_,
+             local_sorted_unique_edge_dst_chunk_start_offsets_,
+             local_sorted_unique_edge_dst_chunk_size_,
+             local_sorted_unique_edge_srcs_,
+             local_sorted_unique_edge_src_chunk_start_offsets_,
+             local_sorted_unique_edge_src_chunk_size_,
+             local_sorted_unique_edge_src_vertex_partition_offsets_) =
+      update_local_sorted_unique_edge_majors_minors<vertex_t, edge_t, store_transposed, multi_gpu>(
+        handle,
+        meta,
+        edge_partition_segment_offsets_,
+        edge_partition_offsets_,
+        edge_partition_indices_,
+        edge_partition_dcs_nzd_vertices_,
+        edge_partition_dcs_nzd_vertex_counts_);
+  } else {
+    std::tie(local_sorted_unique_edge_srcs_,
+             local_sorted_unique_edge_src_chunk_start_offsets_,
+             local_sorted_unique_edge_src_chunk_size_,
+             local_sorted_unique_edge_dsts_,
+             local_sorted_unique_edge_dst_chunk_start_offsets_,
+             local_sorted_unique_edge_dst_chunk_size_,
+             local_sorted_unique_edge_dst_vertex_partition_offsets_) =
+      update_local_sorted_unique_edge_majors_minors<vertex_t, edge_t, store_transposed, multi_gpu>(
+        handle,
+        meta,
+        edge_partition_segment_offsets_,
+        edge_partition_offsets_,
+        edge_partition_indices_,
+        edge_partition_dcs_nzd_vertices_,
+        edge_partition_dcs_nzd_vertex_counts_);
+  }
 }
 
 template <typename vertex_t,
@@ -1131,20 +1185,39 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
 
   // update local sorted unique edge sources/destinations (only if key, value pair will be used)
 
-  std::tie(store_transposed ? local_sorted_unique_edge_dsts_ : local_sorted_unique_edge_srcs_,
-           store_transposed ? local_sorted_unique_edge_dst_offsets_
-                            : local_sorted_unique_edge_src_offsets_,
-           store_transposed ? local_sorted_unique_edge_srcs_ : local_sorted_unique_edge_dsts_,
-           store_transposed ? local_sorted_unique_edge_src_offsets_
-                            : local_sorted_unique_edge_dst_offsets_) =
-    update_local_sorted_unique_edge_majors_minors<vertex_t, edge_t, store_transposed, multi_gpu>(
-      handle,
-      meta,
-      edge_partition_segment_offsets_,
-      edge_partition_offsets_,
-      edge_partition_indices_,
-      edge_partition_dcs_nzd_vertices_,
-      edge_partition_dcs_nzd_vertex_counts_);
+  if constexpr (store_transposed) {
+    std::tie(local_sorted_unique_edge_dsts_,
+             local_sorted_unique_edge_dst_chunk_start_offsets_,
+             local_sorted_unique_edge_dst_chunk_size_,
+             local_sorted_unique_edge_srcs_,
+             local_sorted_unique_edge_src_chunk_start_offsets_,
+             local_sorted_unique_edge_src_chunk_size_,
+             local_sorted_unique_edge_src_vertex_partition_offsets_) =
+      update_local_sorted_unique_edge_majors_minors<vertex_t, edge_t, store_transposed, multi_gpu>(
+        handle,
+        meta,
+        edge_partition_segment_offsets_,
+        edge_partition_offsets_,
+        edge_partition_indices_,
+        edge_partition_dcs_nzd_vertices_,
+        edge_partition_dcs_nzd_vertex_counts_);
+  } else {
+    std::tie(local_sorted_unique_edge_srcs_,
+             local_sorted_unique_edge_src_chunk_start_offsets_,
+             local_sorted_unique_edge_src_chunk_size_,
+             local_sorted_unique_edge_dsts_,
+             local_sorted_unique_edge_dst_chunk_start_offsets_,
+             local_sorted_unique_edge_dst_chunk_size_,
+             local_sorted_unique_edge_dst_vertex_partition_offsets_) =
+      update_local_sorted_unique_edge_majors_minors<vertex_t, edge_t, store_transposed, multi_gpu>(
+        handle,
+        meta,
+        edge_partition_segment_offsets_,
+        edge_partition_offsets_,
+        edge_partition_indices_,
+        edge_partition_dcs_nzd_vertices_,
+        edge_partition_dcs_nzd_vertex_counts_);
+  }
 }
 
 template <typename vertex_t,
