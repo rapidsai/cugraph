@@ -80,14 +80,17 @@ template <typename T>
 struct dataframe_element {
   using type = void;
 };
+
 template <typename... T>
 struct dataframe_element<std::tuple<rmm::device_uvector<T>...>> {
   using type = thrust::tuple<T...>;
 };
+
 template <typename T>
 struct dataframe_element<rmm::device_uvector<T>> {
   using type = T;
 };
+
 template <typename DataframeType>
 using dataframe_element_t = typename dataframe_element<DataframeType>::type;
 
