@@ -46,21 +46,28 @@ int generic_triangle_count_test(const cugraph_resource_handle_t* handle,
   cugraph_type_erased_device_array_t* p_start           = NULL;
   cugraph_type_erased_device_array_view_t* p_start_view = NULL;
 
+  int rank = 0;
+  rank = cugraph_resource_handle_get_rank(handle);
+
   ret_code = create_mg_test_graph(
     handle, h_src, h_dst, h_wgt, num_edges, store_transposed, TRUE, &p_graph, &ret_error);
 
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "create_mg_test_graph failed.");
 
   if (h_verts != NULL) {
-    ret_code =
-      cugraph_type_erased_device_array_create(handle, num_results, INT32, &p_start, &ret_error);
-    TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "p_start create failed.");
+    if (rank == 0) {
+      ret_code =
+        cugraph_type_erased_device_array_create(handle, num_results, INT32, &p_start, &ret_error);
+      TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "p_start create failed.");
 
-    p_start_view = cugraph_type_erased_device_array_view(p_start);
+      p_start_view = cugraph_type_erased_device_array_view(p_start);
 
-    ret_code = cugraph_type_erased_device_array_view_copy_from_host(
-      handle, p_start_view, (byte_t*)h_verts, &ret_error);
-    TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "src copy_from_host failed.");
+      ret_code = cugraph_type_erased_device_array_view_copy_from_host(
+        handle, p_start_view, (byte_t*)h_verts, &ret_error);
+      TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "src copy_from_host failed.");
+    } else {
+      p_start_view = cugraph_type_erased_device_array_view_create(NULL, 0, INT32);
+    }
   }
 
   ret_code = cugraph_triangle_count(handle, p_graph, p_start_view, FALSE, &p_result, &ret_error);
@@ -74,10 +81,6 @@ int generic_triangle_count_test(const cugraph_resource_handle_t* handle,
 
     vertices = cugraph_triangle_count_result_get_vertices(p_result);
     counts   = cugraph_triangle_count_result_get_counts(p_result);
-
-    TEST_ASSERT(test_ret_value,
-                cugraph_type_erased_device_array_view_size(vertices) == num_results,
-                "invalid number of results");
 
     vertex_t num_local_results = cugraph_type_erased_device_array_view_size(vertices);
 
@@ -93,11 +96,11 @@ int generic_triangle_count_test(const cugraph_resource_handle_t* handle,
     TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "copy_to_host failed.");
 
     for (int i = 0; (i < num_local_results) && (test_ret_value == 0); ++i) {
-      printf("h_vertices = %d, h_counts = %d, h_result = %d\n", h_vertices[i], h_counts[i], h_result[i]);
-    }
-
-    for (int i = 0; (i < num_local_results) && (test_ret_value == 0); ++i) {
-      TEST_ASSERT(test_ret_value, h_result[i] == h_counts[i], "counts results don't match");
+      for (int j = 0 ; j < num_results ; ++j) {
+        if (h_vertices[i] == h_verts[j]) {
+          TEST_ASSERT(test_ret_value, h_counts[i] == h_result[j], "counts results don't match");
+        }
+      }
     }
 
     cugraph_triangle_count_result_free(p_result);
