@@ -503,12 +503,15 @@ nbr_intersection(raft::handle_t const& handle,
     vertex_t edge_partition_minor_range_last{};
     if constexpr (GraphViewType::is_multi_gpu) {
       for (size_t i = 0; i < graph_view.number_of_local_edge_partitions(); i++) {
-        h_edge_partition_major_range_firsts[i] =
-          GraphViewType::is_storage_transposed ? graph_view.local_edge_partition_dst_range_first(i)
-                                               : graph_view.local_edge_partition_src_range_first(i);
-        h_edge_partition_major_range_lasts[i] =
-          GraphViewType::is_storage_transposed ? graph_view.local_edge_partition_dst_range_last(i)
-                                               : graph_view.local_edge_partition_src_range_last(i);
+        if constexpr (GraphViewType::is_storage_transposed) {
+          h_edge_partition_major_range_firsts[i] =
+            graph_view.local_edge_partition_dst_range_first(i);
+          h_edge_partition_major_range_lasts[i] = graph_view.local_edge_partition_dst_range_last(i);
+        } else {
+          h_edge_partition_major_range_firsts[i] =
+            graph_view.local_edge_partition_src_range_first(i);
+          h_edge_partition_major_range_lasts[i] = graph_view.local_edge_partition_src_range_last(i);
+        }
       }
       if constexpr (GraphViewType::is_storage_transposed) {
         edge_partition_minor_range_first = graph_view.local_edge_partition_src_range_first();
@@ -875,9 +878,11 @@ nbr_intersection(raft::handle_t const& handle,
       std::vector<vertex_t> h_edge_partition_major_range_lasts(
         graph_view.number_of_local_edge_partitions());
       for (size_t i = 0; i < graph_view.number_of_local_edge_partitions(); i++) {
-        h_edge_partition_major_range_lasts[i] =
-          GraphViewType::is_storage_transposed ? graph_view.local_edge_partition_dst_range_last(i)
-                                               : graph_view.local_edge_partition_src_range_last(i);
+        if constexpr (GraphViewType::is_storage_transposed) {
+          h_edge_partition_major_range_lasts[i] = graph_view.local_edge_partition_dst_range_last(i);
+        } else {
+          h_edge_partition_major_range_lasts[i] = graph_view.local_edge_partition_src_range_last(i);
+        }
       }
       rmm::device_uvector<vertex_t> d_edge_partition_major_range_lasts(
         h_edge_partition_major_range_lasts.size(), handle.get_stream());
