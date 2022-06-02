@@ -11,8 +11,8 @@ dependencies:
 - libcudf=22.08.*
 - rmm=22.08.*
 - librmm=22.08.*
-- libraft-headers=22.08.*
-- pyraft=22.08.*
+- libraft-headers=22.06.*
+- pyraft=22.06.*
 - cuda-python>=11.5,<12.0
 - dask>=2022.03.0
 - distributed>=2022.03.0
@@ -45,6 +45,3 @@ dependencies:
 - pytest-cov
 - gtest=1.10.0
 - gmock=1.10.0
-- ptxcompiler  # [linux64]
-- gcc_linux-64=9.* # [linux64]
-- sysroot_linux-64==2.17 # [linux64]
