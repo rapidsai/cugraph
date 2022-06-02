@@ -18,11 +18,11 @@ from dask.distributed import wait, default_client
 import dask_cudf
 import cudf
 
-from pylibcugraph.experimental import (MGGraph,
-                                       ResourceHandle,
-                                       GraphProperties,
-                                       uniform_neighborhood_sampling,
-                                       )
+from pylibcugraph import (MGGraph,
+                          ResourceHandle,
+                          GraphProperties
+                          )
+from pylibcugraph.experimental import uniform_neighborhood_sampling
 from cugraph.dask.common.input_utils import get_distributed_data
 from cugraph.dask.comms import comms as Comms
 
