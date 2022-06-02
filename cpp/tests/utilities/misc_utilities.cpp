@@ -18,8 +18,8 @@
 #include <raft/handle.hpp>
 #include <rmm/device_uvector.hpp>
 
-#include <vector>
 #include <numeric>
+#include <vector>
 
 namespace cugraph {
 namespace test {
@@ -35,8 +35,9 @@ std::string getFileName(const std::string& s)
   return ("");
 }
 
-void enforce_p2p_initialization(raft::handle_t const& handle) {
-  auto& comm = handle.get_comms();
+void enforce_p2p_initialization(raft::handle_t const& handle)
+{
+  auto& comm           = handle.get_comms();
   auto const comm_size = comm.get_size();
 
   rmm::device_uvector<int32_t> tx_ints(comm_size, handle.get_stream());
@@ -48,7 +49,7 @@ void enforce_p2p_initialization(raft::handle_t const& handle) {
   std::iota(tx_ranks.begin(), tx_ranks.end(), int32_t{0});
   auto rx_sizes   = tx_sizes;
   auto rx_offsets = tx_offsets;
-  auto rx_ranks = tx_ranks;
+  auto rx_ranks   = tx_ranks;
 
   comm.device_multicast_sendrecv(tx_ints.data(),
                                  tx_sizes,
