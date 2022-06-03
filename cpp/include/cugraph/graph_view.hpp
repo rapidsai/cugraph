@@ -614,16 +614,16 @@ class graph_view_t<vertex_t,
     vertex_t major_value_range_start_offset{};
     if constexpr (store_transposed) {
       major_range_first = this->local_edge_partition_dst_range_first(partition_idx);
-      major_range_first = this->local_edge_partition_dst_range_last(partition_idx);
+      major_range_last = this->local_edge_partition_dst_range_last(partition_idx);
       minor_range_first = this->local_edge_partition_src_range_first();
-      minor_range_first = this->local_edge_partition_src_range_last();
+      minor_range_last = this->local_edge_partition_src_range_last();
       major_value_range_start_offset =
         this->local_edge_partition_dst_value_start_offset(partition_idx);
     } else {
       major_range_first = this->local_edge_partition_src_range_first(partition_idx);
-      major_range_first = this->local_edge_partition_src_range_last(partition_idx);
+      major_range_last = this->local_edge_partition_src_range_last(partition_idx);
       minor_range_first = this->local_edge_partition_dst_range_first();
-      minor_range_first = this->local_edge_partition_dst_range_last();
+      minor_range_last = this->local_edge_partition_dst_range_last();
       major_value_range_start_offset =
         this->local_edge_partition_src_value_start_offset(partition_idx);
     }
