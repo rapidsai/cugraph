@@ -93,8 +93,8 @@ def hits(ResourceHandle resource_handle,
         Device array containing the pointer to the array of initial hub guess values
 
     normalized : bool, optional (default=True)
-        
-    
+
+
     do_expensive_check : bool
         If True, performs more extensive tests on the inputs to ensure
         validitity, at the expense of increased run time.
@@ -153,7 +153,6 @@ def hits(ResourceHandle resource_handle,
     cdef cugraph_hits_result_t* result_ptr
     cdef cugraph_error_code_t error_code
     cdef cugraph_error_t* error_ptr
-
 
     error_code = cugraph_hits(c_resource_handle_ptr,
                               c_graph_ptr,

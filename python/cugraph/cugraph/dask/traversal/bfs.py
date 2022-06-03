@@ -98,12 +98,14 @@ def bfs(input_graph,
     ----------
     input_graph : cugraph.Graph
         cuGraph graph instance, should contain the connectivity information
-        as dask cudf edge list dataframe(edge weights are not used for this
+        as dask cudf edge list dataframe (edge weights are not used for this
         algorithm).
 
-    start : Integer
-        Specify starting vertex for breadth-first search; this function
-        iterates over edges in the component reachable from this node.
+    start : Integer or list
+        The id of the graph vertex from which the traversal begins, or
+        if a list, the vertex from which the traversal begins in each
+        component of the graph.  Only one vertex per connected
+        component of the graph is allowed.
 
     depth_limit : Integer or None, optional (default=None)
         Limit the depth of the search

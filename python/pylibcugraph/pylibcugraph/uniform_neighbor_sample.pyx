@@ -28,21 +28,20 @@ from pylibcugraph._cugraph_c.error cimport (
 from pylibcugraph._cugraph_c.array cimport (
     cugraph_type_erased_device_array_view_t,
     cugraph_type_erased_device_array_view_create,
-    cugraph_type_erased_device_array_free,
+    cugraph_type_erased_device_array_view_free,
     cugraph_type_erased_host_array_view_t,
-    cugraph_type_erased_host_array_view_create
+    cugraph_type_erased_host_array_view_create,
+    cugraph_type_erased_host_array_view_free,
 )
 from pylibcugraph._cugraph_c.graph cimport (
     cugraph_graph_t,
 )
 from pylibcugraph._cugraph_c.algorithms cimport (
-    cugraph_uniform_neighbor_sample,
+    cugraph_experimental_uniform_neighbor_sample,
     cugraph_sample_result_t,
     cugraph_sample_result_get_sources,
     cugraph_sample_result_get_destinations,
-    cugraph_sample_result_get_start_labels,
     cugraph_sample_result_get_index,
-    cugraph_sample_result_get_counts,
     cugraph_sample_result_free,
 )
 from pylibcugraph.resource_handle cimport (
@@ -61,13 +60,12 @@ from pylibcugraph.utils cimport (
 )
 
 
-def EXPERIMENTAL__uniform_neighborhood_sampling(ResourceHandle resource_handle,
-                               MGGraph input_graph,
-                               start_list,
-                               labels_list,
-                               h_fan_out,
-                               bool_t with_replacement,
-                               bool_t do_expensive_check):
+def uniform_neighbor_sample(ResourceHandle resource_handle,
+                            _GPUGraph input_graph,
+                            start_list,
+                            h_fan_out,
+                            bool_t with_replacement,
+                            bool_t do_expensive_check):
     """
     Does neighborhood sampling, which samples nodes from a graph based on the
     current node's neighbors, with a corresponding fanout value at each hop.
@@ -83,10 +81,6 @@ def EXPERIMENTAL__uniform_neighborhood_sampling(ResourceHandle resource_handle,
 
     start_list: device array type
         Device array containing the list of starting vertices for sampling.
-
-    labels_list: device array type
-        Device array containing the starting labels for reorganizing the
-        results after sending the input to different callers.
 
     h_fan_out: numpy array type
         Device array containing the brancing out (fan-out) degrees per
@@ -114,7 +108,6 @@ def EXPERIMENTAL__uniform_neighborhood_sampling(ResourceHandle resource_handle,
     cdef cugraph_graph_t* c_graph_ptr = input_graph.c_graph_ptr
 
     assert_CAI_type(start_list, "start_list")
-    assert_CAI_type(labels_list, "labels_list")
     assert_AI_type(h_fan_out, "h_fan_out")
 
     cdef cugraph_sample_result_t* result_ptr
@@ -123,8 +116,6 @@ def EXPERIMENTAL__uniform_neighborhood_sampling(ResourceHandle resource_handle,
 
     cdef uintptr_t cai_start_ptr = \
         start_list.__cuda_array_interface__["data"][0]
-    cdef uintptr_t cai_labels_ptr = \
-        labels_list.__cuda_array_interface__["data"][0]
     cdef uintptr_t ai_fan_out_ptr = \
         h_fan_out.__array_interface__["data"][0]
 
@@ -133,47 +124,36 @@ def EXPERIMENTAL__uniform_neighborhood_sampling(ResourceHandle resource_handle,
             <void*>cai_start_ptr,
             len(start_list),
             get_c_type_from_numpy_type(start_list.dtype))
-    cdef cugraph_type_erased_device_array_view_t* start_labels_ptr = \
-        cugraph_type_erased_device_array_view_create(
-            <void*>cai_labels_ptr,
-            len(labels_list),
-            get_c_type_from_numpy_type(labels_list.dtype))
     cdef cugraph_type_erased_host_array_view_t* fan_out_ptr = \
         cugraph_type_erased_host_array_view_create(
             <void*>ai_fan_out_ptr,
             len(h_fan_out),
             get_c_type_from_numpy_type(h_fan_out.dtype))
 
-    error_code = cugraph_uniform_neighbor_sample(c_resource_handle_ptr,
-                                                 c_graph_ptr,
-                                                 start_ptr,
-                                                 start_labels_ptr,
-                                                 fan_out_ptr,
-                                                 with_replacement,
-                                                 do_expensive_check,
-                                                 &result_ptr,
-                                                 &error_ptr)
-    assert_success(error_code, error_ptr, "uniform_nbr_sample")
+    error_code = cugraph_experimental_uniform_neighbor_sample(
+        c_resource_handle_ptr,
+        c_graph_ptr,
+        start_ptr,
+        fan_out_ptr,
+        with_replacement,
+        do_expensive_check,
+        &result_ptr,
+        &error_ptr)
+    assert_success(error_code, error_ptr, "cugraph_uniform_neighbor_sample")
 
-    # TODO: counts is a part of the output, but another copy_to_cupy array
-    # with appropriate host array types would likely be required. Also
-    # potential memory leak until this is covered
     cdef cugraph_type_erased_device_array_view_t* src_ptr = \
         cugraph_sample_result_get_sources(result_ptr)
     cdef cugraph_type_erased_device_array_view_t* dst_ptr = \
         cugraph_sample_result_get_destinations(result_ptr)
-    cdef cugraph_type_erased_device_array_view_t* labels_ptr = \
-        cugraph_sample_result_get_start_labels(result_ptr)
     cdef cugraph_type_erased_device_array_view_t* index_ptr = \
         cugraph_sample_result_get_index(result_ptr)
-    # cdef cugraph_type_erased_host_array_view_t* counts_ptr = \
-    #    cugraph_sample_result_get_counts(result_ptr)
 
     cupy_sources = copy_to_cupy_array(c_resource_handle_ptr, src_ptr)
     cupy_destinations = copy_to_cupy_array(c_resource_handle_ptr, dst_ptr)
-    cupy_labels = copy_to_cupy_array(c_resource_handle_ptr, labels_ptr)
     cupy_indices = copy_to_cupy_array(c_resource_handle_ptr, index_ptr)
-    # cupy_counts = copy_to_cupy_array(c_resource_handle_ptr, counts_ptr)
 
-    return (cupy_sources, cupy_destinations, cupy_labels, cupy_indices)
-    # return (cupy_sources, cupy_destinations, cupy_labels, cupy_indices, cupy_counts)
+    cugraph_sample_result_free(result_ptr)
+    cugraph_type_erased_device_array_view_free(start_ptr)
+    cugraph_type_erased_host_array_view_free(fan_out_ptr)
+
+    return (cupy_sources, cupy_destinations, cupy_indices)

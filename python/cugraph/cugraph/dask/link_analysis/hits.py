@@ -122,8 +122,8 @@ def hits(input_graph, tol=1.0e-5, max_iter=100,  nstart=None, normalized=True):
     Returns
     -------
     HubsAndAuthorities : dask_cudf.DataFrame
-        GPU data frame containing three cudf.Series of size V: the vertex
-        identifiers and the corresponding hubs values and the corresponding
+        GPU distributed data frame containing three dask_cudf.Series of
+        size V: the vertex identifiers and the corresponding hubs and
         authorities values.
 
         df['vertex'] : dask_cudf.Series
