@@ -371,6 +371,7 @@ add_library(cugraph_c
         src/c_api/katz.cpp
         src/c_api/centrality_result.cpp
         src/c_api/eigenvector_centrality.cpp
+        src/c_api/core_number.cpp
         src/c_api/hits.cpp
         src/c_api/bfs.cpp
         src/c_api/sssp.cpp
