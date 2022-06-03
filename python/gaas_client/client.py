@@ -367,6 +367,7 @@ class GaasClient:
                                 type_name="",
                                 property_columns=None,
                                 graph_id=defaults.graph_id,
+                                names=None,
                                 ):
         """
         Reads csv_file_name and applies it as vertex data to the graph
@@ -404,6 +405,10 @@ class GaasClient:
         graph_id : int, default is defaults.graph_id
             The graph ID to apply the properties in the CSV to. If not provided,
             the default graph ID is used.
+        
+        names: list of strings, default is None
+            The names to be used to reference the CSV columns, in lieu of a
+            header.
 
         Returns
         -------
@@ -433,7 +438,8 @@ class GaasClient:
                                                      vertex_col_name,
                                                      type_name,
                                                      property_columns or [],
-                                                     graph_id)
+                                                     graph_id,
+                                                     names or [])
 
     @__server_connection
     def load_csv_as_edge_data(self,
@@ -445,6 +451,7 @@ class GaasClient:
                               type_name="",
                               property_columns=None,
                               graph_id=defaults.graph_id,
+                              names=None
                               ):
         """
         Reads csv_file_name and applies it as edge data to the graph identified
@@ -483,6 +490,10 @@ class GaasClient:
         graph_id : int, default is defaults.graph_id
             The graph ID to apply the properties in the CSV to. If not provided,
             the default graph ID is used.
+        
+        names: list of strings, default is None
+            The names to be used to reference the CSV columns, in lieu of a
+            header.
 
         Returns
         -------
@@ -512,7 +523,8 @@ class GaasClient:
                                                    vertex_col_names,
                                                    type_name,
                                                    property_columns or [],
-                                                   graph_id)
+                                                   graph_id,
+                                                   names or [])
 
     @__server_connection
     def get_num_vertices(self, graph_id=defaults.graph_id):
@@ -654,7 +666,8 @@ class GaasClient:
     def get_graph_vertex_dataframe_rows(self,
                                         index_or_indices=-1,
                                         null_replacement_value=0,
-                                        graph_id=defaults.graph_id
+                                        graph_id=defaults.graph_id,
+                                        property_keys=None
                                         ):
         """
         Returns ...
@@ -668,6 +681,10 @@ class GaasClient:
         graph_id : int, default is defaults.graph_id
            The graph ID to extract the subgraph from. If the ID passed is not
            valid on the server, GaaSError is raised.
+        
+        property_keys : list of strings (default [])
+            The keys (names) of properties to retrieve.  If omitted, returns
+            the whole dataframe.
 
         Returns
         -------
@@ -684,7 +701,11 @@ class GaasClient:
 
         ndarray_bytes = \
             self.__client.get_graph_vertex_dataframe_rows(
-                df_row_index_obj, null_replacement_value_obj, graph_id)
+                df_row_index_obj,
+                null_replacement_value_obj,
+                graph_id,
+                property_keys or []
+            )
 
         return numpy.loads(ndarray_bytes)
 
@@ -700,7 +721,8 @@ class GaasClient:
     def get_graph_edge_dataframe_rows(self,
                                       index_or_indices=-1,
                                       null_replacement_value=0,
-                                      graph_id=defaults.graph_id
+                                      graph_id=defaults.graph_id,
+                                      property_keys=None
                                       ):
         """
         Returns ...
@@ -714,6 +736,10 @@ class GaasClient:
         graph_id : int, default is defaults.graph_id
            The graph ID to extract the subgraph from. If the ID passed is not
            valid on the server, GaaSError is raised.
+        
+        property_keys : list of strings (default [])
+            The keys (names) of properties to retrieve.  If omitted, returns
+            the whole dataframe.
 
         Returns
         -------
@@ -730,7 +756,11 @@ class GaasClient:
 
         ndarray_bytes = \
             self.__client.get_graph_edge_dataframe_rows(
-                df_row_index_obj, null_replacement_value_obj, graph_id)
+                df_row_index_obj,
+                null_replacement_value_obj,
+                graph_id,
+                property_keys or []
+            )
 
         return numpy.loads(ndarray_bytes)
 

@@ -140,7 +140,8 @@ class GaasHandler:
                                 vertex_col_name,
                                 type_name,
                                 property_columns,
-                                graph_id
+                                graph_id,
+                                names
                                 ):
         """
         Given a CSV csv_file_name present on the server's file system, read it
@@ -152,13 +153,18 @@ class GaasHandler:
             header = "infer"
         elif header == -2:
             header = None
+
+        if len(names) == 0:
+            names = None
+
         # FIXME: error check that file exists
         # FIXME: error check that edgelist was read correctly
         try:
             gdf = cudf.read_csv(csv_file_name,
                                 delimiter=delimiter,
                                 dtype=dtypes,
-                                header=header)
+                                header=header,
+                                names=names)
             pG.add_vertex_data(gdf,
                                type_name=type_name,
                                vertex_col_name=vertex_col_name,
@@ -174,7 +180,8 @@ class GaasHandler:
                               vertex_col_names,
                               type_name,
                               property_columns,
-                              graph_id
+                              graph_id,
+                              names
                               ):
         """
         Given a CSV csv_file_name present on the server's file system, read it
@@ -188,11 +195,16 @@ class GaasHandler:
             header = "infer"
         elif header == -2:
             header = None
+
+        if len(names) == 0:
+            names = None
+
         try:
             gdf = cudf.read_csv(csv_file_name,
                                 delimiter=delimiter,
                                 dtype=dtypes,
-                                header=header)
+                                header=header,
+                                names=names)
             pG.add_edge_data(gdf,
                              type_name=type_name,
                              vertex_col_names=vertex_col_names,
@@ -276,7 +288,8 @@ class GaasHandler:
     def get_graph_vertex_dataframe_rows(self,
                                         index_or_indices,
                                         null_replacement_value,
-                                        graph_id):
+                                        graph_id,
+                                        property_keys):
         """
         """
         pG = self._get_graph(graph_id)
@@ -284,7 +297,10 @@ class GaasHandler:
         # FIXME: consider a better API on PG for getting tabular vertex data, or
         # just make the "internal" _vertex_prop_dataframe a proper public API.
         # FIXME: this should not assume _vertex_prop_dataframe != None
-        df = self.__get_dataframe_from_user_props(pG._vertex_prop_dataframe)
+        df = self.__get_dataframe_from_user_props(
+            pG._vertex_prop_dataframe,
+            property_keys
+        )
 
         return self.__get_dataframe_rows_as_numpy_bytes(df,
                                                         index_or_indices,
@@ -303,7 +319,8 @@ class GaasHandler:
     def get_graph_edge_dataframe_rows(self,
                                       index_or_indices,
                                       null_replacement_value,
-                                      graph_id):
+                                      graph_id,
+                                      property_keys):
         """
         """
         pG = self._get_graph(graph_id)
@@ -311,7 +328,10 @@ class GaasHandler:
         # FIXME: consider a better API on PG for getting tabular edge data, or
         # just make the "internal" _edge_prop_dataframe a proper public API.
         # FIXME: this should not assume _edge_prop_dataframe != None
-        df = self.__get_dataframe_from_user_props(pG._edge_prop_dataframe)
+        df = self.__get_dataframe_from_user_props(
+            pG._edge_prop_dataframe,
+            property_keys
+        )
 
         return self.__get_dataframe_rows_as_numpy_bytes(df,
                                                         index_or_indices,
@@ -443,7 +463,7 @@ class GaasHandler:
         self.__next_graph_id += 1
         return gid
 
-    def __get_dataframe_from_user_props(self, dataframe):
+    def __get_dataframe_from_user_props(self, dataframe, columns=None):
         """
         """
         internal_columns=[PropertyGraph.vertex_col_name,
@@ -454,12 +474,17 @@ class GaasHandler:
                           PropertyGraph.vertex_id_col_name,
                           PropertyGraph.weight_col_name]
 
-        # Create a list of user-visible columns by removing the internals while
-        # preserving order
-        all_user_columns = list(dataframe.columns)
-        for col_name in internal_columns:
-            if col_name in all_user_columns:
-                all_user_columns.remove(col_name)
+        if columns is None or len(columns) == 0:
+            all_user_columns = list(dataframe.columns)
+            # Create a list of user-visible columns by removing the internals while
+            # preserving order
+            for col_name in internal_columns:
+                if col_name in all_user_columns:
+                    all_user_columns.remove(col_name)
+        else:
+            all_user_columns = columns
+        
+        print(all_user_columns)
 
         # This should NOT be a copy of the dataframe data
         return dataframe[all_user_columns]

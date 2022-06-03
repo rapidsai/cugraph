@@ -91,7 +91,8 @@ service GaasService {
                                5:string vertex_col_name,
                                6:string type_name,
                                7:list<string> property_columns,
-                               8:i32 graph_id
+                               8:i32 graph_id,
+                               9:list<string> names
                                ) throws (1:GaasError e),
 
   void load_csv_as_edge_data(1:string csv_file_name,
@@ -101,12 +102,12 @@ service GaasService {
                              5:list<string> vertex_col_names,
                              6:string type_name,
                              7:list<string> property_columns,
-                             8:i32 graph_id
+                             8:i32 graph_id,
+                             9:list<string> names
                              ) throws (1:GaasError e),
 
   i32 get_num_edges(1:i32 graph_id) throws(1:GaasError e),
 
-<<<<<<< HEAD
   i32 get_num_vertices(1:i32 graph_id) throws(1:GaasError e),
 
   Node2vecResult
@@ -114,12 +115,11 @@ service GaasService {
            2:i32 max_depth,
            3:i32 graph_id
            ) throws (1:GaasError e),
-=======
+           
   list<i32> get_edge_IDs_for_vertices(1:list<i32> src_vert_IDs,
                                       2:list<i32> dst_vert_IDs,
                                       3:i32 graph_id
                              ) throws (1:GaasError e),
->>>>>>> b8f13ad5dd1f126308a2cb45c58dc69cd9e93fc5
 
   i32 extract_subgraph(1:string create_using,
                        2:string selection,
@@ -130,8 +130,9 @@ service GaasService {
                        ) throws (1:GaasError e),
 
   binary get_graph_vertex_dataframe_rows(1:DataframeRowIndex index_or_indices,
-                                         2:Value null_replacement_value
-                                         3:i32 graph_id
+                                         2:Value null_replacement_value,
+                                         3:i32 graph_id,
+                                         4:list<string> property_keys
                                          ) throws (1:GaasError e),
 
   list<i64> get_graph_vertex_dataframe_shape(1:i32 graph_id
@@ -139,7 +140,8 @@ service GaasService {
 
   binary get_graph_edge_dataframe_rows(1:DataframeRowIndex index_or_indices,
                                        2:Value null_replacement_value
-                                       3:i32 graph_id
+                                       3:i32 graph_id,
+                                       4:list<string> property_keys
                                        ) throws (1:GaasError e),
 
   list<i64> get_graph_edge_dataframe_shape(1:i32 graph_id
