@@ -88,6 +88,7 @@ class simpleGraphImpl:
         destination="destination",
         edge_attr=None,
         renumber=True,
+        legacy_renum_only=False,
     ):
 
         # Verify column names present in input DataFrame
@@ -146,11 +147,15 @@ class simpleGraphImpl:
         if renumber:
             # FIXME: Should SG do lazy evaluation like MG?
             elist, renumber_map = NumberMap.renumber(
-                elist, source, destination, store_transposed=False
+                elist, source, destination, store_transposed=False,
+                legacy_renum_only=legacy_renum_only
             )
             source = renumber_map.renumbered_src_col_name
             destination = renumber_map.renumbered_dst_col_name
-            self.properties.renumbered = True
+            # Use renumber_map to figure out if renumbering was skipped or not
+            # This was added to handle 'legacy_renum_only' which will skip the
+            # old C++ renumbering  when running the pylibcugraph/C algos
+            self.properties.renumbered = renumber_map.implementation.numbered
             self.renumber_map = renumber_map
         else:
             if type(source) is list and type(destination) is list:

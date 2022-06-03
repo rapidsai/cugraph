@@ -61,6 +61,7 @@ from cugraph.centrality import (
     edge_betweenness_centrality,
     katz_centrality,
     degree_centrality,
+    eigenvector_centrality,
 )
 
 from cugraph.cores import core_number, k_core
@@ -108,7 +109,13 @@ from cugraph.layout import force_atlas2
 from raft import raft_include_test
 from cugraph.dask.comms import comms
 
-from cugraph.sampling import random_walks, rw_path, node2vec
+from cugraph.sampling import (
+    random_walks,
+    rw_path,
+    node2vec,
+    uniform_neighbor_sample,
+)
+
 
 from cugraph import experimental
 

@@ -10,10 +10,3 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-from cugraph.utilities.api_tools import experimental_warning_wrapper
-
-from cugraph.dask.sampling.neighborhood_sampling import \
-    EXPERIMENTAL__uniform_neighborhood
-uniform_neighborhood_sampling = \
-    experimental_warning_wrapper(EXPERIMENTAL__uniform_neighborhood)
