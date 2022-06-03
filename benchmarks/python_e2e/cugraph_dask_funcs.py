@@ -18,12 +18,10 @@ from dask_cuda import LocalCUDACluster
 from cugraph.structure.symmetrize import symmetrize_ddf
 from cugraph.dask.common.mg_utils import get_visible_devices
 from dask_cuda.initialize import initialize
-from cugraph.experimental.dask import uniform_neighborhood_sampling
 import cudf
 
 import cugraph
 from cugraph.dask.comms import comms as Comms
-from cugraph.dask.common.mg_utils import get_visible_devices
 from cugraph.generators import rmat
 import tempfile
 
@@ -163,7 +161,7 @@ def neighborhood_sampling(G, start_info_list=None, fanout_vals=None):
         cudf.Series(start_info_list[1], dtype="int32"),
     )
                         
-    return uniform_neighborhood_sampling(
+    return cugraph.dask.uniform_neighbor_sample(
         G, start_info_list=start_info_list, fanout_vals=fanout_vals)
 
 ################################################################################
