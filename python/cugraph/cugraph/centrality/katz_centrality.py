@@ -17,7 +17,7 @@ from pylibcugraph import (ResourceHandle,
                           katz_centrality as pylibcugraph_katz
                           )
 from cugraph.utilities import (ensure_cugraph_obj_for_nx,
-                               df_score_to_dictionary
+                               df_score_to_dictionary,
                                )
 import cudf
 
