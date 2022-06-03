@@ -65,19 +65,48 @@ class Tests_MGPageRank
     raft::handle_t handle(rmm::cuda_stream_per_thread,
                           std::make_shared<rmm::cuda_stream_pool>(pool_size));
     HighResClock hr_clock{};
+#if 1
+    hr_clock.start();
+#endif
 
     raft::comms::initialize_mpi_comms(&handle, MPI_COMM_WORLD);
     auto& comm           = handle.get_comms();
     auto const comm_size = comm.get_size();
     auto const comm_rank = comm.get_rank();
 
-    auto row_comm_size = static_cast<int>(sqrt(static_cast<double>(comm_size)));
-    while (comm_size % row_comm_size != 0) {
-      --row_comm_size;
+    int row_comm_size{};
+    int num_gpus_per_node{};
+    RAFT_CUDA_TRY(cudaGetDeviceCount(&num_gpus_per_node));
+    if (comm_size > num_gpus_per_node) {  // multi-node, inter-node communication bandwidth
+                                          // (Infinniband) is more likely to be a bottleneck than
+                                          // intra-node (NVLink) communication bandwidth
+      CUGRAPH_EXPECTS((comm_size % num_gpus_per_node) == 0,
+                      "Invalid MPI configuration: in multi-node execution, # MPI processes should "
+                      "be a multiple of the number of GPUs per node.");
+      auto num_nodes = comm_size / num_gpus_per_node;
+      row_comm_size  = static_cast<int>(sqrt(static_cast<double>(num_nodes)));
+      while (num_nodes % row_comm_size != 0) {
+        --row_comm_size;
+      }
+      row_comm_size *= num_gpus_per_node;
+    } else {
+      row_comm_size = static_cast<int>(sqrt(static_cast<double>(comm_size)));
+      while (comm_size % row_comm_size != 0) {
+        --row_comm_size;
+      }
     }
 
     cugraph::partition_2d::subcomm_factory_t<cugraph::partition_2d::key_naming_t, vertex_t>
       subcomm_factory(handle, row_comm_size);
+
+#if 1
+    {
+    cugraph::test::enforce_p2p_initialization(handle);
+    double elapsed_time{0.0};
+    hr_clock.stop(&elapsed_time);
+    std::cout << "MG (row_comm_size=" << row_comm_size << " comm_size=" << comm_size << ") initialization took " << elapsed_time * 1e-6 << " s.\n";
+    }
+#endif
 
     // 2. create MG graph
 
@@ -276,7 +305,6 @@ class Tests_MGPageRank
         std::vector<result_t> h_sg_pageranks(sg_graph_view.number_of_vertices());
         raft::update_host(
           h_sg_pageranks.data(), d_sg_pageranks.data(), d_sg_pageranks.size(), handle.get_stream());
-
         handle.sync_stream();
 
         auto threshold_ratio = 1e-3;
