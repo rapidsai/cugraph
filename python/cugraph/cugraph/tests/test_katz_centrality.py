@@ -31,7 +31,7 @@ with warnings.catch_warnings():
     import networkx as nx
 
 # This toy graph is used in multiple tests throughout libcugraph_c and pylib.
-TOY_DATASET = utils.RAPIDS_DATASET_ROOT_DIR_PATH/"toy_graph.csv"
+TOY = utils.RAPIDS_DATASET_ROOT_DIR_PATH/'toy_graph_undirected.csv'
 
 
 # =============================================================================
@@ -144,10 +144,10 @@ def test_katz_centrality_multi_column(graph_file):
     assert top_res.equals(top_exp)
 
 
-@pytest.mark.parametrize("graph_file", [TOY_DATASET])
+@pytest.mark.parametrize("graph_file", [TOY])
 def test_katz_centrality_toy(graph_file):
     # This test is based off of libcugraph_c and pylibcugraph tests
-    df = cudf.read_csv(TOY_DATASET, delimiter=' ',
+    df = cudf.read_csv(graph_file, delimiter=' ',
                        dtype=['int32', 'int32', 'float32'], header=None)
     G = cugraph.Graph(directed=True)
     G.from_cudf_edgelist(df, source='0', destination='1', edge_attr='2')
