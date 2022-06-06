@@ -314,10 +314,6 @@ ConfigureTest(LEGACY_BETWEENNESS_TEST centrality/legacy/betweenness_centrality_t
 ConfigureTest(LEGACY_EDGE_BETWEENNESS_TEST centrality/legacy/edge_betweenness_centrality_test.cu)
 
 ###################################################################################################
-# - SSSP tests ------------------------------------------------------------------------------------
-ConfigureTest(LEGACY_SSSP_TEST traversal/legacy/sssp_test.cu)
-
-###################################################################################################
 # - BFS tests -------------------------------------------------------------------------------------
 ConfigureTest(LEGACY_BFS_TEST traversal/legacy/bfs_test.cu)
 
