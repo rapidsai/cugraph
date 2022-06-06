@@ -21,6 +21,7 @@ import numpy as np
 import pandas as pd
 import scipy
 import pytest
+import re
 
 import cugraph
 import pylibcugraph
@@ -31,6 +32,8 @@ from cugraph.testing import utils
 
 modules_to_skip = ["dask", "proto", "raft"]
 datasets = utils.RAPIDS_DATASET_ROOT_DIR_PATH
+
+cuda_version_string = ".".join([str(n) for n in cuda.runtime.get_version()])
 
 
 def _is_public_name(name):
@@ -86,15 +89,18 @@ def _find_doctests_in_obj(finder, obj, obj_name, criteria=None):
         if inspect.isfunction(member):
             yield from _find_doctests_in_docstring(finder, member)
         if inspect.isclass(member):
-            if _module_from_library(member, obj_name):
+            if member.__module__ and _module_from_library(member, obj_name):
                 yield from _find_doctests_in_docstring(finder, member)
 
 
 def _find_doctests_in_docstring(finder, member):
     for docstring in finder.find(member):
-        if docstring.examples:
-            if 'dask' not in str(docstring):
-                yield docstring
+        has_examples = docstring.examples
+        is_dask = 'dask' in str(docstring)
+        is_experimental = 'EXPERIMENTAL' in str(docstring)
+        # if has_examples and not is_dask:
+        if has_examples and not is_dask and not is_experimental:
+            yield docstring
 
 
 def _fetch_doctests():
@@ -103,6 +109,17 @@ def _fetch_doctests():
                                     _is_public_name)
     yield from _find_modules_in_obj(finder, pylibcugraph, 'pylibcugraph',
                                     _is_public_name)
+
+
+def skip_docstring(docstring):
+    # Depending on different builds or architectures, some examples
+    # won't work.
+    first_line = docstring.examples[0].source
+
+    if re.search("does not run on CUDA", first_line) and \
+       cuda_version_string in first_line:
+        return True
+    return False
 
 
 class TestDoctests:
@@ -125,6 +142,10 @@ class TestDoctests:
         # the use of an ellipsis "..." to match any string in the doctest
         # output. An ellipsis is useful for, e.g., memory addresses or
         # imprecise floating point values.
+        if skip_docstring(docstring):
+            print("Skipped!")
+            return
+
         optionflags = doctest.ELLIPSIS | doctest.NORMALIZE_WHITESPACE
         runner = doctest.DocTestRunner(optionflags=optionflags)
         np.random.seed(6)
@@ -132,13 +153,6 @@ class TestDoctests:
                      datasets_path=self.abs_datasets_path,
                      scipy=scipy, pd=pd)
         docstring.globs = globs
-
-        # FIXME: A 11.4 bug causes ktruss to crash in that
-        # environment. Skip docstring test if the cuda version is either
-        # 11.2 or 11.4. See ktruss_subgraph.py
-        if docstring.name == 'ktruss_subgraph':
-            if cuda.runtime.get_version() == (11, 4):
-                return
 
         # Capture stdout and include failing outputs in the traceback.
         doctest_stdout = io.StringIO()

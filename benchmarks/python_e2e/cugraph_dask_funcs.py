@@ -22,7 +22,7 @@ from cugraph.experimental.dask import uniform_neighborhood_sampling
 import cudf
 
 import cugraph
-from cugraph.comms import comms as Comms
+from cugraph.dask.comms import comms as Comms
 from cugraph.dask.common.mg_utils import get_visible_devices
 from cugraph.generators import rmat
 import tempfile
