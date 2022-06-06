@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
+#include <cugraph_c/error.h>
 #include <cugraph_c/graph.h>
 #include <cugraph_c/resource_handle.h>
-#include <cugraph_c/error.h>
 
 #include <cuda_runtime_api.h>
 

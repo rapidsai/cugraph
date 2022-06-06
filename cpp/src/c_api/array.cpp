@@ -28,7 +28,6 @@ cugraph::visitors::DTypes dtypes_mapping[] = {cugraph::visitors::DTypes::INT32,
 
 size_t data_type_sz[] = {4, 8, 4, 8};
 
-
 }  // namespace c_api
 }  // namespace cugraph
 
@@ -191,7 +190,10 @@ extern "C" cugraph_type_erased_host_array_view_t* cugraph_type_erased_host_array
 {
   return reinterpret_cast<cugraph_type_erased_host_array_view_t*>(
     new cugraph::c_api::cugraph_type_erased_host_array_view_t{
-      static_cast<std::byte*>(pointer), n_elems, n_elems * (cugraph::c_api::data_type_sz[dtype]), dtype});
+      static_cast<std::byte*>(pointer),
+      n_elems,
+      n_elems * (cugraph::c_api::data_type_sz[dtype]),
+      dtype});
 }
 
 extern "C" void cugraph_type_erased_host_array_view_free(cugraph_type_erased_host_array_view_t* p)
@@ -377,7 +379,8 @@ extern "C" cugraph_error_code_t cugraph_type_erased_device_array_view_as_type(
   auto internal_pointer =
     reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_t*>(array);
 
-  if (cugraph::c_api::data_type_sz[dtype] == cugraph::c_api::data_type_sz[internal_pointer->type_]) {
+  if (cugraph::c_api::data_type_sz[dtype] ==
+      cugraph::c_api::data_type_sz[internal_pointer->type_]) {
     *result_view = reinterpret_cast<cugraph_type_erased_device_array_view_t*>(
       new cugraph::c_api::cugraph_type_erased_device_array_view_t{internal_pointer->data_.data(),
                                                                   internal_pointer->size_,
