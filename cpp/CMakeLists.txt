@@ -239,11 +239,6 @@ add_library(cugraph
     src/structure/create_graph_from_edgelist_mg.cu
     src/structure/symmetrize_edgelist_sg.cu
     src/structure/symmetrize_edgelist_mg.cu
-    src/visitors/graph_envelope.cpp
-    src/visitors/visitors_factory.cpp
-    src/visitors/bfs_visitor.cpp
-    src/visitors/rw_visitor.cpp
-    src/visitors/graph_make_visitor.cpp
     src/community/triangle_count_sg.cu
     src/community/triangle_count_mg.cu
 )
@@ -360,7 +355,6 @@ endif()
 # - C-API library --------------------------------------------------------------
 
 add_library(cugraph_c
-        src/c_api/cugraph_api.cpp
         src/c_api/resource_handle.cpp
         src/c_api/array.cpp
         src/c_api/error.cpp
