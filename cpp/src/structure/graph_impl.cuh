@@ -632,10 +632,6 @@ update_local_sorted_unique_edge_majors_minors(
                             static_cast<double>(aggregate_major_range_size),
                           raft::comms::op_t::MAX,
                           handle.get_stream());
-  std::cout << "max_major_properties_fill_ratio=" << max_major_properties_fill_ratio
-            << " threshold="
-            << detail::edge_partition_src_dst_property_values_kv_pair_fill_ratio_threshold
-            << std::endl;
 
   if (max_major_properties_fill_ratio <
       detail::edge_partition_src_dst_property_values_kv_pair_fill_ratio_threshold) {
