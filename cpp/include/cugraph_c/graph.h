@@ -17,7 +17,6 @@
 #pragma once
 
 #include <cugraph_c/array.h>
-#include <cugraph_c/cugraph_api.h>
 
 #ifdef __cplusplus
 extern "C" {
