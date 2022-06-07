@@ -428,36 +428,6 @@ template <typename VT, typename ET, typename WT>
 std::unique_ptr<legacy::GraphCOO<VT, ET, WT>> get_two_hop_neighbors(
   legacy::GraphCSRView<VT, ET, WT> const& graph);
 
-/**
- * @Synopsis   Performs a single source shortest path traversal of a graph starting from a vertex.
- *
- * @throws     cugraph::logic_error with a custom message when an error occurs.
- *
- * @tparam VT                        Type of vertex identifiers. Supported value : int (signed,
- * 32-bit)
- * @tparam ET                        Type of edge identifiers.  Supported value : int (signed,
- * 32-bit)
- * @tparam WT                        Type of edge weights. Supported values : float or double.
- *
- * @param[in] graph                  cuGraph graph descriptor, should contain the connectivity
- * information as a CSR
- *
- * @param[out] distances            If set to a valid pointer, array of size V populated by distance
- * of every vertex in the graph from the starting vertex. Memory is provided and owned by the
- * caller.
- *
- * @param[out] predecessors         If set to a valid pointer, array of size V populated by the SSSP
- * predecessor of every vertex. Memory is provided and owned by the caller.
- *
- * @param[in] start_vertex           The starting vertex for SSSP
- *
- */
-template <typename VT, typename ET, typename WT>
-void sssp(legacy::GraphCSRView<VT, ET, WT> const& graph,
-          WT* distances,
-          VT* predecessors,
-          const VT source_vertex);
-
 // FIXME: Internally distances is of int (signed 32-bit) data type, but current
 // template uses data from VT, ET, WT from the legacy::GraphCSR View even if weights
 // are not considered
