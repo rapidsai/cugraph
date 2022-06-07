@@ -1,0 +1,11 @@
+{
+    "name": "dolphins",
+    "URL": "url-to-dolphins",
+    "is_directed": "",
+    "is_multigraph": "",
+    "is_symmetric": "",
+    "has_loop": "",
+    "number_of_nodes": 62,
+    "number_of_edges": 159,
+    "refs": ""
+}

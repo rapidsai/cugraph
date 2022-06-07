@@ -32,11 +32,12 @@ class MetaData:
         self.has_loop = meta['has_loop']
         self.number_of_nodes = meta['number_of_nodes']
         self.number_of_edges = meta['number_of_edges']
+        self.refs = meta['refs']
 
 
 class Dataset:
     def __init__(self, meta_data_file_name):
-        self.__meta_data_file_name = meta_data_file_name
+        self.__meta_data_file_name = meta_data_file_name    
         self.__edgelist = None
         self.__graph = None
 
@@ -60,12 +61,5 @@ class Dataset:
         return self.__graph
 
     def __read_meta_data_file(self, meta_data_file):
-        self.metadata = MetaData()
-        self.metadata.description = ...
-        self.metadata.url = ...
-
-import cugraph.experimental.datasets as datasets
-
-karate = datasets.karate # Dataset object, no data loaded
-# karate.edgelist # load data into cudf edgelist
-G = karate.Graph # load data into cugraph Graph
+        # MetaData obj reads in JSON
+        self.metadata = MetaData(meta_data_file)

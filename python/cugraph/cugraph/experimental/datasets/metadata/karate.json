@@ -6,5 +6,6 @@
     "is_symmetric": "False",
     "has_loop": "True",
     "number_of_nodes": 34,
-    "number_of_edges": 156
+    "number_of_edges": 156,
+    "refs": ""
 }
