@@ -46,8 +46,7 @@ int generic_triangle_count_test(const cugraph_resource_handle_t* handle,
   cugraph_type_erased_device_array_t* p_start           = NULL;
   cugraph_type_erased_device_array_view_t* p_start_view = NULL;
 
-  int rank = 0;
-  rank = cugraph_resource_handle_get_rank(handle);
+  int rank = cugraph_resource_handle_get_rank(handle);
 
   ret_code = create_mg_test_graph(
     handle, h_src, h_dst, h_wgt, num_edges, store_transposed, TRUE, &p_graph, &ret_error);
