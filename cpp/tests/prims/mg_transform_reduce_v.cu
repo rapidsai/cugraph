@@ -43,7 +43,7 @@ template <typename vertex_t, typename T>
 struct property_transform : public thrust::unary_function<vertex_t, T> {
   int mod{};
   property_transform(int mod_count) : mod(mod_count) {}
-  constexpr __device__ auto operator()(const vertex_t& val)
+  constexpr __device__ auto operator()(vertex_t, const vertex_t& val)
   {
     cuco::detail::MurmurHash3_32<vertex_t> hash_func{};
     auto value = hash_func(val) % mod;
@@ -56,7 +56,7 @@ struct property_transform<vertex_t, std::tuple<Args...>>
   : public thrust::unary_function<vertex_t, thrust::tuple<Args...>> {
   int mod{};
   property_transform(int mod_count) : mod(mod_count) {}
-  constexpr __device__ auto operator()(const vertex_t& val)
+  constexpr __device__ auto operator()(vertex_t, const vertex_t& val)
   {
     cuco::detail::MurmurHash3_32<vertex_t> hash_func{};
     auto value = hash_func(val) % mod;
@@ -189,20 +189,46 @@ class Tests_MG_TransformReduceV
     property_transform<vertex_t, result_t> prop(hash_bin_count);
     auto property_initial_value = generate<result_t>::initial_value(initial_value);
     using property_t            = decltype(property_initial_value);
-    raft::comms::op_t ops[]     = {
-      raft::comms::op_t::SUM, raft::comms::op_t::MIN, raft::comms::op_t::MAX};
+    enum class reduction_type_t { PLUS, MINIMUM, MAXIMUM };
+    reduction_type_t reduction_types[] = {
+      reduction_type_t::PLUS, reduction_type_t::MINIMUM, reduction_type_t::MAXIMUM};
 
-    std::unordered_map<raft::comms::op_t, property_t> results;
+    std::unordered_map<reduction_type_t, property_t> results;
 
-    for (auto op : ops) {
+    for (auto reduction_type : reduction_types) {
       if (cugraph::test::g_perf) {
         RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
         handle.get_comms().barrier();
         hr_clock.start();
       }
 
-      results[op] = transform_reduce_v(
-        handle, mg_graph_view, d_mg_renumber_map_labels->begin(), prop, property_initial_value, op);
+      switch (reduction_type) {
+        case reduction_type_t::PLUS:
+          results[reduction_type] = transform_reduce_v(handle,
+                                                       mg_graph_view,
+                                                       d_mg_renumber_map_labels->begin(),
+                                                       prop,
+                                                       property_initial_value,
+                                                       cugraph::reduce_op::plus<property_t>{});
+          break;
+        case reduction_type_t::MINIMUM:
+          results[reduction_type] = transform_reduce_v(handle,
+                                                       mg_graph_view,
+                                                       d_mg_renumber_map_labels->begin(),
+                                                       prop,
+                                                       property_initial_value,
+                                                       cugraph::reduce_op::minimum<property_t>{});
+          break;
+        case reduction_type_t::MAXIMUM:
+          results[reduction_type] = transform_reduce_v(handle,
+                                                       mg_graph_view,
+                                                       d_mg_renumber_map_labels->begin(),
+                                                       prop,
+                                                       property_initial_value,
+                                                       cugraph::reduce_op::maximum<property_t>{});
+          break;
+        default: FAIL() << "should not be reached.";
+      }
 
       if (cugraph::test::g_perf) {
         RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -213,7 +239,7 @@ class Tests_MG_TransformReduceV
       }
     }
 
-    //// 4. compare SG & MG results
+    // 4. compare SG & MG results
 
     if (prims_usecase.check_correctness) {
       cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed, false> sg_graph(handle);
@@ -222,19 +248,40 @@ class Tests_MG_TransformReduceV
           handle, input_usecase, true, false);
       auto sg_graph_view = sg_graph.view();
 
-      for (auto op : ops) {
-        auto expected_result = cugraph::op_dispatch<property_t>(
-          op, [&handle, &sg_graph_view, prop, property_initial_value](auto op) {
-            return thrust::transform_reduce(
-              handle.get_thrust_policy(),
-              thrust::make_counting_iterator(sg_graph_view.get_local_vertex_first()),
-              thrust::make_counting_iterator(sg_graph_view.get_local_vertex_last()),
+      for (auto reduction_type : reduction_types) {
+        property_t expected_result{};
+        switch (reduction_type) {
+          case reduction_type_t::PLUS:
+            expected_result = transform_reduce_v(
+              handle,
+              sg_graph_view,
+              thrust::make_counting_iterator(sg_graph_view.local_vertex_partition_range_first()),
               prop,
               property_initial_value,
-              op);
-          });
+              cugraph::reduce_op::plus<property_t>{});
+            break;
+          case reduction_type_t::MINIMUM:
+            expected_result = transform_reduce_v(
+              handle,
+              sg_graph_view,
+              thrust::make_counting_iterator(sg_graph_view.local_vertex_partition_range_first()),
+              prop,
+              property_initial_value,
+              cugraph::reduce_op::minimum<property_t>{});
+            break;
+          case reduction_type_t::MAXIMUM:
+            expected_result = transform_reduce_v(
+              handle,
+              sg_graph_view,
+              thrust::make_counting_iterator(sg_graph_view.local_vertex_partition_range_first()),
+              prop,
+              property_initial_value,
+              cugraph::reduce_op::maximum<property_t>{});
+            break;
+          default: FAIL() << "should not be reached.";
+        }
         result_compare<property_t> compare{};
-        ASSERT_TRUE(compare(expected_result, results[op]));
+        ASSERT_TRUE(compare(expected_result, results[reduction_type]));
       }
     }
   }

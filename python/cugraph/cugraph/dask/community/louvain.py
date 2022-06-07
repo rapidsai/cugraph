@@ -15,11 +15,10 @@ import operator as op
 
 from dask.distributed import wait, default_client
 
-import cugraph.comms.comms as Comms
+import cugraph.dask.comms.comms as Comms
 from cugraph.dask.common.input_utils import (get_distributed_data,
                                              get_vertex_partition_offsets)
 from cugraph.dask.community import louvain_wrapper as c_mg_louvain
-from cugraph.utilities.utils import is_cuda_version_less_than
 
 import dask_cudf
 
@@ -70,6 +69,8 @@ def louvain(input_graph, max_iter=100, resolution=1.0):
         and weights. The adjacency list will be computed if not already
         present.
 
+        The current implementation only supports undirected graphs.
+
     max_iter : integer, optional (default=100)
         This controls the maximum number of levels/iterations of the Louvain
         algorithm. When specified the algorithm will terminate after no more
@@ -99,31 +100,24 @@ def louvain(input_graph, max_iter=100, resolution=1.0):
 
     Examples
     --------
-    >>> # import cugraph.dask as dcg
+    >>> import cugraph.dask as dcg
+    >>> import dask_cudf
     >>> # ... Init a DASK Cluster
     >>> #    see https://docs.rapids.ai/api/cugraph/stable/dask-cugraph.html
     >>> # Download dataset from https://github.com/rapidsai/cugraph/datasets/..
-    >>> # chunksize = dcg.get_chunksize(datasets_path / "karate.csv")
-    >>> # ddf = dask_cudf.read_csv(input_data_path, chunksize=chunksize)
-    >>> # dg = cugraph.Graph(directed=True)
-    >>> # dg.from_dask_cudf_edgelist(ddf, source='src', destination='dst',
-    >>> #                            edge_attr='value')
-    >>> # parts, modularity_score = dcg.louvain(dg)
+    >>> chunksize = dcg.get_chunksize(datasets_path / "karate.csv")
+    >>> ddf = dask_cudf.read_csv(datasets_path / "karate.csv",
+    ...                          chunksize=chunksize, delimiter=" ",
+    ...                          names=["src", "dst", "value"],
+    ...                          dtype=["int32", "int32", "float32"])
+    >>> dg = cugraph.Graph()
+    >>> dg.from_dask_cudf_edgelist(ddf, source='src', destination='dst',
+    ...                            edge_attr='value')
+    >>> parts, modularity_score = dcg.louvain(dg)
+
     """
-    # FIXME: Uncomment out the above (broken) example
-
-    # MG Louvain currently requires CUDA 10.2 or higher.
-    # FIXME: remove this check once RAPIDS drops support for CUDA < 10.2
-    if is_cuda_version_less_than((10, 2)):
-        raise NotImplementedError("Multi-GPU Louvain is not implemented for "
-                                  "this version of CUDA. Ensure CUDA version "
-                                  "10.2 or higher is installed.")
-
-    # FIXME: dask methods to populate graphs from edgelists are only present on
-    # DiGraph classes. Disable the Graph check for now and assume inputs are
-    # symmetric DiGraphs.
-    # if type(graph) is not Graph:
-    #     raise Exception("input graph must be undirected")
+    if input_graph.is_directed():
+        raise ValueError("input graph must be undirected")
     client = default_client()
     # Calling renumbering results in data that is sorted by degree
     input_graph.compute_renumber_edge_list(transposed=False)

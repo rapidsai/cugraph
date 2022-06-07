@@ -15,7 +15,7 @@ from dask.distributed import wait, default_client
 from cugraph.dask.common.input_utils import (get_distributed_data,
                                              get_vertex_partition_offsets)
 from cugraph.dask.components import mg_connectivity_wrapper as mg_connectivity
-import cugraph.comms.comms as Comms
+import cugraph.dask.comms.comms as Comms
 import dask_cudf
 
 
@@ -54,6 +54,24 @@ def weakly_connected_components(input_graph):
 
         Graph or matrix object, which should contain the connectivity
         information
+
+    Examples
+    --------
+    >>> import cugraph.dask as dcg
+    >>> import dask_cudf
+    >>> # ... Init a DASK Cluster
+    >>> #    see https://docs.rapids.ai/api/cugraph/stable/dask-cugraph.html
+    >>> # Download dataset from https://github.com/rapidsai/cugraph/datasets/..
+    >>> chunksize = dcg.get_chunksize(datasets_path / "karate.csv")
+    >>> ddf = dask_cudf.read_csv(datasets_path / "karate.csv",
+    ...                          chunksize=chunksize, delimiter=" ",
+    ...                          names=["src", "dst", "value"],
+    ...                          dtype=["int32", "int32", "float32"])
+    >>> dg = cugraph.Graph(directed=True)
+    >>> dg.from_dask_cudf_edgelist(ddf, source='src', destination='dst',
+    ...                            edge_attr='value')
+    >>> result = dcg.weakly_connected_components(dg)
+
     """
 
     client = default_client()

@@ -15,11 +15,11 @@ import pytest
 import cupy as cp
 import numpy as np
 import cudf
-from pylibcugraph.experimental import (MGGraph,
-                                       ResourceHandle,
-                                       GraphProperties,
-                                       uniform_neighborhood_sampling,
-                                       )
+from pylibcugraph import (MGGraph,
+                          ResourceHandle,
+                          GraphProperties,
+                          )
+from pylibcugraph import uniform_neighbor_sample
 
 
 # =============================================================================
@@ -34,15 +34,16 @@ from pylibcugraph.experimental import (MGGraph,
 
 
 def check_edges(result, srcs, dsts, weights, num_verts, num_edges, num_seeds):
-    result_srcs, result_dsts, result_labels, result_indices = result
+    # FIXME: Update the result retrieval as the API changed
+    result_srcs, result_dsts, result_indices = result
     h_src_arr = srcs.get()
     h_dst_arr = dsts.get()
     h_wgt_arr = weights.get()
 
     h_result_srcs = result_srcs.get()
     h_result_dsts = result_dsts.get()
-    h_result_labels = result_labels.get()
-    h_result_indices = result_indices.get()
+    # FIXME: Variable not used
+    # h_result_indices = result_indices.get()
 
     # Following the C validation, we will check that all edges are part of the
     # graph
@@ -53,10 +54,12 @@ def check_edges(result, srcs, dsts, weights, num_verts, num_edges, num_seeds):
 
     for edge in range(h_result_srcs):
         assert M[h_result_srcs[edge]][h_result_dsts[edge]] > 0.0
-        found = False
+        # found = False
         for j in range(num_seeds):
-            # Revise, this is not correct
-            found = found or (h_result_labels[edge] == h_result_indices[j])
+            # FIXME: Revise, this is not correct.
+            # Labels are no longer supported.
+            # found = found or (h_result_labels[edge] == h_result_indices[j])
+            pass
 
 
 # TODO: Refactor after creating a helper within conftest.py to pass in an
@@ -71,7 +74,6 @@ def test_neighborhood_sampling_cupy():
     device_weights = cp.asarray([0.1, 2.1, 1.1, 5.1, 3.1, 4.1, 7.2, 3.2],
                                 dtype=np.float32)
     start_list = cp.asarray([2, 2], dtype=np.int32)
-    info_list = cp.asarray([0, 1], dtype=np.int32)
     fanout_vals = cp.asarray([1, 2], dtype=np.int32)
 
     mg = MGGraph(resource_handle,
@@ -83,13 +85,12 @@ def test_neighborhood_sampling_cupy():
                  num_edges=8,
                  do_expensive_check=False)
 
-    result = uniform_neighborhood_sampling(resource_handle,
-                                           mg,
-                                           start_list,
-                                           info_list,
-                                           fanout_vals,
-                                           with_replacement=True,
-                                           do_expensive_check=False)
+    result = uniform_neighbor_sample(resource_handle,
+                                     mg,
+                                     start_list,
+                                     fanout_vals,
+                                     with_replacement=True,
+                                     do_expensive_check=False)
 
     check_edges(result, device_srcs, device_dsts, device_weights, 6, 8, 2)
 
@@ -104,7 +105,6 @@ def test_neighborhood_sampling_cudf():
     device_weights = cudf.Series([0.1, 2.1, 1.1, 5.1, 3.1, 4.1, 7.2, 3.2],
                                  dtype=np.float32)
     start_list = cudf.Series([2, 2], dtype=np.int32)
-    info_list = cudf.Series([0, 1], dtype=np.int32)
     fanout_vals = cudf.Series([1, 2], dtype=np.int32)
 
     mg = MGGraph(resource_handle,
@@ -116,12 +116,11 @@ def test_neighborhood_sampling_cudf():
                  num_edges=8,
                  do_expensive_check=False)
 
-    result = uniform_neighborhood_sampling(resource_handle,
-                                           mg,
-                                           start_list,
-                                           info_list,
-                                           fanout_vals,
-                                           with_replacement=True,
-                                           do_expensive_check=False)
+    result = uniform_neighbor_sample(resource_handle,
+                                     mg,
+                                     start_list,
+                                     fanout_vals,
+                                     with_replacement=True,
+                                     do_expensive_check=False)
 
     check_edges(result, device_srcs, device_dsts, device_weights, 6, 8, 2)

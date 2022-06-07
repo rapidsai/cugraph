@@ -17,8 +17,8 @@
 #include <sampling/detail/gather_utils_impl.cuh>
 
 namespace cugraph {
-
 namespace detail {
+namespace original {
 
 template rmm::device_uvector<int32_t> compute_local_major_degrees(
   raft::handle_t const& handle,
@@ -186,7 +186,7 @@ template rmm::device_uvector<int64_t> get_active_major_global_degrees(
   const rmm::device_uvector<int64_t>& global_out_degrees);
 
 template std::tuple<
-  rmm::device_uvector<matrix_partition_device_view_t<int32_t, int32_t, float, true>>,
+  rmm::device_uvector<edge_partition_device_view_t<int32_t, int32_t, float, true>>,
   rmm::device_uvector<int32_t>,
   rmm::device_uvector<int32_t>,
   rmm::device_uvector<int32_t>,
@@ -195,7 +195,7 @@ partition_information(raft::handle_t const& handle,
                       graph_view_t<int32_t, int32_t, float, false, true> const& graph_view);
 
 template std::tuple<
-  rmm::device_uvector<matrix_partition_device_view_t<int32_t, int32_t, double, true>>,
+  rmm::device_uvector<edge_partition_device_view_t<int32_t, int32_t, double, true>>,
   rmm::device_uvector<int32_t>,
   rmm::device_uvector<int32_t>,
   rmm::device_uvector<int32_t>,
@@ -204,7 +204,7 @@ partition_information(raft::handle_t const& handle,
                       graph_view_t<int32_t, int32_t, double, false, true> const& graph_view);
 
 template std::tuple<
-  rmm::device_uvector<matrix_partition_device_view_t<int32_t, int64_t, float, true>>,
+  rmm::device_uvector<edge_partition_device_view_t<int32_t, int64_t, float, true>>,
   rmm::device_uvector<int32_t>,
   rmm::device_uvector<int32_t>,
   rmm::device_uvector<int32_t>,
@@ -213,7 +213,7 @@ partition_information(raft::handle_t const& handle,
                       graph_view_t<int32_t, int64_t, float, false, true> const& graph_view);
 
 template std::tuple<
-  rmm::device_uvector<matrix_partition_device_view_t<int32_t, int64_t, double, true>>,
+  rmm::device_uvector<edge_partition_device_view_t<int32_t, int64_t, double, true>>,
   rmm::device_uvector<int32_t>,
   rmm::device_uvector<int32_t>,
   rmm::device_uvector<int32_t>,
@@ -222,7 +222,7 @@ partition_information(raft::handle_t const& handle,
                       graph_view_t<int32_t, int64_t, double, false, true> const& graph_view);
 
 template std::tuple<
-  rmm::device_uvector<matrix_partition_device_view_t<int64_t, int64_t, float, true>>,
+  rmm::device_uvector<edge_partition_device_view_t<int64_t, int64_t, float, true>>,
   rmm::device_uvector<int64_t>,
   rmm::device_uvector<int64_t>,
   rmm::device_uvector<int64_t>,
@@ -231,7 +231,7 @@ partition_information(raft::handle_t const& handle,
                       graph_view_t<int64_t, int64_t, float, false, true> const& graph_view);
 
 template std::tuple<
-  rmm::device_uvector<matrix_partition_device_view_t<int64_t, int64_t, double, true>>,
+  rmm::device_uvector<edge_partition_device_view_t<int64_t, int64_t, double, true>>,
   rmm::device_uvector<int64_t>,
   rmm::device_uvector<int64_t>,
   rmm::device_uvector<int64_t>,
@@ -377,6 +377,6 @@ gather_one_hop_edgelist(raft::handle_t const& handle,
                         const rmm::device_uvector<int32_t>& active_major_gpu_ids,
                         const rmm::device_uvector<int64_t>& global_adjacency_list_offsets);
 
+}  // namespace original
 }  // namespace detail
-
 }  // namespace cugraph

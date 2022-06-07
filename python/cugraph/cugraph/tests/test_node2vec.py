@@ -16,7 +16,7 @@ import random
 
 import pytest
 
-from cugraph.tests import utils
+from cugraph.testing import utils
 import cugraph
 import cudf
 
@@ -138,7 +138,7 @@ def test_node2vec_line(graph_file, directed):
 @pytest.mark.parametrize(*_get_param_args("graph_file", utils.DATASETS_SMALL))
 @pytest.mark.parametrize(*_get_param_args("directed", DIRECTED_GRAPH_OPTIONS))
 @pytest.mark.parametrize(*_get_param_args("compress", COMPRESSED))
-def test_node2vec_new(
+def test_node2vec(
     graph_file,
     directed,
     compress,

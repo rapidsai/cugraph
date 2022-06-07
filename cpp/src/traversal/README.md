@@ -22,8 +22,8 @@ raft::handle_t handle;          // Must be configured if MG
 auto graph_view = graph.view(); // assumes you have created a graph somehow
 vertex_t source;                // Initialized by user
 
-rmm::device_uvector<weight_t> distances_v(graph_view.get_number_of_vertices(), handle.get_stream());
-rmm::device_uvector<vertex_t> predecessors_v(graph_view.get_number_of_vertices(), handle.get_stream());
+rmm::device_uvector<weight_t> distances_v(graph_view.number_of_vertices(), handle.get_stream());
+rmm::device_uvector<vertex_t> predecessors_v(graph_view.number_of_vertices(), handle.get_stream());
 
 cugraph::sssp(handle, graph_view, distances_v.begin(), predecessors_v.begin(), source, std::numeric_limits<weight_t>::max(), false);
 ```
@@ -49,8 +49,8 @@ raft::handle_t handle;          // Must be configured if MG
 auto graph_view = graph.view(); // assumes you have created a graph somehow
 vertex_t source;                // Initialized by user
 
-rmm::device_uvector<weight_t> distances_v(graph_view.get_number_of_vertices(), handle.get_stream());
-rmm::device_uvector<vertex_t> predecessors_v(graph_view.get_number_of_vertices(), handle.get_stream());
+rmm::device_uvector<weight_t> distances_v(graph_view.number_of_vertices(), handle.get_stream());
+rmm::device_uvector<vertex_t> predecessors_v(graph_view.number_of_vertices(), handle.get_stream());
 
 cugraph::bfs(handle, graph_view, d_distances.begin(), d_predecessors.begin(), source, false, std::numeric_limits<vertex_t>::max(), false);
 ```

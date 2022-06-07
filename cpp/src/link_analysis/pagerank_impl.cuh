@@ -17,10 +17,10 @@
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/graph_view.hpp>
-#include <cugraph/prims/copy_v_transform_reduce_in_out_nbr.cuh>
 #include <cugraph/prims/count_if_e.cuh>
 #include <cugraph/prims/count_if_v.cuh>
 #include <cugraph/prims/edge_partition_src_dst_property.cuh>
+#include <cugraph/prims/per_v_transform_reduce_incoming_outgoing_e.cuh>
 #include <cugraph/prims/reduce_v.cuh>
 #include <cugraph/prims/transform_reduce_v.cuh>
 #include <cugraph/prims/update_edge_partition_src_dst_property.cuh>
@@ -62,10 +62,10 @@ void pagerank(
                 "GraphViewType::vertex_type should be integral.");
   static_assert(std::is_floating_point<result_t>::value,
                 "result_t should be a floating-point type.");
-  static_assert(GraphViewType::is_adj_matrix_transposed,
+  static_assert(GraphViewType::is_storage_transposed,
                 "GraphViewType should support the pull model.");
 
-  auto const num_vertices = pull_graph_view.get_number_of_vertices();
+  auto const num_vertices = pull_graph_view.number_of_vertices();
   if (num_vertices == 0) { return; }
 
   auto aggregate_personalization_vector_size =
@@ -90,10 +90,11 @@ void pagerank(
 
   if (do_expensive_check) {
     if (precomputed_vertex_out_weight_sums) {
-      auto num_negative_precomputed_vertex_out_weight_sums = count_if_v(
-        handle, pull_graph_view, *precomputed_vertex_out_weight_sums, [] __device__(auto val) {
-          return val < result_t{0.0};
-        });
+      auto num_negative_precomputed_vertex_out_weight_sums =
+        count_if_v(handle,
+                   pull_graph_view,
+                   *precomputed_vertex_out_weight_sums,
+                   [] __device__(auto, auto val) { return val < result_t{0.0}; });
       CUGRAPH_EXPECTS(
         num_negative_precomputed_vertex_out_weight_sums == 0,
         "Invalid input argument: outgoing edge weight sum values should be non-negative.");
@@ -112,30 +113,37 @@ void pagerank(
 
     if (has_initial_guess) {
       auto num_negative_values = count_if_v(
-        handle, pull_graph_view, pageranks, [] __device__(auto val) { return val < 0.0; });
+        handle, pull_graph_view, pageranks, [] __device__(auto, auto val) { return val < 0.0; });
       CUGRAPH_EXPECTS(num_negative_values == 0,
                       "Invalid input argument: initial guess values should be non-negative.");
     }
 
     if (aggregate_personalization_vector_size > 0) {
       auto vertex_partition = vertex_partition_device_view_t<vertex_t, GraphViewType::is_multi_gpu>(
-        pull_graph_view.get_vertex_partition_view());
+        pull_graph_view.local_vertex_partition_view());
       auto num_invalid_vertices =
-        count_if_v(handle,
-                   pull_graph_view,
-                   *personalization_vertices,
-                   *personalization_vertices + *personalization_vector_size,
-                   [vertex_partition] __device__(auto val) {
-                     return !(vertex_partition.is_valid_vertex(val) &&
-                              vertex_partition.is_local_vertex_nocheck(val));
-                   });
+        thrust::count_if(handle.get_thrust_policy(),
+                         *personalization_vertices,
+                         *personalization_vertices + *personalization_vector_size,
+                         [vertex_partition] __device__(auto val) {
+                           return !(vertex_partition.is_valid_vertex(val) &&
+                                    vertex_partition.in_local_vertex_partition_range_nocheck(val));
+                         });
+      if constexpr (GraphViewType::is_multi_gpu) {
+        num_invalid_vertices = host_scalar_allreduce(
+          handle.get_comms(), num_invalid_vertices, raft::comms::op_t::SUM, handle.get_stream());
+      }
       CUGRAPH_EXPECTS(num_invalid_vertices == 0,
                       "Invalid input argument: peresonalization vertices have invalid vertex IDs.");
-      auto num_negative_values = count_if_v(handle,
-                                            pull_graph_view,
-                                            *personalization_values,
-                                            *personalization_values + *personalization_vector_size,
-                                            [] __device__(auto val) { return val < 0.0; });
+      auto num_negative_values =
+        thrust::count_if(handle.get_thrust_policy(),
+                         *personalization_values,
+                         *personalization_values + *personalization_vector_size,
+                         [] __device__(auto val) { return val < 0.0; });
+      if constexpr (GraphViewType::is_multi_gpu) {
+        num_negative_values = host_scalar_allreduce(
+          handle.get_comms(), num_negative_values, raft::comms::op_t::SUM, handle.get_stream());
+      }
       CUGRAPH_EXPECTS(num_negative_values == 0,
                       "Invalid input argument: peresonalization values should be non-negative.");
     }
@@ -160,13 +168,13 @@ void pagerank(
                     "guess values should be positive.");
     thrust::transform(handle.get_thrust_policy(),
                       pageranks,
-                      pageranks + pull_graph_view.get_number_of_local_vertices(),
+                      pageranks + pull_graph_view.local_vertex_partition_range_size(),
                       pageranks,
                       [sum] __device__(auto val) { return val / sum; });
   } else {
     thrust::fill(handle.get_thrust_policy(),
                  pageranks,
-                 pageranks + pull_graph_view.get_number_of_local_vertices(),
+                 pageranks + pull_graph_view.local_vertex_partition_range_size(),
                  result_t{1.0} / static_cast<result_t>(num_vertices));
   }
 
@@ -174,11 +182,14 @@ void pagerank(
 
   result_t personalization_sum{0.0};
   if (aggregate_personalization_vector_size > 0) {
-    personalization_sum = reduce_v(handle,
-                                   pull_graph_view,
-                                   *personalization_values,
-                                   *personalization_values + *personalization_vector_size,
-                                   result_t{0.0});
+    personalization_sum = thrust::reduce(handle.get_thrust_policy(),
+                                         *personalization_values,
+                                         *personalization_values + *personalization_vector_size,
+                                         result_t{0.0});
+    if constexpr (GraphViewType::is_multi_gpu) {
+      personalization_sum = host_scalar_allreduce(
+        handle.get_comms(), personalization_sum, raft::comms::op_t::SUM, handle.get_stream());
+    }
     CUGRAPH_EXPECTS(personalization_sum > 0.0,
                     "Invalid input argument: sum of personalization valuese "
                     "should be positive.");
@@ -187,15 +198,15 @@ void pagerank(
   // 5. pagerank iteration
 
   // old PageRank values
-  rmm::device_uvector<result_t> old_pageranks(pull_graph_view.get_number_of_local_vertices(),
+  rmm::device_uvector<result_t> old_pageranks(pull_graph_view.local_vertex_partition_range_size(),
                                               handle.get_stream());
-  edge_partition_src_property_t<GraphViewType, result_t> adj_matrix_row_pageranks(handle,
-                                                                                  pull_graph_view);
+  edge_partition_src_property_t<GraphViewType, result_t> edge_partition_src_pageranks(
+    handle, pull_graph_view);
   size_t iter{0};
   while (true) {
     thrust::copy(handle.get_thrust_policy(),
                  pageranks,
-                 pageranks + pull_graph_view.get_number_of_local_vertices(),
+                 pageranks + pull_graph_view.local_vertex_partition_range_size(),
                  old_pageranks.data());
 
     auto vertex_val_first =
@@ -205,7 +216,7 @@ void pagerank(
       handle,
       pull_graph_view,
       vertex_val_first,
-      [] __device__(auto val) {
+      [] __device__(auto, auto val) {
         auto const pagerank       = thrust::get<0>(val);
         auto const out_weight_sum = thrust::get<1>(val);
         return out_weight_sum == result_t{0.0} ? pagerank : result_t{0.0};
@@ -214,7 +225,7 @@ void pagerank(
 
     thrust::transform(handle.get_thrust_policy(),
                       vertex_val_first,
-                      vertex_val_first + pull_graph_view.get_number_of_local_vertices(),
+                      vertex_val_first + pull_graph_view.local_vertex_partition_range_size(),
                       pageranks,
                       [] __device__(auto val) {
                         auto const pagerank       = thrust::get<0>(val);
@@ -225,17 +236,17 @@ void pagerank(
                       });
 
     update_edge_partition_src_property(
-      handle, pull_graph_view, pageranks, adj_matrix_row_pageranks);
+      handle, pull_graph_view, pageranks, edge_partition_src_pageranks);
 
     auto unvarying_part = aggregate_personalization_vector_size == 0
                             ? (dangling_sum * alpha + static_cast<result_t>(1.0 - alpha)) /
                                 static_cast<result_t>(num_vertices)
                             : result_t{0.0};
 
-    copy_v_transform_reduce_in_nbr(
+    per_v_transform_reduce_incoming_e(
       handle,
       pull_graph_view,
-      adj_matrix_row_pageranks.device_view(),
+      edge_partition_src_pageranks.device_view(),
       dummy_property_t<vertex_t>{}.device_view(),
       [alpha] __device__(vertex_t, vertex_t, weight_t w, auto src_val, auto) {
         return src_val * w * alpha;
@@ -245,7 +256,7 @@ void pagerank(
 
     if (aggregate_personalization_vector_size > 0) {
       auto vertex_partition = vertex_partition_device_view_t<vertex_t, GraphViewType::is_multi_gpu>(
-        pull_graph_view.get_vertex_partition_view());
+        pull_graph_view.local_vertex_partition_view());
       auto val_first = thrust::make_zip_iterator(
         thrust::make_tuple(*personalization_vertices, *personalization_values));
       thrust::for_each(
@@ -256,7 +267,7 @@ void pagerank(
           auto val) {
           auto v     = thrust::get<0>(val);
           auto value = thrust::get<1>(val);
-          *(pageranks + vertex_partition.get_local_vertex_offset_from_vertex_nocheck(v)) +=
+          *(pageranks + vertex_partition.local_vertex_partition_offset_from_vertex_nocheck(v)) +=
             (dangling_sum * alpha + static_cast<result_t>(1.0 - alpha)) *
             (value / personalization_sum);
         });
@@ -266,7 +277,7 @@ void pagerank(
       handle,
       pull_graph_view,
       thrust::make_zip_iterator(thrust::make_tuple(pageranks, old_pageranks.data())),
-      [] __device__(auto val) { return std::abs(thrust::get<0>(val) - thrust::get<1>(val)); },
+      [] __device__(auto, auto val) { return std::abs(thrust::get<0>(val) - thrust::get<1>(val)); },
       result_t{0.0});
 
     iter++;

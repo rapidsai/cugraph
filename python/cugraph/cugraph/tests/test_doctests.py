@@ -16,20 +16,24 @@ import doctest
 import inspect
 import io
 import os
-import pathlib
 
 import numpy as np
 import pandas as pd
 import scipy
 import pytest
+import re
 
 import cugraph
+import pylibcugraph
 import cudf
 from numba import cuda
+from cugraph.testing import utils
 
 
 modules_to_skip = ["dask", "proto", "raft"]
-datasets = pathlib.Path(cugraph.__path__[0]).parent.parent.parent / "datasets"
+datasets = utils.RAPIDS_DATASET_ROOT_DIR_PATH
+
+cuda_version_string = ".".join([str(n) for n in cuda.runtime.get_version()])
 
 
 def _is_public_name(name):
@@ -40,24 +44,24 @@ def _is_python_module(member):
     return os.path.splitext(member.__file__)[1] == '.py'
 
 
-def _module_from_cugraph(member):
-    return 'cugraph' in member.__module__
+def _module_from_library(member, libname):
+    return libname in member.__module__
 
 
-def _file_from_cugraph(member):
-    return 'cugraph' in member.__file__
+def _file_from_library(member, libname):
+    return libname in member.__file__
 
 
-def _find_modules_in_obj(finder, obj, criteria=None):
+def _find_modules_in_obj(finder, obj, obj_name, criteria=None):
     for name, member in inspect.getmembers(obj):
         if criteria is not None and not criteria(name):
             continue
         if inspect.ismodule(member) and (member not in modules_to_skip):
-            yield from _find_doctests_in_obj(finder,
-                                             member, _is_public_name)
+            yield from _find_doctests_in_obj(finder, member, obj_name,
+                                             _is_public_name)
 
 
-def _find_doctests_in_obj(finder, obj, criteria=None):
+def _find_doctests_in_obj(finder, obj, obj_name, criteria=None):
     """Find all doctests in a module or class.
     Parameters
     ----------
@@ -79,27 +83,48 @@ def _find_doctests_in_obj(finder, obj, criteria=None):
             continue
 
         if inspect.ismodule(member):
-            if _file_from_cugraph(member) and _is_python_module(member):
-                _find_doctests_in_obj(finder, member, criteria)
+            if _file_from_library(member, obj_name) and \
+               _is_python_module(member):
+                _find_doctests_in_obj(finder, member, obj_name, criteria)
         if inspect.isfunction(member):
             yield from _find_doctests_in_docstring(finder, member)
         if inspect.isclass(member):
-            if _module_from_cugraph(member):
+            if member.__module__ and _module_from_library(member, obj_name):
                 yield from _find_doctests_in_docstring(finder, member)
 
 
 def _find_doctests_in_docstring(finder, member):
     for docstring in finder.find(member):
-        if docstring.examples:
+        has_examples = docstring.examples
+        is_dask = 'dask' in str(docstring)
+        is_experimental = 'EXPERIMENTAL' in str(docstring)
+        # if has_examples and not is_dask:
+        if has_examples and not is_dask and not is_experimental:
             yield docstring
 
 
 def _fetch_doctests():
     finder = doctest.DocTestFinder()
-    yield from _find_modules_in_obj(finder, cugraph, _is_public_name)
+    yield from _find_modules_in_obj(finder, cugraph, 'cugraph',
+                                    _is_public_name)
+    yield from _find_modules_in_obj(finder, pylibcugraph, 'pylibcugraph',
+                                    _is_public_name)
+
+
+def skip_docstring(docstring):
+    # Depending on different builds or architectures, some examples
+    # won't work.
+    first_line = docstring.examples[0].source
+
+    if re.search("does not run on CUDA", first_line) and \
+       cuda_version_string in first_line:
+        return True
+    return False
 
 
 class TestDoctests:
+    abs_datasets_path = datasets.absolute()
+
     @pytest.fixture(autouse=True)
     def chdir_to_tmp_path(cls, tmp_path):
         original_directory = os.getcwd()
@@ -117,19 +142,17 @@ class TestDoctests:
         # the use of an ellipsis "..." to match any string in the doctest
         # output. An ellipsis is useful for, e.g., memory addresses or
         # imprecise floating point values.
+        if skip_docstring(docstring):
+            print("Skipped!")
+            return
+
         optionflags = doctest.ELLIPSIS | doctest.NORMALIZE_WHITESPACE
         runner = doctest.DocTestRunner(optionflags=optionflags)
         np.random.seed(6)
-        globs = dict(cudf=cudf, np=np, cugraph=cugraph, datasets_path=datasets,
+        globs = dict(cudf=cudf, np=np, cugraph=cugraph,
+                     datasets_path=self.abs_datasets_path,
                      scipy=scipy, pd=pd)
         docstring.globs = globs
-
-        # FIXME: A 11.4 bug causes ktruss to crash in that
-        # environment. Skip docstring test if the cuda version is either
-        # 11.2 or 11.4. See ktruss_subgraph.py
-        if docstring.name == 'ktruss_subgraph':
-            if cuda.runtime.get_version() == (11, 4):
-                return
 
         # Capture stdout and include failing outputs in the traceback.
         doctest_stdout = io.StringIO()

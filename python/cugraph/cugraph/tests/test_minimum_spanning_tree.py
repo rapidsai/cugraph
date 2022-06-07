@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2021, NVIDIA CORPORATION.
+# Copyright (c) 2019-2022, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -20,7 +20,7 @@ import rmm
 import cudf
 
 import cugraph
-from cugraph.tests import utils
+from cugraph.testing import utils
 
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
@@ -37,9 +37,25 @@ with warnings.catch_warnings():
 print("Networkx version : {} ".format(nx.__version__))
 
 
+# =============================================================================
+# Pytest Setup / Teardown - called for each test function
+# =============================================================================
+def setup_function():
+    gc.collect()
+
+
+def _get_param_args(param_name, param_values):
+    """
+    Returns a tuple of (<param_name>, <pytest.param list>) which can be applied
+    as the args to pytest.mark.parametrize(). The pytest.param list also
+    contains param id string formed from the param name and values.
+    """
+    return (param_name,
+            [pytest.param(v, id=f"{param_name}={v}") for v in param_values])
+
+
 @pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED_WEIGHTS)
 def test_minimum_spanning_tree_nx(graph_file):
-    gc.collect()
     # cugraph
     cuG = utils.read_csv_file(graph_file, read_weights_in_sp=True)
     G = cugraph.Graph()
@@ -64,6 +80,17 @@ def test_minimum_spanning_tree_nx(graph_file):
     utils.compare_mst(cugraph_mst, mst_nx)
 
 
+@pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED_WEIGHTS)
+@pytest.mark.parametrize(*_get_param_args("use_adjlist", [True, False]))
+def test_minimum_spanning_tree_graph_repr_compat(graph_file, use_adjlist):
+    cuG = utils.read_csv_file(graph_file, read_weights_in_sp=True)
+    G = cugraph.Graph()
+    G.from_cudf_edgelist(cuG, source="0", destination="1", edge_attr="2")
+    if use_adjlist:
+        G.view_adj_list()
+    cugraph.minimum_spanning_tree(G)
+
+
 DATASETS_SIZES = [
     100000,
     1000000,
@@ -75,7 +102,6 @@ DATASETS_SIZES = [
 @pytest.mark.skip(reason="Skipping large tests")
 @pytest.mark.parametrize("graph_size", DATASETS_SIZES)
 def test_random_minimum_spanning_tree_nx(graph_size):
-    gc.collect()
     rmm.reinitialize(managed_memory=True)
     df = utils.random_edgelist(
         e=graph_size,

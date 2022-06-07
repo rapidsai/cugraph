@@ -22,7 +22,7 @@ import cudf
 
 from cugraph.dask.common.input_utils import get_distributed_data
 from cugraph.structure import renumber_wrapper as c_renumber
-import cugraph.comms.comms as Comms
+import cugraph.dask.comms.comms as Comms
 
 
 def call_renumber(sID,
@@ -63,6 +63,7 @@ class NumberMap:
             )
             index_name = NumberMap.generate_unused_column_name(df.columns)
             tmp_df[index_name] = tmp_df.index
+
             return (
                 self.df.merge(tmp_df, on=self.col_names, how="right")
                 .sort_values(index_name)
@@ -135,6 +136,7 @@ class NumberMap:
             return ret
 
         def indirection_map(self, df, src_col_names, dst_col_names):
+            # src_col_names and dst_col_names are lists
             tmp_df = cudf.DataFrame()
 
             tmp = (
@@ -155,11 +157,13 @@ class NumberMap:
                     .count()
                     .reset_index()
                 )
-                for newname, oldname in zip(self.col_names, dst_col_names):
-                    tmp_df[newname] = tmp[newname].append(tmp_dst[oldname])
+                # Need to have the same column names before both df can be
+                # concat
+                tmp_dst.columns = tmp.columns
+                tmp_df = cudf.concat([tmp, tmp_dst])
             else:
-                for newname in self.col_names:
-                    tmp_df[newname] = tmp[newname]
+                newname = self.col_names
+                tmp_df = tmp[newname]
 
             tmp_df = tmp_df.groupby(self.col_names).count().reset_index()
             tmp_df["id"] = tmp_df.index.astype(self.id_type)
@@ -266,16 +270,12 @@ class NumberMap:
                     .count()
                     .reset_index()
                 )
-                for i, (newname, oldname) in enumerate(zip(self.col_names,
-                                                           dst_col_names)):
-                    if i == 0:
-                        tmp_df = tmp[newname].append(tmp_dst[oldname]).\
-                            to_frame(name=newname)
-                    else:
-                        tmp_df[newname] = tmp[newname].append(tmp_dst[oldname])
+                tmp_dst.columns = tmp.columns
+                tmp_df = dask_cudf.concat([tmp, tmp_dst])
+
             else:
-                for newname in self.col_names:
-                    tmp_df[newname] = tmp[newname]
+                newname = self.col_names
+                tmp_df = tmp[newname]
             tmp_ddf = tmp_df.groupby(self.col_names).count().reset_index()
 
             # Set global index
@@ -500,15 +500,28 @@ class NumberMap:
     @staticmethod
     def renumber_and_segment(
         df, src_col_names, dst_col_names, preserve_order=False,
-        store_transposed=False
+        store_transposed=False, legacy_renum_only=False
     ):
+        renumbered = True
+        # FIXME: Drop the renumber_type 'experimental' once all the
+        # algos follow the C/Pylibcugraph path
+
+        # The renumber_type 'legacy' runs both the python and the
+        # C++ renumbering.
         if isinstance(src_col_names, list):
             renumber_type = 'legacy'
         elif not (df[src_col_names].dtype == np.int32 or
                   df[src_col_names].dtype == np.int64):
             renumber_type = 'legacy'
         else:
+            # The renumber_type 'experimental' only runs the C++
+            # renumbering
             renumber_type = 'experimental'
+
+        if legacy_renum_only and renumber_type == 'experimental':
+            # The original dataframe will be returned.
+            renumber_type = 'skip_renumbering'
+            renumbered = False
 
         renumber_map = NumberMap()
         if not isinstance(src_col_names, list):
@@ -535,6 +548,8 @@ class NumberMap:
         else:
             raise TypeError("df must be cudf.DataFrame or dask_cudf.DataFrame")
 
+        renumber_map.implementation.numbered = renumbered
+
         if renumber_type == 'legacy':
             indirection_map = renumber_map.implementation.\
                               indirection_map(df,
@@ -548,6 +563,12 @@ class NumberMap:
                 df, renumber_map.renumbered_dst_col_name, dst_col_names,
                 drop=True, preserve_order=preserve_order
             )
+        elif renumber_type == 'skip_renumbering':
+            # Update the renumbered source and destination column name
+            # with the original input's source and destination name
+            renumber_map.renumbered_src_col_name = src_col_names[0]
+            renumber_map.renumbered_dst_col_name = dst_col_names[0]
+
         else:
             df = df.rename(
                 columns={src_col_names[0]:
@@ -563,99 +584,112 @@ class NumberMap:
             is_mnmg = False
 
         if is_mnmg:
-            client = default_client()
-            data = get_distributed_data(df)
-            result = [(client.submit(call_renumber,
-                                     Comms.get_session_id(),
-                                     wf[1],
-                                     renumber_map.renumbered_src_col_name,
-                                     renumber_map.renumbered_dst_col_name,
-                                     num_edges,
-                                     is_mnmg,
-                                     store_transposed,
-                                     workers=[wf[0]]), wf[0])
-                      for idx, wf in enumerate(data.worker_to_parts.items())]
-            wait(result)
+            # Do not renumber the algos following the C/Pylibcugraph path
+            if renumber_type in ['legacy', 'experimental']:
+                client = default_client()
+                data = get_distributed_data(df)
+                result = [(client.submit(call_renumber,
+                                         Comms.get_session_id(),
+                                         wf[1],
+                                         renumber_map.renumbered_src_col_name,
+                                         renumber_map.renumbered_dst_col_name,
+                                         num_edges,
+                                         is_mnmg,
+                                         store_transposed,
+                                         workers=[wf[0]]), wf[0])
+                          for idx, wf in enumerate(
+                              data.worker_to_parts.items())]
+                wait(result)
 
-            def get_renumber_map(id_type, data):
-                return data[0].astype(id_type)
+                def get_renumber_map(id_type, data):
+                    return data[0].astype(id_type)
 
-            def get_segment_offsets(data):
-                return data[1]
+                def get_segment_offsets(data):
+                    return data[1]
 
-            def get_renumbered_df(id_type, data):
-                data[2][renumber_map.renumbered_src_col_name] = \
-                    data[2][renumber_map.renumbered_src_col_name]\
-                    .astype(id_type)
-                data[2][renumber_map.renumbered_dst_col_name] = \
-                    data[2][renumber_map.renumbered_dst_col_name]\
-                    .astype(id_type)
-                return data[2]
+                def get_renumbered_df(id_type, data):
+                    data[2][renumber_map.renumbered_src_col_name] = \
+                        data[2][renumber_map.renumbered_src_col_name]\
+                        .astype(id_type)
+                    data[2][renumber_map.renumbered_dst_col_name] = \
+                        data[2][renumber_map.renumbered_dst_col_name]\
+                        .astype(id_type)
+                    return data[2]
 
-            renumbering_map = dask_cudf.from_delayed(
-                                 [client.submit(get_renumber_map,
-                                                id_type,
-                                                data,
-                                                workers=[wf])
-                                     for (data, wf) in result])
+                renumbering_map = dask_cudf.from_delayed(
+                                    [client.submit(get_renumber_map,
+                                                   id_type,
+                                                   data,
+                                                   workers=[wf])
+                                        for (data, wf) in result])
 
-            list_of_segment_offsets = client.gather(
-                                          [client.submit(get_segment_offsets,
-                                                         data,
-                                                         workers=[wf])
-                                              for (data, wf) in result])
-            aggregate_segment_offsets = []
-            for segment_offsets in list_of_segment_offsets:
-                aggregate_segment_offsets.extend(segment_offsets)
+                list_of_segment_offsets = client.gather(
+                                            [client.submit(get_segment_offsets,
+                                                           data,
+                                                           workers=[wf])
+                                                for (data, wf) in result])
+                aggregate_segment_offsets = []
+                for segment_offsets in list_of_segment_offsets:
+                    aggregate_segment_offsets.extend(segment_offsets)
 
-            renumbered_df = dask_cudf.from_delayed(
-                               [client.submit(get_renumbered_df,
-                                              id_type,
-                                              data,
-                                              workers=[wf])
-                                   for (data, wf) in result])
-            if renumber_type == 'legacy':
-                renumber_map.implementation.ddf = indirection_map.merge(
-                    renumbering_map,
-                    right_on='original_ids', left_on='global_id',
-                    how='right').\
-                    drop(columns=['global_id', 'original_ids'])\
-                    .rename(columns={'new_ids': 'global_id'})
+                renumbered_df = dask_cudf.from_delayed(
+                                [client.submit(get_renumbered_df,
+                                               id_type,
+                                               data,
+                                               workers=[wf])
+                                    for (data, wf) in result])
+                if renumber_type == 'legacy':
+                    renumber_map.implementation.ddf = indirection_map.merge(
+                        renumbering_map,
+                        right_on='original_ids', left_on='global_id',
+                        how='right').\
+                        drop(columns=['global_id', 'original_ids'])\
+                        .rename(columns={'new_ids': 'global_id'})
+                else:
+                    renumber_map.implementation.ddf = renumbering_map.rename(
+                        columns={'original_ids': '0', 'new_ids': 'global_id'})
+                return renumbered_df, renumber_map, aggregate_segment_offsets
+
             else:
-                renumber_map.implementation.ddf = renumbering_map.rename(
-                    columns={'original_ids': '0', 'new_ids': 'global_id'})
-            renumber_map.implementation.numbered = True
-            return renumbered_df, renumber_map, aggregate_segment_offsets
+                # There is no aggregate_segment_offsets since the
+                # C++ renumbering is skipped
+                return df, renumber_map, None
 
         else:
-            renumbering_map, segment_offsets, renumbered_df = \
-                c_renumber.renumber(df,
-                                    renumber_map.renumbered_src_col_name,
-                                    renumber_map.renumbered_dst_col_name,
-                                    num_edges,
-                                    0,
-                                    Comms.get_default_handle(),
-                                    is_mnmg,
-                                    store_transposed)
-            if renumber_type == 'legacy':
-                renumber_map.implementation.df = indirection_map.\
-                    merge(renumbering_map,
-                          right_on='original_ids', left_on='id').\
-                    drop(columns=['id', 'original_ids'])\
-                    .rename(columns={'new_ids': 'id'}, copy=False)
-            else:
-                renumber_map.implementation.df = renumbering_map.rename(
-                    columns={'original_ids': '0', 'new_ids': 'id'}, copy=False)
+            # Do not renumber the algos following the C/Pylibcugraph path
+            if renumber_type in ['legacy', 'experimental']:
+                renumbering_map, segment_offsets, renumbered_df = \
+                    c_renumber.renumber(df,
+                                        renumber_map.renumbered_src_col_name,
+                                        renumber_map.renumbered_dst_col_name,
+                                        num_edges,
+                                        0,
+                                        Comms.get_default_handle(),
+                                        is_mnmg,
+                                        store_transposed)
+                if renumber_type == 'legacy':
+                    renumber_map.implementation.df = indirection_map.merge(
+                        renumbering_map,
+                        right_on='original_ids',
+                        left_on='id').drop(columns=['id', 'original_ids'])\
+                        .rename(columns={'new_ids': 'id'}, copy=False)
+                else:
+                    renumber_map.implementation.df = renumbering_map.rename(
+                        columns={
+                            'original_ids': '0', 'new_ids': 'id'}, copy=False)
 
-            renumber_map.implementation.numbered = True
-            return renumbered_df, renumber_map, segment_offsets
+                return renumbered_df, renumber_map, segment_offsets
+            else:
+                # There is no aggregate_segment_offsets since the
+                # C++ renumbering is skipped
+                return df, renumber_map, None
 
     @staticmethod
     def renumber(df, src_col_names, dst_col_names, preserve_order=False,
-                 store_transposed=False):
+                 store_transposed=False, legacy_renum_only=False):
         return NumberMap.renumber_and_segment(
             df, src_col_names, dst_col_names,
-            preserve_order, store_transposed)[0:2]
+            preserve_order, store_transposed, legacy_renum_only)[0:2]
 
     def unrenumber(self, df, column_name, preserve_order=False,
                    get_column_names=False):

@@ -102,23 +102,23 @@ class Tests_ExtractBfsPaths
 
     ASSERT_TRUE(static_cast<vertex_t>(extract_bfs_paths_usecase.source) >= 0 &&
                 static_cast<vertex_t>(extract_bfs_paths_usecase.source) <
-                  mg_graph_view.get_number_of_vertices())
+                  mg_graph_view.number_of_vertices())
       << "Invalid starting source.";
 
     ASSERT_TRUE(extract_bfs_paths_usecase.num_paths_to_check > 0) << "Invalid num_paths_to_check";
-    ASSERT_TRUE(extract_bfs_paths_usecase.num_paths_to_check <
-                mg_graph_view.get_number_of_vertices())
+    ASSERT_TRUE(extract_bfs_paths_usecase.num_paths_to_check < mg_graph_view.number_of_vertices())
       << "Invalid num_paths_to_check, more than number of vertices";
 
-    rmm::device_uvector<vertex_t> d_mg_distances(mg_graph_view.get_number_of_local_vertices(),
+    rmm::device_uvector<vertex_t> d_mg_distances(mg_graph_view.local_vertex_partition_range_size(),
                                                  handle.get_stream());
-    rmm::device_uvector<vertex_t> d_mg_predecessors(mg_graph_view.get_number_of_local_vertices(),
-                                                    handle.get_stream());
+    rmm::device_uvector<vertex_t> d_mg_predecessors(
+      mg_graph_view.local_vertex_partition_range_size(), handle.get_stream());
 
-    auto const d_mg_source = mg_graph_view.is_local_vertex_nocheck(extract_bfs_paths_usecase.source)
-                               ? std::make_optional<rmm::device_scalar<vertex_t>>(
-                                   extract_bfs_paths_usecase.source, handle.get_stream())
-                               : std::nullopt;
+    auto const d_mg_source =
+      mg_graph_view.in_local_vertex_partition_range_nocheck(extract_bfs_paths_usecase.source)
+        ? std::make_optional<rmm::device_scalar<vertex_t>>(extract_bfs_paths_usecase.source,
+                                                           handle.get_stream())
+        : std::nullopt;
 
     cugraph::bfs(handle,
                  mg_graph_view,
@@ -129,8 +129,8 @@ class Tests_ExtractBfsPaths
                  false,
                  std::numeric_limits<vertex_t>::max());
 
-    std::vector<vertex_t> h_mg_distances(mg_graph_view.get_number_of_local_vertices());
-    std::vector<vertex_t> h_mg_predecessors(mg_graph_view.get_number_of_local_vertices());
+    std::vector<vertex_t> h_mg_distances(mg_graph_view.local_vertex_partition_range_size());
+    std::vector<vertex_t> h_mg_predecessors(mg_graph_view.local_vertex_partition_range_size());
 
     raft::update_host(
       h_mg_distances.data(), d_mg_distances.data(), d_mg_distances.size(), handle.get_stream());
@@ -143,8 +143,8 @@ class Tests_ExtractBfsPaths
 
     auto d_mg_destinations = cugraph::test::randomly_select_destinations<false>(
       handle,
-      mg_graph_view.get_number_of_local_vertices(),
-      mg_graph_view.get_local_vertex_first(),
+      mg_graph_view.local_vertex_partition_range_size(),
+      mg_graph_view.local_vertex_partition_range_first(),
       d_mg_predecessors,
       extract_bfs_paths_usecase.num_paths_to_check);
 
@@ -187,9 +187,9 @@ class Tests_ExtractBfsPaths
                  d_mg_destinations.size(),
                  handle.get_stream());
 
-      rmm::device_uvector<vertex_t> d_sg_distances(sg_graph_view.get_number_of_vertices(),
+      rmm::device_uvector<vertex_t> d_sg_distances(sg_graph_view.number_of_vertices(),
                                                    handle.get_stream());
-      rmm::device_uvector<vertex_t> d_sg_predecessors(sg_graph_view.get_number_of_vertices(),
+      rmm::device_uvector<vertex_t> d_sg_predecessors(sg_graph_view.number_of_vertices(),
                                                       handle.get_stream());
       rmm::device_uvector<vertex_t> d_sg_paths(0, handle.get_stream());
 
@@ -201,7 +201,7 @@ class Tests_ExtractBfsPaths
         std::vector<size_t> rx_counts(comm.get_size(), size_t{0});
         std::vector<size_t> displacements(comm.get_size(), size_t{0});
         for (int i = 0; i < comm.get_size(); ++i) {
-          rx_counts[i]     = mg_graph_view.get_vertex_partition_size(i);
+          rx_counts[i]     = mg_graph_view.vertex_partition_range_size(i);
           displacements[i] = (i == 0) ? 0 : displacements[i - 1] + rx_counts[i - 1];
         }
         comm.allgatherv(d_mg_distances.data(),

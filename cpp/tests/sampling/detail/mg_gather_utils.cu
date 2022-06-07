@@ -15,6 +15,9 @@
  */
 
 #include "nbr_sampling_utils.cuh"
+#include <raft/comms/comms.hpp>
+#include <raft/comms/mpi_comms.hpp>
+
 #include <gtest/gtest.h>
 
 struct Prims_Usecase {
@@ -84,14 +87,14 @@ class Tests_MG_GatherEdges
     // Generate random vertex ids in the range of current gpu
 
     auto [global_degree_offsets, global_out_degrees] =
-      cugraph::detail::get_global_degree_information(handle, mg_graph_view);
-    auto global_adjacency_list_offsets = cugraph::detail::get_global_adjacency_offset(
+      cugraph::detail::original::get_global_degree_information(handle, mg_graph_view);
+    auto global_adjacency_list_offsets = cugraph::detail::original::get_global_adjacency_offset(
       handle, mg_graph_view, global_degree_offsets, global_out_degrees);
 
     // Generate random sources to gather on
     auto random_sources = random_vertex_ids(handle,
-                                            mg_graph_view.get_local_vertex_first(),
-                                            mg_graph_view.get_local_vertex_last(),
+                                            mg_graph_view.local_vertex_partition_range_first(),
+                                            mg_graph_view.local_vertex_partition_range_last(),
                                             source_sample_count,
                                             repetitions_per_vertex);
     rmm::device_uvector<int> random_source_gpu_ids(random_sources.size(), handle.get_stream());
@@ -101,21 +104,21 @@ class Tests_MG_GatherEdges
                  comm_rank);
 
     auto [active_sources, active_source_gpu_ids] =
-      cugraph::detail::gather_active_majors(handle,
-                                            mg_graph_view,
-                                            random_sources.cbegin(),
-                                            random_sources.cend(),
-                                            random_source_gpu_ids.cbegin());
+      cugraph::detail::original::gather_active_majors(handle,
+                                                      mg_graph_view,
+                                                      random_sources.cbegin(),
+                                                      random_sources.cend(),
+                                                      random_source_gpu_ids.cbegin());
 
     // get source global out degrees to generate indices
-    auto active_source_degrees = cugraph::detail::get_active_major_global_degrees(
+    auto active_source_degrees = cugraph::detail::original::get_active_major_global_degrees(
       handle, mg_graph_view, active_sources, global_out_degrees);
 
     auto random_destination_indices =
       generate_random_destination_indices(handle,
                                           active_source_degrees,
-                                          mg_graph_view.get_number_of_vertices(),
-                                          mg_graph_view.get_number_of_edges(),
+                                          mg_graph_view.number_of_vertices(),
+                                          mg_graph_view.number_of_edges(),
                                           indices_per_source);
     rmm::device_uvector<edge_t> input_destination_indices(random_destination_indices.size(),
                                                           handle.get_stream());
@@ -125,14 +128,14 @@ class Tests_MG_GatherEdges
                         handle.get_stream());
 
     auto [src, dst, gpu_ids, dst_map] =
-      cugraph::detail::gather_local_edges(handle,
-                                          mg_graph_view,
-                                          active_sources,
-                                          active_source_gpu_ids,
-                                          std::move(input_destination_indices),
-                                          indices_per_source,
-                                          global_degree_offsets,
-                                          global_adjacency_list_offsets);
+      cugraph::detail::original::gather_local_edges(handle,
+                                                    mg_graph_view,
+                                                    active_sources,
+                                                    active_source_gpu_ids,
+                                                    std::move(input_destination_indices),
+                                                    indices_per_source,
+                                                    global_degree_offsets,
+                                                    global_adjacency_list_offsets);
 
     if (prims_usecase.check_correctness) {
       // Gather outputs
@@ -186,7 +189,7 @@ class Tests_MG_GatherEdges
                                                           sg_random_srcs.begin(),
                                                           sg_random_srcs.end(),
                                                           sg_random_dst_indices.begin(),
-                                                          sg_graph_view.get_number_of_vertices(),
+                                                          sg_graph_view.number_of_vertices(),
                                                           indices_per_source);
         sort_coo(handle, sg_out_srcs, sg_out_dsts);
 

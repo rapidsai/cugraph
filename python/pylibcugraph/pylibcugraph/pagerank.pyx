@@ -29,15 +29,15 @@ from pylibcugraph._cugraph_c.array cimport (
 from pylibcugraph._cugraph_c.graph cimport (
     cugraph_graph_t,
 )
-from pylibcugraph._cugraph_c.algorithms cimport (
-    cugraph_pagerank_result_t,
+from pylibcugraph._cugraph_c.centrality_algorithms cimport (
+    cugraph_centrality_result_t,
     cugraph_pagerank,
-    cugraph_pagerank_result_get_vertices,
-    cugraph_pagerank_result_get_pageranks,
-    cugraph_pagerank_result_free,
+    cugraph_centrality_result_get_vertices,
+    cugraph_centrality_result_get_values,
+    cugraph_centrality_result_free,
 )
 from pylibcugraph.resource_handle cimport (
-    EXPERIMENTAL__ResourceHandle,
+    ResourceHandle,
 )
 from pylibcugraph.graphs cimport (
     _GPUGraph,
@@ -49,14 +49,14 @@ from pylibcugraph.utils cimport (
 )
 
 
-def EXPERIMENTAL__pagerank(EXPERIMENTAL__ResourceHandle resource_handle,
-                           _GPUGraph graph,
-                           precomputed_vertex_out_weight_sums,
-                           double alpha,
-                           double epsilon,
-                           size_t max_iterations,
-                           bool_t has_initial_guess,
-                           bool_t do_expensive_check):
+def pagerank(ResourceHandle resource_handle,
+            _GPUGraph graph,
+            precomputed_vertex_out_weight_sums,
+            double alpha,
+            double epsilon,
+            size_t max_iterations,
+            bool_t has_initial_guess,
+            bool_t do_expensive_check):
     """
     Find the PageRank score for every vertex in a graph by computing an
     approximation of the Pagerank eigenvector using the power method. The
@@ -121,13 +121,13 @@ def EXPERIMENTAL__pagerank(EXPERIMENTAL__ResourceHandle resource_handle,
     >>> srcs = cupy.asarray([0, 1, 2], dtype=numpy.int32)
     >>> dsts = cupy.asarray([1, 2, 3], dtype=numpy.int32)
     >>> weights = cupy.asarray([1.0, 1.0, 1.0], dtype=numpy.float32)
-    >>> resource_handle = pylibcugraph.experimental.ResourceHandle()
-    >>> graph_props = pylibcugraph.experimental.GraphProperties(
+    >>> resource_handle = pylibcugraph.ResourceHandle()
+    >>> graph_props = pylibcugraph.GraphProperties(
     ...     is_symmetric=False, is_multigraph=False)
-    >>> G = pylibcugraph.experimental.SGGraph(
+    >>> G = pylibcugraph.SGGraph(
     ...     resource_handle, graph_props, srcs, dsts, weights,
     ...     store_transposed=True, renumber=False, do_expensive_check=False)
-    >>> (vertices, pageranks) = pylibcugraph.experimental.pagerank(
+    >>> (vertices, pageranks) = pylibcugraph.pagerank(
     ...     resource_handle, G, None, alpha=0.85, epsilon=1.0e-6,
     ...     max_iterations=500, has_initial_guess=False,
     ...     do_expensive_check=False)
@@ -169,7 +169,7 @@ def EXPERIMENTAL__pagerank(EXPERIMENTAL__ResourceHandle resource_handle,
         raise NotImplementedError("None is temporarily the only supported "
                                   "value for precomputed_vertex_out_weight_sums")
 
-    cdef cugraph_pagerank_result_t* result_ptr
+    cdef cugraph_centrality_result_t* result_ptr
     cdef cugraph_error_code_t error_code
     cdef cugraph_error_t* error_ptr
 
@@ -188,13 +188,13 @@ def EXPERIMENTAL__pagerank(EXPERIMENTAL__ResourceHandle resource_handle,
     # Extract individual device array pointers from result and copy to cupy
     # arrays for returning.
     cdef cugraph_type_erased_device_array_view_t* vertices_ptr = \
-        cugraph_pagerank_result_get_vertices(result_ptr)
+        cugraph_centrality_result_get_vertices(result_ptr)
     cdef cugraph_type_erased_device_array_view_t* pageranks_ptr = \
-        cugraph_pagerank_result_get_pageranks(result_ptr)
+        cugraph_centrality_result_get_values(result_ptr)
 
     cupy_vertices = copy_to_cupy_array(c_resource_handle_ptr, vertices_ptr)
     cupy_pageranks = copy_to_cupy_array(c_resource_handle_ptr, pageranks_ptr)
 
-    cugraph_pagerank_result_free(result_ptr)
+    cugraph_centrality_result_free(result_ptr)
 
     return (cupy_vertices, cupy_pageranks)

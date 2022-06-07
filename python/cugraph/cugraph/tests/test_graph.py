@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2021, NVIDIA CORPORATION.
+# Copyright (c) 2019-2022, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -22,7 +22,7 @@ import scipy
 import cudf
 from cudf.testing.testing import assert_frame_equal
 import cugraph
-from cugraph.tests import utils
+from cugraph.testing import utils
 
 # MG
 import cugraph.dask as dcg
@@ -664,6 +664,18 @@ def test_neighbors(graph_file):
         cu_neighbors.sort()
         nx_neighbors.sort()
         assert cu_neighbors == nx_neighbors
+
+
+# Test
+@pytest.mark.parametrize("graph_file", utils.DATASETS)
+def test_to_pandas_edgelist(graph_file):
+    cu_M = utils.read_csv_file(graph_file)
+
+    G = cugraph.Graph()
+    G.from_cudf_edgelist(cu_M, source="0", destination="1")
+
+    assert 's' in G.to_pandas_edgelist('s', 'd').columns
+    assert 's' in G.to_pandas_edgelist(source='s', destination='d').columns
 
 
 def test_graph_init_with_multigraph():

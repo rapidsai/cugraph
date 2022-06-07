@@ -56,13 +56,6 @@ fi
 
 if [[ -z "$PROJECT_FLASH" || "$PROJECT_FLASH" == "0" ]]; then
     cd ${CUGRAPH_ROOT}/cpp/build
-else
-    # ...cugraph/cpu/conda_work/... is the dir name when only 1 lib* library is
-    # present. For multiple libs (ie. libcugraph and libcugraph_etl), the
-    # "_work" dir is prefixed with the lib name.
-    export LIBCUGRAPH_BUILD_DIR="$WORKSPACE/ci/artifacts/cugraph/cpu/libcugraph_work/cpp/build"
-    export LD_LIBRARY_PATH="$LIBCUGRAPH_BUILD_DIR:$CONDA_PREFIX/lib:$LD_LIBRARY_PATH"
-    cd $LIBCUGRAPH_BUILD_DIR
 fi
 
 # Do not abort the script on error from this point on. This allows all tests to
@@ -74,7 +67,7 @@ if (python ${CUGRAPH_ROOT}/ci/utils/is_pascal.py); then
     echo "WARNING: skipping C++ tests on Pascal GPU arch."
 else
     echo "C++ gtests for cuGraph (single-GPU only)..."
-    for gt in $(find ./tests -name "*_TEST" | grep -v "MG_\|CAPI_" || true); do
+    for gt in "${CONDA_PREFIX}/bin/gtests/libcugraph/"*_TEST; do
         test_name=$(basename $gt)
         echo "Running gtest $test_name"
         ${gt} ${GTEST_FILTER} ${GTEST_ARGS}
@@ -83,7 +76,7 @@ else
     # FIXME: the C API tests do not generate XML, so CI systems will not show
     # them in the GUI. Failing C API tests will still fail CI though, and the
     # output will appear in logs.
-    for ct in $(find ./tests -name "CAPI_*_TEST"); do
+    for ct in "${CONDA_PREFIX}/bin/gtests/libcugraph_c/"CAPI_*_TEST; do
         test_name=$(basename $ct)
         echo "Running C API test $test_name"
         ${ct}
@@ -98,7 +91,8 @@ echo "Ran Python pytest for pylibcugraph : return code was: $?, test script exit
 
 echo "Python pytest for cuGraph (single-GPU only)..."
 cd ${CUGRAPH_ROOT}/python/cugraph/cugraph
-pytest --cache-clear --junitxml=${CUGRAPH_ROOT}/junit-cugraph-pytests.xml -v --cov-config=.coveragerc --cov=cugraph --cov-report=xml:${WORKSPACE}/python/cugraph/cugraph-coverage.xml --cov-report term --ignore=raft --ignore=tests/dask --benchmark-disable
+# rmat is not tested because of MG testing
+pytest --cache-clear --junitxml=${CUGRAPH_ROOT}/junit-cugraph-pytests.xml -v --cov-config=.coveragerc --cov=cugraph --cov-report=xml:${WORKSPACE}/python/cugraph/cugraph-coverage.xml --cov-report term --ignore=raft --ignore=tests/mg --ignore=tests/generators --benchmark-disable
 echo "Ran Python pytest for cugraph : return code was: $?, test script exit code is now: $EXITCODE"
 
 echo "Python benchmarks for cuGraph (running as tests)..."

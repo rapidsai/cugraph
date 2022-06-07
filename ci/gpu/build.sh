@@ -38,13 +38,10 @@ export HOME=$WORKSPACE
 cd $WORKSPACE
 export GIT_DESCRIBE_TAG=`git describe --tags`
 export MINOR_VERSION=`echo $GIT_DESCRIBE_TAG | grep -o -E '([0-9]+\.[0-9]+)'`
+unset GIT_DESCRIBE_TAG
 
 # ucx-py version
-export UCX_PY_VERSION='0.25.*'
-
-export CMAKE_CUDA_COMPILER_LAUNCHER="sccache"
-export CMAKE_CXX_COMPILER_LAUNCHER="sccache"
-export CMAKE_C_COMPILER_LAUNCHER="sccache"
+export UCX_PY_VERSION='0.26.*'
 
 ################################################################################
 # SETUP - Check environment
@@ -106,18 +103,18 @@ if [[ -z "$PROJECT_FLASH" || "$PROJECT_FLASH" == "0" ]]; then
     gpuci_logger "Build from source"
     $WORKSPACE/build.sh -v clean libcugraph pylibcugraph cugraph
 else
-    CONDA_FILE=`find ${CONDA_ARTIFACT_PATH} -name "libcugraph*.tar.bz2"`
-    CONDA_FILE=`basename "$CONDA_FILE" .tar.bz2` #get filename without extension
-    CONDA_FILE=${CONDA_FILE//-/=} #convert to conda install
-    echo "Installing $CONDA_FILE"
-    gpuci_mamba_retry install -c ${CONDA_ARTIFACT_PATH} "$CONDA_FILE"
+    gpuci_logger "Installing libcugraph-tests"
+    gpuci_mamba_retry install -c ${CONDA_ARTIFACT_PATH} libcugraph libcugraph_etl libcugraph-tests
 
-    gpuci_logger "Install the master version of dask and distributed"
-    pip install "git+https://github.com/dask/distributed.git" --upgrade --no-deps
-    pip install "git+https://github.com/dask/dask.git" --upgrade --no-deps
+    # TODO: Move boa install to gpuci/rapidsai
+    gpuci_mamba_retry install boa
 
-    echo "Build pylibcugraph and cugraph..."
-    $WORKSPACE/build.sh pylibcugraph cugraph
+    gpuci_logger "Building and installing pylibcugraph and cugraph..."
+    export CONDA_BLD_DIR="${WORKSPACE}/.conda-bld"
+    export VERSION_SUFFIX=""
+    gpuci_conda_retry mambabuild conda/recipes/pylibcugraph --no-build-id --croot ${CONDA_BLD_DIR} -c ${CONDA_ARTIFACT_PATH} --python=${PYTHON}
+    gpuci_conda_retry mambabuild conda/recipes/cugraph --no-build-id --croot ${CONDA_BLD_DIR} -c ${CONDA_ARTIFACT_PATH} --python=${PYTHON}
+    gpuci_mamba_retry install cugraph pylibcugraph -c ${CONDA_BLD_DIR} -c ${CONDA_ARTIFACT_PATH}
 fi
 
 ################################################################################

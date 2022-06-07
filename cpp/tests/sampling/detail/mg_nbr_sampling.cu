@@ -17,6 +17,9 @@
 #include "nbr_sampling_utils.cuh"
 #include <sampling/nbr_sampling_impl.cuh>
 
+#include <raft/comms/comms.hpp>
+#include <raft/comms/mpi_comms.hpp>
+
 #include <gtest/gtest.h>
 
 struct Prims_Usecase {
@@ -89,8 +92,8 @@ class Tests_MG_Nbr_Sampling
 
     // Generate random sources to gather on
     auto random_sources = random_vertex_ids(handle,
-                                            mg_graph_view.get_local_vertex_first(),
-                                            mg_graph_view.get_local_vertex_last(),
+                                            mg_graph_view.local_vertex_partition_range_first(),
+                                            mg_graph_view.local_vertex_partition_range_last(),
                                             source_sample_count,
                                             repetitions_per_vertex);
     rmm::device_uvector<gpu_t> random_source_gpu_ids(random_sources.size(), handle.get_stream());
@@ -108,7 +111,7 @@ class Tests_MG_Nbr_Sampling
 
     // gather input:
     //
-    auto&& [tuple_vertex_ranks, counts] = cugraph::detail::shuffle_to_gpus(
+    auto&& [tuple_vertex_ranks, counts] = cugraph::detail::original::shuffle_to_gpus(
       handle, mg_graph_view, begin_in_pairs, end_in_pairs, gpu_t{});
 
     auto&& [tuple_quad, v_sizes] = cugraph::uniform_nbr_sample(handle,

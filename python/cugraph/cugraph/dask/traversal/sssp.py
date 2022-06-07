@@ -16,41 +16,67 @@
 from collections.abc import Iterable
 
 from dask.distributed import wait, default_client
-from cugraph.dask.common.input_utils import (get_distributed_data,
-                                             get_vertex_partition_offsets)
-from cugraph.dask.traversal import mg_sssp_wrapper as mg_sssp
-import cugraph.comms.comms as Comms
+from cugraph.dask.common.input_utils import get_distributed_data
+import cugraph.dask.comms.comms as Comms
+import cupy
 import cudf
 import dask_cudf
+from pylibcugraph import sssp as pylibcugraph_sssp
+from pylibcugraph import (ResourceHandle,
+                          GraphProperties,
+                          MGGraph)
 
 
-def call_sssp(sID,
-              data,
-              src_col_name,
-              dst_col_name,
-              num_verts,
-              num_edges,
-              vertex_partition_offsets,
-              aggregate_segment_offsets,
-              start):
-    wid = Comms.get_worker_id(sID)
-    handle = Comms.get_handle(sID)
-    local_size = len(aggregate_segment_offsets) // Comms.get_n_workers(sID)
-    segment_offsets = \
-        aggregate_segment_offsets[local_size * wid: local_size * (wid + 1)]
-    return mg_sssp.mg_sssp(data[0],
-                           src_col_name,
-                           dst_col_name,
-                           num_verts,
-                           num_edges,
-                           vertex_partition_offsets,
-                           wid,
-                           handle,
-                           segment_offsets,
-                           start)
+def _call_plc_sssp(
+                  sID,
+                  data,
+                  src_col_name,
+                  dst_col_name,
+                  num_edges,
+                  source,
+                  cutoff,
+                  compute_predecessors=True,
+                  do_expensive_check=False):
+
+    comms_handle = Comms.get_handle(sID)
+    resource_handle = ResourceHandle(comms_handle.getHandle())
+
+    srcs = data[0][src_col_name]
+    dsts = data[0][dst_col_name]
+    weights = data[0]['value'] \
+        if 'value' in data[0].columns \
+        else cudf.Series((srcs + 1) / (srcs + 1), dtype='float32')
+    if weights.dtype not in ('float32', 'double'):
+        weights = weights.astype('double')
+
+    mg = MGGraph(
+        resource_handle=resource_handle,
+        graph_properties=GraphProperties(is_multigraph=False),
+        src_array=srcs,
+        dst_array=dsts,
+        weight_array=weights,
+        store_transposed=False,
+        num_edges=num_edges,
+        do_expensive_check=do_expensive_check
+    )
+
+    vertices, distances, predecessors = pylibcugraph_sssp(
+        resource_handle=resource_handle,
+        graph=mg,
+        source=source,
+        cutoff=cutoff,
+        compute_predecessors=compute_predecessors,
+        do_expensive_check=do_expensive_check
+    )
+
+    return cudf.DataFrame({
+        'distance': cudf.Series(distances),
+        'vertex': cudf.Series(vertices),
+        'predecessor': cudf.Series(predecessors),
+    })
 
 
-def sssp(input_graph, source):
+def sssp(input_graph, source, cutoff=None):
     """
     Compute the distance and predecessors for shortest paths from the specified
     source to all the vertices in the input_graph. The distances column will
@@ -63,13 +89,15 @@ def sssp(input_graph, source):
 
     Parameters
     ----------
-    input_graph : directed cugraph.Graph
+    input_graph : cugraph.Graph
         cuGraph graph descriptor, should contain the connectivity information
         as dask cudf edge list dataframe.
-        Undirected Graph not currently supported.
 
     source : Integer
         Specify source vertex
+
+    cutoff : double, optional (default = None)
+        Maximum edge weight sum considered by the algorithm
 
     Returns
     -------
@@ -84,23 +112,27 @@ def sssp(input_graph, source):
 
     Examples
     --------
-    >>> # import cugraph.dask as dcg
-    >>> #... Init a DASK Cluster
-    >>> #   see https://docs.rapids.ai/api/cugraph/stable/dask-cugraph.html
-    >>> # chunksize = dcg.get_chunksize(input_data_path)
-    >>> # ddf = dask_cudf.read_csv(input_data_path, chunksize=chunksize...)
-    >>> # dg = cugraph.Graph(directed=True)
-    >>> # dg.from_dask_cudf_edgelist(ddf, 'src', 'dst')
-    >>> # df = dcg.sssp(dg, 0)
+    >>> import cugraph.dask as dcg
+    >>> import dask_cudf
+    >>> # ... Init a DASK Cluster
+    >>> #    see https://docs.rapids.ai/api/cugraph/stable/dask-cugraph.html
+    >>> # Download dataset from https://github.com/rapidsai/cugraph/datasets/..
+    >>> chunksize = dcg.get_chunksize(datasets_path / "karate.csv")
+    >>> ddf = dask_cudf.read_csv(datasets_path / "karate.csv",
+    ...                          chunksize=chunksize, delimiter=" ",
+    ...                          names=["src", "dst", "value"],
+    ...                          dtype=["int32", "int32", "float32"])
+    >>> dg = cugraph.Graph(directed=True)
+    >>> dg.from_dask_cudf_edgelist(ddf, source='src', destination='dst',
+    ...                            edge_attr='value')
+    >>> df = dcg.sssp(dg, 0)
+
     """
-    # FIXME: Uncomment out the above (broken) example
 
     client = default_client()
 
     input_graph.compute_renumber_edge_list(transposed=False)
     ddf = input_graph.edgelist.edgelist_df
-    vertex_partition_offsets = get_vertex_partition_offsets(input_graph)
-    num_verts = vertex_partition_offsets.iloc[-1]
     num_edges = len(ddf)
     data = get_distributed_data(ddf)
 
@@ -109,8 +141,11 @@ def sssp(input_graph, source):
         dst_col_name = input_graph.renumber_map.renumbered_dst_col_name
 
         source = input_graph.lookup_internal_vertex_id(
-            cudf.Series([source])).compute()
+            cudf.Series([source])).fillna(-1).compute()
         source = source.iloc[0]
+
+        if source < 0:
+            raise ValueError('Invalid source vertex')
     else:
         # If the input graph was created with renumbering disabled (Graph(...,
         # renumber=False), the above compute_renumber_edge_list() call will not
@@ -134,19 +169,22 @@ def sssp(input_graph, source):
         src_col_name = input_graph.source_columns
         dst_col_name = input_graph.destination_columns
 
+    if cutoff is None:
+        cutoff = cupy.inf
+
     result = [client.submit(
-              call_sssp,
-              Comms.get_session_id(),
-              wf[1],
-              src_col_name,
-              dst_col_name,
-              num_verts,
-              num_edges,
-              vertex_partition_offsets,
-              input_graph.aggregate_segment_offsets,
-              source,
-              workers=[wf[0]])
-              for idx, wf in enumerate(data.worker_to_parts.items())]
+            _call_plc_sssp,
+            Comms.get_session_id(),
+            wf[1],
+            src_col_name,
+            dst_col_name,
+            num_edges,
+            source,
+            cutoff,
+            True,
+            False,
+            workers=[wf[0]])
+            for idx, wf in enumerate(data.worker_to_parts.items())]
     wait(result)
     ddf = dask_cudf.from_delayed(result)
 

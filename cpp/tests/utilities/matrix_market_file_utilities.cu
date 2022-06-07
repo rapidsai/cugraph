@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2022, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -299,16 +299,16 @@ read_edgelist_from_matrix_market_file(raft::handle_t const& handle,
   auto file_ret = fclose(file);
   CUGRAPH_EXPECTS(file_ret == 0, "fclose failure.");
 
-  rmm::device_uvector<vertex_t> d_edgelist_rows(h_rows.size(), handle.get_stream());
-  rmm::device_uvector<vertex_t> d_edgelist_cols(h_cols.size(), handle.get_stream());
+  rmm::device_uvector<vertex_t> d_edgelist_srcs(h_rows.size(), handle.get_stream());
+  rmm::device_uvector<vertex_t> d_edgelist_dsts(h_cols.size(), handle.get_stream());
   auto d_edgelist_weights = test_weighted ? std::make_optional<rmm::device_uvector<weight_t>>(
                                               h_weights.size(), handle.get_stream())
                                           : std::nullopt;
 
   rmm::device_uvector<vertex_t> d_vertices(number_of_vertices, handle.get_stream());
 
-  raft::update_device(d_edgelist_rows.data(), h_rows.data(), h_rows.size(), handle.get_stream());
-  raft::update_device(d_edgelist_cols.data(), h_cols.data(), h_cols.size(), handle.get_stream());
+  raft::update_device(d_edgelist_srcs.data(), h_rows.data(), h_rows.size(), handle.get_stream());
+  raft::update_device(d_edgelist_dsts.data(), h_cols.data(), h_cols.size(), handle.get_stream());
   if (d_edgelist_weights) {
     raft::update_device(
       (*d_edgelist_weights).data(), h_weights.data(), h_weights.size(), handle.get_stream());
@@ -327,7 +327,7 @@ read_edgelist_from_matrix_market_file(raft::handle_t const& handle,
     auto& col_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
     auto const col_comm_size = col_comm.get_size();
 
-    auto vertex_key_func = cugraph::detail::compute_gpu_id_from_vertex_t<vertex_t>{comm_size};
+    auto vertex_key_func = cugraph::detail::compute_gpu_id_from_ext_vertex_t<vertex_t>{comm_size};
     d_vertices.resize(
       thrust::distance(d_vertices.begin(),
                        thrust::remove_if(execution_policy,
@@ -343,12 +343,12 @@ read_edgelist_from_matrix_market_file(raft::handle_t const& handle,
     size_t number_of_local_edges{};
     if (d_edgelist_weights) {
       auto edge_first       = thrust::make_zip_iterator(thrust::make_tuple(
-        d_edgelist_rows.begin(), d_edgelist_cols.begin(), (*d_edgelist_weights).begin()));
+        d_edgelist_srcs.begin(), d_edgelist_dsts.begin(), (*d_edgelist_weights).begin()));
       number_of_local_edges = thrust::distance(
         edge_first,
         thrust::remove_if(execution_policy,
                           edge_first,
-                          edge_first + d_edgelist_rows.size(),
+                          edge_first + d_edgelist_srcs.size(),
                           [comm_rank, key_func = edge_key_func] __device__(auto e) {
                             auto major = thrust::get<0>(e);
                             auto minor = thrust::get<1>(e);
@@ -357,12 +357,12 @@ read_edgelist_from_matrix_market_file(raft::handle_t const& handle,
                           }));
     } else {
       auto edge_first = thrust::make_zip_iterator(
-        thrust::make_tuple(d_edgelist_rows.begin(), d_edgelist_cols.begin()));
+        thrust::make_tuple(d_edgelist_srcs.begin(), d_edgelist_dsts.begin()));
       number_of_local_edges = thrust::distance(
         edge_first,
         thrust::remove_if(execution_policy,
                           edge_first,
-                          edge_first + d_edgelist_rows.size(),
+                          edge_first + d_edgelist_srcs.size(),
                           [comm_rank, key_func = edge_key_func] __device__(auto e) {
                             auto major = thrust::get<0>(e);
                             auto minor = thrust::get<1>(e);
@@ -371,10 +371,10 @@ read_edgelist_from_matrix_market_file(raft::handle_t const& handle,
                           }));
     }
 
-    d_edgelist_rows.resize(number_of_local_edges, handle.get_stream());
-    d_edgelist_rows.shrink_to_fit(handle.get_stream());
-    d_edgelist_cols.resize(number_of_local_edges, handle.get_stream());
-    d_edgelist_cols.shrink_to_fit(handle.get_stream());
+    d_edgelist_srcs.resize(number_of_local_edges, handle.get_stream());
+    d_edgelist_srcs.shrink_to_fit(handle.get_stream());
+    d_edgelist_dsts.resize(number_of_local_edges, handle.get_stream());
+    d_edgelist_dsts.shrink_to_fit(handle.get_stream());
     if (d_edgelist_weights) {
       (*d_edgelist_weights).resize(number_of_local_edges, handle.get_stream());
       (*d_edgelist_weights).shrink_to_fit(handle.get_stream());
@@ -383,8 +383,8 @@ read_edgelist_from_matrix_market_file(raft::handle_t const& handle,
 
   handle.sync_stream();
 
-  return std::make_tuple(std::move(d_edgelist_rows),
-                         std::move(d_edgelist_cols),
+  return std::make_tuple(std::move(d_edgelist_srcs),
+                         std::move(d_edgelist_dsts),
                          std::move(d_edgelist_weights),
                          std::move(d_vertices),
                          number_of_vertices,
@@ -403,8 +403,8 @@ read_graph_from_matrix_market_file(raft::handle_t const& handle,
                                    bool test_weighted,
                                    bool renumber)
 {
-  auto [d_edgelist_rows,
-        d_edgelist_cols,
+  auto [d_edgelist_srcs,
+        d_edgelist_dsts,
         d_edgelist_weights,
         d_vertices,
         number_of_vertices,
@@ -416,8 +416,8 @@ read_graph_from_matrix_market_file(raft::handle_t const& handle,
     create_graph_from_edgelist<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
       handle,
       std::move(d_vertices),
-      std::move(d_edgelist_rows),
-      std::move(d_edgelist_cols),
+      std::move(d_edgelist_srcs),
+      std::move(d_edgelist_dsts),
       std::move(d_edgelist_weights),
       cugraph::graph_properties_t{is_symmetric, false},
       renumber);

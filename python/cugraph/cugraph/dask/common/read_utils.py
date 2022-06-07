@@ -27,10 +27,9 @@ def get_chunksize(input_path):
     Examples
     --------
     >>> import cugraph.dask as dcg
-    >>> # chunksize = dcg.get_chunksize(edge_list.csv)
+    >>> chunksize = dcg.get_chunksize(datasets_path / 'netscience.csv')
 
     """
-    # FIXME: Uncomment out the above example
 
     import os
     from glob import glob
@@ -44,3 +43,9 @@ def get_chunksize(input_path):
         size = [os.path.getsize(_file) for _file in input_files]
         chunksize = max(size)
     return chunksize
+
+
+class MissingUCXPy:
+    def __getattr__(self, *args, **kwargs):
+        raise ModuleNotFoundError("ucx-py could not be imported but is"
+                                  " required for MG operations")

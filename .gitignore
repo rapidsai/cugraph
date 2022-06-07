@@ -11,6 +11,7 @@ __pycache__
 .lock
 *.swp
 *.pytest_cache
+*~
 DartConfiguration.tcl
 .DS_Store
 
@@ -87,3 +88,4 @@ python/cugraph/cugraph/tests/dask-worker-space
 
 # Sphinx docs & build artifacts
 docs/cugraph/source/api_docs/api/*
+

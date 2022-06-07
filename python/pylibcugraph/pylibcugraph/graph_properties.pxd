@@ -19,5 +19,5 @@ from pylibcugraph._cugraph_c.graph cimport (
 )
 
 
-cdef class EXPERIMENTAL__GraphProperties:
+cdef class GraphProperties:
     cdef cugraph_graph_properties_t c_graph_properties

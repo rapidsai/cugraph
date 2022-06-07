@@ -88,3 +88,109 @@ def experimental_warning_wrapper(obj):
     warning_wrapper_function.__name__ = obj_name
 
     return warning_wrapper_function
+
+
+def promoted_experimental_warning_wrapper(obj):
+    """
+    Wrap obj in a function of class that prints a warning about it being
+    close to being removed, prior to calling obj and returning its value.
+
+    This is different from experimental_warning_wrapper in that the object
+    has been promoted out of EXPERIMENTAL and thus has two versions of the
+    same object. This wrapper is applied to the one with the "private" name,
+    urging the user to instead use the one in the public API, which does not
+    have the experimental namespace.
+    """
+    obj_type = type(obj)
+    if obj_type not in [type, types.FunctionType, types.BuiltinFunctionType]:
+        raise TypeError("obj must be a class or a function type, got "
+                        f"{obj_type}")
+
+    obj_name = obj.__name__
+    obj_name = obj_name.lstrip(experimental_prefix)
+    obj_name = obj_name.lstrip("__")
+
+    call_stack = inspect.stack()
+    calling_frame = call_stack[1].frame
+    ns_name = calling_frame.f_locals.get("__name__")
+    dot = "." if ns_name is not None else ""
+
+    warning_msg = (f"{ns_name}{dot}{obj_name} has been promoted out of "
+                   "experimental. Use the non-experimental version instead, "
+                   "as this one will be removed in a future release.")
+
+    if obj_type is type:
+        class WarningWrapperClass(obj):
+            def __init__(self, *args, **kwargs):
+                warnings.warn(warning_msg, DeprecationWarning)
+                # call base class __init__ for python, but cython classes do
+                # not have a standard callable __init__ and assigning to self
+                # works instead.
+                if isinstance(obj.__init__, types.FunctionType):
+                    super(WarningWrapperClass, self).__init__(*args, **kwargs)
+                else:
+                    self = obj(*args, **kwargs)
+        WarningWrapperClass.__module__ = ns_name
+        WarningWrapperClass.__qualname__ = obj_name
+        WarningWrapperClass.__name__ = obj_name
+
+        return WarningWrapperClass
+
+    @functools.wraps(obj)
+    def warning_wrapper_function(*args, **kwargs):
+        warnings.warn(warning_msg, DeprecationWarning)
+        return obj(*args, **kwargs)
+    warning_wrapper_function.__module__ = ns_name
+    warning_wrapper_function.__qualname__ = obj_name
+    warning_wrapper_function.__name__ = obj_name
+
+    return warning_wrapper_function
+
+
+def deprecated_warning_wrapper(obj):
+    """
+    Wrap obj in a function or class that prints a warning about it being
+    deprecated (ie. it is in the public API but will be removed or replaced
+    by a refactored version), prior to calling obj and returning its value.
+    """
+    obj_type = type(obj)
+    if obj_type not in [type, types.FunctionType, types.BuiltinFunctionType]:
+        raise TypeError("obj must be a class or a function type, got "
+                        f"{obj_type}")
+
+    obj_name = obj.__name__
+    call_stack = inspect.stack()
+    calling_frame = call_stack[1].frame
+    ns_name = calling_frame.f_locals.get("__name__")
+    dot = "." if ns_name is not None else ""
+
+    warning_msg = (f"{ns_name}{dot}{obj_name} has been deprecated and will "
+                   "be removed next release. If an experimental version "
+                   "exists, it may replace this version in a future release.")
+
+    if obj_type is type:
+        class WarningWrapperClass(obj):
+            def __init__(self, *args, **kwargs):
+                warnings.warn(warning_msg, DeprecationWarning)
+                # call base class __init__ for python, but cython classes do
+                # not have a standard callable __init__ and assigning to self
+                # works instead.
+                if isinstance(obj.__init__, types.FunctionType):
+                    super(WarningWrapperClass, self).__init__(*args, **kwargs)
+                else:
+                    self = obj(*args, **kwargs)
+        WarningWrapperClass.__module__ = ns_name
+        WarningWrapperClass.__qualname__ = obj_name
+        WarningWrapperClass.__name__ = obj_name
+
+        return WarningWrapperClass
+
+    @functools.wraps(obj)
+    def warning_wrapper_function(*args, **kwargs):
+        warnings.warn(warning_msg, DeprecationWarning)
+        return obj(*args, **kwargs)
+    warning_wrapper_function.__module__ = ns_name
+    warning_wrapper_function.__qualname__ = obj_name
+    warning_wrapper_function.__name__ = obj_name
+
+    return warning_wrapper_function

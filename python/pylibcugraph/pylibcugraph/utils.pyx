@@ -102,6 +102,18 @@ cdef get_c_type_from_numpy_type(numpy_type):
         raise RuntimeError("Internal error: got invalid data type enum value "
                           f"from Numpy: {numpy_type}")
 
+cdef get_c_weight_type_from_numpy_edge_ids_type(numpy_type):
+    if numpy_type == numpy.int32:
+        return data_type_id_t.FLOAT32
+    else:
+        return data_type_id_t.FLOAT64
+
+cdef get_numpy_edge_ids_type_from_c_weight_type(data_type_id_t c_weight_type):
+    if c_weight_type == data_type_id_t.FLOAT32:
+        return numpy.int32
+    else:
+        return numpy.int64
+
 
 cdef copy_to_cupy_array(
    cugraph_resource_handle_t* c_resource_handle_ptr,
@@ -138,3 +150,41 @@ cdef copy_to_cupy_array(
     cugraph_type_erased_device_array_view_free(device_array_view_ptr)
 
     return cupy_array
+
+cdef copy_to_cupy_array_ids(
+   cugraph_resource_handle_t* c_resource_handle_ptr,
+   cugraph_type_erased_device_array_view_t* device_array_view_ptr):
+    """
+    Copy the contents from a device array view as returned by various cugraph_*
+    APIs to a new cupy device array, typically intended to be used as a return
+    value from pylibcugraph APIs then convert float to int
+    """
+    cdef c_type = cugraph_type_erased_device_array_view_type(
+        device_array_view_ptr)
+
+    array_size = cugraph_type_erased_device_array_view_size(
+        device_array_view_ptr)
+
+    cupy_array = cupy.zeros(
+        array_size, dtype=get_numpy_edge_ids_type_from_c_weight_type(c_type))
+
+    cdef uintptr_t cupy_array_ptr = \
+        cupy_array.__cuda_array_interface__["data"][0]
+
+    cdef cugraph_type_erased_device_array_view_t* cupy_array_view_ptr = \
+        cugraph_type_erased_device_array_view_create(
+            <void*>cupy_array_ptr, array_size, get_c_type_from_numpy_type(cupy_array.dtype))
+
+    cdef cugraph_error_t* error_ptr
+    error_code = cugraph_type_erased_device_array_view_copy(
+        c_resource_handle_ptr,
+        cupy_array_view_ptr,
+        device_array_view_ptr,
+        &error_ptr)
+    assert_success(error_code, error_ptr,
+                   "cugraph_type_erased_device_array_view_copy")
+
+    cugraph_type_erased_device_array_view_free(device_array_view_ptr)
+
+    return cupy_array
+

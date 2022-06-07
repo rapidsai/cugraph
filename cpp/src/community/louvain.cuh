@@ -20,12 +20,11 @@
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_functions.hpp>
 
-#include <cugraph/prims/copy_v_transform_reduce_in_out_nbr.cuh>
-#include <cugraph/prims/copy_v_transform_reduce_key_aggregated_out_nbr.cuh>
 #include <cugraph/prims/edge_partition_src_dst_property.cuh>
-#include <cugraph/prims/transform_reduce_by_src_dst_key_e.cuh>
+#include <cugraph/prims/per_v_transform_reduce_dst_key_aggregated_outgoing_e.cuh>
+#include <cugraph/prims/per_v_transform_reduce_incoming_outgoing_e.cuh>
 #include <cugraph/prims/transform_reduce_e.cuh>
-#include <cugraph/prims/transform_reduce_v.cuh>
+#include <cugraph/prims/transform_reduce_e_by_src_dst_key.cuh>
 #include <cugraph/prims/update_edge_partition_src_dst_property.cuh>
 #include <cugraph/utilities/collect_comm.cuh>
 
@@ -76,6 +75,11 @@ struct key_aggregated_edge_op_t {
 // a workaround for cudaErrorInvalidDeviceFunction error when device lambda is used
 template <typename vertex_t, typename weight_t>
 struct reduce_op_t {
+  using type                          = thrust::tuple<vertex_t, weight_t>;
+  static constexpr bool pure_function = true;  // this can be called from any process
+  inline static type const identity_element =
+    thrust::make_tuple(std::numeric_limits<weight_t>::lowest(), invalid_vertex_id<vertex_t>::value);
+
   __device__ auto operator()(thrust::tuple<vertex_t, weight_t> p0,
                              thrust::tuple<vertex_t, weight_t> p1) const
   {
@@ -125,10 +129,10 @@ class Louvain {
   using graph_t      = graph_t<vertex_t,
                           edge_t,
                           weight_t,
-                          graph_view_t::is_adj_matrix_transposed,
+                          graph_view_t::is_storage_transposed,
                           graph_view_t::is_multi_gpu>;
 
-  static_assert(!graph_view_t::is_adj_matrix_transposed);
+  static_assert(!graph_view_t::is_storage_transposed);
 
   Louvain(raft::handle_t const& handle, graph_view_t const& graph_view)
     :
@@ -230,14 +234,14 @@ class Louvain {
  protected:
   void initialize_dendrogram_level()
   {
-    dendrogram_->add_level(current_graph_view_.get_local_vertex_first(),
-                           current_graph_view_.get_number_of_local_vertices(),
+    dendrogram_->add_level(current_graph_view_.local_vertex_partition_range_first(),
+                           current_graph_view_.local_vertex_partition_range_size(),
                            handle_.get_stream());
 
     thrust::sequence(handle_.get_thrust_policy(),
                      dendrogram_->current_level_begin(),
                      dendrogram_->current_level_end(),
-                     current_graph_view_.get_local_vertex_first());
+                     current_graph_view_.local_vertex_partition_range_first());
   }
 
  public:
@@ -293,7 +297,7 @@ class Louvain {
     thrust::sequence(handle_.get_thrust_policy(),
                      cluster_keys_v_.begin(),
                      cluster_keys_v_.end(),
-                     current_graph_view_.get_local_vertex_first());
+                     current_graph_view_.local_vertex_partition_range_first());
 
     raft::copy(cluster_weights_v_.begin(),
                vertex_weights_v_.begin(),
@@ -312,9 +316,9 @@ class Louvain {
         groupby_gpu_id_and_shuffle_values(
           handle_.get_comms(),
           pair_first,
-          pair_first + current_graph_view_.get_number_of_local_vertices(),
+          pair_first + current_graph_view_.local_vertex_partition_range_size(),
           [key_func =
-             cugraph::detail::compute_gpu_id_from_vertex_t<vertex_t>{
+             cugraph::detail::compute_gpu_id_from_ext_vertex_t<vertex_t>{
                comm_size}] __device__(auto val) { return key_func(thrust::get<0>(val)); },
           handle_.get_stream());
 
@@ -390,11 +394,11 @@ class Louvain {
   compute_cluster_sum_and_subtract() const
   {
     rmm::device_uvector<weight_t> old_cluster_sum_v(
-      current_graph_view_.get_number_of_local_vertices(), handle_.get_stream());
+      current_graph_view_.local_vertex_partition_range_size(), handle_.get_stream());
     rmm::device_uvector<weight_t> cluster_subtract_v(
-      current_graph_view_.get_number_of_local_vertices(), handle_.get_stream());
+      current_graph_view_.local_vertex_partition_range_size(), handle_.get_stream());
 
-    copy_v_transform_reduce_out_nbr(
+    per_v_transform_reduce_outgoing_e(
       handle_,
       current_graph_view_,
       graph_view_t::is_multi_gpu
@@ -431,7 +435,7 @@ class Louvain {
     rmm::device_uvector<weight_t> vertex_cluster_weights_v(0, handle_.get_stream());
     edge_partition_src_property_t<graph_view_t, weight_t> src_cluster_weights(handle_);
     if constexpr (graph_view_t::is_multi_gpu) {
-      cugraph::detail::compute_gpu_id_from_vertex_t<vertex_t> vertex_to_gpu_id_op{
+      cugraph::detail::compute_gpu_id_from_ext_vertex_t<vertex_t> vertex_to_gpu_id_op{
         handle_.get_comms().get_size()};
 
       vertex_cluster_weights_v = cugraph::collect_values_for_keys(handle_.get_comms(),
@@ -489,7 +493,7 @@ class Louvain {
     }
 
     auto output_buffer = allocate_dataframe_buffer<thrust::tuple<vertex_t, weight_t>>(
-      current_graph_view_.get_number_of_local_vertices(), handle_.get_stream());
+      current_graph_view_.local_vertex_partition_range_size(), handle_.get_stream());
 
     auto cluster_old_sum_subtract_pair_first = thrust::make_zip_iterator(
       thrust::make_tuple(old_cluster_sum_v.cbegin(), cluster_subtract_v.cbegin()));
@@ -510,7 +514,7 @@ class Louvain {
               vertex_t,
               decltype(cluster_old_sum_subtract_pair_first)>(cluster_old_sum_subtract_pair_first));
 
-    copy_v_transform_reduce_key_aggregated_out_nbr(
+    per_v_transform_reduce_dst_key_aggregated_outgoing_e(
       handle_,
       current_graph_view_,
       zipped_src_device_view,
@@ -522,8 +526,8 @@ class Louvain {
       cluster_keys_v_.end(),
       cluster_weights_v_.begin(),
       detail::key_aggregated_edge_op_t<vertex_t, weight_t>{total_edge_weight, resolution},
-      detail::reduce_op_t<vertex_t, weight_t>{},
       thrust::make_tuple(vertex_t{-1}, weight_t{0}),
+      detail::reduce_op_t<vertex_t, weight_t>{},
       cugraph::get_dataframe_buffer_begin(output_buffer));
 
     thrust::transform(handle_.get_thrust_policy(),
@@ -540,7 +544,7 @@ class Louvain {
         handle_, current_graph_view_, next_clusters_v_.begin(), dst_clusters_cache_);
     }
 
-    std::tie(cluster_keys_v_, cluster_weights_v_) = cugraph::transform_reduce_by_src_key_e(
+    std::tie(cluster_keys_v_, cluster_weights_v_) = cugraph::transform_reduce_e_by_src_key(
       handle_,
       current_graph_view_,
       dummy_property_t<vertex_t>{}.device_view(),
@@ -580,13 +584,13 @@ class Louvain {
     thrust::sequence(handle_.get_thrust_policy(),
                      numbering_indices.begin(),
                      numbering_indices.end(),
-                     current_graph_view_.get_local_vertex_first());
+                     current_graph_view_.local_vertex_partition_range_first());
 
     relabel<vertex_t, graph_view_t::is_multi_gpu>(
       handle_,
       std::make_tuple(static_cast<vertex_t const*>(numbering_map.begin()),
                       static_cast<vertex_t const*>(numbering_indices.begin())),
-      current_graph_view_.get_number_of_local_vertices(),
+      current_graph_view_.local_vertex_partition_range_size(),
       dendrogram_->current_level_begin(),
       dendrogram_->current_level_size(),
       false);

@@ -30,12 +30,12 @@ ops::gnn::graph::fg_csr<EdgeTypeT> get_graph(
   graph_view_t<NodeTypeT, EdgeTypeT, WeightT, false, false> const& gview)
 {
   ops::gnn::graph::fg_csr<EdgeTypeT> graph;
-  graph.n_nodes   = gview.get_number_of_vertices();
-  graph.n_indices = gview.get_number_of_edges();
+  graph.n_nodes   = gview.number_of_vertices();
+  graph.n_indices = gview.number_of_edges();
   // FIXME: this is evil and is just temporary until we have a matching type in cugraph-ops
   // or we change the type accepted by the functions calling into cugraph-ops
-  graph.offsets = const_cast<EdgeTypeT*>(gview.get_matrix_partition_view().get_offsets());
-  graph.indices = const_cast<EdgeTypeT*>(gview.get_matrix_partition_view().get_indices());
+  graph.offsets = const_cast<EdgeTypeT*>(gview.local_edge_partition_view().offsets());
+  graph.indices = const_cast<EdgeTypeT*>(gview.local_edge_partition_view().indices());
   return graph;
 }
 

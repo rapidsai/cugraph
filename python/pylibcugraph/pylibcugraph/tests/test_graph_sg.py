@@ -24,7 +24,7 @@ import pytest
 # Tests
 # =============================================================================
 def test_graph_properties():
-    from pylibcugraph.experimental import GraphProperties
+    from pylibcugraph import GraphProperties
 
     gp = GraphProperties()
     assert gp.is_symmetric is False
@@ -60,7 +60,7 @@ def test_graph_properties():
 
 
 def test_resource_handle():
-    from pylibcugraph.experimental import ResourceHandle
+    from pylibcugraph import ResourceHandle
     # This type has no attributes and is just defined to pass a struct from C
     # back in to C. In the future it may take args to acquire specific
     # resources, but for now just make sure nothing crashes.
@@ -69,10 +69,10 @@ def test_resource_handle():
 
 
 def test_sg_graph(graph_data):
-    from pylibcugraph.experimental import (SGGraph,
-                                           ResourceHandle,
-                                           GraphProperties,
-                                           )
+    from pylibcugraph import (SGGraph,
+                              ResourceHandle,
+                              GraphProperties,
+                              )
     # is_valid will only be True if the arrays are expected to produce a valid
     # graph. If False, ensure SGGraph() raises the proper exception.
     (device_srcs, device_dsts, device_weights, ds_name, is_valid) = graph_data

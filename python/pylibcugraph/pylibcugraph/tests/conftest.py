@@ -17,7 +17,7 @@ import numpy as np
 
 import pytest
 
-from . import utils
+from pylibcugraph.testing import utils
 
 
 # =============================================================================
@@ -115,10 +115,10 @@ def create_SGGraph(device_srcs,
     Creates and returns a SGGraph instance and the corresponding ResourceHandle
     using the parameters passed in.
     """
-    from pylibcugraph.experimental import (SGGraph,
-                                           ResourceHandle,
-                                           GraphProperties,
-                                           )
+    from pylibcugraph import (SGGraph,
+                              ResourceHandle,
+                              GraphProperties,
+                              )
     resource_handle = ResourceHandle()
     graph_props = GraphProperties(is_symmetric=False, is_multigraph=False)
 

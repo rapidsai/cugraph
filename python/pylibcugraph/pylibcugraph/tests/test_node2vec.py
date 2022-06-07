@@ -14,11 +14,11 @@
 import pytest
 import cupy as cp
 import numpy as np
-from pylibcugraph.experimental import (ResourceHandle,
-                                       GraphProperties,
-                                       SGGraph,
-                                       node2vec)
-from cugraph.tests import utils
+from pylibcugraph import (ResourceHandle,
+                          GraphProperties,
+                          SGGraph,
+                          node2vec)
+from cugraph.testing import utils
 import cugraph
 
 

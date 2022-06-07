@@ -17,9 +17,9 @@
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/graph_view.hpp>
-#include <cugraph/prims/copy_v_transform_reduce_in_out_nbr.cuh>
 #include <cugraph/prims/count_if_v.cuh>
 #include <cugraph/prims/edge_partition_src_dst_property.cuh>
+#include <cugraph/prims/per_v_transform_reduce_incoming_outgoing_e.cuh>
 #include <cugraph/prims/reduce_v.cuh>
 #include <cugraph/prims/transform_reduce_v.cuh>
 #include <cugraph/prims/update_edge_partition_src_dst_property.cuh>
@@ -29,22 +29,18 @@
 
 namespace cugraph {
 namespace detail {
-template <typename GraphViewType, typename result_t>
+template <typename GraphViewType, typename ReduceOp, typename result_t>
 void normalize(raft::handle_t const& handle,
                GraphViewType const& graph_view,
                result_t* hubs,
-               raft::comms::op_t op)
+               result_t init,
+               ReduceOp reduce_op)
 {
-  auto hubs_norm = reduce_v(handle,
-                            graph_view,
-                            hubs,
-                            hubs + graph_view.get_number_of_local_vertices(),
-                            identity_element<result_t>(op),
-                            op);
+  auto hubs_norm = reduce_v(handle, graph_view, hubs, init, reduce_op);
   CUGRAPH_EXPECTS(hubs_norm > 0, "Norm is required to be a positive value.");
   thrust::transform(handle.get_thrust_policy(),
                     hubs,
-                    hubs + graph_view.get_number_of_local_vertices(),
+                    hubs + graph_view.local_vertex_partition_range_size(),
                     thrust::make_constant_iterator(hubs_norm),
                     hubs,
                     thrust::divides<result_t>());
@@ -66,10 +62,10 @@ std::tuple<result_t, size_t> hits(raft::handle_t const& handle,
                 "GraphViewType::vertex_type should be integral.");
   static_assert(std::is_floating_point<result_t>::value,
                 "result_t should be a floating-point type.");
-  static_assert(GraphViewType::is_adj_matrix_transposed,
+  static_assert(GraphViewType::is_storage_transposed,
                 "GraphViewType should support the pull model.");
 
-  auto const num_vertices = graph_view.get_number_of_vertices();
+  auto const num_vertices = graph_view.number_of_vertices();
   result_t diff_sum{std::numeric_limits<result_t>::max()};
   size_t final_iteration_count{max_iterations};
 
@@ -80,19 +76,19 @@ std::tuple<result_t, size_t> hits(raft::handle_t const& handle,
   // Check validity of initial guess if supplied
   if (has_initial_hubs_guess && do_expensive_check) {
     auto num_negative_values =
-      count_if_v(handle, graph_view, hubs, [] __device__(auto val) { return val < 0.0; });
+      count_if_v(handle, graph_view, hubs, [] __device__(auto, auto val) { return val < 0.0; });
     CUGRAPH_EXPECTS(num_negative_values == 0,
                     "Invalid input argument: initial guess values should be non-negative.");
   }
 
   if (has_initial_hubs_guess) {
-    detail::normalize(handle, graph_view, hubs, raft::comms::op_t::SUM);
+    detail::normalize(handle, graph_view, hubs, result_t{0.0}, reduce_op::plus<result_t>{});
   }
 
   // Property wrappers
   edge_partition_src_property_t<GraphViewType, result_t> prev_src_hubs(handle, graph_view);
   edge_partition_dst_property_t<GraphViewType, result_t> curr_dst_auth(handle, graph_view);
-  rmm::device_uvector<result_t> temp_hubs(graph_view.get_number_of_local_vertices(),
+  rmm::device_uvector<result_t> temp_hubs(graph_view.local_vertex_partition_range_size(),
                                           handle.get_stream());
 
   result_t* prev_hubs = hubs;
@@ -102,15 +98,15 @@ std::tuple<result_t, size_t> hits(raft::handle_t const& handle,
   if (has_initial_hubs_guess) {
     update_edge_partition_src_property(handle, graph_view, prev_hubs, prev_src_hubs);
   } else {
-    prev_src_hubs.fill(result_t{1.0} / num_vertices, handle.get_stream());
+    prev_src_hubs.fill(handle, result_t{1.0} / num_vertices);
     thrust::fill(handle.get_thrust_policy(),
                  prev_hubs,
-                 prev_hubs + graph_view.get_number_of_local_vertices(),
+                 prev_hubs + graph_view.local_vertex_partition_range_size(),
                  result_t{1.0} / num_vertices);
   }
   for (size_t iter = 0; iter < max_iterations; ++iter) {
     // Update current destination authorities property
-    copy_v_transform_reduce_in_nbr(
+    per_v_transform_reduce_incoming_e(
       handle,
       graph_view,
       prev_src_hubs.device_view(),
@@ -122,7 +118,7 @@ std::tuple<result_t, size_t> hits(raft::handle_t const& handle,
     update_edge_partition_dst_property(handle, graph_view, authorities, curr_dst_auth);
 
     // Update current source hubs property
-    copy_v_transform_reduce_out_nbr(
+    per_v_transform_reduce_outgoing_e(
       handle,
       graph_view,
       dummy_property_t<result_t>{}.device_view(),
@@ -134,17 +130,25 @@ std::tuple<result_t, size_t> hits(raft::handle_t const& handle,
       curr_hubs);
 
     // Normalize current hub values
-    detail::normalize(handle, graph_view, curr_hubs, raft::comms::op_t::MAX);
+    detail::normalize(handle,
+                      graph_view,
+                      curr_hubs,
+                      std::numeric_limits<result_t>::lowest(),
+                      reduce_op::maximum<result_t>{});
 
     // Normalize current authority values
-    detail::normalize(handle, graph_view, authorities, raft::comms::op_t::MAX);
+    detail::normalize(handle,
+                      graph_view,
+                      authorities,
+                      std::numeric_limits<result_t>::lowest(),
+                      reduce_op::maximum<result_t>{});
 
     // Test for exit condition
     diff_sum = transform_reduce_v(
       handle,
       graph_view,
       thrust::make_zip_iterator(thrust::make_tuple(curr_hubs, prev_hubs)),
-      [] __device__(auto val) { return std::abs(thrust::get<0>(val) - thrust::get<1>(val)); },
+      [] __device__(auto, auto val) { return std::abs(thrust::get<0>(val) - thrust::get<1>(val)); },
       result_t{0});
     if (diff_sum < epsilon) {
       final_iteration_count = iter;
@@ -160,15 +164,15 @@ std::tuple<result_t, size_t> hits(raft::handle_t const& handle,
   }
 
   if (normalize) {
-    detail::normalize(handle, graph_view, prev_hubs, raft::comms::op_t::SUM);
-    detail::normalize(handle, graph_view, authorities, raft::comms::op_t::SUM);
+    detail::normalize(handle, graph_view, prev_hubs, result_t{0.0}, reduce_op::plus<result_t>{});
+    detail::normalize(handle, graph_view, authorities, result_t{0.0}, reduce_op::plus<result_t>{});
   }
 
   // Copy calculated hubs to in/out parameter if necessary
   if (hubs != prev_hubs) {
     thrust::copy(handle.get_thrust_policy(),
                  prev_hubs,
-                 prev_hubs + graph_view.get_number_of_local_vertices(),
+                 prev_hubs + graph_view.local_vertex_partition_range_size(),
                  hubs);
   }
 

@@ -27,7 +27,6 @@
 #include <sampling/random_walks.cuh>
 
 #include <raft/handle.hpp>
-#include <raft/random/rng.cuh>
 
 #include "random_walks_utils.cuh"
 
@@ -56,7 +55,7 @@ void fill_start(raft::handle_t const& handle,
 }
 }  // namespace
 
-namespace impl_details = cugraph::detail;
+namespace impl_details = cugraph::detail::original;
 
 enum class traversal_id_t : int { HORIZONTAL = 0, VERTICAL };
 
@@ -123,7 +122,7 @@ class Tests_RandomWalks
     edge_t num_paths = 10;
     rmm::device_uvector<vertex_t> d_start(num_paths, handle.get_stream());
 
-    vertex_t num_vertices = graph_view.get_number_of_vertices();
+    vertex_t num_vertices = graph_view.number_of_vertices();
     fill_start(handle, d_start, num_vertices);
 
     // 0-copy const device view:
@@ -188,9 +187,9 @@ class Tests_RandomWalks
       if (sampling_id == 0) {
         impl_details::uniform_selector_t<graph_vt, real_t> selector{handle, graph_view, real_t{0}};
 
-        auto ret_tuple = impl_details::random_walks_impl<graph_vt,
-                                                         decltype(selector),
-                                                         impl_details::vertical_traversal_t>(
+        auto ret_tuple = cugraph::detail::random_walks_impl<graph_vt,
+                                                            decltype(selector),
+                                                            impl_details::vertical_traversal_t>(
           handle,  // required to prevent clang-format to separate functin name from its namespace
           graph_view,
           d_start_view,
@@ -212,9 +211,9 @@ class Tests_RandomWalks
       } else if (sampling_id == 1) {
         impl_details::biased_selector_t<graph_vt, real_t> selector{handle, graph_view, real_t{0}};
 
-        auto ret_tuple = impl_details::random_walks_impl<graph_vt,
-                                                         decltype(selector),
-                                                         impl_details::vertical_traversal_t>(
+        auto ret_tuple = cugraph::detail::random_walks_impl<graph_vt,
+                                                            decltype(selector),
+                                                            impl_details::vertical_traversal_t>(
           handle,  // required to prevent clang-format to separate functin name from its namespace
           graph_view,
           d_start_view,
@@ -237,9 +236,9 @@ class Tests_RandomWalks
         impl_details::node2vec_selector_t<graph_vt, real_t> selector{
           handle, graph_view, real_t{0}, p, q, num_paths};
 
-        auto ret_tuple = impl_details::random_walks_impl<graph_vt,
-                                                         decltype(selector),
-                                                         impl_details::vertical_traversal_t>(
+        auto ret_tuple = cugraph::detail::random_walks_impl<graph_vt,
+                                                            decltype(selector),
+                                                            impl_details::vertical_traversal_t>(
           handle,  // required to prevent clang-format to separate functin name from its namespace
           graph_view,
           d_start_view,

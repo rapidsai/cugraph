@@ -1,4 +1,3 @@
-
 # Copyright (c) 2019-2022, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -18,7 +17,7 @@ import pytest
 
 import cudf
 import cugraph
-from cugraph.tests import utils
+from cugraph.testing import utils
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
 # (Using or importing the ABCs from 'collections' instead of from
@@ -31,8 +30,15 @@ with warnings.catch_warnings():
     warnings.filterwarnings("ignore", category=DeprecationWarning)
     import networkx as nx
 
+# This toy graph is used in multiple tests throughout libcugraph_c and pylib.
+TOY = utils.RAPIDS_DATASET_ROOT_DIR_PATH/'toy_graph_undirected.csv'
 
-print("Networkx version : {} ".format(nx.__version__))
+
+# =============================================================================
+# Pytest Setup / Teardown - called for each test function
+# =============================================================================
+def setup_function():
+    gc.collect()
 
 
 def topKVertices(katz, col, k):
@@ -64,18 +70,8 @@ def calc_katz(graph_file):
     return k_df
 
 
-# FIXME: the default set of datasets includes an asymmetric directed graph
-# (email-EU-core.csv), which currently produces different results between
-# cugraph and Nx and fails that test. Investigate, resolve, and use
-# utils.DATASETS instead.
-#
-# https://github.com/rapidsai/cugraph/issues/1042
-#
-# @pytest.mark.parametrize("graph_file", utils.DATASETS)
-@pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
+@pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_katz_centrality(graph_file):
-    gc.collect()
-
     katz_scores = calc_katz(graph_file)
 
     topKNX = topKVertices(katz_scores, "nx_katz", 10)
@@ -86,11 +82,10 @@ def test_katz_centrality(graph_file):
 
 @pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
 def test_katz_centrality_nx(graph_file):
-    gc.collect()
-
     NM = utils.read_csv_for_nx(graph_file)
+
     Gnx = nx.from_pandas_edgelist(
-        NM, create_using=nx.DiGraph(), source="0", target="1"
+        NM, create_using=nx.DiGraph(), source="0", target="1",
     )
 
     G = cugraph.utilities.convert_from_nx(Gnx)
@@ -118,18 +113,16 @@ def test_katz_centrality_nx(graph_file):
 
 @pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
 def test_katz_centrality_multi_column(graph_file):
-    gc.collect()
-
     cu_M = utils.read_csv_file(graph_file)
     cu_M.rename(columns={'0': 'src_0', '1': 'dst_0'}, inplace=True)
     cu_M['src_1'] = cu_M['src_0'] + 1000
     cu_M['dst_1'] = cu_M['dst_0'] + 1000
 
-    G1 = cugraph.DiGraph()
+    G1 = cugraph.Graph(directed=True)
     G1.from_cudf_edgelist(cu_M, source=["src_0", "src_1"],
                           destination=["dst_0", "dst_1"])
 
-    G2 = cugraph.DiGraph()
+    G2 = cugraph.Graph(directed=True)
     G2.from_cudf_edgelist(cu_M, source="src_0", destination="dst_0")
 
     k_df_exp = cugraph.katz_centrality(G2, alpha=None, max_iter=1000)
@@ -149,3 +142,30 @@ def test_katz_centrality_multi_column(graph_file):
     top_exp = topKVertices(k_df_exp, "katz_centrality", 10)
 
     assert top_res.equals(top_exp)
+
+
+@pytest.mark.parametrize("graph_file", [TOY])
+def test_katz_centrality_toy(graph_file):
+    # This test is based off of libcugraph_c and pylibcugraph tests
+    df = cudf.read_csv(graph_file, delimiter=' ',
+                       dtype=['int32', 'int32', 'float32'], header=None)
+    G = cugraph.Graph(directed=True)
+    G.from_cudf_edgelist(df, source='0', destination='1', edge_attr='2')
+
+    alpha = 0.01
+    beta = 1.0
+    tol = 0.000001
+    max_iter = 1000
+    centralities = [0.410614, 0.403211, 0.390689, 0.415175, 0.395125,
+                    0.433226]
+
+    ck = cugraph.katz_centrality(G, alpha=alpha, beta=beta,
+                                 tol=tol, max_iter=max_iter)
+
+    ck = ck.sort_values("vertex")
+    for vertex in ck["vertex"].to_pandas():
+        expected_score = centralities[vertex]
+        actual_score = ck["katz_centrality"].iloc[vertex]
+        assert pytest.approx(expected_score, abs=1e-2) == actual_score, \
+            f"Katz centrality score is {actual_score}, should have" \
+            f"been {expected_score}"

@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2021, NVIDIA CORPORATION.
+# Copyright (c) 2019-2022, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -14,10 +14,12 @@
 import gc
 
 import pytest
+import random
 
 import cudf
 import cugraph
-from cugraph.tests import utils
+from cugraph.testing import utils
+from cugraph.experimental import triangle_count as experimental_triangles
 
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
@@ -32,74 +34,131 @@ with warnings.catch_warnings():
     import networkx as nx
 
 
-def cugraph_call(M, edgevals=False):
-    G = cugraph.Graph()
+# =============================================================================
+# Pytest Setup / Teardown - called for each test function
+# =============================================================================
+def setup_function():
+    gc.collect()
+
+
+# =============================================================================
+# Pytest fixtures
+# =============================================================================
+datasets = utils.DATASETS_UNDIRECTED
+# FIXME: The `start_list` parameter is not supported yet therefore it has been
+# disabled in these tests. Enable it once it is supported
+fixture_params = utils.genFixtureParamsProduct((datasets, "graph_file"),
+                                               ([True, False], "edgevals"),
+                                               ([False], "start_list"),
+                                               )
+
+
+@pytest.fixture(scope="module", params=fixture_params)
+def input_combo(request):
+    """
+    This fixture returns a dictionary containing all input params required to
+    run a Triangle Count algo
+    """
+    parameters = dict(
+        zip(("graph_file", "edgevals", "start_list"), request.param))
+
+    input_data_path = parameters["graph_file"]
+    edgevals = parameters["edgevals"]
+
+    G = utils.generate_cugraph_graph_from_file(
+        input_data_path, directed=False, edgevals=edgevals)
+
+    Gnx = utils.generate_nx_graph_from_file(
+        input_data_path, directed=False, edgevals=edgevals)
+
+    parameters["G"] = G
+    parameters["Gnx"] = Gnx
+
+    return parameters
+
+
+# =============================================================================
+# Tests
+# =============================================================================
+def test_triangles_no_start(input_combo):
+    if not input_combo["start_list"]:
+        G = input_combo["G"]
+        Gnx = input_combo["Gnx"]
+        nx_triangle_results = cudf.DataFrame()
+
+        cugraph_legacy_triangle_results = cugraph.triangles(G)
+
+        dic_results = nx.triangles(Gnx)
+        nx_triangle_results["vertex"] = dic_results.keys()
+        nx_triangle_results["counts"] = dic_results.values()
+        nx_triangle_results = nx_triangle_results.sort_values(
+            "vertex").reset_index(drop=True)
+
+        assert cugraph_legacy_triangle_results == \
+            nx_triangle_results["counts"].sum()
+
+        if input_combo["edgevals"]:
+            triangle_results = experimental_triangles(G).sort_values(
+                "vertex").reset_index(drop=True).rename(columns={
+                    "counts": "exp_cugraph_counts"})
+            cugraph_exp_triangle_results = \
+                triangle_results["exp_cugraph_counts"].sum()
+            # Compare the total number of triangles with the experimental
+            # implementation
+            assert cugraph_exp_triangle_results == nx_triangle_results
+            # Compare the number of triangles per vertex with the
+            # experimental implementation
+            triangle_results["nx_counts"] = nx_triangle_results["counts"]
+            counts_diff = triangle_results.query(
+                'nx_counts != exp_cugraph_counts')
+            assert len(counts_diff) == 0
+
+
+def test_triangles_with_start(input_combo):
+    if input_combo["start_list"]:
+        # Need weight to create a graph using pylibcugraph
+        if input_combo["edgevals"]:
+            G = input_combo["G"]
+            Gnx = input_combo["Gnx"]
+            nx_triangle_results = cudf.DataFrame()
+
+            # sample k nodes from the nx graph
+            k = random.randint(1, 10)
+            start_list = random.sample(list(Gnx.nodes()), k)
+
+            dic_results = nx.triangles(Gnx, start_list)
+            nx_triangle_results["vertex"] = dic_results.keys()
+            nx_triangle_results["counts"] = dic_results.values()
+            nx_triangle_results = nx_triangle_results.sort_values(
+                "vertex").reset_index(drop=True)
+
+            start_list = cudf.Series(start_list, dtype="int32")
+            triangle_results = experimental_triangles(
+                G, start_list).sort_values("vertex").reset_index(
+                    drop=True).rename(columns={"counts": "exp_cugraph_counts"})
+
+            triangle_results["nx_counts"] = nx_triangle_results["counts"]
+            counts_diff = triangle_results.query(
+                'nx_counts != exp_cugraph_counts')
+            assert len(counts_diff) == 0
+
+
+def test_triangles_directed_graph():
+    input_data_path = (utils.RAPIDS_DATASET_ROOT_DIR_PATH /
+                       "karate-asymmetric.csv").as_posix()
+    M = utils.read_csv_for_nx(input_data_path)
+    G = cugraph.Graph(directed=True)
     cu_M = cudf.DataFrame()
     cu_M["src"] = cudf.Series(M["0"])
     cu_M["dst"] = cudf.Series(M["1"])
-    if edgevals is True:
-        cu_M["weights"] = cudf.Series(M["weight"])
-        G.from_cudf_edgelist(
-            cu_M, source="src", destination="dst", edge_attr="weights"
-        )
-    else:
-        G.from_cudf_edgelist(cu_M, source="src", destination="dst")
-    return cugraph.triangles(G)
 
-
-def networkx_call(M):
-    Gnx = nx.from_pandas_edgelist(
-        M, source="0", target="1", create_using=nx.Graph()
-    )
-    dic = nx.triangles(Gnx)
-    print(dic)
-    count = 0
-    for i in dic.keys():
-        count += dic[i]
-    return count
-
-
-# FIXME: the default set of datasets includes an asymmetric directed graph
-# (email-EU-core.csv), which currently produces different results between
-# cugraph and Nx and fails that test. Investigate, resolve, and use
-# utils.DATASETS instead.
-#
-# https://github.com/rapidsai/cugraph/issues/1043
-#
-# @pytest.mark.parametrize("graph_file", utils.DATASETS)
-@pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
-def test_triangles(graph_file):
-    gc.collect()
-
-    M = utils.read_csv_for_nx(graph_file)
-    cu_count = cugraph_call(M)
-    nx_count = networkx_call(M)
-    assert cu_count == nx_count
-
-
-@pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
-def test_triangles_edge_vals(graph_file):
-    gc.collect()
-
-    M = utils.read_csv_for_nx(graph_file)
-    cu_count = cugraph_call(M, edgevals=True)
-    nx_count = networkx_call(M)
-    assert cu_count == nx_count
-
-
-@pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
-def test_triangles_nx(graph_file):
-    gc.collect()
-
-    M = utils.read_csv_for_nx(graph_file)
-    G = nx.from_pandas_edgelist(
-        M, source="0", target="1", create_using=nx.Graph()
+    cu_M["weights"] = cudf.Series(M["weight"])
+    G.from_cudf_edgelist(
+        cu_M, source="src", destination="dst", edge_attr="weights"
     )
 
-    cu_count = cugraph.triangles(G)
-    dic = nx.triangles(G)
-    nx_count = 0
-    for i in dic.keys():
-        nx_count += dic[i]
+    with pytest.raises(ValueError):
+        cugraph.triangles(G)
 
-    assert cu_count == nx_count
+    with pytest.raises(ValueError):
+        experimental_triangles(G)

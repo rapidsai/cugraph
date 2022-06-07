@@ -101,7 +101,7 @@ _test_data = {"karate.csv": {
 # Tests
 # =============================================================================
 def test_sssp(sg_graph_objs):
-    from pylibcugraph.experimental import sssp
+    from pylibcugraph import sssp
 
     (g, resource_handle, ds_name) = sg_graph_objs
 

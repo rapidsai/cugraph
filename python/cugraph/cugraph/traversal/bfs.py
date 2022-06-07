@@ -12,8 +12,14 @@
 # limitations under the License.
 
 import cudf
+import dask_cudf
 
-from cugraph.traversal import bfs_wrapper
+from pylibcugraph.experimental import (ResourceHandle,
+                                       GraphProperties,
+                                       SGGraph,
+                                       )
+from pylibcugraph import bfs as pylibcugraph_bfs
+
 from cugraph.structure.graph_classes import Graph, DiGraph
 from cugraph.utilities import (ensure_cugraph_obj,
                                is_matrix_type,
@@ -35,6 +41,8 @@ def _ensure_args(G, start, i_start, directed):
     if (start is None) and (i_start is None):
         raise TypeError("must specify 'start' or 'i_start', but not both")
 
+    start = start if start is not None else i_start
+
     G_type = type(G)
     # Check for Graph-type inputs
     if (G_type in [Graph, DiGraph]) or is_nx_graph_type(G_type):
@@ -42,7 +50,49 @@ def _ensure_args(G, start, i_start, directed):
             raise TypeError("'directed' cannot be specified for a "
                             "Graph-type input")
 
-    start = start if start is not None else i_start
+        # ensure start vertex is valid
+        invalid_vertex_err = ValueError('A provided vertex was not valid')
+        if is_nx_graph_type(G_type):
+            if start not in G:
+                raise invalid_vertex_err
+        else:
+            if not isinstance(start, cudf.DataFrame):
+                if not isinstance(start, dask_cudf.DataFrame):
+                    start = cudf.DataFrame(
+                        {'starts': cudf.Series(start)}
+                    )
+
+            if G.is_renumbered():
+                validlen = len(
+                    G.renumber_map.to_internal_vertex_id(
+                        start,
+                        start.columns
+                    ).dropna()
+                )
+                if validlen < len(start):
+                    raise invalid_vertex_err
+            else:
+                el = G.edgelist.edgelist_df[["src", "dst"]]
+                col = start.columns[0]
+                null_l = el \
+                    .merge(
+                        start[col].rename('src'),
+                        on='src',
+                        how='right'
+                    ) \
+                    .dst.isnull() \
+                    .sum()
+                null_r = el \
+                    .merge(
+                        start[col].rename('dst'),
+                        on='dst',
+                        how='right'
+                    ) \
+                    .src.isnull() \
+                    .sum()
+                if null_l + null_r > 0:
+                    raise invalid_vertex_err
+
     if directed is None:
         directed = True
 
@@ -77,12 +127,51 @@ def _convert_df_to_output_type(df, input_type):
         raise TypeError(f"input type {input_type} is not a supported type.")
 
 
+def _call_plc_bfs(G, sources, depth_limit, do_expensive_check=False,
+                  direction_optimizing=False, return_predecessors=True):
+    handle = ResourceHandle()
+
+    srcs = G.edgelist.edgelist_df['src']
+    dsts = G.edgelist.edgelist_df['dst']
+    weights = G.edgelist.edgelist_df['weights'] \
+        if 'weights' in G.edgelist.edgelist_df \
+        else cudf.Series((srcs + 1) / (srcs + 1), dtype='float32')
+
+    sg = SGGraph(
+        resource_handle=handle,
+        graph_properties=GraphProperties(is_multigraph=G.is_multigraph()),
+        src_array=srcs,
+        dst_array=dsts,
+        weight_array=weights,
+        store_transposed=False,
+        renumber=False,
+        do_expensive_check=do_expensive_check
+    )
+
+    distances, predecessors, vertices = \
+        pylibcugraph_bfs(
+            handle,
+            sg,
+            sources,
+            direction_optimizing,
+            depth_limit if depth_limit is not None else -1,
+            return_predecessors,
+            do_expensive_check
+        )
+
+    return cudf.DataFrame({
+        'distance': cudf.Series(distances),
+        'vertex': cudf.Series(vertices),
+        'predecessor': cudf.Series(predecessors),
+    })
+
+
 def bfs(G,
         start=None,
         depth_limit=None,
         i_start=None,
         directed=None,
-        return_predecessors=None):
+        return_predecessors=True):
     """
     Find the distances and predecessors for a breadth first traversal of a
     graph.
@@ -94,8 +183,11 @@ def bfs(G,
         information. Edge weights, if present, should be single or double
         precision floating point values.
 
-    start : Integer, optional (default=None)
-        The index of the graph vertex from which the traversal begins
+    start : Integer or list, optional (default=None)
+        The id of the graph vertex from which the traversal begins, or
+        if a list, the vertex from which the traversal begins in each
+        component of the graph.  Only one vertex per connected
+        component of the graph is allowed.
 
     depth_limit : Integer or None, optional (default=None)
         Limit the depth of the search
@@ -112,8 +204,9 @@ def bfs(G,
         If True, then convert the input matrix to a directed cugraph.Graph,
         otherwise an undirected cugraph.Graph object will be used.
 
-    return_predecessors :
-
+    return_predecessors : bool, optional (default=True)
+        Whether to return the predecessors for each vertex (returns -1
+        for each vertex otherwise)
 
     Returns
     -------
@@ -165,19 +258,31 @@ def bfs(G,
     # FIXME: allow nx_weight_attr to be specified
     (G, input_type) = ensure_cugraph_obj(
         G, nx_weight_attr="weight",
-        matrix_graph_type=Graph(directed=directed))
+        matrix_graph_type=Graph(directed=directed)
+    )
 
     # The BFS C++ extension assumes the start vertex is a cudf.Series object,
     # and operates on internal vertex IDs if renumbered.
+    is_dataframe = isinstance(start, cudf.DataFrame) or \
+        isinstance(start, dask_cudf.DataFrame)
     if G.renumbered is True:
-        if isinstance(start, cudf.DataFrame):
+        if is_dataframe:
             start = G.lookup_internal_vertex_id(start, start.columns)
         else:
             start = G.lookup_internal_vertex_id(cudf.Series(start))
-    else:
-        start = cudf.Series(start)
 
-    df = bfs_wrapper.bfs(G, start, depth_limit)
+    else:
+        if is_dataframe:
+            start = start[start.columns[0]]
+        else:
+            start = cudf.Series(start, name='starts')
+
+    df = _call_plc_bfs(
+        G,
+        start,
+        depth_limit,
+        return_predecessors=return_predecessors
+    )
     if G.renumbered:
         df = G.unrenumber(df, "vertex")
         df = G.unrenumber(df, "predecessor")

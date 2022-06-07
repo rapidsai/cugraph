@@ -20,7 +20,7 @@ Example
 
     from dask.distributed import Client, wait
     from dask_cuda import LocalCUDACluster
-    import cugraph.comms as Comms
+    import cugraph.dask.comms.comms as Comms
     import cugraph.dask as dask_cugraph
 
     cluster = LocalCUDACluster()
@@ -37,7 +37,7 @@ Example
             names=['src', 'dst'], 
             dtype=['int32', 'int32'])
 
-    G = cugraph.DiGraph()
+    G = cugraph.Graph(directed=True)
     G.from_dask_cudf_edgelist(e_list, source='src', destination='dst')
 
     # now run PageRank

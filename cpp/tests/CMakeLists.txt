@@ -448,6 +448,10 @@ ConfigureTest(PAGERANK_TEST link_analysis/pagerank_test.cpp)
 ConfigureTest(KATZ_CENTRALITY_TEST centrality/katz_centrality_test.cpp)
 
 ###################################################################################################
+# - EIGENVECTOR_CENTRALITY tests -------------------------------------------------------------------------
+ConfigureTest(EIGENVECTOR_CENTRALITY_TEST centrality/eigenvector_centrality_test.cpp)
+
+###################################################################################################
 # - WEAKLY CONNECTED COMPONENTS tests -------------------------------------------------------------
 ConfigureTest(WEAKLY_CONNECTED_COMPONENTS_TEST components/weakly_connected_components_test.cpp)
 
@@ -462,6 +466,10 @@ ConfigureTest(RANDOM_WALKS_SEG_SORT_TEST sampling/rw_biased_seg_sort.cu)
 ###################################################################################################
 ConfigureTest(RANDOM_WALKS_LOW_LEVEL_TEST sampling/rw_low_level_test.cu)
 
+###########################################################################################
+# - MG NBR SAMPLING tests -----------------------------------------------------------------
+ConfigureTest(UNIFORM_NEIGHBOR_SAMPLING_TEST sampling/sg_uniform_neighbor_sampling.cu)
+        
 ###################################################################################################
 # FIXME: since this is technically not a test, consider refactoring the the
 # ConfigureTest function to share common code with a new ConfigureBenchmark
@@ -490,6 +498,10 @@ ConfigureTest(RANDOM_WALKS_VISITOR_TEST visitors/rw_test.cu)
 ###################################################################################################
 # - Core Number tests -----------------------------------------------------------------------------
 ConfigureTest(CORE_NUMBER_TEST cores/core_number_test.cpp)
+
+###################################################################################################
+# - Triangle Count tests --------------------------------------------------------------------------
+ConfigureTest(TRIANGLE_COUNT_TEST community/triangle_count_test.cpp)
 
 ###################################################################################################
 # - MG tests --------------------------------------------------------------------------------------
@@ -539,6 +551,10 @@ if(BUILD_CUGRAPH_MG_TESTS)
         ConfigureTestMG(MG_KATZ_CENTRALITY_TEST centrality/mg_katz_centrality_test.cpp)
 
         ###########################################################################################
+        # - MG EIGENVECTOR CENTRALITY tests --------------------------------------------------------------
+        ConfigureTestMG(MG_EIGENVECTOR_CENTRALITY_TEST centrality/mg_eigenvector_centrality_test.cpp)
+
+        ###########################################################################################
         # - MG BFS tests --------------------------------------------------------------------------
         ConfigureTestMG(MG_BFS_TEST traversal/mg_bfs_test.cpp)
 
@@ -571,13 +587,17 @@ if(BUILD_CUGRAPH_MG_TESTS)
         ConfigureTestMG(MG_CORE_NUMBER_TEST cores/mg_core_number_test.cpp)
 
         ###########################################################################################
+        # - MG TRIANGLE COUNT tests ---------------------------------------------------------------
+        ConfigureTestMG(MG_TRIANGLE_COUNT_TEST community/mg_triangle_count_test.cpp)
+
+        ###########################################################################################
         # - MG PRIMS COUNT_IF_V tests -------------------------------------------------------------
         ConfigureTestMG(MG_COUNT_IF_V_TEST prims/mg_count_if_v.cu)
 
         ###########################################################################################
-        # - MG PRIMS UPDATE_FRONTIER_V_PUSH_IF_OUT_NBR tests --------------------------------------
-        ConfigureTestMG(MG_UPDATE_FRONTIER_V_PUSH_IF_OUT_NBR_TEST
-                        prims/mg_update_frontier_v_push_if_out_nbr.cu)
+        # - MG PRIMS TRANSFORM_REDUCE_V_FRONTIER_OUTGOING_E_BY_DST tests --------------------------
+        ConfigureTestMG(MG_TRANSFORM_REDUCE_V_FRONTIER_OUTGOING_E_BY_DST_TEST
+                        prims/mg_transform_reduce_v_frontier_outgoing_e_by_dst.cu)
 
         ###########################################################################################
         # - MG PRIMS REDUCE_V tests ---------------------------------------------------------------
@@ -596,9 +616,9 @@ if(BUILD_CUGRAPH_MG_TESTS)
         ConfigureTestMG(MG_COUNT_IF_E_TEST prims/mg_count_if_e.cu)
 
         ###########################################################################################
-        # - MG PRIMS COPY_V_TRANSFORM_REDUCE_OUT tests --------------------------------------------
-        ConfigureTestMG(MG_COPY_V_TRANSFORM_REDUCE_INOUT_NBR_TEST
-          prims/mg_copy_v_transform_reduce_inout_nbr.cu)
+        # - MG PRIMS PER_V_TRANSFORM_REDUCE_INCOMING_OUTGOING_E tests -----------------------------
+        ConfigureTestMG(MG_PER_V_TRANSFORM_REDUCE_INCOMING_OUTGOING_E_TEST
+          prims/mg_per_v_transform_reduce_incoming_outgoing_e.cu)
 
         ###########################################################################################
         # - MG PRIMS EXTRACT_IF_E tests -----------------------------------------------------------
@@ -615,13 +635,25 @@ if(BUILD_CUGRAPH_MG_TESTS)
         ###########################################################################################
         # - MG NBR SAMPLING tests -----------------------------------------------------------------
         ConfigureTestMG(MG_NBR_SAMPLING_TEST sampling/detail/mg_nbr_sampling.cu)
+
+        ###########################################################################################
+        # - MG NBR SAMPLING tests -----------------------------------------------------------------
+        ConfigureTestMG(MG_UNIFORM_NEIGHBOR_SAMPLING_TEST sampling/mg_uniform_neighbor_sampling.cu)
         
         ###########################################################################################
         # - MG C API tests ------------------------------------------------------------------------
         ConfigureCTestMG(MG_CAPI_CREATE_GRAPH c_api/mg_create_graph_test.c c_api/mg_test_utils.cpp)
         ConfigureCTestMG(MG_CAPI_PAGERANK c_api/mg_pagerank_test.c c_api/mg_test_utils.cpp)
+        ConfigureCTestMG(MG_CAPI_BFS c_api/mg_bfs_test.c c_api/mg_test_utils.cpp)
+        ConfigureCTestMG(MG_CAPI_SSSP c_api/mg_sssp_test.c c_api/mg_test_utils.cpp)
+        ConfigureCTestMG(MG_CAPI_WEAKLY_CONNECTED_COMPONENTS c_api/mg_weakly_connected_components_test.c c_api/mg_test_utils.cpp)
+        ConfigureCTestMG(MG_CAPI_STRONGLY_CONNECTED_COMPONENTS c_api/mg_strongly_connected_components_test.c c_api/mg_test_utils.cpp)
+        ConfigureCTestMG(MG_CAPI_KATZ c_api/mg_katz_test.c c_api/mg_test_utils.cpp)
+        ConfigureCTestMG(MG_CAPI_EIGENVECTOR_CENTRALITY c_api/mg_eigenvector_centrality_test.c c_api/mg_test_utils.cpp)
         ConfigureCTestMG(MG_CAPI_HITS c_api/mg_hits_test.c c_api/mg_test_utils.cpp)
         ConfigureCTestMG(MG_CAPI_UNIFORM_NEIGHBOR_SAMPLE c_api/mg_uniform_neighbor_sample_test.c c_api/mg_test_utils.cpp)
+        ConfigureCTestMG(MG_CAPI_TRIANGLE_COUNT c_api/mg_triangle_count_test.c c_api/mg_test_utils.cpp)
+        ConfigureCTestMG(MG_CAPI_LOUVAIN c_api/mg_louvain_test.c c_api/mg_test_utils.cpp)
     else()
        message(FATAL_ERROR "OpenMPI NOT found, cannot build MG tests.")
     endif()
@@ -662,12 +694,18 @@ target_link_libraries(cugraph_c_testutil
 
 ConfigureCTest(CAPI_CREATE_GRAPH_TEST c_api/create_graph_test.c)
 ConfigureCTest(CAPI_PAGERANK_TEST c_api/pagerank_test.c)
+ConfigureCTest(CAPI_KATZ_TEST c_api/katz_test.c)
+ConfigureCTest(CAPI_EIGENVECTOR_CENTRALITY_TEST c_api/eigenvector_centrality_test.c)
 ConfigureCTest(CAPI_HITS_TEST c_api/hits_test.c)
 ConfigureCTest(CAPI_BFS_TEST c_api/bfs_test.c)
 ConfigureCTest(CAPI_SSSP_TEST c_api/sssp_test.c)
 ConfigureCTest(CAPI_EXTRACT_PATHS_TEST c_api/extract_paths_test.c)
 ConfigureCTest(CAPI_NODE2VEC_TEST c_api/node2vec_test.c)
+ConfigureCTest(CAPI_WEAKLY_CONNECTED_COMPONENTS c_api/weakly_connected_components_test.c)
+ConfigureCTest(CAPI_STRONGLY_CONNECTED_COMPONENTS c_api/strongly_connected_components_test.c)
 ConfigureCTest(CAPI_UNIFORM_NEIGHBOR_SAMPLE c_api/uniform_neighbor_sample_test.c)
+ConfigureCTest(CAPI_TRIANGLE_COUNT c_api/triangle_count_test.c)
+ConfigureCTest(CAPI_LOUVAIN c_api/louvain_test.c)
 
 ###################################################################################################
 ### enable testing ################################################################################

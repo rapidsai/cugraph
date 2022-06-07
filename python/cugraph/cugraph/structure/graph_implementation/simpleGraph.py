@@ -18,7 +18,7 @@ from cugraph.structure.number_map import NumberMap
 import cugraph.dask.common.mg_utils as mg_utils
 import cudf
 import dask_cudf
-import cugraph.comms.comms as Comms
+import cugraph.dask.comms.comms as Comms
 import pandas as pd
 import numpy as np
 from cugraph.dask.structure import replication
@@ -88,6 +88,7 @@ class simpleGraphImpl:
         destination="destination",
         edge_attr=None,
         renumber=True,
+        legacy_renum_only=False,
     ):
 
         # Verify column names present in input DataFrame
@@ -106,7 +107,17 @@ class simpleGraphImpl:
                 "names not found in input. Recheck the source and "
                 "destination parameters"
             )
+        df_columns = s_col + d_col
 
+        if edge_attr is not None:
+            if not (set([edge_attr]).issubset(set(input_df.columns))):
+                raise ValueError(
+                    "edge_attr column name not found in input."
+                    "Recheck the edge_attr parameter")
+            self.properties.weighted = True
+            df_columns.append(edge_attr)
+
+        input_df = input_df[df_columns]
         # FIXME: check if the consolidated graph fits on the
         # device before gathering all the edge lists
 
@@ -136,30 +147,27 @@ class simpleGraphImpl:
         if renumber:
             # FIXME: Should SG do lazy evaluation like MG?
             elist, renumber_map = NumberMap.renumber(
-                elist, source, destination, store_transposed=False
+                elist, source, destination, store_transposed=False,
+                legacy_renum_only=legacy_renum_only
             )
             source = renumber_map.renumbered_src_col_name
             destination = renumber_map.renumbered_dst_col_name
-            self.properties.renumbered = True
+            # Use renumber_map to figure out if renumbering was skipped or not
+            # This was added to handle 'legacy_renum_only' which will skip the
+            # old C++ renumbering  when running the pylibcugraph/C algos
+            self.properties.renumbered = renumber_map.implementation.numbered
             self.renumber_map = renumber_map
         else:
             if type(source) is list and type(destination) is list:
                 raise ValueError("set renumber to True for multi column ids")
 
-        # Populate graph edgelist
-        source_col = elist[source]
-        dest_col = elist[destination]
-
-        if edge_attr is not None:
-            self.properties.weighted = True
-            value_col = elist[edge_attr]
-        else:
-            value_col = None
-
+        # The dataframe will be symmetrized iff the graph is undirected
+        # otherwise the inital dataframe will be returned. Duplicated edges
+        # will be dropped unless the graph is a MultiGraph(Not Implemented yet)
         # TODO: Update Symmetrize to work on Graph and/or DataFrame
-        if value_col is not None:
+        if edge_attr is not None:
             source_col, dest_col, value_col = symmetrize(
-                source_col, dest_col, value_col,
+                elist, source, destination, edge_attr,
                 multi=self.properties.multi_edge,
                 symmetrize=not self.properties.directed)
             if isinstance(value_col, cudf.DataFrame):
@@ -168,8 +176,9 @@ class simpleGraphImpl:
                     value_dict[i] = value_col[i]
                 value_col = value_dict
         else:
+            value_col = None
             source_col, dest_col = symmetrize(
-                source_col, dest_col, multi=self.properties.multi_edge,
+                elist, source, destination, multi=self.properties.multi_edge,
                 symmetrize=not self.properties.directed)
 
         self.edgelist = simpleGraphImpl.EdgeList(source_col, dest_col,
@@ -178,16 +187,19 @@ class simpleGraphImpl:
         if self.batch_enabled:
             self._replicate_edgelist()
 
-    def to_pandas_edgelist(self, source='source', destination='destination'):
+    def to_pandas_edgelist(self, source='src', destination='dst',
+                           weight='weights'):
         """
         Returns the graph edge list as a Pandas DataFrame.
 
         Parameters
         ----------
-        source : str or array-like, optional (default='source')
+        source : str or array-like, optional (default='src')
             source column name or array of column names
-        destination : str or array-like, optional (default='destination')
+        destination : str or array-like, optional (default='dst')
             destination column name or array of column names
+        weight : str or array-like, optional (default='weight')
+            weight column name or array of column names
 
         Returns
         -------
@@ -195,6 +207,12 @@ class simpleGraphImpl:
         """
 
         gdf = self.view_edge_list()
+        if self.properties.weighted:
+            gdf.rename(columns={'src': source, 'dst': destination,
+                       'weight': weight}, inplace=True)
+        else:
+            gdf.rename(columns={'src': source,
+                       'dst': destination}, inplace=True)
         return gdf.to_pandas()
 
     def to_pandas_adjacency(self):
@@ -754,10 +772,10 @@ class simpleGraphImpl:
             df = self.edgelist.edgelist_df
             if self.edgelist.weights:
                 source_col, dest_col, value_col = symmetrize(
-                    df["src"], df["dst"], df["weights"]
+                    df, 'src', 'dst', 'weights'
                 )
             else:
-                source_col, dest_col = symmetrize(df["src"], df["dst"])
+                source_col, dest_col = symmetrize(df, 'src', "dst")
                 value_col = None
             G.edgelist = simpleGraphImpl.EdgeList(source_col, dest_col,
                                                   value_col)

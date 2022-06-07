@@ -15,7 +15,7 @@
 #=============================================================================
 
 cmake_minimum_required(VERSION 3.20.1 FATAL_ERROR)
-file(DOWNLOAD https://raw.githubusercontent.com/rapidsai/rapids-cmake/branch-22.04/RAPIDS.cmake
+file(DOWNLOAD https://raw.githubusercontent.com/rapidsai/rapids-cmake/branch-22.06/RAPIDS.cmake
     ${CMAKE_BINARY_DIR}/RAPIDS.cmake)
 include(${CMAKE_BINARY_DIR}/RAPIDS.cmake)
 
@@ -27,7 +27,7 @@ include(rapids-find)
 
 rapids_cuda_init_architectures(CUGRAPH_ETL)
 
-project(CUGRAPH_ETL VERSION 22.04.00 LANGUAGES C CXX CUDA)
+project(CUGRAPH_ETL VERSION 22.06.00 LANGUAGES C CXX CUDA)
 
 if(CMAKE_CUDA_COMPILER_ID STREQUAL "NVIDIA" AND
    CMAKE_CUDA_COMPILER_VERSION VERSION_LESS 11.0)
@@ -51,6 +51,7 @@ rapids_cmake_build_type(Release)
 ################################################################################
 # - User Options  --------------------------------------------------------------
 
+option(BUILD_SHARED_LIBS "Build cuGraph shared libraries" ON)
 option(BUILD_CUGRAPH_ETL_MG_TESTS "Build cuGraph multigpu algorithm tests" OFF)
 option(CMAKE_CUDA_LINEINFO "Enable the -lineinfo option for nvcc (useful for cuda-memcheck / profiler" OFF)
 option(BUILD_TESTS "Configure CMake to build tests" ON)
@@ -101,7 +102,7 @@ include(cmake/thirdparty/get_cudf.cmake)
 ################################################################################
 # - ETL library --------------------------------------------------------------
 
-add_library(cugraph_etl SHARED
+add_library(cugraph_etl
             src/renumbering.cu
            )
 add_library(cugraph::cugraph_etl ALIAS cugraph_etl)
@@ -112,6 +113,9 @@ set_target_properties(cugraph_etl
                # set target compile options
                CXX_STANDARD                        17
                CXX_STANDARD_REQUIRED               ON
+               CUDA_STANDARD                       17
+               CUDA_STANDARD_REQUIRED              ON
+               POSITION_INDEPENDENT_CODE           ON
                INTERFACE_POSITION_INDEPENDENT_CODE ON
 )
 
@@ -119,10 +123,8 @@ target_compile_options(cugraph_etl
             PRIVATE "$<$<COMPILE_LANGUAGE:CXX>:${CUGRAPH_ETL_CXX_FLAGS}>"
 )
 
-target_compile_options(cugraph_etl PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:
-                       --expt-relaxed-constexpr
-                       --expt-extended-lambda
-                       >)
+target_compile_options(cugraph_etl
+            PRIVATE "$<$<COMPILE_LANGUAGE:CUDA>:${CUGRAPH_ETL_CUDA_FLAGS}>")
 ################################################################################
 # - ETL include paths --------------------------------------------------------
 target_include_directories(cugraph_etl

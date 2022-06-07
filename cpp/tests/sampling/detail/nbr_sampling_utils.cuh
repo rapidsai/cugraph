@@ -18,6 +18,33 @@
 //
 #pragma once
 
+#include <cugraph/algorithms.hpp>
+#include <cugraph/detail/graph_functions.cuh>
+#include <cugraph/edge_partition_device_view.cuh>
+#include <cugraph/graph_functions.hpp>
+#include <cugraph/graph_view.hpp>
+#include <cugraph/partition_manager.hpp>
+#include <cugraph/utilities/host_scalar_comm.cuh>
+
+#include <cuco/detail/hash_functions.cuh>
+
+#include <raft/handle.hpp>
+
+#include <rmm/device_scalar.hpp>
+#include <rmm/device_uvector.hpp>
+
+#include <thrust/equal.h>
+#include <thrust/for_each.h>
+#include <thrust/gather.h>
+#include <thrust/iterator/zip_iterator.h>
+#include <thrust/random.h>
+#include <thrust/reduce.h>
+#include <thrust/scan.h>
+#include <thrust/shuffle.h>
+#include <thrust/sort.h>
+#include <thrust/transform.h>
+#include <thrust/tuple.h>
+
 #include <algorithm>
 #include <cassert>
 #include <functional>
@@ -37,34 +64,6 @@
 #include <utilities/test_graphs.hpp>
 #include <utilities/test_utilities.hpp>
 #include <utilities/thrust_wrapper.hpp>
-
-#include <cugraph/algorithms.hpp>
-#include <cugraph/detail/graph_functions.cuh>
-#include <cugraph/graph_view.hpp>
-#include <cugraph/matrix_partition_device_view.cuh>
-#include <cugraph/partition_manager.hpp>
-#include <cugraph/utilities/host_scalar_comm.cuh>
-
-#include <cuco/detail/hash_functions.cuh>
-
-#include <raft/comms/comms.hpp>
-#include <raft/comms/mpi_comms.hpp>
-#include <raft/handle.hpp>
-
-#include <rmm/device_scalar.hpp>
-#include <rmm/device_uvector.hpp>
-
-#include <thrust/equal.h>
-#include <thrust/for_each.h>
-#include <thrust/gather.h>
-#include <thrust/iterator/zip_iterator.h>
-#include <thrust/random.h>
-#include <thrust/reduce.h>
-#include <thrust/scan.h>
-#include <thrust/shuffle.h>
-#include <thrust/sort.h>
-#include <thrust/transform.h>
-#include <thrust/tuple.h>
 
 // utilities for testing / verification of Nbr Sampling functionality:
 //
@@ -360,10 +359,13 @@ rmm::device_uvector<vertex_t> random_vertex_ids(raft::handle_t const& handle,
                                                 vertex_t begin,
                                                 vertex_t end,
                                                 vertex_t count,
+                                                uint64_t seed,
                                                 int repetitions_per_vertex = 0)
 {
+#if 0
   auto& comm                  = handle.get_comms();
   auto const comm_rank        = comm.get_rank();
+#endif
   vertex_t number_of_vertices = end - begin;
 
   rmm::device_uvector<vertex_t> vertices(
@@ -374,7 +376,7 @@ rmm::device_uvector<vertex_t> random_vertex_ids(raft::handle_t const& handle,
     vertices.end(),
     [begin, number_of_vertices] __device__(auto v) { return begin + (v % number_of_vertices); });
   thrust::default_random_engine g;
-  g.seed(comm_rank);
+  g.seed(seed);
   thrust::shuffle(handle.get_thrust_policy(), vertices.begin(), vertices.end(), g);
   vertices.resize(count, handle.get_stream());
   return vertices;
@@ -439,7 +441,7 @@ sg_gather_edges(raft::handle_t const& handle,
                 typename GraphViewType::vertex_type invalid_vertex_id,
                 typename GraphViewType::edge_type indices_per_source)
 {
-  static_assert(GraphViewType::is_adj_matrix_transposed == false);
+  static_assert(GraphViewType::is_storage_transposed == false);
   using vertex_t    = typename GraphViewType::vertex_type;
   using edge_t      = typename GraphViewType::edge_type;
   using weight_t    = typename GraphViewType::weight_type;
@@ -447,9 +449,8 @@ sg_gather_edges(raft::handle_t const& handle,
   auto edge_count   = source_count * indices_per_source;
   rmm::device_uvector<vertex_t> sources(edge_count, handle.get_stream());
   rmm::device_uvector<vertex_t> destinations(edge_count, handle.get_stream());
-  auto matrix_partition =
-    cugraph::matrix_partition_device_view_t<vertex_t, edge_t, weight_t, false>(
-      graph_view.get_matrix_partition_view());
+  auto edge_partition = cugraph::edge_partition_device_view_t<vertex_t, edge_t, weight_t, false>(
+    graph_view.local_edge_partition_view());
   thrust::for_each(handle.get_thrust_policy(),
                    thrust::make_counting_iterator<size_t>(0),
                    thrust::make_counting_iterator<size_t>(edge_count),
@@ -458,8 +459,8 @@ sg_gather_edges(raft::handle_t const& handle,
                     edge_index_first,
                     sources      = sources.data(),
                     destinations = destinations.data(),
-                    offsets      = matrix_partition.get_offsets(),
-                    indices      = matrix_partition.get_indices(),
+                    offsets      = edge_partition.offsets(),
+                    indices      = edge_partition.indices(),
                     invalid_vertex_id] __device__(auto index) {
                      auto source        = vertex_input_first[index / indices_per_source];
                      sources[index]     = source;
@@ -496,21 +497,20 @@ sg_gather_edges(raft::handle_t const& handle,
                 const rmm::device_uvector<typename GraphViewType::vertex_type>& sources,
                 const rmm::device_uvector<prop_t>& properties)
 {
-  static_assert(GraphViewType::is_adj_matrix_transposed == false);
+  static_assert(GraphViewType::is_storage_transposed == false);
   using vertex_t = typename GraphViewType::vertex_type;
   using edge_t   = typename GraphViewType::edge_type;
   using weight_t = typename GraphViewType::weight_type;
 
-  auto matrix_partition =
-    cugraph::matrix_partition_device_view_t<vertex_t, edge_t, weight_t, false>(
-      graph_view.get_matrix_partition_view());
+  auto edge_partition = cugraph::edge_partition_device_view_t<vertex_t, edge_t, weight_t, false>(
+    graph_view.local_edge_partition_view());
 
   rmm::device_uvector<vertex_t> sources_out_degrees(sources.size(), handle.get_stream());
   thrust::transform(handle.get_thrust_policy(),
                     sources.cbegin(),
                     sources.cend(),
                     sources_out_degrees.begin(),
-                    [offsets = matrix_partition.get_offsets()] __device__(auto s) {
+                    [offsets = edge_partition.offsets()] __device__(auto s) {
                       return offsets[s + 1] - offsets[s];
                     });
   auto [sources_out_offsets, segmented_source_indices, segmented_sequence] =
@@ -524,7 +524,7 @@ sg_gather_edges(raft::handle_t const& handle,
   thrust::for_each(handle.get_thrust_policy(),
                    thrust::make_counting_iterator<size_t>(0),
                    thrust::make_counting_iterator<size_t>(edge_count),
-                   [partition                = matrix_partition,
+                   [partition                = edge_partition,
                     srcs                     = srcs.data(),
                     dsts                     = dsts.data(),
                     src_prop                 = src_prop.data(),
@@ -535,8 +535,8 @@ sg_gather_edges(raft::handle_t const& handle,
                     segmented_sequence       = segmented_sequence.data()] __device__(auto index) {
                      auto src_index  = segmented_source_indices[index];
                      auto src        = sources[src_index];
-                     auto offsets    = partition.get_offsets();
-                     auto indices    = partition.get_indices();
+                     auto offsets    = partition.offsets();
+                     auto indices    = partition.indices();
                      auto dst        = indices[offsets[src] + segmented_sequence[index]];
                      srcs[index]     = src;
                      dsts[index]     = dst;
@@ -628,6 +628,215 @@ rmm::device_uvector<edge_t> generate_random_destination_indices(
                      }
                    });
   return dst_index;
+}
+
+// FIXME: Consider moving this to thrust_tuple_utils and making it
+//        generic for any typle that supports < operator
+template <typename vertex_t, typename weight_t>
+struct ArithmeticZipLess {
+  __device__ bool operator()(thrust::tuple<vertex_t, vertex_t, weight_t> const& left,
+                             thrust::tuple<vertex_t, vertex_t, weight_t> const& right)
+  {
+    if (thrust::get<0>(left) < thrust::get<0>(right)) return true;
+    if (thrust::get<0>(right) < thrust::get<0>(left)) return false;
+#if 0
+    // FIXME: We're not currently handling the weight in tests yet,
+    //        This version uses the weight, the else clause
+    //        ignores the weight
+    if (thrust::get<1>(left) < thrust::get<1>(right)) return true;
+    if (thrust::get<1>(right) < thrust::get<1>(left)) return false;
+    return thrust::get<2>(left) < thrust::get<2>(right);
+#else
+    return thrust::get<1>(left) < thrust::get<1>(right);
+#endif
+  }
+};
+
+template <typename vertex_t, typename weight_t>
+struct ArithmeticZipEqual {
+  __device__ bool operator()(thrust::tuple<vertex_t, vertex_t, weight_t> const& left,
+                             thrust::tuple<vertex_t, vertex_t, weight_t> const& right)
+  {
+#if 0
+    // FIXME: We're not currently handling the weight in tests yet,
+    //        This version uses the weight, the else clause
+    //        ignores the weight
+    return (thrust::get<0>(left) == thrust::get<0>(right))
+      && (thrust::get<1>(left) == thrust::get<1>(right))
+      && (thrust::get<2>(left) == thrust::get<2>(right));
+#else
+    return (thrust::get<0>(left) == thrust::get<0>(right)) &&
+           (thrust::get<1>(left) == thrust::get<1>(right));
+#endif
+  }
+};
+
+template <typename vertex_t, typename weight_t>
+void validate_extracted_graph_is_subgraph(raft::handle_t const& handle,
+                                          rmm::device_uvector<vertex_t> const& d_src,
+                                          rmm::device_uvector<vertex_t> const& d_dst,
+                                          rmm::device_uvector<weight_t> const& d_wgt,
+                                          rmm::device_uvector<vertex_t> const& d_subgraph_src,
+                                          rmm::device_uvector<vertex_t> const& d_subgraph_dst,
+                                          rmm::device_uvector<weight_t> const& d_subgraph_wgt)
+{
+  rmm::device_uvector<vertex_t> src_v(d_src.size(), handle.get_stream());
+  rmm::device_uvector<vertex_t> dst_v(d_dst.size(), handle.get_stream());
+  rmm::device_uvector<weight_t> wgt_v(d_wgt.size(), handle.get_stream());
+  rmm::device_uvector<vertex_t> subgraph_src_v(d_subgraph_src.size(), handle.get_stream());
+  rmm::device_uvector<vertex_t> subgraph_dst_v(d_subgraph_dst.size(), handle.get_stream());
+  rmm::device_uvector<weight_t> subgraph_wgt_v(d_subgraph_wgt.size(), handle.get_stream());
+
+  raft::copy(src_v.data(), d_src.data(), d_src.size(), handle.get_stream());
+  raft::copy(dst_v.data(), d_dst.data(), d_dst.size(), handle.get_stream());
+  raft::copy(wgt_v.data(), d_wgt.data(), d_wgt.size(), handle.get_stream());
+  raft::copy(
+    subgraph_src_v.data(), d_subgraph_src.data(), d_subgraph_src.size(), handle.get_stream());
+  raft::copy(
+    subgraph_dst_v.data(), d_subgraph_dst.data(), d_subgraph_dst.size(), handle.get_stream());
+  raft::copy(
+    subgraph_wgt_v.data(), d_subgraph_wgt.data(), d_subgraph_wgt.size(), handle.get_stream());
+
+  auto graph_iter =
+    thrust::make_zip_iterator(thrust::make_tuple(src_v.begin(), dst_v.begin(), wgt_v.begin()));
+  auto subgraph_iter = thrust::make_zip_iterator(
+    thrust::make_tuple(subgraph_src_v.begin(), subgraph_dst_v.begin(), subgraph_wgt_v.begin()));
+
+  thrust::sort(handle.get_thrust_policy(),
+               graph_iter,
+               graph_iter + src_v.size(),
+               ArithmeticZipLess<vertex_t, weight_t>{});
+  thrust::sort(handle.get_thrust_policy(),
+               subgraph_iter,
+               subgraph_iter + subgraph_src_v.size(),
+               ArithmeticZipLess<vertex_t, weight_t>{});
+
+  auto graph_iter_end    = thrust::unique(handle.get_thrust_policy(),
+                                       graph_iter,
+                                       graph_iter + src_v.size(),
+                                       ArithmeticZipEqual<vertex_t, weight_t>{});
+  auto subgraph_iter_end = thrust::unique(handle.get_thrust_policy(),
+                                          subgraph_iter,
+                                          subgraph_iter + subgraph_src_v.size(),
+                                          ArithmeticZipEqual<vertex_t, weight_t>{});
+
+  auto new_size = thrust::distance(graph_iter, graph_iter_end);
+
+  src_v.resize(new_size, handle.get_stream());
+  dst_v.resize(new_size, handle.get_stream());
+  wgt_v.resize(new_size, handle.get_stream());
+
+  new_size = thrust::distance(subgraph_iter, subgraph_iter_end);
+  subgraph_src_v.resize(new_size, handle.get_stream());
+  subgraph_dst_v.resize(new_size, handle.get_stream());
+  subgraph_wgt_v.resize(new_size, handle.get_stream());
+
+  rmm::device_uvector<vertex_t> d_tmp_src(new_size, handle.get_stream());
+  rmm::device_uvector<vertex_t> d_tmp_dst(new_size, handle.get_stream());
+  rmm::device_uvector<weight_t> d_tmp_wgt(new_size, handle.get_stream());
+
+  auto tmp_subgraph_iter = thrust::make_zip_iterator(
+    thrust::make_tuple(d_tmp_src.begin(), d_tmp_dst.begin(), d_tmp_wgt.begin()));
+
+  auto tmp_subgraph_iter_end = thrust::set_difference(handle.get_thrust_policy(),
+                                                      subgraph_iter,
+                                                      subgraph_iter + subgraph_src_v.size(),
+                                                      graph_iter,
+                                                      graph_iter + src_v.size(),
+                                                      tmp_subgraph_iter,
+                                                      ArithmeticZipLess<vertex_t, weight_t>{});
+
+  auto dist = thrust::distance(tmp_subgraph_iter, tmp_subgraph_iter_end);
+
+  if (dist > 0) {
+    std::cout << "dist = " << dist << std::endl;
+    raft::print_device_vector(
+      "  subgraph_src_v", subgraph_src_v.data(), subgraph_src_v.size(), std::cout);
+    raft::print_device_vector(
+      "  subgraph_dst_v", subgraph_dst_v.data(), subgraph_dst_v.size(), std::cout);
+    raft::print_device_vector(
+      "  subgraph_wgt_v", subgraph_wgt_v.data(), subgraph_wgt_v.size(), std::cout);
+    raft::print_device_vector("  src_v", src_v.data(), src_v.size(), std::cout);
+    raft::print_device_vector("  dst_v", dst_v.data(), dst_v.size(), std::cout);
+    raft::print_device_vector("  wgt_v", wgt_v.data(), wgt_v.size(), std::cout);
+    raft::print_device_vector("  d_tmp_src", d_tmp_src.data(), dist, std::cout);
+    raft::print_device_vector("  d_tmp_dst", d_tmp_dst.data(), dist, std::cout);
+    raft::print_device_vector("  d_tmp_wgt", d_tmp_wgt.data(), dist, std::cout);
+  }
+
+  ASSERT_EQ(0, dist);
+}
+
+template <typename vertex_t, typename weight_t>
+void validate_sampling_depth(raft::handle_t const& handle,
+                             rmm::device_uvector<vertex_t>&& d_src,
+                             rmm::device_uvector<vertex_t>&& d_dst,
+                             rmm::device_uvector<weight_t>&& d_wgt,
+                             rmm::device_uvector<vertex_t>&& d_source_vertices,
+                             int max_depth)
+{
+  auto [graph, number_map] =
+    create_graph_from_edgelist<vertex_t, vertex_t, weight_t, false, false>(handle,
+                                                                           std::nullopt,
+                                                                           std::move(d_src),
+                                                                           std::move(d_dst),
+                                                                           std::move(d_wgt),
+                                                                           graph_properties_t{},
+                                                                           true);
+
+  auto graph_view = graph.view();
+
+  //  Renumber sources
+  renumber_ext_vertices<vertex_t, false>(handle,
+                                         d_source_vertices.data(),
+                                         d_source_vertices.size(),
+                                         number_map->data(),
+                                         graph_view.local_vertex_partition_range_first(),
+                                         graph_view.local_vertex_partition_range_last());
+
+  rmm::device_uvector<vertex_t> d_distances(graph_view.number_of_vertices(), handle.get_stream());
+  thrust::fill(
+    handle.get_thrust_policy(), d_distances.begin(), d_distances.end(), vertex_t{max_depth + 1});
+
+  rmm::device_uvector<vertex_t> d_local_distances(graph_view.number_of_vertices(),
+                                                  handle.get_stream());
+
+  std::vector<vertex_t> h_source_vertices(d_source_vertices.size());
+  raft::update_host(h_source_vertices.data(),
+                    d_source_vertices.data(),
+                    d_source_vertices.size(),
+                    handle.get_stream());
+
+  for (size_t i = 0; i < d_source_vertices.size(); ++i) {
+    if (h_source_vertices[i] != cugraph::invalid_vertex_id<vertex_t>::value) {
+      // Do BFS
+      cugraph::bfs<vertex_t, vertex_t, weight_t, false>(handle,
+                                                        graph_view,
+                                                        d_local_distances.data(),
+                                                        nullptr,
+                                                        d_source_vertices.data() + i,
+                                                        size_t{1},
+                                                        bool{false},
+                                                        vertex_t{max_depth});
+
+      auto tuple_iter = thrust::make_zip_iterator(
+        thrust::make_tuple(d_distances.begin(), d_local_distances.begin()));
+
+      thrust::transform(handle.get_thrust_policy(),
+                        tuple_iter,
+                        tuple_iter + d_distances.size(),
+                        d_distances.begin(),
+                        [] __device__(auto tuple) {
+                          return thrust::min(thrust::get<0>(tuple), thrust::get<1>(tuple));
+                        });
+    }
+  }
+
+  ASSERT_EQ(0,
+            thrust::count_if(handle.get_thrust_policy(),
+                             d_distances.begin(),
+                             d_distances.end(),
+                             [max_depth] __device__(auto d) { return d > max_depth; }));
 }
 
 }  // namespace test

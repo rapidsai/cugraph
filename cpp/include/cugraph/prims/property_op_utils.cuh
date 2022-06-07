@@ -20,6 +20,7 @@
 
 #include <raft/comms/comms.hpp>
 #include <raft/device_atomics.cuh>
+#include <raft/span.hpp>
 
 #include <cub/cub.cuh>
 #include <thrust/detail/type_traits/iterator/is_discard_iterator.h>
@@ -92,6 +93,46 @@ struct edge_op_result_type<
   using type = typename std::invoke_result<EdgeOp, key_t, vertex_t, src_value_t, dst_value_t>::type;
 };
 
+template <typename InvokeResultIntersectionOp, typename Enable = void>
+struct is_valid_intersection_op {
+  static constexpr bool value = false;
+};
+
+template <typename InvokeResultIntersectionOp>
+struct is_valid_intersection_op<
+  InvokeResultIntersectionOp,
+  typename std::conditional_t<false, typename InvokeResultIntersectionOp::type, void>> {
+  static constexpr bool valid = true;
+};
+
+template <typename vertex_t,
+          typename src_value_t,
+          typename dst_value_t,
+          typename IntersectionOp,
+          typename Enable = void>
+struct intersection_op_result_type;
+
+template <typename vertex_t, typename src_value_t, typename dst_value_t, typename IntersectionOp>
+struct intersection_op_result_type<
+  vertex_t,
+  src_value_t,
+  dst_value_t,
+  IntersectionOp,
+  std::enable_if_t<is_valid_intersection_op<
+    typename std::invoke_result<IntersectionOp,
+                                vertex_t,
+                                vertex_t,
+                                src_value_t,
+                                dst_value_t,
+                                raft::device_span<vertex_t const>>>::valid>> {
+  using type = typename std::invoke_result<IntersectionOp,
+                                           vertex_t,
+                                           vertex_t,
+                                           src_value_t,
+                                           dst_value_t,
+                                           raft::device_span<vertex_t const>>::type;
+};
+
 }  // namespace detail
 
 template <typename GraphViewType,
@@ -117,7 +158,7 @@ struct evaluate_edge_op {
   __device__ std::enable_if_t<
     detail::is_valid_edge_op<typename std::invoke_result<E, K, V, W, SV, DV>>::valid,
     typename std::invoke_result<E, K, V, W, SV, DV>::type>
-  compute(K s, V d, W w, SV sv, DV dv, E e)
+  compute(K s, V d, W w, SV sv, DV dv, E e) const
   {
     return e(s, d, w, sv, dv);
   }
@@ -131,9 +172,33 @@ struct evaluate_edge_op {
   __device__
     std::enable_if_t<detail::is_valid_edge_op<typename std::invoke_result<E, K, V, SV, DV>>::valid,
                      typename std::invoke_result<E, K, V, SV, DV>::type>
-    compute(K s, V d, W w, SV sv, DV dv, E e)
+    compute(K s, V d, W w, SV sv, DV dv, E e) const
   {
     return e(s, d, sv, dv);
+  }
+};
+
+template <typename GraphViewType,
+          typename src_value_t,
+          typename dst_value_t,
+          typename IntersectionOp>
+struct evaluate_intersection_op {
+  using vertex_type = typename GraphViewType::vertex_type;
+  using weight_type = typename GraphViewType::weight_type;
+  using result_type = typename detail::
+    intersection_op_result_type<vertex_type, src_value_t, dst_value_t, IntersectionOp>::type;
+
+  template <typename V  = vertex_type,
+            typename SV = src_value_t,
+            typename DV = dst_value_t,
+            typename I  = IntersectionOp>
+  __device__ std::enable_if_t<
+    detail::is_valid_intersection_op<
+      typename std::invoke_result<I, V, V, SV, DV, raft::device_span<V const>>>::valid,
+    typename std::invoke_result<I, V, V, SV, DV, raft::device_span<V const>>::type>
+  compute(V s, V d, SV sv, DV dv, raft::device_span<V const> intersection, I i)
+  {
+    return i(s, d, sv, dv, intersection);
   }
 };
 
@@ -160,7 +225,7 @@ struct cast_edge_op_bool_to_integer {
             typename E  = EdgeOp>
   __device__ std::
     enable_if_t<detail::is_valid_edge_op<typename std::invoke_result<E, K, V, W, SV, DV>>::valid, T>
-    operator()(K s, V d, W w, SV sv, DV dv)
+    operator()(K s, V d, W w, SV sv, DV dv) const
   {
     return e_op(s, d, w, sv, dv) ? T{1} : T{0};
   }
@@ -173,7 +238,7 @@ struct cast_edge_op_bool_to_integer {
   __device__
     std::enable_if_t<detail::is_valid_edge_op<typename std::invoke_result<E, K, V, SV, DV>>::valid,
                      T>
-    operator()(K s, V d, SV sv, DV dv)
+    operator()(K s, V d, SV sv, DV dv) const
   {
     return e_op(s, d, sv, dv) ? T{1} : T{0};
   }
@@ -191,57 +256,41 @@ struct property_op<thrust::tuple<Args...>, Op>
 
  private:
   template <typename T, std::size_t... Is>
-  __host__ __device__ constexpr auto sum_impl(T& t1, T& t2, std::index_sequence<Is...>)
+  __host__ __device__ constexpr auto binary_op_impl(T& t1, T& t2, std::index_sequence<Is...>) const
   {
     return thrust::make_tuple((Op<typename thrust::tuple_element<Is, Type>::type>()(
       thrust::get<Is>(t1), thrust::get<Is>(t2)))...);
   }
 
  public:
-  __host__ __device__ constexpr auto operator()(const Type& t1, const Type& t2)
+  __host__ __device__ constexpr auto operator()(const Type& t1, const Type& t2) const
   {
-    return sum_impl(t1, t2, std::make_index_sequence<thrust::tuple_size<Type>::value>());
+    return binary_op_impl(t1, t2, std::make_index_sequence<thrust::tuple_size<Type>::value>());
   }
 };
 
-template <typename T, typename F>
-auto op_dispatch(raft::comms::op_t op, F&& f)
+template <typename T>
+constexpr std::enable_if_t<is_thrust_tuple_of_arithmetic<T>::value, T> min_identity_element()
 {
-  switch (op) {
-    case raft::comms::op_t::SUM: {
-      return std::invoke(f, property_op<T, thrust::plus>());
-    } break;
-    case raft::comms::op_t::MIN: {
-      return std::invoke(f, property_op<T, thrust::minimum>());
-    } break;
-    case raft::comms::op_t::MAX: {
-      return std::invoke(f, property_op<T, thrust::maximum>());
-    } break;
-    default: {
-      CUGRAPH_FAIL("Unhandled raft::comms::op_t");
-      return std::invoke_result_t<F, property_op<T, thrust::plus>>{};
-    }
-  };
+  return thrust_tuple_of_arithmetic_numeric_limits_lowest<T>();
 }
 
 template <typename T>
-T identity_element(raft::comms::op_t op)
+constexpr std::enable_if_t<std::is_arithmetic<T>::value, T> min_identity_element()
 {
-  switch (op) {
-    case raft::comms::op_t::SUM: {
-      return T{0};
-    } break;
-    case raft::comms::op_t::MIN: {
-      return std::numeric_limits<T>::max();
-    } break;
-    case raft::comms::op_t::MAX: {
-      return std::numeric_limits<T>::lowest();
-    } break;
-    default: {
-      CUGRAPH_FAIL("Unhandled raft::comms::op_t");
-      return T{0};
-    }
-  };
+  return std::numeric_limits<T>::lowest();
+}
+
+template <typename T>
+constexpr std::enable_if_t<is_thrust_tuple_of_arithmetic<T>::value, T> max_identity_element()
+{
+  return thrust_tuple_of_arithmetic_numeric_limits_max<T>();
+}
+
+template <typename T>
+constexpr std::enable_if_t<std::is_arithmetic<T>::value, T> max_identity_element()
+{
+  return std::numeric_limits<T>::max();
 }
 
 template <typename Iterator, typename T>
@@ -271,7 +320,6 @@ __device__
   static_assert(thrust::tuple_size<typename thrust::iterator_traits<Iterator>::value_type>::value ==
                 thrust::tuple_size<T>::value);
   atomic_accumulate_thrust_tuple<Iterator, T>()(iter, value);
-  return;
 }
 
 }  // namespace cugraph

@@ -73,13 +73,13 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
     } else {
       std::optional<rmm::device_uvector<vertex_t>> new_number_map;
 
-      rmm::device_uvector<vertex_t> edgelist_rows(src_->size_, handle_.get_stream());
-      rmm::device_uvector<vertex_t> edgelist_cols(dst_->size_, handle_.get_stream());
+      rmm::device_uvector<vertex_t> edgelist_srcs(src_->size_, handle_.get_stream());
+      rmm::device_uvector<vertex_t> edgelist_dsts(dst_->size_, handle_.get_stream());
 
       raft::copy<vertex_t>(
-        edgelist_rows.data(), src_->as_type<vertex_t>(), src_->size_, handle_.get_stream());
+        edgelist_srcs.data(), src_->as_type<vertex_t>(), src_->size_, handle_.get_stream());
       raft::copy<vertex_t>(
-        edgelist_cols.data(), dst_->as_type<vertex_t>(), dst_->size_, handle_.get_stream());
+        edgelist_dsts.data(), dst_->as_type<vertex_t>(), dst_->size_, handle_.get_stream());
 
       std::optional<rmm::device_uvector<weight_t>> edgelist_weights =
         weights_
@@ -94,13 +94,13 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
       }
 
       // Here's the error.  If store_transposed is true then this needs to be flipped...
-      std::tie(store_transposed ? edgelist_cols : edgelist_rows,
-               store_transposed ? edgelist_rows : edgelist_cols,
+      std::tie(store_transposed ? edgelist_dsts : edgelist_srcs,
+               store_transposed ? edgelist_srcs : edgelist_dsts,
                edgelist_weights) =
         cugraph::detail::shuffle_edgelist_by_gpu_id<vertex_t, weight_t>(
           handle_,
-          std::move(store_transposed ? edgelist_cols : edgelist_rows),
-          std::move(store_transposed ? edgelist_rows : edgelist_cols),
+          std::move(store_transposed ? edgelist_dsts : edgelist_srcs),
+          std::move(store_transposed ? edgelist_srcs : edgelist_dsts),
           std::move(edgelist_weights));
 
       auto graph =
@@ -113,8 +113,8 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
         create_graph_from_edgelist<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
           handle_,
           std::nullopt,
-          std::move(edgelist_rows),
-          std::move(edgelist_cols),
+          std::move(edgelist_srcs),
+          std::move(edgelist_dsts),
           std::move(edgelist_weights),
           cugraph::graph_properties_t{properties_->is_symmetric, properties_->is_multigraph},
           renumber_,
@@ -123,11 +123,11 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
       if (renumber_) {
         *number_map = std::move(new_number_map.value());
       } else {
-        number_map->resize(graph->get_number_of_vertices(), handle_.get_stream());
+        number_map->resize(graph->number_of_vertices(), handle_.get_stream());
         cugraph::detail::sequence_fill(handle_.get_stream(),
                                        number_map->data(),
                                        number_map->size(),
-                                       graph->view().get_local_vertex_first());
+                                       graph->view().local_vertex_partition_range_first());
       }
 
       // Set up return
@@ -211,7 +211,7 @@ extern "C" cugraph_error_code_t cugraph_mg_graph_create(
                "Invalid input arguments: src type != dst type.",
                *error);
 
-  CAPI_EXPECTS(!weights || (p_weights->size_ == p_src->size_),
+  CAPI_EXPECTS((weights == nullptr) || (p_weights->size_ == p_src->size_),
                CUGRAPH_INVALID_INPUT,
                "Invalid input arguments: src size != weights size.",
                *error);
@@ -225,7 +225,7 @@ extern "C" cugraph_error_code_t cugraph_mg_graph_create(
     edge_type = data_type_id_t::INT64;
   }
 
-  if (!weights) {
+  if (weights != nullptr) {
     weight_type = p_weights->type_;
   } else {
     weight_type = data_type_id_t::FLOAT32;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2021, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2022, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,6 +27,24 @@
 
 namespace cugraph {
 
+namespace detail {
+
+template <typename vertex_t, typename VertexValueInputIterator, typename VertexOp>
+struct count_if_call_v_op_t {
+  vertex_t local_vertex_partition_range_first{};
+  VertexValueInputIterator vertex_value_input_first{};
+  VertexOp v_op{};
+
+  __device__ bool operator()(vertex_t i)
+  {
+    return v_op(local_vertex_partition_range_first + i, *(vertex_value_input_first + i))
+             ? vertex_t{1}
+             : vertex_t{0};
+  }
+};
+
+}  // namespace detail
+
 /**
  * @brief Count the number of vertices that satisfies the given predicate.
  *
@@ -34,66 +52,41 @@ namespace cugraph {
  * thrust::count_if().
  *
  * @tparam GraphViewType Type of the passed non-owning graph object.
- * @tparam VertexValueInputIterator Type of the iterator for vertex properties.
+ * @tparam VertexValueInputIterator Type of the iterator for vertex property values.
  * @tparam VertexOp Type of the unary predicate operator.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Non-owning graph object.
- * @param vertex_value_input_first Iterator pointing to the vertex properties for the first
+ * @param vertex_value_input_first Iterator pointing to the vertex property values for the first
  * (inclusive) vertex (assigned to this process in multi-GPU). `vertex_value_input_last` (exclusive)
- * is deduced as @p vertex_value_input_first + @p graph_view.get_number_of_local_vertices().
- * @param v_op Unary operator takes *(@p vertex_value_input_first + i) (where i is [0, @p
- * graph_view.get_number_of_local_vertices())) and returns true if this vertex should be
+ * is deduced as @p vertex_value_input_first + @p graph_view.local_vertex_partition_range_size().
+ * @param v_op Binary operator takes vertex ID and *(@p vertex_value_input_first + i) (where i is
+ * [0, @p graph_view.local_vertex_partition_range_size())) and returns true if this vertex should be
  * included in the returned count.
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  * @return GraphViewType::vertex_type Number of times @p v_op returned true.
  */
 template <typename GraphViewType, typename VertexValueInputIterator, typename VertexOp>
 typename GraphViewType::vertex_type count_if_v(raft::handle_t const& handle,
                                                GraphViewType const& graph_view,
                                                VertexValueInputIterator vertex_value_input_first,
-                                               VertexOp v_op)
+                                               VertexOp v_op,
+                                               bool do_expensive_check = false)
 {
-  auto count =
-    thrust::count_if(handle.get_thrust_policy(),
-                     vertex_value_input_first,
-                     vertex_value_input_first + graph_view.get_number_of_local_vertices(),
-                     v_op);
-  if (GraphViewType::is_multi_gpu) {
-    count =
-      host_scalar_allreduce(handle.get_comms(), count, raft::comms::op_t::SUM, handle.get_stream());
-  }
-  return count;
-}
+  using vertex_t = typename GraphViewType::vertex_type;
 
-/**
- * @brief Count the number of vertices that satisfies the given predicate.
- *
- * This version (conceptually) iterates over only a subset of the graph vertices. This function
- * actually works as thrust::count_if() on [@p input_first, @p input_last) (followed by
- * inter-process reduction in multi-GPU). @p input_last - @p input_first (or the sum of @p
- * input_last - @p input_first values in multi-GPU) should not overflow GraphViewType::vertex_type.
- *
- * @tparam GraphViewType Type of the passed non-owning graph object.
- * @tparam InputIterator Type of the iterator for input values.
- * @tparam VertexOp VertexOp Type of the unary predicate operator.
- * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
- * handles to various CUDA libraries) to run graph algorithms.
- * @param graph_view Non-owning graph object.
- * @param input_first Iterator pointing to the beginning (inclusive) of the values to be passed to
- * @p v_op.
- * @param input_last Iterator pointing to the end (exclusive) of the values to be passed to @p v_op.
- * @param v_op Unary operator takes *(@p input_first + i) (where i is [0, @p input_last - @p
- * input_first)) and returns true if this vertex should be included in the returned count.
- * @return GraphViewType::vertex_type Number of times @p v_op returned true.
- */
-template <typename GraphViewType, typename InputIterator, typename VertexOp>
-typename GraphViewType::vertex_type count_if_v(raft::handle_t const& handle,
-                                               GraphViewType const& graph_view,
-                                               InputIterator input_first,
-                                               InputIterator input_last,
-                                               VertexOp v_op)
-{
-  auto count = thrust::count_if(handle.get_thrust_policy(), input_first, input_last, v_op);
+  if (do_expensive_check) {
+    // currently, nothing to do
+  }
+
+  auto it = thrust::make_transform_iterator(
+    thrust::make_counting_iterator(vertex_t{0}),
+    detail::count_if_call_v_op_t<vertex_t, VertexValueInputIterator, VertexOp>{
+      graph_view.local_vertex_partition_range_first(), vertex_value_input_first, v_op});
+  auto count = thrust::reduce(handle.get_thrust_policy(),
+                              it,
+                              it + graph_view.local_vertex_partition_range_size(),
+                              vertex_t{0});
   if (GraphViewType::is_multi_gpu) {
     count =
       host_scalar_allreduce(handle.get_comms(), count, raft::comms::op_t::SUM, handle.get_stream());

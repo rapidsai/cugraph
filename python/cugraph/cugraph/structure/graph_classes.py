@@ -16,6 +16,7 @@ from .graph_implementation import (simpleGraphImpl,
                                    simpleDistributedGraphImpl,
                                    npartiteGraphImpl)
 import cudf
+import dask_cudf
 import warnings
 
 from cugraph.utilities.utils import import_optional
@@ -24,9 +25,15 @@ pd = import_optional("pandas")
 
 
 # TODO: Move to utilities
-def null_check(col):
-    if col.null_count != 0:
-        raise ValueError("Series contains NULL values")
+def null_check(input_data):
+    # input_data can be cudf.Series, cudf.DataFrame, dask_cudf.Series
+    # and dask_cudf.DataFrame
+    has_null = input_data.isna().values.any()
+    if isinstance(input_data, (dask_cudf.Series, dask_cudf.DataFrame)):
+        has_null = has_null.compute()
+
+    if has_null:
+        raise ValueError("Series/DataFrame contains NULL values")
 
 
 class Graph:
@@ -91,7 +98,8 @@ class Graph:
         source="source",
         destination="destination",
         edge_attr=None,
-        renumber=True
+        renumber=True,
+        legacy_renum_only=False
     ):
         """
         Initialize a graph from the edge list. It is an error to call this
@@ -143,11 +151,13 @@ class Graph:
         elif (self._Impl.edgelist is not None or
               self._Impl.adjlist is not None):
             raise RuntimeError("Graph already has values")
-        self._Impl._simpleGraphImpl__from_edgelist(input_df,
-                                                   source=source,
-                                                   destination=destination,
-                                                   edge_attr=edge_attr,
-                                                   renumber=renumber)
+        self._Impl._simpleGraphImpl__from_edgelist(
+            input_df,
+            source=source,
+            destination=destination,
+            edge_attr=edge_attr,
+            renumber=renumber,
+            legacy_renum_only=legacy_renum_only)
 
     def from_cudf_adjlist(self, offset_col, index_col, value_col=None):
         """

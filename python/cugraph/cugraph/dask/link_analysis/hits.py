@@ -16,15 +16,15 @@
 from dask.distributed import wait, default_client
 from cugraph.dask.common.input_utils import get_distributed_data
 
-import cugraph.comms.comms as Comms
+import cugraph.dask.comms.comms as Comms
 import dask_cudf
 import cudf
 
-from pylibcugraph.experimental import (ResourceHandle,
-                                       GraphProperties,
-                                       MGGraph,
-                                       hits as pylibcugraph_hits
-                                       )
+from pylibcugraph import (ResourceHandle,
+                          GraphProperties,
+                          MGGraph,
+                          hits as pylibcugraph_hits
+                          )
 
 
 def call_hits(sID,
@@ -122,8 +122,8 @@ def hits(input_graph, tol=1.0e-5, max_iter=100,  nstart=None, normalized=True):
     Returns
     -------
     HubsAndAuthorities : dask_cudf.DataFrame
-        GPU data frame containing three cudf.Series of size V: the vertex
-        identifiers and the corresponding hubs values and the corresponding
+        GPU distributed data frame containing three dask_cudf.Series of
+        size V: the vertex identifiers and the corresponding hubs and
         authorities values.
 
         df['vertex'] : dask_cudf.Series
@@ -135,24 +135,31 @@ def hits(input_graph, tol=1.0e-5, max_iter=100,  nstart=None, normalized=True):
 
     Examples
     --------
-    >>> # import cugraph.dask as dcg
+    >>> import cugraph.dask as dcg
+    >>> import dask_cudf
     >>> # ... Init a DASK Cluster
     >>> #    see https://docs.rapids.ai/api/cugraph/stable/dask-cugraph.html
     >>> # Download dataset from https://github.com/rapidsai/cugraph/datasets/..
-    >>> # chunksize = dcg.get_chunksize(datasets_path / "karate.csv")
-    >>> # ddf = dask_cudf.read_csv(input_data_path, chunksize=chunksize)
-    >>> # dg = cugraph.Graph(directed=True)
-    >>> # dg.from_dask_cudf_edgelist(ddf, source='src', destination='dst',
-    >>> #                            edge_attr='value')
-    >>> # hits = dcg.hits(dg, max_iter = 50)
+    >>> chunksize = dcg.get_chunksize(datasets_path / "karate.csv")
+    >>> ddf = dask_cudf.read_csv(datasets_path / "karate.csv",
+    ...                          chunksize=chunksize, delimiter=" ",
+    ...                          names=["src", "dst", "value"],
+    ...                          dtype=["int32", "int32", "float32"])
+    >>> dg = cugraph.Graph(directed=True)
+    >>> dg.from_dask_cudf_edgelist(ddf, source='src', destination='dst',
+    ...                            edge_attr='value')
+    >>> hits = dcg.hits(dg, max_iter = 50)
 
     """
 
     client = default_client()
 
-    # FIXME Still compute renumbering at this layer in case str
-    # vertex ID are passed
-    input_graph.compute_renumber_edge_list(transposed=False)
+    # FIXME: 'legacy_renum_only' will not trigger the C++ renumbering
+    # In the future, once all the algos follow the C/Pylibcugraph path,
+    # compute_renumber_edge_list will only be used for multicolumn and
+    # string vertices since the renumbering will be done in pylibcugraph
+    input_graph.compute_renumber_edge_list(
+        transposed=False, legacy_renum_only=True)
     ddf = input_graph.edgelist.edgelist_df
 
     graph_properties = GraphProperties(
@@ -165,12 +172,6 @@ def hits(input_graph, tol=1.0e-5, max_iter=100,  nstart=None, normalized=True):
 
     src_col_name = input_graph.renumber_map.renumbered_src_col_name
     dst_col_name = input_graph.renumber_map.renumbered_dst_col_name
-
-    # FIXME Move this call to the function creating a directed
-    # graph from a dask dataframe because duplicated edges need
-    # to be dropped
-    ddf = ddf.map_partitions(
-        lambda df: df.drop_duplicates(subset=[src_col_name, dst_col_name]))
 
     num_edges = len(ddf)
     data = get_distributed_data(ddf)
@@ -207,6 +208,7 @@ def hits(input_graph, tol=1.0e-5, max_iter=100,  nstart=None, normalized=True):
     wait(cudf_result)
 
     ddf = dask_cudf.from_delayed(cudf_result)
+
     if input_graph.renumbered:
         return input_graph.unrenumber(ddf, 'vertex')
 

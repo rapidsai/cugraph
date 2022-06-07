@@ -15,7 +15,7 @@
 #=============================================================================
 
 cmake_minimum_required(VERSION 3.20.1 FATAL_ERROR)
-file(DOWNLOAD https://raw.githubusercontent.com/rapidsai/rapids-cmake/branch-22.04/RAPIDS.cmake
+file(DOWNLOAD https://raw.githubusercontent.com/rapidsai/rapids-cmake/branch-22.06/RAPIDS.cmake
     ${CMAKE_BINARY_DIR}/RAPIDS.cmake)
 include(${CMAKE_BINARY_DIR}/RAPIDS.cmake)
 
@@ -27,7 +27,7 @@ include(rapids-find)
 
 rapids_cuda_init_architectures(CUGRAPH)
 
-project(CUGRAPH VERSION 22.04.00 LANGUAGES C CXX CUDA)
+project(CUGRAPH VERSION 22.06.00 LANGUAGES C CXX CUDA)
 
 if(CMAKE_CUDA_COMPILER_ID STREQUAL "NVIDIA" AND
    CMAKE_CUDA_COMPILER_VERSION VERSION_LESS 11.0)
@@ -76,6 +76,7 @@ rapids_cmake_build_type(Release)
 ################################################################################
 # - User Options  --------------------------------------------------------------
 
+option(BUILD_SHARED_LIBS "Build cuGraph shared libraries" ON)
 option(BUILD_CUGRAPH_MG_TESTS "Build cuGraph multigpu algorithm tests" OFF)
 option(CMAKE_CUDA_LINEINFO "Enable the -lineinfo option for nvcc (useful for cuda-memcheck / profiler" OFF)
 option(BUILD_TESTS "Configure CMake to build tests" ON)
@@ -134,9 +135,7 @@ rapids_cpm_init()
 # following public header-only  raft dependencies:
 # * RMM
 # * Thrust
-# * libcu++
 # * GTest/GMock
-# * cuCollections
 #
 # The CMakeLists.txt for each of these projects are properly configured
 # to generate a build and install export-set, so reimplementing finding or
@@ -144,6 +143,11 @@ rapids_cpm_init()
 # error-prone if something about those targets change and our implementation
 # lags behind.
 ###
+
+# Putting this before raft to override RAFT from pulling them in.
+include(cmake/thirdparty/get_libcudacxx.cmake)
+include(cmake/thirdparty/get_cuco.cmake)
+
 include(cmake/thirdparty/get_raft.cmake)
 include(cmake/thirdparty/get_libcugraphops.cmake)
 
@@ -157,7 +161,7 @@ endif()
 ################################################################################
 # - libcugraph library target --------------------------------------------------
 
-add_library(cugraph SHARED
+add_library(cugraph
     src/detail/utility_wrappers.cu
     src/detail/shuffle_wrappers.cu
     src/utilities/cython.cu
@@ -184,7 +188,11 @@ add_library(cugraph SHARED
     src/sampling/neighborhood.cu
     src/sampling/random_walks.cu
     src/sampling/detail/gather_utils_impl.cu
+    src/sampling/detail/sampling_utils_mg.cu
+    src/sampling/detail/sampling_utils_sg.cu
     src/sampling/nbr_sampling_mg.cu
+    src/sampling/uniform_neighbor_sampling_mg.cpp
+    src/sampling/uniform_neighbor_sampling_sg.cpp
     src/cores/legacy/core_number.cu
     src/cores/core_number_sg.cu
     src/cores/core_number_mg.cu
@@ -209,8 +217,7 @@ add_library(cugraph SHARED
     src/structure/relabel_sg.cu
     src/structure/relabel_mg.cu
     src/structure/induced_subgraph_sg.cu
-    ## FIXME: Not currently supported
-    ##src/structure/induced_subgraph_mg.cu
+    src/structure/induced_subgraph_mg.cu
     src/traversal/extract_bfs_paths_sg.cu
     src/traversal/extract_bfs_paths_mg.cu
     src/traversal/bfs_sg.cu
@@ -223,6 +230,8 @@ add_library(cugraph SHARED
     src/link_analysis/pagerank_mg.cu
     src/centrality/katz_centrality_sg.cu
     src/centrality/katz_centrality_mg.cu
+    src/centrality/eigenvector_centrality_sg.cu
+    src/centrality/eigenvector_centrality_mg.cu
     src/serialization/serializer.cu
     src/tree/mst.cu
     src/components/weakly_connected_components_sg.cu
@@ -236,6 +245,8 @@ add_library(cugraph SHARED
     src/visitors/bfs_visitor.cpp
     src/visitors/rw_visitor.cpp
     src/visitors/graph_make_visitor.cpp
+    src/community/triangle_count_sg.cu
+    src/community/triangle_count_mg.cu
 )
 
 set_target_properties(cugraph
@@ -246,6 +257,7 @@ set_target_properties(cugraph
                CXX_STANDARD_REQUIRED               ON
                CUDA_STANDARD                       17
                CUDA_STANDARD_REQUIRED              ON
+               POSITION_INDEPENDENT_CODE           ON
                INTERFACE_POSITION_INDEPENDENT_CODE ON
 )
 
@@ -288,6 +300,7 @@ target_link_libraries(cugraph
     PUBLIC
         cugraph-ops::cugraph-ops++
         raft::raft
+        cuco::cuco
     PRIVATE
         cugraph::cuHornet
         NCCL::NCCL
@@ -347,7 +360,7 @@ endif()
 ################################################################################
 # - C-API library --------------------------------------------------------------
 
-add_library(cugraph_c SHARED
+add_library(cugraph_c
         src/c_api/cugraph_api.cpp
         src/c_api/resource_handle.cpp
         src/c_api/array.cpp
@@ -355,12 +368,20 @@ add_library(cugraph_c SHARED
         src/c_api/graph_sg.cpp
         src/c_api/graph_mg.cpp
         src/c_api/pagerank.cpp
+        src/c_api/katz.cpp
+        src/c_api/centrality_result.cpp
+        src/c_api/eigenvector_centrality.cpp
         src/c_api/hits.cpp
         src/c_api/bfs.cpp
         src/c_api/sssp.cpp
         src/c_api/extract_paths.cpp
         src/c_api/random_walks.cpp
+        src/c_api/louvain.cpp
+        src/c_api/triangle_count.cpp
         src/c_api/uniform_neighbor_sampling.cpp
+        src/c_api/labeling_result.cpp
+        src/c_api/weakly_connected_components.cpp
+        src/c_api/strongly_connected_components.cpp
         )
 add_library(cugraph::cugraph_c ALIAS cugraph_c)
 
@@ -397,6 +418,8 @@ target_link_libraries(cugraph_c
                 CUDA::curand
                 CUDA::cusolver
                 CUDA::cusparse
+                raft::raft
+                cuco::cuco
         PRIVATE
                 cugraph::cugraph
 )

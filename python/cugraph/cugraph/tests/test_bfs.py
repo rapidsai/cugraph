@@ -18,7 +18,7 @@ import numpy as np
 import cudf
 import pytest
 import cugraph
-from cugraph.tests import utils
+from cugraph.testing import utils
 import random
 
 import pandas as pd
@@ -405,6 +405,35 @@ def test_bfs_nonnative_inputs(gpubenchmark,
     test_bfs(gpubenchmark,
              single_dataset_nxresults_startvertex_spc,
              cugraph_input_type)
+
+
+@pytest.mark.parametrize("cugraph_input_type", utils.CUGRAPH_INPUT_TYPES)
+def test_bfs_invalid_start(gpubenchmark,
+                           dataset_nxresults_startvertex_spc,
+                           cugraph_input_type):
+    (dataset, directed, nx_values, start_vertex, depth_limit) = \
+        dataset_nxresults_startvertex_spc
+
+    # renumber the dataset so that start vertex is no longer a valid vertex
+    el = cudf.read_csv(
+        dataset,
+        sep=' ',
+        names=['src', 'tar', 'w'],
+        dtype=['int32', 'int32', 'float32']
+    ).dropna()
+    newval = max(el.src.max(), el.tar.max()) + 1
+    el.src = el.src.replace(start_vertex, newval)
+    el.tar = el.tar.replace(start_vertex, newval)
+    G = cugraph.from_cudf_edgelist(
+        el,
+        source='src',
+        destination='tar',
+        edge_attr='w',
+        renumber=True
+    )
+
+    with pytest.raises(ValueError):
+        cugraph.bfs(G, start_vertex, depth_limit=depth_limit)
 
 
 def test_scipy_api_compat():

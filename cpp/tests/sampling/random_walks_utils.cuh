@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2022, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -33,7 +33,7 @@ namespace cugraph {
 namespace test {
 
 template <typename value_t>
-using vector_test_t = cugraph::detail::device_vec_t<value_t>;  // for debug purposes
+using vector_test_t = cugraph::detail::original::device_vec_t<value_t>;  // for debug purposes
 
 // host side utility to check a if a sequence of vertices is connected:
 //
@@ -96,12 +96,12 @@ bool host_check_rw_paths(
   size_t path_sizes,
   index_t num_paths)
 {
-  edge_t num_edges      = graph_view.get_number_of_edges();
-  vertex_t num_vertices = graph_view.get_number_of_vertices();
+  vertex_t num_vertices = graph_view.number_of_vertices();
+  edge_t num_edges      = graph_view.number_of_edges();
 
-  auto offsets = graph_view.get_matrix_partition_view().get_offsets();
-  auto indices = graph_view.get_matrix_partition_view().get_indices();
-  auto values  = graph_view.get_matrix_partition_view().get_weights();
+  auto offsets = graph_view.local_edge_partition_view().offsets();
+  auto indices = graph_view.local_edge_partition_view().indices();
+  auto values  = graph_view.local_edge_partition_view().weights();
 
   std::vector<edge_t> v_ro(num_vertices + 1);
   std::vector<vertex_t> v_ci(num_edges);
@@ -212,17 +212,25 @@ bool host_check_query_rw(raft::handle_t const& handle,
   std::vector<index_t> w_sizes(num_paths);
   std::vector<index_t> w_offsets(num_paths);
 
-  raft::update_host(
-    v_sizes.data(), cugraph::detail::raw_const_ptr(d_v_sizes), num_paths, handle.get_stream());
+  raft::update_host(v_sizes.data(),
+                    cugraph::detail::original::raw_const_ptr(d_v_sizes),
+                    num_paths,
+                    handle.get_stream());
 
-  raft::update_host(
-    v_offsets.data(), cugraph::detail::raw_const_ptr(d_v_offsets), num_paths, handle.get_stream());
+  raft::update_host(v_offsets.data(),
+                    cugraph::detail::original::raw_const_ptr(d_v_offsets),
+                    num_paths,
+                    handle.get_stream());
 
-  raft::update_host(
-    w_sizes.data(), cugraph::detail::raw_const_ptr(d_w_sizes), num_paths, handle.get_stream());
+  raft::update_host(w_sizes.data(),
+                    cugraph::detail::original::raw_const_ptr(d_w_sizes),
+                    num_paths,
+                    handle.get_stream());
 
-  raft::update_host(
-    w_offsets.data(), cugraph::detail::raw_const_ptr(d_w_offsets), num_paths, handle.get_stream());
+  raft::update_host(w_offsets.data(),
+                    cugraph::detail::original::raw_const_ptr(d_w_offsets),
+                    num_paths,
+                    handle.get_stream());
 
   index_t crt_v_offset = 0;
   index_t crt_w_offset = 0;

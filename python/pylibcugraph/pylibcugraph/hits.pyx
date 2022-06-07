@@ -33,7 +33,7 @@ from pylibcugraph._cugraph_c.array cimport (
 from pylibcugraph._cugraph_c.graph cimport (
     cugraph_graph_t,
 )
-from pylibcugraph._cugraph_c.algorithms cimport (
+from pylibcugraph._cugraph_c.centrality_algorithms cimport (
     cugraph_hits,
     cugraph_hits_result_t,
     cugraph_hits_result_get_vertices,
@@ -42,7 +42,7 @@ from pylibcugraph._cugraph_c.algorithms cimport (
     cugraph_hits_result_free,
 )
 from pylibcugraph.resource_handle cimport (
-    EXPERIMENTAL__ResourceHandle,
+    ResourceHandle,
 )
 from pylibcugraph.graphs cimport (
     _GPUGraph,
@@ -55,14 +55,14 @@ from pylibcugraph.utils cimport (
 )
 
 
-def EXPERIMENTAL__hits(EXPERIMENTAL__ResourceHandle resource_handle,
-                       _GPUGraph graph,
-                       double tol,
-                       size_t max_iter,
-                       initial_hubs_guess_vertices,
-                       initial_hubs_guess_values,
-                       bool_t normalized,
-                       bool_t do_expensive_check):
+def hits(ResourceHandle resource_handle,
+        _GPUGraph graph,
+        double tol,
+        size_t max_iter,
+        initial_hubs_guess_vertices,
+        initial_hubs_guess_values,
+        bool_t normalized,
+        bool_t do_expensive_check):
     """
     Compute HITS hubs and authorities values for each vertex
 
@@ -93,8 +93,8 @@ def EXPERIMENTAL__hits(EXPERIMENTAL__ResourceHandle resource_handle,
         Device array containing the pointer to the array of initial hub guess values
 
     normalized : bool, optional (default=True)
-        
-    
+
+
     do_expensive_check : bool
         If True, performs more extensive tests on the inputs to ensure
         validitity, at the expense of increased run time.
@@ -153,7 +153,6 @@ def EXPERIMENTAL__hits(EXPERIMENTAL__ResourceHandle resource_handle,
     cdef cugraph_hits_result_t* result_ptr
     cdef cugraph_error_code_t error_code
     cdef cugraph_error_t* error_ptr
-
 
     error_code = cugraph_hits(c_resource_handle_ptr,
                               c_graph_ptr,

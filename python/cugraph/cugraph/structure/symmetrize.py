@@ -14,10 +14,11 @@
 from cugraph.structure import graph_classes as csg
 import cudf
 import dask_cudf
-from cugraph.comms import comms as Comms
+from cugraph.dask.comms import comms as Comms
 
 
-def symmetrize_df(df, src_name, dst_name, multi=False, symmetrize=True):
+def symmetrize_df(df, src_name, dst_name,
+                  weight_name=None, multi=False, symmetrize=True):
     """
     Take a COO stored in a DataFrame, along with the column names of
     the source and destination columns and create a new data frame
@@ -31,7 +32,7 @@ def symmetrize_df(df, src_name, dst_name, multi=False, symmetrize=True):
     data.
     If (u,v,data1) and (v,u,data2) exist in the input data where data1
     != data2 then this code will arbitrarily pick the smaller data
-    element to keep, if this is not desired then the caller should
+    element to keep, if this is not desired then the caller
     should correct the data prior to calling symmetrize.
 
     Parameters
@@ -41,11 +42,15 @@ def symmetrize_df(df, src_name, dst_name, multi=False, symmetrize=True):
         ids, destination ids and any properties associated with the
         edges.
 
-    src_name : string
-        Name of the column in the data frame containing the source ids
+    src_name : str or list
+        Name(s) of the column(s) in the data frame containing the source ids
 
-    dst_name : string
-        Name of the column in the data frame containing the destination ids
+    dst_name : str or list
+        Name(s) of the column(s) in the data frame containing
+        the destination ids
+
+    weight_name : string, optional (default=None)
+        Name of the column in the data frame containing the weight ids
 
     multi : bool, optional (default=False)
         Set to True if graph is a Multi(Di)Graph. This allows multiple
@@ -64,33 +69,31 @@ def symmetrize_df(df, src_name, dst_name, multi=False, symmetrize=True):
     >>> sym_df = symmetrize_df(M, '0', '1')
 
     """
-    #
-    #  Now append the columns.  We add sources to the end of destinations,
-    #  and destinations to the end of sources.  Otherwise we append a
-    #  column onto itself.
-    #
+    if not isinstance(src_name, list):
+        src_name = [src_name]
+    if not isinstance(dst_name, list):
+        dst_name = [dst_name]
+
     if symmetrize:
-        gdf = cudf.DataFrame()
-        for idx, name in enumerate(df.columns):
-            if name == src_name:
-                gdf[src_name] = df[src_name].append(
-                    df[dst_name], ignore_index=True
-                )
-            elif name == dst_name:
-                gdf[dst_name] = df[dst_name].append(
-                    df[src_name], ignore_index=True
-                )
-            else:
-                gdf[name] = df[name].append(df[name], ignore_index=True)
+        if weight_name:
+            df2 = df[[*dst_name, *src_name, weight_name]]
+            df2.columns = [*src_name, *dst_name, weight_name]
+        else:
+            df2 = df[[*dst_name, *src_name]]
+            df2.columns = [*src_name, *dst_name]
+        result = cudf.concat([df, df2]).reset_index(drop=True)
     else:
-        gdf = df
+        result = df
     if multi:
-        return gdf
+        return result
     else:
-        return gdf.groupby(by=[src_name, dst_name], as_index=False).min()
+        vertex_col_name = src_name + dst_name
+        result = result.groupby(by=[*vertex_col_name], as_index=False).min()
+        return result
 
 
-def symmetrize_ddf(df, src_name, dst_name, weight_name=None):
+def symmetrize_ddf(ddf, src_name, dst_name,
+                   weight_name=None, multi=False, symmetrize=True):
     """
     Take a COO stored in a distributed DataFrame, and the column names of
     the source and destination columns and create a new data frame
@@ -106,24 +109,33 @@ def symmetrize_ddf(df, src_name, dst_name, weight_name=None):
 
     If (u,v,data1) and (v,u,data2) exist in the input data where data1
     != data2 then this code will arbitrarily pick the smaller data
-    element to keep, if this is not desired then the caller should
+    element to keep, if this is not desired then the caller
     should correct the data prior to calling symmetrize.
 
     Parameters
     ----------
-    df : dask_cudf.DataFrame
+    ddf : dask_cudf.DataFrame
         Input data frame containing COO.  Columns should contain source
         ids, destination ids and any properties associated with the
         edges.
 
-    src_name : string
-        Name of the column in the data frame containing the source ids
+    src_name : str or list
+        Name(s) of the column(s) in the data frame containing the source ids
 
-    dst_name : string
-        Name of the column in the data frame containing the destination ids
+    dst_name : str or list
+        Name(s) of the column(s) in the data frame containing
+        the destination ids
 
     weight_name : string, optional (default=None)
-        Name of the column in the data frame containing the weights
+        Name of the column in the data frame containing the weight ids
+
+    multi : bool, optional (default=False)
+        Set to True if graph is a Multi(Di)Graph. This allows multiple
+        edges instead of dropping them.
+
+    symmetrize : bool, optional (default=True)
+        Default is True to perform symmetrization. If False only duplicate
+        edges are dropped.
 
     Examples
     --------
@@ -141,54 +153,64 @@ def symmetrize_ddf(df, src_name, dst_name, weight_name=None):
     """
     # FIXME: Uncomment out the above (broken) example
 
-    if weight_name:
-        ddf2 = df[[dst_name, src_name, weight_name]]
-        ddf2.columns = [src_name, dst_name, weight_name]
-    else:
-        ddf2 = df[[dst_name, src_name]]
-        ddf2.columns = [src_name, dst_name]
+    if not isinstance(src_name, list):
+        src_name = [src_name]
+    if not isinstance(dst_name, list):
+        dst_name = [dst_name]
+
     worker_list = Comms.get_workers()
-    num_workers = len(worker_list)
-    ddf = df.append(ddf2).reset_index(drop=True)
-    result = ddf.shuffle(on=[
-        src_name, dst_name], ignore_index=True, npartitions=num_workers)
-    result = result.map_partitions(lambda x: x.groupby(
-        by=[src_name, dst_name], as_index=False).min().reset_index(drop=True))
+    num_partitions = len(worker_list)
+    if symmetrize:
+        if weight_name:
+            ddf2 = ddf[[*dst_name, *src_name, weight_name]]
+            ddf2.columns = [*src_name, *dst_name, weight_name]
+        else:
+            ddf2 = ddf[[*dst_name, *src_name]]
+            ddf2.columns = [*src_name, *dst_name]
+        result = dask_cudf.concat([ddf, ddf2]).reset_index(drop=True)
+    else:
+        result = ddf
+    if multi:
+        # The concat call doubles the number of partitions therefore,
+        # repartition the result so that the number of partitions equals
+        # the number of workers
+        result = result.repartition(npartitions=num_partitions)
+        return result
+    else:
+        vertex_col_name = src_name + dst_name
+        result = result.groupby(
+                by=[*vertex_col_name]).min(
+                    split_out=num_partitions).reset_index()
 
-    return result
+        return result
 
 
-def symmetrize(source_col, dest_col, value_col=None, multi=False,
-               symmetrize=True):
+def symmetrize(input_df, source_col_name, dest_col_name, value_col_name=None,
+               multi=False, symmetrize=True):
     """
-    Take a COO set of source destination pairs along with associated values
-    stored in a single GPU or distributed
-    create a new COO set of source destination pairs along with values where
+    Take a dataframe of source destination pairs along with associated
+    values stored in a single GPU or distributed
+    create a COO set of source destination pairs along with values where
     all edges exist in both directions.
 
-    Return from this call will be a COO stored as two cudf Series or
-    dask_cudf.Series -the symmetrized source column and the symmetrized dest
-    column, along with
-    an optional cudf Series containing the associated values (only if the
-    values are passed in).
+    Return from this call will be a COO stored as two/three cudf/dask_cudf
+    Series/Dataframe -the symmetrized source column and the symmetrized dest
+    column, along with an optional cudf/dask_cudf Series/DataFrame containing
+    the associated values (only if the values are passed in).
 
     Parameters
     ----------
-    source_col : cudf.Series or dask_cudf.Series
-        This cudf.Series wraps a gdf_column of size E (E: number of edges).
-        The gdf column contains the source index for each edge.
-        Source indices must be an integer type.
+    input_df : cudf.DataFrame or dask_cudf.DataFrame
+        The edgelist as a cudf.DataFrame or dask_cudf.DataFrame
 
-    dest_col : cudf.Series or dask_cudf.Series
-        This cudf.Series wraps a gdf_column of size E (E: number of edges).
-        The gdf column contains the destination index for each edge.
-        Destination indices must be an integer type.
+    source_col_name : str or list
+        source column name.
 
-    value_col : cudf.Series or dask_cudf.Series, optional (default=None)
-        This cudf.Series wraps a gdf_column of size E (E: number of edges).
-        The gdf column contains values associated with this edge.
-        For this function the values can be any type, they are not
-        examined, just copied.
+    dest_col_name : str or list
+        destination column name.
+
+    value_col_name : str or None
+        weights column name.
 
     multi : bool, optional (default=False)
         Set to True if graph is a Multi(Di)Graph. This allows multiple
@@ -205,52 +227,38 @@ def symmetrize(source_col, dest_col, value_col=None, multi=False,
     >>> # Download dataset from https://github.com/rapidsai/cugraph/datasets/..
     >>> M = cudf.read_csv(datasets_path / 'karate.csv', delimiter=' ',
     ...                   dtype=['int32', 'int32', 'float32'], header=None)
-    >>> sources = cudf.Series(M['0'])
-    >>> destinations = cudf.Series(M['1'])
-    >>> values = cudf.Series(M['2'])
-    >>> src, dst, val = symmetrize(sources, destinations, values)
+    >>> df = cudf.DataFrame()
+    >>> df['sources'] = cudf.Series(M['0'])
+    >>> df['destinations'] = cudf.Series(M['1'])
+    >>> df['values'] = cudf.Series(M['2'])
+    >>> src, dst, val = symmetrize(df, 'sources', 'destinations', 'values')
 
     """
 
-    input_df = None
-    weight_name = None
-    if type(source_col) is dask_cudf.Series:
-        # FIXME convoluted way of just wrapping dask cudf Series in a ddf
-        input_df = source_col.to_frame()
-        input_df = input_df.rename(columns={source_col.name: "source"})
-        input_df["destination"] = dest_col
-    else:
-        input_df = cudf.DataFrame(
-            {"source": source_col, "destination": dest_col}
-        )
-        csg.null_check(source_col)
-        csg.null_check(dest_col)
-    if value_col is not None:
-        if isinstance(value_col, cudf.Series):
-            weight_name = "value"
-            input_df.insert(len(input_df.columns), "value", value_col)
-        elif isinstance(value_col, cudf.DataFrame):
-            input_df = cudf.concat([input_df, value_col], axis=1)
+    csg.null_check(input_df[source_col_name])
+    csg.null_check(input_df[dest_col_name])
 
-    output_df = None
-    if type(source_col) is dask_cudf.Series:
-        output_df = symmetrize_ddf(
-            input_df, "source", "destination", weight_name
-        ).persist()
+    if isinstance(input_df, dask_cudf.DataFrame):
+        output_df = symmetrize_ddf(input_df, source_col_name, dest_col_name,
+                                   value_col_name, multi, symmetrize,
+                                   )
     else:
-        output_df = symmetrize_df(input_df, "source", "destination", multi,
-                                  symmetrize)
-    if value_col is not None:
-        if isinstance(value_col, cudf.Series):
+        output_df = symmetrize_df(input_df, source_col_name, dest_col_name,
+                                  value_col_name, multi, symmetrize,
+                                  )
+    if value_col_name is not None:
+        value_col = output_df[value_col_name]
+        if isinstance(value_col, (cudf.Series, dask_cudf.Series)):
             return (
-                output_df["source"],
-                output_df["destination"],
-                output_df["value"],
+                output_df[source_col_name],
+                output_df[dest_col_name],
+                output_df[value_col_name],
             )
         elif isinstance(value_col, cudf.DataFrame):
             return (
-                output_df["source"],
-                output_df["destination"],
+                output_df[source_col_name],
+                output_df[dest_col_name],
                 output_df[value_col.columns],
             )
-    return output_df["source"], output_df["destination"]
+
+    return output_df[source_col_name], output_df[dest_col_name]

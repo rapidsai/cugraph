@@ -18,12 +18,21 @@ import numba.cuda
 from dask_cuda import LocalCUDACluster
 from dask.distributed import Client
 
-from raft.dask.common.utils import default_client
+# FIXME: this raft import breaks the library if ucx-py is
+# not available. They are necessary only when doing MG work.
+from cugraph.dask.common.read_utils import MissingUCXPy
+try:
+    from raft.dask.common.utils import default_client
+except ModuleNotFoundError as err:
+    if err.name == "ucp":
+        default_client = MissingUCXPy()
+    else:
+        raise
 # FIXME: cugraph/__init__.py also imports the comms module, but
 # depending on the import environment, cugraph/comms/__init__.py
 # may be imported instead. The following imports the comms.py
 # module directly
-from cugraph.comms import comms as Comms
+from cugraph.dask.comms import comms as Comms
 
 
 # FIXME: We currently look for the default client from dask, as such is the

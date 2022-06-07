@@ -21,10 +21,13 @@
 #include <cugraph/utilities/device_comm.cuh>
 
 #include <raft/handle.hpp>
+#include <raft/span.hpp>
+
 #include <rmm/device_uvector.hpp>
 #include <rmm/exec_policy.hpp>
 
 #include <cuco/detail/hash_functions.cuh>
+#include <thrust/binary_search.h>
 #include <thrust/sort.h>
 #include <thrust/tabulate.h>
 #include <thrust/transform.h>
@@ -37,13 +40,28 @@ namespace cugraph {
 namespace detail {
 
 template <typename vertex_t>
-struct compute_gpu_id_from_vertex_t {
+struct compute_gpu_id_from_ext_vertex_t {
   int comm_size{0};
 
   __device__ int operator()(vertex_t v) const
   {
     cuco::detail::MurmurHash3_32<vertex_t> hash_func{};
     return hash_func(v) % comm_size;
+  }
+};
+
+template <typename vertex_t>
+struct compute_gpu_id_from_int_vertex_t {
+  raft::device_span<vertex_t> vertex_partition_range_lasts_span;
+
+  __device__ int operator()(vertex_t v) const
+  {
+    return static_cast<int>(
+      thrust::distance(vertex_partition_range_lasts_span.begin(),
+                       thrust::upper_bound(thrust::seq,
+                                           vertex_partition_range_lasts_span.begin(),
+                                           vertex_partition_range_lasts_span.end(),
+                                           v)));
   }
 };
 
@@ -74,25 +92,6 @@ struct compute_partition_id_from_edge_t {
     auto major_comm_rank = static_cast<int>(hash_func(major) % comm_size);
     auto minor_comm_rank = static_cast<int>(hash_func(minor) % comm_size);
     return major_comm_rank * col_comm_size + minor_comm_rank / row_comm_size;
-  }
-};
-
-template <typename vertex_t>
-struct is_first_in_run_t {
-  vertex_t const* vertices{nullptr};
-  __device__ bool operator()(size_t i) const
-  {
-    return (i == 0) || (vertices[i - 1] != vertices[i]);
-  }
-};
-
-template <typename vertex_t>
-struct is_first_in_run_pair_t {
-  vertex_t const* vertices0{nullptr};
-  vertex_t const* vertices1{nullptr};
-  __device__ bool operator()(size_t i) const
-  {
-    return (i == 0) || ((vertices0[i - 1] != vertices0[i]) || (vertices1[i - 1] != vertices1[i]));
   }
 };
 

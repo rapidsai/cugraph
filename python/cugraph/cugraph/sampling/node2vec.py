@@ -11,11 +11,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from pylibcugraph.experimental import (ResourceHandle,
-                                       GraphProperties,
-                                       SGGraph,
-                                       node2vec as pylibcugraph_node2vec,
-                                       )
+from pylibcugraph import (ResourceHandle,
+                          GraphProperties,
+                          SGGraph,
+                          node2vec as pylibcugraph_node2vec,
+                          )
 from cugraph.utilities import ensure_cugraph_obj_for_nx
 
 import cudf
@@ -23,7 +23,7 @@ import cudf
 
 def node2vec(G,
              start_vertices,
-             max_depth=None,
+             max_depth=1,
              compress_result=True,
              p=1.0,
              q=1.0):
@@ -49,8 +49,9 @@ def node2vec(G,
         the random walks. In case of multi-column vertices it should be
         a cudf.DataFrame. Only supports int32 currently.
 
-    max_depth: int
-        The maximum depth of the random walks
+    max_depth: int, optional (default=1)
+        The maximum depth of the random walks. If not specified, the maximum
+        depth is set to 1.
 
     compress_result: bool, optional (default=True)
         If True, coalesced paths are returned with a sizes array with offsets.
@@ -81,8 +82,8 @@ def node2vec(G,
     sizes: int or cudf.Series
         The path size or sizes in case of coalesced paths.
 
-    Example
-    -------
+    Examples
+    --------
     >>> M = cudf.read_csv(datasets_path / 'karate.csv', delimiter=' ',
     ...                   dtype=['int32', 'int32', 'float32'], header=None)
     >>> G = cugraph.Graph()
@@ -93,11 +94,11 @@ def node2vec(G,
 
     """
     if (not isinstance(max_depth, int)) or (max_depth < 1):
-        raise ValueError(f"'max_depth' must be a positive integer, \
-                        got: {max_depth}")
+        raise ValueError(f"'max_depth' must be a positive integer, "
+                         f"got: {max_depth}")
     if (not isinstance(compress_result, bool)):
-        raise ValueError(f"'compress_result' must be a bool, \
-                        got: {compress_result}")
+        raise ValueError(f"'compress_result' must be a bool, "
+                         f"got: {compress_result}")
     if (not isinstance(p, float)) or (p <= 0.0):
         raise ValueError(f"'p' must be a positive float, got: {p}")
     if (not isinstance(q, float)) or (q <= 0.0):
@@ -109,10 +110,10 @@ def node2vec(G,
         start_vertices = [start_vertices]
 
     if isinstance(start_vertices, list):
-        start_vertices = cudf.Series(start_vertices)
+        start_vertices = cudf.Series(start_vertices, dtype='int32')
         if start_vertices.dtype != 'int32':
-            raise ValueError(f"'start_vertices' must have int32 values, \
-                            got: {start_vertices.dtype}")
+            raise ValueError(f"'start_vertices' must have int32 values, "
+                             f"got: {start_vertices.dtype}")
 
     if G.renumbered is True:
         if isinstance(start_vertices, cudf.DataFrame):
@@ -126,8 +127,8 @@ def node2vec(G,
     weights = G.edgelist.edgelist_df['weights']
 
     if srcs.dtype != 'int32':
-        raise ValueError(f"Graph vertices must have int32 values, \
-                        got: {srcs.dtype}")
+        raise ValueError(f"Graph vertices must have int32 values, "
+                         f"got: {srcs.dtype}")
 
     resource_handle = ResourceHandle()
     graph_props = GraphProperties(is_multigraph=G.is_multigraph())
