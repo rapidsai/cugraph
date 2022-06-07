@@ -18,36 +18,58 @@ Example
 
 .. code-block:: python
 
-    from dask.distributed import Client, wait
+    import dask_cudf
+    from dask.distributed import Client
     from dask_cuda import LocalCUDACluster
-    import cugraph.dask.comms.comms as Comms
-    import cugraph.dask as dask_cugraph
 
+    import cugraph
+    import cugraph.dask as dask_cugraph
+    import cugraph.dask.comms.comms as Comms
+    from cugraph.generators.rmat import rmat
+
+    input_data_path = "input_data.csv"
+
+    # cluster initialization
     cluster = LocalCUDACluster()
     client = Client(cluster)
     Comms.initialize(p2p=True)
 
-    # Helper function to set the reader chunk size to automatically get one partition per GPU  
+    # helper function to generate random input data
+    input_data = rmat(
+        scale=5,
+        num_edges=400,
+        a=0.30,
+        b=0.65,
+        c=0.05,
+        seed=456,
+        clip_and_flip=False,
+        scramble_vertex_ids=False,
+        create_using=None,
+    )
+    input_data.to_csv(input_data_path, index=False)
+
+    # helper function to set the reader chunk size to automatically get one partition per GPU  
     chunksize = dask_cugraph.get_chunksize(input_data_path)
 
-    # Multi-GPU CSV reader
-    e_list = dask_cudf.read_csv(input_data_path, 
-            chunksize = chunksize, 
-            delimiter=' ', 
-            names=['src', 'dst'], 
-            dtype=['int32', 'int32'])
+    # multi-GPU CSV reader
+    e_list = dask_cudf.read_csv(
+        input_data_path, 
+        chunksize=chunksize,
+        names=['src', 'dst'],
+        dtype=['int32', 'int32'],
+    )
 
-    G = cugraph.Graph(directed=True)
+    # create graph from input data
+    G = cugraph.DiGraph()
     G.from_dask_cudf_edgelist(e_list, source='src', destination='dst')
 
-    # now run PageRank
+    # run PageRank
     pr_df = dask_cugraph.pagerank(G, tol=1e-4)
 
-    # All done, clean up
+    # cluster clean up
     Comms.destroy()
     client.close()
     cluster.close()
 
 
 |
-
