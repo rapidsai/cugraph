@@ -57,6 +57,10 @@ cugraph_type_erased_device_array_view_t* cugraph_core_result_get_core_numbers(
  */
 void cugraph_core_result_free(cugraph_core_result_t* result);
 
+typedef struct {
+  int32_t direction_;
+} cugraph_k_core_degree_type_t;
+
 /**
  * @brief     Perform core number.
  *
@@ -71,6 +75,7 @@ void cugraph_core_result_free(cugraph_core_result_t* result);
  */
 cugraph_error_code_t cugraph_core_number(const cugraph_resource_handle_t* handle,
                                          cugraph_graph_t* graph,
+                                         const cugraph_k_core_degree_type_t degree_type,
                                          bool_t do_expensive_check,
                                          cugraph_core_result_t** result,
                                          cugraph_error_t** error);

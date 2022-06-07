@@ -700,6 +700,7 @@ ConfigureCTest(CAPI_STRONGLY_CONNECTED_COMPONENTS c_api/strongly_connected_compo
 ConfigureCTest(CAPI_UNIFORM_NEIGHBOR_SAMPLE c_api/uniform_neighbor_sample_test.c)
 ConfigureCTest(CAPI_TRIANGLE_COUNT c_api/triangle_count_test.c)
 ConfigureCTest(CAPI_LOUVAIN c_api/louvain_test.c)
+ConfigureCTest(CAPI_CORE_NUMBER c_api/core_number_test.c)
 
 ###################################################################################################
 ### enable testing ################################################################################

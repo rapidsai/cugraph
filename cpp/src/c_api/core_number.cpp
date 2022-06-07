@@ -44,6 +44,7 @@ namespace {
 struct core_number_functor : public cugraph::c_api::abstract_functor {
   raft::handle_t const& handle_;
   cugraph::c_api::cugraph_graph_t* graph_{};
+  cugraph::k_core_degree_type_t degree_type_;
   bool do_expensive_check_{};
   cugraph::c_api::cugraph_core_result_t* result_{};
 
@@ -91,7 +92,7 @@ struct core_number_functor : public cugraph::c_api::abstract_functor {
         handle_,
         graph_view,
         core_numbers.data(),
-        // degree_type,
+        degree_type_,
         // k_first,
         // k_last,
         do_expensive_check_);
@@ -136,6 +137,7 @@ extern "C" void cugraph_core_result_free(cugraph_core_result_t* result)
 
 extern "C" cugraph_error_code_t cugraph_core_number(const cugraph_resource_handle_t* handle,
                                                     cugraph_graph_t* graph,
+                                                    const cugraph_k_core_degree_type_t degree_type,
                                                     bool_t do_expensive_check,
                                                     cugraph_core_result_t** result,
                                                     cugraph_error_t** error)
