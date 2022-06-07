@@ -17,6 +17,7 @@ from cugraph.structure.number_map import NumberMap
 from cugraph.structure.symmetrize import symmetrize
 import cudf
 import dask_cudf
+import numpy as np
 
 
 class simpleDistributedGraphImpl:
@@ -425,15 +426,53 @@ class simpleDistributedGraphImpl:
         # TODO: Add support
         raise NotImplementedError("Not supported for distributed graph")
 
+    # FIXME: This function should only be used internally for now
+    # as it only supports renumbered input data
     def has_node(self, n):
         """
-        Returns True if the graph contains the node n.
+        The input data must be renumbered before calling this function
+
+        Returns True if the graph contains the node(s) n.
+
+        Examples
+        --------
+        >>> M = cudf.read_csv(datasets_path / 'karate.csv', delimiter=' ',
+        ...                   dtype=['int32', 'int32', 'float32'], header=None)
+        >>> G = cugraph.Graph(directed=True)
+        >>> G.from_dask_cudf_edgelist(M, '0', '1')
+        >>> G.compute_renumber_edge_list()
+        >>> valid_source = cudf.Series([5])
+        >>> invalid_source = cudf.Series([55])
+        >>> valid_source = G.lookup_internal_vertex_id(valid_source)
+        >>> invalid_source = G.lookup_internal_vertex_id(nvalid_source)
+        >>> is_valid_vertex = G.has_node(valid_source)
+        >>> assert is_valid_vertex is True
+        >>> is_valid_vertex = G.has_node(invalid_source)
+        >>> assert is_valid_vertex is False
+
         """
+
         if self.edgelist is None:
             raise RuntimeError("Graph has no Edgelist.")
-        # FIXME: Check renumber map
-        ddf = self.edgelist.edgelist_df[["src", "dst"]]
-        return (ddf == n).any().any().compute()
+
+        if isinstance(n, (int, np.integer)):
+            n = [n]
+        if isinstance(n, list):
+            n = cudf.DataFrame(n)
+        elif isinstance(n, cudf.Series):
+            # create a dataframe from cudf
+            n = cudf.DataFrame(n)
+        elif isinstance(n, dask_cudf.Series):
+            n = n.to_frame()
+
+        if isinstance(n, (dask_cudf.DataFrame, cudf.DataFrame)):
+            nodes = self.nodes().to_frame()
+            nodes = nodes.rename(columns={nodes.columns[0]: n.columns[0]})
+
+            valid_vertex = nodes.merge(n, how="inner")
+            return len(valid_vertex) == len(n)
+        else:
+            raise TypeError("Node(s) type not supported")
 
     def has_edge(self, u, v):
         """
@@ -465,10 +504,27 @@ class simpleDistributedGraphImpl:
 
     def nodes(self):
         """
-        Returns all the nodes in the graph as a cudf.Series
+        Returns all the internal nodes in the graph as a cudf.Series.
+        To get the original nodes, convert the result to a dataframe
+        and call the function 'renumber_map.unrenumber'
         """
-        # FIXME: Return renumber map nodes
-        raise NotImplementedError("Not supported for distributed graph")
+
+        if self.edgelist is not None:
+            df = self.edgelist.edgelist_df
+            src_col_name = self.renumber_map.renumbered_src_col_name
+            dst_col_name = self.renumber_map.renumbered_dst_col_name
+
+            if self.renumbered:
+                # FIXME: This relies on current implementation
+                #        of NumberMap, should not really expose
+                #        this, perhaps add a method to NumberMap
+
+                return self.renumber_map.implementation.ddf["0"]
+            else:
+                return dask_cudf.concat(
+                    [df[src_col_name], df[dst_col_name]]).drop_duplicates()
+        if self.adjlist is not None:
+            return cudf.Series(np.arange(0, self.number_of_nodes()))
 
     def neighbors(self, n):
         if self.edgelist is None:

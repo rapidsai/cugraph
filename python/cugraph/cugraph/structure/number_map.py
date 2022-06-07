@@ -355,9 +355,8 @@ class NumberMap:
             tmp_df["0"] = df
             tmp_col_names = ["0"]
         elif type(df) is dask_cudf.Series:
-            tmp_df = dask_cudf.DataFrame()
-            tmp_df["0"] = df
-            tmp_col_names = ["0"]
+            tmp_df = df.to_frame()
+            tmp_col_names = tmp_df.columns
         else:
             tmp_df = df
             tmp_col_names = col_names
