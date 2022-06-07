@@ -15,15 +15,23 @@
  */
 #pragma once
 
-#include <cugraph/edge_partition_device_view.cuh>
+#include <cugraph/algorithms.hpp>
+#include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
+#include <cugraph/prims/extract_if_e.cuh>
+#include <cugraph/prims/transform_reduce_dst_nbr_intersection_of_e_endpoints_by_v.cuh>
+#include <cugraph/prims/update_edge_partition_src_dst_property.cuh>
 #include <cugraph/utilities/error.hpp>
+#include <cugraph/utilities/host_scalar_comm.cuh>
+
+#include <cugraph/edge_partition_device_view.cuh>
 #include <cugraph/vertex_partition_device_view.cuh>
 
 #include <raft/handle.hpp>
 #include <rmm/device_uvector.hpp>
 
+#include <thrust/count.h>
 #include <thrust/binary_search.h>
 #include <thrust/copy.h>
 #include <thrust/gather.h>
@@ -48,8 +56,8 @@ std::tuple<rmm::device_uvector<vertex_t>,
 extract_induced_subgraphs(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> const& graph_view,
-  size_t const* subgraph_offsets /* size == num_subgraphs + 1 */,
-  vertex_t const* subgraph_vertices /* size == subgraph_offsets[num_subgraphs] */,
+  raft::device_span<size_t const> subgraph_offsets /*size_t const* subgraph_offsets*/ /* size == num_subgraphs + 1 */,
+  raft::device_span<vertex_t const> subgraph_vertices/*vertex_t const* subgraph_vertices*/ /* size == subgraph_offsets[num_subgraphs] */,
   size_t num_subgraphs,
   bool do_expensive_check)
 {
@@ -146,7 +154,7 @@ extract_induced_subgraphs(
       subgraph_vertex_output_offsets.begin(),
       [subgraph_offsets, subgraph_vertices, num_subgraphs, edge_partition] __device__(auto i) {
         auto subgraph_idx = thrust::distance(
-          subgraph_offsets + 1,
+          subgraph_offsets.data() + 1, //???
           thrust::upper_bound(thrust::seq, subgraph_offsets, subgraph_offsets + num_subgraphs, i));
         vertex_t const* indices{nullptr};
         thrust::optional<weight_t const*> weights{thrust::nullopt};
