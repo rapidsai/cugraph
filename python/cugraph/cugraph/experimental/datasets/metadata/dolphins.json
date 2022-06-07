@@ -1,5 +1,6 @@
 {
     "name": "dolphins",
+    "author": "",
     "URL": "url-to-dolphins",
     "is_directed": "",
     "is_multigraph": "",

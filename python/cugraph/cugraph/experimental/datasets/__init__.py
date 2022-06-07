@@ -21,6 +21,7 @@ from cugraph.experimental.datasets.dataset import (
 
 # SMALL DATASETS
 karate = Dataset("metadata/karate.json")
+dolphins = Dataset("metadata/dolphins.json")
 
 # MEDIUM DATASETS
 

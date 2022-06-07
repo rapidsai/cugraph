@@ -1,5 +1,6 @@
 {
     "name": "karate",
+    "author": "",
     "URL": "url-to-karate-dataset",
     "is_directed": "True",
     "is_multigraph": "False",
@@ -8,4 +9,4 @@
     "number_of_nodes": 34,
     "number_of_edges": 156,
     "refs": ""
-}
+}   
