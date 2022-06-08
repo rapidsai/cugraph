@@ -14,25 +14,19 @@
 import cugraph
 import cudf
 import json
+import requests
+import os
+import pdb
 
 class MetaData:
     def __init__(self, filename):
         # Open JSON file from filepath
-        file = open(filename)
+        pdb.set_trace()
+        dir_path = "python/cugraph/cugraph/experimental/datasets/"
+        file = open(dir_path + filename)
 
         # Convert to Python Dict
-        meta = json.load(file)
-
-        # Get Data
-        self.name = meta['name']
-        self.url = meta['url']
-        self.is_directed = meta['is_directed']
-        self.is_mutigraph = meta['is_multigraph']
-        self.is_symmetric = meta['is_symmetric']
-        self.has_loop = meta['has_loop']
-        self.number_of_nodes = meta['number_of_nodes']
-        self.number_of_edges = meta['number_of_edges']
-        self.refs = meta['refs']
+        self.meta = json.load(file)
 
 
 class Dataset:
@@ -48,9 +42,22 @@ class Dataset:
         if attr == "metadata":
             self.__read_meta_data_file(self.__meta_data_file_name)
 
+    def __read_meta_data_file(self, meta_data_file):
+        # MetaData obj reads in JSON
+        self.metadata = MetaData(meta_data_file)
+
     @property
     def get_edgelist(self, fetch=False):
         if self.__edgelist is None:
+            if fetch:
+                # if file exists:
+                    # pass
+                # else:
+                    # call download_csv()
+                pass
+            else:
+                # ... do stuff
+                pass
             self.__edgelist = cudf.read_csv(self.metadata.csv_file_name, ...)
         return self.__edgelist
 
@@ -60,9 +67,10 @@ class Dataset:
             self.__graph = cugraph.from_cudf_edgelist(self.__edgelist, ...)
         return self.__graph
 
-    def __read_meta_data_file(self, meta_data_file):
-        # MetaData obj reads in JSON
-        self.metadata = MetaData(meta_data_file)
+    # def download_csv():
+        # fetch from metadata.url
+        # metadata.csv = filename
+
 
 # SMALL DATASETS
 karate = Dataset("metadata/karate.json")
