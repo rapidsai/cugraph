@@ -323,7 +323,12 @@ class simpleDistributedGraphImpl:
         >>> subset_df = G.degree([0,9,12])
 
         """
-        raise NotImplementedError("Not supported for distributed graph")
+        vertex_in_degree = self.in_degree(vertex_subset)
+        vertex_out_degree = self.out_degree(vertex_subset)
+        vertex_degree = dask_cudf.concat([vertex_in_degree, vertex_out_degree])
+        vertex_degree = vertex_degree.groupby(['vertex'], as_index=False).sum()
+
+        return vertex_degree
 
     # FIXME:  vertex_subset could be a DataFrame for multi-column vertices
     def degrees(self, vertex_subset=None):

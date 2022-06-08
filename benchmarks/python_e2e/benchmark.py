@@ -133,23 +133,26 @@ class BenchmarkRun:
         #algos with transposed=False: BFS, SSSP, Louvain, HITS, Neighborhood_sampling
         #algos supporting the legacy_renum_only: HITS, Neighborhood_sampling
         for i in range(len(self.algos)):
-            if self.algos[i][0].name in ["pagerank", "katz"]: #set transpose=True when renumbering
-                if self.algos[i][0].name == "katz" and self.construct_graph.name == "from_dask_cudf_edgelist":
-                    largest_out_degree = G.out_degree().compute().\
-                    nlargest(n=1, columns="degree") #compute outdegree before renumbering because outdegree has transpose=False
-                    largest_out_degree = largest_out_degree["degree"].iloc[0]
-                    katz_alpha = 1 / (largest_out_degree + 1)
+            #set transpose=True when renumbering
+            if self.algos[i][0].name in ["pagerank", "katz"]:
+                if self.algos[i][0].name == "katz" and \
+                    self.construct_graph.name == "from_dask_cudf_edgelist":
+                    # compute out_degree before renumbering because out_degree
+                    # has transpose=False
+                    degree_max = G.degree()['degree'].max().compute()
+                    katz_alpha = 1 / (degree_max)
                     self.algos[i][1]["alpha"] = katz_alpha
-                elif self.algos[i][0].name == "katz" and self.construct_graph.name == "from_cudf_edgelist":
-                    largest_out_degree = G.out_degree().nlargest(n=1, columns="degree")
-                    largest_out_degree = largest_out_degree["degree"].iloc[0]
-                    katz_alpha = 1 / (largest_out_degree + 1)
+                elif self.algos[i][0].name == "katz" and \
+                    self.construct_graph.name == "from_cudf_edgelist":
+                    degree_max = G.degree()['degree'].max()
+                    katz_alpha = 1 / (degree_max)
                     self.algos[i][1]["alpha"] = katz_alpha
                 if hasattr(G, "compute_renumber_edge_list"):
                     G.compute_renumber_edge_list(transposed=True)
             elif self.algos[i][0].name in ["neighborhood_sampling", "hits"]:
                 if hasattr(G, "compute_renumber_edge_list"):
-                    G.compute_renumber_edge_list(transposed=False, legacy_renum_only=True)
+                    G.compute_renumber_edge_list(
+                        transposed=False, legacy_renum_only=True)
             else: #set transpose=False when renumbering
                 self.__log("running compute_renumber_edge_list...", end="")
                 if hasattr(G, "compute_renumber_edge_list"):

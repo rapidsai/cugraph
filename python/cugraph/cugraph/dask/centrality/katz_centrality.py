@@ -174,6 +174,14 @@ def katz_centrality(
     """
     client = default_client()
 
+    if alpha is None:
+        degree_max = input_graph.degree()['degree'].max().compute()
+        alpha = 1 / (degree_max)
+
+    if (alpha is not None) and (alpha <= 0.0):
+        raise ValueError(f"'alpha' must be a positive float or None, "
+                         f"got: {alpha}")
+
     # FIXME: 'legacy_renum_only' will not trigger the C++ renumbering
     # In the future, once all the algos follow the C/Pylibcugraph path,
     # compute_renumber_edge_list will only be used for multicolumn and
