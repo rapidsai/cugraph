@@ -47,7 +47,6 @@ class Dataset:
         # MetaData obj reads in JSON
         self.metadata = MetaData(meta_data_file)
 
-    @property
     def get_edgelist(self, fetch=False):
         if self.__edgelist is None:
             if fetch:
@@ -61,8 +60,7 @@ class Dataset:
                 pass
             self.__edgelist = cudf.read_csv(self.metadata.csv_file_name, ...)
         return self.__edgelist
-
-    @property
++
     def get_graph(self, fetch=False):
         if self.__graph is None:
             self.__graph = cugraph.from_cudf_edgelist(self.get_edgelist(...), ...)
