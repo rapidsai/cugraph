@@ -28,3 +28,5 @@ MGPropertySelection = experimental_warning_wrapper(EXPERIMENTAL__MGPropertySelec
 from cugraph.experimental.community.triangle_count import \
     EXPERIMENTAL__triangle_count
 triangle_count = experimental_warning_wrapper(EXPERIMENTAL__triangle_count)
+
+from cugraph.experimental.datasets.dataset import MetaData, Dataset

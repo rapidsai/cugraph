@@ -49,13 +49,13 @@ class Dataset:
             self.__read_meta_data_file(self.__meta_data_file_name)
 
     @property
-    def edgelist(self):
+    def get_edgelist(self, fetch=False):
         if self.__edgelist is None:
             self.__edgelist = cudf.read_csv(self.metadata.csv_file_name, ...)
         return self.__edgelist
 
     @property
-    def Graph(self):
+    def get_graph(self, fetch=False):
         if self.__graph is None:
             self.__graph = cugraph.from_cudf_edgelist(self.__edgelist, ...)
         return self.__graph
@@ -63,3 +63,14 @@ class Dataset:
     def __read_meta_data_file(self, meta_data_file):
         # MetaData obj reads in JSON
         self.metadata = MetaData(meta_data_file)
+
+# SMALL DATASETS
+karate = Dataset("metadata/karate.json")
+dolphins = Dataset("metadata/dolphins.json")
+
+# MEDIUM DATASETS
+
+# LARGE DATASETS
+
+# GROUPS OF DATASETS
+SMALL_DATASETS = [karate, dolphins]
