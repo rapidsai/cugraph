@@ -438,7 +438,7 @@ graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enabl
                std::optional<std::vector<weight_t const*>> const& edge_partition_weights,
                std::optional<std::vector<vertex_t const*>> const& edge_partition_dcs_nzd_vertices,
                std::optional<std::vector<vertex_t>> const& edge_partition_dcs_nzd_vertex_counts,
-               graph_view_meta_t<vertex_t, edge_t, multi_gpu> meta)
+               graph_view_meta_t<vertex_t, edge_t, store_transposed, multi_gpu> meta)
   : detail::graph_base_t<vertex_t, edge_t, weight_t>(
       handle, meta.number_of_vertices, meta.number_of_edges, meta.properties),
     edge_partition_offsets_(edge_partition_offsets),
@@ -454,12 +454,18 @@ graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enabl
                                         handle.get_stream())),
     partition_(meta.partition),
     edge_partition_segment_offsets_(meta.edge_partition_segment_offsets),
-    local_sorted_unique_edge_src_first_(meta.local_sorted_unique_edge_src_first),
-    local_sorted_unique_edge_src_last_(meta.local_sorted_unique_edge_src_last),
-    local_sorted_unique_edge_src_offsets_(meta.local_sorted_unique_edge_src_offsets),
-    local_sorted_unique_edge_dst_first_(meta.local_sorted_unique_edge_dst_first),
-    local_sorted_unique_edge_dst_last_(meta.local_sorted_unique_edge_dst_last),
-    local_sorted_unique_edge_dst_offsets_(meta.local_sorted_unique_edge_dst_offsets)
+    local_sorted_unique_edge_srcs_(meta.local_sorted_unique_edge_srcs),
+    local_sorted_unique_edge_src_chunk_start_offsets_(
+      meta.local_sorted_unique_edge_src_chunk_start_offsets),
+    local_sorted_unique_edge_src_chunk_size_(meta.local_sorted_unique_edge_src_chunk_size),
+    local_sorted_unique_edge_src_vertex_partition_offsets_(
+      meta.local_sorted_unique_edge_src_vertex_partition_offsets),
+    local_sorted_unique_edge_dsts_(meta.local_sorted_unique_edge_dsts),
+    local_sorted_unique_edge_dst_chunk_start_offsets_(
+      meta.local_sorted_unique_edge_dst_chunk_start_offsets),
+    local_sorted_unique_edge_dst_chunk_size_(meta.local_sorted_unique_edge_dst_chunk_size),
+    local_sorted_unique_edge_dst_vertex_partition_offsets_(
+      meta.local_sorted_unique_edge_dst_vertex_partition_offsets)
 {
   // cheap error checks
 
@@ -505,17 +511,17 @@ template <typename vertex_t,
           typename weight_t,
           bool store_transposed,
           bool multi_gpu>
-graph_view_t<
-  vertex_t,
-  edge_t,
-  weight_t,
-  store_transposed,
-  multi_gpu,
-  std::enable_if_t<!multi_gpu>>::graph_view_t(raft::handle_t const& handle,
-                                              edge_t const* offsets,
-                                              vertex_t const* indices,
-                                              std::optional<weight_t const*> weights,
-                                              graph_view_meta_t<vertex_t, edge_t, multi_gpu> meta)
+graph_view_t<vertex_t,
+             edge_t,
+             weight_t,
+             store_transposed,
+             multi_gpu,
+             std::enable_if_t<!multi_gpu>>::
+  graph_view_t(raft::handle_t const& handle,
+               edge_t const* offsets,
+               vertex_t const* indices,
+               std::optional<weight_t const*> weights,
+               graph_view_meta_t<vertex_t, edge_t, store_transposed, multi_gpu> meta)
   : detail::graph_base_t<vertex_t, edge_t, weight_t>(
       handle, meta.number_of_vertices, meta.number_of_edges, meta.properties),
     offsets_(offsets),

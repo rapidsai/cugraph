@@ -565,9 +565,11 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
     std::vector<size_t> major_tmp_buffer_sizes(graph_view.number_of_local_edge_partitions(),
                                                size_t{0});
     for (size_t i = 0; i < graph_view.number_of_local_edge_partitions(); ++i) {
-      major_tmp_buffer_sizes[i] = GraphViewType::is_storage_transposed
-                                    ? graph_view.local_edge_partition_dst_range_size(i)
-                                    : graph_view.local_edge_partition_src_range_size(i);
+      if constexpr (GraphViewType::is_storage_transposed) {
+        major_tmp_buffer_sizes[i] = graph_view.local_edge_partition_dst_range_size(i);
+      } else {
+        major_tmp_buffer_sizes[i] = graph_view.local_edge_partition_src_range_size(i);
+      }
     }
     if (stream_pool_indices) {
       auto num_concurrent_loops = (*stream_pool_indices).size() / max_segments;
@@ -826,7 +828,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
     auto const col_comm_rank = col_comm.get_rank();
     auto const col_comm_size = col_comm.get_size();
 
-    if (minor_tmp_buffer.key_first()) {
+    if (minor_tmp_buffer.keys()) {
       vertex_t max_vertex_partition_size{0};
       for (int i = 0; i < row_comm_size; ++i) {
         max_vertex_partition_size =
@@ -835,9 +837,12 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
       }
       auto tx_buffer = allocate_dataframe_buffer<T>(max_vertex_partition_size, handle.get_stream());
       auto tx_first  = get_dataframe_buffer_begin(tx_buffer);
-      auto minor_key_offsets = GraphViewType::is_storage_transposed
-                                 ? graph_view.local_sorted_unique_edge_src_offsets()
-                                 : graph_view.local_sorted_unique_edge_dst_offsets();
+      std::optional<raft::host_span<vertex_t const>> minor_key_offsets{};
+      if constexpr (GraphViewType::is_storage_transposed) {
+        minor_key_offsets = graph_view.local_sorted_unique_edge_src_vertex_partition_offsets();
+      } else {
+        minor_key_offsets = graph_view.local_sorted_unique_edge_dst_vertex_partition_offsets();
+      }
       for (int i = 0; i < row_comm_size; ++i) {
         thrust::fill(
           handle.get_thrust_policy(),
@@ -845,10 +850,10 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
           tx_first + graph_view.vertex_partition_range_size(col_comm_rank * row_comm_size + i),
           T{});
         thrust::scatter(handle.get_thrust_policy(),
-                        minor_tmp_buffer.value_data() + (*minor_key_offsets)[i],
-                        minor_tmp_buffer.value_data() + (*minor_key_offsets)[i + 1],
+                        minor_tmp_buffer.value_first() + (*minor_key_offsets)[i],
+                        minor_tmp_buffer.value_first() + (*minor_key_offsets)[i + 1],
                         thrust::make_transform_iterator(
-                          *(minor_tmp_buffer.key_first()) + (*minor_key_offsets)[i],
+                          (*(minor_tmp_buffer.keys())).begin() + (*minor_key_offsets)[i],
                           [key_first = graph_view.vertex_partition_range_first(
                              col_comm_rank * row_comm_size + i)] __device__(auto key) {
                             return key - key_first;
@@ -868,7 +873,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
         auto offset = (graph_view.vertex_partition_range_first(col_comm_rank * row_comm_size + i) -
                        graph_view.vertex_partition_range_first(col_comm_rank * row_comm_size));
         device_reduce(row_comm,
-                      minor_tmp_buffer.value_data() + offset,
+                      minor_tmp_buffer.value_first() + offset,
                       vertex_value_output_first,
                       static_cast<size_t>(
                         graph_view.vertex_partition_range_size(col_comm_rank * row_comm_size + i)),

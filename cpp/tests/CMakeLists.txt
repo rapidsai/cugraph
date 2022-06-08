@@ -309,17 +309,9 @@ ConfigureTest(GRAPH_GENERATORS_TEST generators/generators_test.cpp)
 ConfigureTest(ERDOS_RENYI_GENERATOR_TEST generators/erdos_renyi_test.cpp)
 
 ###################################################################################################
-# - katz centrality tests -------------------------------------------------------------------------
-ConfigureTest(LEGACY_KATZ_TEST centrality/legacy/katz_centrality_test.cu)
-
-###################################################################################################
 # - betweenness centrality tests ------------------------------------------------------------------
 ConfigureTest(LEGACY_BETWEENNESS_TEST centrality/legacy/betweenness_centrality_test.cu)
 ConfigureTest(LEGACY_EDGE_BETWEENNESS_TEST centrality/legacy/edge_betweenness_centrality_test.cu)
-
-###################################################################################################
-# - SSSP tests ------------------------------------------------------------------------------------
-ConfigureTest(LEGACY_SSSP_TEST traversal/legacy/sssp_test.cu)
 
 ###################################################################################################
 # - BFS tests -------------------------------------------------------------------------------------
@@ -488,14 +480,6 @@ set(RENUMBERING_TEST_SRCS
 ConfigureTest(RENUMBERING_TEST "${RENUMBERING_TEST_SRCS}")
 
 ###################################################################################################
-# - BFS Visitor tests -----------------------------------------------------------------------------
-ConfigureTest(BFS_VISITOR_TEST visitors/bfs_test.cpp)
-
-###################################################################################################
-# - Random Walks Visitor tests --------------------------------------------------------------------
-ConfigureTest(RANDOM_WALKS_VISITOR_TEST visitors/rw_test.cu)
-
-###################################################################################################
 # - Core Number tests -----------------------------------------------------------------------------
 ConfigureTest(CORE_NUMBER_TEST cores/core_number_test.cpp)
 
@@ -512,13 +496,11 @@ if(BUILD_CUGRAPH_MG_TESTS)
     # - find MPI - only enabled if MG tests are to be built
     find_package(MPI REQUIRED)
 
-    execute_process(
-      COMMAND nvidia-smi -L
-      COMMAND wc -l
-      OUTPUT_VARIABLE GPU_COUNT)
-
-    string(REGEX REPLACE "\n$" "" GPU_COUNT ${GPU_COUNT})
-    MESSAGE(STATUS "GPU_COUNT: " ${GPU_COUNT})
+    # Set the GPU count to 1.  If the caller wants to execute MG tests using
+    # more than 1, override from the command line using -DGPU_COUNT=<gpucount>
+    if (NOT DEFINED GPU_COUNT)
+      set(GPU_COUNT "1")
+    endif()
 
     if(MPI_CXX_FOUND)
         ###########################################################################################

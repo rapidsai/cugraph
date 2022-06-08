@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2021, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2022, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -80,14 +80,17 @@ template <typename T>
 struct dataframe_element {
   using type = void;
 };
+
 template <typename... T>
 struct dataframe_element<std::tuple<rmm::device_uvector<T>...>> {
   using type = thrust::tuple<T...>;
 };
+
 template <typename T>
 struct dataframe_element<rmm::device_uvector<T>> {
   using type = T;
 };
+
 template <typename DataframeType>
 using dataframe_element_t = typename dataframe_element<DataframeType>::type;
 
