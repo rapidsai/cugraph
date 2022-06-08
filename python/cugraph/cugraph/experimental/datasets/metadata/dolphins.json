@@ -2,7 +2,7 @@
     "name": "dolphins",
     "author": "",
     "URL": "url-to-dolphins",
-    "is_directed": "",
+    "is_directed": "True",
     "is_multigraph": "",
     "is_symmetric": "",
     "has_loop": "",
