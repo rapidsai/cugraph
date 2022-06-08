@@ -36,15 +36,47 @@ exception GaasError {
   1:string message
 }
 
+struct BatchedEgoGraphsResult {
+  1:list<i32> src_verts
+  2:list<i32> dst_verts
+  3:list<double> edge_weights
+  4:list<i32> seeds_offsets
+}
+
 struct Node2vecResult {
   1:list<i32> vertex_paths
   2:list<double> edge_weights
   3:list<i32> path_sizes
 }
 
+union DataframeRowIndex {
+  1:i32 int32_index
+  2:i64 int64_index
+  3:list<i32> int32_indices
+  4:list<i64> int64_indices
+}
+
+union Value {
+  1:i32 int32_value
+  2:i64 int64_value
+  3:string string_value
+  4:bool bool_value
+}
+
 service GaasService {
 
   i32 uptime()
+
+  i32 load_graph_creation_extensions(1:string extension_dir_path
+                                     ) throws (1:GaasError e),
+
+  void unload_graph_creation_extensions(),
+
+  i32 call_graph_creation_extension(1:string func_name,
+                                    2:string func_args_repr,
+                                    3:string func_kwargs_repr
+                                    ) throws (1:GaasError e),
+
 
   i32 create_graph() throws(1:GaasError e),
 
@@ -59,7 +91,8 @@ service GaasService {
                                5:string vertex_col_name,
                                6:string type_name,
                                7:list<string> property_columns,
-                               8:i32 graph_id
+                               8:i32 graph_id,
+                               9:list<string> names
                                ) throws (1:GaasError e),
 
   void load_csv_as_edge_data(1:string csv_file_name,
@@ -69,16 +102,24 @@ service GaasService {
                              5:list<string> vertex_col_names,
                              6:string type_name,
                              7:list<string> property_columns,
-                             8:i32 graph_id
+                             8:i32 graph_id,
+                             9:list<string> names
                              ) throws (1:GaasError e),
 
   i32 get_num_edges(1:i32 graph_id) throws(1:GaasError e),
+
+  i32 get_num_vertices(1:i32 graph_id) throws(1:GaasError e),
 
   Node2vecResult
   node2vec(1:list<i32> start_vertices,
            2:i32 max_depth,
            3:i32 graph_id
            ) throws (1:GaasError e),
+           
+  list<i32> get_edge_IDs_for_vertices(1:list<i32> src_vert_IDs,
+                                      2:list<i32> dst_vert_IDs,
+                                      3:i32 graph_id
+                             ) throws (1:GaasError e),
 
   i32 extract_subgraph(1:string create_using,
                        2:string selection,
@@ -88,15 +129,37 @@ service GaasService {
                        6:i32 graph_id
                        ) throws (1:GaasError e),
 
-  i32 load_graph_creation_extensions(1:string extension_dir_path
-                                     ) throws (1:GaasError e),
+  binary get_graph_vertex_dataframe_rows(1:DataframeRowIndex index_or_indices,
+                                         2:Value null_replacement_value,
+                                         3:i32 graph_id,
+                                         4:list<string> property_keys
+                                         ) throws (1:GaasError e),
 
-  void unload_graph_creation_extensions(),
+  list<i64> get_graph_vertex_dataframe_shape(1:i32 graph_id
+                                             ) throws (1:GaasError e),
 
-  i32 call_graph_creation_extension(1:string func_name,
-                                    2:string func_args_repr,
-                                    3:string func_kwargs_repr
-                                    ) throws (1:GaasError e),
+  binary get_graph_edge_dataframe_rows(1:DataframeRowIndex index_or_indices,
+                                       2:Value null_replacement_value
+                                       3:i32 graph_id,
+                                       4:list<string> property_keys
+                                       ) throws (1:GaasError e),
+
+  list<i64> get_graph_edge_dataframe_shape(1:i32 graph_id
+                                           ) throws (1:GaasError e),
+
+  BatchedEgoGraphsResult
+  batched_ego_graphs(1:list<i32> seeds,
+                     2:i32 radius,
+                     3:i32 graph_id
+                     ) throws (1:GaasError e),
+
+  Node2vecResult
+  node2vec(1:list<i32> start_vertices,
+           2:i32 max_depth,
+           3:i32 graph_id
+           ) throws (1:GaasError e),
+
+
 }
 """
 
@@ -145,6 +208,7 @@ def create_client(host, port, call_timeout=90000):
         # gaas_client.exceptions.GaasError is actually defined from the spec in
         # this module, just use it directly from spec.
         #
-        # FIXME: this exception could use more detail
+        # FIXME: may need to have additional thrift exception handlers
+        # FIXME: this exception being raised could use more detail
         raise spec.GaasError("could not create a client session with a "
                              "GaaS server")

@@ -14,4 +14,7 @@
 
 from gaas_client.gaas_thrift import spec
 
+Value = spec.Value
+DataframeRowIndex = spec.DataframeRowIndex
+BatchedEgoGraphsResult = spec.BatchedEgoGraphsResult
 Node2vecResult = spec.Node2vecResult
