@@ -35,6 +35,7 @@ class Dataset:
         self.__edgelist = None
         self.__graph = None
 
+    # FIXME: metadata reading should not be lazy
     def __getattr__(self, attr):
         """
         lazily read meta-data
@@ -64,7 +65,7 @@ class Dataset:
     @property
     def get_graph(self, fetch=False):
         if self.__graph is None:
-            self.__graph = cugraph.from_cudf_edgelist(self.__edgelist, ...)
+            self.__graph = cugraph.from_cudf_edgelist(self.get_edgelist(...), ...)
         return self.__graph
 
     # def download_csv():

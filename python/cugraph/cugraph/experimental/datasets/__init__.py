@@ -21,3 +21,4 @@ from cugraph.experimental.datasets.dataset import (
     dolphins,
     SMALL_DATASETS
 )
+from cugraph.experimental.datasets import metadata
