@@ -28,3 +28,11 @@ MGPropertySelection = experimental_warning_wrapper(EXPERIMENTAL__MGPropertySelec
 from cugraph.experimental.community.triangle_count import \
     EXPERIMENTAL__triangle_count
 triangle_count = experimental_warning_wrapper(EXPERIMENTAL__triangle_count)
+
+from cugraph.experimental.components.scc import \
+    EXPERIMENTAL__strong_connected_component
+strong_connected_component = \
+    experimental_warning_wrapper(EXPERIMENTAL__strong_connected_component)
+
+from cugraph.experimental.structure.bicliques import EXPERIMENTAL__find_bicliques
+find_bicliques = experimental_warning_wrapper(EXPERIMENTAL__find_bicliques)

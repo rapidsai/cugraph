@@ -27,7 +27,7 @@ import numpy as np
 #   - repeat
 
 
-def strong_connected_component(source, destination):
+def EXPERIMENTAL__strong_connected_component(source, destination):
     """
     Generate the strongly connected components
     using the FW-BW-TRIM approach, but skipping the trimming)

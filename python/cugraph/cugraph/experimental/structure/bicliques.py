@@ -17,7 +17,7 @@ import numpy as np
 from collections import OrderedDict
 
 
-def find_bicliques(
+def EXPERIMENTAL__find_bicliques(
         df, k,
         offset=0,
         max_iter=-1,
