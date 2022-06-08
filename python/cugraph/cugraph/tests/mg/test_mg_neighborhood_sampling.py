@@ -42,7 +42,7 @@ fixture_params = utils.genFixtureParamsProduct(
     (datasets, "graph_file"),
     (IS_DIRECTED, "directed"),
     ([False, True], "with_replacement"),
-    (["float32"], "indices_type")
+    (["int32", "float32"], "indices_type")
     )
 
 
