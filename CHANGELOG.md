@@ -2,6 +2,8 @@
 
 Please see https://github.com/rapidsai/cugraph/releases/tag/v22.08.00a for the latest changes to this development branch.
 
+# cuGraph 22.06.00 (7 Jun 2022)
+
 ## 🚨 Breaking Changes
 
 - Fix uniform neighborhood sampling remove duplicates ([#2301](https://github.com/rapidsai/cugraph/pull/2301)) [@ChuckHastings](https://github.com/ChuckHastings)
