@@ -1,0 +1,11 @@
+---
+name: "dolphins"
+author: ""
+URL: "https://github.com/rapidsai/cugraph/blob/branch-22.08/datasets/dolphins.csv"
+is_directed: "True"
+is_multigraph: ""
+is_symmetric: ""
+has_loop: ""
+number_of_nodes: 62
+number_of_edges: 159
+refs: ""

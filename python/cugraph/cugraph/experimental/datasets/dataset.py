@@ -13,7 +13,7 @@
 
 import cugraph
 import cudf
-import json
+import yaml
 import requests
 import os
 import pdb
@@ -26,7 +26,7 @@ class MetaData:
         file = open(dir_path + filename)
 
         # Convert to Python Dict
-        self.meta = json.load(file)
+        self.meta = yaml.load(file, Loader=yaml.FullLoader)
 
 
 class Dataset:
