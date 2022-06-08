@@ -280,10 +280,14 @@ coarsen_graph(
   for (size_t i = 0; i < graph_view.number_of_local_edge_partitions(); ++i) {
     // 1-1. locally construct coarsened edge list
 
-    rmm::device_uvector<vertex_t> major_labels(
-      store_transposed ? graph_view.local_edge_partition_dst_range_size(i)
-                       : graph_view.local_edge_partition_src_range_size(i),
-      handle.get_stream());
+    vertex_t edge_partition_major_range_size{};
+    if constexpr (store_transposed) {
+      edge_partition_major_range_size = graph_view.local_edge_partition_dst_range_size(i);
+    } else {
+      edge_partition_major_range_size = graph_view.local_edge_partition_src_range_size(i);
+    }
+    rmm::device_uvector<vertex_t> major_labels(edge_partition_major_range_size,
+                                               handle.get_stream());
     device_bcast(col_comm,
                  labels,
                  major_labels.data(),
@@ -523,7 +527,8 @@ coarsen_graph(
       edge_partition_device_view_t<vertex_t, edge_t, weight_t, multi_gpu>(
         graph_view.local_edge_partition_view()),
       labels,
-      detail::edge_partition_minor_property_device_view_t<vertex_t, vertex_t const*>(labels),
+      detail::edge_partition_minor_property_device_view_t<vertex_t, vertex_t const*>(labels,
+                                                                                     vertex_t{0}),
       graph_view.local_edge_partition_segment_offsets(0),
       lower_triangular_only);
 
