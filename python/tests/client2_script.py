@@ -1,6 +1,5 @@
 import time
 import random
-from pathlib import Path
 
 from gaas_client import GaasClient
 
