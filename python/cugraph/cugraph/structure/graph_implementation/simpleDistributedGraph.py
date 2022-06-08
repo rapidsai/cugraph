@@ -430,7 +430,8 @@ class simpleDistributedGraphImpl:
     # as it only supports renumbered input data
     def has_node(self, n):
         """
-        The input data must be renumbered before calling this function
+        The input data must be renumbered before calling this function.
+        'n' should be the internal representation of the vertex.
 
         Returns True if the graph contains the node(s) n.
 
@@ -519,12 +520,10 @@ class simpleDistributedGraphImpl:
                 #        of NumberMap, should not really expose
                 #        this, perhaps add a method to NumberMap
 
-                return self.renumber_map.implementation.ddf["0"]
+                return self.renumber_map.implementation.ddf["global_id"]
             else:
                 return dask_cudf.concat(
                     [df[src_col_name], df[dst_col_name]]).drop_duplicates()
-        if self.adjlist is not None:
-            return cudf.Series(np.arange(0, self.number_of_nodes()))
 
     def neighbors(self, n):
         if self.edgelist is None:
