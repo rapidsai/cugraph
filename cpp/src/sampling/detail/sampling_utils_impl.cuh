@@ -504,7 +504,7 @@ gather_local_edges(
           auto row_hypersparse_idx =
             partitions[partition_id].major_hypersparse_idx_from_major_nocheck(major);
           if (row_hypersparse_idx) {
-            location_in_segment = *(row_hypersparse_idx)-id_begin[partition_id];
+            location_in_segment = *row_hypersparse_idx;
           } else {
             minors[index] = invalid_vertex_id;
             return;
@@ -528,7 +528,7 @@ gather_local_edges(
           edge_index_first[index] = g_dst_index - g_degree_offset + glbl_adj_list_offsets[location];
           if (weights != nullptr) {
             weight_t const* edge_weights = *(partitions[partition_id].weights()) + sparse_offset;
-            weights[index]               = edge_weights[g_dst_index];
+            weights[index]               = edge_weights[g_dst_index - g_degree_offset];
           }
         } else {
           minors[index] = invalid_vertex_id;

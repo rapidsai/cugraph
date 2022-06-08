@@ -17,7 +17,6 @@
 #pragma once
 
 #include <cugraph_c/array.h>
-#include <cugraph_c/cugraph_api.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -40,7 +39,8 @@ typedef struct {
  * @param [in]  properties  Properties of the constructed graph
  * @param [in]  src         Device array containing the source vertex ids.
  * @param [in]  dst         Device array containing the destination vertex ids
- * @param [in]  weights     Device array containing the edge weights
+ * @param [in]  weights     Device array containing the edge weights.  Note that an unweighted
+ *                          graph can be created by passing weights == NULL.
  * @param [in]  store_transposed If true create the graph initially in transposed format
  * @param [in]  renumber    If true, renumber vertices to make an efficient data structure.
  *    If false, do not renumber.  Renumbering is required if the vertices are not sequential
@@ -82,7 +82,11 @@ void cugraph_sg_graph_free(cugraph_graph_t* graph);
  * @param [in]  properties  Properties of the constructed graph
  * @param [in]  src         Device array containing the source vertex ids
  * @param [in]  dst         Device array containing the destination vertex ids
- * @param [in]  weights     Device array containing the edge weights
+ * @param [in]  weights     Device array containing the edge weights.  Note that an unweighted
+ *                          graph can be created by passing weights == NULL.  If a weighted
+ *                          graph is to be created, the weights device array should be created
+ *                          on each rank, but the pointer can be NULL and the size 0
+ *                          if there are no inputs provided by this rank
  * @param [in]  store_transposed If true create the graph initially in transposed format
  * @param [in]  num_edges   Number of edges
  * @param [in]  check       If true, do expensive checks to validate the input data
