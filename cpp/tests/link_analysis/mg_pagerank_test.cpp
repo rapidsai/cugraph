@@ -69,7 +69,6 @@ class Tests_MGPageRank
     raft::comms::initialize_mpi_comms(&handle, MPI_COMM_WORLD);
     auto& comm           = handle.get_comms();
     auto const comm_size = comm.get_size();
-    auto const comm_rank = comm.get_rank();
 
     auto row_comm_size = static_cast<int>(sqrt(static_cast<double>(comm_size)));
     while (comm_size % row_comm_size != 0) {
@@ -276,7 +275,6 @@ class Tests_MGPageRank
         std::vector<result_t> h_sg_pageranks(sg_graph_view.number_of_vertices());
         raft::update_host(
           h_sg_pageranks.data(), d_sg_pageranks.data(), d_sg_pageranks.size(), handle.get_stream());
-
         handle.sync_stream();
 
         auto threshold_ratio = 1e-3;
