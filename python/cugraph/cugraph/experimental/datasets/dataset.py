@@ -74,8 +74,8 @@ class Dataset:
 
 
 # SMALL DATASETS
-karate = Dataset("metadata/karate.json")
-dolphins = Dataset("metadata/dolphins.json")
+karate = Dataset("metadata/karate.yaml")
+dolphins = Dataset("metadata/dolphins.yaml")
 
 # MEDIUM DATASETS
 
