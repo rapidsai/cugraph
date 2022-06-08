@@ -114,8 +114,10 @@ def katz_centrality(
     >>> kc = cugraph.katz_centrality(G)
 
     """
+    G, isNx = ensure_cugraph_obj_for_nx(G)
+
     if alpha is None:
-        degree_max = G.degree()['degree']
+        degree_max = G.degree()['degree'].max()
         alpha = 1 / (degree_max)
 
     if (alpha is not None) and (alpha <= 0.0):
@@ -130,8 +132,6 @@ def katz_centrality(
                          f", got: {max_iter}")
     if (not isinstance(tol, float)) or (tol <= 0.0):
         raise ValueError(f"'tol' must be a positive float, got: {tol}")
-
-    G, isNx = ensure_cugraph_obj_for_nx(G)
 
     srcs = G.edgelist.edgelist_df['src']
     dsts = G.edgelist.edgelist_df['dst']
