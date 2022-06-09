@@ -582,6 +582,17 @@ class graph_view_t<vertex_t,
              : vertex_t{0};
   }
 
+  bool use_dcs() const
+  {
+    if (edge_partition_segment_offsets_) {
+      auto size_per_partition =
+        (*edge_partition_segment_offsets_).size() / edge_partition_offsets_.size();
+      return size_per_partition > (detail::num_sparse_segments_per_vertex_partition + size_t{2});
+    } else {
+      return false;
+    }
+  }
+
   std::optional<std::vector<vertex_t>> local_edge_partition_segment_offsets(
     size_t partition_idx) const
   {
@@ -925,6 +936,8 @@ class graph_view_t<vertex_t,
     assert(partition_idx == 0);
     return vertex_t{0};
   }
+
+  bool use_dcs() const { return false; }
 
   std::optional<std::vector<vertex_t>> local_edge_partition_segment_offsets(
     size_t partition_idx = 0) const

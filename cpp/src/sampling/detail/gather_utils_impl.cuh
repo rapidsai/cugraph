@@ -66,12 +66,8 @@ rmm::device_uvector<typename GraphViewType::edge_type> compute_local_major_degre
         graph_view.local_edge_partition_view(i));
 
     // Check if hypersparse segment is present in the partition
-    auto segment_offsets = graph_view.local_edge_partition_segment_offsets(i);
-    auto use_dcs         = segment_offsets
-                             ? ((*segment_offsets).size() > (num_sparse_segments_per_vertex_partition + 1))
-                             : false;
-
-    if (use_dcs) {
+    if (graph_view.use_dcs()) {
+      auto segment_offsets         = graph_view.local_edge_partition_segment_offsets(i);
       auto major_hypersparse_first = edge_partition.major_range_first() +
                                      (*segment_offsets)[num_sparse_segments_per_vertex_partition];
       // Calculate degrees in sparse region
@@ -391,11 +387,8 @@ partition_information(raft::handle_t const& handle, GraphViewType const& graph_v
     id_begin.push_back(edge_partition.major_range_first());
     id_end.push_back(edge_partition.major_range_last());
 
-    auto segment_offsets = graph_view.local_edge_partition_segment_offsets(i);
-    auto use_dcs         = segment_offsets
-                             ? ((*segment_offsets).size() > (num_sparse_segments_per_vertex_partition + 1))
-                             : false;
-    if (use_dcs) {
+    if (graph_view.use_dcs()) {
+      auto segment_offsets         = graph_view.local_edge_partition_segment_offsets(i);
       auto major_hypersparse_first = edge_partition.major_range_first() +
                                      (*segment_offsets)[num_sparse_segments_per_vertex_partition];
       hypersparse_begin.push_back(major_hypersparse_first);
