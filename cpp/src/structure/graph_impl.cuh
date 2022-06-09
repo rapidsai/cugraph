@@ -479,7 +479,7 @@ update_local_sorted_unique_edge_majors_minors(
 
   auto use_dcs =
     meta.segment_offsets
-      ? ((*(meta.segment_offsets)).size() > (detail::num_sparse_segments_per_vertex_partition + 1))
+      ? ((*(meta.segment_offsets)).size() > (detail::num_sparse_segments_per_vertex_partition + 2))
       : false;
 
   std::optional<std::vector<rmm::device_uvector<vertex_t>>> local_sorted_unique_edge_majors{
@@ -956,7 +956,7 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
   auto is_weighted = edgelists[0].p_edge_weights.has_value();
   auto use_dcs =
     meta.segment_offsets
-      ? ((*(meta.segment_offsets)).size() > (detail::num_sparse_segments_per_vertex_partition + 1))
+      ? ((*(meta.segment_offsets)).size() > (detail::num_sparse_segments_per_vertex_partition + 2))
       : false;
 
   check_graph_constructor_input_arguments<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
@@ -1095,7 +1095,7 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
   auto is_weighted = edgelist_weight_partitions.has_value();
   auto use_dcs =
     meta.segment_offsets
-      ? ((*(meta.segment_offsets)).size() > (detail::num_sparse_segments_per_vertex_partition + 1))
+      ? ((*(meta.segment_offsets)).size() > (detail::num_sparse_segments_per_vertex_partition + 2))
       : false;
 
   std::vector<edgelist_t<vertex_t, edge_t, weight_t>> edgelists(edgelist_src_partitions.size());
