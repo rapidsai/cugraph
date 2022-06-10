@@ -539,7 +539,7 @@ graph_view_t<vertex_t,
 
   CUGRAPH_EXPECTS(
     !(meta.segment_offsets).has_value() ||
-      ((*(meta.segment_offsets)).size() == (detail::num_sparse_segments_per_vertex_partition + 1)),
+      ((*(meta.segment_offsets)).size() == (detail::num_sparse_segments_per_vertex_partition + 2)),
     "Internal Error: (*(meta.segment_offsets)).size() returns an invalid value.");
 
   // skip expensive error checks as this function is only called by graph_t

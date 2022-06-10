@@ -292,8 +292,8 @@ std::enable_if_t<multi_gpu, void> check_graph_constructor_input_arguments(
   CUGRAPH_EXPECTS(
     !(meta.segment_offsets).has_value() ||
       ((*(meta.segment_offsets)).size() ==
-       (detail::num_sparse_segments_per_vertex_partition + 1)) ||
-      ((*(meta.segment_offsets)).size() == (detail::num_sparse_segments_per_vertex_partition + 2)),
+       (detail::num_sparse_segments_per_vertex_partition + 2)) ||
+      ((*(meta.segment_offsets)).size() == (detail::num_sparse_segments_per_vertex_partition + 3)),
     "Invalid input argument: (*(meta.segment_offsets)).size() returns an invalid value.");
 
   auto is_weighted = edgelists[0].p_edge_weights.has_value();
@@ -389,7 +389,7 @@ std::enable_if_t<!multi_gpu, void> check_graph_constructor_input_arguments(
 
   CUGRAPH_EXPECTS(
     !meta.segment_offsets.has_value() ||
-      ((*(meta.segment_offsets)).size() == (detail::num_sparse_segments_per_vertex_partition + 1)),
+      ((*(meta.segment_offsets)).size() == (detail::num_sparse_segments_per_vertex_partition + 2)),
     "Invalid input argument: (*(meta.segment_offsets)).size() returns an invalid value.");
 
   // optional expensive checks

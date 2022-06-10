@@ -27,6 +27,7 @@
 
 #include <raft/cudart_utils.h>
 #include <raft/handle.hpp>
+#include <raft/integer_utils.h>
 #include <rmm/exec_policy.hpp>
 
 #include <cub/cub.cuh>
@@ -61,7 +62,6 @@ __global__ void per_v_transform_reduce_e_hypersparse(
                                typename GraphViewType::edge_type,
                                typename GraphViewType::weight_type,
                                GraphViewType::is_multi_gpu> edge_partition,
-  typename GraphViewType::vertex_type major_hypersparse_first,
   EdgePartitionSrcValueInputWrapper edge_partition_src_value_input,
   EdgePartitionDstValueInputWrapper edge_partition_dst_value_input,
   ResultValueOutputIteratorOrWrapper result_value_output,
@@ -72,10 +72,10 @@ __global__ void per_v_transform_reduce_e_hypersparse(
   using edge_t   = typename GraphViewType::edge_type;
   using weight_t = typename GraphViewType::weight_type;
 
-  auto const tid = threadIdx.x + blockIdx.x * blockDim.x;
-  auto major_start_offset =
-    static_cast<size_t>(major_hypersparse_first - edge_partition.major_range_first());
-  auto idx = static_cast<size_t>(tid);
+  auto const tid          = threadIdx.x + blockIdx.x * blockDim.x;
+  auto major_start_offset = static_cast<size_t>(*(edge_partition.major_hypersparse_first()) -
+                                                edge_partition.major_range_first());
+  auto idx                = static_cast<size_t>(tid);
 
   auto dcs_nzd_vertex_count = *(edge_partition.dcs_nzd_vertex_count());
 
@@ -122,7 +122,7 @@ __global__ void per_v_transform_reduce_e_hypersparse(
     };
 
     if constexpr (update_major) {
-      *(result_value_output + (major - major_hypersparse_first)) =
+      *(result_value_output + (major - *(edge_partition.major_hypersparse_first()))) =
         thrust::transform_reduce(thrust::seq,
                                  thrust::make_counting_iterator(edge_t{0}),
                                  thrust::make_counting_iterator(local_degree),
@@ -528,8 +528,9 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
       // update_major ? V / comm_size * sizeof(T) : 0
       // and limit memory requirement to (E / comm_size) * sizeof(vertex_t)
 
-      size_t num_streams = std::min(static_cast<size_t>(col_comm_size) * max_segments,
-                                    (handle.get_stream_pool_size() / max_segments) * max_segments);
+      size_t num_streams =
+        std::min(static_cast<size_t>(col_comm_size) * max_segments,
+                 raft::round_down_safe(handle.get_stream_pool_size(), max_segments));
       if constexpr (update_major) {
         size_t value_size{0};
         if constexpr (is_thrust_tuple_of_arithmetic<T>::value) {
@@ -642,6 +643,19 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
     if (segment_offsets) {
       static_assert(detail::num_sparse_segments_per_vertex_partition == 3);
 
+      if constexpr (update_major) {  // this is necessary as we don't visit every vertex in the
+                                     // hypersparse segment and no vertices in the zero degree
+                                     // segment are visited
+        auto exec_stream =
+          stream_pool_indices
+            ? handle.get_stream_from_stream_pool((i * max_segments) % (*stream_pool_indices).size())
+            : handle.get_stream();
+        thrust::fill(rmm::exec_policy(exec_stream),
+                     output_buffer + (*segment_offsets)[detail::num_sparse_segments_per_vertex_partition],
+                     output_buffer + (*segment_offsets).back(),
+                     major_init);
+      }
+
       // FIXME: we may further improve performance by 1) individually tuning block sizes for
       // different segments; and 2) adding one more segment for very high degree vertices and
       // running segmented reduction
@@ -650,14 +664,6 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
           stream_pool_indices
             ? handle.get_stream_from_stream_pool((i * max_segments) % (*stream_pool_indices).size())
             : handle.get_stream();
-        if constexpr (update_major) {  // this is necessary as we don't visit every vertex in the
-                                       // hypersparse segment in
-                                       // per_v_transform_reduce_e_hypersparse
-          thrust::fill(rmm::exec_policy(exec_stream),
-                       output_buffer + (*segment_offsets)[3],
-                       output_buffer + (*segment_offsets)[4],
-                       major_init);
-        }
         if (*(edge_partition.dcs_nzd_vertex_count()) > 0) {
           raft::grid_1d_thread_t update_grid(*(edge_partition.dcs_nzd_vertex_count()),
                                              detail::per_v_transform_reduce_e_kernel_block_size,
@@ -667,7 +673,6 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
           detail::per_v_transform_reduce_e_hypersparse<update_major, GraphViewType>
             <<<update_grid.num_blocks, update_grid.block_size, 0, exec_stream>>>(
               edge_partition,
-              edge_partition.major_range_first() + (*segment_offsets)[3],
               edge_partition_src_value_input_copy,
               edge_partition_dst_value_input_copy,
               segment_output_buffer,
@@ -753,7 +758,6 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
             major_init);
       }
     }
-
     if constexpr (GraphViewType::is_multi_gpu && update_major) {
       auto& comm     = handle.get_comms();
       auto& row_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());

@@ -178,7 +178,6 @@ __global__ void update_v_frontier_from_outgoing_e_hypersparse(
                                typename GraphViewType::edge_type,
                                typename GraphViewType::weight_type,
                                GraphViewType::is_multi_gpu> edge_partition,
-  typename GraphViewType::vertex_type major_hypersparse_first,
   KeyIterator key_first,
   KeyIterator key_last,
   EdgePartitionSrcValueInputWrapper edge_partition_src_value_input,
@@ -205,12 +204,12 @@ __global__ void update_v_frontier_from_outgoing_e_hypersparse(
   static_assert(!GraphViewType::is_storage_transposed,
                 "GraphViewType should support the push model.");
 
-  auto const tid     = threadIdx.x + blockIdx.x * blockDim.x;
-  auto const warp_id = threadIdx.x / raft::warp_size();
-  auto const lane_id = tid % raft::warp_size();
-  auto src_start_offset =
-    static_cast<size_t>(major_hypersparse_first - edge_partition.major_range_first());
-  auto idx = static_cast<size_t>(tid);
+  auto const tid        = threadIdx.x + blockIdx.x * blockDim.x;
+  auto const warp_id    = threadIdx.x / raft::warp_size();
+  auto const lane_id    = tid % raft::warp_size();
+  auto src_start_offset = static_cast<size_t>(*(edge_partition.major_hypersparse_first()) -
+                                              edge_partition.major_range_first());
+  auto idx              = static_cast<size_t>(tid);
 
   __shared__ edge_t
     warp_local_degree_inclusive_sums[update_v_frontier_from_outgoing_e_kernel_block_size];
@@ -838,9 +837,7 @@ typename GraphViewType::edge_type compute_num_out_nbrs_from_frontier(
                    frontier_vertices.end(),
                    [edge_partition,
                     major_hypersparse_first =
-                      edge_partition.major_range_first() +
-                      (*segment_offsets)
-                        [detail::num_sparse_segments_per_vertex_partition]] __device__(auto major) {
+                      *(edge_partition.major_hypersparse_first())] __device__(auto major) {
                      if (major < major_hypersparse_first) {
                        auto major_offset = edge_partition.major_offset_from_major_nocheck(major);
                        return edge_partition.local_degree(major_offset);
@@ -1050,9 +1047,7 @@ transform_reduce_v_frontier_outgoing_e_by_dst(
             edge_partition_frontier_src_last,
             [edge_partition,
              major_hypersparse_first =
-               edge_partition.major_range_first() +
-               (*segment_offsets)
-                 [detail::num_sparse_segments_per_vertex_partition]] __device__(auto src) {
+               *(edge_partition.major_hypersparse_first())] __device__(auto src) {
               if (src < major_hypersparse_first) {
                 auto src_offset = edge_partition.major_offset_from_major_nocheck(src);
                 return edge_partition.local_degree(src_offset);
@@ -1174,7 +1169,6 @@ transform_reduce_v_frontier_outgoing_e_by_dst(
         detail::update_v_frontier_from_outgoing_e_hypersparse<GraphViewType>
           <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
             edge_partition,
-            edge_partition.major_range_first() + (*segment_offsets)[3],
             get_dataframe_buffer_begin(edge_partition_frontier_key_buffer) + h_offsets[2],
             get_dataframe_buffer_begin(edge_partition_frontier_key_buffer) + h_offsets[3],
             edge_partition_src_value_input_copy,

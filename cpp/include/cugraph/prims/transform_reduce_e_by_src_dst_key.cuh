@@ -93,7 +93,6 @@ __global__ void transform_reduce_by_src_dst_key_hypersparse(
                                typename GraphViewType::edge_type,
                                typename GraphViewType::weight_type,
                                GraphViewType::is_multi_gpu> edge_partition,
-  typename GraphViewType::vertex_type major_hypersparse_first,
   EdgePartitionSrcValueInputWrapper edge_partition_src_value_input,
   EdgePartitionDstValueInputWrapper edge_partition_dst_value_input,
   EdgePartitionSrcDstKeyInputWrapper edge_partition_src_dst_key_input,
@@ -105,10 +104,10 @@ __global__ void transform_reduce_by_src_dst_key_hypersparse(
   using edge_t   = typename GraphViewType::edge_type;
   using weight_t = typename GraphViewType::weight_type;
 
-  auto const tid = threadIdx.x + blockIdx.x * blockDim.x;
-  auto major_start_offset =
-    static_cast<size_t>(major_hypersparse_first - edge_partition.major_range_first());
-  auto idx = static_cast<size_t>(tid);
+  auto const tid          = threadIdx.x + blockIdx.x * blockDim.x;
+  auto major_start_offset = static_cast<size_t>(*(edge_partition.major_hypersparse_first()) -
+                                                edge_partition.major_range_first());
+  auto idx                = static_cast<size_t>(tid);
 
   auto dcs_nzd_vertex_count = *(edge_partition.dcs_nzd_vertex_count());
 
@@ -471,7 +470,6 @@ transform_reduce_e_by_src_dst_key(
           detail::transform_reduce_by_src_dst_key_hypersparse<edge_partition_src_key, GraphViewType>
             <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
               edge_partition,
-              edge_partition.major_range_first() + (*segment_offsets)[3],
               edge_partition_src_value_input_copy,
               edge_partition_dst_value_input_copy,
               edge_partition_src_dst_key_input_copy,
