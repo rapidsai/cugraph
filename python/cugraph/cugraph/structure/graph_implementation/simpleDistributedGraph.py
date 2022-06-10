@@ -162,13 +162,13 @@ class simpleDistributedGraphImpl:
 
         Returns
         -------
-        df : cudf.DataFrame
-            This cudf.DataFrame wraps source, destination and weight
-            df[src] : cudf.Series
+        df : dask_cudf.DataFrame
+            This dask_cudf.DataFrame wraps source, destination and weight
+            df[src] : dask_cudf.Series
                 contains the source index for each edge
-            df[dst] : cudf.Series
+            df[dst] : dask_cudf.Series
                 contains the destination index for each edge
-            df[weight] : cusd.Series
+            df[weight] : dask_cudf.Series
                 Column is only present for weighted Graph,
                 then containing the weight value for each edge
         """
@@ -231,22 +231,22 @@ class simpleDistributedGraphImpl:
 
         Returns
         -------
-        df : cudf.DataFrame
-            GPU DataFrame of size N (the default) or the size of the given
+        df : dask_cudf.DataFrame
+            Distributed GPU DataFrame of size N (the default) or the size of the given
             vertices (vertex_subset) containing the in_degree. The ordering is
             relative to the adjacency list, or that given by the specified
             vertex_subset.
-            df[vertex] : cudf.Series
+            df[vertex] : dask_cudf.Series
                 The vertex IDs (will be identical to vertex_subset if
                 specified).
-            df[degree] : cudf.Series
+            df[degree] : dask_cudf.Series
                 The computed in-degree of the corresponding vertex.
         Examples
         --------
-        >>> M = cudf.read_csv(datasets_path / 'karate.csv', delimiter=' ',
+        >>> M = dask_cudf.read_csv(datasets_path / 'karate.csv', delimiter=' ',
         ...                   dtype=['int32', 'int32', 'float32'], header=None)
         >>> G = cugraph.Graph()
-        >>> G.from_cudf_edgelist(M, '0', '1')
+        >>> G.from_dask_cudf_edgelist(M, '0', '1')
         >>> df = G.in_degree([0,9,12])
 
         """
@@ -268,22 +268,22 @@ class simpleDistributedGraphImpl:
 
         Returns
         -------
-        df : cudf.DataFrame
-            GPU DataFrame of size N (the default) or the size of the given
+        df : dask_cudf.DataFrame
+            Distributed GPU DataFrame of size N (the default) or the size of the given
             vertices (vertex_subset) containing the out_degree. The ordering is
             relative to the adjacency list, or that given by the specified
             vertex_subset.
-            df[vertex] : cudf.Series
+            df[vertex] : dask_cudf.Series
                 The vertex IDs (will be identical to vertex_subset if
                 specified).
-            df[degree] : cudf.Series
+            df[degree] : dask_cudf.Series
                 The computed out-degree of the corresponding vertex.
         Examples
         --------
-        >>> M = cudf.read_csv(datasets_path / 'karate.csv', delimiter=' ',
+        >>> M = dask_cudf.read_csv(datasets_path / 'karate.csv', delimiter=' ',
         ...                   dtype=['int32', 'int32', 'float32'], header=None)
         >>> G = cugraph.Graph()
-        >>> G.from_cudf_edgelist(M, '0', '1')
+        >>> G.from_dask_cudf_edgelist(M, '0', '1')
         >>> df = G.out_degree([0,9,12])
 
         """
@@ -303,22 +303,22 @@ class simpleDistributedGraphImpl:
             set, degrees are computed for the entire set of vertices.
         Returns
         -------
-        df : cudf.DataFrame
-            GPU DataFrame of size N (the default) or the size of the given
+        df : dask_cudf.DataFrame
+            Distributed GPU DataFrame of size N (the default) or the size of the given
             vertices (vertex_subset) containing the degree. The ordering is
             relative to the adjacency list, or that given by the specified
             vertex_subset.
-            df['vertex'] : cudf.Series
+            df['vertex'] : dask_cudf.Series
                 The vertex IDs (will be identical to vertex_subset if
                 specified).
-            df['degree'] : cudf.Series
+            df['degree'] : dask_cudf.Series
                 The computed degree of the corresponding vertex.
         Examples
         --------
-        >>> M = cudf.read_csv(datasets_path / 'karate.csv', delimiter=' ',
+        >>> M = dask_cudf.read_csv(datasets_path / 'karate.csv', delimiter=' ',
         ...                   dtype=['int32', 'int32', 'float32'], header=None)
         >>> G = cugraph.Graph()
-        >>> G.from_cudf_edgelist(M, '0', '1')
+        >>> G.from_dask_cudf_edgelist(M, '0', '1')
         >>> all_df = G.degree()
         >>> subset_df = G.degree([0,9,12])
 
@@ -346,25 +346,25 @@ class simpleDistributedGraphImpl:
 
         Returns
         -------
-        df : cudf.DataFrame
-            GPU DataFrame of size N (the default) or the size of the given
+        df : dask_cudf.DataFrame
+            Distributed GPU DataFrame of size N (the default) or the size of the given
             vertices (vertex_subset) containing the degrees. The ordering is
             relative to the adjacency list, or that given by the specified
             vertex_subset.
-            df['vertex'] : cudf.Series
+            df['vertex'] : dask_cudf.Series
                 The vertex IDs (will be identical to vertex_subset if
                 specified).
-            df['in_degree'] : cudf.Series
+            df['in_degree'] : dask_cudf.Series
                 The in-degree of the vertex.
-            df['out_degree'] : cudf.Series
+            df['out_degree'] : dask_cudf.Series
                 The out-degree of the vertex.
 
         Examples
         --------
-        >>> M = cudf.read_csv(datasets_path / 'karate.csv', delimiter=' ',
+        >>> M = dask_cudf.read_csv(datasets_path / 'karate.csv', delimiter=' ',
         ...                   dtype=['int32', 'int32', 'float32'], header=None)
         >>> G = cugraph.Graph()
-        >>> G.from_cudf_edgelist(M, '0', '1')
+        >>> G.from_dask_cudf_edgelist(M, '0', '1')
         >>> df = G.degrees([0,9,12])
 
         """
@@ -399,10 +399,10 @@ class simpleDistributedGraphImpl:
 
         Examples
         --------
-        >>> M = cudf.read_csv(datasets_path / 'karate.csv', delimiter=' ',
+        >>> M = dask_cudf.read_csv(datasets_path / 'karate.csv', delimiter=' ',
         ...                   dtype=['int32', 'int32', 'float32'], header=None)
         >>> G = cugraph.Graph()
-        >>> G.from_cudf_edgelist(M, '0', '1')
+        >>> G.from_dask_cudf_edgelist(M, '0', '1')
         >>> DiG = G.to_directed()
 
         """
@@ -421,10 +421,10 @@ class simpleDistributedGraphImpl:
 
         Examples
         --------
-        >>> M = cudf.read_csv(datasets_path / 'karate.csv', delimiter=' ',
+        >>> M = dask_cudf.read_csv(datasets_path / 'karate.csv', delimiter=' ',
         ...         dtype=['int32', 'int32', 'float32'], header=None)
         >>> DiG = cugraph.Graph(directed=True)
-        >>> DiG.from_cudf_edgelist(M, '0', '1')
+        >>> DiG.dask_from_cudf_edgelist(M, '0', '1')
         >>> G = DiG.to_undirected()
         """
 
@@ -442,7 +442,7 @@ class simpleDistributedGraphImpl:
 
         Examples
         --------
-        >>> M = cudf.read_csv(datasets_path / 'karate.csv', delimiter=' ',
+        >>> M = dask_cudf.read_csv(datasets_path / 'karate.csv', delimiter=' ',
         ...                   dtype=['int32', 'int32', 'float32'], header=None)
         >>> G = cugraph.Graph(directed=True)
         >>> G.from_dask_cudf_edgelist(M, '0', '1')
