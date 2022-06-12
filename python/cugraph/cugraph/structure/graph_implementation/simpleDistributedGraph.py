@@ -232,10 +232,10 @@ class simpleDistributedGraphImpl:
         Returns
         -------
         df : dask_cudf.DataFrame
-            Distributed GPU DataFrame of size N (the default) or the size of the given
-            vertices (vertex_subset) containing the in_degree. The ordering is
-            relative to the adjacency list, or that given by the specified
-            vertex_subset.
+            Distributed GPU DataFrame of size N (the default) or the size of
+            the given vertices (vertex_subset) containing the in_degree.
+            The ordering is relative to the adjacency list, or that given by
+            the specified vertex_subset.
             df[vertex] : dask_cudf.Series
                 The vertex IDs (will be identical to vertex_subset if
                 specified).
@@ -269,10 +269,10 @@ class simpleDistributedGraphImpl:
         Returns
         -------
         df : dask_cudf.DataFrame
-            Distributed GPU DataFrame of size N (the default) or the size of the given
-            vertices (vertex_subset) containing the out_degree. The ordering is
-            relative to the adjacency list, or that given by the specified
-            vertex_subset.
+            Distributed GPU DataFrame of size N (the default) or the size of
+            the given vertices (vertex_subset) containing the out_degree.
+            The ordering is relative to the adjacency list, or that given by
+            the specified vertex_subset.
             df[vertex] : dask_cudf.Series
                 The vertex IDs (will be identical to vertex_subset if
                 specified).
@@ -304,10 +304,10 @@ class simpleDistributedGraphImpl:
         Returns
         -------
         df : dask_cudf.DataFrame
-            Distributed GPU DataFrame of size N (the default) or the size of the given
-            vertices (vertex_subset) containing the degree. The ordering is
-            relative to the adjacency list, or that given by the specified
-            vertex_subset.
+            Distributed GPU DataFrame of size N (the default) or the size of
+            the given vertices (vertex_subset) containing the degree.
+            The ordering is relative to the adjacency list, or that given by
+            the specified vertex_subset.
             df['vertex'] : dask_cudf.Series
                 The vertex IDs (will be identical to vertex_subset if
                 specified).
@@ -347,10 +347,10 @@ class simpleDistributedGraphImpl:
         Returns
         -------
         df : dask_cudf.DataFrame
-            Distributed GPU DataFrame of size N (the default) or the size of the given
-            vertices (vertex_subset) containing the degrees. The ordering is
-            relative to the adjacency list, or that given by the specified
-            vertex_subset.
+            Distributed GPU DataFrame of size N (the default) or the size of
+            the given vertices (vertex_subset) containing the degrees.
+            The ordering is relative to the adjacency list, or that given by
+            the specified vertex_subset.
             df['vertex'] : dask_cudf.Series
                 The vertex IDs (will be identical to vertex_subset if
                 specified).
@@ -512,7 +512,7 @@ class simpleDistributedGraphImpl:
         """
         Returns all the internal nodes in the graph as a cudf.Series.
         To get the original nodes, convert the result to a dataframe
-        and call the function 'renumber_map.unrenumber'
+        and do 'renumber_map.unrenumber' or 'G.unrenumber'
         """
 
         if self.edgelist is not None:
