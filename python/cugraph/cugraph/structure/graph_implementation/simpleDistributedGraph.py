@@ -460,16 +460,17 @@ class simpleDistributedGraphImpl:
 
         if self.edgelist is None:
             raise RuntimeError("Graph has no Edgelist.")
-
-        if isinstance(n, (int, np.integer)):
-            n = [n]
-        if isinstance(n, list):
-            n = cudf.DataFrame(n)
-        elif isinstance(n, cudf.Series):
-            # create a dataframe from cudf
-            n = cudf.DataFrame(n)
-        elif isinstance(n, dask_cudf.Series):
-            n = n.to_frame()
+        
+        # Convert input to frames so that it can be compared through merge
+        if not isinstance(n, (dask_cudf.DataFrame, cudf.DataFrame)):
+            #if not isinstance(n, cudf.Series):
+            if isinstance(n, dask_cudf.Series):
+                n = n.to_frame()
+            else:
+                if not isinstance(n, (cudf.DataFrame, cudf.Series)):
+                    n = [n]
+                if isinstance(n, (cudf.Series, list)):
+                    n = cudf.DataFrame(n)
 
         if isinstance(n, (dask_cudf.DataFrame, cudf.DataFrame)):
             nodes = self.nodes().to_frame()
@@ -477,9 +478,7 @@ class simpleDistributedGraphImpl:
 
             valid_vertex = nodes.merge(n, how="inner")
             return len(valid_vertex) == len(n)
-        else:
-            raise TypeError("Node(s) type not supported")
-
+        
     def has_edge(self, u, v):
         """
         Returns True if the graph contains the edge (u,v).
