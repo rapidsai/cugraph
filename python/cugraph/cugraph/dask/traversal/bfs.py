@@ -162,22 +162,17 @@ def bfs(input_graph,
     src_col_name = input_graph.renumber_map.renumbered_src_col_name
     dst_col_name = input_graph.renumber_map.renumbered_dst_col_name
 
-    if isinstance(start, (int, list)):
-        start = cudf.Series(start)
-
     if not isinstance(start, (dask_cudf.DataFrame, dask_cudf.Series)):
+        if not isinstance(start, (cudf.DataFrame, cudf.Series)):
+            start = cudf.Series(start)
         if isinstance(start, (cudf.DataFrame, cudf.Series)):
             # convert into a dask_cudf
             start = dask_cudf.from_cudf(start, ddf.npartitions)
 
-        else:
-            raise TypeError(
-                "start must be either a list, integer, dask_cudf or cudf"
-                f"got {type(start)}")
-
     if input_graph.renumbered:
         if isinstance(start, dask_cudf.DataFrame):
             tmp_col_names = start.columns
+
         elif isinstance(start, dask_cudf.Series):
             tmp_col_names = None
 

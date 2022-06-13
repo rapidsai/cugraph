@@ -86,15 +86,16 @@ class BenchmarkRun:
         # FIXME: need to accept and save individual algo args
         self.construct_graph = benchmark(construct_graph_func)
 
-        #add starting node to algos: BFS and SSSP
+        # add starting node to algos: BFS and SSSP
+        # FIXME: Refactor BenchmarkRun __init__ because all the work
+        # done below should be done elsewhere
         for i, algo in enumerate (algo_func_param_list):
-            if benchmark(algo).name in ["bfs", "sssp", "neighborhood_sampling"]:
+            if benchmark(algo).name in ["bfs", "sssp", "uniform_neighbor_sample"]:
                 param={}
                 param["start"]=self.input_dataframe['src'].head()[0]
-                if benchmark(algo).name in ["neighborhood_sampling"]:
+                if benchmark(algo).name in ["uniform_neighbor_sample"]:
                     start = [param.pop("start")]
-                    labels = [0]
-                    param["start_info_list"] = (start, labels)
+                    param["start_list"] = start
                     param["fanout_vals"] = [1]
                 algo_func_param_list[i]=(algo,)+(param,)
 
@@ -148,15 +149,11 @@ class BenchmarkRun:
                     katz_alpha = 1 / (degree_max)
                     self.algos[i][1]["alpha"] = katz_alpha
                 if hasattr(G, "compute_renumber_edge_list"):
-                    G.compute_renumber_edge_list(transposed=True)
-            elif self.algos[i][0].name in ["neighborhood_sampling", "hits"]:
-                if hasattr(G, "compute_renumber_edge_list"):
-                    G.compute_renumber_edge_list(
-                        transposed=False, legacy_renum_only=True)
+                    G.compute_renumber_edge_list(transposed=True, legacy_renum_only=True)
             else: #set transpose=False when renumbering
                 self.__log("running compute_renumber_edge_list...", end="")
                 if hasattr(G, "compute_renumber_edge_list"):
-                    G.compute_renumber_edge_list(transposed=False)
+                    G.compute_renumber_edge_list(transposed=False, legacy_renum_only=True)
                 self.__log("done.")
         # FIXME: need to handle individual algo args
         for ((algo, params), validator) in zip(self.algos, self.validators):

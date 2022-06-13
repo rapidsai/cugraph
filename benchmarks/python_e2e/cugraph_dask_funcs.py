@@ -107,7 +107,11 @@ def construct_graph(dask_dataframe, symmetric=False):
     object must be symmetrized and have self loops removed.
     """
 
-    G = cugraph.DiGraph()
+    if symmetric:
+        G = cugraph.Graph(directed=False)
+    else:
+        G = cugraph.Graph(directed=True)
+
     if len(dask_dataframe.columns) > 2:
         if symmetric: #symmetrize dask dataframe
             dask_dataframe = symmetrize_ddf(dask_dataframe, 'src', 'dst', 'weight')
@@ -154,15 +158,19 @@ def katz(G, alpha=None):
 def hits(G):
     return cugraph.dask.hits(G)
 
-def neighborhood_sampling(G, start_info_list=None, fanout_vals=None):
+def uniform_neighbor_sample(G, start_list=None, fanout_vals=None):
     # convert list to cudf.Series
-    start_info_list = (
-        cudf.Series(start_info_list[0], dtype="int32"),
-        cudf.Series(start_info_list[1], dtype="int32"),
-    )
-                        
+    start_list = cudf.Series(start_list, dtype="int32")  
     return cugraph.dask.uniform_neighbor_sample(
-        G, start_info_list=start_info_list, fanout_vals=fanout_vals)
+        G, start_list=start_list, fanout_vals=fanout_vals)
+
+def triangle_count(G):
+    # FIXME: Update this calls once triangle_count is promoted
+    return cugraph.dask.triangle_count(G)
+
+def eigenvector_centrality(G):
+    # FIXME: Update this calls once triangle_count is promoted
+    return cugraph.dask.eigenvector_centrality(G)
 
 ################################################################################
 # Session-wide setup and teardown
