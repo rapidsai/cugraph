@@ -21,4 +21,10 @@ gpuci_mamba_retry mambabuild \
   --output-folder /tmp/conda-bld-output \
   conda/recipes/cugraph
 
+gpuci_mamba_retry mambabuild \
+  -c "${CPP_CHANNEL}" \
+  --croot /tmp/conda-bld-workspace \
+  --output-folder /tmp/conda-bld-output \
+  conda/recipes/pylibcugraph
+
 rapids-upload-conda-to-s3 python
