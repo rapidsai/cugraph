@@ -423,6 +423,20 @@ class GaasHandler:
             raise GaasError(f"{traceback.format_exc()}")
 
         return node2vec_result
+    
+    def is_vertex_property(self, property_key, graph_id):
+        G = self._get_graph(graph_id)
+        if isinstance(G, PropertyGraph):
+            return property_key in G._vertex_prop_dataframe
+        
+        raise GaasError('Graph does not contain properties')
+
+    def is_edge_property(self, property_key, graph_id):
+        G = self._get_graph(graph_id)
+        if isinstance(G, PropertyGraph):
+            return property_key in G._edge_prop_dataframe
+        
+        raise GaasError('Graph does not contain properties')
 
     def pagerank(self, graph_id):
         """
@@ -487,7 +501,10 @@ class GaasHandler:
         print(all_user_columns)
 
         # This should NOT be a copy of the dataframe data
-        return dataframe[all_user_columns]
+        try:
+            return dataframe[all_user_columns]
+        except KeyError as ke:
+            raise GaasError(f'KeyError({ke.args[-1]})')
 
     def __get_dataframe_rows_as_numpy_bytes(self,
                                             dataframe,
