@@ -9,3 +9,4 @@ has_loop: "True"
 number_of_nodes: 34
 number_of_edges: 156
 refs: "W. W. Zachary, An information flow model for conflict and fission in small groups, Journal of Anthropological Research 33, 452-473 (1977)."
+path: ""

@@ -15,7 +15,6 @@
 #    karate,
 #)
 from cugraph.experimental.datasets.dataset import (
-    MetaData,
     Dataset,
     karate,
     dolphins,

@@ -15,60 +15,59 @@ import cugraph
 import cudf
 import yaml
 import requests
+import re
 import os
+import csv
 import pdb
-
-class MetaData:
-    def __init__(self, filename):
-        # Open JSON file from filepath
-        pdb.set_trace()
-        dir_path = "python/cugraph/cugraph/experimental/datasets/"
-        file = open(dir_path + filename)
-
-        # Convert to Python Dict
-        self.meta = yaml.load(file, Loader=yaml.FullLoader)
-
 
 class Dataset:
     def __init__(self, meta_data_file_name):
-        self.__meta_data_file_name = meta_data_file_name    
+        self.__meta_data_file_name = meta_data_file_name
+        self.__read_meta_data_file(self.__meta_data_file_name)
         self.__edgelist = None
         self.__graph = None
 
-    # FIXME: metadata reading should not be lazy
-    def __getattr__(self, attr):
-        """
-        lazily read meta-data
-        """
-        if attr == "metadata":
-            self.__read_meta_data_file(self.__meta_data_file_name)
-
     def __read_meta_data_file(self, meta_data_file):
-        # MetaData obj reads in JSON
-        self.metadata = MetaData(meta_data_file)
+        dir_path = "python/cugraph/cugraph/experimental/datasets/"
 
+        with open(dir_path + meta_data_file, 'r') as file:
+            self.metadata = yaml.safe_load(file)
+
+    # figure out throwing errors if fetch=False and file doesn't exist...
     def get_edgelist(self, fetch=False):
+        """
+            Return an Edgelist
+        """
         if self.__edgelist is None:
-            if fetch:
-                # if file exists:
-                    # pass
-                # else:
-                    # call download_csv()
-                pass
-            else:
-                # ... do stuff
-                pass
-            self.__edgelist = cudf.read_csv(self.metadata.csv_file_name, ...)
+            if not os.path.isfile(self.metadata['path']):
+                if fetch:
+                    self.__download_csv(self.metadata['url'])
+                else:
+                    print("The datafile does not exist. Try running with fetch=True to download the datafile")
+                    return
+            
+            self.__edgelist = cudf.read_csv(self.metadata['path'], delimiter='\t', names=['src', 'dst'], dtype=['int32', 'int32'])
+
         return self.__edgelist
-+
+
     def get_graph(self, fetch=False):
-        if self.__graph is None:
-            self.__graph = cugraph.from_cudf_edgelist(self.get_edgelist(...), ...)
+        """
+            Return a Graph object.
+        """
+        if self.__edgelist is None:
+            self.get_edgelist(fetch)
+        
+        self.__graph = cugraph.from_cudf_edgelist(self.__edgelist, source='src', destination='dst')
+
         return self.__graph
 
-    # def download_csv():
+    def __download_csv(self, url):
         # fetch from metadata.url
-        # metadata.csv = filename
+        pdb.set_trace()
+        with requests.Session() as s:
+            r = s.get(url)
+            filename = self.metadata['url'].split('/')[-1]
+            open(filename, 'wb').write(r.content)
 
 
 # SMALL DATASETS
