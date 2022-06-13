@@ -11,11 +11,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from pylibcugraph.experimental import (ResourceHandle,
-                                       GraphProperties,
-                                       SGGraph,
-                                       katz_centrality as pylibcugraph_katz
-                                       )
+from pylibcugraph import (ResourceHandle,
+                          GraphProperties,
+                          SGGraph,
+                          katz_centrality as pylibcugraph_katz
+                          )
 from cugraph.utilities import (ensure_cugraph_obj_for_nx,
                                df_score_to_dictionary,
                                )
@@ -74,8 +74,6 @@ def katz_centrality(
         The maximum number of iterations before an answer is returned. This can
         be used to limit the execution time and do an early exit before the
         solver reaches the convergence tolerance.
-        If this value is lower or equal to 0 cuGraph will use the default
-        value, which is 100.
 
     tol : float, optional (default=1.0e-6)
         Set the tolerance the approximation, this parameter should be a small
@@ -124,10 +122,9 @@ def katz_centrality(
     elif (not isinstance(beta, float)) or (beta <= 0.0):
         raise ValueError(f"'beta' must be a positive float or None, "
                          f"got: {beta}")
-    if (not isinstance(max_iter, int)):
-        raise ValueError(f"'max_iter' must be an integer, got: {max_iter}")
-    elif max_iter <= 0:
-        max_iter = 100
+    if (not isinstance(max_iter, int)) or (max_iter <= 0):
+        raise ValueError(f"'max_iter' must be a positive integer"
+                         f", got: {max_iter}")
     if (not isinstance(tol, float)) or (tol <= 0.0):
         raise ValueError(f"'tol' must be a positive float, got: {tol}")
 

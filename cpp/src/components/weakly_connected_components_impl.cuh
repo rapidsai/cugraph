@@ -550,7 +550,7 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
            GraphViewType::is_multi_gpu
              ? edge_partition_dst_components.mutable_device_view()
              : detail::edge_partition_minor_property_device_view_t<vertex_t, vertex_t*>(
-                 level_components),
+                 level_components, vertex_t{0}),
          col_first         = level_graph_view.local_edge_partition_dst_range_first(),
          edge_buffer_first = get_dataframe_buffer_begin(edge_buffer),
          num_edge_inserts =

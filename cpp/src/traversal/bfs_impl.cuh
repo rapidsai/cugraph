@@ -53,7 +53,7 @@ struct e_op_t {
   std::conditional_t<multi_gpu,
                      detail::edge_partition_minor_property_device_view_t<vertex_t, uint8_t*>,
                      uint32_t*>
-    visited_flags{nullptr};
+    visited_flags{};
   uint32_t const* prev_visited_flags{
     nullptr};  // relevant only if multi_gpu is false (this affects only local-computing with 0
                // impact in communication volume, so this may improve performance in small-scale but

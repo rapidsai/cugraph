@@ -278,7 +278,7 @@ class Louvain {
       graph_view_t::is_multi_gpu
         ? dst_clusters_cache_.device_view()
         : detail::edge_partition_minor_property_device_view_t<vertex_t, vertex_t const*>(
-            next_clusters_v_.begin()),
+            next_clusters_v_.begin(), vertex_t{0}),
       [] __device__(auto, auto, weight_t wt, auto src_cluster, auto nbr_cluster) {
         if (src_cluster == nbr_cluster) {
           return wt;
@@ -416,7 +416,7 @@ class Louvain {
       graph_view_t::is_multi_gpu
         ? dst_clusters_cache_.device_view()
         : detail::edge_partition_minor_property_device_view_t<vertex_t, vertex_t const*>(
-            next_clusters_v_.data()),
+            next_clusters_v_.data(), vertex_t{0}),
       [] __device__(auto src, auto dst, auto wt, auto src_cluster, auto nbr_cluster) {
         weight_t sum{0};
         weight_t subtract{0};
@@ -529,7 +529,7 @@ class Louvain {
       graph_view_t::is_multi_gpu
         ? dst_clusters_cache_.device_view()
         : detail::edge_partition_minor_property_device_view_t<vertex_t, vertex_t const*>(
-            next_clusters_v_.data()),
+            next_clusters_v_.data(), vertex_t{0}),
       cluster_keys_v_.begin(),
       cluster_keys_v_.end(),
       cluster_weights_v_.begin(),
