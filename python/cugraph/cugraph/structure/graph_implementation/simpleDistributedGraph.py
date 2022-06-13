@@ -17,7 +17,6 @@ from cugraph.structure.number_map import NumberMap
 from cugraph.structure.symmetrize import symmetrize
 import cudf
 import dask_cudf
-import numpy as np
 
 
 class simpleDistributedGraphImpl:
@@ -460,10 +459,9 @@ class simpleDistributedGraphImpl:
 
         if self.edgelist is None:
             raise RuntimeError("Graph has no Edgelist.")
-        
+
         # Convert input to frames so that it can be compared through merge
         if not isinstance(n, (dask_cudf.DataFrame, cudf.DataFrame)):
-            #if not isinstance(n, cudf.Series):
             if isinstance(n, dask_cudf.Series):
                 n = n.to_frame()
             else:
@@ -478,7 +476,7 @@ class simpleDistributedGraphImpl:
 
             valid_vertex = nodes.merge(n, how="inner")
             return len(valid_vertex) == len(n)
-        
+
     def has_edge(self, u, v):
         """
         Returns True if the graph contains the edge (u,v).
