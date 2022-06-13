@@ -131,11 +131,11 @@ def construct_graph(dask_dataframe, symmetric=False):
 construct_graph.benchmark_name = "from_dask_cudf_edgelist"
 
 
-def bfs(G, start):
+def bfs(G, start, check_start=False):
     return cugraph.dask.bfs(G, start=start, return_distances=True)
 
 
-def sssp(G, start):
+def sssp(G, start, check_start=False):
     return cugraph.dask.sssp(G, source=start)
 
 
