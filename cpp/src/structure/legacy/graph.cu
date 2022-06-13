@@ -16,8 +16,6 @@
 
 #include <cugraph/legacy/graph.hpp>
 #include <cugraph/utilities/error.hpp>
-
-#include <utilities/eidir_graph_utils.hpp>
 #include <utilities/graph_utils.cuh>
 
 #include <raft/device_atomics.cuh>
@@ -157,3 +155,5 @@ template class GraphCompressedSparseBaseView<int32_t, int32_t, float>;
 template class GraphCompressedSparseBaseView<int32_t, int32_t, double>;
 }  // namespace legacy
 }  // namespace cugraph
+
+#include <utilities/eidir_graph_utils.hpp>
