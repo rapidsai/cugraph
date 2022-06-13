@@ -41,7 +41,7 @@ class Dataset:
         if self.__edgelist is None:
             if not os.path.isfile(self.metadata['path']):
                 if fetch:
-                    self.__download_csv(self.metadata['url'])
+                    self.__download_csv(self.metadata['url'], "python/")
                 else:
                     print("The datafile does not exist. Try running with fetch=True to download the datafile")
                     return
@@ -61,13 +61,13 @@ class Dataset:
 
         return self.__graph
 
-    def __download_csv(self, url):
+    def __download_csv(self, url, default_path):
         # fetch from metadata.url
-        pdb.set_trace()
-        with requests.Session() as s:
-            r = s.get(url)
-            filename = self.metadata['url'].split('/')[-1]
-            open(filename, 'wb').write(r.content)
+        #pdb.set_trace()
+        filename = self.metadata['url'].split('/')[-1]
+        df = cudf.read_csv(self.metadata['url'])
+        df.to_csv(default_path+filename, index=False)
+        self.metadata['path'] = default_path + filename
 
 
 # SMALL DATASETS

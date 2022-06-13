@@ -1,7 +1,7 @@
 ---
 name: "dolphins"
 author: ""
-URL: "https://github.com/rapidsai/cugraph/blob/branch-22.08/datasets/dolphins.csv"
+URL: "https://raw.githubusercontent.com/rapidsai/cugraph/branch-22.08/datasets/karate-data.csv"
 is_directed: "True"
 is_multigraph: ""
 is_symmetric: ""
