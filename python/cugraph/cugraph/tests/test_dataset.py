@@ -15,7 +15,7 @@ import gc
 
 import pytest
 import cugraph
-from cugraph.experimental.datasets import dataset
+from cugraph.experimental.datasets import dataset, SMALL_DATASETS
 
 # =============================================================================
 # Pytest Setup / Teardown - called for each test function
@@ -26,14 +26,17 @@ def setup_function():
 # A simple example Dataset class working, MetaData
 # run thru an entire alg with imports
 # handle cases, like fetch, also maybe config options
-config_file_path = "cugraph/cugraph/experimental/datasets/datasets_config.yaml"
-with open(config_file_path, 'r') as file:
-    config_settings = yaml.safe_load(file)
+#config_file_path = "cugraph/cugraph/experimental/datasets/datasets_config.yaml"
+#with open(config_file_path, 'r') as file:
+#    config_settings = yaml.safe_load(file)
 
 @pytest.mark.parametrize("dataset", SMALL_DATASETS)
 def test_getters(dataset):
     # Getting the graph does not need to depend on get_edgelist
-    breakpoint()
-    G = dataset.get_graph(fetch=False)
+    M = dataset.get_edgelist(fetch=True)
+    #breakpoint()
+    G = dataset.get_graph(fetch=True)
 
-    M = dataset.get_edgelist(fetch=False)
+    # Storing the datasets in experimental/datasets/
+
+# Test that no fetches are redundant; i.e if dataset has been fetched or already exists, don't fetch again

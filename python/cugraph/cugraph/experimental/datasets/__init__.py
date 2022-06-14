@@ -16,8 +16,19 @@
 #)
 from cugraph.experimental.datasets.dataset import (
     Dataset,
-    karate,
-    dolphins,
-    SMALL_DATASETS
+#    karate,
+#    dolphins,
+#    SMALL_DATASETS
 )
 from cugraph.experimental.datasets import metadata
+
+# SMALL DATASETS
+karate = Dataset("metadata/karate.yaml")
+dolphins = Dataset("metadata/dolphins.yaml")
+
+# MEDIUM DATASETS
+
+# LARGE DATASETS
+
+# GROUPS OF DATASETS
+SMALL_DATASETS = [karate, dolphins]

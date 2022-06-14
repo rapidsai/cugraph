@@ -22,38 +22,42 @@ import pdb
 
 class Dataset:
     def __init__(self, meta_data_file_name):
+        self.dir_path = "python/cugraph/cugraph/experimental/datasets/"
         self.__meta_data_file_name = meta_data_file_name
         self.__read_meta_data_file(self.__meta_data_file_name)
         self.__edgelist = None
         self.__graph = None
 
-    def __read_meta_data_file(self, meta_data_file):
-        dir_path = "/cugraph/cugraph/experimental/datasets/"
 
-        with open(dir_path + meta_data_file, 'r') as file:
+    def __read_meta_data_file(self, meta_data_file):
+        with open(self.dir_path + meta_data_file, 'r') as file:
             self.metadata = yaml.safe_load(file)
+
 
     # figure out throwing errors if fetch=False and file doesn't exist...
     def get_edgelist(self, fetch=False):
         """
-            Return an Edgelist
+        Return an Edgelist
         """
         if self.__edgelist is None:
             if not os.path.isfile(self.metadata['path']):
                 if fetch:
-                    self.__download_csv(self.metadata['url'], "python/")
+                    self.__download_csv(self.metadata['url'], "datasets/")
+                    # cudf failure to write
+                    # self.__download_csv(self.metadata['url'], "python/experimental/datasets")
                 else:
+                    #make into exception
                     print("The datafile does not exist. Try running with fetch=True to download the datafile")
                     return
     
-            self.__edgelist = cudf.read_csv(self.metadata['path'], delimiter='\t', names=['src', 'dst'], dtype=['int32', 'int32'])
+            self.__edgelist = cudf.read_csv(self.metadata['path'], delimiter=self.metadata['delimiter'], names=self.metadata['col_names'], dtype=self.metadata['col_types'])
 
         return self.__edgelist
 
 
     def get_graph(self, fetch=False):
         """
-            Return a Graph object.
+        Return a Graph object.
         """
         if self.__edgelist is None:
             self.get_edgelist(fetch)
@@ -70,15 +74,5 @@ class Dataset:
         df = cudf.read_csv(self.metadata['url'])
         df.to_csv(default_path+filename, index=False)
         self.metadata['path'] = default_path + filename
-
-
-# SMALL DATASETS
-karate = Dataset("metadata/karate.yaml")
-dolphins = Dataset("metadata/dolphins.yaml")
-
-# MEDIUM DATASETS
-
-# LARGE DATASETS
-
-# GROUPS OF DATASETS
-SMALL_DATASETS = [karate, dolphins]
+        with open(self.dir_path + self.__meta_data_file_name, 'w') as file:
+            yaml.dump(self.metadata, file)

@@ -1,12 +1,15 @@
----
-name: "karate"
-author: "Zachary W."
-url: "https://raw.githubusercontent.com/rapidsai/cugraph/branch-22.08/datasets/karate-data.csv"
-is_directed: "True"
-is_multigraph: "False"
-is_symmetric: "False"
-has_loop: "True"
-number_of_nodes: 34
+author: Zachary W.
+col_names: ['src', 'dst']
+col_types: ['int32', 'int32']
+delimiter: "\t"
+has_loop: 'True'
+is_directed: 'True'
+is_multigraph: 'False'
+is_symmetric: 'True'
+name: karate
 number_of_edges: 156
-refs: "W. W. Zachary, An information flow model for conflict and fission in small groups, Journal of Anthropological Research 33, 452-473 (1977)."
-path: "datasets/karate-data.csv"
+number_of_nodes: 34
+path: python/karate-data.csv
+refs: W. W. Zachary, An information flow model for conflict and fission in small groups,
+  Journal of Anthropological Research 33, 452-473 (1977).
+url: https://raw.githubusercontent.com/rapidsai/cugraph/branch-22.08/datasets/karate-data.csv
