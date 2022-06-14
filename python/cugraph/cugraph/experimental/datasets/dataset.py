@@ -28,7 +28,7 @@ class Dataset:
         self.__graph = None
 
     def __read_meta_data_file(self, meta_data_file):
-        dir_path = "python/cugraph/cugraph/experimental/datasets/"
+        dir_path = "/cugraph/cugraph/experimental/datasets/"
 
         with open(dir_path + meta_data_file, 'r') as file:
             self.metadata = yaml.safe_load(file)
@@ -45,10 +45,11 @@ class Dataset:
                 else:
                     print("The datafile does not exist. Try running with fetch=True to download the datafile")
                     return
-            
+    
             self.__edgelist = cudf.read_csv(self.metadata['path'], delimiter='\t', names=['src', 'dst'], dtype=['int32', 'int32'])
 
         return self.__edgelist
+
 
     def get_graph(self, fetch=False):
         """
@@ -60,6 +61,7 @@ class Dataset:
         self.__graph = cugraph.from_cudf_edgelist(self.__edgelist, source='src', destination='dst')
 
         return self.__graph
+
 
     def __download_csv(self, url, default_path):
         # fetch from metadata.url

@@ -26,10 +26,14 @@ def setup_function():
 # A simple example Dataset class working, MetaData
 # run thru an entire alg with imports
 # handle cases, like fetch, also maybe config options
+config_file_path = "cugraph/cugraph/experimental/datasets/datasets_config.yaml"
+with open(config_file_path, 'r') as file:
+    config_settings = yaml.safe_load(file)
 
 @pytest.mark.parametrize("dataset", SMALL_DATASETS)
 def test_getters(dataset):
     # Getting the graph does not need to depend on get_edgelist
+    breakpoint()
     G = dataset.get_graph(fetch=False)
 
     M = dataset.get_edgelist(fetch=False)
