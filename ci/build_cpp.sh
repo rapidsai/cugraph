@@ -7,6 +7,9 @@ source rapids-env-update
 # Check environment
 source ci/check_environment.sh
 
+# Use Ninja to build
+export CMAKE_GENERATOR="Ninja"
+
 ################################################################################
 # BUILD - Conda package builds (LIBCUGRAPH)
 ################################################################################
