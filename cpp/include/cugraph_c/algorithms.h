@@ -406,3 +406,4 @@ void cugraph_sample_result_free(cugraph_sample_result_t* result);
 #include <cugraph_c/centrality_algorithms.h>
 #include <cugraph_c/community_algorithms.h>
 #include <cugraph_c/labeling_algorithms.h>
+#include <cugraph_c/core_algorithms.h>

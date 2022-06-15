@@ -15,9 +15,9 @@
  */
 
 #include <cugraph_c/algorithms.h>
-#include <cugraph_c/core_algorithms.h>
 
 #include <c_api/abstract_functor.hpp>
+#include <c_api/core_result.hpp>
 #include <c_api/graph.hpp>
 #include <c_api/resource_handle.hpp>
 #include <c_api/utils.hpp>
@@ -28,7 +28,7 @@
 
 #include <optional>
 
-namespace cugraph {
+/*namespace cugraph {
 namespace c_api {
 
 struct cugraph_core_result_t {
@@ -36,27 +36,30 @@ struct cugraph_core_result_t {
   cugraph_type_erased_device_array_t* core_numbers_;
 };
 
+//enum class cugraph_k_core_degree_type_t { IN, OUT, INOUT };
+
 }  // namespace c_api
-}  // namespace cugraph
+}  // namespace cugraph*/
 
 namespace {
 
 struct core_number_functor : public cugraph::c_api::abstract_functor {
   raft::handle_t const& handle_;
   cugraph::c_api::cugraph_graph_t* graph_{};
-  cugraph::c_api::cugraph_k_core_degree_type_t degree_type_;
+  cugraph::c_api::cugraph_k_core_degree_type_t degree_type_{};
   bool do_expensive_check_{};
   cugraph::c_api::cugraph_core_result_t* result_{};
 
   core_number_functor(cugraph_resource_handle_t const* handle,
                       cugraph_graph_t* graph,
-                      cugraph_k_core_degree_type_t degree_type_,
+                      cugraph_k_core_degree_type_t degree_type,
                       bool do_expensive_check)
     : abstract_functor(),
       handle_(*reinterpret_cast<cugraph::c_api::cugraph_resource_handle_t const*>(handle)->handle_),
       graph_(reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph)),
       // try casting first, if not look for how to cast between enum types
-      degree_type_(reinterpret_cast<cugraph::c_api::cugraph_k_core_degree_type_t>(degree_type)),
+      degree_type_((cugraph::c_api::cugraph_k_core_degree_type_t)(degree_type)),
+      //degree_type_(degree_type),
       do_expensive_check_(do_expensive_check)
   {
   }
@@ -90,12 +93,14 @@ struct core_number_functor : public cugraph::c_api::abstract_functor {
       rmm::device_uvector<edge_t> core_numbers(graph_view.local_vertex_partition_range_size(),
                                                handle_.get_stream());
 
+      auto degree_type = reinterpret_cast<cugraph::k_core_degree_type_t>(degree_type);
+
       cugraph::core_number<vertex_t, edge_t, weight_t, multi_gpu>(
         // cugraph::core_number(
         handle_,
         graph_view,
         core_numbers.data(),
-        degree_type_,
+        degree_type,
         // k_first,
         // k_last,
         do_expensive_check_);
@@ -114,38 +119,15 @@ struct core_number_functor : public cugraph::c_api::abstract_functor {
 
 }  // namespace
 
-extern "C" cugraph_type_erased_device_array_view_t* cugraph_core_result_get_vertices(
-  cugraph_core_result_t* result)
-{
-  auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_core_result_t*>(result);
-  return reinterpret_cast<cugraph_type_erased_device_array_view_t*>(
-    internal_pointer->vertices_->view());
-}
-
-extern "C" cugraph_type_erased_device_array_view_t* cugraph_core_result_get_core_numbers(
-  cugraph_core_result_t* result)
-{
-  auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_core_result_t*>(result);
-  return reinterpret_cast<cugraph_type_erased_device_array_view_t*>(
-    internal_pointer->core_numbers_->view());
-}
-
-extern "C" void cugraph_core_result_free(cugraph_core_result_t* result)
-{
-  auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_core_result_t*>(result);
-  delete internal_pointer->vertices_;
-  delete internal_pointer->core_numbers_;
-  delete internal_pointer;
-}
-
 extern "C" cugraph_error_code_t cugraph_core_number(const cugraph_resource_handle_t* handle,
                                                     cugraph_graph_t* graph,
-                                                    const cugraph_k_core_degree_type_t degree_type,
+                                                    cugraph_k_core_degree_type_t degree_type,
                                                     bool_t do_expensive_check,
                                                     cugraph_core_result_t** result,
                                                     cugraph_error_t** error)
 {
   core_number_functor functor(handle, graph, degree_type, do_expensive_check);
+  //core_number_functor functor(handle, graph, do_expensive_check);
 
   return cugraph::c_api::run_algorithm(graph, functor, result, error);
 }

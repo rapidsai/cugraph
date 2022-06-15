@@ -61,7 +61,12 @@ void cugraph_core_result_free(cugraph_core_result_t* result);
   int32_t direction_;
 } cugraph_k_core_degree_type_t;*/
 
-enum cugraph_k_core_degree_type_t { IN, OUT, INOUT };
+//enum cugraph_k_core_degree_type_t { IN, OUT, INOUT };
+typedef enum {
+  IN = 0,
+  OUT = 1,
+  INOUT = 2
+} cugraph_k_core_degree_type_t;
 
 /**
  * @brief     Perform core number.
