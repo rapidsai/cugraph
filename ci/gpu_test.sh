@@ -106,9 +106,6 @@ gpuci_mamba_retry install \
   -c "${PYTHON_CHANNEL}" \
   libcugraph libcugraph-tests libcugraph_etl
 
-# TODO: Move boa install to gpuci/rapidsai
-gpuci_mamba_retry install boa
-
 gpuci_mamba_retry install \
   -c "${CPP_CHANNEL}" \
   -c "${PYTHON_CHANNEL}" \
@@ -136,7 +133,7 @@ else
     # If this is a PR build, skip downloading large datasets and don't run the
     # slow-running tests that use them.
     # See: https://docs.rapids.ai/maintainers/gpuci/#environment-variables
-    if [ "$BUILD_TYPE" = "pull-request" ]; then
+    if [ "$BUILD_MODE" = "pull-request" ]; then
         TEST_MODE_FLAG="--quick"
     else
         TEST_MODE_FLAG=""
@@ -147,7 +144,7 @@ else
     gpuci_logger "Ran cuGraph test.sh : return code was: $?, gpu/build.sh exit code is now: $EXITCODE"
 
     gpuci_logger "Running cuGraph notebook test script..."
-    ${WORKSPACE}/ci/gpu/test-notebooks.sh 2>&1 | tee nbtest.log
+    ${WORKSPACE}/ci/test-notebooks.sh 2>&1 | tee nbtest.log
     gpuci_logger "Ran cuGraph notebook test script : return code was: $?, gpu/build.sh exit code is now: $EXITCODE"
     python ${WORKSPACE}/ci/utils/nbtestlog2junitxml.py nbtest.log
 fi
