@@ -488,7 +488,7 @@ def sample_groups(df, by, n_samples):
     df = df.sample(frac=1).reset_index(drop=True)
 
     # If we want to keep all samples we return
-    if n_samples==-1:
+    if n_samples == -1:
         return df
     # Step 2
     # add an integer-encoded version of the "by" column,
