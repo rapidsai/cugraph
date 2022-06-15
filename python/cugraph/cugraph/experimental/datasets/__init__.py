@@ -25,6 +25,8 @@ from cugraph.experimental.datasets import metadata
 # SMALL DATASETS
 karate = Dataset("metadata/karate.yaml")
 dolphins = Dataset("metadata/dolphins.yaml")
+polbooks = Dataset("metadata/polbooks.yaml")
+netscience = Dataset("metadata/netscience.yaml")
 
 # MEDIUM DATASETS
 
