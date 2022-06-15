@@ -57,7 +57,7 @@ class Dataset:
         if self.__edgelist is None:
             if not os.path.isfile(self.metadata['path']):
                 if fetch:
-                    self.__download_csv(self.metadata['url'], "datasets/")
+                    self.__download_csv(self.metadata['url'], self.download_dir)
                     # cudf failure to write
                     # self.__download_csv(self.metadata['url'], "python/experimental/datasets")
                 else:
@@ -71,6 +71,7 @@ class Dataset:
     def get_graph(self, fetch=False):
         """
         Return a Graph object.
+
         Parameters
         ----------
         fetch : Boolean (default=False)
