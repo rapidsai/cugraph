@@ -52,8 +52,8 @@ int generic_core_number_test(vertex_t* h_src,
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "create_test_graph failed.");
   TEST_ALWAYS_ASSERT(ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
 
-  // ret_code =
-  //  cugraph_core_number(p_handle, p_graph, k_core_degree_type_t::IN, FALSE, &p_result, &ret_error);
+  //ret_code =
+  //  cugraph_core_number(p_handle, p_graph, cugraph_k_core_degree_type_t::IN, FALSE, &p_result, &ret_error);
   
   cugraph_core_result_free(p_result);
   cugraph_sg_graph_free(p_graph);

@@ -44,16 +44,19 @@ namespace {
 struct core_number_functor : public cugraph::c_api::abstract_functor {
   raft::handle_t const& handle_;
   cugraph::c_api::cugraph_graph_t* graph_{};
-  cugraph::k_core_degree_type_t degree_type_;
+  cugraph::c_api::cugraph_k_core_degree_type_t degree_type_;
   bool do_expensive_check_{};
   cugraph::c_api::cugraph_core_result_t* result_{};
 
   core_number_functor(cugraph_resource_handle_t const* handle,
                       cugraph_graph_t* graph,
+                      cugraph_k_core_degree_type_t degree_type_,
                       bool do_expensive_check)
     : abstract_functor(),
       handle_(*reinterpret_cast<cugraph::c_api::cugraph_resource_handle_t const*>(handle)->handle_),
       graph_(reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph)),
+      // try casting first, if not look for how to cast between enum types
+      degree_type_(reinterpret_cast<cugraph::c_api::cugraph_k_core_degree_type_t>(degree_type)),
       do_expensive_check_(do_expensive_check)
   {
   }
@@ -142,7 +145,7 @@ extern "C" cugraph_error_code_t cugraph_core_number(const cugraph_resource_handl
                                                     cugraph_core_result_t** result,
                                                     cugraph_error_t** error)
 {
-  core_number_functor functor(handle, graph, do_expensive_check);
+  core_number_functor functor(handle, graph, degree_type, do_expensive_check);
 
   return cugraph::c_api::run_algorithm(graph, functor, result, error);
 }
