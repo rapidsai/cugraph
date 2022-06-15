@@ -53,6 +53,7 @@ class Dataset:
         ----------
         fetch : Boolean (default=False)
         
+        Automatically fetch for the dataset from the 'url' location within the YAML file. 
         """
         if self.__edgelist is None:
             if not os.path.isfile(self.metadata['path']):
@@ -76,13 +77,13 @@ class Dataset:
         ----------
         fetch : Boolean (default=False)
         
+        Automatically fetch for the dataset from the 'url' location within the YAML file. 
         """
         if self.__edgelist is None:
             self.get_edgelist(fetch)
-        # pdb.set_trace()
-        # FIXME: graph does not properly set itself as directed/undirected
+
         self.__graph = cugraph.Graph(directed=self.metadata['is_directed'])
-        self.__graph = cugraph.from_cudf_edgelist(self.__edgelist, source='src', destination='dst')
+        self.__graph.from_cudf_edgelist(self.__edgelist, source='src', destination='dst')
 
         return self.__graph
 
