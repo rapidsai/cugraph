@@ -806,6 +806,36 @@ class GaasClient:
                 batched_ego_graphs_result.seeds_offsets)
 
     @__server_connection
+    def is_vertex_property(self, property_key, graph_id=defaults.graph_id):
+        """
+        Returns True if the given property key is for a valid vertex property
+        in the given graph, false otherwise.e
+
+        Parameters
+        ----------
+        property_key: string
+            The key (name) of the vertex property to check
+        graph_id: int
+            The id of the graph of interest
+        """
+        return self.__client.is_vertex_property(property_key, graph_id)
+    
+    @__server_connection
+    def is_edge_property(self, property_key, graph_id=defaults.graph_id):
+        """
+        Returns True if the given property key is for a valid vertex property
+        in the given graph, false otherwise.e
+
+        Parameters
+        ----------
+        property_key: string
+            The key (name) of the vertex property to check
+        graph_id: int
+            The id of the graph of interest
+        """
+        return self.__client.is_edge_property(property_key, graph_id)
+
+    @__server_connection
     def node2vec(self, start_vertices, max_depth, graph_id=defaults.graph_id):
         """
         Computes random walks for each node in 'start_vertices', under the

@@ -155,6 +155,12 @@ service GaasService {
   list<i64> get_graph_edge_dataframe_shape(1:i32 graph_id
                                            ) throws (1:GaasError e),
 
+  bool is_vertex_property(1:string property_key,
+                          2:i32 graph_id) throws (1:GaasError e),
+
+  bool is_edge_property(1:string property_key,
+                        2:i32 graph_id) throws (1:GaasError e),
+
   BatchedEgoGraphsResult
   batched_ego_graphs(1:list<i32> seeds,
                      2:i32 radius,
