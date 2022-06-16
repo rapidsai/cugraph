@@ -39,9 +39,9 @@ int generic_core_number_test(vertex_t* h_src,
   cugraph_error_code_t ret_code = CUGRAPH_SUCCESS;
   cugraph_error_t* ret_error;
 
-  cugraph_resource_handle_t* p_handle                     = NULL;
-  cugraph_graph_t* p_graph                                = NULL;
-  cugraph_core_result_t* p_result = NULL;
+  cugraph_resource_handle_t* p_handle         = NULL;
+  cugraph_graph_t* p_graph                    = NULL;
+  cugraph_core_result_t* p_result             = NULL;
 
   p_handle = cugraph_create_resource_handle(NULL);
   TEST_ASSERT(test_ret_value, p_handle != NULL, "resource handle creation failed.");
@@ -54,6 +54,30 @@ int generic_core_number_test(vertex_t* h_src,
 
   ret_code =
     cugraph_core_number(p_handle, p_graph, 0, FALSE, &p_result, &ret_error);
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "cugraph_core_number failed.");
+
+  cugraph_type_erased_device_array_view_t* vertices;
+  cugraph_type_erased_device_array_view_t* core_numbers;
+  
+  vertices      = cugraph_core_result_get_vertices(p_result);
+  core_numbers  = cugraph_core_result_get_core_numbers(p_result);
+
+  vertex_t h_vertices[num_vertices];
+  vertex_t h_core_numbers[num_vertices];
+
+  ret_code = cugraph_type_erased_device_array_view_copy_to_host(
+    p_handle, (byte_t*)h_vertices, vertices, &ret_error);
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "copy_to_host failed.");
+
+  ret_code = cugraph_type_erased_device_array_view_copy_to_host(
+    p_handle, (byte_t*)h_core_numbers, core_numbers, &ret_error);
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "copy_to_host failed.");
+
+  for (int i = 0; (i < num_vertices) && (test_ret_value == 0); ++i) {
+    TEST_ASSERT(test_ret_value,
+                nearlyEqual(h_result[h_vertices[i]], h_core_numbers[i], 0.001),
+                "core number results don't match");
+  }
   
   cugraph_core_result_free(p_result);
   cugraph_sg_graph_free(p_graph);

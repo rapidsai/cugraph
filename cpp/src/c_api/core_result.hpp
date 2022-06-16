@@ -34,5 +34,5 @@ typedef enum {
 
 //enum cugraph_k_core_degree_type_t {IN, OUT, INOUT};
 
-}
-}
+} // namespace c_api
+} // namespace cugraph

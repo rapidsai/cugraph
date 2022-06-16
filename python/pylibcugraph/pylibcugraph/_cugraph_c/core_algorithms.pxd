@@ -39,5 +39,28 @@ cdef extern from "cugraph_c/core_algorithms.h":
     
     cdef cugraph_type_erased_device_array_view_t* \
         cugraph_core_result_get_vertices(
-            cugraph_core_result_t*
+            cugraph_core_result_t* result
+        )
+
+    cdef cugraph_type_erased_device_array_view_t* \
+        cugraph_core_result_get_core_numbers(
+            cugraph_core_result_t* result
+        )
+    
+    cdef void \
+        cugraph_core_result_free(
+            cugraph_core_result_t* result
+        )
+
+    ctypedef enum cugraph_k_core_degree_type_t:
+        pass
+
+    cdef cugraph_error_code_t \
+        cugraph_core_number(
+            const cugraph_resource_handle_t* handle,
+            cugraph_graph_t* graph,
+            cugraph_k_core_degree_type_t degree_type,
+            bool_t do_expensive_check,
+            cugraph_core_result_t** result,
+            cugraph_error_t** error
         )
