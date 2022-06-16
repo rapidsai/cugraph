@@ -54,6 +54,9 @@ def long_running_graph_creation_function():
    return pG
 """
 
+################################################################################
+## module scope fixtures
+
 @pytest.fixture(scope="module")
 def graph_creation_extension1():
     with TemporaryDirectory() as tmp_extension_dir:

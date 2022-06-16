@@ -405,7 +405,7 @@ class GaasClient:
         graph_id : int, default is defaults.graph_id
             The graph ID to apply the properties in the CSV to. If not provided,
             the default graph ID is used.
-        
+
         names: list of strings, default is None
             The names to be used to reference the CSV columns, in lieu of a
             header.
@@ -490,7 +490,7 @@ class GaasClient:
         graph_id : int, default is defaults.graph_id
             The graph ID to apply the properties in the CSV to. If not provided,
             the default graph ID is used.
-        
+
         names: list of strings, default is None
             The names to be used to reference the CSV columns, in lieu of a
             header.
@@ -537,13 +537,13 @@ class GaasClient:
         graph_id: int, default is defaults.graph_id
             The graph ID to query.  If the ID passed is not valid on the server,
             GaaSError is raised.
-        
+
         Returns
         -------
         num_vertices: int
             The number of vertices in the graph with the given graph id, or in the
             default graph if no id was provided.
-        
+
         Examples
         --------
         >>> from gaas_client import GaasClient
@@ -681,7 +681,7 @@ class GaasClient:
         graph_id : int, default is defaults.graph_id
            The graph ID to extract the subgraph from. If the ID passed is not
            valid on the server, GaaSError is raised.
-        
+
         property_keys : list of strings (default [])
             The keys (names) of properties to retrieve.  If omitted, returns
             the whole dataframe.
@@ -736,7 +736,7 @@ class GaasClient:
         graph_id : int, default is defaults.graph_id
            The graph ID to extract the subgraph from. If the ID passed is not
            valid on the server, GaaSError is raised.
-        
+
         property_keys : list of strings (default [])
             The keys (names) of properties to retrieve.  If omitted, returns
             the whole dataframe.

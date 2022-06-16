@@ -318,8 +318,6 @@ def test_get_graph_vertex_dataframe_rows(client_with_property_csvs_loaded):
     np_array_all_rows = client.get_graph_vertex_dataframe_rows()
     assert np_array_all_rows.shape == (16, 11)
 
-    breakpoint()
-
     # The remaining tests get individual rows - compare those to the all_rows
     # retrieved earlier.
     rows = [0, 1, 2]

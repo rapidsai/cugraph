@@ -19,7 +19,11 @@ import traceback
 
 import cudf
 import cugraph
+from dask.distributed import Client
+from dask_cuda import LocalCUDACluster
+from dask_cuda.initialize import initialize as dask_initialize
 from cugraph.experimental import PropertyGraph
+from cugraph.dask.comms import comms as Comms
 
 from gaas_client import defaults
 from gaas_client.exceptions import GaasError
@@ -34,7 +38,12 @@ class GaasHandler:
         self.__next_graph_id = defaults.graph_id + 1
         self.__graph_objs = {}
         self.__graph_creation_extensions = {}
+        self.__dask_client = None
+        self.__dask_cluster = None
         self.__start_time = int(time.time())
+
+    def __del__(self):
+        self.shutdown_dask_client()
 
     ############################################################################
     # Environment management
@@ -108,6 +117,37 @@ class GaasHandler:
                     return self.__add_graph(graph_obj)
 
         raise GaasError(f"{func_name} is not a graph creation extension")
+
+    def initialize_dask_client(self, dask_scheduler_file=None):
+        """
+        """
+        if dask_scheduler_file is not None:
+            # Env var UCX_MAX_RNDV_RAILS=1 must be set too.
+            dask_initialize(enable_tcp_over_ucx=True,
+                            enable_nvlink=True,
+                            enable_infiniband=True,
+                            enable_rdmacm=True,
+                            # net_devices="mlx5_0:1",
+                            )
+            self.__dask_client = Client(scheduler_file=dask_scheduler_file)
+        else:
+            # FIXME: LocalCUDACluster init. Implement when tests are in place.
+            pass
+
+        Comms.initialize(p2p=True)
+
+    def shutdown_dask_client(self):
+        """
+        """
+        if self.__dask_client is not None:
+            Comms.destroy()
+            self.__dask_client.shutdown()
+
+            if self.__dask_cluster is not None:
+                self.__dask_cluster.close()
+                self.__dask_cluster = None
+
+            self.__dask_client = None
 
     ############################################################################
     # Graph management
@@ -483,7 +523,7 @@ class GaasHandler:
                     all_user_columns.remove(col_name)
         else:
             all_user_columns = columns
-        
+
         print(all_user_columns)
 
         # This should NOT be a copy of the dataframe data
