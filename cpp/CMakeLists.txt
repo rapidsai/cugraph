@@ -147,6 +147,9 @@ rapids_cpm_init()
 # lags behind.
 ###
 
+# Putting this before everything else to override other Thrust versions
+include(cmake/thirdparty/get_thrust.cmake)
+
 # Putting this before raft to override RAFT from pulling them in.
 include(cmake/thirdparty/get_libcudacxx.cmake)
 include(cmake/thirdparty/get_cuco.cmake)
