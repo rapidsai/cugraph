@@ -165,6 +165,29 @@ def test_sample_neighbors(graph_file):
 
 
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
+def test_sample_neighbor_neg_one_fanout(graph_file):
+    cu_M = utils.read_csv_file(graph_file)
+
+    g = cugraph.Graph(directed=True)
+    g.from_cudf_edgelist(cu_M, source='0', destination='1', renumber=True)
+
+    pg = PropertyGraph()
+    pg.add_edge_data(cu_M,
+                     type_name="edge",
+                     vertex_col_names=("0", "1"),
+                     property_columns=["2"])
+
+    gstore = cugraph.gnn.CuGraphStore(graph=pg)
+
+    nodes = gstore.get_vertex_ids()
+    sampled_nodes = nodes[:5]
+    # -1, default fan_out
+    parents_list, children_list = gstore.sample_neighbors(sampled_nodes, -1)
+
+    assert len(parents_list) > 0
+
+
+@pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_n_data(graph_file):
     cu_M = utils.read_csv_file(graph_file)
 
