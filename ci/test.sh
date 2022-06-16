@@ -54,10 +54,6 @@ else
     bash ./get_test_data.sh ${DOWNLOAD_MODE}
 fi
 
-if [[ -z "$PROJECT_FLASH" || "$PROJECT_FLASH" == "0" ]]; then
-    cd ${CUGRAPH_ROOT}/cpp/build
-fi
-
 # Do not abort the script on error from this point on. This allows all tests to
 # run regardless of pass/fail, but relies on the ERR trap above to manage the
 # EXITCODE for the script.
