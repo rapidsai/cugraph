@@ -85,6 +85,8 @@ class CuGraphStore:
             Node IDs to sample neighbors from.
         fanout : int
             The number of edges to be sampled for each node on each edge type.
+            If -1 is given all the neighboring edges for each node on
+            each edge type will be selected.
         edge_dir : str {"in" or "out"}
             Determines whether to sample inbound or outbound edges.
             Can take either in for inbound edges or out for outbound edges.
