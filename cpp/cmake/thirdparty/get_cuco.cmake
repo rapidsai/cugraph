@@ -22,7 +22,7 @@ function(find_and_configure_cuco VERSION)
       CPM_ARGS
         EXCLUDE_FROM_ALL TRUE
         GIT_REPOSITORY https://github.com/NVIDIA/cuCollections.git
-        GIT_TAG        0ca860b824f5dc22cf8a41f09912e62e11f07d82
+        GIT_TAG        55029034c3f82bca36148c9be29941b37492394d
         OPTIONS        "BUILD_TESTS OFF"
                        "BUILD_BENCHMARKS OFF"
                        "BUILD_EXAMPLES OFF"
