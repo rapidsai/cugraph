@@ -133,7 +133,7 @@ else
     # If this is a PR build, skip downloading large datasets and don't run the
     # slow-running tests that use them.
     # See: https://docs.rapids.ai/maintainers/gpuci/#environment-variables
-    if [ "$BUILD_MODE" = "pull-request" ]; then
+    if [ "$BUILD_TYPE" = "pull-request" ]; then
         TEST_MODE_FLAG="--quick"
     else
         TEST_MODE_FLAG=""
