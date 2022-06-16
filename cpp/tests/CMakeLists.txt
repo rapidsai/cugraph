@@ -314,10 +314,6 @@ ConfigureTest(LEGACY_BETWEENNESS_TEST centrality/legacy/betweenness_centrality_t
 ConfigureTest(LEGACY_EDGE_BETWEENNESS_TEST centrality/legacy/edge_betweenness_centrality_test.cu)
 
 ###################################################################################################
-# - SSSP tests ------------------------------------------------------------------------------------
-ConfigureTest(LEGACY_SSSP_TEST traversal/legacy/sssp_test.cu)
-
-###################################################################################################
 # - BFS tests -------------------------------------------------------------------------------------
 ConfigureTest(LEGACY_BFS_TEST traversal/legacy/bfs_test.cu)
 
@@ -482,14 +478,6 @@ set(RENUMBERING_TEST_SRCS
     "${CMAKE_CURRENT_SOURCE_DIR}/structure/renumbering_test.cpp")
 
 ConfigureTest(RENUMBERING_TEST "${RENUMBERING_TEST_SRCS}")
-
-###################################################################################################
-# - BFS Visitor tests -----------------------------------------------------------------------------
-ConfigureTest(BFS_VISITOR_TEST visitors/bfs_test.cpp)
-
-###################################################################################################
-# - Random Walks Visitor tests --------------------------------------------------------------------
-ConfigureTest(RANDOM_WALKS_VISITOR_TEST visitors/rw_test.cu)
 
 ###################################################################################################
 # - Core Number tests -----------------------------------------------------------------------------

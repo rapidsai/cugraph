@@ -17,8 +17,6 @@
 #include "c_test_utils.h" /* RUN_TEST */
 #include "mg_test_utils.h" /* RUN_TEST */
 
-#include <cugraph_c/graph.h>
-
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
