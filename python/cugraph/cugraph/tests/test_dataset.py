@@ -40,3 +40,5 @@ def test_getters(dataset):
     # Storing the datasets in experimental/datasets/
 
 # Test that no fetches are redundant; i.e if dataset has been fetched or already exists, don't fetch again
+
+# Test that datatypes are 

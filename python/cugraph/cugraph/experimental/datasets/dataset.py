@@ -47,15 +47,18 @@ class Dataset:
 
     def __download_csv(self, url, default_path):
         filename = url.split('/')[-1]
+        # Could also be 
+        # filename = self.metadata['name'] + '.' + metadata['file_type']
         df = cudf.read_csv(url)
-        df.to_csv(default_path+filename, index=False)
+        df.to_csv(default_path + filename, index=False)
         self.metadata['path'] = default_path + filename
 
+        # update metadata file to include path
         with open(self.dir_path + self.__meta_data_file_name, 'w') as file:
             yaml.dump(self.metadata, file, sort_keys=False)
             file.close()
 
-    # figure out throwing errors if fetch=False and file doesn't exist...
+
     def get_edgelist(self, fetch=False):
         """
         Return an Edgelist
@@ -63,8 +66,7 @@ class Dataset:
         Parameters
         ----------
         fetch : Boolean (default=False)
-        
-        Automatically fetch for the dataset from the 'url' location within the YAML file. 
+            Automatically fetch for the dataset from the 'url' location within the YAML file. 
         """
         if self.__edgelist is None:
             if not os.path.isfile(self.metadata['path']):
@@ -85,8 +87,7 @@ class Dataset:
         Parameters
         ----------
         fetch : Boolean (default=False)
-        
-        Automatically fetch for the dataset from the 'url' location within the YAML file. 
+            Automatically fetch for the dataset from the 'url' location within the YAML file. 
         """
         if self.__edgelist is None:
             self.get_edgelist(fetch)
@@ -97,19 +98,26 @@ class Dataset:
         return self.__graph
 
 
-    def load_all(self):
-        """
+def load_all():
+    """
         Looks in `metadata` directory and fetches all datafiles from the web.
-        """
-        meta_path = self.dir_path + 'metadata/'
-        for file in os.listdir(meta_path):
-            print(file)
-            meta = None
-            #pdb.set_trace()
-            if file.split('.')[-1] == 'yaml':
-                with open(meta_path + file, 'r') as metafile:
-                    meta = yaml.safe_load(metafile)
-                    metafile.close()
+    """
+    meta_path = "python/cugraph/cugraph/experimental/datasets/metadata/"
+    pdb.set_trace()
+    for file in os.listdir(meta_path):
+        meta = None
+        if file.endswith('.yaml'):
+            with open(meta_path + file, 'r') as metafile:
+                meta = yaml.safe_load(metafile)
+                metafile.close()
 
-                print("downloading from " + meta['url'])
-                self.__download_csv(meta['url'], self.download_dir)
+            if 'url' in meta:
+                print("Downloading dataset from: " + meta['url'])
+                filename = meta['url'].split('/')[-1]
+                df = cudf.read_csv(meta['url'])
+                df.to_csv("datasets2/" + filename, index=False)
+                meta['path'] = "datasets2/" + filename
+
+                with open(meta_path + file, 'w') as metafile:
+                    yaml.dump(meta, metafile, sort_keys=False)
+                    metafile.close()

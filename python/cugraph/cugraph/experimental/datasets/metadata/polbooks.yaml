@@ -2,13 +2,15 @@ name: polbooks
 author: V. Krebs
 url: https://raw.githubusercontent.com/rapidsai/cugraph/branch-22.08/datasets/polbooks.csv
 refs: null
-delimiter: null
+delimiter: " "
 col_names:
-- src
-- dst
+  - src
+  - dst
+  - wgt
 col_types:
-- int32
-- int32
+  - int32
+  - int32
+  - float32
 has_loop: null
 is_directed: false
 is_multigraph: null
