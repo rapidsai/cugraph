@@ -54,8 +54,6 @@ fi
 
 gpuci_logger "Check versions"
 python --version
-$CC --version
-$CXX --version
 
 gpuci_logger "Check conda environment"
 conda info
