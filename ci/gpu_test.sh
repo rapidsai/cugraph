@@ -101,12 +101,12 @@ conda list --show-channel-urls
 CPP_CHANNEL=$(rapids-download-conda-from-s3 cpp)
 PYTHON_CHANNEL=$(rapids-download-conda-from-s3 python)
 
-gpuci_mamba_retry install \
+gpuci_mamba_retry install -y \
   -c "${CPP_CHANNEL}" \
   -c "${PYTHON_CHANNEL}" \
   libcugraph libcugraph-tests libcugraph_etl
 
-gpuci_mamba_retry install \
+gpuci_mamba_retry install -y \
   -c "${CPP_CHANNEL}" \
   -c "${PYTHON_CHANNEL}" \
   cugraph pylibcugraph
