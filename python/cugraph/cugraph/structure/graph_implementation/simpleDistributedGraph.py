@@ -363,9 +363,7 @@ class simpleDistributedGraphImpl:
         out_degree = df.groupby(src_col_name).degree.count().reset_index()
 
         # Add vertices with zero out_degree
-        print("out_degree lengyth before\n", len(out_degree))
         out_degree = nodes.merge(out_degree, how='outer').fillna(0)
-        print("out_degree lengyth after\n", len(out_degree))
 
         # Convert vertex_subset to dataframe.
         if vertex_subset is not None:
