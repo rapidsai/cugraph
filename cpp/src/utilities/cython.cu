@@ -676,64 +676,6 @@ void call_pagerank(raft::handle_t const& handle,
   }
 }
 
-// Wrapper for calling Katz centrality through a graph container
-template <typename vertex_t, typename weight_t>
-void call_katz_centrality(raft::handle_t const& handle,
-                          graph_container_t const& graph_container,
-                          vertex_t* identifiers,
-                          weight_t* katz_centrality,
-                          double alpha,
-                          double beta,
-                          double tolerance,
-                          int64_t max_iter,
-                          bool has_guess,
-                          bool normalize)
-{
-  if (graph_container.graph_type == graphTypeEnum::GraphCSRViewFloat) {
-    cugraph::katz_centrality(*(graph_container.graph_ptr_union.GraphCSRViewFloatPtr),
-                             reinterpret_cast<double*>(katz_centrality),
-                             alpha,
-                             static_cast<int32_t>(max_iter),
-                             tolerance,
-                             has_guess,
-                             normalize);
-    graph_container.graph_ptr_union.GraphCSRViewFloatPtr->get_vertex_identifiers(
-      reinterpret_cast<int32_t*>(identifiers));
-  } else if (graph_container.graph_type == graphTypeEnum::graph_t) {
-    if (graph_container.edgeType == numberTypeEnum::int32Type) {
-      auto graph =
-        detail::create_graph<int32_t, int32_t, weight_t, true, true>(handle, graph_container);
-      cugraph::katz_centrality(handle,
-                               graph->view(),
-                               static_cast<weight_t*>(nullptr),
-                               reinterpret_cast<weight_t*>(katz_centrality),
-                               static_cast<weight_t>(alpha),
-                               static_cast<weight_t>(beta),
-                               static_cast<weight_t>(tolerance),
-                               static_cast<size_t>(max_iter),
-                               has_guess,
-                               normalize,
-                               false);
-    } else if (graph_container.edgeType == numberTypeEnum::int64Type) {
-      auto graph =
-        detail::create_graph<vertex_t, int64_t, weight_t, true, true>(handle, graph_container);
-      cugraph::katz_centrality(handle,
-                               graph->view(),
-                               static_cast<weight_t*>(nullptr),
-                               reinterpret_cast<weight_t*>(katz_centrality),
-                               static_cast<weight_t>(alpha),
-                               static_cast<weight_t>(beta),
-                               static_cast<weight_t>(tolerance),
-                               static_cast<size_t>(max_iter),
-                               has_guess,
-                               normalize,
-                               false);
-    } else {
-      CUGRAPH_FAIL("vertexType/edgeType combination unsupported");
-    }
-  }
-}
-
 // Wrapper for calling BFS through a graph container
 template <typename vertex_t, typename weight_t>
 void call_bfs(raft::handle_t const& handle,
@@ -1013,54 +955,6 @@ std::unique_ptr<random_walk_coo_t> random_walks_to_coo(raft::handle_t const& han
                            std::make_unique<rmm::device_buffer>(std::get<2>(triplet).release())};
 
   return std::make_unique<random_walk_coo_t>(std::move(rw_coo));
-}
-
-// Wrapper for calling SSSP through a graph container
-template <typename vertex_t, typename weight_t>
-void call_sssp(raft::handle_t const& handle,
-               graph_container_t const& graph_container,
-               vertex_t* identifiers,
-               weight_t* distances,
-               vertex_t* predecessors,
-               const vertex_t source_vertex)
-{
-  if (graph_container.graph_type == graphTypeEnum::GraphCSRViewFloat) {
-    graph_container.graph_ptr_union.GraphCSRViewFloatPtr->get_vertex_identifiers(
-      reinterpret_cast<int32_t*>(identifiers));
-    sssp(  // handle, TODO: clarify: no raft_handle_t? why?
-      *(graph_container.graph_ptr_union.GraphCSRViewFloatPtr),
-      reinterpret_cast<float*>(distances),
-      reinterpret_cast<int32_t*>(predecessors),
-      static_cast<int32_t>(source_vertex));
-  } else if (graph_container.graph_type == graphTypeEnum::GraphCSRViewDouble) {
-    graph_container.graph_ptr_union.GraphCSRViewDoublePtr->get_vertex_identifiers(
-      reinterpret_cast<int32_t*>(identifiers));
-    sssp(  // handle, TODO: clarify: no raft_handle_t? why?
-      *(graph_container.graph_ptr_union.GraphCSRViewDoublePtr),
-      reinterpret_cast<double*>(distances),
-      reinterpret_cast<int32_t*>(predecessors),
-      static_cast<int32_t>(source_vertex));
-  } else if (graph_container.graph_type == graphTypeEnum::graph_t) {
-    if (graph_container.edgeType == numberTypeEnum::int32Type) {
-      auto graph =
-        detail::create_graph<int32_t, int32_t, weight_t, false, true>(handle, graph_container);
-      cugraph::sssp(handle,
-                    graph->view(),
-                    reinterpret_cast<weight_t*>(distances),
-                    reinterpret_cast<int32_t*>(predecessors),
-                    static_cast<int32_t>(source_vertex));
-    } else if (graph_container.edgeType == numberTypeEnum::int64Type) {
-      auto graph =
-        detail::create_graph<vertex_t, int64_t, weight_t, false, true>(handle, graph_container);
-      cugraph::sssp(handle,
-                    graph->view(),
-                    reinterpret_cast<weight_t*>(distances),
-                    reinterpret_cast<vertex_t*>(predecessors),
-                    static_cast<vertex_t>(source_vertex));
-    } else {
-      CUGRAPH_FAIL("vertexType/edgeType combination unsupported");
-    }
-  }
 }
 
 // wrapper for weakly connected components:
@@ -1404,50 +1298,6 @@ template void call_pagerank(raft::handle_t const& handle,
                             int64_t max_iter,
                             bool has_guess);
 
-template void call_katz_centrality(raft::handle_t const& handle,
-                                   graph_container_t const& graph_container,
-                                   int* identifiers,
-                                   float* katz_centrality,
-                                   double alpha,
-                                   double beta,
-                                   double tolerance,
-                                   int64_t max_iter,
-                                   bool has_guess,
-                                   bool normalize);
-
-template void call_katz_centrality(raft::handle_t const& handle,
-                                   graph_container_t const& graph_container,
-                                   int* identifiers,
-                                   double* katz_centrality,
-                                   double alpha,
-                                   double beta,
-                                   double tolerance,
-                                   int64_t max_iter,
-                                   bool has_guess,
-                                   bool normalize);
-
-template void call_katz_centrality(raft::handle_t const& handle,
-                                   graph_container_t const& graph_container,
-                                   int64_t* identifiers,
-                                   float* katz_centrality,
-                                   double alpha,
-                                   double beta,
-                                   double tolerance,
-                                   int64_t max_iter,
-                                   bool has_guess,
-                                   bool normalize);
-
-template void call_katz_centrality(raft::handle_t const& handle,
-                                   graph_container_t const& graph_container,
-                                   int64_t* identifiers,
-                                   double* katz_centrality,
-                                   double alpha,
-                                   double beta,
-                                   double tolerance,
-                                   int64_t max_iter,
-                                   bool has_guess,
-                                   bool normalize);
-
 template void call_bfs<int32_t, float>(raft::handle_t const& handle,
                                        graph_container_t const& graph_container,
                                        int32_t* identifiers,
@@ -1554,34 +1404,6 @@ template std::unique_ptr<random_walk_coo_t> random_walks_to_coo<int32_t, int64_t
 
 template std::unique_ptr<random_walk_coo_t> random_walks_to_coo<int64_t, int64_t>(
   raft::handle_t const& handle, random_walk_ret_t& rw_tri);
-
-template void call_sssp(raft::handle_t const& handle,
-                        graph_container_t const& graph_container,
-                        int32_t* identifiers,
-                        float* distances,
-                        int32_t* predecessors,
-                        const int32_t source_vertex);
-
-template void call_sssp(raft::handle_t const& handle,
-                        graph_container_t const& graph_container,
-                        int32_t* identifiers,
-                        double* distances,
-                        int32_t* predecessors,
-                        const int32_t source_vertex);
-
-template void call_sssp(raft::handle_t const& handle,
-                        graph_container_t const& graph_container,
-                        int64_t* identifiers,
-                        float* distances,
-                        int64_t* predecessors,
-                        const int64_t source_vertex);
-
-template void call_sssp(raft::handle_t const& handle,
-                        graph_container_t const& graph_container,
-                        int64_t* identifiers,
-                        double* distances,
-                        int64_t* predecessors,
-                        const int64_t source_vertex);
 
 template void call_wcc<int32_t, float>(raft::handle_t const& handle,
                                        graph_container_t const& graph_container,

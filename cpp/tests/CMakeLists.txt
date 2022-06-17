@@ -309,17 +309,9 @@ ConfigureTest(GRAPH_GENERATORS_TEST generators/generators_test.cpp)
 ConfigureTest(ERDOS_RENYI_GENERATOR_TEST generators/erdos_renyi_test.cpp)
 
 ###################################################################################################
-# - katz centrality tests -------------------------------------------------------------------------
-ConfigureTest(LEGACY_KATZ_TEST centrality/legacy/katz_centrality_test.cu)
-
-###################################################################################################
 # - betweenness centrality tests ------------------------------------------------------------------
 ConfigureTest(LEGACY_BETWEENNESS_TEST centrality/legacy/betweenness_centrality_test.cu)
 ConfigureTest(LEGACY_EDGE_BETWEENNESS_TEST centrality/legacy/edge_betweenness_centrality_test.cu)
-
-###################################################################################################
-# - SSSP tests ------------------------------------------------------------------------------------
-ConfigureTest(LEGACY_SSSP_TEST traversal/legacy/sssp_test.cu)
 
 ###################################################################################################
 # - BFS tests -------------------------------------------------------------------------------------
@@ -486,14 +478,6 @@ set(RENUMBERING_TEST_SRCS
     "${CMAKE_CURRENT_SOURCE_DIR}/structure/renumbering_test.cpp")
 
 ConfigureTest(RENUMBERING_TEST "${RENUMBERING_TEST_SRCS}")
-
-###################################################################################################
-# - BFS Visitor tests -----------------------------------------------------------------------------
-ConfigureTest(BFS_VISITOR_TEST visitors/bfs_test.cpp)
-
-###################################################################################################
-# - Random Walks Visitor tests --------------------------------------------------------------------
-ConfigureTest(RANDOM_WALKS_VISITOR_TEST visitors/rw_test.cu)
 
 ###################################################################################################
 # - Core Number tests -----------------------------------------------------------------------------

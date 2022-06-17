@@ -46,21 +46,27 @@ int generic_triangle_count_test(const cugraph_resource_handle_t* handle,
   cugraph_type_erased_device_array_t* p_start           = NULL;
   cugraph_type_erased_device_array_view_t* p_start_view = NULL;
 
+  int rank = cugraph_resource_handle_get_rank(handle);
+
   ret_code = create_mg_test_graph(
     handle, h_src, h_dst, h_wgt, num_edges, store_transposed, TRUE, &p_graph, &ret_error);
 
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "create_mg_test_graph failed.");
 
   if (h_verts != NULL) {
-    ret_code =
-      cugraph_type_erased_device_array_create(handle, num_results, INT32, &p_start, &ret_error);
-    TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "p_start create failed.");
+    if (rank == 0) {
+      ret_code =
+        cugraph_type_erased_device_array_create(handle, num_results, INT32, &p_start, &ret_error);
+      TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "p_start create failed.");
 
-    p_start_view = cugraph_type_erased_device_array_view(p_start);
+      p_start_view = cugraph_type_erased_device_array_view(p_start);
 
-    ret_code = cugraph_type_erased_device_array_view_copy_from_host(
-      handle, p_start_view, (byte_t*)h_verts, &ret_error);
-    TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "src copy_from_host failed.");
+      ret_code = cugraph_type_erased_device_array_view_copy_from_host(
+        handle, p_start_view, (byte_t*)h_verts, &ret_error);
+      TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "src copy_from_host failed.");
+    } else {
+      p_start_view = cugraph_type_erased_device_array_view_create(NULL, 0, INT32);
+    }
   }
 
   ret_code = cugraph_triangle_count(handle, p_graph, p_start_view, FALSE, &p_result, &ret_error);
@@ -74,10 +80,6 @@ int generic_triangle_count_test(const cugraph_resource_handle_t* handle,
 
     vertices = cugraph_triangle_count_result_get_vertices(p_result);
     counts   = cugraph_triangle_count_result_get_counts(p_result);
-
-    TEST_ASSERT(test_ret_value,
-                cugraph_type_erased_device_array_view_size(vertices) == num_results,
-                "invalid number of results");
 
     vertex_t num_local_results = cugraph_type_erased_device_array_view_size(vertices);
 
@@ -93,8 +95,11 @@ int generic_triangle_count_test(const cugraph_resource_handle_t* handle,
     TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "copy_to_host failed.");
 
     for (int i = 0; (i < num_local_results) && (test_ret_value == 0); ++i) {
-      TEST_ASSERT(
-        test_ret_value, h_result[h_vertices[i]] == h_counts[i], "counts results don't match");
+      for (int j = 0 ; j < num_results ; ++j) {
+        if (h_vertices[i] == h_verts[j]) {
+          TEST_ASSERT(test_ret_value, h_counts[i] == h_result[j], "counts results don't match");
+        }
+      }
     }
 
     cugraph_triangle_count_result_free(p_result);
@@ -112,14 +117,80 @@ int test_triangle_count(const cugraph_resource_handle_t* handle)
   size_t num_vertices = 6;
   size_t num_results  = 4;
 
-  vertex_t h_src[]   = {0, 1, 1, 2, 2, 2, 3, 4,
-                        1, 3, 4, 0, 1, 3, 5, 5};
-  vertex_t h_dst[]   = {1, 3, 4, 0, 1, 3, 5, 5,
-                        0, 1, 1, 2, 2, 2, 3, 4};
-  weight_t h_wgt[]   = {0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f,
-                        0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
+  vertex_t h_src[] = {0, 1, 1, 2, 2, 2, 3, 4, 1, 3, 4, 0, 1, 3, 5, 5};
+  vertex_t h_dst[] = {1, 3, 4, 0, 1, 3, 5, 5, 0, 1, 1, 2, 2, 2, 3, 4};
+  weight_t h_wgt[] = {
+    0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f, 0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
   vertex_t h_verts[] = {0, 1, 2, 4};
   edge_t h_result[]  = {1, 2, 2, 0};
+
+  // Triangle Count wants store_transposed = FALSE
+  return generic_triangle_count_test(
+    handle, h_src, h_dst, h_wgt, h_verts, h_result, num_vertices, num_edges, num_results, FALSE);
+}
+
+int test_triangle_count_dolphins(const cugraph_resource_handle_t* handle)
+{
+  size_t num_edges    = 318;
+  size_t num_vertices = 62;
+
+  vertex_t h_src[] = {
+    10, 14, 15, 40, 42, 47, 17, 19, 26, 27, 28, 36, 41, 54, 10, 42, 44, 61, 8,  14, 59, 51, 9,
+    13, 56, 57, 9,  13, 17, 54, 56, 57, 19, 27, 30, 40, 54, 20, 28, 37, 45, 59, 13, 17, 32, 41,
+    57, 29, 42, 47, 51, 33, 17, 32, 41, 54, 57, 16, 24, 33, 34, 37, 38, 40, 43, 50, 52, 18, 24,
+    40, 45, 55, 59, 20, 33, 37, 38, 50, 22, 25, 27, 31, 57, 20, 21, 24, 29, 45, 51, 30, 54, 28,
+    36, 38, 44, 47, 50, 29, 33, 37, 45, 51, 36, 45, 51, 29, 45, 51, 26, 27, 27, 30, 47, 35, 43,
+    45, 51, 52, 42, 47, 60, 34, 37, 38, 40, 43, 50, 37, 44, 49, 37, 39, 40, 59, 40, 43, 45, 61,
+    43, 44, 52, 58, 57, 52, 54, 57, 47, 50, 46, 53, 50, 51, 59, 49, 57, 51, 55, 61, 57, 0,  0,
+    0,  0,  0,  0,  1,  1,  1,  1,  1,  1,  1,  1,  2,  2,  2,  2,  3,  3,  3,  4,  5,  5,  5,
+    5,  6,  6,  6,  6,  6,  6,  7,  7,  7,  7,  7,  8,  8,  8,  8,  8,  9,  9,  9,  9,  9,  10,
+    10, 10, 11, 12, 13, 13, 13, 13, 13, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 15, 15, 15, 15,
+    15, 15, 16, 16, 16, 16, 16, 17, 17, 17, 17, 17, 18, 18, 18, 18, 18, 18, 19, 19, 20, 20, 20,
+    20, 20, 20, 21, 21, 21, 21, 21, 23, 23, 23, 24, 24, 24, 25, 25, 26, 28, 28, 29, 29, 29, 29,
+    29, 30, 30, 32, 33, 33, 33, 33, 33, 33, 34, 34, 34, 36, 36, 36, 36, 37, 37, 37, 37, 38, 38,
+    38, 38, 39, 40, 41, 41, 42, 42, 43, 43, 45, 45, 45, 46, 48, 50, 51, 53, 54};
+
+  vertex_t h_dst[] = {
+    0,  0,  0,  0,  0,  0,  1,  1,  1,  1,  1,  1,  1,  1,  2,  2,  2,  2,  3,  3,  3,  4,  5,
+    5,  5,  5,  6,  6,  6,  6,  6,  6,  7,  7,  7,  7,  7,  8,  8,  8,  8,  8,  9,  9,  9,  9,
+    9,  10, 10, 10, 11, 12, 13, 13, 13, 13, 13, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 15, 15,
+    15, 15, 15, 15, 16, 16, 16, 16, 16, 17, 17, 17, 17, 17, 18, 18, 18, 18, 18, 18, 19, 19, 20,
+    20, 20, 20, 20, 20, 21, 21, 21, 21, 21, 23, 23, 23, 24, 24, 24, 25, 25, 26, 28, 28, 29, 29,
+    29, 29, 29, 30, 30, 32, 33, 33, 33, 33, 33, 33, 34, 34, 34, 36, 36, 36, 36, 37, 37, 37, 37,
+    38, 38, 38, 38, 39, 40, 41, 41, 42, 42, 43, 43, 45, 45, 45, 46, 48, 50, 51, 53, 54, 10, 14,
+    15, 40, 42, 47, 17, 19, 26, 27, 28, 36, 41, 54, 10, 42, 44, 61, 8,  14, 59, 51, 9,  13, 56,
+    57, 9,  13, 17, 54, 56, 57, 19, 27, 30, 40, 54, 20, 28, 37, 45, 59, 13, 17, 32, 41, 57, 29,
+    42, 47, 51, 33, 17, 32, 41, 54, 57, 16, 24, 33, 34, 37, 38, 40, 43, 50, 52, 18, 24, 40, 45,
+    55, 59, 20, 33, 37, 38, 50, 22, 25, 27, 31, 57, 20, 21, 24, 29, 45, 51, 30, 54, 28, 36, 38,
+    44, 47, 50, 29, 33, 37, 45, 51, 36, 45, 51, 29, 45, 51, 26, 27, 27, 30, 47, 35, 43, 45, 51,
+    52, 42, 47, 60, 34, 37, 38, 40, 43, 50, 37, 44, 49, 37, 39, 40, 59, 40, 43, 45, 61, 43, 44,
+    52, 58, 57, 52, 54, 57, 47, 50, 46, 53, 50, 51, 59, 49, 57, 51, 55, 61, 57};
+
+  weight_t h_wgt[] = {
+    1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+    1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+    1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+    1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+    1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+    1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+    1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+    1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+    1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+    1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+    1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+    1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+    1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+    1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+    1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+    1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+    1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+    1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+    1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+    1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f};
+
+  vertex_t h_verts[] = {11, 48, 0};
+  edge_t h_result[]  = {0, 0, 5};
+  size_t num_results = 3;
 
   // Triangle Count wants store_transposed = FALSE
   return generic_triangle_count_test(
@@ -153,6 +224,7 @@ int main(int argc, char** argv)
 
   if (result == 0) {
     result |= RUN_MG_TEST(test_triangle_count, handle);
+    result |= RUN_MG_TEST(test_triangle_count_dolphins, handle);
 
     cugraph_free_resource_handle(handle);
   }
