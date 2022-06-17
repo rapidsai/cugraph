@@ -297,8 +297,8 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
           static_cast<double>(thrust::distance(map_unique_key_first, map_unique_key_last)) /
           load_factor),
         static_cast<size_t>(thrust::distance(map_unique_key_first, map_unique_key_last)) + 1),
-      invalid_vertex_id<vertex_t>::value,
-      invalid_vertex_id<vertex_t>::value,
+      cuco::sentinel::empty_key<vertex_t>{invalid_vertex_id<vertex_t>::value},
+      cuco::sentinel::empty_value<value_t>{0},
       stream_adapter,
       handle.get_stream());
 
@@ -570,8 +570,8 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
     auto multi_gpu_kv_map_ptr = std::make_unique<
       cuco::static_map<vertex_t, value_t, cuda::thread_scope_device, decltype(stream_adapter)>>(
       size_t{0},
-      invalid_vertex_id<vertex_t>::value,
-      invalid_vertex_id<vertex_t>::value,
+      cuco::sentinel::empty_key<vertex_t>{invalid_vertex_id<vertex_t>::value},
+      cuco::sentinel::empty_value<value_t>{0},
       stream_adapter,
       handle.get_stream());  // relevant only when GraphViewType::is_multi_gpu is true
     if constexpr (GraphViewType::is_multi_gpu) {
@@ -608,8 +608,8 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
         // cuco::static_map requires at least one empty slot
         std::max(static_cast<size_t>(static_cast<double>(unique_minor_keys.size()) / load_factor),
                  static_cast<size_t>(unique_minor_keys.size()) + 1),
-        invalid_vertex_id<vertex_t>::value,
-        invalid_vertex_id<vertex_t>::value,
+        cuco::sentinel::empty_key<vertex_t>{invalid_vertex_id<vertex_t>::value},
+        cuco::sentinel::empty_value<value_t>{0},
         stream_adapter,
         handle.get_stream());
 
