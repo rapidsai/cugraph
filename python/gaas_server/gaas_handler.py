@@ -20,6 +20,8 @@ import traceback
 import cudf
 import cugraph
 from cugraph.experimental import PropertyGraph
+from cugraph import sampling
+from cugraph.structure.number_map import NumberMap
 
 from gaas_client import defaults
 from gaas_client.exceptions import GaasError
@@ -252,6 +254,62 @@ class GaasHandler:
             edge_IDs.append(value)
 
         return edge_IDs
+    
+    def uniform_neighbor_sample(self,
+                                start_list,
+                                fanout_vals,
+                                with_replacement,
+                                graph_id,
+                                ):
+        G = self._get_graph(graph_id)
+        is_property_graph = False
+
+        if isinstance(G, PropertyGraph):
+            is_property_graph = True
+            pG = G
+            G = G.extract_subgraph(
+                create_using=cugraph.Graph,
+                default_edge_weight=1.0,
+                allow_multi_edges=True
+            )
+
+        sampling_results = sampling.uniform_neighbor_sample(
+                G, 
+                start_list, 
+                fanout_vals,
+                with_replacement=with_replacement
+            )
+
+        nodes_of_interest = cudf.Series(sampling_results.destinations)
+        nodes_of_interest = nodes_of_interest.append(cudf.Series(start_list))
+        nodes_of_interest.reset_index(drop=True, inplace=True)
+        
+        # TODO implement this using a graph view when that is implemented
+        if is_property_graph:
+            vertex_properties = pG._vertex_prop_dataframe.iloc[nodes_of_interest]
+            vertex_properties.reset_index(drop=True, inplace=True)
+            prop_names = self.__remove_internal_columns(vertex_properties.columns.to_list())
+            vertex_properties = vertex_properties[prop_names]
+            vertex_properties['original_vertex_id'] = nodes_of_interest
+
+            elist, number_map = NumberMap.renumber(
+                sampling_results, 'sources', 'destinations', store_transposed=False
+            )
+            source_colname = number_map.renumbered_src_col_name
+            dest_colname = number_map.renumbered_dst_col_name
+
+            vertex_properties['original_vertex_id'] = \
+                number_map.to_internal_vertex_id(vertex_properties, ['original_vertex_id'])
+
+            new_G = PropertyGraph()
+            new_G.add_edge_data(elist, vertex_col_names=[source_colname, dest_colname])
+            new_G.add_vertex_data(vertex_properties, vertex_col_name='original_vertex_id', property_columns=prop_names)
+            
+        else:
+            new_G = cugraph.Graph()
+            new_G.from_cudf_edgelist(sampling_results, source='sources', destination='destinations')
+        
+        return self.__add_graph(new_G)
 
     def extract_subgraph(self,
                          create_using,
@@ -477,24 +535,32 @@ class GaasHandler:
         self.__next_graph_id += 1
         return gid
 
+    def __remove_internal_columns(self, input_cols):
+        internal_columns=[PropertyGraph.vertex_col_name,
+                    PropertyGraph.src_col_name,
+                    PropertyGraph.dst_col_name,
+                    PropertyGraph.type_col_name,
+                    PropertyGraph.edge_id_col_name,
+                    PropertyGraph.vertex_id_col_name,
+                    PropertyGraph.weight_col_name]
+
+        # Create a list of user-visible columns by removing the internals while
+        # preserving order
+        output_cols = list(input_cols)
+        for col_name in internal_columns:
+            if col_name in output_cols:
+                output_cols.remove(col_name)
+        
+        return output_cols
+
     def __get_dataframe_from_user_props(self, dataframe, columns=None):
         """
         """
-        internal_columns=[PropertyGraph.vertex_col_name,
-                          PropertyGraph.src_col_name,
-                          PropertyGraph.dst_col_name,
-                          PropertyGraph.type_col_name,
-                          PropertyGraph.edge_id_col_name,
-                          PropertyGraph.vertex_id_col_name,
-                          PropertyGraph.weight_col_name]
+
 
         if columns is None or len(columns) == 0:
             all_user_columns = list(dataframe.columns)
-            # Create a list of user-visible columns by removing the internals while
-            # preserving order
-            for col_name in internal_columns:
-                if col_name in all_user_columns:
-                    all_user_columns.remove(col_name)
+            all_user_columns = self.__remove_internal_columns(all_user_columns)
         else:
             all_user_columns = columns
         

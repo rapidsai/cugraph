@@ -593,6 +593,38 @@ class GaasClient:
                                                        graph_id)
 
     @__server_connection
+    def uniform_neighbor_sample(self,
+                                start_list, 
+                                fanout_vals,
+                                with_replacement=True,
+                                graph_id=defaults.graph_id):
+        """
+        Samples the graph and returns the graph id of the sampled
+        graph.
+
+        Parameters:
+        start_list: list[int]
+
+        fanout_vals: list[int]
+
+        with_replacement: bool
+
+        graph_id: int, default is defaults.graph_id
+
+        Returns
+        -------
+        The graph id of the sampled graph.
+
+        """
+
+        return self.__client.uniform_neighbor_sample(
+            start_list,
+            fanout_vals,
+            with_replacement,
+            graph_id,
+        )
+
+    @__server_connection
     def extract_subgraph(self,
                          create_using=None,
                          selection=None,

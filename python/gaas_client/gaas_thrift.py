@@ -121,6 +121,12 @@ service GaasService {
                                       3:i32 graph_id
                              ) throws (1:GaasError e),
 
+  i32 uniform_neighbor_sample(1:list<i32> start_list, 
+                              2:list<i32> fanout_vals,
+                              3:bool with_replacement,
+                              4:i32 graph_id
+                              ) throws (1:GaasError e),
+
   i32 extract_subgraph(1:string create_using,
                        2:string selection,
                        3:string edge_weight_property,
