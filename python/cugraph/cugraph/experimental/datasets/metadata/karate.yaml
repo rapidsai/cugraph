@@ -1,4 +1,4 @@
-name: karate
+name: karate-data
 author: Zachary W.
 url: https://raw.githubusercontent.com/rapidsai/cugraph/branch-22.08/datasets/karate-data.csv
 refs: W. W. Zachary, An information flow model for conflict and fission in small groups,
@@ -16,4 +16,5 @@ is_multigraph: false
 is_symmetric: true
 number_of_edges: 156
 number_of_nodes: 34
-path: datasets2/dolphins.csv
+path: ../datasets/
+file_type: .csv

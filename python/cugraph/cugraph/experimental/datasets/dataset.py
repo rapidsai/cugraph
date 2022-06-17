@@ -29,6 +29,7 @@ class Dataset:
         self.__read_meta_data_file(self.__meta_data_file_name)
         self.__edgelist = None
         self.__graph = None
+        self.path = None
 
 
     def __read_meta_data_file(self, meta_data_file):
@@ -38,6 +39,8 @@ class Dataset:
 
     
     def __read_config(self):
+        # config_path = "python/cugraph/cugraph/experimental/datasets/datasets_config.yaml"
+        # config_path = "/python/cugraph/cugraph/experimental/datasets/datasets_config.yaml"
         config_path = "python/cugraph/cugraph/experimental/datasets/datasets_config.yaml"
         with open(config_path, 'r') as file:
             cfg = yaml.safe_load(file)
@@ -48,8 +51,13 @@ class Dataset:
     def __download_csv(self, url, default_path):
         filename = url.split('/')[-1]
         df = cudf.read_csv(url)
+        print("__download_csv")
+        print(default_path+filename)
+        print(os.getcwd())
+        breakpoint()
         df.to_csv(default_path+filename, index=False)
         self.metadata['path'] = default_path + filename
+        self.path = default_path + filename
 
         with open(self.dir_path + self.__meta_data_file_name, 'w') as file:
             yaml.dump(self.metadata, file, sort_keys=False)

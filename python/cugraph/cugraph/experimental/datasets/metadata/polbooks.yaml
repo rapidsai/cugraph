@@ -15,4 +15,4 @@ is_multigraph: null
 is_symmetric: true
 number_of_edges: 441
 number_of_nodes: 105
-path: datasets2/polbooks.csv
+path: datasets/polbooks.csv
