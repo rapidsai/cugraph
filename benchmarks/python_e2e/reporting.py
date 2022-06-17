@@ -43,15 +43,15 @@ def generate_console_report(benchmark_result_list):
     # the graph_create run, then a run of each algo.
     r = benchmark_result_list[0]
     name = f"{r.name}({__namify_dict(r.params)})"
-    space = " " * (30 - len(name))
+    space = " " * (70 - len(name))
     retstring += f"{name}{space}{r.runtime:.6}\n"
 
     remaining_results = benchmark_result_list[1:]
 
     for r in remaining_results:
-        retstring += f"{'-'*60}\n"
+        retstring += f"{'-'*80}\n"
         name = f"{r.name}({__namify_dict(r.params)})"
-        space = " " * (30 - len(name))
+        space = " " * (70 - len(name))
         retstring += f"{name}{space}{r.runtime:.6}\n"
 
     return retstring
