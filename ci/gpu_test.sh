@@ -154,4 +154,4 @@ if [ -n "${CODECOV_TOKEN}" ]; then
 fi
 
 gpuci_logger "gpu/build.sh returning value: $EXITCODE"
-return ${EXITCODE}
+exit ${EXITCODE}
