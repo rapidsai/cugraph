@@ -1,4 +1,5 @@
 name: dolphins
+file_type: .csv
 author: D. Lusseau
 url: https://raw.githubusercontent.com/rapidsai/cugraph/branch-22.08/datasets/dolphins.csv
 refs: D. Lusseau, K. Schneider, O. J. Boisseau, P. Haase, E. Slooten, and S. M. Dawson,
@@ -19,4 +20,4 @@ is_multigraph: false
 is_symmetric: false
 number_of_edges: 159
 number_of_nodes: 62
-path: datasets2/dolphins.csv
+path: datasets/
