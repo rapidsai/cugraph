@@ -23,6 +23,7 @@
 
 #include <raft/cudart_utils.h>
 #include <raft/handle.hpp>
+#include <raft/span.hpp>
 #include <rmm/device_uvector.hpp>
 #include <rmm/mr/device/cuda_memory_resource.hpp>
 
@@ -178,6 +179,8 @@ class Tests_InducedSubgraph : public ::testing::TestWithParam<InducedSubgraph_Us
                         h_subgraph_vertices.data(),
                         h_subgraph_vertices.size(),
                         handle.get_stream());
+    raft::device_span<size_t const> dspan_subgraph_offsets(d_subgraph_offsets.data(), d_subgraph_offsets.size() );
+    raft::device_span<vertex_t const> dspan_subgraph_vertices(d_subgraph_vertices.data(), d_subgraph_vertices.size() );
 
     auto [h_reference_subgraph_edgelist_majors,
           h_reference_subgraph_edgelist_minors,
@@ -201,8 +204,8 @@ class Tests_InducedSubgraph : public ::testing::TestWithParam<InducedSubgraph_Us
           d_subgraph_edge_offsets] =
       cugraph::extract_induced_subgraphs(handle,
                                          graph_view,
-                                         d_subgraph_offsets.data(),
-                                         d_subgraph_vertices.data(),
+                                         dspan_subgraph_offsets,
+                                         dspan_subgraph_vertices,
                                          configuration.subgraph_sizes.size(),
                                          true);
 
