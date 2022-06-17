@@ -146,11 +146,6 @@ def sssp(input_graph, source, cutoff=None, check_source=True):
     src_col_name = input_graph.renumber_map.renumbered_src_col_name
     dst_col_name = input_graph.renumber_map.renumbered_dst_col_name
 
-    if input_graph.renumbered:
-        source = input_graph.lookup_internal_vertex_id(
-            cudf.Series([source])).fillna(-1).compute()
-        source = source.iloc[0]
-
     def check_valid_vertex(G, source):
         is_valid_vertex = G.has_node(source)
         if not is_valid_vertex:
@@ -161,6 +156,11 @@ def sssp(input_graph, source, cutoff=None, check_source=True):
 
     if cutoff is None:
         cutoff = cupy.inf
+
+    if input_graph.renumbered:
+        source = input_graph.lookup_internal_vertex_id(
+            cudf.Series([source])).fillna(-1).compute()
+        source = source.iloc[0]
 
     result = [client.submit(
             _call_plc_sssp,

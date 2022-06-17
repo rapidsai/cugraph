@@ -86,9 +86,6 @@ def test_nodes_functionality(dask_client, input_combo):
     col_name = nodes.columns[0]
     nodes = nodes.rename(columns={col_name: "result_nodes"})
 
-    if G.renumbered:
-        nodes = G.unrenumber(nodes, "result_nodes")
-
     result_nodes = nodes.compute().sort_values(
         "result_nodes").reset_index(drop=True)
 

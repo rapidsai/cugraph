@@ -169,6 +169,15 @@ def bfs(input_graph,
             # convert into a dask_cudf
             start = dask_cudf.from_cudf(start, ddf.npartitions)
 
+    def check_valid_vertex(G, start):
+        is_valid_vertex = G.has_node(start)
+        if not is_valid_vertex:
+            raise ValueError(
+                'At least one start vertex provided was invalid')
+
+    if check_start:
+        check_valid_vertex(input_graph, start)
+
     if input_graph.renumbered:
         if isinstance(start, dask_cudf.DataFrame):
             tmp_col_names = start.columns
@@ -178,15 +187,6 @@ def bfs(input_graph,
 
         start = input_graph.lookup_internal_vertex_id(
             start, tmp_col_names)
-
-    def check_valid_vertex(G, start):
-        is_valid_vertex = G.has_node(start)
-        if not is_valid_vertex:
-            raise ValueError(
-                'At least one start vertex provided was invalid')
-
-    if check_start:
-        check_valid_vertex(input_graph, start)
 
     data_start = get_distributed_data(start)
 

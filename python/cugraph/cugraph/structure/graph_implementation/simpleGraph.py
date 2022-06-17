@@ -836,7 +836,8 @@ class simpleGraphImpl:
 
     def nodes(self):
         """
-        Returns all the nodes in the graph as a cudf.Series
+        Returns all the nodes in the graph as a cudf.Series.
+        If multi columns vertices, return a cudf.DataFrame.
         """
         if self.edgelist is not None:
             df = self.edgelist.edgelist_df
@@ -844,7 +845,11 @@ class simpleGraphImpl:
                 # FIXME: This relies on current implementation
                 #        of NumberMap, should not really expose
                 #        this, perhaps add a method to NumberMap
-                return self.renumber_map.implementation.df["id"]
+                df = self.renumber_map.implementation.df.drop(columns="id")
+                if len(df.columns) > 1:
+                    return df
+                else:
+                    return df[df.columns[0]]
             else:
                 return cudf.concat([df["src"], df["dst"]]).unique()
         if self.adjlist is not None:
