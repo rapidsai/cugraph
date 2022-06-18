@@ -21,7 +21,6 @@
 #include <tuple>
 #include <utility>
 
-#include <raft/span.hpp>
 #include <rmm/cuda_stream_view.hpp>
 #include <rmm/device_vector.hpp>
 #include <rmm/exec_policy.hpp>
@@ -70,7 +69,6 @@ extract(raft::handle_t const& handle,
   auto user_stream_view = handle.get_stream();
   rmm::device_vector<size_t> neighbors_offsets(n_subgraphs + 1);
   rmm::device_vector<vertex_t> neighbors;
-
 
   std::vector<size_t> h_neighbors_offsets(n_subgraphs + 1);
 
@@ -170,11 +168,11 @@ extract(raft::handle_t const& handle,
 #endif
 
   
-  //raft::device_span <size_t> dspan_neighbors_offsets( neighbors_offsets.data() , neighbors_offsets.size );
-  //raft::device_span <vertex_t> dspan_neighbors( neighbors.data() , neighbors.size() );
-  // extract
-  //return cugraph::extract_induced_subgraphs(
-    //handle, csr_view, dspan_neighbors_offsets, dspan_neighbors, n_subgraphs, false);
+  /*raft::device_span<size_t const> d_neighbors_offsets(neighbors_offsets.data().get(), neighbors_offsets.size );
+  raft::device_span<vertex_t const> d_neighbors(neighbors.data().get(), neighbors.size() );
+  //extract
+  return cugraph::extract_induced_subgraphs(
+    handle, csr_view, d_neighbors_offsets, d_neighbors, n_subgraphs);*/
 }
 
 }  // namespace

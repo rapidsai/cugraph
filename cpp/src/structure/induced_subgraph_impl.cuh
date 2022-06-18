@@ -21,7 +21,6 @@
 #include <cugraph/vertex_partition_device_view.cuh>
 
 #include <raft/handle.hpp>
-#include <raft/span.hpp>
 #include <rmm/device_uvector.hpp>
 
 #include <thrust/binary_search.h>
@@ -49,8 +48,8 @@ std::tuple<rmm::device_uvector<vertex_t>,
 extract_induced_subgraphs(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> const& graph_view,
-  raft::device_span<size_t const> subgraph_offsets /*size_t const* subgraph_offsets*/ /* size == num_subgraphs + 1 */,
-  raft::device_span<vertex_t const> subgraph_vertices/*vertex_t const* subgraph_vertices*/ /* size == subgraph_offsets[num_subgraphs] */,
+  raft::device_span<size_t const> subgraph_offsets  /* size == num_subgraphs + 1 */,
+  raft::device_span<vertex_t const> subgraph_vertices /* size == subgraph_offsets[num_subgraphs] */,
   size_t num_subgraphs,
   bool do_expensive_check)
 {
@@ -70,9 +69,9 @@ extract_induced_subgraphs(
   if (do_expensive_check) {
     size_t should_be_zero{std::numeric_limits<size_t>::max()};
     size_t num_aggregate_subgraph_vertices{};
-    raft::update_host(&should_be_zero, subgraph_offsets.begin(), 1, handle.get_stream());
+    raft::update_host(&should_be_zero, subgraph_offsets.data(), 1, handle.get_stream());
     raft::update_host(
-      &num_aggregate_subgraph_vertices, subgraph_offsets.end()-1, 1, handle.get_stream());
+      &num_aggregate_subgraph_vertices, subgraph_offsets.data() + num_subgraphs, 1, handle.get_stream());
     handle.sync_stream();
     CUGRAPH_EXPECTS(should_be_zero == 0,
                     "Invalid input argument: subgraph_offsets[0] should be 0.");
@@ -87,7 +86,7 @@ extract_induced_subgraphs(
     CUGRAPH_EXPECTS(
       thrust::count_if(handle.get_thrust_policy(),
                        subgraph_vertices.begin(),
-                       subgraph_vertices.end(), //???
+                       subgraph_vertices.end(), 
                        [vertex_partition] __device__(auto v) {
                          return !vertex_partition.is_valid_vertex(v) ||
                                 !vertex_partition.in_local_vertex_partition_range_nocheck(v);
@@ -102,7 +101,7 @@ extract_induced_subgraphs(
         [subgraph_offsets, subgraph_vertices] __device__(auto i) {
           // vertices are sorted and unique
           return !thrust::is_sorted(thrust::seq,
-                                    subgraph_vertices.begin() + subgraph_offsets[i],//???
+                                    subgraph_vertices.begin() + subgraph_offsets[i],
                                     subgraph_vertices.begin() + subgraph_offsets[i + 1]) ||
                  (thrust::count_if(
                     thrust::seq,
@@ -129,7 +128,7 @@ extract_induced_subgraphs(
 
     size_t num_aggregate_subgraph_vertices{};
     raft::update_host(
-      &num_aggregate_subgraph_vertices, subgraph_offsets.end()-1, 1, handle.get_stream());
+      &num_aggregate_subgraph_vertices, subgraph_offsets.data() + num_subgraphs, 1, handle.get_stream());
     handle.sync_stream();
 
     rmm::device_uvector<size_t> subgraph_vertex_output_offsets(
@@ -147,7 +146,7 @@ extract_induced_subgraphs(
       subgraph_vertex_output_offsets.begin(),
       [subgraph_offsets, subgraph_vertices, num_subgraphs, edge_partition] __device__(auto i) {
         auto subgraph_idx = thrust::distance(
-          subgraph_offsets.begin()+1, //???
+          subgraph_offsets.begin()+1, 
           thrust::upper_bound(thrust::seq, subgraph_offsets.begin(), subgraph_offsets.end()-1, i));
         vertex_t const* indices{nullptr};
         thrust::optional<weight_t const*> weights{thrust::nullopt};
@@ -159,7 +158,7 @@ extract_induced_subgraphs(
           thrust::seq,
           indices,
           indices + local_degree,
-          [vertex_first = subgraph_vertices.begin() + subgraph_offsets[subgraph_idx],//???
+          [vertex_first = subgraph_vertices.begin() + subgraph_offsets[subgraph_idx],
            vertex_last =
              subgraph_vertices.begin() + subgraph_offsets[subgraph_idx + 1]] __device__(auto nbr) {
             return thrust::binary_search(thrust::seq, vertex_first, vertex_last, nbr);
@@ -204,7 +203,7 @@ extract_induced_subgraphs(
        edge_weights = edge_weights ? thrust::optional<weight_t*>{(*edge_weights).data()}
                                    : thrust::nullopt] __device__(auto i) {
         auto subgraph_idx = thrust::distance(
-          subgraph_offsets.begin() + 1, //???
+          subgraph_offsets.begin() + 1, 
           thrust::upper_bound(
             thrust::seq, subgraph_offsets.begin(), subgraph_offsets.end()-1, size_t{i}));
         vertex_t const* indices{nullptr};
@@ -222,7 +221,7 @@ extract_induced_subgraphs(
             triplet_first + local_degree,
             thrust::make_zip_iterator(thrust::make_tuple(edge_majors, edge_minors, *edge_weights)) +
               subgraph_vertex_output_offsets[i],
-            [vertex_first = subgraph_vertices.begin() + subgraph_offsets[subgraph_idx], //???
+            [vertex_first = subgraph_vertices.begin() + subgraph_offsets[subgraph_idx], 
              vertex_last =
                subgraph_vertices.begin() + subgraph_offsets[subgraph_idx + 1]] __device__(auto t) {
               return thrust::binary_search(

@@ -24,7 +24,6 @@
 
 #include <raft/cudart_utils.h>
 #include <raft/handle.hpp>
-#include <raft/span.hpp>
 #include <rmm/device_uvector.hpp>
 #include <rmm/mr/device/cuda_memory_resource.hpp>
 
