@@ -15,13 +15,29 @@ import gc
 
 import pytest
 import cugraph
+import cudf
+from cugraph.testing import utils
+
+import networkx as nx
+
 from cugraph.experimental.datasets import dataset, SMALL_DATASETS
+from cugraph.experimental.datasets import karate
+from cugraph.experimental.datasets import netscience
+from cugraph.experimental.datasets import polbooks
+from cugraph.experimental.datasets import dolphins
 
 # =============================================================================
 # Pytest Setup / Teardown - called for each test function
 # =============================================================================
 def setup_function():
     gc.collect()
+
+import warnings
+
+with warnings.catch_warnings():
+    warnings.filterwarnings("ignore", category=DeprecationWarning)
+    import networkx as nx
+
 
 # A simple example Dataset class working, MetaData
 # run thru an entire alg with imports
@@ -30,15 +46,30 @@ def setup_function():
 #with open(config_file_path, 'r') as file:
 #    config_settings = yaml.safe_load(file)
 
-@pytest.mark.parametrize("dataset", SMALL_DATASETS)
-def test_getters(dataset):
-    # Getting the graph does not need to depend on get_edgelist
-    M = dataset.get_edgelist(fetch=True)
+# @pytest.mark.parametrize("dataset", SMALL_DATASETS)
+# def test_getters(dataset):
+#     # Getting the graph does not need to depend on get_edgelist
+#     M = dataset.get_edgelist(fetch=True)
+#     #breakpoint()
+#     G = dataset.get_graph(fetch=True)
+
+#     # Storing the datasets in experimental/datasets/
+
+
+# Test the number of nodes and edges
+def test_karate_nodes():
     #breakpoint()
-    G = dataset.get_graph(fetch=True)
+    graph_file = 'datasets/karate-data.csv'
+    G_a = karate.get_graph(fetch=True)
+    
+    breakpoint()
+    df = cudf.read_csv(
+            graph_file,
+            delimiter="\t",
+            dtype=["int32", "int32"],
+            header=None,
+        )
+    G_b = cugraph.Graph(directed=True)
+    G_b.from_cudf_edgelist(G_a, source="src", destination="dst", renumber=False)
 
-    # Storing the datasets in experimental/datasets/
-
-# Test that no fetches are redundant; i.e if dataset has been fetched or already exists, don't fetch again
-
-# Test that datatypes are 
+    assert G_a.number_of_nodes() == G_b.number_of_nodes()

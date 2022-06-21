@@ -28,9 +28,7 @@ datasets_dir = this_dir.parent / "datasets"
 
 class Dataset:
     def __init__(self, meta_data_file_name):
-        #self.dir_path = "python/cugraph/cugraph/experimental/datasets/"
         self.dir_path = Path(__file__).parent.absolute()
-        #self.download_dir = "datasets/"
         self.download_dir = this_dir.parent.parent / "datasets"
         self.__read_config()
         self.__meta_data_file_name = meta_data_file_name
@@ -51,7 +49,7 @@ class Dataset:
         config_path = self.dir_path / "datasets_config.yaml"
         with open(config_path, 'r') as file:
             cfg = yaml.safe_load(file)
-            self.download_dir = cfg['download_dir'] # should this be accessible by user?
+            self.download_dir = cfg['download_dir']
             file.close()
 
 
@@ -61,10 +59,7 @@ class Dataset:
         # filename = self.metadata['name'] + '.' + metadata['file_type']
         df = cudf.read_csv(url)
         df.to_csv(default_path + filename, index=False)
-        self.metadata['path'] = default_path + filename
-
-        # update path
-        # self.path = "x"
+        self.path = default_path + filename 
 
 
     def get_edgelist(self, fetch=False):
@@ -78,7 +73,7 @@ class Dataset:
         """
         #breakpoint()
         if self.__edgelist is None:
-            full_path = self.metadata['path'] + self.metadata['name'] + self.metadata['file_type']
+            full_path = self.download_dir + self.metadata['name'] + self.metadata['file_type']
             if not os.path.isfile(full_path):
                 if fetch:
                     self.__download_csv(self.metadata['url'], self.download_dir)
@@ -86,6 +81,7 @@ class Dataset:
                     raise RuntimeError("The datafile does not exist. Try get_edgelist(fetch=True) to download the datafile")
     
             self.__edgelist = cudf.read_csv(full_path, delimiter=self.metadata['delimiter'], names=self.metadata['col_names'], dtype=self.metadata['col_types'])
+            self.path = full_path
 
         return self.__edgelist
 
@@ -107,6 +103,12 @@ class Dataset:
 
         return self.__graph
 
+
+    def get_path(self):
+        """
+            Print the location of the stored dataset file
+        """
+        print(self.path)
 
 def load_all(default_path="datasets/", force=False):
     """
