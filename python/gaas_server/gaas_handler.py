@@ -307,7 +307,7 @@ class GaasHandler:
             
         else:
             new_G = cugraph.Graph()
-            new_G.from_cudf_edgelist(sampling_results, source='sources', destination='destinations')
+            new_G.from_cudf_edgelist(sampling_results, source='sources', destination='destinations', renumber=True)
         
         return self.__add_graph(new_G)
 
