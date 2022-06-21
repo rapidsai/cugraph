@@ -20,4 +20,4 @@ is_multigraph: false
 is_symmetric: false
 number_of_edges: 159
 number_of_nodes: 62
-path: datasets/
+path: ../datasets/

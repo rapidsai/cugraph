@@ -19,11 +19,19 @@ import re
 import os
 import csv
 import pdb
+from pathlib import Path 
+
+
+this_dir = Path(os.getenv("this_dir", "cugraph/cugraph/experimental/datasets"))
+# this_dir = Path(__file__).parent.absolute()
+datasets_dir = this_dir.parent / "datasets"
 
 class Dataset:
     def __init__(self, meta_data_file_name):
-        self.dir_path = "python/cugraph/cugraph/experimental/datasets/"
-        self.download_dir = "datasets/"
+        #self.dir_path = "python/cugraph/cugraph/experimental/datasets/"
+        self.dir_path = Path(__file__).parent.absolute()
+        #self.download_dir = "datasets/"
+        self.download_dir = this_dir.parent.parent / "datasets"
         self.__read_config()
         self.__meta_data_file_name = meta_data_file_name
         self.__read_meta_data_file(self.__meta_data_file_name)
@@ -33,13 +41,14 @@ class Dataset:
 
 
     def __read_meta_data_file(self, meta_data_file):
-        with open(self.dir_path + meta_data_file, 'r') as file:
+        metadata_path = self.dir_path / meta_data_file
+        with open(metadata_path, 'r') as file:
             self.metadata = yaml.safe_load(file)
             file.close()
 
     
     def __read_config(self):
-        config_path = "python/cugraph/cugraph/experimental/datasets/datasets_config.yaml"
+        config_path = self.dir_path / "datasets_config.yaml"
         with open(config_path, 'r') as file:
             cfg = yaml.safe_load(file)
             self.download_dir = cfg['download_dir'] # should this be accessible by user?
@@ -54,11 +63,8 @@ class Dataset:
         df.to_csv(default_path + filename, index=False)
         self.metadata['path'] = default_path + filename
 
-        # update metadata file to include path
-        #with open(self.dir_path + self.__meta_data_file_name, 'w') as file:
-        #    yaml.dump(self.metadata, file, sort_keys=False)
-        #    file.close()
-        self.path = X
+        # update path
+        # self.path = "x"
 
 
     def get_edgelist(self, fetch=False):
@@ -70,6 +76,7 @@ class Dataset:
         fetch : Boolean (default=False)
             Automatically fetch for the dataset from the 'url' location within the YAML file. 
         """
+        #breakpoint()
         if self.__edgelist is None:
             full_path = self.metadata['path'] + self.metadata['name'] + self.metadata['file_type']
             if not os.path.isfile(full_path):

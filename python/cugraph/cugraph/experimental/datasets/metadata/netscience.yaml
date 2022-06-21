@@ -18,4 +18,4 @@ is_multigraph: false
 is_symmetric: true
 number_of_edges: 441
 number_of_nodes: 105
-path: datasets/
+path: ../datasets/

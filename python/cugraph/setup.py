@@ -191,6 +191,10 @@ setup(name='cugraph',
       setup_requires=['Cython>=0.29,<0.30'],
       ext_modules=extensions,
       packages=find_packages(include=['cugraph', 'cugraph.*']),
+      package_data= {
+          'metadata': ['*.yaml'],
+          'datasets': ['*.yaml']
+      },
       install_requires=INSTALL_REQUIRES,
       license="Apache",
       cmdclass=cmdclass,
