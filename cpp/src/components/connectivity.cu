@@ -17,15 +17,17 @@
 #include "scc_matrix.cuh"
 #include "weak_cc.cuh"
 
-#include <thrust/sequence.h>
+#include <utilities/graph_utils.cuh>
 
-#include <cstdint>
 #include <cugraph/algorithms.hpp>
 #include <cugraph/legacy/graph.hpp>
 #include <cugraph/utilities/error.hpp>
+
+#include <thrust/sequence.h>
+
+#include <cstdint>
 #include <iostream>
 #include <type_traits>
-#include <utilities/graph_utils.cuh>
 
 namespace cugraph {
 namespace detail {
