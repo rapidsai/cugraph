@@ -114,7 +114,8 @@ def construct_graph(dask_dataframe, symmetric=False):
 
     if len(dask_dataframe.columns) > 2:
         if symmetric: #symmetrize dask dataframe
-            dask_dataframe = symmetrize_ddf(dask_dataframe, 'src', 'dst', 'weight')
+            dask_dataframe = symmetrize_ddf(
+                dask_dataframe, 'src', 'dst', 'weight')
 
         G.from_dask_cudf_edgelist(
             dask_dataframe, source="src", destination="dst", edge_attr="weight")
@@ -131,12 +132,13 @@ def construct_graph(dask_dataframe, symmetric=False):
 construct_graph.benchmark_name = "from_dask_cudf_edgelist"
 
 
-def bfs(G, start, check_start=False):
-    return cugraph.dask.bfs(G, start=start, return_distances=True)
+def bfs(G, start):
+    return cugraph.dask.bfs(
+        G, start=start, return_distances=True, check_start=False)
 
 
-def sssp(G, start, check_start=False):
-    return cugraph.dask.sssp(G, source=start)
+def sssp(G, start):
+    return cugraph.dask.sssp(G, source=start, check_start=False)
 
 
 def wcc(G):
