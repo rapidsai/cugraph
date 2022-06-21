@@ -62,23 +62,37 @@ def test_dask_mg_degree(dask_client, directed):
 
     dg = cugraph.Graph(directed=directed)
     dg.from_dask_cudf_edgelist(ddf, "src", "dst")
+    dg.compute_renumber_edge_list()
 
     g = cugraph.Graph(directed=directed)
     g.from_cudf_edgelist(df, "src", "dst")
 
-    merge_df_in = (
+    merge_df_in_degree = (
         dg.in_degree()
         .merge(g.in_degree(), on="vertex", suffixes=["_dg", "_g"])
         .compute()
     )
 
-    merge_df_out = (
+    merge_df_out_degree = (
         dg.out_degree()
         .merge(g.out_degree(), on="vertex", suffixes=["_dg", "_g"])
         .compute()
     )
 
-    assert_series_equal(merge_df_in["degree_dg"], merge_df_in["degree_g"],
-                        check_names=False)
-    assert_series_equal(merge_df_out["degree_dg"], merge_df_out["degree_g"],
-                        check_names=False)
+    merge_df_degree = (
+        dg.degree()
+        .merge(g.degree(), on="vertex", suffixes=["_dg", "_g"])
+        .compute()
+    )
+
+    assert_series_equal(
+        merge_df_in_degree["degree_dg"], merge_df_in_degree["degree_g"],
+        check_names=False, check_dtype=False)
+
+    assert_series_equal(
+        merge_df_out_degree["degree_dg"], merge_df_out_degree["degree_g"],
+        check_names=False, check_dtype=False)
+
+    assert_series_equal(
+        merge_df_degree["degree_dg"], merge_df_degree["degree_g"],
+        check_names=False, check_dtype=False)

@@ -88,7 +88,9 @@ def run(algos,
                   "katz": funcs.katz,
                   "wcc": funcs.wcc,
                   "hits": funcs.hits,
-                  "neighborhood_sampling": funcs.neighborhood_sampling,
+                  "uniform_neighbor_sample": funcs.uniform_neighbor_sample,
+                  "triangle_count": funcs.triangle_count,
+                  "eigenvector_centrality": funcs.eigenvector_centrality,
                  }
 
     if algos:
