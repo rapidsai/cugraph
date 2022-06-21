@@ -167,9 +167,14 @@ extract(raft::handle_t const& handle,
   hr_timer.display(std::cout);
 #endif
 
-  //extract
+  // extract
   return cugraph::extract_induced_subgraphs(
-    handle, csr_view, raft::device_span<size_t const>(neighbors_offsets.data().get(), neighbors_offsets.size()), raft::device_span<vertex_t const>(neighbors.data().get(),neighbors.size()), n_subgraphs, false);
+    handle,
+    csr_view,
+    raft::device_span<size_t const>(neighbors_offsets.data().get(), neighbors_offsets.size()),
+    raft::device_span<vertex_t const>(neighbors.data().get(), neighbors.size()),
+    n_subgraphs,
+    false);
 }
 
 }  // namespace

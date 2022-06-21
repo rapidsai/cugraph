@@ -33,7 +33,6 @@
 
 #include <utilities/high_res_timer.hpp>
 
-
 namespace cugraph {
 
 template <typename vertex_t,
@@ -48,7 +47,7 @@ std::tuple<rmm::device_uvector<vertex_t>,
 extract_induced_subgraphs(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> const& graph_view,
-  raft::device_span<size_t const> subgraph_offsets  /* size == num_subgraphs + 1 */,
+  raft::device_span<size_t const> subgraph_offsets /* size == num_subgraphs + 1 */,
   raft::device_span<vertex_t const> subgraph_vertices /* size == subgraph_offsets[num_subgraphs] */,
   size_t num_subgraphs,
   bool do_expensive_check)
@@ -70,23 +69,24 @@ extract_induced_subgraphs(
     size_t should_be_zero{std::numeric_limits<size_t>::max()};
     size_t num_aggregate_subgraph_vertices{};
     raft::update_host(&should_be_zero, subgraph_offsets.data(), 1, handle.get_stream());
-    raft::update_host(
-      &num_aggregate_subgraph_vertices, subgraph_offsets.data() + num_subgraphs, 1, handle.get_stream());
+    raft::update_host(&num_aggregate_subgraph_vertices,
+                      subgraph_offsets.data() + num_subgraphs,
+                      1,
+                      handle.get_stream());
     handle.sync_stream();
     CUGRAPH_EXPECTS(should_be_zero == 0,
                     "Invalid input argument: subgraph_offsets[0] should be 0.");
 
-    CUGRAPH_EXPECTS(
-      thrust::is_sorted(
-        handle.get_thrust_policy(), subgraph_offsets.begin(), subgraph_offsets.end()),
-      "Invalid input argument: subgraph_offsets is not sorted.");
+    CUGRAPH_EXPECTS(thrust::is_sorted(
+                      handle.get_thrust_policy(), subgraph_offsets.begin(), subgraph_offsets.end()),
+                    "Invalid input argument: subgraph_offsets is not sorted.");
     auto vertex_partition =
       vertex_partition_device_view_t<vertex_t, multi_gpu>(graph_view.local_vertex_partition_view());
 
     CUGRAPH_EXPECTS(
       thrust::count_if(handle.get_thrust_policy(),
                        subgraph_vertices.begin(),
-                       subgraph_vertices.end(), 
+                       subgraph_vertices.end(),
                        [vertex_partition] __device__(auto v) {
                          return !vertex_partition.is_valid_vertex(v) ||
                                 !vertex_partition.in_local_vertex_partition_range_nocheck(v);
@@ -127,8 +127,10 @@ extract_induced_subgraphs(
     // 2-1. Phase 1: calculate memory requirements
 
     size_t num_aggregate_subgraph_vertices{};
-    raft::update_host(
-      &num_aggregate_subgraph_vertices, subgraph_offsets.data() + num_subgraphs, 1, handle.get_stream());
+    raft::update_host(&num_aggregate_subgraph_vertices,
+                      subgraph_offsets.data() + num_subgraphs,
+                      1,
+                      handle.get_stream());
     handle.sync_stream();
 
     rmm::device_uvector<size_t> subgraph_vertex_output_offsets(
@@ -145,9 +147,10 @@ extract_induced_subgraphs(
       thrust::make_counting_iterator(num_aggregate_subgraph_vertices),
       subgraph_vertex_output_offsets.begin(),
       [subgraph_offsets, subgraph_vertices, num_subgraphs, edge_partition] __device__(auto i) {
-        auto subgraph_idx = thrust::distance(
-          subgraph_offsets.begin()+1, 
-          thrust::upper_bound(thrust::seq, subgraph_offsets.begin(), subgraph_offsets.end()-1, i));
+        auto subgraph_idx =
+          thrust::distance(subgraph_offsets.begin() + 1,
+                           thrust::upper_bound(
+                             thrust::seq, subgraph_offsets.begin(), subgraph_offsets.end() - 1, i));
         vertex_t const* indices{nullptr};
         thrust::optional<weight_t const*> weights{thrust::nullopt};
         edge_t local_degree{};
@@ -162,10 +165,8 @@ extract_induced_subgraphs(
            vertex_last =
              subgraph_vertices.begin() + subgraph_offsets[subgraph_idx + 1]] __device__(auto nbr) {
             return thrust::binary_search(thrust::seq, vertex_first, vertex_last, nbr);
-          }
-	);
-      }
-    );
+          });
+      });
     thrust::exclusive_scan(handle.get_thrust_policy(),
                            subgraph_vertex_output_offsets.begin(),
                            subgraph_vertex_output_offsets.end(),
@@ -203,9 +204,9 @@ extract_induced_subgraphs(
        edge_weights = edge_weights ? thrust::optional<weight_t*>{(*edge_weights).data()}
                                    : thrust::nullopt] __device__(auto i) {
         auto subgraph_idx = thrust::distance(
-          subgraph_offsets.begin() + 1, 
+          subgraph_offsets.begin() + 1,
           thrust::upper_bound(
-            thrust::seq, subgraph_offsets.begin(), subgraph_offsets.end()-1, size_t{i}));
+            thrust::seq, subgraph_offsets.begin(), subgraph_offsets.end() - 1, size_t{i}));
         vertex_t const* indices{nullptr};
         thrust::optional<weight_t const*> weights{thrust::nullopt};
         edge_t local_degree{};
@@ -221,7 +222,7 @@ extract_induced_subgraphs(
             triplet_first + local_degree,
             thrust::make_zip_iterator(thrust::make_tuple(edge_majors, edge_minors, *edge_weights)) +
               subgraph_vertex_output_offsets[i],
-            [vertex_first = subgraph_vertices.begin() + subgraph_offsets[subgraph_idx], 
+            [vertex_first = subgraph_vertices.begin() + subgraph_offsets[subgraph_idx],
              vertex_last =
                subgraph_vertices.begin() + subgraph_offsets[subgraph_idx + 1]] __device__(auto t) {
               return thrust::binary_search(
@@ -231,17 +232,18 @@ extract_induced_subgraphs(
           auto pair_first = thrust::make_zip_iterator(
             thrust::make_tuple(thrust::make_constant_iterator(subgraph_vertices[i]), indices));
           // FIXME: this is inefficient for high local degree vertices
-          thrust::copy_if(thrust::seq,
-                          pair_first,
-                          pair_first + local_degree,
-                          thrust::make_zip_iterator(thrust::make_tuple(edge_majors, edge_minors)) +
-                            subgraph_vertex_output_offsets[i],
-                          [vertex_first = subgraph_vertices.begin() + subgraph_offsets[subgraph_idx],
-                           vertex_last  = subgraph_vertices.begin() +
-                                         subgraph_offsets[subgraph_idx + 1]] __device__(auto t) {
-                            return thrust::binary_search(
-                              thrust::seq, vertex_first, vertex_last, thrust::get<1>(t));
-                          });
+          thrust::copy_if(
+            thrust::seq,
+            pair_first,
+            pair_first + local_degree,
+            thrust::make_zip_iterator(thrust::make_tuple(edge_majors, edge_minors)) +
+              subgraph_vertex_output_offsets[i],
+            [vertex_first = subgraph_vertices.begin() + subgraph_offsets[subgraph_idx],
+             vertex_last =
+               subgraph_vertices.begin() + subgraph_offsets[subgraph_idx + 1]] __device__(auto t) {
+              return thrust::binary_search(
+                thrust::seq, vertex_first, vertex_last, thrust::get<1>(t));
+            });
         }
       });
 

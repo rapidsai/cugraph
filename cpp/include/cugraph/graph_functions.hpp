@@ -19,8 +19,8 @@
 #include <cugraph/graph_view.hpp>
 
 #include <raft/handle.hpp>
-#include <rmm/device_uvector.hpp>
 #include <raft/span.hpp>
+#include <rmm/device_uvector.hpp>
 
 #include <memory>
 #include <optional>

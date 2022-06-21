@@ -25,7 +25,7 @@ template std::tuple<rmm::device_uvector<int32_t>,
                     rmm::device_uvector<size_t>>
 extract_induced_subgraphs(raft::handle_t const& handle,
                           graph_view_t<int32_t, int32_t, float, true, true> const& graph_view,
-                          raft::device_span<size_t const> subgraph_offsets, 
+                          raft::device_span<size_t const> subgraph_offsets,
                           raft::device_span<int32_t const> subgraph_vertices,
                           size_t num_subgraphs,
                           bool do_expensive_check);
