@@ -250,8 +250,8 @@ class Tests_TriangleCount
       for (size_t i = 0; i < h_cugraph_vertices.size(); ++i) {
         auto v     = h_cugraph_vertices[i];
         auto count = h_cugraph_triangle_counts[i];
-        std::cout << "count=" << count << " and reference triangle counts="
-        std::cout << h_reference_triangle_counts[v] <<"\n";
+        std::cout << "count=" << count
+                  << " and reference triangle counts=" << h_reference_triangle_counts[v] << "\n";
         std::cout << "v=" << v;
         ASSERT_TRUE(count == h_reference_triangle_counts[v])
           << "Triangle count values do not match with the reference values.";
