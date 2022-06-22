@@ -1,0 +1,20 @@
+name: polbooks
+file_type: .csv
+author: V. Krebs
+url: https://raw.githubusercontent.com/rapidsai/cugraph/branch-22.08/datasets/polbooks.csv
+refs: null
+delimiter: " "
+col_names:
+  - src
+  - dst
+  - wgt
+col_types:
+  - int32
+  - int32
+  - float32
+has_loop: null
+is_directed: false
+is_multigraph: null
+is_symmetric: true
+number_of_edges: 441
+number_of_nodes: 105
