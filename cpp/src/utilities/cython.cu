@@ -676,69 +676,6 @@ void call_pagerank(raft::handle_t const& handle,
   }
 }
 
-// Wrapper for calling BFS through a graph container
-template <typename vertex_t, typename weight_t>
-void call_bfs(raft::handle_t const& handle,
-              graph_container_t const& graph_container,
-              vertex_t* identifiers,
-              vertex_t* distances,
-              vertex_t* predecessors,
-              vertex_t depth_limit,
-              vertex_t* sources,
-              size_t n_sources,
-              bool direction_optimizing)
-{
-  if (graph_container.is_multi_gpu) {
-    if (graph_container.edgeType == numberTypeEnum::int32Type) {
-      auto graph =
-        detail::create_graph<int32_t, int32_t, weight_t, false, true>(handle, graph_container);
-      cugraph::bfs(handle,
-                   graph->view(),
-                   reinterpret_cast<int32_t*>(distances),
-                   reinterpret_cast<int32_t*>(predecessors),
-                   reinterpret_cast<int32_t*>(sources),
-                   static_cast<size_t>(n_sources),
-                   direction_optimizing,
-                   static_cast<int32_t>(depth_limit));
-    } else if (graph_container.edgeType == numberTypeEnum::int64Type) {
-      auto graph =
-        detail::create_graph<vertex_t, int64_t, weight_t, false, true>(handle, graph_container);
-      cugraph::bfs(handle,
-                   graph->view(),
-                   reinterpret_cast<vertex_t*>(distances),
-                   reinterpret_cast<vertex_t*>(predecessors),
-                   reinterpret_cast<vertex_t*>(sources),
-                   static_cast<size_t>(n_sources),
-                   direction_optimizing,
-                   static_cast<vertex_t>(depth_limit));
-    }
-  } else {
-    if (graph_container.edgeType == numberTypeEnum::int32Type) {
-      auto graph =
-        detail::create_graph<int32_t, int32_t, weight_t, false, false>(handle, graph_container);
-      cugraph::bfs(handle,
-                   graph->view(),
-                   reinterpret_cast<int32_t*>(distances),
-                   reinterpret_cast<int32_t*>(predecessors),
-                   reinterpret_cast<int32_t*>(sources),
-                   static_cast<size_t>(n_sources),
-                   direction_optimizing,
-                   static_cast<int32_t>(depth_limit));
-    } else if (graph_container.edgeType == numberTypeEnum::int64Type) {
-      auto graph =
-        detail::create_graph<vertex_t, int64_t, weight_t, false, false>(handle, graph_container);
-      cugraph::bfs(handle,
-                   graph->view(),
-                   reinterpret_cast<vertex_t*>(distances),
-                   reinterpret_cast<vertex_t*>(predecessors),
-                   reinterpret_cast<vertex_t*>(sources),
-                   static_cast<size_t>(n_sources),
-                   direction_optimizing,
-                   static_cast<vertex_t>(depth_limit));
-    }
-  }
-}
-
 // Wrapper for calling extract_egonet through a graph container
 // FIXME : this should not be a legacy COO and it is not clear how to handle C++ api return type as
 // is.graph_container Need to figure out how to return edge lists
@@ -992,84 +929,6 @@ void call_wcc(raft::handle_t const& handle,
   }
 }
 
-// wrapper for HITS:
-//
-template <typename vertex_t, typename weight_t>
-void call_hits(raft::handle_t const& handle,
-               graph_container_t const& graph_container,
-               weight_t* hubs,
-               weight_t* authorities,
-               size_t max_iter,
-               weight_t tolerance,
-               const weight_t* starting_value,
-               bool normalized)
-{
-  constexpr bool has_initial_hubs_guess{false};
-  constexpr bool normalize{true};
-  constexpr bool do_expensive_check{false};
-  constexpr bool transposed{true};
-
-  // FIXME: most of these branches are not currently executed: MG support is not
-  // yet in the python API, and only int32_t edge types are being used. Consider
-  // removing these until actually needed.
-
-  if (graph_container.is_multi_gpu) {
-    constexpr bool multi_gpu{true};
-    if (graph_container.edgeType == numberTypeEnum::int32Type) {
-      auto graph = detail::create_graph<int32_t, int32_t, weight_t, transposed, multi_gpu>(
-        handle, graph_container);
-      cugraph::hits(handle,
-                    graph->view(),
-                    reinterpret_cast<weight_t*>(hubs),
-                    reinterpret_cast<weight_t*>(authorities),
-                    tolerance,
-                    max_iter,
-                    has_initial_hubs_guess,
-                    normalize,
-                    do_expensive_check);
-    } else if (graph_container.edgeType == numberTypeEnum::int64Type) {
-      auto graph = detail::create_graph<vertex_t, int64_t, weight_t, transposed, multi_gpu>(
-        handle, graph_container);
-      cugraph::hits(handle,
-                    graph->view(),
-                    reinterpret_cast<weight_t*>(hubs),
-                    reinterpret_cast<weight_t*>(authorities),
-                    tolerance,
-                    max_iter,
-                    has_initial_hubs_guess,
-                    normalize,
-                    do_expensive_check);
-    }
-  } else {
-    constexpr bool multi_gpu{false};
-    if (graph_container.edgeType == numberTypeEnum::int32Type) {
-      auto graph = detail::create_graph<int32_t, int32_t, weight_t, transposed, multi_gpu>(
-        handle, graph_container);
-      cugraph::hits(handle,
-                    graph->view(),
-                    reinterpret_cast<weight_t*>(hubs),
-                    reinterpret_cast<weight_t*>(authorities),
-                    tolerance,
-                    max_iter,
-                    has_initial_hubs_guess,
-                    normalize,
-                    do_expensive_check);
-    } else if (graph_container.edgeType == numberTypeEnum::int64Type) {
-      auto graph = detail::create_graph<vertex_t, int64_t, weight_t, transposed, multi_gpu>(
-        handle, graph_container);
-      cugraph::hits(handle,
-                    graph->view(),
-                    reinterpret_cast<weight_t*>(hubs),
-                    reinterpret_cast<weight_t*>(authorities),
-                    tolerance,
-                    max_iter,
-                    has_initial_hubs_guess,
-                    normalize,
-                    do_expensive_check);
-    }
-  }
-}
-
 // wrapper for shuffling:
 //
 template <typename vertex_t, typename edge_t, typename weight_t>
@@ -1298,46 +1157,6 @@ template void call_pagerank(raft::handle_t const& handle,
                             int64_t max_iter,
                             bool has_guess);
 
-template void call_bfs<int32_t, float>(raft::handle_t const& handle,
-                                       graph_container_t const& graph_container,
-                                       int32_t* identifiers,
-                                       int32_t* distances,
-                                       int32_t* predecessors,
-                                       int32_t depth_limit,
-                                       int32_t* sources,
-                                       size_t n_sources,
-                                       bool direction_optimizing);
-
-template void call_bfs<int32_t, double>(raft::handle_t const& handle,
-                                        graph_container_t const& graph_container,
-                                        int32_t* identifiers,
-                                        int32_t* distances,
-                                        int32_t* predecessors,
-                                        int32_t depth_limit,
-                                        int32_t* sources,
-                                        size_t n_sources,
-                                        bool direction_optimizing);
-
-template void call_bfs<int64_t, float>(raft::handle_t const& handle,
-                                       graph_container_t const& graph_container,
-                                       int64_t* identifiers,
-                                       int64_t* distances,
-                                       int64_t* predecessors,
-                                       int64_t depth_limit,
-                                       int64_t* sources,
-                                       size_t n_sources,
-                                       bool direction_optimizing);
-
-template void call_bfs<int64_t, double>(raft::handle_t const& handle,
-                                        graph_container_t const& graph_container,
-                                        int64_t* identifiers,
-                                        int64_t* distances,
-                                        int64_t* predecessors,
-                                        int64_t depth_limit,
-                                        int64_t* sources,
-                                        size_t n_sources,
-                                        bool direction_optimizing);
-
 template std::unique_ptr<cy_multi_edgelists_t> call_egonet<int32_t, float>(
   raft::handle_t const& handle,
   graph_container_t const& graph_container,
@@ -1420,42 +1239,6 @@ template void call_wcc<int64_t, float>(raft::handle_t const& handle,
 template void call_wcc<int64_t, double>(raft::handle_t const& handle,
                                         graph_container_t const& graph_container,
                                         int64_t* components);
-
-template void call_hits<int32_t, float>(raft::handle_t const& handle,
-                                        graph_container_t const& graph_container,
-                                        float* hubs,
-                                        float* authorities,
-                                        size_t max_iter,
-                                        float tolerance,
-                                        const float* starting_value,
-                                        bool normalized);
-
-template void call_hits<int32_t, double>(raft::handle_t const& handle,
-                                         graph_container_t const& graph_container,
-                                         double* hubs,
-                                         double* authorities,
-                                         size_t max_iter,
-                                         double tolerance,
-                                         const double* starting_value,
-                                         bool normalized);
-
-template void call_hits<int64_t, float>(raft::handle_t const& handle,
-                                        graph_container_t const& graph_container,
-                                        float* hubs,
-                                        float* authorities,
-                                        size_t max_iter,
-                                        float tolerance,
-                                        const float* starting_value,
-                                        bool normalized);
-
-template void call_hits<int64_t, double>(raft::handle_t const& handle,
-                                         graph_container_t const& graph_container,
-                                         double* hubs,
-                                         double* authorities,
-                                         size_t max_iter,
-                                         double tolerance,
-                                         const double* starting_value,
-                                         bool normalized);
 
 template std::unique_ptr<major_minor_weights_t<int32_t, int32_t, float>> call_shuffle(
   raft::handle_t const& handle,

@@ -160,6 +160,11 @@ class simpleGraphImpl:
         else:
             if type(source) is list and type(destination) is list:
                 raise ValueError("set renumber to True for multi column ids")
+            elif (elist[source].dtype not in [np.int32, np.int64] or
+                  elist[destination].dtype not in [np.int32, np.int64]):
+                raise ValueError(
+                    "set renumber to True for non integer columns ids"
+                )
 
         # The dataframe will be symmetrized iff the graph is undirected
         # otherwise the inital dataframe will be returned. Duplicated edges
@@ -831,17 +836,20 @@ class simpleGraphImpl:
 
     def nodes(self):
         """
-        Returns all the nodes in the graph as a cudf.Series
+        Returns all the nodes in the graph as a cudf.Series.
+        If multi columns vertices, return a cudf.DataFrame.
         """
         if self.edgelist is not None:
             df = self.edgelist.edgelist_df
             if self.properties.renumbered:
-                # FIXME: If vertices are multicolumn
-                #        this needs to return a dataframe
                 # FIXME: This relies on current implementation
                 #        of NumberMap, should not really expose
                 #        this, perhaps add a method to NumberMap
-                return self.renumber_map.implementation.df["0"]
+                df = self.renumber_map.implementation.df.drop(columns="id")
+                if len(df.columns) > 1:
+                    return df
+                else:
+                    return df[df.columns[0]]
             else:
                 return cudf.concat([df["src"], df["dst"]]).unique()
         if self.adjlist is not None:
