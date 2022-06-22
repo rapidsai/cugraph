@@ -596,7 +596,23 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
 
   if (stream_pool_indices) { handle.sync_stream(); }
 
+#if 1  // DEBUG
+  for (size_t round = 0; round < raft::round_up_safe(graph_view.number_of_local_edge_partitions(),
+                                                     major_tmp_buffers.size()) /
+                                   major_tmp_buffers.size();
+       ++round) {
+    CUDA_TRY(cudaDeviceSynchronize());
+    if constexpr (GraphViewType::is_multi_gpu) { handle.get_comms().barrier(); }
+    auto start = std::chrono::steady_clock::now();
+
+    // first fill the buffer
+    for (size_t i = round * major_tmp_buffers.size();
+         i < std::min((round + 1) * major_tmp_buffers.size(),
+                      graph_view.number_of_local_edge_partitions());
+         ++i) {
+#else
   for (size_t i = 0; i < graph_view.number_of_local_edge_partitions(); ++i) {
+#endif
     auto edge_partition =
       edge_partition_device_view_t<vertex_t, edge_t, weight_t, GraphViewType::is_multi_gpu>(
         graph_view.local_edge_partition_view(i));
@@ -758,7 +774,31 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
             major_init);
       }
     }
+#if 1  // DEBUG
+    }
+    CUDA_TRY(cudaDeviceSynchronize());
+    auto local_soft_end = std::chrono::steady_clock::now();
+    if constexpr (GraphViewType::is_multi_gpu) { handle.get_comms().barrier(); }
+    auto local_end = std::chrono::steady_clock::now();
+
+    // second concurrent reduction
+    for (size_t i = round * major_tmp_buffers.size();
+         i < std::min((round + 1) * major_tmp_buffers.size(),
+                      graph_view.number_of_local_edge_partitions());
+         ++i) {
+#endif
     if constexpr (GraphViewType::is_multi_gpu && update_major) {
+#if 1  // DEBUG
+        auto edge_partition =
+          edge_partition_device_view_t<vertex_t, edge_t, weight_t, GraphViewType::is_multi_gpu>(
+            graph_view.local_edge_partition_view(i));
+
+        auto major_buffer_first =
+          get_dataframe_buffer_begin(major_tmp_buffers[i % major_tmp_buffers.size()]);
+
+        auto segment_offsets = graph_view.local_edge_partition_segment_offsets(i);
+#endif
+
       auto& comm     = handle.get_comms();
       auto& row_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
       auto const row_comm_rank = row_comm.get_rank();
@@ -818,7 +858,25 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
                       handle.get_stream());
       }
     }
+#if 1  // DEBUG
+    }
+    CUDA_TRY(cudaDeviceSynchronize());
+    auto comm_soft_end = std::chrono::steady_clock::now();
+    if constexpr (GraphViewType::is_multi_gpu) { handle.get_comms().barrier(); }
+    auto comm_end = std::chrono::steady_clock::now();
+    if (update_major) {
+      std::chrono::duration<double> local_total = local_end - start;
+      std::chrono::duration<double> comm_total  = comm_end - local_end;
+      std::chrono::duration<double> local_wait  = local_end - local_soft_end;
+      std::chrono::duration<double> comm_wait   = comm_end - comm_soft_end;
+      std::cout << "round=" << round << " (local_total,comm_total,local_wait,comm_wait)=("
+                << local_total.count() << "," << comm_total.count() << "," << local_wait.count()
+                << "," << comm_wait.count() << ")." << std::endl;
+    }
   }
+#else
+  }
+#endif
 
   if (stream_pool_indices) { handle.sync_stream_pool(*stream_pool_indices); }
 

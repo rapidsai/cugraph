@@ -27,6 +27,9 @@
 #include <rmm/mr/device/owning_wrapper.hpp>
 #include <rmm/mr/device/per_device_resource.hpp>
 #include <rmm/mr/device/pool_memory_resource.hpp>
+#if 1  // DEBUG
+#include <raft/integer_utils.h>
+#endif
 
 #include <gtest/gtest.h>
 
@@ -67,7 +70,15 @@ inline auto make_managed() { return std::make_shared<rmm::mr::managed_memory_res
 
 inline auto make_pool()
 {
+#if 1  // DEBUG
+size_t free_size{};
+size_t total_size{};
+CUDA_TRY(cudaMemGetInfo(&free_size, &total_size));
+auto init_size = raft::round_up_safe(static_cast<size_t>(total_size * 0.94), size_t{256});
+  return rmm::mr::make_owning_wrapper<rmm::mr::pool_memory_resource>(make_cuda(), init_size);
+#else
   return rmm::mr::make_owning_wrapper<rmm::mr::pool_memory_resource>(make_cuda());
+#endif
 }
 
 inline auto make_binning()

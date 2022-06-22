@@ -204,6 +204,7 @@ void pagerank(
     handle, pull_graph_view);
   size_t iter{0};
   while (true) {
+std::cout << "PageRank iter=" << iter << std::endl;  // DEBUG
     thrust::copy(handle.get_thrust_policy(),
                  pageranks,
                  pageranks + pull_graph_view.local_vertex_partition_range_size(),
