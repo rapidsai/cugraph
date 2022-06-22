@@ -50,6 +50,10 @@
 #include <thrust/tabulate.h>
 #include <thrust/transform.h>
 #include <thrust/tuple.h>
+#include <thrust/unique.h>
+#include <thrust/set_operations.h>
+#include <thrust/extrema.h>
+#include <thrust/count.h>
 
 #include <algorithm>
 #include <cassert>

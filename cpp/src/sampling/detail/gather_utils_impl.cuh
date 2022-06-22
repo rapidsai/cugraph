@@ -41,6 +41,7 @@
 #include <thrust/transform.h>
 #include <thrust/transform_reduce.h>
 #include <thrust/tuple.h>
+#include <thrust/execution_policy.h>
 
 #include <rmm/device_uvector.hpp>
 

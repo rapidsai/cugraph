@@ -37,6 +37,7 @@
 #include <thrust/sort.h>
 #include <thrust/tabulate.h>
 #include <thrust/tuple.h>
+#include <thrust/execution_policy.h>
 
 #include <algorithm>
 #include <numeric>

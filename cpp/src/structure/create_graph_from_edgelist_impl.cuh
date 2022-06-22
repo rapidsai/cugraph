@@ -34,6 +34,7 @@
 #include <thrust/sort.h>
 #include <thrust/tuple.h>
 #include <thrust/unique.h>
+#include <thrust/execution_policy.h>
 
 #include <cstdint>
 #include <numeric>

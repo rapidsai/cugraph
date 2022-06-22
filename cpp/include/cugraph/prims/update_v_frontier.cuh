@@ -29,6 +29,7 @@
 #include <thrust/remove.h>
 #include <thrust/transform.h>
 #include <thrust/tuple.h>
+#include <thrust/iterator/iterator_traits.h>
 
 #include <algorithm>
 #include <cstdlib>

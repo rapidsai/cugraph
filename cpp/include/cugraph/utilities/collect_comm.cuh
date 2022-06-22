@@ -38,6 +38,7 @@
 #include <thrust/transform.h>
 #include <thrust/tuple.h>
 #include <thrust/unique.h>
+#include <thrust/execution_policy.h>
 
 #include <iterator>
 #include <memory>

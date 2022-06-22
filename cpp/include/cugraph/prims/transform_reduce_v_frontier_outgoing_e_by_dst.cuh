@@ -50,6 +50,10 @@
 #include <thrust/tuple.h>
 #include <thrust/type_traits/integer_sequence.h>
 #include <thrust/unique.h>
+#include <thrust/iterator/iterator_traits.h>
+#include <thrust/execution_policy.h>
+#include <thrust/count.h>
+#include <thrust/iterator/counting_iterator.h>
 
 #include <algorithm>
 #include <cstdlib>

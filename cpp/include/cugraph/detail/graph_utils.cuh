@@ -31,6 +31,8 @@
 #include <thrust/sort.h>
 #include <thrust/tabulate.h>
 #include <thrust/transform.h>
+#include <thrust/distance.h>
+#include <thrust/execution_policy.h>
 
 #include <algorithm>
 #include <numeric>

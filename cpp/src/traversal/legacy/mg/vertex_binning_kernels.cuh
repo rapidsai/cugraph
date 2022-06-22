@@ -20,6 +20,7 @@
 #include <rmm/device_vector.hpp>
 
 #include <thrust/scan.h>
+#include <thrust/execution_policy.h>
 
 namespace cugraph {
 

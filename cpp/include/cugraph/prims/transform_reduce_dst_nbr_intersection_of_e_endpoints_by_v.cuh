@@ -28,6 +28,20 @@
 #include <rmm/exec_policy.hpp>
 
 #include <thrust/iterator/iterator_traits.h>
+#include <thrust/tuple.h>
+#include <thrust/sort.h>
+#include <thrust/count.h>
+#include <thrust/iterator/counting_iterator.h>
+#include <thrust/reduce.h>
+#include <thrust/fill.h>
+#include <thrust/execution_policy.h>
+#include <thrust/functional.h>
+#include <thrust/iterator/zip_iterator.h>
+#include <thrust/tabulate.h>
+#include <thrust/copy.h>
+#include <thrust/merge.h>
+#include <thrust/for_each.h>
+#include <thrust/binary_search.h>
 
 #include <type_traits>
 

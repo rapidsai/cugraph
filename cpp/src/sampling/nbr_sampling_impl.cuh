@@ -42,6 +42,7 @@
 #include <thrust/tabulate.h>
 #include <thrust/transform.h>
 #include <thrust/tuple.h>
+#include <thrust/execution_policy.h>
 
 #include "rw_traversals.hpp"
 

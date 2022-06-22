@@ -45,6 +45,7 @@
 #include <thrust/sort.h>
 #include <thrust/transform_reduce.h>
 #include <thrust/tuple.h>
+#include <thrust/execution_policy.h>
 
 namespace cugraph {
 namespace legacy {
