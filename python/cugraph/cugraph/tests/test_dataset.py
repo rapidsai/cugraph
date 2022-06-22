@@ -16,10 +16,11 @@ import gc
 import pytest
 import cugraph
 import cudf
+import warnings
 # from cugraph.testing import utils
 
-from cugraph.experimental.datasets import (karate, dolphins, netscience, polbooks,
-                                           SMALL_DATASETS)
+from cugraph.experimental.datasets import (karate, dolphins, netscience,
+                                           polbooks, SMALL_DATASETS)
 
 
 # =============================================================================
@@ -29,10 +30,9 @@ def setup_function():
     gc.collect()
 
 
-import warnings
 with warnings.catch_warnings():
     warnings.filterwarnings("ignore", category=DeprecationWarning)
-    import networkx as nx
+    # import networkx as nx
 
 
 @pytest.mark.parametrize("dataset", SMALL_DATASETS)
@@ -46,7 +46,7 @@ def test_getters(dataset):
     assert G is not None
 
 
-## TEST datasets.karate vs manually reading karate-data.csv
+# TEST datasets.karate vs manually reading karate-data.csv
 #   Verify the number of nodes, edges, and is_directed
 def test_karate():
     graph_file = 'datasets/karate-data.csv'
@@ -67,7 +67,8 @@ def test_karate():
     assert G_a.number_of_edges() == G_b.number_of_edges()
     assert G_a.is_directed() == G_b.is_directed()
 
-## TEST datasets.dolphins vs manually reading dolphins.csv
+
+# TEST datasets.dolphins vs manually reading dolphins.csv
 def test_dolphins():
     graph_file = 'datasets/dolphins.csv'
     G_a = dolphins.get_graph(fetch=True)
@@ -86,7 +87,8 @@ def test_dolphins():
     assert G_a.number_of_edges() == G_b.number_of_edges()
     assert G_a.is_directed() == G_b.is_directed()
 
-## TEST datasets.netscience vs manually reading netscience.csv
+
+# TEST datasets.netscience vs manually reading netscience.csv
 def test_netscience():
     graph_file = 'datasets/netscience.csv'
     G_a = netscience.get_graph(fetch=True)
@@ -105,7 +107,8 @@ def test_netscience():
     assert G_a.number_of_edges() == G_b.number_of_edges()
     assert G_a.is_directed() == G_b.is_directed()
 
-## TEST datasets.polbooks vs manually reading polbooks.csv
+
+# TEST datasets.polbooks vs manually reading polbooks.csv
 def tes_polbooks():
     graph_file = 'datasets/polbooks.csv'
     G_a = polbooks.get_graph(fetch=True)
