@@ -14,8 +14,7 @@
 #
 
 from dask.distributed import wait, default_client
-from cugraph.dask.common.input_utils import (get_distributed_data,
-                                             get_vertex_partition_offsets)
+from cugraph.dask.common.input_utils import get_distributed_data
 from pylibcugraph import (ResourceHandle,
                           GraphProperties,
                           MGGraph,
@@ -34,10 +33,7 @@ def call_katz_centrality(sID,
                          do_expensive_check,
                          src_col_name,
                          dst_col_name,
-                         num_verts,
                          num_edges,
-                         vertex_partition_offsets,
-                         aggregate_segment_offsets,
                          alpha,
                          beta,
                          max_iter,
@@ -187,12 +183,13 @@ def katz_centrality(
     # compute_renumber_edge_list will only be used for multicolumn and
     # string vertices since the renumbering will be done in pylibcugraph
     input_graph.compute_renumber_edge_list(transposed=True,
-                                           legacy_renum_only=False)
+                                           legacy_renum_only=True)
 
     graph_properties = GraphProperties(
         is_multigraph=False)
 
     store_transposed = False
+    # FIXME: should we add this parameter as an option?
     do_expensive_check = False
 
     src_col_name = input_graph.renumber_map.renumbered_src_col_name
@@ -202,9 +199,6 @@ def katz_centrality(
 
     num_edges = len(ddf)
     data = get_distributed_data(ddf)
-
-    vertex_partition_offsets = get_vertex_partition_offsets(input_graph)
-    num_verts = vertex_partition_offsets.iloc[-1]
 
     initial_hubs_guess_values = None
     if nstart:
@@ -216,7 +210,9 @@ def katz_centrality(
             nstart = input_graph.add_internal_vertex_id(nstart, 'vertex', cols)
             initial_hubs_guess_values = nstart[nstart.columns[0]].compute()
         else:
-            initial_hubs_guess_values = nstart["values"].compute()
+            initial_hubs_guess_values = nstart["values"]
+            if isinstance(nstart, dask_cudf.DataFrame):
+                initial_hubs_guess_values = initial_hubs_guess_values.compute()
 
     cupy_result = [client.submit(call_katz_centrality,
                                  Comms.get_session_id(),
@@ -226,10 +222,7 @@ def katz_centrality(
                                  do_expensive_check,
                                  src_col_name,
                                  dst_col_name,
-                                 num_verts,
                                  num_edges,
-                                 vertex_partition_offsets,
-                                 input_graph.aggregate_segment_offsets,
                                  alpha,
                                  beta,
                                  max_iter,
