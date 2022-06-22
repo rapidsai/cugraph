@@ -120,7 +120,7 @@ class Dataset:
 
         return self.__graph
 
-    def get_path(self):
+    def path(self):
         """
             Print the location of the stored dataset file
         """
