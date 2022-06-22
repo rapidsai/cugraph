@@ -192,7 +192,7 @@ setup(name='cugraph',
       ext_modules=extensions,
       packages=find_packages(include=['cugraph', 'cugraph.*']),
       include_package_data=True,
-      package_data= {
+      package_data={
           '': ['python/cugraph/cugraph/experimental/datasets/metadata/*.yaml',
                'python/cugraph/cugraph/experimental/datasets/*.yaml'],
       },

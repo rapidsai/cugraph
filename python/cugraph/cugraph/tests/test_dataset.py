@@ -16,15 +16,11 @@ import gc
 import pytest
 import cugraph
 import cudf
-from cugraph.testing import utils
+# from cugraph.testing import utils
 
-import networkx as nx
+from cugraph.experimental.datasets import (karate,
+                                           SMALL_DATASETS)
 
-from cugraph.experimental.datasets import dataset, SMALL_DATASETS
-from cugraph.experimental.datasets import karate
-from cugraph.experimental.datasets import netscience
-from cugraph.experimental.datasets import polbooks
-from cugraph.experimental.datasets import dolphins
 
 # =============================================================================
 # Pytest Setup / Teardown - called for each test function
@@ -32,37 +28,29 @@ from cugraph.experimental.datasets import dolphins
 def setup_function():
     gc.collect()
 
-import warnings
 
-with warnings.catch_warnings():
-    warnings.filterwarnings("ignore", category=DeprecationWarning)
-    import networkx as nx
+# import warnings
+# with warnings.catch_warnings():
+#     warnings.filterwarnings("ignore", category=DeprecationWarning)
+#     import networkx as nx
 
 
-# A simple example Dataset class working, MetaData
-# run thru an entire alg with imports
-# handle cases, like fetch, also maybe config options
-#config_file_path = "cugraph/cugraph/experimental/datasets/datasets_config.yaml"
-#with open(config_file_path, 'r') as file:
-#    config_settings = yaml.safe_load(file)
+@pytest.mark.parametrize("dataset", SMALL_DATASETS)
+def test_getters(dataset):
+    # Getting the graph does not need to depend on get_edgelist
+    M = dataset.get_edgelist(fetch=True)
 
-# @pytest.mark.parametrize("dataset", SMALL_DATASETS)
-# def test_getters(dataset):
-#     # Getting the graph does not need to depend on get_edgelist
-#     M = dataset.get_edgelist(fetch=True)
-#     #breakpoint()
-#     G = dataset.get_graph(fetch=True)
+    G = dataset.get_graph(fetch=True)
 
-#     # Storing the datasets in experimental/datasets/
+    assert M is not None
+    assert G is not None
 
 
 # Test the number of nodes and edges
 def test_karate_nodes():
-    #breakpoint()
     graph_file = 'datasets/karate-data.csv'
     G_a = karate.get_graph(fetch=True)
-    
-    breakpoint()
+
     df = cudf.read_csv(
             graph_file,
             delimiter="\t",
@@ -70,6 +58,7 @@ def test_karate_nodes():
             header=None,
         )
     G_b = cugraph.Graph(directed=True)
-    G_b.from_cudf_edgelist(G_a, source="src", destination="dst", renumber=False)
+    G_b.from_cudf_edgelist(df, source="src",
+                           destination="dst", renumber=False)
 
     assert G_a.number_of_nodes() == G_b.number_of_nodes()
