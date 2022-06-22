@@ -58,7 +58,6 @@ def test_karate_nodes():
             header=None,
         )
     G_b = cugraph.Graph(directed=True)
-    G_b.from_cudf_edgelist(df, source="src",
-                           destination="dst", renumber=False)
-
+    G_b.from_cudf_edgelist(df, source="0",
+                           destination="1", renumber=True)
     assert G_a.number_of_nodes() == G_b.number_of_nodes()

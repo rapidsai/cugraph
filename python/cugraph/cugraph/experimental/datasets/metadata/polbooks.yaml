@@ -3,7 +3,7 @@ file_type: .csv
 author: V. Krebs
 url: https://raw.githubusercontent.com/rapidsai/cugraph/branch-22.08/datasets/polbooks.csv
 refs: null
-delimiter: " "
+delim: " "
 col_names:
   - src
   - dst

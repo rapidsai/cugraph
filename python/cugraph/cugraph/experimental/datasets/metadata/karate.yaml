@@ -5,7 +5,7 @@ url: https://raw.githubusercontent.com/rapidsai/cugraph/branch-22.08/datasets/ka
 refs:
   W. W. Zachary, An information flow model for conflict and fission in small groups,
   Journal of Anthropological Research 33, 452-473 (1977).
-delimiter: "\t"
+delim: "\t"
 col_names:
   - src
   - dst

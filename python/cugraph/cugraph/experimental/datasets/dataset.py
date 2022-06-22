@@ -94,7 +94,7 @@ class Dataset:
                                         the datafile")
 
             self.__edgelist = cudf.read_csv(full_path,
-                                            delimiter=self.metadata['delimiter'],
+                                            delimiter=self.metadata['delim'],
                                             names=self.metadata['col_names'],
                                             dtype=self.metadata['col_types'])
             self.path = full_path
