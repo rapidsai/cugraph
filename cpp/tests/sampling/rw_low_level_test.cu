@@ -17,7 +17,6 @@
 #include "cuda_profiler_api.h"
 #include <gtest/gtest.h>
 
-#include <topology/topology.cuh>
 #include <utilities/base_fixture.hpp>
 #include <utilities/test_utilities.hpp>
 
@@ -1228,8 +1227,6 @@ TEST(RandomWalksUtility, PathsToCOO)
 
 TEST(BiasedRandomWalks, SelectorSmallGraph)
 {
-  namespace topo = cugraph::topology;
-
   raft::handle_t handle{};
 
   using vertex_t = int32_t;
@@ -1344,8 +1341,6 @@ TEST(BiasedRandomWalks, SelectorSmallGraph)
 
 TEST(Node2VecRandomWalks, Node2VecSmallGraph)
 {
-  namespace topo = cugraph::topology;
-
   raft::handle_t handle{};
 
   using vertex_t = int32_t;
@@ -1466,8 +1461,6 @@ TEST(Node2VecRandomWalks, Node2VecSmallGraph)
 
 TEST(Node2VecRandomWalks, CachedNode2VecSmallGraph)
 {
-  namespace topo = cugraph::topology;
-
   raft::handle_t handle{};
 
   using vertex_t = int32_t;

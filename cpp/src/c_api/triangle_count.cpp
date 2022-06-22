@@ -92,7 +92,6 @@ struct triangle_count_functor : public cugraph::c_api::abstract_functor {
 
       if (vertices_ != nullptr) {
         vertices.resize(vertices_->size_, handle_.get_stream());
-        counts.resize(vertices_->size_, handle_.get_stream());
 
         raft::copy(
           vertices.data(), vertices_->as_type<vertex_t>(), vertices.size(), handle_.get_stream());
@@ -100,6 +99,8 @@ struct triangle_count_functor : public cugraph::c_api::abstract_functor {
         if constexpr (multi_gpu) {
           vertices = cugraph::detail::shuffle_ext_vertices_by_gpu_id(handle_, std::move(vertices));
         }
+
+        counts.resize(vertices.size(), handle_.get_stream());
 
         cugraph::renumber_ext_vertices<vertex_t, multi_gpu>(
           handle_,

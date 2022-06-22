@@ -834,8 +834,8 @@ nbr_intersection(raft::handle_t const& handle,
         // cuco::static_map requires at least one empty slot
         std::max(static_cast<size_t>(static_cast<double>(unique_majors.size()) / load_factor),
                  static_cast<size_t>(unique_majors.size()) + 1),
-        invalid_vertex_id<vertex_t>::value,
-        invalid_vertex_id<vertex_t>::value,
+        cuco::sentinel::empty_key<vertex_t>{invalid_vertex_id<vertex_t>::value},
+        cuco::sentinel::empty_value<vertex_t>{0},
         stream_adapter,
         handle.get_stream());
       auto pair_first = thrust::make_zip_iterator(unique_majors.begin(),

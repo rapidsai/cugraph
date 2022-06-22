@@ -479,7 +479,7 @@ def create_random_bipartite(v1, v2, size, dtype):
 
 
 def sample_groups(df, by, n_samples):
-    # Sample n_samples in the df frm by column
+    # Sample n_samples in the df using the by column
 
     # Step 1
     # first, shuffle the dataframe and reset its index,
@@ -487,6 +487,9 @@ def sample_groups(df, by, n_samples):
     # is made random:
     df = df.sample(frac=1).reset_index(drop=True)
 
+    # If we want to keep all samples we return
+    if n_samples == -1:
+        return df
     # Step 2
     # add an integer-encoded version of the "by" column,
     # since the rank aggregation seems not to work for

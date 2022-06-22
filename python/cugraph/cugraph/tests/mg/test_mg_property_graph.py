@@ -142,7 +142,7 @@ def net_PropertyGraph(request):
     from cugraph.experimental import PropertyGraph
 
     dataframe_type = request.param[0]
-    netscience_csv = utils.RAPIDS_DATASET_ROOT_DIR_PATH/"netscience_test.csv"
+    netscience_csv = utils.RAPIDS_DATASET_ROOT_DIR_PATH/"netscience.csv"
     source_col_name = "src"
     dest_col_name = "dst"
 
@@ -296,7 +296,7 @@ def net_MGPropertyGraph(dask_client):
     """
     from cugraph.experimental import MGPropertyGraph
     input_data_path = (RAPIDS_DATASET_ROOT_DIR_PATH /
-                       "netscience_test.csv").as_posix()
+                       "netscience.csv").as_posix()
     print(f"dataset={input_data_path}")
     chunksize = dcg.get_chunksize(input_data_path)
     ddf = dask_cudf.read_csv(
@@ -312,6 +312,7 @@ def net_MGPropertyGraph(dask_client):
     return dpG
 
 
+@pytest.mark.skip(reason="Skipping tests because it is a work in progress")
 def test_extract_subgraph_no_query(net_MGPropertyGraph, net_PropertyGraph):
     """
     Call extract with no args, should result in the entire property graph.
@@ -339,6 +340,7 @@ def test_extract_subgraph_no_query(net_MGPropertyGraph, net_PropertyGraph):
             .equals(mg_subgraph_df[['_SRC_', '_DST_']]))
 
 
+@pytest.mark.skip(reason="Skipping tests because it is a work in progress")
 def test_adding_fixture(dataset1_PropertyGraph, dataset1_MGPropertyGraph):
     sgpG = dataset1_PropertyGraph
     mgPG = dataset1_MGPropertyGraph
@@ -355,6 +357,7 @@ def test_adding_fixture(dataset1_PropertyGraph, dataset1_MGPropertyGraph):
             .equals(mg_subgraph_df[['_SRC_', '_DST_']]))
 
 
+@pytest.mark.skip(reason="Skipping tests because it is a work in progress")
 def test_frame_data(dataset1_PropertyGraph, dataset1_MGPropertyGraph):
     sgpG = dataset1_PropertyGraph
     mgpG = dataset1_MGPropertyGraph
