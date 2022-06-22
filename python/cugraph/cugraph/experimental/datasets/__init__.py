@@ -28,6 +28,7 @@ karate = Dataset("metadata/karate.yaml")
 dolphins = Dataset("metadata/dolphins.yaml")
 polbooks = Dataset("metadata/polbooks.yaml")
 netscience = Dataset("metadata/netscience.yaml")
+cyber = Dataset("metadata/cyber.yaml")
 
 # MEDIUM DATASETS
 
