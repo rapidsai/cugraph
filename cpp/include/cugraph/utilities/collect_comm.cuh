@@ -73,8 +73,8 @@ collect_values_for_keys(raft::comms::comms_t const& comm,
     std::max(static_cast<size_t>(
                static_cast<double>(thrust::distance(map_key_first, map_key_last)) / load_factor),
              static_cast<size_t>(thrust::distance(map_key_first, map_key_last)) + 1),
-    invalid_vertex_id<vertex_t>::value,
-    invalid_vertex_id<vertex_t>::value,
+    cuco::sentinel::empty_key<vertex_t>{invalid_vertex_id<vertex_t>::value},
+    cuco::sentinel::empty_value<value_t>{0},
     stream_adapter,
     stream_view);
   {
@@ -136,8 +136,8 @@ collect_values_for_keys(raft::comms::comms_t const& comm,
     // cuco::static_map requires at least one empty slot
     std::max(static_cast<size_t>(static_cast<double>(unique_keys.size()) / load_factor),
              unique_keys.size() + 1),
-    invalid_vertex_id<vertex_t>::value,
-    invalid_vertex_id<vertex_t>::value,
+    cuco::sentinel::empty_key<vertex_t>{invalid_vertex_id<vertex_t>::value},
+    cuco::sentinel::empty_value<value_t>{0},
     stream_adapter,
     stream_view);
   {
@@ -233,8 +233,8 @@ collect_values_for_unique_keys(
     std::max(static_cast<size_t>(
                static_cast<double>(thrust::distance(map_key_first, map_key_last)) / load_factor),
              static_cast<size_t>(thrust::distance(map_key_first, map_key_last)) + 1),
-    invalid_vertex_id<vertex_t>::value,
-    invalid_vertex_id<vertex_t>::value,
+    cuco::sentinel::empty_key<vertex_t>{invalid_vertex_id<vertex_t>::value},
+    cuco::sentinel::empty_value<value_t>{0},
     stream_adapter,
     stream_view);
   {

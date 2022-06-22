@@ -52,9 +52,8 @@ def calc_katz(graph_file):
     G = cugraph.Graph(directed=True)
     G.from_cudf_edgelist(cu_M, source="0", destination="1")
 
-    largest_out_degree = G.degrees().nlargest(n=1, columns="out_degree")
-    largest_out_degree = largest_out_degree["out_degree"].iloc[0]
-    katz_alpha = 1 / (largest_out_degree + 1)
+    degree_max = G.degree()['degree'].max()
+    katz_alpha = 1 / (degree_max)
 
     k_df = cugraph.katz_centrality(G, alpha=None, max_iter=1000)
     k_df = k_df.sort_values("vertex").reset_index(drop=True)
@@ -71,7 +70,7 @@ def calc_katz(graph_file):
 
 
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
-def test_katz_centrality(graph_file):
+def test_katz_centrality_1(graph_file):
     katz_scores = calc_katz(graph_file)
 
     topKNX = topKVertices(katz_scores, "nx_katz", 10)
@@ -89,9 +88,8 @@ def test_katz_centrality_nx(graph_file):
     )
 
     G = cugraph.utilities.convert_from_nx(Gnx)
-    largest_out_degree = G.degrees().nlargest(n=1, columns="out_degree")
-    largest_out_degree = largest_out_degree["out_degree"].iloc[0]
-    katz_alpha = 1 / (largest_out_degree + 1)
+    degree_max = G.degree()['degree'].max()
+    katz_alpha = 1 / (degree_max)
 
     nk = nx.katz_centrality(Gnx, alpha=katz_alpha)
     ck = cugraph.katz_centrality(Gnx, alpha=None, max_iter=1000)

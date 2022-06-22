@@ -86,15 +86,16 @@ class BenchmarkRun:
         # FIXME: need to accept and save individual algo args
         self.construct_graph = benchmark(construct_graph_func)
 
-        #add starting node to algos: BFS and SSSP
+        # add starting node to algos: BFS and SSSP
+        # FIXME: Refactor BenchmarkRun __init__ because all the work
+        # done below should be done elsewhere
         for i, algo in enumerate (algo_func_param_list):
-            if benchmark(algo).name in ["bfs", "sssp", "neighborhood_sampling"]:
+            if benchmark(algo).name in ["bfs", "sssp", "uniform_neighbor_sample"]:
                 param={}
                 param["start"]=self.input_dataframe['src'].head()[0]
-                if benchmark(algo).name in ["neighborhood_sampling"]:
+                if benchmark(algo).name in ["uniform_neighbor_sample"]:
                     start = [param.pop("start")]
-                    labels = [0]
-                    param["start_info_list"] = (start, labels)
+                    param["start_list"] = start
                     param["fanout_vals"] = [1]
                 algo_func_param_list[i]=(algo,)+(param,)
 
@@ -128,32 +129,44 @@ class BenchmarkRun:
         self.__log("done.")
         G = result.retval
         self.results.append(result)
-
-        #algos with transposed=True : PageRank, Katz
-        #algos with transposed=False: BFS, SSSP, Louvain, HITS, Neighborhood_sampling
-        #algos supporting the legacy_renum_only: HITS, Neighborhood_sampling
+        #
+        # Algos with transposed=True : PageRank, Katz.
+        # Algos with transposed=False: BFS, SSSP, Louvain, HITS,
+        # Neighborhood_sampling.
+        # Algos supporting the legacy_renum_only: HITS, Neighborhood_sampling
+        #
         for i in range(len(self.algos)):
-            if self.algos[i][0].name in ["pagerank", "katz"]: #set transpose=True when renumbering
-                if self.algos[i][0].name == "katz" and self.construct_graph.name == "from_dask_cudf_edgelist":
-                    largest_out_degree = G.out_degree().compute().\
-                    nlargest(n=1, columns="degree") #compute outdegree before renumbering because outdegree has transpose=False
-                    largest_out_degree = largest_out_degree["degree"].iloc[0]
-                    katz_alpha = 1 / (largest_out_degree + 1)
-                    self.algos[i][1]["alpha"] = katz_alpha
-                elif self.algos[i][0].name == "katz" and self.construct_graph.name == "from_cudf_edgelist":
-                    largest_out_degree = G.out_degree().nlargest(n=1, columns="degree")
-                    largest_out_degree = largest_out_degree["degree"].iloc[0]
-                    katz_alpha = 1 / (largest_out_degree + 1)
-                    self.algos[i][1]["alpha"] = katz_alpha
-                if hasattr(G, "compute_renumber_edge_list"):
-                    G.compute_renumber_edge_list(transposed=True)
-            elif self.algos[i][0].name in ["neighborhood_sampling", "hits"]:
-                if hasattr(G, "compute_renumber_edge_list"):
-                    G.compute_renumber_edge_list(transposed=False, legacy_renum_only=True)
+            # set transpose=True when renumbering
+            if self.algos[i][0].name in ["pagerank", "katz"]:
+                if self.algos[i][0].name == "katz":
+                    if self.construct_graph.name == "from_dask_cudf_edgelist":
+                        # compute out_degree before renumbering because out_degree
+                        # has transpose=False
+                        degree_max = G.degree()['degree'].max().compute()
+                        katz_alpha = 1 / (degree_max)
+                        self.algos[i][1]["alpha"] = katz_alpha
+                    elif self.construct_graph.name == "from_cudf_edgelist":
+                        degree_max = G.degree()['degree'].max()
+                        katz_alpha = 1 / (degree_max)
+                        self.algos[i][1]["alpha"] = katz_alpha
+                    if hasattr(G, "compute_renumber_edge_list"):
+                        G.compute_renumber_edge_list(
+                            transposed=True, legacy_renum_only=True)
+                else:
+                    # FIXME: Pagerank still follows the old path. Update this once it
+                    # follows the pylibcugraph/C path
+                    if hasattr(G, "compute_renumber_edge_list"):
+                        G.compute_renumber_edge_list(transposed=True)
             else: #set transpose=False when renumbering
                 self.__log("running compute_renumber_edge_list...", end="")
                 if hasattr(G, "compute_renumber_edge_list"):
-                    G.compute_renumber_edge_list(transposed=False)
+                    if self.algos[i][0].name in ["wcc", "louvain"]:
+                        # FIXME: Pagerank and Louvain still follow the old path.
+                        # Update this once it follows the pylibcugraph/C path
+                        G.compute_renumber_edge_list(transposed=False)
+                    else:
+                        G.compute_renumber_edge_list(
+                            transposed=False, legacy_renum_only=True)
                 self.__log("done.")
         # FIXME: need to handle individual algo args
         for ((algo, params), validator) in zip(self.algos, self.validators):

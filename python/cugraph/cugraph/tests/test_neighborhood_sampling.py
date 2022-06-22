@@ -10,7 +10,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import pandas as pd
 import gc
 import pytest
 import cugraph
@@ -31,9 +30,9 @@ def setup_function():
 # Pytest fixtures
 # =============================================================================
 IS_DIRECTED = [True, False]
-# FIXME: Do more testing for this datasets
-# [utils.RAPIDS_DATASET_ROOT_DIR_PATH/"email-Eu-core.csv"]
-datasets = utils.DATASETS_UNDIRECTED
+
+datasets = utils.DATASETS_UNDIRECTED + \
+    [utils.RAPIDS_DATASET_ROOT_DIR_PATH/"email-Eu-core.csv"]
 
 fixture_params = utils.genFixtureParamsProduct(
     (datasets, "graph_file"),
@@ -80,13 +79,14 @@ def input_combo(request):
 
     vertices = cudf.concat([srcs, dsts]).drop_duplicates()
 
-    start_list = vertices.sample(k)
-    # Generate a random fanout_vals list of length k
-    fanout_vals = [random.randint(1, k) for _ in range(k)]
+    start_list = vertices.sample(k).astype("int32")
+
+    # Generate a random fanout_vals list of length random(1, k)
+    fanout_vals = [random.randint(1, k) for _ in range(random.randint(1, k))]
 
     # These prints are for debugging purposes since the vertices and
     # the fanout_vals are randomly sampled/chosen
-    print("start_list: \n", start_list)
+    print("\nstart_list: \n", start_list)
     print("fanout_vals: ", fanout_vals)
 
     parameters["start_list"] = start_list
@@ -131,28 +131,40 @@ def test_neighborhood_sampling_simple(input_combo):
 
     if len(result_nbr) != len(join):
         join2 = input_df.merge(
-            result_nbr, how='left', left_on=[*input_df.columns],
+            result_nbr, how='right', left_on=[*input_df.columns],
             right_on=[*result_nbr.columns])
+        # The left part of the datasets shows which edge is missing from the
+        # right part where the left and right part are respectively the
+        # uniform-neighbor-sample results and the input dataframe.
+        difference = join2.sort_values([*result_nbr.columns]) \
+            .to_pandas().query(
+                'src.isnull()', engine='python')
 
-        pd.set_option('display.max_rows', 500)
-        print('df1 = \n', input_df.sort_values([*input_df.columns]))
-        print('df2 = \n', result_nbr.sort_values([*result_nbr.columns]))
-        print('join2 = \n', join2.sort_values([*input_df.columns])
-              .to_pandas().query('sources.isnull()', engine='python'))
+        invalid_edge = difference[difference.columns[:3]]
+        raise Exception(f"\nThe edges below from uniform-neighbor-sample "
+                        f"are invalid\n {invalid_edge}")
 
-    assert len(join) == len(result_nbr)
     # Ensure the right indices type is returned
     assert result_nbr['indices'].dtype == input_combo["indices_type"]
 
-    start_list = input_combo["start_list"]
+    sampled_vertex_result = cudf.concat(
+        [result_nbr["sources"], result_nbr["destinations"]]). \
+        drop_duplicates().reset_index(drop=True)
 
-    result_nbr_vertices = cudf.concat(
-        [result_nbr["sources"], result_nbr["destinations"]]) \
-        .drop_duplicates().reset_index(drop=True)
+    sampled_vertex_result = sampled_vertex_result.to_pandas()
+    start_list = input_combo["start_list"].to_pandas()
 
-    assert set(
-        start_list.to_pandas()).issubset(
-            set(result_nbr_vertices.to_pandas()))
+    if not set(start_list).issubset(set(sampled_vertex_result)):
+        missing_vertex = set(start_list) - set(sampled_vertex_result)
+        missing_vertex = list(missing_vertex)
+        # compute the out-degree of the missing vertices
+        out_degree = G.out_degree(missing_vertex)
+        out_degree = out_degree[out_degree.degree != 0]
+        # If the missing vertices have outgoing edges, return an error
+        if len(out_degree) != 0:
+            missing_vertex = out_degree["vertex"].to_pandas().to_list()
+            raise Exception(f"vertex {missing_vertex} is missing from "
+                            f"uniform neighbor sampling results")
 
 
 @pytest.mark.parametrize("directed", IS_DIRECTED)

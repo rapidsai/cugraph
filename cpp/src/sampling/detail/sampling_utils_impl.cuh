@@ -74,13 +74,12 @@ rmm::device_uvector<typename GraphViewType::edge_type> compute_local_major_degre
                              : false;
 
     if (use_dcs) {
-      auto major_hypersparse_first = edge_partition.major_range_first() +
-                                     (*segment_offsets)[num_sparse_segments_per_vertex_partition];
+      auto num_sparse_vertices     = (*segment_offsets)[num_sparse_segments_per_vertex_partition];
+      auto major_hypersparse_first = edge_partition.major_range_first() + num_sparse_vertices;
+
       // Calculate degrees in sparse region
       auto sparse_begin = local_degrees.begin() + partial_offset;
-      auto sparse_end   = local_degrees.begin() + partial_offset +
-                        (major_hypersparse_first - edge_partition.major_range_first());
-      ;
+      auto sparse_end   = local_degrees.begin() + partial_offset + num_sparse_vertices;
 
       thrust::tabulate(handle.get_thrust_policy(),
                        sparse_begin,
@@ -491,44 +490,42 @@ gather_local_edges(
         // Find which partition id did the major belong to
         auto partition_id = thrust::distance(
           id_end, thrust::upper_bound(thrust::seq, id_end, id_end + id_seg_count, major));
-        // starting position of the segment within global_degree_offset
-        // where the information for partition (partition_id) starts
-        //  vertex_count_offsets[partition_id]
-        // The relative location of offset information for vertex id v within
-        // the segment
-        //  v - seg[partition_id]
-        vertex_t location_in_segment;
+        auto offset_ptr = partitions[partition_id].offsets();
+
+        vertex_t location_in_segment{0};
+        edge_t local_out_degree{0};
+
         if (major < hypersparse_begin[partition_id]) {
           location_in_segment = major - id_begin[partition_id];
+          local_out_degree = offset_ptr[location_in_segment + 1] - offset_ptr[location_in_segment];
+          ;
         } else {
           auto row_hypersparse_idx =
             partitions[partition_id].major_hypersparse_idx_from_major_nocheck(major);
+
           if (row_hypersparse_idx) {
-            location_in_segment = *row_hypersparse_idx;
-          } else {
-            minors[index] = invalid_vertex_id;
-            return;
+            location_in_segment =
+              (hypersparse_begin[partition_id] - id_begin[partition_id]) + *row_hypersparse_idx;
+            local_out_degree =
+              offset_ptr[location_in_segment + 1] - offset_ptr[location_in_segment];
+            ;
           }
         }
 
-        // csr offset value for vertex v that belongs to partition (partition_id)
-        auto offset_ptr                = partitions[partition_id].offsets();
-        auto sparse_offset             = offset_ptr[location_in_segment];
-        auto local_out_degree          = offset_ptr[location_in_segment + 1] - sparse_offset;
-        vertex_t const* adjacency_list = partitions[partition_id].indices() + sparse_offset;
         // read location of global_degree_offset needs to take into account the
         // partition offsets because it is a concatenation of all the offsets
         // across all partitions
-        auto location        = location_in_segment + vertex_count_offsets[partition_id];
-        auto g_degree_offset = glbl_degree_offsets[location];
-        auto g_dst_index     = edge_index_first[index];
-        if ((g_dst_index >= g_degree_offset) &&
-            (g_dst_index < g_degree_offset + local_out_degree)) {
-          minors[index]           = adjacency_list[g_dst_index - g_degree_offset];
-          edge_index_first[index] = g_dst_index - g_degree_offset + glbl_adj_list_offsets[location];
+        auto g_dst_index =
+          edge_index_first[index] -
+          glbl_degree_offsets[major - id_begin[partition_id] + vertex_count_offsets[partition_id]];
+        if ((g_dst_index >= 0) && (g_dst_index < local_out_degree)) {
+          vertex_t const* adjacency_list =
+            partitions[partition_id].indices() + offset_ptr[location_in_segment];
+          minors[index] = adjacency_list[g_dst_index];
           if (weights != nullptr) {
-            weight_t const* edge_weights = *(partitions[partition_id].weights()) + sparse_offset;
-            weights[index]               = edge_weights[g_dst_index - g_degree_offset];
+            weight_t const* edge_weights =
+              *(partitions[partition_id].weights()) + offset_ptr[location_in_segment];
+            weights[index] = edge_weights[g_dst_index];
           }
         } else {
           minors[index] = invalid_vertex_id;

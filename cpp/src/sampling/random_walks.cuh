@@ -21,7 +21,6 @@
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/graph.hpp>
 
-#include <topology/topology.cuh>
 #include <utilities/graph_utils.cuh>
 
 #include <raft/device_atomics.cuh>
@@ -29,6 +28,7 @@
 
 #include <rmm/device_uvector.hpp>
 
+#include <thrust/binary_search.h>
 #include <thrust/copy.h>
 #include <thrust/count.h>
 #include <thrust/fill.h>

@@ -14,11 +14,11 @@
 import cudf
 import dask_cudf
 
-from pylibcugraph.experimental import (ResourceHandle,
-                                       GraphProperties,
-                                       SGGraph,
-                                       )
-from pylibcugraph import bfs as pylibcugraph_bfs
+from pylibcugraph import (ResourceHandle,
+                          GraphProperties,
+                          SGGraph,
+                          bfs as pylibcugraph_bfs
+                          )
 
 from cugraph.structure.graph_classes import Graph, DiGraph
 from cugraph.utilities import (ensure_cugraph_obj,
