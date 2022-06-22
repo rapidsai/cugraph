@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2021, NVIDIA CORPORATION.
+# Copyright (c) 2019-2022, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -17,7 +17,7 @@ import numpy as np
 from collections import OrderedDict
 
 
-def find_bicliques(
+def EXPERIMENTAL__find_bicliques(
         df, k,
         offset=0,
         max_iter=-1,

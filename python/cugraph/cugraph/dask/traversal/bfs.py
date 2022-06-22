@@ -13,11 +13,11 @@
 # limitations under the License.
 #
 
-from pylibcugraph.experimental import (MGGraph,
-                                       ResourceHandle,
-                                       GraphProperties,
-                                       )
-from pylibcugraph import bfs as pylibcugraph_bfs
+from pylibcugraph import (MGGraph,
+                          ResourceHandle,
+                          GraphProperties,
+                          bfs as pylibcugraph_bfs
+                          )
 
 from dask.distributed import wait, default_client
 from cugraph.dask.common.input_utils import get_distributed_data
@@ -40,7 +40,7 @@ def _call_plc_mg_bfs(
                     return_predecessors=True):
     comms_handle = Comms.get_handle(sID)
     resource_handle = ResourceHandle(comms_handle.getHandle())
-
+    sources = sources[0]
     srcs = cudf.Series(data[0][src_col_name], dtype='int32')
     dsts = cudf.Series(data[0][dst_col_name], dtype='int32')
     weights = cudf.Series(data[0]['value'], dtype='float32') \
@@ -87,7 +87,8 @@ def convert_to_cudf(cp_arrays):
 def bfs(input_graph,
         start,
         depth_limit=None,
-        return_distances=True):
+        return_distances=True,
+        check_start=True):
     """
     Find the distances and predecessors for a breadth first traversal of a
     graph.
@@ -101,10 +102,9 @@ def bfs(input_graph,
         as dask cudf edge list dataframe (edge weights are not used for this
         algorithm).
 
-    start : Integer or list
-        The id of the graph vertex from which the traversal begins, or
-        if a list, the vertex from which the traversal begins in each
-        component of the graph.  Only one vertex per connected
+    start : Integer or list or cudf object or dask_cudf object
+        The id(s) of the graph vertex from which the traversal begins
+        in each component of the graph.  Only one vertex per connected
         component of the graph is allowed.
 
     depth_limit : Integer or None, optional (default=None)
@@ -112,6 +112,10 @@ def bfs(input_graph,
 
     return_distances : bool, optional (default=True)
         Indicates if distances should be returned
+
+    check_start : bool, optional (default=True)
+        If True, performs more extensive tests on the start vertices
+        to ensure validitity, at the expense of increased run time.
 
     Returns
     -------
@@ -145,7 +149,8 @@ def bfs(input_graph,
 
     client = default_client()
 
-    input_graph.compute_renumber_edge_list(transposed=False)
+    input_graph.compute_renumber_edge_list(
+        transposed=False, legacy_renum_only=True)
     ddf = input_graph.edgelist.edgelist_df
 
     graph_properties = GraphProperties(
@@ -156,54 +161,40 @@ def bfs(input_graph,
 
     src_col_name = input_graph.renumber_map.renumbered_src_col_name
     dst_col_name = input_graph.renumber_map.renumbered_dst_col_name
-    renumber_ddf = input_graph.renumber_map.implementation.ddf
-    col_names = input_graph.renumber_map.implementation.col_names
 
-    if isinstance(start, dask_cudf.DataFrame) \
-            or isinstance(start, cudf.DataFrame):
-        tmp_df = start
-        tmp_col_names = start.columns
-    else:
-        tmp_df = cudf.DataFrame()
-        tmp_df["0"] = cudf.Series(start)
-        tmp_col_names = ["0"]
+    if not isinstance(start, (dask_cudf.DataFrame, dask_cudf.Series)):
+        if not isinstance(start, (cudf.DataFrame, cudf.Series)):
+            start = cudf.Series(start)
+        if isinstance(start, (cudf.DataFrame, cudf.Series)):
+            # convert into a dask_cudf
+            start = dask_cudf.from_cudf(start, ddf.npartitions)
 
-    original_start_len = len(tmp_df)
+    def check_valid_vertex(G, start):
+        is_valid_vertex = G.has_node(start)
+        if not is_valid_vertex:
+            raise ValueError(
+                'At least one start vertex provided was invalid')
 
-    tmp_ddf = tmp_df[tmp_col_names].rename(
-        columns=dict(zip(tmp_col_names, col_names)))
-    for name in col_names:
-        tmp_ddf[name] = tmp_ddf[name].astype(renumber_ddf[name].dtype)
-    renumber_data = get_distributed_data(renumber_ddf)
+    if check_start:
+        check_valid_vertex(input_graph, start)
 
-    def df_merge(df, tmp_df, tmp_col_names):
-        x = df[0].merge(tmp_df, on=tmp_col_names, how='inner')
-        return x['global_id']
+    if input_graph.renumbered:
+        if isinstance(start, dask_cudf.DataFrame):
+            tmp_col_names = start.columns
 
-    start = [
-        client.submit(
-            df_merge,
-            wf[1],
-            tmp_ddf,
-            col_names,
-            workers=[wf[0]]
-        )
-        for idx, wf in enumerate(renumber_data.worker_to_parts.items())
-    ]
+        elif isinstance(start, dask_cudf.Series):
+            tmp_col_names = None
 
-    def count_src(df):
-        return len(df)
+        start = input_graph.lookup_internal_vertex_id(
+            start, tmp_col_names)
 
-    count_src_results = client.map(count_src, start)
-    cg = client.gather(count_src_results)
-    if sum(cg) < original_start_len:
-        raise ValueError('At least one start vertex provided was invalid')
+    data_start = get_distributed_data(start)
 
     cupy_result = [client.submit(
               _call_plc_mg_bfs,
               Comms.get_session_id(),
               wf[1],
-              start[idx],
+              wf_start[1],
               depth_limit,
               src_col_name,
               dst_col_name,
@@ -213,7 +204,10 @@ def bfs(input_graph,
               True,
               return_distances,
               workers=[wf[0]])
-              for idx, wf in enumerate(data.worker_to_parts.items())]
+              for idx, (wf, wf_start) in enumerate(
+                  zip(data.worker_to_parts.items(),
+                      data_start.worker_to_parts.items()))]
+
     wait(cupy_result)
 
     cudf_result = [client.submit(convert_to_cudf,

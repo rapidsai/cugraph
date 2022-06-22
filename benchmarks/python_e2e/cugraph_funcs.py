@@ -1,4 +1,4 @@
-# Copyright (c) 2021, NVIDIA CORPORATION.
+# Copyright (c) 2021-2022, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -15,6 +15,7 @@ import numpy as np
 
 import cugraph
 from cugraph.generators import rmat
+import cudf
 
 
 def generate_edgelist(scale,
@@ -96,9 +97,9 @@ def construct_graph(dataframe, symmetric=False):
     symmetrized and have self loops removed.
     """
     if symmetric:
-        G = cugraph.Graph()
+        G = cugraph.Graph(directed=False)
     else:
-        G = cugraph.DiGraph()
+        G = cugraph.Graph(directed=True)
 
     if len(dataframe.columns) > 2:
         G.from_cudf_edgelist(
@@ -137,6 +138,22 @@ def pagerank(G):
 def katz(G, alpha=None):
     return cugraph.katz_centrality(G, alpha)
 
+def hits(G):
+    return cugraph.hits(G)
+
+def uniform_neighbor_sample(G, start_list=None, fanout_vals=None):
+    # convert list to cudf.Series
+    start_list = cudf.Series(start_list, dtype="int32")  
+    return cugraph.uniform_neighbor_sample(
+        G, start_list=start_list, fanout_vals=fanout_vals)
+
+def triangle_count(G):
+    # FIXME: Update this calls once triangle_count is promoted
+    return cugraph.experimental.triangle_count(G)
+
+def eigenvector_centrality(G):
+    # FIXME: Update this calls once triangle_count is promoted
+    return cugraph.eigenvector_centrality(G)
 
 ################################################################################
 # Session-wide setup and teardown

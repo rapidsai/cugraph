@@ -141,7 +141,8 @@ def eigenvector_centrality(
     """
     client = default_client()
     # Calling renumbering results in data that is sorted by degree
-    input_graph.compute_renumber_edge_list(transposed=False)
+    input_graph.compute_renumber_edge_list(
+        transposed=False, legacy_renum_only=True)
 
     graph_properties = GraphProperties(
         is_multigraph=False)
