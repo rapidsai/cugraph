@@ -26,6 +26,7 @@
 #include <thrust/copy.h>
 #include <thrust/count.h>
 #include <thrust/distance.h>
+#include <thrust/execution_policy.h>
 #include <thrust/fill.h>
 #include <thrust/iterator/iterator_traits.h>
 #include <thrust/iterator/transform_iterator.h>
@@ -37,7 +38,6 @@
 #include <thrust/sort.h>
 #include <thrust/tabulate.h>
 #include <thrust/tuple.h>
-#include <thrust/execution_policy.h>
 
 #include <algorithm>
 #include <numeric>

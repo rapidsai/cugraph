@@ -19,8 +19,8 @@
 #include "../traversal_common.cuh"
 #include <rmm/device_vector.hpp>
 
-#include <thrust/scan.h>
 #include <thrust/execution_policy.h>
+#include <thrust/scan.h>
 
 namespace cugraph {
 

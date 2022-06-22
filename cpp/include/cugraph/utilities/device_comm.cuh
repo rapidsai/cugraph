@@ -25,9 +25,9 @@
 #include <thrust/device_ptr.h>
 #include <thrust/iterator/detail/any_assign.h>
 #include <thrust/iterator/detail/normal_iterator.h>
+#include <thrust/iterator/iterator_traits.h>
 #include <thrust/memory.h>
 #include <thrust/tuple.h>
-#include <thrust/iterator/iterator_traits.h>
 
 #include <type_traits>
 

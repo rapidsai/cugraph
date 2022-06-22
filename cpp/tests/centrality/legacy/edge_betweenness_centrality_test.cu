@@ -27,9 +27,9 @@
 #include <thrust/copy.h>
 #include <thrust/device_ptr.h>
 #include <thrust/device_vector.h>
+#include <thrust/execution_policy.h>
 #include <thrust/host_vector.h>
 #include <thrust/sequence.h>
-#include <thrust/execution_policy.h>
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/legacy/graph.hpp>

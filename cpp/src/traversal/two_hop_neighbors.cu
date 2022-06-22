@@ -31,8 +31,8 @@
 #include <thrust/scan.h>
 #include <thrust/sort.h>
 #include <thrust/transform.h>
-#include <thrust/unique.h>
 #include <thrust/tuple.h>
+#include <thrust/unique.h>
 
 namespace cugraph {
 

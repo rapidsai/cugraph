@@ -30,11 +30,11 @@
 #include <thrust/copy.h>
 #include <thrust/count.h>
 #include <thrust/distance.h>
+#include <thrust/execution_policy.h>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/sort.h>
 #include <thrust/tuple.h>
 #include <thrust/unique.h>
-#include <thrust/execution_policy.h>
 
 #include <cstdint>
 #include <numeric>

@@ -33,6 +33,7 @@
 
 #include <thrust/copy.h>
 #include <thrust/distance.h>
+#include <thrust/execution_policy.h>
 #include <thrust/fill.h>
 #include <thrust/for_each.h>
 #include <thrust/functional.h>
@@ -45,7 +46,6 @@
 #include <thrust/sort.h>
 #include <thrust/transform_reduce.h>
 #include <thrust/tuple.h>
-#include <thrust/execution_policy.h>
 
 namespace cugraph {
 namespace legacy {

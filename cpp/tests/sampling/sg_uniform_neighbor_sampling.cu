@@ -18,9 +18,9 @@
 
 #include <gtest/gtest.h>
 
+#include <thrust/distance.h>
 #include <thrust/sort.h>
 #include <thrust/unique.h>
-#include <thrust/distance.h>
 
 struct Prims_Usecase {
   bool check_correctness{true};

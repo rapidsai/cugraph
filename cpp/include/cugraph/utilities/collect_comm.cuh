@@ -30,6 +30,7 @@
 #include <thrust/binary_search.h>
 #include <thrust/copy.h>
 #include <thrust/distance.h>
+#include <thrust/execution_policy.h>
 #include <thrust/find.h>
 #include <thrust/functional.h>
 #include <thrust/iterator/iterator_traits.h>
@@ -38,7 +39,6 @@
 #include <thrust/transform.h>
 #include <thrust/tuple.h>
 #include <thrust/unique.h>
-#include <thrust/execution_policy.h>
 
 #include <iterator>
 #include <memory>

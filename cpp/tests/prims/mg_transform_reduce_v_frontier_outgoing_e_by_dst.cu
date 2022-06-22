@@ -43,12 +43,12 @@
 #include <thrust/count.h>
 #include <thrust/equal.h>
 #include <thrust/iterator/counting_iterator.h>
-#include <thrust/tuple.h>
 #include <thrust/optional.h>
-#include <thrust/transform.h>
 #include <thrust/sequence.h>
-#include <thrust/tabulate.h>
 #include <thrust/sort.h>
+#include <thrust/tabulate.h>
+#include <thrust/transform.h>
+#include <thrust/tuple.h>
 
 #include <gtest/gtest.h>
 

@@ -26,6 +26,7 @@
 
 #include <thrust/copy.h>
 #include <thrust/distance.h>
+#include <thrust/execution_policy.h>
 #include <thrust/fill.h>
 #include <thrust/for_each.h>
 #include <thrust/functional.h>
@@ -36,7 +37,6 @@
 #include <thrust/transform.h>
 #include <thrust/tuple.h>
 #include <thrust/unique.h>
-#include <thrust/execution_policy.h>
 
 namespace cugraph {
 namespace test {
