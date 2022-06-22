@@ -182,7 +182,7 @@ service GaasService {
 spec = thriftpy2.load_fp(io.StringIO(gaas_thrift_spec),
                          module_name="gaas_thrift")
 
-def create_server(handler, host, port):
+def create_server(handler, host, port, client_timeout=90000):
     """
     Return a server object configured to listen on host/port and use the handler
     object to handle calls from clients. The handler object must have an
@@ -194,7 +194,7 @@ def create_server(handler, host, port):
     this module. However, this function is likely only called from the
     gaas_server package which depends on the code in this package.
     """
-    return make_server(spec.GaasService, handler, host, port)
+    return make_server(spec.GaasService, handler, host, port, client_timeout=client_timeout)
 
 
 def create_client(host, port, call_timeout=90000):

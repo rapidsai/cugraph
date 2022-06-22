@@ -27,6 +27,7 @@ from gaas_client import defaults
 from gaas_client.exceptions import GaasError
 from gaas_client.types import BatchedEgoGraphsResult, Node2vecResult
 
+from datetime import datetime
 
 class GaasHandler:
     """
@@ -125,8 +126,12 @@ class GaasHandler:
         """
         Remove the graph identified by graph_id from the server.
         """
-        if self.__graph_objs.pop(graph_id, None) is None:
+        dG = self.__graph_objs.pop(graph_id, None)
+        if dG is None:
             raise GaasError(f"invalid graph_id {graph_id}")
+        
+        del dG
+        print(f'deleted graph with id {graph_id}')
 
     def get_graph_ids(self):
         """
@@ -261,24 +266,39 @@ class GaasHandler:
                                 with_replacement,
                                 graph_id,
                                 ):
+        start_time = datetime.now()
+        print('uniform_neighbor_sample called')
+        
         G = self._get_graph(graph_id)
         is_property_graph = False
 
         if isinstance(G, PropertyGraph):
             is_property_graph = True
             pG = G
+
+            start_time_subgraph = datetime.now()
+            print('calling extract subgraph on property graph')
             G = G.extract_subgraph(
                 create_using=cugraph.Graph,
                 default_edge_weight=1.0,
                 allow_multi_edges=True
             )
+            t = (datetime.now() - start_time_subgraph).seconds
+            print(f'extract subgraph completed in {t} seconds')
 
+        start_time_cugraph_sample = datetime.now()
+        print('calling cugraph uniform neighbor sample')
         sampling_results = sampling.uniform_neighbor_sample(
                 G, 
                 start_list, 
                 fanout_vals,
                 with_replacement=with_replacement
             )
+        t = (datetime.now() - start_time_cugraph_sample).seconds
+        print(f'cugraph sampling completed in {t} seconds')
+
+        start_time_new_graph = datetime.now()
+        print('creating new graph')
 
         nodes_of_interest = cudf.Series(sampling_results.destinations)
         nodes_of_interest = nodes_of_interest.append(cudf.Series(start_list))
@@ -304,10 +324,19 @@ class GaasHandler:
             new_G = PropertyGraph()
             new_G.add_edge_data(elist, vertex_col_names=[source_colname, dest_colname])
             new_G.add_vertex_data(vertex_properties, vertex_col_name='original_vertex_id', property_columns=prop_names)
+
+            del G
+            del number_map
             
         else:
             new_G = cugraph.Graph()
             new_G.from_cudf_edgelist(sampling_results, source='sources', destination='destinations', renumber=True)
+        
+        t = (datetime.now() - start_time_new_graph).seconds
+        print(f'new graph created in {t} seconds')
+
+        t = (datetime.now() - start_time).seconds
+        print(f'total time for server sampling: {t} seconds')
         
         return self.__add_graph(new_G)
 
@@ -390,6 +419,8 @@ class GaasHandler:
             pG._edge_prop_dataframe,
             property_keys
         )
+
+        print(f'asked for edge indices: {index_or_indices}')
 
         return self.__get_dataframe_rows_as_numpy_bytes(df,
                                                         index_or_indices,
@@ -535,14 +566,14 @@ class GaasHandler:
         self.__next_graph_id += 1
         return gid
 
-    def __remove_internal_columns(self, input_cols):
+    def __remove_internal_columns(self, input_cols, additional_columns_to_remove=[]):
         internal_columns=[PropertyGraph.vertex_col_name,
                     PropertyGraph.src_col_name,
                     PropertyGraph.dst_col_name,
                     PropertyGraph.type_col_name,
                     PropertyGraph.edge_id_col_name,
                     PropertyGraph.vertex_id_col_name,
-                    PropertyGraph.weight_col_name]
+                    PropertyGraph.weight_col_name] + additional_columns_to_remove
 
         # Create a list of user-visible columns by removing the internals while
         # preserving order
@@ -556,11 +587,14 @@ class GaasHandler:
     def __get_dataframe_from_user_props(self, dataframe, columns=None):
         """
         """
-
+        remove_columns = []
+        if columns is not None:
+            remove_columns = [c[1:] for c in columns if c[0] == '~']
+            columns = [c for c in columns if c[0] != '~']
 
         if columns is None or len(columns) == 0:
             all_user_columns = list(dataframe.columns)
-            all_user_columns = self.__remove_internal_columns(all_user_columns)
+            all_user_columns = self.__remove_internal_columns(all_user_columns, additional_columns_to_remove=remove_columns)
         else:
             all_user_columns = columns
         
