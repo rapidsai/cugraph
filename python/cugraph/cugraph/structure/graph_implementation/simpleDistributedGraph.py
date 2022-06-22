@@ -36,7 +36,7 @@ class simpleDistributedGraphImpl:
         def __init__(self, properties):
             self.multi_edge = getattr(properties, 'multi_edge', False)
             self.directed = properties.directed
-            self.renumbered = False
+            self.renumber = False
             self.store_transposed = False
             self.self_loop = None
             self.isolated_vertices = None
@@ -125,7 +125,7 @@ class simpleDistributedGraphImpl:
 
         # FIXME: Edge Attribute not handled
         # FIXME: the parameter below is no longer used for unrenumbering
-        self.properties.renumbered = renumber
+        self.properties.renumber = renumber
         self.source_columns = source
         self.destination_columns = destination
 
@@ -135,11 +135,12 @@ class simpleDistributedGraphImpl:
         # by checking the column name. Only the renumbered dataframes will have
         # their column names renamed to 'renumbered_src' and 'renumbered_dst'
         renumbered_vertex_col_names = ["renumbered_src", "renumbered_dst"]
-        if self.edgelist.edgelist_df is not None and not (
-            set(renumbered_vertex_col_names).issubset(
-                set(self.edgelist.edgelist_df.columns))):
-            return False
-        return True
+        if self.edgelist is not None:
+            if self.edgelist.edgelist_df is not None and (
+                set(renumbered_vertex_col_names).issubset(
+                    set(self.edgelist.edgelist_df.columns))):
+                return True
+        return False
 
     def view_edge_list(self):
         """
@@ -161,13 +162,13 @@ class simpleDistributedGraphImpl:
 
         Returns
         -------
-        df : cudf.DataFrame
-            This cudf.DataFrame wraps source, destination and weight
-            df[src] : cudf.Series
+        df : dask_cudf.DataFrame
+            This dask_cudf.DataFrame wraps source, destination and weight
+            df[src] : dask_cudf.Series
                 contains the source index for each edge
-            df[dst] : cudf.Series
+            df[dst] : dask_cudf.Series
                 contains the destination index for each edge
-            df[weight] : cusd.Series
+            df[weight] : dask_cudf.Series
                 Column is only present for weighted Graph,
                 then containing the weight value for each edge
         """
@@ -224,32 +225,80 @@ class simpleDistributedGraphImpl:
 
         Parameters
         ----------
-        vertex_subset : cudf.Series or iterable container, opt. (default=None)
+        vertex_subset : cudf or dask_cudf object, iterable container,
+            opt. (default=None)
             A container of vertices for displaying corresponding in-degree.
             If not set, degrees are computed for the entire set of vertices.
 
         Returns
         -------
-        df : cudf.DataFrame
-            GPU DataFrame of size N (the default) or the size of the given
-            vertices (vertex_subset) containing the in_degree. The ordering is
-            relative to the adjacency list, or that given by the specified
-            vertex_subset.
-            df[vertex] : cudf.Series
+        df : dask_cudf.DataFrame
+            Distributed GPU DataFrame of size N (the default) or the size of
+            the given vertices (vertex_subset) containing the in_degree.
+            The ordering is relative to the adjacency list, or that given by
+            the specified vertex_subset.
+            df[vertex] : dask_cudf.Series
                 The vertex IDs (will be identical to vertex_subset if
                 specified).
-            df[degree] : cudf.Series
+            df[degree] : dask_cudf.Series
                 The computed in-degree of the corresponding vertex.
         Examples
         --------
-        >>> M = cudf.read_csv(datasets_path / 'karate.csv', delimiter=' ',
+        >>> M = dask_cudf.read_csv(datasets_path / 'karate.csv', delimiter=' ',
         ...                   dtype=['int32', 'int32', 'float32'], header=None)
         >>> G = cugraph.Graph()
-        >>> G.from_cudf_edgelist(M, '0', '1')
+        >>> G.from_dask_cudf_edgelist(M, '0', '1')
         >>> df = G.in_degree([0,9,12])
 
         """
-        return self._degree(vertex_subset, direction=Direction.IN)
+        src_col_name = self.source_columns
+        dst_col_name = self.destination_columns
+
+        # select only the vertex columns
+        if not isinstance(src_col_name, list) and \
+           not isinstance(dst_col_name, list):
+            vertex_col_names = [src_col_name] + [dst_col_name]
+
+        df = self.input_df[vertex_col_names]
+        df = df.drop(columns=src_col_name)
+
+        nodes = self.nodes()
+        if isinstance(nodes, dask_cudf.Series):
+            nodes = nodes.to_frame()
+
+        if not isinstance(dst_col_name, list):
+            df = df.rename(columns={dst_col_name: "vertex"})
+            dst_col_name = "vertex"
+
+        vertex_col_names = df.columns
+        nodes.columns = vertex_col_names
+
+        df["degree"] = 1
+        in_degree = df.groupby(dst_col_name).degree.count().reset_index()
+
+        # Add vertices with zero in_degree
+        in_degree = nodes.merge(in_degree, how='outer').fillna(0)
+
+        # Convert vertex_subset to dataframe.
+        if vertex_subset is not None:
+            if not isinstance(vertex_subset, (
+               dask_cudf.DataFrame, cudf.DataFrame)):
+                if isinstance(vertex_subset, dask_cudf.Series):
+                    vertex_subset = vertex_subset.to_frame()
+                else:
+                    df = cudf.DataFrame()
+                    if isinstance(vertex_subset, (cudf.Series, list)):
+                        df["vertex"] = vertex_subset
+                        vertex_subset = df
+            if isinstance(vertex_subset, (
+               dask_cudf.DataFrame, cudf.DataFrame)):
+                vertex_subset.columns = vertex_col_names
+                in_degree = in_degree.merge(vertex_subset, how='inner')
+            else:
+                raise TypeError(f"Expected type are: cudf, dask_cudf objects, "
+                                f"iterable container, got "
+                                f"{type(vertex_subset)}")
+        return in_degree
 
     def out_degree(self, vertex_subset=None):
         """
@@ -261,32 +310,82 @@ class simpleDistributedGraphImpl:
 
         Parameters
         ----------
-        vertex_subset : cudf.Series or iterable container, opt. (default=None)
+        vertex_subset : cudf or dask_cudf object, iterable container,
+            opt. (default=None)
             A container of vertices for displaying corresponding out-degree.
             If not set, degrees are computed for the entire set of vertices.
 
         Returns
         -------
-        df : cudf.DataFrame
-            GPU DataFrame of size N (the default) or the size of the given
-            vertices (vertex_subset) containing the out_degree. The ordering is
-            relative to the adjacency list, or that given by the specified
-            vertex_subset.
-            df[vertex] : cudf.Series
+        df : dask_cudf.DataFrame
+            Distributed GPU DataFrame of size N (the default) or the size of
+            the given vertices (vertex_subset) containing the out_degree.
+            The ordering is relative to the adjacency list, or that given by
+            the specified vertex_subset.
+            df[vertex] : dask_cudf.Series
                 The vertex IDs (will be identical to vertex_subset if
                 specified).
-            df[degree] : cudf.Series
+            df[degree] : dask_cudf.Series
                 The computed out-degree of the corresponding vertex.
         Examples
         --------
-        >>> M = cudf.read_csv(datasets_path / 'karate.csv', delimiter=' ',
+        >>> M = dask_cudf.read_csv(datasets_path / 'karate.csv', delimiter=' ',
         ...                   dtype=['int32', 'int32', 'float32'], header=None)
         >>> G = cugraph.Graph()
-        >>> G.from_cudf_edgelist(M, '0', '1')
+        >>> G.from_dask_cudf_edgelist(M, '0', '1')
         >>> df = G.out_degree([0,9,12])
 
         """
-        return self._degree(vertex_subset, direction=Direction.OUT)
+        src_col_name = self.source_columns
+        dst_col_name = self.destination_columns
+
+        # select only the vertex columns
+        if not isinstance(src_col_name, list) and \
+           not isinstance(dst_col_name, list):
+            vertex_col_names = [src_col_name] + [dst_col_name]
+
+        df = self.input_df[vertex_col_names]
+        df = df.drop(columns=dst_col_name)
+
+        nodes = self.nodes()
+        if isinstance(nodes, dask_cudf.Series):
+            nodes = nodes.to_frame()
+
+        if not isinstance(src_col_name, list):
+            df = df.rename(columns={src_col_name: "vertex"})
+            src_col_name = "vertex"
+
+        vertex_col_names = df.columns
+
+        nodes.columns = vertex_col_names
+
+        df["degree"] = 1
+        out_degree = df.groupby(src_col_name).degree.count().reset_index()
+
+        # Add vertices with zero out_degree
+        out_degree = nodes.merge(out_degree, how='outer').fillna(0)
+
+        # Convert vertex_subset to dataframe.
+        if vertex_subset is not None:
+            if not isinstance(vertex_subset, (
+               dask_cudf.DataFrame, cudf.DataFrame)):
+                if isinstance(vertex_subset, dask_cudf.Series):
+                    vertex_subset = vertex_subset.to_frame()
+                else:
+                    df = cudf.DataFrame()
+                    if isinstance(vertex_subset, (cudf.Series, list)):
+                        df["vertex"] = vertex_subset
+                        vertex_subset = df
+            if isinstance(vertex_subset, (
+               dask_cudf.DataFrame, cudf.DataFrame)):
+                vertex_subset.columns = vertex_col_names
+                out_degree = out_degree.merge(vertex_subset, how='inner')
+            else:
+                raise TypeError(f"Expected type are: cudf, dask_cudf objects, "
+                                f"iterable container, got "
+                                f"{type(vertex_subset)}")
+
+        return out_degree
 
     def degree(self, vertex_subset=None):
         """
@@ -295,34 +394,42 @@ class simpleDistributedGraphImpl:
         degrees for the entire set of vertices. If vertex_subset is provided,
         then this method optionally filters out all but those listed in
         vertex_subset.
+
         Parameters
         ----------
-        vertex_subset : cudf.Series or iterable container, optional
+        vertex_subset : cudf or dask_cudf object, iterable container,
+            opt. (default=None)
             a container of vertices for displaying corresponding degree. If not
             set, degrees are computed for the entire set of vertices.
         Returns
         -------
-        df : cudf.DataFrame
-            GPU DataFrame of size N (the default) or the size of the given
-            vertices (vertex_subset) containing the degree. The ordering is
-            relative to the adjacency list, or that given by the specified
-            vertex_subset.
-            df['vertex'] : cudf.Series
+        df : dask_cudf.DataFrame
+            Distributed GPU DataFrame of size N (the default) or the size of
+            the given vertices (vertex_subset) containing the degree.
+            The ordering is relative to the adjacency list, or that given by
+            the specified vertex_subset.
+            df['vertex'] : dask_cudf.Series
                 The vertex IDs (will be identical to vertex_subset if
                 specified).
-            df['degree'] : cudf.Series
+            df['degree'] : dask_cudf.Series
                 The computed degree of the corresponding vertex.
         Examples
         --------
-        >>> M = cudf.read_csv(datasets_path / 'karate.csv', delimiter=' ',
+        >>> M = dask_cudf.read_csv(datasets_path / 'karate.csv', delimiter=' ',
         ...                   dtype=['int32', 'int32', 'float32'], header=None)
         >>> G = cugraph.Graph()
-        >>> G.from_cudf_edgelist(M, '0', '1')
+        >>> G.from_dask_cudf_edgelist(M, '0', '1')
         >>> all_df = G.degree()
         >>> subset_df = G.degree([0,9,12])
 
         """
-        raise NotImplementedError("Not supported for distributed graph")
+
+        vertex_in_degree = self.in_degree(vertex_subset)
+        vertex_out_degree = self.out_degree(vertex_subset)
+        vertex_degree = dask_cudf.concat([vertex_in_degree, vertex_out_degree])
+        vertex_degree = vertex_degree.groupby(['vertex'], as_index=False).sum()
+
+        return vertex_degree
 
     # FIXME:  vertex_subset could be a DataFrame for multi-column vertices
     def degrees(self, vertex_subset=None):
@@ -340,25 +447,25 @@ class simpleDistributedGraphImpl:
 
         Returns
         -------
-        df : cudf.DataFrame
-            GPU DataFrame of size N (the default) or the size of the given
-            vertices (vertex_subset) containing the degrees. The ordering is
-            relative to the adjacency list, or that given by the specified
-            vertex_subset.
-            df['vertex'] : cudf.Series
+        df : dask_cudf.DataFrame
+            Distributed GPU DataFrame of size N (the default) or the size of
+            the given vertices (vertex_subset) containing the degrees.
+            The ordering is relative to the adjacency list, or that given by
+            the specified vertex_subset.
+            df['vertex'] : dask_cudf.Series
                 The vertex IDs (will be identical to vertex_subset if
                 specified).
-            df['in_degree'] : cudf.Series
+            df['in_degree'] : dask_cudf.Series
                 The in-degree of the vertex.
-            df['out_degree'] : cudf.Series
+            df['out_degree'] : dask_cudf.Series
                 The out-degree of the vertex.
 
         Examples
         --------
-        >>> M = cudf.read_csv(datasets_path / 'karate.csv', delimiter=' ',
+        >>> M = dask_cudf.read_csv(datasets_path / 'karate.csv', delimiter=' ',
         ...                   dtype=['int32', 'int32', 'float32'], header=None)
         >>> G = cugraph.Graph()
-        >>> G.from_cudf_edgelist(M, '0', '1')
+        >>> G.from_dask_cudf_edgelist(M, '0', '1')
         >>> df = G.degrees([0,9,12])
 
         """
@@ -371,7 +478,7 @@ class simpleDistributedGraphImpl:
         df["vertex"] = vertex_col
         df["degree"] = degree_col
 
-        if self.properties.renumbered is True:
+        if self.renumbered is True:
             df = self.renumber_map.unrenumber(df, "vertex")
 
         if vertex_subset is not None:
@@ -393,10 +500,10 @@ class simpleDistributedGraphImpl:
 
         Examples
         --------
-        >>> M = cudf.read_csv(datasets_path / 'karate.csv', delimiter=' ',
+        >>> M = dask_cudf.read_csv(datasets_path / 'karate.csv', delimiter=' ',
         ...                   dtype=['int32', 'int32', 'float32'], header=None)
         >>> G = cugraph.Graph()
-        >>> G.from_cudf_edgelist(M, '0', '1')
+        >>> G.from_dask_cudf_edgelist(M, '0', '1')
         >>> DiG = G.to_directed()
 
         """
@@ -415,10 +522,10 @@ class simpleDistributedGraphImpl:
 
         Examples
         --------
-        >>> M = cudf.read_csv(datasets_path / 'karate.csv', delimiter=' ',
+        >>> M = dask_cudf.read_csv(datasets_path / 'karate.csv', delimiter=' ',
         ...         dtype=['int32', 'int32', 'float32'], header=None)
         >>> DiG = cugraph.Graph(directed=True)
-        >>> DiG.from_cudf_edgelist(M, '0', '1')
+        >>> DiG.dask_from_cudf_edgelist(M, '0', '1')
         >>> G = DiG.to_undirected()
         """
 
@@ -427,20 +534,51 @@ class simpleDistributedGraphImpl:
 
     def has_node(self, n):
         """
-        Returns True if the graph contains the node n.
+
+        Returns True if the graph contains the node(s) n.
+        Examples
+        --------
+        >>> M = dask_cudf.read_csv(datasets_path / 'karate.csv', delimiter=' ',
+        ...                   dtype=['int32', 'int32', 'float32'], header=None)
+        >>> G = cugraph.Graph(directed=True)
+        >>> G.from_dask_cudf_edgelist(M, '0', '1')
+        >>> valid_source = cudf.Series([5])
+        >>> invalid_source = cudf.Series([55])
+        >>> is_valid_vertex = G.has_node(valid_source)
+        >>> assert is_valid_vertex is True
+        >>> is_valid_vertex = G.has_node(invalid_source)
+        >>> assert is_valid_vertex is False
         """
-        if self.edgelist is None:
-            raise RuntimeError("Graph has no Edgelist.")
-        # FIXME: Check renumber map
-        ddf = self.edgelist.edgelist_df[["src", "dst"]]
-        return (ddf == n).any().any().compute()
+
+        # Convert input to dataframes so that it can be compared through merge
+        if not isinstance(n, (dask_cudf.DataFrame, cudf.DataFrame)):
+            if isinstance(n, dask_cudf.Series):
+                n = n.to_frame()
+            else:
+                df = cudf.DataFrame()
+                if not isinstance(n, (cudf.DataFrame, cudf.Series)):
+                    n = [n]
+                if isinstance(n, (cudf.Series, list)):
+                    df["vertex"] = n
+                    n = df
+
+        if isinstance(n, (dask_cudf.DataFrame, cudf.DataFrame)):
+            nodes = self.nodes()
+            if not isinstance(self.nodes(), (
+               dask_cudf.DataFrame, cudf.DataFrame)):
+                nodes = nodes.to_frame()
+
+            nodes.columns = n.columns
+
+            valid_vertex = nodes.merge(n, how="inner")
+            return len(valid_vertex) == len(n)
 
     def has_edge(self, u, v):
         """
         Returns True if the graph contains the edge (u,v).
         """
         # TODO: Verify Correctness
-        if self.properties.renumbered:
+        if self.renumbered:
             src_col_name = self.renumber_map.renumbered_src_col_name
 
             tmp = cudf.DataFrame({src_col_name: [u, v]})
@@ -465,10 +603,31 @@ class simpleDistributedGraphImpl:
 
     def nodes(self):
         """
-        Returns all the nodes in the graph as a cudf.Series
+        Returns all nodes in the graph as a dask_cudf.Series.
+        If multi columns vertices, return a dask_cudf.DataFrame.
+
+        If the edgelist was renumbered, this call returns the internal
+        nodes in the graph. To get the original nodes, convert the result to
+        a dataframe and do 'renumber_map.unrenumber' or 'G.unrenumber'
         """
-        # FIXME: Return renumber map nodes
-        raise NotImplementedError("Not supported for distributed graph")
+
+        if self.renumbered:
+            # FIXME: This relies on current implementation
+            #        of NumberMap, should not really expose
+            #        this, perhaps add a method to NumberMap
+
+            df = self.renumber_map.implementation.ddf.drop(columns="global_id")
+
+            if len(df.columns) > 1:
+                return df
+            else:
+                return df[df.columns[0]]
+
+        else:
+            df = self.input_df
+            return dask_cudf.concat(
+                [df[self.source_columns],
+                    df[self.destination_columns]]).drop_duplicates()
 
     def neighbors(self, n):
         if self.edgelist is None:
@@ -507,7 +666,7 @@ class simpleDistributedGraphImpl:
             This parameter is added for new algos following the
             C/Pylibcugraph path
         """
-        if not self.properties.renumbered:
+        if not self.properties.renumber:
             self.edgelist = self.EdgeList(self.input_df)
             self.renumber_map = None
         else:
@@ -534,7 +693,7 @@ class simpleDistributedGraphImpl:
             self.properties.store_transposed = transposed
 
     def vertex_column_size(self):
-        if self.properties.renumbered:
+        if self.renumbered:
             return self.renumber_map.vertex_column_size()
         else:
             return 1

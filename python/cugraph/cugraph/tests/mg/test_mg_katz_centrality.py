@@ -56,10 +56,8 @@ def test_dask_katz_centrality(dask_client, directed):
     dg = cugraph.Graph(directed=True)
     dg.from_dask_cudf_edgelist(ddf, "src", "dst")
 
-    largest_out_degree = dg.out_degree().compute().\
-        nlargest(n=1, columns="degree")
-    largest_out_degree = largest_out_degree["degree"].iloc[0]
-    katz_alpha = 1 / (largest_out_degree + 1)
+    degree_max = dg.degree()['degree'].max().compute()
+    katz_alpha = 1 / (degree_max)
 
     mg_res = dcg.katz_centrality(dg, alpha=katz_alpha, tol=1e-6)
     mg_res = mg_res.compute()
@@ -117,12 +115,7 @@ def test_dask_katz_centrality_nstart(dask_client, directed):
     dg = cugraph.Graph(directed=True)
     dg.from_dask_cudf_edgelist(ddf, "src", "dst")
 
-    largest_out_degree = dg.out_degree().compute().\
-        nlargest(n=1, columns="degree")
-    largest_out_degree = largest_out_degree["degree"].iloc[0]
-    katz_alpha = 1 / (largest_out_degree + 1)
-
-    mg_res = dcg.katz_centrality(dg, alpha=katz_alpha, max_iter=50, tol=1e-6)
+    mg_res = dcg.katz_centrality(dg, max_iter=50, tol=1e-6)
     mg_res = mg_res.compute()
 
     estimate = mg_res.copy()
@@ -130,7 +123,7 @@ def test_dask_katz_centrality_nstart(dask_client, directed):
                                         "katz_centrality": "values"})
     estimate["values"] = 0.5
 
-    mg_estimate_res = dcg.katz_centrality(dg, alpha=katz_alpha,
+    mg_estimate_res = dcg.katz_centrality(dg,
                                           nstart=estimate,
                                           max_iter=50, tol=1e-6)
     mg_estimate_res = mg_estimate_res.compute()

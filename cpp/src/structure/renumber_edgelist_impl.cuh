@@ -747,8 +747,8 @@ renumber_edgelist(
                      static_cast<double>(partition.local_edge_partition_major_range_size(i)) /
                      load_factor),
                    static_cast<size_t>(partition.local_edge_partition_major_range_size(i)) + 1),
-          invalid_vertex_id<vertex_t>::value,
-          invalid_vertex_id<vertex_t>::value,
+          cuco::sentinel::empty_key<vertex_t>{invalid_vertex_id<vertex_t>::value},
+          cuco::sentinel::empty_value<vertex_t>{0},
           stream_adapter,
           handle.get_stream()};
       auto pair_first = thrust::make_zip_iterator(thrust::make_tuple(
@@ -798,8 +798,8 @@ renumber_edgelist(
         renumber_map{// cuco::static_map requires at least one empty slot
                      std::max(static_cast<size_t>(static_cast<double>(segment_size) / load_factor),
                               static_cast<size_t>(segment_size) + 1),
-                     invalid_vertex_id<vertex_t>::value,
-                     invalid_vertex_id<vertex_t>::value,
+                     cuco::sentinel::empty_key<vertex_t>{invalid_vertex_id<vertex_t>::value},
+                     cuco::sentinel::empty_value<vertex_t>{0},
                      stream_adapter,
                      handle.get_stream()};
       auto pair_first = thrust::make_zip_iterator(thrust::make_tuple(
@@ -844,8 +844,8 @@ renumber_edgelist(
                    std::max(static_cast<size_t>(
                               static_cast<double>(renumber_map_minor_labels.size()) / load_factor),
                             renumber_map_minor_labels.size() + 1),
-                   invalid_vertex_id<vertex_t>::value,
-                   invalid_vertex_id<vertex_t>::value,
+                   cuco::sentinel::empty_key<vertex_t>{invalid_vertex_id<vertex_t>::value},
+                   cuco::sentinel::empty_value<vertex_t>{0},
                    stream_adapter,
                    handle.get_stream()};
     auto pair_first = thrust::make_zip_iterator(thrust::make_tuple(
@@ -917,8 +917,8 @@ renumber_edgelist(raft::handle_t const& handle,
       // cuco::static_map requires at least one empty slot
       std::max(static_cast<size_t>(static_cast<double>(renumber_map_labels.size()) / load_factor),
                renumber_map_labels.size() + 1),
-      invalid_vertex_id<vertex_t>::value,
-      invalid_vertex_id<vertex_t>::value,
+      cuco::sentinel::empty_key<vertex_t>{invalid_vertex_id<vertex_t>::value},
+      cuco::sentinel::empty_value<vertex_t>{0},
       stream_adapter,
       handle.get_stream()};
   auto pair_first = thrust::make_zip_iterator(
