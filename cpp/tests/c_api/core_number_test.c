@@ -47,14 +47,16 @@ int generic_core_number_test(vertex_t* h_src,
   TEST_ASSERT(test_ret_value, p_handle != NULL, "resource handle creation failed.");
 
   ret_code = create_test_graph(
-    p_handle, h_src, h_dst, h_wgt, num_edges, store_transposed, FALSE, FALSE, &p_graph, &ret_error);
+    p_handle, h_src, h_dst, h_wgt, num_edges, store_transposed, FALSE, TRUE, &p_graph, &ret_error);
 
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "create_test_graph failed.");
   TEST_ALWAYS_ASSERT(ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
 
   ret_code =
     cugraph_core_number(p_handle, p_graph, 0, FALSE, &p_result, &ret_error);
+  // printf("called core_number \n");
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "cugraph_core_number failed.");
+  // TEST_ALWAYS_ASSERT(ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
 
   cugraph_type_erased_device_array_view_t* vertices;
   cugraph_type_erased_device_array_view_t* core_numbers;
@@ -73,7 +75,11 @@ int generic_core_number_test(vertex_t* h_src,
     p_handle, (byte_t*)h_core_numbers, core_numbers, &ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "copy_to_host failed.");
 
+  printf("got to right before checking vals \n");
+
   for (int i = 0; (i < num_vertices) && (test_ret_value == 0); ++i) {
+    printf("h_result %f \n", h_result[h_vertices[i]]);
+    printf("h_core_numbers %f \n", h_core_numbers[i]);
     TEST_ASSERT(test_ret_value,
                 nearlyEqual(h_result[h_vertices[i]], h_core_numbers[i], 0.001),
                 "core number results don't match");
@@ -89,7 +95,7 @@ int generic_core_number_test(vertex_t* h_src,
 
 int test_core_number()
 {
-  size_t num_edges    = 8;
+  size_t num_edges    = 16;
   size_t num_vertices = 6;
 
   vertex_t h_src[] = {0, 1, 1, 2, 2, 2, 3, 4, 1, 3, 4, 0, 1, 3, 5, 5};

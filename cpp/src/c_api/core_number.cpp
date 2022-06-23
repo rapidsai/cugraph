@@ -74,19 +74,24 @@ struct core_number_functor : public cugraph::c_api::abstract_functor {
     if constexpr (!cugraph::is_candidate<vertex_t, edge_t, weight_t>::value) {
       unsupported();
     } else {
-      if constexpr (!store_transposed) {
+      if constexpr (store_transposed) {
         error_code_ = cugraph::c_api::
           transpose_storage<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
             handle_, graph_, error_.get());
         if (error_code_ != CUGRAPH_SUCCESS)
           ;
       }
-
+      // Transpose_storage may have a bug, since if store_transposed is True it can reverse the bool
+      // value of is_symmetric
       auto graph =
         reinterpret_cast<cugraph::graph_t<vertex_t, edge_t, weight_t, false, multi_gpu>*>(
           graph_->graph_);
 
+      // std::cout << "Graph=" << graph << std::endl;
+
       auto graph_view = graph->view();
+
+      // std::cout << "is_symmetric=" << (graph_view.is_symmetric()?"true":"false") << std::endl;
 
       auto number_map = reinterpret_cast<rmm::device_uvector<vertex_t>*>(graph_->number_map_);
 
@@ -126,6 +131,7 @@ extern "C" cugraph_error_code_t cugraph_core_number(const cugraph_resource_handl
                                                     cugraph_core_result_t** result,
                                                     cugraph_error_t** error)
 {
+  // std::cout << "Got here!" << std::endl;
   core_number_functor functor(handle, graph, degree_type, do_expensive_check);
   //core_number_functor functor(handle, graph, do_expensive_check);
 
