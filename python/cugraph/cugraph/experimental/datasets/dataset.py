@@ -136,11 +136,11 @@ class Dataset:
 
         return self.__graph
 
-    def path(self):
+    def get_path(self):
         """
-            Print the location of the stored dataset file
+            Returns the location of the stored dataset file
         """
-        print(self.path)
+        return self.path
 
 
 def load_all(default_path="datasets/", force=False):
