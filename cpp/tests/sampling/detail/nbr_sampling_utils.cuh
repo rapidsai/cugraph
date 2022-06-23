@@ -19,7 +19,6 @@
 #pragma once
 
 #include <cugraph/algorithms.hpp>
-#include <cugraph/detail/graph_functions.cuh>
 #include <cugraph/edge_partition_device_view.cuh>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
