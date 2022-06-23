@@ -86,12 +86,15 @@ class Tests_MG_Nbr_Sampling
     constexpr vertex_t source_sample_count    = 3;
 
     // Generate random vertex ids in the range of current gpu
-    auto random_sources = random_vertex_ids(handle,
-                                            mg_graph_view.local_vertex_partition_range_first(),
-                                            mg_graph_view.local_vertex_partition_range_last(),
-                                            source_sample_count,
-                                            repetitions_per_vertex,
-                                            comm_rank);
+    auto random_sources =
+      random_vertex_ids(handle,
+                        mg_graph_view.local_vertex_partition_range_first(),
+                        mg_graph_view.local_vertex_partition_range_last(),
+                        std::min(mg_graph_view.local_vertex_partition_range_size() *
+                                   (repetitions_per_vertex + vertex_t{1}),
+                                 source_sample_count),
+                        repetitions_per_vertex,
+                        comm_rank);
 
     std::vector<int> h_fan_out{indices_per_source};  // depth = 1
 

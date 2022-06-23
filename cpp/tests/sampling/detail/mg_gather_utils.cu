@@ -92,11 +92,14 @@ class Tests_MG_GatherEdges
       handle, mg_graph_view, global_degree_offsets, global_out_degrees);
 
     // Generate random sources to gather on
-    auto random_sources = random_vertex_ids(handle,
-                                            mg_graph_view.local_vertex_partition_range_first(),
-                                            mg_graph_view.local_vertex_partition_range_last(),
-                                            source_sample_count,
-                                            repetitions_per_vertex);
+    auto random_sources =
+      random_vertex_ids(handle,
+                        mg_graph_view.local_vertex_partition_range_first(),
+                        mg_graph_view.local_vertex_partition_range_last(),
+                        std::min(mg_graph_view.local_vertex_partition_range_size() *
+                                   (repetitions_per_vertex + vertex_t{1}),
+                                 source_sample_count),
+                        repetitions_per_vertex);
     rmm::device_uvector<int> random_source_gpu_ids(random_sources.size(), handle.get_stream());
     thrust::fill(handle.get_thrust_policy(),
                  random_source_gpu_ids.begin(),
