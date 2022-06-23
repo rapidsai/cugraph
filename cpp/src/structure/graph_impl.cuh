@@ -638,6 +638,10 @@ update_local_sorted_unique_edge_majors_minors(
     auto const chunk_size =
       std::min(static_cast<size_t>(1.0 / max_major_properties_fill_ratio), size_t{1024});
 
+    local_sorted_unique_edge_majors = std::vector<rmm::device_uvector<vertex_t>>{};
+    local_sorted_unique_edge_major_chunk_start_offsets =
+      std::vector<rmm::device_uvector<vertex_t>>{};
+
     (*local_sorted_unique_edge_majors).reserve(edge_partition_offsets.size());
     (*local_sorted_unique_edge_major_chunk_start_offsets).reserve(edge_partition_offsets.size());
     for (size_t i = 0; i < edge_partition_offsets.size(); ++i) {
