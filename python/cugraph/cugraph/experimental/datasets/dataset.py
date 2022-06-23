@@ -58,21 +58,34 @@ class Dataset:
             self.download_dir = cfg['download_dir']
             file.close()
 
-    def set_config(self, preference):
-        config_path = self.dir_path / preference
+    def set_config(self, cfgfile):
+        """
+        Read in a custom config file.
+
+        Parameters
+        ----------
+        cfgfile : String
+            Read in and override the default configuration
+        """
+        config_path = self.dir_path / cfgfile
         with open(config_path, 'r') as file:
             cfg = yaml.safe_load(file)
             self.download_dir = cfg['download_dir']
             file.close()
 
     def __download_csv(self, url, default_path):
-        filename = url.split('/')[-1]
-        # Could also be
-        # filename = self.metadata['name'] + '.' + metadata['file_type']
-        df = cudf.read_csv(url)
-        try:
-            df.to_csv(default_path + filename, index=False)
-        self.path = default_path + filename
+        filename = self.metadata['name'] + self.metadata['file_type']
+        if os.path.isdir(default_path):
+            df = cudf.read_csv(url)
+            try:
+                df.to_csv(default_path + filename, index=False)
+            except:
+                print("error")
+            self.path = default_path + filename
+        else:
+            raise RuntimeError("The directory " + default_path +
+                                " does not exist")
+        
 
     def get_edgelist(self, fetch=False):
         """
@@ -93,9 +106,8 @@ class Dataset:
                     self.__download_csv(self.metadata['url'],
                                         self.download_dir)
                 else:
-                    raise RuntimeError("The datafile does not exist. Try \
-                                        get_edgelist(fetch=True) to download \
-                                        the datafile")
+                    raise RuntimeError("The datafile does not exist. Try" +
+                     " get_edgelist(fetch=True) to download the datafile")
 
             self.__edgelist = cudf.read_csv(full_path,
                                             delimiter=self.metadata['delim'],

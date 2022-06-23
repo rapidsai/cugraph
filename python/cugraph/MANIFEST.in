@@ -5,3 +5,4 @@ include cugraph/experimental/datasets/metadata/karate.yaml
 include cugraph/experimental/datasets/metadata/dolphins.yaml
 include cugraph/experimental/datasets/metadata/polbooks.yaml
 include cugraph/experimental/datasets/metadata/netscience.yaml
+include cugraph/experimental/datasets/metadata/cyber.yaml
