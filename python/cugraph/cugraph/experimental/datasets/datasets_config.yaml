@@ -1,3 +1,5 @@
 ---
-fetch: "True"
-download_dir: "../datasets/"
+fetch: "False"
+force: "False"
+# path where datasets will be downloaded to and stored
+download_dir: "datasets/"
