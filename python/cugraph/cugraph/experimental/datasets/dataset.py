@@ -58,12 +58,20 @@ class Dataset:
             self.download_dir = cfg['download_dir']
             file.close()
 
+    def set_config(self, preference):
+        config_path = self.dir_path / preference
+        with open(config_path, 'r') as file:
+            cfg = yaml.safe_load(file)
+            self.download_dir = cfg['download_dir']
+            file.close()
+
     def __download_csv(self, url, default_path):
         filename = url.split('/')[-1]
         # Could also be
         # filename = self.metadata['name'] + '.' + metadata['file_type']
         df = cudf.read_csv(url)
-        df.to_csv(default_path + filename, index=False)
+        try:
+            df.to_csv(default_path + filename, index=False)
         self.path = default_path + filename
 
     def get_edgelist(self, fetch=False):
