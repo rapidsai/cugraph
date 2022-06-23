@@ -110,18 +110,18 @@ int create_test_graph_with_edge_ids(const cugraph_resource_handle_t* p_handle,
   return test_ret_value;
 }
 
-int generic_experimental_uniform_neighbor_sample_test(vertex_t* h_src,
-                                                      vertex_t* h_dst,
-                                                      edge_t* h_ids,
-                                                      size_t num_vertices,
-                                                      size_t num_edges,
-                                                      vertex_t* h_start,
-                                                      size_t num_starts,
-                                                      int* fan_out,
-                                                      size_t max_depth,
-                                                      bool_t with_replacement,
-                                                      bool_t renumber,
-                                                      bool_t store_transposed)
+int generic_uniform_neighbor_sample_test(vertex_t* h_src,
+                                         vertex_t* h_dst,
+                                         edge_t* h_ids,
+                                         size_t num_vertices,
+                                         size_t num_edges,
+                                         vertex_t* h_start,
+                                         size_t num_starts,
+                                         int* fan_out,
+                                         size_t max_depth,
+                                         bool_t with_replacement,
+                                         bool_t renumber,
+                                         bool_t store_transposed)
 {
   int test_ret_value = 0;
 
@@ -155,7 +155,7 @@ int generic_experimental_uniform_neighbor_sample_test(vertex_t* h_src,
 
   h_fan_out_view = cugraph_type_erased_host_array_view_create(fan_out, max_depth, INT32);
 
-  ret_code = cugraph_experimental_uniform_neighbor_sample(
+  ret_code = cugraph_uniform_neighbor_sample(
     handle, graph, d_start_view, h_fan_out_view, with_replacement, FALSE, &result, &ret_error);
 
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
@@ -210,7 +210,7 @@ int generic_experimental_uniform_neighbor_sample_test(vertex_t* h_src,
   return test_ret_value;
 }
 
-int test_experimental_uniform_neighbor_sample()
+int test_uniform_neighbor_sample()
 {
   size_t num_edges    = 8;
   size_t num_vertices = 6;
@@ -223,23 +223,23 @@ int test_experimental_uniform_neighbor_sample()
   vertex_t start[]  = {2, 2};
   int fan_out[]     = {1, 2};
 
-  return generic_experimental_uniform_neighbor_sample_test(src,
-                                                           dst,
-                                                           edge_ids,
-                                                           num_vertices,
-                                                           num_edges,
-                                                           start,
-                                                           num_starts,
-                                                           fan_out,
-                                                           fan_out_size,
-                                                           TRUE,
-                                                           FALSE,
-                                                           FALSE);
+  return generic_uniform_neighbor_sample_test(src,
+                                              dst,
+                                              edge_ids,
+                                              num_vertices,
+                                              num_edges,
+                                              start,
+                                              num_starts,
+                                              fan_out,
+                                              fan_out_size,
+                                              TRUE,
+                                              FALSE,
+                                              FALSE);
 }
 
 int main(int argc, char** argv)
 {
   int result = 0;
-  result |= RUN_TEST(test_experimental_uniform_neighbor_sample);
+  result |= RUN_TEST(test_uniform_neighbor_sample);
   return result;
 }

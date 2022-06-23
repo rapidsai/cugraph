@@ -32,10 +32,11 @@ namespace cugraph {
 namespace c_api {
 
 struct cugraph_sample_result_t {
-  bool experimental_{true};
   cugraph_type_erased_device_array_t* src_{nullptr};
   cugraph_type_erased_device_array_t* dst_{nullptr};
   // FIXME: Will be deleted once experimental replaces current
+  //    NOTE: Leaving in place while we discuss some future changes, although
+  //          not currently used.
   cugraph_type_erased_device_array_t* label_{nullptr};
   cugraph_type_erased_device_array_t* index_{nullptr};
   // FIXME: Will be deleted once experimental replaces current
@@ -49,7 +50,7 @@ struct cugraph_sample_result_t {
 
 namespace {
 
-struct experimental_uniform_neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
+struct uniform_neighbor_sampling_functor : public cugraph::c_api::abstract_functor {
   raft::handle_t const& handle_;
   cugraph::c_api::cugraph_graph_t* graph_{nullptr};
   cugraph::c_api::cugraph_type_erased_device_array_view_t const* start_{nullptr};
@@ -58,7 +59,7 @@ struct experimental_uniform_neighbor_sampling_functor : public cugraph::c_api::a
   bool do_expensive_check_{false};
   cugraph::c_api::cugraph_sample_result_t* result_{nullptr};
 
-  experimental_uniform_neighbor_sampling_functor(
+  uniform_neighbor_sampling_functor(
     cugraph_resource_handle_t const* handle,
     cugraph_graph_t* graph,
     cugraph_type_erased_device_array_view_t const* start,
@@ -143,7 +144,6 @@ struct experimental_uniform_neighbor_sampling_functor : public cugraph::c_api::a
                                                             do_expensive_check_);
 
       result_ = new cugraph::c_api::cugraph_sample_result_t{
-        true,
         new cugraph::c_api::cugraph_type_erased_device_array_t(srcs, graph_->vertex_type_),
         new cugraph::c_api::cugraph_type_erased_device_array_t(dsts, graph_->vertex_type_),
         nullptr,
@@ -156,7 +156,7 @@ struct experimental_uniform_neighbor_sampling_functor : public cugraph::c_api::a
 
 }  // namespace
 
-extern "C" cugraph_error_code_t cugraph_experimental_uniform_neighbor_sample(
+extern "C" cugraph_error_code_t cugraph_uniform_neighbor_sample(
   const cugraph_resource_handle_t* handle,
   cugraph_graph_t* graph,
   const cugraph_type_erased_device_array_view_t* start,
@@ -166,7 +166,7 @@ extern "C" cugraph_error_code_t cugraph_experimental_uniform_neighbor_sample(
   cugraph_sample_result_t** result,
   cugraph_error_t** error)
 {
-  experimental_uniform_neighbor_sampling_functor functor{
+  uniform_neighbor_sampling_functor functor{
     handle, graph, start, fan_out, with_replacement, do_expensive_check};
   return cugraph::c_api::run_algorithm(graph, functor, result, error);
 }
