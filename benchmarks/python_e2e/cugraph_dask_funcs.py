@@ -18,12 +18,10 @@ from dask_cuda import LocalCUDACluster
 from cugraph.structure.symmetrize import symmetrize_ddf
 from cugraph.dask.common.mg_utils import get_visible_devices
 from dask_cuda.initialize import initialize
-from cugraph.experimental.dask import uniform_neighborhood_sampling
 import cudf
 
 import cugraph
 from cugraph.dask.comms import comms as Comms
-from cugraph.dask.common.mg_utils import get_visible_devices
 from cugraph.generators import rmat
 import tempfile
 
@@ -109,10 +107,15 @@ def construct_graph(dask_dataframe, symmetric=False):
     object must be symmetrized and have self loops removed.
     """
 
-    G = cugraph.DiGraph()
+    if symmetric:
+        G = cugraph.Graph(directed=False)
+    else:
+        G = cugraph.Graph(directed=True)
+
     if len(dask_dataframe.columns) > 2:
         if symmetric: #symmetrize dask dataframe
-            dask_dataframe = symmetrize_ddf(dask_dataframe, 'src', 'dst', 'weight')
+            dask_dataframe = symmetrize_ddf(
+                dask_dataframe, 'src', 'dst', 'weight')
 
         G.from_dask_cudf_edgelist(
             dask_dataframe, source="src", destination="dst", edge_attr="weight")
@@ -130,11 +133,12 @@ construct_graph.benchmark_name = "from_dask_cudf_edgelist"
 
 
 def bfs(G, start):
-    return cugraph.dask.bfs(G, start=start, return_distances=True)
+    return cugraph.dask.bfs(
+        G, start=start, return_distances=True, check_start=False)
 
 
 def sssp(G, start):
-    return cugraph.dask.sssp(G, source=start)
+    return cugraph.dask.sssp(G, source=start, check_start=False)
 
 
 def wcc(G):
@@ -156,15 +160,19 @@ def katz(G, alpha=None):
 def hits(G):
     return cugraph.dask.hits(G)
 
-def neighborhood_sampling(G, start_info_list=None, fanout_vals=None):
+def uniform_neighbor_sample(G, start_list=None, fanout_vals=None):
     # convert list to cudf.Series
-    start_info_list = (
-        cudf.Series(start_info_list[0], dtype="int32"),
-        cudf.Series(start_info_list[1], dtype="int32"),
-    )
-                        
-    return uniform_neighborhood_sampling(
-        G, start_info_list=start_info_list, fanout_vals=fanout_vals)
+    start_list = cudf.Series(start_list, dtype="int32")  
+    return cugraph.dask.uniform_neighbor_sample(
+        G, start_list=start_list, fanout_vals=fanout_vals)
+
+def triangle_count(G):
+    # FIXME: Update this calls once triangle_count is promoted
+    return cugraph.dask.triangle_count(G)
+
+def eigenvector_centrality(G):
+    # FIXME: Update this calls once triangle_count is promoted
+    return cugraph.dask.eigenvector_centrality(G)
 
 ################################################################################
 # Session-wide setup and teardown

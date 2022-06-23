@@ -12,6 +12,7 @@
 # limitations under the License.
 
 from cugraph.utilities.api_tools import experimental_warning_wrapper
+from cugraph.utilities.api_tools import deprecated_warning_wrapper
 
 from cugraph.structure.property_graph import EXPERIMENTAL__PropertyGraph
 PropertyGraph = experimental_warning_wrapper(EXPERIMENTAL__PropertyGraph)
@@ -28,5 +29,15 @@ MGPropertySelection = experimental_warning_wrapper(EXPERIMENTAL__MGPropertySelec
 from cugraph.experimental.community.triangle_count import \
     EXPERIMENTAL__triangle_count
 triangle_count = experimental_warning_wrapper(EXPERIMENTAL__triangle_count)
+
+from cugraph.experimental.components.scc import \
+    EXPERIMENTAL__strong_connected_component
+strong_connected_component = \
+    experimental_warning_wrapper(EXPERIMENTAL__strong_connected_component)
+
+from cugraph.experimental.structure.bicliques import EXPERIMENTAL__find_bicliques
+find_bicliques = deprecated_warning_wrapper(
+    experimental_warning_wrapper(EXPERIMENTAL__find_bicliques)
+)
 
 from cugraph.experimental.datasets.dataset import Dataset

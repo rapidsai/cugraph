@@ -43,8 +43,6 @@ enum class graphTypeEnum : int {
   // graph_container_t.
   GraphCSRViewFloat,
   GraphCSRViewDouble,
-  GraphCSCViewFloat,
-  GraphCSCViewDouble,
   GraphCOOViewFloat,
   GraphCOOViewDouble,
   // represents values present in the graph_container_t to construct a graph_t,
@@ -69,8 +67,6 @@ struct graph_container_t {
     void* null;
     std::unique_ptr<legacy::GraphCSRView<int32_t, int32_t, float>> GraphCSRViewFloatPtr;
     std::unique_ptr<legacy::GraphCSRView<int32_t, int32_t, double>> GraphCSRViewDoublePtr;
-    std::unique_ptr<legacy::GraphCSCView<int32_t, int32_t, float>> GraphCSCViewFloatPtr;
-    std::unique_ptr<legacy::GraphCSCView<int32_t, int32_t, double>> GraphCSCViewDoublePtr;
     std::unique_ptr<legacy::GraphCOOView<int32_t, int32_t, float>> GraphCOOViewFloatPtr;
     std::unique_ptr<legacy::GraphCOOView<int32_t, int32_t, double>> GraphCOOViewDoublePtr;
   };

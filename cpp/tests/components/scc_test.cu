@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2021, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2019-2022, NVIDIA CORPORATION.  All rights reserved.
  *
  * NVIDIA CORPORATION and its licensors retain all intellectual property
  * and proprietary rights in and to this software, related documentation
@@ -23,7 +23,6 @@
 #include <cugraph/algorithms.hpp>
 #include <cugraph/legacy/graph.hpp>
 #include <rmm/device_vector.hpp>
-#include <topology/topology.cuh>
 
 #include <cuda_profiler_api.h>
 

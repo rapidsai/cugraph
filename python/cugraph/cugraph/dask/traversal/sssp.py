@@ -13,7 +13,6 @@
 # limitations under the License.
 #
 
-from collections.abc import Iterable
 
 from dask.distributed import wait, default_client
 from cugraph.dask.common.input_utils import get_distributed_data
@@ -76,7 +75,7 @@ def _call_plc_sssp(
     })
 
 
-def sssp(input_graph, source, cutoff=None):
+def sssp(input_graph, source, cutoff=None, check_source=True):
     """
     Compute the distance and predecessors for shortest paths from the specified
     source to all the vertices in the input_graph. The distances column will
@@ -98,6 +97,10 @@ def sssp(input_graph, source, cutoff=None):
 
     cutoff : double, optional (default = None)
         Maximum edge weight sum considered by the algorithm
+
+    check_source : bool, optional (default=True)
+        If True, performs more extensive tests on the start vertices
+        to ensure validitity, at the expense of increased run time.
 
     Returns
     -------
@@ -130,47 +133,34 @@ def sssp(input_graph, source, cutoff=None):
     """
 
     client = default_client()
-
-    input_graph.compute_renumber_edge_list(transposed=False)
+    # FIXME: 'legacy_renum_only' will not trigger the C++ renumbering
+    # In the future, once all the algos follow the C/Pylibcugraph path,
+    # compute_renumber_edge_list will only be used for multicolumn and
+    # string vertices since the renumbering will be done in pylibcugraph
+    input_graph.compute_renumber_edge_list(
+        transposed=False, legacy_renum_only=True)
     ddf = input_graph.edgelist.edgelist_df
     num_edges = len(ddf)
     data = get_distributed_data(ddf)
 
-    if input_graph.renumbered:
-        src_col_name = input_graph.renumber_map.renumbered_src_col_name
-        dst_col_name = input_graph.renumber_map.renumbered_dst_col_name
+    src_col_name = input_graph.renumber_map.renumbered_src_col_name
+    dst_col_name = input_graph.renumber_map.renumbered_dst_col_name
 
-        source = input_graph.lookup_internal_vertex_id(
-            cudf.Series([source])).fillna(-1).compute()
-        source = source.iloc[0]
-
-        if source < 0:
+    def check_valid_vertex(G, source):
+        is_valid_vertex = G.has_node(source)
+        if not is_valid_vertex:
             raise ValueError('Invalid source vertex')
-    else:
-        # If the input graph was created with renumbering disabled (Graph(...,
-        # renumber=False), the above compute_renumber_edge_list() call will not
-        # perform a renumber step and the renumber_map will not have src/dst
-        # col names. In that case, the src/dst values specified when reading
-        # the edgelist dataframe are to be used, but only if they were single
-        # string values (ie. not a list representing multi-columns).
-        if isinstance(input_graph.source_columns, Iterable):
-            raise RuntimeError("input_graph was not renumbered but has a "
-                               "non-string source column name (got: "
-                               f"{input_graph.source_columns}). Re-create "
-                               "input_graph with either renumbering enabled "
-                               "or a source column specified as a string.")
-        if isinstance(input_graph.destination_columns, Iterable):
-            raise RuntimeError("input_graph was not renumbered but has a "
-                               "non-string destination column name (got: "
-                               f"{input_graph.destination_columns}). "
-                               "Re-create input_graph with either renumbering "
-                               "enabled or a destination column specified as "
-                               "a string.")
-        src_col_name = input_graph.source_columns
-        dst_col_name = input_graph.destination_columns
+
+    if check_source:
+        check_valid_vertex(input_graph, source)
 
     if cutoff is None:
         cutoff = cupy.inf
+
+    if input_graph.renumbered:
+        source = input_graph.lookup_internal_vertex_id(
+            cudf.Series([source])).fillna(-1).compute()
+        source = source.iloc[0]
 
     result = [client.submit(
             _call_plc_sssp,
