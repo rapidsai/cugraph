@@ -225,7 +225,7 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
         local_sorted_unique_edge_src_chunk_start_offsets =
           std::vector<raft::device_span<vertex_t const>>(
             (*local_sorted_unique_edge_src_chunk_start_offsets_).size());
-        for (size_t i = 0; (*local_sorted_unique_edge_srcs).size(); ++i) {
+        for (size_t i = 0; i < (*local_sorted_unique_edge_srcs).size(); ++i) {
           (*local_sorted_unique_edge_srcs)[i] =
             raft::device_span<vertex_t const>((*local_sorted_unique_edge_srcs_)[i].begin(),
                                               (*local_sorted_unique_edge_srcs_)[i].end());
