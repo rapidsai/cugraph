@@ -19,6 +19,7 @@
 #include <cugraph/utilities/error.hpp>
 
 #include <raft/handle.hpp>
+#include <raft/span.hpp>
 #include <rmm/device_uvector.hpp>
 
 #include <cstddef>
@@ -183,6 +184,90 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
       }
     }
 
+    std::conditional_t<store_transposed,
+                       std::optional<raft::device_span<vertex_t const>>,
+                       std::optional<std::vector<raft::device_span<vertex_t const>>>>
+      local_sorted_unique_edge_srcs{std::nullopt};
+    std::conditional_t<store_transposed,
+                       std::optional<raft::device_span<vertex_t const>>,
+                       std::optional<std::vector<raft::device_span<vertex_t const>>>>
+      local_sorted_unique_edge_src_chunk_start_offsets{std::nullopt};
+    std::conditional_t<store_transposed,
+                       std::optional<raft::host_span<vertex_t const>>,
+                       std::optional<std::byte>>
+      local_sorted_unique_edge_src_vertex_partition_offsets{std::nullopt};
+
+    std::conditional_t<store_transposed,
+                       std::optional<std::vector<raft::device_span<vertex_t const>>>,
+                       std::optional<raft::device_span<vertex_t const>>>
+      local_sorted_unique_edge_dsts{std::nullopt};
+    std::conditional_t<store_transposed,
+                       std::optional<std::vector<raft::device_span<vertex_t const>>>,
+                       std::optional<raft::device_span<vertex_t const>>>
+      local_sorted_unique_edge_dst_chunk_start_offsets{std::nullopt};
+    std::conditional_t<!store_transposed,
+                       std::optional<raft::host_span<vertex_t const>>,
+                       std::optional<std::byte>>
+      local_sorted_unique_edge_dst_vertex_partition_offsets{std::nullopt};
+
+    if (local_sorted_unique_edge_srcs_) {
+      if constexpr (store_transposed) {  // minor
+        local_sorted_unique_edge_srcs = raft::device_span<vertex_t const>(
+          (*local_sorted_unique_edge_srcs_).begin(), (*local_sorted_unique_edge_srcs_).end());
+        local_sorted_unique_edge_src_chunk_start_offsets = raft::device_span<vertex_t const>(
+          (*local_sorted_unique_edge_src_chunk_start_offsets_).begin(),
+          (*local_sorted_unique_edge_src_chunk_start_offsets_).end());
+        local_sorted_unique_edge_src_vertex_partition_offsets = raft::host_span<vertex_t const>(
+          (*local_sorted_unique_edge_src_vertex_partition_offsets_).data(),
+          (*local_sorted_unique_edge_src_vertex_partition_offsets_).data() +
+            (*local_sorted_unique_edge_src_vertex_partition_offsets_).size());
+      } else {  // major
+        local_sorted_unique_edge_srcs =
+          std::vector<raft::device_span<vertex_t const>>((*local_sorted_unique_edge_srcs_).size());
+        local_sorted_unique_edge_src_chunk_start_offsets =
+          std::vector<raft::device_span<vertex_t const>>(
+            (*local_sorted_unique_edge_src_chunk_start_offsets_).size());
+        for (size_t i = 0; i < (*local_sorted_unique_edge_srcs).size(); ++i) {
+          (*local_sorted_unique_edge_srcs)[i] =
+            raft::device_span<vertex_t const>((*local_sorted_unique_edge_srcs_)[i].begin(),
+                                              (*local_sorted_unique_edge_srcs_)[i].end());
+          (*local_sorted_unique_edge_src_chunk_start_offsets)[i] =
+            raft::device_span<vertex_t const>(
+              (*local_sorted_unique_edge_src_chunk_start_offsets_)[i].begin(),
+              (*local_sorted_unique_edge_src_chunk_start_offsets_)[i].end());
+        }
+      }
+    }
+
+    if (local_sorted_unique_edge_dsts_) {
+      if constexpr (store_transposed) {  // major
+        local_sorted_unique_edge_dsts =
+          std::vector<raft::device_span<vertex_t const>>((*local_sorted_unique_edge_dsts_).size());
+        local_sorted_unique_edge_dst_chunk_start_offsets =
+          std::vector<raft::device_span<vertex_t const>>(
+            (*local_sorted_unique_edge_dst_chunk_start_offsets_).size());
+        for (size_t i = 0; (*local_sorted_unique_edge_dsts).size(); ++i) {
+          (*local_sorted_unique_edge_dsts)[i] =
+            raft::device_span<vertex_t const>((*local_sorted_unique_edge_dsts_)[i].begin(),
+                                              (*local_sorted_unique_edge_dsts_)[i].end());
+          (*local_sorted_unique_edge_dst_chunk_start_offsets)[i] =
+            raft::device_span<vertex_t const>(
+              (*local_sorted_unique_edge_dst_chunk_start_offsets_)[i].begin(),
+              (*local_sorted_unique_edge_dst_chunk_start_offsets_)[i].end());
+        }
+      } else {  // minor
+        local_sorted_unique_edge_dsts = raft::device_span<vertex_t const>(
+          (*local_sorted_unique_edge_dsts_).begin(), (*local_sorted_unique_edge_dsts_).end());
+        local_sorted_unique_edge_dst_chunk_start_offsets = raft::device_span<vertex_t const>(
+          (*local_sorted_unique_edge_dst_chunk_start_offsets_).begin(),
+          (*local_sorted_unique_edge_dst_chunk_start_offsets_).end());
+        local_sorted_unique_edge_dst_vertex_partition_offsets = raft::host_span<vertex_t const>(
+          (*local_sorted_unique_edge_dst_vertex_partition_offsets_).data(),
+          (*local_sorted_unique_edge_dst_vertex_partition_offsets_).data() +
+            (*local_sorted_unique_edge_dst_vertex_partition_offsets_).size());
+      }
+    }
+
     return graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
       *(this->handle_ptr()),
       offsets,
@@ -190,29 +275,20 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
       weights,
       dcs_nzd_vertices,
       dcs_nzd_vertex_counts,
-      graph_view_meta_t<vertex_t, edge_t, multi_gpu>{
+      graph_view_meta_t<vertex_t, edge_t, store_transposed, multi_gpu>{
         this->number_of_vertices(),
         this->number_of_edges(),
         this->graph_properties(),
         partition_,
         edge_partition_segment_offsets_,
-        local_sorted_unique_edge_srcs_
-          ? std::optional<vertex_t const*>{(*local_sorted_unique_edge_srcs_).data()}
-          : std::nullopt,
-        local_sorted_unique_edge_srcs_
-          ? std::optional<vertex_t const*>{(*local_sorted_unique_edge_srcs_).data() +
-                                           (*local_sorted_unique_edge_srcs_).size()}
-          : std::nullopt,
-        local_sorted_unique_edge_src_offsets_,
-        local_sorted_unique_edge_dsts_
-          ? std::optional<vertex_t const*>{(*local_sorted_unique_edge_dsts_).data()}
-          : std::nullopt,
-        local_sorted_unique_edge_dsts_
-          ? std::optional<vertex_t const*>{(*local_sorted_unique_edge_dsts_).data() +
-                                           (*local_sorted_unique_edge_dsts_).size()}
-          : std::nullopt,
-        local_sorted_unique_edge_dst_offsets_,
-      },
+        local_sorted_unique_edge_srcs,
+        local_sorted_unique_edge_src_chunk_start_offsets,
+        local_sorted_unique_edge_src_chunk_size_,
+        local_sorted_unique_edge_src_vertex_partition_offsets,
+        local_sorted_unique_edge_dsts,
+        local_sorted_unique_edge_dst_chunk_start_offsets,
+        local_sorted_unique_edge_dst_chunk_size_,
+        local_sorted_unique_edge_dst_vertex_partition_offsets},
       mask.has_value() ? mask : std::nullopt);
   }
 
@@ -240,10 +316,34 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
 
   // if valid, store row/column properties in key/value pairs (this saves memory if # unique edge
   // rows/cols << V / row_comm_size|col_comm_size).
-  std::optional<rmm::device_uvector<vertex_t>> local_sorted_unique_edge_srcs_{std::nullopt};
-  std::optional<rmm::device_uvector<vertex_t>> local_sorted_unique_edge_dsts_{std::nullopt};
-  std::optional<std::vector<vertex_t>> local_sorted_unique_edge_src_offsets_{std::nullopt};
-  std::optional<std::vector<vertex_t>> local_sorted_unique_edge_dst_offsets_{std::nullopt};
+
+  std::conditional_t<store_transposed,
+                     std::optional<rmm::device_uvector<vertex_t>>,
+                     std::optional<std::vector<rmm::device_uvector<vertex_t>>>>
+    local_sorted_unique_edge_srcs_{std::nullopt};
+  std::conditional_t<store_transposed,
+                     std::optional<rmm::device_uvector<vertex_t>>,
+                     std::optional<std::vector<rmm::device_uvector<vertex_t>>>>
+    local_sorted_unique_edge_src_chunk_start_offsets_{std::nullopt};
+  std::optional<vertex_t> local_sorted_unique_edge_src_chunk_size_{std::nullopt};
+  std::conditional_t<store_transposed,
+                     std::optional<std::vector<vertex_t>>,
+                     std::optional<std::byte> /* dummy */>
+    local_sorted_unique_edge_src_vertex_partition_offsets_{std::nullopt};
+
+  std::conditional_t<store_transposed,
+                     std::optional<std::vector<rmm::device_uvector<vertex_t>>>,
+                     std::optional<rmm::device_uvector<vertex_t>>>
+    local_sorted_unique_edge_dsts_{std::nullopt};
+  std::conditional_t<store_transposed,
+                     std::optional<std::vector<rmm::device_uvector<vertex_t>>>,
+                     std::optional<rmm::device_uvector<vertex_t>>>
+    local_sorted_unique_edge_dst_chunk_start_offsets_{std::nullopt};
+  std::optional<vertex_t> local_sorted_unique_edge_dst_chunk_size_{std::nullopt};
+  std::conditional_t<!store_transposed,
+                     std::optional<std::vector<vertex_t>>,
+                     std::optional<std::byte> /* dummy */>
+    local_sorted_unique_edge_dst_vertex_partition_offsets_{std::nullopt};
 };
 
 // single-GPU version
@@ -343,11 +443,10 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
       offsets_.data(),
       indices_.data(),
       weights_ ? std::optional<weight_t const*>{(*weights_).data()} : std::nullopt,
-      graph_view_meta_t<vertex_t, edge_t, multi_gpu>{this->number_of_vertices(),
-                                                     this->number_of_edges(),
-                                                     this->graph_properties(),
-                                                     segment_offsets_},
-      mask);
+      graph_view_meta_t<vertex_t, edge_t, store_transposed, multi_gpu>{this->number_of_vertices(),
+                                                                       this->number_of_edges(),
+                                                                       this->graph_properties(),
+                                                                       segment_offsets_}, mask);
   }
 
   // FIXME: possibley to be added later;

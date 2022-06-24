@@ -63,6 +63,7 @@ class NumberMap:
             )
             index_name = NumberMap.generate_unused_column_name(df.columns)
             tmp_df[index_name] = tmp_df.index
+
             return (
                 self.df.merge(tmp_df, on=self.col_names, how="right")
                 .sort_values(index_name)
@@ -354,9 +355,8 @@ class NumberMap:
             tmp_df["0"] = df
             tmp_col_names = ["0"]
         elif type(df) is dask_cudf.Series:
-            tmp_df = dask_cudf.DataFrame()
-            tmp_df["0"] = df
-            tmp_col_names = ["0"]
+            tmp_df = df.to_frame()
+            tmp_col_names = tmp_df.columns
         else:
             tmp_df = df
             tmp_col_names = col_names
@@ -501,6 +501,7 @@ class NumberMap:
         df, src_col_names, dst_col_names, preserve_order=False,
         store_transposed=False, legacy_renum_only=False
     ):
+        renumbered = True
         # FIXME: Drop the renumber_type 'experimental' once all the
         # algos follow the C/Pylibcugraph path
 
@@ -519,6 +520,7 @@ class NumberMap:
         if legacy_renum_only and renumber_type == 'experimental':
             # The original dataframe will be returned.
             renumber_type = 'skip_renumbering'
+            renumbered = False
 
         renumber_map = NumberMap()
         if not isinstance(src_col_names, list):
@@ -544,6 +546,8 @@ class NumberMap:
             )
         else:
             raise TypeError("df must be cudf.DataFrame or dask_cudf.DataFrame")
+
+        renumber_map.implementation.numbered = renumbered
 
         if renumber_type == 'legacy':
             indirection_map = renumber_map.implementation.\
@@ -643,7 +647,6 @@ class NumberMap:
                 else:
                     renumber_map.implementation.ddf = renumbering_map.rename(
                         columns={'original_ids': '0', 'new_ids': 'global_id'})
-                renumber_map.implementation.numbered = True
                 return renumbered_df, renumber_map, aggregate_segment_offsets
 
             else:
@@ -652,34 +655,40 @@ class NumberMap:
                 return df, renumber_map, None
 
         else:
-            renumbering_map, segment_offsets, renumbered_df = \
-                c_renumber.renumber(df,
-                                    renumber_map.renumbered_src_col_name,
-                                    renumber_map.renumbered_dst_col_name,
-                                    num_edges,
-                                    0,
-                                    Comms.get_default_handle(),
-                                    is_mnmg,
-                                    store_transposed)
-            if renumber_type == 'legacy':
-                renumber_map.implementation.df = indirection_map.\
-                    merge(renumbering_map,
-                          right_on='original_ids', left_on='id').\
-                    drop(columns=['id', 'original_ids'])\
-                    .rename(columns={'new_ids': 'id'}, copy=False)
-            else:
-                renumber_map.implementation.df = renumbering_map.rename(
-                    columns={'original_ids': '0', 'new_ids': 'id'}, copy=False)
+            # Do not renumber the algos following the C/Pylibcugraph path
+            if renumber_type in ['legacy', 'experimental']:
+                renumbering_map, segment_offsets, renumbered_df = \
+                    c_renumber.renumber(df,
+                                        renumber_map.renumbered_src_col_name,
+                                        renumber_map.renumbered_dst_col_name,
+                                        num_edges,
+                                        0,
+                                        Comms.get_default_handle(),
+                                        is_mnmg,
+                                        store_transposed)
+                if renumber_type == 'legacy':
+                    renumber_map.implementation.df = indirection_map.merge(
+                        renumbering_map,
+                        right_on='original_ids',
+                        left_on='id').drop(columns=['id', 'original_ids'])\
+                        .rename(columns={'new_ids': 'id'}, copy=False)
+                else:
+                    renumber_map.implementation.df = renumbering_map.rename(
+                        columns={
+                            'original_ids': '0', 'new_ids': 'id'}, copy=False)
 
-            renumber_map.implementation.numbered = True
-            return renumbered_df, renumber_map, segment_offsets
+                return renumbered_df, renumber_map, segment_offsets
+            else:
+                # There is no aggregate_segment_offsets since the
+                # C++ renumbering is skipped
+                return df, renumber_map, None
 
     @staticmethod
     def renumber(df, src_col_names, dst_col_names, preserve_order=False,
-                 store_transposed=False):
+                 store_transposed=False, legacy_renum_only=False):
         return NumberMap.renumber_and_segment(
             df, src_col_names, dst_col_names,
-            preserve_order, store_transposed)[0:2]
+            preserve_order, store_transposed, legacy_renum_only)[0:2]
 
     def unrenumber(self, df, column_name, preserve_order=False,
                    get_column_names=False):

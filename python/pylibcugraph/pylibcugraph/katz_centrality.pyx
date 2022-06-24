@@ -97,6 +97,12 @@ def katz_centrality(ResourceHandle resource_handle,
 
     do_expensive_check : bool_t
         A flag to run expensive checks for input arguments if True.
+    
+    Returns
+    -------
+
+    Examples
+    --------
 
     """
 

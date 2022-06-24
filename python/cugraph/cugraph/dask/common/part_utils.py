@@ -93,14 +93,18 @@ async def _extract_partitions(dask_obj, client=None, batch_enabled=False):
             persisted = [client.persist(
                 dask_obj.get_partition(p), workers=w) for p, w in enumerate(
                     worker_list[:dask_obj.npartitions])]
-            # Persist empty dataframe with the remaining workers if there are
-            # less partitions than workers
+            # Persist empty dataframe/series with the remaining workers if
+            # there are less partitions than workers
             if dask_obj.npartitions < len(worker_list):
                 # The empty df should have the same column names and dtypes as
                 # dask_obj
-                empty_df = cudf.DataFrame(columns=list(dask_obj.columns))
-                empty_df = empty_df.astype(dict(zip(
-                    dask_obj.columns, dask_obj.dtypes)))
+                if isinstance(dask_obj, dask_cudf.DataFrame):
+                    empty_df = cudf.DataFrame(columns=list(dask_obj.columns))
+                    empty_df = empty_df.astype(dict(zip(
+                        dask_obj.columns, dask_obj.dtypes)))
+                else:
+                    empty_df = cudf.Series(dtype=dask_obj.dtype)
+
                 for p, w in enumerate(worker_list[dask_obj.npartitions:]):
                     empty_ddf = dask_cudf.from_cudf(empty_df, npartitions=1)
                     persisted.append(client.persist(empty_ddf, workers=w))

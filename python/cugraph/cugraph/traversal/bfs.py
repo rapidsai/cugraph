@@ -14,11 +14,11 @@
 import cudf
 import dask_cudf
 
-from pylibcugraph.experimental import (ResourceHandle,
-                                       GraphProperties,
-                                       SGGraph,
-                                       )
-from pylibcugraph import bfs as pylibcugraph_bfs
+from pylibcugraph import (ResourceHandle,
+                          GraphProperties,
+                          SGGraph,
+                          bfs as pylibcugraph_bfs
+                          )
 
 from cugraph.structure.graph_classes import Graph, DiGraph
 from cugraph.utilities import (ensure_cugraph_obj,
@@ -183,8 +183,11 @@ def bfs(G,
         information. Edge weights, if present, should be single or double
         precision floating point values.
 
-    start : Integer, optional (default=None)
-        The index of the graph vertex from which the traversal begins
+    start : Integer or list, optional (default=None)
+        The id of the graph vertex from which the traversal begins, or
+        if a list, the vertex from which the traversal begins in each
+        component of the graph.  Only one vertex per connected
+        component of the graph is allowed.
 
     depth_limit : Integer or None, optional (default=None)
         Limit the depth of the search

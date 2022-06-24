@@ -13,44 +13,69 @@
 # limitations under the License.
 #
 
-from collections.abc import Iterable
 
 from dask.distributed import wait, default_client
-from cugraph.dask.common.input_utils import (get_distributed_data,
-                                             get_vertex_partition_offsets)
-from cugraph.dask.traversal import mg_sssp_wrapper as mg_sssp
+from cugraph.dask.common.input_utils import get_distributed_data
 import cugraph.dask.comms.comms as Comms
+import cupy
 import cudf
 import dask_cudf
+from pylibcugraph import sssp as pylibcugraph_sssp
+from pylibcugraph import (ResourceHandle,
+                          GraphProperties,
+                          MGGraph)
 
 
-def call_sssp(sID,
-              data,
-              src_col_name,
-              dst_col_name,
-              num_verts,
-              num_edges,
-              vertex_partition_offsets,
-              aggregate_segment_offsets,
-              start):
-    wid = Comms.get_worker_id(sID)
-    handle = Comms.get_handle(sID)
-    local_size = len(aggregate_segment_offsets) // Comms.get_n_workers(sID)
-    segment_offsets = \
-        aggregate_segment_offsets[local_size * wid: local_size * (wid + 1)]
-    return mg_sssp.mg_sssp(data[0],
-                           src_col_name,
-                           dst_col_name,
-                           num_verts,
-                           num_edges,
-                           vertex_partition_offsets,
-                           wid,
-                           handle,
-                           segment_offsets,
-                           start)
+def _call_plc_sssp(
+                  sID,
+                  data,
+                  src_col_name,
+                  dst_col_name,
+                  num_edges,
+                  source,
+                  cutoff,
+                  compute_predecessors=True,
+                  do_expensive_check=False):
+
+    comms_handle = Comms.get_handle(sID)
+    resource_handle = ResourceHandle(comms_handle.getHandle())
+
+    srcs = data[0][src_col_name]
+    dsts = data[0][dst_col_name]
+    weights = data[0]['value'] \
+        if 'value' in data[0].columns \
+        else cudf.Series((srcs + 1) / (srcs + 1), dtype='float32')
+    if weights.dtype not in ('float32', 'double'):
+        weights = weights.astype('double')
+
+    mg = MGGraph(
+        resource_handle=resource_handle,
+        graph_properties=GraphProperties(is_multigraph=False),
+        src_array=srcs,
+        dst_array=dsts,
+        weight_array=weights,
+        store_transposed=False,
+        num_edges=num_edges,
+        do_expensive_check=do_expensive_check
+    )
+
+    vertices, distances, predecessors = pylibcugraph_sssp(
+        resource_handle=resource_handle,
+        graph=mg,
+        source=source,
+        cutoff=cutoff,
+        compute_predecessors=compute_predecessors,
+        do_expensive_check=do_expensive_check
+    )
+
+    return cudf.DataFrame({
+        'distance': cudf.Series(distances),
+        'vertex': cudf.Series(vertices),
+        'predecessor': cudf.Series(predecessors),
+    })
 
 
-def sssp(input_graph, source):
+def sssp(input_graph, source, cutoff=None, check_source=True):
     """
     Compute the distance and predecessors for shortest paths from the specified
     source to all the vertices in the input_graph. The distances column will
@@ -69,6 +94,13 @@ def sssp(input_graph, source):
 
     source : Integer
         Specify source vertex
+
+    cutoff : double, optional (default = None)
+        Maximum edge weight sum considered by the algorithm
+
+    check_source : bool, optional (default=True)
+        If True, performs more extensive tests on the start vertices
+        to ensure validitity, at the expense of increased run time.
 
     Returns
     -------
@@ -101,60 +133,48 @@ def sssp(input_graph, source):
     """
 
     client = default_client()
-
-    input_graph.compute_renumber_edge_list(transposed=False)
+    # FIXME: 'legacy_renum_only' will not trigger the C++ renumbering
+    # In the future, once all the algos follow the C/Pylibcugraph path,
+    # compute_renumber_edge_list will only be used for multicolumn and
+    # string vertices since the renumbering will be done in pylibcugraph
+    input_graph.compute_renumber_edge_list(
+        transposed=False, legacy_renum_only=True)
     ddf = input_graph.edgelist.edgelist_df
-    vertex_partition_offsets = get_vertex_partition_offsets(input_graph)
-    num_verts = vertex_partition_offsets.iloc[-1]
     num_edges = len(ddf)
     data = get_distributed_data(ddf)
 
-    if input_graph.renumbered:
-        src_col_name = input_graph.renumber_map.renumbered_src_col_name
-        dst_col_name = input_graph.renumber_map.renumbered_dst_col_name
+    src_col_name = input_graph.renumber_map.renumbered_src_col_name
+    dst_col_name = input_graph.renumber_map.renumbered_dst_col_name
 
+    def check_valid_vertex(G, source):
+        is_valid_vertex = G.has_node(source)
+        if not is_valid_vertex:
+            raise ValueError('Invalid source vertex')
+
+    if check_source:
+        check_valid_vertex(input_graph, source)
+
+    if cutoff is None:
+        cutoff = cupy.inf
+
+    if input_graph.renumbered:
         source = input_graph.lookup_internal_vertex_id(
             cudf.Series([source])).fillna(-1).compute()
         source = source.iloc[0]
 
-        if source < 0:
-            raise ValueError('Invalid source vertex')
-    else:
-        # If the input graph was created with renumbering disabled (Graph(...,
-        # renumber=False), the above compute_renumber_edge_list() call will not
-        # perform a renumber step and the renumber_map will not have src/dst
-        # col names. In that case, the src/dst values specified when reading
-        # the edgelist dataframe are to be used, but only if they were single
-        # string values (ie. not a list representing multi-columns).
-        if isinstance(input_graph.source_columns, Iterable):
-            raise RuntimeError("input_graph was not renumbered but has a "
-                               "non-string source column name (got: "
-                               f"{input_graph.source_columns}). Re-create "
-                               "input_graph with either renumbering enabled "
-                               "or a source column specified as a string.")
-        if isinstance(input_graph.destination_columns, Iterable):
-            raise RuntimeError("input_graph was not renumbered but has a "
-                               "non-string destination column name (got: "
-                               f"{input_graph.destination_columns}). "
-                               "Re-create input_graph with either renumbering "
-                               "enabled or a destination column specified as "
-                               "a string.")
-        src_col_name = input_graph.source_columns
-        dst_col_name = input_graph.destination_columns
-
     result = [client.submit(
-              call_sssp,
-              Comms.get_session_id(),
-              wf[1],
-              src_col_name,
-              dst_col_name,
-              num_verts,
-              num_edges,
-              vertex_partition_offsets,
-              input_graph.aggregate_segment_offsets,
-              source,
-              workers=[wf[0]])
-              for idx, wf in enumerate(data.worker_to_parts.items())]
+            _call_plc_sssp,
+            Comms.get_session_id(),
+            wf[1],
+            src_col_name,
+            dst_col_name,
+            num_edges,
+            source,
+            cutoff,
+            True,
+            False,
+            workers=[wf[0]])
+            for idx, wf in enumerate(data.worker_to_parts.items())]
     wait(result)
     ddf = dask_cudf.from_delayed(result)
 

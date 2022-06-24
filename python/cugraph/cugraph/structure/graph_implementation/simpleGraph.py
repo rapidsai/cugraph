@@ -88,6 +88,7 @@ class simpleGraphImpl:
         destination="destination",
         edge_attr=None,
         renumber=True,
+        legacy_renum_only=False,
     ):
 
         # Verify column names present in input DataFrame
@@ -146,15 +147,24 @@ class simpleGraphImpl:
         if renumber:
             # FIXME: Should SG do lazy evaluation like MG?
             elist, renumber_map = NumberMap.renumber(
-                elist, source, destination, store_transposed=False
+                elist, source, destination, store_transposed=False,
+                legacy_renum_only=legacy_renum_only
             )
             source = renumber_map.renumbered_src_col_name
             destination = renumber_map.renumbered_dst_col_name
-            self.properties.renumbered = True
+            # Use renumber_map to figure out if renumbering was skipped or not
+            # This was added to handle 'legacy_renum_only' which will skip the
+            # old C++ renumbering  when running the pylibcugraph/C algos
+            self.properties.renumbered = renumber_map.implementation.numbered
             self.renumber_map = renumber_map
         else:
             if type(source) is list and type(destination) is list:
                 raise ValueError("set renumber to True for multi column ids")
+            elif (elist[source].dtype not in [np.int32, np.int64] or
+                  elist[destination].dtype not in [np.int32, np.int64]):
+                raise ValueError(
+                    "set renumber to True for non integer columns ids"
+                )
 
         # The dataframe will be symmetrized iff the graph is undirected
         # otherwise the inital dataframe will be returned. Duplicated edges
@@ -826,17 +836,20 @@ class simpleGraphImpl:
 
     def nodes(self):
         """
-        Returns all the nodes in the graph as a cudf.Series
+        Returns all the nodes in the graph as a cudf.Series.
+        If multi columns vertices, return a cudf.DataFrame.
         """
         if self.edgelist is not None:
             df = self.edgelist.edgelist_df
             if self.properties.renumbered:
-                # FIXME: If vertices are multicolumn
-                #        this needs to return a dataframe
                 # FIXME: This relies on current implementation
                 #        of NumberMap, should not really expose
                 #        this, perhaps add a method to NumberMap
-                return self.renumber_map.implementation.df["0"]
+                df = self.renumber_map.implementation.df.drop(columns="id")
+                if len(df.columns) > 1:
+                    return df
+                else:
+                    return df[df.columns[0]]
             else:
                 return cudf.concat([df["src"], df["dst"]]).unique()
         if self.adjlist is not None:

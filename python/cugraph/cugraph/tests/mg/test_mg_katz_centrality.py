@@ -56,10 +56,8 @@ def test_dask_katz_centrality(dask_client, directed):
     dg = cugraph.Graph(directed=True)
     dg.from_dask_cudf_edgelist(ddf, "src", "dst")
 
-    largest_out_degree = dg.out_degree().compute().\
-        nlargest(n=1, columns="degree")
-    largest_out_degree = largest_out_degree["degree"].iloc[0]
-    katz_alpha = 1 / (largest_out_degree + 1)
+    degree_max = dg.degree()['degree'].max().compute()
+    katz_alpha = 1 / (degree_max)
 
     mg_res = dcg.katz_centrality(dg, alpha=katz_alpha, tol=1e-6)
     mg_res = mg_res.compute()
@@ -90,6 +88,56 @@ def test_dask_katz_centrality(dask_client, directed):
         diff = abs(
             compare_res["katz_centrality_local"].iloc[i]
             - compare_res["katz_centrality_dask"].iloc[i]
+        )
+        if diff > tol * 1.1:
+            err = err + 1
+    assert err == 0
+
+
+@pytest.mark.skipif(
+    is_single_gpu(), reason="skipping MG testing on Single GPU system"
+)
+@pytest.mark.parametrize("directed", IS_DIRECTED)
+def test_dask_katz_centrality_nstart(dask_client, directed):
+    input_data_path = (RAPIDS_DATASET_ROOT_DIR_PATH /
+                       "karate.csv").as_posix()
+    print(f"dataset={input_data_path}")
+    chunksize = dcg.get_chunksize(input_data_path)
+
+    ddf = dask_cudf.read_csv(
+        input_data_path,
+        chunksize=chunksize,
+        delimiter=" ",
+        names=["src", "dst", "value"],
+        dtype=["int32", "int32", "float32"],
+    )
+
+    dg = cugraph.Graph(directed=True)
+    dg.from_dask_cudf_edgelist(ddf, "src", "dst")
+
+    mg_res = dcg.katz_centrality(dg, max_iter=50, tol=1e-6)
+    mg_res = mg_res.compute()
+
+    estimate = mg_res.copy()
+    estimate = estimate.rename(columns={"vertex": "vertex",
+                                        "katz_centrality": "values"})
+    estimate["values"] = 0.5
+
+    mg_estimate_res = dcg.katz_centrality(dg,
+                                          nstart=estimate,
+                                          max_iter=50, tol=1e-6)
+    mg_estimate_res = mg_estimate_res.compute()
+
+    err = 0
+    tol = 1.0e-05
+    compare_res = mg_res.merge(
+        mg_estimate_res, on="vertex", suffixes=["_dask", "_nstart"]
+    )
+
+    for i in range(len(compare_res)):
+        diff = abs(
+            compare_res["katz_centrality_dask"].iloc[i]
+            - compare_res["katz_centrality_nstart"].iloc[i]
         )
         if diff > tol * 1.1:
             err = err + 1
