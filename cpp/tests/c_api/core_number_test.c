@@ -54,7 +54,6 @@ int generic_core_number_test(vertex_t* h_src,
 
   ret_code =
     cugraph_core_number(p_handle, p_graph, 0, FALSE, &p_result, &ret_error);
-  // printf("called core_number \n");
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "cugraph_core_number failed.");
   // TEST_ALWAYS_ASSERT(ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
 
@@ -75,11 +74,7 @@ int generic_core_number_test(vertex_t* h_src,
     p_handle, (byte_t*)h_core_numbers, core_numbers, &ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "copy_to_host failed.");
 
-  printf("got to right before checking vals \n");
-
   for (int i = 0; (i < num_vertices) && (test_ret_value == 0); ++i) {
-    printf("h_result %f \n", h_result[h_vertices[i]]);
-    printf("h_core_numbers %f \n", h_core_numbers[i]);
     TEST_ASSERT(test_ret_value,
                 nearlyEqual(h_result[h_vertices[i]], h_core_numbers[i], 0.001),
                 "core number results don't match");
