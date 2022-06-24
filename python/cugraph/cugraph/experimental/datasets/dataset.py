@@ -22,6 +22,7 @@ this_dir = Path(os.getenv("this_dir", "cugraph/cugraph/experimental/datasets"))
 datasets_dir = this_dir.parent / "datasets"
 download_dir = this_dir / "datasets"
 
+
 class Dataset:
     """
     A Dataset Object, used to easily import edgelist data and cuGraph.Graph
@@ -84,8 +85,7 @@ class Dataset:
             self.path = default_path + filename
         else:
             raise RuntimeError("The directory " + default_path +
-                                " does not exist")
-        
+                               " does not exist")
 
     def get_edgelist(self, fetch=False):
         """
@@ -107,7 +107,8 @@ class Dataset:
                                         self.download_dir)
                 else:
                     raise RuntimeError("The datafile does not exist. Try" +
-                     " get_edgelist(fetch=True) to download the datafile")
+                                       " get_edgelist(fetch=True) to" +
+                                       " download the datafile")
 
             self.__edgelist = cudf.read_csv(full_path,
                                             delimiter=self.metadata['delim'],
@@ -145,14 +146,15 @@ class Dataset:
 
 def load_all(path="datasets", force=False):
     """
-    Looks in `metadata` directory and fetches all datafiles from the the URLs provided in each YAML file.
+    Looks in `metadata` directory and fetches all datafiles from the the URLs
+    provided in each YAML file.
 
     Parameters
         ----------
         path : String (default="datasets")
             Location to store all the datasets
     """
-    
+
     meta_path = Path(__file__).parent.absolute() / "metadata"
     if not os.path.isabs(path):
         download_dir = Path(path).absolute()
