@@ -20,7 +20,7 @@ from pathlib import Path
 
 this_dir = Path(os.getenv("this_dir", "cugraph/cugraph/experimental/datasets"))
 datasets_dir = this_dir.parent / "datasets"
-
+download_dir = this_dir / "datasets"
 
 class Dataset:
     """
@@ -79,8 +79,8 @@ class Dataset:
             df = cudf.read_csv(url)
             try:
                 df.to_csv(default_path + filename, index=False)
-            except:
-                print("error")
+            except RuntimeError:
+                print("Error: cannot write files here")
             self.path = default_path + filename
         else:
             raise RuntimeError("The directory " + default_path +
@@ -143,22 +143,36 @@ class Dataset:
         return self.path
 
 
-def load_all(default_path="datasets/", force=False):
+def load_all(path="datasets", force=False):
     """
-    Looks in `metadata` directory and fetches all datafiles from the web.
+    Looks in `metadata` directory and fetches all datafiles from the the URLs provided in each YAML file.
+
+    Parameters
+        ----------
+        path : String (default="datasets")
+            Location to store all the datasets
     """
-    meta_path = "python/cugraph/cugraph/experimental/datasets/metadata/"
+    
+    meta_path = Path(__file__).parent.absolute() / "metadata"
+    if not os.path.isabs(path):
+        download_dir = Path(path).absolute()
+    download_dir = Path(path)
+
     for file in os.listdir(meta_path):
         meta = None
         if file.endswith('.yaml'):
-            with open(meta_path + file, 'r') as metafile:
+            with open(meta_path / file, 'r') as metafile:
                 meta = yaml.safe_load(metafile)
                 metafile.close()
 
             if 'url' in meta:
-                # filename = meta['url'].split('/')[-1]
                 filename = meta['name'] + meta['file_type']
-                if not os.path.isfile(default_path + filename) or force:
+                save_to = download_dir / filename
+                if not os.path.isfile(save_to) or force:
                     print("Downloading dataset from: " + meta['url'])
+                    print("  Saving file to " + str(save_to.absolute()))
                     df = cudf.read_csv(meta['url'])
-                    df.to_csv(default_path + filename, index=False)
+                    try:
+                        df.to_csv(save_to, index=False)
+                    except RuntimeError:
+                        print("Error: cannot write files to " + str(save_to))
