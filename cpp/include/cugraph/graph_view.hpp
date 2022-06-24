@@ -19,6 +19,7 @@
 #include <cugraph/edge_partition_view.hpp>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/vertex_partition_view.hpp>
+#include <cugraph/graph_mask.hpp>
 
 // visitor logic:
 //
@@ -385,7 +386,7 @@ class graph_view_t<vertex_t,
                std::optional<std::vector<vertex_t const*>> const& edge_partition_dcs_nzd_vertices,
                std::optional<std::vector<vertex_t>> const& edge_partition_dcs_nzd_vertex_counts,
                graph_view_meta_t<vertex_t, edge_t, multi_gpu> meta,
-               std::optional<std::vector<graph_mask_t<vertex_t, edge_t> *>> mask = std::nullopt);
+               std::optional<std::vector<graph_mask_view_t<vertex_t, edge_t> *>> mask = std::nullopt);
 
   bool is_weighted() const { return edge_partition_weights_.has_value(); }
 
@@ -606,6 +607,26 @@ class graph_view_t<vertex_t,
 
   edge_t count_self_loops(raft::handle_t const& handle) const;
   edge_t count_multi_edges(raft::handle_t const& handle) const;
+
+  void attach_mask(graph_mask_t<vertex_t, edge_t> &graph_mask);
+
+  /**
+  * Mask edges using functor with arguments:
+  * (vertex_t src, vertex_t dst, weight_t src_val, weight_t dst_val) -> bool
+  * @tparam mask_func
+  * @param masking_functor
+  */
+  template<typename mask_func>
+  void mask_edges(mask_func &masking_functor);
+
+  /**
+   * Mask vertices using functor with arguments:
+   * (vertex_t) -> bool
+   * @tparam mask_func
+   * @param masking_functor
+   */
+  template<typename mask_func>
+  void mask_vertices(mask_func &masking_functor);
 
   std::optional<vertex_t const*> local_sorted_unique_edge_src_begin() const
   {
