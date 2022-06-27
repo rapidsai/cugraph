@@ -103,7 +103,6 @@ rmm::device_uvector<typename GraphViewType::edge_type> compute_local_major_degre
                         vertex_ids        = *(edge_partition.dcs_nzd_vertices()),
                         offsets           = edge_partition.offsets(),
                         local_degrees = thrust::raw_pointer_cast(sparse_begin)] __device__(auto i) {
-
                          // TODO: We need to compute the masked degrees here. If a mask is present,
                          // we probably just need to sum the
                          auto d = offsets[(major_hypersparse_first - major_range_first) + i + 1] -
@@ -118,7 +117,6 @@ rmm::device_uvector<typename GraphViewType::edge_type> compute_local_major_degre
                        sparse_begin,
                        sparse_end,
                        [offsets = edge_partition.offsets()] __device__(auto i) {
-
                          // TODO: We need to compute the masked degrees here, so if a mask is
                          // present, we might need to sum the bits in the mask between these
                          // offsets.

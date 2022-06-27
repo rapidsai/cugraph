@@ -74,7 +74,6 @@ uniform_nbr_sample_impl(
   rmm::device_uvector<vertex_t> d_result_src(0, handle.get_stream());
   rmm::device_uvector<vertex_t> d_result_dst(0, handle.get_stream());
 
-
   auto d_result_indices =
     thrust::make_optional(rmm::device_uvector<weight_t>(0, handle.get_stream()));
 
@@ -186,7 +185,6 @@ uniform_nbr_sample(
   bool with_replacement,
   uint64_t seed)
 {
-
   // TODO: Probably don't need to filter this.
   rmm::device_uvector<vertex_t> d_start_vs(starting_vertices.size(), handle.get_stream());
   raft::copy(
