@@ -55,13 +55,6 @@ void pagerank(
   bool has_initial_guess,
   bool do_expensive_check)
 {
-  /**
-   * TODO: Add masking to the following prims:
-   * 1. count_if_v
-   * 2. count_if_e
-   * 3. transform_reduce_v
-   * 4.
-   */
   using vertex_t = typename GraphViewType::vertex_type;
   using weight_t = typename GraphViewType::weight_type;
 

@@ -35,7 +35,6 @@ namespace detail {
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Non-owning graph object.
- * @param graph_view Non-owning graph object.
  * @return A single vector containing the local out degrees of the majors belong to the adjacency
  * matrices
  */
