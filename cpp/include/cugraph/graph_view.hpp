@@ -418,8 +418,7 @@ class graph_view_t<vertex_t,
                std::optional<std::vector<weight_t const*>> const& edge_partition_weights,
                std::optional<std::vector<vertex_t const*>> const& edge_partition_dcs_nzd_vertices,
                std::optional<std::vector<vertex_t>> const& edge_partition_dcs_nzd_vertex_counts,
-               graph_view_meta_t<vertex_t, edge_t, store_transposed, multi_gpu> meta,
-               std::optional<std::vector<graph_mask_view_t<vertex_t, edge_t> *>> mask = std::nullopt);
+               graph_view_meta_t<vertex_t, edge_t, store_transposed, multi_gpu> meta);
 
 
   bool is_weighted() const { return edge_partition_weights_.has_value(); }
@@ -667,27 +666,12 @@ class graph_view_t<vertex_t,
   edge_t count_self_loops(raft::handle_t const& handle) const;
   edge_t count_multi_edges(raft::handle_t const& handle) const;
 
-  void attach_mask(graph_mask_t<vertex_t, edge_t> &graph_mask);
+  void attach_mask(std::vector<graph_mask_t<vertex_t, edge_t> *> &graph_mask) {
+      mask_ = std::make_optional<std::vector<graph_mask_t<vertex_t, edge_t> *>>(graph_mask);
+  }
 
-  /**
-  * Mask edges using functor with arguments:
-  * (vertex_t src, vertex_t dst, weight_t src_val, weight_t dst_val) -> bool
-  * @tparam mask_func
-  * @param masking_functor
-  */
-  template<typename mask_func>
-  void mask_edges(mask_func &masking_functor);
+  std::optional<vertex_t const*> local_sorted_unique_edge_src_begin() const;
 
-  /**
-   * Mask vertices using functor with arguments:
-   * (vertex_t) -> bool
-   * @tparam mask_func
-   * @param masking_functor
-   */
-  template<typename mask_func>
-  void mask_vertices(mask_func &masking_functor);
-
-  std::optional<vertex_t const*> local_sorted_unique_edge_src_begin() const
   template <bool transposed = is_storage_transposed>
   std::enable_if_t<transposed, std::optional<raft::device_span<vertex_t const>>>
   local_sorted_unique_edge_srcs() const
@@ -830,7 +814,7 @@ class graph_view_t<vertex_t,
                      std::optional<raft::host_span<vertex_t const>>,
                      std::optional<std::byte> /* dummy */>
     local_sorted_unique_edge_dst_vertex_partition_offsets_{std::nullopt};
-  std::optional<std::vector<graph_mask_t<vertex_t, edge_t>*>> mask_{std::nullopt};
+  std::optional<std::vector<graph_mask_t<vertex_t, edge_t> *>> mask_{std::nullopt};
 };
 
 // single-GPU version
@@ -858,7 +842,6 @@ class graph_view_t<vertex_t,
                vertex_t const* indices,
                std::optional<weight_t const*> weights,
                graph_view_meta_t<vertex_t, edge_t, store_transposed, multi_gpu> meta);
-               std::optional<graph_mask_t<vertex_t, edge_t>> mask = std::nullopt);
 
   bool is_weighted() const { return weights_.has_value(); }
 
@@ -967,6 +950,14 @@ class graph_view_t<vertex_t,
   vertex_partition_view_t<vertex_t, false> local_vertex_partition_view() const
   {
     return vertex_partition_view_t<vertex_t, false>(this->number_of_vertices());
+  }
+
+  void attach_mask(graph_mask_t<vertex_t, edge_t> &mask) {
+    mask_  = std::make_optional<graph_mask_t<vertex_t, edge_t>*>(&mask);
+  }
+
+  graph_mask_t<vertex_t, edge_t> &get_mask() {
+      return **mask_;
   }
 
   edge_partition_view_t<vertex_t, edge_t, weight_t, false> local_edge_partition_view(
@@ -1084,7 +1075,7 @@ class graph_view_t<vertex_t,
   // segment offsets based on vertex degree, relevant only if vertex IDs are renumbered
   std::optional<std::vector<vertex_t>> segment_offsets_{std::nullopt};
 
-  std::optional<graph_mask_t<vertex_t, edge_t>> mask_{std::nullopt};
+  std::optional<graph_mask_t<vertex_t, edge_t> *> mask_{std::nullopt};
 };
 
 }  // namespace cugraph

@@ -327,7 +327,7 @@ create_graph_from_edgelist_impl(raft::handle_t const& handle,
                                                          graph_properties,
                                                          meta.partition,
                                                          meta.segment_offsets}),
-    std::optional<rmm::device_uvector<vertex_t>>{std::move(renumber_map_labels)}, );
+    std::optional<rmm::device_uvector<vertex_t>>{std::move(renumber_map_labels)});
 }
 
 template <typename vertex_t,
@@ -398,7 +398,7 @@ create_graph_from_edgelist_impl(raft::handle_t const& handle,
         num_vertices,
         graph_properties,
         renumber ? std::optional<std::vector<vertex_t>>{meta.segment_offsets} : std::nullopt}),
-    std::move(renumber_map_labels), );
+    std::move(renumber_map_labels));
 }
 
 }  // namespace

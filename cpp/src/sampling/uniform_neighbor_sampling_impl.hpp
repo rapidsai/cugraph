@@ -101,10 +101,10 @@ uniform_nbr_sample_impl(
 
     if (k_level != 0) {
       // extract out-degs(sources):
+
+      // TODO: `get_active_major_global_degrees` should use the mask
       auto&& d_out_degs =
         get_active_major_global_degrees(handle, graph_view, d_in, global_out_degrees);
-
-      // TODO: Should we do a mask step first?
 
       // eliminate 0 degree vertices
       std::tie(d_in, d_out_degs) =
@@ -127,6 +127,7 @@ uniform_nbr_sample_impl(
                                         handle.get_stream());
       }
 
+      // TODO: `gather_local_edges` should use the mask
       std::tie(d_out_src, d_out_dst, d_out_indices) =
         gather_local_edges(handle,
                            graph_view,

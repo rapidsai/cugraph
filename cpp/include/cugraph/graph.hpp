@@ -157,8 +157,7 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
 
   bool is_weighted() const { return edge_partition_weights_.has_value(); }
 
-  graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> view(
-    std::optional<std::vector<graph_mask_t<bool> const*>> mask = std::nullopt) const
+  graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> view() const
   {
     std::vector<edge_t const*> offsets(edge_partition_offsets_.size(), nullptr);
     std::vector<vertex_t const*> indices(edge_partition_indices_.size(), nullptr);
@@ -288,8 +287,7 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
         local_sorted_unique_edge_dsts,
         local_sorted_unique_edge_dst_chunk_start_offsets,
         local_sorted_unique_edge_dst_chunk_size_,
-        local_sorted_unique_edge_dst_vertex_partition_offsets},
-      mask.has_value() ? mask : std::nullopt);
+        local_sorted_unique_edge_dst_vertex_partition_offsets});
   }
 
   std::tuple<rmm::device_uvector<vertex_t>,
@@ -435,8 +433,7 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
 
   bool is_weighted() const { return weights_.has_value(); }
 
-  graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> view(
-    std::optional<graph_mask_t<bool> const> mask = std::nullopt) const
+  graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> view() const
   {
     return graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
       *(this->handle_ptr()),
@@ -446,7 +443,7 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
       graph_view_meta_t<vertex_t, edge_t, store_transposed, multi_gpu>{this->number_of_vertices(),
                                                                        this->number_of_edges(),
                                                                        this->graph_properties(),
-                                                                       segment_offsets_}, mask);
+                                                                       segment_offsets_});
   }
 
   // FIXME: possibley to be added later;
