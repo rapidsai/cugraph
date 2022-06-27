@@ -20,7 +20,9 @@ from pathlib import Path
 
 this_dir = Path(os.getenv("this_dir", "cugraph/cugraph/experimental/datasets"))
 datasets_dir = this_dir.parent / "datasets"
-download_dir = this_dir / "datasets"
+
+import pdb; breakpoint()
+# download_dir = this_dir / "datasets"
 
 
 class Dataset:
@@ -59,21 +61,6 @@ class Dataset:
             self.download_dir = cfg['download_dir']
             file.close()
 
-    def set_config(self, cfgfile):
-        """
-        Read in a custom config file.
-
-        Parameters
-        ----------
-        cfgfile : String
-            Read in and override the default configuration
-        """
-        config_path = self.dir_path / cfgfile
-        with open(config_path, 'r') as file:
-            cfg = yaml.safe_load(file)
-            self.download_dir = cfg['download_dir']
-            file.close()
-
     def __download_csv(self, url, default_path):
         filename = self.metadata['name'] + self.metadata['file_type']
         if os.path.isdir(default_path):
@@ -99,6 +86,8 @@ class Dataset:
         """
         # breakpoint()
         if self.__edgelist is None:
+            
+            # FIXME: Convert to actual Path. Check abs
             full_path = self.download_dir + self.metadata['name'] \
                             + self.metadata['file_type']
             if not os.path.isfile(full_path):
@@ -178,3 +167,15 @@ def load_all(path="datasets", force=False):
                         df.to_csv(save_to, index=False)
                     except RuntimeError:
                         print("Error: cannot write files to " + str(save_to))
+
+def set_config(cfgfile):
+    """
+    Read in a custom config file.
+
+    Parameters
+    ----------
+    cfgfile : String
+        Read in and override the default config file
+    """
+
+    # FIXME: This method is WIP
