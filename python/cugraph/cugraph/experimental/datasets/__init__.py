@@ -17,6 +17,7 @@
 from cugraph.experimental.datasets.dataset import (
     Dataset,
     load_all,
+    set_config
 #    karate,
 #    dolphins,
 #    SMALL_DATASETS
