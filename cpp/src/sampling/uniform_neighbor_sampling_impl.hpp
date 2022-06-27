@@ -46,8 +46,6 @@ std::tuple<rmm::device_uvector<typename graph_view_t::vertex_type>,
 uniform_nbr_sample_impl(
   raft::handle_t const& handle,
 
-  // We never actually use the graph_view in this function...
-  // (though since it's available we can pull off the mask).
   graph_view_t const& graph_view,
 
   // List of vertices to sample.
@@ -185,7 +183,6 @@ uniform_nbr_sample(
   bool with_replacement,
   uint64_t seed)
 {
-  // TODO: Probably don't need to filter this.
   rmm::device_uvector<vertex_t> d_start_vs(starting_vertices.size(), handle.get_stream());
   raft::copy(
     d_start_vs.data(), starting_vertices.data(), starting_vertices.size(), handle.get_stream());
