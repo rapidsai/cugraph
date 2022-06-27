@@ -259,8 +259,7 @@ struct graph_mask_t {
   {
     if (edges_.size() == 0) {
       edges_.resize(n_edges_, handle.get_stream());
-      RAFT_CUDA_TRY(
-        cudaMemsetAsync(edges_.data(), edges_.size() * sizeof(mask_t), 0, handle.get_stream()));
+      clear_edge_mask();
     }
   }
 
@@ -271,6 +270,27 @@ struct graph_mask_t {
   {
     if (vertices_.size() == 0) {
       vertices_.resize(n_vertices_, handle.get_stream());
+      clear_vertex_mask();
+    }
+  }
+
+  /**
+   * Clears out all the masked bits of the edge mask
+   */
+  void clear_edge_mask()
+  {
+    if (edges_.size() == 0) {
+      RAFT_CUDA_TRY(
+        cudaMemsetAsync(edges_.data(), edges_.size() * sizeof(mask_t), 0, handle.get_stream()));
+    }
+  }
+
+  /**
+   * Clears out all the masked bits of the vertex mask
+   */
+  void clear_vertex_mask()
+  {
+    if (vertices_.size() > 0) {
       RAFT_CUDA_TRY(cudaMemsetAsync(
         vertices_.data(), vertices_.size() * sizeof(mask_t), 0, handle.get_stream()));
     }
