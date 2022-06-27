@@ -16,12 +16,12 @@ import cudf
 import yaml
 import os
 from pathlib import Path
+# import pdb
 
 this_dir = Path(os.getenv("this_dir", "cugraph/cugraph/experimental/datasets"))
 datasets_dir = this_dir.parent / "datasets"
 
 download_dir = Path("datasets")
-# pdb.set_trace()
 
 
 class Dataset:
@@ -57,21 +57,20 @@ class Dataset:
         with open(config_path, 'r') as file:
             cfg = yaml.safe_load(file)
             global download_dir
-            download_dir = cfg['download_dir']
+            download_dir = Path(cfg['download_dir'])
             file.close()
 
-    def __download_csv(self, url, default_path):
-        # FIXME: Pathing issues
+    def __download_csv(self, url):
         filename = self.metadata['name'] + self.metadata['file_type']
-        if os.path.isdir(default_path):
+        if os.path.isdir(download_dir):
             df = cudf.read_csv(url)
             try:
-                df.to_csv(default_path + filename, index=False)
+                df.to_csv(download_dir / filename, index=False)
             except RuntimeError:
                 print("Error: cannot write files here")
-            self.path = default_path + filename
+            self.path = download_dir / filename
         else:
-            raise RuntimeError("The directory " + default_path +
+            raise RuntimeError("The directory " + download_dir +
                                " does not exist")
 
     def get_edgelist(self, fetch=False):
@@ -84,16 +83,14 @@ class Dataset:
             Automatically fetch for the dataset from the 'url' location within
             the YAML file.
         """
-        breakpoint()
+
         if self.__edgelist is None:
-            # FIXME: Convert to actual Path. Check abs
             full_path = download_dir / (self.metadata['name'] +
                                         self.metadata['file_type'])
 
             if not os.path.isfile(full_path):
                 if fetch:
-                    self.__download_csv(self.metadata['url'],
-                                        download_dir)
+                    self.__download_csv(self.metadata['url'])
                 else:
                     raise RuntimeError("The datafile does not exist. Try" +
                                        " get_edgelist(fetch=True) to" +
@@ -191,5 +188,5 @@ def set_config(cfgfile):
 
     with open(download_dir, 'r') as file:
         cfg = yaml.safe_load(file)
-        download_dir = cfg['download_dir']
+        download_dir = Path(cfg['download_dir'])
         file.close()
