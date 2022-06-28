@@ -376,6 +376,7 @@ ConfigureTest(GENERATE_RMAT_TEST generators/generate_rmat_test.cpp)
 ###################################################################################################
 # - Graph tests -----------------------------------------------------------------------------------
 ConfigureTest(GRAPH_TEST structure/graph_test.cpp)
+ConfigureTest(GRAPH_MASK_TEST structure/graph_mask_test.cpp)
 
 ###################################################################################################
 # - Symmetrize tests ------------------------------------------------------------------------------
