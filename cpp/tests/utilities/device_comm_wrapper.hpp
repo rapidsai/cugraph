@@ -17,13 +17,28 @@
 #pragma once
 
 #include <raft/handle.hpp>
+#include <raft/core/span.hpp>
+
 #include <rmm/device_uvector.hpp>
 
 namespace cugraph {
 namespace test {
 
 template <typename T>
-rmm::device_uvector<T> device_gatherv(raft::handle_t const& handle, T const* d_input, size_t size);
+rmm::device_uvector<T> device_gatherv(raft::handle_t const& handle, raft::device_span<T const> d_input);
+
+template <typename T>
+rmm::device_uvector<T> device_gatherv(raft::handle_t const& handle, T const* d_input, size_t size) {
+  return device_gatherv(handle, raft::device_span<T const>{d_input, size});
+}
+
+template <typename T>
+rmm::device_uvector<T> device_allgatherv(raft::handle_t const& handle, raft::device_span<T const> d_input);
+
+template <typename T>
+rmm::device_uvector<T> device_allgatherv(raft::handle_t const& handle, T const* d_input, size_t size) {
+  return device_allgatherv(handle, raft::device_span<T const>{d_input, size});
+}
 
 }  // namespace test
 }  // namespace cugraph

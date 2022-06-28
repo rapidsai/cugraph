@@ -474,7 +474,6 @@ gather_local_edges(
        id_seg_count          = id_begin.size(),
        vertex_count_offsets  = vertex_count_offsets.data(),
        glbl_degree_offsets   = global_degree_offsets.data(),
-       glbl_adj_list_offsets = global_adjacency_list_offsets.data(),
        majors                = majors.data(),
        minors                = minors.data(),
        weights               = weights ? weights->data() : nullptr,
