@@ -144,11 +144,22 @@ class Tests_GraphMask
 
     graph_view.attach_mask(mask);
 
+    auto mask_view = *graph_view.get_mask_view();
+
+    ASSERT_EQ(false, mask.has_vertex_mask());
+    ASSERT_EQ(false, mask.has_edge_mask());
+    ASSERT_EQ(false, mask_view.has_vertex_mask());
+    ASSERT_EQ(false, mask_view.has_edge_mask());
+
     mask.initialize_vertex_mask();
     mask.initialize_edge_mask();
 
-    auto mask_view = graph_view.get_mask_view();
-  }
+    ASSERT_EQ(true, mask.has_vertex_mask());
+    ASSERT_EQ(true, mask.has_edge_mask());
+    ASSERT_EQ(true, mask_view.has_vertex_mask());
+    ASSERT_EQ(true, mask_view.has_edge_mask());
+
+}
 };
 
 using Tests_Graph_File = Tests_GraphMask<cugraph::test::File_Usecase>;
