@@ -57,6 +57,26 @@ __device__ __host__ inline bool _get_bit(mask_type* arr, mask_type h)
 };  // END namespace detail
 
 /**
+ * A wrapper around a bitmasked array which allows elements to be looked
+ * up using standard indexing.
+ * @tparam T
+ */
+template <typename T = std::uint32_t>
+struct bitset {
+  __host__ __device__ bitset(T n_, T* bits_) : n(n_), bits(bits_) {}
+
+  __host__ __device__ T& operator[](T idx)
+  {
+    RAFT_EXPECTS(idx > 0 && idx < n, "Index out of bounds.");
+    return static_cast<T>(detail::_get_bit(bits, idx));
+  }
+
+ private:
+  T n;
+  T* bits;
+};
+
+/**
  * Mask view to be used in device functions for reading and updating existing mask.
  * This assumes the appropriate masks (vertex/edge) have already been initialized,
  * since that will need to be done from the owning object.
@@ -69,14 +89,16 @@ struct graph_mask_view_t {
  public:
   graph_mask_view_t() = delete;
 
-  graph_mask_view_t(bool has_vertex_mask,
-                    bool has_edge_mask,
-                    vertex_t n_vertices,
-                    edge_t n_edges,
-                    mask_t* vertices,
-                    mask_t* edges,
-                    bool complement = false)
-    : has_vertex_mask_(has_vertex_mask),
+  explicit graph_mask_view_t(raft::handle_t const& handle,
+                             bool has_vertex_mask,
+                             bool has_edge_mask,
+                             vertex_t n_vertices,
+                             edge_t n_edges,
+                             mask_t* vertices,
+                             mask_t* edges,
+                             bool complement = false)
+    : handle_(handle),
+      has_vertex_mask_(has_vertex_mask),
       has_edge_mask_(has_edge_mask),
       n_vertices_(n_vertices),
       n_edges_(n_edges),
@@ -85,6 +107,24 @@ struct graph_mask_view_t {
       edges_(edges)
   {
   }
+
+  explicit graph_mask_view_t(graph_mask_view_t const& other)
+    : handle_(other.handle_),
+      has_vertex_mask_(other.has_vertex_mask_),
+      has_edge_mask_(other.has_edge_mask_),
+      n_vertices_(other.n_vertices_),
+      n_edges_(other.n_edges_),
+      edges_(other.edges_),
+      vertices_(other.vertices_),
+      complement_(other.complement_)
+  {
+  }
+
+  ~graph_mask_view_t()                            = default;
+  graph_mask_view_t(graph_mask_view_t&&) noexcept = default;
+
+  graph_mask_view_t& operator=(graph_mask_view_t&&) noexcept = default;
+  graph_mask_view_t& operator=(graph_mask_view_t const& other) = default;
 
   /**
    * Return whether or not a specific vertex is masked
@@ -168,7 +208,8 @@ struct graph_mask_view_t {
    */
   __host__ __device__ mask_t* get_edge_mask() { return edges_; }
 
- private:
+ protected:
+  raft::handle_t const& handle_;
   bool has_vertex_mask_{false};
   bool has_edge_mask_{false};
   vertex_t n_vertices_;
@@ -196,19 +237,41 @@ struct graph_mask_view_t {
 template <typename vertex_t, typename edge_t, typename mask_t = std::uint32_t>
 struct graph_mask_t {
  public:
+  using vertex_type = vertex_t;
+  using edge_type   = edge_t;
+  using mask_type   = mask_t;
+  using size_type   = std::size_t;
+
+  ~graph_mask_t()                       = default;
+  graph_mask_t(graph_mask_t&&) noexcept = default;
+
   graph_mask_t() = delete;
 
-  graph_mask_t(raft::handle_t const& handle,
-               vertex_t n_vertices,
-               edge_t n_edges,
-               bool complement = false)
-    : n_vertices_(n_vertices),
+  explicit graph_mask_t(raft::handle_t const& handle,
+                        vertex_t n_vertices,
+                        edge_t n_edges,
+                        bool complement = false)
+    : handle_(handle),
+      n_vertices_(n_vertices),
       n_edges_(n_edges),
       edges_(0, handle.get_stream()),
       vertices_(0, handle.get_stream()),
       complement_(complement)
   {
   }
+
+  explicit graph_mask_t(graph_mask_t const& other)
+    : handle_(other.handle_),
+      n_vertices_(other.n_vertices_),
+      n_edges_(other.n_edges_),
+      edges_(other.edges_, other.handle_.get_stream()),
+      vertices_(other.vertices_, other.handle_.get_stream()),
+      complement_(other.complement_)
+  {
+  }
+
+  graph_mask_t& operator=(graph_mask_t&&) noexcept = default;
+  graph_mask_t& operator=(graph_mask_t const& other) = default;
 
   /**
    * Determines whether the 1 bit in a vertex or edge position
@@ -252,13 +315,17 @@ struct graph_mask_t {
                                 : std::nullopt;
   }
 
+  vertex_t get_n_vertices() { return n_vertices_; }
+
+  edge_t get_n_edges() { return n_edges_; }
+
   /**
    * Initializes an edge mask by allocating the device memory
    */
   void initialize_edge_mask()
   {
     if (edges_.size() == 0) {
-      edges_.resize(n_edges_, handle.get_stream());
+      edges_.resize(n_edges_, handle_.get_stream());
       clear_edge_mask();
     }
   }
@@ -269,7 +336,7 @@ struct graph_mask_t {
   void initialize_vertex_mask()
   {
     if (vertices_.size() == 0) {
-      vertices_.resize(n_vertices_, handle.get_stream());
+      vertices_.resize(n_vertices_, handle_.get_stream());
       clear_vertex_mask();
     }
   }
@@ -281,7 +348,7 @@ struct graph_mask_t {
   {
     if (edges_.size() == 0) {
       RAFT_CUDA_TRY(
-        cudaMemsetAsync(edges_.data(), edges_.size() * sizeof(mask_t), 0, handle.get_stream()));
+        cudaMemsetAsync(edges_.data(), edges_.size() * sizeof(mask_t), 0, handle_.get_stream()));
     }
   }
 
@@ -292,7 +359,7 @@ struct graph_mask_t {
   {
     if (vertices_.size() > 0) {
       RAFT_CUDA_TRY(cudaMemsetAsync(
-        vertices_.data(), vertices_.size() * sizeof(mask_t), 0, handle.get_stream()));
+        vertices_.data(), vertices_.size() * sizeof(mask_t), 0, handle_.get_stream()));
     }
   }
 
@@ -306,17 +373,18 @@ struct graph_mask_t {
    */
   auto view()
   {
-    return graph_mask_view_t<vertex_t, edge_t, mask_t>(has_vertex_mask(),
+    return graph_mask_view_t<vertex_t, edge_t, mask_t>(handle_,
+                                                       has_vertex_mask(),
                                                        has_edge_mask(),
                                                        n_vertices_,
                                                        n_edges_,
-                                                       vertices_.get(),
-                                                       n_edges_.get(),
+                                                       vertices_.data(),
+                                                       edges_.data(),
                                                        complement_);
   }
 
- private:
-  raft::handle_t const& handle;
+ protected:
+  raft::handle_t const& handle_;
   vertex_t n_vertices_;
   edge_t n_edges_;
   bool complement_ = false;

@@ -669,6 +669,14 @@ class graph_view_t<vertex_t,
     mask_ = std::make_optional<std::vector<graph_mask_t<vertex_t, edge_t>*>>(graph_mask);
   }
 
+  std::optional<graph_mask_view_t<vertex_t, edge_t>> get_mask_view(size_t partition_idx = 0) const
+  {
+    graph_mask_t<vertex_t, edge_t>* mask = (*mask_)[partition_idx];
+    return mask_.has_value() ? std::make_optional<graph_mask_view_t<vertex_t, edge_t>>(
+                                 ((*mask_)[partition_idx])->view())
+                             : std::nullopt;
+  }
+
   std::optional<vertex_t const*> local_sorted_unique_edge_src_begin() const;
 
   template <bool transposed = is_storage_transposed>
@@ -844,7 +852,7 @@ class graph_view_t<vertex_t,
 
   bool is_weighted() const { return weights_.has_value(); }
 
-  bool has_mask() const { return mask_.has_value(); }
+  //  bool has_mask() const { return mask_.has_value(); }
 
   std::vector<vertex_t> vertex_partition_range_offsets() const
   {
@@ -956,7 +964,13 @@ class graph_view_t<vertex_t,
     mask_ = std::make_optional<graph_mask_t<vertex_t, edge_t>*>(&mask);
   }
 
-  graph_mask_t<vertex_t, edge_t>& get_mask() { return **mask_; }
+  std::optional<graph_mask_view_t<vertex_t, edge_t>> get_mask_view(size_t partition_idx = 0) const
+  {
+    assert(partition_idx == 0);
+    return mask_.has_value()
+             ? std::make_optional<graph_mask_view_t<vertex_t, edge_t>>((*mask_)->view())
+             : std::nullopt;
+  }
 
   edge_partition_view_t<vertex_t, edge_t, weight_t, false> local_edge_partition_view(
     size_t partition_idx = 0) const
