@@ -70,7 +70,7 @@ class Dataset:
                 print("Error: cannot write files here")
             self.path = download_dir / filename
         else:
-            raise RuntimeError("The directory " + download_dir +
+            raise RuntimeError("The directory " + str(download_dir) +
                                " does not exist")
 
     def get_edgelist(self, fetch=False):
