@@ -18,3 +18,4 @@ is_multigraph: false
 is_symmetric: true
 number_of_edges: 156
 number_of_nodes: 34
+number_of_lines: 156

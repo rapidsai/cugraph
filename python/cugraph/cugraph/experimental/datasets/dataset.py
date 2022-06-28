@@ -70,7 +70,7 @@ class Dataset:
                 print("Error: cannot write files here")
             self.path = download_dir / filename
         else:
-            raise RuntimeError("The directory " + str(download_dir) +
+            raise RuntimeError("The directory " + str(download_dir.absolute()) +
                                " does not exist")
 
     def get_edgelist(self, fetch=False):
@@ -170,21 +170,21 @@ def load_all(path="datasets", force=False):
                         print("Error: cannot write files to " + str(save_to))
 
 
-def set_config(cfgfile):
+def set_config(cfgpath):
     """
     Read in a custom config file.
 
     Parameters
     ----------
     cfgfile : String
-        Read in and override the default config file
+        Read the custom config file given its path, and override the default
     """
 
     global download_dir
-    if not os.path.isabs(cfgfile):
-        download_dir = Path(cfgfile).absolute()
+    if not os.path.isabs(cfgpath):
+        download_dir = Path(cfgpath).absolute()
     else:
-        download_dir = this_dir / cfgfile
+        download_dir = this_dir / cfgpath
 
     with open(download_dir, 'r') as file:
         cfg = yaml.safe_load(file)

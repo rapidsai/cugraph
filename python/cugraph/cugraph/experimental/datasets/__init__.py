@@ -31,9 +31,14 @@ polbooks = Dataset("metadata/polbooks.yaml")
 netscience = Dataset("metadata/netscience.yaml")
 cyber = Dataset("metadata/cyber.yaml")
 
-# MEDIUM DATASETS
 
 # LARGE DATASETS
 
-# GROUPS OF DATASETS
+# <10,000 lines
+MEDIUM_DATASETS = [netscience, polbooks]
+
+# <500 lines
 SMALL_DATASETS = [karate, dolphins]
+
+# ALL
+ALL_DATASETS = [karate, dolphins, netscience, polbooks]
