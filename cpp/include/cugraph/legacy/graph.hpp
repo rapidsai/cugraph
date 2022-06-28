@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2021, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2022, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -292,57 +292,6 @@ class GraphCSRView : public GraphCompressedSparseBaseView<vertex_t, edge_t, weig
 };
 
 /**
- * @brief       A graph stored in CSC (Compressed Sparse Column) format.
- *
- * @tparam vertex_t   Type of vertex id
- * @tparam edge_t     Type of edge id
- * @tparam weight_t   Type of weight
- */
-template <typename vertex_t, typename edge_t, typename weight_t>
-class GraphCSCView : public GraphCompressedSparseBaseView<vertex_t, edge_t, weight_t> {
- public:
-  /**
-   * @brief      Default constructor
-   */
-  GraphCSCView()
-    : GraphCompressedSparseBaseView<vertex_t, edge_t, weight_t>(nullptr, nullptr, nullptr, 0, 0)
-  {
-  }
-
-  /**
-   * @brief      Wrap existing arrays representing transposed adjacency lists in
-   * a Graph.
-   *             GraphCSCView does not own the memory used to represent this
-   * graph. This
-   *             function does not allocate memory.
-   *
-   * @param  offsets               This array of size V+1 (V is number of
-   * vertices) contains the
-   * offset of adjacency lists of every vertex. Offsets must be in the range [0,
-   * E] (number of
-   * edges).
-   * @param  indices               This array of size E contains the index of
-   * the destination for
-   * each edge. Indices must be in the range [0, V-1].
-   * @param  edge_data             This array of size E (number of edges)
-   * contains the weight for
-   * each edge.  This array can be null in which case the graph is considered
-   * unweighted.
-   * @param  number_of_vertices    The number of vertices in the graph
-   * @param  number_of_edges       The number of edges in the graph
-   */
-  GraphCSCView(edge_t* offsets,
-               vertex_t* indices,
-               weight_t* edge_data,
-               vertex_t number_of_vertices,
-               edge_t number_of_edges)
-    : GraphCompressedSparseBaseView<vertex_t, edge_t, weight_t>(
-        offsets, indices, edge_data, number_of_vertices, number_of_edges)
-  {
-  }
-};
-
-/**
  * @brief      TODO : Change this Take ownership of the provided graph arrays in
  * COO format
  *
@@ -589,58 +538,6 @@ class GraphCSR : public GraphCompressedSparseBase<vertex_t, edge_t, weight_t> {
   GraphCSRView<vertex_t, edge_t, weight_t> view(void) noexcept
   {
     return GraphCSRView<vertex_t, edge_t, weight_t>(
-      GraphCompressedSparseBase<vertex_t, edge_t, weight_t>::offsets(),
-      GraphCompressedSparseBase<vertex_t, edge_t, weight_t>::indices(),
-      GraphCompressedSparseBase<vertex_t, edge_t, weight_t>::edge_data(),
-      GraphCompressedSparseBase<vertex_t, edge_t, weight_t>::number_of_vertices(),
-      GraphCompressedSparseBase<vertex_t, edge_t, weight_t>::number_of_edges());
-  }
-};
-
-/**
- * @brief       A constructed graph stored in CSC (Compressed Sparse Column)
- * format.
- *
- * @tparam vertex_t   Type of vertex id
- * @tparam edge_t   Type of edge id
- * @tparam weight_t   Type of weight
- */
-template <typename vertex_t, typename edge_t, typename weight_t>
-class GraphCSC : public GraphCompressedSparseBase<vertex_t, edge_t, weight_t> {
- public:
-  /**
-   * @brief      Default constructor
-   */
-  GraphCSC() : GraphCompressedSparseBase<vertex_t, edge_t, weight_t>() {}
-
-  /**
-   * @brief      Take ownership of the provided graph arrays in CSR format
-   *
-   * @param  number_of_vertices    The number of vertices in the graph
-   * @param  number_of_edges       The number of edges in the graph
-   * @param  has_data              Wiether or not the class has data, default = False
-   * @param  stream                Specify the cudaStream, default = null
-   * @param mr                     Specify the memory resource
-   */
-  GraphCSC(vertex_t number_of_vertices_in,
-           edge_t number_of_edges_in,
-           bool has_data_in                    = false,
-           cudaStream_t stream                 = nullptr,
-           rmm::mr::device_memory_resource* mr = rmm::mr::get_current_device_resource())
-    : GraphCompressedSparseBase<vertex_t, edge_t, weight_t>(
-        number_of_vertices_in, number_of_edges_in, has_data_in, stream, mr)
-  {
-  }
-
-  GraphCSC(GraphSparseContents<vertex_t, edge_t, weight_t>&& contents)
-    : GraphCompressedSparseBase<vertex_t, edge_t, weight_t>(
-        std::forward<GraphSparseContents<vertex_t, edge_t, weight_t>>(contents))
-  {
-  }
-
-  GraphCSCView<vertex_t, edge_t, weight_t> view(void) noexcept
-  {
-    return GraphCSCView<vertex_t, edge_t, weight_t>(
       GraphCompressedSparseBase<vertex_t, edge_t, weight_t>::offsets(),
       GraphCompressedSparseBase<vertex_t, edge_t, weight_t>::indices(),
       GraphCompressedSparseBase<vertex_t, edge_t, weight_t>::edge_data(),

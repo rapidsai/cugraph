@@ -19,6 +19,7 @@
 #include <cugraph/graph_view.hpp>
 
 #include <raft/handle.hpp>
+#include <raft/span.hpp>
 #include <rmm/device_uvector.hpp>
 
 #include <memory>
@@ -471,8 +472,8 @@ std::tuple<rmm::device_uvector<vertex_t>,
 extract_induced_subgraphs(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> const& graph_view,
-  size_t const* subgraph_offsets /* size == num_subgraphs + 1 */,
-  vertex_t const* subgraph_vertices /* size == subgraph_offsets[num_subgraphs] */,
+  raft::device_span<size_t const> subgraph_offsets /* size == num_subgraphs + 1 */,
+  raft::device_span<vertex_t const> subgraph_vertices /* size == subgraph_offsets[num_subgraphs] */,
   size_t num_subgraphs,
   bool do_expensive_check = false);
 
