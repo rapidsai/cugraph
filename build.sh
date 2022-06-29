@@ -159,6 +159,8 @@ if hasArg clean; then
         pushd ${REPODIR}/python > /dev/null
         rm -rf dist dask-worker-space cugraph/raft *.egg-info
         find . -name "__pycache__" -type d -exec rm -rf {} \; > /dev/null 2>&1
+        find . -type d -name _skbuild -exec rm -rf {} \; > /dev/null 2>&1
+        find . -type d -name dist -exec rm -rf {} \; > /dev/null 2>&1
         find . -name "*.cpp" -type f -delete
         find . -name "*.cpython*.so" -type f -delete
         find . -type d -name _external_repositories -exec rm -rf {} \; > /dev/null 2>&1
@@ -231,7 +233,7 @@ if buildAll || hasArg pylibcugraph; then
     # build. If not set by the user, set it to LIBCUGRAPH_BUILD_DIR
     CUGRAPH_BUILD_PATH=${CUGRAPH_BUILD_PATH:=${LIBCUGRAPH_BUILD_DIR}}
     python setup.py build_ext --inplace --library-dir=${LIBCUGRAPH_BUILD_DIR} \
-           -- -DFIND_CUGRAPH_CPP=ON -Dcugraph_ROOT=${LIBCUGRAPH_BUILD_DIR}
+           -- -DFIND_CUGRAPH_CPP=ON -Dcugraph_ROOT=${LIBCUGRAPH_BUILD_DIR} -- -j${PARALLEL_LEVEL:-1}
     if [[ ${INSTALL_TARGET} != "" ]]; then
 	env CUGRAPH_BUILD_PATH=${CUGRAPH_BUILD_PATH} python setup.py install
     fi
@@ -245,7 +247,7 @@ if buildAll || hasArg cugraph; then
     # build. If not set by the user, set it to LIBCUGRAPH_BUILD_DIR
     CUGRAPH_BUILD_PATH=${CUGRAPH_BUILD_PATH:=${LIBCUGRAPH_BUILD_DIR}}
     python setup.py build_ext --inplace --library-dir=${LIBCUGRAPH_BUILD_DIR} \
-           -- -DFIND_CUGRAPH_CPP=ON -Dcugraph_ROOT=${LIBCUGRAPH_BUILD_DIR}
+           -- -DFIND_CUGRAPH_CPP=ON -Dcugraph_ROOT=${LIBCUGRAPH_BUILD_DIR} -- -j${PARALLEL_LEVEL:-1}
     if [[ ${INSTALL_TARGET} != "" ]]; then
 	env CUGRAPH_BUILD_PATH=${CUGRAPH_BUILD_PATH} python setup.py install
     fi
