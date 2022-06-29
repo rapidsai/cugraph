@@ -12,18 +12,17 @@
 # limitations under the License.
 
 import os
-import sys
 import shutil
 
 from setuptools import find_packages, Command
 from skbuild import setup
-#FIXME: Not necessary
+# FIXME: Not necessary
 from skbuild.command.build_ext import build_ext
 
-from setuputils import get_environment_option, get_cuda_version_from_header
+from setuputils import get_environment_option
+# from setuputils import get_cuda_version_from_header
 
 import versioneer
-from distutils.sysconfig import get_python_lib
 
 INSTALL_REQUIRES = []
 # CYTHON_FILES = ['pylibcugraph/**/*.pyx']
@@ -74,6 +73,7 @@ INSTALL_REQUIRES.append(
     "cupy-cuda" + get_cuda_version_from_header(cuda_include_dir)
 )
 """
+
 
 class CleanCommand(Command):
     """Custom clean command to tidy up the project root."""

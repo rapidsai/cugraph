@@ -12,15 +12,14 @@
 # limitations under the License.
 
 import os
-import sys
-import sysconfig
 import shutil
 
 from setuptools import find_packages, Command
 from skbuild import setup
 
-from setuputils import get_environment_option, get_cuda_version_from_header
-#FIXME: Not necessary
+from setuputils import get_environment_option
+# from setuputils import get_cuda_version_from_header
+# FIXME: Not necessary
 from skbuild.command.build_ext import build_ext
 
 import versioneer
@@ -28,8 +27,6 @@ import versioneer
 
 INSTALL_REQUIRES = ['numba', 'cython']
 CYTHON_FILES = ['cugraph/**/*.pyx']
-
-
 
 UCX_HOME = get_environment_option("UCX_HOME")
 CUDA_HOME = get_environment_option('CUDA_HOME')
@@ -76,33 +73,7 @@ INSTALL_REQUIRES.append(
 )
 """
 
-"""
-extensions = [
-    Extension("*",
-              sources=CYTHON_FILES,
-              include_dirs=[
-                  conda_include_dir,
-                  ucx_include_dir,
-                  '../cpp/include',
-                  "../thirdparty/cub",
-                  os.path.join(conda_include_dir, "libcudacxx"),
-                  cuda_include_dir,
-                  os.path.dirname(sysconfig.get_path("include"))
-              ],
-              library_dirs=[
-                  get_python_lib(),
-                  conda_lib_dir,
-                  libcugraph_path,
-                  ucx_lib_dir,
-                  cuda_lib_dir,
-                  os.path.join(os.sys.prefix, "lib")
-              ],
-              libraries=['cudart', 'cusparse', 'cusolver', 'cugraph', 'nccl'],
-              language='c++',
-              extra_compile_args=['-std=c++17'])
-]
 
-"""
 class CleanCommand(Command):
     """Custom clean command to tidy up the project root."""
     user_options = [('all', None, None), ]
@@ -123,6 +94,7 @@ class CleanCommand(Command):
         os.system('rm -rf *.egg-info')
         os.system('find . -name "*.cpp" -type f -delete')
         os.system('find . -name "*.cpython*.so" -type f -delete')
+
 
 cmdclass = dict()
 cmdclass.update(versioneer.get_cmdclass())
