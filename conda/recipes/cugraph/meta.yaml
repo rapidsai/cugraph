@@ -33,6 +33,8 @@ requirements:
   host:
     - python x.x
     - cython>=0.29,<0.30
+    - cmake>=3.20.1,!=3.23.0
+    - scikit-build>=0.13.1
     - libcugraph={{ version }}
     - libraft-headers {{ minor_version }}
     - pyraft {{ minor_version }}

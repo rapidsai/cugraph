@@ -101,6 +101,7 @@ cmdclass.update(versioneer.get_cmdclass())
 cmdclass["clean"] = CleanCommand
 cmdclass["build_ext"] = build_ext
 
+# FIXME: remove setup_requires, the .toml file does it
 setup(name='cugraph',
       description="cuGraph - RAPIDS GPU Graph Analytics",
       version=versioneer.get_version(),
