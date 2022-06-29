@@ -16,7 +16,7 @@ import sys
 import sysconfig
 import shutil
 
-from setuptools import find_packages, setup, Command
+from setuptools import find_packages, Command
 from skbuild import setup
 
 from setuputils import get_environment_option, get_cuda_version_from_header
