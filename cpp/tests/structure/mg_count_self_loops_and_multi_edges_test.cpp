@@ -210,20 +210,14 @@ INSTANTIATE_TEST_SUITE_P(
   Tests_MGCountSelfLoopsAndMultiEdges_File,
   ::testing::Combine(
     // enable correctness checks
-    ::testing::Values(CountSelfLoopsAndMultiEdges_Usecase{},
-                      CountSelfLoopsAndMultiEdges_Usecase{},
-                      CountSelfLoopsAndMultiEdges_Usecase{},
-                      CountSelfLoopsAndMultiEdges_Usecase{}),
+    ::testing::Values(CountSelfLoopsAndMultiEdges_Usecase{}),
     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
                       cugraph::test::File_Usecase("test/datasets/webbase-1M.mtx"))));
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_small_tests,
   Tests_MGCountSelfLoopsAndMultiEdges_Rmat,
-  ::testing::Combine(::testing::Values(CountSelfLoopsAndMultiEdges_Usecase{},
-                                       CountSelfLoopsAndMultiEdges_Usecase{},
-                                       CountSelfLoopsAndMultiEdges_Usecase{},
-                                       CountSelfLoopsAndMultiEdges_Usecase{}),
+  ::testing::Combine(::testing::Values(CountSelfLoopsAndMultiEdges_Usecase{}),
                      ::testing::Values(cugraph::test::Rmat_Usecase(
                        10, 16, 0.57, 0.19, 0.19, 0, false, false, 0, true))));
 
@@ -234,10 +228,7 @@ INSTANTIATE_TEST_SUITE_P(
                           include more than one Rmat_Usecase that differ only in scale or edge
                           factor (to avoid running same benchmarks more than once) */
   Tests_MGCountSelfLoopsAndMultiEdges_Rmat,
-  ::testing::Combine(::testing::Values(CountSelfLoopsAndMultiEdges_Usecase{},
-                                       CountSelfLoopsAndMultiEdges_Usecase{},
-                                       CountSelfLoopsAndMultiEdges_Usecase{},
-                                       CountSelfLoopsAndMultiEdges_Usecase{}),
+  ::testing::Combine(::testing::Values(CountSelfLoopsAndMultiEdges_Usecase{false}),
                      ::testing::Values(cugraph::test::Rmat_Usecase(
                        20, 32, 0.57, 0.19, 0.19, 0, false, false, 0, true))));
 
