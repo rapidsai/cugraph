@@ -102,34 +102,6 @@ cmdclass.update(versioneer.get_cmdclass())
 cmdclass["build_ext"] = build_ext
 cmdclass["clean"] = CleanCommand
 
-"""
-EXTENSIONS = [
-    Extension("*",
-              sources=CYTHON_FILES,
-              include_dirs=[
-                  conda_include_dir,
-                  ucx_include_dir,
-                  "../../cpp/include",
-                  "../../thirdparty/cub",
-                  os.path.join(conda_include_dir, "libcudacxx"),
-                  cuda_include_dir,
-                  os.path.dirname(sysconfig.get_path("include"))
-              ],
-              library_dirs=[
-                  get_python_lib(),
-                  conda_lib_dir,
-                  libcugraph_path,
-                  ucx_lib_dir,
-                  cuda_lib_dir,
-                  os.path.join(os.sys.prefix, "lib")
-              ],
-              libraries=['cudart', 'cusparse', 'cusolver', 'cugraph', 'nccl',
-                         'cugraph_c', 'cublas'],
-              language='c++',
-              extra_compile_args=['-std=c++17'])
-]
-"""
-
 setup(name='pylibcugraph',
       description="pylibcuGraph - RAPIDS GPU Graph Analytics",
       version=versioneer.get_version(),
