@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2021, NVIDIA CORPORATION.
+ * Copyright (c) 2019-2022, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,17 +17,17 @@
 #include "scc_matrix.cuh"
 #include "weak_cc.cuh"
 
-#include <thrust/sequence.h>
+#include <utilities/graph_utils.cuh>
 
-#include <cstdint>
 #include <cugraph/algorithms.hpp>
 #include <cugraph/legacy/graph.hpp>
 #include <cugraph/utilities/error.hpp>
+
+#include <thrust/sequence.h>
+
+#include <cstdint>
 #include <iostream>
 #include <type_traits>
-#include <utilities/graph_utils.cuh>
-
-#include "topology/topology.cuh"
 
 namespace cugraph {
 namespace detail {
