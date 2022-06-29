@@ -907,6 +907,9 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
                                               decltype(major_buffer_first),
                                               property_op<T, thrust::plus>>{
                                major_buffer_first, property_op<T, thrust::plus>{}});
+          }
+
+          if (col_comm_rank == static_cast<int>(i)) {
             thrust::copy(rmm::exec_policy(exec_stream),
                          major_buffer_first + (*segment_offsets)[3],
                          major_buffer_first + (*segment_offsets)[4],
