@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2022, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,6 +21,9 @@
 
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/path_retrieval.hpp>
+
+#include <thrust/sequence.h>
+#include <thrust/sort.h>
 
 namespace cugraph {
 namespace detail {

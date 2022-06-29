@@ -31,7 +31,11 @@
 #include <rmm/mr/device/cuda_memory_resource.hpp>
 
 #include <cuda_profiler_api.h>
+#include <thrust/copy.h>
 #include <thrust/extrema.h>
+#include <thrust/functional.h>
+#include <thrust/reduce.h>
+#include <thrust/replace.h>
 #include <thrust/sequence.h>
 #include <thrust/transform.h>
 

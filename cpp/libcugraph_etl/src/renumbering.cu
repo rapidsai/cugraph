@@ -32,6 +32,10 @@
 
 #include <cuda.h>
 #include <cuda_runtime_api.h>
+
+#include <thrust/pair.h>
+#include <thrust/sort.h>
+
 #include <tuple>
 
 namespace cugraph {
