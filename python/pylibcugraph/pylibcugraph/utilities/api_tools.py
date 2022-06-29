@@ -33,7 +33,8 @@ def experimental_warning_wrapper(obj):
     discovered and used.
     """
     obj_type = type(obj)
-    if obj_type not in [type, types.FunctionType, types.BuiltinFunctionType]:
+    #if obj_type not in [type, types.FunctionType, types.BuiltinFunctionType]:
+    if not isinstance(obj_type, (type, types.FunctionType, types.BuiltinFunctionType)):
         raise TypeError("obj must be a class or a function type, got "
                         f"{obj_type}")
 
@@ -102,7 +103,8 @@ def promoted_experimental_warning_wrapper(obj):
     have the experimental namespace.
     """
     obj_type = type(obj)
-    if obj_type not in [type, types.FunctionType, types.BuiltinFunctionType]:
+    #if obj_type not in [type, types.FunctionType, types.BuiltinFunctionType]:
+    if not isinstance(obj_type, (type, types.FunctionType, types.BuiltinFunctionType)):
         raise TypeError("obj must be a class or a function type, got "
                         f"{obj_type}")
 
@@ -154,7 +156,8 @@ def deprecated_warning_wrapper(obj):
     by a refactored version), prior to calling obj and returning its value.
     """
     obj_type = type(obj)
-    if obj_type not in [type, types.FunctionType, types.BuiltinFunctionType]:
+    #if obj_type not in [type, types.FunctionType, types.BuiltinFunctionType]:
+    if not isinstance(obj_type, (type, types.FunctionType, types.BuiltinFunctionType)):
         raise TypeError("obj must be a class or a function type, got "
                         f"{obj_type}")
 
