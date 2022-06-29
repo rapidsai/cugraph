@@ -30,10 +30,10 @@ INSTALL_REQUIRES = []
 
 UCX_HOME = get_environment_option("UCX_HOME")
 CUDA_HOME = get_environment_option('CUDA_HOME')
+CONDA_PREFIX = get_environment_option('CONDA_PREFIX')
 
 # FIXME: No need to include the path to the conda dir
 """
-CONDA_PREFIX = get_environment_option('CONDA_PREFIX')
 conda_lib_dir = os.path.normpath(sys.prefix) + '/lib'
 conda_include_dir = os.path.normpath(sys.prefix) + '/include'
 
