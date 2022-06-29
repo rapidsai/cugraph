@@ -25,6 +25,7 @@ build:
 
 requirements:
   build:
+    - cmake {{ cmake_version }}
     - {{ compiler('c') }}
     - {{ compiler('cxx') }}
     - {{ compiler('cuda') }} {{ cuda_version }}
