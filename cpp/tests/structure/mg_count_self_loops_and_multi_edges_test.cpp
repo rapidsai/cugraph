@@ -171,21 +171,21 @@ TEST_P(Tests_MGCountSelfLoopsAndMultiEdges_File, CheckInt32Int32FloatTransposeFa
   run_current_test<int32_t, int32_t, float, false>(std::get<0>(param), std::get<1>(param));
 }
 
-TEST_P(Tests_MGCountSelfLoopsAndMultiEdges_Rmat, CheckInt32Int32FloaTransposeFalse)
+TEST_P(Tests_MGCountSelfLoopsAndMultiEdges_Rmat, CheckInt32Int32FloatTransposeFalse)
 {
   auto param = GetParam();
   run_current_test<int32_t, int32_t, float, false>(
     std::get<0>(param), override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
 
-TEST_P(Tests_MGCountSelfLoopsAndMultiEdges_Rmat, CheckInt32Int64FloaTransposeFalse)
+TEST_P(Tests_MGCountSelfLoopsAndMultiEdges_Rmat, CheckInt32Int64FloatTransposeFalse)
 {
   auto param = GetParam();
   run_current_test<int32_t, int64_t, float, false>(
     std::get<0>(param), override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
 
-TEST_P(Tests_MGCountSelfLoopsAndMultiEdges_Rmat, CheckInt64Int64FloaTransposeFalse)
+TEST_P(Tests_MGCountSelfLoopsAndMultiEdges_Rmat, CheckInt64Int64FloatTransposeFalse)
 {
   auto param = GetParam();
   run_current_test<int64_t, int64_t, float, false>(
@@ -198,7 +198,7 @@ TEST_P(Tests_MGCountSelfLoopsAndMultiEdges_File, CheckInt32Int32FloatTransposeTr
   run_current_test<int32_t, int32_t, float, true>(std::get<0>(param), std::get<1>(param));
 }
 
-TEST_P(Tests_MGCountSelfLoopsAndMultiEdges_Rmat, CheckInt32Int32FloaTransposeTrue)
+TEST_P(Tests_MGCountSelfLoopsAndMultiEdges_Rmat, CheckInt32Int32FloatTransposeTrue)
 {
   auto param = GetParam();
   run_current_test<int32_t, int32_t, float, true>(
