@@ -20,6 +20,8 @@ from setuptools import find_packages, Command
 from skbuild import setup
 
 from setuputils import get_environment_option, get_cuda_version_from_header
+#FIXME: Not necessary
+from skbuild.command.build_ext import build_ext
 
 import versioneer
 
@@ -31,10 +33,10 @@ CYTHON_FILES = ['cugraph/**/*.pyx']
 
 UCX_HOME = get_environment_option("UCX_HOME")
 CUDA_HOME = get_environment_option('CUDA_HOME')
-CONDA_PREFIX = get_environment_option('CONDA_PREFIX')
 
 # FIXME: No need to include the path to the conda dir
 """
+CONDA_PREFIX = get_environment_option('CONDA_PREFIX')
 conda_lib_dir = os.path.normpath(sys.prefix) + '/lib'
 conda_include_dir = os.path.normpath(sys.prefix) + '/include'
 
@@ -71,7 +73,7 @@ INSTALL_REQUIRES.append(
     "cupy-cuda" + get_cuda_version_from_header(cuda_include_dir)
 )
 
-
+"""
 extensions = [
     Extension("*",
               sources=CYTHON_FILES,
@@ -97,7 +99,7 @@ extensions = [
               extra_compile_args=['-std=c++17'])
 ]
 
-
+"""
 class CleanCommand(Command):
     """Custom clean command to tidy up the project root."""
     user_options = [('all', None, None), ]
@@ -121,8 +123,8 @@ class CleanCommand(Command):
 
 cmdclass = dict()
 cmdclass.update(versioneer.get_cmdclass())
-cmdclass["build_ext"] = build_ext_no_debug
 cmdclass["clean"] = CleanCommand
+cmdclass["build_ext"] = build_ext
 
 setup(name='cugraph',
       description="cuGraph - RAPIDS GPU Graph Analytics",
@@ -133,7 +135,7 @@ setup(name='cugraph',
           # "Operating System :: OS Independent",
           "Programming Language :: Python",
           "Programming Language :: Python :: 3.8",
-          "Programming Language :: Python :: 3."
+          "Programming Language :: Python :: 3.9"
       ],
       # Include the separately-compiled shared library
       author="NVIDIA Corporation",
