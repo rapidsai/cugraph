@@ -68,10 +68,12 @@ if not os.path.isdir(CUDA_HOME):
     )
 
 cuda_include_dir = os.path.join(CUDA_HOME, "include")
+# FIXME: This is causing a second version of cupy to be installed cupy-cuda115
+"""
 INSTALL_REQUIRES.append(
     "cupy-cuda" + get_cuda_version_from_header(cuda_include_dir)
 )
-# cuda_lib_dir = os.path.join(CUDA_HOME, "lib64")
+"""
 
 class CleanCommand(Command):
     """Custom clean command to tidy up the project root."""
