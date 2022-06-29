@@ -15,6 +15,8 @@
 
 #include <rmm/device_vector.hpp>
 
+#include <thrust/host_vector.h>
+
 // FIXME:  Temporarily disable this test.  Something is wrong with
 //         ECG, or the expectation of this test.  If I run ensemble size
 //         of 24 this fails.  It also fails with the SG Louvain change
