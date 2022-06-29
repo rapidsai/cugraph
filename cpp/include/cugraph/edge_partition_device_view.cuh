@@ -21,6 +21,7 @@
 
 #include <thrust/binary_search.h>
 #include <thrust/distance.h>
+#include <thrust/execution_policy.h>
 #include <thrust/optional.h>
 #include <thrust/tuple.h>
 

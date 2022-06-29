@@ -18,6 +18,8 @@
 #include <raft/handle.hpp>
 #include <rmm/device_uvector.hpp>
 
+#include <thrust/sequence.h>
+
 namespace cugraph {
 namespace detail {
 

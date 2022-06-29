@@ -19,6 +19,8 @@
 #include <cub/cub.cuh>
 #include <cugraph/utilities/error.hpp>
 
+#include <thrust/scan.h>
+
 #define MAXBLOCKS 65535
 #define WARP_SIZE 32
 #define INT_SIZE  32
