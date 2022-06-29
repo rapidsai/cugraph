@@ -24,6 +24,7 @@
 #include <cugraph/utilities/dataframe_buffer.cuh>
 #include <cugraph/utilities/device_comm.cuh>
 #include <cugraph/utilities/error.hpp>
+#include <cugraph/utilities/host_scalar_comm.cuh>
 
 #include <raft/cudart_utils.h>
 #include <raft/handle.hpp>
@@ -46,6 +47,18 @@ namespace cugraph {
 namespace detail {
 
 int32_t constexpr per_v_transform_reduce_e_kernel_block_size = 512;
+
+template <typename vertex_t, typename T, typename OutputValueIterator, typename ReduceOp>
+struct scatter_reduce_t {
+  OutputValueIterator output_value_first{};
+  ReduceOp reduce_op{};
+
+  __device__ void operator()(thrust::tuple<vertex_t, T> pair) const
+  {
+    *(output_value_first + thrust::get<0>(pair)) =
+      reduce_op(*(output_value_first + thrust::get<0>(pair)), thrust::get<1>(pair));
+  }
+};
 
 template <bool update_major,
           typename GraphViewType,
@@ -493,7 +506,21 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
     }
   }
 
-  if constexpr (!update_major) {
+  if constexpr (update_major) {
+    size_t partition_idx = 0;
+    if constexpr (GraphViewType::is_multi_gpu) {
+      auto& col_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
+      auto const col_comm_rank = col_comm.get_rank();
+      partition_idx = static_cast<size_t>(col_comm_rank);
+    }
+    auto segment_offsets = graph_view.local_edge_partition_segment_offsets(partition_idx);
+    if (segment_offsets) {  // no vertices in the zero degree segment are visited
+      thrust::fill(handle.get_thrust_policy(),
+                   vertex_value_output_first + *((*segment_offsets).rbegin() + 1),
+                   vertex_value_output_first + *((*segment_offsets).rbegin()),
+                   init);
+    }
+  } else {
     auto minor_init = init;
     if constexpr (GraphViewType::is_multi_gpu) {
       auto& row_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
@@ -501,11 +528,10 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
       minor_init               = (row_comm_rank == 0) ? init : T{};
     }
 
-    auto execution_policy = handle.get_thrust_policy();
     if constexpr (GraphViewType::is_multi_gpu) {
       minor_tmp_buffer.fill(handle, minor_init);
     } else {
-      thrust::fill(execution_policy,
+      thrust::fill(handle.get_thrust_policy(),
                    vertex_value_output_first,
                    vertex_value_output_first + graph_view.local_vertex_partition_range_size(),
                    minor_init);
@@ -566,10 +592,20 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
     std::vector<size_t> major_tmp_buffer_sizes(graph_view.number_of_local_edge_partitions(),
                                                size_t{0});
     for (size_t i = 0; i < graph_view.number_of_local_edge_partitions(); ++i) {
-      if constexpr (GraphViewType::is_storage_transposed) {
-        major_tmp_buffer_sizes[i] = graph_view.local_edge_partition_dst_range_size(i);
-      } else {
-        major_tmp_buffer_sizes[i] = graph_view.local_edge_partition_src_range_size(i);
+      auto segment_offsets = graph_view.local_edge_partition_segment_offsets(i);
+      if (segment_offsets) {
+#if 1
+        major_tmp_buffer_sizes[i] = *((*segment_offsets).rbegin() + 1);  // exclude the zero degree segment
+#else  // DEBUG do not skip the zero degree segment (just for performance comparison)
+        major_tmp_buffer_sizes[i] = *((*segment_offsets).rbegin());
+#endif
+      }
+      else {
+        if constexpr (GraphViewType::is_storage_transposed) {
+          major_tmp_buffer_sizes[i] = graph_view.local_edge_partition_dst_range_size(i);
+        } else {
+          major_tmp_buffer_sizes[i] = graph_view.local_edge_partition_src_range_size(i);
+        }
       }
     }
     if (stream_pool_indices) {
@@ -659,19 +695,6 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
     if (segment_offsets) {
       static_assert(detail::num_sparse_segments_per_vertex_partition == 3);
 
-      if constexpr (update_major) {  // this is necessary as we don't visit every vertex in the
-                                     // hypersparse segment and no vertices in the zero degree
-                                     // segment are visited
-        auto exec_stream =
-          stream_pool_indices
-            ? handle.get_stream_from_stream_pool((i * max_segments) % (*stream_pool_indices).size())
-            : handle.get_stream();
-        thrust::fill(rmm::exec_policy(exec_stream),
-                     output_buffer + (*segment_offsets)[detail::num_sparse_segments_per_vertex_partition],
-                     output_buffer + (*segment_offsets).back(),
-                     major_init);
-      }
-
       // FIXME: we may further improve performance by 1) individually tuning block sizes for
       // different segments; and 2) adding one more segment for very high degree vertices and
       // running segmented reduction
@@ -680,6 +703,18 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
           stream_pool_indices
             ? handle.get_stream_from_stream_pool((i * max_segments) % (*stream_pool_indices).size())
             : handle.get_stream();
+
+        if constexpr (update_major) {  // this is necessary as we don't visit every vertex in the hypersparse segment
+          thrust::fill(rmm::exec_policy(exec_stream),
+                       output_buffer + (*segment_offsets)[3],
+#if 1
+                       output_buffer + (*segment_offsets)[4],
+#else  // DEBUG do not skip the zero degree segment (just for performance comparison)
+                       output_buffer + (*segment_offsets).back(),
+#endif
+                       major_init);
+        }
+
         if (*(edge_partition.dcs_nzd_vertex_count()) > 0) {
           raft::grid_1d_thread_t update_grid(*(edge_partition.dcs_nzd_vertex_count()),
                                              detail::per_v_transform_reduce_e_kernel_block_size,
@@ -808,15 +843,89 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
       auto const col_comm_size = col_comm.get_size();
 
       if (segment_offsets && stream_pool_indices) {
-        if ((*segment_offsets).back() - (*segment_offsets)[3] > 0) {
+        if (edge_partition.dcs_nzd_vertex_count()) {
+#if 1  // P2P when expected local degree << col_comm_size
+          auto exec_stream = handle.get_stream_from_stream_pool((i * max_segments) %
+                                                                (*stream_pool_indices).size());
+
+          auto tx_size         = (col_comm_rank == static_cast<int>(i))
+                                   ? size_t{0}
+                                   : static_cast<size_t>(*(edge_partition.dcs_nzd_vertex_count()));
+          auto tx_value_buffer = allocate_dataframe_buffer<T>(tx_size, exec_stream);
+
+          if (tx_size > size_t{0}) {
+            auto map_first = thrust::make_transform_iterator(
+              *(edge_partition.dcs_nzd_vertices()),
+              shift_left_t<vertex_t>{edge_partition.major_range_first()});
+            thrust::gather(rmm::exec_policy(exec_stream),
+                           map_first,
+                           map_first + tx_size,
+                           major_buffer_first,
+                           get_dataframe_buffer_begin(tx_value_buffer));
+          }
+
+          auto rx_counts =
+            host_scalar_gather(col_comm, tx_size, static_cast<int>(i), exec_stream);
+          std::vector<size_t> rx_displs(rx_counts.size());
+          std::exclusive_scan(rx_counts.begin(), rx_counts.end(), rx_displs.begin(), size_t{0});
+
+          // we may do this in multiple rounds if allocating the rx buffer becomes the memory
+          // bottleneck.
+          auto rx_size = (col_comm_rank == static_cast<int>(i))
+                           ? rx_displs.back() + rx_counts.back()
+                           : size_t{0};
+
+          rmm::device_uvector<vertex_t> rx_vertices(rx_size, exec_stream);
+          device_gatherv(col_comm,
+                         *(edge_partition.dcs_nzd_vertices()),
+                         rx_vertices.begin(),
+                         tx_size,
+                         rx_counts,
+                         rx_displs,
+                         static_cast<int>(i),
+                         exec_stream);
+          auto rx_value_buffer = allocate_dataframe_buffer<T>(rx_size, exec_stream);
+          device_gatherv(col_comm,
+                         get_dataframe_buffer_begin(tx_value_buffer),
+                         get_dataframe_buffer_begin(rx_value_buffer),
+                         tx_size,
+                         rx_counts,
+                         rx_displs,
+                         static_cast<int>(i),
+                         exec_stream);
+
+          if (rx_size > size_t{0}) {
+            auto pair_first = thrust::make_zip_iterator(thrust::make_tuple(
+              thrust::make_transform_iterator(
+                rx_vertices.begin(), shift_left_t<vertex_t>{edge_partition.major_range_first()}),
+              get_dataframe_buffer_begin(rx_value_buffer)));
+            thrust::for_each(rmm::exec_policy(exec_stream),
+                             pair_first,
+                             pair_first + rx_size,
+                             scatter_reduce_t<vertex_t,
+                                              T,
+                                              decltype(major_buffer_first),
+                                              property_op<T, thrust::plus>>{
+                               major_buffer_first, property_op<T, thrust::plus>{}});
+            thrust::copy(rmm::exec_policy(exec_stream),
+                         major_buffer_first + (*segment_offsets)[3],
+                         major_buffer_first + (*segment_offsets)[4],
+                         vertex_value_output_first + (*segment_offsets)[3]);
+          }
+#else
           device_reduce(
             col_comm,
             major_buffer_first + (*segment_offsets)[3],
             vertex_value_output_first + (*segment_offsets)[3],
+#if 1
+            (*segment_offsets)[4] - (*segment_offsets)[3],
+#else  // DEBUG do not skip the zero degree segment (just for performance comparison)
             (*segment_offsets).back() - (*segment_offsets)[3],
+#endif
             raft::comms::op_t::SUM,
-            i,
+            static_cast<int>(i),
             handle.get_stream_from_stream_pool((i * max_segments) % (*stream_pool_indices).size()));
+#endif
         }
         if ((*segment_offsets)[3] - (*segment_offsets)[2] > 0) {
           device_reduce(col_comm,
@@ -824,7 +933,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
                         vertex_value_output_first + (*segment_offsets)[2],
                         (*segment_offsets)[3] - (*segment_offsets)[2],
                         raft::comms::op_t::SUM,
-                        i,
+                        static_cast<int>(i),
                         handle.get_stream_from_stream_pool((i * max_segments + 1) %
                                                            (*stream_pool_indices).size()));
         }
@@ -834,7 +943,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
                         vertex_value_output_first + (*segment_offsets)[1],
                         (*segment_offsets)[2] - (*segment_offsets)[1],
                         raft::comms::op_t::SUM,
-                        i,
+                        static_cast<int>(i),
                         handle.get_stream_from_stream_pool((i * max_segments + 2) %
                                                            (*stream_pool_indices).size()));
         }
@@ -844,17 +953,18 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
                         vertex_value_output_first,
                         (*segment_offsets)[1],
                         raft::comms::op_t::SUM,
-                        i,
+                        static_cast<int>(i),
                         handle.get_stream_from_stream_pool((i * max_segments + 3) %
                                                            (*stream_pool_indices).size()));
         }
       } else {
+        size_t reduction_size = static_cast<size_t>(segment_offsets ? *((*segment_offsets).rbegin() + 1) /* exclude the zero degree segment */ : edge_partition.major_range_size());
         device_reduce(col_comm,
                       major_buffer_first,
                       vertex_value_output_first,
-                      edge_partition.major_range_size(),
+                      reduction_size,
                       raft::comms::op_t::SUM,
-                      i,
+                      static_cast<int>(i),
                       handle.get_stream());
       }
     }
