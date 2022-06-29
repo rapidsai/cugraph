@@ -154,193 +154,102 @@ class Tests_GraphMask
     mask.initialize_vertex_mask();
     mask.initialize_edge_mask();
 
+    // Need to create another view to reflect changes to the
+    // owning object
+    auto mask_view2 = *graph_view.get_mask_view();
+
     ASSERT_EQ(true, mask.has_vertex_mask());
     ASSERT_EQ(true, mask.has_edge_mask());
-    ASSERT_EQ(true, mask_view.has_vertex_mask());
-    ASSERT_EQ(true, mask_view.has_edge_mask());
-
-}
+    ASSERT_EQ(true, mask_view2.has_vertex_mask());
+    ASSERT_EQ(true, mask_view2.has_edge_mask());
+  }
 };
 
-using Tests_Graph_File = Tests_GraphMask<cugraph::test::File_Usecase>;
-using Tests_Graph_Rmat = Tests_GraphMask<cugraph::test::Rmat_Usecase>;
+using Tests_GraphMask_Rmat = Tests_GraphMask<cugraph::test::Rmat_Usecase>;
 
-TEST_P(Tests_Graph_File, CheckStoreTransposedFalse_32_32_float)
-{
-  run_current_test<int32_t, int32_t, float, false>(
-    override_File_Usecase_with_cmd_line_arguments(GetParam()));
-}
-
-TEST_P(Tests_Graph_File, CheckStoreTransposedFalse_32_64_float)
-{
-  run_current_test<int32_t, int64_t, float, false>(
-    override_File_Usecase_with_cmd_line_arguments(GetParam()));
-}
-
-TEST_P(Tests_Graph_File, CheckStoreTransposedFalse_64_64_float)
-{
-  run_current_test<int64_t, int64_t, float, false>(
-    override_File_Usecase_with_cmd_line_arguments(GetParam()));
-}
-
-TEST_P(Tests_Graph_File, CheckStoreTransposedFalse_32_32_double)
-{
-  run_current_test<int32_t, int32_t, double, false>(
-    override_File_Usecase_with_cmd_line_arguments(GetParam()));
-}
-
-TEST_P(Tests_Graph_File, CheckStoreTransposedFalse_32_64_double)
-{
-  run_current_test<int32_t, int64_t, double, false>(
-    override_File_Usecase_with_cmd_line_arguments(GetParam()));
-}
-
-TEST_P(Tests_Graph_File, CheckStoreTransposedFalse_64_64_double)
-{
-  run_current_test<int64_t, int64_t, double, false>(
-    override_File_Usecase_with_cmd_line_arguments(GetParam()));
-}
-
-TEST_P(Tests_Graph_File, CheckStoreTransposedTrue_32_32_float)
-{
-  run_current_test<int32_t, int32_t, float, true>(
-    override_File_Usecase_with_cmd_line_arguments(GetParam()));
-}
-
-TEST_P(Tests_Graph_File, CheckStoreTransposedTrue_32_64_float)
-{
-  run_current_test<int32_t, int64_t, float, true>(
-    override_File_Usecase_with_cmd_line_arguments(GetParam()));
-}
-
-TEST_P(Tests_Graph_File, CheckStoreTransposedTrue_64_64_float)
-{
-  run_current_test<int64_t, int64_t, float, true>(
-    override_File_Usecase_with_cmd_line_arguments(GetParam()));
-}
-
-TEST_P(Tests_Graph_File, CheckStoreTransposedTrue_32_32_double)
-{
-  run_current_test<int32_t, int32_t, double, true>(
-    override_File_Usecase_with_cmd_line_arguments(GetParam()));
-}
-
-TEST_P(Tests_Graph_File, CheckStoreTransposedTrue_32_64_double)
-{
-  run_current_test<int32_t, int64_t, double, true>(
-    override_File_Usecase_with_cmd_line_arguments(GetParam()));
-}
-
-TEST_P(Tests_Graph_File, CheckStoreTransposedTrue_64_64_double)
-{
-  run_current_test<int64_t, int64_t, double, true>(
-    override_File_Usecase_with_cmd_line_arguments(GetParam()));
-}
-
-TEST_P(Tests_Graph_Rmat, CheckStoreTransposedFalse_32_32_float)
+TEST_P(Tests_GraphMask_Rmat, CheckStoreTransposedFalse_32_32_float)
 {
   run_current_test<int32_t, int32_t, float, false>(
     override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
 }
 
-TEST_P(Tests_Graph_Rmat, CheckStoreTransposedFalse_32_64_float)
+TEST_P(Tests_GraphMask_Rmat, CheckStoreTransposedFalse_32_64_float)
 {
   run_current_test<int32_t, int64_t, float, false>(
     override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
 }
 
-TEST_P(Tests_Graph_Rmat, CheckStoreTransposedFalse_64_64_float)
+TEST_P(Tests_GraphMask_Rmat, CheckStoreTransposedFalse_64_64_float)
 {
   run_current_test<int64_t, int64_t, float, false>(
     override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
 }
 
-TEST_P(Tests_Graph_Rmat, CheckStoreTransposedFalse_32_32_double)
+TEST_P(Tests_GraphMask_Rmat, CheckStoreTransposedFalse_32_32_double)
 {
   run_current_test<int32_t, int32_t, double, false>(
     override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
 }
 
-TEST_P(Tests_Graph_Rmat, CheckStoreTransposedFalse_32_64_double)
+TEST_P(Tests_GraphMask_Rmat, CheckStoreTransposedFalse_32_64_double)
 {
   run_current_test<int32_t, int64_t, double, false>(
     override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
 }
 
-TEST_P(Tests_Graph_Rmat, CheckStoreTransposedFalse_64_64_double)
+TEST_P(Tests_GraphMask_Rmat, CheckStoreTransposedFalse_64_64_double)
 {
   run_current_test<int64_t, int64_t, double, false>(
     override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
 }
 
-TEST_P(Tests_Graph_Rmat, CheckStoreTransposedTrue_32_32_float)
+TEST_P(Tests_GraphMask_Rmat, CheckStoreTransposedTrue_32_32_float)
 {
   run_current_test<int32_t, int32_t, float, true>(
     override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
 }
 
-TEST_P(Tests_Graph_Rmat, CheckStoreTransposedTrue_32_64_float)
+TEST_P(Tests_GraphMask_Rmat, CheckStoreTransposedTrue_32_64_float)
 {
   run_current_test<int32_t, int64_t, float, true>(
     override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
 }
 
-TEST_P(Tests_Graph_Rmat, CheckStoreTransposedTrue_64_64_float)
+TEST_P(Tests_GraphMask_Rmat, CheckStoreTransposedTrue_64_64_float)
 {
   run_current_test<int64_t, int64_t, float, true>(
     override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
 }
 
-TEST_P(Tests_Graph_Rmat, CheckStoreTransposedTrue_32_32_double)
+TEST_P(Tests_GraphMask_Rmat, CheckStoreTransposedTrue_32_32_double)
 {
   run_current_test<int32_t, int32_t, double, true>(
     override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
 }
 
-TEST_P(Tests_Graph_Rmat, CheckStoreTransposedTrue_32_64_double)
+TEST_P(Tests_GraphMask_Rmat, CheckStoreTransposedTrue_32_64_double)
 {
   run_current_test<int32_t, int64_t, double, true>(
     override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
 }
 
-TEST_P(Tests_Graph_Rmat, CheckStoreTransposedTrue_64_64_double)
+TEST_P(Tests_GraphMask_Rmat, CheckStoreTransposedTrue_64_64_double)
 {
   run_current_test<int64_t, int64_t, double, true>(
     override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
 }
-
-INSTANTIATE_TEST_SUITE_P(
-  file_test,
-  Tests_Graph_File,
-  ::testing::Combine(
-    // enable correctness checks
-    ::testing::Values(Graph_Usecase{false}, Graph_Usecase{true}),
-    ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
-                      cugraph::test::File_Usecase("test/datasets/dolphins.mtx"))));
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_small_test,
-  Tests_Graph_Rmat,
+  Tests_GraphMask_Rmat,
   ::testing::Combine(
     // enable correctness checks
     ::testing::Values(Graph_Usecase{false, true}, Graph_Usecase{true, true}),
     ::testing::Values(cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, false, false))));
 
 INSTANTIATE_TEST_SUITE_P(
-  file_benchmark_test, /* note that the test filename can be overridden in benchmarking (with
-                    --gtest_filter to select only the file_benchmark_test with a specific
-                    vertex & edge type combination) by command line arguments and do not
-                    include more than one File_Usecase that differ only in filename
-                    (to avoid running same benchmarks more than once) */
-  Tests_Graph_File,
-  ::testing::Combine(
-    // disable correctness checks
-    ::testing::Values(Graph_Usecase{false, false, false}, Graph_Usecase{true, false, false}),
-    ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"))));
-
-INSTANTIATE_TEST_SUITE_P(
   rmat_benchmark_test,
-  Tests_Graph_Rmat,
+  Tests_GraphMask_Rmat,
   ::testing::Combine(
     // disable correctness checks
     ::testing::Values(Graph_Usecase{false, true, false}, Graph_Usecase{true, true, false}),
