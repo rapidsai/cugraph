@@ -117,6 +117,7 @@ setup(name='pylibcugraph',
       author="NVIDIA Corporation",
       setup_requires=['Cython>=0.29,<0.30'],
       packages=find_packages(include=['pylibcugraph', 'pylibcugraph.*']),
+      install_requires=INSTALL_REQUIRES,
       package_data={
         key: ["*.pxd"] for key in find_packages(include=["pylibcugraph*"])
       },
