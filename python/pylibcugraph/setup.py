@@ -20,7 +20,7 @@ from skbuild import setup
 from skbuild.command.build_ext import build_ext
 
 from setuputils import get_environment_option
-# from setuputils import get_cuda_version_from_header
+from setuputils import get_cuda_version_from_header
 
 import versioneer
 

@@ -18,7 +18,7 @@ from setuptools import find_packages, Command
 from skbuild import setup
 
 from setuputils import get_environment_option
-# from setuputils import get_cuda_version_from_header
+from setuputils import get_cuda_version_from_header
 # FIXME: Not necessary
 from skbuild.command.build_ext import build_ext
 
