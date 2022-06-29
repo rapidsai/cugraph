@@ -37,6 +37,7 @@ python/build
 python/cugraph/bindings/*.cpp
 wheels/
 _skbuild/
+cufile.log
 
 ## pylibcugraph build directories & artifacts
 python/pylibcugraph/pylibcugraph.egg-info
