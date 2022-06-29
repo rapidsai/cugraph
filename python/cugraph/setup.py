@@ -18,7 +18,7 @@ from setuptools import find_packages, Command
 from skbuild import setup
 
 from setuputils import get_environment_option
-from setuputils import get_cuda_version_from_header
+# from setuputils import get_cuda_version_from_header
 # FIXME: Not necessary
 from skbuild.command.build_ext import build_ext
 
@@ -67,10 +67,11 @@ if not os.path.isdir(CUDA_HOME):
 
 cuda_include_dir = os.path.join(CUDA_HOME, "include")
 # FIXME: This is causing a second version of cupy to be installed cupy-cuda115
-
+"""
 INSTALL_REQUIRES.append(
     "cupy-cuda" + get_cuda_version_from_header(cuda_include_dir)
 )
+"""
 
 
 class CleanCommand(Command):

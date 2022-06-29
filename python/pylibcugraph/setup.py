@@ -20,11 +20,11 @@ from skbuild import setup
 from skbuild.command.build_ext import build_ext
 
 from setuputils import get_environment_option
-from setuputils import get_cuda_version_from_header
+# from setuputils import get_cuda_version_from_header
 
 import versioneer
 
-INSTALL_REQUIRES = []
+# INSTALL_REQUIRES = []
 # CYTHON_FILES = ['pylibcugraph/**/*.pyx']
 
 UCX_HOME = get_environment_option("UCX_HOME")
@@ -68,10 +68,11 @@ if not os.path.isdir(CUDA_HOME):
 
 cuda_include_dir = os.path.join(CUDA_HOME, "include")
 # FIXME: This is causing a second version of cupy to be installed cupy-cuda115
-
+"""
 INSTALL_REQUIRES.append(
     "cupy-cuda" + get_cuda_version_from_header(cuda_include_dir)
 )
+"""
 
 
 class CleanCommand(Command):
@@ -116,7 +117,6 @@ setup(name='pylibcugraph',
       author="NVIDIA Corporation",
       setup_requires=['Cython>=0.29,<0.30'],
       packages=find_packages(include=['pylibcugraph', 'pylibcugraph.*']),
-      install_requires=INSTALL_REQUIRES,
       package_data={
         key: ["*.pxd"] for key in find_packages(include=["pylibcugraph*"])
       },
