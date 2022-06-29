@@ -18,16 +18,44 @@ import time
 import traceback
 
 import cudf
+import dask_cudf
 import cugraph
 from dask.distributed import Client
 from dask_cuda import LocalCUDACluster
 from dask_cuda.initialize import initialize as dask_initialize
-from cugraph.experimental import PropertyGraph
+from cugraph.experimental import PropertyGraph, MGPropertyGraph
 from cugraph.dask.comms import comms as Comms
+from cugraph import sampling
+from cugraph.structure.number_map import NumberMap
 
 from gaas_client import defaults
 from gaas_client.exceptions import GaasError
-from gaas_client.types import BatchedEgoGraphsResult, Node2vecResult
+from gaas_client.types import (BatchedEgoGraphsResult,
+                               Node2vecResult,
+                               ValueWrapper,
+                               DataframeRowIndexWrapper,
+                               )
+
+
+class ExtensionServerFacade:
+    """
+    Instances of this class are passed to server extension functions to be used
+    to access various aspects of the GaaS server from within the extension. This
+    provideas a means to insulate the GaaS handler (considered here to be the
+    "server") from direct access by end user extensions, allowing extension code
+    to query/access the server as needed without giving extensions the ability
+    to call potentially unsafe methods directly on the GaasHandler.
+
+    An example is using an instance of a ExtensionServerFacade to allow a Graph
+    creation extension to query the SG/MG state the server is using in order to
+    determine how to create a Graph instance.
+    """
+    def __init__(self, gaas_handler):
+        self.__handler = gaas_handler
+
+    @property
+    def mg(self):
+        return self.__handler.mg
 
 
 class GaasHandler:
@@ -47,11 +75,32 @@ class GaasHandler:
 
     ############################################################################
     # Environment management
+    @property
+    def mg(self):
+        """
+        True if the GaasHandler has multiple GPUs available via a dask cluster.
+        """
+        return self.__dask_client is not None
+
     def uptime(self):
         """
         Return the server uptime in seconds. This is often used as a "ping".
         """
         return int(time.time()) - self.__start_time
+
+    def get_server_info(self):
+        """
+        Returns a dictionary of various info about the server.
+        """
+        # FIXME: expose self.__dask_client.scheduler_info() as needed
+        if self.__dask_client is not None:
+            num_gpus = len(self.__dask_client.scheduler_info()["workers"])
+        else:
+            # The assumption is that GaaS requires at least 1 GPU (ie. currently
+            # there is no CPU-only version of GaaS)
+            num_gpus = 1
+
+        return {"num_gpus": ValueWrapper(num_gpus).union}
 
     def load_graph_creation_extensions(self, extension_dir_path):
         """
@@ -108,8 +157,16 @@ class GaasHandler:
                 if func is not None:
                     func_args = eval(func_args_repr)
                     func_kwargs = eval(func_kwargs_repr)
+
+                    # All graph creation extensions are passed a
+                    # ExtensionServerFacade instance as the first arg to allow
+                    # them to query the "server" in a safe way, if needed.
+                    gaas_server_facade = ExtensionServerFacade(self)
+
                     try:
-                        graph_obj = func(*func_args, **func_kwargs)
+                        graph_obj = func(gaas_server_facade,
+                                         *func_args,
+                                         **func_kwargs)
                     except:
                         # FIXME: raise a more detailed error
                         raise GaasError(f"error running {func_name} : "
@@ -132,7 +189,7 @@ class GaasHandler:
             self.__dask_client = Client(scheduler_file=dask_scheduler_file)
         else:
             # FIXME: LocalCUDACluster init. Implement when tests are in place.
-            pass
+            raise NotImplementedError
 
         Comms.initialize(p2p=True)
 
@@ -156,7 +213,7 @@ class GaasHandler:
         Create a new graph associated with a new unique graph ID, return the new
         graph ID.
         """
-        pG = PropertyGraph()
+        pG = self.__create_graph()
         return self.__add_graph(pG)
 
     def delete_graph(self, graph_id):
@@ -171,6 +228,12 @@ class GaasHandler:
         Returns a list of the graph IDs currently in use.
         """
         return list(self.__graph_objs.keys())
+
+    def get_graph_type(self, graph_id):
+        """
+        Returns a string repr of the graph type associated with graph_id.
+        """
+        return repr(type(self._get_graph(graph_id)))
 
     def load_csv_as_vertex_data(self,
                                 csv_file_name,
@@ -200,11 +263,11 @@ class GaasHandler:
         # FIXME: error check that file exists
         # FIXME: error check that edgelist was read correctly
         try:
-            gdf = cudf.read_csv(csv_file_name,
-                                delimiter=delimiter,
-                                dtype=dtypes,
-                                header=header,
-                                names=names)
+            gdf = self.__get_dataframe_from_csv(csv_file_name,
+                                                delimiter=delimiter,
+                                                dtypes=dtypes,
+                                                header=header,
+                                                names=names)
             pG.add_vertex_data(gdf,
                                type_name=type_name,
                                vertex_col_name=vertex_col_name,
@@ -240,11 +303,11 @@ class GaasHandler:
             names = None
 
         try:
-            gdf = cudf.read_csv(csv_file_name,
-                                delimiter=delimiter,
-                                dtype=dtypes,
-                                header=header,
-                                names=names)
+            gdf = self.__get_dataframe_from_csv(csv_file_name,
+                                                delimiter=delimiter,
+                                                dtypes=dtypes,
+                                                header=header,
+                                                names=names)
             pG.add_edge_data(gdf,
                              type_name=type_name,
                              vertex_col_names=vertex_col_names,
@@ -270,28 +333,25 @@ class GaasHandler:
 
     def get_edge_IDs_for_vertices(self, src_vert_IDs, dst_vert_IDs, graph_id):
         """
+        Return a list of edge IDs corresponding to the vertex IDs in each of
+        src_vert_IDs and dst_vert_IDs that, when combined, define an edge in the
+        graph associated with graph_id.
+
+        For example, if src_vert_IDs is [0, 1, 2] and dst_vert_IDs is [7, 8, 9],
+        return the edge IDs for edges (0, 7), (1, 8), and (2, 9).
+
+        graph_id must be associated with a Graph extracted from a PropertyGraph
+        (MG or SG).
         """
-        # FIXME: write docstring above
         G = self._get_graph(graph_id)
-        if isinstance(G, PropertyGraph):
-            # FIXME: also support PropertyGraph instances
+        if isinstance(G, (PropertyGraph, MGPropertyGraph)):
             raise GaasError("get_edge_IDs_for_vertices() only accepts an "
-                            "extracted subgraph ID, got a PropertyGraph ID.")
+                            "extracted subgraph ID, got an ID for a "
+                            f"{type(G)}.")
 
-        # Lookup each edge ID in the graph edge_data (created during
-        # extract_subgraph())
-        edge_IDs = []
-        num_edges = len(src_vert_IDs)
-        for i in range(num_edges):
-            src_mask = G.edge_data[PropertyGraph.src_col_name] == \
-                src_vert_IDs[i]
-            dst_mask = G.edge_data[PropertyGraph.dst_col_name] == \
-                dst_vert_IDs[i]
-            value = G.edge_data[src_mask & dst_mask]\
-                [PropertyGraph.edge_id_col_name].values_host[0]
-            edge_IDs.append(value)
-
-        return edge_IDs
+        return self.__get_edge_IDs_from_graph_edge_data(G,
+                                                        src_vert_IDs,
+                                                        dst_vert_IDs)
 
     def extract_subgraph(self,
                          create_using,
@@ -305,7 +365,7 @@ class GaasHandler:
         Extract a subgraph, return a new graph ID
         """
         pG = self._get_graph(graph_id)
-        if not(isinstance(pG, PropertyGraph)):
+        if not(isinstance(pG, (PropertyGraph, MGPropertyGraph))):
             raise GaasError("extract_subgraph() can only be called on a graph "
                             "with properties.")
         # Convert defaults needed for the Thrift API into defaults used by
@@ -387,6 +447,20 @@ class GaasHandler:
         df = self.__get_dataframe_from_user_props(pG._edge_prop_dataframe)
         return df.shape
 
+    def is_vertex_property(self, property_key, graph_id):
+        G = self._get_graph(graph_id)
+        if isinstance(G, PropertyGraph):
+            return property_key in G._vertex_prop_dataframe
+
+        raise GaasError('Graph does not contain properties')
+
+    def is_edge_property(self, property_key, graph_id):
+        G = self._get_graph(graph_id)
+        if isinstance(G, PropertyGraph):
+            return property_key in G._edge_prop_dataframe
+
+        raise GaasError('Graph does not contain properties')
+
     ############################################################################
     # Algos
     def batched_ego_graphs(self, seeds, radius, graph_id):
@@ -463,20 +537,62 @@ class GaasHandler:
             raise GaasError(f"{traceback.format_exc()}")
 
         return node2vec_result
-    
-    def is_vertex_property(self, property_key, graph_id):
-        G = self._get_graph(graph_id)
-        if isinstance(G, PropertyGraph):
-            return property_key in G._vertex_prop_dataframe
-        
-        raise GaasError('Graph does not contain properties')
 
-    def is_edge_property(self, property_key, graph_id):
+    def uniform_neighbor_sample(self,
+                                start_list,
+                                fanout_vals,
+                                with_replacement,
+                                graph_id,
+                                ):
         G = self._get_graph(graph_id)
+        is_property_graph = False
+
         if isinstance(G, PropertyGraph):
-            return property_key in G._edge_prop_dataframe
-        
-        raise GaasError('Graph does not contain properties')
+            is_property_graph = True
+            pG = G
+            G = G.extract_subgraph(
+                create_using=cugraph.Graph,
+                default_edge_weight=1.0,
+                allow_multi_edges=True
+            )
+
+        sampling_results = sampling.uniform_neighbor_sample(
+                G,
+                start_list,
+                fanout_vals,
+                with_replacement=with_replacement
+            )
+
+        nodes_of_interest = cudf.Series(sampling_results.destinations)
+        nodes_of_interest = nodes_of_interest.append(cudf.Series(start_list))
+        nodes_of_interest.reset_index(drop=True, inplace=True)
+
+        # TODO implement this using a graph view when that is implemented
+        if is_property_graph:
+            vertex_properties = pG._vertex_prop_dataframe.iloc[nodes_of_interest]
+            vertex_properties.reset_index(drop=True, inplace=True)
+            prop_names = self.__remove_internal_columns(vertex_properties.columns.to_list())
+            vertex_properties = vertex_properties[prop_names]
+            vertex_properties['original_vertex_id'] = nodes_of_interest
+
+            elist, number_map = NumberMap.renumber(
+                sampling_results, 'sources', 'destinations', store_transposed=False
+            )
+            source_colname = number_map.renumbered_src_col_name
+            dest_colname = number_map.renumbered_dst_col_name
+
+            vertex_properties['original_vertex_id'] = \
+                number_map.to_internal_vertex_id(vertex_properties, ['original_vertex_id'])
+
+            new_G = PropertyGraph()
+            new_G.add_edge_data(elist, vertex_col_names=[source_colname, dest_colname])
+            new_G.add_vertex_data(vertex_properties, vertex_col_name='original_vertex_id', property_columns=prop_names)
+
+        else:
+            new_G = cugraph.Graph()
+            new_G.from_cudf_edgelist(sampling_results, source='sources', destination='destinations')
+
+        return self.__add_graph(new_G)
 
     def pagerank(self, graph_id):
         """
@@ -488,25 +604,48 @@ class GaasHandler:
     # not be exposed to a GaaS client.
     def _get_graph(self, graph_id):
         """
-        Return the cuGraph Graph object (likely a PropertyGraph) associated with
-        graph_id.
+        Return the cuGraph Graph object associated with graph_id.
 
         If the graph_id is the default graph ID and the default graph has not
         been created, then instantiate a new PropertyGraph as the default graph
         and return it.
         """
         pG = self.__graph_objs.get(graph_id)
+
+        # Always create the default graph if it does not exist
         if pG is None:
-            # Always create the default graph if it does not exist
             if graph_id == defaults.graph_id:
-                pG = PropertyGraph()
+                pG = self.__create_graph()
                 self.__graph_objs[graph_id] = pG
             else:
                 raise GaasError(f"invalid graph_id {graph_id}")
+
         return pG
 
     ############################################################################
     # Private
+    def __get_dataframe_from_csv(self,
+                                 csv_file_name,
+                                 delimiter,
+                                 dtypes,
+                                 header,
+                                 names):
+        """
+        Read a CSV into a DataFrame and return it. This will use either a cuDF
+        DataFrame or a dask_cudf DataFrame based on if the handler is configured
+        to use a dask cluster or not.
+        """
+        gdf = cudf.read_csv(csv_file_name,
+                            delimiter=delimiter,
+                            dtype=dtypes,
+                            header=header,
+                            names=names)
+        if self.mg:
+            num_gpus = len(self.__dask_client.scheduler_info()["workers"])
+            return dask_cudf.from_cudf(gdf, npartitions=num_gpus)
+
+        return gdf
+
     def __add_graph(self, G):
         """
         Create a new graph ID for G and add G to the internal mapping of
@@ -517,24 +656,43 @@ class GaasHandler:
         self.__next_graph_id += 1
         return gid
 
+    def __create_graph(self):
+        """
+        Instantiate a graph object using a type appropriate for the handler (
+        either SG or MG)
+        """
+        return MGPropertyGraph() if self.mg else PropertyGraph()
+
+    # FIXME: consider adding this to PropertyGraph
+    def __remove_internal_columns(self, pg_column_names):
+        """
+        Removes all column names from pg_column_names that are "internal" (ie.
+        used for PropertyGraph bookkeeping purposes only)
+        """
+        internal_column_names=[PropertyGraph.vertex_col_name,
+                               PropertyGraph.src_col_name,
+                               PropertyGraph.dst_col_name,
+                               PropertyGraph.type_col_name,
+                               PropertyGraph.edge_id_col_name,
+                               PropertyGraph.vertex_id_col_name,
+                               PropertyGraph.weight_col_name]
+
+        # Create a list of user-visible columns by removing the internals while
+        # preserving order
+        user_visible_column_names = list(pg_column_names)
+        for internal_column_name in internal_column_names:
+            if internal_column_name in user_visible_column_names:
+                user_visible_column_names.remove(internal_column_name)
+
+        return user_visible_column_names
+
+    # FIXME: consider adding this to PropertyGraph
     def __get_dataframe_from_user_props(self, dataframe, columns=None):
         """
         """
-        internal_columns=[PropertyGraph.vertex_col_name,
-                          PropertyGraph.src_col_name,
-                          PropertyGraph.dst_col_name,
-                          PropertyGraph.type_col_name,
-                          PropertyGraph.edge_id_col_name,
-                          PropertyGraph.vertex_id_col_name,
-                          PropertyGraph.weight_col_name]
-
         if columns is None or len(columns) == 0:
             all_user_columns = list(dataframe.columns)
-            # Create a list of user-visible columns by removing the internals while
-            # preserving order
-            for col_name in internal_columns:
-                if col_name in all_user_columns:
-                    all_user_columns.remove(col_name)
+            all_user_columns = self.__remove_internal_columns(all_user_columns)
         else:
             all_user_columns = columns
 
@@ -546,6 +704,39 @@ class GaasHandler:
         except KeyError as ke:
             raise GaasError(f'KeyError({ke.args[-1]})')
 
+    # FIXME: consider adding this to PropertyGraph
+    def __get_edge_IDs_from_graph_edge_data(self,
+                                            G,
+                                            src_vert_IDs,
+                                            dst_vert_IDs):
+        """
+        Return a list of edge IDs corresponding to the vertex IDs in each of
+        src_vert_IDs and dst_vert_IDs that, when combined, define an edge in G.
+
+        For example, if src_vert_IDs is [0, 1, 2] and dst_vert_IDs is [7, 8, 9],
+        return the edge IDs for edges (0, 7), (1, 8), and (2, 9).
+
+        G must have an "edge_data" attribute.
+        """
+        edge_IDs = []
+        num_edges = len(src_vert_IDs)
+
+        for i in range(num_edges):
+            src_mask = G.edge_data[PropertyGraph.src_col_name] == \
+                src_vert_IDs[i]
+            dst_mask = G.edge_data[PropertyGraph.dst_col_name] == \
+                dst_vert_IDs[i]
+            value = G.edge_data[src_mask & dst_mask]\
+                [PropertyGraph.edge_id_col_name]
+
+            # FIXME: This will compute the result (if using dask) then transfer
+            # to host memory for each iteration - is there a more efficient way?
+            if self.mg:
+                value = value.compute()
+            edge_IDs.append(value.values_host[0])
+
+        return edge_IDs
+
     def __get_dataframe_rows_as_numpy_bytes(self,
                                             dataframe,
                                             index_or_indices,
@@ -553,10 +744,9 @@ class GaasHandler:
         """
         """
         try:
-            # index_or_indices and null_replacement_value are considered
-            # "unions", meaning only one of their members will have a value.
-            i = self.__get_value_from_union(index_or_indices)
-            n = self.__get_value_from_union(null_replacement_value)
+            # index_or_indices and null_replacement_value are Value "unions"
+            i = DataframeRowIndexWrapper(index_or_indices).get_py_obj()
+            n = ValueWrapper(null_replacement_value).get_py_obj()
 
             # index -1 is the entire table
             if isinstance(i, int) and (i < -1):
@@ -576,17 +766,3 @@ class GaasHandler:
 
         except:
             raise GaasError(f"{traceback.format_exc()}")
-
-    @staticmethod
-    def __get_value_from_union(union):
-        """
-        """
-        not_members = set(["default_spec", "thrift_spec", "read", "write"])
-        attrs = [a for a in dir(union)
-                    if not(a.startswith("_")) and a not in not_members]
-        for a in attrs:
-            val = getattr(union, a)
-            if val is not None:
-                return val
-
-        return None

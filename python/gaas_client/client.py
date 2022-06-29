@@ -14,11 +14,10 @@
 
 from functools import wraps
 from collections.abc import Sequence
-
-import numpy
+import pickle
 
 from gaas_client import defaults
-from gaas_client.types import Value, DataframeRowIndex
+from gaas_client.types import ValueWrapper, DataframeRowIndex
 from gaas_client.gaas_thrift import create_client
 
 
@@ -173,6 +172,35 @@ class GaasClient:
         >>> 32
         """
         return self.__client.uptime()
+
+    @__server_connection
+    def get_server_info(self):
+        """
+        Return a dictionary of information about the server.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        server_info : dict
+
+            Dictionary containing environment and state information about the
+            server.
+
+        Examples
+        --------
+        >>> from gaas_client import GaasClient
+        >>> client = GaasClient()
+        >>> client.get_server_info()
+        >>> {'num_gpus': 2}
+        """
+        server_info = self.__client.get_server_info()
+        # server_info is a dictionary of Value objects ("union" types returned
+        # from the server), so convert them to simple py types.
+        return dict((k, ValueWrapper(server_info[k]).get_py_obj())
+                    for k in server_info)
 
     @__server_connection
     def load_graph_creation_extensions(self, extension_dir_path):
@@ -593,6 +621,38 @@ class GaasClient:
                                                        graph_id)
 
     @__server_connection
+    def uniform_neighbor_sample(self,
+                                start_list,
+                                fanout_vals,
+                                with_replacement=True,
+                                graph_id=defaults.graph_id):
+        """
+        Samples the graph and returns the graph id of the sampled
+        graph.
+
+        Parameters:
+        start_list: list[int]
+
+        fanout_vals: list[int]
+
+        with_replacement: bool
+
+        graph_id: int, default is defaults.graph_id
+
+        Returns
+        -------
+        The graph id of the sampled graph.
+
+        """
+
+        return self.__client.uniform_neighbor_sample(
+            start_list,
+            fanout_vals,
+            with_replacement,
+            graph_id,
+        )
+
+    @__server_connection
     def extract_subgraph(self,
                          create_using=None,
                          selection=None,
@@ -696,8 +756,9 @@ class GaasClient:
         # FIXME: finish docstring above
 
         df_row_index_obj = self.__get_dataframe_row_index_obj(index_or_indices)
-        null_replacement_value_obj = self.__get_value_obj(
-            null_replacement_value, val_name="null_replacement_value")
+        null_replacement_value_obj = ValueWrapper(
+            null_replacement_value,
+            val_name="null_replacement_value").union
 
         ndarray_bytes = \
             self.__client.get_graph_vertex_dataframe_rows(
@@ -707,7 +768,7 @@ class GaasClient:
                 property_keys or []
             )
 
-        return numpy.loads(ndarray_bytes)
+        return pickle.loads(ndarray_bytes)
 
 
     @__server_connection
@@ -751,8 +812,9 @@ class GaasClient:
         # FIXME: finish docstring above
 
         df_row_index_obj = self.__get_dataframe_row_index_obj(index_or_indices)
-        null_replacement_value_obj = self.__get_value_obj(
-            null_replacement_value, val_name="null_replacement_value")
+        null_replacement_value_obj = ValueWrapper(
+            null_replacement_value,
+            val_name="null_replacement_value").union
 
         ndarray_bytes = \
             self.__client.get_graph_edge_dataframe_rows(
@@ -762,7 +824,7 @@ class GaasClient:
                 property_keys or []
             )
 
-        return numpy.loads(ndarray_bytes)
+        return pickle.loads(ndarray_bytes)
 
 
     @__server_connection
@@ -819,7 +881,7 @@ class GaasClient:
             The id of the graph of interest
         """
         return self.__client.is_vertex_property(property_key, graph_id)
-    
+
     @__server_connection
     def is_edge_property(self, property_key, graph_id=defaults.graph_id):
         """
@@ -880,6 +942,17 @@ class GaasClient:
         """
         raise NotImplementedError
 
+
+    ############################################################################
+    # Test/Debug
+    @__server_connection
+    def _get_graph_type(self, graph_id=defaults.graph_id):
+        """
+        Test/debug API for returning a string repr of the graph_id instance.
+        """
+        return self.__client.get_graph_type(graph_id)
+
+
     ############################################################################
     # Private
     @staticmethod
@@ -890,18 +963,3 @@ class GaasClient:
         else:
             df_row_index_obj = DataframeRowIndex(int32_index=index_or_indices)
         return df_row_index_obj
-
-    @staticmethod
-    def __get_value_obj(val, val_name="value"):
-        # FIXME: handle differrent val types
-        if isinstance(val, int):
-            value_obj = Value(int32_value=val)
-        elif isinstance(val, str):
-            value_obj = Value(string_value=val)
-        elif isinstance(val, bool):
-            value_obj = Value(bool_value=val)
-        else:
-            raise TypeError(f"{val_name} must be one of the "
-                            "following types: [int, str, bool], got "
-                            f"{type(val)}")
-        return value_obj

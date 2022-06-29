@@ -75,6 +75,8 @@ service GaasService {
 
   i32 uptime()
 
+  map<string, Value> get_server_info() throws (1:GaasError e),
+
   i32 load_graph_creation_extensions(1:string extension_dir_path
                                      ) throws (1:GaasError e),
 
@@ -91,6 +93,8 @@ service GaasService {
   void delete_graph(1:i32 graph_id) throws (1:GaasError e),
 
   list<i32> get_graph_ids() throws(1:GaasError e),
+
+  string get_graph_type(1:i32 graph_id) throws(1:GaasError e),
 
   void load_csv_as_vertex_data(1:string csv_file_name,
                                2:string delimiter,
@@ -128,6 +132,12 @@ service GaasService {
                                       2:list<i32> dst_vert_IDs,
                                       3:i32 graph_id
                              ) throws (1:GaasError e),
+
+  i32 uniform_neighbor_sample(1:list<i32> start_list,
+                              2:list<i32> fanout_vals,
+                              3:bool with_replacement,
+                              4:i32 graph_id
+                              ) throws (1:GaasError e),
 
   i32 extract_subgraph(1:string create_using,
                        2:string selection,
