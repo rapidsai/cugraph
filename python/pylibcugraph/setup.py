@@ -13,38 +13,41 @@
 
 import os
 import sys
-import sysconfig
 import shutil
 
-from setuptools import setup, find_packages, Command
-from setuptools.extension import Extension
-from setuputils import get_environment_option
+from setuptools import find_packages, Command
+from skbuild import setup
+#FIXME: Not necessary
+from skbuild.command.build_ext import build_ext
 
-try:
-    from Cython.Distutils.build_ext import new_build_ext as build_ext
-except ImportError:
-    from setuptools.command.build_ext import build_ext
+from setuputils import get_environment_option, get_cuda_version_from_header
 
 import versioneer
 from distutils.sysconfig import get_python_lib
 
-
-CYTHON_FILES = ['pylibcugraph/**/*.pyx']
+INSTALL_REQUIRES = []
+# CYTHON_FILES = ['pylibcugraph/**/*.pyx']
 
 UCX_HOME = get_environment_option("UCX_HOME")
 CUDA_HOME = get_environment_option('CUDA_HOME')
-CONDA_PREFIX = get_environment_option('CONDA_PREFIX')
 
+# FIXME: No need to include the path to the conda dir
+"""
+CONDA_PREFIX = get_environment_option('CONDA_PREFIX')
 conda_lib_dir = os.path.normpath(sys.prefix) + '/lib'
 conda_include_dir = os.path.normpath(sys.prefix) + '/include'
 
 if CONDA_PREFIX:
     conda_include_dir = CONDA_PREFIX + '/include'
     conda_lib_dir = CONDA_PREFIX + '/lib'
+"""
 
 if not UCX_HOME:
     UCX_HOME = CONDA_PREFIX if CONDA_PREFIX else os.sys.prefix
 
+
+# FIXME: create a list of packages required INSTALL_REQUIRES
+# FIXME: add ucx to INSTALL_REQUIRES
 ucx_include_dir = os.path.join(UCX_HOME, "include")
 ucx_lib_dir = os.path.join(UCX_HOME, "lib")
 
@@ -65,14 +68,10 @@ if not os.path.isdir(CUDA_HOME):
     )
 
 cuda_include_dir = os.path.join(CUDA_HOME, "include")
-cuda_lib_dir = os.path.join(CUDA_HOME, "lib64")
-
-# Optional location of C++ build folder that can be configured by the user
-libcugraph_path = get_environment_option('CUGRAPH_BUILD_PATH')
-
-if not libcugraph_path:
-    libcugraph_path = conda_lib_dir
-
+INSTALL_REQUIRES.append(
+    "cupy-cuda" + get_cuda_version_from_header(cuda_include_dir)
+)
+# cuda_lib_dir = os.path.join(CUDA_HOME, "lib64")
 
 class CleanCommand(Command):
     """Custom clean command to tidy up the project root."""
@@ -101,6 +100,7 @@ cmdclass.update(versioneer.get_cmdclass())
 cmdclass["build_ext"] = build_ext
 cmdclass["clean"] = CleanCommand
 
+"""
 EXTENSIONS = [
     Extension("*",
               sources=CYTHON_FILES,
@@ -126,28 +126,26 @@ EXTENSIONS = [
               language='c++',
               extra_compile_args=['-std=c++17'])
 ]
-
-for e in EXTENSIONS:
-    e.cython_directives = dict(
-        profile=False, language_level=3, embedsignature=True
-    )
+"""
 
 setup(name='pylibcugraph',
-      description="pylibcugraph - GPU Graph Analytics",
+      description="pylibcuGraph - RAPIDS GPU Graph Analytics",
       version=versioneer.get_version(),
       classifiers=[
           # "Development Status :: 4 - Beta",
           "Intended Audience :: Developers",
           # "Operating System :: OS Independent",
           "Programming Language :: Python",
-          "Programming Language :: Python :: 3.6",
-          "Programming Language :: Python :: 3.7"
+          "Programming Language :: Python :: 3.8",
+          "Programming Language :: Python :: 3.9"
       ],
       # Include the separately-compiled shared library
       author="NVIDIA Corporation",
-      setup_requires=['cython'],
-      ext_modules=EXTENSIONS,
+      setup_requires=['Cython>=0.29,<0.30'],
       packages=find_packages(include=['pylibcugraph', 'pylibcugraph.*']),
+      package_data={
+        key: ["*.pxd"] for key in find_packages(include=["pylibcugraph*"])
+      },
       license="Apache",
       cmdclass=cmdclass,
       zip_safe=False)
