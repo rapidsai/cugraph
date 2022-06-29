@@ -38,14 +38,14 @@ option(FIND_CUGRAPH_CPP "Search for existing CUGRAPH C++ installations before de
 
 # If the user requested it,  we attempt to find CUGRAPH.
 if(FIND_CUGRAPH_CPP)
-  message(STATUS "trying to find the package")
   find_package(cugraph ${cugraph_version} REQUIRED)
 else()
   set(cugraph_FOUND OFF)
 endif()
 
-message(STATUS "check if it was found ${cugraph_FOUND}")
 
+# FIXME: pylibcugraph should be installing libcugraph in its directory and cugraph should link
+# to it
 if(NOT cugraph_FOUND)
   # TODO: This will not be necessary once we upgrade to CMake 3.22, which will pull in the required
   # languages for the C++ project even if this project does not require those languges.
