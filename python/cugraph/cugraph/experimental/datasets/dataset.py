@@ -16,7 +16,7 @@ import cudf
 import yaml
 import os
 from pathlib import Path
-# import pdb
+
 
 this_dir = Path(os.getenv("this_dir", "cugraph/cugraph/experimental/datasets"))
 datasets_dir = this_dir.parent / "datasets"
@@ -70,8 +70,8 @@ class Dataset:
                 print("Error: cannot write files here")
             self.path = download_dir / filename
         else:
-            raise RuntimeError("The directory " + str(download_dir.absolute()) +
-                               " does not exist")
+            raise RuntimeError("The directory " + str(download_dir.absolute())
+                               + " does not exist")
 
     def get_edgelist(self, fetch=False):
         """
@@ -133,23 +133,20 @@ class Dataset:
         return download_dir
 
 
-def load_all(path="datasets", force=False):
+def load_all(force=False):
     """
     Looks in `metadata` directory and fetches all datafiles from the the URLs
     provided in each YAML file.
 
     Parameters
         ----------
-        path : String (default="datasets")
-            Location to store all the datasets
     """
+    # FIXME: Remove prints
+    if not os.path.isdir(download_dir):
+        # print("Creating directory: " + str(download_dir.absolute()))
+        os.mkdir(download_dir)
 
     meta_path = Path(__file__).parent.absolute() / "metadata"
-    global download_dir
-    if not os.path.isabs(path):
-        download_dir = Path(path).absolute()
-    download_dir = Path(path)
-
     for file in os.listdir(meta_path):
         meta = None
         if file.endswith('.yaml'):
@@ -161,13 +158,10 @@ def load_all(path="datasets", force=False):
                 filename = meta['name'] + meta['file_type']
                 save_to = download_dir / filename
                 if not os.path.isfile(save_to) or force:
-                    print("Downloading dataset from: " + meta['url'])
-                    print("  Saving file to " + str(save_to.absolute()))
+                    # print("Downloading dataset from: " + meta['url'])
+                    # print("  Saving file to " + str(save_to.absolute()))
                     df = cudf.read_csv(meta['url'])
-                    try:
-                        df.to_csv(save_to, index=False)
-                    except RuntimeError:
-                        print("Error: cannot write files to " + str(save_to))
+                    df.to_csv(save_to, index=False)
 
 
 def set_config(cfgpath):

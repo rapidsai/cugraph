@@ -33,6 +33,7 @@ cyber = Dataset("metadata/cyber.yaml")
 
 
 # LARGE DATASETS
+LARGE_DATASETS = [cyber]
 
 # <10,000 lines
 MEDIUM_DATASETS = [netscience, polbooks]
@@ -41,4 +42,4 @@ MEDIUM_DATASETS = [netscience, polbooks]
 SMALL_DATASETS = [karate, dolphins]
 
 # ALL
-ALL_DATASETS = [karate, dolphins, netscience, polbooks]
+ALL_DATASETS = [karate, dolphins, netscience, polbooks, cyber]
