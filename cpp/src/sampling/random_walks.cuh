@@ -31,8 +31,11 @@
 #include <thrust/binary_search.h>
 #include <thrust/copy.h>
 #include <thrust/count.h>
+#include <thrust/distance.h>
 #include <thrust/fill.h>
 #include <thrust/find.h>
+#include <thrust/for_each.h>
+#include <thrust/functional.h>
 #include <thrust/gather.h>
 #include <thrust/iterator/constant_iterator.h>
 #include <thrust/iterator/counting_iterator.h>
@@ -42,6 +45,7 @@
 #include <thrust/optional.h>
 #include <thrust/remove.h>
 #include <thrust/scan.h>
+#include <thrust/scatter.h>
 #include <thrust/transform.h>
 #include <thrust/transform_scan.h>
 #include <thrust/tuple.h>

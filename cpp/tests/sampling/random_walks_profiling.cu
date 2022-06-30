@@ -26,7 +26,9 @@
 #include <rmm/exec_policy.hpp>
 
 #include <cuda_profiler_api.h>
+#include <thrust/iterator/counting_iterator.h>
 #include <thrust/random.h>
+#include <thrust/transform.h>
 
 #include <algorithm>
 #include <iterator>
