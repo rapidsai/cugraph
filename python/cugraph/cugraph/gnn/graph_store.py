@@ -18,6 +18,7 @@ from cugraph.community.egonet import batched_ego_graphs
 from cugraph.utilities.utils import sample_groups
 
 import numpy as np
+import cupy as cp
 
 
 class CuGraphStore:
@@ -36,19 +37,55 @@ class CuGraphStore:
 
     @property
     def ndata(self):
-        return self.__G._vertex_prop_dataframe
+        return {k: self.gdata._vertex_prop_dataframe[col_names] for k,col_names in self.ndata_key_col_d.items()}
 
     @property
     def edata(self):
-        return self.__G._edge_prop_dataframe
+        return {k: self.gdata._edge_prop_dataframe[col_names] for k,col_names in self.edata_key_col_d.items()}
 
     @property
     def gdata(self):
         return self.__G
 
+
+    def add_node_data(self, df, node_col_name, node_key, ntype=None):
+        """
+        Todo: Add docstring
+        """
+        self.gdata.add_vertex_data(df, vertex_col_name=node_col_name, type_name=ntype)
+        col_names = list(df.columns)
+        col_names.remove(node_col_name)
+        self.ndata_key_col_d[node_key] = col_names
+
+    def add_edge_data(self, df, edge_col_name, edge_key, etype=None):
+        """
+        Todo: Add docstring
+        """
+        self.gdata.add_edge_data(data_df, edge_col_name=node_col_name, type_name=etype)
+        col_names = list(df.columns)
+        col_names.remove(edge_col_name)
+        self.edata_key_col_d[edge_key] = col_names
+
+    def get_node_storage(self, key, ntype=None):
+        df = self.gdata._vertex_prop_dataframe
+        col_names = self.ndata_key_col_d[key]
+        return CuFeatureStorage(df=df, type=ntype, col_names=col_names)
+
+    def get_edge_storage(self, key, etype=None):
+        col_names = self.edata_key_col_d[key]
+        df = self.gdata._edge_prop_dataframe
+        return CuFeatureStorage(df=df, type=etype, col_names=col_names)
+
+    def ntypes(self):
+        return self.ndata['_TYPE_'].drop_duplicates()
+
     def __init__(self, graph):
         if isinstance(graph, PropertyGraph):
             self.__G = graph
+            #dict to map column names corresponding to edge features of each type
+            self.edata_key_col_d = {}
+            #dict to map column names corresponding to node features of each type
+            self.ndata_key_col_d = {}
         else:
             raise ValueError("graph must be a PropertyGraph")
 
@@ -251,31 +288,33 @@ class CuFeatureStorage:
     is fine. DGL simply uses duck-typing to implement its sampling pipeline.
     """
 
-    def __getitem__(self, ids):
-        """Fetch the features of the given node/edge IDs.
+    def __init__(self, df, type, col_names, backend_lib='torch'):
+        self.df = df
+        self.type = type
+        self.col_names = col_names
+        if backend_lib=='torch':
+            from torch.utils.dlpack import from_dlpack
+        elif backend_lib=='tf':
+            from tensorflow.experimental.dlpack import from_dlpack
+        else:
+            raise NotImplementedError("Only pytorch and tensorflow backends are currently supported")
 
-        Parameters
-        ----------
-        ids : Tensor
-            Node or edge IDs.
+        self.from_dlpack = from_dlpack
 
-        Returns
-        -------
-        Tensor
-            Feature data stored in PyTorch Tensor.
-        """
-        pass
 
-    async def async_fetch(self, ids, device):
-        """Asynchronously fetch the features of the given node/edge IDs to the
+        
+
+    def fetch(self, indices, device, pin_memory=False, **kwargs):
+        """ Fetch the features of the given node/edge IDs to the
         given device.
 
         Parameters
         ----------
-        ids : Tensor
+        indices : Tensor
             Node or edge IDs.
         device : Device
             Device context.
+        pin_memory : 
 
         Returns
         -------
@@ -283,4 +322,11 @@ class CuFeatureStorage:
             Feature data stored in PyTorch Tensor.
         """
         # Default implementation uses synchronous fetch.
-        return self.__getitem__(ids).to(device)
+        indices = cp.asarray(indices)
+        # index first as to avoid transferring the whole frame
+        # TODO: verify we set index to ids in property graphs
+        subset_df = self.df.loc[indices]
+        subset_df = subset_df[subset_df['_TYPE_']==self.type][self.col_names]
+        tensor =  self.from_dlpack(subset_df.to_dlpack())
+
+        return tensor.to(device)
