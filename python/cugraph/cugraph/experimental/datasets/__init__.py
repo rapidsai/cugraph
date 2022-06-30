@@ -24,12 +24,15 @@ from cugraph.experimental.datasets.dataset import (
 )
 from cugraph.experimental.datasets import metadata
 
-# SMALL DATASETS
+
 karate = Dataset("metadata/karate.yaml")
+karate_undirected = Dataset("metadata/karate_undirected.yaml")
 dolphins = Dataset("metadata/dolphins.yaml")
 polbooks = Dataset("metadata/polbooks.yaml")
 netscience = Dataset("metadata/netscience.yaml")
 cyber = Dataset("metadata/cyber.yaml")
+small_line = Dataset("metadata/small_line.yaml")
+small_tree = Dataset("metadata/small_tree.yaml")
 
 
 # LARGE DATASETS
@@ -39,7 +42,8 @@ LARGE_DATASETS = [cyber]
 MEDIUM_DATASETS = [netscience, polbooks]
 
 # <500 lines
-SMALL_DATASETS = [karate, dolphins]
+SMALL_DATASETS = [karate, karate_undirected, small_line, small_tree, dolphins]
 
 # ALL
-ALL_DATASETS = [karate, dolphins, netscience, polbooks, cyber]
+ALL_DATASETS = [karate, karate_undirected, dolphins, netscience, polbooks, cyber,
+                small_line, small_tree]
