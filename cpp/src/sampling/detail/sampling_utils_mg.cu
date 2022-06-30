@@ -46,6 +46,7 @@ get_global_degree_information(
   raft::handle_t const& handle,
   graph_view_t<int64_t, int64_t, double, false, true> const& graph_view);
 
+#if 0
 template rmm::device_uvector<int32_t> get_global_adjacency_offset(
   raft::handle_t const& handle,
   graph_view_t<int32_t, int32_t, float, false, true> const& graph_view,
@@ -81,6 +82,7 @@ template rmm::device_uvector<int64_t> get_global_adjacency_offset(
   graph_view_t<int64_t, int64_t, double, false, true> const& graph_view,
   rmm::device_uvector<int64_t> const& global_degree_offsets,
   rmm::device_uvector<int64_t> const& global_out_degrees);
+#endif
 
 template rmm::device_uvector<int32_t> allgather_active_majors(raft::handle_t const& handle,
                                                               rmm::device_uvector<int32_t>&& d_in);
@@ -186,8 +188,7 @@ gather_local_edges(raft::handle_t const& handle,
                    const rmm::device_uvector<int32_t>& active_majors,
                    rmm::device_uvector<int32_t>&& minor_map,
                    int32_t indices_per_major,
-                   const rmm::device_uvector<int32_t>& global_degree_offsets,
-                   const rmm::device_uvector<int32_t>& global_adjacency_list_offsets);
+                   const rmm::device_uvector<int32_t>& global_degree_offsets);
 
 template std::tuple<rmm::device_uvector<int32_t>,
                     rmm::device_uvector<int32_t>,
@@ -197,8 +198,7 @@ gather_local_edges(raft::handle_t const& handle,
                    const rmm::device_uvector<int32_t>& active_majors,
                    rmm::device_uvector<int64_t>&& minor_map,
                    int64_t indices_per_major,
-                   const rmm::device_uvector<int64_t>& global_degree_offsets,
-                   const rmm::device_uvector<int64_t>& global_adjacency_list_offsets);
+                   const rmm::device_uvector<int64_t>& global_degree_offsets);
 
 template std::tuple<rmm::device_uvector<int64_t>,
                     rmm::device_uvector<int64_t>,
@@ -208,8 +208,7 @@ gather_local_edges(raft::handle_t const& handle,
                    const rmm::device_uvector<int64_t>& active_majors,
                    rmm::device_uvector<int64_t>&& minor_map,
                    int64_t indices_per_major,
-                   const rmm::device_uvector<int64_t>& global_degree_offsets,
-                   const rmm::device_uvector<int64_t>& global_adjacency_list_offsets);
+                   const rmm::device_uvector<int64_t>& global_degree_offsets);
 
 template std::tuple<rmm::device_uvector<int32_t>,
                     rmm::device_uvector<int32_t>,
@@ -219,8 +218,7 @@ gather_local_edges(raft::handle_t const& handle,
                    const rmm::device_uvector<int32_t>& active_majors,
                    rmm::device_uvector<int32_t>&& minor_map,
                    int32_t indices_per_major,
-                   const rmm::device_uvector<int32_t>& global_degree_offsets,
-                   const rmm::device_uvector<int32_t>& global_adjacency_list_offsets);
+                   const rmm::device_uvector<int32_t>& global_degree_offsets);
 
 template std::tuple<rmm::device_uvector<int32_t>,
                     rmm::device_uvector<int32_t>,
@@ -230,8 +228,7 @@ gather_local_edges(raft::handle_t const& handle,
                    const rmm::device_uvector<int32_t>& active_majors,
                    rmm::device_uvector<int64_t>&& minor_map,
                    int64_t indices_per_major,
-                   const rmm::device_uvector<int64_t>& global_degree_offsets,
-                   const rmm::device_uvector<int64_t>& global_adjacency_list_offsets);
+                   const rmm::device_uvector<int64_t>& global_degree_offsets);
 
 template std::tuple<rmm::device_uvector<int64_t>,
                     rmm::device_uvector<int64_t>,
@@ -241,8 +238,7 @@ gather_local_edges(raft::handle_t const& handle,
                    const rmm::device_uvector<int64_t>& active_majors,
                    rmm::device_uvector<int64_t>&& minor_map,
                    int64_t indices_per_major,
-                   const rmm::device_uvector<int64_t>& global_degree_offsets,
-                   const rmm::device_uvector<int64_t>& global_adjacency_list_offsets);
+                   const rmm::device_uvector<int64_t>& global_degree_offsets);
 
 template std::tuple<rmm::device_uvector<int32_t>,
                     rmm::device_uvector<int32_t>,

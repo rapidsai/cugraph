@@ -57,7 +57,7 @@ rmm::device_uvector<T> device_allgatherv(raft::handle_t const& handle,
                                          raft::device_span<T const> d_input)
 {
   auto rx_sizes =
-    cugraph::host_scalar_gather(handle.get_comms(), d_input.size(), int{0}, handle.get_stream());
+    cugraph::host_scalar_allgather(handle.get_comms(), d_input.size(), handle.get_stream());
   std::vector<size_t> rx_displs(static_cast<size_t>(handle.get_comms().get_size()));
   std::partial_sum(rx_sizes.begin(), rx_sizes.end() - 1, rx_displs.begin() + 1);
 

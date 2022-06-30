@@ -90,8 +90,6 @@ class Tests_MG_GatherEdges
 
     auto [global_degree_offsets, global_out_degrees] =
       cugraph::detail::get_global_degree_information(handle, mg_graph_view);
-    auto global_adjacency_list_offsets = cugraph::detail::get_global_adjacency_offset(
-      handle, mg_graph_view, global_degree_offsets, global_out_degrees);
 
     // Generate random sources to gather on
     auto random_sources =
@@ -103,6 +101,8 @@ class Tests_MG_GatherEdges
                                                 source_sample_count),
                                        repetitions_per_vertex);
 
+    // FIXME: allgather is probably a poor name for this function.
+    //        It's really an allgather across the row communicator
     auto active_sources =
       cugraph::detail::allgather_active_majors(handle, std::move(random_sources));
 
@@ -115,10 +115,6 @@ class Tests_MG_GatherEdges
         handle, raft::device_span<vertex_t const>{src.data(), src.size()});
       auto mg_out_dsts = cugraph::test::device_gatherv(
         handle, raft::device_span<vertex_t const>{dst.data(), dst.size()});
-#if 0
-      auto mg_out_edge_ids = cugraph::test::device_gatherv(
-        handle, raft::device_span<edge_t const>{edge_ids.data(), edge_ids.size()});
-#endif
 
       // Gather relevant edges from graph
       auto& col_comm      = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
@@ -162,6 +158,22 @@ class Tests_MG_GatherEdges
       thrust::sort(handle.get_thrust_policy(),
                    thrust::make_zip_iterator(aggregated_sg_src.begin(), aggregated_sg_dst.begin()),
                    thrust::make_zip_iterator(aggregated_sg_src.end(), aggregated_sg_dst.end()));
+
+      // FIXME:  This is ignoring the case of the same seed being specified multiple
+      //         times.  Not sure that's worth worrying about, so taking the easy way out here.
+      auto unique_end =
+        thrust::unique(handle.get_thrust_policy(),
+                       thrust::make_zip_iterator(mg_out_srcs.begin(), mg_out_dsts.begin()),
+                       thrust::make_zip_iterator(mg_out_srcs.end(), mg_out_dsts.end()));
+
+      mg_out_srcs.resize(
+        thrust::distance(thrust::make_zip_iterator(mg_out_srcs.begin(), mg_out_dsts.begin()),
+                         unique_end),
+        handle.get_stream());
+      mg_out_dsts.resize(
+        thrust::distance(thrust::make_zip_iterator(mg_out_srcs.begin(), mg_out_dsts.begin()),
+                         unique_end),
+        handle.get_stream());
 
       auto passed = thrust::equal(handle.get_thrust_policy(),
                                   mg_out_srcs.begin(),
