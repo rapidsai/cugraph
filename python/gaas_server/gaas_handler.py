@@ -191,14 +191,15 @@ class GaasHandler:
             # FIXME: LocalCUDACluster init. Implement when tests are in place.
             raise NotImplementedError
 
-        Comms.initialize(p2p=True)
+        if not Comms.is_initialized():
+            Comms.initialize(p2p=True)
 
     def shutdown_dask_client(self):
         """
         """
         if self.__dask_client is not None:
             Comms.destroy()
-            self.__dask_client.shutdown()
+            self.__dask_client.close()
 
             if self.__dask_cluster is not None:
                 self.__dask_cluster.close()
@@ -412,9 +413,11 @@ class GaasHandler:
         pG = self._get_graph(graph_id)
         # FIXME: consider a better API on PG for getting tabular vertex data, or
         # just make the "internal" _vertex_prop_dataframe a proper public API.
-        # FIXME: this should not assume _vertex_prop_dataframe != None
+        if pG._vertex_prop_dataframe is None:
+            return (0, 0)
+
         df = self.__get_dataframe_from_user_props(pG._vertex_prop_dataframe)
-        return df.shape
+        return self.__get_dataframe_shape(df)
 
     def get_graph_edge_dataframe_rows(self,
                                       index_or_indices,
@@ -443,9 +446,11 @@ class GaasHandler:
         pG = self._get_graph(graph_id)
         # FIXME: consider a better API on PG for getting tabular edge data, or
         # just make the "internal" _edge_prop_dataframe a proper public API.
-        # FIXME: this should not assume _edge_prop_dataframe != None
+        if pG._edge_prop_dataframe is None:
+            return (0, 0)
+
         df = self.__get_dataframe_from_user_props(pG._edge_prop_dataframe)
-        return df.shape
+        return self.__get_dataframe_shape(df)
 
     def is_vertex_property(self, property_key, graph_id):
         G = self._get_graph(graph_id)
@@ -696,8 +701,6 @@ class GaasHandler:
         else:
             all_user_columns = columns
 
-        print(all_user_columns)
-
         # This should NOT be a copy of the dataframe data
         try:
             return dataframe[all_user_columns]
@@ -766,3 +769,19 @@ class GaasHandler:
 
         except:
             raise GaasError(f"{traceback.format_exc()}")
+
+    def __get_dataframe_shape(self, df):
+        """
+        Return a tuple containing the dataframe shape by correcting handling
+        different dataframe types (cudf, dask_cudf, etc.)
+        """
+        sizes = []
+        for i in df.shape:
+            if isinstance(i, int):
+                sizes.append(i)
+            elif hasattr(i, "compute"):
+                sizes.append(i.compute())
+            else:
+                raise TypeError("value in df.shape was not an int or delayed, "
+                                f"got {type(i)}")
+        return tuple(sizes)

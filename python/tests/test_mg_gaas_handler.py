@@ -22,9 +22,10 @@ from . import data
 ###############################################################################
 ## fixtures
 
-@pytest.fixture(scope="function")
+@pytest.fixture(scope="module")
 def mg_handler():
     """
+    Creates a GaaS handler that uses a dask client.
     """
     from gaas_server.gaas_handler import GaasHandler
 
@@ -42,7 +43,7 @@ def mg_handler():
     return handler
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture(scope="module")
 def handler_with_edgelist_csv_loaded(mg_handler):
     """
     Loads the karate CSV into the default graph in the handler.
@@ -92,3 +93,25 @@ def test_get_edge_IDs_for_vertices(handler_with_edgelist_csv_loaded):
                                              [0, 0, 0],
                                              extracted_graph_id)
     assert eIDs == [0, 1, 2]
+
+
+def test_get_graph_edge_dataframe_shape(handler_with_edgelist_csv_loaded):
+    """
+    """
+    from gaas_client import defaults
+
+    (handler, test_data) = handler_with_edgelist_csv_loaded
+
+    assert handler.get_graph_edge_dataframe_shape(defaults.graph_id) == (156, 3)
+
+
+def test_get_graph_vertex_dataframe_shape(handler_with_edgelist_csv_loaded):
+    """
+    A graph created from an edgelist CSV will not have vertex data, so ensure
+    the shape is returned correctly.
+    """
+    from gaas_client import defaults
+
+    (handler, test_data) = handler_with_edgelist_csv_loaded
+
+    assert handler.get_graph_vertex_dataframe_shape(defaults.graph_id) == (0, 0)
