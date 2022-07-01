@@ -24,6 +24,9 @@
 #include <raft/handle.hpp>
 
 #include <thrust/execution_policy.h>
+#include <thrust/iterator/counting_iterator.h>
+#include <thrust/iterator/iterator_traits.h>
+#include <thrust/iterator/transform_iterator.h>
 #include <thrust/transform_reduce.h>
 
 namespace cugraph {

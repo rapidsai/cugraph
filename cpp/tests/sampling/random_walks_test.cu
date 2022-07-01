@@ -21,7 +21,9 @@
 #include <utilities/test_utilities.hpp>
 
 #include <rmm/exec_policy.hpp>
+#include <thrust/iterator/counting_iterator.h>
 #include <thrust/random.h>
+#include <thrust/transform.h>
 
 #include <cugraph/algorithms.hpp>
 #include <sampling/random_walks.cuh>

@@ -29,6 +29,8 @@
 
 #include <cugraph-ops/graph/sampling.hpp>
 
+#include <thrust/optional.h>
+
 #include <algorithm>
 #include <limits>
 #include <numeric>
