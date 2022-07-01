@@ -5,6 +5,8 @@ channels:
 - rapidsai-nightly
 - conda-forge
 dependencies:
+- c-compiler
+- cxx-compiler
 - cudatoolkit=11.5
 - libcugraphops=22.08.*
 - cudf=22.08.*
