@@ -32,8 +32,8 @@ namespace detail {
 template <typename mask_type = std::uint32_t>
 __device__ __host__ inline void _set_bit(mask_type* arr, mask_type h, bool v)
 {
-  int bit = h & (std::numeric_limits<mask_type>::digits - 1);
-  int idx = h / std::numeric_limits<mask_type>::digits;
+  mask_type bit = h & (std::numeric_limits<mask_type>::digits - 1);
+  mask_type idx = h / std::numeric_limits<mask_type>::digits;
 
   mask_type assumed;
   mask_type old = arr[idx];
@@ -50,8 +50,8 @@ __device__ __host__ inline void _set_bit(mask_type* arr, mask_type h, bool v)
 template <typename mask_type = std::uint32_t>
 __device__ __host__ inline bool _get_bit(mask_type* arr, mask_type h)
 {
-  int bit = h & (std::numeric_limits<mask_type>::digits - 1);
-  int idx = h / std::numeric_limits<mask_type>::digits;
+  mask_type bit = h & (std::numeric_limits<mask_type>::digits - 1);
+  mask_type idx = h / std::numeric_limits<mask_type>::digits;
   return (arr[idx] & (1 << bit)) > 0;
 }
 };  // END namespace detail
@@ -61,7 +61,7 @@ __device__ __host__ inline bool _get_bit(mask_type* arr, mask_type h)
  * up using standard indexing.
  * @tparam T
  */
-template <typename T = std::uint32_t>
+template <typename T, typename mask_t = std::uint32_t>
 struct bitset {
   __host__ __device__ bitset(T n_, T* bits_) : n(n_), bits(bits_) {}
 
