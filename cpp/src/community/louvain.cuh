@@ -32,7 +32,15 @@
 #include <rmm/device_uvector.hpp>
 
 #include <thrust/binary_search.h>
+#include <thrust/execution_policy.h>
+#include <thrust/functional.h>
+#include <thrust/iterator/zip_iterator.h>
+#include <thrust/optional.h>
+#include <thrust/sequence.h>
+#include <thrust/sort.h>
+#include <thrust/transform.h>
 #include <thrust/transform_reduce.h>
+#include <thrust/tuple.h>
 
 //#define TIMING
 

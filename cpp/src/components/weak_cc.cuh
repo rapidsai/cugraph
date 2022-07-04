@@ -17,6 +17,7 @@
 
 #include <thrust/device_ptr.h>
 #include <thrust/scan.h>
+#include <thrust/swap.h>
 
 #include <cuda_runtime.h>
 #include <stdio.h>

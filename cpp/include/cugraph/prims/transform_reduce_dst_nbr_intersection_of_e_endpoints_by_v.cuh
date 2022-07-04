@@ -27,7 +27,21 @@
 #include <raft/handle.hpp>
 #include <rmm/exec_policy.hpp>
 
+#include <thrust/binary_search.h>
+#include <thrust/copy.h>
+#include <thrust/count.h>
+#include <thrust/execution_policy.h>
+#include <thrust/fill.h>
+#include <thrust/for_each.h>
+#include <thrust/functional.h>
+#include <thrust/iterator/counting_iterator.h>
 #include <thrust/iterator/iterator_traits.h>
+#include <thrust/iterator/zip_iterator.h>
+#include <thrust/merge.h>
+#include <thrust/reduce.h>
+#include <thrust/sort.h>
+#include <thrust/tabulate.h>
+#include <thrust/tuple.h>
 
 #include <type_traits>
 
@@ -172,7 +186,7 @@ struct accumulate_vertex_property_t {
  * and one for every vertex in the intersection) per-vertex. We may add
  * transform_reduce_triplet_of_dst_nbr_intersection_of_e_endpoints_by_v in the future to allow
  * emitting different values for different vertices in the intersection of edge endpoints. This
- * function is inspired by thrust::transfrom_reduce().
+ * function is inspired by thrust::transform_reduce().
  *
  * @tparam GraphViewType Type of the passed non-owning graph object.
  * @tparam EdgePartitionSrcValueInputWrapper Type of the wrapper for edge partition source property

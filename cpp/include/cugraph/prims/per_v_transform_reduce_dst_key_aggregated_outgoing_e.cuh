@@ -33,6 +33,22 @@
 #include <rmm/mr/device/per_device_resource.hpp>
 #include <rmm/mr/device/polymorphic_allocator.hpp>
 
+#include <thrust/copy.h>
+#include <thrust/count.h>
+#include <thrust/distance.h>
+#include <thrust/fill.h>
+#include <thrust/functional.h>
+#include <thrust/iterator/constant_iterator.h>
+#include <thrust/iterator/counting_iterator.h>
+#include <thrust/iterator/transform_iterator.h>
+#include <thrust/iterator/zip_iterator.h>
+#include <thrust/reduce.h>
+#include <thrust/scatter.h>
+#include <thrust/sort.h>
+#include <thrust/transform.h>
+#include <thrust/tuple.h>
+#include <thrust/unique.h>
+
 #include <type_traits>
 
 namespace cugraph {
@@ -147,7 +163,7 @@ struct reduce_with_init_t {
  * @brief Iterate over every vertex's destination key-aggregated outgoing edges to update vertex
  * property values.
  *
- * This function is inspired by thrust::transfrom_reduce().
+ * This function is inspired by thrust::transform_reduce().
  * Unlike per_v_transform_reduce_outgoing_e, this function first aggregates outgoing edges by
  * destination keys to support two level reduction for every vertex.
  *
