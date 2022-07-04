@@ -822,7 +822,7 @@ compress_edgelist(edgelist_t<vertex_t, edge_t, weight_t> const& edgelist,
       thrust::make_tuple((*dcs_nzd_vertices).begin(),
                          offsets.begin() + (*major_hypersparse_first - major_range_first)));
     CUGRAPH_EXPECTS(
-      (*dcs_nzd_vertices).size() < std::numeric_limits<int32_t>::max(),
+      (*dcs_nzd_vertices).size() < static_cast<size_t>(std::numeric_limits<int32_t>::max()),
       "remove_if will fail (https://github.com/NVIDIA/thrust/issues/1302), work-around required.");
     (*dcs_nzd_vertices)
       .resize(thrust::distance(pair_first,

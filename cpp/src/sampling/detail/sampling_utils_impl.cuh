@@ -610,7 +610,7 @@ gather_local_edges(
     auto input_iter = thrust::make_zip_iterator(
       thrust::make_tuple(majors.begin(), minors.begin(), weights->begin()));
 
-    CUGRAPH_EXPECTS(minors.size() < std::numeric_limits<int32_t>::max(),
+    CUGRAPH_EXPECTS(minors.size() < static_cast<size_t>(std::numeric_limits<int32_t>::max()),
                     "remove_if will fail, minors.size() is too large");
 
     // FIXME: remove_if has a 32-bit overflow issue (https://github.com/NVIDIA/thrust/issues/1302)
@@ -631,7 +631,7 @@ gather_local_edges(
   } else {
     auto input_iter = thrust::make_zip_iterator(thrust::make_tuple(majors.begin(), minors.begin()));
 
-    CUGRAPH_EXPECTS(minors.size() < std::numeric_limits<int32_t>::max(),
+    CUGRAPH_EXPECTS(minors.size() < static_cast<size_t>(std::numeric_limits<int32_t>::max()),
                     "remove_if will fail, minors.size() is too large");
 
     auto compacted_length = thrust::distance(
