@@ -37,7 +37,8 @@ class Dataset:
     def __init__(self, meta_data_file_name):
         self.dir_path = Path(__file__).parent.absolute()
         global download_dir
-        download_dir = Path(os.environ.get("RAPIDS_DATASET_ROOT_DIR", download_dir))
+        download_dir = Path(os.environ.get("RAPIDS_DATASET_ROOT_DIR",
+                                           download_dir))
 
         self._meta_data_file_name = meta_data_file_name
         self.__read_meta_data_file(self._meta_data_file_name)
@@ -98,9 +99,9 @@ class Dataset:
                                        " download the datafile")
 
             self._edgelist = cudf.read_csv(full_path,
-                                            delimiter=self.metadata['delim'],
-                                            names=self.metadata['col_names'],
-                                            dtype=self.metadata['col_types'])
+                                           delimiter=self.metadata['delim'],
+                                           names=self.metadata['col_names'],
+                                           dtype=self.metadata['col_types'])
             self.path = full_path
 
         return self._edgelist
@@ -120,7 +121,7 @@ class Dataset:
 
         self._graph = cugraph.Graph(directed=self.metadata['is_directed'])
         self._graph.from_cudf_edgelist(self._edgelist, source='src',
-                                        destination='dst')
+                                       destination='dst')
 
         return self._graph
 
@@ -129,7 +130,7 @@ class Dataset:
             Returns the location of the stored dataset file
         """
         if self.path is None:
-            raise RuntimeError("Path to datafile has not been set." + 
+            raise RuntimeError("Path to datafile has not been set." +
                                " Call get_edgelist or get_graph first")
 
         return self.path.absolute()
