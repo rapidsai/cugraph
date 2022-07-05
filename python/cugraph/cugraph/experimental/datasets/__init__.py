@@ -27,6 +27,7 @@ from cugraph.experimental.datasets import metadata
 
 karate = Dataset("metadata/karate.yaml")
 karate_undirected = Dataset("metadata/karate_undirected.yaml")
+karate_asymmetric = Dataset("metadata/karate-asymmetric.yaml")
 dolphins = Dataset("metadata/dolphins.yaml")
 polbooks = Dataset("metadata/polbooks.yaml")
 netscience = Dataset("metadata/netscience.yaml")
