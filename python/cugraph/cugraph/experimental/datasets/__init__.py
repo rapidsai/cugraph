@@ -11,13 +11,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-#from cugraph.experimental.datasets import (
-#    karate,
-#)
+
 from cugraph.experimental.datasets.dataset import (
     Dataset,
     load_all,
-    set_config
+    set_config,
+    set_download_dir,
+    get_download_dir
 #    karate,
 #    dolphins,
 #    SMALL_DATASETS
