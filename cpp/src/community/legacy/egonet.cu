@@ -26,6 +26,11 @@
 #include <rmm/exec_policy.hpp>
 
 #include <ctime>
+#include <thrust/copy.h>
+#include <thrust/distance.h>
+#include <thrust/fill.h>
+#include <thrust/iterator/counting_iterator.h>
+#include <thrust/remove.h>
 #include <thrust/transform.h>
 
 #include <cugraph/legacy/graph.hpp>
@@ -169,7 +174,12 @@ extract(raft::handle_t const& handle,
 
   // extract
   return cugraph::extract_induced_subgraphs(
-    handle, csr_view, neighbors_offsets.data().get(), neighbors.data().get(), n_subgraphs);
+    handle,
+    csr_view,
+    raft::device_span<size_t const>(neighbors_offsets.data().get(), neighbors_offsets.size()),
+    raft::device_span<vertex_t const>(neighbors.data().get(), neighbors.size()),
+    n_subgraphs,
+    false);
 }
 
 }  // namespace

@@ -25,6 +25,7 @@
 
 #include <thrust/distance.h>
 #include <thrust/functional.h>
+#include <thrust/iterator/iterator_traits.h>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/remove.h>
 #include <thrust/transform.h>

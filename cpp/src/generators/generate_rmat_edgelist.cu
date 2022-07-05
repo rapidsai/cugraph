@@ -21,7 +21,9 @@
 #include <raft/handle.hpp>
 #include <rmm/device_uvector.hpp>
 
+#include <thrust/iterator/counting_iterator.h>
 #include <thrust/iterator/zip_iterator.h>
+#include <thrust/transform.h>
 #include <thrust/tuple.h>
 
 #include <random>

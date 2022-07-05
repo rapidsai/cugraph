@@ -33,6 +33,22 @@
 #include <rmm/mr/device/per_device_resource.hpp>
 #include <rmm/mr/device/polymorphic_allocator.hpp>
 
+#include <thrust/copy.h>
+#include <thrust/count.h>
+#include <thrust/distance.h>
+#include <thrust/fill.h>
+#include <thrust/functional.h>
+#include <thrust/iterator/constant_iterator.h>
+#include <thrust/iterator/counting_iterator.h>
+#include <thrust/iterator/transform_iterator.h>
+#include <thrust/iterator/zip_iterator.h>
+#include <thrust/reduce.h>
+#include <thrust/scatter.h>
+#include <thrust/sort.h>
+#include <thrust/transform.h>
+#include <thrust/tuple.h>
+#include <thrust/unique.h>
+
 #include <type_traits>
 
 namespace cugraph {
@@ -147,7 +163,7 @@ struct reduce_with_init_t {
  * @brief Iterate over every vertex's destination key-aggregated outgoing edges to update vertex
  * property values.
  *
- * This function is inspired by thrust::transfrom_reduce().
+ * This function is inspired by thrust::transform_reduce().
  * Unlike per_v_transform_reduce_outgoing_e, this function first aggregates outgoing edges by
  * destination keys to support two level reduction for every vertex.
  *
@@ -218,6 +234,11 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
   VertexIterator map_unique_key_first,
   VertexIterator map_unique_key_last,
   ValueIterator map_value_first,
+#if 1  // FIXME: this is unnecessary if we use a binary tree instead of cuco::static_map in
+       // collect_values_for_unique_keys, need to compare the two approaches
+  typename thrust::iterator_traits<VertexIterator>::value_type invalid_key,
+  typename thrust::iterator_traits<ValueIterator>::value_type invalid_value,
+#endif
   KeyAggregatedEdgeOp key_aggregated_e_op,
   T init,
   ReduceOp reduce_op,
@@ -297,8 +318,8 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
           static_cast<double>(thrust::distance(map_unique_key_first, map_unique_key_last)) /
           load_factor),
         static_cast<size_t>(thrust::distance(map_unique_key_first, map_unique_key_last)) + 1),
-      cuco::sentinel::empty_key<vertex_t>{invalid_vertex_id<vertex_t>::value},
-      cuco::sentinel::empty_value<value_t>{0},
+      cuco::sentinel::empty_key<vertex_t>{invalid_key},
+      cuco::sentinel::empty_value<value_t>{invalid_value},
       stream_adapter,
       handle.get_stream());
 
@@ -570,8 +591,8 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
     auto multi_gpu_kv_map_ptr = std::make_unique<
       cuco::static_map<vertex_t, value_t, cuda::thread_scope_device, decltype(stream_adapter)>>(
       size_t{0},
-      cuco::sentinel::empty_key<vertex_t>{invalid_vertex_id<vertex_t>::value},
-      cuco::sentinel::empty_value<value_t>{0},
+      cuco::sentinel::empty_key<vertex_t>{invalid_key},
+      cuco::sentinel::empty_value<value_t>{invalid_value},
       stream_adapter,
       handle.get_stream());  // relevant only when GraphViewType::is_multi_gpu is true
     if constexpr (GraphViewType::is_multi_gpu) {
@@ -608,8 +629,8 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
         // cuco::static_map requires at least one empty slot
         std::max(static_cast<size_t>(static_cast<double>(unique_minor_keys.size()) / load_factor),
                  static_cast<size_t>(unique_minor_keys.size()) + 1),
-        cuco::sentinel::empty_key<vertex_t>{invalid_vertex_id<vertex_t>::value},
-        cuco::sentinel::empty_value<value_t>{0},
+        cuco::sentinel::empty_key<vertex_t>{invalid_key},
+        cuco::sentinel::empty_value<value_t>{invalid_value},
         stream_adapter,
         handle.get_stream());
 
