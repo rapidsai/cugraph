@@ -22,6 +22,7 @@ But which nodes are most important? The answer depends on which measure/algorith
 |[Centrality](centrality/Centrality.ipynb), [Pagerank](../../link_analysis/Pagerank.ipynb)                                         |Pagerank |Classified as both a link analysis and centrality measure by quantifying incoming links from central nodes.  |
 
 ## RAPIDS notebooks
+
 Visit the main RAPIDS [notebooks](https://github.com/rapidsai/notebooks) repo for a listing of all notebooks across all RAPIDS libraries.
 
 ## Requirements
@@ -37,23 +38,14 @@ Running the example in these notebooks requires:
 * CUDA 11.4+
 * NVIDIA driver 450.51+
 
+| Author Credit |    Date    |  Update          | cuGraph Version |  Test Hardware |
+| --------------|------------|------------------|-----------------|----------------|
+| Brad Rees     | 04/19/2021 | created          | 0.19            | GV100, CUDA 11.0
+| Don Acosta    | 07/05/2022 | tested / updated | 22.08 nightly   | DGX Tesla V100 CUDA 11.5
 
+## Copyright
 
-#### Notebook Credits
-
-- Original Authors: Bradley Rees
-- Last Edit: 07/01/2022
-
-RAPIDS Versions: 22.08
-
-Test Hardware
-- DGX VT100 32G, CUDA 11.5
-
-
-
-##### Copyright
-
-Copyright (c) 2019-2022, NVIDIA CORPORATION.  All rights reserved.
+Copyright (c) 2019-2020, NVIDIA CORPORATION.  All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");  you may not use this file except in compliance with the License.  You may obtain a copy of the License at
 
@@ -61,9 +53,4 @@ http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the License for the specific language governing permissions and limitations under the License.
 
-
-
-
-
 ![RAPIDS](../../img/rapids_logo.png)
-
