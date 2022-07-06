@@ -138,6 +138,7 @@ def test_get_edgelist(dataset):
 
     tmpd.cleanup()
 
+
 @pytest.mark.parametrize("dataset", ALL_DATASETS)
 def test_get_graph(dataset):
     tmpd = TemporaryDirectory()
