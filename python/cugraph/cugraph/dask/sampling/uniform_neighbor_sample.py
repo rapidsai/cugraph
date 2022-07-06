@@ -171,7 +171,8 @@ def uniform_neighbor_sample(input_graph,
     if input_graph.renumbered:
         start_list = input_graph.lookup_internal_vertex_id(
             start_list).compute()
-    do_expensive_check = True
+    # FIXME: should we add this parameter as an option?
+    do_expensive_check = False
 
     result = [client.submit(call_nbr_sampling,
                             Comms.get_session_id(),

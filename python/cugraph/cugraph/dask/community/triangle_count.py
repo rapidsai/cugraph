@@ -144,7 +144,8 @@ def triangle_count(input_graph,
     graph_properties = GraphProperties(
         is_symmetric=True, is_multigraph=False)
     store_transposed = False
-    do_expensive_check = True
+    # FIXME: should we add this parameter as an option?
+    do_expensive_check = False
 
     num_edges = len(ddf)
     data = get_distributed_data(ddf)

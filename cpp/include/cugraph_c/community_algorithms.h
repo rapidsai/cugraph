@@ -20,6 +20,11 @@
 #include <cugraph_c/graph.h>
 #include <cugraph_c/resource_handle.h>
 
+/** @defgroup community Community algorithms
+ *  @ingroup c_api
+ *  @{
+ */
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -127,3 +132,7 @@ void cugraph_heirarchical_clustering_result_free(cugraph_heirarchical_clustering
 #ifdef __cplusplus
 }
 #endif
+
+/**
+ *  @}
+ */
