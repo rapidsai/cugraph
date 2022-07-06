@@ -203,7 +203,7 @@ void unrenumber_local_int_edges(
                                 static_cast<double>(edge_partition_major_range_size) / load_factor),
                               static_cast<size_t>(edge_partition_major_range_size) + 1),
                      cuco::sentinel::empty_key<vertex_t>{invalid_vertex_id<vertex_t>::value},
-                     cuco::sentinel::empty_value<vertex_t>{0},
+                     cuco::sentinel::empty_value<vertex_t>{invalid_vertex_id<vertex_t>::value},
                      stream_adapter,
                      handle.get_stream()};
       auto pair_first = thrust::make_zip_iterator(
@@ -266,7 +266,7 @@ void unrenumber_local_int_edges(
                      std::max(static_cast<size_t>(static_cast<double>(segment_size) / load_factor),
                               static_cast<size_t>(segment_size) + 1),
                      cuco::sentinel::empty_key<vertex_t>{invalid_vertex_id<vertex_t>::value},
-                     cuco::sentinel::empty_value<vertex_t>{0},
+                     cuco::sentinel::empty_value<vertex_t>{invalid_vertex_id<vertex_t>::value},
                      stream_adapter,
                      handle.get_stream()};
       auto pair_first = thrust::make_zip_iterator(
@@ -319,7 +319,7 @@ void unrenumber_local_int_edges(
                               static_cast<double>(renumber_map_minor_labels.size()) / load_factor),
                             renumber_map_minor_labels.size() + 1),
                    cuco::sentinel::empty_key<vertex_t>{invalid_vertex_id<vertex_t>::value},
-                   cuco::sentinel::empty_value<vertex_t>{0},
+                   cuco::sentinel::empty_value<vertex_t>{invalid_vertex_id<vertex_t>::value},
                    stream_adapter,
                    handle.get_stream()};
     auto pair_first = thrust::make_zip_iterator(
@@ -373,7 +373,7 @@ void renumber_ext_vertices(raft::handle_t const& handle,
     cuco::static_map<vertex_t, vertex_t, cuda::thread_scope_device, decltype(stream_adapter)>>(
     size_t{0},
     cuco::sentinel::empty_key<vertex_t>{invalid_vertex_id<vertex_t>::value},
-    cuco::sentinel::empty_value<vertex_t>{0},
+    cuco::sentinel::empty_value<vertex_t>{invalid_vertex_id<vertex_t>::value},
     stream_adapter,
     handle.get_stream());
   if (multi_gpu) {
@@ -410,6 +410,8 @@ void renumber_ext_vertices(raft::handle_t const& handle,
         thrust::make_counting_iterator(local_int_vertex_first),
         std::move(sorted_unique_ext_vertices),
         detail::compute_gpu_id_from_ext_vertex_t<vertex_t>{comm_size},
+        invalid_vertex_id<vertex_t>::value,
+        invalid_vertex_id<vertex_t>::value,
         handle.get_stream());
 
     renumber_map_ptr.reset();
@@ -421,7 +423,7 @@ void renumber_ext_vertices(raft::handle_t const& handle,
         static_cast<size_t>(static_cast<double>(sorted_unique_ext_vertices.size()) / load_factor),
         sorted_unique_ext_vertices.size() + 1),
       cuco::sentinel::empty_key<vertex_t>{invalid_vertex_id<vertex_t>::value},
-      cuco::sentinel::empty_value<vertex_t>{0},
+      cuco::sentinel::empty_value<vertex_t>{invalid_vertex_id<vertex_t>::value},
       stream_adapter,
       handle.get_stream());
 
@@ -442,7 +444,7 @@ void renumber_ext_vertices(raft::handle_t const& handle,
                  static_cast<double>(local_int_vertex_last - local_int_vertex_first) / load_factor),
                static_cast<size_t>(local_int_vertex_last - local_int_vertex_first) + 1),
       cuco::sentinel::empty_key<vertex_t>{invalid_vertex_id<vertex_t>::value},
-      cuco::sentinel::empty_value<vertex_t>{0},
+      cuco::sentinel::empty_value<vertex_t>{invalid_vertex_id<vertex_t>::value},
       stream_adapter,
       handle.get_stream());
 
@@ -508,7 +510,7 @@ void renumber_local_ext_vertices(raft::handle_t const& handle,
                static_cast<double>(local_int_vertex_last - local_int_vertex_first) / load_factor),
              static_cast<size_t>(local_int_vertex_last - local_int_vertex_first) + 1),
     cuco::sentinel::empty_key<vertex_t>{invalid_vertex_id<vertex_t>::value},
-    cuco::sentinel::empty_value<vertex_t>{0},
+    cuco::sentinel::empty_value<vertex_t>{invalid_vertex_id<vertex_t>::value},
     stream_adapter,
     handle.get_stream());
 
@@ -677,7 +679,7 @@ void unrenumber_int_vertices(raft::handle_t const& handle,
                               static_cast<double>(sorted_unique_int_vertices.size()) / load_factor),
                             sorted_unique_int_vertices.size() + 1),
                    cuco::sentinel::empty_key<vertex_t>{invalid_vertex_id<vertex_t>::value},
-                   cuco::sentinel::empty_value<vertex_t>{0},
+                   cuco::sentinel::empty_value<vertex_t>{invalid_vertex_id<vertex_t>::value},
                    stream_adapter,
                    handle.get_stream()};
 

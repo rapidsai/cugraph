@@ -30,6 +30,10 @@
 #include <raft/random/rng_state.hpp>
 #include <raft/span.hpp>
 
+/** @ingroup cpp_api
+ *  @{
+ */
+
 namespace cugraph {
 
 /**
@@ -1572,3 +1576,7 @@ void triangle_count(raft::handle_t const& handle,
                     bool do_expensive_check = false);
 
 }  // namespace cugraph
+
+/**
+ * @}
+ */

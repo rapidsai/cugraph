@@ -13,11 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-/** ---------------------------------------------------------------------------*
- * @brief Functions for computing the two hop neighbor pairs of a graph
- *
- * @file two_hop_neighbors.cu
- * ---------------------------------------------------------------------------**/
 
 #include "two_hop_neighbors.cuh"
 #include <cugraph/algorithms.hpp>
