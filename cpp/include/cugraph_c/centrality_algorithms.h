@@ -21,6 +21,11 @@
 #include <cugraph_c/graph.h>
 #include <cugraph_c/resource_handle.h>
 
+/** @defgroup centrality Centrality algorithms
+ *  @ingroup c_api
+ *  @{
+ */
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -304,3 +309,7 @@ cugraph_error_code_t cugraph_hits(
 #ifdef __cplusplus
 }
 #endif
+
+/**
+ *  @}
+ */
