@@ -93,15 +93,11 @@ def test_set_download_dir():
     tmpd.cleanup()
 
 
-@pytest.mark.skip(reason="no way of testing this yet")
-def test_environment_var_exists():
-    ...
+@pytest.mark.skip(reason="wip")
+def test_home_directory():
+    user_home = Path.home() / ".cugraph/datasets"
 
-
-def test_environment_var_dne():
-    # if rapids-dataset-root-dir is not set, default to something else
-    print(str(get_download_dir()))
-    assert False
+    assert get_download_dir() == user_home
 
 
 def test_load_all():
@@ -134,16 +130,23 @@ def test_fetch(dataset):
 
 @pytest.mark.parametrize("dataset", ALL_DATASETS)
 def test_get_edgelist(dataset):
-    E = dataset.get_edgelist()
+    tmpd = TemporaryDirectory()
+    set_download_dir(tmpd.name)
+    E = dataset.get_edgelist(fetch=True)
 
     assert E is not None
 
+    tmpd.cleanup()
 
 @pytest.mark.parametrize("dataset", ALL_DATASETS)
 def test_get_graph(dataset):
-    G = dataset.get_graph()
+    tmpd = TemporaryDirectory()
+    set_download_dir(tmpd.name)
+    G = dataset.get_graph(fetch=True)
 
     assert G is not None
+
+    tmpd.cleanup()
 
 
 @pytest.mark.parametrize("dataset", ALL_DATASETS)
