@@ -760,7 +760,7 @@ renumber_edgelist(
                      load_factor),
                    static_cast<size_t>(partition.local_edge_partition_major_range_size(i)) + 1),
           cuco::sentinel::empty_key<vertex_t>{invalid_vertex_id<vertex_t>::value},
-          cuco::sentinel::empty_value<vertex_t>{0},
+          cuco::sentinel::empty_value<vertex_t>{invalid_vertex_id<vertex_t>::value},
           stream_adapter,
           handle.get_stream()};
       auto pair_first = thrust::make_zip_iterator(thrust::make_tuple(
@@ -800,9 +800,6 @@ renumber_edgelist(
                    i,
                    handle.get_stream());
 
-      RAFT_CUDA_TRY(cudaStreamSynchronize(
-        handle.get_stream()));  // cuco::static_map currently does not take stream
-
       auto poly_alloc =
         rmm::mr::polymorphic_allocator<char>(rmm::mr::get_current_device_resource());
       auto stream_adapter = rmm::mr::make_stream_allocator_adaptor(poly_alloc, handle.get_stream());
@@ -811,7 +808,7 @@ renumber_edgelist(
                      std::max(static_cast<size_t>(static_cast<double>(segment_size) / load_factor),
                               static_cast<size_t>(segment_size) + 1),
                      cuco::sentinel::empty_key<vertex_t>{invalid_vertex_id<vertex_t>::value},
-                     cuco::sentinel::empty_value<vertex_t>{0},
+                     cuco::sentinel::empty_value<vertex_t>{invalid_vertex_id<vertex_t>::value},
                      stream_adapter,
                      handle.get_stream()};
       auto pair_first = thrust::make_zip_iterator(thrust::make_tuple(
@@ -857,7 +854,7 @@ renumber_edgelist(
                               static_cast<double>(renumber_map_minor_labels.size()) / load_factor),
                             renumber_map_minor_labels.size() + 1),
                    cuco::sentinel::empty_key<vertex_t>{invalid_vertex_id<vertex_t>::value},
-                   cuco::sentinel::empty_value<vertex_t>{0},
+                   cuco::sentinel::empty_value<vertex_t>{invalid_vertex_id<vertex_t>::value},
                    stream_adapter,
                    handle.get_stream()};
     auto pair_first = thrust::make_zip_iterator(thrust::make_tuple(
@@ -930,7 +927,7 @@ renumber_edgelist(raft::handle_t const& handle,
       std::max(static_cast<size_t>(static_cast<double>(renumber_map_labels.size()) / load_factor),
                renumber_map_labels.size() + 1),
       cuco::sentinel::empty_key<vertex_t>{invalid_vertex_id<vertex_t>::value},
-      cuco::sentinel::empty_value<vertex_t>{0},
+      cuco::sentinel::empty_value<vertex_t>{invalid_vertex_id<vertex_t>::value},
       stream_adapter,
       handle.get_stream()};
   auto pair_first = thrust::make_zip_iterator(
