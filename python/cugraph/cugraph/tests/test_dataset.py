@@ -164,6 +164,7 @@ def test_get_path(dataset):
     dataset.get_edgelist(fetch=True)
 
     assert os.path.isfile(dataset.get_path())
+    tmpd.cleanup()
 
 
 # Path is None until a dataset initializes its edgelist
