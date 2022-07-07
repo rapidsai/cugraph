@@ -62,6 +62,27 @@ class simpleDistributedGraphImpl:
         self.source_columns = None
         self.destination_columns = None
 
+    def __make_mg_graph(
+                        sID,
+                        edata_x,
+                        graph_props,
+                        src_col_name,
+                        dst_col_name,
+                        store_transposed,
+                        num_edges):
+        return MGGraph(
+            resource_handle=ResourceHandle(
+                Comms.get_handle(sID).getHandle()
+            ),
+            graph_properties=graph_props,
+            src_array=edata_x[0][src_col_name],
+            dst_array=edata_x[0][dst_col_name],
+            weight_array=edata_x[0]['value'],
+            store_transposed=store_transposed,
+            num_edges=num_edges,
+            do_expensive_check=False
+        )
+
     # Functions
     def __from_edgelist(
         self,
@@ -154,21 +175,15 @@ class simpleDistributedGraphImpl:
         client = default_client()
         self._plc_graph = [
             client.submit(
-                (lambda sID, edata_x: MGGraph(
-                    resource_handle=ResourceHandle(
-                        Comms.get_handle(sID).getHandle()
-                    ),
-                    graph_properties=graph_props,
-                    src_array=edata_x[0][src_col_name],
-                    dst_array=edata_x[0][dst_col_name],
-                    weight_array=edata_x[0]['value'],
-                    store_transposed=store_transposed,
-                    num_edges=num_edges,
-                    do_expensive_check=False
-                )),
+                simpleDistributedGraphImpl.__make_mg_graph,
                 Comms.get_session_id(),
                 edata,
-                workers=[w]
+                graph_props,
+                src_col_name,
+                dst_col_name,
+                store_transposed,
+                num_edges,
+                workers=[w],
             )
             for w, edata in edge_data.worker_to_parts.items()
         ]
