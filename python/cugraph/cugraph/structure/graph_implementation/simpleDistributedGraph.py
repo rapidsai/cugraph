@@ -172,7 +172,7 @@ class simpleDistributedGraphImpl:
             )
             for w, edata in edge_data.worker_to_parts.items()
         ]
-        
+
         wait(self._plc_graph)
 
     @property
