@@ -26,6 +26,8 @@
 #include <thrust/for_each.h>
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/optional.h>
+#include <thrust/sequence.h>
+#include <thrust/tuple.h>
 
 #include <optional>
 #include <tuple>
@@ -371,7 +373,7 @@ void partially_decompress_edge_partition_to_fill_edgelist(
         thrust::fill(
           thrust::seq, majors + major_offset, majors + major_offset + local_degree, major);
         thrust::copy(thrust::seq, indices, indices + local_degree, minors + major_offset);
-        if (weights)
+        if (output_weights)
           thrust::copy(
             thrust::seq, *weights, *weights + local_degree, *output_weights + major_offset);
 

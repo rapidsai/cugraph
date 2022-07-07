@@ -25,6 +25,12 @@
 
 #include <gtest/gtest.h>
 
+#include <thrust/equal.h>
+#include <thrust/fill.h>
+#include <thrust/iterator/zip_iterator.h>
+#include <thrust/sort.h>
+#include <thrust/tuple.h>
+
 struct Prims_Usecase {
   bool check_correctness{true};
 };

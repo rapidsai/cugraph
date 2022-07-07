@@ -20,6 +20,8 @@
 
 #include <raft/comms/comms.hpp>
 
+#include <thrust/functional.h>
+
 namespace cugraph {
 namespace reduce_op {
 
