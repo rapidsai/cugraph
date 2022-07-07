@@ -141,7 +141,7 @@ class simpleDistributedGraphImpl:
         self.compute_renumber_edge_list(
             transposed=False, legacy_renum_only=True
         )
-        
+
         self.properties.renumbered = self.renumber_map.implementation.numbered
         ddf = self.edgelist.edgelist_df
 
@@ -154,8 +154,10 @@ class simpleDistributedGraphImpl:
         client = default_client()
         self._plc_graph = [
             client.submit(
-                (lambda sID, edata_x : MGGraph(
-                    resource_handle=ResourceHandle(Comms.get_handle(sID).getHandle()),
+                (lambda sID, edata_x: MGGraph(
+                    resource_handle=ResourceHandle(
+                        Comms.get_handle(sID).getHandle()
+                    ),
                     graph_properties=graph_props,
                     src_array=edata_x[0][src_col_name],
                     dst_array=edata_x[0][dst_col_name],

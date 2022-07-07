@@ -197,8 +197,10 @@ class simpleGraphImpl:
 
         if self.batch_enabled:
             self._replicate_edgelist()
-        
-        graph_props = GraphProperties(is_multigraph=self.properties.is_multigraph())
+
+        graph_props = GraphProperties(
+            is_multigraph=self.properties.is_multigraph()
+        )
 
         self._plc_graph = SGGraph(
             resource_handle=ResourceHandle(),
