@@ -3,23 +3,23 @@
 
 ![GraphAnalyticsFigure](../../img/zachary_graph_centrality.png)
 
-cuGraph Centrality notebooks contain a collection of Jupyter Notebooks that demonstrate algorithms to identify and quantify importance of nodes to the structure of the graph.  In the diagram above, the highlighted nodes are highly important and are likely answers to questions like:
+cuGraph Centrality notebooks contain a collection of Jupyter Notebooks that demonstrate algorithms to identify and quantify importance of vertices to the structure of the graph.  In the diagram above, the highlighted vertices are highly important and are likely answers to questions like:
 
-* Which nodes have the highest degree (most direct links) ?
-* Which nodes are on the most efficient paths through the graph?
-* Which nodes connect the most important nodes to each other?
+* Which vertices have the highest degree (most direct links) ?
+* Which vertices are on the most efficient paths through the graph?
+* Which vertices connect the most important vertices to each other?
 
-But which nodes are most important? The answer depends on which measure/algorithm is run.  Manipulation of the data before or after the graph analytic is not covered here.   Extended, more problem focused, notebooks are being created and available https://github.com/rapidsai/notebooks-extended
+But which vertices are most important? The answer depends on which measure/algorithm is run.  Manipulation of the data before or after the graph analytic is not covered here.   Extended, more problem focused, notebooks are being created and available https://github.com/rapidsai/notebooks-extended
 
 ## Summary
 
-|Notebook(s)          |Algorithm                                                     |Description                                                  |
+|Algorithm          |Notebooks Containing                                                     |Description                                                  |
 | --------------- | ------------------------------------------------------------ | ------------------------------------------------------------ |
-| [Centrality](centrality/Centrality.ipynb)                    |Degree Centrality| node with the most direct connections|
-| [Centrality](centrality/Centrality.ipynb), [Betweenness](centrality/Betweenness.ipynb)                    |Betweenness Centrality|Number of shortest paths through the node|
-|[Centrality](centrality/Centrality.ipynb)|Eigenvector Centrality| measure of connectivity to other important nodes (which also have high connectivity) often referred to as the influence measure of a node|
-|[Centrality](centrality/Centrality.ipynb), [Katz](centrality/Katz.ipynb)                                         |Katz Centrality|Similar to Eigenvector but has tweaks to measure more weakly connected graph  |
-|[Centrality](centrality/Centrality.ipynb), [Pagerank](../../link_analysis/Pagerank.ipynb)                                         |Pagerank |Classified as both a link analysis and centrality measure by quantifying incoming links from central nodes.  |
+|Degree Centrality| [Centrality](centrality/Centrality.ipynb), [Degree](centrality/Degree.ipynb)                   |Measure based on counting direct connections for each vertex|
+|Betweenness Centrality| [Centrality](centrality/Centrality.ipynb), [Betweenness](centrality/Betweenness.ipynb)                    |Number of shortest paths through the vertex|
+|Eigenvector Centrality|[Centrality](centrality/Centrality.ipynb), [Eigenvector](centrality/Eigenvector.ipynb)|Measure of connectivity to other important vertices (which also have high connectivity) often referred to as the influence measure of a vertex|
+|Katz Centrality|[Centrality](centrality/Centrality.ipynb), [Katz](centrality/Katz.ipynb)                                         |Similar to Eigenvector but has tweaks to measure more weakly connected graph  |
+|Pagerank|[Centrality](centrality/Centrality.ipynb), [Pagerank](../../link_analysis/Pagerank.ipynb)                                         |Classified as both a link analysis and centrality measure by quantifying incoming links from central vertices.  |
 
 ## RAPIDS notebooks
 
@@ -45,7 +45,7 @@ Running the example in these notebooks requires:
 
 ## Copyright
 
-Copyright (c) 2019-2020, NVIDIA CORPORATION.  All rights reserved.
+Copyright (c) 2019-2022, NVIDIA CORPORATION.  All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");  you may not use this file except in compliance with the License.  You may obtain a copy of the License at
 
