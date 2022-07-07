@@ -213,7 +213,7 @@ class Tests_MG_GatherEdges
       generate_random_destination_indices(handle,
                                           active_source_degrees,
                                           mg_graph_view.number_of_vertices(),
-                                          mg_graph_view.number_of_edges(),
+                                          edge_t{-1},
                                           indices_per_source);
 
     rmm::device_uvector<edge_t> input_destination_offsets(random_destination_offsets.size(),
@@ -253,6 +253,8 @@ class Tests_MG_GatherEdges
       std::vector<vertex_t> h_agg_dst(agg_dst.size());
       raft::update_host(h_agg_src.data(), agg_src.data(), agg_src.size(), handle.get_stream());
       raft::update_host(h_agg_dst.data(), agg_dst.data(), agg_dst.size(), handle.get_stream());
+
+      // FIXME:  Why are the randomly selected vertices on each GPU so similar??
 
       auto passed = thrust::equal(thrust::host, h_src.begin(), h_src.end(), h_agg_src.begin());
       passed &= thrust::equal(thrust::host, h_dst.begin(), h_dst.end(), h_agg_dst.begin());

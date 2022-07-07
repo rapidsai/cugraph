@@ -774,7 +774,10 @@ gather_one_hop_edgelist(
         output_offset + minors.data(),
         weights ? thrust::make_optional(output_offset + weights->data()) : thrust::nullopt,
         thrust::nullopt,
-        thrust::nullopt);
+        thrust::nullopt,
+        // FIXME: When PR 2365 is merged, this parameter can be removed
+        graph_view.local_edge_partition_segment_offsets(i));
+
       output_offset += active_majors_out_offsets.back_element(handle.get_stream());
       vertex_offset += partition.major_range_size();
     }
@@ -830,7 +833,9 @@ gather_one_hop_edgelist(
       minors.data(),
       weights ? thrust::make_optional(weights->data()) : thrust::nullopt,
       thrust::nullopt,
-      thrust::nullopt);
+      thrust::nullopt,
+      // FIXME: When PR 2365 is merged, this parameter can be removed
+      std::nullopt);
   }
 
   return std::make_tuple(std::move(majors), std::move(minors), std::move(weights));
