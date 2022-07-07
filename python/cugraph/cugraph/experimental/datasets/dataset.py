@@ -18,7 +18,8 @@ import os
 from pathlib import Path
 
 
-download_dir = Path.home() / ".cugraph/datasets"
+download_dir = Path(os.environ.get("RAPIDS_DATASET_ROOT_DIR",
+                    Path.home() / ".cugraph/datasets"))
 
 
 class Dataset:
@@ -36,9 +37,6 @@ class Dataset:
     """
     def __init__(self, meta_data_file_name):
         self.dir_path = Path(__file__).parent.absolute()
-        global download_dir
-        download_dir = Path(os.environ.get("RAPIDS_DATASET_ROOT_DIR",
-                                           download_dir))
 
         self._meta_data_file_name = meta_data_file_name
         self.__read_meta_data_file(self._meta_data_file_name)

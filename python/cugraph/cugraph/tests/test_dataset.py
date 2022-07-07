@@ -159,7 +159,9 @@ def test_metadata(dataset):
 
 @pytest.mark.parametrize("dataset", ALL_DATASETS)
 def test_get_path(dataset):
-    dataset.get_edgelist()
+    tmpd = TemporaryDirectory()
+    set_download_dir(tmpd.name)
+    G = dataset.get_graph(fetch=True)
 
     assert os.path.isfile(dataset.get_path())
 
