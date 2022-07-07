@@ -211,6 +211,14 @@ Please see our [guide for contributing to cuGraph](CONTRIBUTING.md).
 ## Documentation
 Python API documentation can be generated from [docs](docs) directory.
 
+------
+# Projects that use cuGraph
+
+(alphabetical order)
+* ArangoDB - a free and open-source native multi-model database system  - https://www.arangodb.com/
+* CuPy - "NumPy/SciPy-compatible Array Library for GPU-accelerated Computing with Python" -  https://cupy.dev/
+* Memgraph - In-memory database - https://memgraph.com/
+* ScanPy - Scanpy is a scalable toolkit for analyzing single-cell gene expression data - https://scanpy.readthedocs.io/en/stable/
 
 
 ------
