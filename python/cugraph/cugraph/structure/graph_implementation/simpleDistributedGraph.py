@@ -18,6 +18,15 @@ from cugraph.structure.symmetrize import symmetrize
 import cudf
 import dask_cudf
 
+from pylibcugraph import (MGGraph,
+                          ResourceHandle,
+                          GraphProperties,
+                          )
+
+from dask.distributed import wait, default_client
+from cugraph.dask.common.input_utils import get_distributed_data
+import cugraph.dask.comms.comms as Comms
+
 
 class simpleDistributedGraphImpl:
     class EdgeList:
@@ -128,6 +137,41 @@ class simpleDistributedGraphImpl:
         self.properties.renumber = renumber
         self.source_columns = source
         self.destination_columns = destination
+
+        self.compute_renumber_edge_list(
+            transposed=False, legacy_renum_only=True
+        )
+        
+        self.properties.renumbered = self.renumber_map.implementation.numbered
+        ddf = self.edgelist.edgelist_df
+
+        num_edges = len(ddf)
+        edge_data = get_distributed_data(ddf)
+        src_col_name = self.renumber_map.renumbered_src_col_name
+        dst_col_name = self.renumber_map.renumbered_dst_col_name
+        graph_props = GraphProperties(is_multigraph=self.properties.multi_edge)
+
+        client = default_client()
+        self._plc_graph = [
+            client.submit(
+                (lambda sID, edata_x : MGGraph(
+                    resource_handle=ResourceHandle(Comms.get_handle(sID).getHandle()),
+                    graph_properties=graph_props,
+                    src_array=edata_x[0][src_col_name],
+                    dst_array=edata_x[0][dst_col_name],
+                    weight_array=edata_x[0]['value'],
+                    store_transposed=store_transposed,
+                    num_edges=num_edges,
+                    do_expensive_check=False
+                )),
+                Comms.get_session_id(),
+                edata,
+                workers=[w]
+            )
+            for w, edata in edge_data.worker_to_parts.items()
+        ]
+        
+        wait(self._plc_graph)
 
     @property
     def renumbered(self):

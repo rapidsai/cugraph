@@ -23,6 +23,11 @@ import pandas as pd
 import numpy as np
 from cugraph.dask.structure import replication
 
+from pylibcugraph import (ResourceHandle,
+                          GraphProperties,
+                          SGGraph,
+                          )
+
 
 # FIXME: Change to consistent camel case naming
 class simpleGraphImpl:
@@ -89,6 +94,7 @@ class simpleGraphImpl:
         edge_attr=None,
         renumber=True,
         legacy_renum_only=False,
+        store_transposed=False,
     ):
 
         # Verify column names present in input DataFrame
@@ -191,6 +197,19 @@ class simpleGraphImpl:
 
         if self.batch_enabled:
             self._replicate_edgelist()
+        
+        graph_props = GraphProperties(is_multigraph=self.properties.is_multigraph())
+
+        self._plc_graph = SGGraph(
+            resource_handle=ResourceHandle(),
+            graph_properties=graph_props,
+            src_array=source_col,
+            dst_array=dest_col,
+            weight_array=value_col,
+            store_transposed=store_transposed,
+            renumber=False,
+            do_expensive_check=False
+        )
 
     def to_pandas_edgelist(self, source='src', destination='dst',
                            weight='weights'):
