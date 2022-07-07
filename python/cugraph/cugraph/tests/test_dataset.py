@@ -161,7 +161,7 @@ def test_metadata(dataset):
 def test_get_path(dataset):
     tmpd = TemporaryDirectory()
     set_download_dir(tmpd.name)
-    G = dataset.get_graph(fetch=True)
+    dataset.get_edgelist(fetch=True)
 
     assert os.path.isfile(dataset.get_path())
 
