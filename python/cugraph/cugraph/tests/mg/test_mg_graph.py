@@ -181,3 +181,4 @@ def test_create_mg_graph(dask_client, input_combo):
         assert ddf[ddf.vertex==33].predecessor.to_numpy()[0] == 30
         assert ddf[ddf.vertex==11].distance.to_numpy()[0] == 2
         assert ddf[ddf.vertex==11].predecessor.to_numpy()[0] == 0
+
