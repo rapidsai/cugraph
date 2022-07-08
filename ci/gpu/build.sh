@@ -146,13 +146,15 @@ else
     fi
 
     gpuci_logger "Running cuGraph test.sh..."
-    ${WORKSPACE}/ci/test.sh ${TEST_MODE_FLAG} | tee testoutput.txt
+    source ${WORKSPACE}/ci/test.sh ${TEST_MODE_FLAG} | tee testoutput.txt
     gpuci_logger "Ran cuGraph test.sh : return code was: $?, gpu/build.sh exit code is now: $EXITCODE"
 
-    gpuci_logger "Running cuGraph notebook test script..."
-    ${WORKSPACE}/ci/gpu/test-notebooks.sh 2>&1 | tee nbtest.log
-    gpuci_logger "Ran cuGraph notebook test script : return code was: $?, gpu/build.sh exit code is now: $EXITCODE"
-    python ${WORKSPACE}/ci/utils/nbtestlog2junitxml.py nbtest.log
+    if [[ $NB_CHANGED == "TRUE" ]]; then
+        gpuci_logger "Running cuGraph notebook test script..."
+        ${WORKSPACE}/ci/gpu/test-notebooks.sh 2>&1 | tee nbtest.log
+        gpuci_logger "Ran cuGraph notebook test script : return code was: $?, gpu/build.sh exit code is now: $EXITCODE"
+        python ${WORKSPACE}/ci/utils/nbtestlog2junitxml.py nbtest.log
+    fi
 fi
 
 if [ -n "${CODECOV_TOKEN}" ]; then
