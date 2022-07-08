@@ -102,7 +102,7 @@ _Italic_ algorithms are planned for future releases.
 |              | Spectral-Clustering - Balanced Cut     | Single-GPU    |                     |
 |              | Spectral-Clustering - Modularity       | Single-GPU    |                     |
 |              | Subgraph Extraction                    | Single-GPU    |                     |
-|              | Triangle Counting                      | Single-GPU    |                     |
+|              | Triangle Counting                      | <mark>Multi-GPU</mark> |                     |
 |              | K-Truss                                | Single-GPU    |                     |
 | Components   |                                        |               |                     |
 |              | Weakly Connected Components            |<mark>Multi-GPU</mark> |                     |
