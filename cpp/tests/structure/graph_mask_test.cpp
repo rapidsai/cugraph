@@ -138,7 +138,7 @@ class Tests_GraphMask
 
     auto graph_view = graph.view();
 
-    RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+    handle.sync_stream();
 
     cugraph::graph_mask_t<vertex_t, edge_t> mask(handle, number_of_vertices, number_of_edges);
 

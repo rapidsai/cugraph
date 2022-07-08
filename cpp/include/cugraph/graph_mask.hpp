@@ -19,6 +19,7 @@
 #include <cstdint>
 #include <limits>
 #include <optional>
+#include <cub/cub.cuh>
 #include <raft/core/handle.hpp>
 #include <rmm/device_uvector.hpp>
 #include <vector>
@@ -30,7 +31,7 @@ namespace detail {
  * Zeros the bit at location h in a one-hot encoded 32-bit int array
  */
 template <typename mask_type = std::uint32_t>
-__device__ __host__ inline void _set_bit(mask_type* arr, mask_type h, bool v)
+__device__ __host__ inline void _set_bit(mask_type* arr, mask_type h)
 {
   mask_type bit = h & (std::numeric_limits<mask_type>::digits - 1);
   mask_type idx = h / std::numeric_limits<mask_type>::digits;
@@ -39,7 +40,7 @@ __device__ __host__ inline void _set_bit(mask_type* arr, mask_type h, bool v)
   mask_type old = arr[idx];
   do {
     assumed = old;
-    old     = atomicCAS(arr + idx, assumed, assumed & ~(bit << v));
+    old     = atomicCAS(arr + idx, assumed, assumed & ~(bit << 1));
   } while (assumed != old);
 }
 
@@ -48,7 +49,7 @@ __device__ __host__ inline void _set_bit(mask_type* arr, mask_type h, bool v)
  * encoded 32-bit in array.
  */
 template <typename mask_type = std::uint32_t>
-__device__ __host__ inline bool _get_bit(mask_type* arr, mask_type h)
+__device__ __host__ inline bool _is_set(mask_type* arr, mask_type h)
 {
   mask_type bit = h & (std::numeric_limits<mask_type>::digits - 1);
   mask_type idx = h / std::numeric_limits<mask_type>::digits;
@@ -68,7 +69,7 @@ struct bitset {
   __host__ __device__ T& operator[](T idx)
   {
     RAFT_EXPECTS(idx > 0 && idx < n, "Index out of bounds.");
-    return static_cast<T>(detail::_get_bit(bits, idx));
+    return static_cast<T>(detail::_is_set(bits, idx));
   }
 
  private:
@@ -105,8 +106,7 @@ struct graph_mask_view_t {
       complement_(complement),
       vertices_(vertices),
       edges_(edges)
-  {
-  }
+  {}
 
   explicit graph_mask_view_t(graph_mask_view_t const& other)
     : handle_(other.handle_),
@@ -117,8 +117,7 @@ struct graph_mask_view_t {
       edges_(other.edges_),
       vertices_(other.vertices_),
       complement_(other.complement_)
-  {
-  }
+  {}
 
   ~graph_mask_view_t()                            = default;
   graph_mask_view_t(graph_mask_view_t&&) noexcept = default;
@@ -136,7 +135,7 @@ struct graph_mask_view_t {
     if (has_vertex_mask_) {
       // TODO: This is going to implicitly limit vertex_t to uint32_t. Need to support 64-bit types
       // as well
-      return detail::_get_bit<mask_t>(vertices_, static_cast<mask_t>(vertex));
+      return detail::_is_set<mask_t>(vertices_, static_cast<mask_t>(vertex));
     } else {
       return !complement_;
     }
@@ -152,7 +151,7 @@ struct graph_mask_view_t {
     if (has_edge_mask_) {
       // TODO: This is going to implicitly limit edge_t to uint32_t. Need to support 64-bit types as
       // well
-      return detail::_get_bit<mask_t>(edges_, static_cast<mask_t>(edge_offset));
+      return detail::_is_set<mask_t>(edges_, static_cast<mask_t>(edge_offset));
     } else {
       return !complement_;
     }
@@ -166,7 +165,7 @@ struct graph_mask_view_t {
   __device__ void mask_vertex(vertex_t vertex)
   {
     RAFT_EXPECTS(has_vertex_mask_, "Vertex mask needs to be initialized before it can be used");
-    detail::_set_bit<mask_t>(vertices_, static_cast<mask_t>(vertex), true);
+    detail::_set_bit<mask_t>(vertices_, static_cast<mask_t>(vertex));
   }
 
   /**
@@ -177,7 +176,7 @@ struct graph_mask_view_t {
   __device__ void mask_edge(edge_t edge_offset)
   {
     RAFT_EXPECTS(has_edge_mask_, "Edge mask needs to be initialized before it can be used");
-    detail::_set_bit<mask_t>(edges_, static_cast<mask_t>(edge_offset), true);
+    detail::_set_bit<mask_t>(edges_, static_cast<mask_t>(edge_offset));
   }
 
   /**

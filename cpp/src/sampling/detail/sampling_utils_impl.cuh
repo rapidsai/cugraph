@@ -17,6 +17,7 @@
 #pragma once
 
 #include <cugraph/detail/decompress_edge_partition.cuh>
+#include <cugraph/graph_mask_functions.cuh>
 #include <cugraph/edge_partition_device_view.cuh>
 #include <cugraph/partition_manager.hpp>
 #include <cugraph/utilities/device_comm.cuh>
@@ -59,7 +60,8 @@ template <typename GraphViewType>
 void compute_masked_degrees(
   raft::handle_t const& handle,
   GraphViewType const& graph_view,
-  typename GraphViewType::vertex_type* sparse_begin,
+  typename GraphViewType::vertex_type* sparse_begin,   // output degrees
+  vertex_t size,
   edge_partition_device_view_t<typename GraphViewType::vertex_type,
                                typename GraphViewType::edge_type,
                                typename GraphViewType::weight_type,
@@ -69,30 +71,11 @@ void compute_masked_degrees(
   using edge_t   = typename GraphViewType::edge_type;
   using weight_t = typename GraphViewType::weight_type;
 
-  auto mask                 = graph_view().get_mask();
+  auto mask                 = graph_view().get_mask_view();
+  auto indptr  = edge_partition.offsets();
   size_t temp_storage_bytes = 0;
 
-  auto vertex_mask = cugraph::bitset(mask.get_n_vertices(), mask.get_vertex_mask());
-
-  cub::DeviceSegmentedReduce::Sum(NULL,
-                                  temp_storage_bytes,
-                                  vertex_mask,
-                                  sparse_begin,
-                                  mask.get_n_vertices(),
-                                  edge_partition.offsets(),
-                                  edge_partition.offsets() + mask.get_n_vertices(),
-                                  handle.get_stream());
-
-  rmm::device_uvector<char> temp_storage(temp_storage_bytes, handle.get_stream());
-
-  cub::DeviceSegmentedReduce::Sum(temp_storage.data(),
-                                  temp_storage_bytes,
-                                  vertex_mask,
-                                  sparse_begin,
-                                  mask.get_n_vertices(),
-                                  edge_partition.offsets(),
-                                  edge_partition.offsets() + mask.get_n_vertices(),
-                                  handle.get_stream());
+  masked_degrees<vertex_t, edge_t>(handle, sparse_begin, size, mask, indptr);
 }
 
 template <typename GraphViewType>
@@ -151,32 +134,41 @@ rmm::device_uvector<typename GraphViewType::edge_type> compute_local_major_degre
                    sparse_begin + edge_partition.major_range_size(),
                    edge_t{0});
 
+      auto vertex_ids = *(edge_partition.dcs_nzd_vertices());
+      auto major_range_first = edge_partition.major_range_first();
+      auto offsets = edge_partition.offsets();
+      auto offsets_start = major_hypersparse_first - major_range_first;
+
       if (mask.has_value() && (*mask).has_vertex_mask()) {
+
+          size_t temp_storage_bytes = 0;
+
+          masked_degrees<vertex_t, edge_t>(handle, sparse_begin, size, mask, major_range_first,
+                                           vertex_ids, indptr + offsets_start);
       } else {
         thrust::for_each(
           handle.get_thrust_policy(),
           thrust::make_counting_iterator(vertex_t{0}),
           thrust::make_counting_iterator(dcs_nzd_vertex_count),
           [major_hypersparse_first,
-           major_range_first = edge_partition.major_range_first(),
-           vertex_ids        = *(edge_partition.dcs_nzd_vertices()),
-           offsets           = edge_partition.offsets(),
-           local_degrees     = thrust::raw_pointer_cast(sparse_begin)] __device__(auto i) {
+           major_range_first,
+           vertex_ids,
+           offsets,
+           local_degrees = thrust::raw_pointer_cast(sparse_begin)] __device__(auto i) {
             auto d = offsets[(major_hypersparse_first - major_range_first) + i + 1] -
                      offsets[(major_hypersparse_first - major_range_first) + i];
             auto v = vertex_ids[i];
-
-            // One way to do this is to compute the masked degrees.
             local_degrees[v - major_range_first] = d;
           });
       }
     } else {
       auto sparse_begin = local_degrees.begin() + partial_offset;
       auto sparse_end = local_degrees.begin() + partial_offset + edge_partition.major_range_size();
+      vertex_t size = partial_offset + edge_partition.major_range_size();
 
       // If a vertex mask is present, compute the (local) degrees of the masked vertices
       if (mask.has_value() && (*mask).has_vertex_mask()) {
-        // If no vertex mask is present, just diff the offsets
+        compute_masked_degrees(handle, graph_view, sparse_begin, size, edge_partition);
       } else {
         thrust::tabulate(handle.get_thrust_policy(),
                          sparse_begin,
