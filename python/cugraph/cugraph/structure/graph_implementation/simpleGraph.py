@@ -16,6 +16,7 @@ from cugraph.structure.graph_primtypes_wrapper import Direction
 from cugraph.structure.symmetrize import symmetrize
 from cugraph.structure.number_map import NumberMap
 import cugraph.dask.common.mg_utils as mg_utils
+import cupy
 import cudf
 import dask_cudf
 import cugraph.dask.comms.comms as Comms
@@ -93,7 +94,7 @@ class simpleGraphImpl:
         destination="destination",
         edge_attr=None,
         renumber=True,
-        legacy_renum_only=False,
+        legacy_renum_only=True,
         store_transposed=False,
     ):
 
@@ -199,14 +200,17 @@ class simpleGraphImpl:
             self._replicate_edgelist()
 
         graph_props = GraphProperties(
-            is_multigraph=self.properties.is_multigraph()
+            is_multigraph=self.properties.multi_edge
         )
+
+        if value_col is None:
+            value_col = cudf.Series(cupy.ones(len(source_col), dtype='float32'))
 
         self._plc_graph = SGGraph(
             resource_handle=ResourceHandle(),
             graph_properties=graph_props,
-            src_array=source_col,
-            dst_array=dest_col,
+            src_array=self.edgelist.edgelist_df['src'],
+            dst_array=self.edgelist.edgelist_df['dst'],
             weight_array=value_col,
             store_transposed=store_transposed,
             renumber=False,
