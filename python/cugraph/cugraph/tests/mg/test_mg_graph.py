@@ -160,14 +160,14 @@ def test_create_mg_graph(dask_client, input_combo):
             st[0],
             workers=[w]
         )
-        for mg_graph, (w, st) in \
-            zip(G._plc_graph, data_start.worker_to_parts.items())
+        for mg_graph, (w, st) in
+        zip(G._plc_graph, data_start.worker_to_parts.items())
     ]
 
     wait(res)
 
     cudf_result = [
-        dask_client.submit(convert_to_cudf,cp_arrays)
+        dask_client.submit(convert_to_cudf, cp_arrays)
         for cp_arrays in res
     ]
     wait(cudf_result)
