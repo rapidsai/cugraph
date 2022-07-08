@@ -72,7 +72,9 @@ class Tests_Uniform_Neighbor_Sampling
       cugraph::test::random_vertex_ids(handle,
                                        graph_view.local_vertex_partition_range_first(),
                                        graph_view.local_vertex_partition_range_last(),
-                                       source_sample_count,
+                                       std::min(graph_view.local_vertex_partition_range_size() *
+                                                  (repetitions_per_vertex + vertex_t{1}),
+                                                source_sample_count),
                                        repetitions_per_vertex,
                                        uint64_t{0});
 
