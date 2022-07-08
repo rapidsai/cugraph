@@ -207,6 +207,13 @@ class simpleGraphImpl:
             value_col = cudf.Series(
                 cupy.ones(len(source_col), dtype='float32')
             )
+        else:
+            weight_t = value_col.dtype
+
+            if weight_t == "int32":
+                value_col = value_col.astype("float32")
+            if weight_t == "int64":
+                value_col = value_col.astype("float64")
 
         self._plc_graph = SGGraph(
             resource_handle=ResourceHandle(),
