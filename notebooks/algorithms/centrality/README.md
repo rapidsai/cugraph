@@ -21,10 +21,6 @@ But which vertices are most important? The answer depends on which measure/algor
 |Katz Centrality|[Centrality](centrality/Centrality.ipynb), [Katz](centrality/Katz.ipynb)                                         |Similar to Eigenvector but has tweaks to measure more weakly connected graph  |
 |Pagerank|[Centrality](centrality/Centrality.ipynb), [Pagerank](../../link_analysis/Pagerank.ipynb)                                         |Classified as both a link analysis and centrality measure by quantifying incoming links from central vertices.  |
 
-## RAPIDS notebooks
-
-Visit the main RAPIDS [notebooks](https://github.com/rapidsai/notebooks) repo for a listing of all notebooks across all RAPIDS libraries.
-
 ## Requirements
 
 Running the example in these notebooks requires:

@@ -45,10 +45,6 @@ This repository contains a collection of Jupyter Notebooks that outline how to r
 |                 | [Symmetrize](structure/Symmetrize.ipynb)                     | Symmetrize the edges in a graph                              |
  -->
 
-## RAPIDS notebooks
-
-Visit the main RAPIDS [notebooks](https://github.com/rapidsai/notebooks) repo for a listing of all notebooks across all RAPIDS libraries.
-
 ## Requirements
 
 Running the example in these notebooks requires:
@@ -66,10 +62,9 @@ Running the example in these notebooks requires:
 | Brad Rees     | 04/19/2021 | created          | 0.19            | GV100, CUDA 11.0
 | Don Acosta    | 07/05/2022 | tested / updated | 22.08 nightly   | DGX Tesla V100 CUDA 11.5
 
+### Copyright
 
-##### Copyright
-
-Copyright (c) 2019-2020, NVIDIA CORPORATION.  All rights reserved.
+Copyright (c) 2019-2022, NVIDIA CORPORATION.  All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");  you may not use this file except in compliance with the License.  You may obtain a copy of the License at
 
