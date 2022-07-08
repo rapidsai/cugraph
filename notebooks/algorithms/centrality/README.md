@@ -1,7 +1,7 @@
 
 # cuGraph Centrality Notebooks
 
-![GraphAnalyticsFigure](../../img/zachary_graph_centrality.png)
+<img src="../../img/zachary_graph_centrality.png" width="35%"/>
 
 cuGraph Centrality notebooks contain a collection of Jupyter Notebooks that demonstrate algorithms to identify and quantify importance of vertices to the structure of the graph.  In the diagram above, the highlighted vertices are highly important and are likely answers to questions like:
 
@@ -21,18 +21,7 @@ But which vertices are most important? The answer depends on which measure/algor
 |Katz Centrality|[Centrality](centrality/Centrality.ipynb), [Katz](centrality/Katz.ipynb)                                         |Similar to Eigenvector but has tweaks to measure more weakly connected graph  |
 |Pagerank|[Centrality](centrality/Centrality.ipynb), [Pagerank](../../link_analysis/Pagerank.ipynb)                                         |Classified as both a link analysis and centrality measure by quantifying incoming links from central vertices.  |
 
-## Requirements
-
-Running the example in these notebooks requires:
-
-* The latest version of RAPIDS with cuGraph.
-  * Download via Docker, Conda (See [__Getting Started__](https://rapids.ai/start.html))
-  
-* cuGraph is dependent on the latest version of cuDF.  Please install all components of RAPIDS
-* Python 3.8+
-* A system with an NVIDIA GPU:  Pascal architecture or better
-* CUDA 11.4+
-* NVIDIA driver 450.51+
+[System Requirements](../../README.md#requirements)
 
 | Author Credit |    Date    |  Update          | cuGraph Version |  Test Hardware |
 | --------------|------------|------------------|-----------------|----------------|
