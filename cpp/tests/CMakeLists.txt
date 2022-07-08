@@ -613,10 +613,6 @@ if(BUILD_CUGRAPH_MG_TESTS)
 
         ###########################################################################################
         # - MG NBR SAMPLING tests -----------------------------------------------------------------
-        ConfigureTestMG(MG_NBR_SAMPLING_TEST sampling/detail/mg_nbr_sampling.cu)
-
-        ###########################################################################################
-        # - MG NBR SAMPLING tests -----------------------------------------------------------------
         ConfigureTestMG(MG_UNIFORM_NEIGHBOR_SAMPLING_TEST sampling/mg_uniform_neighbor_sampling.cu)
         
         ###########################################################################################

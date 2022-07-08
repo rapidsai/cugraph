@@ -61,6 +61,11 @@ collect_values_for_keys(raft::comms::comms_t const& comm,
                         VertexIterator1 collect_key_first,
                         VertexIterator1 collect_key_last,
                         KeyToGPUIdOp key_to_gpu_id_op,
+#if 1  // FIXME: this is unnecessary if we use a binary tree instead of cuco::static_map, need to
+       // compare the two approaches
+                        typename thrust::iterator_traits<VertexIterator0>::value_type invalid_key,
+                        typename thrust::iterator_traits<ValueIterator>::value_type invalid_value,
+#endif
                         rmm::cuda_stream_view stream_view)
 {
   using vertex_t = typename thrust::iterator_traits<VertexIterator0>::value_type;
@@ -84,8 +89,8 @@ collect_values_for_keys(raft::comms::comms_t const& comm,
     std::max(static_cast<size_t>(
                static_cast<double>(thrust::distance(map_key_first, map_key_last)) / load_factor),
              static_cast<size_t>(thrust::distance(map_key_first, map_key_last)) + 1),
-    cuco::sentinel::empty_key<vertex_t>{invalid_vertex_id<vertex_t>::value},
-    cuco::sentinel::empty_value<value_t>{0},
+    cuco::sentinel::empty_key<vertex_t>{invalid_key},
+    cuco::sentinel::empty_value<value_t>{invalid_value},
     stream_adapter,
     stream_view);
   {
@@ -147,8 +152,8 @@ collect_values_for_keys(raft::comms::comms_t const& comm,
     // cuco::static_map requires at least one empty slot
     std::max(static_cast<size_t>(static_cast<double>(unique_keys.size()) / load_factor),
              unique_keys.size() + 1),
-    cuco::sentinel::empty_key<vertex_t>{invalid_vertex_id<vertex_t>::value},
-    cuco::sentinel::empty_value<value_t>{0},
+    cuco::sentinel::empty_key<vertex_t>{invalid_key},
+    cuco::sentinel::empty_value<value_t>{invalid_value},
     stream_adapter,
     stream_view);
   {
@@ -224,6 +229,11 @@ collect_values_for_unique_keys(
   rmm::device_uvector<typename thrust::iterator_traits<VertexIterator>::value_type>&&
     collect_unique_keys,
   KeyToGPUIdOp key_to_gpu_id_op,
+#if 1  // FIXME: this is unnecessary if we use a binary tree instead of cuco::static_map, need to
+       // compare the two approaches
+  typename thrust::iterator_traits<VertexIterator>::value_type invalid_key,
+  typename thrust::iterator_traits<ValueIterator>::value_type invalid_value,
+#endif
   rmm::cuda_stream_view stream_view)
 {
   using vertex_t = typename thrust::iterator_traits<VertexIterator>::value_type;
@@ -244,8 +254,8 @@ collect_values_for_unique_keys(
     std::max(static_cast<size_t>(
                static_cast<double>(thrust::distance(map_key_first, map_key_last)) / load_factor),
              static_cast<size_t>(thrust::distance(map_key_first, map_key_last)) + 1),
-    cuco::sentinel::empty_key<vertex_t>{invalid_vertex_id<vertex_t>::value},
-    cuco::sentinel::empty_value<value_t>{0},
+    cuco::sentinel::empty_key<vertex_t>{invalid_key},
+    cuco::sentinel::empty_value<value_t>{invalid_value},
     stream_adapter,
     stream_view);
   {

@@ -502,6 +502,7 @@ def test_betweenness_centrality_nx(
             and cugraph_bc[i][0] == networkx_bc[i][0]
         ):
             err = err + 1
-            print(f"{cugraph_bc[i][1]} and {cugraph_bc[i][1]}")
+            print(f"{cugraph_bc[i][1]} and {networkx_bc[i][1]}")
+            print(f"{cugraph_bc[i][0]} and {networkx_bc[i][0]}")
     print("Mismatches:", err)
     assert err < (0.01 * len(cugraph_bc))

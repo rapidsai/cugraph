@@ -138,7 +138,7 @@ def bfs(G, start):
 
 
 def sssp(G, start):
-    return cugraph.dask.sssp(G, source=start, check_start=False)
+    return cugraph.dask.sssp(G, source=start, check_source=False)
 
 
 def wcc(G):

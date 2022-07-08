@@ -28,6 +28,10 @@
 #include <type_traits>
 #include <vector>
 
+/** @defgroup cpp_api cuGraph C++ API
+ *  @{
+ */
+
 namespace cugraph {
 
 template <typename vertex_t, typename edge_t, typename weight_t>
@@ -552,3 +556,7 @@ __host__ __device__ std::enable_if_t<std::is_unsigned<vertex_t>::value, bool> is
 }  // namespace cugraph
 
 #include "eidecl_graph.hpp"
+
+/**
+ * @}
+ */
