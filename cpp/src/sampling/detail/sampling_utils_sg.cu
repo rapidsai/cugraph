@@ -49,44 +49,6 @@ get_global_degree_information(
   raft::handle_t const& handle,
   graph_view_t<int64_t, int64_t, double, false, false> const& graph_view);
 
-#if 0
-template rmm::device_uvector<int32_t> get_global_adjacency_offset(
-  raft::handle_t const& handle,
-  graph_view_t<int32_t, int32_t, float, false, false> const& graph_view,
-  rmm::device_uvector<int32_t> const& global_degree_offsets,
-  rmm::device_uvector<int32_t> const& global_out_degrees);
-
-template rmm::device_uvector<int32_t> get_global_adjacency_offset(
-  raft::handle_t const& handle,
-  graph_view_t<int32_t, int32_t, double, false, false> const& graph_view,
-  rmm::device_uvector<int32_t> const& global_degree_offsets,
-  rmm::device_uvector<int32_t> const& global_out_degrees);
-
-template rmm::device_uvector<int64_t> get_global_adjacency_offset(
-  raft::handle_t const& handle,
-  graph_view_t<int32_t, int64_t, float, false, false> const& graph_view,
-  rmm::device_uvector<int64_t> const& global_degree_offsets,
-  rmm::device_uvector<int64_t> const& global_out_degrees);
-
-template rmm::device_uvector<int64_t> get_global_adjacency_offset(
-  raft::handle_t const& handle,
-  graph_view_t<int32_t, int64_t, double, false, false> const& graph_view,
-  rmm::device_uvector<int64_t> const& global_degree_offsets,
-  rmm::device_uvector<int64_t> const& global_out_degrees);
-
-template rmm::device_uvector<int64_t> get_global_adjacency_offset(
-  raft::handle_t const& handle,
-  graph_view_t<int64_t, int64_t, float, false, false> const& graph_view,
-  rmm::device_uvector<int64_t> const& global_degree_offsets,
-  rmm::device_uvector<int64_t> const& global_out_degrees);
-
-template rmm::device_uvector<int64_t> get_global_adjacency_offset(
-  raft::handle_t const& handle,
-  graph_view_t<int64_t, int64_t, double, false, false> const& graph_view,
-  rmm::device_uvector<int64_t> const& global_degree_offsets,
-  rmm::device_uvector<int64_t> const& global_out_degrees);
-#endif
-
 template rmm::device_uvector<int32_t> get_active_major_global_degrees(
   raft::handle_t const& handle,
   graph_view_t<int32_t, int32_t, float, false, false> const& graph_view,
