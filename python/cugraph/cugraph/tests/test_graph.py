@@ -702,11 +702,17 @@ def test_graph_init_with_multigraph():
     cDiMG.from_cudf_edgelist(gdf, source="src", destination="dst")
     cugraph.Graph(m_graph=cDiMG)
 
+
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_create_sg_graph(graph_file):
     el = utils.read_csv_file(graph_file)
-    G = cugraph.from_cudf_edgelist(el, source='0', destination='1', edge_attr='2')
-    
+    G = cugraph.from_cudf_edgelist(
+        el,
+        source='0',
+        destination='1',
+        edge_attr='2'
+    )
+
     # ensure graph exists
     assert G._plc_graph is not None
 
@@ -727,8 +733,7 @@ def test_create_sg_graph(graph_file):
         cdr = G.unrenumber(cdr, column_name='vertex')
         cdr = G.unrenumber(cdr, column_name='predecessor')
 
-        assert cdr[cdr.vertex==33].distance.to_numpy()[0] == 3
-        assert cdr[cdr.vertex==33].predecessor.to_numpy()[0] == 37
-        assert cdr[cdr.vertex==11].distance.to_numpy()[0] == 4
-        assert cdr[cdr.vertex==11].predecessor.to_numpy()[0] == 51
-
+        assert cdr[cdr.vertex == 33].distance.to_numpy()[0] == 3
+        assert cdr[cdr.vertex == 33].predecessor.to_numpy()[0] == 37
+        assert cdr[cdr.vertex == 11].distance.to_numpy()[0] == 4
+        assert cdr[cdr.vertex == 11].predecessor.to_numpy()[0] == 51

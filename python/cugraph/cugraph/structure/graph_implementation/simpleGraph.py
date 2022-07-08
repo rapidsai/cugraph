@@ -204,7 +204,9 @@ class simpleGraphImpl:
         )
 
         if value_col is None:
-            value_col = cudf.Series(cupy.ones(len(source_col), dtype='float32'))
+            value_col = cudf.Series(
+                cupy.ones(len(source_col), dtype='float32')
+            )
 
         self._plc_graph = SGGraph(
             resource_handle=ResourceHandle(),
