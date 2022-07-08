@@ -17,7 +17,6 @@ import cugraph
 from cugraph.experimental import PropertyGraph
 from cugraph.community.egonet import batched_ego_graphs
 from cugraph.utilities.utils import sample_groups
-
 import cupy as cp
 
 
@@ -42,7 +41,7 @@ class CuGraphStore:
     hetrogeneous graphs - use PropertyGraph
     """
 
-    def __init__(self, graph):
+    def __init__(self, graph, backend_lib="torch"):
         if isinstance(graph, PropertyGraph):
             self.__G = graph
         else:
@@ -53,22 +52,17 @@ class CuGraphStore:
         # dict to map column names corresponding to node features
         # of each type
         self.ndata_key_col_d = defaultdict(list)
+        self.backend_lib = backend_lib
 
     def add_node_data(self, df, node_col_name, node_key, ntype=None):
-        self.gdata.add_vertex_data(
-            df, vertex_col_name=node_col_name, type_name=ntype
-        )
+        self.gdata.add_vertex_data(df, vertex_col_name=node_col_name, type_name=ntype)
         col_names = list(df.columns)
         col_names.remove(node_col_name)
         self.ndata_key_col_d[node_key] += col_names
 
     def add_edge_data(self, df, vertex_col_names, edge_key, etype=None):
-        self.gdata.add_edge_data(
-            df, vertex_col_names=vertex_col_names, type_name=etype
-        )
-        col_names = [
-            col for col in list(df.columns) if col not in vertex_col_names
-        ]
+        self.gdata.add_edge_data(df, vertex_col_names=vertex_col_names, type_name=etype)
+        col_names = [col for col in list(df.columns) if col not in vertex_col_names]
         self.edata_key_col_d[edge_key] += col_names
 
     def get_node_storage(self, key, ntype=None):
@@ -87,7 +81,11 @@ class CuGraphStore:
         df = self.gdata._vertex_prop_dataframe
         col_names = self.ndata_key_col_d[key]
         return CuFeatureStorage(
-            df=df, id_col=vid_n, _type_=ntype, col_names=col_names
+            df=df,
+            id_col=vid_n,
+            _type_=ntype,
+            col_names=col_names,
+            backend_lib=self.backend_lib,
         )
 
     def get_edge_storage(self, key, etype=None):
@@ -105,17 +103,21 @@ class CuGraphStore:
         col_names = self.edata_key_col_d[key]
         df = self.gdata._edge_prop_dataframe
         return CuFeatureStorage(
-            df=df, id_col=eid_n, _type_=etype, col_names=col_names
+            df=df,
+            id_col=eid_n,
+            _type_=etype,
+            col_names=col_names,
+            backend_lib=self.backend_lib,
         )
 
-    def num_nodes(self, ntype):
+    def num_nodes(self, ntype=None):
         if ntype is not None:
             s = self.gdata._vertex_prop_dataframe[type_n] == ntype
             return s.sum()
         else:
             return self.gdata.num_vertices
 
-    def num_edges(self, etype):
+    def num_edges(self, etype=None):
         if etype is not None:
             s = self.gdata._edge_prop_dataframe[type_n] == etype
             return s.sum()
@@ -137,9 +139,7 @@ class CuGraphStore:
     @property
     def ndata(self):
         return {
-            k: self.gdata._vertex_prop_dataframe[col_names].dropna(
-                how="all"
-            )
+            k: self.gdata._vertex_prop_dataframe[col_names].dropna(how="all")
             for k, col_names in self.ndata_key_col_d.items()
         }
 
@@ -210,9 +210,7 @@ class CuGraphStore:
         _g = self.__G.extract_subgraph(
             create_using=cugraph.Graph, allow_multi_edges=True
         )
-        ego_edge_list, seeds_offsets = batched_ego_graphs(
-            _g, current_seeds, radius=1
-        )
+        ego_edge_list, seeds_offsets = batched_ego_graphs(_g, current_seeds, radius=1)
 
         del _g
         # filter and get a certain size neighborhood
@@ -234,9 +232,7 @@ class CuGraphStore:
         # Step 2
         # Sample Fan Out
         # for each dst take maximum of fanout samples
-        filtered_list = sample_groups(
-            filtered_list, by="dst", n_samples=fanout
-        )
+        filtered_list = sample_groups(filtered_list, by="dst", n_samples=fanout)
 
         # TODO: Verify order of execution
         sample_df = cudf.DataFrame(
@@ -262,9 +258,7 @@ class CuGraphStore:
         Return type is
         cudf.Series, cudf.Series
         """
-        edge_df = self.gdata._edge_prop_dataframe[
-            [src_n, dst_n, eid_n, type_n]
-        ]
+        edge_df = self.gdata._edge_prop_dataframe[[src_n, dst_n, eid_n, type_n]]
         subset_df = get_subset_df(
             edge_df, PropertyGraph.edge_id_col_name, edge_ids, etype
         )
@@ -334,9 +328,7 @@ class CuGraphStore:
             create_using=cugraph.Graph, allow_multi_edges=True
         )
 
-        ego_edge_list, seeds_offsets = batched_ego_graphs(
-            _g, nodes, radius=k
-        )
+        ego_edge_list, seeds_offsets = batched_ego_graphs(_g, nodes, radius=k)
 
         return ego_edge_list, seeds_offsets
 
@@ -376,9 +368,7 @@ class CuGraphStore:
             create_using=cugraph.Graph, allow_multi_edges=True
         )
 
-        p, w, s = cugraph.random_walks(
-            _g, nodes, max_depth=length, use_padding=True
-        )
+        p, w, s = cugraph.random_walks(_g, nodes, max_depth=length, use_padding=True)
 
         return p, w, s
 
@@ -399,6 +389,8 @@ class CuFeatureStorage:
             from torch.utils.dlpack import from_dlpack
         elif backend_lib == "tf":
             from tensorflow.experimental.dlpack import from_dlpack
+        elif backend_lib == "cp":
+            from cupy import from_dlpack
         else:
             raise NotImplementedError(
                 "Only pytorch and tensorflow backends are currently supported"
