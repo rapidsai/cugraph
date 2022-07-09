@@ -26,31 +26,6 @@ GTEST_ARGS="--gtest_output=xml:${CUGRAPH_ROOT}/test-results/"
 DOWNLOAD_MODE=""
 EXITCODE=0
 
-PRHTTP=https://api.github.com/repos/rapidsai/cugraph/pulls/${PR_ID}/files
-fnames=`curl -sb -X GET -H "Accept: application/vnd.github.v3+json" -H "Authorization: token $GHTK"  $PRHTTP | python3 -c "import sys, json; print([labels['filename'] for labels in json.load(sys.stdin)])"`
-cpp_changed="false" python_changed="false" nb_changed="false" doc_changed="false" 
-for fname in ${fnames[@]}
-do
-   if [[ "$fname" == *"cpp/cmake/"* || "$fname" == *"cpp/CMakeLists.txt"* || "$fname" == *"cpp/src/"* || "$fname" == *"cpp/include/"* || "$fname" == *"cpp/tests/"* || "$fname" == *"cpp/libcugraph_etl/"* || "$fname" == *"cpp/scripts/"* ]]; then
-      cpp_changed="true" python_changed="true" nb_changed="true" doc_changed="true"
-   fi
-   if [[ "$fname" == *"python/"* ]]; then
-      python_changed="true" nb_changed="true" doc_changed="true"
-   fi
-   if [[ "$fname" == *"docs/"* ]]; then
-      doc_changed="true"
-   fi
-   if [[ "$fname" == *"notebooks/"* ]]; then
-      nb_changed="true"
-   fi
-done
-
-if [[ "$nb_changed" == "false" ]]; then
-   export NB_CHANGED="FALSE"
-else
-   export NB_CHANGED="TRUE"
-fi
-
 export RAPIDS_DATASET_ROOT_DIR=${RAPIDS_DATASET_ROOT_DIR:-${CUGRAPH_ROOT}/datasets}
 
 # FIXME: consider using getopts for option parsing
@@ -90,7 +65,7 @@ set +e
 
 if (python ${CUGRAPH_ROOT}/ci/utils/is_pascal.py); then
     echo "WARNING: skipping C++ tests on Pascal GPU arch."
-elif [[ "$cpp_changed" == "true" ]]; then
+elif hasArg "--run-cpp-tests"; then
     echo "C++ gtests for cuGraph (single-GPU only)..."
     for gt in "${CONDA_PREFIX}/bin/gtests/libcugraph/"*_TEST; do
         test_name=$(basename $gt)
@@ -109,7 +84,7 @@ elif [[ "$cpp_changed" == "true" ]]; then
     done
 fi
 
-if [[ "$python_changed" == "true" ]]; then
+if hasArg "--run-python-tests"; then
     echo "Python pytest for pylibcugraph..."
     cd ${CUGRAPH_ROOT}/python/pylibcugraph/pylibcugraph
     pytest --cache-clear --junitxml=${CUGRAPH_ROOT}/junit-pylibcugraph-pytests.xml -v --cov-config=.coveragerc --cov=pylibcugraph --cov-report=xml:${WORKSPACE}/python/pylibcugraph/pylibcugraph-coverage.xml --cov-report term --ignore=raft --benchmark-disable

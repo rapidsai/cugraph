@@ -118,6 +118,28 @@ else
 fi
 
 ################################################################################
+# Identify relevant testsets to run in CI based on the ChangeList
+################################################################################
+
+PRHTTP=https://api.github.com/repos/rapidsai/cugraph/pulls/${PR_ID}/files
+fnames=`curl -sb -X GET -H "Accept: application/vnd.github.v3+json" -H "Authorization: token $GHTK"  $PRHTTP | python3 -c "import sys, json; print([labels['filename'] for labels in json.load(sys.stdin)])"`
+run_cpp_tests="false" run_python_tests="false" run_nb_tests="false" doc_changed="false" 
+for fname in ${fnames[@]}
+do
+   if [[ "$fname" == *"cpp/cmake/"* || "$fname" == *"cpp/CMakeLists.txt"* || "$fname" == *"cpp/src/"* || "$fname" == *"cpp/include/"* || "$fname" == *"cpp/tests/"* || "$fname" == *"cpp/libcugraph_etl/"* || "$fname" == *"cpp/scripts/"* ]]; then
+      run_cpp_tests="true" run_python_tests="true" run_nb_tests="true" doc_changed="true"
+   fi
+   if [[ "$fname" == *"python/"* ]]; then
+      run_python_tests="true" run_nb_tests="true" doc_changed="true"
+   fi
+   if [[ "$fname" == *"docs/"* ]]; then
+      doc_changed="true"
+   fi
+   if [[ "$fname" == *"notebooks/"* ]]; then
+      run_nb_tests="true"
+   fi
+done
+################################################################################
 # TEST
 ################################################################################
 
@@ -146,10 +168,16 @@ else
     fi
 
     gpuci_logger "Running cuGraph test.sh..."
-    source ${WORKSPACE}/ci/test.sh ${TEST_MODE_FLAG} | tee testoutput.txt
+    if [[ $run_cpp_tests == "true" ]]; then
+        ${WORKSPACE}/ci/test.sh ${TEST_MODE_FLAG} --run-cpp-tests --run-python-tests | tee testoutput.txt
+    elif [[ $run_python_tests == "true" ]]; then
+        ${WORKSPACE}/ci/test.sh ${TEST_MODE_FLAG} --run-python-tests | tee testoutput.txt
+    else
+        ${WORKSPACE}/ci/test.sh ${TEST_MODE_FLAG} | tee testoutput.txt
+    fi
     gpuci_logger "Ran cuGraph test.sh : return code was: $?, gpu/build.sh exit code is now: $EXITCODE"
 
-    if [[ $NB_CHANGED == "TRUE" ]]; then
+    if [[ $run_nb_tests == "true" ]]; then
         gpuci_logger "Running cuGraph notebook test script..."
         ${WORKSPACE}/ci/gpu/test-notebooks.sh 2>&1 | tee nbtest.log
         gpuci_logger "Ran cuGraph notebook test script : return code was: $?, gpu/build.sh exit code is now: $EXITCODE"
@@ -157,7 +185,7 @@ else
     fi
 fi
 
-if [ -n "${CODECOV_TOKEN}" ]; then
+if [[ -n "${CODECOV_TOKEN}" && $run_python_tests == "true" ]]; then
     codecov -t $CODECOV_TOKEN
 fi
 
