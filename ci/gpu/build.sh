@@ -140,6 +140,15 @@ do
    fi
 done
 ################################################################################
+# PRINT SUMMARY OF TESTS to BE EXECUTED
+################################################################################
+gpuci_logger "Summary of CI tests to be executed"
+gpuci_logger "Run cpp tests=$run_cpp_tests"
+gpuci_logger "Run python tests=$run_python_tests"
+gpuci_logger "Run notebook tests=$run_nb_tests"
+gpuci_logger "Docs updated=$doc_changed"
+
+################################################################################
 # TEST
 ################################################################################
 
