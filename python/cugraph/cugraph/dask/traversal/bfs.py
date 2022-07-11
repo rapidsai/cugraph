@@ -13,9 +13,7 @@
 # limitations under the License.
 #
 
-from pylibcugraph import (MGGraph,
-                          ResourceHandle,
-                          GraphProperties,
+from pylibcugraph import (ResourceHandle,
                           bfs as pylibcugraph_bfs
                           )
 
@@ -28,40 +26,20 @@ import dask_cudf
 
 def _call_plc_mg_bfs(
                     sID,
-                    data,
+                    mg_x,
                     sources,
                     depth_limit,
-                    src_col_name,
-                    dst_col_name,
-                    graph_properties,
-                    num_edges,
                     direction_optimizing=False,
                     do_expensive_check=False,
                     return_predecessors=True):
     comms_handle = Comms.get_handle(sID)
     resource_handle = ResourceHandle(comms_handle.getHandle())
     sources = sources[0]
-    srcs = cudf.Series(data[0][src_col_name], dtype='int32')
-    dsts = cudf.Series(data[0][dst_col_name], dtype='int32')
-    weights = cudf.Series(data[0]['value'], dtype='float32') \
-        if 'value' in data[0].columns \
-        else cudf.Series((srcs + 1) / (srcs + 1), dtype='float32')
-
-    mg = MGGraph(
-        resource_handle=resource_handle,
-        graph_properties=graph_properties,
-        src_array=srcs,
-        dst_array=dsts,
-        weight_array=weights,
-        store_transposed=False,
-        num_edges=num_edges,
-        do_expensive_check=do_expensive_check
-    )
 
     res = \
         pylibcugraph_bfs(
             resource_handle,
-            mg,
+            mg_x,
             cudf.Series(sources, dtype='int32'),
             direction_optimizing,
             depth_limit if depth_limit is not None else 0,
@@ -149,25 +127,12 @@ def bfs(input_graph,
 
     client = default_client()
 
-    input_graph.compute_renumber_edge_list(
-        transposed=False, legacy_renum_only=True)
-    ddf = input_graph.edgelist.edgelist_df
-
-    graph_properties = GraphProperties(
-        is_multigraph=False)
-
-    num_edges = len(ddf)
-    data = get_distributed_data(ddf)
-
-    src_col_name = input_graph.renumber_map.renumbered_src_col_name
-    dst_col_name = input_graph.renumber_map.renumbered_dst_col_name
-
     if not isinstance(start, (dask_cudf.DataFrame, dask_cudf.Series)):
         if not isinstance(start, (cudf.DataFrame, cudf.Series)):
             start = cudf.Series(start)
         if isinstance(start, (cudf.DataFrame, cudf.Series)):
             # convert into a dask_cudf
-            start = dask_cudf.from_cudf(start, ddf.npartitions)
+            start = dask_cudf.from_cudf(start, input_graph.npartitions)
 
     def check_valid_vertex(G, start):
         is_valid_vertex = G.has_node(start)
@@ -190,23 +155,25 @@ def bfs(input_graph,
 
     data_start = get_distributed_data(start)
 
-    cupy_result = [client.submit(
-              _call_plc_mg_bfs,
-              Comms.get_session_id(),
-              wf[1],
-              wf_start[1],
-              depth_limit,
-              src_col_name,
-              dst_col_name,
-              graph_properties,
-              num_edges,
-              False,
-              True,
-              return_distances,
-              workers=[wf[0]])
-              for idx, (wf, wf_start) in enumerate(
-                  zip(data.worker_to_parts.items(),
-                      data_start.worker_to_parts.items()))]
+    cupy_result = [
+        client.submit(
+            lambda sID, mg_graph_x, st_x: pylibcugraph_bfs(
+                ResourceHandle(Comms.get_handle(sID).getHandle()),
+                mg_graph_x,
+                st_x,
+                False,
+                depth_limit if depth_limit is not None else 0,
+                return_distances,
+                True
+            ),
+            Comms.get_session_id(),
+            mg_graph,
+            st[0],
+            workers=[w],
+            key='cugraph.dask.traversal.bfs.call_pylibcugraph_bfs'
+        )
+        for mg_graph, (w, st) in zip(input_graph._plc_graph, data_start.worker_to_parts.items())
+    ]
 
     wait(cupy_result)
 

@@ -15,6 +15,7 @@ from cugraph.structure import graph_primtypes_wrapper
 from cugraph.structure.graph_primtypes_wrapper import Direction
 from cugraph.structure.number_map import NumberMap
 from cugraph.structure.symmetrize import symmetrize
+import cupy
 import cudf
 import dask_cudf
 
@@ -70,6 +71,12 @@ class simpleDistributedGraphImpl:
                         dst_col_name,
                         store_transposed,
                         num_edges):
+
+        if 'value' in edata_x[0]:
+            values = edata_x[0]['value']
+        else:
+            values = cudf.Series(cupy.ones(len(edata_x[0])))
+
         return MGGraph(
             resource_handle=ResourceHandle(
                 Comms.get_handle(sID).getHandle()
@@ -77,7 +84,7 @@ class simpleDistributedGraphImpl:
             graph_properties=graph_props,
             src_array=edata_x[0][src_col_name],
             dst_array=edata_x[0][dst_col_name],
-            weight_array=edata_x[0]['value'],
+            weight_array=values,
             store_transposed=store_transposed,
             num_edges=num_edges,
             do_expensive_check=False
@@ -758,3 +765,7 @@ class simpleDistributedGraphImpl:
             return self.renumber_map.vertex_column_size()
         else:
             return 1
+
+    @property
+    def npartitions(self) -> int:
+        return len(self._plc_graph)
