@@ -17,17 +17,15 @@ from cugraph.experimental.datasets.dataset import (
     load_all,
     set_config,
     set_download_dir,
-    get_download_dir
-#    karate,
-#    dolphins,
-#    SMALL_DATASETS
+    get_download_dir,
+    default_download_dir
 )
 from cugraph.experimental.datasets import metadata
 
 
 karate = Dataset("metadata/karate.yaml")
-#karate_undirected = Dataset("metadata/karate_undirected.yaml")
-#karate_asymmetric = Dataset("metadata/karate_asymmetric.yaml")
+karate_undirected = Dataset("metadata/karate_undirected.yaml")
+karate_asymmetric = Dataset("metadata/karate_asymmetric.yaml")
 dolphins = Dataset("metadata/dolphins.yaml")
 polbooks = Dataset("metadata/polbooks.yaml")
 netscience = Dataset("metadata/netscience.yaml")
