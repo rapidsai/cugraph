@@ -26,13 +26,5 @@ struct cugraph_core_result_t {
   cugraph_type_erased_device_array_t* core_numbers_{};
 };
 
-typedef enum {
-  IN = 0,
-  OUT = 1,
-  INOUT = 2
-} cugraph_k_core_degree_type_t;
-
-//enum cugraph_k_core_degree_type_t {IN, OUT, INOUT};
-
-} // namespace c_api
-} // namespace cugraph
+}  // namespace c_api
+}  // namespace cugraph

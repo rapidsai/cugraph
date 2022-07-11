@@ -1430,12 +1430,11 @@ void weakly_connected_components(
   vertex_t* components,
   bool do_expensive_check = false);
 
-// enum class k_core_degree_type_t { IN, OUT, INOUT };
-enum class k_core_degree_type_t {
-  IN = 0,
-  OUT = 1,
-  INOUT = 2
-};
+/**
+ * @brief  Identify whether the core number computation should be based off incoming edges,
+ *         outgoing edges or both.
+ */
+enum class k_core_degree_type_t { IN = 0, OUT = 1, INOUT = 2 };
 
 /**
  * @brief   Compute core numbers of individual vertices from K-core decomposition.

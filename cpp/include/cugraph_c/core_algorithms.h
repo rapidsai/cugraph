@@ -57,16 +57,7 @@ cugraph_type_erased_device_array_view_t* cugraph_core_result_get_core_numbers(
  */
 void cugraph_core_result_free(cugraph_core_result_t* result);
 
-/*typedef struct {
-  int32_t direction_;
-} cugraph_k_core_degree_type_t;*/
-
-//enum cugraph_k_core_degree_type_t { IN, OUT, INOUT };
-typedef enum {
-  IN = 0,
-  OUT = 1,
-  INOUT = 2
-} cugraph_k_core_degree_type_t;
+typedef enum { IN = 0, OUT = 1, INOUT = 2 } cugraph_k_core_degree_type_t;
 
 /**
  * @brief     Perform core number.

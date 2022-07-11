@@ -28,25 +28,12 @@
 
 #include <optional>
 
-/*namespace cugraph {
-namespace c_api {
-
-struct cugraph_core_result_t {
-  cugraph_type_erased_device_array_t* vertices_;
-  cugraph_type_erased_device_array_t* core_numbers_;
-};
-
-//enum class cugraph_k_core_degree_type_t { IN, OUT, INOUT };
-
-}  // namespace c_api
-}  // namespace cugraph*/
-
 namespace {
 
 struct core_number_functor : public cugraph::c_api::abstract_functor {
   raft::handle_t const& handle_;
   cugraph::c_api::cugraph_graph_t* graph_{};
-  cugraph::c_api::cugraph_k_core_degree_type_t degree_type_{};
+  cugraph::k_core_degree_type_t degree_type_{};
   bool do_expensive_check_{};
   cugraph::c_api::cugraph_core_result_t* result_{};
 
@@ -57,9 +44,7 @@ struct core_number_functor : public cugraph::c_api::abstract_functor {
     : abstract_functor(),
       handle_(*reinterpret_cast<cugraph::c_api::cugraph_resource_handle_t const*>(handle)->handle_),
       graph_(reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph)),
-      // try casting first, if not look for how to cast between enum types
-      degree_type_((cugraph::c_api::cugraph_k_core_degree_type_t)(degree_type)),
-      //degree_type_(degree_type),
+      degree_type_(static_cast<cugraph::k_core_degree_type_t>(degree_type)),
       do_expensive_check_(do_expensive_check)
   {
   }
@@ -81,8 +66,8 @@ struct core_number_functor : public cugraph::c_api::abstract_functor {
         if (error_code_ != CUGRAPH_SUCCESS)
           ;
       }
-      // Transpose_storage may have a bug, since if store_transposed is True it can reverse the bool
-      // value of is_symmetric
+      // FIXME: Transpose_storage may have a bug, since if store_transposed is True it can reverse
+      // the bool value of is_symmetric
       auto graph =
         reinterpret_cast<cugraph::graph_t<vertex_t, edge_t, weight_t, false, multi_gpu>*>(
           graph_->graph_);
@@ -101,11 +86,10 @@ struct core_number_functor : public cugraph::c_api::abstract_functor {
         graph_view,
         core_numbers.data(),
         degree_type,
-        // k_first,
-        // k_last,
+        size_t{0},
+        std::numeric_limits<size_t>::max(),
         do_expensive_check_);
 
-      // do some stuff here
       rmm::device_uvector<vertex_t> vertex_ids(graph_view.local_vertex_partition_range_size(),
                                                handle_.get_stream());
       raft::copy(vertex_ids.data(), number_map->data(), vertex_ids.size(), handle_.get_stream());
