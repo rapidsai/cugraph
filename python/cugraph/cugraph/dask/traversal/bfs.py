@@ -36,6 +36,18 @@ def convert_to_cudf(cp_arrays):
     return df
 
 
+def _call_plc_bfs(sID, mg_graph_x, st_x, depth_limit=None, return_distances=True):
+    return pylibcugraph_bfs(
+        ResourceHandle(Comms.get_handle(sID).getHandle()),
+        mg_graph_x,
+        cudf.Series(st_x, dtype='int32'),
+        False,
+        depth_limit if depth_limit is not None else 0,
+        return_distances,
+        True
+    )
+
+
 def bfs(input_graph,
         start,
         depth_limit=None,
@@ -99,7 +111,7 @@ def bfs(input_graph,
 
     """
 
-    client = default_client()
+    client = input_graph._client
 
     if not isinstance(start, (dask_cudf.DataFrame, dask_cudf.Series)):
         if not isinstance(start, (cudf.DataFrame, cudf.Series)):
@@ -131,20 +143,13 @@ def bfs(input_graph,
 
     cupy_result = [
         client.submit(
-            lambda sID, mg_graph_x, st_x: pylibcugraph_bfs(
-                ResourceHandle(Comms.get_handle(sID).getHandle()),
-                mg_graph_x,
-                st_x,
-                False,
-                depth_limit if depth_limit is not None else 0,
-                return_distances,
-                True
-            ),
+            _call_plc_bfs,
             Comms.get_session_id(),
             mg_graph,
             st[0],
-            workers=[w],
-            key='cugraph.dask.traversal.bfs.call_pylibcugraph_bfs'
+            depth_limit,
+            return_distances,
+            workers=[w]
         )
         for mg_graph, (w, st) in zip(
             input_graph._plc_graph, data_start.worker_to_parts.items()

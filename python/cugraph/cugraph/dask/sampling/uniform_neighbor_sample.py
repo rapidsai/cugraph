@@ -45,6 +45,18 @@ def convert_to_cudf(cp_arrays, weight_t):
 
     return df
 
+def _call_plc_uniform_neighbor_sample(sID, mg_graph_x, st_x, fanout_vals, with_replacement):
+    return pylibcugraph_uniform_neighbor_sample(
+        resource_handle=ResourceHandle(
+            Comms.get_handle(sID).getHandle()
+        ),
+        input_graph=mg_graph_x,
+        start_list=st_x.to_cupy(),
+        h_fan_out=fanout_vals,
+        with_replacement=with_replacement,
+        # FIXME: should we add this parameter as an option?
+        do_expensive_check=True
+    )
 
 def uniform_neighbor_sample(input_graph,
                             start_list,
@@ -84,14 +96,6 @@ def uniform_neighbor_sample(input_graph,
             Contains the indices from the sampling result for path
             reconstruction
     """
-    # Initialize dask client
-    client = default_client()
-    # FIXME: 'legacy_renum_only' will not trigger the C++ renumbering
-    # In the future, once all the algos follow the C/Pylibcugraph path,
-    # compute_renumber_edge_list will only be used for multicolumn and
-    # string vertices since the renumbering will be done in pylibcugraph
-    input_graph.compute_renumber_edge_list(
-        transposed=False, legacy_renum_only=True)
 
     if isinstance(start_list, int):
         start_list = [start_list]
@@ -119,35 +123,35 @@ def uniform_neighbor_sample(input_graph,
         start_list = input_graph.lookup_internal_vertex_id(
             start_list).compute()
 
+    '''
     start_list = dask_cudf.from_cudf(
         start_list,
         npartitions=input_graph.npartitions
     )
     start_list = get_distributed_data(start_list)
+    wait(start_list)
+    '''
+    import cupy
+    dummy = dask_cudf.from_cudf(
+        cudf.Series(cupy.ones(input_graph.npartitions)),
+        npartitions=input_graph.npartitions
+    )
+    dummy = get_distributed_data(dummy)
+    
+    client = input_graph._client
 
     result = [
         client.submit(
-            lambda sID, mg_graph_x, st_x:
-            pylibcugraph_uniform_neighbor_sample(
-                resource_handle=ResourceHandle(
-                    Comms.get_handle(sID).getHandle()
-                ),
-                input_graph=mg_graph_x,
-                start_list=st_x[0].to_cupy(),
-                h_fan_out=fanout_vals,
-                with_replacement=with_replacement,
-                # FIXME: should we add this parameter as an option?
-                do_expensive_check=False
-            ),
+            _call_plc_uniform_neighbor_sample,
             Comms.get_session_id(),
             mg_graph,
-            st,
+            start_list,
+            fanout_vals,
+            with_replacement,
             workers=[w],
-            key='cugraph.dask.sampling.'
-                'uniform_neighbor_sample.call_plc_uni_nbr_smpl'
         )
-        for mg_graph, (w, st) in zip(
-            input_graph._plc_graph, start_list.worker_to_parts.items()
+        for mg_graph, (w, _) in zip(
+            input_graph._plc_graph, dummy.worker_to_parts.items()
         )
     ]
 
@@ -160,6 +164,7 @@ def uniform_neighbor_sample(input_graph,
     wait(cudf_result)
 
     ddf = dask_cudf.from_delayed(cudf_result)
+    
     if input_graph.renumbered:
         ddf = input_graph.unrenumber(ddf, "sources", preserve_order=True)
         ddf = input_graph.unrenumber(ddf, "destinations", preserve_order=True)

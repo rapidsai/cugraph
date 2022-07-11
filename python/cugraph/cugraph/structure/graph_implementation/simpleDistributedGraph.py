@@ -183,9 +183,9 @@ class simpleDistributedGraphImpl:
         dst_col_name = self.renumber_map.renumbered_dst_col_name
         graph_props = GraphProperties(is_multigraph=self.properties.multi_edge)
 
-        client = default_client()
+        self._client = default_client()
         self._plc_graph = [
-            client.submit(
+            self._client.submit(
                 simpleDistributedGraphImpl.__make_mg_graph,
                 Comms.get_session_id(),
                 edata,
