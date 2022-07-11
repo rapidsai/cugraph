@@ -403,7 +403,7 @@ class CuFeatureStorage:
             from torch.utils.dlpack import from_dlpack
         elif backend_lib == "tf":
             from tensorflow.experimental.dlpack import from_dlpack
-        elif backend_lib == "cp":
+        elif backend_lib == "cupy":
             from cupy import from_dlpack
         else:
             raise NotImplementedError(

@@ -92,7 +92,7 @@ def test_egonet(graph_file):
     g.from_cudf_edgelist(cu_M, source="0", destination="1", renumber=True)
 
     pG = PropertyGraph()
-    gstore = cugraph.gnn.CuGraphStore(graph=pG)
+    gstore = cugraph.gnn.CuGraphStore(graph=pG, backend_lib='cupy')
     gstore.add_edge_data(
         cu_M, vertex_col_names=("0", "1"), edge_key="edge_feat"
     )
