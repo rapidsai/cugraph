@@ -18,10 +18,7 @@ from dask.distributed import wait, default_client
 import dask_cudf
 import cudf
 
-from pylibcugraph import (ResourceHandle,
-                          GraphProperties,
-                          MGGraph
-                          )
+from pylibcugraph import ResourceHandle
 
 from pylibcugraph import \
     uniform_neighbor_sample as pylibcugraph_uniform_neighbor_sample
@@ -101,10 +98,10 @@ def uniform_neighbor_sample(input_graph,
 
     if isinstance(start_list, list):
         start_list = cudf.Series(start_list, dtype='int32')
-    
+
     if start_list.dtype != "int32":
         raise ValueError(f"'start_list' must have int32 values, "
-                            f"got: {start_list.dtype}")
+                         f"got: {start_list.dtype}")
 
     # fanout_vals must be a host array!
     # FIXME: ensure other sequence types (eg. cudf Series) can be handled.
@@ -121,31 +118,37 @@ def uniform_neighbor_sample(input_graph,
     if input_graph.renumbered:
         start_list = input_graph.lookup_internal_vertex_id(
             start_list).compute()
-    
-    start_list = dask_cudf.from_cudf(start_list, npartitions=input_graph.npartitions)
+
+    start_list = dask_cudf.from_cudf(
+        start_list, 
+        npartitions=input_graph.npartitions
+    )
     start_list = get_distributed_data(start_list)
 
     result = [
         client.submit(
-            lambda sID, mg_graph_x, st_x: \
-                pylibcugraph_uniform_neighbor_sample(
-                    resource_handle=ResourceHandle(
-                        Comms.get_handle(sID).getHandle()
-                    ),
-                    input_graph=mg_graph_x,
-                    start_list=st_x[0].to_cupy(),
-                    h_fan_out=fanout_vals,
-                    with_replacement=with_replacement,
-                    # FIXME: should we add this parameter as an option?
-                    do_expensive_check=False
+            lambda sID, mg_graph_x, st_x:
+            pylibcugraph_uniform_neighbor_sample(
+                resource_handle=ResourceHandle(
+                    Comms.get_handle(sID).getHandle()
                 ),
+                input_graph=mg_graph_x,
+                start_list=st_x[0].to_cupy(),
+                h_fan_out=fanout_vals,
+                with_replacement=with_replacement,
+                # FIXME: should we add this parameter as an option?
+                do_expensive_check=False
+            ),
             Comms.get_session_id(),
             mg_graph,
             st,
             workers=[w],
-            key='cugraph.dask.sampling.uniform_neighbor_sample.call_plc_uni_nbr_smpl'
+            key='cugraph.dask.sampling.'
+                'uniform_neighbor_sample.call_plc_uni_nbr_smpl'
         )
-        for mg_graph, (w, st) in zip(input_graph._plc_graph, start_list.worker_to_parts.items())
+        for mg_graph, (w, st) in zip(
+            input_graph._plc_graph, start_list.worker_to_parts.items()
+        )
     ]
 
     wait(result)

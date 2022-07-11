@@ -11,10 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from pylibcugraph import (ResourceHandle,
-                          GraphProperties,
-                          SGGraph,
-                          )
+from pylibcugraph import ResourceHandle
 from pylibcugraph import uniform_neighbor_sample as \
     pylibcugraph_uniform_neighbor_sample
 
