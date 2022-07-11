@@ -19,7 +19,6 @@
 #include <cstdint>
 #include <limits>
 #include <optional>
-#include <cub/cub.cuh>
 #include <raft/core/handle.hpp>
 #include <rmm/device_uvector.hpp>
 #include <vector>
@@ -106,7 +105,8 @@ struct graph_mask_view_t {
       complement_(complement),
       vertices_(vertices),
       edges_(edges)
-  {}
+  {
+  }
 
   explicit graph_mask_view_t(graph_mask_view_t const& other)
     : handle_(other.handle_),
@@ -117,7 +117,8 @@ struct graph_mask_view_t {
       edges_(other.edges_),
       vertices_(other.vertices_),
       complement_(other.complement_)
-  {}
+  {
+  }
 
   ~graph_mask_view_t()                            = default;
   graph_mask_view_t(graph_mask_view_t&&) noexcept = default;
@@ -200,12 +201,12 @@ struct graph_mask_view_t {
   /**
    * Get the vertex mask
    */
-  __host__ __device__ mask_t* get_vertex_mask() { return vertices_; }
+  __host__ __device__ mask_t* get_vertex_mask() const { return vertices_; }
 
   /**
    * Get the edge mask
    */
-  __host__ __device__ mask_t* get_edge_mask() { return edges_; }
+  __host__ __device__ mask_t* get_edge_mask() const { return edges_; }
 
  protected:
   raft::handle_t const& handle_;

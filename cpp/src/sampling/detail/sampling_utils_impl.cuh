@@ -17,14 +17,12 @@
 #pragma once
 
 #include <cugraph/detail/decompress_edge_partition.cuh>
-#include <cugraph/graph_mask_functions.cuh>
 #include <cugraph/edge_partition_device_view.cuh>
+#include <cugraph/graph_mask_functions.cuh>
 #include <cugraph/partition_manager.hpp>
 #include <cugraph/utilities/device_comm.cuh>
 #include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/host_scalar_comm.cuh>
-
-#include <cub/cub.cuh>
 
 #include <raft/handle.hpp>
 
@@ -60,8 +58,8 @@ template <typename GraphViewType>
 void compute_masked_degrees(
   raft::handle_t const& handle,
   GraphViewType const& graph_view,
-  typename GraphViewType::vertex_type* sparse_begin,   // output degrees
-  vertex_t size,
+  typename GraphViewType::edge_type* sparse_begin,  // output degrees
+  typename GraphViewType::vertex_type size,
   edge_partition_device_view_t<typename GraphViewType::vertex_type,
                                typename GraphViewType::edge_type,
                                typename GraphViewType::weight_type,
@@ -71,11 +69,11 @@ void compute_masked_degrees(
   using edge_t   = typename GraphViewType::edge_type;
   using weight_t = typename GraphViewType::weight_type;
 
-  auto mask                 = graph_view().get_mask_view();
-  auto indptr  = edge_partition.offsets();
+  auto mask                 = graph_view.get_mask_view();
+  auto indptr               = edge_partition.offsets();
   size_t temp_storage_bytes = 0;
 
-  masked_degrees<vertex_t, edge_t>(handle, sparse_begin, size, mask, indptr);
+  masked_degrees<vertex_t, edge_t>(handle, sparse_begin, size, *mask, indptr);
 }
 
 template <typename GraphViewType>
@@ -134,17 +132,21 @@ rmm::device_uvector<typename GraphViewType::edge_type> compute_local_major_degre
                    sparse_begin + edge_partition.major_range_size(),
                    edge_t{0});
 
-      auto vertex_ids = *(edge_partition.dcs_nzd_vertices());
+      auto vertex_ids        = *(edge_partition.dcs_nzd_vertices());
       auto major_range_first = edge_partition.major_range_first();
-      auto offsets = edge_partition.offsets();
-      auto offsets_start = major_hypersparse_first - major_range_first;
+      auto offsets           = edge_partition.offsets();
+      vertex_t offsets_start = major_hypersparse_first - major_range_first;
 
       if (mask.has_value() && (*mask).has_vertex_mask()) {
+        size_t temp_storage_bytes = 0;
 
-          size_t temp_storage_bytes = 0;
-
-          masked_degrees<vertex_t, edge_t>(handle, sparse_begin, size, mask, major_range_first,
-                                           vertex_ids, indptr + offsets_start);
+        masked_degrees<vertex_t, edge_t>(handle,
+                                         sparse_begin,
+                                         dcs_nzd_vertex_count,
+                                         *mask,
+                                         major_range_first,
+                                         vertex_ids,
+                                         edge_partition.offsets() + offsets_start);
       } else {
         thrust::for_each(
           handle.get_thrust_policy(),
@@ -157,14 +159,14 @@ rmm::device_uvector<typename GraphViewType::edge_type> compute_local_major_degre
            local_degrees = thrust::raw_pointer_cast(sparse_begin)] __device__(auto i) {
             auto d = offsets[(major_hypersparse_first - major_range_first) + i + 1] -
                      offsets[(major_hypersparse_first - major_range_first) + i];
-            auto v = vertex_ids[i];
+            auto v                               = vertex_ids[i];
             local_degrees[v - major_range_first] = d;
           });
       }
     } else {
       auto sparse_begin = local_degrees.begin() + partial_offset;
       auto sparse_end = local_degrees.begin() + partial_offset + edge_partition.major_range_size();
-      vertex_t size = partial_offset + edge_partition.major_range_size();
+      vertex_t size   = partial_offset + edge_partition.major_range_size();
 
       // If a vertex mask is present, compute the (local) degrees of the masked vertices
       if (mask.has_value() && (*mask).has_vertex_mask()) {

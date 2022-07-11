@@ -17,8 +17,8 @@
 #pragma once
 
 #include <cstdint>
-#include <limits>
 #include <cub/cub.cuh>
+#include <limits>
 #include <raft/core/handle.hpp>
 
 #include <cugraph/graph_mask.hpp>
@@ -36,141 +36,137 @@ namespace detail {
  * vertex degrees, and subtract their complements atomically from the global
  * vertex degrees.
  */
-template<typename vertex_t, typename edge_t, typename mask_type, int tpb = 128>
-__global__ void masked_degree_kernel(vertex_t *degrees_output,
-                                     graph_mask_view_t <vertex_t, edge_t, mask_type> &mask,
-                                     vertex_t *indptr) {
+template <typename vertex_t, typename edge_t, typename mask_type, int tpb = 128>
+__global__ void masked_degree_kernel(edge_t* degrees_output,
+                                     graph_mask_view_t<vertex_t, edge_t, mask_type> const& mask,
+                                     edge_t const* indptr)
+{
+  /**
+   *   1. For each vertex for each block, load the start and end offsets from indptr
+   *   2. Compute start and end indices in the mask, along w/ the start and end masks
+   *   3. For each element in the mask array, apply start or end mask if needed,
+   *      compute popc (or popcll) and perform summed reduce of the result for each vertex
+   */
 
-    /**
-     *   1. For each vertex for each block, load the start and end offsets from indptr
-     *   2. Compute start and end indices in the mask, along w/ the start and end masks
-     *   3. For each element in the mask array, apply start or end mask if needed,
-     *      compute popc (or popcll) and perform summed reduce of the result for each vertex
-     */
+  typedef cub::BlockReduce<vertex_t, tpb> BlockReduce;
 
-    typedef cub::BlockReduce <vertex_t, tpb> BlockReduce;
+  __shared__ typename BlockReduce::TempStorage temp_storage;
 
-    __shared__ typename BlockReduce::TempStorage temp_storage;
+  int vertex            = blockIdx.x;
+  vertex_t start_offset = indptr[vertex];
+  vertex_t stop_offset  = indptr[vertex + 1];
 
-    int vertex = blockIdx.x;
-    vertex_t start_offset = indptr[vertex];
-    vertex_t stop_offset = indptr[vertex + 1];
+  mask_type start_mask_offset = start_offset / std::numeric_limits<mask_type>::digits;
+  mask_type stop_mask_offset  = stop_offset / std::numeric_limits<mask_type>::digits;
 
-    mask_type start_mask_offset = start_offset / std::numeric_limits<mask_type>::digits;
-    mask_type stop_mask_offset = stop_offset / std::numeric_limits<mask_type>::digits;
+  mask_type start_bit = start_offset & (std::numeric_limits<mask_type>::digits - 1);
+  mask_type stop_bit  = stop_offset & (std::numeric_limits<mask_type>::digits - 1);
 
-    mask_type start_bit = start_offset & (std::numeric_limits<mask_type>::digits - 1);
-    mask_type stop_bit = stop_offset & (std::numeric_limits<mask_type>::digits - 1);
+  mask_type start_mask = (0xffffffff << start_bit) >> start_bit;
+  mask_type stop_mask  = (0xffffffff >> stop_bit) << stop_bit;
 
-    mask_type start_mask = (0xffffffff << start_bit) >> start_bit;
-    mask_type stop_mask = (0xffffffff >> stop_bit) << stop_bit;
+  mask_type* vertex_mask = mask.get_vertex_mask();
 
-    mask_t *vertex_mask = mask.get_vertex_mask();
+  vertex_t degree = 0;
+  for (int i = threadIdx.x; i < (stop_mask_offset - start_mask_offset); i += tpb) {
+    mask_type mask_elm = vertex_mask[i + start_mask_offset];
 
-    vertex_t degree = 0;
-    for (int i = threadIdx.x; i < (stop_mask_offset - start_mask_offset); i += tpb) {
+    // Apply start_mask to first element
+    if (i == 0) {
+      mask_elm &= start_mask;
 
-        mask_t mask_elm = vertex_mask[i + start_mask_offset];
-
-        // Apply start_mask to first element
-        if (i == 0) {
-            mask_elm &= start_mask;
-
-            // Apply stop_mask to last element
-        } else if (i == (stop_mask_offset - start_mask_offset) - 1) {
-            mask_elm &= stop_mask;
-        }
-
-        degree += __popc(mask_elm);
+      // Apply stop_mask to last element
+    } else if (i == (stop_mask_offset - start_mask_offset) - 1) {
+      mask_elm &= stop_mask;
     }
 
-    degree = BlockReduce(temp_storage).Sum(degree);
+    degree += __popc(mask_elm);
+  }
 
-    if (threadIdx.x == 0) {
-        degrees_output[vertex] = degree;
-    }
+  degree = BlockReduce(temp_storage).Sum(degree);
+
+  if (threadIdx.x == 0) { degrees_output[vertex] = degree; }
 }
-} // end namspace cugraph::detail
 
-    template<typename vertex_t, typename edge_t, typename mask_type, int tpb = 128>
-    __global__ void masked_degree_kernel(vertex_t *degrees_output,
-                                         graph_mask_view_t <vertex_t, edge_t, mask_type> &mask,
-                                         vertex_t major_range_first,
-                                         vertex_t *vertex_ids,
-                                         vertex_t *indptr) {
+template <typename vertex_t, typename edge_t, typename mask_type, int tpb = 128>
+__global__ void masked_degree_kernel(edge_t* degrees_output,
+                                     graph_mask_view_t<vertex_t, edge_t, mask_type> const& mask,
+                                     int major_range_first,
+                                     vertex_t const* vertex_ids,
+                                     edge_t const* indptr)
+{
+  /**
+   *   1. For each vertex for each block, load the start and end offsets from indptr
+   *   2. Compute start and end indices in the mask, along w/ the start and end masks
+   *   3. For each element in the mask array, apply start or end mask if needed,
+   *      compute popc (or popcll) and perform summed reduce of the result for each vertex
+   */
 
-        /**
-         *   1. For each vertex for each block, load the start and end offsets from indptr
-         *   2. Compute start and end indices in the mask, along w/ the start and end masks
-         *   3. For each element in the mask array, apply start or end mask if needed,
-         *      compute popc (or popcll) and perform summed reduce of the result for each vertex
-         */
+  typedef cub::BlockReduce<vertex_t, tpb> BlockReduce;
 
-        typedef cub::BlockReduce <vertex_t, tpb> BlockReduce;
+  __shared__ typename BlockReduce::TempStorage temp_storage;
 
-        __shared__ typename BlockReduce::TempStorage temp_storage;
+  int vertex            = blockIdx.x;
+  vertex_t start_offset = indptr[vertex];
+  vertex_t stop_offset  = indptr[vertex + 1];
 
-        int vertex = blockIdx.x;
-        vertex_t start_offset = indptr[vertex];
-        vertex_t stop_offset = indptr[vertex + 1];
+  mask_type start_mask_offset = start_offset / std::numeric_limits<mask_type>::digits;
+  mask_type stop_mask_offset  = stop_offset / std::numeric_limits<mask_type>::digits;
 
-        mask_type start_mask_offset = start_offset / std::numeric_limits<mask_type>::digits;
-        mask_type stop_mask_offset = stop_offset / std::numeric_limits<mask_type>::digits;
+  mask_type start_bit = start_offset & (std::numeric_limits<mask_type>::digits - 1);
+  mask_type stop_bit  = stop_offset & (std::numeric_limits<mask_type>::digits - 1);
 
-        mask_type start_bit = start_offset & (std::numeric_limits<mask_type>::digits - 1);
-        mask_type stop_bit = stop_offset & (std::numeric_limits<mask_type>::digits - 1);
+  mask_type start_mask = (0xffffffff << start_bit) >> start_bit;
+  mask_type stop_mask  = (0xffffffff >> stop_bit) << stop_bit;
 
-        mask_type start_mask = (0xffffffff << start_bit) >> start_bit;
-        mask_type stop_mask = (0xffffffff >> stop_bit) << stop_bit;
+  const mask_type* vertex_mask = mask.get_vertex_mask();
 
-        mask_t *vertex_mask = mask.get_vertex_mask();
+  vertex_t degree = 0;
+  for (int i = threadIdx.x; i < (stop_mask_offset - start_mask_offset); i += tpb) {
+    mask_type mask_elm = vertex_mask[i + start_mask_offset];
 
-        vertex_t degree = 0;
-        for (int i = threadIdx.x; i < (stop_mask_offset - start_mask_offset); i += tpb) {
+    // Apply start_mask to first element
+    if (i == 0) {
+      mask_elm &= start_mask;
 
-            mask_t mask_elm = vertex_mask[i + start_mask_offset];
-
-            // Apply start_mask to first element
-            if (i == 0) {
-                mask_elm &= start_mask;
-
-                // Apply stop_mask to last element
-            } else if (i == (stop_mask_offset - start_mask_offset) - 1) {
-                mask_elm &= stop_mask;
-            }
-
-            degree += __popc(mask_elm);
-        }
-
-        degree = BlockReduce(temp_storage).Sum(degree);
-
-        if (threadIdx.x == 0) {
-            degrees_output[vertex_ids[vertex] - major_range_first] = degree;
-        }
+      // Apply stop_mask to last element
+    } else if (i == (stop_mask_offset - start_mask_offset) - 1) {
+      mask_elm &= stop_mask;
     }
-} // end namspace cugraph::detail
 
-template<typename vertex_t, typename edge_t, typename mask_type>
-void masked_degrees(raft::handle_t const &handle,
-                    vertex_t *degrees_output,
+    degree += __popc(mask_elm);
+  }
+
+  degree = BlockReduce(temp_storage).Sum(degree);
+
+  if (threadIdx.x == 0) { degrees_output[vertex_ids[vertex] - major_range_first] = degree; }
+}
+
+}  // namespace detail
+
+template <typename vertex_t, typename edge_t, typename mask_type = std::uint32_t>
+void masked_degrees(raft::handle_t const& handle,
+                    edge_t* degrees_output,
                     vertex_t size,
-                    graph_mask_view_t <vertex_t, edge_t, mask_type> &mask,
-                    vertex_t *indptr) {
-    masked_degree_kernel<vertex_t, edge_t, mask_type, 128>
+                    graph_mask_view_t<vertex_t, edge_t, mask_type> const& mask,
+                    edge_t const* indptr)
+{
+  detail::masked_degree_kernel<vertex_t, edge_t, mask_type, 128>
     <<<size, 128, 0, handle.get_stream()>>>(degrees_output, mask, indptr);
 }
 
-template<typename vertex_t, typename edge_t, typename mask_type>
-void masked_degrees(raft::handle_t const &handle,
-                    vertex_t *degrees_output,
+template <typename vertex_t, typename edge_t, typename mask_type = std::uint32_t>
+void masked_degrees(raft::handle_t const& handle,
+                    edge_t* degrees_output,
                     vertex_t size,
-                    graph_mask_view_t <vertex_t, edge_t, mask_type> &mask,
-                    vertex_t major_range_first,
-                    vertex_t *vertex_ids,
-                    vertex_t *indptr) {
-    masked_degree_kernel<vertex_t, edge_t, mask_type, 128>
-    <<<size, 128, 0, handle.get_stream()>>>(degrees_output, mask, major_range_first, vertex_ids, indptr);
+                    graph_mask_view_t<vertex_t, edge_t, mask_type> const& mask,
+                    int major_range_first,
+                    vertex_t const* vertex_ids,
+                    edge_t const* indptr)
+{
+  detail::masked_degree_kernel<vertex_t, edge_t, mask_type, 128>
+    <<<size, 128, 0, handle.get_stream()>>>(
+      degrees_output, mask, major_range_first, vertex_ids, indptr);
 }
 
-
-}; // end namespace cugraph
+};  // end namespace cugraph
