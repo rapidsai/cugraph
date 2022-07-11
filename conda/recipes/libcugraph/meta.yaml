@@ -47,6 +47,7 @@ requirements:
     - ucx-proc=*=gpu
     - gtest {{ gtest_version }}  # FIXME: pinned to version in https://github.com/rapidsai/integration/blob/branch-22.04/conda/recipes/versions.yaml
     - gmock {{ gtest_version }}  # FIXME: pinned to version in https://github.com/rapidsai/integration/blob/branch-22.04/conda/recipes/versions.yaml
+    - cuda-python >=11.5,<11.7.1  # FIXME: libcugraph should not require cuda-python. This is being added to restrict some other dependency from installing improper cudf and rmm package versions.
 
 outputs:
   - name: libcugraph
