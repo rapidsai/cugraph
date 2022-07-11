@@ -120,7 +120,7 @@ def uniform_neighbor_sample(input_graph,
             start_list).compute()
 
     start_list = dask_cudf.from_cudf(
-        start_list, 
+        start_list,
         npartitions=input_graph.npartitions
     )
     start_list = get_distributed_data(start_list)

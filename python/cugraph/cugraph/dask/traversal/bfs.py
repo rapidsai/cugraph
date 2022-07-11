@@ -24,32 +24,6 @@ import cudf
 import dask_cudf
 
 
-def _call_plc_mg_bfs(
-                    sID,
-                    mg_x,
-                    sources,
-                    depth_limit,
-                    direction_optimizing=False,
-                    do_expensive_check=False,
-                    return_predecessors=True):
-    comms_handle = Comms.get_handle(sID)
-    resource_handle = ResourceHandle(comms_handle.getHandle())
-    sources = sources[0]
-
-    res = \
-        pylibcugraph_bfs(
-            resource_handle,
-            mg_x,
-            cudf.Series(sources, dtype='int32'),
-            direction_optimizing,
-            depth_limit if depth_limit is not None else 0,
-            return_predecessors,
-            True
-        )
-
-    return res
-
-
 def convert_to_cudf(cp_arrays):
     """
     create a cudf DataFrame from cupy arrays
@@ -172,7 +146,9 @@ def bfs(input_graph,
             workers=[w],
             key='cugraph.dask.traversal.bfs.call_pylibcugraph_bfs'
         )
-        for mg_graph, (w, st) in zip(input_graph._plc_graph, data_start.worker_to_parts.items())
+        for mg_graph, (w, st) in zip(
+            input_graph._plc_graph, data_start.worker_to_parts.items()
+        )
     ]
 
     wait(cupy_result)
