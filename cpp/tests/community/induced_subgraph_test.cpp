@@ -23,6 +23,7 @@
 
 #include <raft/cudart_utils.h>
 #include <raft/handle.hpp>
+#include <raft/span.hpp>
 #include <rmm/device_uvector.hpp>
 #include <rmm/mr/device/cuda_memory_resource.hpp>
 
@@ -199,12 +200,13 @@ class Tests_InducedSubgraph : public ::testing::TestWithParam<InducedSubgraph_Us
           d_subgraph_edgelist_minors,
           d_subgraph_edgelist_weights,
           d_subgraph_edge_offsets] =
-      cugraph::extract_induced_subgraphs(handle,
-                                         graph_view,
-                                         d_subgraph_offsets.data(),
-                                         d_subgraph_vertices.data(),
-                                         configuration.subgraph_sizes.size(),
-                                         true);
+      cugraph::extract_induced_subgraphs(
+        handle,
+        graph_view,
+        raft::device_span<size_t const>(d_subgraph_offsets.data(), d_subgraph_offsets.size()),
+        raft::device_span<vertex_t const>(d_subgraph_vertices.data(), d_subgraph_vertices.size()),
+        configuration.subgraph_sizes.size(),
+        true);
 
     RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
 

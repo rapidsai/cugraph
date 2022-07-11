@@ -27,10 +27,27 @@
 #include <rmm/device_uvector.hpp>
 #include <rmm/mr/device/polymorphic_allocator.hpp>
 
+#include <thrust/binary_search.h>
+#include <thrust/copy.h>
 #include <thrust/count.h>
 #include <thrust/distance.h>
+#include <thrust/execution_policy.h>
+#include <thrust/fill.h>
+#include <thrust/for_each.h>
+#include <thrust/functional.h>
 #include <thrust/gather.h>
+#include <thrust/iterator/counting_iterator.h>
 #include <thrust/iterator/iterator_traits.h>
+#include <thrust/iterator/transform_iterator.h>
+#include <thrust/iterator/zip_iterator.h>
+#include <thrust/optional.h>
+#include <thrust/remove.h>
+#include <thrust/scan.h>
+#include <thrust/set_operations.h>
+#include <thrust/sort.h>
+#include <thrust/tabulate.h>
+#include <thrust/transform.h>
+#include <thrust/tuple.h>
 #include <thrust/unique.h>
 
 #include <array>
@@ -835,7 +852,7 @@ nbr_intersection(raft::handle_t const& handle,
         std::max(static_cast<size_t>(static_cast<double>(unique_majors.size()) / load_factor),
                  static_cast<size_t>(unique_majors.size()) + 1),
         cuco::sentinel::empty_key<vertex_t>{invalid_vertex_id<vertex_t>::value},
-        cuco::sentinel::empty_value<vertex_t>{0},
+        cuco::sentinel::empty_value<vertex_t>{invalid_vertex_id<vertex_t>::value},
         stream_adapter,
         handle.get_stream());
       auto pair_first = thrust::make_zip_iterator(unique_majors.begin(),

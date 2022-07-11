@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2021, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2022, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -47,12 +47,6 @@ template class GraphCSRView<int32_t, int64_t, float>;
 template class GraphCSRView<int32_t, int64_t, double>;
 template class GraphCSRView<int64_t, int64_t, float>;
 template class GraphCSRView<int64_t, int64_t, double>;
-template class GraphCSCView<int32_t, int32_t, float>;
-template class GraphCSCView<int32_t, int32_t, double>;
-template class GraphCSCView<int32_t, int64_t, float>;
-template class GraphCSCView<int32_t, int64_t, double>;
-template class GraphCSCView<int64_t, int64_t, float>;
-template class GraphCSCView<int64_t, int64_t, double>;
 template class GraphCOO<int32_t, int32_t, float>;
 template class GraphCOO<int32_t, int32_t, double>;
 template class GraphCOO<int32_t, int64_t, float>;
@@ -65,11 +59,5 @@ template class GraphCSR<int32_t, int64_t, float>;
 template class GraphCSR<int32_t, int64_t, double>;
 template class GraphCSR<int64_t, int64_t, float>;
 template class GraphCSR<int64_t, int64_t, double>;
-template class GraphCSC<int32_t, int32_t, float>;
-template class GraphCSC<int32_t, int32_t, double>;
-template class GraphCSC<int32_t, int64_t, float>;
-template class GraphCSC<int32_t, int64_t, double>;
-template class GraphCSC<int64_t, int64_t, float>;
-template class GraphCSC<int64_t, int64_t, double>;
 }  // namespace legacy
 }  // namespace cugraph

@@ -34,13 +34,24 @@
 #include <cub/cub.cuh>
 #include <thrust/adjacent_difference.h>
 #include <thrust/binary_search.h>
+#include <thrust/copy.h>
+#include <thrust/count.h>
+#include <thrust/distance.h>
 #include <thrust/equal.h>
 #include <thrust/fill.h>
 #include <thrust/for_each.h>
 #include <thrust/gather.h>
 #include <thrust/iterator/counting_iterator.h>
+#include <thrust/iterator/transform_iterator.h>
 #include <thrust/iterator/zip_iterator.h>
+#include <thrust/reduce.h>
+#include <thrust/remove.h>
+#include <thrust/scan.h>
+#include <thrust/sequence.h>
+#include <thrust/sort.h>
+#include <thrust/transform.h>
 #include <thrust/tuple.h>
+#include <thrust/unique.h>
 
 #include <algorithm>
 #include <tuple>
@@ -637,6 +648,10 @@ update_local_sorted_unique_edge_majors_minors(
       detail::edge_partition_src_dst_property_values_kv_pair_fill_ratio_threshold) {
     auto const chunk_size =
       std::min(static_cast<size_t>(1.0 / max_major_properties_fill_ratio), size_t{1024});
+
+    local_sorted_unique_edge_majors = std::vector<rmm::device_uvector<vertex_t>>{};
+    local_sorted_unique_edge_major_chunk_start_offsets =
+      std::vector<rmm::device_uvector<vertex_t>>{};
 
     (*local_sorted_unique_edge_majors).reserve(edge_partition_offsets.size());
     (*local_sorted_unique_edge_major_chunk_start_offsets).reserve(edge_partition_offsets.size());

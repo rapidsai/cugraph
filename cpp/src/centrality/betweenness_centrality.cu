@@ -16,6 +16,12 @@
 
 #include <vector>
 
+#include <thrust/count.h>
+#include <thrust/extrema.h>
+#include <thrust/fill.h>
+#include <thrust/functional.h>
+#include <thrust/iterator/constant_iterator.h>
+#include <thrust/replace.h>
 #include <thrust/transform.h>
 
 #include <raft/cudart_utils.h>

@@ -31,7 +31,14 @@
 
 #include <cub/cub.cuh>
 #include <thrust/distance.h>
+#include <thrust/execution_policy.h>
+#include <thrust/fill.h>
+#include <thrust/for_each.h>
 #include <thrust/functional.h>
+#include <thrust/iterator/counting_iterator.h>
+#include <thrust/iterator/transform_iterator.h>
+#include <thrust/optional.h>
+#include <thrust/scatter.h>
 #include <thrust/transform_reduce.h>
 #include <thrust/tuple.h>
 #include <thrust/type_traits/integer_sequence.h>
@@ -890,7 +897,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
 /**
  * @brief Iterate over every vertex's incoming edges to update vertex properties.
  *
- * This function is inspired by thrust::transfrom_reduce.
+ * This function is inspired by thrust::transform_reduce.
  *
  * @tparam GraphViewType Type of the passed non-owning graph object.
  * @tparam EdgePartitionSrcValueInputWrapper Type of the wrapper for edge partition source property
@@ -955,7 +962,7 @@ void per_v_transform_reduce_incoming_e(
 /**
  * @brief Iterate over every vertex's outgoing edges to update vertex properties.
  *
- * This function is inspired by thrust::transfrom_reduce().
+ * This function is inspired by thrust::transform_reduce().
  *
  * @tparam GraphViewType Type of the passed non-owning graph object.
  * @tparam EdgePartitionSrcValueInputWrapper Type of the wrapper for edge partition source property

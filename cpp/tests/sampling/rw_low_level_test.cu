@@ -21,7 +21,15 @@
 #include <utilities/test_utilities.hpp>
 
 #include <rmm/exec_policy.hpp>
+#include <thrust/execution_policy.h>
+#include <thrust/find.h>
+#include <thrust/iterator/counting_iterator.h>
+#include <thrust/iterator/zip_iterator.h>
+#include <thrust/logical.h>
+#include <thrust/optional.h>
 #include <thrust/random.h>
+#include <thrust/transform.h>
+#include <thrust/tuple.h>
 
 #include <cugraph/algorithms.hpp>
 #include <sampling/random_walks.cuh>

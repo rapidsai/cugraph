@@ -23,7 +23,13 @@
 #pragma once
 
 #include <algorithm>
+#include <thrust/device_ptr.h>
 #include <thrust/extrema.h>
+#include <thrust/fill.h>
+#include <thrust/for_each.h>
+#include <thrust/functional.h>
+#include <thrust/iterator/counting_iterator.h>
+#include <thrust/iterator/reverse_iterator.h>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/scan.h>
 #include <thrust/sort.h>
