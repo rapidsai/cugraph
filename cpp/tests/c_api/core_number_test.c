@@ -73,10 +73,6 @@ int generic_core_number_test(vertex_t* h_src,
     p_handle, (byte_t*)h_core_numbers, core_numbers, &ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "copy_to_host failed.");
 
-  for (int i = 0; i < num_vertices; ++i) {
-    printf("%d: %d - expected = %d\n", h_vertices[i], h_core_numbers[i], h_result[h_vertices[i]]);
-  }
-
   for (int i = 0; (i < num_vertices) && (test_ret_value == 0); ++i) {
     TEST_ASSERT(test_ret_value,
                 nearlyEqual(h_result[h_vertices[i]], h_core_numbers[i], 0.001),
