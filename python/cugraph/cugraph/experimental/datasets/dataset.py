@@ -18,8 +18,27 @@ import os
 from pathlib import Path
 
 
-download_dir = Path(os.environ.get("RAPIDS_DATASET_ROOT_DIR",
-                    Path.home() / ".cugraph/datasets"))
+class DefaultDownloadDir:
+    def __init__(self):
+        self._dd = Path(os.environ.get("RAPIDS_DATASET_ROOT_DIR",
+                                       Path.home() / ".cugraph/datasets"))
+
+    @property
+    def dd(self):
+        if self._dd is None:
+            self._dd = Path(os.environ.get("RAPIDS_DATASET_ROOT_DIR",
+                                           Path.home() / ".cugraph/datasets"))
+        return self._dd
+
+    @dd.setter
+    def dd(self, new):
+        self._dd = new
+
+    def clear(self):
+        self._dd = None
+
+
+default_download_dir = DefaultDownloadDir()
 
 
 class Dataset:
@@ -36,41 +55,38 @@ class Dataset:
 
     """
     def __init__(self, meta_data_file_name):
-        self.dir_path = Path(__file__).parent.absolute()
+        self.__dir_path = Path(__file__).parent.absolute()
 
         self._meta_data_file_name = meta_data_file_name
         self.__read_meta_data_file(self._meta_data_file_name)
 
+        self._dd = default_download_dir.dd
         self._edgelist = None
         self._graph = None
-        self.path = None
+        self._path = None
 
     def __read_meta_data_file(self, meta_data_file):
-        metadata_path = self.dir_path / meta_data_file
+        metadata_path = self.__dir_path / meta_data_file
         with open(metadata_path, 'r') as file:
             self.metadata = yaml.safe_load(file)
             file.close()
 
-    def __read_config(self):
-        # This is the default config file
-        config_path = self.dir_path / "datasets_config.yaml"
-        with open(config_path, 'r') as file:
-            cfg = yaml.safe_load(file)
-            global download_dir
-            download_dir = Path(cfg['download_dir'])
-            file.close()
+    # check for updates for download_dir location within obj
+    def __refresh_dd(self):
+        if self._dd != default_download_dir.dd:
+            self._dd = default_download_dir.dd
 
     def __download_csv(self, url):
-        if not os.path.isdir(download_dir):
-            os.makedirs(download_dir)
+        if not os.path.isdir(self._dd):
+            os.makedirs(self._dd)
 
         filename = self.metadata['name'] + self.metadata['file_type']
-        if os.path.isdir(download_dir):
+        if os.path.isdir(self._dd):
             df = cudf.read_csv(url)
-            df.to_csv(download_dir / filename, index=False)
+            df.to_csv(self._dd / filename, index=False)
 
         else:
-            raise RuntimeError("The directory " + str(download_dir.absolute())
+            raise RuntimeError("The directory " + str(self._dd.absolute())
                                + " does not exist")
 
     def get_edgelist(self, fetch=False):
@@ -85,8 +101,9 @@ class Dataset:
         """
 
         if self._edgelist is None:
-            full_path = download_dir / (self.metadata['name'] +
-                                        self.metadata['file_type'])
+            self.__refresh_dd()
+            full_path = self._dd / (self.metadata['name'] +
+                                    self.metadata['file_type'])
 
             if not os.path.isfile(full_path):
                 if fetch:
@@ -100,7 +117,7 @@ class Dataset:
                                            delimiter=self.metadata['delim'],
                                            names=self.metadata['col_names'],
                                            dtype=self.metadata['col_types'])
-            self.path = full_path
+            self._path = full_path
 
         return self._edgelist
 
@@ -127,11 +144,11 @@ class Dataset:
         """
             Returns the location of the stored dataset file
         """
-        if self.path is None:
+        if self._path is None:
             raise RuntimeError("Path to datafile has not been set." +
                                " Call get_edgelist or get_graph first")
 
-        return self.path.absolute()
+        return self._path.absolute()
 
 
 def load_all(force=False):
@@ -142,8 +159,8 @@ def load_all(force=False):
     Parameters
         ----------
     """
-    if not os.path.isdir(download_dir):
-        os.makedirs(download_dir)
+    if not os.path.isdir(default_download_dir.dd):
+        os.makedirs(default_download_dir.dd)
 
     meta_path = Path(__file__).parent.absolute() / "metadata"
     for file in os.listdir(meta_path):
@@ -155,7 +172,7 @@ def load_all(force=False):
 
             if 'url' in meta:
                 filename = meta['name'] + meta['file_type']
-                save_to = download_dir / filename
+                save_to = default_download_dir.dd / filename
                 if not os.path.isfile(save_to) or force:
                     df = cudf.read_csv(meta['url'])
                     df.to_csv(save_to, index=False)
@@ -172,8 +189,7 @@ def set_config(cfgpath):
     """
     with open(Path(cfgpath), 'r') as file:
         cfg = yaml.safe_load(file)
-        global download_dir
-        download_dir = Path(cfg['download_dir'])
+        default_download_dir.dd = Path(cfg['download_dir'])
         file.close()
 
 
@@ -186,10 +202,11 @@ def set_download_dir(path):
     path : String
         Use as the storage location
     """
-
-    global download_dir
-    download_dir = Path(path)
+    if path is None:
+        default_download_dir.dd = None
+    else:
+        default_download_dir.dd = Path(path)
 
 
 def get_download_dir():
-    return download_dir.absolute()
+    return default_download_dir.dd.absolute()

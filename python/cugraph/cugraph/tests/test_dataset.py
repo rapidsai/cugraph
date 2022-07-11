@@ -14,16 +14,11 @@
 import gc
 
 import pytest
-import warnings
 import yaml
 import os
 from pathlib import Path
 from tempfile import NamedTemporaryFile, TemporaryDirectory
-# from cugraph.testing import utils
-
-from cugraph.experimental.datasets import (set_config, load_all,
-                                           set_download_dir, get_download_dir,
-                                           SMALL_DATASETS, ALL_DATASETS)
+from cugraph.experimental.datasets import (ALL_DATASETS)
 
 
 # =============================================================================
@@ -33,28 +28,20 @@ def setup_function():
     gc.collect()
 
 
-with warnings.catch_warnings():
-    warnings.filterwarnings("ignore", category=DeprecationWarning)
+# Use this to simulate a fresh API import
+@pytest.fixture
+def datasets():
+    from cugraph.experimental import datasets
+    yield datasets
+    del datasets
+    clear_locals()
 
 
-@pytest.fixture(autouse=True)
-def cleanup_tests():
-    yield
-    default_config()
-    reset_imports()
-
-
-# Helper function to restore the default cfg
-def default_config():
-    set_config(Path(__file__).parent.parent /
-               "experimental/datasets/datasets_config.yaml")
-
-
-def reset_imports():
+def clear_locals():
     for dataset in ALL_DATASETS:
         dataset._edgelist = None
         dataset._graph = None
-        dataset.path = None
+        dataset._path = None
 
 
 # We use this to create tempfiles that act as config files when we call
@@ -75,38 +62,50 @@ def create_config(custom_path="custom_storage_location"):
     return outfile
 
 
-# User giving the API a custom config file
-def test_set_config():
-    cfg = create_config()
-    set_config(cfg.name)
+# setting download_dir to None effectively re-initialized the default
+def test_env_var(datasets):
+    os.environ['RAPIDS_DATASET_ROOT_DIR'] = 'custom_storage_location'
+    datasets.set_download_dir(None)
 
-    assert str(get_download_dir()).endswith("custom_storage_location")
+    expected_path = Path("custom_storage_location").absolute()
+    assert datasets.get_download_dir() == expected_path
+
+    del os.environ['RAPIDS_DATASET_ROOT_DIR']
+
+
+def test_home_dir(datasets):
+    datasets.set_download_dir(None)
+    expected_path = Path.home() / ".cugraph/datasets"
+
+    assert datasets.get_download_dir() == expected_path
+
+
+def test_set_config(datasets):
+    cfg = create_config()
+    datasets.set_config(cfg.name)
+
+    assert datasets.get_download_dir() == \
+           Path("custom_storage_location").absolute()
 
     cfg.close()
 
 
-def test_set_download_dir():
+def test_set_download_dir(datasets):
     tmpd = TemporaryDirectory()
-    set_download_dir(tmpd.name)
+    datasets.set_download_dir(tmpd.name)
 
-    assert str(get_download_dir()).endswith(tmpd.name)
+    assert datasets.get_download_dir() == Path(tmpd.name).absolute()
+
     tmpd.cleanup()
 
 
-@pytest.mark.skip(reason="wip")
-def test_home_directory():
-    user_home = Path.home() / ".cugraph/datasets"
-
-    assert get_download_dir() == user_home
-
-
-def test_load_all():
+def test_load_all(datasets):
     tmpd = TemporaryDirectory()
     cfg = create_config(custom_path=tmpd.name)
-    set_config(cfg.name)
-    load_all()
+    datasets.set_config(cfg.name)
+    datasets.load_all()
 
-    for data in ALL_DATASETS:
+    for data in datasets.ALL_DATASETS:
         file_path = Path(tmpd.name) / (data.metadata['name'] +
                                        data.metadata['file_type'])
         assert os.path.isfile(file_path)
@@ -114,11 +113,11 @@ def test_load_all():
     tmpd.cleanup()
 
 
-@pytest.mark.parametrize("dataset", SMALL_DATASETS)
-def test_fetch(dataset):
+@pytest.mark.parametrize("dataset", ALL_DATASETS)
+def test_fetch(dataset, datasets):
     tmpd = TemporaryDirectory()
     cfg = create_config(custom_path=tmpd.name)
-    set_config(cfg.name)
+    datasets.set_config(cfg.name)
 
     E = dataset.get_edgelist(fetch=True)
 
@@ -129,9 +128,9 @@ def test_fetch(dataset):
 
 
 @pytest.mark.parametrize("dataset", ALL_DATASETS)
-def test_get_edgelist(dataset):
+def test_get_edgelist(dataset, datasets):
     tmpd = TemporaryDirectory()
-    set_download_dir(tmpd.name)
+    datasets.set_download_dir(tmpd.name)
     E = dataset.get_edgelist(fetch=True)
 
     assert E is not None
@@ -140,9 +139,9 @@ def test_get_edgelist(dataset):
 
 
 @pytest.mark.parametrize("dataset", ALL_DATASETS)
-def test_get_graph(dataset):
+def test_get_graph(dataset, datasets):
     tmpd = TemporaryDirectory()
-    set_download_dir(tmpd.name)
+    datasets.set_download_dir(tmpd.name)
     G = dataset.get_graph(fetch=True)
 
     assert G is not None
@@ -158,9 +157,9 @@ def test_metadata(dataset):
 
 
 @pytest.mark.parametrize("dataset", ALL_DATASETS)
-def test_get_path(dataset):
+def test_get_path(dataset, datasets):
     tmpd = TemporaryDirectory()
-    set_download_dir(tmpd.name)
+    datasets.set_download_dir(tmpd.name)
     dataset.get_edgelist(fetch=True)
 
     assert os.path.isfile(dataset.get_path())
