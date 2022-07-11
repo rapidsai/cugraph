@@ -102,8 +102,6 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
       rmm::device_uvector<vertex_t>* number_map =
         new rmm::device_uvector<vertex_t>(0, handle_.get_stream());
 
-      // std::cout << "is_symmetric:"<< (properties_->is_symmetric?"true":"false") << std::endl;
-
       std::tie(*graph, new_number_map) = cugraph::
         create_graph_from_edgelist<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
           handle_,
@@ -136,9 +134,6 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
                                             number_map};
 
       result_ = reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(result);
-
-      // std::cout << "is_symmetric::"<< (graph->view().is_symmetric()?"true":"false") << std::endl;
-      // std::cout << "graph:" << graph << std::endl;
     }
   }
 };
