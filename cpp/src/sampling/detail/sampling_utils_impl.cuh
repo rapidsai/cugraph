@@ -71,7 +71,6 @@ void compute_masked_degrees(
 
   auto mask                 = graph_view.get_mask_view();
   auto indptr               = edge_partition.offsets();
-  size_t temp_storage_bytes = 0;
 
   masked_degrees<vertex_t, edge_t>(handle, sparse_begin, size, *mask, indptr);
 }
@@ -117,6 +116,7 @@ rmm::device_uvector<typename GraphViewType::edge_type> compute_local_major_degre
       auto sparse_begin = local_degrees.begin() + partial_offset;
       auto sparse_end   = local_degrees.begin() + partial_offset + num_sparse_vertices;
 
+      // TODO: Masked degrees
       thrust::tabulate(handle.get_thrust_policy(),
                        sparse_begin,
                        sparse_end,
@@ -138,7 +138,6 @@ rmm::device_uvector<typename GraphViewType::edge_type> compute_local_major_degre
       vertex_t offsets_start = major_hypersparse_first - major_range_first;
 
       if (mask.has_value() && (*mask).has_vertex_mask()) {
-        size_t temp_storage_bytes = 0;
 
         masked_degrees<vertex_t, edge_t>(handle,
                                          sparse_begin,

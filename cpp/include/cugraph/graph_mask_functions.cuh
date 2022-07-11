@@ -65,11 +65,13 @@ __global__ void masked_degree_kernel(edge_t* degrees_output,
   mask_type start_mask = (0xffffffff << start_bit) >> start_bit;
   mask_type stop_mask  = (0xffffffff >> stop_bit) << stop_bit;
 
+  // TODO: Check vertex mask for vertex
   mask_type* vertex_mask = mask.get_vertex_mask();
+  mask_type* edge_mask = mask.get_edge_mask();
 
   vertex_t degree = 0;
   for (int i = threadIdx.x; i < (stop_mask_offset - start_mask_offset); i += tpb) {
-    mask_type mask_elm = vertex_mask[i + start_mask_offset];
+    mask_type mask_elm = edge_mask[i + start_mask_offset];
 
     // Apply start_mask to first element
     if (i == 0) {
@@ -107,8 +109,8 @@ __global__ void masked_degree_kernel(edge_t* degrees_output,
   __shared__ typename BlockReduce::TempStorage temp_storage;
 
   int vertex            = blockIdx.x;
-  vertex_t start_offset = indptr[vertex];
-  vertex_t stop_offset  = indptr[vertex + 1];
+  edge_t start_offset = indptr[vertex];
+  edge_t stop_offset  = indptr[vertex + 1];
 
   mask_type start_mask_offset = start_offset / std::numeric_limits<mask_type>::digits;
   mask_type stop_mask_offset  = stop_offset / std::numeric_limits<mask_type>::digits;
@@ -119,11 +121,13 @@ __global__ void masked_degree_kernel(edge_t* degrees_output,
   mask_type start_mask = (0xffffffff << start_bit) >> start_bit;
   mask_type stop_mask  = (0xffffffff >> stop_bit) << stop_bit;
 
+    // TODO: Check vertex mask for vertex
   const mask_type* vertex_mask = mask.get_vertex_mask();
+  const mask_type* edge_mask = mask.get_edge_mask();
 
   vertex_t degree = 0;
   for (int i = threadIdx.x; i < (stop_mask_offset - start_mask_offset); i += tpb) {
-    mask_type mask_elm = vertex_mask[i + start_mask_offset];
+    mask_type mask_elm = edge_mask[i + start_mask_offset];
 
     // Apply start_mask to first element
     if (i == 0) {
