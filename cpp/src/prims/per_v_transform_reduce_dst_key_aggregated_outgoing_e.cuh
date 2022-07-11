@@ -15,8 +15,8 @@
  */
 #pragma once
 
-#include <utilities/collect_comm.cuh>
 #include <detail/graph_utils.cuh>
+#include <utilities/collect_comm.cuh>
 
 #include <cugraph/detail/decompress_edge_partition.cuh>
 #include <cugraph/edge_partition_device_view.cuh>

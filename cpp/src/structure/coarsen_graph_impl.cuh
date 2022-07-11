@@ -15,9 +15,9 @@
  */
 #pragma once
 
+#include <detail/graph_utils.cuh>
 #include <prims/edge_partition_src_dst_property.cuh>
 #include <prims/update_edge_partition_src_dst_property.cuh>
-#include <detail/graph_utils.cuh>
 
 #include <cugraph/detail/decompress_edge_partition.cuh>
 #include <cugraph/detail/shuffle_wrappers.hpp>

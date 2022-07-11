@@ -15,8 +15,8 @@
  */
 #pragma once
 
-#include <utilities/collect_comm.cuh>
 #include <detail/graph_utils.cuh>
+#include <utilities/collect_comm.cuh>
 
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_functions.hpp>
