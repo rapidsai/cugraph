@@ -15,11 +15,12 @@
  */
 #pragma once
 
+#include <utilities/collect_comm.cuh>
+#include <detail/graph_utils.cuh>
+
 #include <cugraph/detail/decompress_edge_partition.cuh>
-#include <cugraph/detail/graph_utils.cuh>
 #include <cugraph/edge_partition_device_view.cuh>
 #include <cugraph/graph_view.hpp>
-#include <cugraph/utilities/collect_comm.cuh>
 #include <cugraph/utilities/dataframe_buffer.cuh>
 #include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/error.hpp>

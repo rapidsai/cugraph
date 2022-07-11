@@ -20,9 +20,9 @@
 #include <prims/update_edge_partition_src_dst_property.cuh>
 #include <prims/update_v_frontier.cuh>
 #include <prims/vertex_frontier.cuh>
+#include <detail/graph_utils.cuh>
 
 #include <cugraph/algorithms.hpp>
-#include <cugraph/detail/graph_utils.cuh>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/utilities/device_comm.cuh>

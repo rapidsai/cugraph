@@ -21,11 +21,11 @@
 #include <prims/transform_reduce_e.cuh>
 #include <prims/transform_reduce_e_by_src_dst_key.cuh>
 #include <prims/update_edge_partition_src_dst_property.cuh>
+#include <utilities/collect_comm.cuh>
 
 #include <cugraph/dendrogram.hpp>
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_functions.hpp>
-#include <cugraph/utilities/collect_comm.cuh>
 
 #include <raft/handle.hpp>
 #include <rmm/device_uvector.hpp>

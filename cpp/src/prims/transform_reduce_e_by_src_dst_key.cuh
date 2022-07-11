@@ -16,8 +16,8 @@
 #pragma once
 
 #include <prims/property_op_utils.cuh>
+#include <detail/graph_utils.cuh>
 
-#include <cugraph/detail/graph_utils.cuh>
 #include <cugraph/edge_partition_device_view.cuh>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/utilities/dataframe_buffer.cuh>
