@@ -121,9 +121,15 @@ fi
 # Identify relevant testsets to run in CI based on the ChangeList
 ################################################################################
 
-PRHTTP=https://api.github.com/repos/rapidsai/cugraph/pulls/${PR_ID}/files
-fnames=`curl -sb -X GET -H "Accept: application/vnd.github.v3+json" -H "Authorization: token $GHTK"  $PRHTTP | python3 -c "import sys, json; print([labels['filename'] for labels in json.load(sys.stdin)])"`
 run_cpp_tests="false" run_python_tests="false" run_nb_tests="false" doc_changed="false" 
+fnames=()
+if [ "$BUILD_MODE" == "pull-request" ]; then
+    PRHTTP=https://api.github.com/repos/rapidsai/cugraph/pulls/${PR_ID}/files
+    fnames=`curl -sb -X GET -H "Accept: application/vnd.github.v3+json" -H "Authorization: token $GHTK"  $PRHTTP | python3 -c "import sys, json; print([labels['filename'] for labels in json.load(sys.stdin)])"`
+else
+    run_cpp_tests="true" run_python_tests="true" run_nb_tests="true"
+fi
+# this will not do anything if the 'fnames' array is empty
 for fname in ${fnames[@]}
 do
    if [[ "$fname" == *"cpp/cmake/"* || "$fname" == *"cpp/CMakeLists.txt"* || "$fname" == *"cpp/src/"* || "$fname" == *"cpp/include/"* || "$fname" == *"cpp/tests/"* || "$fname" == *"cpp/libcugraph_etl/"* || "$fname" == *"cpp/scripts/"* ]]; then
