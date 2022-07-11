@@ -14,12 +14,6 @@
  * limitations under the License.
  */
 
-/** ---------------------------------------------------------------------------*
- * @brief Wrapper functions for Spectral Clustering
- *
- * @file spectral_clustering.cu
- * ---------------------------------------------------------------------------**/
-
 #include <cugraph/algorithms.hpp>
 
 #include <ctime>

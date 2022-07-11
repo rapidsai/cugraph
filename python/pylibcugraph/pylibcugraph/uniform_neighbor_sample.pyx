@@ -37,7 +37,7 @@ from pylibcugraph._cugraph_c.graph cimport (
     cugraph_graph_t,
 )
 from pylibcugraph._cugraph_c.algorithms cimport (
-    cugraph_experimental_uniform_neighbor_sample,
+    cugraph_uniform_neighbor_sample,
     cugraph_sample_result_t,
     cugraph_sample_result_get_sources,
     cugraph_sample_result_get_destinations,
@@ -130,7 +130,7 @@ def uniform_neighbor_sample(ResourceHandle resource_handle,
             len(h_fan_out),
             get_c_type_from_numpy_type(h_fan_out.dtype))
 
-    error_code = cugraph_experimental_uniform_neighbor_sample(
+    error_code = cugraph_uniform_neighbor_sample(
         c_resource_handle_ptr,
         c_graph_ptr,
         start_ptr,
