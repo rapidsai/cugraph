@@ -15,18 +15,17 @@
  */
 #pragma once
 
-#include <cugraph/dendrogram.hpp>
+#include <prims/edge_partition_src_dst_property.cuh>
+#include <prims/per_v_transform_reduce_dst_key_aggregated_outgoing_e.cuh>
+#include <prims/per_v_transform_reduce_incoming_outgoing_e.cuh>
+#include <prims/transform_reduce_e.cuh>
+#include <prims/transform_reduce_e_by_src_dst_key.cuh>
+#include <prims/update_edge_partition_src_dst_property.cuh>
+#include <utilities/collect_comm.cuh>
 
+#include <cugraph/dendrogram.hpp>
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_functions.hpp>
-
-#include <cugraph/prims/edge_partition_src_dst_property.cuh>
-#include <cugraph/prims/per_v_transform_reduce_dst_key_aggregated_outgoing_e.cuh>
-#include <cugraph/prims/per_v_transform_reduce_incoming_outgoing_e.cuh>
-#include <cugraph/prims/transform_reduce_e.cuh>
-#include <cugraph/prims/transform_reduce_e_by_src_dst_key.cuh>
-#include <cugraph/prims/update_edge_partition_src_dst_property.cuh>
-#include <cugraph/utilities/collect_comm.cuh>
 
 #include <raft/handle.hpp>
 #include <rmm/device_uvector.hpp>

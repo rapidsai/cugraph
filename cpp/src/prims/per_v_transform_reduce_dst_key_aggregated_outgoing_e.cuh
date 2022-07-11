@@ -15,11 +15,12 @@
  */
 #pragma once
 
+#include <detail/graph_utils.cuh>
+#include <utilities/collect_comm.cuh>
+
 #include <cugraph/detail/decompress_edge_partition.cuh>
-#include <cugraph/detail/graph_utils.cuh>
 #include <cugraph/edge_partition_device_view.cuh>
 #include <cugraph/graph_view.hpp>
-#include <cugraph/utilities/collect_comm.cuh>
 #include <cugraph/utilities/dataframe_buffer.cuh>
 #include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/error.hpp>
@@ -206,7 +207,7 @@ struct reduce_with_init_t {
  * (aggregated over the entire set of processes in multi-GPU).
  * @param init Initial value to be reduced with the reduced value for each vertex.
  * @param reduce_op Binary operator that takes two input arguments and reduce the two values to one.
- * There are pre-defined reduction operators in include/cugraph/prims/reduce_op.cuh. It is
+ * There are pre-defined reduction operators in src/prims/reduce_op.cuh. It is
  * recommended to use the pre-defined reduction operators whenever possible as the current (and
  * future) implementations of graph primitives may check whether @p ReduceOp is a known type (or has
  * known member variables) to take a more optimized code path. See the documentation in the
