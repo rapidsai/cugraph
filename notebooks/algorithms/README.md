@@ -1,7 +1,8 @@
+# cuGraph Algorithm Notebooks
 
-# cuGraph Notebooks
+As all the algorithm Notebooks are updated and migrated to this area, they will show in this Readme. Until then they are available [here](../README.md)
 
-![GraphAnalyticsFigure](img/GraphAnalyticsFigure.jpg)
+![GraphAnalyticsFigure](../img/GraphAnalyticsFigure.jpg)
 
 This repository contains a collection of Jupyter Notebooks that outline how to run various cuGraph analytics.   The notebooks do not address a complete data science problem.  The notebooks are simply examples of how to run the graph analytics.  Manipulation of the data before or after the graph analytic is not covered here.   Extended, more problem focused, notebooks are being created and available https://github.com/rapidsai/notebooks-extended
 
@@ -10,12 +11,13 @@ This repository contains a collection of Jupyter Notebooks that outline how to r
 | Folder          | Notebook                                                     | Description                                                  |
 | --------------- | ------------------------------------------------------------ | ------------------------------------------------------------ |
 | Centrality      |                                                              |                                                              |
-|                 | [Centrality](algorithms/centrality/Centrality.ipynb)         | Compute and compare multiple (currently 5) centrality scores |
-|                 | [Katz](algorithms/centrality/Katz.ipynb)                     | Compute the Katz centrality for every vertex                 |
-|                 | [Betweenness](algorithms/centrality/Betweenness.ipynb)       | Compute both Edge and Vertex Betweenness centrality          |
-|                 | [Degree](algorithms/centrality/Degree.ipynb)                 | Compute Degree Centraility for each vertex                   |
-|                 | [Eigenvector](algorithms/centrality/Eigenvector.ipynb)       | Compute Eigenvector for every vertex                         |
-| Community       |                                                              |                                                              |
+|                 | [Centrality](centrality/Centrality.ipynb)                    | Compute and compare multiple (currently 5) centrality scores |
+|                 | [Katz](centrality/Katz.ipynb)                                | Compute the Katz centrality for every vertex                 |
+|                 | [Betweenness](centrality/Betweenness.ipynb)                  | Compute both Edge and Vertex Betweenness centrality          |
+|                 | [Degree](centrality/Degree.ipynb)                            | Compute Degree Centraility for each vertex                   |
+|                 | [Eigenvector](centrality/Eigenvector.ipynb)                  | Compute Eigenvector for every vertex                         |
+
+<!-- | Community       |                                                              |                                                              |
 |                 | [Louvain](community/Louvain.ipynb) and Leiden                          | Identify clusters in a graph using both the Louvain and Leiden algorithms     |
 |                 | [ECG](community/ECG.ipynb)                                   | Identify clusters in a graph using the Ensemble Clustering for Graph |
 |                 | [K-Truss](community/ktruss.ipynb)                                | Extracts the K-Truss cluster                                 |
@@ -41,39 +43,16 @@ This repository contains a collection of Jupyter Notebooks that outline how to r
 | Structure       |                                                              |                                                              |
 |                 | [Renumbering](structure/Renumber.ipynb) <br> [Renumbering 2](structure/Renumber-2.ipynb) | Renumber the vertex IDs in a graph (two sample notebooks)    |
 |                 | [Symmetrize](structure/Symmetrize.ipynb)                     | Symmetrize the edges in a graph                              |
+ -->
 
+[System Requirements](../README.md#requirements)
 
-## RAPIDS notebooks
-Visit the main RAPIDS [notebooks](https://github.com/rapidsai/notebooks) repo for a listing of all notebooks across all RAPIDS libraries.
+| Author Credit |    Date    |  Update          | cuGraph Version |  Test Hardware |
+| --------------|------------|------------------|-----------------|----------------|
+| Brad Rees     | 04/19/2021 | created          | 0.19            | GV100, CUDA 11.0
+| Don Acosta    | 07/05/2022 | tested / updated | 22.08 nightly   | DGX Tesla V100 CUDA 11.5
 
-## Requirements
-
-Running the example in these notebooks requires:
-
-* The latest version of RAPIDS with cuGraph.
-  * Download via Docker, Conda (See [__Getting Started__](https://rapids.ai/start.html))
-  
-* cuGraph is dependent on the latest version of cuDF.  Please install all components of RAPIDS
-* Python 3.8+
-* A system with an NVIDIA GPU:  Pascal architecture or better
-* CUDA 11.4+
-* NVIDIA driver 450.51+
-
-
-
-#### Notebook Credits
-
-- Original Authors: Bradley Rees
-- Last Edit: 04/19/2021
-
-RAPIDS Versions: 0.19  
-
-Test Hardware
-- GV100 32G, CUDA 9,2
-
-
-
-##### Copyright
+### Copyright
 
 Copyright (c) 2019-2022, NVIDIA CORPORATION.  All rights reserved.
 
@@ -88,4 +67,3 @@ Unless required by applicable law or agreed to in writing, software distributed 
 
 
 ![RAPIDS](img/rapids_logo.png)
-
