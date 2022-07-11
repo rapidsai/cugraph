@@ -206,7 +206,7 @@ struct reduce_with_init_t {
  * (aggregated over the entire set of processes in multi-GPU).
  * @param init Initial value to be reduced with the reduced value for each vertex.
  * @param reduce_op Binary operator that takes two input arguments and reduce the two values to one.
- * There are pre-defined reduction operators in include/cugraph/prims/reduce_op.cuh. It is
+ * There are pre-defined reduction operators in src/prims/reduce_op.cuh. It is
  * recommended to use the pre-defined reduction operators whenever possible as the current (and
  * future) implementations of graph primitives may check whether @p ReduceOp is a known type (or has
  * known member variables) to take a more optimized code path. See the documentation in the
