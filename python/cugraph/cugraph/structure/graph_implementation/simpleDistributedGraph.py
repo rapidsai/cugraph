@@ -74,6 +74,10 @@ class simpleDistributedGraphImpl:
 
         if 'value' in edata_x[0]:
             values = edata_x[0]['value']
+            if values.dtype == 'int32':
+                values = values.astype('float32')
+            elif values.dtype == 'int64':
+                values = values.astype('float64')
         else:
             values = cudf.Series(cupy.ones(len(edata_x[0])))
 

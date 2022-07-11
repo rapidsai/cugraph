@@ -30,46 +30,6 @@ from cugraph.dask.common.input_utils import get_distributed_data
 from cugraph.dask.comms import comms as Comms
 
 
-def call_nbr_sampling(sID,
-                      data,
-                      src_col_name,
-                      dst_col_name,
-                      num_edges,
-                      do_expensive_check,
-                      start_list,
-                      h_fan_out,
-                      with_replacement):
-
-    # Preparation for graph creation
-    handle = Comms.get_handle(sID)
-    handle = ResourceHandle(handle.getHandle())
-    graph_properties = GraphProperties(is_symmetric=False, is_multigraph=False)
-    srcs = data[0][src_col_name]
-    dsts = data[0][dst_col_name]
-    weights = None
-    if "value" in data[0].columns:
-        weights = data[0]['value']
-
-    store_transposed = False
-
-    mg = MGGraph(handle,
-                 graph_properties,
-                 srcs,
-                 dsts,
-                 weights,
-                 store_transposed,
-                 num_edges,
-                 do_expensive_check)
-
-    ret_val = pylibcugraph_uniform_neighbor_sample(handle,
-                                                   mg,
-                                                   start_list,
-                                                   h_fan_out,
-                                                   with_replacement,
-                                                   do_expensive_check)
-    return ret_val
-
-
 def convert_to_cudf(cp_arrays, weight_t):
     """
     Creates a cudf DataFrame from cupy arrays from pylibcugraph wrapper
@@ -140,10 +100,11 @@ def uniform_neighbor_sample(input_graph,
         start_list = [start_list]
 
     if isinstance(start_list, list):
-        start_list = cudf.Series(start_list)
-        if start_list.dtype != "int32":
-            raise ValueError(f"'start_list' must have int32 values, "
-                             f"got: {start_list.dtype}")
+        start_list = cudf.Series(start_list, dtype='int32')
+    
+    if start_list.dtype != "int32":
+        raise ValueError(f"'start_list' must have int32 values, "
+                            f"got: {start_list.dtype}")
 
     # fanout_vals must be a host array!
     # FIXME: ensure other sequence types (eg. cudf Series) can be handled.
@@ -153,39 +114,39 @@ def uniform_neighbor_sample(input_graph,
         raise TypeError("fanout_vals must be a list, "
                         f"got: {type(fanout_vals)}")
 
-    ddf = input_graph.edgelist.edgelist_df
-    src_col_name = input_graph.renumber_map.renumbered_src_col_name
-    dst_col_name = input_graph.renumber_map.renumbered_dst_col_name
-
-    weight_t = ddf["value"].dtype
-    if weight_t == "int32":
-        ddf = ddf.astype({"value": "float32"})
-    elif weight_t == "int64":
-        ddf = ddf.astype({"value": "float64"})
-
-    num_edges = len(ddf)
-    data = get_distributed_data(ddf)
+    weight_t = input_graph.edgelist.edgelist_df["value"].dtype
 
     # start_list uses "external" vertex IDs, but if the graph has been
     # renumbered, the start vertex IDs must also be renumbered.
     if input_graph.renumbered:
         start_list = input_graph.lookup_internal_vertex_id(
             start_list).compute()
-    # FIXME: should we add this parameter as an option?
-    do_expensive_check = False
+    
+    start_list = dask_cudf.from_cudf(start_list, npartitions=input_graph.npartitions)
+    start_list = get_distributed_data(start_list)
 
-    result = [client.submit(call_nbr_sampling,
-                            Comms.get_session_id(),
-                            wf[1],
-                            src_col_name,
-                            dst_col_name,
-                            num_edges,
-                            do_expensive_check,
-                            start_list,
-                            fanout_vals,
-                            with_replacement,
-                            workers=[wf[0]])
-              for idx, wf in enumerate(data.worker_to_parts.items())]
+    result = [
+        client.submit(
+            lambda sID, mg_graph_x, st_x: \
+                pylibcugraph_uniform_neighbor_sample(
+                    resource_handle=ResourceHandle(
+                        Comms.get_handle(sID).getHandle()
+                    ),
+                    input_graph=mg_graph_x,
+                    start_list=st_x[0].to_cupy(),
+                    h_fan_out=fanout_vals,
+                    with_replacement=with_replacement,
+                    # FIXME: should we add this parameter as an option?
+                    do_expensive_check=False
+                ),
+            Comms.get_session_id(),
+            mg_graph,
+            st,
+            workers=[w],
+            key='cugraph.dask.sampling.uniform_neighbor_sample.call_plc_uni_nbr_smpl'
+        )
+        for mg_graph, (w, st) in zip(input_graph._plc_graph, start_list.worker_to_parts.items())
+    ]
 
     wait(result)
 
