@@ -13,7 +13,7 @@
 # limitations under the License.
 
 import numpy
-from dask.distributed import wait, default_client
+from dask.distributed import wait
 
 import dask_cudf
 import cudf
@@ -45,7 +45,12 @@ def convert_to_cudf(cp_arrays, weight_t):
 
     return df
 
-def _call_plc_uniform_neighbor_sample(sID, mg_graph_x, st_x, fanout_vals, with_replacement):
+
+def _call_plc_uniform_neighbor_sample(sID,
+                                      mg_graph_x,
+                                      st_x,
+                                      fanout_vals,
+                                      with_replacement):
     return pylibcugraph_uniform_neighbor_sample(
         resource_handle=ResourceHandle(
             Comms.get_handle(sID).getHandle()
@@ -57,6 +62,7 @@ def _call_plc_uniform_neighbor_sample(sID, mg_graph_x, st_x, fanout_vals, with_r
         # FIXME: should we add this parameter as an option?
         do_expensive_check=True
     )
+
 
 def uniform_neighbor_sample(input_graph,
                             start_list,
@@ -137,7 +143,7 @@ def uniform_neighbor_sample(input_graph,
         npartitions=input_graph.npartitions
     )
     dummy = get_distributed_data(dummy)
-    
+
     client = input_graph._client
 
     result = [
@@ -164,7 +170,7 @@ def uniform_neighbor_sample(input_graph,
     wait(cudf_result)
 
     ddf = dask_cudf.from_delayed(cudf_result)
-    
+
     if input_graph.renumbered:
         ddf = input_graph.unrenumber(ddf, "sources", preserve_order=True)
         ddf = input_graph.unrenumber(ddf, "destinations", preserve_order=True)

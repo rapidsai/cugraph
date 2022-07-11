@@ -17,7 +17,7 @@ from pylibcugraph import (ResourceHandle,
                           bfs as pylibcugraph_bfs
                           )
 
-from dask.distributed import wait, default_client
+from dask.distributed import wait
 from cugraph.dask.common.input_utils import get_distributed_data
 import cugraph.dask.comms.comms as Comms
 import cudf
@@ -36,7 +36,11 @@ def convert_to_cudf(cp_arrays):
     return df
 
 
-def _call_plc_bfs(sID, mg_graph_x, st_x, depth_limit=None, return_distances=True):
+def _call_plc_bfs(sID,
+                  mg_graph_x,
+                  st_x,
+                  depth_limit=None,
+                  return_distances=True):
     return pylibcugraph_bfs(
         ResourceHandle(Comms.get_handle(sID).getHandle()),
         mg_graph_x,
