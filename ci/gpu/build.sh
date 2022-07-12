@@ -122,6 +122,8 @@ fi
 ################################################################################
 
 fnames=()
+# Initialize all the run variables to true, as we want to run all the tests if the build_mode is NOT a pull-request
+run_cpp_tests="true" run_python_tests="true" run_nb_tests="true"
 if [ "$BUILD_MODE" == "pull-request" ]; then
     PR_ENDPOINT="https://api.github.com/repos/rapidsai/cugraph/pulls/${PR_ID}/files"
     fnames=(
@@ -134,11 +136,8 @@ if [ "$BUILD_MODE" == "pull-request" ]; then
       jq -r '.[].filename'
       )
     )
-    # Initialize all the run variables to false, later in the code below, based on what's changed, these variables will be set to true
+    # Initialize all the run variables to false, for pull-requests only, later, based on what's changed, these variables will be set to true
     run_cpp_tests="false" run_python_tests="false" run_nb_tests="false"
-else
-    # Initialize all the run variables to true, as we want to run all the tests if the build_mode is NOT a pull-request
-    run_cpp_tests="true" run_python_tests="true" run_nb_tests="true"
 fi
 # this will not do anything if the 'fnames' array is empty
 for fname in "${fnames[@]}"
