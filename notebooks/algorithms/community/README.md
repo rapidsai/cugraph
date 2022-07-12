@@ -1,0 +1,43 @@
+
+# cuGraph Community Notebooks
+
+<img src="../../img/zachary_graph_comm.png" width="35%"/>
+
+cuGraph Community notebooks contain a collection of Jupyter Notebooks with algorithms that identify related groups of nodes within the graph:
+
+* Louvain, Leiden ECG, K-Truss, and Spectral Clustering all identify clusters or tightly connected vertices.
+* Subgraph Extraction pulls the new sub-graph formed given a set of vertices and returning only the edges contained between them.
+* Finally Triangle counting gives an important metric for quantifying the overall graph connectivity by counting fully connected triples.
+
+## Summary
+
+| Algorithm          | Notebook                                                     | Description                                                  |
+| --------------- | ------------------------------------------------------------ | ------------------------------------------------------------ |
+|        |                                                              |                                                              |
+|                 | [Louvain](community/Louvain.ipynb) and Leiden                          | Identify clusters in a graph using both the Louvain and Leiden algorithms     |
+|                 | [ECG](community/ECG.ipynb)                                   | Identify clusters in a graph using the Ensemble Clustering for Graph |
+|                 | [K-Truss](community/ktruss.ipynb)                                | Extracts the K-Truss cluster                                 |
+|                 | [Spectral-Clustering](community/Spectral-Clustering.ipynb)   | Identify clusters in a  graph using Spectral Clustering with both<br> - Balanced Cut<br> - Modularity Modularity |
+|                 | [Subgraph Extraction](community/Subgraph-Extraction.ipynb)   | Compute a subgraph of the existing graph including only the specified vertices |
+|                 | [Triangle Counting](community/Triangle-Counting.ipynb)       | Count the number of Triangle in a graph                      |
+
+
+
+[System Requirements](../../README.md#requirements)
+
+| Author Credit |    Date    |  Update          | cuGraph Version |  Test Hardware |
+| --------------|------------|------------------|-----------------|----------------|
+| Brad Rees     | 04/19/2021 | created          | 0.19            | GV100, CUDA 11.0
+| Don Acosta    | 07/05/2022 | tested / updated | 22.08 nightly   | DGX Tesla V100 CUDA 11.5
+
+## Copyright
+
+Copyright (c) 2019-2022, NVIDIA CORPORATION.  All rights reserved.
+
+Licensed under the Apache License, Version 2.0 (the "License");  you may not use this file except in compliance with the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0 
+
+Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the License for the specific language governing permissions and limitations under the License.
+
+![RAPIDS](../../img/rapids_logo.png)
