@@ -21,14 +21,15 @@
 #include <utilities/test_utilities.hpp>
 #include <utilities/thrust_wrapper.hpp>
 
+#include <prims/extract_if_e.cuh>
+#include <prims/property_op_utils.cuh>
+#include <prims/update_edge_partition_src_dst_property.cuh>
+
 #include <cugraph/algorithms.hpp>
 #include <cugraph/partition_manager.hpp>
 
 #include <cuco/detail/hash_functions.cuh>
 #include <cugraph/graph_view.hpp>
-#include <cugraph/prims/extract_if_e.cuh>
-#include <cugraph/prims/property_op_utils.cuh>
-#include <cugraph/prims/update_edge_partition_src_dst_property.cuh>
 
 #include <raft/comms/comms.hpp>
 #include <raft/comms/mpi_comms.hpp>

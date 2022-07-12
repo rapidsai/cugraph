@@ -16,7 +16,7 @@
 
 #pragma once
 
-#include <cugraph/prims/property_op_utils.cuh>
+#include <prims/property_op_utils.cuh>
 
 #include <raft/comms/comms.hpp>
 

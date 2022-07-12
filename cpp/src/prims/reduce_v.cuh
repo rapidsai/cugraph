@@ -15,9 +15,10 @@
  */
 #pragma once
 
+#include <prims/property_op_utils.cuh>
+#include <prims/reduce_op.cuh>
+
 #include <cugraph/graph_view.hpp>
-#include <cugraph/prims/property_op_utils.cuh>
-#include <cugraph/prims/reduce_op.cuh>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/host_scalar_comm.cuh>
 

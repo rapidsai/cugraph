@@ -15,12 +15,13 @@
  */
 #pragma once
 
+#include <prims/edge_partition_src_dst_property.cuh>
+#include <prims/extract_if_e.cuh>
+#include <prims/property_op_utils.cuh>
+
 #include <cugraph/detail/decompress_edge_partition.cuh>
 #include <cugraph/edge_partition_device_view.cuh>
 #include <cugraph/graph_view.hpp>
-#include <cugraph/prims/edge_partition_src_dst_property.cuh>
-#include <cugraph/prims/extract_if_e.cuh>
-#include <cugraph/prims/property_op_utils.cuh>
 #include <cugraph/utilities/dataframe_buffer.cuh>
 #include <cugraph/utilities/error.hpp>
 
