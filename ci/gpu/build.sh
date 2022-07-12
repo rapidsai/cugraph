@@ -121,25 +121,31 @@ fi
 # Identify relevant testsets to run in CI based on the ChangeList
 ################################################################################
 
-run_cpp_tests="false" run_python_tests="false" run_nb_tests="false" doc_changed="false" 
 fnames=()
 if [ "$BUILD_MODE" == "pull-request" ]; then
-    PRHTTP=https://api.github.com/repos/rapidsai/cugraph/pulls/${PR_ID}/files
-    fnames=`curl -sb -X GET -H "Accept: application/vnd.github.v3+json" -H "Authorization: token $GHTK"  $PRHTTP | python3 -c "import sys, json; print([labels['filename'] for labels in json.load(sys.stdin)])"`
+    PR_ENDPOINT="https://api.github.com/repos/rapidsai/cugraph/pulls/${PR_ID}/files"
+    fnames=(
+      $(
+      curl -s \
+      -X GET \
+      -H "Accept: application/vnd.github.v3+json" \
+      -H "Authorization: token $GHTK" \
+      "$PR_ENDPOINT" | \
+      jq -r '.[].filename'
+      )
+    )
+    run_cpp_tests="false" run_python_tests="false" run_nb_tests="false"
 else
     run_cpp_tests="true" run_python_tests="true" run_nb_tests="true"
 fi
 # this will not do anything if the 'fnames' array is empty
-for fname in ${fnames[@]}
+for fname in "${fnames[@]}"
 do
    if [[ "$fname" == *"cpp/cmake/"* || "$fname" == *"cpp/CMakeLists.txt"* || "$fname" == *"cpp/src/"* || "$fname" == *"cpp/include/"* || "$fname" == *"cpp/tests/"* || "$fname" == *"cpp/libcugraph_etl/"* || "$fname" == *"cpp/scripts/"* ]]; then
-      run_cpp_tests="true" run_python_tests="true" run_nb_tests="true" doc_changed="true"
+      run_cpp_tests="true" run_python_tests="true" run_nb_tests="true"
    fi
    if [[ "$fname" == *"python/"* ]]; then
-      run_python_tests="true" run_nb_tests="true" doc_changed="true"
-   fi
-   if [[ "$fname" == *"docs/"* ]]; then
-      doc_changed="true"
+      run_python_tests="true" run_nb_tests="true"
    fi
    if [[ "$fname" == *"notebooks/"* ]]; then
       run_nb_tests="true"
@@ -152,7 +158,6 @@ gpuci_logger "Summary of CI tests to be executed"
 gpuci_logger "Run cpp tests=$run_cpp_tests"
 gpuci_logger "Run python tests=$run_python_tests"
 gpuci_logger "Run notebook tests=$run_nb_tests"
-gpuci_logger "Docs updated=$doc_changed"
 
 ################################################################################
 # TEST
