@@ -21,10 +21,21 @@ rapids_cython_create_modules(
 )
 
 set(targets_using_numpy internals_internals)
+set(targets_using_headers internals_internals)
+
+include_directories(${CMAKE_CURRENT_LIST_DIR})
+
+# test code to be removed
+
+#target_include_directories(${targets_using_header} PRIVATE "/home/nfs/jnke/build-pr/cugraph/python/cugraph/cugraph/internals")
+
 foreach(target IN LISTS targets_using_numpy)
   target_include_directories(${target} PRIVATE "${Python_NumPy_INCLUDE_DIRS}")
 endforeach()
 
+message(STATUS "rapids cython created targets ${RAPIDS_CYTHON_CREATED_TARGETS}")
+
 foreach(cython_module IN LISTS RAPIDS_CYTHON_CREATED_TARGETS)
+  message(STATUS "cython module is ${cython_module}")
   set_target_properties(${cython_module} PROPERTIES INSTALL_RPATH "\$ORIGIN;\$ORIGIN/../library")
 endforeach()

@@ -53,7 +53,7 @@ if(NOT cugraph_FOUND)
   # TODO: This will not be necessary once we upgrade to CMake 3.22, which will pull in the required
   # languages for the C++ project even if this project does not require those languges.
   include(rapids-cuda)
-  rapids_cuda_init_architectures(pylibcugraph-python)
+  rapids_cuda_init_architectures(CUGRAPH)
   enable_language(CUDA)
 
   # FIXME: check of this is necessary
@@ -64,8 +64,8 @@ if(NOT cugraph_FOUND)
 
   # FIXME: are those parameter necessary?
   
-  set(BUILD_TESTS OFF)
-  set(BUILD_BENCHMARKS OFF)
+  #set(BUILD_TESTS OFF)
+  #set(BUILD_BENCHMARKS OFF)
   message(STATUS "installing packages")
   add_subdirectory(../../cpp cugraph-cpp)
 

@@ -11,7 +11,7 @@
 # or implied. See the License for the specific language governing permissions and limitations under
 # the License.
 # =============================================================================
-
+#include(cmake/thirdparty/get_libcudacxx.cmake)
 set(cython_sources
     bfs.pyx
     eigenvector_centrality.pyx
@@ -52,6 +52,7 @@ foreach(target IN LISTS targets_using_numpy)
   target_include_directories(${target} PRIVATE "${Python_NumPy_INCLUDE_DIRS}")
 endforeach()
 
+#message(STATUS "origin is ${HOME}")
 foreach(cython_module IN LISTS RAPIDS_CYTHON_CREATED_TARGETS)
   message(STATUS "cython module is ${cython_module}")
   set_target_properties(${cython_module} PROPERTIES INSTALL_RPATH "\$ORIGIN;\$ORIGIN/../library")
