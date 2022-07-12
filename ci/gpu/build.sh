@@ -142,7 +142,7 @@ fi
 # this will not do anything if the 'fnames' array is empty
 for fname in "${fnames[@]}"
 do
-   if [[ "$fname" == *"cpp/cmake/"*  && "$fname" != *"cpp/docs/"* && "$fname" != *"cpp/doxygen/"* ]]; then
+   if [[ "$fname" == *"cpp/"* && "$fname" != *"cpp/docs/"* && "$fname" != *"cpp/doxygen/"* ]]; then
       run_cpp_tests="true" run_python_tests="true" run_nb_tests="true"
    fi
    if [[ "$fname" == *"python/"* ]]; then
