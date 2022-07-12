@@ -14,12 +14,12 @@ cuGraph Community notebooks contain a collection of Jupyter Notebooks with algor
 | Algorithm          | Notebook                                                     | Description                                                  |
 | --------------- | ------------------------------------------------------------ | ------------------------------------------------------------ |
 |        |                                                              |                                                              |
-|                 | [Louvain](community/Louvain.ipynb) and Leiden                          | Identify clusters in a graph using both the Louvain and Leiden algorithms     |
-|                 | [ECG](community/ECG.ipynb)                                   | Identify clusters in a graph using the Ensemble Clustering for Graph |
-|                 | [K-Truss](community/ktruss.ipynb)                                | Extracts the K-Truss cluster                                 |
-|                 | [Spectral-Clustering](community/Spectral-Clustering.ipynb)   | Identify clusters in a  graph using Spectral Clustering with both<br> - Balanced Cut<br> - Modularity Modularity |
-|                 | [Subgraph Extraction](community/Subgraph-Extraction.ipynb)   | Compute a subgraph of the existing graph including only the specified vertices |
-|                 | [Triangle Counting](community/Triangle-Counting.ipynb)       | Count the number of Triangle in a graph                      |
+|                 | [Louvain](./Louvain.ipynb) and Leiden                          | Identify clusters in a graph using both the Louvain and Leiden algorithms     |
+|                 | [ECG](./ECG.ipynb)                                   | Identify clusters in a graph using the Ensemble Clustering for Graph |
+|                 | [K-Truss](./ktruss.ipynb)                                | Extracts the K-Truss cluster                                 |
+|                 | [Spectral-Clustering](./Spectral-Clustering.ipynb)   | Identify clusters in a  graph using Spectral Clustering with both<br> - Balanced Cut<br> - Modularity |
+|                 | [Subgraph Extraction](./Subgraph-Extraction.ipynb)   | Compute a subgraph of the existing graph including only the specified vertices |
+|                 | [Triangle Counting](./Triangle-Counting.ipynb)       | Count the number of Triangle in a graph                      |
 
 
 
