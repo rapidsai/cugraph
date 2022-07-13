@@ -395,7 +395,8 @@ std::tuple<rmm::device_uvector<vertex_t>, std::vector<vertex_t>> compute_renumbe
   static_assert((detail::low_degree_threshold <= detail::mid_degree_threshold) &&
                 (detail::mid_degree_threshold <= std::numeric_limits<edge_t>::max()));
   static_assert(detail::low_degree_threshold >= 1);
-  static_assert((detail::hypersparse_threshold_ratio >= 0.0) && (detail::hypersparse_threshold_ratio <= 1.0));
+  static_assert((detail::hypersparse_threshold_ratio >= 0.0) &&
+                (detail::hypersparse_threshold_ratio <= 1.0));
   size_t mid_degree_threshold{detail::mid_degree_threshold};
   size_t low_degree_threshold{detail::low_degree_threshold};
   size_t hypersparse_degree_threshold{0};

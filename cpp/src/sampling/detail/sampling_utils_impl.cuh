@@ -679,23 +679,24 @@ void local_major_degree(
   }
   // Hypersparse region
   if (edge_partition.dcs_nzd_vertex_count()) {
-  if (majors_segments[4] - majors_segments[3] > 0) {
-    auto major_hypersparse_first = *(edge_partition.major_hypersparse_first());
-    auto major_offset =
-      static_cast<size_t>(major_hypersparse_first - edge_partition.major_range_first());
-    thrust::transform(handle.get_thrust_policy(),
-                      active_majors.cbegin() + majors_segments[3],
-                      active_majors.cbegin() + majors_segments[4],
-                      out_degrees + majors_segments[3] - majors_segments[0],
-                      [edge_partition, major_offset] __device__(auto major) {
-                        auto major_idx = edge_partition.major_hypersparse_idx_from_major_nocheck(major);
-                        if (major_idx) {
-                          return edge_partition.local_degree(major_offset + *major_idx);
-                        } else {
-                          return edge_t{0};
-                        }
-                      });
-  }
+    if (majors_segments[4] - majors_segments[3] > 0) {
+      auto major_hypersparse_first = *(edge_partition.major_hypersparse_first());
+      auto major_offset =
+        static_cast<size_t>(major_hypersparse_first - edge_partition.major_range_first());
+      thrust::transform(handle.get_thrust_policy(),
+                        active_majors.cbegin() + majors_segments[3],
+                        active_majors.cbegin() + majors_segments[4],
+                        out_degrees + majors_segments[3] - majors_segments[0],
+                        [edge_partition, major_offset] __device__(auto major) {
+                          auto major_idx =
+                            edge_partition.major_hypersparse_idx_from_major_nocheck(major);
+                          if (major_idx) {
+                            return edge_partition.local_degree(major_offset + *major_idx);
+                          } else {
+                            return edge_t{0};
+                          }
+                        });
+    }
   }
 }
 
