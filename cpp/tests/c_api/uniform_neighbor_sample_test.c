@@ -74,6 +74,7 @@ int create_test_graph_with_edge_ids(const cugraph_resource_handle_t* p_handle,
 
   ret_code = cugraph_type_erased_device_array_view_copy_from_host(
     p_handle, src_view, (byte_t*)h_src, ret_error);
+
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "src copy_from_host failed.");
 
   ret_code = cugraph_type_erased_device_array_view_copy_from_host(
@@ -151,6 +152,7 @@ int generic_uniform_neighbor_sample_test(vertex_t* h_src,
 
   ret_code = cugraph_type_erased_device_array_view_copy_from_host(
     handle, d_start_view, (byte_t*)h_start, &ret_error);
+
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "start copy_from_host failed.");
 
   h_fan_out_view = cugraph_type_erased_host_array_view_create(fan_out, max_depth, INT32);
@@ -158,6 +160,10 @@ int generic_uniform_neighbor_sample_test(vertex_t* h_src,
   ret_code = cugraph_uniform_neighbor_sample(
     handle, graph, d_start_view, h_fan_out_view, with_replacement, FALSE, &result, &ret_error);
 
+#ifdef NO_CUGRAPH_OPS
+  TEST_ASSERT(
+    test_ret_value, ret_code != CUGRAPH_SUCCESS, "uniform_neighbor_sample should have failed")
+#else
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "uniform_neighbor_sample failed.");
 
@@ -205,7 +211,13 @@ int generic_uniform_neighbor_sample_test(vertex_t* h_src,
                 "uniform_neighbor_sample got edge that doesn't exist");
   }
 
+  cugraph_sample_result_free(result);
+#endif
+
   cugraph_type_erased_host_array_view_free(h_fan_out_view);
+  cugraph_sg_graph_free(graph);
+  cugraph_free_resource_handle(handle);
+  cugraph_error_free(ret_error);
 
   return test_ret_value;
 }
