@@ -337,7 +337,7 @@ def dataset1_CuGraphStore():
     )
 
     pG = PropertyGraph()
-    graph = CuGraphStore(pG)
+    graph = CuGraphStore(pG, backend_lib='cupy')
     # Vertex and edge data is added as one or more DataFrames; either a Pandas
     # DataFrame to keep data on the CPU, a cuDF DataFrame to keep data on GPU,
     # or a dask_cudf DataFrame to keep data on distributed GPUs.
