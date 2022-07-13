@@ -233,7 +233,7 @@ if buildAll || hasArg pylibcugraph; then
     # build. If not set by the user, set it to LIBCUGRAPH_BUILD_DIR
     CUGRAPH_BUILD_PATH=${CUGRAPH_BUILD_PATH:=${LIBCUGRAPH_BUILD_DIR}}
     python setup.py build_ext --inplace --library-dir=${LIBCUGRAPH_BUILD_DIR} \
-           -- -DFIND_CUGRAPH_CPP=OFF \
+           -- -DFIND_CUGRAPH_CPP=ON \
            -Dcugraph_ROOT=${LIBCUGRAPH_BUILD_DIR} -- -j${PARALLEL_LEVEL:-1}
     if [[ ${INSTALL_TARGET} != "" ]]; then
 	env CUGRAPH_BUILD_PATH=${CUGRAPH_BUILD_PATH} python setup.py install
@@ -248,7 +248,7 @@ if buildAll || hasArg cugraph; then
     # build. If not set by the user, set it to LIBCUGRAPH_BUILD_DIR
     CUGRAPH_BUILD_PATH=${CUGRAPH_BUILD_PATH:=${LIBCUGRAPH_BUILD_DIR}}
     python setup.py build_ext --inplace --library-dir=${LIBCUGRAPH_BUILD_DIR} \
-           -- -DFIND_CUGRAPH_CPP=OFF \
+           -- -DFIND_CUGRAPH_CPP=ON \
            -Dcugraph_ROOT=${LIBCUGRAPH_BUILD_DIR} -- -j${PARALLEL_LEVEL:-1}
     if [[ ${INSTALL_TARGET} != "" ]]; then
 	env CUGRAPH_BUILD_PATH=${CUGRAPH_BUILD_PATH} python setup.py install
