@@ -102,6 +102,15 @@ class Tests_MG_Nbr_Sampling
 
     std::vector<int> h_fan_out{indices_per_source};  // depth = 1
 
+#ifdef NO_CUGRAPH_OPS
+    EXPECT_THROW(cugraph::uniform_nbr_sample(
+                   handle,
+                   mg_graph_view,
+                   raft::device_span<vertex_t>(random_sources.data(), random_sources.size()),
+                   raft::host_span<const int>(h_fan_out.data(), h_fan_out.size()),
+                   prims_usecase.flag_replacement),
+                 std::exception);
+#else
     auto&& [d_src_out, d_dst_out, d_indices, d_counts] = cugraph::uniform_nbr_sample(
       handle,
       mg_graph_view,
@@ -165,6 +174,7 @@ class Tests_MG_Nbr_Sampling
                                                h_fan_out.size());
       }
     }
+#endif
   }
 };
 

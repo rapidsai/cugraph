@@ -16,14 +16,15 @@
 
 #pragma once
 
+#include <detail/graph_utils.cuh>
+#include <prims/edge_partition_src_dst_property.cuh>
+#include <prims/per_v_transform_reduce_incoming_outgoing_e.cuh>
+#include <prims/transform_reduce_e.cuh>
+
 #include <cugraph/detail/decompress_edge_partition.cuh>
-#include <cugraph/detail/graph_utils.cuh>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/partition_manager.hpp>
-#include <cugraph/prims/edge_partition_src_dst_property.cuh>
-#include <cugraph/prims/per_v_transform_reduce_incoming_outgoing_e.cuh>
-#include <cugraph/prims/transform_reduce_e.cuh>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/host_scalar_comm.cuh>
 

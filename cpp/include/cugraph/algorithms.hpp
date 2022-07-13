@@ -24,7 +24,9 @@
 #include <cugraph/internals.hpp>
 #include <cugraph/legacy/graph.hpp>
 
+#ifndef NO_CUGRAPH_OPS
 #include <cugraph-ops/graph/sampling.hpp>
+#endif
 
 #include <raft/handle.hpp>
 #include <raft/random/rng_state.hpp>
@@ -1348,6 +1350,7 @@ random_walks(raft::handle_t const& handle,
              bool use_padding                                     = false,
              std::unique_ptr<sampling_params_t> sampling_strategy = nullptr);
 
+#ifndef NO_CUGRAPH_OPS
 /**
  * @brief generate sub-sampled graph as an adjacency list (CSR format) given input graph,
  * list of vertices and sample size per vertex. The output graph consists of the given
@@ -1409,6 +1412,7 @@ sample_neighbors_edgelist(raft::handle_t const& handle,
                           size_t num_start_vertices,
                           size_t sampling_size,
                           ops::gnn::graph::SamplingAlgoT sampling_algo);
+#endif
 
 /**
  * @brief Finds (weakly-connected-)component IDs of each vertices in the input graph.

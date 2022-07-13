@@ -15,14 +15,15 @@
  */
 #pragma once
 
+#include <detail/graph_utils.cuh>
+#include <prims/edge_partition_src_dst_property.cuh>
+#include <prims/update_edge_partition_src_dst_property.cuh>
+
 #include <cugraph/detail/decompress_edge_partition.cuh>
-#include <cugraph/detail/graph_utils.cuh>
 #include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
-#include <cugraph/prims/edge_partition_src_dst_property.cuh>
-#include <cugraph/prims/update_edge_partition_src_dst_property.cuh>
 #include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/error.hpp>
 

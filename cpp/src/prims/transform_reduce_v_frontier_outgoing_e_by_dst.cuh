@@ -15,11 +15,12 @@
  */
 #pragma once
 
+#include <prims/property_op_utils.cuh>
+#include <prims/reduce_op.cuh>
+
 #include <cugraph/edge_partition_device_view.cuh>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/partition_manager.hpp>
-#include <cugraph/prims/property_op_utils.cuh>
-#include <cugraph/prims/reduce_op.cuh>
 #include <cugraph/utilities/dataframe_buffer.cuh>
 #include <cugraph/utilities/device_comm.cuh>
 #include <cugraph/utilities/device_functors.cuh>
@@ -936,7 +937,7 @@ typename GraphViewType::edge_type compute_num_out_nbrs_from_frontier(
  * ReduceOp::value_type is not void); or 5) a tuple of a tag and a value to be reduced (if vertices
  * are tagged and ReduceOp::value_type is not void).
  * @param reduce_op Binary operator that takes two input arguments and reduce the two values to one.
- * There are pre-defined reduction operators in include/cugraph/prims/reduce_op.cuh. It is
+ * There are pre-defined reduction operators in prims/reduce_op.cuh. It is
  * recommended to use the pre-defined reduction operators whenever possible as the current (and
  * future) implementations of graph primitives may check whether @p ReduceOp is a known type (or has
  * known member variables) to take a more optimized code path. See the documentation in the
