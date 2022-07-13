@@ -1378,7 +1378,9 @@ random_walks(raft::handle_t const& handle,
  *         terminates before max_depth the subsequent edge weights will be
  *         set to weight_t{0}.
  */
-template <typename vertex_t, typename edge_t, typename weight_t, typename multi_gpu>
+// TODO: Do I care about transposed or not?  I want to be able to operate in either
+// direction.
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<edge_t>> uniform_random_walks(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
@@ -1413,7 +1415,7 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<edge_t>> uniform_r
  *         terminates before max_depth the subsequent edge weights will be
  *         set to weight_t{0}.
  */
-template <typename vertex_t, typename edge_t, typename weight_t, typename multi_gpu>
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<edge_t>> biased_random_walks(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
@@ -1450,7 +1452,7 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<edge_t>> biased_ra
  *         terminates before max_depth the subsequent edge weights will be
  *         set to weight_t{0}.
  */
-template <typename vertex_t, typename edge_t, typename weight_t, typename multi_gpu>
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<edge_t>> node2vec_random_walks(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,

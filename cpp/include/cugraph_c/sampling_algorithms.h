@@ -95,14 +95,15 @@ cugraph_error_code_t cugraph_biased_random_walk(
  *                           be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
  */
-cugraph_error_code_t cugraph_node2vec_random_walk(const cugraph_resource_handle_t* handle,
-                                      cugraph_graph_t* graph,
-                                      const cugraph_type_erased_device_array_view_t* sources,
-                                      size_t max_depth,
-                                      double p,
-                                      double q,
-                                      cugraph_random_walk_result_t** result,
-                                      cugraph_error_t** error);
+cugraph_error_code_t cugraph_node2vec_random_walk(
+  const cugraph_resource_handle_t* handle,
+  cugraph_graph_t* graph,
+  const cugraph_type_erased_device_array_view_t* sources,
+  size_t max_depth,
+  double p,
+  double q,
+  cugraph_random_walk_result_t** result,
+  cugraph_error_t** error);
 
 /**
  * @brief  Compute random walks using the node2vec framework.
