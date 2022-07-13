@@ -39,7 +39,7 @@ __device__ __host__ inline void _set_bit(mask_type* arr, mask_type h)
   mask_type old = arr[idx];
   do {
     assumed = old;
-    old     = atomicCAS(arr + idx, assumed, assumed & ~(bit << 1));
+    old     = atomicCAS(arr + idx, assumed, assumed | (bit << 1));
   } while (assumed != old);
 }
 
@@ -52,29 +52,54 @@ __device__ __host__ inline bool _is_set(mask_type* arr, mask_type h)
 {
   mask_type bit = h & (std::numeric_limits<mask_type>::digits - 1);
   mask_type idx = h / std::numeric_limits<mask_type>::digits;
-  return (arr[idx] & (1 << bit)) > 0;
+  return arr[idx] >> bit & 1U;
 }
-};  // END namespace detail
 
 /**
- * A wrapper around a bitmasked array which allows elements to be looked
- * up using standard indexing.
- * @tparam T
+ * Return whether or not a specific vertex is masked
+ * @param vertex
+ * @return
  */
-template <typename T, typename mask_t = std::uint32_t>
-struct bitset {
-  __host__ __device__ bitset(T n_, T* bits_) : n(n_), bits(bits_) {}
+template<typename vertex_t, typename mask_t>
+__device__ bool is_vertex_masked(mask_t *vertex_mask, vertex_t vertex)
+{
+    return detail::_is_set<mask_t>(vertex_mask, static_cast<mask_t>(vertex));
+}
 
-  __host__ __device__ T& operator[](T idx)
-  {
-    RAFT_EXPECTS(idx > 0 && idx < n, "Index out of bounds.");
-    return static_cast<T>(detail::_is_set(bits, idx));
-  }
+/**
+ * Return whether or not a specific edge is masked
+ * @param edge_offset
+ * @return
+ */
+template<typename edge_t, typename mask_t>
+__device__ bool is_edge_masked(mask_t *edge_mask, edge_t edge_offset)
+{
+    return detail::_is_set<mask_t>(edge_mask, static_cast<mask_t>(edge_offset));
+}
 
- private:
-  T n;
-  T* bits;
-};
+/**
+ * Add specific vertex to mask
+ * @param vertex id of vertex to mask
+ * @return
+ */
+template<typename vertex_t, typename mask_t>
+__device__ void mask_vertex(mask_t *vertex_mask, vertex_t vertex)
+{
+    detail::_set_bit<mask_t>(vertex_mask, static_cast<mask_t>(vertex));
+}
+
+/**
+ * Add specific edge to mask
+ * @param edge_offset offset of edge to mask
+ * @return
+ */
+template<typename edge_t, typename mask_t>
+__device__ void mask_edge(mask_t *edge_mask, edge_t edge_offset)
+{
+    detail::_set_bit<mask_t>(edge_mask, static_cast<mask_t>(edge_offset));
+}
+
+};  // END namespace detail
 
 /**
  * Mask view to be used in device functions for reading and updating existing mask.
@@ -120,6 +145,11 @@ struct graph_mask_view_t {
   {
   }
 
+  using vertex_type = vertex_t;
+  using edge_type   = edge_t;
+  using mask_type   = mask_t;
+  using size_type   = std::size_t;
+
   ~graph_mask_view_t()                            = default;
   graph_mask_view_t(graph_mask_view_t&&) noexcept = default;
 
@@ -127,88 +157,39 @@ struct graph_mask_view_t {
   graph_mask_view_t& operator=(graph_mask_view_t const& other) = default;
 
   /**
-   * Return whether or not a specific vertex is masked
-   * @param vertex
-   * @return
-   */
-  __device__ bool is_vertex_masked(vertex_t vertex)
-  {
-    if (has_vertex_mask_) {
-      // TODO: This is going to implicitly limit vertex_t to uint32_t. Need to support 64-bit types
-      // as well
-      return detail::_is_set<mask_t>(vertices_, static_cast<mask_t>(vertex));
-    } else {
-      return !complement_;
-    }
-  }
-
-  /**
-   * Return whether or not a specific edge is masked
-   * @param edge_offset
-   * @return
-   */
-  __device__ bool is_edge_masked(edge_t edge_offset)
-  {
-    if (has_edge_mask_) {
-      // TODO: This is going to implicitly limit edge_t to uint32_t. Need to support 64-bit types as
-      // well
-      return detail::_is_set<mask_t>(edges_, static_cast<mask_t>(edge_offset));
-    } else {
-      return !complement_;
-    }
-  }
-
-  /**
-   * Add specific vertex to mask
-   * @param vertex id of vertex to mask
-   * @return
-   */
-  __device__ void mask_vertex(vertex_t vertex)
-  {
-    RAFT_EXPECTS(has_vertex_mask_, "Vertex mask needs to be initialized before it can be used");
-    detail::_set_bit<mask_t>(vertices_, static_cast<mask_t>(vertex));
-  }
-
-  /**
-   * Add specific edge to mask
-   * @param edge_offset offset of edge to mask
-   * @return
-   */
-  __device__ void mask_edge(edge_t edge_offset)
-  {
-    RAFT_EXPECTS(has_edge_mask_, "Edge mask needs to be initialized before it can be used");
-    detail::_set_bit<mask_t>(edges_, static_cast<mask_t>(edge_offset));
-  }
-
-  /**
    * Are masks complemeneted?
    *
    * - !complemented means masks are inclusive (masking in)
    * - complemented means masks are exclusive (masking out)
    */
-  __host__ __device__ bool is_complemented() const { return complement_; }
+  bool is_complemented() const { return complement_; }
 
   /**
    * Has the edge mask been initialized?
    */
-  __host__ __device__ bool has_edge_mask() const { return has_vertex_mask_; }
+  bool has_edge_mask() const { return has_edge_mask_; }
 
   /**
    * Has the vertex mask been initialized?
    */
-  __host__ __device__ bool has_vertex_mask() const { return has_edge_mask_; }
+  bool has_vertex_mask() const { return has_vertex_mask_; }
 
   /**
    * Get the vertex mask
    */
-  __host__ __device__ mask_t* get_vertex_mask() const { return vertices_; }
+  mask_t* get_vertex_mask() const { return vertices_; }
 
   /**
    * Get the edge mask
    */
-  __host__ __device__ mask_t* get_edge_mask() const { return edges_; }
+  mask_t* get_edge_mask() const { return edges_; }
 
- protected:
+  edge_t get_edge_mask_size() const { return n_edges_ / std::numeric_limits<mask_t>::digits; }
+
+  vertex_t get_vertex_mask_size() const { return n_vertices_ / std::numeric_limits<mask_t>::digits; }
+
+
+protected:
   raft::handle_t const& handle_;
   bool has_vertex_mask_{false};
   bool has_edge_mask_{false};
@@ -319,13 +300,17 @@ struct graph_mask_t {
 
   edge_t get_n_edges() { return n_edges_; }
 
+  edge_t get_edge_mask_size() const { return n_edges_ / std::numeric_limits<mask_t>::digits; }
+
+  vertex_t get_vertex_mask_size() const { return n_vertices_ / std::numeric_limits<mask_t>::digits; }
+
   /**
    * Initializes an edge mask by allocating the device memory
    */
   void initialize_edge_mask()
   {
     if (edges_.size() == 0) {
-      edges_.resize(n_edges_, handle_.get_stream());
+      edges_.resize(get_edge_mask_size(), handle_.get_stream());
       clear_edge_mask();
     }
   }
@@ -336,7 +321,7 @@ struct graph_mask_t {
   void initialize_vertex_mask()
   {
     if (vertices_.size() == 0) {
-      vertices_.resize(n_vertices_, handle_.get_stream());
+      vertices_.resize(get_vertex_mask_size(), handle_.get_stream());
       clear_vertex_mask();
     }
   }

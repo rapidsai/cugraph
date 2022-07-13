@@ -23,6 +23,7 @@
 #include <cugraph/utilities/device_comm.cuh>
 #include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/host_scalar_comm.cuh>
+#include <raft/core/logger.hpp>
 
 #include <raft/handle.hpp>
 
@@ -96,6 +97,8 @@ rmm::device_uvector<typename GraphViewType::edge_type> compute_local_major_degre
   // local_edge_partition_src_range_size == summation of major_range_size() of all partitions
   // belonging to the gpu
   vertex_t partial_offset{0};
+
+  printf("number_of_local_edge_partitions(): %d\n", graph_view.number_of_local_edge_partitions());
   for (size_t i = 0; i < graph_view.number_of_local_edge_partitions(); ++i) {
     auto edge_partition =
       edge_partition_device_view_t<vertex_t, edge_t, weight_t, GraphViewType::is_multi_gpu>(
@@ -108,6 +111,8 @@ rmm::device_uvector<typename GraphViewType::edge_type> compute_local_major_degre
                              : false;
     auto mask            = graph_view.get_mask_view(i);
 
+    printf("mask_has_value: %d, mask_has_edge_mask: %d\n", mask.has_value(), (*mask).has_edge_mask());
+
     if (use_dcs) {
       auto num_sparse_vertices     = (*segment_offsets)[num_sparse_segments_per_vertex_partition];
       auto major_hypersparse_first = edge_partition.major_range_first() + num_sparse_vertices;
@@ -116,13 +121,25 @@ rmm::device_uvector<typename GraphViewType::edge_type> compute_local_major_degre
       auto sparse_begin = local_degrees.begin() + partial_offset;
       auto sparse_end   = local_degrees.begin() + partial_offset + num_sparse_vertices;
 
-      // TODO: Masked degrees
-      thrust::tabulate(handle.get_thrust_policy(),
-                       sparse_begin,
-                       sparse_end,
-                       [offsets = edge_partition.offsets()] __device__(auto i) {
-                         return offsets[i + 1] - offsets[i];
-                       });
+        // If a vertex mask is present, compute the (local) degrees of the masked vertices
+        if (mask.has_value() && (*mask).has_edge_mask()) {
+
+
+            raft::logger::get().log(RAFT_LEVEL_INFO, "Computing masked degrees 1");
+            compute_masked_degrees(handle, graph_view, sparse_begin, num_sparse_vertices, edge_partition);
+
+            raft::print_device_vector("sparse_begin", sparse_begin, num_sparse_vertices, std::cout);
+        } else {
+
+            // TODO: Masked degrees
+            thrust::tabulate(handle.get_thrust_policy(),
+                             sparse_begin,
+                             sparse_end,
+            [offsets = edge_partition.offsets()] __device__(auto
+            i) {
+                return offsets[i + 1] - offsets[i];
+            });
+        }
 
       // Calculate degrees in hypersparse region
       auto dcs_nzd_vertex_count = *(edge_partition.dcs_nzd_vertex_count());
@@ -137,7 +154,9 @@ rmm::device_uvector<typename GraphViewType::edge_type> compute_local_major_degre
       auto offsets           = edge_partition.offsets();
       vertex_t offsets_start = major_hypersparse_first - major_range_first;
 
-      if (mask.has_value() && (*mask).has_vertex_mask()) {
+      if (mask.has_value() && (*mask).has_edge_mask()) {
+
+          raft::logger::get().log(RAFT_LEVEL_INFO, "Computing masked degrees 2");
 
         masked_degrees<vertex_t, edge_t>(handle,
                                          sparse_begin,
@@ -146,6 +165,9 @@ rmm::device_uvector<typename GraphViewType::edge_type> compute_local_major_degre
                                          major_range_first,
                                          vertex_ids,
                                          edge_partition.offsets() + offsets_start);
+        handle.sync_stream();
+          raft::print_device_vector("sparse_begin", sparse_begin, dcs_nzd_vertex_count, std::cout);
+
       } else {
         thrust::for_each(
           handle.get_thrust_policy(),
@@ -155,9 +177,10 @@ rmm::device_uvector<typename GraphViewType::edge_type> compute_local_major_degre
            major_range_first,
            vertex_ids,
            offsets,
+           offsets_start,
            local_degrees = thrust::raw_pointer_cast(sparse_begin)] __device__(auto i) {
-            auto d = offsets[(major_hypersparse_first - major_range_first) + i + 1] -
-                     offsets[(major_hypersparse_first - major_range_first) + i];
+            auto d = offsets[offsets_start + i + 1] -
+                     offsets[offsets_start + i];
             auto v                               = vertex_ids[i];
             local_degrees[v - major_range_first] = d;
           });
@@ -168,8 +191,13 @@ rmm::device_uvector<typename GraphViewType::edge_type> compute_local_major_degre
       vertex_t size   = partial_offset + edge_partition.major_range_size();
 
       // If a vertex mask is present, compute the (local) degrees of the masked vertices
-      if (mask.has_value() && (*mask).has_vertex_mask()) {
+      if (mask.has_value() && (*mask).has_edge_mask()) {
+
+          raft::print_device_vector("edge mask", (*mask).get_edge_mask(), (*mask).get_edge_mask_size(), std::cout);
+          raft::logger::get().log(RAFT_LEVEL_INFO, "Computing masked degrees 3, %d", partial_offset);
         compute_masked_degrees(handle, graph_view, sparse_begin, size, edge_partition);
+
+        raft::print_device_vector("sparse_begin", sparse_begin, size, std::cout);
       } else {
         thrust::tabulate(handle.get_thrust_policy(),
                          sparse_begin,
@@ -190,6 +218,8 @@ std::tuple<rmm::device_uvector<typename GraphViewType::edge_type>,
 get_global_degree_information(raft::handle_t const& handle, GraphViewType const& graph_view)
 {
   using edge_t       = typename GraphViewType::edge_type;
+
+  printf("compute_local_major_degrees\n");
   auto local_degrees = compute_local_major_degrees(handle, graph_view);
 
   if constexpr (GraphViewType::is_multi_gpu) {

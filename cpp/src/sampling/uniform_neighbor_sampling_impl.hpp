@@ -53,6 +53,7 @@ uniform_nbr_sample_impl(
   // List of vertices to sample.
   rmm::device_uvector<typename graph_view_t::vertex_type>& d_in,
 
+
   // vector of branching out (fan-out) degree per source vertex for each level
   // parameter used for obtaining local out-degree information
   raft::host_span<const int> h_fan_out,
@@ -61,6 +62,8 @@ uniform_nbr_sample_impl(
   bool with_replacement,
   uint64_t seed)
 {
+
+    printf("Inside uniform_nbr_sample impl\n");
   using vertex_t = typename graph_view_t::vertex_type;
   using edge_t   = typename graph_view_t::edge_type;
   using weight_t = typename graph_view_t::weight_type;
@@ -101,6 +104,8 @@ uniform_nbr_sample_impl(
       // extract out-degs(sources):
 
       // TODO: `get_active_major_global_degrees` should use the mask
+
+      printf("get_active_major_global_degrees\n");
       auto&& d_out_degs =
         get_active_major_global_degrees(handle, graph_view, d_in, global_out_degrees);
 
@@ -183,6 +188,7 @@ uniform_nbr_sample(
   bool with_replacement,
   uint64_t seed)
 {
+    std::cout << "Inside nuniform neighborhood sampling" << std::endl;
   rmm::device_uvector<vertex_t> d_start_vs(starting_vertices.size(), handle.get_stream());
   raft::copy(
     d_start_vs.data(), starting_vertices.data(), starting_vertices.size(), handle.get_stream());
@@ -191,6 +197,8 @@ uniform_nbr_sample(
   //
 
   // TODO: This probably needs to filter based on the mask.
+
+  printf("get_global_degree_information\n");
   auto&& [global_degree_offsets, global_out_degrees] =
     detail::get_global_degree_information(handle, graph_view);
 

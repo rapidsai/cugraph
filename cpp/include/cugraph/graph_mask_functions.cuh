@@ -27,6 +27,79 @@ namespace cugraph {
 namespace detail {
 
 /**
+ * Find the kth masked bit in a mask using divide and conquer approach
+ */
+
+template<typename t = int>
+__device__ int level_to_bits(t l) {
+    t l2 = 6-(l+1);
+    return 2^l2;
+}
+
+template<typename edge_t, typename mask_type>
+__device__ edge_t kth_bit(mask_type *mask,
+                          edge_t start_offset,
+                          edge_t stop_offset,
+                          edge_t n_bits,
+                          edge_t k) {
+    mask_type start_mask_offset = start_offset / std::numeric_limits<mask_type>::digits;
+    mask_type stop_mask_offset  = stop_offset / std::numeric_limits<mask_type>::digits;
+
+    mask_type start_bit = start_offset & (std::numeric_limits<mask_type>::digits - 1);
+    mask_type stop_bit  = stop_offset & (std::numeric_limits<mask_type>::digits - 1);
+
+    mask_type start_mask = (0xffffffff << start_bit) >> start_bit;
+    mask_type stop_mask  = (0xffffffff >> stop_bit) << stop_bit;
+
+    mask_type n_shifts = std::numeric_limits<mask_type>::digits;
+
+    /**
+     * TODO: First find the
+     */
+
+    mask_type mask_elm;
+    /**
+     * Right shift 32 bits and store resulting number
+     *   if k > popc, mask right side
+     *   if k <= popc, mask left side
+     *
+     * Right shift 16 bits
+     *   if k > popc, mask right side
+     *   if k <= popc, mask left side
+     *
+     * Right shift 8 bits
+     *   if k > popc mask right side
+     *   if k <= popc, mask left side
+     *
+     * Right shift 4 bits
+     *   if k > popc, mask right side
+     *   if k <= popc, mask left side
+     *
+     * Right shift 2 bits
+     *   if k > popc, mask right side
+     *   if k <= popc, mask left side
+     *
+     * Resuling bit is the answer
+     */
+
+    int i = level_to_bits(0);
+    int k_tmp = k;
+    // Iterate for 5 levels
+    for(int i = 0; i < 5; ++i) {
+        int n_bits_to_shift = level_to_bits(i);
+        int next_bits = level_to_bits(i+1);
+        int popl = __popc(mask_elm >> n_bits_to_shift);
+
+
+        i += (-1 * k_tmp <= popl) * next_bits; // the index of the kth set bit
+        k_tmp -= (k_tmp > popl) * popl;   // k_tmp is updated for each local subgrouping
+
+        // TODO: This conditional can be avoided.
+        mask_elm &= popl < k_tmp ? 0xffffffff >> n_bits_to_shift : 0xffffffff << n_bits_to_shift;
+    }
+}
+
+/**
  * A simple block-level kernel for computing mask vertex degrees by using CUDA intrinsics
  * for counting the number of bits set in a mask and aggregating them across threads.
  *
@@ -38,7 +111,7 @@ namespace detail {
  */
 template <typename vertex_t, typename edge_t, typename mask_type, int tpb = 128>
 __global__ void masked_degree_kernel(edge_t* degrees_output,
-                                     graph_mask_view_t<vertex_t, edge_t, mask_type> const& mask,
+                                     mask_type *edge_mask,
                                      edge_t const* indptr)
 {
   /**
@@ -53,6 +126,7 @@ __global__ void masked_degree_kernel(edge_t* degrees_output,
   __shared__ typename BlockReduce::TempStorage temp_storage;
 
   int vertex            = blockIdx.x;
+
   vertex_t start_offset = indptr[vertex];
   vertex_t stop_offset  = indptr[vertex + 1];
 
@@ -66,15 +140,19 @@ __global__ void masked_degree_kernel(edge_t* degrees_output,
   mask_type stop_mask  = (0xffffffff >> stop_bit) << stop_bit;
 
   // TODO: Check vertex mask for vertex
-  mask_type* vertex_mask = mask.get_vertex_mask();
-  mask_type* edge_mask = mask.get_edge_mask();
+//  mask_type* vertex_mask = mask.get_vertex_mask();
+//  mask_type* edge_mask = mask.get_edge_mask();
 
   vertex_t degree = 0;
-  for (int i = threadIdx.x; i < (stop_mask_offset - start_mask_offset); i += tpb) {
+  for (vertex_t i = threadIdx.x; i < (stop_mask_offset - start_mask_offset); i += tpb) {
     mask_type mask_elm = edge_mask[i + start_mask_offset];
 
     // Apply start_mask to first element
     if (i == 0) {
+
+      if(__popc(mask_elm) > 0) {
+          printf("tid=%d, i=%d, mask_elm=%ud\n", threadIdx.x, i, mask_elm);
+      }
       mask_elm &= start_mask;
 
       // Apply stop_mask to last element
@@ -86,13 +164,12 @@ __global__ void masked_degree_kernel(edge_t* degrees_output,
   }
 
   degree = BlockReduce(temp_storage).Sum(degree);
-
   if (threadIdx.x == 0) { degrees_output[vertex] = degree; }
 }
 
 template <typename vertex_t, typename edge_t, typename mask_type, int tpb = 128>
 __global__ void masked_degree_kernel(edge_t* degrees_output,
-                                     graph_mask_view_t<vertex_t, edge_t, mask_type> const& mask,
+                                     mask_type *edge_mask,
                                      int major_range_first,
                                      vertex_t const* vertex_ids,
                                      edge_t const* indptr)
@@ -122,16 +199,21 @@ __global__ void masked_degree_kernel(edge_t* degrees_output,
   mask_type stop_mask  = (0xffffffff >> stop_bit) << stop_bit;
 
     // TODO: Check vertex mask for vertex
-  const mask_type* vertex_mask = mask.get_vertex_mask();
-  const mask_type* edge_mask = mask.get_edge_mask();
+//  const mask_type* vertex_mask = mask.get_vertex_mask();
+//  const mask_type* edge_mask = mask.get_edge_mask();
 
   vertex_t degree = 0;
-  for (int i = threadIdx.x; i < (stop_mask_offset - start_mask_offset); i += tpb) {
+  for (vertex_t i = threadIdx.x; i < (stop_mask_offset - start_mask_offset); i += tpb) {
     mask_type mask_elm = edge_mask[i + start_mask_offset];
 
     // Apply start_mask to first element
     if (i == 0) {
-      mask_elm &= start_mask;
+
+        if(__popc(mask_elm) > 0) {
+            printf("tid=%d, i=%d, mask_elm=%ud\n", threadIdx.x, i, mask_elm);
+        }
+
+        mask_elm &= start_mask;
 
       // Apply stop_mask to last element
     } else if (i == (stop_mask_offset - start_mask_offset) - 1) {
@@ -156,7 +238,7 @@ void masked_degrees(raft::handle_t const& handle,
                     edge_t const* indptr)
 {
   detail::masked_degree_kernel<vertex_t, edge_t, mask_type, 128>
-    <<<size, 128, 0, handle.get_stream()>>>(degrees_output, mask, indptr);
+    <<<size, 128, 0, handle.get_stream()>>>(degrees_output, mask.get_edge_mask(), indptr);
 }
 
 template <typename vertex_t, typename edge_t, typename mask_type = std::uint32_t>
@@ -170,7 +252,7 @@ void masked_degrees(raft::handle_t const& handle,
 {
   detail::masked_degree_kernel<vertex_t, edge_t, mask_type, 128>
     <<<size, 128, 0, handle.get_stream()>>>(
-      degrees_output, mask, major_range_first, vertex_ids, indptr);
+      degrees_output, mask.get_edge_mask(), major_range_first, vertex_ids, indptr);
 }
 
 };  // end namespace cugraph

@@ -16,7 +16,11 @@
 
 #include "detail/nbr_sampling_utils.cuh"
 
+#include <cugraph/graph_mask.hpp>
+
 #include <gtest/gtest.h>
+
+#include <vector>
 
 #include <thrust/distance.h>
 #include <thrust/sort.h>
@@ -38,7 +42,7 @@ class Tests_Uniform_Neighbor_Sampling
   virtual void SetUp() {}
   virtual void TearDown() {}
 
-  template <typename vertex_t, typename edge_t, typename weight_t>
+  template <typename vertex_t, typename edge_t, typename weight_t, typename mask_t = std::uint32_t>
   void run_current_test(Prims_Usecase const& prims_usecase, input_usecase_t const& input_usecase)
   {
     raft::handle_t handle{};
@@ -61,6 +65,30 @@ class Tests_Uniform_Neighbor_Sampling
     }
 
     auto graph_view                           = graph.view();
+
+    printf("Creating mask\n");
+
+    cugraph::graph_mask_t<vertex_t, edge_t, mask_t> graph_mask(handle, graph_view.number_of_vertices(),
+                                                       graph_view.number_of_edges());
+
+    graph_mask.initialize_edge_mask();
+
+    std::vector<mask_t> mask_h(graph_mask.get_edge_mask_size());
+    std::uint32_t bit = 2 & (std::numeric_limits<mask_t>::digits - 1);
+    std::uint32_t idx = 2 / std::numeric_limits<mask_t>::digits;
+
+    mask_h[idx] |= bit << 1;
+
+    raft::copy(graph_mask.view().get_edge_mask(), mask_h.data(), mask_h.size(), handle.get_stream());
+
+    handle.sync_stream();
+
+    printf("Attaching mask\n");
+
+      raft::print_device_vector("edge mask", graph_mask.view().get_edge_mask(), graph_mask.view().get_edge_mask_size(), std::cout);
+
+    graph_view.attach_mask(graph_mask);
+
     constexpr edge_t indices_per_source       = 2;
     constexpr vertex_t repetitions_per_vertex = 5;
     constexpr vertex_t source_sample_count    = 3;
@@ -80,6 +108,7 @@ class Tests_Uniform_Neighbor_Sampling
 
     std::vector<int> h_fan_out{indices_per_source};  // depth = 1
 
+    printf("Invoking uniform_nbr_sample\n");
     auto&& [d_src_out, d_dst_out, d_indices, d_counts] = cugraph::uniform_nbr_sample(
       handle,
       graph_view,
@@ -87,6 +116,7 @@ class Tests_Uniform_Neighbor_Sampling
       raft::host_span<const int>(h_fan_out.data(), h_fan_out.size()),
       prims_usecase.flag_replacement);
 
+    printf("Done invoking uniform_nbr_sample\n");
     if (prims_usecase.check_correctness) {
       //  First validate that the extracted edges are actually a subset of the
       //  edges in the input graph
@@ -130,29 +160,29 @@ class Tests_Uniform_Neighbor_Sampling
   }
 };
 
-using Tests_Uniform_Neighbor_Sampling_File =
-  Tests_Uniform_Neighbor_Sampling<cugraph::test::File_Usecase>;
+//using Tests_Uniform_Neighbor_Sampling_File =
+//  Tests_Uniform_Neighbor_Sampling<cugraph::test::File_Usecase>;
 
 using Tests_Uniform_Neighbor_Sampling_Rmat =
   Tests_Uniform_Neighbor_Sampling<cugraph::test::Rmat_Usecase>;
 
-TEST_P(Tests_Uniform_Neighbor_Sampling_File, CheckInt32Int32Float)
-{
-  auto param = GetParam();
-  run_current_test<int32_t, int32_t, float>(std::get<0>(param), std::get<1>(param));
-}
-
-TEST_P(Tests_Uniform_Neighbor_Sampling_File, CheckInt32Int64Float)
-{
-  auto param = GetParam();
-  run_current_test<int32_t, int64_t, float>(std::get<0>(param), std::get<1>(param));
-}
-
-TEST_P(Tests_Uniform_Neighbor_Sampling_File, CheckInt64Int64Float)
-{
-  auto param = GetParam();
-  run_current_test<int64_t, int64_t, float>(std::get<0>(param), std::get<1>(param));
-}
+//TEST_P(Tests_Uniform_Neighbor_Sampling_File, CheckInt32Int32Float)
+//{
+//  auto param = GetParam();
+//  run_current_test<int32_t, int32_t, float>(std::get<0>(param), std::get<1>(param));
+//}
+//
+//TEST_P(Tests_Uniform_Neighbor_Sampling_File, CheckInt32Int64Float)
+//{
+//  auto param = GetParam();
+//  run_current_test<int32_t, int64_t, float>(std::get<0>(param), std::get<1>(param));
+//}
+//
+//TEST_P(Tests_Uniform_Neighbor_Sampling_File, CheckInt64Int64Float)
+//{
+//  auto param = GetParam();
+//  run_current_test<int64_t, int64_t, float>(std::get<0>(param), std::get<1>(param));
+//}
 
 TEST_P(Tests_Uniform_Neighbor_Sampling_Rmat, CheckInt32Int32Float)
 {
@@ -172,32 +202,32 @@ TEST_P(Tests_Uniform_Neighbor_Sampling_Rmat, CheckInt64Int64Float)
   run_current_test<int64_t, int64_t, float>(std::get<0>(param), std::get<1>(param));
 }
 
-INSTANTIATE_TEST_SUITE_P(
-  file_test,
-  Tests_Uniform_Neighbor_Sampling_File,
-  ::testing::Combine(
-    ::testing::Values(Prims_Usecase{true, true}, Prims_Usecase{true, false}),
-    ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
-                      cugraph::test::File_Usecase("test/datasets/web-Google.mtx"),
-                      cugraph::test::File_Usecase("test/datasets/ljournal-2008.mtx"),
-                      cugraph::test::File_Usecase("test/datasets/webbase-1M.mtx"))));
-
+//INSTANTIATE_TEST_SUITE_P(
+//  file_test,
+//  Tests_Uniform_Neighbor_Sampling_File,
+//  ::testing::Combine(
+//    ::testing::Values(Prims_Usecase{true, true}, Prims_Usecase{true, false}),
+//    ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
+//                      cugraph::test::File_Usecase("test/datasets/web-Google.mtx"),
+//                      cugraph::test::File_Usecase("test/datasets/ljournal-2008.mtx"),
+//                      cugraph::test::File_Usecase("test/datasets/webbase-1M.mtx"))));
+//
 INSTANTIATE_TEST_SUITE_P(
   rmat_small_test,
   Tests_Uniform_Neighbor_Sampling_Rmat,
   ::testing::Combine(::testing::Values(Prims_Usecase{false, true}),
                      ::testing::Values(cugraph::test::Rmat_Usecase(
-                       10, 16, 0.57, 0.19, 0.19, 0, false, false, 0, false))));
+                       5, 3, 0.57, 0.19, 0.19, 0, false, false, 0, false))));
 
-INSTANTIATE_TEST_SUITE_P(
-  rmat_benchmark_test, /* note that scale & edge factor can be overridden in benchmarking (with
-                          --gtest_filter to select only the rmat_benchmark_test with a specific
-                          vertex & edge type combination) by command line arguments and do not
-                          include more than one Rmat_Usecase that differ only in scale or edge
-                          factor (to avoid running same benchmarks more than once) */
-  Tests_Uniform_Neighbor_Sampling_Rmat,
-  ::testing::Combine(::testing::Values(Prims_Usecase{false, true}),
-                     ::testing::Values(cugraph::test::Rmat_Usecase(
-                       20, 32, 0.57, 0.19, 0.19, 0, false, false, 0, false))));
+//INSTANTIATE_TEST_SUITE_P(
+//  rmat_benchmark_test, /* note that scale & edge factor can be overridden in benchmarking (with
+//                          --gtest_filter to select only the rmat_benchmark_test with a specific
+//                          vertex & edge type combination) by command line arguments and do not
+//                          include more than one Rmat_Usecase that differ only in scale or edge
+//                          factor (to avoid running same benchmarks more than once) */
+//  Tests_Uniform_Neighbor_Sampling_Rmat,
+//  ::testing::Combine(::testing::Values(Prims_Usecase{false, true}),
+//                     ::testing::Values(cugraph::test::Rmat_Usecase(
+//                       20, 32, 0.57, 0.19, 0.19, 0, false, false, 0, false))));
 
 CUGRAPH_TEST_PROGRAM_MAIN()
