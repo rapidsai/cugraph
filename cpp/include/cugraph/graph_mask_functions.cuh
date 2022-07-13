@@ -133,30 +133,33 @@ __global__ void masked_degree_kernel(edge_t* degrees_output,
   mask_type start_mask_offset = start_offset / std::numeric_limits<mask_type>::digits;
   mask_type stop_mask_offset  = stop_offset / std::numeric_limits<mask_type>::digits;
 
-  mask_type start_bit = start_offset & (std::numeric_limits<mask_type>::digits - 1);
-  mask_type stop_bit  = stop_offset & (std::numeric_limits<mask_type>::digits - 1);
+  mask_type start_bit = std::numeric_limits<mask_type>::digits -  (start_offset & (std::numeric_limits<mask_type>::digits - 1));
+  mask_type stop_bit  = (stop_offset & (std::numeric_limits<mask_type>::digits - 1));
 
-  mask_type start_mask = (0xffffffff << start_bit) >> start_bit;
-  mask_type stop_mask  = (0xffffffff >> stop_bit) << stop_bit;
+  mask_type start_mask = (0xffffffff >> start_bit);
+  mask_type stop_mask  = (0xffffffff << stop_bit);
+
 
   // TODO: Check vertex mask for vertex
 //  mask_type* vertex_mask = mask.get_vertex_mask();
 //  mask_type* edge_mask = mask.get_edge_mask();
 
+
+
   vertex_t degree = 0;
   for (vertex_t i = threadIdx.x; i < (stop_mask_offset - start_mask_offset); i += tpb) {
-    mask_type mask_elm = edge_mask[i + start_mask_offset];
+
+      printf("bid=%d, start_offset=%d, stop_offset=%d, start_mask_offset=%u, stop_mask_offset=%u, start_bit=%u, stop_bit=%u\n", blockIdx.x, start_offset, stop_offset, start_mask_offset, stop_mask_offset, start_bit, stop_bit);
+
+      mask_type mask_elm = edge_mask[i + start_mask_offset];
 
     // Apply start_mask to first element
     if (i == 0) {
 
-      if(__popc(mask_elm) > 0) {
-          printf("tid=%d, i=%d, mask_elm=%ud\n", threadIdx.x, i, mask_elm);
-      }
       mask_elm &= start_mask;
 
       // Apply stop_mask to last element
-    } else if (i == (stop_mask_offset - start_mask_offset) - 1) {
+    } else if (i == (stop_mask_offset - start_mask_offset)) {
       mask_elm &= stop_mask;
     }
 
@@ -195,8 +198,8 @@ __global__ void masked_degree_kernel(edge_t* degrees_output,
   mask_type start_bit = start_offset & (std::numeric_limits<mask_type>::digits - 1);
   mask_type stop_bit  = stop_offset & (std::numeric_limits<mask_type>::digits - 1);
 
-  mask_type start_mask = (0xffffffff << start_bit) >> start_bit;
-  mask_type stop_mask  = (0xffffffff >> stop_bit) << stop_bit;
+  mask_type start_mask = (0xffffffff >> start_bit);
+  mask_type stop_mask  = (0xffffffff << stop_bit);
 
     // TODO: Check vertex mask for vertex
 //  const mask_type* vertex_mask = mask.get_vertex_mask();

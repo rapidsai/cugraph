@@ -31,6 +31,13 @@ struct Prims_Usecase {
   bool flag_replacement{true};
 };
 
+template<typename mask_t = std::uint32_t>
+void set_bit(mask_t *mask_h, mask_t h) {
+    mask_t bit = h & (std::numeric_limits<mask_t>::digits - 1);
+    mask_t idx = h / std::numeric_limits<mask_t>::digits;
+    mask_h[idx] |= bit << 1;
+}
+
 template <typename input_usecase_t>
 class Tests_Uniform_Neighbor_Sampling
   : public ::testing::TestWithParam<std::tuple<Prims_Usecase, input_usecase_t>> {
@@ -74,10 +81,10 @@ class Tests_Uniform_Neighbor_Sampling
     graph_mask.initialize_edge_mask();
 
     std::vector<mask_t> mask_h(graph_mask.get_edge_mask_size());
-    std::uint32_t bit = 2 & (std::numeric_limits<mask_t>::digits - 1);
-    std::uint32_t idx = 2 / std::numeric_limits<mask_t>::digits;
+    set_bit<mask_t>(mask_h.data(), 2);
+    set_bit<mask_t>(mask_h.data(), 3);
 
-    mask_h[idx] |= bit << 1;
+    set_bit<mask_t>(mask_h.data(), 50);
 
     raft::copy(graph_mask.view().get_edge_mask(), mask_h.data(), mask_h.size(), handle.get_stream());
 
