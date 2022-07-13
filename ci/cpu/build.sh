@@ -90,7 +90,10 @@ if [ "$BUILD_LIBCUGRAPH" == '1' ]; then
   else
     gpuci_conda_retry mambabuild --no-build-id --croot ${CONDA_BLD_DIR} --dirty --no-remove-work-dir conda/recipes/libcugraph
     mkdir -p ${CONDA_BLD_DIR}/libcugraph
-    mv ${CONDA_BLD_DIR}/work ${CONDA_BLD_DIR}/libcugraph/work
+    gpuci_logger "copying libcugraph instead of moving it"
+    cp ${CONDA_BLD_DIR}/work ${CONDA_BLD_DIR}/libcugraph/work
+    gpuci_logger "checking what is inside the dir work"
+    ls ${CONDA_BLD_DIR}/work
   fi
   gpuci_logger "sccache stats"
   sccache --show-stats
