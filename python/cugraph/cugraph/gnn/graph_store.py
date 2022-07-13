@@ -437,7 +437,12 @@ class CuFeatureStorage:
         )[self.col_names]
         tensor = self.from_dlpack(subset_df.to_dlpack())
 
-        return tensor.to(device)
+        if isinstance(tensor, cp.ndarray):
+            # can not transfer to
+            # a different device for cupy
+            return tensor
+        else:
+            return tensor.to(device)
 
 
 def get_subset_df(df, id_col, indices, _type_):
