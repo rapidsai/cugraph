@@ -805,7 +805,8 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
 
       if (segment_offsets && stream_pool_indices) {
         if (edge_partition.dcs_nzd_vertex_count()) {
-#if 1  // P2P when expected local degree << col_comm_size
+#if 0  // FIXME: P2P when expected local degree << col_comm_size, haven't confirmed this actually
+       // improves performance
           auto exec_stream = handle.get_stream_from_stream_pool((i * max_segments) %
                                                                 (*stream_pool_indices).size());
 
