@@ -104,14 +104,14 @@ void pagerank(
     }
 
     if (pull_graph_view.is_weighted()) {
-      auto num_nonpositive_edge_weights =
+      auto num_negative_edge_weights =
         count_if_e(handle,
                    pull_graph_view,
                    dummy_property_t<vertex_t>{}.device_view(),
                    dummy_property_t<vertex_t>{}.device_view(),
-                   [] __device__(vertex_t, vertex_t, weight_t w, auto, auto) { return w <= 0.0; });
-      CUGRAPH_EXPECTS(num_nonpositive_edge_weights == 0,
-                      "Invalid input argument: input graph should have postive edge weights.");
+                   [] __device__(vertex_t, vertex_t, weight_t w, auto, auto) { return w < 0.0; });
+      CUGRAPH_EXPECTS(num_negative_edge_weights == 0,
+                      "Invalid input argument: input graph should have non-negative edge weights.");
     }
 
     if (has_initial_guess) {
@@ -207,7 +207,6 @@ void pagerank(
     handle, pull_graph_view);
   size_t iter{0};
   while (true) {
-std::cout << "PageRank iter=" << iter << std::endl;  // DEBUG
     thrust::copy(handle.get_thrust_policy(),
                  pageranks,
                  pageranks + pull_graph_view.local_vertex_partition_range_size(),
