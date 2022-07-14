@@ -61,9 +61,9 @@ void cugraph_core_result_free(cugraph_core_result_t* result);
  * @brief     Enumeration for computing core number
  */
 typedef enum {
-  IN    = 0, /** Compute core_number using incoming edges */
-  OUT   = 1, /** Compute core_number using outgoing edges */
-  INOUT = 2  /** Compute core_number using both incoming and outgoing edges */
+  K_CORE_DEGREE_TYPE_IN    = 0, /** Compute core_number using incoming edges */
+  K_CORE_DEGREE_TYPE_OUT   = 1, /** Compute core_number using outgoing edges */
+  K_CORE_DEGREE_TYPE_INOUT = 2  /** Compute core_number using both incoming and outgoing edges */
 } cugraph_k_core_degree_type_t;
 
 /**
