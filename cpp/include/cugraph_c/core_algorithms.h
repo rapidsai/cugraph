@@ -64,6 +64,9 @@ typedef enum { IN = 0, OUT = 1, INOUT = 2 } cugraph_k_core_degree_type_t;
  *
  * @param [in]  handle       Handle for accessing resources
  * @param [in]  graph        Pointer to graph
+ * @param [in]  degree_type  Flag indicating the degree type. Wether the core number
+                             computation should be based off incoming edges, outgoing edges or
+                             both
  * @param [in] do_expensive_check A flag to run expensive checks for input arguments (if set to
  * `true`).
  * @param [out] result       Opaque pointer to paths results
