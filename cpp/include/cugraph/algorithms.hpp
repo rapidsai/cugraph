@@ -1366,6 +1366,7 @@ random_walks(raft::handle_t const& handle,
  * @param graph_view graph view to operate on
  * @param start_span Device span defining the starting vertices
  * @param max_depth maximum length of random walk
+ * @param seed (optional, defaults to system time), seed for random number generation
  * @return tuple containing device vectors of vertices and the edge weights<br>
  *         For each input selector there will be (max_depth+1) elements in the
  *         vertex vector with the starting vertex followed by the subsequent
@@ -1381,11 +1382,12 @@ random_walks(raft::handle_t const& handle,
 // TODO: Do I care about transposed or not?  I want to be able to operate in either
 // direction.
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
-std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<edge_t>> uniform_random_walks(
+std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<weight_t>> uniform_random_walks(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
   raft::device_span<vertex_t const> start_span,
-  size_t max_depth);
+  size_t max_depth,
+  uint64_t seed = 0);
 
 /**
  * @brief returns biased random walks from starting sources, where each path is of given
@@ -1403,6 +1405,7 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<edge_t>> uniform_r
  * @param graph_view graph view to operate on
  * @param start_span Device span defining the starting vertices
  * @param max_depth maximum length of random walk
+ * @param seed (optional, defaults to system time), seed for random number generation
  * @return tuple containing device vectors of vertices and the edge weights<br>
  *         For each input selector there will be (max_depth+1) elements in the
  *         vertex vector with the starting vertex followed by the subsequent
@@ -1416,11 +1419,12 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<edge_t>> uniform_r
  *         set to weight_t{0}.
  */
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
-std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<edge_t>> biased_random_walks(
+std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<weight_t>> biased_random_walks(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
   raft::device_span<vertex_t const> start_span,
-  size_t max_depth);
+  size_t max_depth,
+  uint64_t seed = 0);
 
 /**
  * @brief returns biased random walks with node2vec biases from starting sources,
@@ -1440,6 +1444,7 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<edge_t>> biased_ra
  * @param max_depth maximum length of random walk
  * @param p node2vec return parameter
  * @param q node2vec in-out parameter
+ * @param seed (optional, defaults to system time), seed for random number generation
  * @return tuple containing device vectors of vertices and the edge weights<br>
  *         For each input selector there will be (max_depth+1) elements in the
  *         vertex vector with the starting vertex followed by the subsequent
@@ -1453,13 +1458,14 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<edge_t>> biased_ra
  *         set to weight_t{0}.
  */
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
-std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<edge_t>> node2vec_random_walks(
+std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<weight_t>> node2vec_random_walks(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
   raft::device_span<vertex_t const> start_span,
   size_t max_depth,
   weight_t p,
-  weight_t q);
+  weight_t q,
+  uint64_t seed = 0);
 
 #ifndef NO_CUGRAPH_OPS
 /**
