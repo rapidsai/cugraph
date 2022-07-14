@@ -39,7 +39,7 @@ __device__ __host__ inline void _set_bit(mask_type* arr, mask_type h)
   mask_type old = arr[idx];
   do {
     assumed = old;
-    old     = atomicCAS(arr + idx, assumed, assumed | (bit << 1));
+    old     = atomicCAS(arr + idx, assumed, assumed | (1 << bit));
   } while (assumed != old);
 }
 

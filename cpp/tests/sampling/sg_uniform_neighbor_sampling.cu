@@ -35,7 +35,9 @@ template<typename mask_t = std::uint32_t>
 void set_bit(mask_t *mask_h, mask_t h) {
     mask_t bit = h & (std::numeric_limits<mask_t>::digits - 1);
     mask_t idx = h / std::numeric_limits<mask_t>::digits;
-    mask_h[idx] |= bit << 1;
+    mask_h[idx] |= 1 << bit;
+
+    printf("Set bit %u at %u of mask\n", bit, idx);
 }
 
 template <typename input_usecase_t>

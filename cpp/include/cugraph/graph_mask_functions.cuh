@@ -54,7 +54,15 @@ __device__ edge_t kth_bit(mask_type *mask,
     mask_type n_shifts = std::numeric_limits<mask_type>::digits;
 
     /**
-     * TODO: First find the
+     *
+     * 1. For hypersparse regions, we should be able to iterate through the mask bits, using the algorithm
+     * below.
+     *
+     * 2. For regions of medium sparsity, we should be able to bin the vertices, compute their degrees, and then
+     * cumsum them so that we can narrow down a small(-ish) range of mask indices we need to visit. After we've
+     * narrowed down a few potential indices (and their starting degrees), we can run the algorithm below over them.
+     *
+     * 3. For regions with high density, we might be able to adjust the bin sizes so that the algorithm in 2 will work.
      */
 
     mask_type mask_elm;
@@ -89,7 +97,6 @@ __device__ edge_t kth_bit(mask_type *mask,
         int n_bits_to_shift = level_to_bits(i);
         int next_bits = level_to_bits(i+1);
         int popl = __popc(mask_elm >> n_bits_to_shift);
-
 
         i += (-1 * k_tmp <= popl) * next_bits; // the index of the kth set bit
         k_tmp -= (k_tmp > popl) * popl;   // k_tmp is updated for each local subgrouping
@@ -133,37 +140,29 @@ __global__ void masked_degree_kernel(edge_t* degrees_output,
   mask_type start_mask_offset = start_offset / std::numeric_limits<mask_type>::digits;
   mask_type stop_mask_offset  = stop_offset / std::numeric_limits<mask_type>::digits;
 
-  mask_type start_bit = std::numeric_limits<mask_type>::digits -  (start_offset & (std::numeric_limits<mask_type>::digits - 1));
-  mask_type stop_bit  = (stop_offset & (std::numeric_limits<mask_type>::digits - 1));
-
-  mask_type start_mask = (0xffffffff >> start_bit);
-  mask_type stop_mask  = (0xffffffff << stop_bit);
-
+  mask_type start_bit = start_offset & (std::numeric_limits<mask_type>::digits - 1);
+  mask_type stop_bit  = (std::numeric_limits<mask_type>::digits) - (stop_offset & (std::numeric_limits<mask_type>::digits - 1));
 
   // TODO: Check vertex mask for vertex
 //  mask_type* vertex_mask = mask.get_vertex_mask();
 //  mask_type* edge_mask = mask.get_edge_mask();
 
-
-
   vertex_t degree = 0;
-  for (vertex_t i = threadIdx.x; i < (stop_mask_offset - start_mask_offset); i += tpb) {
+  for (vertex_t i = threadIdx.x; i <= (stop_mask_offset - start_mask_offset); i += tpb) {
 
-      printf("bid=%d, start_offset=%d, stop_offset=%d, start_mask_offset=%u, stop_mask_offset=%u, start_bit=%u, stop_bit=%u\n", blockIdx.x, start_offset, stop_offset, start_mask_offset, stop_mask_offset, start_bit, stop_bit);
 
       mask_type mask_elm = edge_mask[i + start_mask_offset];
 
-    // Apply start_mask to first element
-    if (i == 0) {
+      // Apply start / stop masks to the first and last elements
+      if(i == 0) {
+          mask_elm = mask_elm & 0xffffffff << start_bit;
+      }
 
-      mask_elm &= start_mask;
+      if(i == stop_mask_offset - start_mask_offset) {
+          mask_elm = mask_elm & 0xffffffff >> stop_bit;
+      }
 
-      // Apply stop_mask to last element
-    } else if (i == (stop_mask_offset - start_mask_offset)) {
-      mask_elm &= stop_mask;
-    }
-
-    degree += __popc(mask_elm);
+      degree += __popc(mask_elm);
   }
 
   degree = BlockReduce(temp_storage).Sum(degree);
@@ -188,43 +187,32 @@ __global__ void masked_degree_kernel(edge_t* degrees_output,
 
   __shared__ typename BlockReduce::TempStorage temp_storage;
 
-  int vertex            = blockIdx.x;
-  edge_t start_offset = indptr[vertex];
-  edge_t stop_offset  = indptr[vertex + 1];
+    vertex_t start_offset = indptr[vertex];
+    vertex_t stop_offset  = indptr[vertex + 1];
 
-  mask_type start_mask_offset = start_offset / std::numeric_limits<mask_type>::digits;
-  mask_type stop_mask_offset  = stop_offset / std::numeric_limits<mask_type>::digits;
+    mask_type start_mask_offset = start_offset / std::numeric_limits<mask_type>::digits;
+    mask_type stop_mask_offset  = stop_offset / std::numeric_limits<mask_type>::digits;
 
-  mask_type start_bit = start_offset & (std::numeric_limits<mask_type>::digits - 1);
-  mask_type stop_bit  = stop_offset & (std::numeric_limits<mask_type>::digits - 1);
+    mask_type start_bit = start_offset & (std::numeric_limits<mask_type>::digits - 1);
+    mask_type stop_bit  = (std::numeric_limits<mask_type>::digits) -
+            (stop_offset & (std::numeric_limits<mask_type>::digits - 1));
 
-  mask_type start_mask = (0xffffffff >> start_bit);
-  mask_type stop_mask  = (0xffffffff << stop_bit);
+    vertex_t degree = 0;
+    for (vertex_t i = threadIdx.x; i <= (stop_mask_offset - start_mask_offset); i += tpb) {
 
-    // TODO: Check vertex mask for vertex
-//  const mask_type* vertex_mask = mask.get_vertex_mask();
-//  const mask_type* edge_mask = mask.get_edge_mask();
+        mask_type mask_elm = edge_mask[i + start_mask_offset];
 
-  vertex_t degree = 0;
-  for (vertex_t i = threadIdx.x; i < (stop_mask_offset - start_mask_offset); i += tpb) {
-    mask_type mask_elm = edge_mask[i + start_mask_offset];
-
-    // Apply start_mask to first element
-    if (i == 0) {
-
-        if(__popc(mask_elm) > 0) {
-            printf("tid=%d, i=%d, mask_elm=%ud\n", threadIdx.x, i, mask_elm);
+        // Apply start / stop masks to the first and last elements
+        if(i == 0) {
+            mask_elm = mask_elm & 0xffffffff << start_bit;
         }
 
-        mask_elm &= start_mask;
+        if(i == stop_mask_offset - start_mask_offset) {
+            mask_elm = mask_elm & 0xffffffff >> stop_bit;
+        }
 
-      // Apply stop_mask to last element
-    } else if (i == (stop_mask_offset - start_mask_offset) - 1) {
-      mask_elm &= stop_mask;
+        degree += __popc(mask_elm);
     }
-
-    degree += __popc(mask_elm);
-  }
 
   degree = BlockReduce(temp_storage).Sum(degree);
 
