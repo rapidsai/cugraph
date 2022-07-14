@@ -57,14 +57,22 @@ cugraph_type_erased_device_array_view_t* cugraph_core_result_get_core_numbers(
  */
 void cugraph_core_result_free(cugraph_core_result_t* result);
 
-typedef enum { IN = 0, OUT = 1, INOUT = 2 } cugraph_k_core_degree_type_t;
+/**
+ * @brief     Enumeration for computing core number
+ */
+typedef enum {
+  IN    = 0, /** Compute core_number using incoming edges */
+  OUT   = 1, /** Compute core_number using outgoing edges */
+  INOUT = 2  /** Compute core_number using both incoming and outgoing edges */
+} cugraph_k_core_degree_type_t;
 
 /**
  * @brief     Perform core number.
  *
  * @param [in]  handle       Handle for accessing resources
  * @param [in]  graph        Pointer to graph
- * @param [in] do_expensive_check A flag to run expensive checks for input arguments (if set to
+ * @param [in]  degree_type  Compute core_number using in, out or both in and out edges
+ * @param [in]  do_expensive_check A flag to run expensive checks for input arguments (if set to
  * `true`).
  * @param [out] result       Opaque pointer to paths results
  * @param [out] error        Pointer to an error object storing details of any error.  Will
