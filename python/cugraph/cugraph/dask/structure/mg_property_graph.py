@@ -650,7 +650,6 @@ class EXPERIMENTAL__MGPropertyGraph:
         """
         Return True if df has >1 of the same src, dst pair
         """
-        # FIXME: this can be very expensive for large DataFrames
         # empty not supported by dask
         if len(df.columns) == 0:
             return False
