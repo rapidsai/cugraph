@@ -656,10 +656,14 @@ class EXPERIMENTAL__MGPropertyGraph:
             return False
 
         def has_duplicate_dst(df):
-            return df[cls.dst_col_name].nunique() != \
-                df[cls.dst_col_name].size
-
-        return df.groupby(cls.src_col_name).apply(has_duplicate_dst).any()
+        # may need to split out for dask frames
+        # to scale
+        unique_pair_len = len(
+            df[[cls.src_col_name, cls.dst_col_name]].drop_duplicates()
+        )
+        # if unique_pairs == len(df)
+        # then no duplicate edges
+        return unique_pair_len != len(df)
 
     def __create_property_lookup_table(self, edge_prop_df):
         """
