@@ -80,13 +80,13 @@ def EXPERIMENTAL__core_number(G, degree_type=None):
 
     resource_handle = ResourceHandle()
     graph_props = GraphProperties(
-        is_symmetric=False, is_multigraph=G.is_multigraph())
+        is_symmetric=True, is_multigraph=G.is_multigraph())
     store_transposed = False
 
     # FIXME:  This should be based on the renumber parameter set when creating
     # the graph
     renumber = False
-    do_expensive_check = True
+    do_expensive_check = False
 
     sg = SGGraph(resource_handle, graph_props, srcs, dsts, weights,
                  store_transposed, renumber, do_expensive_check)

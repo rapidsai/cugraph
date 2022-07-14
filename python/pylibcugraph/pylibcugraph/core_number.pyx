@@ -36,6 +36,7 @@ from pylibcugraph._cugraph_c.graph cimport (
 from pylibcugraph._cugraph_c.core_algorithms cimport (   
     cugraph_core_result_t,
     cugraph_core_number,
+    cugraph_k_core_degree_type_t,
     cugraph_core_result_get_vertices,
     cugraph_core_result_get_core_numbers,
     cugraph_core_result_free,
@@ -103,10 +104,12 @@ def EXPERIMENTAL__core_number(ResourceHandle resource_handle,
     cdef cugraph_core_result_t* result_ptr
     cdef cugraph_error_code_t error_code
     cdef cugraph_error_t* error_ptr
+    #cdef cugraph_k_core_degree_type_t degree_type_
+    #print("name is ", cugraph_k_core_degree_type_t.IN)
 
     error_code = cugraph_core_number(c_resource_handle_ptr,
                                      c_graph_ptr,
-                                     degree_type,
+                                     cugraph_k_core_degree_type_t.IN,
                                      do_expensive_check,
                                      &result_ptr,
                                      &error_ptr)

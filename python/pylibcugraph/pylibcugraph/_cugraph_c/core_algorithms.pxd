@@ -53,7 +53,9 @@ cdef extern from "cugraph_c/core_algorithms.h":
         )
 
     ctypedef enum cugraph_k_core_degree_type_t:
-        pass
+        IN=0,
+        OUT=1,
+        INOUT=2
 
     cdef cugraph_error_code_t \
         cugraph_core_number(
