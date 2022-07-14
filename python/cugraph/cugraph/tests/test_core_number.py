@@ -12,10 +12,15 @@
 # limitations under the License.
 
 import gc
+
 import pytest
+import random
+
+import cudf
 import cugraph
 from cugraph.testing import utils
-from cugraph.utilities import df_score_to_dictionary
+from cugraph.experimental import core_number as experimental_core_number
+
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
 # (Using or importing the ABCs from 'collections' instead of from
@@ -29,77 +34,107 @@ with warnings.catch_warnings():
     import networkx as nx
 
 
-print("Networkx version : {} ".format(nx.__version__))
-
-
-def calc_nx_core_number(graph_file):
-    NM = utils.read_csv_for_nx(graph_file)
-    Gnx = nx.from_pandas_edgelist(
-        NM, source="0", target="1", create_using=nx.Graph()
-    )
-    nc = nx.core_number(Gnx)
-    return nc
-
-
-def calc_cg_core_number(graph_file):
-    M = utils.read_csv_file(graph_file)
-    G = cugraph.Graph()
-    G.from_cudf_edgelist(M, source="0", destination="1")
-
-    cn = cugraph.core_number(G)
-    return cn
-
-
-def calc_core_number(graph_file):
-    NM = utils.read_csv_for_nx(graph_file)
-    Gnx = nx.from_pandas_edgelist(
-        NM, source="0", target="1", create_using=nx.Graph()
-    )
-    nc = nx.core_number(Gnx)
-
-    M = utils.read_csv_file(graph_file)
-    G = cugraph.Graph()
-    G.from_cudf_edgelist(M, source="0", destination="1")
-
-    cn = cugraph.core_number(G)
-    cn = cn.sort_values("vertex").reset_index(drop=True)
-
-    pdf = [nc[k] for k in sorted(nc.keys())]
-    cn["nx_core_number"] = pdf
-    cn = cn.rename(columns={"core_number": "cu_core_number"}, copy=False)
-    return cn
-
-
-# FIXME: the default set of datasets includes an asymmetric directed graph
-# (email-EU-core.csv), which currently causes an error with NetworkX:
-# "networkx.exception.NetworkXError: Input graph has self loops which is not
-#  permitted; Consider using G.remove_edges_from(nx.selfloop_edges(G))"
-#
-# https://github.com/rapidsai/cugraph/issues/1045
-#
-# @pytest.mark.parametrize("graph_file", utils.DATASETS)
-@pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
-def test_core_number(graph_file):
+# =============================================================================
+# Pytest Setup / Teardown - called for each test function
+# =============================================================================
+def setup_function():
     gc.collect()
 
-    nx_num = calc_nx_core_number(graph_file)
-    cg_num = calc_cg_core_number(graph_file)
 
-    # convert cugraph dataframe to a dictionary
-    cg_num_dic = df_score_to_dictionary(cg_num, k="core_number")
+# =============================================================================
+# Pytest fixtures
+# =============================================================================
+datasets = utils.DATASETS_UNDIRECTED
+# FIXME: The `start_list` parameter is not supported yet therefore it has been
+# disabled in these tests. Enable it once it is supported
+fixture_params = utils.genFixtureParamsProduct((datasets, "graph_file"),
+                                               ([0,1], "degree_type"),
+                                               )
 
-    assert cg_num_dic == nx_num
+
+@pytest.fixture(scope="module", params=fixture_params)
+def input_combo(request):
+    """
+    This fixture returns a dictionary containing all input params required to
+    run a Triangle Count algo
+    """
+    parameters = dict(
+        zip(("graph_file", "degree_type"), request.param))
+
+    input_data_path = parameters["graph_file"]
+
+    G = utils.generate_cugraph_graph_from_file(
+        input_data_path, directed=False, edgevals=True)
+
+    Gnx = utils.generate_nx_graph_from_file(
+        input_data_path, directed=False, edgevals=True)
+
+    parameters["G"] = G
+    parameters["Gnx"] = Gnx
+
+    return parameters
 
 
-@pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
-def test_core_number_nx(graph_file):
-    gc.collect()
+# =============================================================================
+# Tests
+# =============================================================================
+def test_core_number(input_combo):
+    G = input_combo["G"]
+    Gnx = input_combo["Gnx"]
+    degree_type = input_combo["degree_type"]
+    nx_core_number_results = cudf.DataFrame()
 
-    NM = utils.read_csv_for_nx(graph_file)
-    Gnx = nx.from_pandas_edgelist(
-        NM, source="0", target="1", create_using=nx.Graph()
+    cugraph_legacy_core_number_results = cugraph.core_number(G).sort_values(
+        "vertex").reset_index(drop=True)
+
+    dic_results = nx.core_number(Gnx)
+    nx_core_number_results["vertex"] = dic_results.keys()
+    nx_core_number_results["core_number"] = dic_results.values()
+    nx_core_number_results = nx_core_number_results.sort_values(
+        "vertex").reset_index(drop=True)
+
+    assert cugraph_legacy_core_number_results == \
+        nx_core_number_results["core_number"].sum()
+
+    core_number_results = experimental_core_number(G, degree_type).sort_values(
+        "vertex").reset_index(drop=True).rename(columns={
+            "core_number": "exp_cugraph_core_number"})
+
+    cugraph_exp_core_number_results = \
+        core_number_results["exp_cugraph_core_number"].sum()
+    # Compare the total number of triangles with the experimental
+    # implementation
+    assert cugraph_exp_core_number_results == nx_core_number_results
+    # Compare the number of triangles per vertex with the
+    # experimental implementation
+    core_number_results["nx_core_number"] = nx_core_number_results["core_number"]
+    core_number_results["legacy_cugraph_core_number"] = cugraph_legacy_core_number_results["core_number"]
+    print("core number results is \n", core_number_results)
+    counts_diff = core_number_results.query(
+        'nx_core_number != exp_cugraph_core_number or exp_cugraph_core_number != legacy_cugraph_core_number')
+    assert len(counts_diff) == 0
+    
+    #print("core number results is \n", core_number_results)
+
+
+"""
+def test_triangles_directed_graph():
+    input_data_path = (utils.RAPIDS_DATASET_ROOT_DIR_PATH /
+                       "karate-asymmetric.csv").as_posix()
+    M = utils.read_csv_for_nx(input_data_path)
+    G = cugraph.Graph(directed=True)
+    cu_M = cudf.DataFrame()
+    cu_M["src"] = cudf.Series(M["0"])
+    cu_M["dst"] = cudf.Series(M["1"])
+
+    cu_M["weights"] = cudf.Series(M["weight"])
+    G.from_cudf_edgelist(
+        cu_M, source="src", destination="dst", edge_attr="weights"
     )
-    nc = nx.core_number(Gnx)
-    cc = cugraph.core_number(Gnx)
 
-    assert nc == cc
+    with pytest.raises(ValueError):
+        cugraph.triangles(G)
+
+    with pytest.raises(ValueError):
+        experimental_triangles(G)
+"""
