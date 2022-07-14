@@ -805,7 +805,7 @@ class EXPERIMENTAL__PropertyGraph:
         Return True if df has >1 of the same src, dst pair
         """
         # empty not supported by dask
-        if len(df.columns) == 0:
+        if df.empty:
             return False
 
         unique_pair_len = len(df[[cls.src_col_name,cls.dst_col_name]].drop_duplicates())
