@@ -654,7 +654,7 @@ class EXPERIMENTAL__MGPropertyGraph:
         if len(df.columns) == 0:
             return False
 
-        unique_pair_len = df.drop_duplicates(split_out=df.npartitions).shape[0]
+        unique_pair_len = df.drop_duplicates(split_out=df.npartitions, ignore_index=True).shape[0]
         # if unique_pairs == len(df)
         # then no duplicate edges
         return unique_pair_len != df.shape[0]
