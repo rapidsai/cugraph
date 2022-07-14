@@ -654,7 +654,6 @@ class EXPERIMENTAL__MGPropertyGraph:
         if len(df.columns) == 0:
             return False
 
-        def has_duplicate_dst(df):
         # may need to split out for dask frames
         # to scale
         unique_pair_len = len(
