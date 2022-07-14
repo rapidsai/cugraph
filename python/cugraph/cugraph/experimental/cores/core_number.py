@@ -24,7 +24,7 @@ from pylibcugraph import (ResourceHandle,
 
 
 # FIXME: rename this to triangle_conut to match the MG implmentation
-def EXPERIMENTAL__core_nunmber(G, degree_type=None):
+def EXPERIMENTAL__core_number(G, degree_type=None):
     """
     Compute the core numbers for the nodes of the graph G. A k-core of a graph
     is a maximal subgraph that contains nodes of degree k or more.
@@ -70,10 +70,6 @@ def EXPERIMENTAL__core_nunmber(G, degree_type=None):
     # implementation?
     G, _ = ensure_cugraph_obj_for_nx(G)
 
-    # FIXME: Does this implementation still only supprit directed graphs?
-    if G.is_directed():
-        raise ValueError("input graph must be undirected")
-
     srcs = G.edgelist.edgelist_df['src']
     dsts = G.edgelist.edgelist_df['dst']
     weights = G.edgelist.edgelist_df['weights']
@@ -85,18 +81,18 @@ def EXPERIMENTAL__core_nunmber(G, degree_type=None):
     resource_handle = ResourceHandle()
     graph_props = GraphProperties(
         is_symmetric=False, is_multigraph=G.is_multigraph())
-    store_transposed = True
+    store_transposed = False
 
     # FIXME:  This should be based on the renumber parameter set when creating
     # the graph
     renumber = False
-    do_expensive_check = False
+    do_expensive_check = True
 
     sg = SGGraph(resource_handle, graph_props, srcs, dsts, weights,
                  store_transposed, renumber, do_expensive_check)
 
-    vertex, counts = pylibcugraph_triangle_count(
-        resource_handle, sg, start_list, do_expensive_check)
+    vertex, counts = pylibcugraph_core_number(
+        resource_handle, sg, 0, do_expensive_check)
 
     df = cudf.DataFrame()
     df["vertex"] = vertex
