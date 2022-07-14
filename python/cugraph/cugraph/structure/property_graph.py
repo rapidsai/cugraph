@@ -807,11 +807,12 @@ class EXPERIMENTAL__PropertyGraph:
         if df.empty:
             return False
 
-        unique_pair_len = len(df[[cls.src_col_name,cls.dst_col_name]].drop_duplicates())
+        unique_pair_len = len(df[[cls.src_col_name,
+                                  cls.dst_col_name]].drop_duplicates())
 
         # if unique_pairs == len(df)
         # then no duplicate edges
-        return unique_pair_len!=len(df)
+        return unique_pair_len != len(df)
 
     def __create_property_lookup_table(self, edge_prop_df):
         """
