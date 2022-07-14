@@ -41,6 +41,10 @@ option(FIND_CUGRAPH_CPP "Search for existing CUGRAPH C++ installations before de
 
 if(FIND_CUGRAPH_CPP)
   message(STATUS "trying to find the package")
+  include(rapids-cuda)
+  rapids_cuda_init_architectures(CUGRAPH)
+  enable_language(CUDA)
+  include("${CMAKE_PROJECT_cugraph-python_INCLUDE}")
   find_package(cugraph ${cugraph_version} REQUIRED)
   #find_package(cugraph_c REQUIRED)
 else()
