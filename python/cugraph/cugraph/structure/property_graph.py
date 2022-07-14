@@ -804,7 +804,6 @@ class EXPERIMENTAL__PropertyGraph:
         """
         Return True if df has >1 of the same src, dst pair
         """
-        # empty not supported by dask
         if df.empty:
             return False
 
