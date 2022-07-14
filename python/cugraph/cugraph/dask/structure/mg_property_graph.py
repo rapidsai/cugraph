@@ -654,14 +654,10 @@ class EXPERIMENTAL__MGPropertyGraph:
         if len(df.columns) == 0:
             return False
 
-        # may need to split out for dask frames
-        # to scale
-        unique_pair_len = len(
-            df[[cls.src_col_name, cls.dst_col_name]].drop_duplicates()
-        )
+        unique_pair_len = df.drop_duplicates(split_out=df.npartitions).size
         # if unique_pairs == len(df)
         # then no duplicate edges
-        return unique_pair_len != len(df)
+        return unique_pair_len != df.size
 
     def __create_property_lookup_table(self, edge_prop_df):
         """
