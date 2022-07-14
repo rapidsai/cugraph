@@ -808,7 +808,8 @@ class EXPERIMENTAL__PropertyGraph:
             return False
 
         unique_pair_len = len(df[[cls.src_col_name,
-                                  cls.dst_col_name]].drop_duplicates(ignore_index=True))
+                                  cls.dst_col_name]].drop_duplicates(
+                                  ignore_index=True))
 
         # if unique_pairs == len(df)
         # then no duplicate edges
