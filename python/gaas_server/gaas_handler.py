@@ -90,7 +90,10 @@ class GaasHandler:
 
     def get_server_info(self):
         """
-        Returns a dictionary of various info about the server.
+        Returns a dictionary of meta-data about the server.
+
+        Dictionary items are string:union_objs, where union_objs are Value
+        "unions" used for RPC serialization.
         """
         # FIXME: expose self.__dask_client.scheduler_info() as needed
         if self.__dask_client is not None:
@@ -229,6 +232,51 @@ class GaasHandler:
         Returns a list of the graph IDs currently in use.
         """
         return list(self.__graph_objs.keys())
+
+    def get_graph_info(self, keys, graph_id):
+        """
+        Returns a dictionary of meta-data about the graph identified by
+        graph_id. If keys passed, only returns the values in keys.
+
+        Dictionary items are string:union_objs, where union_objs are Value
+        "unions" used for RPC serialization.
+        """
+        valid_keys = set(["num_vertices",
+                          "num_edges",
+                          "num_vertex_properties",
+                          "num_edge_properties",
+                          ])
+        if keys is None:
+            keys = valid_keys
+        else:
+            invalid_keys = set(keys) - valid_keys
+            if len(invalid_keys) != 0:
+                raise GaasError(f"got invalid keys: {invalid_keys}")
+
+        G = self._get_graph(graph_id)
+        info = {}
+        if isinstance(G, (PropertyGraph, MGPropertyGraph)):
+            for k in keys:
+                if k == "num_vertices":
+                    info[k] = G.num_vertices
+                elif k == "num_edges":
+                    info[k] = G.num_edges
+                elif k == "num_vertex_properties":
+                    info[k] = len(G.vertex_property_names)
+                elif k == "num_edge_properties":
+                    info[k] = len(G.edge_property_names)
+        else:
+            for k in keys:
+                if k == "num_vertices":
+                    info[k] = G.number_of_vertices()
+                elif k == "num_edges":
+                    info[k] = G.number_of_edges()
+                elif k == "num_vertex_properties":
+                    info[k] = 0
+                elif k == "num_edge_properties":
+                    info[k] = 0
+
+        return {key:ValueWrapper(value).union for (key, value) in info.items()}
 
     def get_graph_type(self, graph_id):
         """
@@ -369,7 +417,7 @@ class GaasHandler:
         if not(isinstance(pG, (PropertyGraph, MGPropertyGraph))):
             raise GaasError("extract_subgraph() can only be called on a graph "
                             "with properties.")
-        # Convert defaults needed for the Thrift API into defaults used by
+        # Convert defaults needed for the RPC API into defaults used by
         # PropertyGraph.extract_subgraph()
         create_using = create_using or cugraph.Graph
         selection = selection or None
@@ -407,18 +455,6 @@ class GaasHandler:
                                                         index_or_indices,
                                                         null_replacement_value)
 
-    def get_graph_vertex_dataframe_shape(self, graph_id):
-        """
-        """
-        pG = self._get_graph(graph_id)
-        # FIXME: consider a better API on PG for getting tabular vertex data, or
-        # just make the "internal" _vertex_prop_dataframe a proper public API.
-        if pG._vertex_prop_dataframe is None:
-            return (0, 0)
-
-        df = self.__get_dataframe_from_user_props(pG._vertex_prop_dataframe)
-        return self.__get_dataframe_shape(df)
-
     def get_graph_edge_dataframe_rows(self,
                                       index_or_indices,
                                       null_replacement_value,
@@ -439,18 +475,6 @@ class GaasHandler:
         return self.__get_dataframe_rows_as_numpy_bytes(df,
                                                         index_or_indices,
                                                         null_replacement_value)
-
-    def get_graph_edge_dataframe_shape(self, graph_id):
-        """
-        """
-        pG = self._get_graph(graph_id)
-        # FIXME: consider a better API on PG for getting tabular edge data, or
-        # just make the "internal" _edge_prop_dataframe a proper public API.
-        if pG._edge_prop_dataframe is None:
-            return (0, 0)
-
-        df = self.__get_dataframe_from_user_props(pG._edge_prop_dataframe)
-        return self.__get_dataframe_shape(df)
 
     def is_vertex_property(self, property_key, graph_id):
         G = self._get_graph(graph_id)

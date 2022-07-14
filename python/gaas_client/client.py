@@ -386,6 +386,58 @@ class GaasClient:
         return self.__client.get_graph_ids()
 
     @__server_connection
+    def get_graph_info(self, keys=None, graph_id=defaults.graph_id):
+        """
+        Returns a dictionary containing meta-data about the graph referenced by
+        graph_id (or the default graph if not specified).
+
+        Parameters
+        ----------
+        graph_id : int, default is defaults.graph_id
+            The graph ID to apply the properties in the CSV to. If not provided,
+            the default graph ID is used.
+
+        Returns
+        -------
+        None
+
+        Examples
+        --------
+        >>> from gaas_client import GaasClient
+        >>> client = GaasClient()
+        >>> client.load_csv_as_vertex_data(
+        ... "/server/path/to/vertex_data.csv",
+        ... dtypes=["int32", "string", "int32"],
+        ... vertex_col_name="vertex_id",
+        ... header="infer")
+        >>> client.get_graph_info()
+        {'num_edges': 3, 'num_vertices': 4}
+        """
+        # Ensure keys is a list of strings when passing to RPC API
+        if keys is None:
+            keys = []
+        elif isinstance(keys, str):
+            keys = [keys]
+        elif isinstance(keys, list):
+            if False in [isinstance(k, str) for k in keys]:
+                raise TypeError(f"keys must be a list of strings, got {keys}")
+        else:
+            raise TypeError("keys must be a string or list of strings, got "
+                            f"{type(keys)}")
+
+        graph_info = self.__client.get_graph_info(keys, graph_id)
+
+        # special case: if only one key was specified, return only the single
+        # value
+        if len(keys) == 1:
+            return ValueWrapper(graph_info[keys[0]]).get_py_obj()
+
+        # graph_info is a dictionary of Value objects ("union" types returned
+        # from the graph), so convert them to simple py types.
+        return dict((k, ValueWrapper(graph_info[k]).get_py_obj())
+                    for k in graph_info)
+
+    @__server_connection
     def load_csv_as_vertex_data(self,
                                 csv_file_name,
                                 dtypes,
@@ -397,6 +449,7 @@ class GaasClient:
                                 graph_id=defaults.graph_id,
                                 names=None,
                                 ):
+
         """
         Reads csv_file_name and applies it as vertex data to the graph
         identified as graph_id (or the default graph if not specified).
@@ -621,38 +674,6 @@ class GaasClient:
                                                        graph_id)
 
     @__server_connection
-    def uniform_neighbor_sample(self,
-                                start_list,
-                                fanout_vals,
-                                with_replacement=True,
-                                graph_id=defaults.graph_id):
-        """
-        Samples the graph and returns the graph id of the sampled
-        graph.
-
-        Parameters:
-        start_list: list[int]
-
-        fanout_vals: list[int]
-
-        with_replacement: bool
-
-        graph_id: int, default is defaults.graph_id
-
-        Returns
-        -------
-        The graph id of the sampled graph.
-
-        """
-
-        return self.__client.uniform_neighbor_sample(
-            start_list,
-            fanout_vals,
-            with_replacement,
-            graph_id,
-        )
-
-    @__server_connection
     def extract_subgraph(self,
                          create_using=None,
                          selection=None,
@@ -772,13 +793,6 @@ class GaasClient:
 
 
     @__server_connection
-    def get_graph_vertex_dataframe_shape(self,
-                                         graph_id=defaults.graph_id
-                                         ):
-        return tuple(self.__client.get_graph_vertex_dataframe_shape(graph_id))
-
-
-    @__server_connection
     def get_graph_edge_dataframe_rows(self,
                                       index_or_indices=-1,
                                       null_replacement_value=0,
@@ -826,13 +840,35 @@ class GaasClient:
 
         return pickle.loads(ndarray_bytes)
 
+    @__server_connection
+    def is_vertex_property(self, property_key, graph_id=defaults.graph_id):
+        """
+        Returns True if the given property key is for a valid vertex property
+        in the given graph, false otherwise.e
+
+        Parameters
+        ----------
+        property_key: string
+            The key (name) of the vertex property to check
+        graph_id: int
+            The id of the graph of interest
+        """
+        return self.__client.is_vertex_property(property_key, graph_id)
 
     @__server_connection
-    def get_graph_edge_dataframe_shape(self,
-                                         graph_id=defaults.graph_id
-                                         ):
-        return tuple(self.__client.get_graph_edge_dataframe_shape(graph_id))
+    def is_edge_property(self, property_key, graph_id=defaults.graph_id):
+        """
+        Returns True if the given property key is for a valid vertex property
+        in the given graph, false otherwise.e
 
+        Parameters
+        ----------
+        property_key: string
+            The key (name) of the vertex property to check
+        graph_id: int
+            The id of the graph of interest
+        """
+        return self.__client.is_edge_property(property_key, graph_id)
 
     ############################################################################
     # Algos
@@ -866,36 +902,6 @@ class GaasClient:
                 batched_ego_graphs_result.dst_verts,
                 batched_ego_graphs_result.edge_weights,
                 batched_ego_graphs_result.seeds_offsets)
-
-    @__server_connection
-    def is_vertex_property(self, property_key, graph_id=defaults.graph_id):
-        """
-        Returns True if the given property key is for a valid vertex property
-        in the given graph, false otherwise.e
-
-        Parameters
-        ----------
-        property_key: string
-            The key (name) of the vertex property to check
-        graph_id: int
-            The id of the graph of interest
-        """
-        return self.__client.is_vertex_property(property_key, graph_id)
-
-    @__server_connection
-    def is_edge_property(self, property_key, graph_id=defaults.graph_id):
-        """
-        Returns True if the given property key is for a valid vertex property
-        in the given graph, false otherwise.e
-
-        Parameters
-        ----------
-        property_key: string
-            The key (name) of the vertex property to check
-        graph_id: int
-            The id of the graph of interest
-        """
-        return self.__client.is_edge_property(property_key, graph_id)
 
     @__server_connection
     def node2vec(self, start_vertices, max_depth, graph_id=defaults.graph_id):
@@ -934,6 +940,38 @@ class GaasClient:
         return (node2vec_result.vertex_paths,
                 node2vec_result.edge_weights,
                 node2vec_result.path_sizes)
+
+    @__server_connection
+    def uniform_neighbor_sample(self,
+                                start_list,
+                                fanout_vals,
+                                with_replacement=True,
+                                graph_id=defaults.graph_id):
+        """
+        Samples the graph and returns the graph id of the sampled
+        graph.
+
+        Parameters:
+        start_list: list[int]
+
+        fanout_vals: list[int]
+
+        with_replacement: bool
+
+        graph_id: int, default is defaults.graph_id
+
+        Returns
+        -------
+        The graph id of the sampled graph.
+
+        """
+
+        return self.__client.uniform_neighbor_sample(
+            start_list,
+            fanout_vals,
+            with_replacement,
+            graph_id,
+        )
 
     @__server_connection
     def pagerank(self, graph_id=defaults.graph_id):
