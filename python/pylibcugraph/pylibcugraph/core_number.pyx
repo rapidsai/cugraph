@@ -70,8 +70,10 @@ def EXPERIMENTAL__core_number(ResourceHandle resource_handle,
     graph: MGGraph
         The input graph, for Multi-GPU operations.
     
-    degree_type: device array type
-        Device array containing the degree type as a character.
+    degree_type: int
+        Flag determining whether the core number computation should be based
+        of incoming edges, outgoing edges or both which are respectively
+        0, 1 and 2
     
     do_expensive_check: bool
         If True, performs more extensive tests on the inputs to ensure
@@ -91,7 +93,7 @@ def EXPERIMENTAL__core_number(ResourceHandle resource_handle,
     >>> weights = cupy.asarray([1.0, 1.0, 1.0], dtype=numpy.float32)
     >>> resource_handle = pylibcugraph.ResourceHandle()
     >>> graph_props = pylibcugraph.GraphProperties(
-    ...     is_symmetric=False, is_multigraph=False)
+    ...     is_symmetric=True, is_multigraph=False)
     >>> G = pylibcugraph.SGGraph(
     ...     resource_handle, graph_props, srcs, dsts, weights,
     ...     store_transposed=True, renumber=False, do_expensive_check=False)
@@ -104,12 +106,15 @@ def EXPERIMENTAL__core_number(ResourceHandle resource_handle,
     cdef cugraph_core_result_t* result_ptr
     cdef cugraph_error_code_t error_code
     cdef cugraph_error_t* error_ptr
-    #cdef cugraph_k_core_degree_type_t degree_type_
-    #print("name is ", cugraph_k_core_degree_type_t.IN)
+
+    degree_type_map = {
+        0: cugraph_k_core_degree_type_t.K_CORE_DEGREE_TYPE_IN,
+        1: cugraph_k_core_degree_type_t.K_CORE_DEGREE_TYPE_OUT,
+        2: cugraph_k_core_degree_type_t.K_CORE_DEGREE_TYPE_INOUT}
 
     error_code = cugraph_core_number(c_resource_handle_ptr,
                                      c_graph_ptr,
-                                     cugraph_k_core_degree_type_t.IN,
+                                     degree_type_map[degree_type],
                                      do_expensive_check,
                                      &result_ptr,
                                      &error_ptr)
