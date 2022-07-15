@@ -15,13 +15,11 @@ import gc
 
 import pytest
 
-import cudf
 import cugraph
 from cugraph.testing import utils
 import cugraph.dask as dcg
 import dask_cudf
 from cugraph.experimental import core_number as experimental_core_number
-import random
 
 
 # =============================================================================
@@ -48,7 +46,7 @@ def input_combo(request):
     tests or other parameterized fixtures.
     """
     parameters = dict(zip(("graph_file",
-                           "degree_type"),request.param))
+                           "degree_type"), request.param))
 
     return parameters
 
@@ -130,7 +128,7 @@ def test_core_number(dask_client, benchmark, input_expected_output):
 def test_core_number_invalid_input(input_expected_output):
     input_data_path = (utils.RAPIDS_DATASET_ROOT_DIR_PATH /
                        "karate-asymmetric.csv").as_posix()
-    
+
     chunksize = dcg.get_chunksize(input_data_path)
     ddf = dask_cudf.read_csv(
         input_data_path,
@@ -144,12 +142,11 @@ def test_core_number_invalid_input(input_expected_output):
     dg.from_dask_cudf_edgelist(
         ddf, source='src', destination='dst',
         edge_attr="value", renumber=True)
-    
+
     with pytest.raises(ValueError):
         dcg.core_number(dg)
-    
+
     invalid_degree_type = 3
     dg = input_expected_output["MGGraph"]
     with pytest.raises(ValueError):
         experimental_core_number(dg, invalid_degree_type)
-

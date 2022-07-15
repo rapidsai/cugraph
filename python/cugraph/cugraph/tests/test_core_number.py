@@ -14,13 +14,13 @@
 import gc
 
 import pytest
-import random
 
 import cudf
 import cugraph
 import networkx as nx
 from cugraph.testing import utils
 from cugraph.experimental import core_number as experimental_core_number
+
 
 # =============================================================================
 # Pytest Setup / Teardown - called for each test function
@@ -35,7 +35,7 @@ def setup_function():
 datasets = utils.DATASETS_UNDIRECTED
 
 fixture_params = utils.genFixtureParamsProduct((datasets, "graph_file"),
-                                               ([0,1], "degree_type"),
+                                               ([0, 1], "degree_type"),
                                                )
 
 
@@ -86,14 +86,15 @@ def test_core_number(input_combo):
 
     # Compare the nx core number results with cugraph (both the legacy and
     # and experimental version)
-    core_number_results["nx_core_number"] = nx_core_number_results["core_number"]
+    core_number_results["nx_core_number"] = \
+        nx_core_number_results["core_number"]
     core_number_results["legacy_cugraph_core_number"] = \
         cugraph_legacy_core_number_results["core_number"]
     counts_diff = core_number_results.query(
         'nx_core_number != exp_cugraph_core_number or \
             exp_cugraph_core_number != legacy_cugraph_core_number')
     assert len(counts_diff) == 0
-    
+
 
 def test_core_number_invalid_input(input_combo):
     input_data_path = (utils.RAPIDS_DATASET_ROOT_DIR_PATH /
@@ -119,4 +120,3 @@ def test_core_number_invalid_input(input_combo):
     G = input_combo["G"]
     with pytest.raises(ValueError):
         experimental_core_number(G, invalid_degree_type)
-

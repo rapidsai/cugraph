@@ -38,8 +38,8 @@ def EXPERIMENTAL__core_number(G, degree_type=0):
         represented as directed edges in both directions. While this graph
         can contain edge weights, they don't participate in the calculation
         of the core numbers.
-    
-    degree_type: int, optional (default=0) 
+
+    degree_type: int, optional (default=0)
         Flag determining whether the core number computation should be based
         of incoming edges, outgoing edges or both which are respectively
         0, 1 and 2
@@ -73,7 +73,7 @@ def EXPERIMENTAL__core_number(G, degree_type=0):
     if degree_type not in [0, 1, 2]:
         raise ValueError(f"degree_type must be either 0, 1 and 2 which "
                          f"represent respectively incoming edge, outgoing "
-                         f"or both")
+                         f"or both, got: {degree_type}")
 
     srcs = G.edgelist.edgelist_df['src']
     dsts = G.edgelist.edgelist_df['dst']

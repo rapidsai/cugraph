@@ -30,15 +30,15 @@ from pylibcugraph import (ResourceHandle,
 
 
 def call_core_number(sID,
-                   data,
-                   src_col_name,
-                   dst_col_name,
-                   graph_properties,
-                   store_transposed,
-                   num_edges,
-                   do_expensive_check,
-                   degree_type
-                   ):
+                     data,
+                     src_col_name,
+                     dst_col_name,
+                     graph_properties,
+                     store_transposed,
+                     num_edges,
+                     do_expensive_check,
+                     degree_type
+                     ):
 
     handle = Comms.get_handle(sID)
     h = ResourceHandle(handle.getHandle())
@@ -93,7 +93,7 @@ def core_number(input_graph,
         (edge weights are not used in this algorithm).
         The current implementation only supports undirected graphs.
 
-    degree_type: int, optional (default=0) 
+    degree_type: int, optional (default=0)
         Flag determining whether the core number computation should be based
         of incoming edges, outgoing edges or both which are respectively
         0, 1 and 2
@@ -105,11 +105,10 @@ def core_number(input_graph,
         GPU distributed data frame containing 2 dask_cudf.Series
 
         ddf['vertex']: dask_cudf.Series
-            Contains the triangle counting vertices
+            Contains the core number vertices
         ddf['core_number']: dask_cudf.Series
             Contains the core number of vertices
     """
-
 
     if input_graph.is_directed():
         raise ValueError("input graph must be undirected")
@@ -117,7 +116,7 @@ def core_number(input_graph,
     if degree_type not in [0, 1, 2]:
         raise ValueError(f"degree_type must be either 0, 1 and 2 which "
                          f"represent respectively incoming edge, outgoing "
-                         f"or both")
+                         f"or both, got {degree_type}")
 
     # Initialize dask client
     client = default_client()
@@ -126,7 +125,6 @@ def core_number(input_graph,
     # string vertices since the renumbering will be done in pylibcugraph
     input_graph.compute_renumber_edge_list(
         transposed=False, legacy_renum_only=True)
-
 
     ddf = input_graph.edgelist.edgelist_df
 
