@@ -94,8 +94,6 @@ class Tests_Uniform_Neighbor_Sampling
 
     printf("Attaching mask\n");
 
-      raft::print_device_vector("edge mask", graph_mask.view().get_edge_mask(), graph_mask.view().get_edge_mask_size(), std::cout);
-
     graph_view.attach_mask(graph_mask);
 
     constexpr edge_t indices_per_source       = 2;
@@ -107,8 +105,8 @@ class Tests_Uniform_Neighbor_Sampling
     // Generate random sources to gather on
     auto random_sources =
       cugraph::test::random_vertex_ids(handle,
-                                       graph_view.local_vertex_partition_range_first(),
-                                       graph_view.local_vertex_partition_range_last(),
+                                       (vertex_t)0, (vertex_t)3,//graph_view.local_vertex_partition_range_first(),
+                                       //graph_view.local_vertex_partition_range_last(),
                                        std::min(graph_view.local_vertex_partition_range_size() *
                                                   (repetitions_per_vertex + vertex_t{1}),
                                                 source_sample_count),
@@ -226,7 +224,7 @@ INSTANTIATE_TEST_SUITE_P(
   Tests_Uniform_Neighbor_Sampling_Rmat,
   ::testing::Combine(::testing::Values(Prims_Usecase{false, true}),
                      ::testing::Values(cugraph::test::Rmat_Usecase(
-                       5, 3, 0.57, 0.19, 0.19, 0, false, false, 0, false))));
+                       20, 50, 0.57, 0.19, 0.19, 0, false, false, 0, false))));
 
 //INSTANTIATE_TEST_SUITE_P(
 //  rmat_benchmark_test, /* note that scale & edge factor can be overridden in benchmarking (with

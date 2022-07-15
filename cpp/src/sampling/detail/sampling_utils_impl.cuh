@@ -111,8 +111,6 @@ rmm::device_uvector<typename GraphViewType::edge_type> compute_local_major_degre
                              : false;
     auto mask            = graph_view.get_mask_view(i);
 
-    printf("mask_has_value: %d, mask_has_edge_mask: %d\n", mask.has_value(), (*mask).has_edge_mask());
-
     if (use_dcs) {
       auto num_sparse_vertices     = (*segment_offsets)[num_sparse_segments_per_vertex_partition];
       auto major_hypersparse_first = edge_partition.major_range_first() + num_sparse_vertices;
@@ -128,7 +126,7 @@ rmm::device_uvector<typename GraphViewType::edge_type> compute_local_major_degre
             raft::logger::get().log(RAFT_LEVEL_INFO, "Computing masked degrees 1");
             compute_masked_degrees(handle, graph_view, sparse_begin, num_sparse_vertices, edge_partition);
 
-            raft::print_device_vector("sparse_begin", sparse_begin, num_sparse_vertices, std::cout);
+            raft::print_device_vector("sparse_begin", sparse_begin, 10, std::cout);
         } else {
 
             // TODO: Masked degrees
@@ -166,7 +164,7 @@ rmm::device_uvector<typename GraphViewType::edge_type> compute_local_major_degre
                                          vertex_ids,
                                          edge_partition.offsets() + offsets_start);
         handle.sync_stream();
-          raft::print_device_vector("sparse_begin", sparse_begin, dcs_nzd_vertex_count, std::cout);
+          raft::print_device_vector("sparse_begin", sparse_begin, 10, std::cout);
 
       } else {
         thrust::for_each(
@@ -193,11 +191,10 @@ rmm::device_uvector<typename GraphViewType::edge_type> compute_local_major_degre
       // If a vertex mask is present, compute the (local) degrees of the masked vertices
       if (mask.has_value() && (*mask).has_edge_mask()) {
 
-          raft::print_device_vector("edge mask", (*mask).get_edge_mask(), (*mask).get_edge_mask_size(), std::cout);
           raft::logger::get().log(RAFT_LEVEL_INFO, "Computing masked degrees 3, %d", partial_offset);
         compute_masked_degrees(handle, graph_view, sparse_begin, size, edge_partition);
 
-        raft::print_device_vector("sparse_begin", sparse_begin, size, std::cout);
+        raft::print_device_vector("sparse_begin", sparse_begin, 10, std::cout);
       } else {
         thrust::tabulate(handle.get_thrust_policy(),
                          sparse_begin,
@@ -209,7 +206,9 @@ rmm::device_uvector<typename GraphViewType::edge_type> compute_local_major_degre
     }
     partial_offset += edge_partition.major_range_size();
   }
-  return local_degrees;
+
+    raft::print_device_vector("local_degrees", local_degrees.data(), 10, std::cout);
+    return local_degrees;
 }
 
 template <typename GraphViewType>
@@ -309,8 +308,8 @@ template <typename GraphViewType>
 rmm::device_uvector<typename GraphViewType::edge_type> get_active_major_global_degrees(
   raft::handle_t const& handle,
   GraphViewType const& graph_view,
-  const rmm::device_uvector<typename GraphViewType::vertex_type>& active_majors,
-  const rmm::device_uvector<typename GraphViewType::edge_type>& global_out_degrees)
+  const rmm::device_uvector<typename GraphViewType::vertex_type>& active_majors,      // list of vertices to sample
+  const rmm::device_uvector<typename GraphViewType::edge_type>& global_out_degrees)  // output
 {
   using vertex_t    = typename GraphViewType::vertex_type;
   using edge_t      = typename GraphViewType::edge_type;
@@ -319,6 +318,9 @@ rmm::device_uvector<typename GraphViewType::edge_type> get_active_major_global_d
                                                    typename GraphViewType::weight_type,
                                                    GraphViewType::is_multi_gpu>;
   rmm::device_uvector<edge_t> active_major_degrees(active_majors.size(), handle.get_stream());
+  thrust::fill(handle.get_thrust_policy(), active_major_degrees.begin(), active_major_degrees.end(), 0);
+
+  raft::print_device_vector("active_majors", active_majors.data(), active_majors.size(), std::cout);
 
   std::vector<vertex_t> id_begin;
   std::vector<vertex_t> id_end;
@@ -327,6 +329,8 @@ rmm::device_uvector<typename GraphViewType::edge_type> get_active_major_global_d
   id_end.reserve(graph_view.number_of_local_edge_partitions());
   count_offsets.reserve(graph_view.number_of_local_edge_partitions());
   vertex_t counter{0};
+
+  // go through local edge partitions, tracking beginning and ending offsets
   for (size_t i = 0; i < graph_view.number_of_local_edge_partitions(); ++i) {
     auto edge_partition = partition_t(graph_view.local_edge_partition_view(i));
     // Starting vertex ids of each partition
@@ -335,6 +339,8 @@ rmm::device_uvector<typename GraphViewType::edge_type> get_active_major_global_d
     count_offsets.push_back(counter);
     counter += edge_partition.major_range_size();
   }
+
+  // Move starting / ending partition offsets to device
   rmm::device_uvector<vertex_t> vertex_id_begin(id_begin.size(), handle.get_stream());
   rmm::device_uvector<vertex_t> vertex_id_end(id_end.size(), handle.get_stream());
   rmm::device_uvector<vertex_t> vertex_count_offsets(count_offsets.size(), handle.get_stream());
@@ -344,6 +350,9 @@ rmm::device_uvector<typename GraphViewType::edge_type> get_active_major_global_d
   raft::update_device(
     vertex_count_offsets.data(), count_offsets.data(), count_offsets.size(), handle.get_stream());
 
+  /**
+   * For each active vertex,
+   */
   thrust::transform(handle.get_thrust_policy(),
                     active_majors.begin(),
                     active_majors.end(),
@@ -367,8 +376,11 @@ rmm::device_uvector<typename GraphViewType::edge_type> get_active_major_global_d
                       // partition offsets because it is a concatenation of all the offsets
                       // across all partitions
                       auto location = location_in_segment + vertex_count_offsets[partition_id];
+                      printf("degree: %ld\n", global_out_degrees[location]);
                       return global_out_degrees[location];
                     });
+
+  raft::print_device_vector("active_major_degrees", active_major_degrees.data(), active_majors.size(), std::cout);
   return active_major_degrees;
 }
 
@@ -534,6 +546,7 @@ gather_local_edges(
           }
         }
 
+
         // read location of global_degree_offset needs to take into account the
         // partition offsets because it is a concatenation of all the offsets
         // across all partitions
@@ -544,6 +557,7 @@ gather_local_edges(
           vertex_t const* adjacency_list =
             partitions[partition_id].indices() + offset_ptr[location_in_segment];
           minors[index] = adjacency_list[g_dst_index];
+          printf("minors[%u] = %u\n", index, adjacency_list[g_dst_index]);
           if (weights != nullptr) {
             weight_t const* edge_weights =
               *(partitions[partition_id].weights()) + offset_ptr[location_in_segment];
@@ -551,6 +565,7 @@ gather_local_edges(
           }
         } else {
           minors[index] = invalid_vertex_id;
+            printf("Setting %u invalid\n", index);
         }
       });
   } else {
@@ -596,6 +611,7 @@ gather_local_edges(
             location_in_segment = *(row_hypersparse_idx)-id_begin[partition_id];
           } else {
             minors[index] = invalid_vertex_id;
+printf("Setting %u invalid\n", index);
             return;
           }
         }
@@ -612,6 +628,7 @@ gather_local_edges(
         auto g_dst_index = edge_index_first[index];
         if (g_dst_index >= 0) {
           minors[index] = adjacency_list[g_dst_index];
+          printf("minors[%u] = %u\n", index, adjacency_list[g_dst_index]);
           if (weights != nullptr) {
             weight_t const* edge_weights = *(partitions[partition_id].weights()) + sparse_offset;
             weights[index]               = edge_weights[g_dst_index];
@@ -619,6 +636,7 @@ gather_local_edges(
           edge_index_first[index] = g_dst_index;
         } else {
           minors[index] = invalid_vertex_id;
+printf("Setting %u invalid\n", index);
         }
       });
   }

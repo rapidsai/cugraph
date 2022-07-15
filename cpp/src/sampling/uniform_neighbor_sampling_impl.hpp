@@ -105,9 +105,12 @@ uniform_nbr_sample_impl(
 
       // TODO: `get_active_major_global_degrees` should use the mask
 
+      raft::print_device_vector("d_in", d_in.data(), 10, std::cout);
       printf("get_active_major_global_degrees\n");
       auto&& d_out_degs =
         get_active_major_global_degrees(handle, graph_view, d_in, global_out_degrees);
+        raft::print_device_vector("d_out_degs", d_out_degs.data(), d_out_degs.size(), std::cout);
+
 
       // eliminate 0 degree vertices
       std::tie(d_in, d_out_degs) =
@@ -118,6 +121,7 @@ uniform_nbr_sample_impl(
 
       raft::random::RngState rng_state(seed);
       seed += d_rnd_indices.size() * row_comm_size;
+
 
       if (d_rnd_indices.size() > 0) {
         // FIXME: This cugraph_ops function does not handle 0 inputs properly
@@ -130,7 +134,7 @@ uniform_nbr_sample_impl(
                                         handle.get_stream());
       }
 
-      // TODO: `gather_local_edges` should use the mask
+      // TODO: First map the sampled edges from their
       std::tie(d_out_src, d_out_dst, d_out_indices) =
         gather_local_edges(handle,
                            graph_view,
@@ -201,6 +205,8 @@ uniform_nbr_sample(
   printf("get_global_degree_information\n");
   auto&& [global_degree_offsets, global_out_degrees] =
     detail::get_global_degree_information(handle, graph_view);
+
+  raft::print_device_vector("global_out_degrees", global_out_degrees.data(), 10, std::cout);
 
   return detail::uniform_nbr_sample_impl(handle,
                                          graph_view,

@@ -141,6 +141,7 @@ __global__ void masked_degree_kernel(edge_t* degrees_output,
   mask_type stop_mask_offset  = stop_offset / std::numeric_limits<mask_type>::digits;
 
   mask_type start_bit = start_offset & (std::numeric_limits<mask_type>::digits - 1);
+
   mask_type stop_bit  = (std::numeric_limits<mask_type>::digits) - (stop_offset & (std::numeric_limits<mask_type>::digits - 1));
 
   // TODO: Check vertex mask for vertex
@@ -166,6 +167,9 @@ __global__ void masked_degree_kernel(edge_t* degrees_output,
   }
 
   degree = BlockReduce(temp_storage).Sum(degree);
+
+  if(degree > 0)
+      printf("bid=%d, degree=%ld\n", blockIdx.x, degree);
   if (threadIdx.x == 0) { degrees_output[vertex] = degree; }
 }
 
@@ -186,6 +190,8 @@ __global__ void masked_degree_kernel(edge_t* degrees_output,
   typedef cub::BlockReduce<vertex_t, tpb> BlockReduce;
 
   __shared__ typename BlockReduce::TempStorage temp_storage;
+
+    int vertex            = blockIdx.x;
 
     vertex_t start_offset = indptr[vertex];
     vertex_t stop_offset  = indptr[vertex + 1];
