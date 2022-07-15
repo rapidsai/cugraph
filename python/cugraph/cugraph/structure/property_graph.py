@@ -803,11 +803,11 @@ class EXPERIMENTAL__PropertyGraph:
             G.from_pandas_edgelist(edge_prop_df, **create_args)
 
         if add_edge_data:
-            # Set the edge_data on the resulting Graph to a DataFrame containing
-            # the edges and the edge ID for each. Edge IDs are needed for future
-            # calls to annotate_dataframe() in order to associate edges with
-            # their properties, since the PG can contain multiple edges between
-            # vertrices with different properties.
+            # Set the edge_data on the resulting Graph to a DataFrame
+            # containing the edges and the edge ID for each. Edge IDs are
+            # needed for future calls to annotate_dataframe() in order to
+            # associate edges with their properties, since the PG can contain
+            # multiple edges between vertrices with different properties.
             # FIXME: also add vertex_data
             G.edge_data = self.__create_property_lookup_table(edge_prop_df)
 

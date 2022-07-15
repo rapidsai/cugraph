@@ -643,12 +643,12 @@ class EXPERIMENTAL__MGPropertyGraph:
             raise RuntimeError("query resulted in duplicate edges which "
                                f"cannot be represented with the {msg}")
 
-        # FIXME: MNMG Graphs required renumber to be True due to requirements on
-        # legacy code that needed segment offsets, partition offsets, etc. which
-        # were previously computed during the "legacy" C renumbering.
-        # The workaround is to pass renumber=True, then manually call
-        # G.compute_renumber_edge_list(legacy_renum_only=True) to compute the
-        # required meta-data without changing vertex IDs.
+        # FIXME: MNMG Graphs required renumber to be True due to requirements
+        # on legacy code that needed segment offsets, partition offsets,
+        # etc. which were previously computed during the "legacy" C
+        # renumbering.  The workaround is to pass renumber=True, then manually
+        # call G.compute_renumber_edge_list(legacy_renum_only=True) to compute
+        # the required meta-data without changing vertex IDs.
         if renumber_graph is False:
             renumber = True
         else:
@@ -672,11 +672,11 @@ class EXPERIMENTAL__MGPropertyGraph:
             G.compute_renumber_edge_list(legacy_renum_only=False)
 
         if add_edge_data:
-            # Set the edge_data on the resulting Graph to a DataFrame containing
-            # the edges and the edge ID for each. Edge IDs are needed for future
-            # calls to annotate_dataframe() in order to associate edges with
-            # their properties, since the PG can contain multiple edges between
-            # vertrices with different properties.
+            # Set the edge_data on the resulting Graph to a DataFrame
+            # containing the edges and the edge ID for each. Edge IDs are
+            # needed for future calls to annotate_dataframe() in order to
+            # associate edges with their properties, since the PG can contain
+            # multiple edges between vertrices with different properties.
             # FIXME: also add vertex_data
             G.edge_data = self.__create_property_lookup_table(edge_prop_df)
 

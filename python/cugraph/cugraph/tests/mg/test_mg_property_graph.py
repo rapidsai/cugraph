@@ -358,6 +358,7 @@ def test_frame_data(dataset1_PropertyGraph, dataset1_MGPropertyGraph):
         .compute().sort_values(by=edge_sort_col).reset_index(drop=True)
     assert (sg_ep_df['_SRC_'].equals(mg_ep_df['_SRC_']))
 
+
 def test_property_names_attrs(dataset1_MGPropertyGraph):
     """
     Ensure the correct number of user-visible properties for vertices and edges
@@ -383,6 +384,7 @@ def test_property_names_attrs(dataset1_MGPropertyGraph):
 
     assert sorted(actual_vert_prop_names) == sorted(expected_vert_prop_names)
     assert sorted(actual_edge_prop_names) == sorted(expected_edge_prop_names)
+
 
 def test_extract_subgraph_nonrenumbered_noedgedata(dask_client):
     """
