@@ -37,7 +37,7 @@ def call_core_number(sID,
                    store_transposed,
                    num_edges,
                    do_expensive_check,
-                   start_list
+                   degree_type
                    ):
 
     handle = Comms.get_handle(sID)
@@ -59,7 +59,7 @@ def call_core_number(sID,
 
     result = pylibcugraph_core_number(h,
                                       mg,
-                                      0,
+                                      degree_type,
                                       do_expensive_check)
 
     return result
@@ -78,10 +78,13 @@ def convert_to_cudf(cp_arrays):
 
 
 def core_number(input_graph,
-                degree_type=None):
+                degree_type=0):
     """
-    Computes the number of triangles (cycles of length three) and the number
-    per vertex in the input graph.
+    Compute the core numbers for the nodes of the graph G. A k-core of a graph
+    is a maximal subgraph that contains nodes of degree k or more.
+    A node has a core number of k if it belongs a k-core but not to k+1-core.
+    This call does not support a graph with self-loops and parallel
+    edges.
 
     Parameters
     ----------
@@ -90,9 +93,10 @@ def core_number(input_graph,
         (edge weights are not used in this algorithm).
         The current implementation only supports undirected graphs.
 
-    start_list : not supported
-        list of vertices for triangle count. if None the entire set of vertices
-        in the graph is processed
+    degree_type: int, optional (default=0) 
+        Flag determining whether the core number computation should be based
+        of incoming edges, outgoing edges or both which are respectively
+        0, 1 and 2
 
 
     Returns
@@ -100,16 +104,21 @@ def core_number(input_graph,
     result : dask_cudf.DataFrame
         GPU distributed data frame containing 2 dask_cudf.Series
 
-    ddf['vertex']: dask_cudf.Series
+        ddf['vertex']: dask_cudf.Series
             Contains the triangle counting vertices
-    ddf['counts']: dask_cudf.Series
-        Contains the triangle counting counts
+        ddf['core_number']: dask_cudf.Series
+            Contains the core number of vertices
     """
 
-    """
+
     if input_graph.is_directed():
         raise ValueError("input graph must be undirected")
-    """
+
+    if degree_type not in [0, 1, 2]:
+        raise ValueError(f"degree_type must be either 0, 1 and 2 which "
+                         f"represent respectively incoming edge, outgoing "
+                         f"or both")
+
     # Initialize dask client
     client = default_client()
     # In the future, once all the algos follow the C/Pylibcugraph path,
@@ -145,7 +154,7 @@ def core_number(input_graph,
                             store_transposed,
                             num_edges,
                             do_expensive_check,
-                            0,
+                            degree_type,
                             workers=[wf[0]])
               for idx, wf in enumerate(data.worker_to_parts.items())]
 

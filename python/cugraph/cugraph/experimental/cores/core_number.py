@@ -23,8 +23,7 @@ from pylibcugraph import (ResourceHandle,
                           )
 
 
-# FIXME: rename this to triangle_conut to match the MG implmentation
-def EXPERIMENTAL__core_number(G, degree_type=None):
+def EXPERIMENTAL__core_number(G, degree_type=0):
     """
     Compute the core numbers for the nodes of the graph G. A k-core of a graph
     is a maximal subgraph that contains nodes of degree k or more.
@@ -40,8 +39,10 @@ def EXPERIMENTAL__core_number(G, degree_type=None):
         can contain edge weights, they don't participate in the calculation
         of the core numbers.
     
-    degree_type: device array type
-        Device array containing the degree type as a character
+    degree_type: int, optional (default=0) 
+        Flag determining whether the core number computation should be based
+        of incoming edges, outgoing edges or both which are respectively
+        0, 1 and 2
 
     Returns
     -------
@@ -63,12 +64,16 @@ def EXPERIMENTAL__core_number(G, degree_type=None):
     >>> df = cugraph.core_number(G)
 
     """
-    # FIXME: start_list is disabled
-    start_list = None
-    
-    # FIXME: Do we return a dictionary of score like the previous
-    # implementation?
+
     G, _ = ensure_cugraph_obj_for_nx(G)
+
+    if G.is_directed():
+        raise ValueError("input graph must be undirected")
+
+    if degree_type not in [0, 1, 2]:
+        raise ValueError(f"degree_type must be either 0, 1 and 2 which "
+                         f"represent respectively incoming edge, outgoing "
+                         f"or both")
 
     srcs = G.edgelist.edgelist_df['src']
     dsts = G.edgelist.edgelist_df['dst']
@@ -91,12 +96,12 @@ def EXPERIMENTAL__core_number(G, degree_type=None):
     sg = SGGraph(resource_handle, graph_props, srcs, dsts, weights,
                  store_transposed, renumber, do_expensive_check)
 
-    vertex, counts = pylibcugraph_core_number(
-        resource_handle, sg, 0, do_expensive_check)
+    vertex, core_number = pylibcugraph_core_number(
+        resource_handle, sg, degree_type, do_expensive_check)
 
     df = cudf.DataFrame()
     df["vertex"] = vertex
-    df["counts"] = counts
+    df["core_number"] = core_number
 
     if G.renumbered:
         df = G.unrenumber(df, "vertex")
