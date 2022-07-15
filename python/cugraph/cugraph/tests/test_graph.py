@@ -544,6 +544,7 @@ def test_to_directed(graph_file):
     assert DiG.is_directed()
     assert DiG.number_of_nodes() == DiGnx.number_of_nodes()
     assert DiG.number_of_edges() == DiGnx.number_of_edges()
+    assert DiG._plc_graph is not None
 
     for index, row in cu_M.to_pandas().iterrows():
         assert G.has_edge(row['0'], row['1'])
@@ -579,6 +580,7 @@ def test_to_undirected(graph_file):
     assert not G.is_directed()
     assert G.number_of_nodes() == Gnx.number_of_nodes()
     assert G.number_of_edges() == Gnx.number_of_edges()
+    assert G._plc_graph is not None
 
     for index, row in cu_M.to_pandas().iterrows():
         assert G.has_edge(row['0'], row['1'])

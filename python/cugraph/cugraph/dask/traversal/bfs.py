@@ -58,7 +58,7 @@ def bfs(input_graph,
         return_distances=True,
         check_start=True):
     """
-    Find the distances and predecessors for a breadth first traversal of a
+    Find the distances and predecessors for a breadth-first traversal of a
     graph.
     The input graph must contain edge list as a dask-cudf dataframe with
     one partition per GPU.
