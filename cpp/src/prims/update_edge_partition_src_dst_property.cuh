@@ -325,7 +325,7 @@ void update_edge_partition_minor_property(
       }
 
       for (size_t round = 0; round < num_rounds; ++round) {
-        row_comm.group_start();
+        device_group_start(row_comm);
         for (size_t i = 0; i < num_concurrent_bcasts; ++i) {
           auto j = num_rounds * i + round;
           if (j < static_cast<size_t>(row_comm_size)) {
@@ -338,7 +338,7 @@ void update_edge_partition_minor_property(
                          handle.get_stream());
           }
         }
-        row_comm.group_end();
+        device_group_end(row_comm);
 
         for (size_t i = 0; i < num_concurrent_bcasts; ++i) {
           auto j = num_rounds * i + round;
