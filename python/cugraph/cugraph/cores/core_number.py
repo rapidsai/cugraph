@@ -56,6 +56,9 @@ def core_number(G):
 
     G, isNx = ensure_cugraph_obj_for_nx(G)
 
+    if G.is_directed():
+        raise ValueError("input graph must be undirected")
+
     df = core_number_wrapper.core_number(G)
 
     if G.renumbered:
