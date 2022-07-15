@@ -15,12 +15,13 @@
  */
 #pragma once
 
-#include <cugraph/detail/graph_utils.cuh>
+#include <detail/graph_utils.cuh>
+#include <prims/detail/nbr_intersection.cuh>
+#include <prims/edge_partition_src_dst_property.cuh>
+#include <prims/property_op_utils.cuh>
+
 #include <cugraph/edge_partition_device_view.cuh>
 #include <cugraph/graph_view.hpp>
-#include <cugraph/prims/detail/nbr_intersection.cuh>
-#include <cugraph/prims/edge_partition_src_dst_property.cuh>
-#include <cugraph/prims/property_op_utils.cuh>
 #include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/error.hpp>
 

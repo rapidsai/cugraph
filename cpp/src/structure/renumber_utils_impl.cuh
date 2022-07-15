@@ -15,10 +15,11 @@
  */
 #pragma once
 
-#include <cugraph/detail/graph_utils.cuh>
+#include <detail/graph_utils.cuh>
+#include <utilities/collect_comm.cuh>
+
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_functions.hpp>
-#include <cugraph/utilities/collect_comm.cuh>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/host_scalar_comm.cuh>
 

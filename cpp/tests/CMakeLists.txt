@@ -285,6 +285,11 @@ function(ConfigureCTestMG CMAKE_TEST_NAME)
             EXCLUDE_FROM_ALL)
 endfunction()
 
+if(NOT USE_CUGRAPH_OPS)
+    list(APPEND CMAKE_C_FLAGS -DNO_CUGRAPH_OPS)
+    list(APPEND CMAKE_CXX_FLAGS -DNO_CUGRAPH_OPS)
+    list(APPEND CMAKE_CUDA_FLAGS -DNO_CUGRAPH_OPS)
+endif()
 
 ###################################################################################################
 # - set rapids dataset path ----------------------------------------------------------------------
@@ -609,10 +614,6 @@ if(BUILD_CUGRAPH_MG_TESTS)
         ###########################################################################################
         # - MG GATHER_ONE_HOP tests ---------------------------------------------------------------
         ConfigureTestMG(MG_GATHER_ONE_HOP_TEST sampling/detail/mg_gather_one_hop.cu)
-
-        ###########################################################################################
-        # - MG NBR SAMPLING tests -----------------------------------------------------------------
-        ConfigureTestMG(MG_NBR_SAMPLING_TEST sampling/detail/mg_nbr_sampling.cu)
 
         ###########################################################################################
         # - MG NBR SAMPLING tests -----------------------------------------------------------------

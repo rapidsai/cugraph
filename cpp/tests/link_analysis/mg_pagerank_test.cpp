@@ -95,7 +95,7 @@ class Tests_MGPageRank
       handle.get_comms().barrier();
       double elapsed_time{0.0};
       hr_clock.stop(&elapsed_time);
-      std::cout << "MG construct_graph took " << elapsed_time * 1e-6 << " s.\n";
+      std::cout << "MG construct_graph took " << elapsed_time * 1e-6 << " s." << std::endl;
     }
 
     auto mg_graph_view = mg_graph.view();
