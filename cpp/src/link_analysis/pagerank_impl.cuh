@@ -15,15 +15,16 @@
  */
 #pragma once
 
+#include <prims/count_if_e.cuh>
+#include <prims/count_if_v.cuh>
+#include <prims/edge_partition_src_dst_property.cuh>
+#include <prims/per_v_transform_reduce_incoming_outgoing_e.cuh>
+#include <prims/reduce_v.cuh>
+#include <prims/transform_reduce_v.cuh>
+#include <prims/update_edge_partition_src_dst_property.cuh>
+
 #include <cugraph/algorithms.hpp>
 #include <cugraph/graph_view.hpp>
-#include <cugraph/prims/count_if_e.cuh>
-#include <cugraph/prims/count_if_v.cuh>
-#include <cugraph/prims/edge_partition_src_dst_property.cuh>
-#include <cugraph/prims/per_v_transform_reduce_incoming_outgoing_e.cuh>
-#include <cugraph/prims/reduce_v.cuh>
-#include <cugraph/prims/transform_reduce_v.cuh>
-#include <cugraph/prims/update_edge_partition_src_dst_property.cuh>
 #include <cugraph/utilities/error.hpp>
 
 #include <raft/handle.hpp>
@@ -104,14 +105,14 @@ void pagerank(
     }
 
     if (pull_graph_view.is_weighted()) {
-      auto num_nonpositive_edge_weights =
+      auto num_negative_edge_weights =
         count_if_e(handle,
                    pull_graph_view,
                    dummy_property_t<vertex_t>{}.device_view(),
                    dummy_property_t<vertex_t>{}.device_view(),
-                   [] __device__(vertex_t, vertex_t, weight_t w, auto, auto) { return w <= 0.0; });
-      CUGRAPH_EXPECTS(num_nonpositive_edge_weights == 0,
-                      "Invalid input argument: input graph should have postive edge weights.");
+                   [] __device__(vertex_t, vertex_t, weight_t w, auto, auto) { return w < 0.0; });
+      CUGRAPH_EXPECTS(num_negative_edge_weights == 0,
+                      "Invalid input argument: input graph should have non-negative edge weights.");
     }
 
     if (has_initial_guess) {

@@ -21,13 +21,14 @@
 #include <utilities/test_utilities.hpp>
 #include <utilities/thrust_wrapper.hpp>
 
+#include <prims/property_op_utils.cuh>
+#include <prims/reduce_v.cuh>
+
 #include <cugraph/algorithms.hpp>
 #include <cugraph/partition_manager.hpp>
 
 #include <cuco/detail/hash_functions.cuh>
 #include <cugraph/graph_view.hpp>
-#include <cugraph/prims/property_op_utils.cuh>
-#include <cugraph/prims/reduce_v.cuh>
 
 #include <raft/comms/comms.hpp>
 #include <raft/comms/mpi_comms.hpp>

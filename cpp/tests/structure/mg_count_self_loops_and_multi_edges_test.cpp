@@ -171,21 +171,21 @@ TEST_P(Tests_MGCountSelfLoopsAndMultiEdges_File, CheckInt32Int32FloatTransposeFa
   run_current_test<int32_t, int32_t, float, false>(std::get<0>(param), std::get<1>(param));
 }
 
-TEST_P(Tests_MGCountSelfLoopsAndMultiEdges_Rmat, CheckInt32Int32FloaTransposeFalse)
+TEST_P(Tests_MGCountSelfLoopsAndMultiEdges_Rmat, CheckInt32Int32FloatTransposeFalse)
 {
   auto param = GetParam();
   run_current_test<int32_t, int32_t, float, false>(
     std::get<0>(param), override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
 
-TEST_P(Tests_MGCountSelfLoopsAndMultiEdges_Rmat, CheckInt32Int64FloaTransposeFalse)
+TEST_P(Tests_MGCountSelfLoopsAndMultiEdges_Rmat, CheckInt32Int64FloatTransposeFalse)
 {
   auto param = GetParam();
   run_current_test<int32_t, int64_t, float, false>(
     std::get<0>(param), override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
 
-TEST_P(Tests_MGCountSelfLoopsAndMultiEdges_Rmat, CheckInt64Int64FloaTransposeFalse)
+TEST_P(Tests_MGCountSelfLoopsAndMultiEdges_Rmat, CheckInt64Int64FloatTransposeFalse)
 {
   auto param = GetParam();
   run_current_test<int64_t, int64_t, float, false>(
@@ -198,7 +198,7 @@ TEST_P(Tests_MGCountSelfLoopsAndMultiEdges_File, CheckInt32Int32FloatTransposeTr
   run_current_test<int32_t, int32_t, float, true>(std::get<0>(param), std::get<1>(param));
 }
 
-TEST_P(Tests_MGCountSelfLoopsAndMultiEdges_Rmat, CheckInt32Int32FloaTransposeTrue)
+TEST_P(Tests_MGCountSelfLoopsAndMultiEdges_Rmat, CheckInt32Int32FloatTransposeTrue)
 {
   auto param = GetParam();
   run_current_test<int32_t, int32_t, float, true>(
@@ -210,20 +210,14 @@ INSTANTIATE_TEST_SUITE_P(
   Tests_MGCountSelfLoopsAndMultiEdges_File,
   ::testing::Combine(
     // enable correctness checks
-    ::testing::Values(CountSelfLoopsAndMultiEdges_Usecase{},
-                      CountSelfLoopsAndMultiEdges_Usecase{},
-                      CountSelfLoopsAndMultiEdges_Usecase{},
-                      CountSelfLoopsAndMultiEdges_Usecase{}),
+    ::testing::Values(CountSelfLoopsAndMultiEdges_Usecase{}),
     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
                       cugraph::test::File_Usecase("test/datasets/webbase-1M.mtx"))));
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_small_tests,
   Tests_MGCountSelfLoopsAndMultiEdges_Rmat,
-  ::testing::Combine(::testing::Values(CountSelfLoopsAndMultiEdges_Usecase{},
-                                       CountSelfLoopsAndMultiEdges_Usecase{},
-                                       CountSelfLoopsAndMultiEdges_Usecase{},
-                                       CountSelfLoopsAndMultiEdges_Usecase{}),
+  ::testing::Combine(::testing::Values(CountSelfLoopsAndMultiEdges_Usecase{}),
                      ::testing::Values(cugraph::test::Rmat_Usecase(
                        10, 16, 0.57, 0.19, 0.19, 0, false, false, 0, true))));
 
@@ -234,10 +228,7 @@ INSTANTIATE_TEST_SUITE_P(
                           include more than one Rmat_Usecase that differ only in scale or edge
                           factor (to avoid running same benchmarks more than once) */
   Tests_MGCountSelfLoopsAndMultiEdges_Rmat,
-  ::testing::Combine(::testing::Values(CountSelfLoopsAndMultiEdges_Usecase{},
-                                       CountSelfLoopsAndMultiEdges_Usecase{},
-                                       CountSelfLoopsAndMultiEdges_Usecase{},
-                                       CountSelfLoopsAndMultiEdges_Usecase{}),
+  ::testing::Combine(::testing::Values(CountSelfLoopsAndMultiEdges_Usecase{false}),
                      ::testing::Values(cugraph::test::Rmat_Usecase(
                        20, 32, 0.57, 0.19, 0.19, 0, false, false, 0, true))));
 

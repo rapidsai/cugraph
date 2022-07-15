@@ -15,11 +15,12 @@
  */
 #pragma once
 
+#include <prims/property_op_utils.cuh>
+#include <prims/reduce_op.cuh>
+
 #include <cugraph/edge_partition_device_view.cuh>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/partition_manager.hpp>
-#include <cugraph/prims/property_op_utils.cuh>
-#include <cugraph/prims/reduce_op.cuh>
 #include <cugraph/utilities/dataframe_buffer.cuh>
 #include <cugraph/utilities/device_comm.cuh>
 #include <cugraph/utilities/device_functors.cuh>
@@ -189,7 +190,6 @@ __global__ void update_v_frontier_from_outgoing_e_hypersparse(
                                typename GraphViewType::edge_type,
                                typename GraphViewType::weight_type,
                                GraphViewType::is_multi_gpu> edge_partition,
-  typename GraphViewType::vertex_type major_hypersparse_first,
   KeyIterator key_first,
   KeyIterator key_last,
   EdgePartitionSrcValueInputWrapper edge_partition_src_value_input,
@@ -216,12 +216,12 @@ __global__ void update_v_frontier_from_outgoing_e_hypersparse(
   static_assert(!GraphViewType::is_storage_transposed,
                 "GraphViewType should support the push model.");
 
-  auto const tid     = threadIdx.x + blockIdx.x * blockDim.x;
-  auto const warp_id = threadIdx.x / raft::warp_size();
-  auto const lane_id = tid % raft::warp_size();
-  auto src_start_offset =
-    static_cast<size_t>(major_hypersparse_first - edge_partition.major_range_first());
-  auto idx = static_cast<size_t>(tid);
+  auto const tid        = threadIdx.x + blockIdx.x * blockDim.x;
+  auto const warp_id    = threadIdx.x / raft::warp_size();
+  auto const lane_id    = tid % raft::warp_size();
+  auto src_start_offset = static_cast<size_t>(*(edge_partition.major_hypersparse_first()) -
+                                              edge_partition.major_range_first());
+  auto idx              = static_cast<size_t>(tid);
 
   __shared__ edge_t
     warp_local_degree_inclusive_sums[update_v_frontier_from_outgoing_e_kernel_block_size];
@@ -829,7 +829,6 @@ typename GraphViewType::edge_type compute_num_out_nbrs_from_frontier(
       edge_partition_device_view_t<vertex_t, edge_t, weight_t, GraphViewType::is_multi_gpu>(
         graph_view.local_edge_partition_view(i));
 
-    auto execution_policy = handle.get_thrust_policy();
     if constexpr (GraphViewType::is_multi_gpu) {
       auto& col_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
       auto const col_comm_rank = col_comm.get_rank();
@@ -843,21 +842,14 @@ typename GraphViewType::edge_type compute_num_out_nbrs_from_frontier(
                    handle.get_stream());
 
       auto segment_offsets = graph_view.local_edge_partition_segment_offsets(i);
-      auto use_dcs =
-        segment_offsets
-          ? ((*segment_offsets).size() > (detail::num_sparse_segments_per_vertex_partition + 1))
-          : false;
-
-      ret += use_dcs
+      ret += graph_view.use_dcs()
                ? thrust::transform_reduce(
-                   execution_policy,
+                   handle.get_thrust_policy(),
                    frontier_vertices.begin(),
                    frontier_vertices.end(),
                    [edge_partition,
                     major_hypersparse_first =
-                      edge_partition.major_range_first() +
-                      (*segment_offsets)
-                        [detail::num_sparse_segments_per_vertex_partition]] __device__(auto major) {
+                      *(edge_partition.major_hypersparse_first())] __device__(auto major) {
                      if (major < major_hypersparse_first) {
                        auto major_offset = edge_partition.major_offset_from_major_nocheck(major);
                        return edge_partition.local_degree(major_offset);
@@ -875,7 +867,7 @@ typename GraphViewType::edge_type compute_num_out_nbrs_from_frontier(
                    edge_t{0},
                    thrust::plus<edge_t>())
                : thrust::transform_reduce(
-                   execution_policy,
+                   handle.get_thrust_policy(),
                    frontier_vertices.begin(),
                    frontier_vertices.end(),
                    [edge_partition] __device__(auto major) {
@@ -887,7 +879,7 @@ typename GraphViewType::edge_type compute_num_out_nbrs_from_frontier(
     } else {
       assert(i == 0);
       ret += thrust::transform_reduce(
-        execution_policy,
+        handle.get_thrust_policy(),
         local_frontier_vertex_first,
         local_frontier_vertex_first + cur_frontier_bucket.size(),
         [edge_partition] __device__(auto major) {
@@ -945,7 +937,7 @@ typename GraphViewType::edge_type compute_num_out_nbrs_from_frontier(
  * ReduceOp::value_type is not void); or 5) a tuple of a tag and a value to be reduced (if vertices
  * are tagged and ReduceOp::value_type is not void).
  * @param reduce_op Binary operator that takes two input arguments and reduce the two values to one.
- * There are pre-defined reduction operators in include/cugraph/prims/reduce_op.cuh. It is
+ * There are pre-defined reduction operators in prims/reduce_op.cuh. It is
  * recommended to use the pre-defined reduction operators whenever possible as the current (and
  * future) implementations of graph primitives may check whether @p ReduceOp is a known type (or has
  * known member variables) to take a more optimized code path. See the documentation in the
@@ -1059,47 +1051,40 @@ transform_reduce_v_frontier_outgoing_e_by_dst(
     }
 
     auto segment_offsets = graph_view.local_edge_partition_segment_offsets(i);
-    auto use_dcs =
-      segment_offsets
-        ? ((*segment_offsets).size() > (detail::num_sparse_segments_per_vertex_partition + 1))
-        : false;
-
-    auto execution_policy = handle.get_thrust_policy();
     auto max_pushes =
-      use_dcs ? thrust::transform_reduce(
-                  execution_policy,
-                  edge_partition_frontier_src_first,
-                  edge_partition_frontier_src_last,
-                  [edge_partition,
-                   major_hypersparse_first =
-                     edge_partition.major_range_first() +
-                     (*segment_offsets)
-                       [detail::num_sparse_segments_per_vertex_partition]] __device__(auto src) {
-                    if (src < major_hypersparse_first) {
-                      auto src_offset = edge_partition.major_offset_from_major_nocheck(src);
-                      return edge_partition.local_degree(src_offset);
-                    } else {
-                      auto src_hypersparse_idx =
-                        edge_partition.major_hypersparse_idx_from_major_nocheck(src);
-                      return src_hypersparse_idx ? edge_partition.local_degree(
-                                                     edge_partition.major_offset_from_major_nocheck(
-                                                       major_hypersparse_first) +
-                                                     *src_hypersparse_idx)
-                                                 : edge_t{0};
-                    }
-                  },
-                  edge_t{0},
-                  thrust::plus<edge_t>())
-              : thrust::transform_reduce(
-                  execution_policy,
-                  edge_partition_frontier_src_first,
-                  edge_partition_frontier_src_last,
-                  [edge_partition] __device__(auto src) {
-                    auto src_offset = edge_partition.major_offset_from_major_nocheck(src);
-                    return edge_partition.local_degree(src_offset);
-                  },
-                  edge_t{0},
-                  thrust::plus<edge_t>());
+      graph_view.use_dcs()
+        ? thrust::transform_reduce(
+            handle.get_thrust_policy(),
+            edge_partition_frontier_src_first,
+            edge_partition_frontier_src_last,
+            [edge_partition,
+             major_hypersparse_first =
+               *(edge_partition.major_hypersparse_first())] __device__(auto src) {
+              if (src < major_hypersparse_first) {
+                auto src_offset = edge_partition.major_offset_from_major_nocheck(src);
+                return edge_partition.local_degree(src_offset);
+              } else {
+                auto src_hypersparse_idx =
+                  edge_partition.major_hypersparse_idx_from_major_nocheck(src);
+                return src_hypersparse_idx ? edge_partition.local_degree(
+                                               edge_partition.major_offset_from_major_nocheck(
+                                                 major_hypersparse_first) +
+                                               *src_hypersparse_idx)
+                                           : edge_t{0};
+              }
+            },
+            edge_t{0},
+            thrust::plus<edge_t>())
+        : thrust::transform_reduce(
+            handle.get_thrust_policy(),
+            edge_partition_frontier_src_first,
+            edge_partition_frontier_src_last,
+            [edge_partition] __device__(auto src) {
+              auto src_offset = edge_partition.major_offset_from_major_nocheck(src);
+              return edge_partition.local_degree(src_offset);
+            },
+            edge_t{0},
+            thrust::plus<edge_t>());
 
     auto new_buffer_size = buffer_idx.value(handle.get_stream()) + max_pushes;
     resize_dataframe_buffer(key_buffer, new_buffer_size, handle.get_stream());
@@ -1114,10 +1099,12 @@ transform_reduce_v_frontier_outgoing_e_by_dst(
     if (segment_offsets) {
       static_assert(detail::num_sparse_segments_per_vertex_partition == 3);
       std::vector<vertex_t> h_thresholds(detail::num_sparse_segments_per_vertex_partition +
-                                         (use_dcs ? 1 : 0) - 1);
+                                         (graph_view.use_dcs() ? 1 : 0) - 1);
       h_thresholds[0] = edge_partition.major_range_first() + (*segment_offsets)[1];
       h_thresholds[1] = edge_partition.major_range_first() + (*segment_offsets)[2];
-      if (use_dcs) { h_thresholds[2] = edge_partition.major_range_first() + (*segment_offsets)[3]; }
+      if (graph_view.use_dcs()) {
+        h_thresholds[2] = edge_partition.major_range_first() + (*segment_offsets)[3];
+      }
       rmm::device_uvector<vertex_t> d_thresholds(h_thresholds.size(), handle.get_stream());
       raft::update_device(
         d_thresholds.data(), h_thresholds.data(), h_thresholds.size(), handle.get_stream());
@@ -1194,7 +1181,6 @@ transform_reduce_v_frontier_outgoing_e_by_dst(
         detail::update_v_frontier_from_outgoing_e_hypersparse<GraphViewType>
           <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
             edge_partition,
-            edge_partition.major_range_first() + (*segment_offsets)[3],
             get_dataframe_buffer_begin(edge_partition_frontier_key_buffer) + h_offsets[2],
             get_dataframe_buffer_begin(edge_partition_frontier_key_buffer) + h_offsets[3],
             edge_partition_src_value_input_copy,

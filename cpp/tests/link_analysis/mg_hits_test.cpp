@@ -289,7 +289,7 @@ INSTANTIATE_TEST_SUITE_P(
   Tests_MGHits_Rmat,
   ::testing::Combine(
     // disable correctness checks for large graphs
-    ::testing::Values(Hits_Usecase{false, false}, Hits_Usecase{true, false}),
+    ::testing::Values(Hits_Usecase{false, false}),
     ::testing::Values(
       cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false, 0, true))));
 

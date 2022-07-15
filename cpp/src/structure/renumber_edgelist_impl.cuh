@@ -15,7 +15,8 @@
  */
 #pragma once
 
-#include <cugraph/detail/graph_utils.cuh>
+#include <detail/graph_utils.cuh>
+
 #include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
@@ -393,6 +394,9 @@ std::tuple<rmm::device_uvector<vertex_t>, std::vector<vertex_t>> compute_renumbe
   static_assert(detail::num_sparse_segments_per_vertex_partition == 3);
   static_assert((detail::low_degree_threshold <= detail::mid_degree_threshold) &&
                 (detail::mid_degree_threshold <= std::numeric_limits<edge_t>::max()));
+  static_assert(detail::low_degree_threshold >= 1);
+  static_assert((detail::hypersparse_threshold_ratio >= 0.0) &&
+                (detail::hypersparse_threshold_ratio <= 1.0));
   size_t mid_degree_threshold{detail::mid_degree_threshold};
   size_t low_degree_threshold{detail::low_degree_threshold};
   size_t hypersparse_degree_threshold{0};
@@ -406,24 +410,26 @@ std::tuple<rmm::device_uvector<vertex_t>, std::vector<vertex_t>> compute_renumbe
   }
   auto num_segments_per_vertex_partition =
     detail::num_sparse_segments_per_vertex_partition +
-    (hypersparse_degree_threshold > 0 ? size_t{1} : size_t{0});
+    (hypersparse_degree_threshold > 0 ? size_t{2} : size_t{1});  // last is 0-degree segment
   rmm::device_uvector<edge_t> d_thresholds(num_segments_per_vertex_partition - 1,
                                            handle.get_stream());
-  auto h_thresholds = hypersparse_degree_threshold > 0
-                        ? std::vector<edge_t>{static_cast<edge_t>(mid_degree_threshold),
-                                              static_cast<edge_t>(low_degree_threshold),
-                                              static_cast<edge_t>(hypersparse_degree_threshold)}
-                        : std::vector<edge_t>{static_cast<edge_t>(mid_degree_threshold),
-                                              static_cast<edge_t>(low_degree_threshold)};
+  auto h_thresholds =
+    hypersparse_degree_threshold > 0
+      ? std::vector<edge_t>{static_cast<edge_t>(mid_degree_threshold),
+                            static_cast<edge_t>(low_degree_threshold),
+                            static_cast<edge_t>(hypersparse_degree_threshold),
+                            std::min(static_cast<edge_t>(hypersparse_degree_threshold), edge_t{1})}
+      : std::vector<edge_t>{static_cast<edge_t>(mid_degree_threshold),
+                            static_cast<edge_t>(low_degree_threshold),
+                            edge_t{1}};
   raft::update_device(
     d_thresholds.data(), h_thresholds.data(), h_thresholds.size(), handle.get_stream());
 
   rmm::device_uvector<vertex_t> d_segment_offsets(num_segments_per_vertex_partition + 1,
                                                   handle.get_stream());
 
-  auto zero_vertex  = vertex_t{0};
   auto vertex_count = static_cast<vertex_t>(sorted_local_vertices.size());
-  d_segment_offsets.set_element_async(0, zero_vertex, handle.get_stream());
+  d_segment_offsets.set_element_to_zero_async(0, handle.get_stream());
   d_segment_offsets.set_element_async(
     num_segments_per_vertex_partition, vertex_count, handle.get_stream());
 

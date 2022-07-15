@@ -285,6 +285,11 @@ function(ConfigureCTestMG CMAKE_TEST_NAME)
             EXCLUDE_FROM_ALL)
 endfunction()
 
+if(NOT USE_CUGRAPH_OPS)
+    list(APPEND CMAKE_C_FLAGS -DNO_CUGRAPH_OPS)
+    list(APPEND CMAKE_CXX_FLAGS -DNO_CUGRAPH_OPS)
+    list(APPEND CMAKE_CUDA_FLAGS -DNO_CUGRAPH_OPS)
+endif()
 
 ###################################################################################################
 # - set rapids dataset path ----------------------------------------------------------------------
