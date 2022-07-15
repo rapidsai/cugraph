@@ -12,11 +12,14 @@
 # limitations under the License.
 
 import gc
-import cugraph.dask as dcg
+
 import dask_cudf
 import pytest
 import pandas as pd
 import cudf
+from cudf.testing import assert_frame_equal
+
+import cugraph.dask as dcg
 from cugraph.testing.utils import RAPIDS_DATASET_ROOT_DIR_PATH
 from cugraph.testing import utils
 
@@ -51,17 +54,6 @@ dataset1 = {
          (78634, 47906, 0),
          ]
      ],
-    "taxpayers": [
-        ["payer_id", "amount"],
-        [(11, 1123.98),
-         (4, 3243.7),
-         (21, 8932.3),
-         (16, 3241.77),
-         (86, 789.2),
-         (89021, 23.98),
-         (78634, 41.77),
-         ]
-    ],
     "transactions": [
         ["user_id", "merchant_id", "volume", "time", "card_num", "card_type"],
         [(89021, 11, 33.2, 1639084966.5513437, 123456, "MC"),
@@ -170,7 +162,7 @@ def dataset1_PropertyGraph(request):
     dataframe_type = request.param[0]
     from cugraph.experimental import PropertyGraph
 
-    (merchants, users, taxpayers,
+    (merchants, users,
      transactions, relationships, referrals) = dataset1.values()
 
     pG = PropertyGraph()
@@ -194,11 +186,6 @@ def dataset1_PropertyGraph(request):
                                       data=users[1]),
                        type_name="users",
                        vertex_col_name="user_id",
-                       property_columns=None)
-    pG.add_vertex_data(dataframe_type(columns=taxpayers[0],
-                                      data=taxpayers[1]),
-                       type_name="taxpayers",
-                       vertex_col_name="payer_id",
                        property_columns=None)
 
     pG.add_edge_data(dataframe_type(columns=transactions[0],
@@ -227,7 +214,7 @@ def dataset1_MGPropertyGraph(dask_client):
     data added from dataset1, parameterized for different DataFrame types.
     """
     dataframe_type = cudf.DataFrame
-    (merchants, users, taxpayers,
+    (merchants, users,
      transactions, relationships, referrals) = dataset1.values()
     from cugraph.experimental import MGPropertyGraph
     mpG = MGPropertyGraph()
@@ -254,13 +241,6 @@ def dataset1_MGPropertyGraph(dask_client):
     mpG.add_vertex_data(mg_df,
                         type_name="users",
                         vertex_col_name="user_id",
-                        property_columns=None)
-
-    sg_df = dataframe_type(columns=taxpayers[0], data=taxpayers[1])
-    mg_df = dask_cudf.from_cudf(sg_df, npartitions=2)
-    mpG.add_vertex_data(mg_df,
-                        type_name="taxpayers",
-                        vertex_col_name="payer_id",
                         property_columns=None)
 
     sg_df = dataframe_type(columns=transactions[0], data=transactions[1])
@@ -377,3 +357,61 @@ def test_frame_data(dataset1_PropertyGraph, dataset1_MGPropertyGraph):
     mg_ep_df = mgpG._edge_prop_dataframe\
         .compute().sort_values(by=edge_sort_col).reset_index(drop=True)
     assert (sg_ep_df['_SRC_'].equals(mg_ep_df['_SRC_']))
+
+def test_property_names_attrs(dataset1_MGPropertyGraph):
+    """
+    Ensure the correct number of user-visible properties for vertices and edges
+    are returned. This should exclude the internal bookkeeping properties.
+    """
+    pG = dataset1_MGPropertyGraph
+
+    expected_vert_prop_names = ["merchant_id", "merchant_location",
+                                "merchant_size", "merchant_sales",
+                                "merchant_num_employees", "merchant_name",
+                                "user_id", "user_location", "vertical"]
+    expected_edge_prop_names = ["user_id", "merchant_id", "volume", "time",
+                                "card_num", "card_type", "user_id_1",
+                                "user_id_2", "relationship_type", "stars"]
+
+    # Extracting a subgraph with weights has/had a side-effect of adding a
+    # weight column, so call extract_subgraph() to ensure the internal weight
+    # column name is not present.
+    pG.extract_subgraph(default_edge_weight=1.0, allow_multi_edges=True)
+
+    actual_vert_prop_names = pG.vertex_property_names
+    actual_edge_prop_names = pG.edge_property_names
+
+    assert sorted(actual_vert_prop_names) == sorted(expected_vert_prop_names)
+    assert sorted(actual_edge_prop_names) == sorted(expected_edge_prop_names)
+
+def test_extract_subgraph_nonrenumbered_noedgedata(dask_client):
+    """
+    Ensure a subgraph can be extracted that is not renumbered and contains no
+    edge_data.
+    """
+    from cugraph.experimental import MGPropertyGraph
+    from cugraph import Graph
+
+    pG = MGPropertyGraph()
+    df = cudf.DataFrame({"src": [99, 98, 97],
+                         "dst": [22, 34, 56],
+                         "some_property": ["a", "b", "c"],
+                         })
+    mgdf = dask_cudf.from_cudf(df, npartitions=2)
+    pG.add_edge_data(mgdf, vertex_col_names=("src", "dst"))
+
+    G = pG.extract_subgraph(create_using=Graph(directed=True),
+                            renumber_graph=False,
+                            add_edge_data=False)
+
+    actual_edgelist = G.edgelist.edgelist_df.compute()
+
+    expected_edgelist = cudf.DataFrame({pG.src_col_name: [99, 98, 97],
+                                        pG.dst_col_name: [22, 34, 56],
+                                        })
+
+    assert_frame_equal(expected_edgelist.sort_values(by=pG.src_col_name,
+                                                     ignore_index=True),
+                       actual_edgelist.sort_values(by=pG.src_col_name,
+                                                   ignore_index=True))
+    assert hasattr(G, "edge_data") is False

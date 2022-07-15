@@ -170,12 +170,19 @@ def dataset1_PropertyGraph(request):
                        type_name="users",
                        vertex_col_name="user_id",
                        property_columns=None)
+    # Do not add taxpayers since that may now be considered invalid input (it
+    # adds the same vertices under different types, which leads to the same
+    # vertex ID appearing in the internal vertex prop table.
+    #
+    # FIXME: determine if this should be allowed or not then either remove
+    # "taxpayers" or uncomment it.
+    """
     pG.add_vertex_data(dataframe_type(columns=taxpayers[0],
                                       data=taxpayers[1]),
                        type_name="taxpayers",
                        vertex_col_name="payer_id",
                        property_columns=None)
-
+    """
     pG.add_edge_data(dataframe_type(columns=transactions[0],
                                     data=transactions[1]),
                      type_name="transactions",
@@ -326,8 +333,9 @@ def test_num_vertices(df_type):
     assert pG.num_vertices == 9
     assert pG.num_edges == 0
 
-    # The taxpayers table does not add new vertices, it only adds properties to
-    # vertices already present in the merchants and users tables.
+    # The taxpayers table does not add new unique vertices, it only adds
+    # properties to vertices already present in the merchants and users
+    # tables.
     taxpayers = dataset1["taxpayers"]
     taxpayers_df = df_type(columns=taxpayers[0],
                            data=taxpayers[1])
@@ -508,13 +516,18 @@ def test_extract_subgraph_vertex_prop_condition_only(dataset1_PropertyGraph):
 
     pG = dataset1_PropertyGraph
 
-    selection = pG.select_vertices("(_TYPE_=='taxpayers') & (amount<100)")
+    # This should result in two users: 78634 and 89216
+    selection = pG.select_vertices(
+        f"({pG.type_col_name}=='users') "
+        "& ((user_location<78750) | ((user_location==78757) & (vertical==1)))")
     G = pG.extract_subgraph(selection=selection,
                             create_using=DiGraph_inst,
-                            edge_weight_property="stars")
-
-    expected_edgelist = cudf.DataFrame({"src": [89021], "dst": [78634],
-                                        "weights": [4]})
+                            edge_weight_property="relationship_type",
+                            default_edge_weight=99)
+    # Should result in two edges, one a "relationship", the other a "referral"
+    expected_edgelist = cudf.DataFrame({"src": [89216, 78634],
+                                        "dst": [78634, 89216],
+                                        "weights": [99, 8]})
     actual_edgelist = G.unrenumber(G.edgelist.edgelist_df, "src",
                                    preserve_order=True)
     actual_edgelist = G.unrenumber(actual_edgelist, "dst",
@@ -620,51 +633,6 @@ def test_extract_subgraph_specific_query(dataset1_PropertyGraph):
     assert_frame_equal(expected_edgelist, actual_edgelist, check_like=True)
 
 
-def test_edge_props_to_graph(dataset1_PropertyGraph):
-    """
-    Access the property DataFrames directly and use them to perform a more
-    complex query, then call edge_props_to_graph() to create the corresponding
-    graph.
-    """
-    from cugraph.experimental import PropertyGraph
-
-    pG = dataset1_PropertyGraph
-    vcn = PropertyGraph.vertex_col_name
-    tcn = PropertyGraph.type_col_name
-    scn = PropertyGraph.src_col_name
-    dcn = PropertyGraph.dst_col_name
-
-    # Select referrals from only taxpayers who are users (should be 1)
-
-    # Find the list of vertices that are both users and taxpayers
-    def contains_both(df):
-        return (df[tcn] == "taxpayers").any() and \
-            (df[tcn] == "users").any()
-    verts = pG._vertex_prop_dataframe.groupby(vcn)\
-                                     .apply(contains_both)
-    verts = verts[verts].keys()  # get an array of only verts that have both
-
-    # Find the "referral" edge_props containing only those verts
-    referrals = pG._edge_prop_dataframe[tcn] == "referrals"
-    srcs = pG._edge_prop_dataframe[referrals][scn].isin(verts)
-    dsts = pG._edge_prop_dataframe[referrals][dcn].isin(verts)
-    matching_edges = (srcs & dsts)
-    indices = matching_edges.index[matching_edges]
-    edge_props = pG._edge_prop_dataframe.loc[indices]
-
-    G = pG.edge_props_to_graph(edge_props,
-                               create_using=DiGraph_inst)
-
-    expected_edgelist = cudf.DataFrame({"src": [89021], "dst": [78634]})
-    actual_edgelist = G.unrenumber(G.edgelist.edgelist_df, "src",
-                                   preserve_order=True)
-    actual_edgelist = G.unrenumber(actual_edgelist, "dst",
-                                   preserve_order=True)
-
-    assert G.is_directed()
-    assert_frame_equal(expected_edgelist, actual_edgelist, check_like=True)
-
-
 def test_select_vertices_from_previous_selection(dataset1_PropertyGraph):
     """
     Ensures that the intersection of vertices of multiple types (only vertices
@@ -675,14 +643,17 @@ def test_select_vertices_from_previous_selection(dataset1_PropertyGraph):
     pG = dataset1_PropertyGraph
     tcn = PropertyGraph.type_col_name
 
-    # Select referrals from only taxpayers who are users (should be 1)
-    selection = pG.select_vertices(f"{tcn} == 'taxpayers'")
-    selection = pG.select_vertices(f"{tcn} == 'users'",
-                                   from_previous_selection=selection)
+    # Select referrals from only users 89216 and 78634 using an intentionally
+    # awkward query with separate select calls to test from_previous_selection
+    selection = pG.select_vertices(f"{tcn} == 'users'")
+    selection = pG.select_vertices(
+        "((user_location == 78757) & (vertical == 1)) "
+        "| (user_location == 47906)",
+        from_previous_selection=selection)
     selection += pG.select_edges(f"{tcn} == 'referrals'")
     G = pG.extract_subgraph(create_using=DiGraph_inst, selection=selection)
 
-    expected_edgelist = cudf.DataFrame({"src": [89021], "dst": [78634]})
+    expected_edgelist = cudf.DataFrame({"src": [89216], "dst": [78634]})
     actual_edgelist = G.unrenumber(G.edgelist.edgelist_df, "src",
                                    preserve_order=True)
     actual_edgelist = G.unrenumber(actual_edgelist, "dst",
@@ -869,6 +840,35 @@ def test_extract_subgraph_default_edge_weight_no_property(
     assert (G.edgelist.edgelist_df["weights"] == edge_weight).all()
 
 
+def test_extract_subgraph_nonrenumbered_noedgedata():
+    """
+    Ensure a subgraph can be extracted that is not renumbered and contains no
+    edge_data.
+    """
+    from cugraph.experimental import PropertyGraph
+    from cugraph import Graph
+
+    pG = PropertyGraph()
+    df = cudf.DataFrame({"src": [99, 98, 97],
+                         "dst": [22, 34, 56],
+                         "some_property": ["a", "b", "c"],
+                         })
+    pG.add_edge_data(df, vertex_col_names=("src", "dst"))
+
+    G = pG.extract_subgraph(create_using=Graph(directed=True),
+                            renumber_graph=False,
+                            add_edge_data=False)
+
+    expected_edgelist = cudf.DataFrame({"src": [99, 98, 97],
+                                        "dst": [22, 34, 56],
+                                        })
+    assert_frame_equal(expected_edgelist.sort_values(by="src",
+                                                     ignore_index=True),
+                       G.edgelist.edgelist_df.sort_values(by="src",
+                                                          ignore_index=True))
+    assert hasattr(G, "edge_data") is False
+
+
 def test_graph_edge_data_added(dataset1_PropertyGraph):
     """
     Ensures the subgraph returned from extract_subgraph() has the edge_data
@@ -1031,6 +1031,33 @@ def test_get_edges(dataset1_PropertyGraph):
         assert (src, dst) in expected_edges
 
 
+def test_property_names_attrs(dataset1_PropertyGraph):
+    """
+    Ensure the correct number of user-visible properties for vertices and edges
+    are returned. This should exclude the internal bookkeeping properties.
+    """
+    pG = dataset1_PropertyGraph
+
+    expected_vert_prop_names = ["merchant_id", "merchant_location",
+                                "merchant_size", "merchant_sales",
+                                "merchant_num_employees", "merchant_name",
+                                "user_id", "user_location", "vertical"]
+    expected_edge_prop_names = ["user_id", "merchant_id", "volume", "time",
+                                "card_num", "card_type", "user_id_1",
+                                "user_id_2", "relationship_type", "stars"]
+
+    # Extracting a subgraph with weights has/had a side-effect of adding a
+    # weight column, so call extract_subgraph() to ensure the internal weight
+    # column name is not present.
+    pG.extract_subgraph(default_edge_weight=1.0, allow_multi_edges=True)
+
+    actual_vert_prop_names = pG.vertex_property_names
+    actual_edge_prop_names = pG.edge_property_names
+
+    assert sorted(actual_vert_prop_names) == sorted(expected_vert_prop_names)
+    assert sorted(actual_edge_prop_names) == sorted(expected_edge_prop_names)
+
+
 @pytest.mark.skip(reason="unfinished")
 def test_extract_subgraph_with_vertex_ids():
     """
@@ -1041,13 +1068,6 @@ def test_extract_subgraph_with_vertex_ids():
     """
     raise NotImplementedError
 
-
-@pytest.mark.skip(reason="unfinished")
-def test_dgl_use_case():
-    """
-    FIXME: add a test demonstrating typical DGL use cases
-    """
-    raise NotImplementedError
 
 
 # =============================================================================

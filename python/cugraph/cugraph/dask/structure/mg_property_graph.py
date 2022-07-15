@@ -176,6 +176,8 @@ class EXPERIMENTAL__MGPropertyGraph:
             props.remove(self.dst_col_name)
             props.remove(self.edge_id_col_name)
             props.remove(self.type_col_name)  # should "type" be removed?
+            if self.weight_col_name in props:
+                props.remove(self.weight_col_name)
             return props
         return []
 
@@ -467,7 +469,9 @@ class EXPERIMENTAL__MGPropertyGraph:
                          selection=None,
                          edge_weight_property=None,
                          default_edge_weight=None,
-                         allow_multi_edges=False
+                         allow_multi_edges=False,
+                         renumber_graph=True,
+                         add_edge_data=True
                          ):
         """
         Return a subgraph of the overall PropertyGraph containing vertices
@@ -495,7 +499,13 @@ class EXPERIMENTAL__MGPropertyGraph:
         allow_multi_edges : bool
             If True, multiple edges should be used to create the return Graph,
             otherwise multiple edges will be detected and an exception raised.
-
+        renumber_graph : bool (default is True)
+            If True, return a Graph that has been renumbered for use by graph
+            algorithms. If False, the returned graph will need to be manually
+            renumbered prior to calling graph algos.
+        add_edge_data : bool (default is True)
+            If True, add meta data about the edges contained in the extracted
+            graph which are required for future calls to annotate_dataframe().
         Returns
         -------
         A Graph instance of the same type as create_using containing only the
@@ -556,7 +566,9 @@ class EXPERIMENTAL__MGPropertyGraph:
             create_using=create_using,
             edge_weight_property=edge_weight_property,
             default_edge_weight=default_edge_weight,
-            allow_multi_edges=allow_multi_edges)
+            allow_multi_edges=allow_multi_edges,
+            renumber_graph=renumber_graph,
+            add_edge_data=add_edge_data)
 
     def annotate_dataframe(self, df, G, edge_vertex_col_names):
         raise NotImplementedError()
@@ -566,7 +578,9 @@ class EXPERIMENTAL__MGPropertyGraph:
                             create_using,
                             edge_weight_property=None,
                             default_edge_weight=None,
-                            allow_multi_edges=False):
+                            allow_multi_edges=False,
+                            renumber_graph=True,
+                            add_edge_data=True):
         """
         Create and return a Graph from the edges in edge_prop_df.
         """
@@ -594,10 +608,8 @@ class EXPERIMENTAL__MGPropertyGraph:
         # If a default_edge_weight was specified but an edge_weight_property
         # was not, a new edge weight column must be added.
         elif default_edge_weight:
-            edge_attr = self.__gen_unique_name(edge_prop_df.columns,
-                                               prefix=self.weight_col_name)
+            edge_attr = self.weight_col_name
             edge_prop_df[edge_attr] = default_edge_weight
-
         else:
             edge_attr = None
 
@@ -630,18 +642,43 @@ class EXPERIMENTAL__MGPropertyGraph:
                 msg = "default Graph graph type"
             raise RuntimeError("query resulted in duplicate edges which "
                                f"cannot be represented with the {msg}")
-        G.from_dask_cudf_edgelist(
-                                   edge_prop_df,
-                                   source=self.src_col_name,
-                                   destination=self.dst_col_name,
-                                   edge_attr=edge_attr, renumber=True)
-        # Set the edge_data on the resulting Graph to a DataFrame containing
-        # the edges and the edge ID for each. Edge IDs are needed for future
-        # calls to annotate_dataframe() in order to associate edges with their
-        # properties, since the PG can contain multiple edges between vertrices
-        # with different properties.
-        G.edge_data = self.__create_property_lookup_table(edge_prop_df)
-        # FIXME: also add vertex_data
+
+        # FIXME: MNMG Graphs required renumber to be True due to requirements on
+        # legacy code that needed segment offsets, partition offsets, etc. which
+        # were previously computed during the "legacy" C renumbering.
+        # The workaround is to pass renumber=True, then manually call
+        # G.compute_renumber_edge_list(legacy_renum_only=True) to compute the
+        # required meta-data without changing vertex IDs.
+        if renumber_graph is False:
+            renumber = True
+        else:
+            renumber = renumber_graph
+
+        col_names = [self.src_col_name, self.dst_col_name]
+        if edge_attr is not None:
+            col_names.append(edge_attr)
+
+        G.from_dask_cudf_edgelist(edge_prop_df[col_names],
+                                  source=self.src_col_name,
+                                  destination=self.dst_col_name,
+                                  edge_attr=edge_attr,
+                                  renumber=renumber)
+        # FIXME: see FIXME above - to generate the edgelist,
+        # compute_renumber_edge_list() must be called, but legacy mode needs to
+        # be used based on if renumbering was to be done or not.
+        if renumber_graph is False:
+            G.compute_renumber_edge_list(legacy_renum_only=True)
+        else:
+            G.compute_renumber_edge_list(legacy_renum_only=False)
+
+        if add_edge_data:
+            # Set the edge_data on the resulting Graph to a DataFrame containing
+            # the edges and the edge ID for each. Edge IDs are needed for future
+            # calls to annotate_dataframe() in order to associate edges with
+            # their properties, since the PG can contain multiple edges between
+            # vertrices with different properties.
+            # FIXME: also add vertex_data
+            G.edge_data = self.__create_property_lookup_table(edge_prop_df)
 
         return G
 
@@ -684,18 +721,6 @@ class EXPERIMENTAL__MGPropertyGraph:
             vert_sers.append(epd[self.src_col_name])
             vert_sers.append(epd[self.dst_col_name])
         return vert_sers
-
-    @staticmethod
-    def __gen_unique_name(current_names, prefix="col"):
-        """
-        Helper function to generate a currently unused name.
-        """
-        name = prefix
-        counter = 2
-        while name in current_names:
-            name = f"{prefix}{counter}"
-            counter += 1
-        return name
 
     @staticmethod
     def __get_new_column_dtypes(from_df, to_df):
