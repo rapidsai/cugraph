@@ -200,7 +200,7 @@ class simpleGraphImpl:
             self._replicate_edgelist()
 
         self.make_plc_graph(
-            value_col=value_col, 
+            value_col=value_col,
             store_transposed=store_transposed
         )
 
