@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import numpy
+
 from gaas_client.gaas_thrift import spec
 
 Value = spec.Value
@@ -41,7 +43,14 @@ class ValueWrapper(UnionWrapper):
         if isinstance(val, Value):
             self.union = val
         elif isinstance(val, int):
-            self.union = Value(int32_value=val)
+            if val < 4294967296:
+                self.union = Value(int32_value=val)
+            else:
+                self.union = Value(int64_value=val)
+        elif isinstance(val, numpy.int32):
+            self.union = Value(int32_value=int(val))
+        elif isinstance(val, numpy.int64):
+            self.union = Value(int64_value=int(val))
         elif isinstance(val, str):
             self.union = Value(string_value=val)
         elif isinstance(val, bool):

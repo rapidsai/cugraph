@@ -144,7 +144,6 @@ def client_with_property_csvs_loaded(client):
     """
     merchants = data.property_csv_data["merchants"]
     users = data.property_csv_data["users"]
-    taxpayers = data.property_csv_data["taxpayers"]
     transactions = data.property_csv_data["transactions"]
     relationships = data.property_csv_data["relationships"]
     referrals = data.property_csv_data["referrals"]
@@ -159,11 +158,6 @@ def client_with_property_csvs_loaded(client):
                                    vertex_col_name=users["vert_col_name"],
                                    header=0,
                                    type_name="users")
-    client.load_csv_as_vertex_data(taxpayers["csv_file_name"],
-                                   dtypes=taxpayers["dtypes"],
-                                   vertex_col_name=taxpayers["vert_col_name"],
-                                   header=0,
-                                   type_name="taxpayers")
 
     client.load_csv_as_edge_data(transactions["csv_file_name"],
                                  dtypes=transactions["dtypes"],
@@ -338,33 +332,34 @@ def test_get_graph_vertex_dataframe_rows(client_with_property_csvs_loaded):
 
     # FIXME: do not hardcode the shape values, get them from the input data.
     np_array_all_rows = client.get_graph_vertex_dataframe_rows()
-    assert np_array_all_rows.shape == (16, 11)
+    assert np_array_all_rows.shape == (9, 9)
 
     # The remaining tests get individual rows - compare those to the all_rows
     # retrieved earlier.
     rows = [0, 1, 2]
     np_array = client.get_graph_vertex_dataframe_rows(rows)
-    assert np_array.shape == (3, 11)
+    assert np_array.shape == (3, 9)
     for (idx, all_rows_idx) in enumerate(rows):
         assert (np_array[idx] == np_array_all_rows[all_rows_idx]).all()
 
     np_array = client.get_graph_vertex_dataframe_rows(0)
-    assert np_array.shape == (1, 11)
+    assert np_array.shape == (1, 9)
     assert (np_array[0] == np_array_all_rows[0]).all()
 
     np_array = client.get_graph_vertex_dataframe_rows(1)
-    assert np_array.shape == (1, 11)
+    assert np_array.shape == (1, 9)
     assert (np_array[0] == np_array_all_rows[1]).all()
 
 
-@pytest.mark.skip(reason="temporarily not supporting vertex dataframe shape")
 def test_get_graph_vertex_dataframe_shape(client_with_property_csvs_loaded):
     (client, test_data) = client_with_property_csvs_loaded
 
-    info = client.get_graph_info(["num_vertices", "num_vertex_properties"])
-    shape = (info["num_vertices"], info["num_vertex_properties"])
+    info = client.get_graph_info(["num_vertices_with_properties",
+                                  "num_vertex_properties"])
+    shape = (info["num_vertices_with_properties"],
+             info["num_vertex_properties"])
     # FIXME: do not hardcode the shape values, get them from the input data.
-    assert shape == (16, 11)
+    assert shape == (9, 9)
 
 
 def test_get_graph_edge_dataframe_rows(client_with_property_csvs_loaded):

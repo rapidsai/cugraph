@@ -99,10 +99,17 @@ def test_get_graph_edge_dataframe_shape(handler_with_edgelist_csv_loaded):
     """
     """
     from gaas_client import defaults
+    from gaas_client.types import ValueWrapper
 
     (handler, test_data) = handler_with_edgelist_csv_loaded
 
-    assert handler.get_graph_edge_dataframe_shape(defaults.graph_id) == (156, 3)
+    info = handler.get_graph_info(["num_edges", "num_edge_properties"],
+                                  defaults.graph_id)
+    # info is a dictionary containing gaas_client.types.Value objs, so access
+    # the int32 member directly for easy comparison.
+    shape = (ValueWrapper(info["num_edges"]).get_py_obj(),
+             ValueWrapper(info["num_edge_properties"]).get_py_obj())
+    assert shape == (156, 3)
 
 
 def test_get_graph_vertex_dataframe_shape(handler_with_edgelist_csv_loaded):
@@ -111,7 +118,15 @@ def test_get_graph_vertex_dataframe_shape(handler_with_edgelist_csv_loaded):
     the shape is returned correctly.
     """
     from gaas_client import defaults
+    from gaas_client.types import ValueWrapper
 
     (handler, test_data) = handler_with_edgelist_csv_loaded
 
-    assert handler.get_graph_vertex_dataframe_shape(defaults.graph_id) == (0, 0)
+    info = handler.get_graph_info(["num_vertices_with_properties",
+                                   "num_vertex_properties"],
+                                  defaults.graph_id)
+    # info is a dictionary containing gaas_client.types.Value objs, so access
+    # the int32 member directly for easy comparison.
+    shape = (ValueWrapper(info["num_vertices_with_properties"]).get_py_obj(),
+             ValueWrapper(info["num_vertex_properties"]).get_py_obj())
+    assert shape == (0, 0)

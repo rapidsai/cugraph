@@ -242,6 +242,7 @@ class GaasHandler:
         "unions" used for RPC serialization.
         """
         valid_keys = set(["num_vertices",
+                          "num_vertices_with_properties",
                           "num_edges",
                           "num_vertex_properties",
                           "num_edge_properties",
@@ -259,16 +260,21 @@ class GaasHandler:
             for k in keys:
                 if k == "num_vertices":
                     info[k] = G.num_vertices
+                elif k == "num_vertices_with_properties":
+                    info[k] = G.num_vertices_with_properties
                 elif k == "num_edges":
                     info[k] = G.num_edges
                 elif k == "num_vertex_properties":
                     info[k] = len(G.vertex_property_names)
                 elif k == "num_edge_properties":
+                    print(f"{G.edge_property_names=}")
                     info[k] = len(G.edge_property_names)
         else:
             for k in keys:
                 if k == "num_vertices":
                     info[k] = G.number_of_vertices()
+                elif k == "num_vertices_with_properties":
+                    info[k] = 0
                 elif k == "num_edges":
                     info[k] = G.number_of_edges()
                 elif k == "num_vertex_properties":
