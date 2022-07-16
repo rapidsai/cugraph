@@ -350,6 +350,31 @@ def test_num_vertices(df_type):
 
 
 @pytest.mark.parametrize("df_type", df_types, ids=df_type_id)
+def test_num_vertices_with_properties(df_type):
+    """
+    Checks that the num_vertices_with_properties attr is set to the number of
+    vertices that have properties, as opposed to just num_vertices which also
+    includes all verts in the graph edgelist.
+    """
+    from cugraph.experimental import PropertyGraph
+
+    pG = PropertyGraph()
+    df = df_type({"src": [99, 98, 97],
+                  "dst": [22, 34, 56],
+                  "some_property": ["a", "b", "c"],
+                  })
+    pG.add_edge_data(df, vertex_col_names=("src", "dst"))
+
+    df = df_type({"vertex": [98, 97],
+                  "some_property": ["a", "b"],
+                  })
+    pG.add_vertex_data(df, vertex_col_name="vertex")
+
+    assert pG.num_vertices == 6
+    assert pG.num_vertices_with_properties == 2
+
+
+@pytest.mark.parametrize("df_type", df_types, ids=df_type_id)
 def test_null_data(df_type):
     """
     test for null data

@@ -126,6 +126,7 @@ class EXPERIMENTAL__MGPropertyGraph:
 
         # Cached property values
         self.__num_vertices = None
+        self.__num_vertices_with_properties = None
 
         # number of gpu's to use
         if num_workers is None:
@@ -144,6 +145,13 @@ class EXPERIMENTAL__MGPropertyGraph:
                 vert_count = dask_cudf.concat(vert_sers).nunique()
                 self.__num_vertices = vert_count.compute()
         return self.__num_vertices
+
+    @property
+    def num_vertices_with_properties(self):
+        if self.__num_vertices_with_properties is not None:
+            return self.__num_vertices_with_properties
+        self.__num_vertices_with_properties = len(self.__vertex_prop_dataframe)
+        return self.__num_vertices_with_properties
 
     @property
     def num_edges(self):
@@ -262,9 +270,10 @@ class EXPERIMENTAL__MGPropertyGraph:
                                  "found in dataframe: "
                                  f"{list(invalid_columns)}")
 
-        # Clear the cached value for num_vertices since more could be added in
-        # this method.
+        # Clear the cached values related to the number of vertices since more
+        # could be added in this method.
         self.__num_vertices = None
+        self.__num_vertices_with_properties = None
 
         # Initialize the __vertex_prop_dataframe if necessary using the same
         # type as the incoming dataframe.
@@ -375,7 +384,7 @@ class EXPERIMENTAL__MGPropertyGraph:
                                  f"{list(invalid_columns)}")
 
         # Clear the cached value for num_vertices since more could be added in
-        # this method.
+        # this method. This method cannot affect num_vertices_with_properties
         self.__num_vertices = None
 
         default_edge_columns = [self.src_col_name,

@@ -417,3 +417,29 @@ def test_extract_subgraph_nonrenumbered_noedgedata(dask_client):
                        actual_edgelist.sort_values(by=pG.src_col_name,
                                                    ignore_index=True))
     assert hasattr(G, "edge_data") is False
+
+
+def test_num_vertices_with_properties(dask_client):
+    """
+    Checks that the num_vertices_with_properties attr is set to the number of
+    vertices that have properties, as opposed to just num_vertices which also
+    includes all verts in the graph edgelist.
+    """
+    from cugraph.experimental import MGPropertyGraph
+
+    pG = MGPropertyGraph()
+    df = cudf.DataFrame({"src": [99, 98, 97],
+                         "dst": [22, 34, 56],
+                         "some_property": ["a", "b", "c"],
+                         })
+    mgdf = dask_cudf.from_cudf(df, npartitions=2)
+    pG.add_edge_data(mgdf, vertex_col_names=("src", "dst"))
+
+    df = cudf.DataFrame({"vertex": [98, 97],
+                         "some_property": ["a", "b"],
+                         })
+    mgdf = dask_cudf.from_cudf(df, npartitions=2)
+    pG.add_vertex_data(mgdf, vertex_col_name="vertex")
+
+    assert pG.num_vertices == 6
+    assert pG.num_vertices_with_properties == 2
