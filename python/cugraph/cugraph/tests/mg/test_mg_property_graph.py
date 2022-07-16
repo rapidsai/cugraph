@@ -435,6 +435,9 @@ def test_num_vertices_with_properties(dask_client):
     mgdf = dask_cudf.from_cudf(df, npartitions=2)
     pG.add_edge_data(mgdf, vertex_col_names=("src", "dst"))
 
+    assert pG.num_vertices == 6
+    assert pG.num_vertices_with_properties == 0
+
     df = cudf.DataFrame({"vertex": [98, 97],
                          "some_property": ["a", "b"],
                          })

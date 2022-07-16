@@ -157,8 +157,13 @@ class EXPERIMENTAL__PropertyGraph:
     def num_vertices_with_properties(self):
         if self.__num_vertices_with_properties is not None:
             return self.__num_vertices_with_properties
-        self.__num_vertices_with_properties = len(self.__vertex_prop_dataframe)
-        return self.__num_vertices_with_properties
+
+        if self.__vertex_prop_dataframe is not None:
+            self.__num_vertices_with_properties = \
+                len(self.__vertex_prop_dataframe)
+            return self.__num_vertices_with_properties
+
+        return 0
 
     @property
     def num_edges(self):

@@ -365,6 +365,9 @@ def test_num_vertices_with_properties(df_type):
                   })
     pG.add_edge_data(df, vertex_col_names=("src", "dst"))
 
+    assert pG.num_vertices == 6
+    assert pG.num_vertices_with_properties == 0
+
     df = df_type({"vertex": [98, 97],
                   "some_property": ["a", "b"],
                   })
