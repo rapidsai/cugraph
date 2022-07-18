@@ -94,7 +94,7 @@ class edge_partition_major_property_device_view_t {
     }
 
     assert((partition_idx == size_t{0}) || edge_partition_major_value_start_offsets_);
-    assert((partition_idx == size_t{0}) || edge_partition_value_firsts_);
+    assert((partition_idx == size_t{0}) || edge_partition_major_range_firsts_);
     this_edge_partition_value_first_ =
       value_first_ + (edge_partition_major_value_start_offsets_
                         ? (*edge_partition_major_value_start_offsets_)[partition_idx]

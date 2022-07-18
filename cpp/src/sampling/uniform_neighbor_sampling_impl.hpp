@@ -27,7 +27,9 @@
 
 #include <rmm/device_uvector.hpp>
 
+#ifndef NO_CUGRAPH_OPS
 #include <cugraph-ops/graph/sampling.hpp>
+#endif
 
 #include <thrust/optional.h>
 
@@ -58,6 +60,11 @@ uniform_nbr_sample_impl(
   using vertex_t = typename graph_view_t::vertex_type;
   using edge_t   = typename graph_view_t::edge_type;
   using weight_t = typename graph_view_t::weight_type;
+
+#ifdef NO_CUGRAPH_OPS
+  CUGRAPH_FAIL(
+    "uniform_nbr_sampl_impl not supported in this configuration, built with NO_CUGRAPH_OPS");
+#else
 
   namespace cugraph_ops = cugraph::ops::gnn::graph;
 
@@ -153,6 +160,7 @@ uniform_nbr_sample_impl(
 
   return count_and_remove_duplicates<vertex_t, edge_t, weight_t>(
     handle, std::move(d_result_src), std::move(d_result_dst), std::move(*d_result_indices));
+#endif
 }
 }  // namespace detail
 

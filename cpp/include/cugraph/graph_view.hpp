@@ -582,6 +582,17 @@ class graph_view_t<vertex_t,
              : vertex_t{0};
   }
 
+  bool use_dcs() const
+  {
+    if (edge_partition_segment_offsets_) {
+      auto size_per_partition =
+        (*edge_partition_segment_offsets_).size() / edge_partition_offsets_.size();
+      return size_per_partition > (detail::num_sparse_segments_per_vertex_partition + size_t{2});
+    } else {
+      return false;
+    }
+  }
+
   std::optional<std::vector<vertex_t>> local_edge_partition_segment_offsets(
     size_t partition_idx) const
   {
@@ -626,6 +637,12 @@ class graph_view_t<vertex_t,
       major_value_range_start_offset =
         this->local_edge_partition_src_value_start_offset(partition_idx);
     }
+    std::optional<vertex_t> major_hypersparse_first{std::nullopt};
+    if (this->use_dcs()) {
+      major_hypersparse_first =
+        major_range_first + (*(this->local_edge_partition_segment_offsets(
+                              partition_idx)))[detail::num_sparse_segments_per_vertex_partition];
+    }
     return edge_partition_view_t<vertex_t, edge_t, weight_t, true>(
       edge_partition_offsets_[partition_idx],
       edge_partition_indices_[partition_idx],
@@ -638,6 +655,7 @@ class graph_view_t<vertex_t,
       edge_partition_dcs_nzd_vertex_counts_
         ? std::optional<vertex_t>{(*edge_partition_dcs_nzd_vertex_counts_)[partition_idx]}
         : std::nullopt,
+      major_hypersparse_first,
       edge_partition_number_of_edges_[partition_idx],
       major_range_first,
       major_range_last,
@@ -925,6 +943,8 @@ class graph_view_t<vertex_t,
     assert(partition_idx == 0);
     return vertex_t{0};
   }
+
+  bool use_dcs() const { return false; }
 
   std::optional<std::vector<vertex_t>> local_edge_partition_segment_offsets(
     size_t partition_idx = 0) const

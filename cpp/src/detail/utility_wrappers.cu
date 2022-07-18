@@ -115,7 +115,7 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<edge_t>> filter_de
   auto zip_iter =
     thrust::make_zip_iterator(thrust::make_tuple(d_vertices.begin(), d_out_degs.begin()));
 
-  CUGRAPH_EXPECTS(d_vertices.size() < std::numeric_limits<int32_t>::max(),
+  CUGRAPH_EXPECTS(d_vertices.size() < static_cast<size_t>(std::numeric_limits<int32_t>::max()),
                   "remove_if will fail, d_vertices.size() is too large");
 
   // FIXME: remove_if has a 32-bit overflow issue (https://github.com/NVIDIA/thrust/issues/1302)

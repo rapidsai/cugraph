@@ -124,7 +124,6 @@ struct update_rx_major_local_degree_t {
   int col_comm_size{};
 
   edge_partition_device_view_t<vertex_t, edge_t, weight_t, multi_gpu> edge_partition{};
-  thrust::optional<vertex_t> major_hypersparse_first{};
 
   size_t reordered_idx_first{};
   size_t local_partition_idx{};
@@ -146,12 +145,13 @@ struct update_rx_major_local_degree_t {
     auto major = rx_majors[rx_group_firsts[row_comm_rank * col_comm_size + local_partition_idx] +
                            offset_in_local_edge_partition];
     edge_t local_degree{};
-    if (multi_gpu && (major_hypersparse_first && (major >= *major_hypersparse_first))) {
+    if (multi_gpu && (edge_partition.major_hypersparse_first() &&
+                      (major >= *(edge_partition.major_hypersparse_first())))) {
       auto major_hypersparse_idx = edge_partition.major_hypersparse_idx_from_major_nocheck(major);
       local_degree               = major_hypersparse_idx
-                                     ? edge_partition.local_degree(
-                           (*major_hypersparse_first - edge_partition.major_range_first()) +
-                           *major_hypersparse_idx)
+                                     ? edge_partition.local_degree((*(edge_partition.major_hypersparse_first()) -
+                                                      edge_partition.major_range_first()) +
+                                                     *major_hypersparse_idx)
                                      : edge_t{0};
     } else {
       local_degree =
@@ -169,7 +169,6 @@ struct update_rx_major_local_nbrs_t {
   int col_comm_size{};
 
   edge_partition_device_view_t<vertex_t, edge_t, weight_t, multi_gpu> edge_partition{};
-  thrust::optional<vertex_t> major_hypersparse_first{};
 
   size_t reordered_idx_first{};
   size_t local_partition_idx{};
@@ -194,11 +193,13 @@ struct update_rx_major_local_nbrs_t {
     vertex_t const* indices{nullptr};
     [[maybe_unused]] thrust::optional<weight_t const*> weights{thrust::nullopt};
     edge_t local_degree{0};
-    if (multi_gpu && (major_hypersparse_first && (major >= *major_hypersparse_first))) {
+    if (multi_gpu && (edge_partition.major_hypersparse_first() &&
+                      (major >= *(edge_partition.major_hypersparse_first())))) {
       auto major_hypersparse_idx = edge_partition.major_hypersparse_idx_from_major_nocheck(major);
       if (major_hypersparse_idx) {
         thrust::tie(indices, weights, local_degree) = edge_partition.local_edges(
-          (*major_hypersparse_first - edge_partition.major_range_first()) + *major_hypersparse_idx);
+          (*(edge_partition.major_hypersparse_first()) - edge_partition.major_range_first()) +
+          *major_hypersparse_idx);
       }
     } else {
       thrust::tie(indices, weights, local_degree) =
@@ -242,7 +243,6 @@ struct pick_min_degree_t {
   size_t const* second_element_offsets{nullptr};
 
   edge_partition_device_view_t<vertex_t, edge_t, weight_t, multi_gpu> edge_partition{};
-  thrust::optional<vertex_t> major_hypersparse_first{};
 
   __device__ edge_t operator()(thrust::tuple<vertex_t, vertex_t> pair) const
   {
@@ -250,14 +250,16 @@ struct pick_min_degree_t {
     vertex_t major0 = thrust::get<0>(pair);
     if constexpr (std::is_same_v<FirstElementToIdxMap, void*>) {
       if constexpr (multi_gpu) {
-        if (major_hypersparse_first && (major0 >= *major_hypersparse_first)) {
+        if (edge_partition.major_hypersparse_first() &&
+            (major0 >= *(edge_partition.major_hypersparse_first()))) {
           auto major_hypersparse_idx =
             edge_partition.major_hypersparse_idx_from_major_nocheck(major0);
-          local_degree0 = major_hypersparse_idx
-                            ? edge_partition.local_degree(
-                                (*major_hypersparse_first - edge_partition.major_range_first()) +
-                                *major_hypersparse_idx)
-                            : edge_t{0};
+          local_degree0 =
+            major_hypersparse_idx
+              ? edge_partition.local_degree((*(edge_partition.major_hypersparse_first()) -
+                                             edge_partition.major_range_first()) +
+                                            *major_hypersparse_idx)
+              : edge_t{0};
         } else {
           local_degree0 =
             edge_partition.local_degree(edge_partition.major_offset_from_major_nocheck(major0));
@@ -279,14 +281,16 @@ struct pick_min_degree_t {
     vertex_t major1 = thrust::get<1>(pair);
     if constexpr (std::is_same_v<SecondElementToIdxMap, void*>) {
       if constexpr (multi_gpu) {
-        if (major_hypersparse_first && (major1 >= *major_hypersparse_first)) {
+        if (edge_partition.major_hypersparse_first() &&
+            (major1 >= *(edge_partition.major_hypersparse_first()))) {
           auto major_hypersparse_idx =
             edge_partition.major_hypersparse_idx_from_major_nocheck(major1);
-          local_degree1 = major_hypersparse_idx
-                            ? edge_partition.local_degree(
-                                (*major_hypersparse_first - edge_partition.major_range_first()) +
-                                *major_hypersparse_idx)
-                            : edge_t{0};
+          local_degree1 =
+            major_hypersparse_idx
+              ? edge_partition.local_degree((*(edge_partition.major_hypersparse_first()) -
+                                             edge_partition.major_range_first()) +
+                                            *major_hypersparse_idx)
+              : edge_t{0};
         } else {
           local_degree1 =
             edge_partition.local_degree(edge_partition.major_offset_from_major_nocheck(major1));
@@ -325,7 +329,6 @@ struct copy_intersecting_nbrs_and_update_intersection_size_t {
   vertex_t const* second_element_indices{nullptr};
 
   edge_partition_device_view_t<vertex_t, edge_t, weight_t, multi_gpu> edge_partition{};
-  thrust::optional<vertex_t> major_hypersparse_first{};
 
   VertexPairIterator vertex_pair_first;
   size_t const* nbr_intersection_offsets{nullptr};
@@ -343,12 +346,13 @@ struct copy_intersecting_nbrs_and_update_intersection_size_t {
     if constexpr (std::is_same_v<FirstElementToIdxMap, void*>) {
       vertex_t major = thrust::get<0>(pair);
       if constexpr (multi_gpu) {
-        if (major_hypersparse_first && (major >= *major_hypersparse_first)) {
+        if (edge_partition.major_hypersparse_first() &&
+            (major >= *(edge_partition.major_hypersparse_first()))) {
           auto major_hypersparse_idx =
             edge_partition.major_hypersparse_idx_from_major_nocheck(major);
           if (major_hypersparse_idx) {
             thrust::tie(indices0, weights0, local_degree0) = edge_partition.local_edges(
-              (*major_hypersparse_first - edge_partition.major_range_first()) +
+              (*(edge_partition.major_hypersparse_first()) - edge_partition.major_range_first()) +
               *major_hypersparse_idx);
           }
         } else {
@@ -376,12 +380,13 @@ struct copy_intersecting_nbrs_and_update_intersection_size_t {
     if constexpr (std::is_same_v<SecondElementToIdxMap, void*>) {
       vertex_t major = thrust::get<1>(pair);
       if constexpr (multi_gpu) {
-        if (major_hypersparse_first && (major >= *major_hypersparse_first)) {
+        if (edge_partition.major_hypersparse_first() &&
+            (major >= *(edge_partition.major_hypersparse_first()))) {
           auto major_hypersparse_idx =
             edge_partition.major_hypersparse_idx_from_major_nocheck(major);
           if (major_hypersparse_idx) {
             thrust::tie(indices1, weights1, local_degree1) = edge_partition.local_edges(
-              (*major_hypersparse_first - edge_partition.major_range_first()) +
+              (*(edge_partition.major_hypersparse_first()) - edge_partition.major_range_first()) +
               *major_hypersparse_idx);
           }
         } else {
@@ -752,10 +757,6 @@ nbr_intersection(raft::handle_t const& handle,
               row_comm_size,
               col_comm_size,
               edge_partition,
-              edge_partition.dcs_nzd_vertex_count()
-                ? thrust::optional<vertex_t>{edge_partition.major_range_first() +
-                                             (*segment_offsets)[3]}
-                : thrust::nullopt,
               reordered_idx_first,
               i,
               d_rx_reordered_group_lasts.data() + i * row_comm_size,
@@ -793,10 +794,6 @@ nbr_intersection(raft::handle_t const& handle,
               row_comm_size,
               col_comm_size,
               edge_partition,
-              edge_partition.dcs_nzd_vertex_count()
-                ? thrust::optional<vertex_t>{edge_partition.major_range_first() +
-                                             (*segment_offsets)[3]}
-                : thrust::nullopt,
               reordered_idx_first,
               i,
               d_rx_reordered_group_lasts.data() + i * row_comm_size,
@@ -979,16 +976,11 @@ nbr_intersection(raft::handle_t const& handle,
                                               vertex_t,
                                               edge_t,
                                               weight_t,
-                                              true>{
-                              nullptr,
-                              nullptr,
-                              second_element_to_idx_map,
-                              (*major_nbr_offsets).data(),
-                              edge_partition,
-                              edge_partition.dcs_nzd_vertex_count()
-                                ? thrust::optional<vertex_t>{edge_partition.major_range_first() +
-                                                             (*segment_offsets)[3]}
-                                : thrust::nullopt});
+                                              true>{nullptr,
+                                                    nullptr,
+                                                    second_element_to_idx_map,
+                                                    (*major_nbr_offsets).data(),
+                                                    edge_partition});
         } else {
           CUGRAPH_FAIL("unimplemented.");
         }
@@ -1007,32 +999,27 @@ nbr_intersection(raft::handle_t const& handle,
           handle.get_stream());
         if (intersect_minor_nbr[0] && intersect_minor_nbr[1]) {
           auto second_element_to_idx_map = (*major_to_idx_map_ptr)->get_device_view();
-          thrust::tabulate(
-            handle.get_thrust_policy(),
-            rx_v_pair_nbr_intersection_sizes.begin(),
-            rx_v_pair_nbr_intersection_sizes.end(),
-            copy_intersecting_nbrs_and_update_intersection_size_t<
-              void*,
-              decltype(second_element_to_idx_map),
-              decltype(get_dataframe_buffer_begin(vertex_pair_buffer)),
-              vertex_t,
-              edge_t,
-              weight_t,
-              true>{nullptr,
-                    nullptr,
-                    nullptr,
-                    second_element_to_idx_map,
-                    (*major_nbr_offsets).data(),
-                    (*major_nbr_indices).data(),
-                    edge_partition,
-                    edge_partition.dcs_nzd_vertex_count()
-                      ? thrust::optional<vertex_t>{edge_partition.major_range_first() +
-                                                   (*segment_offsets)[3]}
-                      : thrust::nullopt,
-                    get_dataframe_buffer_begin(vertex_pair_buffer),
-                    rx_v_pair_nbr_intersection_offsets.data(),
-                    rx_v_pair_nbr_intersection_indices.data(),
-                    invalid_vertex_id<vertex_t>::value});
+          thrust::tabulate(handle.get_thrust_policy(),
+                           rx_v_pair_nbr_intersection_sizes.begin(),
+                           rx_v_pair_nbr_intersection_sizes.end(),
+                           copy_intersecting_nbrs_and_update_intersection_size_t<
+                             void*,
+                             decltype(second_element_to_idx_map),
+                             decltype(get_dataframe_buffer_begin(vertex_pair_buffer)),
+                             vertex_t,
+                             edge_t,
+                             weight_t,
+                             true>{nullptr,
+                                   nullptr,
+                                   nullptr,
+                                   second_element_to_idx_map,
+                                   (*major_nbr_offsets).data(),
+                                   (*major_nbr_indices).data(),
+                                   edge_partition,
+                                   get_dataframe_buffer_begin(vertex_pair_buffer),
+                                   rx_v_pair_nbr_intersection_offsets.data(),
+                                   rx_v_pair_nbr_intersection_indices.data(),
+                                   invalid_vertex_id<vertex_t>::value});
         } else {
           CUGRAPH_FAIL("unimplemented.");
         }
@@ -1252,7 +1239,7 @@ nbr_intersection(raft::handle_t const& handle,
                         vertex_pair_first + input_size,
                         nbr_intersection_sizes.begin(),
                         pick_min_degree_t<void*, void*, vertex_t, edge_t, weight_t, false>{
-                          nullptr, nullptr, nullptr, nullptr, edge_partition, thrust::nullopt});
+                          nullptr, nullptr, nullptr, nullptr, edge_partition});
     } else {
       CUGRAPH_FAIL("unimplemented.");
     }
@@ -1287,7 +1274,6 @@ nbr_intersection(raft::handle_t const& handle,
           nullptr,
           nullptr,
           edge_partition,
-          thrust::nullopt,
           vertex_pair_first,
           nbr_intersection_offsets.data(),
           nbr_intersection_indices.data(),

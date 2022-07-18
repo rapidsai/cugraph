@@ -80,14 +80,11 @@ rmm::device_uvector<typename GraphViewType::edge_type> compute_local_major_degre
         graph_view.local_edge_partition_view(i));
 
     // Check if hypersparse segment is present in the partition
-    auto segment_offsets = graph_view.local_edge_partition_segment_offsets(i);
-    auto use_dcs         = segment_offsets
-                             ? ((*segment_offsets).size() > (num_sparse_segments_per_vertex_partition + 1))
-                             : false;
+    if (graph_view.use_dcs()) {
+      auto segment_offsets = graph_view.local_edge_partition_segment_offsets(i);
 
-    if (use_dcs) {
       auto num_sparse_vertices     = (*segment_offsets)[num_sparse_segments_per_vertex_partition];
-      auto major_hypersparse_first = edge_partition.major_range_first() + num_sparse_vertices;
+      auto major_hypersparse_first = *(edge_partition.major_hypersparse_first());
 
       // Calculate degrees in sparse region
       auto sparse_begin = local_degrees.begin() + partial_offset;
@@ -332,13 +329,9 @@ partition_information(raft::handle_t const& handle, GraphViewType const& graph_v
     id_begin.push_back(edge_partition.major_range_first());
     id_end.push_back(edge_partition.major_range_last());
 
-    auto segment_offsets = graph_view.local_edge_partition_segment_offsets(i);
-    auto use_dcs         = segment_offsets
-                             ? ((*segment_offsets).size() > (num_sparse_segments_per_vertex_partition + 1))
-                             : false;
-    if (use_dcs) {
-      auto major_hypersparse_first = edge_partition.major_range_first() +
-                                     (*segment_offsets)[num_sparse_segments_per_vertex_partition];
+    if (graph_view.use_dcs()) {
+      auto segment_offsets         = graph_view.local_edge_partition_segment_offsets(i);
+      auto major_hypersparse_first = *(edge_partition.major_hypersparse_first());
       hypersparse_begin.push_back(major_hypersparse_first);
     } else {
       hypersparse_begin.push_back(edge_partition.major_range_last());
@@ -548,7 +541,7 @@ gather_local_edges(
     auto input_iter = thrust::make_zip_iterator(
       thrust::make_tuple(majors.begin(), minors.begin(), weights->begin()));
 
-    CUGRAPH_EXPECTS(minors.size() < std::numeric_limits<int32_t>::max(),
+    CUGRAPH_EXPECTS(minors.size() < static_cast<size_t>(std::numeric_limits<int32_t>::max()),
                     "remove_if will fail, minors.size() is too large");
 
     // FIXME: remove_if has a 32-bit overflow issue (https://github.com/NVIDIA/thrust/issues/1302)
@@ -569,7 +562,7 @@ gather_local_edges(
   } else {
     auto input_iter = thrust::make_zip_iterator(thrust::make_tuple(majors.begin(), minors.begin()));
 
-    CUGRAPH_EXPECTS(minors.size() < std::numeric_limits<int32_t>::max(),
+    CUGRAPH_EXPECTS(minors.size() < static_cast<size_t>(std::numeric_limits<int32_t>::max()),
                     "remove_if will fail, minors.size() is too large");
 
     auto compacted_length = thrust::distance(
@@ -666,7 +659,7 @@ std::vector<vertex_t> get_active_major_segments(raft::handle_t const& handle,
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 void local_major_degree(
   raft::handle_t const& handle,
-  edge_partition_device_view_t<vertex_t, edge_t, weight_t, multi_gpu> partition,
+  edge_partition_device_view_t<vertex_t, edge_t, weight_t, multi_gpu> edge_partition,
   rmm::device_uvector<vertex_t> const& active_majors,
   std::vector<vertex_t> const& majors_segments,
   std::vector<vertex_t> const& partition_segments,
@@ -679,30 +672,31 @@ void local_major_degree(
                       active_majors.cbegin() + majors_segments[0],
                       active_majors.cbegin() + majors_segments[3],
                       out_degrees,
-                      [partition] __device__(auto major) {
-                        auto major_offset = partition.major_offset_from_major_nocheck(major);
-                        return partition.local_degree(major_offset);
+                      [edge_partition] __device__(auto major) {
+                        auto major_offset = edge_partition.major_offset_from_major_nocheck(major);
+                        return edge_partition.local_degree(major_offset);
                       });
   }
   // Hypersparse region
-  if (majors_segments[4] - majors_segments[3] > 0) {
-    auto major_hypersparse_first =
-      partition.major_range_first() +
-      partition_segments[detail::num_sparse_segments_per_vertex_partition];
-    auto major_offset =
-      static_cast<size_t>(major_hypersparse_first - partition.major_range_first());
-    thrust::transform(handle.get_thrust_policy(),
-                      active_majors.cbegin() + majors_segments[3],
-                      active_majors.cbegin() + majors_segments[4],
-                      out_degrees + majors_segments[3] - majors_segments[0],
-                      [partition, major_offset] __device__(auto major) {
-                        auto major_idx = partition.major_hypersparse_idx_from_major_nocheck(major);
-                        if (major_idx) {
-                          return partition.local_degree(major_offset + *major_idx);
-                        } else {
-                          return edge_t{0};
-                        }
-                      });
+  if (edge_partition.dcs_nzd_vertex_count()) {
+    if (majors_segments[4] - majors_segments[3] > 0) {
+      auto major_hypersparse_first = *(edge_partition.major_hypersparse_first());
+      auto major_offset =
+        static_cast<size_t>(major_hypersparse_first - edge_partition.major_range_first());
+      thrust::transform(handle.get_thrust_policy(),
+                        active_majors.cbegin() + majors_segments[3],
+                        active_majors.cbegin() + majors_segments[4],
+                        out_degrees + majors_segments[3] - majors_segments[0],
+                        [edge_partition, major_offset] __device__(auto major) {
+                          auto major_idx =
+                            edge_partition.major_hypersparse_idx_from_major_nocheck(major);
+                          if (major_idx) {
+                            return edge_partition.local_degree(major_offset + *major_idx);
+                          } else {
+                            return edge_t{0};
+                          }
+                        });
+    }
   }
 }
 
