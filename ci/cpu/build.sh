@@ -90,7 +90,7 @@ if [ "$BUILD_LIBCUGRAPH" == '1' ]; then
   else
     gpuci_conda_retry mambabuild --no-build-id --croot ${CONDA_BLD_DIR} --dirty --no-remove-work-dir conda/recipes/libcugraph
     mkdir -p ${CONDA_BLD_DIR}/libcugraph
-    mv ${CONDA_BLD_DIR}/work ${CONDA_BLD_DIR}/libcugraph/work
+    # mv ${CONDA_BLD_DIR}/work ${CONDA_BLD_DIR}/libcugraph/work
   fi
   gpuci_logger "sccache stats"
   sccache --show-stats
@@ -100,6 +100,11 @@ fi
 
 if [ "$BUILD_CUGRAPH" == "1" ]; then
   gpuci_logger "Building conda packages for pylibcugraph and cugraph"
+
+  echo "checking cpp"
+  ls -l ${CONDA_BLD_DIR}/work/cpp
+  echo "checking build"
+  ls -l ${CONDA_BLD_DIR}/work/cpp/build
   if [[ -z "$PROJECT_FLASH" || "$PROJECT_FLASH" == "0" ]]; then
     gpuci_conda_retry mambabuild --no-build-id --croot ${CONDA_BLD_DIR} conda/recipes/pylibcugraph --python=$PYTHON
     gpuci_conda_retry mambabuild --no-build-id --croot ${CONDA_BLD_DIR} conda/recipes/cugraph --python=$PYTHON
