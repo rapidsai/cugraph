@@ -44,11 +44,10 @@ gpuci_logger "Check environment variables"
 env
 
 gpuci_logger "Activate conda env"
-echo "checking inside CONDA_BLD_DIR"
-ls -l $CONDA_BLD_DIR
-mamba env update -f $CONDA_BLD_DIR/work/conda/environments/cugraph_dev_cuda11.5.yml
+echo "installing libcudf"
 . /opt/conda/etc/profile.d/conda.sh
 conda activate rapids
+mamba install -y -c rapidsai -c nvidia -c rapidsai-nightly -c conda-forge libcudf=22.08.*
 
 # Remove rapidsai-nightly channel if we are building main branch
 if [ "$SOURCE_BRANCH" = "main" ]; then
