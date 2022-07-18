@@ -85,6 +85,8 @@ gpuci_mamba_retry install -c conda-forge boa
 
 if [ "$BUILD_LIBCUGRAPH" == '1' ]; then
   gpuci_logger "Building conda package for libcugraph and libcugraph_etl"
+  echo "checking libcudacxx before building libcugraph"
+  ls -l /opt/conda/envs/rapids/lib/cmake
   if [[ -z "$PROJECT_FLASH" || "$PROJECT_FLASH" == "0" ]]; then
     gpuci_conda_retry mambabuild --no-build-id --croot ${CONDA_BLD_DIR} conda/recipes/libcugraph
   else
@@ -105,6 +107,8 @@ if [ "$BUILD_CUGRAPH" == "1" ]; then
   ls -l ${CONDA_BLD_DIR}/work/cpp
   echo "checking build"
   ls -l ${CONDA_BLD_DIR}/work/cpp/build
+  echo "checking libcudacxx before building pylibcugraph"
+  ls -l /opt/conda/envs/rapids/lib/cmake
   if [[ -z "$PROJECT_FLASH" || "$PROJECT_FLASH" == "0" ]]; then
     gpuci_conda_retry mambabuild --no-build-id --croot ${CONDA_BLD_DIR} conda/recipes/pylibcugraph --python=$PYTHON
     gpuci_conda_retry mambabuild --no-build-id --croot ${CONDA_BLD_DIR} conda/recipes/cugraph --python=$PYTHON
