@@ -20,6 +20,9 @@ export HOME=$WORKSPACE
 # Switch to project root; also root of repo checkout
 cd $WORKSPACE
 
+echo "checking the workspace"
+ls -l $WORKSPACE
+
 # If nightly build, append current YYMMDD to version
 if [[ "$BUILD_MODE" = "branch" && "$SOURCE_BRANCH" = branch-* ]] ; then
   export VERSION_SUFFIX=`date +%y%m%d`
@@ -47,7 +50,7 @@ gpuci_logger "Activate conda env"
 echo "installing libcudf"
 . /opt/conda/etc/profile.d/conda.sh
 conda activate rapids
-mamba install -y -c rapidsai -c nvidia -c rapidsai-nightly -c conda-forge libcudf=22.08.*
+# mamba install -y -c rapidsai -c nvidia -c rapidsai-nightly -c conda-forge libcudf=22.08.*
 
 # Remove rapidsai-nightly channel if we are building main branch
 if [ "$SOURCE_BRANCH" = "main" ]; then
@@ -95,6 +98,9 @@ if [ "$BUILD_LIBCUGRAPH" == '1' ]; then
     gpuci_conda_retry mambabuild --no-build-id --croot ${CONDA_BLD_DIR} --dirty --no-remove-work-dir conda/recipes/libcugraph
     mkdir -p ${CONDA_BLD_DIR}/libcugraph
     # mv ${CONDA_BLD_DIR}/work ${CONDA_BLD_DIR}/libcugraph/work
+    echo "installing conda env after libcugraph"
+    conda env update -f ${CONDA_BLD_DIR}/work/conda/environments/cugraph_dev_cuda11.5.yml
+
   fi
   gpuci_logger "sccache stats"
   sccache --show-stats
