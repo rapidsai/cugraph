@@ -99,6 +99,7 @@ if [ "$BUILD_LIBCUGRAPH" == '1' ]; then
     mkdir -p ${CONDA_BLD_DIR}/libcugraph
     # mv ${CONDA_BLD_DIR}/work ${CONDA_BLD_DIR}/libcugraph/work
     echo "installing conda env after libcugraph"
+    conda config --env --set always_yes true
     conda deactivate rapids
     mamba env update -f ${CONDA_BLD_DIR}/work/conda/environments/cugraph_dev_cuda11.5.yml
     conda activate rapids
