@@ -122,4 +122,3 @@ template std::pair<size_t, double> louvain(raft::handle_t const&,
                                            size_t,
                                            double);
 }  // namespace cugraph
-
