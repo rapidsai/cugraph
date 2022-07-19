@@ -1,0 +1,57 @@
+## Common
+__pycache__
+*.pyc
+*.a
+*.o
+*.so
+*.dylib
+.cache
+.coverage
+.vscode
+.lock
+*.swp
+*.pytest_cache
+*~
+DartConfiguration.tcl
+.DS_Store
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+junit-cugraph.xml
+*.cover
+.hypothesis/
+test-results
+
+## Patching
+*.diff
+*.orig
+*.rej
+
+## Eclipse IDE
+.project
+.cproject
+.settings
+
+## IntelliJ IDE
+.idea/
+.idea_modules/
+*.iml
+*.ipr
+*.iws
+
+.pydevproject
+
+# Jupyter Notebooks
+.ipynb_checkpoints
+
+
+# created by Dask tests
+python/dask-worker-space
+
+

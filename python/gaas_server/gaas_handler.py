@@ -22,12 +22,15 @@ import cugraph
 from cugraph.experimental import PropertyGraph
 from cugraph import sampling
 from cugraph.structure.number_map import NumberMap
+import cupy
 
 from gaas_client import defaults
 from gaas_client.exceptions import GaasError
 from gaas_client.types import BatchedEgoGraphsResult, Node2vecResult
 
+import gc
 from datetime import datetime
+
 
 class GaasHandler:
     """
@@ -129,8 +132,10 @@ class GaasHandler:
         dG = self.__graph_objs.pop(graph_id, None)
         if dG is None:
             raise GaasError(f"invalid graph_id {graph_id}")
-        
+
+        #print('graph referrers: ', gc.get_referrers(dG))
         del dG
+        #gc.collect()
         print(f'deleted graph with id {graph_id}')
 
     def get_graph_ids(self):
@@ -274,28 +279,39 @@ class GaasHandler:
 
         if isinstance(G, PropertyGraph):
             is_property_graph = True
-            pG = G
 
             start_time_subgraph = datetime.now()
             print('calling extract subgraph on property graph')
-            G = G.extract_subgraph(
-                create_using=cugraph.Graph,
-                default_edge_weight=1.0,
-                allow_multi_edges=True
+            extracted_subgraph = cugraph.from_cudf_edgelist(
+                G._edge_prop_dataframe.join(cudf.Series(cupy.ones(len(G._edge_prop_dataframe)), name='weight')),
+                source=PropertyGraph.src_col_name,
+                destination=PropertyGraph.dst_col_name,
+                edge_attr='weight',
+                renumber=False
             )
             t = (datetime.now() - start_time_subgraph).seconds
             print(f'extract subgraph completed in {t} seconds')
 
-        start_time_cugraph_sample = datetime.now()
-        print('calling cugraph uniform neighbor sample')
-        sampling_results = sampling.uniform_neighbor_sample(
+            start_time_cugraph_sample = datetime.now()
+            print('calling cugraph uniform neighbor sample')
+
+            sampling_results = sampling.uniform_neighbor_sample(
+                extracted_subgraph, 
+                start_list, 
+                fanout_vals,
+                with_replacement=with_replacement
+            )
+            del extracted_subgraph
+            gc.collect()
+            t = (datetime.now() - start_time_cugraph_sample).seconds
+            print(f'cugraph sampling completed in {t} seconds')
+        else:
+            sampling_results = sampling.uniform_neighbor_sample(
                 G, 
                 start_list, 
                 fanout_vals,
                 with_replacement=with_replacement
             )
-        t = (datetime.now() - start_time_cugraph_sample).seconds
-        print(f'cugraph sampling completed in {t} seconds')
 
         start_time_new_graph = datetime.now()
         print('creating new graph')
@@ -306,32 +322,37 @@ class GaasHandler:
         
         # TODO implement this using a graph view when that is implemented
         if is_property_graph:
-            vertex_properties = pG._vertex_prop_dataframe.iloc[nodes_of_interest]
+            vertex_properties = G._vertex_prop_dataframe.iloc[nodes_of_interest]
             vertex_properties.reset_index(drop=True, inplace=True)
             prop_names = self.__remove_internal_columns(vertex_properties.columns.to_list())
             vertex_properties = vertex_properties[prop_names]
             vertex_properties['original_vertex_id'] = nodes_of_interest
 
-            elist, number_map = NumberMap.renumber(
-                sampling_results, 'sources', 'destinations', store_transposed=False
-            )
-            source_colname = number_map.renumbered_src_col_name
-            dest_colname = number_map.renumbered_dst_col_name
+            #sampling_results = sampling_results.to_pandas()
+            
+            nodes_of_interest = cudf.DataFrame({'nodes_of_interest':nodes_of_interest, 'i':range(len(nodes_of_interest))})
+            elist = cudf.merge(sampling_results, nodes_of_interest, left_on='sources', right_on='nodes_of_interest').drop('nodes_of_interest', axis=1)
+            elist.sources = elist.i
+            elist = elist.drop('i', axis=1)
+            elist = cudf.merge(elist, nodes_of_interest, left_on='destinations', right_on='nodes_of_interest').drop('nodes_of_interest', axis=1)
+            elist.destinations = elist.i
+            elist = elist.drop('i', axis=1)
 
-            vertex_properties['original_vertex_id'] = \
-                number_map.to_internal_vertex_id(vertex_properties, ['original_vertex_id'])
+            source_colname = 'sources'
+            dest_colname = 'destinations'
+            vertex_properties.original_vertex_id = vertex_properties.index
 
             new_G = PropertyGraph()
             new_G.add_edge_data(elist, vertex_col_names=[source_colname, dest_colname])
             new_G.add_vertex_data(vertex_properties, vertex_col_name='original_vertex_id', property_columns=prop_names)
-
-            del G
-            del number_map
             
         else:
             new_G = cugraph.Graph()
             new_G.from_cudf_edgelist(sampling_results, source='sources', destination='destinations', renumber=True)
         
+        del sampling_results
+
+
         t = (datetime.now() - start_time_new_graph).seconds
         print(f'new graph created in {t} seconds')
 

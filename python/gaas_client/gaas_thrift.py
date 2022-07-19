@@ -15,7 +15,15 @@
 import io
 
 import thriftpy2
-from thriftpy2.rpc import make_server, make_client
+from thriftpy2.rpc import make_client
+from thriftpy2.protocol import TBinaryProtocolFactory
+from thriftpy2.server import TSimpleServer
+from thriftpy2.thrift import TProcessor
+from thriftpy2.transport import (
+    TBufferedTransportFactory,
+    TServerSocket,
+    TTransportException,
+)
 
 
 # This is the Thrift input file as a string rather than a separate file. This
@@ -115,7 +123,7 @@ service GaasService {
            2:i32 max_depth,
            3:i32 graph_id
            ) throws (1:GaasError e),
-           
+
   list<i32> get_edge_IDs_for_vertices(1:list<i32> src_vert_IDs,
                                       2:list<i32> dst_vert_IDs,
                                       3:i32 graph_id
@@ -194,7 +202,17 @@ def create_server(handler, host, port, client_timeout=90000):
     this module. However, this function is likely only called from the
     gaas_server package which depends on the code in this package.
     """
-    return make_server(spec.GaasService, handler, host, port, client_timeout=client_timeout)
+    proto_factory = TBinaryProtocolFactory()
+    trans_factory = TBufferedTransportFactory()
+    client_timeout = client_timeout
+
+    processor = TProcessor(spec.GaasService, handler)
+    server_socket = TServerSocket(host=host, port=port,
+                                  client_timeout=client_timeout)
+    server = TSimpleServer(processor, server_socket,
+                           iprot_factory=proto_factory,
+                           itrans_factory=trans_factory)
+    return server
 
 
 def create_client(host, port, call_timeout=90000):
@@ -209,8 +227,8 @@ def create_client(host, port, call_timeout=90000):
     try:
         return make_client(spec.GaasService, host=host, port=port,
                            timeout=call_timeout)
-    except thriftpy2.transport.TTransportException:
-        # Rasie a GaaS exception in order to completely encapsulate all Thrift
+    except TTransportException:
+        # Raise a GaaS exception in order to completely encapsulate all Thrift
         # details in this module. If this was not done, callers of this function
         # would have to import thriftpy2 in order to catch the
         # TTransportException, which then leaks thriftpy2.
