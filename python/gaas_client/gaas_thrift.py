@@ -57,6 +57,12 @@ struct Node2vecResult {
   3:list<i32> path_sizes
 }
 
+struct UniformNeighborSampleResult {
+  1:list<i32> sources
+  2:list<i32> destinations
+  3:list<double> indices
+}
+
 union DataframeRowIndex {
   1:i32 int32_index
   2:i64 int64_index
@@ -73,7 +79,11 @@ union Value {
 
 service GaasService {
 
+  ##############################################################################
+  # Environment management
   i32 uptime()
+
+  map<string, Value> get_server_info() throws (1:GaasError e),
 
   i32 load_graph_creation_extensions(1:string extension_dir_path
                                      ) throws (1:GaasError e),
@@ -86,11 +96,17 @@ service GaasService {
                                     ) throws (1:GaasError e),
 
 
+  ##############################################################################
+  # Graph management
   i32 create_graph() throws(1:GaasError e),
 
   void delete_graph(1:i32 graph_id) throws (1:GaasError e),
 
   list<i32> get_graph_ids() throws(1:GaasError e),
+
+  map<string, Value> get_graph_info(1:list<string> keys,
+                                    2:i32 graph_id
+                                    ) throws(1:GaasError e),
 
   void load_csv_as_vertex_data(1:string csv_file_name,
                                2:string delimiter,
@@ -114,33 +130,23 @@ service GaasService {
                              9:list<string> names
                              ) throws (1:GaasError e),
 
-  i32 get_num_edges(1:i32 graph_id) throws(1:GaasError e),
-
   i32 get_num_vertices(1:i32 graph_id) throws(1:GaasError e),
 
-  Node2vecResult
-  node2vec(1:list<i32> start_vertices,
-           2:i32 max_depth,
-           3:i32 graph_id
-           ) throws (1:GaasError e),
+  i32 get_num_edges(1:i32 graph_id) throws(1:GaasError e),
 
   list<i32> get_edge_IDs_for_vertices(1:list<i32> src_vert_IDs,
                                       2:list<i32> dst_vert_IDs,
                                       3:i32 graph_id
                              ) throws (1:GaasError e),
 
-  i32 uniform_neighbor_sample(1:list<i32> start_list, 
-                              2:list<i32> fanout_vals,
-                              3:bool with_replacement,
-                              4:i32 graph_id
-                              ) throws (1:GaasError e),
-
   i32 extract_subgraph(1:string create_using,
                        2:string selection,
                        3:string edge_weight_property,
                        4:double default_edge_weight,
                        5:bool allow_multi_edges,
-                       6:i32 graph_id
+                       6:bool renumber_graph,
+                       7:bool add_edge_data,
+                       8:i32 graph_id
                        ) throws (1:GaasError e),
 
   binary get_graph_vertex_dataframe_rows(1:DataframeRowIndex index_or_indices,
@@ -149,17 +155,11 @@ service GaasService {
                                          4:list<string> property_keys
                                          ) throws (1:GaasError e),
 
-  list<i64> get_graph_vertex_dataframe_shape(1:i32 graph_id
-                                             ) throws (1:GaasError e),
-
   binary get_graph_edge_dataframe_rows(1:DataframeRowIndex index_or_indices,
                                        2:Value null_replacement_value
                                        3:i32 graph_id,
                                        4:list<string> property_keys
                                        ) throws (1:GaasError e),
-
-  list<i64> get_graph_edge_dataframe_shape(1:i32 graph_id
-                                           ) throws (1:GaasError e),
 
   bool is_vertex_property(1:string property_key,
                           2:i32 graph_id) throws (1:GaasError e),
@@ -167,6 +167,8 @@ service GaasService {
   bool is_edge_property(1:string property_key,
                         2:i32 graph_id) throws (1:GaasError e),
 
+  ##############################################################################
+  # Algos
   BatchedEgoGraphsResult
   batched_ego_graphs(1:list<i32> seeds,
                      2:i32 radius,
@@ -178,14 +180,23 @@ service GaasService {
            2:i32 max_depth,
            3:i32 graph_id
            ) throws (1:GaasError e),
+  
+  UniformNeighborSampleResult
+  uniform_neighbor_sample(1:list<i32> start_list,
+                              2:list<i32> fanout_vals,
+                              3:bool with_replacement,
+                              4:i32 graph_id
+                              ) throws (1:GaasError e),
 
-
+  ##############################################################################
+  # Test/Debug
+  string get_graph_type(1:i32 graph_id) throws(1:GaasError e),
 }
 """
 
 # Load the GaaS Thrift specification on import. Syntax errors and other problems
 # will be apparent immediately on import, and it allows any other module to
-# import this and access the various types define in the Thrift specification
+# import this and access the various types defined in the Thrift specification
 # without being exposed to the thriftpy2 API.
 spec = thriftpy2.load_fp(io.StringIO(gaas_thrift_spec),
                          module_name="gaas_thrift")

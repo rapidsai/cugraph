@@ -144,7 +144,6 @@ def client_with_property_csvs_loaded(client):
     """
     merchants = data.property_csv_data["merchants"]
     users = data.property_csv_data["users"]
-    taxpayers = data.property_csv_data["taxpayers"]
     transactions = data.property_csv_data["transactions"]
     relationships = data.property_csv_data["relationships"]
     referrals = data.property_csv_data["referrals"]
@@ -159,11 +158,6 @@ def client_with_property_csvs_loaded(client):
                                    vertex_col_name=users["vert_col_name"],
                                    header=0,
                                    type_name="users")
-    client.load_csv_as_vertex_data(taxpayers["csv_file_name"],
-                                   dtypes=taxpayers["dtypes"],
-                                   vertex_col_name=taxpayers["vert_col_name"],
-                                   header=0,
-                                   type_name="taxpayers")
 
     client.load_csv_as_edge_data(transactions["csv_file_name"],
                                  dtypes=transactions["dtypes"],
@@ -184,15 +178,35 @@ def client_with_property_csvs_loaded(client):
                                  type_name="referrals")
 
     assert client.get_graph_ids() == [0]
-    return client
+    return (client, data.property_csv_data)
 
 
 ###############################################################################
 ## tests
+def test_get_graph_info_key_types(client_with_property_csvs_loaded):
+    """
+    Tests error handling for info keys passed in.
+    """
+    from gaas_client.exceptions import GaasError
+
+    (client, test_data) = client_with_property_csvs_loaded
+
+    with pytest.raises(TypeError):
+        client.get_graph_info(21)  # bad key type
+    with pytest.raises(TypeError):
+        client.get_graph_info([21, "num_edges"])  # bad key type
+    with pytest.raises(GaasError):
+        client.get_graph_info("21")  # bad key value
+    with pytest.raises(GaasError):
+        client.get_graph_info(["21"])  # bad key value
+    with pytest.raises(GaasError):
+        client.get_graph_info(["num_edges", "21"])  # bad key value
+
+    client.get_graph_info()  # valid
 
 def test_get_num_edges_default_graph(client_with_edgelist_csv_loaded):
     (client, test_data) = client_with_edgelist_csv_loaded
-    assert client.get_num_edges() == test_data["num_edges"]
+    assert client.get_graph_info("num_edges") == test_data["num_edges"]
 
 def test_load_csv_as_edge_data_nondefault_graph(client):
     from gaas_client.exceptions import GaasError
@@ -210,8 +224,9 @@ def test_get_num_edges_nondefault_graph(client_with_edgelist_csv_loaded):
     from gaas_client.exceptions import GaasError
 
     (client, test_data) = client_with_edgelist_csv_loaded
+    # Bad graph ID
     with pytest.raises(GaasError):
-        client.get_num_edges(9999)
+        client.get_graph_info("num_edges", graph_id=9999)
 
     new_graph_id = client.create_graph()
     client.load_csv_as_edge_data(test_data["csv_file_name"],
@@ -220,8 +235,9 @@ def test_get_num_edges_nondefault_graph(client_with_edgelist_csv_loaded):
                                  type_name="",
                                  graph_id=new_graph_id)
 
-    assert client.get_num_edges() == test_data["num_edges"]
-    assert client.get_num_edges(new_graph_id) == test_data["num_edges"]
+    assert client.get_graph_info("num_edges") == test_data["num_edges"]
+    assert client.get_graph_info("num_edges", graph_id=new_graph_id) \
+        == test_data["num_edges"]
 
 
 def test_node2vec(client_with_edgelist_csv_loaded):
@@ -312,41 +328,42 @@ def test_call_graph_creation_extension(client):
 
 
 def test_get_graph_vertex_dataframe_rows(client_with_property_csvs_loaded):
-    client = client_with_property_csvs_loaded
+    (client, test_data) = client_with_property_csvs_loaded
 
     # FIXME: do not hardcode the shape values, get them from the input data.
     np_array_all_rows = client.get_graph_vertex_dataframe_rows()
-    assert np_array_all_rows.shape == (16, 11)
-
-    breakpoint()
+    assert np_array_all_rows.shape == (9, 9)
 
     # The remaining tests get individual rows - compare those to the all_rows
     # retrieved earlier.
     rows = [0, 1, 2]
     np_array = client.get_graph_vertex_dataframe_rows(rows)
-    assert np_array.shape == (3, 11)
+    assert np_array.shape == (3, 9)
     for (idx, all_rows_idx) in enumerate(rows):
         assert (np_array[idx] == np_array_all_rows[all_rows_idx]).all()
 
     np_array = client.get_graph_vertex_dataframe_rows(0)
-    assert np_array.shape == (1, 11)
+    assert np_array.shape == (1, 9)
     assert (np_array[0] == np_array_all_rows[0]).all()
 
     np_array = client.get_graph_vertex_dataframe_rows(1)
-    assert np_array.shape == (1, 11)
+    assert np_array.shape == (1, 9)
     assert (np_array[0] == np_array_all_rows[1]).all()
 
 
 def test_get_graph_vertex_dataframe_shape(client_with_property_csvs_loaded):
-    client = client_with_property_csvs_loaded
+    (client, test_data) = client_with_property_csvs_loaded
 
-    shape = client.get_graph_vertex_dataframe_shape()
+    info = client.get_graph_info(["num_vertices_with_properties",
+                                  "num_vertex_properties"])
+    shape = (info["num_vertices_with_properties"],
+             info["num_vertex_properties"])
     # FIXME: do not hardcode the shape values, get them from the input data.
-    assert shape == (16, 11)
+    assert shape == (9, 9)
 
 
 def test_get_graph_edge_dataframe_rows(client_with_property_csvs_loaded):
-    client = client_with_property_csvs_loaded
+    (client, test_data) = client_with_property_csvs_loaded
 
     # FIXME: do not hardcode the shape values, get them from the input data.
     np_array_all_rows = client.get_graph_edge_dataframe_rows()
@@ -370,9 +387,10 @@ def test_get_graph_edge_dataframe_rows(client_with_property_csvs_loaded):
 
 
 def test_get_graph_edge_dataframe_shape(client_with_property_csvs_loaded):
-    client = client_with_property_csvs_loaded
+    (client, test_data) = client_with_property_csvs_loaded
 
-    shape = client.get_graph_edge_dataframe_shape()
+    info = client.get_graph_info(["num_edges", "num_edge_properties"])
+    shape = (info["num_edges"], info["num_edge_properties"])
     # FIXME: do not hardcode the shape values, get them from the input data.
     assert shape == (17, 10)
 
