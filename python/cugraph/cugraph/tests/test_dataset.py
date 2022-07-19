@@ -11,7 +11,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import gc
 
 import pytest
 import yaml
@@ -24,9 +23,6 @@ from cugraph.experimental.datasets import (ALL_DATASETS)
 # =============================================================================
 # Pytest Setup / Teardown - called for each test function
 # =============================================================================
-def setup_function():
-    gc.collect()
-
 
 # Use this to simulate a fresh API import
 @pytest.fixture
