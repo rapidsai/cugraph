@@ -44,24 +44,4 @@ std::unique_ptr<legacy::GraphCSR<VT, ET, WT>> coo_to_csr(
   legacy::GraphCOOView<VT, ET, WT> const& graph,
   rmm::mr::device_memory_resource* mr = rmm::mr::get_current_device_resource());
 
-/**
- * @brief    Broadcast using handle communicator
- *
- * Use handle's communicator to operate broadcasting.
- *
- * @throws                    cugraph::logic_error when an error occurs.
- *
- * @tparam value_t            Type of the data to broadcast
- *
- * @param[out] value          Point to the data
- * @param[in]  count          Number of elements to broadcast
- *
- */
-
-// FIXME: It would be better to expose it in RAFT
-template <typename value_t>
-void comms_bcast(const raft::handle_t& handle, value_t* value, size_t count)
-{
-  handle.get_comms().bcast(value, count, 0, handle.get_stream());
-}
 }  // namespace cugraph
