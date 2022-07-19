@@ -123,4 +123,3 @@ template std::pair<size_t, double> louvain(raft::handle_t const&,
                                            double);
 }  // namespace cugraph
 
-#include <cugraph/legacy/eidir_graph.hpp>
