@@ -12,12 +12,17 @@
 # limitations under the License.
 
 from collections import defaultdict
+from functools import cached_property
+
 import cudf
 import cugraph
 from cugraph.experimental import PropertyGraph
 from cugraph.community.egonet import batched_ego_graphs
+from cugraph import uniform_neighbor_sample
 from cugraph.utilities.utils import sample_groups
 import cupy as cp
+
+import time
 
 
 src_n = PropertyGraph.src_col_name
@@ -210,57 +215,37 @@ class CuGraphStore:
         DLPack capsule
             The corresponding eids for the sampled bipartite graph
         """
+
+        # extract subgraph
         nodes = cudf.from_dlpack(nodes)
-        num_nodes = len(nodes)
-        current_seeds = nodes.reindex(index=cp.arange(0, num_nodes))
-        _g = self.__G.extract_subgraph(
-            create_using=cugraph.Graph, allow_multi_edges=True
-        )
-        ego_edge_list, seeds_offsets = batched_ego_graphs(
-            _g, current_seeds, radius=1
-        )
 
-        del _g
-        # filter and get a certain size neighborhood
+        sampled_df = uniform_neighbor_sample(self.extracted_subgraph_without_renumbering,
+                                             start_list=nodes,
+                                             fanout_vals=[fanout],
+                                             with_replacement=replace)
 
-        # Step 1
-        # Get Filtered List of ego_edge_list corresposing to current_seeds
-        # We filter by creating a series of destination nodes
-        # corresponding to the offsets and filtering non matching vallues
+        sampled_df.drop(columns=['indices'],inplace=True)
+        sampled_df.rename(columns={'sources':src_n, 'destinations':dst_n},  inplace=True)
 
-        seeds_offsets_s = cudf.Series(seeds_offsets).values
-        offset_lens = seeds_offsets_s[1:] - seeds_offsets_s[0:-1]
-        dst_seeds = current_seeds.repeat(offset_lens)
-        dst_seeds.index = ego_edge_list.index
-        filtered_list = ego_edge_list[ego_edge_list["dst"] == dst_seeds]
-
-        del dst_seeds, offset_lens, seeds_offsets_s
-        del ego_edge_list, seeds_offsets
-
-        # Step 2
-        # Sample Fan Out
-        # for each dst take maximum of fanout samples
-        filtered_list = sample_groups(
-            filtered_list, by="dst", n_samples=fanout
-        )
-
-        # TODO: Verify order of execution
-        sample_df = cudf.DataFrame(
-            {src_n: filtered_list["src"], dst_n: filtered_list["dst"]}
-        )
-        del filtered_list
-
-        # del parents_nodes, children_nodes
-        edge_df = sample_df.merge(
-            self.gdata._edge_prop_dataframe[[src_n, dst_n, eid_n]],
-            on=[src_n, dst_n],
-        )
+        edge_df = self.gdata._edge_prop_dataframe[[src_n, dst_n, eid_n]].merge(sampled_df)
 
         return (
-            edge_df[src_n].to_dlpack(),
             edge_df[dst_n].to_dlpack(),
+            edge_df[src_n].to_dlpack(),
             edge_df[eid_n].to_dlpack(),
         )
+
+    @cached_property
+    def extracted_subgraph_without_renumbering(self):
+        subset_df = self.gdata._edge_prop_dataframe[[src_n, dst_n]]
+        subset_df['weight'] = cp.float32(1.0)
+        subgraph = cugraph.Graph(directed=True)
+        subgraph.from_cudf_edgelist(subset_df,
+                                    source=src_n,
+                                    destination=dst_n,
+                                    edge_attr='weight',
+                                    renumber=False)
+        return subgraph
 
     def find_edges(self, edge_ids, etype):
         """Return the source and destination node IDs given the edge IDs within
@@ -435,6 +420,7 @@ class CuFeatureStorage:
         subset_df = get_subset_df(
             self.df[subset_cols], self.id_col, indices, self.type
         )[self.col_names]
+
         tensor = self.from_dlpack(subset_df.to_dlpack())
 
         if isinstance(tensor, cp.ndarray):
@@ -449,6 +435,7 @@ def get_subset_df(df, id_col, indices, _type_):
     """
     Util to get the subset dataframe to the indices of the requested type
     """
+    st = time.time()
     # We can avoid all of this if we set index to id_col like
     # edge_id_col_name and vertex_id_col_name and make it much faster
     # by using loc
@@ -463,4 +450,8 @@ def get_subset_df(df, id_col, indices, _type_):
     else:
         subset_df = subset_df[subset_df[type_n] == _type_]
     subset_df = subset_df.sort_values(by=id_col_name)
+
+    et = time.time()
+
+    print(f"get_subset_df took = {et-st} s", flush=True)
     return subset_df
