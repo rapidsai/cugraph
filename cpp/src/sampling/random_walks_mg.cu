@@ -164,31 +164,31 @@ template std::tuple<rmm::device_uvector<int64_t>, rmm::device_uvector<float>> no
   float q,
   uint64_t seed);
 
-template std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<double>> node2vec_random_walks(
-  raft::handle_t const& handle,
-  graph_view_t<int32_t, int32_t, double, false, true> const& graph_view,
-  raft::device_span<int32_t const> start_span,
-  size_t max_depth,
-  double p,
-  double q,
-  uint64_t seed);
+template std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<double>>
+node2vec_random_walks(raft::handle_t const& handle,
+                      graph_view_t<int32_t, int32_t, double, false, true> const& graph_view,
+                      raft::device_span<int32_t const> start_span,
+                      size_t max_depth,
+                      double p,
+                      double q,
+                      uint64_t seed);
 
-template std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<double>> node2vec_random_walks(
-  raft::handle_t const& handle,
-  graph_view_t<int32_t, int64_t, double, false, true> const& graph_view,
-  raft::device_span<int32_t const> start_span,
-  size_t max_depth,
-  double p,
-  double q,
-  uint64_t seed);
+template std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<double>>
+node2vec_random_walks(raft::handle_t const& handle,
+                      graph_view_t<int32_t, int64_t, double, false, true> const& graph_view,
+                      raft::device_span<int32_t const> start_span,
+                      size_t max_depth,
+                      double p,
+                      double q,
+                      uint64_t seed);
 
-template std::tuple<rmm::device_uvector<int64_t>, rmm::device_uvector<double>> node2vec_random_walks(
-  raft::handle_t const& handle,
-  graph_view_t<int64_t, int64_t, double, false, true> const& graph_view,
-  raft::device_span<int64_t const> start_span,
-  size_t max_depth,
-  double p,
-  double q,
-  uint64_t seed);
+template std::tuple<rmm::device_uvector<int64_t>, rmm::device_uvector<double>>
+node2vec_random_walks(raft::handle_t const& handle,
+                      graph_view_t<int64_t, int64_t, double, false, true> const& graph_view,
+                      raft::device_span<int64_t const> start_span,
+                      size_t max_depth,
+                      double p,
+                      double q,
+                      uint64_t seed);
 
 }  // namespace cugraph
