@@ -83,6 +83,17 @@ dataset1 = {
 }
 
 
+dataset2 = {
+    "simple": [
+        ["src", "dst", "some_property"],
+        [(99, 22, "a"),
+         (98, 34, "b"),
+         (97, 56, "c"),
+         (96, 88, "d"),
+         ]
+    ],
+}
+
 # Placeholder for a directed Graph instance. This is not constructed here in
 # order to prevent cuGraph code from running on import, which would prevent
 # proper pytest collection if an exception is raised. See setup_function().
@@ -267,6 +278,23 @@ def dataset1_MGPropertyGraph(dask_client):
     return mpG
 
 
+@pytest.fixture(scope="module")
+def dataset2_MGPropertyGraph(dask_client):
+    from cugraph.experimental import MGPropertyGraph
+
+    dataframe_type = cudf.DataFrame
+    simple = dataset2["simple"]
+    mpG = MGPropertyGraph()
+
+    sg_df = dataframe_type(columns=simple[0], data=simple[1])
+    mgdf = dask_cudf.from_cudf(sg_df, npartitions=2)
+
+    mpG.add_edge_data(mgdf,
+                      vertex_col_names=("src", "dst"))
+
+    return (mpG, simple)
+
+
 @pytest.fixture(scope="module", params=df_types_fixture_params)
 def net_MGPropertyGraph(dask_client):
     """
@@ -386,31 +414,24 @@ def test_property_names_attrs(dataset1_MGPropertyGraph):
     assert sorted(actual_edge_prop_names) == sorted(expected_edge_prop_names)
 
 
-def test_extract_subgraph_nonrenumbered_noedgedata(dask_client):
+def test_extract_subgraph_nonrenumbered_noedgedata(dataset2_MGPropertyGraph):
     """
     Ensure a subgraph can be extracted that is not renumbered and contains no
     edge_data.
     """
-    from cugraph.experimental import MGPropertyGraph
     from cugraph import Graph
 
-    pG = MGPropertyGraph()
-    df = cudf.DataFrame({"src": [99, 98, 97],
-                         "dst": [22, 34, 56],
-                         "some_property": ["a", "b", "c"],
-                         })
-    mgdf = dask_cudf.from_cudf(df, npartitions=2)
-    pG.add_edge_data(mgdf, vertex_col_names=("src", "dst"))
-
+    (pG, data) = dataset2_MGPropertyGraph
     G = pG.extract_subgraph(create_using=Graph(directed=True),
                             renumber_graph=False,
                             add_edge_data=False)
 
     actual_edgelist = G.edgelist.edgelist_df.compute()
 
-    expected_edgelist = cudf.DataFrame({pG.src_col_name: [99, 98, 97],
-                                        pG.dst_col_name: [22, 34, 56],
-                                        })
+    # create a DF without the properties (ie. the last column)
+    expected_edgelist = cudf.DataFrame(columns=[pG.src_col_name,
+                                                pG.dst_col_name],
+                                       data=[(i, j) for (i, j, k) in data[1]])
 
     assert_frame_equal(expected_edgelist.sort_values(by=pG.src_col_name,
                                                      ignore_index=True),
@@ -419,23 +440,15 @@ def test_extract_subgraph_nonrenumbered_noedgedata(dask_client):
     assert hasattr(G, "edge_data") is False
 
 
-def test_num_vertices_with_properties(dask_client):
+def test_num_vertices_with_properties(dataset2_MGPropertyGraph):
     """
     Checks that the num_vertices_with_properties attr is set to the number of
     vertices that have properties, as opposed to just num_vertices which also
     includes all verts in the graph edgelist.
     """
-    from cugraph.experimental import MGPropertyGraph
+    (pG, data) = dataset2_MGPropertyGraph
 
-    pG = MGPropertyGraph()
-    df = cudf.DataFrame({"src": [99, 98, 97],
-                         "dst": [22, 34, 56],
-                         "some_property": ["a", "b", "c"],
-                         })
-    mgdf = dask_cudf.from_cudf(df, npartitions=2)
-    pG.add_edge_data(mgdf, vertex_col_names=("src", "dst"))
-
-    assert pG.num_vertices == 6
+    assert pG.num_vertices == len(data[1]) * 2  # assume no repeated vertices
     assert pG.num_vertices_with_properties == 0
 
     df = cudf.DataFrame({"vertex": [98, 97],
@@ -444,5 +457,26 @@ def test_num_vertices_with_properties(dask_client):
     mgdf = dask_cudf.from_cudf(df, npartitions=2)
     pG.add_vertex_data(mgdf, vertex_col_name="vertex")
 
-    assert pG.num_vertices == 6
+    assert pG.num_vertices == len(data[1]) * 2  # assume no repeated vertices
     assert pG.num_vertices_with_properties == 2
+
+
+def test_edges_attr(dataset2_MGPropertyGraph):
+    """
+    Ensure the edges attr returns the src, dst, edge_id columns properly.
+    """
+    (pG, data) = dataset2_MGPropertyGraph
+
+    # create a DF without the properties (ie. the last column)
+    expected_edges = cudf.DataFrame(columns=[pG.src_col_name, pG.dst_col_name],
+                                    data=[(i, j) for (i, j, k) in data[1]])
+    actual_edges = pG.edges[[pG.src_col_name, pG.dst_col_name]].compute()
+
+    assert_frame_equal(expected_edges.sort_values(by=pG.src_col_name,
+                                                  ignore_index=True),
+                       actual_edges.sort_values(by=pG.src_col_name,
+                                                ignore_index=True))
+    edge_ids = pG.edges[pG.edge_id_col_name].compute()
+    expected_num_edges = len(data[1])
+    assert len(edge_ids) == expected_num_edges
+    assert edge_ids.nunique() == expected_num_edges
