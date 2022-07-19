@@ -19,10 +19,10 @@
 #include <rmm/device_uvector.hpp>
 #include <rmm/exec_policy.hpp>
 
-#include <converters/COOtoCSR.cuh>
+#include <converters/legacy/COOtoCSR.cuh>
 
 #include <cugraph/detail/utility_wrappers.hpp>
-#include <cugraph/internals.hpp>
+#include <cugraph/legacy/internals.hpp>
 #include <cugraph/legacy/graph.hpp>
 #include <cugraph/utilities/error.hpp>
 

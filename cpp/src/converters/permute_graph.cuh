@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include "converters/COOtoCSR.cuh"
+#include "converters/legacy/COOtoCSR.cuh"
 #include <cugraph/legacy/graph.hpp>
 #include <cugraph/utilities/error.hpp>
 #include <rmm/device_vector.hpp>

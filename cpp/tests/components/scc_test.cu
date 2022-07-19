@@ -18,8 +18,8 @@
 
 #include <rmm/device_vector.hpp>
 
-#include <components/scc_matrix.cuh>
-#include <converters/COOtoCSR.cuh>
+#include <components/legacy/scc_matrix.cuh>
+#include <converters/legacy/COOtoCSR.cuh>
 #include <cugraph/algorithms.hpp>
 #include <cugraph/legacy/graph.hpp>
 #include <rmm/device_vector.hpp>
