@@ -49,7 +49,7 @@ typedef struct {
  *                           be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
  */
-cugraph_error_code_t cugraph_uniform_random_walk(
+cugraph_error_code_t cugraph_uniform_random_walks(
   const cugraph_resource_handle_t* handle,
   cugraph_graph_t* graph,
   const cugraph_type_erased_device_array_view_t* sources,
@@ -70,7 +70,7 @@ cugraph_error_code_t cugraph_uniform_random_walk(
  *                           be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
  */
-cugraph_error_code_t cugraph_biased_random_walk(
+cugraph_error_code_t cugraph_biased_random_walks(
   const cugraph_resource_handle_t* handle,
   cugraph_graph_t* graph,
   const cugraph_type_erased_device_array_view_t* sources,
@@ -95,7 +95,7 @@ cugraph_error_code_t cugraph_biased_random_walk(
  *                           be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
  */
-cugraph_error_code_t cugraph_node2vec_random_walk(
+cugraph_error_code_t cugraph_node2vec_random_walks(
   const cugraph_resource_handle_t* handle,
   cugraph_graph_t* graph,
   const cugraph_type_erased_device_array_view_t* sources,
@@ -107,7 +107,7 @@ cugraph_error_code_t cugraph_node2vec_random_walk(
 
 /**
  * @brief  Compute random walks using the node2vec framework.
- * @deprecated This call should be replaced with cugraph_node2vec_random_walk
+ * @deprecated This call should be replaced with cugraph_node2vec_random_walks
  *
  * @param [in]  handle       Handle for accessing resources
  * @param [in]  graph        Pointer to graph.  NOTE: Graph might be modified if the storage
@@ -164,6 +164,7 @@ cugraph_type_erased_device_array_view_t* cugraph_random_walk_result_get_weights(
 
 /**
  * @brief     If the random walk result is compressed, get the path sizes
+ * @deprecated This call will no longer be relevant once the new node2vec are called
  *
  * @param [in]   result   The result from a random walk algorithm
  * @return type erased array pointing to the path sizes in device memory

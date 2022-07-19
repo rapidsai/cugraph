@@ -453,8 +453,12 @@ ConfigureTest(EIGENVECTOR_CENTRALITY_TEST centrality/eigenvector_centrality_test
 ConfigureTest(WEAKLY_CONNECTED_COMPONENTS_TEST components/weakly_connected_components_test.cpp)
 
 ###################################################################################################
+# - Legacy RANDOM_WALKS tests ----------------------------------------------------------------------------
+ConfigureTest(LEGACY_RANDOM_WALKS_TEST sampling/random_walks_test.cu)
+
+###################################################################################################
 # - RANDOM_WALKS tests ----------------------------------------------------------------------------
-ConfigureTest(RANDOM_WALKS_TEST sampling/random_walks_test.cu)
+ConfigureTest(RANDOM_WALKS_TEST sampling/sg_random_walks_test.cu)
 
 ###################################################################################################
 ConfigureTest(RANDOM_WALKS_LOW_LEVEL_TEST sampling/rw_low_level_test.cu)
@@ -618,6 +622,10 @@ if(BUILD_CUGRAPH_MG_TESTS)
         ###########################################################################################
         # - MG NBR SAMPLING tests -----------------------------------------------------------------
         ConfigureTestMG(MG_UNIFORM_NEIGHBOR_SAMPLING_TEST sampling/mg_uniform_neighbor_sampling.cu)
+
+        ###########################################################################################
+        # - RANDOM_WALKS tests --------------------------------------------------------------------
+	ConfigureTestMG(MG_RANDOM_WALKS_TEST sampling/mg_random_walks_test.cu)
         
         ###########################################################################################
         # - MG C API tests ------------------------------------------------------------------------
@@ -631,6 +639,7 @@ if(BUILD_CUGRAPH_MG_TESTS)
         ConfigureCTestMG(MG_CAPI_EIGENVECTOR_CENTRALITY c_api/mg_eigenvector_centrality_test.c c_api/mg_test_utils.cpp)
         ConfigureCTestMG(MG_CAPI_HITS c_api/mg_hits_test.c c_api/mg_test_utils.cpp)
         ConfigureCTestMG(MG_CAPI_UNIFORM_NEIGHBOR_SAMPLE c_api/mg_uniform_neighbor_sample_test.c c_api/mg_test_utils.cpp)
+	ConfigureCTestMG(MG_CAPI_RANDOM_WALKS c_api/mg_random_walks_test.c c_api/mg_test_utils.cpp)
         ConfigureCTestMG(MG_CAPI_TRIANGLE_COUNT c_api/mg_triangle_count_test.c c_api/mg_test_utils.cpp)
         ConfigureCTestMG(MG_CAPI_LOUVAIN c_api/mg_louvain_test.c c_api/mg_test_utils.cpp)
     else()
@@ -683,6 +692,7 @@ ConfigureCTest(CAPI_NODE2VEC_TEST c_api/node2vec_test.c)
 ConfigureCTest(CAPI_WEAKLY_CONNECTED_COMPONENTS c_api/weakly_connected_components_test.c)
 ConfigureCTest(CAPI_STRONGLY_CONNECTED_COMPONENTS c_api/strongly_connected_components_test.c)
 ConfigureCTest(CAPI_UNIFORM_NEIGHBOR_SAMPLE c_api/uniform_neighbor_sample_test.c)
+ConfigureCTest(CAPI_RANDOM_WALKS c_api/sg_random_walks_test.c)
 ConfigureCTest(CAPI_TRIANGLE_COUNT c_api/triangle_count_test.c)
 ConfigureCTest(CAPI_LOUVAIN c_api/louvain_test.c)
 
