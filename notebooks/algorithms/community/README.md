@@ -15,12 +15,12 @@ cuGraph Community notebooks contain a collection of Jupyter Notebooks with algor
 | --------------- | ----------------------------------------- | ------------------------------------------------------------ |
 |        |                                                    |                                                              |
 | Louvain and Leiden                                          |[Clustering](./Community-Clustering.ipynb), [ Louvain and Leiden](./Louvain.ipynb) | Identify clusters in a graph using both the Louvain and Leiden algorithms     |
-| Ensemble Clustering for Graphs  | [Clustering](./Community-Clustering.ipynb), [ECG](./ECG.ipynb)        | Identify clusters in a graph using the Ensemble Clustering for Graph |
-| K-Truss                                                     | [K-Truss](./ktruss.ipynb)                                | Extracts the K-Truss cluster                                 |
+| Ensemble Clustering for Graphs  | [Clustering](./Community-Clustering.ipynb), [ECG](./ECG.ipynb)        | Identify clusters using Louvain and consensus clustering |
+| K-Truss                                                     | [K-Truss](./ktruss.ipynb)                                | Extracts relaxed(parameterized) cliques which include each vertex. |
 | Spectral Clustering with Balanced Cut                       | [Clustering](./Community-Clustering.ipynb),[ Spectral-Clustering](./Spectral-Clustering.ipynb)   | Identify clusters using eigenvalues and the Graph Laplacian    |
-| Spectral Clustering with Modularity Maximization            | [Clustering](./Community-Clustering.ipynb),[ Spectral-Clustering](./Spectral-Clustering.ipynb)   | Identify clusters in a graph using Spectral Clustering |
-| Subgraph Extraction                                         | [Subgraph Extraction](./Subgraph-Extraction.ipynb)   | Compute a subgraph of the existing graph including only the specified vertices |
-| Triangle Counting                                           | [Triangle Counting](./Triangle-Counting.ipynb)       | Count the number of Triangle in a graph                      |
+| Spectral Clustering with Modularity Maximization            | [Clustering](./Community-Clustering.ipynb),[ Spectral-Clustering](./Spectral-Clustering.ipynb)   | Identify clusters using eigenvalues and the Graph Laplacian  |
+| Subgraph Extraction                                         | [Subgraph Extraction](./Subgraph-Extraction.ipynb)   | Create a subgraph of the existing graph including only the specified vertices |
+| Triangle Counting                                           | [Triangle Counting](./Triangle-Counting.ipynb)       | Count the number of size three cliques in a graph                      |
 
 
 
