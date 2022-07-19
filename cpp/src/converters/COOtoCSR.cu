@@ -15,7 +15,6 @@
  */
 
 #include "COOtoCSR.cuh"
-#include <cugraph/functions.hpp>
 
 namespace cugraph {
 
