@@ -309,8 +309,8 @@ if (USE_CUGRAPH_OPS)
         PUBLIC
             cugraph-ops::cugraph-ops++
             raft::raft
-            cuco::cuco
         PRIVATE
+            cuco::cuco
             cugraph::cuHornet
             NCCL::NCCL
     )
@@ -318,8 +318,8 @@ else()
     target_link_libraries(cugraph
         PUBLIC
             raft::raft
-            cuco::cuco
         PRIVATE
+            cuco::cuco
             cugraph::cuHornet
             NCCL::NCCL
     )
@@ -439,8 +439,8 @@ target_link_libraries(cugraph_c
                 CUDA::cusolver
                 CUDA::cusparse
                 raft::raft
-                cuco::cuco
         PRIVATE
+                cuco::cuco
                 cugraph::cugraph
 )
 
