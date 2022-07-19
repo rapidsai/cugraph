@@ -1,4 +1,4 @@
-name: rapids
+name: cugraph_dev
 channels:
 - rapidsai
 - nvidia

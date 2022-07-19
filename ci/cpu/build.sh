@@ -20,9 +20,6 @@ export HOME=$WORKSPACE
 # Switch to project root; also root of repo checkout
 cd $WORKSPACE
 
-echo "checking the workspace"
-ls -l $WORKSPACE
-
 # If nightly build, append current YYMMDD to version
 if [[ "$BUILD_MODE" = "branch" && "$SOURCE_BRANCH" = branch-* ]] ; then
   export VERSION_SUFFIX=`date +%y%m%d`
@@ -47,10 +44,8 @@ gpuci_logger "Check environment variables"
 env
 
 gpuci_logger "Activate conda env"
-echo "installing libcudf"
 . /opt/conda/etc/profile.d/conda.sh
 conda activate rapids
-# mamba install -y -c rapidsai -c nvidia -c rapidsai-nightly -c conda-forge libcudf=22.08.*
 
 # Remove rapidsai-nightly channel if we are building main branch
 if [ "$SOURCE_BRANCH" = "main" ]; then
@@ -90,20 +85,12 @@ gpuci_mamba_retry install -c conda-forge boa
 
 if [ "$BUILD_LIBCUGRAPH" == '1' ]; then
   gpuci_logger "Building conda package for libcugraph and libcugraph_etl"
-  echo "checking libcudacxx before building libcugraph"
-  ls -l /opt/conda/envs/rapids/lib/cmake
   if [[ -z "$PROJECT_FLASH" || "$PROJECT_FLASH" == "0" ]]; then
     gpuci_conda_retry mambabuild --no-build-id --croot ${CONDA_BLD_DIR} conda/recipes/libcugraph
   else
     gpuci_conda_retry mambabuild --no-build-id --croot ${CONDA_BLD_DIR} --dirty --no-remove-work-dir conda/recipes/libcugraph
     mkdir -p ${CONDA_BLD_DIR}/libcugraph
-    # mv ${CONDA_BLD_DIR}/work ${CONDA_BLD_DIR}/libcugraph/work
-    echo "installing conda env after libcugraph"
-    conda config --env --set always_yes true
-    conda deactivate
-    mamba env update -f ${CONDA_BLD_DIR}/work/conda/environments/cugraph_dev_cuda11.5.yml
-    conda activate rapids
-
+    mv ${CONDA_BLD_DIR}/work ${CONDA_BLD_DIR}/libcugraph/work
   fi
   gpuci_logger "sccache stats"
   sccache --show-stats
@@ -113,13 +100,6 @@ fi
 
 if [ "$BUILD_CUGRAPH" == "1" ]; then
   gpuci_logger "Building conda packages for pylibcugraph and cugraph"
-
-  echo "checking cpp"
-  ls -l ${CONDA_BLD_DIR}/work/cpp
-  echo "checking build"
-  ls -l ${CONDA_BLD_DIR}/work/cpp/build
-  echo "checking libcudacxx before building pylibcugraph"
-  ls -l /opt/conda/envs/rapids/lib/cmake
   if [[ -z "$PROJECT_FLASH" || "$PROJECT_FLASH" == "0" ]]; then
     gpuci_conda_retry mambabuild --no-build-id --croot ${CONDA_BLD_DIR} conda/recipes/pylibcugraph --python=$PYTHON
     gpuci_conda_retry mambabuild --no-build-id --croot ${CONDA_BLD_DIR} conda/recipes/cugraph --python=$PYTHON
