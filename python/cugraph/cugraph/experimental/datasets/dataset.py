@@ -73,11 +73,6 @@ class Dataset:
         with open(metadata_path, 'r') as file:
             self.metadata = yaml.safe_load(file)
 
-    # check for updates for download_dir location within obj
-    def __refresh_dl(self):
-        if self._dl_path != default_download_dir.path:
-            self._dl_path = default_download_dir.path
-
     def __download_csv(self, url):
         if not os.path.isdir(self._dl_path.path):
             os.makedirs(self._dl_path.path)
