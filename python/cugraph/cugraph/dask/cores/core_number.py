@@ -19,6 +19,7 @@ from cugraph.dask.common.input_utils import get_distributed_data
 import cugraph.dask.comms.comms as Comms
 import dask_cudf
 import cudf
+import warnings
 
 from pylibcugraph.experimental import core_number as \
     pylibcugraph_core_number
@@ -93,10 +94,11 @@ def core_number(input_graph,
         (edge weights are not used in this algorithm).
         The current implementation only supports undirected graphs.
 
-    degree_type: int, optional (default=0)
+    degree_type: str, Not supported in this release
         Flag determining whether the core number computation should be based
-        of incoming edges, outgoing edges or both which are respectively
-        0, 1 and 2
+        of incoming, outgoing or bidirectional.
+
+        This implementation only supports bidirectional edges.
 
 
     Returns

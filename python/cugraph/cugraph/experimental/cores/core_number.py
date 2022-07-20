@@ -13,6 +13,7 @@
 
 from cugraph.utilities import ensure_cugraph_obj_for_nx
 import cudf
+import warnings
 
 from pylibcugraph.experimental import core_number as \
     pylibcugraph_core_number
@@ -23,7 +24,7 @@ from pylibcugraph import (ResourceHandle,
                           )
 
 
-def EXPERIMENTAL__core_number(G, degree_type=0):
+def EXPERIMENTAL__core_number(G, degree_type=None):
     """
     Compute the core numbers for the nodes of the graph G. A k-core of a graph
     is a maximal subgraph that contains nodes of degree k or more.
@@ -39,10 +40,11 @@ def EXPERIMENTAL__core_number(G, degree_type=0):
         can contain edge weights, they don't participate in the calculation
         of the core numbers.
 
-    degree_type: int, optional (default=0)
+    degree_type: str, Not supported in this release
         Flag determining whether the core number computation should be based
-        of incoming edges, outgoing edges or both which are respectively
-        0, 1 and 2
+        of incoming, outgoing or bidirectional.
+
+        This implementation only supports bidirectional edges.
 
     Returns
     -------
@@ -66,6 +68,10 @@ def EXPERIMENTAL__core_number(G, degree_type=0):
     """
 
     G, _ = ensure_cugraph_obj_for_nx(G)
+
+    if degree_type is not None:
+        warning_msg = ("'degree_type' is not supported yet.")
+        warnings.warn(warning_msg, Warning)
 
     if G.is_directed():
         raise ValueError("input graph must be undirected")
