@@ -685,9 +685,9 @@ printf("minors[%ld] = %ld, %ld, major=%ld, local_out_degree=%ld\n", index, adjac
 
                 printf("tid=%d, cur_sum=%ld\n", threadIdx.x, cur_sum);
 
-                if(cur_sum+__popc(mask_val) >= g_dst_index) {
-                    g_dst_index = cur_sum + kth_bit(mask_val, (edge_t)(g_dst_index-cur_sum));
-                    printf("Loading %ld\n", g_dst_index);
+                if(cur_sum+__popc(mask_val) >= g_dst_index+1) {
+                    g_dst_index = i + kth_bit(mask_val, (edge_t)(g_dst_index-cur_sum), g_dst_index == 1);
+                    printf("Loading %ld, cur_sum=%d\n", g_dst_index, cur_sum);
                     break;
                 }
 

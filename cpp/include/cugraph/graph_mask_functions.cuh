@@ -68,8 +68,10 @@ __host__ __device__ __forceinline__ void print_ulong_bin(const uint32_t * const 
  */
 template<typename edge_t, typename mask_type>
 __device__ edge_t kth_bit(mask_type mask_elm,
-                          edge_t k) {
-    mask_type n_shifts = std::numeric_limits<mask_type>::digits;
+                          edge_t k, bool debug) {
+
+    constexpr mask_type FMASK = 0xffffffff;
+    constexpr mask_type n_shifts = std::numeric_limits<mask_type>::digits;
 
     /**
      *
@@ -82,86 +84,23 @@ __device__ edge_t kth_bit(mask_type mask_elm,
      *
      * 3. For regions with high density, we might be able to adjust the bin sizes so that the algorithm in 2 will work.
      */
-    /**
-     * Right shift 32 bits and store resulting number
-     *   if k > popc, mask right side
-     *   if k <= popc, mask left side
-     *
-     * Right shift 16 bits
-     *   if k > popc, mask right side
-     *   if k <= popc, mask left side
-     *
-     * Right shift 8 bits
-     *   if k > popc mask right side
-     *   if k <= popc, mask left side
-     *
-     * Right shift 4 bits
-     *   if k > popc, mask right side
-     *   if k <= popc, mask left side
-     *
-     * Right shift 2 bits
-     *   if k > popc, mask right side
-     *   if k <= popc, mask left side
-     *
-     * Resuling bit is the answer
-     */
 
-    printf("Looking for %ld\n", k);
+    mask_type tmp_mask_elm = mask_elm;
+    int idx = level_to_bits(0); // this is capped at n_shifts
+    int k_tmp = k+1;
 
-    mask_type mask_window = 0xffffffff;
-    int idx = level_to_bits(0);
-    edge_t k_tmp = k + 1;
-    // Iterate for 5 levels
+    // Iterate for first 4 levels
     for(int i = 0; i < 4; ++i) {
-        int n_bits_to_shift = level_to_bits(i);
-        int next_bits = level_to_bits(i+1);
-        mask_type m = mask_elm & mask_window >> (n_shifts - idx);
-
-        printf("Next mask: ");
-        print_ulong_bin(&m, n_shifts);
-
-        int popl = __popc(m); // count of left branch
-
-        printf("k=%ld, idx=%d, n_bits_to_shift=%d, next_bits=%d, k_tmp=%ld, popl=%d\n", k, idx, n_bits_to_shift, next_bits, k_tmp, popl);
-
-        if(k_tmp <= popl)  {
-            // right branch
-            printf("Took right branch\n");
-
-            uint32_t n_mask = (mask_window >> (n_shifts - idx));
-            mask_elm = mask_elm & n_mask;
-            idx -= next_bits;
-            print_ulong_bin(&n_mask, n_shifts);
-        } else {
-            // left branch
-            printf("Took left branch\n");
-            k_tmp -= popl;
-            uint32_t n_mask = (mask_window >> (n_shifts - idx) << idx);
-            mask_elm = mask_elm & n_mask;
-            idx += next_bits;
-            print_ulong_bin(&n_mask, n_shifts);
-        }
-//        k_tmp -= (k_tmp > popl) * popl;   // k_tmp is updated for each local subgrouping
-
-//        if(k_tmp > popl) {
-//
-//            // Take left branch
-//            printf("GOING left!, k_tmp=%d\n", k_tmp);
-//        } else {
-//
-//            // Take right branch
-//        }
-//
-        print_ulong_bin(&mask_elm, n_shifts);
+        int popl = __popc(tmp_mask_elm & FMASK >> (n_shifts - idx)); // count of left branch
+        mask_type n_mask = (FMASK >> (n_shifts - idx));
+        n_mask <<= (k_tmp > popl) * idx;
+        k_tmp -= (k_tmp > popl) * popl;
+        idx += level_to_bits(i + 1) * (-1 * (k_tmp <= popl) + (k_tmp > popl));
+        tmp_mask_elm &= n_mask;
     }
 
-    // if
-//    if(__popc(mask_elm & (mask_window << 1)) == k_tmp) {
-//        idx -=1;
-//    }
-    printf("popcount: %d\n", __popc(mask_elm ));
-
-    return idx;
+    // Correct idx for the final level
+    return idx - (__popc(mask_elm & FMASK >> (n_shifts - idx)) > k);
 }
 
 /**
