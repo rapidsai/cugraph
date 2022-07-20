@@ -282,7 +282,10 @@ def test_add_vertex_data(df_type):
                        property_columns=None)
 
     assert pG.num_vertices == 5
+    assert pG.get_num_vertices() == 5
+    assert pG.get_num_vertices('merchants') == 5
     assert pG.num_edges == 0
+    assert pG.get_num_edges() == 0
     expected_props = merchants[0].copy()
     assert sorted(pG.vertex_property_names) == sorted(expected_props)
 
@@ -299,6 +302,10 @@ def test_num_vertices(df_type):
                            data=merchants[1])
 
     pG = PropertyGraph()
+    assert pG.num_vertices == 0
+    assert pG.get_num_vertices('unknown_type') == 0
+    assert pG.num_edges == 0
+    assert pG.get_num_edges('unknown_type') == 0
     pG.add_vertex_data(merchants_df,
                        type_name="merchants",
                        vertex_col_name="merchant_id",
@@ -307,11 +314,14 @@ def test_num_vertices(df_type):
     # Test caching - the second retrieval should always be faster
     st = time.time()
     assert pG.num_vertices == 5
+    assert pG.get_num_vertices() == 5
     compute_time = time.time() - st
     assert pG.num_edges == 0
+    assert pG.get_num_edges() == 0
 
     st = time.time()
     assert pG.num_vertices == 5
+    assert pG.get_num_vertices() == 5
     cache_retrieval_time = time.time() - st
     assert cache_retrieval_time < compute_time
 
@@ -324,7 +334,11 @@ def test_num_vertices(df_type):
                        property_columns=None)
 
     assert pG.num_vertices == 9
+    assert pG.get_num_vertices() == 9
+    assert pG.get_num_vertices('merchants') == 5
+    assert pG.get_num_vertices('users') == 4
     assert pG.num_edges == 0
+    assert pG.get_num_edges() == 0
 
     # The taxpayers table does not add new vertices, it only adds properties to
     # vertices already present in the merchants and users tables.
@@ -338,7 +352,13 @@ def test_num_vertices(df_type):
                        property_columns=None)
 
     assert pG.num_vertices == 9
+    assert pG.get_num_vertices() == 9
+    assert pG.get_num_vertices('merchants') == 5
+    assert pG.get_num_vertices('users') == 4
+    assert pG.get_num_vertices('taxpayers') == 7  # These nodes have two types
+    assert pG.get_num_vertices('unknown_type') == 0
     assert pG.num_edges == 0
+    assert pG.get_num_edges() == 0
 
 
 @pytest.mark.parametrize("df_type", df_types, ids=df_type_id)
@@ -351,7 +371,9 @@ def test_null_data(df_type):
     pG = PropertyGraph()
 
     assert pG.num_vertices == 0
+    assert pG.get_num_vertices() == 0
     assert pG.num_edges == 0
+    assert pG.get_num_edges() == 0
     assert sorted(pG.vertex_property_names) == sorted([])
 
 
@@ -374,7 +396,10 @@ def test_add_vertex_data_prop_columns(df_type):
                        property_columns=expected_props)
 
     assert pG.num_vertices == 5
+    assert pG.get_num_vertices() == 5
+    assert pG.get_num_vertices('merchants') == 5
     assert pG.num_edges == 0
+    assert pG.get_num_edges() == 0
     assert sorted(pG.vertex_property_names) == sorted(expected_props)
 
 
@@ -436,7 +461,12 @@ def test_add_edge_data(df_type):
                      property_columns=None)
 
     assert pG.num_vertices == 7
+    assert pG.get_num_vertices() == 7
+    # 'transactions' is edge type, not vertex type
+    assert pG.get_num_vertices('transactions') == 0
     assert pG.num_edges == 4
+    assert pG.get_num_edges() == 4
+    assert pG.get_num_edges('transactions') == 4
     expected_props = ["merchant_id", "user_id",
                       "volume", "time", "card_num", "card_type"]
     assert sorted(pG.edge_property_names) == sorted(expected_props)
@@ -461,7 +491,12 @@ def test_add_edge_data_prop_columns(df_type):
                      property_columns=expected_props)
 
     assert pG.num_vertices == 7
+    assert pG.get_num_vertices() == 7
+    # 'transactions' is edge type, not vertex type
+    assert pG.get_num_vertices('transactions') == 0
     assert pG.num_edges == 4
+    assert pG.get_num_edges() == 4
+    assert pG.get_num_edges('transactions') == 4
     assert sorted(pG.edge_property_names) == sorted(expected_props)
 
 
@@ -885,6 +920,11 @@ def test_graph_edge_data_added(dataset1_PropertyGraph):
         len(dataset1["referrals"][-1])
 
     assert pG.num_edges == expected_num_edges
+    assert pG.get_num_edges() == expected_num_edges
+    assert pG.get_num_edges("transactions") == len(dataset1["transactions"][-1])
+    assert pG.get_num_edges("relationships") == len(dataset1["relationships"][-1])
+    assert pG.get_num_edges("referrals") == len(dataset1["referrals"][-1])
+    assert pG.get_num_edges("unknown_type") == 0
 
     # extract_subgraph() should return a directed Graph object with additional
     # meta-data, which includes edge IDs.

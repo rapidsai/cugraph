@@ -195,6 +195,45 @@ class EXPERIMENTAL__PropertyGraph:
     def _edge_prop_dataframe(self):
         return self.__edge_prop_dataframe
 
+    def get_num_vertices(self, type=None):
+        """Return the number of vertices of a given type.
+
+        If type is None, return the total number of vertices.
+
+        Vertex types are set by using the `type_name` argument in
+        `add_vertex_data`.
+
+        See Also
+        --------
+        PropertyGraph.num_vertices
+        PropertyGraph.get_num_edges
+        """
+        if type is None:
+            return self.num_vertices
+        if self.__vertex_prop_dataframe is None:
+            return 0
+        # This counts duplicates
+        return (self.__vertex_prop_dataframe[self.type_col_name] == type).sum()
+
+    def get_num_edges(self, type=None):
+        """Return the number of edges of a given type.
+
+        If type is None, return the total number of edges.
+
+        Edge types are set by using the `type_name` argument in `add_edge_data`.
+
+        See Also
+        --------
+        PropertyGraph.num_edges
+        PropertyGraph.get_num_vertices
+        """
+        if type is None:
+            return self.num_edges
+        if self.__edge_prop_dataframe is None:
+            return 0
+        # This counts duplicates
+        return (self.__edge_prop_dataframe[self.type_col_name] == type).sum()
+
     def get_vertices(self, selection=None):
         """
         Return a Series containing the unique vertex IDs contained in both
