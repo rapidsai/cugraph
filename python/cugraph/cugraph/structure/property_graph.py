@@ -220,7 +220,8 @@ class EXPERIMENTAL__PropertyGraph:
 
         If type is None, return the total number of edges.
 
-        Edge types are set by using the `type_name` argument in `add_edge_data`.
+        Edge types are set by using the `type_name` argument in
+        `add_edge_data`.
 
         See Also
         --------

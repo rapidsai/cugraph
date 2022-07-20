@@ -921,8 +921,12 @@ def test_graph_edge_data_added(dataset1_PropertyGraph):
 
     assert pG.num_edges == expected_num_edges
     assert pG.get_num_edges() == expected_num_edges
-    assert pG.get_num_edges("transactions") == len(dataset1["transactions"][-1])
-    assert pG.get_num_edges("relationships") == len(dataset1["relationships"][-1])
+    assert (
+        pG.get_num_edges("transactions") == len(dataset1["transactions"][-1])
+    )
+    assert (
+        pG.get_num_edges("relationships") == len(dataset1["relationships"][-1])
+    )
     assert pG.get_num_edges("referrals") == len(dataset1["referrals"][-1])
     assert pG.get_num_edges("unknown_type") == 0
 
