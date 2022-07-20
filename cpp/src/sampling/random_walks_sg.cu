@@ -18,153 +18,154 @@
 
 namespace cugraph {
 
+// FIXME: Temporarily here until random_walks_impl.cuh is ready with the real implementation
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
-std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<weight_t>> uniform_random_walks(
-  raft::handle_t const& handle,
-  graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
-  raft::device_span<vertex_t const> start_span,
-  size_t max_length,
-  uint64_t seed)
+std::tuple<rmm::device_uvector<vertex_t>, std::optional<rmm::device_uvector<weight_t>>>
+uniform_random_walks(raft::handle_t const& handle,
+                     graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
+                     raft::device_span<vertex_t const> start_span,
+                     size_t max_length,
+                     uint64_t seed)
 {
   CUGRAPH_FAIL("Not Implemented");
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
-std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<weight_t>> biased_random_walks(
-  raft::handle_t const& handle,
-  graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
-  raft::device_span<vertex_t const> start_span,
-  size_t max_length,
-  uint64_t seed)
+std::tuple<rmm::device_uvector<vertex_t>, std::optional<rmm::device_uvector<weight_t>>>
+biased_random_walks(raft::handle_t const& handle,
+                    graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
+                    raft::device_span<vertex_t const> start_span,
+                    size_t max_length,
+                    uint64_t seed)
 {
   CUGRAPH_FAIL("Not Implemented");
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
-std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<weight_t>> node2vec_random_walks(
-  raft::handle_t const& handle,
-  graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
-  raft::device_span<vertex_t const> start_span,
-  size_t max_length,
-  weight_t p,
-  weight_t q,
-  uint64_t seed)
+std::tuple<rmm::device_uvector<vertex_t>, std::optional<rmm::device_uvector<weight_t>>>
+node2vec_random_walks(raft::handle_t const& handle,
+                      graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
+                      raft::device_span<vertex_t const> start_span,
+                      size_t max_length,
+                      weight_t p,
+                      weight_t q,
+                      uint64_t seed)
 {
   CUGRAPH_FAIL("Not Implemented");
 }
 
-template std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<float>> uniform_random_walks(
-  raft::handle_t const& handle,
-  graph_view_t<int32_t, int32_t, float, false, false> const& graph_view,
-  raft::device_span<int32_t const> start_span,
-  size_t max_length,
-  uint64_t seed);
+template std::tuple<rmm::device_uvector<int32_t>, std::optional<rmm::device_uvector<float>>>
+uniform_random_walks(raft::handle_t const& handle,
+                     graph_view_t<int32_t, int32_t, float, false, false> const& graph_view,
+                     raft::device_span<int32_t const> start_span,
+                     size_t max_length,
+                     uint64_t seed);
 
-template std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<float>> uniform_random_walks(
-  raft::handle_t const& handle,
-  graph_view_t<int32_t, int64_t, float, false, false> const& graph_view,
-  raft::device_span<int32_t const> start_span,
-  size_t max_length,
-  uint64_t seed);
+template std::tuple<rmm::device_uvector<int32_t>, std::optional<rmm::device_uvector<float>>>
+uniform_random_walks(raft::handle_t const& handle,
+                     graph_view_t<int32_t, int64_t, float, false, false> const& graph_view,
+                     raft::device_span<int32_t const> start_span,
+                     size_t max_length,
+                     uint64_t seed);
 
-template std::tuple<rmm::device_uvector<int64_t>, rmm::device_uvector<float>> uniform_random_walks(
-  raft::handle_t const& handle,
-  graph_view_t<int64_t, int64_t, float, false, false> const& graph_view,
-  raft::device_span<int64_t const> start_span,
-  size_t max_length,
-  uint64_t seed);
+template std::tuple<rmm::device_uvector<int64_t>, std::optional<rmm::device_uvector<float>>>
+uniform_random_walks(raft::handle_t const& handle,
+                     graph_view_t<int64_t, int64_t, float, false, false> const& graph_view,
+                     raft::device_span<int64_t const> start_span,
+                     size_t max_length,
+                     uint64_t seed);
 
-template std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<double>> uniform_random_walks(
-  raft::handle_t const& handle,
-  graph_view_t<int32_t, int32_t, double, false, false> const& graph_view,
-  raft::device_span<int32_t const> start_span,
-  size_t max_length,
-  uint64_t seed);
+template std::tuple<rmm::device_uvector<int32_t>, std::optional<rmm::device_uvector<double>>>
+uniform_random_walks(raft::handle_t const& handle,
+                     graph_view_t<int32_t, int32_t, double, false, false> const& graph_view,
+                     raft::device_span<int32_t const> start_span,
+                     size_t max_length,
+                     uint64_t seed);
 
-template std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<double>> uniform_random_walks(
-  raft::handle_t const& handle,
-  graph_view_t<int32_t, int64_t, double, false, false> const& graph_view,
-  raft::device_span<int32_t const> start_span,
-  size_t max_length,
-  uint64_t seed);
+template std::tuple<rmm::device_uvector<int32_t>, std::optional<rmm::device_uvector<double>>>
+uniform_random_walks(raft::handle_t const& handle,
+                     graph_view_t<int32_t, int64_t, double, false, false> const& graph_view,
+                     raft::device_span<int32_t const> start_span,
+                     size_t max_length,
+                     uint64_t seed);
 
-template std::tuple<rmm::device_uvector<int64_t>, rmm::device_uvector<double>> uniform_random_walks(
-  raft::handle_t const& handle,
-  graph_view_t<int64_t, int64_t, double, false, false> const& graph_view,
-  raft::device_span<int64_t const> start_span,
-  size_t max_length,
-  uint64_t seed);
+template std::tuple<rmm::device_uvector<int64_t>, std::optional<rmm::device_uvector<double>>>
+uniform_random_walks(raft::handle_t const& handle,
+                     graph_view_t<int64_t, int64_t, double, false, false> const& graph_view,
+                     raft::device_span<int64_t const> start_span,
+                     size_t max_length,
+                     uint64_t seed);
 
-template std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<float>> biased_random_walks(
-  raft::handle_t const& handle,
-  graph_view_t<int32_t, int32_t, float, false, false> const& graph_view,
-  raft::device_span<int32_t const> start_span,
-  size_t max_length,
-  uint64_t seed);
+template std::tuple<rmm::device_uvector<int32_t>, std::optional<rmm::device_uvector<float>>>
+biased_random_walks(raft::handle_t const& handle,
+                    graph_view_t<int32_t, int32_t, float, false, false> const& graph_view,
+                    raft::device_span<int32_t const> start_span,
+                    size_t max_length,
+                    uint64_t seed);
 
-template std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<float>> biased_random_walks(
-  raft::handle_t const& handle,
-  graph_view_t<int32_t, int64_t, float, false, false> const& graph_view,
-  raft::device_span<int32_t const> start_span,
-  size_t max_length,
-  uint64_t seed);
+template std::tuple<rmm::device_uvector<int32_t>, std::optional<rmm::device_uvector<float>>>
+biased_random_walks(raft::handle_t const& handle,
+                    graph_view_t<int32_t, int64_t, float, false, false> const& graph_view,
+                    raft::device_span<int32_t const> start_span,
+                    size_t max_length,
+                    uint64_t seed);
 
-template std::tuple<rmm::device_uvector<int64_t>, rmm::device_uvector<float>> biased_random_walks(
-  raft::handle_t const& handle,
-  graph_view_t<int64_t, int64_t, float, false, false> const& graph_view,
-  raft::device_span<int64_t const> start_span,
-  size_t max_length,
-  uint64_t seed);
+template std::tuple<rmm::device_uvector<int64_t>, std::optional<rmm::device_uvector<float>>>
+biased_random_walks(raft::handle_t const& handle,
+                    graph_view_t<int64_t, int64_t, float, false, false> const& graph_view,
+                    raft::device_span<int64_t const> start_span,
+                    size_t max_length,
+                    uint64_t seed);
 
-template std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<double>> biased_random_walks(
-  raft::handle_t const& handle,
-  graph_view_t<int32_t, int32_t, double, false, false> const& graph_view,
-  raft::device_span<int32_t const> start_span,
-  size_t max_length,
-  uint64_t seed);
+template std::tuple<rmm::device_uvector<int32_t>, std::optional<rmm::device_uvector<double>>>
+biased_random_walks(raft::handle_t const& handle,
+                    graph_view_t<int32_t, int32_t, double, false, false> const& graph_view,
+                    raft::device_span<int32_t const> start_span,
+                    size_t max_length,
+                    uint64_t seed);
 
-template std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<double>> biased_random_walks(
-  raft::handle_t const& handle,
-  graph_view_t<int32_t, int64_t, double, false, false> const& graph_view,
-  raft::device_span<int32_t const> start_span,
-  size_t max_length,
-  uint64_t seed);
+template std::tuple<rmm::device_uvector<int32_t>, std::optional<rmm::device_uvector<double>>>
+biased_random_walks(raft::handle_t const& handle,
+                    graph_view_t<int32_t, int64_t, double, false, false> const& graph_view,
+                    raft::device_span<int32_t const> start_span,
+                    size_t max_length,
+                    uint64_t seed);
 
-template std::tuple<rmm::device_uvector<int64_t>, rmm::device_uvector<double>> biased_random_walks(
-  raft::handle_t const& handle,
-  graph_view_t<int64_t, int64_t, double, false, false> const& graph_view,
-  raft::device_span<int64_t const> start_span,
-  size_t max_length,
-  uint64_t seed);
+template std::tuple<rmm::device_uvector<int64_t>, std::optional<rmm::device_uvector<double>>>
+biased_random_walks(raft::handle_t const& handle,
+                    graph_view_t<int64_t, int64_t, double, false, false> const& graph_view,
+                    raft::device_span<int64_t const> start_span,
+                    size_t max_length,
+                    uint64_t seed);
 
-template std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<float>> node2vec_random_walks(
-  raft::handle_t const& handle,
-  graph_view_t<int32_t, int32_t, float, false, false> const& graph_view,
-  raft::device_span<int32_t const> start_span,
-  size_t max_length,
-  float p,
-  float q,
-  uint64_t seed);
+template std::tuple<rmm::device_uvector<int32_t>, std::optional<rmm::device_uvector<float>>>
+node2vec_random_walks(raft::handle_t const& handle,
+                      graph_view_t<int32_t, int32_t, float, false, false> const& graph_view,
+                      raft::device_span<int32_t const> start_span,
+                      size_t max_length,
+                      float p,
+                      float q,
+                      uint64_t seed);
 
-template std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<float>> node2vec_random_walks(
-  raft::handle_t const& handle,
-  graph_view_t<int32_t, int64_t, float, false, false> const& graph_view,
-  raft::device_span<int32_t const> start_span,
-  size_t max_length,
-  float p,
-  float q,
-  uint64_t seed);
+template std::tuple<rmm::device_uvector<int32_t>, std::optional<rmm::device_uvector<float>>>
+node2vec_random_walks(raft::handle_t const& handle,
+                      graph_view_t<int32_t, int64_t, float, false, false> const& graph_view,
+                      raft::device_span<int32_t const> start_span,
+                      size_t max_length,
+                      float p,
+                      float q,
+                      uint64_t seed);
 
-template std::tuple<rmm::device_uvector<int64_t>, rmm::device_uvector<float>> node2vec_random_walks(
-  raft::handle_t const& handle,
-  graph_view_t<int64_t, int64_t, float, false, false> const& graph_view,
-  raft::device_span<int64_t const> start_span,
-  size_t max_length,
-  float p,
-  float q,
-  uint64_t seed);
+template std::tuple<rmm::device_uvector<int64_t>, std::optional<rmm::device_uvector<float>>>
+node2vec_random_walks(raft::handle_t const& handle,
+                      graph_view_t<int64_t, int64_t, float, false, false> const& graph_view,
+                      raft::device_span<int64_t const> start_span,
+                      size_t max_length,
+                      float p,
+                      float q,
+                      uint64_t seed);
 
-template std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<double>>
+template std::tuple<rmm::device_uvector<int32_t>, std::optional<rmm::device_uvector<double>>>
 node2vec_random_walks(raft::handle_t const& handle,
                       graph_view_t<int32_t, int32_t, double, false, false> const& graph_view,
                       raft::device_span<int32_t const> start_span,
@@ -173,7 +174,7 @@ node2vec_random_walks(raft::handle_t const& handle,
                       double q,
                       uint64_t seed);
 
-template std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<double>>
+template std::tuple<rmm::device_uvector<int32_t>, std::optional<rmm::device_uvector<double>>>
 node2vec_random_walks(raft::handle_t const& handle,
                       graph_view_t<int32_t, int64_t, double, false, false> const& graph_view,
                       raft::device_span<int32_t const> start_span,
@@ -182,7 +183,7 @@ node2vec_random_walks(raft::handle_t const& handle,
                       double q,
                       uint64_t seed);
 
-template std::tuple<rmm::device_uvector<int64_t>, rmm::device_uvector<double>>
+template std::tuple<rmm::device_uvector<int64_t>, std::optional<rmm::device_uvector<double>>>
 node2vec_random_walks(raft::handle_t const& handle,
                       graph_view_t<int64_t, int64_t, double, false, false> const& graph_view,
                       raft::device_span<int64_t const> start_span,

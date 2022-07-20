@@ -458,6 +458,7 @@ ConfigureTest(LEGACY_RANDOM_WALKS_TEST sampling/random_walks_test.cu)
 
 ###################################################################################################
 # - RANDOM_WALKS tests ----------------------------------------------------------------------------
+#  FIXME: Rename to random_walks_test.cu once the legacy implementation is deleted
 ConfigureTest(RANDOM_WALKS_TEST sampling/sg_random_walks_test.cu)
 
 ###################################################################################################

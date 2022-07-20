@@ -1354,8 +1354,11 @@ random_walks(raft::handle_t const& handle,
  * @brief returns uniform random walks from starting sources, where each path is of given
  * maximum length.
  *
- * Note: starting sources can contain duplicates, in which case different random walks will
- *       be generated for each instance.
+ * @p start_vertices can contain duplicates, in which case different random walks will
+ * be generated for each instance.
+ *
+ * If the graph is weighted, the return contains edge weights.  If the graph is unweighted then
+ * the returned value will be std::nullopt.
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
  * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
@@ -1367,7 +1370,8 @@ random_walks(raft::handle_t const& handle,
  * @param start_vertices Device span defining the starting vertices
  * @param max_length maximum length of random walk
  * @param seed (optional, defaults to system time), seed for random number generation
- * @return tuple containing device vectors of vertices and the edge weights<br>
+ * @return tuple containing device vectors of vertices and the edge weights (if
+ *         the graph is weighted)<br>
  *         For each input selector there will be (max_length+1) elements in the
  *         vertex vector with the starting vertex followed by the subsequent
  *         vertices in the random walk.  If a path terminates before max_length,
@@ -1382,22 +1386,24 @@ random_walks(raft::handle_t const& handle,
 // FIXME: Do I care about transposed or not?  I want to be able to operate in either
 // direction.
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
-std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<weight_t>> uniform_random_walks(
-  raft::handle_t const& handle,
-  graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
-  raft::device_span<vertex_t const> start_vertices,
-  size_t max_length,
-  uint64_t seed = 0);
+std::tuple<rmm::device_uvector<vertex_t>, std::optional<rmm::device_uvector<weight_t>>>
+uniform_random_walks(raft::handle_t const& handle,
+                     graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
+                     raft::device_span<vertex_t const> start_vertices,
+                     size_t max_length,
+                     uint64_t seed = std::numeric_limits<uint64_t>::max());
 
 /**
  * @brief returns biased random walks from starting sources, where each path is of given
- * maximum length.  The next vertex is biased based on the edge weights.  The probability
- * of traversing a departing edge will be the edge weight divided by the sum of the
- * departing edge weights.
+ * maximum length.
  *
- * Note: starting sources can contain duplicates, in which case different random walks will
- *       be generated for each instance.
- * Note: this algorithm will fail on an unweighted graph
+ * The next vertex is biased based on the edge weights.  The probability of traversing a
+ * departing edge will be the edge weight divided by the sum of the departing edge weights.
+ *
+ * @p start_vertices can contain duplicates, in which case different random walks will
+ * be generated for each instance.
+ *
+ * @throws                 cugraph::logic_error if the graph is unweighted
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
  * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
@@ -1422,19 +1428,23 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<weight_t>> uniform
  *         set to weight_t{0}.
  */
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
-std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<weight_t>> biased_random_walks(
-  raft::handle_t const& handle,
-  graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
-  raft::device_span<vertex_t const> start_vertices,
-  size_t max_length,
-  uint64_t seed = 0);
+std::tuple<rmm::device_uvector<vertex_t>, std::optional<rmm::device_uvector<weight_t>>>
+biased_random_walks(raft::handle_t const& handle,
+                    graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
+                    raft::device_span<vertex_t const> start_vertices,
+                    size_t max_length,
+                    uint64_t seed = std::numeric_limits<uint64_t>::max());
 
 /**
  * @brief returns biased random walks with node2vec biases from starting sources,
  * where each path is of given maximum length.
  *
- * Note: starting sources can contain duplicates, in which case different random walks will
- *       be generated for each instance.
+ * @p start_vertices can contain duplicates, in which case different random walks will
+ * be generated for each instance.
+ *
+ * If the graph is weighted, the return contains edge weights and the node2vec computation
+ * will utilize the edge weights.  If the graph is unweighted then the return will not contain
+ * edge weights and the node2vec computation will assume an edge weight of 1 for all edges.
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
  * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
@@ -1461,14 +1471,14 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<weight_t>> biased_
  *         set to weight_t{0}.
  */
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
-std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<weight_t>> node2vec_random_walks(
-  raft::handle_t const& handle,
-  graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
-  raft::device_span<vertex_t const> start_vertices,
-  size_t max_length,
-  weight_t p,
-  weight_t q,
-  uint64_t seed = 0);
+std::tuple<rmm::device_uvector<vertex_t>, std::optional<rmm::device_uvector<weight_t>>>
+node2vec_random_walks(raft::handle_t const& handle,
+                      graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
+                      raft::device_span<vertex_t const> start_vertices,
+                      size_t max_length,
+                      weight_t p,
+                      weight_t q,
+                      uint64_t seed = std::numeric_limits<uint64_t>::max());
 
 #ifndef NO_CUGRAPH_OPS
 /**
