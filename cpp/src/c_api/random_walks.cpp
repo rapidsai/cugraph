@@ -41,7 +41,7 @@ struct node2vec_functor : public abstract_functor {
   raft::handle_t const& handle_;
   cugraph_graph_t* graph_{nullptr};
   cugraph_type_erased_device_array_view_t const* sources_{nullptr};
-  size_t max_depth_{0};
+  size_t max_length_{0};
   bool compress_result_{false};
   double p_{0};
   double q_{0};
@@ -50,7 +50,7 @@ struct node2vec_functor : public abstract_functor {
   node2vec_functor(::cugraph_resource_handle_t const* handle,
                    ::cugraph_graph_t* graph,
                    ::cugraph_type_erased_device_array_view_t const* sources,
-                   size_t max_depth,
+                   size_t max_length,
                    bool compress_result,
                    double p,
                    double q)
@@ -59,7 +59,7 @@ struct node2vec_functor : public abstract_functor {
       graph_(reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph)),
       sources_(
         reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(sources)),
-      max_depth_(max_depth),
+      max_length_(max_length),
       compress_result_(compress_result),
       p_(p),
       q_(q)
@@ -112,13 +112,13 @@ struct node2vec_functor : public abstract_functor {
 
       // FIXME:  Forcing this to edge_t for now.  What should it really be?
       // Seems like it should be the smallest size that can accommodate
-      // max_depth_ * sources_->size_
+      // max_length_ * sources_->size_
       auto [paths, weights, sizes] = cugraph::random_walks(
         handle_,
         graph_view,
         sources.data(),
         static_cast<edge_t>(sources.size()),
-        static_cast<edge_t>(max_depth_),
+        static_cast<edge_t>(max_length_),
         !compress_result_,
         // std::make_unique<sampling_params_t>(2, p_, q_, false));
         std::make_unique<sampling_params_t>(cugraph::sampling_strategy_t::NODE2VEC, p_, q_));
@@ -131,7 +131,7 @@ struct node2vec_functor : public abstract_functor {
 
       result_ = new cugraph_random_walk_result_t{
         compress_result_,
-        max_depth_,
+        max_length_,
         new cugraph_type_erased_device_array_t(paths, graph_->vertex_type_),
         new cugraph_type_erased_device_array_t(weights, graph_->weight_type_),
         new cugraph_type_erased_device_array_t(sizes, graph_->vertex_type_)};
@@ -148,20 +148,20 @@ struct uniform_random_walks_functor : public cugraph::c_api::abstract_functor {
   raft::handle_t const& handle_;
   cugraph::c_api::cugraph_graph_t* graph_{nullptr};
   cugraph::c_api::cugraph_type_erased_device_array_view_t const* sources_{nullptr};
-  size_t max_depth_{0};
+  size_t max_length_{0};
   size_t seed_{0};
   cugraph::c_api::cugraph_random_walk_result_t* result_{nullptr};
 
   uniform_random_walks_functor(cugraph_resource_handle_t const* handle,
                                cugraph_graph_t* graph,
                                cugraph_type_erased_device_array_view_t const* sources,
-                               size_t max_depth)
+                               size_t max_length)
     : abstract_functor(),
       handle_(*reinterpret_cast<cugraph::c_api::cugraph_resource_handle_t const*>(handle)->handle_),
       graph_(reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph)),
       sources_(
         reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(sources)),
-      max_depth_(max_depth)
+      max_length_(max_length)
   {
   }
 
@@ -214,7 +214,7 @@ struct uniform_random_walks_functor : public cugraph::c_api::abstract_functor {
         handle_,
         graph_view,
         raft::device_span<vertex_t const>{sources.data(), sources.size()},
-        max_depth_,
+        max_length_,
         seed_);
 
       //
@@ -225,7 +225,7 @@ struct uniform_random_walks_functor : public cugraph::c_api::abstract_functor {
 
       result_ = new cugraph::c_api::cugraph_random_walk_result_t{
         false,
-        max_depth_,
+        max_length_,
         new cugraph::c_api::cugraph_type_erased_device_array_t(paths, graph_->vertex_type_),
         new cugraph::c_api::cugraph_type_erased_device_array_t(weights, graph_->weight_type_),
         nullptr};
@@ -237,20 +237,20 @@ struct biased_random_walks_functor : public cugraph::c_api::abstract_functor {
   raft::handle_t const& handle_;
   cugraph::c_api::cugraph_graph_t* graph_{nullptr};
   cugraph::c_api::cugraph_type_erased_device_array_view_t const* sources_{nullptr};
-  size_t max_depth_{0};
+  size_t max_length_{0};
   cugraph::c_api::cugraph_random_walk_result_t* result_{nullptr};
   uint64_t seed_{0};
 
   biased_random_walks_functor(cugraph_resource_handle_t const* handle,
                               cugraph_graph_t* graph,
                               cugraph_type_erased_device_array_view_t const* sources,
-                              size_t max_depth)
+                              size_t max_length)
     : abstract_functor(),
       handle_(*reinterpret_cast<cugraph::c_api::cugraph_resource_handle_t const*>(handle)->handle_),
       graph_(reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph)),
       sources_(
         reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(sources)),
-      max_depth_(max_depth)
+      max_length_(max_length)
   {
   }
 
@@ -303,7 +303,7 @@ struct biased_random_walks_functor : public cugraph::c_api::abstract_functor {
         handle_,
         graph_view,
         raft::device_span<vertex_t const>{sources.data(), sources.size()},
-        max_depth_,
+        max_length_,
         seed_);
 
       //
@@ -314,7 +314,7 @@ struct biased_random_walks_functor : public cugraph::c_api::abstract_functor {
 
       result_ = new cugraph::c_api::cugraph_random_walk_result_t{
         false,
-        max_depth_,
+        max_length_,
         new cugraph::c_api::cugraph_type_erased_device_array_t(paths, graph_->vertex_type_),
         new cugraph::c_api::cugraph_type_erased_device_array_t(weights, graph_->weight_type_),
         nullptr};
@@ -326,7 +326,7 @@ struct node2vec_random_walks_functor : public cugraph::c_api::abstract_functor {
   raft::handle_t const& handle_;
   cugraph::c_api::cugraph_graph_t* graph_{nullptr};
   cugraph::c_api::cugraph_type_erased_device_array_view_t const* sources_{nullptr};
-  size_t max_depth_{0};
+  size_t max_length_{0};
   double p_{0};
   double q_{0};
   uint64_t seed_{0};
@@ -335,7 +335,7 @@ struct node2vec_random_walks_functor : public cugraph::c_api::abstract_functor {
   node2vec_random_walks_functor(cugraph_resource_handle_t const* handle,
                                 cugraph_graph_t* graph,
                                 cugraph_type_erased_device_array_view_t const* sources,
-                                size_t max_depth,
+                                size_t max_length,
                                 double p,
                                 double q)
     : abstract_functor(),
@@ -343,7 +343,7 @@ struct node2vec_random_walks_functor : public cugraph::c_api::abstract_functor {
       graph_(reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph)),
       sources_(
         reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(sources)),
-      max_depth_(max_depth),
+      max_length_(max_length),
       p_(p),
       q_(q)
   {
@@ -398,7 +398,7 @@ struct node2vec_random_walks_functor : public cugraph::c_api::abstract_functor {
         handle_,
         graph_view,
         raft::device_span<vertex_t const>{sources.data(), sources.size()},
-        max_depth_,
+        max_length_,
         static_cast<weight_t>(p_),
         static_cast<weight_t>(q_),
         seed_);
@@ -411,7 +411,7 @@ struct node2vec_random_walks_functor : public cugraph::c_api::abstract_functor {
 
       result_ = new cugraph::c_api::cugraph_random_walk_result_t{
         false,
-        max_depth_,
+        max_length_,
         new cugraph::c_api::cugraph_type_erased_device_array_t(paths, graph_->vertex_type_),
         new cugraph::c_api::cugraph_type_erased_device_array_t(weights, graph_->weight_type_),
         nullptr};
@@ -424,7 +424,7 @@ struct node2vec_random_walks_functor : public cugraph::c_api::abstract_functor {
 cugraph_error_code_t cugraph_node2vec(const cugraph_resource_handle_t* handle,
                                       cugraph_graph_t* graph,
                                       const cugraph_type_erased_device_array_view_t* sources,
-                                      size_t max_depth,
+                                      size_t max_length,
                                       bool_t compress_results,
                                       double p,
                                       double q,
@@ -432,7 +432,7 @@ cugraph_error_code_t cugraph_node2vec(const cugraph_resource_handle_t* handle,
                                       cugraph_error_t** error)
 {
   cugraph::c_api::node2vec_functor functor(
-    handle, graph, sources, max_depth, compress_results, p, q);
+    handle, graph, sources, max_length, compress_results, p, q);
 
   return cugraph::c_api::run_algorithm(graph, functor, result, error);
 }
@@ -480,11 +480,11 @@ cugraph_error_code_t cugraph_uniform_random_walks(
   const cugraph_resource_handle_t* handle,
   cugraph_graph_t* graph,
   const cugraph_type_erased_device_array_view_t* sources,
-  size_t max_depth,
+  size_t max_length,
   cugraph_random_walk_result_t** result,
   cugraph_error_t** error)
 {
-  uniform_random_walks_functor functor(handle, graph, sources, max_depth);
+  uniform_random_walks_functor functor(handle, graph, sources, max_length);
 
   return cugraph::c_api::run_algorithm(graph, functor, result, error);
 }
@@ -493,11 +493,11 @@ cugraph_error_code_t cugraph_biased_random_walks(
   const cugraph_resource_handle_t* handle,
   cugraph_graph_t* graph,
   const cugraph_type_erased_device_array_view_t* sources,
-  size_t max_depth,
+  size_t max_length,
   cugraph_random_walk_result_t** result,
   cugraph_error_t** error)
 {
-  biased_random_walks_functor functor(handle, graph, sources, max_depth);
+  biased_random_walks_functor functor(handle, graph, sources, max_length);
 
   return cugraph::c_api::run_algorithm(graph, functor, result, error);
 }
@@ -506,13 +506,13 @@ cugraph_error_code_t cugraph_node2vec_random_walks(
   const cugraph_resource_handle_t* handle,
   cugraph_graph_t* graph,
   const cugraph_type_erased_device_array_view_t* sources,
-  size_t max_depth,
+  size_t max_length,
   double p,
   double q,
   cugraph_random_walk_result_t** result,
   cugraph_error_t** error)
 {
-  node2vec_random_walks_functor functor(handle, graph, sources, max_depth, p, q);
+  node2vec_random_walks_functor functor(handle, graph, sources, max_length, p, q);
 
   return cugraph::c_api::run_algorithm(graph, functor, result, error);
 }

@@ -625,7 +625,7 @@ if(BUILD_CUGRAPH_MG_TESTS)
 
         ###########################################################################################
         # - RANDOM_WALKS tests --------------------------------------------------------------------
-	ConfigureTestMG(MG_RANDOM_WALKS_TEST sampling/mg_random_walks_test.cu)
+        ConfigureTestMG(MG_RANDOM_WALKS_TEST sampling/mg_random_walks_test.cu)
         
         ###########################################################################################
         # - MG C API tests ------------------------------------------------------------------------
@@ -639,7 +639,7 @@ if(BUILD_CUGRAPH_MG_TESTS)
         ConfigureCTestMG(MG_CAPI_EIGENVECTOR_CENTRALITY c_api/mg_eigenvector_centrality_test.c c_api/mg_test_utils.cpp)
         ConfigureCTestMG(MG_CAPI_HITS c_api/mg_hits_test.c c_api/mg_test_utils.cpp)
         ConfigureCTestMG(MG_CAPI_UNIFORM_NEIGHBOR_SAMPLE c_api/mg_uniform_neighbor_sample_test.c c_api/mg_test_utils.cpp)
-	ConfigureCTestMG(MG_CAPI_RANDOM_WALKS c_api/mg_random_walks_test.c c_api/mg_test_utils.cpp)
+        ConfigureCTestMG(MG_CAPI_RANDOM_WALKS c_api/mg_random_walks_test.c c_api/mg_test_utils.cpp)
         ConfigureCTestMG(MG_CAPI_TRIANGLE_COUNT c_api/mg_triangle_count_test.c c_api/mg_test_utils.cpp)
         ConfigureCTestMG(MG_CAPI_LOUVAIN c_api/mg_louvain_test.c c_api/mg_test_utils.cpp)
     else()

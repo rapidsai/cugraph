@@ -1364,37 +1364,40 @@ random_walks(raft::handle_t const& handle,
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view graph view to operate on
- * @param start_span Device span defining the starting vertices
- * @param max_depth maximum length of random walk
+ * @param start_vertices Device span defining the starting vertices
+ * @param max_length maximum length of random walk
  * @param seed (optional, defaults to system time), seed for random number generation
  * @return tuple containing device vectors of vertices and the edge weights<br>
- *         For each input selector there will be (max_depth+1) elements in the
+ *         For each input selector there will be (max_length+1) elements in the
  *         vertex vector with the starting vertex followed by the subsequent
- *         vertices in the random walk.  If a path terminates before max_depth,
+ *         vertices in the random walk.  If a path terminates before max_length,
  *         the vertices will be populated with invalid_vertex_id
  *         (-1 for signed vertex_t, std::numeric_limits<vertex_t>::max() for an
- *         unsigned vertex_t * type)<br>
- *         For each input selector there will be max_depth elements in the weights
+ *         unsigned vertex_t type)<br>
+ *         For each input selector there will be max_length elements in the weights
  *         vector with the edge weight for the edge in the path.  If a path
- *         terminates before max_depth the subsequent edge weights will be
+ *         terminates before max_length the subsequent edge weights will be
  *         set to weight_t{0}.
  */
-// TODO: Do I care about transposed or not?  I want to be able to operate in either
+// FIXME: Do I care about transposed or not?  I want to be able to operate in either
 // direction.
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<weight_t>> uniform_random_walks(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
-  raft::device_span<vertex_t const> start_span,
-  size_t max_depth,
+  raft::device_span<vertex_t const> start_vertices,
+  size_t max_length,
   uint64_t seed = 0);
 
 /**
  * @brief returns biased random walks from starting sources, where each path is of given
- * maximum length.
+ * maximum length.  The next vertex is biased based on the edge weights.  The probability
+ * of traversing a departing edge will be the edge weight divided by the sum of the
+ * departing edge weights.
  *
  * Note: starting sources can contain duplicates, in which case different random walks will
  *       be generated for each instance.
+ * Note: this algorithm will fail on an unweighted graph
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
  * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
@@ -1403,27 +1406,27 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<weight_t>> uniform
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view graph view to operate on
- * @param start_span Device span defining the starting vertices
- * @param max_depth maximum length of random walk
+ * @param start_vertices Device span defining the starting vertices
+ * @param max_length maximum length of random walk
  * @param seed (optional, defaults to system time), seed for random number generation
  * @return tuple containing device vectors of vertices and the edge weights<br>
- *         For each input selector there will be (max_depth+1) elements in the
+ *         For each input selector there will be (max_length+1) elements in the
  *         vertex vector with the starting vertex followed by the subsequent
- *         vertices in the random walk.  If a path terminates before max_depth,
+ *         vertices in the random walk.  If a path terminates before max_length,
  *         the vertices will be populated with invalid_vertex_id
  *         (-1 for signed vertex_t, std::numeric_limits<vertex_t>::max() for an
- *         unsigned vertex_t * type)<br>
- *         For each input selector there will be max_depth elements in the weights
+ *         unsigned vertex_t type)<br>
+ *         For each input selector there will be max_length elements in the weights
  *         vector with the edge weight for the edge in the path.  If a path
- *         terminates before max_depth the subsequent edge weights will be
+ *         terminates before max_length the subsequent edge weights will be
  *         set to weight_t{0}.
  */
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<weight_t>> biased_random_walks(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
-  raft::device_span<vertex_t const> start_span,
-  size_t max_depth,
+  raft::device_span<vertex_t const> start_vertices,
+  size_t max_length,
   uint64_t seed = 0);
 
 /**
@@ -1440,29 +1443,29 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<weight_t>> biased_
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view graph view to operate on
- * @param start_span Device span defining the starting vertices
- * @param max_depth maximum length of random walk
+ * @param start_vertices Device span defining the starting vertices
+ * @param max_length maximum length of random walk
  * @param p node2vec return parameter
  * @param q node2vec in-out parameter
  * @param seed (optional, defaults to system time), seed for random number generation
  * @return tuple containing device vectors of vertices and the edge weights<br>
- *         For each input selector there will be (max_depth+1) elements in the
+ *         For each input selector there will be (max_length+1) elements in the
  *         vertex vector with the starting vertex followed by the subsequent
- *         vertices in the random walk.  If a path terminates before max_depth,
+ *         vertices in the random walk.  If a path terminates before max_length,
  *         the vertices will be populated with invalid_vertex_id
  *         (-1 for signed vertex_t, std::numeric_limits<vertex_t>::max() for an
- *         unsigned vertex_t * type)<br>
- *         For each input selector there will be max_depth elements in the weights
+ *         unsigned vertex_t type)<br>
+ *         For each input selector there will be max_length elements in the weights
  *         vector with the edge weight for the edge in the path.  If a path
- *         terminates before max_depth the subsequent edge weights will be
+ *         terminates before max_length the subsequent edge weights will be
  *         set to weight_t{0}.
  */
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<weight_t>> node2vec_random_walks(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
-  raft::device_span<vertex_t const> start_span,
-  size_t max_depth,
+  raft::device_span<vertex_t const> start_vertices,
+  size_t max_length,
   weight_t p,
   weight_t q,
   uint64_t seed = 0);
