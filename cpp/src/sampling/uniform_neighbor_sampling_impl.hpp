@@ -134,6 +134,8 @@ uniform_nbr_sample_impl(
                                         handle.get_stream());
       }
 
+      raft::print_device_vector("d_rnd_indices", d_rnd_indices.data(), d_rnd_indices.size(), std::cout);
+
       // TODO: First map the sampled edges from their
       std::tie(d_out_src, d_out_dst, d_out_indices) =
         gather_local_edges(handle,

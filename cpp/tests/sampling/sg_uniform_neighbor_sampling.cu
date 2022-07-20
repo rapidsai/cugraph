@@ -28,7 +28,7 @@
 
 struct Prims_Usecase {
   bool check_correctness{true};
-  bool flag_replacement{true};
+  bool flag_replacement{false};
 };
 
 template<typename mask_t = std::uint32_t>
@@ -86,8 +86,11 @@ class Tests_Uniform_Neighbor_Sampling
     set_bit<mask_t>(mask_h.data(), 2);
     set_bit<mask_t>(mask_h.data(), 3);
 
-    set_bit<mask_t>(mask_h.data(), 50);
-
+    set_bit<mask_t>(mask_h.data(), 5);
+//
+//    set_bit<mask_t>(mask_h.data(), 50);
+//    set_bit<mask_t>(mask_h.data(), 150);
+//    set_bit<mask_t>(mask_h.data(), 100);
     raft::copy(graph_mask.view().get_edge_mask(), mask_h.data(), mask_h.size(), handle.get_stream());
 
     handle.sync_stream();
@@ -222,9 +225,9 @@ TEST_P(Tests_Uniform_Neighbor_Sampling_Rmat, CheckInt64Int64Float)
 INSTANTIATE_TEST_SUITE_P(
   rmat_small_test,
   Tests_Uniform_Neighbor_Sampling_Rmat,
-  ::testing::Combine(::testing::Values(Prims_Usecase{false, true}),
+  ::testing::Combine(::testing::Values(Prims_Usecase{false, false}),
                      ::testing::Values(cugraph::test::Rmat_Usecase(
-                       20, 50, 0.57, 0.19, 0.19, 0, false, false, 0, false))));
+                       5, 8, 0.57, 0.19, 0.19, 0, false, false, 0, false))));
 
 //INSTANTIATE_TEST_SUITE_P(
 //  rmat_benchmark_test, /* note that scale & edge factor can be overridden in benchmarking (with

@@ -114,16 +114,14 @@ struct graph_mask_view_t {
  public:
   graph_mask_view_t() = delete;
 
-  explicit graph_mask_view_t(raft::handle_t const& handle,
-                             bool has_vertex_mask,
+  graph_mask_view_t(bool has_vertex_mask,
                              bool has_edge_mask,
                              vertex_t n_vertices,
                              edge_t n_edges,
                              mask_t* vertices,
                              mask_t* edges,
                              bool complement = false)
-    : handle_(handle),
-      has_vertex_mask_(has_vertex_mask),
+    : has_vertex_mask_(has_vertex_mask),
       has_edge_mask_(has_edge_mask),
       n_vertices_(n_vertices),
       n_edges_(n_edges),
@@ -133,28 +131,17 @@ struct graph_mask_view_t {
   {
   }
 
-  explicit graph_mask_view_t(graph_mask_view_t const& other)
-    : handle_(other.handle_),
-      has_vertex_mask_(other.has_vertex_mask_),
-      has_edge_mask_(other.has_edge_mask_),
-      n_vertices_(other.n_vertices_),
-      n_edges_(other.n_edges_),
-      edges_(other.edges_),
-      vertices_(other.vertices_),
-      complement_(other.complement_)
-  {
-  }
-
+  graph_mask_view_t(graph_mask_view_t<vertex_t, edge_t, mask_t> const& other) = default;
   using vertex_type = vertex_t;
   using edge_type   = edge_t;
   using mask_type   = mask_t;
   using size_type   = std::size_t;
 
   ~graph_mask_view_t()                            = default;
-  graph_mask_view_t(graph_mask_view_t&&) noexcept = default;
+  graph_mask_view_t(graph_mask_view_t<vertex_t, edge_t, mask_t>&&) noexcept = default;
 
-  graph_mask_view_t& operator=(graph_mask_view_t&&) noexcept = default;
-  graph_mask_view_t& operator=(graph_mask_view_t const& other) = default;
+  graph_mask_view_t& operator=(graph_mask_view_t<vertex_t, edge_t, mask_t>&&) noexcept = default;
+  graph_mask_view_t& operator=(graph_mask_view_t<vertex_t, edge_t, mask_t> const& other) = default;
 
   /**
    * Are masks complemeneted?
@@ -162,42 +149,41 @@ struct graph_mask_view_t {
    * - !complemented means masks are inclusive (masking in)
    * - complemented means masks are exclusive (masking out)
    */
-  bool is_complemented() const { return complement_; }
+  __host__ __device__ bool is_complemented() const { return complement_; }
 
   /**
    * Has the edge mask been initialized?
    */
-  bool has_edge_mask() const { return has_edge_mask_; }
+  __host__ __device__ bool has_edge_mask() const { return has_edge_mask_; }
 
   /**
    * Has the vertex mask been initialized?
    */
-  bool has_vertex_mask() const { return has_vertex_mask_; }
+  __host__ __device__ bool has_vertex_mask() const { return has_vertex_mask_; }
 
   /**
    * Get the vertex mask
    */
-  mask_t* get_vertex_mask() const { return vertices_; }
+  __host__ __device__ mask_t* get_vertex_mask() const { return vertices_; }
 
   /**
    * Get the edge mask
    */
-  mask_t* get_edge_mask() const { return edges_; }
+  __host__ __device__ mask_t* get_edge_mask() const { return edges_; }
 
-  edge_t get_edge_mask_size() const { return n_edges_ / std::numeric_limits<mask_t>::digits; }
+    __host__ __device__ edge_t get_edge_mask_size() const { return n_edges_ / std::numeric_limits<mask_t>::digits; }
 
-  vertex_t get_vertex_mask_size() const { return n_vertices_ / std::numeric_limits<mask_t>::digits; }
+    __host__ __device__ vertex_t get_vertex_mask_size() const { return n_vertices_ / std::numeric_limits<mask_t>::digits; }
 
 
 protected:
-  raft::handle_t const& handle_;
   bool has_vertex_mask_{false};
   bool has_edge_mask_{false};
   vertex_t n_vertices_;
   edge_t n_edges_;
   bool complement_{false};
-  mask_t* vertices_;
-  mask_t* edges_;
+  mask_t* vertices_{nullptr};
+  mask_t* edges_{nullptr};
 };
 
 /**
@@ -358,8 +344,7 @@ struct graph_mask_t {
    */
   auto view()
   {
-    return graph_mask_view_t<vertex_t, edge_t, mask_t>(handle_,
-                                                       has_vertex_mask(),
+    return graph_mask_view_t<vertex_t, edge_t, mask_t>(has_vertex_mask(),
                                                        has_edge_mask(),
                                                        n_vertices_,
                                                        n_edges_,

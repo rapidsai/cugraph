@@ -32,25 +32,43 @@ namespace detail {
 
 template<typename t = int>
 __device__ int level_to_bits(t l) {
-    t l2 = 6-(l+1);
-    return 2^l2;
+    t l2 = 5-(l+1);
+    return pow(2, l2);
 }
 
+__host__ __device__ __forceinline__ void print_ulong_bin(const uint32_t * const var, int bits) {
+        int i;
+
+    #if defined(__LP64__) || defined(_LP64)
+            if( (bits > 64) || (bits <= 0) )
+    #else
+            if( (bits > 32) || (bits <= 0) )
+    #endif
+            return;
+
+        for(i = 0; i < bits; i++) {
+            printf("%d", (*var >> (bits - 1 - i)) & 0x01);
+        }
+        printf("\n");
+    }
+
+
+/**
+ * Performs a bit-level binary search to find the index of the
+ * kth bit in the mask which corresponds with the edge offset
+ * in the original adjacency list.
+ * @tparam edge_t
+ * @tparam mask_type
+ * @param mask
+ * @param start_offset
+ * @param stop_offset
+ * @param n_bits
+ * @param k
+ * @return
+ */
 template<typename edge_t, typename mask_type>
-__device__ edge_t kth_bit(mask_type *mask,
-                          edge_t start_offset,
-                          edge_t stop_offset,
-                          edge_t n_bits,
+__device__ edge_t kth_bit(mask_type mask_elm,
                           edge_t k) {
-    mask_type start_mask_offset = start_offset / std::numeric_limits<mask_type>::digits;
-    mask_type stop_mask_offset  = stop_offset / std::numeric_limits<mask_type>::digits;
-
-    mask_type start_bit = start_offset & (std::numeric_limits<mask_type>::digits - 1);
-    mask_type stop_bit  = stop_offset & (std::numeric_limits<mask_type>::digits - 1);
-
-    mask_type start_mask = (0xffffffff << start_bit) >> start_bit;
-    mask_type stop_mask  = (0xffffffff >> stop_bit) << stop_bit;
-
     mask_type n_shifts = std::numeric_limits<mask_type>::digits;
 
     /**
@@ -64,8 +82,6 @@ __device__ edge_t kth_bit(mask_type *mask,
      *
      * 3. For regions with high density, we might be able to adjust the bin sizes so that the algorithm in 2 will work.
      */
-
-    mask_type mask_elm;
     /**
      * Right shift 32 bits and store resulting number
      *   if k > popc, mask right side
@@ -90,20 +106,62 @@ __device__ edge_t kth_bit(mask_type *mask,
      * Resuling bit is the answer
      */
 
-    int i = level_to_bits(0);
-    int k_tmp = k;
+    printf("Looking for %ld\n", k);
+
+    mask_type mask_window = 0xffffffff;
+    int idx = level_to_bits(0);
+    edge_t k_tmp = k + 1;
     // Iterate for 5 levels
-    for(int i = 0; i < 5; ++i) {
+    for(int i = 0; i < 4; ++i) {
         int n_bits_to_shift = level_to_bits(i);
         int next_bits = level_to_bits(i+1);
-        int popl = __popc(mask_elm >> n_bits_to_shift);
+        mask_type m = mask_elm & mask_window >> (n_shifts - idx);
 
-        i += (-1 * k_tmp <= popl) * next_bits; // the index of the kth set bit
-        k_tmp -= (k_tmp > popl) * popl;   // k_tmp is updated for each local subgrouping
+        printf("Next mask: ");
+        print_ulong_bin(&m, n_shifts);
 
-        // TODO: This conditional can be avoided.
-        mask_elm &= popl < k_tmp ? 0xffffffff >> n_bits_to_shift : 0xffffffff << n_bits_to_shift;
+        int popl = __popc(m); // count of left branch
+
+        printf("k=%ld, idx=%d, n_bits_to_shift=%d, next_bits=%d, k_tmp=%ld, popl=%d\n", k, idx, n_bits_to_shift, next_bits, k_tmp, popl);
+
+        if(k_tmp <= popl)  {
+            // right branch
+            printf("Took right branch\n");
+
+            uint32_t n_mask = (mask_window >> (n_shifts - idx));
+            mask_elm = mask_elm & n_mask;
+            idx -= next_bits;
+            print_ulong_bin(&n_mask, n_shifts);
+        } else {
+            // left branch
+            printf("Took left branch\n");
+            k_tmp -= popl;
+            uint32_t n_mask = (mask_window >> (n_shifts - idx) << idx);
+            mask_elm = mask_elm & n_mask;
+            idx += next_bits;
+            print_ulong_bin(&n_mask, n_shifts);
+        }
+//        k_tmp -= (k_tmp > popl) * popl;   // k_tmp is updated for each local subgrouping
+
+//        if(k_tmp > popl) {
+//
+//            // Take left branch
+//            printf("GOING left!, k_tmp=%d\n", k_tmp);
+//        } else {
+//
+//            // Take right branch
+//        }
+//
+        print_ulong_bin(&mask_elm, n_shifts);
     }
+
+    // if
+//    if(__popc(mask_elm & (mask_window << 1)) == k_tmp) {
+//        idx -=1;
+//    }
+    printf("popcount: %d\n", __popc(mask_elm ));
+
+    return idx;
 }
 
 /**

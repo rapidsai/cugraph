@@ -389,6 +389,8 @@ std::tuple<rmm::device_uvector<edge_partition_device_view_t<typename GraphViewTy
                                                             typename GraphViewType::edge_type,
                                                             typename GraphViewType::weight_type,
                                                             GraphViewType::is_multi_gpu>>,
+           rmm::device_uvector<std::optional<graph_mask_view_t<typename GraphViewType::vertex_type,
+                                                 typename GraphViewType::edge_type>>>,
            rmm::device_uvector<typename GraphViewType::vertex_type>,
            rmm::device_uvector<typename GraphViewType::vertex_type>,
            rmm::device_uvector<typename GraphViewType::vertex_type>,
@@ -401,13 +403,17 @@ partition_information(raft::handle_t const& handle, GraphViewType const& graph_v
                                                    typename GraphViewType::edge_type,
                                                    typename GraphViewType::weight_type,
                                                    GraphViewType::is_multi_gpu>;
+    using mask_t = graph_mask_view_t<typename GraphViewType::vertex_type,
+            typename GraphViewType::edge_type>;
 
+  std::vector<std::optional<mask_t>> masks;
   std::vector<partition_t> partitions;
   std::vector<vertex_t> id_begin;
   std::vector<vertex_t> id_end;
   std::vector<vertex_t> hypersparse_begin;
   std::vector<vertex_t> vertex_count_offsets;
 
+  masks.reserve(graph_view.number_of_local_edge_partitions());
   partitions.reserve(graph_view.number_of_local_edge_partitions());
   id_begin.reserve(graph_view.number_of_local_edge_partitions());
   id_end.reserve(graph_view.number_of_local_edge_partitions());
@@ -417,7 +423,10 @@ partition_information(raft::handle_t const& handle, GraphViewType const& graph_v
   vertex_t counter{0};
   for (size_t i = 0; i < graph_view.number_of_local_edge_partitions(); ++i) {
     partitions.emplace_back(graph_view.local_edge_partition_view(i));
+    masks.emplace_back(graph_view.get_mask_view(i));
+
     auto& edge_partition = partitions.back();
+    auto& mask_partitions = masks.back();
 
     // Starting vertex ids of each partition
     id_begin.push_back(edge_partition.major_range_first());
@@ -444,6 +453,8 @@ partition_information(raft::handle_t const& handle, GraphViewType const& graph_v
   // Allocate device memory for transfer
   rmm::device_uvector<partition_t> edge_partitions(graph_view.number_of_local_edge_partitions(),
                                                    handle.get_stream());
+  rmm::device_uvector<std::optional<mask_t>> mask_partitions(graph_view.number_of_local_edge_partitions(),
+                                                   handle.get_stream());
 
   rmm::device_uvector<vertex_t> major_begin(id_begin.size(), handle.get_stream());
   rmm::device_uvector<vertex_t> minor_end(id_end.size(), handle.get_stream());
@@ -453,6 +464,7 @@ partition_information(raft::handle_t const& handle, GraphViewType const& graph_v
   // Transfer data
   raft::update_device(
     edge_partitions.data(), partitions.data(), partitions.size(), handle.get_stream());
+  raft::update_device(mask_partitions.data(), masks.data(), masks.size(), handle.get_stream());
   raft::update_device(major_begin.data(), id_begin.data(), id_begin.size(), handle.get_stream());
   raft::update_device(minor_end.data(), id_end.data(), id_end.size(), handle.get_stream());
   raft::update_device(vc_offsets.data(),
@@ -463,6 +475,7 @@ partition_information(raft::handle_t const& handle, GraphViewType const& graph_v
     hs_begin.data(), hypersparse_begin.data(), hypersparse_begin.size(), handle.get_stream());
 
   return std::make_tuple(std::move(edge_partitions),
+                         std::move(mask_partitions),
                          std::move(major_begin),
                          std::move(minor_end),
                          std::move(hs_begin),
@@ -493,13 +506,15 @@ gather_local_edges(
       ? std::make_optional(rmm::device_uvector<weight_t>(edge_count, handle.get_stream()))
       : std::nullopt;
 
+
+
   // FIXME:  This should be the global constant
   vertex_t invalid_vertex_id = graph_view.number_of_vertices();
 
-  auto [partitions, id_begin, id_end, hypersparse_begin, vertex_count_offsets] =
+  auto [partitions, masks, id_begin, id_end, hypersparse_begin, vertex_count_offsets] =
     partition_information(handle, graph_view);
 
-  if constexpr (GraphViewType::is_multi_gpu) {
+if constexpr (GraphViewType::is_multi_gpu) {
     thrust::for_each(
       handle.get_thrust_policy(),
       thrust::make_counting_iterator<size_t>(0),
@@ -515,6 +530,7 @@ gather_local_edges(
        minors               = minors.data(),
        weights              = weights ? weights->data() : nullptr,
        partitions           = partitions.data(),
+       masks                = masks.data(),
        hypersparse_begin    = hypersparse_begin.data(),
        invalid_vertex_id,
        indices_per_major] __device__(auto index) {
@@ -527,6 +543,7 @@ gather_local_edges(
         auto partition_id = thrust::distance(
           id_end, thrust::upper_bound(thrust::seq, id_end, id_end + id_seg_count, major));
         auto offset_ptr = partitions[partition_id].offsets();
+        auto mask = masks[partition_id];
 
         vertex_t location_in_segment{0};
         edge_t local_out_degree{0};
@@ -584,6 +601,7 @@ gather_local_edges(
        minors               = minors.data(),
        weights              = weights ? weights->data() : nullptr,
        partitions           = partitions.data(),
+       masks                = masks.data(),
        hypersparse_begin    = hypersparse_begin.data(),
        invalid_vertex_id,
        indices_per_major] __device__(auto index) {
@@ -611,24 +629,78 @@ gather_local_edges(
             location_in_segment = *(row_hypersparse_idx)-id_begin[partition_id];
           } else {
             minors[index] = invalid_vertex_id;
-printf("Setting %u invalid\n", index);
             return;
           }
         }
+
+
+        auto mask = masks[partition_id];
 
         // csr offset value for vertex v that belongs to partition (partition_id)
         auto offset_ptr                = partitions[partition_id].offsets();
         auto sparse_offset             = offset_ptr[location_in_segment];
         auto local_out_degree          = offset_ptr[location_in_segment + 1] - sparse_offset;
         vertex_t const* adjacency_list = partitions[partition_id].indices() + sparse_offset;
+
+        // TODO: adjacency_list is the edges adjacent to the current vertex.
+        // TODO: g_dst_index is the (masked) offset we need to resolve.
+
         // read location of global_degree_offset needs to take into account the
         // partition offsets because it is a concatenation of all the offsets
         // across all partitions
         auto location    = location_in_segment + vertex_count_offsets[partition_id];
         auto g_dst_index = edge_index_first[index];
+printf("minors[%ld] = %ld, %ld, major=%ld, local_out_degree=%ld\n", index, adjacency_list[g_dst_index], g_dst_index, major, local_out_degree);
+
         if (g_dst_index >= 0) {
-          minors[index] = adjacency_list[g_dst_index];
-          printf("minors[%u] = %u\n", index, adjacency_list[g_dst_index]);
+
+            if(mask.has_value() && (*mask).has_edge_mask()) {
+
+            /**
+            * When a mask is used, the resulting `g_dst_index` needs to be looked up in
+            * the mask to compute the offset of the masked column in the adjacency_list.
+            *
+            * For now, loop through the mask indices, performing a cumulative sum and once the
+            * index is found, perform the bit-level binary search.
+            */
+//
+            uint32_t *edge_mask = (*mask).get_edge_mask();
+            vertex_t cur_sum = 0;
+            uint32_t mask_val = 0;
+            // Loop through the offsets in the edge mask for
+            for(int i = 0; i < local_out_degree; i+=std::numeric_limits<uint32_t>::digits) {
+                mask_val = edge_mask[(i+sparse_offset) / std::numeric_limits<uint32_t>::digits];
+
+                if(i == 0) {
+                    mask_val = mask_val & 0xffffffff << (sparse_offset & (std::numeric_limits<uint32_t>::digits - 1));
+                }
+
+                if(i == ((sparse_offset+local_out_degree) / std::numeric_limits<uint32_t>::digits) - (sparse_offset / std::numeric_limits<uint32_t>::digits)) {
+                    mask_val = mask_val & 0xffffffff >> (std::numeric_limits<uint32_t>::digits) - ((sparse_offset + local_out_degree) & (std::numeric_limits<uint32_t>::digits - 1));
+                }
+
+                printf("About to load mask val: %ld for %ld\n", (i+sparse_offset) / std::numeric_limits<uint32_t>::digits, g_dst_index);
+                printf("Done.\n");
+
+
+                printf("tid=%d, cur_sum=%ld\n", threadIdx.x, cur_sum);
+
+                if(cur_sum+__popc(mask_val) >= g_dst_index) {
+                    g_dst_index = cur_sum + kth_bit(mask_val, (edge_t)(g_dst_index-cur_sum));
+                    printf("Loading %ld\n", g_dst_index);
+                    break;
+                }
+
+                cur_sum += __popc(mask_val);
+            }
+
+                printf("minors[%ld] = %ld, %ld, major=%ld\n", index, adjacency_list[g_dst_index], g_dst_index, major);
+
+            }
+
+            minors[index] = adjacency_list[g_dst_index];
+
+
           if (weights != nullptr) {
             weight_t const* edge_weights = *(partitions[partition_id].weights()) + sparse_offset;
             weights[index]               = edge_weights[g_dst_index];
@@ -636,7 +708,6 @@ printf("Setting %u invalid\n", index);
           edge_index_first[index] = g_dst_index;
         } else {
           minors[index] = invalid_vertex_id;
-printf("Setting %u invalid\n", index);
         }
       });
   }
@@ -685,6 +756,8 @@ printf("Setting %u invalid\n", index);
     minors.resize(compacted_length, handle.get_stream());
   }
 
+  raft::print_device_vector("majors", majors.data(), majors.size(), std::cout);
+  raft::print_device_vector("minors", minors.data(), minors.size(), std::cout );
   return std::make_tuple(std::move(majors), std::move(minors), std::move(weights));
 }
 
@@ -696,13 +769,14 @@ typename GraphViewType::edge_type edgelist_count(raft::handle_t const& handle,
 {
   using edge_t = typename GraphViewType::edge_type;
   // Expect that vertex input list is sorted
-  auto [partitions, id_begin, id_end, hypersparse_begin, vertex_count_offsets] =
+  auto [partitions, masks, id_begin, id_end, hypersparse_begin, vertex_count_offsets] =
     partition_information(handle, graph_view);
   return thrust::transform_reduce(
     handle.get_thrust_policy(),
     vertex_input_first,
     vertex_input_last,
     [partitions           = partitions.data(),
+     masks                = masks.data(),
      id_begin             = id_begin.data(),
      id_end               = id_end.data(),
      id_seg_count         = id_begin.size(),
