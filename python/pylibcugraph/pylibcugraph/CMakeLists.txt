@@ -14,6 +14,7 @@
 #include(cmake/thirdparty/get_libcudacxx.cmake)
 set(cython_sources
     bfs.pyx
+    core_number.pyx
     eigenvector_centrality.pyx
     graph_properties.pyx
     graphs.pyx
