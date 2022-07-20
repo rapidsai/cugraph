@@ -804,15 +804,16 @@ class EXPERIMENTAL__PropertyGraph:
         """
         Return True if df has >1 of the same src, dst pair
         """
-        # FIXME: this can be very expensive for large DataFrames
         if df.empty:
             return False
 
-        def has_duplicate_dst(df):
-            return df[cls.dst_col_name].nunique() != \
-                df[cls.dst_col_name].size
+        unique_pair_len = len(df[[cls.src_col_name,
+                                  cls.dst_col_name]].drop_duplicates(
+                                  ignore_index=True))
 
-        return df.groupby(cls.src_col_name).apply(has_duplicate_dst).any()
+        # if unique_pairs == len(df)
+        # then no duplicate edges
+        return unique_pair_len != len(df)
 
     def __create_property_lookup_table(self, edge_prop_df):
         """

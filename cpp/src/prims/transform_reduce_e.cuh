@@ -57,7 +57,6 @@ __global__ void trasnform_reduce_e_hypersparse(
                                typename GraphViewType::edge_type,
                                typename GraphViewType::weight_type,
                                GraphViewType::is_multi_gpu> edge_partition,
-  typename GraphViewType::vertex_type major_hypersparse_first,
   EdgePartitionSrcValueInputWrapper edge_partition_src_value_input,
   EdgePartitionDstValueInputWrapper edge_partition_dst_value_input,
   ResultIterator result_iter /* size 1 */,
@@ -68,10 +67,10 @@ __global__ void trasnform_reduce_e_hypersparse(
   using weight_t      = typename GraphViewType::weight_type;
   using e_op_result_t = typename std::iterator_traits<ResultIterator>::value_type;
 
-  auto const tid = threadIdx.x + blockIdx.x * blockDim.x;
-  auto major_start_offset =
-    static_cast<size_t>(major_hypersparse_first - edge_partition.major_range_first());
-  size_t idx = static_cast<size_t>(tid);
+  auto const tid          = threadIdx.x + blockIdx.x * blockDim.x;
+  auto major_start_offset = static_cast<size_t>(*(edge_partition.major_hypersparse_first()) -
+                                                edge_partition.major_range_first());
+  size_t idx              = static_cast<size_t>(tid);
 
   auto dcs_nzd_vertex_count = *(edge_partition.dcs_nzd_vertex_count());
 
@@ -494,7 +493,6 @@ T transform_reduce_e(raft::handle_t const& handle,
         detail::trasnform_reduce_e_hypersparse<GraphViewType>
           <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
             edge_partition,
-            edge_partition.major_range_first() + (*segment_offsets)[3],
             edge_partition_src_value_input_copy,
             edge_partition_dst_value_input_copy,
             get_dataframe_buffer_begin(result_buffer),

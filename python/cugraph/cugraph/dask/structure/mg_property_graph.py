@@ -650,16 +650,15 @@ class EXPERIMENTAL__MGPropertyGraph:
         """
         Return True if df has >1 of the same src, dst pair
         """
-        # FIXME: this can be very expensive for large DataFrames
         # empty not supported by dask
         if len(df.columns) == 0:
             return False
 
-        def has_duplicate_dst(df):
-            return df[cls.dst_col_name].nunique() != \
-                df[cls.dst_col_name].size
-
-        return df.groupby(cls.src_col_name).apply(has_duplicate_dst).any()
+        unique_pair_len = df.drop_duplicates(split_out=df.npartitions,
+                                             ignore_index=True).shape[0]
+        # if unique_pairs == len(df)
+        # then no duplicate edges
+        return unique_pair_len != df.shape[0]
 
     def __create_property_lookup_table(self, edge_prop_df):
         """

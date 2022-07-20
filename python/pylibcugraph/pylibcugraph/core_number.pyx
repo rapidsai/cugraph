@@ -36,7 +36,10 @@ from pylibcugraph._cugraph_c.graph cimport (
 from pylibcugraph._cugraph_c.core_algorithms cimport (   
     cugraph_core_result_t,
     cugraph_core_number,
+<<<<<<< HEAD
     cugraph_k_core_degree_type_t,
+=======
+>>>>>>> upstream/branch-22.08
     cugraph_core_result_get_vertices,
     cugraph_core_result_get_core_numbers,
     cugraph_core_result_free,
@@ -70,10 +73,15 @@ def EXPERIMENTAL__core_number(ResourceHandle resource_handle,
     graph: MGGraph
         The input graph, for Multi-GPU operations.
     
+<<<<<<< HEAD
     degree_type: int
         Flag determining whether the core number computation should be based
         of incoming edges, outgoing edges or both which are respectively
         0, 1 and 2
+=======
+    degree_type: device array type
+        Device array containing the degree type as a character.
+>>>>>>> upstream/branch-22.08
     
     do_expensive_check: bool
         If True, performs more extensive tests on the inputs to ensure
@@ -107,6 +115,7 @@ def EXPERIMENTAL__core_number(ResourceHandle resource_handle,
     cdef cugraph_error_code_t error_code
     cdef cugraph_error_t* error_ptr
 
+<<<<<<< HEAD
     degree_type_map = {
         0: cugraph_k_core_degree_type_t.K_CORE_DEGREE_TYPE_IN,
         1: cugraph_k_core_degree_type_t.K_CORE_DEGREE_TYPE_OUT,
@@ -115,6 +124,11 @@ def EXPERIMENTAL__core_number(ResourceHandle resource_handle,
     error_code = cugraph_core_number(c_resource_handle_ptr,
                                      c_graph_ptr,
                                      degree_type_map[degree_type],
+=======
+    error_code = cugraph_core_number(c_resource_handle_ptr,
+                                     c_graph_ptr,
+                                     degree_type,
+>>>>>>> upstream/branch-22.08
                                      do_expensive_check,
                                      &result_ptr,
                                      &error_ptr)

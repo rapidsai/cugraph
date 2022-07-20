@@ -68,6 +68,20 @@ struct check_bit_set_t {
 };
 
 template <typename T>
+struct shift_left_t {
+  T offset{};
+
+  __device__ T operator()(T input) const { return input - offset; }
+};
+
+template <typename T>
+struct shift_right_t {
+  T offset{};
+
+  __device__ T operator()(T input) const { return input + offset; }
+};
+
+template <typename T>
 struct multiplier_t {
   T multiplier{};
 

@@ -112,12 +112,25 @@ class edge_partition_device_view_t<vertex_t,
       dcs_nzd_vertex_count_(view.dcs_nzd_vertex_count()
                               ? thrust::optional<vertex_t>{*(view.dcs_nzd_vertex_count())}
                               : thrust::nullopt),
+      major_hypersparse_first_(view.major_hypersparse_first()
+                                 ? thrust::optional<vertex_t>{*(view.major_hypersparse_first())}
+                                 : thrust::nullopt),
       major_range_first_(view.major_range_first()),
       major_range_last_(view.major_range_last()),
       minor_range_first_(view.minor_range_first()),
       minor_range_last_(view.minor_range_last()),
       major_value_start_offset_(view.major_value_start_offset())
   {
+  }
+
+  __host__ __device__ vertex_t major_value_start_offset() const
+  {
+    return major_value_start_offset_;
+  }
+
+  __host__ __device__ thrust::optional<vertex_t> major_hypersparse_first() const noexcept
+  {
+    return major_hypersparse_first_;
   }
 
   __host__ __device__ vertex_t major_range_first() const noexcept { return major_range_first_; }
@@ -186,11 +199,6 @@ class edge_partition_device_view_t<vertex_t,
     return minor_range_first_ + minor_offset;
   }
 
-  __host__ __device__ vertex_t major_value_start_offset() const
-  {
-    return major_value_start_offset_;
-  }
-
   __host__ __device__ thrust::optional<vertex_t const*> dcs_nzd_vertices() const
   {
     return dcs_nzd_vertices_;
@@ -203,8 +211,9 @@ class edge_partition_device_view_t<vertex_t,
  private:
   // should be trivially copyable to device
 
-  thrust::optional<vertex_t const*> dcs_nzd_vertices_{nullptr};
-  thrust::optional<vertex_t> dcs_nzd_vertex_count_{0};
+  thrust::optional<vertex_t const*> dcs_nzd_vertices_{thrust::nullopt};
+  thrust::optional<vertex_t> dcs_nzd_vertex_count_{thrust::nullopt};
+  thrust::optional<vertex_t> major_hypersparse_first_{thrust::nullopt};
 
   vertex_t major_range_first_{0};
   vertex_t major_range_last_{0};
@@ -231,6 +240,12 @@ class edge_partition_device_view_t<vertex_t,
   }
 
   __host__ __device__ vertex_t major_value_start_offset() const { return vertex_t{0}; }
+
+  __host__ __device__ thrust::optional<vertex_t> major_hypersparse_first() const noexcept
+  {
+    assert(false);
+    return thrust::nullopt;
+  }
 
   __host__ __device__ constexpr vertex_t major_range_first() const noexcept { return vertex_t{0}; }
 
