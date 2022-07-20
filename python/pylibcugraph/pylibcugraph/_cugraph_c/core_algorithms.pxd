@@ -53,9 +53,9 @@ cdef extern from "cugraph_c/core_algorithms.h":
         )
 
     ctypedef enum cugraph_k_core_degree_type_t:
-        K_CORE_DEGREE_TYPE_IN="incoming",
-        K_CORE_DEGREE_TYPE_OUT="outgoing",
-        K_CORE_DEGREE_TYPE_INOUT="bidirectional"
+        K_CORE_DEGREE_TYPE_IN=0,
+        K_CORE_DEGREE_TYPE_OUT=1,
+        K_CORE_DEGREE_TYPE_INOUT=2
 
     cdef cugraph_error_code_t \
         cugraph_core_number(
