@@ -19,6 +19,16 @@ from cugraph.testing import utils
 import cugraph
 import random
 
+from pylibcugraph import bfs as pylibcugraph_bfs
+from pylibcugraph import ResourceHandle
+
+from cugraph.dask.traversal.bfs import convert_to_cudf
+
+import cugraph.dask.comms.comms as Comms
+from cugraph.dask.common.input_utils import get_distributed_data
+from dask.distributed import wait
+import cudf
+
 
 # =============================================================================
 # Pytest Setup / Teardown - called for each test function
@@ -117,3 +127,60 @@ def test_has_node_functionality(dask_client, input_combo):
     invalid_node = valid_nodes.max() + 1
 
     assert G.has_node(invalid_node) is False
+
+
+def test_create_mg_graph(dask_client, input_combo):
+    G = input_combo['MGGraph']
+
+    # ensure graph exists
+    assert G._plc_graph is not None
+
+    # ensure graph is partitioned correctly
+    assert len(G._plc_graph) == len(dask_client.has_what())
+
+    start = dask_cudf.from_cudf(
+        cudf.Series([1], dtype='int32'),
+        len(G._plc_graph)
+    )
+    data_start = get_distributed_data(start)
+
+    res = [
+        dask_client.submit(
+            lambda sID, mg_graph_x, st_x: pylibcugraph_bfs(
+                ResourceHandle(Comms.get_handle(sID).getHandle()),
+                mg_graph_x,
+                st_x,
+                False,
+                0,
+                True,
+                False
+            ),
+            Comms.get_session_id(),
+            mg_graph,
+            st[0],
+            workers=[w]
+        )
+        for mg_graph, (w, st) in
+        zip(G._plc_graph, data_start.worker_to_parts.items())
+    ]
+
+    wait(res)
+
+    cudf_result = [
+        dask_client.submit(convert_to_cudf, cp_arrays)
+        for cp_arrays in res
+    ]
+    wait(cudf_result)
+
+    ddf = dask_cudf.from_delayed(cudf_result).compute()
+
+    if 'dolphins.csv' == input_combo['graph_file'].name:
+        assert ddf[ddf.vertex == 33].distance.to_numpy()[0] == 3
+        assert ddf[ddf.vertex == 33].predecessor.to_numpy()[0] == 37
+        assert ddf[ddf.vertex == 11].distance.to_numpy()[0] == 4
+        assert ddf[ddf.vertex == 11].predecessor.to_numpy()[0] == 51
+    else:
+        assert ddf[ddf.vertex == 33].distance.to_numpy()[0] == 2
+        assert ddf[ddf.vertex == 33].predecessor.to_numpy()[0] == 30
+        assert ddf[ddf.vertex == 11].distance.to_numpy()[0] == 2
+        assert ddf[ddf.vertex == 11].predecessor.to_numpy()[0] == 0
