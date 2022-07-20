@@ -119,7 +119,7 @@ def core_number(input_graph,
         warning_msg = ("'degree_type' is not supported yet.")
         warnings.warn(warning_msg, Warning)
 
-    # FIXME: enable this check when 'degree_type' is supported
+    # FIXME: enable this check once 'degree_type' is supported
     """
     if degree_type not in ["incoming", "outgoing", "bidirectional"]:
         raise ValueError(f"'degree_type' must be either incoming, "

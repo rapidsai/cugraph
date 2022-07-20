@@ -89,16 +89,7 @@ def EXPERIMENTAL__core_number(ResourceHandle resource_handle,
 
     Examples
     --------
-    >>> import pylibcugraph, cupy, numpy
-    >>> srcs = cupy.asarray([0, 1, 2], dtype=numpy.int32)
-    >>> dsts = cupy.asarray([1, 2, 3], dtype=numpy.int32)
-    >>> weights = cupy.asarray([1.0, 1.0, 1.0], dtype=numpy.float32)
-    >>> resource_handle = pylibcugraph.ResourceHandle()
-    >>> graph_props = pylibcugraph.GraphProperties(
-    ...     is_symmetric=True, is_multigraph=False)
-    >>> G = pylibcugraph.SGGraph(
-    ...     resource_handle, graph_props, srcs, dsts, weights,
-    ...     store_transposed=True, renumber=False, do_expensive_check=False)
+    # FIXME: No example yet
 
     """
     cdef cugraph_resource_handle_t* c_resource_handle_ptr = \

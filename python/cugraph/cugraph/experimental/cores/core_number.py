@@ -76,7 +76,7 @@ def EXPERIMENTAL__core_number(G, degree_type=None):
     if G.is_directed():
         raise ValueError("input graph must be undirected")
 
-    # FIXME: enable this check when 'degree_type' is supported
+    # FIXME: enable this check once 'degree_type' is supported
     """
     if degree_type not in ["incoming", "outgoing", "bidirectional"]:
         raise ValueError(f"'degree_type' must be either incoming, "

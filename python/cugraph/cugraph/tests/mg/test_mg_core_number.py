@@ -126,7 +126,7 @@ def test_core_number(dask_client, benchmark, input_expected_output):
     assert len(counts_diffs) == 0
 
 
-# FIXME: enable this test 'degree_type' when degree_type is supported
+# FIXME: enable this test 'degree_type' once degree_type is supported
 @pytest.mark.skip(reason="Skipping test because degree_type is not supported")
 def test_core_number_invalid_input(input_expected_output):
     input_data_path = (utils.RAPIDS_DATASET_ROOT_DIR_PATH /
