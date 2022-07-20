@@ -79,7 +79,7 @@ def convert_to_cudf(cp_arrays):
 
 
 def core_number(input_graph,
-                degree_type=0):
+                degree_type=None):
     """
     Compute the core numbers for the nodes of the graph G. A k-core of a graph
     is a maximal subgraph that contains nodes of degree k or more.
@@ -115,10 +115,16 @@ def core_number(input_graph,
     if input_graph.is_directed():
         raise ValueError("input graph must be undirected")
 
-    if degree_type not in [0, 1, 2]:
-        raise ValueError(f"degree_type must be either 0, 1 and 2 which "
-                         f"represent respectively incoming edge, outgoing "
-                         f"or both, got {degree_type}")
+    if degree_type is not None:
+        warning_msg = ("'degree_type' is not supported yet.")
+        warnings.warn(warning_msg, Warning)
+
+    # FIXME: enable this check when 'degree_type' is supported
+    """
+    if degree_type not in ["incoming", "outgoing", "bidirectional"]:
+        raise ValueError(f"'degree_type' must be either incoming, "
+                         f"outgoing or bidirectional, got: {degree_type}")
+    """
 
     # Initialize dask client
     client = default_client()

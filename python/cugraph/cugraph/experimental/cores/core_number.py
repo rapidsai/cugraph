@@ -76,10 +76,12 @@ def EXPERIMENTAL__core_number(G, degree_type=None):
     if G.is_directed():
         raise ValueError("input graph must be undirected")
 
-    if degree_type not in [0, 1, 2]:
-        raise ValueError(f"degree_type must be either 0, 1 and 2 which "
-                         f"represent respectively incoming edge, outgoing "
-                         f"or both, got: {degree_type}")
+    # FIXME: enable this check when 'degree_type' is supported
+    """
+    if degree_type not in ["incoming", "outgoing", "bidirectional"]:
+        raise ValueError(f"'degree_type' must be either incoming, "
+                         f"outgoing or bidirectional, got: {degree_type}")
+    """
 
     srcs = G.edgelist.edgelist_df['src']
     dsts = G.edgelist.edgelist_df['dst']

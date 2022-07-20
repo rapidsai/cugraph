@@ -33,9 +33,10 @@ def setup_function():
 # Pytest fixtures
 # =============================================================================
 datasets = utils.DATASETS_UNDIRECTED
+degree_type = ["incoming", "outgoing"]
 
 fixture_params = utils.genFixtureParamsProduct((datasets, "graph_file"),
-                                               ([0, 1], "degree_type"),
+                                               (degree_type, "degree_type"),
                                                )
 
 
@@ -96,6 +97,8 @@ def test_core_number(input_combo):
     assert len(counts_diff) == 0
 
 
+# FIXME: enable this test'degree_type' when degree_type is supported
+@pytest.mark.skip(reason="Skipping test because degree_type is not supported")
 def test_core_number_invalid_input(input_combo):
     input_data_path = (utils.RAPIDS_DATASET_ROOT_DIR_PATH /
                        "karate-asymmetric.csv").as_posix()
@@ -116,7 +119,7 @@ def test_core_number_invalid_input(input_combo):
     with pytest.raises(ValueError):
         experimental_core_number(G)
 
-    invalid_degree_type = 3
+    invalid_degree_type = "invalid"
     G = input_combo["G"]
     with pytest.raises(ValueError):
         experimental_core_number(G, invalid_degree_type)
