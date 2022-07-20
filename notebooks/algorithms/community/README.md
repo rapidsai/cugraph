@@ -3,11 +3,12 @@
 
 <img src="../../img/zachary_graph_clusters.png" width="35%"/>
 
-cuGraph Community notebooks contain a collection of Jupyter Notebooks with algorithms that identify related groups of nodes within the graph:
+## cuGraph Community notebooks contain a collection of Jupyter Notebooks with algorithms that identify related groups of nodes within the graph:
 
-* Louvain, Leiden ECG, K-Truss, and Spectral Clustering all identify clusters or tightly connected vertices.
-* Subgraph Extraction pulls the new sub-graph formed given a set of vertices and returning only the edges contained between them.
-* Finally Triangle counting gives an important metric for quantifying the overall graph connectivity by counting fully connected triples.
+* Louvain, Leiden, ECG, and Spectral Clustering all identify clusters or tightly connected vertices.
+* K-Truss is a more configurable algorithm that identifies vertices in nearly fully connected cliques.
+* Subgraph extraction pulls the new sub-graph formed given a set of vertices and returning only the edges contained between them.
+* Triangle counting gives an important metric for quantifying the overall graph connectivity by counting fully connected triples.
 
 ## Summary
 
@@ -17,19 +18,17 @@ cuGraph Community notebooks contain a collection of Jupyter Notebooks with algor
 | Louvain and Leiden                                          |[Clustering](./Community-Clustering.ipynb), [ Louvain and Leiden](./Louvain.ipynb) | Identify clusters in a graph using both the Louvain and Leiden algorithms     |
 | Ensemble Clustering for Graphs  | [Clustering](./Community-Clustering.ipynb), [ECG](./ECG.ipynb)        | Identify clusters using Louvain and consensus clustering |
 | K-Truss                                                     | [K-Truss](./ktruss.ipynb)                                | Extracts relaxed(based on parameter) cliques which include each vertex. |
-| Spectral Clustering with Balanced Cut                       | [Clustering](./Community-Clustering.ipynb),[ Spectral-Clustering](./Spectral-Clustering.ipynb)   | Identify clusters using eigenvalues and the Graph Laplacian    |
-| Spectral Clustering with Modularity Maximization            | [Clustering](./Community-Clustering.ipynb),[ Spectral-Clustering](./Spectral-Clustering.ipynb)   | Identify clusters using eigenvalues and the Graph Laplacian  |
+| Spectral Clustering with Balanced Cut                       | [Clustering](./Community-Clustering.ipynb),[ Spectral-Clustering](./Spectral-Clustering.ipynb)   | Identify clusters using eigenvalues and the graph Laplacian    |
+| Spectral Clustering with Modularity Maximization            | [Clustering](./Community-Clustering.ipynb),[ Spectral-Clustering](./Spectral-Clustering.ipynb)   | Identify clusters using eigenvalues and the graph Laplacian  |
 | Subgraph Extraction                                         | [Subgraph Extraction](./Subgraph-Extraction.ipynb)   | Create a subgraph of the existing graph including only the specified vertices |
 | Triangle Counting                                           | [Triangle Counting](./Triangle-Counting.ipynb)       | Count the number of size three cliques in a graph                      |
-
-
 
 [System Requirements](../../README.md#requirements)
 
 | Author Credit |    Date    |  Update          | cuGraph Version |  Test Hardware |
 | --------------|------------|------------------|-----------------|----------------|
 | Brad Rees     | 04/19/2021 | created          | 0.19            | GV100, CUDA 11.0
-| Don Acosta    | 07/05/2022 | tested / updated | 22.08 nightly   | DGX Tesla V100 CUDA 11.5
+| Don Acosta    | 07/11/2022 | tested / updated | 22.08 nightly   | DGX Tesla V100 CUDA 11.5
 
 ## Copyright
 
