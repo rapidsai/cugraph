@@ -40,10 +40,10 @@ struct UniformRandomWalks_Usecase {
   std::tuple<rmm::device_uvector<vertex_t>, std::optional<rmm::device_uvector<weight_t>>>
   operator()(raft::handle_t const& handle,
              cugraph::graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
-             raft::device_span<vertex_t const> start_span,
+             raft::device_span<vertex_t const> start_vertices,
              size_t max_depth)
   {
-    return cugraph::uniform_random_walks(handle, graph_view, start_span, max_depth, seed);
+    return cugraph::uniform_random_walks(handle, graph_view, start_vertices, max_depth, seed);
   }
 };
 
@@ -56,10 +56,10 @@ struct BiasedRandomWalks_Usecase {
   std::tuple<rmm::device_uvector<vertex_t>, std::optional<rmm::device_uvector<weight_t>>>
   operator()(raft::handle_t const& handle,
              cugraph::graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
-             raft::device_span<vertex_t const> start_span,
+             raft::device_span<vertex_t const> start_vertices,
              size_t max_depth)
   {
-    return cugraph::biased_random_walks(handle, graph_view, start_span, max_depth, seed);
+    return cugraph::biased_random_walks(handle, graph_view, start_vertices, max_depth, seed);
   }
 };
 
@@ -74,10 +74,11 @@ struct Node2VecRandomWalks_Usecase {
   std::tuple<rmm::device_uvector<vertex_t>, std::optional<rmm::device_uvector<weight_t>>>
   operator()(raft::handle_t const& handle,
              cugraph::graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
-             raft::device_span<vertex_t const> start_span,
+             raft::device_span<vertex_t const> start_vertices,
              size_t max_depth)
   {
-    return cugraph::node2vec_random_walks(handle, graph_view, start_span, max_depth, p, q, seed);
+    return cugraph::node2vec_random_walks(
+      handle, graph_view, start_vertices, max_depth, p, q, seed);
   }
 };
 

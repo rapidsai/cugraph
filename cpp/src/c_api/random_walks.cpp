@@ -40,7 +40,7 @@ struct cugraph_random_walk_result_t {
 struct node2vec_functor : public abstract_functor {
   raft::handle_t const& handle_;
   cugraph_graph_t* graph_{nullptr};
-  cugraph_type_erased_device_array_view_t const* sources_{nullptr};
+  cugraph_type_erased_device_array_view_t const* start_vertices_{nullptr};
   size_t max_length_{0};
   bool compress_result_{false};
   double p_{0};
@@ -49,7 +49,7 @@ struct node2vec_functor : public abstract_functor {
 
   node2vec_functor(::cugraph_resource_handle_t const* handle,
                    ::cugraph_graph_t* graph,
-                   ::cugraph_type_erased_device_array_view_t const* sources,
+                   ::cugraph_type_erased_device_array_view_t const* start_vertices,
                    size_t max_length,
                    bool compress_result,
                    double p,
@@ -57,8 +57,9 @@ struct node2vec_functor : public abstract_functor {
     : abstract_functor(),
       handle_(*reinterpret_cast<cugraph::c_api::cugraph_resource_handle_t const*>(handle)->handle_),
       graph_(reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph)),
-      sources_(
-        reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(sources)),
+      start_vertices_(
+        reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(
+          start_vertices)),
       max_length_(max_length),
       compress_result_(compress_result),
       p_(p),
@@ -95,16 +96,18 @@ struct node2vec_functor : public abstract_functor {
 
       auto number_map = reinterpret_cast<rmm::device_uvector<vertex_t>*>(graph_->number_map_);
 
-      rmm::device_uvector<vertex_t> sources(sources_->size_, handle_.get_stream());
-      raft::copy(
-        sources.data(), sources_->as_type<vertex_t>(), sources.size(), handle_.get_stream());
+      rmm::device_uvector<vertex_t> start_vertices(start_vertices_->size_, handle_.get_stream());
+      raft::copy(start_vertices.data(),
+                 start_vertices_->as_type<vertex_t>(),
+                 start_vertices.size(),
+                 handle_.get_stream());
 
       //
-      // Need to renumber sources
+      // Need to renumber start_vertices
       //
       renumber_ext_vertices<vertex_t, multi_gpu>(handle_,
-                                                 sources.data(),
-                                                 sources.size(),
+                                                 start_vertices.data(),
+                                                 start_vertices.size(),
                                                  number_map->data(),
                                                  graph_view.local_vertex_partition_range_first(),
                                                  graph_view.local_vertex_partition_range_last(),
@@ -112,12 +115,12 @@ struct node2vec_functor : public abstract_functor {
 
       // FIXME:  Forcing this to edge_t for now.  What should it really be?
       // Seems like it should be the smallest size that can accommodate
-      // max_length_ * sources_->size_
+      // max_length_ * start_vertices_->size_
       auto [paths, weights, sizes] = cugraph::random_walks(
         handle_,
         graph_view,
-        sources.data(),
-        static_cast<edge_t>(sources.size()),
+        start_vertices.data(),
+        static_cast<edge_t>(start_vertices.size()),
         static_cast<edge_t>(max_length_),
         !compress_result_,
         // std::make_unique<sampling_params_t>(2, p_, q_, false));
@@ -147,20 +150,21 @@ namespace {
 struct uniform_random_walks_functor : public cugraph::c_api::abstract_functor {
   raft::handle_t const& handle_;
   cugraph::c_api::cugraph_graph_t* graph_{nullptr};
-  cugraph::c_api::cugraph_type_erased_device_array_view_t const* sources_{nullptr};
+  cugraph::c_api::cugraph_type_erased_device_array_view_t const* start_vertices_{nullptr};
   size_t max_length_{0};
   size_t seed_{0};
   cugraph::c_api::cugraph_random_walk_result_t* result_{nullptr};
 
   uniform_random_walks_functor(cugraph_resource_handle_t const* handle,
                                cugraph_graph_t* graph,
-                               cugraph_type_erased_device_array_view_t const* sources,
+                               cugraph_type_erased_device_array_view_t const* start_vertices,
                                size_t max_length)
     : abstract_functor(),
       handle_(*reinterpret_cast<cugraph::c_api::cugraph_resource_handle_t const*>(handle)->handle_),
       graph_(reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph)),
-      sources_(
-        reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(sources)),
+      start_vertices_(
+        reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(
+          start_vertices)),
       max_length_(max_length)
   {
   }
@@ -194,17 +198,19 @@ struct uniform_random_walks_functor : public cugraph::c_api::abstract_functor {
 
       auto number_map = reinterpret_cast<rmm::device_uvector<vertex_t>*>(graph_->number_map_);
 
-      rmm::device_uvector<vertex_t> sources(sources_->size_, handle_.get_stream());
-      raft::copy(
-        sources.data(), sources_->as_type<vertex_t>(), sources.size(), handle_.get_stream());
+      rmm::device_uvector<vertex_t> start_vertices(start_vertices_->size_, handle_.get_stream());
+      raft::copy(start_vertices.data(),
+                 start_vertices_->as_type<vertex_t>(),
+                 start_vertices.size(),
+                 handle_.get_stream());
 
       //
-      // Need to renumber sources
+      // Need to renumber start_vertices
       //
       cugraph::renumber_ext_vertices<vertex_t, multi_gpu>(
         handle_,
-        sources.data(),
-        sources.size(),
+        start_vertices.data(),
+        start_vertices.size(),
         number_map->data(),
         graph_view.local_vertex_partition_range_first(),
         graph_view.local_vertex_partition_range_last(),
@@ -213,7 +219,7 @@ struct uniform_random_walks_functor : public cugraph::c_api::abstract_functor {
       auto [paths, weights] = cugraph::uniform_random_walks(
         handle_,
         graph_view,
-        raft::device_span<vertex_t const>{sources.data(), sources.size()},
+        raft::device_span<vertex_t const>{start_vertices.data(), start_vertices.size()},
         max_length_,
         seed_);
 
@@ -238,20 +244,21 @@ struct uniform_random_walks_functor : public cugraph::c_api::abstract_functor {
 struct biased_random_walks_functor : public cugraph::c_api::abstract_functor {
   raft::handle_t const& handle_;
   cugraph::c_api::cugraph_graph_t* graph_{nullptr};
-  cugraph::c_api::cugraph_type_erased_device_array_view_t const* sources_{nullptr};
+  cugraph::c_api::cugraph_type_erased_device_array_view_t const* start_vertices_{nullptr};
   size_t max_length_{0};
   cugraph::c_api::cugraph_random_walk_result_t* result_{nullptr};
   uint64_t seed_{0};
 
   biased_random_walks_functor(cugraph_resource_handle_t const* handle,
                               cugraph_graph_t* graph,
-                              cugraph_type_erased_device_array_view_t const* sources,
+                              cugraph_type_erased_device_array_view_t const* start_vertices,
                               size_t max_length)
     : abstract_functor(),
       handle_(*reinterpret_cast<cugraph::c_api::cugraph_resource_handle_t const*>(handle)->handle_),
       graph_(reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph)),
-      sources_(
-        reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(sources)),
+      start_vertices_(
+        reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(
+          start_vertices)),
       max_length_(max_length)
   {
   }
@@ -285,17 +292,19 @@ struct biased_random_walks_functor : public cugraph::c_api::abstract_functor {
 
       auto number_map = reinterpret_cast<rmm::device_uvector<vertex_t>*>(graph_->number_map_);
 
-      rmm::device_uvector<vertex_t> sources(sources_->size_, handle_.get_stream());
-      raft::copy(
-        sources.data(), sources_->as_type<vertex_t>(), sources.size(), handle_.get_stream());
+      rmm::device_uvector<vertex_t> start_vertices(start_vertices_->size_, handle_.get_stream());
+      raft::copy(start_vertices.data(),
+                 start_vertices_->as_type<vertex_t>(),
+                 start_vertices.size(),
+                 handle_.get_stream());
 
       //
-      // Need to renumber sources
+      // Need to renumber start_vertices
       //
       cugraph::renumber_ext_vertices<vertex_t, multi_gpu>(
         handle_,
-        sources.data(),
-        sources.size(),
+        start_vertices.data(),
+        start_vertices.size(),
         number_map->data(),
         graph_view.local_vertex_partition_range_first(),
         graph_view.local_vertex_partition_range_last(),
@@ -304,7 +313,7 @@ struct biased_random_walks_functor : public cugraph::c_api::abstract_functor {
       auto [paths, weights] = cugraph::biased_random_walks(
         handle_,
         graph_view,
-        raft::device_span<vertex_t const>{sources.data(), sources.size()},
+        raft::device_span<vertex_t const>{start_vertices.data(), start_vertices.size()},
         max_length_,
         seed_);
 
@@ -329,7 +338,7 @@ struct biased_random_walks_functor : public cugraph::c_api::abstract_functor {
 struct node2vec_random_walks_functor : public cugraph::c_api::abstract_functor {
   raft::handle_t const& handle_;
   cugraph::c_api::cugraph_graph_t* graph_{nullptr};
-  cugraph::c_api::cugraph_type_erased_device_array_view_t const* sources_{nullptr};
+  cugraph::c_api::cugraph_type_erased_device_array_view_t const* start_vertices_{nullptr};
   size_t max_length_{0};
   double p_{0};
   double q_{0};
@@ -338,15 +347,16 @@ struct node2vec_random_walks_functor : public cugraph::c_api::abstract_functor {
 
   node2vec_random_walks_functor(cugraph_resource_handle_t const* handle,
                                 cugraph_graph_t* graph,
-                                cugraph_type_erased_device_array_view_t const* sources,
+                                cugraph_type_erased_device_array_view_t const* start_vertices,
                                 size_t max_length,
                                 double p,
                                 double q)
     : abstract_functor(),
       handle_(*reinterpret_cast<cugraph::c_api::cugraph_resource_handle_t const*>(handle)->handle_),
       graph_(reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph)),
-      sources_(
-        reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(sources)),
+      start_vertices_(
+        reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(
+          start_vertices)),
       max_length_(max_length),
       p_(p),
       q_(q)
@@ -382,17 +392,19 @@ struct node2vec_random_walks_functor : public cugraph::c_api::abstract_functor {
 
       auto number_map = reinterpret_cast<rmm::device_uvector<vertex_t>*>(graph_->number_map_);
 
-      rmm::device_uvector<vertex_t> sources(sources_->size_, handle_.get_stream());
-      raft::copy(
-        sources.data(), sources_->as_type<vertex_t>(), sources.size(), handle_.get_stream());
+      rmm::device_uvector<vertex_t> start_vertices(start_vertices_->size_, handle_.get_stream());
+      raft::copy(start_vertices.data(),
+                 start_vertices_->as_type<vertex_t>(),
+                 start_vertices.size(),
+                 handle_.get_stream());
 
       //
-      // Need to renumber sources
+      // Need to renumber start_vertices
       //
       cugraph::renumber_ext_vertices<vertex_t, multi_gpu>(
         handle_,
-        sources.data(),
-        sources.size(),
+        start_vertices.data(),
+        start_vertices.size(),
         number_map->data(),
         graph_view.local_vertex_partition_range_first(),
         graph_view.local_vertex_partition_range_last(),
@@ -401,7 +413,7 @@ struct node2vec_random_walks_functor : public cugraph::c_api::abstract_functor {
       auto [paths, weights] = cugraph::node2vec_random_walks(
         handle_,
         graph_view,
-        raft::device_span<vertex_t const>{sources.data(), sources.size()},
+        raft::device_span<vertex_t const>{start_vertices.data(), start_vertices.size()},
         max_length_,
         static_cast<weight_t>(p_),
         static_cast<weight_t>(q_),
@@ -429,7 +441,7 @@ struct node2vec_random_walks_functor : public cugraph::c_api::abstract_functor {
 
 cugraph_error_code_t cugraph_node2vec(const cugraph_resource_handle_t* handle,
                                       cugraph_graph_t* graph,
-                                      const cugraph_type_erased_device_array_view_t* sources,
+                                      const cugraph_type_erased_device_array_view_t* start_vertices,
                                       size_t max_length,
                                       bool_t compress_results,
                                       double p,
@@ -438,7 +450,7 @@ cugraph_error_code_t cugraph_node2vec(const cugraph_resource_handle_t* handle,
                                       cugraph_error_t** error)
 {
   cugraph::c_api::node2vec_functor functor(
-    handle, graph, sources, max_length, compress_results, p, q);
+    handle, graph, start_vertices, max_length, compress_results, p, q);
 
   return cugraph::c_api::run_algorithm(graph, functor, result, error);
 }
@@ -485,12 +497,12 @@ void cugraph_random_walk_result_free(cugraph_random_walk_result_t* result)
 cugraph_error_code_t cugraph_uniform_random_walks(
   const cugraph_resource_handle_t* handle,
   cugraph_graph_t* graph,
-  const cugraph_type_erased_device_array_view_t* sources,
+  const cugraph_type_erased_device_array_view_t* start_vertices,
   size_t max_length,
   cugraph_random_walk_result_t** result,
   cugraph_error_t** error)
 {
-  uniform_random_walks_functor functor(handle, graph, sources, max_length);
+  uniform_random_walks_functor functor(handle, graph, start_vertices, max_length);
 
   return cugraph::c_api::run_algorithm(graph, functor, result, error);
 }
@@ -498,12 +510,12 @@ cugraph_error_code_t cugraph_uniform_random_walks(
 cugraph_error_code_t cugraph_biased_random_walks(
   const cugraph_resource_handle_t* handle,
   cugraph_graph_t* graph,
-  const cugraph_type_erased_device_array_view_t* sources,
+  const cugraph_type_erased_device_array_view_t* start_vertices,
   size_t max_length,
   cugraph_random_walk_result_t** result,
   cugraph_error_t** error)
 {
-  biased_random_walks_functor functor(handle, graph, sources, max_length);
+  biased_random_walks_functor functor(handle, graph, start_vertices, max_length);
 
   return cugraph::c_api::run_algorithm(graph, functor, result, error);
 }
@@ -511,14 +523,14 @@ cugraph_error_code_t cugraph_biased_random_walks(
 cugraph_error_code_t cugraph_node2vec_random_walks(
   const cugraph_resource_handle_t* handle,
   cugraph_graph_t* graph,
-  const cugraph_type_erased_device_array_view_t* sources,
+  const cugraph_type_erased_device_array_view_t* start_vertices,
   size_t max_length,
   double p,
   double q,
   cugraph_random_walk_result_t** result,
   cugraph_error_t** error)
 {
-  node2vec_random_walks_functor functor(handle, graph, sources, max_length, p, q);
+  node2vec_random_walks_functor functor(handle, graph, start_vertices, max_length, p, q);
 
   return cugraph::c_api::run_algorithm(graph, functor, result, error);
 }
