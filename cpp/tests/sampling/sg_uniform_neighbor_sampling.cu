@@ -146,6 +146,9 @@ class Tests_Uniform_Neighbor_Sampling
 
     handle.sync_stream();
     raft::print_device_vector("graph_ofsets", graph_view.local_edge_partition_view().indices()+316, 100, std::cout);
+    raft::print_device_vector("d_src_out", d_src_out.data(), 3, std::cout);
+      raft::print_device_vector("d_dst_out", d_dst_out.data(), 3, std::cout);
+      raft::print_device_vector("d_indices", d_indices.data(), 3, std::cout);
 
     printf("Done invoking uniform_nbr_sample\n");
     if (prims_usecase.check_correctness) {
@@ -182,12 +185,17 @@ class Tests_Uniform_Neighbor_Sampling
         handle, d_src_in, d_dst_in, *d_indices_in, d_src_out, d_dst_out, d_indices);
         handle.sync_stream();
 
-      cugraph::test::validate_sampling_depth(handle,
+        raft::print_device_vector("d_src_in", d_src_in.data(), 3, std::cout);
+        raft::print_device_vector("d_dst_in", d_dst_in.data(), 3, std::cout);
+        raft::print_device_vector("d_indices_in", (*d_indices_in).data(), 3, std::cout);
+
+        cugraph::test::validate_sampling_depth(handle,
                                              std::move(d_src_out),
                                              std::move(d_dst_out),
                                              std::move(d_indices),
                                              std::move(random_sources),
                                              h_fan_out.size());
+
         handle.sync_stream();
     }
 #endif
