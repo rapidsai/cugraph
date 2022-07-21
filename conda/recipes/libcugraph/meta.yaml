@@ -41,7 +41,7 @@ requirements:
     - libraft-headers {{ minor_version }}.*
     - libcugraphops {{ minor_version }}.*
     - librmm {{ minor_version }}.*
-    - cudf {{ minor_version }}.*
+    - libcudf {{ minor_version }}.*
     - boost-cpp {{ boost_cpp_version }}
     - nccl {{ nccl_version }}
     - ucx-proc=*=gpu

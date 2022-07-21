@@ -17,8 +17,10 @@ from cugraph.dask.common.read_utils import MissingUCXPy
 try:
     from raft.dask.common.comms import Comms as raftComms
     from raft.dask.common.comms import get_raft_comm_state
-except ModuleNotFoundError as err:
-    if err.name == "ucp":
+except ImportError as err:
+    # FIXME: Generalize since err.name is arr when
+    # libnuma.so.1 is not available
+    if err.name == "ucp" or err.name == "arr":
         raftComms = MissingUCXPy()
         get_raft_comm_state = MissingUCXPy()
     else:
