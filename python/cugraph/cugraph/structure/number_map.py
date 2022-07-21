@@ -286,7 +286,7 @@ class NumberMap:
             self.ddf = tmp_ddf
             return tmp_ddf
 
-    def __init__(self, id_type=np.int32):
+    def __init__(self, id_type=np.int32, renumber_type=None):
         self.implementation = None
         self.id_type = id_type
         # The default src/dst column names in the resulting renumbered

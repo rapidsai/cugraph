@@ -71,7 +71,8 @@ def input_combo(request):
 
     dg = cugraph.Graph(directed=directed)
     dg.from_dask_cudf_edgelist(
-        ddf, source='src', destination='dst', edge_attr='value')
+        ddf, source='src', destination='dst', edge_attr='value',
+        store_transposed=False, legacy_renum_only=True)
 
     parameters["MGGraph"] = dg
 
@@ -174,7 +175,9 @@ def test_mg_neighborhood_sampling_tree(dask_client, directed):
     )
 
     G = cugraph.Graph(directed=directed)
-    G.from_dask_cudf_edgelist(ddf, "src", "dst", "value")
+    G.from_dask_cudf_edgelist(ddf, "src", "dst", "value",
+                              store_transposed=False,
+                              legacy_renum_only=True)
 
     # TODO: Incomplete, include more testing for tree graph as well as
     # for larger graphs

@@ -199,7 +199,7 @@ class simpleGraphImpl:
         if self.batch_enabled:
             self._replicate_edgelist()
 
-        self.make_plc_graph(
+        self._make_plc_graph(
             value_col=value_col,
             store_transposed=store_transposed
         )
@@ -763,7 +763,7 @@ class simpleGraphImpl:
 
         return df
 
-    def make_plc_graph(self, value_col=None, store_transposed=False):
+    def _make_plc_graph(self, value_col=None, store_transposed=False):
         if value_col is None:
             value_col = cudf.Series(
                 cupy.ones(len(self.edgelist.edgelist_df), dtype='float32')
@@ -777,7 +777,8 @@ class simpleGraphImpl:
                 value_col = value_col.astype("float64")
 
         graph_props = GraphProperties(
-            is_multigraph=self.properties.multi_edge
+            is_multigraph=self.properties.multi_edge,
+            is_symmetric=not self.properties.directed
         )
 
         self._plc_graph = SGGraph(
@@ -808,7 +809,7 @@ class simpleGraphImpl:
         else:
             value_col = None
 
-        DiG.make_plc_graph(value_col, store_transposed)
+        DiG._make_plc_graph(value_col, store_transposed)
 
     def to_undirected(self, G, store_transposed=False):
         """
@@ -837,7 +838,7 @@ class simpleGraphImpl:
         else:
             value_col = None
 
-        G.make_plc_graph(value_col, store_transposed)
+        G._make_plc_graph(value_col, store_transposed)
 
     def has_node(self, n):
         """
