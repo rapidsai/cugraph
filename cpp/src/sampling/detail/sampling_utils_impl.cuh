@@ -104,11 +104,12 @@ rmm::device_uvector<typename GraphViewType::edge_type> compute_local_major_degre
       edge_partition_device_view_t<vertex_t, edge_t, weight_t, GraphViewType::is_multi_gpu>(
         graph_view.local_edge_partition_view(i));
 
+      auto mask            = graph_view.get_mask_view(i);
+
     // Check if hypersparse segment is present in the partition
     if (graph_view.use_dcs()) {
 
       auto segment_offsets = graph_view.local_edge_partition_segment_offsets(i);
-      auto mask            = graph_view.get_mask_view(i);
 
       auto num_sparse_vertices     = (*segment_offsets)[num_sparse_segments_per_vertex_partition];
       auto major_hypersparse_first = *(edge_partition.major_hypersparse_first());
@@ -421,6 +422,9 @@ partition_information(raft::handle_t const& handle, GraphViewType const& graph_v
   vertex_t counter{0};
   for (size_t i = 0; i < graph_view.number_of_local_edge_partitions(); ++i) {
     partitions.emplace_back(graph_view.local_edge_partition_view(i));
+
+    raft::print_device_vector("partition", graph_view.local_edge_partition_view(i).indices(), 100, std::cout);
+
     masks.emplace_back(graph_view.get_mask_view(i));
 
     auto& edge_partition = partitions.back();
@@ -443,6 +447,7 @@ partition_information(raft::handle_t const& handle, GraphViewType const& graph_v
 
     counter += edge_partition.major_range_size();
   }
+
 
   // Allocate device memory for transfer
   rmm::device_uvector<partition_t> edge_partitions(graph_view.number_of_local_edge_partitions(),
@@ -580,6 +585,8 @@ if constexpr (GraphViewType::is_multi_gpu) {
         }
       });
   } else {
+
+
     thrust::for_each(
       handle.get_thrust_policy(),
       thrust::make_counting_iterator<size_t>(0),
@@ -664,30 +671,37 @@ if constexpr (GraphViewType::is_multi_gpu) {
             vertex_t cur_sum = 0;
             uint32_t mask_val = 0;
             // Loop through the offsets in the edge mask for
-            for(int i = 0; i < local_out_degree; i+=std::numeric_limits<uint32_t>::digits) {
+
+            edge_t start_bit = sparse_offset & (std::numeric_limits<uint32_t>::digits - 1);
+            int i = 0;
+            while(i < local_out_degree) {
+
                 mask_val = edge_mask[(i+sparse_offset) / std::numeric_limits<uint32_t>::digits];
 
-                if(i == 0) {
-                    mask_val = mask_val & 0xffffffff << (sparse_offset & (std::numeric_limits<uint32_t>::digits - 1));
+                if(i == 0) { // mask off starting offset
+                    mask_val &= 0xffffffff << start_bit;
                 }
 
+                // mask off ending offset
                 if(i == ((sparse_offset+local_out_degree) / std::numeric_limits<uint32_t>::digits) - (sparse_offset / std::numeric_limits<uint32_t>::digits)) {
-                    mask_val = mask_val & 0xffffffff >> (std::numeric_limits<uint32_t>::digits) - ((sparse_offset + local_out_degree) & (std::numeric_limits<uint32_t>::digits - 1));
+                    mask_val &= 0xffffffff >> (std::numeric_limits<uint32_t>::digits) - ((sparse_offset + local_out_degree) & (std::numeric_limits<uint32_t>::digits - 1));
                 }
 
                 printf("About to load mask val: %ld for %ld\n", (i+sparse_offset) / std::numeric_limits<uint32_t>::digits, g_dst_index);
                 printf("Done.\n");
 
-
                 printf("tid=%d, cur_sum=%ld\n", threadIdx.x, cur_sum);
 
                 if(cur_sum+__popc(mask_val) >= g_dst_index+1) {
-                    g_dst_index = i + kth_bit(mask_val, (edge_t)(g_dst_index-cur_sum), g_dst_index == 6);
+                    g_dst_index = i + kth_bit(mask_val, (edge_t)(g_dst_index-cur_sum), start_bit, g_dst_index == 24);
                     printf("Loading %ld, cur_sum=%ld\n", g_dst_index, cur_sum);
                     break;
                 }
 
                 cur_sum += __popc(mask_val);
+                i += ((i > 0) * std::numeric_limits<uint32_t>::digits) +
+                     ((i <= 0) * (sparse_offset & (std::numeric_limits<uint32_t>::digits - 1)));
+
             }
 
                 printf("minors[%ld] = %ld, %ld, major=%ld\n", index, adjacency_list[g_dst_index], g_dst_index, major);

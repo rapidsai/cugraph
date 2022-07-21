@@ -82,26 +82,33 @@ class Tests_Uniform_Neighbor_Sampling
 
     graph_mask.initialize_edge_mask();
 
-    std::vector<mask_t> mask_h(graph_mask.get_edge_mask_size());
-    set_bit<mask_t>(mask_h.data(), 2);    // 0
-    set_bit<mask_t>(mask_h.data(), 3);    // 1
-    set_bit<mask_t>(mask_h.data(), 4);    // 2
-    set_bit<mask_t>(mask_h.data(), 5);    // 3
-    set_bit<mask_t>(mask_h.data(), 50);   // 4
-      set_bit<mask_t>(mask_h.data(), 51);   // 5
-      set_bit<mask_t>(mask_h.data(), 52);   // 6
-      set_bit<mask_t>(mask_h.data(), 53);   // 7
+//    set_bit<mask_t>(mask_h.data(), 2);    // 0
+//    set_bit<mask_t>(mask_h.data(), 3);    // 1
+//    set_bit<mask_t>(mask_h.data(), 4);    // 2
+//    set_bit<mask_t>(mask_h.data(), 5);    // 3
+//    set_bit<mask_t>(mask_h.data(), 50);   // 4
+//      set_bit<mask_t>(mask_h.data(), 51);   // 5
+//      set_bit<mask_t>(mask_h.data(), 52);   // 6
+//      set_bit<mask_t>(mask_h.data(), 53);   // 7
+//
+//      set_bit<mask_t>(mask_h.data(), 100);   // 8
+//      set_bit<mask_t>(mask_h.data(), 125);   // 9
+//      set_bit<mask_t>(mask_h.data(), 150);   // 10
 
-    raft::copy(graph_mask.view().get_edge_mask(), mask_h.data(), mask_h.size(), handle.get_stream());
+      std::vector<mask_t> mask_h(graph_mask.get_edge_mask_size());
+
+      raft::copy(graph_mask.view().get_edge_mask(), mask_h.data(), mask_h.size(), handle.get_stream());
+      thrust::fill(handle.get_thrust_policy(), graph_mask.view().get_edge_mask(), graph_mask.view().get_edge_mask() + mask_h.size(), 0xffffffff);
 
     handle.sync_stream();
 
     printf("Attaching mask\n");
 
     graph_view.attach_mask(graph_mask);
+      handle.sync_stream();
 
-    constexpr edge_t indices_per_source       = 2;
-    constexpr vertex_t repetitions_per_vertex = 5;
+    constexpr edge_t indices_per_source       = 2;    // fan out
+    constexpr vertex_t repetitions_per_vertex = 5;    // how many
     constexpr vertex_t source_sample_count    = 2;
 
     // Generate random vertex ids in the range of current gpu
@@ -109,14 +116,15 @@ class Tests_Uniform_Neighbor_Sampling
     // Generate random sources to gather on
     auto random_sources =
       cugraph::test::random_vertex_ids(handle,
-                                       (vertex_t)0, (vertex_t)3,//graph_view.local_vertex_partition_range_first(),
-                                       //graph_view.local_vertex_partition_range_last(),
-                                       std::min(graph_view.local_vertex_partition_range_size() *
+                                       graph_view.local_vertex_partition_range_first(),  // begin
+                                       graph_view.local_vertex_partition_range_last(),   // end
+                                       std::min(graph_view.local_vertex_partition_range_size() *  // count
                                                   (repetitions_per_vertex + vertex_t{1}),
-                                                source_sample_count),
-                                       repetitions_per_vertex,
-                                       uint64_t{0});
+                                      source_sample_count),
+                                      uint64_t{0},                  // seed
+                                      repetitions_per_vertex);      // repetitions per vertex
 
+      handle.sync_stream();
     std::vector<int> h_fan_out{indices_per_source};  // depth = 1
 
     printf("Invoking uniform_nbr_sample\n");
@@ -135,6 +143,9 @@ class Tests_Uniform_Neighbor_Sampling
       raft::device_span<vertex_t>(random_sources.data(), random_sources.size()),
       raft::host_span<const int>(h_fan_out.data(), h_fan_out.size()),
       prims_usecase.flag_replacement);
+
+    handle.sync_stream();
+    raft::print_device_vector("graph_ofsets", graph_view.local_edge_partition_view().indices()+316, 100, std::cout);
 
     printf("Done invoking uniform_nbr_sample\n");
     if (prims_usecase.check_correctness) {
@@ -169,6 +180,7 @@ class Tests_Uniform_Neighbor_Sampling
 
       cugraph::test::validate_extracted_graph_is_subgraph(
         handle, d_src_in, d_dst_in, *d_indices_in, d_src_out, d_dst_out, d_indices);
+        handle.sync_stream();
 
       cugraph::test::validate_sampling_depth(handle,
                                              std::move(d_src_out),
@@ -176,6 +188,7 @@ class Tests_Uniform_Neighbor_Sampling
                                              std::move(d_indices),
                                              std::move(random_sources),
                                              h_fan_out.size());
+        handle.sync_stream();
     }
 #endif
   }
@@ -236,9 +249,9 @@ TEST_P(Tests_Uniform_Neighbor_Sampling_Rmat, CheckInt64Int64Float)
 INSTANTIATE_TEST_SUITE_P(
   rmat_small_test,
   Tests_Uniform_Neighbor_Sampling_Rmat,
-  ::testing::Combine(::testing::Values(Prims_Usecase{false, false}),
+  ::testing::Combine(::testing::Values(Prims_Usecase{true, false}),
                      ::testing::Values(cugraph::test::Rmat_Usecase(
-                       5, 8, 0.57, 0.19, 0.19, 0, false, false, 0, false))));
+                       3, 10, 0.57, 0.19, 0.19, 0, false, false, 0, false))));
 
 //INSTANTIATE_TEST_SUITE_P(
 //  rmat_benchmark_test, /* note that scale & edge factor can be overridden in benchmarking (with

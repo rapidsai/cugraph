@@ -68,7 +68,7 @@ __host__ __device__ __forceinline__ void print_ulong_bin(const uint32_t * const 
  */
 template<typename edge_t, typename mask_type>
 __device__ edge_t kth_bit(mask_type mask_elm,
-                          edge_t k, bool debug) {
+                          edge_t k, edge_t start_bit, bool debug) {
 
     constexpr mask_type FMASK = 0xffffffff;
     constexpr mask_type n_shifts = std::numeric_limits<mask_type>::digits;
@@ -91,10 +91,14 @@ __device__ edge_t kth_bit(mask_type mask_elm,
      * side of the mask has larger indices.
      */
 
-//    mask_type mask = FMASK;
     mask_type tmp_mask_elm = mask_elm;
     int idx = level_to_bits(0); // this is capped at n_shifts
     int k_tmp = k+1;
+
+    if(debug) {
+        printf("level=%d, idx=%d, k_tmp=%d k=%ld ", idx, idx, k_tmp, k);
+        print_ulong_bin(&tmp_mask_elm, n_shifts);
+    }
 
     // Iterate for first 4 levels
     for(int i = 0; i < 4; ++i) {
@@ -102,12 +106,15 @@ __device__ edge_t kth_bit(mask_type mask_elm,
         // First check the count of the right branch
         int popl = __popc(tmp_mask_elm & FMASK >> (n_shifts - idx));
 
+        // Shift idx accordingly (up for left branch, down for right branch)
+        idx += level_to_bits(i+1) *
+               (-1 * (k_tmp <= popl) +  // right branch
+                (k_tmp > popl));  // left branch
+
         // If taking left branch, adjust k for local mask window by
         // removing popcount on right
         k_tmp -= (k_tmp > popl) * popl;
 
-        // Shift idx accordingly (up for left branch, down for right branch)
-        idx += level_to_bits(i+1) * (-1 * (k_tmp <= popl) + (k_tmp > popl));
 
         // Apply current mask window
         int level = level_to_bits(i);
@@ -115,19 +122,16 @@ __device__ edge_t kth_bit(mask_type mask_elm,
 
         if(debug) {
 
-            printf("took_left_path=%d, level=%d, idx=%d, k_tmp=%d k=%ld popl=%d ", (k_tmp > popl), level, idx, k_tmp, k, popl);
+            printf("took_left_path=%d, level=%d, idx=%d, k_tmp=%d k=%ld popl=%d, ffs=%d ", (k_tmp > popl), level, idx, k_tmp, k, popl, __ffs(tmp_mask_elm));
             print_ulong_bin(&tmp_mask_elm, n_shifts);
         }
     }
 
-    // We are down to the final branch- k_tmp has been getting updated
-    // to remove the effects of all significant bits lower than the current
-    // local mask window.
-    //
-    // Currently, idx assumes we took the right branch, if the final population
-    // count is >k_tmp, we know we must take the left branch, so we need to
-    // increment idx.
-    return idx += (__popc(tmp_mask_elm) > k_tmp);
+    /**
+     * The population count for all the bits to the right of idx should be k,
+     * otherwise, we need to take one final left branch.
+     */
+    return idx += (k - __popc(FMASK >> (n_shifts - idx)) + start_bit) - start_bit;
 }
 
 /**
@@ -193,7 +197,6 @@ __global__ void masked_degree_kernel(edge_t* degrees_output,
   degree = BlockReduce(temp_storage).Sum(degree);
 
   if(degree > 0)
-      printf("bid=%d, degree=%ld\n", blockIdx.x, degree);
   if (threadIdx.x == 0) { degrees_output[vertex] = degree; }
 }
 
