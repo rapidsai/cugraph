@@ -11,7 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from cugraph.cores import k_core_wrapper, core_number_wrapper
+from cugraph.cores import k_core_wrapper, core_number
 from cugraph.utilities import (ensure_cugraph_obj_for_nx,
                                cugraph_to_nx,
                                )
@@ -81,7 +81,7 @@ def k_core(G, k=None, core_number=None):
                                                    cols)
 
     else:
-        core_number = core_number_wrapper.core_number(G)
+        core_number = core_number(G)
         core_number = core_number.rename(
             columns={"core_number": "values"}, copy=False
         )
