@@ -21,8 +21,7 @@ import dask_cudf
 import cudf
 import warnings
 
-from pylibcugraph.experimental import core_number as \
-    pylibcugraph_core_number
+from pylibcugraph import core_number as pylibcugraph_core_number
 
 from pylibcugraph import (ResourceHandle,
                           GraphProperties,
