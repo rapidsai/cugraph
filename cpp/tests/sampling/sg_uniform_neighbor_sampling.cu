@@ -18,6 +18,10 @@
 
 #include <gtest/gtest.h>
 
+#include <thrust/distance.h>
+#include <thrust/sort.h>
+#include <thrust/unique.h>
+
 struct Prims_Usecase {
   bool check_correctness{true};
   bool flag_replacement{true};
@@ -68,12 +72,23 @@ class Tests_Uniform_Neighbor_Sampling
       cugraph::test::random_vertex_ids(handle,
                                        graph_view.local_vertex_partition_range_first(),
                                        graph_view.local_vertex_partition_range_last(),
-                                       source_sample_count,
+                                       std::min(graph_view.local_vertex_partition_range_size() *
+                                                  (repetitions_per_vertex + vertex_t{1}),
+                                                source_sample_count),
                                        repetitions_per_vertex,
                                        uint64_t{0});
 
     std::vector<int> h_fan_out{indices_per_source};  // depth = 1
 
+#ifdef NO_CUGRAPH_OPS
+    EXPECT_THROW(cugraph::uniform_nbr_sample(
+                   handle,
+                   graph_view,
+                   raft::device_span<vertex_t>(random_sources.data(), random_sources.size()),
+                   raft::host_span<const int>(h_fan_out.data(), h_fan_out.size()),
+                   prims_usecase.flag_replacement),
+                 std::exception);
+#else
     auto&& [d_src_out, d_dst_out, d_indices, d_counts] = cugraph::uniform_nbr_sample(
       handle,
       graph_view,
@@ -104,7 +119,12 @@ class Tests_Uniform_Neighbor_Sampling
                           handle.get_stream());
 
       auto [d_src_in, d_dst_in, d_indices_in, d_ignore] = extract_induced_subgraphs(
-        handle, graph_view, d_subgraph_offsets.data(), d_vertices.data(), 1, true);
+        handle,
+        graph_view,
+        raft::device_span<size_t const>(d_subgraph_offsets.data(), d_subgraph_offsets.size()),
+        raft::device_span<vertex_t const>(d_vertices.data(), d_vertices.size()),
+        1,
+        true);
 
       cugraph::test::validate_extracted_graph_is_subgraph(
         handle, d_src_in, d_dst_in, *d_indices_in, d_src_out, d_dst_out, d_indices);
@@ -116,6 +136,7 @@ class Tests_Uniform_Neighbor_Sampling
                                              std::move(random_sources),
                                              h_fan_out.size());
     }
+#endif
   }
 };
 

@@ -15,16 +15,28 @@
  */
 #pragma once
 
+#include <prims/extract_if_e.cuh>
+#include <prims/transform_reduce_dst_nbr_intersection_of_e_endpoints_by_v.cuh>
+#include <prims/update_edge_partition_src_dst_property.cuh>
+
 #include <cugraph/algorithms.hpp>
 #include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/graph_functions.hpp>
-#include <cugraph/prims/extract_if_e.cuh>
-#include <cugraph/prims/transform_reduce_dst_nbr_intersection_of_e_endpoints_by_v.cuh>
-#include <cugraph/prims/update_edge_partition_src_dst_property.cuh>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/host_scalar_comm.cuh>
 
+#include <thrust/binary_search.h>
+#include <thrust/copy.h>
 #include <thrust/count.h>
+#include <thrust/distance.h>
+#include <thrust/execution_policy.h>
+#include <thrust/fill.h>
+#include <thrust/iterator/transform_iterator.h>
+#include <thrust/optional.h>
+#include <thrust/scatter.h>
+#include <thrust/sort.h>
+#include <thrust/transform.h>
+#include <thrust/tuple.h>
 
 namespace cugraph {
 

@@ -21,20 +21,27 @@
 #include <utilities/test_utilities.hpp>
 #include <utilities/thrust_wrapper.hpp>
 
+#include <prims/property_op_utils.cuh>
+#include <prims/reduce_v.cuh>
+
 #include <cugraph/algorithms.hpp>
 #include <cugraph/partition_manager.hpp>
 
 #include <cuco/detail/hash_functions.cuh>
 #include <cugraph/graph_view.hpp>
-#include <cugraph/prims/property_op_utils.cuh>
-#include <cugraph/prims/reduce_v.cuh>
 
 #include <raft/comms/comms.hpp>
 #include <raft/comms/mpi_comms.hpp>
 #include <raft/handle.hpp>
 #include <rmm/device_scalar.hpp>
 #include <rmm/device_uvector.hpp>
+#include <thrust/distance.h>
+#include <thrust/functional.h>
+#include <thrust/iterator/counting_iterator.h>
+#include <thrust/iterator/zip_iterator.h>
 #include <thrust/reduce.h>
+#include <thrust/transform.h>
+#include <thrust/tuple.h>
 
 #include <gtest/gtest.h>
 

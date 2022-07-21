@@ -24,6 +24,11 @@
 extern "C" {
 #endif
 
+/** @defgroup labeling Labeling algorithms
+ *  @ingroup c_api
+ *  @{
+ */
+
 /**
  * @brief     Opaque labeling result type
  */
@@ -99,3 +104,7 @@ cugraph_error_code_t cugraph_strongly_connected_components(const cugraph_resourc
 #ifdef __cplusplus
 }
 #endif
+
+/**
+ *  @}
+ */

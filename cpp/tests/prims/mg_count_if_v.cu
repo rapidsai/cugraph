@@ -21,12 +21,13 @@
 #include <utilities/test_utilities.hpp>
 #include <utilities/thrust_wrapper.hpp>
 
+#include <prims/count_if_v.cuh>
+
 #include <cugraph/algorithms.hpp>
 #include <cugraph/partition_manager.hpp>
 
 #include <cuco/detail/hash_functions.cuh>
 #include <cugraph/graph_view.hpp>
-#include <cugraph/prims/count_if_v.cuh>
 
 #include <raft/comms/comms.hpp>
 #include <raft/comms/mpi_comms.hpp>
@@ -34,6 +35,7 @@
 #include <rmm/device_scalar.hpp>
 #include <rmm/device_uvector.hpp>
 #include <thrust/count.h>
+#include <thrust/iterator/counting_iterator.h>
 
 #include <gtest/gtest.h>
 

@@ -15,14 +15,121 @@
  */
 
 #include "nbr_sampling_utils.cuh"
+
+#include <sampling/detail/graph_functions.hpp>
+
 #include <raft/comms/comms.hpp>
 #include <raft/comms/mpi_comms.hpp>
 
+#include <thrust/iterator/counting_iterator.h>
+
 #include <gtest/gtest.h>
+
+#include <thrust/equal.h>
+#include <thrust/fill.h>
+#include <thrust/iterator/zip_iterator.h>
+#include <thrust/sort.h>
+#include <thrust/tuple.h>
 
 struct Prims_Usecase {
   bool check_correctness{true};
 };
+
+template <typename vertex_t, typename edge_t, typename weight_t>
+std::tuple<std::vector<vertex_t>, std::vector<vertex_t>> test_gather_local_edges(
+  raft::handle_t const& handle,
+  cugraph::graph_view_t<vertex_t, edge_t, weight_t, false, true> const& mg_graph_view,
+  rmm::device_uvector<vertex_t> const& sources,
+  rmm::device_uvector<edge_t> const& destination_offsets,
+  edge_t indices_per_source)
+{
+  auto& col_comm      = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
+  auto const col_rank = col_comm.get_rank();
+
+  // logic relies on gather_one_hop not having duplicates
+  rmm::device_uvector<vertex_t> sources_copy(sources.size(), handle.get_stream());
+  raft::copy(sources_copy.data(), sources.data(), sources.size(), handle.get_stream());
+  thrust::sort(handle.get_thrust_policy(), sources_copy.begin(), sources_copy.end());
+  auto sources_copy_end =
+    thrust::unique(handle.get_thrust_policy(), sources_copy.begin(), sources_copy.end());
+  sources_copy.resize(thrust::distance(sources_copy.begin(), sources_copy_end),
+                      handle.get_stream());
+
+  auto [one_hop_src, one_hop_dst, one_hop_edge_ids] =
+    cugraph::detail::gather_one_hop_edgelist(handle, mg_graph_view, sources_copy);
+
+  rmm::device_uvector<int> one_hop_gpu_id(one_hop_src.size(), handle.get_stream());
+  thrust::fill(handle.get_thrust_policy(),
+               one_hop_gpu_id.begin(),
+               one_hop_gpu_id.end(),
+               handle.get_comms().get_rank());
+
+  // Pull everything to rank 0
+  auto sg_src = cugraph::test::device_gatherv(
+    handle, raft::device_span<vertex_t const>{one_hop_src.data(), one_hop_src.size()});
+  auto sg_dst = cugraph::test::device_gatherv(
+    handle, raft::device_span<vertex_t const>{one_hop_dst.data(), one_hop_dst.size()});
+  auto sg_gpu_id = cugraph::test::device_gatherv(
+    handle, raft::device_span<int const>{one_hop_gpu_id.data(), one_hop_gpu_id.size()});
+  auto sg_sources = cugraph::test::device_gatherv(
+    handle, raft::device_span<vertex_t const>{sources.data(), col_rank == 0 ? sources.size() : 0});
+  auto sg_destination_offsets = cugraph::test::device_gatherv(
+    handle,
+    raft::device_span<edge_t const>{destination_offsets.data(),
+                                    col_rank == 0 ? destination_offsets.size() : 0});
+
+  thrust::sort(handle.get_thrust_policy(),
+               thrust::make_zip_iterator(sg_src.begin(), sg_gpu_id.begin(), sg_dst.begin()),
+               thrust::make_zip_iterator(sg_src.end(), sg_gpu_id.end(), sg_dst.end()));
+
+  std::vector<vertex_t> h_sources(sg_sources.size());
+  std::vector<vertex_t> h_src(sg_src.size());
+  std::vector<vertex_t> h_dst(sg_dst.size());
+  std::vector<vertex_t> h_result_src(sg_destination_offsets.size());
+  std::vector<vertex_t> h_result_dst(sg_destination_offsets.size());
+  std::vector<edge_t> h_destination_offsets(sg_destination_offsets.size());
+
+  raft::update_host(h_sources.data(), sg_sources.data(), sg_sources.size(), handle.get_stream());
+  raft::update_host(h_src.data(), sg_src.data(), sg_src.size(), handle.get_stream());
+  raft::update_host(h_dst.data(), sg_dst.data(), sg_dst.size(), handle.get_stream());
+  raft::update_host(h_destination_offsets.data(),
+                    sg_destination_offsets.data(),
+                    sg_destination_offsets.size(),
+                    handle.get_stream());
+
+  thrust::for_each(thrust::host,
+                   thrust::make_counting_iterator<size_t>(0),
+                   thrust::make_counting_iterator<size_t>(sg_destination_offsets.size()),
+                   [&] __host__(auto i) {
+                     h_result_src[i] = h_sources[i / indices_per_source];
+                     h_result_dst[i] = mg_graph_view.number_of_vertices();
+                     edge_t offset   = h_destination_offsets[i];
+
+                     for (size_t j = 0; j < h_src.size(); ++j) {
+                       if (h_result_src[i] == h_src[j]) {
+                         if (offset == 0) {
+                           h_result_dst[i] = h_dst[j];
+                           break;
+                         }
+                         --offset;
+                       }
+                     }
+                   });
+
+  auto new_end =
+    thrust::remove_if(thrust::host,
+                      thrust::make_zip_iterator(h_result_src.begin(), h_result_dst.begin()),
+                      thrust::make_zip_iterator(h_result_src.end(), h_result_dst.end()),
+                      [invalid_vertex = mg_graph_view.number_of_vertices()] __host__(auto p) {
+                        return (thrust::get<1>(p) == invalid_vertex);
+                      });
+
+  h_result_src.resize(thrust::distance(
+    thrust::make_zip_iterator(h_result_src.begin(), h_result_dst.begin()), new_end));
+  h_result_dst.resize(h_result_src.size());
+
+  return std::make_tuple(std::move(h_result_src), std::move(h_result_dst));
+}
 
 template <typename input_usecase_t>
 class Tests_MG_GatherEdges
@@ -87,118 +194,77 @@ class Tests_MG_GatherEdges
     // Generate random vertex ids in the range of current gpu
 
     auto [global_degree_offsets, global_out_degrees] =
-      cugraph::detail::original::get_global_degree_information(handle, mg_graph_view);
-    auto global_adjacency_list_offsets = cugraph::detail::original::get_global_adjacency_offset(
-      handle, mg_graph_view, global_degree_offsets, global_out_degrees);
+      cugraph::detail::get_global_degree_information(handle, mg_graph_view);
 
     // Generate random sources to gather on
-    auto random_sources = random_vertex_ids(handle,
-                                            mg_graph_view.local_vertex_partition_range_first(),
-                                            mg_graph_view.local_vertex_partition_range_last(),
-                                            source_sample_count,
-                                            repetitions_per_vertex);
-    rmm::device_uvector<int> random_source_gpu_ids(random_sources.size(), handle.get_stream());
-    thrust::fill(handle.get_thrust_policy(),
-                 random_source_gpu_ids.begin(),
-                 random_source_gpu_ids.end(),
-                 comm_rank);
+    auto random_sources =
+      random_vertex_ids(handle,
+                        mg_graph_view.local_vertex_partition_range_first(),
+                        mg_graph_view.local_vertex_partition_range_last(),
+                        std::min(mg_graph_view.local_vertex_partition_range_size() *
+                                   (repetitions_per_vertex + vertex_t{1}),
+                                 source_sample_count),
+                        repetitions_per_vertex);
 
-    auto [active_sources, active_source_gpu_ids] =
-      cugraph::detail::original::gather_active_majors(handle,
-                                                      mg_graph_view,
-                                                      random_sources.cbegin(),
-                                                      random_sources.cend(),
-                                                      random_source_gpu_ids.cbegin());
+    // FIXME: allgather is probably a poor name for this function.
+    //        It's really an allgather across the row communicator
+    auto active_sources =
+      cugraph::detail::allgather_active_majors(handle, std::move(random_sources));
 
     // get source global out degrees to generate indices
-    auto active_source_degrees = cugraph::detail::original::get_active_major_global_degrees(
+    auto active_source_degrees = cugraph::detail::get_active_major_global_degrees(
       handle, mg_graph_view, active_sources, global_out_degrees);
 
-    auto random_destination_indices =
+    auto random_destination_offsets =
       generate_random_destination_indices(handle,
                                           active_source_degrees,
                                           mg_graph_view.number_of_vertices(),
-                                          mg_graph_view.number_of_edges(),
+                                          edge_t{-1},
                                           indices_per_source);
-    rmm::device_uvector<edge_t> input_destination_indices(random_destination_indices.size(),
-                                                          handle.get_stream());
-    raft::update_device(input_destination_indices.data(),
-                        random_destination_indices.data(),
-                        random_destination_indices.size(),
-                        handle.get_stream());
 
-    auto [src, dst, gpu_ids, dst_map] =
-      cugraph::detail::original::gather_local_edges(handle,
-                                                    mg_graph_view,
-                                                    active_sources,
-                                                    active_source_gpu_ids,
-                                                    std::move(input_destination_indices),
-                                                    indices_per_source,
-                                                    global_degree_offsets,
-                                                    global_adjacency_list_offsets);
+    rmm::device_uvector<edge_t> input_destination_offsets(random_destination_offsets.size(),
+                                                          handle.get_stream());
+    raft::copy(input_destination_offsets.data(),
+               random_destination_offsets.data(),
+               random_destination_offsets.size(),
+               handle.get_stream());
+
+    auto [src, dst, dst_map] =
+      cugraph::detail::gather_local_edges(handle,
+                                          mg_graph_view,
+                                          active_sources,
+                                          std::move(random_destination_offsets),
+                                          indices_per_source,
+                                          global_degree_offsets);
 
     if (prims_usecase.check_correctness) {
-      // Gather outputs
-      auto mg_out_srcs = cugraph::test::device_gatherv(handle, src.data(), src.size());
-      auto mg_out_dsts = cugraph::test::device_gatherv(handle, dst.data(), dst.size());
+      // NOTE: This test assumes that edgea within the data structure are sorted
+      //  We'll use gather_one_hop_edgelist to pull out the relevant edges
+      auto [h_src, h_dst] = test_gather_local_edges(
+        handle, mg_graph_view, active_sources, input_destination_offsets, indices_per_source);
 
-      // Gather inputs
-      auto& col_comm      = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
-      auto const col_rank = col_comm.get_rank();
-      auto sg_random_srcs = cugraph::test::device_gatherv(
-        handle, active_sources.data(), col_rank == 0 ? active_sources.size() : 0);
-      auto sg_random_dst_indices =
-        cugraph::test::device_gatherv(handle,
-                                      random_destination_indices.data(),
-                                      col_rank == 0 ? random_destination_indices.size() : 0);
+      auto agg_src = cugraph::test::device_gatherv(
+        handle, raft::device_span<vertex_t const>{src.data(), src.size()});
+      auto agg_dst = cugraph::test::device_gatherv(
+        handle, raft::device_span<vertex_t const>{dst.data(), dst.size()});
 
-      // Gather input graph edgelist
-      rmm::device_uvector<vertex_t> sg_src(0, handle.get_stream());
-      rmm::device_uvector<vertex_t> sg_dst(0, handle.get_stream());
-      std::tie(sg_src, sg_dst, std::ignore) =
-        mg_graph_view.decompress_to_edgelist(handle, std::nullopt);
+      thrust::sort(handle.get_thrust_policy(),
+                   thrust::make_zip_iterator(agg_src.begin(), agg_dst.begin()),
+                   thrust::make_zip_iterator(agg_src.end(), agg_dst.end()));
+      thrust::sort(thrust::host,
+                   thrust::make_zip_iterator(h_src.begin(), h_dst.begin()),
+                   thrust::make_zip_iterator(h_src.end(), h_dst.end()));
 
-      auto aggregated_sg_src = cugraph::test::device_gatherv(handle, sg_src.begin(), sg_src.size());
-      auto aggregated_sg_dst = cugraph::test::device_gatherv(handle, sg_dst.begin(), sg_dst.size());
+      std::vector<vertex_t> h_agg_src(agg_src.size());
+      std::vector<vertex_t> h_agg_dst(agg_dst.size());
+      raft::update_host(h_agg_src.data(), agg_src.data(), agg_src.size(), handle.get_stream());
+      raft::update_host(h_agg_dst.data(), agg_dst.data(), agg_dst.size(), handle.get_stream());
 
-      sort_coo(handle, mg_out_srcs, mg_out_dsts);
+      // FIXME:  Why are the randomly selected vertices on each GPU so similar??
 
-      if (handle.get_comms().get_rank() == int{0}) {
-        cugraph::graph_t<vertex_t, edge_t, weight_t, false, false> sg_graph(handle);
-        auto aggregated_edge_iter = thrust::make_zip_iterator(
-          thrust::make_tuple(aggregated_sg_src.begin(), aggregated_sg_dst.begin()));
-        thrust::sort(handle.get_thrust_policy(),
-                     aggregated_edge_iter,
-                     aggregated_edge_iter + aggregated_sg_src.size());
-        auto sg_graph_properties =
-          cugraph::graph_properties_t{mg_graph_view.is_symmetric(), mg_graph_view.is_multigraph()};
-
-        std::tie(sg_graph, std::ignore) =
-          cugraph::create_graph_from_edgelist<vertex_t, edge_t, weight_t, false, false>(
-            handle,
-            std::nullopt,
-            std::move(aggregated_sg_src),
-            std::move(aggregated_sg_dst),
-            std::nullopt,
-            sg_graph_properties,
-            false);
-        auto sg_graph_view = sg_graph.view();
-        // Call single gpu gather
-        auto [sg_out_srcs, sg_out_dsts] = sg_gather_edges(handle,
-                                                          sg_graph_view,
-                                                          sg_random_srcs.begin(),
-                                                          sg_random_srcs.end(),
-                                                          sg_random_dst_indices.begin(),
-                                                          sg_graph_view.number_of_vertices(),
-                                                          indices_per_source);
-        sort_coo(handle, sg_out_srcs, sg_out_dsts);
-
-        auto passed = thrust::equal(
-          handle.get_thrust_policy(), sg_out_srcs.begin(), sg_out_srcs.end(), mg_out_srcs.begin());
-        passed &= thrust::equal(
-          handle.get_thrust_policy(), sg_out_dsts.begin(), sg_out_dsts.end(), mg_out_dsts.begin());
-        ASSERT_TRUE(passed);
-      }
+      auto passed = thrust::equal(thrust::host, h_src.begin(), h_src.end(), h_agg_src.begin());
+      passed &= thrust::equal(thrust::host, h_dst.begin(), h_dst.end(), h_agg_dst.begin());
+      ASSERT_TRUE(passed);
     }
   }
 };

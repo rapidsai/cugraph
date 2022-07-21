@@ -26,6 +26,8 @@
 #include <thrust/for_each.h>
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/optional.h>
+#include <thrust/sequence.h>
+#include <thrust/tuple.h>
 
 #include <optional>
 #include <tuple>
@@ -253,7 +255,7 @@ __global__ void partially_decompress_to_edgelist_mid_degree(
       edge_partition.local_edges(major_partition_offset);
 
     auto major_offset = input_major_start_offsets[idx];
-    for (edge_t i = threadIdx.x; i < local_degree; i += blockDim.x) {
+    for (edge_t i = lane_id; i < local_degree; i += raft::warp_size()) {
       output_majors[major_offset + i] = major;
       output_minors[major_offset + i] = indices[i];
 
@@ -288,7 +290,10 @@ void partially_decompress_edge_partition_to_fill_edgelist(
   vertex_t* minors,
   thrust::optional<weight_t*> weights,
   thrust::optional<thrust::tuple<prop_t const*, prop_t*>> property,
-  thrust::optional<thrust::tuple<edge_t const*, edge_t*>> global_edge_index)
+  thrust::optional<thrust::tuple<edge_t const*, edge_t*>> global_edge_index,
+  // FIXME:  Once PR 2356 is merged, this parameter could go away because
+  // major_hypersparse_first will be part of edge_partition
+  std::optional<std::vector<vertex_t>> local_edge_partition_segment_offsets)
 {
   auto execution_policy = handle.get_thrust_policy();
   static_assert(detail::num_sparse_segments_per_vertex_partition == 3);
@@ -368,7 +373,7 @@ void partially_decompress_edge_partition_to_fill_edgelist(
         thrust::fill(
           thrust::seq, majors + major_offset, majors + major_offset + local_degree, major);
         thrust::copy(thrust::seq, indices, indices + local_degree, minors + major_offset);
-        if (weights)
+        if (output_weights)
           thrust::copy(
             thrust::seq, *weights, *weights + local_degree, *output_weights + major_offset);
 
@@ -406,6 +411,10 @@ void partially_decompress_edge_partition_to_fill_edgelist(
                           ? thrust::make_optional(thrust::make_tuple(
                         thrust::get<0>(*property) + segment_offsets[3], thrust::get<1>(*property)))
                           : thrust::nullopt,
+       // FIXME:  Once PR 2356 is merged, this parameter could go away because
+       // major_hypersparse_first will be part of edge_partition
+       segment_offsets_last =
+         (*local_edge_partition_segment_offsets)[detail::num_sparse_segments_per_vertex_partition],
        global_edge_index] __device__(auto idx) {
         auto major        = input_majors[idx];
         auto major_offset = input_major_start_offsets[idx];
@@ -414,7 +423,10 @@ void partially_decompress_edge_partition_to_fill_edgelist(
           vertex_t const* indices{nullptr};
           thrust::optional<weight_t const*> weights{thrust::nullopt};
           edge_t local_degree{};
-          thrust::tie(indices, weights, local_degree) = edge_partition.local_edges(*major_idx);
+          // FIXME:  Once PR 2356 is merged, this computation should be changed to use
+          // major_hypersparse_first which will be part of edge_partition
+          thrust::tie(indices, weights, local_degree) =
+            edge_partition.local_edges(segment_offsets_last + *major_idx);
           thrust::fill(
             thrust::seq, majors + major_offset, majors + major_offset + local_degree, major);
           thrust::copy(thrust::seq, indices, indices + local_degree, minors + major_offset);

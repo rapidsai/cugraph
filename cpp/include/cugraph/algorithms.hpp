@@ -24,11 +24,17 @@
 #include <cugraph/internals.hpp>
 #include <cugraph/legacy/graph.hpp>
 
+#ifndef NO_CUGRAPH_OPS
 #include <cugraph-ops/graph/sampling.hpp>
+#endif
 
 #include <raft/handle.hpp>
 #include <raft/random/rng_state.hpp>
 #include <raft/span.hpp>
+
+/** @ingroup cpp_api
+ *  @{
+ */
 
 namespace cugraph {
 
@@ -1344,6 +1350,7 @@ random_walks(raft::handle_t const& handle,
              bool use_padding                                     = false,
              std::unique_ptr<sampling_params_t> sampling_strategy = nullptr);
 
+#ifndef NO_CUGRAPH_OPS
 /**
  * @brief generate sub-sampled graph as an adjacency list (CSR format) given input graph,
  * list of vertices and sample size per vertex. The output graph consists of the given
@@ -1405,6 +1412,7 @@ sample_neighbors_edgelist(raft::handle_t const& handle,
                           size_t num_start_vertices,
                           size_t sampling_size,
                           ops::gnn::graph::SamplingAlgoT sampling_algo);
+#endif
 
 /**
  * @brief Finds (weakly-connected-)component IDs of each vertices in the input graph.
@@ -1430,7 +1438,11 @@ void weakly_connected_components(
   vertex_t* components,
   bool do_expensive_check = false);
 
-enum class k_core_degree_type_t { IN, OUT, INOUT };
+/**
+ * @brief  Identify whether the core number computation should be based off incoming edges,
+ *         outgoing edges or both.
+ */
+enum class k_core_degree_type_t { IN = 0, OUT = 1, INOUT = 2 };
 
 /**
  * @brief   Compute core numbers of individual vertices from K-core decomposition.
@@ -1463,42 +1475,6 @@ void core_number(raft::handle_t const& handle,
                  size_t k_first          = 0,
                  size_t k_last           = std::numeric_limits<size_t>::max(),
                  bool do_expensive_check = false);
-
-/**
- * @brief Multi-GPU Uniform Neighborhood Sampling.
- * @deprecated will be removed later in this release (22.06)
- *
- * @tparam graph_view_t Type of graph view.
- * @tparam gpu_t Type of rank (GPU) indices;
- * @tparam index_t Type used for indexing; typically edge_t
- * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
- * handles to various CUDA libraries) to run graph algorithms.
- * @param graph_view Graph View object to generate NBR Sampling on.
- * @param ptr_d_starting_vertices Device array of starting vertex IDs for the NBR Sampling.
- * @param ptr_d_ranks Device array of: rank IDs (GPU IDs) for the NBR Sampling.
- * @param num_starting_vertices size of starting vertex set
- * @param h_fan_out vector of branching out (fan-out) degree per source vertex for each level
- * parameter used for obtaining local out-degree information
- * @param with_replacement boolean flag specifying if random sampling is done with replacement
- * (true); or, without replacement (false); default = true;
- * @return tuple of tuple of device vectors and counts:
- * ((vertex_t source_vertex, vertex_t destination_vertex, int rank, edge_t index), rx_counts)
- */
-template <typename graph_view_t,
-          typename gpu_t,
-          typename index_t = typename graph_view_t::edge_type>
-std::tuple<std::tuple<rmm::device_uvector<typename graph_view_t::vertex_type>,
-                      rmm::device_uvector<typename graph_view_t::vertex_type>,
-                      rmm::device_uvector<gpu_t>,
-                      rmm::device_uvector<index_t>>,
-           std::vector<size_t>>
-uniform_nbr_sample(raft::handle_t const& handle,
-                   graph_view_t const& graph_view,
-                   typename graph_view_t::vertex_type const* ptr_d_starting_vertices,
-                   gpu_t const* ptr_d_ranks,
-                   size_t num_starting_vertices,
-                   std::vector<int> const& h_fan_out,
-                   bool with_replacement = true);
 
 /**
  * @brief Uniform Neighborhood Sampling.
@@ -1572,3 +1548,7 @@ void triangle_count(raft::handle_t const& handle,
                     bool do_expensive_check = false);
 
 }  // namespace cugraph
+
+/**
+ * @}
+ */

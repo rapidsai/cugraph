@@ -27,7 +27,11 @@
 
 #include <rmm/device_uvector.hpp>
 
+#ifndef NO_CUGRAPH_OPS
 #include <cugraph-ops/graph/sampling.hpp>
+#endif
+
+#include <thrust/optional.h>
 
 #include <algorithm>
 #include <limits>
@@ -50,13 +54,17 @@ uniform_nbr_sample_impl(
   raft::host_span<const int> h_fan_out,
   rmm::device_uvector<typename graph_view_t::edge_type> const& global_out_degrees,
   rmm::device_uvector<typename graph_view_t::edge_type> const& global_degree_offsets,
-  rmm::device_uvector<typename graph_view_t::edge_type> const& global_adjacency_list_offsets,
   bool with_replacement,
   uint64_t seed)
 {
   using vertex_t = typename graph_view_t::vertex_type;
   using edge_t   = typename graph_view_t::edge_type;
   using weight_t = typename graph_view_t::weight_type;
+
+#ifdef NO_CUGRAPH_OPS
+  CUGRAPH_FAIL(
+    "uniform_nbr_sampl_impl not supported in this configuration, built with NO_CUGRAPH_OPS");
+#else
 
   namespace cugraph_ops = cugraph::ops::gnn::graph;
 
@@ -121,8 +129,7 @@ uniform_nbr_sample_impl(
                            d_in,
                            std::move(d_rnd_indices),
                            static_cast<edge_t>(k_level),
-                           global_degree_offsets,
-                           global_adjacency_list_offsets);
+                           global_degree_offsets);
     } else {
       std::tie(d_out_src, d_out_dst, d_out_indices) =
         gather_one_hop_edgelist(handle, graph_view, d_in);
@@ -153,6 +160,7 @@ uniform_nbr_sample_impl(
 
   return count_and_remove_duplicates<vertex_t, edge_t, weight_t>(
     handle, std::move(d_result_src), std::move(d_result_dst), std::move(*d_result_indices));
+#endif
 }
 }  // namespace detail
 
@@ -181,8 +189,6 @@ uniform_nbr_sample(
   //
   auto&& [global_degree_offsets, global_out_degrees] =
     detail::get_global_degree_information(handle, graph_view);
-  auto&& global_adjacency_list_offsets = detail::get_global_adjacency_offset(
-    handle, graph_view, global_degree_offsets, global_out_degrees);
 
   return detail::uniform_nbr_sample_impl(handle,
                                          graph_view,
@@ -190,7 +196,6 @@ uniform_nbr_sample(
                                          fan_out,
                                          global_out_degrees,
                                          global_degree_offsets,
-                                         global_adjacency_list_offsets,
                                          with_replacement,
                                          seed);
 }

@@ -10,9 +10,11 @@ This repository contains a collection of Jupyter Notebooks that outline how to r
 | Folder          | Notebook                                                     | Description                                                  |
 | --------------- | ------------------------------------------------------------ | ------------------------------------------------------------ |
 | Centrality      |                                                              |                                                              |
-|                 | [Centrality](centrality/Centrality.ipynb)                    | Compute and compare multiple (currently 4) centrality scores |
-|                 | [Katz](centrality/Katz.ipynb)                                | Compute the Katz centrality for every vertex                 |
-|                 | [Betweenness](centrality/Betweenness.ipynb)                  | Compute both Edge and Vertex Betweenness centrality          |
+|                 | [Centrality](algorithms/centrality/Centrality.ipynb)         | Compute and compare multiple (currently 5) centrality scores |
+|                 | [Katz](algorithms/centrality/Katz.ipynb)                     | Compute the Katz centrality for every vertex                 |
+|                 | [Betweenness](algorithms/centrality/Betweenness.ipynb)       | Compute both Edge and Vertex Betweenness centrality          |
+|                 | [Degree](algorithms/centrality/Degree.ipynb)                 | Compute Degree Centraility for each vertex                   |
+|                 | [Eigenvector](algorithms/centrality/Eigenvector.ipynb)       | Compute Eigenvector for every vertex                         |
 | Community       |                                                              |                                                              |
 |                 | [Louvain](community/Louvain.ipynb) and Leiden                          | Identify clusters in a graph using both the Louvain and Leiden algorithms     |
 |                 | [ECG](community/ECG.ipynb)                                   | Identify clusters in a graph using the Ensemble Clustering for Graph |
@@ -51,10 +53,10 @@ Running the example in these notebooks requires:
 * The latest version of RAPIDS with cuGraph.
   * Download via Docker, Conda (See [__Getting Started__](https://rapids.ai/start.html))
   
-* cuGraph is dependent on the latest version of cuDF.  Please install all components of RAPIDS 
-* Python 3.7+
+* cuGraph is dependent on the latest version of cuDF.  Please install all components of RAPIDS
+* Python 3.8+
 * A system with an NVIDIA GPU:  Pascal architecture or better
-* CUDA 11.0+
+* CUDA 11.4+
 * NVIDIA driver 450.51+
 
 
@@ -73,7 +75,7 @@ Test Hardware
 
 ##### Copyright
 
-Copyright (c) 2019-2020, NVIDIA CORPORATION.  All rights reserved.
+Copyright (c) 2019-2022, NVIDIA CORPORATION.  All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");  you may not use this file except in compliance with the License.  You may obtain a copy of the License at
 

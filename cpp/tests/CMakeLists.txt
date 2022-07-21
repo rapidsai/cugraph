@@ -285,6 +285,11 @@ function(ConfigureCTestMG CMAKE_TEST_NAME)
             EXCLUDE_FROM_ALL)
 endfunction()
 
+if(NOT USE_CUGRAPH_OPS)
+    list(APPEND CMAKE_C_FLAGS -DNO_CUGRAPH_OPS)
+    list(APPEND CMAKE_CXX_FLAGS -DNO_CUGRAPH_OPS)
+    list(APPEND CMAKE_CUDA_FLAGS -DNO_CUGRAPH_OPS)
+endif()
 
 ###################################################################################################
 # - set rapids dataset path ----------------------------------------------------------------------
@@ -612,10 +617,6 @@ if(BUILD_CUGRAPH_MG_TESTS)
 
         ###########################################################################################
         # - MG NBR SAMPLING tests -----------------------------------------------------------------
-        ConfigureTestMG(MG_NBR_SAMPLING_TEST sampling/detail/mg_nbr_sampling.cu)
-
-        ###########################################################################################
-        # - MG NBR SAMPLING tests -----------------------------------------------------------------
         ConfigureTestMG(MG_UNIFORM_NEIGHBOR_SAMPLING_TEST sampling/mg_uniform_neighbor_sampling.cu)
         
         ###########################################################################################
@@ -632,6 +633,7 @@ if(BUILD_CUGRAPH_MG_TESTS)
         ConfigureCTestMG(MG_CAPI_UNIFORM_NEIGHBOR_SAMPLE c_api/mg_uniform_neighbor_sample_test.c c_api/mg_test_utils.cpp)
         ConfigureCTestMG(MG_CAPI_TRIANGLE_COUNT c_api/mg_triangle_count_test.c c_api/mg_test_utils.cpp)
         ConfigureCTestMG(MG_CAPI_LOUVAIN c_api/mg_louvain_test.c c_api/mg_test_utils.cpp)
+	ConfigureCTestMG(MG_CAPI_CORE_NUMBER c_api/mg_core_number_test.c c_api/mg_test_utils.cpp)
     else()
        message(FATAL_ERROR "OpenMPI NOT found, cannot build MG tests.")
     endif()
@@ -684,6 +686,7 @@ ConfigureCTest(CAPI_STRONGLY_CONNECTED_COMPONENTS c_api/strongly_connected_compo
 ConfigureCTest(CAPI_UNIFORM_NEIGHBOR_SAMPLE c_api/uniform_neighbor_sample_test.c)
 ConfigureCTest(CAPI_TRIANGLE_COUNT c_api/triangle_count_test.c)
 ConfigureCTest(CAPI_LOUVAIN c_api/louvain_test.c)
+ConfigureCTest(CAPI_CORE_NUMBER c_api/core_number_test.c)
 
 ###################################################################################################
 ### enable testing ################################################################################

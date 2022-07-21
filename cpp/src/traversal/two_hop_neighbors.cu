@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2021, NVIDIA CORPORATION.
+ * Copyright (c) 2019-2022, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,11 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-/** ---------------------------------------------------------------------------*
- * @brief Functions for computing the two hop neighbor pairs of a graph
- *
- * @file two_hop_neighbors.cu
- * ---------------------------------------------------------------------------**/
 
 #include "two_hop_neighbors.cuh"
 #include <cugraph/algorithms.hpp>
@@ -26,8 +21,13 @@
 #include <rmm/device_vector.hpp>
 #include <rmm/exec_policy.hpp>
 
+#include <thrust/copy.h>
+#include <thrust/iterator/zip_iterator.h>
 #include <thrust/scan.h>
+#include <thrust/sort.h>
 #include <thrust/transform.h>
+#include <thrust/tuple.h>
+#include <thrust/unique.h>
 
 namespace cugraph {
 

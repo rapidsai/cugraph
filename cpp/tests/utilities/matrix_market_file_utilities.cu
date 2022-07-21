@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
+#include <detail/graph_utils.cuh>
 #include <utilities/test_utilities.hpp>
 
-#include <cugraph/detail/graph_utils.cuh>
 #include <cugraph/functions.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/partition_manager.hpp>
@@ -25,7 +25,11 @@
 #include <raft/cudart_utils.h>
 #include <rmm/exec_policy.hpp>
 
+#include <thrust/distance.h>
+#include <thrust/iterator/zip_iterator.h>
+#include <thrust/remove.h>
 #include <thrust/sequence.h>
+#include <thrust/tuple.h>
 
 #include <cstdint>
 

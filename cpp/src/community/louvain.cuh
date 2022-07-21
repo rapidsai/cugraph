@@ -15,24 +15,31 @@
  */
 #pragma once
 
-#include <cugraph/dendrogram.hpp>
+#include <prims/edge_partition_src_dst_property.cuh>
+#include <prims/per_v_transform_reduce_dst_key_aggregated_outgoing_e.cuh>
+#include <prims/per_v_transform_reduce_incoming_outgoing_e.cuh>
+#include <prims/transform_reduce_e.cuh>
+#include <prims/transform_reduce_e_by_src_dst_key.cuh>
+#include <prims/update_edge_partition_src_dst_property.cuh>
+#include <utilities/collect_comm.cuh>
 
+#include <cugraph/dendrogram.hpp>
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_functions.hpp>
-
-#include <cugraph/prims/edge_partition_src_dst_property.cuh>
-#include <cugraph/prims/per_v_transform_reduce_dst_key_aggregated_outgoing_e.cuh>
-#include <cugraph/prims/per_v_transform_reduce_incoming_outgoing_e.cuh>
-#include <cugraph/prims/transform_reduce_e.cuh>
-#include <cugraph/prims/transform_reduce_e_by_src_dst_key.cuh>
-#include <cugraph/prims/update_edge_partition_src_dst_property.cuh>
-#include <cugraph/utilities/collect_comm.cuh>
 
 #include <raft/handle.hpp>
 #include <rmm/device_uvector.hpp>
 
 #include <thrust/binary_search.h>
+#include <thrust/execution_policy.h>
+#include <thrust/functional.h>
+#include <thrust/iterator/zip_iterator.h>
+#include <thrust/optional.h>
+#include <thrust/sequence.h>
+#include <thrust/sort.h>
+#include <thrust/transform.h>
 #include <thrust/transform_reduce.h>
+#include <thrust/tuple.h>
 
 //#define TIMING
 
@@ -438,14 +445,17 @@ class Louvain {
       cugraph::detail::compute_gpu_id_from_ext_vertex_t<vertex_t> vertex_to_gpu_id_op{
         handle_.get_comms().get_size()};
 
-      vertex_cluster_weights_v = cugraph::collect_values_for_keys(handle_.get_comms(),
-                                                                  cluster_keys_v_.begin(),
-                                                                  cluster_keys_v_.end(),
-                                                                  cluster_weights_v_.data(),
-                                                                  next_clusters_v_.begin(),
-                                                                  next_clusters_v_.end(),
-                                                                  vertex_to_gpu_id_op,
-                                                                  handle_.get_stream());
+      vertex_cluster_weights_v =
+        cugraph::collect_values_for_keys(handle_.get_comms(),
+                                         cluster_keys_v_.begin(),
+                                         cluster_keys_v_.end(),
+                                         cluster_weights_v_.data(),
+                                         next_clusters_v_.begin(),
+                                         next_clusters_v_.end(),
+                                         vertex_to_gpu_id_op,
+                                         invalid_vertex_id<vertex_t>::value,
+                                         std::numeric_limits<weight_t>::max(),
+                                         handle_.get_stream());
 
       src_cluster_weights =
         edge_partition_src_property_t<graph_view_t, weight_t>(handle_, current_graph_view_);
@@ -525,6 +535,8 @@ class Louvain {
       cluster_keys_v_.begin(),
       cluster_keys_v_.end(),
       cluster_weights_v_.begin(),
+      invalid_vertex_id<vertex_t>::value,
+      std::numeric_limits<weight_t>::max(),
       detail::key_aggregated_edge_op_t<vertex_t, weight_t>{total_edge_weight, resolution},
       thrust::make_tuple(vertex_t{-1}, weight_t{0}),
       detail::reduce_op_t<vertex_t, weight_t>{},

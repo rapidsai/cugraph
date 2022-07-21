@@ -80,6 +80,7 @@ option(BUILD_SHARED_LIBS "Build cuGraph shared libraries" ON)
 option(BUILD_CUGRAPH_MG_TESTS "Build cuGraph multigpu algorithm tests" OFF)
 option(CMAKE_CUDA_LINEINFO "Enable the -lineinfo option for nvcc (useful for cuda-memcheck / profiler" OFF)
 option(BUILD_TESTS "Configure CMake to build tests" ON)
+option(USE_CUGRAPH_OPS "Enable all functions that call cugraph-ops" ON)
 
 ################################################################################
 # - compiler options -----------------------------------------------------------
@@ -116,6 +117,12 @@ if(CMAKE_BUILD_TYPE MATCHES Debug)
     list(APPEND CUGRAPH_CUDA_FLAGS -G -Xcompiler=-rdynamic)
 endif()
 
+if(NOT USE_CUGRAPH_OPS)
+    message(STATUS "Disabling functions that reference cugraph-ops")
+    list(APPEND CUGRAPH_CXX_FLAGS -DNO_CUGRAPH_OPS)
+    list(APPEND CUGRAPH_CUDA_FLAGS -DNO_CUGRAPH_OPS)
+endif()
+
 ################################################################################
 # - find openmp ----------------------------------------------------------------
 
@@ -149,7 +156,10 @@ include(cmake/thirdparty/get_libcudacxx.cmake)
 include(cmake/thirdparty/get_cuco.cmake)
 
 include(cmake/thirdparty/get_raft.cmake)
-include(cmake/thirdparty/get_libcugraphops.cmake)
+
+if(USE_CUGRAPH_OPS)
+  include(cmake/thirdparty/get_libcugraphops.cmake)
+endif()
 
 include(cmake/thirdparty/get_nccl.cmake)
 include(cmake/thirdparty/get_cuhornet.cmake)
@@ -161,7 +171,7 @@ endif()
 ################################################################################
 # - libcugraph library target --------------------------------------------------
 
-add_library(cugraph
+set(CUGRAPH_SOURCES
     src/detail/utility_wrappers.cu
     src/detail/shuffle_wrappers.cu
     src/utilities/cython.cu
@@ -184,12 +194,9 @@ add_library(cugraph
     src/community/legacy/triangles_counting.cu
     src/community/legacy/extract_subgraph_by_vertex.cu
     src/community/legacy/egonet.cu
-    src/sampling/neighborhood.cu
     src/sampling/random_walks.cu
-    src/sampling/detail/gather_utils_impl.cu
     src/sampling/detail/sampling_utils_mg.cu
     src/sampling/detail/sampling_utils_sg.cu
-    src/sampling/nbr_sampling_mg.cu
     src/sampling/uniform_neighbor_sampling_mg.cpp
     src/sampling/uniform_neighbor_sampling_sg.cpp
     src/cores/legacy/core_number.cu
@@ -242,6 +249,14 @@ add_library(cugraph
     src/community/triangle_count_mg.cu
 )
 
+if(USE_CUGRAPH_OPS)
+    list(APPEND CUGRAPH_SOURCES
+        src/sampling/neighborhood.cu
+    )
+endif()
+
+add_library(cugraph ${CUGRAPH_SOURCES})
+
 set_target_properties(cugraph
     PROPERTIES BUILD_RPATH                         "\$ORIGIN"
                INSTALL_RPATH                       "\$ORIGIN"
@@ -289,15 +304,26 @@ target_include_directories(cugraph
 
 ################################################################################
 # - link libraries -------------------------------------------------------------
-target_link_libraries(cugraph
-    PUBLIC
-        cugraph-ops::cugraph-ops++
-        raft::raft
-        cuco::cuco
-    PRIVATE
-        cugraph::cuHornet
-        NCCL::NCCL
-)
+if (USE_CUGRAPH_OPS)
+    target_link_libraries(cugraph
+        PUBLIC
+            cugraph-ops::cugraph-ops++
+            raft::raft
+            cuco::cuco
+        PRIVATE
+            cugraph::cuHornet
+            NCCL::NCCL
+    )
+else()
+    target_link_libraries(cugraph
+        PUBLIC
+            raft::raft
+            cuco::cuco
+        PRIVATE
+            cugraph::cuHornet
+            NCCL::NCCL
+    )
+endif()
 
 if(OpenMP_CXX_FOUND)
 target_link_libraries(cugraph PRIVATE
@@ -363,6 +389,8 @@ add_library(cugraph_c
         src/c_api/katz.cpp
         src/c_api/centrality_result.cpp
         src/c_api/eigenvector_centrality.cpp
+        src/c_api/core_number.cpp
+        src/c_api/core_result.cpp
         src/c_api/hits.cpp
         src/c_api/bfs.cpp
         src/c_api/sssp.cpp
