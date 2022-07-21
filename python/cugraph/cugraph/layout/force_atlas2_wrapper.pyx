@@ -25,7 +25,7 @@ import cudf
 from numba import cuda
 import numpy as np
 
-cdef extern from "cugraph/internals.hpp" namespace "cugraph::internals":
+cdef extern from "cugraph/legacy/internals.hpp" namespace "cugraph::internals":
     cdef cppclass GraphBasedDimRedCallback
 
 

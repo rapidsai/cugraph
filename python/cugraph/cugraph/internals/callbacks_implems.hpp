@@ -17,7 +17,7 @@
 #pragma once
 
 #include <Python.h>
-#include <cugraph/internals.hpp>
+#include <cugraph/legacy/internals.hpp>
 
 #include <iostream>
 

@@ -19,7 +19,7 @@
 from cugraph.structure.graph_primtypes cimport *
 from libcpp cimport bool
 
-cdef extern from "cugraph/internals.hpp" namespace "cugraph::internals":
+cdef extern from "cugraph/legacy/internals.hpp" namespace "cugraph::internals":
     cdef cppclass GraphBasedDimRedCallback
 
 cdef extern from "cugraph/algorithms.hpp" namespace "cugraph":
