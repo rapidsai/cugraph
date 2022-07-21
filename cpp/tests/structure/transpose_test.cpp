@@ -41,7 +41,8 @@ class Tests_Transpose
   : public ::testing::TestWithParam<std::tuple<Transpose_Usecase, input_usecase_t>> {
  public:
   Tests_Transpose() {}
-  static void SetupTestCase() {}
+
+  static void SetUpTestCase() {}
   static void TearDownTestCase() {}
 
   virtual void SetUp() {}

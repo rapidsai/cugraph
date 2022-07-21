@@ -230,7 +230,8 @@ class Tests_MG_PerVTransformReduceIncomingOutgoingE
   : public ::testing::TestWithParam<std::tuple<Prims_Usecase, input_usecase_t>> {
  public:
   Tests_MG_PerVTransformReduceIncomingOutgoingE() {}
-  static void SetupTestCase() {}
+
+  static void SetUpTestCase() {}
   static void TearDownTestCase() {}
 
   virtual void SetUp() {}

@@ -78,7 +78,8 @@ void translate_vertex_ids(raft::handle_t const& handle,
 class Tests_MsBfs : public ::testing::TestWithParam<MsBfs_Usecase> {
  public:
   Tests_MsBfs() {}
-  static void SetupTestCase() {}
+
+  static void SetUpTestCase() {}
   static void TearDownTestCase() {}
 
   virtual void SetUp() {}

@@ -41,7 +41,8 @@ template <typename input_usecase_t>
 class Tests_MGHits : public ::testing::TestWithParam<std::tuple<Hits_Usecase, input_usecase_t>> {
  public:
   Tests_MGHits() {}
-  static void SetupTestCase() {}
+
+  static void SetUpTestCase() {}
   static void TearDownTestCase() {}
 
   virtual void SetUp() {}

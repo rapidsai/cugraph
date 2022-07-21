@@ -48,7 +48,8 @@ class Tests_MGPageRank
   : public ::testing::TestWithParam<std::tuple<PageRank_Usecase, input_usecase_t>> {
  public:
   Tests_MGPageRank() {}
-  static void SetupTestCase() {}
+
+  static void SetUpTestCase() {}
   static void TearDownTestCase() {}
 
   virtual void SetUp() {}

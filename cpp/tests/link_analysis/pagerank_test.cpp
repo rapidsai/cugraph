@@ -140,7 +140,8 @@ class Tests_PageRank
   : public ::testing::TestWithParam<std::tuple<PageRank_Usecase, input_usecase_t>> {
  public:
   Tests_PageRank() {}
-  static void SetupTestCase() {}
+
+  static void SetUpTestCase() {}
   static void TearDownTestCase() {}
 
   virtual void SetUp() {}

@@ -44,7 +44,8 @@ class Tests_MGTransposeStorage
   : public ::testing::TestWithParam<std::tuple<TransposeStorage_Usecase, input_usecase_t>> {
  public:
   Tests_MGTransposeStorage() {}
-  static void SetupTestCase() {}
+
+  static void SetUpTestCase() {}
   static void TearDownTestCase() {}
 
   virtual void SetUp() {}

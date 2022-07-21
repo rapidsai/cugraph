@@ -45,7 +45,8 @@ class Tests_MGSymmetrize
   : public ::testing::TestWithParam<std::tuple<Symmetrize_Usecase, input_usecase_t>> {
  public:
   Tests_MGSymmetrize() {}
-  static void SetupTestCase() {}
+
+  static void SetUpTestCase() {}
   static void TearDownTestCase() {}
 
   virtual void SetUp() {}

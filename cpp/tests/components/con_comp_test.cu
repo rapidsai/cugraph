@@ -52,7 +52,8 @@ struct Usecase {
 
 struct Tests_Weakly_CC : ::testing::TestWithParam<Usecase> {
   Tests_Weakly_CC() {}
-  static void SetupTestCase() {}
+
+  static void SetUpTestCase() {}
   static void TearDownTestCase()
   {
     if (cugraph::test::g_perf) {

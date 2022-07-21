@@ -47,7 +47,8 @@ class Tests_MGCountSelfLoopsAndMultiEdges
       std::tuple<CountSelfLoopsAndMultiEdges_Usecase, input_usecase_t>> {
  public:
   Tests_MGCountSelfLoopsAndMultiEdges() {}
-  static void SetupTestCase() {}
+
+  static void SetUpTestCase() {}
   static void TearDownTestCase() {}
 
   virtual void SetUp() {}

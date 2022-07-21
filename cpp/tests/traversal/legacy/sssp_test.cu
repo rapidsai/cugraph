@@ -139,7 +139,8 @@ typedef struct SSSP_Usecase_t {
 class Tests_SSSP : public ::testing::TestWithParam<SSSP_Usecase> {
  public:
   Tests_SSSP() {}
-  static void SetupTestCase() {}
+
+  static void SetUpTestCase() {}
   static void TearDownTestCase()
   {
     if (cugraph::test::g_perf) {
@@ -148,6 +149,7 @@ class Tests_SSSP : public ::testing::TestWithParam<SSSP_Usecase> {
       }
     }
   }
+
   virtual void SetUp() {}
   virtual void TearDown() {}
 

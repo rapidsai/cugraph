@@ -232,7 +232,8 @@ class Tests_CoarsenGraph
   : public ::testing::TestWithParam<std::tuple<CoarsenGraph_Usecase, input_usecase_t>> {
  public:
   Tests_CoarsenGraph() {}
-  static void SetupTestCase() {}
+
+  static void SetUpTestCase() {}
   static void TearDownTestCase() {}
 
   virtual void SetUp() {}

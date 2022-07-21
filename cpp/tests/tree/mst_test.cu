@@ -58,8 +58,10 @@ typedef struct Mst_Usecase_t {
 class Tests_Mst : public ::testing::TestWithParam<Mst_Usecase> {
  public:
   Tests_Mst() {}
-  static void SetupTestCase() {}
+
+  static void SetUpTestCase() {}
   static void TearDownTestCase() {}
+
   virtual void SetUp() {}
   virtual void TearDown() {}
 

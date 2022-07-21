@@ -60,7 +60,8 @@ typedef struct InducedEgo_Usecase_t {
 class Tests_InducedEgo : public ::testing::TestWithParam<InducedEgo_Usecase> {
  public:
   Tests_InducedEgo() {}
-  static void SetupTestCase() {}
+
+  static void SetUpTestCase() {}
   static void TearDownTestCase() {}
 
   virtual void SetUp() {}

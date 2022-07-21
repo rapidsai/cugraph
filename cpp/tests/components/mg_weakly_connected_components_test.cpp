@@ -44,7 +44,8 @@ class Tests_MGWeaklyConnectedComponents
       std::tuple<WeaklyConnectedComponents_Usecase, input_usecase_t>> {
  public:
   Tests_MGWeaklyConnectedComponents() {}
-  static void SetupTestCase() {}
+
+  static void SetUpTestCase() {}
   static void TearDownTestCase() {}
 
   virtual void SetUp() {}
