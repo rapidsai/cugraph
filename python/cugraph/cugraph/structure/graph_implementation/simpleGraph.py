@@ -775,7 +775,8 @@ class simpleGraphImpl:
                 value_col = value_col.astype("float64")
 
         graph_props = GraphProperties(
-            is_multigraph=self.properties.multi_edge
+            is_multigraph=self.properties.multi_edge,
+            is_symmetric=not self.properties.directed
         )
 
         self._plc_graph = SGGraph(
