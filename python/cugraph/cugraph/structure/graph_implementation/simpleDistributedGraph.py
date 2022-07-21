@@ -103,6 +103,7 @@ class simpleDistributedGraphImpl:
         edge_attr=None,
         renumber=True,
         store_transposed=False,
+        legacy_renum_only=False
     ):
         if not isinstance(input_ddf, dask_cudf.DataFrame):
             raise TypeError("input should be a dask_cudf dataFrame")
@@ -170,8 +171,13 @@ class simpleDistributedGraphImpl:
         self.source_columns = source
         self.destination_columns = destination
 
+        # If renumbering is not enabled, this function will only create
+        # the edgelist_df and not do any renumbering.
+        # C++ renumbering is enabled by default for algorithms that
+        # support it (but only called if renumbering is on)
         self.compute_renumber_edge_list(
-            transposed=False, legacy_renum_only=True
+            transposed=store_transposed,
+            legacy_renum_only=legacy_renum_only
         )
 
         self.properties.renumbered = self.renumber_map.implementation.numbered
@@ -181,11 +187,14 @@ class simpleDistributedGraphImpl:
         edge_data = get_distributed_data(ddf)
         src_col_name = self.renumber_map.renumbered_src_col_name
         dst_col_name = self.renumber_map.renumbered_dst_col_name
-        graph_props = GraphProperties(is_multigraph=self.properties.multi_edge)
+        graph_props = GraphProperties(
+            is_multigraph=self.properties.multi_edge,
+            is_symmetric=not self.properties.directed
+        )
 
         self._client = default_client()
-        self._plc_graph = [
-            self._client.submit(
+        self._plc_graph = {
+            w: self._client.submit(
                 simpleDistributedGraphImpl.__make_mg_graph,
                 Comms.get_session_id(),
                 edata,
@@ -197,7 +206,7 @@ class simpleDistributedGraphImpl:
                 workers=[w],
             )
             for w, edata in edge_data.worker_to_parts.items()
-        ]
+        }
 
         wait(self._plc_graph)
 
@@ -738,6 +747,7 @@ class simpleDistributedGraphImpl:
             This parameter is added for new algos following the
             C/Pylibcugraph path
         """
+        
         if not self.properties.renumber:
             self.edgelist = self.EdgeList(self.input_df)
             self.renumber_map = None
@@ -771,5 +781,5 @@ class simpleDistributedGraphImpl:
             return 1
 
     @property
-    def npartitions(self) -> int:
+    def _npartitions(self) -> int:
         return len(self._plc_graph)
