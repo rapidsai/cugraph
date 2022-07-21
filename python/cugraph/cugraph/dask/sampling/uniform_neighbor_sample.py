@@ -23,7 +23,6 @@ from pylibcugraph import ResourceHandle
 from pylibcugraph import \
     uniform_neighbor_sample as pylibcugraph_uniform_neighbor_sample
 
-from cugraph.dask.common.input_utils import get_distributed_data
 from cugraph.dask.comms import comms as Comms
 
 

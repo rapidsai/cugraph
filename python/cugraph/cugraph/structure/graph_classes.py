@@ -134,11 +134,11 @@ class Graph:
         renumber : bool, optional (default=True)
             Indicate whether or not to renumber the source and destination
             vertex IDs.
-        
+
         store_transposed : bool, optional (default=False)
             If True, stores the transpose of the adjacency matrix.  Required
             for certain algorithms.
-        
+
         legacy_renum_only : bool, optional (default=False)
             If True, skips the C++ renumbering step.  Must be true for
             pylibcugraph algorithms.  Must be false for algorithms
@@ -263,11 +263,11 @@ class Graph:
         renumber : bool, optional (default=True)
             If source and destination indices are not in range 0 to V where V
             is number of vertices, renumber argument should be True.
-        
+
         store_transposed : bool, optional (default=False)
             If True, stores the transpose of the adjacency matrix.  Required
             for certain algorithms.
-        
+
         legacy_renum_only : bool, optional (default=False)
             If True, skips the C++ renumbering step.  Must be true for
             pylibcugraph algorithms.  Must be false for algorithms
@@ -281,13 +281,15 @@ class Graph:
             raise RuntimeError("Graph is already initialized")
         elif (self._Impl.edgelist is not None):
             raise RuntimeError("Graph already has values")
-        self._Impl._simpleDistributedGraphImpl__from_edgelist(input_ddf,
-                                                              source,
-                                                              destination,
-                                                              edge_attr,
-                                                              renumber,
-                                                              store_transposed,
-                                                              legacy_renum_only)
+        self._Impl._simpleDistributedGraphImpl__from_edgelist(
+            input_ddf,
+            source,
+            destination,
+            edge_attr,
+            renumber,
+            store_transposed,
+            legacy_renum_only
+        )
 
     # Move to Compat Module
     def from_pandas_edgelist(
@@ -748,11 +750,11 @@ class NPartiteGraph(Graph):
         renumber : bool, optional (default=True)
             Indicate whether or not to renumber the source and destination
             vertex IDs
-        
+
         store_transposed : bool, optional (default=False)
             If True, stores the transpose of the adjacency matrix.  Required
             for certain algorithms.
-        
+
         legacy_renum_only : bool, optional (default=False)
             If True, skips the C++ renumbering step.  Must be true for
             pylibcugraph algorithms.  Must be false for algorithms
@@ -823,7 +825,7 @@ class NPartiteGraph(Graph):
         store_transposed : bool, optional (default=False)
             If True, stores the transpose of the adjacency matrix.  Required
             for certain algorithms.
-        
+
         legacy_renum_only : bool, optional (default=False)
             If True, skips the C++ renumbering step.  Must be true for
             pylibcugraph algorithms.  Must be false for algorithms

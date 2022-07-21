@@ -199,8 +199,10 @@ class simpleGraphImpl:
         if self.batch_enabled:
             self._replicate_edgelist()
 
-
-        self._make_plc_graph(value_col=value_col, store_transposed=store_transposed)
+        self._make_plc_graph(
+            value_col=value_col,
+            store_transposed=store_transposed
+        )
 
     def to_pandas_edgelist(self, source='src', destination='dst',
                            weight='weights'):
@@ -830,7 +832,7 @@ class simpleGraphImpl:
                 value_col = None
             G.edgelist = simpleGraphImpl.EdgeList(source_col, dest_col,
                                                   value_col)
-        
+
         if 'weights' in self.edgelist.edgelist_df:
             value_col = self.edgelist.edgelist_df['weights']
         else:

@@ -747,7 +747,7 @@ class simpleDistributedGraphImpl:
             This parameter is added for new algos following the
             C/Pylibcugraph path
         """
-        
+
         if not self.properties.renumber:
             self.edgelist = self.EdgeList(self.input_df)
             self.renumber_map = None
