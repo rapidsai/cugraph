@@ -37,7 +37,7 @@ struct UniformRandomWalks_Usecase {
   bool check_correctness{false};
 
   template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
-  std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<weight_t>> operator()(
+  std::tuple<rmm::device_uvector<vertex_t>, std::optional<rmm::device_uvector<weight_t>>> operator()(
     raft::handle_t const& handle,
     cugraph::graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
     raft::device_span<vertex_t const> start_span,
@@ -53,7 +53,7 @@ struct BiasedRandomWalks_Usecase {
   bool check_correctness{false};
 
   template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
-  std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<weight_t>> operator()(
+  std::tuple<rmm::device_uvector<vertex_t>, std::optional<rmm::device_uvector<weight_t>>> operator()(
     raft::handle_t const& handle,
     cugraph::graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
     raft::device_span<vertex_t const> start_span,
@@ -71,7 +71,7 @@ struct Node2VecRandomWalks_Usecase {
   bool check_correctness{false};
 
   template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
-  std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<weight_t>> operator()(
+  std::tuple<rmm::device_uvector<vertex_t>, std::optional<rmm::device_uvector<weight_t>>> operator()(
     raft::handle_t const& handle,
     cugraph::graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
     raft::device_span<vertex_t const> start_span,

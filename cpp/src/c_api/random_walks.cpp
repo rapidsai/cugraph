@@ -227,7 +227,7 @@ struct uniform_random_walks_functor : public cugraph::c_api::abstract_functor {
         false,
         max_length_,
         new cugraph::c_api::cugraph_type_erased_device_array_t(paths, graph_->vertex_type_),
-        new cugraph::c_api::cugraph_type_erased_device_array_t(weights, graph_->weight_type_),
+        weights ? new cugraph::c_api::cugraph_type_erased_device_array_t(*weights, graph_->weight_type_) : nullptr,
         nullptr};
     }
   }
@@ -316,7 +316,7 @@ struct biased_random_walks_functor : public cugraph::c_api::abstract_functor {
         false,
         max_length_,
         new cugraph::c_api::cugraph_type_erased_device_array_t(paths, graph_->vertex_type_),
-        new cugraph::c_api::cugraph_type_erased_device_array_t(weights, graph_->weight_type_),
+        weights ? new cugraph::c_api::cugraph_type_erased_device_array_t(*weights, graph_->weight_type_) : nullptr,
         nullptr};
     }
   }
@@ -413,7 +413,7 @@ struct node2vec_random_walks_functor : public cugraph::c_api::abstract_functor {
         false,
         max_length_,
         new cugraph::c_api::cugraph_type_erased_device_array_t(paths, graph_->vertex_type_),
-        new cugraph::c_api::cugraph_type_erased_device_array_t(weights, graph_->weight_type_),
+        weights ? new cugraph::c_api::cugraph_type_erased_device_array_t(*weights, graph_->weight_type_) : nullptr,
         nullptr};
     }
   }
