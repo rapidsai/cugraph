@@ -19,7 +19,6 @@ import cudf
 import cugraph
 import networkx as nx
 from cugraph.testing import utils
-from cugraph.experimental import core_number as experimental_core_number
 
 
 # =============================================================================
@@ -72,33 +71,28 @@ def test_core_number(input_combo):
     degree_type = input_combo["degree_type"]
     nx_core_number_results = cudf.DataFrame()
 
-    cugraph_legacy_core_number_results = cugraph.core_number(G).sort_values(
-        "vertex").reset_index(drop=True)
-
     dic_results = nx.core_number(Gnx)
     nx_core_number_results["vertex"] = dic_results.keys()
     nx_core_number_results["core_number"] = dic_results.values()
     nx_core_number_results = nx_core_number_results.sort_values(
         "vertex").reset_index(drop=True)
 
-    core_number_results = experimental_core_number(G, degree_type).sort_values(
+    core_number_results = cugraph.core_number(G, degree_type).sort_values(
         "vertex").reset_index(drop=True).rename(columns={
-            "core_number": "exp_cugraph_core_number"})
+            "core_number": "cugraph_core_number"})
 
     # Compare the nx core number results with cugraph (both the legacy and
     # and experimental version)
     core_number_results["nx_core_number"] = \
         nx_core_number_results["core_number"]
-    core_number_results["legacy_cugraph_core_number"] = \
-        cugraph_legacy_core_number_results["core_number"]
+
     counts_diff = core_number_results.query(
-        'nx_core_number != exp_cugraph_core_number or \
-            exp_cugraph_core_number != legacy_cugraph_core_number')
+        'nx_core_number != cugraph_core_number')
     assert len(counts_diff) == 0
 
 
-# FIXME: enable this test'degree_type' once degree_type is supported
-@pytest.mark.skip(reason="Skipping test because degree_type is not supported")
+# FIXME: enable this test once 'degree_type' is supported
+# @pytest.mark.skip(reason="Skipping test because degree_type is not supported")
 def test_core_number_invalid_input(input_combo):
     input_data_path = (utils.RAPIDS_DATASET_ROOT_DIR_PATH /
                        "karate-asymmetric.csv").as_posix()
@@ -113,13 +107,26 @@ def test_core_number_invalid_input(input_combo):
         cu_M, source="src", destination="dst", edge_attr="weights"
     )
 
-    with pytest.raises(ValueError):
-        cugraph.core_number(G)
+    G = input_combo["G"]
+    degree_type = input_combo["degree_type"]
+    warning_msg = (
+            "The 'degree_type' parameter is ignored in this releasess.")
+    #degree_type=None
+    #with pytest.raises(ValueError):
+    with pytest.warns(Warning, match=warning_msg):
+        cugraph.core_number(G, degree_type)
+    
+    """
+    #G = input_combo["G"]
+    degree_type = input_combo["degree_type"]
+    with pytest.warns(Warning):
+        cugraph.core_number(G, degree_type)
+    """
 
-    with pytest.raises(ValueError):
-        experimental_core_number(G)
-
+    # FIXME: Skipping this test because degree_type is not supported
+    """
     invalid_degree_type = "invalid"
     G = input_combo["G"]
     with pytest.raises(ValueError):
         experimental_core_number(G, invalid_degree_type)
+    """

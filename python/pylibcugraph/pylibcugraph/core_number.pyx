@@ -55,10 +55,10 @@ from pylibcugraph.utils cimport (
     get_c_type_from_numpy_type,
 )
 
-def EXPERIMENTAL__core_number(ResourceHandle resource_handle,
-                              _GPUGraph graph,
-                              degree_type,
-                              bool_t do_expensive_check):
+def core_number(ResourceHandle resource_handle,
+                _GPUGraph graph,
+                degree_type,
+                bool_t do_expensive_check):
     """
     Computes core number.
 
