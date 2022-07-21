@@ -64,7 +64,7 @@ def core_number(G, degree_type=None):
 
     """
 
-    G, _ = ensure_cugraph_obj_for_nx(G)
+    G, isNx = ensure_cugraph_obj_for_nx(G)
 
     if degree_type is not None:
         warning_msg = (
@@ -80,9 +80,9 @@ def core_number(G, degree_type=None):
         raise ValueError(f"'degree_type' must be either incoming, "
                          f"outgoing or bidirectional, got: {degree_type}")
     """
-    resource_handle = ResourceHandle()
+
     do_expensive_check = False
-    
+
     vertex, core_number = \
         pylibcugraph_core_number(
             resource_handle=ResourceHandle(),
@@ -97,5 +97,8 @@ def core_number(G, degree_type=None):
 
     if G.renumbered:
         df = G.unrenumber(df, "vertex")
+    
+    if isNx is True:
+        df = df_score_to_dictionary(df, 'core_number')
 
     return df
