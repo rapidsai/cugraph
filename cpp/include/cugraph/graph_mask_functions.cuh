@@ -83,24 +83,51 @@ __device__ edge_t kth_bit(mask_type mask_elm,
      * narrowed down a few potential indices (and their starting degrees), we can run the algorithm below over them.
      *
      * 3. For regions with high density, we might be able to adjust the bin sizes so that the algorithm in 2 will work.
+     *
+     *   Left branch       Right branch
+     * 0 0 0 0 0 0 0 0 | 1 1 1 0 0 0 0 0
+     *
+     * Indexing in the mask begins with the least significant bits, thus the left
+     * side of the mask has larger indices.
      */
 
+//    mask_type mask = FMASK;
     mask_type tmp_mask_elm = mask_elm;
     int idx = level_to_bits(0); // this is capped at n_shifts
     int k_tmp = k+1;
 
     // Iterate for first 4 levels
     for(int i = 0; i < 4; ++i) {
-        int popl = __popc(tmp_mask_elm & FMASK >> (n_shifts - idx)); // count of left branch
-        mask_type n_mask = (FMASK >> (n_shifts - idx));
-        n_mask <<= (k_tmp > popl) * idx;
+
+        // First check the count of the right branch
+        int popl = __popc(tmp_mask_elm & FMASK >> (n_shifts - idx));
+
+        // If taking left branch, adjust k for local mask window by
+        // removing popcount on right
         k_tmp -= (k_tmp > popl) * popl;
-        idx += level_to_bits(i + 1) * (-1 * (k_tmp <= popl) + (k_tmp > popl));
-        tmp_mask_elm &= n_mask;
+
+        // Shift idx accordingly (up for left branch, down for right branch)
+        idx += level_to_bits(i+1) * (-1 * (k_tmp <= popl) + (k_tmp > popl));
+
+        // Apply current mask window
+        int level = level_to_bits(i);
+        tmp_mask_elm &= (FMASK >> (n_shifts - idx - max(1, level/2))) & (FMASK << (idx - max(1, level/2)));
+
+        if(debug) {
+
+            printf("took_left_path=%d, level=%d, idx=%d, k_tmp=%d k=%ld popl=%d ", (k_tmp > popl), level, idx, k_tmp, k, popl);
+            print_ulong_bin(&tmp_mask_elm, n_shifts);
+        }
     }
 
-    // Correct idx for the final level
-    return idx - (__popc(mask_elm & FMASK >> (n_shifts - idx)) > k);
+    // We are down to the final branch- k_tmp has been getting updated
+    // to remove the effects of all significant bits lower than the current
+    // local mask window.
+    //
+    // Currently, idx assumes we took the right branch, if the final population
+    // count is >k_tmp, we know we must take the left branch, so we need to
+    // increment idx.
+    return idx += (__popc(tmp_mask_elm) > k_tmp);
 }
 
 /**

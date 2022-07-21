@@ -91,6 +91,7 @@ class Tests_Uniform_Neighbor_Sampling
       set_bit<mask_t>(mask_h.data(), 51);   // 5
       set_bit<mask_t>(mask_h.data(), 52);   // 6
       set_bit<mask_t>(mask_h.data(), 53);   // 7
+
     raft::copy(graph_mask.view().get_edge_mask(), mask_h.data(), mask_h.size(), handle.get_stream());
 
     handle.sync_stream();
@@ -101,7 +102,7 @@ class Tests_Uniform_Neighbor_Sampling
 
     constexpr edge_t indices_per_source       = 2;
     constexpr vertex_t repetitions_per_vertex = 5;
-    constexpr vertex_t source_sample_count    = 5;
+    constexpr vertex_t source_sample_count    = 2;
 
     // Generate random vertex ids in the range of current gpu
 

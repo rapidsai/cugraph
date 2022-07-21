@@ -642,6 +642,8 @@ if constexpr (GraphViewType::is_multi_gpu) {
         auto local_out_degree          = offset_ptr[location_in_segment + 1] - sparse_offset;
         vertex_t const* adjacency_list = partitions[partition_id].indices() + sparse_offset;
 
+        printf("sparse_offset=%ld, local_out_degree=%ld\n", sparse_offset, local_out_degree);
+
         // TODO: adjacency_list is the edges adjacent to the current vertex.
         // TODO: g_dst_index is the (masked) offset we need to resolve.
 
@@ -650,7 +652,7 @@ if constexpr (GraphViewType::is_multi_gpu) {
         // across all partitions
         auto location    = location_in_segment + vertex_count_offsets[partition_id];
         auto g_dst_index = edge_index_first[index];
-printf("minors[%ld] = %ld, %ld, major=%ld, local_out_degree=%ld\n", index, adjacency_list[g_dst_index], g_dst_index, major, local_out_degree);
+        printf("minors[%ld] = %ld, %ld, major=%ld, local_out_degree=%ld\n", index, adjacency_list[g_dst_index], g_dst_index, major, local_out_degree);
 
         if (g_dst_index >= 0) {
 
@@ -686,8 +688,8 @@ printf("minors[%ld] = %ld, %ld, major=%ld, local_out_degree=%ld\n", index, adjac
                 printf("tid=%d, cur_sum=%ld\n", threadIdx.x, cur_sum);
 
                 if(cur_sum+__popc(mask_val) >= g_dst_index+1) {
-                    g_dst_index = i + kth_bit(mask_val, (edge_t)(g_dst_index-cur_sum), g_dst_index == 1);
-                    printf("Loading %ld, cur_sum=%d\n", g_dst_index, cur_sum);
+                    g_dst_index = i + kth_bit(mask_val, (edge_t)(g_dst_index-cur_sum), g_dst_index == 6);
+                    printf("Loading %ld, cur_sum=%ld\n", g_dst_index, cur_sum);
                     break;
                 }
 
