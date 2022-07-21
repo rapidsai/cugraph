@@ -120,6 +120,15 @@ class Tests_Uniform_Neighbor_Sampling
     std::vector<int> h_fan_out{indices_per_source};  // depth = 1
 
     printf("Invoking uniform_nbr_sample\n");
+#ifdef NO_CUGRAPH_OPS
+    EXPECT_THROW(cugraph::uniform_nbr_sample(
+                   handle,
+                   graph_view,
+                   raft::device_span<vertex_t>(random_sources.data(), random_sources.size()),
+                   raft::host_span<const int>(h_fan_out.data(), h_fan_out.size()),
+                   prims_usecase.flag_replacement),
+                 std::exception);
+#else
     auto&& [d_src_out, d_dst_out, d_indices, d_counts] = cugraph::uniform_nbr_sample(
       handle,
       graph_view,
@@ -168,6 +177,7 @@ class Tests_Uniform_Neighbor_Sampling
                                              std::move(random_sources),
                                              h_fan_out.size());
     }
+#endif
   }
 };
 

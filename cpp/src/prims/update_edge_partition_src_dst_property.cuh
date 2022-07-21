@@ -274,9 +274,11 @@ void update_edge_partition_minor_property(
 {
   if constexpr (GraphViewType::is_multi_gpu) {
     using vertex_t = typename GraphViewType::vertex_type;
+    using value_t  = typename thrust::iterator_traits<VertexPropertyInputIterator>::value_type;
 
     auto& comm               = handle.get_comms();
     auto const comm_rank     = comm.get_rank();
+    auto const comm_size     = comm.get_size();
     auto& row_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
     auto const row_comm_rank = row_comm.get_rank();
     auto const row_comm_size = row_comm.get_size();
@@ -292,32 +294,67 @@ void update_edge_partition_minor_property(
         key_offsets = *(graph_view.local_sorted_unique_edge_dst_vertex_partition_offsets());
       }
 
-      vertex_t max_rx_size{0};
-      for (int i = 0; i < row_comm_size; ++i) {
-        max_rx_size = std::max(
-          max_rx_size, graph_view.vertex_partition_range_size(col_comm_rank * row_comm_size + i));
-      }
-      auto rx_value_buffer = allocate_dataframe_buffer<
-        typename std::iterator_traits<VertexPropertyInputIterator>::value_type>(
-        max_rx_size, handle.get_stream());
-      auto rx_value_first = get_dataframe_buffer_begin(rx_value_buffer);
-      for (int i = 0; i < row_comm_size; ++i) {
-        device_bcast(row_comm,
-                     vertex_property_input_first,
-                     rx_value_first,
-                     graph_view.vertex_partition_range_size(col_comm_rank * row_comm_size + i),
-                     i,
-                     handle.get_stream());
+      // memory footprint vs parallelism trade-off
+      // memory requirement per loop is
+      // (V/comm_size) * sizeof(value_t)
+      // and limit memory requirement to (E / comm_size) * sizeof(vertex_t)
+      auto num_concurrent_bcasts =
+        (static_cast<size_t>(graph_view.number_of_edges() / comm_size) * sizeof(vertex_t)) /
+        std::max(static_cast<size_t>(graph_view.number_of_vertices() / comm_size) * sizeof(value_t),
+                 size_t{1});
+      num_concurrent_bcasts = std::max(num_concurrent_bcasts, size_t{1});
+      num_concurrent_bcasts = std::min(num_concurrent_bcasts, static_cast<size_t>(row_comm_size));
+      auto num_rounds = (static_cast<size_t>(row_comm_size) + num_concurrent_bcasts - size_t{1}) /
+                        num_concurrent_bcasts;
 
-        auto v_offset_first = thrust::make_transform_iterator(
-          (*(edge_partition_minor_property_output.keys())).begin() + key_offsets[i],
-          [v_first = graph_view.vertex_partition_range_first(
-             col_comm_rank * row_comm_size + i)] __device__(auto v) { return v - v_first; });
-        thrust::gather(handle.get_thrust_policy(),
-                       v_offset_first,
-                       v_offset_first + (key_offsets[i + 1] - key_offsets[i]),
-                       rx_value_first,
-                       edge_partition_minor_property_output.value_first() + key_offsets[i]);
+      std::vector<decltype(allocate_dataframe_buffer<value_t>(size_t{0}, handle.get_stream()))>
+        rx_value_buffers{};
+      rx_value_buffers.reserve(num_concurrent_bcasts);
+      for (size_t i = 0; i < num_concurrent_bcasts; ++i) {
+        size_t max_size{0};
+        for (size_t round = 0; round < num_rounds; ++round) {
+          auto j = num_rounds * i + round;
+          if (j < static_cast<size_t>(row_comm_size)) {
+            max_size = std::max(max_size,
+                                static_cast<size_t>(graph_view.vertex_partition_range_size(
+                                  col_comm_rank * row_comm_size + j)));
+          }
+        }
+        rx_value_buffers.push_back(
+          allocate_dataframe_buffer<value_t>(max_size, handle.get_stream()));
+      }
+
+      for (size_t round = 0; round < num_rounds; ++round) {
+        device_group_start(row_comm);
+        for (size_t i = 0; i < num_concurrent_bcasts; ++i) {
+          auto j = num_rounds * i + round;
+          if (j < static_cast<size_t>(row_comm_size)) {
+            auto rx_value_first = get_dataframe_buffer_begin(rx_value_buffers[i]);
+            device_bcast(row_comm,
+                         vertex_property_input_first,
+                         rx_value_first,
+                         graph_view.vertex_partition_range_size(col_comm_rank * row_comm_size + j),
+                         j,
+                         handle.get_stream());
+          }
+        }
+        device_group_end(row_comm);
+
+        for (size_t i = 0; i < num_concurrent_bcasts; ++i) {
+          auto j = num_rounds * i + round;
+          if (j < static_cast<size_t>(row_comm_size)) {
+            auto rx_value_first = get_dataframe_buffer_begin(rx_value_buffers[i]);
+            auto v_offset_first = thrust::make_transform_iterator(
+              (*(edge_partition_minor_property_output.keys())).begin() + key_offsets[j],
+              [v_first = graph_view.vertex_partition_range_first(
+                 col_comm_rank * row_comm_size + j)] __device__(auto v) { return v - v_first; });
+            thrust::gather(handle.get_thrust_policy(),
+                           v_offset_first,
+                           v_offset_first + (key_offsets[j + 1] - key_offsets[j]),
+                           rx_value_first,
+                           edge_partition_minor_property_output.value_first() + key_offsets[j]);
+          }
+        }
       }
     } else {
       std::vector<size_t> rx_counts(row_comm_size, size_t{0});
