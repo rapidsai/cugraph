@@ -34,7 +34,7 @@ class DefaultDownloadDir:
         """
         If `path` is not set, set it to the environment variable
         RAPIDS_DATASET_ROOT_DIR. If the variable is not set, default to the
-        user's home directory. 
+        user's home directory.
         """
         if self._path is None:
             self._path = Path(os.environ.get("RAPIDS_DATASET_ROOT_DIR",
