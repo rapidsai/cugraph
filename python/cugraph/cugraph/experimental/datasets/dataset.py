@@ -20,10 +20,10 @@ from pathlib import Path
 
 class DefaultDownloadDir:
     """
-    An object that is used to store the location of the dataset files. It is
-    shared across all dataset objects. Upon creation, it checks for the
-    existence of the environment variable RAPIDS_DATASET_ROOT_DIR. Otherwise,
-    defaults to <HOME>/.cugraph/datasets.
+    Maintains the path to the download directory used by Dataset instances.
+    Instances of this class are typically shared by several Dataset instances
+    in order to allow for the download directory to be defined and updated by
+    a single object.
     """
     def __init__(self):
         self._path = Path(os.environ.get("RAPIDS_DATASET_ROOT_DIR",
@@ -31,6 +31,11 @@ class DefaultDownloadDir:
 
     @property
     def path(self):
+        """
+        If `path` is not set, set it to the environment variable
+        RAPIDS_DATASET_ROOT_DIR. If the variable is not set, default to the
+        user's home directory. 
+        """
         if self._path is None:
             self._path = Path(os.environ.get("RAPIDS_DATASET_ROOT_DIR",
                                              Path.home() /
@@ -74,11 +79,10 @@ class Dataset:
             self.metadata = yaml.safe_load(file)
 
     def __download_csv(self, url):
-        if not os.path.isdir(self._dl_path.path):
-            os.makedirs(self._dl_path.path)
+        self._dl_path.path.mkdir(parents=True, exist_ok=True)
 
         filename = self.metadata['name'] + self.metadata['file_type']
-        if os.path.isdir(self._dl_path.path):
+        if self._dl_path.path.is_dir():
             df = cudf.read_csv(url)
             df.to_csv(self._dl_path.path / filename, index=False)
 
@@ -101,7 +105,7 @@ class Dataset:
             full_path = self._dl_path.path / (self.metadata['name'] +
                                               self.metadata['file_type'])
 
-            if not os.path.isfile(full_path):
+            if not full_path.is_file():
                 if fetch:
                     self.__download_csv(self.metadata['url'])
                 else:
@@ -153,10 +157,10 @@ def load_all(force=False):
     provided in each YAML file.
 
     Parameters
-        ----------
+    force : Boolean (default=False)
+        Overwrite any existing copies of datafiles.
     """
-    if not os.path.isdir(default_download_dir.path):
-        os.makedirs(default_download_dir.path)
+    default_download_dir.path.mkdir(parents=True, exist_ok=True)
 
     meta_path = Path(__file__).parent.absolute() / "metadata"
     for file in os.listdir(meta_path):
@@ -168,7 +172,7 @@ def load_all(force=False):
             if 'url' in meta:
                 filename = meta['name'] + meta['file_type']
                 save_to = default_download_dir.path / filename
-                if not os.path.isfile(save_to) or force:
+                if not save_to.is_file() or force:
                     df = cudf.read_csv(meta['url'])
                     df.to_csv(save_to, index=False)
 
@@ -194,7 +198,7 @@ def set_download_dir(path):
     Parameters
     ----------
     path : String
-        Use as the storage location
+        Location used to store datafiles
     """
     if path is None:
         default_download_dir.clear()
