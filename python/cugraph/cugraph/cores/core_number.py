@@ -15,11 +15,8 @@ from cugraph.utilities import ensure_cugraph_obj_for_nx
 import cudf
 import warnings
 
-from pylibcugraph import core_number as pylibcugraph_core_number
-
-from pylibcugraph import (ResourceHandle,
-                          GraphProperties,
-                          SGGraph
+from pylibcugraph import (core_number as pylibcugraph_core_number,
+                          ResourceHandle
                           )
 
 
@@ -83,30 +80,16 @@ def core_number(G, degree_type=None):
         raise ValueError(f"'degree_type' must be either incoming, "
                          f"outgoing or bidirectional, got: {degree_type}")
     """
-
-    srcs = G.edgelist.edgelist_df['src']
-    dsts = G.edgelist.edgelist_df['dst']
-    weights = G.edgelist.edgelist_df['weights']
-
-    if srcs.dtype != 'int32':
-        raise ValueError(f"Graph vertices must have int32 values, "
-                         f"got: {srcs.dtype}")
-
     resource_handle = ResourceHandle()
-    graph_props = GraphProperties(
-        is_symmetric=True, is_multigraph=G.is_multigraph())
-    store_transposed = False
-
-    # FIXME:  This should be based on the renumber parameter set when creating
-    # the graph
-    renumber = False
     do_expensive_check = False
-
-    sg = SGGraph(resource_handle, graph_props, srcs, dsts, weights,
-                 store_transposed, renumber, do_expensive_check)
-
-    vertex, core_number = pylibcugraph_core_number(
-        resource_handle, sg, degree_type, do_expensive_check)
+    
+    vertex, core_number = \
+        pylibcugraph_core_number(
+            resource_handle=ResourceHandle(),
+            graph=G._plc_graph,
+            degree_type=degree_type,
+            do_expensive_check=False
+        )
 
     df = cudf.DataFrame()
     df["vertex"] = vertex
