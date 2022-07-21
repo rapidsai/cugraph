@@ -71,9 +71,12 @@ def EXPERIMENTAL__core_number(ResourceHandle resource_handle,
     graph: MGGraph
         The input graph, for Multi-GPU operations.
     
-    degree_type: str, Not supported in this release
-        Flag determining whether the core number computation should be based
-        of incoming, outgoing or bidirectional.
+    degree_type: str
+        This option determines if the core number computation should be based
+        on input, output, or both directed edges, with valid values being
+        "incoming", "outgoing", and "bidirectional" respectively.
+        This option is currently ignored in this release, and setting it will
+        result in a warning.
 
         This implementation only supports bidirectional edges.
     
@@ -101,7 +104,8 @@ def EXPERIMENTAL__core_number(ResourceHandle resource_handle,
     cdef cugraph_error_t* error_ptr
 
     if degree_type is not None:
-        warning_msg = ("'degree_type' is not supported yet.")
+        warning_msg = (
+            "The 'degree_type' parameter is ignored in this release.")
         warnings.warn(warning_msg, Warning)
     
     degree_type = "bidirectional"

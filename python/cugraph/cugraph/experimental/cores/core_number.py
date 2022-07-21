@@ -40,11 +40,12 @@ def EXPERIMENTAL__core_number(G, degree_type=None):
         can contain edge weights, they don't participate in the calculation
         of the core numbers.
 
-    degree_type: str, Not supported in this release
-        Flag determining whether the core number computation should be based
-        of incoming, outgoing or bidirectional.
-
-        This implementation only supports bidirectional edges.
+    degree_type: str
+        This option determines if the core number computation should be based
+        on input, output, or both directed edges, with valid values being
+        "incoming", "outgoing", and "bidirectional" respectively.
+        This option is currently ignored in this release, and setting it will
+        result in a warning.
 
     Returns
     -------
@@ -70,7 +71,8 @@ def EXPERIMENTAL__core_number(G, degree_type=None):
     G, _ = ensure_cugraph_obj_for_nx(G)
 
     if degree_type is not None:
-        warning_msg = ("'degree_type' is not supported yet.")
+        warning_msg = (
+            "The 'degree_type' parameter is ignored in this release.")
         warnings.warn(warning_msg, Warning)
 
     if G.is_directed():

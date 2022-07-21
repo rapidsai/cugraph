@@ -94,11 +94,12 @@ def core_number(input_graph,
         (edge weights are not used in this algorithm).
         The current implementation only supports undirected graphs.
 
-    degree_type: str, Not supported in this release
-        Flag determining whether the core number computation should be based
-        of incoming, outgoing or bidirectional.
-
-        This implementation only supports bidirectional edges.
+    degree_type: str
+        This option determines if the core number computation should be based
+        on input, output, or both directed edges, with valid values being
+        "incoming", "outgoing", and "bidirectional" respectively.
+        This option is currently ignored in this release, and setting it will
+        result in a warning.
 
 
     Returns
@@ -116,7 +117,8 @@ def core_number(input_graph,
         raise ValueError("input graph must be undirected")
 
     if degree_type is not None:
-        warning_msg = ("'degree_type' is not supported yet.")
+        warning_msg = (
+            "The 'degree_type' parameter is ignored in this release.")
         warnings.warn(warning_msg, Warning)
 
     # FIXME: enable this check once 'degree_type' is supported
