@@ -63,7 +63,7 @@ class simpleDistributedGraphImpl:
         self.source_columns = None
         self.destination_columns = None
 
-    def __make_mg_graph(
+    def _make_plc_graph(
                         sID,
                         edata_x,
                         graph_props,
@@ -195,7 +195,7 @@ class simpleDistributedGraphImpl:
         self._client = default_client()
         self._plc_graph = {
             w: self._client.submit(
-                simpleDistributedGraphImpl.__make_mg_graph,
+                simpleDistributedGraphImpl._make_plc_graph,
                 Comms.get_session_id(),
                 edata,
                 graph_props,
