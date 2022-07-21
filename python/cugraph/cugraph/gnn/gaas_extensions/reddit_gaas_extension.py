@@ -12,7 +12,7 @@ import cugraph
 import networkx as nx
 from cugraph.experimental import PropertyGraph
 
-def load_reddit(data_dir):
+def load_reddit(sv, data_dir):
     G = PropertyGraph()
 
     with open(os.path.join(data_dir, 'reddit_data.npz'), 'rb') as f:

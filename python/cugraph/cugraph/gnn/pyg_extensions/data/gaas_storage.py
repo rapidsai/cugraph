@@ -9,6 +9,8 @@ from torch_geometric.data.storage import GlobalStorage
 
 from gaas_client.client import GaasClient
 
+import numpy as np
+
 EDGE_KEYS = ["_DST_", "_SRC_"] # reversed order in PyG
 VERTEX_KEYS = ["_VERTEX_"]
 
@@ -44,7 +46,7 @@ class TorchTensorGaasGraphDataProxy(ProxyTensor):
         self.__graph_id = gaas_graph_id
         self.__category = data_category
         self.__device = device
-        self.__property_keys = property_keys
+        self.__property_keys = np.array(property_keys)
         self.__transposed = transposed
         self.dtype = dtype
 
@@ -54,32 +56,41 @@ class TorchTensorGaasGraphDataProxy(ProxyTensor):
         instance's data_category) for index, retrieved from graph data on the
         instance's GaaS server.
         """
-        # tensor is a transposed dataframe (tensor[0] is df.iloc[0])
+        
         if isinstance(index, torch.Tensor):
             index = [int(i) for i in index]
+        
+        property_keys = self.__property_keys
+
+        if isinstance(index, (list, tuple)):
+            assert len(index) == 2
+        else:
+            index = [index, -1]
 
         if self.__transposed:
-            if isinstance(index, (list, tuple)) and len(index) == 2:
-                idx = index[1]
-                index = index[0]
-            else:
-                idx = -1
+            index = [index[1], index[0]]
 
-        if self.__category == "edge":    
+        if index[1] != -1:
+            property_keys = property_keys[index[1]]
+            if isinstance(property_keys, str):
+                property_keys = [property_keys]
+        
+        print('index:',index)
+        print('all property keys:', self.__property_keys)
+        print('property keys:', property_keys)
+
+        if self.__category == "edge":
             data = self.__client.get_graph_edge_dataframe_rows(
-                index_or_indices=idx, graph_id=self.__graph_id,
-                property_keys=self.__property_keys)
+                index_or_indices=index[0], graph_id=self.__graph_id,
+                property_keys=property_keys)
 
         else:
             data = self.__client.get_graph_vertex_dataframe_rows(
-                index_or_indices=index, graph_id=self.__graph_id,
-                property_keys=self.__property_keys)
+                index_or_indices=index[0], graph_id=self.__graph_id,
+                property_keys=property_keys)
 
         if self.__transposed:
-            if idx == -1:
-                torch_data = torch.from_numpy(data.T)[index].to(self.device)
-            else:
-                torch_data = torch.from_numpy(data)[index].to(self.device)
+            torch_data = torch.from_numpy(data.T).to(self.device)
         else:
             # FIXME handle non-numeric datatypes
             torch_data = torch.from_numpy(data)
@@ -88,30 +99,19 @@ class TorchTensorGaasGraphDataProxy(ProxyTensor):
 
     @property
     def shape(self) -> torch.Size:
-        keys = [k for k in self.__property_keys if k[0] != '~']
-        num_properties = len(keys)
-        num_removed_properties = len(self.__property_keys) - num_properties
-
         if self.__category == "edge":
             # Handle Edge properties
-            if num_properties == 0:
-                s = list(self.__client.get_graph_edge_dataframe_shape(self.__graph_id))
-                s[1] -= num_removed_properties
-                return torch.Size(s)
-
-            num_edges = self.__client.get_num_edges(self.__graph_id)
-            return torch.Size([num_properties, num_edges])
+            s = [self.__client.get_num_edges(self.__graph_id), len(self.__property_keys)]
         elif self.__category == "vertex":
             # Handle Vertex properties
-            if num_properties == 0:
-                s = list(self.__client.get_graph_vertex_dataframe_shape(self.__graph_id))
-                s[1] -= num_removed_properties
-                return torch.Size(s) 
-
-            num_vertices = self.__client.get_num_vertices(self.__graph_id)
-            return torch.Size([num_properties, num_vertices])
-
-        raise AttributeError(f'invalid category {self.__category}')
+            s = [self.__client.get_num_vertices(self.__graph_id), len(self.__property_keys)]
+        else:
+            raise AttributeError(f'invalid category {self.__category}')
+        
+        if self.__transposed:
+            s = [s[1],s[0]]
+        
+        return torch.Size(s)
 
     @property
     def device(self) -> TorchDevice:
@@ -148,28 +148,47 @@ class GaasStorage(GlobalStorage):
         setattr(self, 'gaas_graph_id', gaas_graph_id)
         setattr(self, 'node_index', TorchTensorGaasGraphDataProxy(gaas_client, gaas_graph_id, 'vertex', device, dtype=torch.long))
         setattr(self, 'edge_index', TorchTensorGaasGraphDataProxy(gaas_client, gaas_graph_id, 'edge', device, transposed=True, dtype=torch.long))
-        setattr(self, 'x', TorchTensorGaasGraphDataProxy(gaas_client, gaas_graph_id, 'vertex', device, dtype=torch.float, property_keys=['~y']))
+
+        vertex_property_keys = gaas_client.get_graph_vertex_property_keys(graph_id=gaas_graph_id)
+        if 'y' in vertex_property_keys:
+            vertex_property_keys.remove('y')
+        #edge_property_keys = gaas_client.get_graph_edge_property_keys(graph_id=gaas_graph_id)
+
+        setattr(self, 'x', TorchTensorGaasGraphDataProxy(gaas_client, gaas_graph_id, 'vertex', device, dtype=torch.float, property_keys=vertex_property_keys))
     
         # The y attribute is special and needs to be overridden
         if self.is_node_attr('y'):
             setattr(self, 'y', TorchTensorGaasGraphDataProxy(gaas_client, gaas_graph_id, 'vertex', device, dtype=torch.float, property_keys=['y'], transposed=False))
+        
+        setattr(
+            self,
+            'graph_info',
+            gaas_client.get_graph_info(
+                keys=[
+                    'num_vertices',
+                    'num_edges',
+                    'num_vertex_properties',
+                    'num_edge_properties'
+                ],
+                graph_id=gaas_graph_id
+            )
+        )
     
     @property
     def num_nodes(self) -> int:
-        return self.gaas_client.get_num_vertices(self.gaas_graph_id)
+        return self.graph_info['num_vertices']
     
     @property
     def num_node_features(self) -> int:
-        return self.gaas_client.get_graph_vertex_dataframe_shape(self.gaas_graph_id)[1]
+        return self.graph_info['num_vertex_properties']
     
     @property
     def num_edge_features(self) -> int:
-        # includes the original src and dst columns w/ original names
-        return self.gaas_client.get_graph_edge_dataframe_shape(self.gaas_graph_id)[1]
+        return self.graph_info['num_edge_properties']
 
     @property
     def num_edges(self) -> int:
-        return self.gaas_client.get_num_edges(self.gaas_graph_id)
+        return self.graph_info['num_edges']
 
     def is_node_attr(self, key: str) -> bool:
         if key == 'x':
