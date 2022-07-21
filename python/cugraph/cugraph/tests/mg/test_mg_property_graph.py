@@ -215,7 +215,7 @@ def dataset1_PropertyGraph(request):
                      vertex_col_names=("user_id_1",
                                        "user_id_2"),
                      property_columns=None)
-    return pG
+    return (pG, dataset1)
 
 
 @pytest.fixture(scope="module")
@@ -275,11 +275,11 @@ def dataset1_MGPropertyGraph(dask_client):
                       vertex_col_names=("user_id_1", "user_id_2"),
                       property_columns=None)
 
-    return mpG
+    return (mpG, dataset1)
 
 
 @pytest.fixture(scope="module")
-def dataset2_MGPropertyGraph(dask_client):
+def dataset2_simple_MGPropertyGraph(dask_client):
     from cugraph.experimental import MGPropertyGraph
 
     dataframe_type = cudf.DataFrame
@@ -350,8 +350,8 @@ def test_extract_subgraph_no_query(net_MGPropertyGraph, net_PropertyGraph):
 
 @pytest.mark.skip(reason="Skipping tests because it is a work in progress")
 def test_adding_fixture(dataset1_PropertyGraph, dataset1_MGPropertyGraph):
-    sgpG = dataset1_PropertyGraph
-    mgPG = dataset1_MGPropertyGraph
+    (sgpG, _) = dataset1_PropertyGraph
+    (mgPG, _) = dataset1_MGPropertyGraph
     subgraph = sgpG.extract_subgraph(allow_multi_edges=True)
     dask_subgraph = mgPG.extract_subgraph(allow_multi_edges=True)
     sg_subgraph_df = \
@@ -367,8 +367,8 @@ def test_adding_fixture(dataset1_PropertyGraph, dataset1_MGPropertyGraph):
 
 @pytest.mark.skip(reason="Skipping tests because it is a work in progress")
 def test_frame_data(dataset1_PropertyGraph, dataset1_MGPropertyGraph):
-    sgpG = dataset1_PropertyGraph
-    mgpG = dataset1_MGPropertyGraph
+    (sgpG, _) = dataset1_PropertyGraph
+    (mgpG, _) = dataset1_MGPropertyGraph
 
     edge_sort_col = ['_SRC_', '_DST_', '_TYPE_']
     vert_sort_col = ['_VERTEX_', '_TYPE_']
@@ -392,7 +392,7 @@ def test_property_names_attrs(dataset1_MGPropertyGraph):
     Ensure the correct number of user-visible properties for vertices and edges
     are returned. This should exclude the internal bookkeeping properties.
     """
-    pG = dataset1_MGPropertyGraph
+    (pG, data) = dataset1_MGPropertyGraph
 
     expected_vert_prop_names = ["merchant_id", "merchant_location",
                                 "merchant_size", "merchant_sales",
@@ -414,14 +414,15 @@ def test_property_names_attrs(dataset1_MGPropertyGraph):
     assert sorted(actual_edge_prop_names) == sorted(expected_edge_prop_names)
 
 
-def test_extract_subgraph_nonrenumbered_noedgedata(dataset2_MGPropertyGraph):
+def test_extract_subgraph_nonrenumbered_noedgedata(
+        dataset2_simple_MGPropertyGraph):
     """
     Ensure a subgraph can be extracted that is not renumbered and contains no
     edge_data.
     """
     from cugraph import Graph
 
-    (pG, data) = dataset2_MGPropertyGraph
+    (pG, data) = dataset2_simple_MGPropertyGraph
     G = pG.extract_subgraph(create_using=Graph(directed=True),
                             renumber_graph=False,
                             add_edge_data=False)
@@ -440,13 +441,13 @@ def test_extract_subgraph_nonrenumbered_noedgedata(dataset2_MGPropertyGraph):
     assert hasattr(G, "edge_data") is False
 
 
-def test_num_vertices_with_properties(dataset2_MGPropertyGraph):
+def test_num_vertices_with_properties(dataset2_simple_MGPropertyGraph):
     """
     Checks that the num_vertices_with_properties attr is set to the number of
     vertices that have properties, as opposed to just num_vertices which also
     includes all verts in the graph edgelist.
     """
-    (pG, data) = dataset2_MGPropertyGraph
+    (pG, data) = dataset2_simple_MGPropertyGraph
 
     assert pG.num_vertices == len(data[1]) * 2  # assume no repeated vertices
     assert pG.num_vertices_with_properties == 0
@@ -461,11 +462,11 @@ def test_num_vertices_with_properties(dataset2_MGPropertyGraph):
     assert pG.num_vertices_with_properties == 2
 
 
-def test_edges_attr(dataset2_MGPropertyGraph):
+def test_edges_attr(dataset2_simple_MGPropertyGraph):
     """
     Ensure the edges attr returns the src, dst, edge_id columns properly.
     """
-    (pG, data) = dataset2_MGPropertyGraph
+    (pG, data) = dataset2_simple_MGPropertyGraph
 
     # create a DF without the properties (ie. the last column)
     expected_edges = cudf.DataFrame(columns=[pG.src_col_name, pG.dst_col_name],
@@ -480,3 +481,28 @@ def test_edges_attr(dataset2_MGPropertyGraph):
     expected_num_edges = len(data[1])
     assert len(edge_ids) == expected_num_edges
     assert edge_ids.nunique() == expected_num_edges
+
+
+def test_get_vertex_data(dataset1_MGPropertyGraph):
+    """
+    Ensure PG.get_vertex_data() returns the correct data based on vertex IDs
+    passed in.
+    """
+    (pG, data) = dataset1_MGPropertyGraph
+
+    # Ensure the generated vertex IDs are unique
+    all_vertex_data = pG.get_vertex_data()
+    assert all_vertex_data[pG.vertex_id_col_name].nunique() == \
+        len(all_vertex_data)
+
+
+def test_get_edge_data(dataset1_MGPropertyGraph):
+    """
+    Ensure PG.get_edge_data() returns the correct data based on edge IDs passed
+    in.
+    """
+    (pG, data) = dataset1_MGPropertyGraph
+
+    # Ensure the generated edge IDs are unique
+    all_edge_data = pG.get_edge_data()
+    assert all_edge_data[pG.edge_id_col_name].nunique() == len(all_edge_data)

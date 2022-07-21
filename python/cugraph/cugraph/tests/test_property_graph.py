@@ -377,6 +377,52 @@ def test_num_vertices_with_properties(df_type):
     assert pG.num_vertices_with_properties == 2
 
 
+def test_edges_attr(dataset2_simple_MGPropertyGraph):
+    """
+    Ensure the edges attr returns the src, dst, edge_id columns properly.
+    """
+    (pG, data) = dataset2_simple_MGPropertyGraph
+
+    # create a DF without the properties (ie. the last column)
+    expected_edges = cudf.DataFrame(columns=[pG.src_col_name, pG.dst_col_name],
+                                    data=[(i, j) for (i, j, k) in data[1]])
+    actual_edges = pG.edges[[pG.src_col_name, pG.dst_col_name]].compute()
+
+    assert_frame_equal(expected_edges.sort_values(by=pG.src_col_name,
+                                                  ignore_index=True),
+                       actual_edges.sort_values(by=pG.src_col_name,
+                                                ignore_index=True))
+    edge_ids = pG.edges[pG.edge_id_col_name].compute()
+    expected_num_edges = len(data[1])
+    assert len(edge_ids) == expected_num_edges
+    assert edge_ids.nunique() == expected_num_edges
+
+
+def test_get_vertex_data(dataset1_MGPropertyGraph):
+    """
+    Ensure PG.get_vertex_data() returns the correct data based on vertex IDs
+    passed in.
+    """
+    (pG, data) = dataset1_MGPropertyGraph
+
+    # Ensure the generated vertex IDs are unique
+    all_vertex_data = pG.get_vertex_data()
+    assert all_vertex_data[pG.vertex_id_col_name].nunique() == \
+        len(all_vertex_data)
+
+
+def test_get_edge_data(dataset1_MGPropertyGraph):
+    """
+    Ensure PG.get_edge_data() returns the correct data based on edge IDs passed
+    in.
+    """
+    (pG, data) = dataset1_MGPropertyGraph
+
+    # Ensure the generated edge IDs are unique
+    all_edge_data = pG.get_edge_data()
+    assert all_edge_data[pG.edge_id_col_name].nunique() == len(all_edge_data)
+
+
 @pytest.mark.parametrize("df_type", df_types, ids=df_type_id)
 def test_null_data(df_type):
     """
