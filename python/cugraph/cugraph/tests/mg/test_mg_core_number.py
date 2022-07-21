@@ -19,7 +19,6 @@ import cugraph
 from cugraph.testing import utils
 import cugraph.dask as dcg
 import dask_cudf
-from cugraph.experimental import core_number as experimental_core_number
 
 
 # =============================================================================
@@ -65,7 +64,7 @@ def input_expected_output(dask_client, input_combo):
 
     input_combo["SGGraph"] = G
 
-    sg_core_number_results = experimental_core_number(G, degree_type)
+    sg_core_number_results = cugraph.core_number(G, degree_type)
     sg_core_number_results = sg_core_number_results.sort_values(
         "vertex").reset_index(drop=True)
 
@@ -100,8 +99,13 @@ def test_sg_core_number(dask_client, benchmark, input_expected_output):
     sg_core_number_results = None
     G = input_expected_output["SGGraph"]
     degree_type = input_expected_output["degree_type"]
-    sg_core_number_results = benchmark(
-        experimental_core_number, G, degree_type)
+    warning_msg = (
+            "The 'degree_type' parameter is ignored in this release.")
+
+    # FIXME: Remove this warning test once 'degree_type' is supported"
+    with pytest.warns(Warning, match=warning_msg):
+        sg_core_number_results = benchmark(
+            cugraph.core_number, G, degree_type)
     assert sg_core_number_results is not None
 
 
@@ -110,7 +114,12 @@ def test_core_number(dask_client, benchmark, input_expected_output):
     dg = input_expected_output["MGGraph"]
     degree_type = input_expected_output["degree_type"]
 
-    result_core_number = benchmark(dcg.core_number, dg, degree_type)
+    warning_msg = (
+            "The 'degree_type' parameter is ignored in this release.")
+
+    # FIXME: Remove this warning test once 'degree_type' is supported"
+    with pytest.warns(Warning, match=warning_msg):
+        result_core_number = benchmark(dcg.core_number, dg, degree_type)
 
     result_core_number = result_core_number.drop_duplicates().compute(). \
         sort_values("vertex").reset_index(drop=True).rename(
@@ -126,8 +135,6 @@ def test_core_number(dask_client, benchmark, input_expected_output):
     assert len(counts_diffs) == 0
 
 
-# FIXME: enable this test 'degree_type' once degree_type is supported
-@pytest.mark.skip(reason="Skipping test because degree_type is not supported")
 def test_core_number_invalid_input(input_expected_output):
     input_data_path = (utils.RAPIDS_DATASET_ROOT_DIR_PATH /
                        "karate-asymmetric.csv").as_posix()
@@ -149,7 +156,10 @@ def test_core_number_invalid_input(input_expected_output):
     with pytest.raises(ValueError):
         dcg.core_number(dg)
 
+    # FIXME: enable this check once 'degree_type' is supported
+    """
     invalid_degree_type = 3
     dg = input_expected_output["MGGraph"]
     with pytest.raises(ValueError):
-        experimental_core_number(dg, invalid_degree_type)
+        cugraph.core_number(dg, invalid_degree_type)
+    """
