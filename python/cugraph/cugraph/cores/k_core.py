@@ -12,7 +12,6 @@
 # limitations under the License.
 
 from cugraph.cores import k_core_wrapper
-import cugraph
 import cudf
 from pylibcugraph import (core_number as pylibcugraph_core_number,
                           ResourceHandle
@@ -101,10 +100,7 @@ def k_core(G, k=None, core_number=None):
                                                    cols)
 
     else:
-        resource_handle = ResourceHandle()
-        #core_number = cugraph.core_number(G)
         core_number = _call_plc_core_number(G)
-
         core_number = core_number.rename(
             columns={"core_number": "values"}, copy=False
         )

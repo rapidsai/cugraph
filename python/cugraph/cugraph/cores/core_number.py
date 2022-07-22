@@ -11,7 +11,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from cugraph.utilities import ensure_cugraph_obj_for_nx
+from cugraph.utilities import (ensure_cugraph_obj_for_nx,
+                               df_score_to_dictionary,
+                               )
 import cudf
 import warnings
 
@@ -80,9 +82,6 @@ def core_number(G, degree_type=None):
         raise ValueError(f"'degree_type' must be either incoming, "
                          f"outgoing or bidirectional, got: {degree_type}")
     """
-
-    do_expensive_check = False
-
     vertex, core_number = \
         pylibcugraph_core_number(
             resource_handle=ResourceHandle(),
@@ -97,7 +96,7 @@ def core_number(G, degree_type=None):
 
     if G.renumbered:
         df = G.unrenumber(df, "vertex")
-    
+
     if isNx is True:
         df = df_score_to_dictionary(df, 'core_number')
 

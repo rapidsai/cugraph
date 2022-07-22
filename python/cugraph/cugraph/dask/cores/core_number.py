@@ -13,15 +13,12 @@
 # limitations under the License.
 #
 
-from dask.distributed import wait, default_client
-
 import cugraph.dask.comms.comms as Comms
 import dask_cudf
 import cudf
 import warnings
 
 from pylibcugraph import (ResourceHandle,
-                          GraphProperties,
                           core_number as pylibcugraph_core_number
                           )
 
@@ -48,7 +45,7 @@ def _call_plc_core_number(sID,
             Comms.get_handle(sID).getHandle()
         ),
         graph=mg_graph_x,
-        degree_type = dt_x,
+        degree_type=dt_x,
         do_expensive_check=do_expensive_check
     )
 
