@@ -17,8 +17,8 @@
 
 #include <cugraph/partition_manager.hpp>
 
-#include <raft/comms/mpi_comms.hpp>
 #include <raft/comms/comms.hpp>
+#include <raft/comms/mpi_comms.hpp>
 #include <raft/handle.hpp>
 #include <rmm/device_uvector.hpp>
 
@@ -39,28 +39,29 @@ std::string getFileName(const std::string& s)
   return ("");
 }
 
-std::unique_ptr<raft::handle_t> initialize_handle(bool multi_gpu) {
+std::unique_ptr<raft::handle_t> initialize_handle(bool multi_gpu)
+{
   std::unique_ptr<raft::handle_t> handle{nullptr};
 
   if (multi_gpu) {
-  auto constexpr pool_size = 64;  // FIXME: tuning parameter
+    auto constexpr pool_size = 64;  // FIXME: tuning parameter
 
-  handle = std::make_unique<raft::handle_t>(rmm::cuda_stream_per_thread, std::make_shared<rmm::cuda_stream_pool>(pool_size));
+    handle = std::make_unique<raft::handle_t>(rmm::cuda_stream_per_thread,
+                                              std::make_shared<rmm::cuda_stream_pool>(pool_size));
 
-  raft::comms::initialize_mpi_comms(handle.get(), MPI_COMM_WORLD);
-  auto& comm           = handle->get_comms();
-  auto const comm_size = comm.get_size();
+    raft::comms::initialize_mpi_comms(handle.get(), MPI_COMM_WORLD);
+    auto& comm           = handle->get_comms();
+    auto const comm_size = comm.get_size();
 
-  auto row_comm_size = static_cast<int>(sqrt(static_cast<double>(comm_size)));
-  while (comm_size % row_comm_size != 0) {
-    --row_comm_size;
-  }
+    auto row_comm_size = static_cast<int>(sqrt(static_cast<double>(comm_size)));
+    while (comm_size % row_comm_size != 0) {
+      --row_comm_size;
+    }
 
-  cugraph::partition_2d::subcomm_factory_t<cugraph::partition_2d::key_naming_t>
-    subcomm_factory(*handle, row_comm_size);
-  }
-  else {
-  handle = std::make_unique<raft::handle_t>();
+    cugraph::partition_2d::subcomm_factory_t<cugraph::partition_2d::key_naming_t> subcomm_factory(
+      *handle, row_comm_size);
+  } else {
+    handle = std::make_unique<raft::handle_t>();
   }
 
   return std::move(handle);
