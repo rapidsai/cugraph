@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2019-2022, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,31 +13,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include <utilities/test_utilities.hpp>
+#pragma once
 
-#include <cugraph/partition_manager.hpp>
-
-#include <raft/comms/comms.hpp>
-#include <raft/comms/mpi_comms.hpp>
 #include <raft/handle.hpp>
-#include <rmm/device_uvector.hpp>
 
-#include <numeric>
-#include <vector>
+#include <memory>
 
 namespace cugraph {
 namespace test {
 
-std::string getFileName(const std::string& s)
-{
-  char sep = '/';
-#ifdef _WIN32
-  sep = '\\';
-#endif
-  size_t i = s.rfind(sep, s.length());
-  if (i != std::string::npos) { return (s.substr(i + 1, s.length() - i)); }
-  return ("");
-}
+std::unique_ptr<raft::handle_t> initialize_mg_handle();
+
+// NCCL lazily initializes for P2P, and this enforces P2P initialization for better performance
+// measurements
+void enforce_p2p_initialization(raft::handle_t const& handle);
 
 }  // namespace test
 }  // namespace cugraph
