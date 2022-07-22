@@ -1,3 +1,7 @@
+# cuGraph 22.10.00 (Date TBD)
+
+Please see https://github.com/rapidsai/cugraph/releases/tag/v22.10.00a for the latest changes to this development branch.
+
 # cuGraph 22.08.00 (Date TBD)
 
 Please see https://github.com/rapidsai/cugraph/releases/tag/v22.08.00a for the latest changes to this development branch.
