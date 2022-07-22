@@ -65,6 +65,7 @@ class EXPERIMENTAL__PropertyGraph:
     edge_id_col_name = "_EDGE_ID_"
     vertex_id_col_name = "_VERTEX_ID_"
     weight_col_name = "_WEIGHT_"
+    _default_type_name = ""
 
     def __init__(self):
         # The dataframe containing the properties for each vertex.
@@ -135,30 +136,10 @@ class EXPERIMENTAL__PropertyGraph:
 
         # Cached property values
         self.__num_vertices = None
+        self.__vertex_type_value_counts = None
+        self.__edge_type_value_counts = None
 
     # PropertyGraph read-only attributes
-    @property
-    def num_vertices(self):
-        if self.__num_vertices is not None:
-            return self.__num_vertices
-
-        self.__num_vertices = 0
-        vert_sers = self.__get_all_vertices_series()
-        if vert_sers:
-            if self.__series_type is cudf.Series:
-                self.__num_vertices = cudf.concat(vert_sers).nunique()
-            else:
-                self.__num_vertices = pd.concat(vert_sers).nunique()
-
-        return self.__num_vertices
-
-    @property
-    def num_edges(self):
-        if self.__edge_prop_dataframe is not None:
-            return len(self.__edge_prop_dataframe)
-        else:
-            return 0
-
     @property
     def edges(self):
         if self.__edge_prop_dataframe is not None:
@@ -195,45 +176,99 @@ class EXPERIMENTAL__PropertyGraph:
     def _edge_prop_dataframe(self):
         return self.__edge_prop_dataframe
 
-    def get_num_vertices(self, type=None):
-        """Return the number of vertices of a given type.
+    @property
+    def _vertex_type_value_counts(self):
+        if self.__vertex_prop_dataframe is None:
+            return
+        if self.__vertex_type_value_counts is None:
+            # Types should all be strings; what should we do if we see NaN?
+            self.__vertex_type_value_counts = (
+                self.__vertex_prop_dataframe[self.type_col_name]
+                .value_counts(sort=False, dropna=False)
+            )
+        return self.__vertex_type_value_counts
 
-        If type is None, return the total number of vertices.
+    @property
+    def _edge_type_value_counts(self):
+        if self.__edge_prop_dataframe is None:
+            return
+        if self.__edge_type_value_counts is None:
+            # Types should all be strings; what should we do if we see NaN?
+            self.__edge_type_value_counts = (
+                self.__edge_prop_dataframe[self.type_col_name]
+                .value_counts(sort=False, dropna=False)
+            )
+        return self.__edge_type_value_counts
 
-        Vertex types are set by using the `type_name` argument in
-        `add_vertex_data`.
+    def get_num_vertices(self, type=None, *, include_edge_data=True):
+        """Return the number of all vertices or vertices of a given type.
+
+        Parameters
+        ----------
+        type : string, optional
+            If type is None (the default), return the total number of vertices,
+            otherwise return the number of vertices of the specified type.
+        include_edge_data : bool (default True)
+            If True, include vertices that were added in vertex and edge data.
+            If False, only include vertices that were added in vertex data.
+            Note that vertices that only exist in edge data are assumed to have
+            the default type.
 
         See Also
         --------
-        PropertyGraph.num_vertices
         PropertyGraph.get_num_edges
         """
         if type is None:
-            return self.num_vertices
+            if not include_edge_data:
+                if self.__vertex_prop_dataframe is None:
+                    return 0
+                return len(self.__vertex_prop_dataframe)
+            if self.__num_vertices is not None:
+                return self.__num_vertices
+            self.__num_vertices = 0
+            vert_sers = self.__get_all_vertices_series()
+            if vert_sers:
+                if self.__series_type is cudf.Series:
+                    self.__num_vertices = cudf.concat(vert_sers).nunique()
+                else:
+                    self.__num_vertices = pd.concat(vert_sers).nunique()
+            return self.__num_vertices
+        value_counts = self._vertex_type_value_counts
+        if type == self._default_type_name and include_edge_data:
+            # The default type, "", can refer to both vertex and edge data
+            if self.__vertex_prop_dataframe is None:
+                return self.get_num_vertices()
+            return (
+                self.get_num_vertices()
+                - len(self.__vertex_prop_dataframe)
+                + (value_counts[type] if type in value_counts else 0)
+            )
         if self.__vertex_prop_dataframe is None:
             return 0
-        # This counts duplicates
-        return (self.__vertex_prop_dataframe[self.type_col_name] == type).sum()
+        return value_counts[type] if type in value_counts else 0
 
     def get_num_edges(self, type=None):
-        """Return the number of edges of a given type.
+        """Return the number of all edges or edges of a given type.
 
-        If type is None, return the total number of edges.
-
-        Edge types are set by using the `type_name` argument in
-        `add_edge_data`.
+        Parameters
+        ----------
+        type : string, optional
+            If type is None (the default), return the total number of edges,
+            otherwise return the number of edges of the specified type.
 
         See Also
         --------
-        PropertyGraph.num_edges
         PropertyGraph.get_num_vertices
         """
         if type is None:
-            return self.num_edges
+            if self.__edge_prop_dataframe is not None:
+                return len(self.__edge_prop_dataframe)
+            else:
+                return 0
         if self.__edge_prop_dataframe is None:
             return 0
-        # This counts duplicates
-        return (self.__edge_prop_dataframe[self.type_col_name] == type).sum()
+        value_counts = self._edge_type_value_counts
+        return value_counts[type] if type in value_counts else 0
 
     def get_vertices(self, selection=None):
         """
@@ -274,7 +309,7 @@ class EXPERIMENTAL__PropertyGraph:
             The name to be assigned to the type of property being added. For
             example, if dataframe contains data about users, type_name might be
             "users". If not specified, the type of properties will be added as
-            None or NA
+            the empty string, "".
         property_columns : list of strings
             List of column names in dataframe to be added as properties. All
             other columns in dataframe will be ignored. If not specified, all
@@ -297,6 +332,8 @@ class EXPERIMENTAL__PropertyGraph:
         if (type_name is not None) and not(isinstance(type_name, str)):
             raise TypeError("type_name must be a string, got: "
                             f"{type(type_name)}")
+        if type_name is None:
+            type_name = self._default_type_name
         if property_columns:
             if type(property_columns) is not list:
                 raise TypeError("property_columns must be a list, got: "
@@ -321,6 +358,7 @@ class EXPERIMENTAL__PropertyGraph:
         # Clear the cached value for num_vertices since more could be added in
         # this method.
         self.__num_vertices = None
+        self.__vertex_type_value_counts = None  # Could update instead
 
         # Initialize the __vertex_prop_dataframe if necessary using the same
         # type as the incoming dataframe.
@@ -391,7 +429,7 @@ class EXPERIMENTAL__PropertyGraph:
             The name to be assigned to the type of property being added. For
             example, if dataframe contains data about transactions, type_name
             might be "transactions". If not specified, the type of properties
-            will be added as None or NA
+            will be added as the empty string "".
         property_columns : list of strings
             List of column names in dataframe to be added as properties. All
             other columns in dataframe will be ignored. If not specified, all
@@ -418,6 +456,8 @@ class EXPERIMENTAL__PropertyGraph:
         if (type_name is not None) and not(isinstance(type_name, str)):
             raise TypeError("type_name must be a string, got: "
                             f"{type(type_name)}")
+        if type_name is None:
+            type_name = self._default_type_name
         if property_columns:
             if type(property_columns) is not list:
                 raise TypeError("property_columns must be a list, got: "
@@ -442,6 +482,7 @@ class EXPERIMENTAL__PropertyGraph:
         # Clear the cached value for num_vertices since more could be added in
         # this method.
         self.__num_vertices = None
+        self.__edge_type_value_counts = None  # Could update instead
 
         default_edge_columns = [self.src_col_name,
                                 self.dst_col_name,

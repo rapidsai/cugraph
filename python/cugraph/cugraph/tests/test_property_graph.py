@@ -281,10 +281,8 @@ def test_add_vertex_data(df_type):
                        vertex_col_name="merchant_id",
                        property_columns=None)
 
-    assert pG.num_vertices == 5
     assert pG.get_num_vertices() == 5
     assert pG.get_num_vertices('merchants') == 5
-    assert pG.num_edges == 0
     assert pG.get_num_edges() == 0
     expected_props = merchants[0].copy()
     assert sorted(pG.vertex_property_names) == sorted(expected_props)
@@ -293,7 +291,7 @@ def test_add_vertex_data(df_type):
 @pytest.mark.parametrize("df_type", df_types, ids=df_type_id)
 def test_num_vertices(df_type):
     """
-    Ensures num_vertices is correct after various additions of specific data.
+    Ensures get_num_vertices is correct after various additions of data.
     """
     from cugraph.experimental import PropertyGraph
 
@@ -302,9 +300,8 @@ def test_num_vertices(df_type):
                            data=merchants[1])
 
     pG = PropertyGraph()
-    assert pG.num_vertices == 0
+    assert pG.get_num_vertices() == 0
     assert pG.get_num_vertices('unknown_type') == 0
-    assert pG.num_edges == 0
     assert pG.get_num_edges('unknown_type') == 0
     pG.add_vertex_data(merchants_df,
                        type_name="merchants",
@@ -313,14 +310,11 @@ def test_num_vertices(df_type):
 
     # Test caching - the second retrieval should always be faster
     st = time.time()
-    assert pG.num_vertices == 5
     assert pG.get_num_vertices() == 5
     compute_time = time.time() - st
-    assert pG.num_edges == 0
     assert pG.get_num_edges() == 0
 
     st = time.time()
-    assert pG.num_vertices == 5
     assert pG.get_num_vertices() == 5
     cache_retrieval_time = time.time() - st
     assert cache_retrieval_time < compute_time
@@ -333,11 +327,9 @@ def test_num_vertices(df_type):
                        vertex_col_name="user_id",
                        property_columns=None)
 
-    assert pG.num_vertices == 9
     assert pG.get_num_vertices() == 9
     assert pG.get_num_vertices('merchants') == 5
     assert pG.get_num_vertices('users') == 4
-    assert pG.num_edges == 0
     assert pG.get_num_edges() == 0
 
     # The taxpayers table does not add new vertices, it only adds properties to
@@ -351,14 +343,86 @@ def test_num_vertices(df_type):
                        vertex_col_name="payer_id",
                        property_columns=None)
 
-    assert pG.num_vertices == 9
     assert pG.get_num_vertices() == 9
     assert pG.get_num_vertices('merchants') == 5
     assert pG.get_num_vertices('users') == 4
-    assert pG.get_num_vertices('taxpayers') == 7  # These nodes have two types
     assert pG.get_num_vertices('unknown_type') == 0
-    assert pG.num_edges == 0
     assert pG.get_num_edges() == 0
+
+
+@pytest.mark.parametrize("df_type", df_types, ids=df_type_id)
+def test_num_vertices_include_edge_data(df_type):
+    """
+    Ensures get_num_vertices is correct after various additions of data.
+    """
+    from cugraph.experimental import PropertyGraph
+
+    (merchants, users, taxpayers,
+     transactions, relationships, referrals) = dataset1.values()
+
+    pG = PropertyGraph()
+    assert pG.get_num_vertices(include_edge_data=False) == 0
+    assert pG.get_num_vertices("", include_edge_data=False) == 0
+
+    pG.add_edge_data(df_type(columns=transactions[0],
+                             data=transactions[1]),
+                     type_name="transactions",
+                     vertex_col_names=("user_id", "merchant_id"),
+                     property_columns=None)
+
+    assert pG.get_num_vertices(include_edge_data=False) == 0
+    assert pG.get_num_vertices("", include_edge_data=False) == 0
+    assert pG.get_num_vertices(include_edge_data=True) == 7
+    assert pG.get_num_vertices("", include_edge_data=True) == 7
+    pG.add_vertex_data(df_type(columns=merchants[0],
+                               data=merchants[1]),
+                       # type_name="merchants",  # Use default!
+                       vertex_col_name="merchant_id",
+                       property_columns=None)
+    assert pG.get_num_vertices(include_edge_data=False) == 5
+    assert pG.get_num_vertices("", include_edge_data=False) == 5
+    assert pG.get_num_vertices(include_edge_data=True) == 9
+    assert pG.get_num_vertices("", include_edge_data=True) == 9
+    pG.add_vertex_data(df_type(columns=users[0],
+                               data=users[1]),
+                       type_name="users",
+                       vertex_col_name="user_id",
+                       property_columns=None)
+    assert pG.get_num_vertices(include_edge_data=False) == 9
+    assert pG.get_num_vertices("", include_edge_data=False) == 5
+    assert pG.get_num_vertices("users", include_edge_data=False) == 4
+    # All vertices now have vertex data, so this should match
+    assert pG.get_num_vertices(include_edge_data=True) == 9
+    assert pG.get_num_vertices("", include_edge_data=True) == 5
+    assert pG.get_num_vertices("users", include_edge_data=True) == 4
+
+
+@pytest.mark.parametrize("df_type", df_types, ids=df_type_id)
+def test_num_vertices_with_properties(df_type):
+    """
+    Checks that the num_vertices_with_properties attr is set to the number of
+    vertices that have properties, as opposed to just num_vertices which also
+    includes all verts in the graph edgelist.
+    """
+    from cugraph.experimental import PropertyGraph
+
+    pG = PropertyGraph()
+    df = df_type({"src": [99, 98, 97],
+                  "dst": [22, 34, 56],
+                  "some_property": ["a", "b", "c"],
+                  })
+    pG.add_edge_data(df, vertex_col_names=("src", "dst"))
+
+    assert pG.get_num_vertices() == 6
+    assert pG.get_num_vertices(include_edge_data=False) == 0
+
+    df = df_type({"vertex": [98, 97],
+                  "some_property": ["a", "b"],
+                  })
+    pG.add_vertex_data(df, vertex_col_name="vertex")
+
+    assert pG.get_num_vertices() == 6
+    assert pG.get_num_vertices(include_edge_data=False) == 2
 
 
 @pytest.mark.parametrize("df_type", df_types, ids=df_type_id)
@@ -370,9 +434,7 @@ def test_null_data(df_type):
 
     pG = PropertyGraph()
 
-    assert pG.num_vertices == 0
     assert pG.get_num_vertices() == 0
-    assert pG.num_edges == 0
     assert pG.get_num_edges() == 0
     assert sorted(pG.vertex_property_names) == sorted([])
 
@@ -395,10 +457,8 @@ def test_add_vertex_data_prop_columns(df_type):
                        vertex_col_name="merchant_id",
                        property_columns=expected_props)
 
-    assert pG.num_vertices == 5
     assert pG.get_num_vertices() == 5
     assert pG.get_num_vertices('merchants') == 5
-    assert pG.num_edges == 0
     assert pG.get_num_edges() == 0
     assert sorted(pG.vertex_property_names) == sorted(expected_props)
 
@@ -460,11 +520,9 @@ def test_add_edge_data(df_type):
                      vertex_col_names=("user_id", "merchant_id"),
                      property_columns=None)
 
-    assert pG.num_vertices == 7
     assert pG.get_num_vertices() == 7
     # 'transactions' is edge type, not vertex type
     assert pG.get_num_vertices('transactions') == 0
-    assert pG.num_edges == 4
     assert pG.get_num_edges() == 4
     assert pG.get_num_edges('transactions') == 4
     expected_props = ["merchant_id", "user_id",
@@ -490,11 +548,9 @@ def test_add_edge_data_prop_columns(df_type):
                      vertex_col_names=("user_id", "merchant_id"),
                      property_columns=expected_props)
 
-    assert pG.num_vertices == 7
     assert pG.get_num_vertices() == 7
     # 'transactions' is edge type, not vertex type
     assert pG.get_num_vertices('transactions') == 0
-    assert pG.num_edges == 4
     assert pG.get_num_edges() == 4
     assert pG.get_num_edges('transactions') == 4
     assert sorted(pG.edge_property_names) == sorted(expected_props)
@@ -919,7 +975,6 @@ def test_graph_edge_data_added(dataset1_PropertyGraph):
         len(dataset1["relationships"][-1]) + \
         len(dataset1["referrals"][-1])
 
-    assert pG.num_edges == expected_num_edges
     assert pG.get_num_edges() == expected_num_edges
     assert (
         pG.get_num_edges("transactions") == len(dataset1["transactions"][-1])
@@ -1100,10 +1155,7 @@ def test_dgl_use_case():
 def bench_num_vertices(gpubenchmark, dataset1_PropertyGraph):
     pG = dataset1_PropertyGraph
 
-    def get_num_vertices():
-        return pG.num_vertices
-
-    assert gpubenchmark(get_num_vertices) == 9
+    assert gpubenchmark(pG.get_num_vertices) == 9
 
 
 def bench_get_vertices(gpubenchmark, dataset1_PropertyGraph):
