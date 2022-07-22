@@ -11,7 +11,6 @@
 # or implied. See the License for the specific language governing permissions and limitations under
 # the License.
 # =============================================================================
-#include(cmake/thirdparty/get_libcudacxx.cmake)
 set(cython_sources
     bfs.pyx
     core_number.pyx
@@ -30,15 +29,6 @@ set(cython_sources
 )
 set(linked_libraries cugraph::cugraph;cugraph_c)
 
-#set(linked_libraries cugraph::cugraph)
-#set(linked_libraries_c cugraph_c)
-#LINKED_LIBRARIES ${linked_libraries} ${linked_libraries_c}
-
-#set(linked_libraries_c cugraph_c)
-#set(linked_libraries "/jnke/scikit-build-pr/cugraph/cpp")
-#message(STATUS "linked library is ${linked_libraries}")
-
-#${linked_libraries_c}
 rapids_cython_create_modules(
   CXX
   SOURCE_FILES "${cython_sources}"
@@ -53,10 +43,8 @@ foreach(target IN LISTS targets_using_numpy)
   target_include_directories(${target} PRIVATE "${Python_NumPy_INCLUDE_DIRS}")
 endforeach()
 
-#message(STATUS "origin is ${HOME}")
-foreach(cython_module IN LISTS RAPIDS_CYTHON_CREATED_TARGETS)
-  message(STATUS "cython module is ${cython_module}")
-  set_target_properties(${cython_module} PROPERTIES INSTALL_RPATH "\$ORIGIN;\$ORIGIN/../library")
-endforeach()
-
-#message(STATUS "Done adding path")
+if(NOT cugraph_FOUND)
+  foreach(cython_module IN LISTS RAPIDS_CYTHON_CREATED_TARGETS)
+    set_target_properties(${cython_module} PROPERTIES INSTALL_RPATH "\$ORIGIN;\$ORIGIN/library")
+  endforeach()
+endif()

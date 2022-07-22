@@ -12,26 +12,25 @@
 # the License.
 # =============================================================================
 
-set(cython_sources betweenness_centrality_wrapper.pyx edge_betweenness_centrality_wrapper.pyx)
+set(cython_sources
+    betweenness_centrality_wrapper.pyx
+    edge_betweenness_centrality_wrapper.pyx
+)
 set(linked_libraries cugraph::cugraph)
-#set(linked_libraries "/jnke/scikit-build-pr/cugraph/cpp")
-#message(STATUS "linked library is ${linked_libraries}")
 
 rapids_cython_create_modules(
   CXX
   SOURCE_FILES "${cython_sources}"
   LINKED_LIBRARIES "${linked_libraries}" MODULE_PREFIX centrality_
 )
-#message(STATUS "linked library is ${linked_libraries}")
 
 set(targets_using_numpy centrality_betweenness_centrality_wrapper centrality_edge_betweenness_centrality_wrapper)
 foreach(target IN LISTS targets_using_numpy)
   target_include_directories(${target} PRIVATE "${Python_NumPy_INCLUDE_DIRS}")
 endforeach()
-#message(STATUS "Done setting target")
-message(STATUS "origin is ${LIBCUGRAPH_BUILD_DIR}")
-foreach(cython_module IN LISTS RAPIDS_CYTHON_CREATED_TARGETS)
-  set_target_properties(${cython_module} PROPERTIES INSTALL_RPATH "\$ORIGIN;\$ORIGIN/../library")
-endforeach()
 
-#message(STATUS "Done adding path")
+if(NOT cugraph_FOUND)
+  foreach(cython_module IN LISTS RAPIDS_CYTHON_CREATED_TARGETS)
+    set_target_properties(${cython_module} PROPERTIES INSTALL_RPATH "\$ORIGIN;\$ORIGIN/../library")
+  endforeach()
+endif()

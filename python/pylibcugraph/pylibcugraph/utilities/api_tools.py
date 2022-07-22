@@ -15,6 +15,7 @@ import functools
 import warnings
 import inspect
 import types
+import typing
 
 experimental_prefix = "EXPERIMENTAL"
 
@@ -33,9 +34,7 @@ def experimental_warning_wrapper(obj):
     discovered and used.
     """
     obj_type = type(obj)
-    # if obj_type not in [type, types.FunctionType, types.BuiltinFunctionType]:
-    if not isinstance(
-            obj_type, (type, types.FunctionType, types.BuiltinFunctionType)):
+    if not isinstance(obj, typing.Callable):
         raise TypeError("obj must be a class or a function type, got "
                         f"{obj_type}")
 

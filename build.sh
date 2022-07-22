@@ -55,7 +55,7 @@ CMAKE_VERBOSE_OPTION=""
 BUILD_TYPE=Release
 INSTALL_TARGET="--target install"
 # FIXME: Disabling the cpp tests for now since they require cuco
-BUILD_CPP_TESTS=OFF
+BUILD_CPP_TESTS=ON
 BUILD_CPP_MG_TESTS=OFF
 BUILD_ALL_GPU_ARCH=0
 

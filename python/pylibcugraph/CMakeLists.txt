@@ -35,20 +35,19 @@ project(
 option(FIND_CUGRAPH_CPP "Search for existing CUGRAPH C++ installations before defaulting to local files"
        OFF
 )
-# message(STATUS "looking for packages")
 
 # If the user requested it we attempt to find CUGRAPH.
 
 if(FIND_CUGRAPH_CPP)
-  message(STATUS "trying to find the package")
+  message(STATUS "Trying to find the package")
   find_package(cugraph ${cugraph_version} REQUIRED)
-  #find_package(cugraph_c REQUIRED)
+
 else()
   set(cugraph_FOUND OFF)
 endif()
 
 message(STATUS "check if it was found ${cugraph_FOUND}")
-# NOT cugraph_FOUND
+
 if(NOT cugraph_FOUND)
   # TODO: This will not be necessary once we upgrade to CMake 3.22, which will pull in the required
   # languages for the C++ project even if this project does not require those languges.
@@ -64,14 +63,9 @@ if(NOT cugraph_FOUND)
 
   # FIXME: are those parameter necessary?
   
-  #set(BUILD_TESTS OFF)
-  #set(BUILD_BENCHMARKS OFF)
-  message(STATUS "installing packages")
+  message(STATUS "installing CUGRAPH C++")
   add_subdirectory(../../cpp cugraph-cpp)
 
-  # Since there are multiple subpackages of cudf._lib that require access to libcudf, we place the
-  # library in the _lib/cpp directory as a single source of truth and modify the other rpaths
-  # appropriately.
   install(TARGETS cugraph DESTINATION pylibcugraph/library)
 endif()
 
@@ -79,8 +73,6 @@ endif()
 include(rapids-cython)
 rapids_cython_init()
 
-# FIXME: Update build directory
-# add_subdirectory(cugraph)
 add_subdirectory(pylibcugraph)
 add_subdirectory(pylibcugraph/components)
 add_subdirectory(pylibcugraph/raft/common)

@@ -12,7 +12,16 @@
 # the License.
 # =============================================================================
 
-set(cython_sources ecg_wrapper.pyx egonet_wrapper.pyx ktruss_subgraph_wrapper.pyx leiden_wrapper.pyx louvain_wrapper.pyx spectral_clustering_wrapper.pyx subgraph_extraction_wrapper.pyx triangle_count_wrapper.pyx)
+set(cython_sources
+    ecg_wrapper.pyx egonet_wrapper.pyx
+    ktruss_subgraph_wrapper.pyx
+    leiden_wrapper.pyx
+    louvain_wrapper.pyx
+    spectral_clustering_wrapper.pyx
+    subgraph_extraction_wrapper.pyx
+    triangle_count_wrapper.pyx
+)
+
 set(linked_libraries cugraph::cugraph)
 rapids_cython_create_modules(
   CXX
@@ -20,11 +29,23 @@ rapids_cython_create_modules(
   LINKED_LIBRARIES "${linked_libraries}" MODULE_PREFIX community_
 )
 
-set(targets_using_numpy community_ecg_wrapper community_egonet_wrapper community_ktruss_subgraph_wrapper community_leiden_wrapper community_louvain_wrapper community_spectral_clustering_wrapper community_subgraph_extraction_wrapper community_triangle_count_wrapper)
+set(targets_using_numpy
+    community_ecg_wrapper
+    community_egonet_wrapper
+    community_ktruss_subgraph_wrapper
+    community_leiden_wrapper
+    community_louvain_wrapper
+    community_spectral_clustering_wrapper
+    community_subgraph_extraction_wrapper
+    community_triangle_count_wrapper
+)
+
 foreach(target IN LISTS targets_using_numpy)
   target_include_directories(${target} PRIVATE "${Python_NumPy_INCLUDE_DIRS}")
 endforeach()
 
-foreach(cython_module IN LISTS RAPIDS_CYTHON_CREATED_TARGETS)
-  set_target_properties(${cython_module} PROPERTIES INSTALL_RPATH "\$ORIGIN;\$ORIGIN/../library")
-endforeach()
+if(NOT cugraph_FOUND)
+  foreach(cython_module IN LISTS RAPIDS_CYTHON_CREATED_TARGETS)
+    set_target_properties(${cython_module} PROPERTIES INSTALL_RPATH "\$ORIGIN;\$ORIGIN/../library")
+  endforeach()
+endif()

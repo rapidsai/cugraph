@@ -43,9 +43,6 @@ else()
   set(cugraph_FOUND OFF)
 endif()
 
-
-# FIXME: pylibcugraph should be installing libcugraph in its directory and cugraph should link
-# to it
 if(NOT cugraph_FOUND)
   # TODO: This will not be necessary once we upgrade to CMake 3.22, which will pull in the required
   # languages for the C++ project even if this project does not require those languges.
@@ -53,22 +50,15 @@ if(NOT cugraph_FOUND)
   rapids_cuda_init_architectures(CUGRAPH)
   enable_language(CUDA)
 
-  # FIXME: check of this is necessary
   # Since cugraph only enables CUDA optionally, we need to manually include the file that
   # rapids_cuda_init_architectures relies on `project` including.
   
   include("${CMAKE_PROJECT_cugraph-python_INCLUDE}")
 
-  # FIXME: are those parameter necessary?
-  
-  set(BUILD_TESTS OFF)
-  set(BUILD_BENCHMARKS OFF)
-  message(STATUS "installing packages")
+
+  message(STATUS "installing CUGRAPH C++")
   add_subdirectory(../../cpp cugraph-cpp)
 
-  # Since there are multiple subpackages of cudf._lib that require access to libcudf, we place the
-  # library in the _lib/cpp directory as a single source of truth and modify the other rpaths
-  # appropriately.
   install(TARGETS cugraph DESTINATION cugraph/library)
 endif()
 
@@ -76,8 +66,6 @@ endif()
 include(rapids-cython)
 rapids_cython_init()
 
-# FIXME: Update build directory
-# add_subdirectory(cugraph)
 add_subdirectory(cugraph/centrality)
 add_subdirectory(cugraph/community)
 add_subdirectory(cugraph/components)
