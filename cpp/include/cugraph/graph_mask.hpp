@@ -60,10 +60,10 @@ __device__ __host__ inline bool _is_set(mask_type* arr, mask_type h)
  * @param vertex
  * @return
  */
-template<typename vertex_t, typename mask_t>
-__device__ bool is_vertex_masked(mask_t *vertex_mask, vertex_t vertex)
+template <typename vertex_t, typename mask_t>
+__device__ bool is_vertex_masked(mask_t* vertex_mask, vertex_t vertex)
 {
-    return detail::_is_set<mask_t>(vertex_mask, static_cast<mask_t>(vertex));
+  return detail::_is_set<mask_t>(vertex_mask, static_cast<mask_t>(vertex));
 }
 
 /**
@@ -71,10 +71,10 @@ __device__ bool is_vertex_masked(mask_t *vertex_mask, vertex_t vertex)
  * @param edge_offset
  * @return
  */
-template<typename edge_t, typename mask_t>
-__device__ bool is_edge_masked(mask_t *edge_mask, edge_t edge_offset)
+template <typename edge_t, typename mask_t>
+__device__ bool is_edge_masked(mask_t* edge_mask, edge_t edge_offset)
 {
-    return detail::_is_set<mask_t>(edge_mask, static_cast<mask_t>(edge_offset));
+  return detail::_is_set<mask_t>(edge_mask, static_cast<mask_t>(edge_offset));
 }
 
 /**
@@ -82,10 +82,10 @@ __device__ bool is_edge_masked(mask_t *edge_mask, edge_t edge_offset)
  * @param vertex id of vertex to mask
  * @return
  */
-template<typename vertex_t, typename mask_t>
-__device__ void mask_vertex(mask_t *vertex_mask, vertex_t vertex)
+template <typename vertex_t, typename mask_t>
+__device__ void mask_vertex(mask_t* vertex_mask, vertex_t vertex)
 {
-    detail::_set_bit<mask_t>(vertex_mask, static_cast<mask_t>(vertex));
+  detail::_set_bit<mask_t>(vertex_mask, static_cast<mask_t>(vertex));
 }
 
 /**
@@ -93,10 +93,10 @@ __device__ void mask_vertex(mask_t *vertex_mask, vertex_t vertex)
  * @param edge_offset offset of edge to mask
  * @return
  */
-template<typename edge_t, typename mask_t>
-__device__ void mask_edge(mask_t *edge_mask, edge_t edge_offset)
+template <typename edge_t, typename mask_t>
+__device__ void mask_edge(mask_t* edge_mask, edge_t edge_offset)
 {
-    detail::_set_bit<mask_t>(edge_mask, static_cast<mask_t>(edge_offset));
+  detail::_set_bit<mask_t>(edge_mask, static_cast<mask_t>(edge_offset));
 }
 
 };  // END namespace detail
@@ -115,12 +115,12 @@ struct graph_mask_view_t {
   graph_mask_view_t() = delete;
 
   graph_mask_view_t(bool has_vertex_mask,
-                             bool has_edge_mask,
-                             vertex_t n_vertices,
-                             edge_t n_edges,
-                             mask_t* vertices,
-                             mask_t* edges,
-                             bool complement = false)
+                    bool has_edge_mask,
+                    vertex_t n_vertices,
+                    edge_t n_edges,
+                    mask_t* vertices,
+                    mask_t* edges,
+                    bool complement = false)
     : has_vertex_mask_(has_vertex_mask),
       has_edge_mask_(has_edge_mask),
       n_vertices_(n_vertices),
@@ -132,12 +132,12 @@ struct graph_mask_view_t {
   }
 
   graph_mask_view_t(graph_mask_view_t<vertex_t, edge_t, mask_t> const& other) = default;
-  using vertex_type = vertex_t;
-  using edge_type   = edge_t;
-  using mask_type   = mask_t;
-  using size_type   = std::size_t;
+  using vertex_type                                                           = vertex_t;
+  using edge_type                                                             = edge_t;
+  using mask_type                                                             = mask_t;
+  using size_type                                                             = std::size_t;
 
-  ~graph_mask_view_t()                            = default;
+  ~graph_mask_view_t()                                                      = default;
   graph_mask_view_t(graph_mask_view_t<vertex_t, edge_t, mask_t>&&) noexcept = default;
 
   graph_mask_view_t& operator=(graph_mask_view_t<vertex_t, edge_t, mask_t>&&) noexcept = default;
@@ -171,12 +171,17 @@ struct graph_mask_view_t {
    */
   __host__ __device__ mask_t* get_edge_mask() const { return edges_; }
 
-    __host__ __device__ edge_t get_edge_mask_size() const { return n_edges_ / std::numeric_limits<mask_t>::digits; }
+  __host__ __device__ edge_t get_edge_mask_size() const
+  {
+    return n_edges_ / std::numeric_limits<mask_t>::digits;
+  }
 
-    __host__ __device__ vertex_t get_vertex_mask_size() const { return n_vertices_ / std::numeric_limits<mask_t>::digits; }
+  __host__ __device__ vertex_t get_vertex_mask_size() const
+  {
+    return n_vertices_ / std::numeric_limits<mask_t>::digits;
+  }
 
-
-protected:
+ protected:
   bool has_vertex_mask_{false};
   bool has_edge_mask_{false};
   vertex_t n_vertices_;
@@ -288,7 +293,10 @@ struct graph_mask_t {
 
   edge_t get_edge_mask_size() const { return n_edges_ / std::numeric_limits<mask_t>::digits; }
 
-  vertex_t get_vertex_mask_size() const { return n_vertices_ / std::numeric_limits<mask_t>::digits; }
+  vertex_t get_vertex_mask_size() const
+  {
+    return n_vertices_ / std::numeric_limits<mask_t>::digits;
+  }
 
   /**
    * Initializes an edge mask by allocating the device memory

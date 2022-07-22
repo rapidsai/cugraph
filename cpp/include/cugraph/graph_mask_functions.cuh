@@ -30,28 +30,29 @@ namespace detail {
  * Find the kth masked bit in a mask using divide and conquer approach
  */
 
-template<typename t = int>
-__device__ int level_to_bits(t l) {
-    t l2 = 5-(l+1);
-    return pow(2, l2);
+template <typename t = int>
+__device__ int level_to_bits(t l)
+{
+  t l2 = 5 - (l + 1);
+  return pow(2, l2);
 }
 
-__host__ __device__ __forceinline__ void print_ulong_bin(const uint32_t * const var, int bits) {
-        int i;
+__host__ __device__ __forceinline__ void print_ulong_bin(const uint32_t* const var, int bits)
+{
+  int i;
 
-    #if defined(__LP64__) || defined(_LP64)
-            if( (bits > 64) || (bits <= 0) )
-    #else
-            if( (bits > 32) || (bits <= 0) )
-    #endif
-            return;
+#if defined(__LP64__) || defined(_LP64)
+  if ((bits > 64) || (bits <= 0))
+#else
+  if ((bits > 32) || (bits <= 0))
+#endif
+    return;
 
-        for(i = 0; i < bits; i++) {
-            printf("%d", (*var >> (bits - 1 - i)) & 0x01);
-        }
-        printf("\n");
-    }
-
+  for (i = 0; i < bits; i++) {
+    printf("%d", (*var >> (bits - 1 - i)) & 0x01);
+  }
+  printf("\n");
+}
 
 /**
  * Performs a bit-level binary search to find the index of the
@@ -66,72 +67,82 @@ __host__ __device__ __forceinline__ void print_ulong_bin(const uint32_t * const 
  * @param k
  * @return
  */
-template<typename edge_t, typename mask_type>
-__device__ edge_t kth_bit(mask_type mask_elm,
-                          edge_t k, edge_t start_bit, bool debug) {
+template <typename edge_t, typename mask_type>
+__device__ edge_t kth_bit(mask_type mask_elm, edge_t k, edge_t start_bit, bool debug)
+{
+  constexpr mask_type FMASK    = 0xffffffff;
+  constexpr mask_type n_shifts = std::numeric_limits<mask_type>::digits;
 
-    constexpr mask_type FMASK = 0xffffffff;
-    constexpr mask_type n_shifts = std::numeric_limits<mask_type>::digits;
+  /**
+   *
+   * 1. For hypersparse regions, we should be able to iterate through the mask bits, using the
+   * algorithm below.
+   *
+   * 2. For regions of medium sparsity, we should be able to bin the vertices, compute their
+   * degrees, and then cumsum them so that we can narrow down a small(-ish) range of mask indices we
+   * need to visit. After we've narrowed down a few potential indices (and their starting degrees),
+   * we can run the algorithm below over them.
+   *
+   * 3. For regions with high density, we might be able to adjust the bin sizes so that the
+   * algorithm in 2 will work.
+   *
+   *   Left branch       Right branch
+   * 0 0 0 0 0 0 0 0 | 1 1 1 0 0 0 0 0
+   *
+   * Indexing in the mask begins with the least significant bits, thus the left
+   * side of the mask has larger indices.
+   */
 
-    /**
-     *
-     * 1. For hypersparse regions, we should be able to iterate through the mask bits, using the algorithm
-     * below.
-     *
-     * 2. For regions of medium sparsity, we should be able to bin the vertices, compute their degrees, and then
-     * cumsum them so that we can narrow down a small(-ish) range of mask indices we need to visit. After we've
-     * narrowed down a few potential indices (and their starting degrees), we can run the algorithm below over them.
-     *
-     * 3. For regions with high density, we might be able to adjust the bin sizes so that the algorithm in 2 will work.
-     *
-     *   Left branch       Right branch
-     * 0 0 0 0 0 0 0 0 | 1 1 1 0 0 0 0 0
-     *
-     * Indexing in the mask begins with the least significant bits, thus the left
-     * side of the mask has larger indices.
-     */
+  mask_type tmp_mask_elm = mask_elm;
+  int idx                = level_to_bits(0);  // this is capped at n_shifts
+  int k_tmp              = k + 1;
 
-    mask_type tmp_mask_elm = mask_elm;
-    int idx = level_to_bits(0); // this is capped at n_shifts
-    int k_tmp = k+1;
+  if (debug) {
+    printf("level=%d, idx=%d, k_tmp=%d k=%ld ", idx, idx, k_tmp, k);
+    print_ulong_bin(&tmp_mask_elm, n_shifts);
+  }
 
-    if(debug) {
-        printf("level=%d, idx=%d, k_tmp=%d k=%ld ", idx, idx, k_tmp, k);
-        print_ulong_bin(&tmp_mask_elm, n_shifts);
+  // Iterate for first 4 levels
+  for (int i = 0; i < 4; ++i) {
+    // First check the count of the right branch
+    int popl = __popc(tmp_mask_elm & FMASK >> (n_shifts - idx));
+
+    // Shift idx accordingly (up for left branch, down for right branch)
+    idx += level_to_bits(i + 1) * (-1 * (k_tmp <= popl) +  // right branch
+                                   (k_tmp > popl));        // left branch
+
+    // If taking left branch, adjust k for local mask window by
+    // removing popcount on right
+    k_tmp -= (k_tmp > popl) * popl;
+
+    // Apply current mask window
+    int level = level_to_bits(i);
+    tmp_mask_elm &=
+      (FMASK >> (n_shifts - idx - max(1, level / 2))) & (FMASK << (idx - max(1, level / 2)));
+
+    if (debug) {
+      printf("took_left_path=%d, level=%d, idx=%d, k_tmp=%d k=%ld popl=%d, ffs=%d ",
+             (k_tmp > popl),
+             level,
+             idx,
+             k_tmp,
+             k,
+             popl,
+             __ffs(tmp_mask_elm));
+      print_ulong_bin(&tmp_mask_elm, n_shifts);
     }
+  }
 
-    // Iterate for first 4 levels
-    for(int i = 0; i < 4; ++i) {
-
-        // First check the count of the right branch
-        int popl = __popc(tmp_mask_elm & FMASK >> (n_shifts - idx));
-
-        // Shift idx accordingly (up for left branch, down for right branch)
-        idx += level_to_bits(i+1) *
-               (-1 * (k_tmp <= popl) +  // right branch
-                (k_tmp > popl));  // left branch
-
-        // If taking left branch, adjust k for local mask window by
-        // removing popcount on right
-        k_tmp -= (k_tmp > popl) * popl;
-
-
-        // Apply current mask window
-        int level = level_to_bits(i);
-        tmp_mask_elm &= (FMASK >> (n_shifts - idx - max(1, level/2))) & (FMASK << (idx - max(1, level/2)));
-
-        if(debug) {
-
-            printf("took_left_path=%d, level=%d, idx=%d, k_tmp=%d k=%ld popl=%d, ffs=%d ", (k_tmp > popl), level, idx, k_tmp, k, popl, __ffs(tmp_mask_elm));
-            print_ulong_bin(&tmp_mask_elm, n_shifts);
-        }
-    }
-
-    /**
-     * The population count for all the bits to the right of idx should be k,
-     * otherwise, we need to take one final left branch.
-     */
-    return idx += (k - __popc(FMASK >> (n_shifts - idx)) + start_bit) - start_bit;
+  /**
+   * The population count for all the bits to the right of idx should be k,
+   * otherwise, we need to take one final left branch.
+   */
+  printf("idx=%d, k=%ld, popc=%d, start_bit=%ld\n",
+         idx,
+         k,
+         __popc((mask_elm & FMASK >> (n_shifts - idx))),
+         start_bit);
+  return (idx += (k - __popc((mask_elm & FMASK >> (n_shifts - idx))))) - start_bit;
 }
 
 /**
@@ -146,7 +157,7 @@ __device__ edge_t kth_bit(mask_type mask_elm,
  */
 template <typename vertex_t, typename edge_t, typename mask_type, int tpb = 128>
 __global__ void masked_degree_kernel(edge_t* degrees_output,
-                                     mask_type *edge_mask,
+                                     mask_type* edge_mask,
                                      edge_t const* indptr)
 {
   /**
@@ -160,7 +171,7 @@ __global__ void masked_degree_kernel(edge_t* degrees_output,
 
   __shared__ typename BlockReduce::TempStorage temp_storage;
 
-  int vertex            = blockIdx.x;
+  int vertex = blockIdx.x;
 
   vertex_t start_offset = indptr[vertex];
   vertex_t stop_offset  = indptr[vertex + 1];
@@ -170,39 +181,34 @@ __global__ void masked_degree_kernel(edge_t* degrees_output,
 
   mask_type start_bit = start_offset & (std::numeric_limits<mask_type>::digits - 1);
 
-  mask_type stop_bit  = (std::numeric_limits<mask_type>::digits) - (stop_offset & (std::numeric_limits<mask_type>::digits - 1));
+  mask_type stop_bit = (std::numeric_limits<mask_type>::digits) -
+                       (stop_offset & (std::numeric_limits<mask_type>::digits - 1));
 
   // TODO: Check vertex mask for vertex
-//  mask_type* vertex_mask = mask.get_vertex_mask();
-//  mask_type* edge_mask = mask.get_edge_mask();
+  //  mask_type* vertex_mask = mask.get_vertex_mask();
+  //  mask_type* edge_mask = mask.get_edge_mask();
 
   vertex_t degree = 0;
   for (vertex_t i = threadIdx.x; i <= (stop_mask_offset - start_mask_offset); i += tpb) {
+    mask_type mask_elm = edge_mask[i + start_mask_offset];
 
+    // Apply start / stop masks to the first and last elements
+    if (i == 0) { mask_elm = mask_elm & 0xffffffff << start_bit; }
 
-      mask_type mask_elm = edge_mask[i + start_mask_offset];
+    if (i == stop_mask_offset - start_mask_offset) { mask_elm = mask_elm & 0xffffffff >> stop_bit; }
 
-      // Apply start / stop masks to the first and last elements
-      if(i == 0) {
-          mask_elm = mask_elm & 0xffffffff << start_bit;
-      }
-
-      if(i == stop_mask_offset - start_mask_offset) {
-          mask_elm = mask_elm & 0xffffffff >> stop_bit;
-      }
-
-      degree += __popc(mask_elm);
+    degree += __popc(mask_elm);
   }
 
   degree = BlockReduce(temp_storage).Sum(degree);
 
-  if(degree > 0)
-  if (threadIdx.x == 0) { degrees_output[vertex] = degree; }
+  if (degree > 0)
+    if (threadIdx.x == 0) { degrees_output[vertex] = degree; }
 }
 
 template <typename vertex_t, typename edge_t, typename mask_type, int tpb = 128>
 __global__ void masked_degree_kernel(edge_t* degrees_output,
-                                     mask_type *edge_mask,
+                                     mask_type* edge_mask,
                                      int major_range_first,
                                      vertex_t const* vertex_ids,
                                      edge_t const* indptr)
@@ -218,34 +224,29 @@ __global__ void masked_degree_kernel(edge_t* degrees_output,
 
   __shared__ typename BlockReduce::TempStorage temp_storage;
 
-    int vertex            = blockIdx.x;
+  int vertex = blockIdx.x;
 
-    vertex_t start_offset = indptr[vertex];
-    vertex_t stop_offset  = indptr[vertex + 1];
+  vertex_t start_offset = indptr[vertex];
+  vertex_t stop_offset  = indptr[vertex + 1];
 
-    mask_type start_mask_offset = start_offset / std::numeric_limits<mask_type>::digits;
-    mask_type stop_mask_offset  = stop_offset / std::numeric_limits<mask_type>::digits;
+  mask_type start_mask_offset = start_offset / std::numeric_limits<mask_type>::digits;
+  mask_type stop_mask_offset  = stop_offset / std::numeric_limits<mask_type>::digits;
 
-    mask_type start_bit = start_offset & (std::numeric_limits<mask_type>::digits - 1);
-    mask_type stop_bit  = (std::numeric_limits<mask_type>::digits) -
-            (stop_offset & (std::numeric_limits<mask_type>::digits - 1));
+  mask_type start_bit = start_offset & (std::numeric_limits<mask_type>::digits - 1);
+  mask_type stop_bit  = (std::numeric_limits<mask_type>::digits) -
+                       (stop_offset & (std::numeric_limits<mask_type>::digits - 1));
 
-    vertex_t degree = 0;
-    for (vertex_t i = threadIdx.x; i <= (stop_mask_offset - start_mask_offset); i += tpb) {
+  vertex_t degree = 0;
+  for (vertex_t i = threadIdx.x; i <= (stop_mask_offset - start_mask_offset); i += tpb) {
+    mask_type mask_elm = edge_mask[i + start_mask_offset];
 
-        mask_type mask_elm = edge_mask[i + start_mask_offset];
+    // Apply start / stop masks to the first and last elements
+    if (i == 0) { mask_elm = mask_elm & 0xffffffff << start_bit; }
 
-        // Apply start / stop masks to the first and last elements
-        if(i == 0) {
-            mask_elm = mask_elm & 0xffffffff << start_bit;
-        }
+    if (i == stop_mask_offset - start_mask_offset) { mask_elm = mask_elm & 0xffffffff >> stop_bit; }
 
-        if(i == stop_mask_offset - start_mask_offset) {
-            mask_elm = mask_elm & 0xffffffff >> stop_bit;
-        }
-
-        degree += __popc(mask_elm);
-    }
+    degree += __popc(mask_elm);
+  }
 
   degree = BlockReduce(temp_storage).Sum(degree);
 

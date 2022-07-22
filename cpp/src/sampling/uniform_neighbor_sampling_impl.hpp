@@ -55,7 +55,6 @@ uniform_nbr_sample_impl(
   // List of vertices to sample.
   rmm::device_uvector<typename graph_view_t::vertex_type>& d_in,
 
-
   // vector of branching out (fan-out) degree per source vertex for each level
   // parameter used for obtaining local out-degree information
   raft::host_span<const int> h_fan_out,
@@ -64,8 +63,7 @@ uniform_nbr_sample_impl(
   bool with_replacement,
   uint64_t seed)
 {
-
-    printf("Inside uniform_nbr_sample impl\n");
+  printf("Inside uniform_nbr_sample impl\n");
   using vertex_t = typename graph_view_t::vertex_type;
   using edge_t   = typename graph_view_t::edge_type;
   using weight_t = typename graph_view_t::weight_type;
@@ -116,8 +114,7 @@ uniform_nbr_sample_impl(
       printf("get_active_major_global_degrees\n");
       auto&& d_out_degs =
         get_active_major_global_degrees(handle, graph_view, d_in, global_out_degrees);
-        raft::print_device_vector("d_out_degs", d_out_degs.data(), d_out_degs.size(), std::cout);
-
+      raft::print_device_vector("d_out_degs", d_out_degs.data(), d_out_degs.size(), std::cout);
 
       // eliminate 0 degree vertices
       std::tie(d_in, d_out_degs) =
@@ -128,7 +125,6 @@ uniform_nbr_sample_impl(
 
       raft::random::RngState rng_state(seed);
       seed += d_rnd_indices.size() * row_comm_size;
-
 
       if (d_rnd_indices.size() > 0) {
         // FIXME: This cugraph_ops function does not handle 0 inputs properly
@@ -141,7 +137,8 @@ uniform_nbr_sample_impl(
                                         handle.get_stream());
       }
 
-      raft::print_device_vector("d_rnd_indices", d_rnd_indices.data(), d_rnd_indices.size(), std::cout);
+      raft::print_device_vector(
+        "d_rnd_indices", d_rnd_indices.data(), d_rnd_indices.size(), std::cout);
 
       // TODO: First map the sampled edges from their
       std::tie(d_out_src, d_out_dst, d_out_indices) =
@@ -202,7 +199,7 @@ uniform_nbr_sample(
   bool with_replacement,
   uint64_t seed)
 {
-    std::cout << "Inside nuniform neighborhood sampling" << std::endl;
+  std::cout << "Inside nuniform neighborhood sampling" << std::endl;
   rmm::device_uvector<vertex_t> d_start_vs(starting_vertices.size(), handle.get_stream());
   raft::copy(
     d_start_vs.data(), starting_vertices.data(), starting_vertices.size(), handle.get_stream());
