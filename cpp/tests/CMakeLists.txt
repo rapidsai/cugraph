@@ -585,22 +585,27 @@ if(BUILD_CUGRAPH_MG_TESTS)
         # - MG PRIMS TRANSFORM_REDUCE_V_FRONTIER_OUTGOING_E_BY_DST tests --------------------------
         ConfigureTestMG(MG_TRANSFORM_REDUCE_V_FRONTIER_OUTGOING_E_BY_DST_TEST
                         prims/mg_transform_reduce_v_frontier_outgoing_e_by_dst.cu)
+        target_link_libraries(MG_TRANSFORM_REDUCE_V_FRONTIER_OUTGOING_E_BY_DST_TEST PRIVATE cuco::cuco)
 
         ###########################################################################################
         # - MG PRIMS REDUCE_V tests ---------------------------------------------------------------
         ConfigureTestMG(MG_REDUCE_V_TEST prims/mg_reduce_v.cu)
+        target_link_libraries(MG_COUNT_IF_V_TEST PRIVATE cuco::cuco)
 
         ###########################################################################################
         # - MG PRIMS TRANSFORM_REDUCE_V tests -----------------------------------------------------
         ConfigureTestMG(MG_TRANSFORM_REDUCE_V_TEST prims/mg_transform_reduce_v.cu)
+        target_link_libraries(MG_TRANSFORM_REDUCE_V_TEST PRIVATE cuco::cuco)
 
         ###########################################################################################
         # - MG PRIMS TRANSFORM_REDUCE_E tests -----------------------------------------------------
         ConfigureTestMG(MG_TRANSFORM_REDUCE_E_TEST prims/mg_transform_reduce_e.cu)
+        target_link_libraries(MG_TRANSFORM_REDUCE_E_TEST PRIVATE cuco::cuco)
 
         ###########################################################################################
         # - MG PRIMS COUNT_IF_E tests -------------------------------------------------------------
         ConfigureTestMG(MG_COUNT_IF_E_TEST prims/mg_count_if_e.cu)
+        target_link_libraries(MG_COUNT_IF_E_TEST PRIVATE cuco::cuco)
 
         ###########################################################################################
         # - MG PRIMS PER_V_TRANSFORM_REDUCE_INCOMING_OUTGOING_E tests -----------------------------
@@ -610,6 +615,7 @@ if(BUILD_CUGRAPH_MG_TESTS)
         ###########################################################################################
         # - MG PRIMS EXTRACT_IF_E tests -----------------------------------------------------------
         ConfigureTestMG(MG_EXTRACT_IF_E_TEST prims/mg_extract_if_e.cu)
+        target_link_libraries(MG_EXTRACT_IF_E_TEST PRIVATE cuco::cuco)
 
         ###########################################################################################
         # - MG GATHER_UTILS tests -----------------------------------------------------------------
