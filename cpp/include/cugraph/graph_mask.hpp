@@ -101,7 +101,7 @@ __device__ void mask_edge(mask_t* edge_mask, edge_t edge_offset)
   detail::_set_bit<mask_t>(edge_mask, static_cast<mask_t>(edge_offset));
 }
 
-};  // END namespace detail
+};  // namespace detail
 
 /**
  * Mask view to be used in device functions for reading and updating existing mask.
@@ -191,7 +191,7 @@ struct graph_mask_view_t {
   bool complement_{false};
   mask_t* vertices_{nullptr};
   mask_t* edges_{nullptr};
-};
+}; // struct graph_mask_view_t
 
 /**
  * An owning container object to manage separate bitmasks for
@@ -316,7 +316,7 @@ struct graph_mask_t {
    */
   void initialize_vertex_mask()
   {
-    if (vertices_.size() > 0) {
+    if (vertices_.size() == 0) {
       vertices_.resize(get_vertex_mask_size(), handle_.get_stream());
       clear_vertex_mask();
     }
@@ -371,36 +371,5 @@ struct graph_mask_t {
   rmm::device_uvector<mask_t> vertices_;
   rmm::device_uvector<mask_t> edges_;
 
-};  // end struct mask
-
-/**
- * Device helper function to query whether a specific vertex
- * and/or specific edge mask have been applied.
- * @tparam vertex_t
- * @tparam edge_t
- * @param mask mask view object for which to query
- * @param adjacency_indptr
- * @param adjacency_indices
- * @param src_vertex
- * @param dst_idx_offset
- * @return
- */
-template <typename vertex_t, typename edge_t>
-__device__ bool is_masked(graph_mask_view_t<vertex_t, edge_t>& mask,
-                          vertex_t* adjacency_indptr,
-                          edge_t* adjacency_indices,
-                          vertex_t src_vertex,
-                          edge_t dst_idx_offset)
-{
-  // TODO: Need to raise exception / print appropriate error when both vertex and edge masks have
-  // not been initialized.
-
-  // TODO: Should this be looked up once in each kernel thread and passed in?
-  vertex_t start = adjacency_indptr[src_vertex];
-
-  // TODO: Add function to mask
-  return mask.is_vertex_masked(adjacency_indices[start + dst_idx_offset]) &&
-         mask.is_edge_masked(start + dst_idx_offset);
-}
-
-};  // END namespace cugraph
+};  // struct graph_mask_t
+};  // namespace cugraph
