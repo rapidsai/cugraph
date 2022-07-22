@@ -112,9 +112,9 @@ __device__ edge_t kth_bit(mask_type mask_elm, edge_t k, edge_t start_bit)
     k_tmp -= (k_tmp > popl) * popl;
 
     // Apply current mask window
-    int level = level_to_bits(i);
+    int level_window = level_to_bits(i) >> 1;
     tmp_mask_elm &=
-      (FMASK >> (n_shifts - idx - max(1, level >> 1))) & (FMASK << (idx - max(1, level >> 1)));
+      (FMASK >> (n_shifts - idx - max(1, level_window))) & (FMASK << (idx - max(1, level_window)));
   }
 
   /**

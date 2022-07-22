@@ -35,14 +35,7 @@ __device__ __host__ inline void _set_bit(mask_type* arr, mask_type h)
 {
   mask_type bit = h & (std::numeric_limits<mask_type>::digits - 1);
   mask_type idx = h / std::numeric_limits<mask_type>::digits;
-
-  mask_type assumed;
-  mask_type old = arr[idx];
   atomicOr(arr+idx, (1<<bit));
-//  do {
-//    assumed = old;
-//    old     = atomicCAS(arr + idx, assumed, assumed | (1 << bit));
-//  } while (assumed != old);
 }
 
 /**
