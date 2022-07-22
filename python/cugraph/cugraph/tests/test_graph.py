@@ -30,6 +30,11 @@ from dask_cuda import LocalCUDACluster
 from dask.distributed import Client
 import dask_cudf
 
+from pylibcugraph import bfs as pylibcugraph_bfs
+from pylibcugraph import ResourceHandle
+
+from cugraph.dask.traversal.bfs import convert_to_cudf
+
 # Temporarily suppress warnings till networkX fixes deprecation warnings
 # (Using or importing the ABCs from 'collections' instead of from
 # 'collections.abc' is deprecated, and in 3.8 it will stop working) for
@@ -539,6 +544,7 @@ def test_to_directed(graph_file):
     assert DiG.is_directed()
     assert DiG.number_of_nodes() == DiGnx.number_of_nodes()
     assert DiG.number_of_edges() == DiGnx.number_of_edges()
+    assert DiG._plc_graph is not None
 
     for index, row in cu_M.to_pandas().iterrows():
         assert G.has_edge(row['0'], row['1'])
@@ -574,6 +580,7 @@ def test_to_undirected(graph_file):
     assert not G.is_directed()
     assert G.number_of_nodes() == Gnx.number_of_nodes()
     assert G.number_of_edges() == Gnx.number_of_edges()
+    assert G._plc_graph is not None
 
     for index, row in cu_M.to_pandas().iterrows():
         assert G.has_edge(row['0'], row['1'])
@@ -696,3 +703,39 @@ def test_graph_init_with_multigraph():
     cDiMG = cugraph.MultiDiGraph()  # deprecated, but should still work
     cDiMG.from_cudf_edgelist(gdf, source="src", destination="dst")
     cugraph.Graph(m_graph=cDiMG)
+
+
+@pytest.mark.parametrize("graph_file", utils.DATASETS)
+def test_create_sg_graph(graph_file):
+    el = utils.read_csv_file(graph_file)
+    G = cugraph.from_cudf_edgelist(
+        el,
+        source='0',
+        destination='1',
+        edge_attr='2'
+    )
+
+    # ensure graph exists
+    assert G._plc_graph is not None
+
+    start = cudf.Series([1], dtype='int32')
+    start = G.lookup_internal_vertex_id(start)
+
+    if graph_file.name == 'dolphins.csv':
+        res = pylibcugraph_bfs(
+                ResourceHandle(),
+                G._plc_graph,
+                start,
+                False,
+                0,
+                True,
+                False)
+
+        cdr = convert_to_cudf(res)
+        cdr = G.unrenumber(cdr, column_name='vertex')
+        cdr = G.unrenumber(cdr, column_name='predecessor')
+
+        assert cdr[cdr.vertex == 33].distance.to_numpy()[0] == 3
+        assert cdr[cdr.vertex == 33].predecessor.to_numpy()[0] == 37
+        assert cdr[cdr.vertex == 11].distance.to_numpy()[0] == 4
+        assert cdr[cdr.vertex == 11].predecessor.to_numpy()[0] == 51

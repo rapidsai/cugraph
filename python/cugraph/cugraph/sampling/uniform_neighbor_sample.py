@@ -11,10 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from pylibcugraph import (ResourceHandle,
-                          GraphProperties,
-                          SGGraph,
-                          )
+from pylibcugraph import ResourceHandle
 from pylibcugraph import uniform_neighbor_sample as \
     pylibcugraph_uniform_neighbor_sample
 
@@ -31,6 +28,9 @@ def uniform_neighbor_sample(G,
     """
     Does neighborhood sampling, which samples nodes from a graph based on the
     current node's neighbors, with a corresponding fanout value at each hop.
+
+    Note: This is a pylibcugraph-enabled algorithm, which requires that the
+    graph was created with legacy_renum_only=True.
 
     Parameters
     ----------
@@ -79,6 +79,8 @@ def uniform_neighbor_sample(G,
         raise TypeError("fanout_vals must be a list, "
                         f"got: {type(fanout_vals)}")
 
+    weight_t = G.edgelist.edgelist_df['weights'].dtype
+
     if G.renumbered is True:
         if isinstance(start_list, cudf.DataFrame):
             start_list = G.lookup_internal_vertex_id(
@@ -86,33 +88,15 @@ def uniform_neighbor_sample(G,
         else:
             start_list = G.lookup_internal_vertex_id(start_list)
 
-    srcs = G.edgelist.edgelist_df['src']
-    dsts = G.edgelist.edgelist_df['dst']
-    weights = G.edgelist.edgelist_df['weights']
-    weight_t = weights.dtype
-
-    if weight_t == "int32":
-        weights = weights.astype("float32")
-    if weight_t == "int64":
-        weights = weights.astype("float64")
-
-    if srcs.dtype != 'int32':
-        raise ValueError(f"Graph vertices must have int32 values, "
-                         f"got: {srcs.dtype}")
-
-    resource_handle = ResourceHandle()
-    graph_props = GraphProperties(is_multigraph=G.is_multigraph())
-    store_transposed = False
-    renumber = False
-    do_expensive_check = False
-
-    sg = SGGraph(resource_handle, graph_props, srcs, dsts, weights,
-                 store_transposed, renumber, do_expensive_check)
-
     sources, destinations, indices = \
-        pylibcugraph_uniform_neighbor_sample(resource_handle, sg, start_list,
-                                             fanout_vals, with_replacement,
-                                             do_expensive_check)
+        pylibcugraph_uniform_neighbor_sample(
+            resource_handle=ResourceHandle(),
+            input_graph=G._plc_graph,
+            start_list=start_list,
+            h_fan_out=fanout_vals,
+            with_replacement=with_replacement,
+            do_expensive_check=False
+        )
 
     df = cudf.DataFrame()
     df["sources"] = sources
