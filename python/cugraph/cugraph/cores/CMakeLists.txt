@@ -12,7 +12,7 @@
 # the License.
 # =============================================================================
 
-set(cython_sources core_number_wrapper.pyx k_core_wrapper.pyx)
+set(cython_sources k_core_wrapper.pyx)
 set(linked_libraries cugraph::cugraph)
 rapids_cython_create_modules(
   CXX
