@@ -165,7 +165,6 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
   {
     std::vector<edge_t const*> offsets(edge_partition_offsets_.size(), nullptr);
     std::vector<vertex_t const*> indices(edge_partition_indices_.size(), nullptr);
-
     auto weights = edge_partition_weights_ ? std::make_optional<std::vector<weight_t const*>>(
                                                (*edge_partition_weights_).size(), nullptr)
                                            : std::nullopt;

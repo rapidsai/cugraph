@@ -16,11 +16,12 @@
 
 #pragma once
 
+#include <raft/core/handle.hpp>
+#include <rmm/device_uvector.hpp>
+
 #include <cstdint>
 #include <limits>
 #include <optional>
-#include <raft/core/handle.hpp>
-#include <rmm/device_uvector.hpp>
 #include <vector>
 
 namespace cugraph {
@@ -37,10 +38,11 @@ __device__ __host__ inline void _set_bit(mask_type* arr, mask_type h)
 
   mask_type assumed;
   mask_type old = arr[idx];
-  do {
-    assumed = old;
-    old     = atomicCAS(arr + idx, assumed, assumed | (1 << bit));
-  } while (assumed != old);
+  atomicOr(arr+idx, (1<<bit));
+//  do {
+//    assumed = old;
+//    old     = atomicCAS(arr + idx, assumed, assumed | (1 << bit));
+//  } while (assumed != old);
 }
 
 /**
@@ -314,7 +316,7 @@ struct graph_mask_t {
    */
   void initialize_vertex_mask()
   {
-    if (vertices_.size() == 0) {
+    if (vertices_.size() > 0) {
       vertices_.resize(get_vertex_mask_size(), handle_.get_stream());
       clear_vertex_mask();
     }
@@ -325,7 +327,7 @@ struct graph_mask_t {
    */
   void clear_edge_mask()
   {
-    if (edges_.size() == 0) {
+    if (edges_.size() > 0) {
       RAFT_CUDA_TRY(
         cudaMemsetAsync(edges_.data(), edges_.size() * sizeof(mask_t), 0, handle_.get_stream()));
     }

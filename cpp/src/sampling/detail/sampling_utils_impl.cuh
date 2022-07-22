@@ -681,9 +681,6 @@ gather_local_edges(
         auto local_out_degree          = offset_ptr[location_in_segment + 1] - sparse_offset;
         vertex_t const* adjacency_list = partitions[partition_id].indices() + sparse_offset;
 
-        // TODO: adjacency_list is the edges adjacent to the current vertex.
-        // TODO: g_dst_index is the (masked) offset we need to resolve.
-
         // read location of global_degree_offset needs to take into account the
         // partition offsets because it is a concatenation of all the offsets
         // across all partitions
@@ -702,9 +699,7 @@ gather_local_edges(
                    g_dst_index,
                    major);
           }
-
           minors[index] = adjacency_list[g_dst_index];
-
           if (weights != nullptr) {
             weight_t const* edge_weights = *(partitions[partition_id].weights()) + sparse_offset;
             weights[index]               = edge_weights[g_dst_index];
