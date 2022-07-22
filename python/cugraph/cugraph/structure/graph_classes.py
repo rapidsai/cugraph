@@ -778,9 +778,7 @@ class NPartiteGraph(Graph):
             source=source,
             destination=destination,
             edge_attr=edge_attr,
-            renumber=renumber,
-            store_transposed=store_transposed,
-            legacy_renum_only=legacy_renum_only
+            renumber=renumber
         )
 
     def from_dask_cudf_edgelist(
