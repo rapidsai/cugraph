@@ -158,9 +158,6 @@ rmm::device_uvector<typename GraphViewType::edge_type> compute_local_major_degre
                                          major_range_first,
                                          vertex_ids,
                                          edge_partition.offsets() + offsets_start);
-        handle.sync_stream();
-        raft::print_device_vector("sparse_begin", sparse_begin, 10, std::cout);
-
       } else {
         thrust::for_each(
           handle.get_thrust_policy(),
@@ -495,22 +492,21 @@ __device__ edge_t mask_offset_to_original_offset(mask_t* edge_mask,
   vertex_t cur_sum = 0;
   mask_t mask_val  = 0;
 
-  edge_t start_bit = sparse_offset & (std::numeric_limits<mask_t>::digits - 1);
+  edge_t start_bit = fast_mod<mask_t>(sparse_offset);
   int i            = 0;
   while (i < local_out_degree) {
-    mask_val = edge_mask[(i + sparse_offset) / std::numeric_limits<mask_t>::digits];
+    mask_val = edge_mask[(i + sparse_offset) >> log_bits<mask_t>()];
 
     if (i == 0) {
       // mask out starting offset
       mask_val &= 0xffffffff << start_bit;
     }
 
-    if (i == ((sparse_offset + local_out_degree) / std::numeric_limits<mask_t>::digits) -
-               (sparse_offset / std::numeric_limits<mask_t>::digits)) {
+    if (i == ((sparse_offset + local_out_degree) >> log_bits<mask_t>()) -
+               (sparse_offset >> log_bits<mask_t>())) {
       // mask out ending offset
-      mask_val &= 0xffffffff >> (std::numeric_limits<mask_t>::digits) -
-                                  ((sparse_offset + local_out_degree) &
-                                   (std::numeric_limits<mask_t>::digits - 1));
+      mask_val &= 0xffffffff >> std::numeric_limits<mask_t>::digits -
+                                  fast_mod<mask_t>(sparse_offset + local_out_degree);
     }
 
     if (cur_sum + __popc(mask_val) >= g_dst_index + 1) {
@@ -520,7 +516,7 @@ __device__ edge_t mask_offset_to_original_offset(mask_t* edge_mask,
 
     cur_sum += __popc(mask_val);
     i += ((i > 0) * std::numeric_limits<mask_t>::digits) +
-         ((i <= 0) * (sparse_offset & (std::numeric_limits<mask_t>::digits - 1)));
+         ((i <= 0) * fast_mod<mask_t>(sparse_offset));
   }
 
   return g_dst_index;

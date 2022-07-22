@@ -115,7 +115,8 @@ class Tests_Uniform_Neighbor_Sampling
 
     printf("Attaching mask\n");
 
-    graph_view.attach_mask(graph_mask);
+    auto graph_mask_view = graph_mask.view();
+    graph_view.attach_mask_view(graph_mask_view);
     handle.sync_stream();
 
     constexpr edge_t indices_per_source       = 2;  // fan out
@@ -216,7 +217,7 @@ class Tests_Uniform_Neighbor_Sampling
 
 // using Tests_Uniform_Neighbor_Sampling_File =
 //  Tests_Uniform_Neighbor_Sampling<cugraph::test::File_Usecase>;
-
+//
 using Tests_Uniform_Neighbor_Sampling_Rmat =
   Tests_Uniform_Neighbor_Sampling<cugraph::test::Rmat_Usecase>;
 
@@ -265,7 +266,7 @@ TEST_P(Tests_Uniform_Neighbor_Sampling_Rmat, CheckInt64Int64Float)
 //                      cugraph::test::File_Usecase("test/datasets/web-Google.mtx"),
 //                      cugraph::test::File_Usecase("test/datasets/ljournal-2008.mtx"),
 //                      cugraph::test::File_Usecase("test/datasets/webbase-1M.mtx"))));
-//
+
 INSTANTIATE_TEST_SUITE_P(
   rmat_small_test,
   Tests_Uniform_Neighbor_Sampling_Rmat,

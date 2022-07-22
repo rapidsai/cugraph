@@ -142,26 +142,27 @@ class Tests_GraphMask
 
     cugraph::graph_mask_t<vertex_t, edge_t> mask(handle, number_of_vertices, number_of_edges);
 
-    graph_view.attach_mask(mask);
+    auto mask_view = mask.view();
+    graph_view.attach_mask_view(mask_view);
 
-    auto mask_view = *graph_view.get_mask_view();
+    auto mask_view_from_graph_view = *graph_view.get_mask_view();
 
     ASSERT_EQ(false, mask.has_vertex_mask());
     ASSERT_EQ(false, mask.has_edge_mask());
-    ASSERT_EQ(false, mask_view.has_vertex_mask());
-    ASSERT_EQ(false, mask_view.has_edge_mask());
+    ASSERT_EQ(false, mask_view_from_graph_view.has_vertex_mask());
+    ASSERT_EQ(false, mask_view_from_graph_view.has_edge_mask());
 
     mask.initialize_vertex_mask();
     mask.initialize_edge_mask();
 
     // Need to create another view to reflect changes to the
     // owning object
-    auto mask_view2 = *graph_view.get_mask_view();
+    auto mask_view_from_graph_view2 = *graph_view.get_mask_view();
 
     ASSERT_EQ(true, mask.has_vertex_mask());
     ASSERT_EQ(true, mask.has_edge_mask());
-    ASSERT_EQ(true, mask_view2.has_vertex_mask());
-    ASSERT_EQ(true, mask_view2.has_edge_mask());
+    ASSERT_EQ(true, mask_view_from_graph_view2.has_vertex_mask());
+    ASSERT_EQ(true, mask_view_from_graph_view2.has_edge_mask());
   }
 };
 

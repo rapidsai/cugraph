@@ -155,13 +155,12 @@ __global__ void masked_degree_kernel(edge_t* degrees_output,
   vertex_t start_offset = indptr[vertex];
   vertex_t stop_offset  = indptr[vertex + 1];
 
-  mask_type start_mask_offset = start_offset / std::numeric_limits<mask_type>::digits;
-  mask_type stop_mask_offset  = stop_offset / std::numeric_limits<mask_type>::digits;
+  mask_type start_mask_offset = start_offset >> log_bits<mask_type>();
+  mask_type stop_mask_offset  = stop_offset >> log_bits<mask_type>();
 
-  mask_type start_bit = start_offset & (std::numeric_limits<mask_type>::digits - 1);
+  mask_type start_bit = fast_mod<mask_type>(start_offset);
 
-  mask_type stop_bit = (std::numeric_limits<mask_type>::digits) -
-                       (stop_offset & (std::numeric_limits<mask_type>::digits - 1));
+  mask_type stop_bit = std::numeric_limits<mask_type>::digits - fast_mod<mask_type>(stop_offset);
 
   // TODO: Check vertex mask for vertex
   //  mask_type* vertex_mask = mask.get_vertex_mask();
@@ -208,12 +207,11 @@ __global__ void masked_degree_kernel(edge_t* degrees_output,
   vertex_t start_offset = indptr[vertex];
   vertex_t stop_offset  = indptr[vertex + 1];
 
-  mask_type start_mask_offset = start_offset / std::numeric_limits<mask_type>::digits;
-  mask_type stop_mask_offset  = stop_offset / std::numeric_limits<mask_type>::digits;
+  mask_type start_mask_offset = start_offset >> log_bits<mask_type>();
+  mask_type stop_mask_offset  = stop_offset >> log_bits<mask_type>();
 
-  mask_type start_bit = start_offset & (std::numeric_limits<mask_type>::digits - 1);
-  mask_type stop_bit  = (std::numeric_limits<mask_type>::digits) -
-                       (stop_offset & (std::numeric_limits<mask_type>::digits - 1));
+  mask_type start_bit = fast_mod<mask_type>(start_offset);
+  mask_type stop_bit  = std::numeric_limits<mask_type>::digits - fast_mod<mask_type>(stop_offset);
 
   vertex_t degree = 0;
   for (vertex_t i = threadIdx.x; i <= (stop_mask_offset - start_mask_offset); i += tpb) {
@@ -221,7 +219,6 @@ __global__ void masked_degree_kernel(edge_t* degrees_output,
 
     // Apply start / stop masks to the first and last elements
     if (i == 0) { mask_elm = mask_elm & 0xffffffff << start_bit; }
-
     if (i == stop_mask_offset - start_mask_offset) { mask_elm = mask_elm & 0xffffffff >> stop_bit; }
 
     degree += __popc(mask_elm);

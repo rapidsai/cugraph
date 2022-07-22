@@ -17,6 +17,7 @@
 #pragma once
 
 #include <raft/core/handle.hpp>
+#include <raft/core/span.hpp>
 #include <rmm/device_uvector.hpp>
 
 #include <cstdint>
@@ -25,6 +26,22 @@
 #include <vector>
 
 namespace cugraph {
+
+template <typename mask_t>
+__host__ __device__ constexpr int log_bits()
+{
+  switch (std::numeric_limits<mask_t>::digits) {
+    case 32: return 5;
+    case 64: return 6;
+  }
+}
+
+template <typename mask_t, typename T>
+__host__ __device__ int fast_mod(T numer)
+{
+  return numer & (std::numeric_limits<mask_t>::digits - 1);
+}
+
 namespace detail {
 
 /**
@@ -33,8 +50,8 @@ namespace detail {
 template <typename mask_type = std::uint32_t>
 __device__ __host__ inline void _set_bit(mask_type* arr, mask_type h)
 {
-  mask_type bit = h & (std::numeric_limits<mask_type>::digits - 1);
-  mask_type idx = h / std::numeric_limits<mask_type>::digits;
+  mask_type bit = fast_mod<mask_type>(h);
+  mask_type idx = h >> log_bits<mask_type>();
   atomicOr(arr + idx, (1 << bit));
 }
 
@@ -45,8 +62,8 @@ __device__ __host__ inline void _set_bit(mask_type* arr, mask_type h)
 template <typename mask_type = std::uint32_t>
 __device__ __host__ inline bool _is_set(mask_type* arr, mask_type h)
 {
-  mask_type bit = h & (std::numeric_limits<mask_type>::digits - 1);
-  mask_type idx = h / std::numeric_limits<mask_type>::digits;
+  mask_type bit = fast_mod<mask_type>(h);
+  mask_type idx = h >> log_bits<mask_type>();
   return arr[idx] >> bit & 1U;
 }
 
@@ -109,16 +126,12 @@ struct graph_mask_view_t {
  public:
   graph_mask_view_t() = delete;
 
-  graph_mask_view_t(bool has_vertex_mask,
-                    bool has_edge_mask,
-                    vertex_t n_vertices,
+  graph_mask_view_t(vertex_t n_vertices,
                     edge_t n_edges,
-                    mask_t* vertices,
-                    mask_t* edges,
+                    std::optional<raft::device_span<mask_t>>& vertices,
+                    std::optional<raft::device_span<mask_t>>& edges,
                     bool complement = false)
-    : has_vertex_mask_(has_vertex_mask),
-      has_edge_mask_(has_edge_mask),
-      n_vertices_(n_vertices),
+    : n_vertices_(n_vertices),
       n_edges_(n_edges),
       complement_(complement),
       vertices_(vertices),
@@ -126,17 +139,17 @@ struct graph_mask_view_t {
   {
   }
 
-  graph_mask_view_t(graph_mask_view_t<vertex_t, edge_t, mask_t> const& other) = default;
-  using vertex_type                                                           = vertex_t;
-  using edge_type                                                             = edge_t;
-  using mask_type                                                             = mask_t;
-  using size_type                                                             = std::size_t;
+  graph_mask_view_t(graph_mask_view_t const& other) = default;
+  using vertex_type                                 = vertex_t;
+  using edge_type                                   = edge_t;
+  using mask_type                                   = mask_t;
+  using size_type                                   = std::size_t;
 
-  ~graph_mask_view_t()                                                      = default;
-  graph_mask_view_t(graph_mask_view_t<vertex_t, edge_t, mask_t>&&) noexcept = default;
+  ~graph_mask_view_t()                            = default;
+  graph_mask_view_t(graph_mask_view_t&&) noexcept = default;
 
-  graph_mask_view_t& operator=(graph_mask_view_t<vertex_t, edge_t, mask_t>&&) noexcept = default;
-  graph_mask_view_t& operator=(graph_mask_view_t<vertex_t, edge_t, mask_t> const& other) = default;
+  graph_mask_view_t& operator=(graph_mask_view_t&&) noexcept = default;
+  graph_mask_view_t& operator=(graph_mask_view_t const& other) = default;
 
   /**
    * Are masks complemeneted?
@@ -149,41 +162,42 @@ struct graph_mask_view_t {
   /**
    * Has the edge mask been initialized?
    */
-  __host__ __device__ bool has_edge_mask() const { return has_edge_mask_; }
+  __host__ __device__ bool has_edge_mask() const { return edges_.has_value(); }
 
   /**
    * Has the vertex mask been initialized?
    */
-  __host__ __device__ bool has_vertex_mask() const { return has_vertex_mask_; }
+  __host__ __device__ bool has_vertex_mask() const { return vertices_.has_value(); }
 
   /**
    * Get the vertex mask
    */
-  __host__ __device__ mask_t* get_vertex_mask() const { return vertices_; }
+  __host__ __device__ mask_t* get_vertex_mask() const
+  {
+    return vertices_.has_value() ? (*vertices_).data() : nullptr;
+  }
 
   /**
    * Get the edge mask
    */
-  __host__ __device__ mask_t* get_edge_mask() const { return edges_; }
-
-  __host__ __device__ edge_t get_edge_mask_size() const
+  __host__ __device__ mask_t* get_edge_mask() const
   {
-    return n_edges_ / std::numeric_limits<mask_t>::digits;
+    return edges_.has_value() ? (*edges_).data() : nullptr;
   }
+
+  __host__ __device__ edge_t get_edge_mask_size() const { return n_edges_ >> log_bits<mask_t>(); }
 
   __host__ __device__ vertex_t get_vertex_mask_size() const
   {
-    return n_vertices_ / std::numeric_limits<mask_t>::digits;
+    return n_vertices_ >> log_bits<mask_t>();
   }
 
  protected:
-  bool has_vertex_mask_{false};
-  bool has_edge_mask_{false};
   vertex_t n_vertices_;
   edge_t n_edges_;
   bool complement_{false};
-  mask_t* vertices_{nullptr};
-  mask_t* edges_{nullptr};
+  std::optional<raft::device_span<mask_t>> vertices_{std::nullopt};
+  std::optional<raft::device_span<mask_t>> edges_{std::nullopt};
 };  // struct graph_mask_view_t
 
 /**
@@ -286,17 +300,36 @@ struct graph_mask_t {
 
   edge_t get_n_edges() { return n_edges_; }
 
-  edge_t get_edge_mask_size() const { return n_edges_ / std::numeric_limits<mask_t>::digits; }
+  edge_t get_edge_mask_size() const { return n_edges_ >> log_bits<mask_t>(); }
 
-  vertex_t get_vertex_mask_size() const
+  vertex_t get_vertex_mask_size() const { return n_vertices_ >> log_bits<mask_t>(); }
+
+  void initialize_edge_mask(bool init = 0)
   {
-    return n_vertices_ / std::numeric_limits<mask_t>::digits;
+    if (!has_edge_mask()) {
+      allocate_edge_mask();
+      RAFT_CUDA_TRY(cudaMemsetAsync(edges_.data(),
+                                    edges_.size() * sizeof(mask_t),
+                                    std::numeric_limits<mask_t>::max() * init,
+                                    handle_.get_stream()));
+    }
+  }
+
+  void initialize_vertex_mask(bool init = 0)
+  {
+    if (!has_vertex_mask()) {
+      allocate_vertex_mask();
+      RAFT_CUDA_TRY(cudaMemsetAsync(vertices_.data(),
+                                    vertices_.size() * sizeof(mask_t),
+                                    std::numeric_limits<mask_t>::max() * init,
+                                    handle_.get_stream()));
+    }
   }
 
   /**
    * Initializes an edge mask by allocating the device memory
    */
-  void initialize_edge_mask()
+  void allocate_edge_mask()
   {
     if (edges_.size() == 0) {
       edges_.resize(get_edge_mask_size(), handle_.get_stream());
@@ -307,7 +340,7 @@ struct graph_mask_t {
   /**
    * Initializes a vertex mask by allocating the device memory
    */
-  void initialize_vertex_mask()
+  void allocate_vertex_mask()
   {
     if (vertices_.size() == 0) {
       vertices_.resize(get_vertex_mask_size(), handle_.get_stream());
