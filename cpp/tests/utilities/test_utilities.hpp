@@ -361,6 +361,8 @@ std::vector<T> random_vector(L size, unsigned seed = 0)
   return v;
 }
 
+std::unique_ptr<raft::handle_t> initialize_handle(bool multi_gpu);
+
 // NCCL lazily initializes for P2P, and this enforces P2P initialization for better performance
 // measurements
 void enforce_p2p_initialization(raft::handle_t const& handle);
