@@ -999,20 +999,18 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
   for (size_t i = 0; i < edgelists.size(); ++i) {
     auto [major_range_first, major_range_last] = partition_.local_edge_partition_major_range(i);
     auto [minor_range_first, minor_range_last] = partition_.local_edge_partition_minor_range();
-    auto major_hypersparse_first =
+    auto [offsets, indices, weights, dcs_nzd_vertices] = compress_edgelist<store_transposed>(
+      edgelists[i],
+      major_range_first,
       use_dcs ? std::optional<vertex_t>{major_range_first +
                                         (*edge_partition_segment_offsets_)
                                           [(*(meta.segment_offsets)).size() * i +
                                            detail::num_sparse_segments_per_vertex_partition]}
-              : std::nullopt;
-    auto [offsets, indices, weights, dcs_nzd_vertices] =
-      compress_edgelist<store_transposed>(edgelists[i],
-                                          major_range_first,
-                                          major_hypersparse_first,
-                                          major_range_last,
-                                          minor_range_first,
-                                          minor_range_last,
-                                          handle.get_stream());
+              : std::nullopt,
+      major_range_last,
+      minor_range_first,
+      minor_range_last,
+      handle.get_stream());
 
     edge_partition_offsets_.push_back(std::move(offsets));
     edge_partition_indices_.push_back(std::move(indices));
@@ -1149,20 +1147,18 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
   for (size_t i = 0; i < edgelists.size(); ++i) {
     auto [major_range_first, major_range_last] = partition_.local_edge_partition_major_range(i);
     auto [minor_range_first, minor_range_last] = partition_.local_edge_partition_minor_range();
-    auto major_hypersparse_first =
+    auto [offsets, indices, weights, dcs_nzd_vertices] = compress_edgelist<store_transposed>(
+      edgelists[i],
+      major_range_first,
       use_dcs ? std::optional<vertex_t>{major_range_first +
                                         (*edge_partition_segment_offsets_)
                                           [(*(meta.segment_offsets)).size() * i +
                                            detail::num_sparse_segments_per_vertex_partition]}
-              : std::nullopt;
-    auto [offsets, indices, weights, dcs_nzd_vertices] =
-      compress_edgelist<store_transposed>(edgelists[i],
-                                          major_range_first,
-                                          major_hypersparse_first,
-                                          major_range_last,
-                                          minor_range_first,
-                                          minor_range_last,
-                                          handle.get_stream());
+              : std::nullopt,
+      major_range_last,
+      minor_range_first,
+      minor_range_last,
+      handle.get_stream());
     edgelist_src_partitions[i].resize(0, handle.get_stream());
     edgelist_src_partitions[i].shrink_to_fit(handle.get_stream());
     edgelist_dst_partitions[i].resize(0, handle.get_stream());

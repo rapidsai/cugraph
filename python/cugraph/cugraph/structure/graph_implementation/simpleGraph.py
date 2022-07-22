@@ -199,8 +199,10 @@ class simpleGraphImpl:
         if self.batch_enabled:
             self._replicate_edgelist()
 
-
-        self.make_plc_graph(value_col=value_col, store_transposed=store_transposed)
+        self._make_plc_graph(
+            value_col=value_col,
+            store_transposed=store_transposed
+        )
 
     def to_pandas_edgelist(self, source='src', destination='dst',
                            weight='weights'):
@@ -761,7 +763,7 @@ class simpleGraphImpl:
 
         return df
 
-    def make_plc_graph(self, value_col=None, store_transposed=False):
+    def _make_plc_graph(self, value_col=None, store_transposed=False):
         if value_col is None:
             value_col = cudf.Series(
                 cupy.ones(len(self.edgelist.edgelist_df), dtype='float32')
@@ -807,7 +809,7 @@ class simpleGraphImpl:
         else:
             value_col = None
 
-        DiG.make_plc_graph(value_col, store_transposed)
+        DiG._make_plc_graph(value_col, store_transposed)
 
     def to_undirected(self, G, store_transposed=False):
         """
@@ -837,6 +839,13 @@ class simpleGraphImpl:
             value_col = None
 
         G.make_plc_graph(value_col, store_transposed)
+
+        if 'weights' in self.edgelist.edgelist_df:
+            value_col = self.edgelist.edgelist_df['weights']
+        else:
+            value_col = None
+
+        G._make_plc_graph(value_col, store_transposed)
 
     def has_node(self, n):
         """

@@ -23,7 +23,6 @@ from pylibcugraph import ResourceHandle
 from pylibcugraph import \
     uniform_neighbor_sample as pylibcugraph_uniform_neighbor_sample
 
-from cugraph.dask.common.input_utils import get_distributed_data
 from cugraph.dask.comms import comms as Comms
 
 
@@ -71,6 +70,9 @@ def uniform_neighbor_sample(input_graph,
     """
     Does neighborhood sampling, which samples nodes from a graph based on the
     current node's neighbors, with a corresponding fanout value at each hop.
+
+    Note: This is a pylibcugraph-enabled algorithm, which requires that the
+    graph was created with legacy_renum_only=True.
 
     Parameters
     ----------
@@ -130,19 +132,14 @@ def uniform_neighbor_sample(input_graph,
             start_list).compute()
 
     '''
+    FIXME update the API to scatter the start list as shown below.
     start_list = dask_cudf.from_cudf(
         start_list,
-        npartitions=input_graph.npartitions
+        npartitions=input_graph._npartitions
     )
     start_list = get_distributed_data(start_list)
     wait(start_list)
     '''
-    import cupy
-    dummy = dask_cudf.from_cudf(
-        cudf.Series(cupy.ones(input_graph.npartitions)),
-        npartitions=input_graph.npartitions
-    )
-    dummy = get_distributed_data(dummy)
 
     client = input_graph._client
 
@@ -150,15 +147,13 @@ def uniform_neighbor_sample(input_graph,
         client.submit(
             _call_plc_uniform_neighbor_sample,
             Comms.get_session_id(),
-            mg_graph,
+            input_graph._plc_graph[w],
             start_list,
             fanout_vals,
             with_replacement,
             workers=[w],
         )
-        for mg_graph, (w, _) in zip(
-            input_graph._plc_graph, dummy.worker_to_parts.items()
-        )
+        for w in Comms.get_workers()
     ]
 
     wait(result)

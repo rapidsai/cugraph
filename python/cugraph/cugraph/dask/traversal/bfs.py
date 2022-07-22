@@ -63,6 +63,9 @@ def bfs(input_graph,
     The input graph must contain edge list as a dask-cudf dataframe with
     one partition per GPU.
 
+    Note: This is a pylibcugraph-enabled algorithm, which requires that the
+    graph was created with legacy_renum_only=True.
+
     Parameters
     ----------
     input_graph : cugraph.Graph
@@ -122,7 +125,7 @@ def bfs(input_graph,
             start = cudf.Series(start)
         if isinstance(start, (cudf.DataFrame, cudf.Series)):
             # convert into a dask_cudf
-            start = dask_cudf.from_cudf(start, input_graph.npartitions)
+            start = dask_cudf.from_cudf(start, input_graph._npartitions)
 
     def check_valid_vertex(G, start):
         is_valid_vertex = G.has_node(start)
@@ -149,15 +152,13 @@ def bfs(input_graph,
         client.submit(
             _call_plc_bfs,
             Comms.get_session_id(),
-            mg_graph,
+            input_graph._plc_graph[w],
             st[0],
             depth_limit,
             return_distances,
             workers=[w]
         )
-        for mg_graph, (w, st) in zip(
-            input_graph._plc_graph, data_start.worker_to_parts.items()
-        )
+        for w, st in data_start.worker_to_parts.items()
     ]
 
     wait(cupy_result)

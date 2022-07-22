@@ -1091,4 +1091,8 @@ device_gatherv(raft::comms::comms_t const& comm,
     .run(comm, input_first, output_first, sendcount, recvcounts, displacements, root, stream_view);
 }
 
+inline void device_group_start(raft::comms::comms_t const& comm) { comm.group_start(); }
+
+inline void device_group_end(raft::comms::comms_t const& comm) { comm.group_end(); }
+
 }  // namespace cugraph

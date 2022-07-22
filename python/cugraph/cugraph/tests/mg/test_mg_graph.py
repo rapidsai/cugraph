@@ -47,7 +47,7 @@ datasets = utils.DATASETS_UNDIRECTED + utils.DATASETS_UNRENUMBERED
 fixture_params = utils.genFixtureParamsProduct(
     (datasets, "graph_file"),
     (IS_DIRECTED, "directed"),
-    ([True, False], "legacy_renum_only")
+    ([True], "legacy_renum_only")
     )
 
 
@@ -77,9 +77,8 @@ def input_combo(request):
 
     dg = cugraph.Graph(directed=directed)
     dg.from_dask_cudf_edgelist(
-        ddf, source='src', destination='dst', edge_attr='value')
-
-    dg.compute_renumber_edge_list(legacy_renum_only=legacy_renum_only)
+        ddf, source='src', destination='dst', edge_attr='value',
+        legacy_renum_only=legacy_renum_only)
 
     parameters["MGGraph"] = dg
 
@@ -156,12 +155,11 @@ def test_create_mg_graph(dask_client, input_combo):
                 False
             ),
             Comms.get_session_id(),
-            mg_graph,
-            st[0],
+            G._plc_graph[w],
+            data_start.worker_to_parts[w][0],
             workers=[w]
         )
-        for mg_graph, (w, st) in
-        zip(G._plc_graph, data_start.worker_to_parts.items())
+        for w in Comms.get_workers()
     ]
 
     wait(res)
@@ -172,15 +170,17 @@ def test_create_mg_graph(dask_client, input_combo):
     ]
     wait(cudf_result)
 
-    ddf = dask_cudf.from_delayed(cudf_result).compute()
+    ddf = dask_cudf.from_delayed(cudf_result)
+
+    ddf = ddf.compute()
 
     if 'dolphins.csv' == input_combo['graph_file'].name:
-        assert ddf[ddf.vertex == 33].distance.to_numpy()[0] == 3
-        assert ddf[ddf.vertex == 33].predecessor.to_numpy()[0] == 37
-        assert ddf[ddf.vertex == 11].distance.to_numpy()[0] == 4
-        assert ddf[ddf.vertex == 11].predecessor.to_numpy()[0] == 51
+        assert ddf[ddf.vertex == 33].distance.iloc[0] == 3
+        assert ddf[ddf.vertex == 33].predecessor.iloc[0] == 37
+        assert ddf[ddf.vertex == 11].distance.iloc[0] == 4
+        assert ddf[ddf.vertex == 11].predecessor.iloc[0] == 51
     else:
-        assert ddf[ddf.vertex == 33].distance.to_numpy()[0] == 2
-        assert ddf[ddf.vertex == 33].predecessor.to_numpy()[0] == 30
-        assert ddf[ddf.vertex == 11].distance.to_numpy()[0] == 2
-        assert ddf[ddf.vertex == 11].predecessor.to_numpy()[0] == 0
+        assert ddf[ddf.vertex == 33].distance.iloc[0] == 2
+        assert ddf[ddf.vertex == 33].predecessor.iloc[0] == 30
+        assert ddf[ddf.vertex == 11].distance.iloc[0] == 2
+        assert ddf[ddf.vertex == 11].predecessor.iloc[0] == 0
