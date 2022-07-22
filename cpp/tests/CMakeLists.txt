@@ -590,7 +590,7 @@ if(BUILD_CUGRAPH_MG_TESTS)
         ###########################################################################################
         # - MG PRIMS REDUCE_V tests ---------------------------------------------------------------
         ConfigureTestMG(MG_REDUCE_V_TEST prims/mg_reduce_v.cu)
-        target_link_libraries(MG_COUNT_IF_V_TEST PRIVATE cuco::cuco)
+        target_link_libraries(MG_REDUCE_V_TEST PRIVATE cuco::cuco)
 
         ###########################################################################################
         # - MG PRIMS TRANSFORM_REDUCE_V tests -----------------------------------------------------
