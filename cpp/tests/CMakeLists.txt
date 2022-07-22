@@ -579,6 +579,7 @@ if(BUILD_CUGRAPH_MG_TESTS)
         ###########################################################################################
         # - MG PRIMS COUNT_IF_V tests -------------------------------------------------------------
         ConfigureTestMG(MG_COUNT_IF_V_TEST prims/mg_count_if_v.cu)
+        target_link_libraries(MG_COUNT_IF_V_TEST PRIVATE cuco::cuco)
 
         ###########################################################################################
         # - MG PRIMS TRANSFORM_REDUCE_V_FRONTIER_OUTGOING_E_BY_DST tests --------------------------
