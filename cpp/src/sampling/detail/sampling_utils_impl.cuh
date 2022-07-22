@@ -514,8 +514,7 @@ __device__ edge_t mask_offset_to_original_offset(mask_t* edge_mask,
     }
 
     if (cur_sum + __popc(mask_val) >= g_dst_index + 1) {
-      g_dst_index =
-        i + kth_bit(mask_val, (edge_t)(g_dst_index - cur_sum), start_bit, g_dst_index == 24);
+      g_dst_index = i + kth_bit(mask_val, (edge_t)(g_dst_index - cur_sum), start_bit);
       break;
     }
 

@@ -37,7 +37,8 @@ __device__ int level_to_bits(t l)
   return pow(2, l2);
 }
 
-__host__ __device__ __forceinline__ void print_ulong_bin(const uint32_t* const var, int bits)
+template <typename mask_t>
+__host__ __device__ __forceinline__ void print_ulong_bin(const mask_t* const var, int bits)
 {
   int i;
 
@@ -60,15 +61,15 @@ __host__ __device__ __forceinline__ void print_ulong_bin(const uint32_t* const v
  * in the original adjacency list.
  * @tparam edge_t
  * @tparam mask_type
- * @param mask
- * @param start_offset
- * @param stop_offset
- * @param n_bits
- * @param k
+ * @param mask_elm an element of the mask. It is expected that all 1 bits in this mask
+ *                 are valid and any bits outside the mask's boundaries have already been
+ *                 masked out.
+ * @param k the value for which to find the index of the cumsum
+ * @param start_bit the offset of bit which represents mask_elm's starting boundary
  * @return
  */
 template <typename edge_t, typename mask_type>
-__device__ edge_t kth_bit(mask_type mask_elm, edge_t k, edge_t start_bit, bool debug)
+__device__ edge_t kth_bit(mask_type mask_elm, edge_t k, edge_t start_bit)
 {
   constexpr mask_type FMASK    = 0xffffffff;
   constexpr mask_type n_shifts = std::numeric_limits<mask_type>::digits;
@@ -97,11 +98,6 @@ __device__ edge_t kth_bit(mask_type mask_elm, edge_t k, edge_t start_bit, bool d
   int idx                = level_to_bits(0);  // this is capped at n_shifts
   int k_tmp              = k + 1;
 
-  if (debug) {
-    printf("level=%d, idx=%d, k_tmp=%d k=%ld ", idx, idx, k_tmp, k);
-    print_ulong_bin(&tmp_mask_elm, n_shifts);
-  }
-
   // Iterate for first 4 levels
   for (int i = 0; i < 4; ++i) {
     // First check the count of the right branch
@@ -118,30 +114,13 @@ __device__ edge_t kth_bit(mask_type mask_elm, edge_t k, edge_t start_bit, bool d
     // Apply current mask window
     int level = level_to_bits(i);
     tmp_mask_elm &=
-      (FMASK >> (n_shifts - idx - max(1, level / 2))) & (FMASK << (idx - max(1, level / 2)));
-
-    if (debug) {
-      printf("took_left_path=%d, level=%d, idx=%d, k_tmp=%d k=%ld popl=%d, ffs=%d ",
-             (k_tmp > popl),
-             level,
-             idx,
-             k_tmp,
-             k,
-             popl,
-             __ffs(tmp_mask_elm));
-      print_ulong_bin(&tmp_mask_elm, n_shifts);
-    }
+      (FMASK >> (n_shifts - idx - max(1, level >> 1))) & (FMASK << (idx - max(1, level >> 1)));
   }
 
   /**
    * The population count for all the bits to the right of idx should be k,
    * otherwise, we need to take one final left branch.
    */
-  printf("idx=%d, k=%ld, popc=%d, start_bit=%ld\n",
-         idx,
-         k,
-         __popc((mask_elm & FMASK >> (n_shifts - idx))),
-         start_bit);
   return (idx += (k - __popc((mask_elm & FMASK >> (n_shifts - idx))))) - start_bit;
 }
 
