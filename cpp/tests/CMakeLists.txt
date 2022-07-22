@@ -47,7 +47,8 @@ target_link_libraries(cugraphtestutil
 
 
 add_library(cugraphmgtestutil STATIC
-            utilities/device_comm_wrapper.cu)
+            utilities/device_comm_wrapper.cu
+            utilities/mg_utilities.cpp)
 
 set_property(TARGET cugraphmgtestutil PROPERTY POSITION_INDEPENDENT_CODE ON)
 
