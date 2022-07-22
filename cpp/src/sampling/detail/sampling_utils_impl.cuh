@@ -117,7 +117,7 @@ rmm::device_uvector<typename GraphViewType::edge_type> compute_local_major_degre
       auto sparse_begin = local_degrees.begin() + partial_offset;
       auto sparse_end   = local_degrees.begin() + partial_offset + num_sparse_vertices;
 
-      // If a vertex mask is present, compute the (local) degrees of the masked vertices
+      // If an edge mask is present, compute the (local) degrees of the masked edges
       if (mask.has_value() && (*mask).has_edge_mask()) {
         raft::logger::get().log(RAFT_LEVEL_INFO, "Computing masked degrees 1");
         compute_masked_degrees(
@@ -147,6 +147,7 @@ rmm::device_uvector<typename GraphViewType::edge_type> compute_local_major_degre
       auto offsets           = edge_partition.offsets();
       vertex_t offsets_start = major_hypersparse_first - major_range_first;
 
+      // If an edge mask is present, compute degrees of masked edges
       if (mask.has_value() && (*mask).has_edge_mask()) {
         raft::logger::get().log(RAFT_LEVEL_INFO, "Computing masked degrees 2");
 
@@ -181,7 +182,7 @@ rmm::device_uvector<typename GraphViewType::edge_type> compute_local_major_degre
       auto sparse_end = local_degrees.begin() + partial_offset + edge_partition.major_range_size();
       vertex_t size   = partial_offset + edge_partition.major_range_size();
 
-      // If a vertex mask is present, compute the (local) degrees of the masked vertices
+      // If an edge mask is present, compute the (local) degrees of the masked edges
       if (mask.has_value() && (*mask).has_edge_mask()) {
         raft::logger::get().log(RAFT_LEVEL_INFO, "Computing masked degrees 3, %d", partial_offset);
         compute_masked_degrees(handle, graph_view, sparse_begin, size, edge_partition);
