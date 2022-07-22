@@ -24,16 +24,32 @@
 #include <cugraph/graph_mask.hpp>
 
 namespace cugraph {
+
+template <typename T>
+__device__ inline int safe_popc(T num);
+
+template <>
+__device__ inline int safe_popc(std::uint32_t num)
+{
+  return __popc(num);
+}
+
+template <>
+__device__ inline int safe_popc(std::uint64_t num)
+{
+  return __popcll(num);
+}
+
 namespace detail {
 
 /**
  * Find the kth masked bit in a mask using divide and conquer approach
  */
 
-template <typename t = int>
+template <typename mask_t, typename t = int>
 __device__ int level_to_bits(t l)
 {
-  t l2 = 5 - (l + 1);
+  t l2 = log_bits<mask_t>() - (l + 1);
   return pow(2, l2);
 }
 
@@ -71,7 +87,7 @@ __host__ __device__ __forceinline__ void print_ulong_bin(const mask_t* const var
 template <typename edge_t, typename mask_type>
 __device__ edge_t kth_bit(mask_type mask_elm, edge_t k, edge_t start_bit)
 {
-  constexpr mask_type FMASK    = 0xffffffff;
+  constexpr mask_type FMASK    = std::numeric_limits<mask_type>::max();
   constexpr mask_type n_shifts = std::numeric_limits<mask_type>::digits;
 
   /**
@@ -95,24 +111,24 @@ __device__ edge_t kth_bit(mask_type mask_elm, edge_t k, edge_t start_bit)
    */
 
   mask_type tmp_mask_elm = mask_elm;
-  int idx                = level_to_bits(0);  // this is capped at n_shifts
+  int idx                = level_to_bits<mask_type>(0);  // this is capped at n_shifts
   int k_tmp              = k + 1;
 
   // Iterate for first 4 levels
-  for (int i = 0; i < 4; ++i) {
+  for (int i = 0; i < log_bits<mask_type>() - 1; ++i) {
     // First check the count of the right branch
-    int popl = __popc(tmp_mask_elm & FMASK >> (n_shifts - idx));
+    int popl = safe_popc<mask_type>(tmp_mask_elm & FMASK >> (n_shifts - idx));
 
     // Shift idx accordingly (up for left branch, down for right branch)
-    idx += level_to_bits(i + 1) * (-1 * (k_tmp <= popl) +  // right branch
-                                   (k_tmp > popl));        // left branch
+    idx += level_to_bits<mask_type>(i + 1) * (-1 * (k_tmp <= popl) +  // right branch
+                                              (k_tmp > popl));        // left branch
 
     // If taking left branch, adjust k for local mask window by
     // removing popcount on right
     k_tmp -= (k_tmp > popl) * popl;
 
     // Apply current mask window
-    int level_window = level_to_bits(i) >> 1;
+    int level_window = level_to_bits<mask_type>(i) >> 1;
     tmp_mask_elm &=
       (FMASK >> (n_shifts - idx - max(1, level_window))) & (FMASK << (idx - max(1, level_window)));
   }
@@ -121,7 +137,7 @@ __device__ edge_t kth_bit(mask_type mask_elm, edge_t k, edge_t start_bit)
    * The population count for all the bits to the right of idx should be k,
    * otherwise, we need to take one final left branch.
    */
-  return (idx += (k - __popc((mask_elm & FMASK >> (n_shifts - idx))))) - start_bit;
+  return (idx += (k - safe_popc<mask_type>((mask_elm & FMASK >> (n_shifts - idx))))) - start_bit;
 }
 
 /**
@@ -158,24 +174,23 @@ __global__ void masked_degree_kernel(edge_t* degrees_output,
   mask_type start_mask_offset = start_offset >> log_bits<mask_type>();
   mask_type stop_mask_offset  = stop_offset >> log_bits<mask_type>();
 
-  mask_type start_bit = fast_mod<mask_type>(start_offset);
-
-  mask_type stop_bit = std::numeric_limits<mask_type>::digits - fast_mod<mask_type>(stop_offset);
-
-  // TODO: Check vertex mask for vertex
-  //  mask_type* vertex_mask = mask.get_vertex_mask();
-  //  mask_type* edge_mask = mask.get_edge_mask();
-
   vertex_t degree = 0;
   for (vertex_t i = threadIdx.x; i <= (stop_mask_offset - start_mask_offset); i += tpb) {
     mask_type mask_elm = edge_mask[i + start_mask_offset];
 
     // Apply start / stop masks to the first and last elements
-    if (i == 0) { mask_elm = mask_elm & 0xffffffff << start_bit; }
+    if (i == 0) {
+      mask_elm = mask_elm & std::numeric_limits<mask_type>::max()
+                              << bit_mod<mask_type>(start_offset);
+    }
 
-    if (i == stop_mask_offset - start_mask_offset) { mask_elm = mask_elm & 0xffffffff >> stop_bit; }
+    if (i == stop_mask_offset - start_mask_offset) {
+      mask_elm =
+        mask_elm & std::numeric_limits<mask_type>::max() >>
+                     (std::numeric_limits<mask_type>::digits - bit_mod<mask_type>(stop_offset));
+    }
 
-    degree += __popc(mask_elm);
+    degree += safe_popc<mask_type>(mask_elm);
   }
 
   degree = BlockReduce(temp_storage).Sum(degree);
@@ -210,18 +225,22 @@ __global__ void masked_degree_kernel(edge_t* degrees_output,
   mask_type start_mask_offset = start_offset >> log_bits<mask_type>();
   mask_type stop_mask_offset  = stop_offset >> log_bits<mask_type>();
 
-  mask_type start_bit = fast_mod<mask_type>(start_offset);
-  mask_type stop_bit  = std::numeric_limits<mask_type>::digits - fast_mod<mask_type>(stop_offset);
-
   vertex_t degree = 0;
   for (vertex_t i = threadIdx.x; i <= (stop_mask_offset - start_mask_offset); i += tpb) {
     mask_type mask_elm = edge_mask[i + start_mask_offset];
 
     // Apply start / stop masks to the first and last elements
-    if (i == 0) { mask_elm = mask_elm & 0xffffffff << start_bit; }
-    if (i == stop_mask_offset - start_mask_offset) { mask_elm = mask_elm & 0xffffffff >> stop_bit; }
+    if (i == 0) {
+      mask_elm = mask_elm & std::numeric_limits<mask_type>::max()
+                              << bit_mod<mask_type>(start_offset);
+    }
+    if (i == stop_mask_offset - start_mask_offset) {
+      mask_elm =
+        mask_elm & std::numeric_limits<mask_type>::max() >>
+                     (std::numeric_limits<mask_type>::digits - bit_mod<mask_type>(stop_offset));
+    }
 
-    degree += __popc(mask_elm);
+    degree += safe_popc<mask_type>(mask_elm);
   }
 
   degree = BlockReduce(temp_storage).Sum(degree);
@@ -231,18 +250,20 @@ __global__ void masked_degree_kernel(edge_t* degrees_output,
 
 }  // namespace detail
 
-template <typename vertex_t, typename edge_t, typename mask_type = std::uint32_t>
+template <typename vertex_t, typename edge_t, typename mask_type>
 void masked_degrees(raft::handle_t const& handle,
                     edge_t* degrees_output,
                     vertex_t size,
                     graph_mask_view_t<vertex_t, edge_t, mask_type> const& mask,
                     edge_t const* indptr)
 {
+  CUGRAPH_EXPECTS(mask.get_edge_mask().has_value(), "Edge mask is required to compute degrees.");
   detail::masked_degree_kernel<vertex_t, edge_t, mask_type, 128>
-    <<<size, 128, 0, handle.get_stream()>>>(degrees_output, mask.get_edge_mask(), indptr);
+    <<<size, 128, 0, handle.get_stream()>>>(
+      degrees_output, mask.get_edge_mask().value().data(), indptr);
 }
 
-template <typename vertex_t, typename edge_t, typename mask_type = std::uint32_t>
+template <typename vertex_t, typename edge_t, typename mask_type>
 void masked_degrees(raft::handle_t const& handle,
                     edge_t* degrees_output,
                     vertex_t size,
@@ -251,9 +272,10 @@ void masked_degrees(raft::handle_t const& handle,
                     vertex_t const* vertex_ids,
                     edge_t const* indptr)
 {
+  CUGRAPH_EXPECTS(mask.get_edge_mask().has_value(), "Edge mask is required to compute degrees.");
   detail::masked_degree_kernel<vertex_t, edge_t, mask_type, 128>
     <<<size, 128, 0, handle.get_stream()>>>(
-      degrees_output, mask.get_edge_mask(), major_range_first, vertex_ids, indptr);
+      degrees_output, mask.get_edge_mask().value().data(), major_range_first, vertex_ids, indptr);
 }
 
 };  // end namespace cugraph

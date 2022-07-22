@@ -108,8 +108,10 @@ class Tests_Uniform_Neighbor_Sampling
     unset_bit<mask_t>(mask_h.data(), 125);  // 9
     unset_bit<mask_t>(mask_h.data(), 150);  // 10
 
-    raft::copy(
-      graph_mask.view().get_edge_mask(), mask_h.data(), mask_h.size(), handle.get_stream());
+    raft::copy(graph_mask.view().get_edge_mask().value().data(),
+               mask_h.data(),
+               mask_h.size(),
+               handle.get_stream());
 
     handle.sync_stream();
 

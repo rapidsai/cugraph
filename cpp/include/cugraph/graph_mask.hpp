@@ -27,17 +27,31 @@
 
 namespace cugraph {
 
+/**
+ * Compile-time fast lookup of log2(num_bits(mask_t)) to eliminate
+ * the log2 computation for powers of 2.
+ * @tparam mask_t
+ */
 template <typename mask_t>
 __host__ __device__ constexpr int log_bits()
 {
   switch (std::numeric_limits<mask_t>::digits) {
+    case 8: return 2;
+    case 16: return 4;
     case 32: return 5;
     case 64: return 6;
+    default: return log2(std::numeric_limits<mask_t>::digits);
   }
 }
 
+/**
+ * Uses bit-shifting to perform a fast mod operation. This
+ * is used to compute the index of a specific bit
+ * @tparam mask_t
+ * @tparam T
+ */
 template <typename mask_t, typename T>
-__host__ __device__ int fast_mod(T numer)
+__host__ __device__ int bit_mod(T numer)
 {
   return numer & (std::numeric_limits<mask_t>::digits - 1);
 }
@@ -45,72 +59,38 @@ __host__ __device__ int fast_mod(T numer)
 namespace detail {
 
 /**
- * Zeros the bit at location h in a one-hot encoded 32-bit int array
+ * Sets the bit at location h in a one-hot encoded 32-bit int array
  */
-template <typename mask_type = std::uint32_t>
+template <typename mask_type>
 __device__ __host__ inline void _set_bit(mask_type* arr, mask_type h)
 {
-  mask_type bit = fast_mod<mask_type>(h);
+  mask_type bit = bit_mod<mask_type>(h);
   mask_type idx = h >> log_bits<mask_type>();
-  atomicOr(arr + idx, (1 << bit));
+  atomicOr(arr + idx, 1 << bit);
+}
+
+/**
+ * Unsets the bit at location h in a one-hot encoded 32-bit int array
+ */
+template <typename mask_type>
+__device__ __host__ inline void _unset_bit(mask_type* arr, mask_type h)
+{
+  mask_type bit = bit_mod<mask_type>(h);
+  mask_type idx = h >> log_bits<mask_type>();
+  atomicAnd(arr + idx, ~(1 << bit));
 }
 
 /**
  * Returns whether or not bit at location h is nonzero in a one-hot
  * encoded 32-bit in array.
  */
-template <typename mask_type = std::uint32_t>
+template <typename mask_type>
 __device__ __host__ inline bool _is_set(mask_type* arr, mask_type h)
 {
-  mask_type bit = fast_mod<mask_type>(h);
+  mask_type bit = bit_mod<mask_type>(h);
   mask_type idx = h >> log_bits<mask_type>();
   return arr[idx] >> bit & 1U;
 }
-
-/**
- * Return whether or not a specific vertex is masked
- * @param vertex
- * @return
- */
-template <typename vertex_t, typename mask_t>
-__device__ bool is_vertex_masked(mask_t* vertex_mask, vertex_t vertex)
-{
-  return detail::_is_set<mask_t>(vertex_mask, static_cast<mask_t>(vertex));
-}
-
-/**
- * Return whether or not a specific edge is masked
- * @param edge_offset
- * @return
- */
-template <typename edge_t, typename mask_t>
-__device__ bool is_edge_masked(mask_t* edge_mask, edge_t edge_offset)
-{
-  return detail::_is_set<mask_t>(edge_mask, static_cast<mask_t>(edge_offset));
-}
-
-/**
- * Add specific vertex to mask
- * @param vertex id of vertex to mask
- * @return
- */
-template <typename vertex_t, typename mask_t>
-__device__ void mask_vertex(mask_t* vertex_mask, vertex_t vertex)
-{
-  detail::_set_bit<mask_t>(vertex_mask, static_cast<mask_t>(vertex));
-}
-
-/**
- * Add specific edge to mask
- * @param edge_offset offset of edge to mask
- * @return
- */
-template <typename edge_t, typename mask_t>
-__device__ void mask_edge(mask_t* edge_mask, edge_t edge_offset)
-{
-  detail::_set_bit<mask_t>(edge_mask, static_cast<mask_t>(edge_offset));
-}
-
 };  // namespace detail
 
 /**
@@ -172,17 +152,17 @@ struct graph_mask_view_t {
   /**
    * Get the vertex mask
    */
-  __host__ __device__ mask_t* get_vertex_mask() const
+  __host__ __device__ std::optional<raft::device_span<mask_t>> get_vertex_mask() const
   {
-    return vertices_.has_value() ? (*vertices_).data() : nullptr;
+    return vertices_;
   }
 
   /**
    * Get the edge mask
    */
-  __host__ __device__ mask_t* get_edge_mask() const
+  __host__ __device__ std::optional<raft::device_span<mask_t>> get_edge_mask() const
   {
-    return edges_.has_value() ? (*edges_).data() : nullptr;
+    return edges_;
   }
 
   __host__ __device__ edge_t get_edge_mask_size() const { return n_edges_ >> log_bits<mask_t>(); }
@@ -380,13 +360,14 @@ struct graph_mask_t {
    */
   auto view()
   {
-    return graph_mask_view_t<vertex_t, edge_t, mask_t>(has_vertex_mask(),
-                                                       has_edge_mask(),
-                                                       n_vertices_,
-                                                       n_edges_,
-                                                       vertices_.data(),
-                                                       edges_.data(),
-                                                       complement_);
+    auto vspan = has_vertex_mask() ? std::make_optional<raft::device_span<mask_t>>(vertices_.data(),
+                                                                                   vertices_.size())
+                                   : std::nullopt;
+    auto espan = has_edge_mask()
+                   ? std::make_optional<raft::device_span<mask_t>>(edges_.data(), edges_.size())
+                   : std::nullopt;
+    return graph_mask_view_t<vertex_t, edge_t, mask_t>(
+      n_vertices_, n_edges_, vspan, espan, complement_);
   }
 
  protected:

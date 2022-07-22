@@ -119,7 +119,6 @@ rmm::device_uvector<typename GraphViewType::edge_type> compute_local_major_degre
 
       // If an edge mask is present, compute the (local) degrees of the masked edges
       if (mask.has_value() && (*mask).has_edge_mask()) {
-        raft::logger::get().log(RAFT_LEVEL_INFO, "Computing masked degrees 1");
         compute_masked_degrees(
           handle, graph_view, sparse_begin, num_sparse_vertices, edge_partition);
 
@@ -148,13 +147,13 @@ rmm::device_uvector<typename GraphViewType::edge_type> compute_local_major_degre
       vertex_t offsets_start = major_hypersparse_first - major_range_first;
 
       // If an edge mask is present, compute degrees of masked edges
-      if (mask.has_value() && (*mask).has_edge_mask()) {
+      if (mask.has_value() && mask.value().has_edge_mask()) {
         raft::logger::get().log(RAFT_LEVEL_INFO, "Computing masked degrees 2");
 
         masked_degrees<vertex_t, edge_t>(handle,
                                          sparse_begin,
                                          dcs_nzd_vertex_count,
-                                         *mask,
+                                         mask.value(),
                                          major_range_first,
                                          vertex_ids,
                                          edge_partition.offsets() + offsets_start);
@@ -180,7 +179,7 @@ rmm::device_uvector<typename GraphViewType::edge_type> compute_local_major_degre
       vertex_t size   = partial_offset + edge_partition.major_range_size();
 
       // If an edge mask is present, compute the (local) degrees of the masked edges
-      if (mask.has_value() && (*mask).has_edge_mask()) {
+      if (mask.has_value() && mask.value().has_edge_mask()) {
         raft::logger::get().log(RAFT_LEVEL_INFO, "Computing masked degrees 3, %d", partial_offset);
         compute_masked_degrees(handle, graph_view, sparse_begin, size, edge_partition);
 
@@ -492,31 +491,32 @@ __device__ edge_t mask_offset_to_original_offset(mask_t* edge_mask,
   vertex_t cur_sum = 0;
   mask_t mask_val  = 0;
 
-  edge_t start_bit = fast_mod<mask_t>(sparse_offset);
+  edge_t start_bit = bit_mod<mask_t>(sparse_offset);
   int i            = 0;
   while (i < local_out_degree) {
     mask_val = edge_mask[(i + sparse_offset) >> log_bits<mask_t>()];
 
     if (i == 0) {
       // mask out starting offset
-      mask_val &= 0xffffffff << start_bit;
+      mask_val &= std::numeric_limits<mask_t>::max() << start_bit;
     }
 
     if (i == ((sparse_offset + local_out_degree) >> log_bits<mask_t>()) -
                (sparse_offset >> log_bits<mask_t>())) {
       // mask out ending offset
-      mask_val &= 0xffffffff >> std::numeric_limits<mask_t>::digits -
-                                  fast_mod<mask_t>(sparse_offset + local_out_degree);
+      mask_val &=
+        std::numeric_limits<mask_t>::max() >>
+        std::numeric_limits<mask_t>::digits - bit_mod<mask_t>(sparse_offset + local_out_degree);
     }
 
-    if (cur_sum + __popc(mask_val) >= g_dst_index + 1) {
+    if (cur_sum + safe_popc<mask_t>(mask_val) >= g_dst_index + 1) {
       g_dst_index = i + kth_bit(mask_val, (edge_t)(g_dst_index - cur_sum), start_bit);
       break;
     }
 
-    cur_sum += __popc(mask_val);
-    i += ((i > 0) * std::numeric_limits<mask_t>::digits) +
-         ((i <= 0) * fast_mod<mask_t>(sparse_offset));
+    cur_sum += safe_popc<mask_t>(mask_val);
+    i +=
+      ((i > 0) * std::numeric_limits<mask_t>::digits) + ((i <= 0) * bit_mod<mask_t>(sparse_offset));
   }
 
   return g_dst_index;
@@ -686,9 +686,12 @@ gather_local_edges(
           /**
            * If a mask is present, convert masked offset to original offset
            */
-          if (mask.has_value() && (*mask).has_edge_mask()) {
-            g_dst_index = mask_offset_to_original_offset(
-              (*mask).get_edge_mask(), sparse_offset, local_out_degree, g_dst_index);
+          if (mask.has_value() && mask.value().has_edge_mask()) {
+            g_dst_index =
+              mask_offset_to_original_offset(mask.value().get_edge_mask().value().data(),
+                                             sparse_offset,
+                                             local_out_degree,
+                                             g_dst_index);
             printf("minors[%ld] = %ld, %ld, major=%ld\n",
                    index,
                    adjacency_list[g_dst_index],
