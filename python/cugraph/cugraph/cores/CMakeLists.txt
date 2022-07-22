@@ -20,7 +20,7 @@ rapids_cython_create_modules(
   LINKED_LIBRARIES "${linked_libraries}" MODULE_PREFIX cores_
 )
 
-set(targets_using_numpy cores_core_number_wrapper cores_k_core_wrapper)
+set(targets_using_numpy cores_k_core_wrapper)
 foreach(target IN LISTS targets_using_numpy)
   target_include_directories(${target} PRIVATE "${Python_NumPy_INCLUDE_DIRS}")
 endforeach()
