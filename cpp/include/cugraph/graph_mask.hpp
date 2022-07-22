@@ -35,7 +35,7 @@ __device__ __host__ inline void _set_bit(mask_type* arr, mask_type h)
 {
   mask_type bit = h & (std::numeric_limits<mask_type>::digits - 1);
   mask_type idx = h / std::numeric_limits<mask_type>::digits;
-  atomicOr(arr+idx, (1<<bit));
+  atomicOr(arr + idx, (1 << bit));
 }
 
 /**
@@ -184,7 +184,7 @@ struct graph_mask_view_t {
   bool complement_{false};
   mask_t* vertices_{nullptr};
   mask_t* edges_{nullptr};
-}; // struct graph_mask_view_t
+};  // struct graph_mask_view_t
 
 /**
  * An owning container object to manage separate bitmasks for
