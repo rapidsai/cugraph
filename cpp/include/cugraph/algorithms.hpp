@@ -1350,6 +1350,136 @@ random_walks(raft::handle_t const& handle,
              bool use_padding                                     = false,
              std::unique_ptr<sampling_params_t> sampling_strategy = nullptr);
 
+/**
+ * @brief returns uniform random walks from starting sources, where each path is of given
+ * maximum length.
+ *
+ * @p start_vertices can contain duplicates, in which case different random walks will
+ * be generated for each instance.
+ *
+ * If the graph is weighted, the return contains edge weights.  If the graph is unweighted then
+ * the returned value will be std::nullopt.
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam weight_t Type of edge weights. Needs to be a floating point type.
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param graph_view graph view to operate on
+ * @param start_vertices Device span defining the starting vertices
+ * @param max_length maximum length of random walk
+ * @param seed (optional, defaults to system time), seed for random number generation
+ * @return tuple containing device vectors of vertices and the edge weights (if
+ *         the graph is weighted)<br>
+ *         For each input selector there will be (max_length+1) elements in the
+ *         vertex vector with the starting vertex followed by the subsequent
+ *         vertices in the random walk.  If a path terminates before max_length,
+ *         the vertices will be populated with invalid_vertex_id
+ *         (-1 for signed vertex_t, std::numeric_limits<vertex_t>::max() for an
+ *         unsigned vertex_t type)<br>
+ *         For each input selector there will be max_length elements in the weights
+ *         vector with the edge weight for the edge in the path.  If a path
+ *         terminates before max_length the subsequent edge weights will be
+ *         set to weight_t{0}.
+ */
+// FIXME: Do I care about transposed or not?  I want to be able to operate in either
+// direction.
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+std::tuple<rmm::device_uvector<vertex_t>, std::optional<rmm::device_uvector<weight_t>>>
+uniform_random_walks(raft::handle_t const& handle,
+                     graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
+                     raft::device_span<vertex_t const> start_vertices,
+                     size_t max_length,
+                     uint64_t seed = std::numeric_limits<uint64_t>::max());
+
+/**
+ * @brief returns biased random walks from starting sources, where each path is of given
+ * maximum length.
+ *
+ * The next vertex is biased based on the edge weights.  The probability of traversing a
+ * departing edge will be the edge weight divided by the sum of the departing edge weights.
+ *
+ * @p start_vertices can contain duplicates, in which case different random walks will
+ * be generated for each instance.
+ *
+ * @throws                 cugraph::logic_error if the graph is unweighted
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam weight_t Type of edge weights. Needs to be a floating point type.
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param graph_view graph view to operate on
+ * @param start_vertices Device span defining the starting vertices
+ * @param max_length maximum length of random walk
+ * @param seed (optional, defaults to system time), seed for random number generation
+ * @return tuple containing device vectors of vertices and the edge weights<br>
+ *         For each input selector there will be (max_length+1) elements in the
+ *         vertex vector with the starting vertex followed by the subsequent
+ *         vertices in the random walk.  If a path terminates before max_length,
+ *         the vertices will be populated with invalid_vertex_id
+ *         (-1 for signed vertex_t, std::numeric_limits<vertex_t>::max() for an
+ *         unsigned vertex_t type)<br>
+ *         For each input selector there will be max_length elements in the weights
+ *         vector with the edge weight for the edge in the path.  If a path
+ *         terminates before max_length the subsequent edge weights will be
+ *         set to weight_t{0}.
+ */
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+std::tuple<rmm::device_uvector<vertex_t>, std::optional<rmm::device_uvector<weight_t>>>
+biased_random_walks(raft::handle_t const& handle,
+                    graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
+                    raft::device_span<vertex_t const> start_vertices,
+                    size_t max_length,
+                    uint64_t seed = std::numeric_limits<uint64_t>::max());
+
+/**
+ * @brief returns biased random walks with node2vec biases from starting sources,
+ * where each path is of given maximum length.
+ *
+ * @p start_vertices can contain duplicates, in which case different random walks will
+ * be generated for each instance.
+ *
+ * If the graph is weighted, the return contains edge weights and the node2vec computation
+ * will utilize the edge weights.  If the graph is unweighted then the return will not contain
+ * edge weights and the node2vec computation will assume an edge weight of 1 for all edges.
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam weight_t Type of edge weights. Needs to be a floating point type.
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param graph_view graph view to operate on
+ * @param start_vertices Device span defining the starting vertices
+ * @param max_length maximum length of random walk
+ * @param p node2vec return parameter
+ * @param q node2vec in-out parameter
+ * @param seed (optional, defaults to system time), seed for random number generation
+ * @return tuple containing device vectors of vertices and the edge weights<br>
+ *         For each input selector there will be (max_length+1) elements in the
+ *         vertex vector with the starting vertex followed by the subsequent
+ *         vertices in the random walk.  If a path terminates before max_length,
+ *         the vertices will be populated with invalid_vertex_id
+ *         (-1 for signed vertex_t, std::numeric_limits<vertex_t>::max() for an
+ *         unsigned vertex_t type)<br>
+ *         For each input selector there will be max_length elements in the weights
+ *         vector with the edge weight for the edge in the path.  If a path
+ *         terminates before max_length the subsequent edge weights will be
+ *         set to weight_t{0}.
+ */
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+std::tuple<rmm::device_uvector<vertex_t>, std::optional<rmm::device_uvector<weight_t>>>
+node2vec_random_walks(raft::handle_t const& handle,
+                      graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
+                      raft::device_span<vertex_t const> start_vertices,
+                      size_t max_length,
+                      weight_t p,
+                      weight_t q,
+                      uint64_t seed = std::numeric_limits<uint64_t>::max());
+
 #ifndef NO_CUGRAPH_OPS
 /**
  * @brief generate sub-sampled graph as an adjacency list (CSR format) given input graph,

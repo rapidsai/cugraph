@@ -196,6 +196,8 @@ set(CUGRAPH_SOURCES
     src/community/legacy/extract_subgraph_by_vertex.cu
     src/community/legacy/egonet.cu
     src/sampling/random_walks.cu
+    src/sampling/random_walks_sg.cu
+    src/sampling/random_walks_mg.cu
     src/sampling/detail/sampling_utils_mg.cu
     src/sampling/detail/sampling_utils_sg.cu
     src/sampling/uniform_neighbor_sampling_mg.cpp

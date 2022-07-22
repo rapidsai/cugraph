@@ -13,63 +13,15 @@
 # limitations under the License.
 #
 
-from pylibcugraph import (MGGraph,
-                          ResourceHandle,
-                          GraphProperties,
+from pylibcugraph import (ResourceHandle,
                           bfs as pylibcugraph_bfs
                           )
 
-from dask.distributed import wait, default_client
+from dask.distributed import wait
 from cugraph.dask.common.input_utils import get_distributed_data
 import cugraph.dask.comms.comms as Comms
 import cudf
 import dask_cudf
-
-
-def _call_plc_mg_bfs(
-                    sID,
-                    data,
-                    sources,
-                    depth_limit,
-                    src_col_name,
-                    dst_col_name,
-                    graph_properties,
-                    num_edges,
-                    direction_optimizing=False,
-                    do_expensive_check=False,
-                    return_predecessors=True):
-    comms_handle = Comms.get_handle(sID)
-    resource_handle = ResourceHandle(comms_handle.getHandle())
-    sources = sources[0]
-    srcs = cudf.Series(data[0][src_col_name], dtype='int32')
-    dsts = cudf.Series(data[0][dst_col_name], dtype='int32')
-    weights = cudf.Series(data[0]['value'], dtype='float32') \
-        if 'value' in data[0].columns \
-        else cudf.Series((srcs + 1) / (srcs + 1), dtype='float32')
-
-    mg = MGGraph(
-        resource_handle=resource_handle,
-        graph_properties=graph_properties,
-        src_array=srcs,
-        dst_array=dsts,
-        weight_array=weights,
-        store_transposed=False,
-        num_edges=num_edges,
-        do_expensive_check=do_expensive_check
-    )
-
-    res = \
-        pylibcugraph_bfs(
-            resource_handle,
-            mg,
-            cudf.Series(sources, dtype='int32'),
-            direction_optimizing,
-            depth_limit if depth_limit is not None else 0,
-            return_predecessors,
-            True
-        )
-
-    return res
 
 
 def convert_to_cudf(cp_arrays):
@@ -84,16 +36,35 @@ def convert_to_cudf(cp_arrays):
     return df
 
 
+def _call_plc_bfs(sID,
+                  mg_graph_x,
+                  st_x,
+                  depth_limit=None,
+                  return_distances=True):
+    return pylibcugraph_bfs(
+        ResourceHandle(Comms.get_handle(sID).getHandle()),
+        mg_graph_x,
+        cudf.Series(st_x, dtype='int32'),
+        False,
+        depth_limit if depth_limit is not None else 0,
+        return_distances,
+        True
+    )
+
+
 def bfs(input_graph,
         start,
         depth_limit=None,
         return_distances=True,
         check_start=True):
     """
-    Find the distances and predecessors for a breadth first traversal of a
+    Find the distances and predecessors for a breadth-first traversal of a
     graph.
-    The input graph must contain edge list as  dask-cudf dataframe with
+    The input graph must contain edge list as a dask-cudf dataframe with
     one partition per GPU.
+
+    Note: This is a pylibcugraph-enabled algorithm, which requires that the
+    graph was created with legacy_renum_only=True.
 
     Parameters
     ----------
@@ -147,27 +118,14 @@ def bfs(input_graph,
 
     """
 
-    client = default_client()
-
-    input_graph.compute_renumber_edge_list(
-        transposed=False, legacy_renum_only=True)
-    ddf = input_graph.edgelist.edgelist_df
-
-    graph_properties = GraphProperties(
-        is_multigraph=False)
-
-    num_edges = len(ddf)
-    data = get_distributed_data(ddf)
-
-    src_col_name = input_graph.renumber_map.renumbered_src_col_name
-    dst_col_name = input_graph.renumber_map.renumbered_dst_col_name
+    client = input_graph._client
 
     if not isinstance(start, (dask_cudf.DataFrame, dask_cudf.Series)):
         if not isinstance(start, (cudf.DataFrame, cudf.Series)):
             start = cudf.Series(start)
         if isinstance(start, (cudf.DataFrame, cudf.Series)):
             # convert into a dask_cudf
-            start = dask_cudf.from_cudf(start, ddf.npartitions)
+            start = dask_cudf.from_cudf(start, input_graph._npartitions)
 
     def check_valid_vertex(G, start):
         is_valid_vertex = G.has_node(start)
@@ -190,23 +148,18 @@ def bfs(input_graph,
 
     data_start = get_distributed_data(start)
 
-    cupy_result = [client.submit(
-              _call_plc_mg_bfs,
-              Comms.get_session_id(),
-              wf[1],
-              wf_start[1],
-              depth_limit,
-              src_col_name,
-              dst_col_name,
-              graph_properties,
-              num_edges,
-              False,
-              True,
-              return_distances,
-              workers=[wf[0]])
-              for idx, (wf, wf_start) in enumerate(
-                  zip(data.worker_to_parts.items(),
-                      data_start.worker_to_parts.items()))]
+    cupy_result = [
+        client.submit(
+            _call_plc_bfs,
+            Comms.get_session_id(),
+            input_graph._plc_graph[w],
+            st[0],
+            depth_limit,
+            return_distances,
+            workers=[w]
+        )
+        for w, st in data_start.worker_to_parts.items()
+    ]
 
     wait(cupy_result)
 

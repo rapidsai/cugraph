@@ -11,13 +11,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from cugraph.cores import core_number_wrapper
 from cugraph.utilities import (ensure_cugraph_obj_for_nx,
                                df_score_to_dictionary,
                                )
+import cudf
+import warnings
+
+from pylibcugraph import (core_number as pylibcugraph_core_number,
+                          ResourceHandle
+                          )
 
 
-def core_number(G):
+def core_number(G, degree_type=None):
     """
     Compute the core numbers for the nodes of the graph G. A k-core of a graph
     is a maximal subgraph that contains nodes of degree k or more.
@@ -32,6 +37,13 @@ def core_number(G):
         represented as directed edges in both directions. While this graph
         can contain edge weights, they don't participate in the calculation
         of the core numbers.
+
+    degree_type: str
+        This option determines if the core number computation should be based
+        on input, output, or both directed edges, with valid values being
+        "incoming", "outgoing", and "bidirectional" respectively.
+        This option is currently ignored in this release, and setting it will
+        result in a warning.
 
     Returns
     -------
@@ -56,7 +68,31 @@ def core_number(G):
 
     G, isNx = ensure_cugraph_obj_for_nx(G)
 
-    df = core_number_wrapper.core_number(G)
+    if degree_type is not None:
+        warning_msg = (
+            "The 'degree_type' parameter is ignored in this release.")
+        warnings.warn(warning_msg, Warning)
+
+    if G.is_directed():
+        raise ValueError("input graph must be undirected")
+
+    # FIXME: enable this check once 'degree_type' is supported
+    """
+    if degree_type not in ["incoming", "outgoing", "bidirectional"]:
+        raise ValueError(f"'degree_type' must be either incoming, "
+                         f"outgoing or bidirectional, got: {degree_type}")
+    """
+    vertex, core_number = \
+        pylibcugraph_core_number(
+            resource_handle=ResourceHandle(),
+            graph=G._plc_graph,
+            degree_type=degree_type,
+            do_expensive_check=False
+        )
+
+    df = cudf.DataFrame()
+    df["vertex"] = vertex
+    df["core_number"] = core_number
 
     if G.renumbered:
         df = G.unrenumber(df, "vertex")
