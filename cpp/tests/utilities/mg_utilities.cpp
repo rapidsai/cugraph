@@ -30,22 +30,22 @@ std::unique_ptr<raft::handle_t> initialize_mg_handle()
 {
   std::unique_ptr<raft::handle_t> handle{nullptr};
 
-    auto constexpr pool_size = 64;  // FIXME: tuning parameter
+  auto constexpr pool_size = 64;  // FIXME: tuning parameter
 
-    handle = std::make_unique<raft::handle_t>(rmm::cuda_stream_per_thread,
-                                              std::make_shared<rmm::cuda_stream_pool>(pool_size));
+  handle = std::make_unique<raft::handle_t>(rmm::cuda_stream_per_thread,
+                                            std::make_shared<rmm::cuda_stream_pool>(pool_size));
 
-    raft::comms::initialize_mpi_comms(handle.get(), MPI_COMM_WORLD);
-    auto& comm           = handle->get_comms();
-    auto const comm_size = comm.get_size();
+  raft::comms::initialize_mpi_comms(handle.get(), MPI_COMM_WORLD);
+  auto& comm           = handle->get_comms();
+  auto const comm_size = comm.get_size();
 
-    auto row_comm_size = static_cast<int>(sqrt(static_cast<double>(comm_size)));
-    while (comm_size % row_comm_size != 0) {
-      --row_comm_size;
-    }
+  auto row_comm_size = static_cast<int>(sqrt(static_cast<double>(comm_size)));
+  while (comm_size % row_comm_size != 0) {
+    --row_comm_size;
+  }
 
-    cugraph::partition_2d::subcomm_factory_t<cugraph::partition_2d::key_naming_t> subcomm_factory(
-      *handle, row_comm_size);
+  cugraph::partition_2d::subcomm_factory_t<cugraph::partition_2d::key_naming_t> subcomm_factory(
+    *handle, row_comm_size);
 
   return std::move(handle);
 }
