@@ -42,3 +42,5 @@ from pylibcugraph.node2vec import node2vec
 from pylibcugraph.bfs import bfs
 
 from pylibcugraph.uniform_neighbor_sample import uniform_neighbor_sample
+
+from pylibcugraph.core_number import core_number

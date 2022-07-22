@@ -37,7 +37,77 @@ typedef struct {
 } cugraph_random_walk_result_t;
 
 /**
+ * @brief  Compute uniform random walks
+ *
+ * @param [in]  handle          Handle for accessing resources
+ * @param [in]  graph           Pointer to graph.  NOTE: Graph might be modified if the storage
+ *                              needs to be transposed
+ * @param [in]  start_vertices  Array of source vertices
+ * @param [in]  max_length      Maximum length of the generated path
+ * @param [in]  result          Output from the node2vec call
+ * @param [out] error           Pointer to an error object storing details of any error.  Will
+ *                              be populated if error code is not CUGRAPH_SUCCESS
+ * @return error code
+ */
+cugraph_error_code_t cugraph_uniform_random_walks(
+  const cugraph_resource_handle_t* handle,
+  cugraph_graph_t* graph,
+  const cugraph_type_erased_device_array_view_t* start_vertices,
+  size_t max_length,
+  cugraph_random_walk_result_t** result,
+  cugraph_error_t** error);
+
+/**
+ * @brief  Compute biased random walks
+ *
+ * @param [in]  handle          Handle for accessing resources
+ * @param [in]  graph           Pointer to graph.  NOTE: Graph might be modified if the storage
+ *                              needs to be transposed
+ * @param [in]  start_vertices  Array of source vertices
+ * @param [in]  max_length      Maximum length of the generated path
+ * @param [in]  result          Output from the node2vec call
+ * @param [out] error           Pointer to an error object storing details of any error.  Will
+ *                              be populated if error code is not CUGRAPH_SUCCESS
+ * @return error code
+ */
+cugraph_error_code_t cugraph_biased_random_walks(
+  const cugraph_resource_handle_t* handle,
+  cugraph_graph_t* graph,
+  const cugraph_type_erased_device_array_view_t* start_vertices,
+  size_t max_length,
+  cugraph_random_walk_result_t** result,
+  cugraph_error_t** error);
+
+/**
  * @brief  Compute random walks using the node2vec framework.
+ *
+ * @param [in]  handle          Handle for accessing resources
+ * @param [in]  graph           Pointer to graph.  NOTE: Graph might be modified if the storage
+ *                              needs to be transposed
+ * @param [in]  start_vertices  Array of source vertices
+ * @param [in]  max_length      Maximum length of the generated path
+ * @param [in]  compress_result If true, return the paths as a compressed sparse row matrix,
+ *                              otherwise return as a dense matrix
+ * @param [in]  p               The return parameter
+ * @param [in]  q               The in/out parameter
+ * @param [in]  result          Output from the node2vec call
+ * @param [out] error           Pointer to an error object storing details of any error.  Will
+ *                              be populated if error code is not CUGRAPH_SUCCESS
+ * @return error code
+ */
+cugraph_error_code_t cugraph_node2vec_random_walks(
+  const cugraph_resource_handle_t* handle,
+  cugraph_graph_t* graph,
+  const cugraph_type_erased_device_array_view_t* start_vertices,
+  size_t max_length,
+  double p,
+  double q,
+  cugraph_random_walk_result_t** result,
+  cugraph_error_t** error);
+
+/**
+ * @brief  Compute random walks using the node2vec framework.
+ * @deprecated This call should be replaced with cugraph_node2vec_random_walks
  *
  * @param [in]  handle       Handle for accessing resources
  * @param [in]  graph        Pointer to graph.  NOTE: Graph might be modified if the storage
@@ -94,6 +164,7 @@ cugraph_type_erased_device_array_view_t* cugraph_random_walk_result_get_weights(
 
 /**
  * @brief     If the random walk result is compressed, get the path sizes
+ * @deprecated This call will no longer be relevant once the new node2vec are called
  *
  * @param [in]   result   The result from a random walk algorithm
  * @return type erased array pointing to the path sizes in device memory
