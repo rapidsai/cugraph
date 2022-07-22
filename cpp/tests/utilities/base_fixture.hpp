@@ -20,6 +20,7 @@
 #include <utilities/cxxopts.hpp>
 #include <utilities/test_graphs.hpp>
 
+#include <raft/comms/mpi_comms.hpp>
 #include <rmm/exec_policy.hpp>
 #include <rmm/mr/device/binning_memory_resource.hpp>
 #include <rmm/mr/device/cuda_memory_resource.hpp>
@@ -29,6 +30,7 @@
 #include <rmm/mr/device/pool_memory_resource.hpp>
 
 #include <gtest/gtest.h>
+#include <mpi.h>
 
 #include <limits>
 #include <optional>
@@ -216,11 +218,11 @@ inline auto parse_test_options(int argc, char** argv)
 #define CUGRAPH_MG_TEST_PROGRAM_MAIN()                                                  \
   int main(int argc, char** argv)                                                       \
   {                                                                                     \
-    MPI_TRY(MPI_Init(&argc, &argv));                                                    \
+    RAFT_MPI_TRY(MPI_Init(&argc, &argv));                                               \
     int comm_rank{};                                                                    \
     int comm_size{};                                                                    \
-    MPI_TRY(MPI_Comm_rank(MPI_COMM_WORLD, &comm_rank));                                 \
-    MPI_TRY(MPI_Comm_size(MPI_COMM_WORLD, &comm_size));                                 \
+    RAFT_MPI_TRY(MPI_Comm_rank(MPI_COMM_WORLD, &comm_rank));                            \
+    RAFT_MPI_TRY(MPI_Comm_size(MPI_COMM_WORLD, &comm_size));                            \
     int num_gpus_per_node{};                                                            \
     RAFT_CUDA_TRY(cudaGetDeviceCount(&num_gpus_per_node));                              \
     RAFT_CUDA_TRY(cudaSetDevice(comm_rank % num_gpus_per_node));                        \
@@ -243,6 +245,6 @@ inline auto parse_test_options(int argc, char** argv)
         ? std::make_optional<std::string>(cmd_opts["test_file_name"].as<std::string>()) \
         : std::nullopt;                                                                 \
     auto ret = RUN_ALL_TESTS();                                                         \
-    MPI_TRY(MPI_Finalize());                                                            \
+    RAFT_MPI_TRY(MPI_Finalize());                                                       \
     return ret;                                                                         \
   }
