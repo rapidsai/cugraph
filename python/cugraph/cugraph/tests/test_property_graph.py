@@ -351,6 +351,38 @@ def test_num_vertices(df_type):
 
 
 @pytest.mark.parametrize("df_type", df_types, ids=df_type_id)
+def test_type_names(df_type):
+    from cugraph.experimental import PropertyGraph
+
+    pG = PropertyGraph()
+    assert pG.edge_types == set()
+    assert pG.vertex_types == set()
+
+    df = df_type({"src": [99, 98, 97],
+                  "dst": [22, 34, 56],
+                  "some_property": ["a", "b", "c"],
+                  })
+    pG.add_edge_data(df, vertex_col_names=("src", "dst"))
+    assert pG.edge_types == set([""])
+    assert pG.vertex_types == set([""])
+
+    df = df_type({"vertex": [98, 97],
+                  "some_property": ["a", "b"],
+                  })
+    pG.add_vertex_data(df, type_name="vtype", vertex_col_name="vertex")
+    assert pG.edge_types == set([""])
+    assert pG.vertex_types == set(["", "vtype"])
+
+    df = df_type({"src": [199, 98, 197],
+                  "dst": [22, 134, 56],
+                  "some_property": ["a", "b", "c"],
+                  })
+    pG.add_edge_data(df, type_name="etype", vertex_col_names=("src", "dst"))
+    assert pG.edge_types == set(["", "etype"])
+    assert pG.vertex_types == set(["", "vtype"])
+
+
+@pytest.mark.parametrize("df_type", df_types, ids=df_type_id)
 def test_num_vertices_include_edge_data(df_type):
     """
     Ensures get_num_vertices is correct after various additions of data.

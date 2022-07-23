@@ -57,11 +57,11 @@ class CuGraphStore:
     ######################################
     @property
     def num_vertices(self):
-        return self.__G.num_vertices
+        return self.__G.get_num_vertices()
 
     @property
     def num_edges(self):
-        return self.__G.num_edges
+        return self.__G.get_num_edges()
 
     def get_vertex_ids(self):
         return self.__G.vertices_ids()

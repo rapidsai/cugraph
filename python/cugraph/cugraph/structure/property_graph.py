@@ -167,6 +167,33 @@ class EXPERIMENTAL__PropertyGraph:
             return props
         return []
 
+    @property
+    def vertex_types(self):
+        """The set of vertex type names"""
+        value_counts = self._vertex_type_value_counts
+        if value_counts is None:
+            names = set()
+        elif self.__series_type is cudf.Series:
+            names = set(value_counts.index.to_arrow().to_pylist())
+        else:
+            names = set(value_counts.index)
+        default = self._default_type_name
+        if default not in names and self.get_num_vertices(default) > 0:
+            # include "" from vertices that only exist in edge data
+            names.add(default)
+        return names
+
+    @property
+    def edge_types(self):
+        """The set of edge type names"""
+        value_counts = self._edge_type_value_counts
+        if value_counts is None:
+            return set()
+        elif self.__series_type is cudf.Series:
+            return set(value_counts.index.to_arrow().to_pylist())
+        else:
+            return set(value_counts.index)
+
     # PropertyGraph read-only attributes for debugging
     @property
     def _vertex_prop_dataframe(self):
@@ -178,6 +205,7 @@ class EXPERIMENTAL__PropertyGraph:
 
     @property
     def _vertex_type_value_counts(self):
+        """A Series of the counts of types in __vertex_prop_dataframe"""
         if self.__vertex_prop_dataframe is None:
             return
         if self.__vertex_type_value_counts is None:
@@ -190,6 +218,7 @@ class EXPERIMENTAL__PropertyGraph:
 
     @property
     def _edge_type_value_counts(self):
+        """A Series of the counts of types in __edge_prop_dataframe"""
         if self.__edge_prop_dataframe is None:
             return
         if self.__edge_type_value_counts is None:
