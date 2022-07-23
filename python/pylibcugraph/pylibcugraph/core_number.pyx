@@ -15,6 +15,7 @@
 # cython: language_level = 3
 
 from libc.stdint cimport uintptr_t
+import warnings
 
 from pylibcugraph._cugraph_c.resource_handle cimport (
     bool_t,
@@ -36,6 +37,7 @@ from pylibcugraph._cugraph_c.graph cimport (
 from pylibcugraph._cugraph_c.core_algorithms cimport (   
     cugraph_core_result_t,
     cugraph_core_number,
+    cugraph_k_core_degree_type_t,
     cugraph_core_result_get_vertices,
     cugraph_core_result_get_core_numbers,
     cugraph_core_result_free,
@@ -53,10 +55,10 @@ from pylibcugraph.utils cimport (
     get_c_type_from_numpy_type,
 )
 
-def EXPERIMENTAL__core_number(ResourceHandle resource_handle,
-                              _GPUGraph graph,
-                              degree_type,
-                              bool_t do_expensive_check):
+def core_number(ResourceHandle resource_handle,
+                _GPUGraph graph,
+                degree_type,
+                bool_t do_expensive_check):
     """
     Computes core number.
 
@@ -69,8 +71,14 @@ def EXPERIMENTAL__core_number(ResourceHandle resource_handle,
     graph: MGGraph
         The input graph, for Multi-GPU operations.
     
-    degree_type: device array type
-        Device array containing the degree type as a character.
+    degree_type: str
+        This option determines if the core number computation should be based
+        on input, output, or both directed edges, with valid values being
+        "incoming", "outgoing", and "bidirectional" respectively.
+        This option is currently ignored in this release, and setting it will
+        result in a warning.
+
+        This implementation only supports bidirectional edges.
     
     do_expensive_check: bool
         If True, performs more extensive tests on the inputs to ensure
@@ -84,16 +92,7 @@ def EXPERIMENTAL__core_number(ResourceHandle resource_handle,
 
     Examples
     --------
-    >>> import pylibcugraph, cupy, numpy
-    >>> srcs = cupy.asarray([0, 1, 2], dtype=numpy.int32)
-    >>> dsts = cupy.asarray([1, 2, 3], dtype=numpy.int32)
-    >>> weights = cupy.asarray([1.0, 1.0, 1.0], dtype=numpy.float32)
-    >>> resource_handle = pylibcugraph.ResourceHandle()
-    >>> graph_props = pylibcugraph.GraphProperties(
-    ...     is_symmetric=False, is_multigraph=False)
-    >>> G = pylibcugraph.SGGraph(
-    ...     resource_handle, graph_props, srcs, dsts, weights,
-    ...     store_transposed=True, renumber=False, do_expensive_check=False)
+    # FIXME: No example yet
 
     """
     cdef cugraph_resource_handle_t* c_resource_handle_ptr = \
@@ -104,9 +103,21 @@ def EXPERIMENTAL__core_number(ResourceHandle resource_handle,
     cdef cugraph_error_code_t error_code
     cdef cugraph_error_t* error_ptr
 
+    if degree_type is not None:
+        warning_msg = (
+            "The 'degree_type' parameter is ignored in this release.")
+        warnings.warn(warning_msg, Warning)
+    
+    degree_type = "bidirectional"
+
+    degree_type_map = {
+        "incoming": cugraph_k_core_degree_type_t.K_CORE_DEGREE_TYPE_IN,
+        "outgoing": cugraph_k_core_degree_type_t.K_CORE_DEGREE_TYPE_OUT,
+        "bidirectional": cugraph_k_core_degree_type_t.K_CORE_DEGREE_TYPE_INOUT}
+
     error_code = cugraph_core_number(c_resource_handle_ptr,
                                      c_graph_ptr,
-                                     degree_type,
+                                     degree_type_map[degree_type],
                                      do_expensive_check,
                                      &result_ptr,
                                      &error_ptr)
