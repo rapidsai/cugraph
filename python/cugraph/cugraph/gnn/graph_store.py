@@ -124,11 +124,7 @@ class CuGraphStore:
             return self.gdata.num_vertices
 
     def num_edges(self, etype=None):
-        if etype is not None:
-            s = self.gdata._edge_prop_dataframe[type_n] == etype
-            return s.sum()
-        else:
-            return self.gdata.num_edges
+        return self.gdata.get_num_edges(etype)
 
     @property
     def ntypes(self):
@@ -166,10 +162,6 @@ class CuGraphStore:
     @property
     def num_vertices(self):
         return self.gdata.get_num_vertices()
-
-    @property
-    def num_edges(self):
-        return self.gdata.get_num_edges()
 
     def get_vertex_ids(self):
         return self.gdata.vertices_ids()
