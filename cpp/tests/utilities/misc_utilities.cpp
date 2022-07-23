@@ -15,15 +15,8 @@
  */
 #include <utilities/test_utilities.hpp>
 
-#include <cugraph/partition_manager.hpp>
-
-#include <raft/comms/comms.hpp>
-#include <raft/comms/mpi_comms.hpp>
-#include <raft/handle.hpp>
-#include <rmm/device_uvector.hpp>
-
-#include <numeric>
-#include <vector>
+#include <cstddef>
+#include <string>
 
 namespace cugraph {
 namespace test {
