@@ -104,7 +104,7 @@ def test_load_all(datasets):
     for data in datasets.ALL_DATASETS:
         file_path = Path(tmpd.name) / (data.metadata['name'] +
                                        data.metadata['file_type'])
-        assert os.path.isfile(file_path)
+        assert file_path.is_file()
 
     tmpd.cleanup()
 
@@ -118,7 +118,7 @@ def test_fetch(dataset, datasets):
     E = dataset.get_edgelist(fetch=True)
 
     assert E is not None
-    assert os.path.isfile(dataset.get_path())
+    assert dataset.get_path().is_file()
 
     tmpd.cleanup()
 
@@ -158,7 +158,7 @@ def test_get_path(dataset, datasets):
     datasets.set_download_dir(tmpd.name)
     dataset.get_edgelist(fetch=True)
 
-    assert os.path.isfile(dataset.get_path())
+    assert dataset.get_path().is_file()
     tmpd.cleanup()
 
 

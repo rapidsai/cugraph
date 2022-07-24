@@ -67,16 +67,13 @@ class Dataset:
 
     """
     def __init__(self, meta_data_file_name):
-        self.__read_meta_data_file(meta_data_file_name)
+        with open(meta_data_file_name, 'r') as file:
+            self.metadata = yaml.safe_load(file)
+
         self._dl_path = default_download_dir
         self._edgelist = None
         self._graph = None
         self._path = None
-
-    def __read_meta_data_file(self, meta_data_file):
-        metadata_path = Path(__file__).parent.absolute() / meta_data_file
-        with open(metadata_path, 'r') as file:
-            self.metadata = yaml.safe_load(file)
 
     def __download_csv(self, url):
         self._dl_path.path.mkdir(parents=True, exist_ok=True)
@@ -163,9 +160,9 @@ def load_all(force=False):
     default_download_dir.path.mkdir(parents=True, exist_ok=True)
 
     meta_path = Path(__file__).parent.absolute() / "metadata"
-    for file in os.listdir(meta_path):
+    for file in meta_path.iterdir():
         meta = None
-        if file.endswith('.yaml'):
+        if file.suffix == '.yaml':
             with open(meta_path / file, 'r') as metafile:
                 meta = yaml.safe_load(metafile)
 

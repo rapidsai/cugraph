@@ -21,17 +21,20 @@ from cugraph.experimental.datasets.dataset import (
     default_download_dir
 )
 from cugraph.experimental.datasets import metadata
+from pathlib import Path
 
 
-karate = Dataset("metadata/karate.yaml")
-karate_undirected = Dataset("metadata/karate_undirected.yaml")
-karate_asymmetric = Dataset("metadata/karate_asymmetric.yaml")
-dolphins = Dataset("metadata/dolphins.yaml")
-polbooks = Dataset("metadata/polbooks.yaml")
-netscience = Dataset("metadata/netscience.yaml")
-cyber = Dataset("metadata/cyber.yaml")
-small_line = Dataset("metadata/small_line.yaml")
-small_tree = Dataset("metadata/small_tree.yaml")
+meta_path = Path(__file__).parent / "metadata"
+
+karate = Dataset(meta_path / "karate.yaml")
+karate_undirected = Dataset(meta_path / "karate_undirected.yaml")
+karate_asymmetric = Dataset(meta_path / "karate_asymmetric.yaml")
+dolphins = Dataset(meta_path / "dolphins.yaml")
+polbooks = Dataset(meta_path / "polbooks.yaml")
+netscience = Dataset(meta_path / "netscience.yaml")
+cyber = Dataset(meta_path / "cyber.yaml")
+small_line = Dataset(meta_path / "small_line.yaml")
+small_tree = Dataset(meta_path / "small_tree.yaml")
 
 
 # LARGE DATASETS
