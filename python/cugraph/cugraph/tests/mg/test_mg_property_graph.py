@@ -295,6 +295,23 @@ def dataset2_simple_MGPropertyGraph(dask_client):
     return (mpG, simple)
 
 
+@pytest.fixture(scope="module")
+def dataset2_MGPropertyGraph(dask_client):
+    from cugraph.experimental import MGPropertyGraph
+
+    dataframe_type = cudf.DataFrame
+    simple = dataset2["simple"]
+    mpG = MGPropertyGraph()
+
+    sg_df = dataframe_type(columns=simple[0], data=simple[1])
+    mgdf = dask_cudf.from_cudf(sg_df, npartitions=2)
+
+    mpG.add_edge_data(mgdf,
+                      vertex_col_names=("src", "dst"))
+
+    return (mpG, simple)
+
+
 @pytest.fixture(scope="module", params=df_types_fixture_params)
 def net_MGPropertyGraph(dask_client):
     """
