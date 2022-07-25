@@ -16,7 +16,8 @@
 
 #pragma once
 
-#include <cugraph/detail/graph_utils.cuh>
+#include <detail/graph_utils.cuh>
+
 #include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_functions.hpp>
@@ -303,8 +304,8 @@ std::enable_if_t<multi_gpu, void> check_graph_constructor_input_arguments(
   CUGRAPH_EXPECTS(
     !(meta.segment_offsets).has_value() ||
       ((*(meta.segment_offsets)).size() ==
-       (detail::num_sparse_segments_per_vertex_partition + 1)) ||
-      ((*(meta.segment_offsets)).size() == (detail::num_sparse_segments_per_vertex_partition + 2)),
+       (detail::num_sparse_segments_per_vertex_partition + 2)) ||
+      ((*(meta.segment_offsets)).size() == (detail::num_sparse_segments_per_vertex_partition + 3)),
     "Invalid input argument: (*(meta.segment_offsets)).size() returns an invalid value.");
 
   auto is_weighted = edgelists[0].p_edge_weights.has_value();
@@ -400,7 +401,7 @@ std::enable_if_t<!multi_gpu, void> check_graph_constructor_input_arguments(
 
   CUGRAPH_EXPECTS(
     !meta.segment_offsets.has_value() ||
-      ((*(meta.segment_offsets)).size() == (detail::num_sparse_segments_per_vertex_partition + 1)),
+      ((*(meta.segment_offsets)).size() == (detail::num_sparse_segments_per_vertex_partition + 2)),
     "Invalid input argument: (*(meta.segment_offsets)).size() returns an invalid value.");
 
   // optional expensive checks
@@ -490,7 +491,7 @@ update_local_sorted_unique_edge_majors_minors(
 
   auto use_dcs =
     meta.segment_offsets
-      ? ((*(meta.segment_offsets)).size() > (detail::num_sparse_segments_per_vertex_partition + 1))
+      ? ((*(meta.segment_offsets)).size() > (detail::num_sparse_segments_per_vertex_partition + 2))
       : false;
 
   std::optional<std::vector<rmm::device_uvector<vertex_t>>> local_sorted_unique_edge_majors{
@@ -822,7 +823,7 @@ compress_edgelist(edgelist_t<vertex_t, edge_t, weight_t> const& edgelist,
       thrust::make_tuple((*dcs_nzd_vertices).begin(),
                          offsets.begin() + (*major_hypersparse_first - major_range_first)));
     CUGRAPH_EXPECTS(
-      (*dcs_nzd_vertices).size() < std::numeric_limits<int32_t>::max(),
+      (*dcs_nzd_vertices).size() < static_cast<size_t>(std::numeric_limits<int32_t>::max()),
       "remove_if will fail (https://github.com/NVIDIA/thrust/issues/1302), work-around required.");
     (*dcs_nzd_vertices)
       .resize(thrust::distance(pair_first,
@@ -971,7 +972,7 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
   auto is_weighted = edgelists[0].p_edge_weights.has_value();
   auto use_dcs =
     meta.segment_offsets
-      ? ((*(meta.segment_offsets)).size() > (detail::num_sparse_segments_per_vertex_partition + 1))
+      ? ((*(meta.segment_offsets)).size() > (detail::num_sparse_segments_per_vertex_partition + 2))
       : false;
 
   check_graph_constructor_input_arguments<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
@@ -998,20 +999,18 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
   for (size_t i = 0; i < edgelists.size(); ++i) {
     auto [major_range_first, major_range_last] = partition_.local_edge_partition_major_range(i);
     auto [minor_range_first, minor_range_last] = partition_.local_edge_partition_minor_range();
-    auto major_hypersparse_first =
+    auto [offsets, indices, weights, dcs_nzd_vertices] = compress_edgelist<store_transposed>(
+      edgelists[i],
+      major_range_first,
       use_dcs ? std::optional<vertex_t>{major_range_first +
                                         (*edge_partition_segment_offsets_)
                                           [(*(meta.segment_offsets)).size() * i +
                                            detail::num_sparse_segments_per_vertex_partition]}
-              : std::nullopt;
-    auto [offsets, indices, weights, dcs_nzd_vertices] =
-      compress_edgelist<store_transposed>(edgelists[i],
-                                          major_range_first,
-                                          major_hypersparse_first,
-                                          major_range_last,
-                                          minor_range_first,
-                                          minor_range_last,
-                                          handle.get_stream());
+              : std::nullopt,
+      major_range_last,
+      minor_range_first,
+      minor_range_last,
+      handle.get_stream());
 
     edge_partition_offsets_.push_back(std::move(offsets));
     edge_partition_indices_.push_back(std::move(indices));
@@ -1110,7 +1109,7 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
   auto is_weighted = edgelist_weight_partitions.has_value();
   auto use_dcs =
     meta.segment_offsets
-      ? ((*(meta.segment_offsets)).size() > (detail::num_sparse_segments_per_vertex_partition + 1))
+      ? ((*(meta.segment_offsets)).size() > (detail::num_sparse_segments_per_vertex_partition + 2))
       : false;
 
   std::vector<edgelist_t<vertex_t, edge_t, weight_t>> edgelists(edgelist_src_partitions.size());
@@ -1148,20 +1147,18 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
   for (size_t i = 0; i < edgelists.size(); ++i) {
     auto [major_range_first, major_range_last] = partition_.local_edge_partition_major_range(i);
     auto [minor_range_first, minor_range_last] = partition_.local_edge_partition_minor_range();
-    auto major_hypersparse_first =
+    auto [offsets, indices, weights, dcs_nzd_vertices] = compress_edgelist<store_transposed>(
+      edgelists[i],
+      major_range_first,
       use_dcs ? std::optional<vertex_t>{major_range_first +
                                         (*edge_partition_segment_offsets_)
                                           [(*(meta.segment_offsets)).size() * i +
                                            detail::num_sparse_segments_per_vertex_partition]}
-              : std::nullopt;
-    auto [offsets, indices, weights, dcs_nzd_vertices] =
-      compress_edgelist<store_transposed>(edgelists[i],
-                                          major_range_first,
-                                          major_hypersparse_first,
-                                          major_range_last,
-                                          minor_range_first,
-                                          minor_range_last,
-                                          handle.get_stream());
+              : std::nullopt,
+      major_range_last,
+      minor_range_first,
+      minor_range_last,
+      handle.get_stream());
     edgelist_src_partitions[i].resize(0, handle.get_stream());
     edgelist_src_partitions[i].shrink_to_fit(handle.get_stream());
     edgelist_dst_partitions[i].resize(0, handle.get_stream());

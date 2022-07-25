@@ -15,8 +15,18 @@ from cugraph.structure import graph_primtypes_wrapper
 from cugraph.structure.graph_primtypes_wrapper import Direction
 from cugraph.structure.number_map import NumberMap
 from cugraph.structure.symmetrize import symmetrize
+import cupy
 import cudf
 import dask_cudf
+
+from pylibcugraph import (MGGraph,
+                          ResourceHandle,
+                          GraphProperties,
+                          )
+
+from dask.distributed import wait, default_client
+from cugraph.dask.common.input_utils import get_distributed_data
+import cugraph.dask.comms.comms as Comms
 
 
 class simpleDistributedGraphImpl:
@@ -53,6 +63,37 @@ class simpleDistributedGraphImpl:
         self.source_columns = None
         self.destination_columns = None
 
+    def _make_plc_graph(
+                        sID,
+                        edata_x,
+                        graph_props,
+                        src_col_name,
+                        dst_col_name,
+                        store_transposed,
+                        num_edges):
+
+        if 'value' in edata_x[0]:
+            values = edata_x[0]['value']
+            if values.dtype == 'int32':
+                values = values.astype('float32')
+            elif values.dtype == 'int64':
+                values = values.astype('float64')
+        else:
+            values = cudf.Series(cupy.ones(len(edata_x[0])))
+
+        return MGGraph(
+            resource_handle=ResourceHandle(
+                Comms.get_handle(sID).getHandle()
+            ),
+            graph_properties=graph_props,
+            src_array=edata_x[0][src_col_name],
+            dst_array=edata_x[0][dst_col_name],
+            weight_array=values,
+            store_transposed=store_transposed,
+            num_edges=num_edges,
+            do_expensive_check=False
+        )
+
     # Functions
     def __from_edgelist(
         self,
@@ -62,6 +103,7 @@ class simpleDistributedGraphImpl:
         edge_attr=None,
         renumber=True,
         store_transposed=False,
+        legacy_renum_only=False
     ):
         if not isinstance(input_ddf, dask_cudf.DataFrame):
             raise TypeError("input should be a dask_cudf dataFrame")
@@ -128,6 +170,45 @@ class simpleDistributedGraphImpl:
         self.properties.renumber = renumber
         self.source_columns = source
         self.destination_columns = destination
+
+        # If renumbering is not enabled, this function will only create
+        # the edgelist_df and not do any renumbering.
+        # C++ renumbering is enabled by default for algorithms that
+        # support it (but only called if renumbering is on)
+        self.compute_renumber_edge_list(
+            transposed=store_transposed,
+            legacy_renum_only=legacy_renum_only
+        )
+
+        self.properties.renumbered = self.renumber_map.implementation.numbered
+        ddf = self.edgelist.edgelist_df
+
+        num_edges = len(ddf)
+        edge_data = get_distributed_data(ddf)
+        src_col_name = self.renumber_map.renumbered_src_col_name
+        dst_col_name = self.renumber_map.renumbered_dst_col_name
+        graph_props = GraphProperties(
+            is_multigraph=self.properties.multi_edge,
+            is_symmetric=not self.properties.directed
+        )
+
+        self._client = default_client()
+        self._plc_graph = {
+            w: self._client.submit(
+                simpleDistributedGraphImpl._make_plc_graph,
+                Comms.get_session_id(),
+                edata,
+                graph_props,
+                src_col_name,
+                dst_col_name,
+                store_transposed,
+                num_edges,
+                workers=[w],
+            )
+            for w, edata in edge_data.worker_to_parts.items()
+        }
+
+        wait(self._plc_graph)
 
     @property
     def renumbered(self):
@@ -666,6 +747,7 @@ class simpleDistributedGraphImpl:
             This parameter is added for new algos following the
             C/Pylibcugraph path
         """
+
         if not self.properties.renumber:
             self.edgelist = self.EdgeList(self.input_df)
             self.renumber_map = None
@@ -697,3 +779,7 @@ class simpleDistributedGraphImpl:
             return self.renumber_map.vertex_column_size()
         else:
             return 1
+
+    @property
+    def _npartitions(self) -> int:
+        return len(self._plc_graph)

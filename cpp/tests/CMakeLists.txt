@@ -43,6 +43,8 @@ target_link_libraries(cugraphtestutil
     PUBLIC
         cugraph::cugraph
         NCCL::NCCL
+    PRIVATE
+        cuco::cuco
 )
 
 
@@ -285,6 +287,11 @@ function(ConfigureCTestMG CMAKE_TEST_NAME)
             EXCLUDE_FROM_ALL)
 endfunction()
 
+if(NOT USE_CUGRAPH_OPS)
+    list(APPEND CMAKE_C_FLAGS -DNO_CUGRAPH_OPS)
+    list(APPEND CMAKE_CXX_FLAGS -DNO_CUGRAPH_OPS)
+    list(APPEND CMAKE_CUDA_FLAGS -DNO_CUGRAPH_OPS)
+endif()
 
 ###################################################################################################
 # - set rapids dataset path ----------------------------------------------------------------------
@@ -448,8 +455,13 @@ ConfigureTest(EIGENVECTOR_CENTRALITY_TEST centrality/eigenvector_centrality_test
 ConfigureTest(WEAKLY_CONNECTED_COMPONENTS_TEST components/weakly_connected_components_test.cpp)
 
 ###################################################################################################
+# - Legacy RANDOM_WALKS tests ----------------------------------------------------------------------------
+ConfigureTest(LEGACY_RANDOM_WALKS_TEST sampling/random_walks_test.cu)
+
+###################################################################################################
 # - RANDOM_WALKS tests ----------------------------------------------------------------------------
-ConfigureTest(RANDOM_WALKS_TEST sampling/random_walks_test.cu)
+#  FIXME: Rename to random_walks_test.cu once the legacy implementation is deleted
+ConfigureTest(RANDOM_WALKS_TEST sampling/sg_random_walks_test.cu)
 
 ###################################################################################################
 ConfigureTest(RANDOM_WALKS_LOW_LEVEL_TEST sampling/rw_low_level_test.cu)
@@ -457,6 +469,7 @@ ConfigureTest(RANDOM_WALKS_LOW_LEVEL_TEST sampling/rw_low_level_test.cu)
 ###########################################################################################
 # - MG NBR SAMPLING tests -----------------------------------------------------------------
 ConfigureTest(UNIFORM_NEIGHBOR_SAMPLING_TEST sampling/sg_uniform_neighbor_sampling.cu)
+target_link_libraries(UNIFORM_NEIGHBOR_SAMPLING_TEST PRIVATE cuco::cuco)
         
 ###################################################################################################
 # FIXME: since this is technically not a test, consider refactoring the the
@@ -571,52 +584,63 @@ if(BUILD_CUGRAPH_MG_TESTS)
         ###########################################################################################
         # - MG PRIMS COUNT_IF_V tests -------------------------------------------------------------
         ConfigureTestMG(MG_COUNT_IF_V_TEST prims/mg_count_if_v.cu)
+        target_link_libraries(MG_COUNT_IF_V_TEST PRIVATE cuco::cuco)
 
         ###########################################################################################
         # - MG PRIMS TRANSFORM_REDUCE_V_FRONTIER_OUTGOING_E_BY_DST tests --------------------------
         ConfigureTestMG(MG_TRANSFORM_REDUCE_V_FRONTIER_OUTGOING_E_BY_DST_TEST
                         prims/mg_transform_reduce_v_frontier_outgoing_e_by_dst.cu)
+        target_link_libraries(MG_TRANSFORM_REDUCE_V_FRONTIER_OUTGOING_E_BY_DST_TEST PRIVATE cuco::cuco)
 
         ###########################################################################################
         # - MG PRIMS REDUCE_V tests ---------------------------------------------------------------
         ConfigureTestMG(MG_REDUCE_V_TEST prims/mg_reduce_v.cu)
+        target_link_libraries(MG_REDUCE_V_TEST PRIVATE cuco::cuco)
 
         ###########################################################################################
         # - MG PRIMS TRANSFORM_REDUCE_V tests -----------------------------------------------------
         ConfigureTestMG(MG_TRANSFORM_REDUCE_V_TEST prims/mg_transform_reduce_v.cu)
+        target_link_libraries(MG_TRANSFORM_REDUCE_V_TEST PRIVATE cuco::cuco)
 
         ###########################################################################################
         # - MG PRIMS TRANSFORM_REDUCE_E tests -----------------------------------------------------
         ConfigureTestMG(MG_TRANSFORM_REDUCE_E_TEST prims/mg_transform_reduce_e.cu)
+        target_link_libraries(MG_TRANSFORM_REDUCE_E_TEST PRIVATE cuco::cuco)
 
         ###########################################################################################
         # - MG PRIMS COUNT_IF_E tests -------------------------------------------------------------
         ConfigureTestMG(MG_COUNT_IF_E_TEST prims/mg_count_if_e.cu)
+        target_link_libraries(MG_COUNT_IF_E_TEST PRIVATE cuco::cuco)
 
         ###########################################################################################
         # - MG PRIMS PER_V_TRANSFORM_REDUCE_INCOMING_OUTGOING_E tests -----------------------------
         ConfigureTestMG(MG_PER_V_TRANSFORM_REDUCE_INCOMING_OUTGOING_E_TEST
           prims/mg_per_v_transform_reduce_incoming_outgoing_e.cu)
+        target_link_libraries(MG_PER_V_TRANSFORM_REDUCE_INCOMING_OUTGOING_E_TEST PRIVATE cuco::cuco)
 
         ###########################################################################################
         # - MG PRIMS EXTRACT_IF_E tests -----------------------------------------------------------
         ConfigureTestMG(MG_EXTRACT_IF_E_TEST prims/mg_extract_if_e.cu)
+        target_link_libraries(MG_EXTRACT_IF_E_TEST PRIVATE cuco::cuco)
 
         ###########################################################################################
         # - MG GATHER_UTILS tests -----------------------------------------------------------------
         ConfigureTestMG(MG_GATHER_UTILS_TEST sampling/detail/mg_gather_utils.cu)
+        target_link_libraries(MG_GATHER_UTILS_TEST PRIVATE cuco::cuco)
 
         ###########################################################################################
         # - MG GATHER_ONE_HOP tests ---------------------------------------------------------------
         ConfigureTestMG(MG_GATHER_ONE_HOP_TEST sampling/detail/mg_gather_one_hop.cu)
-
-        ###########################################################################################
-        # - MG NBR SAMPLING tests -----------------------------------------------------------------
-        ConfigureTestMG(MG_NBR_SAMPLING_TEST sampling/detail/mg_nbr_sampling.cu)
+        target_link_libraries(MG_GATHER_ONE_HOP_TEST PRIVATE cuco::cuco)
 
         ###########################################################################################
         # - MG NBR SAMPLING tests -----------------------------------------------------------------
         ConfigureTestMG(MG_UNIFORM_NEIGHBOR_SAMPLING_TEST sampling/mg_uniform_neighbor_sampling.cu)
+        target_link_libraries(MG_UNIFORM_NEIGHBOR_SAMPLING_TEST PRIVATE cuco::cuco)
+
+        ###########################################################################################
+        # - RANDOM_WALKS tests --------------------------------------------------------------------
+        ConfigureTestMG(MG_RANDOM_WALKS_TEST sampling/mg_random_walks_test.cu)
         
         ###########################################################################################
         # - MG C API tests ------------------------------------------------------------------------
@@ -630,8 +654,10 @@ if(BUILD_CUGRAPH_MG_TESTS)
         ConfigureCTestMG(MG_CAPI_EIGENVECTOR_CENTRALITY c_api/mg_eigenvector_centrality_test.c c_api/mg_test_utils.cpp)
         ConfigureCTestMG(MG_CAPI_HITS c_api/mg_hits_test.c c_api/mg_test_utils.cpp)
         ConfigureCTestMG(MG_CAPI_UNIFORM_NEIGHBOR_SAMPLE c_api/mg_uniform_neighbor_sample_test.c c_api/mg_test_utils.cpp)
+        ConfigureCTestMG(MG_CAPI_RANDOM_WALKS c_api/mg_random_walks_test.c c_api/mg_test_utils.cpp)
         ConfigureCTestMG(MG_CAPI_TRIANGLE_COUNT c_api/mg_triangle_count_test.c c_api/mg_test_utils.cpp)
         ConfigureCTestMG(MG_CAPI_LOUVAIN c_api/mg_louvain_test.c c_api/mg_test_utils.cpp)
+	ConfigureCTestMG(MG_CAPI_CORE_NUMBER c_api/mg_core_number_test.c c_api/mg_test_utils.cpp)
     else()
        message(FATAL_ERROR "OpenMPI NOT found, cannot build MG tests.")
     endif()
@@ -682,8 +708,10 @@ ConfigureCTest(CAPI_NODE2VEC_TEST c_api/node2vec_test.c)
 ConfigureCTest(CAPI_WEAKLY_CONNECTED_COMPONENTS c_api/weakly_connected_components_test.c)
 ConfigureCTest(CAPI_STRONGLY_CONNECTED_COMPONENTS c_api/strongly_connected_components_test.c)
 ConfigureCTest(CAPI_UNIFORM_NEIGHBOR_SAMPLE c_api/uniform_neighbor_sample_test.c)
+ConfigureCTest(CAPI_RANDOM_WALKS c_api/sg_random_walks_test.c)
 ConfigureCTest(CAPI_TRIANGLE_COUNT c_api/triangle_count_test.c)
 ConfigureCTest(CAPI_LOUVAIN c_api/louvain_test.c)
+ConfigureCTest(CAPI_CORE_NUMBER c_api/core_number_test.c)
 
 ###################################################################################################
 ### enable testing ################################################################################

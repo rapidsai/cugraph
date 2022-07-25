@@ -14,8 +14,9 @@
  * limitations under the License.
  */
 
+#include <detail/graph_utils.cuh>
+
 #include <cugraph/algorithms.hpp>
-#include <cugraph/detail/graph_utils.cuh>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_generators.hpp>
 #include <cugraph/graph_view.hpp>

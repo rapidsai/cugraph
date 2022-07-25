@@ -32,17 +32,22 @@ def setup_function():
 
 IS_DIRECTED = [True, False]
 
+DATA_PATH = [(RAPIDS_DATASET_ROOT_DIR_PATH /
+             "karate-asymmetric.csv").as_posix(),
+             (RAPIDS_DATASET_ROOT_DIR_PATH /
+             "polbooks.csv").as_posix(),
+             (RAPIDS_DATASET_ROOT_DIR_PATH /
+             "email-Eu-core.csv").as_posix()]
+
 
 @pytest.mark.skipif(
     is_single_gpu(), reason="skipping MG testing on Single GPU system"
 )
 @pytest.mark.parametrize("directed", IS_DIRECTED)
-def test_dask_mg_degree(dask_client, directed):
+@pytest.mark.parametrize("data_file", DATA_PATH)
+def test_dask_mg_degree(dask_client, directed, data_file):
 
-    input_data_path = (RAPIDS_DATASET_ROOT_DIR_PATH /
-                       "karate-asymmetric.csv").as_posix()
-    print(f"dataset={input_data_path}")
-
+    input_data_path = data_file
     chunksize = cugraph.dask.get_chunksize(input_data_path)
 
     ddf = dask_cudf.read_csv(

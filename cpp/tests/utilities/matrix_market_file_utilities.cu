@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
+#include <detail/graph_utils.cuh>
 #include <utilities/test_utilities.hpp>
 
-#include <cugraph/detail/graph_utils.cuh>
 #include <cugraph/functions.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/partition_manager.hpp>

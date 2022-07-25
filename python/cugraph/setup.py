@@ -183,14 +183,19 @@ setup(name='cugraph',
           "Intended Audience :: Developers",
           # "Operating System :: OS Independent",
           "Programming Language :: Python",
-          "Programming Language :: Python :: 3.6",
-          "Programming Language :: Python :: 3.7"
+          "Programming Language :: Python :: 3.8",
+          "Programming Language :: Python :: 3.9"
       ],
       # Include the separately-compiled shared library
       author="NVIDIA Corporation",
       setup_requires=['Cython>=0.29,<0.30'],
       ext_modules=extensions,
       packages=find_packages(include=['cugraph', 'cugraph.*']),
+      include_package_data=True,
+      package_data={
+          '': ['python/cugraph/cugraph/experimental/datasets/metadata/*.yaml',
+               'python/cugraph/cugraph/experimental/datasets/*.yaml'],
+      },
       install_requires=INSTALL_REQUIRES,
       license="Apache",
       cmdclass=cmdclass,

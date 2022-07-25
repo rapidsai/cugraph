@@ -13,11 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-/** ---------------------------------------------------------------------------*
- * @brief The cugraph Jaccard core functionality
- *
- * @file jaccard.cu
- * ---------------------------------------------------------------------------**/
 
 #include <cugraph/legacy/graph.hpp>
 #include <cugraph/utilities/error.hpp>
