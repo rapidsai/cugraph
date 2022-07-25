@@ -65,6 +65,7 @@ target_link_libraries(cugraphmgtestutil
     PUBLIC
         cugraph::cugraph
         NCCL::NCCL
+        MPI::MPI_CXX
 )
 
 ###################################################################################################
