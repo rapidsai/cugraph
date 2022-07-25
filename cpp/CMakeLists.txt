@@ -183,8 +183,8 @@ set(CUGRAPH_SOURCES
     src/traversal/legacy/bfs.cu
     src/link_prediction/jaccard.cu
     src/link_prediction/overlap.cu
-    src/layout/force_atlas2.cu
-    src/converters/COOtoCSR.cu
+    src/layout/legacy/force_atlas2.cu
+    src/converters/legacy/COOtoCSR.cu
     src/community/legacy/spectral_clustering.cu
     src/community/louvain_sg.cu
     src/community/louvain_mg.cu
@@ -206,7 +206,7 @@ set(CUGRAPH_SOURCES
     src/cores/core_number_sg.cu
     src/cores/core_number_mg.cu
     src/traversal/two_hop_neighbors.cu
-    src/components/connectivity.cu
+    src/components/legacy/connectivity.cu
     src/centrality/betweenness_centrality.cu
     src/generators/generate_rmat_edgelist.cu
     src/generators/generator_tools.cu

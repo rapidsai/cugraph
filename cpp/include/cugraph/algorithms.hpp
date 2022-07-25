@@ -21,8 +21,8 @@
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_view.hpp>
 
-#include <cugraph/internals.hpp>
 #include <cugraph/legacy/graph.hpp>
+#include <cugraph/legacy/internals.hpp>
 
 #ifndef NO_CUGRAPH_OPS
 #include <cugraph-ops/graph/sampling.hpp>
