@@ -31,7 +31,6 @@
 #include <rmm/mr/device/pool_memory_resource.hpp>
 
 #include <gtest/gtest.h>
-#include <mpi.h>
 
 #include <limits>
 #include <optional>
