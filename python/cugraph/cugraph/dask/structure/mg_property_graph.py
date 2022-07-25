@@ -429,22 +429,20 @@ class EXPERIMENTAL__MGPropertyGraph:
         # columns. The copied DataFrame is then merged (another copy) and then
         # deleted when out-of-scope.
         tmp_df = dataframe.copy()
-        # FIXME: Find a better way to create the edge id
-        prev_eid = -1 if self.__last_edge_id is None else self.__last_edge_id
         tmp_df[self.src_col_name] = tmp_df[vertex_col_names[0]]
         tmp_df[self.dst_col_name] = tmp_df[vertex_col_names[1]]
+        tmp_df[self.type_col_name] = type_name
+
+        # Add unique edge IDs to the new rows
+        prev_eid = -1 if self.__last_edge_id is None else self.__last_edge_id
         starting_eid = prev_eid + 1
         data_size = len(tmp_df.compute().index)
-        cudf_series = \
-            cudf.Series(range(starting_eid, starting_eid + data_size))
-        dask_series =\
-            dask_cudf.from_cudf(cudf_series, self.__num_workers)
-        dask_series = dask_series.reset_index(drop=True)
-        self.__last_edge_id = starting_eid + data_size
-        tmp_df = tmp_df.reset_index(drop=True)
-        tmp_df[self.edge_id_col_name] = dask_series
-        tmp_df[self.type_col_name] = type_name
+        new_eids = cudf.Series(range(starting_eid, starting_eid + data_size))
+        new_eids_dask = dask_cudf.from_cudf(new_eids, self.__num_workers)
+        self.__last_edge_id = starting_eid + data_size - 1
+        tmp_df[self.edge_id_col_name] = new_eids_dask
         tmp_df.persist()
+
         if property_columns:
             # all columns
             column_names_to_drop = set(tmp_df.columns)
@@ -459,8 +457,10 @@ class EXPERIMENTAL__MGPropertyGraph:
         new_col_info = self.__get_new_column_dtypes(
             tmp_df, self.__edge_prop_dataframe)
         self.__edge_prop_dtypes.update(new_col_info)
+
         self.__edge_prop_dataframe = \
             self.__edge_prop_dataframe.merge(tmp_df, how="outer")
+
         # Update the vertex eval dict with the latest column instances
         latest = dict([(n, self.__edge_prop_dataframe[n])
                        for n in self.__edge_prop_dataframe.columns])
@@ -472,14 +472,18 @@ class EXPERIMENTAL__MGPropertyGraph:
         edge_ids, or all edge IDs if not specified.
         """
         if self.__edge_prop_dataframe is not None:
-            # Note: this includes the "internal" columns, since they are assumed
-            # to be needed by the caller.
+            # Note: this includes some of the "internal" columns, since they are
+            # assumed to be needed by the caller, but not all (ie. weight).
+            columns = list(self.__edge_prop_dataframe.columns)
+            if self.weight_col_name in columns:
+                columns.remove(self.weight_col_name)
+
             if edge_ids is not None:
                 df_mask = self.__edge_prop_dataframe[self.edge_id_col_name]\
                               .isin(edge_ids)
-                return self.__edge_prop_dataframe.loc[df_mask]
+                return self.__edge_prop_dataframe.loc[df_mask][columns]
             else:
-                return self.__edge_prop_dataframe
+                return self.__edge_prop_dataframe[columns]
 
     def select_vertices(self, expr, from_previous_selection=None):
         raise NotImplementedError

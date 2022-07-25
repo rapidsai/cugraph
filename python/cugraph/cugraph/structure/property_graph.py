@@ -459,8 +459,16 @@ class EXPERIMENTAL__PropertyGraph:
         tmp_df = dataframe.copy(deep=True)
         tmp_df[self.src_col_name] = tmp_df[vertex_col_names[0]]
         tmp_df[self.dst_col_name] = tmp_df[vertex_col_names[1]]
-        # FIXME: handle case of a type_name column already being in tmp_df
         tmp_df[self.type_col_name] = type_name
+
+        # Add unique edge IDs to the new rows
+        prev_eid = -1 if self.__last_edge_id is None else self.__last_edge_id
+        starting_eid = prev_eid + 1
+        data_size = len(tmp_df.index)
+        new_eids = self.__series_type(range(starting_eid,
+                                            starting_eid + data_size))
+        self.__last_edge_id = starting_eid + data_size - 1
+        tmp_df[self.edge_id_col_name] = new_eids
 
         if property_columns:
             # all columns
@@ -480,8 +488,6 @@ class EXPERIMENTAL__PropertyGraph:
         self.__edge_prop_dataframe = \
             self.__edge_prop_dataframe.merge(tmp_df, how="outer")
 
-        self.__add_edge_ids()
-
         # Update the vertex eval dict with the latest column instances
         latest = dict([(n, self.__edge_prop_dataframe[n])
                        for n in self.__edge_prop_dataframe.columns])
@@ -493,14 +499,18 @@ class EXPERIMENTAL__PropertyGraph:
         edge_ids, or all edge IDs if not specified.
         """
         if self.__edge_prop_dataframe is not None:
-            # Note: this includes the "internal" columns, since they are assumed
-            # to be needed by the caller.
+            # Note: this includes some of the "internal" columns, since they are
+            # assumed to be needed by the caller, but not all (ie. weight).
+            columns = list(self.__edge_prop_dataframe.columns)
+            if self.weight_col_name in columns:
+                columns.remove(self.weight_col_name)
+
             if edge_ids is not None:
                 df_mask = self.__edge_prop_dataframe[self.edge_id_col_name]\
                               .isin(edge_ids)
-                return self.__edge_prop_dataframe.loc[df_mask]
+                return self.__edge_prop_dataframe.loc[df_mask][columns]
             else:
-                return self.__edge_prop_dataframe
+                return self.__edge_prop_dataframe[columns]
 
     def select_vertices(self, expr, from_previous_selection=None):
         """
@@ -886,26 +896,6 @@ class EXPERIMENTAL__PropertyGraph:
         return self.__dataframe_type({self.src_col_name: src,
                                       self.dst_col_name: dst,
                                       self.edge_id_col_name: edge_id})
-
-    def __add_edge_ids(self):
-        """
-        Replace nans with unique edge IDs. Edge IDs are simply numbers
-        incremented by 1 for each edge.
-        """
-        prev_eid = -1 if self.__last_edge_id is None else self.__last_edge_id
-        nans = self.__edge_prop_dataframe[self.edge_id_col_name].isna()
-
-        if nans.any():
-            indices = nans.index[nans]
-            num_indices = len(indices)
-            starting_eid = prev_eid + 1
-            new_eids = self.__series_type(
-                range(starting_eid, starting_eid + num_indices))
-
-            self.__edge_prop_dataframe[self.edge_id_col_name]\
-                .iloc[indices] = new_eids
-
-            self.__last_edge_id = starting_eid + num_indices - 1
 
     def __get_all_vertices_series(self):
         """
