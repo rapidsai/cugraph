@@ -31,7 +31,7 @@
 
 #include <cmath>
 
-#include "../src/converters/COOtoCSR.cuh"
+#include "../src/converters/legacy/COOtoCSR.cuh"
 #include <thrust/device_ptr.h>
 #include <thrust/iterator/constant_iterator.h>
 #include <thrust/reduce.h>

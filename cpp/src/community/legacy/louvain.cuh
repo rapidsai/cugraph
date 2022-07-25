@@ -17,7 +17,7 @@
 
 #include <cugraph/legacy/graph.hpp>
 
-#include <converters/COOtoCSR.cuh>
+#include <converters/legacy/COOtoCSR.cuh>
 #include <utilities/graph_utils.cuh>
 
 #include <cugraph/dendrogram.hpp>
