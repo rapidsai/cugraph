@@ -176,7 +176,8 @@ class EXPERIMENTAL__PropertyGraph:
     def edges(self):
         if self.__edge_prop_dataframe is not None:
             return self.__edge_prop_dataframe[[self.src_col_name,
-                                               self.dst_col_name]]
+                                               self.dst_col_name,
+                                               self.edge_id_col_name]]
         return None
 
     @property
@@ -346,6 +347,22 @@ class EXPERIMENTAL__PropertyGraph:
                        for n in self.__vertex_prop_dataframe.columns])
         self.__vertex_prop_eval_dict.update(latest)
 
+    def get_vertex_data(self, vertex_ids=None):
+        """
+        Return a dataframe containing vertex properties for only the specified
+        vertex_ids, or all vertex IDs if not specified.
+        """
+        if self.__vertex_prop_dataframe is not None:
+            # Note: this includes the "internal" pG.vertex_col_name and
+            # pG.type_col_name columns, since they are assumed to be needed by
+            # the caller.
+            if vertex_ids is not None:
+                df_mask = self.__vertex_prop_dataframe[self.vertex_col_name]\
+                              .isin(vertex_ids)
+                return self.__vertex_prop_dataframe.loc[df_mask]
+            else:
+                return self.__vertex_prop_dataframe
+
     def add_edge_data(self,
                       dataframe,
                       vertex_col_names,
@@ -469,6 +486,21 @@ class EXPERIMENTAL__PropertyGraph:
         latest = dict([(n, self.__edge_prop_dataframe[n])
                        for n in self.__edge_prop_dataframe.columns])
         self.__edge_prop_eval_dict.update(latest)
+
+    def get_edge_data(self, edge_ids=None):
+        """
+        Return a dataframe containing edge properties for only the specified
+        edge_ids, or all edge IDs if not specified.
+        """
+        if self.__edge_prop_dataframe is not None:
+            # Note: this includes the "internal" columns, since they are assumed
+            # to be needed by the caller.
+            if edge_ids is not None:
+                df_mask = self.__edge_prop_dataframe[self.edge_id_col_name]\
+                              .isin(edge_ids)
+                return self.__edge_prop_dataframe.loc[df_mask]
+            else:
+                return self.__edge_prop_dataframe
 
     def select_vertices(self, expr, from_previous_selection=None):
         """

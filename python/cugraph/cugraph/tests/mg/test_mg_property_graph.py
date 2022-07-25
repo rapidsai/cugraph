@@ -429,14 +429,16 @@ def test_extract_subgraph_nonrenumbered_noedgedata(
 
     actual_edgelist = G.edgelist.edgelist_df.compute()
 
+    src_col_name = pG.src_col_name
+    dst_col_name = pG.dst_col_name
+
     # create a DF without the properties (ie. the last column)
-    expected_edgelist = cudf.DataFrame(columns=[pG.src_col_name,
-                                                pG.dst_col_name],
+    expected_edgelist = cudf.DataFrame(columns=[src_col_name, dst_col_name],
                                        data=[(i, j) for (i, j, k) in data[1]])
 
-    assert_frame_equal(expected_edgelist.sort_values(by=pG.src_col_name,
+    assert_frame_equal(expected_edgelist.sort_values(by=src_col_name,
                                                      ignore_index=True),
-                       actual_edgelist.sort_values(by=pG.src_col_name,
+                       actual_edgelist.sort_values(by=src_col_name,
                                                    ignore_index=True))
     assert hasattr(G, "edge_data") is False
 
@@ -492,9 +494,22 @@ def test_get_vertex_data(dataset1_MGPropertyGraph):
 
     # Ensure the generated vertex IDs are unique
     all_vertex_data = pG.get_vertex_data()
-    assert all_vertex_data[pG.vertex_id_col_name].nunique() == \
+    assert all_vertex_data[pG.vertex_col_name].nunique().compute() == \
         len(all_vertex_data)
 
+    vert_ids = [11, 4, 21]
+    some_vertex_data = pG.get_vertex_data(vert_ids)
+    assert sorted(some_vertex_data[pG.vertex_col_name].compute().values_host) \
+        == sorted(vert_ids)
+
+    expected_columns = set([pG.vertex_col_name, pG.type_col_name])
+    for d in ["merchants", "users"]:
+        for name in data[d][0]:
+            expected_columns.add(name)
+
+    actual_columns = set(some_vertex_data.columns)
+
+    assert actual_columns == expected_columns
 
 def test_get_edge_data(dataset1_MGPropertyGraph):
     """
@@ -505,4 +520,22 @@ def test_get_edge_data(dataset1_MGPropertyGraph):
 
     # Ensure the generated edge IDs are unique
     all_edge_data = pG.get_edge_data()
-    assert all_edge_data[pG.edge_id_col_name].nunique() == len(all_edge_data)
+    assert all_edge_data[pG.edge_id_col_name].nunique().compute() == \
+        len(all_edge_data)
+
+    edge_ids = [4, 5, 6]
+    some_edge_data = pG.get_edge_data(edge_ids)
+    actual_edge_ids = some_edge_data[pG.edge_id_col_name].compute()
+    if hasattr(actual_edge_ids, "values_host"):
+        actual_edge_ids = actual_edge_ids.values_host
+    assert sorted(actual_edge_ids) == sorted(edge_ids)
+
+    expected_columns = set([pG.src_col_name, pG.dst_col_name,
+                            pG.edge_id_col_name, pG.type_col_name])
+    for d in ["transactions", "relationships", "referrals"]:
+        for name in data[d][0]:
+            expected_columns.add(name)
+
+    actual_columns = set(some_edge_data.columns)
+
+    assert actual_columns == expected_columns
