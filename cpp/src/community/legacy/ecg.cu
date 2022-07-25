@@ -15,7 +15,6 @@
  */
 
 #include <community/legacy/louvain.cuh>
-#include <converters/permute_graph.cuh>
 #include <cugraph/algorithms.hpp>
 #include <cugraph/utilities/error.hpp>
 #include <utilities/graph_utils.cuh>

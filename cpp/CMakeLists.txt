@@ -153,7 +153,8 @@ rapids_cpm_init()
 
 # Putting this before raft to override RAFT from pulling them in.
 include(cmake/thirdparty/get_libcudacxx.cmake)
-include(cmake/thirdparty/get_cuco.cmake)
+include(${rapids-cmake-dir}/cpm/cuco.cmake)
+rapids_cpm_cuco(BUILD_EXPORT_SET cugraph-exports)
 
 include(cmake/thirdparty/get_raft.cmake)
 
@@ -182,8 +183,8 @@ set(CUGRAPH_SOURCES
     src/traversal/legacy/bfs.cu
     src/link_prediction/jaccard.cu
     src/link_prediction/overlap.cu
-    src/layout/force_atlas2.cu
-    src/converters/COOtoCSR.cu
+    src/layout/legacy/force_atlas2.cu
+    src/converters/legacy/COOtoCSR.cu
     src/community/legacy/spectral_clustering.cu
     src/community/louvain_sg.cu
     src/community/louvain_mg.cu
@@ -205,7 +206,7 @@ set(CUGRAPH_SOURCES
     src/cores/core_number_sg.cu
     src/cores/core_number_mg.cu
     src/traversal/two_hop_neighbors.cu
-    src/components/connectivity.cu
+    src/components/legacy/connectivity.cu
     src/centrality/betweenness_centrality.cu
     src/generators/generate_rmat_edgelist.cu
     src/generators/generator_tools.cu
@@ -311,8 +312,8 @@ if (USE_CUGRAPH_OPS)
         PUBLIC
             cugraph-ops::cugraph-ops++
             raft::raft
-            cuco::cuco
         PRIVATE
+            cuco::cuco
             cugraph::cuHornet
             NCCL::NCCL
     )
@@ -320,8 +321,8 @@ else()
     target_link_libraries(cugraph
         PUBLIC
             raft::raft
-            cuco::cuco
         PRIVATE
+            cuco::cuco
             cugraph::cuHornet
             NCCL::NCCL
     )
@@ -441,8 +442,8 @@ target_link_libraries(cugraph_c
                 CUDA::cusolver
                 CUDA::cusparse
                 raft::raft
-                cuco::cuco
         PRIVATE
+                cuco::cuco
                 cugraph::cugraph
 )
 
