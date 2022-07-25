@@ -28,6 +28,10 @@
 #include <type_traits>
 #include <vector>
 
+/** @defgroup cpp_api cuGraph C++ API
+ *  @{
+ */
+
 namespace cugraph {
 
 template <typename vertex_t, typename edge_t, typename weight_t>
@@ -225,7 +229,7 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
         local_sorted_unique_edge_src_chunk_start_offsets =
           std::vector<raft::device_span<vertex_t const>>(
             (*local_sorted_unique_edge_src_chunk_start_offsets_).size());
-        for (size_t i = 0; (*local_sorted_unique_edge_srcs).size(); ++i) {
+        for (size_t i = 0; i < (*local_sorted_unique_edge_srcs).size(); ++i) {
           (*local_sorted_unique_edge_srcs)[i] =
             raft::device_span<vertex_t const>((*local_sorted_unique_edge_srcs_)[i].begin(),
                                               (*local_sorted_unique_edge_srcs_)[i].end());
@@ -244,7 +248,7 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
         local_sorted_unique_edge_dst_chunk_start_offsets =
           std::vector<raft::device_span<vertex_t const>>(
             (*local_sorted_unique_edge_dst_chunk_start_offsets_).size());
-        for (size_t i = 0; (*local_sorted_unique_edge_dsts).size(); ++i) {
+        for (size_t i = 0; i < (*local_sorted_unique_edge_dsts).size(); ++i) {
           (*local_sorted_unique_edge_dsts)[i] =
             raft::device_span<vertex_t const>((*local_sorted_unique_edge_dsts_)[i].begin(),
                                               (*local_sorted_unique_edge_dsts_)[i].end());
@@ -551,3 +555,7 @@ __host__ __device__ std::enable_if_t<std::is_unsigned<vertex_t>::value, bool> is
 }  // namespace cugraph
 
 #include "eidecl_graph.hpp"
+
+/**
+ * @}
+ */

@@ -11,28 +11,41 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-#from cugraph.experimental.datasets import (
-#    karate,
-#)
+
 from cugraph.experimental.datasets.dataset import (
     Dataset,
     load_all,
-#    karate,
-#    dolphins,
-#    SMALL_DATASETS
+    set_config,
+    set_download_dir,
+    get_download_dir,
+    default_download_dir
 )
 from cugraph.experimental.datasets import metadata
+from pathlib import Path
 
-# SMALL DATASETS
-karate = Dataset("metadata/karate.yaml")
-dolphins = Dataset("metadata/dolphins.yaml")
-polbooks = Dataset("metadata/polbooks.yaml")
-netscience = Dataset("metadata/netscience.yaml")
-cyber = Dataset("metadata/cyber.yaml")
 
-# MEDIUM DATASETS
+meta_path = Path(__file__).parent / "metadata"
+
+karate = Dataset(meta_path / "karate.yaml")
+karate_undirected = Dataset(meta_path / "karate_undirected.yaml")
+karate_asymmetric = Dataset(meta_path / "karate_asymmetric.yaml")
+dolphins = Dataset(meta_path / "dolphins.yaml")
+polbooks = Dataset(meta_path / "polbooks.yaml")
+netscience = Dataset(meta_path / "netscience.yaml")
+cyber = Dataset(meta_path / "cyber.yaml")
+small_line = Dataset(meta_path / "small_line.yaml")
+small_tree = Dataset(meta_path / "small_tree.yaml")
+
 
 # LARGE DATASETS
+LARGE_DATASETS = [cyber]
 
-# GROUPS OF DATASETS
-SMALL_DATASETS = [karate, dolphins]
+# <10,000 lines
+MEDIUM_DATASETS = [netscience, polbooks]
+
+# <500 lines
+SMALL_DATASETS = [karate, small_line, small_tree, dolphins]
+
+# ALL
+ALL_DATASETS = [karate, dolphins, netscience, polbooks, cyber,
+                small_line, small_tree]

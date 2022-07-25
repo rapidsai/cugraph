@@ -16,12 +16,18 @@ from cugraph.structure.graph_primtypes_wrapper import Direction
 from cugraph.structure.symmetrize import symmetrize
 from cugraph.structure.number_map import NumberMap
 import cugraph.dask.common.mg_utils as mg_utils
+import cupy
 import cudf
 import dask_cudf
 import cugraph.dask.comms.comms as Comms
 import pandas as pd
 import numpy as np
 from cugraph.dask.structure import replication
+
+from pylibcugraph import (ResourceHandle,
+                          GraphProperties,
+                          SGGraph,
+                          )
 
 
 # FIXME: Change to consistent camel case naming
@@ -88,7 +94,8 @@ class simpleGraphImpl:
         destination="destination",
         edge_attr=None,
         renumber=True,
-        legacy_renum_only=False,
+        legacy_renum_only=True,
+        store_transposed=False,
     ):
 
         # Verify column names present in input DataFrame
@@ -191,6 +198,11 @@ class simpleGraphImpl:
 
         if self.batch_enabled:
             self._replicate_edgelist()
+
+        self._make_plc_graph(
+            value_col=value_col,
+            store_transposed=store_transposed
+        )
 
     def to_pandas_edgelist(self, source='src', destination='dst',
                            weight='weights'):
@@ -751,7 +763,36 @@ class simpleGraphImpl:
 
         return df
 
-    def to_directed(self, DiG):
+    def _make_plc_graph(self, value_col=None, store_transposed=False):
+        if value_col is None:
+            value_col = cudf.Series(
+                cupy.ones(len(self.edgelist.edgelist_df), dtype='float32')
+            )
+        else:
+            weight_t = value_col.dtype
+
+            if weight_t == "int32":
+                value_col = value_col.astype("float32")
+            if weight_t == "int64":
+                value_col = value_col.astype("float64")
+
+        graph_props = GraphProperties(
+            is_multigraph=self.properties.multi_edge,
+            is_symmetric=not self.properties.directed
+        )
+
+        self._plc_graph = SGGraph(
+            resource_handle=ResourceHandle(),
+            graph_properties=graph_props,
+            src_array=self.edgelist.edgelist_df['src'],
+            dst_array=self.edgelist.edgelist_df['dst'],
+            weight_array=value_col,
+            store_transposed=store_transposed,
+            renumber=False,
+            do_expensive_check=False
+        )
+
+    def to_directed(self, DiG, store_transposed=False):
         """
         Return a directed representation of the graph Implementation.
         This function copies the internal structures and returns the
@@ -763,7 +804,14 @@ class simpleGraphImpl:
         DiG.adjlist = self.adjlist
         DiG.transposedadjlist = self.transposedadjlist
 
-    def to_undirected(self, G):
+        if 'weights' in self.edgelist.edgelist_df:
+            value_col = self.edgelist.edgelist_df['weights']
+        else:
+            value_col = None
+
+        DiG._make_plc_graph(value_col, store_transposed)
+
+    def to_undirected(self, G, store_transposed=False):
         """
         Return an undirected copy of the graph.
         """
@@ -784,6 +832,13 @@ class simpleGraphImpl:
                 value_col = None
             G.edgelist = simpleGraphImpl.EdgeList(source_col, dest_col,
                                                   value_col)
+
+        if 'weights' in self.edgelist.edgelist_df:
+            value_col = self.edgelist.edgelist_df['weights']
+        else:
+            value_col = None
+
+        G._make_plc_graph(value_col, store_transposed)
 
     def has_node(self, n):
         """

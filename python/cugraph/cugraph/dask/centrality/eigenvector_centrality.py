@@ -14,8 +14,7 @@
 #
 
 from dask.distributed import wait, default_client
-from cugraph.dask.common.input_utils import (get_distributed_data,
-                                             get_vertex_partition_offsets)
+from cugraph.dask.common.input_utils import get_distributed_data
 from pylibcugraph import (ResourceHandle,
                           GraphProperties,
                           MGGraph,
@@ -34,10 +33,7 @@ def call_eigenvector_centrality(sID,
                                 do_expensive_check,
                                 src_col_name,
                                 dst_col_name,
-                                num_verts,
                                 num_edges,
-                                vertex_partition_offsets,
-                                aggregate_segment_offsets,
                                 max_iter,
                                 tol,
                                 normalized):
@@ -140,7 +136,7 @@ def eigenvector_centrality(
 
     """
     client = default_client()
-    # Calling renumbering results in data that is sorted by degree
+
     input_graph.compute_renumber_edge_list(
         transposed=False, legacy_renum_only=True)
 
@@ -148,24 +144,16 @@ def eigenvector_centrality(
         is_multigraph=False)
 
     store_transposed = False
+    # FIXME: should we add this parameter as an option?
     do_expensive_check = False
 
     src_col_name = input_graph.renumber_map.renumbered_src_col_name
     dst_col_name = input_graph.renumber_map.renumbered_dst_col_name
 
-    # FIXME Move this call to the function creating a directed
-    # graph from a dask dataframe because duplicated edges need
-    # to be dropped
     ddf = input_graph.edgelist.edgelist_df
-    ddf = ddf.map_partitions(
-        lambda df: df.drop_duplicates(subset=[src_col_name, dst_col_name]))
 
     num_edges = len(ddf)
     data = get_distributed_data(ddf)
-
-    input_graph.compute_renumber_edge_list(transposed=True)
-    vertex_partition_offsets = get_vertex_partition_offsets(input_graph)
-    num_verts = vertex_partition_offsets.iloc[-1]
 
     cupy_result = [client.submit(call_eigenvector_centrality,
                                  Comms.get_session_id(),
@@ -175,10 +163,7 @@ def eigenvector_centrality(
                                  do_expensive_check,
                                  src_col_name,
                                  dst_col_name,
-                                 num_verts,
                                  num_edges,
-                                 vertex_partition_offsets,
-                                 input_graph.aggregate_segment_offsets,
                                  max_iter,
                                  tol,
                                  normalized,
@@ -197,4 +182,6 @@ def eigenvector_centrality(
 
     ddf = dask_cudf.from_delayed(cudf_result)
     if input_graph.renumbered:
-        return input_graph.unrenumber(ddf, 'vertex')
+        ddf = input_graph.unrenumber(ddf, "vertex")
+
+    return ddf

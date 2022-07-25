@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2022, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,14 +16,35 @@
 
 #pragma once
 
+#include <raft/core/span.hpp>
 #include <raft/handle.hpp>
+
 #include <rmm/device_uvector.hpp>
 
 namespace cugraph {
 namespace test {
 
 template <typename T>
-rmm::device_uvector<T> device_gatherv(raft::handle_t const& handle, T const* d_input, size_t size);
+rmm::device_uvector<T> device_gatherv(raft::handle_t const& handle,
+                                      raft::device_span<T const> d_input);
+
+template <typename T>
+rmm::device_uvector<T> device_gatherv(raft::handle_t const& handle, T const* d_input, size_t size)
+{
+  return device_gatherv(handle, raft::device_span<T const>{d_input, size});
+}
+
+template <typename T>
+rmm::device_uvector<T> device_allgatherv(raft::handle_t const& handle,
+                                         raft::device_span<T const> d_input);
+
+template <typename T>
+rmm::device_uvector<T> device_allgatherv(raft::handle_t const& handle,
+                                         T const* d_input,
+                                         size_t size)
+{
+  return device_allgatherv(handle, raft::device_span<T const>{d_input, size});
+}
 
 }  // namespace test
 }  // namespace cugraph

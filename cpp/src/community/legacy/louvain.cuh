@@ -31,6 +31,22 @@
 #include <utilities/high_res_timer.hpp>
 #endif
 
+#include <thrust/copy.h>
+#include <thrust/distance.h>
+#include <thrust/execution_policy.h>
+#include <thrust/fill.h>
+#include <thrust/for_each.h>
+#include <thrust/functional.h>
+#include <thrust/iterator/constant_iterator.h>
+#include <thrust/iterator/counting_iterator.h>
+#include <thrust/iterator/zip_iterator.h>
+#include <thrust/reduce.h>
+#include <thrust/scatter.h>
+#include <thrust/sequence.h>
+#include <thrust/sort.h>
+#include <thrust/transform_reduce.h>
+#include <thrust/tuple.h>
+
 namespace cugraph {
 namespace legacy {
 

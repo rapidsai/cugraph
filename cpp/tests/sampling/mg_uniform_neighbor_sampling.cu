@@ -20,6 +20,10 @@
 
 #include <gtest/gtest.h>
 
+#include <thrust/distance.h>
+#include <thrust/sort.h>
+#include <thrust/unique.h>
+
 struct Prims_Usecase {
   bool check_correctness{true};
   bool flag_replacement{true};
@@ -86,15 +90,27 @@ class Tests_MG_Nbr_Sampling
     constexpr vertex_t source_sample_count    = 3;
 
     // Generate random vertex ids in the range of current gpu
-    auto random_sources = random_vertex_ids(handle,
-                                            mg_graph_view.local_vertex_partition_range_first(),
-                                            mg_graph_view.local_vertex_partition_range_last(),
-                                            source_sample_count,
-                                            repetitions_per_vertex,
-                                            comm_rank);
+    auto random_sources =
+      random_vertex_ids(handle,
+                        mg_graph_view.local_vertex_partition_range_first(),
+                        mg_graph_view.local_vertex_partition_range_last(),
+                        std::min(mg_graph_view.local_vertex_partition_range_size() *
+                                   (repetitions_per_vertex + vertex_t{1}),
+                                 source_sample_count),
+                        repetitions_per_vertex,
+                        comm_rank);
 
     std::vector<int> h_fan_out{indices_per_source};  // depth = 1
 
+#ifdef NO_CUGRAPH_OPS
+    EXPECT_THROW(cugraph::uniform_nbr_sample(
+                   handle,
+                   mg_graph_view,
+                   raft::device_span<vertex_t>(random_sources.data(), random_sources.size()),
+                   raft::host_span<const int>(h_fan_out.data(), h_fan_out.size()),
+                   prims_usecase.flag_replacement),
+                 std::exception);
+#else
     auto&& [d_src_out, d_dst_out, d_indices, d_counts] = cugraph::uniform_nbr_sample(
       handle,
       mg_graph_view,
@@ -104,14 +120,14 @@ class Tests_MG_Nbr_Sampling
 
     if (prims_usecase.check_correctness) {
       // Consolidate results on GPU 0
-      auto d_mg_start_src =
-        cugraph::test::device_gatherv(handle, random_sources.data(), random_sources.size());
-      auto d_mg_aggregate_src =
-        cugraph::test::device_gatherv(handle, d_src_out.data(), d_src_out.size());
-      auto d_mg_aggregate_dst =
-        cugraph::test::device_gatherv(handle, d_dst_out.data(), d_dst_out.size());
-      auto d_mg_aggregate_indices =
-        cugraph::test::device_gatherv(handle, d_indices.data(), d_indices.size());
+      auto d_mg_start_src = cugraph::test::device_gatherv(
+        handle, raft::device_span<vertex_t const>{random_sources.data(), random_sources.size()});
+      auto d_mg_aggregate_src = cugraph::test::device_gatherv(
+        handle, raft::device_span<vertex_t const>{d_src_out.data(), d_src_out.size()});
+      auto d_mg_aggregate_dst = cugraph::test::device_gatherv(
+        handle, raft::device_span<vertex_t const>{d_dst_out.data(), d_dst_out.size()});
+      auto d_mg_aggregate_indices = cugraph::test::device_gatherv(
+        handle, raft::device_span<weight_t const>{d_indices.data(), d_indices.size()});
 
 #if 0
       // FIXME:  extract_induced_subgraphs not currently support MG, so we'll skip this validation
@@ -158,6 +174,7 @@ class Tests_MG_Nbr_Sampling
                                                h_fan_out.size());
       }
     }
+#endif
   }
 };
 

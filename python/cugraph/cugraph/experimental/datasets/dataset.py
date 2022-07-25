@@ -18,8 +18,39 @@ import os
 from pathlib import Path
 
 
-this_dir = Path(os.getenv("this_dir", "cugraph/cugraph/experimental/datasets"))
-datasets_dir = this_dir.parent / "datasets"
+class DefaultDownloadDir:
+    """
+    Maintains the path to the download directory used by Dataset instances.
+    Instances of this class are typically shared by several Dataset instances
+    in order to allow for the download directory to be defined and updated by
+    a single object.
+    """
+    def __init__(self):
+        self._path = Path(os.environ.get("RAPIDS_DATASET_ROOT_DIR",
+                                         Path.home() / ".cugraph/datasets"))
+
+    @property
+    def path(self):
+        """
+        If `path` is not set, set it to the environment variable
+        RAPIDS_DATASET_ROOT_DIR. If the variable is not set, default to the
+        user's home directory.
+        """
+        if self._path is None:
+            self._path = Path(os.environ.get("RAPIDS_DATASET_ROOT_DIR",
+                                             Path.home() /
+                                             ".cugraph/datasets"))
+        return self._path
+
+    @path.setter
+    def path(self, new):
+        self._path = Path(new)
+
+    def clear(self):
+        self._path = None
+
+
+default_download_dir = DefaultDownloadDir()
 
 
 class Dataset:
@@ -36,35 +67,25 @@ class Dataset:
 
     """
     def __init__(self, meta_data_file_name):
-        self.dir_path = Path(__file__).parent.absolute()
-        self.download_dir = this_dir.parent.parent / "datasets"
-        self.__read_config()
-        self.__meta_data_file_name = meta_data_file_name
-        self.__read_meta_data_file(self.__meta_data_file_name)
-        self.__edgelist = None
-        self.__graph = None
-        self.path = None
-
-    def __read_meta_data_file(self, meta_data_file):
-        metadata_path = self.dir_path / meta_data_file
-        with open(metadata_path, 'r') as file:
+        with open(meta_data_file_name, 'r') as file:
             self.metadata = yaml.safe_load(file)
-            file.close()
 
-    def __read_config(self):
-        config_path = self.dir_path / "datasets_config.yaml"
-        with open(config_path, 'r') as file:
-            cfg = yaml.safe_load(file)
-            self.download_dir = cfg['download_dir']
-            file.close()
+        self._dl_path = default_download_dir
+        self._edgelist = None
+        self._graph = None
+        self._path = None
 
-    def __download_csv(self, url, default_path):
-        filename = url.split('/')[-1]
-        # Could also be
-        # filename = self.metadata['name'] + '.' + metadata['file_type']
-        df = cudf.read_csv(url)
-        df.to_csv(default_path + filename, index=False)
-        self.path = default_path + filename
+    def __download_csv(self, url):
+        self._dl_path.path.mkdir(parents=True, exist_ok=True)
+
+        filename = self.metadata['name'] + self.metadata['file_type']
+        if self._dl_path.path.is_dir():
+            df = cudf.read_csv(url)
+            df.to_csv(self._dl_path.path / filename, index=False)
+
+        else:
+            raise RuntimeError(f"The directory {self._dl_path.path.absolute()}"
+                               "does not exist")
 
     def get_edgelist(self, fetch=False):
         """
@@ -76,26 +97,26 @@ class Dataset:
             Automatically fetch for the dataset from the 'url' location within
             the YAML file.
         """
-        # breakpoint()
-        if self.__edgelist is None:
-            full_path = self.download_dir + self.metadata['name'] \
-                            + self.metadata['file_type']
-            if not os.path.isfile(full_path):
+
+        if self._edgelist is None:
+            full_path = self._dl_path.path / (self.metadata['name'] +
+                                              self.metadata['file_type'])
+
+            if not full_path.is_file():
                 if fetch:
-                    self.__download_csv(self.metadata['url'],
-                                        self.download_dir)
+                    self.__download_csv(self.metadata['url'])
                 else:
-                    raise RuntimeError("The datafile does not exist. Try \
-                                        get_edgelist(fetch=True) to download \
-                                        the datafile")
+                    raise RuntimeError(f"The datafile {full_path} does not"
+                                       " exist. Try get_edgelist(fetch=True)"
+                                       " to download the datafile")
 
-            self.__edgelist = cudf.read_csv(full_path,
-                                            delimiter=self.metadata['delim'],
-                                            names=self.metadata['col_names'],
-                                            dtype=self.metadata['col_types'])
-            self.path = full_path
+            self._edgelist = cudf.read_csv(full_path,
+                                           delimiter=self.metadata['delim'],
+                                           names=self.metadata['col_names'],
+                                           dtype=self.metadata['col_types'])
+            self._path = full_path
 
-        return self.__edgelist
+        return self._edgelist
 
     def get_graph(self, fetch=False):
         """
@@ -107,38 +128,80 @@ class Dataset:
             Automatically fetch for the dataset from the 'url' location within
             the YAML file.
         """
-        if self.__edgelist is None:
+        if self._edgelist is None:
             self.get_edgelist(fetch)
 
-        self.__graph = cugraph.Graph(directed=self.metadata['is_directed'])
-        self.__graph.from_cudf_edgelist(self.__edgelist, source='src',
-                                        destination='dst')
+        self._graph = cugraph.Graph(directed=self.metadata['is_directed'])
+        self._graph.from_cudf_edgelist(self._edgelist, source='src',
+                                       destination='dst')
 
-        return self.__graph
+        return self._graph
 
-    def path(self):
+    def get_path(self):
         """
-            Print the location of the stored dataset file
+        Returns the location of the stored dataset file
         """
-        print(self.path)
+        if self._path is None:
+            raise RuntimeError("Path to datafile has not been set." +
+                               " Call get_edgelist or get_graph first")
+
+        return self._path.absolute()
 
 
-def load_all(default_path="datasets/", force=False):
+def load_all(force=False):
     """
-    Looks in `metadata` directory and fetches all datafiles from the web.
+    Looks in `metadata` directory and fetches all datafiles from the the URLs
+    provided in each YAML file.
+
+    Parameters
+    force : Boolean (default=False)
+        Overwrite any existing copies of datafiles.
     """
-    meta_path = "python/cugraph/cugraph/experimental/datasets/metadata/"
-    for file in os.listdir(meta_path):
+    default_download_dir.path.mkdir(parents=True, exist_ok=True)
+
+    meta_path = Path(__file__).parent.absolute() / "metadata"
+    for file in meta_path.iterdir():
         meta = None
-        if file.endswith('.yaml'):
-            with open(meta_path + file, 'r') as metafile:
+        if file.suffix == '.yaml':
+            with open(meta_path / file, 'r') as metafile:
                 meta = yaml.safe_load(metafile)
-                metafile.close()
 
             if 'url' in meta:
-                # filename = meta['url'].split('/')[-1]
                 filename = meta['name'] + meta['file_type']
-                if not os.path.isfile(default_path + filename) or force:
-                    print("Downloading dataset from: " + meta['url'])
+                save_to = default_download_dir.path / filename
+                if not save_to.is_file() or force:
                     df = cudf.read_csv(meta['url'])
-                    df.to_csv(default_path + filename, index=False)
+                    df.to_csv(save_to, index=False)
+
+
+def set_config(cfgpath):
+    """
+    Read in a custom config file.
+
+    Parameters
+    ----------
+    cfgfile : String
+        Read the custom config file given its path, and override the default
+    """
+    with open(Path(cfgpath), 'r') as file:
+        cfg = yaml.safe_load(file)
+        default_download_dir.path = Path(cfg['download_dir'])
+
+
+def set_download_dir(path):
+    """
+    Set the download directory for fetching datasets
+
+    Parameters
+    ----------
+    path : String
+        Location used to store datafiles
+    """
+    if path is None:
+        default_download_dir.clear()
+    else:
+        default_download_dir.path = path
+
+
+def get_download_dir():
+    return default_download_dir.path.absolute()

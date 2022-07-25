@@ -15,9 +15,10 @@ col_types:
   - int32
   - float32
 delim: " "
-has_loop: true
+has_loop: false
 is_directed: true
 is_multigraph: false
 is_symmetric: false
 number_of_edges: 318
 number_of_nodes: 62
+number_of_lines: 318

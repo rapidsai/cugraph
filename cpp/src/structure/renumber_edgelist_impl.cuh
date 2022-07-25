@@ -15,7 +15,8 @@
  */
 #pragma once
 
-#include <cugraph/detail/graph_utils.cuh>
+#include <detail/graph_utils.cuh>
+
 #include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
@@ -33,9 +34,21 @@
 
 #include <thrust/binary_search.h>
 #include <thrust/copy.h>
+#include <thrust/count.h>
+#include <thrust/distance.h>
+#include <thrust/execution_policy.h>
+#include <thrust/fill.h>
+#include <thrust/for_each.h>
+#include <thrust/functional.h>
+#include <thrust/iterator/constant_iterator.h>
+#include <thrust/iterator/counting_iterator.h>
 #include <thrust/iterator/discard_iterator.h>
+#include <thrust/iterator/zip_iterator.h>
+#include <thrust/merge.h>
+#include <thrust/reduce.h>
 #include <thrust/sort.h>
 #include <thrust/tuple.h>
+#include <thrust/unique.h>
 
 #include <algorithm>
 #include <iterator>
@@ -381,6 +394,9 @@ std::tuple<rmm::device_uvector<vertex_t>, std::vector<vertex_t>> compute_renumbe
   static_assert(detail::num_sparse_segments_per_vertex_partition == 3);
   static_assert((detail::low_degree_threshold <= detail::mid_degree_threshold) &&
                 (detail::mid_degree_threshold <= std::numeric_limits<edge_t>::max()));
+  static_assert(detail::low_degree_threshold >= 1);
+  static_assert((detail::hypersparse_threshold_ratio >= 0.0) &&
+                (detail::hypersparse_threshold_ratio <= 1.0));
   size_t mid_degree_threshold{detail::mid_degree_threshold};
   size_t low_degree_threshold{detail::low_degree_threshold};
   size_t hypersparse_degree_threshold{0};
@@ -394,24 +410,26 @@ std::tuple<rmm::device_uvector<vertex_t>, std::vector<vertex_t>> compute_renumbe
   }
   auto num_segments_per_vertex_partition =
     detail::num_sparse_segments_per_vertex_partition +
-    (hypersparse_degree_threshold > 0 ? size_t{1} : size_t{0});
+    (hypersparse_degree_threshold > 0 ? size_t{2} : size_t{1});  // last is 0-degree segment
   rmm::device_uvector<edge_t> d_thresholds(num_segments_per_vertex_partition - 1,
                                            handle.get_stream());
-  auto h_thresholds = hypersparse_degree_threshold > 0
-                        ? std::vector<edge_t>{static_cast<edge_t>(mid_degree_threshold),
-                                              static_cast<edge_t>(low_degree_threshold),
-                                              static_cast<edge_t>(hypersparse_degree_threshold)}
-                        : std::vector<edge_t>{static_cast<edge_t>(mid_degree_threshold),
-                                              static_cast<edge_t>(low_degree_threshold)};
+  auto h_thresholds =
+    hypersparse_degree_threshold > 0
+      ? std::vector<edge_t>{static_cast<edge_t>(mid_degree_threshold),
+                            static_cast<edge_t>(low_degree_threshold),
+                            static_cast<edge_t>(hypersparse_degree_threshold),
+                            std::min(static_cast<edge_t>(hypersparse_degree_threshold), edge_t{1})}
+      : std::vector<edge_t>{static_cast<edge_t>(mid_degree_threshold),
+                            static_cast<edge_t>(low_degree_threshold),
+                            edge_t{1}};
   raft::update_device(
     d_thresholds.data(), h_thresholds.data(), h_thresholds.size(), handle.get_stream());
 
   rmm::device_uvector<vertex_t> d_segment_offsets(num_segments_per_vertex_partition + 1,
                                                   handle.get_stream());
 
-  auto zero_vertex  = vertex_t{0};
   auto vertex_count = static_cast<vertex_t>(sorted_local_vertices.size());
-  d_segment_offsets.set_element_async(0, zero_vertex, handle.get_stream());
+  d_segment_offsets.set_element_to_zero_async(0, handle.get_stream());
   d_segment_offsets.set_element_async(
     num_segments_per_vertex_partition, vertex_count, handle.get_stream());
 
@@ -748,7 +766,7 @@ renumber_edgelist(
                      load_factor),
                    static_cast<size_t>(partition.local_edge_partition_major_range_size(i)) + 1),
           cuco::sentinel::empty_key<vertex_t>{invalid_vertex_id<vertex_t>::value},
-          cuco::sentinel::empty_value<vertex_t>{0},
+          cuco::sentinel::empty_value<vertex_t>{invalid_vertex_id<vertex_t>::value},
           stream_adapter,
           handle.get_stream()};
       auto pair_first = thrust::make_zip_iterator(thrust::make_tuple(
@@ -788,9 +806,6 @@ renumber_edgelist(
                    i,
                    handle.get_stream());
 
-      RAFT_CUDA_TRY(cudaStreamSynchronize(
-        handle.get_stream()));  // cuco::static_map currently does not take stream
-
       auto poly_alloc =
         rmm::mr::polymorphic_allocator<char>(rmm::mr::get_current_device_resource());
       auto stream_adapter = rmm::mr::make_stream_allocator_adaptor(poly_alloc, handle.get_stream());
@@ -799,7 +814,7 @@ renumber_edgelist(
                      std::max(static_cast<size_t>(static_cast<double>(segment_size) / load_factor),
                               static_cast<size_t>(segment_size) + 1),
                      cuco::sentinel::empty_key<vertex_t>{invalid_vertex_id<vertex_t>::value},
-                     cuco::sentinel::empty_value<vertex_t>{0},
+                     cuco::sentinel::empty_value<vertex_t>{invalid_vertex_id<vertex_t>::value},
                      stream_adapter,
                      handle.get_stream()};
       auto pair_first = thrust::make_zip_iterator(thrust::make_tuple(
@@ -845,7 +860,7 @@ renumber_edgelist(
                               static_cast<double>(renumber_map_minor_labels.size()) / load_factor),
                             renumber_map_minor_labels.size() + 1),
                    cuco::sentinel::empty_key<vertex_t>{invalid_vertex_id<vertex_t>::value},
-                   cuco::sentinel::empty_value<vertex_t>{0},
+                   cuco::sentinel::empty_value<vertex_t>{invalid_vertex_id<vertex_t>::value},
                    stream_adapter,
                    handle.get_stream()};
     auto pair_first = thrust::make_zip_iterator(thrust::make_tuple(
@@ -918,7 +933,7 @@ renumber_edgelist(raft::handle_t const& handle,
       std::max(static_cast<size_t>(static_cast<double>(renumber_map_labels.size()) / load_factor),
                renumber_map_labels.size() + 1),
       cuco::sentinel::empty_key<vertex_t>{invalid_vertex_id<vertex_t>::value},
-      cuco::sentinel::empty_value<vertex_t>{0},
+      cuco::sentinel::empty_value<vertex_t>{invalid_vertex_id<vertex_t>::value},
       stream_adapter,
       handle.get_stream()};
   auto pair_first = thrust::make_zip_iterator(

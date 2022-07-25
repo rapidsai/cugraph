@@ -19,7 +19,6 @@
 #pragma once
 
 #include <cugraph/algorithms.hpp>
-#include <cugraph/detail/graph_functions.cuh>
 #include <cugraph/edge_partition_device_view.cuh>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
@@ -33,17 +32,27 @@
 #include <rmm/device_scalar.hpp>
 #include <rmm/device_uvector.hpp>
 
+#include <thrust/count.h>
+#include <thrust/distance.h>
 #include <thrust/equal.h>
+#include <thrust/extrema.h>
+#include <thrust/fill.h>
 #include <thrust/for_each.h>
+#include <thrust/functional.h>
 #include <thrust/gather.h>
+#include <thrust/iterator/counting_iterator.h>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/random.h>
 #include <thrust/reduce.h>
+#include <thrust/remove.h>
 #include <thrust/scan.h>
+#include <thrust/set_operations.h>
 #include <thrust/shuffle.h>
 #include <thrust/sort.h>
+#include <thrust/tabulate.h>
 #include <thrust/transform.h>
 #include <thrust/tuple.h>
+#include <thrust/unique.h>
 
 #include <algorithm>
 #include <cassert>

@@ -23,7 +23,6 @@ from pylibcugraph import (ResourceHandle,
                           )
 
 
-# FIXME: rename this to triangle_conut to match the MG implmentation
 def EXPERIMENTAL__triangle_count(G, start_list=None):
     """
     Compute the number of triangles (cycles of length three) in the

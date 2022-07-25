@@ -15,18 +15,20 @@
  */
 #pragma once
 
+#include <prims/count_if_v.cuh>
+#include <prims/edge_partition_src_dst_property.cuh>
+#include <prims/per_v_transform_reduce_incoming_outgoing_e.cuh>
+#include <prims/transform_reduce_v.cuh>
+#include <prims/update_edge_partition_src_dst_property.cuh>
+
 #include <cugraph/algorithms.hpp>
 #include <cugraph/graph_view.hpp>
-#include <cugraph/prims/count_if_v.cuh>
-#include <cugraph/prims/edge_partition_src_dst_property.cuh>
-#include <cugraph/prims/per_v_transform_reduce_incoming_outgoing_e.cuh>
-#include <cugraph/prims/transform_reduce_v.cuh>
-#include <cugraph/prims/update_edge_partition_src_dst_property.cuh>
 #include <cugraph/utilities/error.hpp>
 
 #include <raft/handle.hpp>
 #include <rmm/exec_policy.hpp>
 
+#include <thrust/copy.h>
 #include <thrust/fill.h>
 #include <thrust/iterator/constant_iterator.h>
 #include <thrust/iterator/zip_iterator.h>

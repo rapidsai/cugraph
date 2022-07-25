@@ -11,118 +11,159 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import gc
 
 import pytest
-import cugraph
-import cudf
-import warnings
-# from cugraph.testing import utils
-
-from cugraph.experimental.datasets import (karate, dolphins, netscience,
-                                           polbooks, SMALL_DATASETS)
+import yaml
+import os
+from pathlib import Path
+from tempfile import NamedTemporaryFile, TemporaryDirectory
+from cugraph.experimental.datasets import (ALL_DATASETS)
 
 
 # =============================================================================
 # Pytest Setup / Teardown - called for each test function
 # =============================================================================
-def setup_function():
-    gc.collect()
+
+# Use this to simulate a fresh API import
+@pytest.fixture
+def datasets():
+    from cugraph.experimental import datasets
+    yield datasets
+    del datasets
+    clear_locals()
 
 
-with warnings.catch_warnings():
-    warnings.filterwarnings("ignore", category=DeprecationWarning)
-    # import networkx as nx
+def clear_locals():
+    for dataset in ALL_DATASETS:
+        dataset._edgelist = None
+        dataset._graph = None
+        dataset._path = None
 
 
-@pytest.mark.parametrize("dataset", SMALL_DATASETS)
-def test_getters(dataset):
-    # Getting the graph does not need to depend on get_edgelist
-    M = dataset.get_edgelist(fetch=True)
+# We use this to create tempfiles that act as config files when we call
+# set_config(). Arguments passed will act as custom download directories
+def create_config(custom_path="custom_storage_location"):
+    config_yaml = """
+                    fetch: False
+                    force: False
+                    download_dir: None
+                    """
+    c = yaml.safe_load(config_yaml)
+    c['download_dir'] = custom_path
 
+    outfile = NamedTemporaryFile()
+    with open(outfile.name, 'w') as f:
+        yaml.dump(c, f, sort_keys=False)
+
+    return outfile
+
+
+# setting download_dir to None effectively re-initialized the default
+def test_env_var(datasets):
+    os.environ['RAPIDS_DATASET_ROOT_DIR'] = 'custom_storage_location'
+    datasets.set_download_dir(None)
+
+    expected_path = Path("custom_storage_location").absolute()
+    assert datasets.get_download_dir() == expected_path
+
+    del os.environ['RAPIDS_DATASET_ROOT_DIR']
+
+
+def test_home_dir(datasets):
+    datasets.set_download_dir(None)
+    expected_path = Path.home() / ".cugraph/datasets"
+
+    assert datasets.get_download_dir() == expected_path
+
+
+def test_set_config(datasets):
+    cfg = create_config()
+    datasets.set_config(cfg.name)
+
+    assert datasets.get_download_dir() == \
+           Path("custom_storage_location").absolute()
+
+    cfg.close()
+
+
+def test_set_download_dir(datasets):
+    tmpd = TemporaryDirectory()
+    datasets.set_download_dir(tmpd.name)
+
+    assert datasets.get_download_dir() == Path(tmpd.name).absolute()
+
+    tmpd.cleanup()
+
+
+def test_load_all(datasets):
+    tmpd = TemporaryDirectory()
+    cfg = create_config(custom_path=tmpd.name)
+    datasets.set_config(cfg.name)
+    datasets.load_all()
+
+    for data in datasets.ALL_DATASETS:
+        file_path = Path(tmpd.name) / (data.metadata['name'] +
+                                       data.metadata['file_type'])
+        assert file_path.is_file()
+
+    tmpd.cleanup()
+
+
+@pytest.mark.parametrize("dataset", ALL_DATASETS)
+def test_fetch(dataset, datasets):
+    tmpd = TemporaryDirectory()
+    cfg = create_config(custom_path=tmpd.name)
+    datasets.set_config(cfg.name)
+
+    E = dataset.get_edgelist(fetch=True)
+
+    assert E is not None
+    assert dataset.get_path().is_file()
+
+    tmpd.cleanup()
+
+
+@pytest.mark.parametrize("dataset", ALL_DATASETS)
+def test_get_edgelist(dataset, datasets):
+    tmpd = TemporaryDirectory()
+    datasets.set_download_dir(tmpd.name)
+    E = dataset.get_edgelist(fetch=True)
+
+    assert E is not None
+
+    tmpd.cleanup()
+
+
+@pytest.mark.parametrize("dataset", ALL_DATASETS)
+def test_get_graph(dataset, datasets):
+    tmpd = TemporaryDirectory()
+    datasets.set_download_dir(tmpd.name)
     G = dataset.get_graph(fetch=True)
 
-    assert M is not None
     assert G is not None
 
-
-# TEST datasets.karate vs manually reading karate-data.csv
-#   Verify the number of nodes, edges, and is_directed
-def test_karate():
-    graph_file = 'datasets/karate-data.csv'
-    G_a = karate.get_graph(fetch=True)
-
-    df = cudf.read_csv(
-            graph_file,
-            delimiter="\t",
-            names=["src", "dst"],
-            dtype=["int32", "int32"],
-            header=None,
-        )
-    G_b = cugraph.Graph(directed=True)
-    G_b.from_cudf_edgelist(df, source="src",
-                           destination="dst")
-
-    assert G_a.number_of_nodes() == G_b.number_of_nodes()
-    assert G_a.number_of_edges() == G_b.number_of_edges()
-    assert G_a.is_directed() == G_b.is_directed()
+    tmpd.cleanup()
 
 
-# TEST datasets.dolphins vs manually reading dolphins.csv
-def test_dolphins():
-    graph_file = 'datasets/dolphins.csv'
-    G_a = dolphins.get_graph(fetch=True)
+@pytest.mark.parametrize("dataset", ALL_DATASETS)
+def test_metadata(dataset):
+    M = dataset.metadata
 
-    df = cudf.read_csv(
-            graph_file,
-            delimiter=" ",
-            names=["src", "dst", "wgt"],
-            dtype=["int32", "int32", "float32"],
-            header=None,
-        )
-    G_b = cugraph.Graph(directed=True)
-    G_b.from_cudf_edgelist(df, source="src", destination="dst")
-
-    assert G_a.number_of_nodes() == G_b.number_of_nodes()
-    assert G_a.number_of_edges() == G_b.number_of_edges()
-    assert G_a.is_directed() == G_b.is_directed()
+    assert M is not None
 
 
-# TEST datasets.netscience vs manually reading netscience.csv
-def test_netscience():
-    graph_file = 'datasets/netscience.csv'
-    G_a = netscience.get_graph(fetch=True)
+@pytest.mark.parametrize("dataset", ALL_DATASETS)
+def test_get_path(dataset, datasets):
+    tmpd = TemporaryDirectory()
+    datasets.set_download_dir(tmpd.name)
+    dataset.get_edgelist(fetch=True)
 
-    df = cudf.read_csv(
-            graph_file,
-            delimiter=" ",
-            names=["src", "dst", "wgt"],
-            dtype=["int32", "int32", "float32"],
-            header=None,
-        )
-    G_b = cugraph.Graph(directed=False)
-    G_b.from_cudf_edgelist(df, source="src", destination="dst")
-
-    assert G_a.number_of_nodes() == G_b.number_of_nodes()
-    assert G_a.number_of_edges() == G_b.number_of_edges()
-    assert G_a.is_directed() == G_b.is_directed()
+    assert dataset.get_path().is_file()
+    tmpd.cleanup()
 
 
-# TEST datasets.polbooks vs manually reading polbooks.csv
-def tes_polbooks():
-    graph_file = 'datasets/polbooks.csv'
-    G_a = polbooks.get_graph(fetch=True)
-
-    df = cudf.read_csv(
-            graph_file,
-            delimiter=" ",
-            names=["src", "dst", "wgt"],
-            dtype=["int32", "int32", "float32"],
-            header=None,
-        )
-    G_b = cugraph.Graph(directed=False)
-    G_b.from_cudf_edgelist(df, source="src", destination="dst")
-
-    assert G_a.number_of_nodes() == G_b.number_of_nodes()
-    assert G_a.number_of_edges() == G_b.number_of_edges()
-    assert G_a.is_directed() == G_b.is_directed()
+# Path is None until a dataset initializes its edgelist
+@pytest.mark.parametrize("dataset", ALL_DATASETS)
+def test_get_path_raises(dataset):
+    with pytest.raises(RuntimeError):
+        dataset.get_path()

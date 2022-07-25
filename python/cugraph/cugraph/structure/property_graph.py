@@ -135,6 +135,7 @@ class EXPERIMENTAL__PropertyGraph:
 
         # Cached property values
         self.__num_vertices = None
+        self.__num_vertices_with_properties = None
 
     # PropertyGraph read-only attributes
     @property
@@ -151,6 +152,18 @@ class EXPERIMENTAL__PropertyGraph:
                 self.__num_vertices = pd.concat(vert_sers).nunique()
 
         return self.__num_vertices
+
+    @property
+    def num_vertices_with_properties(self):
+        if self.__num_vertices_with_properties is not None:
+            return self.__num_vertices_with_properties
+
+        if self.__vertex_prop_dataframe is not None:
+            self.__num_vertices_with_properties = \
+                len(self.__vertex_prop_dataframe)
+            return self.__num_vertices_with_properties
+
+        return 0
 
     @property
     def num_edges(self):
@@ -183,6 +196,8 @@ class EXPERIMENTAL__PropertyGraph:
             props.remove(self.dst_col_name)
             props.remove(self.edge_id_col_name)
             props.remove(self.type_col_name)  # should "type" be removed?
+            if self.weight_col_name in props:
+                props.remove(self.weight_col_name)
             return props
         return []
 
@@ -278,9 +293,10 @@ class EXPERIMENTAL__PropertyGraph:
                                 "the PropertyGraph was already initialized "
                                 f"using type {self.__dataframe_type}")
 
-        # Clear the cached value for num_vertices since more could be added in
-        # this method.
+        # Clear the cached values related to the number of vertices since more
+        # could be added in this method.
         self.__num_vertices = None
+        self.__num_vertices_with_properties = None
 
         # Initialize the __vertex_prop_dataframe if necessary using the same
         # type as the incoming dataframe.
@@ -400,7 +416,7 @@ class EXPERIMENTAL__PropertyGraph:
                                 f"using type {self.__dataframe_type}")
 
         # Clear the cached value for num_vertices since more could be added in
-        # this method.
+        # this method. This method cannot affect num_vertices_with_properties
         self.__num_vertices = None
 
         default_edge_columns = [self.src_col_name,
@@ -551,7 +567,9 @@ class EXPERIMENTAL__PropertyGraph:
                          selection=None,
                          edge_weight_property=None,
                          default_edge_weight=None,
-                         allow_multi_edges=False
+                         allow_multi_edges=False,
+                         renumber_graph=True,
+                         add_edge_data=True
                          ):
         """
         Return a subgraph of the overall PropertyGraph containing vertices
@@ -579,6 +597,13 @@ class EXPERIMENTAL__PropertyGraph:
         allow_multi_edges : bool
             If True, multiple edges should be used to create the return Graph,
             otherwise multiple edges will be detected and an exception raised.
+        renumber_graph : bool (default is True)
+            If True, return a Graph that has been renumbered for use by graph
+            algorithms. If False, the returned graph will need to be manually
+            renumbered prior to calling graph algos.
+        add_edge_data : bool (default is True)
+            If True, add meta data about the edges contained in the extracted
+            graph which are required for future calls to annotate_dataframe().
 
         Returns
         -------
@@ -641,7 +666,9 @@ class EXPERIMENTAL__PropertyGraph:
             create_using=create_using,
             edge_weight_property=edge_weight_property,
             default_edge_weight=default_edge_weight,
-            allow_multi_edges=allow_multi_edges)
+            allow_multi_edges=allow_multi_edges,
+            renumber_graph=renumber_graph,
+            add_edge_data=add_edge_data)
 
     def annotate_dataframe(self, df, G, edge_vertex_col_names):
         """
@@ -713,7 +740,9 @@ class EXPERIMENTAL__PropertyGraph:
                             create_using,
                             edge_weight_property=None,
                             default_edge_weight=None,
-                            allow_multi_edges=False):
+                            allow_multi_edges=False,
+                            renumber_graph=True,
+                            add_edge_data=True):
         """
         Create and return a Graph from the edges in edge_prop_df.
         """
@@ -742,10 +771,8 @@ class EXPERIMENTAL__PropertyGraph:
         # If a default_edge_weight was specified but an edge_weight_property
         # was not, a new edge weight column must be added.
         elif default_edge_weight:
-            edge_attr = self.__gen_unique_name(edge_prop_df.columns,
-                                               prefix=self.weight_col_name)
+            edge_attr = self.weight_col_name
             edge_prop_df[edge_attr] = default_edge_weight
-
         else:
             edge_attr = None
 
@@ -782,20 +809,21 @@ class EXPERIMENTAL__PropertyGraph:
         create_args = {"source": self.src_col_name,
                        "destination": self.dst_col_name,
                        "edge_attr": edge_attr,
-                       "renumber": True,
+                       "renumber": renumber_graph,
                        }
         if type(edge_prop_df) is cudf.DataFrame:
             G.from_cudf_edgelist(edge_prop_df, **create_args)
         else:
             G.from_pandas_edgelist(edge_prop_df, **create_args)
 
-        # Set the edge_data on the resulting Graph to a DataFrame containing
-        # the edges and the edge ID for each. Edge IDs are needed for future
-        # calls to annotate_dataframe() in order to associate edges with their
-        # properties, since the PG can contain multiple edges between vertrices
-        # with different properties.
-        G.edge_data = self.__create_property_lookup_table(edge_prop_df)
-        # FIXME: also add vertex_data
+        if add_edge_data:
+            # Set the edge_data on the resulting Graph to a DataFrame
+            # containing the edges and the edge ID for each. Edge IDs are
+            # needed for future calls to annotate_dataframe() in order to
+            # associate edges with their properties, since the PG can contain
+            # multiple edges between vertrices with different properties.
+            # FIXME: also add vertex_data
+            G.edge_data = self.__create_property_lookup_table(edge_prop_df)
 
         return G
 
@@ -804,15 +832,16 @@ class EXPERIMENTAL__PropertyGraph:
         """
         Return True if df has >1 of the same src, dst pair
         """
-        # FIXME: this can be very expensive for large DataFrames
         if df.empty:
             return False
 
-        def has_duplicate_dst(df):
-            return df[cls.dst_col_name].nunique() != \
-                df[cls.dst_col_name].size
+        unique_pair_len = len(df[[cls.src_col_name,
+                                  cls.dst_col_name]].drop_duplicates(
+                                  ignore_index=True))
 
-        return df.groupby(cls.src_col_name).apply(has_duplicate_dst).any()
+        # if unique_pairs == len(df)
+        # then no duplicate edges
+        return unique_pair_len != len(df)
 
     def __create_property_lookup_table(self, edge_prop_df):
         """
@@ -860,18 +889,6 @@ class EXPERIMENTAL__PropertyGraph:
             vert_sers.append(epd[self.src_col_name])
             vert_sers.append(epd[self.dst_col_name])
         return vert_sers
-
-    @staticmethod
-    def __gen_unique_name(current_names, prefix="col"):
-        """
-        Helper function to generate a currently unused name.
-        """
-        name = prefix
-        counter = 2
-        while name in current_names:
-            name = f"{prefix}{counter}"
-            counter += 1
-        return name
 
     @staticmethod
     def __get_new_column_dtypes(from_df, to_df):

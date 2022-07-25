@@ -22,6 +22,8 @@
 
 #include <rmm/device_uvector.hpp>
 
+#include <thrust/sequence.h>
+
 CUCO_DECLARE_BITWISE_COMPARABLE(float)
 CUCO_DECLARE_BITWISE_COMPARABLE(double)
 
