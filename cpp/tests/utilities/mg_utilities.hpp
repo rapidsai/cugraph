@@ -22,6 +22,13 @@
 namespace cugraph {
 namespace test {
 
+void initialize_mpi(int argc, char** argv);
+
+void finalize_mpi();
+
+int query_mpi_comm_world_rank();
+int query_mpi_comm_world_size();
+
 std::unique_ptr<raft::handle_t> initialize_mg_handle();
 
 // NCCL lazily initializes for P2P, and this enforces P2P initialization for better performance

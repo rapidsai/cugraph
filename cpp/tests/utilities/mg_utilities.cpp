@@ -26,6 +26,24 @@
 namespace cugraph {
 namespace test {
 
+void initialize_mpi(int argc, char** argv) { RAFT_MPI_TRY(MPI_Init(&argc, &argv)); }
+
+void finalize_mpi() { RAFT_MPI_TRY(MPI_Finalize()); }
+
+int query_mpi_comm_world_rank()
+{
+  int comm_rank{};
+  RAFT_MPI_TRY(MPI_Comm_rank(MPI_COMM_WORLD, &comm_rank));
+  return comm_rank;
+}
+
+int query_mpi_comm_world_size()
+{
+  int comm_size{};
+  RAFT_MPI_TRY(MPI_Comm_size(MPI_COMM_WORLD, &comm_size));
+  return comm_size;
+}
+
 std::unique_ptr<raft::handle_t> initialize_mg_handle()
 {
   std::unique_ptr<raft::handle_t> handle{nullptr};
