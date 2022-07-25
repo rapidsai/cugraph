@@ -153,7 +153,8 @@ rapids_cpm_init()
 
 # Putting this before raft to override RAFT from pulling them in.
 include(cmake/thirdparty/get_libcudacxx.cmake)
-include(cmake/thirdparty/get_cuco.cmake)
+include(${rapids-cmake-dir}/cpm/cuco.cmake)
+rapids_cpm_cuco(BUILD_EXPORT_SET cugraph-exports)
 
 include(cmake/thirdparty/get_raft.cmake)
 
@@ -311,8 +312,8 @@ if (USE_CUGRAPH_OPS)
         PUBLIC
             cugraph-ops::cugraph-ops++
             raft::raft
-            cuco::cuco
         PRIVATE
+            cuco::cuco
             cugraph::cuHornet
             NCCL::NCCL
     )
@@ -320,8 +321,8 @@ else()
     target_link_libraries(cugraph
         PUBLIC
             raft::raft
-            cuco::cuco
         PRIVATE
+            cuco::cuco
             cugraph::cuHornet
             NCCL::NCCL
     )
@@ -441,8 +442,8 @@ target_link_libraries(cugraph_c
                 CUDA::cusolver
                 CUDA::cusparse
                 raft::raft
-                cuco::cuco
         PRIVATE
+                cuco::cuco
                 cugraph::cugraph
 )
 

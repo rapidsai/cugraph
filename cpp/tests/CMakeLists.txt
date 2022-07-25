@@ -43,6 +43,8 @@ target_link_libraries(cugraphtestutil
     PUBLIC
         cugraph::cugraph
         NCCL::NCCL
+    PRIVATE
+        cuco::cuco
 )
 
 
@@ -467,6 +469,7 @@ ConfigureTest(RANDOM_WALKS_LOW_LEVEL_TEST sampling/rw_low_level_test.cu)
 ###########################################################################################
 # - MG NBR SAMPLING tests -----------------------------------------------------------------
 ConfigureTest(UNIFORM_NEIGHBOR_SAMPLING_TEST sampling/sg_uniform_neighbor_sampling.cu)
+target_link_libraries(UNIFORM_NEIGHBOR_SAMPLING_TEST PRIVATE cuco::cuco)
         
 ###################################################################################################
 # FIXME: since this is technically not a test, consider refactoring the the
@@ -581,48 +584,59 @@ if(BUILD_CUGRAPH_MG_TESTS)
         ###########################################################################################
         # - MG PRIMS COUNT_IF_V tests -------------------------------------------------------------
         ConfigureTestMG(MG_COUNT_IF_V_TEST prims/mg_count_if_v.cu)
+        target_link_libraries(MG_COUNT_IF_V_TEST PRIVATE cuco::cuco)
 
         ###########################################################################################
         # - MG PRIMS TRANSFORM_REDUCE_V_FRONTIER_OUTGOING_E_BY_DST tests --------------------------
         ConfigureTestMG(MG_TRANSFORM_REDUCE_V_FRONTIER_OUTGOING_E_BY_DST_TEST
                         prims/mg_transform_reduce_v_frontier_outgoing_e_by_dst.cu)
+        target_link_libraries(MG_TRANSFORM_REDUCE_V_FRONTIER_OUTGOING_E_BY_DST_TEST PRIVATE cuco::cuco)
 
         ###########################################################################################
         # - MG PRIMS REDUCE_V tests ---------------------------------------------------------------
         ConfigureTestMG(MG_REDUCE_V_TEST prims/mg_reduce_v.cu)
+        target_link_libraries(MG_REDUCE_V_TEST PRIVATE cuco::cuco)
 
         ###########################################################################################
         # - MG PRIMS TRANSFORM_REDUCE_V tests -----------------------------------------------------
         ConfigureTestMG(MG_TRANSFORM_REDUCE_V_TEST prims/mg_transform_reduce_v.cu)
+        target_link_libraries(MG_TRANSFORM_REDUCE_V_TEST PRIVATE cuco::cuco)
 
         ###########################################################################################
         # - MG PRIMS TRANSFORM_REDUCE_E tests -----------------------------------------------------
         ConfigureTestMG(MG_TRANSFORM_REDUCE_E_TEST prims/mg_transform_reduce_e.cu)
+        target_link_libraries(MG_TRANSFORM_REDUCE_E_TEST PRIVATE cuco::cuco)
 
         ###########################################################################################
         # - MG PRIMS COUNT_IF_E tests -------------------------------------------------------------
         ConfigureTestMG(MG_COUNT_IF_E_TEST prims/mg_count_if_e.cu)
+        target_link_libraries(MG_COUNT_IF_E_TEST PRIVATE cuco::cuco)
 
         ###########################################################################################
         # - MG PRIMS PER_V_TRANSFORM_REDUCE_INCOMING_OUTGOING_E tests -----------------------------
         ConfigureTestMG(MG_PER_V_TRANSFORM_REDUCE_INCOMING_OUTGOING_E_TEST
           prims/mg_per_v_transform_reduce_incoming_outgoing_e.cu)
+        target_link_libraries(MG_PER_V_TRANSFORM_REDUCE_INCOMING_OUTGOING_E_TEST PRIVATE cuco::cuco)
 
         ###########################################################################################
         # - MG PRIMS EXTRACT_IF_E tests -----------------------------------------------------------
         ConfigureTestMG(MG_EXTRACT_IF_E_TEST prims/mg_extract_if_e.cu)
+        target_link_libraries(MG_EXTRACT_IF_E_TEST PRIVATE cuco::cuco)
 
         ###########################################################################################
         # - MG GATHER_UTILS tests -----------------------------------------------------------------
         ConfigureTestMG(MG_GATHER_UTILS_TEST sampling/detail/mg_gather_utils.cu)
+        target_link_libraries(MG_GATHER_UTILS_TEST PRIVATE cuco::cuco)
 
         ###########################################################################################
         # - MG GATHER_ONE_HOP tests ---------------------------------------------------------------
         ConfigureTestMG(MG_GATHER_ONE_HOP_TEST sampling/detail/mg_gather_one_hop.cu)
+        target_link_libraries(MG_GATHER_ONE_HOP_TEST PRIVATE cuco::cuco)
 
         ###########################################################################################
         # - MG NBR SAMPLING tests -----------------------------------------------------------------
         ConfigureTestMG(MG_UNIFORM_NEIGHBOR_SAMPLING_TEST sampling/mg_uniform_neighbor_sampling.cu)
+        target_link_libraries(MG_UNIFORM_NEIGHBOR_SAMPLING_TEST PRIVATE cuco::cuco)
 
         ###########################################################################################
         # - RANDOM_WALKS tests --------------------------------------------------------------------
