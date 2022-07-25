@@ -27,7 +27,7 @@ class EXPERIMENTAL__PropertySelection:
     """
     Instances of this class are returned from the PropertyGraph.select_*()
     methods and can be used by the PropertyGraph.extract_subgraph() method to
-    extrac a Graph containing vertices and edges with only the selected
+    extract a Graph containing vertices and edges with only the selected
     properties.
     """
     def __init__(self,
@@ -756,7 +756,6 @@ class EXPERIMENTAL__PropertyGraph:
         # values. Restore the original dtypes in the resulting edges df prior
         # to creating a Graph.
         self.__update_dataframe_dtypes(edges, self.__edge_prop_dtypes)
-
         return self.edge_props_to_graph(
             edges,
             create_using=create_using,
@@ -843,7 +842,6 @@ class EXPERIMENTAL__PropertyGraph:
         Create and return a Graph from the edges in edge_prop_df.
         """
         # FIXME: check default_edge_weight is valid
-
         if edge_weight_property:
             if edge_weight_property not in edge_prop_df.columns:
                 raise ValueError("edge_weight_property "
