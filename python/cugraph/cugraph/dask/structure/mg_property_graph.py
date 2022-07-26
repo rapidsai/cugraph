@@ -331,21 +331,31 @@ class EXPERIMENTAL__MGPropertyGraph:
                        for n in self.__vertex_prop_dataframe.columns])
         self.__vertex_prop_eval_dict.update(latest)
 
-    def get_vertex_data(self, vertex_ids=None):
+    def get_vertex_data(self, vertex_ids=None, types=None, columns=None):
         """
         Return a dataframe containing vertex properties for only the specified
-        vertex_ids, or all vertex IDs if not specified.
+        vertex_ids, columns, and/or types, or all vertex IDs if not specified.
         """
         if self.__vertex_prop_dataframe is not None:
-            # Note: this includes the "internal" pG.vertex_col_name and
-            # pG.type_col_name columns, since they are assumed to be needed by
-            # the caller.
             if vertex_ids is not None:
                 df_mask = self.__vertex_prop_dataframe[self.vertex_col_name]\
                               .isin(vertex_ids)
-                return self.__vertex_prop_dataframe.loc[df_mask]
+                df = self.__vertex_prop_dataframe.loc[df_mask]
             else:
-                return self.__vertex_prop_dataframe
+                df = self.__vertex_prop_dataframe
+
+            if types is not None:
+                # FIXME: coerce types to a list-like if not?
+                df_mask = df[self.type_col_name].isin(types)
+                df = df.loc[df_mask]
+
+            if columns is None:
+                # Note: this includes the "internal" pG.vertex_col_name and
+                # pG.type_col_name columns, since they are assumed to be needed
+                # by the caller.
+                columns = self.__vertex_prop_dataframe.columns
+                df = df[columns]
+            return df
 
         return None
 
@@ -466,24 +476,33 @@ class EXPERIMENTAL__MGPropertyGraph:
                        for n in self.__edge_prop_dataframe.columns])
         self.__edge_prop_eval_dict.update(latest)
 
-    def get_edge_data(self, edge_ids=None):
+    def get_edge_data(self, edge_ids=None, types=None, columns=None):
         """
         Return a dataframe containing edge properties for only the specified
-        edge_ids, or all edge IDs if not specified.
+        edge_ids, columns, and/or edge type, or all edge IDs if not specified.
         """
         if self.__edge_prop_dataframe is not None:
-            # Note: this includes some of the "internal" columns, since they
-            # are assumed to be needed by the caller, but not all (ie. weight).
-            columns = list(self.__edge_prop_dataframe.columns)
-            if self.weight_col_name in columns:
-                columns.remove(self.weight_col_name)
-
             if edge_ids is not None:
                 df_mask = self.__edge_prop_dataframe[self.edge_id_col_name]\
                               .isin(edge_ids)
-                return self.__edge_prop_dataframe.loc[df_mask][columns]
+                df = self.__edge_prop_dataframe.loc[df_mask]
             else:
-                return self.__edge_prop_dataframe[columns]
+                df = self.__edge_prop_dataframe
+
+            if types is not None:
+                # FIXME: coerce types to a list-like if not?
+                df_mask = df[self.type_col_name].isin(types)
+                df = df.loc[df_mask]
+
+            if columns is None:
+                # Note: this includes the "internal" pG.vertex_col_name and
+                # pG.type_col_name columns, since they are assumed to be needed
+                # by the caller.
+                columns = list(self.__edge_prop_dataframe.columns)
+                if self.weight_col_name in columns:
+                    columns.remove(self.weight_col_name)
+
+            return df[columns]
 
         return None
 

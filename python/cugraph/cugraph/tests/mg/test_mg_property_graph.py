@@ -514,19 +514,28 @@ def test_get_vertex_data(dataset1_MGPropertyGraph):
     assert all_vertex_data[pG.vertex_col_name].nunique().compute() == \
         len(all_vertex_data)
 
+    # Test with specific columns and types
+    vert_type = "merchants"
+    columns = ["merchant_location", "merchant_size"]
+
+    some_vertex_data = pG.get_vertex_data(types=[vert_type], columns=columns)
+    # Ensure the returned df is the right length and includes at least the
+    # specified columns.
+    assert len(some_vertex_data) == len(data[vert_type][1])
+    assert set(columns) - set(some_vertex_data.columns) == set()
+
+    # Test with all params specified
     vert_ids = [11, 4, 21]
-    some_vertex_data = pG.get_vertex_data(vert_ids)
-    assert sorted(some_vertex_data[pG.vertex_col_name].compute().values_host) \
-        == sorted(vert_ids)
+    vert_type = "merchants"
+    columns = ["merchant_location", "merchant_size"]
 
-    expected_columns = set([pG.vertex_col_name, pG.type_col_name])
-    for d in ["merchants", "users"]:
-        for name in data[d][0]:
-            expected_columns.add(name)
-
-    actual_columns = set(some_vertex_data.columns)
-
-    assert actual_columns == expected_columns
+    some_vertex_data = pG.get_vertex_data(vertex_ids=vert_ids,
+                                          types=[vert_type],
+                                          columns=columns)
+    # Ensure the returned df is the right length and includes at least the
+    # specified columns.
+    assert len(some_vertex_data) == len(vert_ids)
+    assert set(columns) - set(some_vertex_data.columns) == set()
 
 
 def test_get_edge_data(dataset1_MGPropertyGraph):
@@ -541,6 +550,7 @@ def test_get_edge_data(dataset1_MGPropertyGraph):
     assert all_edge_data[pG.edge_id_col_name].nunique().compute() == \
         len(all_edge_data)
 
+    # Test with specific edge IDs
     edge_ids = [4, 5, 6]
     some_edge_data = pG.get_edge_data(edge_ids)
     actual_edge_ids = some_edge_data[pG.edge_id_col_name].compute()
@@ -548,6 +558,7 @@ def test_get_edge_data(dataset1_MGPropertyGraph):
         actual_edge_ids = actual_edge_ids.values_host
     assert sorted(actual_edge_ids) == sorted(edge_ids)
 
+    # Create a list of expected column names from the three input tables
     expected_columns = set([pG.src_col_name, pG.dst_col_name,
                             pG.edge_id_col_name, pG.type_col_name])
     for d in ["transactions", "relationships", "referrals"]:
@@ -557,6 +568,30 @@ def test_get_edge_data(dataset1_MGPropertyGraph):
     actual_columns = set(some_edge_data.columns)
 
     assert actual_columns == expected_columns
+
+    # Test with specific columns and types
+    edge_type = "transactions"
+    columns = ["card_num", "card_type"]
+
+    some_edge_data = pG.get_edge_data(types=[edge_type], columns=columns)
+    # Ensure the returned df is the right length and includes at least the
+    # specified columns.
+    assert len(some_edge_data) == len(data[edge_type][1])
+    assert set(columns) - set(some_edge_data.columns) == set()
+
+    # Test with all params specified
+    # FIXME: since edge IDs are generated, assume that these are correct based
+    # on the intended edges being the first three added.
+    edge_ids = [0, 1, 2]
+    edge_type = "transactions"
+    columns = ["card_num", "card_type"]
+    some_edge_data = pG.get_edge_data(edge_ids=edge_ids,
+                                      types=[edge_type],
+                                      columns=columns)
+    # Ensure the returned df is the right length and includes at least the
+    # specified columns.
+    assert len(some_edge_data) == len(edge_ids)
+    assert set(columns) - set(some_edge_data.columns) == set()
 
 
 def test_get_data_empty_graphs(dask_client):
