@@ -399,7 +399,6 @@ partition_information(raft::handle_t const& handle, GraphViewType const& graph_v
   vertex_t counter{0};
   for (size_t i = 0; i < graph_view.number_of_local_edge_partitions(); ++i) {
     partitions.emplace_back(graph_view.local_edge_partition_view(i));
-
     masks.emplace_back(graph_view.get_mask_view(i));
 
     auto& edge_partition  = partitions.back();
@@ -592,6 +591,17 @@ gather_local_edges(
           // TODO: When mask is present, convert masked offset to original offset
           vertex_t const* adjacency_list =
             partitions[partition_id].indices() + offset_ptr[location_in_segment];
+          /**
+           * If a mask is present, convert masked offset to original offset
+           */
+          if (mask.has_value() && mask.value().has_edge_mask()) {
+            g_dst_index =
+              mask_offset_to_original_offset(mask.value().get_edge_mask().value().data(),
+                                             offset_ptr[location_in_segment],
+                                             local_out_degree,
+                                             g_dst_index);
+          }
+
           minors[index] = adjacency_list[g_dst_index];
           if (weights != nullptr) {
             weight_t const* edge_weights =
