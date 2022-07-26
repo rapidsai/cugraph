@@ -22,7 +22,9 @@ rapids_cython_create_modules(
 
 set(targets_using_numpy internals_internals)
 
-include_directories(${CMAKE_CURRENT_LIST_DIR})
+set(targets_using_header internals_internals)
+
+target_include_directories(${targets_using_header} PRIVATE "${CMAKE_CURRENT_LIST_DIR}")
 
 foreach(target IN LISTS targets_using_numpy)
   target_include_directories(${target} PRIVATE "${Python_NumPy_INCLUDE_DIRS}")
