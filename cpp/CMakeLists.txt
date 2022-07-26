@@ -123,15 +123,6 @@ if(NOT USE_CUGRAPH_OPS)
     list(APPEND CUGRAPH_CUDA_FLAGS -DNO_CUGRAPH_OPS)
 endif()
 
-################################################################################
-# - find openmp ----------------------------------------------------------------
-
-find_package(OpenMP)
-if(OpenMP_FOUND)
-    # find_package(OPenMP) does not automatically add OpenMP flags to CUDA
-    list(APPEND CUGRAPH_CUDA_FLAGS -Xcompiler=${OpenMP_CXX_FLAGS})
-endif()
-
 ###################################################################################################
 # - find CPM based dependencies  ------------------------------------------------------------------
 
@@ -326,57 +317,6 @@ else()
             cugraph::cuHornet
             NCCL::NCCL
     )
-endif()
-
-if(OpenMP_CXX_FOUND)
-target_link_libraries(cugraph PRIVATE
-################################################################################
-###   Use ${OpenMP_CXX_LIB_NAMES} instead of OpenMP::OpenMP_CXX to avoid the following warnings.
-###
-###   Cannot generate a safe runtime search path for target TARGET_NAME
-###   because files in some directories may conflict with libraries in implicit
-###   directories:
-###   ...
-###
-###   libgomp.so is included in the conda base environment and copied to every new conda
-###   environment. If a full file path is provided (e.g ${NCCL_LIBRARIES}), cmake
-###   extracts the directory path and adds the directory path to BUILD_RPATH (if BUILD_RPATH is not
-###   disabled).
-###
-###   cmake maintains a system specific implicit directories (e.g. /lib, /lib/x86_64-linux-gnu,
-###   /lib32, /lib32/x86_64-linux-gnu, /lib64, /lib64/x86_64-linux-gnu, /usr/lib,
-###   /usr/lib/gcc/x86_64-linux-gnu/7, /usr/lib/x86_64-linux-gnu, /usr/lib32,
-###   /usr/lib32/x86_64-linux-gnu, /usr/lib64, /usr/lib64/x86_64-linux-gnu,
-###   /usr/local/cuda-10.0/lib64", /usr/local/cuda-10.0/lib64/stubs).
-###
-###   If a full path to libgomp.so is provided (which is the case with OpenMP::OpenMP_CXX), cmake
-###   checks whether there is any other libgomp.so with the different full path (after resolving
-###   soft links) in the search paths (implicit directoires + BUILD_RAPTH). There is one in the
-###   path included in BUILD_RPATH when ${NCCL_LIBRARIES} are added; this one can
-###   potentially hide the one in the provided full path and cmake generates a warning (and RPATH
-###   is searched before the directories in /etc/ld.so/conf; ld.so.conf does not coincide but
-###   overlaps with implicit directories).
-###
-###   If we provide just the library names (gomp;pthread), cmake does not generate warnings (we
-###   did not specify which libgomp.so should be loaded in runtime), and the one first found in
-###   the search order is loaded (we can change the loaded library by setting LD_LIBRARY_PATH or
-###   manually editing BUILD_RPATH).
-###
-###   Manually editing BUILD_RPATH:
-###   set(TARGET_BUILD_RPATH "")
-###   foreach(TMP_VAR_FULLPATH IN LISTS OpenMP_CXX_LIBRARIES)
-###       get_filename_component(TMP_VAR_DIR ${TMP_VAR_FULLPATH} DIRECTORY)
-###       string(APPEND TARGET_BUILD_RPATH "${TMP_VAR_DIR};")
-###       get_filename_component(TMP_VAR_REALPATH ${TMP_VAR_FULLPATH} REALPATH)
-###       get_filename_component(TMP_VAR_DIR ${TMP_VAR_REALPATH} DIRECTORY)
-###       # cmake automatically removes duplicates, so skip checking.
-###       string(APPEND TARGET_BUILD_RPATH "${TMP_VAR_DIR};")
-###   endforeach()
-###   string(APPEND TARGET_BUILD_RPATH "${CONDA_PREFIX}/lib")
-###   message(STATUS "TARGET_BUILD_RPATH=${TARGET_BUILD_RPATH}")
-###   set_target_properties(target PROPERTIES
-###       BUILD_RPATH "${TARGET_BUILD_RPATH}")
-    ${OpenMP_CXX_LIB_NAMES})
 endif()
 
 ################################################################################
