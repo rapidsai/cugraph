@@ -348,6 +348,7 @@ class EXPERIMENTAL__MGPropertyGraph:
             else:
                 return self.__vertex_prop_dataframe
 
+        return None
 
     def add_edge_data(self,
                       dataframe,
@@ -484,6 +485,8 @@ class EXPERIMENTAL__MGPropertyGraph:
                 return self.__edge_prop_dataframe.loc[df_mask][columns]
             else:
                 return self.__edge_prop_dataframe[columns]
+
+        return None
 
     def select_vertices(self, expr, from_previous_selection=None):
         raise NotImplementedError

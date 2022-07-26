@@ -528,6 +528,7 @@ def test_get_vertex_data(dataset1_MGPropertyGraph):
 
     assert actual_columns == expected_columns
 
+
 def test_get_edge_data(dataset1_MGPropertyGraph):
     """
     Ensure PG.get_edge_data() returns the correct data based on edge IDs passed
@@ -556,3 +557,17 @@ def test_get_edge_data(dataset1_MGPropertyGraph):
     actual_columns = set(some_edge_data.columns)
 
     assert actual_columns == expected_columns
+
+
+def test_get_data_empty_graphs(dask_client):
+    """
+    Ensures that calls to pG.get_*_data() on an empty pG are handled correctly.
+    """
+    from cugraph.experimental import MGPropertyGraph
+
+    pG = MGPropertyGraph()
+
+    assert pG.get_vertex_data() is None
+    assert pG.get_vertex_data([0,1,2]) is None
+    assert pG.get_edge_data() is None
+    assert pG.get_edge_data([0,1,2]) is None

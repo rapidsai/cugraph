@@ -1207,6 +1207,20 @@ def test_extract_subgraph_with_vertex_ids():
     raise NotImplementedError
 
 
+def test_get_data_empty_graphs():
+    """
+    Ensures that calls to pG.get_*_data() on an empty pG are handled correctly.
+    """
+    from cugraph.experimental import PropertyGraph
+
+    pG = PropertyGraph()
+
+    assert pG.get_vertex_data() is None
+    assert pG.get_vertex_data([0,1,2]) is None
+    assert pG.get_edge_data() is None
+    assert pG.get_edge_data([0,1,2]) is None
+
+
 # =============================================================================
 # Benchmarks
 # =============================================================================
