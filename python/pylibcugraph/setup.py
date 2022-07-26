@@ -16,39 +16,14 @@ import shutil
 
 from setuptools import find_packages, Command
 from skbuild import setup
-# FIXME: Not necessary
+
 from skbuild.command.build_ext import build_ext
 
 from setuputils import get_environment_option
-# from setuputils import get_cuda_version_from_header
 
 import versioneer
 
-# INSTALL_REQUIRES = []
-# CYTHON_FILES = ['pylibcugraph/**/*.pyx']
-
-UCX_HOME = get_environment_option("UCX_HOME")
 CUDA_HOME = get_environment_option('CUDA_HOME')
-CONDA_PREFIX = get_environment_option('CONDA_PREFIX')
-
-# FIXME: No need to include the path to the conda dir
-"""
-conda_lib_dir = os.path.normpath(sys.prefix) + '/lib'
-conda_include_dir = os.path.normpath(sys.prefix) + '/include'
-
-if CONDA_PREFIX:
-    conda_include_dir = CONDA_PREFIX + '/include'
-    conda_lib_dir = CONDA_PREFIX + '/lib'
-"""
-
-if not UCX_HOME:
-    UCX_HOME = CONDA_PREFIX if CONDA_PREFIX else os.sys.prefix
-
-
-# FIXME: create a list of packages required INSTALL_REQUIRES
-# FIXME: add ucx to INSTALL_REQUIRES
-ucx_include_dir = os.path.join(UCX_HOME, "include")
-ucx_lib_dir = os.path.join(UCX_HOME, "lib")
 
 if not CUDA_HOME:
     path_to_cuda_gdb = shutil.which("cuda-gdb")
@@ -65,14 +40,6 @@ if not os.path.isdir(CUDA_HOME):
     raise OSError(
         "Invalid CUDA_HOME: " "directory does not exist: {CUDA_HOME}"
     )
-
-cuda_include_dir = os.path.join(CUDA_HOME, "include")
-# FIXME: This is causing a second version of cupy to be installed cupy-cuda115
-"""
-INSTALL_REQUIRES.append(
-    "cupy-cuda" + get_cuda_version_from_header(cuda_include_dir)
-)
-"""
 
 
 class CleanCommand(Command):
@@ -95,6 +62,7 @@ class CleanCommand(Command):
         os.system('rm -rf *.egg-info')
         os.system('find . -name "*.cpp" -type f -delete')
         os.system('find . -name "*.cpython*.so" -type f -delete')
+        os.system('rm -rf _skbuild')
 
 
 cmdclass = dict()

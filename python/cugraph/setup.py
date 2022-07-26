@@ -18,36 +18,15 @@ from setuptools import find_packages, Command
 from skbuild import setup
 
 from setuputils import get_environment_option
-# from setuputils import get_cuda_version_from_header
-# FIXME: Not necessary
+
 from skbuild.command.build_ext import build_ext
 
 import versioneer
 
 
 INSTALL_REQUIRES = ['numba', 'cython']
-CYTHON_FILES = ['cugraph/**/*.pyx']
 
-UCX_HOME = get_environment_option("UCX_HOME")
 CUDA_HOME = get_environment_option('CUDA_HOME')
-CONDA_PREFIX = get_environment_option('CONDA_PREFIX')
-
-# FIXME: No need to include the path to the conda dir
-"""
-conda_lib_dir = os.path.normpath(sys.prefix) + '/lib'
-conda_include_dir = os.path.normpath(sys.prefix) + '/include'
-
-if CONDA_PREFIX:
-    conda_include_dir = CONDA_PREFIX + '/include'
-    conda_lib_dir = CONDA_PREFIX + '/lib'
-"""
-
-if not UCX_HOME:
-    UCX_HOME = CONDA_PREFIX if CONDA_PREFIX else os.sys.prefix
-
-# FIXME: add ucx to INSTALL_REQUIRES
-ucx_include_dir = os.path.join(UCX_HOME, "include")
-ucx_lib_dir = os.path.join(UCX_HOME, "lib")
 
 if not CUDA_HOME:
     path_to_cuda_gdb = shutil.which("cuda-gdb")
@@ -64,14 +43,6 @@ if not os.path.isdir(CUDA_HOME):
     raise OSError(
         "Invalid CUDA_HOME: " "directory does not exist: {CUDA_HOME}"
     )
-
-cuda_include_dir = os.path.join(CUDA_HOME, "include")
-# FIXME: This is causing a second version of cupy to be installed cupy-cuda115
-"""
-INSTALL_REQUIRES.append(
-    "cupy-cuda" + get_cuda_version_from_header(cuda_include_dir)
-)
-"""
 
 
 class CleanCommand(Command):
@@ -100,8 +71,14 @@ cmdclass = dict()
 cmdclass.update(versioneer.get_cmdclass())
 cmdclass["clean"] = CleanCommand
 cmdclass["build_ext"] = build_ext
+PACKAGE_DATA = {
+    key: ["*.pxd"] for key in find_packages(include=["cugraph*"])}
 
-# FIXME: remove setup_requires, the .toml file does it
+PACKAGE_DATA['cugraph'].extend(
+    ['cugraph/experimental/datasets/metadata/*.yaml',
+    'cugraph/experimental/datasets/*.yaml'])
+
+
 setup(name='cugraph',
       description="cuGraph - RAPIDS GPU Graph Analytics",
       version=versioneer.get_version(),
@@ -117,11 +94,7 @@ setup(name='cugraph',
       author="NVIDIA Corporation",
       setup_requires=['Cython>=0.29,<0.30'],
       packages=find_packages(include=['cugraph', 'cugraph.*']),
-      include_package_data=True,
-      package_data={
-          '': ['python/cugraph/cugraph/experimental/datasets/metadata/*.yaml',
-               'python/cugraph/cugraph/experimental/datasets/*.yaml'],
-      },
+      package_data=PACKAGE_DATA,
       install_requires=INSTALL_REQUIRES,
       license="Apache",
       cmdclass=cmdclass,
