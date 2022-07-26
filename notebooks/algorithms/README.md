@@ -23,10 +23,11 @@ This repository contains a collection of Jupyter Notebooks that outline how to r
 |                 | [Spectral-Clustering](community/Spectral-Clustering.ipynb)   | Identify clusters in a  graph using Spectral Clustering with both<br> - Balanced Cut<br> - Modularity Modularity |
 |                 | [Subgraph Extraction](community/Subgraph-Extraction.ipynb)   | Compute a subgraph of the existing graph including only the specified vertices |
 |                 | [Triangle Counting](community/Triangle-Counting.ipynb)       | Count the number of Triangle in a graph                      |
-<!--| Components      |                                                              |                                                              |
+Components      |                                                              |                                                              |
 |                 | [Connected Components](components/ConnectedComponents.ipynb) | Find weakly and strongly connected components in a graph     |
 | Core            |                                                              |                                                              |
-|                 | [K-Core](cores/kcore.ipynb)                                  | Extracts the K-core cluster                                  |
+|Core Number   | [core-number](cores/Core-number.ipynb)   | Computes the core number for every vertex of a graph G. The core number of a vertex is a maximal subgraph that contains only that vertex and others of degree k or more. |
+|K-Cores | [kcore](cores/kcore.ipynb)               |Find the k-core of a graph which is a maximal subgraph that contains nodes of degree k or more.|
 |                 | [Core Number](cores/core-number.ipynb)                       | Computer the Core number for each vertex in a graph          |
 | Link Analysis   |                                                              |                                                              |
 |                 | [Pagerank](link_analysis/Pagerank.ipynb)                     | Compute the PageRank of every vertex in a graph              |

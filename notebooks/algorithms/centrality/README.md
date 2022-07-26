@@ -15,8 +15,8 @@ But which vertices are most important? The answer depends on which measure/algor
 
 |Algorithm          |Notebooks Containing                                                     |Description                                                  |
 | --------------- | ------------------------------------------------------------ | ------------------------------------------------------------ |
-|Degree Centrality| [Centrality](./Centrality.ipynb), [Degree](centrality/Degree.ipynb)                   |Measure based on counting direct connections for each vertex|
-|Betweenness Centrality| [Centrality](./Centrality.ipynb), [Betweenness](centrality/Betweenness.ipynb)                    |Number of shortest paths through the vertex|
+|Degree Centrality| [Centrality](./Centrality.ipynb), [Degree](./Degree.ipynb)                   |Measure based on counting direct connections for each vertex|
+|Betweenness Centrality| [Centrality](./Centrality.ipynb), [Betweenness](./Betweenness.ipynb)                    |Number of shortest paths through the vertex|
 |Eigenvector Centrality|[Centrality](./Centrality.ipynb), [Eigenvector](./Eigenvector.ipynb)|Measure of connectivity to other important vertices (which also have high connectivity) often referred to as the influence measure of a vertex|
 |Katz Centrality|[Centrality](./Centrality.ipynb), [Katz](./Katz.ipynb)                                         |Similar to Eigenvector but has tweaks to measure more weakly connected graph  |
 |Pagerank|[Centrality](./Centrality.ipynb), [Pagerank](../../link_analysis/Pagerank.ipynb)                                         |Classified as both a link analysis and centrality measure by quantifying incoming links from central vertices.  |
