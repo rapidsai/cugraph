@@ -501,8 +501,8 @@ class EXPERIMENTAL__PropertyGraph:
         edge_ids, or all edge IDs if not specified.
         """
         if self.__edge_prop_dataframe is not None:
-            # Note: this includes some of the "internal" columns, since they are
-            # assumed to be needed by the caller, but not all (ie. weight).
+            # Note: this includes some of the "internal" columns, since they
+            # are assumed to be needed by the caller, but not all (ie. weight).
             columns = list(self.__edge_prop_dataframe.columns)
             if self.weight_col_name in columns:
                 columns.remove(self.weight_col_name)

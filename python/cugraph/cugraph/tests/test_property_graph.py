@@ -1216,9 +1216,9 @@ def test_get_data_empty_graphs():
     pG = PropertyGraph()
 
     assert pG.get_vertex_data() is None
-    assert pG.get_vertex_data([0,1,2]) is None
+    assert pG.get_vertex_data([0, 1, 2]) is None
     assert pG.get_edge_data() is None
-    assert pG.get_edge_data([0,1,2]) is None
+    assert pG.get_edge_data([0, 1, 2]) is None
 
 
 # =============================================================================

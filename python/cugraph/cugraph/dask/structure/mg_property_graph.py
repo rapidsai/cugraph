@@ -331,7 +331,6 @@ class EXPERIMENTAL__MGPropertyGraph:
                        for n in self.__vertex_prop_dataframe.columns])
         self.__vertex_prop_eval_dict.update(latest)
 
-
     def get_vertex_data(self, vertex_ids=None):
         """
         Return a dataframe containing vertex properties for only the specified
@@ -473,8 +472,8 @@ class EXPERIMENTAL__MGPropertyGraph:
         edge_ids, or all edge IDs if not specified.
         """
         if self.__edge_prop_dataframe is not None:
-            # Note: this includes some of the "internal" columns, since they are
-            # assumed to be needed by the caller, but not all (ie. weight).
+            # Note: this includes some of the "internal" columns, since they
+            # are assumed to be needed by the caller, but not all (ie. weight).
             columns = list(self.__edge_prop_dataframe.columns)
             if self.weight_col_name in columns:
                 columns.remove(self.weight_col_name)
@@ -698,12 +697,12 @@ class EXPERIMENTAL__MGPropertyGraph:
             raise RuntimeError("query resulted in duplicate edges which "
                                f"cannot be represented with the {msg}")
 
-        # FIXME: MNMG Graphs required renumber to be True due to requirements on
-        # legacy code that needed segment offsets, partition offsets, etc. which
-        # were previously computed during the "legacy" C renumbering.  The
-        # workaround is to always pass renumber=True, but set legacy_renum_only
-        # based on if actual renumbering (ie. changing the vertex IDs) should
-        # happen or not.
+        # FIXME: MNMG Graphs required renumber to be True due to requirements
+        # on legacy code that needed segment offsets, partition offsets,
+        # etc. which were previously computed during the "legacy" C
+        # renumbering.  The workaround is to always pass renumber=True, but set
+        # legacy_renum_only based on if actual renumbering (ie. changing the
+        # vertex IDs) should happen or not.
         renumber = True
         if renumber_graph is False:
             legacy_renum_only = True
