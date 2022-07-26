@@ -54,7 +54,6 @@ VERBOSE_FLAG=""
 CMAKE_VERBOSE_OPTION=""
 BUILD_TYPE=Release
 INSTALL_TARGET="--target install"
-# FIXME: Disabling the cpp tests for now since they require cuco
 BUILD_CPP_TESTS=ON
 BUILD_CPP_MG_TESTS=OFF
 BUILD_ALL_GPU_ARCH=0
@@ -233,8 +232,7 @@ if buildAll || hasArg pylibcugraph; then
     # setup.py references an env var CUGRAPH_BUILD_PATH to find the libcugraph
     # build. If not set by the user, set it to LIBCUGRAPH_BUILD_DIR
     CUGRAPH_BUILD_PATH=${CUGRAPH_BUILD_PATH:=${LIBCUGRAPH_BUILD_DIR}}
-    python setup.py build_ext --inplace --library-dir=${LIBCUGRAPH_BUILD_DIR} \
-           -- -DFIND_CUGRAPH_CPP=ON \
+    python setup.py build_ext --inplace -- -DFIND_CUGRAPH_CPP=ON \
            -Dcugraph_ROOT=${LIBCUGRAPH_BUILD_DIR} -- -j${PARALLEL_LEVEL:-1}
     if [[ ${INSTALL_TARGET} != "" ]]; then
 	env CUGRAPH_BUILD_PATH=${CUGRAPH_BUILD_PATH} python setup.py install
@@ -248,8 +246,7 @@ if buildAll || hasArg cugraph; then
     # setup.py references an env var CUGRAPH_BUILD_PATH to find the libcugraph
     # build. If not set by the user, set it to LIBCUGRAPH_BUILD_DIR
     CUGRAPH_BUILD_PATH=${CUGRAPH_BUILD_PATH:=${LIBCUGRAPH_BUILD_DIR}}
-    python setup.py build_ext --inplace --library-dir=${LIBCUGRAPH_BUILD_DIR} \
-           -- -DFIND_CUGRAPH_CPP=ON \
+    python setup.py build_ext --inplace -- -DFIND_CUGRAPH_CPP=ON \
            -Dcugraph_ROOT=${LIBCUGRAPH_BUILD_DIR} -- -j${PARALLEL_LEVEL:-1}
     if [[ ${INSTALL_TARGET} != "" ]]; then
 	env CUGRAPH_BUILD_PATH=${CUGRAPH_BUILD_PATH} python setup.py install
