@@ -155,6 +155,9 @@ class Tests_GraphMask
     mask.initialize_vertex_mask();
     mask.initialize_edge_mask();
 
+    auto mask_view2 = mask.view();
+    graph_view.attach_mask_view(mask_view2);
+
     // Need to create another view to reflect changes to the
     // owning object
     auto mask_view_from_graph_view2 = *graph_view.get_mask_view();

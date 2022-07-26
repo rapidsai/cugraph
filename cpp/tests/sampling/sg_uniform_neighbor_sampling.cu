@@ -274,7 +274,7 @@ INSTANTIATE_TEST_SUITE_P(
   Tests_Uniform_Neighbor_Sampling_Rmat,
   ::testing::Combine(::testing::Values(Prims_Usecase{true, false}),
                      ::testing::Values(cugraph::test::Rmat_Usecase(
-                       3, 10, 0.57, 0.19, 0.19, 0, false, false, 0, false))));
+                       5, 10, 0.57, 0.19, 0.19, 0, false, false, 0, false))));
 
 // INSTANTIATE_TEST_SUITE_P(
 //  rmat_benchmark_test, /* note that scale & edge factor can be overridden in benchmarking (with
