@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2021, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2022, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -64,4 +64,5 @@ void comms_bcast(const raft::handle_t& handle, value_t* value, size_t count)
 {
   handle.get_comms().bcast(value, count, 0, handle.get_stream());
 }
+
 }  // namespace cugraph

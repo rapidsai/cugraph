@@ -43,6 +43,8 @@ target_link_libraries(cugraphtestutil
     PUBLIC
         cugraph::cugraph
         NCCL::NCCL
+    PRIVATE
+        cuco::cuco
 )
 
 
@@ -79,57 +81,6 @@ function(ConfigureTest CMAKE_TEST_NAME)
             NCCL::NCCL
     )
 
-    if(OpenMP_CXX_FOUND)
-        target_link_libraries(${CMAKE_TEST_NAME} PRIVATE
-###################################################################################################
-###   Use ${OpenMP_CXX_LIB_NAMES} instead of OpenMP::OpenMP_CXX to avoid the following warnings.
-###
-###   Cannot generate a safe runtime search path for target TARGET_NAME
-###   because files in some directories may conflict with libraries in implicit
-###   directories:
-###   ...
-###
-###   libgomp.so is included in the conda base environment and copied to every new conda
-###   environment. If a full file path is provided (e.g ${CUDF_LIBRARY}), cmake
-###   extracts the directory path and adds the directory path to BUILD_RPATH (if BUILD_RPATH is not
-###   disabled).
-###
-###   cmake maintains a system specific implicit directories (e.g. /lib, /lib/x86_64-linux-gnu,
-###   /lib32, /lib32/x86_64-linux-gnu, /lib64, /lib64/x86_64-linux-gnu, /usr/lib,
-###   /usr/lib/gcc/x86_64-linux-gnu/7, /usr/lib/x86_64-linux-gnu, /usr/lib32,
-###   /usr/lib32/x86_64-linux-gnu, /usr/lib64, /usr/lib64/x86_64-linux-gnu,
-###   /usr/local/cuda-10.0/lib64", /usr/local/cuda-10.0/lib64/stubs).
-###
-###   If a full path to libgomp.so is provided (which is the case with OpenMP::OpenMP_CXX), cmake
-###   checks whether there is any other libgomp.so with the different full path (after resolving
-###   soft links) in the search paths (implicit directoires + BUILD_RAPTH). There is one in the
-###   path included in BUILD_RPATH when ${CUDF_LIBRARY} is added; this one can
-###   potentially hide the one in the provided full path and cmake generates a warning (and RPATH
-###   is searched before the directories in /etc/ld.so/conf; ld.so.conf does not coincide but
-###   overlaps with implicit directories).
-###
-###   If we provide just the library names (gomp;pthread), cmake does not generate warnings (we
-###   did not specify which libgomp.so should be loaded in runtime), and the one first found in
-###   the search order is loaded (we can change the loaded library by setting LD_LIBRARY_PATH or
-###   manually editing BUILD_RPATH).
-###
-###   Manually editing BUILD_RPATH:
-###   set(TARGET_BUILD_RPATH "")
-###   foreach(TMP_VAR_FULLPATH IN LISTS OpenMP_CXX_LIBRARIES)
-###       get_filename_component(TMP_VAR_DIR ${TMP_VAR_FULLPATH} DIRECTORY)
-###       string(APPEND TARGET_BUILD_RPATH "${TMP_VAR_DIR};")
-###       get_filename_component(TMP_VAR_REALPATH ${TMP_VAR_FULLPATH} REALPATH)
-###       get_filename_component(TMP_VAR_DIR ${TMP_VAR_REALPATH} DIRECTORY)
-###       # cmake automatically removes duplicates, so skip checking.
-###       string(APPEND TARGET_BUILD_RPATH "${TMP_VAR_DIR};")
-###   endforeach()
-###   string(APPEND TARGET_BUILD_RPATH "${CONDA_PREFIX}/lib")
-###   message(STATUS "TARGET_BUILD_RPATH=${TARGET_BUILD_RPATH}")
-###   set_target_properties(target PROPERTIES
-###       BUILD_RPATH "${TARGET_BUILD_RPATH}")
-        ${OpenMP_CXX_LIB_NAMES})
-    endif(OpenMP_CXX_FOUND)
-
     add_test(NAME ${CMAKE_TEST_NAME} COMMAND ${CMAKE_TEST_NAME})
 
     set_target_properties(
@@ -156,57 +107,6 @@ function(ConfigureTestMG CMAKE_TEST_NAME)
         NCCL::NCCL
         MPI::MPI_CXX
     )
-
-    if(OpenMP_CXX_FOUND)
-        target_link_libraries(${CMAKE_TEST_NAME} PRIVATE
-###################################################################################################
-###   Use ${OpenMP_CXX_LIB_NAMES} instead of OpenMP::OpenMP_CXX to avoid the following warnings.
-###
-###   Cannot generate a safe runtime search path for target TARGET_NAME
-###   because files in some directories may conflict with libraries in implicit
-###   directories:
-###   ...
-###
-###   libgomp.so is included in the conda base environment and copied to every new conda
-###   environment. If a full file path is provided (e.g ${CUDF_LIBRARY}), cmake
-###   extracts the directory path and adds the directory path to BUILD_RPATH (if BUILD_RPATH is not
-###   disabled).
-###
-###   cmake maintains a system specific implicit directories (e.g. /lib, /lib/x86_64-linux-gnu,
-###   /lib32, /lib32/x86_64-linux-gnu, /lib64, /lib64/x86_64-linux-gnu, /usr/lib,
-###   /usr/lib/gcc/x86_64-linux-gnu/7, /usr/lib/x86_64-linux-gnu, /usr/lib32,
-###   /usr/lib32/x86_64-linux-gnu, /usr/lib64, /usr/lib64/x86_64-linux-gnu,
-###   /usr/local/cuda-10.0/lib64", /usr/local/cuda-10.0/lib64/stubs).
-###
-###   If a full path to libgomp.so is provided (which is the case with OpenMP::OpenMP_CXX), cmake
-###   checks whether there is any other libgomp.so with the different full path (after resolving
-###   soft links) in the search paths (implicit directoires + BUILD_RAPTH). There is one in the
-###   path included in BUILD_RPATH when ${CUDF_LIBRARY} is added; this one can
-###   potentially hide the one in the provided full path and cmake generates a warning (and RPATH
-###   is searched before the directories in /etc/ld.so/conf; ld.so.conf does not coincide but
-###   overlaps with implicit directories).
-###
-###   If we provide just the library names (gomp;pthread), cmake does not generate warnings (we
-###   did not specify which libgomp.so should be loaded in runtime), and the one first found in
-###   the search order is loaded (we can change the loaded library by setting LD_LIBRARY_PATH or
-###   manually editing BUILD_RPATH).
-###
-###   Manually editing BUILD_RPATH:
-###   set(TARGET_BUILD_RPATH "")
-###   foreach(TMP_VAR_FULLPATH IN LISTS OpenMP_CXX_LIBRARIES)
-###       get_filename_component(TMP_VAR_DIR ${TMP_VAR_FULLPATH} DIRECTORY)
-###       string(APPEND TARGET_BUILD_RPATH "${TMP_VAR_DIR};")
-###       get_filename_component(TMP_VAR_REALPATH ${TMP_VAR_FULLPATH} REALPATH)
-###       get_filename_component(TMP_VAR_DIR ${TMP_VAR_REALPATH} DIRECTORY)
-###       # cmake automatically removes duplicates, so skip checking.
-###       string(APPEND TARGET_BUILD_RPATH "${TMP_VAR_DIR};")
-###   endforeach()
-###   string(APPEND TARGET_BUILD_RPATH "${CONDA_PREFIX}/lib")
-###   message(STATUS "TARGET_BUILD_RPATH=${TARGET_BUILD_RPATH}")
-###   set_target_properties(target PROPERTIES
-###       BUILD_RPATH "${TARGET_BUILD_RPATH}")
-        ${OpenMP_CXX_LIB_NAMES})
-    endif(OpenMP_CXX_FOUND)
 
     add_test(NAME ${CMAKE_TEST_NAME}
              COMMAND ${MPIEXEC_EXECUTABLE}
@@ -468,6 +368,7 @@ ConfigureTest(RANDOM_WALKS_LOW_LEVEL_TEST sampling/rw_low_level_test.cu)
 ###########################################################################################
 # - MG NBR SAMPLING tests -----------------------------------------------------------------
 ConfigureTest(UNIFORM_NEIGHBOR_SAMPLING_TEST sampling/sg_uniform_neighbor_sampling.cu)
+target_link_libraries(UNIFORM_NEIGHBOR_SAMPLING_TEST PRIVATE cuco::cuco)
         
 ###################################################################################################
 # FIXME: since this is technically not a test, consider refactoring the the
@@ -582,48 +483,59 @@ if(BUILD_CUGRAPH_MG_TESTS)
         ###########################################################################################
         # - MG PRIMS COUNT_IF_V tests -------------------------------------------------------------
         ConfigureTestMG(MG_COUNT_IF_V_TEST prims/mg_count_if_v.cu)
+        target_link_libraries(MG_COUNT_IF_V_TEST PRIVATE cuco::cuco)
 
         ###########################################################################################
         # - MG PRIMS TRANSFORM_REDUCE_V_FRONTIER_OUTGOING_E_BY_DST tests --------------------------
         ConfigureTestMG(MG_TRANSFORM_REDUCE_V_FRONTIER_OUTGOING_E_BY_DST_TEST
                         prims/mg_transform_reduce_v_frontier_outgoing_e_by_dst.cu)
+        target_link_libraries(MG_TRANSFORM_REDUCE_V_FRONTIER_OUTGOING_E_BY_DST_TEST PRIVATE cuco::cuco)
 
         ###########################################################################################
         # - MG PRIMS REDUCE_V tests ---------------------------------------------------------------
         ConfigureTestMG(MG_REDUCE_V_TEST prims/mg_reduce_v.cu)
+        target_link_libraries(MG_REDUCE_V_TEST PRIVATE cuco::cuco)
 
         ###########################################################################################
         # - MG PRIMS TRANSFORM_REDUCE_V tests -----------------------------------------------------
         ConfigureTestMG(MG_TRANSFORM_REDUCE_V_TEST prims/mg_transform_reduce_v.cu)
+        target_link_libraries(MG_TRANSFORM_REDUCE_V_TEST PRIVATE cuco::cuco)
 
         ###########################################################################################
         # - MG PRIMS TRANSFORM_REDUCE_E tests -----------------------------------------------------
         ConfigureTestMG(MG_TRANSFORM_REDUCE_E_TEST prims/mg_transform_reduce_e.cu)
+        target_link_libraries(MG_TRANSFORM_REDUCE_E_TEST PRIVATE cuco::cuco)
 
         ###########################################################################################
         # - MG PRIMS COUNT_IF_E tests -------------------------------------------------------------
         ConfigureTestMG(MG_COUNT_IF_E_TEST prims/mg_count_if_e.cu)
+        target_link_libraries(MG_COUNT_IF_E_TEST PRIVATE cuco::cuco)
 
         ###########################################################################################
         # - MG PRIMS PER_V_TRANSFORM_REDUCE_INCOMING_OUTGOING_E tests -----------------------------
         ConfigureTestMG(MG_PER_V_TRANSFORM_REDUCE_INCOMING_OUTGOING_E_TEST
           prims/mg_per_v_transform_reduce_incoming_outgoing_e.cu)
+        target_link_libraries(MG_PER_V_TRANSFORM_REDUCE_INCOMING_OUTGOING_E_TEST PRIVATE cuco::cuco)
 
         ###########################################################################################
         # - MG PRIMS EXTRACT_IF_E tests -----------------------------------------------------------
         ConfigureTestMG(MG_EXTRACT_IF_E_TEST prims/mg_extract_if_e.cu)
+        target_link_libraries(MG_EXTRACT_IF_E_TEST PRIVATE cuco::cuco)
 
         ###########################################################################################
         # - MG GATHER_UTILS tests -----------------------------------------------------------------
         ConfigureTestMG(MG_GATHER_UTILS_TEST sampling/detail/mg_gather_utils.cu)
+        target_link_libraries(MG_GATHER_UTILS_TEST PRIVATE cuco::cuco)
 
         ###########################################################################################
         # - MG GATHER_ONE_HOP tests ---------------------------------------------------------------
         ConfigureTestMG(MG_GATHER_ONE_HOP_TEST sampling/detail/mg_gather_one_hop.cu)
+        target_link_libraries(MG_GATHER_ONE_HOP_TEST PRIVATE cuco::cuco)
 
         ###########################################################################################
         # - MG NBR SAMPLING tests -----------------------------------------------------------------
         ConfigureTestMG(MG_UNIFORM_NEIGHBOR_SAMPLING_TEST sampling/mg_uniform_neighbor_sampling.cu)
+        target_link_libraries(MG_UNIFORM_NEIGHBOR_SAMPLING_TEST PRIVATE cuco::cuco)
 
         ###########################################################################################
         # - RANDOM_WALKS tests --------------------------------------------------------------------

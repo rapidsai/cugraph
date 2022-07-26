@@ -207,7 +207,7 @@ int generic_uniform_neighbor_sample_test(vertex_t* h_src,
 
   for (int i = 0; (i < result_size) && (test_ret_value == 0); ++i) {
     TEST_ASSERT(test_ret_value,
-                M[h_srcs[i]][h_dsts[i]] > 0,
+                M[h_srcs[i]][h_dsts[i]] == h_index[i],
                 "uniform_neighbor_sample got edge that doesn't exist");
   }
 
@@ -231,9 +231,36 @@ int test_uniform_neighbor_sample()
 
   vertex_t src[]    = {0, 1, 1, 2, 2, 2, 3, 4};
   vertex_t dst[]    = {1, 3, 4, 0, 1, 3, 5, 5};
-  edge_t edge_ids[] = {0, 1, 2, 3, 4, 5, 6, 7};
+  edge_t edge_ids[] = {1, 2, 3, 4, 5, 6, 7, 8};
   vertex_t start[]  = {2, 2};
   int fan_out[]     = {1, 2};
+
+  return generic_uniform_neighbor_sample_test(src,
+                                              dst,
+                                              edge_ids,
+                                              num_vertices,
+                                              num_edges,
+                                              start,
+                                              num_starts,
+                                              fan_out,
+                                              fan_out_size,
+                                              TRUE,
+                                              FALSE,
+                                              FALSE);
+}
+
+int test_uniform_neighbor_sample_all_neighbors()
+{
+  size_t num_edges    = 8;
+  size_t num_vertices = 6;
+  size_t fan_out_size = 1;
+  size_t num_starts   = 2;
+
+  vertex_t src[]    = {0, 1, 1, 2, 2, 2, 3, 4};
+  vertex_t dst[]    = {1, 3, 4, 0, 1, 3, 5, 5};
+  edge_t edge_ids[] = {0, 1, 2, 3, 4, 5, 6, 7};
+  vertex_t start[]  = {2};
+  int fan_out[]     = {-1};
 
   return generic_uniform_neighbor_sample_test(src,
                                               dst,
@@ -253,5 +280,6 @@ int main(int argc, char** argv)
 {
   int result = 0;
   result |= RUN_TEST(test_uniform_neighbor_sample);
+  result |= RUN_TEST(test_uniform_neighbor_sample_all_neighbors);
   return result;
 }
