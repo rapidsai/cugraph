@@ -97,8 +97,6 @@ rmm::device_uvector<typename GraphViewType::edge_type> compute_local_major_degre
   // local_edge_partition_src_range_size == summation of major_range_size() of all partitions
   // belonging to the gpu
   vertex_t partial_offset{0};
-
-  printf("number_of_local_edge_partitions(): %d\n", graph_view.number_of_local_edge_partitions());
   for (size_t i = 0; i < graph_view.number_of_local_edge_partitions(); ++i) {
     auto edge_partition =
       edge_partition_device_view_t<vertex_t, edge_t, weight_t, GraphViewType::is_multi_gpu>(
@@ -121,8 +119,6 @@ rmm::device_uvector<typename GraphViewType::edge_type> compute_local_major_degre
       if (mask.has_value() && (*mask).has_edge_mask()) {
         compute_masked_degrees(
           handle, graph_view, sparse_begin, num_sparse_vertices, edge_partition);
-
-        raft::print_device_vector("sparse_begin", sparse_begin, 10, std::cout);
       } else {
         // TODO: Masked degrees
         thrust::tabulate(handle.get_thrust_policy(),
@@ -182,8 +178,6 @@ rmm::device_uvector<typename GraphViewType::edge_type> compute_local_major_degre
       if (mask.has_value() && mask.value().has_edge_mask()) {
         raft::logger::get().log(RAFT_LEVEL_INFO, "Computing masked degrees 3, %d", partial_offset);
         compute_masked_degrees(handle, graph_view, sparse_begin, size, edge_partition);
-
-        raft::print_device_vector("sparse_begin", sparse_begin, 10, std::cout);
       } else {
         thrust::tabulate(handle.get_thrust_policy(),
                          sparse_begin,
@@ -195,8 +189,6 @@ rmm::device_uvector<typename GraphViewType::edge_type> compute_local_major_degre
     }
     partial_offset += edge_partition.major_range_size();
   }
-
-  raft::print_device_vector("local_degrees", local_degrees.data(), 10, std::cout);
   return local_degrees;
 }
 
@@ -205,9 +197,7 @@ std::tuple<rmm::device_uvector<typename GraphViewType::edge_type>,
            rmm::device_uvector<typename GraphViewType::edge_type>>
 get_global_degree_information(raft::handle_t const& handle, GraphViewType const& graph_view)
 {
-  using edge_t = typename GraphViewType::edge_type;
-
-  printf("compute_local_major_degrees\n");
+  using edge_t       = typename GraphViewType::edge_type;
   auto local_degrees = compute_local_major_degrees(handle, graph_view);
 
   if constexpr (GraphViewType::is_multi_gpu) {
@@ -311,8 +301,6 @@ rmm::device_uvector<typename GraphViewType::edge_type> get_active_major_global_d
   thrust::fill(
     handle.get_thrust_policy(), active_major_degrees.begin(), active_major_degrees.end(), 0);
 
-  raft::print_device_vector("active_majors", active_majors.data(), active_majors.size(), std::cout);
-
   std::vector<vertex_t> id_begin;
   std::vector<vertex_t> id_end;
   std::vector<vertex_t> count_offsets;
@@ -367,12 +355,8 @@ rmm::device_uvector<typename GraphViewType::edge_type> get_active_major_global_d
                       // partition offsets because it is a concatenation of all the offsets
                       // across all partitions
                       auto location = location_in_segment + vertex_count_offsets[partition_id];
-                      printf("degree: %ld\n", global_out_degrees[location]);
                       return global_out_degrees[location];
                     });
-
-  raft::print_device_vector(
-    "active_major_degrees", active_major_degrees.data(), active_majors.size(), std::cout);
   return active_major_degrees;
 }
 
@@ -415,9 +399,6 @@ partition_information(raft::handle_t const& handle, GraphViewType const& graph_v
   vertex_t counter{0};
   for (size_t i = 0; i < graph_view.number_of_local_edge_partitions(); ++i) {
     partitions.emplace_back(graph_view.local_edge_partition_view(i));
-
-    raft::print_device_vector(
-      "partition", graph_view.local_edge_partition_view(i).indices(), 100, std::cout);
 
     masks.emplace_back(graph_view.get_mask_view(i));
 
@@ -692,11 +673,6 @@ gather_local_edges(
                                              sparse_offset,
                                              local_out_degree,
                                              g_dst_index);
-            printf("minors[%ld] = %ld, %ld, major=%ld\n",
-                   index,
-                   adjacency_list[g_dst_index],
-                   g_dst_index,
-                   major);
           }
           minors[index] = adjacency_list[g_dst_index];
           if (weights != nullptr) {
@@ -753,9 +729,6 @@ gather_local_edges(
     majors.resize(compacted_length, handle.get_stream());
     minors.resize(compacted_length, handle.get_stream());
   }
-
-  raft::print_device_vector("majors", majors.data(), majors.size(), std::cout);
-  raft::print_device_vector("minors", minors.data(), minors.size(), std::cout);
   return std::make_tuple(std::move(majors), std::move(minors), std::move(weights));
 }
 
