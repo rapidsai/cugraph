@@ -247,7 +247,7 @@ def _get_repo_path():
     return str(python_dir.parent.parent.absolute())
 
 
-def get_cuda_version_from_header(cuda_include_dir, delimeter=""):
+def get_cuda_version_from_header(cuda_include_dir, delimiter=""):
 
     cuda_version = None
 
