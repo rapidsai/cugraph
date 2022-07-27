@@ -36,11 +36,3 @@ rapids_cython_create_modules(
   SOURCE_FILES "${cython_sources}"
   LINKED_LIBRARIES ${linked_libraries}
 )
-
-# TODO: Finding NumPy requires finding Development as well. Once this is fixed in CMake (no date
-# yet) we can remove the extra component spec.
-find_package(Python REQUIRED COMPONENTS Development NumPy)
-set(targets_using_numpy pagerank sssp utils)
-foreach(target IN LISTS targets_using_numpy)
-  target_include_directories(${target} PRIVATE "${Python_NumPy_INCLUDE_DIRS}")
-endforeach()
