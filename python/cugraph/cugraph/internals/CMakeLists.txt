@@ -20,9 +20,7 @@ rapids_cython_create_modules(
   LINKED_LIBRARIES "${linked_libraries}" MODULE_PREFIX internals_
 )
 
-set(targets_using_header internals_internals)
-
-target_include_directories(${targets_using_header} PRIVATE "${CMAKE_CURRENT_LIST_DIR}")
+target_include_directories(internals_internals PRIVATE "${CMAKE_CURRENT_LIST_DIR}")
 
 foreach(cython_module IN LISTS RAPIDS_CYTHON_CREATED_TARGETS)
   set_target_properties(${cython_module} PROPERTIES INSTALL_RPATH "\$ORIGIN;\$ORIGIN/../library")
