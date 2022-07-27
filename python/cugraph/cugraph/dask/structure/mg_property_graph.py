@@ -314,7 +314,9 @@ class EXPERIMENTAL__MGPropertyGraph:
             # remove the ones to keep
             column_names_to_drop.difference_update(property_columns +
                                                    default_vertex_columns)
-            tmp_df = tmp_df.drop(labels=column_names_to_drop, axis=1)
+        else:
+            column_names_to_drop = {vertex_col_name}
+        tmp_df = tmp_df.drop(labels=column_names_to_drop, axis=1)
 
         # Save the original dtypes for each new column so they can be restored
         # prior to constructing subgraphs (since column dtypes may get altered
@@ -330,6 +332,10 @@ class EXPERIMENTAL__MGPropertyGraph:
         latest = dict([(n, self.__vertex_prop_dataframe[n])
                        for n in self.__vertex_prop_dataframe.columns])
         self.__vertex_prop_eval_dict.update(latest)
+        # TODO: delete asserts before merging
+        assert vertex_col_name not in self.__vertex_prop_dataframe.columns
+        assert vertex_col_name not in self.__vertex_prop_dtypes
+        assert vertex_col_name not in self.__vertex_prop_eval_dict
 
     def add_edge_data(self,
                       dataframe,
@@ -433,7 +439,9 @@ class EXPERIMENTAL__MGPropertyGraph:
             # remove the ones to keep
             column_names_to_drop.difference_update(property_columns +
                                                    default_edge_columns)
-            tmp_df = tmp_df.drop(labels=column_names_to_drop, axis=1)
+        else:
+            column_names_to_drop = {vertex_col_names[0], vertex_col_names[1]}
+        tmp_df = tmp_df.drop(labels=column_names_to_drop, axis=1)
 
         # Save the original dtypes for each new column so they can be restored
         # prior to constructing subgraphs (since column dtypes may get altered
@@ -447,6 +455,15 @@ class EXPERIMENTAL__MGPropertyGraph:
         latest = dict([(n, self.__edge_prop_dataframe[n])
                        for n in self.__edge_prop_dataframe.columns])
         self.__edge_prop_eval_dict.update(latest)
+        # TODO: delete asserts before merging
+        src = vertex_col_names[0]
+        dst = vertex_col_names[1]
+        assert src not in self.__edge_prop_dataframe.columns
+        assert src not in self.__edge_prop_eval_dict
+        assert src not in self.__edge_prop_dtypes
+        assert dst not in self.__edge_prop_dataframe.columns
+        assert dst not in self.__edge_prop_eval_dict
+        assert dst not in self.__edge_prop_dtypes
 
     def select_vertices(self, expr, from_previous_selection=None):
         raise NotImplementedError
