@@ -34,7 +34,7 @@ def experimental_warning_wrapper(obj):
     discovered and used.
     """
     obj_type = type(obj)
-    if not isinstance(obj, typing.Callable):
+    if not callable(obj):
         raise TypeError("obj must be a class or a function type, got "
                         f"{obj_type}")
 
