@@ -36,7 +36,7 @@ template <typename mask_t>
 __host__ __device__ constexpr int log_bits()
 {
   switch (std::numeric_limits<mask_t>::digits) {
-    case 8: return 2;
+    case 8: return 3;
     case 16: return 4;
     case 32: return 5;
     case 64: return 6;
