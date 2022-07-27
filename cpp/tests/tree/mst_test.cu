@@ -31,7 +31,7 @@
 
 #include <cmath>
 
-#include "../src/converters/COOtoCSR.cuh"
+#include "../src/converters/legacy/COOtoCSR.cuh"
 #include <thrust/device_ptr.h>
 #include <thrust/iterator/constant_iterator.h>
 #include <thrust/reduce.h>
@@ -58,8 +58,10 @@ typedef struct Mst_Usecase_t {
 class Tests_Mst : public ::testing::TestWithParam<Mst_Usecase> {
  public:
   Tests_Mst() {}
-  static void SetupTestCase() {}
+
+  static void SetUpTestCase() {}
   static void TearDownTestCase() {}
+
   virtual void SetUp() {}
   virtual void TearDown() {}
 

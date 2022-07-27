@@ -17,6 +17,7 @@
 #include <utilities/base_fixture.hpp>
 #include <utilities/device_comm_wrapper.hpp>
 #include <utilities/high_res_clock.h>
+#include <utilities/mg_utilities.hpp>
 #include <utilities/test_graphs.hpp>
 #include <utilities/test_utilities.hpp>
 #include <utilities/thrust_wrapper.hpp>
@@ -45,8 +46,10 @@ class Tests_MGEigenvectorCentrality
   : public ::testing::TestWithParam<std::tuple<EigenvectorCentrality_Usecase, input_usecase_t>> {
  public:
   Tests_MGEigenvectorCentrality() {}
-  static void SetupTestCase() {}
-  static void TearDownTestCase() {}
+
+  static void SetUpTestCase() { handle_ = cugraph::test::initialize_mg_handle(); }
+
+  static void TearDownTestCase() { handle_.reset(); }
 
   virtual void SetUp() {}
   virtual void TearDown() {}
@@ -57,38 +60,23 @@ class Tests_MGEigenvectorCentrality
   void run_current_test(EigenvectorCentrality_Usecase const& eigenvector_usecase,
                         input_usecase_t const& input_usecase)
   {
-    // 1. initialize handle
-
-    raft::handle_t handle{};
     HighResClock hr_clock{};
 
-    raft::comms::initialize_mpi_comms(&handle, MPI_COMM_WORLD);
-    auto& comm           = handle.get_comms();
-    auto const comm_size = comm.get_size();
-    auto const comm_rank = comm.get_rank();
-
-    auto row_comm_size = static_cast<int>(sqrt(static_cast<double>(comm_size)));
-    while (comm_size % row_comm_size != 0) {
-      --row_comm_size;
-    }
-    cugraph::partition_2d::subcomm_factory_t<cugraph::partition_2d::key_naming_t, vertex_t>
-      subcomm_factory(handle, row_comm_size);
-
-    // 2. create MG graph
+    // 1. create MG graph
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
-      handle.get_comms().barrier();
+      handle_->get_comms().barrier();
       hr_clock.start();
     }
 
     auto [mg_graph, d_mg_renumber_map_labels] =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, true, true>(
-        handle, input_usecase, eigenvector_usecase.test_weighted, true);
+        *handle_, input_usecase, eigenvector_usecase.test_weighted, true);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
-      handle.get_comms().barrier();
+      handle_->get_comms().barrier();
       double elapsed_time{0.0};
       hr_clock.stop(&elapsed_time);
       std::cout << "MG construct_graph took " << elapsed_time * 1e-6 << " s.\n";
@@ -96,21 +84,21 @@ class Tests_MGEigenvectorCentrality
 
     auto mg_graph_view = mg_graph.view();
 
-    // 3. run MG Eigenvector Centrality
+    // 2. run MG Eigenvector Centrality
 
     weight_t constexpr epsilon{1e-6};
 
     rmm::device_uvector<weight_t> d_mg_centralities(
-      mg_graph_view.local_vertex_partition_range_size(), handle.get_stream());
+      mg_graph_view.local_vertex_partition_range_size(), handle_->get_stream());
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
-      handle.get_comms().barrier();
+      handle_->get_comms().barrier();
       hr_clock.start();
     }
 
     d_mg_centralities = cugraph::eigenvector_centrality(
-      handle,
+      *handle_,
       mg_graph_view,
       std::optional<raft::device_span<weight_t const>>{},
       // std::make_optional(raft::device_span<weight_t
@@ -121,42 +109,42 @@ class Tests_MGEigenvectorCentrality
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
-      handle.get_comms().barrier();
+      handle_->get_comms().barrier();
       double elapsed_time{0.0};
       hr_clock.stop(&elapsed_time);
       std::cout << "MG Eigenvector Centrality took " << elapsed_time * 1e-6 << " s.\n";
     }
 
-    // 4. compare SG & MG results
+    // 3. compare SG & MG results
 
     if (eigenvector_usecase.check_correctness) {
-      // 4-1. aggregate MG results
+      // 3-1. aggregate MG results
 
       auto d_mg_aggregate_renumber_map_labels = cugraph::test::device_gatherv(
-        handle, (*d_mg_renumber_map_labels).data(), (*d_mg_renumber_map_labels).size());
+        *handle_, (*d_mg_renumber_map_labels).data(), (*d_mg_renumber_map_labels).size());
       auto d_mg_aggregate_centralities =
-        cugraph::test::device_gatherv(handle, d_mg_centralities.data(), d_mg_centralities.size());
+        cugraph::test::device_gatherv(*handle_, d_mg_centralities.data(), d_mg_centralities.size());
 
-      if (handle.get_comms().get_rank() == int{0}) {
-        // 4-2. Sort MG results by original vertex id
+      if (handle_->get_comms().get_rank() == int{0}) {
+        // 3-2. Sort MG results by original vertex id
         std::tie(std::ignore, d_mg_aggregate_centralities) = cugraph::test::sort_by_key(
-          handle, d_mg_aggregate_renumber_map_labels, d_mg_aggregate_centralities);
+          *handle_, d_mg_aggregate_renumber_map_labels, d_mg_aggregate_centralities);
 
-        // 4-3. create SG graph
+        // 3-3. create SG graph
         auto [sg_graph, d_sg_renumber_map_labels] =
           cugraph::test::construct_graph<vertex_t, edge_t, weight_t, true, false>(
-            handle, input_usecase, eigenvector_usecase.test_weighted, true);
+            *handle_, input_usecase, eigenvector_usecase.test_weighted, true);
 
         auto sg_graph_view = sg_graph.view();
 
         ASSERT_TRUE(mg_graph_view.number_of_vertices() == sg_graph_view.number_of_vertices());
 
-        // 4-4. run SG Eigenvector Centrality
+        // 3-4. run SG Eigenvector Centrality
         rmm::device_uvector<weight_t> d_sg_centralities(sg_graph_view.number_of_vertices(),
-                                                        handle.get_stream());
+                                                        handle_->get_stream());
 
         d_sg_centralities = cugraph::eigenvector_centrality(
-          handle,
+          *handle_,
           sg_graph_view,
           std::optional<raft::device_span<weight_t const>>{},
           // std::make_optional(raft::device_span<weight_t const>{d_sg_centralities.data(),
@@ -166,22 +154,22 @@ class Tests_MGEigenvectorCentrality
           false);
 
         std::tie(std::ignore, d_sg_centralities) =
-          cugraph::test::sort_by_key(handle, *d_sg_renumber_map_labels, d_sg_centralities);
+          cugraph::test::sort_by_key(*handle_, *d_sg_renumber_map_labels, d_sg_centralities);
 
-        // 4-5. compare
+        // 3-5. compare
         std::vector<weight_t> h_mg_aggregate_centralities(mg_graph_view.number_of_vertices());
         raft::update_host(h_mg_aggregate_centralities.data(),
                           d_mg_aggregate_centralities.data(),
                           d_mg_aggregate_centralities.size(),
-                          handle.get_stream());
+                          handle_->get_stream());
 
         std::vector<weight_t> h_sg_centralities(sg_graph_view.number_of_vertices());
         raft::update_host(h_sg_centralities.data(),
                           d_sg_centralities.data(),
                           d_sg_centralities.size(),
-                          handle.get_stream());
+                          handle_->get_stream());
 
-        handle.sync_stream();
+        handle_->sync_stream();
 
         auto max_centrality =
           *std::max_element(h_mg_aggregate_centralities.begin(), h_mg_aggregate_centralities.end());
@@ -212,7 +200,13 @@ class Tests_MGEigenvectorCentrality
       }
     }
   }
+
+ private:
+  static std::unique_ptr<raft::handle_t> handle_;
 };
+
+template <typename input_usecase_t>
+std::unique_ptr<raft::handle_t> Tests_MGEigenvectorCentrality<input_usecase_t>::handle_ = nullptr;
 
 using Tests_MGEigenvectorCentrality_File =
   Tests_MGEigenvectorCentrality<cugraph::test::File_Usecase>;

@@ -80,8 +80,8 @@ extern "C" void* create_raft_handle(int prows)
   raft::handle_t* handle = new raft::handle_t{};
   raft::comms::initialize_mpi_comms(handle, MPI_COMM_WORLD);
 
-  cugraph::partition_2d::subcomm_factory_t<cugraph::partition_2d::key_naming_t, int>
-    subcomm_factory(*handle, prows);
+  cugraph::partition_2d::subcomm_factory_t<cugraph::partition_2d::key_naming_t> subcomm_factory(
+    *handle, prows);
 
   return handle;
 }

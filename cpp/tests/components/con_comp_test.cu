@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2021, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2019-2022, NVIDIA CORPORATION.  All rights reserved.
  *
  * NVIDIA CORPORATION and its licensors retain all intellectual property
  * and proprietary rights in and to this software, related documentation
@@ -20,7 +20,7 @@
 
 #include <rmm/device_vector.hpp>
 
-#include <converters/COOtoCSR.cuh>
+#include <converters/legacy/COOtoCSR.cuh>
 #include <cugraph/algorithms.hpp>
 #include <cugraph/legacy/graph.hpp>
 
@@ -52,7 +52,8 @@ struct Usecase {
 
 struct Tests_Weakly_CC : ::testing::TestWithParam<Usecase> {
   Tests_Weakly_CC() {}
-  static void SetupTestCase() {}
+
+  static void SetUpTestCase() {}
   static void TearDownTestCase()
   {
     if (cugraph::test::g_perf) {

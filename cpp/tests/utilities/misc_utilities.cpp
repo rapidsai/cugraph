@@ -15,11 +15,8 @@
  */
 #include <utilities/test_utilities.hpp>
 
-#include <raft/handle.hpp>
-#include <rmm/device_uvector.hpp>
-
-#include <numeric>
-#include <vector>
+#include <cstddef>
+#include <string>
 
 namespace cugraph {
 namespace test {
@@ -33,35 +30,6 @@ std::string getFileName(const std::string& s)
   size_t i = s.rfind(sep, s.length());
   if (i != std::string::npos) { return (s.substr(i + 1, s.length() - i)); }
   return ("");
-}
-
-void enforce_p2p_initialization(raft::handle_t const& handle)
-{
-  auto& comm           = handle.get_comms();
-  auto const comm_size = comm.get_size();
-
-  rmm::device_uvector<int32_t> tx_ints(comm_size, handle.get_stream());
-  rmm::device_uvector<int32_t> rx_ints(comm_size, handle.get_stream());
-  std::vector<size_t> tx_sizes(comm_size, size_t{1});
-  std::vector<size_t> tx_offsets(comm_size);
-  std::iota(tx_offsets.begin(), tx_offsets.end(), size_t{0});
-  std::vector<int32_t> tx_ranks(comm_size);
-  std::iota(tx_ranks.begin(), tx_ranks.end(), int32_t{0});
-  auto rx_sizes   = tx_sizes;
-  auto rx_offsets = tx_offsets;
-  auto rx_ranks   = tx_ranks;
-
-  comm.device_multicast_sendrecv(tx_ints.data(),
-                                 tx_sizes,
-                                 tx_offsets,
-                                 tx_ranks,
-                                 rx_ints.data(),
-                                 rx_sizes,
-                                 rx_offsets,
-                                 rx_ranks,
-                                 handle.get_stream());
-
-  handle.sync_stream();
 }
 
 }  // namespace test

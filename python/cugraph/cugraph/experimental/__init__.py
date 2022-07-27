@@ -39,3 +39,5 @@ from cugraph.experimental.structure.bicliques import EXPERIMENTAL__find_biclique
 find_bicliques = deprecated_warning_wrapper(
     experimental_warning_wrapper(EXPERIMENTAL__find_bicliques)
 )
+
+from cugraph.experimental.datasets.dataset import Dataset

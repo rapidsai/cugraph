@@ -303,11 +303,13 @@ class Tests_BC : public ::testing::TestWithParam<BC_Usecase> {
 
  public:
   Tests_BC() {}
-  static void SetupTestCase() {}
+
+  static void SetUpTestCase() {}
   static void TearDownTestCase() {}
 
   virtual void SetUp() {}
   virtual void TearDown() {}
+
   // vertex_t         vertex identifier data type
   // edge_t         edge identifier data type
   // weight_t         edge weight data type

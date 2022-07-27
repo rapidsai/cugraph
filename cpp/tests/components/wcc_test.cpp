@@ -27,7 +27,8 @@ template <typename input_usecase_t>
 class Tests_WCC : public ::testing::TestWithParam<std::tuple<WCC_Usecase, input_usecase_t>> {
  public:
   Tests_WCC() {}
-  static void SetupTestCase() {}
+
+  static void SetUpTestCase() {}
   static void TearDownTestCase() {}
 
   virtual void SetUp() {}

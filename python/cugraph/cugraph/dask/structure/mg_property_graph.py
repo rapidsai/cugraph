@@ -169,7 +169,8 @@ class EXPERIMENTAL__MGPropertyGraph:
     def edges(self):
         if self.__edge_prop_dataframe is not None:
             return self.__edge_prop_dataframe[[self.src_col_name,
-                                               self.dst_col_name]]
+                                               self.dst_col_name,
+                                               self.edge_id_col_name]]
         return None
 
     @property
