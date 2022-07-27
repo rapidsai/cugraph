@@ -53,8 +53,6 @@ if(NOT cugraph_FOUND)
   
   include("${CMAKE_PROJECT_cugraph-python_INCLUDE}")
 
-
-  message(STATUS "installing CUGRAPH C++")
   add_subdirectory(../../cpp cugraph-cpp)
 
   install(TARGETS cugraph DESTINATION cugraph/library)
