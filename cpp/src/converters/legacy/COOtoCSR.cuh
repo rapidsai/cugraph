@@ -41,7 +41,7 @@
 #include <cub/device/device_radix_sort.cuh>
 #include <cub/device/device_run_length_encode.cuh>
 
-#include <cugraph/functions.hpp>
+#include <cugraph/legacy/functions.hpp>
 
 #include <cugraph/legacy/graph.hpp>
 

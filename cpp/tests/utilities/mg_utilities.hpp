@@ -13,24 +13,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include <utilities/test_utilities.hpp>
+#pragma once
 
-#include <cstddef>
-#include <string>
+#include <raft/handle.hpp>
+
+#include <memory>
 
 namespace cugraph {
 namespace test {
 
-std::string getFileName(const std::string& s)
-{
-  char sep = '/';
-#ifdef _WIN32
-  sep = '\\';
-#endif
-  size_t i = s.rfind(sep, s.length());
-  if (i != std::string::npos) { return (s.substr(i + 1, s.length() - i)); }
-  return ("");
-}
+void initialize_mpi(int argc, char** argv);
+
+void finalize_mpi();
+
+int query_mpi_comm_world_rank();
+int query_mpi_comm_world_size();
+
+std::unique_ptr<raft::handle_t> initialize_mg_handle();
+
+// NCCL lazily initializes for P2P, and this enforces P2P initialization for better performance
+// measurements
+void enforce_p2p_initialization(raft::handle_t const& handle);
 
 }  // namespace test
 }  // namespace cugraph

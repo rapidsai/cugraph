@@ -17,6 +17,7 @@
 #include <utilities/base_fixture.hpp>
 #include <utilities/device_comm_wrapper.hpp>
 #include <utilities/high_res_clock.h>
+#include <utilities/mg_utilities.hpp>
 #include <utilities/test_graphs.hpp>
 #include <utilities/test_utilities.hpp>
 #include <utilities/thrust_wrapper.hpp>
@@ -122,12 +123,14 @@ struct Prims_Usecase {
 };
 
 template <typename input_usecase_t>
-class Tests_MG_TransformReduceVFrontierOutgoingEByDst
+class Tests_MGTransformReduceVFrontierOutgoingEByDst
   : public ::testing::TestWithParam<std::tuple<Prims_Usecase, input_usecase_t>> {
  public:
-  Tests_MG_TransformReduceVFrontierOutgoingEByDst() {}
-  static void SetupTestCase() {}
-  static void TearDownTestCase() {}
+  Tests_MGTransformReduceVFrontierOutgoingEByDst() {}
+
+  static void SetUpTestCase() { handle_ = cugraph::test::initialize_mg_handle(); }
+
+  static void TearDownTestCase() { handle_.reset(); }
 
   virtual void SetUp() {}
   virtual void TearDown() {}
@@ -152,24 +155,9 @@ class Tests_MG_TransformReduceVFrontierOutgoingEByDst
       static_assert(thrust::tuple_size<payload_t>::value == size_t{2});
     }
 
-    // 1. initialize handle
-
-    raft::handle_t handle{};
     HighResClock hr_clock{};
 
-    raft::comms::initialize_mpi_comms(&handle, MPI_COMM_WORLD);
-    auto& comm           = handle.get_comms();
-    auto const comm_size = comm.get_size();
-    auto const comm_rank = comm.get_rank();
-
-    auto row_comm_size = static_cast<int>(sqrt(static_cast<double>(comm_size)));
-    while (comm_size % row_comm_size != 0) {
-      --row_comm_size;
-    }
-    cugraph::partition_2d::subcomm_factory_t<cugraph::partition_2d::key_naming_t, vertex_t>
-      subcomm_factory(handle, row_comm_size);
-
-    // 2. create MG graph
+    // 1. create MG graph
 
     constexpr bool is_multi_gpu = true;
     constexpr bool renumber     = true;  // needs to be true for multi gpu case
@@ -177,17 +165,17 @@ class Tests_MG_TransformReduceVFrontierOutgoingEByDst
       false;  // needs to be false for using transform_reduce_v_frontier_outgoing_e_by_dst
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
-      handle.get_comms().barrier();
+      handle_->get_comms().barrier();
       hr_clock.start();
     }
 
     auto [mg_graph, mg_renumber_map_labels] =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, store_transposed, is_multi_gpu>(
-        handle, input_usecase, false, renumber);
+        *handle_, input_usecase, false, renumber);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
-      handle.get_comms().barrier();
+      handle_->get_comms().barrier();
       double elapsed_time{0.0};
       hr_clock.stop(&elapsed_time);
       std::cout << "MG construct_graph took " << elapsed_time * 1e-6 << " s.\n";
@@ -195,42 +183,42 @@ class Tests_MG_TransformReduceVFrontierOutgoingEByDst
 
     auto mg_graph_view = mg_graph.view();
 
-    // 3. run MG transform reduce
+    // 2. run MG transform reduce
 
     const int hash_bin_count = 5;
 
     auto mg_property_buffer = cugraph::allocate_dataframe_buffer<property_t>(
-      mg_graph_view.local_vertex_partition_range_size(), handle.get_stream());
+      mg_graph_view.local_vertex_partition_range_size(), handle_->get_stream());
 
-    thrust::transform(handle.get_thrust_policy(),
+    thrust::transform(handle_->get_thrust_policy(),
                       (*mg_renumber_map_labels).begin(),
                       (*mg_renumber_map_labels).end(),
                       cugraph::get_dataframe_buffer_begin(mg_property_buffer),
                       property_transform_t<vertex_t, property_t>{hash_bin_count});
 
     cugraph::edge_partition_src_property_t<decltype(mg_graph_view), property_t> mg_src_properties(
-      handle, mg_graph_view);
+      *handle_, mg_graph_view);
     cugraph::edge_partition_dst_property_t<decltype(mg_graph_view), property_t> mg_dst_properties(
-      handle, mg_graph_view);
+      *handle_, mg_graph_view);
 
-    update_edge_partition_src_property(handle,
+    update_edge_partition_src_property(*handle_,
                                        mg_graph_view,
                                        cugraph::get_dataframe_buffer_cbegin(mg_property_buffer),
                                        mg_src_properties);
-    update_edge_partition_dst_property(handle,
+    update_edge_partition_dst_property(*handle_,
                                        mg_graph_view,
                                        cugraph::get_dataframe_buffer_cbegin(mg_property_buffer),
                                        mg_dst_properties);
 
     auto mg_key_buffer = cugraph::allocate_dataframe_buffer<key_t>(
-      mg_graph_view.local_vertex_partition_range_size(), handle.get_stream());
+      mg_graph_view.local_vertex_partition_range_size(), handle_->get_stream());
     if constexpr (std::is_same_v<tag_t, void>) {
-      thrust::sequence(handle.get_thrust_policy(),
+      thrust::sequence(handle_->get_thrust_policy(),
                        cugraph::get_dataframe_buffer_begin(mg_key_buffer),
                        cugraph::get_dataframe_buffer_end(mg_key_buffer),
                        mg_graph_view.local_vertex_partition_range_first());
     } else {
-      thrust::tabulate(handle.get_thrust_policy(),
+      thrust::tabulate(handle_->get_thrust_policy(),
                        cugraph::get_dataframe_buffer_begin(mg_key_buffer),
                        cugraph::get_dataframe_buffer_end(mg_key_buffer),
                        [mg_renumber_map_labels = (*mg_renumber_map_labels).data(),
@@ -245,7 +233,7 @@ class Tests_MG_TransformReduceVFrontierOutgoingEByDst
     constexpr size_t bucket_idx_cur = 0;
     constexpr size_t num_buckets    = 1;
 
-    cugraph::vertex_frontier_t<vertex_t, tag_t, is_multi_gpu> mg_vertex_frontier(handle,
+    cugraph::vertex_frontier_t<vertex_t, tag_t, is_multi_gpu> mg_vertex_frontier(*handle_,
                                                                                  num_buckets);
     mg_vertex_frontier.bucket(bucket_idx_cur)
       .insert(cugraph::get_dataframe_buffer_begin(mg_key_buffer),
@@ -253,18 +241,18 @@ class Tests_MG_TransformReduceVFrontierOutgoingEByDst
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
-      handle.get_comms().barrier();
+      handle_->get_comms().barrier();
       hr_clock.start();
     }
 
     auto mg_new_frontier_key_buffer =
-      cugraph::allocate_dataframe_buffer<key_t>(0, handle.get_stream());
+      cugraph::allocate_dataframe_buffer<key_t>(0, handle_->get_stream());
     [[maybe_unused]] auto mg_payload_buffer =
-      cugraph::detail::allocate_optional_payload_buffer<payload_t>(0, handle.get_stream());
+      cugraph::detail::allocate_optional_payload_buffer<payload_t>(0, handle_->get_stream());
 
     if constexpr (std::is_same_v<payload_t, void>) {
       mg_new_frontier_key_buffer = cugraph::transform_reduce_v_frontier_outgoing_e_by_dst(
-        handle,
+        *handle_,
         mg_graph_view,
         mg_vertex_frontier,
         bucket_idx_cur,
@@ -275,7 +263,7 @@ class Tests_MG_TransformReduceVFrontierOutgoingEByDst
     } else {
       std::tie(mg_new_frontier_key_buffer, mg_payload_buffer) =
         cugraph::transform_reduce_v_frontier_outgoing_e_by_dst(
-          handle,
+          *handle_,
           mg_graph_view,
           mg_vertex_frontier,
           bucket_idx_cur,
@@ -287,60 +275,60 @@ class Tests_MG_TransformReduceVFrontierOutgoingEByDst
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
-      handle.get_comms().barrier();
+      handle_->get_comms().barrier();
       double elapsed_time{0.0};
       hr_clock.stop(&elapsed_time);
       std::cout << "MG transform_reduce_v_frontier_outgoing_e_by_dst took " << elapsed_time * 1e-6
                 << " s.\n";
     }
 
-    // 4. compare SG & MG results
+    // 3. compare SG & MG results
 
     if (prims_usecase.check_correctness) {
       auto mg_aggregate_renumber_map_labels = cugraph::test::device_gatherv(
-        handle, (*mg_renumber_map_labels).data(), (*mg_renumber_map_labels).size());
+        *handle_, (*mg_renumber_map_labels).data(), (*mg_renumber_map_labels).size());
 
       auto mg_aggregate_new_frontier_key_buffer =
-        cugraph::allocate_dataframe_buffer<key_t>(0, handle.get_stream());
+        cugraph::allocate_dataframe_buffer<key_t>(0, handle_->get_stream());
       if constexpr (std::is_same_v<key_t, vertex_t>) {
         mg_aggregate_new_frontier_key_buffer = cugraph::test::device_gatherv(
-          handle, mg_new_frontier_key_buffer.data(), mg_new_frontier_key_buffer.size());
+          *handle_, mg_new_frontier_key_buffer.data(), mg_new_frontier_key_buffer.size());
       } else {
         std::get<0>(mg_aggregate_new_frontier_key_buffer) =
-          cugraph::test::device_gatherv(handle,
+          cugraph::test::device_gatherv(*handle_,
                                         std::get<0>(mg_new_frontier_key_buffer).data(),
                                         std::get<0>(mg_new_frontier_key_buffer).size());
         std::get<1>(mg_aggregate_new_frontier_key_buffer) =
-          cugraph::test::device_gatherv(handle,
+          cugraph::test::device_gatherv(*handle_,
                                         std::get<1>(mg_new_frontier_key_buffer).data(),
                                         std::get<1>(mg_new_frontier_key_buffer).size());
       }
 
       [[maybe_unused]] auto mg_aggregate_payload_buffer =
-        cugraph::detail::allocate_optional_payload_buffer<payload_t>(0, handle.get_stream());
+        cugraph::detail::allocate_optional_payload_buffer<payload_t>(0, handle_->get_stream());
       if constexpr (!std::is_same_v<payload_t, void>) {
         if constexpr (std::is_arithmetic_v<payload_t>) {
           mg_aggregate_payload_buffer = cugraph::test::device_gatherv(
-            handle, mg_payload_buffer.data(), mg_payload_buffer.size());
+            *handle_, mg_payload_buffer.data(), mg_payload_buffer.size());
         } else {
           std::get<0>(mg_aggregate_payload_buffer) = cugraph::test::device_gatherv(
-            handle, std::get<0>(mg_payload_buffer).data(), std::get<0>(mg_payload_buffer).size());
+            *handle_, std::get<0>(mg_payload_buffer).data(), std::get<0>(mg_payload_buffer).size());
           std::get<1>(mg_aggregate_payload_buffer) = cugraph::test::device_gatherv(
-            handle, std::get<1>(mg_payload_buffer).data(), std::get<1>(mg_payload_buffer).size());
+            *handle_, std::get<1>(mg_payload_buffer).data(), std::get<1>(mg_payload_buffer).size());
         }
       }
 
-      if (handle.get_comms().get_rank() == int{0}) {
+      if (handle_->get_comms().get_rank() == int{0}) {
         if constexpr (std::is_same_v<key_t, vertex_t>) {
           cugraph::unrenumber_int_vertices<vertex_t, !is_multi_gpu>(
-            handle,
+            *handle_,
             mg_aggregate_new_frontier_key_buffer.begin(),
             mg_aggregate_new_frontier_key_buffer.size(),
             mg_aggregate_renumber_map_labels.data(),
             std::vector<vertex_t>{mg_graph_view.number_of_vertices()});
         } else {
           cugraph::unrenumber_int_vertices<vertex_t, !is_multi_gpu>(
-            handle,
+            *handle_,
             std::get<0>(mg_aggregate_new_frontier_key_buffer).begin(),
             std::get<0>(mg_aggregate_new_frontier_key_buffer).size(),
             mg_aggregate_renumber_map_labels.data(),
@@ -348,56 +336,56 @@ class Tests_MG_TransformReduceVFrontierOutgoingEByDst
         }
 
         if constexpr (std::is_same_v<payload_t, void>) {
-          thrust::sort(handle.get_thrust_policy(),
+          thrust::sort(handle_->get_thrust_policy(),
                        cugraph::get_dataframe_buffer_begin(mg_aggregate_new_frontier_key_buffer),
                        cugraph::get_dataframe_buffer_end(mg_aggregate_new_frontier_key_buffer));
         } else {
           thrust::sort_by_key(
-            handle.get_thrust_policy(),
+            handle_->get_thrust_policy(),
             cugraph::get_dataframe_buffer_begin(mg_aggregate_new_frontier_key_buffer),
             cugraph::get_dataframe_buffer_end(mg_aggregate_new_frontier_key_buffer),
             cugraph::get_dataframe_buffer_begin(mg_aggregate_payload_buffer));
         }
 
         cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed, !is_multi_gpu> sg_graph(
-          handle);
+          *handle_);
         std::tie(sg_graph, std::ignore) = cugraph::test::
           construct_graph<vertex_t, edge_t, weight_t, store_transposed, !is_multi_gpu>(
-            handle, input_usecase, false, false);
+            *handle_, input_usecase, false, false);
         auto sg_graph_view = sg_graph.view();
 
         auto sg_property_buffer = cugraph::allocate_dataframe_buffer<property_t>(
-          sg_graph_view.local_vertex_partition_range_size(), handle.get_stream());
+          sg_graph_view.local_vertex_partition_range_size(), handle_->get_stream());
 
         thrust::transform(
-          handle.get_thrust_policy(),
+          handle_->get_thrust_policy(),
           thrust::make_counting_iterator(vertex_t{0}),
           thrust::make_counting_iterator(sg_graph_view.local_vertex_partition_range_size()),
           cugraph::get_dataframe_buffer_begin(sg_property_buffer),
           property_transform_t<vertex_t, property_t>{hash_bin_count});
 
         cugraph::edge_partition_src_property_t<decltype(sg_graph_view), property_t>
-          sg_src_properties(handle, sg_graph_view);
+          sg_src_properties(*handle_, sg_graph_view);
         cugraph::edge_partition_dst_property_t<decltype(sg_graph_view), property_t>
-          sg_dst_properties(handle, sg_graph_view);
-        update_edge_partition_src_property(handle,
+          sg_dst_properties(*handle_, sg_graph_view);
+        update_edge_partition_src_property(*handle_,
                                            sg_graph_view,
                                            cugraph::get_dataframe_buffer_cbegin(sg_property_buffer),
                                            sg_src_properties);
-        update_edge_partition_dst_property(handle,
+        update_edge_partition_dst_property(*handle_,
                                            sg_graph_view,
                                            cugraph::get_dataframe_buffer_cbegin(sg_property_buffer),
                                            sg_dst_properties);
 
         auto sg_key_buffer = cugraph::allocate_dataframe_buffer<key_t>(
-          sg_graph_view.local_vertex_partition_range_size(), handle.get_stream());
+          sg_graph_view.local_vertex_partition_range_size(), handle_->get_stream());
         if constexpr (std::is_same_v<tag_t, void>) {
-          thrust::sequence(handle.get_thrust_policy(),
+          thrust::sequence(handle_->get_thrust_policy(),
                            cugraph::get_dataframe_buffer_begin(sg_key_buffer),
                            cugraph::get_dataframe_buffer_end(sg_key_buffer),
                            sg_graph_view.local_vertex_partition_range_first());
         } else {
-          thrust::tabulate(handle.get_thrust_policy(),
+          thrust::tabulate(handle_->get_thrust_policy(),
                            cugraph::get_dataframe_buffer_begin(sg_key_buffer),
                            cugraph::get_dataframe_buffer_end(sg_key_buffer),
                            [] __device__(size_t i) {
@@ -407,19 +395,19 @@ class Tests_MG_TransformReduceVFrontierOutgoingEByDst
                            });
         }
 
-        cugraph::vertex_frontier_t<vertex_t, tag_t, !is_multi_gpu> sg_vertex_frontier(handle,
+        cugraph::vertex_frontier_t<vertex_t, tag_t, !is_multi_gpu> sg_vertex_frontier(*handle_,
                                                                                       num_buckets);
         sg_vertex_frontier.bucket(bucket_idx_cur)
           .insert(cugraph::get_dataframe_buffer_begin(sg_key_buffer),
                   cugraph::get_dataframe_buffer_end(sg_key_buffer));
 
         auto sg_new_frontier_key_buffer =
-          cugraph::allocate_dataframe_buffer<key_t>(0, handle.get_stream());
+          cugraph::allocate_dataframe_buffer<key_t>(0, handle_->get_stream());
         [[maybe_unused]] auto sg_payload_buffer =
-          cugraph::detail::allocate_optional_payload_buffer<payload_t>(0, handle.get_stream());
+          cugraph::detail::allocate_optional_payload_buffer<payload_t>(0, handle_->get_stream());
         if constexpr (std::is_same_v<payload_t, void>) {
           sg_new_frontier_key_buffer = cugraph::transform_reduce_v_frontier_outgoing_e_by_dst(
-            handle,
+            *handle_,
             sg_graph_view,
             sg_vertex_frontier,
             bucket_idx_cur,
@@ -430,7 +418,7 @@ class Tests_MG_TransformReduceVFrontierOutgoingEByDst
         } else {
           std::tie(sg_new_frontier_key_buffer, sg_payload_buffer) =
             cugraph::transform_reduce_v_frontier_outgoing_e_by_dst(
-              handle,
+              *handle_,
               sg_graph_view,
               sg_vertex_frontier,
               bucket_idx_cur,
@@ -441,18 +429,18 @@ class Tests_MG_TransformReduceVFrontierOutgoingEByDst
         }
 
         if constexpr (std::is_same_v<payload_t, void>) {
-          thrust::sort(handle.get_thrust_policy(),
+          thrust::sort(handle_->get_thrust_policy(),
                        cugraph::get_dataframe_buffer_begin(sg_new_frontier_key_buffer),
                        cugraph::get_dataframe_buffer_end(sg_new_frontier_key_buffer));
         } else {
-          thrust::sort_by_key(handle.get_thrust_policy(),
+          thrust::sort_by_key(handle_->get_thrust_policy(),
                               cugraph::get_dataframe_buffer_begin(sg_new_frontier_key_buffer),
                               cugraph::get_dataframe_buffer_end(sg_new_frontier_key_buffer),
                               cugraph::get_dataframe_buffer_begin(sg_payload_buffer));
         }
 
         bool key_passed =
-          thrust::equal(handle.get_thrust_policy(),
+          thrust::equal(handle_->get_thrust_policy(),
                         cugraph::get_dataframe_buffer_begin(sg_new_frontier_key_buffer),
                         cugraph::get_dataframe_buffer_end(sg_new_frontier_key_buffer),
                         cugraph::get_dataframe_buffer_begin(mg_aggregate_new_frontier_key_buffer));
@@ -460,7 +448,7 @@ class Tests_MG_TransformReduceVFrontierOutgoingEByDst
 
         if constexpr (!std::is_same_v<payload_t, void>) {
           bool payload_passed =
-            thrust::equal(handle.get_thrust_policy(),
+            thrust::equal(handle_->get_thrust_policy(),
                           cugraph::get_dataframe_buffer_begin(sg_payload_buffer),
                           cugraph::get_dataframe_buffer_begin(sg_payload_buffer),
                           cugraph::get_dataframe_buffer_end(mg_aggregate_payload_buffer));
@@ -469,20 +457,27 @@ class Tests_MG_TransformReduceVFrontierOutgoingEByDst
       }
     }
   }
+
+ private:
+  static std::unique_ptr<raft::handle_t> handle_;
 };
 
-using Tests_MG_TransformReduceVFrontierOutgoingEByDst_File =
-  Tests_MG_TransformReduceVFrontierOutgoingEByDst<cugraph::test::File_Usecase>;
-using Tests_MG_TransformReduceVFrontierOutgoingEByDst_Rmat =
-  Tests_MG_TransformReduceVFrontierOutgoingEByDst<cugraph::test::Rmat_Usecase>;
+template <typename input_usecase_t>
+std::unique_ptr<raft::handle_t>
+  Tests_MGTransformReduceVFrontierOutgoingEByDst<input_usecase_t>::handle_ = nullptr;
 
-TEST_P(Tests_MG_TransformReduceVFrontierOutgoingEByDst_File, CheckInt32Int32FloatVoidVoid)
+using Tests_MGTransformReduceVFrontierOutgoingEByDst_File =
+  Tests_MGTransformReduceVFrontierOutgoingEByDst<cugraph::test::File_Usecase>;
+using Tests_MGTransformReduceVFrontierOutgoingEByDst_Rmat =
+  Tests_MGTransformReduceVFrontierOutgoingEByDst<cugraph::test::Rmat_Usecase>;
+
+TEST_P(Tests_MGTransformReduceVFrontierOutgoingEByDst_File, CheckInt32Int32FloatVoidVoid)
 {
   auto param = GetParam();
   run_current_test<int32_t, int32_t, float, void, void>(std::get<0>(param), std::get<1>(param));
 }
 
-TEST_P(Tests_MG_TransformReduceVFrontierOutgoingEByDst_Rmat, CheckInt32Int32FloatVoidVoid)
+TEST_P(Tests_MGTransformReduceVFrontierOutgoingEByDst_Rmat, CheckInt32Int32FloatVoidVoid)
 {
   auto param = GetParam();
   run_current_test<int32_t, int32_t, float, void, void>(
@@ -490,13 +485,13 @@ TEST_P(Tests_MG_TransformReduceVFrontierOutgoingEByDst_Rmat, CheckInt32Int32Floa
     cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
 
-TEST_P(Tests_MG_TransformReduceVFrontierOutgoingEByDst_File, CheckInt32Int32FloatVoidInt32)
+TEST_P(Tests_MGTransformReduceVFrontierOutgoingEByDst_File, CheckInt32Int32FloatVoidInt32)
 {
   auto param = GetParam();
   run_current_test<int32_t, int32_t, float, void, int32_t>(std::get<0>(param), std::get<1>(param));
 }
 
-TEST_P(Tests_MG_TransformReduceVFrontierOutgoingEByDst_Rmat, CheckInt32Int32FloatVoidInt32)
+TEST_P(Tests_MGTransformReduceVFrontierOutgoingEByDst_Rmat, CheckInt32Int32FloatVoidInt32)
 {
   auto param = GetParam();
   run_current_test<int32_t, int32_t, float, void, int32_t>(
@@ -504,16 +499,14 @@ TEST_P(Tests_MG_TransformReduceVFrontierOutgoingEByDst_Rmat, CheckInt32Int32Floa
     cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
 
-TEST_P(Tests_MG_TransformReduceVFrontierOutgoingEByDst_File,
-       CheckInt32Int32FloatVoidTupleFloatInt32)
+TEST_P(Tests_MGTransformReduceVFrontierOutgoingEByDst_File, CheckInt32Int32FloatVoidTupleFloatInt32)
 {
   auto param = GetParam();
   run_current_test<int32_t, int32_t, float, void, thrust::tuple<float, int32_t>>(
     std::get<0>(param), std::get<1>(param));
 }
 
-TEST_P(Tests_MG_TransformReduceVFrontierOutgoingEByDst_Rmat,
-       CheckInt32Int32FloatVoidTupleFloatInt32)
+TEST_P(Tests_MGTransformReduceVFrontierOutgoingEByDst_Rmat, CheckInt32Int32FloatVoidTupleFloatInt32)
 {
   auto param = GetParam();
   run_current_test<int32_t, int32_t, float, void, thrust::tuple<float, int32_t>>(
@@ -521,13 +514,13 @@ TEST_P(Tests_MG_TransformReduceVFrontierOutgoingEByDst_Rmat,
     cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
 
-TEST_P(Tests_MG_TransformReduceVFrontierOutgoingEByDst_File, CheckInt32Int32FloatInt32Void)
+TEST_P(Tests_MGTransformReduceVFrontierOutgoingEByDst_File, CheckInt32Int32FloatInt32Void)
 {
   auto param = GetParam();
   run_current_test<int32_t, int32_t, float, int32_t, void>(std::get<0>(param), std::get<1>(param));
 }
 
-TEST_P(Tests_MG_TransformReduceVFrontierOutgoingEByDst_Rmat, CheckInt32Int32FloatInt32Void)
+TEST_P(Tests_MGTransformReduceVFrontierOutgoingEByDst_Rmat, CheckInt32Int32FloatInt32Void)
 {
   auto param = GetParam();
   run_current_test<int32_t, int32_t, float, int32_t, void>(
@@ -535,14 +528,14 @@ TEST_P(Tests_MG_TransformReduceVFrontierOutgoingEByDst_Rmat, CheckInt32Int32Floa
     cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
 
-TEST_P(Tests_MG_TransformReduceVFrontierOutgoingEByDst_File, CheckInt32Int32FloatInt32Int32)
+TEST_P(Tests_MGTransformReduceVFrontierOutgoingEByDst_File, CheckInt32Int32FloatInt32Int32)
 {
   auto param = GetParam();
   run_current_test<int32_t, int32_t, float, int32_t, int32_t>(std::get<0>(param),
                                                               std::get<1>(param));
 }
 
-TEST_P(Tests_MG_TransformReduceVFrontierOutgoingEByDst_Rmat, CheckInt32Int32FloatInt32Int32)
+TEST_P(Tests_MGTransformReduceVFrontierOutgoingEByDst_Rmat, CheckInt32Int32FloatInt32Int32)
 {
   auto param = GetParam();
   run_current_test<int32_t, int32_t, float, int32_t, int32_t>(
@@ -550,7 +543,7 @@ TEST_P(Tests_MG_TransformReduceVFrontierOutgoingEByDst_Rmat, CheckInt32Int32Floa
     cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
 
-TEST_P(Tests_MG_TransformReduceVFrontierOutgoingEByDst_File,
+TEST_P(Tests_MGTransformReduceVFrontierOutgoingEByDst_File,
        CheckInt32Int32FloatInt32TupleFloatInt32)
 {
   auto param = GetParam();
@@ -558,7 +551,7 @@ TEST_P(Tests_MG_TransformReduceVFrontierOutgoingEByDst_File,
     std::get<0>(param), std::get<1>(param));
 }
 
-TEST_P(Tests_MG_TransformReduceVFrontierOutgoingEByDst_Rmat,
+TEST_P(Tests_MGTransformReduceVFrontierOutgoingEByDst_Rmat,
        CheckInt32Int32FloatInt32TupleFloatInt32)
 {
   auto param = GetParam();
@@ -567,14 +560,14 @@ TEST_P(Tests_MG_TransformReduceVFrontierOutgoingEByDst_Rmat,
     cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
 
-TEST_P(Tests_MG_TransformReduceVFrontierOutgoingEByDst_File, CheckInt32Int64FloatInt32Int32)
+TEST_P(Tests_MGTransformReduceVFrontierOutgoingEByDst_File, CheckInt32Int64FloatInt32Int32)
 {
   auto param = GetParam();
   run_current_test<int32_t, int64_t, float, int32_t, int32_t>(std::get<0>(param),
                                                               std::get<1>(param));
 }
 
-TEST_P(Tests_MG_TransformReduceVFrontierOutgoingEByDst_Rmat, CheckInt32Int64FloatInt32Int32)
+TEST_P(Tests_MGTransformReduceVFrontierOutgoingEByDst_Rmat, CheckInt32Int64FloatInt32Int32)
 {
   auto param = GetParam();
   run_current_test<int32_t, int64_t, float, int32_t, int32_t>(
@@ -582,14 +575,14 @@ TEST_P(Tests_MG_TransformReduceVFrontierOutgoingEByDst_Rmat, CheckInt32Int64Floa
     cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
 
-TEST_P(Tests_MG_TransformReduceVFrontierOutgoingEByDst_File, CheckInt64Int64FloatInt32Int32)
+TEST_P(Tests_MGTransformReduceVFrontierOutgoingEByDst_File, CheckInt64Int64FloatInt32Int32)
 {
   auto param = GetParam();
   run_current_test<int64_t, int64_t, float, int32_t, int32_t>(std::get<0>(param),
                                                               std::get<1>(param));
 }
 
-TEST_P(Tests_MG_TransformReduceVFrontierOutgoingEByDst_Rmat, CheckInt64Int64FloatInt32Int32)
+TEST_P(Tests_MGTransformReduceVFrontierOutgoingEByDst_Rmat, CheckInt64Int64FloatInt32Int32)
 {
   auto param = GetParam();
   run_current_test<int64_t, int64_t, float, int32_t, int32_t>(
@@ -599,7 +592,7 @@ TEST_P(Tests_MG_TransformReduceVFrontierOutgoingEByDst_Rmat, CheckInt64Int64Floa
 
 INSTANTIATE_TEST_SUITE_P(
   file_test,
-  Tests_MG_TransformReduceVFrontierOutgoingEByDst_File,
+  Tests_MGTransformReduceVFrontierOutgoingEByDst_File,
   ::testing::Combine(
     ::testing::Values(Prims_Usecase{true}),
     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
@@ -609,7 +602,7 @@ INSTANTIATE_TEST_SUITE_P(
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_small_test,
-  Tests_MG_TransformReduceVFrontierOutgoingEByDst_Rmat,
+  Tests_MGTransformReduceVFrontierOutgoingEByDst_Rmat,
   ::testing::Combine(::testing::Values(Prims_Usecase{true}),
                      ::testing::Values(cugraph::test::Rmat_Usecase(
                        10, 16, 0.57, 0.19, 0.19, 0, false, false, 0, true))));
@@ -620,7 +613,7 @@ INSTANTIATE_TEST_SUITE_P(
                           vertex & edge type combination) by command line arguments and do not
                           include more than one Rmat_Usecase that differ only in scale or edge
                           factor (to avoid running same benchmarks more than once) */
-  Tests_MG_TransformReduceVFrontierOutgoingEByDst_Rmat,
+  Tests_MGTransformReduceVFrontierOutgoingEByDst_Rmat,
   ::testing::Combine(::testing::Values(Prims_Usecase{false}),
                      ::testing::Values(cugraph::test::Rmat_Usecase(
                        20, 32, 0.57, 0.19, 0.19, 0, false, false, 0, true))));

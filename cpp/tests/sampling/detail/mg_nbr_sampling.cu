@@ -15,16 +15,19 @@
  */
 
 #include "nbr_sampling_utils.cuh"
+
 #include <sampling/nbr_sampling_impl.cuh>
+
+#include <utilities/mg_utilities.hpp>
 
 #include <raft/comms/comms.hpp>
 #include <raft/comms/mpi_comms.hpp>
 
-#include <gtest/gtest.h>
-
 #include <thrust/fill.h>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/tuple.h>
+
+#include <gtest/gtest.h>
 
 struct Prims_Usecase {
   bool check_correctness{true};
@@ -32,12 +35,14 @@ struct Prims_Usecase {
 };
 
 template <typename input_usecase_t>
-class Tests_MG_Nbr_Sampling
+class Tests_MGNbrSampling
   : public ::testing::TestWithParam<std::tuple<Prims_Usecase, input_usecase_t>> {
  public:
-  Tests_MG_Nbr_Sampling() {}
-  static void SetupTestCase() {}
-  static void TearDownTestCase() {}
+  Tests_MGNbrSampling() {}
+
+  static void SetUpTestCase() { handle_ = cugraph::test::initialize_mg_handle(); }
+
+  static void TearDownTestCase() { handle_.reset(); }
 
   virtual void SetUp() {}
   virtual void TearDown() {}
@@ -45,31 +50,15 @@ class Tests_MG_Nbr_Sampling
   template <typename vertex_t, typename edge_t, typename weight_t>
   void run_current_test(Prims_Usecase const& prims_usecase, input_usecase_t const& input_usecase)
   {
-    using namespace cugraph::test;
     using gpu_t = int;
 
-    // 1. initialize handle
-
-    raft::handle_t handle{};
     HighResClock hr_clock{};
 
-    raft::comms::initialize_mpi_comms(&handle, MPI_COMM_WORLD);
-    auto& comm           = handle.get_comms();
-    auto const comm_size = comm.get_size();
-    auto const comm_rank = comm.get_rank();
-
-    auto row_comm_size = static_cast<int>(sqrt(static_cast<double>(comm_size)));
-    while (comm_size % row_comm_size != 0) {
-      --row_comm_size;
-    }
-    cugraph::partition_2d::subcomm_factory_t<cugraph::partition_2d::key_naming_t, vertex_t>
-      subcomm_factory(handle, row_comm_size);
-
-    // 2. create MG graph
+    // 1. create MG graph
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
-      handle.get_comms().barrier();
+      handle_->get_comms().barrier();
       hr_clock.start();
     }
 
@@ -77,11 +66,11 @@ class Tests_MG_Nbr_Sampling
 
     auto [mg_graph, mg_renumber_map_labels] =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, true>(
-        handle, input_usecase, true, true, false, sort_adjacency_list);
+        *handle_, input_usecase, true, true, false, sort_adjacency_list);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
-      handle.get_comms().barrier();
+      handle_->get_comms().barrier();
       double elapsed_time{0.0};
       hr_clock.stop(&elapsed_time);
       std::cout << "MG construct_graph took " << elapsed_time * 1e-6 << " s.\n";
@@ -95,13 +84,13 @@ class Tests_MG_Nbr_Sampling
     // Generate random vertex ids in the range of current gpu
 
     // Generate random sources to gather on
-    auto random_sources = random_vertex_ids(handle,
+    auto random_sources = random_vertex_ids(*handle_,
                                             mg_graph_view.local_vertex_partition_range_first(),
                                             mg_graph_view.local_vertex_partition_range_last(),
                                             source_sample_count,
                                             repetitions_per_vertex);
-    rmm::device_uvector<gpu_t> random_source_gpu_ids(random_sources.size(), handle.get_stream());
-    thrust::fill(handle.get_thrust_policy(),
+    rmm::device_uvector<gpu_t> random_source_gpu_ids(random_sources.size(), handle_->get_stream());
+    thrust::fill(handle_->get_thrust_policy(),
                  random_source_gpu_ids.begin(),
                  random_source_gpu_ids.end(),
                  comm_rank);
@@ -116,9 +105,9 @@ class Tests_MG_Nbr_Sampling
     // gather input:
     //
     auto&& [tuple_vertex_ranks, counts] = cugraph::detail::original::shuffle_to_gpus(
-      handle, mg_graph_view, begin_in_pairs, end_in_pairs, gpu_t{});
+      *handle_, mg_graph_view, begin_in_pairs, end_in_pairs, gpu_t{});
 
-    auto&& [tuple_quad, v_sizes] = cugraph::uniform_nbr_sample(handle,
+    auto&& [tuple_quad, v_sizes] = cugraph::uniform_nbr_sample(*handle_,
                                                                mg_graph_view,
                                                                random_sources.begin(),
                                                                random_source_gpu_ids.begin(),
@@ -131,7 +120,7 @@ class Tests_MG_Nbr_Sampling
     auto&& d_gpu_ids = std::get<2>(tuple_quad);
 
     if (prims_usecase.check_correctness) {
-      auto self_rank = handle.get_comms().get_rank();
+      auto self_rank = handle_->get_comms().get_rank();
 
       // bring inputs and outputs on one rank
       // and check if test passed:
@@ -170,7 +159,7 @@ class Tests_MG_Nbr_Sampling
           auto start_offset_in = coalesced_in.cbegin() + offset;
 
           raft::update_host(
-            v_per_rank.data(), start_offset_in, static_cast<size_t>(count), handle.get_stream());
+            v_per_rank.data(), start_offset_in, static_cast<size_t>(count), handle_->get_stream());
 
           accumulator.insert(accumulator.begin() + offset, v_per_rank.begin(), v_per_rank.end());
         };
@@ -206,43 +195,49 @@ class Tests_MG_Nbr_Sampling
       }
     }
   }
+
+ private:
+  static std::unique_ptr<raft::handle_t> handle_;
 };
 
-using Tests_MG_Nbr_Sampling_File = Tests_MG_Nbr_Sampling<cugraph::test::File_Usecase>;
+template <typename input_usecase_t>
+std::unique_ptr<raft::handle_t> Tests_MGNbrSampling<input_usecase_t>::handle_ = nullptr;
 
-using Tests_MG_Nbr_Sampling_Rmat = Tests_MG_Nbr_Sampling<cugraph::test::Rmat_Usecase>;
+using Tests_MGNbrSampling_File = Tests_MGNbrSampling<cugraph::test::File_Usecase>;
 
-TEST_P(Tests_MG_Nbr_Sampling_File, CheckInt32Int32Float)
+using Tests_MGNbrSampling_Rmat = Tests_MGNbrSampling<cugraph::test::Rmat_Usecase>;
+
+TEST_P(Tests_MGNbrSampling_File, CheckInt32Int32Float)
 {
   auto param = GetParam();
   run_current_test<int32_t, int32_t, float>(std::get<0>(param), std::get<1>(param));
 }
 
-TEST_P(Tests_MG_Nbr_Sampling_File, CheckInt32Int64Float)
+TEST_P(Tests_MGNbrSampling_File, CheckInt32Int64Float)
 {
   auto param = GetParam();
   run_current_test<int32_t, int64_t, float>(std::get<0>(param), std::get<1>(param));
 }
 
-TEST_P(Tests_MG_Nbr_Sampling_File, CheckInt64Int64Float)
+TEST_P(Tests_MGNbrSampling_File, CheckInt64Int64Float)
 {
   auto param = GetParam();
   run_current_test<int64_t, int64_t, float>(std::get<0>(param), std::get<1>(param));
 }
 
-TEST_P(Tests_MG_Nbr_Sampling_Rmat, CheckInt32Int32Float)
+TEST_P(Tests_MGNbrSampling_Rmat, CheckInt32Int32Float)
 {
   auto param = GetParam();
   run_current_test<int32_t, int32_t, float>(std::get<0>(param), std::get<1>(param));
 }
 
-TEST_P(Tests_MG_Nbr_Sampling_Rmat, CheckInt32Int64Float)
+TEST_P(Tests_MGNbrSampling_Rmat, CheckInt32Int64Float)
 {
   auto param = GetParam();
   run_current_test<int32_t, int64_t, float>(std::get<0>(param), std::get<1>(param));
 }
 
-TEST_P(Tests_MG_Nbr_Sampling_Rmat, CheckInt64Int64Float)
+TEST_P(Tests_MGNbrSampling_Rmat, CheckInt64Int64Float)
 {
   auto param = GetParam();
   run_current_test<int64_t, int64_t, float>(std::get<0>(param), std::get<1>(param));
@@ -250,7 +245,7 @@ TEST_P(Tests_MG_Nbr_Sampling_Rmat, CheckInt64Int64Float)
 
 INSTANTIATE_TEST_SUITE_P(
   file_test,
-  Tests_MG_Nbr_Sampling_File,
+  Tests_MGNbrSampling_File,
   ::testing::Combine(
     ::testing::Values(Prims_Usecase{true, true}, Prims_Usecase{true, false}),
     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
@@ -260,7 +255,7 @@ INSTANTIATE_TEST_SUITE_P(
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_small_test,
-  Tests_MG_Nbr_Sampling_Rmat,
+  Tests_MGNbrSampling_Rmat,
   ::testing::Combine(::testing::Values(Prims_Usecase{false, true}),
                      ::testing::Values(cugraph::test::Rmat_Usecase(
                        10, 16, 0.57, 0.19, 0.19, 0, false, false, 0, true))));
@@ -271,7 +266,7 @@ INSTANTIATE_TEST_SUITE_P(
                           vertex & edge type combination) by command line arguments and do not
                           include more than one Rmat_Usecase that differ only in scale or edge
                           factor (to avoid running same benchmarks more than once) */
-  Tests_MG_Nbr_Sampling_Rmat,
+  Tests_MGNbrSampling_Rmat,
   ::testing::Combine(::testing::Values(Prims_Usecase{false, true}),
                      ::testing::Values(cugraph::test::Rmat_Usecase(
                        20, 32, 0.57, 0.19, 0.19, 0, false, false, 0, true))));
