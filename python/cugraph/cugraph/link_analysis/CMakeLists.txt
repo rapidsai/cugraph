@@ -20,11 +20,6 @@ rapids_cython_create_modules(
   LINKED_LIBRARIES "${linked_libraries}" MODULE_PREFIX link_analysis_
 )
 
-set(targets_using_numpy link_analysis_pagerank_wrapper)
-foreach(target IN LISTS targets_using_numpy)
-  target_include_directories(${target} PRIVATE "${Python_NumPy_INCLUDE_DIRS}")
-endforeach()
-
 foreach(cython_module IN LISTS RAPIDS_CYTHON_CREATED_TARGETS)
   set_target_properties(${cython_module} PROPERTIES INSTALL_RPATH "\$ORIGIN;\$ORIGIN/../library")
 endforeach()
