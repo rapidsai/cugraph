@@ -88,7 +88,8 @@ class Tests_WeaklyConnectedComponent
       std::tuple<WeaklyConnectedComponents_Usecase, input_usecase_t>> {
  public:
   Tests_WeaklyConnectedComponent() {}
-  static void SetupTestCase() {}
+
+  static void SetUpTestCase() {}
   static void TearDownTestCase() {}
 
   virtual void SetUp() {}

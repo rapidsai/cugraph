@@ -19,6 +19,7 @@
 #include <utilities/base_fixture.hpp>
 #include <utilities/device_comm_wrapper.hpp>
 #include <utilities/high_res_clock.h>
+#include <utilities/mg_utilities.hpp>
 #include <utilities/test_utilities.hpp>
 
 #include <cugraph/algorithms.hpp>
@@ -63,11 +64,12 @@ struct Louvain_Usecase {
 // expected outputs, so the entire test is defined in the run_test() method.
 //
 template <typename input_usecase_t>
-class Tests_MG_Louvain
+class Tests_MGLouvain
   : public ::testing::TestWithParam<std::tuple<Louvain_Usecase, input_usecase_t>> {
  public:
-  static void SetUpTestCase() {}
-  static void TearDownTestCase() {}
+  static void SetUpTestCase() { handle_ = cugraph::test::initialize_mg_handle(); }
+
+  static void TearDownTestCase() { handle_.reset(); }
 
   // Run once for each test instance
   virtual void SetUp() {}
@@ -87,7 +89,7 @@ class Tests_MG_Louvain
   {
     auto sg_graph =
       std::make_unique<cugraph::graph_t<vertex_t, edge_t, weight_t, false, false>>(handle);
-    rmm::device_uvector<vertex_t> d_clustering_v(0, handle.get_stream());
+    rmm::device_uvector<vertex_t> d_clustering_v(0, handle_->get_stream());
     weight_t sg_modularity{-1.0};
 
     if (rank == 0) {
@@ -102,7 +104,7 @@ class Tests_MG_Louvain
         input_usecase.template construct_edgelist<vertex_t, edge_t, weight_t, false, false>(handle,
                                                                                             true);
 
-      d_clustering_v.resize(d_vertices.size(), handle.get_stream());
+      d_clustering_v.resize(d_vertices.size(), handle_->get_stream());
 
       // renumber using d_renumber_map_gathered_v
       cugraph::test::single_gpu_renumber_edgelist_given_number_map(
@@ -130,7 +132,7 @@ class Tests_MG_Louvain
         if (rank == 0) {
           auto graph_view = sg_graph->view();
 
-          d_clustering_v.resize(graph_view.number_of_vertices(), handle.get_stream());
+          d_clustering_v.resize(graph_view.number_of_vertices(), handle_->get_stream());
 
           std::tie(std::ignore, sg_modularity) =
             cugraph::louvain(handle, graph_view, d_clustering_v.data(), size_t{1}, resolution);
@@ -156,37 +158,21 @@ class Tests_MG_Louvain
   {
     auto [louvain_usecase, input_usecase] = param;
 
-    auto constexpr pool_size = 64;  // FIXME: tuning parameter
-    raft::handle_t handle(rmm::cuda_stream_per_thread,
-                          std::make_shared<rmm::cuda_stream_pool>(pool_size));
     HighResClock hr_clock{};
-
-    raft::comms::initialize_mpi_comms(&handle, MPI_COMM_WORLD);
-    const auto& comm     = handle.get_comms();
-    auto const comm_size = comm.get_size();
-    auto const comm_rank = comm.get_rank();
-
-    auto row_comm_size = static_cast<int>(sqrt(static_cast<double>(comm_size)));
-    while (comm_size % row_comm_size != 0) {
-      --row_comm_size;
-    }
-
-    cugraph::partition_2d::subcomm_factory_t<cugraph::partition_2d::key_naming_t, vertex_t>
-      subcomm_factory(handle, row_comm_size);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
-      handle.get_comms().barrier();
+      handle_->get_comms().barrier();
       hr_clock.start();
     }
 
     auto [mg_graph, d_renumber_map_labels] =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, true>(
-        handle, input_usecase, true, true);
+        *handle_, input_usecase, true, true);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
-      handle.get_comms().barrier();
+      handle_->get_comms().barrier();
       double elapsed_time{0.0};
       hr_clock.stop(&elapsed_time);
       std::cout << "MG construct_graph took " << elapsed_time * 1e-6 << " s.\n";
@@ -196,16 +182,16 @@ class Tests_MG_Louvain
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
-      handle.get_comms().barrier();
+      handle_->get_comms().barrier();
       hr_clock.start();
     }
 
     auto [dendrogram, mg_modularity] = cugraph::louvain(
-      handle, mg_graph_view, louvain_usecase.max_level_, louvain_usecase.resolution_);
+      *handle_, mg_graph_view, louvain_usecase.max_level_, louvain_usecase.resolution_);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
-      handle.get_comms().barrier();
+      handle_->get_comms().barrier();
       double elapsed_time{0.0};
       hr_clock.stop(&elapsed_time);
       std::cout << "MG Louvain took " << elapsed_time * 1e-6 << " s.\n";
@@ -215,44 +201,50 @@ class Tests_MG_Louvain
       SCOPED_TRACE("compare modularity input");
 
       auto d_renumber_map_gathered_v = cugraph::test::device_gatherv(
-        handle, (*d_renumber_map_labels).data(), (*d_renumber_map_labels).size());
+        *handle_, (*d_renumber_map_labels).data(), (*d_renumber_map_labels).size());
 
-      compare_sg_results<vertex_t, edge_t, weight_t>(handle,
+      compare_sg_results<vertex_t, edge_t, weight_t>(*handle_,
                                                      input_usecase,
                                                      d_renumber_map_gathered_v,
                                                      *dendrogram,
                                                      louvain_usecase.resolution_,
-                                                     comm_rank,
+                                                     handle_->get_comms().get_rank(),
                                                      mg_modularity);
     }
   }
+
+ private:
+  static std::unique_ptr<raft::handle_t> handle_;
 };
 
-////////////////////////////////////////////////////////////////////////////////
-using Tests_MG_Louvain_File   = Tests_MG_Louvain<cugraph::test::File_Usecase>;
-using Tests_MG_Louvain_File64 = Tests_MG_Louvain<cugraph::test::File_Usecase>;
-using Tests_MG_Louvain_Rmat   = Tests_MG_Louvain<cugraph::test::Rmat_Usecase>;
-using Tests_MG_Louvain_Rmat64 = Tests_MG_Louvain<cugraph::test::Rmat_Usecase>;
+template <typename input_usecase_t>
+std::unique_ptr<raft::handle_t> Tests_MGLouvain<input_usecase_t>::handle_ = nullptr;
 
-TEST_P(Tests_MG_Louvain_File, CheckInt32Int32Float)
+////////////////////////////////////////////////////////////////////////////////
+using Tests_MGLouvain_File   = Tests_MGLouvain<cugraph::test::File_Usecase>;
+using Tests_MGLouvain_File64 = Tests_MGLouvain<cugraph::test::File_Usecase>;
+using Tests_MGLouvain_Rmat   = Tests_MGLouvain<cugraph::test::Rmat_Usecase>;
+using Tests_MGLouvain_Rmat64 = Tests_MGLouvain<cugraph::test::Rmat_Usecase>;
+
+TEST_P(Tests_MGLouvain_File, CheckInt32Int32Float)
 {
   run_current_test<int32_t, int32_t, float>(
     override_File_Usecase_with_cmd_line_arguments(GetParam()));
 }
 
-TEST_P(Tests_MG_Louvain_File64, CheckInt64Int64Float)
+TEST_P(Tests_MGLouvain_File64, CheckInt64Int64Float)
 {
   run_current_test<int64_t, int64_t, float>(
     override_File_Usecase_with_cmd_line_arguments(GetParam()));
 }
 
-TEST_P(Tests_MG_Louvain_Rmat, CheckInt32Int32Float)
+TEST_P(Tests_MGLouvain_Rmat, CheckInt32Int32Float)
 {
   run_current_test<int32_t, int32_t, float>(
     override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
 }
 
-TEST_P(Tests_MG_Louvain_Rmat64, CheckInt64Int64Float)
+TEST_P(Tests_MGLouvain_Rmat64, CheckInt64Int64Float)
 {
   run_current_test<int64_t, int64_t, float>(
     override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
@@ -260,7 +252,7 @@ TEST_P(Tests_MG_Louvain_Rmat64, CheckInt64Int64Float)
 
 INSTANTIATE_TEST_SUITE_P(
   simple_file_test,
-  Tests_MG_Louvain_File,
+  Tests_MGLouvain_File,
   ::testing::Combine(
     // enable correctness checks for small graphs
     ::testing::Values(Louvain_Usecase{100, 1, true}),
@@ -269,7 +261,7 @@ INSTANTIATE_TEST_SUITE_P(
 
 INSTANTIATE_TEST_SUITE_P(
   simple_rmat_test,
-  Tests_MG_Louvain_Rmat,
+  Tests_MGLouvain_Rmat,
   ::testing::Combine(
     // enable correctness checks for small graphs
     ::testing::Values(Louvain_Usecase{}),
@@ -281,7 +273,7 @@ INSTANTIATE_TEST_SUITE_P(
                           vertex & edge type combination) by command line arguments and do not
                           include more than one File_Usecase that differ only in filename
                           (to avoid running same benchmarks more than once) */
-  Tests_MG_Louvain_File,
+  Tests_MGLouvain_File,
   ::testing::Combine(
     // disable correctness checks for large graphs
     ::testing::Values(Louvain_Usecase{}),
@@ -293,7 +285,7 @@ INSTANTIATE_TEST_SUITE_P(
                           vertex & edge type combination) by command line arguments and do not
                           include more than one File_Usecase that differ only in filename
                           (to avoid running same benchmarks more than once) */
-  Tests_MG_Louvain_File64,
+  Tests_MGLouvain_File64,
   ::testing::Combine(
     // disable correctness checks for large graphs
     ::testing::Values(Louvain_Usecase{}),
@@ -305,7 +297,7 @@ INSTANTIATE_TEST_SUITE_P(
                           vertex & edge type combination) by command line arguments and do not
                           include more than one Rmat_Usecase that differ only in scale or edge
                           factor (to avoid running same benchmarks more than once) */
-  Tests_MG_Louvain_Rmat,
+  Tests_MGLouvain_Rmat,
   ::testing::Combine(
     // disable correctness checks for large graphs
     ::testing::Values(Louvain_Usecase{}),
@@ -318,7 +310,7 @@ INSTANTIATE_TEST_SUITE_P(
                           vertex & edge type combination) by command line arguments and do not
                           include more than one Rmat_Usecase that differ only in scale or edge
                           factor (to avoid running same benchmarks more than once) */
-  Tests_MG_Louvain_Rmat64,
+  Tests_MGLouvain_Rmat64,
   ::testing::Combine(
     // disable correctness checks for large graphs
     ::testing::Values(Louvain_Usecase{}),

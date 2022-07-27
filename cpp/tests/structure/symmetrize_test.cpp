@@ -176,7 +176,8 @@ class Tests_Symmetrize
   : public ::testing::TestWithParam<std::tuple<Symmetrize_Usecase, input_usecase_t>> {
  public:
   Tests_Symmetrize() {}
-  static void SetupTestCase() {}
+
+  static void SetUpTestCase() {}
   static void TearDownTestCase() {}
 
   virtual void SetUp() {}
