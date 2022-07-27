@@ -74,7 +74,7 @@ cmdclass["build_ext"] = build_ext
 PACKAGE_DATA = {
     key: ["*.pxd"] for key in find_packages(include=["cugraph*"])}
 
-PACKAGE_DATA['cugraph'].extend(
+PACKAGE_DATA['cugraph.experimental.datasets'].extend(
     ['cugraph/experimental/datasets/metadata/*.yaml',
      'cugraph/experimental/datasets/*.yaml'])
 
