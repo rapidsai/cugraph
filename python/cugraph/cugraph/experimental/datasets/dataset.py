@@ -64,7 +64,6 @@ class Dataset:
         The metadata file for the specific graph dataset, which includes
         information on the name, type, url link, data loading format, graph
         properties
-
     """
     def __init__(self, meta_data_file_name):
         with open(meta_data_file_name, 'r') as file:
@@ -118,22 +117,35 @@ class Dataset:
 
         return self._edgelist
 
-    def get_graph(self, fetch=False):
+    def get_graph(self, fetch=False, default_direction=True, weights=True):
         """
         Return a Graph object.
 
         Parameters
         ----------
         fetch : Boolean (default=False)
-            Automatically fetch for the dataset from the 'url' location within
-            the YAML file.
+            Downloads the dataset from the web.
+
+        default_direction : Boolean (defalut=True)
+            Follow the default 'directed' attribute of the dataset. If
+            False, it will return the undirected version of the graph.
+
+        weights : Boolean (default=True)
+            Include weights.
         """
         if self._edgelist is None:
             self.get_edgelist(fetch)
 
         self._graph = cugraph.Graph(directed=self.metadata['is_directed'])
-        self._graph.from_cudf_edgelist(self._edgelist, source='src',
-                                       destination='dst')
+        if (len(self.metadata['col_names']) > 2 and weights):
+            self._graph.from_cudf_edgelist(self._edgelist, source='src',
+                                           destination='dst', edge_attr='wgt')
+        else:
+            self._graph.from_cudf_edgelist(self._edgelist, source='src',
+                                           destination='dst')
+
+        if not default_direction:
+            self._graph = self._graph.to_undirected()
 
         return self._graph
 

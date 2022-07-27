@@ -37,15 +37,20 @@ small_line = Dataset(meta_path / "small_line.yaml")
 small_tree = Dataset(meta_path / "small_tree.yaml")
 
 
-# LARGE DATASETS
-LARGE_DATASETS = [cyber]
+MEDIUM_DATASETS = [polbooks]
 
-# <10,000 lines
-MEDIUM_DATASETS = [netscience, polbooks]
+SMALL_DATASETS = [karate, dolphins, netscience]
 
-# <500 lines
-SMALL_DATASETS = [karate, small_line, small_tree, dolphins]
+RLY_SMALL_DATASETS = [small_line, small_tree]
 
-# ALL
-ALL_DATASETS = [karate, dolphins, netscience, polbooks, cyber,
+ALL_DATASETS = [karate, dolphins, netscience, polbooks,
                 small_line, small_tree]
+
+ALL_DATASETS_WGT = [dolphins, netscience, polbooks,
+                    small_line, small_tree]
+
+TEST_GROUP = [dolphins, netscience]
+
+DATASETS_KTRUSS = [polbooks]
+
+DATASETS_UNDIRECTED = [karate, dolphins]
