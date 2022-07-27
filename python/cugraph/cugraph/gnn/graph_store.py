@@ -248,8 +248,11 @@ class CuGraphStore:
                 columns={"sources": src_n, "destinations": dst_n}, inplace=True
             )
 
+<<<<<<< HEAD
         # FIXME: Remove once below lands
         # https://github.com/rapidsai/cugraph/issues/2444
+=======
+>>>>>>> working sampling code with tests
         edge_df = self.gdata._edge_prop_dataframe[[src_n, dst_n, eid_n]]
         sampled_df = edge_df.merge(sampled_df)
 
@@ -261,8 +264,11 @@ class CuGraphStore:
 
     @cached_property
     def extracted_reverse_subgraph_without_renumbering(self):
+<<<<<<< HEAD
         # TODO: Switch to extract_subgraph based on response on
         # https://github.com/rapidsai/cugraph/issues/2458
+=======
+>>>>>>> working sampling code with tests
         subset_df = self.gdata._edge_prop_dataframe[[src_n, dst_n]]
         subset_df.rename(columns={src_n: dst_n, dst_n: src_n}, inplace=True)
         subset_df["weight"] = cp.float32(1.0)
@@ -272,16 +278,33 @@ class CuGraphStore:
             source=src_n,
             destination=dst_n,
             edge_attr="weight",
+<<<<<<< HEAD
             legacy_renum_only=True,
+=======
+            renumber=False,
+>>>>>>> working sampling code with tests
         )
         return subgraph
 
     @cached_property
     def extracted_subgraph_without_renumbering(self):
+<<<<<<< HEAD
         gr_template = cugraph.Graph(directed=True)
         subgraph = self.gdata.extract_subgraph(create_using=gr_template,
                                                default_edge_weight=1.0,
                                                renumber_graph=True)
+=======
+        subset_df = self.gdata._edge_prop_dataframe[[src_n, dst_n]]
+        subset_df["weight"] = cp.float32(1.0)
+        subgraph = cugraph.Graph(directed=True)
+        subgraph.from_cudf_edgelist(
+            subset_df,
+            source=src_n,
+            destination=dst_n,
+            edge_attr="weight",
+            renumber=False,
+        )
+>>>>>>> working sampling code with tests
         return subgraph
 
     def find_edges(self, edge_ids_cap, etype):
@@ -303,11 +326,16 @@ class CuGraphStore:
         """
         edge_ids = cudf.from_dlpack(edge_ids_cap)
 
+<<<<<<< HEAD
         # FIXME: Remove once below lands
         # https://github.com/rapidsai/cugraph/issues/2444
         edge_df = self.gdata._edge_prop_dataframe[[src_n, dst_n,
                                                    eid_n, type_n]]
 
+=======
+        edge_df = self.gdata._edge_prop_dataframe[[src_n, dst_n,
+                                                   eid_n, type_n]]
+>>>>>>> working sampling code with tests
         subset_df = get_subset_df(
             edge_df, PropertyGraph.edge_id_col_name, edge_ids, etype
         )
