@@ -16,6 +16,7 @@
 
 #include <utilities/base_fixture.hpp>
 #include <utilities/high_res_clock.h>
+#include <utilities/mg_utilities.hpp>
 #include <utilities/test_graphs.hpp>
 #include <utilities/test_utilities.hpp>
 #include <utilities/thrust_wrapper.hpp>
@@ -83,11 +84,13 @@ struct Node2VecRandomWalks_Usecase {
 };
 
 template <typename tuple_t>
-class Tests_RandomWalks : public ::testing::TestWithParam<tuple_t> {
+class Tests_MGRandomWalks : public ::testing::TestWithParam<tuple_t> {
  public:
-  Tests_RandomWalks() {}
-  static void SetupTestCase() {}
-  static void TearDownTestCase() {}
+  Tests_MGRandomWalks() {}
+
+  static void SetUpTestCase() { handle_ = cugraph::test::initialize_mg_handle(); }
+
+  static void TearDownTestCase() { handle_.reset(); }
 
   virtual void SetUp() {}
   virtual void TearDown() {}
@@ -95,20 +98,7 @@ class Tests_RandomWalks : public ::testing::TestWithParam<tuple_t> {
   template <typename vertex_t, typename edge_t, typename weight_t>
   void run_current_test(tuple_t const& param)
   {
-    raft::handle_t handle{};
     HighResClock hr_clock{};
-
-    raft::comms::initialize_mpi_comms(&handle, MPI_COMM_WORLD);
-    auto& comm           = handle.get_comms();
-    auto const comm_size = comm.get_size();
-
-    auto row_comm_size = static_cast<int>(sqrt(static_cast<double>(comm_size)));
-    while (comm_size % row_comm_size != 0) {
-      --row_comm_size;
-    }
-
-    cugraph::partition_2d::subcomm_factory_t<cugraph::partition_2d::key_naming_t, vertex_t>
-      subcomm_factory(handle, row_comm_size);
 
     auto [randomwalks_usecase, input_usecase] = param;
 
@@ -120,7 +110,7 @@ class Tests_RandomWalks : public ::testing::TestWithParam<tuple_t> {
     bool renumber{true};
     auto [graph, d_renumber_map_labels] =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, true>(
-        handle, input_usecase, randomwalks_usecase.test_weighted, renumber);
+        *handle_, input_usecase, randomwalks_usecase.test_weighted, renumber);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -132,9 +122,9 @@ class Tests_RandomWalks : public ::testing::TestWithParam<tuple_t> {
     auto graph_view = graph.view();
 
     edge_t num_paths = 10;
-    rmm::device_uvector<vertex_t> d_start(num_paths, handle.get_stream());
+    rmm::device_uvector<vertex_t> d_start(num_paths, handle_->get_stream());
 
-    thrust::tabulate(handle.get_thrust_policy(),
+    thrust::tabulate(handle_->get_thrust_policy(),
                      d_start.begin(),
                      d_start.end(),
                      [num_vertices = graph_view.number_of_vertices()] __device__(auto idx) {
@@ -148,10 +138,10 @@ class Tests_RandomWalks : public ::testing::TestWithParam<tuple_t> {
 
 #if 0
     auto [vertices, weights] = randomwalks_usecase(
-      handle, graph_view, raft::device_span<vertex_t const>{d_start.data(), d_start.size()}, size_t{10});
+      *handle_, graph_view, raft::device_span<vertex_t const>{d_start.data(), d_start.size()}, size_t{10});
 #else
     EXPECT_THROW(
-      randomwalks_usecase(handle,
+      randomwalks_usecase(*handle_,
                           graph_view,
                           raft::device_span<vertex_t const>{d_start.data(), d_start.size()},
                           size_t{10}),
@@ -171,20 +161,26 @@ class Tests_RandomWalks : public ::testing::TestWithParam<tuple_t> {
 #endif
     }
   }
+
+ private:
+  static std::unique_ptr<raft::handle_t> handle_;
 };
 
+template <typename tuple_t>
+std::unique_ptr<raft::handle_t> Tests_MGRandomWalks<tuple_t>::handle_ = nullptr;
+
 using Tests_UniformRandomWalks_File =
-  Tests_RandomWalks<std::tuple<UniformRandomWalks_Usecase, cugraph::test::File_Usecase>>;
+  Tests_MGRandomWalks<std::tuple<UniformRandomWalks_Usecase, cugraph::test::File_Usecase>>;
 using Tests_UniformRandomWalks_Rmat =
-  Tests_RandomWalks<std::tuple<UniformRandomWalks_Usecase, cugraph::test::Rmat_Usecase>>;
+  Tests_MGRandomWalks<std::tuple<UniformRandomWalks_Usecase, cugraph::test::Rmat_Usecase>>;
 using Tests_BiasedRandomWalks_File =
-  Tests_RandomWalks<std::tuple<BiasedRandomWalks_Usecase, cugraph::test::File_Usecase>>;
+  Tests_MGRandomWalks<std::tuple<BiasedRandomWalks_Usecase, cugraph::test::File_Usecase>>;
 using Tests_BiasedRandomWalks_Rmat =
-  Tests_RandomWalks<std::tuple<BiasedRandomWalks_Usecase, cugraph::test::Rmat_Usecase>>;
+  Tests_MGRandomWalks<std::tuple<BiasedRandomWalks_Usecase, cugraph::test::Rmat_Usecase>>;
 using Tests_Node2VecRandomWalks_File =
-  Tests_RandomWalks<std::tuple<Node2VecRandomWalks_Usecase, cugraph::test::File_Usecase>>;
+  Tests_MGRandomWalks<std::tuple<Node2VecRandomWalks_Usecase, cugraph::test::File_Usecase>>;
 using Tests_Node2VecRandomWalks_Rmat =
-  Tests_RandomWalks<std::tuple<Node2VecRandomWalks_Usecase, cugraph::test::Rmat_Usecase>>;
+  Tests_MGRandomWalks<std::tuple<Node2VecRandomWalks_Usecase, cugraph::test::Rmat_Usecase>>;
 
 TEST_P(Tests_UniformRandomWalks_File, Initialize_i32_i32_f)
 {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2022, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@
 //
 #include <utilities/base_fixture.hpp>
 #include <utilities/device_comm_wrapper.hpp>
+#include <utilities/mg_utilities.hpp>
 #include <utilities/test_utilities.hpp>
 
 #include <cugraph/graph_functions.hpp>
@@ -59,10 +60,11 @@ struct GraphBcast_Usecase {
 // test.  In this case, each test is identical except for the inputs and
 // expected outputs, so the entire test is defined in the run_test() method.
 //
-class GraphBcast_MG_Testfixture : public ::testing::TestWithParam<GraphBcast_Usecase> {
+class Tests_MGGraphBcast : public ::testing::TestWithParam<GraphBcast_Usecase> {
  public:
-  static void SetUpTestCase() {}
-  static void TearDownTestCase() {}
+  static void SetUpTestCase() { handle_ = cugraph::test::initialize_mg_handle(); }
+
+  static void TearDownTestCase() { handle_.reset(); }
 
   // Run once for each test instance
   //
@@ -76,42 +78,36 @@ class GraphBcast_MG_Testfixture : public ::testing::TestWithParam<GraphBcast_Use
   template <typename vertex_t, typename edge_t, typename weight_t>
   void run_test(const GraphBcast_Usecase& param)
   {
-    using namespace cugraph::broadcast;
     using sg_graph_t = cugraph::graph_t<vertex_t, edge_t, weight_t, false, false>;
-
-    raft::handle_t handle;
-
-    raft::comms::initialize_mpi_comms(&handle, MPI_COMM_WORLD);
-    const auto& comm = handle.get_comms();
-
-    auto const comm_rank = comm.get_rank();
 
     auto [sg_graph, d_renumber_map_labels] =
       cugraph::test::read_graph_from_matrix_market_file<vertex_t, edge_t, weight_t, false, false>(
-        handle, param.graph_file_full_path, true, /*renumber=*/false);
+        *handle_, param.graph_file_full_path, true, /*renumber=*/false);
 
-    if (comm_rank == 0) {
-      graph_broadcast(handle, &sg_graph);
+    if (handle_->get_comms().get_rank() == 0) {
+      cugraph::broadcast::graph_broadcast(*handle_, &sg_graph);
     } else {
       sg_graph_t* g_ignore{nullptr};
-      auto graph_copy       = graph_broadcast(handle, g_ignore);
-      auto [same, str_fail] = cugraph::test::compare_graphs(handle, sg_graph, graph_copy);
+      auto graph_copy       = cugraph::broadcast::graph_broadcast(*handle_, g_ignore);
+      auto [same, str_fail] = cugraph::test::compare_graphs(*handle_, sg_graph, graph_copy);
 
       if (!same) std::cerr << "Graph comparison failed on " << str_fail << '\n';
 
       ASSERT_TRUE(same);
     }
   }
+
+ private:
+  static std::unique_ptr<raft::handle_t> handle_;
 };
 
+std::unique_ptr<raft::handle_t> Tests_MGGraphBcast::handle_ = nullptr;
+
 ////////////////////////////////////////////////////////////////////////////////
-TEST_P(GraphBcast_MG_Testfixture, CheckInt32Int32Float)
-{
-  run_test<int32_t, int32_t, float>(GetParam());
-}
+TEST_P(Tests_MGGraphBcast, CheckInt32Int32Float) { run_test<int32_t, int32_t, float>(GetParam()); }
 
 INSTANTIATE_TEST_SUITE_P(simple_test,
-                         GraphBcast_MG_Testfixture,
+                         Tests_MGGraphBcast,
                          ::testing::Values(GraphBcast_Usecase("test/datasets/karate.mtx")
                                            //,GraphBcast_Usecase("test/datasets/smallworld.mtx")
                                            ));

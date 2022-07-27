@@ -106,7 +106,8 @@ class Tests_EigenvectorCentrality
   : public ::testing::TestWithParam<std::tuple<EigenvectorCentrality_Usecase, input_usecase_t>> {
  public:
   Tests_EigenvectorCentrality() {}
-  static void SetupTestCase() {}
+
+  static void SetUpTestCase() {}
   static void TearDownTestCase() {}
 
   virtual void SetUp() {}

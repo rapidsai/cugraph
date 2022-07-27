@@ -74,7 +74,8 @@ typedef struct WeightSum_Usecase_t {
 class Tests_WeightSum : public ::testing::TestWithParam<WeightSum_Usecase> {
  public:
   Tests_WeightSum() {}
-  static void SetupTestCase() {}
+
+  static void SetUpTestCase() {}
   static void TearDownTestCase() {}
 
   virtual void SetUp() {}
