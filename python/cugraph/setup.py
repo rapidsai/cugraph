@@ -76,7 +76,7 @@ PACKAGE_DATA = {
 
 PACKAGE_DATA['cugraph'].extend(
     ['cugraph/experimental/datasets/metadata/*.yaml',
-    'cugraph/experimental/datasets/*.yaml'])
+     'cugraph/experimental/datasets/*.yaml'])
 
 
 setup(name='cugraph',
