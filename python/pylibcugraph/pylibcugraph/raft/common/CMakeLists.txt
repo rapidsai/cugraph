@@ -17,8 +17,6 @@ set(cython_sources
     handle.pyx
 )
 set(linked_libraries cugraph::cugraph)
-#set(linked_libraries "/jnke/scikit-build-pr/cugraph/cpp")
-#message(STATUS "linked library is ${linked_libraries}")
 
 rapids_cython_create_modules(
   CXX
