@@ -118,6 +118,21 @@ def setup_function():
 # =============================================================================
 # Pytest fixtures
 # =============================================================================
+@pytest.fixture(scope="function", autouse=True)
+def raise_on_pandas_warning():
+    """Raise when pandas gives SettingWithCopyWarning warning"""
+    # Perhaps we should put this in pytest.ini, pyproject.toml, or conftest.py
+    import warnings
+
+    filters = list(warnings.filters)
+    warnings.filterwarnings(
+        "error",
+        category=pd.core.common.SettingWithCopyWarning
+    )
+    yield
+    warnings.filters = filters
+
+
 df_types = [cudf.DataFrame, pd.DataFrame]
 
 
