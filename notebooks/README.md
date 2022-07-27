@@ -27,6 +27,8 @@ This repository contains a collection of Jupyter Notebooks that outline how to r
 | Core            |                                                              |                                                              |
 |                 | [K-Core](algorithms/cores/kcore.ipynb)                                  | Extracts the K-core cluster                                  |
 |                 | [Core Number](algorithms/cores/core-number.ipynb)                       | Computer the Core number for each vertex in a graph          |
+Layout            |                                                              |                                                              |
+|                 | [Force-Atlas2](algorithms/layout/Force-Atlas2.ipynb)   |A large graph visualization achieved with cuGraph. |
 | Link Analysis   |                                                              |                                                              |
 |                 | [Pagerank](link_analysis/Pagerank.ipynb)                     | Compute the PageRank of every vertex in a graph              |
 |                 | [HITS](link_analysis/HITS.ipynb)                             | Compute the HITS' Hub and Authority scores for every vertex in a graph              |

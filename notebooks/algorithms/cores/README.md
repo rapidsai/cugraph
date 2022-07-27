@@ -3,7 +3,7 @@
 
 <img src="../../img/zachary_black_lines.png" width="35%"/>
 
-cuGraph Components notebooks contain Jupyter Notebooks that demonstrate algorithms to identify the connected subgraphs within a graph.
+cuGraph Cores notebooks contain Jupyter Notebooks that demonstrate algorithms to find maximally connected subgraphs within a graph. Either identifying the maximum k-core at the vertex (core-number) or graph  level (K-Cores).
 
 Manipulation of the data before or after the graph analytic is not covered here.   Extended, more problem focused, notebooks are being created and available https://github.com/rapidsai/notebooks-extended
 
@@ -11,7 +11,7 @@ Manipulation of the data before or after the graph analytic is not covered here.
 
 |Algorithm          |Notebooks Containing                                                     |Description                                                  |
 | --------------- | ------------------------------------------------------------ | ------------------------------------------------------------ |
-|Core Number   | [core-number](Core-number.ipynb)   | Computes the core number for every vertex of a graph G. The core number of a vertex is a maximal subgraph that contains only that vertex and others of degree k or more. |
+|Core Number   | [core-number](core-number.ipynb)   | Computes the core number for every vertex of a graph G. The core number of a vertex is a maximal subgraph that contains only that vertex and others of degree k or more. |
 |K-Cores | [kcore](kcore.ipynb)               |Find the k-core of a graph which is a maximal subgraph that contains nodes of degree k or more.|
 
 [System Requirements](../../README.md#requirements)
