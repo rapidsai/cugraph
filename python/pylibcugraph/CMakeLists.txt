@@ -53,7 +53,6 @@ if(NOT cugraph_FOUND)
   rapids_cuda_init_architectures(CUGRAPH)
   enable_language(CUDA)
 
-  # FIXME: check of this is necessary
   # Since cugraph only enables CUDA optionally, we need to manually include the file that
   # rapids_cuda_init_architectures relies on `project` including.
   
