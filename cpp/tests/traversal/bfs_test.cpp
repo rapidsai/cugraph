@@ -87,7 +87,8 @@ template <typename input_usecase_t>
 class Tests_BFS : public ::testing::TestWithParam<std::tuple<BFS_Usecase, input_usecase_t>> {
  public:
   Tests_BFS() {}
-  static void SetupTestCase() {}
+
+  static void SetUpTestCase() {}
   static void TearDownTestCase() {}
 
   virtual void SetUp() {}
