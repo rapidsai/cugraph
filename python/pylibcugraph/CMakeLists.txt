@@ -39,7 +39,6 @@ option(FIND_CUGRAPH_CPP "Search for existing CUGRAPH C++ installations before de
 if(FIND_CUGRAPH_CPP)
   message(STATUS "Trying to find the package")
   find_package(cugraph ${cugraph_version} REQUIRED)
-
 else()
   set(cugraph_FOUND OFF)
 endif()
