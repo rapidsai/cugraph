@@ -63,7 +63,10 @@ class TorchTensorGaasGraphDataProxy(ProxyTensor):
         property_keys = self.__property_keys
 
         if isinstance(index, (list, tuple)):
-            assert len(index) == 2
+            if len(index) == 2:
+                index = [index[0], index[1]]
+            else:
+                index = [index, -1]
         else:
             index = [index, -1]
 
@@ -74,20 +77,16 @@ class TorchTensorGaasGraphDataProxy(ProxyTensor):
             property_keys = property_keys[index[1]]
             if isinstance(property_keys, str):
                 property_keys = [property_keys]
-        
-        print('index:',index)
-        print('all property keys:', self.__property_keys)
-        print('property keys:', property_keys)
 
         if self.__category == "edge":
             data = self.__client.get_graph_edge_dataframe_rows(
                 index_or_indices=index[0], graph_id=self.__graph_id,
-                property_keys=property_keys)
+                property_keys=list(property_keys))
 
         else:
             data = self.__client.get_graph_vertex_dataframe_rows(
                 index_or_indices=index[0], graph_id=self.__graph_id,
-                property_keys=property_keys)
+                property_keys=list(property_keys))
 
         if self.__transposed:
             torch_data = torch.from_numpy(data.T).to(self.device)

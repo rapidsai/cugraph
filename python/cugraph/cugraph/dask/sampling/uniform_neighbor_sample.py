@@ -123,7 +123,10 @@ def uniform_neighbor_sample(input_graph,
         raise TypeError("fanout_vals must be a list, "
                         f"got: {type(fanout_vals)}")
 
-    weight_t = input_graph.edgelist.edgelist_df["value"].dtype
+    if 'value' in input_graph.edgelist.edgelist_df:
+        weight_t = input_graph.edgelist.edgelist_df["value"].dtype
+    else:
+        weight_t = 'float32'
 
     # start_list uses "external" vertex IDs, but if the graph has been
     # renumbered, the start vertex IDs must also be renumbered.

@@ -569,7 +569,8 @@ class EXPERIMENTAL__PropertyGraph:
                          default_edge_weight=None,
                          allow_multi_edges=False,
                          renumber_graph=True,
-                         add_edge_data=True
+                         add_edge_data=True,
+                         legacy_renum_only=False,
                          ):
         """
         Return a subgraph of the overall PropertyGraph containing vertices
@@ -604,6 +605,9 @@ class EXPERIMENTAL__PropertyGraph:
         add_edge_data : bool (default is True)
             If True, add meta data about the edges contained in the extracted
             graph which are required for future calls to annotate_dataframe().
+        legacy_renum_only : bool (default is False)
+            If True, skips the C++ renumbering.  Should be True if using a
+            pylibcugraph algorithm, otherwise should be false.
 
         Returns
         -------

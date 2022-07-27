@@ -3,6 +3,7 @@ from torch_geometric.typing import Tensor
 
 import torch
 from torch import device as TorchDevice
+from torch.utils.data import IterableDataset
 from torch_geometric.data import Data, RemoteData
 from cugraph.gnn.pyg_extensions.data.gaas_storage import GaasStorage
 
@@ -14,8 +15,9 @@ import pandas as pd
 import cupy
 import cudf
 
-class GaasData(Data, RemoteData):
-    def __init__(self, gaas_client: GaasClient, graph_id: int=DEFAULT_GRAPH_ID, device=TorchDevice('cpu'), ephemeral=False):
+class GaasData(Data, RemoteData, IterableDataset):
+    def __init__(self, gaas_client: GaasClient, graph_id: int=DEFAULT_GRAPH_ID, device=TorchDevice('cpu'),
+                 ephemeral=False, batch_size=1, shuffle=False):
         super().__init__()
         
         # have to access __dict__ here to ensure the store is a GaasStorage
@@ -23,7 +25,10 @@ class GaasData(Data, RemoteData):
         self.__dict__['_store'] = storage
         self.device = device
         self.ephemeral = ephemeral
+        self.batch_size = batch_size
+        self.shuffle = shuffle
         self.__extracted_subgraph = None
+        self.__iters = 0
 
     def __del__(self):
         print('destroying a gaasdata object')
@@ -31,12 +36,42 @@ class GaasData(Data, RemoteData):
             self.gaas_client.delete_graph(self.gaas_graph_id)
         if self.__extracted_subgraph is not None:
             self.gaas_client.delete_graph(self.__extracted_subgraph)
+
+    def __next__(self):
+        #FIXME handle shuffle
+        if self.shuffle:
+            raise NotImplementedError('shuffle currently not supported')
+        
+        start = self.__iters * self.batch_size
+        end = min(self.num_edges, (1 + self.__iters) * self.batch_size)
+        if start >= self.num_edges:
+            raise StopIteration
+        batch_idx = range(start, end)
+
+        self.__iters += 1
+
+        eix = self.edge_index[-1, batch_idx]
+        
+        #FIXME property handle edge labels
+        eli = torch.zeros(eix.shape[1], dtype=torch.long, device=self.device)
+
+        yield eix, eli
+
+    def __iter__(self):
+        self.reset_iter()
+        return self
+
+    def reset_iter(self):
+        self.__iters__ = 0
     
     def to(self, to_device: TorchDevice) -> Data:
         return GaasData(
-            self.gaas_client,
-            self.gaas_graph_id,
-            TorchDevice(to_device)
+            gaas_client=self.gaas_client,
+            graph_id=self.gaas_graph_id,
+            device=TorchDevice(to_device),
+            ephemeral=self.ephemeral,
+            batch_size=self.batch_size,
+            shuffle=self.shuffle
         )
 
     def cuda(self):
