@@ -731,17 +731,21 @@ class EXPERIMENTAL__MGPropertyGraph:
             raise RuntimeError("query resulted in duplicate edges which "
                                f"cannot be represented with the {msg}")
 
-        # FIXME: MNMG Graphs required renumber to be True due to requirements
-        # on legacy code that needed segment offsets, partition offsets,
-        # etc. which were previously computed during the "legacy" C
-        # renumbering.  The workaround is to always pass renumber=True, but set
-        # legacy_renum_only based on if actual renumbering (ie. changing the
-        # vertex IDs) should happen or not.
-        renumber = True
+        # FIXME: This forces the renumbering code to run a python-only
+        # renumbering without the newer C++ renumbering step.  This is
+        # required since the newest graph algos which are using the
+        # pylibcugraph library will crash if passed data renumbered using the
+        # C++ renumbering.  The consequence of this is that these extracted
+        # subgraphs can only be used with newer pylibcugraph-based MG algos.
+        #
+        # NOTE: if the vertices are integers (int32 or int64), renumbering is
+        # actually skipped with the assumption that the C renumbering will
+        # take place. The C renumbering only occurs for pylibcugraph algos,
+        # hence the reason these extracted subgraphs only work with PLC algos.
         if renumber_graph is False:
-            legacy_renum_only = True
-        else:
-            legacy_renum_only = False
+            raise ValueError("currently, renumber_graph must be set to True "
+                             "for MG")
+        legacy_renum_only = True
 
         col_names = [self.src_col_name, self.dst_col_name]
         if edge_attr is not None:
@@ -751,7 +755,7 @@ class EXPERIMENTAL__MGPropertyGraph:
                                   source=self.src_col_name,
                                   destination=self.dst_col_name,
                                   edge_attr=edge_attr,
-                                  renumber=renumber,
+                                  renumber=renumber_graph,
                                   legacy_renum_only=legacy_renum_only)
 
         if add_edge_data:

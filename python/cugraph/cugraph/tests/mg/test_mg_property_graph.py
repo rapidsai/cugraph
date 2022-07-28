@@ -434,14 +434,20 @@ def test_property_names_attrs(dataset1_MGPropertyGraph):
 def test_extract_subgraph_nonrenumbered_noedgedata(
         dataset2_simple_MGPropertyGraph):
     """
-    Ensure a subgraph can be extracted that is not renumbered and contains no
-    edge_data.
+    Ensure a subgraph can be extracted that contains no edge_data.  Also ensure
+    renumber cannot be False since that is currently not allowed for MG.
     """
     from cugraph import Graph
 
     (pG, data) = dataset2_simple_MGPropertyGraph
+
+    # renumber=False is currently not allowed for MG.
+    with pytest.raises(ValueError):
+        G = pG.extract_subgraph(create_using=Graph(directed=True),
+                                renumber_graph=False,
+                                add_edge_data=False)
+
     G = pG.extract_subgraph(create_using=Graph(directed=True),
-                            renumber_graph=False,
                             add_edge_data=False)
 
     actual_edgelist = G.edgelist.edgelist_df.compute()
