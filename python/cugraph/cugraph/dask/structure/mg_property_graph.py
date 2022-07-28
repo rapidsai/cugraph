@@ -338,8 +338,10 @@ class EXPERIMENTAL__MGPropertyGraph:
         """
         if self.__vertex_prop_dataframe is not None:
             if vertex_ids is not None:
-                df_mask = self.__vertex_prop_dataframe[self.vertex_col_name]\
-                              .isin(vertex_ids)
+                df_mask = (
+                    self.__vertex_prop_dataframe[self.vertex_col_name]
+                    .isin(vertex_ids)
+                )
                 df = self.__vertex_prop_dataframe.loc[df_mask]
             else:
                 df = self.__vertex_prop_dataframe
@@ -349,13 +351,15 @@ class EXPERIMENTAL__MGPropertyGraph:
                 df_mask = df[self.type_col_name].isin(types)
                 df = df.loc[df_mask]
 
+            # The "internal" pG.vertex_col_name and pG.type_col_name columns
+            # are also included/added since they are assumed to be needed by
+            # the caller.
             if columns is None:
-                # Note: this includes the "internal" pG.vertex_col_name and
-                # pG.type_col_name columns, since they are assumed to be needed
-                # by the caller.
-                columns = self.__vertex_prop_dataframe.columns
-                df = df[columns]
-            return df
+                return df
+            else:
+                # FIXME: invalid columns will result in a KeyError, should a
+                # check be done here and a more PG-specific error raised?
+                return df[[self.vertex_col_name, self.type_col_name] + columns]
 
         return None
 
@@ -494,15 +498,20 @@ class EXPERIMENTAL__MGPropertyGraph:
                 df_mask = df[self.type_col_name].isin(types)
                 df = df.loc[df_mask]
 
+            # The "internal" src, dst, edge_id, and type columns are also
+            # included/added since they are assumed to be needed by the caller.
             if columns is None:
-                # Note: this includes the "internal" pG.vertex_col_name and
-                # pG.type_col_name columns, since they are assumed to be needed
-                # by the caller.
-                columns = list(self.__edge_prop_dataframe.columns)
-                if self.weight_col_name in columns:
-                    columns.remove(self.weight_col_name)
-
-            return df[columns]
+                # remove the "internal" weight column if one was added
+                all_columns = list(self.__edge_prop_dataframe.columns)
+                if self.weight_col_name in all_columns:
+                    all_columns.remove(self.weight_col_name)
+                return df[all_columns]
+            else:
+                # FIXME: invalid columns will result in a KeyError, should a
+                # check be done here and a more PG-specific error raised?
+                return df[[self.src_col_name, self.dst_col_name,
+                           self.edge_id_col_name, self.type_col_name]
+                          + columns]
 
         return None
 

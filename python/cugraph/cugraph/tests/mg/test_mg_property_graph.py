@@ -519,10 +519,14 @@ def test_get_vertex_data(dataset1_MGPropertyGraph):
     columns = ["merchant_location", "merchant_size"]
 
     some_vertex_data = pG.get_vertex_data(types=[vert_type], columns=columns)
-    # Ensure the returned df is the right length and includes at least the
-    # specified columns.
+    # Ensure the returned df is the right length and includes only the
+    # vert/type + specified columns
+    standard_vert_columns = [pG.vertex_col_name, pG.type_col_name]
     assert len(some_vertex_data) == len(data[vert_type][1])
-    assert set(columns) - set(some_vertex_data.columns) == set()
+    assert (
+        sorted(some_vertex_data.columns) ==
+        sorted(columns + standard_vert_columns)
+    )
 
     # Test with all params specified
     vert_ids = [11, 4, 21]
@@ -574,10 +578,15 @@ def test_get_edge_data(dataset1_MGPropertyGraph):
     columns = ["card_num", "card_type"]
 
     some_edge_data = pG.get_edge_data(types=[edge_type], columns=columns)
-    # Ensure the returned df is the right length and includes at least the
-    # specified columns.
+    # Ensure the returned df is the right length and includes only the
+    # src/dst/id/type + specified columns
+    standard_edge_columns = [pG.src_col_name, pG.dst_col_name,
+                             pG.edge_id_col_name, pG.type_col_name]
     assert len(some_edge_data) == len(data[edge_type][1])
-    assert set(columns) - set(some_edge_data.columns) == set()
+    assert (
+        sorted(some_edge_data.columns) ==
+        sorted(columns + standard_edge_columns)
+    )
 
     # Test with all params specified
     # FIXME: since edge IDs are generated, assume that these are correct based
