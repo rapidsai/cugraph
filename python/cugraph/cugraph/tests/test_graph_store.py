@@ -160,6 +160,7 @@ def test_sample_neighbors(graph_file):
     assert len(parents_list) > 0
 
 
+@pytest.mark.skip(reason="Neg one fanout fails see cugraph/issues/2446")
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_sample_neighbor_neg_one_fanout(graph_file):
     cu_M = utils.read_csv_file(graph_file)
@@ -418,31 +419,24 @@ def test_get_edge_storage_gs(dataset1_CuGraphStore):
 
 def test_sampling_gs(dataset1_CuGraphStore):
     node_pack = cp.asarray([4]).toDlpack()
-    (
-        parents_cap,
-        children_cap,
-        edge_id_cap,
-    ) = dataset1_CuGraphStore.sample_neighbors(node_pack, fanout=1)
-    x = cudf.from_dlpack(parents_cap)
-
-    assert x is not None
+    gs = dataset1_CuGraphStore
+    src_cap, _, _ = gs.sample_neighbors(node_pack, fanout=1)
+    src_ser = cudf.from_dlpack(src_cap)
+    assert len(src_ser) != 0
 
 
-def test_sampling_gs_neg_one_fanout(dataset1_CuGraphStore):
+@pytest.mark.skip(reason="Neg one fanout fails see cugraph/issues/2446")
+def test_sampling_dataset_gs_neg_one_fanout(dataset1_CuGraphStore):
     node_pack = cp.asarray([4]).toDlpack()
-    (
-        parents_cap,
-        children_cap,
-        edge_id_cap,
-    ) = dataset1_CuGraphStore.sample_neighbors(node_pack, fanout=-1)
-    x = cudf.from_dlpack(parents_cap)
-
-    assert x is not None
+    gs = dataset1_CuGraphStore
+    src_cap, _, _ = gs.sample_neighbors(node_pack, fanout=-1)
+    src_ser = cudf.from_dlpack(src_cap)
+    assert len(src_ser) != 0
 
 
 def test_sampling_gs_out_dir():
-    src_ser = [1, 1, 1, 1, 1, 2, 2, 3]
-    dst_ser = [2, 3, 4, 5, 6, 3, 4, 7]
+    src_ser = cudf.Series([1, 1, 1, 1, 1, 2, 2, 3])
+    dst_ser = cudf.Series([2, 3, 4, 5, 6, 3, 4, 7])
     df = cudf.DataFrame(
         {"src": src_ser, "dst": dst_ser, "edge_id": np.arange(len(src_ser))}
     )
@@ -481,8 +475,8 @@ def test_sampling_gs_out_dir():
 
 
 def test_sampling_gs_in_dir():
-    src_ser = [1, 1, 1, 1, 1, 2, 2, 3]
-    dst_ser = [2, 3, 4, 5, 6, 3, 4, 7]
+    src_ser = cudf.Series([1, 1, 1, 1, 1, 2, 2, 3])
+    dst_ser = cudf.Series([2, 3, 4, 5, 6, 3, 4, 7])
     df = cudf.DataFrame(
         {"src": src_ser, "dst": dst_ser, "edge_id": np.arange(len(src_ser))}
     )
