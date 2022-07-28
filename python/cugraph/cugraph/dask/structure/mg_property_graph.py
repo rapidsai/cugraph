@@ -332,10 +332,6 @@ class EXPERIMENTAL__MGPropertyGraph:
         latest = dict([(n, self.__vertex_prop_dataframe[n])
                        for n in self.__vertex_prop_dataframe.columns])
         self.__vertex_prop_eval_dict.update(latest)
-        # TODO: delete asserts before merging
-        assert vertex_col_name not in self.__vertex_prop_dataframe.columns
-        assert vertex_col_name not in self.__vertex_prop_dtypes
-        assert vertex_col_name not in self.__vertex_prop_eval_dict
 
     def add_edge_data(self,
                       dataframe,
@@ -455,15 +451,6 @@ class EXPERIMENTAL__MGPropertyGraph:
         latest = dict([(n, self.__edge_prop_dataframe[n])
                        for n in self.__edge_prop_dataframe.columns])
         self.__edge_prop_eval_dict.update(latest)
-        # TODO: delete asserts before merging
-        src = vertex_col_names[0]
-        dst = vertex_col_names[1]
-        assert src not in self.__edge_prop_dataframe.columns
-        assert src not in self.__edge_prop_eval_dict
-        assert src not in self.__edge_prop_dtypes
-        assert dst not in self.__edge_prop_dataframe.columns
-        assert dst not in self.__edge_prop_eval_dict
-        assert dst not in self.__edge_prop_dtypes
 
     def select_vertices(self, expr, from_previous_selection=None):
         raise NotImplementedError
