@@ -17,6 +17,7 @@
 #include <utilities/base_fixture.hpp>
 #include <utilities/device_comm_wrapper.hpp>
 #include <utilities/high_res_clock.h>
+#include <utilities/mg_utilities.hpp>
 #include <utilities/test_graphs.hpp>
 #include <utilities/test_utilities.hpp>
 #include <utilities/thrust_wrapper.hpp>
@@ -41,8 +42,10 @@ template <typename input_usecase_t>
 class Tests_MGHits : public ::testing::TestWithParam<std::tuple<Hits_Usecase, input_usecase_t>> {
  public:
   Tests_MGHits() {}
-  static void SetupTestCase() {}
-  static void TearDownTestCase() {}
+
+  static void SetUpTestCase() { handle_ = cugraph::test::initialize_mg_handle(); }
+
+  static void TearDownTestCase() { handle_.reset(); }
 
   virtual void SetUp() {}
   virtual void TearDown() {}
@@ -51,73 +54,58 @@ class Tests_MGHits : public ::testing::TestWithParam<std::tuple<Hits_Usecase, in
   template <typename vertex_t, typename edge_t, typename weight_t, typename result_t>
   void run_current_test(Hits_Usecase const& hits_usecase, input_usecase_t const& input_usecase)
   {
-    // 1. initialize handle
-
-    raft::handle_t handle{};
     HighResClock hr_clock{};
 
-    raft::comms::initialize_mpi_comms(&handle, MPI_COMM_WORLD);
-    auto& comm           = handle.get_comms();
-    auto const comm_size = comm.get_size();
-    auto const comm_rank = comm.get_rank();
-
-    auto row_comm_size = static_cast<int>(sqrt(static_cast<double>(comm_size)));
-    while (comm_size % row_comm_size != 0) {
-      --row_comm_size;
-    }
-    cugraph::partition_2d::subcomm_factory_t<cugraph::partition_2d::key_naming_t, vertex_t>
-      subcomm_factory(handle, row_comm_size);
-
-    // 2. create MG graph
+    // 1. create MG graph
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
-      handle.get_comms().barrier();
+      handle_->get_comms().barrier();
       hr_clock.start();
     }
 
     auto [mg_graph, d_mg_renumber_map_labels] =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, true, true>(
-        handle, input_usecase, false, true);
+        *handle_, input_usecase, false, true);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
-      handle.get_comms().barrier();
+      handle_->get_comms().barrier();
       double elapsed_time{0.0};
       hr_clock.stop(&elapsed_time);
       std::cout << "MG construct_graph took " << elapsed_time * 1e-6 << " s.\n";
     }
 
-    // 3. run hits
+    // 2. run hits
 
     auto mg_graph_view      = mg_graph.view();
     auto maximum_iterations = 200;
     weight_t tolerance      = 1e-8;
     rmm::device_uvector<weight_t> d_mg_hubs(mg_graph_view.local_vertex_partition_range_size(),
-                                            handle.get_stream());
+                                            handle_->get_stream());
 
     rmm::device_uvector<weight_t> d_mg_authorities(
-      mg_graph_view.local_vertex_partition_range_size(), handle.get_stream());
+      mg_graph_view.local_vertex_partition_range_size(), handle_->get_stream());
 
     std::vector<weight_t> initial_random_hubs =
       (hits_usecase.check_initial_input)
-        ? cugraph::test::random_vector<weight_t>(d_mg_hubs.size(), comm_rank)
+        ? cugraph::test::random_vector<weight_t>(d_mg_hubs.size(), handle_->get_comms().get_rank())
         : std::vector<weight_t>(0);
 
     if (hits_usecase.check_initial_input) {
       raft::update_device(d_mg_hubs.data(),
                           initial_random_hubs.data(),
                           initial_random_hubs.size(),
-                          handle.get_stream());
+                          handle_->get_stream());
     }
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
-      handle.get_comms().barrier();
+      handle_->get_comms().barrier();
       hr_clock.start();
     }
 
-    auto result = cugraph::hits(handle,
+    auto result = cugraph::hits(*handle_,
                                 mg_graph_view,
                                 d_mg_hubs.data(),
                                 d_mg_authorities.data(),
@@ -129,68 +117,70 @@ class Tests_MGHits : public ::testing::TestWithParam<std::tuple<Hits_Usecase, in
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
-      handle.get_comms().barrier();
+      handle_->get_comms().barrier();
       double elapsed_time{0.0};
       hr_clock.stop(&elapsed_time);
       std::cout << "MG Hits took " << elapsed_time * 1e-6 << " s.\n";
     }
 
-    // 4. compare SG & MG results
+    // 3. compare SG & MG results
 
     if (hits_usecase.check_correctness) {
-      // 4-1. aggregate MG results
+      // 3-1. aggregate MG results
 
       auto d_mg_aggregate_renumber_map_labels = cugraph::test::device_gatherv(
-        handle, (*d_mg_renumber_map_labels).data(), (*d_mg_renumber_map_labels).size());
+        *handle_, (*d_mg_renumber_map_labels).data(), (*d_mg_renumber_map_labels).size());
       auto d_mg_aggregate_hubs =
-        cugraph::test::device_gatherv(handle, d_mg_hubs.data(), d_mg_hubs.size());
+        cugraph::test::device_gatherv(*handle_, d_mg_hubs.data(), d_mg_hubs.size());
       auto d_mg_aggregate_authorities =
-        cugraph::test::device_gatherv(handle, d_mg_authorities.data(), d_mg_authorities.size());
-      rmm::device_uvector<weight_t> d_initial_hubs(0, handle.get_stream());
+        cugraph::test::device_gatherv(*handle_, d_mg_authorities.data(), d_mg_authorities.size());
+      rmm::device_uvector<weight_t> d_initial_hubs(0, handle_->get_stream());
 
       if (hits_usecase.check_initial_input) {
-        d_initial_hubs.resize(initial_random_hubs.size(), handle.get_stream());
+        d_initial_hubs.resize(initial_random_hubs.size(), handle_->get_stream());
         raft::update_device(d_initial_hubs.data(),
                             initial_random_hubs.data(),
                             initial_random_hubs.size(),
-                            handle.get_stream());
+                            handle_->get_stream());
         d_initial_hubs =
-          cugraph::test::device_gatherv(handle, d_initial_hubs.data(), d_initial_hubs.size());
+          cugraph::test::device_gatherv(*handle_, d_initial_hubs.data(), d_initial_hubs.size());
         std::tie(std::ignore, d_initial_hubs) =
-          cugraph::test::sort_by_key(handle, d_mg_aggregate_renumber_map_labels, d_initial_hubs);
+          cugraph::test::sort_by_key(*handle_, d_mg_aggregate_renumber_map_labels, d_initial_hubs);
       }
 
-      if (handle.get_comms().get_rank() == int{0}) {
-        // 4-2. unrenumber MG results
+      if (handle_->get_comms().get_rank() == int{0}) {
+        // 3-2. unrenumber MG results
 
         std::tie(std::ignore, d_mg_aggregate_hubs) = cugraph::test::sort_by_key(
-          handle, d_mg_aggregate_renumber_map_labels, d_mg_aggregate_hubs);
+          *handle_, d_mg_aggregate_renumber_map_labels, d_mg_aggregate_hubs);
         std::tie(std::ignore, d_mg_aggregate_authorities) = cugraph::test::sort_by_key(
-          handle, d_mg_aggregate_renumber_map_labels, d_mg_aggregate_authorities);
+          *handle_, d_mg_aggregate_renumber_map_labels, d_mg_aggregate_authorities);
 
-        // 4-3. create SG graph
+        // 3-3. create SG graph
 
-        cugraph::graph_t<vertex_t, edge_t, weight_t, true, false> sg_graph(handle);
+        cugraph::graph_t<vertex_t, edge_t, weight_t, true, false> sg_graph(*handle_);
         std::tie(sg_graph, std::ignore) =
           cugraph::test::construct_graph<vertex_t, edge_t, weight_t, true, false>(
-            handle, input_usecase, false, false);
+            *handle_, input_usecase, false, false);
 
         auto sg_graph_view = sg_graph.view();
 
         ASSERT_TRUE(mg_graph_view.number_of_vertices() == sg_graph_view.number_of_vertices());
 
-        // 4-4. run SG Hits
+        // 3-4. run SG Hits
 
         rmm::device_uvector<weight_t> d_sg_hubs(sg_graph_view.number_of_vertices(),
-                                                handle.get_stream());
+                                                handle_->get_stream());
         rmm::device_uvector<weight_t> d_sg_authorities(sg_graph_view.number_of_vertices(),
-                                                       handle.get_stream());
+                                                       handle_->get_stream());
         if (hits_usecase.check_initial_input) {
-          raft::update_device(
-            d_sg_hubs.begin(), d_initial_hubs.begin(), d_initial_hubs.size(), handle.get_stream());
+          raft::update_device(d_sg_hubs.begin(),
+                              d_initial_hubs.begin(),
+                              d_initial_hubs.size(),
+                              handle_->get_stream());
         }
 
-        auto result = cugraph::hits(handle,
+        auto result = cugraph::hits(*handle_,
                                     sg_graph_view,
                                     d_sg_hubs.data(),
                                     d_sg_authorities.data(),
@@ -200,19 +190,19 @@ class Tests_MGHits : public ::testing::TestWithParam<std::tuple<Hits_Usecase, in
                                     true,
                                     hits_usecase.check_initial_input);
 
-        // 4-5. compare
+        // 3-5. compare
 
         std::vector<result_t> h_mg_aggregate_hubs(mg_graph_view.number_of_vertices());
         raft::update_host(h_mg_aggregate_hubs.data(),
                           d_mg_aggregate_hubs.data(),
                           d_mg_aggregate_hubs.size(),
-                          handle.get_stream());
+                          handle_->get_stream());
 
         std::vector<result_t> h_sg_hubs(sg_graph_view.number_of_vertices());
         raft::update_host(
-          h_sg_hubs.data(), d_sg_hubs.data(), d_sg_hubs.size(), handle.get_stream());
+          h_sg_hubs.data(), d_sg_hubs.data(), d_sg_hubs.size(), handle_->get_stream());
 
-        handle.sync_stream();
+        handle_->sync_stream();
 
         auto threshold_ratio = 1e-3;
         auto threshold_magnitude =
@@ -229,7 +219,13 @@ class Tests_MGHits : public ::testing::TestWithParam<std::tuple<Hits_Usecase, in
       }
     }
   }
+
+ private:
+  static std::unique_ptr<raft::handle_t> handle_;
 };
+
+template <typename input_usecase_t>
+std::unique_ptr<raft::handle_t> Tests_MGHits<input_usecase_t>::handle_ = nullptr;
 
 using Tests_MGHits_File = Tests_MGHits<cugraph::test::File_Usecase>;
 using Tests_MGHits_Rmat = Tests_MGHits<cugraph::test::Rmat_Usecase>;

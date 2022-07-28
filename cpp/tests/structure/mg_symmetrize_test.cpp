@@ -17,6 +17,7 @@
 #include <utilities/base_fixture.hpp>
 #include <utilities/device_comm_wrapper.hpp>
 #include <utilities/high_res_clock.h>
+#include <utilities/mg_utilities.hpp>
 #include <utilities/test_graphs.hpp>
 #include <utilities/test_utilities.hpp>
 #include <utilities/thrust_wrapper.hpp>
@@ -45,8 +46,10 @@ class Tests_MGSymmetrize
   : public ::testing::TestWithParam<std::tuple<Symmetrize_Usecase, input_usecase_t>> {
  public:
   Tests_MGSymmetrize() {}
-  static void SetupTestCase() {}
-  static void TearDownTestCase() {}
+
+  static void SetUpTestCase() { handle_ = cugraph::test::initialize_mg_handle(); }
+
+  static void TearDownTestCase() { handle_.reset(); }
 
   virtual void SetUp() {}
   virtual void TearDown() {}
@@ -55,102 +58,87 @@ class Tests_MGSymmetrize
   void run_current_test(Symmetrize_Usecase const& symmetrize_usecase,
                         input_usecase_t const& input_usecase)
   {
-    // 1. initialize handle
-
-    raft::handle_t handle{};
     HighResClock hr_clock{};
 
-    raft::comms::initialize_mpi_comms(&handle, MPI_COMM_WORLD);
-    auto& comm           = handle.get_comms();
-    auto const comm_size = comm.get_size();
-    auto const comm_rank = comm.get_rank();
-
-    auto row_comm_size = static_cast<int>(sqrt(static_cast<double>(comm_size)));
-    while (comm_size % row_comm_size != 0) {
-      --row_comm_size;
-    }
-    cugraph::partition_2d::subcomm_factory_t<cugraph::partition_2d::key_naming_t, vertex_t>
-      subcomm_factory(handle, row_comm_size);
-
-    // 2. create MG graph
+    // 1. create MG graph
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
-      handle.get_comms().barrier();
+      handle_->get_comms().barrier();
       hr_clock.start();
     }
 
     auto [mg_graph, d_mg_renumber_map_labels] =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, store_transposed, true>(
-        handle, input_usecase, symmetrize_usecase.test_weighted, true);
+        *handle_, input_usecase, symmetrize_usecase.test_weighted, true);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
-      handle.get_comms().barrier();
+      handle_->get_comms().barrier();
       double elapsed_time{0.0};
       hr_clock.stop(&elapsed_time);
       std::cout << "MG construct_graph took " << elapsed_time * 1e-6 << " s.\n";
     }
 
-    // 3. run MG symmetrize
+    // 2. run MG symmetrize
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
-      handle.get_comms().barrier();
+      handle_->get_comms().barrier();
       hr_clock.start();
     }
 
     *d_mg_renumber_map_labels = mg_graph.symmetrize(
-      handle, std::move(*d_mg_renumber_map_labels), symmetrize_usecase.reciprocal);
+      *handle_, std::move(*d_mg_renumber_map_labels), symmetrize_usecase.reciprocal);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
-      handle.get_comms().barrier();
+      handle_->get_comms().barrier();
       double elapsed_time{0.0};
       hr_clock.stop(&elapsed_time);
       std::cout << "MG symmetrize took " << elapsed_time * 1e-6 << " s.\n";
     }
 
-    // 4. copmare SG & MG results
+    // 3. copmare SG & MG results
 
     if (symmetrize_usecase.check_correctness) {
-      // 4-1. decompress MG results
+      // 3-1. decompress MG results
 
       auto [d_mg_srcs, d_mg_dsts, d_mg_weights] =
-        mg_graph.decompress_to_edgelist(handle, d_mg_renumber_map_labels, false);
+        mg_graph.decompress_to_edgelist(*handle_, d_mg_renumber_map_labels, false);
 
-      // 4-2. aggregate MG results
+      // 3-2. aggregate MG results
 
       auto d_mg_aggregate_srcs =
-        cugraph::test::device_gatherv(handle, d_mg_srcs.data(), d_mg_srcs.size());
+        cugraph::test::device_gatherv(*handle_, d_mg_srcs.data(), d_mg_srcs.size());
       auto d_mg_aggregate_dsts =
-        cugraph::test::device_gatherv(handle, d_mg_dsts.data(), d_mg_dsts.size());
+        cugraph::test::device_gatherv(*handle_, d_mg_dsts.data(), d_mg_dsts.size());
       std::optional<rmm::device_uvector<weight_t>> d_mg_aggregate_weights{std::nullopt};
       if (d_mg_weights) {
         d_mg_aggregate_weights =
-          cugraph::test::device_gatherv(handle, (*d_mg_weights).data(), (*d_mg_weights).size());
+          cugraph::test::device_gatherv(*handle_, (*d_mg_weights).data(), (*d_mg_weights).size());
       }
 
-      if (handle.get_comms().get_rank() == int{0}) {
-        // 4-3. create SG graph
+      if (handle_->get_comms().get_rank() == int{0}) {
+        // 3-3. create SG graph
 
-        cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed, false> sg_graph(handle);
+        cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed, false> sg_graph(*handle_);
         std::tie(sg_graph, std::ignore) =
           cugraph::test::construct_graph<vertex_t, edge_t, weight_t, store_transposed, false>(
-            handle, input_usecase, symmetrize_usecase.test_weighted, false);
+            *handle_, input_usecase, symmetrize_usecase.test_weighted, false);
 
-        // 4-4. run SG symmetrize
+        // 3-4. run SG symmetrize
 
         auto d_sg_renumber_map_labels =
-          sg_graph.symmetrize(handle, std::nullopt, symmetrize_usecase.reciprocal);
+          sg_graph.symmetrize(*handle_, std::nullopt, symmetrize_usecase.reciprocal);
         ASSERT_FALSE(d_sg_renumber_map_labels.has_value());
 
-        // 4-5. decompress SG results
+        // 3-5. decompress SG results
 
         auto [d_sg_srcs, d_sg_dsts, d_sg_weights] =
-          sg_graph.decompress_to_edgelist(handle, std::nullopt, false);
+          sg_graph.decompress_to_edgelist(*handle_, std::nullopt, false);
 
-        // 4-6. compare
+        // 3-6. compare
 
         ASSERT_TRUE(mg_graph.number_of_vertices() == sg_graph.number_of_vertices());
         ASSERT_TRUE(mg_graph.number_of_edges() == sg_graph.number_of_edges());
@@ -164,16 +152,16 @@ class Tests_MGSymmetrize
         raft::update_host(h_mg_aggregate_srcs.data(),
                           d_mg_aggregate_srcs.data(),
                           d_mg_aggregate_srcs.size(),
-                          handle.get_stream());
+                          handle_->get_stream());
         raft::update_host(h_mg_aggregate_dsts.data(),
                           d_mg_aggregate_dsts.data(),
                           d_mg_aggregate_dsts.size(),
-                          handle.get_stream());
+                          handle_->get_stream());
         if (h_mg_aggregate_weights) {
           raft::update_host((*h_mg_aggregate_weights).data(),
                             (*d_mg_aggregate_weights).data(),
                             (*d_mg_aggregate_weights).size(),
-                            handle.get_stream());
+                            handle_->get_stream());
         }
 
         std::vector<vertex_t> h_sg_srcs(d_sg_srcs.size());
@@ -181,14 +169,14 @@ class Tests_MGSymmetrize
         auto h_sg_weights =
           d_sg_weights ? std::make_optional<std::vector<weight_t>>(d_sg_srcs.size()) : std::nullopt;
         raft::update_host(
-          h_sg_srcs.data(), d_sg_srcs.data(), d_sg_srcs.size(), handle.get_stream());
+          h_sg_srcs.data(), d_sg_srcs.data(), d_sg_srcs.size(), handle_->get_stream());
         raft::update_host(
-          h_sg_dsts.data(), d_sg_dsts.data(), d_sg_dsts.size(), handle.get_stream());
+          h_sg_dsts.data(), d_sg_dsts.data(), d_sg_dsts.size(), handle_->get_stream());
         if (h_sg_weights) {
           raft::update_host((*h_sg_weights).data(),
                             (*d_sg_weights).data(),
                             (*d_sg_weights).size(),
-                            handle.get_stream());
+                            handle_->get_stream());
         }
 
         if (symmetrize_usecase.test_weighted) {
@@ -224,7 +212,13 @@ class Tests_MGSymmetrize
       }
     }
   }
+
+ private:
+  static std::unique_ptr<raft::handle_t> handle_;
 };
+
+template <typename input_usecase_t>
+std::unique_ptr<raft::handle_t> Tests_MGSymmetrize<input_usecase_t>::handle_ = nullptr;
 
 using Tests_MGSymmetrize_File = Tests_MGSymmetrize<cugraph::test::File_Usecase>;
 using Tests_MGSymmetrize_Rmat = Tests_MGSymmetrize<cugraph::test::Rmat_Usecase>;

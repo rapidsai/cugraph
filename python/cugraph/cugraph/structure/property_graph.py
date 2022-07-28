@@ -309,7 +309,7 @@ class EXPERIMENTAL__PropertyGraph:
             # column in the incoming dataframe, since the initial merge may not
             # result in the same dtype. (see
             # https://github.com/rapidsai/cudf/issues/9981)
-            self.__update_dataframe_dtypes(
+            self.__vertex_prop_dataframe = self.__update_dataframe_dtypes(
                 self.__vertex_prop_dataframe,
                 {self.vertex_col_name: dataframe[vertex_col_name].dtype})
 
@@ -459,7 +459,7 @@ class EXPERIMENTAL__PropertyGraph:
             # column in the incoming dataframe, since the initial merge may not
             # result in the same dtype. (see
             # https://github.com/rapidsai/cudf/issues/9981)
-            self.__update_dataframe_dtypes(
+            self.__edge_prop_dataframe = self.__update_dataframe_dtypes(
                 self.__edge_prop_dataframe,
                 {self.src_col_name: dataframe[vertex_col_names[0]].dtype,
                  self.dst_col_name: dataframe[vertex_col_names[1]].dtype,
@@ -724,7 +724,7 @@ class EXPERIMENTAL__PropertyGraph:
         # possibly had their dtypes converted in order to accommodate NaN
         # values. Restore the original dtypes in the resulting edges df prior
         # to creating a Graph.
-        self.__update_dataframe_dtypes(edges, self.__edge_prop_dtypes)
+        edges = self.__update_dataframe_dtypes(edges, self.__edge_prop_dtypes)
 
         return self.edge_props_to_graph(
             edges,
@@ -792,7 +792,9 @@ class EXPERIMENTAL__PropertyGraph:
                       inplace=True)
 
         # restore the original dtypes
-        self.__update_dataframe_dtypes(new_df, self.__edge_prop_dtypes)
+        new_df = self.__update_dataframe_dtypes(
+            new_df, self.__edge_prop_dtypes
+        )
         for col in df.columns:
             new_df[col] = new_df[col].astype(df[col].dtype)
 
@@ -951,6 +953,7 @@ class EXPERIMENTAL__PropertyGraph:
         This also handles converting standard integer dtypes to nullable
         integer dtypes, needed to accommodate NA values in columns.
         """
+        update_cols = {}
         for (col, dtype) in column_dtype_dict.items():
             # If the DataFrame is Pandas and the dtype is an integer type,
             # ensure a nullable integer array is used by specifying the correct
@@ -964,7 +967,11 @@ class EXPERIMENTAL__PropertyGraph:
                 # Assigning to df[col] produces a (false?) warning with Pandas,
                 # but assigning to df.loc[:,col] does not update the df in
                 # cudf, so do one or the other based on type.
-                if type(df) is cudf.DataFrame:
-                    df[col] = df[col].astype(dtype_str)
-                else:
-                    df.loc[:, col] = df[col].astype(dtype_str)
+                update_cols[col] = df[col].astype(dtype_str)
+        if not update_cols:
+            return df
+        # Use df.assign to avoid assignment into df in case df is a view:
+        # https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html
+        # #returning-a-view-versus-a-copy
+        # Note that this requires all column names to be strings.
+        return df.assign(**update_cols)

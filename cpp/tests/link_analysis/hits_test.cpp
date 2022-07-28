@@ -135,7 +135,8 @@ template <typename input_usecase_t>
 class Tests_Hits : public ::testing::TestWithParam<std::tuple<Hits_Usecase, input_usecase_t>> {
  public:
   Tests_Hits() {}
-  static void SetupTestCase() {}
+
+  static void SetUpTestCase() {}
   static void TearDownTestCase() {}
 
   virtual void SetUp() {}

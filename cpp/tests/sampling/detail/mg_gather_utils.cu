@@ -18,18 +18,19 @@
 
 #include <sampling/detail/graph_functions.hpp>
 
+#include <utilities/mg_utilities.hpp>
+
 #include <raft/comms/comms.hpp>
 #include <raft/comms/mpi_comms.hpp>
 
-#include <thrust/iterator/counting_iterator.h>
-
-#include <gtest/gtest.h>
-
 #include <thrust/equal.h>
 #include <thrust/fill.h>
+#include <thrust/iterator/counting_iterator.h>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/sort.h>
 #include <thrust/tuple.h>
+
+#include <gtest/gtest.h>
 
 struct Prims_Usecase {
   bool check_correctness{true};
@@ -136,8 +137,10 @@ class Tests_MG_GatherEdges
   : public ::testing::TestWithParam<std::tuple<Prims_Usecase, input_usecase_t>> {
  public:
   Tests_MG_GatherEdges() {}
-  static void SetupTestCase() {}
-  static void TearDownTestCase() {}
+
+  static void SetUpTestCase() { handle_ = cugraph::test::initialize_mg_handle(); }
+
+  static void TearDownTestCase() { handle_.reset(); }
 
   virtual void SetUp() {}
   virtual void TearDown() {}
@@ -145,29 +148,13 @@ class Tests_MG_GatherEdges
   template <typename vertex_t, typename edge_t, typename weight_t>
   void run_current_test(Prims_Usecase const& prims_usecase, input_usecase_t const& input_usecase)
   {
-    using namespace cugraph::test;
-    // 1. initialize handle
-
-    raft::handle_t handle{};
     HighResClock hr_clock{};
 
-    raft::comms::initialize_mpi_comms(&handle, MPI_COMM_WORLD);
-    auto& comm           = handle.get_comms();
-    auto const comm_size = comm.get_size();
-    auto const comm_rank = comm.get_rank();
-
-    auto row_comm_size = static_cast<int>(sqrt(static_cast<double>(comm_size)));
-    while (comm_size % row_comm_size != 0) {
-      --row_comm_size;
-    }
-    cugraph::partition_2d::subcomm_factory_t<cugraph::partition_2d::key_naming_t, vertex_t>
-      subcomm_factory(handle, row_comm_size);
-
-    // 2. create MG graph
+    // 1. create MG graph
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
-      handle.get_comms().barrier();
+      handle_->get_comms().barrier();
       hr_clock.start();
     }
 
@@ -175,11 +162,11 @@ class Tests_MG_GatherEdges
 
     auto [mg_graph, mg_renumber_map_labels] =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, true>(
-        handle, input_usecase, true, true, false, sort_adjacency_list);
+        *handle_, input_usecase, true, true, false, sort_adjacency_list);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
-      handle.get_comms().barrier();
+      handle_->get_comms().barrier();
       double elapsed_time{0.0};
       hr_clock.stop(&elapsed_time);
       std::cout << "MG construct_graph took " << elapsed_time * 1e-6 << " s.\n";
@@ -190,47 +177,47 @@ class Tests_MG_GatherEdges
     constexpr vertex_t repetitions_per_vertex = 5;
     constexpr vertex_t source_sample_count    = 3;
 
-    // 3. Gather mnmg call
+    // 2. Gather mnmg call
     // Generate random vertex ids in the range of current gpu
 
     auto [global_degree_offsets, global_out_degrees] =
-      cugraph::detail::get_global_degree_information(handle, mg_graph_view);
+      cugraph::detail::get_global_degree_information(*handle_, mg_graph_view);
 
     // Generate random sources to gather on
     auto random_sources =
-      random_vertex_ids(handle,
-                        mg_graph_view.local_vertex_partition_range_first(),
-                        mg_graph_view.local_vertex_partition_range_last(),
-                        std::min(mg_graph_view.local_vertex_partition_range_size() *
-                                   (repetitions_per_vertex + vertex_t{1}),
-                                 source_sample_count),
-                        repetitions_per_vertex);
+      cugraph::test::random_vertex_ids(*handle_,
+                                       mg_graph_view.local_vertex_partition_range_first(),
+                                       mg_graph_view.local_vertex_partition_range_last(),
+                                       std::min(mg_graph_view.local_vertex_partition_range_size() *
+                                                  (repetitions_per_vertex + vertex_t{1}),
+                                                source_sample_count),
+                                       repetitions_per_vertex);
 
     // FIXME: allgather is probably a poor name for this function.
     //        It's really an allgather across the row communicator
     auto active_sources =
-      cugraph::detail::allgather_active_majors(handle, std::move(random_sources));
+      cugraph::detail::allgather_active_majors(*handle_, std::move(random_sources));
 
     // get source global out degrees to generate indices
     auto active_source_degrees = cugraph::detail::get_active_major_global_degrees(
-      handle, mg_graph_view, active_sources, global_out_degrees);
+      *handle_, mg_graph_view, active_sources, global_out_degrees);
 
     auto random_destination_offsets =
-      generate_random_destination_indices(handle,
-                                          active_source_degrees,
-                                          mg_graph_view.number_of_vertices(),
-                                          edge_t{-1},
-                                          indices_per_source);
+      cugraph::test::generate_random_destination_indices(*handle_,
+                                                         active_source_degrees,
+                                                         mg_graph_view.number_of_vertices(),
+                                                         edge_t{-1},
+                                                         indices_per_source);
 
     rmm::device_uvector<edge_t> input_destination_offsets(random_destination_offsets.size(),
-                                                          handle.get_stream());
+                                                          handle_->get_stream());
     raft::copy(input_destination_offsets.data(),
                random_destination_offsets.data(),
                random_destination_offsets.size(),
-               handle.get_stream());
+               handle_->get_stream());
 
     auto [src, dst, dst_map] =
-      cugraph::detail::gather_local_edges(handle,
+      cugraph::detail::gather_local_edges(*handle_,
                                           mg_graph_view,
                                           active_sources,
                                           std::move(random_destination_offsets),
@@ -241,14 +228,14 @@ class Tests_MG_GatherEdges
       // NOTE: This test assumes that edgea within the data structure are sorted
       //  We'll use gather_one_hop_edgelist to pull out the relevant edges
       auto [h_src, h_dst] = test_gather_local_edges(
-        handle, mg_graph_view, active_sources, input_destination_offsets, indices_per_source);
+        *handle_, mg_graph_view, active_sources, input_destination_offsets, indices_per_source);
 
       auto agg_src = cugraph::test::device_gatherv(
-        handle, raft::device_span<vertex_t const>{src.data(), src.size()});
+        *handle_, raft::device_span<vertex_t const>{src.data(), src.size()});
       auto agg_dst = cugraph::test::device_gatherv(
-        handle, raft::device_span<vertex_t const>{dst.data(), dst.size()});
+        *handle_, raft::device_span<vertex_t const>{dst.data(), dst.size()});
 
-      thrust::sort(handle.get_thrust_policy(),
+      thrust::sort(handle_->get_thrust_policy(),
                    thrust::make_zip_iterator(agg_src.begin(), agg_dst.begin()),
                    thrust::make_zip_iterator(agg_src.end(), agg_dst.end()));
       thrust::sort(thrust::host,
@@ -257,8 +244,8 @@ class Tests_MG_GatherEdges
 
       std::vector<vertex_t> h_agg_src(agg_src.size());
       std::vector<vertex_t> h_agg_dst(agg_dst.size());
-      raft::update_host(h_agg_src.data(), agg_src.data(), agg_src.size(), handle.get_stream());
-      raft::update_host(h_agg_dst.data(), agg_dst.data(), agg_dst.size(), handle.get_stream());
+      raft::update_host(h_agg_src.data(), agg_src.data(), agg_src.size(), handle_->get_stream());
+      raft::update_host(h_agg_dst.data(), agg_dst.data(), agg_dst.size(), handle_->get_stream());
 
       // FIXME:  Why are the randomly selected vertices on each GPU so similar??
 
@@ -267,7 +254,13 @@ class Tests_MG_GatherEdges
       ASSERT_TRUE(passed);
     }
   }
+
+ private:
+  static std::unique_ptr<raft::handle_t> handle_;
 };
+
+template <typename input_usecase_t>
+std::unique_ptr<raft::handle_t> Tests_MG_GatherEdges<input_usecase_t>::handle_ = nullptr;
 
 using Tests_MG_GatherEdges_File = Tests_MG_GatherEdges<cugraph::test::File_Usecase>;
 
