@@ -1,4 +1,4 @@
-# Copyright (c) 2021-2022, NVIDIA CORPORATION.
+# Copyright (c) 2019-2021, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -11,7 +11,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from cugraph.sampling.random_walks import random_walks, rw_path
-from cugraph.sampling.node2vec import node2vec
-from cugraph.sampling.uniform_neighbor_sample import \
-    uniform_neighbor_sample
+from cugraph.link_prediction.jaccard import jaccard
+from cugraph.link_prediction.jaccard import jaccard_coefficient
+from cugraph.link_prediction.overlap import overlap
+from cugraph.link_prediction.wjaccard import jaccard_w
+from cugraph.link_prediction.woverlap import overlap_w
+from cugraph.link_prediction.wsorensen import sorensen_w
+from cugraph.link_prediction.jaccard import jaccard_coefficient
+from cugraph.link_prediction.sorensen import sorensen_coefficient
+from cugraph.link_prediction.sorensen import sorensen
+from cugraph.link_prediction.overlap import overlap_coefficient

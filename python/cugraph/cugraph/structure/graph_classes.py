@@ -99,7 +99,6 @@ class Graph:
         destination="destination",
         edge_attr=None,
         renumber=True,
-        store_transposed=False,
         legacy_renum_only=False
     ):
         """
@@ -135,15 +134,6 @@ class Graph:
             Indicate whether or not to renumber the source and destination
             vertex IDs.
 
-        store_transposed : bool, optional (default=False)
-            If True, stores the transpose of the adjacency matrix.  Required
-            for certain algorithms.
-
-        legacy_renum_only : bool, optional (default=False)
-            If True, skips the C++ renumbering step.  Must be true for
-            pylibcugraph algorithms.  Must be false for algorithms
-            not yet converted to the pylibcugraph C API.
-
         Examples
         --------
         >>> df = cudf.read_csv(datasets_path / 'karate.csv', delimiter=' ',
@@ -167,7 +157,6 @@ class Graph:
             destination=destination,
             edge_attr=edge_attr,
             renumber=renumber,
-            store_transposed=store_transposed,
             legacy_renum_only=legacy_renum_only)
 
     def from_cudf_adjlist(self, offset_col, index_col, value_col=None):
@@ -232,8 +221,6 @@ class Graph:
         destination="destination",
         edge_attr=None,
         renumber=True,
-        store_transposed=False,
-        legacy_renum_only=False
     ):
         """
         Initializes the distributed graph from the dask_cudf.DataFrame
@@ -263,15 +250,6 @@ class Graph:
         renumber : bool, optional (default=True)
             If source and destination indices are not in range 0 to V where V
             is number of vertices, renumber argument should be True.
-
-        store_transposed : bool, optional (default=False)
-            If True, stores the transpose of the adjacency matrix.  Required
-            for certain algorithms.
-
-        legacy_renum_only : bool, optional (default=False)
-            If True, skips the C++ renumbering step.  Must be true for
-            pylibcugraph algorithms.  Must be false for algorithms
-            not yet converted to the pylibcugraph C API.
         """
         if renumber is False:
             raise ValueError("'renumber' must be set to 'True' for MNMG algos")
@@ -281,15 +259,11 @@ class Graph:
             raise RuntimeError("Graph is already initialized")
         elif (self._Impl.edgelist is not None):
             raise RuntimeError("Graph already has values")
-        self._Impl._simpleDistributedGraphImpl__from_edgelist(
-            input_ddf,
-            source,
-            destination,
-            edge_attr,
-            renumber,
-            store_transposed,
-            legacy_renum_only
-        )
+        self._Impl._simpleDistributedGraphImpl__from_edgelist(input_ddf,
+                                                              source,
+                                                              destination,
+                                                              edge_attr,
+                                                              renumber)
 
     # Move to Compat Module
     def from_pandas_edgelist(
@@ -596,10 +570,8 @@ class Graph:
 
         Examples
         --------
-        >>> M = cudf.read_csv(datasets_path / 'karate.csv', delimiter=' ',
-        ...                   dtype=['int32', 'int32', 'float32'], header=None)
-        >>> G = cugraph.Graph()
-        >>> G.from_cudf_edgelist(M, '0', '1')
+        >>> from cugraph.experimental.datasets import karate_undirected
+        >>> G = karate_undirected.get_graph(fetch=True)
         >>> DiG = G.to_directed()
 
         """
@@ -623,10 +595,8 @@ class Graph:
 
         Examples
         --------
-        >>> M = cudf.read_csv(datasets_path / 'karate.csv', delimiter=' ',
-        ...                   dtype=['int32', 'int32', 'float32'], header=None)
-        >>> DiG = cugraph.Graph(directed=True)
-        >>> DiG.from_cudf_edgelist(M, '0', '1')
+        >>> from cugraph.experimental.datasets import karate
+        >>> G = karate.get_graph(fetch=True)
         >>> G = DiG.to_undirected()
 
         """
@@ -713,9 +683,7 @@ class NPartiteGraph(Graph):
         source="source",
         destination="destination",
         edge_attr=None,
-        renumber=True,
-        store_transposed=False,
-        legacy_renum_only=False
+        renumber=True
     ):
         """
         Initialize a graph from the edge list. It is an error to call this
@@ -751,15 +719,6 @@ class NPartiteGraph(Graph):
             Indicate whether or not to renumber the source and destination
             vertex IDs
 
-        store_transposed : bool, optional (default=False)
-            If True, stores the transpose of the adjacency matrix.  Required
-            for certain algorithms.
-
-        legacy_renum_only : bool, optional (default=False)
-            If True, skips the C++ renumbering step.  Must be true for
-            pylibcugraph algorithms.  Must be false for algorithms
-            not yet converted to the pylibcugraph C API.
-
         Examples
         --------
         >>> df = cudf.read_csv(datasets_path / 'karate.csv', delimiter=' ',
@@ -773,13 +732,11 @@ class NPartiteGraph(Graph):
         if self._Impl is None:
             self._Impl = npartiteGraphImpl(self.graph_properties)
         # API may change in future
-        self._Impl._npartiteGraphImpl__from_edgelist(
-            input_df,
-            source=source,
-            destination=destination,
-            edge_attr=edge_attr,
-            renumber=renumber
-        )
+        self._Impl._npartiteGraphImpl__from_edgelist(input_df,
+                                                     source=source,
+                                                     destination=destination,
+                                                     edge_attr=edge_attr,
+                                                     renumber=renumber)
 
     def from_dask_cudf_edgelist(
         self,
@@ -788,8 +745,6 @@ class NPartiteGraph(Graph):
         destination="destination",
         edge_attr=None,
         renumber=True,
-        store_transposed=False,
-        legacy_renum_only=False
     ):
         """
         Initializes the distributed graph from the dask_cudf.DataFrame
@@ -819,15 +774,6 @@ class NPartiteGraph(Graph):
         renumber : bool, optional (default=True)
             If source and destination indices are not in range 0 to V where V
             is number of vertices, renumber argument should be True.
-
-        store_transposed : bool, optional (default=False)
-            If True, stores the transpose of the adjacency matrix.  Required
-            for certain algorithms.
-
-        legacy_renum_only : bool, optional (default=False)
-            If True, skips the C++ renumbering step.  Must be true for
-            pylibcugraph algorithms.  Must be false for algorithms
-            not yet converted to the pylibcugraph C API.
         """
         raise TypeError("Distributed N-partite graph not supported")
 

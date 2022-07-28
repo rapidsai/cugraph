@@ -14,8 +14,11 @@
 import cudf
 import dask_cudf
 
-from pylibcugraph import ResourceHandle
-from pylibcugraph import bfs as pylibcugraph_bfs
+from pylibcugraph import (ResourceHandle,
+                          GraphProperties,
+                          SGGraph,
+                          bfs as pylibcugraph_bfs
+                          )
 
 from cugraph.structure.graph_classes import Graph, DiGraph
 from cugraph.utilities import (ensure_cugraph_obj,
@@ -124,6 +127,45 @@ def _convert_df_to_output_type(df, input_type):
         raise TypeError(f"input type {input_type} is not a supported type.")
 
 
+def _call_plc_bfs(G, sources, depth_limit, do_expensive_check=False,
+                  direction_optimizing=False, return_predecessors=True):
+    handle = ResourceHandle()
+
+    srcs = G.edgelist.edgelist_df['src']
+    dsts = G.edgelist.edgelist_df['dst']
+    weights = G.edgelist.edgelist_df['weights'] \
+        if 'weights' in G.edgelist.edgelist_df \
+        else cudf.Series((srcs + 1) / (srcs + 1), dtype='float32')
+
+    sg = SGGraph(
+        resource_handle=handle,
+        graph_properties=GraphProperties(is_multigraph=G.is_multigraph()),
+        src_array=srcs,
+        dst_array=dsts,
+        weight_array=weights,
+        store_transposed=False,
+        renumber=False,
+        do_expensive_check=do_expensive_check
+    )
+
+    distances, predecessors, vertices = \
+        pylibcugraph_bfs(
+            handle,
+            sg,
+            sources,
+            direction_optimizing,
+            depth_limit if depth_limit is not None else -1,
+            return_predecessors,
+            do_expensive_check
+        )
+
+    return cudf.DataFrame({
+        'distance': cudf.Series(distances),
+        'vertex': cudf.Series(vertices),
+        'predecessor': cudf.Series(predecessors),
+    })
+
+
 def bfs(G,
         start=None,
         depth_limit=None,
@@ -133,9 +175,6 @@ def bfs(G,
     """
     Find the distances and predecessors for a breadth first traversal of a
     graph.
-
-    Note: This is a pylibcugraph-enabled algorithm, which requires that the
-    graph was created with legacy_renum_only=True.
 
     Parameters
     ----------
@@ -206,7 +245,7 @@ def bfs(G,
 
     Examples
     --------
-    >>> karate = cugraph.experimental.datasets.karate
+    >>> from cugraph.experimental.datasets import karate
     >>> G = karate.get_graph(fetch=True)
     >>> df = cugraph.bfs(G, 0)
 
@@ -236,29 +275,18 @@ def bfs(G,
         else:
             start = cudf.Series(start, name='starts')
 
-    distances, predecessors, vertices = \
-        pylibcugraph_bfs(
-            handle=ResourceHandle(),
-            graph=G._plc_graph,
-            sources=start,
-            direction_optimizing=False,
-            depth_limit=depth_limit if depth_limit is not None else -1,
-            compute_predecessors=return_predecessors,
-            do_expensive_check=False
-        )
-
-    result_df = cudf.DataFrame({
-        'vertex': cudf.Series(vertices),
-        'distance': cudf.Series(distances),
-        'predecessor': cudf.Series(predecessors),
-    })
-
+    df = _call_plc_bfs(
+        G,
+        start,
+        depth_limit,
+        return_predecessors=return_predecessors
+    )
     if G.renumbered:
-        result_df = G.unrenumber(result_df, "vertex")
-        result_df = G.unrenumber(result_df, "predecessor")
-        result_df.fillna(-1, inplace=True)
+        df = G.unrenumber(df, "vertex")
+        df = G.unrenumber(df, "predecessor")
+        df.fillna(-1, inplace=True)
 
-    return _convert_df_to_output_type(result_df, input_type)
+    return _convert_df_to_output_type(df, input_type)
 
 
 def bfs_edges(G, source, reverse=False, depth_limit=None, sort_neighbors=None):
@@ -323,10 +351,8 @@ def bfs_edges(G, source, reverse=False, depth_limit=None, sort_neighbors=None):
 
     Examples
     --------
-    >>> M = cudf.read_csv(datasets_path / 'karate.csv', delimiter=' ',
-    ...                   dtype=['int32', 'int32', 'float32'], header=None)
-    >>> G = cugraph.Graph()
-    >>> G.from_cudf_edgelist(M, source='0', destination='1')
+    >>> from cugraph.experimental.datasets import karate
+    >>> G = karate.get_graph(fetch=True)
     >>> df = cugraph.bfs_edges(G, 0)
 
     """
