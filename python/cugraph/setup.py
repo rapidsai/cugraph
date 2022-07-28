@@ -63,7 +63,7 @@ class CleanCommand(Command):
         os.system('rm -rf *.egg-info')
         os.system('find . -name "*.cpp" -type f -delete')
         os.system('find . -name "*.cpython*.so" -type f -delete')
-
+        os.system('rm -rf _skbuild')
 
 cmdclass = versioneer.get_cmdclass()
 cmdclass["clean"] = CleanCommand
