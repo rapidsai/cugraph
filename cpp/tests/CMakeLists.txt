@@ -381,7 +381,7 @@ ConfigureTest(TRIANGLE_COUNT_TEST community/triangle_count_test.cpp)
 if(BUILD_CUGRAPH_MG_TESTS)
     ###############################################################################################
     # - find MPI - only enabled if MG tests are to be built
-    find_package(MPI REQUIRED)
+    find_package(MPI REQUIRED COMPONENTS CXX)
 
     add_library(cugraphmgtestutil STATIC
                 utilities/device_comm_wrapper.cu
