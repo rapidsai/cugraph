@@ -19,6 +19,7 @@ from pathlib import Path
 from tempfile import NamedTemporaryFile, TemporaryDirectory
 from cugraph.experimental.datasets import (ALL_DATASETS, ALL_DATASETS_WGT,
                                            SMALL_DATASETS)
+from cugraph.structure import Graph
 
 
 # =============================================================================
@@ -172,18 +173,20 @@ def test_weights(dataset, datasets):
     datasets.set_download_dir(dataset_path)
 
     G_w = dataset.get_graph(fetch=True)
-    G = dataset.get_graph(fetch=True, weights=False)
+    G = dataset.get_graph(fetch=True, ignore_weights=True)
 
     assert G_w.is_weighted()
     assert not G.is_weighted()
 
 
 @pytest.mark.parametrize("dataset", SMALL_DATASETS)
-def test_default_direction(dataset, datasets):
+def test_create_using(dataset, datasets):
     datasets.set_download_dir(dataset_path)
 
     G_d = dataset.get_graph()
-    G = dataset.get_graph(default_direction=False)
+    G_t = dataset.get_graph(create_using=Graph)
+    G = dataset.get_graph(create_using=Graph(directed=True))
 
-    assert G_d.is_directed()
-    assert not G.is_directed()
+    assert not G_d.is_directed()
+    assert not G_t.is_directed()
+    assert G.is_directed()

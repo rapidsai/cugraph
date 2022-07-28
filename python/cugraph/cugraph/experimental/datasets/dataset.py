@@ -11,11 +11,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import cugraph
 import cudf
 import yaml
 import os
 from pathlib import Path
+from cugraph.structure.graph_classes import Graph
 
 
 class DefaultDownloadDir:
@@ -117,7 +117,7 @@ class Dataset:
 
         return self._edgelist
 
-    def get_graph(self, fetch=False, default_direction=True, weights=True):
+    def get_graph(self, fetch=False, create_using=Graph, ignore_weights=False):
         """
         Return a Graph object.
 
@@ -126,26 +126,36 @@ class Dataset:
         fetch : Boolean (default=False)
             Downloads the dataset from the web.
 
-        default_direction : Boolean (defalut=True)
-            Follow the default 'directed' attribute of the dataset. If
-            False, it will return the undirected version of the graph.
+        create_using: cugraph.Graph (instance or class), optional
+        (default=Graph)
+            Specify the type of Graph to create. Can pass in an instance to
+            create a Graph instance with specified 'directed' attribute.
 
-        weights : Boolean (default=True)
-            Include weights.
+        ignore_weights : Boolean (default=False)
+            Weights will be present by default, unless weights are not
+            included in the dataset.
         """
         if self._edgelist is None:
             self.get_edgelist(fetch)
 
-        self._graph = cugraph.Graph(directed=self.metadata['is_directed'])
-        if (len(self.metadata['col_names']) > 2 and weights):
+        if create_using is None:
+            self._graph = Graph()
+        elif isinstance(create_using, Graph):
+            attrs = {"directed": create_using.is_directed()}
+            self._graph = type(create_using)(**attrs)
+        elif type(create_using) is type(Graph):
+            self._graph = create_using()
+        else:
+            raise TypeError("create_using must be a cugraph.Graph "
+                            "(or subclass) type or instance, got: "
+                            f"{type(create_using)}")
+
+        if (len(self.metadata['col_names']) > 2 and not(ignore_weights)):
             self._graph.from_cudf_edgelist(self._edgelist, source='src',
                                            destination='dst', edge_attr='wgt')
         else:
             self._graph.from_cudf_edgelist(self._edgelist, source='src',
                                            destination='dst')
-
-        if not default_direction:
-            self._graph = self._graph.to_undirected()
 
         return self._graph
 
