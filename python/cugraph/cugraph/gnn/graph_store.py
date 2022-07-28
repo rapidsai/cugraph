@@ -84,7 +84,8 @@ class CuGraphStore:
                     )
                 )
             ntype = ntypes[0]
-
+        # FIXME: Remove once below lands
+        # https://github.com/rapidsai/cugraph/pull/2444
         df = self.gdata._vertex_prop_dataframe
         col_names = self.ndata_key_col_d[key]
         return CuFeatureStorage(
@@ -108,6 +109,8 @@ class CuGraphStore:
 
             etype = etypes[0]
         col_names = self.edata_key_col_d[key]
+        # FIXME: Remove once below lands
+        # https://github.com/rapidsai/cugraph/pull/2444
         df = self.gdata._edge_prop_dataframe
         return CuFeatureStorage(
             df=df,
@@ -118,6 +121,9 @@ class CuGraphStore:
         )
 
     def num_nodes(self, ntype=None):
+        # FIXME: Remove once below lands
+        # https://github.com/rapidsai/cugraph/pull/2434
+
         if ntype is not None:
             s = self.gdata._vertex_prop_dataframe[type_n] == ntype
             return s.sum()
@@ -125,6 +131,9 @@ class CuGraphStore:
             return self.gdata.num_vertices
 
     def num_edges(self, etype=None):
+        # FIXME: Remove once below lands
+        # https://github.com/rapidsai/cugraph/pull/2434
+
         if etype is not None:
             s = self.gdata._edge_prop_dataframe[type_n] == etype
             return s.sum()
@@ -133,12 +142,16 @@ class CuGraphStore:
 
     @property
     def ntypes(self):
+        # FIXME: Remove once below is fixed
+        # https://github.com/rapidsai/cugraph/issues/2423
         s = self.gdata._vertex_prop_dataframe[type_n]
         ntypes = s.drop_duplicates().to_arrow().to_pylist()
         return ntypes
 
     @property
     def etypes(self):
+        # FIXME: Remove once below is fixed
+        # https://github.com/rapidsai/cugraph/issues/2423
         s = self.gdata._edge_prop_dataframe[type_n]
         ntypes = s.drop_duplicates().to_arrow().to_pylist()
         return ntypes
@@ -146,6 +159,8 @@ class CuGraphStore:
     @property
     def ndata(self):
         return {
+            # FIXME: Remove once below lands
+            # https://github.com/rapidsai/cugraph/pull/2444
             k: self.gdata._vertex_prop_dataframe[col_names].dropna(how="all")
             for k, col_names in self.ndata_key_col_d.items()
         }
@@ -153,6 +168,8 @@ class CuGraphStore:
     @property
     def edata(self):
         return {
+            # FIXME: Remove once below lands
+            # https://github.com/rapidsai/cugraph/pull/2444
             k: self.gdata._edge_prop_dataframe[col_names].dropna(how="all")
             for k, col_names in self.edata_key_col_d.items()
         }
@@ -245,6 +262,8 @@ class CuGraphStore:
                 columns={"sources": src_n, "destinations": dst_n}, inplace=True
             )
 
+        # FIXME: Remove once below lands
+        # https://github.com/rapidsai/cugraph/issues/2444
         edge_df = self.gdata._edge_prop_dataframe[[src_n, dst_n, eid_n]]
         sampled_df = edge_df.merge(sampled_df)
 
@@ -267,7 +286,7 @@ class CuGraphStore:
             source=src_n,
             destination=dst_n,
             edge_attr="weight",
-            renumber=True,
+            legacy_renum_only=True,
         )
         return subgraph
 
@@ -276,7 +295,7 @@ class CuGraphStore:
         gr_template = cugraph.Graph(directed=True)
         subgraph = self.gdata.extract_subgraph(create_using=gr_template,
                                                default_edge_weight=1.0,
-                                               renumber_graph=False)
+                                               renumber_graph=True)
         return subgraph
 
     def find_edges(self, edge_ids_cap, etype):
@@ -298,8 +317,11 @@ class CuGraphStore:
         """
         edge_ids = cudf.from_dlpack(edge_ids_cap)
 
+        # FIXME: Remove once below lands
+        # https://github.com/rapidsai/cugraph/issues/2444
         edge_df = self.gdata._edge_prop_dataframe[[src_n, dst_n,
                                                    eid_n, type_n]]
+
         subset_df = get_subset_df(
             edge_df, PropertyGraph.edge_id_col_name, edge_ids, etype
         )
