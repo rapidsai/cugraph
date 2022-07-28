@@ -178,8 +178,14 @@ def pagerank(input_graph,
     client = input_graph._client
 
     do_expensive_check = False
-
-    if personalization:
+    print("personnalization before\n", personalization)
+    if personalization is not None:
+        if input_graph.renumbered is True:
+            print("renumber personalization")
+            personalization = input_graph.add_internal_vertex_id(
+                personalization, "vertex", "vertex"
+            ).compute()
+            print("personnalization after\n", personalization)
         """
         # Function to assign partition id to personalization dataframe
         def _set_partitions_pre(s, divisions):

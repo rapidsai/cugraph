@@ -11,90 +11,55 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import cudf
-
-from cugraph.link_analysis import pagerank_wrapper
 from cugraph.utilities import (ensure_cugraph_obj_for_nx,
                                df_score_to_dictionary,
                                )
+import cudf
+import warnings
+
+from pylibcugraph import (pagerank as pylibcugraph_pagerank,
+                          personalized_pagerank as pylibcugraph_p_pagerank,
+                          ResourceHandle
+                          )
 
 
 def pagerank(
-    G, alpha=0.85, personalization=None, max_iter=100, tol=1.0e-5, nstart=None,
-    weight=None, dangling=None
+    G, alpha=0.85, personalization=None,
+    precomputed_vertex_out_weight_sums=None, max_iter=100, tol=1.0e-5,
+    nstart=None, weight=None, dangling=None, has_initial_guess=None
 ):
     """
-    Find the PageRank score for every vertex in a graph. cuGraph computes an
-    approximation of the Pagerank eigenvector using the power method. The
-    number of iterations depends on the properties of the network itself; it
-    increases when the tolerance descreases and/or alpha increases toward the
-    limiting value of 1. The user is free to use default values or to provide
-    inputs for the initial guess, tolerance and maximum number of iterations.
+    Compute the core numbers for the nodes of the graph G. A k-core of a graph
+    is a maximal subgraph that contains nodes of degree k or more.
+    A node has a core number of k if it belongs a k-core but not to k+1-core.
+    This call does not support a graph with self-loops and parallel
+    edges.
 
     Parameters
     ----------
-    G : cugraph.Graph or networkx.Graph
-        cuGraph graph descriptor, should contain the connectivity information
-        as an edge list.
-        The transposed adjacency list will be computed if not already present.
+    G : cuGraph.Graph or networkx.Graph
+        The graph should contain undirected edges where undirected edges are
+        represented as directed edges in both directions. While this graph
+        can contain edge weights, they don't participate in the calculation
+        of the core numbers.
 
-    alpha : float, optional (default=0.85)
-        The damping factor alpha represents the probability to follow an
-        outgoing edge, standard value is 0.85.
-        Thus, 1.0-alpha is the probability to “teleport” to a random vertex.
-        Alpha should be greater than 0.0 and strictly lower than 1.0.
-
-    personalization : cudf.Dataframe, optional (default=None)
-        GPU Dataframe containing the personalization information.
-
-        personalization['vertex'] : cudf.Series
-            Subset of vertices of graph for personalization
-        personalization['values'] : cudf.Series
-            Personalization values for vertices
-
-    max_iter : int, optional (default=100)
-        The maximum number of iterations before an answer is returned. This can
-        be used to limit the execution time and do an early exit before the
-        solver reaches the convergence tolerance.
-        If this value is lower or equal to 0 cuGraph will use the default
-        value, which is 100.
-
-    tol : float, optional (default=1e-05)
-        Set the tolerance the approximation, this parameter should be a small
-        magnitude value.
-        The lower the tolerance the better the approximation. If this value is
-        0.0f, cuGraph will use the default value which is 1.0E-5.
-        Setting too small a tolerance can lead to non-convergence due to
-        numerical roundoff. Usually values between 0.01 and 0.00001 are
-        acceptable.
-
-    nstart : cudf.Dataframe, optional (default=None)
-        GPU Dataframe containing the initial guess for pagerank.
-
-        nstart['vertex'] : cudf.Series
-            Subset of vertices of graph for initial guess for pagerank values
-        nstart['values'] : cudf.Series
-            Pagerank values for vertices
-
-    weight: str, optional (default=None)
-        The attribute column to be used as edge weights if Graph is a NetworkX
-        Graph. This parameter is here for NetworkX compatibility and is ignored
-        in case of a cugraph.Graph
-
-    dangling : dict, optional (default=None)
-        This parameter is here for NetworkX compatibility and ignored
+    degree_type: str
+        This option determines if the core number computation should be based
+        on input, output, or both directed edges, with valid values being
+        "incoming", "outgoing", and "bidirectional" respectively.
+        This option is currently ignored in this release, and setting it will
+        result in a warning.
 
     Returns
     -------
-    PageRank : cudf.DataFrame
+    df : cudf.DataFrame or python dictionary (in NetworkX input)
         GPU data frame containing two cudf.Series of size V: the vertex
-        identifiers and the corresponding PageRank values.
+        identifiers and the corresponding core number values.
 
         df['vertex'] : cudf.Series
             Contains the vertex identifiers
-        df['pagerank'] : cudf.Series
-            Contains the PageRank score
-
+        df['core_number'] : cudf.Series
+            Contains the core number of vertices
 
     Examples
     --------
@@ -102,11 +67,25 @@ def pagerank(
     ...                     dtype=['int32', 'int32', 'float32'], header=None)
     >>> G = cugraph.Graph()
     >>> G.from_cudf_edgelist(gdf, source='0', destination='1')
-    >>> pr = cugraph.pagerank(G, alpha = 0.85, max_iter = 500, tol = 1.0e-05)
+    >>> df = cugraph.core_number(G)
 
     """
 
-    G, isNx = ensure_cugraph_obj_for_nx(G, weight)
+    # FIXME: fix this
+    has_initial_guess = False
+
+    G, isNx = ensure_cugraph_obj_for_nx(G)
+    do_expensive_check = False
+
+    if nstart is not None:
+        if G.renumbered is True:
+            if len(G.renumber_map.implementation.col_names) > 1:
+                cols = nstart.columns[:-1].to_list()
+            else:
+                cols = 'vertex'
+            nstart = G.add_internal_vertex_id(
+                nstart, "vertex", cols
+            )
 
     if personalization is not None:
         if not isinstance(personalization, cudf.DataFrame):
@@ -123,24 +102,41 @@ def pagerank(
                 personalization, "vertex", cols
             )
 
-    if nstart is not None:
-        if G.renumbered is True:
-            if len(G.renumber_map.implementation.col_names) > 1:
-                cols = nstart.columns[:-1].to_list()
-            else:
-                cols = 'vertex'
-            nstart = G.add_internal_vertex_id(
-                nstart, "vertex", cols
+        vertex, pagerank_values = \
+            pylibcugraph_p_pagerank(
+                resource_handle=ResourceHandle(),
+                graph=G._plc_graph,
+                precomputed_vertex_out_weight_sums=precomputed_vertex_out_weight_sums,
+                personalization_vertices=personalization["vertex"],
+                personalization_values=personalization["values"],
+                alpha=alpha,
+                epsilon=tol,
+                max_iterations=max_iter,
+                has_initial_guess=has_initial_guess,
+                do_expensive_check=do_expensive_check
+            )
+    else:
+        vertex, pagerank_values = \
+            pylibcugraph_pagerank(
+                resource_handle=ResourceHandle(),
+                graph=G._plc_graph,
+                precomputed_vertex_out_weight_sums=precomputed_vertex_out_weight_sums,
+                alpha=alpha,
+                epsilon=tol,
+                max_iterations=max_iter,
+                has_initial_guess=has_initial_guess,
+                do_expensive_check=do_expensive_check
             )
 
-    df = pagerank_wrapper.pagerank(
-        G, alpha, personalization, max_iter, tol, nstart
-    )
+
+    df = cudf.DataFrame()
+    df["vertex"] = vertex
+    df["pagerank"] = pagerank_values
 
     if G.renumbered:
         df = G.unrenumber(df, "vertex")
 
     if isNx is True:
-        return df_score_to_dictionary(df, 'pagerank')
-    else:
-        return df
+        df = df_score_to_dictionary(df, 'pagerank')
+
+    return df
