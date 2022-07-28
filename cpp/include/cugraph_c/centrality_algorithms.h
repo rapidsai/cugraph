@@ -71,15 +71,17 @@ void cugraph_centrality_result_free(cugraph_centrality_result_t* result);
  *                          Optionally send in precomputed sume of vertex out weights
  *                          (a performance optimization).  Set to NULL if
  *                          no value is passed.
+ * @param [in]  initial_guess
+ *                          Optionally send in an initial guess of the pagerank values
+ *                          (a performance optimization).  Set to NULL if
+ *                          no value is passed. If NULL, initial PageRank values are set
+ *                          to 1.0 divided by the number of vertices in the graph.
  * @param [in]  alpha       PageRank damping factor.
  * @param [in]  epsilon     Error tolerance to check convergence. Convergence is assumed
  *                          if the sum of the differences in PageRank values between two
  *                          consecutive iterations is less than the number of vertices
  *                          in the graph multiplied by @p epsilon.
  * @param [in]  max_iterations Maximum number of PageRank iterations.
- * @param [in]  has_initial_guess If set to `true`, values in the PageRank output array (pointed by
- * @p pageranks) is used as initial PageRank values. If false, initial PageRank values are set
- * to 1.0 divided by the number of vertices in the graph.
  * @param [in]  do_expensive_check A flag to run expensive checks for input arguments (if set to
  * `true`).
  * @param [out] result      Opaque pointer to pagerank results
@@ -91,10 +93,10 @@ cugraph_error_code_t cugraph_pagerank(
   const cugraph_resource_handle_t* handle,
   cugraph_graph_t* graph,
   const cugraph_type_erased_device_array_view_t* precomputed_vertex_out_weight_sums,
+  const cugraph_type_erased_device_array_view_t* initial_guess,
   double alpha,
   double epsilon,
   size_t max_iterations,
-  bool_t has_initial_guess,
   bool_t do_expensive_check,
   cugraph_centrality_result_t** result,
   cugraph_error_t** error);
@@ -108,6 +110,11 @@ cugraph_error_code_t cugraph_pagerank(
  *                          Optionally send in precomputed sume of vertex out weights
  *                          (a performance optimization).  Set to NULL if
  *                          no value is passed.
+ * @param [in]  initial_guess
+ *                          Optionally send in an initial guess of the pagerank values
+ *                          (a performance optimization).  Set to NULL if
+ *                          no value is passed. If NULL, initial PageRank values are set
+ *                          to 1.0 divided by the number of vertices in the graph.
  * FIXME:  Make this just [in], copy it if I need to temporarily modify internally
  * @param [in/out]  personalization_vertices Pointer to an array storing personalization vertex
  * identifiers (compute personalized PageRank).  Array might be modified if renumbering is enabled
@@ -120,9 +127,6 @@ cugraph_error_code_t cugraph_pagerank(
  *                          consecutive iterations is less than the number of vertices
  *                          in the graph multiplied by @p epsilon.
  * @param [in]  max_iterations Maximum number of PageRank iterations.
- * @param [in]  has_initial_guess If set to `true`, values in the PageRank output array (pointed by
- * @p pageranks) is used as initial PageRank values. If false, initial PageRank values are set
- * to 1.0 divided by the number of vertices in the graph.
  * @param [in]  do_expensive_check A flag to run expensive checks for input arguments (if set to
  * `true`).
  * @param [out] result      Opaque pointer to pagerank results
@@ -134,13 +138,13 @@ cugraph_error_code_t cugraph_personalized_pagerank(
   const cugraph_resource_handle_t* handle,
   cugraph_graph_t* graph,
   const cugraph_type_erased_device_array_view_t* precomputed_vertex_out_weight_sums,
+  const cugraph_type_erased_device_array_view_t* initial_guess,
   // FIXME:  Make this const, copy it if I need to temporarily modify internally
   cugraph_type_erased_device_array_view_t* personalization_vertices,
   const cugraph_type_erased_device_array_view_t* personalization_values,
   double alpha,
   double epsilon,
   size_t max_iterations,
-  bool_t has_initial_guess,
   bool_t do_expensive_check,
   cugraph_centrality_result_t** result,
   cugraph_error_t** error);
