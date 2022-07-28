@@ -265,7 +265,7 @@ class CuGraphStore:
             source=src_n,
             destination=dst_n,
             edge_attr="weight",
-            renumber=False,
+            renumber=True,
         )
         return subgraph
 
@@ -279,7 +279,7 @@ class CuGraphStore:
             source=src_n,
             destination=dst_n,
             edge_attr="weight",
-            renumber=False,
+            renumber=True,
         )
         return subgraph
 
