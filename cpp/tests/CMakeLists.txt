@@ -48,6 +48,8 @@ target_link_libraries(cugraphtestutil
 )
 
 
+if(BUILD_CUGRAPH_MG_TESTS)
+
 add_library(cugraphmgtestutil STATIC
             utilities/device_comm_wrapper.cu
             utilities/mg_utilities.cpp)
@@ -67,6 +69,8 @@ target_link_libraries(cugraphmgtestutil
         NCCL::NCCL
         MPI::MPI_CXX
 )
+
+endif()
 
 ###################################################################################################
 # - compiler function -----------------------------------------------------------------------------
@@ -95,6 +99,8 @@ function(ConfigureTest CMAKE_TEST_NAME)
         DESTINATION bin/gtests/libcugraph
         EXCLUDE_FROM_ALL)
 endfunction()
+
+if(BUILD_CUGRAPH_MG_TESTS)
 
 function(ConfigureTestMG CMAKE_TEST_NAME)
     add_executable(${CMAKE_TEST_NAME} ${ARGN})
@@ -130,6 +136,8 @@ function(ConfigureTestMG CMAKE_TEST_NAME)
             EXCLUDE_FROM_ALL)
 endfunction()
 
+endif()
+
 function(ConfigureCTest CMAKE_TEST_NAME)
     add_executable(${CMAKE_TEST_NAME} ${ARGN})
 
@@ -153,6 +161,8 @@ function(ConfigureCTest CMAKE_TEST_NAME)
             DESTINATION bin/gtests/libcugraph_c
             EXCLUDE_FROM_ALL)
 endfunction()
+
+if(BUILD_CUGRAPH_MG_TESTS)
 
 function(ConfigureCTestMG CMAKE_TEST_NAME)
     add_executable(${CMAKE_TEST_NAME} ${ARGN})
@@ -186,6 +196,8 @@ function(ConfigureCTestMG CMAKE_TEST_NAME)
             DESTINATION bin/gtests/libcugraph_c
             EXCLUDE_FROM_ALL)
 endfunction()
+
+endif()
 
 if(NOT USE_CUGRAPH_OPS)
     list(APPEND CMAKE_C_FLAGS -DNO_CUGRAPH_OPS)
