@@ -62,6 +62,7 @@ class CleanCommand(Command):
         os.system('find . -name "*.cpython*.so" -type f -delete')
         os.system('rm -rf _skbuild')
 
+
 cmdclass = versioneer.get_cmdclass()
 cmdclass.update(versioneer.get_cmdclass())
 cmdclass["clean"] = CleanCommand
