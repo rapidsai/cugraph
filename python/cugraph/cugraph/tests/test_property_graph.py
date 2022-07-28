@@ -930,6 +930,7 @@ def test_extract_subgraph_no_edges(dataset1_PropertyGraph):
 
     selection = pG.select_vertices("(_TYPE_=='merchants') & (merchant_id==86)")
     G = pG.extract_subgraph(selection=selection)
+    assert G.is_directed()
 
     assert len(G.edgelist.edgelist_df) == 0
 

@@ -547,7 +547,7 @@ class EXPERIMENTAL__MGPropertyGraph:
             edge_selection_series=selected_col)
 
     def extract_subgraph(self,
-                         create_using=cugraph.Graph,
+                         create_using=None,
                          selection=None,
                          edge_weight_property=None,
                          default_edge_weight=None,
@@ -561,12 +561,12 @@ class EXPERIMENTAL__MGPropertyGraph:
 
         Parameters
         ----------
-        create_using : cugraph Graph type or instance
+        create_using : cugraph Graph type or instance, optional
             Creates a Graph to return using the type specified. If an instance
             is specified, the type of the instance is used to construct the
             return Graph, and all relevant attributes set on the instance are
             copied to the return Graph (eg. directed). If not specified the
-            returned Graph will be a cugraph.Graph instance.
+            returned Graph will be a directed cugraph.Graph instance.
         selection : PropertySelection
             A PropertySelection returned from one or more calls to
             select_vertices() and/or select_edges(), used for creating a Graph
@@ -643,6 +643,12 @@ class EXPERIMENTAL__MGPropertyGraph:
         # values. Restore the original dtypes in the resulting edges df prior
         # to creating a Graph.
         self.__update_dataframe_dtypes(edges, self.__edge_prop_dtypes)
+
+        # Default create_using set here instead of function signature to
+        # prevent cugraph from running on import. This may help diagnose errors
+        if create_using is None:
+            create_using = cugraph.Graph(directed=True)
+
         return self.edge_props_to_graph(
             edges,
             create_using=create_using,
