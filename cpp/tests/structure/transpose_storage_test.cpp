@@ -41,7 +41,8 @@ class Tests_TransposeStorage
   : public ::testing::TestWithParam<std::tuple<TransposeStorage_Usecase, input_usecase_t>> {
  public:
   Tests_TransposeStorage() {}
-  static void SetupTestCase() {}
+
+  static void SetUpTestCase() {}
   static void TearDownTestCase() {}
 
   virtual void SetUp() {}

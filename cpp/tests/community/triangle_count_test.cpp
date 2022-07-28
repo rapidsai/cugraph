@@ -98,7 +98,8 @@ class Tests_TriangleCount
   : public ::testing::TestWithParam<std::tuple<TriangleCount_Usecase, input_usecase_t>> {
  public:
   Tests_TriangleCount() {}
-  static void SetupTestCase() {}
+
+  static void SetUpTestCase() {}
   static void TearDownTestCase() {}
 
   virtual void SetUp() {}
