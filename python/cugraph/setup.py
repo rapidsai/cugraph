@@ -19,8 +19,6 @@ from skbuild import setup
 
 from setuputils import get_environment_option
 
-from skbuild.command.build_ext import build_ext
-
 import versioneer
 
 
@@ -67,10 +65,8 @@ class CleanCommand(Command):
         os.system('find . -name "*.cpython*.so" -type f -delete')
 
 
-cmdclass = dict()
-cmdclass.update(versioneer.get_cmdclass())
+cmdclass = versioneer.get_cmdclass()
 cmdclass["clean"] = CleanCommand
-cmdclass["build_ext"] = build_ext
 PACKAGE_DATA = {
     key: ["*.pxd"] for key in find_packages(include=["cugraph*"])}
 

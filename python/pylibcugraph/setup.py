@@ -17,8 +17,6 @@ import shutil
 from setuptools import find_packages, Command
 from skbuild import setup
 
-from skbuild.command.build_ext import build_ext
-
 from setuputils import get_environment_option
 
 import versioneer
@@ -64,10 +62,8 @@ class CleanCommand(Command):
         os.system('find . -name "*.cpython*.so" -type f -delete')
         os.system('rm -rf _skbuild')
 
-
-cmdclass = dict()
+cmdclass = versioneer.get_cmdclass()
 cmdclass.update(versioneer.get_cmdclass())
-cmdclass["build_ext"] = build_ext
 cmdclass["clean"] = CleanCommand
 
 setup(name='pylibcugraph',
