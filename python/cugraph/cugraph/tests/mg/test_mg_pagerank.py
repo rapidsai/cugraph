@@ -47,7 +47,7 @@ def personalize(vertices, personalization_perc):
     return cu_personalization, personalization
 
 
-PERSONALIZATION_PERC = [0, 10, 50]
+PERSONALIZATION_PERC = [0, 10]
 IS_DIRECTED = [True, False]
 
 
@@ -90,6 +90,8 @@ def test_dask_pagerank(dask_client, personalization_perc, directed):
         personalization, p = personalize(
             g.nodes(), personalization_perc
         )
+        print("personalization is \n", personalization)
+        print("p is \n", p)
 
     expected_pr = cugraph.pagerank(
         g, personalization=personalization, tol=1e-6
@@ -105,6 +107,7 @@ def test_dask_pagerank(dask_client, personalization_perc, directed):
     compare_pr = expected_pr.merge(
         result_pr, on="vertex", suffixes=["_local", "_dask"]
     )
+    print("compare is \n", compare_pr)
 
     for i in range(len(compare_pr)):
         diff = abs(
