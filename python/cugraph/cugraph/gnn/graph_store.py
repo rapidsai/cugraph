@@ -11,13 +11,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from collections import defaultdict
 import cudf
 import cugraph
 from cugraph.experimental import PropertyGraph
 from cugraph.community.egonet import batched_ego_graphs
 from cugraph.utilities.utils import sample_groups
+import cupy as cp
 
-import numpy as np
+
+src_n = PropertyGraph.src_col_name
+dst_n = PropertyGraph.dst_col_name
+type_n = PropertyGraph.type_col_name
+eid_n = PropertyGraph.edge_id_col_name
+vid_n = PropertyGraph.vertex_col_name
 
 
 class CuGraphStore:
@@ -129,21 +136,21 @@ class CuGraphStore:
 
     @property
     def ndata(self):
-        return self.__G._vertex_prop_dataframe
+        return {
+            k: self.gdata._vertex_prop_dataframe[col_names].dropna(how="all")
+            for k, col_names in self.ndata_key_col_d.items()
+        }
 
     @property
     def edata(self):
-        return self.__G._edge_prop_dataframe
+        return {
+            k: self.gdata._edge_prop_dataframe[col_names].dropna(how="all")
+            for k, col_names in self.edata_key_col_d.items()
+        }
 
     @property
     def gdata(self):
         return self.__G
-
-    def __init__(self, graph):
-        if isinstance(graph, PropertyGraph):
-            self.__G = graph
-        else:
-            raise ValueError("graph must be a PropertyGraph")
 
     ######################################
     # Utilities
@@ -153,24 +160,21 @@ class CuGraphStore:
         return self.gdata.get_num_vertices()
 
     def get_vertex_ids(self):
-        return self.__G.vertices_ids()
+        return self.gdata.vertices_ids()
 
     ######################################
     # Sampling APIs
     ######################################
 
-    def sample_neighbors(self,
-                         nodes,
-                         fanout=-1,
-                         edge_dir='in',
-                         prob=None,
-                         replace=False):
+    def sample_neighbors(
+        self, nodes, fanout=-1, edge_dir="in", prob=None, replace=False
+    ):
         """
         Sample neighboring edges of the given nodes and return the subgraph.
 
         Parameters
         ----------
-        nodes : array (single dimension)
+        nodes_cap : Dlpack of Node IDs (single dimension)
             Node IDs to sample neighbors from.
         fanout : int
             The number of edges to be sampled for each node on each edge type.
@@ -191,16 +195,24 @@ class CuGraphStore:
 
         Returns
         -------
-        CuPy array
-            The sampled arrays for bipartite graph.
+        DLPack capsule
+            The src nodes for the sampled bipartite graph.
+        DLPack capsule
+            The sampled dst nodes for the sampledbipartite graph.
+        DLPack capsule
+            The corresponding eids for the sampled bipartite graph
         """
+        nodes = cudf.from_dlpack(nodes)
         num_nodes = len(nodes)
-        current_seeds = nodes.reindex(index=np.arange(0, num_nodes))
-        _g = self.__G.extract_subgraph(create_using=cugraph.Graph,
-                                       allow_multi_edges=True)
-        ego_edge_list, seeds_offsets = batched_ego_graphs(_g,
-                                                          current_seeds,
-                                                          radius=1)
+        current_seeds = nodes.reindex(index=cp.arange(0, num_nodes))
+        _g = self.__G.extract_subgraph(
+            create_using=cugraph.Graph, allow_multi_edges=True
+        )
+        ego_edge_list, seeds_offsets = batched_ego_graphs(
+            _g, current_seeds, radius=1
+        )
+
+        del _g
         # filter and get a certain size neighborhood
 
         # Step 1
@@ -214,20 +226,55 @@ class CuGraphStore:
         dst_seeds.index = ego_edge_list.index
         filtered_list = ego_edge_list[ego_edge_list["dst"] == dst_seeds]
 
+        del dst_seeds, offset_lens, seeds_offsets_s
+        del ego_edge_list, seeds_offsets
+
         # Step 2
         # Sample Fan Out
         # for each dst take maximum of fanout samples
-        filtered_list = sample_groups(filtered_list,
-                                      by="dst",
-                                      n_samples=fanout)
+        filtered_list = sample_groups(
+            filtered_list, by="dst", n_samples=fanout
+        )
 
-        return filtered_list['dst'].values, filtered_list['src'].values
+        # TODO: Verify order of execution
+        sample_df = cudf.DataFrame(
+            {src_n: filtered_list["src"], dst_n: filtered_list["dst"]}
+        )
+        del filtered_list
 
-    def node_subgraph(self,
-                      nodes=None,
-                      create_using=cugraph.Graph,
-                      directed=False,
-                      multigraph=True):
+        # del parents_nodes, children_nodes
+        edge_df = sample_df.merge(
+            self.gdata._edge_prop_dataframe[[src_n, dst_n, eid_n]],
+            on=[src_n, dst_n],
+        )
+
+        return (
+            edge_df[src_n].to_dlpack(),
+            edge_df[dst_n].to_dlpack(),
+            edge_df[eid_n].to_dlpack(),
+        )
+
+    def find_edges(self, edge_ids, etype):
+        """Return the source and destination node IDs given the edge IDs within
+        the given edge type.
+        Return type is
+        cudf.Series, cudf.Series
+        """
+        edge_df = self.gdata._edge_prop_dataframe[
+            [src_n, dst_n, eid_n, type_n]
+        ]
+        subset_df = get_subset_df(
+            edge_df, PropertyGraph.edge_id_col_name, edge_ids, etype
+        )
+        return subset_df[src_n].to_dlpack(), subset_df[dst_n].to_dlpack()
+
+    def node_subgraph(
+        self,
+        nodes=None,
+        create_using=cugraph.Graph,
+        directed=False,
+        multigraph=True,
+    ):
         """
         Return a subgraph induced on the given nodes.
 
@@ -245,12 +292,12 @@ class CuGraphStore:
             The sampled subgraph with the same node ID space with the original
             graph.
         """
-
+        # Values vary b/w cugraph and DGL investigate
         # expr="(_SRC in nodes) | (_DST_ in nodes)"
-
         _g = self.__G.extract_subgraph(
-                        create_using=cugraph.Graph(directed=directed),
-                        allow_multi_edges=multigraph)
+            create_using=cugraph.Graph(directed=directed),
+            allow_multi_edges=multigraph,
+        )
 
         if nodes is None:
             return _g
@@ -281,18 +328,15 @@ class CuGraphStore:
             for each seed.
         """
 
-        _g = self.__G.extract_subgraph(create_using=cugraph.Graph,
-                                       allow_multi_edges=True)
+        _g = self.__G.extract_subgraph(
+            create_using=cugraph.Graph, allow_multi_edges=True
+        )
 
         ego_edge_list, seeds_offsets = batched_ego_graphs(_g, nodes, radius=k)
 
         return ego_edge_list, seeds_offsets
 
-    def randomwalk(self,
-                   nodes,
-                   length,
-                   prob=None,
-                   restart_prob=None):
+    def randomwalk(self, nodes, length, prob=None, restart_prob=None):
         """
         Perform randomwalks starting from the given nodes and return the
         traces.
@@ -324,11 +368,13 @@ class CuGraphStore:
             the node IDs reached by the randomwalk starting from nodes[i]. -1
             means the walk has stopped.
         """
-        _g = self.__G.extract_subgraph(create_using=cugraph.Graph,
-                                       allow_multi_edges=True)
+        _g = self.__G.extract_subgraph(
+            create_using=cugraph.Graph, allow_multi_edges=True
+        )
 
-        p, w, s = cugraph.random_walks(_g, nodes,
-                                       max_depth=length, use_padding=True)
+        p, w, s = cugraph.random_walks(
+            _g, nodes, max_depth=length, use_padding=True
+        )
 
         return p, w, s
 
@@ -340,31 +386,35 @@ class CuFeatureStorage:
     is fine. DGL simply uses duck-typing to implement its sampling pipeline.
     """
 
-    def __getitem__(self, ids):
-        """Fetch the features of the given node/edge IDs.
+    def __init__(self, df, id_col, _type_, col_names, backend_lib="torch"):
+        self.df = df
+        self.id_col = id_col
+        self.type = _type_
+        self.col_names = col_names
+        if backend_lib == "torch":
+            from torch.utils.dlpack import from_dlpack
+        elif backend_lib == "tf":
+            from tensorflow.experimental.dlpack import from_dlpack
+        elif backend_lib == "cupy":
+            from cupy import from_dlpack
+        else:
+            raise NotImplementedError(
+                "Only pytorch and tensorflow backends are currently supported"
+            )
 
-        Parameters
-        ----------
-        ids : Tensor
-            Node or edge IDs.
+        self.from_dlpack = from_dlpack
 
-        Returns
-        -------
-        Tensor
-            Feature data stored in PyTorch Tensor.
-        """
-        pass
-
-    async def async_fetch(self, ids, device):
-        """Asynchronously fetch the features of the given node/edge IDs to the
+    def fetch(self, indices, device, pin_memory=False, **kwargs):
+        """Fetch the features of the given node/edge IDs to the
         given device.
 
         Parameters
         ----------
-        ids : Tensor
+        indices : Tensor
             Node or edge IDs.
         device : Device
             Device context.
+        pin_memory :
 
         Returns
         -------
@@ -372,4 +422,37 @@ class CuFeatureStorage:
             Feature data stored in PyTorch Tensor.
         """
         # Default implementation uses synchronous fetch.
-        return self.__getitem__(ids).to(device)
+
+        subset_cols = self.col_names + [type_n, self.id_col]
+        subset_df = get_subset_df(
+            self.df[subset_cols], self.id_col, indices, self.type
+        )[self.col_names]
+        tensor = self.from_dlpack(subset_df.to_dlpack())
+
+        if isinstance(tensor, cp.ndarray):
+            # can not transfer to
+            # a different device for cupy
+            return tensor
+        else:
+            return tensor.to(device)
+
+
+def get_subset_df(df, id_col, indices, _type_):
+    """
+    Util to get the subset dataframe to the indices of the requested type
+    """
+    # We can avoid all of this if we set index to id_col like
+    # edge_id_col_name and vertex_id_col_name and make it much faster
+    # by using loc
+    indices_df = cudf.Series(cp.asarray(indices), name=id_col).to_frame()
+    id_col_name = id_col + "_index_"
+    indices_df = indices_df.reset_index(drop=False).rename(
+        columns={"index": id_col_name}
+    )
+    subset_df = indices_df.merge(df, how="left")
+    if _type_ is None:
+        subset_df = subset_df[subset_df[type_n].isnull()]
+    else:
+        subset_df = subset_df[subset_df[type_n] == _type_]
+    subset_df = subset_df.sort_values(by=id_col_name)
+    return subset_df
