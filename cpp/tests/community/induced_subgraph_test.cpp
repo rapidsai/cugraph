@@ -106,7 +106,8 @@ typedef struct InducedSubgraph_Usecase_t {
 class Tests_InducedSubgraph : public ::testing::TestWithParam<InducedSubgraph_Usecase> {
  public:
   Tests_InducedSubgraph() {}
-  static void SetupTestCase() {}
+
+  static void SetUpTestCase() {}
   static void TearDownTestCase() {}
 
   virtual void SetUp() {}

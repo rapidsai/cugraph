@@ -56,7 +56,8 @@ typedef struct Force_Atlas2_Usecase_t {
 class Tests_Force_Atlas2 : public ::testing::TestWithParam<Force_Atlas2_Usecase> {
  public:
   Tests_Force_Atlas2() {}
-  static void SetupTestCase() {}
+
+  static void SetUpTestCase() {}
   static void TearDownTestCase()
   {
     if (cugraph::test::g_perf) {

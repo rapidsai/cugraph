@@ -72,7 +72,8 @@ typedef struct Degree_Usecase_t {
 class Tests_Degree : public ::testing::TestWithParam<Degree_Usecase> {
  public:
   Tests_Degree() {}
-  static void SetupTestCase() {}
+
+  static void SetUpTestCase() {}
   static void TearDownTestCase() {}
 
   virtual void SetUp() {}

@@ -68,7 +68,8 @@ class Tests_CountSelfLoopsAndMultiEdges
       std::tuple<CountSelfLoopsAndMultiEdges_Usecase, input_usecase_t>> {
  public:
   Tests_CountSelfLoopsAndMultiEdges() {}
-  static void SetupTestCase() {}
+
+  static void SetUpTestCase() {}
   static void TearDownTestCase() {}
 
   virtual void SetUp() {}

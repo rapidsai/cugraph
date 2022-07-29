@@ -156,7 +156,8 @@ typedef struct GenerateRmat_Usecase_t {
 class Tests_GenerateRmat : public ::testing::TestWithParam<GenerateRmat_Usecase> {
  public:
   Tests_GenerateRmat() {}
-  static void SetupTestCase() {}
+
+  static void SetUpTestCase() {}
   static void TearDownTestCase() {}
 
   virtual void SetUp() {}
@@ -307,7 +308,8 @@ typedef struct GenerateRmats_Usecase_t {
 class Tests_GenerateRmats : public ::testing::TestWithParam<GenerateRmats_Usecase> {
  public:
   Tests_GenerateRmats() {}
-  static void SetupTestCase() {}
+
+  static void SetUpTestCase() {}
   static void TearDownTestCase() {}
 
   virtual void SetUp() {}
