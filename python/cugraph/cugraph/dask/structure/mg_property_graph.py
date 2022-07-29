@@ -447,14 +447,16 @@ class EXPERIMENTAL__MGPropertyGraph:
         tmp_df[self.dst_col_name] = tmp_df[vertex_col_names[1]]
         tmp_df[self.type_col_name] = type_name
 
-        # Add unique edge IDs to the new rows
-        prev_eid = -1 if self.__last_edge_id is None else self.__last_edge_id
-        starting_eid = prev_eid + 1
-        data_size = len(tmp_df.compute().index)
-        new_eids = cudf.Series(range(starting_eid, starting_eid + data_size))
-        new_eids_dask = dask_cudf.from_cudf(new_eids, self.__num_workers)
-        self.__last_edge_id = starting_eid + data_size - 1
-        tmp_df[self.edge_id_col_name] = new_eids_dask
+        # Add unique edge IDs to the new rows. This is just a count for each
+        # row starting from the last edge ID value, with initial edge ID 0.
+        starting_eid = (
+            -1 if self.__last_edge_id is None else self.__last_edge_id
+        )
+        tmp_df[self.edge_id_col_name] = 1
+        tmp_df[self.edge_id_col_name] = (
+            tmp_df[self.edge_id_col_name].cumsum() + starting_eid
+        )
+        self.__last_edge_id = starting_eid + len(tmp_df.index)
         tmp_df.persist()
 
         if property_columns:
