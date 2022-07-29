@@ -33,7 +33,6 @@ double euclidian_dist(const std::vector<int>& x, const std::vector<int>& y)
 std::vector<std::vector<double>> pairwise_distances(const std::vector<std::vector<int>>& X)
 {
   std::vector<std::vector<double>> distance_matrix(X.size(), std::vector<double>(X[0].size()));
-#pragma omp parallel for
   for (size_t i = 0; i < X.size(); ++i) {
     for (size_t j = 0; j < i; ++j) {
       const float val       = euclidian_dist(X[i], X[j]);

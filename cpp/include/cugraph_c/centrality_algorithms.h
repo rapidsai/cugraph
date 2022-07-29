@@ -67,11 +67,21 @@ void cugraph_centrality_result_free(cugraph_centrality_result_t* result);
  *
  * @param [in]  handle      Handle for accessing resources
  * @param [in]  graph       Pointer to graph
+ * @param [in]  precomputed_vertex_out_weight_vertices
+ *                          Optionally send in precomputed sum of vertex out weights
+ *                          (a performance optimization).  This defines the vertices.
+ *                          Set to NULL if no value is passed.
  * @param [in]  precomputed_vertex_out_weight_sums
- *                          Optionally send in precomputed sume of vertex out weights
+ *                          Optionally send in precomputed sum of vertex out weights
  *                          (a performance optimization).  Set to NULL if
  *                          no value is passed.
- * @param [in]  initial_guess
+ * @param [in]  initial_guess_vertices
+ *                          Optionally send in an initial guess of the pagerank values
+ *                          (a performance optimization).  This defines the vertices.
+ *                          Set to NULL if no value is passed. If NULL, initial PageRank
+ *                          values are set to 1.0 divided by the number of vertices in
+ *                          the graph.
+ * @param [in]  initial_guess_values
  *                          Optionally send in an initial guess of the pagerank values
  *                          (a performance optimization).  Set to NULL if
  *                          no value is passed. If NULL, initial PageRank values are set
@@ -92,8 +102,10 @@ void cugraph_centrality_result_free(cugraph_centrality_result_t* result);
 cugraph_error_code_t cugraph_pagerank(
   const cugraph_resource_handle_t* handle,
   cugraph_graph_t* graph,
+  const cugraph_type_erased_device_array_view_t* precomputed_vertex_out_weight_vertices,
   const cugraph_type_erased_device_array_view_t* precomputed_vertex_out_weight_sums,
-  const cugraph_type_erased_device_array_view_t* initial_guess,
+  const cugraph_type_erased_device_array_view_t* initial_guess_vertices,
+  const cugraph_type_erased_device_array_view_t* initial_guess_values,
   double alpha,
   double epsilon,
   size_t max_iterations,
@@ -106,19 +118,27 @@ cugraph_error_code_t cugraph_pagerank(
  *
  * @param [in]  handle      Handle for accessing resources
  * @param [in]  graph       Pointer to graph
+ * @param [in]  precomputed_vertex_out_weight_vertices
+ *                          Optionally send in precomputed sum of vertex out weights
+ *                          (a performance optimization).  This defines the vertices.
+ *                          Set to NULL if no value is passed.
  * @param [in]  precomputed_vertex_out_weight_sums
- *                          Optionally send in precomputed sume of vertex out weights
+ *                          Optionally send in precomputed sum of vertex out weights
  *                          (a performance optimization).  Set to NULL if
  *                          no value is passed.
- * @param [in]  initial_guess
+ * @param [in]  initial_guess_vertices
+ *                          Optionally send in an initial guess of the pagerank values
+ *                          (a performance optimization).  This defines the vertices.
+ *                          Set to NULL if no value is passed. If NULL, initial PageRank
+ *                          values are set to 1.0 divided by the number of vertices in
+ *                          the graph.
+ * @param [in]  initial_guess_values
  *                          Optionally send in an initial guess of the pagerank values
  *                          (a performance optimization).  Set to NULL if
  *                          no value is passed. If NULL, initial PageRank values are set
  *                          to 1.0 divided by the number of vertices in the graph.
- * FIXME:  Make this just [in], copy it if I need to temporarily modify internally
- * @param [in/out]  personalization_vertices Pointer to an array storing personalization vertex
- * identifiers (compute personalized PageRank).  Array might be modified if renumbering is enabled
- * for the graph
+ * @param [in]  personalization_vertices Pointer to an array storing personalization vertex
+ * identifiers (compute personalized PageRank).
  * @param [in]  personalization_values Pointer to an array storing personalization values for the
  * vertices in the personalization set.
  * @param [in]  alpha       PageRank damping factor.
@@ -137,10 +157,11 @@ cugraph_error_code_t cugraph_pagerank(
 cugraph_error_code_t cugraph_personalized_pagerank(
   const cugraph_resource_handle_t* handle,
   cugraph_graph_t* graph,
+  const cugraph_type_erased_device_array_view_t* precomputed_vertex_out_weight_vertices,
   const cugraph_type_erased_device_array_view_t* precomputed_vertex_out_weight_sums,
-  const cugraph_type_erased_device_array_view_t* initial_guess,
-  // FIXME:  Make this const, copy it if I need to temporarily modify internally
-  cugraph_type_erased_device_array_view_t* personalization_vertices,
+  const cugraph_type_erased_device_array_view_t* initial_guess_vertices,
+  const cugraph_type_erased_device_array_view_t* initial_guess_values,
+  const cugraph_type_erased_device_array_view_t* personalization_vertices,
   const cugraph_type_erased_device_array_view_t* personalization_values,
   double alpha,
   double epsilon,
