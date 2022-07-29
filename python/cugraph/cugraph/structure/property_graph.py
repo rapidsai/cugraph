@@ -23,6 +23,7 @@ if not isinstance(pd, MissingModule):
     _dataframe_types.append(pd.DataFrame)
 
 
+# FIXME: remove leading EXPERIMENTAL__ when no longer experimental
 class EXPERIMENTAL__PropertySelection:
     """
     Instances of this class are returned from the PropertyGraph.select_*()
@@ -50,7 +51,7 @@ class EXPERIMENTAL__PropertySelection:
         return EXPERIMENTAL__PropertySelection(vs, es)
 
 
-# FIXME: remove leading __ when no longer experimental
+# FIXME: remove leading EXPERIMENTAL__ when no longer experimental
 class EXPERIMENTAL__PropertyGraph:
     """
     Class which stores vertex and edge properties that can be used to construct
@@ -144,7 +145,8 @@ class EXPERIMENTAL__PropertyGraph:
     def edges(self):
         if self.__edge_prop_dataframe is not None:
             return self.__edge_prop_dataframe[[self.src_col_name,
-                                               self.dst_col_name]]
+                                               self.dst_col_name,
+                                               self.edge_id_col_name]]
         return None
 
     @property
@@ -439,6 +441,38 @@ class EXPERIMENTAL__PropertyGraph:
                        for n in self.__vertex_prop_dataframe.columns])
         self.__vertex_prop_eval_dict.update(latest)
 
+    def get_vertex_data(self, vertex_ids=None, types=None, columns=None):
+        """
+        Return a dataframe containing vertex properties for only the specified
+        vertex_ids, columns, and/or types, or all vertex IDs if not specified.
+        """
+        if self.__vertex_prop_dataframe is not None:
+            if vertex_ids is not None:
+                df_mask = (
+                    self.__vertex_prop_dataframe[self.vertex_col_name]
+                    .isin(vertex_ids)
+                )
+                df = self.__vertex_prop_dataframe.loc[df_mask]
+            else:
+                df = self.__vertex_prop_dataframe
+
+            if types is not None:
+                # FIXME: coerce types to a list-like if not?
+                df_mask = df[self.type_col_name].isin(types)
+                df = df.loc[df_mask]
+
+            # The "internal" pG.vertex_col_name and pG.type_col_name columns
+            # are also included/added since they are assumed to be needed by
+            # the caller.
+            if columns is None:
+                return df
+            else:
+                # FIXME: invalid columns will result in a KeyError, should a
+                # check be done here and a more PG-specific error raised?
+                return df[[self.vertex_col_name, self.type_col_name] + columns]
+
+        return None
+
     def add_edge_data(self,
                       dataframe,
                       vertex_col_names,
@@ -538,8 +572,18 @@ class EXPERIMENTAL__PropertyGraph:
         tmp_df = dataframe.copy(deep=True)
         tmp_df[self.src_col_name] = tmp_df[vertex_col_names[0]]
         tmp_df[self.dst_col_name] = tmp_df[vertex_col_names[1]]
-        # FIXME: handle case of a type_name column already being in tmp_df
         tmp_df[self.type_col_name] = type_name
+
+        # Add unique edge IDs to the new rows. This is just a count for each
+        # row starting from the last edge ID value, with initial edge ID 0.
+        starting_eid = (
+            -1 if self.__last_edge_id is None else self.__last_edge_id
+        )
+        tmp_df[self.edge_id_col_name] = 1
+        tmp_df[self.edge_id_col_name] = (
+            tmp_df[self.edge_id_col_name].cumsum() + starting_eid
+        )
+        self.__last_edge_id = starting_eid + len(tmp_df.index)
 
         if property_columns:
             # all columns
@@ -559,12 +603,45 @@ class EXPERIMENTAL__PropertyGraph:
         self.__edge_prop_dataframe = \
             self.__edge_prop_dataframe.merge(tmp_df, how="outer")
 
-        self.__add_edge_ids()
-
         # Update the vertex eval dict with the latest column instances
         latest = dict([(n, self.__edge_prop_dataframe[n])
                        for n in self.__edge_prop_dataframe.columns])
         self.__edge_prop_eval_dict.update(latest)
+
+    def get_edge_data(self, edge_ids=None, types=None, columns=None):
+        """
+        Return a dataframe containing edge properties for only the specified
+        edge_ids, columns, and/or edge type, or all edge IDs if not specified.
+        """
+        if self.__edge_prop_dataframe is not None:
+            if edge_ids is not None:
+                df_mask = self.__edge_prop_dataframe[self.edge_id_col_name]\
+                              .isin(edge_ids)
+                df = self.__edge_prop_dataframe.loc[df_mask]
+            else:
+                df = self.__edge_prop_dataframe
+
+            if types is not None:
+                # FIXME: coerce types to a list-like if not?
+                df_mask = df[self.type_col_name].isin(types)
+                df = df.loc[df_mask]
+
+            # The "internal" src, dst, edge_id, and type columns are also
+            # included/added since they are assumed to be needed by the caller.
+            if columns is None:
+                # remove the "internal" weight column if one was added
+                all_columns = list(self.__edge_prop_dataframe.columns)
+                if self.weight_col_name in all_columns:
+                    all_columns.remove(self.weight_col_name)
+                return df[all_columns]
+            else:
+                # FIXME: invalid columns will result in a KeyError, should a
+                # check be done here and a more PG-specific error raised?
+                return df[[self.src_col_name, self.dst_col_name,
+                           self.edge_id_col_name, self.type_col_name]
+                          + columns]
+
+        return None
 
     def select_vertices(self, expr, from_previous_selection=None):
         """
@@ -956,26 +1033,6 @@ class EXPERIMENTAL__PropertyGraph:
         return self.__dataframe_type({self.src_col_name: src,
                                       self.dst_col_name: dst,
                                       self.edge_id_col_name: edge_id})
-
-    def __add_edge_ids(self):
-        """
-        Replace nans with unique edge IDs. Edge IDs are simply numbers
-        incremented by 1 for each edge.
-        """
-        prev_eid = -1 if self.__last_edge_id is None else self.__last_edge_id
-        nans = self.__edge_prop_dataframe[self.edge_id_col_name].isna()
-
-        if nans.any():
-            indices = nans.index[nans]
-            num_indices = len(indices)
-            starting_eid = prev_eid + 1
-            new_eids = self.__series_type(
-                range(starting_eid, starting_eid + num_indices))
-
-            self.__edge_prop_dataframe[self.edge_id_col_name]\
-                .iloc[indices] = new_eids
-
-            self.__last_edge_id = starting_eid + num_indices - 1
 
     def __get_all_vertices_series(self):
         """
