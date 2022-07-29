@@ -66,8 +66,12 @@ def leiden(G, max_iter=100, resolution=1.):
 
     Examples
     --------
-    >>> from cugraph.experimental.datasets import karate_undirected
-    >>> G = karate_undirected.get_graph(fetch=True)
+    >>> M = cudf.read_csv(datasets_path / 'karate.csv',
+    ...                   delimiter = ' ',
+    ...                   dtype=['int32', 'int32', 'float32'],
+    ...                   header=None)
+    >>> G = cugraph.Graph()
+    >>> G.from_cudf_edgelist(M, source='0', destination='1')
     >>> parts, modularity_score = cugraph.leiden(G)
 
     """

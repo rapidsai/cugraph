@@ -286,7 +286,7 @@ class NumberMap:
             self.ddf = tmp_ddf
             return tmp_ddf
 
-    def __init__(self, id_type=np.int32):
+    def __init__(self, id_type=np.int32, renumber_type=None):
         self.implementation = None
         self.id_type = id_type
         # The default src/dst column names in the resulting renumbered
@@ -732,8 +732,14 @@ class NumberMap:
         Examples
         --------
         >>> from cugraph.structure import number_map
-        >>> from cugraph.experimental.datasets import karate
-        >>> G = karate.get_edgelist(fetch=True)
+        >>> df = cudf.read_csv(datasets_path / 'karate.csv', delimiter=' ',
+        ...                    dtype=['int32', 'int32', 'float32'],
+        ...                    header=None)
+        >>> df, number_map = number_map.NumberMap.renumber(df, '0', '1')
+        >>> G = cugraph.Graph()
+        >>> G.from_cudf_edgelist(df,
+        ...                      number_map.renumbered_src_col_name,
+        ...                      number_map.renumbered_dst_col_name)
         >>> pr = cugraph.pagerank(G, alpha = 0.85, max_iter = 500,
         ...                       tol = 1.0e-05)
         >>> pr = number_map.unrenumber(pr, 'vertex')
