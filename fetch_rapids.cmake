@@ -1,5 +1,5 @@
 # =============================================================================
-# Copyright (c) 2020-2022, NVIDIA CORPORATION.
+# Copyright (c) 2022, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
 # in compliance with the License. You may obtain a copy of the License at
@@ -11,13 +11,7 @@
 # or implied. See the License for the specific language governing permissions and limitations under
 # the License.
 # =============================================================================
-
-# This function finds libcudacxx and sets any additional necessary environment variables.
-function(find_and_configure_libcudacxx)
-  include(${rapids-cmake-dir}/cpm/libcudacxx.cmake)
-
-  rapids_cpm_libcudacxx(BUILD_EXPORT_SET cugraph-exports)
-
-endfunction()
-
-find_and_configure_libcudacxx()
+file(DOWNLOAD https://raw.githubusercontent.com/rapidsai/rapids-cmake/branch-22.08/RAPIDS.cmake
+     ${CMAKE_BINARY_DIR}/RAPIDS.cmake
+)
+include(${CMAKE_BINARY_DIR}/RAPIDS.cmake)

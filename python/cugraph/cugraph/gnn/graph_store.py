@@ -34,6 +34,99 @@ class CuGraphStore:
     hetrogeneous graphs - use PropertyGraph
     """
 
+    def __init__(self, graph, backend_lib="torch"):
+        if isinstance(graph, PropertyGraph):
+            self.__G = graph
+        else:
+            raise ValueError("graph must be a PropertyGraph")
+        # dict to map column names corresponding to edge features
+        # of each type
+        self.edata_key_col_d = defaultdict(list)
+        # dict to map column names corresponding to node features
+        # of each type
+        self.ndata_key_col_d = defaultdict(list)
+        self.backend_lib = backend_lib
+
+    def add_node_data(self, df, node_col_name, node_key, ntype=None):
+        self.gdata.add_vertex_data(
+            df, vertex_col_name=node_col_name, type_name=ntype
+        )
+        col_names = list(df.columns)
+        col_names.remove(node_col_name)
+        self.ndata_key_col_d[node_key] += col_names
+
+    def add_edge_data(self, df, vertex_col_names, edge_key, etype=None):
+        self.gdata.add_edge_data(
+            df, vertex_col_names=vertex_col_names, type_name=etype
+        )
+        col_names = [
+            col for col in list(df.columns) if col not in vertex_col_names
+        ]
+        self.edata_key_col_d[edge_key] += col_names
+
+    def get_node_storage(self, key, ntype=None):
+
+        if ntype is None:
+            ntypes = self.ntypes
+            if len(self.ntypes) > 1:
+                raise ValueError(
+                    (
+                        "Node type name must be specified if there "
+                        "are more than one node types."
+                    )
+                )
+            ntype = ntypes[0]
+
+        df = self.gdata._vertex_prop_dataframe
+        col_names = self.ndata_key_col_d[key]
+        return CuFeatureStorage(
+            df=df,
+            id_col=vid_n,
+            _type_=ntype,
+            col_names=col_names,
+            backend_lib=self.backend_lib,
+        )
+
+    def get_edge_storage(self, key, etype=None):
+        if etype is None:
+            etypes = self.etypes
+            if len(self.etypes) > 1:
+                raise ValueError(
+                    (
+                        "Edge type name must be specified if there"
+                        "are more than one edge types."
+                    )
+                )
+
+            etype = etypes[0]
+        col_names = self.edata_key_col_d[key]
+        df = self.gdata._edge_prop_dataframe
+        return CuFeatureStorage(
+            df=df,
+            id_col=eid_n,
+            _type_=etype,
+            col_names=col_names,
+            backend_lib=self.backend_lib,
+        )
+
+    def num_nodes(self, ntype=None):
+        return self.gdata.get_num_vertices(ntype)
+
+    def num_edges(self, etype=None):
+        return self.gdata.get_num_edges(etype)
+
+    @property
+    def ntypes(self):
+        s = self.gdata._vertex_prop_dataframe[type_n]
+        ntypes = s.drop_duplicates().to_arrow().to_pylist()
+        return ntypes
+
+    @property
+    def etypes(self):
+        s = self.gdata._edge_prop_dataframe[type_n]
+        ntypes = s.drop_duplicates().to_arrow().to_pylist()
+        return ntypes
+
     @property
     def ndata(self):
         return self.__G._vertex_prop_dataframe
@@ -57,11 +150,7 @@ class CuGraphStore:
     ######################################
     @property
     def num_vertices(self):
-        return self.__G.num_vertices
-
-    @property
-    def num_edges(self):
-        return self.__G.num_edges
+        return self.gdata.get_num_vertices()
 
     def get_vertex_ids(self):
         return self.__G.vertices_ids()
