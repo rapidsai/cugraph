@@ -327,8 +327,8 @@ def test_extract_subgraph_no_query(net_MGPropertyGraph, net_PropertyGraph):
     """
     dpG = net_MGPropertyGraph
     pG = net_PropertyGraph
-    assert pG.num_edges == dpG.num_edges
-    assert pG.num_vertices == dpG.num_vertices
+    assert pG.get_num_edges() == dpG.get_num_edges()
+    assert pG.get_num_vertices() == dpG.get_num_vertices()
     # tests that the edges are the same in the sg and mg property graph
     sg_df = \
         pG.edges.sort_values(by=['_SRC_', '_DST_']).reset_index(drop=True)
@@ -448,8 +448,9 @@ def test_num_vertices_with_properties(dataset2_MGPropertyGraph):
     """
     (pG, data) = dataset2_MGPropertyGraph
 
-    assert pG.num_vertices == len(data[1]) * 2  # assume no repeated vertices
-    assert pG.num_vertices_with_properties == 0
+    # assume no repeated vertices
+    assert pG.get_num_vertices() == len(data[1]) * 2
+    assert pG.get_num_vertices(include_edge_data=False) == 0
 
     df = cudf.DataFrame({"vertex": [98, 97],
                          "some_property": ["a", "b"],
@@ -457,8 +458,9 @@ def test_num_vertices_with_properties(dataset2_MGPropertyGraph):
     mgdf = dask_cudf.from_cudf(df, npartitions=2)
     pG.add_vertex_data(mgdf, vertex_col_name="vertex")
 
-    assert pG.num_vertices == len(data[1]) * 2  # assume no repeated vertices
-    assert pG.num_vertices_with_properties == 2
+    # assume no repeated vertices
+    assert pG.get_num_vertices() == len(data[1]) * 2
+    assert pG.get_num_vertices(include_edge_data=False) == 2
 
 
 def test_edges_attr(dataset2_MGPropertyGraph):

@@ -60,9 +60,9 @@ def test_using_pgraph(graph_file):
 
     gstore = cugraph.gnn.CuGraphStore(graph=pG)
 
-    assert g.number_of_edges() == pG.num_edges
+    assert g.number_of_edges() == pG.get_num_edges()
     assert g.number_of_edges() == gstore.num_edges()
-    assert g.number_of_vertices() == pG.num_vertices
+    assert g.number_of_vertices() == pG.get_num_vertices()
     assert g.number_of_vertices() == gstore.num_vertices
 
 
