@@ -429,6 +429,38 @@ class EXPERIMENTAL__MGPropertyGraph:
                        for n in self.__vertex_prop_dataframe.columns])
         self.__vertex_prop_eval_dict.update(latest)
 
+    def get_vertex_data(self, vertex_ids=None, types=None, columns=None):
+        """
+        Return a dataframe containing vertex properties for only the specified
+        vertex_ids, columns, and/or types, or all vertex IDs if not specified.
+        """
+        if self.__vertex_prop_dataframe is not None:
+            if vertex_ids is not None:
+                df_mask = (
+                    self.__vertex_prop_dataframe[self.vertex_col_name]
+                    .isin(vertex_ids)
+                )
+                df = self.__vertex_prop_dataframe.loc[df_mask]
+            else:
+                df = self.__vertex_prop_dataframe
+
+            if types is not None:
+                # FIXME: coerce types to a list-like if not?
+                df_mask = df[self.type_col_name].isin(types)
+                df = df.loc[df_mask]
+
+            # The "internal" pG.vertex_col_name and pG.type_col_name columns
+            # are also included/added since they are assumed to be needed by
+            # the caller.
+            if columns is None:
+                return df
+            else:
+                # FIXME: invalid columns will result in a KeyError, should a
+                # check be done here and a more PG-specific error raised?
+                return df[[self.vertex_col_name, self.type_col_name] + columns]
+
+        return None
+
     def add_edge_data(self,
                       dataframe,
                       vertex_col_names,
@@ -512,22 +544,22 @@ class EXPERIMENTAL__MGPropertyGraph:
         # columns. The copied DataFrame is then merged (another copy) and then
         # deleted when out-of-scope.
         tmp_df = dataframe.copy()
-        # FIXME: Find a better way to create the edge id
-        prev_eid = -1 if self.__last_edge_id is None else self.__last_edge_id
         tmp_df[self.src_col_name] = tmp_df[vertex_col_names[0]]
         tmp_df[self.dst_col_name] = tmp_df[vertex_col_names[1]]
-        starting_eid = prev_eid + 1
-        data_size = len(tmp_df.compute().index)
-        cudf_series = \
-            cudf.Series(range(starting_eid, starting_eid + data_size))
-        dask_series =\
-            dask_cudf.from_cudf(cudf_series, self.__num_workers)
-        dask_series = dask_series.reset_index(drop=True)
-        self.__last_edge_id = starting_eid + data_size
-        tmp_df = tmp_df.reset_index(drop=True)
-        tmp_df[self.edge_id_col_name] = dask_series
         tmp_df[self.type_col_name] = type_name
+
+        # Add unique edge IDs to the new rows. This is just a count for each
+        # row starting from the last edge ID value, with initial edge ID 0.
+        starting_eid = (
+            -1 if self.__last_edge_id is None else self.__last_edge_id
+        )
+        tmp_df[self.edge_id_col_name] = 1
+        tmp_df[self.edge_id_col_name] = (
+            tmp_df[self.edge_id_col_name].cumsum() + starting_eid
+        )
+        self.__last_edge_id = starting_eid + len(tmp_df.index)
         tmp_df.persist()
+
         if property_columns:
             # all columns
             column_names_to_drop = set(tmp_df.columns)
@@ -542,12 +574,49 @@ class EXPERIMENTAL__MGPropertyGraph:
         new_col_info = self.__get_new_column_dtypes(
             tmp_df, self.__edge_prop_dataframe)
         self.__edge_prop_dtypes.update(new_col_info)
+
         self.__edge_prop_dataframe = \
             self.__edge_prop_dataframe.merge(tmp_df, how="outer")
+
         # Update the vertex eval dict with the latest column instances
         latest = dict([(n, self.__edge_prop_dataframe[n])
                        for n in self.__edge_prop_dataframe.columns])
         self.__edge_prop_eval_dict.update(latest)
+
+    def get_edge_data(self, edge_ids=None, types=None, columns=None):
+        """
+        Return a dataframe containing edge properties for only the specified
+        edge_ids, columns, and/or edge type, or all edge IDs if not specified.
+        """
+        if self.__edge_prop_dataframe is not None:
+            if edge_ids is not None:
+                df_mask = self.__edge_prop_dataframe[self.edge_id_col_name]\
+                              .isin(edge_ids)
+                df = self.__edge_prop_dataframe.loc[df_mask]
+            else:
+                df = self.__edge_prop_dataframe
+
+            if types is not None:
+                # FIXME: coerce types to a list-like if not?
+                df_mask = df[self.type_col_name].isin(types)
+                df = df.loc[df_mask]
+
+            # The "internal" src, dst, edge_id, and type columns are also
+            # included/added since they are assumed to be needed by the caller.
+            if columns is None:
+                # remove the "internal" weight column if one was added
+                all_columns = list(self.__edge_prop_dataframe.columns)
+                if self.weight_col_name in all_columns:
+                    all_columns.remove(self.weight_col_name)
+                return df[all_columns]
+            else:
+                # FIXME: invalid columns will result in a KeyError, should a
+                # check be done here and a more PG-specific error raised?
+                return df[[self.src_col_name, self.dst_col_name,
+                           self.edge_id_col_name, self.type_col_name]
+                          + columns]
+
+        return None
 
     def select_vertices(self, expr, from_previous_selection=None):
         raise NotImplementedError
@@ -766,16 +835,21 @@ class EXPERIMENTAL__MGPropertyGraph:
             raise RuntimeError("query resulted in duplicate edges which "
                                f"cannot be represented with the {msg}")
 
-        # FIXME: MNMG Graphs required renumber to be True due to requirements
-        # on legacy code that needed segment offsets, partition offsets,
-        # etc. which were previously computed during the "legacy" C
-        # renumbering.  The workaround is to pass renumber=True, then manually
-        # call G.compute_renumber_edge_list(legacy_renum_only=True) to compute
-        # the required meta-data without changing vertex IDs.
+        # FIXME: This forces the renumbering code to run a python-only
+        # renumbering without the newer C++ renumbering step.  This is
+        # required since the newest graph algos which are using the
+        # pylibcugraph library will crash if passed data renumbered using the
+        # C++ renumbering.  The consequence of this is that these extracted
+        # subgraphs can only be used with newer pylibcugraph-based MG algos.
+        #
+        # NOTE: if the vertices are integers (int32 or int64), renumbering is
+        # actually skipped with the assumption that the C renumbering will
+        # take place. The C renumbering only occurs for pylibcugraph algos,
+        # hence the reason these extracted subgraphs only work with PLC algos.
         if renumber_graph is False:
-            renumber = True
-        else:
-            renumber = renumber_graph
+            raise ValueError("currently, renumber_graph must be set to True "
+                             "for MG")
+        legacy_renum_only = True
 
         col_names = [self.src_col_name, self.dst_col_name]
         if edge_attr is not None:
@@ -785,14 +859,8 @@ class EXPERIMENTAL__MGPropertyGraph:
                                   source=self.src_col_name,
                                   destination=self.dst_col_name,
                                   edge_attr=edge_attr,
-                                  renumber=renumber)
-        # FIXME: see FIXME above - to generate the edgelist,
-        # compute_renumber_edge_list() must be called, but legacy mode needs to
-        # be used based on if renumbering was to be done or not.
-        if renumber_graph is False:
-            G.compute_renumber_edge_list(legacy_renum_only=True)
-        else:
-            G.compute_renumber_edge_list(legacy_renum_only=False)
+                                  renumber=renumber_graph,
+                                  legacy_renum_only=legacy_renum_only)
 
         if add_edge_data:
             # Set the edge_data on the resulting Graph to a DataFrame
