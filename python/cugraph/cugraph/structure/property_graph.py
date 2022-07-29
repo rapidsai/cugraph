@@ -455,7 +455,7 @@ class EXPERIMENTAL__PropertyGraph:
                                                    default_edge_columns)
         else:
             column_names_to_drop = {vertex_col_names[0], vertex_col_names[1]}
-        tmp_df = tmp_df.drop(labels=column_names_to_drop, axis=1)
+        tmp_df.drop(labels=column_names_to_drop, axis=1, inplace=True)
 
         # Save the original dtypes for each new column so they can be restored
         # prior to constructing subgraphs (since column dtypes may get altered
