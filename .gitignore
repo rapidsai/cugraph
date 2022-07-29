@@ -29,11 +29,15 @@ junit-cugraph.xml
 test-results
 
 ## Python build directories & artifacts
+dask-worker-space/
 htmlcov
 dist/
 cugraph.egg-info/
 python/build
 python/cugraph/bindings/*.cpp
+wheels/
+_skbuild/
+cufile.log
 
 ## pylibcugraph build directories & artifacts
 python/pylibcugraph/pylibcugraph.egg-info
