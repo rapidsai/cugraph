@@ -52,7 +52,6 @@ class EXPERIMENTAL__MGPropertyGraph:
     Graphs from individual property selections and used later to annotate graph
     algorithm results with corresponding properties.
     """
-
     # column name constants used in internal DataFrames
     vertex_col_name = "_VERTEX_"
     src_col_name = "_SRC_"
@@ -61,6 +60,7 @@ class EXPERIMENTAL__MGPropertyGraph:
     edge_id_col_name = "_EDGE_ID_"
     vertex_id_col_name = "_VERTEX_ID_"
     weight_col_name = "_WEIGHT_"
+    _default_type_name = ""
 
     def __init__(self, num_workers=None):
         # The dataframe containing the properties for each vertex.
@@ -126,7 +126,8 @@ class EXPERIMENTAL__MGPropertyGraph:
 
         # Cached property values
         self.__num_vertices = None
-        self.__num_vertices_with_properties = None
+        self.__vertex_type_value_counts = None
+        self.__edge_type_value_counts = None
 
         # number of gpu's to use
         if num_workers is None:
@@ -134,37 +135,7 @@ class EXPERIMENTAL__MGPropertyGraph:
         else:
             self.__num_workers = num_workers
 
-    @property
-    def num_vertices(self):
-        if self.__num_vertices is not None:
-            return self.__num_vertices
-        self.__num_vertices = 0
-        vert_sers = self.__get_all_vertices_series()
-        if vert_sers:
-            if self.__series_type is dask_cudf.Series:
-                vert_count = dask_cudf.concat(vert_sers).nunique()
-                self.__num_vertices = vert_count.compute()
-        return self.__num_vertices
-
-    @property
-    def num_vertices_with_properties(self):
-        if self.__num_vertices_with_properties is not None:
-            return self.__num_vertices_with_properties
-
-        if self.__vertex_prop_dataframe is not None:
-            self.__num_vertices_with_properties = \
-                len(self.__vertex_prop_dataframe)
-            return self.__num_vertices_with_properties
-
-        return 0
-
-    @property
-    def num_edges(self):
-        if self.__edge_prop_dataframe is not None:
-            return len(self.__edge_prop_dataframe)
-        else:
-            return 0
-
+    # PropertyGraph read-only attributes
     @property
     def edges(self):
         if self.__edge_prop_dataframe is not None:
@@ -195,6 +166,33 @@ class EXPERIMENTAL__MGPropertyGraph:
             return props
         return []
 
+    @property
+    def vertex_types(self):
+        """The set of vertex type names"""
+        value_counts = self._vertex_type_value_counts
+        if value_counts is None:
+            names = set()
+        elif self.__series_type is dask_cudf.Series:
+            names = set(value_counts.index.to_arrow().to_pylist())
+        else:
+            names = set(value_counts.index)
+        default = self._default_type_name
+        if default not in names and self.get_num_vertices(default) > 0:
+            # include "" from vertices that only exist in edge data
+            names.add(default)
+        return names
+
+    @property
+    def edge_types(self):
+        """The set of edge type names"""
+        value_counts = self._edge_type_value_counts
+        if value_counts is None:
+            return set()
+        elif self.__series_type is dask_cudf.Series:
+            return set(value_counts.index.to_arrow().to_pylist())
+        else:
+            return set(value_counts.index)
+
     # PropertyGraph read-only attributes for debugging
     @property
     def _vertex_prop_dataframe(self):
@@ -203,6 +201,104 @@ class EXPERIMENTAL__MGPropertyGraph:
     @property
     def _edge_prop_dataframe(self):
         return self.__edge_prop_dataframe
+
+    @property
+    def _vertex_type_value_counts(self):
+        """A Series of the counts of types in __vertex_prop_dataframe"""
+        if self.__vertex_prop_dataframe is None:
+            return
+        if self.__vertex_type_value_counts is None:
+            # Types should all be strings; what should we do if we see NaN?
+            self.__vertex_type_value_counts = (
+                self.__vertex_prop_dataframe[self.type_col_name]
+                .value_counts(sort=False, dropna=False)
+                .compute()
+            )
+        return self.__vertex_type_value_counts
+
+    @property
+    def _edge_type_value_counts(self):
+        """A Series of the counts of types in __edge_prop_dataframe"""
+        if self.__edge_prop_dataframe is None:
+            return
+        if self.__edge_type_value_counts is None:
+            # Types should all be strings; what should we do if we see NaN?
+            self.__edge_type_value_counts = (
+                self.__edge_prop_dataframe[self.type_col_name]
+                .value_counts(sort=False, dropna=False)
+                .compute()
+            )
+        return self.__edge_type_value_counts
+
+    def get_num_vertices(self, type=None, *, include_edge_data=True):
+        """Return the number of all vertices or vertices of a given type.
+
+        Parameters
+        ----------
+        type : string, optional
+            If type is None (the default), return the total number of vertices,
+            otherwise return the number of vertices of the specified type.
+        include_edge_data : bool (default True)
+            If True, include vertices that were added in vertex and edge data.
+            If False, only include vertices that were added in vertex data.
+            Note that vertices that only exist in edge data are assumed to have
+            the default type.
+
+        See Also
+        --------
+        PropertyGraph.get_num_edges
+        """
+        if type is None:
+            if not include_edge_data:
+                if self.__vertex_prop_dataframe is None:
+                    return 0
+                return len(self.__vertex_prop_dataframe)
+            if self.__num_vertices is not None:
+                return self.__num_vertices
+            self.__num_vertices = 0
+            vert_sers = self.__get_all_vertices_series()
+            if vert_sers:
+                if self.__series_type is dask_cudf.Series:
+                    vert_count = dask_cudf.concat(vert_sers).nunique()
+                    self.__num_vertices = vert_count.compute()
+            return self.__num_vertices
+
+        value_counts = self._vertex_type_value_counts
+        if type == self._default_type_name and include_edge_data:
+            # The default type, "", can refer to both vertex and edge data
+            if self.__vertex_prop_dataframe is None:
+                return self.get_num_vertices()
+            return (
+                self.get_num_vertices()
+                - len(self.__vertex_prop_dataframe)
+                + (value_counts[type] if type in value_counts else 0)
+            )
+        if self.__vertex_prop_dataframe is None:
+            return 0
+        return value_counts[type] if type in value_counts else 0
+
+    def get_num_edges(self, type=None):
+        """Return the number of all edges or edges of a given type.
+
+        Parameters
+        ----------
+        type : string, optional
+            If type is None (the default), return the total number of edges,
+            otherwise return the number of edges of the specified type.
+
+        See Also
+        --------
+        PropertyGraph.get_num_vertices
+        """
+        if type is None:
+            if self.__edge_prop_dataframe is not None:
+                return len(self.__edge_prop_dataframe)
+            else:
+                return 0
+        if self.__edge_prop_dataframe is None:
+            return 0
+        value_counts = self._edge_type_value_counts
+        return value_counts[type] if type in value_counts else 0
 
     def get_vertices(self, selection=None):
         """
@@ -243,7 +339,7 @@ class EXPERIMENTAL__MGPropertyGraph:
             The name to be assigned to the type of property being added. For
             example, if dataframe contains data about users, type_name might be
             "users". If not specified, the type of properties will be added as
-            None or NA
+            the empty string, "".
         property_columns : list of strings
             List of column names in dataframe to be added as properties. All
             other columns in dataframe will be ignored. If not specified, all
@@ -265,6 +361,8 @@ class EXPERIMENTAL__MGPropertyGraph:
         if (type_name is not None) and not(isinstance(type_name, str)):
             raise TypeError("type_name must be a string, got: "
                             f"{type(type_name)}")
+        if type_name is None:
+            type_name = self._default_type_name
         if property_columns:
             if type(property_columns) is not list:
                 raise TypeError("property_columns must be a list, got: "
@@ -279,7 +377,7 @@ class EXPERIMENTAL__MGPropertyGraph:
         # Clear the cached values related to the number of vertices since more
         # could be added in this method.
         self.__num_vertices = None
-        self.__num_vertices_with_properties = None
+        self.__vertex_type_value_counts = None  # Could update instead
 
         # Initialize the __vertex_prop_dataframe if necessary using the same
         # type as the incoming dataframe.
@@ -354,7 +452,7 @@ class EXPERIMENTAL__MGPropertyGraph:
             The name to be assigned to the type of property being added. For
             example, if dataframe contains data about transactions, type_name
             might be "transactions". If not specified, the type of properties
-            will be added as None or NA
+            will be added as the empty string "".
         property_columns : list of strings
             List of column names in dataframe to be added as properties. All
             other columns in dataframe will be ignored. If not specified, all
@@ -380,6 +478,8 @@ class EXPERIMENTAL__MGPropertyGraph:
         if (type_name is not None) and not(isinstance(type_name, str)):
             raise TypeError("type_name must be a string, got: "
                             f"{type(type_name)}")
+        if type_name is None:
+            type_name = self._default_type_name
         if property_columns:
             if type(property_columns) is not list:
                 raise TypeError("property_columns must be a list, got: "
@@ -392,8 +492,9 @@ class EXPERIMENTAL__MGPropertyGraph:
                                  f"{list(invalid_columns)}")
 
         # Clear the cached value for num_vertices since more could be added in
-        # this method. This method cannot affect num_vertices_with_properties
+        # this method. This method cannot affect __node_type_value_counts
         self.__num_vertices = None
+        self.__edge_type_value_counts = None  # Could update instead
 
         default_edge_columns = [self.src_col_name,
                                 self.dst_col_name,
@@ -484,7 +585,7 @@ class EXPERIMENTAL__MGPropertyGraph:
             edge_selection_series=selected_col)
 
     def extract_subgraph(self,
-                         create_using=cugraph.Graph,
+                         create_using=None,
                          selection=None,
                          edge_weight_property=None,
                          default_edge_weight=None,
@@ -498,12 +599,12 @@ class EXPERIMENTAL__MGPropertyGraph:
 
         Parameters
         ----------
-        create_using : cugraph Graph type or instance
+        create_using : cugraph Graph type or instance, optional
             Creates a Graph to return using the type specified. If an instance
             is specified, the type of the instance is used to construct the
             return Graph, and all relevant attributes set on the instance are
             copied to the return Graph (eg. directed). If not specified the
-            returned Graph will be a cugraph.Graph instance.
+            returned Graph will be a directed cugraph.Graph instance.
         selection : PropertySelection
             A PropertySelection returned from one or more calls to
             select_vertices() and/or select_edges(), used for creating a Graph
@@ -525,6 +626,7 @@ class EXPERIMENTAL__MGPropertyGraph:
         add_edge_data : bool (default is True)
             If True, add meta data about the edges contained in the extracted
             graph which are required for future calls to annotate_dataframe().
+
         Returns
         -------
         A Graph instance of the same type as create_using containing only the
@@ -580,6 +682,12 @@ class EXPERIMENTAL__MGPropertyGraph:
         # values. Restore the original dtypes in the resulting edges df prior
         # to creating a Graph.
         self.__update_dataframe_dtypes(edges, self.__edge_prop_dtypes)
+
+        # Default create_using set here instead of function signature to
+        # prevent cugraph from running on import. This may help diagnose errors
+        if create_using is None:
+            create_using = cugraph.Graph(directed=True)
+
         return self.edge_props_to_graph(
             edges,
             create_using=create_using,

@@ -47,25 +47,6 @@ target_link_libraries(cugraphtestutil
         cuco::cuco
 )
 
-
-add_library(cugraphmgtestutil STATIC
-            utilities/device_comm_wrapper.cu)
-
-set_property(TARGET cugraphmgtestutil PROPERTY POSITION_INDEPENDENT_CODE ON)
-
-target_include_directories(cugraphmgtestutil
-    PRIVATE
-    "${CMAKE_CURRENT_SOURCE_DIR}/../../thirdparty/mmio"
-    "${CMAKE_CURRENT_SOURCE_DIR}/../include"
-    "${CMAKE_CURRENT_SOURCE_DIR}"
-)
-
-target_link_libraries(cugraphmgtestutil
-    PUBLIC
-        cugraph::cugraph
-        NCCL::NCCL
-)
-
 ###################################################################################################
 # - compiler function -----------------------------------------------------------------------------
 
@@ -398,10 +379,29 @@ ConfigureTest(TRIANGLE_COUNT_TEST community/triangle_count_test.cpp)
 # - MG tests --------------------------------------------------------------------------------------
 
 if(BUILD_CUGRAPH_MG_TESTS)
-
     ###############################################################################################
     # - find MPI - only enabled if MG tests are to be built
-    find_package(MPI REQUIRED)
+    find_package(MPI REQUIRED COMPONENTS CXX)
+
+    add_library(cugraphmgtestutil STATIC
+                utilities/device_comm_wrapper.cu
+                utilities/mg_utilities.cpp)
+
+    set_property(TARGET cugraphmgtestutil PROPERTY POSITION_INDEPENDENT_CODE ON)
+
+    target_include_directories(cugraphmgtestutil
+        PRIVATE
+        "${CMAKE_CURRENT_SOURCE_DIR}/../../thirdparty/mmio"
+        "${CMAKE_CURRENT_SOURCE_DIR}/../include"
+        "${CMAKE_CURRENT_SOURCE_DIR}"
+    )
+
+    target_link_libraries(cugraphmgtestutil
+        PUBLIC
+            cugraph::cugraph
+            NCCL::NCCL
+            MPI::MPI_CXX
+    )
 
     # Set the GPU count to 1.  If the caller wants to execute MG tests using
     # more than 1, override from the command line using -DGPU_COUNT=<gpucount>
@@ -409,156 +409,152 @@ if(BUILD_CUGRAPH_MG_TESTS)
       set(GPU_COUNT "1")
     endif()
 
-    if(MPI_CXX_FOUND)
-        ###########################################################################################
-        # - MG SYMMETRIZE tests -------------------------------------------------------------------
-        ConfigureTestMG(MG_SYMMETRIZE_TEST structure/mg_symmetrize_test.cpp)
+    ###########################################################################################
+    # - MG SYMMETRIZE tests -------------------------------------------------------------------
+    ConfigureTestMG(MG_SYMMETRIZE_TEST structure/mg_symmetrize_test.cpp)
 
-        ###########################################################################################
-        # - MG Transpose tests --------------------------------------------------------------------
-        ConfigureTestMG(MG_TRANSPOSE_TEST structure/mg_transpose_test.cpp)
+    ###########################################################################################
+    # - MG Transpose tests --------------------------------------------------------------------
+    ConfigureTestMG(MG_TRANSPOSE_TEST structure/mg_transpose_test.cpp)
 
-        ###########################################################################################
-        # - MG Transpose Storage tests ------------------------------------------------------------
-        ConfigureTestMG(MG_TRANSPOSE_STORAGE_TEST structure/mg_transpose_storage_test.cpp)
+    ###########################################################################################
+    # - MG Transpose Storage tests ------------------------------------------------------------
+    ConfigureTestMG(MG_TRANSPOSE_STORAGE_TEST structure/mg_transpose_storage_test.cpp)
 
-        ###########################################################################################
-        # - MG Count self-loops and multi-edges tests ---------------------------------------------
-        ConfigureTestMG(MG_COUNT_SELF_LOOPS_AND_MULTI_EDGES_TEST
-              "structure/mg_count_self_loops_and_multi_edges_test.cpp")
+    ###########################################################################################
+    # - MG Count self-loops and multi-edges tests ---------------------------------------------
+    ConfigureTestMG(MG_COUNT_SELF_LOOPS_AND_MULTI_EDGES_TEST
+          "structure/mg_count_self_loops_and_multi_edges_test.cpp")
 
-        ###########################################################################################
-        # - MG PAGERANK tests ---------------------------------------------------------------------
-        ConfigureTestMG(MG_PAGERANK_TEST link_analysis/mg_pagerank_test.cpp)
+    ###########################################################################################
+    # - MG PAGERANK tests ---------------------------------------------------------------------
+    ConfigureTestMG(MG_PAGERANK_TEST link_analysis/mg_pagerank_test.cpp)
 
-        ###########################################################################################
-        # - MG HITS tests -------------------------------------------------------------------------
-        ConfigureTestMG(MG_HITS_TEST link_analysis/mg_hits_test.cpp)
+    ###########################################################################################
+    # - MG HITS tests -------------------------------------------------------------------------
+    ConfigureTestMG(MG_HITS_TEST link_analysis/mg_hits_test.cpp)
 
-        ###########################################################################################
-        # - MG KATZ CENTRALITY tests --------------------------------------------------------------
-        ConfigureTestMG(MG_KATZ_CENTRALITY_TEST centrality/mg_katz_centrality_test.cpp)
+    ###########################################################################################
+    # - MG KATZ CENTRALITY tests --------------------------------------------------------------
+    ConfigureTestMG(MG_KATZ_CENTRALITY_TEST centrality/mg_katz_centrality_test.cpp)
 
-        ###########################################################################################
-        # - MG EIGENVECTOR CENTRALITY tests --------------------------------------------------------------
-        ConfigureTestMG(MG_EIGENVECTOR_CENTRALITY_TEST centrality/mg_eigenvector_centrality_test.cpp)
+    ###########################################################################################
+    # - MG EIGENVECTOR CENTRALITY tests --------------------------------------------------------------
+    ConfigureTestMG(MG_EIGENVECTOR_CENTRALITY_TEST centrality/mg_eigenvector_centrality_test.cpp)
 
-        ###########################################################################################
-        # - MG BFS tests --------------------------------------------------------------------------
-        ConfigureTestMG(MG_BFS_TEST traversal/mg_bfs_test.cpp)
+    ###########################################################################################
+    # - MG BFS tests --------------------------------------------------------------------------
+    ConfigureTestMG(MG_BFS_TEST traversal/mg_bfs_test.cpp)
 
-        ###########################################################################################
-        # - Extract BFS Paths tests ---------------------------------------------------------------
-        ConfigureTestMG(MG_EXTRACT_BFS_PATHS_TEST
-                        traversal/mg_extract_bfs_paths_test.cu)
+    ###########################################################################################
+    # - Extract BFS Paths tests ---------------------------------------------------------------
+    ConfigureTestMG(MG_EXTRACT_BFS_PATHS_TEST
+                    traversal/mg_extract_bfs_paths_test.cu)
 
-        ###########################################################################################
-        # - MG SSSP tests -------------------------------------------------------------------------
-        ConfigureTestMG(MG_SSSP_TEST traversal/mg_sssp_test.cpp)
+    ###########################################################################################
+    # - MG SSSP tests -------------------------------------------------------------------------
+    ConfigureTestMG(MG_SSSP_TEST traversal/mg_sssp_test.cpp)
 
-        ###########################################################################################
-        # - MG LOUVAIN tests ----------------------------------------------------------------------
-        ConfigureTestMG(MG_LOUVAIN_TEST
-            community/mg_louvain_helper.cu
-            community/mg_louvain_test.cpp)
+    ###########################################################################################
+    # - MG LOUVAIN tests ----------------------------------------------------------------------
+    ConfigureTestMG(MG_LOUVAIN_TEST
+        community/mg_louvain_helper.cu
+        community/mg_louvain_test.cpp)
 
-        ###########################################################################################
-        # - MG WEAKLY CONNECTED COMPONENTS tests --------------------------------------------------
-        ConfigureTestMG(MG_WEAKLY_CONNECTED_COMPONENTS_TEST
-                        components/mg_weakly_connected_components_test.cpp)
+    ###########################################################################################
+    # - MG WEAKLY CONNECTED COMPONENTS tests --------------------------------------------------
+    ConfigureTestMG(MG_WEAKLY_CONNECTED_COMPONENTS_TEST
+                    components/mg_weakly_connected_components_test.cpp)
 
-        ###########################################################################################
-        # - MG GRAPH BROADCAST tests --------------------------------------------------------------
-        ConfigureTestMG(MG_GRAPH_BROADCAST_TEST bcast/mg_graph_bcast.cpp)
+    ###########################################################################################
+    # - MG GRAPH BROADCAST tests --------------------------------------------------------------
+    ConfigureTestMG(MG_GRAPH_BROADCAST_TEST bcast/mg_graph_bcast.cpp)
 
-        ###########################################################################################
-        # - MG Core Number tests ------------------------------------------------------------------
-        ConfigureTestMG(MG_CORE_NUMBER_TEST cores/mg_core_number_test.cpp)
+    ###########################################################################################
+    # - MG Core Number tests ------------------------------------------------------------------
+    ConfigureTestMG(MG_CORE_NUMBER_TEST cores/mg_core_number_test.cpp)
 
-        ###########################################################################################
-        # - MG TRIANGLE COUNT tests ---------------------------------------------------------------
-        ConfigureTestMG(MG_TRIANGLE_COUNT_TEST community/mg_triangle_count_test.cpp)
+    ###########################################################################################
+    # - MG TRIANGLE COUNT tests ---------------------------------------------------------------
+    ConfigureTestMG(MG_TRIANGLE_COUNT_TEST community/mg_triangle_count_test.cpp)
 
-        ###########################################################################################
-        # - MG PRIMS COUNT_IF_V tests -------------------------------------------------------------
-        ConfigureTestMG(MG_COUNT_IF_V_TEST prims/mg_count_if_v.cu)
-        target_link_libraries(MG_COUNT_IF_V_TEST PRIVATE cuco::cuco)
+    ###########################################################################################
+    # - MG PRIMS COUNT_IF_V tests -------------------------------------------------------------
+    ConfigureTestMG(MG_COUNT_IF_V_TEST prims/mg_count_if_v.cu)
+    target_link_libraries(MG_COUNT_IF_V_TEST PRIVATE cuco::cuco)
 
-        ###########################################################################################
-        # - MG PRIMS TRANSFORM_REDUCE_V_FRONTIER_OUTGOING_E_BY_DST tests --------------------------
-        ConfigureTestMG(MG_TRANSFORM_REDUCE_V_FRONTIER_OUTGOING_E_BY_DST_TEST
-                        prims/mg_transform_reduce_v_frontier_outgoing_e_by_dst.cu)
-        target_link_libraries(MG_TRANSFORM_REDUCE_V_FRONTIER_OUTGOING_E_BY_DST_TEST PRIVATE cuco::cuco)
+    ###########################################################################################
+    # - MG PRIMS TRANSFORM_REDUCE_V_FRONTIER_OUTGOING_E_BY_DST tests --------------------------
+    ConfigureTestMG(MG_TRANSFORM_REDUCE_V_FRONTIER_OUTGOING_E_BY_DST_TEST
+                    prims/mg_transform_reduce_v_frontier_outgoing_e_by_dst.cu)
+    target_link_libraries(MG_TRANSFORM_REDUCE_V_FRONTIER_OUTGOING_E_BY_DST_TEST PRIVATE cuco::cuco)
 
-        ###########################################################################################
-        # - MG PRIMS REDUCE_V tests ---------------------------------------------------------------
-        ConfigureTestMG(MG_REDUCE_V_TEST prims/mg_reduce_v.cu)
-        target_link_libraries(MG_REDUCE_V_TEST PRIVATE cuco::cuco)
+    ###########################################################################################
+    # - MG PRIMS REDUCE_V tests ---------------------------------------------------------------
+    ConfigureTestMG(MG_REDUCE_V_TEST prims/mg_reduce_v.cu)
+    target_link_libraries(MG_REDUCE_V_TEST PRIVATE cuco::cuco)
 
-        ###########################################################################################
-        # - MG PRIMS TRANSFORM_REDUCE_V tests -----------------------------------------------------
-        ConfigureTestMG(MG_TRANSFORM_REDUCE_V_TEST prims/mg_transform_reduce_v.cu)
-        target_link_libraries(MG_TRANSFORM_REDUCE_V_TEST PRIVATE cuco::cuco)
+    ###########################################################################################
+    # - MG PRIMS TRANSFORM_REDUCE_V tests -----------------------------------------------------
+    ConfigureTestMG(MG_TRANSFORM_REDUCE_V_TEST prims/mg_transform_reduce_v.cu)
+    target_link_libraries(MG_TRANSFORM_REDUCE_V_TEST PRIVATE cuco::cuco)
 
-        ###########################################################################################
-        # - MG PRIMS TRANSFORM_REDUCE_E tests -----------------------------------------------------
-        ConfigureTestMG(MG_TRANSFORM_REDUCE_E_TEST prims/mg_transform_reduce_e.cu)
-        target_link_libraries(MG_TRANSFORM_REDUCE_E_TEST PRIVATE cuco::cuco)
+    ###########################################################################################
+    # - MG PRIMS TRANSFORM_REDUCE_E tests -----------------------------------------------------
+    ConfigureTestMG(MG_TRANSFORM_REDUCE_E_TEST prims/mg_transform_reduce_e.cu)
+    target_link_libraries(MG_TRANSFORM_REDUCE_E_TEST PRIVATE cuco::cuco)
 
-        ###########################################################################################
-        # - MG PRIMS COUNT_IF_E tests -------------------------------------------------------------
-        ConfigureTestMG(MG_COUNT_IF_E_TEST prims/mg_count_if_e.cu)
-        target_link_libraries(MG_COUNT_IF_E_TEST PRIVATE cuco::cuco)
+    ###########################################################################################
+    # - MG PRIMS COUNT_IF_E tests -------------------------------------------------------------
+    ConfigureTestMG(MG_COUNT_IF_E_TEST prims/mg_count_if_e.cu)
+    target_link_libraries(MG_COUNT_IF_E_TEST PRIVATE cuco::cuco)
 
-        ###########################################################################################
-        # - MG PRIMS PER_V_TRANSFORM_REDUCE_INCOMING_OUTGOING_E tests -----------------------------
-        ConfigureTestMG(MG_PER_V_TRANSFORM_REDUCE_INCOMING_OUTGOING_E_TEST
-          prims/mg_per_v_transform_reduce_incoming_outgoing_e.cu)
-        target_link_libraries(MG_PER_V_TRANSFORM_REDUCE_INCOMING_OUTGOING_E_TEST PRIVATE cuco::cuco)
+    ###########################################################################################
+    # - MG PRIMS PER_V_TRANSFORM_REDUCE_INCOMING_OUTGOING_E tests -----------------------------
+    ConfigureTestMG(MG_PER_V_TRANSFORM_REDUCE_INCOMING_OUTGOING_E_TEST
+      prims/mg_per_v_transform_reduce_incoming_outgoing_e.cu)
+    target_link_libraries(MG_PER_V_TRANSFORM_REDUCE_INCOMING_OUTGOING_E_TEST PRIVATE cuco::cuco)
 
-        ###########################################################################################
-        # - MG PRIMS EXTRACT_IF_E tests -----------------------------------------------------------
-        ConfigureTestMG(MG_EXTRACT_IF_E_TEST prims/mg_extract_if_e.cu)
-        target_link_libraries(MG_EXTRACT_IF_E_TEST PRIVATE cuco::cuco)
+    ###########################################################################################
+    # - MG PRIMS EXTRACT_IF_E tests -----------------------------------------------------------
+    ConfigureTestMG(MG_EXTRACT_IF_E_TEST prims/mg_extract_if_e.cu)
+    target_link_libraries(MG_EXTRACT_IF_E_TEST PRIVATE cuco::cuco)
 
-        ###########################################################################################
-        # - MG GATHER_UTILS tests -----------------------------------------------------------------
-        ConfigureTestMG(MG_GATHER_UTILS_TEST sampling/detail/mg_gather_utils.cu)
-        target_link_libraries(MG_GATHER_UTILS_TEST PRIVATE cuco::cuco)
+    ###########################################################################################
+    # - MG GATHER_UTILS tests -----------------------------------------------------------------
+    ConfigureTestMG(MG_GATHER_UTILS_TEST sampling/detail/mg_gather_utils.cu)
+    target_link_libraries(MG_GATHER_UTILS_TEST PRIVATE cuco::cuco)
 
-        ###########################################################################################
-        # - MG GATHER_ONE_HOP tests ---------------------------------------------------------------
-        ConfigureTestMG(MG_GATHER_ONE_HOP_TEST sampling/detail/mg_gather_one_hop.cu)
-        target_link_libraries(MG_GATHER_ONE_HOP_TEST PRIVATE cuco::cuco)
+    ###########################################################################################
+    # - MG GATHER_ONE_HOP tests ---------------------------------------------------------------
+    ConfigureTestMG(MG_GATHER_ONE_HOP_TEST sampling/detail/mg_gather_one_hop.cu)
+    target_link_libraries(MG_GATHER_ONE_HOP_TEST PRIVATE cuco::cuco)
 
-        ###########################################################################################
-        # - MG NBR SAMPLING tests -----------------------------------------------------------------
-        ConfigureTestMG(MG_UNIFORM_NEIGHBOR_SAMPLING_TEST sampling/mg_uniform_neighbor_sampling.cu)
-        target_link_libraries(MG_UNIFORM_NEIGHBOR_SAMPLING_TEST PRIVATE cuco::cuco)
+    ###########################################################################################
+    # - MG NBR SAMPLING tests -----------------------------------------------------------------
+    ConfigureTestMG(MG_UNIFORM_NEIGHBOR_SAMPLING_TEST sampling/mg_uniform_neighbor_sampling.cu)
+    target_link_libraries(MG_UNIFORM_NEIGHBOR_SAMPLING_TEST PRIVATE cuco::cuco)
 
-        ###########################################################################################
-        # - RANDOM_WALKS tests --------------------------------------------------------------------
-        ConfigureTestMG(MG_RANDOM_WALKS_TEST sampling/mg_random_walks_test.cu)
-        
-        ###########################################################################################
-        # - MG C API tests ------------------------------------------------------------------------
-        ConfigureCTestMG(MG_CAPI_CREATE_GRAPH c_api/mg_create_graph_test.c c_api/mg_test_utils.cpp)
-        ConfigureCTestMG(MG_CAPI_PAGERANK c_api/mg_pagerank_test.c c_api/mg_test_utils.cpp)
-        ConfigureCTestMG(MG_CAPI_BFS c_api/mg_bfs_test.c c_api/mg_test_utils.cpp)
-        ConfigureCTestMG(MG_CAPI_SSSP c_api/mg_sssp_test.c c_api/mg_test_utils.cpp)
-        ConfigureCTestMG(MG_CAPI_WEAKLY_CONNECTED_COMPONENTS c_api/mg_weakly_connected_components_test.c c_api/mg_test_utils.cpp)
-        ConfigureCTestMG(MG_CAPI_STRONGLY_CONNECTED_COMPONENTS c_api/mg_strongly_connected_components_test.c c_api/mg_test_utils.cpp)
-        ConfigureCTestMG(MG_CAPI_KATZ c_api/mg_katz_test.c c_api/mg_test_utils.cpp)
-        ConfigureCTestMG(MG_CAPI_EIGENVECTOR_CENTRALITY c_api/mg_eigenvector_centrality_test.c c_api/mg_test_utils.cpp)
-        ConfigureCTestMG(MG_CAPI_HITS c_api/mg_hits_test.c c_api/mg_test_utils.cpp)
-        ConfigureCTestMG(MG_CAPI_UNIFORM_NEIGHBOR_SAMPLE c_api/mg_uniform_neighbor_sample_test.c c_api/mg_test_utils.cpp)
-        ConfigureCTestMG(MG_CAPI_RANDOM_WALKS c_api/mg_random_walks_test.c c_api/mg_test_utils.cpp)
-        ConfigureCTestMG(MG_CAPI_TRIANGLE_COUNT c_api/mg_triangle_count_test.c c_api/mg_test_utils.cpp)
-        ConfigureCTestMG(MG_CAPI_LOUVAIN c_api/mg_louvain_test.c c_api/mg_test_utils.cpp)
+    ###########################################################################################
+    # - RANDOM_WALKS tests --------------------------------------------------------------------
+    ConfigureTestMG(MG_RANDOM_WALKS_TEST sampling/mg_random_walks_test.cu)
+
+    ###########################################################################################
+    # - MG C API tests ------------------------------------------------------------------------
+    ConfigureCTestMG(MG_CAPI_CREATE_GRAPH c_api/mg_create_graph_test.c c_api/mg_test_utils.cpp)
+    ConfigureCTestMG(MG_CAPI_PAGERANK c_api/mg_pagerank_test.c c_api/mg_test_utils.cpp)
+    ConfigureCTestMG(MG_CAPI_BFS c_api/mg_bfs_test.c c_api/mg_test_utils.cpp)
+    ConfigureCTestMG(MG_CAPI_SSSP c_api/mg_sssp_test.c c_api/mg_test_utils.cpp)
+    ConfigureCTestMG(MG_CAPI_WEAKLY_CONNECTED_COMPONENTS c_api/mg_weakly_connected_components_test.c c_api/mg_test_utils.cpp)
+    ConfigureCTestMG(MG_CAPI_STRONGLY_CONNECTED_COMPONENTS c_api/mg_strongly_connected_components_test.c c_api/mg_test_utils.cpp)
+    ConfigureCTestMG(MG_CAPI_KATZ c_api/mg_katz_test.c c_api/mg_test_utils.cpp)
+    ConfigureCTestMG(MG_CAPI_EIGENVECTOR_CENTRALITY c_api/mg_eigenvector_centrality_test.c c_api/mg_test_utils.cpp)
+    ConfigureCTestMG(MG_CAPI_HITS c_api/mg_hits_test.c c_api/mg_test_utils.cpp)
+    ConfigureCTestMG(MG_CAPI_UNIFORM_NEIGHBOR_SAMPLE c_api/mg_uniform_neighbor_sample_test.c c_api/mg_test_utils.cpp)
+    ConfigureCTestMG(MG_CAPI_RANDOM_WALKS c_api/mg_random_walks_test.c c_api/mg_test_utils.cpp)
+    ConfigureCTestMG(MG_CAPI_TRIANGLE_COUNT c_api/mg_triangle_count_test.c c_api/mg_test_utils.cpp)
+    ConfigureCTestMG(MG_CAPI_LOUVAIN c_api/mg_louvain_test.c c_api/mg_test_utils.cpp)
 	ConfigureCTestMG(MG_CAPI_CORE_NUMBER c_api/mg_core_number_test.c c_api/mg_test_utils.cpp)
-    else()
-       message(FATAL_ERROR "OpenMPI NOT found, cannot build MG tests.")
-    endif()
 endif()
 
 ###################################################################################################

@@ -80,7 +80,8 @@ class Tests_RandomWalks
   : public ::testing::TestWithParam<std::tuple<traversal_id_t, int, RandomWalks_Usecase>> {
  public:
   Tests_RandomWalks() {}
-  static void SetupTestCase() {}
+
+  static void SetUpTestCase() {}
   static void TearDownTestCase() {}
 
   virtual void SetUp() {}

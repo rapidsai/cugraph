@@ -17,6 +17,7 @@
 #include <utilities/base_fixture.hpp>
 #include <utilities/device_comm_wrapper.hpp>
 #include <utilities/high_res_clock.h>
+#include <utilities/mg_utilities.hpp>
 #include <utilities/test_graphs.hpp>
 #include <utilities/test_utilities.hpp>
 #include <utilities/thrust_wrapper.hpp>
@@ -25,10 +26,7 @@
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
-#include <cugraph/partition_manager.hpp>
 
-#include <raft/comms/comms.hpp>
-#include <raft/comms/mpi_comms.hpp>
 #include <raft/handle.hpp>
 #include <rmm/device_scalar.hpp>
 #include <rmm/device_uvector.hpp>
@@ -48,8 +46,10 @@ class Tests_MGPageRank
   : public ::testing::TestWithParam<std::tuple<PageRank_Usecase, input_usecase_t>> {
  public:
   Tests_MGPageRank() {}
-  static void SetupTestCase() {}
-  static void TearDownTestCase() {}
+
+  static void SetUpTestCase() { handle_ = cugraph::test::initialize_mg_handle(); }
+
+  static void TearDownTestCase() { handle_.reset(); }
 
   virtual void SetUp() {}
   virtual void TearDown() {}
@@ -59,40 +59,23 @@ class Tests_MGPageRank
   void run_current_test(PageRank_Usecase const& pagerank_usecase,
                         input_usecase_t const& input_usecase)
   {
-    // 1. initialize handle
-
-    auto constexpr pool_size = 64;  // FIXME: tuning parameter
-    raft::handle_t handle(rmm::cuda_stream_per_thread,
-                          std::make_shared<rmm::cuda_stream_pool>(pool_size));
     HighResClock hr_clock{};
 
-    raft::comms::initialize_mpi_comms(&handle, MPI_COMM_WORLD);
-    auto& comm           = handle.get_comms();
-    auto const comm_size = comm.get_size();
-
-    auto row_comm_size = static_cast<int>(sqrt(static_cast<double>(comm_size)));
-    while (comm_size % row_comm_size != 0) {
-      --row_comm_size;
-    }
-
-    cugraph::partition_2d::subcomm_factory_t<cugraph::partition_2d::key_naming_t, vertex_t>
-      subcomm_factory(handle, row_comm_size);
-
-    // 2. create MG graph
+    // 1. create MG graph
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
-      handle.get_comms().barrier();
+      handle_->get_comms().barrier();
       hr_clock.start();
     }
 
     auto [mg_graph, d_mg_renumber_map_labels] =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, true, true>(
-        handle, input_usecase, pagerank_usecase.test_weighted, true);
+        *handle_, input_usecase, pagerank_usecase.test_weighted, true);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
-      handle.get_comms().barrier();
+      handle_->get_comms().barrier();
       double elapsed_time{0.0};
       hr_clock.stop(&elapsed_time);
       std::cout << "MG construct_graph took " << elapsed_time * 1e-6 << " s." << std::endl;
@@ -100,13 +83,13 @@ class Tests_MGPageRank
 
     auto mg_graph_view = mg_graph.view();
 
-    // 3. generate personalization vertex/value pairs
+    // 2. generate personalization vertex/value pairs
 
     std::optional<std::vector<vertex_t>> h_mg_personalization_vertices{std::nullopt};
     std::optional<std::vector<result_t>> h_mg_personalization_values{std::nullopt};
     if (pagerank_usecase.personalization_ratio > 0.0) {
       std::default_random_engine generator{
-        static_cast<long unsigned int>(comm.get_rank()) /* seed */};
+        static_cast<long unsigned int>(handle_->get_comms().get_rank()) /* seed */};
       std::uniform_real_distribution<double> distribution{0.0, 1.0};
       h_mg_personalization_vertices =
         std::vector<vertex_t>(mg_graph_view.local_vertex_partition_range_size());
@@ -130,39 +113,40 @@ class Tests_MGPageRank
     auto d_mg_personalization_vertices =
       h_mg_personalization_vertices
         ? std::make_optional<rmm::device_uvector<vertex_t>>((*h_mg_personalization_vertices).size(),
-                                                            handle.get_stream())
+                                                            handle_->get_stream())
         : std::nullopt;
     auto d_mg_personalization_values =
-      h_mg_personalization_values ? std::make_optional<rmm::device_uvector<result_t>>(
-                                      (*d_mg_personalization_vertices).size(), handle.get_stream())
-                                  : std::nullopt;
+      h_mg_personalization_values
+        ? std::make_optional<rmm::device_uvector<result_t>>((*d_mg_personalization_vertices).size(),
+                                                            handle_->get_stream())
+        : std::nullopt;
     if (d_mg_personalization_vertices) {
       raft::update_device((*d_mg_personalization_vertices).data(),
                           (*h_mg_personalization_vertices).data(),
                           (*h_mg_personalization_vertices).size(),
-                          handle.get_stream());
+                          handle_->get_stream());
       raft::update_device((*d_mg_personalization_values).data(),
                           (*h_mg_personalization_values).data(),
                           (*h_mg_personalization_values).size(),
-                          handle.get_stream());
+                          handle_->get_stream());
     }
 
-    // 4. run MG PageRank
+    // 3. run MG PageRank
 
     result_t constexpr alpha{0.85};
     result_t constexpr epsilon{1e-6};
 
     rmm::device_uvector<result_t> d_mg_pageranks(mg_graph_view.local_vertex_partition_range_size(),
-                                                 handle.get_stream());
+                                                 handle_->get_stream());
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
-      handle.get_comms().barrier();
+      handle_->get_comms().barrier();
       hr_clock.start();
     }
 
     cugraph::pagerank<vertex_t, edge_t, weight_t>(
-      handle,
+      *handle_,
       mg_graph_view,
       std::nullopt,
       d_mg_personalization_vertices
@@ -182,70 +166,72 @@ class Tests_MGPageRank
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
-      handle.get_comms().barrier();
+      handle_->get_comms().barrier();
       double elapsed_time{0.0};
       hr_clock.stop(&elapsed_time);
       std::cout << "MG PageRank took " << elapsed_time * 1e-6 << " s.\n";
     }
 
-    // 5. copmare SG & MG results
+    // 4. copmare SG & MG results
 
     if (pagerank_usecase.check_correctness) {
-      // 5-1. aggregate MG results
+      // 4-1. aggregate MG results
 
       auto d_mg_aggregate_renumber_map_labels = cugraph::test::device_gatherv(
-        handle, (*d_mg_renumber_map_labels).data(), (*d_mg_renumber_map_labels).size());
+        *handle_, (*d_mg_renumber_map_labels).data(), (*d_mg_renumber_map_labels).size());
       auto d_mg_aggregate_personalization_vertices =
         d_mg_personalization_vertices
           ? std::optional<rmm::device_uvector<vertex_t>>{cugraph::test::device_gatherv(
-              handle,
+              *handle_,
               (*d_mg_personalization_vertices).data(),
               (*d_mg_personalization_vertices).size())}
           : std::nullopt;
       auto d_mg_aggregate_personalization_values =
         d_mg_personalization_values
           ? std::optional<rmm::device_uvector<result_t>>{cugraph::test::device_gatherv(
-              handle, (*d_mg_personalization_values).data(), (*d_mg_personalization_values).size())}
+              *handle_,
+              (*d_mg_personalization_values).data(),
+              (*d_mg_personalization_values).size())}
           : std::nullopt;
       auto d_mg_aggregate_pageranks =
-        cugraph::test::device_gatherv(handle, d_mg_pageranks.data(), d_mg_pageranks.size());
+        cugraph::test::device_gatherv(*handle_, d_mg_pageranks.data(), d_mg_pageranks.size());
 
-      if (handle.get_comms().get_rank() == int{0}) {
-        // 5-2. unrenumbr MG results
+      if (handle_->get_comms().get_rank() == int{0}) {
+        // 4-2. unrenumbr MG results
 
         if (d_mg_aggregate_personalization_vertices) {
           cugraph::unrenumber_int_vertices<vertex_t, false>(
-            handle,
+            *handle_,
             (*d_mg_aggregate_personalization_vertices).data(),
             (*d_mg_aggregate_personalization_vertices).size(),
             d_mg_aggregate_renumber_map_labels.data(),
             std::vector<vertex_t>{mg_graph_view.number_of_vertices()});
           std::tie(d_mg_aggregate_personalization_vertices, d_mg_aggregate_personalization_values) =
-            cugraph::test::sort_by_key(handle,
+            cugraph::test::sort_by_key(*handle_,
                                        *d_mg_aggregate_personalization_vertices,
                                        *d_mg_aggregate_personalization_values);
         }
         std::tie(std::ignore, d_mg_aggregate_pageranks) = cugraph::test::sort_by_key(
-          handle, d_mg_aggregate_renumber_map_labels, d_mg_aggregate_pageranks);
+          *handle_, d_mg_aggregate_renumber_map_labels, d_mg_aggregate_pageranks);
 
-        // 5-3. create SG graph
+        // 4-3. create SG graph
 
-        cugraph::graph_t<vertex_t, edge_t, weight_t, true, false> sg_graph(handle);
+        cugraph::graph_t<vertex_t, edge_t, weight_t, true, false> sg_graph(*handle_);
         std::tie(sg_graph, std::ignore) =
           cugraph::test::construct_graph<vertex_t, edge_t, weight_t, true, false>(
-            handle, input_usecase, pagerank_usecase.test_weighted, false);
+            *handle_, input_usecase, pagerank_usecase.test_weighted, false);
 
         auto sg_graph_view = sg_graph.view();
 
         ASSERT_EQ(mg_graph_view.number_of_vertices(), sg_graph_view.number_of_vertices());
 
-        // 5-4. run SG PageRank
+        // 4-4. run SG PageRank
 
         rmm::device_uvector<result_t> d_sg_pageranks(sg_graph_view.number_of_vertices(),
-                                                     handle.get_stream());
+                                                     handle_->get_stream());
 
         cugraph::pagerank<vertex_t, edge_t, weight_t>(
-          handle,
+          *handle_,
           sg_graph_view,
           std::nullopt,
           d_mg_aggregate_personalization_vertices
@@ -264,18 +250,20 @@ class Tests_MGPageRank
           std::numeric_limits<size_t>::max(),  // max_iterations
           false);
 
-        // 5-4. compare
+        // 4-5. compare
 
         std::vector<result_t> h_mg_aggregate_pageranks(mg_graph_view.number_of_vertices());
         raft::update_host(h_mg_aggregate_pageranks.data(),
                           d_mg_aggregate_pageranks.data(),
                           d_mg_aggregate_pageranks.size(),
-                          handle.get_stream());
+                          handle_->get_stream());
 
         std::vector<result_t> h_sg_pageranks(sg_graph_view.number_of_vertices());
-        raft::update_host(
-          h_sg_pageranks.data(), d_sg_pageranks.data(), d_sg_pageranks.size(), handle.get_stream());
-        handle.sync_stream();
+        raft::update_host(h_sg_pageranks.data(),
+                          d_sg_pageranks.data(),
+                          d_sg_pageranks.size(),
+                          handle_->get_stream());
+        handle_->sync_stream();
 
         auto threshold_ratio = 1e-3;
         auto threshold_magnitude =
@@ -293,7 +281,13 @@ class Tests_MGPageRank
       }
     }
   }
+
+ private:
+  static std::unique_ptr<raft::handle_t> handle_;
 };
+
+template <typename input_usecase_t>
+std::unique_ptr<raft::handle_t> Tests_MGPageRank<input_usecase_t>::handle_ = nullptr;
 
 using Tests_MGPageRank_File = Tests_MGPageRank<cugraph::test::File_Usecase>;
 using Tests_MGPageRank_Rmat = Tests_MGPageRank<cugraph::test::Rmat_Usecase>;

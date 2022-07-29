@@ -17,6 +17,7 @@
 #include <utilities/base_fixture.hpp>
 #include <utilities/device_comm_wrapper.hpp>
 #include <utilities/high_res_clock.h>
+#include <utilities/mg_utilities.hpp>
 #include <utilities/test_graphs.hpp>
 #include <utilities/test_utilities.hpp>
 #include <utilities/thrust_wrapper.hpp>
@@ -46,8 +47,10 @@ template <typename input_usecase_t>
 class Tests_MGBFS : public ::testing::TestWithParam<std::tuple<BFS_Usecase, input_usecase_t>> {
  public:
   Tests_MGBFS() {}
-  static void SetupTestCase() {}
-  static void TearDownTestCase() {}
+
+  static void SetUpTestCase() { handle_ = cugraph::test::initialize_mg_handle(); }
+
+  static void TearDownTestCase() { handle_.reset(); }
 
   virtual void SetUp() {}
   virtual void TearDown() {}
@@ -58,38 +61,23 @@ class Tests_MGBFS : public ::testing::TestWithParam<std::tuple<BFS_Usecase, inpu
   {
     using weight_t = float;
 
-    // 1. initialize handle
-
-    raft::handle_t handle{};
     HighResClock hr_clock{};
 
-    raft::comms::initialize_mpi_comms(&handle, MPI_COMM_WORLD);
-    auto& comm           = handle.get_comms();
-    auto const comm_size = comm.get_size();
-    auto const comm_rank = comm.get_rank();
-
-    auto row_comm_size = static_cast<int>(sqrt(static_cast<double>(comm_size)));
-    while (comm_size % row_comm_size != 0) {
-      --row_comm_size;
-    }
-    cugraph::partition_2d::subcomm_factory_t<cugraph::partition_2d::key_naming_t, vertex_t>
-      subcomm_factory(handle, row_comm_size);
-
-    // 2. create MG graph
+    // 1. create MG graph
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
-      handle.get_comms().barrier();
+      handle_->get_comms().barrier();
       hr_clock.start();
     }
 
     auto [mg_graph, d_mg_renumber_map_labels] =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, true>(
-        handle, input_usecase, false, true);
+        *handle_, input_usecase, false, true);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
-      handle.get_comms().barrier();
+      handle_->get_comms().barrier();
       double elapsed_time{0.0};
       hr_clock.stop(&elapsed_time);
       std::cout << "MG construct_graph took " << elapsed_time * 1e-6 << " s.\n";
@@ -101,25 +89,26 @@ class Tests_MGBFS : public ::testing::TestWithParam<std::tuple<BFS_Usecase, inpu
                 static_cast<vertex_t>(bfs_usecase.source) < mg_graph_view.number_of_vertices())
       << "Invalid starting source.";
 
-    // 3. run MG BFS
+    // 2. run MG BFS
 
     rmm::device_uvector<vertex_t> d_mg_distances(mg_graph_view.local_vertex_partition_range_size(),
-                                                 handle.get_stream());
+                                                 handle_->get_stream());
     rmm::device_uvector<vertex_t> d_mg_predecessors(
-      mg_graph_view.local_vertex_partition_range_size(), handle.get_stream());
+      mg_graph_view.local_vertex_partition_range_size(), handle_->get_stream());
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
-      handle.get_comms().barrier();
+      handle_->get_comms().barrier();
       hr_clock.start();
     }
 
     auto const d_mg_source =
       mg_graph_view.in_local_vertex_partition_range_nocheck(bfs_usecase.source)
-        ? std::make_optional<rmm::device_scalar<vertex_t>>(bfs_usecase.source, handle.get_stream())
+        ? std::make_optional<rmm::device_scalar<vertex_t>>(bfs_usecase.source,
+                                                           handle_->get_stream())
         : std::nullopt;
 
-    cugraph::bfs(handle,
+    cugraph::bfs(*handle_,
                  mg_graph_view,
                  d_mg_distances.data(),
                  d_mg_predecessors.data(),
@@ -130,66 +119,66 @@ class Tests_MGBFS : public ::testing::TestWithParam<std::tuple<BFS_Usecase, inpu
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
-      handle.get_comms().barrier();
+      handle_->get_comms().barrier();
       double elapsed_time{0.0};
       hr_clock.stop(&elapsed_time);
       std::cout << "MG BFS took " << elapsed_time * 1e-6 << " s.\n";
     }
 
-    // 4. compare SG & MG results
+    // 3. compare SG & MG results
 
     if (bfs_usecase.check_correctness) {
-      // 4-1. aggregate MG results
+      // 3-1. aggregate MG results
 
       auto d_mg_aggregate_renumber_map_labels = cugraph::test::device_gatherv(
-        handle, (*d_mg_renumber_map_labels).data(), (*d_mg_renumber_map_labels).size());
+        *handle_, (*d_mg_renumber_map_labels).data(), (*d_mg_renumber_map_labels).size());
       auto d_mg_aggregate_distances =
-        cugraph::test::device_gatherv(handle, d_mg_distances.data(), d_mg_distances.size());
+        cugraph::test::device_gatherv(*handle_, d_mg_distances.data(), d_mg_distances.size());
       auto d_mg_aggregate_predecessors =
-        cugraph::test::device_gatherv(handle, d_mg_predecessors.data(), d_mg_predecessors.size());
+        cugraph::test::device_gatherv(*handle_, d_mg_predecessors.data(), d_mg_predecessors.size());
 
-      if (handle.get_comms().get_rank() == int{0}) {
-        // 4-2. unrenumbr MG results
+      if (handle_->get_comms().get_rank() == int{0}) {
+        // 3-2. unrenumbr MG results
 
         cugraph::unrenumber_int_vertices<vertex_t, false>(
-          handle,
+          *handle_,
           d_mg_aggregate_predecessors.data(),
           d_mg_aggregate_predecessors.size(),
           d_mg_aggregate_renumber_map_labels.data(),
           std::vector<vertex_t>{mg_graph_view.number_of_vertices()});
 
         std::tie(std::ignore, d_mg_aggregate_distances) = cugraph::test::sort_by_key(
-          handle, d_mg_aggregate_renumber_map_labels, d_mg_aggregate_distances);
+          *handle_, d_mg_aggregate_renumber_map_labels, d_mg_aggregate_distances);
         std::tie(std::ignore, d_mg_aggregate_predecessors) = cugraph::test::sort_by_key(
-          handle, d_mg_aggregate_renumber_map_labels, d_mg_aggregate_predecessors);
+          *handle_, d_mg_aggregate_renumber_map_labels, d_mg_aggregate_predecessors);
 
-        // 4-3. create SG graph
+        // 3-3. create SG graph
 
-        cugraph::graph_t<vertex_t, edge_t, weight_t, false, false> sg_graph(handle);
+        cugraph::graph_t<vertex_t, edge_t, weight_t, false, false> sg_graph(*handle_);
         std::tie(sg_graph, std::ignore) =
           cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, false>(
-            handle, input_usecase, false, false);
+            *handle_, input_usecase, false, false);
 
         auto sg_graph_view = sg_graph.view();
 
         ASSERT_TRUE(mg_graph_view.number_of_vertices() == sg_graph_view.number_of_vertices());
 
-        // 4-4. run SG BFS
+        // 3-4. run SG BFS
 
         rmm::device_uvector<vertex_t> d_sg_distances(sg_graph_view.number_of_vertices(),
-                                                     handle.get_stream());
+                                                     handle_->get_stream());
         rmm::device_uvector<vertex_t> d_sg_predecessors(
-          sg_graph_view.local_vertex_partition_range_size(), handle.get_stream());
+          sg_graph_view.local_vertex_partition_range_size(), handle_->get_stream());
 
         vertex_t unrenumbered_source{};
         raft::update_host(&unrenumbered_source,
                           d_mg_aggregate_renumber_map_labels.data() + bfs_usecase.source,
                           size_t{1},
-                          handle.get_stream());
-        handle.sync_stream();
+                          handle_->get_stream());
+        handle_->sync_stream();
 
-        rmm::device_scalar<vertex_t> const d_sg_source(unrenumbered_source, handle.get_stream());
-        cugraph::bfs(handle,
+        rmm::device_scalar<vertex_t> const d_sg_source(unrenumbered_source, handle_->get_stream());
+        cugraph::bfs(*handle_,
                      sg_graph_view,
                      d_sg_distances.data(),
                      d_sg_predecessors.data(),
@@ -197,18 +186,18 @@ class Tests_MGBFS : public ::testing::TestWithParam<std::tuple<BFS_Usecase, inpu
                      size_t{1},
                      false,
                      std::numeric_limits<vertex_t>::max());
-        // 4-5. compare
+        // 3-5. compare
 
         std::vector<edge_t> h_sg_offsets(sg_graph_view.number_of_vertices() + 1);
         std::vector<vertex_t> h_sg_indices(sg_graph_view.number_of_edges());
         raft::update_host(h_sg_offsets.data(),
                           sg_graph_view.local_edge_partition_view().offsets(),
                           sg_graph_view.number_of_vertices() + 1,
-                          handle.get_stream());
+                          handle_->get_stream());
         raft::update_host(h_sg_indices.data(),
                           sg_graph_view.local_edge_partition_view().indices(),
                           sg_graph_view.number_of_edges(),
-                          handle.get_stream());
+                          handle_->get_stream());
 
         std::vector<vertex_t> h_mg_aggregate_distances(mg_graph_view.number_of_vertices());
         std::vector<vertex_t> h_mg_aggregate_predecessors(mg_graph_view.number_of_vertices());
@@ -216,22 +205,24 @@ class Tests_MGBFS : public ::testing::TestWithParam<std::tuple<BFS_Usecase, inpu
         raft::update_host(h_mg_aggregate_distances.data(),
                           d_mg_aggregate_distances.data(),
                           d_mg_aggregate_distances.size(),
-                          handle.get_stream());
+                          handle_->get_stream());
         raft::update_host(h_mg_aggregate_predecessors.data(),
                           d_mg_aggregate_predecessors.data(),
                           d_mg_aggregate_predecessors.size(),
-                          handle.get_stream());
+                          handle_->get_stream());
 
         std::vector<vertex_t> h_sg_distances(sg_graph_view.number_of_vertices());
         std::vector<vertex_t> h_sg_predecessors(sg_graph_view.number_of_vertices());
 
-        raft::update_host(
-          h_sg_distances.data(), d_sg_distances.data(), d_sg_distances.size(), handle.get_stream());
+        raft::update_host(h_sg_distances.data(),
+                          d_sg_distances.data(),
+                          d_sg_distances.size(),
+                          handle_->get_stream());
         raft::update_host(h_sg_predecessors.data(),
                           d_sg_predecessors.data(),
                           d_sg_predecessors.size(),
-                          handle.get_stream());
-        handle.sync_stream();
+                          handle_->get_stream());
+        handle_->sync_stream();
 
         ASSERT_TRUE(std::equal(h_mg_aggregate_distances.begin(),
                                h_mg_aggregate_distances.end(),
@@ -258,7 +249,13 @@ class Tests_MGBFS : public ::testing::TestWithParam<std::tuple<BFS_Usecase, inpu
       }
     }
   }
+
+ private:
+  static std::unique_ptr<raft::handle_t> handle_;
 };
+
+template <typename input_usecase_t>
+std::unique_ptr<raft::handle_t> Tests_MGBFS<input_usecase_t>::handle_ = nullptr;
 
 using Tests_MGBFS_File = Tests_MGBFS<cugraph::test::File_Usecase>;
 using Tests_MGBFS_Rmat = Tests_MGBFS<cugraph::test::Rmat_Usecase>;

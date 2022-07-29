@@ -361,9 +361,5 @@ std::vector<T> random_vector(L size, unsigned seed = 0)
   return v;
 }
 
-// NCCL lazily initializes for P2P, and this enforces P2P initialization for better performance
-// measurements
-void enforce_p2p_initialization(raft::handle_t const& handle);
-
 }  // namespace test
 }  // namespace cugraph
