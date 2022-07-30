@@ -563,6 +563,7 @@ def test_get_vertex_data(dataset1_PropertyGraph):
     for d in ["merchants", "users"]:
         for name in data[d][0]:
             expected_columns.add(name)
+    expected_columns -= {'merchant_id', 'user_id'}
     actual_columns = set(some_vertex_data.columns)
     assert actual_columns == expected_columns
 
@@ -619,6 +620,7 @@ def test_get_edge_data(dataset1_PropertyGraph):
     for d in ["transactions", "relationships", "referrals"]:
         for name in data[d][0]:
             expected_columns.add(name)
+    expected_columns -= {'user_id', 'user_id_1', 'user_id_2'}
 
     actual_columns = set(some_edge_data.columns)
 
