@@ -1,6 +1,3 @@
-#Personalized
-
-
 # Copyright (c) 2022, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -58,13 +55,15 @@ from pylibcugraph.utils cimport (
 
 def personalized_pagerank(ResourceHandle resource_handle,
                           _GPUGraph graph,
+                          precomputed_vertex_out_weight_vertices,
                           precomputed_vertex_out_weight_sums,
+                          initial_guess_vertices,
+                          initial_guess_values,
                           personalization_vertices,
                           personalization_values,
                           double alpha,
                           double epsilon,
                           size_t max_iterations,
-                          bool_t has_initial_guess,
                           bool_t do_expensive_check):
     """
     Find the PageRank score for every vertex in a graph by computing an
@@ -173,12 +172,21 @@ def personalized_pagerank(ResourceHandle resource_handle,
     cdef cugraph_resource_handle_t* c_resource_handle_ptr = \
         resource_handle.c_resource_handle_ptr
     cdef cugraph_graph_t* c_graph_ptr = graph.c_graph_ptr
+
+
     cdef cugraph_type_erased_device_array_view_t* \
         precomputed_vertex_out_weight_sums_ptr = NULL
+
+    cdef cugraph_type_erased_device_array_view_t* \
+        precomputed_vertex_out_weight_vertices_ptr = NULL
+
+
     if precomputed_vertex_out_weight_sums:
         raise NotImplementedError("None is temporarily the only supported "
                                   "value for precomputed_vertex_out_weight_sums")
     
+    # FIXME: leverage a function that create a cugraph_type_erased_device_array_view_t
+    # pointer because it is redundant having to do all theses steps
     cdef uintptr_t cai_personalization_vertices_ptr = \
         personalization_vertices.__cuda_array_interface__["data"][0]
     cdef cugraph_type_erased_device_array_view_t* personalization_vertices_view_ptr = \
@@ -195,19 +203,46 @@ def personalized_pagerank(ResourceHandle resource_handle,
             len(personalization_values),
             get_c_type_from_numpy_type(personalization_values.dtype))
 
+    # Declare all variables
+    cdef uintptr_t cai_initial_guess_vertices_ptr = <uintptr_t>NULL
+    cdef uintptr_t cai_initial_guess_values_ptr = <uintptr_t>NULL
+    cdef cugraph_type_erased_device_array_view_t* initial_guess_vertices_view_ptr = NULL
+    cdef cugraph_type_erased_device_array_view_t* initial_guess_values_view_ptr = NULL
+
+    if initial_guess_vertices is not None:
+        cai_initial_guess_vertices_ptr = \
+            initial_guess_vertices.__cuda_array_interface__["data"][0]
+        initial_guess_vertices_view_ptr = \
+            cugraph_type_erased_device_array_view_create(
+                <void*>cai_initial_guess_vertices_ptr,
+                len(initial_guess_vertices),
+                get_c_type_from_numpy_type(initial_guess_vertices.dtype))
+    
+    if initial_guess_values is not None:
+        cai_initial_guess_values_ptr = \
+            initial_guess_values.__cuda_array_interface__["data"][0]
+        initial_guess_values_view_ptr = \
+            cugraph_type_erased_device_array_view_create(
+                <void*>cai_initial_guess_values_ptr,
+                len(initial_guess_values),
+                get_c_type_from_numpy_type(initial_guess_values.dtype))
+
+
     cdef cugraph_centrality_result_t* result_ptr
     cdef cugraph_error_code_t error_code
     cdef cugraph_error_t* error_ptr
 
     error_code = cugraph_personalized_pagerank(c_resource_handle_ptr,
                                                c_graph_ptr,
+                                               precomputed_vertex_out_weight_vertices_ptr,
                                                precomputed_vertex_out_weight_sums_ptr,
+                                               initial_guess_vertices_view_ptr,
+                                               initial_guess_values_view_ptr,
                                                personalization_vertices_view_ptr,
                                                personalization_values_view_ptr,
                                                alpha,
                                                epsilon,
                                                max_iterations,
-                                               has_initial_guess,
                                                do_expensive_check,
                                                &result_ptr,
                                                &error_ptr)

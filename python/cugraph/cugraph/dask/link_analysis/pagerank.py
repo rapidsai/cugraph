@@ -39,60 +39,66 @@ def convert_to_cudf(cp_arrays):
 
 def _call_plc_pagerank(sID,
                        mg_graph_x,
+                       precomputed_vertex_out_weight_vertices,
                        precomputed_vertex_out_weight_sums,
+                       initial_guess_vertices,
+                       initial_guess_values,
                        alpha,
-                       tol,
-                       max_iter,
-                       has_initial_guess,
+                       epsilon,
+                       max_iterations,
                        do_expensive_check):
     return pylibcugraph_pagerank(
         resource_handle=ResourceHandle(
             Comms.get_handle(sID).getHandle()
         ),
         graph=mg_graph_x,
+        precomputed_vertex_out_weight_vertices=precomputed_vertex_out_weight_vertices,
         precomputed_vertex_out_weight_sums=precomputed_vertex_out_weight_sums,
+        initial_guess_vertices=initial_guess_vertices,
+        initial_guess_values=initial_guess_values,
         alpha=alpha,
-        epsilon=tol,
-        max_iterations=max_iter,
-        has_initial_guess=has_initial_guess,
+        epsilon=epsilon,
+        max_iterations=max_iterations,
         do_expensive_check=do_expensive_check
     )
 
 
 def _call_plc_personalized_pagerank(sID,
                                     mg_graph_x,
+                                    precomputed_vertex_out_weight_vertices,
                                     precomputed_vertex_out_weight_sums,
-                                    personalization,
+                                    personalization_vertices,
+                                    personalization_values,
+                                    initial_guess_vertices,
+                                    initial_guess_values,
                                     alpha,
-                                    tol,
-                                    max_iter,
-                                    has_initial_guess,
+                                    epsilon,
+                                    max_iterations,
                                     do_expensive_check):
     return pylibcugraph_p_pagerank(
         resource_handle=ResourceHandle(
             Comms.get_handle(sID).getHandle()
         ),
         graph=mg_graph_x,
+        precomputed_vertex_out_weight_vertices=precomputed_vertex_out_weight_vertices,
         precomputed_vertex_out_weight_sums=precomputed_vertex_out_weight_sums,
-        personalization_vertices=personalization["vertex"],
-        personalization_values=personalization["values"],
+        personalization_vertices=personalization_vertices,
+        personalization_values=personalization_values,
+        initial_guess_vertices=initial_guess_vertices,
+        initial_guess_values=initial_guess_values,
         alpha=alpha,
-        epsilon=tol,
-        max_iterations=max_iter,
-        has_initial_guess=has_initial_guess,
+        epsilon=epsilon,
+        max_iterations=max_iterations,
         do_expensive_check=do_expensive_check
     )
 
 
 # FIXME: update docstrings
 def pagerank(input_graph,
-             alpha=0.85,
-             personalization=None,
-             max_iter=100,
-             tol=1.0e-5,
-             has_initial_guess=False,
-             precomputed_vertex_out_weight_sums=None,
-             nstart=None):
+             alpha=0.85, personalization=None,
+             precomputed_vertex_out_weight=None,
+             max_iter=100, tol=1.0e-5, nstart=None, weight=None,
+             dangling=None, has_initial_guess=None):
     """
     Find the PageRank values for each vertex in a graph using multiple GPUs.
     cuGraph computes an approximation of the Pagerank using the power method.
@@ -167,69 +173,40 @@ def pagerank(input_graph,
 
     """
 
-    # FIXME: enable this check once 'degree_type' is supported
-    """
-    if degree_type not in ["incoming", "outgoing", "bidirectional"]:
-        raise ValueError(f"'degree_type' must be either incoming, "
-                         f"outgoing or bidirectional, got: {degree_type}")
-    """
-
     # Initialize dask client
     client = input_graph._client
 
+    # FIXME: These parameter are supported but removed for now
+    initial_guess_vertices = None
+    initial_guess_values = None
+    precomputed_vertex_out_weight_vertices = None
+    precomputed_vertex_out_weight_sums = None
+
     do_expensive_check = False
-    print("personnalization before\n", personalization)
+
     if personalization is not None:
         if input_graph.renumbered is True:
-            print("renumber personalization")
             personalization = input_graph.add_internal_vertex_id(
                 personalization, "vertex", "vertex"
             ).compute()
-            print("personnalization after\n", personalization)
-        """
-        # Function to assign partition id to personalization dataframe
-        def _set_partitions_pre(s, divisions):
-            partitions = divisions.searchsorted(s, side="right") - 1
-            partitions[
-                divisions.tail(1).searchsorted(s, side="right").astype("bool")
-            ] = (len(divisions) - 2)
-            return partitions
 
-        # Assign partition id column as per vertex_partition_offsets
-        df = personalization
-        by = ['vertex']
-        meta = df._meta._constructor_sliced([0])
-        divisions = vertex_partition_offsets
-        partitions = df[by].map_partitions(
-            _set_partitions_pre, divisions=divisions, meta=meta
-        )
-
-        df2 = df.assign(_partitions=partitions)
-
-        # Shuffle personalization values according to the partition id
-        df3 = rearrange_by_column(
-            df2,
-            "_partitions",
-            max_branch=None,
-            npartitions=len(divisions) - 1,
-            shuffle="tasks",
-            ignore_index=False,
-        ).drop(columns=["_partitions"])
-
-        p_data = get_distributed_data(df3)
-        """
+        personalization_vertices = personalization["vertex"]
+        personalization_values = personalization["values"]
 
         result = [
             client.submit(
                 _call_plc_personalized_pagerank,
                 Comms.get_session_id(),
                 input_graph._plc_graph[w],
+                precomputed_vertex_out_weight_vertices,
                 precomputed_vertex_out_weight_sums,
-                personalization,
+                personalization_vertices,
+                personalization_values,
+                initial_guess_vertices,
+                initial_guess_values,
                 alpha,
                 tol,
                 max_iter,
-                has_initial_guess,
                 do_expensive_check,
                 workers=[w],
             )
@@ -241,11 +218,13 @@ def pagerank(input_graph,
                 _call_plc_pagerank,
                 Comms.get_session_id(),
                 input_graph._plc_graph[w],
+                precomputed_vertex_out_weight_vertices,
                 precomputed_vertex_out_weight_sums,
+                initial_guess_vertices,
+                initial_guess_values,
                 alpha,
                 tol,
                 max_iter,
-                has_initial_guess,
                 do_expensive_check,
                 workers=[w],
             )

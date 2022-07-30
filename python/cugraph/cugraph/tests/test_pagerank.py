@@ -177,7 +177,7 @@ def test_pagerank(
     # cuGraph PageRank
     cu_M = utils.read_csv_file(graph_file)
     G = cugraph.DiGraph()
-    G.from_cudf_edgelist(cu_M, source="0", destination="1", edge_attr="2")
+    G.from_cudf_edgelist(cu_M, source="0", destination="1", edge_attr="2", legacy_renum_only=False)
 
     cugraph_pr = cugraph_call(G, max_iter, tol, alpha, cu_prsn, cu_nstart)
 

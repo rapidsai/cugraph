@@ -22,57 +22,87 @@ from pylibcugraph import (pagerank as pylibcugraph_pagerank,
                           ResourceHandle
                           )
 
-
+# FIXME: update docstrings
 def pagerank(
     G, alpha=0.85, personalization=None,
-    precomputed_vertex_out_weight_sums=None, max_iter=100, tol=1.0e-5,
-    nstart=None, weight=None, dangling=None, has_initial_guess=None
+    precomputed_vertex_out_weight=None,
+    max_iter=100, tol=1.0e-5, nstart=None, weight=None,
+    dangling=None, has_initial_guess=None
 ):
     """
-    Compute the core numbers for the nodes of the graph G. A k-core of a graph
-    is a maximal subgraph that contains nodes of degree k or more.
-    A node has a core number of k if it belongs a k-core but not to k+1-core.
-    This call does not support a graph with self-loops and parallel
-    edges.
-
+    Find the PageRank score for every vertex in a graph. cuGraph computes an
+    approximation of the Pagerank eigenvector using the power method. The
+    number of iterations depends on the properties of the network itself; it
+    increases when the tolerance descreases and/or alpha increases toward the
+    limiting value of 1. The user is free to use default values or to provide
+    inputs for the initial guess, tolerance and maximum number of iterations.
     Parameters
     ----------
-    G : cuGraph.Graph or networkx.Graph
-        The graph should contain undirected edges where undirected edges are
-        represented as directed edges in both directions. While this graph
-        can contain edge weights, they don't participate in the calculation
-        of the core numbers.
-
-    degree_type: str
-        This option determines if the core number computation should be based
-        on input, output, or both directed edges, with valid values being
-        "incoming", "outgoing", and "bidirectional" respectively.
-        This option is currently ignored in this release, and setting it will
-        result in a warning.
-
+    G : cugraph.Graph or networkx.Graph
+        cuGraph graph descriptor, should contain the connectivity information
+        as an edge list.
+        The transposed adjacency list will be computed if not already present.
+    alpha : float, optional (default=0.85)
+        The damping factor alpha represents the probability to follow an
+        outgoing edge, standard value is 0.85.
+        Thus, 1.0-alpha is the probability to “teleport” to a random vertex.
+        Alpha should be greater than 0.0 and strictly lower than 1.0.
+    personalization : cudf.Dataframe, optional (default=None)
+        GPU Dataframe containing the personalization information.
+        personalization['vertex'] : cudf.Series
+            Subset of vertices of graph for personalization
+        personalization['values'] : cudf.Series
+            Personalization values for vertices
+    max_iter : int, optional (default=100)
+        The maximum number of iterations before an answer is returned. This can
+        be used to limit the execution time and do an early exit before the
+        solver reaches the convergence tolerance.
+        If this value is lower or equal to 0 cuGraph will use the default
+        value, which is 100.
+    tol : float, optional (default=1e-05)
+        Set the tolerance the approximation, this parameter should be a small
+        magnitude value.
+        The lower the tolerance the better the approximation. If this value is
+        0.0f, cuGraph will use the default value which is 1.0E-5.
+        Setting too small a tolerance can lead to non-convergence due to
+        numerical roundoff. Usually values between 0.01 and 0.00001 are
+        acceptable.
+    nstart : cudf.Dataframe, optional (default=None)
+        GPU Dataframe containing the initial guess for pagerank.
+        nstart['vertex'] : cudf.Series
+            Subset of vertices of graph for initial guess for pagerank values
+        nstart['values'] : cudf.Series
+            Pagerank values for vertices
+    weight: str, optional (default=None)
+        The attribute column to be used as edge weights if Graph is a NetworkX
+        Graph. This parameter is here for NetworkX compatibility and is ignored
+        in case of a cugraph.Graph
+    dangling : dict, optional (default=None)
+        This parameter is here for NetworkX compatibility and ignored
     Returns
     -------
-    df : cudf.DataFrame or python dictionary (in NetworkX input)
+    PageRank : cudf.DataFrame
         GPU data frame containing two cudf.Series of size V: the vertex
-        identifiers and the corresponding core number values.
-
+        identifiers and the corresponding PageRank values.
         df['vertex'] : cudf.Series
             Contains the vertex identifiers
-        df['core_number'] : cudf.Series
-            Contains the core number of vertices
-
+        df['pagerank'] : cudf.Series
+            Contains the PageRank score
     Examples
     --------
     >>> gdf = cudf.read_csv(datasets_path / 'karate.csv', delimiter=' ',
     ...                     dtype=['int32', 'int32', 'float32'], header=None)
     >>> G = cugraph.Graph()
     >>> G.from_cudf_edgelist(gdf, source='0', destination='1')
-    >>> df = cugraph.core_number(G)
-
+    >>> pr = cugraph.pagerank(G, alpha = 0.85, max_iter = 500, tol = 1.0e-05)
     """
 
-    # FIXME: fix this
+    # FIXME: These parameter are support but removed for now
     has_initial_guess = False
+    initial_guess_vertices = None
+    initial_guess_values = None
+    precomputed_vertex_out_weight_vertices = None
+    precomputed_vertex_out_weight_sums = None
 
     G, isNx = ensure_cugraph_obj_for_nx(G)
     do_expensive_check = False
@@ -86,6 +116,16 @@ def pagerank(
             nstart = G.add_internal_vertex_id(
                 nstart, "vertex", cols
             )
+    
+    # FIXME: The vertices must be unrenumbered, consilidate the
+    # unrenumbering step. Same for precomputed_vertex_out_weight
+    if nstart is not None:
+        initial_guess_vertices = nstart["vertex"]
+        initial_guess_values = nstart["values"]
+    
+    if precomputed_vertex_out_weight is not None:
+        precomputed_vertex_out_weight_vertices = precomputed_vertex_out_weight["vertex"]
+        precomputed_vertex_out_weight_sums = precomputed_vertex_out_weight["sums"]
 
     if personalization is not None:
         if not isinstance(personalization, cudf.DataFrame):
@@ -106,13 +146,15 @@ def pagerank(
             pylibcugraph_p_pagerank(
                 resource_handle=ResourceHandle(),
                 graph=G._plc_graph,
+                precomputed_vertex_out_weight_vertices=precomputed_vertex_out_weight_vertices,
                 precomputed_vertex_out_weight_sums=precomputed_vertex_out_weight_sums,
                 personalization_vertices=personalization["vertex"],
                 personalization_values=personalization["values"],
+                initial_guess_vertices=initial_guess_vertices,
+                initial_guess_values=initial_guess_values,
                 alpha=alpha,
                 epsilon=tol,
                 max_iterations=max_iter,
-                has_initial_guess=has_initial_guess,
                 do_expensive_check=do_expensive_check
             )
     else:
@@ -120,11 +162,13 @@ def pagerank(
             pylibcugraph_pagerank(
                 resource_handle=ResourceHandle(),
                 graph=G._plc_graph,
+                precomputed_vertex_out_weight_vertices=precomputed_vertex_out_weight_vertices,
                 precomputed_vertex_out_weight_sums=precomputed_vertex_out_weight_sums,
+                initial_guess_vertices=initial_guess_vertices,
+                initial_guess_values=initial_guess_values,
                 alpha=alpha,
                 epsilon=tol,
                 max_iterations=max_iter,
-                has_initial_guess=has_initial_guess,
                 do_expensive_check=do_expensive_check
             )
 
