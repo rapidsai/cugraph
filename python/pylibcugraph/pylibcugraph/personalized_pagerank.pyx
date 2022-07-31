@@ -168,7 +168,6 @@ def personalized_pagerank(ResourceHandle resource_handle,
                     "precomputed_vertex_out_weight_sums",
                     allow_None=True)
     # FIXME: assert that precomputed_vertex_out_weight_sums type == weight type
-
     cdef cugraph_resource_handle_t* c_resource_handle_ptr = \
         resource_handle.c_resource_handle_ptr
     cdef cugraph_graph_t* c_graph_ptr = graph.c_graph_ptr

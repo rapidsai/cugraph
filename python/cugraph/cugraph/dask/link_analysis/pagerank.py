@@ -17,7 +17,7 @@ from dask.distributed import wait
 import cugraph.dask.comms.comms as Comms
 import dask_cudf
 import cudf
-import warnings
+from cugraph.dask.common.input_utils import get_distributed_data
 
 from pylibcugraph import (ResourceHandle,
                           pagerank as pylibcugraph_pagerank,
@@ -39,21 +39,22 @@ def convert_to_cudf(cp_arrays):
 
 def _call_plc_pagerank(sID,
                        mg_graph_x,
-                       precomputed_vertex_out_weight_vertices,
-                       precomputed_vertex_out_weight_sums,
+                       pre_vtx_o_wgt_vertices,
+                       pre_vtx_o_wgt_sums,
                        initial_guess_vertices,
                        initial_guess_values,
                        alpha,
                        epsilon,
                        max_iterations,
                        do_expensive_check):
+
     return pylibcugraph_pagerank(
         resource_handle=ResourceHandle(
             Comms.get_handle(sID).getHandle()
         ),
         graph=mg_graph_x,
-        precomputed_vertex_out_weight_vertices=precomputed_vertex_out_weight_vertices,
-        precomputed_vertex_out_weight_sums=precomputed_vertex_out_weight_sums,
+        precomputed_vertex_out_weight_vertices=pre_vtx_o_wgt_vertices,
+        precomputed_vertex_out_weight_sums=pre_vtx_o_wgt_sums,
         initial_guess_vertices=initial_guess_vertices,
         initial_guess_values=initial_guess_values,
         alpha=alpha,
@@ -65,23 +66,24 @@ def _call_plc_pagerank(sID,
 
 def _call_plc_personalized_pagerank(sID,
                                     mg_graph_x,
-                                    precomputed_vertex_out_weight_vertices,
-                                    precomputed_vertex_out_weight_sums,
-                                    personalization_vertices,
-                                    personalization_values,
+                                    pre_vtx_o_wgt_vertices,
+                                    pre_vtx_o_wgt_sums,
+                                    data_personalization,
                                     initial_guess_vertices,
                                     initial_guess_values,
                                     alpha,
                                     epsilon,
                                     max_iterations,
                                     do_expensive_check):
+    personalization_vertices = data_personalization["vertex"]
+    personalization_values = data_personalization["values"]
     return pylibcugraph_p_pagerank(
         resource_handle=ResourceHandle(
             Comms.get_handle(sID).getHandle()
         ),
         graph=mg_graph_x,
-        precomputed_vertex_out_weight_vertices=precomputed_vertex_out_weight_vertices,
-        precomputed_vertex_out_weight_sums=precomputed_vertex_out_weight_sums,
+        precomputed_vertex_out_weight_vertices=pre_vtx_o_wgt_vertices,
+        precomputed_vertex_out_weight_sums=pre_vtx_o_wgt_sums,
         personalization_vertices=personalization_vertices,
         personalization_values=personalization_values,
         initial_guess_vertices=initial_guess_vertices,
@@ -190,8 +192,10 @@ def pagerank(input_graph,
                 personalization, "vertex", "vertex"
             ).compute()
 
-        personalization_vertices = personalization["vertex"]
-        personalization_values = personalization["values"]
+        personalization_ddf = dask_cudf.from_cudf(
+            personalization, npartitions=len(Comms.get_workers()))
+
+        data_prsztn = get_distributed_data(personalization_ddf)
 
         result = [
             client.submit(
@@ -200,8 +204,7 @@ def pagerank(input_graph,
                 input_graph._plc_graph[w],
                 precomputed_vertex_out_weight_vertices,
                 precomputed_vertex_out_weight_sums,
-                personalization_vertices,
-                personalization_values,
+                data_personalization[0],
                 initial_guess_vertices,
                 initial_guess_values,
                 alpha,
@@ -210,7 +213,7 @@ def pagerank(input_graph,
                 do_expensive_check,
                 workers=[w],
             )
-            for w in Comms.get_workers()
+            for w, data_personalization in data_prsztn.worker_to_parts.items()
         ]
     else:
         result = [
@@ -230,7 +233,6 @@ def pagerank(input_graph,
             )
             for w in Comms.get_workers()
         ]
-        
 
     wait(result)
 

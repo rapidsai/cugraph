@@ -15,12 +15,12 @@ from cugraph.utilities import (ensure_cugraph_obj_for_nx,
                                df_score_to_dictionary,
                                )
 import cudf
-import warnings
 
 from pylibcugraph import (pagerank as pylibcugraph_pagerank,
                           personalized_pagerank as pylibcugraph_p_pagerank,
                           ResourceHandle
                           )
+
 
 # FIXME: update docstrings
 def pagerank(
@@ -98,11 +98,10 @@ def pagerank(
     """
 
     # FIXME: These parameter are support but removed for now
-    has_initial_guess = False
     initial_guess_vertices = None
     initial_guess_values = None
-    precomputed_vertex_out_weight_vertices = None
-    precomputed_vertex_out_weight_sums = None
+    pre_vtx_o_wgt_vertices = None
+    pre_vtx_o_wgt_sums = None
 
     G, isNx = ensure_cugraph_obj_for_nx(G)
     do_expensive_check = False
@@ -116,16 +115,18 @@ def pagerank(
             nstart = G.add_internal_vertex_id(
                 nstart, "vertex", cols
             )
-    
+
     # FIXME: The vertices must be unrenumbered, consilidate the
     # unrenumbering step. Same for precomputed_vertex_out_weight
     if nstart is not None:
         initial_guess_vertices = nstart["vertex"]
         initial_guess_values = nstart["values"]
-    
+
     if precomputed_vertex_out_weight is not None:
-        precomputed_vertex_out_weight_vertices = precomputed_vertex_out_weight["vertex"]
-        precomputed_vertex_out_weight_sums = precomputed_vertex_out_weight["sums"]
+        pre_vtx_o_wgt_vertices = \
+            precomputed_vertex_out_weight["vertex"]
+        pre_vtx_o_wgt_sums = \
+            precomputed_vertex_out_weight["sums"]
 
     if personalization is not None:
         if not isinstance(personalization, cudf.DataFrame):
@@ -146,8 +147,8 @@ def pagerank(
             pylibcugraph_p_pagerank(
                 resource_handle=ResourceHandle(),
                 graph=G._plc_graph,
-                precomputed_vertex_out_weight_vertices=precomputed_vertex_out_weight_vertices,
-                precomputed_vertex_out_weight_sums=precomputed_vertex_out_weight_sums,
+                precomputed_vertex_out_weight_vertices=pre_vtx_o_wgt_vertices,
+                precomputed_vertex_out_weight_sums=pre_vtx_o_wgt_sums,
                 personalization_vertices=personalization["vertex"],
                 personalization_values=personalization["values"],
                 initial_guess_vertices=initial_guess_vertices,
@@ -155,15 +156,14 @@ def pagerank(
                 alpha=alpha,
                 epsilon=tol,
                 max_iterations=max_iter,
-                do_expensive_check=do_expensive_check
-            )
+                do_expensive_check=do_expensive_check)
     else:
         vertex, pagerank_values = \
             pylibcugraph_pagerank(
                 resource_handle=ResourceHandle(),
                 graph=G._plc_graph,
-                precomputed_vertex_out_weight_vertices=precomputed_vertex_out_weight_vertices,
-                precomputed_vertex_out_weight_sums=precomputed_vertex_out_weight_sums,
+                precomputed_vertex_out_weight_vertices=pre_vtx_o_wgt_vertices,
+                precomputed_vertex_out_weight_sums=pre_vtx_o_wgt_sums,
                 initial_guess_vertices=initial_guess_vertices,
                 initial_guess_values=initial_guess_values,
                 alpha=alpha,
@@ -171,7 +171,6 @@ def pagerank(
                 max_iterations=max_iter,
                 do_expensive_check=do_expensive_check
             )
-
 
     df = cudf.DataFrame()
     df["vertex"] = vertex
