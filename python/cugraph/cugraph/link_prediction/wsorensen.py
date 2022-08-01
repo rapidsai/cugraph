@@ -65,10 +65,8 @@ def sorensen_w(input_graph, weights, vertex_pair=None):
     Examples
     --------
     >>> import random
-    >>> M = cudf.read_csv(datasets_path / 'karate.csv', delimiter=' ',
-    ...                   dtype=['int32', 'int32', 'float32'], header=None)
-    >>> G = cugraph.Graph()
-    >>> G.from_cudf_edgelist(M, source='0', destination='1')
+    >>> from cugraph.experimental.datasets import karate
+    >>> G = karate.get_graph(fetch=True)
     >>> # Create a dataframe containing the vertices with their
     >>> # corresponding weight
     >>> weights = cudf.DataFrame()

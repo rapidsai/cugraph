@@ -11,11 +11,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import cugraph
 import cudf
 import yaml
 import os
 from pathlib import Path
+from cugraph.structure.graph_classes import Graph
 
 
 class DefaultDownloadDir:
@@ -64,7 +64,6 @@ class Dataset:
         The metadata file for the specific graph dataset, which includes
         information on the name, type, url link, data loading format, graph
         properties
-
     """
     def __init__(self, meta_data_file_name):
         with open(meta_data_file_name, 'r') as file:
@@ -118,22 +117,48 @@ class Dataset:
 
         return self._edgelist
 
-    def get_graph(self, fetch=False):
+    def get_graph(self, fetch=False, create_using=Graph, ignore_weights=False):
         """
         Return a Graph object.
 
         Parameters
         ----------
         fetch : Boolean (default=False)
-            Automatically fetch for the dataset from the 'url' location within
-            the YAML file.
+            Downloads the dataset from the web.
+
+        create_using: cugraph.Graph (instance or class), optional
+        (default=Graph)
+            Specify the type of Graph to create. Can pass in an instance to
+            create a Graph instance with specified 'directed' attribute.
+
+        ignore_weights : Boolean (default=False)
+            Ignores weights in the dataset if True, resulting in an
+            unweighted Graph. If False (the default), weights from the
+            dataset -if present- will be applied to the Graph. If the
+            dataset does not contain weights, the Graph returned will
+            be unweighted regardless of ignore_weights.
         """
         if self._edgelist is None:
             self.get_edgelist(fetch)
 
-        self._graph = cugraph.Graph(directed=self.metadata['is_directed'])
-        self._graph.from_cudf_edgelist(self._edgelist, source='src',
-                                       destination='dst')
+        if create_using is None:
+            self._graph = Graph()
+        elif isinstance(create_using, Graph):
+            attrs = {"directed": create_using.is_directed()}
+            self._graph = type(create_using)(**attrs)
+        elif type(create_using) is type:
+            self._graph = create_using()
+        else:
+            raise TypeError("create_using must be a cugraph.Graph "
+                            "(or subclass) type or instance, got: "
+                            f"{type(create_using)}")
+
+        if (len(self.metadata['col_names']) > 2 and not(ignore_weights)):
+            self._graph.from_cudf_edgelist(self._edgelist, source='src',
+                                           destination='dst', edge_attr='wgt')
+        else:
+            self._graph.from_cudf_edgelist(self._edgelist, source='src',
+                                           destination='dst')
 
         return self._graph
 

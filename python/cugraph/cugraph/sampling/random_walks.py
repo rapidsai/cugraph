@@ -56,10 +56,9 @@ def random_walks(G,
 
     Examples
     --------
-    >>> M = cudf.read_csv(datasets_path / 'karate.csv', delimiter=' ',
-    ...                   dtype=['int32', 'int32', 'float32'], header=None)
-    >>> G = cugraph.Graph()
-    >>> G.from_cudf_edgelist(M, source='0', destination='1', edge_attr='2')
+    >>> from cugraph.experimental.datasets import karate
+    >>> M = karate.get_edgelist(fetch=True)
+    >>> G = karate.get_graph()
     >>> _, _, _ = cugraph.random_walks(G, M, 3)
 
     """

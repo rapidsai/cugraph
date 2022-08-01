@@ -30,11 +30,11 @@ This repository contains a collection of Jupyter Notebooks that outline how to r
 Layout            |                                                              |                                                              |
 |                 | [Force-Atlas2](algorithms/layout/Force-Atlas2.ipynb)   |A large graph visualization achieved with cuGraph. |
 | Link Analysis   |                                                              |                                                              |
-|                 | [Pagerank](link_analysis/Pagerank.ipynb)                     | Compute the PageRank of every vertex in a graph              |
-|                 | [HITS](link_analysis/HITS.ipynb)                             | Compute the HITS' Hub and Authority scores for every vertex in a graph              |
+|                 | [Pagerank](algorithms/link_analysis/Pagerank.ipynb)                     | Compute the PageRank of every vertex in a graph              |
+|                 | [HITS](algorithms/link_analysis/HITS.ipynb)                             | Compute the HITS' Hub and Authority scores for every vertex in a graph              |
 | Link Prediction |                                                              |                                                              |
-|                 | [Jaccard Similarity](link_prediction/Jaccard-Similarity.ipynb) | Compute vertex similarity score using both:<br />- Jaccard Similarity<br />- Weighted Jaccard |
-|                 | [Overlap Similarity](link_prediction/Overlap-Similarity.ipynb) | Compute vertex similarity score using the Overlap Coefficient |
+|                 | [Jaccard Similarity](algorithms/link_prediction/Jaccard-Similarity.ipynb) | Compute vertex similarity score using both:<br />- Jaccard Similarity<br />- Weighted Jaccard |
+|                 | [Overlap Similarity](algorithms/link_prediction/Overlap-Similarity.ipynb) | Compute vertex similarity score using the Overlap Coefficient |
 | Sampling        |
 |                 | [Random Walk](sampling/RandomWalk.ipynb)                     | Compute Random Walk for a various number of seeds and path lengths |
 | Traversal       |                                                              |                                                              |
@@ -61,21 +61,7 @@ Running the example in these notebooks requires:
 * CUDA 11.4+
 * NVIDIA driver 450.51+
 
-
-
-#### Notebook Credits
-
-- Original Authors: Bradley Rees
-- Last Edit: 04/19/2021
-
-RAPIDS Versions: 0.19  
-
-Test Hardware
-- GV100 32G, CUDA 9,2
-
-
-
-##### Copyright
+#### Copyright
 
 Copyright (c) 2019-2022, NVIDIA CORPORATION.  All rights reserved.
 

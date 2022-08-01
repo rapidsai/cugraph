@@ -201,7 +201,8 @@ class simpleGraphImpl:
 
         self._make_plc_graph(
             value_col=value_col,
-            store_transposed=store_transposed
+            store_transposed=store_transposed,
+            renumber=renumber
         )
 
     def to_pandas_edgelist(self, source='src', destination='dst',
@@ -763,7 +764,10 @@ class simpleGraphImpl:
 
         return df
 
-    def _make_plc_graph(self, value_col=None, store_transposed=False):
+    def _make_plc_graph(self,
+                        value_col=None,
+                        store_transposed=False,
+                        renumber=True):
         if value_col is None:
             value_col = cudf.Series(
                 cupy.ones(len(self.edgelist.edgelist_df), dtype='float32')
@@ -788,7 +792,7 @@ class simpleGraphImpl:
             dst_array=self.edgelist.edgelist_df['dst'],
             weight_array=value_col,
             store_transposed=store_transposed,
-            renumber=False,
+            renumber=renumber,
             do_expensive_check=False
         )
 

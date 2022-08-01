@@ -19,7 +19,6 @@ from pylibcugraph import (core_number as pylibcugraph_core_number,
 from cugraph.utilities import (ensure_cugraph_obj_for_nx,
                                cugraph_to_nx,
                                )
-from cugraph.structure.graph_classes import Graph
 
 
 def _call_plc_core_number(G):
@@ -74,10 +73,8 @@ def k_core(G, k=None, core_number=None):
 
     Examples
     --------
-    >>> gdf = cudf.read_csv(datasets_path / 'karate.csv', delimiter=' ',
-    ...                     dtype=['int32', 'int32', 'float32'], header=None)
-    >>> G = cugraph.Graph()
-    >>> G.from_cudf_edgelist(gdf, source='0', destination='1')
+    >>> from cugraph.experimental.datasets import karate
+    >>> G = karate.get_graph(fetch=True)
     >>> KCoreGraph = cugraph.k_core(G)
 
     """
@@ -87,8 +84,8 @@ def k_core(G, k=None, core_number=None):
     mytype = type(G)
     KCoreGraph = mytype()
 
-    if mytype is not Graph:
-        raise Exception("directed graph not supported")
+    if G.is_directed():
+        raise ValueError("G must be an undirected Graph instance")
 
     if core_number is not None:
         if G.renumbered is True:
