@@ -3,7 +3,8 @@
 
 <img src="../../img/zachary_graph_pagerank.png" width="35%"/>
 
-cuGraph Link Analysis notebooks contain Jupyter Notebooks that demonstrate algorithms to rank the importance of individual vertices within the graph.
+cuGraph Link Analysis notebooks contain Jupyter Notebooks that demonstrate algorithms to rank the importance of individual vertices within the graph. A good comparison of the two algorithms can be found [here](https://www.ijert.org/research/comparative-analysis-of-pagerank-and-hits-algorithms-IJERTV1IS8530.pdf).
+In general, Pagerank is more popular because it is more efficient and takes less query time. 
 
 Manipulation of the data before or after the graph analytic is not covered here.   Extended, more problem focused, notebooks are being created and available https://github.com/rapidsai/notebooks-extended
 
@@ -13,6 +14,7 @@ Manipulation of the data before or after the graph analytic is not covered here.
 | --------------- | ------------------------------------------------------------ | ------------------------------------------------------------ |
 |HITS (Hyperlink-Induced Topic Search)  | [HITS](HITS.ipynb)   | Identifies hubs and authoritative sources within the graph. Originally meant to evaluate citations and reference lists in web pages. |
 |PageRank | [PageRank](Pagerank.ipynb)               |Determines the importance, also called centrality, of all the vertices based on the relative importance of their neighbors.|
+
 
 [System Requirements](../../README.md#requirements)
 
