@@ -421,7 +421,7 @@ def test_sampling_gs(dataset1_CuGraphStore):
     node_pack = cp.asarray([4]).toDlpack()
     gs = dataset1_CuGraphStore
     src_cap, _, _ = gs.sample_neighbors(node_pack, fanout=1)
-    src_ser = cudf.sfrom_dlpack(src_cap)
+    src_ser = cudf.from_dlpack(src_cap)
     assert len(src_ser) != 0
 
 
