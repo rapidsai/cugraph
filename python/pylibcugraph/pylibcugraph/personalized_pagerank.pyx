@@ -50,6 +50,7 @@ from pylibcugraph.utils cimport (
     assert_CAI_type,
     copy_to_cupy_array,
     get_c_type_from_numpy_type,
+    create_cugraph_type_erased_device_array_view_from_py_obj,
 )
 
 
@@ -158,74 +159,42 @@ def personalized_pagerank(ResourceHandle resource_handle,
     except ModuleNotFoundError:
         raise RuntimeError("pagerank requires the numpy package, which could "
                            "not be imported")
-    """
-    if has_initial_guess is True:
-        raise ValueError("has_initial_guess must be False for the current "
-                         "release.")
-    """
 
-    assert_CAI_type(precomputed_vertex_out_weight_sums,
-                    "precomputed_vertex_out_weight_sums",
-                    allow_None=True)
-    # FIXME: assert that precomputed_vertex_out_weight_sums type == weight type
+    cdef cugraph_type_erased_device_array_view_t* \
+        initial_guess_vertices_view_ptr = \
+            create_cugraph_type_erased_device_array_view_from_py_obj(
+                initial_guess_vertices)
+
+    cdef cugraph_type_erased_device_array_view_t* \
+        initial_guess_values_view_ptr = \
+            create_cugraph_type_erased_device_array_view_from_py_obj(
+                initial_guess_values)
+
     cdef cugraph_resource_handle_t* c_resource_handle_ptr = \
         resource_handle.c_resource_handle_ptr
     cdef cugraph_graph_t* c_graph_ptr = graph.c_graph_ptr
 
-
     cdef cugraph_type_erased_device_array_view_t* \
-        precomputed_vertex_out_weight_sums_ptr = NULL
+        precomputed_vertex_out_weight_vertices_ptr = \
+            create_cugraph_type_erased_device_array_view_from_py_obj(
+                precomputed_vertex_out_weight_vertices)
 
+    # FIXME: assert that precomputed_vertex_out_weight_sums
+    # type == weight type
     cdef cugraph_type_erased_device_array_view_t* \
-        precomputed_vertex_out_weight_vertices_ptr = NULL
-
-
-    if precomputed_vertex_out_weight_sums:
-        raise NotImplementedError("None is temporarily the only supported "
-                                  "value for precomputed_vertex_out_weight_sums")
+        precomputed_vertex_out_weight_sums_ptr = \
+            create_cugraph_type_erased_device_array_view_from_py_obj(
+                precomputed_vertex_out_weight_sums)
     
-    # FIXME: leverage a function that create a cugraph_type_erased_device_array_view_t
-    # pointer because it is redundant having to do all theses steps
-    cdef uintptr_t cai_personalization_vertices_ptr = \
-        personalization_vertices.__cuda_array_interface__["data"][0]
-    cdef cugraph_type_erased_device_array_view_t* personalization_vertices_view_ptr = \
-        cugraph_type_erased_device_array_view_create(
-            <void*>cai_personalization_vertices_ptr,
-            len(personalization_vertices),
-            get_c_type_from_numpy_type(personalization_vertices.dtype))
+    cdef cugraph_type_erased_device_array_view_t* \
+        personalization_vertices_view_ptr = \
+            create_cugraph_type_erased_device_array_view_from_py_obj(
+                personalization_vertices)
     
-    cdef uintptr_t cai_personalization_values_ptr = \
-        personalization_values.__cuda_array_interface__["data"][0]
-    cdef cugraph_type_erased_device_array_view_t* personalization_values_view_ptr = \
-        cugraph_type_erased_device_array_view_create(
-            <void*>cai_personalization_values_ptr,
-            len(personalization_values),
-            get_c_type_from_numpy_type(personalization_values.dtype))
-
-    # Declare all variables
-    cdef uintptr_t cai_initial_guess_vertices_ptr = <uintptr_t>NULL
-    cdef uintptr_t cai_initial_guess_values_ptr = <uintptr_t>NULL
-    cdef cugraph_type_erased_device_array_view_t* initial_guess_vertices_view_ptr = NULL
-    cdef cugraph_type_erased_device_array_view_t* initial_guess_values_view_ptr = NULL
-
-    if initial_guess_vertices is not None:
-        cai_initial_guess_vertices_ptr = \
-            initial_guess_vertices.__cuda_array_interface__["data"][0]
-        initial_guess_vertices_view_ptr = \
-            cugraph_type_erased_device_array_view_create(
-                <void*>cai_initial_guess_vertices_ptr,
-                len(initial_guess_vertices),
-                get_c_type_from_numpy_type(initial_guess_vertices.dtype))
-    
-    if initial_guess_values is not None:
-        cai_initial_guess_values_ptr = \
-            initial_guess_values.__cuda_array_interface__["data"][0]
-        initial_guess_values_view_ptr = \
-            cugraph_type_erased_device_array_view_create(
-                <void*>cai_initial_guess_values_ptr,
-                len(initial_guess_values),
-                get_c_type_from_numpy_type(initial_guess_values.dtype))
-
+    cdef cugraph_type_erased_device_array_view_t* \
+        personalization_values_view_ptr = \
+            create_cugraph_type_erased_device_array_view_from_py_obj(
+                personalization_values)
 
     cdef cugraph_centrality_result_t* result_ptr
     cdef cugraph_error_code_t error_code

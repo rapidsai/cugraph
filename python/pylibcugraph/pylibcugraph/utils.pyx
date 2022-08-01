@@ -188,3 +188,16 @@ cdef copy_to_cupy_array_ids(
 
     return cupy_array
 
+cdef cugraph_type_erased_device_array_view_t* \
+    create_cugraph_type_erased_device_array_view_from_py_obj(python_obj):
+        cdef uintptr_t cai_ptr = <uintptr_t>NULL
+        cdef cugraph_type_erased_device_array_view_t* view_ptr = NULL
+        if python_obj is not None:
+            cai_ptr = python_obj.__cuda_array_interface__["data"][0]
+            view_ptr = cugraph_type_erased_device_array_view_create(
+                <void*>cai_ptr,
+                len(python_obj),
+                get_c_type_from_numpy_type(python_obj.dtype))
+
+        return view_ptr
+
