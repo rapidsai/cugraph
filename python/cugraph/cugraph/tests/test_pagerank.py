@@ -47,8 +47,11 @@ def cudify(d):
     return cuD
 
 
-def cugraph_call(G, max_iter, tol, alpha, personalization, nstart):
+def cugraph_call(
+    G, max_iter, tol, alpha, personalization, nstart,
+    pre_vtx_o_wgt):
     # cugraph Pagerank Call
+    print("precomputed vertex weigts is \n", pre_vtx_o_wgt)
     t1 = time.time()
     df = cugraph.pagerank(
         G,
@@ -56,6 +59,7 @@ def cugraph_call(G, max_iter, tol, alpha, personalization, nstart):
         max_iter=max_iter,
         tol=tol,
         personalization=personalization,
+        precomputed_vertex_out_weight = pre_vtx_o_wgt,
         nstart=nstart,
     )
     t2 = time.time() - t1
@@ -135,6 +139,7 @@ TOLERANCE = [1.0e-06]
 ALPHA = [0.85]
 PERSONALIZATION_PERC = [0, 10, 50]
 HAS_GUESS = [0, 1]
+HAS_PRECOMPUTED = [0, 1]
 
 
 # FIXME: the default set of datasets includes an asymmetric directed graph
@@ -151,8 +156,10 @@ HAS_GUESS = [0, 1]
 @pytest.mark.parametrize("alpha", ALPHA)
 @pytest.mark.parametrize("personalization_perc", PERSONALIZATION_PERC)
 @pytest.mark.parametrize("has_guess", HAS_GUESS)
+@pytest.mark.parametrize("has_precomputed_vertex_out_weight", HAS_PRECOMPUTED)
 def test_pagerank(
-    graph_file, max_iter, tol, alpha, personalization_perc, has_guess
+    graph_file, max_iter, tol, alpha, personalization_perc, has_guess,
+    has_precomputed_vertex_out_weight
 ):
     gc.collect()
 
@@ -169,6 +176,7 @@ def test_pagerank(
     )
 
     cu_nstart = None
+    pre_vtx_o_wgt = None
     if has_guess == 1:
         cu_nstart = cudify(networkx_pr)
         max_iter = 20
@@ -179,9 +187,17 @@ def test_pagerank(
     G = cugraph.DiGraph()
     G.from_cudf_edgelist(
         cu_M, source="0", destination="1", edge_attr="2",
-        legacy_renum_only=False)
+        legacy_renum_only=True)
+    
+    if has_precomputed_vertex_out_weight == 1:
+        df = G.view_edge_list()[["src", "weights"]]
+        pre_vtx_o_wgt = df.groupby(
+            ['src'], as_index = False).sum().rename(
+                columns={"src":"vertex", "weights": "sums"})
 
-    cugraph_pr = cugraph_call(G, max_iter, tol, alpha, cu_prsn, cu_nstart)
+    cugraph_pr = cugraph_call(
+        G, max_iter, tol, alpha, cu_prsn, cu_nstart,
+        pre_vtx_o_wgt)
 
     # Calculating mismatch
     networkx_pr = sorted(networkx_pr.items(), key=lambda x: x[0])
