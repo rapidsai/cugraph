@@ -71,8 +71,8 @@ def spectralBalancedCutClustering(
 
     Examples
     --------
-    >>> from cugraph.experimental.datasets import karate
-    >>> G = karate.get_graph(fetch=True)
+    >>> from cugraph.experimental.datasets import karate_undirected
+    >>> G = karate_undirected.get_graph(fetch=True)
     >>> df = cugraph.spectralBalancedCutClustering(G, 5)
 
     """
@@ -154,8 +154,8 @@ def spectralModularityMaximizationClustering(
 
     Examples
     --------
-    >>> from cugraph.experimental.datasets import karate
-    >>> G = karate.get_graph(fetch=True)
+    >>> from cugraph.experimental.datasets import karate_undirected
+    >>> G = karate_undirected.get_graph(fetch=True)
     >>> df = cugraph.spectralModularityMaximizationClustering(G, 5)
 
     """
@@ -218,8 +218,8 @@ def analyzeClustering_modularity(G, n_clusters, clustering,
 
     Examples
     --------
-    >>> from cugraph.experimental.datasets import karate
-    >>> G = karate.get_graph(fetch=True)
+    >>> from cugraph.experimental.datasets import karate_undirected
+    >>> G = karate_undirected.get_graph(fetch=True)
     >>> df = cugraph.spectralBalancedCutClustering(G, 5)
     >>> score = cugraph.analyzeClustering_modularity(G, 5, df)
 
@@ -285,8 +285,8 @@ def analyzeClustering_edge_cut(G, n_clusters, clustering,
 
     Examples
     --------
-    >>> from cugraph.experimental.datasets import karate
-    >>> G = karate.get_graph(fetch=True)
+    >>> from cugraph.experimental.datasets import karate_undirected
+    >>> G = karate_undirected.get_graph(fetch=True)
     >>> df = cugraph.spectralBalancedCutClustering(G, 5)
     >>> score = cugraph.analyzeClustering_edge_cut(G, 5, df)
 
@@ -349,8 +349,8 @@ def analyzeClustering_ratio_cut(G, n_clusters, clustering,
 
     Examples
     --------
-    >>> from cugraph.experimental.datasets import karate
-    >>> G = karate.get_graph(fetch=True)
+    >>> from cugraph.experimental.datasets import karate_undirected
+    >>> G = karate_undirected.get_graph(fetch=True)
     >>> df = cugraph.spectralBalancedCutClustering(G, 5)
     >>> score = cugraph.analyzeClustering_ratio_cut(G, 5, df, 'vertex',
     ...                                             'cluster')

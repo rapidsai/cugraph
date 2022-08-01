@@ -74,8 +74,8 @@ def k_core(G, k=None, core_number=None):
 
     Examples
     --------
-    >>> from cugraph.experimental.datasets import karate
-    >>> G = karate.get_graph(fetch=True)
+    >>> from cugraph.experimental.datasets import karate_undirected
+    >>> G = karate_undirected.get_graph(fetch=True)
     >>> KCoreGraph = cugraph.k_core(G)
 
     """

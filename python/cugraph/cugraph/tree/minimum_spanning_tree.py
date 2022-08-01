@@ -92,8 +92,8 @@ def minimum_spanning_tree(
 
     Examples
     --------
-    >>> from cugraph.experimental.datasets import karate
-    >>> G = karate.get_graph(fetch=True)
+    >>> from cugraph.experimental.datasets import karate_undirected
+    >>> G = karate_undirected.get_graph(fetch=True)
     >>> G_mst = cugraph.minimum_spanning_tree(G)
 
     """
@@ -137,8 +137,8 @@ def maximum_spanning_tree(
 
     Examples
     --------
-    >>> from cugraph.experimental.datasets import karate
-    >>> G = karate.get_graph(fetch=True)
+    >>> from cugraph.experimental.datasets import karate_undirected
+    >>> G = karate_undirected.get_graph(fetch=True)
     >>> G_mst = cugraph.maximum_spanning_tree(G)
 
     """

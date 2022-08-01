@@ -57,7 +57,8 @@ def random_walks(G,
     Examples
     --------
     >>> from cugraph.experimental.datasets import karate
-    >>> G = karate.get_graph(fetch=True)
+    >>> M = karate.get_edgelist(fetch=True)
+    >>> G = karate.get_graph()
     >>> _, _, _ = cugraph.random_walks(G, M, 3)
 
     """

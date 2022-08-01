@@ -67,8 +67,8 @@ def k_truss(G, k):
 
     Examples
     --------
-    >>> from cugraph.experimental.datasets import karate
-    >>> G = karate.get_graph(fetch=True)
+    >>> from cugraph.experimental.datasets import karate_undirected
+    >>> G = karate_undirected.get_graph(fetch=True)
     >>> k_subgraph = cugraph.k_truss(G, 3)
 
     """
@@ -147,8 +147,8 @@ def ktruss_subgraph(G, k, use_weights=True):
 
     Examples
     --------
-    >>> from cugraph.experimental.datasets import karate
-    >>> G = karate.get_graph(fetch=True)
+    >>> from cugraph.experimental.datasets import karate_undirected
+    >>> G = karate_undirected.get_graph(fetch=True)
     >>> k_subgraph = cugraph.ktruss_subgraph(G, 3)
 
     """

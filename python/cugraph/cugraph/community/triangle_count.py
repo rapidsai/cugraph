@@ -39,8 +39,8 @@ def triangles(G):
 
     Examples
     --------
-    >>> from cugraph.experimental.datasets import karate
-    >>> G = karate.get_graph(fetch=True)
+    >>> from cugraph.experimental.datasets import karate_undirected
+    >>> G = karate_undirected.get_graph(fetch=True)
     >>> count = cugraph.triangles(G)
 
     """

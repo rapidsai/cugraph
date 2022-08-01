@@ -208,7 +208,7 @@ def bfs(G,
     --------
     >>> from cugraph.experimental.datasets import karate
     >>> G = karate.get_graph(fetch=True)
-    >>> df = cugraph.bfs(G, 0)
+    >>> df = cugraph.bfs(G, 1)
 
     """
     (start, directed) = \
@@ -325,7 +325,7 @@ def bfs_edges(G, source, reverse=False, depth_limit=None, sort_neighbors=None):
     --------
     >>> from cugraph.experimental.datasets import karate
     >>> G = karate.get_graph(fetch=True)
-    >>> df = cugraph.bfs_edges(G, 0)
+    >>> df = cugraph.bfs_edges(G, 1)
 
     """
 
