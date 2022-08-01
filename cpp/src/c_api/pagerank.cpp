@@ -96,6 +96,37 @@ struct pagerank_functor : public cugraph::c_api::abstract_functor {
             bool multi_gpu>
   void operator()()
   {
+    if (precomputed_vertex_out_weight_vertices_ != nullptr) {
+      CAPI_EXPECTS(graph_->vertex_type == precomputed_vertex_out_weight_vertices_->type_,
+                   CUGRAPH_INVALID_INPUT,
+                   "vertex type of graph and precomputed_vertex_out_weight_vertices must match",
+                   error_code_);
+      CAPI_EXPECTS(graph_->weight_type == precomputed_vertex_out_weight_sums_->type_,
+                   CUGRAPH_INVALID_INPUT,
+                   "vertex type of graph and precomputed_vertex_out_weight_sums must match",
+                   error_code_);
+    }
+    if (initial_guess_vertices_ != nullptr) {
+      CAPI_EXPECTS(graph_->vertex_type == initial_guess_vertices_->type_,
+                   CUGRAPH_INVALID_INPUT,
+                   "vertex type of graph and initial_guess_vertices must match",
+                   error_code_);
+      CAPI_EXPECTS(graph_->weight_type == initial_guess_values_->type_,
+                   CUGRAPH_INVALID_INPUT,
+                   "vertex type of graph and initial_guess_values must match",
+                   error_code_);
+    }
+    if (personalization_vertices_ != nullptr) {
+      CAPI_EXPECTS(graph_->vertex_type == personalization_vertices_->type_,
+                   CUGRAPH_INVALID_INPUT,
+                   "vertex type of graph and personalization_vector must match",
+                   error_code_);
+      CAPI_EXPECTS(graph_->weight_type == personalization_values_->type_,
+                   CUGRAPH_INVALID_INPUT,
+                   "vertex type of graph and personalization_vector must match",
+                   error_code_);
+    }
+
     // FIXME: Think about how to handle SG vice MG
     if constexpr (!cugraph::is_candidate<vertex_t, edge_t, weight_t>::value) {
       unsupported();
