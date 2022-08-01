@@ -108,10 +108,6 @@ def personalized_pagerank(ResourceHandle resource_handle,
         If this value is lower or equal to 0 cuGraph will use the default
         value, which is 100.
 
-    has_initial_guess : bool
-        This parameter is unsupported in this release and only False is
-        accepted.
-
     do_expensive_check : bool
         If True, performs more extensive tests on the inputs to ensure
         validitity, at the expense of increased run time.
