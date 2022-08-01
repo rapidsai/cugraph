@@ -37,6 +37,13 @@ def convert_to_cudf(cp_arrays):
     return df
 
 
+def renumber_vertices(input_graph, input_df):
+    input_df = input_graph.add_internal_vertex_id(
+        input_df, "vertex", "vertex").compute()
+
+    return input_df
+
+
 def _call_plc_pagerank(sID,
                        mg_graph_x,
                        pre_vtx_o_wgt_vertices,
@@ -95,12 +102,11 @@ def _call_plc_personalized_pagerank(sID,
     )
 
 
-# FIXME: update docstrings
 def pagerank(input_graph,
              alpha=0.85, personalization=None,
              precomputed_vertex_out_weight=None,
              max_iter=100, tol=1.0e-5, nstart=None, weight=None,
-             dangling=None, has_initial_guess=None):
+             dangling=None):
     """
     Find the PageRank values for each vertex in a graph using multiple GPUs.
     cuGraph computes an approximation of the Pagerank using the power method.
@@ -122,19 +128,27 @@ def pagerank(input_graph,
 
     personalization : cudf.Dataframe, optional (default=None)
         GPU Dataframe containing the personalization information.
-        Currently not supported.
-
         personalization['vertex'] : cudf.Series
             Subset of vertices of graph for personalization
         personalization['values'] : cudf.Series
             Personalization values for vertices
 
-    max_iter : int, optional (default=100)
-        The maximum number of iterations before an answer is returned.
-        If this value is lower or equal to 0 cuGraph will use the default
-        value, which is 30.
+    precomputed_vertex_out_weight : cudf.Dataframe, optional (default=None)
+        GPU Dataframe containing the precomputed vertex out weight
+        information.
+        precomputed_vertex_out_weight['vertex'] : cudf.Series
+            Subset of vertices of graph for precomputed_vertex_out_weight
+        personalization['sums'] : cudf.Series
+            precomputed_vertex_out_weight sums for vertices
 
-    tol : float, optional (default=1.0e-5)
+    max_iter : int, optional (default=100)
+        The maximum number of iterations before an answer is returned. This can
+        be used to limit the execution time and do an early exit before the
+        solver reaches the convergence tolerance.
+        If this value is lower or equal to 0 cuGraph will use the default
+        value, which is 100.
+
+    tol : float, optional (default=1e-05)
         Set the tolerance the approximation, this parameter should be a small
         magnitude value.
         The lower the tolerance the better the approximation. If this value is
@@ -143,8 +157,20 @@ def pagerank(input_graph,
         numerical roundoff. Usually values between 0.01 and 0.00001 are
         acceptable.
 
-    nstart : not supported
-        initial guess for pagerank
+    nstart : cudf.Dataframe, optional (default=None)
+        GPU Dataframe containing the initial guess for pagerank.
+        nstart['vertex'] : cudf.Series
+            Subset of vertices of graph for initial guess for pagerank values
+        nstart['values'] : cudf.Series
+            Pagerank values for vertices
+
+    weight: str, optional (default=None)
+        The attribute column to be used as edge weights if Graph is a NetworkX
+        Graph. This parameter is here for NetworkX compatibility and is ignored
+        in case of a cugraph.Graph
+
+    dangling : dict, optional (default=None)
+        This parameter is here for NetworkX compatibility and ignored
 
     Returns
     -------
@@ -178,7 +204,6 @@ def pagerank(input_graph,
     # Initialize dask client
     client = input_graph._client
 
-    # FIXME: These parameter are supported but removed for now
     initial_guess_vertices = None
     initial_guess_values = None
     precomputed_vertex_out_weight_vertices = None
@@ -186,11 +211,27 @@ def pagerank(input_graph,
 
     do_expensive_check = False
 
+    # FIXME: Distribute the 'precomputed_vertex_out_weight'
+    # across GPUs for performance optimization
+    if precomputed_vertex_out_weight is not None:
+        if input_graph.renumbered is True:
+            precomputed_vertex_out_weight = renumber_vertices(
+                input_graph, precomputed_vertex_out_weight)
+        precomputed_vertex_out_weight_vertices = \
+            precomputed_vertex_out_weight["vertex"]
+        precomputed_vertex_out_weight_sums = \
+            precomputed_vertex_out_weight["sums"]
+
+    # FIXME: Distribute the 'nstart' across GPUs for performance optimization
+    if nstart is not None:
+        if input_graph.renumbered is True:
+            nstart = renumber_vertices(input_graph, nstart)
+            initial_guess_vertices = nstart["vertex"]
+            initial_guess_values = nstart["values"]
+
     if personalization is not None:
         if input_graph.renumbered is True:
-            personalization = input_graph.add_internal_vertex_id(
-                personalization, "vertex", "vertex"
-            ).compute()
+            personalization = renumber_vertices(input_graph, personalization)
 
         personalization_ddf = dask_cudf.from_cudf(
             personalization, npartitions=len(Comms.get_workers()))

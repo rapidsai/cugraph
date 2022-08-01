@@ -22,12 +22,22 @@ from pylibcugraph import (pagerank as pylibcugraph_pagerank,
                           )
 
 
-# FIXME: update docstrings
+def renumber_vertices(input_graph, input_df):
+    if len(input_graph.renumber_map.implementation.col_names) > 1:
+        cols = input_df.columns[:-1].to_list()
+    else:
+        cols = 'vertex'
+    input_df = input_graph.add_internal_vertex_id(
+        input_df, "vertex", cols
+    )
+
+    return input_df
+
+
 def pagerank(
     G, alpha=0.85, personalization=None,
     precomputed_vertex_out_weight=None,
-    max_iter=100, tol=1.0e-5, nstart=None, weight=None,
-    dangling=None, has_initial_guess=None
+    max_iter=100, tol=1.0e-5, nstart=None, weight=None, dangling=None
 ):
     """
     Find the PageRank score for every vertex in a graph. cuGraph computes an
@@ -42,23 +52,28 @@ def pagerank(
         cuGraph graph descriptor, should contain the connectivity information
         as an edge list.
         The transposed adjacency list will be computed if not already present.
+
     alpha : float, optional (default=0.85)
         The damping factor alpha represents the probability to follow an
         outgoing edge, standard value is 0.85.
         Thus, 1.0-alpha is the probability to “teleport” to a random vertex.
         Alpha should be greater than 0.0 and strictly lower than 1.0.
-    personalization : cudf.Dataframe, optional (default=None)
-        GPU Dataframe containing the personalization information.
-        personalization['vertex'] : cudf.Series
-            Subset of vertices of graph for personalization
-        personalization['values'] : cudf.Series
-            Personalization values for vertices
+
+    precomputed_vertex_out_weight : cudf.Dataframe, optional (default=None)
+        GPU Dataframe containing the precomputed vertex out weight
+        information.
+        precomputed_vertex_out_weight['vertex'] : cudf.Series
+            Subset of vertices of graph for precomputed_vertex_out_weight
+        personalization['sums'] : cudf.Series
+            precomputed_vertex_out_weight sums for vertices
+
     max_iter : int, optional (default=100)
         The maximum number of iterations before an answer is returned. This can
         be used to limit the execution time and do an early exit before the
         solver reaches the convergence tolerance.
         If this value is lower or equal to 0 cuGraph will use the default
         value, which is 100.
+
     tol : float, optional (default=1e-05)
         Set the tolerance the approximation, this parameter should be a small
         magnitude value.
@@ -67,18 +82,22 @@ def pagerank(
         Setting too small a tolerance can lead to non-convergence due to
         numerical roundoff. Usually values between 0.01 and 0.00001 are
         acceptable.
+
     nstart : cudf.Dataframe, optional (default=None)
         GPU Dataframe containing the initial guess for pagerank.
         nstart['vertex'] : cudf.Series
             Subset of vertices of graph for initial guess for pagerank values
         nstart['values'] : cudf.Series
             Pagerank values for vertices
+
     weight: str, optional (default=None)
         The attribute column to be used as edge weights if Graph is a NetworkX
         Graph. This parameter is here for NetworkX compatibility and is ignored
         in case of a cugraph.Graph
+
     dangling : dict, optional (default=None)
         This parameter is here for NetworkX compatibility and ignored
+
     Returns
     -------
     PageRank : cudf.DataFrame
@@ -97,7 +116,6 @@ def pagerank(
     >>> pr = cugraph.pagerank(G, alpha = 0.85, max_iter = 500, tol = 1.0e-05)
     """
 
-    # FIXME: These parameter are support but removed for now
     initial_guess_vertices = None
     initial_guess_values = None
     pre_vtx_o_wgt_vertices = None
@@ -108,21 +126,14 @@ def pagerank(
 
     if nstart is not None:
         if G.renumbered is True:
-            if len(G.renumber_map.implementation.col_names) > 1:
-                cols = nstart.columns[:-1].to_list()
-            else:
-                cols = 'vertex'
-            nstart = G.add_internal_vertex_id(
-                nstart, "vertex", cols
-            )
-
-    # FIXME: The vertices must be unrenumbered, consilidate the
-    # unrenumbering step. Same for precomputed_vertex_out_weight
-    if nstart is not None:
+            nstart = renumber_vertices(G, nstart)
         initial_guess_vertices = nstart["vertex"]
         initial_guess_values = nstart["values"]
 
     if precomputed_vertex_out_weight is not None:
+        if G.renumbered is True:
+            precomputed_vertex_out_weight = renumber_vertices(
+                G, precomputed_vertex_out_weight)
         pre_vtx_o_wgt_vertices = \
             precomputed_vertex_out_weight["vertex"]
         pre_vtx_o_wgt_sums = \
@@ -135,13 +146,8 @@ def pagerank(
                 "currently not supported"
             )
         if G.renumbered is True:
-            if len(G.renumber_map.implementation.col_names) > 1:
-                cols = personalization.columns[:-1].to_list()
-            else:
-                cols = 'vertex'
-            personalization = G.add_internal_vertex_id(
-                personalization, "vertex", cols
-            )
+            personalization = renumber_vertices(
+                G, personalization)
 
         vertex, pagerank_values = \
             pylibcugraph_p_pagerank(
