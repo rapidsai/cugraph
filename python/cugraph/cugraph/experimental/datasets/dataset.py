@@ -132,8 +132,11 @@ class Dataset:
             create a Graph instance with specified 'directed' attribute.
 
         ignore_weights : Boolean (default=False)
-            Weights will be present by default, unless weights are not
-            included in the dataset.
+            Ignores weights in the dataset if True, resulting in an
+            unweighted Graph. If False (the default), weights from the
+            dataset -if present- will be applied to the Graph. If the
+            dataset does not contain weights, the Graph returned will
+            be unweighted regardless of ignore_weights.
         """
         if self._edgelist is None:
             self.get_edgelist(fetch)
@@ -143,7 +146,7 @@ class Dataset:
         elif isinstance(create_using, Graph):
             attrs = {"directed": create_using.is_directed()}
             self._graph = type(create_using)(**attrs)
-        elif type(create_using) is type(Graph):
+        elif type(create_using) is type:
             self._graph = create_using()
         else:
             raise TypeError("create_using must be a cugraph.Graph "
