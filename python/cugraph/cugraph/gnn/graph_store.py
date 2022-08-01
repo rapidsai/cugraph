@@ -220,12 +220,17 @@ class CuGraphStore:
                 f"edge_dir must be either 'in' or 'out' got {edge_dir} instead"
             )
 
-        nodes = cudf.from_dlpack(nodes).astype(cp.int32)
-
         if edge_dir == "in":
             sg = self.extracted_reverse_subgraph_without_renumbering
         else:
             sg = self.extracted_subgraph_without_renumbering
+
+        if not hasattr(self, '_sg_node_dtype'):
+            self._sg_node_dtype = sg.edgelist_df['src'].dtype
+
+        # Uniform sampling assumes fails when the dtype
+        # if the seed dtype is not same as the node dtype
+        nodes = cudf.from_dlpack(nodes).astype(self._sg_node_dtype)
 
         sampled_df = uniform_neighbor_sample(
             sg, start_list=nodes, fanout_vals=[fanout],
