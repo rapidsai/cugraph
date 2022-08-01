@@ -49,7 +49,7 @@ if(NOT cugraph_FOUND)
   # TODO: This will not be necessary once we upgrade to CMake 3.22, which will pull in the required
   # languages for the C++ project even if this project does not require those languges.
   include(rapids-cuda)
-  rapids_cuda_init_architectures(CUGRAPH)
+  rapids_cuda_init_architectures(pylibcugraph-python)
   enable_language(CUDA)
 
   # Since cugraph only enables CUDA optionally, we need to manually include the file that
