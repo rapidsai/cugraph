@@ -27,6 +27,7 @@ from pathlib import Path
 meta_path = Path(__file__).parent / "metadata"
 
 karate = Dataset(meta_path / "karate.yaml")
+karate_data = Dataset(meta_path / "karate_data.yaml")
 karate_undirected = Dataset(meta_path / "karate_undirected.yaml")
 karate_asymmetric = Dataset(meta_path / "karate_asymmetric.yaml")
 dolphins = Dataset(meta_path / "dolphins.yaml")
@@ -46,11 +47,11 @@ RLY_SMALL_DATASETS = [small_line, small_tree]
 ALL_DATASETS = [karate, dolphins, netscience, polbooks,
                 small_line, small_tree]
 
-ALL_DATASETS_WGT = [dolphins, netscience, polbooks,
+ALL_DATASETS_WGT = [karate, dolphins, netscience, polbooks,
                     small_line, small_tree]
 
 TEST_GROUP = [dolphins, netscience]
 
 DATASETS_KTRUSS = [polbooks]
 
-DATASETS_UNDIRECTED = [karate, dolphins]
+DATASETS_UNDIRECTED = [karate_undirected, small_line, karate_asymmetric]
