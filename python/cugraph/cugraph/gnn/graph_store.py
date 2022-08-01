@@ -226,7 +226,7 @@ class CuGraphStore:
             sg = self.extracted_subgraph_without_renumbering
 
         if not hasattr(self, '_sg_node_dtype'):
-            self._sg_node_dtype = sg.edgelist_df['src'].dtype
+            self._sg_node_dtype = sg.edgelist.edgelist_df['src'].dtype
 
         # Uniform sampling assumes fails when the dtype
         # if the seed dtype is not same as the node dtype
