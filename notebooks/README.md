@@ -30,8 +30,8 @@ This repository contains a collection of Jupyter Notebooks that outline how to r
 Layout            |                                                              |                                                              |
 |                 | [Force-Atlas2](algorithms/layout/Force-Atlas2.ipynb)   |A large graph visualization achieved with cuGraph. |
 | Link Analysis   |                                                              |                                                              |
-|                 | [Pagerank](link_analysis/Pagerank.ipynb)                     | Compute the PageRank of every vertex in a graph              |
-|                 | [HITS](link_analysis/HITS.ipynb)                             | Compute the HITS' Hub and Authority scores for every vertex in a graph              |
+|                 | [Pagerank](algorithms/link_analysis/Pagerank.ipynb)                     | Compute the PageRank of every vertex in a graph              |
+|                 | [HITS](algorithms/link_analysis/HITS.ipynb)                             | Compute the HITS' Hub and Authority scores for every vertex in a graph              |
 | Link Prediction |                                                              |                                                              |
 |                 | [Jaccard Similarity](link_prediction/Jaccard-Similarity.ipynb) | Compute vertex similarity score using both:<br />- Jaccard Similarity<br />- Weighted Jaccard |
 |                 | [Overlap Similarity](link_prediction/Overlap-Similarity.ipynb) | Compute vertex similarity score using the Overlap Coefficient |
