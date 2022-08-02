@@ -96,37 +96,6 @@ struct pagerank_functor : public cugraph::c_api::abstract_functor {
             bool multi_gpu>
   void operator()()
   {
-    if (precomputed_vertex_out_weight_vertices_ != nullptr) {
-      CAPI_EXPECTS(graph_->vertex_type == precomputed_vertex_out_weight_vertices_->type_,
-                   CUGRAPH_INVALID_INPUT,
-                   "vertex type of graph and precomputed_vertex_out_weight_vertices must match",
-                   error_code_);
-      CAPI_EXPECTS(graph_->weight_type == precomputed_vertex_out_weight_sums_->type_,
-                   CUGRAPH_INVALID_INPUT,
-                   "vertex type of graph and precomputed_vertex_out_weight_sums must match",
-                   error_code_);
-    }
-    if (initial_guess_vertices_ != nullptr) {
-      CAPI_EXPECTS(graph_->vertex_type == initial_guess_vertices_->type_,
-                   CUGRAPH_INVALID_INPUT,
-                   "vertex type of graph and initial_guess_vertices must match",
-                   error_code_);
-      CAPI_EXPECTS(graph_->weight_type == initial_guess_values_->type_,
-                   CUGRAPH_INVALID_INPUT,
-                   "vertex type of graph and initial_guess_values must match",
-                   error_code_);
-    }
-    if (personalization_vertices_ != nullptr) {
-      CAPI_EXPECTS(graph_->vertex_type == personalization_vertices_->type_,
-                   CUGRAPH_INVALID_INPUT,
-                   "vertex type of graph and personalization_vector must match",
-                   error_code_);
-      CAPI_EXPECTS(graph_->weight_type == personalization_values_->type_,
-                   CUGRAPH_INVALID_INPUT,
-                   "vertex type of graph and personalization_vector must match",
-                   error_code_);
-    }
-
     // FIXME: Think about how to handle SG vice MG
     if constexpr (!cugraph::is_candidate<vertex_t, edge_t, weight_t>::value) {
       unsupported();
@@ -285,6 +254,38 @@ extern "C" cugraph_error_code_t cugraph_pagerank(
   cugraph_centrality_result_t** result,
   cugraph_error_t** error)
 {
+  if (precomputed_vertex_out_weight_vertices != nullptr) {
+    CAPI_EXPECTS(reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph)->vertex_type_ ==
+                   reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(
+                     precomputed_vertex_out_weight_vertices)
+                     ->type_,
+                 CUGRAPH_INVALID_INPUT,
+                 "vertex type of graph and precomputed_vertex_out_weight_vertices must match",
+                 *error);
+    CAPI_EXPECTS(reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph)->weight_type_ ==
+                   reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(
+                     precomputed_vertex_out_weight_sums)
+                     ->type_,
+                 CUGRAPH_INVALID_INPUT,
+                 "vertex type of graph and precomputed_vertex_out_weight_sums must match",
+                 *error);
+  }
+  if (initial_guess_vertices != nullptr) {
+    CAPI_EXPECTS(reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph)->vertex_type_ ==
+                   reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(
+                     initial_guess_vertices)
+                     ->type_,
+                 CUGRAPH_INVALID_INPUT,
+                 "vertex type of graph and initial_guess_vertices must match",
+                 *error);
+    CAPI_EXPECTS(reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph)->weight_type_ ==
+                   reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(
+                     initial_guess_values)
+                     ->type_,
+                 CUGRAPH_INVALID_INPUT,
+                 "vertex type of graph and initial_guess_values must match",
+                 *error);
+  }
   pagerank_functor functor(handle,
                            graph,
                            precomputed_vertex_out_weight_vertices,
@@ -317,6 +318,55 @@ extern "C" cugraph_error_code_t cugraph_personalized_pagerank(
   cugraph_centrality_result_t** result,
   cugraph_error_t** error)
 {
+  if (precomputed_vertex_out_weight_vertices != nullptr) {
+    CAPI_EXPECTS(reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph)->vertex_type_ ==
+                   reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(
+                     precomputed_vertex_out_weight_vertices)
+                     ->type_,
+                 CUGRAPH_INVALID_INPUT,
+                 "vertex type of graph and precomputed_vertex_out_weight_vertices must match",
+                 *error);
+    CAPI_EXPECTS(reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph)->weight_type_ ==
+                   reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(
+                     precomputed_vertex_out_weight_sums)
+                     ->type_,
+                 CUGRAPH_INVALID_INPUT,
+                 "vertex type of graph and precomputed_vertex_out_weight_sums must match",
+                 *error);
+  }
+  if (initial_guess_vertices != nullptr) {
+    CAPI_EXPECTS(reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph)->vertex_type_ ==
+                   reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(
+                     initial_guess_vertices)
+                     ->type_,
+                 CUGRAPH_INVALID_INPUT,
+                 "vertex type of graph and initial_guess_vertices must match",
+                 *error);
+    CAPI_EXPECTS(reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph)->weight_type_ ==
+                   reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(
+                     initial_guess_values)
+                     ->type_,
+                 CUGRAPH_INVALID_INPUT,
+                 "vertex type of graph and initial_guess_values must match",
+                 *error);
+  }
+  if (personalization_vertices != nullptr) {
+    CAPI_EXPECTS(reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph)->vertex_type_ ==
+                   reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(
+                     personalization_vertices)
+                     ->type_,
+                 CUGRAPH_INVALID_INPUT,
+                 "vertex type of graph and personalization_vector must match",
+                 *error);
+    CAPI_EXPECTS(reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph)->weight_type_ ==
+                   reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(
+                     personalization_values)
+                     ->type_,
+                 CUGRAPH_INVALID_INPUT,
+                 "vertex type of graph and personalization_vector must match",
+                 *error);
+  }
+
   pagerank_functor functor(handle,
                            graph,
                            precomputed_vertex_out_weight_vertices,
