@@ -285,6 +285,7 @@ void partially_decompress_edge_partition_to_fill_edgelist(
   edge_partition_device_view_t<vertex_t, edge_t, weight_t, multi_gpu> edge_partition,
   vertex_t const* input_majors,
   edge_t const* input_major_start_offsets,
+  vertex_t input_majors_size,
   std::vector<vertex_t> const& segment_offsets,
   vertex_t* majors,
   vertex_t* minors,
@@ -458,7 +459,7 @@ void partially_decompress_edge_partition_to_fill_edgelist(
     thrust::for_each(
       handle.get_thrust_policy(),
       thrust::make_counting_iterator(vertex_t{0}),
-      thrust::make_counting_iterator(edge_partition.major_range_size()),
+      thrust::make_counting_iterator(input_majors_size),
       [edge_partition,
        input_majors,
        input_major_start_offsets,
@@ -471,13 +472,10 @@ void partially_decompress_edge_partition_to_fill_edgelist(
        global_edge_index] __device__(auto idx) {
         auto major        = input_majors[idx];
         auto major_offset = input_major_start_offsets[idx];
-        auto major_partition_offset =
-          static_cast<size_t>(major - edge_partition.major_range_first());
         vertex_t const* indices{nullptr};
         thrust::optional<weight_t const*> weights{thrust::nullopt};
         edge_t local_degree{};
-        thrust::tie(indices, weights, local_degree) =
-          edge_partition.local_edges(major_partition_offset);
+        thrust::tie(indices, weights, local_degree) = edge_partition.local_edges(major);
 
         // FIXME: This can lead to thread divergence if local_degree varies significantly
         //        within threads in this warp
@@ -497,7 +495,7 @@ void partially_decompress_edge_partition_to_fill_edgelist(
                        major_input_property);
         }
         if (global_edge_index) {
-          auto adjacency_list_offset = thrust::get<0>(*global_edge_index)[major_partition_offset];
+          auto adjacency_list_offset = thrust::get<0>(*global_edge_index)[major];
           auto minor_map             = thrust::get<1>(*global_edge_index);
           thrust::sequence(thrust::seq,
                            minor_map + major_offset,
