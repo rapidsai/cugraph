@@ -764,8 +764,10 @@ class simpleGraphImpl:
 
         return df
 
-    def _make_plc_graph(
-        self, value_col=None, store_transposed=False, renumber=True):
+    def _make_plc_graph(self,
+                        value_col=None,
+                        store_transposed=False,
+                        renumber=True):
         if value_col is None:
             value_col = cudf.Series(
                 cupy.ones(len(self.edgelist.edgelist_df), dtype='float32')

@@ -47,11 +47,9 @@ def cudify(d):
     return cuD
 
 
-def cugraph_call(
-    G, max_iter, tol, alpha, personalization, nstart,
-    pre_vtx_o_wgt):
+def cugraph_call(G, max_iter, tol, alpha, personalization,
+                 nstart, pre_vtx_o_wgt):
     # cugraph Pagerank Call
-    print("precomputed vertex weigts is \n", pre_vtx_o_wgt)
     t1 = time.time()
     df = cugraph.pagerank(
         G,
@@ -59,7 +57,7 @@ def cugraph_call(
         max_iter=max_iter,
         tol=tol,
         personalization=personalization,
-        precomputed_vertex_out_weight = pre_vtx_o_wgt,
+        precomputed_vertex_out_weight=pre_vtx_o_wgt,
         nstart=nstart,
     )
     t2 = time.time() - t1
@@ -189,12 +187,12 @@ def test_pagerank(
     G.from_cudf_edgelist(
         cu_M, source="0", destination="1", edge_attr="2",
         legacy_renum_only=True)
-    
+
     if has_precomputed_vertex_out_weight == 1:
         df = G.view_edge_list()[["src", "weights"]]
         pre_vtx_o_wgt = df.groupby(
-            ['src'], as_index = False).sum().rename(
-                columns={"src":"vertex", "weights": "sums"})
+            ['src'], as_index=False).sum().rename(
+                columns={"src": "vertex", "weights": "sums"})
 
     cugraph_pr = cugraph_call(
         G, max_iter, tol, alpha, cu_prsn, cu_nstart,
@@ -318,11 +316,11 @@ def test_pagerank_multi_column(
     cu_G.from_cudf_edgelist(cu_M, source=["src_0", "src_1"],
                             destination=["dst_0", "dst_1"],
                             edge_attr="weights")
-    
+
     if has_precomputed_vertex_out_weight == 1:
         df = cu_M[["src_0", "src_1", "weights"]]
         pre_vtx_o_wgt = df.groupby(
-            ['src_0', "src_1"], as_index = False).sum().rename(
+            ['src_0', "src_1"], as_index=False).sum().rename(
                 columns={"weights": "sums"})
 
     df = cugraph.pagerank(
@@ -333,7 +331,6 @@ def test_pagerank_multi_column(
         personalization=cu_prsn,
         nstart=cu_nstart,
         precomputed_vertex_out_weight=pre_vtx_o_wgt
-        
     )
 
     cugraph_pr = []

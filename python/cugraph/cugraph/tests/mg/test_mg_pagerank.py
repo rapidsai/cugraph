@@ -60,9 +60,8 @@ HAS_PRECOMPUTED = [0, 1]
 @pytest.mark.parametrize("directed", IS_DIRECTED)
 @pytest.mark.parametrize("has_precomputed_vertex_out_weight", HAS_PRECOMPUTED)
 @pytest.mark.parametrize("has_guess", HAS_GUESS)
-def test_dask_pagerank(
-    dask_client, personalization_perc, directed,
-    has_precomputed_vertex_out_weight, has_guess):
+def test_dask_pagerank(dask_client, personalization_perc, directed,
+                       has_precomputed_vertex_out_weight, has_guess):
     gc.collect()
 
     input_data_path = (RAPIDS_DATASET_ROOT_DIR_PATH /
@@ -94,7 +93,7 @@ def test_dask_pagerank(
     personalization = None
     pre_vtx_o_wgt = None
     nstart = None
-    max_iter=100
+    max_iter = 100
     has_precomputed_vertex_out_weight
     if personalization_perc != 0:
         personalization, p = personalize(
@@ -103,14 +102,14 @@ def test_dask_pagerank(
     if has_precomputed_vertex_out_weight == 1:
         df = df[["src", "value"]]
         pre_vtx_o_wgt = df.groupby(
-            ['src'], as_index = False).sum().rename(
-                columns={"src":"vertex", "value": "sums"})
-    
+            ['src'], as_index=False).sum().rename(
+                columns={"src": "vertex", "value": "sums"})
+
     if has_guess == 1:
         nstart = cugraph.pagerank(
-        g, personalization=personalization, tol=1e-6).rename(
-            columns={"pagerank":"values"})
-        max_iter=20
+            g, personalization=personalization, tol=1e-6).rename(
+                columns={"pagerank": "values"})
+        max_iter = 20
 
     expected_pr = cugraph.pagerank(
         g, personalization=personalization,
