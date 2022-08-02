@@ -17,12 +17,17 @@ import yaml
 import os
 from pathlib import Path
 from tempfile import NamedTemporaryFile, TemporaryDirectory
-from cugraph.experimental.datasets import (ALL_DATASETS)
+from cugraph.experimental.datasets import (ALL_DATASETS, ALL_DATASETS_WGT,
+                                           SMALL_DATASETS)
+from cugraph.structure import Graph
 
 
 # =============================================================================
 # Pytest Setup / Teardown - called for each test function
 # =============================================================================
+
+dataset_path = Path(__file__).parents[4] / "datasets"
+
 
 # Use this to simulate a fresh API import
 @pytest.fixture
@@ -125,24 +130,18 @@ def test_fetch(dataset, datasets):
 
 @pytest.mark.parametrize("dataset", ALL_DATASETS)
 def test_get_edgelist(dataset, datasets):
-    tmpd = TemporaryDirectory()
-    datasets.set_download_dir(tmpd.name)
+    datasets.set_download_dir(dataset_path)
     E = dataset.get_edgelist(fetch=True)
 
     assert E is not None
 
-    tmpd.cleanup()
-
 
 @pytest.mark.parametrize("dataset", ALL_DATASETS)
 def test_get_graph(dataset, datasets):
-    tmpd = TemporaryDirectory()
-    datasets.set_download_dir(tmpd.name)
+    datasets.set_download_dir(dataset_path)
     G = dataset.get_graph(fetch=True)
 
     assert G is not None
-
-    tmpd.cleanup()
 
 
 @pytest.mark.parametrize("dataset", ALL_DATASETS)
@@ -167,3 +166,27 @@ def test_get_path(dataset, datasets):
 def test_get_path_raises(dataset):
     with pytest.raises(RuntimeError):
         dataset.get_path()
+
+
+@pytest.mark.parametrize("dataset", ALL_DATASETS_WGT)
+def test_weights(dataset, datasets):
+    datasets.set_download_dir(dataset_path)
+
+    G_w = dataset.get_graph(fetch=True)
+    G = dataset.get_graph(fetch=True, ignore_weights=True)
+
+    assert G_w.is_weighted()
+    assert not G.is_weighted()
+
+
+@pytest.mark.parametrize("dataset", SMALL_DATASETS)
+def test_create_using(dataset, datasets):
+    datasets.set_download_dir(dataset_path)
+
+    G_d = dataset.get_graph()
+    G_t = dataset.get_graph(create_using=Graph)
+    G = dataset.get_graph(create_using=Graph(directed=True))
+
+    assert not G_d.is_directed()
+    assert not G_t.is_directed()
+    assert G.is_directed()

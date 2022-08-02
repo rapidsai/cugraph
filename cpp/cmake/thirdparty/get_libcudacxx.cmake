@@ -16,8 +16,7 @@
 function(find_and_configure_libcudacxx)
   include(${rapids-cmake-dir}/cpm/libcudacxx.cmake)
 
-  rapids_cpm_libcudacxx(BUILD_EXPORT_SET cugraph-exports
-                        INSTALL_EXPORT_SET cugraph-exports)
+  rapids_cpm_libcudacxx(BUILD_EXPORT_SET cugraph-exports)
 
 endfunction()
 
