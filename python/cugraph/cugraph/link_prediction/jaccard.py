@@ -53,8 +53,8 @@ def jaccard(input_graph, vertex_pair=None):
     you can get the interesting (non-zero) values that are part of the networkx
     solution by doing the following:
 
-    >>> from cugraph.experimental.datasets import karate_undirected
-    >>> G = karate_undirected.get_graph(fetch=True)
+    >>> from cugraph.experimental.datasets import karate
+    >>> G = karate.get_graph(fetch=True)
     >>> pairs = G.get_two_hop_neighbors()
     >>> df = cugraph.jaccard(G, pairs)
 

@@ -58,8 +58,8 @@ def core_number(G, degree_type=None):
 
     Examples
     --------
-    >>> from cugraph.experimental.datasets import karate_undirected
-    >>> G = karate_undirected.get_graph(fetch=True)
+    >>> from cugraph.experimental.datasets import karate
+    >>> G = karate.get_graph(fetch=True)
     >>> df = cugraph.core_number(G)
 
     """

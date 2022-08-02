@@ -65,8 +65,8 @@ def louvain(G, max_iter=100, resolution=1.):
 
     Examples
     --------
-    >>> from cugraph.experimental.datasets import karate_undirected
-    >>> G = karate_undirected.get_graph(fetch=True)
+    >>> from cugraph.experimental.datasets import karate
+    >>> G = karate.get_graph(fetch=True)
     >>> parts, modularity_score = cugraph.louvain(G)
 
     """
