@@ -21,7 +21,7 @@ Manipulation of the data before or after the graph analytic is not covered here.
 | Author Credit |    Date    |  Update          | cuGraph Version |  Test Hardware |
 | --------------|------------|------------------|-----------------|----------------|
 | Brad Rees     | 04/19/2021 | created          | 0.19            | GV100, CUDA 11.0
-| Don Acosta    | 08/01/2022 | tested / updated | 22.08 nightly   | DGX Tesla V100 CUDA 11.5
+| Don Acosta    | 08/01/2022 | tested / updated | 22.08 nightly   | DGX Tesla V100 CUDA 11.5|
 
 ## Copyright
 
