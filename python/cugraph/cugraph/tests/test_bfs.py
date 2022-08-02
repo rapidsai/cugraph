@@ -23,12 +23,12 @@ import random
 
 import pandas as pd
 import cupy as cp
-from cupyx.scipy.sparse.coo import coo_matrix as cp_coo_matrix
-from cupyx.scipy.sparse.csr import csr_matrix as cp_csr_matrix
-from cupyx.scipy.sparse.csc import csc_matrix as cp_csc_matrix
-from scipy.sparse.coo import coo_matrix as sp_coo_matrix
-from scipy.sparse.csr import csr_matrix as sp_csr_matrix
-from scipy.sparse.csc import csc_matrix as sp_csc_matrix
+from cupyx.scipy.sparse import coo_matrix as cp_coo_matrix
+from cupyx.scipy.sparse import csr_matrix as cp_csr_matrix
+from cupyx.scipy.sparse import csc_matrix as cp_csc_matrix
+from scipy.sparse import coo_matrix as sp_coo_matrix
+from scipy.sparse import csr_matrix as sp_csr_matrix
+from scipy.sparse import csc_matrix as sp_csc_matrix
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
 # (Using or importing the ABCs from 'collections' instead of from
