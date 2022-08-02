@@ -166,15 +166,16 @@ extern "C" cugraph_error_code_t cugraph_uniform_neighbor_sample(
   cugraph_error_t** error)
 {
   CAPI_EXPECTS(
-    reinterpret_cast<cugraph::c_api::cugraph_graph_t *>(graph)->vertex_type_ ==
-      reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(start)->type_,
+    reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph)->vertex_type_ ==
+      reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(start)
+        ->type_,
     CUGRAPH_INVALID_INPUT,
     "vertex type of graph and start must match",
     *error);
 
   CAPI_EXPECTS(
-    reinterpret_cast<cugraph::c_api::cugraph_type_erased_host_array_view_t const*>(fan_out)->type_ ==
-      INT32,
+    reinterpret_cast<cugraph::c_api::cugraph_type_erased_host_array_view_t const*>(fan_out)
+        ->type_ == INT32,
     CUGRAPH_INVALID_INPUT,
     "fan_out should be of type int",
     *error);

@@ -475,8 +475,7 @@ void partially_decompress_edge_partition_to_fill_edgelist(
         vertex_t const* indices{nullptr};
         thrust::optional<weight_t const*> weights{thrust::nullopt};
         edge_t local_degree{};
-        thrust::tie(indices, weights, local_degree) =
-          edge_partition.local_edges(major);
+        thrust::tie(indices, weights, local_degree) = edge_partition.local_edges(major);
 
         // FIXME: This can lead to thread divergence if local_degree varies significantly
         //        within threads in this warp
