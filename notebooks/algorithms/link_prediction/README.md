@@ -5,9 +5,9 @@ In this folder we will explore and compare the various vertex similarity metrics
 
 |Algorithm          |Notebooks Containing                                                     |Description                                                  |
 | --------------- | ------------------------------------------------------------ | ------------------------------------------------------------ |
-|Jaccard Similarity  | [Jaccard](Jaccard-Similarity.ipynb)   | Uses the ratio of the volume of vertex intersection divided by the volume of union to determine similarity.  |
+|Jaccard Similarity  | [Jaccard](Jaccard-Similarity.ipynb)   | Uses the ratio of the volume of vertex intersection divided by the volume of union to determine similarity  |
 |Jaccard Weighted Similarity  | [Jaccard](Jaccard-Similarity.ipynb)   | Adds weights to the standard Jaccard Similarity  |
-|Overlap Similarity  | [PageRank](Pagerank.ipynb)               | Evaluates the neighborhood of vertex pairs and looks at the number of common neighbors|
+|Overlap Similarity  | [Overlap](Overlap-Similarity.ipynb)               | Evaluates the neighborhood of vertex pairs and looks at the number of common neighbors|
 
 Currently, cuGraph supports the following similarity metrics:
 - Jaccard Similarity (also called the Jaccard Index)

@@ -33,10 +33,10 @@ Layout            |                                                             
 | [Link Analysis](link_analysis/README.md)   |                                                              |                                                              |
 |                 | [Pagerank](link_analysis/Pagerank.ipynb)                     | Compute the PageRank of every vertex in a graph              |
 |                 | [HITS](link_analysis/HITS.ipynb)                             | Compute the HITS' Hub and Authority scores for every vertex in a graph              |
-<!--| Link Prediction |                                                              |                                                              |
-|                 | [Jaccard Similarity](link_prediction/Jaccard-Similarity.ipynb) | Compute vertex similarity score using both:<br />- Jaccard Similarity<br />- Weighted Jaccard |
-|                 | [Overlap Similarity](link_prediction/Overlap-Similarity.ipynb) | Compute vertex similarity score using the Overlap Coefficient |
-| Sampling        |
+| [Link Prediction](link_prediction/README.md) |                                                              |                                                              |
+|                 | [Jaccard Similarity](algorithms/link_prediction/Jaccard-Similarity.ipynb) | Compute vertex similarity score using both:<br />- Jaccard Similarity<br />- Weighted Jaccard |
+|                 | [Overlap Similarity](algorithms/link_prediction/Overlap-Similarity.ipynb) | Compute vertex similarity score using the Overlap Coefficient |
+<!--| Sampling        |
 |                 | [Random Walk](sampling/RandomWalk.ipynb)                     | Compute Random Walk for a various number of seeds and path lengths |
 | Traversal       |                                                              |                                                              |
 |                 | [BFS](traversal/BFS.ipynb)                                   | Compute the Breadth First Search path from a starting vertex to every other vertex in a graph |
@@ -51,7 +51,7 @@ Layout            |                                                             
 | Author Credit |    Date    |  Update          | cuGraph Version |  Test Hardware |
 | --------------|------------|------------------|-----------------|----------------|
 | Brad Rees     | 04/19/2021 | created          | 0.19            | GV100, CUDA 11.0
-| Don Acosta    | 07/05/2022 | tested / updated | 22.08 nightly   | DGX Tesla V100 CUDA 11.5
+| Don Acosta    | 08/02/2022 | tested / updated | 22.08 nightly   | DGX Tesla V100 CUDA 11.5
 
 ### Copyright
 
