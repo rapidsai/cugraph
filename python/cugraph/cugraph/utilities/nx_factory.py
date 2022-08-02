@@ -37,6 +37,9 @@ def convert_unweighted_to_gdf(NX_G):
     _gdf['src'] = src
     _gdf['dst'] = dst
 
+    # FIXME: The weight dtype is hardcoded.
+    _gdf = _gdf.astype({'weight':'float32'})
+
     return _gdf
 
 
@@ -51,6 +54,9 @@ def convert_weighted_named_to_gdf(NX_G, weight):
     _gdf['src'] = src
     _gdf['dst'] = dst
     _gdf['weight'] = wt
+
+    # FIXME: The weight dtype is hardcoded.
+    _gdf = _gdf.astype({'weight':'float32'})
 
     return _gdf
 
