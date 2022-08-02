@@ -126,20 +126,25 @@ def personalized_pagerank(ResourceHandle resource_handle,
     >>> srcs = cupy.asarray([0, 1, 2], dtype=numpy.int32)
     >>> dsts = cupy.asarray([1, 2, 3], dtype=numpy.int32)
     >>> weights = cupy.asarray([1.0, 1.0, 1.0], dtype=numpy.float32)
+    >>> personalization_vertices = cupy.asarray([0, 2], dtype=numpy.int32)
+    >>> personalization_values = cupy.asarray(
+    ...     [0.008309, 0.991691], dtype=numpy.float32)
     >>> resource_handle = pylibcugraph.ResourceHandle()
     >>> graph_props = pylibcugraph.GraphProperties(
     ...     is_symmetric=False, is_multigraph=False)
     >>> G = pylibcugraph.SGGraph(
     ...     resource_handle, graph_props, srcs, dsts, weights,
     ...     store_transposed=True, renumber=False, do_expensive_check=False)
-    >>> (vertices, pageranks) = pylibcugraph.pagerank(
-    ...     resource_handle, G, None, alpha=0.85, epsilon=1.0e-6,
-    ...     max_iterations=500, has_initial_guess=False,
+    >>> (vertices, pageranks) = pylibcugraph.personalized_pagerank(
+    ...     resource_handle, G, None, None, None, None, alpha=0.85,
+    ...     personalization_vertices=personalization_vertices,
+    ...     personalization_values=personalization_values, epsilon=1.0e-6,
+    ...     max_iterations=500,
     ...     do_expensive_check=False)
     >>> vertices
     array([0, 1, 2, 3], dtype=int32)
     >>> pageranks
-    array([0.11615585, 0.21488841, 0.2988108 , 0.3701449 ], dtype=float32)
+    array([0.00446455, 0.00379487, 0.53607565, 0.45566472 ], dtype=float32)
     """
 
     # FIXME: import these modules here for now until a better pattern can be

@@ -131,9 +131,8 @@ def pagerank(ResourceHandle resource_handle,
     ...     resource_handle, graph_props, srcs, dsts, weights,
     ...     store_transposed=True, renumber=False, do_expensive_check=False)
     >>> (vertices, pageranks) = pylibcugraph.pagerank(
-    ...     resource_handle, G, None, alpha=0.85, epsilon=1.0e-6,
-    ...     max_iterations=500, has_initial_guess=False,
-    ...     do_expensive_check=False)
+    ...     resource_handle, G, None, None, None, None, alpha=0.85,
+    ...     epsilon=1.0e-6, max_iterations=500, do_expensive_check=False)
     >>> vertices
     array([0, 1, 2, 3], dtype=int32)
     >>> pageranks
