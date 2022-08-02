@@ -149,7 +149,8 @@ HAS_PRECOMPUTED = [0, 1]
 #
 # https://github.com/rapidsai/cugraph/issues/533
 #
-"""
+
+
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 @pytest.mark.parametrize("max_iter", MAX_ITERATIONS)
 @pytest.mark.parametrize("tol", TOLERANCE)
@@ -259,7 +260,7 @@ def test_pagerank_nx(
             print(f"{cugraph_pr[i][1]} and {cugraph_pr[i][1]}")
     print("Mismatches:", err)
     assert err < (0.01 * len(cugraph_pr))
-"""
+
 
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 @pytest.mark.parametrize("max_iter", MAX_ITERATIONS)

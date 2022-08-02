@@ -49,6 +49,8 @@ def personalize(vertices, personalization_perc):
 
 PERSONALIZATION_PERC = [0, 10, 50]
 IS_DIRECTED = [True, False]
+HAS_GUESS = [0, 1]
+HAS_PRECOMPUTED = [0, 1]
 
 
 # @pytest.mark.skipif(
@@ -56,7 +58,11 @@ IS_DIRECTED = [True, False]
 # )
 @pytest.mark.parametrize("personalization_perc", PERSONALIZATION_PERC)
 @pytest.mark.parametrize("directed", IS_DIRECTED)
-def test_dask_pagerank(dask_client, personalization_perc, directed):
+@pytest.mark.parametrize("has_precomputed_vertex_out_weight", HAS_PRECOMPUTED)
+@pytest.mark.parametrize("has_guess", HAS_GUESS)
+def test_dask_pagerank(
+    dask_client, personalization_perc, directed,
+    has_precomputed_vertex_out_weight, has_guess):
     gc.collect()
 
     input_data_path = (RAPIDS_DATASET_ROOT_DIR_PATH /
@@ -80,21 +86,41 @@ def test_dask_pagerank(dask_client, personalization_perc, directed):
     )
 
     g = cugraph.Graph(directed=directed)
-    g.from_cudf_edgelist(df, "src", "dst")
+    g.from_cudf_edgelist(df, "src", "dst", "value")
 
     dg = cugraph.Graph(directed=directed)
-    dg.from_dask_cudf_edgelist(ddf, "src", "dst")
+    dg.from_dask_cudf_edgelist(ddf, "src", "dst", "value")
 
     personalization = None
+    pre_vtx_o_wgt = None
+    nstart = None
+    max_iter=100
+    has_precomputed_vertex_out_weight
     if personalization_perc != 0:
         personalization, p = personalize(
             g.nodes(), personalization_perc
         )
+    if has_precomputed_vertex_out_weight == 1:
+        df = df[["src", "value"]]
+        pre_vtx_o_wgt = df.groupby(
+            ['src'], as_index = False).sum().rename(
+                columns={"src":"vertex", "value": "sums"})
+    
+    if has_guess == 1:
+        nstart = cugraph.pagerank(
+        g, personalization=personalization, tol=1e-6).rename(
+            columns={"pagerank":"values"})
+        max_iter=20
 
     expected_pr = cugraph.pagerank(
-        g, personalization=personalization, tol=1e-6
+        g, personalization=personalization,
+        precomputed_vertex_out_weight=pre_vtx_o_wgt,
+        max_iter=max_iter, tol=1e-6, nstart=nstart
     )
-    result_pr = dcg.pagerank(dg, personalization=personalization, tol=1e-6)
+    result_pr = dcg.pagerank(
+        dg, personalization=personalization,
+        precomputed_vertex_out_weight=pre_vtx_o_wgt,
+        max_iter=max_iter, tol=1e-6, nstart=nstart)
     result_pr = result_pr.compute()
 
     err = 0
