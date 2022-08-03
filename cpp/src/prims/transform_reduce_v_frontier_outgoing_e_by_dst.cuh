@@ -27,7 +27,6 @@
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/host_scalar_comm.cuh>
 #include <cugraph/utilities/shuffle_comm.cuh>
-#include <cugraph/utilities/thrust_tuple_utils.cuh>
 #include <cugraph/vertex_partition_device_view.cuh>
 
 #include <raft/cudart_utils.h>

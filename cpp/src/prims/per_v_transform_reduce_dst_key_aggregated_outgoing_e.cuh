@@ -27,6 +27,7 @@
 #include <cugraph/utilities/host_scalar_comm.cuh>
 #include <cugraph/utilities/misc_utils.cuh>
 #include <cugraph/utilities/shuffle_comm.cuh>
+#include <cugraph/utilities/thrust_tuple_utils.hpp>
 #include <cugraph/vertex_partition_device_view.cuh>
 
 #include <cuco/static_map.cuh>

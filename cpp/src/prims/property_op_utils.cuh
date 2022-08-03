@@ -16,7 +16,7 @@
 #pragma once
 
 #include <cugraph/utilities/error.hpp>
-#include <cugraph/utilities/thrust_tuple_utils.cuh>
+#include <cugraph/utilities/thrust_tuple_utils.hpp>
 
 #include <raft/comms/comms.hpp>
 #include <raft/device_atomics.cuh>

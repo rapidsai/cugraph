@@ -18,7 +18,7 @@
 
 #include <cugraph/utilities/dataframe_buffer.cuh>
 #include <cugraph/utilities/device_functors.cuh>
-#include <cugraph/utilities/thrust_tuple_utils.cuh>
+#include <cugraph/utilities/thrust_tuple_utils.hpp>
 
 #include <raft/handle.hpp>
 #include <raft/span.hpp>
