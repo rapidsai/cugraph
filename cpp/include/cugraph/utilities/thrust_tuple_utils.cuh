@@ -15,14 +15,8 @@
  */
 #pragma once
 
-#include <raft/cudart_utils.h>
-#include <raft/device_atomics.cuh>
 #include <rmm/device_uvector.hpp>
 
-#include <thrust/iterator/detail/any_assign.h>
-#include <thrust/iterator/discard_iterator.h>
-#include <thrust/iterator/iterator_traits.h>
-#include <thrust/memory.h>
 #include <thrust/tuple.h>
 
 #include <array>
@@ -76,36 +70,6 @@ auto std_tuple_to_thrust_tuple(TupleType tup, std::index_sequence<Is...>)
   static_assert(std::tuple_size_v<TupleType> <= maximum_thrust_tuple_size);
   return thrust::make_tuple(std::get<Is>(tup)...);
 }
-
-template <typename T>
-__device__ std::enable_if_t<std::is_arithmetic<T>::value, void> atomic_accumulate_impl(
-  thrust::detail::any_assign& /* dereferencing thrust::discard_iterator results in this type */ lhs,
-  T const& rhs)
-{
-  // no-op
-}
-
-template <typename T>
-__device__ std::enable_if_t<std::is_arithmetic<T>::value, void> atomic_accumulate_impl(T& lhs,
-                                                                                       T const& rhs)
-{
-  atomicAdd(&lhs, rhs);
-}
-
-template <typename Iterator, typename TupleType, size_t I, size_t N>
-struct atomic_accumulate_thrust_tuple_impl {
-  __device__ constexpr void compute(Iterator iter, TupleType const& value) const
-  {
-    atomic_accumulate_impl(thrust::raw_reference_cast(thrust::get<I>(*iter)),
-                           thrust::get<I>(value));
-    atomic_accumulate_thrust_tuple_impl<Iterator, TupleType, I + 1, N>().compute(iter, value);
-  }
-};
-
-template <typename Iterator, typename TupleType, size_t I>
-struct atomic_accumulate_thrust_tuple_impl<Iterator, TupleType, I, I> {
-  __device__ constexpr void compute(Iterator iter, TupleType const& value) const {}
-};
 
 template <typename TupleType, std::size_t... Is>
 constexpr TupleType thrust_tuple_of_arithmetic_numeric_limits_lowest(TupleType t,
@@ -227,19 +191,6 @@ auto thrust_tuple_cat(TupleTypes... tups)
 {
   return std_tuple_to_thrust_tuple(std::tuple_cat(thrust_tuple_to_std_tuple(tups)...));
 }
-
-template <typename Iterator, typename TupleType>
-struct atomic_accumulate_thrust_tuple {
-  __device__ constexpr void operator()(Iterator iter, TupleType const& value) const
-  {
-    static_assert(
-      thrust::tuple_size<typename thrust::iterator_traits<Iterator>::value_type>::value ==
-      thrust::tuple_size<TupleType>::value);
-    size_t constexpr tuple_size = thrust::tuple_size<TupleType>::value;
-    detail::atomic_accumulate_thrust_tuple_impl<Iterator, TupleType, size_t{0}, tuple_size>()
-      .compute(iter, value);
-  }
-};
 
 template <typename TupleType>
 constexpr TupleType thrust_tuple_of_arithmetic_numeric_limits_lowest()

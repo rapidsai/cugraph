@@ -25,6 +25,7 @@
 #include <cub/cub.cuh>
 #include <thrust/detail/type_traits/iterator/is_discard_iterator.h>
 #include <thrust/functional.h>
+#include <thrust/iterator/detail/any_assign.h>
 #include <thrust/iterator/discard_iterator.h>
 #include <thrust/iterator/iterator_traits.h>
 #include <thrust/memory.h>
@@ -134,6 +135,36 @@ struct intersection_op_result_type<
                                            src_value_t,
                                            dst_value_t,
                                            raft::device_span<vertex_t const>>::type;
+};
+
+template <typename T>
+__device__ std::enable_if_t<std::is_arithmetic<T>::value, void> atomic_accumulate_impl(
+  thrust::detail::any_assign& /* dereferencing thrust::discard_iterator results in this type */ lhs,
+  T const& rhs)
+{
+  // no-op
+}
+
+template <typename T>
+__device__ std::enable_if_t<std::is_arithmetic<T>::value, void> atomic_accumulate_impl(T& lhs,
+                                                                                       T const& rhs)
+{
+  atomicAdd(&lhs, rhs);
+}
+
+template <typename Iterator, typename TupleType, size_t I, size_t N>
+struct atomic_accumulate_thrust_tuple_impl {
+  __device__ constexpr void compute(Iterator iter, TupleType const& value) const
+  {
+    atomic_accumulate_impl(thrust::raw_reference_cast(thrust::get<I>(*iter)),
+                           thrust::get<I>(value));
+    atomic_accumulate_thrust_tuple_impl<Iterator, TupleType, I + 1, N>().compute(iter, value);
+  }
+};
+
+template <typename Iterator, typename TupleType, size_t I>
+struct atomic_accumulate_thrust_tuple_impl<Iterator, TupleType, I, I> {
+  __device__ constexpr void compute(Iterator iter, TupleType const& value) const {}
 };
 
 }  // namespace detail
@@ -322,7 +353,9 @@ __device__
 {
   static_assert(thrust::tuple_size<typename thrust::iterator_traits<Iterator>::value_type>::value ==
                 thrust::tuple_size<T>::value);
-  atomic_accumulate_thrust_tuple<Iterator, T>()(iter, value);
+  size_t constexpr tuple_size = thrust::tuple_size<T>::value;
+  detail::atomic_accumulate_thrust_tuple_impl<Iterator, T, size_t{0}, tuple_size>().compute(iter,
+                                                                                            value);
 }
 
 }  // namespace cugraph
