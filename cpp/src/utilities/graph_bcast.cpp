@@ -16,7 +16,7 @@
 
 // Andrei Schaffer, aschaffer@nvidia.com
 //
-#include "graph_bcast.cuh"
+#include "graph_bcast.hpp"
 
 namespace cugraph {
 namespace broadcast {
