@@ -58,7 +58,7 @@ def pagerank(
         outgoing edge, standard value is 0.85.
         Thus, 1.0-alpha is the probability to “teleport” to a random vertex.
         Alpha should be greater than 0.0 and strictly lower than 1.0.
-    
+
     personalization : cudf.Dataframe, optional (default=None)
         GPU Dataframe containing the personalization information.
         (a performance optimization)
