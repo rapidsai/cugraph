@@ -121,8 +121,9 @@ def from_adjlist(offsets, indices, values=None, create_using=Graph):
 
     Examples
     --------
-    >>> from cugraph.experimental.datasets import karate
-    >>> pdf = karate.get_edgelist(fetch=True)
+    >>> pdf = pd.read_csv(datasets_path / 'karate.csv', delimiter=' ',
+    ...                   dtype={0:'int32', 1:'int32', 2:'float32'},
+    ...                   header=None)
     >>> M = scipy.sparse.coo_matrix((pdf[2],(pdf[0],pdf[1])))
     >>> M = M.tocsr()
     >>> offsets = pd.Series(M.indptr)
