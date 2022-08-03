@@ -16,6 +16,7 @@ import cugraph.dask as dcg
 import gc
 import cugraph
 import dask_cudf
+from cugraph.testing import utils
 import cudf
 # from cugraph.dask.common.mg_utils import is_single_gpu
 from cugraph.testing.utils import RAPIDS_DATASET_ROOT_DIR_PATH
@@ -148,3 +149,33 @@ def test_dask_pagerank(dask_client, personalization_perc, directed,
         if diff > tol * 1.1:
             err = err + 1
     assert err == 0
+
+
+def test_pagerank_invalid_personalization_dtype(dask_client):
+    input_data_path = (utils.RAPIDS_DATASET_ROOT_DIR_PATH /
+                       "karate.csv").as_posix()
+
+    chunksize = dcg.get_chunksize(input_data_path)
+    ddf = dask_cudf.read_csv(
+        input_data_path,
+        chunksize=chunksize,
+        delimiter=" ",
+        names=["src", "dst", "value"],
+        dtype=["int32", "int32", "float32"],
+    )
+
+    dg = cugraph.Graph(directed=True)
+    dg.from_dask_cudf_edgelist(
+        ddf, source='src', destination='dst',
+        edge_attr="value", renumber=True)
+
+    personalization_vec = cudf.DataFrame()
+    personalization_vec['vertex'] = [17, 26]
+    personalization_vec['values'] = [0.5, 0.75]
+    warning_msg = ("PageRank requires 'personalization' values to match the "
+                   "graph's 'edge_attr' type. edge_attr type is: "
+                   "float32 and got 'personalization' values "
+                   "of type: float64.")
+
+    with pytest.warns(UserWarning, match=warning_msg):
+        dcg.pagerank(dg, personalization=personalization_vec)

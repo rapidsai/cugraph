@@ -360,3 +360,29 @@ def test_pagerank_multi_column(
             err = err + 1
     print("Mismatches:", err)
     assert err < (0.01 * len(cugraph_pr))
+
+
+def test_pagerank_invalid_personalization_dtype():
+    input_data_path = (utils.RAPIDS_DATASET_ROOT_DIR_PATH /
+                       "karate.csv").as_posix()
+    M = utils.read_csv_for_nx(input_data_path)
+    G = cugraph.Graph(directed=True)
+    cu_M = cudf.DataFrame()
+    cu_M["src"] = cudf.Series(M["0"])
+    cu_M["dst"] = cudf.Series(M["1"])
+
+    cu_M["weights"] = cudf.Series(M["weight"])
+    G.from_cudf_edgelist(
+        cu_M, source="src", destination="dst", edge_attr="weights"
+    )
+
+    personalization_vec = cudf.DataFrame()
+    personalization_vec['vertex'] = [17, 26]
+    personalization_vec['values'] = [0.5, 0.75]
+    warning_msg = ("PageRank requires 'personalization' values to match the "
+                   "graph's 'edge_attr' type. edge_attr type is: "
+                   "float32 and got 'personalization' values "
+                   "of type: float64.")
+
+    with pytest.warns(UserWarning, match=warning_msg):
+        cugraph.pagerank(G, personalization=personalization_vec)
