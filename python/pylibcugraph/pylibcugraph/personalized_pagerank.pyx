@@ -79,12 +79,28 @@ def personalized_pagerank(ResourceHandle resource_handle,
         Handle to the underlying device resources needed for referencing data
         and running algorithms.
 
-    graph : SGGraph
+    graph : SGGraph or MGGraph
         The input graph.
 
-    precomputed_vertex_out_weight_sums : None
-        This parameter is unsupported in this release and only None is
-        accepted.
+    precomputed_vertex_out_weight_vertices: device array type
+        Subset of vertices of graph for precomputed_vertex_out_weight
+        (a performance optimization)
+
+    precomputed_vertex_out_weight_sums : device array type
+        Corresponding precomputed sum of outgoing vertices weight
+        (a performance optimization)
+    
+    initial_guess_vertices : device array type
+        Subset of vertices of graph for initial guess for pagerank values
+    
+    initial_guess_values : device array type
+        Pagerank values for vertices
+    
+    personalization_vertices : device array type
+        Subset of vertices of graph for personalization
+    
+    personalization_values : device array type
+        Personalization values for vertices
 
     alpha : float
         The damping factor alpha represents the probability to follow an

@@ -115,7 +115,7 @@ def pagerank(input_graph,
 
     Parameters
     ----------
-    input_graph : cugraph.DiGraph
+    input_graph : cugraph.Graph
         cuGraph graph descriptor, should contain the connectivity information
         as dask cudf edge list dataframe(edge weights are not used for this
         algorithm).
@@ -128,6 +128,7 @@ def pagerank(input_graph,
 
     personalization : cudf.Dataframe, optional (default=None)
         GPU Dataframe containing the personalization information.
+        (a performance optimization)
         personalization['vertex'] : cudf.Series
             Subset of vertices of graph for personalization
         personalization['values'] : cudf.Series
@@ -135,11 +136,12 @@ def pagerank(input_graph,
 
     precomputed_vertex_out_weight : cudf.Dataframe, optional (default=None)
         GPU Dataframe containing the precomputed vertex out weight
+        (a performance optimization)
         information.
         precomputed_vertex_out_weight['vertex'] : cudf.Series
-            Subset of vertices of graph for precomputed_vertex_out_weight
-        personalization['sums'] : cudf.Series
-            precomputed_vertex_out_weight sums for vertices
+            Subset of the graph's vertices for precomputed_vertex_out_weight
+        precomputed_vertex_out_weight['sums'] : cudf.Series
+            Corresponding precomputed sum of outgoing vertices weight
 
     max_iter : int, optional (default=100)
         The maximum number of iterations before an answer is returned. This can
@@ -159,24 +161,27 @@ def pagerank(input_graph,
 
     nstart : cudf.Dataframe, optional (default=None)
         GPU Dataframe containing the initial guess for pagerank.
+        (a performance optimization)
         nstart['vertex'] : cudf.Series
             Subset of vertices of graph for initial guess for pagerank values
         nstart['values'] : cudf.Series
             Pagerank values for vertices
-
-    weight: str, optional (default=None)
-        The attribute column to be used as edge weights if Graph is a NetworkX
-        Graph. This parameter is here for NetworkX compatibility and is ignored
-        in case of a cugraph.Graph
-
-    dangling : dict, optional (default=None)
-        This parameter is here for NetworkX compatibility and ignored
 
     Returns
     -------
     PageRank : dask_cudf.DataFrame
         GPU data frame containing two dask_cudf.Series of size V: the
         vertex identifiers and the corresponding PageRank values.
+
+        NOTE: if the input cugraph.Graph was created using the renumber=False
+        option of any of the from_*_edgelist() methods, pagerank assumes that
+        the vertices in the edgelist are contiguous and start from 0.
+        If the actual set of vertices in the edgelist is not
+        contiguous (has gaps) or does not start from zero, pagerank will assume
+        the "missing" vertices are isolated vertices in the graph, and will
+        compute and return pagerank values for each. If this is not the desired
+        behavior, ensure the input cugraph.Graph is created from the
+        from_*_edgelist() functions with the renumber=True option (the default)
 
         ddf['vertex'] : dask_cudf.Series
             Contains the vertex identifiers

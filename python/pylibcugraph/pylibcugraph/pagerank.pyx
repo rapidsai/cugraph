@@ -77,20 +77,30 @@ def pagerank(ResourceHandle resource_handle,
         Handle to the underlying device resources needed for referencing data
         and running algorithms.
 
-    graph : SGGraph
+    graph : SGGraph or MGGraph
         The input graph.
 
-    precomputed_vertex_out_weight_sums : None
-        This parameter is unsupported in this release and only None is
-        accepted.
+    precomputed_vertex_out_weight_vertices: device array type
+        Subset of vertices of graph for precomputed_vertex_out_weight
+        (a performance optimization)
 
-    alpha : float
+    precomputed_vertex_out_weight_sums : device array type
+        Corresponding precomputed sum of outgoing vertices weight
+        (a performance optimization)
+    
+    initial_guess_vertices : device array type
+        Subset of vertices of graph for initial guess for pagerank values
+    
+    initial_guess_values : device array type
+        Pagerank values for vertices
+
+    alpha : double
         The damping factor alpha represents the probability to follow an
         outgoing edge, standard value is 0.85.
         Thus, 1.0-alpha is the probability to “teleport” to a random vertex.
         Alpha should be greater than 0.0 and strictly lower than 1.0.
 
-    epsilon : float
+    epsilon : double
         Set the tolerance the approximation, this parameter should be a small
         magnitude value.
         The lower the tolerance the better the approximation. If this value is
@@ -99,7 +109,7 @@ def pagerank(ResourceHandle resource_handle,
         numerical roundoff. Usually values between 0.01 and 0.00001 are
         acceptable.
 
-    max_iterations : int
+    max_iterations : size_t
         The maximum number of iterations before an answer is returned. This can
         be used to limit the execution time and do an early exit before the
         solver reaches the convergence tolerance.

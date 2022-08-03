@@ -58,14 +58,22 @@ def pagerank(
         outgoing edge, standard value is 0.85.
         Thus, 1.0-alpha is the probability to “teleport” to a random vertex.
         Alpha should be greater than 0.0 and strictly lower than 1.0.
+    
+    personalization : cudf.Dataframe, optional (default=None)
+        GPU Dataframe containing the personalization information.
+        (a performance optimization)
+        personalization['vertex'] : cudf.Series
+            Subset of vertices of graph for personalization
+        personalization['values'] : cudf.Series
+            Personalization values for vertices
 
     precomputed_vertex_out_weight : cudf.Dataframe, optional (default=None)
         GPU Dataframe containing the precomputed vertex out weight
-        information.
+        information(a performance optimization).
         precomputed_vertex_out_weight['vertex'] : cudf.Series
             Subset of vertices of graph for precomputed_vertex_out_weight
-        personalization['sums'] : cudf.Series
-            precomputed_vertex_out_weight sums for vertices
+        precomputed_vertex_out_weight['sums'] : cudf.Series
+            Corresponding precomputed sum of outgoing vertices weight
 
     max_iter : int, optional (default=100)
         The maximum number of iterations before an answer is returned. This can
@@ -85,6 +93,7 @@ def pagerank(
 
     nstart : cudf.Dataframe, optional (default=None)
         GPU Dataframe containing the initial guess for pagerank.
+        (a performance optimization).
         nstart['vertex'] : cudf.Series
             Subset of vertices of graph for initial guess for pagerank values
         nstart['values'] : cudf.Series
@@ -103,6 +112,17 @@ def pagerank(
     PageRank : cudf.DataFrame
         GPU data frame containing two cudf.Series of size V: the vertex
         identifiers and the corresponding PageRank values.
+
+        NOTE: if the input cugraph.Graph was created using the renumber=False
+        option of any of the from_*_edgelist() methods, pagerank assumes that
+        the vertices in the edgelist are contiguous and start from 0.
+        If the actual set of vertices in the edgelist is not
+        contiguous (has gaps) or does not start from zero, pagerank will assume
+        the "missing" vertices are isolated vertices in the graph, and will
+        compute and return pagerank values for each. If this is not the desired
+        behavior, ensure the input cugraph.Graph is created from the
+        from_*_edgelist() functions with the renumber=True option (the default)
+
         df['vertex'] : cudf.Series
             Contains the vertex identifiers
         df['pagerank'] : cudf.Series
