@@ -16,8 +16,8 @@ dependencies:
 - libraft-headers=22.08.*
 - pyraft=22.08.*
 - cuda-python>=11.5,<11.7.1
-- dask>=2022.05.2
-- distributed>=2022.05.2
+- dask==2022.7.1
+- distributed==2022.7.1
 - dask-cuda=22.08.*
 - dask-cudf=22.08.*
 - nccl>=2.9.9

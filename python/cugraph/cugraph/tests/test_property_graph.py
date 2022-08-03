@@ -333,11 +333,10 @@ def test_add_vertex_data(df_type):
                        type_name="merchants",
                        vertex_col_name="merchant_id",
                        property_columns=None)
-
     assert pG.get_num_vertices() == 5
     assert pG.get_num_vertices('merchants') == 5
     assert pG.get_num_edges() == 0
-    expected_props = merchants[0].copy()
+    expected_props = set(merchants[0].copy()) - {'merchant_id'}
     assert sorted(pG.vertex_property_names) == sorted(expected_props)
 
 
@@ -564,6 +563,7 @@ def test_get_vertex_data(dataset1_PropertyGraph):
     for d in ["merchants", "users"]:
         for name in data[d][0]:
             expected_columns.add(name)
+    expected_columns -= {'merchant_id', 'user_id'}
     actual_columns = set(some_vertex_data.columns)
     assert actual_columns == expected_columns
 
@@ -620,6 +620,7 @@ def test_get_edge_data(dataset1_PropertyGraph):
     for d in ["transactions", "relationships", "referrals"]:
         for name in data[d][0]:
             expected_columns.add(name)
+    expected_columns -= {'user_id', 'user_id_1', 'user_id_2'}
 
     actual_columns = set(some_edge_data.columns)
 
@@ -755,8 +756,8 @@ def test_add_edge_data(df_type):
     assert pG.get_num_vertices('transactions') == 0
     assert pG.get_num_edges() == 4
     assert pG.get_num_edges('transactions') == 4
-    expected_props = ["merchant_id", "user_id",
-                      "volume", "time", "card_num", "card_type"]
+    # Original SRC and DST columns no longer include "merchant_id", "user_id"
+    expected_props = ["volume", "time", "card_num", "card_type"]
     assert sorted(pG.edge_property_names) == sorted(expected_props)
 
 
@@ -928,8 +929,9 @@ def test_extract_subgraph_specific_query(dataset1_PropertyGraph):
     (pG, data) = dataset1_PropertyGraph
     tcn = PropertyGraph.type_col_name
 
+    # _DST_ below used to be referred to as merchant_id
     selection = pG.select_edges(f"({tcn}=='transactions') & "
-                                "(merchant_id==4) & "
+                                "(_DST_==4) & "
                                 "(time>1639085000)")
     G = pG.extract_subgraph(selection=selection,
                             create_using=DiGraph_inst,
@@ -1023,7 +1025,13 @@ def test_extract_subgraph_no_edges(dataset1_PropertyGraph):
     """
     (pG, data) = dataset1_PropertyGraph
 
-    selection = pG.select_vertices("(_TYPE_=='merchants') & (merchant_id==86)")
+    # "merchant_id" column is no longer saved; use as "_VERTEX_"
+    with pytest.raises(NameError, match="merchant_id"):
+        selection = pG.select_vertices(
+            "(_TYPE_=='merchants') & (merchant_id==86)"
+        )
+
+    selection = pG.select_vertices("(_TYPE_=='merchants') & (_VERTEX_==86)")
     G = pG.extract_subgraph(selection=selection)
     assert G.is_directed()
 
@@ -1360,13 +1368,14 @@ def test_property_names_attrs(dataset1_PropertyGraph):
     """
     (pG, data) = dataset1_PropertyGraph
 
-    expected_vert_prop_names = ["merchant_id", "merchant_location",
-                                "merchant_size", "merchant_sales",
-                                "merchant_num_employees", "merchant_name",
-                                "user_id", "user_location", "vertical"]
-    expected_edge_prop_names = ["user_id", "merchant_id", "volume", "time",
-                                "card_num", "card_type", "user_id_1",
-                                "user_id_2", "relationship_type", "stars"]
+    # _VERTEX_ columns: "merchant_id", "user_id"
+    expected_vert_prop_names = ["merchant_location", "merchant_size",
+                                "merchant_sales", "merchant_num_employees",
+                                "user_location", "merchant_name", "vertical"]
+    # _SRC_ and _DST_ columns: "user_id", "user_id_1", "user_id_2"
+    # Note that "merchant_id" is a property in for type "transactions"
+    expected_edge_prop_names = ["merchant_id", "volume", "time", "card_num",
+                                "card_type", "relationship_type", "stars"]
 
     # Extracting a subgraph with weights has/had a side-effect of adding a
     # weight column, so call extract_subgraph() to ensure the internal weight
