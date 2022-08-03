@@ -132,12 +132,22 @@ def networkx_call(Gnx, max_iter, tol, alpha, personalization_perc, nnz_vtx):
     return pr, personalization
 
 
+# =============================================================================
+# Parameters
+# =============================================================================
 MAX_ITERATIONS = [500]
 TOLERANCE = [1.0e-06]
 ALPHA = [0.85]
 PERSONALIZATION_PERC = [0, 10, 50]
 HAS_GUESS = [0, 1]
 HAS_PRECOMPUTED = [0, 1]
+
+
+# =============================================================================
+# Pytest Setup / Teardown - called for each test function
+# =============================================================================
+def setup_function():
+    gc.collect()
 
 
 # FIXME: the default set of datasets includes an asymmetric directed graph
@@ -160,7 +170,6 @@ def test_pagerank(
     graph_file, max_iter, tol, alpha, personalization_perc, has_guess,
     has_precomputed_vertex_out_weight
 ):
-    gc.collect()
 
     # NetworkX PageRank
     M = utils.read_csv_for_nx(graph_file)
@@ -221,7 +230,6 @@ def test_pagerank(
 def test_pagerank_nx(
     graph_file, max_iter, tol, alpha, personalization_perc, has_guess
 ):
-    gc.collect()
 
     # NetworkX PageRank
     M = utils.read_csv_for_nx(graph_file)
@@ -271,7 +279,6 @@ def test_pagerank_multi_column(
     graph_file, max_iter, tol, alpha, personalization_perc, has_guess,
     has_precomputed_vertex_out_weight
 ):
-    gc.collect()
 
     # NetworkX PageRank
     M = utils.read_csv_for_nx(graph_file)

@@ -47,10 +47,20 @@ def personalize(vertices, personalization_perc):
     return cu_personalization, personalization
 
 
+# =============================================================================
+# Parameters
+# =============================================================================
 PERSONALIZATION_PERC = [0, 10, 50]
 IS_DIRECTED = [True, False]
 HAS_GUESS = [0, 1]
 HAS_PRECOMPUTED = [0, 1]
+
+
+# =============================================================================
+# Pytest Setup / Teardown - called for each test function
+# =============================================================================
+def setup_function():
+    gc.collect()
 
 
 # @pytest.mark.skipif(
@@ -62,7 +72,6 @@ HAS_PRECOMPUTED = [0, 1]
 @pytest.mark.parametrize("has_guess", HAS_GUESS)
 def test_dask_pagerank(dask_client, personalization_perc, directed,
                        has_precomputed_vertex_out_weight, has_guess):
-    gc.collect()
 
     input_data_path = (RAPIDS_DATASET_ROOT_DIR_PATH /
                        "karate.csv").as_posix()
