@@ -27,28 +27,59 @@ from pylibcugraph._cugraph_c.array cimport (
     cugraph_type_erased_device_array_view_free,
 )
 
+from pylibcugraph._cugraph_c.error cimport (
+    cugraph_error_message,
+    cugraph_error_free
+)
+
 # FIXME: add tests for this
 cdef assert_success(cugraph_error_code_t code,
                     cugraph_error_t* err,
                     api_name):
     if code != cugraph_error_code_t.CUGRAPH_SUCCESS:
+        c_error = cugraph_error_message(err)
+        if isinstance(c_error, bytes):
+            c_error = c_error.decode()
+        else:
+            c_error = str(c_error)
+        
+        cugraph_error_free(err)
+
         if code == cugraph_error_code_t.CUGRAPH_UNKNOWN_ERROR:
             code_str = "CUGRAPH_UNKNOWN_ERROR"
+            error_msg = f"non-success value returned from {api_name}: {code_str} "\
+                        f"{c_error}"
+            raise RuntimeError(error_msg)
         elif code == cugraph_error_code_t.CUGRAPH_INVALID_HANDLE:
             code_str = "CUGRAPH_INVALID_HANDLE"
+            error_msg = f"non-success value returned from {api_name}: {code_str} "\
+                        f"{c_error}"
+            raise ValueError(error_msg)
         elif code == cugraph_error_code_t.CUGRAPH_ALLOC_ERROR:
             code_str = "CUGRAPH_ALLOC_ERROR"
+            error_msg = f"non-success value returned from {api_name}: {code_str} "\
+                        f"{c_error}"
+            raise MemoryError(error_msg)
         elif code == cugraph_error_code_t.CUGRAPH_INVALID_INPUT:
             code_str = "CUGRAPH_INVALID_INPUT"
+            error_msg = f"non-success value returned from {api_name}: {code_str} "\
+                        f"{c_error}"
+            raise ValueError(error_msg)
         elif code == cugraph_error_code_t.CUGRAPH_NOT_IMPLEMENTED:
             code_str = "CUGRAPH_NOT_IMPLEMENTED"
+            error_msg = f"non-success value returned from {api_name}: {code_str}\ "\
+                        f"{c_error}"
+            raise NotImplementedError(error_msg)
         elif code == cugraph_error_code_t.CUGRAPH_UNSUPPORTED_TYPE_COMBINATION:
             code_str = "CUGRAPH_UNSUPPORTED_TYPE_COMBINATION"
+            error_msg = f"non-success value returned from {api_name}: {code_str} "\
+                        f"{c_error}"
+            raise ValueError(error_msg)
         else:
             code_str = "unknown error code"
-        # FIXME: extract message using cugraph_error_message()
-        # FIXME: If error_ptr has a value, free it using cugraph_error_free()
-        raise RuntimeError(f"non-success value returned from {api_name}: {code_str}")
+            error_msg = f"non-success value returned from {api_name}: {code_str} "\
+                        f"{c_error}"
+            raise RuntimeError(error_msg)
 
 
 cdef assert_CAI_type(obj, var_name, allow_None=False):
