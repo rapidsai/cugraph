@@ -41,7 +41,7 @@ def ensure_valid_dtype(input_graph, input_df, input_df_name):
         edge_attr_dtype = np.float32
     else:
         edge_attr_dtype = input_graph.edgelist.edgelist_df["weights"].dtype
-    
+
     input_df_dtype = input_df["values"].dtype
     if input_df_dtype != edge_attr_dtype:
         warning_msg = (f"PageRank requires '{input_df_name}' values "
@@ -52,7 +52,7 @@ def ensure_valid_dtype(input_graph, input_df, input_df_name):
         warnings.warn(warning_msg, UserWarning)
         input_df = input_df.astype(
             {"values": edge_attr_dtype})
-        
+
     return input_df
 
 
@@ -192,7 +192,7 @@ def pagerank(
         if G.renumbered is True:
             personalization = renumber_vertices(
                 G, personalization)
-            
+
             personalization = ensure_valid_dtype(
                 G, personalization, "personalization")
 

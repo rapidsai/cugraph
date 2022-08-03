@@ -44,7 +44,7 @@ def ensure_valid_dtype(input_graph, input_df, input_df_name):
         edge_attr_dtype = np.float64
     else:
         edge_attr_dtype = input_graph.input_df["value"].dtype
-    
+
     input_df_dtype = input_df["values"].dtype
     if input_df_dtype != edge_attr_dtype:
         warning_msg = (f"PageRank requires '{input_df_name}' values "
@@ -55,7 +55,7 @@ def ensure_valid_dtype(input_graph, input_df, input_df_name):
         warnings.warn(warning_msg, UserWarning)
         input_df = input_df.astype(
             {"values": edge_attr_dtype})
-        
+
     return input_df
 
 
