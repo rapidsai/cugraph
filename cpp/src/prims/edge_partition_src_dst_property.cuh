@@ -16,7 +16,7 @@
 
 #pragma once
 
-#include <cugraph/utilities/dataframe_buffer.cuh>
+#include <cugraph/utilities/dataframe_buffer.hpp>
 #include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/thrust_tuple_utils.hpp>
 

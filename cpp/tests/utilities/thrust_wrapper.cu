@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#include <cugraph/utilities/dataframe_buffer.cuh>
+#include <cugraph/utilities/dataframe_buffer.hpp>
 #include <utilities/thrust_wrapper.hpp>
 
 #include <raft/handle.hpp>

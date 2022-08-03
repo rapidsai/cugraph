@@ -20,8 +20,8 @@
 
 #include <cugraph/serialization/serializer.hpp>
 
-#include <cugraph/utilities/device_comm.cuh>
-#include <cugraph/utilities/host_scalar_comm.cuh>
+#include <cugraph/utilities/device_comm.hpp>
+#include <cugraph/utilities/host_scalar_comm.hpp>
 
 #include <thrust/tuple.h>
 
