@@ -139,7 +139,7 @@ def pagerank(input_graph,
         (a performance optimization)
         information.
         precomputed_vertex_out_weight['vertex'] : cudf.Series
-            Subset of the graph's vertices for precomputed_vertex_out_weight
+            Subset of vertices of graph for precomputed_vertex_out_weight
         precomputed_vertex_out_weight['sums'] : cudf.Series
             Corresponding precomputed sum of outgoing vertices weight
 

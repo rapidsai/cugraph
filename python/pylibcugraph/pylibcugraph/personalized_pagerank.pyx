@@ -92,23 +92,27 @@ def personalized_pagerank(ResourceHandle resource_handle,
     
     initial_guess_vertices : device array type
         Subset of vertices of graph for initial guess for pagerank values
+        (a performance optimization)
     
     initial_guess_values : device array type
         Pagerank values for vertices
+        (a performance optimization)
     
     personalization_vertices : device array type
         Subset of vertices of graph for personalization
+        (a performance optimization)
     
     personalization_values : device array type
         Personalization values for vertices
+        (a performance optimization)
 
-    alpha : float
+    alpha : double
         The damping factor alpha represents the probability to follow an
         outgoing edge, standard value is 0.85.
         Thus, 1.0-alpha is the probability to “teleport” to a random vertex.
         Alpha should be greater than 0.0 and strictly lower than 1.0.
 
-    epsilon : float
+    epsilon : double
         Set the tolerance the approximation, this parameter should be a small
         magnitude value.
         The lower the tolerance the better the approximation. If this value is
@@ -117,14 +121,14 @@ def personalized_pagerank(ResourceHandle resource_handle,
         numerical roundoff. Usually values between 0.01 and 0.00001 are
         acceptable.
 
-    max_iterations : int
+    max_iterations : size_t
         The maximum number of iterations before an answer is returned. This can
         be used to limit the execution time and do an early exit before the
         solver reaches the convergence tolerance.
         If this value is lower or equal to 0 cuGraph will use the default
         value, which is 100.
 
-    do_expensive_check : bool
+    do_expensive_check : bool_t
         If True, performs more extensive tests on the inputs to ensure
         validitity, at the expense of increased run time.
 

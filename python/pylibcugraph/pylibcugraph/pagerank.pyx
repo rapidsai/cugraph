@@ -87,12 +87,14 @@ def pagerank(ResourceHandle resource_handle,
     precomputed_vertex_out_weight_sums : device array type
         Corresponding precomputed sum of outgoing vertices weight
         (a performance optimization)
-    
+
     initial_guess_vertices : device array type
         Subset of vertices of graph for initial guess for pagerank values
-    
+        (a performance optimization)
+
     initial_guess_values : device array type
         Pagerank values for vertices
+        (a performance optimization)
 
     alpha : double
         The damping factor alpha represents the probability to follow an
@@ -116,7 +118,7 @@ def pagerank(ResourceHandle resource_handle,
         If this value is lower or equal to 0 cuGraph will use the default
         value, which is 100.
 
-    do_expensive_check : bool
+    do_expensive_check : bool_t
         If True, performs more extensive tests on the inputs to ensure
         validitity, at the expense of increased run time.
 
