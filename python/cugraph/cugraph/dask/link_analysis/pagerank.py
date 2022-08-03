@@ -39,6 +39,8 @@ def convert_to_cudf(cp_arrays):
     return df
 
 
+# FIXME: Move this function to the utility module so that it can be
+# shared by other algos
 def ensure_valid_dtype(input_graph, input_df, input_df_name):
     if input_graph.properties.weighted is False:
         edge_attr_dtype = np.float64
