@@ -92,10 +92,8 @@ def minimum_spanning_tree(
 
     Examples
     --------
-    >>> M = cudf.read_csv(datasets_path / 'netscience.csv', delimiter=' ',
-    ...                   dtype=['int32', 'int32', 'float32'], header=None)
-    >>> G = cugraph.Graph()
-    >>> G.from_cudf_edgelist(M, source='0', destination='1')
+    >>> from cugraph.experimental.datasets import netscience
+    >>> G = netscience.get_graph(fetch=True)
     >>> G_mst = cugraph.minimum_spanning_tree(G)
 
     """
@@ -139,10 +137,8 @@ def maximum_spanning_tree(
 
     Examples
     --------
-    >>> M = cudf.read_csv(datasets_path / 'netscience.csv', delimiter=' ',
-    ...                   dtype=['int32', 'int32', 'float32'], header=None)
-    >>> G = cugraph.Graph()
-    >>> G.from_cudf_edgelist(M, source='0', destination='1')
+    >>> from cugraph.experimental.datasets import netscience
+    >>> G = netscience.get_graph(fetch=True)
     >>> G_mst = cugraph.maximum_spanning_tree(G)
 
     """
