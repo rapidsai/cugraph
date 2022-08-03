@@ -183,7 +183,7 @@ def test_pagerank(
 
     # cuGraph PageRank
     cu_M = utils.read_csv_file(graph_file)
-    G = cugraph.DiGraph()
+    G = cugraph.Graph(directed=True)
     G.from_cudf_edgelist(
         cu_M, source="0", destination="1", edge_attr="2",
         legacy_renum_only=True)
@@ -312,7 +312,7 @@ def test_pagerank_multi_column(
     cu_M["dst_1"] = cu_M["dst_0"] + 1000
     cu_M["weights"] = cudf.Series(M["weight"])
 
-    cu_G = cugraph.DiGraph()
+    cu_G = cugraph.Graph(directed=True)
     cu_G.from_cudf_edgelist(cu_M, source=["src_0", "src_1"],
                             destination=["dst_0", "dst_1"],
                             edge_attr="weights")
