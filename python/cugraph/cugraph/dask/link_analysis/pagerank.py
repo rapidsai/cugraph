@@ -105,8 +105,7 @@ def _call_plc_personalized_pagerank(sID,
 def pagerank(input_graph,
              alpha=0.85, personalization=None,
              precomputed_vertex_out_weight=None,
-             max_iter=100, tol=1.0e-5, nstart=None, weight=None,
-             dangling=None):
+             max_iter=100, tol=1.0e-5, nstart=None):
     """
     Find the PageRank values for each vertex in a graph using multiple GPUs.
     cuGraph computes an approximation of the Pagerank using the power method.
