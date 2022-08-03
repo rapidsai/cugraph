@@ -98,8 +98,8 @@ def jaccard(input_graph, vertex_pair=None):
 
     Examples
     --------
-    >>> from cugraph.experimental.datasets import karate_undirected
-    >>> G = karate_undirected.get_graph(fetch=True)
+    >>> from cugraph.experimental.datasets import karate
+    >>> G = karate.get_graph(fetch=True)
     >>> df = cugraph.jaccard(G)
 
     """
@@ -158,8 +158,8 @@ def jaccard_coefficient(G, ebunch=None):
 
     Examples
     --------
-    >>> from cugraph.experimental.datasets import karate_undirected
-    >>> G = karate_undirected.get_graph(fetch=True)
+    >>> from cugraph.experimental.datasets import karate
+    >>> G = karate.get_graph(fetch=True)
     >>> df = cugraph.jaccard_coefficient(G)
 
     """
