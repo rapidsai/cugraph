@@ -240,7 +240,7 @@ def sssp(G,
     --------
     >>> from cugraph.experimental.datasets import karate
     >>> G = karate.get_graph(fetch=True)
-    >>> distances = cugraph.sssp(G, 1)
+    >>> distances = cugraph.sssp(G, 0)
     >>> distances
             distance  vertex  predecessor
     ...       ...     ...         ...
