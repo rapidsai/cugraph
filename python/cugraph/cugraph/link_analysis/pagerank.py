@@ -15,6 +15,8 @@ from cugraph.utilities import (ensure_cugraph_obj_for_nx,
                                df_score_to_dictionary,
                                )
 import cudf
+import numpy as np
+import warnings
 
 from pylibcugraph import (pagerank as pylibcugraph_pagerank,
                           personalized_pagerank as pylibcugraph_p_pagerank,
@@ -34,6 +36,26 @@ def renumber_vertices(input_graph, input_df):
     return input_df
 
 
+def ensure_valid_dtype(input_graph, input_df, input_df_name):
+    if input_graph.edgelist.weights is False:
+        edge_attr_dtype = np.float32
+    else:
+        edge_attr_dtype = input_graph.edgelist.edgelist_df["weights"].dtype
+    
+    input_df_dtype = input_df["values"].dtype
+    if input_df_dtype != edge_attr_dtype:
+        warning_msg = (f"PageRank requires '{input_df_name}' values "
+                       "to match the graph's 'edge_attr' type. "
+                       f"edge_attr type is: {edge_attr_dtype} and got "
+                       f"'{input_df_name}' values of type: "
+                       f"{input_df_dtype}.")
+        warnings.warn(warning_msg, UserWarning)
+        input_df = input_df.astype(
+            {"values": edge_attr_dtype})
+        
+    return input_df
+
+
 def pagerank(
     G, alpha=0.85, personalization=None,
     precomputed_vertex_out_weight=None,
@@ -46,7 +68,7 @@ def pagerank(
     increases when the tolerance descreases and/or alpha increases toward the
     limiting value of 1. The user is free to use default values or to provide
     inputs for the initial guess, tolerance and maximum number of iterations.
-    Parameters
+    Parameters. All edges will have an edge_attr value of 1.0 if not provided.
     ----------
     G : cugraph.Graph or networkx.Graph
         cuGraph graph descriptor, should contain the connectivity information
@@ -141,12 +163,14 @@ def pagerank(
     pre_vtx_o_wgt_vertices = None
     pre_vtx_o_wgt_sums = None
 
-    G, isNx = ensure_cugraph_obj_for_nx(G)
+    G, isNx = ensure_cugraph_obj_for_nx(G, weight)
     do_expensive_check = False
 
     if nstart is not None:
         if G.renumbered is True:
             nstart = renumber_vertices(G, nstart)
+        nstart = ensure_valid_dtype(
+                G, nstart, "nstart")
         initial_guess_vertices = nstart["vertex"]
         initial_guess_values = nstart["values"]
 
@@ -168,6 +192,9 @@ def pagerank(
         if G.renumbered is True:
             personalization = renumber_vertices(
                 G, personalization)
+            
+            personalization = ensure_valid_dtype(
+                G, personalization, "personalization")
 
         vertex, pagerank_values = \
             pylibcugraph_p_pagerank(

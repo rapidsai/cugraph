@@ -17,6 +17,8 @@ from dask.distributed import wait
 import cugraph.dask.comms.comms as Comms
 import dask_cudf
 import cudf
+import numpy as np
+import warnings
 from cugraph.dask.common.input_utils import get_distributed_data
 
 from pylibcugraph import (ResourceHandle,
@@ -35,6 +37,26 @@ def convert_to_cudf(cp_arrays):
     df["pagerank"] = cupy_pagerank
 
     return df
+
+
+def ensure_valid_dtype(input_graph, input_df, input_df_name):
+    if input_graph.properties.weighted is False:
+        edge_attr_dtype = np.float64
+    else:
+        edge_attr_dtype = input_graph.input_df["value"].dtype
+    
+    input_df_dtype = input_df["values"].dtype
+    if input_df_dtype != edge_attr_dtype:
+        warning_msg = (f"PageRank requires '{input_df_name}' values "
+                       "to match the graph's 'edge_attr' type. "
+                       f"edge_attr type is: {edge_attr_dtype} and got "
+                       f"'{input_df_name}' values of type: "
+                       f"{input_df_dtype}.")
+        warnings.warn(warning_msg, UserWarning)
+        input_df = input_df.astype(
+            {"values": edge_attr_dtype})
+        
+    return input_df
 
 
 def renumber_vertices(input_graph, input_df):
@@ -111,6 +133,7 @@ def pagerank(input_graph,
     cuGraph computes an approximation of the Pagerank using the power method.
     The input graph must contain edge list as  dask-cudf dataframe with
     one partition per GPU.
+    All edges will have an edge_attr value of 1.0 if not provided.
 
     Parameters
     ----------
@@ -230,12 +253,16 @@ def pagerank(input_graph,
     if nstart is not None:
         if input_graph.renumbered is True:
             nstart = renumber_vertices(input_graph, nstart)
-            initial_guess_vertices = nstart["vertex"]
-            initial_guess_values = nstart["values"]
+        nstart = ensure_valid_dtype(
+            input_graph, nstart, "nstart")
+        initial_guess_vertices = nstart["vertex"]
+        initial_guess_values = nstart["values"]
 
     if personalization is not None:
         if input_graph.renumbered is True:
             personalization = renumber_vertices(input_graph, personalization)
+        personalization = ensure_valid_dtype(
+            input_graph, personalization, "personalization")
 
         personalization_ddf = dask_cudf.from_cudf(
             personalization, npartitions=len(Comms.get_workers()))
