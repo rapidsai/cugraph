@@ -85,8 +85,6 @@ def k_core(G, k=None, core_number=None):
     mytype = type(G)
     KCoreGraph = mytype()
 
-    if mytype is not Graph:
-        raise TypeError(f"G must be a Graph, got {mytype}")
     if G.is_directed():
         raise ValueError("G must be an undirected Graph instance")
 
