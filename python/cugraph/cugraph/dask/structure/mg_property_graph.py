@@ -358,7 +358,7 @@ class EXPERIMENTAL__MGPropertyGraph:
         if vertex_col_name not in dataframe.columns:
             raise ValueError(f"{vertex_col_name} is not a column in "
                              f"dataframe: {dataframe.columns}")
-        if (type_name is not None) and not(isinstance(type_name, str)):
+        if (type_name is not None) and not isinstance(type_name, str):
             raise TypeError("type_name must be a string, got: "
                             f"{type(type_name)}")
         if type_name is None:
@@ -507,7 +507,7 @@ class EXPERIMENTAL__MGPropertyGraph:
         if invalid_columns:
             raise ValueError("vertex_col_names contains column(s) not found "
                              f"in dataframe: {list(invalid_columns)}")
-        if (type_name is not None) and not(isinstance(type_name, str)):
+        if (type_name is not None) and not isinstance(type_name, str):
             raise TypeError("type_name must be a string, got: "
                             f"{type(type_name)}")
         if type_name is None:
@@ -736,7 +736,7 @@ class EXPERIMENTAL__MGPropertyGraph:
         # If vertices were specified, select only the edges that contain the
         # selected verts in both src and dst
         if (selected_vertex_dataframe is not None) and \
-           not(selected_vertex_dataframe.empty):
+           not selected_vertex_dataframe.empty:
             selected_verts = selected_vertex_dataframe[self.vertex_col_name]
             has_srcs = selected_edge_dataframe[self.src_col_name]\
                 .isin(selected_verts)
