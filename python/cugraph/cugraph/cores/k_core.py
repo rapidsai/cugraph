@@ -19,7 +19,6 @@ from pylibcugraph import (core_number as pylibcugraph_core_number,
 from cugraph.utilities import (ensure_cugraph_obj_for_nx,
                                cugraph_to_nx,
                                )
-from cugraph.structure.graph_classes import Graph
 
 
 def _call_plc_core_number(G):
