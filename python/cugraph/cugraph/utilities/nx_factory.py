@@ -1,4 +1,4 @@
-# Copyright (c) 2020-2021, NVIDIA CORPORATION.
+# Copyright (c) 2020-2022, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -51,6 +51,9 @@ def convert_weighted_named_to_gdf(NX_G, weight):
     _gdf['src'] = src
     _gdf['dst'] = dst
     _gdf['weight'] = wt
+
+    # FIXME: The weight dtype is hardcoded.
+    _gdf = _gdf.astype({'weight': 'float32'})
 
     return _gdf
 

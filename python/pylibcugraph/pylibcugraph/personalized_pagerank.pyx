@@ -34,7 +34,7 @@ from pylibcugraph._cugraph_c.graph cimport (
 )
 from pylibcugraph._cugraph_c.centrality_algorithms cimport (
     cugraph_centrality_result_t,
-    cugraph_pagerank,
+    cugraph_personalized_pagerank,
     cugraph_centrality_result_get_vertices,
     cugraph_centrality_result_get_values,
     cugraph_centrality_result_free,
@@ -54,16 +54,18 @@ from pylibcugraph.utils cimport (
 )
 
 
-def pagerank(ResourceHandle resource_handle,
-            _GPUGraph graph,
-            precomputed_vertex_out_weight_vertices,
-            precomputed_vertex_out_weight_sums,
-            initial_guess_vertices,
-            initial_guess_values,
-            double alpha,
-            double epsilon,
-            size_t max_iterations,
-            bool_t do_expensive_check):
+def personalized_pagerank(ResourceHandle resource_handle,
+                          _GPUGraph graph,
+                          precomputed_vertex_out_weight_vertices,
+                          precomputed_vertex_out_weight_sums,
+                          initial_guess_vertices,
+                          initial_guess_values,
+                          personalization_vertices,
+                          personalization_values,
+                          double alpha,
+                          double epsilon,
+                          size_t max_iterations,
+                          bool_t do_expensive_check):
     """
     Find the PageRank score for every vertex in a graph by computing an
     approximation of the Pagerank eigenvector using the power method. The
@@ -87,13 +89,21 @@ def pagerank(ResourceHandle resource_handle,
     precomputed_vertex_out_weight_sums : device array type
         Corresponding precomputed sum of outgoing vertices weight
         (a performance optimization)
-
+    
     initial_guess_vertices : device array type
         Subset of vertices of graph for initial guess for pagerank values
         (a performance optimization)
-
+    
     initial_guess_values : device array type
         Pagerank values for vertices
+        (a performance optimization)
+    
+    personalization_vertices : device array type
+        Subset of vertices of graph for personalization
+        (a performance optimization)
+    
+    personalization_values : device array type
+        Personalization values for vertices
         (a performance optimization)
 
     alpha : double
@@ -136,19 +146,25 @@ def pagerank(ResourceHandle resource_handle,
     >>> srcs = cupy.asarray([0, 1, 2], dtype=numpy.int32)
     >>> dsts = cupy.asarray([1, 2, 3], dtype=numpy.int32)
     >>> weights = cupy.asarray([1.0, 1.0, 1.0], dtype=numpy.float32)
+    >>> personalization_vertices = cupy.asarray([0, 2], dtype=numpy.int32)
+    >>> personalization_values = cupy.asarray(
+    ...     [0.008309, 0.991691], dtype=numpy.float32)
     >>> resource_handle = pylibcugraph.ResourceHandle()
     >>> graph_props = pylibcugraph.GraphProperties(
     ...     is_symmetric=False, is_multigraph=False)
     >>> G = pylibcugraph.SGGraph(
     ...     resource_handle, graph_props, srcs, dsts, weights,
     ...     store_transposed=True, renumber=False, do_expensive_check=False)
-    >>> (vertices, pageranks) = pylibcugraph.pagerank(
+    >>> (vertices, pageranks) = pylibcugraph.personalized_pagerank(
     ...     resource_handle, G, None, None, None, None, alpha=0.85,
-    ...     epsilon=1.0e-6, max_iterations=500, do_expensive_check=False)
+    ...     personalization_vertices=personalization_vertices,
+    ...     personalization_values=personalization_values, epsilon=1.0e-6,
+    ...     max_iterations=500,
+    ...     do_expensive_check=False)
     >>> vertices
     array([0, 1, 2, 3], dtype=int32)
     >>> pageranks
-    array([0.11615585, 0.21488841, 0.2988108 , 0.3701449 ], dtype=float32)
+    array([0.00446455, 0.00379487, 0.53607565, 0.45566472 ], dtype=float32)
     """
 
     # FIXME: import these modules here for now until a better pattern can be
@@ -190,24 +206,36 @@ def pagerank(ResourceHandle resource_handle,
         precomputed_vertex_out_weight_sums_ptr = \
             create_cugraph_type_erased_device_array_view_from_py_obj(
                 precomputed_vertex_out_weight_sums)
+    
+    cdef cugraph_type_erased_device_array_view_t* \
+        personalization_vertices_view_ptr = \
+            create_cugraph_type_erased_device_array_view_from_py_obj(
+                personalization_vertices)
+    
+    cdef cugraph_type_erased_device_array_view_t* \
+        personalization_values_view_ptr = \
+            create_cugraph_type_erased_device_array_view_from_py_obj(
+                personalization_values)
 
     cdef cugraph_centrality_result_t* result_ptr
     cdef cugraph_error_code_t error_code
     cdef cugraph_error_t* error_ptr
 
-    error_code = cugraph_pagerank(c_resource_handle_ptr,
-                                  c_graph_ptr,
-                                  precomputed_vertex_out_weight_vertices_ptr,
-                                  precomputed_vertex_out_weight_sums_ptr,
-                                  initial_guess_vertices_view_ptr,
-                                  initial_guess_values_view_ptr,
-                                  alpha,
-                                  epsilon,
-                                  max_iterations,
-                                  do_expensive_check,
-                                  &result_ptr,
-                                  &error_ptr)
-    assert_success(error_code, error_ptr, "cugraph_pagerank")
+    error_code = cugraph_personalized_pagerank(c_resource_handle_ptr,
+                                               c_graph_ptr,
+                                               precomputed_vertex_out_weight_vertices_ptr,
+                                               precomputed_vertex_out_weight_sums_ptr,
+                                               initial_guess_vertices_view_ptr,
+                                               initial_guess_values_view_ptr,
+                                               personalization_vertices_view_ptr,
+                                               personalization_values_view_ptr,
+                                               alpha,
+                                               epsilon,
+                                               max_iterations,
+                                               do_expensive_check,
+                                               &result_ptr,
+                                               &error_ptr)
+    assert_success(error_code, error_ptr, "cugraph_personalized_pagerank")
 
     # Extract individual device array pointers from result and copy to cupy
     # arrays for returning.

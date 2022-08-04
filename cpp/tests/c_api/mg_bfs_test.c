@@ -25,8 +25,7 @@ typedef int32_t vertex_t;
 typedef int32_t edge_t;
 typedef float weight_t;
 
-int generic_bfs_test(
-                     const cugraph_resource_handle_t* p_handle,
+int generic_bfs_test(const cugraph_resource_handle_t* p_handle,
                      vertex_t* h_src,
                      vertex_t* h_dst,
                      weight_t* h_wgt,
@@ -37,15 +36,16 @@ int generic_bfs_test(
                      size_t num_edges,
                      size_t num_seeds,
                      size_t depth_limit,
-                     bool_t store_transposed) {
+                     bool_t store_transposed)
+{
   int test_ret_value = 0;
 
   cugraph_error_code_t ret_code = CUGRAPH_SUCCESS;
   cugraph_error_t* ret_error;
 
-  cugraph_graph_t* p_graph = NULL;
-  cugraph_paths_result_t* paths_result = NULL;
-  cugraph_type_erased_device_array_t* p_sources = NULL;
+  cugraph_graph_t* p_graph                               = NULL;
+  cugraph_paths_result_t* paths_result                   = NULL;
+  cugraph_type_erased_device_array_t* p_sources          = NULL;
   cugraph_type_erased_device_array_view_t* p_source_view = NULL;
 
   ret_code =
@@ -63,16 +63,9 @@ int generic_bfs_test(
 
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "create_mg_test_graph failed.");
 
-  ret_code = cugraph_bfs(p_handle,
-                         p_graph,
-                         p_source_view,
-                         FALSE,
-                         10000000,
-                         TRUE,
-                         TRUE,
-                         &paths_result,
-                         &ret_error);
-                         
+  ret_code = cugraph_bfs(
+    p_handle, p_graph, p_source_view, FALSE, 10000000, TRUE, TRUE, &paths_result, &ret_error);
+
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "cugraph_bfs failed.");
 
@@ -80,9 +73,9 @@ int generic_bfs_test(
   cugraph_type_erased_device_array_view_t* distances;
   cugraph_type_erased_device_array_view_t* predecessors;
 
-  vertices  = cugraph_paths_result_get_vertices(paths_result);
+  vertices     = cugraph_paths_result_get_vertices(paths_result);
   predecessors = cugraph_paths_result_get_predecessors(paths_result);
-  distances = cugraph_paths_result_get_distances(paths_result);
+  distances    = cugraph_paths_result_get_distances(paths_result);
 
   vertex_t h_vertices[num_vertices];
   vertex_t h_predecessors[num_vertices];
@@ -106,8 +99,7 @@ int generic_bfs_test(
     TEST_ASSERT(test_ret_value,
                 expected_distances[h_vertices[i]] == h_distances[i],
                 "bfs distances don't match");
-    
-    
+
     TEST_ASSERT(test_ret_value,
                 expected_predecessors[h_vertices[i]] == h_predecessors[i],
                 "bfs predecessors don't match");
@@ -168,7 +160,7 @@ int main(int argc, char** argv)
 
   void* raft_handle = create_raft_handle(prows);
   handle            = cugraph_create_resource_handle(raft_handle);
-  int result = 0;
+  int result        = 0;
   result |= RUN_MG_TEST(test_bfs, handle);
 
   cugraph_free_resource_handle(handle);
