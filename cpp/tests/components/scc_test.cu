@@ -18,8 +18,8 @@
 
 #include <rmm/device_vector.hpp>
 
-#include <components/scc_matrix.cuh>
-#include <converters/COOtoCSR.cuh>
+#include <components/legacy/scc_matrix.cuh>
+#include <converters/legacy/COOtoCSR.cuh>
 #include <cugraph/algorithms.hpp>
 #include <cugraph/legacy/graph.hpp>
 #include <rmm/device_vector.hpp>
@@ -107,7 +107,8 @@ DVector<IndexT> byte_matrix_to_int(const DVector<ByteT>& d_adj_byte_matrix)
 
 struct Tests_Strongly_CC : ::testing::TestWithParam<Usecase> {
   Tests_Strongly_CC() {}
-  static void SetupTestCase() {}
+
+  static void SetUpTestCase() {}
   static void TearDownTestCase()
   {
     if (cugraph::test::g_perf) {
@@ -120,6 +121,7 @@ struct Tests_Strongly_CC : ::testing::TestWithParam<Usecase> {
         std::cout << count << std::endl;
     }
   }
+
   virtual void SetUp() {}
   virtual void TearDown() {}
 

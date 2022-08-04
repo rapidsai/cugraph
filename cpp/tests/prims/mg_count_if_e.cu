@@ -17,6 +17,7 @@
 #include <utilities/base_fixture.hpp>
 #include <utilities/device_comm_wrapper.hpp>
 #include <utilities/high_res_clock.h>
+#include <utilities/mg_utilities.hpp>
 #include <utilities/test_graphs.hpp>
 #include <utilities/test_utilities.hpp>
 #include <utilities/thrust_wrapper.hpp>
@@ -170,12 +171,14 @@ struct Prims_Usecase {
 };
 
 template <typename input_usecase_t>
-class Tests_MG_TransformCountIfE
+class Tests_MGCountIfE
   : public ::testing::TestWithParam<std::tuple<Prims_Usecase, input_usecase_t>> {
  public:
-  Tests_MG_TransformCountIfE() {}
-  static void SetupTestCase() {}
-  static void TearDownTestCase() {}
+  Tests_MGCountIfE() {}
+
+  static void SetUpTestCase() { handle_ = cugraph::test::initialize_mg_handle(); }
+
+  static void TearDownTestCase() { handle_.reset(); }
 
   virtual void SetUp() {}
   virtual void TearDown() {}
@@ -188,37 +191,22 @@ class Tests_MG_TransformCountIfE
             bool store_transposed>
   void run_current_test(Prims_Usecase const& prims_usecase, input_usecase_t const& input_usecase)
   {
-    // 1. initialize handle
-
-    raft::handle_t handle{};
     HighResClock hr_clock{};
 
-    raft::comms::initialize_mpi_comms(&handle, MPI_COMM_WORLD);
-    auto& comm           = handle.get_comms();
-    auto const comm_size = comm.get_size();
-    auto const comm_rank = comm.get_rank();
-
-    auto row_comm_size = static_cast<int>(sqrt(static_cast<double>(comm_size)));
-    while (comm_size % row_comm_size != 0) {
-      --row_comm_size;
-    }
-    cugraph::partition_2d::subcomm_factory_t<cugraph::partition_2d::key_naming_t, vertex_t>
-      subcomm_factory(handle, row_comm_size);
-
-    // 2. create MG graph
+    // 1. create MG graph
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
-      handle.get_comms().barrier();
+      handle_->get_comms().barrier();
       hr_clock.start();
     }
     auto [mg_graph, d_mg_renumber_map_labels] =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, store_transposed, true>(
-        handle, input_usecase, prims_usecase.test_weighted, true);
+        *handle_, input_usecase, prims_usecase.test_weighted, true);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
-      handle.get_comms().barrier();
+      handle_->get_comms().barrier();
       double elapsed_time{0.0};
       hr_clock.stop(&elapsed_time);
       std::cout << "MG construct_graph took " << elapsed_time * 1e-6 << " s.\n";
@@ -226,24 +214,24 @@ class Tests_MG_TransformCountIfE
 
     auto mg_graph_view = mg_graph.view();
 
-    // 3. run MG count_if_e
+    // 2. run MG count_if_e
 
     const int hash_bin_count = 5;
 
     auto vertex_property_data =
-      generate<result_t>::vertex_property((*d_mg_renumber_map_labels), hash_bin_count, handle);
+      generate<result_t>::vertex_property((*d_mg_renumber_map_labels), hash_bin_count, *handle_);
     auto col_prop =
-      generate<result_t>::column_property(handle, mg_graph_view, vertex_property_data);
-    auto row_prop = generate<result_t>::row_property(handle, mg_graph_view, vertex_property_data);
+      generate<result_t>::column_property(*handle_, mg_graph_view, vertex_property_data);
+    auto row_prop = generate<result_t>::row_property(*handle_, mg_graph_view, vertex_property_data);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
-      handle.get_comms().barrier();
+      handle_->get_comms().barrier();
       hr_clock.start();
     }
 
     auto result = count_if_e(
-      handle,
+      *handle_,
       mg_graph_view,
       row_prop.device_view(),
       col_prop.device_view(),
@@ -252,33 +240,33 @@ class Tests_MG_TransformCountIfE
       });
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
-      handle.get_comms().barrier();
+      handle_->get_comms().barrier();
       double elapsed_time{0.0};
       hr_clock.stop(&elapsed_time);
       std::cout << "MG count if e took " << elapsed_time * 1e-6 << " s.\n";
     }
 
-    //// 4. compare SG & MG results
+    // 3. compare SG & MG results
 
     if (prims_usecase.check_correctness) {
-      cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed, false> sg_graph(handle);
+      cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed, false> sg_graph(*handle_);
       std::tie(sg_graph, std::ignore) =
         cugraph::test::construct_graph<vertex_t, edge_t, weight_t, store_transposed, false>(
-          handle, input_usecase, prims_usecase.test_weighted, false);
+          *handle_, input_usecase, prims_usecase.test_weighted, false);
       auto sg_graph_view = sg_graph.view();
 
       auto sg_vertex_property_data = generate<result_t>::vertex_property(
         thrust::make_counting_iterator(sg_graph_view.local_vertex_partition_range_first()),
         thrust::make_counting_iterator(sg_graph_view.local_vertex_partition_range_last()),
         hash_bin_count,
-        handle);
+        *handle_);
       auto sg_col_prop =
-        generate<result_t>::column_property(handle, sg_graph_view, sg_vertex_property_data);
+        generate<result_t>::column_property(*handle_, sg_graph_view, sg_vertex_property_data);
       auto sg_row_prop =
-        generate<result_t>::row_property(handle, sg_graph_view, sg_vertex_property_data);
+        generate<result_t>::row_property(*handle_, sg_graph_view, sg_vertex_property_data);
 
       auto expected_result = count_if_e(
-        handle,
+        *handle_,
         sg_graph_view,
         sg_row_prop.device_view(),
         sg_col_prop.device_view(),
@@ -288,19 +276,25 @@ class Tests_MG_TransformCountIfE
       ASSERT_TRUE(expected_result == result);
     }
   }
+
+ private:
+  static std::unique_ptr<raft::handle_t> handle_;
 };
 
-using Tests_MG_TransformCountIfE_File = Tests_MG_TransformCountIfE<cugraph::test::File_Usecase>;
-using Tests_MG_TransformCountIfE_Rmat = Tests_MG_TransformCountIfE<cugraph::test::Rmat_Usecase>;
+template <typename input_usecase_t>
+std::unique_ptr<raft::handle_t> Tests_MGCountIfE<input_usecase_t>::handle_ = nullptr;
 
-TEST_P(Tests_MG_TransformCountIfE_File, CheckInt32Int32FloatTupleIntFloatTransposeFalse)
+using Tests_MGCountIfE_File = Tests_MGCountIfE<cugraph::test::File_Usecase>;
+using Tests_MGCountIfE_Rmat = Tests_MGCountIfE<cugraph::test::Rmat_Usecase>;
+
+TEST_P(Tests_MGCountIfE_File, CheckInt32Int32FloatTupleIntFloatTransposeFalse)
 {
   auto param = GetParam();
   run_current_test<int32_t, int32_t, float, std::tuple<int, float>, false>(std::get<0>(param),
                                                                            std::get<1>(param));
 }
 
-TEST_P(Tests_MG_TransformCountIfE_Rmat, CheckInt32Int32FloatTupleIntFloatTransposeFalse)
+TEST_P(Tests_MGCountIfE_Rmat, CheckInt32Int32FloatTupleIntFloatTransposeFalse)
 {
   auto param = GetParam();
   run_current_test<int32_t, int32_t, float, std::tuple<int, float>, false>(
@@ -308,14 +302,14 @@ TEST_P(Tests_MG_TransformCountIfE_Rmat, CheckInt32Int32FloatTupleIntFloatTranspo
     cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
 
-TEST_P(Tests_MG_TransformCountIfE_File, CheckInt32Int32FloatTupleIntFloatTransposeTrue)
+TEST_P(Tests_MGCountIfE_File, CheckInt32Int32FloatTupleIntFloatTransposeTrue)
 {
   auto param = GetParam();
   run_current_test<int32_t, int32_t, float, std::tuple<int, float>, true>(std::get<0>(param),
                                                                           std::get<1>(param));
 }
 
-TEST_P(Tests_MG_TransformCountIfE_Rmat, CheckInt32Int32FloatTupleIntFloatTransposeTrue)
+TEST_P(Tests_MGCountIfE_Rmat, CheckInt32Int32FloatTupleIntFloatTransposeTrue)
 {
   auto param = GetParam();
   run_current_test<int32_t, int32_t, float, std::tuple<int, float>, true>(
@@ -323,13 +317,13 @@ TEST_P(Tests_MG_TransformCountIfE_Rmat, CheckInt32Int32FloatTupleIntFloatTranspo
     cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
 
-TEST_P(Tests_MG_TransformCountIfE_File, CheckInt32Int32FloatTransposeFalse)
+TEST_P(Tests_MGCountIfE_File, CheckInt32Int32FloatTransposeFalse)
 {
   auto param = GetParam();
   run_current_test<int32_t, int32_t, float, int, false>(std::get<0>(param), std::get<1>(param));
 }
 
-TEST_P(Tests_MG_TransformCountIfE_Rmat, CheckInt32Int32FloatTransposeFalse)
+TEST_P(Tests_MGCountIfE_Rmat, CheckInt32Int32FloatTransposeFalse)
 {
   auto param = GetParam();
   run_current_test<int32_t, int32_t, float, int, false>(
@@ -337,13 +331,13 @@ TEST_P(Tests_MG_TransformCountIfE_Rmat, CheckInt32Int32FloatTransposeFalse)
     cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
 
-TEST_P(Tests_MG_TransformCountIfE_File, CheckInt32Int32FloatTransposeTrue)
+TEST_P(Tests_MGCountIfE_File, CheckInt32Int32FloatTransposeTrue)
 {
   auto param = GetParam();
   run_current_test<int32_t, int32_t, float, int, true>(std::get<0>(param), std::get<1>(param));
 }
 
-TEST_P(Tests_MG_TransformCountIfE_Rmat, CheckInt32Int32FloatTransposeTrue)
+TEST_P(Tests_MGCountIfE_Rmat, CheckInt32Int32FloatTransposeTrue)
 {
   auto param = GetParam();
   run_current_test<int32_t, int32_t, float, int, true>(
@@ -353,7 +347,7 @@ TEST_P(Tests_MG_TransformCountIfE_Rmat, CheckInt32Int32FloatTransposeTrue)
 
 INSTANTIATE_TEST_SUITE_P(
   file_test,
-  Tests_MG_TransformCountIfE_File,
+  Tests_MGCountIfE_File,
   ::testing::Combine(
     ::testing::Values(Prims_Usecase{true}),
     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
@@ -363,14 +357,14 @@ INSTANTIATE_TEST_SUITE_P(
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_small_test,
-  Tests_MG_TransformCountIfE_Rmat,
+  Tests_MGCountIfE_Rmat,
   ::testing::Combine(::testing::Values(Prims_Usecase{true}),
                      ::testing::Values(cugraph::test::Rmat_Usecase(
                        10, 16, 0.57, 0.19, 0.19, 0, false, false, 0, true))));
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_large_test,
-  Tests_MG_TransformCountIfE_Rmat,
+  Tests_MGCountIfE_Rmat,
   ::testing::Combine(::testing::Values(Prims_Usecase{false}),
                      ::testing::Values(cugraph::test::Rmat_Usecase(
                        20, 32, 0.57, 0.19, 0.19, 0, false, false, 0, true))));

@@ -1065,8 +1065,8 @@ std::unique_ptr<renum_tuple_t<vertex_t, edge_t>> call_renumber(
 // Helper for setting up subcommunicators
 void init_subcomms(raft::handle_t& handle, size_t row_comm_size)
 {
-  partition_2d::subcomm_factory_t<partition_2d::key_naming_t, int> subcomm_factory(handle,
-                                                                                   row_comm_size);
+  partition_2d::subcomm_factory_t<partition_2d::key_naming_t> subcomm_factory(handle,
+                                                                              row_comm_size);
 }
 
 // Explicit instantiations

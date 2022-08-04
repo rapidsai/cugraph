@@ -20,12 +20,12 @@
 #include "fa2_kernels.cuh"
 #include "utils.hpp"
 
-#include <converters/COOtoCSR.cuh>
+#include <converters/legacy/COOtoCSR.cuh>
 #include <utilities/graph_utils.cuh>
 
 #include <cugraph/detail/utility_wrappers.hpp>
-#include <cugraph/internals.hpp>
 #include <cugraph/legacy/graph.hpp>
+#include <cugraph/legacy/internals.hpp>
 #include <cugraph/utilities/error.hpp>
 
 #include <rmm/device_uvector.hpp>
