@@ -1,0 +1,120 @@
+name: cuGraph wheels
+
+on:
+  push:
+    branches:
+      - 'pull-request/[0-9]+'
+
+jobs:
+  libcugraph-wheel-amd64:
+    uses: rapidsai/shared-action-workflows/.github/workflows/wheels-amd64.yml@feat/wheel-ci-actions
+    with:
+      package-name: libcugraph_cuda11
+      package-dir: cpp
+      python-version: "3.8"
+      cibw-environment: "PYTHON_PACKAGE_CUDA_SUFFIX='-cuda11'"
+      cibw-before-build: "pip install rmm-cuda11 libraft-cuda11 libcugraph-ops-cuda11 --index-url https://pypi.k8s.rapids.ai/simple"
+      skbuild-configure-options: '-DCMAKE_MESSAGE_LOG_LEVEL=DEBUG -DBUILD_TESTS=OFF -DBUILD_BENCHMARKS=OFF'
+      gpu-smoketest: ""
+      auditwheel-repair-override: "cp {wheel} {dest_dir}"
+    secrets: inherit
+  cugraph-wheel-amd64-38:
+    needs: libcugraph-wheel-amd64
+    uses: rapidsai/shared-action-workflows/.github/workflows/wheels-amd64.yml@feat/wheel-ci-actions
+    with:
+      package-name: cugraph
+      package-dir: python/cugraph
+      python-version: "3.8"
+      cibw-environment: "PYTHON_PACKAGE_CUDA_SUFFIX='-cuda11'"
+      cibw-before-build: "pip install libcugraph-cuda11 --index-url https://pypi.k8s.rapids.ai/simple"
+      skbuild-configure-options: "-DFIND_CUGRAPH_CPP=ON"
+    secrets: inherit
+  cugraph-wheel-amd64-39:
+    needs: libcugraph-wheel-amd64
+    uses: rapidsai/shared-action-workflows/.github/workflows/wheels-amd64.yml@feat/wheel-ci-actions
+    with:
+      package-name: cugraph
+      package-dir: python/cugraph
+      python-version: "3.9"
+      cibw-environment: "PYTHON_PACKAGE_CUDA_SUFFIX='-cuda11'"
+      cibw-before-build: "pip install libcugraph-cuda11 --index-url https://pypi.k8s.rapids.ai/simple"
+      skbuild-configure-options: "-DFIND_CUGRAPH_CPP=ON"
+    secrets: inherit
+  pylibcugraph-wheel-amd64-38:
+    needs: libcugraph-wheel-amd64
+    uses: rapidsai/shared-action-workflows/.github/workflows/wheels-amd64.yml@feat/wheel-ci-actions
+    with:
+      package-name: pylibcugraph
+      package-dir: python/pylibcugraph
+      python-version: "3.8"
+      cibw-environment: "PYTHON_PACKAGE_CUDA_SUFFIX='-cuda11'"
+      cibw-before-build: "pip install libcugraph-cuda11 --index-url https://pypi.k8s.rapids.ai/simple"
+      skbuild-configure-options: "-DFIND_CUGRAPH_CPP=ON"
+    secrets: inherit
+  pylibcugraph-wheel-amd64-39:
+    needs: libcugraph-wheel-amd64
+    uses: rapidsai/shared-action-workflows/.github/workflows/wheels-amd64.yml@feat/wheel-ci-actions
+    with:
+      package-name: pylibcugraph
+      package-dir: python/pylibcugraph
+      python-version: "3.9"
+      cibw-environment: "PYTHON_PACKAGE_CUDA_SUFFIX='-cuda11'"
+      cibw-before-build: "pip install libcugraph-cuda11 --index-url https://pypi.k8s.rapids.ai/simple"
+      skbuild-configure-options: "-DFIND_CUGRAPH_CPP=ON"
+    secrets: inherit
+  libcugraph-wheel-arm64:
+    uses: rapidsai/shared-action-workflows/.github/workflows/wheels-arm64.yml@feat/wheel-ci-actions
+    with:
+      package-name: libcugraph_cuda11
+      package-dir: cpp
+      python-version: "3.8"
+      cibw-environment: "PYTHON_PACKAGE_CUDA_SUFFIX='-cuda11'"
+      cibw-before-build: "pip install rmm-cuda11 libraft-cuda11 libcugraph-ops-cuda11 --index-url https://pypi.k8s.rapids.ai/simple"
+      skbuild-configure-options: '-DCMAKE_MESSAGE_LOG_LEVEL=DEBUG -DBUILD_TESTS=OFF -DBUILD_BENCHMARKS=OFF'
+      gpu-smoketest: ""
+      auditwheel-repair-override: "cp {wheel} {dest_dir}"
+    secrets: inherit
+  cugraph-wheel-arm64-38:
+    needs: libcugraph-wheel-arm64
+    uses: rapidsai/shared-action-workflows/.github/workflows/wheels-arm64.yml@feat/wheel-ci-actions
+    with:
+      package-name: cugraph
+      package-dir: python/cugraph
+      python-version: "3.8"
+      cibw-environment: "PYTHON_PACKAGE_CUDA_SUFFIX='-cuda11'"
+      cibw-before-build: "pip install libcugraph-cuda11 --index-url https://pypi.k8s.rapids.ai/simple"
+      skbuild-configure-options: "-DFIND_CUGRAPH_CPP=ON"
+    secrets: inherit
+  cugraph-wheel-arm64-39:
+    needs: libcugraph-wheel-arm64
+    uses: rapidsai/shared-action-workflows/.github/workflows/wheels-arm64.yml@feat/wheel-ci-actions
+    with:
+      package-name: cugraph
+      package-dir: python/cugraph
+      python-version: "3.9"
+      cibw-environment: "PYTHON_PACKAGE_CUDA_SUFFIX='-cuda11'"
+      cibw-before-build: "pip install libcugraph-cuda11 --index-url https://pypi.k8s.rapids.ai/simple"
+      skbuild-configure-options: "-DFIND_CUGRAPH_CPP=ON"
+    secrets: inherit
+  pylibcugraph-wheel-arm64-38:
+    needs: libcugraph-wheel-arm64
+    uses: rapidsai/shared-action-workflows/.github/workflows/wheels-arm64.yml@feat/wheel-ci-actions
+    with:
+      package-name: pylibcugraph
+      package-dir: python/pylibcugraph
+      python-version: "3.8"
+      cibw-environment: "PYTHON_PACKAGE_CUDA_SUFFIX='-cuda11'"
+      cibw-before-build: "pip install libcugraph-cuda11 --index-url https://pypi.k8s.rapids.ai/simple"
+      skbuild-configure-options: "-DFIND_CUGRAPH_CPP=ON"
+    secrets: inherit
+  pylibcugraph-wheel-arm64-39:
+    needs: libcugraph-wheel-arm64
+    uses: rapidsai/shared-action-workflows/.github/workflows/wheels-arm64.yml@feat/wheel-ci-actions
+    with:
+      package-name: pylibcugraph
+      package-dir: python/pylibcugraph
+      python-version: "3.9"
+      cibw-environment: "PYTHON_PACKAGE_CUDA_SUFFIX='-cuda11'"
+      cibw-before-build: "pip install libcugraph-cuda11 --index-url https://pypi.k8s.rapids.ai/simple"
+      skbuild-configure-options: "-DFIND_CUGRAPH_CPP=ON"
+    secrets: inherit
