@@ -76,9 +76,9 @@ void fill_edge_major_property(raft::handle_t const& handle,
 
 template <typename GraphViewType, typename T, typename EdgeMinorPropertyOutputWrapper>
 void fill_edge_minor_property(raft::handle_t const& handle,
-                                GraphViewType const& graph_view,
-                                T input,
-                                EdgeMinorPropertyOutputWrapper edge_minor_property_output)
+                              GraphViewType const& graph_view,
+                              T input,
+                              EdgeMinorPropertyOutputWrapper edge_minor_property_output)
 {
   auto keys = edge_minor_property_output.keys();
   size_t buffer_size{0};
@@ -91,7 +91,8 @@ void fill_edge_minor_property(raft::handle_t const& handle,
       buffer_size = static_cast<size_t>(graph_view.local_edge_partition_dst_range_size());
     }
   }
-  thrust::fill_n(handle.get_thrust_policy(), edge_minor_property_output.value_first(), buffer_size, input);
+  thrust::fill_n(
+    handle.get_thrust_policy(), edge_minor_property_output.value_first(), buffer_size, input);
 }
 
 }  // namespace detail
@@ -108,16 +109,16 @@ void fill_edge_minor_property(raft::handle_t const& handle,
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Non-owning graph object.
  * @param input Edge source property values will be set to @p input.
- * @param edge_src_property_output edge_src_property_t class object to store source property values (for the edge source assigned to this process in multi-GPU).
+ * @param edge_src_property_output edge_src_property_t class object to store source property values
+ * (for the edge source assigned to this process in multi-GPU).
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  */
 template <typename GraphViewType, typename T>
-void fill_edge_src_property(
-  raft::handle_t const& handle,
-  GraphViewType const& graph_view,
-  T input,
-  edge_src_property_t<GraphViewType, T>& edge_src_property_output,
-  bool do_expensive_check = false)
+void fill_edge_src_property(raft::handle_t const& handle,
+                            GraphViewType const& graph_view,
+                            T input,
+                            edge_src_property_t<GraphViewType, T>& edge_src_property_output,
+                            bool do_expensive_check = false)
 {
   if (do_expensive_check) {
     // currently, nothing to do
@@ -144,16 +145,16 @@ void fill_edge_src_property(
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Non-owning graph object.
  * @param input Edge destination property values will be set to @p input.
- * @param edge_dst_property_output edge_dst_property_t class object to store destination property values (for the edge destinations assigned to this process in multi-GPU).
+ * @param edge_dst_property_output edge_dst_property_t class object to store destination property
+ * values (for the edge destinations assigned to this process in multi-GPU).
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  */
 template <typename GraphViewType, typename T>
-void fill_edge_dst_property(
-  raft::handle_t const& handle,
-  GraphViewType const& graph_view,
-  T input,
-  edge_dst_property_t<GraphViewType, T>& edge_dst_property_output,
-  bool do_expensive_check = false)
+void fill_edge_dst_property(raft::handle_t const& handle,
+                            GraphViewType const& graph_view,
+                            T input,
+                            edge_dst_property_t<GraphViewType, T>& edge_dst_property_output,
+                            bool do_expensive_check = false)
 {
   if (do_expensive_check) {
     // currently, nothing to do
