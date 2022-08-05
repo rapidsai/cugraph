@@ -122,12 +122,28 @@ def bfs(input_graph,
 
     if not isinstance(start, (dask_cudf.DataFrame, dask_cudf.Series)):
         if not isinstance(start, (cudf.DataFrame, cudf.Series)):
-            start = cudf.Series(start)
+            vertex_dtype = input_graph.nodes().dtype
+            start = cudf.Series(start, dtype=vertex_dtype)
         if isinstance(start, (cudf.DataFrame, cudf.Series)):
             # convert into a dask_cudf
             start = dask_cudf.from_cudf(start, input_graph._npartitions)
 
     def check_valid_vertex(G, start):
+        invalid_dtype = False
+        if isinstance(start, dask_cudf.Series):
+            if start.dtype is not input_graph.nodes().dtype:
+                invalid_dtype = True
+        else:
+            # Multicolumn vertices case
+            start_dtype = start.dtypes.reset_index(drop=True)
+            vertices_dtype = input_graph.nodes().dtypes.reset_index(drop=True)
+            if not start_dtype.equals(vertices_dtype):
+                invalid_dtype = True
+
+        if invalid_dtype:
+            raise ValueError("The 'start' values dtype must match "
+                                "the graph's vertices dtype.")
+
         is_valid_vertex = G.has_node(start)
         if not is_valid_vertex:
             raise ValueError(
