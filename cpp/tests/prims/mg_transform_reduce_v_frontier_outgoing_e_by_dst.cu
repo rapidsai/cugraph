@@ -24,7 +24,7 @@
 
 #include <prims/edge_src_dst_property.hpp>
 #include <prims/transform_reduce_v_frontier_outgoing_e_by_dst.cuh>
-#include <prims/update_edge_partition_src_dst_property.cuh>
+#include <prims/update_edge_src_dst_property.cuh>
 #include <prims/vertex_frontier.cuh>
 
 #include <cugraph/algorithms.hpp>
@@ -201,14 +201,14 @@ class Tests_MGTransformReduceVFrontierOutgoingEByDst
     cugraph::edge_dst_property_t<decltype(mg_graph_view), property_t> mg_dst_properties(
       *handle_, mg_graph_view);
 
-    update_edge_partition_src_property(*handle_,
-                                       mg_graph_view,
-                                       cugraph::get_dataframe_buffer_cbegin(mg_property_buffer),
-                                       mg_src_properties);
-    update_edge_partition_dst_property(*handle_,
-                                       mg_graph_view,
-                                       cugraph::get_dataframe_buffer_cbegin(mg_property_buffer),
-                                       mg_dst_properties);
+    update_edge_src_property(*handle_,
+                             mg_graph_view,
+                             cugraph::get_dataframe_buffer_cbegin(mg_property_buffer),
+                             mg_src_properties);
+    update_edge_dst_property(*handle_,
+                             mg_graph_view,
+                             cugraph::get_dataframe_buffer_cbegin(mg_property_buffer),
+                             mg_dst_properties);
 
     auto mg_key_buffer = cugraph::allocate_dataframe_buffer<key_t>(
       mg_graph_view.local_vertex_partition_range_size(), handle_->get_stream());
@@ -368,14 +368,14 @@ class Tests_MGTransformReduceVFrontierOutgoingEByDst
           *handle_, sg_graph_view);
         cugraph::edge_dst_property_t<decltype(sg_graph_view), property_t> sg_dst_properties(
           *handle_, sg_graph_view);
-        update_edge_partition_src_property(*handle_,
-                                           sg_graph_view,
-                                           cugraph::get_dataframe_buffer_cbegin(sg_property_buffer),
-                                           sg_src_properties);
-        update_edge_partition_dst_property(*handle_,
-                                           sg_graph_view,
-                                           cugraph::get_dataframe_buffer_cbegin(sg_property_buffer),
-                                           sg_dst_properties);
+        update_edge_src_property(*handle_,
+                                 sg_graph_view,
+                                 cugraph::get_dataframe_buffer_cbegin(sg_property_buffer),
+                                 sg_src_properties);
+        update_edge_dst_property(*handle_,
+                                 sg_graph_view,
+                                 cugraph::get_dataframe_buffer_cbegin(sg_property_buffer),
+                                 sg_dst_properties);
 
         auto sg_key_buffer = cugraph::allocate_dataframe_buffer<key_t>(
           sg_graph_view.local_vertex_partition_range_size(), handle_->get_stream());

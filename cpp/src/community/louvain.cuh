@@ -20,7 +20,7 @@
 #include <prims/per_v_transform_reduce_incoming_outgoing_e.cuh>
 #include <prims/transform_reduce_e.cuh>
 #include <prims/transform_reduce_e_by_src_dst_key.cuh>
-#include <prims/update_edge_partition_src_dst_property.cuh>
+#include <prims/update_edge_src_dst_property.cuh>
 #include <utilities/collect_comm.cuh>
 
 #include <cugraph/dendrogram.hpp>
@@ -334,7 +334,7 @@ class Louvain {
     if constexpr (graph_view_t::is_multi_gpu) {
       src_vertex_weights_cache_ =
         edge_src_property_t<graph_view_t, weight_t>(handle_, current_graph_view_);
-      update_edge_partition_src_property(
+      update_edge_src_property(
         handle_, current_graph_view_, vertex_weights_v_.begin(), src_vertex_weights_cache_);
       vertex_weights_v_.resize(0, handle_.get_stream());
       vertex_weights_v_.shrink_to_fit(handle_.get_stream());
@@ -358,11 +358,11 @@ class Louvain {
     if constexpr (graph_view_t::is_multi_gpu) {
       src_clusters_cache_ =
         edge_src_property_t<graph_view_t, vertex_t>(handle_, current_graph_view_);
-      update_edge_partition_src_property(
+      update_edge_src_property(
         handle_, current_graph_view_, next_clusters_v_.begin(), src_clusters_cache_);
       dst_clusters_cache_ =
         edge_dst_property_t<graph_view_t, vertex_t>(handle_, current_graph_view_);
-      update_edge_partition_dst_property(
+      update_edge_dst_property(
         handle_, current_graph_view_, next_clusters_v_.begin(), dst_clusters_cache_);
     }
 
@@ -455,7 +455,7 @@ class Louvain {
 
       src_cluster_weights =
         edge_src_property_t<graph_view_t, weight_t>(handle_, current_graph_view_);
-      update_edge_partition_src_property(
+      update_edge_src_property(
         handle_, current_graph_view_, vertex_cluster_weights_v.begin(), src_cluster_weights);
       vertex_cluster_weights_v.resize(0, handle_.get_stream());
       vertex_cluster_weights_v.shrink_to_fit(handle_.get_stream());
@@ -487,11 +487,11 @@ class Louvain {
       src_old_cluster_sum_subtract_pairs =
         edge_src_property_t<graph_view_t, thrust::tuple<weight_t, weight_t>>(handle_,
                                                                              current_graph_view_);
-      update_edge_partition_src_property(handle_,
-                                         current_graph_view_,
-                                         thrust::make_zip_iterator(thrust::make_tuple(
-                                           old_cluster_sum_v.begin(), cluster_subtract_v.begin())),
-                                         src_old_cluster_sum_subtract_pairs);
+      update_edge_src_property(handle_,
+                               current_graph_view_,
+                               thrust::make_zip_iterator(thrust::make_tuple(
+                                 old_cluster_sum_v.begin(), cluster_subtract_v.begin())),
+                               src_old_cluster_sum_subtract_pairs);
       old_cluster_sum_v.resize(0, handle_.get_stream());
       old_cluster_sum_v.shrink_to_fit(handle_.get_stream());
       cluster_subtract_v.resize(0, handle_.get_stream());
@@ -543,9 +543,9 @@ class Louvain {
                       detail::cluster_update_op_t<vertex_t, weight_t>{up_down});
 
     if constexpr (graph_view_t::is_multi_gpu) {
-      update_edge_partition_src_property(
+      update_edge_src_property(
         handle_, current_graph_view_, next_clusters_v_.begin(), src_clusters_cache_);
-      update_edge_partition_dst_property(
+      update_edge_dst_property(
         handle_, current_graph_view_, next_clusters_v_.begin(), dst_clusters_cache_);
     }
 

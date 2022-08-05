@@ -17,7 +17,7 @@
 
 #include <prims/extract_if_e.cuh>
 #include <prims/transform_reduce_dst_nbr_intersection_of_e_endpoints_by_v.cuh>
-#include <prims/update_edge_partition_src_dst_property.cuh>
+#include <prims/update_edge_src_dst_property.cuh>
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/detail/shuffle_wrappers.hpp>
@@ -250,9 +250,9 @@ void triangle_count(raft::handle_t const& handle,
                  in_two_core_first,
                  in_two_core_first + core_numbers.size(),
                  in_two_core_flags.begin());
-    update_edge_partition_src_property(
+    update_edge_src_property(
       handle, cur_graph_view, in_two_core_flags.begin(), edge_src_in_two_cores);
-    update_edge_partition_dst_property(
+    update_edge_dst_property(
       handle, cur_graph_view, in_two_core_flags.begin(), edge_dst_in_two_cores);
     rmm::device_uvector<vertex_t> srcs(size_t{0}, handle.get_stream());
     rmm::device_uvector<vertex_t> dsts(size_t{0}, handle.get_stream());
@@ -305,10 +305,8 @@ void triangle_count(raft::handle_t const& handle,
                                                                                cur_graph_view);
     edge_dst_property_t<decltype(cur_graph_view), edge_t> edge_dst_out_degrees(handle,
                                                                                cur_graph_view);
-    update_edge_partition_src_property(
-      handle, cur_graph_view, out_degrees.begin(), edge_src_out_degrees);
-    update_edge_partition_dst_property(
-      handle, cur_graph_view, out_degrees.begin(), edge_dst_out_degrees);
+    update_edge_src_property(handle, cur_graph_view, out_degrees.begin(), edge_src_out_degrees);
+    update_edge_dst_property(handle, cur_graph_view, out_degrees.begin(), edge_dst_out_degrees);
     rmm::device_uvector<vertex_t> srcs(size_t{0}, handle.get_stream());
     rmm::device_uvector<vertex_t> dsts(size_t{0}, handle.get_stream());
     std::tie(srcs, dsts, std::ignore) = extract_if_e(handle,

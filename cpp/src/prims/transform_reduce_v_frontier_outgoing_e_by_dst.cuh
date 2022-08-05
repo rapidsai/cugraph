@@ -920,13 +920,13 @@ typename GraphViewType::edge_type compute_num_out_nbrs_from_frontier(
  * @param edge_src_value_input Wrapper used to access source input property values (for the edge
  * sources assigned to this process in multi-GPU). Use either cugraph::edge_src_property_t::view()
  * (if @p e_op needs to access source property values) or cugraph::edge_src_dummy_property_t::view()
- * (if @p e_op does not access source property values). Use update_edge_partition_src_property to
- * fill the wrapper.
+ * (if @p e_op does not access source property values). Use update_edge_src_property to fill the
+ * wrapper.
  * @param edge_dst_value_input Wrapper used to access destination input property values (for the
  * edge destinations assigned to this process in multi-GPU). Use either
  * cugraph::edge_dst_property_t::view() (if @p e_op needs to access destination property values) or
  * cugraph::edge_dst_dummy_property_t::view() (if @p e_op does not access destination property
- * values). Use update_edge_partition_dst_property to fill the wrapper.
+ * values). Use update_edge_dst_property to fill the wrapper.
  * @param e_op Quaternary (or quinary) operator takes edge source, edge destination, (optional edge
  * weight), property values for the source, and property values for the destination and returns
  * 1) thrust::nullopt (if invalid and to be discarded); 2) dummy (but valid) thrust::optional object

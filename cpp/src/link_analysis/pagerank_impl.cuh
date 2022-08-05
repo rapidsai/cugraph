@@ -21,7 +21,7 @@
 #include <prims/per_v_transform_reduce_incoming_outgoing_e.cuh>
 #include <prims/reduce_v.cuh>
 #include <prims/transform_reduce_v.cuh>
-#include <prims/update_edge_partition_src_dst_property.cuh>
+#include <prims/update_edge_src_dst_property.cuh>
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/graph_view.hpp>
@@ -238,7 +238,7 @@ void pagerank(
                         return pagerank / divisor;
                       });
 
-    update_edge_partition_src_property(handle, pull_graph_view, pageranks, edge_src_pageranks);
+    update_edge_src_property(handle, pull_graph_view, pageranks, edge_src_pageranks);
 
     auto unvarying_part = aggregate_personalization_vector_size == 0
                             ? (dangling_sum * alpha + static_cast<result_t>(1.0 - alpha)) /

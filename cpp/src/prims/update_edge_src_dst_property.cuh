@@ -55,10 +55,10 @@ namespace detail {
 template <typename GraphViewType,
           typename VertexPropertyInputIterator,
           typename EdgeMajorPropertyOutputWrapper>
-void update_edge_partition_major_property(raft::handle_t const& handle,
-                                          GraphViewType const& graph_view,
-                                          VertexPropertyInputIterator vertex_property_input_first,
-                                          EdgeMajorPropertyOutputWrapper edge_major_property_output)
+void update_edge_major_property(raft::handle_t const& handle,
+                                GraphViewType const& graph_view,
+                                VertexPropertyInputIterator vertex_property_input_first,
+                                EdgeMajorPropertyOutputWrapper edge_major_property_output)
 {
   auto edge_partition_keys         = edge_major_property_output.keys();
   auto edge_partition_value_firsts = edge_major_property_output.value_firsts();
@@ -129,12 +129,12 @@ template <typename GraphViewType,
           typename VertexIterator,
           typename VertexPropertyInputIterator,
           typename EdgeMajorPropertyOutputWrapper>
-void update_edge_partition_major_property(raft::handle_t const& handle,
-                                          GraphViewType const& graph_view,
-                                          VertexIterator vertex_first,
-                                          VertexIterator vertex_last,
-                                          VertexPropertyInputIterator vertex_property_input_first,
-                                          EdgeMajorPropertyOutputWrapper edge_major_property_output)
+void update_edge_major_property(raft::handle_t const& handle,
+                                GraphViewType const& graph_view,
+                                VertexIterator vertex_first,
+                                VertexIterator vertex_last,
+                                VertexPropertyInputIterator vertex_property_input_first,
+                                EdgeMajorPropertyOutputWrapper edge_major_property_output)
 {
   using vertex_t = typename GraphViewType::vertex_type;
   using edge_t   = typename GraphViewType::edge_type;
@@ -243,10 +243,10 @@ void update_edge_partition_major_property(raft::handle_t const& handle,
 template <typename GraphViewType,
           typename VertexPropertyInputIterator,
           typename EdgeMinorPropertyOutputWrapper>
-void update_edge_partition_minor_property(raft::handle_t const& handle,
-                                          GraphViewType const& graph_view,
-                                          VertexPropertyInputIterator vertex_property_input_first,
-                                          EdgeMinorPropertyOutputWrapper edge_minor_property_output)
+void update_edge_minor_property(raft::handle_t const& handle,
+                                GraphViewType const& graph_view,
+                                VertexPropertyInputIterator vertex_property_input_first,
+                                EdgeMinorPropertyOutputWrapper edge_minor_property_output)
 {
   auto edge_partition_keys        = edge_minor_property_output.keys();
   auto edge_partition_value_first = edge_minor_property_output.value_first();
@@ -364,12 +364,12 @@ template <typename GraphViewType,
           typename VertexIterator,
           typename VertexPropertyInputIterator,
           typename EdgeMinorPropertyOutputWrapper>
-void update_edge_partition_minor_property(raft::handle_t const& handle,
-                                          GraphViewType const& graph_view,
-                                          VertexIterator vertex_first,
-                                          VertexIterator vertex_last,
-                                          VertexPropertyInputIterator vertex_property_input_first,
-                                          EdgeMinorPropertyOutputWrapper edge_minor_property_output)
+void update_edge_minor_property(raft::handle_t const& handle,
+                                GraphViewType const& graph_view,
+                                VertexIterator vertex_first,
+                                VertexIterator vertex_last,
+                                VertexPropertyInputIterator vertex_property_input_first,
+                                EdgeMinorPropertyOutputWrapper edge_minor_property_output)
 {
   using vertex_t = typename GraphViewType::vertex_type;
   using edge_t   = typename GraphViewType::edge_type;
@@ -501,7 +501,7 @@ void update_edge_partition_minor_property(raft::handle_t const& handle,
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  */
 template <typename GraphViewType, typename VertexPropertyInputIterator>
-void update_edge_partition_src_property(
+void update_edge_src_property(
   raft::handle_t const& handle,
   GraphViewType const& graph_view,
   VertexPropertyInputIterator vertex_property_input_first,
@@ -515,10 +515,10 @@ void update_edge_partition_src_property(
   }
 
   if constexpr (GraphViewType::is_storage_transposed) {
-    detail::update_edge_partition_minor_property(
+    detail::update_edge_minor_property(
       handle, graph_view, vertex_property_input_first, edge_src_property_output.mutable_view());
   } else {
-    detail::update_edge_partition_major_property(
+    detail::update_edge_major_property(
       handle, graph_view, vertex_property_input_first, edge_src_property_output.mutable_view());
   }
 }
@@ -548,7 +548,7 @@ void update_edge_partition_src_property(
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  */
 template <typename GraphViewType, typename VertexIterator, typename VertexPropertyInputIterator>
-void update_edge_partition_src_property(
+void update_edge_src_property(
   raft::handle_t const& handle,
   GraphViewType const& graph_view,
   VertexIterator vertex_first,
@@ -580,19 +580,19 @@ void update_edge_partition_src_property(
   }
 
   if constexpr (GraphViewType::is_storage_transposed) {
-    detail::update_edge_partition_minor_property(handle,
-                                                 graph_view,
-                                                 vertex_first,
-                                                 vertex_last,
-                                                 vertex_property_input_first,
-                                                 edge_src_property_output.mutable_view());
+    detail::update_edge_minor_property(handle,
+                                       graph_view,
+                                       vertex_first,
+                                       vertex_last,
+                                       vertex_property_input_first,
+                                       edge_src_property_output.mutable_view());
   } else {
-    detail::update_edge_partition_major_property(handle,
-                                                 graph_view,
-                                                 vertex_first,
-                                                 vertex_last,
-                                                 vertex_property_input_first,
-                                                 edge_src_property_output.mutable_view());
+    detail::update_edge_major_property(handle,
+                                       graph_view,
+                                       vertex_first,
+                                       vertex_last,
+                                       vertex_property_input_first,
+                                       edge_src_property_output.mutable_view());
   }
 }
 
@@ -616,7 +616,7 @@ void update_edge_partition_src_property(
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  */
 template <typename GraphViewType, typename VertexPropertyInputIterator>
-void update_edge_partition_dst_property(
+void update_edge_dst_property(
   raft::handle_t const& handle,
   GraphViewType const& graph_view,
   VertexPropertyInputIterator vertex_property_input_first,
@@ -630,10 +630,10 @@ void update_edge_partition_dst_property(
   }
 
   if constexpr (GraphViewType::is_storage_transposed) {
-    detail::update_edge_partition_major_property(
+    detail::update_edge_major_property(
       handle, graph_view, vertex_property_input_first, edge_dst_property_output.mutable_view());
   } else {
-    detail::update_edge_partition_minor_property(
+    detail::update_edge_minor_property(
       handle, graph_view, vertex_property_input_first, edge_dst_property_output.mutable_view());
   }
 }
@@ -663,7 +663,7 @@ void update_edge_partition_dst_property(
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  */
 template <typename GraphViewType, typename VertexIterator, typename VertexPropertyInputIterator>
-void update_edge_partition_dst_property(
+void update_edge_dst_property(
   raft::handle_t const& handle,
   GraphViewType const& graph_view,
   VertexIterator vertex_first,
@@ -695,19 +695,19 @@ void update_edge_partition_dst_property(
   }
 
   if constexpr (GraphViewType::is_storage_transposed) {
-    detail::update_edge_partition_major_property(handle,
-                                                 graph_view,
-                                                 vertex_first,
-                                                 vertex_last,
-                                                 vertex_property_input_first,
-                                                 edge_dst_property_output.mutable_view());
+    detail::update_edge_major_property(handle,
+                                       graph_view,
+                                       vertex_first,
+                                       vertex_last,
+                                       vertex_property_input_first,
+                                       edge_dst_property_output.mutable_view());
   } else {
-    detail::update_edge_partition_minor_property(handle,
-                                                 graph_view,
-                                                 vertex_first,
-                                                 vertex_last,
-                                                 vertex_property_input_first,
-                                                 edge_dst_property_output.mutable_view());
+    detail::update_edge_minor_property(handle,
+                                       graph_view,
+                                       vertex_first,
+                                       vertex_last,
+                                       vertex_property_input_first,
+                                       edge_dst_property_output.mutable_view());
   }
 }
 

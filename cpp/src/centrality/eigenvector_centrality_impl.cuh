@@ -21,7 +21,7 @@
 #include <prims/per_v_transform_reduce_incoming_outgoing_e.cuh>
 #include <prims/reduce_v.cuh>
 #include <prims/transform_reduce_v.cuh>
-#include <prims/update_edge_partition_src_dst_property.cuh>
+#include <prims/update_edge_src_dst_property.cuh>
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
@@ -93,8 +93,7 @@ rmm::device_uvector<weight_t> eigenvector_centrality(
                  centralities.end(),
                  old_centralities.data());
 
-    update_edge_partition_src_property(
-      handle, pull_graph_view, centralities.begin(), edge_src_centralities);
+    update_edge_src_property(handle, pull_graph_view, centralities.begin(), edge_src_centralities);
 
     per_v_transform_reduce_incoming_e(
       handle,

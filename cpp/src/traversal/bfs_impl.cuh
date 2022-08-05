@@ -19,7 +19,7 @@
 #include <prims/fill_edge_src_dst_property.cuh>
 #include <prims/reduce_op.cuh>
 #include <prims/transform_reduce_v_frontier_outgoing_e_by_dst.cuh>
-#include <prims/update_edge_partition_src_dst_property.cuh>
+#include <prims/update_edge_src_dst_property.cuh>
 #include <prims/update_v_frontier.cuh>
 #include <prims/vertex_frontier.cuh>
 
@@ -207,12 +207,12 @@ void bfs(raft::handle_t const& handle,
       CUGRAPH_FAIL("unimplemented.");
     } else {
       if (GraphViewType::is_multi_gpu) {
-        update_edge_partition_dst_property(handle,
-                                           push_graph_view,
-                                           vertex_frontier.bucket(bucket_idx_cur).begin(),
-                                           vertex_frontier.bucket(bucket_idx_cur).end(),
-                                           thrust::make_constant_iterator(uint8_t{1}),
-                                           dst_visited_flags);
+        update_edge_dst_property(handle,
+                                 push_graph_view,
+                                 vertex_frontier.bucket(bucket_idx_cur).begin(),
+                                 vertex_frontier.bucket(bucket_idx_cur).end(),
+                                 thrust::make_constant_iterator(uint8_t{1}),
+                                 dst_visited_flags);
       } else {
         thrust::copy(handle.get_thrust_policy(),
                      visited_flags.begin(),

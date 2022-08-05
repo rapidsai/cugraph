@@ -21,7 +21,7 @@
 #include <prims/per_v_transform_reduce_incoming_outgoing_e.cuh>
 #include <prims/reduce_v.cuh>
 #include <prims/transform_reduce_v.cuh>
-#include <prims/update_edge_partition_src_dst_property.cuh>
+#include <prims/update_edge_src_dst_property.cuh>
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/graph_view.hpp>
@@ -103,7 +103,7 @@ std::tuple<result_t, size_t> hits(raft::handle_t const& handle,
 
   // Initialize hubs from user input if provided
   if (has_initial_hubs_guess) {
-    update_edge_partition_src_property(handle, graph_view, prev_hubs, prev_src_hubs);
+    update_edge_src_property(handle, graph_view, prev_hubs, prev_src_hubs);
   } else {
     fill_edge_src_property(handle, graph_view, result_t{1.0} / num_vertices, prev_src_hubs);
     thrust::fill(handle.get_thrust_policy(),
@@ -122,7 +122,7 @@ std::tuple<result_t, size_t> hits(raft::handle_t const& handle,
       result_t{0},
       authorities);
 
-    update_edge_partition_dst_property(handle, graph_view, authorities, curr_dst_auth);
+    update_edge_dst_property(handle, graph_view, authorities, curr_dst_auth);
 
     // Update current source hubs property
     per_v_transform_reduce_outgoing_e(
@@ -163,7 +163,7 @@ std::tuple<result_t, size_t> hits(raft::handle_t const& handle,
       break;
     }
 
-    update_edge_partition_src_property(handle, graph_view, curr_hubs, prev_src_hubs);
+    update_edge_src_property(handle, graph_view, curr_hubs, prev_src_hubs);
 
     // Swap pointers for the next iteration
     // After this swap call, prev_hubs has the latest value of hubs

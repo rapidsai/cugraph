@@ -24,7 +24,7 @@
 
 #include <prims/count_if_e.cuh>
 #include <prims/edge_src_dst_property.hpp>
-#include <prims/update_edge_partition_src_dst_property.cuh>
+#include <prims/update_edge_src_dst_property.cuh>
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/partition_manager.hpp>
@@ -138,7 +138,7 @@ struct generate_impl {
                               property_buffer_type& property)
   {
     auto output_property = cugraph::edge_dst_property_t<graph_view_type, type>(handle, graph_view);
-    update_edge_partition_dst_property(
+    update_edge_dst_property(
       handle, graph_view, cugraph::get_dataframe_buffer_begin(property), output_property);
     return output_property;
   }
@@ -149,7 +149,7 @@ struct generate_impl {
                            property_buffer_type& property)
   {
     auto output_property = cugraph::edge_src_property_t<graph_view_type, type>(handle, graph_view);
-    update_edge_partition_src_property(
+    update_edge_src_property(
       handle, graph_view, cugraph::get_dataframe_buffer_begin(property), output_property);
     return output_property;
   }

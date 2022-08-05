@@ -19,7 +19,7 @@
 #include <prims/edge_src_dst_property.hpp>
 #include <prims/per_v_transform_reduce_incoming_outgoing_e.cuh>
 #include <prims/transform_reduce_v.cuh>
-#include <prims/update_edge_partition_src_dst_property.cuh>
+#include <prims/update_edge_src_dst_property.cuh>
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/graph_view.hpp>
@@ -104,7 +104,7 @@ void katz_centrality(raft::handle_t const& handle,
   while (true) {
     std::swap(new_katz_centralities, old_katz_centralities);
 
-    update_edge_partition_src_property(
+    update_edge_src_property(
       handle, pull_graph_view, old_katz_centralities, edge_src_katz_centralities);
 
     per_v_transform_reduce_incoming_e(

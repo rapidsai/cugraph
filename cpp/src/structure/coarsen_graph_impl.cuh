@@ -18,7 +18,7 @@
 #include <detail/graph_utils.cuh>
 #include <prims/edge_partition_major_minor_property_device_view.cuh>
 #include <prims/edge_src_dst_property.hpp>
-#include <prims/update_edge_partition_src_dst_property.cuh>
+#include <prims/update_edge_src_dst_property.cuh>
 
 #include <cugraph/detail/decompress_edge_partition.cuh>
 #include <cugraph/detail/shuffle_wrappers.hpp>
@@ -274,9 +274,9 @@ coarsen_graph(
                         vertex_t>>
     edge_minor_labels(handle, graph_view);
   if constexpr (store_transposed) {
-    update_edge_partition_src_property(handle, graph_view, labels, edge_minor_labels);
+    update_edge_src_property(handle, graph_view, labels, edge_minor_labels);
   } else {
-    update_edge_partition_dst_property(handle, graph_view, labels, edge_minor_labels);
+    update_edge_dst_property(handle, graph_view, labels, edge_minor_labels);
   }
 
   std::vector<rmm::device_uvector<vertex_t>> coarsened_edgelist_majors{};

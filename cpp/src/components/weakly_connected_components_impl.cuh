@@ -19,7 +19,7 @@
 #include <prims/edge_src_dst_property.hpp>
 #include <prims/fill_edge_src_dst_property.cuh>
 #include <prims/transform_reduce_v_frontier_outgoing_e_by_dst.cuh>
-#include <prims/update_edge_partition_src_dst_property.cuh>
+#include <prims/update_edge_src_dst_property.cuh>
 #include <prims/update_v_frontier.cuh>
 #include <prims/vertex_frontier.cuh>
 
@@ -522,7 +522,7 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
       if (vertex_frontier.bucket(bucket_idx_cur).aggregate_size() == 0) { break; }
 
       if constexpr (GraphViewType::is_multi_gpu) {
-        update_edge_partition_dst_property(
+        update_edge_dst_property(
           handle,
           level_graph_view,
           thrust::get<0>(vertex_frontier.bucket(bucket_idx_cur).begin().get_iterator_tuple()),

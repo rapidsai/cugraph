@@ -17,8 +17,8 @@
 
 #include <detail/graph_utils.cuh>
 #include <prims/detail/nbr_intersection.cuh>
-#include <prims/edge_src_dst_property.hpp>
 #include <prims/edge_partition_major_minor_property_device_view.cuh>
+#include <prims/edge_src_dst_property.hpp>
 #include <prims/property_op_utils.cuh>
 
 #include <cugraph/edge_partition_device_view.cuh>
@@ -202,13 +202,13 @@ struct accumulate_vertex_property_t {
  * @param edge_src_value_input Wrapper used to access source input property values (for the edge
  * sources assigned to this process in multi-GPU). Use either cugraph::edge_src_property_t::view()
  * (if @p e_op needs to access source property values) or cugraph::edge_src_dummy_property_t::view()
- * (if @p e_op does not access source property values). Use update_edge_partition_src_property to
- * fill the wrapper.
+ * (if @p e_op does not access source property values). Use update_edge_src_property to fill the
+ * wrapper.
  * @param edge_dst_value_input Wrapper used to access destination input property values (for the
  * edge destinations assigned to this process in multi-GPU). Use either
  * cugraph::edge_dst_property_t::view() (if @p e_op needs to access destination property values) or
  * cugraph::edge_dst_dummy_property_t::view() (if @p e_op does not access destination property
- * values). Use update_edge_partition_dst_property to fill the wrapper.
+ * values). Use update_edge_dst_property to fill the wrapper.
  * @param intersection_op quinary operator takes edge source, edge destination, property values for
  * the source, property values for the destination, and a list of vertices in the intersection of
  * edge source & destination vertices' destination neighbors and returns a thrust::tuple of three

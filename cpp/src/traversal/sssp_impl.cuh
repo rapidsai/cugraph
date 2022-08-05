@@ -21,7 +21,7 @@
 #include <prims/reduce_op.cuh>
 #include <prims/transform_reduce_e.cuh>
 #include <prims/transform_reduce_v_frontier_outgoing_e_by_dst.cuh>
-#include <prims/update_edge_partition_src_dst_property.cuh>
+#include <prims/update_edge_src_dst_property.cuh>
 #include <prims/update_v_frontier.cuh>
 #include <prims/vertex_frontier.cuh>
 
@@ -154,12 +154,12 @@ void sssp(raft::handle_t const& handle,
   auto near_far_threshold = delta;
   while (true) {
     if (GraphViewType::is_multi_gpu) {
-      update_edge_partition_src_property(handle,
-                                         push_graph_view,
-                                         vertex_frontier.bucket(bucket_idx_cur_near).begin(),
-                                         vertex_frontier.bucket(bucket_idx_cur_near).end(),
-                                         distances,
-                                         edge_src_distances);
+      update_edge_src_property(handle,
+                               push_graph_view,
+                               vertex_frontier.bucket(bucket_idx_cur_near).begin(),
+                               vertex_frontier.bucket(bucket_idx_cur_near).end(),
+                               distances,
+                               edge_src_distances);
     }
 
     auto vertex_partition = vertex_partition_device_view_t<vertex_t, GraphViewType::is_multi_gpu>(

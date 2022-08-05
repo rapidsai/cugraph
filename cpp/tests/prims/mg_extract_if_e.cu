@@ -25,7 +25,7 @@
 #include <prims/edge_src_dst_property.hpp>
 #include <prims/extract_if_e.cuh>
 #include <prims/property_op_utils.cuh>
-#include <prims/update_edge_partition_src_dst_property.cuh>
+#include <prims/update_edge_src_dst_property.cuh>
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/partition_manager.hpp>
@@ -192,14 +192,14 @@ class Tests_MGExtractIfE
     cugraph::edge_dst_property_t<decltype(mg_graph_view), property_t> mg_dst_properties(
       *handle_, mg_graph_view);
 
-    update_edge_partition_src_property(*handle_,
-                                       mg_graph_view,
-                                       cugraph::get_dataframe_buffer_cbegin(mg_property_buffer),
-                                       mg_src_properties);
-    update_edge_partition_dst_property(*handle_,
-                                       mg_graph_view,
-                                       cugraph::get_dataframe_buffer_cbegin(mg_property_buffer),
-                                       mg_dst_properties);
+    update_edge_src_property(*handle_,
+                             mg_graph_view,
+                             cugraph::get_dataframe_buffer_cbegin(mg_property_buffer),
+                             mg_src_properties);
+    update_edge_dst_property(*handle_,
+                             mg_graph_view,
+                             cugraph::get_dataframe_buffer_cbegin(mg_property_buffer),
+                             mg_dst_properties);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -282,14 +282,14 @@ class Tests_MGExtractIfE
         cugraph::edge_dst_property_t<decltype(sg_graph_view), property_t> sg_dst_properties(
           *handle_, sg_graph_view);
 
-        update_edge_partition_src_property(*handle_,
-                                           sg_graph_view,
-                                           cugraph::get_dataframe_buffer_cbegin(sg_property_buffer),
-                                           sg_src_properties);
-        update_edge_partition_dst_property(*handle_,
-                                           sg_graph_view,
-                                           cugraph::get_dataframe_buffer_cbegin(sg_property_buffer),
-                                           sg_dst_properties);
+        update_edge_src_property(*handle_,
+                                 sg_graph_view,
+                                 cugraph::get_dataframe_buffer_cbegin(sg_property_buffer),
+                                 sg_src_properties);
+        update_edge_dst_property(*handle_,
+                                 sg_graph_view,
+                                 cugraph::get_dataframe_buffer_cbegin(sg_property_buffer),
+                                 sg_dst_properties);
 
         auto [sg_edgelist_srcs, sg_edgelist_dsts, sg_edgelist_weights] =
           extract_if_e(*handle_,

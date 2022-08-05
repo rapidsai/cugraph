@@ -188,11 +188,11 @@ struct reduce_with_init_t {
  * @param edge_src_value_input Wrapper used to access source input property values (for the edge
  * sources assigned to this process in multi-GPU). Use either cugraph::edge_src_property_t::view()
  * (if @p e_op needs to access source property values) or cugraph::edge_src_dummy_property_t::view()
- * (if @p e_op does not access source property values). Use update_edge_partition_src_property to
- * fill the wrapper.
+ * (if @p e_op does not access source property values). Use update_edge_src_property to fill the
+ * wrapper.
  * @param edge_dst_key_input Wrapper used to access destination input key values (for the edge
  * destinations assigned to this process in multi-GPU). Use  cugraph::edge_dst_property_t::view().
- * Use update_edge_partition_dst_property to fill the wrapper.
+ * Use update_edge_dst_property to fill the wrapper.
  * @param map_unique_key_first Iterator pointing to the first (inclusive) key in (key, value) pairs
  * (assigned to this process in multi-GPU, `cugraph::detail::compute_gpu_id_from_ext_vertex_t` is
  * used to map keys to processes). (Key, value) pairs may be provided by
