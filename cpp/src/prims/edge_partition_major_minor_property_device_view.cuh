@@ -34,7 +34,7 @@ namespace cugraph {
 namespace detail {
 
 template <typename vertex_t, typename ValueIterator>
-class edge_partition_major_property_device_view_t {
+class edge_partition_endpoint_property_device_view_t {
  public:
   using value_type = typename thrust::iterator_traits<ValueIterator>::value_type;
 
@@ -43,7 +43,7 @@ class edge_partition_major_property_device_view_t {
   edge_partition_major_property_device_view_t(
     edge_major_property_view_t<vertex_t, ValueIterator> const& view, size_t partition_idx)
     : value_first_(view.value_firsts()[partition_idx]),
-      major_range_first_(view.major_range_firsts()[partition_idx])
+      range_first_(view.major_range_firsts()[partition_idx])
   {
     if (view.keys()) {
       keys_                    = (*(view.keys()))[partition_idx];
@@ -51,44 +51,8 @@ class edge_partition_major_property_device_view_t {
       key_chunk_size_          = *(view.key_chunk_size());
     }
     value_first_       = view.value_firsts()[partition_idx];
-    major_range_first_ = view.major_range_firsts()[partition_idx];
+    range_first_ = view.major_range_firsts()[partition_idx];
   }
-
-  __device__ ValueIterator get_iter(vertex_t offset) const
-  {
-    auto value_offset = offset;
-    if (keys_) {
-      auto chunk_idx = static_cast<size_t>(offset) / (*key_chunk_size_);
-      auto it        = thrust::lower_bound(thrust::seq,
-                                    (*keys_).begin() + (*key_chunk_start_offsets_)[chunk_idx],
-                                    (*keys_).begin() + (*key_chunk_start_offsets_)[chunk_idx + 1],
-                                    major_range_first_ + offset);
-      assert((it != (*keys_).begin() + (*key_chunk_start_offsets_)[chunk_idx + 1]) &&
-             (*it == (major_range_first_ + offset)));
-      value_offset = (*key_chunk_start_offsets_)[chunk_idx] +
-                     static_cast<vertex_t>(thrust::distance(
-                       (*keys_).begin() + (*key_chunk_start_offsets_)[chunk_idx], it));
-    }
-    return value_first_ + value_offset;
-  }
-
-  __device__ value_type get(vertex_t offset) const { return *get_iter(offset); }
-
- private:
-  thrust::optional<raft::device_span<vertex_t const>> keys_{thrust::nullopt};
-  thrust::optional<raft::device_span<vertex_t const>> key_chunk_start_offsets_{thrust::nullopt};
-  thrust::optional<size_t> key_chunk_size_{thrust::nullopt};
-
-  ValueIterator value_first_{};
-  vertex_t major_range_first_{};
-};
-
-template <typename vertex_t, typename ValueIterator>
-class edge_partition_minor_property_device_view_t {
- public:
-  using value_type = typename thrust::iterator_traits<ValueIterator>::value_type;
-
-  edge_partition_minor_property_device_view_t() = default;
 
   edge_partition_minor_property_device_view_t(
     edge_minor_property_view_t<vertex_t, ValueIterator> const& view)
@@ -99,7 +63,7 @@ class edge_partition_minor_property_device_view_t {
       key_chunk_size_          = *(view.key_chunk_size());
     }
     value_first_       = view.value_first();
-    minor_range_first_ = view.minor_range_first();
+    range_first_ = view.minor_range_first();
   }
 
   __device__ ValueIterator get_iter(vertex_t offset) const
@@ -110,9 +74,9 @@ class edge_partition_minor_property_device_view_t {
       auto it        = thrust::lower_bound(thrust::seq,
                                     (*keys_).begin() + (*key_chunk_start_offsets_)[chunk_idx],
                                     (*keys_).begin() + (*key_chunk_start_offsets_)[chunk_idx + 1],
-                                    minor_range_first_ + offset);
+                                    range_first_ + offset);
       assert((it != (*keys_).begin() + (*key_chunk_start_offsets_)[chunk_idx + 1]) &&
-             (*it == (minor_range_first_ + offset)));
+             (*it == (range_first_ + offset)));
       value_offset = (*key_chunk_start_offsets_)[chunk_idx] +
                      static_cast<vertex_t>(thrust::distance(
                        (*keys_).begin() + (*key_chunk_start_offsets_)[chunk_idx], it));
@@ -128,7 +92,7 @@ class edge_partition_minor_property_device_view_t {
   thrust::optional<size_t> key_chunk_size_{thrust::nullopt};
 
   ValueIterator value_first_{};
-  vertex_t minor_range_first_{};
+  vertex_t range_first_{};
 };
 
 template <typename vertex_t>
