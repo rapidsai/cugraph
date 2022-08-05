@@ -15,7 +15,8 @@
  */
 #pragma once
 
-#include <prims/edge_partition_src_dst_property.cuh>
+#include <prims/edge_partition_major_minor_property_device_view.cuh>
+#include <prims/edge_src_dst_property.hpp>
 #include <prims/property_op_utils.cuh>
 #include <prims/reduce_op.cuh>
 
@@ -481,15 +482,15 @@ __global__ void per_v_transform_reduce_e_high_degree(
 template <bool incoming,  // iterate over incoming edges (incoming == true) or outgoing edges
                           // (incoming == false)
           typename GraphViewType,
-          typename EdgePartitionSrcValueInputWrapper,
-          typename EdgePartitionDstValueInputWrapper,
+          typename EdgeSrcValueInputWrapper,
+          typename EdgeDstValueInputWrapper,
           typename EdgeOp,
           typename T,
           typename VertexValueOutputIterator>
 void per_v_transform_reduce_e(raft::handle_t const& handle,
                               GraphViewType const& graph_view,
-                              EdgePartitionSrcValueInputWrapper edge_partition_src_value_input,
-                              EdgePartitionDstValueInputWrapper edge_partition_dst_value_input,
+                              EdgeSrcValueInputWrapper edge_src_value_input,
+                              EdgeDstValueInputWrapper edge_dst_value_input,
                               EdgeOp e_op,
                               T init,
                               VertexValueOutputIterator vertex_value_output_first)
@@ -501,17 +502,38 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
   using edge_t   = typename GraphViewType::edge_type;
   using weight_t = typename GraphViewType::weight_type;
 
+  using edge_partition_src_property_device_view_t = std::conditional_t<
+    std::is_same_v<typename EdgeSrcValueInputWrapper::value_type, thrust::nullopt_t>,
+    detail::edge_partition_endpoint_dummy_property_device_view_t<vertex_t>,
+    std::conditional_t<GraphViewType::is_storage_transposed,
+                       detail::edge_partition_minor_property_device_view_t<
+                         vertex_t,
+                         typename EdgeSrcValueInputWrapper::value_iterator>,
+                       detail::edge_partition_major_property_device_view_t<
+                         vertex_t,
+                         typename EdgeSrcValueInputWrapper::value_iterator>>>;
+  using edge_partition_dst_property_device_view_t = std::conditional_t<
+    std::is_same_v<typename EdgeDstValueInputWrapper::value_type, thrust::nullopt_t>,
+    detail::edge_partition_endpoint_dummy_property_device_view_t<vertex_t>,
+    std::conditional_t<GraphViewType::is_storage_transposed,
+                       detail::edge_partition_major_property_device_view_t<
+                         vertex_t,
+                         typename EdgeDstValueInputWrapper::value_iterator>,
+                       detail::edge_partition_minor_property_device_view_t<
+                         vertex_t,
+                         typename EdgeDstValueInputWrapper::value_iterator>>>;
+
   static_assert(is_arithmetic_or_thrust_tuple_of_arithmetic<T>::value);
 
   [[maybe_unused]] std::conditional_t<GraphViewType::is_storage_transposed,
-                                      edge_partition_src_property_t<GraphViewType, T>,
-                                      edge_partition_dst_property_t<GraphViewType, T>>
+                                      edge_src_property_t<GraphViewType, T>,
+                                      edge_dst_property_t<GraphViewType, T>>
     minor_tmp_buffer(handle);  // relevant only when (GraphViewType::is_multi_gpu && !update_major
   if constexpr (GraphViewType::is_multi_gpu && !update_major) {
     if constexpr (GraphViewType::is_storage_transposed) {
-      minor_tmp_buffer = edge_partition_src_property_t<GraphViewType, T>(handle, graph_view);
+      minor_tmp_buffer = edge_src_property_t<GraphViewType, T>(handle, graph_view);
     } else {
-      minor_tmp_buffer = edge_partition_dst_property_t<GraphViewType, T>(handle, graph_view);
+      minor_tmp_buffer = edge_dst_property_t<GraphViewType, T>(handle, graph_view);
     }
   }
 
@@ -653,12 +675,18 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
       }
     }
 
-    auto edge_partition_src_value_input_copy = edge_partition_src_value_input;
-    auto edge_partition_dst_value_input_copy = edge_partition_dst_value_input;
+    edge_partition_src_property_device_view_t edge_partition_src_value_input{};
+    edge_partition_dst_property_device_view_t edge_partition_dst_value_input{};
     if constexpr (GraphViewType::is_storage_transposed) {
-      edge_partition_dst_value_input_copy.set_local_edge_partition_idx(i);
+      edge_partition_src_value_input =
+        edge_partition_src_property_device_view_t(edge_src_value_input);
+      edge_partition_dst_value_input =
+        edge_partition_dst_property_device_view_t(edge_dst_value_input, i);
     } else {
-      edge_partition_src_value_input_copy.set_local_edge_partition_idx(i);
+      edge_partition_src_value_input =
+        edge_partition_src_property_device_view_t(edge_src_value_input, i);
+      edge_partition_dst_value_input =
+        edge_partition_dst_property_device_view_t(edge_dst_value_input);
     }
 
     auto major_buffer_first =
@@ -667,14 +695,14 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
     std::conditional_t<GraphViewType::is_multi_gpu,
                        std::conditional_t<update_major,
                                           decltype(major_buffer_first),
-                                          decltype(minor_tmp_buffer.mutable_device_view())>,
+                                          decltype(minor_tmp_buffer.mutable_view())>,
                        VertexValueOutputIterator>
       output_buffer{};
     if constexpr (GraphViewType::is_multi_gpu) {
       if constexpr (update_major) {
         output_buffer = major_buffer_first;
       } else {
-        output_buffer = minor_tmp_buffer.mutable_device_view();
+        output_buffer = minor_tmp_buffer.mutable_view();
       }
     } else {
       output_buffer = vertex_value_output_first;
@@ -710,8 +738,8 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
           detail::per_v_transform_reduce_e_hypersparse<update_major, GraphViewType>
             <<<update_grid.num_blocks, update_grid.block_size, 0, exec_stream>>>(
               edge_partition,
-              edge_partition_src_value_input_copy,
-              edge_partition_dst_value_input_copy,
+              edge_partition_src_value_input,
+              edge_partition_dst_value_input,
               segment_output_buffer,
               e_op,
               major_init);
@@ -732,8 +760,8 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
             edge_partition,
             edge_partition.major_range_first() + (*segment_offsets)[2],
             edge_partition.major_range_first() + (*segment_offsets)[3],
-            edge_partition_src_value_input_copy,
-            edge_partition_dst_value_input_copy,
+            edge_partition_src_value_input,
+            edge_partition_dst_value_input,
             segment_output_buffer,
             e_op,
             major_init);
@@ -753,8 +781,8 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
             edge_partition,
             edge_partition.major_range_first() + (*segment_offsets)[1],
             edge_partition.major_range_first() + (*segment_offsets)[2],
-            edge_partition_src_value_input_copy,
-            edge_partition_dst_value_input_copy,
+            edge_partition_src_value_input,
+            edge_partition_dst_value_input,
             segment_output_buffer,
             e_op,
             major_init);
@@ -772,8 +800,8 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
             edge_partition,
             edge_partition.major_range_first(),
             edge_partition.major_range_first() + (*segment_offsets)[1],
-            edge_partition_src_value_input_copy,
-            edge_partition_dst_value_input_copy,
+            edge_partition_src_value_input,
+            edge_partition_dst_value_input,
             output_buffer,
             e_op,
             major_init);
@@ -788,8 +816,8 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
             edge_partition,
             edge_partition.major_range_first(),
             edge_partition.major_range_last(),
-            edge_partition_src_value_input_copy,
-            edge_partition_dst_value_input_copy,
+            edge_partition_src_value_input,
+            edge_partition_dst_value_input,
             output_buffer,
             e_op,
             major_init);
@@ -1012,26 +1040,24 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
  * This function is inspired by thrust::transform_reduce.
  *
  * @tparam GraphViewType Type of the passed non-owning graph object.
- * @tparam EdgePartitionSrcValueInputWrapper Type of the wrapper for edge partition source property
- * values.
- * @tparam EdgePartitionDstValueInputWrapper Type of the wrapper for edge partition destination
- * property values.
+ * @tparam EdgeSrcValueInputWrapper Type of the wrapper for edge source property values.
+ * @tparam EdgeDstValueInputWrapper Type of the wrapper for edge destination property values.
  * @tparam EdgeOp Type of the quaternary (or quinary) edge operator.
  * @tparam T Type of the initial value for per-vertex reduction.
  * @tparam VertexValueOutputIterator Type of the iterator for vertex output property variables.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Non-owning graph object.
- * @param edge_partition_src_value_input Device-copyable wrapper used to access source input
- * property values (for the edge sources assigned to this process in multi-GPU). Use either
- * cugraph::edge_partition_src_property_t::device_view() (if @p e_op needs to access source property
- * values) or cugraph::dummy_property_t::device_view() (if @p e_op does not access source property
- * values). Use update_edge_partition_src_property to fill the wrapper.
- * @param edge_partition_dst_value_input Device-copyable wrapper used to access destination input
- * property values (for the edge destinations assigned to this process in multi-GPU). Use either
- * cugraph::edge_partition_dst_property_t::device_view() (if @p e_op needs to access destination
- * property values) or cugraph::dummy_property_t::device_view() (if @p e_op does not access
- * destination property values). Use update_edge_partition_dst_property to fill the wrapper.
+ * @param edge_src_value_input Wrapper used to access source input property values (for the edge
+ * sources assigned to this process in multi-GPU). Use either cugraph::edge_src_property_t::view()
+ * (if @p e_op needs to access source property values) or cugraph::edge_src_dummy_property_t::view()
+ * (if @p e_op does not access source property values). Use update_edge_partition_src_property to
+ * fill the wrapper.
+ * @param edge_dst_value_input Wrapper used to access destination input property values (for the
+ * edge destinations assigned to this process in multi-GPU). Use either
+ * cugraph::edge_dst_property_t::view() (if @p e_op needs to access destination property values) or
+ * cugraph::edge_dst_dummy_property_t::view() (if @p e_op does not access destination property
+ * values). Use update_edge_partition_dst_property to fill the wrapper.
  * @param e_op Quaternary (or quinary) operator takes edge source, edge destination, (optional edge
  * weight), property values for the source, and property values for the destination and returns a
  * value to be reduced.
@@ -1043,20 +1069,19 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  */
 template <typename GraphViewType,
-          typename EdgePartitionSrcValueInputWrapper,
-          typename EdgePartitionDstValueInputWrapper,
+          typename EdgeSrcValueInputWrapper,
+          typename EdgeDstValueInputWrapper,
           typename EdgeOp,
           typename T,
           typename VertexValueOutputIterator>
-void per_v_transform_reduce_incoming_e(
-  raft::handle_t const& handle,
-  GraphViewType const& graph_view,
-  EdgePartitionSrcValueInputWrapper edge_partition_src_value_input,
-  EdgePartitionDstValueInputWrapper edge_partition_dst_value_input,
-  EdgeOp e_op,
-  T init,
-  VertexValueOutputIterator vertex_value_output_first,
-  bool do_expensive_check = false)
+void per_v_transform_reduce_incoming_e(raft::handle_t const& handle,
+                                       GraphViewType const& graph_view,
+                                       EdgeSrcValueInputWrapper edge_src_value_input,
+                                       EdgeDstValueInputWrapper edge_dst_value_input,
+                                       EdgeOp e_op,
+                                       T init,
+                                       VertexValueOutputIterator vertex_value_output_first,
+                                       bool do_expensive_check = false)
 {
   if (do_expensive_check) {
     // currently, nothing to do
@@ -1064,8 +1089,8 @@ void per_v_transform_reduce_incoming_e(
 
   detail::per_v_transform_reduce_e<true>(handle,
                                          graph_view,
-                                         edge_partition_src_value_input,
-                                         edge_partition_dst_value_input,
+                                         edge_src_value_input,
+                                         edge_dst_value_input,
                                          e_op,
                                          init,
                                          vertex_value_output_first);
@@ -1077,26 +1102,24 @@ void per_v_transform_reduce_incoming_e(
  * This function is inspired by thrust::transform_reduce().
  *
  * @tparam GraphViewType Type of the passed non-owning graph object.
- * @tparam EdgePartitionSrcValueInputWrapper Type of the wrapper for edge partition source property
- * values.
- * @tparam EdgePartitionDstValueInputWrapper Type of the wrapper for edge partition destination
- * property values.
+ * @tparam EdgeSrcValueInputWrapper Type of the wrapper for edge source property values.
+ * @tparam EdgeDstValueInputWrapper Type of the wrapper for edge destination property values.
  * @tparam EdgeOp Type of the quaternary (or quinary) edge operator.
  * @tparam T Type of the initial value for per-vertex reduction.
  * @tparam VertexValueOutputIterator Type of the iterator for vertex output property variables.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Non-owning graph object.
- * @param edge_partition_src_value_input Device-copyable wrapper used to access source input
- * property values (for the edge sources assigned to this process in multi-GPU). Use either
- * cugraph::edge_partition_src_property_t::device_view() (if @p e_op needs to access source property
- * values) or cugraph::dummy_property_t::device_view() (if @p e_op does not access source property
- * values). Use update_edge_partition_src_property to fill the wrapper.
- * @param edge_partition_dst_value_input Device-copyable wrapper used to access destination input
- * property values (for the edge destinations assigned to this process in multi-GPU). Use either
- * cugraph::edge_partition_dst_property_t::device_view() (if @p e_op needs to access destination
- * property values) or cugraph::dummy_property_t::device_view() (if @p e_op does not access
- * destination property values). Use update_edge_partition_dst_property to fill the wrapper.
+ * @param edge_src_value_input Wrapper used to access source input property values (for the edge
+ * sources assigned to this process in multi-GPU). Use either cugraph::edge_src_property_t::view()
+ * (if @p e_op needs to access source property values) or cugraph::edge_src_dummy_property_t::view()
+ * (if @p e_op does not access source property values). Use update_edge_partition_src_property to
+ * fill the wrapper.
+ * @param edge_dst_value_input Wrapper used to access destination input property values (for the
+ * edge destinations assigned to this process in multi-GPU). Use either
+ * cugraph::edge_dst_property_t::view() (if @p e_op needs to access destination property values) or
+ * cugraph::edge_dst_dummy_property_t::view() (if @p e_op does not access destination property
+ * values). Use update_edge_partition_dst_property to fill the wrapper.
  * @param e_op Quaternary (or quinary) operator takes edge source, edge destination, (optional edge
  * weight), property values for the source, and property values for the destination and returns a
  * value to be reduced.
@@ -1108,20 +1131,19 @@ void per_v_transform_reduce_incoming_e(
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  */
 template <typename GraphViewType,
-          typename EdgePartitionSrcValueInputWrapper,
-          typename EdgePartitionDstValueInputWrapper,
+          typename EdgeSrcValueInputWrapper,
+          typename EdgeDstValueInputWrapper,
           typename EdgeOp,
           typename T,
           typename VertexValueOutputIterator>
-void per_v_transform_reduce_outgoing_e(
-  raft::handle_t const& handle,
-  GraphViewType const& graph_view,
-  EdgePartitionSrcValueInputWrapper edge_partition_src_value_input,
-  EdgePartitionDstValueInputWrapper edge_partition_dst_value_input,
-  EdgeOp e_op,
-  T init,
-  VertexValueOutputIterator vertex_value_output_first,
-  bool do_expensive_check = false)
+void per_v_transform_reduce_outgoing_e(raft::handle_t const& handle,
+                                       GraphViewType const& graph_view,
+                                       EdgeSrcValueInputWrapper edge_src_value_input,
+                                       EdgeDstValueInputWrapper edge_dst_value_input,
+                                       EdgeOp e_op,
+                                       T init,
+                                       VertexValueOutputIterator vertex_value_output_first,
+                                       bool do_expensive_check = false)
 {
   if (do_expensive_check) {
     // currently, nothing to do
@@ -1129,8 +1151,8 @@ void per_v_transform_reduce_outgoing_e(
 
   detail::per_v_transform_reduce_e<false>(handle,
                                           graph_view,
-                                          edge_partition_src_value_input,
-                                          edge_partition_dst_value_input,
+                                          edge_src_value_input,
+                                          edge_dst_value_input,
                                           e_op,
                                           init,
                                           vertex_value_output_first);

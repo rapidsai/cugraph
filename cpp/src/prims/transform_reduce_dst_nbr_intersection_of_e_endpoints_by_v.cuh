@@ -17,7 +17,8 @@
 
 #include <detail/graph_utils.cuh>
 #include <prims/detail/nbr_intersection.cuh>
-#include <prims/edge_partition_src_dst_property.cuh>
+#include <prims/edge_src_dst_property.hpp>
+#include <prims/edge_partition_major_minor_property_device_view.cuh>
 #include <prims/property_op_utils.cuh>
 
 #include <cugraph/edge_partition_device_view.cuh>
@@ -190,26 +191,24 @@ struct accumulate_vertex_property_t {
  * function is inspired by thrust::transform_reduce().
  *
  * @tparam GraphViewType Type of the passed non-owning graph object.
- * @tparam EdgePartitionSrcValueInputWrapper Type of the wrapper for edge partition source property
- * values.
- * @tparam EdgePartitionDstValueInputWrapper Type of the wrapper for edge partition destination
- * property values.
+ * @tparam EdgeSrcValueInputWrapper Type of the wrapper for edge source property values.
+ * @tparam EdgeDstValueInputWrapper Type of the wrapper for edge destination property values.
  * @tparam IntersectionOp Type of the quinary per intersection operator.
  * @tparam T Type of the initial value for per-vertex reduction.
  * @tparam VertexValueOutputIterator Type of the iterator for vertex output property variables.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Non-owning graph object.
- * @param edge_partition_src_value_input Device-copyable wrapper used to access source input
- * property values (for the edge sources assigned to this process in multi-GPU). Use either
- * cugraph::edge_partition_src_property_t::device_view() (if @p e_op needs to access source property
- * values) or cugraph::dummy_property_t::device_view() (if @p e_op does not access source property
- * values). Use update_edge_partition_src_property to fill the wrapper.
- * @param edge_partition_dst_value_input Device-copyable wrapper used to access destination input
- * property values (for the edge destinations assigned to this process in multi-GPU). Use either
- * cugraph::edge_partition_dst_property_t::device_view() (if @p e_op needs to access destination
- * property values) or cugraph::dummy_property_t::device_view() (if @p e_op does not access
- * destination property values). Use update_edge_partition_dst_property to fill the wrapper.
+ * @param edge_src_value_input Wrapper used to access source input property values (for the edge
+ * sources assigned to this process in multi-GPU). Use either cugraph::edge_src_property_t::view()
+ * (if @p e_op needs to access source property values) or cugraph::edge_src_dummy_property_t::view()
+ * (if @p e_op does not access source property values). Use update_edge_partition_src_property to
+ * fill the wrapper.
+ * @param edge_dst_value_input Wrapper used to access destination input property values (for the
+ * edge destinations assigned to this process in multi-GPU). Use either
+ * cugraph::edge_dst_property_t::view() (if @p e_op needs to access destination property values) or
+ * cugraph::edge_dst_dummy_property_t::view() (if @p e_op does not access destination property
+ * values). Use update_edge_partition_dst_property to fill the wrapper.
  * @param intersection_op quinary operator takes edge source, edge destination, property values for
  * the source, property values for the destination, and a list of vertices in the intersection of
  * edge source & destination vertices' destination neighbors and returns a thrust::tuple of three
@@ -224,16 +223,16 @@ struct accumulate_vertex_property_t {
  * @param A flag to run expensive checks for input arguments (if set to `true`).
  */
 template <typename GraphViewType,
-          typename EdgePartitionSrcValueInputWrapper,
-          typename EdgePartitionDstValueInputWrapper,
+          typename EdgeSrcValueInputWrapper,
+          typename EdgeDstValueInputWrapper,
           typename IntersectionOp,
           typename T,
           typename VertexValueOutputIterator>
 void transform_reduce_dst_nbr_intersection_of_e_endpoints_by_v(
   raft::handle_t const& handle,
   GraphViewType const& graph_view,
-  EdgePartitionSrcValueInputWrapper edge_partition_src_value_input,
-  EdgePartitionDstValueInputWrapper edge_partition_dst_value_input,
+  EdgeSrcValueInputWrapper edge_src_value_input,
+  EdgeDstValueInputWrapper edge_dst_value_input,
   IntersectionOp intersection_op,
   T init,
   VertexValueOutputIterator vertex_value_output_first,
@@ -352,8 +351,8 @@ void transform_reduce_dst_nbr_intersection_of_e_endpoints_by_v(
                                                       IntersectionOp,
                                                       decltype(chunk_vertex_pair_first)>{
                          edge_partition,
-                         edge_partition_src_value_input,
-                         edge_partition_dst_value_input,
+                         edge_src_value_input,
+                         edge_dst_value_input,
                          intersection_op,
                          intersection_offsets.data(),
                          intersection_indices.data(),

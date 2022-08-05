@@ -21,15 +21,9 @@
 
 #include <raft/handle.hpp>
 #include <raft/span.hpp>
-#include <rmm/exec_policy.hpp>
 
-#include <thrust/fill.h>
-#include <thrust/iterator/constant_iterator.h>
-#include <thrust/iterator/counting_iterator.h>
 #include <thrust/iterator/iterator_traits.h>
-#include <thrust/iterator/transform_iterator.h>
 #include <thrust/iterator/zip_iterator.h>
-#include <thrust/optional.h>
 #include <thrust/tuple.h>
 
 #include <optional>
@@ -42,7 +36,8 @@ namespace detail {
 template <typename vertex_t, typename ValueIterator>
 class edge_major_property_view_t {
  public:
-  using value_type = typename thrust::iterator_traits<ValueIterator>::value_type;
+  using value_type     = typename thrust::iterator_traits<ValueIterator>::value_type;
+  using value_iterator = ValueIterator;
 
   edge_major_property_view_t() = default;
 
@@ -65,7 +60,7 @@ class edge_major_property_view_t {
     raft::host_span<raft::device_span<vertex_t const> const> edge_partition_key_chunk_start_offsets,
     size_t key_chunk_size,
     std::vector<ValueIterator> const& edge_partition_value_firsts,
-    std::vector<vertex_t const> const& edge_partition_major_range_firsts)
+    std::vector<vertex_t> const& edge_partition_major_range_firsts)
     : edge_partition_keys_(edge_partition_keys),
       edge_partition_key_chunk_start_offsets_(edge_partition_key_chunk_start_offsets),
       key_chunk_size_(key_chunk_size),
@@ -89,13 +84,14 @@ class edge_major_property_view_t {
 
   std::vector<ValueIterator> const& value_firsts() const { return edge_partition_value_firsts_; }
 
-  std::vector<vertex_t> const& edge_partition_major_range_firsts() const
+  std::vector<vertex_t> const& major_range_firsts() const
   {
     return edge_partition_major_range_firsts_;
   }
 
  private:
-  std::optional<raft::host_span<raft::device_span<vertex_t const> const>> edge_partition_keys_{std::nullopt};
+  std::optional<raft::host_span<raft::device_span<vertex_t const> const>> edge_partition_keys_{
+    std::nullopt};
   std::optional<raft::host_span<raft::device_span<vertex_t const> const>>
     edge_partition_key_chunk_start_offsets_{std::nullopt};
   std::optional<size_t> key_chunk_size_{std::nullopt};
@@ -107,7 +103,8 @@ class edge_major_property_view_t {
 template <typename vertex_t, typename ValueIterator>
 class edge_minor_property_view_t {
  public:
-  using value_type = typename thrust::iterator_traits<ValueIterator>::value_type;
+  using value_type     = typename thrust::iterator_traits<ValueIterator>::value_type;
+  using value_iterator = ValueIterator;
 
   edge_minor_property_view_t() = default;
 
@@ -131,7 +128,16 @@ class edge_minor_property_view_t {
 
   std::optional<raft::device_span<vertex_t const>> keys() const { return keys_; }
 
+  std::optional<raft::device_span<vertex_t const>> key_chunk_start_offsets() const
+  {
+    return key_chunk_start_offsets_;
+  }
+
+  std::optional<size_t> key_chunk_size() const { return key_chunk_size_; }
+
   ValueIterator value_first() const { return value_first_; }
+
+  vertex_t minor_range_first() const { return minor_range_first_; }
 
  private:
   std::optional<raft::device_span<vertex_t const>> keys_{std::nullopt};
@@ -143,26 +149,25 @@ class edge_minor_property_view_t {
 };
 
 template <typename vertex_t, typename T>
-class edge_partition_major_property_t {
+class edge_major_property_t {
  public:
-  using value_iterator = decltype(get_dataframe_buffer_begin(allocate_dataframe_buffer<T>(size_t{0}, rmm::cuda_stream-view{})));
-  using const_value_iterator = decltype(get_dataframe_buffer_cbegin(allocate_dataframe_buffer<T>(size_t{0}, rmm::cuda_stream-view{})));
+  using buffer_type = decltype(allocate_dataframe_buffer<T>(size_t{0}, rmm::cuda_stream_view{}));
 
-  edge_partition_major_property_t(raft::handle_t const& handle) {}
+  edge_major_property_t(raft::handle_t const& handle) {}
 
-  edge_partition_major_property_t(raft::handle_t const& handle,
-                                  std::vector<vertex_t>&& edge_partition_major_range_sizes,
-                                  std::vector<vertex_t>&& edge_partition_major_range_firsts)
+  edge_major_property_t(raft::handle_t const& handle,
+                        std::vector<vertex_t>&& edge_partition_major_range_sizes,
+                        std::vector<vertex_t>&& edge_partition_major_range_firsts)
     : edge_partition_major_range_firsts_(std::move(edge_partition_major_range_firsts))
   {
     buffers_.reserve(edge_partition_major_range_sizes.size());
     for (size_t i = 0; i < buffers_.size(); ++i) {
       buffers_.push_back(
-        allocate_dataframe_buffer<t>(edge_partition_major_range_sizes[i], handle.get_stream()));
+        allocate_dataframe_buffer<T>(edge_partition_major_range_sizes[i], handle.get_stream()));
     }
   }
 
-  edge_partition_major_property_t(
+  edge_major_property_t(
     raft::handle_t const& handle,
     raft::host_span<raft::device_span<vertex_t const> const> edge_partition_keys,
     raft::host_span<raft::device_span<vertex_t const> const> edge_partition_key_chunk_start_offsets,
@@ -176,7 +181,7 @@ class edge_partition_major_property_t {
     buffers_.reserve(edge_partition_keys.size());
     for (size_t i = 0; i < buffers_.size(); ++i) {
       buffers_.push_back(
-        allocate_dataframe_buffer<t>(edge_partition_keys[i].size(), handle.get_stream()));
+        allocate_dataframe_buffer<T>(edge_partition_keys[i].size(), handle.get_stream()));
     }
   }
 
@@ -187,24 +192,18 @@ class edge_partition_major_property_t {
     key_chunk_size_                         = std::nullopt;
 
     buffers_.clear();
-    buffers_shrink_to_fit();
+    buffers_.shrink_to_fit();
     edge_partition_major_range_firsts_.clear();
     edge_partition_major_range_firsts_.shrink_to_fit();
   }
 
-  void fill(raft::handle_t const& handle, T value)
-  {
-    thrust::fill(handle.get_thrust_policy(),
-                 get_dataframe_buffer_begin(buffer_),
-                 get_dataframe_buffer_end(buffer_),
-                 value);
-  }
-
   auto view() const
   {
+    using const_value_iterator = decltype(get_dataframe_buffer_cbegin(buffers_[0]));
+
     std::vector<const_value_iterator> edge_partition_value_firsts(buffers_.size());
     for (size_t i = 0; i < edge_partition_value_firsts.size(); ++i) {
-      edge_partition_value_firsts = get_dataframe_buffer_cbegin(buffers_[i]);
+      edge_partition_value_firsts[i] = get_dataframe_buffer_cbegin(buffers_[i]);
     }
 
     if (edge_partition_keys_) {
@@ -213,19 +212,20 @@ class edge_partition_major_property_t {
         *edge_partition_key_chunk_start_offsets_,
         *key_chunk_size_,
         edge_partition_value_firsts,
-        edge_partition_major_range_firsts);
+        edge_partition_major_range_firsts_);
     } else {
       return edge_major_property_view_t<vertex_t, const_value_iterator>(
-        edge_partition_value_firsts,
-        edge_partition_major_range_firsts);
+        edge_partition_value_firsts, edge_partition_major_range_firsts_);
     }
   }
 
   auto mutable_view()
   {
+    using value_iterator = decltype(get_dataframe_buffer_begin(buffers_[0]));
+
     std::vector<value_iterator> edge_partition_value_firsts(buffers_.size());
     for (size_t i = 0; i < edge_partition_value_firsts.size(); ++i) {
-      edge_partition_value_firsts = get_dataframe_buffer_begin(buffers_[i]);
+      edge_partition_value_firsts[i] = get_dataframe_buffer_begin(buffers_[i]);
     }
 
     if (edge_partition_keys_) {
@@ -234,11 +234,10 @@ class edge_partition_major_property_t {
         *edge_partition_key_chunk_start_offsets_,
         *key_chunk_size_,
         edge_partition_value_firsts,
-        edge_partition_major_range_firsts);
+        edge_partition_major_range_firsts_);
     } else {
       return edge_major_property_view_t<vertex_t, value_iterator>(
-        edge_partition_value_firsts,
-        edge_partition_major_range_firsts);
+        edge_partition_value_firsts, edge_partition_major_range_firsts_);
     }
   }
 
@@ -249,33 +248,32 @@ class edge_partition_major_property_t {
     edge_partition_key_chunk_start_offsets_{std::nullopt};
   std::optional<size_t> key_chunk_size_{std::nullopt};
 
-  std::vector<decltype(allocate_dataframe_buffer<T>(size_t{0}, rmm::cuda_stream_view{}))>
-    buffers_{};
+  std::vector<buffer_type> buffers_{};
   std::vector<vertex_t> edge_partition_major_range_firsts_{};
 };
 
 template <typename vertex_t, typename T>
-class edge_partition_minor_property_t {
+class edge_minor_property_t {
  public:
-  edge_partition_minor_property_t(raft::handle_t const& handle)
+  edge_minor_property_t(raft::handle_t const& handle)
     : buffer_(allocate_dataframe_buffer<T>(size_t{0}, handle.get_stream())),
       minor_range_first_(vertex_t{0})
   {
   }
 
-  edge_partition_minor_property_t(raft::handle_t const& handle,
-                                  vertex_t buffer_size,
-                                  vertex_t minor_range_first)
+  edge_minor_property_t(raft::handle_t const& handle,
+                        vertex_t buffer_size,
+                        vertex_t minor_range_first)
     : buffer_(allocate_dataframe_buffer<T>(buffer_size, handle.get_stream())),
       minor_range_first_(minor_range_first)
   {
   }
 
-  edge_partition_minor_property_t(raft::handle_t const& handle,
-                                  raft::device_span<vertex_t const> keys,
-                                  raft::device_span<vertex_t const> key_chunk_start_offsets,
-                                  size_t key_chunk_size,
-                                  vertex_t minor_range_first)
+  edge_minor_property_t(raft::handle_t const& handle,
+                        raft::device_span<vertex_t const> keys,
+                        raft::device_span<vertex_t const> key_chunk_start_offsets,
+                        size_t key_chunk_size,
+                        vertex_t minor_range_first)
     : keys_(keys),
       key_chunk_start_offsets_(key_chunk_start_offsets),
       key_chunk_size_(key_chunk_size),
@@ -293,14 +291,6 @@ class edge_partition_minor_property_t {
     resize_dataframe_buffer(buffer_, size_t{0}, handle.get_stream());
     shrink_to_fit_dataframe_buffer(buffer_, handle.get_stream());
     minor_range_first_ = vertex_t{0};
-  }
-
-  void fill(raft::handle_t const& handle, T value)
-  {
-    thrust::fill(handle.get_thrust_policy(),
-                 value_first(),
-                 value_first() + size_dataframe_buffer(buffer_),
-                 value);
   }
 
   auto view() const
@@ -336,6 +326,13 @@ class edge_partition_minor_property_t {
   vertex_t minor_range_first_{};
 };
 
+template <typename vertex_t>
+class edge_endpoint_dummy_property_view_t {
+ public:
+  using value_type     = thrust::nullopt_t;
+  using value_iterator = void*;
+};
+
 template <typename Iterator,
           typename std::enable_if_t<std::is_arithmetic<
             typename std::iterator_traits<Iterator>::value_type>::value>* = nullptr>
@@ -368,7 +365,8 @@ class edge_src_property_t {
 
   edge_src_property_t(raft::handle_t const& handle) : property_(handle) {}
 
-  edge_src_property_t(raft::handle_t const& handle, GraphViewType const& graph_view) : property_(handle)
+  edge_src_property_t(raft::handle_t const& handle, GraphViewType const& graph_view)
+    : property_(handle)
   {
     using vertex_t = typename GraphViewType::vertex_type;
 
@@ -376,7 +374,7 @@ class edge_src_property_t {
     if (key_chunk_size) {
       if constexpr (GraphViewType::is_multi_gpu) {
         if constexpr (GraphViewType::is_storage_transposed) {
-          property_ = detail::edge_partition_minor_property_t<vertex_t, T>(
+          property_ = detail::edge_minor_property_t<vertex_t, T>(
             handle,
             *(graph_view.local_sorted_unique_edge_srcs()),
             *(graph_view.local_sorted_unique_edge_src_chunk_start_offsets()),
@@ -394,7 +392,7 @@ class edge_src_property_t {
               *(graph_view.local_sorted_unique_edge_src_chunk_start_offsets(i));
             major_range_firsts[i] = graph_view.local_edge_partition_src_range_first(i);
           }
-          property_ = detail::edge_partition_major_property_t<vertex_t, T>(
+          property_ = detail::edge_major_property_t<vertex_t, T>(
             handle,
             raft::host_span<raft::device_span<vertex_t const>>((*edge_partition_keys_).data(),
                                                                (*edge_partition_keys_).size()),
@@ -409,20 +407,19 @@ class edge_src_property_t {
       }
     } else {
       if constexpr (GraphViewType::is_storage_transposed) {
-        property_ = detail::edge_partition_minor_property_t<vertex_t, T>(
+        property_ = detail::edge_minor_property_t<vertex_t, T>(
           handle,
           graph_view.local_edge_partition_src_range_size(),
           graph_view.local_edge_partition_src_range_first());
       } else {
-        std::vector<vertex_t> major_range_sizes(
-          graph_view.number_of_local_edge_partitions(), vertex_t{0});
+        std::vector<vertex_t> major_range_sizes(graph_view.number_of_local_edge_partitions(),
+                                                vertex_t{0});
         std::vector<vertex_t> major_range_firsts(graph_view.number_of_local_edge_partitions());
         for (size_t i = 0; i < graph_view.number_of_local_edge_partitions(); ++i) {
-          major_range_sizes[i] =
-            graph_view.local_edge_partition_src_range_size(i);
+          major_range_sizes[i]  = graph_view.local_edge_partition_src_range_size(i);
           major_range_firsts[i] = graph_view.local_edge_partition_src_range_first(i);
         }
-        property_ = detail::edge_partition_major_property_t<vertex_t, T>(
+        property_ = detail::edge_major_property_t<vertex_t, T>(
           handle, std::move(major_range_sizes), std::move(major_range_firsts));
       }
     }
@@ -436,36 +433,13 @@ class edge_src_property_t {
     edge_partition_key_chunk_start_offsets_ = std::nullopt;
   }
 
-  void fill(raft::handle_t const& handle, T value) { property_.fill(handle, value); }
-
-#if 0
-  template <bool transposed = GraphViewType::is_storage_transposed>
-  std::enable_if_t<transposed,
-                   std::optional<raft::device_span<typename GraphViewType::vertex_type const>>>
-  keys()
-  {
-    return property_.keys();
-  }
-
-  template <bool transposed = GraphViewType::is_storage_transposed>
-  std::enable_if_t<!transposed,
-                   std::optional<raft::device_span<typename GraphViewType::vertex_type const>>>
-  keys(size_t partition_idx)
-  {
-    return property_.keys(partition_idx);
-  }
-
-  auto value_first() { return property_.value_first(); }
-#endif
-
   auto view() const { return property_.view(); }
   auto mutable_view() { return property_.mutable_view(); }
 
  private:
-  std::conditional_t<
-    GraphViewType::is_storage_transposed,
-    detail::edge_partition_minor_property_t<typename GraphViewType::vertex_type, T>,
-    detail::edge_partition_major_property_t<typename GraphViewType::vertex_type, T>>
+  std::conditional_t<GraphViewType::is_storage_transposed,
+                     detail::edge_minor_property_t<typename GraphViewType::vertex_type, T>,
+                     detail::edge_major_property_t<typename GraphViewType::vertex_type, T>>
     property_;
 
   std::optional<std::vector<raft::device_span<typename GraphViewType::vertex_type const>>>
@@ -503,7 +477,7 @@ class edge_dst_property_t {
               *(graph_view.local_sorted_unique_edge_dst_chunk_start_offsets(i));
             major_range_firsts[i] = graph_view.local_edge_partition_dst_range_first(i);
           }
-          property_ = detail::edge_partition_major_property_t<vertex_t, T>(
+          property_ = detail::edge_major_property_t<vertex_t, T>(
             handle,
             raft::host_span<raft::device_span<vertex_t const>>((*edge_partition_keys_).data(),
                                                                (*edge_partition_keys_).size()),
@@ -513,7 +487,7 @@ class edge_dst_property_t {
             *key_chunk_size,
             std::move(major_range_firsts));
         } else {
-          property_ = detail::edge_partition_minor_property_t<vertex_t, T>(
+          property_ = detail::edge_minor_property_t<vertex_t, T>(
             handle,
             *(graph_view.local_sorted_unique_edge_dsts()),
             *(graph_view.local_sorted_unique_edge_dst_chunk_start_offsets()),
@@ -525,18 +499,17 @@ class edge_dst_property_t {
       }
     } else {
       if constexpr (GraphViewType::is_storage_transposed) {
-        std::vector<vertex_t> major_range_sizes(
-          graph_view.number_of_local_edge_partitions(), vertex_t{0});
+        std::vector<vertex_t> major_range_sizes(graph_view.number_of_local_edge_partitions(),
+                                                vertex_t{0});
         std::vector<vertex_t> major_range_firsts(graph_view.number_of_local_edge_partitions());
         for (size_t i = 0; i < graph_view.number_of_local_edge_partitions(); ++i) {
-          major_range_sizes[i] =
-            graph_view.local_edge_partition_dst_range_size(i);
+          major_range_sizes[i]  = graph_view.local_edge_partition_dst_range_size(i);
           major_range_firsts[i] = graph_view.local_edge_partition_dst_range_first(i);
         }
-        property_ = detail::edge_partition_major_property_t<vertex_t, T>(
+        property_ = detail::edge_major_property_t<vertex_t, T>(
           handle, std::move(major_range_sizes), std::move(major_range_firsts));
       } else {
-        property_ = detail::edge_partition_minor_property_t<vertex_t, T>(
+        property_ = detail::edge_minor_property_t<vertex_t, T>(
           handle,
           graph_view.local_edge_partition_dst_range_size(),
           graph_view.local_edge_partition_dst_range_first());
@@ -552,36 +525,13 @@ class edge_dst_property_t {
     edge_partition_key_chunk_start_offsets_ = std::nullopt;
   }
 
-  void fill(raft::handle_t const& handle, T value) { property_.fill(handle, value); }
-
-#if 0
-  template <bool transposed = GraphViewType::is_storage_transposed>
-  std::enable_if_t<!transposed,
-                   std::optional<raft::device_span<typename GraphViewType::vertex_type const>>>
-  keys()
-  {
-    return property_.keys();
-  }
-
-  template <bool transposed = GraphViewType::is_storage_transposed>
-  std::enable_if_t<transposed,
-                   std::optional<raft::device_span<typename GraphViewType::vertex_type const>>>
-  keys(size_t partition_idx)
-  {
-    return property_.keys(partition_idx);
-  }
-
-  auto value_first() { return property_.value_first(); }
-#endif
-
   auto view() const { return property_.view(); }
   auto mutable_view() { return property_.mutable_view(); }
 
  private:
-  std::conditional_t<
-    GraphViewType::is_storage_transposed,
-    detail::edge_partition_major_property_t<typename GraphViewType::vertex_type, T>,
-    detail::edge_partition_minor_property_t<typename GraphViewType::vertex_type, T>>
+  std::conditional_t<GraphViewType::is_storage_transposed,
+                     detail::edge_major_property_t<typename GraphViewType::vertex_type, T>,
+                     detail::edge_minor_property_t<typename GraphViewType::vertex_type, T>>
     property_;
 
   std::optional<std::vector<raft::device_span<typename GraphViewType::vertex_type const>>>
@@ -591,43 +541,33 @@ class edge_dst_property_t {
 };
 
 template <typename vertex_t>
-class edge_dummy_major_property_view_t {
+class edge_src_dummy_property_t {
  public:
   using value_type = thrust::nullopt_t;
+
+  auto view() const { return detail::edge_endpoint_dummy_property_view_t<vertex_t>{}; }
 };
 
 template <typename vertex_t>
-class edge_dummy_minor_property_view_t {
- public:
-  using value_type = thrust::nullopt_t;
-};
-
-template <typename vertex_t>
-class edge_dummy_major_property_t {
+class edge_dst_dummy_property_t {
  public:
   using value_type = thrust::nullopt_t;
 
-  auto view() const { return edge_dummy_major_property_view_t<vertex_t>{}; }
-};
-
-template <typename vertex_t>
-class edge_dummy_minor_property_t {
- public:
-  using value_type = thrust::nullopt_t;
-
-  auto view() const { return edge_dummy_minor_property_view_t<vertex_t>{}; }
+  auto view() const { return detail::edge_endpoint_dummy_property_view_t<vertex_t>{}; }
 };
 
 template <typename vertex_t, typename... Ts>
 auto view_concat(detail::edge_major_property_view_t<vertex_t, Ts> const&... views)
 {
-  using concat_value_iterator = decltype(thrust::make_zip_iterator(thrust_tuple_cat(detail::to_thrust_tuple(views.value_firsts()[0])...)));
- 
+  using concat_value_iterator = decltype(thrust::make_zip_iterator(
+    thrust_tuple_cat(detail::to_thrust_tuple(views.value_firsts()[0])...)));
+
   std::vector<concat_value_iterator> edge_partition_concat_value_firsts{};
   auto first_view = detail::get_first_of_pack(views...);
-  edge_partition_concat_value_firsts.reserve(first_view.edge_partition_major_range_firsts().size());
+  edge_partition_concat_value_firsts.reserve(first_view.major_range_firsts().size());
   for (size_t i = 0; i < edge_partition_concat_value_firsts.size(); ++i) {
-    edge_partition_concast_firsts.push_back(thrust::make_zip_iterator(thrust_tuple_cat(detail::to_thrust_tuple(views.value_firsts()[i])...)));
+    edge_partition_concat_value_firsts.push_back(thrust::make_zip_iterator(
+      thrust_tuple_cat(detail::to_thrust_tuple(views.value_firsts()[i])...)));
   }
 
   if (first_view.key_chunk_size()) {
@@ -636,11 +576,10 @@ auto view_concat(detail::edge_major_property_view_t<vertex_t, Ts> const&... view
       *(first_view.key_chunk_start_offsets()),
       *(first_view.key_chunk_size()),
       edge_partition_concat_value_firsts,
-      *(first_view.edge_partition_major_range_firsts()));
+      first_view.major_range_firsts());
   } else {
     return detail::edge_major_property_view_t<vertex_t, concat_value_iterator>(
-      edge_partition_concat_value_firsts,
-      first_view.edge_partition_major_range_firsts());
+      edge_partition_concat_value_firsts, first_view.major_range_firsts());
   }
 }
 

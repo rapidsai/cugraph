@@ -40,15 +40,17 @@ class edge_partition_major_property_device_view_t {
 
   edge_partition_major_property_device_view_t() = default;
 
-  edge_partition_major_property_device_view_t(edge_major_property_view_t const& view, size_t partition_idx)
-    : value_first_(view.value_firsts()[partition_idx]), major_range_first_(major_range_first)
+  edge_partition_major_property_device_view_t(
+    edge_major_property_view_t<vertex_t, ValueIterator> const& view, size_t partition_idx)
+    : value_first_(view.value_firsts()[partition_idx]),
+      major_range_first_(view.major_range_firsts()[partition_idx])
   {
     if (view.keys()) {
-      keys_ = (*(view.keys()))[partition_idx];
+      keys_                    = (*(view.keys()))[partition_idx];
       key_chunk_start_offsets_ = (*(view.key_chunk_start_offsets()))[partition_idx];
-      key_chunk_size_ = *(view.key_chunk_size());
+      key_chunk_size_          = *(view.key_chunk_size());
     }
-    value_first_ = view.value_firsts()[partition_idx];
+    value_first_       = view.value_firsts()[partition_idx];
     major_range_first_ = view.major_range_firsts()[partition_idx];
   }
 
@@ -88,14 +90,15 @@ class edge_partition_minor_property_device_view_t {
 
   edge_partition_minor_property_device_view_t() = default;
 
-  edge_partition_minor_property_device_view_t(edge_minor_property_view_t const& view)
+  edge_partition_minor_property_device_view_t(
+    edge_minor_property_view_t<vertex_t, ValueIterator> const& view)
   {
     if (view.keys()) {
-      keys_ = *(view.keys());
+      keys_                    = *(view.keys());
       key_chunk_start_offsets_ = *(view.key_chunk_start_offsets());
-      key_chunk_size_ = *(view.key_chunk_size());
+      key_chunk_size_          = *(view.key_chunk_size());
     }
-    value_first_ = view.value_first();
+    value_first_       = view.value_first();
     minor_range_first_ = view.minor_range_first();
   }
 
@@ -129,25 +132,21 @@ class edge_partition_minor_property_device_view_t {
 };
 
 template <typename vertex_t>
-class edge_partition_dummy_major_property_device_view_t {
+class edge_partition_endpoint_dummy_property_device_view_t {
  public:
   using value_type = thrust::nullopt_t;
 
-  edge_partition_dummy_major_property_device_view_t() = default();
+  edge_partition_endpoint_dummy_property_device_view_t() = default;
 
-  edge_partition_dummy_major_property_device_view_t(edge_dummy_major_property_view_t const& view, size_t partition_idx) = default();
+  edge_partition_endpoint_dummy_property_device_view_t(
+    edge_endpoint_dummy_property_view_t<vertex_t> const& view, size_t partition_idx)
+  {
+  }
 
-  __device__ auto get(vertex_t offset) const { return thrust::nullopt; }
-};
-
-template <typename vertex_t>
-class edge_partition_dummy_minor_property_device_view_t {
- public:
-  using value_type = thrust::nullopt_t;
-
-  edge_partition_dummy_minor_property_device_view_t() = default();
-
-  edge_partition_dummy_minor_property_device_view_t(edge_dummy_minor_property_view_t const& view) = default();
+  edge_partition_endpoint_dummy_property_device_view_t(
+    edge_endpoint_dummy_property_view_t<vertex_t> const& view)
+  {
+  }
 
   __device__ auto get(vertex_t offset) const { return thrust::nullopt; }
 };
