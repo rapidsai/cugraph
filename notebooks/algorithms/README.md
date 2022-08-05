@@ -10,33 +10,33 @@ This repository contains a collection of Jupyter Notebooks that outline how to r
 
 | Folder          | Notebook                                                     | Description                                                  |
 | --------------- | ------------------------------------------------------------ | ------------------------------------------------------------ |
-| Centrality      |                                                              |                                                              |
+| [Centrality](centrality/README.md)      |                                                              |                                                              |
 |                 | [Centrality](centrality/Centrality.ipynb)                    | Compute and compare multiple (currently 5) centrality scores |
 |                 | [Katz](centrality/Katz.ipynb)                                | Compute the Katz centrality for every vertex                 |
 |                 | [Betweenness](centrality/Betweenness.ipynb)                  | Compute both Edge and Vertex Betweenness centrality          |
 |                 | [Degree](centrality/Degree.ipynb)                            | Compute Degree Centraility for each vertex                   |
 |                 | [Eigenvector](centrality/Eigenvector.ipynb)                  | Compute Eigenvector for every vertex                         |
-| Community       |                                                              |                                                              |
+|[Community](community/README.md)       |                                                              |                                                              |
 |                 | [Louvain](community/Louvain.ipynb)                           | Identify clusters in a graph using both the Louvain and Leiden algorithms     |
 |                 | [ECG](community/ECG.ipynb)                                   | Identify clusters in a graph using the Ensemble Clustering for Graph |
 |                 | [K-Truss](community/ktruss.ipynb)                                | Extracts the K-Truss cluster                                 |
 |                 | [Spectral-Clustering](community/Spectral-Clustering.ipynb)   | Identify clusters in a  graph using Spectral Clustering with both<br> - Balanced Cut<br> - Modularity Modularity |
 |                 | [Subgraph Extraction](community/Subgraph-Extraction.ipynb)   | Compute a subgraph of the existing graph including only the specified vertices |
 |                 | [Triangle Counting](community/Triangle-Counting.ipynb)       | Count the number of Triangle in a graph                      |
-Components      |                                                              |                                                              |
+|[Components](components/README.md)      |                                                              |                                                              |
 |                 | [Connected Components](components/ConnectedComponents.ipynb) | Find weakly and strongly connected components in a graph     |
-| Cores            |                                                              |                                                              |
+| [Cores](cores/README.md)            |                                                              |                                                              |
 |                | [core-number](cores/Core-number.ipynb)   | Computes the core number for every vertex of a graph G. The core number of a vertex is a maximal subgraph that contains only that vertex and others of degree k or more. |
 |                | [kcore](cores/kcore.ipynb)               |Find the k-core of a graph which is a maximal subgraph that contains nodes of degree k or more.|
 Layout            |                                                              |                                                              |
 |                | [Force-Atlas2](layout/Force-Atlas2.ipynb)   |A large graph visualization achieved with cuGraph. |
-<!--| Link Analysis   |                                                              |                                                              |
+| [Link Analysis](link_analysis/README.md)   |                                                              |                                                              |
 |                 | [Pagerank](link_analysis/Pagerank.ipynb)                     | Compute the PageRank of every vertex in a graph              |
 |                 | [HITS](link_analysis/HITS.ipynb)                             | Compute the HITS' Hub and Authority scores for every vertex in a graph              |
-| Link Prediction |                                                              |                                                              |
-|                 | [Jaccard Similarity](link_prediction/Jaccard-Similarity.ipynb) | Compute vertex similarity score using both:<br />- Jaccard Similarity<br />- Weighted Jaccard |
-|                 | [Overlap Similarity](link_prediction/Overlap-Similarity.ipynb) | Compute vertex similarity score using the Overlap Coefficient |
-| Sampling        |
+| [Link Prediction](link_prediction/README.md) |                                                              |                                                              |
+|                 | [Jaccard Similarity](algorithms/link_prediction/Jaccard-Similarity.ipynb) | Compute vertex similarity score using both:<br />- Jaccard Similarity<br />- Weighted Jaccard |
+|                 | [Overlap Similarity](algorithms/link_prediction/Overlap-Similarity.ipynb) | Compute vertex similarity score using the Overlap Coefficient |
+<!--| Sampling        |
 |                 | [Random Walk](sampling/RandomWalk.ipynb)                     | Compute Random Walk for a various number of seeds and path lengths |
 | Traversal       |                                                              |                                                              |
 |                 | [BFS](traversal/BFS.ipynb)                                   | Compute the Breadth First Search path from a starting vertex to every other vertex in a graph |
@@ -51,7 +51,7 @@ Layout            |                                                             
 | Author Credit |    Date    |  Update          | cuGraph Version |  Test Hardware |
 | --------------|------------|------------------|-----------------|----------------|
 | Brad Rees     | 04/19/2021 | created          | 0.19            | GV100, CUDA 11.0
-| Don Acosta    | 07/05/2022 | tested / updated | 22.08 nightly   | DGX Tesla V100 CUDA 11.5
+| Don Acosta    | 08/02/2022 | tested / updated | 22.08 nightly   | DGX Tesla V100 CUDA 11.5
 
 ### Copyright
 

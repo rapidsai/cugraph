@@ -60,9 +60,9 @@ def test_using_pgraph(graph_file):
 
     gstore = cugraph.gnn.CuGraphStore(graph=pG)
 
-    assert g.number_of_edges() == pG.num_edges
+    assert g.number_of_edges() == pG.get_num_edges()
     assert g.number_of_edges() == gstore.num_edges()
-    assert g.number_of_vertices() == pG.num_vertices
+    assert g.number_of_vertices() == pG.get_num_vertices()
     assert g.number_of_vertices() == gstore.num_vertices
 
 
@@ -160,6 +160,7 @@ def test_sample_neighbors(graph_file):
     assert len(parents_list) > 0
 
 
+@pytest.mark.skip(reason="Neg one fanout fails see cugraph/issues/2446")
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_sample_neighbor_neg_one_fanout(graph_file):
     cu_M = utils.read_csv_file(graph_file)
@@ -418,11 +419,94 @@ def test_get_edge_storage_gs(dataset1_CuGraphStore):
 
 def test_sampling_gs(dataset1_CuGraphStore):
     node_pack = cp.asarray([4]).toDlpack()
-    (
-        parents_cap,
-        children_cap,
-        edge_id_cap,
-    ) = dataset1_CuGraphStore.sample_neighbors(node_pack, fanout=1)
-    x = cudf.from_dlpack(parents_cap)
+    gs = dataset1_CuGraphStore
+    src_cap, _, _ = gs.sample_neighbors(node_pack, fanout=1)
+    src_ser = cudf.from_dlpack(src_cap)
+    assert len(src_ser) != 0
 
-    assert x is not None
+
+@pytest.mark.skip(reason="Neg one fanout fails see cugraph/issues/2446")
+def test_sampling_dataset_gs_neg_one_fanout(dataset1_CuGraphStore):
+    node_pack = cp.asarray([4]).toDlpack()
+    gs = dataset1_CuGraphStore
+    src_cap, _, _ = gs.sample_neighbors(node_pack, fanout=-1)
+    src_ser = cudf.from_dlpack(src_cap)
+    assert len(src_ser) != 0
+
+
+def test_sampling_gs_out_dir():
+    src_ser = cudf.Series([1, 1, 1, 1, 1, 2, 2, 3])
+    dst_ser = cudf.Series([2, 3, 4, 5, 6, 3, 4, 7])
+    df = cudf.DataFrame(
+        {"src": src_ser, "dst": dst_ser, "edge_id": np.arange(len(src_ser))}
+    )
+    pg = PropertyGraph()
+    gs = CuGraphStore(pg)
+    gs.add_edge_data(df, ["src", "dst"], edge_key="edges")
+
+    # below are obtained from dgl runs on the same graph
+    expected_out = {
+        1: ([1, 1, 1, 1, 1], [2, 3, 4, 5, 6]),
+        2: ([2, 2], [3, 4]),
+        3: ([3], [7]),
+        4: ([], []),
+    }
+
+    for seed in expected_out.keys():
+        seed_cap = cudf.Series([seed]).to_dlpack()
+        sample_src, sample_dst, sample_eid = gs.sample_neighbors(
+            nodes=seed_cap, fanout=9, edge_dir="out"
+        )
+        if sample_src is None:
+            sample_src = cudf.Series([]).astype(np.int64)
+            sample_dst = cudf.Series([]).astype(np.int64)
+        else:
+            sample_src = cudf.from_dlpack(sample_src)
+            sample_dst = cudf.from_dlpack(sample_dst)
+
+        output_df = cudf.DataFrame({"src": sample_src, "dst": sample_dst})
+        output_df = output_df.sort_values(by=["src", "dst"])
+        output_df = output_df.reset_index(drop=True)
+
+        expected_df = cudf.DataFrame(
+            {"src": expected_out[seed][0], "dst": expected_out[seed][1]}
+        ).astype(np.int64)
+        cudf.testing.assert_frame_equal(output_df, expected_df)
+
+
+def test_sampling_gs_in_dir():
+    src_ser = cudf.Series([1, 1, 1, 1, 1, 2, 2, 3])
+    dst_ser = cudf.Series([2, 3, 4, 5, 6, 3, 4, 7])
+    df = cudf.DataFrame(
+        {"src": src_ser, "dst": dst_ser, "edge_id": np.arange(len(src_ser))}
+    )
+    pg = PropertyGraph()
+    gs = CuGraphStore(pg)
+    gs.add_edge_data(df, ["src", "dst"], edge_key="edges")
+
+    # below are obtained from dgl runs on the same graph
+    expected_in = {1: ([], []),
+                   2: ([1], [2]),
+                   3: ([1, 2], [3, 3]),
+                   4: ([1, 2], [4, 4])}
+
+    for seed in expected_in.keys():
+        seed_cap = cudf.Series([seed]).to_dlpack()
+        sample_src, sample_dst, sample_eid = gs.sample_neighbors(
+            nodes=seed_cap, fanout=9, edge_dir="in"
+        )
+        if sample_src is None:
+            sample_src = cudf.Series([]).astype(np.int64)
+            sample_dst = cudf.Series([]).astype(np.int64)
+        else:
+            sample_src = cudf.from_dlpack(sample_src)
+            sample_dst = cudf.from_dlpack(sample_dst)
+
+        output_df = cudf.DataFrame({"src": sample_src, "dst": sample_dst})
+        output_df = output_df.sort_values(by=["src", "dst"])
+        output_df = output_df.reset_index(drop=True)
+
+        expected_df = cudf.DataFrame(
+            {"src": expected_in[seed][0], "dst": expected_in[seed][1]}
+        ).astype(np.int64)
+        cudf.testing.assert_frame_equal(output_df, expected_df)

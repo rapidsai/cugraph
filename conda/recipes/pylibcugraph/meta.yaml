@@ -25,6 +25,7 @@ build:
 
 requirements:
   build:
+    - cmake {{ cmake_version }}
     - {{ compiler('c') }}
     - {{ compiler('cxx') }}
     - {{ compiler('cuda') }} {{ cuda_version }}
@@ -32,6 +33,7 @@ requirements:
   host:
     - python x.x
     - cython>=0.29,<0.30
+    - scikit-build>=0.13.1
     - libcugraph={{ version }}
     - ucx-py {{ ucx_py_version }}
     - ucx-proc=*=gpu
