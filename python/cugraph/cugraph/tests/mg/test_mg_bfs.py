@@ -127,7 +127,7 @@ def test_dask_bfs_invalid_start(dask_client, directed):
         dcg.bfs(G, source_vertex).compute()
 
     # invalid dtype
-    source_vertex = cudf.Series([0, 1], dtype="int64")
+    source_vertex = cudf.Series([0, 1])
     with pytest.raises(ValueError):
         dcg.bfs(G, source_vertex).compute()
 
