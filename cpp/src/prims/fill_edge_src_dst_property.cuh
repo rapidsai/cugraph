@@ -15,37 +15,17 @@
  */
 #pragma once
 
-#include <prims/edge_partition_endpoint_property_device_view.cuh>
 #include <prims/edge_src_dst_property.hpp>
 
-#include <cugraph/edge_partition_device_view.cuh>
 #include <cugraph/graph_view.hpp>
-#include <cugraph/partition_manager.hpp>
-#include <cugraph/utilities/dataframe_buffer.hpp>
-#include <cugraph/utilities/device_comm.hpp>
 #include <cugraph/utilities/error.hpp>
-#include <cugraph/utilities/host_scalar_comm.hpp>
-#include <cugraph/vertex_partition_device_view.cuh>
 
 #include <raft/handle.hpp>
 #include <rmm/exec_policy.hpp>
 
-#include <thrust/copy.h>
-#include <thrust/count.h>
-#include <thrust/distance.h>
-#include <thrust/execution_policy.h>
 #include <thrust/fill.h>
-#include <thrust/for_each.h>
-#include <thrust/gather.h>
-#include <thrust/iterator/counting_iterator.h>
-#include <thrust/iterator/permutation_iterator.h>
-#include <thrust/iterator/transform_iterator.h>
-#include <thrust/scatter.h>
 
-#include <algorithm>
-#include <numeric>
-#include <type_traits>
-#include <utility>
+#include <cstddef>
 
 namespace cugraph {
 
