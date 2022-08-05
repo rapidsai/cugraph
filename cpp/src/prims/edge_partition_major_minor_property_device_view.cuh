@@ -50,7 +50,7 @@ class edge_partition_endpoint_property_device_view_t {
       key_chunk_start_offsets_ = (*(view.key_chunk_start_offsets()))[partition_idx];
       key_chunk_size_          = *(view.key_chunk_size());
     }
-    value_first_       = view.value_firsts()[partition_idx];
+    value_first_ = view.value_firsts()[partition_idx];
     range_first_ = view.major_range_firsts()[partition_idx];
   }
 
@@ -62,7 +62,7 @@ class edge_partition_endpoint_property_device_view_t {
       key_chunk_start_offsets_ = *(view.key_chunk_start_offsets());
       key_chunk_size_          = *(view.key_chunk_size());
     }
-    value_first_       = view.value_first();
+    value_first_ = view.value_first();
     range_first_ = view.minor_range_first();
   }
 
