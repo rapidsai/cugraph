@@ -142,7 +142,7 @@ def bfs(input_graph,
 
         if invalid_dtype:
             raise ValueError("The 'start' values dtype must match "
-                                "the graph's vertices dtype.")
+                             "the graph's vertices dtype.")
 
         is_valid_vertex = G.has_node(start)
         if not is_valid_vertex:
