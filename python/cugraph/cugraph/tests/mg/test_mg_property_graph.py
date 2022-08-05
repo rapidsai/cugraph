@@ -411,13 +411,14 @@ def test_property_names_attrs(dataset1_MGPropertyGraph):
     """
     (pG, data) = dataset1_MGPropertyGraph
 
-    expected_vert_prop_names = ["merchant_id", "merchant_location",
-                                "merchant_size", "merchant_sales",
-                                "merchant_num_employees", "merchant_name",
-                                "user_id", "user_location", "vertical"]
-    expected_edge_prop_names = ["user_id", "merchant_id", "volume", "time",
-                                "card_num", "card_type", "user_id_1",
-                                "user_id_2", "relationship_type", "stars"]
+    # _VERTEX_ columns: "merchant_id", "user_id"
+    expected_vert_prop_names = ["merchant_location", "merchant_size",
+                                "merchant_sales", "merchant_num_employees",
+                                "user_location", "merchant_name", "vertical"]
+    # _SRC_ and _DST_ columns: "user_id", "user_id_1", "user_id_2"
+    # Note that "merchant_id" is a property in for type "transactions"
+    expected_edge_prop_names = ["merchant_id", "volume", "time", "card_num",
+                                "card_type", "relationship_type", "stars"]
 
     # Extracting a subgraph with weights has/had a side-effect of adding a
     # weight column, so call extract_subgraph() to ensure the internal weight
@@ -576,6 +577,7 @@ def test_get_edge_data(dataset1_MGPropertyGraph):
     for d in ["transactions", "relationships", "referrals"]:
         for name in data[d][0]:
             expected_columns.add(name)
+    expected_columns -= {'user_id', 'user_id_1', 'user_id_2'}
 
     actual_columns = set(some_edge_data.columns)
 
