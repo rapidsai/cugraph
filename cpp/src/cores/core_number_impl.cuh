@@ -15,7 +15,7 @@
  */
 #pragma once
 
-#include <prims/edge_partition_src_dst_property.cuh>
+#include <prims/edge_src_dst_property.hpp>
 #include <prims/reduce_v.cuh>
 #include <prims/transform_reduce_v_frontier_outgoing_e_by_dst.cuh>
 #include <prims/update_edge_partition_src_dst_property.cuh>
@@ -163,7 +163,7 @@ void core_number(raft::handle_t const& handle,
 
   vertex_frontier_t<vertex_t, void, multi_gpu> vertex_frontier(handle, num_buckets);
 
-  edge_partition_dst_property_t<graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu>, edge_t>
+  edge_dst_property_t<graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu>, edge_t>
     dst_core_numbers(handle, graph_view);
   update_edge_partition_dst_property(handle, graph_view, core_numbers, dst_core_numbers);
 
@@ -215,8 +215,8 @@ void core_number(raft::handle_t const& handle,
               graph_view,
               vertex_frontier,
               bucket_idx_cur,
-              dummy_property_t<vertex_t>{}.device_view(),
-              dst_core_numbers.device_view(),
+              edge_src_dummy_property_t<vertex_t>{}.view(),
+              dst_core_numbers.view(),
               [k, delta] __device__(vertex_t src, vertex_t dst, auto, auto dst_val) {
                 return dst_val >= k ? thrust::optional<edge_t>{delta} : thrust::nullopt;
               },

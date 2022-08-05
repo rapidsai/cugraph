@@ -977,7 +977,7 @@ transform_reduce_v_frontier_outgoing_e_by_dst(raft::handle_t const& handle,
   using key_t     = typename VertexFrontierType::key_type;
   using payload_t = typename ReduceOp::value_type;
 
-  using edge_partition_src_property_device_view_t = std::conditional_t<
+  using edge_partition_src_input_device_view_t = std::conditional_t<
     std::is_same_v<typename EdgeSrcValueInputWrapper::value_type, thrust::nullopt_t>,
     detail::edge_partition_endpoint_dummy_property_device_view_t<vertex_t>,
     std::conditional_t<GraphViewType::is_storage_transposed,
@@ -987,7 +987,7 @@ transform_reduce_v_frontier_outgoing_e_by_dst(raft::handle_t const& handle,
                        detail::edge_partition_major_property_device_view_t<
                          vertex_t,
                          typename EdgeSrcValueInputWrapper::value_iterator>>>;
-  using edge_partition_dst_property_device_view_t = std::conditional_t<
+  using edge_partition_dst_input_device_view_t = std::conditional_t<
     std::is_same_v<typename EdgeDstValueInputWrapper::value_type, thrust::nullopt_t>,
     detail::edge_partition_endpoint_dummy_property_device_view_t<vertex_t>,
     std::conditional_t<GraphViewType::is_storage_transposed,
@@ -1111,18 +1111,16 @@ transform_reduce_v_frontier_outgoing_e_by_dst(raft::handle_t const& handle,
       resize_dataframe_buffer(payload_buffer, new_buffer_size, handle.get_stream());
     }
 
-    edge_partition_src_property_device_view_t edge_partition_src_value_input{};
-    edge_partition_dst_property_device_view_t edge_partition_dst_value_input{};
+    edge_partition_src_input_device_view_t edge_partition_src_value_input{};
+    edge_partition_dst_input_device_view_t edge_partition_dst_value_input{};
     if constexpr (GraphViewType::is_storage_transposed) {
-      edge_partition_src_value_input =
-        edge_partition_src_property_device_view_t(edge_src_value_input);
+      edge_partition_src_value_input = edge_partition_src_input_device_view_t(edge_src_value_input);
       edge_partition_dst_value_input =
-        edge_partition_dst_property_device_view_t(edge_dst_value_input, i);
+        edge_partition_dst_input_device_view_t(edge_dst_value_input, i);
     } else {
       edge_partition_src_value_input =
-        edge_partition_src_property_device_view_t(edge_src_value_input, i);
-      edge_partition_dst_value_input =
-        edge_partition_dst_property_device_view_t(edge_dst_value_input);
+        edge_partition_src_input_device_view_t(edge_src_value_input, i);
+      edge_partition_dst_value_input = edge_partition_dst_input_device_view_t(edge_dst_value_input);
     }
 
     if (segment_offsets) {
@@ -1161,8 +1159,8 @@ transform_reduce_v_frontier_outgoing_e_by_dst(raft::handle_t const& handle,
             edge_partition,
             get_dataframe_buffer_begin(edge_partition_frontier_key_buffer),
             get_dataframe_buffer_begin(edge_partition_frontier_key_buffer) + h_offsets[0],
-            edge_partition_src_value_input_copy,
-            edge_partition_dst_value_input_copy,
+            edge_partition_src_value_input,
+            edge_partition_dst_value_input,
             get_dataframe_buffer_begin(key_buffer),
             detail::get_optional_payload_buffer_begin<payload_t>(payload_buffer),
             buffer_idx.data(),
@@ -1178,8 +1176,8 @@ transform_reduce_v_frontier_outgoing_e_by_dst(raft::handle_t const& handle,
             edge_partition,
             get_dataframe_buffer_begin(edge_partition_frontier_key_buffer) + h_offsets[0],
             get_dataframe_buffer_begin(edge_partition_frontier_key_buffer) + h_offsets[1],
-            edge_partition_src_value_input_copy,
-            edge_partition_dst_value_input_copy,
+            edge_partition_src_value_input,
+            edge_partition_dst_value_input,
             get_dataframe_buffer_begin(key_buffer),
             detail::get_optional_payload_buffer_begin<payload_t>(payload_buffer),
             buffer_idx.data(),
@@ -1195,8 +1193,8 @@ transform_reduce_v_frontier_outgoing_e_by_dst(raft::handle_t const& handle,
             edge_partition,
             get_dataframe_buffer_begin(edge_partition_frontier_key_buffer) + h_offsets[1],
             get_dataframe_buffer_begin(edge_partition_frontier_key_buffer) + h_offsets[2],
-            edge_partition_src_value_input_copy,
-            edge_partition_dst_value_input_copy,
+            edge_partition_src_value_input,
+            edge_partition_dst_value_input,
             get_dataframe_buffer_begin(key_buffer),
             detail::get_optional_payload_buffer_begin<payload_t>(payload_buffer),
             buffer_idx.data(),
@@ -1212,8 +1210,8 @@ transform_reduce_v_frontier_outgoing_e_by_dst(raft::handle_t const& handle,
             edge_partition,
             get_dataframe_buffer_begin(edge_partition_frontier_key_buffer) + h_offsets[2],
             get_dataframe_buffer_begin(edge_partition_frontier_key_buffer) + h_offsets[3],
-            edge_partition_src_value_input_copy,
-            edge_partition_dst_value_input_copy,
+            edge_partition_src_value_input,
+            edge_partition_dst_value_input,
             get_dataframe_buffer_begin(key_buffer),
             detail::get_optional_payload_buffer_begin<payload_t>(payload_buffer),
             buffer_idx.data(),
@@ -1231,8 +1229,8 @@ transform_reduce_v_frontier_outgoing_e_by_dst(raft::handle_t const& handle,
             edge_partition,
             get_dataframe_buffer_begin(edge_partition_frontier_key_buffer),
             get_dataframe_buffer_end(edge_partition_frontier_key_buffer),
-            edge_partition_src_value_input_copy,
-            edge_partition_dst_value_input_copy,
+            edge_partition_src_value_input,
+            edge_partition_dst_value_input,
             get_dataframe_buffer_begin(key_buffer),
             detail::get_optional_payload_buffer_begin<payload_t>(payload_buffer),
             buffer_idx.data(),

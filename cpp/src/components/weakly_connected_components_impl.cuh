@@ -16,7 +16,8 @@
 #pragma once
 
 #include <detail/graph_utils.cuh>
-#include <prims/edge_partition_src_dst_property.cuh>
+#include <prims/edge_src_dst_property.hpp>
+#include <prims/fill_edge_src_dst_property.cuh>
 #include <prims/transform_reduce_v_frontier_outgoing_e_by_dst.cuh>
 #include <prims/update_edge_partition_src_dst_property.cuh>
 #include <prims/update_v_frontier.cuh>
@@ -462,7 +463,7 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
       init_max_new_roots = std::min(init_max_new_roots, max_new_roots);
     }
 
-    // 2-3. initialize vertex frontier, edge_buffer, and edge_partition_dst_components (if
+    // 2-3. initialize vertex frontier, edge_buffer, and edge_dst_components (if
     // multi-gpu)
 
     vertex_frontier_t<vertex_t, vertex_t, GraphViewType::is_multi_gpu> vertex_frontier(handle,
@@ -476,12 +477,13 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
     // requires placing the atomic variable on managed memory and this make it less attractive.
     rmm::device_scalar<size_t> num_edge_inserts(size_t{0}, handle.get_stream());
 
-    auto edge_partition_dst_components =
+    auto edge_dst_components =
       GraphViewType::is_multi_gpu
-        ? edge_partition_dst_property_t<GraphViewType, vertex_t>(handle, level_graph_view)
-        : edge_partition_dst_property_t<GraphViewType, vertex_t>(handle);
+        ? edge_dst_property_t<GraphViewType, vertex_t>(handle, level_graph_view)
+        : edge_dst_property_t<GraphViewType, vertex_t>(handle);
     if constexpr (GraphViewType::is_multi_gpu) {
-      edge_partition_dst_components.fill(handle, invalid_component_id<vertex_t>::value);
+      fill_edge_dst_property(
+        handle, level_graph_view, invalid_component_id<vertex_t>::value, edge_dst_components);
     }
 
     // 2.4 iterate till every vertex gets visited
@@ -526,7 +528,7 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
           thrust::get<0>(vertex_frontier.bucket(bucket_idx_cur).begin().get_iterator_tuple()),
           thrust::get<0>(vertex_frontier.bucket(bucket_idx_cur).end().get_iterator_tuple()),
           level_components,
-          edge_partition_dst_components);
+          edge_dst_components);
       }
 
       auto max_pushes = GraphViewType::is_multi_gpu
@@ -545,13 +547,14 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
         level_graph_view,
         vertex_frontier,
         bucket_idx_cur,
-        dummy_property_t<vertex_t>{}.device_view(),
-        dummy_property_t<vertex_t>{}.device_view(),
+        edge_src_dummy_property_t<vertex_t>{}.view(),
+        edge_dst_dummy_property_t<vertex_t>{}.view(),
         [col_components =
            GraphViewType::is_multi_gpu
-             ? edge_partition_dst_components.mutable_device_view()
+             ? edge_dst_components.mutable_view()
              : detail::edge_partition_minor_property_device_view_t<vertex_t, vertex_t*>(
-                 level_components, vertex_t{0}),
+                 detail::edge_minor_property_view_t<vertex_t, vertex_t*>(level_components,
+                                                                         vertex_t{0})),
          col_first         = level_graph_view.local_edge_partition_dst_range_first(),
          edge_buffer_first = get_dataframe_buffer_begin(edge_buffer),
          num_edge_inserts =

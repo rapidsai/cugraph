@@ -17,6 +17,7 @@
 
 #include <prims/edge_partition_major_minor_property_device_view.cuh>
 #include <prims/edge_src_dst_property.hpp>
+#include <prims/fill_edge_src_dst_property.cuh>
 #include <prims/property_op_utils.cuh>
 #include <prims/reduce_op.cuh>
 
@@ -502,7 +503,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
   using edge_t   = typename GraphViewType::edge_type;
   using weight_t = typename GraphViewType::weight_type;
 
-  using edge_partition_src_property_device_view_t = std::conditional_t<
+  using edge_partition_src_input_device_view_t = std::conditional_t<
     std::is_same_v<typename EdgeSrcValueInputWrapper::value_type, thrust::nullopt_t>,
     detail::edge_partition_endpoint_dummy_property_device_view_t<vertex_t>,
     std::conditional_t<GraphViewType::is_storage_transposed,
@@ -512,7 +513,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
                        detail::edge_partition_major_property_device_view_t<
                          vertex_t,
                          typename EdgeSrcValueInputWrapper::value_iterator>>>;
-  using edge_partition_dst_property_device_view_t = std::conditional_t<
+  using edge_partition_dst_input_device_view_t = std::conditional_t<
     std::is_same_v<typename EdgeDstValueInputWrapper::value_type, thrust::nullopt_t>,
     detail::edge_partition_endpoint_dummy_property_device_view_t<vertex_t>,
     std::conditional_t<GraphViewType::is_storage_transposed,
@@ -537,6 +538,13 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
     }
   }
 
+  using edge_partition_minor_output_device_view_t =
+    std::conditional_t<update_major,
+                       void /* dummy */,
+                       detail::edge_partition_minor_property_device_view_t<
+                         vertex_t,
+                         decltype(minor_tmp_buffer.mutable_view().value_first())>>;
+
   if constexpr (update_major) {
     size_t partition_idx = 0;
     if constexpr (GraphViewType::is_multi_gpu) {
@@ -560,7 +568,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
     }
 
     if constexpr (GraphViewType::is_multi_gpu) {
-      minor_tmp_buffer.fill(handle, minor_init);
+      fill_edge_minor_property(handle, graph_view, minor_init, minor_tmp_buffer.mutable_view());
     } else {
       thrust::fill(handle.get_thrust_policy(),
                    vertex_value_output_first,
@@ -675,18 +683,16 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
       }
     }
 
-    edge_partition_src_property_device_view_t edge_partition_src_value_input{};
-    edge_partition_dst_property_device_view_t edge_partition_dst_value_input{};
+    edge_partition_src_input_device_view_t edge_partition_src_value_input{};
+    edge_partition_dst_input_device_view_t edge_partition_dst_value_input{};
     if constexpr (GraphViewType::is_storage_transposed) {
-      edge_partition_src_value_input =
-        edge_partition_src_property_device_view_t(edge_src_value_input);
+      edge_partition_src_value_input = edge_partition_src_input_device_view_t(edge_src_value_input);
       edge_partition_dst_value_input =
-        edge_partition_dst_property_device_view_t(edge_dst_value_input, i);
+        edge_partition_dst_input_device_view_t(edge_dst_value_input, i);
     } else {
       edge_partition_src_value_input =
-        edge_partition_src_property_device_view_t(edge_src_value_input, i);
-      edge_partition_dst_value_input =
-        edge_partition_dst_property_device_view_t(edge_dst_value_input);
+        edge_partition_src_input_device_view_t(edge_src_value_input, i);
+      edge_partition_dst_value_input = edge_partition_dst_input_device_view_t(edge_dst_value_input);
     }
 
     auto major_buffer_first =
@@ -695,14 +701,14 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
     std::conditional_t<GraphViewType::is_multi_gpu,
                        std::conditional_t<update_major,
                                           decltype(major_buffer_first),
-                                          decltype(minor_tmp_buffer.mutable_view())>,
+                                          edge_partition_minor_output_device_view_t>,
                        VertexValueOutputIterator>
       output_buffer{};
     if constexpr (GraphViewType::is_multi_gpu) {
       if constexpr (update_major) {
         output_buffer = major_buffer_first;
       } else {
-        output_buffer = minor_tmp_buffer.mutable_view();
+        output_buffer = edge_partition_minor_output_device_view_t(minor_tmp_buffer.mutable_view());
       }
     } else {
       output_buffer = vertex_value_output_first;
@@ -975,7 +981,8 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
     auto const col_comm_rank = col_comm.get_rank();
     auto const col_comm_size = col_comm.get_size();
 
-    if (minor_tmp_buffer.keys()) {
+    auto view = minor_tmp_buffer.view();
+    if (view.keys()) {
       vertex_t max_vertex_partition_size{0};
       for (int i = 0; i < row_comm_size; ++i) {
         max_vertex_partition_size =
@@ -997,10 +1004,10 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
           tx_first + graph_view.vertex_partition_range_size(col_comm_rank * row_comm_size + i),
           T{});
         thrust::scatter(handle.get_thrust_policy(),
-                        minor_tmp_buffer.value_first() + (*minor_key_offsets)[i],
-                        minor_tmp_buffer.value_first() + (*minor_key_offsets)[i + 1],
+                        view.value_first() + (*minor_key_offsets)[i],
+                        view.value_first() + (*minor_key_offsets)[i + 1],
                         thrust::make_transform_iterator(
-                          (*(minor_tmp_buffer.keys())).begin() + (*minor_key_offsets)[i],
+                          (*(view.keys())).begin() + (*minor_key_offsets)[i],
                           [key_first = graph_view.vertex_partition_range_first(
                              col_comm_rank * row_comm_size + i)] __device__(auto key) {
                             return key - key_first;
@@ -1020,7 +1027,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
         auto offset = (graph_view.vertex_partition_range_first(col_comm_rank * row_comm_size + i) -
                        graph_view.vertex_partition_range_first(col_comm_rank * row_comm_size));
         device_reduce(row_comm,
-                      minor_tmp_buffer.value_first() + offset,
+                      view.value_first() + offset,
                       vertex_value_output_first,
                       static_cast<size_t>(
                         graph_view.vertex_partition_range_size(col_comm_rank * row_comm_size + i)),

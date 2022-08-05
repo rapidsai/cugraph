@@ -245,6 +245,27 @@ void transform_reduce_dst_nbr_intersection_of_e_endpoints_by_v(
   using edge_t   = typename GraphViewType::edge_type;
   using weight_t = typename GraphViewType::weight_type;
 
+  using edge_partition_src_input_device_view_t = std::conditional_t<
+    std::is_same_v<typename EdgeSrcValueInputWrapper::value_type, thrust::nullopt_t>,
+    detail::edge_partition_endpoint_dummy_property_device_view_t<vertex_t>,
+    std::conditional_t<GraphViewType::is_storage_transposed,
+                       detail::edge_partition_minor_property_device_view_t<
+                         vertex_t,
+                         typename EdgeSrcValueInputWrapper::value_iterator>,
+                       detail::edge_partition_major_property_device_view_t<
+                         vertex_t,
+                         typename EdgeSrcValueInputWrapper::value_iterator>>>;
+  using edge_partition_dst_input_device_view_t = std::conditional_t<
+    std::is_same_v<typename EdgeDstValueInputWrapper::value_type, thrust::nullopt_t>,
+    detail::edge_partition_endpoint_dummy_property_device_view_t<vertex_t>,
+    std::conditional_t<GraphViewType::is_storage_transposed,
+                       detail::edge_partition_major_property_device_view_t<
+                         vertex_t,
+                         typename EdgeDstValueInputWrapper::value_iterator>,
+                       detail::edge_partition_minor_property_device_view_t<
+                         vertex_t,
+                         typename EdgeDstValueInputWrapper::value_iterator>>>;
+
   if (do_expensive_check) {
     // currently, nothing to do.
   }
@@ -276,6 +297,19 @@ void transform_reduce_dst_nbr_intersection_of_e_endpoints_by_v(
     auto edge_partition =
       edge_partition_device_view_t<vertex_t, edge_t, weight_t, GraphViewType::is_multi_gpu>(
         graph_view.local_edge_partition_view(i));
+
+    edge_partition_src_input_device_view_t edge_partition_src_value_input{};
+    edge_partition_dst_input_device_view_t edge_partition_dst_value_input{};
+    if constexpr (GraphViewType::is_storage_transposed) {
+      edge_partition_src_value_input = edge_partition_src_input_device_view_t(edge_src_value_input);
+      edge_partition_dst_value_input =
+        edge_partition_dst_input_device_view_t(edge_dst_value_input, i);
+    } else {
+      edge_partition_src_value_input =
+        edge_partition_src_input_device_view_t(edge_src_value_input, i);
+      edge_partition_dst_value_input = edge_partition_dst_input_device_view_t(edge_dst_value_input);
+    }
+
     rmm::device_uvector<vertex_t> majors(edge_partition.number_of_edges(), handle.get_stream());
     rmm::device_uvector<vertex_t> minors(majors.size(), handle.get_stream());
 
@@ -346,13 +380,13 @@ void transform_reduce_dst_nbr_intersection_of_e_endpoints_by_v(
                        triplet_first,
                        triplet_first + this_chunk_size,
                        detail::call_intersection_op_t<GraphViewType,
-                                                      EdgePartitionSrcValueInputWrapper,
-                                                      EdgePartitionDstValueInputWrapper,
+                                                      edge_partition_src_input_device_view_t,
+                                                      edge_partition_dst_input_device_view_t,
                                                       IntersectionOp,
                                                       decltype(chunk_vertex_pair_first)>{
                          edge_partition,
-                         edge_src_value_input,
-                         edge_dst_value_input,
+                         edge_partition_src_value_input,
+                         edge_partition_dst_value_input,
                          intersection_op,
                          intersection_offsets.data(),
                          intersection_indices.data(),

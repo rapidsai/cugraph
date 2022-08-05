@@ -414,7 +414,7 @@ T transform_reduce_e(raft::handle_t const& handle,
   using edge_t   = typename GraphViewType::edge_type;
   using weight_t = typename GraphViewType::weight_type;
 
-  using edge_partition_src_property_device_view_t = std::conditional_t<
+  using edge_partition_src_input_device_view_t = std::conditional_t<
     std::is_same_v<typename EdgeSrcValueInputWrapper::value_type, thrust::nullopt_t>,
     detail::edge_partition_endpoint_dummy_property_device_view_t<vertex_t>,
     std::conditional_t<GraphViewType::is_storage_transposed,
@@ -424,7 +424,7 @@ T transform_reduce_e(raft::handle_t const& handle,
                        detail::edge_partition_major_property_device_view_t<
                          vertex_t,
                          typename EdgeSrcValueInputWrapper::value_iterator>>>;
-  using edge_partition_dst_property_device_view_t = std::conditional_t<
+  using edge_partition_dst_input_device_view_t = std::conditional_t<
     std::is_same_v<typename EdgeDstValueInputWrapper::value_type, thrust::nullopt_t>,
     detail::edge_partition_endpoint_dummy_property_device_view_t<vertex_t>,
     std::conditional_t<GraphViewType::is_storage_transposed,
@@ -452,18 +452,16 @@ T transform_reduce_e(raft::handle_t const& handle,
       edge_partition_device_view_t<vertex_t, edge_t, weight_t, GraphViewType::is_multi_gpu>(
         graph_view.local_edge_partition_view(i));
 
-    edge_partition_src_property_device_view_t edge_partition_src_value_input{};
-    edge_partition_dst_property_device_view_t edge_partition_dst_value_input{};
+    edge_partition_src_input_device_view_t edge_partition_src_value_input{};
+    edge_partition_dst_input_device_view_t edge_partition_dst_value_input{};
     if constexpr (GraphViewType::is_storage_transposed) {
-      edge_partition_src_value_input =
-        edge_partition_src_property_device_view_t(edge_src_value_input);
+      edge_partition_src_value_input = edge_partition_src_input_device_view_t(edge_src_value_input);
       edge_partition_dst_value_input =
-        edge_partition_dst_property_device_view_t(edge_dst_value_input, i);
+        edge_partition_dst_input_device_view_t(edge_dst_value_input, i);
     } else {
       edge_partition_src_value_input =
-        edge_partition_src_property_device_view_t(edge_src_value_input, i);
-      edge_partition_dst_value_input =
-        edge_partition_dst_property_device_view_t(edge_dst_value_input);
+        edge_partition_src_input_device_view_t(edge_src_value_input, i);
+      edge_partition_dst_value_input = edge_partition_dst_input_device_view_t(edge_dst_value_input);
     }
 
     auto segment_offsets = graph_view.local_edge_partition_segment_offsets(i);

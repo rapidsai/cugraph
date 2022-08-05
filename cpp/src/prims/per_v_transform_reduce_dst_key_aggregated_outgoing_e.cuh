@@ -258,7 +258,7 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
   using weight_t = typename GraphViewType::weight_type;
   using value_t  = typename std::iterator_traits<ValueIterator>::value_type;
 
-  using edge_partition_src_property_device_view_t = std::conditional_t<
+  using edge_partition_src_input_device_view_t = std::conditional_t<
     std::is_same_v<typename EdgeSrcValueInputWrapper::value_type, thrust::nullopt_t>,
     detail::edge_partition_endpoint_dummy_property_device_view_t<vertex_t>,
     std::conditional_t<GraphViewType::is_storage_transposed,
@@ -669,7 +669,7 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
       allocate_dataframe_buffer<T>(tmp_majors.size(), handle.get_stream());
 
     auto edge_partition_src_value_input =
-      edge_partition_src_property_device_view_t(edge_src_value_input, i);
+      edge_partition_src_input_device_view_t(edge_src_value_input, i);
 
     auto triplet_first = thrust::make_zip_iterator(thrust::make_tuple(
       tmp_majors.begin(), tmp_minor_keys.begin(), tmp_key_aggregated_edge_weights.begin()));
@@ -679,7 +679,7 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
                       get_dataframe_buffer_begin(tmp_e_op_result_buffer),
                       detail::call_key_aggregated_e_op_t<vertex_t,
                                                          weight_t,
-                                                         edge_partition_src_property_device_view_t,
+                                                         edge_partition_src_input_device_view_t,
                                                          KeyAggregatedEdgeOp,
                                                          decltype(edge_partition),
                                                          decltype(kv_map.get_device_view())>{

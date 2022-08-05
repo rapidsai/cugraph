@@ -15,7 +15,8 @@
  */
 #pragma once
 
-#include <prims/edge_partition_src_dst_property.cuh>
+#include <prims/edge_src_dst_property.hpp>
+#include <prims/fill_edge_src_dst_property.cuh>
 #include <prims/reduce_op.cuh>
 #include <prims/transform_reduce_v_frontier_outgoing_e_by_dst.cuh>
 #include <prims/update_edge_partition_src_dst_property.cuh>
@@ -190,13 +191,14 @@ void bfs(raft::handle_t const& handle,
   rmm::device_uvector<uint32_t> prev_visited_flags(
     GraphViewType::is_multi_gpu ? size_t{0} : visited_flags.size(),
     handle.get_stream());  // relevant only if GraphViewType::is_multi_gpu is false
-  auto dst_visited_flags =
-    GraphViewType::is_multi_gpu
-      ? edge_partition_dst_property_t<GraphViewType, uint8_t>(handle, push_graph_view)
-      : edge_partition_dst_property_t<GraphViewType,
-                                      uint8_t>(
-          handle);  // relevant only if GraphViewType::is_multi_gpu is true
-  if constexpr (GraphViewType::is_multi_gpu) { dst_visited_flags.fill(handle, uint8_t{0}); }
+  auto dst_visited_flags = GraphViewType::is_multi_gpu
+                             ? edge_dst_property_t<GraphViewType, uint8_t>(handle, push_graph_view)
+                             : edge_dst_property_t<GraphViewType,
+                                                   uint8_t>(
+                                 handle);  // relevant only if GraphViewType::is_multi_gpu is true
+  if constexpr (GraphViewType::is_multi_gpu) {
+    fill_edge_dst_property(handle, push_graph_view, uint8_t{0}, dst_visited_flags);
+  }
 
   // 4. BFS iteration
   vertex_t depth{0};
@@ -220,8 +222,10 @@ void bfs(raft::handle_t const& handle,
 
       e_op_t<vertex_t, GraphViewType::is_multi_gpu> e_op{};
       if constexpr (GraphViewType::is_multi_gpu) {
-        e_op.visited_flags = dst_visited_flags.mutable_device_view();
-        e_op.dst_first     = push_graph_view.local_edge_partition_dst_range_first();
+        e_op.visited_flags =
+          detail::edge_partition_minor_property_device_view_t<vertex_t, uint8_t*>(
+            dst_visited_flags.mutable_view());
+        e_op.dst_first = push_graph_view.local_edge_partition_dst_range_first();
       } else {
         e_op.visited_flags      = visited_flags.data();
         e_op.prev_visited_flags = prev_visited_flags.data();
@@ -232,8 +236,8 @@ void bfs(raft::handle_t const& handle,
                                                       push_graph_view,
                                                       vertex_frontier,
                                                       bucket_idx_cur,
-                                                      dummy_property_t<vertex_t>{}.device_view(),
-                                                      dummy_property_t<vertex_t>{}.device_view(),
+                                                      edge_src_dummy_property_t<vertex_t>{}.view(),
+                                                      edge_dst_dummy_property_t<vertex_t>{}.view(),
 #if 1
                                                       e_op,
 #else
