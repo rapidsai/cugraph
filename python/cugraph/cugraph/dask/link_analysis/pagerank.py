@@ -13,65 +13,133 @@
 # limitations under the License.
 #
 
-from dask.distributed import wait, default_client
-from cugraph.dask.common.input_utils import (get_distributed_data,
-                                             get_vertex_partition_offsets)
-from cugraph.dask.link_analysis import mg_pagerank_wrapper as mg_pagerank
+from dask.distributed import wait
 import cugraph.dask.comms.comms as Comms
 import dask_cudf
-from dask.dataframe.shuffle import rearrange_by_column
+import cudf
+import numpy as np
+import warnings
+from cugraph.dask.common.input_utils import get_distributed_data
+
+from pylibcugraph import (ResourceHandle,
+                          pagerank as pylibcugraph_pagerank,
+                          personalized_pagerank as pylibcugraph_p_pagerank
+                          )
 
 
-def call_pagerank(sID,
-                  data,
-                  src_col_name,
-                  dst_col_name,
-                  num_verts,
-                  num_edges,
-                  vertex_partition_offsets,
-                  aggregate_segment_offsets,
-                  alpha,
-                  max_iter,
-                  tol,
-                  personalization,
-                  nstart):
-    wid = Comms.get_worker_id(sID)
-    handle = Comms.get_handle(sID)
-    local_size = len(aggregate_segment_offsets) // Comms.get_n_workers(sID)
-    segment_offsets = \
-        aggregate_segment_offsets[local_size * wid: local_size * (wid + 1)]
-    return mg_pagerank.mg_pagerank(data[0],
-                                   src_col_name,
-                                   dst_col_name,
-                                   num_verts,
-                                   num_edges,
-                                   vertex_partition_offsets,
-                                   wid,
-                                   handle,
-                                   segment_offsets,
-                                   alpha,
-                                   max_iter,
-                                   tol,
-                                   personalization,
-                                   nstart)
+def convert_to_cudf(cp_arrays):
+    """
+    Creates a cudf DataFrame from cupy arrays from pylibcugraph wrapper
+    """
+    cupy_vertices, cupy_pagerank = cp_arrays
+    df = cudf.DataFrame()
+    df["vertex"] = cupy_vertices
+    df["pagerank"] = cupy_pagerank
+
+    return df
+
+
+# FIXME: Move this function to the utility module so that it can be
+# shared by other algos
+def ensure_valid_dtype(input_graph, input_df, input_df_name):
+    if input_graph.properties.weighted is False:
+        edge_attr_dtype = np.float64
+    else:
+        edge_attr_dtype = input_graph.input_df["value"].dtype
+
+    input_df_dtype = input_df["values"].dtype
+    if input_df_dtype != edge_attr_dtype:
+        warning_msg = (f"PageRank requires '{input_df_name}' values "
+                       "to match the graph's 'edge_attr' type. "
+                       f"edge_attr type is: {edge_attr_dtype} and got "
+                       f"'{input_df_name}' values of type: "
+                       f"{input_df_dtype}.")
+        warnings.warn(warning_msg, UserWarning)
+        input_df = input_df.astype(
+            {"values": edge_attr_dtype})
+
+    return input_df
+
+
+def renumber_vertices(input_graph, input_df):
+    input_df = input_graph.add_internal_vertex_id(
+        input_df, "vertex", "vertex").compute()
+
+    return input_df
+
+
+def _call_plc_pagerank(sID,
+                       mg_graph_x,
+                       pre_vtx_o_wgt_vertices,
+                       pre_vtx_o_wgt_sums,
+                       initial_guess_vertices,
+                       initial_guess_values,
+                       alpha,
+                       epsilon,
+                       max_iterations,
+                       do_expensive_check):
+
+    return pylibcugraph_pagerank(
+        resource_handle=ResourceHandle(
+            Comms.get_handle(sID).getHandle()
+        ),
+        graph=mg_graph_x,
+        precomputed_vertex_out_weight_vertices=pre_vtx_o_wgt_vertices,
+        precomputed_vertex_out_weight_sums=pre_vtx_o_wgt_sums,
+        initial_guess_vertices=initial_guess_vertices,
+        initial_guess_values=initial_guess_values,
+        alpha=alpha,
+        epsilon=epsilon,
+        max_iterations=max_iterations,
+        do_expensive_check=do_expensive_check
+    )
+
+
+def _call_plc_personalized_pagerank(sID,
+                                    mg_graph_x,
+                                    pre_vtx_o_wgt_vertices,
+                                    pre_vtx_o_wgt_sums,
+                                    data_personalization,
+                                    initial_guess_vertices,
+                                    initial_guess_values,
+                                    alpha,
+                                    epsilon,
+                                    max_iterations,
+                                    do_expensive_check):
+    personalization_vertices = data_personalization["vertex"]
+    personalization_values = data_personalization["values"]
+    return pylibcugraph_p_pagerank(
+        resource_handle=ResourceHandle(
+            Comms.get_handle(sID).getHandle()
+        ),
+        graph=mg_graph_x,
+        precomputed_vertex_out_weight_vertices=pre_vtx_o_wgt_vertices,
+        precomputed_vertex_out_weight_sums=pre_vtx_o_wgt_sums,
+        personalization_vertices=personalization_vertices,
+        personalization_values=personalization_values,
+        initial_guess_vertices=initial_guess_vertices,
+        initial_guess_values=initial_guess_values,
+        alpha=alpha,
+        epsilon=epsilon,
+        max_iterations=max_iterations,
+        do_expensive_check=do_expensive_check
+    )
 
 
 def pagerank(input_graph,
-             alpha=0.85,
-             personalization=None,
-             max_iter=100,
-             tol=1.0e-5,
-             nstart=None):
-
+             alpha=0.85, personalization=None,
+             precomputed_vertex_out_weight=None,
+             max_iter=100, tol=1.0e-5, nstart=None):
     """
     Find the PageRank values for each vertex in a graph using multiple GPUs.
     cuGraph computes an approximation of the Pagerank using the power method.
     The input graph must contain edge list as  dask-cudf dataframe with
     one partition per GPU.
+    All edges will have an edge_attr value of 1.0 if not provided.
 
     Parameters
     ----------
-    input_graph : cugraph.DiGraph
+    input_graph : cugraph.Graph
         cuGraph graph descriptor, should contain the connectivity information
         as dask cudf edge list dataframe(edge weights are not used for this
         algorithm).
@@ -84,19 +152,29 @@ def pagerank(input_graph,
 
     personalization : cudf.Dataframe, optional (default=None)
         GPU Dataframe containing the personalization information.
-        Currently not supported.
-
+        (a performance optimization)
         personalization['vertex'] : cudf.Series
             Subset of vertices of graph for personalization
         personalization['values'] : cudf.Series
             Personalization values for vertices
 
-    max_iter : int, optional (default=100)
-        The maximum number of iterations before an answer is returned.
-        If this value is lower or equal to 0 cuGraph will use the default
-        value, which is 30.
+    precomputed_vertex_out_weight : cudf.Dataframe, optional (default=None)
+        GPU Dataframe containing the precomputed vertex out weight
+        (a performance optimization)
+        information.
+        precomputed_vertex_out_weight['vertex'] : cudf.Series
+            Subset of vertices of graph for precomputed_vertex_out_weight
+        precomputed_vertex_out_weight['sums'] : cudf.Series
+            Corresponding precomputed sum of outgoing vertices weight
 
-    tol : float, optional (default=1.0e-5)
+    max_iter : int, optional (default=100)
+        The maximum number of iterations before an answer is returned. This can
+        be used to limit the execution time and do an early exit before the
+        solver reaches the convergence tolerance.
+        If this value is lower or equal to 0 cuGraph will use the default
+        value, which is 100.
+
+    tol : float, optional (default=1e-05)
         Set the tolerance the approximation, this parameter should be a small
         magnitude value.
         The lower the tolerance the better the approximation. If this value is
@@ -105,14 +183,29 @@ def pagerank(input_graph,
         numerical roundoff. Usually values between 0.01 and 0.00001 are
         acceptable.
 
-    nstart : not supported
-        initial guess for pagerank
+    nstart : cudf.Dataframe, optional (default=None)
+        GPU Dataframe containing the initial guess for pagerank.
+        (a performance optimization)
+        nstart['vertex'] : cudf.Series
+            Subset of vertices of graph for initial guess for pagerank values
+        nstart['values'] : cudf.Series
+            Pagerank values for vertices
 
     Returns
     -------
     PageRank : dask_cudf.DataFrame
         GPU data frame containing two dask_cudf.Series of size V: the
         vertex identifiers and the corresponding PageRank values.
+
+        NOTE: if the input cugraph.Graph was created using the renumber=False
+        option of any of the from_*_edgelist() methods, pagerank assumes that
+        the vertices in the edgelist are contiguous and start from 0.
+        If the actual set of vertices in the edgelist is not
+        contiguous (has gaps) or does not start from zero, pagerank will assume
+        the "missing" vertices are isolated vertices in the graph, and will
+        compute and return pagerank values for each. If this is not the desired
+        behavior, ensure the input cugraph.Graph is created from the
+        from_*_edgelist() functions with the renumber=True option (the default)
 
         ddf['vertex'] : dask_cudf.Series
             Contains the vertex identifiers
@@ -136,94 +229,95 @@ def pagerank(input_graph,
     >>> pr = dcg.pagerank(dg)
 
     """
-    nstart = None
 
-    client = default_client()
+    # Initialize dask client
+    client = input_graph._client
 
-    input_graph.compute_renumber_edge_list(transposed=True)
+    initial_guess_vertices = None
+    initial_guess_values = None
+    precomputed_vertex_out_weight_vertices = None
+    precomputed_vertex_out_weight_sums = None
 
-    ddf = input_graph.edgelist.edgelist_df
-    vertex_partition_offsets = get_vertex_partition_offsets(input_graph)
-    num_verts = vertex_partition_offsets.iloc[-1]
-    num_edges = len(ddf)
-    data = get_distributed_data(ddf)
+    do_expensive_check = False
 
-    src_col_name = input_graph.renumber_map.renumbered_src_col_name
-    dst_col_name = input_graph.renumber_map.renumbered_dst_col_name
+    # FIXME: Distribute the 'precomputed_vertex_out_weight'
+    # across GPUs for performance optimization
+    if precomputed_vertex_out_weight is not None:
+        if input_graph.renumbered is True:
+            precomputed_vertex_out_weight = renumber_vertices(
+                input_graph, precomputed_vertex_out_weight)
+        precomputed_vertex_out_weight_vertices = \
+            precomputed_vertex_out_weight["vertex"]
+        precomputed_vertex_out_weight_sums = \
+            precomputed_vertex_out_weight["sums"]
+
+    # FIXME: Distribute the 'nstart' across GPUs for performance optimization
+    if nstart is not None:
+        if input_graph.renumbered is True:
+            nstart = renumber_vertices(input_graph, nstart)
+        nstart = ensure_valid_dtype(
+            input_graph, nstart, "nstart")
+        initial_guess_vertices = nstart["vertex"]
+        initial_guess_values = nstart["values"]
 
     if personalization is not None:
         if input_graph.renumbered is True:
-            personalization = input_graph.add_internal_vertex_id(
-                personalization, "vertex", "vertex"
+            personalization = renumber_vertices(input_graph, personalization)
+        personalization = ensure_valid_dtype(
+            input_graph, personalization, "personalization")
+
+        personalization_ddf = dask_cudf.from_cudf(
+            personalization, npartitions=len(Comms.get_workers()))
+
+        data_prsztn = get_distributed_data(personalization_ddf)
+
+        result = [
+            client.submit(
+                _call_plc_personalized_pagerank,
+                Comms.get_session_id(),
+                input_graph._plc_graph[w],
+                precomputed_vertex_out_weight_vertices,
+                precomputed_vertex_out_weight_sums,
+                data_personalization[0],
+                initial_guess_vertices,
+                initial_guess_values,
+                alpha,
+                tol,
+                max_iter,
+                do_expensive_check,
+                workers=[w],
             )
-
-        # Function to assign partition id to personalization dataframe
-        def _set_partitions_pre(s, divisions):
-            partitions = divisions.searchsorted(s, side="right") - 1
-            partitions[
-                divisions.tail(1).searchsorted(s, side="right").astype("bool")
-            ] = (len(divisions) - 2)
-            return partitions
-
-        # Assign partition id column as per vertex_partition_offsets
-        df = personalization
-        by = ['vertex']
-        meta = df._meta._constructor_sliced([0])
-        divisions = vertex_partition_offsets
-        partitions = df[by].map_partitions(
-            _set_partitions_pre, divisions=divisions, meta=meta
-        )
-
-        df2 = df.assign(_partitions=partitions)
-
-        # Shuffle personalization values according to the partition id
-        df3 = rearrange_by_column(
-            df2,
-            "_partitions",
-            max_branch=None,
-            npartitions=len(divisions) - 1,
-            shuffle="tasks",
-            ignore_index=False,
-        ).drop(columns=["_partitions"])
-
-        p_data = get_distributed_data(df3)
-
-        result = [client.submit(call_pagerank,
-                                Comms.get_session_id(),
-                                wf[1],
-                                src_col_name,
-                                dst_col_name,
-                                num_verts,
-                                num_edges,
-                                vertex_partition_offsets,
-                                input_graph.aggregate_segment_offsets,
-                                alpha,
-                                max_iter,
-                                tol,
-                                p_data.worker_to_parts[wf[0]][0],
-                                nstart,
-                                workers=[wf[0]])
-                  for idx, wf in enumerate(data.worker_to_parts.items())]
+            for w, data_personalization in data_prsztn.worker_to_parts.items()
+        ]
     else:
-        result = [client.submit(call_pagerank,
-                                Comms.get_session_id(),
-                                wf[1],
-                                src_col_name,
-                                dst_col_name,
-                                num_verts,
-                                num_edges,
-                                vertex_partition_offsets,
-                                input_graph.aggregate_segment_offsets,
-                                alpha,
-                                max_iter,
-                                tol,
-                                personalization,
-                                nstart,
-                                workers=[wf[0]])
-                  for idx, wf in enumerate(data.worker_to_parts.items())]
+        result = [
+            client.submit(
+                _call_plc_pagerank,
+                Comms.get_session_id(),
+                input_graph._plc_graph[w],
+                precomputed_vertex_out_weight_vertices,
+                precomputed_vertex_out_weight_sums,
+                initial_guess_vertices,
+                initial_guess_values,
+                alpha,
+                tol,
+                max_iter,
+                do_expensive_check,
+                workers=[w],
+            )
+            for w in Comms.get_workers()
+        ]
+
     wait(result)
-    ddf = dask_cudf.from_delayed(result)
+
+    cudf_result = [client.submit(convert_to_cudf,
+                                 cp_arrays)
+                   for cp_arrays in result]
+
+    wait(cudf_result)
+
+    ddf = dask_cudf.from_delayed(cudf_result)
     if input_graph.renumbered:
-        return input_graph.unrenumber(ddf, 'vertex')
+        ddf = input_graph.unrenumber(ddf, "vertex")
 
     return ddf

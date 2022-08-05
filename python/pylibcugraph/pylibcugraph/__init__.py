@@ -33,6 +33,8 @@ from pylibcugraph.katz_centrality import katz_centrality
 
 from pylibcugraph.pagerank import pagerank
 
+from pylibcugraph.personalized_pagerank import personalized_pagerank
+
 from pylibcugraph.sssp import sssp
 
 from pylibcugraph.hits import hits

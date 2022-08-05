@@ -56,11 +56,13 @@ cdef extern from "cugraph_c/centrality_algorithms.h":
         cugraph_pagerank(
             const cugraph_resource_handle_t* handle,
             cugraph_graph_t* graph,
+            const cugraph_type_erased_device_array_view_t* precomputed_vertex_out_weight_vertices,
             const cugraph_type_erased_device_array_view_t* precomputed_vertex_out_weight_sums,
+            const cugraph_type_erased_device_array_view_t* initial_guess_vertices,
+            const cugraph_type_erased_device_array_view_t* initial_guess_values,
             double alpha,
             double epsilon,
             size_t max_iterations,
-            bool_t has_initial_guess,
             bool_t do_expensive_check,
             cugraph_centrality_result_t** result,
             cugraph_error_t** error
@@ -70,13 +72,15 @@ cdef extern from "cugraph_c/centrality_algorithms.h":
         cugraph_personalized_pagerank(
             const cugraph_resource_handle_t* handle,
             cugraph_graph_t* graph,
+            const cugraph_type_erased_device_array_view_t* precomputed_vertex_out_weight_vertices,
             const cugraph_type_erased_device_array_view_t* precomputed_vertex_out_weight_sums,
-            cugraph_type_erased_device_array_view_t* personalization_vertices,
+            const cugraph_type_erased_device_array_view_t* initial_guess_vertices,
+            const cugraph_type_erased_device_array_view_t* initial_guess_values,
+            const cugraph_type_erased_device_array_view_t* personalization_vertices,
             const cugraph_type_erased_device_array_view_t* personalization_values,
             double alpha,
             double epsilon,
             size_t max_iterations,
-            bool_t has_initial_guess,
             bool_t do_expensive_check,
             cugraph_centrality_result_t** result,
             cugraph_error_t** error

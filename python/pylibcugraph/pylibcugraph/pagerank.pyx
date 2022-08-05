@@ -14,6 +14,8 @@
 # Have cython use python 3 syntax
 # cython: language_level = 3
 
+from libc.stdint cimport uintptr_t
+
 from pylibcugraph._cugraph_c.resource_handle cimport (
     bool_t,
     data_type_id_t,
@@ -25,6 +27,7 @@ from pylibcugraph._cugraph_c.error cimport (
 )
 from pylibcugraph._cugraph_c.array cimport (
     cugraph_type_erased_device_array_view_t,
+    cugraph_type_erased_device_array_view_create,
 )
 from pylibcugraph._cugraph_c.graph cimport (
     cugraph_graph_t,
@@ -46,16 +49,20 @@ from pylibcugraph.utils cimport (
     assert_success,
     assert_CAI_type,
     copy_to_cupy_array,
+    get_c_type_from_numpy_type,
+    create_cugraph_type_erased_device_array_view_from_py_obj,
 )
 
 
 def pagerank(ResourceHandle resource_handle,
             _GPUGraph graph,
+            precomputed_vertex_out_weight_vertices,
             precomputed_vertex_out_weight_sums,
+            initial_guess_vertices,
+            initial_guess_values,
             double alpha,
             double epsilon,
             size_t max_iterations,
-            bool_t has_initial_guess,
             bool_t do_expensive_check):
     """
     Find the PageRank score for every vertex in a graph by computing an
@@ -70,20 +77,32 @@ def pagerank(ResourceHandle resource_handle,
         Handle to the underlying device resources needed for referencing data
         and running algorithms.
 
-    graph : SGGraph
+    graph : SGGraph or MGGraph
         The input graph.
 
-    precomputed_vertex_out_weight_sums : None
-        This parameter is unsupported in this release and only None is
-        accepted.
+    precomputed_vertex_out_weight_vertices: device array type
+        Subset of vertices of graph for precomputed_vertex_out_weight
+        (a performance optimization)
 
-    alpha : float
+    precomputed_vertex_out_weight_sums : device array type
+        Corresponding precomputed sum of outgoing vertices weight
+        (a performance optimization)
+
+    initial_guess_vertices : device array type
+        Subset of vertices of graph for initial guess for pagerank values
+        (a performance optimization)
+
+    initial_guess_values : device array type
+        Pagerank values for vertices
+        (a performance optimization)
+
+    alpha : double
         The damping factor alpha represents the probability to follow an
         outgoing edge, standard value is 0.85.
         Thus, 1.0-alpha is the probability to “teleport” to a random vertex.
         Alpha should be greater than 0.0 and strictly lower than 1.0.
 
-    epsilon : float
+    epsilon : double
         Set the tolerance the approximation, this parameter should be a small
         magnitude value.
         The lower the tolerance the better the approximation. If this value is
@@ -92,18 +111,14 @@ def pagerank(ResourceHandle resource_handle,
         numerical roundoff. Usually values between 0.01 and 0.00001 are
         acceptable.
 
-    max_iterations : int
+    max_iterations : size_t
         The maximum number of iterations before an answer is returned. This can
         be used to limit the execution time and do an early exit before the
         solver reaches the convergence tolerance.
         If this value is lower or equal to 0 cuGraph will use the default
         value, which is 100.
 
-    has_initial_guess : bool
-        This parameter is unsupported in this release and only False is
-        accepted.
-
-    do_expensive_check : bool
+    do_expensive_check : bool_t
         If True, performs more extensive tests on the inputs to ensure
         validitity, at the expense of increased run time.
 
@@ -128,9 +143,8 @@ def pagerank(ResourceHandle resource_handle,
     ...     resource_handle, graph_props, srcs, dsts, weights,
     ...     store_transposed=True, renumber=False, do_expensive_check=False)
     >>> (vertices, pageranks) = pylibcugraph.pagerank(
-    ...     resource_handle, G, None, alpha=0.85, epsilon=1.0e-6,
-    ...     max_iterations=500, has_initial_guess=False,
-    ...     do_expensive_check=False)
+    ...     resource_handle, G, None, None, None, None, alpha=0.85,
+    ...     epsilon=1.0e-6, max_iterations=500, do_expensive_check=False)
     >>> vertices
     array([0, 1, 2, 3], dtype=int32)
     >>> pageranks
@@ -151,23 +165,31 @@ def pagerank(ResourceHandle resource_handle,
         raise RuntimeError("pagerank requires the numpy package, which could "
                            "not be imported")
 
-    if has_initial_guess is True:
-        raise ValueError("has_initial_guess must be False for the current "
-                         "release.")
+    cdef cugraph_type_erased_device_array_view_t* \
+        initial_guess_vertices_view_ptr = \
+            create_cugraph_type_erased_device_array_view_from_py_obj(
+                initial_guess_vertices)
 
-    assert_CAI_type(precomputed_vertex_out_weight_sums,
-                    "precomputed_vertex_out_weight_sums",
-                    allow_None=True)
-    # FIXME: assert that precomputed_vertex_out_weight_sums type == weight type
+    cdef cugraph_type_erased_device_array_view_t* \
+        initial_guess_values_view_ptr = \
+            create_cugraph_type_erased_device_array_view_from_py_obj(
+                initial_guess_values)
 
     cdef cugraph_resource_handle_t* c_resource_handle_ptr = \
         resource_handle.c_resource_handle_ptr
     cdef cugraph_graph_t* c_graph_ptr = graph.c_graph_ptr
+
     cdef cugraph_type_erased_device_array_view_t* \
-        precomputed_vertex_out_weight_sums_ptr = NULL
-    if precomputed_vertex_out_weight_sums:
-        raise NotImplementedError("None is temporarily the only supported "
-                                  "value for precomputed_vertex_out_weight_sums")
+        precomputed_vertex_out_weight_vertices_ptr = \
+            create_cugraph_type_erased_device_array_view_from_py_obj(
+                precomputed_vertex_out_weight_vertices)
+
+    # FIXME: assert that precomputed_vertex_out_weight_sums
+    # type == weight type
+    cdef cugraph_type_erased_device_array_view_t* \
+        precomputed_vertex_out_weight_sums_ptr = \
+            create_cugraph_type_erased_device_array_view_from_py_obj(
+                precomputed_vertex_out_weight_sums)
 
     cdef cugraph_centrality_result_t* result_ptr
     cdef cugraph_error_code_t error_code
@@ -175,11 +197,13 @@ def pagerank(ResourceHandle resource_handle,
 
     error_code = cugraph_pagerank(c_resource_handle_ptr,
                                   c_graph_ptr,
+                                  precomputed_vertex_out_weight_vertices_ptr,
                                   precomputed_vertex_out_weight_sums_ptr,
+                                  initial_guess_vertices_view_ptr,
+                                  initial_guess_values_view_ptr,
                                   alpha,
                                   epsilon,
                                   max_iterations,
-                                  has_initial_guess,
                                   do_expensive_check,
                                   &result_ptr,
                                   &error_ptr)
