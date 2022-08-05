@@ -16,7 +16,7 @@
 #pragma once
 
 #include <detail/graph_utils.cuh>
-#include <prims/edge_partition_major_minor_property_device_view.cuh>
+#include <prims/edge_partition_endpoint_property_device_view.cuh>
 #include <prims/edge_src_dst_property.hpp>
 #include <prims/update_edge_src_dst_property.cuh>
 
@@ -176,7 +176,7 @@ decompress_edge_partition_to_relabeled_and_grouped_and_coarsened_edgelist(
                     pair_first + edgelist_majors.size(),
                     pair_first,
                     [major_label_first,
-                     minor_label_input = detail::edge_partition_minor_property_device_view_t<
+                     minor_label_input = detail::edge_partition_endpoint_property_device_view_t<
                        vertex_t,
                        decltype(minor_label_input.value_first())>(minor_label_input),
                      major_range_first = edge_partition.major_range_first(),

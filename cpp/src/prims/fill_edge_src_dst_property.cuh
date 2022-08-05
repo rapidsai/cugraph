@@ -15,7 +15,7 @@
  */
 #pragma once
 
-#include <prims/edge_partition_major_minor_property_device_view.cuh>
+#include <prims/edge_partition_endpoint_property_device_view.cuh>
 #include <prims/edge_src_dst_property.hpp>
 
 #include <cugraph/edge_partition_device_view.cuh>

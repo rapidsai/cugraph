@@ -38,9 +38,9 @@ class edge_partition_endpoint_property_device_view_t {
  public:
   using value_type = typename thrust::iterator_traits<ValueIterator>::value_type;
 
-  edge_partition_major_property_device_view_t() = default;
+  edge_partition_endpoint_property_device_view_t() = default;
 
-  edge_partition_major_property_device_view_t(
+  edge_partition_endpoint_property_device_view_t(
     edge_major_property_view_t<vertex_t, ValueIterator> const& view, size_t partition_idx)
     : value_first_(view.value_firsts()[partition_idx]),
       range_first_(view.major_range_firsts()[partition_idx])
@@ -54,7 +54,7 @@ class edge_partition_endpoint_property_device_view_t {
     range_first_ = view.major_range_firsts()[partition_idx];
   }
 
-  edge_partition_minor_property_device_view_t(
+  edge_partition_endpoint_property_device_view_t(
     edge_minor_property_view_t<vertex_t, ValueIterator> const& view)
   {
     if (view.keys()) {

@@ -15,7 +15,7 @@
  */
 #pragma once
 
-#include <prims/edge_partition_major_minor_property_device_view.cuh>
+#include <prims/edge_partition_endpoint_property_device_view.cuh>
 #include <prims/edge_src_dst_property.hpp>
 #include <prims/extract_if_e.cuh>
 #include <prims/property_op_utils.cuh>
@@ -146,20 +146,20 @@ extract_if_e(raft::handle_t const& handle,
     std::is_same_v<typename EdgeSrcValueInputWrapper::value_type, thrust::nullopt_t>,
     detail::edge_partition_endpoint_dummy_property_device_view_t<vertex_t>,
     std::conditional_t<GraphViewType::is_storage_transposed,
-                       detail::edge_partition_minor_property_device_view_t<
+                       detail::edge_partition_endpoint_property_device_view_t<
                          vertex_t,
                          typename EdgeSrcValueInputWrapper::value_iterator>,
-                       detail::edge_partition_major_property_device_view_t<
+                       detail::edge_partition_endpoint_property_device_view_t<
                          vertex_t,
                          typename EdgeSrcValueInputWrapper::value_iterator>>>;
   using edge_partition_dst_input_device_view_t = std::conditional_t<
     std::is_same_v<typename EdgeDstValueInputWrapper::value_type, thrust::nullopt_t>,
     detail::edge_partition_endpoint_dummy_property_device_view_t<vertex_t>,
     std::conditional_t<GraphViewType::is_storage_transposed,
-                       detail::edge_partition_major_property_device_view_t<
+                       detail::edge_partition_endpoint_property_device_view_t<
                          vertex_t,
                          typename EdgeDstValueInputWrapper::value_iterator>,
-                       detail::edge_partition_minor_property_device_view_t<
+                       detail::edge_partition_endpoint_property_device_view_t<
                          vertex_t,
                          typename EdgeDstValueInputWrapper::value_iterator>>>;
 
