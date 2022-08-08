@@ -156,12 +156,12 @@ class edge_major_property_t {
   edge_major_property_t(raft::handle_t const& handle) {}
 
   edge_major_property_t(raft::handle_t const& handle,
-                        std::vector<vertex_t>&& edge_partition_major_range_sizes,
-                        std::vector<vertex_t>&& edge_partition_major_range_firsts)
-    : edge_partition_major_range_firsts_(std::move(edge_partition_major_range_firsts))
+                        std::vector<vertex_t> const& edge_partition_major_range_sizes,
+                        std::vector<vertex_t> const& edge_partition_major_range_firsts)
+    : edge_partition_major_range_firsts_(edge_partition_major_range_firsts)
   {
-    buffers_.reserve(edge_partition_major_range_sizes.size());
-    for (size_t i = 0; i < buffers_.size(); ++i) {
+    buffers_.reserve(edge_partition_major_range_firsts_.size());
+    for (size_t i = 0; i < edge_partition_major_range_firsts_.size(); ++i) {
       buffers_.push_back(
         allocate_dataframe_buffer<T>(edge_partition_major_range_sizes[i], handle.get_stream()));
     }
@@ -172,14 +172,14 @@ class edge_major_property_t {
     raft::host_span<raft::device_span<vertex_t const> const> edge_partition_keys,
     raft::host_span<raft::device_span<vertex_t const> const> edge_partition_key_chunk_start_offsets,
     size_t key_chunk_size,
-    std::vector<vertex_t>&& edge_partition_major_range_firsts)
+    std::vector<vertex_t> const& edge_partition_major_range_firsts)
     : edge_partition_keys_(edge_partition_keys),
       edge_partition_key_chunk_start_offsets_(edge_partition_key_chunk_start_offsets),
       key_chunk_size_(key_chunk_size),
-      edge_partition_major_range_firsts_(std::move(edge_partition_major_range_firsts))
+      edge_partition_major_range_firsts_(edge_partition_major_range_firsts)
   {
-    buffers_.reserve(edge_partition_keys.size());
-    for (size_t i = 0; i < buffers_.size(); ++i) {
+    buffers_.reserve(edge_partition_major_range_firsts_.size());
+    for (size_t i = 0; i < edge_partition_major_range_firsts_.size(); ++i) {
       buffers_.push_back(
         allocate_dataframe_buffer<T>(edge_partition_keys[i].size(), handle.get_stream()));
     }
@@ -564,10 +564,10 @@ auto view_concat(detail::edge_major_property_view_t<vertex_t, Ts> const&... view
 
   std::vector<concat_value_iterator> edge_partition_concat_value_firsts{};
   auto first_view = detail::get_first_of_pack(views...);
-  edge_partition_concat_value_firsts.reserve(first_view.major_range_firsts().size());
+  edge_partition_concat_value_firsts.resize(first_view.major_range_firsts().size());
   for (size_t i = 0; i < edge_partition_concat_value_firsts.size(); ++i) {
-    edge_partition_concat_value_firsts.push_back(thrust::make_zip_iterator(
-      thrust_tuple_cat(detail::to_thrust_tuple(views.value_firsts()[i])...)));
+    edge_partition_concat_value_firsts[i] = thrust::make_zip_iterator(
+      thrust_tuple_cat(detail::to_thrust_tuple(views.value_firsts()[i])...));
   }
 
   if (first_view.key_chunk_size()) {
