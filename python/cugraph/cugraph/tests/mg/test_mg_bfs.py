@@ -126,9 +126,11 @@ def test_dask_bfs_invalid_start(dask_client, directed):
     with pytest.raises(ValueError):
         dcg.bfs(G, source_vertex).compute()
 
-    # invalid dtype
-    source_vertex = cudf.Series([0, 1])
-    with pytest.raises(ValueError):
+    # invalid dtype (the default cudf.Series() dtype is int64)
+    source_vertex = cudf.Series([0, 1], )
+    warning_msg = ("The 'start' values dtype must match "
+                   "the graph's vertices dtype.")
+    with pytest.warns(UserWarning, match=warning_msg):
         dcg.bfs(G, source_vertex).compute()
 
 
@@ -172,7 +174,6 @@ def test_dask_bfs_multi_column_depthlimit(dask_client, directed):
     start = cudf.DataFrame()
     start['a'] = [0]
     start['b'] = [1000]
-    start = start.astype({'a': 'int32', 'b': 'int32'})
 
     depth_limit = 18
     expected_dist = cugraph.bfs(g, start, depth_limit=depth_limit)
