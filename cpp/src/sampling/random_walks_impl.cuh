@@ -74,7 +74,9 @@ struct uniform_selector {
                       [] __device__(auto t) {
                         double rnd        = thrust::get<0>(t);
                         edge_t out_degree = thrust::get<1>(t);
-                        return static_cast<edge_t>(rnd * out_degree);
+
+                        return (out_degree > 0) ? static_cast<edge_t>(rnd * out_degree)
+                                                : edge_t{-1};
                       });
 
     return reply;
@@ -83,6 +85,14 @@ struct uniform_selector {
 
 struct biased_selector {
   uint64_t seed_{0};
+
+  template <typename vertex_t, typename edge_t>
+  rmm::device_uvector<edge_t> get_random_indices(raft::handle_t const& handle,
+                                                 rmm::device_uvector<vertex_t>& current_vertices,
+                                                 rmm::device_uvector<edge_t>& out_degrees)
+  {
+    CUGRAPH_FAIL("biased sampling not implemented");
+  }
 };
 
 template <typename weight_t>
@@ -90,6 +100,14 @@ struct node2vec_selector {
   weight_t p_;
   weight_t q_;
   uint64_t seed_{0};
+
+  template <typename vertex_t, typename edge_t>
+  rmm::device_uvector<edge_t> get_random_indices(raft::handle_t const& handle,
+                                                 rmm::device_uvector<vertex_t>& current_vertices,
+                                                 rmm::device_uvector<edge_t>& out_degrees)
+  {
+    CUGRAPH_FAIL("node2vec not implemented");
+  }
 };
 
 template <typename vertex_t,
@@ -116,7 +134,7 @@ random_walk_impl(raft::handle_t const& handle,
                                                 handle.get_stream());
   auto result_weights = graph_view.is_weighted()
                           ? std::make_optional<rmm::device_uvector<weight_t>>(
-                              start_vertices.size() * (max_length + 1), handle.get_stream())
+                              start_vertices.size() * max_length, handle.get_stream())
                           : std::nullopt;
 
   thrust::fill(
@@ -125,22 +143,30 @@ random_walk_impl(raft::handle_t const& handle,
     handle.get_thrust_policy(), result_weights->begin(), result_weights->end(), weight_t{0});
 
   rmm::device_uvector<vertex_t> current_vertices(start_vertices.size(), handle.get_stream());
-  rmm::device_uvector<int> current_gpu(start_vertices.size(), handle.get_stream());
-  rmm::device_uvector<size_t> current_position(start_vertices.size(), handle.get_stream());
-
+  rmm::device_uvector<size_t> current_position(0, handle.get_stream());
+  rmm::device_uvector<int> current_gpu(0, handle.get_stream());
   auto new_weights = graph_view.is_weighted()
                        ? std::make_optional<rmm::device_uvector<weight_t>>(0, handle.get_stream())
                        : std::nullopt;
 
-  auto current_iter = thrust::make_zip_iterator(
-    current_vertices.begin(), current_gpu.begin(), current_position.begin());
+  if constexpr (multi_gpu) {
+    current_position.resize(start_vertices.size(), handle.get_stream());
+    current_gpu.resize(start_vertices.size(), handle.get_stream());
+    auto current_iter = thrust::make_zip_iterator(
+      current_vertices.begin(), current_gpu.begin(), current_position.begin());
 
-  thrust::tabulate(
-    handle.get_thrust_policy(),
-    current_iter,
-    current_iter + current_vertices.size(),
-    [my_gpu_id = handle.get_comms().get_rank(), start_vertices = start_vertices.begin()] __device__(
-      auto i) { return thrust::make_tuple(start_vertices[i], my_gpu_id, static_cast<size_t>(i)); });
+    thrust::tabulate(handle.get_thrust_policy(),
+                     current_iter,
+                     current_iter + current_vertices.size(),
+                     [my_gpu_id      = handle.get_comms().get_rank(),
+                      start_vertices = start_vertices.begin()] __device__(auto i) {
+                       return thrust::make_tuple(
+                         start_vertices[i], my_gpu_id, static_cast<size_t>(i));
+                     });
+  } else {
+    raft::copy(
+      current_vertices.begin(), start_vertices.begin(), start_vertices.size(), handle.get_stream());
+  }
 
   thrust::for_each(
     handle.get_thrust_policy(),
@@ -148,11 +174,8 @@ random_walk_impl(raft::handle_t const& handle,
     thrust::make_counting_iterator<size_t>(current_vertices.size()),
     [current_verts = current_vertices.data(),
      result_verts  = result_vertices.data(),
-     max_length] __device__(size_t i) { result_verts[i * (max_length) + 1] = current_verts[i]; });
+     max_length] __device__(size_t i) { result_verts[i * (max_length + 1)] = current_verts[i]; });
 
-  //  *** NOTE: to support node2vec, the current tuples also should specify a previous src
-  //    (invalid_vertex for initialization).  Note, computing node2vec will be more
-  //    complicated/expensive
   rmm::device_uvector<vertex_t> vertex_partition_range_lasts(
     graph_view.vertex_partition_range_lasts().size(), handle.get_stream());
   raft::update_device(vertex_partition_range_lasts.data(),
@@ -239,6 +262,10 @@ random_walk_impl(raft::handle_t const& handle,
     // fact that the random number generator will use the same seed on each GPU, therefore
     // we will generate the same random number on each of the GPUs for a particular current
     // vertex.
+    //
+    //  *** NOTE: to support node2vec, the current tuples also should specify a previous src
+    //    (invalid_vertex for initialization).  Note, computing node2vec will be more
+    //    complicated/expensive
     auto random_indices = random_selector.get_random_indices(handle, current_vertices, out_degrees);
 
     std::tie(std::ignore, current_vertices, new_weights) =
@@ -250,103 +277,142 @@ random_walk_impl(raft::handle_t const& handle,
                                  global_degree_offsets,
                                  false);
 
-    //
-    //  Now I can iterate over the tuples (current_vertices, new_weights, current_gpu,
-    //  current_position) and skip over anything where current_vertices == invalid_vertex_id.  There
-    //  should, for any vertex, be at most one gpu where the vertex has a new vertex neighbor.
-    //
+    if constexpr (multi_gpu) {
+      //
+      //  Now I can iterate over the tuples (current_vertices, new_weights, current_gpu,
+      //  current_position) and skip over anything where current_vertices == invalid_vertex_id.
+      //  There should, for any vertex, be at most one gpu where the vertex has a new vertex
+      //  neighbor.
+      //
+      if (new_weights) {
+        auto input_iter = thrust::make_zip_iterator(current_vertices.begin(),
+                                                    new_weights->begin(),
+                                                    current_gpu.begin(),
+                                                    current_position.begin());
 
-    if (new_weights) {
-      auto input_iter = thrust::make_zip_iterator(current_vertices.begin(),
-                                                  new_weights->begin(),
-                                                  current_gpu.begin(),
-                                                  current_position.begin());
+        CUGRAPH_EXPECTS(current_vertices.size() < std::numeric_limits<int32_t>::max(),
+                        "remove_if will fail, minors.size() is too large");
 
-      CUGRAPH_EXPECTS(current_vertices.size() < std::numeric_limits<int32_t>::max(),
-                      "remove_if will fail, minors.size() is too large");
-
-      // FIXME: remove_if has a 32-bit overflow issue (https://github.com/NVIDIA/thrust/issues/1302)
-      // Seems unlikely here (the goal of sampling is to extract small graphs)
-      // so not going to work around this for now.
-      auto compacted_length = thrust::distance(
-        input_iter,
-        thrust::remove_if(
-          handle.get_thrust_policy(),
-          input_iter,
-          input_iter + current_vertices.size(),
-          current_vertices.begin(),
-          [invalid_vertex_id] __device__(auto dst) { return (dst == invalid_vertex_id); }));
-
-      current_vertices.resize(compacted_length, handle.get_stream());
-      new_weights->resize(compacted_length, handle.get_stream());
-      current_gpu.resize(compacted_length, handle.get_stream());
-      current_position.resize(compacted_length, handle.get_stream());
-    } else {
-      auto input_iter = thrust::make_zip_iterator(
-        current_vertices.begin(), current_gpu.begin(), current_position.begin());
-
-      CUGRAPH_EXPECTS(current_vertices.size() < std::numeric_limits<int32_t>::max(),
-                      "remove_if will fail, minors.size() is too large");
-
-      auto compacted_length = thrust::distance(
-        input_iter,
         // FIXME: remove_if has a 32-bit overflow issue
         // (https://github.com/NVIDIA/thrust/issues/1302) Seems unlikely here (the goal of sampling
         // is to extract small graphs) so not going to work around this for now.
-        thrust::remove_if(
-          handle.get_thrust_policy(),
+        auto compacted_length = thrust::distance(
           input_iter,
-          input_iter + current_vertices.size(),
-          current_vertices.begin(),
-          [invalid_vertex_id] __device__(auto dst) { return (dst == invalid_vertex_id); }));
+          thrust::remove_if(
+            handle.get_thrust_policy(),
+            input_iter,
+            input_iter + current_vertices.size(),
+            current_vertices.begin(),
+            [invalid_vertex_id] __device__(auto dst) { return (dst == invalid_vertex_id); }));
 
-      current_vertices.resize(compacted_length, handle.get_stream());
-      current_gpu.resize(compacted_length, handle.get_stream());
-      current_position.resize(compacted_length, handle.get_stream());
-    }
+        current_vertices.resize(compacted_length, handle.get_stream());
+        new_weights->resize(compacted_length, handle.get_stream());
+        current_gpu.resize(compacted_length, handle.get_stream());
+        current_position.resize(compacted_length, handle.get_stream());
 
-    if constexpr (multi_gpu) {
-      // Shuffle back to original GPU
-      auto current_iter = thrust::make_zip_iterator(
-        current_vertices.begin(), current_gpu.begin(), current_position.begin());
+        // Shuffle back to original GPU
+        auto current_iter = thrust::make_zip_iterator(current_vertices.begin(),
+                                                      new_weights->begin(),
+                                                      current_gpu.begin(),
+                                                      current_position.begin());
 
-      std::forward_as_tuple(std::tie(current_vertices, current_gpu, current_position),
-                            std::ignore) =
-        cugraph::groupby_gpu_id_and_shuffle_values(
-          handle.get_comms(),
-          current_iter,
-          current_iter + current_vertices.size(),
-          [] __device__(auto val) { return thrust::get<1>(val); },
-          handle.get_stream());
-    }
+        std::forward_as_tuple(
+          std::tie(current_vertices, *new_weights, current_gpu, current_position), std::ignore) =
+          cugraph::groupby_gpu_id_and_shuffle_values(
+            handle.get_comms(),
+            current_iter,
+            current_iter + current_vertices.size(),
+            [] __device__(auto val) { return thrust::get<2>(val); },
+            handle.get_stream());
 
-    // fill in result
-    if (new_weights) {
-      thrust::for_each(handle.get_thrust_policy(),
-                       thrust::make_counting_iterator<size_t>(0),
-                       thrust::make_counting_iterator<size_t>(current_vertices.size()),
-                       [current_verts = current_vertices.data(),
-                        new_wgts      = new_weights->data(),
-                        result_verts  = result_vertices.data(),
-                        result_wgts   = result_weights->data(),
-                        level,
-                        max_length] __device__(size_t i) {
-                         result_verts[i * (max_length + 1) + level + 1] = current_verts[i];
-                         result_wgts[i * (max_length + 1) + level]      = new_wgts[i];
-                       });
+        thrust::for_each(handle.get_thrust_policy(),
+                         thrust::make_counting_iterator<size_t>(0),
+                         thrust::make_counting_iterator<size_t>(current_vertices.size()),
+                         [current_verts = current_vertices.data(),
+                          new_wgts      = new_weights->data(),
+                          current_pos   = current_position.begin(),
+                          result_verts  = result_vertices.data(),
+                          result_wgts   = result_weights->data(),
+                          level,
+                          max_length] __device__(size_t i) {
+                           result_verts[current_pos[i] * (max_length + 1) + level + 1] =
+                             current_verts[i];
+                           result_wgts[current_pos[i] * max_length + level] = new_wgts[i];
+                         });
+      } else {
+        auto input_iter = thrust::make_zip_iterator(
+          current_vertices.begin(), current_gpu.begin(), current_position.begin());
+
+        CUGRAPH_EXPECTS(current_vertices.size() < std::numeric_limits<int32_t>::max(),
+                        "remove_if will fail, minors.size() is too large");
+
+        auto compacted_length = thrust::distance(
+          input_iter,
+          // FIXME: remove_if has a 32-bit overflow issue
+          // (https://github.com/NVIDIA/thrust/issues/1302) Seems unlikely here (the goal of
+          // sampling is to extract small graphs) so not going to work around this for now.
+          thrust::remove_if(
+            handle.get_thrust_policy(),
+            input_iter,
+            input_iter + current_vertices.size(),
+            current_vertices.begin(),
+            [invalid_vertex_id] __device__(auto dst) { return (dst == invalid_vertex_id); }));
+
+        current_vertices.resize(compacted_length, handle.get_stream());
+        current_gpu.resize(compacted_length, handle.get_stream());
+        current_position.resize(compacted_length, handle.get_stream());
+
+        // Shuffle back to original GPU
+        auto current_iter = thrust::make_zip_iterator(
+          current_vertices.begin(), current_gpu.begin(), current_position.begin());
+
+        std::forward_as_tuple(std::tie(current_vertices, current_gpu, current_position),
+                              std::ignore) =
+          cugraph::groupby_gpu_id_and_shuffle_values(
+            handle.get_comms(),
+            current_iter,
+            current_iter + current_vertices.size(),
+            [] __device__(auto val) { return thrust::get<1>(val); },
+            handle.get_stream());
+
+        thrust::for_each(handle.get_thrust_policy(),
+                         thrust::make_counting_iterator<size_t>(0),
+                         thrust::make_counting_iterator<size_t>(current_vertices.size()),
+                         [current_verts = current_vertices.data(),
+                          current_pos   = current_position.data(),
+                          result_verts  = result_vertices.data(),
+                          level,
+                          max_length] __device__(size_t i) {
+                           result_verts[current_pos[i] * (max_length + 1) + level + 1] =
+                             current_verts[i];
+                         });
+      }
     } else {
-      thrust::for_each(handle.get_thrust_policy(),
-                       thrust::make_counting_iterator<size_t>(0),
-                       thrust::make_counting_iterator<size_t>(current_vertices.size()),
-                       [current_verts = current_vertices.data(),
-                        result_verts  = result_vertices.data(),
-                        level,
-                        max_length] __device__(size_t i) {
-                         result_verts[i * (max_length + 1) + level + 1] = current_verts[i];
-                       });
+      if (new_weights) {
+        thrust::for_each(handle.get_thrust_policy(),
+                         thrust::make_counting_iterator<size_t>(0),
+                         thrust::make_counting_iterator<size_t>(current_vertices.size()),
+                         [current_verts = current_vertices.data(),
+                          new_wgts      = new_weights->data(),
+                          result_verts  = result_vertices.data(),
+                          result_wgts   = result_weights->data(),
+                          level,
+                          max_length] __device__(size_t i) {
+                           result_verts[i * (max_length + 1) + level + 1] = current_verts[i];
+                           result_wgts[i * max_length + level]            = new_wgts[i];
+                         });
+      } else {
+        thrust::for_each(handle.get_thrust_policy(),
+                         thrust::make_counting_iterator<size_t>(0),
+                         thrust::make_counting_iterator<size_t>(current_vertices.size()),
+                         [current_verts = current_vertices.data(),
+                          result_verts  = result_vertices.data(),
+                          level,
+                          max_length] __device__(size_t i) {
+                           result_verts[i * (max_length + 1) + level + 1] = current_verts[i];
+                         });
+      }
     }
-
-    ++level;
   }
 
   return std::make_tuple(std::move(result_vertices), std::move(result_weights));
@@ -400,7 +466,8 @@ node2vec_random_walks(raft::handle_t const& handle,
     graph_view,
     start_vertices,
     max_length,
-    detail::node2vec_selector{p, q, (seed == 0 ? detail::get_current_time_nanoseconds() : seed)});
+    detail::node2vec_selector<weight_t>{
+      p, q, (seed == 0 ? detail::get_current_time_nanoseconds() : seed)});
 }
 
 }  // namespace cugraph

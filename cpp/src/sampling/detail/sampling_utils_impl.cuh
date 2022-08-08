@@ -382,7 +382,7 @@ gather_local_edges(
   rmm::device_uvector<typename GraphViewType::edge_type>&& minor_map,
   typename GraphViewType::edge_type indices_per_major,
   const rmm::device_uvector<typename GraphViewType::edge_type>& global_degree_offsets,
-  bool remove_invalid_vertices = true)
+  bool remove_invalid_vertices)
 {
   using vertex_t  = typename GraphViewType::vertex_type;
   using edge_t    = typename GraphViewType::edge_type;
@@ -466,6 +466,7 @@ gather_local_edges(
           }
         } else {
           minors[index] = invalid_vertex_id;
+          if (weights != nullptr) { weights[index] = weight_t{0}; }
         }
       });
   } else {
@@ -534,6 +535,7 @@ gather_local_edges(
           edge_index_first[index] = g_dst_index;
         } else {
           minors[index] = invalid_vertex_id;
+          if (weights != nullptr) { weights[index] = weight_t{0}; }
         }
       });
   }
@@ -546,9 +548,9 @@ gather_local_edges(
       CUGRAPH_EXPECTS(minors.size() < std::numeric_limits<int32_t>::max(),
                       "remove_if will fail, minors.size() is too large");
 
-      // FIXME: remove_if has a 32-bit overflow issue (https://github.com/NVIDIA/thrust/issues/1302)
-      // Seems unlikely here (the goal of sampling is to extract small graphs)
-      // so not going to work around this for now.
+      // FIXME: remove_if has a 32-bit overflow issue
+      // (https://github.com/NVIDIA/thrust/issues/1302) Seems unlikely here (the goal of sampling
+      // is to extract small graphs) so not going to work around this for now.
       auto compacted_length = thrust::distance(
         input_iter,
         thrust::remove_if(
@@ -571,8 +573,8 @@ gather_local_edges(
       auto compacted_length = thrust::distance(
         input_iter,
         // FIXME: remove_if has a 32-bit overflow issue
-        // (https://github.com/NVIDIA/thrust/issues/1302) Seems unlikely here (the goal of sampling
-        // is to extract small graphs) so not going to work around this for now.
+        // (https://github.com/NVIDIA/thrust/issues/1302) Seems unlikely here (the goal of
+        // sampling is to extract small graphs) so not going to work around this for now.
         thrust::remove_if(
           handle.get_thrust_policy(),
           input_iter,

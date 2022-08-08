@@ -136,7 +136,7 @@ class Tests_MGRandomWalks : public ::testing::TestWithParam<tuple_t> {
       hr_clock.start();
     }
 
-#if 0
+#if 1
     auto [vertices, weights] = randomwalks_usecase(
       *handle_, graph_view, raft::device_span<vertex_t const>{d_start.data(), d_start.size()}, size_t{10});
 #else

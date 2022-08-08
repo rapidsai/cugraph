@@ -27,7 +27,6 @@ uniform_random_walks(raft::handle_t const& handle,
                      size_t max_length,
                      uint64_t seed);
 
-#if 0
 template std::tuple<rmm::device_uvector<int32_t>, std::optional<rmm::device_uvector<float>>>
 uniform_random_walks(raft::handle_t const& handle,
                      graph_view_t<int32_t, int64_t, float, false, false> const& graph_view,
@@ -158,6 +157,5 @@ node2vec_random_walks(raft::handle_t const& handle,
                       double p,
                       double q,
                       uint64_t seed);
-#endif
 
 }  // namespace cugraph
