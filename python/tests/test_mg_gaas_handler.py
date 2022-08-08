@@ -43,7 +43,9 @@ def mg_handler():
     return handler
 
 
-@pytest.fixture(scope="module")
+# Make this a function-level fixture so it cleans up the mg_handler after each
+# test, allowing other tests to use mg_handler without graphs loaded.
+@pytest.fixture(scope="function")
 def handler_with_edgelist_csv_loaded(mg_handler):
     """
     Loads the karate CSV into the default graph in the handler.
@@ -63,7 +65,11 @@ def handler_with_edgelist_csv_loaded(mg_handler):
                                      graph_id=defaults.graph_id,
                                      )
     assert mg_handler.get_graph_ids() == [0]
-    return (mg_handler, test_data)
+
+    yield (mg_handler, test_data)
+
+    for gid in mg_handler.get_graph_ids():
+        mg_handler.delete_graph(gid)
 
 
 ###############################################################################
@@ -122,11 +128,33 @@ def test_get_graph_vertex_dataframe_shape(handler_with_edgelist_csv_loaded):
 
     (handler, test_data) = handler_with_edgelist_csv_loaded
 
-    info = handler.get_graph_info(["num_vertices_with_properties",
+    info = handler.get_graph_info(["num_vertices",
                                    "num_vertex_properties"],
                                   defaults.graph_id)
     # info is a dictionary containing gaas_client.types.Value objs, so access
     # the int32 member directly for easy comparison.
-    shape = (ValueWrapper(info["num_vertices_with_properties"]).get_py_obj(),
+    shape = (ValueWrapper(info["num_vertices"]).get_py_obj(),
              ValueWrapper(info["num_vertex_properties"]).get_py_obj())
     assert shape == (0, 0)
+
+
+def test_get_graph_info_defaults(mg_handler):
+    """
+    Ensure calling get_graph_info() with no args returns the info dict with all
+    keys present for an empty default graph.
+    """
+    from gaas_client import defaults
+    from gaas_client.types import ValueWrapper
+
+    handler = mg_handler
+
+    info = handler.get_graph_info([], graph_id=defaults.graph_id)
+
+    expected = {"num_vertices": 0,
+                "num_edges": 0,
+                "num_vertex_properties": 0,
+                "num_edge_properties": 0,
+                }
+    actual = {key:ValueWrapper(val).get_py_obj() for (key, val) in info.items()}
+
+    assert expected == actual

@@ -354,9 +354,9 @@ def test_get_graph_vertex_dataframe_rows(client_with_property_csvs_loaded):
 def test_get_graph_vertex_dataframe_shape(client_with_property_csvs_loaded):
     (client, test_data) = client_with_property_csvs_loaded
 
-    info = client.get_graph_info(["num_vertices_with_properties",
+    info = client.get_graph_info(["num_vertices",
                                   "num_vertex_properties"])
-    shape = (info["num_vertices_with_properties"],
+    shape = (info["num_vertices"],
              info["num_vertex_properties"])
     # FIXME: do not hardcode the shape values, get them from the input data.
     assert shape == (9, 9)

@@ -57,6 +57,13 @@ class ExtensionServerFacade:
     def mg(self):
         return self.__handler.mg
 
+    def get_server_info(self):
+        # The handler returns objects suitable for serialization over RPC so
+        # convert them to regular py objs since this call is originating
+        # server-side.
+        return {k:ValueWrapper(v).get_py_obj() for (k, v)
+                in self.__handler.get_server_info().items()}
+
 
 class GaasHandler:
     """
@@ -247,7 +254,7 @@ class GaasHandler:
                           "num_vertex_properties",
                           "num_edge_properties",
                           ])
-        if keys is None:
+        if len(keys) == 0:
             keys = valid_keys
         else:
             invalid_keys = set(keys) - valid_keys
@@ -267,7 +274,6 @@ class GaasHandler:
                 elif k == "num_vertex_properties":
                     info[k] = len(G.vertex_property_names)
                 elif k == "num_edge_properties":
-                    print(f"{G.edge_property_names=}")
                     info[k] = len(G.edge_property_names)
         else:
             for k in keys:
@@ -799,19 +805,3 @@ class GaasHandler:
 
         except:
             raise GaasError(f"{traceback.format_exc()}")
-
-    def __get_dataframe_shape(self, df):
-        """
-        Return a tuple containing the dataframe shape by correcting handling
-        different dataframe types (cudf, dask_cudf, etc.)
-        """
-        sizes = []
-        for i in df.shape:
-            if isinstance(i, int):
-                sizes.append(i)
-            elif hasattr(i, "compute"):
-                sizes.append(i.compute())
-            else:
-                raise TypeError("value in df.shape was not an int or delayed, "
-                                f"got {type(i)}")
-        return tuple(sizes)
