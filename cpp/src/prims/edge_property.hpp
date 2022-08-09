@@ -37,7 +37,8 @@ class edge_property_view_t {
 
   edge_property_view_t() = default;
 
-  edge_property_view_t(std::vector<ValueIterator> const& edge_partition_value_firsts, std::vector<edge_t> const& edge_partition_edge_counts)
+  edge_property_view_t(std::vector<ValueIterator> const& edge_partition_value_firsts,
+                       std::vector<edge_t> const& edge_partition_edge_counts)
     : edge_partition_value_firsts_(edge_partition_value_firsts),
       edge_partition_edge_counts_(edge_partition_edge_counts)
   {
@@ -63,18 +64,17 @@ class edge_dummy_property_view_t {
 template <typename GraphViewType, typename T>
 class edge_property_t {
  public:
-  using value_type = T;
+  using value_type  = T;
   using buffer_type = decltype(allocate_dataframe_buffer<T>(size_t{0}, rmm::cuda_stream_view{}));
 
   edge_property_t(raft::handle_t const& handle) {}
 
-  edge_property_t(raft::handle_t const& handle,
-                  GraphViewType const& graph_view)
+  edge_property_t(raft::handle_t const& handle, GraphViewType const& graph_view)
   {
     buffers_.reserve(graph_view.number_of_local_edge_partitions());
     for (size_t i = 0; i < graph_view.number_of_local_edge_partitions(); ++i) {
-      buffers_.push_back(
-        allocate_dataframe_buffer<T>(graph_view.local_edge_partition_view(i).number_of_edges(), handle.get_stream()));
+      buffers_.push_back(allocate_dataframe_buffer<T>(
+        graph_view.local_edge_partition_view(i).number_of_edges(), handle.get_stream()));
     }
   }
 
@@ -92,11 +92,11 @@ class edge_property_t {
     std::vector<edge_t> edge_partition_edge_counts(buffers_.size());
     for (size_t i = 0; i < edge_partition_value_firsts.size(); ++i) {
       edge_partition_value_firsts[i] = get_dataframe_buffer_cbegin(buffers_[i]);
-      edge_partition_edge_counts[i] = size_dataframe_buffer(buffers_[i]);
+      edge_partition_edge_counts[i]  = size_dataframe_buffer(buffers_[i]);
     }
 
-    return edge_property_view_t<edge_t, const_value_iterator>(
-      edge_partition_value_firsts, edge_partition_edge_counts);
+    return edge_property_view_t<edge_t, const_value_iterator>(edge_partition_value_firsts,
+                                                              edge_partition_edge_counts);
   }
 
   auto mutable_view()
@@ -107,11 +107,11 @@ class edge_property_t {
     std::vector<edge_t> edge_partition_edge_counts(buffers_.size());
     for (size_t i = 0; i < edge_partition_value_firsts.size(); ++i) {
       edge_partition_value_firsts[i] = get_dataframe_buffer_begin(buffers_[i]);
-      edge_partition_edge_counts[i] = size_dataframe_buffer(buffers_[i]);
+      edge_partition_edge_counts[i]  = size_dataframe_buffer(buffers_[i]);
     }
 
-    return edge_property_view_t<edge_t, value_iterator>(
-      edge_partition_value_firsts, edge_partition_edge_counts);
+    return edge_property_view_t<edge_t, value_iterator>(edge_partition_value_firsts,
+                                                        edge_partition_edge_counts);
   }
 
  private:

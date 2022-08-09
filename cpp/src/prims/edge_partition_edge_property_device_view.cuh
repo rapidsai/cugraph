@@ -47,10 +47,7 @@ class edge_partition_edge_property_device_view_t {
     value_first_ = view.value_firsts()[partition_idx];
   }
 
-  __device__ ValueIterator get_iter(edge_t offset) const
-  {
-    return value_first_ + offset;
-  }
+  __device__ ValueIterator get_iter(edge_t offset) const { return value_first_ + offset; }
 
   __device__ value_type get(edge_t offset) const { return *get_iter(offset); }
 
@@ -65,8 +62,8 @@ class edge_partition_edge_dummy_property_device_view_t {
 
   edge_partition_edge_dummy_property_device_view_t() = default;
 
-  edge_partition_edge_dummy_property_device_view_t(
-    edge_dummy_property_view_t<edge_t> const& view, size_t partition_idx)
+  edge_partition_edge_dummy_property_device_view_t(edge_dummy_property_view_t<edge_t> const& view,
+                                                   size_t partition_idx)
   {
   }
 
