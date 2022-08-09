@@ -117,7 +117,7 @@ std::tuple<result_t, size_t> hits(raft::handle_t const& handle,
       handle,
       graph_view,
       prev_src_hubs.view(),
-      edge_dst_dummy_property_t<vertex_t>{}.view(),
+      edge_dst_dummy_property_t{}.view(),
       [] __device__(auto, auto, auto, auto prev_src_hub_value, auto) { return prev_src_hub_value; },
       result_t{0},
       authorities);
@@ -128,7 +128,7 @@ std::tuple<result_t, size_t> hits(raft::handle_t const& handle,
     per_v_transform_reduce_outgoing_e(
       handle,
       graph_view,
-      edge_src_dummy_property_t<vertex_t>{}.view(),
+      edge_src_dummy_property_t{}.view(),
       curr_dst_auth.view(),
       [] __device__(auto src, auto dst, auto, auto, auto curr_dst_auth_value) {
         return curr_dst_auth_value;

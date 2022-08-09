@@ -326,7 +326,6 @@ class edge_minor_property_t {
   vertex_t minor_range_first_{};
 };
 
-template <typename vertex_t>
 class edge_endpoint_dummy_property_view_t {
  public:
   using value_type     = thrust::nullopt_t;
@@ -540,20 +539,18 @@ class edge_dst_property_t {
     edge_partition_key_chunk_start_offsets_{std::nullopt};
 };
 
-template <typename vertex_t>
 class edge_src_dummy_property_t {
  public:
   using value_type = thrust::nullopt_t;
 
-  auto view() const { return detail::edge_endpoint_dummy_property_view_t<vertex_t>{}; }
+  auto view() const { return detail::edge_endpoint_dummy_property_view_t{}; }
 };
 
-template <typename vertex_t>
 class edge_dst_dummy_property_t {
  public:
   using value_type = thrust::nullopt_t;
 
-  auto view() const { return detail::edge_endpoint_dummy_property_view_t<vertex_t>{}; }
+  auto view() const { return detail::edge_endpoint_dummy_property_view_t{}; }
 };
 
 template <typename vertex_t, typename... Ts>

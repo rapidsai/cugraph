@@ -173,8 +173,8 @@ class Louvain {
     weight_t total_edge_weight = transform_reduce_e(
       handle_,
       current_graph_view_,
-      edge_src_dummy_property_t<vertex_t>{}.view(),
-      edge_dst_dummy_property_t<vertex_t>{}.view(),
+      edge_src_dummy_property_t{}.view(),
+      edge_dst_dummy_property_t{}.view(),
       [] __device__(auto, auto, weight_t wt, auto, auto) { return wt; },
       weight_t{0});
 
@@ -552,8 +552,8 @@ class Louvain {
     std::tie(cluster_keys_v_, cluster_weights_v_) = cugraph::transform_reduce_e_by_src_key(
       handle_,
       current_graph_view_,
-      edge_src_dummy_property_t<vertex_t>{}.view(),
-      edge_dst_dummy_property_t<vertex_t>{}.view(),
+      edge_src_dummy_property_t{}.view(),
+      edge_dst_dummy_property_t{}.view(),
       graph_view_t::is_multi_gpu
         ? src_clusters_cache_.view()
         : detail::edge_major_property_view_t<vertex_t, vertex_t const*>(next_clusters_v_.data()),

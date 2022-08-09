@@ -236,8 +236,8 @@ void bfs(raft::handle_t const& handle,
                                                       push_graph_view,
                                                       vertex_frontier,
                                                       bucket_idx_cur,
-                                                      edge_src_dummy_property_t<vertex_t>{}.view(),
-                                                      edge_dst_dummy_property_t<vertex_t>{}.view(),
+                                                      edge_src_dummy_property_t{}.view(),
+                                                      edge_dst_dummy_property_t{}.view(),
 #if 1
                                                       e_op,
 #else

@@ -211,8 +211,8 @@ rmm::device_uvector<edge_t> compute_minor_degrees(
     per_v_transform_reduce_outgoing_e(
       handle,
       graph_view,
-      edge_src_dummy_property_t<vertex_t>{}.view(),
-      edge_dst_dummy_property_t<vertex_t>{}.view(),
+      edge_src_dummy_property_t{}.view(),
+      edge_dst_dummy_property_t{}.view(),
       [] __device__(vertex_t, vertex_t, weight_t, auto, auto) { return edge_t{1}; },
       edge_t{0},
       minor_degrees.data());
@@ -220,8 +220,8 @@ rmm::device_uvector<edge_t> compute_minor_degrees(
     per_v_transform_reduce_incoming_e(
       handle,
       graph_view,
-      edge_src_dummy_property_t<vertex_t>{}.view(),
-      edge_dst_dummy_property_t<vertex_t>{}.view(),
+      edge_src_dummy_property_t{}.view(),
+      edge_dst_dummy_property_t{}.view(),
       [] __device__(vertex_t, vertex_t, weight_t, auto, auto) { return edge_t{1}; },
       edge_t{0},
       minor_degrees.data());
@@ -246,8 +246,8 @@ rmm::device_uvector<weight_t> compute_weight_sums(
     per_v_transform_reduce_incoming_e(
       handle,
       graph_view,
-      edge_src_dummy_property_t<vertex_t>{}.view(),
-      edge_dst_dummy_property_t<vertex_t>{}.view(),
+      edge_src_dummy_property_t{}.view(),
+      edge_dst_dummy_property_t{}.view(),
       [] __device__(vertex_t, vertex_t, weight_t w, auto, auto) { return w; },
       weight_t{0.0},
       weight_sums.data());
@@ -255,8 +255,8 @@ rmm::device_uvector<weight_t> compute_weight_sums(
     per_v_transform_reduce_outgoing_e(
       handle,
       graph_view,
-      edge_src_dummy_property_t<vertex_t>{}.view(),
-      edge_dst_dummy_property_t<vertex_t>{}.view(),
+      edge_src_dummy_property_t{}.view(),
+      edge_dst_dummy_property_t{}.view(),
       [] __device__(vertex_t, vertex_t, weight_t w, auto, auto) { return w; },
       weight_t{0.0},
       weight_sums.data());
@@ -895,8 +895,8 @@ graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enabl
   return transform_reduce_e(
     handle,
     *this,
-    edge_src_dummy_property_t<vertex_t>{}.view(),
-    edge_dst_dummy_property_t<vertex_t>{}.view(),
+    edge_src_dummy_property_t{}.view(),
+    edge_dst_dummy_property_t{}.view(),
     [] __device__(vertex_t src, vertex_t dst, auto src_val, auto dst_val) {
       return src == dst ? edge_t{1} : edge_t{0};
     },
@@ -919,8 +919,8 @@ edge_t graph_view_t<vertex_t,
   return transform_reduce_e(
     handle,
     *this,
-    edge_src_dummy_property_t<vertex_t>{}.view(),
-    edge_dst_dummy_property_t<vertex_t>{}.view(),
+    edge_src_dummy_property_t{}.view(),
+    edge_dst_dummy_property_t{}.view(),
     [] __device__(vertex_t src, vertex_t dst, auto src_val, auto dst_val) {
       return src == dst ? edge_t{1} : edge_t{0};
     },

@@ -547,8 +547,8 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
         level_graph_view,
         vertex_frontier,
         bucket_idx_cur,
-        edge_src_dummy_property_t<vertex_t>{}.view(),
-        edge_dst_dummy_property_t<vertex_t>{}.view(),
+        edge_src_dummy_property_t{}.view(),
+        edge_dst_dummy_property_t{}.view(),
         [col_components =
            GraphViewType::is_multi_gpu
              ? edge_dst_components.mutable_view()

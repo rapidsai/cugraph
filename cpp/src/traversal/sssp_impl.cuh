@@ -82,8 +82,8 @@ void sssp(raft::handle_t const& handle,
     auto num_negative_edge_weights =
       count_if_e(handle,
                  push_graph_view,
-                 edge_src_dummy_property_t<vertex_t>{}.view(),
-                 edge_dst_dummy_property_t<vertex_t>{}.view(),
+                 edge_src_dummy_property_t{}.view(),
+                 edge_dst_dummy_property_t{}.view(),
                  [] __device__(vertex_t, vertex_t, weight_t w, auto, auto) { return w < 0.0; });
     CUGRAPH_EXPECTS(num_negative_edge_weights == 0,
                     "Invalid input argument: input graph should have non-negative edge weights.");
@@ -115,8 +115,8 @@ void sssp(raft::handle_t const& handle,
   thrust::tie(average_vertex_degree, average_edge_weight) = transform_reduce_e(
     handle,
     push_graph_view,
-    edge_src_dummy_property_t<vertex_t>{}.view(),
-    edge_dst_dummy_property_t<vertex_t>{}.view(),
+    edge_src_dummy_property_t{}.view(),
+    edge_dst_dummy_property_t{}.view(),
     [] __device__(vertex_t, vertex_t, weight_t w, auto, auto) {
       return thrust::make_tuple(weight_t{1.0}, w);
     },
@@ -174,7 +174,7 @@ void sssp(raft::handle_t const& handle,
         GraphViewType::is_multi_gpu
           ? edge_src_distances.view()
           : detail::edge_major_property_view_t<vertex_t, weight_t const*>(distances),
-        edge_dst_dummy_property_t<vertex_t>{}.view(),
+        edge_dst_dummy_property_t{}.view(),
         [vertex_partition, distances, cutoff] __device__(
           vertex_t src, vertex_t dst, weight_t w, auto src_val, auto) {
           auto push         = true;

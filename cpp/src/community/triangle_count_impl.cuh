@@ -202,8 +202,8 @@ void triangle_count(raft::handle_t const& handle,
     rmm::device_uvector<vertex_t> dsts(size_t{0}, handle.get_stream());
     std::tie(srcs, dsts, std::ignore) = extract_if_e(handle,
                                                      graph_view,
-                                                     edge_src_dummy_property_t<vertex_t>{}.view(),
-                                                     edge_dst_dummy_property_t<vertex_t>{}.view(),
+                                                     edge_src_dummy_property_t{}.view(),
+                                                     edge_dst_dummy_property_t{}.view(),
                                                      is_not_self_loop_t<vertex_t>{});
 
     if constexpr (multi_gpu) {
@@ -351,15 +351,14 @@ void triangle_count(raft::handle_t const& handle,
     cur_graph_counts.resize(cur_graph_view.local_vertex_partition_range_size(),
                             handle.get_stream());
 
-    transform_reduce_dst_nbr_intersection_of_e_endpoints_by_v(
-      handle,
-      cur_graph_view,
-      edge_src_dummy_property_t<vertex_t>{}.view(),
-      edge_dst_dummy_property_t<vertex_t>{}.view(),
-      intersection_op_t<vertex_t, edge_t>{},
-      edge_t{0},
-      cur_graph_counts.begin(),
-      do_expensive_check);
+    transform_reduce_dst_nbr_intersection_of_e_endpoints_by_v(handle,
+                                                              cur_graph_view,
+                                                              edge_src_dummy_property_t{}.view(),
+                                                              edge_dst_dummy_property_t{}.view(),
+                                                              intersection_op_t<vertex_t, edge_t>{},
+                                                              edge_t{0},
+                                                              cur_graph_counts.begin(),
+                                                              do_expensive_check);
   }
 
   // 6. update counts

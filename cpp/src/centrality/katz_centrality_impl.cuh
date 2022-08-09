@@ -111,7 +111,7 @@ void katz_centrality(raft::handle_t const& handle,
       handle,
       pull_graph_view,
       edge_src_katz_centralities.view(),
-      edge_dst_dummy_property_t<vertex_t>{}.view(),
+      edge_dst_dummy_property_t{}.view(),
       [alpha] __device__(vertex_t, vertex_t, weight_t w, auto src_val, auto) {
         return static_cast<result_t>(alpha * src_val * w);
       },

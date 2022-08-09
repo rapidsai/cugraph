@@ -215,7 +215,7 @@ void core_number(raft::handle_t const& handle,
               graph_view,
               vertex_frontier,
               bucket_idx_cur,
-              edge_src_dummy_property_t<vertex_t>{}.view(),
+              edge_src_dummy_property_t{}.view(),
               dst_core_numbers.view(),
               [k, delta] __device__(vertex_t src, vertex_t dst, auto, auto dst_val) {
                 return dst_val >= k ? thrust::optional<edge_t>{delta} : thrust::nullopt;

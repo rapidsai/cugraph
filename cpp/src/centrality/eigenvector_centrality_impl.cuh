@@ -59,8 +59,8 @@ rmm::device_uvector<weight_t> eigenvector_centrality(
       auto num_nonpositive_edge_weights =
         count_if_e(handle,
                    pull_graph_view,
-                   edge_src_dummy_property_t<vertex_t>{}.view(),
-                   edge_dst_dummy_property_t<vertex_t>{}.view(),
+                   edge_src_dummy_property_t{}.view(),
+                   edge_dst_dummy_property_t{}.view(),
                    [] __device__(vertex_t, vertex_t, weight_t w, auto, auto) { return w <= 0.0; });
       CUGRAPH_EXPECTS(num_nonpositive_edge_weights == 0,
                       "Invalid input argument: input graph should have postive edge weights.");
@@ -99,7 +99,7 @@ rmm::device_uvector<weight_t> eigenvector_centrality(
       handle,
       pull_graph_view,
       edge_src_centralities.view(),
-      edge_dst_dummy_property_t<vertex_t>{}.view(),
+      edge_dst_dummy_property_t{}.view(),
       [] __device__(vertex_t, vertex_t, weight_t w, auto src_val, auto) { return src_val * w; },
       weight_t{0},
       centralities.begin());

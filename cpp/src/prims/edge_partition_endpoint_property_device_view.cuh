@@ -103,12 +103,12 @@ class edge_partition_endpoint_dummy_property_device_view_t {
   edge_partition_endpoint_dummy_property_device_view_t() = default;
 
   edge_partition_endpoint_dummy_property_device_view_t(
-    edge_endpoint_dummy_property_view_t<vertex_t> const& view, size_t partition_idx)
+    edge_endpoint_dummy_property_view_t const& view, size_t partition_idx)
   {
   }
 
   edge_partition_endpoint_dummy_property_device_view_t(
-    edge_endpoint_dummy_property_view_t<vertex_t> const& view)
+    edge_endpoint_dummy_property_view_t const& view)
   {
   }
 
