@@ -235,6 +235,9 @@ class CuGraphStore:
         sampled_df = uniform_neighbor_sample(
             sg, start_list=nodes, fanout_vals=[fanout],
             with_replacement=replace,
+            is_edge_ids=True
+            # FIXME: is_edge_ids=True does not seem to do anything
+            # issue https://github.com/rapidsai/cugraph/issues/2562
         )
 
         # handle empty graph case
