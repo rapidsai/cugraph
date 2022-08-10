@@ -388,7 +388,9 @@ def test_num_edges(dataset1_CuGraphStore):
 
 
 def test_etypes(dataset1_CuGraphStore):
-    assert dataset1_CuGraphStore.etypes == ['referrals', 'relationships', 'transactions']
+    assert dataset1_CuGraphStore.etypes == [
+        'referrals', 'relationships', 'transactions'
+    ]
 
 
 def test_ntypes(dataset1_CuGraphStore):
