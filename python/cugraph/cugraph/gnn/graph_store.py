@@ -84,9 +84,7 @@ class CuGraphStore:
                     )
                 )
             ntype = ntypes[0]
-        # FIXME: Remove once below lands
-        # https://github.com/rapidsai/cugraph/pull/2444
-        df = self.gdata._vertex_prop_dataframe
+        df = self.gdata.get_vertex_data()
         col_names = self.ndata_key_col_d[key]
         return CuFeatureStorage(
             df=df,
@@ -109,9 +107,7 @@ class CuGraphStore:
 
             etype = etypes[0]
         col_names = self.edata_key_col_d[key]
-        # FIXME: Remove once below lands
-        # https://github.com/rapidsai/cugraph/pull/2444
-        df = self.gdata._edge_prop_dataframe
+        df = self.gdata.get_edge_data()
         return CuFeatureStorage(
             df=df,
             id_col=eid_n,
@@ -128,19 +124,11 @@ class CuGraphStore:
 
     @property
     def ntypes(self):
-        # FIXME: Remove once below is fixed
-        # https://github.com/rapidsai/cugraph/issues/2423
-        s = self.gdata._vertex_prop_dataframe[type_n]
-        ntypes = s.drop_duplicates().to_arrow().to_pylist()
-        return ntypes
+        return sorted(self.gdata.vertex_types)
 
     @property
     def etypes(self):
-        # FIXME: Remove once below is fixed
-        # https://github.com/rapidsai/cugraph/issues/2423
-        s = self.gdata._edge_prop_dataframe[type_n]
-        ntypes = s.drop_duplicates().to_arrow().to_pylist()
-        return ntypes
+        return sorted(self.gdata.edge_types)
 
     @property
     def ndata(self):
@@ -253,9 +241,7 @@ class CuGraphStore:
                 columns={"sources": src_n, "destinations": dst_n}, inplace=True
             )
 
-        # FIXME: Remove once below lands
-        # https://github.com/rapidsai/cugraph/issues/2444
-        edge_df = self.gdata._edge_prop_dataframe[[src_n, dst_n, eid_n]]
+        edge_df = self.gdata.edges
         sampled_df = edge_df.merge(sampled_df)
 
         return (
@@ -269,6 +255,7 @@ class CuGraphStore:
         # TODO: Switch to extract_subgraph based on response on
         # https://github.com/rapidsai/cugraph/issues/2458
         subset_df = self.gdata._edge_prop_dataframe[[src_n, dst_n]]
+        subset_df.reset_index(drop=True, inplace=True)  # drop edge ids
         subset_df.rename(columns={src_n: dst_n, dst_n: src_n}, inplace=True)
         subset_df["weight"] = cp.float32(1.0)
         subgraph = cugraph.Graph(directed=True)
@@ -307,12 +294,7 @@ class CuGraphStore:
             The dst nodes for the given ids
         """
         edge_ids = cudf.from_dlpack(edge_ids_cap)
-
-        # FIXME: Remove once below lands
-        # https://github.com/rapidsai/cugraph/issues/2444
-        edge_df = self.gdata._edge_prop_dataframe[[src_n, dst_n,
-                                                   eid_n, type_n]]
-
+        edge_df = self.gdata.get_edge_data(columns=[])
         subset_df = get_subset_df(
             edge_df, PropertyGraph.edge_id_col_name, edge_ids, etype
         )

@@ -387,6 +387,14 @@ def test_num_edges(dataset1_CuGraphStore):
     assert dataset1_CuGraphStore.num_edges() == 14
 
 
+def test_etypes(dataset1_CuGraphStore):
+    assert dataset1_CuGraphStore.etypes == ['referrals', 'relationships', 'transactions']
+
+
+def test_ntypes(dataset1_CuGraphStore):
+    assert dataset1_CuGraphStore.ntypes == ['merchant', 'taxpayers', 'user']
+
+
 def test_get_node_storage_gs(dataset1_CuGraphStore):
     fs = dataset1_CuGraphStore.get_node_storage(
         key="merchant_k", ntype="merchant"
