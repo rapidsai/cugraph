@@ -270,6 +270,7 @@ class CuGraphStore:
             source=src_n,
             destination=dst_n,
             edge_attr=eid_n,
+            renumber=False,
             legacy_renum_only=False,
         )
         return subgraph
