@@ -15,6 +15,7 @@
  */
 #pragma once
 
+#include <cugraph/edge_property.hpp>
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_view.hpp>
 
@@ -502,16 +503,16 @@ extract_induced_subgraphs(
  * and) edge list.
  * @param renumber Flag indicating whether to renumber vertices or not.
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
- * @return std::tuple<cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed,
- * multi_gpu>, rmm::device_uvector<vertex_t>> Pair of the generated graph and the renumber map (if
- * @p renumber is true) or std::nullopt (if @p renumber is false).
+ * @return std::tuple<graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>,
+ * rmm::device_uvector<vertex_t>> Pair of the generated graph and the renumber map (if @p renumber
+ * is true) or std::nullopt (if @p renumber is false).
  */
 template <typename vertex_t,
           typename edge_t,
           typename weight_t,
           bool store_transposed,
           bool multi_gpu>
-std::tuple<cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>,
+std::tuple<graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>,
            std::optional<rmm::device_uvector<vertex_t>>>
 create_graph_from_edgelist(raft::handle_t const& handle,
                            std::optional<rmm::device_uvector<vertex_t>>&& vertices,
@@ -551,12 +552,10 @@ create_graph_from_edgelist(raft::handle_t const& handle,
  * and) edge list.
  * @param renumber Flag indicating whether to renumber vertices or not.
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
- * @return std::tuple<cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed,
- * multi_gpu>, cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, weight_t,
- * store_transposed, multi_gpu>, edge_t>, rmm::device_uvector<vertex_t>> Tuple of the generated
- * graph, edge_property_t object storing edge IDs, and renumber map (if @p renumber is true) or
- * std::nullopt (if @p renumber is false).
- *
+ * @return std::tuple<graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>,
+ * edge_property_t<graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>, edge_t>,
+ * rmm::device_uvector<vertex_t>> Tuple of the generated graph, edge_property_t object storing edge
+ * IDs, and renumber map (if @p renumber is true) or std::nullopt (if @p renumber is false).
  */
 template <typename vertex_t,
           typename edge_t,
@@ -564,9 +563,8 @@ template <typename vertex_t,
           bool store_transposed,
           bool multi_gpu>
 std::tuple<
-  cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>,
-  edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>,
-                  edge_t>,
+  graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>,
+  edge_property_t<graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>, edge_t>,
   std::optional<rmm::device_uvector<vertex_t>>>
 create_graph_from_edgelist(raft::handle_t const& handle,
                            std::optional<rmm::device_uvector<vertex_t>>&& vertices,

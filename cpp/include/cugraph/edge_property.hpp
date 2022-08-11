@@ -64,6 +64,7 @@ class edge_dummy_property_view_t {
 template <typename GraphViewType, typename T>
 class edge_property_t {
  public:
+  using edge_type   = typename GraphViewType::edge_type;
   using value_type  = T;
   using buffer_type = decltype(allocate_dataframe_buffer<T>(size_t{0}, rmm::cuda_stream_view{}));
 
@@ -89,14 +90,14 @@ class edge_property_t {
     using const_value_iterator = decltype(get_dataframe_buffer_cbegin(buffers_[0]));
 
     std::vector<const_value_iterator> edge_partition_value_firsts(buffers_.size());
-    std::vector<edge_t> edge_partition_edge_counts(buffers_.size());
+    std::vector<edge_type> edge_partition_edge_counts(buffers_.size());
     for (size_t i = 0; i < edge_partition_value_firsts.size(); ++i) {
       edge_partition_value_firsts[i] = get_dataframe_buffer_cbegin(buffers_[i]);
       edge_partition_edge_counts[i]  = size_dataframe_buffer(buffers_[i]);
     }
 
-    return edge_property_view_t<edge_t, const_value_iterator>(edge_partition_value_firsts,
-                                                              edge_partition_edge_counts);
+    return detail::edge_property_view_t<edge_type, const_value_iterator>(
+      edge_partition_value_firsts, edge_partition_edge_counts);
   }
 
   auto mutable_view()
@@ -104,14 +105,14 @@ class edge_property_t {
     using value_iterator = decltype(get_dataframe_buffer_begin(buffers_[0]));
 
     std::vector<value_iterator> edge_partition_value_firsts(buffers_.size());
-    std::vector<edge_t> edge_partition_edge_counts(buffers_.size());
+    std::vector<edge_type> edge_partition_edge_counts(buffers_.size());
     for (size_t i = 0; i < edge_partition_value_firsts.size(); ++i) {
       edge_partition_value_firsts[i] = get_dataframe_buffer_begin(buffers_[i]);
       edge_partition_edge_counts[i]  = size_dataframe_buffer(buffers_[i]);
     }
 
-    return edge_property_view_t<edge_t, value_iterator>(edge_partition_value_firsts,
-                                                        edge_partition_edge_counts);
+    return detail::edge_property_view_t<edge_type, value_iterator>(edge_partition_value_firsts,
+                                                                   edge_partition_edge_counts);
   }
 
  private:

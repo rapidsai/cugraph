@@ -16,8 +16,7 @@
 
 #pragma once
 
-#include <prims/edge_src_dst_property.hpp>
-
+#include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/utilities/device_functors.cuh>
 
 #include <raft/span.hpp>
