@@ -23,10 +23,10 @@
 #include <utilities/thrust_wrapper.hpp>
 
 #include <prims/count_if_e.cuh>
-#include <prims/edge_src_dst_property.hpp>
 #include <prims/update_edge_src_dst_property.cuh>
 
 #include <cugraph/algorithms.hpp>
+#include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/partition_manager.hpp>
 #include <cugraph/utilities/dataframe_buffer.hpp>
 
