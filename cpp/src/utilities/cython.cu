@@ -25,7 +25,7 @@
 #include <cugraph/utilities/cython.hpp>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/graph_traits.hpp>
-#include <cugraph/utilities/host_scalar_comm.cuh>
+#include <cugraph/utilities/host_scalar_comm.hpp>
 #include <cugraph/utilities/path_retrieval.hpp>
 #include <cugraph/utilities/shuffle_comm.cuh>
 

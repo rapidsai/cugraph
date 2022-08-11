@@ -25,7 +25,7 @@
 #include <cugraph/algorithms.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
-#include <cugraph/utilities/device_comm.cuh>
+#include <cugraph/utilities/device_comm.hpp>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/shuffle_comm.cuh>
 

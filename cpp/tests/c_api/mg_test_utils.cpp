@@ -50,7 +50,7 @@ extern "C" int run_mg_test(int (*test)(const cugraph_resource_handle_t*),
   // FIXME:  This is copied from host_scalar_allreduce
   //         which is in a file of thrust enabled code which can't
   //         be inclined in a cpp file.  Either make this file a .cu
-  //         or refactor host_scalar_comm.cuh to separate the thrust
+  //         or refactor host_scalar_comm.hpp to separate the thrust
   //         code from the non-thrust code
   rmm::device_uvector<int> d_input(1, raft_handle->get_stream());
   raft::update_device(d_input.data(), &ret_val, 1, raft_handle->get_stream());

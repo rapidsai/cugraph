@@ -26,7 +26,7 @@
 #include <cugraph/graph_view.hpp>
 #include <cugraph/partition_manager.hpp>
 #include <cugraph/utilities/error.hpp>
-#include <cugraph/utilities/host_scalar_comm.cuh>
+#include <cugraph/utilities/host_scalar_comm.hpp>
 
 #include <raft/cudart_utils.h>
 #include <raft/handle.hpp>

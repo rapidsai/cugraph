@@ -16,8 +16,7 @@
 #pragma once
 
 #include <cugraph/utilities/error.hpp>
-#include <cugraph/utilities/host_scalar_comm.cuh>
-#include <cugraph/utilities/thrust_tuple_utils.cuh>
+#include <cugraph/utilities/host_scalar_comm.hpp>
 
 #include <raft/cudart_utils.h>
 #include <raft/handle.hpp>

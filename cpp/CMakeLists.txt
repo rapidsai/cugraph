@@ -166,7 +166,7 @@ set(CUGRAPH_SOURCES
     src/detail/shuffle_wrappers.cu
     src/utilities/cython.cu
     src/utilities/path_retrieval.cu
-    src/utilities/graph_bcast.cu
+    src/utilities/graph_bcast.cpp
     src/structure/legacy/graph.cu
     src/linear_assignment/hungarian.cu
     src/traversal/legacy/bfs.cu

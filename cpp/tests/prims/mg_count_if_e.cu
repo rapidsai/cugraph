@@ -28,7 +28,7 @@
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/partition_manager.hpp>
-#include <cugraph/utilities/dataframe_buffer.cuh>
+#include <cugraph/utilities/dataframe_buffer.hpp>
 
 #include <cuco/detail/hash_functions.cuh>
 #include <cugraph/edge_partition_view.hpp>
