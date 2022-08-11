@@ -17,8 +17,8 @@
 
 #include <cugraph/graph_view.hpp>
 #include <cugraph/partition_manager.hpp>
-#include <cugraph/utilities/dataframe_buffer.cuh>
-#include <cugraph/utilities/device_comm.cuh>
+#include <cugraph/utilities/dataframe_buffer.hpp>
+#include <cugraph/utilities/device_comm.hpp>
 
 #include <raft/handle.hpp>
 #include <raft/span.hpp>

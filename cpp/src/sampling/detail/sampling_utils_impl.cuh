@@ -19,9 +19,9 @@
 #include <cugraph/detail/decompress_edge_partition.cuh>
 #include <cugraph/edge_partition_device_view.cuh>
 #include <cugraph/partition_manager.hpp>
-#include <cugraph/utilities/device_comm.cuh>
+#include <cugraph/utilities/device_comm.hpp>
 #include <cugraph/utilities/device_functors.cuh>
-#include <cugraph/utilities/host_scalar_comm.cuh>
+#include <cugraph/utilities/host_scalar_comm.hpp>
 
 #include <raft/handle.hpp>
 

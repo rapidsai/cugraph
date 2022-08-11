@@ -16,7 +16,7 @@
 #pragma once
 
 #include <cugraph/graph.hpp>
-#include <cugraph/utilities/dataframe_buffer.cuh>
+#include <cugraph/utilities/dataframe_buffer.hpp>
 #include <cugraph/utilities/shuffle_comm.cuh>
 
 #include <cuco/static_map.cuh>
