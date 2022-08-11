@@ -15,7 +15,6 @@
  */
 #pragma once
 
-#include <prims/edge_src_dst_property.hpp>
 #include <prims/per_v_transform_reduce_dst_key_aggregated_outgoing_e.cuh>
 #include <prims/per_v_transform_reduce_incoming_outgoing_e.cuh>
 #include <prims/transform_reduce_e.cuh>
@@ -24,6 +23,7 @@
 #include <utilities/collect_comm.cuh>
 
 #include <cugraph/dendrogram.hpp>
+#include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_functions.hpp>
 

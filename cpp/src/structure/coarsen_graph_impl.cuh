@@ -16,12 +16,12 @@
 #pragma once
 
 #include <detail/graph_utils.cuh>
-#include <prims/edge_partition_endpoint_property_device_view.cuh>
-#include <prims/edge_src_dst_property.hpp>
 #include <prims/update_edge_src_dst_property.cuh>
 
 #include <cugraph/detail/decompress_edge_partition.cuh>
 #include <cugraph/detail/shuffle_wrappers.hpp>
+#include <cugraph/edge_partition_endpoint_property_device_view.cuh>
+#include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>

@@ -15,13 +15,13 @@
  */
 #pragma once
 
-#include <prims/edge_partition_endpoint_property_device_view.cuh>
-#include <prims/edge_src_dst_property.hpp>
 #include <prims/fill_edge_src_dst_property.cuh>
 #include <prims/property_op_utils.cuh>
 #include <prims/reduce_op.cuh>
 
 #include <cugraph/edge_partition_device_view.cuh>
+#include <cugraph/edge_partition_endpoint_property_device_view.cuh>
+#include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/partition_manager.hpp>
 #include <cugraph/utilities/dataframe_buffer.hpp>

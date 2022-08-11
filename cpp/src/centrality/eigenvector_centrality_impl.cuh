@@ -17,7 +17,6 @@
 
 #include <prims/count_if_e.cuh>
 #include <prims/count_if_v.cuh>
-#include <prims/edge_src_dst_property.hpp>
 #include <prims/per_v_transform_reduce_incoming_outgoing_e.cuh>
 #include <prims/reduce_v.cuh>
 #include <prims/transform_reduce_v.cuh>
@@ -25,6 +24,7 @@
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
+#include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/utilities/error.hpp>
 

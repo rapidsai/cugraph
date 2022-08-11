@@ -15,8 +15,7 @@
  */
 #pragma once
 
-#include <prims/edge_src_dst_property.hpp>
-
+#include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/utilities/error.hpp>
 
