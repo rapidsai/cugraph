@@ -47,7 +47,7 @@ datasets = utils.DATASETS_UNDIRECTED + utils.DATASETS_UNRENUMBERED
 fixture_params = utils.genFixtureParamsProduct(
     (datasets, "graph_file"),
     (IS_DIRECTED, "directed"),
-    ([True], "legacy_renum_only")
+    ([True, False], "legacy_renum_only")
     )
 
 
@@ -130,6 +130,8 @@ def test_has_node_functionality(dask_client, input_combo):
 
 def test_create_mg_graph(dask_client, input_combo):
     G = input_combo['MGGraph']
+    ddf = input_combo["input_df"]
+    df = ddf.compute()
 
     # ensure graph exists
     assert G._plc_graph is not None
@@ -141,6 +143,10 @@ def test_create_mg_graph(dask_client, input_combo):
         cudf.Series([1], dtype='int32'),
         len(G._plc_graph)
     )
+
+    if G.renumbered:
+        start = G.lookup_internal_vertex_id(
+                start, None)
     data_start = get_distributed_data(start)
 
     res = [
@@ -170,17 +176,29 @@ def test_create_mg_graph(dask_client, input_combo):
     ]
     wait(cudf_result)
 
-    ddf = dask_cudf.from_delayed(cudf_result)
+    result_dist = dask_cudf.from_delayed(cudf_result)
 
-    ddf = ddf.compute()
+    if G.renumbered:
+        result_dist = G.unrenumber(result_dist, 'vertex')
+        result_dist = G.unrenumber(result_dist, 'predecessor')
+        result_dist = result_dist.fillna(-1)
 
-    if 'dolphins.csv' == input_combo['graph_file'].name:
-        assert ddf[ddf.vertex == 33].distance.iloc[0] == 3
-        assert ddf[ddf.vertex == 33].predecessor.iloc[0] == 37
-        assert ddf[ddf.vertex == 11].distance.iloc[0] == 4
-        assert ddf[ddf.vertex == 11].predecessor.iloc[0] == 51
-    else:
-        assert ddf[ddf.vertex == 33].distance.iloc[0] == 2
-        assert ddf[ddf.vertex == 33].predecessor.iloc[0] == 30
-        assert ddf[ddf.vertex == 11].distance.iloc[0] == 2
-        assert ddf[ddf.vertex == 11].predecessor.iloc[0] == 0
+    result_dist = result_dist.compute()
+
+    g = cugraph.Graph(directed=G.properties.directed)
+    g.from_cudf_edgelist(df, "src", "dst")
+    expected_dist = cugraph.bfs(g, cudf.Series([1], dtype='int32'))
+
+    compare_dist = expected_dist.merge(
+        result_dist, on="vertex", suffixes=["_local", "_dask"]
+    )
+
+    err = 0
+
+    for i in range(len(compare_dist)):
+        if (
+            compare_dist["distance_local"].iloc[i]
+            != compare_dist["distance_dask"].iloc[i]
+        ):
+            err = err + 1
+    assert err == 0
