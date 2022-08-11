@@ -67,11 +67,8 @@ def k_truss(G, k):
 
     Examples
     --------
-    >>> import cudf # k_truss does not run on CUDA 11.5
-    >>> gdf = cudf.read_csv(datasets_path / 'karate.csv', delimiter=' ',
-    ...                     dtype=['int32', 'int32', 'float32'], header=None)
-    >>> G = cugraph.Graph()
-    >>> G.from_cudf_edgelist(gdf, source='0', destination='1')
+    >>> from cugraph.experimental.datasets import karate
+    >>> G = karate.get_graph(fetch=True)
     >>> k_subgraph = cugraph.k_truss(G, 3)
 
     """
@@ -150,11 +147,8 @@ def ktruss_subgraph(G, k, use_weights=True):
 
     Examples
     --------
-    >>> import cudf # ktruss_subgraph does not run on CUDA 11.5
-    >>> gdf = cudf.read_csv(datasets_path / 'karate.csv', delimiter=' ',
-    ...                     dtype=['int32', 'int32', 'float32'], header=None)
-    >>> G = cugraph.Graph()
-    >>> G.from_cudf_edgelist(gdf, source='0', destination='1')
+    >>> from cugraph.experimental.datasets import karate
+    >>> G = karate.get_graph(fetch=True)
     >>> k_subgraph = cugraph.ktruss_subgraph(G, 3)
 
     """

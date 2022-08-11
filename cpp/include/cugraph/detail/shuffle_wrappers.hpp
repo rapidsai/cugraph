@@ -63,6 +63,25 @@ rmm::device_uvector<vertex_t> shuffle_ext_vertices_by_gpu_id(
   raft::handle_t const& handle, rmm::device_uvector<vertex_t>&& d_vertices);
 
 /**
+ * @brief Shuffle vertex/value tuples using the external vertex key function which returns the
+ * target GPU ID.
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam value_t Type of values.
+ *
+ * @param[in] handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator,
+ * @param[in] d_vertices Vertex IDs to shuffle
+ * @param[in] d_values Values to shuffle
+ *
+ * @return tuple containing device vector of shuffled vertices and device vector of shuffled values
+ */
+template <typename vertex_t, typename value_t>
+std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<value_t>>
+shuffle_ext_vertices_and_values_by_gpu_id(raft::handle_t const& handle,
+                                          rmm::device_uvector<vertex_t>&& d_vertices,
+                                          rmm::device_uvector<value_t>&& d_values);
+
+/**
  * @brief Shuffle vertices using the internal vertex key function which returns the target GPU ID.
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.

@@ -23,6 +23,7 @@ set(cython_sources
     katz_centrality.pyx
     node2vec.pyx
     pagerank.pyx
+    personalized_pagerank.pyx
     resource_handle.pyx
     sssp.pyx
     triangle_count.pyx

@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2021, NVIDIA CORPORATION.
+# Copyright (c) 2019-2022, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -13,6 +13,7 @@
 
 import sys
 from tempfile import NamedTemporaryFile
+import math
 
 import cudf
 from cupy.sparse import coo_matrix as cupy_coo_matrix
@@ -153,9 +154,14 @@ def test_shortest_path_length_invalid_vertexes(graphs):
 def test_shortest_path_length_no_path(graphs):
     cugraph_G, nx_G, cupy_df = graphs
 
+    # FIXME: In case there is no path between two vertices, the
+    # result can be either the max of float32 or float64
+    max_float_32 = (2 - math.pow(2, -23))*math.pow(2, 127)
+
     path_1_to_8 = cugraph.shortest_path_length(cugraph_G, 1, 8)
     assert path_1_to_8 == sys.float_info.max
-    assert path_1_to_8 == cugraph.shortest_path_length(nx_G, "1", "8")
+    assert cugraph.shortest_path_length(nx_G, "1", "8") in \
+        [max_float_32, path_1_to_8]
     assert path_1_to_8 == cugraph.shortest_path_length(cupy_df, 1, 8)
 
 

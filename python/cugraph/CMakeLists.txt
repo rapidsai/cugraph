@@ -45,7 +45,7 @@ if(NOT cugraph_FOUND)
   # TODO: This will not be necessary once we upgrade to CMake 3.22, which will pull in the required
   # languages for the C++ project even if this project does not require those languges.
   include(rapids-cuda)
-  rapids_cuda_init_architectures(CUGRAPH)
+  rapids_cuda_init_architectures(cugraph-python)
   enable_language(CUDA)
 
   # Since cugraph only enables CUDA optionally, we need to manually include the file that
@@ -70,13 +70,11 @@ add_subdirectory(cugraph/dask/centrality)
 add_subdirectory(cugraph/dask/comms)
 add_subdirectory(cugraph/dask/community)
 add_subdirectory(cugraph/dask/components)
-add_subdirectory(cugraph/dask/link_analysis)
 add_subdirectory(cugraph/dask/structure)
 add_subdirectory(cugraph/generators)
 add_subdirectory(cugraph/internals)
 add_subdirectory(cugraph/layout)
 add_subdirectory(cugraph/linear_assignment)
-add_subdirectory(cugraph/link_analysis)
 add_subdirectory(cugraph/link_prediction)
 add_subdirectory(cugraph/sampling)
 add_subdirectory(cugraph/structure)
