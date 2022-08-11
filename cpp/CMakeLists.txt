@@ -25,7 +25,7 @@ include(rapids-find)
 
 rapids_cuda_init_architectures(CUGRAPH)
 
-project(CUGRAPH VERSION 22.08.00 LANGUAGES C CXX CUDA)
+project(CUGRAPH VERSION 22.10.00 LANGUAGES C CXX CUDA)
 
 if(CMAKE_CUDA_COMPILER_ID STREQUAL "NVIDIA" AND
    CMAKE_CUDA_COMPILER_VERSION VERSION_LESS 11.0)
@@ -166,7 +166,7 @@ set(CUGRAPH_SOURCES
     src/detail/shuffle_wrappers.cu
     src/utilities/cython.cu
     src/utilities/path_retrieval.cu
-    src/utilities/graph_bcast.cu
+    src/utilities/graph_bcast.cpp
     src/structure/legacy/graph.cu
     src/linear_assignment/hungarian.cu
     src/traversal/legacy/bfs.cu

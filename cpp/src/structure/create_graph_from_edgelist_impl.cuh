@@ -21,9 +21,9 @@
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/partition_manager.hpp>
-#include <cugraph/utilities/device_comm.cuh>
+#include <cugraph/utilities/device_comm.hpp>
 #include <cugraph/utilities/error.hpp>
-#include <cugraph/utilities/host_scalar_comm.cuh>
+#include <cugraph/utilities/host_scalar_comm.hpp>
 
 #include <raft/handle.hpp>
 

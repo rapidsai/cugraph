@@ -20,7 +20,7 @@
 
 #include <cugraph/graph_view.hpp>
 #include <cugraph/utilities/error.hpp>
-#include <cugraph/utilities/host_scalar_comm.cuh>
+#include <cugraph/utilities/host_scalar_comm.hpp>
 
 #include <raft/handle.hpp>
 #include <rmm/device_scalar.hpp>

@@ -20,9 +20,10 @@
 
 #include <cugraph/edge_partition_device_view.cuh>
 #include <cugraph/graph_view.hpp>
-#include <cugraph/utilities/dataframe_buffer.cuh>
+#include <cugraph/utilities/dataframe_buffer.hpp>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/shuffle_comm.cuh>
+#include <cugraph/utilities/thrust_tuple_utils.hpp>
 
 #include <raft/handle.hpp>
 
