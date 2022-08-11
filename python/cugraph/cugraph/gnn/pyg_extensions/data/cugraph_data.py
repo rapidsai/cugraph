@@ -15,6 +15,7 @@ import cudf
 import cugraph
 from cugraph import Graph
 from cugraph.experimental import PropertyGraph
+from cugraph.experimental import MGPropertyGraph
 from datetime import datetime
 
 from numba import cuda as ncuda
@@ -32,12 +33,12 @@ class CuGraphData(BaseData, RemoteData):
     def __init__(self, graph:Union[Graph,PropertyGraph], device:TorchDevice=TorchDevice('cpu'), node_storage:CudfNodeStorage=None, edge_storage:CudfEdgeStorage=None, reserved_keys=[], **kwargs):
         super().__init__()
         
-        is_property_graph = isinstance(graph, PropertyGraph)
-        if is_property_graph:
-            if graph._EXPERIMENTAL__PropertyGraph__vertex_prop_dataframe.index.name != PropertyGraph.vertex_col_name:
-                graph._EXPERIMENTAL__PropertyGraph__vertex_prop_dataframe = graph._EXPERIMENTAL__PropertyGraph__vertex_prop_dataframe.set_index(PropertyGraph.vertex_col_name)
-            
-            graph._EXPERIMENTAL__PropertyGraph__vertex_prop_dataframe = graph._EXPERIMENTAL__PropertyGraph__vertex_prop_dataframe.fillna(0)
+        is_property_graph = isinstance(graph, (PropertyGraph, MGPropertyGraph))
+        #if is_property_graph:
+        #    if graph._EXPERIMENTAL__PropertyGraph__vertex_prop_dataframe.index.name != PropertyGraph.vertex_col_name:
+        #        graph._EXPERIMENTAL__PropertyGraph__vertex_prop_dataframe = graph._EXPERIMENTAL__PropertyGraph__vertex_prop_dataframe.set_index(PropertyGraph.vertex_col_name)
+        #    
+        #    graph._EXPERIMENTAL__PropertyGraph__vertex_prop_dataframe = graph._EXPERIMENTAL__PropertyGraph__vertex_prop_dataframe.fillna(0)
 
         if node_storage is None:
             self.__node_storage = CudfNodeStorage(
@@ -101,11 +102,6 @@ class CuGraphData(BaseData, RemoteData):
         return self.to('cpu')
     
     def stores_as(self, data: 'CuGraphData'):
-        print('store as')
-        print(type(data))
-        print(data.x.shape)
-        print(data.num_nodes)
-        print(data.num_edges)
         return self
 
     @ncuda.jit

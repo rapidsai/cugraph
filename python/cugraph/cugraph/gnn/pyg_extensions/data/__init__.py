@@ -1,3 +1,6 @@
+from cugraph.gnn.pyg_extensions.data.cugraph_store import CuGraphStore
+from cugraph.gnn.pyg_extensions.data.cugraph_store import CuGraphFeatureStore
+from cugraph.gnn.pyg_extensions.data.cugraph_store import to_pyg
 from cugraph.gnn.pyg_extensions.data.cugraph_data import CuGraphData
 from cugraph.gnn.pyg_extensions.data.gaas_data import GaasData
 from cugraph.gnn.pyg_extensions.data.gaas_storage import TorchTensorGaasGraphDataProxy
