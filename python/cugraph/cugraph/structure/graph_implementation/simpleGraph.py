@@ -836,13 +836,6 @@ class simpleGraphImpl:
                 value_col = None
             G.edgelist = simpleGraphImpl.EdgeList(source_col, dest_col,
                                                   value_col)
-        
-        if 'weights' in self.edgelist.edgelist_df:
-            value_col = self.edgelist.edgelist_df['weights']
-        else:
-            value_col = None
-
-        G.make_plc_graph(value_col, store_transposed)
 
         if 'weights' in self.edgelist.edgelist_df:
             value_col = self.edgelist.edgelist_df['weights']
