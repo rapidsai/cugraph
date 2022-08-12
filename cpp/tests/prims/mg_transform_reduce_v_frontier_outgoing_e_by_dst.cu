@@ -233,8 +233,8 @@ class Tests_MGTransformReduceVFrontierOutgoingEByDst
     constexpr size_t bucket_idx_cur = 0;
     constexpr size_t num_buckets    = 1;
 
-    cugraph::vertex_frontier_t<vertex_t, tag_t, is_multi_gpu> mg_vertex_frontier(*handle_,
-                                                                                 num_buckets);
+    cugraph::vertex_frontier_t<vertex_t, tag_t, is_multi_gpu, true> mg_vertex_frontier(*handle_,
+                                                                                       num_buckets);
     mg_vertex_frontier.bucket(bucket_idx_cur)
       .insert(cugraph::get_dataframe_buffer_begin(mg_key_buffer),
               cugraph::get_dataframe_buffer_end(mg_key_buffer));
@@ -395,8 +395,8 @@ class Tests_MGTransformReduceVFrontierOutgoingEByDst
                            });
         }
 
-        cugraph::vertex_frontier_t<vertex_t, tag_t, !is_multi_gpu> sg_vertex_frontier(*handle_,
-                                                                                      num_buckets);
+        cugraph::vertex_frontier_t<vertex_t, tag_t, !is_multi_gpu, true> sg_vertex_frontier(
+          *handle_, num_buckets);
         sg_vertex_frontier.bucket(bucket_idx_cur)
           .insert(cugraph::get_dataframe_buffer_begin(sg_key_buffer),
                   cugraph::get_dataframe_buffer_end(sg_key_buffer));

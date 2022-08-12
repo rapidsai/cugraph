@@ -132,8 +132,8 @@ void sssp(raft::handle_t const& handle,
   constexpr size_t bucket_idx_far       = 2;
   constexpr size_t num_buckets          = 3;
 
-  vertex_frontier_t<vertex_t, void, GraphViewType::is_multi_gpu> vertex_frontier(handle,
-                                                                                 num_buckets);
+  vertex_frontier_t<vertex_t, void, GraphViewType::is_multi_gpu, true> vertex_frontier(handle,
+                                                                                       num_buckets);
 
   // 5. SSSP iteration
 

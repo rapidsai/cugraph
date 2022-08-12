@@ -48,8 +48,11 @@ namespace cugraph {
 
 // stores unique key objects in the sorted (non-descending) order; key type is either vertex_t
 // (tag_t == void) or thrust::tuple<vertex_t, tag_t> (tag_t != void)
-template <typename vertex_t, typename tag_t = void, bool is_multi_gpu = false>
-class sorted_unique_key_bucket_t {
+template <typename vertex_t,
+          typename tag_t     = void,
+          bool is_multi_gpu  = false,
+          bool sorted_unique = false>
+class key_bucket_t {
   static_assert(std::is_same_v<tag_t, void> || std::is_arithmetic_v<tag_t>);
 
   using optional_buffer_type = std::
@@ -57,13 +60,13 @@ class sorted_unique_key_bucket_t {
 
  public:
   template <typename tag_type = tag_t, std::enable_if_t<std::is_same_v<tag_type, void>>* = nullptr>
-  sorted_unique_key_bucket_t(raft::handle_t const& handle)
+  key_bucket_t(raft::handle_t const& handle)
     : handle_ptr_(&handle), vertices_(0, handle.get_stream()), tags_(std::byte{0})
   {
   }
 
   template <typename tag_type = tag_t, std::enable_if_t<!std::is_same_v<tag_type, void>>* = nullptr>
-  sorted_unique_key_bucket_t(raft::handle_t const& handle)
+  key_bucket_t(raft::handle_t const& handle)
     : handle_ptr_(&handle), vertices_(0, handle.get_stream()), tags_(0, handle.get_stream())
   {
   }
@@ -126,21 +129,31 @@ class sorted_unique_key_bucket_t {
       std::is_same_v<typename std::iterator_traits<VertexIterator>::value_type, vertex_t>);
 
     if (vertices_.size() > 0) {
-      rmm::device_uvector<vertex_t> merged_vertices(
-        vertices_.size() + thrust::distance(vertex_first, vertex_last), handle_ptr_->get_stream());
-      thrust::merge(handle_ptr_->get_thrust_policy(),
-                    vertices_.begin(),
-                    vertices_.end(),
-                    vertex_first,
-                    vertex_last,
-                    merged_vertices.begin());
-      merged_vertices.resize(thrust::distance(merged_vertices.begin(),
-                                              thrust::unique(handle_ptr_->get_thrust_policy(),
-                                                             merged_vertices.begin(),
-                                                             merged_vertices.end())),
-                             handle_ptr_->get_stream());
-      merged_vertices.shrink_to_fit(handle_ptr_->get_stream());
-      vertices_ = std::move(merged_vertices);
+      if constexpr (sorted_unique) {
+        rmm::device_uvector<vertex_t> merged_vertices(
+          vertices_.size() + thrust::distance(vertex_first, vertex_last),
+          handle_ptr_->get_stream());
+        thrust::merge(handle_ptr_->get_thrust_policy(),
+                      vertices_.begin(),
+                      vertices_.end(),
+                      vertex_first,
+                      vertex_last,
+                      merged_vertices.begin());
+        merged_vertices.resize(thrust::distance(merged_vertices.begin(),
+                                                thrust::unique(handle_ptr_->get_thrust_policy(),
+                                                               merged_vertices.begin(),
+                                                               merged_vertices.end())),
+                               handle_ptr_->get_stream());
+        merged_vertices.shrink_to_fit(handle_ptr_->get_stream());
+        vertices_ = std::move(merged_vertices);
+      } else {
+        auto cur_size = vertices_.size();
+        vertices_.resize(cur_size + thrust::distance(vertex_first, vertex_last));
+        thrust::copy(handle_ptr_->get_thrust_policy(),
+                     vertex_first,
+                     vertex_last,
+                     vertices_.begin() + cur_size);
+      }
     } else {
       vertices_.resize(thrust::distance(vertex_first, vertex_last), handle_ptr_->get_stream());
       thrust::copy(handle_ptr_->get_thrust_policy(), vertex_first, vertex_last, vertices_.begin());
@@ -164,30 +177,42 @@ class sorted_unique_key_bucket_t {
                                  thrust::tuple<vertex_t, tag_t>>);
 
     if (vertices_.size() > 0) {
-      rmm::device_uvector<vertex_t> merged_vertices(
-        vertices_.size() + thrust::distance(key_first, key_last), handle_ptr_->get_stream());
-      rmm::device_uvector<tag_t> merged_tags(merged_vertices.size(), handle_ptr_->get_stream());
-      auto old_pair_first =
-        thrust::make_zip_iterator(thrust::make_tuple(vertices_.begin(), tags_.begin()));
-      auto merged_pair_first =
-        thrust::make_zip_iterator(thrust::make_tuple(merged_vertices.begin(), merged_tags.begin()));
-      thrust::merge(handle_ptr_->get_thrust_policy(),
-                    old_pair_first,
-                    old_pair_first + vertices_.size(),
-                    key_first,
-                    key_last,
-                    merged_pair_first);
-      merged_vertices.resize(
-        thrust::distance(merged_pair_first,
-                         thrust::unique(handle_ptr_->get_thrust_policy(),
-                                        merged_pair_first,
-                                        merged_pair_first + merged_vertices.size())),
-        handle_ptr_->get_stream());
-      merged_tags.resize(merged_vertices.size(), handle_ptr_->get_stream());
-      merged_vertices.shrink_to_fit(handle_ptr_->get_stream());
-      merged_tags.shrink_to_fit(handle_ptr_->get_stream());
-      vertices_ = std::move(merged_vertices);
-      tags_     = std::move(merged_tags);
+      if constexpr (sorted_unique) {
+        rmm::device_uvector<vertex_t> merged_vertices(
+          vertices_.size() + thrust::distance(key_first, key_last), handle_ptr_->get_stream());
+        rmm::device_uvector<tag_t> merged_tags(merged_vertices.size(), handle_ptr_->get_stream());
+        auto old_pair_first =
+          thrust::make_zip_iterator(thrust::make_tuple(vertices_.begin(), tags_.begin()));
+        auto merged_pair_first = thrust::make_zip_iterator(
+          thrust::make_tuple(merged_vertices.begin(), merged_tags.begin()));
+        thrust::merge(handle_ptr_->get_thrust_policy(),
+                      old_pair_first,
+                      old_pair_first + vertices_.size(),
+                      key_first,
+                      key_last,
+                      merged_pair_first);
+        merged_vertices.resize(
+          thrust::distance(merged_pair_first,
+                           thrust::unique(handle_ptr_->get_thrust_policy(),
+                                          merged_pair_first,
+                                          merged_pair_first + merged_vertices.size())),
+          handle_ptr_->get_stream());
+        merged_tags.resize(merged_vertices.size(), handle_ptr_->get_stream());
+        merged_vertices.shrink_to_fit(handle_ptr_->get_stream());
+        merged_tags.shrink_to_fit(handle_ptr_->get_stream());
+        vertices_ = std::move(merged_vertices);
+        tags_     = std::move(merged_tags);
+      } else {
+        auto cur_size = vertices_.size();
+        vertices_.resize(cur_size + thrust::distance(key_first, key_last));
+        tags_.resize(vertices_.size());
+        thrust::copy(
+          handle_ptr_->get_thrust_policy(),
+          key_first,
+          key_last,
+          thrust::make_zip_iterator(thrust::make_tuple(vertices_.begin(), tags_.begin())) +
+            cur_size);
+      }
     } else {
       vertices_.resize(thrust::distance(key_first, key_last), handle_ptr_->get_stream());
       tags_.resize(thrust::distance(key_first, key_last), handle_ptr_->get_stream());
@@ -229,34 +254,6 @@ class sorted_unique_key_bucket_t {
     if constexpr (!std::is_same_v<tag_t, void>) { tags_.shrink_to_fit(handle_ptr_->get_stream()); }
   }
 
-// FIXME: to silence the spurious warning (missing return statement ...) due to the nvcc bug
-// (https://stackoverflow.com/questions/64523302/cuda-missing-return-statement-at-end-of-non-void-
-// function-in-constexpr-if-fun)
-#if 1
-  template <typename tag_type = tag_t, std::enable_if_t<std::is_same_v<tag_type, void>>* = nullptr>
-  auto const begin() const
-  {
-    return vertices_.begin();
-  }
-
-  template <typename tag_type = tag_t, std::enable_if_t<std::is_same_v<tag_type, void>>* = nullptr>
-  auto begin()
-  {
-    return vertices_.begin();
-  }
-
-  template <typename tag_type = tag_t, std::enable_if_t<!std::is_same_v<tag_type, void>>* = nullptr>
-  auto const begin() const
-  {
-    return thrust::make_zip_iterator(thrust::make_tuple(vertices_.begin(), tags_.begin()));
-  }
-
-  template <typename tag_type = tag_t, std::enable_if_t<!std::is_same_v<tag_type, void>>* = nullptr>
-  auto begin()
-  {
-    return thrust::make_zip_iterator(thrust::make_tuple(vertices_.begin(), tags_.begin()));
-  }
-#else
   auto const begin() const
   {
     if constexpr (std::is_same_v<tag_t, void>) {
@@ -274,7 +271,6 @@ class sorted_unique_key_bucket_t {
       return thrust::make_zip_iterator(thrust::make_tuple(vertices_.begin(), tags_.begin()));
     }
   }
-#endif
 
   auto const end() const { return begin() + vertices_.size(); }
 
@@ -286,7 +282,10 @@ class sorted_unique_key_bucket_t {
   optional_buffer_type tags_;
 };
 
-template <typename vertex_t, typename tag_t = void, bool is_multi_gpu = false>
+template <typename vertex_t,
+          typename tag_t                = void,
+          bool is_multi_gpu             = false,
+          bool sorted_unique_key_bucket = false>
 class vertex_frontier_t {
   static_assert(std::is_same_v<tag_t, void> || std::is_arithmetic_v<tag_t>);
 
@@ -305,12 +304,13 @@ class vertex_frontier_t {
 
   size_t num_buckets() const { return buckets_.size(); }
 
-  sorted_unique_key_bucket_t<vertex_t, tag_t, is_multi_gpu>& bucket(size_t bucket_idx)
+  key_bucket_t<vertex_t, tag_t, is_multi_gpu, sorted_unique_key_bucket>& bucket(size_t bucket_idx)
   {
     return buckets_[bucket_idx];
   }
 
-  sorted_unique_key_bucket_t<vertex_t, tag_t, is_multi_gpu> const& bucket(size_t bucket_idx) const
+  key_bucket_t<vertex_t, tag_t, is_multi_gpu, sorted_unique_key_bucket> const& bucket(
+    size_t bucket_idx) const
   {
     return buckets_[bucket_idx];
   }
@@ -462,7 +462,7 @@ class vertex_frontier_t {
 
  private:
   raft::handle_t const* handle_ptr_{nullptr};
-  std::vector<sorted_unique_key_bucket_t<vertex_t, tag_t, is_multi_gpu>> buckets_{};
+  std::vector<key_bucket_t<vertex_t, tag_t, is_multi_gpu, sorted_unique_key_bucket>> buckets_{};
 };
 
 }  // namespace cugraph
