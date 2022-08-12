@@ -59,7 +59,6 @@ void update_edge_major_property(raft::handle_t const& handle,
                                 VertexPropertyInputIterator vertex_property_input_first,
                                 EdgeMajorPropertyOutputWrapper edge_major_property_output)
 {
-  auto edge_partition_keys         = edge_major_property_output.keys();
   auto edge_partition_value_firsts = edge_major_property_output.value_firsts();
   if constexpr (GraphViewType::is_multi_gpu) {
     using vertex_t = typename GraphViewType::vertex_type;
@@ -73,6 +72,7 @@ void update_edge_major_property(raft::handle_t const& handle,
     auto const col_comm_rank = col_comm.get_rank();
     auto const col_comm_size = col_comm.get_size();
 
+    auto edge_partition_keys = edge_major_property_output.keys();
     if (edge_partition_keys) {
       vertex_t max_rx_size{0};
       for (int i = 0; i < col_comm_size; ++i) {
@@ -112,7 +112,6 @@ void update_edge_major_property(raft::handle_t const& handle,
       }
     }
   } else {
-    assert(!edge_partition_keys);
     assert(graph_view.local_vertex_partition_range_size() == GraphViewType::is_storage_transposed
              ? graph_view.local_edge_partition_dst_range_size()
              : graph_view.local_edge_partition_src_range_size());
@@ -139,7 +138,6 @@ void update_edge_major_property(raft::handle_t const& handle,
   using edge_t   = typename GraphViewType::edge_type;
   using weight_t = typename GraphViewType::weight_type;
 
-  auto edge_partition_keys         = edge_major_property_output.keys();
   auto edge_partition_value_firsts = edge_major_property_output.value_firsts();
   if constexpr (GraphViewType::is_multi_gpu) {
     auto& comm               = handle.get_comms();
@@ -165,6 +163,7 @@ void update_edge_major_property(raft::handle_t const& handle,
                                                                               handle.get_stream());
     auto rx_value_first = get_dataframe_buffer_begin(rx_tmp_buffer);
 
+    auto edge_partition_keys = edge_major_property_output.keys();
     for (int i = 0; i < col_comm_size; ++i) {
       auto edge_partition =
         edge_partition_device_view_t<vertex_t, edge_t, weight_t, GraphViewType::is_multi_gpu>(
@@ -225,7 +224,6 @@ void update_edge_major_property(raft::handle_t const& handle,
       }
     }
   } else {
-    assert(!(edge_partition_keys));
     assert(graph_view.local_vertex_partition_range_size() == GraphViewType::is_storage_transposed
              ? graph_view.local_edge_partition_dst_range_size()
              : graph_view.local_edge_partition_src_range_size());
@@ -247,7 +245,6 @@ void update_edge_minor_property(raft::handle_t const& handle,
                                 VertexPropertyInputIterator vertex_property_input_first,
                                 EdgeMinorPropertyOutputWrapper edge_minor_property_output)
 {
-  auto edge_partition_keys        = edge_minor_property_output.keys();
   auto edge_partition_value_first = edge_minor_property_output.value_first();
   if constexpr (GraphViewType::is_multi_gpu) {
     using vertex_t = typename GraphViewType::vertex_type;
@@ -263,6 +260,7 @@ void update_edge_minor_property(raft::handle_t const& handle,
     auto const col_comm_rank = col_comm.get_rank();
     auto const col_comm_size = col_comm.get_size();
 
+    auto edge_partition_keys = edge_minor_property_output.keys();
     if (edge_partition_keys) {
       raft::host_span<vertex_t const> key_offsets{};
       if constexpr (GraphViewType::is_storage_transposed) {
@@ -348,7 +346,6 @@ void update_edge_minor_property(raft::handle_t const& handle,
                         handle.get_stream());
     }
   } else {
-    assert(!(edge_partition_keys));
     assert(graph_view.local_vertex_partition_range_size() == GraphViewType::is_storage_transposed
              ? graph_view.local_edge_partition_src_range_size()
              : graph_view.local_edge_partition_dst_range_size());
@@ -374,7 +371,6 @@ void update_edge_minor_property(raft::handle_t const& handle,
   using edge_t   = typename GraphViewType::edge_type;
   using weight_t = typename GraphViewType::weight_type;
 
-  auto edge_partition_keys        = edge_minor_property_output.keys();
   auto edge_partition_value_first = edge_minor_property_output.value_first();
   if constexpr (GraphViewType::is_multi_gpu) {
     auto& comm               = handle.get_comms();
@@ -410,6 +406,7 @@ void update_edge_minor_property(raft::handle_t const& handle,
     auto edge_partition =
       edge_partition_device_view_t<vertex_t, edge_t, weight_t, GraphViewType::is_multi_gpu>(
         graph_view.local_edge_partition_view(size_t{0}));
+    auto edge_partition_keys = edge_minor_property_output.keys();
     for (int i = 0; i < row_comm_size; ++i) {
       if (i == row_comm_rank) {
         auto vertex_partition =
@@ -466,7 +463,6 @@ void update_edge_minor_property(raft::handle_t const& handle,
       }
     }
   } else {
-    assert(!edge_partition_keys);
     assert(graph_view.local_vertex_partition_range_size() ==
            graph_view.local_edge_partition_src_range_size());
     auto val_first = thrust::make_permutation_iterator(vertex_property_input_first, vertex_first);
