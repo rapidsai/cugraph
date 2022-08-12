@@ -956,8 +956,8 @@ std::conditional_t<
                0, rmm::cuda_stream_view{})),
              decltype(detail::allocate_optional_payload_buffer<typename ReduceOp::value_type>(
                0, rmm::cuda_stream_view{}))>,
-  decltype(
-    allocate_dataframe_buffer<typename VertexFrontierType::key_type>(0, rmm::cuda_stream_view{}))>
+  decltype(allocate_dataframe_buffer<typename VertexFrontierType::key_type>(
+    0, rmm::cuda_stream_view{}))>
 transform_reduce_v_frontier_outgoing_e_by_dst(
   raft::handle_t const& handle,
   GraphViewType const& graph_view,
@@ -1096,6 +1096,12 @@ transform_reduce_v_frontier_outgoing_e_by_dst(
     edge_partition_src_value_input_copy.set_local_edge_partition_idx(i);
 
     if (segment_offsets) {
+      if constexpr (!VertexFrontierType::is_key_bucket_sorted_unique) {
+        thrust::sort(handle.get_thrust_policy(),
+                     edge_partition_frontier_src_first,
+                     edge_partition_frontier_src_last);
+      }
+
       static_assert(detail::num_sparse_segments_per_vertex_partition == 3);
       std::vector<vertex_t> h_thresholds(detail::num_sparse_segments_per_vertex_partition +
                                          (graph_view.use_dcs() ? 1 : 0) - 1);
