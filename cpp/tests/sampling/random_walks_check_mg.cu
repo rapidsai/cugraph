@@ -21,9 +21,9 @@ namespace test {
 template void random_walks_validate(
   raft::handle_t const& handle,
   cugraph::graph_view_t<int32_t, int32_t, float, false, true> const& graph_view,
-  rmm::device_uvector<int32_t> && d_start,
-  rmm::device_uvector<int32_t> && d_vertices,
-  std::optional<rmm::device_uvector<float>> && d_weights,
+  rmm::device_uvector<int32_t>&& d_start,
+  rmm::device_uvector<int32_t>&& d_vertices,
+  std::optional<rmm::device_uvector<float>>&& d_weights,
   size_t max_length);
 
 }  // namespace test

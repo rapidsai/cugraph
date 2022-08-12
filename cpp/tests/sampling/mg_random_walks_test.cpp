@@ -134,9 +134,9 @@ class Tests_MGRandomWalks : public ::testing::TestWithParam<tuple_t> {
       std::cout << "construct_graph took " << elapsed_time * 1e-6 << " s.\n";
     }
 
-    auto graph_view            = graph.view();
-    edge_t num_paths           = 10;
-    edge_t max_length          = 10;
+    auto graph_view   = graph.view();
+    edge_t num_paths  = 10;
+    edge_t max_length = 10;
     rmm::device_uvector<vertex_t> d_start(0, handle_->get_stream());
 
     if (graph_view.local_vertex_partition_range_size() > 0) {
@@ -180,7 +180,12 @@ class Tests_MGRandomWalks : public ::testing::TestWithParam<tuple_t> {
       }
 
       if (randomwalks_usecase.check_correctness) {
-        cugraph::test::random_walks_validate(*handle_, graph_view, std::move(d_start), std::move(d_vertices), std::move(d_weights), max_length);
+        cugraph::test::random_walks_validate(*handle_,
+                                             graph_view,
+                                             std::move(d_start),
+                                             std::move(d_vertices),
+                                             std::move(d_weights),
+                                             max_length);
       }
     }
   }

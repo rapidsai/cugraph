@@ -181,7 +181,7 @@ class Tests_MG_GatherEdges
     // 2. Gather mnmg call
     // Generate random vertex ids in the range of current gpu
 
-    auto &&[global_degree_offsets, global_out_degrees] =
+    auto&& [global_degree_offsets, global_out_degrees] =
       cugraph::detail::get_global_degree_information(*handle_, mg_graph_view);
 
     // Generate random sources to gather on
