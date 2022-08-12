@@ -32,6 +32,7 @@ namespace cugraph {
 
 namespace detail {
 
+// FIXME: check_clustering is copied from louvain_impl.cuh, can we reuse that instead of copying?
 template <typename GraphViewType>
 void check_clustering(GraphViewType const& graph_view, typename GraphViewType::vertex_t* clustering)
 {
@@ -63,6 +64,7 @@ std::pair<size_t, typename GraphViewType::weight_type> leiden(
   size_t max_level,
   typename GraphViewType::weight_type resolution);
 
+// FIXME: flatten_dendrogram is copied from louvain_impl.cuh, can we reuse that instead of copying?
 template <typename GraphViewType>
 void flatten_dendrogram(raft::handle_t const& handle,
                         GraphViewType const& graph_view,
@@ -83,8 +85,6 @@ void flatten_dendrogram(raft::handle_t const& handle,
 }
 
 }  // namespace detail
-
-// Keep the API similar to Louvain
 
 template <typename GraphViewType>
 void flatten_dendrogram(raft::handle_t const& handle,
