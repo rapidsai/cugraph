@@ -23,6 +23,7 @@ add_library(cugraphtestutil STATIC
             utilities/thrust_wrapper.cu
             utilities/misc_utilities.cpp
             components/wcc_graphs.cu
+            sampling/random_walks_check_sg.cu
             ../../thirdparty/mmio/mmio.c)
 
 target_compile_options(cugraphtestutil
@@ -385,9 +386,16 @@ if(BUILD_CUGRAPH_MG_TESTS)
 
     add_library(cugraphmgtestutil STATIC
                 utilities/device_comm_wrapper.cu
-                utilities/mg_utilities.cpp)
+                utilities/mg_utilities.cpp
+                sampling/random_walks_check_mg.cu
+                )
 
     set_property(TARGET cugraphmgtestutil PROPERTY POSITION_INDEPENDENT_CODE ON)
+
+    target_compile_options(cugraphmgtestutil
+                PUBLIC "$<$<COMPILE_LANGUAGE:CXX>:${CUGRAPH_CXX_FLAGS}>"
+                       "$<BUILD_INTERFACE:$<$<COMPILE_LANGUAGE:CUDA>:${CUGRAPH_CUDA_FLAGS}>>"
+    )
 
     target_include_directories(cugraphmgtestutil
         PRIVATE

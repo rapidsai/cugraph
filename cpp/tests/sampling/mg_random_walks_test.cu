@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+#include <sampling/random_walks_check.cuh>
+
 #include <utilities/base_fixture.hpp>
 #include <utilities/high_res_clock.h>
 #include <utilities/mg_utilities.hpp>
@@ -46,6 +48,8 @@ struct UniformRandomWalks_Usecase {
   {
     return cugraph::uniform_random_walks(handle, graph_view, start_vertices, max_depth, seed);
   }
+
+  bool expect_throw() { return false; }
 };
 
 struct BiasedRandomWalks_Usecase {
@@ -62,6 +66,9 @@ struct BiasedRandomWalks_Usecase {
   {
     return cugraph::biased_random_walks(handle, graph_view, start_vertices, max_depth, seed);
   }
+
+  // FIXME: Not currently implemented
+  bool expect_throw() { return true; }
 };
 
 struct Node2VecRandomWalks_Usecase {
@@ -78,9 +85,17 @@ struct Node2VecRandomWalks_Usecase {
              raft::device_span<vertex_t const> start_vertices,
              size_t max_depth)
   {
-    return cugraph::node2vec_random_walks(
-      handle, graph_view, start_vertices, max_depth, p, q, seed);
+    return cugraph::node2vec_random_walks(handle,
+                                          graph_view,
+                                          start_vertices,
+                                          max_depth,
+                                          static_cast<weight_t>(p),
+                                          static_cast<weight_t>(q),
+                                          seed);
   }
+
+  // FIXME: Not currently implemented
+  bool expect_throw() { return true; }
 };
 
 template <typename tuple_t>
@@ -119,48 +134,58 @@ class Tests_MGRandomWalks : public ::testing::TestWithParam<tuple_t> {
       std::cout << "construct_graph took " << elapsed_time * 1e-6 << " s.\n";
     }
 
-    auto graph_view = graph.view();
+    auto graph_view            = graph.view();
+    edge_t num_paths           = 10;
+    edge_t max_length          = 10;
+    rmm::device_uvector<vertex_t> d_start(0, handle_->get_stream());
 
-    edge_t num_paths = 10;
-    rmm::device_uvector<vertex_t> d_start(num_paths, handle_->get_stream());
+    if (graph_view.local_vertex_partition_range_size() > 0) {
+      d_start.resize(num_paths, handle_->get_stream());
 
-    thrust::tabulate(handle_->get_thrust_policy(),
-                     d_start.begin(),
-                     d_start.end(),
-                     [num_vertices = graph_view.number_of_vertices()] __device__(auto idx) {
-                       return (idx % num_vertices);
-                     });
+      thrust::tabulate(
+        handle_->get_thrust_policy(),
+        d_start.begin(),
+        d_start.end(),
+        [num_vertices = graph_view.local_vertex_partition_range_size(),
+         base_vertex  = graph_view.local_vertex_partition_range_first()] __device__(auto idx) {
+          return (base_vertex + (idx % num_vertices));
+        });
+    }
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       hr_clock.start();
     }
 
-#if 1
-    auto [vertices, weights] = randomwalks_usecase(
-      *handle_, graph_view, raft::device_span<vertex_t const>{d_start.data(), d_start.size()}, size_t{10});
-#else
-    EXPECT_THROW(
-      randomwalks_usecase(*handle_,
-                          graph_view,
-                          raft::device_span<vertex_t const>{d_start.data(), d_start.size()},
-                          size_t{10}),
-      std::exception);
-#endif
+    if (randomwalks_usecase.expect_throw()) {
+      // biased and node2vec currently throw since they are not implemented
+      EXPECT_THROW(
+        randomwalks_usecase(*handle_,
+                            graph_view,
+                            raft::device_span<vertex_t const>{d_start.data(), d_start.size()},
+                            max_length),
+        std::exception);
+    } else {
+      auto [d_vertices, d_weights] =
+        randomwalks_usecase(*handle_,
+                            graph_view,
+                            raft::device_span<vertex_t const>{d_start.data(), d_start.size()},
+                            max_length);
 
-    if (cugraph::test::g_perf) {
-      RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
-      double elapsed_time{0.0};
-      hr_clock.stop(&elapsed_time);
-      std::cout << "PageRank took " << elapsed_time * 1e-6 << " s.\n";
-    }
+      if (cugraph::test::g_perf) {
+        RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+        double elapsed_time{0.0};
+        hr_clock.stop(&elapsed_time);
+        std::cout << "RandomWalks took " << elapsed_time * 1e-6 << " s.\n";
+      }
 
-    if (randomwalks_usecase.check_correctness) {
-#if 0
-      // FIXME: Need an MG test
-#endif
+      if (randomwalks_usecase.check_correctness) {
+        cugraph::test::random_walks_validate(*handle_, graph_view, std::move(d_start), std::move(d_vertices), std::move(d_weights), max_length);
+      }
     }
   }
+
+  int get_rank() { return handle_->get_comms().get_rank(); }
 
  private:
   static std::unique_ptr<raft::handle_t> handle_;
@@ -184,15 +209,76 @@ using Tests_Node2VecRandomWalks_Rmat =
 
 TEST_P(Tests_UniformRandomWalks_File, Initialize_i32_i32_f)
 {
-  run_current_test<int32_t, int32_t, float>(
-    override_File_Usecase_with_cmd_line_arguments(GetParam()));
+  try {
+    run_current_test<int32_t, int32_t, float>(
+      override_File_Usecase_with_cmd_line_arguments(GetParam()));
+  } catch (const std::exception& e) {
+    std::cerr << "exception in rank = " << get_rank() << std::endl;
+    throw e;
+  }
+}
+
+TEST_P(Tests_UniformRandomWalks_Rmat, Initialize_i32_i32_f)
+{
+  try {
+    run_current_test<int32_t, int32_t, float>(
+      override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
+  } catch (const std::exception& e) {
+    std::cerr << "exception in rank = " << get_rank() << std::endl;
+    throw e;
+  }
+}
+
+TEST_P(Tests_BiasedRandomWalks_File, Initialize_i32_i32_f)
+{
+  try {
+    run_current_test<int32_t, int32_t, float>(
+      override_File_Usecase_with_cmd_line_arguments(GetParam()));
+  } catch (const std::exception& e) {
+    std::cerr << "exception in rank = " << get_rank() << std::endl;
+    throw e;
+  }
+}
+
+TEST_P(Tests_BiasedRandomWalks_Rmat, Initialize_i32_i32_f)
+{
+  try {
+    run_current_test<int32_t, int32_t, float>(
+      override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
+  } catch (const std::exception& e) {
+    std::cerr << "exception in rank = " << get_rank() << std::endl;
+    throw e;
+  }
+}
+
+TEST_P(Tests_Node2VecRandomWalks_File, Initialize_i32_i32_f)
+{
+  try {
+    run_current_test<int32_t, int32_t, float>(
+      override_File_Usecase_with_cmd_line_arguments(GetParam()));
+  } catch (const std::exception& e) {
+    std::cerr << "exception in rank = " << get_rank() << std::endl;
+    throw e;
+  }
+}
+
+TEST_P(Tests_Node2VecRandomWalks_Rmat, Initialize_i32_i32_f)
+{
+  try {
+    run_current_test<int32_t, int32_t, float>(
+      override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
+  } catch (const std::exception& e) {
+    std::cerr << "exception in rank = " << get_rank() << std::endl;
+    throw e;
+  }
 }
 
 INSTANTIATE_TEST_SUITE_P(
   simple_test,
   Tests_UniformRandomWalks_File,
   ::testing::Combine(
-    ::testing::Values(UniformRandomWalks_Usecase{}),
+    ::testing::Values(UniformRandomWalks_Usecase{false, 0, true},
+                      UniformRandomWalks_Usecase{true, 0, true}),
     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
                       cugraph::test::File_Usecase("test/datasets/web-Google.mtx"),
                       cugraph::test::File_Usecase("test/datasets/ljournal-2008.mtx"),
@@ -202,7 +288,8 @@ INSTANTIATE_TEST_SUITE_P(
   simple_test,
   Tests_BiasedRandomWalks_File,
   ::testing::Combine(
-    ::testing::Values(BiasedRandomWalks_Usecase{}),
+    ::testing::Values(BiasedRandomWalks_Usecase{false, 0, true},
+                      BiasedRandomWalks_Usecase{true, 0, true}),
     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
                       cugraph::test::File_Usecase("test/datasets/web-Google.mtx"),
                       cugraph::test::File_Usecase("test/datasets/ljournal-2008.mtx"),
@@ -212,10 +299,56 @@ INSTANTIATE_TEST_SUITE_P(
   simple_test,
   Tests_Node2VecRandomWalks_File,
   ::testing::Combine(
-    ::testing::Values(Node2VecRandomWalks_Usecase{4, 8}),
+    ::testing::Values(Node2VecRandomWalks_Usecase{4, 8, false, 0, true},
+                      Node2VecRandomWalks_Usecase{4, 8, true, 0, true}),
     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
                       cugraph::test::File_Usecase("test/datasets/web-Google.mtx"),
                       cugraph::test::File_Usecase("test/datasets/ljournal-2008.mtx"),
                       cugraph::test::File_Usecase("test/datasets/webbase-1M.mtx"))));
+
+INSTANTIATE_TEST_SUITE_P(
+  rmat_small_test,
+  Tests_UniformRandomWalks_Rmat,
+  ::testing::Combine(::testing::Values(UniformRandomWalks_Usecase{false, 0, true},
+                                       UniformRandomWalks_Usecase{true, 0, true}),
+                     ::testing::Values(cugraph::test::Rmat_Usecase(
+                       10, 16, 0.57, 0.19, 0.19, 0, false, false, 0, true))));
+
+INSTANTIATE_TEST_SUITE_P(
+  rmat_benchmark_test,
+  Tests_UniformRandomWalks_Rmat,
+  ::testing::Combine(::testing::Values(UniformRandomWalks_Usecase{true, 0, false}),
+                     ::testing::Values(cugraph::test::Rmat_Usecase(
+                       20, 32, 0.57, 0.19, 0.19, 0, false, false, 0, true))));
+
+INSTANTIATE_TEST_SUITE_P(
+  rmat_small_test,
+  Tests_BiasedRandomWalks_Rmat,
+  ::testing::Combine(::testing::Values(BiasedRandomWalks_Usecase{false, 0, true},
+                                       BiasedRandomWalks_Usecase{true, 0, true}),
+                     ::testing::Values(cugraph::test::Rmat_Usecase(
+                       10, 16, 0.57, 0.19, 0.19, 0, false, false, 0, true))));
+
+INSTANTIATE_TEST_SUITE_P(
+  rmat_benchmark_test,
+  Tests_BiasedRandomWalks_Rmat,
+  ::testing::Combine(::testing::Values(BiasedRandomWalks_Usecase{true, 0, false}),
+                     ::testing::Values(cugraph::test::Rmat_Usecase(
+                       20, 32, 0.57, 0.19, 0.19, 0, false, false, 0, true))));
+
+INSTANTIATE_TEST_SUITE_P(
+  rmat_small_test,
+  Tests_Node2VecRandomWalks_Rmat,
+  ::testing::Combine(::testing::Values(Node2VecRandomWalks_Usecase{8, 4, false, 0, true},
+                                       Node2VecRandomWalks_Usecase{8, 4, true, 0, true}),
+                     ::testing::Values(cugraph::test::Rmat_Usecase(
+                       10, 16, 0.57, 0.19, 0.19, 0, false, false, 0, true))));
+
+INSTANTIATE_TEST_SUITE_P(
+  rmat_benchmark_test,
+  Tests_Node2VecRandomWalks_Rmat,
+  ::testing::Combine(::testing::Values(Node2VecRandomWalks_Usecase{8, 4, true, 0, false}),
+                     ::testing::Values(cugraph::test::Rmat_Usecase(
+                       20, 32, 0.57, 0.19, 0.19, 0, false, false, 0, true))));
 
 CUGRAPH_MG_TEST_PROGRAM_MAIN()
