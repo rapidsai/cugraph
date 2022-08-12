@@ -46,8 +46,9 @@
 
 namespace cugraph {
 
-// stores unique key objects in the sorted (non-descending) order; key type is either vertex_t
-// (tag_t == void) or thrust::tuple<vertex_t, tag_t> (tag_t != void)
+// key type is either vertex_t (tag_t == void) or thrust::tuple<vertex_t, tag_t> (tag_t != void)
+// if sorted_unique is true, stores unique key objects in the sorted (non-descending) order.
+// if false, there can be duplicates and the elements may not be sorted.
 template <typename vertex_t,
           typename tag_t     = void,
           bool multi_gpu     = false,
