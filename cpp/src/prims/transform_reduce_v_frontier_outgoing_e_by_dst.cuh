@@ -790,12 +790,11 @@ auto sort_and_reduce_buffer_elements(
 
 }  // namespace detail
 
-template <typename GraphViewType, typename VertexFrontierType>
+template <typename GraphViewType, typename VertexFrontierBucketType>
 typename GraphViewType::edge_type compute_num_out_nbrs_from_frontier(
   raft::handle_t const& handle,
   GraphViewType const& graph_view,
-  VertexFrontierType const& frontier,
-  size_t cur_frontier_bucket_idx)
+  VertexFrontierBucketType const& frontier)
 {
   static_assert(!GraphViewType::is_storage_transposed,
                 "GraphViewType should support the push model.");
@@ -803,25 +802,23 @@ typename GraphViewType::edge_type compute_num_out_nbrs_from_frontier(
   using vertex_t = typename GraphViewType::vertex_type;
   using edge_t   = typename GraphViewType::edge_type;
   using weight_t = typename GraphViewType::weight_type;
-  using key_t    = typename VertexFrontierType::key_type;
+  using key_t    = typename VertexFrontierBucketType::key_type;
 
   edge_t ret{0};
 
-  auto const& cur_frontier_bucket = frontier.bucket(cur_frontier_bucket_idx);
   vertex_t const* local_frontier_vertex_first{nullptr};
   if constexpr (std::is_same_v<key_t, vertex_t>) {
-    local_frontier_vertex_first = cur_frontier_bucket.begin();
+    local_frontier_vertex_first = frontier.begin();
   } else {
-    local_frontier_vertex_first = thrust::get<0>(cur_frontier_bucket.begin().get_iterator_tuple());
+    local_frontier_vertex_first = thrust::get<0>(frontier.begin().get_iterator_tuple());
   }
 
   std::vector<size_t> local_frontier_sizes{};
   if constexpr (GraphViewType::is_multi_gpu) {
-    auto& col_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
-    local_frontier_sizes =
-      host_scalar_allgather(col_comm, cur_frontier_bucket.size(), handle.get_stream());
+    auto& col_comm       = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
+    local_frontier_sizes = host_scalar_allgather(col_comm, frontier.size(), handle.get_stream());
   } else {
-    local_frontier_sizes = std::vector<size_t>{static_cast<size_t>(cur_frontier_bucket.size())};
+    local_frontier_sizes = std::vector<size_t>{static_cast<size_t>(frontier.size())};
   }
   for (size_t i = 0; i < graph_view.number_of_local_edge_partitions(); ++i) {
     auto edge_partition =
@@ -880,7 +877,7 @@ typename GraphViewType::edge_type compute_num_out_nbrs_from_frontier(
       ret += thrust::transform_reduce(
         handle.get_thrust_policy(),
         local_frontier_vertex_first,
-        local_frontier_vertex_first + cur_frontier_bucket.size(),
+        local_frontier_vertex_first + frontier.size(),
         [edge_partition] __device__(auto major) {
           auto major_offset = edge_partition.major_offset_from_major_nocheck(major);
           return edge_partition.local_degree(major_offset);
@@ -898,12 +895,12 @@ typename GraphViewType::edge_type compute_num_out_nbrs_from_frontier(
  * outputs by (tagged-)destination ID.
  *
  * Edge functor outputs are thrust::optional objects and invalid if thrust::nullopt. Vertices are
- * assumed to be tagged if VertexFrontierType::key_type is a tuple of a vertex type and a tag type
- * (VertexFrontierType::key_type is identical to a vertex type otherwise).
+ * assumed to be tagged if VertexFrontierBucketType::key_type is a tuple of a vertex type and a tag
+ * type (VertexFrontierBucketType::key_type is identical to a vertex type otherwise).
  *
  * @tparam GraphViewType Type of the passed non-owning graph object.
- * @tparam VertexFrontierType Type of the vertex frontier class which abstracts vertex frontier
- * managements.
+ * @tparam VertexFrontierBucketType Type of the vertex frontier bucket class which abstracts the
+ * current (tagged-)vertex frontier.
  * @tparam EdgePartitionSrcValueInputWrapper Type of the wrapper for edge partition source property
  * values.
  * @tparam EdgePartitionDstValueInputWrapper Type of the wrapper for edge partition destination
@@ -913,10 +910,7 @@ typename GraphViewType::edge_type compute_num_out_nbrs_from_frontier(
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Non-owning graph object.
- * @param frontier VertexFrontierType class object for vertex frontier managements. This object
- * includes multiple bucket objects.
- * @param cur_frontier_bucket_idx Index of the vertex frontier bucket holding vertices for the
- * current iteration.
+ * @param frontier VertexFrontierBucketType class object for the current vertex frontier.
  * @param edge_partition_src_value_input Device-copyable wrapper used to access source input
  * property values (for the edge sources assigned to this process in multi-GPU). Use either
  * cugraph::edge_partition_src_property_t::device_view() (if @p e_op needs to access source property
@@ -945,24 +939,23 @@ typename GraphViewType::edge_type compute_num_out_nbrs_from_frontier(
  * values (if ReduceOp::value_type is void).
  */
 template <typename GraphViewType,
-          typename VertexFrontierType,
+          typename VertexFrontierBucketType,
           typename EdgePartitionSrcValueInputWrapper,
           typename EdgePartitionDstValueInputWrapper,
           typename EdgeOp,
           typename ReduceOp>
 std::conditional_t<
   !std::is_same_v<typename ReduceOp::value_type, void>,
-  std::tuple<decltype(allocate_dataframe_buffer<typename VertexFrontierType::key_type>(
+  std::tuple<decltype(allocate_dataframe_buffer<typename VertexFrontierBucketType::key_type>(
                0, rmm::cuda_stream_view{})),
              decltype(detail::allocate_optional_payload_buffer<typename ReduceOp::value_type>(
                0, rmm::cuda_stream_view{}))>,
-  decltype(allocate_dataframe_buffer<typename VertexFrontierType::key_type>(
+  decltype(allocate_dataframe_buffer<typename VertexFrontierBucketType::key_type>(
     0, rmm::cuda_stream_view{}))>
 transform_reduce_v_frontier_outgoing_e_by_dst(
   raft::handle_t const& handle,
   GraphViewType const& graph_view,
-  VertexFrontierType const& frontier,
-  size_t cur_frontier_bucket_idx,
+  VertexFrontierBucketType const& frontier,
   EdgePartitionSrcValueInputWrapper edge_partition_src_value_input,
   EdgePartitionDstValueInputWrapper edge_partition_dst_value_input,
   EdgeOp e_op,
@@ -975,18 +968,15 @@ transform_reduce_v_frontier_outgoing_e_by_dst(
   using vertex_t  = typename GraphViewType::vertex_type;
   using edge_t    = typename GraphViewType::edge_type;
   using weight_t  = typename GraphViewType::weight_type;
-  using key_t     = typename VertexFrontierType::key_type;
+  using key_t     = typename VertexFrontierBucketType::key_type;
   using payload_t = typename ReduceOp::value_type;
-
-  CUGRAPH_EXPECTS(cur_frontier_bucket_idx < frontier.num_buckets(),
-                  "Invalid input argument: invalid current bucket index.");
 
   if (do_expensive_check) {
     // currently, nothing to do
   }
 
-  auto frontier_key_first = frontier.bucket(cur_frontier_bucket_idx).begin();
-  auto frontier_key_last  = frontier.bucket(cur_frontier_bucket_idx).end();
+  auto frontier_key_first = frontier.begin();
+  auto frontier_key_last  = frontier.end();
 
   // 1. fill the buffer
 
@@ -1096,7 +1086,7 @@ transform_reduce_v_frontier_outgoing_e_by_dst(
     edge_partition_src_value_input_copy.set_local_edge_partition_idx(i);
 
     if (segment_offsets) {
-      if constexpr (!VertexFrontierType::is_key_bucket_sorted_unique) {
+      if constexpr (!VertexFrontierBucketType::is_sorted_unique) {
         thrust::sort(handle.get_thrust_policy(),
                      edge_partition_frontier_src_first,
                      edge_partition_frontier_src_last);

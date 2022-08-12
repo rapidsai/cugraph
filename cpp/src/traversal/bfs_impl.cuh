@@ -230,8 +230,7 @@ void bfs(raft::handle_t const& handle,
       auto [new_frontier_vertex_buffer, predecessor_buffer] =
         transform_reduce_v_frontier_outgoing_e_by_dst(handle,
                                                       push_graph_view,
-                                                      vertex_frontier,
-                                                      bucket_idx_cur,
+                                                      vertex_frontier.bucket(bucket_idx_cur),
                                                       dummy_property_t<vertex_t>{}.device_view(),
                                                       dummy_property_t<vertex_t>{}.device_view(),
 #if 1

@@ -213,8 +213,7 @@ void core_number(raft::handle_t const& handle,
             transform_reduce_v_frontier_outgoing_e_by_dst(
               handle,
               graph_view,
-              vertex_frontier,
-              bucket_idx_cur,
+              vertex_frontier.bucket(bucket_idx_cur),
               dummy_property_t<vertex_t>{}.device_view(),
               dst_core_numbers.device_view(),
               [k, delta] __device__(vertex_t src, vertex_t dst, auto, auto dst_val) {

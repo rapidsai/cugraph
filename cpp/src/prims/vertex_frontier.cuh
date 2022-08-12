@@ -53,12 +53,16 @@ template <typename vertex_t,
           bool multi_gpu     = false,
           bool sorted_unique = false>
 class key_bucket_t {
+ public:
+  using key_type =
+    std::conditional_t<std::is_same_v<tag_t, void>, vertex_t, thrust::tuple<vertex_t, tag_t>>;
+  static bool constexpr is_sorted_unique = sorted_unique;
+
   static_assert(std::is_same_v<tag_t, void> || std::is_arithmetic_v<tag_t>);
 
   using optional_buffer_type = std::
     conditional_t<std::is_same_v<tag_t, void>, std::byte /* dummy */, rmm::device_uvector<tag_t>>;
 
- public:
   template <typename tag_type = tag_t, std::enable_if_t<std::is_same_v<tag_type, void>>* = nullptr>
   key_bucket_t(raft::handle_t const& handle)
     : handle_ptr_(&handle), vertices_(0, handle.get_stream()), tags_(std::byte{0})
@@ -292,7 +296,6 @@ class vertex_frontier_t {
  public:
   using key_type =
     std::conditional_t<std::is_same_v<tag_t, void>, vertex_t, thrust::tuple<vertex_t, tag_t>>;
-  static bool constexpr is_key_bucket_sorted_unique = sorted_unique_key_bucket;
   static size_t constexpr kInvalidBucketIdx{std::numeric_limits<size_t>::max()};
 
   vertex_frontier_t(raft::handle_t const& handle, size_t num_buckets) : handle_ptr_(&handle)

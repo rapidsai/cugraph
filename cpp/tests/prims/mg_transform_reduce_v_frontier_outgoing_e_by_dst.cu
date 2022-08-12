@@ -254,8 +254,7 @@ class Tests_MGTransformReduceVFrontierOutgoingEByDst
       mg_new_frontier_key_buffer = cugraph::transform_reduce_v_frontier_outgoing_e_by_dst(
         *handle_,
         mg_graph_view,
-        mg_vertex_frontier,
-        bucket_idx_cur,
+        mg_vertex_frontier.bucket(bucket_idx_cur),
         mg_src_properties.device_view(),
         mg_dst_properties.device_view(),
         e_op_t<key_t, vertex_t, property_t, payload_t>{},
@@ -265,8 +264,7 @@ class Tests_MGTransformReduceVFrontierOutgoingEByDst
         cugraph::transform_reduce_v_frontier_outgoing_e_by_dst(
           *handle_,
           mg_graph_view,
-          mg_vertex_frontier,
-          bucket_idx_cur,
+          mg_vertex_frontier.bucket(bucket_idx_cur),
           mg_src_properties.device_view(),
           mg_dst_properties.device_view(),
           e_op_t<key_t, vertex_t, property_t, payload_t>{},
@@ -409,8 +407,7 @@ class Tests_MGTransformReduceVFrontierOutgoingEByDst
           sg_new_frontier_key_buffer = cugraph::transform_reduce_v_frontier_outgoing_e_by_dst(
             *handle_,
             sg_graph_view,
-            sg_vertex_frontier,
-            bucket_idx_cur,
+            sg_vertex_frontier.bucket(bucket_idx_cur),
             sg_src_properties.device_view(),
             sg_dst_properties.device_view(),
             e_op_t<key_t, vertex_t, property_t, payload_t>{},
@@ -420,8 +417,7 @@ class Tests_MGTransformReduceVFrontierOutgoingEByDst
             cugraph::transform_reduce_v_frontier_outgoing_e_by_dst(
               *handle_,
               sg_graph_view,
-              sg_vertex_frontier,
-              bucket_idx_cur,
+              sg_vertex_frontier.bucket(bucket_idx_cur),
               sg_src_properties.device_view(),
               sg_dst_properties.device_view(),
               e_op_t<key_t, vertex_t, property_t, payload_t>{},
