@@ -133,10 +133,7 @@ class Tests_RandomWalks : public ::testing::TestWithParam<tuple_t> {
     edge_t max_length = 10;
     rmm::device_uvector<vertex_t> d_start(num_paths, handle.get_stream());
 
-    cugraph::detail:: sequence_fill(handle.get_stream(),
-                                    d_start.begin(),
-                                    d_start.size(),
-                                    0);
+    cugraph::detail::sequence_fill(handle.get_stream(), d_start.begin(), d_start.size(), 0);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
