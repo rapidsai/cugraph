@@ -16,7 +16,7 @@
 #pragma once
 
 #include <cugraph/graph_view.hpp>
-#include <cugraph/utilities/dataframe_buffer.cuh>
+#include <cugraph/utilities/dataframe_buffer.hpp>
 #include <cugraph/utilities/error.hpp>
 
 #include <raft/cudart_utils.h>

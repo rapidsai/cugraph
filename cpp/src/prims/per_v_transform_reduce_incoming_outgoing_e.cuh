@@ -22,10 +22,11 @@
 #include <cugraph/edge_partition_device_view.cuh>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/partition_manager.hpp>
-#include <cugraph/utilities/dataframe_buffer.cuh>
-#include <cugraph/utilities/device_comm.cuh>
+#include <cugraph/utilities/dataframe_buffer.hpp>
+#include <cugraph/utilities/device_comm.hpp>
 #include <cugraph/utilities/error.hpp>
-#include <cugraph/utilities/host_scalar_comm.cuh>
+#include <cugraph/utilities/host_scalar_comm.hpp>
+#include <cugraph/utilities/thrust_tuple_utils.hpp>
 
 #include <raft/cudart_utils.h>
 #include <raft/handle.hpp>

@@ -115,10 +115,10 @@ def pagerank(
         local_nstart = create_cudf_from_dict(nstart)
     return cugraph.pagerank(
             G,
-            alpha,
-            local_pers,
-            max_iter,
-            tol,
-            local_nstart,
-            weight,
-            dangling)
+            alpha=alpha,
+            personalization=local_pers,
+            max_iter=max_iter,
+            tol=tol,
+            nstart=local_nstart,
+            weight=weight,
+            dangling=dangling)

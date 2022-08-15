@@ -93,7 +93,7 @@ def test_sg_graph(graph_data):
         del g
 
     else:
-        with pytest.raises(RuntimeError):
+        with pytest.raises(ValueError):
             SGGraph(resource_handle,
                     graph_props,
                     device_srcs,

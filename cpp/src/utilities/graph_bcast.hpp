@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2022, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,8 +20,8 @@
 
 #include <cugraph/serialization/serializer.hpp>
 
-#include <cugraph/utilities/device_comm.cuh>
-#include <cugraph/utilities/host_scalar_comm.cuh>
+#include <cugraph/utilities/device_comm.hpp>
+#include <cugraph/utilities/host_scalar_comm.hpp>
 
 #include <thrust/tuple.h>
 

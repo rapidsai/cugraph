@@ -19,9 +19,9 @@
 #include <cugraph/detail/decompress_edge_partition.cuh>
 #include <cugraph/edge_partition_device_view.cuh>
 #include <cugraph/partition_manager.hpp>
-#include <cugraph/utilities/device_comm.cuh>
+#include <cugraph/utilities/device_comm.hpp>
 #include <cugraph/utilities/device_functors.cuh>
-#include <cugraph/utilities/host_scalar_comm.cuh>
+#include <cugraph/utilities/host_scalar_comm.hpp>
 
 #include <raft/handle.hpp>
 
@@ -781,6 +781,7 @@ gather_one_hop_edgelist(
         partition,
         active_majors.cbegin(),
         active_majors_out_offsets.cbegin(),
+        static_cast<vertex_t>(active_majors.size()),
         majors_segments,
         output_offset + majors.data(),
         output_offset + minors.data(),
@@ -840,6 +841,7 @@ gather_one_hop_edgelist(
       partition,
       active_majors.cbegin(),
       active_majors_out_offsets.cbegin(),
+      static_cast<vertex_t>(active_majors.size()),
       *majors_segments,
       majors.data(),
       minors.data(),

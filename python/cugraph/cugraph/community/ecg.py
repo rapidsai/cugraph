@@ -61,11 +61,8 @@ def ecg(input_graph, min_weight=0.05, ensemble_size=16, weight=None):
 
     Examples
     --------
-    >>> M = cudf.read_csv(datasets_path / 'karate.csv', delimiter = ' ',
-    ...                   dtype=['int32', 'int32', 'float32'],
-    ...                   header=None)
-    >>> G = cugraph.Graph()
-    >>> G.from_cudf_edgelist(M, source='0', destination='1', edge_attr='2')
+    >>> from cugraph.experimental.datasets import karate
+    >>> G = karate.get_graph(fetch=True)
     >>> parts = cugraph.ecg(G)
 
     """

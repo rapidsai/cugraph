@@ -15,10 +15,8 @@
 #=============================================================================
 
 cmake_minimum_required(VERSION 3.20.1 FATAL_ERROR)
-file(DOWNLOAD https://raw.githubusercontent.com/rapidsai/rapids-cmake/branch-22.10/RAPIDS.cmake
-    ${CMAKE_BINARY_DIR}/RAPIDS.cmake)
-include(${CMAKE_BINARY_DIR}/RAPIDS.cmake)
 
+include(../fetch_rapids.cmake)
 include(rapids-cmake)
 include(rapids-cpm)
 include(rapids-cuda)
@@ -168,7 +166,7 @@ set(CUGRAPH_SOURCES
     src/detail/shuffle_wrappers.cu
     src/utilities/cython.cu
     src/utilities/path_retrieval.cu
-    src/utilities/graph_bcast.cu
+    src/utilities/graph_bcast.cpp
     src/structure/legacy/graph.cu
     src/linear_assignment/hungarian.cu
     src/traversal/legacy/bfs.cu

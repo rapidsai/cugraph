@@ -11,17 +11,57 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import cudf
-
-from cugraph.link_analysis import pagerank_wrapper
 from cugraph.utilities import (ensure_cugraph_obj_for_nx,
                                df_score_to_dictionary,
                                )
+import cudf
+import numpy as np
+import warnings
+
+from pylibcugraph import (pagerank as pylibcugraph_pagerank,
+                          personalized_pagerank as pylibcugraph_p_pagerank,
+                          ResourceHandle
+                          )
+
+
+def renumber_vertices(input_graph, input_df):
+    if len(input_graph.renumber_map.implementation.col_names) > 1:
+        cols = input_df.columns[:-1].to_list()
+    else:
+        cols = 'vertex'
+    input_df = input_graph.add_internal_vertex_id(
+        input_df, "vertex", cols
+    )
+
+    return input_df
+
+
+# FIXME: Move this function to the utility module so that it can be
+# shared by other algos
+def ensure_valid_dtype(input_graph, input_df, input_df_name):
+    if input_graph.edgelist.weights is False:
+        edge_attr_dtype = np.float32
+    else:
+        edge_attr_dtype = input_graph.edgelist.edgelist_df["weights"].dtype
+
+    input_df_dtype = input_df["values"].dtype
+    if input_df_dtype != edge_attr_dtype:
+        warning_msg = (f"PageRank requires '{input_df_name}' values "
+                       "to match the graph's 'edge_attr' type. "
+                       f"edge_attr type is: {edge_attr_dtype} and got "
+                       f"'{input_df_name}' values of type: "
+                       f"{input_df_dtype}.")
+        warnings.warn(warning_msg, UserWarning)
+        input_df = input_df.astype(
+            {"values": edge_attr_dtype})
+
+    return input_df
 
 
 def pagerank(
-    G, alpha=0.85, personalization=None, max_iter=100, tol=1.0e-5, nstart=None,
-    weight=None, dangling=None
+    G, alpha=0.85, personalization=None,
+    precomputed_vertex_out_weight=None,
+    max_iter=100, tol=1.0e-5, nstart=None, weight=None, dangling=None
 ):
     """
     Find the PageRank score for every vertex in a graph. cuGraph computes an
@@ -30,8 +70,7 @@ def pagerank(
     increases when the tolerance descreases and/or alpha increases toward the
     limiting value of 1. The user is free to use default values or to provide
     inputs for the initial guess, tolerance and maximum number of iterations.
-
-    Parameters
+    Parameters. All edges will have an edge_attr value of 1.0 if not provided.
     ----------
     G : cugraph.Graph or networkx.Graph
         cuGraph graph descriptor, should contain the connectivity information
@@ -46,11 +85,19 @@ def pagerank(
 
     personalization : cudf.Dataframe, optional (default=None)
         GPU Dataframe containing the personalization information.
-
+        (a performance optimization)
         personalization['vertex'] : cudf.Series
             Subset of vertices of graph for personalization
         personalization['values'] : cudf.Series
             Personalization values for vertices
+
+    precomputed_vertex_out_weight : cudf.Dataframe, optional (default=None)
+        GPU Dataframe containing the precomputed vertex out weight
+        information(a performance optimization).
+        precomputed_vertex_out_weight['vertex'] : cudf.Series
+            Subset of vertices of graph for precomputed_vertex_out_weight
+        precomputed_vertex_out_weight['sums'] : cudf.Series
+            Corresponding precomputed sum of outgoing vertices weight
 
     max_iter : int, optional (default=100)
         The maximum number of iterations before an answer is returned. This can
@@ -70,7 +117,7 @@ def pagerank(
 
     nstart : cudf.Dataframe, optional (default=None)
         GPU Dataframe containing the initial guess for pagerank.
-
+        (a performance optimization).
         nstart['vertex'] : cudf.Series
             Subset of vertices of graph for initial guess for pagerank values
         nstart['values'] : cudf.Series
@@ -90,23 +137,51 @@ def pagerank(
         GPU data frame containing two cudf.Series of size V: the vertex
         identifiers and the corresponding PageRank values.
 
+        NOTE: if the input cugraph.Graph was created using the renumber=False
+        option of any of the from_*_edgelist() methods, pagerank assumes that
+        the vertices in the edgelist are contiguous and start from 0.
+        If the actual set of vertices in the edgelist is not
+        contiguous (has gaps) or does not start from zero, pagerank will assume
+        the "missing" vertices are isolated vertices in the graph, and will
+        compute and return pagerank values for each. If this is not the desired
+        behavior, ensure the input cugraph.Graph is created from the
+        from_*_edgelist() functions with the renumber=True option (the default)
+
         df['vertex'] : cudf.Series
             Contains the vertex identifiers
         df['pagerank'] : cudf.Series
             Contains the PageRank score
-
-
     Examples
     --------
-    >>> gdf = cudf.read_csv(datasets_path / 'karate.csv', delimiter=' ',
-    ...                     dtype=['int32', 'int32', 'float32'], header=None)
-    >>> G = cugraph.Graph()
-    >>> G.from_cudf_edgelist(gdf, source='0', destination='1')
+    >>> from cugraph.experimental.datasets import karate
+    >>> G = karate.get_graph(fetch=True)
     >>> pr = cugraph.pagerank(G, alpha = 0.85, max_iter = 500, tol = 1.0e-05)
-
     """
 
+    initial_guess_vertices = None
+    initial_guess_values = None
+    pre_vtx_o_wgt_vertices = None
+    pre_vtx_o_wgt_sums = None
+
     G, isNx = ensure_cugraph_obj_for_nx(G, weight)
+    do_expensive_check = False
+
+    if nstart is not None:
+        if G.renumbered is True:
+            nstart = renumber_vertices(G, nstart)
+        nstart = ensure_valid_dtype(
+                G, nstart, "nstart")
+        initial_guess_vertices = nstart["vertex"]
+        initial_guess_values = nstart["values"]
+
+    if precomputed_vertex_out_weight is not None:
+        if G.renumbered is True:
+            precomputed_vertex_out_weight = renumber_vertices(
+                G, precomputed_vertex_out_weight)
+        pre_vtx_o_wgt_vertices = \
+            precomputed_vertex_out_weight["vertex"]
+        pre_vtx_o_wgt_sums = \
+            precomputed_vertex_out_weight["sums"]
 
     if personalization is not None:
         if not isinstance(personalization, cudf.DataFrame):
@@ -115,32 +190,49 @@ def pagerank(
                 "currently not supported"
             )
         if G.renumbered is True:
-            if len(G.renumber_map.implementation.col_names) > 1:
-                cols = personalization.columns[:-1].to_list()
-            else:
-                cols = 'vertex'
-            personalization = G.add_internal_vertex_id(
-                personalization, "vertex", cols
+            personalization = renumber_vertices(
+                G, personalization)
+
+            personalization = ensure_valid_dtype(
+                G, personalization, "personalization")
+
+        vertex, pagerank_values = \
+            pylibcugraph_p_pagerank(
+                resource_handle=ResourceHandle(),
+                graph=G._plc_graph,
+                precomputed_vertex_out_weight_vertices=pre_vtx_o_wgt_vertices,
+                precomputed_vertex_out_weight_sums=pre_vtx_o_wgt_sums,
+                personalization_vertices=personalization["vertex"],
+                personalization_values=personalization["values"],
+                initial_guess_vertices=initial_guess_vertices,
+                initial_guess_values=initial_guess_values,
+                alpha=alpha,
+                epsilon=tol,
+                max_iterations=max_iter,
+                do_expensive_check=do_expensive_check)
+    else:
+        vertex, pagerank_values = \
+            pylibcugraph_pagerank(
+                resource_handle=ResourceHandle(),
+                graph=G._plc_graph,
+                precomputed_vertex_out_weight_vertices=pre_vtx_o_wgt_vertices,
+                precomputed_vertex_out_weight_sums=pre_vtx_o_wgt_sums,
+                initial_guess_vertices=initial_guess_vertices,
+                initial_guess_values=initial_guess_values,
+                alpha=alpha,
+                epsilon=tol,
+                max_iterations=max_iter,
+                do_expensive_check=do_expensive_check
             )
 
-    if nstart is not None:
-        if G.renumbered is True:
-            if len(G.renumber_map.implementation.col_names) > 1:
-                cols = nstart.columns[:-1].to_list()
-            else:
-                cols = 'vertex'
-            nstart = G.add_internal_vertex_id(
-                nstart, "vertex", cols
-            )
-
-    df = pagerank_wrapper.pagerank(
-        G, alpha, personalization, max_iter, tol, nstart
-    )
+    df = cudf.DataFrame()
+    df["vertex"] = vertex
+    df["pagerank"] = pagerank_values
 
     if G.renumbered:
         df = G.unrenumber(df, "vertex")
 
     if isNx is True:
-        return df_score_to_dictionary(df, 'pagerank')
-    else:
-        return df
+        df = df_score_to_dictionary(df, 'pagerank')
+
+    return df

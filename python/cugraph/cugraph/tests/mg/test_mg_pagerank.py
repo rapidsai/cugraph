@@ -16,6 +16,7 @@ import cugraph.dask as dcg
 import gc
 import cugraph
 import dask_cudf
+from cugraph.testing import utils
 import cudf
 # from cugraph.dask.common.mg_utils import is_single_gpu
 from cugraph.testing.utils import RAPIDS_DATASET_ROOT_DIR_PATH
@@ -47,8 +48,20 @@ def personalize(vertices, personalization_perc):
     return cu_personalization, personalization
 
 
+# =============================================================================
+# Parameters
+# =============================================================================
 PERSONALIZATION_PERC = [0, 10, 50]
 IS_DIRECTED = [True, False]
+HAS_GUESS = [0, 1]
+HAS_PRECOMPUTED = [0, 1]
+
+
+# =============================================================================
+# Pytest Setup / Teardown - called for each test function
+# =============================================================================
+def setup_function():
+    gc.collect()
 
 
 # @pytest.mark.skipif(
@@ -56,8 +69,10 @@ IS_DIRECTED = [True, False]
 # )
 @pytest.mark.parametrize("personalization_perc", PERSONALIZATION_PERC)
 @pytest.mark.parametrize("directed", IS_DIRECTED)
-def test_dask_pagerank(dask_client, personalization_perc, directed):
-    gc.collect()
+@pytest.mark.parametrize("has_precomputed_vertex_out_weight", HAS_PRECOMPUTED)
+@pytest.mark.parametrize("has_guess", HAS_GUESS)
+def test_dask_pagerank(dask_client, personalization_perc, directed,
+                       has_precomputed_vertex_out_weight, has_guess):
 
     input_data_path = (RAPIDS_DATASET_ROOT_DIR_PATH /
                        "karate.csv").as_posix()
@@ -80,21 +95,41 @@ def test_dask_pagerank(dask_client, personalization_perc, directed):
     )
 
     g = cugraph.Graph(directed=directed)
-    g.from_cudf_edgelist(df, "src", "dst")
+    g.from_cudf_edgelist(df, "src", "dst", "value")
 
     dg = cugraph.Graph(directed=directed)
-    dg.from_dask_cudf_edgelist(ddf, "src", "dst")
+    dg.from_dask_cudf_edgelist(ddf, "src", "dst", "value")
 
     personalization = None
+    pre_vtx_o_wgt = None
+    nstart = None
+    max_iter = 100
+    has_precomputed_vertex_out_weight
     if personalization_perc != 0:
         personalization, p = personalize(
             g.nodes(), personalization_perc
         )
+    if has_precomputed_vertex_out_weight == 1:
+        df = df[["src", "value"]]
+        pre_vtx_o_wgt = df.groupby(
+            ['src'], as_index=False).sum().rename(
+                columns={"src": "vertex", "value": "sums"})
+
+    if has_guess == 1:
+        nstart = cugraph.pagerank(
+            g, personalization=personalization, tol=1e-6).rename(
+                columns={"pagerank": "values"})
+        max_iter = 20
 
     expected_pr = cugraph.pagerank(
-        g, personalization=personalization, tol=1e-6
+        g, personalization=personalization,
+        precomputed_vertex_out_weight=pre_vtx_o_wgt,
+        max_iter=max_iter, tol=1e-6, nstart=nstart
     )
-    result_pr = dcg.pagerank(dg, personalization=personalization, tol=1e-6)
+    result_pr = dcg.pagerank(
+        dg, personalization=personalization,
+        precomputed_vertex_out_weight=pre_vtx_o_wgt,
+        max_iter=max_iter, tol=1e-6, nstart=nstart)
     result_pr = result_pr.compute()
 
     err = 0
@@ -114,3 +149,33 @@ def test_dask_pagerank(dask_client, personalization_perc, directed):
         if diff > tol * 1.1:
             err = err + 1
     assert err == 0
+
+
+def test_pagerank_invalid_personalization_dtype(dask_client):
+    input_data_path = (utils.RAPIDS_DATASET_ROOT_DIR_PATH /
+                       "karate.csv").as_posix()
+
+    chunksize = dcg.get_chunksize(input_data_path)
+    ddf = dask_cudf.read_csv(
+        input_data_path,
+        chunksize=chunksize,
+        delimiter=" ",
+        names=["src", "dst", "value"],
+        dtype=["int32", "int32", "float32"],
+    )
+
+    dg = cugraph.Graph(directed=True)
+    dg.from_dask_cudf_edgelist(
+        ddf, source='src', destination='dst',
+        edge_attr="value", renumber=True)
+
+    personalization_vec = cudf.DataFrame()
+    personalization_vec['vertex'] = [17, 26]
+    personalization_vec['values'] = [0.5, 0.75]
+    warning_msg = ("PageRank requires 'personalization' values to match the "
+                   "graph's 'edge_attr' type. edge_attr type is: "
+                   "float32 and got 'personalization' values "
+                   "of type: float64.")
+
+    with pytest.warns(UserWarning, match=warning_msg):
+        dcg.pagerank(dg, personalization=personalization_vec)

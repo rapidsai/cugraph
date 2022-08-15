@@ -95,16 +95,21 @@ def test_pagerank(sg_transposed_graph_objs):
     (expected_verts, expected_pageranks) = _test_data[ds_name]
 
     precomputed_vertex_out_weight_sums = None
-    has_initial_guess = False
     do_expensive_check = False
+    precomputed_vertex_out_weight_vertices = None
+    precomputed_vertex_out_weight_sums = None
+    initial_guess_vertices = None
+    initial_guess_values = None
 
     result = pagerank(resource_handle,
                       g,
+                      precomputed_vertex_out_weight_vertices,
                       precomputed_vertex_out_weight_sums,
+                      initial_guess_vertices,
+                      initial_guess_values,
                       _alpha,
                       _epsilon,
                       _max_iterations,
-                      has_initial_guess,
                       do_expensive_check)
 
     num_expected_verts = len(expected_verts)
