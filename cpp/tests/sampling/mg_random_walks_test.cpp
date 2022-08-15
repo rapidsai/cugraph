@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#include <sampling/random_walks_check.cuh>
+#include <sampling/random_walks_check.hpp>
 
 #include <utilities/base_fixture.hpp>
 #include <utilities/high_res_clock.h>
@@ -140,16 +140,13 @@ class Tests_MGRandomWalks : public ::testing::TestWithParam<tuple_t> {
     rmm::device_uvector<vertex_t> d_start(0, handle_->get_stream());
 
     if (graph_view.local_vertex_partition_range_size() > 0) {
-      d_start.resize(num_paths, handle_->get_stream());
+      d_start.resize(std::min(10, graph_view.local_vertex_partition_range_size()),
+                     handle_->get_stream());
 
-      thrust::tabulate(
-        handle_->get_thrust_policy(),
-        d_start.begin(),
-        d_start.end(),
-        [num_vertices = graph_view.local_vertex_partition_range_size(),
-         base_vertex  = graph_view.local_vertex_partition_range_first()] __device__(auto idx) {
-          return (base_vertex + (idx % num_vertices));
-        });
+      cugraph::detail::sequence_fill(handle_->get_stream(),
+                                     d_start.begin(),
+                                     d_start.size(),
+                                     graph_view.local_vertex_partition_range_first());
     }
 
     if (cugraph::test::g_perf) {

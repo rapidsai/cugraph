@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#include <sampling/random_walks_check.cuh>
+#include <sampling/random_walks_check.hpp>
 
 #include <utilities/base_fixture.hpp>
 #include <utilities/high_res_clock.h>
@@ -129,16 +129,14 @@ class Tests_RandomWalks : public ::testing::TestWithParam<tuple_t> {
     }
 
     auto graph_view   = graph.view();
-    edge_t num_paths  = 10;
+    edge_t num_paths  = std::min(edge_t{10}, graph_view.number_of_vertices());
     edge_t max_length = 10;
     rmm::device_uvector<vertex_t> d_start(num_paths, handle.get_stream());
 
-    thrust::tabulate(handle.get_thrust_policy(),
-                     d_start.begin(),
-                     d_start.end(),
-                     [num_vertices = graph_view.number_of_vertices()] __device__(auto idx) {
-                       return (idx % num_vertices);
-                     });
+    cugraph::detail:: sequence_fill(handle.get_stream(),
+                                    d_start.begin(),
+                                    d_start.size(),
+                                    0);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
