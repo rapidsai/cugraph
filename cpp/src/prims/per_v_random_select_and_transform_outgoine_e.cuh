@@ -18,7 +18,7 @@
 namespace cugraph {
 
 /**
- * @brief Randomly select and transform the input (tagged-)vertices' neighbors with biases.
+ * @brief Randomly select and transform the input (tagged-)vertices' outgoing edges with biases.
  *
  * @tparam GraphViewType Type of the passed non-owning graph object.
  * @tparam VertexFrontierBucketType Type of the vertex frontier bucket class which abstracts the
@@ -32,7 +32,8 @@ namespace cugraph {
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Non-owning graph object.
- * @param frontier_bucket
+ * @param frontier VertexFrontierBucketType class object to store the (tagged-)vertex list to sample
+ * outgoing edges.
  * @param edge_src_value_input Wrapper used to access source input property values (for the edge
  * sources assigned to this process in multi-GPU). Use either cugraph::edge_src_property_t::view()
  * (if @p e_op needs to access source property values) or cugraph::edge_src_dummy_property_t::view()
@@ -62,9 +63,8 @@ namespace cugraph {
  * @return std::tuple Tuple of an optional offset vector of type
  * std::optional<rmm::device_uvector<size_t>> and a dataframe buffer storing the output values of
  * type @p T from the selected edges. If @p invalid_value is std::nullopt, the offset vector is
- * valid and has the size of @p frontier_bucket.size() + 1. If @p invalid_value.has_value() is true,
- * std::nullopt is returned (the dataframe buffer will store @p frontier_bucket.size() * @p K
- * elements).
+ * valid and has the size of @p frontier.size() + 1. If @p invalid_value.has_value() is true,
+ * std::nullopt is returned (the dataframe buffer will store @p frontier.size() * @p K elements).
  */
 template <typename GraphViewType,
           typename VertexFrontierBucketType,
