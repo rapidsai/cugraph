@@ -50,7 +50,7 @@ namespace cugraph {
  * @param e_op Quaternary (or quinary) operator takes edge source, edge destination, (optional edge
  * weight), property values for the source, and property values for the destination and returns a
  * value to be collected in the output. This function is called only for the selected edges.
- * @param K
+ * @param K Number of outgoing edges to select per (tagged-)vertex.
  * @param with_replacement A flag to specify whether a single outgoing edge can be selected multiple
  * times (if @p with_replacement = true) or can be selected only once (if @p with_replacement =
  * false).
@@ -77,7 +77,7 @@ std::tuple<std::optional<rmm::device_uvector<size_t>>,
            decltype(allocate_dataframe_buffer<T>(size_t{0}, rmm::cuda_stream_view{}))>
 per_v_random_select_and_transform_outgoing_e(raft::handle_t const& handle,
                                              GraphViewType const& graph_view,
-                                             KeyFrontierBucketType const& frontier_bucket,
+                                             KeyFrontierBucketType const& frontier,
                                              EdgeSrcValueInputWrapper edge_src_value_input,
                                              EdgeDstValueInputWrapper edge_dst_value_input,
 #if 0  // FIXME: This will be necessary to include edge IDs in the output.
