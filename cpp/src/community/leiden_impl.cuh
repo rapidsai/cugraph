@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2022, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -32,68 +32,61 @@ namespace cugraph {
 
 namespace detail {
 
-// FIXME: check_clustering is copied from louvain_impl.cuh, can we reuse that instead of copying?
-template <typename GraphViewType>
-void check_clustering(GraphViewType const& graph_view, typename GraphViewType::vertex_t* clustering)
+// FIXME: Can we have a common check_clustering to be used by both
+// Louvain and Leiden, and possibly other clustering methods?
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          bool multi_gpu,
+          bool store_transposed=false>
+void check_clustering(graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> const& graph_view,
+            vertex_t* clustering)
 {
-  if (graph_view.local_vertex_partition_range_size() > 0)
-    CUGRAPH_EXPECTS(clustering != nullptr, "Invalid input argument: clustering is null");
+if (graph_view.local_vertex_partition_range_size() > 0)
+CUGRAPH_EXPECTS(clustering != nullptr, "Invalid input argument: clustering is null");
 }
 
-template <typename GraphViewType>
-std::pair<std::unique_ptr<Dendrogram<typename GraphViewType::vertex_type>>,
-          typename GraphViewType::weight_type>
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          bool multi_gpu,
+          bool store_transposed=false>
+std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t>
 leiden(raft::handle_t const& handle,
-       GraphViewType const& graph_view,
+       graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> const& graph_view,
        size_t max_level,
-       typename GraphViewType::weight_type resolution)
+       weight_t resolution)
 {
-  using vertex_t = typename GraphViewType::vertex_type;
-  using weight_t = typename GraphViewType::weight_type;
-
   // TODO: everything
   CUGRAPH_FAIL("unimplemented");
-  return std::make_pair(std::make_unique<Dendrogram<vertex_t>>(), (weight_t)0.0);
+  return std::make_pair(std::make_unique<Dendrogram<vertex_t>>(), weight_t{0.0});
 }
 
-template <typename GraphViewType>
-std::pair<size_t, typename GraphViewType::weight_type> leiden(
+// FIXME: Can we have a common flatten_dendrogram to be used by both
+// Louvain and Leiden, and possibly other clustering methods?
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          bool multi_gpu,
+          bool store_transposed=false>
+void flatten_dendrogram(
   raft::handle_t const& handle,
-  GraphViewType const& graph_view,
-  typename GraphViewType::vertex_type* clustering,
-  size_t max_level,
-  typename GraphViewType::weight_type resolution);
-
-// FIXME: flatten_dendrogram is copied from louvain_impl.cuh, can we reuse that instead of copying?
-template <typename GraphViewType>
-void flatten_dendrogram(raft::handle_t const& handle,
-                        GraphViewType const& graph_view,
-                        Dendrogram<typename GraphViewType::vertex_t> const& dendrogram,
-                        typename GraphViewType::vertex_t* clustering)
+  graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> const& graph_view,
+  Dendrogram<vertex_t> const& dendrogram,
+  vertex_t* clustering)
 {
-  using vertex_t = typename GraphViewType::vertex_type;
-  using weight_t = typename GraphViewType::weight_type;
-  bool multi_gpu = GraphViewType::multi_gpu;
-
   rmm::device_uvector<vertex_t> vertex_ids_v(graph_view.number_of_vertices(), handle.get_stream());
+
   thrust::sequence(handle.get_thrust_policy(),
                    vertex_ids_v.begin(),
                    vertex_ids_v.end(),
                    graph_view.local_vertex_partition_range_first());
+
   partition_at_level<vertex_t, multi_gpu>(
     handle, dendrogram, vertex_ids_v.data(), clustering, dendrogram.num_levels());
 }
 
 }  // namespace detail
-
-template <typename GraphViewType>
-void flatten_dendrogram(raft::handle_t const& handle,
-                        GraphViewType const& graph_view,
-                        Dendrogram<typename GraphViewType::vertex_type> const& dendrogram,
-                        typename GraphViewType::vertex_type* clustering)
-{
-  detail::flatten_dendrogram(handle, graph_view, dendrogram, clustering);
-}
 
 template <typename GraphViewType>
 std::pair<std::unique_ptr<Dendrogram<typename GraphViewType::vertex_type>>,
@@ -107,28 +100,12 @@ leiden(raft::handle_t const& handle,
 }
 
 template <typename GraphViewType>
-std::pair<size_t, typename GraphViewType::weight_type> leiden(
-  raft::handle_t const& handle,
-  GraphViewType const& graph_view,
-  typename GraphViewType::vertex_type* clustering,
-  size_t max_level,
-  typename GraphViewType::weight_type resolution)
+void flatten_dendrogram(raft::handle_t const& handle,
+                        GraphViewType const& graph_view,
+                        Dendrogram<typename GraphViewType::vertex_type> const& dendrogram,
+                        typename GraphViewType::vertex_type* clustering)
 {
-  using vertex_t = typename GraphViewType::vertex_type;
-  using weight_t = typename GraphViewType::weight_type;
-
-  CUGRAPH_EXPECTS(graph_view.is_weighted(), "Graph must be weighted");
-
-  detail::check_clustering(graph_view, clustering);
-
-  std::unique_ptr<Dendrogram<vertex_t>> dendrogram;
-  weight_t modularity;
-
-  std::tie(dendrogram, modularity) = leiden(handle, graph_view, max_level, resolution);
-
-  flatten_dendrogram(handle, graph_view, *dendrogram, clustering);
-
-  return std::make_pair(dendrogram->num_levels(), modularity);
+  detail::flatten_dendrogram(handle, graph_view, dendrogram, clustering);
 }
 
 }  // namespace cugraph
