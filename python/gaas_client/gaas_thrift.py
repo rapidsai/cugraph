@@ -124,10 +124,6 @@ service GaasService {
                              9:list<string> names
                              ) throws (1:GaasError e),
 
-  i32 get_num_vertices(1:i32 graph_id) throws(1:GaasError e),
-
-  i32 get_num_edges(1:i32 graph_id) throws(1:GaasError e),
-
   list<i32> get_edge_IDs_for_vertices(1:list<i32> src_vert_IDs,
                                       2:list<i32> dst_vert_IDs,
                                       3:i32 graph_id

@@ -38,12 +38,6 @@ property_csv_data = {
               "vert_col_name" : "user_id",
               },
 
-    "taxpayers": {"csv_file_name":
-                  (_data_dir/"taxpayers.csv").absolute().as_posix(),
-                  "dtypes": ["int32", "float32"],
-                  "vert_col_name" : "payer_id",
-                  },
-
     "transactions": {"csv_file_name":
                      (_data_dir/"transactions.csv").absolute().as_posix(),
                      "dtypes": ["int32", "int32", "float32", "float32",

@@ -17,7 +17,7 @@ import pytest
 
 ###############################################################################
 ## fixtures
-# The fixtures used in these tets are defined in conftest.py
+# The fixtures used in these tests are defined in conftest.py
 
 
 ###############################################################################
@@ -65,14 +65,14 @@ def test_load_and_call_graph_creation_extension(graph_creation_extension2):
     # This call should succeed and should result in a new PropertyGraph present
     # in the handler instance.
     new_graph_ID = handler.call_graph_creation_extension(
-        "my_graph_creation_function", "('a', 'b')", "{}")
+        "my_graph_creation_function", "('a', 'b', 'c')", "{}")
 
     assert new_graph_ID in handler.get_graph_ids()
 
     # Inspect the PG and ensure it was created from my_graph_creation_function
     pG = handler._get_graph(new_graph_ID)
     edge_props = pG.edge_property_names
-    assert ("a" in edge_props) and ("b" in edge_props)
+    assert ("c" in edge_props)
 
 
 def test_load_and_unload_graph_creation_extension(graph_creation_extension2):
@@ -89,7 +89,7 @@ def test_load_and_unload_graph_creation_extension(graph_creation_extension2):
     # Load the extensions and ensure it can be called.
     handler.load_graph_creation_extensions(extension_dir)
     new_graph_ID = handler.call_graph_creation_extension(
-        "my_graph_creation_function", "('a', 'b')", "{}")
+        "my_graph_creation_function", "('a', 'b', 'c')", "{}")
     assert new_graph_ID in handler.get_graph_ids()
 
     # Unload then try to run the same call again, which should fail
@@ -97,7 +97,7 @@ def test_load_and_unload_graph_creation_extension(graph_creation_extension2):
 
     with pytest.raises(GaasError):
         handler.call_graph_creation_extension(
-            "my_graph_creation_function", "('a', 'b')", "{}")
+            "my_graph_creation_function", "('a', 'b', 'c')", "{}")
 
 
 def test_load_and_unload_graph_creation_extension_no_args(

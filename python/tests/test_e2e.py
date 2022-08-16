@@ -278,13 +278,13 @@ def test_load_and_call_graph_creation_extension(client,
     assert num_files_loaded == 1
 
     new_graph_ID = client.call_graph_creation_extension(
-        "my_graph_creation_function", "a", "b")
+        "my_graph_creation_function", "a", "b", "c")
 
     assert new_graph_ID in client.get_graph_ids()
 
     # Inspect the PG and ensure it was created from my_graph_creation_function
     # FIXME: add client APIs to allow for a more thorough test of the graph
-    assert client.get_num_edges(new_graph_ID) == 2
+    assert client.get_graph_info(["num_edges"], new_graph_ID) == 2
 
 
 def test_load_and_call_graph_creation_long_running_extension(
@@ -308,7 +308,7 @@ def test_load_and_call_graph_creation_long_running_extension(
 
     # Inspect the PG and ensure it was created from my_graph_creation_function
     # FIXME: add client APIs to allow for a more thorough test of the graph
-    assert client.get_num_edges(new_graph_ID) == 0
+    assert client.get_graph_info(["num_edges"], new_graph_ID) == 0
 
 
 def test_call_graph_creation_extension(client):
@@ -324,7 +324,7 @@ def test_call_graph_creation_extension(client):
     # Inspect the PG and ensure it was created from
     # custom_graph_creation_function
     # FIXME: add client APIs to allow for a more thorough test of the graph
-    assert client.get_num_edges(new_graph_ID) == 3
+    assert client.get_graph_info(["num_edges"], new_graph_ID) == 3
 
 
 def test_get_graph_vertex_dataframe_rows(client_with_property_csvs_loaded):
@@ -332,22 +332,22 @@ def test_get_graph_vertex_dataframe_rows(client_with_property_csvs_loaded):
 
     # FIXME: do not hardcode the shape values, get them from the input data.
     np_array_all_rows = client.get_graph_vertex_dataframe_rows()
-    assert np_array_all_rows.shape == (9, 9)
+    assert np_array_all_rows.shape == (9, 7)
 
     # The remaining tests get individual rows - compare those to the all_rows
     # retrieved earlier.
     rows = [0, 1, 2]
     np_array = client.get_graph_vertex_dataframe_rows(rows)
-    assert np_array.shape == (3, 9)
+    assert np_array.shape == (3, 7)
     for (idx, all_rows_idx) in enumerate(rows):
         assert (np_array[idx] == np_array_all_rows[all_rows_idx]).all()
 
     np_array = client.get_graph_vertex_dataframe_rows(0)
-    assert np_array.shape == (1, 9)
+    assert np_array.shape == (1, 7)
     assert (np_array[0] == np_array_all_rows[0]).all()
 
     np_array = client.get_graph_vertex_dataframe_rows(1)
-    assert np_array.shape == (1, 9)
+    assert np_array.shape == (1, 7)
     assert (np_array[0] == np_array_all_rows[1]).all()
 
 
@@ -359,7 +359,7 @@ def test_get_graph_vertex_dataframe_shape(client_with_property_csvs_loaded):
     shape = (info["num_vertices"],
              info["num_vertex_properties"])
     # FIXME: do not hardcode the shape values, get them from the input data.
-    assert shape == (9, 9)
+    assert shape == (9, 7)
 
 
 def test_get_graph_edge_dataframe_rows(client_with_property_csvs_loaded):
@@ -367,22 +367,22 @@ def test_get_graph_edge_dataframe_rows(client_with_property_csvs_loaded):
 
     # FIXME: do not hardcode the shape values, get them from the input data.
     np_array_all_rows = client.get_graph_edge_dataframe_rows()
-    assert np_array_all_rows.shape == (17, 10)
+    assert np_array_all_rows.shape == (17, 7)
 
     # The remaining tests get individual rows - compare those to the all_rows
     # retrieved earlier.
     rows = [0, 1, 2]
     np_array = client.get_graph_edge_dataframe_rows(rows)
-    assert np_array.shape == (3, 10)
+    assert np_array.shape == (3, 7)
     for (idx, all_rows_idx) in enumerate(rows):
         assert (np_array[idx] == np_array_all_rows[all_rows_idx]).all()
 
     np_array = client.get_graph_edge_dataframe_rows(0)
-    assert np_array.shape == (1, 10)
+    assert np_array.shape == (1, 7)
     assert (np_array[0] == np_array_all_rows[0]).all()
 
     np_array = client.get_graph_edge_dataframe_rows(1)
-    assert np_array.shape == (1, 10)
+    assert np_array.shape == (1, 7)
     assert (np_array[0] == np_array_all_rows[1]).all()
 
 
@@ -392,7 +392,7 @@ def test_get_graph_edge_dataframe_shape(client_with_property_csvs_loaded):
     info = client.get_graph_info(["num_edges", "num_edge_properties"])
     shape = (info["num_edges"], info["num_edge_properties"])
     # FIXME: do not hardcode the shape values, get them from the input data.
-    assert shape == (17, 10)
+    assert shape == (17, 7)
 
 
 def test_batched_ego_graphs(client_with_edgelist_csv_loaded):

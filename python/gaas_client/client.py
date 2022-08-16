@@ -608,61 +608,6 @@ class GaasClient:
                                                    names or [])
 
     @__server_connection
-    def get_num_vertices(self, graph_id=defaults.graph_id):
-        """
-        Returns the number of vertices for the graph with the provided graph id,
-        or for the default graph if no id is specified.
-
-        Parameters
-        ----------
-        graph_id: int, default is defaults.graph_id
-            The graph ID to query.  If the ID passed is not valid on the server,
-            GaaSError is raised.
-
-        Returns
-        -------
-        num_vertices: int
-            The number of vertices in the graph with the given graph id, or in the
-            default graph if no id was provided.
-
-        Examples
-        --------
-        >>> from gaas_client import GaasClient
-        >>> client = GaasClient()
-        >>> # This server already has graphs loaded from other sessions
-        >>> client.get_num_nodes()
-        300
-        """
-        return self.__client.get_num_vertices(graph_id)
-
-    @__server_connection
-    def get_num_edges(self, graph_id=defaults.graph_id):
-        """
-        Returns the number of edges for the graph identified as graph_id (or the
-        default graph if not specified).
-
-        Parameters
-        ----------
-        graph_id : int, default is defaults.graph_id
-            The graph ID to query. If the ID passed is not valid on the server,
-            GaaSError is raised.
-
-        Returns
-        -------
-        num_edges : int
-            The number of edges in graph_id
-
-        Examples
-        --------
-        >>> from gaas_client import GaasClient
-        >>> client = GaasClient()
-        >>> # This server already has graphs loaded from other sessions
-        >>> client.get_num_edges()
-        10000
-        """
-        return self.__client.get_num_edges(graph_id)
-
-    @__server_connection
     def get_edge_IDs_for_vertices(self, src_vert_IDs, dst_vert_IDs,
                                   graph_id=defaults.graph_id):
         """

@@ -115,7 +115,7 @@ def test_get_graph_edge_dataframe_shape(handler_with_edgelist_csv_loaded):
     # the int32 member directly for easy comparison.
     shape = (ValueWrapper(info["num_edges"]).get_py_obj(),
              ValueWrapper(info["num_edge_properties"]).get_py_obj())
-    assert shape == (156, 3)
+    assert shape == (156, 1)  # The single edge property is the weight
 
 
 def test_get_graph_vertex_dataframe_shape(handler_with_edgelist_csv_loaded):
@@ -128,12 +128,12 @@ def test_get_graph_vertex_dataframe_shape(handler_with_edgelist_csv_loaded):
 
     (handler, test_data) = handler_with_edgelist_csv_loaded
 
-    info = handler.get_graph_info(["num_vertices",
+    info = handler.get_graph_info(["num_vertices_from_vertex_data",
                                    "num_vertex_properties"],
                                   defaults.graph_id)
     # info is a dictionary containing gaas_client.types.Value objs, so access
     # the int32 member directly for easy comparison.
-    shape = (ValueWrapper(info["num_vertices"]).get_py_obj(),
+    shape = (ValueWrapper(info["num_vertices_from_vertex_data"]).get_py_obj(),
              ValueWrapper(info["num_vertex_properties"]).get_py_obj())
     assert shape == (0, 0)
 
@@ -151,6 +151,7 @@ def test_get_graph_info_defaults(mg_handler):
     info = handler.get_graph_info([], graph_id=defaults.graph_id)
 
     expected = {"num_vertices": 0,
+                "num_vertices_from_vertex_data": 0,
                 "num_edges": 0,
                 "num_vertex_properties": 0,
                 "num_edge_properties": 0,

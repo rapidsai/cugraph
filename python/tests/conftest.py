@@ -40,8 +40,9 @@ from cugraph.experimental import PropertyGraph
 def __my_private_function():
    pass
 
-def my_graph_creation_function(gaas_server, arg1, arg2):
-   edgelist = cudf.DataFrame(columns=[arg1, arg2], data=[(0, 1), (88, 99)])
+def my_graph_creation_function(gaas_server, arg1, arg2, arg3):
+   edgelist = cudf.DataFrame(columns=[arg1, arg2, arg3],
+                             data=[(0, 1, 2), (88, 99, 77)])
    pG = PropertyGraph()
    pG.add_edge_data(edgelist, vertex_col_names=(arg1, arg2))
    return pG

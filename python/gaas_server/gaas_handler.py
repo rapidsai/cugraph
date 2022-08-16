@@ -249,7 +249,7 @@ class GaasHandler:
         "unions" used for RPC serialization.
         """
         valid_keys = set(["num_vertices",
-                          "num_vertices_with_properties",
+                          "num_vertices_from_vertex_data",
                           "num_edges",
                           "num_vertex_properties",
                           "num_edge_properties",
@@ -266,11 +266,11 @@ class GaasHandler:
         if isinstance(G, (PropertyGraph, MGPropertyGraph)):
             for k in keys:
                 if k == "num_vertices":
-                    info[k] = G.num_vertices
-                elif k == "num_vertices_with_properties":
-                    info[k] = G.num_vertices_with_properties
+                    info[k] = G.get_num_vertices()
+                elif k == "num_vertices_from_vertex_data":
+                    info[k] = G.get_num_vertices(include_edge_data=False)
                 elif k == "num_edges":
-                    info[k] = G.num_edges
+                    info[k] = G.get_num_edges()
                 elif k == "num_vertex_properties":
                     info[k] = len(G.vertex_property_names)
                 elif k == "num_edge_properties":
@@ -279,7 +279,7 @@ class GaasHandler:
             for k in keys:
                 if k == "num_vertices":
                     info[k] = G.number_of_vertices()
-                elif k == "num_vertices_with_properties":
+                elif k == "num_vertices_from_vertex_data":
                     info[k] = 0
                 elif k == "num_edges":
                     info[k] = G.number_of_edges()
@@ -375,22 +375,6 @@ class GaasHandler:
                              property_columns=property_columns)
         except:
             raise GaasError(f"{traceback.format_exc()}")
-
-    def get_num_edges(self, graph_id):
-        """
-        Return the number of edges for the graph specified by graph_id.
-        """
-        pG = self._get_graph(graph_id)
-        # FIXME: ensure non-PropertyGraphs that compute num_edges differently
-        # work too.
-        return pG.num_edges
-
-    def get_num_vertices(self, graph_id):
-        """
-        Return the number of vertices for the graph specified by graph_id.
-        """
-        pG = self._get_graph(graph_id)
-        return pG.num_vertices
 
     def get_edge_IDs_for_vertices(self, src_vert_IDs, dst_vert_IDs, graph_id):
         """
