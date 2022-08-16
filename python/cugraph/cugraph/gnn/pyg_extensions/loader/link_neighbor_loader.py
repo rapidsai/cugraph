@@ -1,6 +1,6 @@
 from torch_geometric.loader.link_neighbor_loader import Dataset
-from cugraph.gnn.pyg_extensions.loader.neighbor_loader import CuGraphNeighborSampler
-from cugraph.gnn.pyg_extensions.loader.neighbor_loader import CuGraphNeighborLoader
+from cugraph.gnn.pyg_extensions.loader.neighbor_loader import EXPERIMENTAL__CuGraphNeighborSampler
+from cugraph.gnn.pyg_extensions.loader.neighbor_loader import EXPERIMENTAL__CuGraphNeighborLoader
 
 from typing import Any, Callable, Iterator, List, Optional, Tuple, Union
 
@@ -18,7 +18,7 @@ from torch_geometric.loader.base import DataLoaderIterator
 from torch_geometric.loader.utils import filter_custom_store
 from torch_geometric.typing import InputEdges, NumNeighbors, OptTensor
 
-class CuGraphLinkNeighborSampler(CuGraphNeighborSampler):
+class EXPERIMENTAL__CuGraphLinkNeighborSampler(EXPERIMENTAL__CuGraphNeighborSampler):
     def __init__(
         self,
         data,
@@ -105,7 +105,7 @@ class CuGraphLinkNeighborSampler(CuGraphNeighborSampler):
         # Call cuGraph sampler
         return out + (edge_label_index, edge_label)
 
-class CuGraphLinkNeighborLoader(torch.utils.data.DataLoader):
+class EXPERIMENTAL__CuGraphLinkNeighborLoader(torch.utils.data.DataLoader):
     r"""A link-based data loader derived as an extension of the node-based
     :class:`torch_geometric.loader.NeighborLoader`.
     This loader allows for mini-batch training of GNNs on large-scale graphs
@@ -192,7 +192,7 @@ class CuGraphLinkNeighborLoader(torch.utils.data.DataLoader):
         transform: Callable = None,
         is_sorted: bool = False,
         filter_per_worker: bool = False,
-        neighbor_sampler: Optional[CuGraphLinkNeighborSampler] = None,
+        neighbor_sampler: Optional[EXPERIMENTAL__CuGraphLinkNeighborSampler] = None,
         **kwargs,
     ):
         # Remove for PyTorch Lightning:
@@ -225,7 +225,7 @@ class CuGraphLinkNeighborLoader(torch.utils.data.DataLoader):
             data, edge_label_index)
 
         if neighbor_sampler is None:
-            self.neighbor_sampler = CuGraphLinkNeighborSampler(
+            self.neighbor_sampler = EXPERIMENTAL__CuGraphLinkNeighborSampler(
                 data,
                 num_neighbors,
                 replace,

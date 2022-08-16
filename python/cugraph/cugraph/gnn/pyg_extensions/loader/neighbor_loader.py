@@ -16,7 +16,7 @@ from torch_geometric.loader.utils import (
 from torch_geometric.typing import InputNodes, NumNeighbors
 
 
-class CuGraphNeighborSampler:
+class EXPERIMENTAL__CuGraphNeighborSampler:
     def __init__(
         self,
         data: Tuple[FeatureStore, GraphStore],
@@ -98,7 +98,7 @@ class CuGraphNeighborSampler:
         return out + (index.numel(), )
 
 
-class CuGraphNeighborLoader(torch.utils.data.DataLoader):
+class EXPERIMENTAL__CuGraphNeighborLoader(torch.utils.data.DataLoader):
     r"""A data loader that performs neighbor sampling as introduced in the
     `"Inductive Representation Learning on Large Graphs"
     <https://arxiv.org/abs/1706.02216>`_ paper.
@@ -198,7 +198,7 @@ class CuGraphNeighborLoader(torch.utils.data.DataLoader):
         transform: Callable = None,
         is_sorted: bool = False,
         filter_per_worker: bool = False,
-        neighbor_sampler: Optional[CuGraphNeighborSampler] = None,
+        neighbor_sampler: Optional[EXPERIMENTAL__CuGraphNeighborSampler] = None,
         **kwargs,
     ):
         # Remove for PyTorch Lightning:
@@ -224,7 +224,7 @@ class CuGraphNeighborLoader(torch.utils.data.DataLoader):
         node_type, input_nodes = get_input_nodes(data, input_nodes)
 
         if neighbor_sampler is None:
-            self.neighbor_sampler = CuGraphNeighborSampler(
+            self.neighbor_sampler = EXPERIMENTAL__CuGraphNeighborSampler(
                 data,
                 num_neighbors,
                 replace,
