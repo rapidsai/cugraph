@@ -13,7 +13,6 @@ dependencies:
 - libcudf=22.10.*
 - rmm=22.10.*
 - librmm=22.10.*
-- libraft-headers=22.10.*
 - pyraft=22.10.*
 - cuda-python>=11.5,<11.7.1
 - dask>=2022.7.1

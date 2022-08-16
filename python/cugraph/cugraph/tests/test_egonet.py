@@ -115,3 +115,4 @@ def test_multi_column_ego_graph(graph_file, seed, radius):
     for i in range(len(edgelist_df_res)):
         assert ego_cugraph_exp.has_edge(edgelist_df_res["0_src"].iloc[i],
                                         edgelist_df_res["0_dst"].iloc[i])
+        

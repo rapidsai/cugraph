@@ -1,0 +1,31 @@
+Collecting package metadata (current_repodata.json): ...working... done
+Solving environment: ...working... done
+
+## Package Plan ##
+
+  environment location: /opt/conda/envs/rapids
+
+  added / updated specs:
+    - cub
+
+
+The following packages will be downloaded:
+
+    package                    |            build
+    ---------------------------|-----------------
+    cub-1.16.0                 |       h0800d71_1         256 KB  conda-forge
+    ------------------------------------------------------------
+                                           Total:         256 KB
+
+The following NEW packages will be INSTALLED:
+
+  cub                conda-forge/linux-64::cub-1.16.0-h0800d71_1
+
+
+Proceed ([y]/n)? 
+
+Downloading and Extracting Packages
+cub-1.16.0           | 256 KB    |            |   0% cub-1.16.0           | 256 KB    | 6          |   6% cub-1.16.0           | 256 KB    | ########## | 100% 
+Preparing transaction: ...working... done
+Verifying transaction: ...working... done
+Executing transaction: ...working... done

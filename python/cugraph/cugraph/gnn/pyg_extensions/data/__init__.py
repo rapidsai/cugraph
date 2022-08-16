@@ -1,9 +1,9 @@
-from cugraph.gnn.pyg_extensions.data.cugraph_store import CuGraphStore
-from cugraph.gnn.pyg_extensions.data.cugraph_store import CuGraphFeatureStore
-from cugraph.gnn.pyg_extensions.data.cugraph_store import to_pyg
-from cugraph.gnn.pyg_extensions.data.cugraph_data import CuGraphData
-from cugraph.gnn.pyg_extensions.data.gaas_data import GaasData
-from cugraph.gnn.pyg_extensions.data.gaas_storage import TorchTensorGaasGraphDataProxy
-from cugraph.gnn.pyg_extensions.data.cudf_storage import CudfNodeStorage
-from cugraph.gnn.pyg_extensions.data.cudf_storage import CudfEdgeStorage
-from cugraph.gnn.pyg_extensions.data.cudf_storage import CudfStorage
+from cugraph.utilities.api_tools import experimental_warning_wrapper
+
+from cugraph.gnn.pyg_extensions.data.cugraph_store import EXPERIMENTAL__CuGraphStore
+from cugraph.gnn.pyg_extensions.data.cugraph_store import EXPERIMENTAL__CuGraphFeatureStore
+from cugraph.gnn.pyg_extensions.data.cugraph_store import EXPERIMENTAL__to_pyg
+
+CuGraphStore = experimental_warning_wrapper(EXPERIMENTAL__CuGraphStore)
+CuGraphFeatureStore = experimental_warning_wrapper(EXPERIMENTAL__CuGraphFeatureStore)
+to_pyg = experimental_warning_wrapper(EXPERIMENTAL__to_pyg)
