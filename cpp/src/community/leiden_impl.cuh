@@ -38,24 +38,25 @@ template <typename vertex_t,
           typename edge_t,
           typename weight_t,
           bool multi_gpu,
-          bool store_transposed=false>
-void check_clustering(graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> const& graph_view,
-            vertex_t* clustering)
+          bool store_transposed = false>
+void check_clustering(
+  graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> const& graph_view,
+  vertex_t* clustering)
 {
-if (graph_view.local_vertex_partition_range_size() > 0)
-CUGRAPH_EXPECTS(clustering != nullptr, "Invalid input argument: clustering is null");
+  if (graph_view.local_vertex_partition_range_size() > 0)
+    CUGRAPH_EXPECTS(clustering != nullptr, "Invalid input argument: clustering is null");
 }
 
 template <typename vertex_t,
           typename edge_t,
           typename weight_t,
           bool multi_gpu,
-          bool store_transposed=false>
-std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t>
-leiden(raft::handle_t const& handle,
-       graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> const& graph_view,
-       size_t max_level,
-       weight_t resolution)
+          bool store_transposed = false>
+std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> const& graph_view,
+  size_t max_level,
+  weight_t resolution)
 {
   // TODO: everything
   CUGRAPH_FAIL("unimplemented");
@@ -68,7 +69,7 @@ template <typename vertex_t,
           typename edge_t,
           typename weight_t,
           bool multi_gpu,
-          bool store_transposed=false>
+          bool store_transposed = false>
 void flatten_dendrogram(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> const& graph_view,
