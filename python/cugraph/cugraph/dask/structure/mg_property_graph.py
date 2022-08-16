@@ -979,6 +979,8 @@ class EXPERIMENTAL__MGPropertyGraph:
         # empty not supported by dask
         if len(df.columns) == 0:
             return False
+        
+        df = df[[self.src_col_name, self.dst_col_name, self.type_col_name]]
 
         unique_pair_len = df.drop_duplicates(split_out=df.npartitions,
                                              ignore_index=True).shape[0]

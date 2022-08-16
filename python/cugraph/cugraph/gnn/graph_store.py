@@ -174,12 +174,20 @@ class CuGraphStore:
     def get_vertex_ids(self):
         return self.gdata.vertices_ids()
 
+
+    def _get_edgeid_type_d(self, edge_ids, etypes):
+        type_d = {}
+        df = self.gdata.get_edge_data(edge_ids=edge_ids, columns=[type_n])
+    
+        return {etype:df[df[type_n]==etype] for etype in etypes}
+
+
     ######################################
     # Sampling APIs
     ######################################
 
     def sample_neighbors(
-        self, nodes, fanout=-1, edge_dir="in", prob=None, replace=False
+        self, nodes_cap, fanout=-1, edge_dir="in", prob=None, replace=False
     ):
         """
         Sample neighboring edges of the given nodes and return the subgraph.
@@ -228,9 +236,16 @@ class CuGraphStore:
         if not hasattr(self, '_sg_node_dtype'):
             self._sg_node_dtype = sg.edgelist.edgelist_df['src'].dtype
 
+
+        if isinstance(nodes_cap, dict):
+            nodes = [cudf.from_dlpack(nodes) for nodes in nodes_cap.values()]
+            nodes = cudf.concat(nodes, ignore_index=True)
+        else:
+            nodes = cudf.from_dlpack(nodes_cap)
+
         # Uniform sampling assumes fails when the dtype
         # if the seed dtype is not same as the node dtype
-        nodes = cudf.from_dlpack(nodes).astype(self._sg_node_dtype)
+        nodes = nodes.astype(self._sg_node_dtype)
 
         sampled_df = uniform_neighbor_sample(
             sg, start_list=nodes, fanout_vals=[fanout],
@@ -239,10 +254,6 @@ class CuGraphStore:
             # FIXME: is_edge_ids=True does not seem to do anything
             # issue https://github.com/rapidsai/cugraph/issues/2562
         )
-
-        # handle empty graph case
-        if len(sampled_df) == 0:
-            return None, None, None
 
         # we reverse directions when directions=='in'
         if edge_dir == "in":
@@ -254,11 +265,17 @@ class CuGraphStore:
                 columns={"sources": src_n, "destinations": dst_n}, inplace=True
             )
 
-        return (
+        if len(self.etypes)<=1:
+            return (
             sampled_df[src_n].to_dlpack(),
             sampled_df[dst_n].to_dlpack(),
             sampled_df['indices'].to_dlpack(),
         )
+        ### Heterogeneous graph case
+        else:
+            d = self._get_edgeid_type_d(sampled_df['indices'], self.etypes)
+            d = return_dlpack_d(d)
+            return d
 
     @cached_property
     def extracted_reverse_subgraph_without_renumbering(self):
@@ -278,10 +295,16 @@ class CuGraphStore:
         return subgraph
 
     @cached_property
+    def num_nodes_dict(self):
+        return {ntype: self.num_nodes(ntype) for ntype in self.ntypes}
+
+
+    @cached_property
     def extracted_subgraph_without_renumbering(self):
         gr_template = cugraph.Graph(directed=True)
         subgraph = self.gdata.extract_subgraph(create_using=gr_template,
                                                edge_weight_property=eid_n,
+                                               allow_multi_edges=True,
                                                renumber_graph=False)
         return subgraph
 
@@ -502,3 +525,16 @@ def get_subset_df(df, id_col, indices, _type_):
         subset_df = subset_df[subset_df[type_n] == _type_]
     subset_df = subset_df.sort_values(by=id_col_name)
     return subset_df
+
+
+
+
+def return_dlpack_d(d):
+    dlpack_d = {}
+    for k,df in d.items():
+        if len(df)==0:
+            dlpack_d[k]=(None,None,None)
+        else:
+            dlpack_d[k]=(df[src_n].to_dlpack(),df[dst_n].to_dlpack(),df[eid_n].to_dlpack())
+            
+    return dlpack_d
