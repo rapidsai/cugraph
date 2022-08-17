@@ -95,7 +95,7 @@ def input_combo(request):
     return parameters
 
 
-def test_neighborhood_sampling_simple(input_combo):
+def test_uniform_neighbor_sample_simple(input_combo):
 
     G = input_combo["Graph"]
 
@@ -168,7 +168,7 @@ def test_neighborhood_sampling_simple(input_combo):
 
 
 @pytest.mark.parametrize("directed", IS_DIRECTED)
-def test_neighborhood_sampling_tree(directed):
+def test_uniform_neighbor_sample_tree(directed):
 
     input_data_path = (utils.RAPIDS_DATASET_ROOT_DIR_PATH /
                        "small_tree.csv").as_posix()
