@@ -12,8 +12,9 @@
 # limitations under the License.
 
 from torch_geometric.loader.link_neighbor_loader import Dataset
-from cugraph.gnn.pyg_extensions.loader.neighbor_loader import EXPERIMENTAL__CuGraphNeighborSampler
-from cugraph.gnn.pyg_extensions.loader.neighbor_loader import EXPERIMENTAL__CuGraphNeighborLoader
+from cugraph.gnn.pyg_extensions.loader.neighbor_loader import (
+    EXPERIMENTAL__CuGraphNeighborSampler
+)
 
 from typing import Any, Callable, Iterator, List, Optional, Tuple, Union
 
@@ -24,14 +25,15 @@ from torch_geometric.data import Data, HeteroData
 from torch_geometric.data.feature_store import FeatureStore
 from torch_geometric.data.graph_store import (
     GraphStore,
-    EdgeAttr,
     EdgeLayout
 )
 from torch_geometric.loader.base import DataLoaderIterator
 from torch_geometric.loader.utils import filter_custom_store
 from torch_geometric.typing import InputEdges, NumNeighbors, OptTensor
 
-class EXPERIMENTAL__CuGraphLinkNeighborSampler(EXPERIMENTAL__CuGraphNeighborSampler):
+
+class EXPERIMENTAL__CuGraphLinkNeighborSampler(
+      EXPERIMENTAL__CuGraphNeighborSampler):
     def __init__(
         self,
         data,
@@ -106,7 +108,7 @@ class EXPERIMENTAL__CuGraphLinkNeighborSampler(EXPERIMENTAL__CuGraphNeighborSamp
         query_nodes = edge_label_index.view(-1)
         query_nodes, reverse = query_nodes.unique(return_inverse=True)
         edge_label_index = reverse.view(2, -1)
-    
+
         out = self.graph_store.neighbor_sample(
             query_nodes,
             self.num_neighbors,
@@ -117,6 +119,7 @@ class EXPERIMENTAL__CuGraphLinkNeighborSampler(EXPERIMENTAL__CuGraphNeighborSamp
 
         # Call cuGraph sampler
         return out + (edge_label_index, edge_label)
+
 
 class EXPERIMENTAL__CuGraphLinkNeighborLoader(torch.utils.data.DataLoader):
     r"""A link-based data loader derived as an extension of the node-based
@@ -205,7 +208,9 @@ class EXPERIMENTAL__CuGraphLinkNeighborLoader(torch.utils.data.DataLoader):
         transform: Callable = None,
         is_sorted: bool = False,
         filter_per_worker: bool = False,
-        neighbor_sampler: Optional[EXPERIMENTAL__CuGraphLinkNeighborSampler] = None,
+        neighbor_sampler: Optional[
+            EXPERIMENTAL__CuGraphLinkNeighborSampler
+        ] = None,
         **kwargs,
     ):
         # Remove for PyTorch Lightning:
@@ -213,7 +218,7 @@ class EXPERIMENTAL__CuGraphLinkNeighborLoader(torch.utils.data.DataLoader):
             del kwargs['dataset']
         if 'collate_fn' in kwargs:
             del kwargs['collate_fn']
-        
+
         if num_src_nodes is not None:
             raise ValueError('num_src_nodes parameter is not supported!')
         if num_dst_nodes is not None:
@@ -251,14 +256,14 @@ class EXPERIMENTAL__CuGraphLinkNeighborLoader(torch.utils.data.DataLoader):
 
         super().__init__(Dataset(edge_label_index, edge_label),
                          collate_fn=self.collate_fn, **kwargs)
-    
+
     def filter_fn(self, out: Any) -> Union[Data, HeteroData]:
         (node_dict, row_dict, col_dict, edge_dict, edge_label_index,
             edge_label) = out
         feature_store, graph_store = self.data
-        
+
         data = filter_custom_store(feature_store, graph_store, node_dict,
-                                    row_dict, col_dict, edge_dict)
+                                   row_dict, col_dict, edge_dict)
         edge_type = self.neighbor_sampler.input_type
         data[edge_type].edge_label_index = edge_label_index
         if edge_label is not None:
@@ -285,7 +290,7 @@ class EXPERIMENTAL__CuGraphLinkNeighborLoader(torch.utils.data.DataLoader):
 
 def get_edge_label_index(data: Tuple[FeatureStore, GraphStore],
                          edge_label_index: InputEdges
-                        ) -> Tuple[Optional[str], Tensor]:
+                         ) -> Tuple[Optional[str], Tensor]:
     _, graph_store = data
 
     # Need the edge index in COO for LinkNeighborLoader:
@@ -297,9 +302,10 @@ def get_edge_label_index(data: Tuple[FeatureStore, GraphStore],
         )
         return torch.stack((row, col), dim=0)
 
-    if isinstance(edge_label_index, str) or isinstance(edge_label_index[0], str):
-        edge_type = edge_label_index
-        return edge_type, _get_edge_index(edge_type)
+    if isinstance(edge_label_index, str):
+        if isinstance(edge_label_index[0], str):
+            edge_type = edge_label_index
+            return edge_type, _get_edge_index(edge_type)
 
     assert len(edge_label_index) == 2
     edge_type, edge_label_index = edge_label_index

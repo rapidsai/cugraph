@@ -14,10 +14,6 @@
 import cugraph
 from cugraph.experimental import MGPropertyGraph
 from cugraph.gnn.pyg_extensions import to_pyg
-from cugraph.gnn.pyg_extensions.data import (
-    CuGraphStore,
-    CuGraphFeatureStore
-)
 from cugraph.gnn.pyg_extensions.data.cugraph_store import (
     CuGraphTensorAttr,
     CuGraphEdgeAttr,
@@ -54,7 +50,7 @@ def basic_property_graph_1(dask_client):
                     4,
                     1
                 ], dtype='int32')
-            }), 
+            }),
             npartitions=2
         ),
         vertex_col_names=['src', 'dst']
@@ -140,7 +136,7 @@ def multi_edge_property_graph_1(dask_client):
     pG = MGPropertyGraph()
     for edge_type in df.edge_type.unique().compute().to_pandas():
         pG.add_edge_data(
-            df[df.edge_type==edge_type],
+            df[df.edge_type == edge_type],
             vertex_col_names=['src', 'dst'],
             type_name=edge_type
         )
@@ -225,7 +221,7 @@ def multi_edge_multi_vertex_property_graph_1(dask_client):
     pG = MGPropertyGraph()
     for edge_type in df.edge_type.compute().unique().to_pandas():
         pG.add_edge_data(
-            df[df.edge_type==edge_type],
+            df[df.edge_type == edge_type],
             vertex_col_names=['src', 'dst'],
             type_name=edge_type
         )
@@ -265,8 +261,9 @@ def multi_edge_multi_vertex_property_graph_1(dask_client):
     )
 
     for vertex_type in vdf.vertex_type.unique().compute().to_pandas():
+        vd = vdf[vdf.vertex_type == vertex_type].drop('vertex_type', axis=1)
         pG.add_vertex_data(
-            vdf[vdf.vertex_type==vertex_type].drop('vertex_type', axis=1),
+            vd,
             vertex_col_name='id',
             type_name=vertex_type
         )
@@ -301,7 +298,7 @@ def test_tensor_attr():
     )
     assert casted_ta2.index == [1, 2, 3]
     assert not casted_ta2.is_fully_specified()
-    
+
     casted_ta3 = CuGraphTensorAttr.cast(
         'group2',
         'property2',
@@ -329,7 +326,7 @@ def test_edge_attr():
         layout='csr',
         is_sorted=True
     )
-    assert ea.size == None
+    assert ea.size is None
 
     ea = CuGraphEdgeAttr.cast(
         'type0',
@@ -343,12 +340,20 @@ def test_edge_attr():
     assert ea.size == 10
 
 
-@pytest.fixture(params=['basic_property_graph_1', 'multi_edge_property_graph_1', 'multi_edge_multi_vertex_property_graph_1'])
+@pytest.fixture(
+    params=[
+        'basic_property_graph_1',
+        'multi_edge_property_graph_1',
+        'multi_edge_multi_vertex_property_graph_1'
+    ]
+)
 def graph(request):
     return request.getfixturevalue(request.param)
 
 
-@pytest.fixture(params=['basic_property_graph_1', 'multi_edge_property_graph_1'])
+@pytest.fixture(
+    params=['basic_property_graph_1', 'multi_edge_property_graph_1']
+)
 def single_vertex_graph(request):
     return request.getfixturevalue(request.param)
 
@@ -363,7 +368,7 @@ def test_get_edge_index(graph):
             layout='coo',
             is_sorted=False
         )
-        
+
         assert pG.get_num_edges(edge_type) == len(src)
         assert pG.get_num_edges(edge_type) == len(dst)
 
@@ -372,8 +377,8 @@ def test_get_edge_index(graph):
             columns=[pG.src_col_name, pG.dst_col_name]
         )
         edge_df = cudf.DataFrame({
-            'src':src,
-            'dst':dst
+            'src': src,
+            'dst': dst
         })
         edge_df['counter'] = 1
 
@@ -381,7 +386,7 @@ def test_get_edge_index(graph):
             edge_data,
             edge_df,
             left_on=[pG.src_col_name, pG.dst_col_name],
-            right_on=['src','dst']
+            right_on=['src', 'dst']
         )
 
         assert merged_df.compute().counter.sum() == len(src)
@@ -410,7 +415,7 @@ def test_get_subgraph(graph):
 
     sg = graph_store._subgraph(pG.edge_types)
     assert isinstance(sg, cugraph.Graph)
-    
+
     # duplicate edges are automatically dropped in from_edgelist
     cols = [pG.src_col_name, pG.dst_col_name]
     num_edges = pG.get_edge_data(
@@ -424,7 +429,7 @@ def test_neighbor_sample(single_vertex_graph):
     feature_store, graph_store = to_pyg(pG, backend='cupy')
 
     noi_groups, row_dict, col_dict, _ = graph_store.neighbor_sample(
-        index=cupy.array([0,1,2,3,4], dtype='int32'),
+        index=cupy.array([0, 1, 2, 3, 4], dtype='int32'),
         num_neighbors=[-1],
         replace=True,
         directed=True,
@@ -434,18 +439,6 @@ def test_neighbor_sample(single_vertex_graph):
         ]
     )
 
-    expected_sample = cugraph.dask.uniform_neighbor_sample(
-        input_graph=pG.extract_subgraph(
-            default_edge_weight=1.0,
-            allow_multi_edges=True,
-            renumber_graph=True,
-            add_edge_data=False
-        ),
-        start_list=cudf.Series([0,1,2,3,4], dtype='int32'),
-        fanout_vals=[-1],
-        with_replacement=True,
-    )
-
     for node_type, node_ids in noi_groups.items():
         actual_vertex_ids = pG.get_vertex_data(
             types=[node_type],
@@ -453,12 +446,12 @@ def test_neighbor_sample(single_vertex_graph):
         )[pG.vertex_col_name].compute().to_cupy()
 
         assert list(node_ids) == list(actual_vertex_ids)
-    
-    cols = [pG.src_col_name,pG.dst_col_name,pG.type_col_name]
+
+    cols = [pG.src_col_name, pG.dst_col_name, pG.type_col_name]
     combined_df = cudf.DataFrame()
     for edge_type, row in row_dict.items():
         col = col_dict[edge_type]
-        df = cudf.DataFrame({pG.src_col_name:row, pG.dst_col_name:col})
+        df = cudf.DataFrame({pG.src_col_name: row, pG.dst_col_name: col})
         df[pG.type_col_name] = edge_type.replace('__', '')
         combined_df = cudf.concat([combined_df, df])
 
@@ -473,22 +466,27 @@ def test_neighbor_sample(single_vertex_graph):
         index=numbering
     )
 
-    combined_df[pG.src_col_name] = renumber_df.loc[combined_df[pG.src_col_name]].to_cupy()
-    combined_df[pG.dst_col_name] = renumber_df.loc[combined_df[pG.dst_col_name]].to_cupy()
+    combined_df[pG.src_col_name] = (
+        renumber_df.loc[combined_df[pG.src_col_name]].to_cupy()
+    )
+    combined_df[pG.dst_col_name] = (
+        renumber_df.loc[combined_df[pG.dst_col_name]].to_cupy()
+    )
     combined_df = combined_df.sort_values(cols)
     combined_df = combined_df.reset_index().drop('index', axis=1)
 
     assert combined_df.to_arrow().to_pylist() == base_df.to_arrow().to_pylist()
 
 
-def test_neighbor_sample_multi_vertex(multi_edge_multi_vertex_property_graph_1):
+def test_neighbor_sample_multi_vertex(
+        multi_edge_multi_vertex_property_graph_1):
     pG = multi_edge_multi_vertex_property_graph_1
     feature_store, graph_store = to_pyg(pG, backend='cupy')
 
     ex = re.compile(r'[A-z]+__([A-z]+)__[A-z]+')
 
     noi_groups, row_dict, col_dict, _ = graph_store.neighbor_sample(
-        index=cupy.array([0,1,2,3,4], dtype='int32'),
+        index=cupy.array([0, 1, 2, 3, 4], dtype='int32'),
         num_neighbors=[-1],
         replace=True,
         directed=True,
@@ -497,7 +495,7 @@ def test_neighbor_sample_multi_vertex(multi_edge_multi_vertex_property_graph_1):
             for v in graph_store._edge_types_to_attrs.values()
         ]
     )
-        
+
     for pyg_cpp_edge_type, srcs in row_dict.items():
         cugraph_edge_type = ex.match(pyg_cpp_edge_type).groups()[0]
         num_edges = len(pG.get_edge_data(types=[cugraph_edge_type]).compute())
@@ -516,10 +514,13 @@ def test_get_tensor(graph):
                     types=[vertex_type],
                     columns=[property_name, pG.vertex_col_name]
                 )
-                
-                vertex_ids = base_series[pG.vertex_col_name].compute().to_cupy()
-                base_series = base_series[property_name].compute().to_cupy()
-                
+
+                vertex_ids = base_series[pG.vertex_col_name]
+                vertex_ids = vertex_ids.compute().to_cupy()
+
+                base_series = base_series[property_name]
+                base_series = base_series.compute().to_cupy()
+
                 tsr = feature_store.get_tensor(
                     vertex_type,
                     property_name,
@@ -543,15 +544,18 @@ def test_multi_get_tensor(graph):
                     types=[vertex_type],
                     columns=[property_name, pG.vertex_col_name]
                 )
-                
-                vertex_ids = base_series[pG.vertex_col_name].compute().to_cupy()
-                base_series = base_series[property_name].compute().to_cupy()
+
+                vertex_ids = base_series[pG.vertex_col_name]
+                vertex_ids = vertex_ids.compute().to_cupy()
+
+                base_series = base_series[property_name]
+                base_series = base_series.compute().to_cupy()
 
                 tsr = feature_store.multi_get_tensor(
                     [[vertex_type, property_name, vertex_ids]]
                 )
                 assert len(tsr) == 1
-                tsr = tsr[0]                
+                tsr = tsr[0]
 
                 print(base_series)
                 print(tsr)
@@ -568,7 +572,7 @@ def test_get_all_tensor_attrs(graph):
             vertex_type,
             'x'
         ))
-    
+
     assert tensor_attrs == feature_store.get_all_tensor_attrs()
 
 
@@ -579,14 +583,19 @@ def test_get_tensor_size(graph):
     vertex_types = pG.vertex_types
     for vertex_type in vertex_types:
         for property_name in pG.vertex_property_names:
-            if property_name != 'vertex_type':              
+            if property_name != 'vertex_type':
                 base_series = pG.get_vertex_data(
                     types=[vertex_type],
                     columns=[property_name, pG.vertex_col_name]
                 )
-                
-                vertex_ids = base_series[pG.vertex_col_name].compute().to_cupy()
-                size = feature_store.get_tensor_size(vertex_type, property_name, vertex_ids)
+
+                vertex_ids = base_series[pG.vertex_col_name]
+                vertex_ids = vertex_ids.compute().to_cupy()
+                size = feature_store.get_tensor_size(
+                    vertex_type,
+                    property_name,
+                    vertex_ids
+                )
 
                 assert len(base_series) == size
 
@@ -600,15 +609,15 @@ def test_get_x(graph):
         base_df = pG.get_vertex_data(
             types=[vertex_type]
         )
-        
+
         base_x = base_df.drop(
             pG.vertex_col_name, axis=1
         ).drop(
             pG.type_col_name, axis=1
         ).compute().to_cupy().astype('float32')
-        
+
         vertex_ids = base_df[pG.vertex_col_name].compute().to_cupy()
-        
+
         tsr = feature_store.get_tensor(
             vertex_type,
             'x',

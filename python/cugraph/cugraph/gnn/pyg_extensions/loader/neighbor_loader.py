@@ -11,14 +11,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from collections.abc import Sequence
-from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple, Union
+from typing import Any, Callable, Iterator, List, Optional, Tuple, Union
 
 import torch
 from torch import Tensor
 
-from torch_geometric.data import Data, HeteroData
-from torch_geometric.data.feature_store import FeatureStore, TensorAttr
+from torch_geometric.data import HeteroData
+from torch_geometric.data.feature_store import FeatureStore
 from torch_geometric.data.graph_store import GraphStore
 from torch_geometric.loader.base import DataLoaderIterator
 from torch_geometric.loader.neighbor_loader import get_input_nodes
@@ -211,7 +210,9 @@ class EXPERIMENTAL__CuGraphNeighborLoader(torch.utils.data.DataLoader):
         transform: Callable = None,
         is_sorted: bool = False,
         filter_per_worker: bool = False,
-        neighbor_sampler: Optional[EXPERIMENTAL__CuGraphNeighborSampler] = None,
+        neighbor_sampler: Optional[
+            EXPERIMENTAL__CuGraphNeighborSampler
+        ] = None,
         **kwargs,
     ):
         # Remove for PyTorch Lightning:
@@ -253,7 +254,7 @@ class EXPERIMENTAL__CuGraphNeighborLoader(torch.utils.data.DataLoader):
         node_dict, row_dict, col_dict, edge_dict, batch_size = out
         feature_store, graph_store = self.data
         data = filter_custom_store(feature_store, graph_store, node_dict,
-                                    row_dict, col_dict, edge_dict)
+                                   row_dict, col_dict, edge_dict)
         data[self.neighbor_sampler.input_type].batch_size = batch_size
 
         return data if self.transform is None else self.transform(data)
