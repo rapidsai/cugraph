@@ -57,6 +57,12 @@ struct Node2vecResult {
   3:list<i32> path_sizes
 }
 
+struct UniformNeighborSampleResult {
+  1:list<i32> sources
+  2:list<i32> destinations
+  3:list<double> indices
+}
+
 union DataframeRowIndex {
   1:i32 int32_index
   2:i64 int64_index
@@ -134,7 +140,9 @@ service GaasService {
                        3:string edge_weight_property,
                        4:double default_edge_weight,
                        5:bool allow_multi_edges,
-                       6:i32 graph_id
+                       6:bool renumber_graph,
+                       7:bool add_edge_data,
+                       8:i32 graph_id
                        ) throws (1:GaasError e),
 
   binary get_graph_vertex_dataframe_rows(1:DataframeRowIndex index_or_indices,
@@ -168,8 +176,9 @@ service GaasService {
            2:i32 max_depth,
            3:i32 graph_id
            ) throws (1:GaasError e),
-
-  i32 uniform_neighbor_sample(1:list<i32> start_list,
+  
+  UniformNeighborSampleResult
+  uniform_neighbor_sample(1:list<i32> start_list,
                               2:list<i32> fanout_vals,
                               3:bool with_replacement,
                               4:i32 graph_id
@@ -188,8 +197,7 @@ service GaasService {
 spec = thriftpy2.load_fp(io.StringIO(gaas_thrift_spec),
                          module_name="gaas_thrift")
 
-
-def create_server(handler, host, port):
+def create_server(handler, host, port, client_timeout=90000):
     """
     Return a server object configured to listen on host/port and use the handler
     object to handle calls from clients. The handler object must have an
@@ -203,7 +211,7 @@ def create_server(handler, host, port):
     """
     proto_factory = TBinaryProtocolFactory()
     trans_factory = TBufferedTransportFactory()
-    client_timeout = 3000
+    client_timeout = client_timeout
 
     processor = TProcessor(spec.GaasService, handler)
     server_socket = TServerSocket(host=host, port=port,

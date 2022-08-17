@@ -20,6 +20,7 @@ Value = spec.Value
 DataframeRowIndex = spec.DataframeRowIndex
 BatchedEgoGraphsResult = spec.BatchedEgoGraphsResult
 Node2vecResult = spec.Node2vecResult
+UniformNeighborSampleResult = spec.UniformNeighborSampleResult
 
 
 class UnionWrapper:

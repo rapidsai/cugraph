@@ -625,6 +625,8 @@ class GaasClient:
                          edge_weight_property="",
                          default_edge_weight=1.0,
                          allow_multi_edges=False,
+                         renumber_graph=True,
+                         add_edge_data=True,
                          graph_id=defaults.graph_id
                          ):
         """
@@ -686,6 +688,8 @@ class GaasClient:
                                               edge_weight_property,
                                               default_edge_weight,
                                               allow_multi_edges,
+                                              renumber_graph,
+                                              add_edge_data,
                                               graph_id)
 
     @__server_connection

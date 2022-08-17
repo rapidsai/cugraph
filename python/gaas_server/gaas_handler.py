@@ -27,11 +27,12 @@ from cugraph.experimental import PropertyGraph, MGPropertyGraph
 from cugraph.dask.comms import comms as Comms
 from cugraph import sampling
 from cugraph.structure.number_map import NumberMap
+import cupy
 
 from gaas_client import defaults
 from gaas_client.exceptions import GaasError
 from gaas_client.types import (BatchedEgoGraphsResult,
-                               Node2vecResult,
+                               Node2vecResult, UniformNeighborSampleResult,
                                ValueWrapper,
                                DataframeRowIndexWrapper,
                                )
@@ -231,8 +232,12 @@ class GaasHandler:
         """
         Remove the graph identified by graph_id from the server.
         """
-        if self.__graph_objs.pop(graph_id, None) is None:
+        dG = self.__graph_objs.pop(graph_id, None)
+        if dG is None:
             raise GaasError(f"invalid graph_id {graph_id}")
+
+        del dG
+        print(f'deleted graph with id {graph_id}')
 
     def get_graph_ids(self):
         """
@@ -404,6 +409,8 @@ class GaasHandler:
                          edge_weight_property,
                          default_edge_weight,
                          allow_multi_edges,
+                         renumber_graph,
+                         add_edge_data,
                          graph_id
                          ):
         """
@@ -424,7 +431,9 @@ class GaasHandler:
                                     selection,
                                     edge_weight_property,
                                     default_edge_weight,
-                                    allow_multi_edges)
+                                    allow_multi_edges,
+                                    renumber_graph,
+                                    add_edge_data)
         except:
             raise GaasError(f"{traceback.format_exc()}")
 
@@ -467,6 +476,8 @@ class GaasHandler:
             pG._edge_prop_dataframe,
             property_keys
         )
+
+        print(f'asked for edge indices: {index_or_indices}')
 
         return self.__get_dataframe_rows_as_numpy_bytes(df,
                                                         index_or_indices,
@@ -570,16 +581,11 @@ class GaasHandler:
                                 graph_id,
                                 ):
         G = self._get_graph(graph_id)
-        is_property_graph = False
-
         if isinstance(G, PropertyGraph):
-            is_property_graph = True
-            pG = G
-            G = G.extract_subgraph(
-                create_using=cugraph.Graph,
-                default_edge_weight=1.0,
-                allow_multi_edges=True
-            )
+            raise GaasError("uniform_neighbor_sample() cannot operate directly on "
+                            "a graph with properties, call extract_subgraph() "
+                            "then call uniform_neighbor_sample() on the extracted "
+                            "subgraph instead.")
 
         sampling_results = sampling.uniform_neighbor_sample(
                 G,
@@ -588,36 +594,11 @@ class GaasHandler:
                 with_replacement=with_replacement
             )
 
-        nodes_of_interest = cudf.Series(sampling_results.destinations)
-        nodes_of_interest = nodes_of_interest.append(cudf.Series(start_list))
-        nodes_of_interest.reset_index(drop=True, inplace=True)
-
-        # TODO implement this using a graph view when that is implemented
-        if is_property_graph:
-            vertex_properties = pG._vertex_prop_dataframe.iloc[nodes_of_interest]
-            vertex_properties.reset_index(drop=True, inplace=True)
-            prop_names = self.__remove_internal_columns(vertex_properties.columns.to_list())
-            vertex_properties = vertex_properties[prop_names]
-            vertex_properties['original_vertex_id'] = nodes_of_interest
-
-            elist, number_map = NumberMap.renumber(
-                sampling_results, 'sources', 'destinations', store_transposed=False
-            )
-            source_colname = number_map.renumbered_src_col_name
-            dest_colname = number_map.renumbered_dst_col_name
-
-            vertex_properties['original_vertex_id'] = \
-                number_map.to_internal_vertex_id(vertex_properties, ['original_vertex_id'])
-
-            new_G = PropertyGraph()
-            new_G.add_edge_data(elist, vertex_col_names=[source_colname, dest_colname])
-            new_G.add_vertex_data(vertex_properties, vertex_col_name='original_vertex_id', property_columns=prop_names)
-
-        else:
-            new_G = cugraph.Graph()
-            new_G.from_cudf_edgelist(sampling_results, source='sources', destination='destinations')
-
-        return self.__add_graph(new_G)
+        return UniformNeighborSampleResult(
+            sources=sampling_results.sources.values_host,
+            destinations=sampling_results.destinations.values_host,
+            indices=sampling_results.indices.values_host
+        )
 
     def pagerank(self, graph_id):
         """
@@ -715,9 +696,17 @@ class GaasHandler:
     def __get_dataframe_from_user_props(self, dataframe, columns=None):
         """
         """
+        remove_columns = []
+        if columns is not None:
+            remove_columns = [c[1:] for c in columns if c[0] == '~']
+            columns = [c for c in columns if c[0] != '~']
+
         if columns is None or len(columns) == 0:
             all_user_columns = list(dataframe.columns)
             all_user_columns = self.__remove_internal_columns(all_user_columns)
+            for neg_col in remove_columns:
+                if neg_col in all_user_columns:
+                    all_user_columns.remove(neg_col)
         else:
             all_user_columns = columns
 
