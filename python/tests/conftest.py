@@ -21,11 +21,15 @@ graph_creation_extension1_file_contents = """
 import cudf
 from cugraph.experimental import PropertyGraph
 
-def custom_graph_creation_function():
+def custom_graph_creation_function(gaas_server):
    edgelist = cudf.DataFrame(columns=['src', 'dst'],
                              data=[(0, 77), (1, 88), (2, 99)])
    pG = PropertyGraph()
    pG.add_edge_data(edgelist, vertex_col_names=('src', 'dst'))
+
+   # smoke test the gaas_server object by accesing the "mg" attr
+   gaas_server.mg
+
    return pG
 """
 
@@ -36,7 +40,7 @@ from cugraph.experimental import PropertyGraph
 def __my_private_function():
    pass
 
-def my_graph_creation_function(arg1, arg2):
+def my_graph_creation_function(gaas_server, arg1, arg2):
    edgelist = cudf.DataFrame(columns=[arg1, arg2], data=[(0, 1), (88, 99)])
    pG = PropertyGraph()
    pG.add_edge_data(edgelist, vertex_col_names=(arg1, arg2))
@@ -48,11 +52,14 @@ import time
 import cudf
 from cugraph.experimental import PropertyGraph
 
-def long_running_graph_creation_function():
+def long_running_graph_creation_function(gaas_server):
    time.sleep(10)
    pG = PropertyGraph()
    return pG
 """
+
+################################################################################
+## module scope fixtures
 
 @pytest.fixture(scope="module")
 def graph_creation_extension1():
