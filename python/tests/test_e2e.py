@@ -428,3 +428,22 @@ def test_get_edge_IDs_for_vertices(client_with_edgelist_csv_loaded):
                                                 graph_id=extracted_gid)
 
     assert len(edge_IDs) == len(srcs)
+
+
+def test_uniform_neighbor_sampling(client_with_edgelist_csv_loaded):
+    from gaas_client.exceptions import GaasError
+    from gaas_client import defaults
+
+    (client, test_data) = client_with_edgelist_csv_loaded
+
+    start_list = [1, 2, 3]
+    fanout_vals = [2, 2, 2]
+    with_replacement = True
+    extracted_gid = client.extract_subgraph()
+
+    # invalid graph type - default graph is a PG, needs an extracted subgraph
+    with pytest.raises(GaasError):
+        client.uniform_neighbor_sample(start_list=start_list,
+                                       fanout_vals=fanout_vals,
+                                       with_replacement=with_replacement,
+                                       graph_id=defaults.graph_id)
