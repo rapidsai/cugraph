@@ -21,13 +21,10 @@ import cudf
 import dask_cudf
 import cugraph
 from dask.distributed import Client
-from dask_cuda import LocalCUDACluster
 from dask_cuda.initialize import initialize as dask_initialize
 from cugraph.experimental import PropertyGraph, MGPropertyGraph
 from cugraph.dask.comms import comms as Comms
 from cugraph import sampling
-from cugraph.structure.number_map import NumberMap
-import cupy
 
 from gaas_client import defaults
 from gaas_client.exceptions import GaasError
@@ -57,9 +54,6 @@ class ExtensionServerFacade:
     @property
     def mg(self):
         return self.__handler.mg
-
-import gc
-from datetime import datetime
 
 
 class GaasHandler:
