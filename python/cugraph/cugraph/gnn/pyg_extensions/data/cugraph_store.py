@@ -389,6 +389,8 @@ class EXPERIMENTAL__CuGraphStore:
             num_neighbors = list(num_neighbors.values())[0]
 
         # FIXME eventually get uniform neighbor sample to accept longs
+        if self.backend == 'torch' and not index.is_cuda:
+            index = index.cuda()
         index = cupy.from_dlpack(index.__dlpack__())
 
         # FIXME resolve the directed/undirected issue

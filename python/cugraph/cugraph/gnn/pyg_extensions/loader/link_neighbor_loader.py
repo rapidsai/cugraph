@@ -15,6 +15,9 @@ from torch_geometric.loader.link_neighbor_loader import Dataset
 from cugraph.gnn.pyg_extensions.loader.neighbor_loader import (
     EXPERIMENTAL__CuGraphNeighborSampler
 )
+from cugraph.gnn.pyg_extensions.data.cugraph_store import (
+    EdgeLayout
+)
 
 from typing import Any, Callable, Iterator, List, Optional, Tuple, Union
 
@@ -24,8 +27,7 @@ from torch import Tensor
 from torch_geometric.data import Data, HeteroData
 from torch_geometric.data.feature_store import FeatureStore
 from torch_geometric.data.graph_store import (
-    GraphStore,
-    EdgeLayout
+    GraphStore
 )
 from torch_geometric.loader.base import DataLoaderIterator
 from torch_geometric.loader.utils import filter_custom_store
