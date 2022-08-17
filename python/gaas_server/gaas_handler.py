@@ -232,9 +232,7 @@ class GaasHandler:
         if dG is None:
             raise GaasError(f"invalid graph_id {graph_id}")
 
-        #print('graph referrers: ', gc.get_referrers(dG))
         del dG
-        #gc.collect()
         print(f'deleted graph with id {graph_id}')
 
     def get_graph_ids(self):
