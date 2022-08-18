@@ -77,7 +77,7 @@ std::tuple<std::optional<rmm::device_uvector<size_t>>,
            decltype(allocate_dataframe_buffer<T>(size_t{0}, rmm::cuda_stream_view{}))>
 per_v_random_select_and_transform_outgoing_e(raft::handle_t const& handle,
                                              GraphViewType const& graph_view,
-                                             KeyFrontierBucketType const& frontier,
+                                             VertexFrontierBucketType const& frontier,
                                              EdgeSrcValueInputWrapper edge_src_value_input,
                                              EdgeDstValueInputWrapper edge_dst_value_input,
 #if 0  // FIXME: This will be necessary to include edge IDs in the output.
@@ -151,7 +151,7 @@ std::tuple<std::optional<rmm::device_uvector<size_t>>,
            decltype(allocate_dataframe_buffer<T>(size_t{0}, rmm::cuda_stream_view{}))>
 per_v_random_select_and_transform_outgoing_e(raft::handle_t const& handle,
                                              GraphViewType const& graph_view,
-                                             KeyFrontierBucketType const& frontier,
+                                             VertexFrontierBucketType const& frontier,
                                              EdgeSrcValueInputWrapper edge_src_value_input,
                                              EdgeDstValueInputWrapper edge_dst_value_input,
 #if 0  // FIXME: This will be necessary to include edge IDs in the output.
