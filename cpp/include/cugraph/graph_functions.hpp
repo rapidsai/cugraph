@@ -527,11 +527,13 @@ create_graph_from_edgelist(raft::handle_t const& handle,
 // implementation) to support different types (arithmetic types or thrust tuple of arithmetic types)
 // of edge properties.
 /**
- * @brief create a graph from (the optional vertex list and) the given edge list with edge IDs.
+ * @brief create a graph from (the optional vertex list and) the given edge list (with optional edge
+ * IDs and types).
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
  * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
  * @tparam weight_t Type of edge weights. Needs to be a floating point type.
+ * @tparam edge_type_t Type of edge type identifiers. Needs to be an integral type.
  * @tparam store_transposed Flag indicating whether to use sources (if false) or destinations (if
  * true) as major indices in storing edges using a 2D sparse matrix. transposed.
  * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
@@ -547,33 +549,39 @@ create_graph_from_edgelist(raft::handle_t const& handle,
  * (edges should be pre-shuffled).
  * @param edgelist_dsts Vector of edge destination vertex IDs.
  * @param edgelist_weights Vector of edge weights.
- * @param edgelist_ids Vector of edge IDs.
+ * @param edgelist_id_type_pairs Vector of edge ID and type pairs.
  * @param graph_properties Properties of the graph represented by the input (optional vertex list
  * and) edge list.
  * @param renumber Flag indicating whether to renumber vertices or not.
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  * @return std::tuple<graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>,
- * edge_property_t<graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>, edge_t>,
- * rmm::device_uvector<vertex_t>> Tuple of the generated graph, edge_property_t object storing edge
- * IDs, and renumber map (if @p renumber is true) or std::nullopt (if @p renumber is false).
+ * std::optional<edge_property_t<graph_view_t<vertex_t, edge_t, weight_t, store_transposed,
+ * multi_gpu>, thrust::tuple<edge_t, edge_type_t>>>, std::optional<rmm::device_uvector<vertex_t>>>
+ * Tuple of the generated graph and optional edge_property_t object storing edge IDs and types
+ * (valid if @p edgelist_id_type_pairss.has_value() is true, and a renumber map (if @p renumber is
+ * true) or) std::nullopt (if @p renumber is false).
  */
 template <typename vertex_t,
           typename edge_t,
           typename weight_t,
+          typename edge_type_t,
           bool store_transposed,
           bool multi_gpu>
-std::tuple<
-  graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>,
-  edge_property_t<graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>, edge_t>,
-  std::optional<rmm::device_uvector<vertex_t>>>
-create_graph_from_edgelist(raft::handle_t const& handle,
-                           std::optional<rmm::device_uvector<vertex_t>>&& vertices,
-                           rmm::device_uvector<vertex_t>&& edgelist_srcs,
-                           rmm::device_uvector<vertex_t>&& edgelist_dsts,
-                           std::optional<rmm::device_uvector<weight_t>>&& edgelist_weights,
-                           rmm::device_uvector<edge_t>&& edgelist_ids,
-                           graph_properties_t graph_properties,
-                           bool renumber,
-                           bool do_expensive_check = false);
+std::tuple<graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>,
+           std::optional<
+             edge_property_t<graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>,
+                             thrust::tuple<edge_t, edge_type_t>>>,
+           std::optional<rmm::device_uvector<vertex_t>>>
+create_graph_from_edgelist(
+  raft::handle_t const& handle,
+  std::optional<rmm::device_uvector<vertex_t>>&& vertices,
+  rmm::device_uvector<vertex_t>&& edgelist_srcs,
+  rmm::device_uvector<vertex_t>&& edgelist_dsts,
+  std::optional<rmm::device_uvector<weight_t>>&& edgelist_weights,
+  std::optional<std::tuple<rmm::device_uvector<edge_t>, rmm::device_uvector<edge_type_t>>>&&
+    edgelist_id_type_pairs,
+  graph_properties_t graph_properties,
+  bool renumber,
+  bool do_expensive_check = false);
 
 }  // namespace cugraph
