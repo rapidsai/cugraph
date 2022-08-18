@@ -78,18 +78,18 @@ int generic_louvain_test(const cugraph_resource_handle_t* p_handle,
 
     vertex_t max_component_id = -1;
     for (vertex_t i = 0; (i < num_local_vertices) && (test_ret_value == 0); ++i) {
-      if (h_clusters[i] > max_component_id)
-        max_component_id = h_clusters[i];
+      if (h_clusters[i] > max_component_id) max_component_id = h_clusters[i];
     }
 
-    vertex_t component_mapping[max_component_id+1];
+    vertex_t component_mapping[max_component_id + 1];
     for (vertex_t i = 0; (i < num_local_vertices) && (test_ret_value == 0); ++i) {
-      component_mapping[h_clusters[i]] = h_result[i];
+      component_mapping[h_clusters[i]] = h_result[h_vertices[i]];
     }
 
     for (vertex_t i = 0; (i < num_local_vertices) && (test_ret_value == 0); ++i) {
-      TEST_ASSERT(
-        test_ret_value, h_result[h_vertices[i]] == component_mapping[h_clusters[i]], "cluster results don't match");
+      TEST_ASSERT(test_ret_value,
+                  h_result[h_vertices[i]] == component_mapping[h_clusters[i]],
+                  "cluster results don't match");
     }
 
     cugraph_heirarchical_clustering_result_free(p_result);
