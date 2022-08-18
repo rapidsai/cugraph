@@ -24,16 +24,53 @@ from dask.distributed import Client
 from dask_cuda.initialize import initialize as dask_initialize
 from cugraph.experimental import PropertyGraph, MGPropertyGraph
 from cugraph.dask.comms import comms as Comms
-from cugraph import sampling
+from cugraph import uniform_neighbor_sample
+from cugraph.dask import uniform_neighbor_sample as mg_uniform_neighbor_sample
+from cugraph.structure.graph_implementation.simpleDistributedGraph import (
+    simpleDistributedGraphImpl,
+)
 
 from gaas_client import defaults
 from gaas_client.exceptions import GaasError
-from gaas_client.types import (BatchedEgoGraphsResult,
-                               Node2vecResult,
-                               UniformNeighborSampleResult,
-                               ValueWrapper,
-                               DataframeRowIndexWrapper,
-                               )
+from gaas_client.types import (
+    BatchedEgoGraphsResult,
+    Node2vecResult,
+    UniformNeighborSampleResult,
+    ValueWrapper,
+    DataframeRowIndexWrapper,
+)
+
+
+def call_algo(sg_algo_func, G, **kwargs):
+    """
+    Calls the appropriate algo function based on the graph G being MG or SG. If
+    G is SG, sg_algo_func will be called and passed kwargs, otherwise the MG
+    version of sg_algo_func will be called with kwargs.
+    """
+    is_mg_graph = isinstance(G._Impl, simpleDistributedGraphImpl)
+
+    if sg_algo_func is uniform_neighbor_sample:
+        if is_mg_graph:
+            possible_args = ["start_list", "fanout_vals", "with_replacement"]
+            kwargs_to_pass = {a:kwargs[a] for a in possible_args
+                              if a in kwargs}
+            data = mg_uniform_neighbor_sample(G, **kwargs_to_pass)
+            data = data.compute()
+        else:
+            possible_args = ["start_list", "fanout_vals", "with_replacement",
+                             "is_edge_ids"]
+            kwargs_to_pass = {a:kwargs[a] for a in possible_args
+                              if a in kwargs}
+            data = uniform_neighbor_sample(G, **kwargs_to_pass)
+
+        return UniformNeighborSampleResult(
+            sources=data.sources.values_host,
+            destinations=data.destinations.values_host,
+            indices=data.indices.values_host
+        )
+
+    else:
+        raise RuntimeError(f"internal error: {sg_algo_func} is not supported")
 
 
 class ExtensionServerFacade:
@@ -507,6 +544,7 @@ class GaasHandler:
         # FIXME: finish docstring above
         # FIXME: exception handling
         G = self._get_graph(graph_id)
+        # FIXME: write test to catch an MGPropertyGraph being passed in
         if isinstance(G, PropertyGraph):
             raise GaasError("batched_ego_graphs() cannot operate directly on "
                             "a graph with properties, call extract_subgraph() "
@@ -551,6 +589,7 @@ class GaasHandler:
         # FIXME: finish docstring above
         # FIXME: exception handling
         G = self._get_graph(graph_id)
+        # FIXME: write test to catch an MGPropertyGraph being passed in
         if isinstance(G, PropertyGraph):
             raise GaasError("node2vec() cannot operate directly on a graph with"
                             " properties, call extract_subgraph() then call "
@@ -581,25 +620,21 @@ class GaasHandler:
                                 graph_id,
                                 ):
         G = self._get_graph(graph_id)
-        if isinstance(G, PropertyGraph):
+        if isinstance(G, (MGPropertyGraph, PropertyGraph)):
             raise GaasError("uniform_neighbor_sample() cannot operate directly "
                             "on a graph with properties, call "
                             "extract_subgraph() then call "
                             "uniform_neighbor_sample() on the extracted "
                             "subgraph instead.")
 
-        sampling_results = sampling.uniform_neighbor_sample(
-                G,
-                start_list,
-                fanout_vals,
-                with_replacement=with_replacement
-            )
-
-        return UniformNeighborSampleResult(
-            sources=sampling_results.sources.values_host,
-            destinations=sampling_results.destinations.values_host,
-            indices=sampling_results.indices.values_host
+        return call_algo(
+            uniform_neighbor_sample,
+            G,
+            start_list=start_list,
+            fanout_vals=fanout_vals,
+            with_replacement=with_replacement
         )
+
 
     def pagerank(self, graph_id):
         """

@@ -87,11 +87,12 @@ def test_get_edge_IDs_for_vertices(handler_with_edgelist_csv_loaded):
 
     extracted_graph_id = handler.extract_subgraph(create_using=None,
                                                   selection=None,
-                                                  edge_weight_property="",
+                                                  edge_weight_property=None,
                                                   default_edge_weight=1.0,
                                                   allow_multi_edges=True,
-                                                  graph_id=defaults.graph_id,
-                                                  )
+                                                  renumber_graph=True,
+                                                  add_edge_data=True,
+                                                  graph_id=defaults.graph_id)
 
     # FIXME: this assumes these are always the first 3 edges in karate, which
     # may not be a safe assumption.
@@ -159,3 +160,35 @@ def test_get_graph_info_defaults(mg_handler):
     actual = {key:ValueWrapper(val).get_py_obj() for (key, val) in info.items()}
 
     assert expected == actual
+
+
+def test_uniform_neighbor_sampling(handler_with_edgelist_csv_loaded):
+    from gaas_client.exceptions import GaasError
+    from gaas_client import defaults
+
+    (handler, test_data) = handler_with_edgelist_csv_loaded
+
+    start_list = [1, 2, 3]
+    fanout_vals = [2, 2, 2]
+    with_replacement = True
+
+    # invalid graph type - default graph is a PG, needs an extracted subgraph
+    with pytest.raises(GaasError):
+        handler.uniform_neighbor_sample(start_list=start_list,
+                                        fanout_vals=fanout_vals,
+                                        with_replacement=with_replacement,
+                                        graph_id=defaults.graph_id)
+
+    extracted_gid = handler.extract_subgraph(create_using=None,
+                                             selection=None,
+                                             edge_weight_property=None,
+                                             default_edge_weight=1.0,
+                                             allow_multi_edges=True,
+                                             renumber_graph=True,
+                                             add_edge_data=True,
+                                             graph_id=defaults.graph_id)
+
+    result = handler.uniform_neighbor_sample(start_list=start_list,
+                                             fanout_vals=fanout_vals,
+                                             with_replacement=with_replacement,
+                                             graph_id=extracted_gid)
