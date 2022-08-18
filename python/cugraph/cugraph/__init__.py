@@ -101,13 +101,12 @@ from cugraph.tree import minimum_spanning_tree, maximum_spanning_tree
 
 from cugraph.utilities import utils
 
-from cugraph.proto.components import strong_connected_component
-from cugraph.proto.structure import find_bicliques
+from cugraph.experimental import strong_connected_component
+from cugraph.experimental import find_bicliques
 
 from cugraph.linear_assignment import hungarian, dense_hungarian
 from cugraph.layout import force_atlas2
 from raft import raft_include_test
-from cugraph.dask.comms import comms
 
 from cugraph.sampling import (
     random_walks,

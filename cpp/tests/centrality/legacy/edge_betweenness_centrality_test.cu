@@ -24,8 +24,12 @@
 
 #include <rmm/device_vector.hpp>
 
+#include <thrust/copy.h>
+#include <thrust/device_ptr.h>
 #include <thrust/device_vector.h>
+#include <thrust/execution_policy.h>
 #include <thrust/host_vector.h>
+#include <thrust/sequence.h>
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/legacy/graph.hpp>
@@ -226,11 +230,13 @@ class Tests_EdgeBC : public ::testing::TestWithParam<EdgeBC_Usecase> {
 
  public:
   Tests_EdgeBC() {}
-  static void SetupTestCase() {}
+
+  static void SetUpTestCase() {}
   static void TearDownTestCase() {}
 
   virtual void SetUp() {}
   virtual void TearDown() {}
+
   // FIXME: Should normalize be part of the configuration instead?
   // vertex_t         vertex identifier data type
   // edge_t         edge identifier data type

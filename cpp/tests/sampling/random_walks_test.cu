@@ -21,7 +21,9 @@
 #include <utilities/test_utilities.hpp>
 
 #include <rmm/exec_policy.hpp>
+#include <thrust/iterator/counting_iterator.h>
 #include <thrust/random.h>
+#include <thrust/transform.h>
 
 #include <cugraph/algorithms.hpp>
 #include <sampling/random_walks.cuh>
@@ -78,7 +80,8 @@ class Tests_RandomWalks
   : public ::testing::TestWithParam<std::tuple<traversal_id_t, int, RandomWalks_Usecase>> {
  public:
   Tests_RandomWalks() {}
-  static void SetupTestCase() {}
+
+  static void SetUpTestCase() {}
   static void TearDownTestCase() {}
 
   virtual void SetUp() {}

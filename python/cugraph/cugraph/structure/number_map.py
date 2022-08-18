@@ -286,7 +286,7 @@ class NumberMap:
             self.ddf = tmp_ddf
             return tmp_ddf
 
-    def __init__(self, id_type=np.int32):
+    def __init__(self, id_type=np.int32, renumber_type=None):
         self.implementation = None
         self.id_type = id_type
         # The default src/dst column names in the resulting renumbered
@@ -355,9 +355,8 @@ class NumberMap:
             tmp_df["0"] = df
             tmp_col_names = ["0"]
         elif type(df) is dask_cudf.Series:
-            tmp_df = dask_cudf.DataFrame()
-            tmp_df["0"] = df
-            tmp_col_names = ["0"]
+            tmp_df = df.to_frame()
+            tmp_col_names = tmp_df.columns
         else:
             tmp_df = df
             tmp_col_names = col_names

@@ -15,21 +15,25 @@
  */
 #pragma once
 
+#include <prims/edge_partition_src_dst_property.cuh>
+#include <prims/reduce_op.cuh>
+#include <prims/transform_reduce_v_frontier_outgoing_e_by_dst.cuh>
+#include <prims/update_edge_partition_src_dst_property.cuh>
+#include <prims/update_v_frontier.cuh>
+#include <prims/vertex_frontier.cuh>
+
 #include <cugraph/algorithms.hpp>
 #include <cugraph/graph_view.hpp>
-#include <cugraph/prims/edge_partition_src_dst_property.cuh>
-#include <cugraph/prims/reduce_op.cuh>
-#include <cugraph/prims/transform_reduce_v_frontier_outgoing_e_by_dst.cuh>
-#include <cugraph/prims/update_edge_partition_src_dst_property.cuh>
-#include <cugraph/prims/update_v_frontier.cuh>
-#include <cugraph/prims/vertex_frontier.cuh>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/vertex_partition_device_view.cuh>
 
 #include <raft/handle.hpp>
 #include <rmm/exec_policy.hpp>
 
+#include <thrust/copy.h>
+#include <thrust/count.h>
 #include <thrust/fill.h>
+#include <thrust/for_each.h>
 #include <thrust/iterator/constant_iterator.h>
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/iterator/discard_iterator.h>
@@ -50,7 +54,7 @@ struct e_op_t {
   std::conditional_t<multi_gpu,
                      detail::edge_partition_minor_property_device_view_t<vertex_t, uint8_t*>,
                      uint32_t*>
-    visited_flags{nullptr};
+    visited_flags{};
   uint32_t const* prev_visited_flags{
     nullptr};  // relevant only if multi_gpu is false (this affects only local-computing with 0
                // impact in communication volume, so this may improve performance in small-scale but

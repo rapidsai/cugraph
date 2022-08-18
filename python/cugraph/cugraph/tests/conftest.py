@@ -58,10 +58,7 @@ def dask_client():
     yield client
 
     Comms.destroy()
-    # Shut down the connected scheduler and workers
-    # therefore we will no longer rely on killing the dask cluster ID
-    # for MNMG runs
-    client.shutdown()
+    client.close()
     if cluster:
         cluster.close()
     print("\ndask_client fixture: client.close() called")

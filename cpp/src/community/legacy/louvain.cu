@@ -20,6 +20,8 @@
 
 #include <rmm/device_uvector.hpp>
 
+#include <thrust/sequence.h>
+
 namespace cugraph {
 
 namespace detail {
@@ -120,5 +122,3 @@ template std::pair<size_t, double> louvain(raft::handle_t const&,
                                            size_t,
                                            double);
 }  // namespace cugraph
-
-#include <cugraph/legacy/eidir_graph.hpp>

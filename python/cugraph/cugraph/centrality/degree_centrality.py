@@ -42,10 +42,8 @@ def degree_centrality(G, normalized=True):
 
     Examples
     --------
-    >>> gdf = cudf.read_csv(datasets_path / 'karate.csv', delimiter=' ',
-    ...                     dtype=['int32', 'int32', 'float32'], header=None)
-    >>> G = cugraph.Graph()
-    >>> G.from_cudf_edgelist(gdf, source='0', destination='1')
+    >>> from cugraph.experimental.datasets import karate
+    >>> G = karate.get_graph(fetch=True)
     >>> dc = cugraph.degree_centrality(G)
 
     """

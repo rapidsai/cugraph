@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2021, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2022, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -65,11 +65,10 @@ using pair_comms_t =
 // naming policy defaults to simplified naming:
 // one key per row subcomms, one per column subcomms;
 //
-template <typename name_policy_t = key_naming_t, typename size_type = int>
+template <typename name_policy_t = key_naming_t>
 class subcomm_factory_t {
  public:
-  subcomm_factory_t(raft::handle_t& handle, size_type row_size)
-    : handle_(handle), row_size_(row_size)
+  subcomm_factory_t(raft::handle_t& handle, int row_size) : handle_(handle), row_size_(row_size)
   {
     init_row_col_comms();
   }
@@ -101,8 +100,9 @@ class subcomm_factory_t {
 
  private:
   raft::handle_t& handle_;
-  size_type row_size_;
+  int row_size_;
   pair_comms_t row_col_subcomms_;
 };
+
 }  // namespace partition_2d
 }  // namespace cugraph

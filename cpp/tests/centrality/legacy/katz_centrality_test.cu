@@ -26,7 +26,13 @@
 #include <cugraph/legacy/graph.hpp>
 #include <rmm/device_vector.hpp>
 
+#include <thrust/copy.h>
 #include <thrust/device_ptr.h>
+#include <thrust/functional.h>
+#include <thrust/memory.h>
+#include <thrust/reduce.h>
+#include <thrust/sequence.h>
+#include <thrust/sort.h>
 
 #include <fstream>
 
@@ -99,8 +105,10 @@ typedef struct Katz_Usecase_t {
 class Tests_Katz : public ::testing::TestWithParam<Katz_Usecase> {
  public:
   Tests_Katz() {}
-  static void SetupTestCase() {}
+
+  static void SetUpTestCase() {}
   static void TearDownTestCase() {}
+
   virtual void SetUp() {}
   virtual void TearDown() {}
 

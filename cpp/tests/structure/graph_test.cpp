@@ -77,7 +77,8 @@ template <typename input_usecase_t>
 class Tests_Graph : public ::testing::TestWithParam<std::tuple<Graph_Usecase, input_usecase_t>> {
  public:
   Tests_Graph() {}
-  static void SetupTestCase() {}
+
+  static void SetUpTestCase() {}
   static void TearDownTestCase() {}
 
   virtual void SetUp() {}

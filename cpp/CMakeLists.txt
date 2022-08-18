@@ -15,10 +15,8 @@
 #=============================================================================
 
 cmake_minimum_required(VERSION 3.20.1 FATAL_ERROR)
-file(DOWNLOAD https://raw.githubusercontent.com/rapidsai/rapids-cmake/branch-22.06/RAPIDS.cmake
-    ${CMAKE_BINARY_DIR}/RAPIDS.cmake)
-include(${CMAKE_BINARY_DIR}/RAPIDS.cmake)
 
+include(../fetch_rapids.cmake)
 include(rapids-cmake)
 include(rapids-cpm)
 include(rapids-cuda)
@@ -27,7 +25,7 @@ include(rapids-find)
 
 rapids_cuda_init_architectures(CUGRAPH)
 
-project(CUGRAPH VERSION 22.06.01 LANGUAGES C CXX CUDA)
+project(CUGRAPH VERSION 22.08.00 LANGUAGES C CXX CUDA)
 
 if(CMAKE_CUDA_COMPILER_ID STREQUAL "NVIDIA" AND
    CMAKE_CUDA_COMPILER_VERSION VERSION_LESS 11.0)
@@ -80,6 +78,7 @@ option(BUILD_SHARED_LIBS "Build cuGraph shared libraries" ON)
 option(BUILD_CUGRAPH_MG_TESTS "Build cuGraph multigpu algorithm tests" OFF)
 option(CMAKE_CUDA_LINEINFO "Enable the -lineinfo option for nvcc (useful for cuda-memcheck / profiler" OFF)
 option(BUILD_TESTS "Configure CMake to build tests" ON)
+option(USE_CUGRAPH_OPS "Enable all functions that call cugraph-ops" ON)
 
 ################################################################################
 # - compiler options -----------------------------------------------------------
@@ -116,13 +115,10 @@ if(CMAKE_BUILD_TYPE MATCHES Debug)
     list(APPEND CUGRAPH_CUDA_FLAGS -G -Xcompiler=-rdynamic)
 endif()
 
-################################################################################
-# - find openmp ----------------------------------------------------------------
-
-find_package(OpenMP)
-if(OpenMP_FOUND)
-    # find_package(OPenMP) does not automatically add OpenMP flags to CUDA
-    list(APPEND CUGRAPH_CUDA_FLAGS -Xcompiler=${OpenMP_CXX_FLAGS})
+if(NOT USE_CUGRAPH_OPS)
+    message(STATUS "Disabling functions that reference cugraph-ops")
+    list(APPEND CUGRAPH_CXX_FLAGS -DNO_CUGRAPH_OPS)
+    list(APPEND CUGRAPH_CUDA_FLAGS -DNO_CUGRAPH_OPS)
 endif()
 
 ###################################################################################################
@@ -146,10 +142,14 @@ rapids_cpm_init()
 
 # Putting this before raft to override RAFT from pulling them in.
 include(cmake/thirdparty/get_libcudacxx.cmake)
-include(cmake/thirdparty/get_cuco.cmake)
+include(${rapids-cmake-dir}/cpm/cuco.cmake)
+rapids_cpm_cuco(BUILD_EXPORT_SET cugraph-exports)
 
 include(cmake/thirdparty/get_raft.cmake)
-include(cmake/thirdparty/get_libcugraphops.cmake)
+
+if(USE_CUGRAPH_OPS)
+  include(cmake/thirdparty/get_libcugraphops.cmake)
+endif()
 
 include(cmake/thirdparty/get_nccl.cmake)
 include(cmake/thirdparty/get_cuhornet.cmake)
@@ -161,7 +161,7 @@ endif()
 ################################################################################
 # - libcugraph library target --------------------------------------------------
 
-add_library(cugraph
+set(CUGRAPH_SOURCES
     src/detail/utility_wrappers.cu
     src/detail/shuffle_wrappers.cu
     src/utilities/cython.cu
@@ -170,11 +170,10 @@ add_library(cugraph
     src/structure/legacy/graph.cu
     src/linear_assignment/hungarian.cu
     src/traversal/legacy/bfs.cu
-    src/traversal/legacy/sssp.cu
     src/link_prediction/jaccard.cu
     src/link_prediction/overlap.cu
-    src/layout/force_atlas2.cu
-    src/converters/COOtoCSR.cu
+    src/layout/legacy/force_atlas2.cu
+    src/converters/legacy/COOtoCSR.cu
     src/community/legacy/spectral_clustering.cu
     src/community/louvain_sg.cu
     src/community/louvain_mg.cu
@@ -185,20 +184,18 @@ add_library(cugraph
     src/community/legacy/triangles_counting.cu
     src/community/legacy/extract_subgraph_by_vertex.cu
     src/community/legacy/egonet.cu
-    src/sampling/neighborhood.cu
     src/sampling/random_walks.cu
-    src/sampling/detail/gather_utils_impl.cu
+    src/sampling/random_walks_sg.cu
+    src/sampling/random_walks_mg.cu
     src/sampling/detail/sampling_utils_mg.cu
     src/sampling/detail/sampling_utils_sg.cu
-    src/sampling/nbr_sampling_mg.cu
     src/sampling/uniform_neighbor_sampling_mg.cpp
     src/sampling/uniform_neighbor_sampling_sg.cpp
     src/cores/legacy/core_number.cu
     src/cores/core_number_sg.cu
     src/cores/core_number_mg.cu
     src/traversal/two_hop_neighbors.cu
-    src/components/connectivity.cu
-    src/centrality/legacy/katz_centrality.cu
+    src/components/legacy/connectivity.cu
     src/centrality/betweenness_centrality.cu
     src/generators/generate_rmat_edgelist.cu
     src/generators/generator_tools.cu
@@ -240,14 +237,17 @@ add_library(cugraph
     src/structure/create_graph_from_edgelist_mg.cu
     src/structure/symmetrize_edgelist_sg.cu
     src/structure/symmetrize_edgelist_mg.cu
-    src/visitors/graph_envelope.cpp
-    src/visitors/visitors_factory.cpp
-    src/visitors/bfs_visitor.cpp
-    src/visitors/rw_visitor.cpp
-    src/visitors/graph_make_visitor.cpp
     src/community/triangle_count_sg.cu
     src/community/triangle_count_mg.cu
 )
+
+if(USE_CUGRAPH_OPS)
+    list(APPEND CUGRAPH_SOURCES
+        src/sampling/neighborhood.cu
+    )
+endif()
+
+add_library(cugraph ${CUGRAPH_SOURCES})
 
 set_target_properties(cugraph
     PROPERTIES BUILD_RPATH                         "\$ORIGIN"
@@ -296,72 +296,31 @@ target_include_directories(cugraph
 
 ################################################################################
 # - link libraries -------------------------------------------------------------
-target_link_libraries(cugraph
-    PUBLIC
-        cugraph-ops::cugraph-ops++
-        raft::raft
-        cuco::cuco
-    PRIVATE
-        cugraph::cuHornet
-        NCCL::NCCL
-)
-
-if(OpenMP_CXX_FOUND)
-target_link_libraries(cugraph PRIVATE
-################################################################################
-###   Use ${OpenMP_CXX_LIB_NAMES} instead of OpenMP::OpenMP_CXX to avoid the following warnings.
-###
-###   Cannot generate a safe runtime search path for target TARGET_NAME
-###   because files in some directories may conflict with libraries in implicit
-###   directories:
-###   ...
-###
-###   libgomp.so is included in the conda base environment and copied to every new conda
-###   environment. If a full file path is provided (e.g ${NCCL_LIBRARIES}), cmake
-###   extracts the directory path and adds the directory path to BUILD_RPATH (if BUILD_RPATH is not
-###   disabled).
-###
-###   cmake maintains a system specific implicit directories (e.g. /lib, /lib/x86_64-linux-gnu,
-###   /lib32, /lib32/x86_64-linux-gnu, /lib64, /lib64/x86_64-linux-gnu, /usr/lib,
-###   /usr/lib/gcc/x86_64-linux-gnu/7, /usr/lib/x86_64-linux-gnu, /usr/lib32,
-###   /usr/lib32/x86_64-linux-gnu, /usr/lib64, /usr/lib64/x86_64-linux-gnu,
-###   /usr/local/cuda-10.0/lib64", /usr/local/cuda-10.0/lib64/stubs).
-###
-###   If a full path to libgomp.so is provided (which is the case with OpenMP::OpenMP_CXX), cmake
-###   checks whether there is any other libgomp.so with the different full path (after resolving
-###   soft links) in the search paths (implicit directoires + BUILD_RAPTH). There is one in the
-###   path included in BUILD_RPATH when ${NCCL_LIBRARIES} are added; this one can
-###   potentially hide the one in the provided full path and cmake generates a warning (and RPATH
-###   is searched before the directories in /etc/ld.so/conf; ld.so.conf does not coincide but
-###   overlaps with implicit directories).
-###
-###   If we provide just the library names (gomp;pthread), cmake does not generate warnings (we
-###   did not specify which libgomp.so should be loaded in runtime), and the one first found in
-###   the search order is loaded (we can change the loaded library by setting LD_LIBRARY_PATH or
-###   manually editing BUILD_RPATH).
-###
-###   Manually editing BUILD_RPATH:
-###   set(TARGET_BUILD_RPATH "")
-###   foreach(TMP_VAR_FULLPATH IN LISTS OpenMP_CXX_LIBRARIES)
-###       get_filename_component(TMP_VAR_DIR ${TMP_VAR_FULLPATH} DIRECTORY)
-###       string(APPEND TARGET_BUILD_RPATH "${TMP_VAR_DIR};")
-###       get_filename_component(TMP_VAR_REALPATH ${TMP_VAR_FULLPATH} REALPATH)
-###       get_filename_component(TMP_VAR_DIR ${TMP_VAR_REALPATH} DIRECTORY)
-###       # cmake automatically removes duplicates, so skip checking.
-###       string(APPEND TARGET_BUILD_RPATH "${TMP_VAR_DIR};")
-###   endforeach()
-###   string(APPEND TARGET_BUILD_RPATH "${CONDA_PREFIX}/lib")
-###   message(STATUS "TARGET_BUILD_RPATH=${TARGET_BUILD_RPATH}")
-###   set_target_properties(target PROPERTIES
-###       BUILD_RPATH "${TARGET_BUILD_RPATH}")
-    ${OpenMP_CXX_LIB_NAMES})
+if (USE_CUGRAPH_OPS)
+    target_link_libraries(cugraph
+        PUBLIC
+            cugraph-ops::cugraph-ops++
+            raft::raft
+        PRIVATE
+            cuco::cuco
+            cugraph::cuHornet
+            NCCL::NCCL
+    )
+else()
+    target_link_libraries(cugraph
+        PUBLIC
+            raft::raft
+        PRIVATE
+            cuco::cuco
+            cugraph::cuHornet
+            NCCL::NCCL
+    )
 endif()
 
 ################################################################################
 # - C-API library --------------------------------------------------------------
 
 add_library(cugraph_c
-        src/c_api/cugraph_api.cpp
         src/c_api/resource_handle.cpp
         src/c_api/array.cpp
         src/c_api/error.cpp
@@ -371,6 +330,8 @@ add_library(cugraph_c
         src/c_api/katz.cpp
         src/c_api/centrality_result.cpp
         src/c_api/eigenvector_centrality.cpp
+        src/c_api/core_number.cpp
+        src/c_api/core_result.cpp
         src/c_api/hits.cpp
         src/c_api/bfs.cpp
         src/c_api/sssp.cpp
@@ -419,8 +380,8 @@ target_link_libraries(cugraph_c
                 CUDA::cusolver
                 CUDA::cusparse
                 raft::raft
-                cuco::cuco
         PRIVATE
+                cuco::cuco
                 cugraph::cugraph
 )
 

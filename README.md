@@ -2,7 +2,9 @@
 
 [![Build Status](https://gpuci.gpuopenanalytics.com/job/rapidsai/job/gpuci/job/cugraph/job/branches/job/cugraph-branch-pipeline/badge/icon)](https://gpuci.gpuopenanalytics.com/job/rapidsai/job/gpuci/job/cugraph/job/branches/job/cugraph-branch-pipeline/)
 
-The [RAPIDS](https://rapids.ai) cuGraph library is a collection of GPU accelerated graph algorithms that process data found in [GPU DataFrames](https://github.com/rapidsai/cudf).  The vision of cuGraph is _to make graph analysis ubiquitous to the point that users just think in terms of analysis and not technologies or frameworks_.  To realize that vision, cuGraph operates, at the Python layer, on GPU DataFrames, thereby allowing for seamless passing of data between ETL tasks in [cuDF](https://github.com/rapidsai/cudf) and machine learning tasks in [cuML](https://github.com/rapidsai/cuml).  Data scientists familiar with Python will quickly pick up how cuGraph integrates with the Pandas-like API of cuDF.  Likewise, users familiar with NetworkX will quickly recognize the NetworkX-like API provided in cuGraph, with the goal to allow existing code to be ported with minimal effort into RAPIDS.  For users familiar with C++/CUDA and graph structures, a C++ API is also provided.  However, there is less type and structure checking at the C++ layer.
+The [RAPIDS](https://rapids.ai) cuGraph library is a collection of GPU accelerated graph algorithms that process data found in [GPU DataFrames](https://github.com/rapidsai/cudf).  The vision of cuGraph is _to make graph analysis ubiquitous to the point that users just think in terms of analysis and not technologies or frameworks_.  To realize that vision, cuGraph operates, at the Python layer, on GPU DataFrames, thereby allowing for seamless passing of data between ETL tasks in [cuDF](https://github.com/rapidsai/cudf) and machine learning tasks in [cuML](https://github.com/rapidsai/cuml).  Data scientists familiar with Python will quickly pick up how cuGraph integrates with the Pandas-like API of cuDF.  Likewise, users familiar with NetworkX will quickly recognize the NetworkX-like API provided in cuGraph, with the goal to allow existing code to be ported with minimal effort into RAPIDS.  
+
+While the high-level cugraph python API provides an easy-to-use and familiar interface for data scientists that's consistent with other RAPIDS libraries in their workflow, some use cases require access to lower-level graph theory concepts.  For these users, we provide an additional Python API called pylibcugraph, intended for applications that require a tighter integration with cuGraph at the Python layer with fewer dependencies.  Users familiar with C/C++/CUDA and graph structures can access libcugraph and libcugraph_c for low level integration outside of python.
 
  For more project details, see [rapids.ai](https://rapids.ai/).
 
@@ -25,10 +27,9 @@ G.from_cudf_edgelist(gdf, source='src', destination='dst')
 # Let's now get the PageRank score of each vertex by calling cugraph.pagerank
 df_page = cugraph.pagerank(G)
 
-# Let's look at the PageRank Score (only do this on small graphs)
-for i in range(len(df_page)):
-	print("vertex " + str(df_page['vertex'].iloc[i]) +
-		" PageRank is " + str(df_page['pagerank'].iloc[i]))
+# Let's look at the top 10 PageRank Score
+df_page.sort_values('pagerank', ascending=False).head(10)
+
 ```
 
 ## Getting cuGraph
@@ -42,7 +43,7 @@ There are 3 ways to get cuGraph :
 # cuGraph News
 
 ### Scaling to 1 Trillion Edges
-cuGraph was recently tested on the Selene supercomputer using 2,048 GPUs and processing a graph with `1.1 Trillion edges`. 
+At GTC Spring '22 we presented results of running cuGraph on the [Selene](https://top500.org/system/179842/) supercomputer using 2,048 GPUs and processing a graph with `1.1 Trillion edges`. Synthetic data created with the RMAT generator found in cuGraph. 
 
 <div align="left"><img src="img/Scaling.png" width="500px" style="background-color: white;"/>&nbsp;</br>cuGraph Scaling</div>
 </br></br>
@@ -53,88 +54,9 @@ cuGraph has a new multi-layer software stack that allows users and system integr
 <div align="left"><img src="img/cugraph-stack.png" width="500px" style="background-color: white;"/>&nbsp;</br>cuGraph Software Stack</div>
 </br></br>
 
-
-
-
+---
 # Currently Supported Features
-As of Release 21.08 - including 21.08 nightly
-
-
-## Supported Algorithms
-_Italic_ algorithms are planned for future releases.
-
-| Category     | Algorithm                              | Scale        |  Notes              |
-| ------------ | -------------------------------------- | ------------ | ------------------- |
-| Centrality   |                                        |              |                     |
-|              | Katz                                   | Multi-GPU    |                     |
-|              | Betweenness Centrality                 | Single-GPU   | MG planned for 22.08                    |
-|              | Edge Betweenness Centrality            | Single-GPU   |                     |
-|              | _Eigenvector Centrality_               |              | _MG planned for 22.06_ |
-| Community    |                                        |              |                     |
-|              | Leiden                                 | Single-GPU   |                     |
-|              | Louvain                                | Multi-GPU    |  [C++ README](cpp/src/community/README.md#Louvain) |
-|              | Ensemble Clustering for Graphs         | Single-GPU   |                     |
-|              | Spectral-Clustering - Balanced Cut     | Single-GPU   |                     |
-|              | Spectral-Clustering - Modularity       | Single-GPU   |                     |
-|              | Subgraph Extraction                    | Single-GPU   |                     |
-|              | Triangle Counting                      | Single-GPU   | MG planned for 22.06                    |
-|              | K-Truss                                | Single-GPU   | MG planned for 22.10                    |
-| Components   |                                        |              |                     |
-|              | Weakly Connected Components            | Multi-GPU    |                     |
-|              | Strongly Connected Components          | Single-GPU   | MG planned for 22.06      |
-| Core         |                                        |              |                     |
-|              | K-Core                                 | Single-GPU   | MG planned for 22.10                    |
-|              | Core Number                            | Single-GPU   | MG planned for 22.08                    |
-| _Flow_       |                                        |              |                     |
-|              | _MaxFlow_                              | ---          |                     |
-| _Influence_  |                                        |              |                     |
-|              | _Influence Maximization_               | ---          |                     |
-| Layout       |                                        |              |                     |
-|              | Force Atlas 2                          | Single-GPU   |                     |
-| Linear Assignment|                                    |              |                     |
-|              | Hungarian                              | Single-GPU   | [README](cpp/src/linear_assignment/README-hungarian.md) |
-| Link Analysis|                                        |              |                     |
-|              | Pagerank                               | Multi-GPU    | [C++ README](cpp/src/centrality/README.md#Pagerank) |
-|              | Personal Pagerank                      | Multi-GPU    | [C++ README](cpp/src/centrality/README.md#Personalized-Pagerank) |
-|              | HITS                                   | Multi-GPU    |                     |
-| Link Prediction |                                     |              |                     |
-|              | Jaccard Similarity                     | Single-GPU   |                     |
-|              | Weighted Jaccard Similarity            | Single-GPU   |                     |
-|              | Overlap Similarity                     | Single-GPU   |                     |
-|              | Sorensen Coefficient                   | Single-GPU   |                     |
-|              | _Local Clustering Coefficient_         |   ---        |                     |
-| Sampling     |                                        |              |                     |
-|              | Random Walks (RW)                      | Single-GPU   | Biased and Uniform  |
-|              | Egonet                                 | Single-GPU   | multi-seed          |
-|              | Node2Vec                               | Single-GPU   |                     |
-|              | Neighborhood sampling                  | Multi-GPU    |                     |
-| Traversal    |                                        |              |                     |
-|              | Breadth First Search (BFS)             | Multi-GPU    | with cutoff support <br/> [C++ README](cpp/src/traversal/README.md#BFS) |
-|              | Single Source Shortest Path (SSSP)     | Multi-GPU    | [C++ README](cpp/src/traversal/README.md#SSSP) |
-|              | _ASSP / APSP_                          |              |                     |
-| Tree         |                                        |              |                     |
-|              | Minimum Spanning Tree                  | Single-GPU   |                     |
-|              | Maximum Spanning Tree                  | Single-GPU   |                     |
-| Other        |                                        |              |                     |
-|              | Renumbering                            | Multi-GPU    | multiple columns, any data type  |
-|              | Symmetrize                             | Multi-GPU    |                     |
-|              | Path Extraction                        |              | Extract paths from BFS/SSP results in parallel | 
-| Data Generator  |                                     |              |                     |
-|              | RMAT                                   | Multi-GPU    |                     |
-|              | _Barabasi-Albert_                      |  ---         |                     |
-|  |  |
-
-</br></br>
-## Supported Graph
-| Type            |  Description                                        |
-| --------------- | --------------------------------------------------- |
-| Graph           | An undirected Graph is default                      |
-|                 | directed=True yields a Directed Graph               |
-| Multigraph      | A Graph with multiple edges between a vertex pair   |
-|  |  |
-
-ALL Algorithms support Graphs and MultiGraph (directed and undirected)
-
+As of Release 22.06
 
 </br></br>
 ## Supported Data Types
@@ -149,6 +71,85 @@ cuGraph supports execution of graph algorithms from different graph objects
 * SciPy sparse matrix
 
 cuGraph tries to match the return type based on the input type.  So a NetworkX input will return the same data type that NetworkX would have.
+
+</br></br>
+
+## Supported Graph
+| Type            |  Description                                        |
+| --------------- | --------------------------------------------------- |
+| Graph           | An undirected Graph by default                      |
+|                 | directed=True yields a Directed Graph               |
+| Multigraph      | A Graph with multiple edges between a vertex pair   |
+|  |  |
+
+ALL Algorithms support Graphs and MultiGraph (directed and undirected)
+
+## Supported Algorithms
+_Italic_ algorithms are planned for future releases.
+
+| Category     | Algorithm                              | Scale         |  Notes              |
+| ------------ | -------------------------------------- | ------------- | ------------------- |
+| Centrality   |                                        |               |                     |
+|              | Katz                                   | <mark>Multi-GPU</mark> |                     |
+|              | Betweenness Centrality                 | Single-GPU    |                     |
+|              | Edge Betweenness Centrality            | Single-GPU    |                     |
+|              | Eigenvector Centrality                 | <mark>Multi-GPU</mark> |                     |
+|              | Degree Centrality                      | <mark>Multi-GPU</mark> | Python only         |
+| Community    |                                        |               |                     |
+|              | Leiden                                 | Single-GPU    |                     |
+|              | Louvain                                | <mark>Multi-GPU</mark> |                     |
+|              | Ensemble Clustering for Graphs         | Single-GPU    |                     |
+|              | Spectral-Clustering - Balanced Cut     | Single-GPU    |                     |
+|              | Spectral-Clustering - Modularity       | Single-GPU    |                     |
+|              | Subgraph Extraction                    | Single-GPU    |                     |
+|              | Triangle Counting                      | <mark>Multi-GPU</mark> |                     |
+|              | K-Truss                                | Single-GPU    |                     |
+| Components   |                                        |               |                     |
+|              | Weakly Connected Components            |<mark>Multi-GPU</mark> |                     |
+|              | Strongly Connected Components          | Single-GPU    |                     |
+| Core         |                                        |               |                     |
+|              | K-Core                                 | Single-GPU    |                     |
+|              | Core Number                            | Single-GPU    |                     |
+| _Flow_       |                                        |               |                     |
+|              | _MaxFlow_                              | ---           |                     |
+| _Influence_  |                                        |               |                     |
+|              | _Influence Maximization_               | ---           |                     |
+| Layout       |                                        |               |                     |
+|              | Force Atlas 2                          | Single-GPU    |                     |
+| Linear Assignment|                                    |               |                     |
+|              | Hungarian                              | Single-GPU    | [README](cpp/src/linear_assignment/README-hungarian.md) |
+| Link Analysis|                                        |               |                     |
+|              | Pagerank                               | <mark>Multi-GPU</mark> | [C++ README](cpp/src/centrality/README.md#Pagerank) |
+|              | Personal Pagerank                      | <mark>Multi-GPU</mark> | [C++ README](cpp/src/centrality/README.md#Personalized-Pagerank) |
+|              | HITS                                   | <mark>Multi-GPU</mark> |                     |
+| Link Prediction |                                     |               |                     |
+|              | Jaccard Similarity                     | Single-GPU    |                     |
+|              | Weighted Jaccard Similarity            | Single-GPU    |                     |
+|              | Overlap Similarity                     | Single-GPU    |                     |
+|              | Sorensen Coefficient                   | Single-GPU    | Python only         |
+|              | _Local Clustering Coefficient_         |   ---         |                     |
+| Sampling     |                                        |               |                     |
+|              | Random Walks (RW)                      | Single-GPU    | Biased and Uniform  |
+|              | Egonet                                 | Single-GPU    | multi-seed          |
+|              | Node2Vec                               | Single-GPU    |                     |
+|              | Neighborhood sampling                  | <mark>Multi-GPU</mark> |                     |
+| Traversal    |                                        |               |                     |
+|              | Breadth First Search (BFS)             | <mark>Multi-GPU</mark> | with cutoff support <br/> [C++ README](cpp/src/traversal/README.md#BFS) |
+|              | Single Source Shortest Path (SSSP)     | <mark>Multi-GPU</mark> | [C++ README](cpp/src/traversal/README.md#SSSP) |
+|              | _ASSP / APSP_                          |               |                     |
+| Tree         |                                        |               |                     |
+|              | Minimum Spanning Tree                  | Single-GPU    |                     |
+|              | Maximum Spanning Tree                  | Single-GPU    |                     |
+| Other        |                                        |               |                     |
+|              | Renumbering                            | <mark>Multi-GPU</mark> | multiple columns, any data type  |
+|              | Symmetrize                             | <mark>Multi-GPU</mark> |                     |
+|              | Path Extraction                        |               | Extract paths from BFS/SSP results in parallel | 
+| Data Generator  |                                     |               |                     |
+|              | RMAT                                   | <mark>Multi-GPU</mark> |                     |
+|              | _Barabasi-Albert_                      |  ---          |                     |
+|  |  |
+
+
 
 
 ## cuGraph Notice
@@ -209,6 +210,15 @@ Please see our [guide for contributing to cuGraph](CONTRIBUTING.md).
 
 ## Documentation
 Python API documentation can be generated from [docs](docs) directory.
+
+------
+# Projects that use cuGraph
+
+(alphabetical order)
+* ArangoDB - a free and open-source native multi-model database system  - https://www.arangodb.com/
+* CuPy - "NumPy/SciPy-compatible Array Library for GPU-accelerated Computing with Python" -  https://cupy.dev/
+* Memgraph - In-memory database - https://memgraph.com/
+* ScanPy - a scalable toolkit for analyzing single-cell gene expression data - https://scanpy.readthedocs.io/en/stable/
 
 
 

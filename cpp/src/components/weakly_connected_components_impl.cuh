@@ -15,15 +15,16 @@
  */
 #pragma once
 
+#include <detail/graph_utils.cuh>
+#include <prims/edge_partition_src_dst_property.cuh>
+#include <prims/transform_reduce_v_frontier_outgoing_e_by_dst.cuh>
+#include <prims/update_edge_partition_src_dst_property.cuh>
+#include <prims/update_v_frontier.cuh>
+#include <prims/vertex_frontier.cuh>
+
 #include <cugraph/algorithms.hpp>
-#include <cugraph/detail/graph_utils.cuh>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
-#include <cugraph/prims/edge_partition_src_dst_property.cuh>
-#include <cugraph/prims/transform_reduce_v_frontier_outgoing_e_by_dst.cuh>
-#include <cugraph/prims/update_edge_partition_src_dst_property.cuh>
-#include <cugraph/prims/update_v_frontier.cuh>
-#include <cugraph/prims/vertex_frontier.cuh>
 #include <cugraph/utilities/device_comm.cuh>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/shuffle_comm.cuh>
@@ -31,14 +32,27 @@
 #include <raft/handle.hpp>
 #include <rmm/device_uvector.hpp>
 
+#include <thrust/binary_search.h>
 #include <thrust/copy.h>
+#include <thrust/distance.h>
+#include <thrust/for_each.h>
+#include <thrust/functional.h>
 #include <thrust/iterator/constant_iterator.h>
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/iterator/discard_iterator.h>
 #include <thrust/iterator/zip_iterator.h>
+#include <thrust/merge.h>
 #include <thrust/optional.h>
+#include <thrust/partition.h>
+#include <thrust/random.h>
+#include <thrust/scan.h>
+#include <thrust/sequence.h>
 #include <thrust/shuffle.h>
+#include <thrust/sort.h>
+#include <thrust/transform.h>
+#include <thrust/transform_reduce.h>
 #include <thrust/tuple.h>
+#include <thrust/unique.h>
 
 #include <algorithm>
 #include <limits>
@@ -537,7 +551,7 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
            GraphViewType::is_multi_gpu
              ? edge_partition_dst_components.mutable_device_view()
              : detail::edge_partition_minor_property_device_view_t<vertex_t, vertex_t*>(
-                 level_components),
+                 level_components, vertex_t{0}),
          col_first         = level_graph_view.local_edge_partition_dst_range_first(),
          edge_buffer_first = get_dataframe_buffer_begin(edge_buffer),
          num_edge_inserts =

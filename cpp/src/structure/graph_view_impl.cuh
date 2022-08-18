@@ -16,14 +16,15 @@
 
 #pragma once
 
+#include <detail/graph_utils.cuh>
+#include <prims/edge_partition_src_dst_property.cuh>
+#include <prims/per_v_transform_reduce_incoming_outgoing_e.cuh>
+#include <prims/transform_reduce_e.cuh>
+
 #include <cugraph/detail/decompress_edge_partition.cuh>
-#include <cugraph/detail/graph_utils.cuh>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/partition_manager.hpp>
-#include <cugraph/prims/edge_partition_src_dst_property.cuh>
-#include <cugraph/prims/per_v_transform_reduce_incoming_outgoing_e.cuh>
-#include <cugraph/prims/transform_reduce_e.cuh>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/host_scalar_comm.cuh>
 
@@ -32,10 +33,21 @@
 #include <rmm/device_scalar.hpp>
 #include <rmm/exec_policy.hpp>
 
+#include <thrust/binary_search.h>
 #include <thrust/count.h>
+#include <thrust/extrema.h>
+#include <thrust/fill.h>
+#include <thrust/for_each.h>
+#include <thrust/functional.h>
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/iterator/transform_iterator.h>
+#include <thrust/iterator/zip_iterator.h>
+#include <thrust/optional.h>
 #include <thrust/sort.h>
+#include <thrust/tabulate.h>
+#include <thrust/transform.h>
+#include <thrust/transform_reduce.h>
+#include <thrust/tuple.h>
 
 #include <algorithm>
 #include <cstdint>
@@ -68,15 +80,18 @@ std::vector<edge_t> update_edge_partition_edge_counts(
   auto use_dcs = edge_partition_dcs_nzd_vertex_counts.has_value();
   for (size_t i = 0; i < edge_partition_offsets.size(); ++i) {
     auto [major_range_first, major_range_last] = partition.local_edge_partition_major_range(i);
-    raft::update_host(&(edge_partition_edge_counts[i]),
-                      edge_partition_offsets[i] +
-                        (use_dcs ? ((*edge_partition_segment_offsets)
-                                      [(detail::num_sparse_segments_per_vertex_partition + 2) * i +
-                                       detail::num_sparse_segments_per_vertex_partition] +
-                                    (*edge_partition_dcs_nzd_vertex_counts)[i])
-                                 : (major_range_last - major_range_first)),
-                      1,
-                      stream);
+    auto segment_offset_size_per_partition =
+      (*edge_partition_segment_offsets).size() / edge_partition_offsets.size();
+    raft::update_host(
+      &(edge_partition_edge_counts[i]),
+      edge_partition_offsets[i] +
+        (use_dcs
+           ? ((*edge_partition_segment_offsets)[segment_offset_size_per_partition * i +
+                                                detail::num_sparse_segments_per_vertex_partition] +
+              (*edge_partition_dcs_nzd_vertex_counts)[i])
+           : (major_range_last - major_range_first)),
+      1,
+      stream);
   }
   RAFT_CUDA_TRY(cudaStreamSynchronize(stream));
   return edge_partition_edge_counts;
@@ -120,11 +135,14 @@ rmm::device_uvector<edge_t> compute_major_degrees(
     std::tie(major_range_first, major_range_last) =
       partition.vertex_partition_range(vertex_partition_idx);
     auto p_offsets = edge_partition_offsets[i];
+    auto segment_offset_size_per_partition =
+      (*edge_partition_segment_offsets).size() / static_cast<size_t>(col_comm_size);
     auto major_hypersparse_first =
-      use_dcs ? major_range_first + (*edge_partition_segment_offsets)
-                                      [(detail::num_sparse_segments_per_vertex_partition + 2) * i +
-                                       detail::num_sparse_segments_per_vertex_partition]
-              : major_range_last;
+      use_dcs
+        ? major_range_first +
+            (*edge_partition_segment_offsets)[segment_offset_size_per_partition * i +
+                                              detail::num_sparse_segments_per_vertex_partition]
+        : major_range_last;
     auto execution_policy = handle.get_thrust_policy();
     thrust::transform(execution_policy,
                       thrust::make_counting_iterator(vertex_t{0}),
@@ -438,7 +456,7 @@ graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enabl
                std::optional<std::vector<weight_t const*>> const& edge_partition_weights,
                std::optional<std::vector<vertex_t const*>> const& edge_partition_dcs_nzd_vertices,
                std::optional<std::vector<vertex_t>> const& edge_partition_dcs_nzd_vertex_counts,
-               graph_view_meta_t<vertex_t, edge_t, multi_gpu> meta)
+               graph_view_meta_t<vertex_t, edge_t, store_transposed, multi_gpu> meta)
   : detail::graph_base_t<vertex_t, edge_t, weight_t>(
       handle, meta.number_of_vertices, meta.number_of_edges, meta.properties),
     edge_partition_offsets_(edge_partition_offsets),
@@ -454,12 +472,18 @@ graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enabl
                                         handle.get_stream())),
     partition_(meta.partition),
     edge_partition_segment_offsets_(meta.edge_partition_segment_offsets),
-    local_sorted_unique_edge_src_first_(meta.local_sorted_unique_edge_src_first),
-    local_sorted_unique_edge_src_last_(meta.local_sorted_unique_edge_src_last),
-    local_sorted_unique_edge_src_offsets_(meta.local_sorted_unique_edge_src_offsets),
-    local_sorted_unique_edge_dst_first_(meta.local_sorted_unique_edge_dst_first),
-    local_sorted_unique_edge_dst_last_(meta.local_sorted_unique_edge_dst_last),
-    local_sorted_unique_edge_dst_offsets_(meta.local_sorted_unique_edge_dst_offsets)
+    local_sorted_unique_edge_srcs_(meta.local_sorted_unique_edge_srcs),
+    local_sorted_unique_edge_src_chunk_start_offsets_(
+      meta.local_sorted_unique_edge_src_chunk_start_offsets),
+    local_sorted_unique_edge_src_chunk_size_(meta.local_sorted_unique_edge_src_chunk_size),
+    local_sorted_unique_edge_src_vertex_partition_offsets_(
+      meta.local_sorted_unique_edge_src_vertex_partition_offsets),
+    local_sorted_unique_edge_dsts_(meta.local_sorted_unique_edge_dsts),
+    local_sorted_unique_edge_dst_chunk_start_offsets_(
+      meta.local_sorted_unique_edge_dst_chunk_start_offsets),
+    local_sorted_unique_edge_dst_chunk_size_(meta.local_sorted_unique_edge_dst_chunk_size),
+    local_sorted_unique_edge_dst_vertex_partition_offsets_(
+      meta.local_sorted_unique_edge_dst_vertex_partition_offsets)
 {
   // cheap error checks
 
@@ -494,7 +518,7 @@ graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enabl
   CUGRAPH_EXPECTS(
     !(meta.edge_partition_segment_offsets.has_value()) ||
       ((*(meta.edge_partition_segment_offsets)).size() ==
-       col_comm_size * (detail::num_sparse_segments_per_vertex_partition + (use_dcs ? 2 : 1))),
+       col_comm_size * (detail::num_sparse_segments_per_vertex_partition + (use_dcs ? 3 : 2))),
     "Internal Error: invalid edge_partition_segment_offsets.size().");
 
   // skip expensive error checks as this function is only called by graph_t
@@ -505,17 +529,17 @@ template <typename vertex_t,
           typename weight_t,
           bool store_transposed,
           bool multi_gpu>
-graph_view_t<
-  vertex_t,
-  edge_t,
-  weight_t,
-  store_transposed,
-  multi_gpu,
-  std::enable_if_t<!multi_gpu>>::graph_view_t(raft::handle_t const& handle,
-                                              edge_t const* offsets,
-                                              vertex_t const* indices,
-                                              std::optional<weight_t const*> weights,
-                                              graph_view_meta_t<vertex_t, edge_t, multi_gpu> meta)
+graph_view_t<vertex_t,
+             edge_t,
+             weight_t,
+             store_transposed,
+             multi_gpu,
+             std::enable_if_t<!multi_gpu>>::
+  graph_view_t(raft::handle_t const& handle,
+               edge_t const* offsets,
+               vertex_t const* indices,
+               std::optional<weight_t const*> weights,
+               graph_view_meta_t<vertex_t, edge_t, store_transposed, multi_gpu> meta)
   : detail::graph_base_t<vertex_t, edge_t, weight_t>(
       handle, meta.number_of_vertices, meta.number_of_edges, meta.properties),
     offsets_(offsets),
@@ -527,7 +551,7 @@ graph_view_t<
 
   CUGRAPH_EXPECTS(
     !(meta.segment_offsets).has_value() ||
-      ((*(meta.segment_offsets)).size() == (detail::num_sparse_segments_per_vertex_partition + 1)),
+      ((*(meta.segment_offsets)).size() == (detail::num_sparse_segments_per_vertex_partition + 2)),
     "Internal Error: (*(meta.segment_offsets)).size() returns an invalid value.");
 
   // skip expensive error checks as this function is only called by graph_t

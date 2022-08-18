@@ -23,7 +23,7 @@ import cudf
 
 
 def katz_centrality(
-    G, alpha=None, beta=None, max_iter=100, tol=1.0e-6,
+    G, alpha=None, beta=1.0, max_iter=100, tol=1.0e-6,
     nstart=None, normalized=True
 ):
     """
@@ -107,18 +107,21 @@ def katz_centrality(
 
     Examples
     --------
-    >>> gdf = cudf.read_csv(datasets_path / 'karate.csv', delimiter=' ',
-    ...                     dtype=['int32', 'int32', 'float32'], header=None)
-    >>> G = cugraph.Graph()
-    >>> G.from_cudf_edgelist(gdf, source='0', destination='1')
+    >>> from cugraph.experimental.datasets import karate
+    >>> G = karate.get_graph(fetch=True)
     >>> kc = cugraph.katz_centrality(G)
 
     """
+    G, isNx = ensure_cugraph_obj_for_nx(G)
+
+    if alpha is None:
+        degree_max = G.degree()['degree'].max()
+        alpha = 1 / (degree_max)
+
     if (alpha is not None) and (alpha <= 0.0):
         raise ValueError(f"'alpha' must be a positive float or None, "
                          f"got: {alpha}")
-    if beta is None:
-        beta = 1.0
+
     elif (not isinstance(beta, float)) or (beta <= 0.0):
         raise ValueError(f"'beta' must be a positive float or None, "
                          f"got: {beta}")
@@ -128,8 +131,6 @@ def katz_centrality(
     if (not isinstance(tol, float)) or (tol <= 0.0):
         raise ValueError(f"'tol' must be a positive float, got: {tol}")
 
-    G, isNx = ensure_cugraph_obj_for_nx(G)
-
     srcs = G.edgelist.edgelist_df['src']
     dsts = G.edgelist.edgelist_df['dst']
     if 'weights' in G.edgelist.edgelist_df.columns:
@@ -138,11 +139,6 @@ def katz_centrality(
         # FIXME: If weights column is not imported, a weights column of 1s
         # with type hardcoded to float32 is passed into wrapper
         weights = cudf.Series((srcs + 1) / (srcs + 1), dtype="float32")
-
-    if alpha is None:
-        largest_out_degree = G.degrees().nlargest(n=1, columns="out_degree")
-        largest_out_degree = largest_out_degree["out_degree"].iloc[0]
-        alpha = 1 / (largest_out_degree + 1)
 
     if nstart is not None:
         if G.renumbered is True:

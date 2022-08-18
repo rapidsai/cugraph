@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2021, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2022, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,7 +23,11 @@
 
 #include <thrust/detail/type_traits/iterator/is_discard_iterator.h>
 #include <thrust/device_ptr.h>
+#include <thrust/iterator/detail/any_assign.h>
 #include <thrust/iterator/detail/normal_iterator.h>
+#include <thrust/iterator/iterator_traits.h>
+#include <thrust/memory.h>
+#include <thrust/tuple.h>
 
 #include <type_traits>
 
@@ -1086,5 +1090,9 @@ device_gatherv(raft::comms::comms_t const& comm,
                                                      tuple_size>()
     .run(comm, input_first, output_first, sendcount, recvcounts, displacements, root, stream_view);
 }
+
+inline void device_group_start(raft::comms::comms_t const& comm) { comm.group_start(); }
+
+inline void device_group_end(raft::comms::comms_t const& comm) { comm.group_end(); }
 
 }  // namespace cugraph

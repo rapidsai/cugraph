@@ -18,12 +18,12 @@ from collections import defaultdict
 import pytest
 import cupy as cp
 import numpy as np
-from cupyx.scipy.sparse.coo import coo_matrix as cp_coo_matrix
-from cupyx.scipy.sparse.csr import csr_matrix as cp_csr_matrix
-from cupyx.scipy.sparse.csc import csc_matrix as cp_csc_matrix
-from scipy.sparse.coo import coo_matrix as sp_coo_matrix
-from scipy.sparse.csr import csr_matrix as sp_csr_matrix
-from scipy.sparse.csc import csc_matrix as sp_csc_matrix
+from cupyx.scipy.sparse import coo_matrix as cp_coo_matrix
+from cupyx.scipy.sparse import csr_matrix as cp_csr_matrix
+from cupyx.scipy.sparse import csc_matrix as cp_csc_matrix
+from scipy.sparse import coo_matrix as sp_coo_matrix
+from scipy.sparse import csr_matrix as sp_csr_matrix
+from scipy.sparse import csc_matrix as sp_csc_matrix
 
 import cudf
 import cugraph

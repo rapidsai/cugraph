@@ -47,7 +47,8 @@ class Tests_Renumbering
   : public ::testing::TestWithParam<std::tuple<Renumbering_Usecase, input_usecase_t>> {
  public:
   Tests_Renumbering() {}
-  static void SetupTestCase() {}
+
+  static void SetUpTestCase() {}
   static void TearDownTestCase() {}
 
   virtual void SetUp() {}

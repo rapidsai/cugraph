@@ -39,6 +39,9 @@ function sed_runner() {
     sed -i.bak ''"$1"'' $2 && rm -f ${2}.bak
 }
 
+# rapids-cmake version
+sed_runner 's/'"branch-.*\/RAPIDS.cmake"'/'"branch-${NEXT_SHORT_TAG}\/RAPIDS.cmake"'/g' fetch_rapids.cmake
+
 # CMakeLists update
 sed_runner 's/'"CUGRAPH VERSION .* LANGUAGES C CXX CUDA)"'/'"CUGRAPH VERSION ${NEXT_FULL_TAG} LANGUAGES C CXX CUDA)"'/g' cpp/CMakeLists.txt
 sed_runner 's|'"branch-.*/RAPIDS.cmake"'|'"branch-${NEXT_SHORT_TAG}/RAPIDS.cmake"'|g' cpp/CMakeLists.txt
@@ -53,6 +56,8 @@ for FILE in conda/environments/*.yml; do
    sed_runner "s/libcugraphops=${CURRENT_SHORT_TAG}/libcugraphops=${NEXT_SHORT_TAG}/g" ${FILE};
    sed_runner "s/cudf=${CURRENT_SHORT_TAG}/cudf=${NEXT_SHORT_TAG}/g" ${FILE};
    sed_runner "s/rmm=${CURRENT_SHORT_TAG}/rmm=${NEXT_SHORT_TAG}/g" ${FILE};
+   sed_runner "s/libraft-headers=${CURRENT_SHORT_TAG}/libraft-headers=${NEXT_SHORT_TAG}/g" ${FILE};
+   sed_runner "s/pyraft=${CURRENT_SHORT_TAG}/pyraft=${NEXT_SHORT_TAG}/g" ${FILE};
    sed_runner "s/dask-cuda=${CURRENT_SHORT_TAG}/dask-cuda=${NEXT_SHORT_TAG}/g" ${FILE};
    sed_runner "s/dask-cudf=${CURRENT_SHORT_TAG}/dask-cudf=${NEXT_SHORT_TAG}/g" ${FILE};
    sed_runner "s/cuxfilter=${CURRENT_SHORT_TAG}/cuxfilter=${NEXT_SHORT_TAG}/g" ${FILE};
@@ -60,7 +65,7 @@ for FILE in conda/environments/*.yml; do
 done
 
 # Doxyfile update
-sed_runner "s|\(TAGFILES.*librmm/\).*|\1${NEXT_SHORT_TAG}|" cpp/doxygen/Doxyfile
+sed_runner "s|PROJECT_NUMBER[[:space:]]*=.*|PROJECT_NUMBER=${NEXT_SHORT_TAG}|" cpp/doxygen/Doxyfile
 
 # ucx-py version
 sed_runner "s/export UCX_PY_VERSION=.*/export UCX_PY_VERSION='${NEXT_UCX_PY_VERSION}'/g" ci/benchmark/build.sh

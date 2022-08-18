@@ -15,7 +15,8 @@
  */
 #pragma once
 
-#include <cugraph/detail/graph_utils.cuh>
+#include <detail/graph_utils.cuh>
+
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
@@ -29,9 +30,15 @@
 #include <rmm/mr/device/polymorphic_allocator.hpp>
 
 #include <thrust/copy.h>
+#include <thrust/count.h>
+#include <thrust/distance.h>
+#include <thrust/functional.h>
 #include <thrust/iterator/discard_iterator.h>
+#include <thrust/iterator/zip_iterator.h>
 #include <thrust/sort.h>
+#include <thrust/transform.h>
 #include <thrust/tuple.h>
+#include <thrust/unique.h>
 
 #include <algorithm>
 #include <iterator>
@@ -113,8 +120,8 @@ void relabel(raft::handle_t const& handle,
                     std::max(static_cast<size_t>(
                                static_cast<double>(rx_label_pair_old_labels.size()) / load_factor),
                              rx_label_pair_old_labels.size() + 1),
-                    invalid_vertex_id<vertex_t>::value,
-                    invalid_vertex_id<vertex_t>::value,
+                    cuco::sentinel::empty_key<vertex_t>{invalid_vertex_id<vertex_t>::value},
+                    cuco::sentinel::empty_value<vertex_t>{invalid_vertex_id<vertex_t>::value},
                     stream_adapter,
                     handle.get_stream()};
 
@@ -178,8 +185,8 @@ void relabel(raft::handle_t const& handle,
           // cuco::static_map requires at least one empty slot
           std::max(static_cast<size_t>(static_cast<double>(unique_old_labels.size()) / load_factor),
                    unique_old_labels.size() + 1),
-          invalid_vertex_id<vertex_t>::value,
-          invalid_vertex_id<vertex_t>::value,
+          cuco::sentinel::empty_key<vertex_t>{invalid_vertex_id<vertex_t>::value},
+          cuco::sentinel::empty_value<vertex_t>{invalid_vertex_id<vertex_t>::value},
           stream_adapter,
           handle.get_stream()};
 
@@ -205,8 +212,8 @@ void relabel(raft::handle_t const& handle,
         // cuco::static_map requires at least one empty slot
         std::max(static_cast<size_t>(static_cast<double>(num_label_pairs) / load_factor),
                  static_cast<size_t>(num_label_pairs) + 1),
-        invalid_vertex_id<vertex_t>::value,
-        invalid_vertex_id<vertex_t>::value,
+        cuco::sentinel::empty_key<vertex_t>{invalid_vertex_id<vertex_t>::value},
+        cuco::sentinel::empty_value<vertex_t>{invalid_vertex_id<vertex_t>::value},
         stream_adapter,
         handle.get_stream());
 

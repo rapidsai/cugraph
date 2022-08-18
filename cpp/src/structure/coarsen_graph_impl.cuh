@@ -15,14 +15,15 @@
  */
 #pragma once
 
+#include <detail/graph_utils.cuh>
+#include <prims/edge_partition_src_dst_property.cuh>
+#include <prims/update_edge_partition_src_dst_property.cuh>
+
 #include <cugraph/detail/decompress_edge_partition.cuh>
-#include <cugraph/detail/graph_utils.cuh>
 #include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
-#include <cugraph/prims/edge_partition_src_dst_property.cuh>
-#include <cugraph/prims/update_edge_partition_src_dst_property.cuh>
 #include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/error.hpp>
 
@@ -31,10 +32,19 @@
 #include <rmm/exec_policy.hpp>
 
 #include <thrust/copy.h>
+#include <thrust/count.h>
+#include <thrust/distance.h>
+#include <thrust/iterator/counting_iterator.h>
 #include <thrust/iterator/discard_iterator.h>
+#include <thrust/iterator/zip_iterator.h>
+#include <thrust/partition.h>
+#include <thrust/reduce.h>
+#include <thrust/remove.h>
 #include <thrust/scan.h>
 #include <thrust/sort.h>
+#include <thrust/transform.h>
 #include <thrust/tuple.h>
+#include <thrust/unique.h>
 
 #include <algorithm>
 #include <iterator>
@@ -280,10 +290,14 @@ coarsen_graph(
   for (size_t i = 0; i < graph_view.number_of_local_edge_partitions(); ++i) {
     // 1-1. locally construct coarsened edge list
 
-    rmm::device_uvector<vertex_t> major_labels(
-      store_transposed ? graph_view.local_edge_partition_dst_range_size(i)
-                       : graph_view.local_edge_partition_src_range_size(i),
-      handle.get_stream());
+    vertex_t edge_partition_major_range_size{};
+    if constexpr (store_transposed) {
+      edge_partition_major_range_size = graph_view.local_edge_partition_dst_range_size(i);
+    } else {
+      edge_partition_major_range_size = graph_view.local_edge_partition_src_range_size(i);
+    }
+    rmm::device_uvector<vertex_t> major_labels(edge_partition_major_range_size,
+                                               handle.get_stream());
     device_bcast(col_comm,
                  labels,
                  major_labels.data(),
@@ -523,7 +537,8 @@ coarsen_graph(
       edge_partition_device_view_t<vertex_t, edge_t, weight_t, multi_gpu>(
         graph_view.local_edge_partition_view()),
       labels,
-      detail::edge_partition_minor_property_device_view_t<vertex_t, vertex_t const*>(labels),
+      detail::edge_partition_minor_property_device_view_t<vertex_t, vertex_t const*>(labels,
+                                                                                     vertex_t{0}),
       graph_view.local_edge_partition_segment_offsets(0),
       lower_triangular_only);
 

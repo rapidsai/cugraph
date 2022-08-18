@@ -65,6 +65,7 @@ class edge_partition_view_t<vertex_t, edge_t, weight_t, multi_gpu, std::enable_i
                         std::optional<weight_t const*> weights,
                         std::optional<vertex_t const*> dcs_nzd_vertices,
                         std::optional<vertex_t> dcs_nzd_vertex_count,
+                        std::optional<vertex_t> major_hypersparse_first,
                         edge_t number_of_edge_partition_edges,
                         vertex_t major_range_first,
                         vertex_t major_range_last,
@@ -75,6 +76,7 @@ class edge_partition_view_t<vertex_t, edge_t, weight_t, multi_gpu, std::enable_i
         offsets, indices, weights, number_of_edge_partition_edges),
       dcs_nzd_vertices_(dcs_nzd_vertices),
       dcs_nzd_vertex_count_(dcs_nzd_vertex_count),
+      major_hypersparse_first_(major_hypersparse_first),
       major_range_first_(major_range_first),
       major_range_last_(major_range_last),
       minor_range_first_(minor_range_first),
@@ -85,6 +87,7 @@ class edge_partition_view_t<vertex_t, edge_t, weight_t, multi_gpu, std::enable_i
 
   std::optional<vertex_t const*> dcs_nzd_vertices() const { return dcs_nzd_vertices_; }
   std::optional<vertex_t> dcs_nzd_vertex_count() const { return dcs_nzd_vertex_count_; }
+  std::optional<vertex_t> major_hypersparse_first() const { return major_hypersparse_first_; }
 
   vertex_t major_range_first() const { return major_range_first_; }
   vertex_t major_range_last() const { return major_range_last_; }
@@ -95,8 +98,9 @@ class edge_partition_view_t<vertex_t, edge_t, weight_t, multi_gpu, std::enable_i
 
  private:
   // relevant only if we use the CSR + DCSR (or CSC + DCSC) hybrid format
-  std::optional<vertex_t const*> dcs_nzd_vertices_{};
-  std::optional<vertex_t> dcs_nzd_vertex_count_{};
+  std::optional<vertex_t const*> dcs_nzd_vertices_{std::nullopt};
+  std::optional<vertex_t> dcs_nzd_vertex_count_{std::nullopt};
+  std::optional<vertex_t> major_hypersparse_first_{std::nullopt};
 
   vertex_t major_range_first_{0};
   vertex_t major_range_last_{0};
@@ -124,6 +128,7 @@ class edge_partition_view_t<vertex_t, edge_t, weight_t, multi_gpu, std::enable_i
 
   std::optional<vertex_t const*> dcs_nzd_vertices() const { return std::nullopt; }
   std::optional<vertex_t> dcs_nzd_vertex_count() const { return std::nullopt; }
+  std::optional<vertex_t> major_hypersparse_first() const { return std::nullopt; }
 
   vertex_t major_range_first() const { return vertex_t{0}; }
   vertex_t major_range_last() const { return number_of_vertices_; }

@@ -236,7 +236,7 @@ Run either the C++ or the Python tests with datasets
    make test
    ```
 
-Note: This conda installation only applies to Linux and Python versions 3.7/3.8.
+Note: This conda installation only applies to Linux and Python versions 3.8/3.9.
 
 ### Building and Testing on a gpuCI image locally
 

@@ -44,13 +44,6 @@ struct not_equal_t {
   __device__ bool operator()(T val) const { return val != compare; }
 };
 
-template <typename T>
-struct multiplier_t {
-  T multiplier{};
-
-  __device__ T operator()(T input) const { return input * multiplier; }
-};
-
 template <typename Iterator>
 struct is_first_in_run_t {
   Iterator iter{};
@@ -59,6 +52,48 @@ struct is_first_in_run_t {
   {
     return (i == 0) || (*(iter + (i - 1)) != *(iter + i));
   }
+};
+
+template <typename T>
+struct check_bit_set_t {
+  uint32_t const* bitmaps{nullptr};
+  T idx_first{};
+
+  __device__ bool operator()(T idx) const
+  {
+    auto offset = idx - idx_first;
+    auto mask   = uint32_t{1} << (offset % (sizeof(uint32_t) * 8));
+    return (*(bitmaps + (offset / (sizeof(uint32_t) * 8))) & mask) > uint32_t{0};
+  }
+};
+
+template <typename T>
+struct shift_left_t {
+  T offset{};
+
+  __device__ T operator()(T input) const { return input - offset; }
+};
+
+template <typename T>
+struct shift_right_t {
+  T offset{};
+
+  __device__ T operator()(T input) const { return input + offset; }
+};
+
+template <typename T>
+struct multiplier_t {
+  T multiplier{};
+
+  __device__ T operator()(T input) const { return input * multiplier; }
+};
+
+template <typename T>
+struct multiply_and_add_t {
+  T multiplier{};
+  T adder{};
+
+  __device__ T operator()(T input) const { return input * multiplier + adder; }
 };
 
 }  // namespace detail

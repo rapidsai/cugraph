@@ -31,7 +31,11 @@
 #include <rmm/mr/device/cuda_memory_resource.hpp>
 
 #include <cuda_profiler_api.h>
+#include <thrust/copy.h>
 #include <thrust/extrema.h>
+#include <thrust/functional.h>
+#include <thrust/reduce.h>
+#include <thrust/replace.h>
 #include <thrust/sequence.h>
 #include <thrust/transform.h>
 
@@ -74,7 +78,8 @@ void translate_vertex_ids(raft::handle_t const& handle,
 class Tests_MsBfs : public ::testing::TestWithParam<MsBfs_Usecase> {
  public:
   Tests_MsBfs() {}
-  static void SetupTestCase() {}
+
+  static void SetUpTestCase() {}
   static void TearDownTestCase() {}
 
   virtual void SetUp() {}

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2021, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2019-2022, NVIDIA CORPORATION.  All rights reserved.
  *
  * NVIDIA CORPORATION and its licensors retain all intellectual property
  * and proprietary rights in and to this software, related documentation
@@ -18,19 +18,22 @@
 
 #include <rmm/device_vector.hpp>
 
-#include <components/scc_matrix.cuh>
-#include <converters/COOtoCSR.cuh>
+#include <components/legacy/scc_matrix.cuh>
+#include <converters/legacy/COOtoCSR.cuh>
 #include <cugraph/algorithms.hpp>
 #include <cugraph/legacy/graph.hpp>
 #include <rmm/device_vector.hpp>
-#include <topology/topology.cuh>
 
 #include <cuda_profiler_api.h>
 
+#include <thrust/device_vector.h>
+#include <thrust/distance.h>
 #include <thrust/iterator/constant_iterator.h>
 #include <thrust/iterator/discard_iterator.h>
 #include <thrust/reduce.h>
 #include <thrust/sequence.h>
+#include <thrust/sort.h>
+#include <thrust/transform.h>
 #include <thrust/unique.h>
 
 #include <algorithm>
@@ -104,7 +107,8 @@ DVector<IndexT> byte_matrix_to_int(const DVector<ByteT>& d_adj_byte_matrix)
 
 struct Tests_Strongly_CC : ::testing::TestWithParam<Usecase> {
   Tests_Strongly_CC() {}
-  static void SetupTestCase() {}
+
+  static void SetUpTestCase() {}
   static void TearDownTestCase()
   {
     if (cugraph::test::g_perf) {
@@ -117,6 +121,7 @@ struct Tests_Strongly_CC : ::testing::TestWithParam<Usecase> {
         std::cout << count << std::endl;
     }
   }
+
   virtual void SetUp() {}
   virtual void TearDown() {}
 

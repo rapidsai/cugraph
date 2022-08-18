@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2021, NVIDIA CORPORATION.
+ * Copyright (c) 2020-2022, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,7 +31,8 @@
 
 #include <cmath>
 
-#include "../src/converters/COOtoCSR.cuh"
+#include "../src/converters/legacy/COOtoCSR.cuh"
+#include <thrust/device_ptr.h>
 #include <thrust/iterator/constant_iterator.h>
 #include <thrust/reduce.h>
 
@@ -57,8 +58,10 @@ typedef struct Mst_Usecase_t {
 class Tests_Mst : public ::testing::TestWithParam<Mst_Usecase> {
  public:
   Tests_Mst() {}
-  static void SetupTestCase() {}
+
+  static void SetUpTestCase() {}
   static void TearDownTestCase() {}
+
   virtual void SetUp() {}
   virtual void TearDown() {}
 
