@@ -32,7 +32,8 @@ import cupy
 from gaas_client import defaults
 from gaas_client.exceptions import GaasError
 from gaas_client.types import (BatchedEgoGraphsResult,
-                               Node2vecResult, UniformNeighborSampleResult,
+                               Node2vecResult,
+                               UniformNeighborSampleResult,
                                ValueWrapper,
                                DataframeRowIndexWrapper,
                                )
@@ -426,6 +427,8 @@ class GaasHandler:
         selection = selection or None
         edge_weight_property = edge_weight_property or None
 
+        # FIXME: create_using and selection should not be strings at this point
+
         try:
             G = pG.extract_subgraph(create_using,
                                     selection,
@@ -582,9 +585,10 @@ class GaasHandler:
                                 ):
         G = self._get_graph(graph_id)
         if isinstance(G, PropertyGraph):
-            raise GaasError("uniform_neighbor_sample() cannot operate directly on "
-                            "a graph with properties, call extract_subgraph() "
-                            "then call uniform_neighbor_sample() on the extracted "
+            raise GaasError("uniform_neighbor_sample() cannot operate directly "
+                            "on a graph with properties, call "
+                            "extract_subgraph() then call "
+                            "uniform_neighbor_sample() on the extracted "
                             "subgraph instead.")
 
         sampling_results = sampling.uniform_neighbor_sample(
