@@ -175,6 +175,8 @@ set(CUGRAPH_SOURCES
     src/layout/legacy/force_atlas2.cu
     src/converters/legacy/COOtoCSR.cu
     src/community/legacy/spectral_clustering.cu
+    src/community/detail/common_methods_sg.cu
+    src/community/detail/common_methods_mg.cu
     src/community/louvain_sg.cu
     src/community/louvain_mg.cu
     src/community/legacy/louvain.cu
