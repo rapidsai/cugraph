@@ -26,6 +26,7 @@
 #include <utilities/collect_comm.cuh>
 
 #include <cugraph/detail/utility_wrappers.hpp>
+#include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/graph.hpp>
 
 #include <rmm/device_uvector.hpp>
@@ -59,14 +60,7 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> louvain(
 
   weight_t best_modularity = weight_t{-1};
 
-  // FIXME: move to detail to allow this to be hpp
-  weight_t total_edge_weight = transform_reduce_e(
-    handle,
-    current_graph_view,
-    dummy_property_t<vertex_t>{}.device_view(),
-    dummy_property_t<vertex_t>{}.device_view(),
-    [] __device__(auto, auto, weight_t wt, auto, auto) { return wt; },
-    weight_t{0});
+  weight_t total_edge_weight = current_graph_view.compute_total_edge_weight(handle);
 
   while (dendrogram->num_levels() < max_level) {
     //
@@ -112,7 +106,8 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> louvain(
 
     // FIXME: Move to detail to allow this to be .hpp
     if constexpr (graph_view_t::is_multi_gpu) {
-      auto const comm_size = handle.get_comms().get_size();
+#if 0
+        // FIXME:  Isn't this just:  shuffle_ext_vertices_and_values_by_gpu_id?
       rmm::device_uvector<vertex_t> rx_keys_v(0, handle.get_stream());
       rmm::device_uvector<weight_t> rx_weights_v(0, handle.get_stream());
 
@@ -127,11 +122,16 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> louvain(
           // TODO: Shouldn't this be int_vertex_t ?
           [key_func =
              cugraph::detail::compute_gpu_id_from_ext_vertex_t<vertex_t>{
-               comm_size}] __device__(auto val) { return key_func(thrust::get<0>(val)); },
+               handle.get_comms().get_size()}] __device__(auto val) {
+            return key_func(thrust::get<0>(val));
+          },
           handle.get_stream());
 
       cluster_keys_v    = std::move(rx_keys_v);
       cluster_weights_v = std::move(rx_weights_v);
+#else
+      std::tie(cluster_keys_v, cluster_weights_v) = shuffle_ext_vertices_and_values_by_gpu_id(handle, std::move(cluster_keys_v), std::move(cluster_weights_v));
+#endif
 
       src_vertex_weights_cache =
         edge_partition_src_property_t<graph_view_t, weight_t>(handle, current_graph_view);

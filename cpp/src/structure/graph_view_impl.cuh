@@ -888,6 +888,46 @@ template <typename vertex_t,
           typename weight_t,
           bool store_transposed,
           bool multi_gpu>
+weight_t
+graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_t<multi_gpu>>::
+  compute_total_edge_weight(raft::handle_t const& handle) const
+{
+  return transform_reduce_e(
+    handle,
+    *this,
+    dummy_property_t<vertex_t>{}.device_view(),
+    dummy_property_t<vertex_t>{}.device_view(),
+    [] __device__(auto, auto, weight_t wt, auto, auto) { return wt; },
+    weight_t{0});
+}
+
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          bool store_transposed,
+          bool multi_gpu>
+weight_t graph_view_t<vertex_t,
+                      edge_t,
+                      weight_t,
+                      store_transposed,
+                      multi_gpu,
+                      std::enable_if_t<!multi_gpu>>::compute_total_edge_weight(raft::handle_t const&
+                                                                                 handle) const
+{
+  return transform_reduce_e(
+    handle,
+    *this,
+    dummy_property_t<vertex_t>{}.device_view(),
+    dummy_property_t<vertex_t>{}.device_view(),
+    [] __device__(auto, auto, weight_t wt, auto, auto) { return wt; },
+    weight_t{0});
+}
+
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          bool store_transposed,
+          bool multi_gpu>
 edge_t
 graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_t<multi_gpu>>::
   count_self_loops(raft::handle_t const& handle) const
