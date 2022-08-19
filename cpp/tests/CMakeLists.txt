@@ -479,6 +479,10 @@ if(BUILD_CUGRAPH_MG_TESTS)
     ConfigureTestMG(MG_TRIANGLE_COUNT_TEST community/mg_triangle_count_test.cpp)
 
     ###########################################################################################
+    # - MG INDUCED SUBGRAPH tests ---------------------------------------------------------------
+    ConfigureTestMG(MG_INDUCED_SUBGRAPH_TEST community/mg_induced_subgraph_test.cpp)
+
+    ###########################################################################################
     # - MG PRIMS COUNT_IF_V tests -------------------------------------------------------------
     ConfigureTestMG(MG_COUNT_IF_V_TEST prims/mg_count_if_v.cu)
     target_link_libraries(MG_COUNT_IF_V_TEST PRIVATE cuco::cuco)
