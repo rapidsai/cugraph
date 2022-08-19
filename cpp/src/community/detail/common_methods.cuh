@@ -187,7 +187,7 @@ cugraph::graph_t<vertex_t, edge_t, weight_t, false, multi_gpu> graph_contraction
   detail::sequence_fill(handle.get_stream(),
                         numbering_indices.data(),
                         numbering_indices.size(),
-                        graph_view.local_vertex_partition_range_first());
+                        new_graph_view.local_vertex_partition_range_first());
 
   relabel<vertex_t, multi_gpu>(
     handle,

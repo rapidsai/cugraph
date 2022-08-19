@@ -19,14 +19,13 @@
 //#define TIMING
 
 #include <community/detail/common_methods.hpp>
-#include <community/flatten_dendrogram.cuh>
-#include <detail/graph_utils.cuh>
-#include <prims/transform_reduce_e.cuh>
+#include <community/flatten_dendrogram.hpp>
+// FIXME:  PR 2503 should make this a .hpp which will allow me to update
+//     louvain_impl to be an hpp and louvain_sg and louvain_mg to be .cpp
 #include <prims/update_edge_partition_src_dst_property.cuh>
-#include <utilities/collect_comm.cuh>
 
-#include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/detail/shuffle_wrappers.hpp>
+#include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/graph.hpp>
 
 #include <rmm/device_uvector.hpp>
@@ -104,34 +103,9 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> louvain(
                vertex_weights_v.size(),
                handle.get_stream());
 
-    // FIXME: Move to detail to allow this to be .hpp
     if constexpr (graph_view_t::is_multi_gpu) {
-#if 0
-        // FIXME:  Isn't this just:  shuffle_ext_vertices_and_values_by_gpu_id?
-      rmm::device_uvector<vertex_t> rx_keys_v(0, handle.get_stream());
-      rmm::device_uvector<weight_t> rx_weights_v(0, handle.get_stream());
-
-      auto pair_first = thrust::make_zip_iterator(
-        thrust::make_tuple(cluster_keys_v.begin(), cluster_weights_v.begin()));
-
-      std::forward_as_tuple(std::tie(rx_keys_v, rx_weights_v), std::ignore) =
-        groupby_gpu_id_and_shuffle_values(
-          handle.get_comms(),
-          pair_first,
-          pair_first + current_graph_view.local_vertex_partition_range_size(),
-          // TODO: Shouldn't this be int_vertex_t ?
-          [key_func =
-             cugraph::detail::compute_gpu_id_from_ext_vertex_t<vertex_t>{
-               handle.get_comms().get_size()}] __device__(auto val) {
-            return key_func(thrust::get<0>(val));
-          },
-          handle.get_stream());
-
-      cluster_keys_v    = std::move(rx_keys_v);
-      cluster_weights_v = std::move(rx_weights_v);
-#else
-      std::tie(cluster_keys_v, cluster_weights_v) = shuffle_ext_vertices_and_values_by_gpu_id(handle, std::move(cluster_keys_v), std::move(cluster_weights_v));
-#endif
+      std::tie(cluster_keys_v, cluster_weights_v) = shuffle_ext_vertices_and_values_by_gpu_id(
+        handle, std::move(cluster_keys_v), std::move(cluster_weights_v));
 
       src_vertex_weights_cache =
         edge_partition_src_property_t<graph_view_t, weight_t>(handle, current_graph_view);
