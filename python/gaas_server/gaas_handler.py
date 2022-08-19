@@ -16,6 +16,7 @@ from pathlib import Path
 import importlib
 import time
 import traceback
+from inspect import signature
 
 import cudf
 import dask_cudf
@@ -76,11 +77,12 @@ def call_algo(sg_algo_func, G, **kwargs):
 class ExtensionServerFacade:
     """
     Instances of this class are passed to server extension functions to be used
-    to access various aspects of the GaaS server from within the extension. This
-    provideas a means to insulate the GaaS handler (considered here to be the
-    "server") from direct access by end user extensions, allowing extension code
-    to query/access the server as needed without giving extensions the ability
-    to call potentially unsafe methods directly on the GaasHandler.
+    to access various aspects of the GaaS server from within the
+    extension. This provideas a means to insulate the GaaS handler (considered
+    here to be the "server") from direct access by end user extensions,
+    allowing extension code to query/access the server as needed without giving
+    extensions the ability to call potentially unsafe methods directly on the
+    GaasHandler.
 
     An example is using an instance of a ExtensionServerFacade to allow a Graph
     creation extension to query the SG/MG state the server is using in order to
@@ -105,6 +107,11 @@ class GaasHandler:
     """
     Class which handles RPC requests for a GaasService.
     """
+
+    # The name of the param that should be set to a ExtensionServerFacade
+    # instance for server extension functions.
+    __server_facade_extension_param_name = "gaas_server"
+
     def __init__(self):
         self.__next_graph_id = defaults.graph_id + 1
         self.__graph_objs = {}
@@ -142,19 +149,20 @@ class GaasHandler:
         if self.__dask_client is not None:
             num_gpus = len(self.__dask_client.scheduler_info()["workers"])
         else:
-            # The assumption is that GaaS requires at least 1 GPU (ie. currently
-            # there is no CPU-only version of GaaS)
+            # The assumption is that GaaS requires at least 1 GPU (ie.
+            # currently there is no CPU-only version of GaaS)
             num_gpus = 1
 
         return {"num_gpus": ValueWrapper(num_gpus).union}
 
     def load_graph_creation_extensions(self, extension_dir_path):
         """
-        Loads ("imports") all modules matching the pattern *_extension.py in the
-        directory specified by extension_dir_path.
+        Loads ("imports") all modules matching the pattern *_extension.py in
+        the directory specified by extension_dir_path.
 
         The modules are searched and their functions are called (if a match is
         found) when call_graph_creation_extension() is called.
+
         """
         extension_dir = Path(extension_dir_path)
 
@@ -165,7 +173,8 @@ class GaasHandler:
 
         for ext_file in extension_dir.glob("*_extension.py"):
             module_name = ext_file.stem
-            spec = importlib.util.spec_from_file_location(module_name, ext_file)
+            spec = importlib.util.spec_from_file_location(module_name,
+                                                          ext_file)
             module = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(module)
             self.__graph_creation_extensions[module_name] = module
@@ -203,16 +212,24 @@ class GaasHandler:
                 if func is not None:
                     func_args = eval(func_args_repr)
                     func_kwargs = eval(func_kwargs_repr)
+                    func_sig = signature(func)
+                    func_params = list(func_sig.parameters.keys())
+                    facade_param = self.__server_facade_extension_param_name
 
-                    # All graph creation extensions are passed a
-                    # ExtensionServerFacade instance as the first arg to allow
-                    # them to query the "server" in a safe way, if needed.
-                    gaas_server_facade = ExtensionServerFacade(self)
+                    # Graph creation extensions that have the last arg named
+                    # self.__server_facade_extension_param_name are passed a
+                    # ExtensionServerFacade instance to allow them to query the
+                    # "server" in a safe way, if needed.
+                    if (facade_param in func_params):
+                        if func_params[-1] == facade_param:
+                            func_kwargs[facade_param] = \
+                                ExtensionServerFacade(self)
+                        else:
+                            raise GaasError(f"{facade_param}, if specified, "
+                                            "must be the last param.")
 
                     try:
-                        graph_obj = func(gaas_server_facade,
-                                         *func_args,
-                                         **func_kwargs)
+                        graph_obj = func(*func_args, **func_kwargs)
                     except:
                         # FIXME: raise a more detailed error
                         raise GaasError(f"error running {func_name} : "
@@ -223,6 +240,7 @@ class GaasHandler:
 
     def initialize_dask_client(self, dask_scheduler_file=None):
         """
+        Initialize a dask client to be used for MG operations.
         """
         if dask_scheduler_file is not None:
             # Env var UCX_MAX_RNDV_RAILS=1 must be set too.
@@ -242,6 +260,7 @@ class GaasHandler:
 
     def shutdown_dask_client(self):
         """
+        Shutdown/cleanup the dask client for this handler instance.
         """
         if self.__dask_client is not None:
             Comms.destroy()

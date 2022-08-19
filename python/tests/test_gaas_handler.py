@@ -115,3 +115,39 @@ def test_load_and_unload_graph_creation_extension_no_args(
     new_graph_ID = handler.call_graph_creation_extension(
         "custom_graph_creation_function", "()", "{}")
     assert new_graph_ID in handler.get_graph_ids()
+
+
+def test_load_and_unload_graph_creation_extension_no_facade_arg(
+        graph_creation_extension_no_facade_arg):
+    """
+    Test an extension that has no facade arg.
+    """
+    from gaas_server.gaas_handler import GaasHandler
+    handler = GaasHandler()
+
+    extension_dir = graph_creation_extension_no_facade_arg
+
+    # Load the extensions and ensure it can be called.
+    handler.load_graph_creation_extensions(extension_dir)
+    new_graph_ID = handler.call_graph_creation_extension(
+        "graph_creation_function", "('a')", "{'arg2':33}")
+    assert new_graph_ID in handler.get_graph_ids()
+
+
+def test_load_and_unload_graph_creation_extension_bad_arg_order(
+        graph_creation_extension_bad_arg_order):
+    """
+    Test an extension that has the facade arg in the wrong position.
+    """
+    from gaas_server.gaas_handler import GaasHandler
+    from gaas_client.exceptions import GaasError
+
+    handler = GaasHandler()
+
+    extension_dir = graph_creation_extension_bad_arg_order
+
+    # Load the extensions and ensure it can be called.
+    handler.load_graph_creation_extensions(extension_dir)
+    with pytest.raises(GaasError):
+        handler.call_graph_creation_extension(
+            "graph_creation_function", "('a', 'b')", "{}")

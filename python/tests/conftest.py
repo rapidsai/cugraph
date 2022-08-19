@@ -40,7 +40,7 @@ from cugraph.experimental import PropertyGraph
 def __my_private_function():
    pass
 
-def my_graph_creation_function(gaas_server, arg1, arg2, arg3):
+def my_graph_creation_function(arg1:str, arg2:str, arg3:str, gaas_server):
    edgelist = cudf.DataFrame(columns=[arg1, arg2, arg3],
                              data=[(0, 1, 2), (88, 99, 77)])
    pG = PropertyGraph()
@@ -55,6 +55,27 @@ from cugraph.experimental import PropertyGraph
 
 def long_running_graph_creation_function(gaas_server):
    time.sleep(10)
+   pG = PropertyGraph()
+   return pG
+"""
+
+graph_creation_extension_no_facade_arg_file_contents = """
+import time
+import cudf
+from cugraph.experimental import PropertyGraph
+
+def graph_creation_function(arg1, arg2):
+   time.sleep(10)
+   pG = PropertyGraph()
+   return pG
+"""
+
+graph_creation_extension_bad_arg_order_file_contents = """
+import time
+import cudf
+from cugraph.experimental import PropertyGraph
+
+def graph_creation_function(gaas_server, arg1, arg2):
    pG = PropertyGraph()
    return pG
 """
@@ -96,6 +117,32 @@ def graph_creation_extension_long_running():
             Path(tmp_extension_dir)/"long_running_graph_creation_extension.py",
             "w")
         print(graph_creation_extension_long_running_file_contents,
+              file=graph_creation_extension_file,
+              flush=True)
+
+        yield tmp_extension_dir
+
+@pytest.fixture(scope="module")
+def graph_creation_extension_no_facade_arg():
+    with TemporaryDirectory() as tmp_extension_dir:
+        # write graph creation extension .py file
+        graph_creation_extension_file = open(
+            Path(tmp_extension_dir)/"graph_creation_no_facade_arg_extension.py",
+            "w")
+        print(graph_creation_extension_no_facade_arg_file_contents,
+              file=graph_creation_extension_file,
+              flush=True)
+
+        yield tmp_extension_dir
+
+@pytest.fixture(scope="module")
+def graph_creation_extension_bad_arg_order():
+    with TemporaryDirectory() as tmp_extension_dir:
+        # write graph creation extension .py file
+        graph_creation_extension_file = open(
+            Path(tmp_extension_dir)/"graph_creation_bad_arg_order_extension.py",
+            "w")
+        print(graph_creation_extension_bad_arg_order_file_contents,
               file=graph_creation_extension_file,
               flush=True)
 
