@@ -26,7 +26,7 @@ jobs:
       package-dir: python/cugraph
       python-version: "3.8"
       cibw-environment: "PYTHON_PACKAGE_CUDA_SUFFIX='-cuda11'"
-      cibw-before-build: "pip install libraft-cuda11 libcugraph-cuda11 --index-url https://pypi.k8s.rapids.ai/simple"
+      cibw-before-build: "pip install rmm-cuda11 libraft-cuda11 libcugraph-cuda11 --index-url https://pypi.k8s.rapids.ai/simple"
       skbuild-configure-options: "-DFIND_CUGRAPH_CPP=ON"
     secrets: inherit
   cugraph-wheel-amd64-39:
@@ -37,7 +37,7 @@ jobs:
       package-dir: python/cugraph
       python-version: "3.9"
       cibw-environment: "PYTHON_PACKAGE_CUDA_SUFFIX='-cuda11'"
-      cibw-before-build: "pip install libraft-cuda11 libcugraph-cuda11 --index-url https://pypi.k8s.rapids.ai/simple"
+      cibw-before-build: "pip install rmm-cuda11 libraft-cuda11 libcugraph-cuda11 --index-url https://pypi.k8s.rapids.ai/simple"
       skbuild-configure-options: "-DFIND_CUGRAPH_CPP=ON"
     secrets: inherit
   pylibcugraph-wheel-amd64-38:
@@ -48,7 +48,7 @@ jobs:
       package-dir: python/pylibcugraph
       python-version: "3.8"
       cibw-environment: "PYTHON_PACKAGE_CUDA_SUFFIX='-cuda11'"
-      cibw-before-build: "pip install libraft-cuda11 libcugraph-cuda11 --index-url https://pypi.k8s.rapids.ai/simple"
+      cibw-before-build: "pip install rmm-cuda11 libraft-cuda11 libcugraph-cuda11 --index-url https://pypi.k8s.rapids.ai/simple"
       skbuild-configure-options: "-DFIND_CUGRAPH_CPP=ON"
     secrets: inherit
   pylibcugraph-wheel-amd64-39:
@@ -59,7 +59,7 @@ jobs:
       package-dir: python/pylibcugraph
       python-version: "3.9"
       cibw-environment: "PYTHON_PACKAGE_CUDA_SUFFIX='-cuda11'"
-      cibw-before-build: "pip install libraft-cuda11 libcugraph-cuda11 --index-url https://pypi.k8s.rapids.ai/simple"
+      cibw-before-build: "pip install rmm-cuda11 libraft-cuda11 libcugraph-cuda11 --index-url https://pypi.k8s.rapids.ai/simple"
       skbuild-configure-options: "-DFIND_CUGRAPH_CPP=ON"
     secrets: inherit
   libcugraph-wheel-arm64:
@@ -82,7 +82,7 @@ jobs:
       package-dir: python/cugraph
       python-version: "3.8"
       cibw-environment: "PYTHON_PACKAGE_CUDA_SUFFIX='-cuda11'"
-      cibw-before-build: "pip install libraft-cuda11 libcugraph-cuda11 --index-url https://pypi.k8s.rapids.ai/simple"
+      cibw-before-build: "pip install rmm-cuda11 libraft-cuda11 libcugraph-cuda11 --index-url https://pypi.k8s.rapids.ai/simple"
       skbuild-configure-options: "-DFIND_CUGRAPH_CPP=ON"
     secrets: inherit
   cugraph-wheel-arm64-39:
@@ -93,7 +93,7 @@ jobs:
       package-dir: python/cugraph
       python-version: "3.9"
       cibw-environment: "PYTHON_PACKAGE_CUDA_SUFFIX='-cuda11'"
-      cibw-before-build: "pip install libraft-cuda11 libcugraph-cuda11 --index-url https://pypi.k8s.rapids.ai/simple"
+      cibw-before-build: "pip install rmm-cuda11 libraft-cuda11 libcugraph-cuda11 --index-url https://pypi.k8s.rapids.ai/simple"
       skbuild-configure-options: "-DFIND_CUGRAPH_CPP=ON"
     secrets: inherit
   pylibcugraph-wheel-arm64-38:
@@ -104,7 +104,7 @@ jobs:
       package-dir: python/pylibcugraph
       python-version: "3.8"
       cibw-environment: "PYTHON_PACKAGE_CUDA_SUFFIX='-cuda11'"
-      cibw-before-build: "pip install libraft-cuda11 libcugraph-cuda11 --index-url https://pypi.k8s.rapids.ai/simple"
+      cibw-before-build: "pip install rmm-cuda11 libraft-cuda11 libcugraph-cuda11 --index-url https://pypi.k8s.rapids.ai/simple"
       skbuild-configure-options: "-DFIND_CUGRAPH_CPP=ON"
     secrets: inherit
   pylibcugraph-wheel-arm64-39:
@@ -115,6 +115,6 @@ jobs:
       package-dir: python/pylibcugraph
       python-version: "3.9"
       cibw-environment: "PYTHON_PACKAGE_CUDA_SUFFIX='-cuda11'"
-      cibw-before-build: "pip install libraft-cuda11 libcugraph-cuda11 --index-url https://pypi.k8s.rapids.ai/simple"
+      cibw-before-build: "pip install rmm-cuda11 libraft-cuda11 libcugraph-cuda11 --index-url https://pypi.k8s.rapids.ai/simple"
       skbuild-configure-options: "-DFIND_CUGRAPH_CPP=ON"
     secrets: inherit
