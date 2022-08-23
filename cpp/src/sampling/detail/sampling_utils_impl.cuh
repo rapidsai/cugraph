@@ -98,13 +98,14 @@ rmm::device_uvector<typename GraphViewType::edge_type> compute_local_major_degre
                          return offsets[i + 1] - offsets[i];
                        });
 
-      // Calculate degrees in hypersparse region
-      auto dcs_nzd_vertex_count = *(edge_partition.dcs_nzd_vertex_count());
       // Initialize hypersparse region degrees as 0
       thrust::fill(handle.get_thrust_policy(),
                    sparse_end,
                    sparse_begin + edge_partition.major_range_size(),
                    edge_t{0});
+
+      // Calculate degrees in hypersparse region
+      auto dcs_nzd_vertex_count = *(edge_partition.dcs_nzd_vertex_count());
       thrust::for_each(handle.get_thrust_policy(),
                        thrust::make_counting_iterator(vertex_t{0}),
                        thrust::make_counting_iterator(dcs_nzd_vertex_count),

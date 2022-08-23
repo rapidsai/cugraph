@@ -85,6 +85,7 @@ class edge_partition_view_t<vertex_t, edge_t, weight_t, multi_gpu, std::enable_i
   {
     return dcs_nzd_vertices_;
   }
+
   std::optional<vertex_t> major_hypersparse_first() const { return major_hypersparse_first_; }
 
   vertex_t major_range_first() const { return major_range_first_; }
