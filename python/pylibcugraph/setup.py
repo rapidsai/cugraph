@@ -67,7 +67,7 @@ cmdclass = versioneer.get_cmdclass()
 cmdclass.update(versioneer.get_cmdclass())
 cmdclass["clean"] = CleanCommand
 
-setup(name='pylibcugraph',
+setup(name='pylibcugraph'+os.getenv("PYTHON_PACKAGE_CUDA_SUFFIX", default=""),
       description="pylibcuGraph - RAPIDS GPU Graph Analytics",
       version=versioneer.get_version(),
       classifiers=[

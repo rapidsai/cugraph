@@ -76,7 +76,7 @@ PACKAGE_DATA['cugraph.experimental.datasets'].extend(
      'cugraph/experimental/datasets/*.yaml'])
 
 
-setup(name='cugraph',
+setup(name='cugraph'+os.getenv("PYTHON_PACKAGE_CUDA_SUFFIX", default=""),
       description="cuGraph - RAPIDS GPU Graph Analytics",
       version=versioneer.get_version(),
       classifiers=[
