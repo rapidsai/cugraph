@@ -15,9 +15,9 @@
  */
 #pragma once
 
-#include <prims/edge_partition_src_dst_property.cuh>
-
 #include <cugraph/edge_partition_device_view.cuh>
+#include <cugraph/edge_partition_endpoint_property_device_view.cuh>
+#include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/partition_manager.hpp>
 #include <cugraph/utilities/dataframe_buffer.hpp>
@@ -34,6 +34,7 @@
 #include <thrust/count.h>
 #include <thrust/distance.h>
 #include <thrust/execution_policy.h>
+#include <thrust/fill.h>
 #include <thrust/for_each.h>
 #include <thrust/gather.h>
 #include <thrust/iterator/counting_iterator.h>
@@ -52,13 +53,13 @@ namespace detail {
 
 template <typename GraphViewType,
           typename VertexPropertyInputIterator,
-          typename EdgePartitionMajorPropertyOutputWrapper>
-void update_edge_partition_major_property(
-  raft::handle_t const& handle,
-  GraphViewType const& graph_view,
-  VertexPropertyInputIterator vertex_property_input_first,
-  EdgePartitionMajorPropertyOutputWrapper& edge_partition_major_property_output)
+          typename EdgeMajorPropertyOutputWrapper>
+void update_edge_major_property(raft::handle_t const& handle,
+                                GraphViewType const& graph_view,
+                                VertexPropertyInputIterator vertex_property_input_first,
+                                EdgeMajorPropertyOutputWrapper edge_major_property_output)
 {
+  auto edge_partition_value_firsts = edge_major_property_output.value_firsts();
   if constexpr (GraphViewType::is_multi_gpu) {
     using vertex_t = typename GraphViewType::vertex_type;
 
@@ -71,18 +72,8 @@ void update_edge_partition_major_property(
     auto const col_comm_rank = col_comm.get_rank();
     auto const col_comm_size = col_comm.get_size();
 
-    if (edge_partition_major_property_output.keys(size_t{0})) {
-      std::vector<vertex_t> key_offsets(col_comm_size + 1, vertex_t{0});
-      for (int i = 0; i < col_comm_size; ++i) {
-        if constexpr (GraphViewType::is_storage_transposed) {
-          key_offsets[i + 1] =
-            key_offsets[i] + (*(graph_view.local_sorted_unique_edge_dsts(i))).size();
-        } else {
-          key_offsets[i + 1] =
-            key_offsets[i] + (*(graph_view.local_sorted_unique_edge_srcs(i))).size();
-        }
-      }
-
+    auto edge_partition_keys = edge_major_property_output.keys();
+    if (edge_partition_keys) {
       vertex_t max_rx_size{0};
       for (int i = 0; i < col_comm_size; ++i) {
         max_rx_size = std::max(
@@ -101,57 +92,53 @@ void update_edge_partition_major_property(
                      handle.get_stream());
 
         auto v_offset_first = thrust::make_transform_iterator(
-          (*(edge_partition_major_property_output.keys(i))).begin(),
+          (*edge_partition_keys)[i].begin(),
           [v_first = graph_view.vertex_partition_range_first(
              i * row_comm_size + row_comm_rank)] __device__(auto v) { return v - v_first; });
         thrust::gather(handle.get_thrust_policy(),
                        v_offset_first,
-                       v_offset_first + (key_offsets[i + 1] - key_offsets[i]),
+                       v_offset_first + (*edge_partition_keys)[i].size(),
                        rx_value_first,
-                       edge_partition_major_property_output.value_first() + key_offsets[i]);
+                       edge_partition_value_firsts[i]);
       }
     } else {
-      std::vector<size_t> rx_counts(col_comm_size, size_t{0});
-      std::vector<size_t> displacements(col_comm_size, size_t{0});
       for (int i = 0; i < col_comm_size; ++i) {
-        rx_counts[i] = graph_view.vertex_partition_range_size(i * row_comm_size + row_comm_rank);
-        displacements[i] = (i == 0) ? 0 : displacements[i - 1] + rx_counts[i - 1];
+        device_bcast(col_comm,
+                     vertex_property_input_first,
+                     edge_partition_value_firsts[i],
+                     graph_view.vertex_partition_range_size(i * row_comm_size + row_comm_rank),
+                     i,
+                     handle.get_stream());
       }
-      device_allgatherv(col_comm,
-                        vertex_property_input_first,
-                        edge_partition_major_property_output.value_first(),
-                        rx_counts,
-                        displacements,
-                        handle.get_stream());
     }
   } else {
-    assert(!(edge_partition_major_property_output.keys(size_t{0})));
     assert(graph_view.local_vertex_partition_range_size() == GraphViewType::is_storage_transposed
              ? graph_view.local_edge_partition_dst_range_size()
              : graph_view.local_edge_partition_src_range_size());
+    assert(edge_partition_value_firsts.size() == size_t{1});
     thrust::copy(handle.get_thrust_policy(),
                  vertex_property_input_first,
                  vertex_property_input_first + graph_view.local_vertex_partition_range_size(),
-                 edge_partition_major_property_output.value_first());
+                 edge_partition_value_firsts[0]);
   }
 }
 
 template <typename GraphViewType,
           typename VertexIterator,
           typename VertexPropertyInputIterator,
-          typename EdgePartitionMajorPropertyOutputWrapper>
-void update_edge_partition_major_property(
-  raft::handle_t const& handle,
-  GraphViewType const& graph_view,
-  VertexIterator vertex_first,
-  VertexIterator vertex_last,
-  VertexPropertyInputIterator vertex_property_input_first,
-  EdgePartitionMajorPropertyOutputWrapper& edge_partition_major_property_output)
+          typename EdgeMajorPropertyOutputWrapper>
+void update_edge_major_property(raft::handle_t const& handle,
+                                GraphViewType const& graph_view,
+                                VertexIterator vertex_first,
+                                VertexIterator vertex_last,
+                                VertexPropertyInputIterator vertex_property_input_first,
+                                EdgeMajorPropertyOutputWrapper edge_major_property_output)
 {
   using vertex_t = typename GraphViewType::vertex_type;
   using edge_t   = typename GraphViewType::edge_type;
   using weight_t = typename GraphViewType::weight_type;
 
+  auto edge_partition_value_firsts = edge_major_property_output.value_firsts();
   if constexpr (GraphViewType::is_multi_gpu) {
     auto& comm               = handle.get_comms();
     auto const comm_rank     = comm.get_rank();
@@ -176,17 +163,7 @@ void update_edge_partition_major_property(
                                                                               handle.get_stream());
     auto rx_value_first = get_dataframe_buffer_begin(rx_tmp_buffer);
 
-    std::vector<vertex_t> key_offsets(col_comm_size + 1, vertex_t{0});
-    for (int i = 0; i < col_comm_size; ++i) {
-      if constexpr (GraphViewType::is_storage_transposed) {
-        key_offsets[i + 1] =
-          key_offsets[i] + (*(graph_view.local_sorted_unique_edge_dsts(i))).size();
-      } else {
-        key_offsets[i + 1] =
-          key_offsets[i] + (*(graph_view.local_sorted_unique_edge_srcs(i))).size();
-      }
-    }
-
+    auto edge_partition_keys = edge_major_property_output.keys();
     for (int i = 0; i < col_comm_size; ++i) {
       auto edge_partition =
         edge_partition_device_view_t<vertex_t, edge_t, weight_t, GraphViewType::is_multi_gpu>(
@@ -215,17 +192,16 @@ void update_edge_partition_major_property(
         col_comm, vertex_first, rx_vertices.begin(), rx_counts[i], i, handle.get_stream());
       device_bcast(col_comm, rx_value_first, rx_value_first, rx_counts[i], i, handle.get_stream());
 
-      if (edge_partition_major_property_output.keys(i)) {
+      if (edge_partition_keys) {
         thrust::for_each(
           handle.get_thrust_policy(),
           thrust::make_counting_iterator(vertex_t{0}),
-          thrust::make_counting_iterator(key_offsets[i + 1] - key_offsets[i]),
+          thrust::make_counting_iterator(static_cast<vertex_t>((*edge_partition_keys)[i].size())),
           [rx_vertex_first = rx_vertices.begin(),
            rx_vertex_last  = rx_vertices.end(),
            rx_value_first,
-           output_key_first   = (*(edge_partition_major_property_output.keys(i))).begin(),
-           output_value_first = edge_partition_major_property_output.value_first() +
-                                key_offsets[i]] __device__(auto i) {
+           output_key_first   = ((*edge_partition_keys)[i]).begin(),
+           output_value_first = edge_partition_value_firsts[i]] __device__(auto i) {
             auto major = *(output_key_first + i);
             auto it    = thrust::lower_bound(thrust::seq, rx_vertex_first, rx_vertex_last, major);
             if ((it != rx_vertex_last) && (*it == major)) {
@@ -244,33 +220,32 @@ void update_edge_partition_major_property(
                         rx_value_first,
                         rx_value_first + rx_counts[i],
                         map_first,
-                        edge_partition_major_property_output.value_first() +
-                          edge_partition.major_value_start_offset());
+                        edge_partition_value_firsts[i]);
       }
     }
   } else {
-    assert(!(edge_partition_major_property_output.keys(size_t{0})));
     assert(graph_view.local_vertex_partition_range_size() == GraphViewType::is_storage_transposed
              ? graph_view.local_edge_partition_dst_range_size()
              : graph_view.local_edge_partition_src_range_size());
+    assert(edge_partition_value_firsts.size() == size_t{1});
     auto val_first = thrust::make_permutation_iterator(vertex_property_input_first, vertex_first);
     thrust::scatter(handle.get_thrust_policy(),
                     val_first,
                     val_first + thrust::distance(vertex_first, vertex_last),
                     vertex_first,
-                    edge_partition_major_property_output.value_first());
+                    edge_partition_value_firsts[0]);
   }
 }
 
 template <typename GraphViewType,
           typename VertexPropertyInputIterator,
-          typename EdgePartitionMinorPropertyOutputWrapper>
-void update_edge_partition_minor_property(
-  raft::handle_t const& handle,
-  GraphViewType const& graph_view,
-  VertexPropertyInputIterator vertex_property_input_first,
-  EdgePartitionMinorPropertyOutputWrapper& edge_partition_minor_property_output)
+          typename EdgeMinorPropertyOutputWrapper>
+void update_edge_minor_property(raft::handle_t const& handle,
+                                GraphViewType const& graph_view,
+                                VertexPropertyInputIterator vertex_property_input_first,
+                                EdgeMinorPropertyOutputWrapper edge_minor_property_output)
 {
+  auto edge_partition_value_first = edge_minor_property_output.value_first();
   if constexpr (GraphViewType::is_multi_gpu) {
     using vertex_t = typename GraphViewType::vertex_type;
     using value_t  = typename thrust::iterator_traits<VertexPropertyInputIterator>::value_type;
@@ -285,7 +260,8 @@ void update_edge_partition_minor_property(
     auto const col_comm_rank = col_comm.get_rank();
     auto const col_comm_size = col_comm.get_size();
 
-    if (edge_partition_minor_property_output.keys()) {
+    auto edge_partition_keys = edge_minor_property_output.keys();
+    if (edge_partition_keys) {
       raft::host_span<vertex_t const> key_offsets{};
       if constexpr (GraphViewType::is_storage_transposed) {
         key_offsets = *(graph_view.local_sorted_unique_edge_src_vertex_partition_offsets());
@@ -344,14 +320,14 @@ void update_edge_partition_minor_property(
           if (j < static_cast<size_t>(row_comm_size)) {
             auto rx_value_first = get_dataframe_buffer_begin(rx_value_buffers[i]);
             auto v_offset_first = thrust::make_transform_iterator(
-              (*(edge_partition_minor_property_output.keys())).begin() + key_offsets[j],
+              (*edge_partition_keys).begin() + key_offsets[j],
               [v_first = graph_view.vertex_partition_range_first(
                  col_comm_rank * row_comm_size + j)] __device__(auto v) { return v - v_first; });
             thrust::gather(handle.get_thrust_policy(),
                            v_offset_first,
                            v_offset_first + (key_offsets[j + 1] - key_offsets[j]),
                            rx_value_first,
-                           edge_partition_minor_property_output.value_first() + key_offsets[j]);
+                           edge_partition_value_first + key_offsets[j]);
           }
         }
       }
@@ -364,39 +340,38 @@ void update_edge_partition_minor_property(
       }
       device_allgatherv(row_comm,
                         vertex_property_input_first,
-                        edge_partition_minor_property_output.value_first(),
+                        edge_partition_value_first,
                         rx_counts,
                         displacements,
                         handle.get_stream());
     }
   } else {
-    assert(!(edge_partition_minor_property_output.keys()));
     assert(graph_view.local_vertex_partition_range_size() == GraphViewType::is_storage_transposed
              ? graph_view.local_edge_partition_src_range_size()
              : graph_view.local_edge_partition_dst_range_size());
     thrust::copy(handle.get_thrust_policy(),
                  vertex_property_input_first,
                  vertex_property_input_first + graph_view.local_vertex_partition_range_size(),
-                 edge_partition_minor_property_output.value_first());
+                 edge_partition_value_first);
   }
 }
 
 template <typename GraphViewType,
           typename VertexIterator,
           typename VertexPropertyInputIterator,
-          typename EdgePartitionMinorPropertyOutputWrapper>
-void update_edge_partition_minor_property(
-  raft::handle_t const& handle,
-  GraphViewType const& graph_view,
-  VertexIterator vertex_first,
-  VertexIterator vertex_last,
-  VertexPropertyInputIterator vertex_property_input_first,
-  EdgePartitionMinorPropertyOutputWrapper& edge_partition_minor_property_output)
+          typename EdgeMinorPropertyOutputWrapper>
+void update_edge_minor_property(raft::handle_t const& handle,
+                                GraphViewType const& graph_view,
+                                VertexIterator vertex_first,
+                                VertexIterator vertex_last,
+                                VertexPropertyInputIterator vertex_property_input_first,
+                                EdgeMinorPropertyOutputWrapper edge_minor_property_output)
 {
   using vertex_t = typename GraphViewType::vertex_type;
   using edge_t   = typename GraphViewType::edge_type;
   using weight_t = typename GraphViewType::weight_type;
 
+  auto edge_partition_value_first = edge_minor_property_output.value_first();
   if constexpr (GraphViewType::is_multi_gpu) {
     auto& comm               = handle.get_comms();
     auto const comm_rank     = comm.get_rank();
@@ -431,6 +406,7 @@ void update_edge_partition_minor_property(
     auto edge_partition =
       edge_partition_device_view_t<vertex_t, edge_t, weight_t, GraphViewType::is_multi_gpu>(
         graph_view.local_edge_partition_view(size_t{0}));
+    auto edge_partition_keys = edge_minor_property_output.keys();
     for (int i = 0; i < row_comm_size; ++i) {
       if (i == row_comm_rank) {
         auto vertex_partition =
@@ -455,7 +431,7 @@ void update_edge_partition_minor_property(
         row_comm, vertex_first, rx_vertices.begin(), rx_counts[i], i, handle.get_stream());
       device_bcast(row_comm, rx_value_first, rx_value_first, rx_counts[i], i, handle.get_stream());
 
-      if (edge_partition_minor_property_output.keys()) {
+      if (edge_partition_keys) {
         thrust::for_each(
           handle.get_thrust_policy(),
           thrust::make_counting_iterator(vertex_t{0}),
@@ -463,10 +439,8 @@ void update_edge_partition_minor_property(
           [rx_vertex_first = rx_vertices.begin(),
            rx_vertex_last  = rx_vertices.end(),
            rx_value_first,
-           output_key_first =
-             (*(edge_partition_minor_property_output.keys())).begin() + (*key_offsets)[i],
-           output_value_first = edge_partition_minor_property_output.value_first() +
-                                (*key_offsets)[i]] __device__(auto i) {
+           output_key_first   = (*edge_partition_keys).begin() + (*key_offsets)[i],
+           output_value_first = edge_partition_value_first + (*key_offsets)[i]] __device__(auto i) {
             auto minor = *(output_key_first + i);
             auto it    = thrust::lower_bound(thrust::seq, rx_vertex_first, rx_vertex_last, minor);
             if ((it != rx_vertex_last) && (*it == minor)) {
@@ -485,11 +459,10 @@ void update_edge_partition_minor_property(
                         rx_value_first,
                         rx_value_first + rx_counts[i],
                         map_first,
-                        edge_partition_minor_property_output.value_first());
+                        edge_partition_value_first);
       }
     }
   } else {
-    assert(!(edge_partition_minor_property_output.keys()));
     assert(graph_view.local_vertex_partition_range_size() ==
            graph_view.local_edge_partition_src_range_size());
     auto val_first = thrust::make_permutation_iterator(vertex_property_input_first, vertex_first);
@@ -497,16 +470,131 @@ void update_edge_partition_minor_property(
                     val_first,
                     val_first + thrust::distance(vertex_first, vertex_last),
                     vertex_first,
-                    edge_partition_minor_property_output.value_first());
+                    edge_partition_value_first);
   }
 }
 
 }  // namespace detail
 
 /**
- * @brief Update graph edge partition source property values from the input vertex property values.
+ * @brief Update graph edge source property values from the input vertex property values.
  *
- * This version updates graph edge partition property values for the entire edge partition source
+ * This version updates graph edge source property values for the entire edge source ranges
+ * (assigned to this process in multi-GPU).
+ *
+ * @tparam GraphViewType Type of the passed non-owning graph object.
+ * @tparam VertexPropertyInputIterator Type of the iterator for vertex property values.
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param graph_view Non-owning graph object.
+ * @param vertex_property_input_first Iterator pointing to the vertex property value for the first
+ * (inclusive) vertex (of the vertex partition assigned to this process in multi-GPU).
+ * `vertex_property_input_last` (exclusive) is deduced as @p vertex_property_input_first + @p
+ * graph_view.local_vertex_partition_range_size().
+ * @param edge_partition_src_property_output edge_src_property_t class object to store source
+ * property values (for the edge sources assigned to this process in multi-GPU).
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
+ */
+template <typename GraphViewType, typename VertexPropertyInputIterator>
+void update_edge_src_property(
+  raft::handle_t const& handle,
+  GraphViewType const& graph_view,
+  VertexPropertyInputIterator vertex_property_input_first,
+  edge_src_property_t<GraphViewType,
+                      typename std::iterator_traits<VertexPropertyInputIterator>::value_type>&
+    edge_src_property_output,
+  bool do_expensive_check = false)
+{
+  if (do_expensive_check) {
+    // currently, nothing to do
+  }
+
+  if constexpr (GraphViewType::is_storage_transposed) {
+    detail::update_edge_minor_property(
+      handle, graph_view, vertex_property_input_first, edge_src_property_output.mutable_view());
+  } else {
+    detail::update_edge_major_property(
+      handle, graph_view, vertex_property_input_first, edge_src_property_output.mutable_view());
+  }
+}
+
+/**
+ * @brief Update graph edge source property values from the input vertex property values.
+ *
+ * This version updates only a subset of graph edge source property values. [@p vertex_first, @p
+ * vertex_last) specifies the vertices with new property values to be updated.
+ *
+ * @tparam GraphViewType Type of the passed non-owning graph object.
+ * @tparam VertexIterator  Type of the iterator for vertex identifiers.
+ * @tparam VertexPropertyInputIterator Type of the iterator for vertex property values.
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param graph_view Non-owning graph object.
+ * @param vertex_first Iterator pointing to the first (inclusive) vertex with a new value to be
+ * updated. v in [vertex_first, vertex_last) should be distinct (and should belong to the vertex
+ * partition assigned to this process in multi-GPU), otherwise undefined behavior.
+ * @param vertex_last Iterator pointing to the last (exclusive) vertex with a new value.
+ * @param vertex_property_input_first Iterator pointing to the vertex property value for the first
+ * (inclusive) vertex (of the vertex partition assigned to this process in multi-GPU).
+ * `vertex_property_input_last` (exclusive) is deduced as @p vertex_property_input_first + @p
+ * graph_view.local_vertex_partition_range_size().
+ * @param edge_partition_src_property_output edge_src_property_t class object to store source
+ * property values (for the edge sources assigned to this process in multi-GPU).
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
+ */
+template <typename GraphViewType, typename VertexIterator, typename VertexPropertyInputIterator>
+void update_edge_src_property(
+  raft::handle_t const& handle,
+  GraphViewType const& graph_view,
+  VertexIterator vertex_first,
+  VertexIterator vertex_last,
+  VertexPropertyInputIterator vertex_property_input_first,
+  edge_src_property_t<GraphViewType,
+                      typename std::iterator_traits<VertexPropertyInputIterator>::value_type>&
+    edge_src_property_output,
+  bool do_expensive_check = false)
+{
+  if (do_expensive_check) {
+    auto num_invalids = thrust::count_if(
+      handle.get_thrust_policy(),
+      vertex_first,
+      vertex_last,
+      [local_vertex_partition_range_first = graph_view.local_vertex_partition_range_first(),
+       local_vertex_partition_range_last =
+         graph_view.local_vertex_partition_range_last()] __device__(auto v) {
+        return (v < local_vertex_partition_range_first) || (v >= local_vertex_partition_range_last);
+      });
+    if constexpr (GraphViewType::is_multi_gpu) {
+      auto& comm = handle.get_comms();
+      num_invalids =
+        host_scalar_allreduce(comm, num_invalids, raft::comms::op_t::SUM, handle.get_stream());
+    }
+    CUGRAPH_EXPECTS(
+      num_invalids == 0,
+      "Invalid input argument: invalid or non-local vertices in [vertex_first, vertex_last).");
+  }
+
+  if constexpr (GraphViewType::is_storage_transposed) {
+    detail::update_edge_minor_property(handle,
+                                       graph_view,
+                                       vertex_first,
+                                       vertex_last,
+                                       vertex_property_input_first,
+                                       edge_src_property_output.mutable_view());
+  } else {
+    detail::update_edge_major_property(handle,
+                                       graph_view,
+                                       vertex_first,
+                                       vertex_last,
+                                       vertex_property_input_first,
+                                       edge_src_property_output.mutable_view());
+  }
+}
+
+/**
+ * @brief Update graph edge destination property values from the input vertex property values.
+ *
+ * This version updates graph edge destination property values for the entire edge destination
  * ranges (assigned to this process in multi-GPU).
  *
  * @tparam GraphViewType Type of the passed non-owning graph object.
@@ -518,20 +606,18 @@ void update_edge_partition_minor_property(
  * (inclusive) vertex (of the vertex partition assigned to this process in multi-GPU).
  * `vertex_property_input_last` (exclusive) is deduced as @p vertex_property_input_first + @p
  * graph_view.local_vertex_partition_range_size().
- * @param edge_partition_src_property_output Device-copyable wrapper used to store source property
- * values (for the edge sources assigned to this process in multi-GPU). Use
- * cugraph::edge_partition_src_property_t::device_view().
+ * @param edge_partition_dst_property_output edge_dst_property_t class object to store destination
+ * property values (for the edge destinations assigned to this process in multi-GPU).
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  */
 template <typename GraphViewType, typename VertexPropertyInputIterator>
-void update_edge_partition_src_property(
+void update_edge_dst_property(
   raft::handle_t const& handle,
   GraphViewType const& graph_view,
   VertexPropertyInputIterator vertex_property_input_first,
-  edge_partition_src_property_t<
-    GraphViewType,
-    typename std::iterator_traits<VertexPropertyInputIterator>::value_type>&
-    edge_partition_src_property_output,
+  edge_dst_property_t<GraphViewType,
+                      typename std::iterator_traits<VertexPropertyInputIterator>::value_type>&
+    edge_dst_property_output,
   bool do_expensive_check = false)
 {
   if (do_expensive_check) {
@@ -539,19 +625,19 @@ void update_edge_partition_src_property(
   }
 
   if constexpr (GraphViewType::is_storage_transposed) {
-    update_edge_partition_minor_property(
-      handle, graph_view, vertex_property_input_first, edge_partition_src_property_output);
+    detail::update_edge_major_property(
+      handle, graph_view, vertex_property_input_first, edge_dst_property_output.mutable_view());
   } else {
-    update_edge_partition_major_property(
-      handle, graph_view, vertex_property_input_first, edge_partition_src_property_output);
+    detail::update_edge_minor_property(
+      handle, graph_view, vertex_property_input_first, edge_dst_property_output.mutable_view());
   }
 }
 
 /**
- * @brief Update graph edge partition source property values from the input vertex property values.
+ * @brief Update graph edge destination property values from the input vertex property values.
  *
- * This version updates only a subset of graph edge partition source property values. [@p
- * vertex_first, @p vertex_last) specifies the vertices with new property values to be updated.
+ * This version updates only a subset of graph edge destination property values. [@p vertex_first,
+ * @p vertex_last) specifies the vertices with new property values to be updated.
  *
  * @tparam GraphViewType Type of the passed non-owning graph object.
  * @tparam VertexIterator  Type of the iterator for vertex identifiers.
@@ -567,22 +653,20 @@ void update_edge_partition_src_property(
  * (inclusive) vertex (of the vertex partition assigned to this process in multi-GPU).
  * `vertex_property_input_last` (exclusive) is deduced as @p vertex_property_input_first + @p
  * graph_view.local_vertex_partition_range_size().
- * @param edge_partition_src_property_output Device-copyable wrapper used to store source property
- * values (for the edge sources assigned to this process in multi-GPU). Use
- * cugraph::edge_partition_src_property_t::device_view().
+ * @param edge_partition_dst_property_output edge_dst_property_t class object to store destination
+ * property values (for the edge destinations assigned to this process in multi-GPU).
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  */
 template <typename GraphViewType, typename VertexIterator, typename VertexPropertyInputIterator>
-void update_edge_partition_src_property(
+void update_edge_dst_property(
   raft::handle_t const& handle,
   GraphViewType const& graph_view,
   VertexIterator vertex_first,
   VertexIterator vertex_last,
   VertexPropertyInputIterator vertex_property_input_first,
-  edge_partition_src_property_t<
-    GraphViewType,
-    typename std::iterator_traits<VertexPropertyInputIterator>::value_type>&
-    edge_partition_src_property_output,
+  edge_dst_property_t<GraphViewType,
+                      typename std::iterator_traits<VertexPropertyInputIterator>::value_type>&
+    edge_dst_property_output,
   bool do_expensive_check = false)
 {
   if (do_expensive_check) {
@@ -606,140 +690,19 @@ void update_edge_partition_src_property(
   }
 
   if constexpr (GraphViewType::is_storage_transposed) {
-    detail::update_edge_partition_minor_property(handle,
-                                                 graph_view,
-                                                 vertex_first,
-                                                 vertex_last,
-                                                 vertex_property_input_first,
-                                                 edge_partition_src_property_output);
+    detail::update_edge_major_property(handle,
+                                       graph_view,
+                                       vertex_first,
+                                       vertex_last,
+                                       vertex_property_input_first,
+                                       edge_dst_property_output.mutable_view());
   } else {
-    detail::update_edge_partition_major_property(handle,
-                                                 graph_view,
-                                                 vertex_first,
-                                                 vertex_last,
-                                                 vertex_property_input_first,
-                                                 edge_partition_src_property_output);
-  }
-}
-
-/**
- * @brief Update graph edge partition destination property values from the input vertex property
- * values.
- *
- * This version updates graph edge partition property values for the entire edge partition
- * destination ranges (assigned to this process in multi-GPU).
- *
- * @tparam GraphViewType Type of the passed non-owning graph object.
- * @tparam VertexPropertyInputIterator Type of the iterator for vertex property values.
- * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
- * handles to various CUDA libraries) to run graph algorithms.
- * @param graph_view Non-owning graph object.
- * @param vertex_property_input_first Iterator pointing to the vertex property value for the first
- * (inclusive) vertex (of the vertex partition assigned to this process in multi-GPU).
- * `vertex_property_input_last` (exclusive) is deduced as @p vertex_property_input_first + @p
- * graph_view.local_vertex_partition_range_size().
- * @param edge_partition_dst_property_output Device-copyable wrapper used to store destination
- * property values (for the edge destinations assigned to this process in multi-GPU). Use
- * cugraph::edge_partition_dst_property_t::device_view().
- * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
- */
-template <typename GraphViewType, typename VertexPropertyInputIterator>
-void update_edge_partition_dst_property(
-  raft::handle_t const& handle,
-  GraphViewType const& graph_view,
-  VertexPropertyInputIterator vertex_property_input_first,
-  edge_partition_dst_property_t<
-    GraphViewType,
-    typename std::iterator_traits<VertexPropertyInputIterator>::value_type>&
-    edge_partition_dst_property_output,
-  bool do_expensive_check = false)
-{
-  if (do_expensive_check) {
-    // currently, nothing to do
-  }
-
-  if constexpr (GraphViewType::is_storage_transposed) {
-    detail::update_edge_partition_major_property(
-      handle, graph_view, vertex_property_input_first, edge_partition_dst_property_output);
-  } else {
-    detail::update_edge_partition_minor_property(
-      handle, graph_view, vertex_property_input_first, edge_partition_dst_property_output);
-  }
-}
-
-/**
- * @brief Update graph edge partition destination property values from the input vertex property
- * values.
- *
- * This version updates only a subset of graph edge partition destination property values. [@p
- * vertex_first, @p vertex_last) specifies the vertices with new property values to be updated.
- *
- * @tparam GraphViewType Type of the passed non-owning graph object.
- * @tparam VertexIterator  Type of the iterator for vertex identifiers.
- * @tparam VertexPropertyInputIterator Type of the iterator for vertex property values.
- * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
- * handles to various CUDA libraries) to run graph algorithms.
- * @param graph_view Non-owning graph object.
- * @param vertex_first Iterator pointing to the first (inclusive) vertex with a new value to be
- * updated. v in [vertex_first, vertex_last) should be distinct (and should belong to the vertex
- * partition assigned to this process in multi-GPU), otherwise undefined behavior.
- * @param vertex_last Iterator pointing to the last (exclusive) vertex with a new value.
- * @param vertex_property_input_first Iterator pointing to the vertex property value for the first
- * (inclusive) vertex (of the vertex partition assigned to this process in multi-GPU).
- * `vertex_property_input_last` (exclusive) is deduced as @p vertex_property_input_first + @p
- * graph_view.local_vertex_partition_range_size().
- * @param edge_partition_dst_property_output Device-copyable wrapper used to store destination
- * property values (for the edge destinations assigned to this process in multi-GPU). Use
- * cugraph::edge_partition_dst_property_t::device_view().
- * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
- */
-template <typename GraphViewType, typename VertexIterator, typename VertexPropertyInputIterator>
-void update_edge_partition_dst_property(
-  raft::handle_t const& handle,
-  GraphViewType const& graph_view,
-  VertexIterator vertex_first,
-  VertexIterator vertex_last,
-  VertexPropertyInputIterator vertex_property_input_first,
-  edge_partition_dst_property_t<
-    GraphViewType,
-    typename std::iterator_traits<VertexPropertyInputIterator>::value_type>&
-    edge_partition_dst_property_output,
-  bool do_expensive_check = false)
-{
-  if (do_expensive_check) {
-    auto num_invalids = thrust::count_if(
-      handle.get_thrust_policy(),
-      vertex_first,
-      vertex_last,
-      [local_vertex_partition_range_first = graph_view.local_vertex_partition_range_first(),
-       local_vertex_partition_range_last =
-         graph_view.local_vertex_partition_range_last()] __device__(auto v) {
-        return (v < local_vertex_partition_range_first) || (v >= local_vertex_partition_range_last);
-      });
-    if constexpr (GraphViewType::is_multi_gpu) {
-      auto& comm = handle.get_comms();
-      num_invalids =
-        host_scalar_allreduce(comm, num_invalids, raft::comms::op_t::SUM, handle.get_stream());
-    }
-    CUGRAPH_EXPECTS(
-      num_invalids == 0,
-      "Invalid input argument: invalid or non-local vertices in [vertex_first, vertex_last).");
-  }
-
-  if constexpr (GraphViewType::is_storage_transposed) {
-    detail::update_edge_partition_major_property(handle,
-                                                 graph_view,
-                                                 vertex_first,
-                                                 vertex_last,
-                                                 vertex_property_input_first,
-                                                 edge_partition_dst_property_output);
-  } else {
-    detail::update_edge_partition_minor_property(handle,
-                                                 graph_view,
-                                                 vertex_first,
-                                                 vertex_last,
-                                                 vertex_property_input_first,
-                                                 edge_partition_dst_property_output);
+    detail::update_edge_minor_property(handle,
+                                       graph_view,
+                                       vertex_first,
+                                       vertex_last,
+                                       vertex_property_input_first,
+                                       edge_dst_property_output.mutable_view());
   }
 }
 
