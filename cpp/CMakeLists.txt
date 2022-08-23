@@ -420,7 +420,8 @@ install(FILES ${CMAKE_CURRENT_BINARY_DIR}/include/cugraph/version_config.hpp
         DESTINATION include/cugraph)
 
 install(TARGETS cugraph_c
-        DESTINATION ${lib_dir})
+        DESTINATION ${lib_dir}
+        EXPORT cugraph-exports)
 
 install(DIRECTORY include/cugraph_c/
         DESTINATION include/cugraph_c)
