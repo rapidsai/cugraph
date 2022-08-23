@@ -123,6 +123,13 @@ def core_number(input_graph,
     cudf_result = [client.submit(convert_to_cudf,
                                  cp_arrays)
                    for cp_arrays in result]
+    
+    # Dask doesn't always release it fast enough.
+    # For instance if the algo is run several times with
+    # the same PLC graph, the current iteration might try to cache
+    # the past iteration's futures and this can cause a hang if some
+    # of those futures get released midway
+    del result
 
     wait(cudf_result)
 
