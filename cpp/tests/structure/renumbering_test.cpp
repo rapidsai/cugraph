@@ -76,11 +76,8 @@ class Tests_Renumbering
                                                                                           false);
 
     if (renumbering_usecase.check_correctness) {
-      h_original_src_v.resize(src_v.size());
-      h_original_dst_v.resize(dst_v.size());
-
-      raft::update_host(h_original_src_v.data(), src_v.data(), src_v.size(), handle.get_stream());
-      raft::update_host(h_original_dst_v.data(), dst_v.data(), dst_v.size(), handle.get_stream());
+      h_original_src_v = cugraph::test::to_host(handle, src_v);
+      h_original_dst_v = cugraph::test::to_host(handle, dst_v);
     }
 
     if (cugraph::test::g_perf) {
@@ -113,11 +110,8 @@ class Tests_Renumbering
                                              0,
                                              static_cast<vertex_t>(renumber_map_labels_v.size()));
 
-      h_final_src_v.resize(src_v.size());
-      h_final_dst_v.resize(dst_v.size());
-
-      raft::update_host(h_final_src_v.data(), src_v.data(), src_v.size(), handle.get_stream());
-      raft::update_host(h_final_dst_v.data(), dst_v.data(), dst_v.size(), handle.get_stream());
+      h_final_src_v = cugraph::test::to_host(handle, src_v);
+      h_final_dst_v = cugraph::test::to_host(handle, dst_v);
 
       EXPECT_EQ(h_original_src_v, h_original_src_v);
       EXPECT_EQ(h_original_dst_v, h_original_dst_v);

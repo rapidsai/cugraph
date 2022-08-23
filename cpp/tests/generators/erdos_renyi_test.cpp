@@ -64,13 +64,8 @@ void er_test(size_t num_vertices, float p)
 
   handle.sync_stream();
 
-  std::vector<vertex_t> h_src_v(d_src_v.size());
-  std::vector<vertex_t> h_dst_v(d_dst_v.size());
-
-  raft::update_host(h_src_v.data(), d_src_v.data(), d_src_v.size(), handle.get_stream());
-  raft::update_host(h_dst_v.data(), d_dst_v.data(), d_dst_v.size(), handle.get_stream());
-
-  handle.sync_stream();
+  auto h_src_v = cugraph::test::to_host(handle, d_src_v);
+  auto h_dst_v = cugraph::test::to_host(handle, d_dst_v);
 
   float expected_edge_count = p * num_vertices * num_vertices;
 

@@ -235,38 +235,13 @@ class Tests_Symmetrize
       auto [d_symm_srcs, d_symm_dsts, d_symm_weights] =
         graph.decompress_to_edgelist(handle, d_renumber_map_labels, false);
 
-      std::vector<vertex_t> h_org_srcs(d_org_srcs.size());
-      std::vector<vertex_t> h_org_dsts(h_org_srcs.size());
-      auto h_org_weights =
-        d_org_weights ? std::make_optional<std::vector<weight_t>>(h_org_srcs.size()) : std::nullopt;
+      auto h_org_srcs    = cugraph::test::to_host(handle, d_org_srcs);
+      auto h_org_dsts    = cugraph::test::to_host(handle, d_org_dsts);
+      auto h_org_weights = cugraph::test::to_host(handle, d_org_weights);
 
-      std::vector<vertex_t> h_symm_srcs(d_symm_srcs.size());
-      std::vector<vertex_t> h_symm_dsts(h_symm_srcs.size());
-      auto h_symm_weights = d_symm_weights
-                              ? std::make_optional<std::vector<weight_t>>(h_symm_srcs.size())
-                              : std::nullopt;
-
-      raft::update_host(
-        h_org_srcs.data(), d_org_srcs.data(), d_org_srcs.size(), handle.get_stream());
-      raft::update_host(
-        h_org_dsts.data(), d_org_dsts.data(), d_org_dsts.size(), handle.get_stream());
-      if (h_org_weights) {
-        raft::update_host((*h_org_weights).data(),
-                          (*d_org_weights).data(),
-                          (*d_org_weights).size(),
-                          handle.get_stream());
-      }
-
-      raft::update_host(
-        h_symm_srcs.data(), d_symm_srcs.data(), d_symm_srcs.size(), handle.get_stream());
-      raft::update_host(
-        h_symm_dsts.data(), d_symm_dsts.data(), d_symm_dsts.size(), handle.get_stream());
-      if (h_symm_weights) {
-        raft::update_host((*h_symm_weights).data(),
-                          (*d_symm_weights).data(),
-                          (*d_symm_weights).size(),
-                          handle.get_stream());
-      }
+      auto h_symm_srcs    = cugraph::test::to_host(handle, d_symm_srcs);
+      auto h_symm_dsts    = cugraph::test::to_host(handle, d_symm_dsts);
+      auto h_symm_weights = cugraph::test::to_host(handle, d_symm_weights);
 
       if (symmetrize_usecase.test_weighted) {
         std::vector<std::tuple<vertex_t, vertex_t, weight_t>> org_edges(h_org_srcs.size());

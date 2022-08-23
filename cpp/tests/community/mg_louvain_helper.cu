@@ -232,13 +232,14 @@ coarsen_graph(
   cugraph::graph_view_t<vertex_t, edge_t, weight_t, store_transposed, false> const& graph_view,
   vertex_t const* labels)
 {
+  auto weights = graph_view.local_edge_partition_view().weights();
   auto [coarsened_edgelist_major_vertices,
         coarsened_edgelist_minor_vertices,
         coarsened_edgelist_weights] =
     compressed_sparse_to_relabeled_and_sorted_and_coarsened_edgelist(
-      graph_view.local_edge_partition_view().offsets(),
-      graph_view.local_edge_partition_view().indices(),
-      graph_view.local_edge_partition_view().weights(),
+      graph_view.local_edge_partition_view().offsets().data(),
+      graph_view.local_edge_partition_view().indices().data(),
+      weights ? std::optional<weight_t const*>{(*weights).data()} : std::nullopt,
       labels,
       labels,
       vertex_t{0},
