@@ -16,10 +16,9 @@
 #pragma once
 
 #include <utilities/high_res_timer.hpp>
-// FIXME:  this should probably be split into hpp and cuh portions
-#include <prims/edge_partition_src_dst_property.cuh>
 
 #include <cugraph/dendrogram.hpp>
+#include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph.hpp>
 
 #include <raft/handle.hpp>
@@ -75,9 +74,9 @@ template <typename graph_view_t>
 typename graph_view_t::weight_type compute_modularity(
   raft::handle_t const& handle,
   graph_view_t const& graph_view,
-  edge_partition_src_property_t<graph_view_t, typename graph_view_t::vertex_type> const&
+  edge_src_property_t<graph_view_t, typename graph_view_t::vertex_type> const&
     src_clusters_cache,
-  edge_partition_dst_property_t<graph_view_t, typename graph_view_t::vertex_type> const&
+  edge_dst_property_t<graph_view_t, typename graph_view_t::vertex_type> const&
     dst_clusters_cache,
   rmm::device_uvector<typename graph_view_t::vertex_type> const& next_clusters,
   rmm::device_uvector<typename graph_view_t::weight_type> const& cluster_weights,
@@ -100,11 +99,11 @@ void update_by_delta_modularity(
   rmm::device_uvector<typename graph_view_t::vertex_type>& cluster_keys_v,
   rmm::device_uvector<typename graph_view_t::weight_type>& cluster_weights_v,
   rmm::device_uvector<typename graph_view_t::vertex_type>& next_clusters_v,
-  edge_partition_src_property_t<graph_view_t, typename graph_view_t::weight_type> const&
+  edge_src_property_t<graph_view_t, typename graph_view_t::weight_type> const&
     src_vertex_weights_cache,
-  edge_partition_src_property_t<graph_view_t, typename graph_view_t::vertex_type>&
+  edge_src_property_t<graph_view_t, typename graph_view_t::vertex_type>&
     src_clusters_cache,
-  edge_partition_dst_property_t<graph_view_t, typename graph_view_t::vertex_type>&
+  edge_dst_property_t<graph_view_t, typename graph_view_t::vertex_type>&
     dst_clusters_cache,
   bool up_down);
 

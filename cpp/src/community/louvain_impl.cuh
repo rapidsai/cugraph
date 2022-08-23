@@ -20,9 +20,9 @@
 
 #include <community/detail/common_methods.hpp>
 #include <community/flatten_dendrogram.hpp>
-// FIXME:  PR 2503 should make this a .hpp which will allow me to update
-//     louvain_impl to be an hpp and louvain_sg and louvain_mg to be .cpp
-#include <prims/update_edge_partition_src_dst_property.cuh>
+
+// FIXME:  Only outstanding item preventing this becoming a .hpp file
+#include <prims/update_edge_src_dst_property.cuh>
 
 #include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
@@ -78,9 +78,9 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> louvain(
     rmm::device_uvector<weight_t> cluster_weights_v(0, handle.get_stream());
     rmm::device_uvector<weight_t> vertex_weights_v(0, handle.get_stream());
     rmm::device_uvector<vertex_t> next_clusters_v(0, handle.get_stream());
-    edge_partition_src_property_t<graph_view_t, weight_t> src_vertex_weights_cache(handle);
-    edge_partition_src_property_t<graph_view_t, vertex_t> src_clusters_cache(handle);
-    edge_partition_dst_property_t<graph_view_t, vertex_t> dst_clusters_cache(handle);
+    edge_src_property_t<graph_view_t, weight_t> src_vertex_weights_cache(handle);
+    edge_src_property_t<graph_view_t, vertex_t> src_clusters_cache(handle);
+    edge_dst_property_t<graph_view_t, vertex_t> dst_clusters_cache(handle);
 
     //
     //  Compute the vertex and cluster weights, these are different for each
@@ -108,8 +108,8 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> louvain(
         handle, std::move(cluster_keys_v), std::move(cluster_weights_v));
 
       src_vertex_weights_cache =
-        edge_partition_src_property_t<graph_view_t, weight_t>(handle, current_graph_view);
-      update_edge_partition_src_property(
+        edge_src_property_t<graph_view_t, weight_t>(handle, current_graph_view);
+      update_edge_src_property(
         handle, current_graph_view, vertex_weights_v.begin(), src_vertex_weights_cache);
       vertex_weights_v.resize(0, handle.get_stream());
       vertex_weights_v.shrink_to_fit(handle.get_stream());
@@ -132,12 +132,12 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> louvain(
 
     if constexpr (multi_gpu) {
       src_clusters_cache =
-        edge_partition_src_property_t<graph_view_t, vertex_t>(handle, current_graph_view);
-      update_edge_partition_src_property(
+        edge_src_property_t<graph_view_t, vertex_t>(handle, current_graph_view);
+      update_edge_src_property(
         handle, current_graph_view, next_clusters_v.begin(), src_clusters_cache);
       dst_clusters_cache =
-        edge_partition_dst_property_t<graph_view_t, vertex_t>(handle, current_graph_view);
-      update_edge_partition_dst_property(
+        edge_dst_property_t<graph_view_t, vertex_t>(handle, current_graph_view);
+      update_edge_dst_property(
         handle, current_graph_view, next_clusters_v.begin(), dst_clusters_cache);
     }
 

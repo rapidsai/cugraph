@@ -179,6 +179,7 @@ set(CUGRAPH_SOURCES
     src/community/detail/common_methods_mg.cu
     src/community/louvain_sg.cu
     src/community/louvain_mg.cu
+    src/community/leiden_sg.cu
     src/community/legacy/louvain.cu
     src/community/legacy/leiden.cu
     src/community/legacy/ktruss.cu

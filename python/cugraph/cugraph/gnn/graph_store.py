@@ -234,10 +234,11 @@ class CuGraphStore:
 
         sampled_df = uniform_neighbor_sample(
             sg, start_list=nodes, fanout_vals=[fanout],
-            with_replacement=replace
+            with_replacement=replace,
+            is_edge_ids=True
+            # FIXME: is_edge_ids=True does not seem to do anything
+            # issue https://github.com/rapidsai/cugraph/issues/2562
         )
-
-        sampled_df.drop(columns=["indices"], inplace=True)
 
         # handle empty graph case
         if len(sampled_df) == 0:
@@ -253,31 +254,26 @@ class CuGraphStore:
                 columns={"sources": src_n, "destinations": dst_n}, inplace=True
             )
 
-        # FIXME: Remove once below lands
-        # https://github.com/rapidsai/cugraph/issues/2444
-        edge_df = self.gdata._edge_prop_dataframe[[src_n, dst_n, eid_n]]
-        sampled_df = edge_df.merge(sampled_df)
-
         return (
             sampled_df[src_n].to_dlpack(),
             sampled_df[dst_n].to_dlpack(),
-            sampled_df[eid_n].to_dlpack(),
+            sampled_df['indices'].to_dlpack(),
         )
 
     @cached_property
     def extracted_reverse_subgraph_without_renumbering(self):
         # TODO: Switch to extract_subgraph based on response on
         # https://github.com/rapidsai/cugraph/issues/2458
-        subset_df = self.gdata._edge_prop_dataframe[[src_n, dst_n]]
+        subset_df = self.gdata._edge_prop_dataframe[[src_n, dst_n, eid_n]]
         subset_df.rename(columns={src_n: dst_n, dst_n: src_n}, inplace=True)
-        subset_df["weight"] = cp.float32(1.0)
         subgraph = cugraph.Graph(directed=True)
         subgraph.from_cudf_edgelist(
             subset_df,
             source=src_n,
             destination=dst_n,
-            edge_attr="weight",
-            legacy_renum_only=True,
+            edge_attr=eid_n,
+            renumber=False,
+            legacy_renum_only=False,
         )
         return subgraph
 
@@ -285,8 +281,8 @@ class CuGraphStore:
     def extracted_subgraph_without_renumbering(self):
         gr_template = cugraph.Graph(directed=True)
         subgraph = self.gdata.extract_subgraph(create_using=gr_template,
-                                               default_edge_weight=1.0,
-                                               renumber_graph=True)
+                                               edge_weight_property=eid_n,
+                                               renumber_graph=False)
         return subgraph
 
     def find_edges(self, edge_ids_cap, etype):
