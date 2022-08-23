@@ -23,10 +23,10 @@
 #include <utilities/thrust_wrapper.hpp>
 
 #include <prims/count_if_e.cuh>
-#include <prims/edge_partition_src_dst_property.cuh>
-#include <prims/update_edge_partition_src_dst_property.cuh>
+#include <prims/update_edge_src_dst_property.cuh>
 
 #include <cugraph/algorithms.hpp>
+#include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/partition_manager.hpp>
 #include <cugraph/utilities/dataframe_buffer.hpp>
 
@@ -137,9 +137,8 @@ struct generate_impl {
                               graph_view_type const& graph_view,
                               property_buffer_type& property)
   {
-    auto output_property =
-      cugraph::edge_partition_dst_property_t<graph_view_type, type>(handle, graph_view);
-    update_edge_partition_dst_property(
+    auto output_property = cugraph::edge_dst_property_t<graph_view_type, type>(handle, graph_view);
+    update_edge_dst_property(
       handle, graph_view, cugraph::get_dataframe_buffer_begin(property), output_property);
     return output_property;
   }
@@ -149,9 +148,8 @@ struct generate_impl {
                            graph_view_type const& graph_view,
                            property_buffer_type& property)
   {
-    auto output_property =
-      cugraph::edge_partition_src_property_t<graph_view_type, type>(handle, graph_view);
-    update_edge_partition_src_property(
+    auto output_property = cugraph::edge_src_property_t<graph_view_type, type>(handle, graph_view);
+    update_edge_src_property(
       handle, graph_view, cugraph::get_dataframe_buffer_begin(property), output_property);
     return output_property;
   }
@@ -233,8 +231,8 @@ class Tests_MGCountIfE
     auto result = count_if_e(
       *handle_,
       mg_graph_view,
-      row_prop.device_view(),
-      col_prop.device_view(),
+      row_prop.view(),
+      col_prop.view(),
       [] __device__(auto row, auto col, weight_t wt, auto row_property, auto col_property) {
         return row_property < col_property;
       });
@@ -268,8 +266,8 @@ class Tests_MGCountIfE
       auto expected_result = count_if_e(
         *handle_,
         sg_graph_view,
-        sg_row_prop.device_view(),
-        sg_col_prop.device_view(),
+        sg_row_prop.view(),
+        sg_col_prop.view(),
         [] __device__(auto row, auto col, weight_t wt, auto row_property, auto col_property) {
           return row_property < col_property;
         });
