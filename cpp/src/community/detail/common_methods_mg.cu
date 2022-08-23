@@ -21,10 +21,10 @@ namespace detail {
 template float compute_modularity(
   raft::handle_t const& handle,
   cugraph::graph_view_t<int32_t, int32_t, float, false, true> const& graph_view,
-  edge_src_property_t<cugraph::graph_view_t<int32_t, int32_t, float, false, true>,
-                                int32_t> const& src_clusters_cache,
-  edge_dst_property_t<cugraph::graph_view_t<int32_t, int32_t, float, false, true>,
-                                int32_t> const& dst_clusters_cache,
+  edge_src_property_t<cugraph::graph_view_t<int32_t, int32_t, float, false, true>, int32_t> const&
+    src_clusters_cache,
+  edge_dst_property_t<cugraph::graph_view_t<int32_t, int32_t, float, false, true>, int32_t> const&
+    dst_clusters_cache,
   rmm::device_uvector<int32_t> const& next_clusters,
   rmm::device_uvector<float> const& cluster_weights,
   float total_edge_weight,
@@ -33,10 +33,10 @@ template float compute_modularity(
 template float compute_modularity(
   raft::handle_t const& handle,
   cugraph::graph_view_t<int32_t, int64_t, float, false, true> const& graph_view,
-  edge_src_property_t<cugraph::graph_view_t<int32_t, int64_t, float, false, true>,
-                                int32_t> const& src_clusters_cache,
-  edge_dst_property_t<cugraph::graph_view_t<int32_t, int64_t, float, false, true>,
-                                int32_t> const& dst_clusters_cache,
+  edge_src_property_t<cugraph::graph_view_t<int32_t, int64_t, float, false, true>, int32_t> const&
+    src_clusters_cache,
+  edge_dst_property_t<cugraph::graph_view_t<int32_t, int64_t, float, false, true>, int32_t> const&
+    dst_clusters_cache,
   rmm::device_uvector<int32_t> const& next_clusters,
   rmm::device_uvector<float> const& cluster_weights,
   float total_edge_weight,
@@ -45,10 +45,10 @@ template float compute_modularity(
 template float compute_modularity(
   raft::handle_t const& handle,
   cugraph::graph_view_t<int64_t, int64_t, float, false, true> const& graph_view,
-  edge_src_property_t<cugraph::graph_view_t<int64_t, int64_t, float, false, true>,
-                                int64_t> const& src_clusters_cache,
-  edge_dst_property_t<cugraph::graph_view_t<int64_t, int64_t, float, false, true>,
-                                int64_t> const& dst_clusters_cache,
+  edge_src_property_t<cugraph::graph_view_t<int64_t, int64_t, float, false, true>, int64_t> const&
+    src_clusters_cache,
+  edge_dst_property_t<cugraph::graph_view_t<int64_t, int64_t, float, false, true>, int64_t> const&
+    dst_clusters_cache,
   rmm::device_uvector<int64_t> const& next_clusters,
   rmm::device_uvector<float> const& cluster_weights,
   float total_edge_weight,
@@ -57,10 +57,10 @@ template float compute_modularity(
 template double compute_modularity(
   raft::handle_t const& handle,
   cugraph::graph_view_t<int32_t, int32_t, double, false, true> const& graph_view,
-  edge_src_property_t<cugraph::graph_view_t<int32_t, int32_t, double, false, true>,
-                                int32_t> const& src_clusters_cache,
-  edge_dst_property_t<cugraph::graph_view_t<int32_t, int32_t, double, false, true>,
-                                int32_t> const& dst_clusters_cache,
+  edge_src_property_t<cugraph::graph_view_t<int32_t, int32_t, double, false, true>, int32_t> const&
+    src_clusters_cache,
+  edge_dst_property_t<cugraph::graph_view_t<int32_t, int32_t, double, false, true>, int32_t> const&
+    dst_clusters_cache,
   rmm::device_uvector<int32_t> const& next_clusters,
   rmm::device_uvector<double> const& cluster_weights,
   double total_edge_weight,
@@ -69,10 +69,10 @@ template double compute_modularity(
 template double compute_modularity(
   raft::handle_t const& handle,
   cugraph::graph_view_t<int32_t, int64_t, double, false, true> const& graph_view,
-  edge_src_property_t<cugraph::graph_view_t<int32_t, int64_t, double, false, true>,
-                                int32_t> const& src_clusters_cache,
-  edge_dst_property_t<cugraph::graph_view_t<int32_t, int64_t, double, false, true>,
-                                int32_t> const& dst_clusters_cache,
+  edge_src_property_t<cugraph::graph_view_t<int32_t, int64_t, double, false, true>, int32_t> const&
+    src_clusters_cache,
+  edge_dst_property_t<cugraph::graph_view_t<int32_t, int64_t, double, false, true>, int32_t> const&
+    dst_clusters_cache,
   rmm::device_uvector<int32_t> const& next_clusters,
   rmm::device_uvector<double> const& cluster_weights,
   double total_edge_weight,
@@ -81,10 +81,10 @@ template double compute_modularity(
 template double compute_modularity(
   raft::handle_t const& handle,
   cugraph::graph_view_t<int64_t, int64_t, double, false, true> const& graph_view,
-  edge_src_property_t<cugraph::graph_view_t<int64_t, int64_t, double, false, true>,
-                                int64_t> const& src_clusters_cache,
-  edge_dst_property_t<cugraph::graph_view_t<int64_t, int64_t, double, false, true>,
-                                int64_t> const& dst_clusters_cache,
+  edge_src_property_t<cugraph::graph_view_t<int64_t, int64_t, double, false, true>, int64_t> const&
+    src_clusters_cache,
+  edge_dst_property_t<cugraph::graph_view_t<int64_t, int64_t, double, false, true>, int64_t> const&
+    dst_clusters_cache,
   rmm::device_uvector<int64_t> const& next_clusters,
   rmm::device_uvector<double> const& cluster_weights,
   double total_edge_weight,
@@ -129,12 +129,12 @@ template void update_by_delta_modularity(
   rmm::device_uvector<int32_t>& cluster_keys_v,
   rmm::device_uvector<float>& cluster_weights_v,
   rmm::device_uvector<int32_t>& next_clusters_v,
-  edge_src_property_t<cugraph::graph_view_t<int32_t, int32_t, float, false, true>,
-                                float> const& src_vertex_weights_cache,
-  edge_src_property_t<cugraph::graph_view_t<int32_t, int32_t, float, false, true>,
-                                int32_t>& src_clusters_cache,
-  edge_dst_property_t<cugraph::graph_view_t<int32_t, int32_t, float, false, true>,
-                                int32_t>& dst_clusters_cache,
+  edge_src_property_t<cugraph::graph_view_t<int32_t, int32_t, float, false, true>, float> const&
+    src_vertex_weights_cache,
+  edge_src_property_t<cugraph::graph_view_t<int32_t, int32_t, float, false, true>, int32_t>&
+    src_clusters_cache,
+  edge_dst_property_t<cugraph::graph_view_t<int32_t, int32_t, float, false, true>, int32_t>&
+    dst_clusters_cache,
   bool up_down);
 
 template void update_by_delta_modularity(
@@ -146,12 +146,12 @@ template void update_by_delta_modularity(
   rmm::device_uvector<int32_t>& cluster_keys_v,
   rmm::device_uvector<float>& cluster_weights_v,
   rmm::device_uvector<int32_t>& next_clusters_v,
-  edge_src_property_t<cugraph::graph_view_t<int32_t, int64_t, float, false, true>,
-                                float> const& src_vertex_weights_cache,
-  edge_src_property_t<cugraph::graph_view_t<int32_t, int64_t, float, false, true>,
-                                int32_t>& src_clusters_cache,
-  edge_dst_property_t<cugraph::graph_view_t<int32_t, int64_t, float, false, true>,
-                                int32_t>& dst_clusters_cache,
+  edge_src_property_t<cugraph::graph_view_t<int32_t, int64_t, float, false, true>, float> const&
+    src_vertex_weights_cache,
+  edge_src_property_t<cugraph::graph_view_t<int32_t, int64_t, float, false, true>, int32_t>&
+    src_clusters_cache,
+  edge_dst_property_t<cugraph::graph_view_t<int32_t, int64_t, float, false, true>, int32_t>&
+    dst_clusters_cache,
   bool up_down);
 
 template void update_by_delta_modularity(
@@ -163,12 +163,12 @@ template void update_by_delta_modularity(
   rmm::device_uvector<int64_t>& cluster_keys_v,
   rmm::device_uvector<float>& cluster_weights_v,
   rmm::device_uvector<int64_t>& next_clusters_v,
-  edge_src_property_t<cugraph::graph_view_t<int64_t, int64_t, float, false, true>,
-                                float> const& src_vertex_weights_cache,
-  edge_src_property_t<cugraph::graph_view_t<int64_t, int64_t, float, false, true>,
-                                int64_t>& src_clusters_cache,
-  edge_dst_property_t<cugraph::graph_view_t<int64_t, int64_t, float, false, true>,
-                                int64_t>& dst_clusters_cache,
+  edge_src_property_t<cugraph::graph_view_t<int64_t, int64_t, float, false, true>, float> const&
+    src_vertex_weights_cache,
+  edge_src_property_t<cugraph::graph_view_t<int64_t, int64_t, float, false, true>, int64_t>&
+    src_clusters_cache,
+  edge_dst_property_t<cugraph::graph_view_t<int64_t, int64_t, float, false, true>, int64_t>&
+    dst_clusters_cache,
   bool up_down);
 
 template void update_by_delta_modularity(
@@ -180,12 +180,12 @@ template void update_by_delta_modularity(
   rmm::device_uvector<int32_t>& cluster_keys_v,
   rmm::device_uvector<double>& cluster_weights_v,
   rmm::device_uvector<int32_t>& next_clusters_v,
-  edge_src_property_t<cugraph::graph_view_t<int32_t, int32_t, double, false, true>,
-                                double> const& src_vertex_weights_cache,
-  edge_src_property_t<cugraph::graph_view_t<int32_t, int32_t, double, false, true>,
-                                int32_t>& src_clusters_cache,
-  edge_dst_property_t<cugraph::graph_view_t<int32_t, int32_t, double, false, true>,
-                                int32_t>& dst_clusters_cache,
+  edge_src_property_t<cugraph::graph_view_t<int32_t, int32_t, double, false, true>, double> const&
+    src_vertex_weights_cache,
+  edge_src_property_t<cugraph::graph_view_t<int32_t, int32_t, double, false, true>, int32_t>&
+    src_clusters_cache,
+  edge_dst_property_t<cugraph::graph_view_t<int32_t, int32_t, double, false, true>, int32_t>&
+    dst_clusters_cache,
   bool up_down);
 
 template void update_by_delta_modularity(
@@ -197,12 +197,12 @@ template void update_by_delta_modularity(
   rmm::device_uvector<int32_t>& cluster_keys_v,
   rmm::device_uvector<double>& cluster_weights_v,
   rmm::device_uvector<int32_t>& next_clusters_v,
-  edge_src_property_t<cugraph::graph_view_t<int32_t, int64_t, double, false, true>,
-                                double> const& src_vertex_weights_cache,
-  edge_src_property_t<cugraph::graph_view_t<int32_t, int64_t, double, false, true>,
-                                int32_t>& src_clusters_cache,
-  edge_dst_property_t<cugraph::graph_view_t<int32_t, int64_t, double, false, true>,
-                                int32_t>& dst_clusters_cache,
+  edge_src_property_t<cugraph::graph_view_t<int32_t, int64_t, double, false, true>, double> const&
+    src_vertex_weights_cache,
+  edge_src_property_t<cugraph::graph_view_t<int32_t, int64_t, double, false, true>, int32_t>&
+    src_clusters_cache,
+  edge_dst_property_t<cugraph::graph_view_t<int32_t, int64_t, double, false, true>, int32_t>&
+    dst_clusters_cache,
   bool up_down);
 
 template void update_by_delta_modularity(
@@ -214,12 +214,12 @@ template void update_by_delta_modularity(
   rmm::device_uvector<int64_t>& cluster_keys_v,
   rmm::device_uvector<double>& cluster_weights_v,
   rmm::device_uvector<int64_t>& next_clusters_v,
-  edge_src_property_t<cugraph::graph_view_t<int64_t, int64_t, double, false, true>,
-                                double> const& src_vertex_weights_cache,
-  edge_src_property_t<cugraph::graph_view_t<int64_t, int64_t, double, false, true>,
-                                int64_t>& src_clusters_cache,
-  edge_dst_property_t<cugraph::graph_view_t<int64_t, int64_t, double, false, true>,
-                                int64_t>& dst_clusters_cache,
+  edge_src_property_t<cugraph::graph_view_t<int64_t, int64_t, double, false, true>, double> const&
+    src_vertex_weights_cache,
+  edge_src_property_t<cugraph::graph_view_t<int64_t, int64_t, double, false, true>, int64_t>&
+    src_clusters_cache,
+  edge_dst_property_t<cugraph::graph_view_t<int64_t, int64_t, double, false, true>, int64_t>&
+    dst_clusters_cache,
   bool up_down);
 
 }  // namespace detail

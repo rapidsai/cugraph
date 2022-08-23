@@ -74,10 +74,8 @@ template <typename graph_view_t>
 typename graph_view_t::weight_type compute_modularity(
   raft::handle_t const& handle,
   graph_view_t const& graph_view,
-  edge_src_property_t<graph_view_t, typename graph_view_t::vertex_type> const&
-    src_clusters_cache,
-  edge_dst_property_t<graph_view_t, typename graph_view_t::vertex_type> const&
-    dst_clusters_cache,
+  edge_src_property_t<graph_view_t, typename graph_view_t::vertex_type> const& src_clusters_cache,
+  edge_dst_property_t<graph_view_t, typename graph_view_t::vertex_type> const& dst_clusters_cache,
   rmm::device_uvector<typename graph_view_t::vertex_type> const& next_clusters,
   rmm::device_uvector<typename graph_view_t::weight_type> const& cluster_weights,
   typename graph_view_t::weight_type total_edge_weight,
@@ -101,10 +99,8 @@ void update_by_delta_modularity(
   rmm::device_uvector<typename graph_view_t::vertex_type>& next_clusters_v,
   edge_src_property_t<graph_view_t, typename graph_view_t::weight_type> const&
     src_vertex_weights_cache,
-  edge_src_property_t<graph_view_t, typename graph_view_t::vertex_type>&
-    src_clusters_cache,
-  edge_dst_property_t<graph_view_t, typename graph_view_t::vertex_type>&
-    dst_clusters_cache,
+  edge_src_property_t<graph_view_t, typename graph_view_t::vertex_type>& src_clusters_cache,
+  edge_dst_property_t<graph_view_t, typename graph_view_t::vertex_type>& dst_clusters_cache,
   bool up_down);
 
 }  // namespace detail

@@ -131,12 +131,10 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> louvain(
                handle.get_stream());
 
     if constexpr (multi_gpu) {
-      src_clusters_cache =
-        edge_src_property_t<graph_view_t, vertex_t>(handle, current_graph_view);
+      src_clusters_cache = edge_src_property_t<graph_view_t, vertex_t>(handle, current_graph_view);
       update_edge_src_property(
         handle, current_graph_view, next_clusters_v.begin(), src_clusters_cache);
-      dst_clusters_cache =
-        edge_dst_property_t<graph_view_t, vertex_t>(handle, current_graph_view);
+      dst_clusters_cache = edge_dst_property_t<graph_view_t, vertex_t>(handle, current_graph_view);
       update_edge_dst_property(
         handle, current_graph_view, next_clusters_v.begin(), dst_clusters_cache);
     }
