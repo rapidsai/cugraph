@@ -30,7 +30,7 @@ set(cython_sources
     uniform_neighbor_sample.pyx
     utils.pyx
 )
-set(linked_libraries cugraph::cugraph;cugraph_c)
+set(linked_libraries cugraph::cugraph;cugraph::cugraph_c)
 
 rapids_cython_create_modules(
   CXX
