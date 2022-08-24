@@ -194,7 +194,7 @@ def bfs(input_graph,
     # the same PLC graph, the current iteration might try to cache
     # the past iteration's futures and this can cause a hang if some
     # of those futures get released midway
-    del result
+    del cupy_result
 
     ddf = dask_cudf.from_delayed(cudf_result).persist()
     wait(ddf)
