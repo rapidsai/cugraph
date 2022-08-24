@@ -50,6 +50,7 @@ requirements:
     - openmpi-mpicxx
     - libcublas-dev
     - libcusolver-dev
+    - libcusparse-dev
 
 outputs:
   - name: libcugraph
