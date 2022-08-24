@@ -18,12 +18,12 @@ set -o pipefail  # piped commands propagate their error
 set -E           # ERR traps are inherited by subcommands
 trap "EXITCODE=1" ERR
 
-NOTEBOOKS_DIR=${WORKSPACE}/notebooks
-NBTEST=${WORKSPACE}/ci/utils/nbtest.sh
-LIBCUDF_KERNEL_CACHE_PATH=${WORKSPACE}/.jitcache
+NOTEBOOKS_DIR="${GITHUB_WORKSPACE}/notebooks"
+NBTEST="${GITHUB_WORKSPACE}/ci/utils/nbtest.sh"
+LIBCUDF_KERNEL_CACHE_PATH="${GITHUB_WORKSPACE}/.jitcache"
 EXITCODE=0
 
-cd ${NOTEBOOKS_DIR}
+cd "${NOTEBOOKS_DIR}"
 TOPLEVEL_NB_FOLDERS=$(find . -name *.ipynb |cut -d'/' -f2|sort -u)
 
 ## Check env
@@ -40,8 +40,8 @@ for folder in ${TOPLEVEL_NB_FOLDERS}; do
     echo "========================================"
     echo "FOLDER: ${folder}"
     echo "========================================"
-    cd ${NOTEBOOKS_DIR}/${folder}
-    NBLIST=$(python ${WORKSPACE}/ci/gpu/notebook_list.py)
+    cd "${NOTEBOOKS_DIR}/${folder}"
+    NBLIST=$(python "${GITHUB_WORKSPACE}/ci/gpu/notebook_list.py")
     for nb in ${NBLIST}; do
         nbBasename=$(basename ${nb})
         cd $(dirname ${nb})

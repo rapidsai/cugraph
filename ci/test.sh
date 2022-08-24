@@ -54,10 +54,6 @@ else
     bash ./get_test_data.sh ${DOWNLOAD_MODE}
 fi
 
-if [[ -z "$PROJECT_FLASH" || "$PROJECT_FLASH" == "0" ]]; then
-    cd ${CUGRAPH_ROOT}/cpp/build
-fi
-
 # Do not abort the script on error from this point on. This allows all tests to
 # run regardless of pass/fail, but relies on the ERR trap above to manage the
 # EXITCODE for the script.
@@ -87,13 +83,13 @@ fi
 if hasArg "--run-python-tests"; then
     echo "Python pytest for pylibcugraph..."
     cd ${CUGRAPH_ROOT}/python/pylibcugraph/pylibcugraph
-    pytest --cache-clear --junitxml=${CUGRAPH_ROOT}/junit-pylibcugraph-pytests.xml -v --cov-config=.coveragerc --cov=pylibcugraph --cov-report=xml:${WORKSPACE}/python/pylibcugraph/pylibcugraph-coverage.xml --cov-report term --ignore=raft --benchmark-disable
+    pytest --cache-clear --junitxml=${CUGRAPH_ROOT}/junit-pylibcugraph-pytests.xml -v --cov-config=.coveragerc --cov=pylibcugraph --cov-report=xml:${GITHUB_WORKSPACE}/python/pylibcugraph/pylibcugraph-coverage.xml --cov-report term --ignore=raft --benchmark-disable
     echo "Ran Python pytest for pylibcugraph : return code was: $?, test script exit code is now: $EXITCODE"
 
     echo "Python pytest for cuGraph (single-GPU only)..."
     cd ${CUGRAPH_ROOT}/python/cugraph/cugraph
     # rmat is not tested because of MG testing
-    pytest --cache-clear --junitxml=${CUGRAPH_ROOT}/junit-cugraph-pytests.xml -v --cov-config=.coveragerc --cov=cugraph --cov-report=xml:${WORKSPACE}/python/cugraph/cugraph-coverage.xml --cov-report term --ignore=raft --ignore=tests/mg --ignore=tests/generators --benchmark-disable
+    pytest --cache-clear --junitxml=${CUGRAPH_ROOT}/junit-cugraph-pytests.xml -v --cov-config=.coveragerc --cov=cugraph --cov-report=xml:${GITHUB_WORKSPACE}/python/cugraph/cugraph-coverage.xml --cov-report term --ignore=raft --ignore=tests/mg --ignore=tests/generators --benchmark-disable
     echo "Ran Python pytest for cugraph : return code was: $?, test script exit code is now: $EXITCODE"
 
     echo "Python benchmarks for cuGraph (running as tests)..."
