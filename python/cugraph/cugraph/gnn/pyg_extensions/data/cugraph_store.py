@@ -49,18 +49,9 @@ class CuGraphEdgeAttr:
     # infer with the simple heuristic int(self.edge_index.max()) + 1
     size: Optional[Tuple[int, int]] = None
 
-    # NOTE we define __init__ to force-cast layout
-    def __init__(
-        self,
-        edge_type: Optional[Any],
-        layout: EdgeLayout,
-        is_sorted: bool = False,
-        size: Optional[Tuple[int, int]] = None,
-    ):
-        self.edge_type = edge_type
-        self.layout = EdgeLayout(layout)
-        self.is_sorted = is_sorted
-        self.size = size
+    # NOTE we define __post_init__ to force-cast layout
+    def __post_init__(self):
+        self.layout = EdgeLayout(self.layout)
 
     @classmethod
     def cast(cls, *args, **kwargs):
