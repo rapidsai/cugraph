@@ -206,8 +206,8 @@ class EXPERIMENTAL__CuGraphStore:
 
             dst_types = self.__graph.get_vertex_data(
                 vertex_ids=dsts,
-                columns=['_TYPE_']
-            )._TYPE_.unique()
+                columns=[self.__graph.type_col_name]
+            )[self.__graph.type_col_name].unique()
 
             src_types = self.__graph.get_vertex_data(
                 vertex_ids=srcs,
