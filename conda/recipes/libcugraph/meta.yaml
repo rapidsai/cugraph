@@ -22,11 +22,13 @@ build:
     - CMAKE_C_COMPILER_LAUNCHER
     - CMAKE_CXX_COMPILER_LAUNCHER
     - CMAKE_CUDA_COMPILER_LAUNCHER
-    - SCCACHE_S3_KEY_PREFIX=libcugraph-aarch64 # [aarch64]
-    - SCCACHE_S3_KEY_PREFIX=libcugraph-linux64 # [linux64]
+    - SCCACHE_S3_KEY_PREFIX=libcugraph-aarch64-gha # [aarch64]
+    - SCCACHE_S3_KEY_PREFIX=libcugraph-linux64-gha # [linux64]
     - SCCACHE_BUCKET=rapids-sccache
     - SCCACHE_REGION=us-west-2
     - SCCACHE_IDLE_TIMEOUT=32768
+    - AWS_ACCESS_KEY_ID
+    - AWS_SECRET_ACCESS_KEY
 
 requirements:
   build:
