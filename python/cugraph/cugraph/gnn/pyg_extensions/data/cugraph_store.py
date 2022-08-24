@@ -178,7 +178,7 @@ class EXPERIMENTAL__CuGraphStore:
             from cupy import float32 as property_type
         else:
             raise ValueError(f'Invalid backend {backend}.')
-        self.backend = backend
+        self.__backend = backend
         self.from_dlpack = from_dlpack
         self.vertex_type = vertex_type
         self.property_type = property_type
@@ -289,14 +289,13 @@ class EXPERIMENTAL__CuGraphStore:
 
         src = self.from_dlpack(df[self.__graph.src_col_name].to_dlpack())
         dst = self.from_dlpack(df[self.__graph.dst_col_name].to_dlpack())
-        if self.backend == 'torch':
+        if self.__backend == 'torch':
             src = src.to(self.vertex_type)
             dst = dst.to(self.vertex_type)
-        elif self.backend == 'cupy':
+        else:
+            # self.__backend == 'cupy'
             src = src.astype(self.vertex_type)
             dst = dst.astype(self.vertex_type)
-        else:
-            raise TypeError(f'Invalid backend type {self.backend}')
 
         if src.shape[0] != dst.shape[0]:
             raise IndexError('src and dst shape do not match!')
@@ -381,7 +380,7 @@ class EXPERIMENTAL__CuGraphStore:
             num_neighbors = list(num_neighbors.values())[0]
 
         # FIXME eventually get uniform neighbor sample to accept longs
-        if self.backend == 'torch' and not index.is_cuda:
+        if self.__backend == 'torch' and not index.is_cuda:
             index = index.cuda()
         index = cupy.from_dlpack(index.__dlpack__())
 
@@ -524,7 +523,7 @@ class EXPERIMENTAL__CuGraphFeatureStore:
         else:
             raise ValueError(f'Invalid backend {backend}.')
 
-        self.backend = backend
+        self.__backend = backend
         self.from_dlpack = from_dlpack
         self.vertex_type = vertex_type
         self.property_type = property_type
@@ -576,7 +575,7 @@ class EXPERIMENTAL__CuGraphFeatureStore:
             cols = [attr.attr_name]
 
         idx = attr.index
-        if self.backend == 'torch' and not idx.is_cuda:
+        if self.__backend == 'torch' and not idx.is_cuda:
             idx = idx.cuda()
         idx = cupy.from_dlpack(idx.__dlpack__())
 
@@ -617,12 +616,11 @@ class EXPERIMENTAL__CuGraphFeatureStore:
 
         # FIXME look up the dtypes for x and other properties
         if attr.attr_name == 'x' and output.dtype != self.property_type:
-            if self.backend == 'torch':
+            if self.__backend == 'torch':
                 output = output.to(self.property_type)
-            elif self.backend == 'cupy':
-                output = output.astype(self.property_type)
             else:
-                raise ValueError(f'invalid backend {self.backend}')
+                # self.__backend == 'cupy'
+                output = output.astype(self.property_type)
 
         return output
 
