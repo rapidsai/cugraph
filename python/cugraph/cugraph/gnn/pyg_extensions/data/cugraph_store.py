@@ -283,12 +283,15 @@ class EXPERIMENTAL__CuGraphStore:
         else:
             edge_type = attr.edge_type[1]
 
+        # If there is only one edge type (homogeneous graph) then
+        # bypass the edge filters for a significant speed improvement.
         if len(self.__graph.edge_types) == 1:
             if self.__graph.edge_types[0] != edge_type:
                 raise ValueError(
                     f'Requested edge type {edge_type}'
                     'is not present in graph.'
                 )
+
             df = self.__graph.get_edge_data(
                 edge_ids=None,
                 types=None,
@@ -436,16 +439,7 @@ class EXPERIMENTAL__CuGraphStore:
         )
 
         noi_types = noi[self.__graph.type_col_name].unique()
-        if len(noi_types) > 1:
-            noi = noi.groupby(self.__graph.type_col_name)
-        else:
-            class FakeGroupBy:
-                def __init__(self, df):
-                    self.df = df
-
-                def get_group(self, g):
-                    return self.df
-            noi = FakeGroupBy(noi)
+        noi = noi.groupby(self.__graph.type_col_name)
 
         if self.is_mg:
             noi_types = noi_types.compute()
