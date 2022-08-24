@@ -234,7 +234,7 @@ class EXPERIMENTAL__CuGraphStore:
                 size=len(edges)
             )
 
-            self.__dict__['_edge_attr_cls'] = CuGraphEdgeAttr
+            self._edge_attr_cls = CuGraphEdgeAttr
 
     @property
     def _edge_types_to_attrs(self):
