@@ -466,8 +466,8 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
     // 2-3. initialize vertex frontier, edge_buffer, and edge_dst_components (if
     // multi-gpu)
 
-    vertex_frontier_t<vertex_t, vertex_t, GraphViewType::is_multi_gpu> vertex_frontier(handle,
-                                                                                       num_buckets);
+    vertex_frontier_t<vertex_t, vertex_t, GraphViewType::is_multi_gpu, true> vertex_frontier(
+      handle, num_buckets);
     vertex_t next_candidate_offset{0};
     edge_t edge_count{0};
 
@@ -533,7 +533,7 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
 
       auto max_pushes = GraphViewType::is_multi_gpu
                           ? compute_num_out_nbrs_from_frontier(
-                              handle, level_graph_view, vertex_frontier, bucket_idx_cur)
+                              handle, level_graph_view, vertex_frontier.bucket(bucket_idx_cur))
                           : edge_count;
 
       // FIXME: if we use cuco::static_map (no duplicates, ideally we need static_set), edge_buffer
@@ -545,8 +545,7 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
       auto new_frontier_tagged_vertex_buffer = transform_reduce_v_frontier_outgoing_e_by_dst(
         handle,
         level_graph_view,
-        vertex_frontier,
-        bucket_idx_cur,
+        vertex_frontier.bucket(bucket_idx_cur),
         edge_src_dummy_property_t{}.view(),
         edge_dst_dummy_property_t{}.view(),
         [col_components =
