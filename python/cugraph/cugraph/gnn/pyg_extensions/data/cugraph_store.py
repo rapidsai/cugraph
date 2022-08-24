@@ -254,7 +254,26 @@ class EXPERIMENTAL__CuGraphStore:
         return self.__edge_types_to_attrs.values()
 
     def _get_edge_index(self, attr):
-        # returns the edge index for particular edge type
+        """
+            Returns the edge index in the requested format
+            (as defined by attr).  Currently, only unsorted
+            COO is supported, which is returned as a (src,dst)
+            tuple as expected by the PyG API.
+
+            Parameters
+            ----------
+            attr: CuGraphEdgeAttr
+                The CuGraphEdgeAttr specifying the
+                desired edge type, layout (i.e. CSR, COO, CSC), and
+                whether the returned index should be sorted (if COO).
+                Currently, only unsorted COO is supported.
+
+            Returns
+            -------
+            (src, dst) : Tuple[tensor type]
+                Tuple of the requested edge index in COO form.
+                Currently, only COO form is supported.
+        """
 
         if attr.layout != EdgeLayout.COO:
             raise TypeError('Only COO direct access is supported!')
