@@ -161,7 +161,7 @@ void core_number(raft::handle_t const& handle,
   constexpr size_t bucket_idx_next = 1;
   constexpr size_t num_buckets     = 2;
 
-  vertex_frontier_t<vertex_t, void, multi_gpu> vertex_frontier(handle, num_buckets);
+  vertex_frontier_t<vertex_t, void, multi_gpu, true> vertex_frontier(handle, num_buckets);
 
   edge_dst_property_t<graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu>, edge_t>
     dst_core_numbers(handle, graph_view);
@@ -213,8 +213,7 @@ void core_number(raft::handle_t const& handle,
             transform_reduce_v_frontier_outgoing_e_by_dst(
               handle,
               graph_view,
-              vertex_frontier,
-              bucket_idx_cur,
+              vertex_frontier.bucket(bucket_idx_cur),
               edge_src_dummy_property_t{}.view(),
               dst_core_numbers.view(),
               [k, delta] __device__(vertex_t src, vertex_t dst, auto, auto dst_val) {

@@ -179,8 +179,8 @@ void bfs(raft::handle_t const& handle,
   constexpr size_t bucket_idx_next = 1;
   constexpr size_t num_buckets     = 2;
 
-  vertex_frontier_t<vertex_t, void, GraphViewType::is_multi_gpu> vertex_frontier(handle,
-                                                                                 num_buckets);
+  vertex_frontier_t<vertex_t, void, GraphViewType::is_multi_gpu, true> vertex_frontier(handle,
+                                                                                       num_buckets);
 
   vertex_frontier.bucket(bucket_idx_cur).insert(sources, sources + n_sources);
   rmm::device_uvector<uint32_t> visited_flags(
@@ -234,8 +234,7 @@ void bfs(raft::handle_t const& handle,
       auto [new_frontier_vertex_buffer, predecessor_buffer] =
         transform_reduce_v_frontier_outgoing_e_by_dst(handle,
                                                       push_graph_view,
-                                                      vertex_frontier,
-                                                      bucket_idx_cur,
+                                                      vertex_frontier.bucket(bucket_idx_cur),
                                                       edge_src_dummy_property_t{}.view(),
                                                       edge_dst_dummy_property_t{}.view(),
 #if 1
