@@ -30,7 +30,7 @@ from torch_geometric.data.graph_store import (
     GraphStore
 )
 from torch_geometric.loader.base import DataLoaderIterator
-from torch_geometric.loader.utils import filter_custom_store
+from torch_geometric.loader.utils import edge_type_to_str
 from torch_geometric.typing import InputEdges, NumNeighbors, OptTensor
 
 
@@ -260,12 +260,28 @@ class EXPERIMENTAL__CuGraphLinkNeighborLoader(torch.utils.data.DataLoader):
                          collate_fn=self.collate_fn, **kwargs)
 
     def filter_fn(self, out: Any) -> Union[Data, HeteroData]:
-        (node_dict, row_dict, col_dict, edge_dict, edge_label_index,
+        (node_dict, row_dict, col_dict, feature_dict, edge_label_index,
             edge_label) = out
         feature_store, graph_store = self.data
 
-        data = filter_custom_store(feature_store, graph_store, node_dict,
-                                   row_dict, col_dict, edge_dict)
+        # Construct a new `HeteroData` object:
+        data = HeteroData()
+
+        # Filter edge storage:
+        # TODO support edge attributes
+        for attr in graph_store.get_all_edge_attrs():
+            key = edge_type_to_str(attr.edge_type)
+            if key in row_dict and key in col_dict:
+                edge_index = torch.stack([row_dict[key], col_dict[key]], dim=0)
+                data[attr.edge_type].edge_index = edge_index
+
+        # Filter node storage:
+        for attr in feature_store.get_all_tensor_attrs():
+            if attr.group_name in node_dict:
+                attr.index = node_dict[attr.group_name]
+                if attr.attr_name in feature_dict[attr.group_name]:
+                    data[attr.group_name][attr.attr_name] = feature_dict[attr.group_name][attr.attr_name]
+
         edge_type = self.neighbor_sampler.input_type
         data[edge_type].edge_label_index = edge_label_index
         if edge_label is not None:
