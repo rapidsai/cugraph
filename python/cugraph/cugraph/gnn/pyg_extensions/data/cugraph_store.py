@@ -117,7 +117,8 @@ class CuGraphTensorAttr:
 
     def is_set(self, key):
         r"""Whether an attribute is set in :obj:`TensorAttr`."""
-        assert key in self.__dataclass_fields__
+        if key not in self.__dataclass_fields__:
+            raise KeyError(key)
         attr = getattr(self, key)
         return type(attr) != _field_status or attr != _field_status.UNSET
 
