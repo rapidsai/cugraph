@@ -47,6 +47,7 @@ requirements:
     - ucx-proc=*=gpu
     - gtest {{ gtest_version }}  # FIXME: pinned to version in https://github.com/rapidsai/integration/blob/branch-22.04/conda/recipes/versions.yaml
     - gmock {{ gtest_version }}  # FIXME: pinned to version in https://github.com/rapidsai/integration/blob/branch-22.04/conda/recipes/versions.yaml
+    - openmpi-mpicxx
 
 outputs:
   - name: libcugraph
