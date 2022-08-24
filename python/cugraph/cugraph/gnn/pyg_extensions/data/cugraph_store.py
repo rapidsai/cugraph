@@ -277,8 +277,18 @@ class EXPERIMENTAL__CuGraphStore:
 
         if attr.layout != EdgeLayout.COO:
             raise TypeError('Only COO direct access is supported!')
+        
+        if isinstance(attr.edge_type, str):
+            edge_type = attr.edge_type
+        else:
+            edge_type = attr.edge_type[1]
 
         if len(self.__graph.edge_types) == 1:
+            if self.__graph.edge_types[0] != edge_type:
+                raise ValueError(
+                    f'Requested edge type {edge_type}'
+                    'is not present in graph.'
+                )
             df = self.__graph.get_edge_data(
                 edge_ids=None,
                 types=None,
@@ -288,11 +298,6 @@ class EXPERIMENTAL__CuGraphStore:
                 ]
             )
         else:
-            if isinstance(attr.edge_type, str):
-                edge_type = attr.edge_type
-            else:
-                edge_type = attr.edge_type[1]
-
             # FIXME unrestricted edge type names
             df = self.__graph.get_edge_data(
                 edge_ids=None,
