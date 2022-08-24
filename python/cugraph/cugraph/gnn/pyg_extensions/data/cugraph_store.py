@@ -277,7 +277,7 @@ class EXPERIMENTAL__CuGraphStore:
 
         if attr.layout != EdgeLayout.COO:
             raise TypeError('Only COO direct access is supported!')
-        
+
         if isinstance(attr.edge_type, str):
             edge_type = attr.edge_type
         else:
