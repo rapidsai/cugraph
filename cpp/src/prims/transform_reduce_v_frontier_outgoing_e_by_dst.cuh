@@ -997,6 +997,17 @@ transform_reduce_v_frontier_outgoing_e_by_dst(raft::handle_t const& handle,
 
   auto frontier_key_first = frontier.begin();
   auto frontier_key_last  = frontier.end();
+  auto keys               = allocate_dataframe_buffer<key_t>(size_t{0}, handle.get_stream());
+  if constexpr (!VertexFrontierBucketType::is_sorted_unique) {
+    keys = resize_dataframe_buffer(keys, frontier.size(), handle.get_stream());
+    thrust::copy(handle.get_thrust_policy(),
+                 frontier_key_first,
+                 frontier_key_last,
+                 get_dataframe_buffer_begin(keys));
+    frontier_key_first = get_dataframe_buffer_begin(keys);
+    frontier_key_last  = get_dataframe_buffer_end(keys);
+    thrust::sort(handle.get_thrust_policy(), frontier_key_first, frontier_key_last);
+  }
 
   // 1. fill the buffer
 
@@ -1004,6 +1015,7 @@ transform_reduce_v_frontier_outgoing_e_by_dst(raft::handle_t const& handle,
   auto payload_buffer =
     detail::allocate_optional_payload_buffer<payload_t>(size_t{0}, handle.get_stream());
   rmm::device_scalar<size_t> buffer_idx(size_t{0}, handle.get_stream());
+
   std::vector<size_t> local_frontier_sizes{};
   if constexpr (GraphViewType::is_multi_gpu) {
     auto& col_comm       = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
@@ -1015,6 +1027,7 @@ transform_reduce_v_frontier_outgoing_e_by_dst(raft::handle_t const& handle,
     local_frontier_sizes = std::vector<size_t>{static_cast<size_t>(
       static_cast<vertex_t>(thrust::distance(frontier_key_first, frontier_key_last)))};
   }
+
   for (size_t i = 0; i < graph_view.number_of_local_edge_partitions(); ++i) {
     auto edge_partition =
       edge_partition_device_view_t<vertex_t, edge_t, weight_t, GraphViewType::is_multi_gpu>(
@@ -1022,7 +1035,9 @@ transform_reduce_v_frontier_outgoing_e_by_dst(raft::handle_t const& handle,
 
     auto edge_partition_frontier_key_buffer =
       allocate_dataframe_buffer<key_t>(size_t{0}, handle.get_stream());
-    vertex_t edge_partition_frontier_size = static_cast<vertex_t>(local_frontier_sizes[i]);
+    vertex_t edge_partition_frontier_size  = static_cast<vertex_t>(local_frontier_sizes[i]);
+    auto edge_partition_frontier_key_first = frontier_key_first;
+    auto edge_partition_frontier_key_last  = frontier_key_last;
     if constexpr (GraphViewType::is_multi_gpu) {
       auto& col_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
       auto const col_comm_rank = col_comm.get_rank();
@@ -1034,66 +1049,32 @@ transform_reduce_v_frontier_outgoing_e_by_dst(raft::handle_t const& handle,
                    frontier_key_first,
                    get_dataframe_buffer_begin(edge_partition_frontier_key_buffer),
                    edge_partition_frontier_size,
-                   i,
+                   static_cast<int>(i),
                    handle.get_stream());
-    } else {
-      resize_dataframe_buffer(
-        edge_partition_frontier_key_buffer, edge_partition_frontier_size, handle.get_stream());
-      thrust::copy(handle.get_thrust_policy(),
-                   frontier_key_first,
-                   frontier_key_last,
-                   get_dataframe_buffer_begin(edge_partition_frontier_key_buffer));
+
+      edge_partition_frontier_key_first =
+        get_dataframe_buffer_begin(edge_partition_frontier_key_buffer);
+      edge_partition_frontier_key_last =
+        get_dataframe_buffer_end(edge_partition_frontier_key_buffer);
     }
 
     vertex_t const* edge_partition_frontier_src_first{nullptr};
     vertex_t const* edge_partition_frontier_src_last{nullptr};
     if constexpr (std::is_same_v<key_t, vertex_t>) {
-      edge_partition_frontier_src_first =
-        get_dataframe_buffer_begin(edge_partition_frontier_key_buffer);
-      edge_partition_frontier_src_last =
-        get_dataframe_buffer_end(edge_partition_frontier_key_buffer);
+      edge_partition_frontier_src_first = edge_partition_frontier_key_first;
+      edge_partition_frontier_src_last  = edge_partition_frontier_key_last;
     } else {
-      edge_partition_frontier_src_first = thrust::get<0>(
-        get_dataframe_buffer_begin(edge_partition_frontier_key_buffer).get_iterator_tuple());
-      edge_partition_frontier_src_last = thrust::get<0>(
-        get_dataframe_buffer_end(edge_partition_frontier_key_buffer).get_iterator_tuple());
+      edge_partition_frontier_src_first =
+        thrust::get<0>(edge_partition_frontier_key_first.get_iterator_tuple());
+      edge_partition_frontier_src_last =
+        thrust::get<0>(edge_partition_frontier_key_last.get_iterator_tuple());
     }
 
     auto segment_offsets = graph_view.local_edge_partition_segment_offsets(i);
-    auto max_pushes =
-      graph_view.use_dcs()
-        ? thrust::transform_reduce(
-            handle.get_thrust_policy(),
-            edge_partition_frontier_src_first,
-            edge_partition_frontier_src_last,
-            [edge_partition,
-             major_hypersparse_first =
-               *(edge_partition.major_hypersparse_first())] __device__(auto src) {
-              if (src < major_hypersparse_first) {
-                auto src_offset = edge_partition.major_offset_from_major_nocheck(src);
-                return edge_partition.local_degree(src_offset);
-              } else {
-                auto src_hypersparse_idx =
-                  edge_partition.major_hypersparse_idx_from_major_nocheck(src);
-                return src_hypersparse_idx ? edge_partition.local_degree(
-                                               edge_partition.major_offset_from_major_nocheck(
-                                                 major_hypersparse_first) +
-                                               *src_hypersparse_idx)
-                                           : edge_t{0};
-              }
-            },
-            edge_t{0},
-            thrust::plus<edge_t>())
-        : thrust::transform_reduce(
-            handle.get_thrust_policy(),
-            edge_partition_frontier_src_first,
-            edge_partition_frontier_src_last,
-            [edge_partition] __device__(auto src) {
-              auto src_offset = edge_partition.major_offset_from_major_nocheck(src);
-              return edge_partition.local_degree(src_offset);
-            },
-            edge_t{0},
-            thrust::plus<edge_t>());
+    auto max_pushes      = edge_partition.compute_number_of_edges(
+      raft::device_span<vertex_t const>(edge_partition_frontier_src_first,
+                                        edge_partition_frontier_src_last),
+      handle.get_stream());
 
     auto new_buffer_size = buffer_idx.value(handle.get_stream()) + max_pushes;
     resize_dataframe_buffer(key_buffer, new_buffer_size, handle.get_stream());
@@ -1114,12 +1095,6 @@ transform_reduce_v_frontier_outgoing_e_by_dst(raft::handle_t const& handle,
     }
 
     if (segment_offsets) {
-      if constexpr (!VertexFrontierBucketType::is_sorted_unique) {
-        thrust::sort(handle.get_thrust_policy(),
-                     edge_partition_frontier_src_first,
-                     edge_partition_frontier_src_last);
-      }
-
       static_assert(detail::num_sparse_segments_per_vertex_partition == 3);
       std::vector<vertex_t> h_thresholds(detail::num_sparse_segments_per_vertex_partition +
                                          (graph_view.use_dcs() ? 1 : 0) - 1);
@@ -1153,8 +1128,8 @@ transform_reduce_v_frontier_outgoing_e_by_dst(raft::handle_t const& handle,
         detail::update_v_frontier_from_outgoing_e_high_degree<GraphViewType>
           <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
             edge_partition,
-            get_dataframe_buffer_begin(edge_partition_frontier_key_buffer),
-            get_dataframe_buffer_begin(edge_partition_frontier_key_buffer) + h_offsets[0],
+            edge_partition_frontier_key_first,
+            edge_partition_frontier_key_first + h_offsets[0],
             edge_partition_src_value_input,
             edge_partition_dst_value_input,
             get_dataframe_buffer_begin(key_buffer),
@@ -1170,8 +1145,8 @@ transform_reduce_v_frontier_outgoing_e_by_dst(raft::handle_t const& handle,
         detail::update_v_frontier_from_outgoing_e_mid_degree<GraphViewType>
           <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
             edge_partition,
-            get_dataframe_buffer_begin(edge_partition_frontier_key_buffer) + h_offsets[0],
-            get_dataframe_buffer_begin(edge_partition_frontier_key_buffer) + h_offsets[1],
+            edge_partition_frontier_key_first + h_offsets[0],
+            edge_partition_frontier_key_first + h_offsets[1],
             edge_partition_src_value_input,
             edge_partition_dst_value_input,
             get_dataframe_buffer_begin(key_buffer),
@@ -1187,8 +1162,8 @@ transform_reduce_v_frontier_outgoing_e_by_dst(raft::handle_t const& handle,
         detail::update_v_frontier_from_outgoing_e_low_degree<GraphViewType>
           <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
             edge_partition,
-            get_dataframe_buffer_begin(edge_partition_frontier_key_buffer) + h_offsets[1],
-            get_dataframe_buffer_begin(edge_partition_frontier_key_buffer) + h_offsets[2],
+            edge_partition_frontier_key_first + h_offsets[1],
+            edge_partition_frontier_key_first + h_offsets[2],
             edge_partition_src_value_input,
             edge_partition_dst_value_input,
             get_dataframe_buffer_begin(key_buffer),
@@ -1204,8 +1179,8 @@ transform_reduce_v_frontier_outgoing_e_by_dst(raft::handle_t const& handle,
         detail::update_v_frontier_from_outgoing_e_hypersparse<GraphViewType>
           <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
             edge_partition,
-            get_dataframe_buffer_begin(edge_partition_frontier_key_buffer) + h_offsets[2],
-            get_dataframe_buffer_begin(edge_partition_frontier_key_buffer) + h_offsets[3],
+            edge_partition_frontier_key_first + h_offsets[2],
+            edge_partition_frontier_key_first + h_offsets[3],
             edge_partition_src_value_input,
             edge_partition_dst_value_input,
             get_dataframe_buffer_begin(key_buffer),
@@ -1223,8 +1198,8 @@ transform_reduce_v_frontier_outgoing_e_by_dst(raft::handle_t const& handle,
         detail::update_v_frontier_from_outgoing_e_low_degree<GraphViewType>
           <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
             edge_partition,
-            get_dataframe_buffer_begin(edge_partition_frontier_key_buffer),
-            get_dataframe_buffer_end(edge_partition_frontier_key_buffer),
+            edge_partition_frontier_key_first,
+            edge_partition_frontier_key_last,
             edge_partition_src_value_input,
             edge_partition_dst_value_input,
             get_dataframe_buffer_begin(key_buffer),
