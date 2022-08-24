@@ -389,15 +389,10 @@ class EXPERIMENTAL__CuGraphStore:
 
         index = cudf.Series(index)
         if self.is_mg:
-            sampling_results = cugraph.dask.uniform_neighbor_sample(
-                G,
-                index,
-                # conversion required by cugraph api
-                list(num_neighbors),
-                replace
-            )
+            uniform_neighbor_sample = cugraph.dask.uniform_neighbor_sample
         else:
-            sampling_results = cugraph.uniform_neighbor_sample(
+            uniform_neighbor_sample = cugraph.uniform_neighbor_sample
+        sampling_results = uniform_neighbor_sample(
                 G,
                 index,
                 # conversion required by cugraph api
