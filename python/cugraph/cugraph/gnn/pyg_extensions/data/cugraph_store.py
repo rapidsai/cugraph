@@ -286,7 +286,7 @@ class EXPERIMENTAL__CuGraphStore:
         # If there is only one edge type (homogeneous graph) then
         # bypass the edge filters for a significant speed improvement.
         if len(self.__graph.edge_types) == 1:
-            if self.__graph.edge_types[0] != edge_type:
+            if list(self.__graph.edge_types)[0] != edge_type:
                 raise ValueError(
                     f'Requested edge type {edge_type}'
                     'is not present in graph.'
