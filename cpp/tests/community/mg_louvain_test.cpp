@@ -257,10 +257,8 @@ INSTANTIATE_TEST_SUITE_P(
   ::testing::Combine(
     // enable correctness checks for small graphs
     ::testing::Values(Louvain_Usecase{100, 1, true}),
-    ::testing::Values(cugraph::test::File_Usecase(
-      "test/datasets/karate.mtx")  //,
-                                   // cugraph::test::File_Usecase("test/datasets/dolphins.mtx")
-                      )));
+    ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
+                      cugraph::test::File_Usecase("test/datasets/dolphins.mtx"))));
 
 INSTANTIATE_TEST_SUITE_P(
   simple_rmat_test,

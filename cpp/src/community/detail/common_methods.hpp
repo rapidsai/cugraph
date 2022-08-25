@@ -88,20 +88,29 @@ cugraph::graph_t<vertex_t, edge_t, weight_t, false, multi_gpu> graph_contraction
   raft::device_span<vertex_t> labels);
 
 template <typename graph_view_t>
-void update_by_delta_modularity(
+rmm::device_uvector<typename graph_view_t::vertex_type> update_clustering_by_delta_modularity(
   raft::handle_t const& handle,
   graph_view_t const& graph_view,
   typename graph_view_t::weight_type total_edge_weight,
   typename graph_view_t::weight_type resolution,
-  rmm::device_uvector<typename graph_view_t::weight_type>& vertex_weights_v,
-  rmm::device_uvector<typename graph_view_t::vertex_type>& cluster_keys_v,
-  rmm::device_uvector<typename graph_view_t::weight_type>& cluster_weights_v,
-  rmm::device_uvector<typename graph_view_t::vertex_type>& next_clusters_v,
+  rmm::device_uvector<typename graph_view_t::weight_type> const& vertex_weights_v,
+  rmm::device_uvector<typename graph_view_t::vertex_type>&& cluster_keys_v,
+  rmm::device_uvector<typename graph_view_t::weight_type>&& cluster_weights_v,
+  rmm::device_uvector<typename graph_view_t::vertex_type>&& next_clusters_v,
   edge_src_property_t<graph_view_t, typename graph_view_t::weight_type> const&
     src_vertex_weights_cache,
-  edge_src_property_t<graph_view_t, typename graph_view_t::vertex_type>& src_clusters_cache,
-  edge_dst_property_t<graph_view_t, typename graph_view_t::vertex_type>& dst_clusters_cache,
+  edge_src_property_t<graph_view_t, typename graph_view_t::vertex_type> const& src_clusters_cache,
+  edge_dst_property_t<graph_view_t, typename graph_view_t::vertex_type> const& dst_clusters_cache,
   bool up_down);
+
+template <typename graph_view_t>
+std::tuple<rmm::device_uvector<typename graph_view_t::vertex_type>,
+           rmm::device_uvector<typename graph_view_t::weight_type>>
+compute_cluster_keys_and_values(
+  raft::handle_t const& handle,
+  graph_view_t const& graph_view,
+  rmm::device_uvector<typename graph_view_t::vertex_type> const& next_clusters_v,
+  edge_src_property_t<graph_view_t, typename graph_view_t::vertex_type> const& src_clusters_cache);
 
 }  // namespace detail
 }  // namespace cugraph

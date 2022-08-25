@@ -17,6 +17,7 @@
 
 #include <community/detail/common_methods.hpp>
 
+#include <detail/graph_utils.cuh>
 #include <prims/per_v_transform_reduce_dst_key_aggregated_outgoing_e.cuh>
 #include <prims/per_v_transform_reduce_incoming_outgoing_e.cuh>
 #include <prims/transform_reduce_e.cuh>
@@ -197,19 +198,19 @@ cugraph::graph_t<vertex_t, edge_t, weight_t, false, multi_gpu> graph_contraction
 }
 
 template <typename graph_view_t>
-void update_by_delta_modularity(
+rmm::device_uvector<typename graph_view_t::vertex_type> update_clustering_by_delta_modularity(
   raft::handle_t const& handle,
   graph_view_t const& graph_view,
   typename graph_view_t::weight_type total_edge_weight,
   typename graph_view_t::weight_type resolution,
-  rmm::device_uvector<typename graph_view_t::weight_type>& vertex_weights_v,
-  rmm::device_uvector<typename graph_view_t::vertex_type>& cluster_keys_v,
-  rmm::device_uvector<typename graph_view_t::weight_type>& cluster_weights_v,
-  rmm::device_uvector<typename graph_view_t::vertex_type>& next_clusters_v,
+  rmm::device_uvector<typename graph_view_t::weight_type> const& vertex_weights_v,
+  rmm::device_uvector<typename graph_view_t::vertex_type>&& cluster_keys_v,
+  rmm::device_uvector<typename graph_view_t::weight_type>&& cluster_weights_v,
+  rmm::device_uvector<typename graph_view_t::vertex_type>&& next_clusters_v,
   edge_src_property_t<graph_view_t, typename graph_view_t::weight_type> const&
     src_vertex_weights_cache,
-  edge_src_property_t<graph_view_t, typename graph_view_t::vertex_type>& src_clusters_cache,
-  edge_dst_property_t<graph_view_t, typename graph_view_t::vertex_type>& dst_clusters_cache,
+  edge_src_property_t<graph_view_t, typename graph_view_t::vertex_type> const& src_clusters_cache,
+  edge_dst_property_t<graph_view_t, typename graph_view_t::vertex_type> const& dst_clusters_cache,
   bool up_down)
 {
   using vertex_t = typename graph_view_t::vertex_type;
@@ -217,8 +218,8 @@ void update_by_delta_modularity(
 
   rmm::device_uvector<weight_t> vertex_cluster_weights_v(0, handle.get_stream());
   edge_src_property_t<graph_view_t, weight_t> src_cluster_weights(handle);
+
   if constexpr (graph_view_t::is_multi_gpu) {
-    // TODO:  Shouldn't this be int_vertex_t?
     cugraph::detail::compute_gpu_id_from_ext_vertex_t<vertex_t> vertex_to_gpu_id_op{
       handle.get_comms().get_size()};
 
@@ -240,11 +241,13 @@ void update_by_delta_modularity(
     vertex_cluster_weights_v.resize(0, handle.get_stream());
     vertex_cluster_weights_v.shrink_to_fit(handle.get_stream());
   } else {
+    // sort so we can use lower_bound in the transform function
     thrust::sort_by_key(handle.get_thrust_policy(),
                         cluster_keys_v.begin(),
                         cluster_keys_v.end(),
                         cluster_weights_v.begin());
 
+    // for each vertex, look up the vertex weight of the current cluster it is assigned to
     vertex_cluster_weights_v.resize(next_clusters_v.size(), handle.get_stream());
     thrust::transform(handle.get_thrust_policy(),
                       next_clusters_v.begin(),
@@ -349,12 +352,22 @@ void update_by_delta_modularity(
                     next_clusters_v.begin(),
                     detail::cluster_update_op_t<vertex_t, weight_t>{up_down});
 
-  if constexpr (graph_view_t::is_multi_gpu) {
-    update_edge_src_property(handle, graph_view, next_clusters_v.begin(), src_clusters_cache);
-    update_edge_dst_property(handle, graph_view, next_clusters_v.begin(), dst_clusters_cache);
-  }
+  return std::move(next_clusters_v);
+}
 
-  std::tie(cluster_keys_v, cluster_weights_v) = cugraph::transform_reduce_e_by_src_key(
+template <typename graph_view_t>
+std::tuple<rmm::device_uvector<typename graph_view_t::vertex_type>,
+           rmm::device_uvector<typename graph_view_t::weight_type>>
+compute_cluster_keys_and_values(
+  raft::handle_t const& handle,
+  graph_view_t const& graph_view,
+  rmm::device_uvector<typename graph_view_t::vertex_type> const& next_clusters_v,
+  edge_src_property_t<graph_view_t, typename graph_view_t::vertex_type> const& src_clusters_cache)
+{
+  using vertex_t = typename graph_view_t::vertex_type;
+  using weight_t = typename graph_view_t::weight_type;
+
+  auto [cluster_keys, cluster_values] = cugraph::transform_reduce_e_by_src_key(
     handle,
     graph_view,
     edge_src_dummy_property_t{}.view(),
@@ -364,6 +377,8 @@ void update_by_delta_modularity(
       : detail::edge_major_property_view_t<vertex_t, vertex_t const*>(next_clusters_v.data()),
     detail::return_edge_weight_t<vertex_t, weight_t>{},
     weight_t{0});
+
+  return std::make_tuple(std::move(cluster_keys), std::move(cluster_values));
 }
 
 }  // namespace detail

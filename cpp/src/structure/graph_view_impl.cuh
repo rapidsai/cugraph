@@ -442,6 +442,20 @@ edge_t count_edge_partition_multi_edges(
   }
 }
 
+template <typename graph_view_t>
+typename graph_view_t::weight_type compute_graph_total_edge_weight(
+  raft::handle_t const& handle,
+  graph_view_t const& graph_view)
+{
+  return transform_reduce_e(
+    handle,
+    graph_view,
+    edge_src_dummy_property_t{}.view(),
+    edge_dst_dummy_property_t{}.view(),
+    [] __device__(auto, auto, auto wt, auto, auto) { return wt; },
+    typename graph_view_t::weight_type{0});
+}
+
 }  // namespace
 
 template <typename vertex_t,
@@ -892,13 +906,7 @@ weight_t
 graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_t<multi_gpu>>::
   compute_total_edge_weight(raft::handle_t const& handle) const
 {
-  return transform_reduce_e(
-    handle,
-    *this,
-    edge_src_dummy_property_t{}.view(),
-    edge_dst_dummy_property_t{}.view(),
-    [] __device__(auto, auto, weight_t wt, auto, auto) { return wt; },
-    weight_t{0});
+  return compute_graph_total_edge_weight(handle, *this);
 }
 
 template <typename vertex_t,
@@ -914,13 +922,7 @@ weight_t graph_view_t<vertex_t,
                       std::enable_if_t<!multi_gpu>>::compute_total_edge_weight(raft::handle_t const&
                                                                                  handle) const
 {
-  return transform_reduce_e(
-    handle,
-    *this,
-    edge_src_dummy_property_t{}.view(),
-    edge_dst_dummy_property_t{}.view(),
-    [] __device__(auto, auto, weight_t wt, auto, auto) { return wt; },
-    weight_t{0});
+  return compute_graph_total_edge_weight(handle, *this);
 }
 
 template <typename vertex_t,

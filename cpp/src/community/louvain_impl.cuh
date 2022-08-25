@@ -21,7 +21,7 @@
 #include <community/detail/common_methods.hpp>
 #include <community/flatten_dendrogram.hpp>
 
-// FIXME:  Only outstanding item preventing this becoming a .hpp file
+// FIXME:  Only outstanding items preventing this becoming a .hpp file
 #include <prims/update_edge_src_dst_property.cuh>
 
 #include <cugraph/detail/shuffle_wrappers.hpp>
@@ -57,9 +57,16 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> louvain(
   graph_view_t current_graph_view(graph_view);
   HighResTimer hr_timer;
 
-  weight_t best_modularity = weight_t{-1};
-
+  weight_t best_modularity   = weight_t{-1};
   weight_t total_edge_weight = current_graph_view.compute_total_edge_weight(handle);
+
+  rmm::device_uvector<vertex_t> cluster_keys_v(0, handle.get_stream());
+  rmm::device_uvector<weight_t> cluster_weights_v(0, handle.get_stream());
+  rmm::device_uvector<weight_t> vertex_weights_v(0, handle.get_stream());
+  rmm::device_uvector<vertex_t> next_clusters_v(0, handle.get_stream());
+  edge_src_property_t<graph_view_t, weight_t> src_vertex_weights_cache(handle);
+  edge_src_property_t<graph_view_t, vertex_t> src_clusters_cache(handle);
+  edge_dst_property_t<graph_view_t, vertex_t> dst_clusters_cache(handle);
 
   while (dendrogram->num_levels() < max_level) {
     //
@@ -73,14 +80,6 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> louvain(
                           dendrogram->current_level_begin(),
                           dendrogram->current_level_size(),
                           current_graph_view.local_vertex_partition_range_first());
-
-    rmm::device_uvector<vertex_t> cluster_keys_v(0, handle.get_stream());
-    rmm::device_uvector<weight_t> cluster_weights_v(0, handle.get_stream());
-    rmm::device_uvector<weight_t> vertex_weights_v(0, handle.get_stream());
-    rmm::device_uvector<vertex_t> next_clusters_v(0, handle.get_stream());
-    edge_src_property_t<graph_view_t, weight_t> src_vertex_weights_cache(handle);
-    edge_src_property_t<graph_view_t, vertex_t> src_clusters_cache(handle);
-    edge_dst_property_t<graph_view_t, vertex_t> dst_clusters_cache(handle);
 
     //
     //  Compute the vertex and cluster weights, these are different for each
@@ -157,18 +156,29 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> louvain(
     while (new_Q > (cur_Q + 0.0001)) {
       cur_Q = new_Q;
 
-      detail::update_by_delta_modularity(handle,
-                                         current_graph_view,
-                                         total_edge_weight,
-                                         resolution,
-                                         vertex_weights_v,
-                                         cluster_keys_v,
-                                         cluster_weights_v,
-                                         next_clusters_v,
-                                         src_vertex_weights_cache,
-                                         src_clusters_cache,
-                                         dst_clusters_cache,
-                                         up_down);
+      next_clusters_v =
+        detail::update_clustering_by_delta_modularity(handle,
+                                                      current_graph_view,
+                                                      total_edge_weight,
+                                                      resolution,
+                                                      vertex_weights_v,
+                                                      std::move(cluster_keys_v),
+                                                      std::move(cluster_weights_v),
+                                                      std::move(next_clusters_v),
+                                                      src_vertex_weights_cache,
+                                                      src_clusters_cache,
+                                                      dst_clusters_cache,
+                                                      up_down);
+
+      if constexpr (graph_view_t::is_multi_gpu) {
+        update_edge_src_property(
+          handle, current_graph_view, next_clusters_v.begin(), src_clusters_cache);
+        update_edge_dst_property(
+          handle, current_graph_view, next_clusters_v.begin(), dst_clusters_cache);
+      }
+
+      std::tie(cluster_keys_v, cluster_weights_v) = detail::compute_cluster_keys_and_values(
+        handle, current_graph_view, next_clusters_v, src_clusters_cache);
 
       up_down = !up_down;
 
