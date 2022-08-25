@@ -475,7 +475,7 @@ class EXPERIMENTAL__CuGraphStore:
             eoi_types = eoi_types.compute()
         eoi_types = eoi_types.to_pandas()
 
-        # PyG expects these to be pre-renumbered;
+        #    to be pre-renumbered;
         # the pre-renumbering must match
         # the auto-renumbering
         row_dict = {}
@@ -500,7 +500,7 @@ class EXPERIMENTAL__CuGraphStore:
 
             destinations = gr.destinations
             dst_id_table = cudf.DataFrame(
-                {'id': range(len(noi_groups[t_pyg_type[2]]))},
+                {'id': cupy.arange(len(noi_groups[t_pyg_type[2]]))},
                 index=cudf.from_dlpack(noi_groups[t_pyg_type[2]].__dlpack__())
             )
             dst = self.from_dlpack(
