@@ -75,21 +75,21 @@ template <typename GraphViewType,
           typename T>
 std::tuple<std::optional<rmm::device_uvector<size_t>>,
            decltype(allocate_dataframe_buffer<T>(size_t{0}, rmm::cuda_stream_view{}))>
-per_v_random_select_and_transform_outgoing_e(raft::handle_t const& handle,
-                                             GraphViewType const& graph_view,
-                                             VertexFrontierBucketType const& frontier,
-                                             EdgeSrcValueInputWrapper edge_src_value_input,
-                                             EdgeDstValueInputWrapper edge_dst_value_input,
+per_v_random_select_transform_outgoing_e(raft::handle_t const& handle,
+                                         GraphViewType const& graph_view,
+                                         VertexFrontierBucketType const& frontier,
+                                         EdgeSrcValueInputWrapper edge_src_value_input,
+                                         EdgeDstValueInputWrapper edge_dst_value_input,
 #if 0  // FIXME: This will be necessary to include edge IDs in the output.
        // Primitives API should be updated to support this in a consistent way.
                                EdgeValueInputWrapper egde_value_input,
 #endif
-                                             EdgeBiasOp e_bias_op,
-                                             EdgeOp e_op,
-                                             size_t K,
-                                             bool with_replacement,
-                                             std::optional<T> invalid_value,
-                                             bool do_expensive_check = false)
+                                         EdgeBiasOp e_bias_op,
+                                         EdgeOp e_op,
+                                         size_t K,
+                                         bool with_replacement,
+                                         std::optional<T> invalid_value,
+                                         bool do_expensive_check = false)
 {
   static_assert(false, "unimplemented.");
 }
@@ -149,20 +149,20 @@ template <typename GraphViewType,
           typename T>
 std::tuple<std::optional<rmm::device_uvector<size_t>>,
            decltype(allocate_dataframe_buffer<T>(size_t{0}, rmm::cuda_stream_view{}))>
-per_v_random_select_and_transform_outgoing_e(raft::handle_t const& handle,
-                                             GraphViewType const& graph_view,
-                                             VertexFrontierBucketType const& frontier,
-                                             EdgeSrcValueInputWrapper edge_src_value_input,
-                                             EdgeDstValueInputWrapper edge_dst_value_input,
+per_v_random_select_transform_outgoing_e(raft::handle_t const& handle,
+                                         GraphViewType const& graph_view,
+                                         VertexFrontierBucketType const& frontier,
+                                         EdgeSrcValueInputWrapper edge_src_value_input,
+                                         EdgeDstValueInputWrapper edge_dst_value_input,
 #if 0  // FIXME: This will be necessary to include edge IDs in the output.
        // Primitives API should be updated to support this in a consistent way.
                                EdgeValueInputWrapper egde_value_input,
 #endif
-                                             EdgeOp e_op,
-                                             size_t K,
-                                             bool with_replacement,
-                                             std::optional<T> invalid_value,
-                                             bool do_expensive_check = false)
+                                         EdgeOp e_op,
+                                         size_t K,
+                                         bool with_replacement,
+                                         std::optional<T> invalid_value,
+                                         bool do_expensive_check = false)
 {
   static_assert(false, "unimplemented.");
 }
