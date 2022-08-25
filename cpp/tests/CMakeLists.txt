@@ -22,6 +22,9 @@ add_library(cugraphtestutil STATIC
             utilities/matrix_market_file_utilities.cu
             utilities/thrust_wrapper.cu
             utilities/misc_utilities.cpp
+            utilities/test_utilities_sg.cu
+            utilities/test_utilities_mg.cu
+            link_prediction/similarity_compare.cpp
             components/wcc_graphs.cu
             ../../thirdparty/mmio/mmio.c)
 
@@ -334,6 +337,10 @@ ConfigureTest(EIGENVECTOR_CENTRALITY_TEST centrality/eigenvector_centrality_test
 ConfigureTest(WEAKLY_CONNECTED_COMPONENTS_TEST components/weakly_connected_components_test.cpp)
 
 ###################################################################################################
+# - SIMILARITY tests ------------------------------------------------------------------------------
+ConfigureTest(SIMILARITY_TEST link_prediction/similarity_test.cpp)
+
+###################################################################################################
 # - Legacy RANDOM_WALKS tests ----------------------------------------------------------------------------
 ConfigureTest(LEGACY_RANDOM_WALKS_TEST sampling/random_walks_test.cu)
 
@@ -346,7 +353,7 @@ ConfigureTest(RANDOM_WALKS_TEST sampling/sg_random_walks_test.cu)
 ConfigureTest(RANDOM_WALKS_LOW_LEVEL_TEST sampling/rw_low_level_test.cu)
 
 ###########################################################################################
-# - MG NBR SAMPLING tests -----------------------------------------------------------------
+# - NBR SAMPLING tests -----------------------------------------------------------------
 ConfigureTest(UNIFORM_NEIGHBOR_SAMPLING_TEST sampling/sg_uniform_neighbor_sampling.cu)
 target_link_libraries(UNIFORM_NEIGHBOR_SAMPLING_TEST PRIVATE cuco::cuco)
         
@@ -538,6 +545,11 @@ if(BUILD_CUGRAPH_MG_TESTS)
     ###########################################################################################
     # - RANDOM_WALKS tests --------------------------------------------------------------------
     ConfigureTestMG(MG_RANDOM_WALKS_TEST sampling/mg_random_walks_test.cu)
+
+    ###################################################################################################
+    # - SIMILARITY tests ------------------------------------------------------------------------------
+    ConfigureTestMG(MG_SIMILARITY_TEST link_prediction/mg_similarity_test.cpp)
+
 
     ###########################################################################################
     # - MG C API tests ------------------------------------------------------------------------
