@@ -443,9 +443,8 @@ edge_t count_edge_partition_multi_edges(
 }
 
 template <typename graph_view_t>
-typename graph_view_t::weight_type compute_graph_total_edge_weight(
-  raft::handle_t const& handle,
-  graph_view_t const& graph_view)
+typename graph_view_t::weight_type compute_graph_total_edge_weight(raft::handle_t const& handle,
+                                                                   graph_view_t const& graph_view)
 {
   return transform_reduce_e(
     handle,

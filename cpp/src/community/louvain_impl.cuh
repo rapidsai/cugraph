@@ -156,19 +156,18 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> louvain(
     while (new_Q > (cur_Q + 0.0001)) {
       cur_Q = new_Q;
 
-      next_clusters_v =
-        detail::update_clustering_by_delta_modularity(handle,
-                                                      current_graph_view,
-                                                      total_edge_weight,
-                                                      resolution,
-                                                      vertex_weights_v,
-                                                      std::move(cluster_keys_v),
-                                                      std::move(cluster_weights_v),
-                                                      std::move(next_clusters_v),
-                                                      src_vertex_weights_cache,
-                                                      src_clusters_cache,
-                                                      dst_clusters_cache,
-                                                      up_down);
+      next_clusters_v = detail::update_clustering_by_delta_modularity(handle,
+                                                                      current_graph_view,
+                                                                      total_edge_weight,
+                                                                      resolution,
+                                                                      vertex_weights_v,
+                                                                      std::move(cluster_keys_v),
+                                                                      std::move(cluster_weights_v),
+                                                                      std::move(next_clusters_v),
+                                                                      src_vertex_weights_cache,
+                                                                      src_clusters_cache,
+                                                                      dst_clusters_cache,
+                                                                      up_down);
 
       if constexpr (graph_view_t::is_multi_gpu) {
         update_edge_src_property(
