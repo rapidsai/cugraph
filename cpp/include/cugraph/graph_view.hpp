@@ -683,6 +683,8 @@ class graph_view_t<vertex_t,
   weight_t compute_max_in_weight_sum(raft::handle_t const& handle) const;
   weight_t compute_max_out_weight_sum(raft::handle_t const& handle) const;
 
+  weight_t compute_total_edge_weight(raft::handle_t const& handle) const;
+
   edge_t count_self_loops(raft::handle_t const& handle) const;
   edge_t count_multi_edges(raft::handle_t const& handle) const;
 
@@ -989,6 +991,8 @@ class graph_view_t<vertex_t,
 
   weight_t compute_max_in_weight_sum(raft::handle_t const& handle) const;
   weight_t compute_max_out_weight_sum(raft::handle_t const& handle) const;
+
+  weight_t compute_total_edge_weight(raft::handle_t const& handle) const;
 
   edge_t count_self_loops(raft::handle_t const& handle) const;
   edge_t count_multi_edges(raft::handle_t const& handle) const;

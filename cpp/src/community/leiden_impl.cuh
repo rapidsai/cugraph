@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 #pragma once
-#include <community/flatten_dendrogram.cuh>
+#include <community/flatten_dendrogram.hpp>
 #include <cugraph/algorithms.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/utilities/error.hpp>
