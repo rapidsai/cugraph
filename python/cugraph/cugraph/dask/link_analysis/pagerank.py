@@ -318,6 +318,9 @@ def pagerank(input_graph,
 
     wait(cudf_result)
 
+    ddf = dask_cudf.from_delayed(cudf_result).persist()
+    wait(ddf)
+
     # FIXME: Dask doesn't always release it fast enough.
     # For instance if the algo is run several times with
     # the same PLC graph, the current iteration might try to cache
@@ -325,9 +328,6 @@ def pagerank(input_graph,
     # of those futures get released midway
     del result
     del cudf_result
-
-    ddf = dask_cudf.from_delayed(cudf_result).persist()
-    wait(ddf)
 
     if input_graph.renumbered:
         ddf = input_graph.unrenumber(ddf, "vertex")
