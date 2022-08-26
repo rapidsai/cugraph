@@ -36,7 +36,7 @@ Layout            |                                                             
 | [Link Prediction](link_prediction/README.md) |                                                              |                                                              |
 |                 | [Jaccard Similarity](algorithms/link_prediction/Jaccard-Similarity.ipynb) | Compute vertex similarity score using both:<br />- Jaccard Similarity<br />- Weighted Jaccard |
 |                 | [Overlap Similarity](algorithms/link_prediction/Overlap-Similarity.ipynb) | Compute vertex similarity score using the Overlap Coefficient |
-<!--| Sampling        |
+| Sampling        |
 |                 | [Random Walk](sampling/RandomWalk.ipynb)                     | Compute Random Walk for a various number of seeds and path lengths |
 | Traversal       |                                                              |                                                              |
 |                 | [BFS](traversal/BFS.ipynb)                                   | Compute the Breadth First Search path from a starting vertex to every other vertex in a graph |
