@@ -79,22 +79,14 @@ template <typename key_t,
           typename src_value_t,
           typename dst_value_t,
           typename EdgeOp>
-struct call_e_op_t {
+struct call_e_op_with_w_t {
   EdgeOp e_op{};
 
-  template <typename K  = key_t,
-            typename V  = vertex_t,
-            typename W  = weight_t,
-            typename SV = src_value_t,
-            typename DV = dst_value_t,
-            typename E  = EdgeOp>
-  __device__ std::enable_if_t<
-    detail::is_valid_edge_op<typename std::invoke_result<E, K, V, W, SV, DV>>::valid,
-    thrust::optional<
-      std::conditional_t<!std::is_same_v<key_t, void> && !std::is_same_v<payload_t, void>,
-                         thrust::tuple<key_t, payload_t>,
-                         std::conditional_t<!std::is_same_v<key_t, void>, key_t, payload_t>>>>
-  operator()(K key, V dst, W w, SV sv, DV dv) const
+  __device__ thrust::optional<
+    std::conditional_t<!std::is_same_v<key_t, void> && !std::is_same_v<payload_t, void>,
+                       thrust::tuple<key_t, payload_t>,
+                       std::conditional_t<!std::is_same_v<key_t, void>, key_t, payload_t>>>
+  operator()(key_t key, vertex_t dst, weight_t w, src_value_t sv, dst_value_t dv) const
   {
     auto e_op_result = e_op(key, dst, w, sv, dv);
     if (e_op_result.has_value()) {
@@ -112,20 +104,22 @@ struct call_e_op_t {
       return thrust::nullopt;
     }
   }
+};
 
-  template <typename K  = key_t,
-            typename V  = vertex_t,
-            typename W  = weight_t,
-            typename SV = src_value_t,
-            typename DV = dst_value_t,
-            typename E  = EdgeOp>
-  __device__ std::enable_if_t<
-    detail::is_valid_edge_op<typename std::invoke_result<E, K, V, SV, DV>>::valid,
-    thrust::optional<
-      std::conditional_t<!std::is_same_v<key_t, void> && !std::is_same_v<payload_t, void>,
-                         thrust::tuple<key_t, payload_t>,
-                         std::conditional_t<!std::is_same_v<key_t, void>, key_t, payload_t>>>>
-  operator()(K key, V dst, SV sv, DV dv) const
+template <typename key_t,
+          typename payload_t,
+          typename vertex_t,
+          typename src_value_t,
+          typename dst_value_t,
+          typename EdgeOp>
+struct call_e_op_without_w_t {
+  EdgeOp e_op{};
+
+  __device__ thrust::optional<
+    std::conditional_t<!std::is_same_v<key_t, void> && !std::is_same_v<payload_t, void>,
+                       thrust::tuple<key_t, payload_t>,
+                       std::conditional_t<!std::is_same_v<key_t, void>, key_t, payload_t>>>
+  operator()(key_t key, vertex_t dst, src_value_t sv, dst_value_t dv) const
   {
     auto e_op_result = e_op(key, dst, sv, dv);
     if (e_op_result.has_value()) {
@@ -264,13 +258,13 @@ typename GraphViewType::edge_type compute_num_out_nbrs_from_frontier(
                    static_cast<int>(i),
                    handle.get_stream());
 
-      ret += edge_partition.compute_number_of_local_edges(
+      ret += edge_partition.compute_number_of_edges(
         raft::device_span<vertex_t const>(edge_partition_frontier_vertices.begin(),
                                           edge_partition_frontier_vertices.end()),
         handle.get_stream());
     } else {
       assert(i == 0);
-      ret += edge_partition.compute_number_of_local_edges(
+      ret += edge_partition.compute_number_of_edges(
         raft::device_span<vertex_t const>(local_frontier_vertex_first,
                                           local_frontier_vertex_first + frontier.size()),
         handle.get_stream());
@@ -364,21 +358,35 @@ transform_reduce_v_frontier_outgoing_e_by_dst(raft::handle_t const& handle,
 
   // 1. fill the buffer
 
+  std::conditional_t<std::is_invocable_v<EdgeOp,
+                                         key_t,
+                                         vertex_t,
+                                         weight_t,
+                                         typename EdgeSrcValueInputWrapper::value_type,
+                                         typename EdgeDstValueInputWrapper::value_type>,
+                     detail::call_e_op_with_w_t<key_t,
+                                                payload_t,
+                                                vertex_t,
+                                                weight_t,
+                                                typename EdgeSrcValueInputWrapper::value_type,
+                                                typename EdgeDstValueInputWrapper::value_type,
+                                                EdgeOp>,
+                     detail::call_e_op_without_w_t<key_t,
+                                                   payload_t,
+                                                   vertex_t,
+                                                   typename EdgeSrcValueInputWrapper::value_type,
+                                                   typename EdgeDstValueInputWrapper::value_type,
+                                                   EdgeOp>>
+    e_op_wrapper{e_op};
+
   auto [key_buffer, payload_buffer] =
-    detail::extract_transform_v_frontier_e<false, key_t, payload_t>(
-      handle,
-      graph_view,
-      frontier,
-      edge_src_value_input,
-      edge_dst_value_input,
-      detail::call_e_op_t<key_t,
-                          payload_t,
-                          vertex_t,
-                          weight_t,
-                          typename EdgeSrcValueInputWrapper::value_type,
-                          typename EdgeDstValueInputWrapper::value_type,
-                          EdgeOp>{e_op},
-      do_expensive_check);
+    detail::extract_transform_v_frontier_e<false, key_t, payload_t>(handle,
+                                                                    graph_view,
+                                                                    frontier,
+                                                                    edge_src_value_input,
+                                                                    edge_dst_value_input,
+                                                                    e_op_wrapper,
+                                                                    do_expensive_check);
 
   // 2. reduce the buffer
 
@@ -445,7 +453,7 @@ transform_reduce_v_frontier_outgoing_e_by_dst(raft::handle_t const& handle,
   if constexpr (!std::is_same_v<payload_t, void>) {
     return std::make_tuple(std::move(key_buffer), std::move(payload_buffer));
   } else {
-    return key_buffer;
+    return std::move(key_buffer);
   }
 }
 

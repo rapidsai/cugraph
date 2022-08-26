@@ -283,11 +283,20 @@ __global__ void extract_transform_v_frontier_e_hypersparse(
         auto minor        = indices[local_edge_offset];
         auto major_offset = edge_partition.major_offset_from_major_nocheck(major);
         auto minor_offset = edge_partition.minor_offset_from_minor_nocheck(minor);
-        auto key_or_src   = GraphViewType::is_storage_transposed ? minor : key;  // key if major
-        auto key_or_dst   = GraphViewType::is_storage_transposed ? key : minor;  // key if major
-        auto src_offset   = GraphViewType::is_storage_transposed ? minor_offset : major_offset;
-        auto dst_offset   = GraphViewType::is_storage_transposed ? major_offset : minor_offset;
-        e_op_result       = evaluate_edge_op<GraphViewType,
+        std::conditional_t<GraphViewType::is_storage_transposed, vertex_t, key_t>
+          key_or_src{};  // key if major
+        std::conditional_t<GraphViewType::is_storage_transposed, key_t, vertex_t>
+          key_or_dst{};  // key if major
+        if constexpr (GraphViewType::is_storage_transposed) {
+          key_or_src = minor;
+          key_or_dst = key;
+        } else {
+          key_or_src = key;
+          key_or_dst = minor;
+        }
+        auto src_offset = GraphViewType::is_storage_transposed ? minor_offset : major_offset;
+        auto dst_offset = GraphViewType::is_storage_transposed ? major_offset : minor_offset;
+        e_op_result     = evaluate_edge_op<GraphViewType,
                                        key_t,
                                        EdgePartitionSrcValueInputWrapper,
                                        EdgePartitionDstValueInputWrapper,
@@ -438,11 +447,20 @@ __global__ void extract_transform_v_frontier_e_low_degree(
         auto minor        = indices[local_edge_offset];
         auto major_offset = edge_partition.major_offset_from_major_nocheck(major);
         auto minor_offset = edge_partition.minor_offset_from_minor_nocheck(minor);
-        auto key_or_src   = GraphViewType::is_storage_transposed ? minor : key;  // key if major
-        auto key_or_dst   = GraphViewType::is_storage_transposed ? key : minor;  // key if major
-        auto src_offset   = GraphViewType::is_storage_transposed ? minor_offset : major_offset;
-        auto dst_offset   = GraphViewType::is_storage_transposed ? major_offset : minor_offset;
-        e_op_result       = evaluate_edge_op<GraphViewType,
+        std::conditional_t<GraphViewType::is_storage_transposed, vertex_t, key_t>
+          key_or_src{};  // key if major
+        std::conditional_t<GraphViewType::is_storage_transposed, key_t, vertex_t>
+          key_or_dst{};  // key if major
+        if constexpr (GraphViewType::is_storage_transposed) {
+          key_or_src = minor;
+          key_or_dst = key;
+        } else {
+          key_or_src = key;
+          key_or_dst = minor;
+        }
+        auto src_offset = GraphViewType::is_storage_transposed ? minor_offset : major_offset;
+        auto dst_offset = GraphViewType::is_storage_transposed ? major_offset : minor_offset;
+        e_op_result     = evaluate_edge_op<GraphViewType,
                                        key_t,
                                        EdgePartitionSrcValueInputWrapper,
                                        EdgePartitionDstValueInputWrapper,
@@ -540,11 +558,20 @@ __global__ void extract_transform_v_frontier_e_mid_degree(
       if (i < static_cast<size_t>(local_out_degree)) {
         auto minor        = indices[i];
         auto minor_offset = edge_partition.minor_offset_from_minor_nocheck(minor);
-        auto key_or_src   = GraphViewType::is_storage_transposed ? minor : key;  // key if major
-        auto key_or_dst   = GraphViewType::is_storage_transposed ? key : minor;  // key if major
-        auto src_offset   = GraphViewType::is_storage_transposed ? minor_offset : major_offset;
-        auto dst_offset   = GraphViewType::is_storage_transposed ? major_offset : minor_offset;
-        e_op_result       = evaluate_edge_op<GraphViewType,
+        std::conditional_t<GraphViewType::is_storage_transposed, vertex_t, key_t>
+          key_or_src{};  // key if major
+        std::conditional_t<GraphViewType::is_storage_transposed, key_t, vertex_t>
+          key_or_dst{};  // key if major
+        if constexpr (GraphViewType::is_storage_transposed) {
+          key_or_src = minor;
+          key_or_dst = key;
+        } else {
+          key_or_src = key;
+          key_or_dst = minor;
+        }
+        auto src_offset = GraphViewType::is_storage_transposed ? minor_offset : major_offset;
+        auto dst_offset = GraphViewType::is_storage_transposed ? major_offset : minor_offset;
+        e_op_result     = evaluate_edge_op<GraphViewType,
                                        key_t,
                                        EdgePartitionSrcValueInputWrapper,
                                        EdgePartitionDstValueInputWrapper,
@@ -643,11 +670,20 @@ __global__ void extract_transform_v_frontier_e_high_degree(
       if (i < static_cast<size_t>(local_out_degree)) {
         auto minor        = indices[i];
         auto minor_offset = edge_partition.minor_offset_from_minor_nocheck(minor);
-        auto key_or_src   = GraphViewType::is_storage_transposed ? minor : key;  // key if major
-        auto key_or_dst   = GraphViewType::is_storage_transposed ? key : minor;  // key if major
-        auto src_offset   = GraphViewType::is_storage_transposed ? minor_offset : major_offset;
-        auto dst_offset   = GraphViewType::is_storage_transposed ? major_offset : minor_offset;
-        e_op_result       = evaluate_edge_op<GraphViewType,
+        std::conditional_t<GraphViewType::is_storage_transposed, vertex_t, key_t>
+          key_or_src{};  // key if major
+        std::conditional_t<GraphViewType::is_storage_transposed, key_t, vertex_t>
+          key_or_dst{};  // key if major
+        if constexpr (GraphViewType::is_storage_transposed) {
+          key_or_src = minor;
+          key_or_dst = key;
+        } else {
+          key_or_src = key;
+          key_or_dst = minor;
+        }
+        auto src_offset = GraphViewType::is_storage_transposed ? minor_offset : major_offset;
+        auto dst_offset = GraphViewType::is_storage_transposed ? major_offset : minor_offset;
+        e_op_result     = evaluate_edge_op<GraphViewType,
                                        key_t,
                                        EdgePartitionSrcValueInputWrapper,
                                        EdgePartitionDstValueInputWrapper,
@@ -692,16 +728,9 @@ template <bool incoming,  // iterate over incoming edges (incoming == true) or o
           typename EdgeSrcValueInputWrapper,
           typename EdgeDstValueInputWrapper,
           typename EdgeOp>
-std::conditional_t<
-  !std::is_same_v<OutputKeyT, void> && !std::is_same_v<OutputValueT, void>,
-  std::tuple<decltype(allocate_dataframe_buffer<OutputKeyT>(size_t{0}, rmm::cuda_stream_view{})),
-             decltype(allocate_dataframe_buffer<OutputValueT>(
-               size_t{0}, rmm::cuda_stream_view{}))> /* both key and payload are valid */,
-  std::conditional_t<!std::is_same_v<OutputKeyT, void>,
-                     decltype(allocate_dataframe_buffer<OutputKeyT>(
-                       size_t{0}, rmm::cuda_stream_view{})) /* only key is valid */,
-                     decltype(allocate_dataframe_buffer<OutputValueT>(
-                       size_t{0}, rmm::cuda_stream_view{})) /* only payload is valid */>>
+std::tuple<
+  decltype(allocate_optional_dataframe_buffer<OutputKeyT>(size_t{0}, rmm::cuda_stream_view{})),
+  decltype(allocate_optional_dataframe_buffer<OutputValueT>(size_t{0}, rmm::cuda_stream_view{}))>
 extract_transform_v_frontier_e(raft::handle_t const& handle,
                                GraphViewType const& graph_view,
                                VertexFrontierBucketType const& frontier,
