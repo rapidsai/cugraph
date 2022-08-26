@@ -137,8 +137,9 @@ class Tests_MGLouvain
           std::tie(std::ignore, sg_modularity) =
             cugraph::louvain(handle, graph_view, d_clustering_v.data(), size_t{1}, resolution);
 
-          EXPECT_TRUE(cugraph::test::renumbered_vectors_same(
-            handle, d_clustering_v, d_dendrogram_gathered_v));
+          EXPECT_TRUE(
+            cugraph::test::renumbered_vectors_same(handle, d_clustering_v, d_dendrogram_gathered_v))
+            << "(i = " << i << "), sg_modularity = " << sg_modularity;
 
           sg_graph =
             cugraph::test::coarsen_graph(handle, graph_view, d_dendrogram_gathered_v.data());
