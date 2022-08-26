@@ -32,6 +32,8 @@
 #include <raft/random/rng_state.hpp>
 #include <raft/span.hpp>
 
+#include <tuple>
+
 /** @ingroup cpp_api
  *  @{
  */

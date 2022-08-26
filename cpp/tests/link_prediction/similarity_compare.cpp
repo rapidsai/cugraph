@@ -129,5 +129,32 @@ template void similarity_compare(int32_t num_vertices,
                                  std::vector<float>&& result_score,
                                  test_overlap_t const& test_functor);
 
+template void similarity_compare(int64_t num_vertices,
+                                 std::vector<int64_t>&& src,
+                                 std::vector<int64_t>&& dst,
+                                 std::optional<std::vector<float>>&& wgt,
+                                 std::vector<int64_t>&& result_src,
+                                 std::vector<int64_t>&& result_dst,
+                                 std::vector<float>&& result_score,
+                                 test_jaccard_t const& test_functor);
+
+template void similarity_compare(int64_t num_vertices,
+                                 std::vector<int64_t>&& src,
+                                 std::vector<int64_t>&& dst,
+                                 std::optional<std::vector<float>>&& wgt,
+                                 std::vector<int64_t>&& result_src,
+                                 std::vector<int64_t>&& result_dst,
+                                 std::vector<float>&& result_score,
+                                 test_sorensen_t const& test_functor);
+
+template void similarity_compare(int64_t num_vertices,
+                                 std::vector<int64_t>&& src,
+                                 std::vector<int64_t>&& dst,
+                                 std::optional<std::vector<float>>&& wgt,
+                                 std::vector<int64_t>&& result_src,
+                                 std::vector<int64_t>&& result_dst,
+                                 std::vector<float>&& result_score,
+                                 test_overlap_t const& test_functor);
+
 }  // namespace test
 }  // namespace cugraph
