@@ -171,6 +171,7 @@ def uniform_neighbor_sample(input_graph,
     # the past iteration's futures and this can cause a hang if some
     # of those futures get released midway
     del result
+    del cudf_result
 
     ddf = dask_cudf.from_delayed(cudf_result).persist()
     wait(ddf)
