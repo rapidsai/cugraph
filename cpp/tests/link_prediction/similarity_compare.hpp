@@ -31,7 +31,8 @@ struct test_jaccard_t {
   template <typename weight_t>
   weight_t compute_score(size_t u_size, size_t v_size, weight_t intersection_count) const
   {
-    return static_cast<weight_t>(intersection_count) / static_cast<weight_t>(u_size + v_size - intersection_count);
+    return static_cast<weight_t>(intersection_count) /
+           static_cast<weight_t>(u_size + v_size - intersection_count);
   }
 
   template <typename graph_view_t>
@@ -71,7 +72,8 @@ struct test_overlap_t {
   template <typename weight_t>
   weight_t compute_score(size_t u_size, size_t v_size, weight_t intersection_count) const
   {
-    return static_cast<weight_t>(intersection_count) / static_cast<weight_t>(std::min(u_size, v_size));
+    return static_cast<weight_t>(intersection_count) /
+           static_cast<weight_t>(std::min(u_size, v_size));
   }
 
   template <typename graph_view_t>

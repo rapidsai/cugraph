@@ -30,10 +30,7 @@ struct intersection_count_t {
   size_t count{0};
   using value_type = T;
 
-  void push_back(T const&)
-  {
-    ++count;
-  }
+  void push_back(T const&) { ++count; }
 };
 
 namespace cugraph {

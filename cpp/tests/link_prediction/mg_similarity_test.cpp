@@ -82,7 +82,7 @@ class Tests_MGSimilarity
       hr_clock.start();
     }
 
-    std::optional<raft::device_span<vertex_t const>> first = std::nullopt;
+    std::optional<raft::device_span<vertex_t const>> first  = std::nullopt;
     std::optional<raft::device_span<vertex_t const>> second = std::nullopt;
 
 #if 0
@@ -223,7 +223,6 @@ TEST_P(Tests_MGSimilarity_Rmat, CheckInt64Int64FloatOverlap)
   run_current_test<int64_t, int64_t, float>(
     override_Rmat_Usecase_with_cmd_line_arguments(GetParam()), cugraph::test::test_overlap_t{});
 }
-
 
 INSTANTIATE_TEST_SUITE_P(
   file_test,

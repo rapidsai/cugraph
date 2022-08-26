@@ -366,9 +366,11 @@ template <typename vertex_t,
           typename weight_t,
           bool store_transposed,
           bool is_multi_gpu>
-std::tuple<std::vector<vertex_t>, std::vector<vertex_t>, std::optional<std::vector<weight_t>>> graph_to_host_coo(
+std::tuple<std::vector<vertex_t>, std::vector<vertex_t>, std::optional<std::vector<weight_t>>>
+graph_to_host_coo(
   raft::handle_t const& handle,
-  cugraph::graph_view_t<vertex_t, edge_t, weight_t, store_transposed, is_multi_gpu> const& graph_view);
+  cugraph::graph_view_t<vertex_t, edge_t, weight_t, store_transposed, is_multi_gpu> const&
+    graph_view);
 
 }  // namespace test
 }  // namespace cugraph
