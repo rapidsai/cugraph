@@ -89,11 +89,11 @@ def EXPERIMENTAL__triangle_count(G, start_list=None):
 
     srcs = G.edgelist.edgelist_df['src']
     dsts = G.edgelist.edgelist_df['dst']
-    weights = G.edgelist.edgelist_df['weights']
 
-    if srcs.dtype != 'int32':
-        raise ValueError(f"Graph vertices must have int32 values, "
-                         f"got: {srcs.dtype}")
+    if ('weights' not in G.edgelist.edgelist_df.columns):
+        weights = cudf.Series([1.0]).repeat(G.edgelist.edgelist_df['src'].size)
+    else:
+        weights = G.edgelist.edgelist_df['weights']
 
     resource_handle = ResourceHandle()
     graph_props = GraphProperties(
