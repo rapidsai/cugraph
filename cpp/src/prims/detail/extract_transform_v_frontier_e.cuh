@@ -144,16 +144,18 @@ __device__ void push_buffer_element(e_op_result_t e_op_result,
                                     BufferValueOutputIterator buffer_value_output_first,
                                     size_t buffer_idx)
 {
-  using key_t   = typename optional_dataframe_buffer_value_type_t<BufferKeyOutputIterator>::value;
-  using value_t = typename optional_dataframe_buffer_value_type_t<BufferValueOutputIterator>::value;
+  using output_key_t =
+    typename optional_dataframe_buffer_value_type_t<BufferKeyOutputIterator>::value;
+  using output_value_t =
+    typename optional_dataframe_buffer_value_type_t<BufferValueOutputIterator>::value;
 
   assert(e_op_result.has_value());
 
-  static_assert(!std::is_same_v<key_t, void> || !std::is_same_v<value_t, void>);
-  if constexpr (!std::is_same_v<key_t, void> && !std::is_same_v<value_t, void>) {
+  static_assert(!std::is_same_v<output_key_t, void> || !std::is_same_v<output_value_t, void>);
+  if constexpr (!std::is_same_v<output_key_t, void> && !std::is_same_v<output_value_t, void>) {
     *(buffer_key_output_first + buffer_idx)   = thrust::get<0>(*e_op_result);
     *(buffer_value_output_first + buffer_idx) = thrust::get<1>(*e_op_result);
-  } else if constexpr (!std::is_same_v<key_t, void>) {
+  } else if constexpr (!std::is_same_v<output_key_t, void>) {
     *(buffer_key_output_first + buffer_idx) = *e_op_result;
   } else {
     *(buffer_value_output_first + buffer_idx) = *e_op_result;
@@ -181,11 +183,10 @@ __global__ void extract_transform_v_frontier_e_hypersparse(
   size_t* buffer_idx_ptr,
   EdgeOp e_op)
 {
-  using vertex_t = typename GraphViewType::vertex_type;
-  using edge_t   = typename GraphViewType::edge_type;
-  using weight_t = typename GraphViewType::weight_type;
-  using key_t    = typename optional_dataframe_buffer_value_type_t<BufferKeyOutputIterator>::value;
-  using value_t = typename optional_dataframe_buffer_value_type_t<BufferValueOutputIterator>::value;
+  using vertex_t      = typename GraphViewType::vertex_type;
+  using edge_t        = typename GraphViewType::edge_type;
+  using weight_t      = typename GraphViewType::weight_type;
+  using key_t         = typename thrust::iterator_traits<KeyIterator>::value_type;
   using e_op_result_t = typename evaluate_edge_op<GraphViewType,
                                                   key_t,
                                                   EdgePartitionSrcValueInputWrapper,
@@ -354,11 +355,10 @@ __global__ void extract_transform_v_frontier_e_low_degree(
   size_t* buffer_idx_ptr,
   EdgeOp e_op)
 {
-  using vertex_t = typename GraphViewType::vertex_type;
-  using edge_t   = typename GraphViewType::edge_type;
-  using weight_t = typename GraphViewType::weight_type;
-  using key_t    = typename optional_dataframe_buffer_value_type_t<BufferKeyOutputIterator>::value;
-  using value_t = typename optional_dataframe_buffer_value_type_t<BufferValueOutputIterator>::value;
+  using vertex_t      = typename GraphViewType::vertex_type;
+  using edge_t        = typename GraphViewType::edge_type;
+  using weight_t      = typename GraphViewType::weight_type;
+  using key_t         = typename thrust::iterator_traits<KeyIterator>::value_type;
   using e_op_result_t = typename evaluate_edge_op<GraphViewType,
                                                   key_t,
                                                   EdgePartitionSrcValueInputWrapper,
@@ -518,11 +518,10 @@ __global__ void extract_transform_v_frontier_e_mid_degree(
   size_t* buffer_idx_ptr,
   EdgeOp e_op)
 {
-  using vertex_t = typename GraphViewType::vertex_type;
-  using edge_t   = typename GraphViewType::edge_type;
-  using weight_t = typename GraphViewType::weight_type;
-  using key_t    = typename optional_dataframe_buffer_value_type_t<BufferKeyOutputIterator>::value;
-  using value_t = typename optional_dataframe_buffer_value_type_t<BufferValueOutputIterator>::value;
+  using vertex_t      = typename GraphViewType::vertex_type;
+  using edge_t        = typename GraphViewType::edge_type;
+  using weight_t      = typename GraphViewType::weight_type;
+  using key_t         = typename thrust::iterator_traits<KeyIterator>::value_type;
   using e_op_result_t = typename evaluate_edge_op<GraphViewType,
                                                   key_t,
                                                   EdgePartitionSrcValueInputWrapper,
@@ -629,11 +628,10 @@ __global__ void extract_transform_v_frontier_e_high_degree(
   size_t* buffer_idx_ptr,
   EdgeOp e_op)
 {
-  using vertex_t = typename GraphViewType::vertex_type;
-  using edge_t   = typename GraphViewType::edge_type;
-  using weight_t = typename GraphViewType::weight_type;
-  using key_t    = typename optional_dataframe_buffer_value_type_t<BufferKeyOutputIterator>::value;
-  using value_t = typename optional_dataframe_buffer_value_type_t<BufferValueOutputIterator>::value;
+  using vertex_t      = typename GraphViewType::vertex_type;
+  using edge_t        = typename GraphViewType::edge_type;
+  using weight_t      = typename GraphViewType::weight_type;
+  using key_t         = typename thrust::iterator_traits<KeyIterator>::value_type;
   using e_op_result_t = typename evaluate_edge_op<GraphViewType,
                                                   key_t,
                                                   EdgePartitionSrcValueInputWrapper,
@@ -776,6 +774,7 @@ extract_transform_v_frontier_e(raft::handle_t const& handle,
   static_assert(GraphViewType::is_storage_transposed == incoming);
   static_assert(!std::is_same_v<output_key_t, void> ||
                 !std::is_same_v<output_value_t, void>);  // otherwise, this function becomes no-op
+  static_assert(!std::is_same_v<e_op_result_t, void>);
   static_assert(
     std::is_same_v<e_op_result_t,
                    std::conditional_t<!std::is_same_v<output_key_t, void> &&
