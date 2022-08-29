@@ -42,7 +42,6 @@ requirements:
     - ucx-proc=*=gpu
     - cudatoolkit {{ cuda_version }}.*
     - libraft-headers {{ minor_version }}
-    - setuptools=65.3.0=*0
   run:
     - python x.x
     - pylibcugraph={{ version }}
