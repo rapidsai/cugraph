@@ -18,7 +18,9 @@
 #include <prims/property_op_utils.cuh>
 
 #include <cugraph/edge_partition_device_view.cuh>
+#include <cugraph/edge_partition_endpoint_property_device_view.cuh>
 #include <cugraph/edge_partition_view.hpp>
+#include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/utilities/dataframe_buffer.hpp>
 #include <cugraph/utilities/error.hpp>
@@ -369,25 +371,23 @@ __global__ void trasnform_reduce_e_high_degree(
  * This function is inspired by thrust::transform_reduce().
  *
  * @tparam GraphViewType Type of the passed non-owning graph object.
- * @tparam EdgePartitionSrcValueInputWrapper Type of the wrapper for edge partition source property
- * values.
- * @tparam EdgePartitionDstValueInputWrapper Type of the wrapper for edge partition destination
- * property values.
+ * @tparam EdgeSrcValueInputWrapper Type of the wrapper for edge source property values.
+ * @tparam EdgeDstValueInputWrapper Type of the wrapper for edge destination property values.
  * @tparam EdgeOp Type of the quaternary (or quinary) edge operator.
  * @tparam T Type of the initial value.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Non-owning graph object.
- * @param edge_partition_src_value_input Device-copyable wrapper used to access source input
- * property values (for the edge sources assigned to this process in multi-GPU). Use either
- * cugraph::edge_partition_src_property_t::device_view() (if @p e_op needs to access source property
- * values) or cugraph::dummy_property_t::device_view() (if @p e_op does not access source property
- * values). Use update_edge_partition_src_property to fill the wrapper.
- * @param edge_partition_dst_value_input Device-copyable wrapper used to access destination input
- * property values (for the edge destinations assigned to this process in multi-GPU). Use either
- * cugraph::edge_partition_dst_property_t::device_view() (if @p e_op needs to access destination
- * property values) or cugraph::dummy_property_t::device_view() (if @p e_op does not access
- * destination property values). Use update_edge_partition_dst_property to fill the wrapper.
+ * @param edge_src_value_input Wrapper used to access source input property values (for the edge
+ * sources assigned to this process in multi-GPU). Use either cugraph::edge_src_property_t::view()
+ * (if @p e_op needs to access source property values) or cugraph::edge_src_dummy_property_t::view()
+ * (if @p e_op does not access source property values). Use update_edge_src_property to fill the
+ * wrapper.
+ * @param edge_dst_value_input Wrapper used to access destination input property values (for the
+ * edge destinations assigned to this process in multi-GPU). Use either
+ * cugraph::edge_dst_property_t::view() (if @p e_op needs to access destination property values) or
+ * cugraph::edge_dst_dummy_property_t::view() (if @p e_op does not access destination property
+ * values). Use update_edge_dst_property to fill the wrapper.
  * @param e_op Quaternary (or quinary) operator takes edge source, edge destination, (optional edge
  * weight), property values for the source, and property values for the destination and returns a
  * value to be reduced.
@@ -396,14 +396,14 @@ __global__ void trasnform_reduce_e_high_degree(
  * @return T Transform-reduced @p edge_op outputs.
  */
 template <typename GraphViewType,
-          typename EdgePartitionSrcValueInputWrapper,
-          typename EdgePartitionDstValueInputWrapper,
+          typename EdgeSrcValueInputWrapper,
+          typename EdgeDstValueInputWrapper,
           typename EdgeOp,
           typename T>
 T transform_reduce_e(raft::handle_t const& handle,
                      GraphViewType const& graph_view,
-                     EdgePartitionSrcValueInputWrapper edge_partition_src_value_input,
-                     EdgePartitionDstValueInputWrapper edge_partition_dst_value_input,
+                     EdgeSrcValueInputWrapper edge_src_value_input,
+                     EdgeDstValueInputWrapper edge_dst_value_input,
                      EdgeOp e_op,
                      T init,
                      bool do_expensive_check = false)
@@ -413,6 +413,27 @@ T transform_reduce_e(raft::handle_t const& handle,
   using vertex_t = typename GraphViewType::vertex_type;
   using edge_t   = typename GraphViewType::edge_type;
   using weight_t = typename GraphViewType::weight_type;
+
+  using edge_partition_src_input_device_view_t = std::conditional_t<
+    std::is_same_v<typename EdgeSrcValueInputWrapper::value_type, thrust::nullopt_t>,
+    detail::edge_partition_endpoint_dummy_property_device_view_t<vertex_t>,
+    std::conditional_t<GraphViewType::is_storage_transposed,
+                       detail::edge_partition_endpoint_property_device_view_t<
+                         vertex_t,
+                         typename EdgeSrcValueInputWrapper::value_iterator>,
+                       detail::edge_partition_endpoint_property_device_view_t<
+                         vertex_t,
+                         typename EdgeSrcValueInputWrapper::value_iterator>>>;
+  using edge_partition_dst_input_device_view_t = std::conditional_t<
+    std::is_same_v<typename EdgeDstValueInputWrapper::value_type, thrust::nullopt_t>,
+    detail::edge_partition_endpoint_dummy_property_device_view_t<vertex_t>,
+    std::conditional_t<GraphViewType::is_storage_transposed,
+                       detail::edge_partition_endpoint_property_device_view_t<
+                         vertex_t,
+                         typename EdgeDstValueInputWrapper::value_iterator>,
+                       detail::edge_partition_endpoint_property_device_view_t<
+                         vertex_t,
+                         typename EdgeDstValueInputWrapper::value_iterator>>>;
 
   if (do_expensive_check) {
     // currently, nothing to do
@@ -431,12 +452,16 @@ T transform_reduce_e(raft::handle_t const& handle,
       edge_partition_device_view_t<vertex_t, edge_t, weight_t, GraphViewType::is_multi_gpu>(
         graph_view.local_edge_partition_view(i));
 
-    auto edge_partition_src_value_input_copy = edge_partition_src_value_input;
-    auto edge_partition_dst_value_input_copy = edge_partition_dst_value_input;
+    edge_partition_src_input_device_view_t edge_partition_src_value_input{};
+    edge_partition_dst_input_device_view_t edge_partition_dst_value_input{};
     if constexpr (GraphViewType::is_storage_transposed) {
-      edge_partition_dst_value_input_copy.set_local_edge_partition_idx(i);
+      edge_partition_src_value_input = edge_partition_src_input_device_view_t(edge_src_value_input);
+      edge_partition_dst_value_input =
+        edge_partition_dst_input_device_view_t(edge_dst_value_input, i);
     } else {
-      edge_partition_src_value_input_copy.set_local_edge_partition_idx(i);
+      edge_partition_src_value_input =
+        edge_partition_src_input_device_view_t(edge_src_value_input, i);
+      edge_partition_dst_value_input = edge_partition_dst_input_device_view_t(edge_dst_value_input);
     }
 
     auto segment_offsets = graph_view.local_edge_partition_segment_offsets(i);
@@ -454,8 +479,8 @@ T transform_reduce_e(raft::handle_t const& handle,
             edge_partition,
             edge_partition.major_range_first(),
             edge_partition.major_range_first() + (*segment_offsets)[1],
-            edge_partition_src_value_input_copy,
-            edge_partition_dst_value_input_copy,
+            edge_partition_src_value_input,
+            edge_partition_dst_value_input,
             get_dataframe_buffer_begin(result_buffer),
             e_op);
       }
@@ -468,8 +493,8 @@ T transform_reduce_e(raft::handle_t const& handle,
             edge_partition,
             edge_partition.major_range_first() + (*segment_offsets)[1],
             edge_partition.major_range_first() + (*segment_offsets)[2],
-            edge_partition_src_value_input_copy,
-            edge_partition_dst_value_input_copy,
+            edge_partition_src_value_input,
+            edge_partition_dst_value_input,
             get_dataframe_buffer_begin(result_buffer),
             e_op);
       }
@@ -482,8 +507,8 @@ T transform_reduce_e(raft::handle_t const& handle,
             edge_partition,
             edge_partition.major_range_first() + (*segment_offsets)[2],
             edge_partition.major_range_first() + (*segment_offsets)[3],
-            edge_partition_src_value_input_copy,
-            edge_partition_dst_value_input_copy,
+            edge_partition_src_value_input,
+            edge_partition_dst_value_input,
             get_dataframe_buffer_begin(result_buffer),
             e_op);
       }
@@ -494,8 +519,8 @@ T transform_reduce_e(raft::handle_t const& handle,
         detail::trasnform_reduce_e_hypersparse<GraphViewType>
           <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
             edge_partition,
-            edge_partition_src_value_input_copy,
-            edge_partition_dst_value_input_copy,
+            edge_partition_src_value_input,
+            edge_partition_dst_value_input,
             get_dataframe_buffer_begin(result_buffer),
             e_op);
       }
@@ -510,8 +535,8 @@ T transform_reduce_e(raft::handle_t const& handle,
             edge_partition,
             edge_partition.major_range_first(),
             edge_partition.major_range_last(),
-            edge_partition_src_value_input_copy,
-            edge_partition_dst_value_input_copy,
+            edge_partition_src_value_input,
+            edge_partition_dst_value_input,
             get_dataframe_buffer_begin(result_buffer),
             e_op);
       }
@@ -539,24 +564,22 @@ T transform_reduce_e(raft::handle_t const& handle,
  * This function is inspired by thrust::transform_reduce().
  *
  * @tparam GraphViewType Type of the passed non-owning graph object.
- * @tparam EdgePartitionSrcValueInputWrapper Type of the wrapper for edge partition source property
- * values.
- * @tparam EdgePartitionDstValueInputWrapper Type of the wrapper for edge partition destination
- * property values.
+ * @tparam EdgeSrcValueInputWrapper Type of the wrapper for edge source property values.
+ * @tparam EdgeDstValueInputWrapper Type of the wrapper for edge destination property values.
  * @tparam EdgeOp Type of the quaternary (or quinary) edge operator.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Non-owning graph object.
- * @param edge_partition_src_value_input Device-copyable wrapper used to access source input
- * property values (for the edge sources assigned to this process in multi-GPU). Use either
- * cugraph::edge_partition_src_property_t::device_view() (if @p e_op needs to access source property
- * values) or cugraph::dummy_property_t::device_view() (if @p e_op does not access source property
- * values). Use update_edge_partition_src_property to fill the wrapper.
- * @param edge_partition_dst_value_input Device-copyable wrapper used to access destination input
- * property values (for the edge destinations assigned to this process in multi-GPU). Use either
- * cugraph::edge_partition_dst_property_t::device_view() (if @p e_op needs to access destination
- * property values) or cugraph::dummy_property_t::device_view() (if @p e_op does not access
- * destination property values). Use update_edge_partition_dst_property to fill the wrapper.
+ * @param edge_src_value_input Wrapper used to access source input property values (for the edge
+ * sources assigned to this process in multi-GPU). Use either cugraph::edge_src_property_t::view()
+ * (if @p e_op needs to access source property values) or cugraph::edge_src_dummy_property_t::view()
+ * (if @p e_op does not access source property values). Use update_edge_src_property to
+ * fill the wrapper.
+ * @param edge_dst_value_input Wrapper used to access destination input property values (for the
+ * edge destinations assigned to this process in multi-GPU). Use either
+ * cugraph::edge_dst_property_t::view() (if @p e_op needs to access destination property values) or
+ * cugraph::edge_dst_dummy_property_t::view() (if @p e_op does not access destination property
+ * values). Use update_edge_dst_property to fill the wrapper.
  * @param e_op Quaternary (or quinary) operator takes edge source, edge destination, (optional edge
  * weight), property values for the source, and property values for the destination and returns a
  * value to be reduced.
@@ -564,20 +587,20 @@ T transform_reduce_e(raft::handle_t const& handle,
  * @return Transform-reduced @p edge_op outputs.
  */
 template <typename GraphViewType,
-          typename EdgePartitionSrcValueInputWrapper,
-          typename EdgePartitionDstValueInputWrapper,
+          typename EdgeSrcValueInputWrapper,
+          typename EdgeDstValueInputWrapper,
           typename EdgeOp>
 auto transform_reduce_e(raft::handle_t const& handle,
                         GraphViewType const& graph_view,
-                        EdgePartitionSrcValueInputWrapper edge_partition_src_value_input,
-                        EdgePartitionDstValueInputWrapper edge_partition_dst_value_input,
+                        EdgeSrcValueInputWrapper edge_src_value_input,
+                        EdgeDstValueInputWrapper edge_dst_value_input,
                         EdgeOp e_op,
                         bool do_expensive_check = false)
 {
   using vertex_t    = typename GraphViewType::vertex_type;
   using weight_t    = typename GraphViewType::weight_type;
-  using src_value_t = typename EdgePartitionSrcValueInputWrapper::value_type;
-  using dst_value_t = typename EdgePartitionDstValueInputWrapper::value_type;
+  using src_value_t = typename EdgeSrcValueInputWrapper::value_type;
+  using dst_value_t = typename EdgeDstValueInputWrapper::value_type;
   using T           = typename detail::
     edge_op_result_type<vertex_t, vertex_t, weight_t, src_value_t, dst_value_t, EdgeOp>::type;
 
@@ -586,7 +609,7 @@ auto transform_reduce_e(raft::handle_t const& handle,
   }
 
   return transform_reduce_e(
-    handle, graph_view, edge_partition_src_value_input, edge_partition_dst_value_input, e_op, T{});
+    handle, graph_view, edge_src_value_input, edge_dst_value_input, e_op, T{});
 }
 
 }  // namespace cugraph

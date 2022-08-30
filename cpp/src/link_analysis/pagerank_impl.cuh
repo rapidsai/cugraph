@@ -17,13 +17,13 @@
 
 #include <prims/count_if_e.cuh>
 #include <prims/count_if_v.cuh>
-#include <prims/edge_partition_src_dst_property.cuh>
 #include <prims/per_v_transform_reduce_incoming_outgoing_e.cuh>
 #include <prims/reduce_v.cuh>
 #include <prims/transform_reduce_v.cuh>
-#include <prims/update_edge_partition_src_dst_property.cuh>
+#include <prims/update_edge_src_dst_property.cuh>
 
 #include <cugraph/algorithms.hpp>
+#include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/utilities/error.hpp>
 
@@ -108,8 +108,8 @@ void pagerank(
       auto num_negative_edge_weights =
         count_if_e(handle,
                    pull_graph_view,
-                   dummy_property_t<vertex_t>{}.device_view(),
-                   dummy_property_t<vertex_t>{}.device_view(),
+                   edge_src_dummy_property_t{}.view(),
+                   edge_dst_dummy_property_t{}.view(),
                    [] __device__(vertex_t, vertex_t, weight_t w, auto, auto) { return w < 0.0; });
       CUGRAPH_EXPECTS(num_negative_edge_weights == 0,
                       "Invalid input argument: input graph should have non-negative edge weights.");
@@ -204,8 +204,7 @@ void pagerank(
   // old PageRank values
   rmm::device_uvector<result_t> old_pageranks(pull_graph_view.local_vertex_partition_range_size(),
                                               handle.get_stream());
-  edge_partition_src_property_t<GraphViewType, result_t> edge_partition_src_pageranks(
-    handle, pull_graph_view);
+  edge_src_property_t<GraphViewType, result_t> edge_src_pageranks(handle, pull_graph_view);
   size_t iter{0};
   while (true) {
     thrust::copy(handle.get_thrust_policy(),
@@ -239,8 +238,7 @@ void pagerank(
                         return pagerank / divisor;
                       });
 
-    update_edge_partition_src_property(
-      handle, pull_graph_view, pageranks, edge_partition_src_pageranks);
+    update_edge_src_property(handle, pull_graph_view, pageranks, edge_src_pageranks);
 
     auto unvarying_part = aggregate_personalization_vector_size == 0
                             ? (dangling_sum * alpha + static_cast<result_t>(1.0 - alpha)) /
@@ -250,8 +248,8 @@ void pagerank(
     per_v_transform_reduce_incoming_e(
       handle,
       pull_graph_view,
-      edge_partition_src_pageranks.device_view(),
-      dummy_property_t<vertex_t>{}.device_view(),
+      edge_src_pageranks.view(),
+      edge_dst_dummy_property_t{}.view(),
       [alpha] __device__(vertex_t, vertex_t, weight_t w, auto src_val, auto) {
         return src_val * w * alpha;
       },

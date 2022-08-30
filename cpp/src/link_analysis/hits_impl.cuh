@@ -16,13 +16,14 @@
 #pragma once
 
 #include <prims/count_if_v.cuh>
-#include <prims/edge_partition_src_dst_property.cuh>
+#include <prims/fill_edge_src_dst_property.cuh>
 #include <prims/per_v_transform_reduce_incoming_outgoing_e.cuh>
 #include <prims/reduce_v.cuh>
 #include <prims/transform_reduce_v.cuh>
-#include <prims/update_edge_partition_src_dst_property.cuh>
+#include <prims/update_edge_src_dst_property.cuh>
 
 #include <cugraph/algorithms.hpp>
+#include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph_view.hpp>
 
 #include <thrust/copy.h>
@@ -92,8 +93,8 @@ std::tuple<result_t, size_t> hits(raft::handle_t const& handle,
   }
 
   // Property wrappers
-  edge_partition_src_property_t<GraphViewType, result_t> prev_src_hubs(handle, graph_view);
-  edge_partition_dst_property_t<GraphViewType, result_t> curr_dst_auth(handle, graph_view);
+  edge_src_property_t<GraphViewType, result_t> prev_src_hubs(handle, graph_view);
+  edge_dst_property_t<GraphViewType, result_t> curr_dst_auth(handle, graph_view);
   rmm::device_uvector<result_t> temp_hubs(graph_view.local_vertex_partition_range_size(),
                                           handle.get_stream());
 
@@ -102,9 +103,9 @@ std::tuple<result_t, size_t> hits(raft::handle_t const& handle,
 
   // Initialize hubs from user input if provided
   if (has_initial_hubs_guess) {
-    update_edge_partition_src_property(handle, graph_view, prev_hubs, prev_src_hubs);
+    update_edge_src_property(handle, graph_view, prev_hubs, prev_src_hubs);
   } else {
-    prev_src_hubs.fill(handle, result_t{1.0} / num_vertices);
+    fill_edge_src_property(handle, graph_view, result_t{1.0} / num_vertices, prev_src_hubs);
     thrust::fill(handle.get_thrust_policy(),
                  prev_hubs,
                  prev_hubs + graph_view.local_vertex_partition_range_size(),
@@ -115,20 +116,20 @@ std::tuple<result_t, size_t> hits(raft::handle_t const& handle,
     per_v_transform_reduce_incoming_e(
       handle,
       graph_view,
-      prev_src_hubs.device_view(),
-      dummy_property_t<result_t>{}.device_view(),
+      prev_src_hubs.view(),
+      edge_dst_dummy_property_t{}.view(),
       [] __device__(auto, auto, auto, auto prev_src_hub_value, auto) { return prev_src_hub_value; },
       result_t{0},
       authorities);
 
-    update_edge_partition_dst_property(handle, graph_view, authorities, curr_dst_auth);
+    update_edge_dst_property(handle, graph_view, authorities, curr_dst_auth);
 
     // Update current source hubs property
     per_v_transform_reduce_outgoing_e(
       handle,
       graph_view,
-      dummy_property_t<result_t>{}.device_view(),
-      curr_dst_auth.device_view(),
+      edge_src_dummy_property_t{}.view(),
+      curr_dst_auth.view(),
       [] __device__(auto src, auto dst, auto, auto, auto curr_dst_auth_value) {
         return curr_dst_auth_value;
       },
@@ -162,7 +163,7 @@ std::tuple<result_t, size_t> hits(raft::handle_t const& handle,
       break;
     }
 
-    update_edge_partition_src_property(handle, graph_view, curr_hubs, prev_src_hubs);
+    update_edge_src_property(handle, graph_view, curr_hubs, prev_src_hubs);
 
     // Swap pointers for the next iteration
     // After this swap call, prev_hubs has the latest value of hubs

@@ -19,6 +19,8 @@
 #include <prims/reduce_op.cuh>
 
 #include <cugraph/edge_partition_device_view.cuh>
+#include <cugraph/edge_partition_endpoint_property_device_view.cuh>
+#include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/partition_manager.hpp>
 #include <cugraph/utilities/dataframe_buffer.hpp>
@@ -790,12 +792,11 @@ auto sort_and_reduce_buffer_elements(
 
 }  // namespace detail
 
-template <typename GraphViewType, typename VertexFrontierType>
+template <typename GraphViewType, typename VertexFrontierBucketType>
 typename GraphViewType::edge_type compute_num_out_nbrs_from_frontier(
   raft::handle_t const& handle,
   GraphViewType const& graph_view,
-  VertexFrontierType const& frontier,
-  size_t cur_frontier_bucket_idx)
+  VertexFrontierBucketType const& frontier)
 {
   static_assert(!GraphViewType::is_storage_transposed,
                 "GraphViewType should support the push model.");
@@ -803,25 +804,23 @@ typename GraphViewType::edge_type compute_num_out_nbrs_from_frontier(
   using vertex_t = typename GraphViewType::vertex_type;
   using edge_t   = typename GraphViewType::edge_type;
   using weight_t = typename GraphViewType::weight_type;
-  using key_t    = typename VertexFrontierType::key_type;
+  using key_t    = typename VertexFrontierBucketType::key_type;
 
   edge_t ret{0};
 
-  auto const& cur_frontier_bucket = frontier.bucket(cur_frontier_bucket_idx);
   vertex_t const* local_frontier_vertex_first{nullptr};
   if constexpr (std::is_same_v<key_t, vertex_t>) {
-    local_frontier_vertex_first = cur_frontier_bucket.begin();
+    local_frontier_vertex_first = frontier.begin();
   } else {
-    local_frontier_vertex_first = thrust::get<0>(cur_frontier_bucket.begin().get_iterator_tuple());
+    local_frontier_vertex_first = thrust::get<0>(frontier.begin().get_iterator_tuple());
   }
 
   std::vector<size_t> local_frontier_sizes{};
   if constexpr (GraphViewType::is_multi_gpu) {
-    auto& col_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
-    local_frontier_sizes =
-      host_scalar_allgather(col_comm, cur_frontier_bucket.size(), handle.get_stream());
+    auto& col_comm       = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
+    local_frontier_sizes = host_scalar_allgather(col_comm, frontier.size(), handle.get_stream());
   } else {
-    local_frontier_sizes = std::vector<size_t>{static_cast<size_t>(cur_frontier_bucket.size())};
+    local_frontier_sizes = std::vector<size_t>{static_cast<size_t>(frontier.size())};
   }
   for (size_t i = 0; i < graph_view.number_of_local_edge_partitions(); ++i) {
     auto edge_partition =
@@ -880,7 +879,7 @@ typename GraphViewType::edge_type compute_num_out_nbrs_from_frontier(
       ret += thrust::transform_reduce(
         handle.get_thrust_policy(),
         local_frontier_vertex_first,
-        local_frontier_vertex_first + cur_frontier_bucket.size(),
+        local_frontier_vertex_first + frontier.size(),
         [edge_partition] __device__(auto major) {
           auto major_offset = edge_partition.major_offset_from_major_nocheck(major);
           return edge_partition.local_degree(major_offset);
@@ -898,35 +897,30 @@ typename GraphViewType::edge_type compute_num_out_nbrs_from_frontier(
  * outputs by (tagged-)destination ID.
  *
  * Edge functor outputs are thrust::optional objects and invalid if thrust::nullopt. Vertices are
- * assumed to be tagged if VertexFrontierType::key_type is a tuple of a vertex type and a tag type
- * (VertexFrontierType::key_type is identical to a vertex type otherwise).
+ * assumed to be tagged if VertexFrontierBucketType::key_type is a tuple of a vertex type and a tag
+ * type (VertexFrontierBucketType::key_type is identical to a vertex type otherwise).
  *
  * @tparam GraphViewType Type of the passed non-owning graph object.
- * @tparam VertexFrontierType Type of the vertex frontier class which abstracts vertex frontier
- * managements.
- * @tparam EdgePartitionSrcValueInputWrapper Type of the wrapper for edge partition source property
- * values.
- * @tparam EdgePartitionDstValueInputWrapper Type of the wrapper for edge partition destination
- * property values.
+ * @tparam VertexFrontierBucketType Type of the vertex frontier bucket class which abstracts the
+ * current (tagged-)vertex frontier.
+ * @tparam EdgeSrcValueInputWrapper Type of the wrapper for edge source property values.
+ * @tparam EdgeDstValueInputWrapper Type of the wrapper for edge destination property values.
  * @tparam EdgeOp Type of the quaternary (or quinary) edge operator.
  * @tparam ReduceOp Type of the binary reduction operator.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Non-owning graph object.
- * @param frontier VertexFrontierType class object for vertex frontier managements. This object
- * includes multiple bucket objects.
- * @param cur_frontier_bucket_idx Index of the vertex frontier bucket holding vertices for the
- * current iteration.
- * @param edge_partition_src_value_input Device-copyable wrapper used to access source input
- * property values (for the edge sources assigned to this process in multi-GPU). Use either
- * cugraph::edge_partition_src_property_t::device_view() (if @p e_op needs to access source property
- * values) or cugraph::dummy_property_t::device_view() (if @p e_op does not access source property
- * values). Use update_edge_partition_src_property to fill the wrapper.
- * @param edge_partition_dst_value_input Device-copyable wrapper used to access destination input
- * property values (for the edge destinations assigned to this process in multi-GPU). Use either
- * cugraph::edge_partition_dst_property_t::device_view() (if @p e_op needs to access destination
- * property values) or cugraph::dummy_property_t::device_view() (if @p e_op does not access
- * destination property values). Use update_edge_partition_dst_property to fill the wrapper.
+ * @param frontier VertexFrontierBucketType class object for the current vertex frontier.
+ * @param edge_src_value_input Wrapper used to access source input property values (for the edge
+ * sources assigned to this process in multi-GPU). Use either cugraph::edge_src_property_t::view()
+ * (if @p e_op needs to access source property values) or cugraph::edge_src_dummy_property_t::view()
+ * (if @p e_op does not access source property values). Use update_edge_src_property to fill the
+ * wrapper.
+ * @param edge_dst_value_input Wrapper used to access destination input property values (for the
+ * edge destinations assigned to this process in multi-GPU). Use either
+ * cugraph::edge_dst_property_t::view() (if @p e_op needs to access destination property values) or
+ * cugraph::edge_dst_dummy_property_t::view() (if @p e_op does not access destination property
+ * values). Use update_edge_dst_property to fill the wrapper.
  * @param e_op Quaternary (or quinary) operator takes edge source, edge destination, (optional edge
  * weight), property values for the source, and property values for the destination and returns
  * 1) thrust::nullopt (if invalid and to be discarded); 2) dummy (but valid) thrust::optional object
@@ -945,29 +939,27 @@ typename GraphViewType::edge_type compute_num_out_nbrs_from_frontier(
  * values (if ReduceOp::value_type is void).
  */
 template <typename GraphViewType,
-          typename VertexFrontierType,
-          typename EdgePartitionSrcValueInputWrapper,
-          typename EdgePartitionDstValueInputWrapper,
+          typename VertexFrontierBucketType,
+          typename EdgeSrcValueInputWrapper,
+          typename EdgeDstValueInputWrapper,
           typename EdgeOp,
           typename ReduceOp>
 std::conditional_t<
   !std::is_same_v<typename ReduceOp::value_type, void>,
-  std::tuple<decltype(allocate_dataframe_buffer<typename VertexFrontierType::key_type>(
+  std::tuple<decltype(allocate_dataframe_buffer<typename VertexFrontierBucketType::key_type>(
                0, rmm::cuda_stream_view{})),
              decltype(detail::allocate_optional_payload_buffer<typename ReduceOp::value_type>(
                0, rmm::cuda_stream_view{}))>,
-  decltype(
-    allocate_dataframe_buffer<typename VertexFrontierType::key_type>(0, rmm::cuda_stream_view{}))>
-transform_reduce_v_frontier_outgoing_e_by_dst(
-  raft::handle_t const& handle,
-  GraphViewType const& graph_view,
-  VertexFrontierType const& frontier,
-  size_t cur_frontier_bucket_idx,
-  EdgePartitionSrcValueInputWrapper edge_partition_src_value_input,
-  EdgePartitionDstValueInputWrapper edge_partition_dst_value_input,
-  EdgeOp e_op,
-  ReduceOp reduce_op,
-  bool do_expensive_check = false)
+  decltype(allocate_dataframe_buffer<typename VertexFrontierBucketType::key_type>(
+    0, rmm::cuda_stream_view{}))>
+transform_reduce_v_frontier_outgoing_e_by_dst(raft::handle_t const& handle,
+                                              GraphViewType const& graph_view,
+                                              VertexFrontierBucketType const& frontier,
+                                              EdgeSrcValueInputWrapper edge_src_value_input,
+                                              EdgeDstValueInputWrapper edge_dst_value_input,
+                                              EdgeOp e_op,
+                                              ReduceOp reduce_op,
+                                              bool do_expensive_check = false)
 {
   static_assert(!GraphViewType::is_storage_transposed,
                 "GraphViewType should support the push model.");
@@ -975,18 +967,36 @@ transform_reduce_v_frontier_outgoing_e_by_dst(
   using vertex_t  = typename GraphViewType::vertex_type;
   using edge_t    = typename GraphViewType::edge_type;
   using weight_t  = typename GraphViewType::weight_type;
-  using key_t     = typename VertexFrontierType::key_type;
+  using key_t     = typename VertexFrontierBucketType::key_type;
   using payload_t = typename ReduceOp::value_type;
 
-  CUGRAPH_EXPECTS(cur_frontier_bucket_idx < frontier.num_buckets(),
-                  "Invalid input argument: invalid current bucket index.");
+  using edge_partition_src_input_device_view_t = std::conditional_t<
+    std::is_same_v<typename EdgeSrcValueInputWrapper::value_type, thrust::nullopt_t>,
+    detail::edge_partition_endpoint_dummy_property_device_view_t<vertex_t>,
+    std::conditional_t<GraphViewType::is_storage_transposed,
+                       detail::edge_partition_endpoint_property_device_view_t<
+                         vertex_t,
+                         typename EdgeSrcValueInputWrapper::value_iterator>,
+                       detail::edge_partition_endpoint_property_device_view_t<
+                         vertex_t,
+                         typename EdgeSrcValueInputWrapper::value_iterator>>>;
+  using edge_partition_dst_input_device_view_t = std::conditional_t<
+    std::is_same_v<typename EdgeDstValueInputWrapper::value_type, thrust::nullopt_t>,
+    detail::edge_partition_endpoint_dummy_property_device_view_t<vertex_t>,
+    std::conditional_t<GraphViewType::is_storage_transposed,
+                       detail::edge_partition_endpoint_property_device_view_t<
+                         vertex_t,
+                         typename EdgeDstValueInputWrapper::value_iterator>,
+                       detail::edge_partition_endpoint_property_device_view_t<
+                         vertex_t,
+                         typename EdgeDstValueInputWrapper::value_iterator>>>;
 
   if (do_expensive_check) {
     // currently, nothing to do
   }
 
-  auto frontier_key_first = frontier.bucket(cur_frontier_bucket_idx).begin();
-  auto frontier_key_last  = frontier.bucket(cur_frontier_bucket_idx).end();
+  auto frontier_key_first = frontier.begin();
+  auto frontier_key_last  = frontier.end();
 
   // 1. fill the buffer
 
@@ -1091,11 +1101,25 @@ transform_reduce_v_frontier_outgoing_e_by_dst(
       resize_dataframe_buffer(payload_buffer, new_buffer_size, handle.get_stream());
     }
 
-    auto edge_partition_src_value_input_copy = edge_partition_src_value_input;
-    auto edge_partition_dst_value_input_copy = edge_partition_dst_value_input;
-    edge_partition_src_value_input_copy.set_local_edge_partition_idx(i);
+    edge_partition_src_input_device_view_t edge_partition_src_value_input{};
+    edge_partition_dst_input_device_view_t edge_partition_dst_value_input{};
+    if constexpr (GraphViewType::is_storage_transposed) {
+      edge_partition_src_value_input = edge_partition_src_input_device_view_t(edge_src_value_input);
+      edge_partition_dst_value_input =
+        edge_partition_dst_input_device_view_t(edge_dst_value_input, i);
+    } else {
+      edge_partition_src_value_input =
+        edge_partition_src_input_device_view_t(edge_src_value_input, i);
+      edge_partition_dst_value_input = edge_partition_dst_input_device_view_t(edge_dst_value_input);
+    }
 
     if (segment_offsets) {
+      if constexpr (!VertexFrontierBucketType::is_sorted_unique) {
+        thrust::sort(handle.get_thrust_policy(),
+                     edge_partition_frontier_src_first,
+                     edge_partition_frontier_src_last);
+      }
+
       static_assert(detail::num_sparse_segments_per_vertex_partition == 3);
       std::vector<vertex_t> h_thresholds(detail::num_sparse_segments_per_vertex_partition +
                                          (graph_view.use_dcs() ? 1 : 0) - 1);
@@ -1131,8 +1155,8 @@ transform_reduce_v_frontier_outgoing_e_by_dst(
             edge_partition,
             get_dataframe_buffer_begin(edge_partition_frontier_key_buffer),
             get_dataframe_buffer_begin(edge_partition_frontier_key_buffer) + h_offsets[0],
-            edge_partition_src_value_input_copy,
-            edge_partition_dst_value_input_copy,
+            edge_partition_src_value_input,
+            edge_partition_dst_value_input,
             get_dataframe_buffer_begin(key_buffer),
             detail::get_optional_payload_buffer_begin<payload_t>(payload_buffer),
             buffer_idx.data(),
@@ -1148,8 +1172,8 @@ transform_reduce_v_frontier_outgoing_e_by_dst(
             edge_partition,
             get_dataframe_buffer_begin(edge_partition_frontier_key_buffer) + h_offsets[0],
             get_dataframe_buffer_begin(edge_partition_frontier_key_buffer) + h_offsets[1],
-            edge_partition_src_value_input_copy,
-            edge_partition_dst_value_input_copy,
+            edge_partition_src_value_input,
+            edge_partition_dst_value_input,
             get_dataframe_buffer_begin(key_buffer),
             detail::get_optional_payload_buffer_begin<payload_t>(payload_buffer),
             buffer_idx.data(),
@@ -1165,8 +1189,8 @@ transform_reduce_v_frontier_outgoing_e_by_dst(
             edge_partition,
             get_dataframe_buffer_begin(edge_partition_frontier_key_buffer) + h_offsets[1],
             get_dataframe_buffer_begin(edge_partition_frontier_key_buffer) + h_offsets[2],
-            edge_partition_src_value_input_copy,
-            edge_partition_dst_value_input_copy,
+            edge_partition_src_value_input,
+            edge_partition_dst_value_input,
             get_dataframe_buffer_begin(key_buffer),
             detail::get_optional_payload_buffer_begin<payload_t>(payload_buffer),
             buffer_idx.data(),
@@ -1182,8 +1206,8 @@ transform_reduce_v_frontier_outgoing_e_by_dst(
             edge_partition,
             get_dataframe_buffer_begin(edge_partition_frontier_key_buffer) + h_offsets[2],
             get_dataframe_buffer_begin(edge_partition_frontier_key_buffer) + h_offsets[3],
-            edge_partition_src_value_input_copy,
-            edge_partition_dst_value_input_copy,
+            edge_partition_src_value_input,
+            edge_partition_dst_value_input,
             get_dataframe_buffer_begin(key_buffer),
             detail::get_optional_payload_buffer_begin<payload_t>(payload_buffer),
             buffer_idx.data(),
@@ -1201,8 +1225,8 @@ transform_reduce_v_frontier_outgoing_e_by_dst(
             edge_partition,
             get_dataframe_buffer_begin(edge_partition_frontier_key_buffer),
             get_dataframe_buffer_end(edge_partition_frontier_key_buffer),
-            edge_partition_src_value_input_copy,
-            edge_partition_dst_value_input_copy,
+            edge_partition_src_value_input,
+            edge_partition_dst_value_input,
             get_dataframe_buffer_begin(key_buffer),
             detail::get_optional_payload_buffer_begin<payload_t>(payload_buffer),
             buffer_idx.data(),

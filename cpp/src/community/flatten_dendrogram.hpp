@@ -16,13 +16,13 @@
 #pragma once
 
 #include <cugraph/dendrogram.hpp>
+#include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/graph_functions.hpp>
 
 #include <raft/handle.hpp>
 #include <rmm/exec_policy.hpp>
 
 #include <thrust/iterator/counting_iterator.h>
-#include <thrust/sequence.h>
 
 namespace cugraph {
 
@@ -43,10 +43,10 @@ void partition_at_level(raft::handle_t const& handle,
     thrust::make_counting_iterator<size_t>(level),
     [&handle, &dendrogram, &local_vertex_ids_v, d_vertex_ids, &d_partition, local_num_verts](
       size_t l) {
-      thrust::sequence(handle.get_thrust_policy(),
-                       local_vertex_ids_v.begin(),
-                       local_vertex_ids_v.begin() + dendrogram.get_level_size_nocheck(l),
-                       dendrogram.get_level_first_index_nocheck(l));
+      detail::sequence_fill(handle.get_stream(),
+                            local_vertex_ids_v.begin(),
+                            dendrogram.get_level_size_nocheck(l),
+                            dendrogram.get_level_first_index_nocheck(l));
 
       cugraph::relabel<vertex_t, multi_gpu>(
         handle,
