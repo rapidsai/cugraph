@@ -177,7 +177,7 @@ cugraph_error_code_t cugraph_graph_add_data_mask(cugraph_graph_t* graph,
 /**
  * @brief     Release the data mask currently associated with a graph
  *
- * This function will remove the associated of the current data mask 
+ * This function will remove the associated of the current data mask
  * with this graph.  The caller will be responsible for destroying the data
  * mask using graph_data_mask_destroy.
  *
