@@ -38,9 +38,9 @@ from thriftpy2.transport import (
 #
 # See the Apache Thrift tutorial for Python for examples:
 # https://thrift.apache.org/tutorial/py.html
-gaas_thrift_spec = """
+cugraph_thrift_spec = """
 # FIXME: consider additional, more fine-grained exceptions
-exception GaasError {
+exception CugraphServiceError {
   1:string message
 }
 
@@ -77,36 +77,36 @@ union Value {
   4:bool bool_value
 }
 
-service GaasService {
+service CugraphService {
 
   ##############################################################################
   # Environment management
   i32 uptime()
 
-  map<string, Value> get_server_info() throws (1:GaasError e),
+  map<string, Value> get_server_info() throws (1:CugraphServiceError e),
 
   i32 load_graph_creation_extensions(1:string extension_dir_path
-                                     ) throws (1:GaasError e),
+                                     ) throws (1:CugraphServiceError e),
 
   void unload_graph_creation_extensions(),
 
   i32 call_graph_creation_extension(1:string func_name,
                                     2:string func_args_repr,
                                     3:string func_kwargs_repr
-                                    ) throws (1:GaasError e),
+                                    ) throws (1:CugraphServiceError e),
 
 
   ##############################################################################
   # Graph management
-  i32 create_graph() throws(1:GaasError e),
+  i32 create_graph() throws(1:CugraphServiceError e),
 
-  void delete_graph(1:i32 graph_id) throws (1:GaasError e),
+  void delete_graph(1:i32 graph_id) throws (1:CugraphServiceError e),
 
-  list<i32> get_graph_ids() throws(1:GaasError e),
+  list<i32> get_graph_ids() throws(1:CugraphServiceError e),
 
   map<string, Value> get_graph_info(1:list<string> keys,
                                     2:i32 graph_id
-                                    ) throws(1:GaasError e),
+                                    ) throws(1:CugraphServiceError e),
 
   void load_csv_as_vertex_data(1:string csv_file_name,
                                2:string delimiter,
@@ -117,7 +117,7 @@ service GaasService {
                                7:list<string> property_columns,
                                8:i32 graph_id,
                                9:list<string> names
-                               ) throws (1:GaasError e),
+                               ) throws (1:CugraphServiceError e),
 
   void load_csv_as_edge_data(1:string csv_file_name,
                              2:string delimiter,
@@ -128,12 +128,12 @@ service GaasService {
                              7:list<string> property_columns,
                              8:i32 graph_id,
                              9:list<string> names
-                             ) throws (1:GaasError e),
+                             ) throws (1:CugraphServiceError e),
 
   list<i32> get_edge_IDs_for_vertices(1:list<i32> src_vert_IDs,
                                       2:list<i32> dst_vert_IDs,
                                       3:i32 graph_id
-                             ) throws (1:GaasError e),
+                             ) throws (1:CugraphServiceError e),
 
   i32 extract_subgraph(1:string create_using,
                        2:string selection,
@@ -143,25 +143,25 @@ service GaasService {
                        6:bool renumber_graph,
                        7:bool add_edge_data,
                        8:i32 graph_id
-                       ) throws (1:GaasError e),
+                       ) throws (1:CugraphServiceError e),
 
   binary get_graph_vertex_data(1:GraphVertexEdgeID vertex_id,
                                2:Value null_replacement_value,
                                3:i32 graph_id,
                                4:list<string> property_keys
-                               ) throws (1:GaasError e),
+                               ) throws (1:CugraphServiceError e),
 
   binary get_graph_edge_data(1:GraphVertexEdgeID edge_id,
                              2:Value null_replacement_value
                              3:i32 graph_id,
                              4:list<string> property_keys
-                             ) throws (1:GaasError e),
+                             ) throws (1:CugraphServiceError e),
 
   bool is_vertex_property(1:string property_key,
-                          2:i32 graph_id) throws (1:GaasError e),
+                          2:i32 graph_id) throws (1:CugraphServiceError e),
 
   bool is_edge_property(1:string property_key,
-                        2:i32 graph_id) throws (1:GaasError e),
+                        2:i32 graph_id) throws (1:CugraphServiceError e),
 
   ##############################################################################
   # Algos
@@ -169,51 +169,51 @@ service GaasService {
   batched_ego_graphs(1:list<i32> seeds,
                      2:i32 radius,
                      3:i32 graph_id
-                     ) throws (1:GaasError e),
+                     ) throws (1:CugraphServiceError e),
 
   Node2vecResult
   node2vec(1:list<i32> start_vertices,
            2:i32 max_depth,
            3:i32 graph_id
-           ) throws (1:GaasError e),
+           ) throws (1:CugraphServiceError e),
 
   UniformNeighborSampleResult
   uniform_neighbor_sample(1:list<i32> start_list,
                               2:list<i32> fanout_vals,
                               3:bool with_replacement,
                               4:i32 graph_id
-                              ) throws (1:GaasError e),
+                              ) throws (1:CugraphServiceError e),
 
   ##############################################################################
   # Test/Debug
-  string get_graph_type(1:i32 graph_id) throws(1:GaasError e),
+  string get_graph_type(1:i32 graph_id) throws(1:CugraphServiceError e),
 }
 """
 
-# Load the GaaS Thrift specification on import. Syntax errors and other problems
-# will be apparent immediately on import, and it allows any other module to
-# import this and access the various types defined in the Thrift specification
-# without being exposed to the thriftpy2 API.
-spec = thriftpy2.load_fp(io.StringIO(gaas_thrift_spec),
-                         module_name="gaas_thrift")
+# Load the cugraph Thrift specification on import. Syntax errors and other
+# problems will be apparent immediately on import, and it allows any other
+# module to import this and access the various types defined in the Thrift
+# specification without being exposed to the thriftpy2 API.
+spec = thriftpy2.load_fp(io.StringIO(cugraph_thrift_spec),
+                         module_name="cugraph_thrift")
 
 def create_server(handler, host, port, client_timeout=90000):
     """
     Return a server object configured to listen on host/port and use the handler
     object to handle calls from clients. The handler object must have an
-    interface compatible with the GaasService service defined in the Thrift
+    interface compatible with the CugraphService service defined in the Thrift
     specification.
 
     Note: This function is defined here in order to allow it to have easy access
     to the Thrift spec loaded here on import, and to keep all thriftpy2 calls in
     this module. However, this function is likely only called from the
-    gaas_server package which depends on the code in this package.
+    cugraph_service_server package which depends on the code in this package.
     """
     proto_factory = TBinaryProtocolFactory()
     trans_factory = TBufferedTransportFactory()
     client_timeout = client_timeout
 
-    processor = TProcessor(spec.GaasService, handler)
+    processor = TProcessor(spec.CugraphService, handler)
     server_socket = TServerSocket(host=host, port=port,
                                   client_timeout=client_timeout)
     server = TSimpleServer(processor, server_socket,
@@ -232,20 +232,20 @@ def create_client(host, port, call_timeout=90000):
     does not return in call_timeout milliseconds, an exception is raised.
     """
     try:
-        return make_client(spec.GaasService, host=host, port=port,
+        return make_client(spec.CugraphService, host=host, port=port,
                            timeout=call_timeout)
     except TTransportException:
-        # Raise a GaaS exception in order to completely encapsulate all Thrift
-        # details in this module. If this was not done, callers of this function
-        # would have to import thriftpy2 in order to catch the
+        # Raise a CugraphServiceError in order to completely encapsulate all
+        # Thrift details in this module. If this was not done, callers of this
+        # function would have to import thriftpy2 in order to catch the
         # TTransportException, which then leaks thriftpy2.
         #
-        # NOTE: normally the GaasError exception is imported from the
-        # gaas_client.exceptions module, but since
-        # gaas_client.exceptions.GaasError is actually defined from the spec in
-        # this module, just use it directly from spec.
+        # NOTE: normally the CugraphServiceError exception is imported from the
+        # cugraph_service_client.exceptions module, but since
+        # cugraph_service_client.exceptions.CugraphServiceError is actually
+        # defined from the spec in this module, just use it directly from spec.
         #
         # FIXME: may need to have additional thrift exception handlers
         # FIXME: this exception being raised could use more detail
-        raise spec.GaasError("could not create a client session with a "
-                             "GaaS server")
+        raise spec.CugraphServiceError("could not create a client session with "
+                                       "a cugraph_service server")

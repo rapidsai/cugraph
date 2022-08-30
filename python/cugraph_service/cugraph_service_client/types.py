@@ -14,7 +14,7 @@
 
 import numpy
 
-from gaas_client.gaas_thrift import spec
+from cugraph_service_client.cugraph_service_thrift import spec
 
 Value = spec.Value
 GraphVertexEdgeID = spec.GraphVertexEdgeID

@@ -16,36 +16,36 @@ from functools import wraps
 from collections.abc import Sequence
 import pickle
 
-from gaas_client import defaults
-from gaas_client.types import ValueWrapper, GraphVertexEdgeID
-from gaas_client.gaas_thrift import create_client
+from cugraph_service_client import defaults
+from cugraph_service_client.types import ValueWrapper, GraphVertexEdgeID
+from cugraph_service_client.cugraph_service_thrift import create_client
 
 
-class GaasClient:
+class CugraphServiceClient:
     """
-    Client object for GaaS, which defines the API that clients can use to access
-    the GaaS server.
+    Client object for cugraph_service, which defines the API that clients can
+    use to access the cugraph_service server.
     """
     def __init__(self, host=defaults.host, port=defaults.port):
         """
-        Creates a connection to a GaaS server running on host/port.
+        Creates a connection to a cugraph_service server running on host/port.
 
         Parameters
         ----------
         host : string, defaults to 127.0.0.1
-            Hostname where the GaaS server is running
+            Hostname where the cugraph_service server is running
 
         port : int, defaults to 9090
-            Port number where the GaaS server is listening
+            Port number where the cugraph_service server is listening
 
         Returns
         -------
-        GaasClient object
+        CugraphServiceClient object
 
         Examples
         --------
-        >>> from gaas_client import GaasClient
-        >>> client = GaasClient()
+        >>> from cugraph_service_client import CugraphServiceClient
+        >>> client = CugraphServiceClient()
         """
         self.host = host
         self.port = port
@@ -104,8 +104,8 @@ class GaasClient:
 
         Examples
         --------
-        >>> from gaas_client import GaasClient
-        >>> client = GaasClient()
+        >>> from cugraph_service_client import CugraphServiceClient
+        >>> client = CugraphServiceClient()
         >>> # Manually open a connection. The connection is held open and other
         >>> # clients cannot connect until a client API call completes or
         >>> # close() is manually called.
@@ -132,8 +132,8 @@ class GaasClient:
 
         Examples
         --------
-        >>> from gaas_client import GaasClient
-        >>> client = GaasClient()
+        >>> from cugraph_service_client import CugraphServiceClient
+        >>> client = CugraphServiceClient()
         >>> # Have the client hold open the connect automatically opened as part
         >>> # of a server API call until close() is called. This is normally not
         >>> # necessary and shown here for demonstration purposes.
@@ -166,8 +166,8 @@ class GaasClient:
 
         Examples
         --------
-        >>> from gaas_client import GaasClient
-        >>> client = GaasClient()
+        >>> from cugraph_service_client import CugraphServiceClient
+        >>> client = CugraphServiceClient()
         >>> client.uptime()
         >>> 32
         """
@@ -191,8 +191,8 @@ class GaasClient:
 
         Examples
         --------
-        >>> from gaas_client import GaasClient
-        >>> client = GaasClient()
+        >>> from cugraph_service_client import CugraphServiceClient
+        >>> client = CugraphServiceClient()
         >>> client.get_server_info()
         >>> {'num_gpus': 2}
         """
@@ -221,8 +221,8 @@ class GaasClient:
 
         Examples
         --------
-        >>> from gaas_client import GaasClient
-        >>> client = GaasClient()
+        >>> from cugraph_service_client import CugraphServiceClient
+        >>> client = CugraphServiceClient()
         >>> num_files_read = client.load_graph_creation_extensions(
         ... "/some/server/side/directory")
         >>>
@@ -244,8 +244,8 @@ class GaasClient:
 
         Examples
         --------
-        >>> from gaas_client import GaasClient
-        >>> client = GaasClient()
+        >>> from cugraph_service_client import CugraphServiceClient
+        >>> client = CugraphServiceClient()
         >>> client.unload_graph_creation_extensions()
         >>>
         """
@@ -287,8 +287,8 @@ class GaasClient:
 
         Examples
         --------
-        >>> from gaas_client import GaasClient
-        >>> client = GaasClient()
+        >>> from cugraph_service_client import CugraphServiceClient
+        >>> client = CugraphServiceClient()
         >>> # Load the extension file containing "my_complex_create_graph()"
         >>> client.load_graph_creation_extensions("/some/server/side/directory")
         >>> new_graph_id = client.call_graph_creation_extension(
@@ -321,8 +321,8 @@ class GaasClient:
 
         Examples
         --------
-        >>> from gaas_client import GaasClient
-        >>> client = GaasClient()
+        >>> from cugraph_service_client import CugraphServiceClient
+        >>> client = CugraphServiceClient()
         >>> my_graph_id = client.create_graph()
         >>> # Load a CSV to the new graph
         >>> client.load_csv_as_edge_data(
@@ -341,7 +341,7 @@ class GaasClient:
         ----------
         graph_id : int
             The graph ID to delete. If the ID passed is not valid on the server,
-            GaaSError is raised.
+            CugraphServiceError is raised.
 
         Returns
         -------
@@ -349,8 +349,8 @@ class GaasClient:
 
         Examples
         --------
-        >>> from gaas_client import GaasClient
-        >>> client = GaasClient()
+        >>> from cugraph_service_client import CugraphServiceClient
+        >>> client = CugraphServiceClient()
         >>> my_graph_id = client.create_graph()
         >>> # Load a CSV to the new graph
         >>> client.load_csv_as_edge_data(
@@ -376,8 +376,8 @@ class GaasClient:
 
         Examples
         --------
-        >>> from gaas_client import GaasClient
-        >>> client = GaasClient()
+        >>> from cugraph_service_client import CugraphServiceClient
+        >>> client = CugraphServiceClient()
         >>> # This server already has graphs loaded from other sessions
         >>> client.get_graph_ids()
         [0, 26]
@@ -403,8 +403,8 @@ class GaasClient:
 
         Examples
         --------
-        >>> from gaas_client import GaasClient
-        >>> client = GaasClient()
+        >>> from cugraph_service_client import CugraphServiceClient
+        >>> client = CugraphServiceClient()
         >>> client.load_csv_as_vertex_data(
         ... "/server/path/to/vertex_data.csv",
         ... dtypes=["int32", "string", "int32"],
@@ -497,8 +497,8 @@ class GaasClient:
 
         Examples
         --------
-        >>> from gaas_client import GaasClient
-        >>> client = GaasClient()
+        >>> from cugraph_service_client import CugraphServiceClient
+        >>> client = CugraphServiceClient()
         >>> client.load_csv_as_vertex_data(
         ... "/server/path/to/vertex_data.csv",
         ... dtypes=["int32", "string", "int32"],
@@ -582,8 +582,8 @@ class GaasClient:
 
         Examples
         --------
-        >>> from gaas_client import GaasClient
-        >>> client = GaasClient()
+        >>> from cugraph_service_client import CugraphServiceClient
+        >>> client = CugraphServiceClient()
         >>> client.load_csv_as_edge_data(
         ... "/server/path/to/edge_data.csv",
         ... dtypes=["int32", "int32", "string", "int32"],
@@ -664,7 +664,7 @@ class GaasClient:
 
         graph_id : int, default is defaults.graph_id
            The graph ID to extract the subgraph from. If the ID passed is not
-           valid on the server, GaaSError is raised.
+           valid on the server, CugraphServiceError is raised.
 
         Returns
         -------
@@ -710,7 +710,7 @@ class GaasClient:
 
         graph_id : int, default is defaults.graph_id
            The graph ID to extract the subgraph from. If the ID passed is not
-           valid on the server, GaaSError is raised.
+           valid on the server, CugraphServiceError is raised.
 
         property_keys : list of strings (default [])
             The keys (names) of properties to retrieve.  If omitted, returns
@@ -759,7 +759,7 @@ class GaasClient:
 
         graph_id : int, default is defaults.graph_id
            The graph ID to extract the subgraph from. If the ID passed is not
-           valid on the server, GaaSError is raised.
+           valid on the server, CugraphServiceError is raised.
 
         property_keys : list of strings (default [])
             The keys (names) of properties to retrieve.  If omitted, returns
@@ -842,7 +842,7 @@ class GaasClient:
                                                                      radius,
                                                                      graph_id)
 
-        # FIXME: ensure dtypes are correct for values returned from cugraph.batched_ego_graphs() in gaas_handler.py
+        # FIXME: ensure dtypes are correct for values returned from cugraph.batched_ego_graphs() in cugraph_handler.py
         #return (numpy.frombuffer(batched_ego_graphs_result.src_verts, dtype="int32"),
         #        numpy.frombuffer(batched_ego_graphs_result.dst_verts, dtype="int32"),
         #        numpy.frombuffer(batched_ego_graphs_result.edge_weights, dtype="float64"),

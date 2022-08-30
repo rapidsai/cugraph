@@ -32,9 +32,9 @@ from cugraph.structure.graph_implementation.simpleDistributedGraph import (
     simpleDistributedGraphImpl,
 )
 
-from gaas_client import defaults
-from gaas_client.exceptions import GaasError
-from gaas_client.types import (
+from cugraph_service_client import defaults
+from cugraph_service_client.exceptions import CugraphServiceError
+from cugraph_service_client.types import (
     BatchedEgoGraphsResult,
     Node2vecResult,
     UniformNeighborSampleResult,
@@ -78,19 +78,19 @@ def call_algo(sg_algo_func, G, **kwargs):
 class ExtensionServerFacade:
     """
     Instances of this class are passed to server extension functions to be used
-    to access various aspects of the GaaS server from within the
-    extension. This provideas a means to insulate the GaaS handler (considered
-    here to be the "server") from direct access by end user extensions,
-    allowing extension code to query/access the server as needed without giving
-    extensions the ability to call potentially unsafe methods directly on the
-    GaasHandler.
+    to access various aspects of the cugraph_service_client server from within
+    the extension. This provideas a means to insulate the CugraphHandler
+    (considered here to be the "server") from direct access by end user
+    extensions, allowing extension code to query/access the server as needed
+    without giving extensions the ability to call potentially unsafe methods
+    directly on the CugraphHandler.
 
     An example is using an instance of a ExtensionServerFacade to allow a Graph
     creation extension to query the SG/MG state the server is using in order to
     determine how to create a Graph instance.
     """
-    def __init__(self, gaas_handler):
-        self.__handler = gaas_handler
+    def __init__(self, cugraph_handler):
+        self.__handler = cugraph_handler
 
     @property
     def is_mg(self):
@@ -104,14 +104,14 @@ class ExtensionServerFacade:
                 in self.__handler.get_server_info().items()}
 
 
-class GaasHandler:
+class CugraphHandler:
     """
-    Class which handles RPC requests for a GaasService.
+    Class which handles RPC requests for a cugraph_service server.
     """
 
     # The name of the param that should be set to a ExtensionServerFacade
     # instance for server extension functions.
-    __server_facade_extension_param_name = "gaas_server"
+    __server_facade_extension_param_name = "cugraph_service_server"
 
     def __init__(self):
         self.__next_graph_id = defaults.graph_id + 1
@@ -129,7 +129,8 @@ class GaasHandler:
     @property
     def is_mg(self):
         """
-        True if the GaasHandler has multiple GPUs available via a dask cluster.
+        True if the CugraphHandler has multiple GPUs available via a dask
+        cluster.
         """
         return self.__dask_client is not None
 
@@ -150,8 +151,9 @@ class GaasHandler:
         if self.__dask_client is not None:
             num_gpus = len(self.__dask_client.scheduler_info()["workers"])
         else:
-            # The assumption is that GaaS requires at least 1 GPU (ie.
-            # currently there is no CPU-only version of GaaS)
+            # The assumption is that cugraph_service server requires at least 1
+            # GPU (ie.  currently there is no CPU-only version of
+            # cugraph_service server)
             num_gpus = 1
 
         return {"num_gpus": ValueWrapper(num_gpus).union}
@@ -168,7 +170,7 @@ class GaasHandler:
         extension_dir = Path(extension_dir_path)
 
         if (not extension_dir.exists()) or (not extension_dir.is_dir()):
-            raise GaasError(f"bad directory: {extension_dir}")
+            raise CugraphServiceError(f"bad directory: {extension_dir}")
 
         num_files_read = 0
 
@@ -226,18 +228,20 @@ class GaasHandler:
                             func_kwargs[facade_param] = \
                                 ExtensionServerFacade(self)
                         else:
-                            raise GaasError(f"{facade_param}, if specified, "
-                                            "must be the last param.")
-
+                            raise CugraphServiceError(
+                                f"{facade_param}, if specified, must be the "
+                                "last param.")
                     try:
                         graph_obj = func(*func_args, **func_kwargs)
                     except:
                         # FIXME: raise a more detailed error
-                        raise GaasError(f"error running {func_name} : "
-                                        f"{traceback.format_exc()}")
+                        raise CugraphServiceError(
+                            f"error running {func_name} : "
+                            f"{traceback.format_exc()}")
                     return self.__add_graph(graph_obj)
 
-        raise GaasError(f"{func_name} is not a graph creation extension")
+        raise CugraphServiceError(
+            f"{func_name} is not a graph creation extension")
 
     def initialize_dask_client(self, dask_scheduler_file=None):
         """
@@ -289,7 +293,7 @@ class GaasHandler:
         """
         dG = self.__graph_objs.pop(graph_id, None)
         if dG is None:
-            raise GaasError(f"invalid graph_id {graph_id}")
+            raise CugraphServiceError(f"invalid graph_id {graph_id}")
 
         del dG
         print(f'deleted graph with id {graph_id}')
@@ -319,7 +323,7 @@ class GaasHandler:
         else:
             invalid_keys = set(keys) - valid_keys
             if len(invalid_keys) != 0:
-                raise GaasError(f"got invalid keys: {invalid_keys}")
+                raise CugraphServiceError(f"got invalid keys: {invalid_keys}")
 
         G = self._get_graph(graph_id)
         info = {}
@@ -394,7 +398,7 @@ class GaasHandler:
                                vertex_col_name=vertex_col_name,
                                property_columns=property_columns)
         except:
-            raise GaasError(f"{traceback.format_exc()}")
+            raise CugraphServiceError(f"{traceback.format_exc()}")
 
     def load_csv_as_edge_data(self,
                               csv_file_name,
@@ -434,7 +438,7 @@ class GaasHandler:
                              vertex_col_names=vertex_col_names,
                              property_columns=property_columns)
         except:
-            raise GaasError(f"{traceback.format_exc()}")
+            raise CugraphServiceError(f"{traceback.format_exc()}")
 
     def get_edge_IDs_for_vertices(self, src_vert_IDs, dst_vert_IDs, graph_id):
         """
@@ -450,9 +454,9 @@ class GaasHandler:
         """
         G = self._get_graph(graph_id)
         if isinstance(G, (PropertyGraph, MGPropertyGraph)):
-            raise GaasError("get_edge_IDs_for_vertices() only accepts an "
-                            "extracted subgraph ID, got an ID for a "
-                            f"{type(G)}.")
+            raise CugraphServiceError("get_edge_IDs_for_vertices() only "
+                                      "accepts an extracted subgraph ID, got "
+                                      f"an ID for a {type(G)}.")
 
         return self.__get_edge_IDs_from_graph_edge_data(G,
                                                         src_vert_IDs,
@@ -473,8 +477,8 @@ class GaasHandler:
         """
         pG = self._get_graph(graph_id)
         if not(isinstance(pG, (PropertyGraph, MGPropertyGraph))):
-            raise GaasError("extract_subgraph() can only be called on a graph "
-                            "with properties.")
+            raise CugraphServiceError("extract_subgraph() can only be called "
+                                      "on a graph with properties.")
         # Convert defaults needed for the RPC API into defaults used by
         # PropertyGraph.extract_subgraph()
         create_using = create_using or cugraph.Graph
@@ -492,7 +496,7 @@ class GaasHandler:
                                     renumber_graph,
                                     add_edge_data)
         except:
-            raise GaasError(f"{traceback.format_exc()}")
+            raise CugraphServiceError(f"{traceback.format_exc()}")
 
         return self.__add_graph(G)
 
@@ -547,44 +551,37 @@ class GaasHandler:
         if isinstance(G, (PropertyGraph, MGPropertyGraph)):
             return property_key in G.vertex_property_names
 
-        raise GaasError('Graph does not contain properties')
+        raise CugraphServiceError('Graph does not contain properties')
 
     def is_edge_property(self, property_key, graph_id):
         G = self._get_graph(graph_id)
         if isinstance(G, (PropertyGraph, MGPropertyGraph)):
             return property_key in G.edge_property_names
 
-        raise GaasError('Graph does not contain properties')
+        raise CugraphServiceError('Graph does not contain properties')
 
     ############################################################################
     # Algos
     def batched_ego_graphs(self, seeds, radius, graph_id):
         """
         """
-        st=time.time()
-        print("\n----- [GaaS] -----> starting egonet", flush=True)
         # FIXME: finish docstring above
         # FIXME: exception handling
         G = self._get_graph(graph_id)
         # FIXME: write test to catch an MGPropertyGraph being passed in
         if isinstance(G, PropertyGraph):
-            raise GaasError("batched_ego_graphs() cannot operate directly on "
-                            "a graph with properties, call extract_subgraph() "
-                            "then call batched_ego_graphs() on the extracted "
-                            "subgraph instead.")
+            raise CugraphServiceError("batched_ego_graphs() cannot operate "
+                                      "directly on a graph with properties, "
+                                      "call extract_subgraph() then call "
+                                      "batched_ego_graphs() on the extracted "
+                                      "subgraph instead.")
         try:
             # FIXME: this should not be needed, need to update
             # cugraph.batched_ego_graphs to also accept a list
             seeds = cudf.Series(seeds, dtype="int32")
-            st2=time.time()
-            print("  ----- [GaaS] -----> calling cuGraph", flush=True)
             (ego_edge_list, seeds_offsets) = \
                 cugraph.batched_ego_graphs(G, seeds, radius)
 
-            print(f"  ----- [GaaS] -----> FINISHED calling cuGraph, time was: {time.time()-st2}s", flush=True)
-            st2=time.time()
-            print("  ----- [GaaS] -----> copying to host", flush=True)
-            print(f"  ----- [GaaS] -----> {len(ego_edge_list['src'])} num edges", flush=True)
             #batched_ego_graphs_result = BatchedEgoGraphsResult(
             #    src_verts=ego_edge_list["src"].values_host.tobytes(),  #int32
             #    dst_verts=ego_edge_list["dst"].values_host.tobytes(),  #int32
@@ -597,12 +594,10 @@ class GaasHandler:
                 edge_weights=ego_edge_list["weight"].values_host,
                 seeds_offsets=seeds_offsets.values_host
             )
-            print(f"  ----- [GaaS] -----> FINISHED copying to host, time was: {time.time()-st2}s", flush=True)
             return batched_ego_graphs_result
         except:
-            raise GaasError(f"{traceback.format_exc()}")
+            raise CugraphServiceError(f"{traceback.format_exc()}")
 
-        print(f"----- [GaaS] -----> FINISHED egonet, time was: {time.time()-st}s", flush=True)
         return batched_ego_graphs_result
 
     def node2vec(self, start_vertices, max_depth, graph_id):
@@ -613,13 +608,15 @@ class GaasHandler:
         G = self._get_graph(graph_id)
         # FIXME: write test to catch an MGPropertyGraph being passed in
         if isinstance(G, PropertyGraph):
-            raise GaasError("node2vec() cannot operate directly on a graph with"
-                            " properties, call extract_subgraph() then call "
-                            "node2vec() on the extracted subgraph instead.")
+            raise CugraphServiceError("node2vec() cannot operate directly on "
+                                      "a graph with properties, call "
+                                      "extract_subgraph() then call "
+                                      "node2vec() on the extracted subgraph "
+                                      "instead.")
 
         try:
-            # FIXME: this should not be needed, need to update cugraph.node2vec to
-            # also accept a list
+            # FIXME: this should not be needed, need to update cugraph.node2vec
+            # to also accept a list
             start_vertices = cudf.Series(start_vertices, dtype="int32")
 
             (paths, weights, path_sizes) = \
@@ -631,7 +628,7 @@ class GaasHandler:
                 path_sizes = path_sizes.values_host,
             )
         except:
-            raise GaasError(f"{traceback.format_exc()}")
+            raise CugraphServiceError(f"{traceback.format_exc()}")
 
         return node2vec_result
 
@@ -643,11 +640,11 @@ class GaasHandler:
                                 ):
         G = self._get_graph(graph_id)
         if isinstance(G, (MGPropertyGraph, PropertyGraph)):
-            raise GaasError("uniform_neighbor_sample() cannot operate directly "
-                            "on a graph with properties, call "
-                            "extract_subgraph() then call "
-                            "uniform_neighbor_sample() on the extracted "
-                            "subgraph instead.")
+            raise CugraphServiceError("uniform_neighbor_sample() cannot "
+                                      "operate directly on a graph with "
+                                      "properties, call extract_subgraph() "
+                                      "then call uniform_neighbor_sample() "
+                                      "on the extracted subgraph instead.")
 
         return call_algo(
             uniform_neighbor_sample,
@@ -665,7 +662,7 @@ class GaasHandler:
 
     ############################################################################
     # "Protected" interface - used for both implementation and test/debug. Will
-    # not be exposed to a GaaS client.
+    # not be exposed to a cugraph_service client.
     def _get_graph(self, graph_id):
         """
         Return the cuGraph Graph object associated with graph_id.
@@ -682,7 +679,7 @@ class GaasHandler:
                 pG = self.__create_graph()
                 self.__graph_objs[graph_id] = pG
             else:
-                raise GaasError(f"invalid graph_id {graph_id}")
+                raise CugraphServiceError(f"invalid graph_id {graph_id}")
 
         return pG
 
@@ -810,4 +807,4 @@ class GaasHandler:
             return df_numpy.dumps()
 
         except:
-            raise GaasError(f"{traceback.format_exc()}")
+            raise CugraphServiceError(f"{traceback.format_exc()}")

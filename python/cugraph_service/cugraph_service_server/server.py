@@ -15,19 +15,19 @@
 import argparse
 from pathlib import Path
 
-from gaas_client import defaults
-from gaas_client.gaas_thrift import create_server
-from gaas_server.gaas_handler import GaasHandler
+from cugraph_service_client import defaults
+from cugraph_service_client.cugraph_service_thrift import create_server
+from cugraph_service_server.cugraph_handler import CugraphHandler
 
 
 def create_handler(graph_creation_extension_dir=None,
                    dask_scheduler_file=None):
     """
-    Create and return a GaasHandler instance initialized with options. Setting
-    graph_creation_extension_dir to a valid dir results in the handler loading
-    graph creation extensions from that dir.
+    Create and return a CugraphHandler instance initialized with
+    options. Setting graph_creation_extension_dir to a valid dir results in the
+    handler loading graph creation extensions from that dir.
     """
-    handler = GaasHandler()
+    handler = CugraphHandler()
     if graph_creation_extension_dir is not None:
         handler.load_graph_creation_extensions(graph_creation_extension_dir)
     if dask_scheduler_file is not None:
@@ -39,16 +39,15 @@ def create_handler(graph_creation_extension_dir=None,
 
 def start_server_blocking(handler, host, port):
     """
-    Start the GaaS server on host/port, using handler as the request handler
-    instance. This call blocks indefinitely until Ctrl-C.
+    Start the cugraph_service server on host/port, using handler as the request
+    handler instance. This call blocks indefinitely until Ctrl-C.
     """
     server = create_server(handler, host=host, port=port)
     server.serve()  # blocks until Ctrl-C (kill -2)
 
 
 if __name__ == "__main__":
-    arg_parser = argparse.ArgumentParser(
-        description="GaaS - (cu)Graph as a Service")
+    arg_parser = argparse.ArgumentParser()
     arg_parser.add_argument("--host",
                             type=str,
                             default=defaults.host,
@@ -70,6 +69,6 @@ if __name__ == "__main__":
     args = arg_parser.parse_args()
     handler = create_handler(args.graph_creation_extension_dir,
                              args.dask_scheduler_file)
-    print("Starting GaaS...", flush=True)
+    print("Starting the cugraph_service server...", flush=True)
     start_server_blocking(handler, args.host, args.port)
     print("done.")

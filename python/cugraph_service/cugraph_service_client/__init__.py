@@ -12,4 +12,4 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from gaas_client.client import GaasClient
+from cugraph_service_client.client import CugraphServiceClient
