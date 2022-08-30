@@ -327,72 +327,70 @@ def test_call_graph_creation_extension(client):
     assert client.get_graph_info(["num_edges"], new_graph_ID) == 3
 
 
-def test_get_graph_vertex_dataframe_rows(client_with_property_csvs_loaded):
+def test_get_graph_vertex_data(client_with_property_csvs_loaded):
     (client, test_data) = client_with_property_csvs_loaded
 
     # FIXME: do not hardcode the shape values, get them from the input data.
-    np_array_all_rows = client.get_graph_vertex_dataframe_rows()
-    assert np_array_all_rows.shape == (9, 7)
+    np_array_all_vertex_data = client.get_graph_vertex_data()
+    assert np_array_all_vertex_data.shape == (9, 9)
 
-    # The remaining tests get individual rows - compare those to the all_rows
-    # retrieved earlier.
-    rows = [0, 1, 2]
-    np_array = client.get_graph_vertex_dataframe_rows(rows)
-    assert np_array.shape == (3, 7)
-    for (idx, all_rows_idx) in enumerate(rows):
-        assert (np_array[idx] == np_array_all_rows[all_rows_idx]).all()
+    # The remaining tests get individual vertex data - compare those to the
+    # all_vertex_data retrieved earlier.
+    vert_ids = [11, 86, 89021]
+    np_array = client.get_graph_vertex_data(vert_ids)
+    assert np_array.shape == (3, 9)
+    # The 1st element is the vert ID
+    for (i, vid) in enumerate(vert_ids):
+        assert np_array[i][0] == vid
 
-    np_array = client.get_graph_vertex_dataframe_rows(0)
-    assert np_array.shape == (1, 7)
-    assert (np_array[0] == np_array_all_rows[0]).all()
+    np_array = client.get_graph_vertex_data(11)
+    assert np_array.shape == (1, 9)
+    assert np_array[0][0] == 11
 
-    np_array = client.get_graph_vertex_dataframe_rows(1)
-    assert np_array.shape == (1, 7)
-    assert (np_array[0] == np_array_all_rows[1]).all()
+    np_array = client.get_graph_vertex_data(86)
+    assert np_array.shape == (1, 9)
+    assert np_array[0][0] == 86
 
 
-def test_get_graph_vertex_dataframe_shape(client_with_property_csvs_loaded):
+def test_get_graph_edge_data(client_with_property_csvs_loaded):
+    (client, test_data) = client_with_property_csvs_loaded
+
+    # FIXME: do not hardcode the shape values, get them from the input data.
+    np_array_all_rows = client.get_graph_edge_data()
+    assert np_array_all_rows.shape == (17, 11)
+
+    # The remaining tests get individual edge data - compare those to the
+    # all_edge_data retrieved earlier.
+    edge_ids = [0, 1, 2]
+    np_array = client.get_graph_edge_data(edge_ids)
+    assert np_array.shape == (3, 11)
+    # The 3rd element is the edge ID
+    for (i, eid) in enumerate(edge_ids):
+        assert np_array[i][2] == eid
+
+    np_array = client.get_graph_edge_data(0)
+    assert np_array.shape == (1, 11)
+    assert np_array[0][2] == 0
+
+    np_array = client.get_graph_edge_data(1)
+    assert np_array.shape == (1, 11)
+    assert np_array[0][2] == 1
+
+
+def test_get_graph_info(client_with_property_csvs_loaded):
     (client, test_data) = client_with_property_csvs_loaded
 
     info = client.get_graph_info(["num_vertices",
                                   "num_vertex_properties"])
-    shape = (info["num_vertices"],
-             info["num_vertex_properties"])
-    # FIXME: do not hardcode the shape values, get them from the input data.
-    assert shape == (9, 7)
-
-
-def test_get_graph_edge_dataframe_rows(client_with_property_csvs_loaded):
-    (client, test_data) = client_with_property_csvs_loaded
-
-    # FIXME: do not hardcode the shape values, get them from the input data.
-    np_array_all_rows = client.get_graph_edge_dataframe_rows()
-    assert np_array_all_rows.shape == (17, 7)
-
-    # The remaining tests get individual rows - compare those to the all_rows
-    # retrieved earlier.
-    rows = [0, 1, 2]
-    np_array = client.get_graph_edge_dataframe_rows(rows)
-    assert np_array.shape == (3, 7)
-    for (idx, all_rows_idx) in enumerate(rows):
-        assert (np_array[idx] == np_array_all_rows[all_rows_idx]).all()
-
-    np_array = client.get_graph_edge_dataframe_rows(0)
-    assert np_array.shape == (1, 7)
-    assert (np_array[0] == np_array_all_rows[0]).all()
-
-    np_array = client.get_graph_edge_dataframe_rows(1)
-    assert np_array.shape == (1, 7)
-    assert (np_array[0] == np_array_all_rows[1]).all()
-
-
-def test_get_graph_edge_dataframe_shape(client_with_property_csvs_loaded):
-    (client, test_data) = client_with_property_csvs_loaded
+    data = (info["num_vertices"],
+            info["num_vertex_properties"])
+    # FIXME: do not hardcode values, get them from the input data.
+    assert data == (9, 7)
 
     info = client.get_graph_info(["num_edges", "num_edge_properties"])
-    shape = (info["num_edges"], info["num_edge_properties"])
-    # FIXME: do not hardcode the shape values, get them from the input data.
-    assert shape == (17, 7)
+    data = (info["num_edges"], info["num_edge_properties"])
+    # FIXME: do not hardcode values, get them from the input data.
+    assert data == (17, 7)
 
 
 def test_batched_ego_graphs(client_with_edgelist_csv_loaded):

@@ -14,6 +14,7 @@
 
 import os
 from pathlib import Path
+import pickle
 
 import pytest
 
@@ -32,7 +33,7 @@ def mg_handler():
     dask_scheduler_file = os.environ.get("SCHEDULER_FILE")
     if dask_scheduler_file is None:
         raise EnvironmentError("Environment variable SCHEDULER_FILE must be set"
-                               "to the path to a dask scheduler json file")
+                               " to the path to a dask scheduler json file")
     dask_scheduler_file = Path(dask_scheduler_file)
     if not dask_scheduler_file.exists():
         raise FileNotFoundError("env var SCHEDULER_FILE is set to "
@@ -46,13 +47,17 @@ def mg_handler():
 # Make this a function-level fixture so it cleans up the mg_handler after each
 # test, allowing other tests to use mg_handler without graphs loaded.
 @pytest.fixture(scope="function")
-def handler_with_edgelist_csv_loaded(mg_handler):
+def handler_with_karate_edgelist_loaded(mg_handler):
     """
     Loads the karate CSV into the default graph in the handler.
     """
     from gaas_client import defaults
 
     test_data = data.edgelist_csv_data["karate"]
+
+    # Ensure the handler starts with no graphs in memory
+    for gid in mg_handler.get_graph_ids():
+        mg_handler.delete_graph(gid)
 
     mg_handler.load_csv_as_edge_data(test_data["csv_file_name"],
                                      delimiter=" ",
@@ -75,12 +80,98 @@ def handler_with_edgelist_csv_loaded(mg_handler):
 ###############################################################################
 ## tests
 
-def test_get_edge_IDs_for_vertices(handler_with_edgelist_csv_loaded):
+# FIXME: consolidate this with the SG version of this test.
+def test_get_graph_data_large_vertex_ids(
+        mg_handler,
+        graph_creation_extension_big_vertex_ids,
+        ):
     """
+    Test that graphs with large vertex ID values (>int32) are handled.
     """
+    handler = mg_handler
+    extension_dir = graph_creation_extension_big_vertex_ids
+
+    # Load the extension and ensure it can be called.
+    handler.load_graph_creation_extensions(extension_dir)
+    new_graph_id = handler.call_graph_creation_extension(
+        "graph_creation_function_vert_and_edge_data_big_vertex_ids", "()", "{}")
+
+    invalid_vert_id = 2
+    vert_data = handler.get_graph_vertex_data(
+    id_or_ids=invalid_vert_id,
+        null_replacement_value=0,
+        graph_id=new_graph_id,
+        property_keys=None)
+
+    assert len(pickle.loads(vert_data)) == 0
+
+    large_vert_id = (2**32)+1
+    vert_data = handler.get_graph_vertex_data(
+        id_or_ids=large_vert_id,
+        null_replacement_value=0,
+        graph_id=new_graph_id,
+        property_keys=None)
+
+    assert len(pickle.loads(vert_data)) == 1
+
+    invalid_edge_id = (2**32)+1
+    edge_data = handler.get_graph_edge_data(
+    id_or_ids=invalid_edge_id,
+        null_replacement_value=0,
+        graph_id=new_graph_id,
+        property_keys=None)
+
+    assert len(pickle.loads(edge_data)) == 0
+
+    small_edge_id = 2
+    edge_data = handler.get_graph_edge_data(
+        id_or_ids=small_edge_id,
+        null_replacement_value=0,
+        graph_id=new_graph_id,
+        property_keys=None)
+
+    assert len(pickle.loads(edge_data)) == 1
+
+
+# FIXME: consolidate this with the SG version of this test.
+def test_get_graph_data_empty_graph(
+        mg_handler,
+        graph_creation_extension_empty_graph,
+        ):
+    """
+    Tests that get_graph_*_data() handles empty graphs correctly.
+    """
+    handler = mg_handler
+    extension_dir = graph_creation_extension_empty_graph
+
+    # Load the extension and ensure it can be called.
+    handler.load_graph_creation_extensions(extension_dir)
+    new_graph_id = handler.call_graph_creation_extension(
+        "graph_creation_function", "()", "{}")
+
+    invalid_vert_id = 2
+    vert_data = handler.get_graph_vertex_data(
+        id_or_ids=invalid_vert_id,
+        null_replacement_value=0,
+        graph_id=new_graph_id,
+        property_keys=None)
+
+    assert len(pickle.loads(vert_data)) == 0
+
+    invalid_edge_id = 2
+    edge_data = handler.get_graph_edge_data(
+        id_or_ids=invalid_vert_id,
+        null_replacement_value=0,
+        graph_id=new_graph_id,
+        property_keys=None)
+
+    assert len(pickle.loads(edge_data)) == 0
+
+
+def test_get_edge_IDs_for_vertices(handler_with_karate_edgelist_loaded):
     from gaas_client import defaults
 
-    (handler, test_data) = handler_with_edgelist_csv_loaded
+    (handler, test_data) = handler_with_karate_edgelist_loaded
 
     # Use the test/debug API to ensure the correct type was created
     assert "MG" in handler.get_graph_type(defaults.graph_id)
@@ -102,14 +193,18 @@ def test_get_edge_IDs_for_vertices(handler_with_edgelist_csv_loaded):
     assert eIDs == [0, 1, 2]
 
 
-def test_get_graph_edge_dataframe_shape(handler_with_edgelist_csv_loaded):
+def test_get_graph_info(handler_with_karate_edgelist_loaded):
     """
+    get_graph_info() for specific args.
     """
     from gaas_client import defaults
     from gaas_client.types import ValueWrapper
 
-    (handler, test_data) = handler_with_edgelist_csv_loaded
+    (handler, test_data) = handler_with_karate_edgelist_loaded
 
+    # A common use of get_graph_info() is to get the "shape" of the data,
+    # meaning the number of vertices/edges by the number of properites per
+    # edge/vertex.
     info = handler.get_graph_info(["num_edges", "num_edge_properties"],
                                   defaults.graph_id)
     # info is a dictionary containing gaas_client.types.Value objs, so access
@@ -118,22 +213,9 @@ def test_get_graph_edge_dataframe_shape(handler_with_edgelist_csv_loaded):
              ValueWrapper(info["num_edge_properties"]).get_py_obj())
     assert shape == (156, 1)  # The single edge property is the weight
 
-
-def test_get_graph_vertex_dataframe_shape(handler_with_edgelist_csv_loaded):
-    """
-    A graph created from an edgelist CSV will not have vertex data, so ensure
-    the shape is returned correctly.
-    """
-    from gaas_client import defaults
-    from gaas_client.types import ValueWrapper
-
-    (handler, test_data) = handler_with_edgelist_csv_loaded
-
     info = handler.get_graph_info(["num_vertices_from_vertex_data",
                                    "num_vertex_properties"],
                                   defaults.graph_id)
-    # info is a dictionary containing gaas_client.types.Value objs, so access
-    # the int32 member directly for easy comparison.
     shape = (ValueWrapper(info["num_vertices_from_vertex_data"]).get_py_obj(),
              ValueWrapper(info["num_vertex_properties"]).get_py_obj())
     assert shape == (0, 0)
@@ -162,11 +244,11 @@ def test_get_graph_info_defaults(mg_handler):
     assert expected == actual
 
 
-def test_uniform_neighbor_sampling(handler_with_edgelist_csv_loaded):
+def test_uniform_neighbor_sampling(handler_with_karate_edgelist_loaded):
     from gaas_client.exceptions import GaasError
     from gaas_client import defaults
 
-    (handler, test_data) = handler_with_edgelist_csv_loaded
+    (handler, test_data) = handler_with_karate_edgelist_loaded
 
     start_list = [1, 2, 3]
     fanout_vals = [2, 2, 2]

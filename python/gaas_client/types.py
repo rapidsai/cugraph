@@ -17,7 +17,7 @@ import numpy
 from gaas_client.gaas_thrift import spec
 
 Value = spec.Value
-DataframeRowIndex = spec.DataframeRowIndex
+GraphVertexEdgeID = spec.GraphVertexEdgeID
 BatchedEgoGraphsResult = spec.BatchedEgoGraphsResult
 Node2vecResult = spec.Node2vecResult
 UniformNeighborSampleResult = spec.UniformNeighborSampleResult
@@ -62,21 +62,21 @@ class ValueWrapper(UnionWrapper):
                             f"{type(val)}")
 
 
-class DataframeRowIndexWrapper(UnionWrapper):
-    def __init__(self, val, val_name="dataframe_row_index"):
-        if isinstance(val, DataframeRowIndex):
+class GraphVertexEdgeIDWrapper(UnionWrapper):
+    def __init__(self, val, val_name="id"):
+        if isinstance(val, GraphVertexEdgeID):
             self.union = val
         elif isinstance(val, int):
             if val >= 4294967296:
-                self.union = DataframeRowIndex(int64_index=val)
+                self.union = GraphVertexEdgeID(int64_id=val)
             else:
-                self.union = DataframeRowIndex(int632_index=val)
+                self.union = GraphVertexEdgeID(int32_id=val)
         elif isinstance(val, list):
             # FIXME: this only check the first item, others could be larger
             if val[0] >= 4294967296:
-                self.union = DataframeRowIndex(int64_indices=val)
+                self.union = GraphVertexEdgeID(int64_ids=val)
             else:
-                self.union = DataframeRowIndex(int32_indices=val)
+                self.union = GraphVertexEdgeID(int32_ids=val)
         else:
             raise TypeError(f"{val_name} must be one of the "
                             "following types: [int, list<int>], got "

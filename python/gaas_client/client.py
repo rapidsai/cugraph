@@ -17,7 +17,7 @@ from collections.abc import Sequence
 import pickle
 
 from gaas_client import defaults
-from gaas_client.types import ValueWrapper, DataframeRowIndex
+from gaas_client.types import ValueWrapper, GraphVertexEdgeID
 from gaas_client.gaas_thrift import create_client
 
 
@@ -693,18 +693,18 @@ class GaasClient:
                                               graph_id)
 
     @__server_connection
-    def get_graph_vertex_dataframe_rows(self,
-                                        index_or_indices=-1,
-                                        null_replacement_value=0,
-                                        graph_id=defaults.graph_id,
-                                        property_keys=None
-                                        ):
+    def get_graph_vertex_data(self,
+                              id_or_ids=-1,
+                              null_replacement_value=0,
+                              graph_id=defaults.graph_id,
+                              property_keys=None
+                              ):
         """
         Returns ...
 
         Parameters
         ----------
-        index_or_indices :
+        id_or_ids : int or list of ints (default -1)
 
         null_replacement_value : number or string (default 0)
 
@@ -725,14 +725,14 @@ class GaasClient:
         """
         # FIXME: finish docstring above
 
-        df_row_index_obj = self.__get_dataframe_row_index_obj(index_or_indices)
+        vertex_edge_id_obj = self.__get_vertex_edge_id_obj(id_or_ids)
         null_replacement_value_obj = ValueWrapper(
             null_replacement_value,
             val_name="null_replacement_value").union
 
         ndarray_bytes = \
-            self.__client.get_graph_vertex_dataframe_rows(
-                df_row_index_obj,
+            self.__client.get_graph_vertex_data(
+                vertex_edge_id_obj,
                 null_replacement_value_obj,
                 graph_id,
                 property_keys or []
@@ -742,18 +742,18 @@ class GaasClient:
 
 
     @__server_connection
-    def get_graph_edge_dataframe_rows(self,
-                                      index_or_indices=-1,
-                                      null_replacement_value=0,
-                                      graph_id=defaults.graph_id,
-                                      property_keys=None
-                                      ):
+    def get_graph_edge_data(self,
+                            id_or_ids=-1,
+                            null_replacement_value=0,
+                            graph_id=defaults.graph_id,
+                            property_keys=None
+                            ):
         """
         Returns ...
 
         Parameters
         ----------
-        index_or_indices :
+        id_or_ids : int or list of ints (default -1)
 
         null_replacement_value : number or string (default 0)
 
@@ -774,14 +774,14 @@ class GaasClient:
         """
         # FIXME: finish docstring above
 
-        df_row_index_obj = self.__get_dataframe_row_index_obj(index_or_indices)
+        vertex_edge_id_obj = self.__get_vertex_edge_id_obj(id_or_ids)
         null_replacement_value_obj = ValueWrapper(
             null_replacement_value,
             val_name="null_replacement_value").union
 
         ndarray_bytes = \
-            self.__client.get_graph_edge_dataframe_rows(
-                df_row_index_obj,
+            self.__client.get_graph_edge_data(
+                vertex_edge_id_obj,
                 null_replacement_value_obj,
                 graph_id,
                 property_keys or []
@@ -943,10 +943,10 @@ class GaasClient:
     ############################################################################
     # Private
     @staticmethod
-    def __get_dataframe_row_index_obj(index_or_indices):
+    def __get_vertex_edge_id_obj(id_or_ids):
         # FIXME: do not assume all values are int32
-        if isinstance(index_or_indices, Sequence):
-            df_row_index_obj = DataframeRowIndex(int32_indices=index_or_indices)
+        if isinstance(id_or_ids, Sequence):
+            vert_edge_id_obj = GraphVertexEdgeID(int32_ids=id_or_ids)
         else:
-            df_row_index_obj = DataframeRowIndex(int32_index=index_or_indices)
-        return df_row_index_obj
+            vert_edge_id_obj = GraphVertexEdgeID(int32_id=id_or_ids)
+        return vert_edge_id_obj

@@ -63,11 +63,11 @@ struct UniformNeighborSampleResult {
   3:list<double> indices
 }
 
-union DataframeRowIndex {
-  1:i32 int32_index
-  2:i64 int64_index
-  3:list<i32> int32_indices
-  4:list<i64> int64_indices
+union GraphVertexEdgeID {
+  1:i32 int32_id
+  2:i64 int64_id
+  3:list<i32> int32_ids
+  4:list<i64> int64_ids
 }
 
 union Value {
@@ -145,17 +145,17 @@ service GaasService {
                        8:i32 graph_id
                        ) throws (1:GaasError e),
 
-  binary get_graph_vertex_dataframe_rows(1:DataframeRowIndex index_or_indices,
-                                         2:Value null_replacement_value,
-                                         3:i32 graph_id,
-                                         4:list<string> property_keys
-                                         ) throws (1:GaasError e),
+  binary get_graph_vertex_data(1:GraphVertexEdgeID vertex_id,
+                               2:Value null_replacement_value,
+                               3:i32 graph_id,
+                               4:list<string> property_keys
+                               ) throws (1:GaasError e),
 
-  binary get_graph_edge_dataframe_rows(1:DataframeRowIndex index_or_indices,
-                                       2:Value null_replacement_value
-                                       3:i32 graph_id,
-                                       4:list<string> property_keys
-                                       ) throws (1:GaasError e),
+  binary get_graph_edge_data(1:GraphVertexEdgeID edge_id,
+                             2:Value null_replacement_value
+                             3:i32 graph_id,
+                             4:list<string> property_keys
+                             ) throws (1:GaasError e),
 
   bool is_vertex_property(1:string property_key,
                           2:i32 graph_id) throws (1:GaasError e),
@@ -176,7 +176,7 @@ service GaasService {
            2:i32 max_depth,
            3:i32 graph_id
            ) throws (1:GaasError e),
-  
+
   UniformNeighborSampleResult
   uniform_neighbor_sample(1:list<i32> start_list,
                               2:list<i32> fanout_vals,

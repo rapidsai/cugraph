@@ -18,6 +18,7 @@ import time
 import traceback
 from inspect import signature
 
+import numpy as np
 import cudf
 import dask_cudf
 import cugraph
@@ -38,7 +39,7 @@ from gaas_client.types import (
     Node2vecResult,
     UniformNeighborSampleResult,
     ValueWrapper,
-    DataframeRowIndexWrapper,
+    GraphVertexEdgeIDWrapper,
 )
 
 
@@ -92,8 +93,8 @@ class ExtensionServerFacade:
         self.__handler = gaas_handler
 
     @property
-    def mg(self):
-        return self.__handler.mg
+    def is_mg(self):
+        return self.__handler.is_mg
 
     def get_server_info(self):
         # The handler returns objects suitable for serialization over RPC so
@@ -126,7 +127,7 @@ class GaasHandler:
     ############################################################################
     # Environment management
     @property
-    def mg(self):
+    def is_mg(self):
         """
         True if the GaasHandler has multiple GPUs available via a dask cluster.
         """
@@ -495,61 +496,63 @@ class GaasHandler:
 
         return self.__add_graph(G)
 
-    def get_graph_vertex_dataframe_rows(self,
-                                        index_or_indices,
-                                        null_replacement_value,
-                                        graph_id,
-                                        property_keys):
+    def get_graph_vertex_data(self,
+                              id_or_ids,
+                              null_replacement_value,
+                              graph_id,
+                              property_keys):
         """
-        """
-        pG = self._get_graph(graph_id)
-
-        # FIXME: consider a better API on PG for getting tabular vertex data, or
-        # just make the "internal" _vertex_prop_dataframe a proper public API.
-        # FIXME: this should not assume _vertex_prop_dataframe != None
-        df = self.__get_dataframe_from_user_props(
-            pG._vertex_prop_dataframe,
-            property_keys
-        )
-
-        return self.__get_dataframe_rows_as_numpy_bytes(df,
-                                                        index_or_indices,
-                                                        null_replacement_value)
-
-    def get_graph_edge_dataframe_rows(self,
-                                      index_or_indices,
-                                      null_replacement_value,
-                                      graph_id,
-                                      property_keys):
-        """
+        Returns the vertex data as a serialized numpy array for the given
+        id_or_ids.  null_replacement_value must be provided if the data
+        contains NA values, since NA values cannot be serialized.
         """
         pG = self._get_graph(graph_id)
+        ids = GraphVertexEdgeIDWrapper(id_or_ids).get_py_obj()
+        if ids == -1:
+            ids = None
+        elif not isinstance(ids, list):
+            ids = [ids]
+        if property_keys == []:
+            columns = None
+        else:
+            columns = property_keys
+        df = pG.get_vertex_data(vertex_ids=ids, columns=columns)
+        return self.__get_graph_data_as_numpy_bytes(df, null_replacement_value)
 
-        # FIXME: consider a better API on PG for getting tabular edge data, or
-        # just make the "internal" _edge_prop_dataframe a proper public API.
-        # FIXME: this should not assume _edge_prop_dataframe != None
-        df = self.__get_dataframe_from_user_props(
-            pG._edge_prop_dataframe,
-            property_keys
-        )
-
-        print(f'asked for edge indices: {index_or_indices}')
-
-        return self.__get_dataframe_rows_as_numpy_bytes(df,
-                                                        index_or_indices,
-                                                        null_replacement_value)
+    def get_graph_edge_data(self,
+                            id_or_ids,
+                            null_replacement_value,
+                            graph_id,
+                            property_keys):
+        """
+        Returns the edge data as a serialized numpy array for the given
+        id_or_ids.  null_replacement_value must be provided if the data
+        contains NA values, since NA values cannot be serialized.
+        """
+        pG = self._get_graph(graph_id)
+        ids = GraphVertexEdgeIDWrapper(id_or_ids).get_py_obj()
+        if ids == -1:
+            ids = None
+        elif not isinstance(ids, list):
+            ids = [ids]
+        if property_keys == []:
+            columns = None
+        else:
+            columns = property_keys
+        df = pG.get_edge_data(edge_ids=ids, columns=columns)
+        return self.__get_graph_data_as_numpy_bytes(df, null_replacement_value)
 
     def is_vertex_property(self, property_key, graph_id):
         G = self._get_graph(graph_id)
-        if isinstance(G, PropertyGraph):
-            return property_key in G._vertex_prop_dataframe
+        if isinstance(G, (PropertyGraph, MGPropertyGraph)):
+            return property_key in G.vertex_property_names
 
         raise GaasError('Graph does not contain properties')
 
     def is_edge_property(self, property_key, graph_id):
         G = self._get_graph(graph_id)
-        if isinstance(G, PropertyGraph):
-            return property_key in G._edge_prop_dataframe
+        if isinstance(G, (PropertyGraph, MGPropertyGraph)):
+            return property_key in G.edge_property_names
 
         raise GaasError('Graph does not contain properties')
 
@@ -701,7 +704,7 @@ class GaasHandler:
                             dtype=dtypes,
                             header=header,
                             names=names)
-        if self.mg:
+        if self.is_mg:
             num_gpus = len(self.__dask_client.scheduler_info()["workers"])
             return dask_cudf.from_cudf(gdf, npartitions=num_gpus)
 
@@ -722,7 +725,7 @@ class GaasHandler:
         Instantiate a graph object using a type appropriate for the handler (
         either SG or MG)
         """
-        return MGPropertyGraph() if self.mg else PropertyGraph()
+        return MGPropertyGraph() if self.is_mg else PropertyGraph()
 
     # FIXME: consider adding this to PropertyGraph
     def __remove_internal_columns(self, pg_column_names):
@@ -746,30 +749,6 @@ class GaasHandler:
                 user_visible_column_names.remove(internal_column_name)
 
         return user_visible_column_names
-
-    # FIXME: consider adding this to PropertyGraph
-    def __get_dataframe_from_user_props(self, dataframe, columns=None):
-        """
-        """
-        remove_columns = []
-        if columns is not None:
-            remove_columns = [c[1:] for c in columns if c[0] == '~']
-            columns = [c for c in columns if c[0] != '~']
-
-        if columns is None or len(columns) == 0:
-            all_user_columns = list(dataframe.columns)
-            all_user_columns = self.__remove_internal_columns(all_user_columns)
-            for neg_col in remove_columns:
-                if neg_col in all_user_columns:
-                    all_user_columns.remove(neg_col)
-        else:
-            all_user_columns = columns
-
-        # This should NOT be a copy of the dataframe data
-        try:
-            return dataframe[all_user_columns]
-        except KeyError as ke:
-            raise GaasError(f'KeyError({ke.args[-1]})')
 
     # FIXME: consider adding this to PropertyGraph
     def __get_edge_IDs_from_graph_edge_data(self,
@@ -798,38 +777,37 @@ class GaasHandler:
 
             # FIXME: This will compute the result (if using dask) then transfer
             # to host memory for each iteration - is there a more efficient way?
-            if self.mg:
+            if self.is_mg:
                 value = value.compute()
             edge_IDs.append(value.values_host[0])
 
         return edge_IDs
 
-    def __get_dataframe_rows_as_numpy_bytes(self,
-                                            dataframe,
-                                            index_or_indices,
-                                            null_replacement_value):
+    def __get_graph_data_as_numpy_bytes(self,
+                                        dataframe,
+                                        null_replacement_value):
         """
+        Returns a byte array repr of the vertex or edge graph data. Since the byte
+        array cannot represent NA values, null_replacement_value must be
+        provided to be used in place of NAs.
         """
         try:
-            # index_or_indices and null_replacement_value are Value "unions"
-            i = DataframeRowIndexWrapper(index_or_indices).get_py_obj()
-            n = ValueWrapper(null_replacement_value).get_py_obj()
-
-            # index -1 is the entire table
-            if isinstance(i, int) and (i < -1):
-                raise IndexError(f"an index must be -1 or greater, got {i}")
-            elif i == -1:
-                rows_df = dataframe
+            if dataframe is None:
+                return np.ndarray(shape=(0, 0)).dumps()
+            elif isinstance(dataframe, dask_cudf.DataFrame):
+                df = dataframe.compute()
             else:
-                # FIXME: dask_cudf does not support iloc
-                rows_df = dataframe.iloc[i]
+                df = dataframe
+
+            # null_replacement_value is a Value "union"
+            n = ValueWrapper(null_replacement_value).get_py_obj()
 
             # This needs to be a copy of the df data to replace NA values
             # FIXME: should something other than a numpy type be serialized to
             # prevent a copy? (note: any other type required to be de-serialzed
             # on the client end could add dependencies on the client)
-            rows_numpy = rows_df.to_numpy(na_value=n)
-            return rows_numpy.dumps()
+            df_numpy = df.to_numpy(na_value=n)
+            return df_numpy.dumps()
 
         except:
             raise GaasError(f"{traceback.format_exc()}")

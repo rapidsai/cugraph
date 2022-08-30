@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import pickle
+
 import pytest
 
 
@@ -151,3 +153,89 @@ def test_load_and_unload_graph_creation_extension_bad_arg_order(
     with pytest.raises(GaasError):
         handler.call_graph_creation_extension(
             "graph_creation_function", "('a', 'b')", "{}")
+
+
+def test_get_graph_data_large_vertex_ids(
+        graph_creation_extension_big_vertex_ids):
+    """
+    Test that graphs with large vertex ID values (>int32) are handled.
+    """
+    from gaas_server.gaas_handler import GaasHandler
+
+    handler = GaasHandler()
+
+    extension_dir = graph_creation_extension_big_vertex_ids
+
+    # Load the extension and ensure it can be called.
+    handler.load_graph_creation_extensions(extension_dir)
+    new_graph_id = handler.call_graph_creation_extension(
+        "graph_creation_function_vert_and_edge_data_big_vertex_ids", "()", "{}")
+
+    invalid_vert_id = 2
+    vert_data = handler.get_graph_vertex_data(
+    id_or_ids=invalid_vert_id,
+        null_replacement_value=0,
+        graph_id=new_graph_id,
+        property_keys=None)
+
+    assert len(pickle.loads(vert_data)) == 0
+
+    large_vert_id = (2**32)+1
+    vert_data = handler.get_graph_vertex_data(
+        id_or_ids=large_vert_id,
+        null_replacement_value=0,
+        graph_id=new_graph_id,
+        property_keys=None)
+
+    assert len(pickle.loads(vert_data)) == 1
+
+    invalid_edge_id = (2**32)+1
+    edge_data = handler.get_graph_edge_data(
+    id_or_ids=invalid_edge_id,
+        null_replacement_value=0,
+        graph_id=new_graph_id,
+        property_keys=None)
+
+    assert len(pickle.loads(edge_data)) == 0
+
+    small_edge_id = 2
+    edge_data = handler.get_graph_edge_data(
+        id_or_ids=small_edge_id,
+        null_replacement_value=0,
+        graph_id=new_graph_id,
+        property_keys=None)
+
+    assert len(pickle.loads(edge_data)) == 1
+
+def test_get_graph_data_empty_graph(graph_creation_extension_empty_graph):
+    """
+    Tests that get_graph_*_data() handles empty graphs correctly.
+    """
+    from gaas_server.gaas_handler import GaasHandler
+
+    handler = GaasHandler()
+
+    extension_dir = graph_creation_extension_empty_graph
+
+    # Load the extension and ensure it can be called.
+    handler.load_graph_creation_extensions(extension_dir)
+    new_graph_id = handler.call_graph_creation_extension(
+        "graph_creation_function", "()", "{}")
+
+    invalid_vert_id = 2
+    vert_data = handler.get_graph_vertex_data(
+        id_or_ids=invalid_vert_id,
+        null_replacement_value=0,
+        graph_id=new_graph_id,
+        property_keys=None)
+
+    assert len(pickle.loads(vert_data)) == 0
+
+    invalid_edge_id = 2
+    edge_data = handler.get_graph_edge_data(
+        id_or_ids=invalid_vert_id,
+        null_replacement_value=0,
+        graph_id=new_graph_id,
+        property_keys=None)
+
+    assert len(pickle.loads(edge_data)) == 0
