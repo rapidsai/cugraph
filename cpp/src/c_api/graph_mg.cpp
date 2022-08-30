@@ -130,7 +130,7 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
           handle_.get_stream()
         );
 
-        *edgelist_edge_tuple = thrust::make_tuple(edgelist_edge_ids, edgelist_edge_types);
+        //*edgelist_edge_tuple = thrust::tie(edgelist_edge_ids, edgelist_edge_types);
       }
 
       // Here's the error.  If store_transposed is true then this needs to be flipped...
@@ -154,8 +154,8 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
                             thrust::tuple<edge_t, edge_type_t>>(handle_);
 
       // TODO - update this to the implementation that creates a new graph with edge properties.
-      std::tie(*graph, new_edge_properties, new_number_map) = cugraph::
-        create_graph_from_edgelist<vertex_t, edge_t, edge_type_t, weight_t, store_transposed, multi_gpu>(
+      std::tie(*graph, new_number_map) = cugraph::
+        create_graph_from_edgelist<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
           handle_,
           std::nullopt,
           std::move(edgelist_srcs),

@@ -133,7 +133,7 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
           handle_.get_stream()
         );
 
-        *edgelist_edge_tuple = thrust::make_tuple(edgelist_edge_ids, edgelist_edge_types);
+        //*edgelist_edge_tuple = thrust::tie(edgelist_edge_ids, edgelist_edge_types);
       }
 
       auto graph =
