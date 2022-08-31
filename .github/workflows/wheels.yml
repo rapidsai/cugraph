@@ -28,6 +28,8 @@ jobs:
       python-version: "3.8 3.9"
       cibw-before-build: "pip install rmm-cuda11 raft-cuda11 libraft-cuda11 libcugraph-cuda11 libcugraph-ops-cuda11 --index-url https://pypi.k8s.rapids.ai/simple"
       skbuild-configure-options: "-DFIND_CUGRAPH_CPP=ON"
+      cibw-test-requires:  "pytest"
+      cibw-test-command: "pytest -v ./python/pylibcugraph/pylibcugraph/tests"
     secrets: inherit
   cugraph-wheel:
     if: always()
@@ -40,6 +42,8 @@ jobs:
       cibw-before-build: "pip install rmm-cuda11 raft-cuda11 libraft-cuda11 libcugraph-cuda11 libcugraph-ops-cuda11 --index-url https://pypi.k8s.rapids.ai/simple"
       gpu-smoketest-before-amd64: "pip install dask-cuda dask-cudf raft-cuda11 cudf-cuda11 pylibcugraph-cuda11 --index-url https://pypi.k8s.rapids.ai/simple"
       gpu-smoketest-before-arm64: "pip install dask-cuda dask-cudf raft-cuda11 cudf-cuda11 pylibcugraph-cuda11 --index-url https://pypi.k8s.rapids.ai/simple"
+      cibw-test-requires:  "pytest"
+      cibw-test-command: "pytest -v ./python/cugraph/cugraph/tests"
       gpu-smoketest: "import cudf, cugraph; gdf = cudf.read_csv('graph_data.csv', names=['src', 'dst'], dtype=['int32', 'int32']); G = cugraph.Graph();G.from_cudf_edgelist(gdf, source='src', destination='dst'); df_page = cugraph.pagerank(G); print(df_page.sort_values('pagerank', ascending=False).head(10))"
       skbuild-configure-options: "-DFIND_CUGRAPH_CPP=ON"
     secrets: inherit
