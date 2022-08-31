@@ -88,6 +88,16 @@ cdef class SGGraph(_GPUGraph):
         order of the array corresponds to the ordering of the src_array and
         dst_array arrays, where the ith item in weight_array is the weight value
         of the ith edge of the graph.
+    
+    edge_id_array : device array type
+        Device array containing the edge ids of each directed edge.  Must match
+        the ordering of the src/dst arrays.  Optional (may be null).  If
+        provided, edge_type_array must also be provided.
+    
+    edge_type_array : device array type
+        Device array containing the edge types of each directed edge.  Must
+        match the ordering of the src/dst/edge_id arrays.  Optional (may be
+        null).  If provided, edge_id_array must be provided.
 
     store_transposed : bool
         Set to True if the graph should be transposed. This is required for some
@@ -123,9 +133,11 @@ cdef class SGGraph(_GPUGraph):
                   src_array,
                   dst_array,
                   weight_array,
-                  store_transposed,
-                  renumber,
-                  do_expensive_check):
+                  edge_id_array=None,
+                  edge_type_array=None,
+                  store_transposed=False,
+                  renumber=False,
+                  do_expensive_check=False):
 
         # FIXME: add tests for these
         if not(isinstance(store_transposed, (int, bool))):
@@ -140,6 +152,10 @@ cdef class SGGraph(_GPUGraph):
         assert_CAI_type(src_array, "src_array")
         assert_CAI_type(dst_array, "dst_array")
         assert_CAI_type(weight_array, "weight_array")
+        if edge_id_array is not None:
+            assert_CAI_type(edge_id_array, "edge_id_array")
+        if edge_type_array is not None:
+            assert_CAI_type(edge_type_array, "edge_type_array")
 
         # FIXME: assert that src_array and dst_array have the same type
 
@@ -169,6 +185,34 @@ cdef class SGGraph(_GPUGraph):
                 <void*>cai_weights_ptr,
                 len(weight_array),
                 get_c_type_from_numpy_type(weight_array.dtype))
+        
+        cdef cugraph_type_erased_device_array_view_t* edge_id_view_ptr = NULL
+        cdef uintptr_t cai_edge_id_ptr
+        if edge_id_array is not None:
+            cai_edge_id_ptr = (
+                edge_id_array.__cuda_array_interface__["data"][0]
+            )
+            edge_id_view_ptr = (
+                cugraph_type_erased_device_array_view_create(
+                    <void*>cai_edge_id_ptr,
+                    len(edge_id_array),
+                    get_c_type_from_numpy_type(edge_id_array.dtype)
+                )
+            )
+
+        cdef cugraph_type_erased_device_array_view_t* edge_type_view_ptr = NULL
+        cdef uintptr_t cai_edge_type_ptr
+        if edge_type_array is not None:
+            cai_edge_type_ptr = (
+                edge_type_array.__cuda_array_interface__["data"][0]
+            )
+            edge_type_view_ptr = (
+                cugraph_type_erased_device_array_view_create(
+                    <void*>cai_edge_type_ptr,
+                    len(edge_type_array),
+                    get_c_type_from_numpy_type(edge_type_array.dtype)
+                )
+            )
 
         error_code = cugraph_sg_graph_create(
             resource_handle.c_resource_handle_ptr,
@@ -176,6 +220,8 @@ cdef class SGGraph(_GPUGraph):
             srcs_view_ptr,
             dsts_view_ptr,
             weights_view_ptr,
+            edge_id_view_ptr,
+            edge_type_view_ptr,
             store_transposed,
             renumber,
             do_expensive_check,
@@ -188,6 +234,10 @@ cdef class SGGraph(_GPUGraph):
         cugraph_type_erased_device_array_view_free(srcs_view_ptr)
         cugraph_type_erased_device_array_view_free(dsts_view_ptr)
         cugraph_type_erased_device_array_view_free(weights_view_ptr)
+        if edge_id_view_ptr is not NULL:
+            cugraph_type_erased_device_array_view_free(edge_id_view_ptr)
+        if edge_type_view_ptr is not NULL:
+            cugraph_type_erased_device_array_view_free(edge_type_view_ptr)
 
     def __dealloc__(self):
         if self.c_graph_ptr is not NULL:
@@ -226,6 +276,16 @@ cdef class MGGraph(_GPUGraph):
         dst_array arrays, where the ith item in weight_array is the weight value
         of the ith edge of the graph.
 
+    edge_id_array : device array type
+        Device array containing the edge ids of each directed edge.  Must match
+        the ordering of the src/dst arrays.  Optional (may be null).  If
+        provided, edge_type_array must also be provided.
+    
+    edge_type_array : device array type
+        Device array containing the edge types of each directed edge.  Must
+        match the ordering of the src/dst/edge_id arrays.  Optional (may be
+        null).  If provided, edge_id_array must be provided.
+
     store_transposed : bool
         Set to True if the graph should be transposed. This is required for some
         algorithms, such as pagerank.
@@ -243,9 +303,11 @@ cdef class MGGraph(_GPUGraph):
                   src_array,
                   dst_array,
                   weight_array,
-                  store_transposed,
-                  num_edges,
-                  do_expensive_check):
+                  edge_id_array=None,
+                  edge_type_array=None,
+                  store_transposed=False,
+                  num_edges=-1,
+                  do_expensive_check=False):
 
         # FIXME: add tests for these
         if not(isinstance(store_transposed, (int, bool))):
@@ -254,12 +316,18 @@ cdef class MGGraph(_GPUGraph):
         if not(isinstance(num_edges, (int))):
             raise TypeError("expected int for num_edges, got "
                             f"{type(num_edges)}")
+        if num_edges < 0:
+            raise TypeError("num_edges must be > 0")
         if not(isinstance(do_expensive_check, (int, bool))):
             raise TypeError("expected int or bool for do_expensive_check, got "
                             f"{type(do_expensive_check)}")
         assert_CAI_type(src_array, "src_array")
         assert_CAI_type(dst_array, "dst_array")
         assert_CAI_type(weight_array, "weight_array")
+        if edge_id_array is not None:
+            assert_CAI_type(edge_id_array, "edge_id_array")
+        if edge_type_array is not None:
+            assert_CAI_type(edge_type_array, "edge_type_array")        
 
         # FIXME: assert that src_array and dst_array have the same type
 
@@ -290,12 +358,42 @@ cdef class MGGraph(_GPUGraph):
                 len(weight_array),
                 get_c_type_from_numpy_type(weight_array.dtype))
 
+        cdef cugraph_type_erased_device_array_view_t* edge_id_view_ptr = NULL
+        cdef uintptr_t cai_edge_id_ptr
+        if edge_id_array is not None:
+            cai_edge_id_ptr = (
+                edge_id_array.__cuda_array_interface__["data"][0]
+            )
+            edge_id_view_ptr = (
+                cugraph_type_erased_device_array_view_create(
+                    <void*>cai_edge_id_ptr,
+                    len(edge_id_array),
+                    get_c_type_from_numpy_type(edge_id_array.dtype)
+                )
+            )
+
+        cdef cugraph_type_erased_device_array_view_t* edge_type_view_ptr = NULL
+        cdef uintptr_t cai_edge_type_ptr
+        if edge_type_array is not None:
+            cai_edge_type_ptr = (
+                edge_type_array.__cuda_array_interface__["data"][0]
+            )
+            edge_type_view_ptr = (
+                cugraph_type_erased_device_array_view_create(
+                    <void*>cai_edge_type_ptr,
+                    len(edge_type_array),
+                    get_c_type_from_numpy_type(edge_type_array.dtype)
+                )
+            )
+
         error_code = cugraph_mg_graph_create(
             resource_handle.c_resource_handle_ptr,
             &(graph_properties.c_graph_properties),
             srcs_view_ptr,
             dsts_view_ptr,
             weights_view_ptr,
+            edge_id_view_ptr,
+            edge_type_view_ptr,
             store_transposed,
             num_edges,
             do_expensive_check,
@@ -308,6 +406,10 @@ cdef class MGGraph(_GPUGraph):
         cugraph_type_erased_device_array_view_free(srcs_view_ptr)
         cugraph_type_erased_device_array_view_free(dsts_view_ptr)
         cugraph_type_erased_device_array_view_free(weights_view_ptr)
+        if edge_id_view_ptr is not NULL:
+            cugraph_type_erased_device_array_view_free(edge_id_view_ptr)
+        if edge_type_view_ptr is not NULL:
+            cugraph_type_erased_device_array_view_free(edge_type_view_ptr)
 
     def __dealloc__(self):
         if self.c_graph_ptr is not NULL:
