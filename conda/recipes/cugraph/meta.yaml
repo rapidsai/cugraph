@@ -22,7 +22,6 @@ build:
     - PARALLEL_LEVEL
   ignore_run_exports_from:
     - {{ compiler('cuda') }}
-  preserve_egg_dir: True
 
 requirements:
   build:
