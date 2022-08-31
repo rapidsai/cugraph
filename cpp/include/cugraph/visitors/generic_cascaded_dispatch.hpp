@@ -47,9 +47,11 @@ template <typename vertex_t,
 constexpr decltype(auto) multi_gpu_dispatcher(bool multi_gpu, functor_t& functor)
 {
   if (multi_gpu) {
-    return functor.template operator()<vertex_t, edge_t, weight_t, edge_type_t, store_transposed, true>();
+    return functor
+      .template operator()<vertex_t, edge_t, weight_t, edge_type_t, store_transposed, true>();
   } else {
-    return functor.template operator()<vertex_t, edge_t, weight_t, edge_type_t, store_transposed, false>();
+    return functor
+      .template operator()<vertex_t, edge_t, weight_t, edge_type_t, store_transposed, false>();
   }
 }
 
@@ -59,7 +61,11 @@ constexpr decltype(auto) multi_gpu_dispatcher(bool multi_gpu, functor_t& functor
 // cascades into next level
 // multi_gpu_dispatcher()
 //
-template <typename vertex_t, typename edge_t, typename weight_t, typename edge_type_t, typename functor_t>
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          typename edge_type_t,
+          typename functor_t>
 constexpr decltype(auto) transpose_dispatcher(bool store_transposed,
                                               bool multi_gpu,
                                               functor_t& functor)
@@ -79,32 +85,38 @@ constexpr decltype(auto) transpose_dispatcher(bool store_transposed,
 //
 template <typename vertex_t, typename edge_t, typename weight_t, typename functor_t>
 constexpr decltype(auto) edge_type_type_dispatcher(cugraph::visitors::DTypes edge_type_type,
-                                           bool store_transposed,
-                                           bool multi_gpu,
-                                           functor_t& functor)
-{  
+                                                   bool store_transposed,
+                                                   bool multi_gpu,
+                                                   functor_t& functor)
+{
   switch (edge_type_type) {
     case cugraph::visitors::DTypes::UINT8: {
-      using edge_type_t = typename cugraph::visitors::DMapType<cugraph::visitors::DTypes::UINT8>::type;
-      return transpose_dispatcher<vertex_t, edge_t, weight_t, edge_type_t>(store_transposed, multi_gpu, functor);
+      using edge_type_t =
+        typename cugraph::visitors::DMapType<cugraph::visitors::DTypes::UINT8>::type;
+      return transpose_dispatcher<vertex_t, edge_t, weight_t, edge_type_t>(
+        store_transposed, multi_gpu, functor);
     } break;
     case cugraph::visitors::DTypes::INT32: {
-      throw std::runtime_error("ERROR: Data type INT32 not allowed for edge type (valid types: UINT8).");
+      throw std::runtime_error(
+        "ERROR: Data type INT32 not allowed for edge type (valid types: UINT8).");
       break;
     }
     case cugraph::visitors::DTypes::INT64: {
-      throw std::runtime_error("ERROR: Data type INT64 not allowed for edge type (valid types: UINT8).");
+      throw std::runtime_error(
+        "ERROR: Data type INT64 not allowed for edge type (valid types: UINT8).");
       break;
     }
     case cugraph::visitors::DTypes::FLOAT32: {
-      throw std::runtime_error("ERROR: Data type FLOAT32 not allowed for edge type (valid types: UINT8).");
+      throw std::runtime_error(
+        "ERROR: Data type FLOAT32 not allowed for edge type (valid types: UINT8).");
       break;
     }
     case cugraph::visitors::DTypes::FLOAT64: {
-      throw std::runtime_error("ERROR: Data type FLOAT64 not allowed for edge type (valid types: UINT8).");
+      throw std::runtime_error(
+        "ERROR: Data type FLOAT64 not allowed for edge type (valid types: UINT8).");
       break;
     }
-      
+
     default: {
       std::stringstream ss;
       ss << "ERROR: Unknown type enum:" << static_cast<int>(edge_type_type);
@@ -129,21 +141,25 @@ constexpr decltype(auto) weight_dispatcher(cugraph::visitors::DTypes weight_type
   switch (weight_type) {
     case cugraph::visitors::DTypes::INT32: {
       using weight_t = typename cugraph::visitors::DMapType<cugraph::visitors::DTypes::INT32>::type;
-      return edge_type_type_dispatcher<vertex_t, edge_t, weight_t>(edge_type_type, store_transposed, multi_gpu, functor);
+      return edge_type_type_dispatcher<vertex_t, edge_t, weight_t>(
+        edge_type_type, store_transposed, multi_gpu, functor);
     } break;
     case cugraph::visitors::DTypes::INT64: {
       using weight_t = typename cugraph::visitors::DMapType<cugraph::visitors::DTypes::INT64>::type;
-      return edge_type_type_dispatcher<vertex_t, edge_t, weight_t>(edge_type_type, store_transposed, multi_gpu, functor);
+      return edge_type_type_dispatcher<vertex_t, edge_t, weight_t>(
+        edge_type_type, store_transposed, multi_gpu, functor);
     } break;
     case cugraph::visitors::DTypes::FLOAT32: {
       using weight_t =
         typename cugraph::visitors::DMapType<cugraph::visitors::DTypes::FLOAT32>::type;
-      return edge_type_type_dispatcher<vertex_t, edge_t, weight_t>(edge_type_type, store_transposed, multi_gpu, functor);
+      return edge_type_type_dispatcher<vertex_t, edge_t, weight_t>(
+        edge_type_type, store_transposed, multi_gpu, functor);
     } break;
     case cugraph::visitors::DTypes::FLOAT64: {
       using weight_t =
         typename cugraph::visitors::DMapType<cugraph::visitors::DTypes::FLOAT64>::type;
-      return edge_type_type_dispatcher<vertex_t, edge_t, weight_t>(edge_type_type, store_transposed, multi_gpu, functor);
+      return edge_type_type_dispatcher<vertex_t, edge_t, weight_t>(
+        edge_type_type, store_transposed, multi_gpu, functor);
     } break;
     case cugraph::visitors::DTypes::UINT8: {
       throw std::runtime_error("ERROR: UINT8 not supported for a weight type");
@@ -174,19 +190,23 @@ constexpr decltype(auto) edge_dispatcher(cugraph::visitors::DTypes edge_type,
   switch (edge_type) {
     case cugraph::visitors::DTypes::INT32: {
       using edge_t = typename cugraph::visitors::DMapType<cugraph::visitors::DTypes::INT32>::type;
-      return weight_dispatcher<vertex_t, edge_t>(weight_type, edge_type_type, store_transposed, multi_gpu, functor);
+      return weight_dispatcher<vertex_t, edge_t>(
+        weight_type, edge_type_type, store_transposed, multi_gpu, functor);
     } break;
     case cugraph::visitors::DTypes::INT64: {
       using edge_t = typename cugraph::visitors::DMapType<cugraph::visitors::DTypes::INT64>::type;
-      return weight_dispatcher<vertex_t, edge_t>(weight_type, edge_type_type, store_transposed, multi_gpu, functor);
+      return weight_dispatcher<vertex_t, edge_t>(
+        weight_type, edge_type_type, store_transposed, multi_gpu, functor);
     } break;
     case cugraph::visitors::DTypes::FLOAT32: {
       using edge_t = typename cugraph::visitors::DMapType<cugraph::visitors::DTypes::FLOAT32>::type;
-      return weight_dispatcher<vertex_t, edge_t>(weight_type, edge_type_type, store_transposed, multi_gpu, functor);
+      return weight_dispatcher<vertex_t, edge_t>(
+        weight_type, edge_type_type, store_transposed, multi_gpu, functor);
     } break;
     case cugraph::visitors::DTypes::FLOAT64: {
       using edge_t = typename cugraph::visitors::DMapType<cugraph::visitors::DTypes::FLOAT64>::type;
-      return weight_dispatcher<vertex_t, edge_t>(weight_type, edge_type_type, store_transposed, multi_gpu, functor);
+      return weight_dispatcher<vertex_t, edge_t>(
+        weight_type, edge_type_type, store_transposed, multi_gpu, functor);
     } break;
     case cugraph::visitors::DTypes::UINT8: {
       throw std::runtime_error("ERROR: UINT8 not supported for an edge type");
