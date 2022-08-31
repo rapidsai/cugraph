@@ -305,10 +305,8 @@ extern "C" cugraph_error_code_t cugraph_sg_graph_create(
                "Invalid input arguments: src size != edge prop size",
                *error);
 
-  data_type_id_t edge_type_type;
-  if (edge_types == nullptr) {
-    edge_type_type = data_type_id_t::UINT8;
-  } else {
+  data_type_id_t edge_type_type = data_type_id_t::UINT8;
+  if (edge_types != nullptr) {
     edge_type_type = p_edge_types->type_;
   }
 
