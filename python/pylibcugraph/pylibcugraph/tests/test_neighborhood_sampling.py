@@ -49,7 +49,6 @@ def check_edges(result, srcs, dsts, weights, num_verts, num_edges, num_seeds):
 
     h_result_srcs = result_srcs.get()
     h_result_dsts = result_dsts.get()
-    # FIXME: Variable not used
     h_result_indices = result_indices.get()
 
     # Following the C validation, we will check that all edges are part of the
