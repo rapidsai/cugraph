@@ -37,121 +37,64 @@ namespace cugraph {
 namespace test {
 
 template <typename vertex_t, typename weight_t, typename test_t>
-void similarity_compare(vertex_t num_vertices,
-                        std::vector<vertex_t>&& src,
-                        std::vector<vertex_t>&& dst,
-                        std::optional<std::vector<weight_t>>&& wgt,
-                        std::vector<vertex_t>&& result_src,
-                        std::vector<vertex_t>&& result_dst,
-                        std::vector<weight_t>&& result_score,
-                        test_t const& test_functor)
+void similarity_compare(
+  vertex_t num_vertices,
+  std::tuple<std::vector<vertex_t>, std::vector<vertex_t>, std::optional<std::vector<weight_t>>>&&
+    edge_list,
+  std::tuple<std::vector<vertex_t>, std::vector<vertex_t>>&& vertex_pairs,
+  std::vector<weight_t>&& similarity_score,
+  test_t const& test_functor)
 {
-  ASSERT_TRUE(num_vertices > 1) << "number of vertices expected to be non-zero";
-  ASSERT_EQ(src.size(), dst.size());
-  ASSERT_EQ(result_src.size(), result_dst.size());
-  ASSERT_EQ(result_src.size(), result_score.size());
-
-  thrust::sort(thrust::host,
-               thrust::make_zip_iterator(src.begin(), dst.begin()),
-               thrust::make_zip_iterator(src.end(), dst.end()));
-  thrust::sort(
-    thrust::host,
-    thrust::make_zip_iterator(result_src.begin(), result_dst.begin(), result_score.begin()),
-    thrust::make_zip_iterator(result_src.end(), result_dst.end(), result_score.end()));
-
-  size_t result_pos = 0;
-
-  // Iterate over all (u,v) pairs
-  for (vertex_t u = 0; u < num_vertices; ++u) {
-    auto pos     = std::lower_bound(result_src.begin(), result_src.end(), u);
-    auto u_start = std::lower_bound(src.begin(), src.end(), u);
-    auto u_end   = std::lower_bound(u_start, src.end(), u);
-
-    for (vertex_t v = 0; v < num_vertices; ++v) {
-      if (u != v) {
-        auto v_start = std::lower_bound(src.begin(), src.end(), v);
-        auto v_end   = std::lower_bound(v_start, src.end(), v);
-
-        intersection_count_t<vertex_t> intersection{0};
-        std::set_intersection(u_start, u_end, v_start, v_end, std::back_inserter(intersection));
-
-        weight_t u_intersect_v = intersection.count;
-
-        if (u_intersect_v > weight_t{0}) {
-          ASSERT_EQ(u, result_src[result_pos]);
-          ASSERT_EQ(v, result_dst[result_pos]);
-
-#if 1
-          weight_t score = test_functor.compute_score(
-            std::distance(u_start, u_end), std::distance(v_start, v_end), u_intersect_v);
-#else
-          weight_t score = test_functor.compute_score(
-            std::distance(u_start, u_end), std::distance(v_start, v_end), u_intersect_v);
-#endif
-          ASSERT_NEAR(score, result_score[result_pos], 1e-6);
-
-          ++result_pos;
-        }
-      }
-    }
-  }
-
-  ASSERT_EQ(result_pos, result_src.size());
+  // TBD
 }
 
-template void similarity_compare(int32_t num_vertices,
-                                 std::vector<int32_t>&& src,
-                                 std::vector<int32_t>&& dst,
-                                 std::optional<std::vector<float>>&& wgt,
-                                 std::vector<int32_t>&& result_src,
-                                 std::vector<int32_t>&& result_dst,
-                                 std::vector<float>&& result_score,
-                                 test_jaccard_t const& test_functor);
+template void similarity_compare(
+  int32_t num_vertices,
+  std::tuple<std::vector<int32_t>, std::vector<int32_t>, std::optional<std::vector<float>>>&&
+    edge_list,
+  std::tuple<std::vector<int32_t>, std::vector<int32_t>>&& vertex_pairs,
+  std::vector<float>&& result_score,
+  test_jaccard_t const& test_functor);
 
-template void similarity_compare(int32_t num_vertices,
-                                 std::vector<int32_t>&& src,
-                                 std::vector<int32_t>&& dst,
-                                 std::optional<std::vector<float>>&& wgt,
-                                 std::vector<int32_t>&& result_src,
-                                 std::vector<int32_t>&& result_dst,
-                                 std::vector<float>&& result_score,
-                                 test_sorensen_t const& test_functor);
+template void similarity_compare(
+  int32_t num_vertices,
+  std::tuple<std::vector<int32_t>, std::vector<int32_t>, std::optional<std::vector<float>>>&&
+    edge_list,
+  std::tuple<std::vector<int32_t>, std::vector<int32_t>>&& vertex_pairs,
+  std::vector<float>&& result_score,
+  test_sorensen_t const& test_functor);
 
-template void similarity_compare(int32_t num_vertices,
-                                 std::vector<int32_t>&& src,
-                                 std::vector<int32_t>&& dst,
-                                 std::optional<std::vector<float>>&& wgt,
-                                 std::vector<int32_t>&& result_src,
-                                 std::vector<int32_t>&& result_dst,
-                                 std::vector<float>&& result_score,
-                                 test_overlap_t const& test_functor);
+template void similarity_compare(
+  int32_t num_vertices,
+  std::tuple<std::vector<int32_t>, std::vector<int32_t>, std::optional<std::vector<float>>>&&
+    edge_list,
+  std::tuple<std::vector<int32_t>, std::vector<int32_t>>&& vertex_pairs,
+  std::vector<float>&& result_score,
+  test_overlap_t const& test_functor);
 
-template void similarity_compare(int64_t num_vertices,
-                                 std::vector<int64_t>&& src,
-                                 std::vector<int64_t>&& dst,
-                                 std::optional<std::vector<float>>&& wgt,
-                                 std::vector<int64_t>&& result_src,
-                                 std::vector<int64_t>&& result_dst,
-                                 std::vector<float>&& result_score,
-                                 test_jaccard_t const& test_functor);
+template void similarity_compare(
+  int64_t num_vertices,
+  std::tuple<std::vector<int64_t>, std::vector<int64_t>, std::optional<std::vector<float>>>&&
+    edge_list,
+  std::tuple<std::vector<int64_t>, std::vector<int64_t>>&& vertex_pairs,
+  std::vector<float>&& result_score,
+  test_jaccard_t const& test_functor);
 
-template void similarity_compare(int64_t num_vertices,
-                                 std::vector<int64_t>&& src,
-                                 std::vector<int64_t>&& dst,
-                                 std::optional<std::vector<float>>&& wgt,
-                                 std::vector<int64_t>&& result_src,
-                                 std::vector<int64_t>&& result_dst,
-                                 std::vector<float>&& result_score,
-                                 test_sorensen_t const& test_functor);
+template void similarity_compare(
+  int64_t num_vertices,
+  std::tuple<std::vector<int64_t>, std::vector<int64_t>, std::optional<std::vector<float>>>&&
+    edge_list,
+  std::tuple<std::vector<int64_t>, std::vector<int64_t>>&& vertex_pairs,
+  std::vector<float>&& result_score,
+  test_sorensen_t const& test_functor);
 
-template void similarity_compare(int64_t num_vertices,
-                                 std::vector<int64_t>&& src,
-                                 std::vector<int64_t>&& dst,
-                                 std::optional<std::vector<float>>&& wgt,
-                                 std::vector<int64_t>&& result_src,
-                                 std::vector<int64_t>&& result_dst,
-                                 std::vector<float>&& result_score,
-                                 test_overlap_t const& test_functor);
+template void similarity_compare(
+  int64_t num_vertices,
+  std::tuple<std::vector<int64_t>, std::vector<int64_t>, std::optional<std::vector<float>>>&&
+    edge_list,
+  std::tuple<std::vector<int64_t>, std::vector<int64_t>>&& vertex_pairs,
+  std::vector<float>&& result_score,
+  test_overlap_t const& test_functor);
 
 }  // namespace test
 }  // namespace cugraph

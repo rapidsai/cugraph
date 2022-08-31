@@ -25,14 +25,12 @@ namespace cugraph {
 namespace detail {
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu, typename functor_t>
-std::
-  tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>, rmm::device_uvector<weight_t>>
-  similarity(raft::handle_t const& handle,
-             graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
-             std::optional<raft::device_span<vertex_t const>> first,
-             std::optional<raft::device_span<vertex_t const>> second,
-             bool use_weights,
-             functor_t functor)
+rmm::device_uvector<weight_t> similarity(
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
+  std::tuple<raft::device_span<vertex_t const>, raft::device_span<vertex_t const>> vertex_pairs,
+  bool use_weights,
+  functor_t functor)
 {
   CUGRAPH_FAIL("not implemented");
 

@@ -53,20 +53,18 @@ struct weighted_jaccard_functor_t {
 }  // namespace detail
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
-std::
-  tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>, rmm::device_uvector<weight_t>>
-  jaccard(raft::handle_t const& handle,
-          graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
-          std::optional<raft::device_span<vertex_t const>> first,
-          std::optional<raft::device_span<vertex_t const>> second,
-          bool use_weights)
+rmm::device_uvector<weight_t> jaccard_coefficients(
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
+  std::tuple<raft::device_span<vertex_t const>, raft::device_span<vertex_t const>> vertex_pairs,
+  bool use_weights)
 {
   if (use_weights)
     return detail::similarity(
-      handle, graph_view, first, second, use_weights, detail::jaccard_functor_t{});
+      handle, graph_view, vertex_pairs, use_weights, detail::jaccard_functor_t{});
   else
     return detail::similarity(
-      handle, graph_view, first, second, use_weights, detail::weighted_jaccard_functor_t{});
+      handle, graph_view, vertex_pairs, use_weights, detail::weighted_jaccard_functor_t{});
 }
 
 }  // namespace cugraph

@@ -17,52 +17,40 @@
 
 namespace cugraph {
 
-template std::
-  tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>, rmm::device_uvector<float>>
-  sorensen(raft::handle_t const& handle,
-           graph_view_t<int32_t, int32_t, float, false, true> const& graph_view,
-           std::optional<raft::device_span<int32_t const>> first,
-           std::optional<raft::device_span<int32_t const>> second,
-           bool use_weights);
+template rmm::device_uvector<float> sorensen_coefficients(
+  raft::handle_t const& handle,
+  graph_view_t<int32_t, int32_t, float, false, true> const& graph_view,
+  std::tuple<raft::device_span<int32_t const>, raft::device_span<int32_t const>> vertex_pairs,
+  bool use_weights);
 
-template std::
-  tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>, rmm::device_uvector<float>>
-  sorensen(raft::handle_t const& handle,
-           graph_view_t<int32_t, int64_t, float, false, true> const& graph_view,
-           std::optional<raft::device_span<int32_t const>> first,
-           std::optional<raft::device_span<int32_t const>> second,
-           bool use_weights);
+template rmm::device_uvector<float> sorensen_coefficients(
+  raft::handle_t const& handle,
+  graph_view_t<int32_t, int64_t, float, false, true> const& graph_view,
+  std::tuple<raft::device_span<int32_t const>, raft::device_span<int32_t const>> vertex_pairs,
+  bool use_weights);
 
-template std::
-  tuple<rmm::device_uvector<int64_t>, rmm::device_uvector<int64_t>, rmm::device_uvector<float>>
-  sorensen(raft::handle_t const& handle,
-           graph_view_t<int64_t, int64_t, float, false, true> const& graph_view,
-           std::optional<raft::device_span<int64_t const>> first,
-           std::optional<raft::device_span<int64_t const>> second,
-           bool use_weights);
+template rmm::device_uvector<float> sorensen_coefficients(
+  raft::handle_t const& handle,
+  graph_view_t<int64_t, int64_t, float, false, true> const& graph_view,
+  std::tuple<raft::device_span<int64_t const>, raft::device_span<int64_t const>> vertex_pairs,
+  bool use_weights);
 
-template std::
-  tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>, rmm::device_uvector<double>>
-  sorensen(raft::handle_t const& handle,
-           graph_view_t<int32_t, int32_t, double, false, true> const& graph_view,
-           std::optional<raft::device_span<int32_t const>> first,
-           std::optional<raft::device_span<int32_t const>> second,
-           bool use_weights);
+template rmm::device_uvector<double> sorensen_coefficients(
+  raft::handle_t const& handle,
+  graph_view_t<int32_t, int32_t, double, false, true> const& graph_view,
+  std::tuple<raft::device_span<int32_t const>, raft::device_span<int32_t const>> vertex_pairs,
+  bool use_weights);
 
-template std::
-  tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>, rmm::device_uvector<double>>
-  sorensen(raft::handle_t const& handle,
-           graph_view_t<int32_t, int64_t, double, false, true> const& graph_view,
-           std::optional<raft::device_span<int32_t const>> first,
-           std::optional<raft::device_span<int32_t const>> second,
-           bool use_weights);
+template rmm::device_uvector<double> sorensen_coefficients(
+  raft::handle_t const& handle,
+  graph_view_t<int32_t, int64_t, double, false, true> const& graph_view,
+  std::tuple<raft::device_span<int32_t const>, raft::device_span<int32_t const>> vertex_pairs,
+  bool use_weights);
 
-template std::
-  tuple<rmm::device_uvector<int64_t>, rmm::device_uvector<int64_t>, rmm::device_uvector<double>>
-  sorensen(raft::handle_t const& handle,
-           graph_view_t<int64_t, int64_t, double, false, true> const& graph_view,
-           std::optional<raft::device_span<int64_t const>> first,
-           std::optional<raft::device_span<int64_t const>> second,
-           bool use_weights);
+template rmm::device_uvector<double> sorensen_coefficients(
+  raft::handle_t const& handle,
+  graph_view_t<int64_t, int64_t, double, false, true> const& graph_view,
+  std::tuple<raft::device_span<int64_t const>, raft::device_span<int64_t const>> vertex_pairs,
+  bool use_weights);
 
 }  // namespace cugraph

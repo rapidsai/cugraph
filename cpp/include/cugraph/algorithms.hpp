@@ -1682,8 +1682,7 @@ void triangle_count(raft::handle_t const& handle,
 /**
  * @brief     Compute Jaccard similarity coefficient
  *
- * Similarity is computed based for every pair of vertices specified, or (if no vertices
- * are specified then all vertices that are 2 hops apart are computed).  Note that
+ * Similarity is computed for every pair of vertices specified. Note that
  * similarity algorithms expect a symmetric graph.
  *
  * @throws                 cugraph::logic_error when an error occurs.
@@ -1695,26 +1694,23 @@ void triangle_count(raft::handle_t const& handle,
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Graph view object.
- * @param first optional device span defining the first vertex in the desired vertex pairs
- * @param second optional device span defining the second vertex in the desired vertex pairs
+ * @param vertex_pairs tuple of device spans defining the vertex pairs to compute similarity for
+ * In a multi-gpu context each vertex pair should be local to this GPU.
  * @param use_weights If true use the weights associated with the graph.  If false assume a weight
  *                    of 1 for all edges.
  * @return tuple defining vertex pairs and their Jaccard similarity coefficient.
  */
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
-std::
-  tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>, rmm::device_uvector<weight_t>>
-  jaccard(raft::handle_t const& handle,
-          graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
-          std::optional<raft::device_span<vertex_t const>> first,
-          std::optional<raft::device_span<vertex_t const>> second,
-          bool use_weights);
+rmm::device_uvector<weight_t> jaccard_coefficients(
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
+  std::tuple<raft::device_span<vertex_t const>, raft::device_span<vertex_t const>> vertex_pairs,
+  bool use_weights);
 
 /**
  * @brief     Compute Sorensen similarity coefficient
  *
- * Similarity is computed based for every pair of vertices specified, or (if no vertices
- * are specified then all vertices that are 2 hops apart are computed).  Note that
+ * Similarity is computed for every pair of vertices specified. Note that
  * similarity algorithms expect a symmetric graph.
  *
  * @throws                 cugraph::logic_error when an error occurs.
@@ -1726,26 +1722,23 @@ std::
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Graph view object.
- * @param first optional device span defining the first vertex in the desired vertex pairs
- * @param second optional device span defining the second vertex in the desired vertex pairs
+ * @param vertex_pairs tuple of device spans defining the vertex pairs to compute similarity for
+ * In a multi-gpu context each vertex pair should be local to this GPU.
  * @param use_weights If true use the weights associated with the graph.  If false assume a weight
  *                    of 1 for all edges.
  * @return tuple defining vertex pairs and their Jaccard similarity coefficient.
  */
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
-std::
-  tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>, rmm::device_uvector<weight_t>>
-  sorensen(raft::handle_t const& handle,
-           graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
-           std::optional<raft::device_span<vertex_t const>> first,
-           std::optional<raft::device_span<vertex_t const>> second,
-           bool use_weights);
+rmm::device_uvector<weight_t> sorensen_coefficients(
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
+  std::tuple<raft::device_span<vertex_t const>, raft::device_span<vertex_t const>> vertex_pairs,
+  bool use_weights);
 
 /**
  * @brief     Compute overlap similarity coefficient
  *
- * Similarity is computed based for every pair of vertices specified, or (if no vertices
- * are specified then all vertices that are 2 hops apart are computed).  Note that
+ * Similarity is computed for every pair of vertices specified. Note that
  * similarity algorithms expect a symmetric graph.
  *
  * @throws                 cugraph::logic_error when an error occurs.
@@ -1757,20 +1750,18 @@ std::
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Graph view object.
- * @param first optional device span defining the first vertex in the desired vertex pairs
- * @param second optional device span defining the second vertex in the desired vertex pairs
+ * @param vertex_pairs tuple of device spans defining the vertex pairs to compute similarity for
+ * In a multi-gpu context each vertex pair should be local to this GPU.
  * @param use_weights If true use the weights associated with the graph.  If false assume a weight
  *                    of 1 for all edges.
  * @return tuple defining vertex pairs and their Jaccard similarity coefficient.
  */
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
-std::
-  tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>, rmm::device_uvector<weight_t>>
-  overlap(raft::handle_t const& handle,
-          graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
-          std::optional<raft::device_span<vertex_t const>> first,
-          std::optional<raft::device_span<vertex_t const>> second,
-          bool use_weights);
+rmm::device_uvector<weight_t> overlap_coefficients(
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
+  std::tuple<raft::device_span<vertex_t const>, raft::device_span<vertex_t const>> vertex_pairs,
+  bool use_weights);
 
 }  // namespace cugraph
 

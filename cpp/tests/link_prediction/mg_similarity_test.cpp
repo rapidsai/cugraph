@@ -82,15 +82,17 @@ class Tests_MGSimilarity
       hr_clock.start();
     }
 
-    std::optional<raft::device_span<vertex_t const>> first  = std::nullopt;
-    std::optional<raft::device_span<vertex_t const>> second = std::nullopt;
+    // FIXME:  Need to add some tests that specify actual vertex pairs
+    // FIXME:  Need to a variation that calls call the two hop neighbors function
+    std::tuple<raft::device_span<vertex_t const>, raft::device_span<vertex_t const>> vertex_pairs{
+      {nullptr, size_t{0}}, {nullptr, size_t{0}}};
 
 #if 0
     auto [result_src, result_dst, result_score] =
-      test_functor.run(*handle_, mg_graph_view, first, second, similarity_usecase.use_weights);
+      test_functor.run(*handle_, mg_graph_view, vertex_pairs, similarity_usecase.use_weights);
 #else
     EXPECT_THROW(
-      test_functor.run(*handle_, mg_graph_view, first, second, similarity_usecase.use_weights),
+      test_functor.run(*handle_, mg_graph_view, vertex_pairs, similarity_usecase.use_weights),
       std::exception);
 #endif
 
