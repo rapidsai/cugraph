@@ -28,25 +28,25 @@ from . import data
 @pytest.fixture(scope="module")
 def mg_server():
     """
-    Start a GaaS server that uses multiple GPUs via a dask configuration, then
-    stop it when done with the fixture.
+    Start a cugraph_service server that uses multiple GPUs via a dask
+    configuration, then stop it when done with the fixture.
     """
-    from gaas_server import server
-    from gaas_client import GaasClient
-    from gaas_client.exceptions import GaasError
+    from cugraph_service_server import server
+    from cugraph_service_client import CugraphServiceClient
+    from cugraph_service_client.exceptions import CugraphServiceError
 
     server_file = server.__file__
     server_process = None
     host = "localhost"
     port = 9090
-    client = GaasClient(host, port)
+    client = CugraphServiceClient(host, port)
 
     try:
         client.uptime()
         print("\nfound running server, assuming it should be used for testing!")
         yield
 
-    except GaasError:
+    except CugraphServiceError:
         # A server was not found, so start one for testing then stop it when
         # testing is done.
 
@@ -64,9 +64,9 @@ def mg_server():
         # pytest will update sys.path based on the tests it discovers, and for
         # this source tree, an entry for the parent of this "tests" directory
         # will be added. The parent to this "tests" directory also allows
-        # imports to find the GaaS sources, so in oder to ensure the server
-        # that's started is also using the same sources, the PYTHONPATH env
-        # should be set to the sys.path being used in this process.
+        # imports to find the cugraph_service sources, so in oder to ensure the
+        # server that's started is also using the same sources, the PYTHONPATH
+        # env should be set to the sys.path being used in this process.
         env_dict = os.environ.copy()
         env_dict["PYTHONPATH"] = ":".join(sys.path)
 
@@ -81,7 +81,8 @@ def mg_server():
                 stderr=subprocess.STDOUT,
                 text=True) as server_process:
             try:
-                print("\nLaunched GaaS server, waiting for it to start...",
+                print("\nLaunched cugraph_service server, waiting for it to "
+                      "start...",
                       end="", flush=True)
                 max_retries = 10
                 retries = 0
@@ -90,7 +91,7 @@ def mg_server():
                         client.uptime()
                         print("started.")
                         break
-                    except GaasError:
+                    except CugraphServiceError:
                         time.sleep(1)
                         retries += 1
                 if retries >= max_retries:
@@ -116,9 +117,9 @@ def client(mg_server):
     Creates a client instance to the running server, closes the client when the
     fixture is no longer used by tests.
     """
-    from gaas_client import GaasClient, defaults
+    from cugraph_service_client import CugraphServiceClient, defaults
 
-    client = GaasClient(defaults.host, defaults.port)
+    client = CugraphServiceClient(defaults.host, defaults.port)
 
     for gid in client.get_graph_ids():
         client.delete_graph(gid)

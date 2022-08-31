@@ -2,7 +2,7 @@ import random
 import time
 from pathlib import Path
 
-from gaas_client import GaasClient
+from cugraph_service_client import CugraphServiceClient
 
 
 _data_dir = (Path(__file__).parent)/"data"
@@ -15,7 +15,7 @@ edgelist_csv_data = {
                },
 }
 
-client = GaasClient()
+client = CugraphServiceClient()
 
 test_data = edgelist_csv_data["karate"]
 client.load_csv_as_edge_data(test_data["csv_file_name"],

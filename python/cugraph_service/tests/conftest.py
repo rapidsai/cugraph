@@ -21,14 +21,14 @@ graph_creation_extension1_file_contents = """
 import cudf
 from cugraph.experimental import PropertyGraph
 
-def custom_graph_creation_function(gaas_server):
+def custom_graph_creation_function(server):
    edgelist = cudf.DataFrame(columns=['src', 'dst'],
                              data=[(0, 77), (1, 88), (2, 99)])
    pG = PropertyGraph()
    pG.add_edge_data(edgelist, vertex_col_names=('src', 'dst'))
 
-   # smoke test the gaas_server object by accesing the "mg" attr
-   gaas_server.is_mg
+   # smoke test the server object by accesing the "mg" attr
+   server.is_mg
 
    return pG
 """
@@ -40,7 +40,7 @@ from cugraph.experimental import PropertyGraph
 def __my_private_function():
    pass
 
-def my_graph_creation_function(arg1:str, arg2:str, arg3:str, gaas_server):
+def my_graph_creation_function(arg1:str, arg2:str, arg3:str, server):
    edgelist = cudf.DataFrame(columns=[arg1, arg2, arg3],
                              data=[(0, 1, 2), (88, 99, 77)])
    pG = PropertyGraph()
@@ -53,7 +53,7 @@ import time
 import cudf
 from cugraph.experimental import PropertyGraph
 
-def long_running_graph_creation_function(gaas_server):
+def long_running_graph_creation_function(server):
    time.sleep(10)
    pG = PropertyGraph()
    return pG
@@ -75,7 +75,7 @@ import time
 import cudf
 from cugraph.experimental import PropertyGraph
 
-def graph_creation_function(gaas_server, arg1, arg2):
+def graph_creation_function(server, arg1, arg2):
    pG = PropertyGraph()
    return pG
 """
@@ -85,8 +85,8 @@ import time
 import cudf
 from cugraph.experimental import PropertyGraph, MGPropertyGraph
 
-def graph_creation_function(gaas_server):
-   if gaas_server.is_mg:
+def graph_creation_function(server):
+   if server.is_mg:
       pG = MGPropertyGraph()
    else:
       pG = PropertyGraph()
@@ -100,8 +100,8 @@ import cupy
 import dask_cudf
 from cugraph.experimental import PropertyGraph, MGPropertyGraph
 
-def graph_creation_function_vert_and_edge_data_big_vertex_ids(gaas_server):
-   if gaas_server.is_mg:
+def graph_creation_function_vert_and_edge_data_big_vertex_ids(server):
+   if server.is_mg:
       pG = MGPropertyGraph()
    else:
       pG = PropertyGraph()
@@ -110,7 +110,7 @@ def graph_creation_function_vert_and_edge_data_big_vertex_ids(gaas_server):
                                               dtype="int64"),
                         "vert_prop":cupy.arange(big_num+100, big_num+110,
                                                 dtype="int64")})
-   if gaas_server.is_mg:
+   if server.is_mg:
       df = dask_cudf.from_cudf(df, npartitions=2)
    pG.add_vertex_data(df, vertex_col_name="vert_id")
 
@@ -118,7 +118,7 @@ def graph_creation_function_vert_and_edge_data_big_vertex_ids(gaas_server):
                         "dst":cupy.arange(big_num+1,big_num+11, dtype="int64"),
                         "edge_prop":cupy.arange(big_num+100, big_num+110,
                                                 dtype="int64")})
-   if gaas_server.is_mg:
+   if server.is_mg:
       df = dask_cudf.from_cudf(df, npartitions=2)
    pG.add_edge_data(df, vertex_col_names=["src", "dst"])
 

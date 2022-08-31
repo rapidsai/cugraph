@@ -1,9 +1,9 @@
 import time
 import random
 
-from gaas_client import GaasClient
+from cugraph_service_client import CugraphServiceClient
 
-client = GaasClient()
+client = CugraphServiceClient()
 
 time.sleep(10)
 n = int(random.random() * 1000)

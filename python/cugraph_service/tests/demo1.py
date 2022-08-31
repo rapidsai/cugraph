@@ -14,14 +14,14 @@
 
 from pathlib import Path
 
-from gaas_client import GaasClient
+from cugraph_service_client import CugraphServiceClient
 
 # Use the location of this file for finding various data files
 this_dir = Path(__file__).parent
 
 # Use the defaults for host and port (localhost, 9090)
 # Assume the server is running and using the same defaults!
-client = GaasClient()
+client = CugraphServiceClient()
 
 # Remove any graphs from a previous session!
 for gid in client.get_graph_ids():

@@ -29,35 +29,35 @@ from . import data
 @pytest.fixture(scope="module")
 def server(graph_creation_extension1):
     """
-    Start a GaaS server, stop it when done with the fixture.  This also uses
-    graph_creation_extension1 to preload a graph creation extension.
+    Start a cugraph_service server, stop it when done with the fixture.  This
+    also uses graph_creation_extension1 to preload a graph creation extension.
     """
-    from gaas_server import server
-    from gaas_client import GaasClient
-    from gaas_client.exceptions import GaasError
+    from cugraph_service_server import server
+    from cugraph_service_client import CugraphServiceClient
+    from cugraph_service_client.exceptions import CugraphServiceError
 
     server_file = server.__file__
     server_process = None
     host = "localhost"
     port = 9090
     graph_creation_extension_dir = graph_creation_extension1
-    client = GaasClient(host, port)
+    client = CugraphServiceClient(host, port)
 
     try:
         client.uptime()
         print("\nfound running server, assuming it should be used for testing!")
         yield
 
-    except GaasError:
+    except CugraphServiceError:
         # A server was not found, so start one for testing then stop it when
         # testing is done.
 
         # pytest will update sys.path based on the tests it discovers, and for
         # this source tree, an entry for the parent of this "tests" directory
         # will be added. The parent to this "tests" directory also allows
-        # imports to find the GaaS sources, so in oder to ensure the server
-        # that's started is also using the same sources, the PYTHONPATH env
-        # should be set to the sys.path being used in this process.
+        # imports to find the cugraph_service sources, so in oder to ensure the
+        # server that's started is also using the same sources, the PYTHONPATH
+        # env should be set to the sys.path being used in this process.
         env_dict = os.environ.copy()
         env_dict["PYTHONPATH"] = ":".join(sys.path)
 
@@ -72,7 +72,8 @@ def server(graph_creation_extension1):
                 stderr=subprocess.STDOUT,
                 text=True) as server_process:
             try:
-                print("\nLaunched GaaS server, waiting for it to start...",
+                print("\nLaunched cugraph_service server, waiting for it to "
+                      "start...",
                       end="", flush=True)
                 max_retries = 10
                 retries = 0
@@ -81,7 +82,7 @@ def server(graph_creation_extension1):
                         client.uptime()
                         print("started.")
                         break
-                    except GaasError:
+                    except CugraphServiceError:
                         time.sleep(1)
                         retries += 1
                 if retries >= max_retries:
@@ -106,9 +107,9 @@ def client(server):
     Creates a client instance to the running server, closes the client when the
     fixture is no longer used by tests.
     """
-    from gaas_client import GaasClient, defaults
+    from cugraph_service_client import CugraphServiceClient, defaults
 
-    client = GaasClient(defaults.host, defaults.port)
+    client = CugraphServiceClient(defaults.host, defaults.port)
 
     for gid in client.get_graph_ids():
         client.delete_graph(gid)
@@ -187,7 +188,7 @@ def test_get_graph_info_key_types(client_with_property_csvs_loaded):
     """
     Tests error handling for info keys passed in.
     """
-    from gaas_client.exceptions import GaasError
+    from cugraph_service_client.exceptions import CugraphServiceError
 
     (client, test_data) = client_with_property_csvs_loaded
 
@@ -195,11 +196,11 @@ def test_get_graph_info_key_types(client_with_property_csvs_loaded):
         client.get_graph_info(21)  # bad key type
     with pytest.raises(TypeError):
         client.get_graph_info([21, "num_edges"])  # bad key type
-    with pytest.raises(GaasError):
+    with pytest.raises(CugraphServiceError):
         client.get_graph_info("21")  # bad key value
-    with pytest.raises(GaasError):
+    with pytest.raises(CugraphServiceError):
         client.get_graph_info(["21"])  # bad key value
-    with pytest.raises(GaasError):
+    with pytest.raises(CugraphServiceError):
         client.get_graph_info(["num_edges", "21"])  # bad key value
 
     client.get_graph_info()  # valid
@@ -209,11 +210,11 @@ def test_get_num_edges_default_graph(client_with_edgelist_csv_loaded):
     assert client.get_graph_info("num_edges") == test_data["num_edges"]
 
 def test_load_csv_as_edge_data_nondefault_graph(client):
-    from gaas_client.exceptions import GaasError
+    from cugraph_service_client.exceptions import CugraphServiceError
 
     test_data = data.edgelist_csv_data["karate"]
 
-    with pytest.raises(GaasError):
+    with pytest.raises(CugraphServiceError):
         client.load_csv_as_edge_data(test_data["csv_file_name"],
                                      dtypes=test_data["dtypes"],
                                      vertex_col_names=["0", "1"],
@@ -221,11 +222,11 @@ def test_load_csv_as_edge_data_nondefault_graph(client):
                                      graph_id=9999)
 
 def test_get_num_edges_nondefault_graph(client_with_edgelist_csv_loaded):
-    from gaas_client.exceptions import GaasError
+    from cugraph_service_client.exceptions import CugraphServiceError
 
     (client, test_data) = client_with_edgelist_csv_loaded
     # Bad graph ID
-    with pytest.raises(GaasError):
+    with pytest.raises(CugraphServiceError):
         client.get_graph_info("num_edges", graph_id=9999)
 
     new_graph_id = client.create_graph()
@@ -268,7 +269,7 @@ def test_load_and_call_graph_creation_extension(client,
                                                 graph_creation_extension2):
     """
     Tests calling a user-defined server-side graph creation extension from the
-    GaaS client.
+    cugraph_service client.
     """
     # The graph_creation_extension returns the tmp dir created which contains
     # the extension
@@ -292,7 +293,7 @@ def test_load_and_call_graph_creation_long_running_extension(
         graph_creation_extension_long_running):
     """
     Tests calling a user-defined server-side graph creation extension from the
-    GaaS client.
+    cugraph_service client.
     """
     # The graph_creation_extension returns the tmp dir created which contains
     # the extension
@@ -429,8 +430,8 @@ def test_get_edge_IDs_for_vertices(client_with_edgelist_csv_loaded):
 
 
 def test_uniform_neighbor_sampling(client_with_edgelist_csv_loaded):
-    from gaas_client.exceptions import GaasError
-    from gaas_client import defaults
+    from cugraph_service_client.exceptions import CugraphServiceError
+    from cugraph_service_client import defaults
 
     (client, test_data) = client_with_edgelist_csv_loaded
 
@@ -439,7 +440,7 @@ def test_uniform_neighbor_sampling(client_with_edgelist_csv_loaded):
     with_replacement = True
 
     # invalid graph type - default graph is a PG, needs an extracted subgraph
-    with pytest.raises(GaasError):
+    with pytest.raises(CugraphServiceError):
         client.uniform_neighbor_sample(start_list=start_list,
                                        fanout_vals=fanout_vals,
                                        with_replacement=with_replacement,

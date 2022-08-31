@@ -26,9 +26,9 @@ from . import data
 @pytest.fixture(scope="module")
 def mg_handler():
     """
-    Creates a GaaS handler that uses a dask client.
+    Creates a cugraph_service handler that uses a dask client.
     """
-    from gaas_server.gaas_handler import GaasHandler
+    from cugraph_service_server.cugraph_handler import CugraphHandler
 
     dask_scheduler_file = os.environ.get("SCHEDULER_FILE")
     if dask_scheduler_file is None:
@@ -39,7 +39,7 @@ def mg_handler():
         raise FileNotFoundError("env var SCHEDULER_FILE is set to "
                                 f"{dask_scheduler_file}, which does not exist.")
 
-    handler = GaasHandler()
+    handler = CugraphHandler()
     handler.initialize_dask_client(dask_scheduler_file)
     return handler
 
@@ -51,7 +51,7 @@ def handler_with_karate_edgelist_loaded(mg_handler):
     """
     Loads the karate CSV into the default graph in the handler.
     """
-    from gaas_client import defaults
+    from cugraph_service_client import defaults
 
     test_data = data.edgelist_csv_data["karate"]
 
@@ -169,7 +169,7 @@ def test_get_graph_data_empty_graph(
 
 
 def test_get_edge_IDs_for_vertices(handler_with_karate_edgelist_loaded):
-    from gaas_client import defaults
+    from cugraph_service_client import defaults
 
     (handler, test_data) = handler_with_karate_edgelist_loaded
 
@@ -197,8 +197,8 @@ def test_get_graph_info(handler_with_karate_edgelist_loaded):
     """
     get_graph_info() for specific args.
     """
-    from gaas_client import defaults
-    from gaas_client.types import ValueWrapper
+    from cugraph_service_client import defaults
+    from cugraph_service_client.types import ValueWrapper
 
     (handler, test_data) = handler_with_karate_edgelist_loaded
 
@@ -207,8 +207,8 @@ def test_get_graph_info(handler_with_karate_edgelist_loaded):
     # edge/vertex.
     info = handler.get_graph_info(["num_edges", "num_edge_properties"],
                                   defaults.graph_id)
-    # info is a dictionary containing gaas_client.types.Value objs, so access
-    # the int32 member directly for easy comparison.
+    # info is a dictionary containing cugraph_service_client.types.Value objs,
+    # so access the int32 member directly for easy comparison.
     shape = (ValueWrapper(info["num_edges"]).get_py_obj(),
              ValueWrapper(info["num_edge_properties"]).get_py_obj())
     assert shape == (156, 1)  # The single edge property is the weight
@@ -226,8 +226,8 @@ def test_get_graph_info_defaults(mg_handler):
     Ensure calling get_graph_info() with no args returns the info dict with all
     keys present for an empty default graph.
     """
-    from gaas_client import defaults
-    from gaas_client.types import ValueWrapper
+    from cugraph_service_client import defaults
+    from cugraph_service_client.types import ValueWrapper
 
     handler = mg_handler
 
@@ -245,8 +245,8 @@ def test_get_graph_info_defaults(mg_handler):
 
 
 def test_uniform_neighbor_sampling(handler_with_karate_edgelist_loaded):
-    from gaas_client.exceptions import GaasError
-    from gaas_client import defaults
+    from cugraph_service_client.exceptions import CugraphServiceError
+    from cugraph_service_client import defaults
 
     (handler, test_data) = handler_with_karate_edgelist_loaded
 
@@ -255,7 +255,7 @@ def test_uniform_neighbor_sampling(handler_with_karate_edgelist_loaded):
     with_replacement = True
 
     # invalid graph type - default graph is a PG, needs an extracted subgraph
-    with pytest.raises(GaasError):
+    with pytest.raises(CugraphServiceError):
         handler.uniform_neighbor_sample(start_list=start_list,
                                         fanout_vals=fanout_vals,
                                         with_replacement=with_replacement,

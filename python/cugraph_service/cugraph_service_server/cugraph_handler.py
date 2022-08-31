@@ -111,7 +111,7 @@ class CugraphHandler:
 
     # The name of the param that should be set to a ExtensionServerFacade
     # instance for server extension functions.
-    __server_facade_extension_param_name = "cugraph_service_server"
+    __server_facade_extension_param_name = "server"
 
     def __init__(self):
         self.__next_graph_id = defaults.graph_id + 1
