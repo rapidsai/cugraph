@@ -19,7 +19,6 @@ jobs:
       cibw-test-command: ""
     secrets: inherit
   pylibcugraph-wheel:
-    if: always()
     needs: libcugraph-wheel
     uses: rapidsai/shared-action-workflows/.github/workflows/wheels-manylinux.yml@feat/wheel-ci-actions
     with:
@@ -32,7 +31,6 @@ jobs:
       cibw-test-command: "pytest -v ./python/pylibcugraph/pylibcugraph/tests"
     secrets: inherit
   cugraph-wheel:
-    if: always()
     needs: [libcugraph-wheel, pylibcugraph-wheel]
     uses: rapidsai/shared-action-workflows/.github/workflows/wheels-manylinux.yml@feat/wheel-ci-actions
     with:
