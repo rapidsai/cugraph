@@ -90,7 +90,7 @@ def EXPERIMENTAL__triangle_count(G, start_list=None):
     srcs = G.edgelist.edgelist_df['src']
     dsts = G.edgelist.edgelist_df['dst']
 
-    if ( G.is_weighted() == False):
+    if (G.is_weighted() is False):
         weights = cudf.Series([1.0]).repeat(G.edgelist.edgelist_df['src'].size)
     else:
         weights = G.edgelist.edgelist_df['weights']

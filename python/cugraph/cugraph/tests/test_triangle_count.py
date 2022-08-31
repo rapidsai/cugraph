@@ -148,7 +148,7 @@ def test_triangles_no_weights(input_combo):
     G = cugraph.Graph()
     gdf = gdf.drop('2', axis=1)
     G.from_cudf_edgelist(gdf, source='0', destination='1')
-    assert (G.is_weighted() == False)
+    assert (G.is_weighted() is False)
     triangle_count = cugraph.experimental.triangle_count(G).sort_values(
                 "vertex").reset_index(drop=True).rename(columns={
                     "counts": "exp_cugraph_counts"})
@@ -156,7 +156,7 @@ def test_triangles_no_weights(input_combo):
         triangle_count["exp_cugraph_counts"].sum()
     assert cugraph_exp_triangle_results == count_legacy
     # Testing it again to verify that graph isn't weighted as a side effect.
-    assert (G.is_weighted() == False)
+    assert (G.is_weighted() is False)
 
 
 def test_triangles_with_start(input_combo):
