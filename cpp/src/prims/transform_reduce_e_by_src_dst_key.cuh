@@ -19,6 +19,8 @@
 #include <prims/property_op_utils.cuh>
 
 #include <cugraph/edge_partition_device_view.cuh>
+#include <cugraph/edge_partition_endpoint_property_device_view.cuh>
+#include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/utilities/dataframe_buffer.hpp>
 #include <cugraph/utilities/error.hpp>
@@ -352,31 +354,59 @@ std::tuple<rmm::device_uvector<vertex_t>, BufferType> reduce_to_unique_kv_pairs(
   return std::make_tuple(std::move(unique_keys), std::move(value_for_unique_key_buffer));
 }
 
-template <bool edge_partition_src_key,
+template <bool edge_src_key,
           typename GraphViewType,
-          typename EdgePartitionSrcValueInputWrapper,
-          typename EdgePartitionDstValueInputWrapper,
-          typename EdgePartitionSrcDstKeyInputWrapper,
+          typename EdgeSrcValueInputWrapper,
+          typename EdgeDstValueInputWrapper,
+          typename EdgeSrcDstKeyInputWrapper,
           typename EdgeOp,
           typename T>
 std::tuple<rmm::device_uvector<typename GraphViewType::vertex_type>,
            decltype(allocate_dataframe_buffer<T>(0, cudaStream_t{nullptr}))>
-transform_reduce_e_by_src_dst_key(
-  raft::handle_t const& handle,
-  GraphViewType const& graph_view,
-  EdgePartitionSrcValueInputWrapper edge_partition_src_value_input,
-  EdgePartitionDstValueInputWrapper edge_partition_dst_value_input,
-  EdgePartitionSrcDstKeyInputWrapper edge_partition_src_dst_key_input,
-  EdgeOp e_op,
-  T init)
+transform_reduce_e_by_src_dst_key(raft::handle_t const& handle,
+                                  GraphViewType const& graph_view,
+                                  EdgeSrcValueInputWrapper edge_src_value_input,
+                                  EdgeDstValueInputWrapper edge_dst_value_input,
+                                  EdgeSrcDstKeyInputWrapper edge_src_dst_key_input,
+                                  EdgeOp e_op,
+                                  T init)
 {
   static_assert(is_arithmetic_or_thrust_tuple_of_arithmetic<T>::value);
-  static_assert(std::is_same<typename EdgePartitionSrcDstKeyInputWrapper::value_type,
+  static_assert(std::is_same<typename EdgeSrcDstKeyInputWrapper::value_type,
                              typename GraphViewType::vertex_type>::value);
 
   using vertex_t = typename GraphViewType::vertex_type;
   using edge_t   = typename GraphViewType::edge_type;
   using weight_t = typename GraphViewType::weight_type;
+
+  using edge_partition_src_input_device_view_t = std::conditional_t<
+    std::is_same_v<typename EdgeSrcValueInputWrapper::value_type, thrust::nullopt_t>,
+    detail::edge_partition_endpoint_dummy_property_device_view_t<vertex_t>,
+    std::conditional_t<GraphViewType::is_storage_transposed,
+                       detail::edge_partition_endpoint_property_device_view_t<
+                         vertex_t,
+                         typename EdgeSrcValueInputWrapper::value_iterator>,
+                       detail::edge_partition_endpoint_property_device_view_t<
+                         vertex_t,
+                         typename EdgeSrcValueInputWrapper::value_iterator>>>;
+  using edge_partition_dst_input_device_view_t = std::conditional_t<
+    std::is_same_v<typename EdgeDstValueInputWrapper::value_type, thrust::nullopt_t>,
+    detail::edge_partition_endpoint_dummy_property_device_view_t<vertex_t>,
+    std::conditional_t<GraphViewType::is_storage_transposed,
+                       detail::edge_partition_endpoint_property_device_view_t<
+                         vertex_t,
+                         typename EdgeDstValueInputWrapper::value_iterator>,
+                       detail::edge_partition_endpoint_property_device_view_t<
+                         vertex_t,
+                         typename EdgeDstValueInputWrapper::value_iterator>>>;
+  using edge_partition_src_dst_key_device_view_t =
+    std::conditional_t<edge_src_key != GraphViewType::is_storage_transposed,
+                       detail::edge_partition_endpoint_property_device_view_t<
+                         vertex_t,
+                         typename EdgeSrcDstKeyInputWrapper::value_iterator>,
+                       detail::edge_partition_endpoint_property_device_view_t<
+                         vertex_t,
+                         typename EdgeSrcDstKeyInputWrapper::value_iterator>>;
 
   rmm::device_uvector<vertex_t> keys(0, handle.get_stream());
   auto value_buffer = allocate_dataframe_buffer<T>(0, handle.get_stream());
@@ -401,17 +431,27 @@ transform_reduce_e_by_src_dst_key(
     auto tmp_value_buffer = allocate_dataframe_buffer<T>(tmp_keys.size(), handle.get_stream());
 
     if (graph_view.vertex_partition_range_size(comm_root_rank) > 0) {
-      auto edge_partition_src_value_input_copy = edge_partition_src_value_input;
-      auto edge_partition_dst_value_input_copy = edge_partition_dst_value_input;
+      edge_partition_src_input_device_view_t edge_partition_src_value_input{};
+      edge_partition_dst_input_device_view_t edge_partition_dst_value_input{};
       if constexpr (GraphViewType::is_storage_transposed) {
-        edge_partition_dst_value_input_copy.set_local_edge_partition_idx(i);
+        edge_partition_src_value_input =
+          edge_partition_src_input_device_view_t(edge_src_value_input);
+        edge_partition_dst_value_input =
+          edge_partition_dst_input_device_view_t(edge_dst_value_input, i);
       } else {
-        edge_partition_src_value_input_copy.set_local_edge_partition_idx(i);
+        edge_partition_src_value_input =
+          edge_partition_src_input_device_view_t(edge_src_value_input, i);
+        edge_partition_dst_value_input =
+          edge_partition_dst_input_device_view_t(edge_dst_value_input);
       }
-      auto edge_partition_src_dst_key_input_copy = edge_partition_src_dst_key_input;
-      if constexpr ((edge_partition_src_key && !GraphViewType::is_storage_transposed) ||
-                    (!edge_partition_src_key && GraphViewType::is_storage_transposed)) {
-        edge_partition_src_dst_key_input_copy.set_local_edge_partition_idx(i);
+
+      edge_partition_src_dst_key_device_view_t edge_partition_src_dst_key_input{};
+      if constexpr (edge_src_key != GraphViewType::is_storage_transposed) {
+        edge_partition_src_dst_key_input =
+          edge_partition_src_dst_key_device_view_t(edge_src_dst_key_input, i);
+      } else {
+        edge_partition_src_dst_key_input =
+          edge_partition_src_dst_key_device_view_t(edge_src_dst_key_input);
       }
 
       auto segment_offsets = graph_view.local_edge_partition_segment_offsets(i);
@@ -425,14 +465,14 @@ transform_reduce_e_by_src_dst_key(
             (*segment_offsets)[1],
             detail::transform_reduce_e_by_src_dst_key_kernel_block_size,
             handle.get_device_properties().maxGridSize[0]);
-          detail::transform_reduce_by_src_dst_key_high_degree<edge_partition_src_key, GraphViewType>
+          detail::transform_reduce_by_src_dst_key_high_degree<edge_src_key, GraphViewType>
             <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
               edge_partition,
               edge_partition.major_range_first(),
               edge_partition.major_range_first() + (*segment_offsets)[1],
-              edge_partition_src_value_input_copy,
-              edge_partition_dst_value_input_copy,
-              edge_partition_src_dst_key_input_copy,
+              edge_partition_src_value_input,
+              edge_partition_dst_value_input,
+              edge_partition_src_dst_key_input,
               e_op,
               tmp_keys.data(),
               get_dataframe_buffer_begin(tmp_value_buffer));
@@ -442,14 +482,14 @@ transform_reduce_e_by_src_dst_key(
             (*segment_offsets)[2] - (*segment_offsets)[1],
             detail::transform_reduce_e_by_src_dst_key_kernel_block_size,
             handle.get_device_properties().maxGridSize[0]);
-          detail::transform_reduce_by_src_dst_key_mid_degree<edge_partition_src_key, GraphViewType>
+          detail::transform_reduce_by_src_dst_key_mid_degree<edge_src_key, GraphViewType>
             <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
               edge_partition,
               edge_partition.major_range_first() + (*segment_offsets)[1],
               edge_partition.major_range_first() + (*segment_offsets)[2],
-              edge_partition_src_value_input_copy,
-              edge_partition_dst_value_input_copy,
-              edge_partition_src_dst_key_input_copy,
+              edge_partition_src_value_input,
+              edge_partition_dst_value_input,
+              edge_partition_src_dst_key_input,
               e_op,
               tmp_keys.data(),
               get_dataframe_buffer_begin(tmp_value_buffer));
@@ -459,14 +499,14 @@ transform_reduce_e_by_src_dst_key(
             (*segment_offsets)[3] - (*segment_offsets)[2],
             detail::transform_reduce_e_by_src_dst_key_kernel_block_size,
             handle.get_device_properties().maxGridSize[0]);
-          detail::transform_reduce_by_src_dst_key_low_degree<edge_partition_src_key, GraphViewType>
+          detail::transform_reduce_by_src_dst_key_low_degree<edge_src_key, GraphViewType>
             <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
               edge_partition,
               edge_partition.major_range_first() + (*segment_offsets)[2],
               edge_partition.major_range_first() + (*segment_offsets)[3],
-              edge_partition_src_value_input_copy,
-              edge_partition_dst_value_input_copy,
-              edge_partition_src_dst_key_input_copy,
+              edge_partition_src_value_input,
+              edge_partition_dst_value_input,
+              edge_partition_src_dst_key_input,
               e_op,
               tmp_keys.data(),
               get_dataframe_buffer_begin(tmp_value_buffer));
@@ -477,12 +517,12 @@ transform_reduce_e_by_src_dst_key(
             *(edge_partition.dcs_nzd_vertex_count()),
             detail::transform_reduce_e_by_src_dst_key_kernel_block_size,
             handle.get_device_properties().maxGridSize[0]);
-          detail::transform_reduce_by_src_dst_key_hypersparse<edge_partition_src_key, GraphViewType>
+          detail::transform_reduce_by_src_dst_key_hypersparse<edge_src_key, GraphViewType>
             <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
               edge_partition,
-              edge_partition_src_value_input_copy,
-              edge_partition_dst_value_input_copy,
-              edge_partition_src_dst_key_input_copy,
+              edge_partition_src_value_input,
+              edge_partition_dst_value_input,
+              edge_partition_src_dst_key_input,
               e_op,
               tmp_keys.data(),
               get_dataframe_buffer_begin(tmp_value_buffer));
@@ -493,14 +533,14 @@ transform_reduce_e_by_src_dst_key(
           detail::transform_reduce_e_by_src_dst_key_kernel_block_size,
           handle.get_device_properties().maxGridSize[0]);
 
-        detail::transform_reduce_by_src_dst_key_low_degree<edge_partition_src_key, GraphViewType>
+        detail::transform_reduce_by_src_dst_key_low_degree<edge_src_key, GraphViewType>
           <<<update_grid.num_blocks, update_grid.block_size, 0, handle.get_stream()>>>(
             edge_partition,
             edge_partition.major_range_first(),
             edge_partition.major_range_last(),
-            edge_partition_src_value_input_copy,
-            edge_partition_dst_value_input_copy,
-            edge_partition_src_dst_key_input_copy,
+            edge_partition_src_value_input,
+            edge_partition_dst_value_input,
+            edge_partition_src_dst_key_input,
             e_op,
             tmp_keys.data(),
             get_dataframe_buffer_begin(tmp_value_buffer));
@@ -568,30 +608,27 @@ transform_reduce_e_by_src_dst_key(
  * edges are determined by the edge sources.
  *
  * @tparam GraphViewType Type of the passed non-owning graph object.
- * @tparam EdgePartitionSrcValueInputWrapper Type of the wrapper for edge partition source property
- * values.
- * @tparam EdgePartitionDstValueInputWrapper Type of the wrapper for edge partition destination
- * property values.
- * @tparam EdgePartitionSrcKeyInputWrapper Type of the wrapper for edge partition source key values.
+ * @tparam EdgeSrcValueInputWrapper Type of the wrapper for edge source property values.
+ * @tparam EdgeDstValueInputWrapper Type of the wrapper for edge destination property values.
+ * @tparam EdgeSrcKeyInputWrapper Type of the wrapper for edge source key values.
  * @tparam EdgeOp Type of the quaternary (or quinary) edge operator.
  * @tparam T Type of the values in (key, value) pairs.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Non-owning graph object.
- * @param edge_partition_src_value_input Device-copyable wrapper used to access source input
- * property values (for the edge sources assigned to this process in multi-GPU). Use either
- * cugraph::edge_partition_src_property_t::device_view() (if @p e_op needs to access source property
- * values) or cugraph::dummy_property_t::device_view() (if @p e_op does not access source property
- * values). Use update_edge_partition_src_property to fill the wrapper.
- * @param edge_partition_dst_value_input Device-copyable wrapper used to access destination input
- * property values (for the edge destinations assigned to this process in multi-GPU). Use either
- * cugraph::edge_partition_dst_property_t::device_view() (if @p e_op needs to access destination
- * property values) or cugraph::dummy_property_t::device_view() (if @p e_op does not access
- * destination property values). Use update_edge_partition_dst_property to fill the wrapper.
- * @param edge_partition_src_key_input Device-copyable wrapper used to access source input key
- * values (for the edge sources assigned to this process in multi-GPU). Use
- * cugraph::edge_partition_src_property_t::device_view(). Use update_edge_partition_src_property to
- * fill the wrapper.
+ * @param edge_src_value_input Wrapper used to access source input property values (for the edge
+ * sources assigned to this process in multi-GPU). Use either cugraph::edge_src_property_t::view()
+ * (if @p e_op needs to access source property values) or cugraph::edge_src_dummy_property_t::view()
+ * (if @p e_op does not access source property values). Use update_edge_src_property to fill the
+ * wrapper.
+ * @param edge_dst_value_input Wrapper used to access destination input property values (for the
+ * edge destinations assigned to this process in multi-GPU). Use either
+ * cugraph::edge_dst_property_t::view() (if @p e_op needs to access destination property values) or
+ * cugraph::edge_dst_dummy_property_t::view() (if @p e_op does not access destination property
+ * values). Use update_edge_dst_property to fill the wrapper.
+ * @param edge_src_key_input Wrapper used to access source input ke values (for the edge sources
+ * assigned to this process in multi-GPU). Use  cugraph::edge_src_property_t::view(). Use
+ * update_edge_src_property to fill the wrapper.
  * @param e_op Quaternary (or quinary) operator takes edge source, edge destination, (optional edge
  * weight), property values for the source, and property values for the destination and returns a
  * transformed value to be reduced to (source key, value) pairs.
@@ -604,35 +641,30 @@ transform_reduce_e_by_src_dst_key(
  * type).
  */
 template <typename GraphViewType,
-          typename EdgePartitionSrcValueInputWrapper,
-          typename EdgePartitionDstValueInputWrapper,
-          typename EdgePartitionSrcKeyInputWrapper,
+          typename EdgeSrcValueInputWrapper,
+          typename EdgeDstValueInputWrapper,
+          typename EdgeSrcKeyInputWrapper,
           typename EdgeOp,
           typename T>
 auto transform_reduce_e_by_src_key(raft::handle_t const& handle,
                                    GraphViewType const& graph_view,
-                                   EdgePartitionSrcValueInputWrapper edge_partition_src_value_input,
-                                   EdgePartitionDstValueInputWrapper edge_partition_dst_value_input,
-                                   EdgePartitionSrcKeyInputWrapper edge_partition_src_key_input,
+                                   EdgeSrcValueInputWrapper edge_src_value_input,
+                                   EdgeDstValueInputWrapper edge_dst_value_input,
+                                   EdgeSrcKeyInputWrapper edge_src_key_input,
                                    EdgeOp e_op,
                                    T init,
                                    bool do_expensive_check = false)
 {
   static_assert(is_arithmetic_or_thrust_tuple_of_arithmetic<T>::value);
-  static_assert(std::is_same<typename EdgePartitionSrcKeyInputWrapper::value_type,
+  static_assert(std::is_same<typename EdgeSrcKeyInputWrapper::value_type,
                              typename GraphViewType::vertex_type>::value);
 
   if (do_expensive_check) {
     // currently, nothing to do
   }
 
-  return detail::transform_reduce_e_by_src_dst_key<true>(handle,
-                                                         graph_view,
-                                                         edge_partition_src_value_input,
-                                                         edge_partition_dst_value_input,
-                                                         edge_partition_src_key_input,
-                                                         e_op,
-                                                         init);
+  return detail::transform_reduce_e_by_src_dst_key<true>(
+    handle, graph_view, edge_src_value_input, edge_dst_value_input, edge_src_key_input, e_op, init);
 }
 
 /**
@@ -642,31 +674,27 @@ auto transform_reduce_e_by_src_key(raft::handle_t const& handle,
  * edges are determined by the edge destinations.
  *
  * @tparam GraphViewType Type of the passed non-owning graph object.
- * @tparam EdgePartitionSrcValueInputWrapper Type of the wrapper for edge partition source property
- * values.
- * @tparam EdgePartitionDstValueInputWrapper Type of the wrapper for edge partition destination
- * property values.
- * @tparam EdgePartitionDstKeyInputWrapper Type of the wrapper for edge partition destination key
- * values.
+ * @tparam EdgeSrcValueInputWrapper Type of the wrapper for edge source property values.
+ * @tparam EdgeDstValueInputWrapper Type of the wrapper for edge destination property values.
+ * @tparam EdgeDstKeyInputWrapper Type of the wrapper for edge destination key values.
  * @tparam EdgeOp Type of the quaternary (or quinary) edge operator.
  * @tparam T Type of the values in (key, value) pairs.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Non-owning graph object.
- * @param edge_partition_src_value_input Device-copyable wrapper used to access source input
- * property values (for the edge sources assigned to this process in multi-GPU). Use either
- * cugraph::edge_partition_src_property_t::device_view() (if @p e_op needs to access source property
- * values) or cugraph::dummy_property_t::device_view() (if @p e_op does not access source property
- * values). Use update_edge_partition_src_property to fill the wrapper.
- * @param edge_partition_dst_value_input Device-copyable wrapper used to access destination input
- * property values (for the edge destinations assigned to this process in multi-GPU). Use either
- * cugraph::edge_partition_dst_property_t::device_view() (if @p e_op needs to access destination
- * property values) or cugraph::dummy_property_t::device_view() (if @p e_op does not access
- * destination property values). Use update_edge_partition_dst_property to fill the wrapper.
- * @param edge_partition_dst_key_input Device-copyable wrapper used to access destination input key
- * values (for the edge destinations assigned to this process in multi-GPU). Use
- * cugraph::edge_partition_dst_property_t::device_view(). Use update_edge_partition_dst_property to
- * fill the wrapper.
+ * @param edge_src_value_input Wrapper used to access source input property values (for the edge
+ * sources assigned to this process in multi-GPU). Use either cugraph::edge_src_property_t::view()
+ * (if @p e_op needs to access source property values) or cugraph::edge_src_dummy_property_t::view()
+ * (if @p e_op does not access source property values). Use update_edge_src_property to fill the
+ * wrapper.
+ * @param edge_dst_value_input Wrapper used to access destination input property values (for the
+ * edge destinations assigned to this process in multi-GPU). Use either
+ * cugraph::edge_dst_property_t::view() (if @p e_op needs to access destination property values) or
+ * cugraph::edge_dst_dummy_property_t::view() (if @p e_op does not access destination property
+ * values). Use update_edge_dst_property to fill the wrapper.
+ * @param edge_partition_dst_key_input Wrapper used to access destination input key values (for the
+ * edge destinations assigned to this process in multi-GPU). Use
+ * cugraph::edge_dst_property_t::view(). Use update_edge_dst_property to fill the wrapper.
  * @param e_op Quaternary (or quinary) operator takes edge source, edge destination, (optional edge
  * weight), property values for the source, and property values for the destination and returns a
  * transformed value to be reduced to (destination key, value) pairs.
@@ -679,35 +707,30 @@ auto transform_reduce_e_by_src_key(raft::handle_t const& handle,
  * type).
  */
 template <typename GraphViewType,
-          typename EdgePartitionSrcValueInputWrapper,
-          typename EdgePartitionDstValueInputWrapper,
-          typename EdgePartitionDstKeyInputWrapper,
+          typename EdgeSrcValueInputWrapper,
+          typename EdgeDstValueInputWrapper,
+          typename EdgeDstKeyInputWrapper,
           typename EdgeOp,
           typename T>
 auto transform_reduce_e_by_dst_key(raft::handle_t const& handle,
                                    GraphViewType const& graph_view,
-                                   EdgePartitionSrcValueInputWrapper edge_partition_src_value_input,
-                                   EdgePartitionDstValueInputWrapper edge_partition_dst_value_input,
-                                   EdgePartitionDstKeyInputWrapper edge_partition_dst_key_input,
+                                   EdgeSrcValueInputWrapper edge_src_value_input,
+                                   EdgeDstValueInputWrapper edge_dst_value_input,
+                                   EdgeDstKeyInputWrapper edge_dst_key_input,
                                    EdgeOp e_op,
                                    T init,
                                    bool do_expensive_check = false)
 {
   static_assert(is_arithmetic_or_thrust_tuple_of_arithmetic<T>::value);
-  static_assert(std::is_same<typename EdgePartitionDstKeyInputWrapper::value_type,
+  static_assert(std::is_same<typename EdgeDstKeyInputWrapper::value_type,
                              typename GraphViewType::vertex_type>::value);
 
   if (do_expensive_check) {
     // currently, nothing to do
   }
 
-  return detail::transform_reduce_e_by_src_dst_key<false>(handle,
-                                                          graph_view,
-                                                          edge_partition_src_value_input,
-                                                          edge_partition_dst_value_input,
-                                                          edge_partition_dst_key_input,
-                                                          e_op,
-                                                          init);
+  return detail::transform_reduce_e_by_src_dst_key<false>(
+    handle, graph_view, edge_src_value_input, edge_dst_value_input, edge_dst_key_input, e_op, init);
 }
 
 }  // namespace cugraph

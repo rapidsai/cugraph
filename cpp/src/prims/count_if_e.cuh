@@ -44,12 +44,12 @@ namespace cugraph {
  * property values (for the edge sources assigned to this process in multi-GPU). Use either
  * cugraph::edge_partition_src_property_t::device_view() (if @p e_op needs to access source property
  * values) or cugraph::dummy_property_t::device_view() (if @p e_op does not access source property
- * values). Use update_edge_partition_src_property to fill the wrapper.
+ * values). Use update_edge_src_property to fill the wrapper.
  * @param edge_partition_dst_value_input Device-copyable wrapper used to access destination input
  * property values (for the edge destinations assigned to this process in multi-GPU). Use either
  * cugraph::edge_partition_dst_property_t::device_view() (if @p e_op needs to access destination
  * property values) or cugraph::dummy_property_t::device_view() (if @p e_op does not access
- * destination property values). Use update_edge_partition_dst_property to fill the wrapper.
+ * destination property values). Use update_edge_dst_property to fill the wrapper.
  * @param e_op Quaternary (or quinary) operator takes edge source, edge destination, (optional edge
  * weight), property values for the source, and property values for the destination and returns if
  * this edge should be included in the returned count.

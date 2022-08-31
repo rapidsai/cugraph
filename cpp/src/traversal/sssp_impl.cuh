@@ -16,15 +16,16 @@
 #pragma once
 
 #include <prims/count_if_e.cuh>
-#include <prims/edge_partition_src_dst_property.cuh>
+#include <prims/fill_edge_src_dst_property.cuh>
 #include <prims/reduce_op.cuh>
 #include <prims/transform_reduce_e.cuh>
 #include <prims/transform_reduce_v_frontier_outgoing_e_by_dst.cuh>
-#include <prims/update_edge_partition_src_dst_property.cuh>
+#include <prims/update_edge_src_dst_property.cuh>
 #include <prims/update_v_frontier.cuh>
 #include <prims/vertex_frontier.cuh>
 
 #include <cugraph/algorithms.hpp>
+#include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/vertex_partition_device_view.cuh>
@@ -81,8 +82,8 @@ void sssp(raft::handle_t const& handle,
     auto num_negative_edge_weights =
       count_if_e(handle,
                  push_graph_view,
-                 dummy_property_t<vertex_t>{}.device_view(),
-                 dummy_property_t<vertex_t>{}.device_view(),
+                 edge_src_dummy_property_t{}.view(),
+                 edge_dst_dummy_property_t{}.view(),
                  [] __device__(vertex_t, vertex_t, weight_t w, auto, auto) { return w < 0.0; });
     CUGRAPH_EXPECTS(num_negative_edge_weights == 0,
                     "Invalid input argument: input graph should have non-negative edge weights.");
@@ -114,8 +115,8 @@ void sssp(raft::handle_t const& handle,
   thrust::tie(average_vertex_degree, average_edge_weight) = transform_reduce_e(
     handle,
     push_graph_view,
-    dummy_property_t<vertex_t>{}.device_view(),
-    dummy_property_t<vertex_t>{}.device_view(),
+    edge_src_dummy_property_t{}.view(),
+    edge_dst_dummy_property_t{}.view(),
     [] __device__(vertex_t, vertex_t, weight_t w, auto, auto) {
       return thrust::make_tuple(weight_t{1.0}, w);
     },
@@ -132,17 +133,18 @@ void sssp(raft::handle_t const& handle,
   constexpr size_t bucket_idx_far       = 2;
   constexpr size_t num_buckets          = 3;
 
-  vertex_frontier_t<vertex_t, void, GraphViewType::is_multi_gpu> vertex_frontier(handle,
-                                                                                 num_buckets);
+  vertex_frontier_t<vertex_t, void, GraphViewType::is_multi_gpu, true> vertex_frontier(handle,
+                                                                                       num_buckets);
 
   // 5. SSSP iteration
 
-  auto edge_partition_src_distances =
+  auto edge_src_distances =
     GraphViewType::is_multi_gpu
-      ? edge_partition_src_property_t<GraphViewType, weight_t>(handle, push_graph_view)
-      : edge_partition_src_property_t<GraphViewType, weight_t>(handle);
+      ? edge_src_property_t<GraphViewType, weight_t>(handle, push_graph_view)
+      : edge_src_property_t<GraphViewType, weight_t>(handle);
   if (GraphViewType::is_multi_gpu) {
-    edge_partition_src_distances.fill(handle, std::numeric_limits<weight_t>::max());
+    fill_edge_src_property(
+      handle, push_graph_view, std::numeric_limits<weight_t>::max(), edge_src_distances);
   }
 
   if (push_graph_view.in_local_vertex_partition_range_nocheck(source_vertex)) {
@@ -152,12 +154,12 @@ void sssp(raft::handle_t const& handle,
   auto near_far_threshold = delta;
   while (true) {
     if (GraphViewType::is_multi_gpu) {
-      update_edge_partition_src_property(handle,
-                                         push_graph_view,
-                                         vertex_frontier.bucket(bucket_idx_cur_near).begin(),
-                                         vertex_frontier.bucket(bucket_idx_cur_near).end(),
-                                         distances,
-                                         edge_partition_src_distances);
+      update_edge_src_property(handle,
+                               push_graph_view,
+                               vertex_frontier.bucket(bucket_idx_cur_near).begin(),
+                               vertex_frontier.bucket(bucket_idx_cur_near).end(),
+                               distances,
+                               edge_src_distances);
     }
 
     auto vertex_partition = vertex_partition_device_view_t<vertex_t, GraphViewType::is_multi_gpu>(
@@ -167,13 +169,11 @@ void sssp(raft::handle_t const& handle,
       transform_reduce_v_frontier_outgoing_e_by_dst(
         handle,
         push_graph_view,
-        vertex_frontier,
-        bucket_idx_cur_near,
+        vertex_frontier.bucket(bucket_idx_cur_near),
         GraphViewType::is_multi_gpu
-          ? edge_partition_src_distances.device_view()
-          : detail::edge_partition_major_property_device_view_t<vertex_t, weight_t const*>(
-              distances),
-        dummy_property_t<vertex_t>{}.device_view(),
+          ? edge_src_distances.view()
+          : detail::edge_major_property_view_t<vertex_t, weight_t const*>(distances),
+        edge_dst_dummy_property_t{}.view(),
         [vertex_partition, distances, cutoff] __device__(
           vertex_t src, vertex_t dst, weight_t w, auto src_val, auto) {
           auto push         = true;

@@ -30,7 +30,6 @@ from torch_geometric.data.graph_store import (
     GraphStore
 )
 from torch_geometric.loader.base import DataLoaderIterator
-from torch_geometric.loader.utils import edge_type_to_str
 from torch_geometric.typing import InputEdges, NumNeighbors, OptTensor
 
 
@@ -260,6 +259,7 @@ class EXPERIMENTAL__CuGraphLinkNeighborLoader(torch.utils.data.DataLoader):
                          collate_fn=self.collate_fn, **kwargs)
 
     def filter_fn(self, out: Any) -> Union[Data, HeteroData]:
+<<<<<<< HEAD
         (node_dict, row_dict, col_dict, feature_dict, edge_label_index,
             edge_label) = out
         feature_store, graph_store = self.data
@@ -282,6 +282,14 @@ class EXPERIMENTAL__CuGraphLinkNeighborLoader(torch.utils.data.DataLoader):
                 if attr.attr_name in feature_dict[attr.group_name]:
                     data[attr.group_name][attr.attr_name] = feature_dict[attr.group_name][attr.attr_name]
 
+=======
+        (node_dict, row_dict, col_dict, edge_dict, edge_label_index,
+            edge_label) = out
+        feature_store, graph_store = self.data
+
+        data = filter_custom_store(feature_store, graph_store, node_dict,
+                                   row_dict, col_dict, edge_dict)
+>>>>>>> 821571d6c2635506c81c4da92d73a785f3798862
         edge_type = self.neighbor_sampler.input_type
         data[edge_type].edge_label_index = edge_label_index
         if edge_label is not None:

@@ -186,9 +186,9 @@ void update_v_frontier(raft::handle_t const& handle,
                        VertexFrontierType& frontier,
                        std::vector<size_t> const& next_frontier_bucket_indices,
                        VertexValueInputIterator vertex_value_input_first,
-                       // FIXME: currently, it is undefined behavior if vertices in the frontier are
-                       // tagged and the same vertex property is updated by multiple v_op
-                       // invocations with the same vertex but with different tags.
+                       // FIXME: currently, it is undefined behavior if there are more than one @p
+                       // key_buffer elements with the same vertex ID and the same vertex property
+                       // value is updated by multiple @p v_op invocations with the same vertex ID.
                        VertexValueOutputIterator vertex_value_output_first,
                        VertexOp v_op,
                        bool do_expensive_check = false)
@@ -313,9 +313,9 @@ void update_v_frontier(raft::handle_t const& handle,
                        VertexFrontierType& frontier,
                        std::vector<size_t> const& next_frontier_bucket_indices,
                        VertexValueInputIterator vertex_value_input_first,
-                       // FIXME: currently, it is undefined behavior if vertices in the frontier are
-                       // tagged and the same vertex property is updated by multiple v_op
-                       // invocations with the same vertex but with different tags.
+                       // FIXME: currently, it is undefined behavior if there are more than one @p
+                       // key_buffer elements with the same vertex ID and the same vertex property
+                       // value is updated by multiple @p v_op invocations with the same vertex ID.
                        VertexValueOutputIterator vertex_value_output_first,
                        VertexOp v_op,
                        bool do_expensive_check = false)

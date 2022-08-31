@@ -51,18 +51,9 @@ class CuGraphEdgeAttr:
     # infer with the simple heuristic int(self.edge_index.max()) + 1
     size: Optional[Tuple[int, int]] = None
 
-    # NOTE we define __init__ to force-cast layout
-    def __init__(
-        self,
-        edge_type: Optional[Any],
-        layout: EdgeLayout,
-        is_sorted: bool = False,
-        size: Optional[Tuple[int, int]] = None,
-    ):
-        self.edge_type = edge_type
-        self.layout = EdgeLayout(layout)
-        self.is_sorted = is_sorted
-        self.size = size
+    # NOTE we define __post_init__ to force-cast layout
+    def __post_init__(self):
+        self.layout = EdgeLayout(self.layout)
 
     @classmethod
     def cast(cls, *args, **kwargs):
@@ -92,7 +83,7 @@ def EXPERIMENTAL__to_pyg(G, backend='torch'):
     Returns
     -------
     Tuple (CuGraphStore, CuGraphStore)
-    Wrappers for the provided property graph.
+        Wrappers for the provided property graph.
     """
     store = EXPERIMENTAL__CuGraphStore(G, backend=backend)
     return (store, store)
@@ -129,7 +120,7 @@ class CuGraphTensorAttr:
     # The datatype of the tensor.  Defaults to UNSET.
     dtype: Optional[Any] = _field_status.UNSET
 
-    # Convenience methods #####################################################
+    # Convenience methods
 
     def is_set(self, key):
         r"""Whether an attribute is set in :obj:`TensorAttr`."""
@@ -228,8 +219,8 @@ class EXPERIMENTAL__CuGraphStore:
 
             dst_types = self.__graph.get_vertex_data(
                 vertex_ids=dsts,
-                columns=['_TYPE_']
-            )._TYPE_.unique()
+                columns=[self.__graph.type_col_name]
+            )[self.__graph.type_col_name].unique()
 
             src_types = self.__graph.get_vertex_data(
                 vertex_ids=srcs,
@@ -256,7 +247,7 @@ class EXPERIMENTAL__CuGraphStore:
                 size=len(edges)
             )
 
-            self.__dict__['_edge_attr_cls'] = CuGraphEdgeAttr
+            self._edge_attr_cls = CuGraphEdgeAttr
 
     @property
     def _edge_types_to_attrs(self):
@@ -276,12 +267,44 @@ class EXPERIMENTAL__CuGraphStore:
         return self.__edge_types_to_attrs.values()
 
     def _get_edge_index(self, attr):
-        # returns the edge index for particular edge type
+        """
+            Returns the edge index in the requested format
+            (as defined by attr).  Currently, only unsorted
+            COO is supported, which is returned as a (src,dst)
+            tuple as expected by the PyG API.
+
+            Parameters
+            ----------
+            attr: CuGraphEdgeAttr
+                The CuGraphEdgeAttr specifying the
+                desired edge type, layout (i.e. CSR, COO, CSC), and
+                whether the returned index should be sorted (if COO).
+                Currently, only unsorted COO is supported.
+
+            Returns
+            -------
+            (src, dst) : Tuple[tensor type]
+                Tuple of the requested edge index in COO form.
+                Currently, only COO form is supported.
+        """
 
         if attr.layout != EdgeLayout.COO:
             raise TypeError('Only COO direct access is supported!')
 
+        if isinstance(attr.edge_type, str):
+            edge_type = attr.edge_type
+        else:
+            edge_type = attr.edge_type[1]
+
+        # If there is only one edge type (homogeneous graph) then
+        # bypass the edge filters for a significant speed improvement.
         if len(self.__graph.edge_types) == 1:
+            if list(self.__graph.edge_types)[0] != edge_type:
+                raise ValueError(
+                    f'Requested edge type {edge_type}'
+                    'is not present in graph.'
+                )
+
             df = self.__graph.get_edge_data(
                 edge_ids=None,
                 types=None,
@@ -311,6 +334,7 @@ class EXPERIMENTAL__CuGraphStore:
 
         src = self.from_dlpack(df[self.__graph.src_col_name].to_dlpack())
         dst = self.from_dlpack(df[self.__graph.dst_col_name].to_dlpack())
+
         if self.backend == 'torch':
             src = src.to(self.vertex_dtype)
             dst = dst.to(self.vertex_dtype)
@@ -319,6 +343,14 @@ class EXPERIMENTAL__CuGraphStore:
             dst = dst.astype(self.vertex_dtype)
         else:
             raise TypeError(f'Invalid backend type {self.backend}')
+
+        if self.__backend == 'torch':
+            src = src.to(self.vertex_type)
+            dst = dst.to(self.vertex_type)
+        else:
+            # self.__backend == 'cupy'
+            src = src.astype(self.vertex_type)
+            dst = dst.astype(self.vertex_type)
 
         if src.shape[0] != dst.shape[0]:
             raise IndexError('src and dst shape do not match!')
@@ -382,6 +414,7 @@ class EXPERIMENTAL__CuGraphStore:
             sg = self.__graph.extract_subgraph(
                 selection=selection,
                 edge_weight_property=self.__graph.edge_id_col_name,
+                default_edge_weight=1.0,
                 allow_multi_edges=True,
                 renumber_graph=True,
                 add_edge_data=False
@@ -403,7 +436,7 @@ class EXPERIMENTAL__CuGraphStore:
             num_neighbors = list(num_neighbors.values())[0]
 
         # FIXME eventually get uniform neighbor sample to accept longs
-        if self.backend == 'torch' and not index.is_cuda:
+        if self.__backend == 'torch' and not index.is_cuda:
             index = index.cuda()
         index = cupy.from_dlpack(index.__dlpack__())
 
@@ -412,15 +445,11 @@ class EXPERIMENTAL__CuGraphStore:
 
         index = cudf.Series(index)
         if self.is_mg:
-            sampling_results = cugraph.dask.uniform_neighbor_sample(
-                G,
-                index,
-                # conversion required by cugraph api
-                list(num_neighbors),
-                replace
-            )
+            uniform_neighbor_sample = cugraph.dask.uniform_neighbor_sample
         else:
-            sampling_results = cugraph.uniform_neighbor_sample(
+            uniform_neighbor_sample = cugraph.uniform_neighbor_sample
+        
+        sampling_results = uniform_neighbor_sample(
                 G,
                 index,
                 # conversion required by cugraph api
@@ -542,7 +571,6 @@ class EXPERIMENTAL__CuGraphStore:
         return row_dict, col_dict
 
     # Begin Feature Store Functions
-
     @property
     def is_mg(self):
         return isinstance(self.__graph, MGPropertyGraph)
@@ -636,7 +664,6 @@ class EXPERIMENTAL__CuGraphStore:
                 raise ValueError(f'invalid backend {self.backend}')
 
         return output
-
 
     def _get_tensor(self, attr):
         if attr.attr_name == 'x':
