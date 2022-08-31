@@ -306,9 +306,7 @@ extern "C" cugraph_error_code_t cugraph_sg_graph_create(
                *error);
 
   data_type_id_t edge_type_type = data_type_id_t::UINT8;
-  if (edge_types != nullptr) {
-    edge_type_type = p_edge_types->type_;
-  }
+  if (edge_types != nullptr) { edge_type_type = p_edge_types->type_; }
 
   ::create_graph_functor functor(*p_handle->handle_,
                                  properties,
