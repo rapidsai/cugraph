@@ -67,7 +67,7 @@ class Tests_MGInducedSubgraph: public ::testing::TestWithParam<InducedSubgraph_U
   virtual void SetUp() {}
   virtual void TearDown() {}
 
-  // Compare the results of running TriangleCount on multiple GPUs to that of a single-GPU run
+  // Compare the results of running InducedSubgraph on multiple GPUs to that of a single-GPU run
   template <typename vertex_t, typename edge_t, typename weight_t, bool store_transposed>
   void run_current_test(InducedSubgraph_Usecase const& configuration)
   {
@@ -155,15 +155,6 @@ class Tests_MGInducedSubgraph: public ::testing::TestWithParam<InducedSubgraph_U
       handle_->get_comms().barrier();
       hr_clock.start();
     }
-/*
-    cugraph::triangle_count<vertex_t, edge_t, weight_t, true>(
-      *handle_,
-      mg_graph_view,
-      d_mg_vertices ? std::make_optional<raft::device_span<vertex_t const>>(
-                        (*d_mg_vertices).begin(), (*d_mg_vertices).end())
-                    : std::nullopt,
-      raft::device_span<edge_t>(d_mg_triangle_counts.begin(), d_mg_triangle_counts.end()),
-      false);*/
     rmm::device_uvector<size_t> d_subgraph_offsets(h_subgraph_offsets.size(), handle_.get_stream());
     rmm::device_uvector<vertex_t> d_subgraph_vertices(h_subgraph_vertices.size(),
                                                       handle_.get_stream());
@@ -239,7 +230,7 @@ class Tests_MGInducedSubgraph: public ::testing::TestWithParam<InducedSubgraph_U
 
         ASSERT_EQ(mg_graph_view.number_of_vertices(), sg_graph_view.number_of_vertices());
 
-        // 4-4. run SG TriangleCount
+        // 4-4. run SG Induced Subgraph
 
         rmm::device_uvector<edge_t> d_sg_triangle_counts(d_mg_aggregate_vertices
                                                            ? (*d_mg_aggregate_vertices).size()
