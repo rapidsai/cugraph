@@ -133,8 +133,8 @@ void sssp(raft::handle_t const& handle,
   constexpr size_t bucket_idx_far       = 2;
   constexpr size_t num_buckets          = 3;
 
-  vertex_frontier_t<vertex_t, void, GraphViewType::is_multi_gpu> vertex_frontier(handle,
-                                                                                 num_buckets);
+  vertex_frontier_t<vertex_t, void, GraphViewType::is_multi_gpu, true> vertex_frontier(handle,
+                                                                                       num_buckets);
 
   // 5. SSSP iteration
 
@@ -169,8 +169,7 @@ void sssp(raft::handle_t const& handle,
       transform_reduce_v_frontier_outgoing_e_by_dst(
         handle,
         push_graph_view,
-        vertex_frontier,
-        bucket_idx_cur_near,
+        vertex_frontier.bucket(bucket_idx_cur_near),
         GraphViewType::is_multi_gpu
           ? edge_src_distances.view()
           : detail::edge_major_property_view_t<vertex_t, weight_t const*>(distances),
