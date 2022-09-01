@@ -1,5 +1,5 @@
 #!/bin/bash
-# Copyright (c) 2021, NVIDIA CORPORATION.
+# Copyright (c) 2022, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -126,10 +126,12 @@ function buildUCXWithInfinibandArgs {
 
     WORKER_ARGS="--interface=$DASK_CUDA_INTERFACE
                 --rmm-pool-size=$WORKER_RMM_POOL_SIZE
+                --rmm-maximum-pool-size=$WORKER_RMM_POOL_SIZE
                 --local-directory=/tmp/$LOGNAME
                 --scheduler-file=$SCHEDULER_FILE
                 --memory-limit=$DASK_HOST_MEMORY_LIMIT
                 --device-memory-limit=$DASK_DEVICE_MEMORY_LIMIT
+                --jit-unspill
                 "
 }
 
@@ -159,10 +161,12 @@ function buildUCXwithoutInfinibandArgs {
                 --disable-infiniband
                 --disable-rdmacm
                 --rmm-pool-size=$WORKER_RMM_POOL_SIZE
+                --rmm-maximum-pool-size=$WORKER_RMM_POOL_SIZE
                 --local-directory=/tmp/$LOGNAME
                 --scheduler-file=$SCHEDULER_FILE
                 --memory-limit=$DASK_HOST_MEMORY_LIMIT
                 --device-memory-limit=$DASK_DEVICE_MEMORY_LIMIT
+                --jit-unspill
                 "
 }
 

@@ -57,6 +57,8 @@ struct Node2vecResult {
   3:list<i32> path_sizes
 }
 
+# FIXME: uniform_neighbor_sample may need to return indices as ints
+# See: https://github.com/rapidsai/cugraph/issues/2654
 struct UniformNeighborSampleResult {
   1:list<i32> sources
   2:list<i32> destinations
