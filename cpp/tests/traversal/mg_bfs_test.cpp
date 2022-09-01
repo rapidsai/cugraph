@@ -188,41 +188,19 @@ class Tests_MGBFS : public ::testing::TestWithParam<std::tuple<BFS_Usecase, inpu
                      std::numeric_limits<vertex_t>::max());
         // 3-5. compare
 
-        std::vector<edge_t> h_sg_offsets(sg_graph_view.number_of_vertices() + 1);
-        std::vector<vertex_t> h_sg_indices(sg_graph_view.number_of_edges());
-        raft::update_host(h_sg_offsets.data(),
-                          sg_graph_view.local_edge_partition_view().offsets(),
-                          sg_graph_view.number_of_vertices() + 1,
-                          handle_->get_stream());
-        raft::update_host(h_sg_indices.data(),
-                          sg_graph_view.local_edge_partition_view().indices(),
-                          sg_graph_view.number_of_edges(),
-                          handle_->get_stream());
+        std::vector<edge_t> h_sg_offsets =
+          cugraph::test::to_host(*handle_, sg_graph_view.local_edge_partition_view().offsets());
+        std::vector<vertex_t> h_sg_indices =
+          cugraph::test::to_host(*handle_, sg_graph_view.local_edge_partition_view().indices());
 
-        std::vector<vertex_t> h_mg_aggregate_distances(mg_graph_view.number_of_vertices());
-        std::vector<vertex_t> h_mg_aggregate_predecessors(mg_graph_view.number_of_vertices());
+        std::vector<vertex_t> h_mg_aggregate_distances =
+          cugraph::test::to_host(*handle_, d_mg_aggregate_distances);
+        std::vector<vertex_t> h_mg_aggregate_predecessors =
+          cugraph::test::to_host(*handle_, d_mg_aggregate_predecessors);
 
-        raft::update_host(h_mg_aggregate_distances.data(),
-                          d_mg_aggregate_distances.data(),
-                          d_mg_aggregate_distances.size(),
-                          handle_->get_stream());
-        raft::update_host(h_mg_aggregate_predecessors.data(),
-                          d_mg_aggregate_predecessors.data(),
-                          d_mg_aggregate_predecessors.size(),
-                          handle_->get_stream());
-
-        std::vector<vertex_t> h_sg_distances(sg_graph_view.number_of_vertices());
-        std::vector<vertex_t> h_sg_predecessors(sg_graph_view.number_of_vertices());
-
-        raft::update_host(h_sg_distances.data(),
-                          d_sg_distances.data(),
-                          d_sg_distances.size(),
-                          handle_->get_stream());
-        raft::update_host(h_sg_predecessors.data(),
-                          d_sg_predecessors.data(),
-                          d_sg_predecessors.size(),
-                          handle_->get_stream());
-        handle_->sync_stream();
+        std::vector<vertex_t> h_sg_distances = cugraph::test::to_host(*handle_, d_sg_distances);
+        std::vector<vertex_t> h_sg_predecessors =
+          cugraph::test::to_host(*handle_, d_sg_predecessors);
 
         ASSERT_TRUE(std::equal(h_mg_aggregate_distances.begin(),
                                h_mg_aggregate_distances.end(),

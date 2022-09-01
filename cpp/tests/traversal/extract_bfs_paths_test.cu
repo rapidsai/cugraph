@@ -110,13 +110,8 @@ class Tests_ExtractBfsPaths
                  false,
                  std::numeric_limits<vertex_t>::max());
 
-    std::vector<vertex_t> h_distances(graph_view.number_of_vertices());
-    std::vector<vertex_t> h_predecessors(graph_view.number_of_vertices());
-
-    raft::update_host(
-      h_distances.data(), d_distances.data(), d_distances.size(), handle.get_stream());
-    raft::update_host(
-      h_predecessors.data(), d_predecessors.data(), d_predecessors.size(), handle.get_stream());
+    auto h_distances    = cugraph::test::to_host(handle, d_distances);
+    auto h_predecessors = cugraph::test::to_host(handle, d_predecessors);
 
     auto d_destinations = cugraph::test::randomly_select_destinations<false>(
       handle,
@@ -153,14 +148,9 @@ class Tests_ExtractBfsPaths
     if (extract_bfs_paths_usecase.check_correctness) {
       vertex_t invalid_vertex = cugraph::invalid_vertex_id<vertex_t>::value;
 
-      std::vector<vertex_t> h_destinations(d_destinations.size());
+      std::vector<vertex_t> h_destinations  = cugraph::test::to_host(handle, d_destinations);
+      std::vector<vertex_t> h_cugraph_paths = cugraph::test::to_host(handle, d_paths);
       std::vector<vertex_t> h_reference_paths(d_paths.size(), invalid_vertex);
-      std::vector<vertex_t> h_cugraph_paths(d_paths.size());
-
-      raft::update_host(
-        h_cugraph_paths.data(), d_paths.data(), d_paths.size(), handle.get_stream());
-      raft::update_host(
-        h_destinations.data(), d_destinations.data(), d_destinations.size(), handle.get_stream());
 
       //
       //  Reference implementation.

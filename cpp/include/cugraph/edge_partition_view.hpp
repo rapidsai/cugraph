@@ -15,6 +15,8 @@
  */
 #pragma once
 
+#include <raft/span.hpp>
+
 #include <optional>
 #include <type_traits>
 
@@ -25,25 +27,23 @@ namespace detail {
 template <typename vertex_t, typename edge_t, typename weight_t>
 class edge_partition_view_base_t {
  public:
-  edge_partition_view_base_t(edge_t const* offsets,
-                             vertex_t const* indices,
-                             std::optional<weight_t const*> weights,
-                             edge_t number_of_edges)
-    : offsets_(offsets), indices_(indices), weights_(weights), number_of_edges_(number_of_edges)
+  edge_partition_view_base_t(raft::device_span<edge_t const> offsets,
+                             raft::device_span<vertex_t const> indices,
+                             std::optional<raft::device_span<weight_t const>> weights)
+    : offsets_(offsets), indices_(indices), weights_(weights)
   {
   }
 
-  edge_t number_of_edges() const { return number_of_edges_; }
+  edge_t number_of_edges() const { return static_cast<edge_t>(indices_.size()); }
 
-  edge_t const* offsets() const { return offsets_; }
-  vertex_t const* indices() const { return indices_; }
-  std::optional<weight_t const*> weights() const { return weights_; }
+  raft::device_span<edge_t const> offsets() const { return offsets_; }
+  raft::device_span<vertex_t const> indices() const { return indices_; }
+  std::optional<raft::device_span<weight_t const>> weights() const { return weights_; }
 
  private:
-  edge_t const* offsets_{nullptr};
-  vertex_t const* indices_{nullptr};
-  std::optional<weight_t const*> weights_{std::nullopt};
-  edge_t number_of_edges_{0};
+  raft::device_span<edge_t const> offsets_{};
+  raft::device_span<vertex_t const> indices_{};
+  std::optional<raft::device_span<weight_t const>> weights_{std::nullopt};
 };
 
 }  // namespace detail
@@ -60,22 +60,18 @@ template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 class edge_partition_view_t<vertex_t, edge_t, weight_t, multi_gpu, std::enable_if_t<multi_gpu>>
   : public detail::edge_partition_view_base_t<vertex_t, edge_t, weight_t> {
  public:
-  edge_partition_view_t(edge_t const* offsets,
-                        vertex_t const* indices,
-                        std::optional<weight_t const*> weights,
-                        std::optional<vertex_t const*> dcs_nzd_vertices,
-                        std::optional<vertex_t> dcs_nzd_vertex_count,
+  edge_partition_view_t(raft::device_span<edge_t const> offsets,
+                        raft::device_span<vertex_t const> indices,
+                        std::optional<raft::device_span<weight_t const>> weights,
+                        std::optional<raft::device_span<vertex_t const>> dcs_nzd_vertices,
                         std::optional<vertex_t> major_hypersparse_first,
-                        edge_t number_of_edge_partition_edges,
                         vertex_t major_range_first,
                         vertex_t major_range_last,
                         vertex_t minor_range_first,
                         vertex_t minor_range_last,
                         vertex_t major_value_start_offset)
-    : detail::edge_partition_view_base_t<vertex_t, edge_t, weight_t>(
-        offsets, indices, weights, number_of_edge_partition_edges),
+    : detail::edge_partition_view_base_t<vertex_t, edge_t, weight_t>(offsets, indices, weights),
       dcs_nzd_vertices_(dcs_nzd_vertices),
-      dcs_nzd_vertex_count_(dcs_nzd_vertex_count),
       major_hypersparse_first_(major_hypersparse_first),
       major_range_first_(major_range_first),
       major_range_last_(major_range_last),
@@ -85,8 +81,11 @@ class edge_partition_view_t<vertex_t, edge_t, weight_t, multi_gpu, std::enable_i
   {
   }
 
-  std::optional<vertex_t const*> dcs_nzd_vertices() const { return dcs_nzd_vertices_; }
-  std::optional<vertex_t> dcs_nzd_vertex_count() const { return dcs_nzd_vertex_count_; }
+  std::optional<raft::device_span<vertex_t const>> dcs_nzd_vertices() const
+  {
+    return dcs_nzd_vertices_;
+  }
+
   std::optional<vertex_t> major_hypersparse_first() const { return major_hypersparse_first_; }
 
   vertex_t major_range_first() const { return major_range_first_; }
@@ -98,8 +97,7 @@ class edge_partition_view_t<vertex_t, edge_t, weight_t, multi_gpu, std::enable_i
 
  private:
   // relevant only if we use the CSR + DCSR (or CSC + DCSC) hybrid format
-  std::optional<vertex_t const*> dcs_nzd_vertices_{std::nullopt};
-  std::optional<vertex_t> dcs_nzd_vertex_count_{std::nullopt};
+  std::optional<raft::device_span<vertex_t const>> dcs_nzd_vertices_{std::nullopt};
   std::optional<vertex_t> major_hypersparse_first_{std::nullopt};
 
   vertex_t major_range_first_{0};
@@ -115,19 +113,16 @@ template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 class edge_partition_view_t<vertex_t, edge_t, weight_t, multi_gpu, std::enable_if_t<!multi_gpu>>
   : public detail::edge_partition_view_base_t<vertex_t, edge_t, weight_t> {
  public:
-  edge_partition_view_t(edge_t const* offsets,
-                        vertex_t const* indices,
-                        std::optional<weight_t const*> weights,
-                        vertex_t number_of_vertices,
-                        edge_t number_of_edges)
-    : detail::edge_partition_view_base_t<vertex_t, edge_t, weight_t>(
-        offsets, indices, weights, number_of_edges),
+  edge_partition_view_t(raft::device_span<edge_t const> offsets,
+                        raft::device_span<vertex_t const> indices,
+                        std::optional<raft::device_span<weight_t const>> weights,
+                        vertex_t number_of_vertices)
+    : detail::edge_partition_view_base_t<vertex_t, edge_t, weight_t>(offsets, indices, weights),
       number_of_vertices_(number_of_vertices)
   {
   }
 
-  std::optional<vertex_t const*> dcs_nzd_vertices() const { return std::nullopt; }
-  std::optional<vertex_t> dcs_nzd_vertex_count() const { return std::nullopt; }
+  std::optional<raft::device_span<vertex_t const>> dcs_nzd_vertices() const { return std::nullopt; }
   std::optional<vertex_t> major_hypersparse_first() const { return std::nullopt; }
 
   vertex_t major_range_first() const { return vertex_t{0}; }
