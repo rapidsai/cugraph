@@ -9,10 +9,10 @@ jobs:
   libcugraph-wheel:
     uses: rapidsai/shared-action-workflows/.github/workflows/wheels-manylinux.yml@feat/wheel-ci-actions
     with:
-      package-name: libcugraph_cuda11
+      package-name: libcugraph_cu11
       package-dir: cpp
       python-version: "3.8"
-      cibw-before-build: "pip install rmm-cuda11 libraft-cuda11 libcugraph-ops-cuda11 --index-url https://pypi.k8s.rapids.ai/simple"
+      cibw-before-build: "pip install rmm-cu11 libraft-cu11 libcugraphops-cu11 --index-url https://pypi.k8s.rapids.ai/simple"
       skbuild-configure-options: '-DCMAKE_MESSAGE_LOG_LEVEL=DEBUG -DBUILD_TESTS=ON -DBUILD_BENCHMARKS=OFF'
       auditwheel-skip-repair: "true"
       wheel-pattern-override: "py3-none-linux"
@@ -25,7 +25,7 @@ jobs:
       package-name: pylibcugraph
       package-dir: python/pylibcugraph
       python-version: "3.8 3.9"
-      cibw-before-build: "pip install rmm-cuda11 raft-cuda11 libraft-cuda11 libcugraph-cuda11 libcugraph-ops-cuda11 --index-url https://pypi.k8s.rapids.ai/simple"
+      cibw-before-build: "pip install rmm-cu11 raft-cu11 libraft-cu11 libcugraph-cu11 libcugraphops-cu11 --index-url https://pypi.k8s.rapids.ai/simple"
       skbuild-configure-options: "-DFIND_CUGRAPH_CPP=ON"
       cibw-test-requires:  "pytest"
       cibw-test-command: "pytest -v ./python/pylibcugraph/pylibcugraph/tests"
@@ -37,9 +37,9 @@ jobs:
       package-name: cugraph
       package-dir: python/cugraph
       python-version: "3.8 3.9"
-      cibw-before-build: "pip install rmm-cuda11 raft-cuda11 libraft-cuda11 libcugraph-cuda11 libcugraph-ops-cuda11 --index-url https://pypi.k8s.rapids.ai/simple"
-      gpu-smoketest-before-amd64: "pip install dask-cuda dask-cudf raft-cuda11 cudf-cuda11 pylibcugraph-cuda11 --index-url https://pypi.k8s.rapids.ai/simple"
-      gpu-smoketest-before-arm64: "pip install dask-cuda dask-cudf raft-cuda11 cudf-cuda11 pylibcugraph-cuda11 --index-url https://pypi.k8s.rapids.ai/simple"
+      cibw-before-build: "pip install rmm-cu11 raft-cu11 libraft-cu11 libcugraph-cu11 libcugraphops-cu11 --index-url https://pypi.k8s.rapids.ai/simple"
+      gpu-smoketest-before-amd64: "pip install dask-cuda dask-cudf raft-cu11 cudf-cu11 pylibcugraph-cu11 --index-url https://pypi.k8s.rapids.ai/simple"
+      gpu-smoketest-before-arm64: "pip install dask-cuda dask-cudf raft-cu11 cudf-cu11 pylibcugraph-cu11 --index-url https://pypi.k8s.rapids.ai/simple"
       cibw-test-requires:  "pytest"
       cibw-test-command: "pytest -v ./python/cugraph/cugraph/tests"
       gpu-smoketest: "import cudf, cugraph; gdf = cudf.read_csv('graph_data.csv', names=['src', 'dst'], dtype=['int32', 'int32']); G = cugraph.Graph();G.from_cudf_edgelist(gdf, source='src', destination='dst'); df_page = cugraph.pagerank(G); print(df_page.sort_values('pagerank', ascending=False).head(10))"
