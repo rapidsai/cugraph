@@ -29,6 +29,7 @@
 struct Similarity_Usecase {
   bool use_weights{false};
   bool check_correctness{true};
+  size_t max_vertex_pairs_to_check{std::numeric_limits<size_t>::max()};
 };
 
 template <typename input_usecase_t>
@@ -88,7 +89,7 @@ class Tests_Similarity
       {nullptr, size_t{0}}, {nullptr, size_t{0}}};
 
 #if 0
-    auto [result_src, result_dst, result_score] =
+    auto result_score =
       test_functor.run(handle, graph_view, vertex_pairs, similarity_usecase.use_weights);
 #else
     EXPECT_THROW(test_functor.run(handle, graph_view, vertex_pairs, similarity_usecase.use_weights),
@@ -105,25 +106,35 @@ class Tests_Similarity
 #if 0
       auto [src, dst, wgt] = cugraph::test::graph_to_host_coo(handle, graph_view);
 
-      std::vector<vertex_t> h_result_src(result_src.size());
-      std::vector<vertex_t> h_result_dst(result_dst.size());
-      std::vector<weight_t> h_result_score(result_score.size());
+      size_t check_size = std::min(std::get<0>(vertex_pairs).size(), similarity_usecase.max_vertex_pairs_to_check);
+      //
+      // FIXME: Need to reorder here.  thrust::shuffle on the tuples (vertex_pairs_1, vertex_pairs_2, result_score) would
+      //        be sufficient.
+      //
 
-      raft::update_host(
-        h_result_src.data(), result_src.data(), result_src.size(), handle.get_stream());
-      raft::update_host(
-        h_result_dst.data(), result_dst.data(), result_dst.size(), handle.get_stream());
+      std::vector<vertex_t> h_vertex_pair_1(check_size);
+      std::vector<vertex_t> h_vertex_pair_2(check_size);
+      std::vector<weight_t> h_result_score(check_size);
+
+      raft::update_host(h_vertex_pair_1.data(),
+                        std::get<0>(vertex_pairs).data(),
+                        check_size,
+                        handle.get_stream());
+      raft::update_host(h_vertex_pair_2.data(),
+                        std::get<1>(vertex_pairs).data(),
+                        check_size,
+                        handle.get_stream());
       raft::update_host(
         h_result_score.data(), result_score.data(), result_score.size(), handle.get_stream());
 
-      similarity_compare(graph_view.number_of_vertices(),
-                         std::move(src),
-                         std::move(dst),
-                         std::move(wgt),
-                         std::move(h_result_src),
-                         std::move(h_result_dst),
-                         std::move(h_result_score),
-                         test_functor);
+      std::tuple<std::vector<vertex_t>, std::vector<vertex_t>, std::optional<std::vector<weight_t>>>
+        &&edge_list, std::tuple<std::vector<vertex_t>, std::vector<vertex_t>>&&vertex_pairs,
+        similarity_compare(graph_view.number_of_vertices(),
+                           std::make_tuple(std::move(src), std::move(dst), std::move(wgt)),
+                           std::move(h_result_src),
+                           std::move(h_result_dst),
+                           std::move(h_result_score),
+                           test_functor);
 #endif
     }
   }
@@ -209,14 +220,15 @@ INSTANTIATE_TEST_SUITE_P(
   Tests_Similarity_File,
   ::testing::Combine(
     // enable correctness checks
-    ::testing::Values(Similarity_Usecase{true}),
+    ::testing::Values(Similarity_Usecase{true, true, 100}, Similarity_Usecase{false, true, 100}),
     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
                       cugraph::test::File_Usecase("test/datasets/dolphins.mtx"))));
 
 INSTANTIATE_TEST_SUITE_P(rmat_small_test,
                          Tests_Similarity_Rmat,
                          // enable correctness checks
-                         ::testing::Combine(::testing::Values(Similarity_Usecase{true}),
+                         ::testing::Combine(::testing::Values(Similarity_Usecase{true, true, 100},
+                                                              Similarity_Usecase{false, true, 100}),
                                             ::testing::Values(cugraph::test::Rmat_Usecase(
                                               10, 16, 0.57, 0.19, 0.19, 0, false, false))));
 
@@ -229,7 +241,7 @@ INSTANTIATE_TEST_SUITE_P(
   Tests_Similarity_File,
   ::testing::Combine(
     // disable correctness checks
-    ::testing::Values(Similarity_Usecase{false}),
+    ::testing::Values(Similarity_Usecase{false, false}, Similarity_Usecase{true, false}),
     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"))));
 
 INSTANTIATE_TEST_SUITE_P(
@@ -241,7 +253,7 @@ INSTANTIATE_TEST_SUITE_P(
   Tests_Similarity_Rmat,
   // disable correctness checks for large graphs
   ::testing::Combine(
-    ::testing::Values(Similarity_Usecase{false}),
+    ::testing::Values(Similarity_Usecase{false, false}, Similarity_Usecase{true, false}),
     ::testing::Values(cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, false, false))));
 
 CUGRAPH_TEST_PROGRAM_MAIN()
