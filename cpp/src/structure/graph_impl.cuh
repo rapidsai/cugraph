@@ -136,10 +136,10 @@ bool check_symmetric(raft::handle_t const& handle,
 {
   size_t number_of_local_edges{0};
   for (size_t i = 0; i < edgelists.size(); ++i) {
-    number_of_local_edges += edgelists[i].number_of_edges;
+    number_of_local_edges += edgelists[i].srcs.size();
   }
 
-  auto is_weighted = edgelists[0].p_edge_weights.has_value();
+  auto is_weighted = edgelists[0].weights.has_value();
 
   rmm::device_uvector<vertex_t> org_srcs(number_of_local_edges, handle.get_stream());
   rmm::device_uvector<vertex_t> org_dsts(number_of_local_edges, handle.get_stream());
@@ -149,20 +149,20 @@ bool check_symmetric(raft::handle_t const& handle,
   size_t offset{0};
   for (size_t i = 0; i < edgelists.size(); ++i) {
     thrust::copy(handle.get_thrust_policy(),
-                 edgelists[i].p_src_vertices,
-                 edgelists[i].p_src_vertices + edgelists[i].number_of_edges,
+                 edgelists[i].srcs.begin(),
+                 edgelists[i].srcs.end(),
                  org_srcs.begin() + offset);
     thrust::copy(handle.get_thrust_policy(),
-                 edgelists[i].p_dst_vertices,
-                 edgelists[i].p_dst_vertices + edgelists[i].number_of_edges,
+                 edgelists[i].dsts.begin(),
+                 edgelists[i].dsts.end(),
                  org_dsts.begin() + offset);
     if (is_weighted) {
       thrust::copy(handle.get_thrust_policy(),
-                   *(edgelists[i].p_edge_weights),
-                   *(edgelists[i].p_edge_weights) + edgelists[i].number_of_edges,
+                   (*(edgelists[i].weights)).begin(),
+                   (*(edgelists[i].weights)).end(),
                    (*org_weights).begin() + offset);
     }
-    offset += edgelists[i].number_of_edges;
+    offset += edgelists[i].srcs.size();
   }
   if constexpr (multi_gpu) {
     std::tie(
@@ -235,10 +235,10 @@ bool check_no_parallel_edge(raft::handle_t const& handle,
 {
   size_t number_of_local_edges{0};
   for (size_t i = 0; i < edgelists.size(); ++i) {
-    number_of_local_edges += edgelists[i].number_of_edges;
+    number_of_local_edges += edgelists[i].srcs.size();
   }
 
-  auto is_weighted = edgelists[0].p_edge_weights.has_value();
+  auto is_weighted = edgelists[0].weights.has_value();
 
   rmm::device_uvector<vertex_t> edgelist_srcs(number_of_local_edges, handle.get_stream());
   rmm::device_uvector<vertex_t> edgelist_dsts(number_of_local_edges, handle.get_stream());
@@ -248,20 +248,20 @@ bool check_no_parallel_edge(raft::handle_t const& handle,
   size_t offset{0};
   for (size_t i = 0; i < edgelists.size(); ++i) {
     thrust::copy(handle.get_thrust_policy(),
-                 edgelists[i].p_src_vertices,
-                 edgelists[i].p_src_vertices + edgelists[i].number_of_edges,
+                 edgelists[i].srcs.begin(),
+                 edgelists[i].srcs.end(),
                  edgelist_srcs.begin() + offset);
     thrust::copy(handle.get_thrust_policy(),
-                 edgelists[i].p_dst_vertices,
-                 edgelists[i].p_dst_vertices + edgelists[i].number_of_edges,
+                 edgelists[i].dsts.begin(),
+                 edgelists[i].dsts.end(),
                  edgelist_dsts.begin() + offset);
     if (is_weighted) {
       thrust::copy(handle.get_thrust_policy(),
-                   *(edgelists[i].p_edge_weights),
-                   *(edgelists[i].p_edge_weights) + edgelists[i].number_of_edges,
+                   (*(edgelists[i].weights)).begin(),
+                   (*(edgelists[i].weights)).end(),
                    (*edgelist_weights).begin() + offset);
     }
-    offset += edgelists[i].number_of_edges;
+    offset += edgelists[i].srcs.size();
   }
 
   if (edgelist_weights) {
@@ -308,21 +308,17 @@ std::enable_if_t<multi_gpu, void> check_graph_constructor_input_arguments(
       ((*(meta.segment_offsets)).size() == (detail::num_sparse_segments_per_vertex_partition + 3)),
     "Invalid input argument: (*(meta.segment_offsets)).size() returns an invalid value.");
 
-  auto is_weighted = edgelists[0].p_edge_weights.has_value();
+  auto is_weighted = edgelists[0].weights.has_value();
 
   CUGRAPH_EXPECTS(
     std::any_of(edgelists.begin(),
                 edgelists.end(),
                 [is_weighted](auto edgelist) {
-                  return ((edgelist.number_of_edges > 0) && (edgelist.p_src_vertices == nullptr)) ||
-                         ((edgelist.number_of_edges > 0) && (edgelist.p_dst_vertices == nullptr)) ||
-                         (is_weighted && (edgelist.number_of_edges > 0) &&
-                          ((edgelist.p_edge_weights.has_value() == false) ||
-                           (*(edgelist.p_edge_weights) == nullptr)));
+                  return (edgelist.srcs.size() != edgelist.dsts.size()) ||
+                         (is_weighted && (edgelist.srcs.size() != (*(edgelist.weights)).size()));
                 }) == false,
-    "Invalid input argument: edgelists[].p_src_vertices and edgelists[].p_dst_vertices should not "
-    "be nullptr if edgelists[].number_of_edges > 0 and edgelists[].p_edge_weights should be "
-    "neither std::nullopt nor nullptr if weighted and edgelists[].number_of_edges >  0.");
+    "Invalid input argument: edgelists[].srcs.size() and edgelists[].dsts.size() should coincide, "
+    "if edgelists[].weights.has_value(), (*(edgelists[].weights)).size() should also coincide.");
 
   // optional expensive checks
 
@@ -334,17 +330,17 @@ std::enable_if_t<multi_gpu, void> check_graph_constructor_input_arguments(
       auto [minor_range_first, minor_range_last] =
         meta.partition.local_edge_partition_minor_range();
 
-      number_of_local_edges += edgelists[i].number_of_edges;
+      number_of_local_edges += static_cast<edge_t>(edgelists[i].srcs.size());
 
       auto edge_first = thrust::make_zip_iterator(thrust::make_tuple(
-        store_transposed ? edgelists[i].p_dst_vertices : edgelists[i].p_src_vertices,
-        store_transposed ? edgelists[i].p_src_vertices : edgelists[i].p_dst_vertices));
+        store_transposed ? edgelists[i].dsts.begin() : edgelists[i].srcs.begin(),
+        store_transposed ? edgelists[i].srcs.begin() : edgelists[i].dsts.begin()));
       // better use thrust::any_of once https://github.com/thrust/thrust/issues/1016 is resolved
       CUGRAPH_EXPECTS(
         thrust::count_if(
           handle.get_thrust_policy(),
           edge_first,
-          edge_first + edgelists[i].number_of_edges,
+          edge_first + edgelists[i].srcs.size(),
           out_of_range_t<vertex_t>{
             major_range_first, major_range_last, minor_range_first, minor_range_last}) == 0,
         "Invalid input argument: edgelists[] have out-of-range values.");
@@ -388,16 +384,13 @@ std::enable_if_t<!multi_gpu, void> check_graph_constructor_input_arguments(
 {
   // cheap error checks
 
-  auto is_weighted = edgelist.p_edge_weights.has_value();
+  auto is_weighted = edgelist.weights.has_value();
 
   CUGRAPH_EXPECTS(
-    ((edgelist.number_of_edges == 0) || (edgelist.p_src_vertices != nullptr)) &&
-      ((edgelist.number_of_edges == 0) || (edgelist.p_dst_vertices != nullptr)) &&
-      (!is_weighted || (is_weighted && ((edgelist.number_of_edges == 0) ||
-                                        (*(edgelist.p_edge_weights) != nullptr)))),
-    "Invalid input argument: edgelist.p_src_vertices and edgelist.p_dst_vertices should not be "
-    "nullptr if edgelist.number_of_edges > 0 and edgelist.p_edge_weights should be neither "
-    "std::nullopt nor nullptr if weighted and edgelist.number_of_edges > 0.");
+    (edgelist.srcs.size() == edgelist.dsts.size()) &&
+      (!is_weighted || (edgelist.srcs.size() == (*(edgelist.weights)).size())),
+    "Invalid input argument: edgelists.srcs.size() and edgelists.dsts.size() should coincide, if "
+    "edgelists.weights.has_value(), (*(edgelists.weights)).size() should also coincide.");
 
   CUGRAPH_EXPECTS(
     !meta.segment_offsets.has_value() ||
@@ -408,14 +401,14 @@ std::enable_if_t<!multi_gpu, void> check_graph_constructor_input_arguments(
 
   if (do_expensive_check) {
     auto edge_first = thrust::make_zip_iterator(
-      thrust::make_tuple(store_transposed ? edgelist.p_dst_vertices : edgelist.p_src_vertices,
-                         store_transposed ? edgelist.p_src_vertices : edgelist.p_dst_vertices));
+      thrust::make_tuple(store_transposed ? edgelist.dsts.begin() : edgelist.srcs.begin(),
+                         store_transposed ? edgelist.srcs.begin() : edgelist.dsts.begin()));
     // better use thrust::any_of once https://github.com/thrust/thrust/issues/1016 is resolved
     CUGRAPH_EXPECTS(
       thrust::count_if(
         handle.get_thrust_policy(),
         edge_first,
-        edge_first + edgelist.number_of_edges,
+        edge_first + edgelist.srcs.size(),
         out_of_range_t<vertex_t>{0, meta.number_of_vertices, 0, meta.number_of_vertices}) == 0,
       "Invalid input argument: edgelist have out-of-range values.");
 
@@ -735,18 +728,17 @@ compress_edgelist(edgelist_t<vertex_t, edge_t, weight_t> const& edgelist,
                   rmm::cuda_stream_view stream_view)
 {
   rmm::device_uvector<edge_t> offsets((major_range_last - major_range_first) + 1, stream_view);
-  rmm::device_uvector<vertex_t> indices(edgelist.number_of_edges, stream_view);
-  auto weights = edgelist.p_edge_weights ? std::make_optional<rmm::device_uvector<weight_t>>(
-                                             edgelist.number_of_edges, stream_view)
-                                         : std::nullopt;
+  rmm::device_uvector<vertex_t> indices(edgelist.srcs.size(), stream_view);
+  auto weights = edgelist.weights ? std::make_optional<rmm::device_uvector<weight_t>>(
+                                      (*(edgelist.weights)).size(), stream_view)
+                                  : std::nullopt;
   thrust::fill(rmm::exec_policy(stream_view), offsets.begin(), offsets.end(), edge_t{0});
   thrust::fill(rmm::exec_policy(stream_view), indices.begin(), indices.end(), vertex_t{0});
 
   auto p_offsets = offsets.data();
   thrust::for_each(rmm::exec_policy(stream_view),
-                   store_transposed ? edgelist.p_dst_vertices : edgelist.p_src_vertices,
-                   store_transposed ? edgelist.p_dst_vertices + edgelist.number_of_edges
-                                    : edgelist.p_src_vertices + edgelist.number_of_edges,
+                   store_transposed ? edgelist.dsts.begin() : edgelist.srcs.begin(),
+                   store_transposed ? edgelist.dsts.end() : edgelist.srcs.end(),
                    [p_offsets, major_range_first] __device__(auto v) {
                      atomicAdd(p_offsets + (v - major_range_first), edge_t{1});
                    });
@@ -754,14 +746,14 @@ compress_edgelist(edgelist_t<vertex_t, edge_t, weight_t> const& edgelist,
     rmm::exec_policy(stream_view), offsets.begin(), offsets.end(), offsets.begin());
 
   auto p_indices = indices.data();
-  if (edgelist.p_edge_weights) {
+  if (edgelist.weights) {
     auto p_weights = (*weights).data();
 
     auto edge_first = thrust::make_zip_iterator(thrust::make_tuple(
-      edgelist.p_src_vertices, edgelist.p_dst_vertices, *(edgelist.p_edge_weights)));
+      edgelist.srcs.begin(), edgelist.dsts.begin(), (*(edgelist.weights)).begin()));
     thrust::for_each(rmm::exec_policy(stream_view),
                      edge_first,
-                     edge_first + edgelist.number_of_edges,
+                     edge_first + edgelist.srcs.size(),
                      [p_offsets, p_indices, p_weights, major_range_first] __device__(auto e) {
                        auto s      = thrust::get<0>(e);
                        auto d      = thrust::get<1>(e);
@@ -780,11 +772,11 @@ compress_edgelist(edgelist_t<vertex_t, edge_t, weight_t> const& edgelist,
                        p_weights[start + idx] = w;
                      });
   } else {
-    auto edge_first = thrust::make_zip_iterator(
-      thrust::make_tuple(edgelist.p_src_vertices, edgelist.p_dst_vertices));
+    auto edge_first =
+      thrust::make_zip_iterator(thrust::make_tuple(edgelist.srcs.begin(), edgelist.dsts.begin()));
     thrust::for_each(rmm::exec_policy(stream_view),
                      edge_first,
-                     edge_first + edgelist.number_of_edges,
+                     edge_first + edgelist.srcs.size(),
                      [p_offsets, p_indices, major_range_first] __device__(auto e) {
                        auto s      = thrust::get<0>(e);
                        auto d      = thrust::get<1>(e);
@@ -969,7 +961,7 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
       handle, meta.number_of_vertices, meta.number_of_edges, meta.properties),
     partition_(meta.partition)
 {
-  auto is_weighted = edgelists[0].p_edge_weights.has_value();
+  auto is_weighted = edgelists[0].weights.has_value();
   auto use_dcs =
     meta.segment_offsets
       ? ((*(meta.segment_offsets)).size() > (detail::num_sparse_segments_per_vertex_partition + 2))
@@ -1115,12 +1107,14 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
   std::vector<edgelist_t<vertex_t, edge_t, weight_t>> edgelists(edgelist_src_partitions.size());
   for (size_t i = 0; i < edgelists.size(); ++i) {
     edgelists[i] = edgelist_t<vertex_t, edge_t, weight_t>{
-      edgelist_src_partitions[i].data(),
-      edgelist_dst_partitions[i].data(),
+      raft::device_span<vertex_t const>(edgelist_src_partitions[i].data(),
+                                        edgelist_src_partitions[i].size()),
+      raft::device_span<vertex_t const>(edgelist_dst_partitions[i].data(),
+                                        edgelist_dst_partitions[i].size()),
       edgelist_weight_partitions
-        ? std::optional<weight_t const*>{(*edgelist_weight_partitions)[i].data()}
-        : std::nullopt,
-      static_cast<edge_t>(edgelist_src_partitions[i].size())};
+        ? std::make_optional<raft::device_span<weight_t const>>(
+            (*edgelist_weight_partitions)[i].data(), (*edgelist_weight_partitions)[i].size())
+        : std::nullopt};
   }
 
   check_graph_constructor_input_arguments<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
@@ -1239,7 +1233,7 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
           graph_meta_t<vertex_t, edge_t, multi_gpu> meta,
           bool do_expensive_check)
   : detail::graph_base_t<vertex_t, edge_t, weight_t>(
-      handle, meta.number_of_vertices, edgelist.number_of_edges, meta.properties),
+      handle, meta.number_of_vertices, static_cast<edge_t>(edgelist.srcs.size()), meta.properties),
     offsets_(rmm::device_uvector<edge_t>(0, handle.get_stream())),
     indices_(rmm::device_uvector<vertex_t>(0, handle.get_stream())),
     segment_offsets_(meta.segment_offsets)
@@ -1294,10 +1288,11 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
     "(*edgelist_weights).size().");
 
   edgelist_t<vertex_t, edge_t, weight_t> edgelist{
-    edgelist_srcs.data(),
-    edgelist_dsts.data(),
-    edgelist_weights ? std::optional<weight_t const*>{(*edgelist_weights).data()} : std::nullopt,
-    static_cast<edge_t>(edgelist_srcs.size())};
+    raft::device_span<vertex_t const>(edgelist_srcs.data(), edgelist_srcs.size()),
+    raft::device_span<vertex_t const>(edgelist_dsts.data(), edgelist_dsts.size()),
+    edgelist_weights ? std::make_optional<raft::device_span<weight_t const>>(
+                         (*edgelist_weights).data(), (*edgelist_weights).size())
+                     : std::nullopt};
 
   check_graph_constructor_input_arguments<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
     handle, edgelist, meta, do_expensive_check);

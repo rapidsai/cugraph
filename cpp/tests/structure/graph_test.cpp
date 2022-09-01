@@ -23,6 +23,7 @@
 
 #include <raft/cudart_utils.h>
 #include <raft/handle.hpp>
+#include <raft/span.hpp>
 #include <rmm/device_uvector.hpp>
 #include <rmm/mr/device/cuda_memory_resource.hpp>
 
@@ -31,6 +32,7 @@
 #include <algorithm>
 #include <limits>
 #include <numeric>
+#include <span>
 #include <tuple>
 #include <vector>
 
@@ -110,10 +112,11 @@ class Tests_Graph : public ::testing::TestWithParam<std::tuple<Graph_Usecase, in
         number_of_edges);
 
     cugraph::edgelist_t<vertex_t, edge_t, weight_t> edgelist{
-      d_srcs.data(),
-      d_dsts.data(),
-      d_weights ? std::optional<weight_t const*>{(*d_weights).data()} : std::nullopt,
-      number_of_edges};
+      raft::device_span<vertex_t const>(d_srcs.data(), d_srcs.size()),
+      raft::device_span<vertex_t const>(d_dsts.data(), d_dsts.size()),
+      d_weights ? std::make_optional<raft::device_span<weight_t const>>((*d_weights).data(),
+                                                                        (*d_weights).size())
+                : std::nullopt};
 
     RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
 

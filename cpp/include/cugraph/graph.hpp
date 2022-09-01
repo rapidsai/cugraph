@@ -36,10 +36,9 @@ namespace cugraph {
 
 template <typename vertex_t, typename edge_t, typename weight_t>
 struct edgelist_t {
-  vertex_t const* p_src_vertices{nullptr};
-  vertex_t const* p_dst_vertices{nullptr};
-  std::optional<weight_t const*> p_edge_weights{std::nullopt};
-  edge_t number_of_edges{0};
+  raft::device_span<vertex_t const> srcs{};
+  raft::device_span<vertex_t const> dsts{};
+  std::optional<raft::device_span<weight_t const>> weights{};
 };
 
 template <typename vertex_t, typename edge_t, bool multi_gpu, typename Enable = void>

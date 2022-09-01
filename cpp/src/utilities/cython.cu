@@ -30,6 +30,7 @@
 #include <cugraph/utilities/shuffle_comm.cuh>
 
 #include <raft/handle.hpp>
+#include <raft/span.hpp>
 
 #include <rmm/device_uvector.hpp>
 #include <rmm/exec_policy.hpp>
@@ -144,13 +145,17 @@ std::unique_ptr<graph_t<vertex_t, edge_t, weight_t, transposed, multi_gpu>> crea
   std::vector<cugraph::edgelist_t<vertex_t, edge_t, weight_t>> edgelists(num_local_partitions);
   for (size_t i = 0; i < edgelists.size(); ++i) {
     edgelists[i] = cugraph::edgelist_t<vertex_t, edge_t, weight_t>{
-      reinterpret_cast<vertex_t*>(graph_container.src_vertices) + displacements[i],
-      reinterpret_cast<vertex_t*>(graph_container.dst_vertices) + displacements[i],
+      raft::device_span<vertex_t const>(
+        reinterpret_cast<vertex_t const*>(graph_container.src_vertices) + displacements[i],
+        edge_counts[i]),
+      raft::device_span<vertex_t const>(
+        reinterpret_cast<vertex_t const*>(graph_container.dst_vertices) + displacements[i],
+        edge_counts[i]),
       graph_container.is_weighted
-        ? std::optional<weight_t const*>(
-            {static_cast<weight_t const*>(graph_container.weights) + displacements[i]})
-        : std::nullopt,
-      edge_counts[i]};
+        ? std::make_optional<raft::device_span<weight_t const>>(
+            reinterpret_cast<weight_t const*>(graph_container.weights) + displacements[i],
+            edge_counts[i])
+        : std::nullopt};
   }
 
   partition_t<vertex_t> partition(partition_offsets_vector,
@@ -189,12 +194,16 @@ std::unique_ptr<graph_t<vertex_t, edge_t, weight_t, transposed, multi_gpu>> crea
   raft::handle_t const& handle, graph_container_t const& graph_container)
 {
   edgelist_t<vertex_t, edge_t, weight_t> edgelist{
-    reinterpret_cast<vertex_t*>(graph_container.src_vertices),
-    reinterpret_cast<vertex_t*>(graph_container.dst_vertices),
-    graph_container.is_weighted
-      ? std::optional<weight_t const*>{reinterpret_cast<weight_t*>(graph_container.weights)}
-      : std::nullopt,
-    static_cast<edge_t>(graph_container.num_local_edges)};
+    raft::device_span<vertex_t const>(
+      reinterpret_cast<vertex_t const*>(graph_container.src_vertices),
+      graph_container.num_local_edges),
+    raft::device_span<vertex_t const>(
+      reinterpret_cast<vertex_t const*>(graph_container.dst_vertices),
+      graph_container.num_local_edges),
+    graph_container.is_weighted ? std::make_optional<raft::device_span<weight_t const>>(
+                                    reinterpret_cast<weight_t const*>(graph_container.weights),
+                                    graph_container.num_local_edges)
+                                : std::nullopt};
   return std::make_unique<graph_t<vertex_t, edge_t, weight_t, transposed, multi_gpu>>(
     handle,
     edgelist,
