@@ -436,6 +436,8 @@ class GaasHandler:
         except:
             raise GaasError(f"{traceback.format_exc()}")
 
+    # FIXME: ensure edge IDs can also be filtered by edge type
+    # See: https://github.com/rapidsai/cugraph/issues/2655
     def get_edge_IDs_for_vertices(self, src_vert_IDs, dst_vert_IDs, graph_id):
         """
         Return a list of edge IDs corresponding to the vertex IDs in each of
@@ -573,6 +575,7 @@ class GaasHandler:
                             "then call batched_ego_graphs() on the extracted "
                             "subgraph instead.")
         try:
+            # FIXME: update this to use call_algo()
             # FIXME: this should not be needed, need to update
             # cugraph.batched_ego_graphs to also accept a list
             seeds = cudf.Series(seeds, dtype="int32")
@@ -618,6 +621,7 @@ class GaasHandler:
                             "node2vec() on the extracted subgraph instead.")
 
         try:
+            # FIXME: update this to use call_algo()
             # FIXME: this should not be needed, need to update cugraph.node2vec to
             # also accept a list
             start_vertices = cudf.Series(start_vertices, dtype="int32")
@@ -649,14 +653,16 @@ class GaasHandler:
                             "uniform_neighbor_sample() on the extracted "
                             "subgraph instead.")
 
-        return call_algo(
-            uniform_neighbor_sample,
-            G,
-            start_list=start_list,
-            fanout_vals=fanout_vals,
-            with_replacement=with_replacement
-        )
-
+        try:
+            return call_algo(
+                uniform_neighbor_sample,
+                G,
+                start_list=start_list,
+                fanout_vals=fanout_vals,
+                with_replacement=with_replacement
+            )
+        except:
+            raise GaasError(f"{traceback.format_exc()}")
 
     def pagerank(self, graph_id):
         """

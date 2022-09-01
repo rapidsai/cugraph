@@ -261,6 +261,10 @@ def test_uniform_neighbor_sampling(handler_with_karate_edgelist_loaded):
                                         with_replacement=with_replacement,
                                         graph_id=defaults.graph_id)
 
+    # FIXME: add test coverage for specifying the edge ID as the
+    # edge_weight_property, then ensuring the edge ID is returned properly with
+    # the uniform_neighbor_sample results.
+    # See: https://github.com/rapidsai/cugraph/issues/2654
     extracted_gid = handler.extract_subgraph(create_using=None,
                                              selection=None,
                                              edge_weight_property=None,
