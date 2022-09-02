@@ -130,13 +130,9 @@ def core_number(input_graph,
     ddf = dask_cudf.from_delayed(cudf_result).persist()
     wait(ddf)
 
-    # FIXME: Dask doesn't always release it fast enough.
-    # For instance if the algo is run several times with
-    # the same PLC graph, the current iteration might try to cache
-    # the past iteration's futures and this can cause a hang if some
-    # of those futures get released midway
-    del result
-    del cudf_result
+    # Wait until the inactive futures are released
+    wait([(r.release(), c_r.release()) \
+        for r, c_r in zip(result, cudf_result)])
 
     if input_graph.renumbered:
         ddf = input_graph.unrenumber(ddf, "vertex")
