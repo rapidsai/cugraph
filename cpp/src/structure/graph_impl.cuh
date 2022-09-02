@@ -760,19 +760,40 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
   for (size_t i = 0; i < edgelists.size(); ++i) {
     auto [major_range_first, major_range_last] = partition_.local_edge_partition_major_range(i);
     auto [minor_range_first, minor_range_last] = partition_.local_edge_partition_minor_range();
-    auto [offsets, indices, weights, dcs_nzd_vertices] =
-      detail::compress_edgelist<store_transposed>(
-        edgelists[i],
-        major_range_first,
-        use_dcs ? std::optional<vertex_t>{major_range_first +
-                                          (*edge_partition_segment_offsets_)
-                                            [(*(meta.segment_offsets)).size() * i +
-                                             detail::num_sparse_segments_per_vertex_partition]}
-                : std::nullopt,
-        major_range_last,
-        minor_range_first,
-        minor_range_last,
-        handle.get_stream());
+    rmm::device_uvector<edge_t> offsets(size_t{0}, handle.get_stream());
+    rmm::device_uvector<vertex_t> indices(size_t{0}, handle.get_stream());
+    std::optional<rmm::device_uvector<weight_t>> weights{std::nullopt};
+    std::optional<rmm::device_uvector<vertex_t>> dcs_nzd_vertices{std::nullopt};
+    auto major_hypersparse_first =
+      use_dcs ? std::optional<vertex_t>{major_range_first +
+                                        (*edge_partition_segment_offsets_)
+                                          [(*(meta.segment_offsets)).size() * i +
+                                           detail::num_sparse_segments_per_vertex_partition]}
+              : std::nullopt;
+    if (edgelists[i].weights) {
+      std::tie(offsets, indices, weights, dcs_nzd_vertices) =
+        detail::compress_edgelist<edge_t, store_transposed>(edgelists[i].srcs.begin(),
+                                                            edgelists[i].srcs.end(),
+                                                            edgelists[i].dsts.begin(),
+                                                            (*(edgelists[i].weights)).begin(),
+                                                            major_range_first,
+                                                            major_hypersparse_first,
+                                                            major_range_last,
+                                                            minor_range_first,
+                                                            minor_range_last,
+                                                            handle.get_stream());
+    } else {
+      std::tie(offsets, indices, dcs_nzd_vertices) =
+        detail::compress_edgelist<edge_t, store_transposed>(edgelists[i].srcs.begin(),
+                                                            edgelists[i].srcs.end(),
+                                                            edgelists[i].dsts.begin(),
+                                                            major_range_first,
+                                                            major_hypersparse_first,
+                                                            major_range_last,
+                                                            minor_range_first,
+                                                            minor_range_last,
+                                                            handle.get_stream());
+    }
 
     edge_partition_offsets_.push_back(std::move(offsets));
     edge_partition_indices_.push_back(std::move(indices));
@@ -787,14 +808,22 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
   // segmented sort neighbors
 
   for (size_t i = 0; i < edge_partition_offsets_.size(); ++i) {
-    detail::sort_adjacency_list(handle,
-                                edge_partition_offsets_[i].data(),
-                                edge_partition_indices_[i].data(),
-                                edge_partition_weights_
-                                  ? std::optional<weight_t*>{(*edge_partition_weights_)[i].data()}
-                                  : std::nullopt,
-                                static_cast<vertex_t>(edge_partition_offsets_[i].size() - 1),
-                                static_cast<edge_t>(edge_partition_indices_[i].size()));
+    if (edge_partition_weights_) {
+      detail::sort_adjacency_list(
+        handle,
+        raft::device_span<edge_t const>(edge_partition_offsets_[i].data(),
+                                        edge_partition_offsets_[i].size()),
+        edge_partition_indices_[i].begin(),
+        edge_partition_indices_[i].end(),
+        (*edge_partition_weights_)[i].begin());
+    } else {
+      detail::sort_adjacency_list(
+        handle,
+        raft::device_span<edge_t const>(edge_partition_offsets_[i].data(),
+                                        edge_partition_offsets_[i].size()),
+        edge_partition_indices_[i].begin(),
+        edge_partition_indices_[i].end());
+    }
   }
 
   // update local sorted unique edge sources/destinations (only if key, value pair will be used)
@@ -911,19 +940,40 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
   for (size_t i = 0; i < edgelists.size(); ++i) {
     auto [major_range_first, major_range_last] = partition_.local_edge_partition_major_range(i);
     auto [minor_range_first, minor_range_last] = partition_.local_edge_partition_minor_range();
-    auto [offsets, indices, weights, dcs_nzd_vertices] =
-      detail::compress_edgelist<store_transposed>(
-        edgelists[i],
-        major_range_first,
-        use_dcs ? std::optional<vertex_t>{major_range_first +
-                                          (*edge_partition_segment_offsets_)
-                                            [(*(meta.segment_offsets)).size() * i +
-                                             detail::num_sparse_segments_per_vertex_partition]}
-                : std::nullopt,
-        major_range_last,
-        minor_range_first,
-        minor_range_last,
-        handle.get_stream());
+    rmm::device_uvector<edge_t> offsets(size_t{0}, handle.get_stream());
+    rmm::device_uvector<vertex_t> indices(size_t{0}, handle.get_stream());
+    std::optional<rmm::device_uvector<weight_t>> weights{std::nullopt};
+    std::optional<rmm::device_uvector<vertex_t>> dcs_nzd_vertices{std::nullopt};
+    auto major_hypersparse_first =
+      use_dcs ? std::optional<vertex_t>{major_range_first +
+                                        (*edge_partition_segment_offsets_)
+                                          [(*(meta.segment_offsets)).size() * i +
+                                           detail::num_sparse_segments_per_vertex_partition]}
+              : std::nullopt;
+    if (edgelists[i].weights) {
+      std::tie(offsets, indices, weights, dcs_nzd_vertices) =
+        detail::compress_edgelist<edge_t, store_transposed>(edgelists[i].srcs.begin(),
+                                                            edgelists[i].srcs.end(),
+                                                            edgelists[i].dsts.begin(),
+                                                            (*(edgelists[i].weights)).begin(),
+                                                            major_range_first,
+                                                            major_hypersparse_first,
+                                                            major_range_last,
+                                                            minor_range_first,
+                                                            minor_range_last,
+                                                            handle.get_stream());
+    } else {
+      std::tie(offsets, indices, dcs_nzd_vertices) =
+        detail::compress_edgelist<edge_t, store_transposed>(edgelists[i].srcs.begin(),
+                                                            edgelists[i].srcs.end(),
+                                                            edgelists[i].dsts.begin(),
+                                                            major_range_first,
+                                                            major_hypersparse_first,
+                                                            major_range_last,
+                                                            minor_range_first,
+                                                            minor_range_last,
+                                                            handle.get_stream());
+    }
     edgelist_src_partitions[i].resize(0, handle.get_stream());
     edgelist_src_partitions[i].shrink_to_fit(handle.get_stream());
     edgelist_dst_partitions[i].resize(0, handle.get_stream());
@@ -946,14 +996,22 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
   // segmented sort neighbors
 
   for (size_t i = 0; i < edge_partition_offsets_.size(); ++i) {
-    detail::sort_adjacency_list(handle,
-                                edge_partition_offsets_[i].data(),
-                                edge_partition_indices_[i].data(),
-                                edge_partition_weights_
-                                  ? std::optional<weight_t*>{(*edge_partition_weights_)[i].data()}
-                                  : std::nullopt,
-                                static_cast<vertex_t>(edge_partition_offsets_[i].size() - 1),
-                                static_cast<edge_t>(edge_partition_indices_[i].size()));
+    if (edge_partition_weights_) {
+      detail::sort_adjacency_list(
+        handle,
+        raft::device_span<edge_t const>(edge_partition_offsets_[i].data(),
+                                        edge_partition_offsets_[i].size()),
+        edge_partition_indices_[i].begin(),
+        edge_partition_indices_[i].end(),
+        (*edge_partition_weights_)[i].begin());
+    } else {
+      detail::sort_adjacency_list(
+        handle,
+        raft::device_span<edge_t const>(edge_partition_offsets_[i].data(),
+                                        edge_partition_offsets_[i].size()),
+        edge_partition_indices_[i].begin(),
+        edge_partition_indices_[i].end());
+    }
   }
 
   // update local sorted unique edge sources/destinations (only if key, value pair will be used)
@@ -1014,24 +1072,45 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
 
   // convert edge list (COO) to compressed sparse format (CSR or CSC)
 
-  std::tie(offsets_, indices_, weights_, std::ignore) =
-    detail::compress_edgelist<store_transposed>(edgelist,
-                                                vertex_t{0},
-                                                std::optional<vertex_t>{std::nullopt},
-                                                this->number_of_vertices(),
-                                                vertex_t{0},
-                                                this->number_of_vertices(),
-                                                handle.get_stream());
+  if (edgelist.weights) {
+    std::tie(offsets_, indices_, weights_, std::ignore) =
+      detail::compress_edgelist<edge_t, store_transposed>(edgelist.srcs.begin(),
+                                                          edgelist.srcs.end(),
+                                                          edgelist.dsts.begin(),
+                                                          (*(edgelist.weights)).begin(),
+                                                          vertex_t{0},
+                                                          std::optional<vertex_t>{std::nullopt},
+                                                          this->number_of_vertices(),
+                                                          vertex_t{0},
+                                                          this->number_of_vertices(),
+                                                          handle.get_stream());
+  } else {
+    std::tie(offsets_, indices_, std::ignore) =
+      detail::compress_edgelist<edge_t, store_transposed>(edgelist.srcs.begin(),
+                                                          edgelist.srcs.end(),
+                                                          edgelist.dsts.begin(),
+                                                          vertex_t{0},
+                                                          std::optional<vertex_t>{std::nullopt},
+                                                          this->number_of_vertices(),
+                                                          vertex_t{0},
+                                                          this->number_of_vertices(),
+                                                          handle.get_stream());
+  }
 
   // segmented sort neighbors
 
-  detail::sort_adjacency_list(
-    handle,
-    offsets_.data(),
-    indices_.data(),
-    weights_ ? std::optional<weight_t*>{(*weights_).data()} : std::nullopt,
-    static_cast<vertex_t>(offsets_.size() - 1),
-    static_cast<edge_t>(indices_.size()));
+  if (weights_) {
+    detail::sort_adjacency_list(handle,
+                                raft::device_span<edge_t const>(offsets_.data(), offsets_.size()),
+                                indices_.begin(),
+                                indices_.end(),
+                                (*weights_).begin());
+  } else {
+    detail::sort_adjacency_list(handle,
+                                raft::device_span<edge_t const>(offsets_.data(), offsets_.size()),
+                                indices_.begin(),
+                                indices_.end());
+  }
 }
 
 template <typename vertex_t,
@@ -1071,14 +1150,30 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
 
   // convert edge list (COO) to compressed sparse format (CSR or CSC)
 
-  std::tie(offsets_, indices_, weights_, std::ignore) =
-    detail::compress_edgelist<store_transposed>(edgelist,
-                                                vertex_t{0},
-                                                std::optional<vertex_t>{std::nullopt},
-                                                this->number_of_vertices(),
-                                                vertex_t{0},
-                                                this->number_of_vertices(),
-                                                handle.get_stream());
+  if (edgelist.weights) {
+    std::tie(offsets_, indices_, weights_, std::ignore) =
+      detail::compress_edgelist<edge_t, store_transposed>(edgelist.srcs.begin(),
+                                                          edgelist.srcs.end(),
+                                                          edgelist.dsts.begin(),
+                                                          (*(edgelist.weights)).begin(),
+                                                          vertex_t{0},
+                                                          std::optional<vertex_t>{std::nullopt},
+                                                          this->number_of_vertices(),
+                                                          vertex_t{0},
+                                                          this->number_of_vertices(),
+                                                          handle.get_stream());
+  } else {
+    std::tie(offsets_, indices_, std::ignore) =
+      detail::compress_edgelist<edge_t, store_transposed>(edgelist.srcs.begin(),
+                                                          edgelist.srcs.end(),
+                                                          edgelist.dsts.begin(),
+                                                          vertex_t{0},
+                                                          std::optional<vertex_t>{std::nullopt},
+                                                          this->number_of_vertices(),
+                                                          vertex_t{0},
+                                                          this->number_of_vertices(),
+                                                          handle.get_stream());
+  }
   edgelist_srcs.resize(0, handle.get_stream());
   edgelist_srcs.shrink_to_fit(handle.get_stream());
   edgelist_dsts.resize(0, handle.get_stream());
@@ -1090,13 +1185,18 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
 
   // segmented sort neighbors
 
-  detail::sort_adjacency_list(
-    handle,
-    offsets_.data(),
-    indices_.data(),
-    weights_ ? std::optional<weight_t*>{(*weights_).data()} : std::nullopt,
-    static_cast<vertex_t>(offsets_.size() - 1),
-    static_cast<edge_t>(indices_.size()));
+  if (weights_) {
+    detail::sort_adjacency_list(handle,
+                                raft::device_span<edge_t const>(offsets_.data(), offsets_.size()),
+                                indices_.begin(),
+                                indices_.end(),
+                                (*weights_).begin());
+  } else {
+    detail::sort_adjacency_list(handle,
+                                raft::device_span<edge_t const>(offsets_.data(), offsets_.size()),
+                                indices_.begin(),
+                                indices_.end());
+  }
 }
 
 template <typename vertex_t,
