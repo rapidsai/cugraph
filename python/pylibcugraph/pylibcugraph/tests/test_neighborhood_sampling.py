@@ -65,6 +65,7 @@ def check_edges(result, srcs, dsts, weights, num_verts, num_edges, num_seeds):
 
 
 # TODO: Coverage for the MG implementation
+@pytest.mark.skipif(reason="skipping for testing purposes")
 @pytest.mark.parametrize("renumber", [True, False])
 @pytest.mark.parametrize("store_transposed", [True, False])
 @pytest.mark.parametrize("with_replacement", [True, False])
@@ -110,6 +111,7 @@ def test_neighborhood_sampling_cupy(sg_graph_objs,
 
 
 # TODO: Coverage for the MG implementation
+@pytest.mark.skipif(reason="skipping for testing purposes")
 @pytest.mark.parametrize("renumber", [True, False])
 @pytest.mark.parametrize("store_transposed", [True, False])
 @pytest.mark.parametrize("with_replacement", [True, False])
