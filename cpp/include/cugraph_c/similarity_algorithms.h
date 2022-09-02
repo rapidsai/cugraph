@@ -90,14 +90,14 @@ void cugraph_similarity_result_free(cugraph_similarity_result_t* result);
  *                           be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
  */
-cugraph_error_code_t cugraph_jaccard(const cugraph_resource_handle_t* handle,
-                                     cugraph_graph_t* graph,
-                                     cugraph_type_erased_device_array_view_t* first,
-                                     cugraph_type_erased_device_array_view_t* second,
-                                     bool_t use_weight,
-                                     bool_t do_expensive_check,
-                                     cugraph_core_result_t** result,
-                                     cugraph_error_t** error);
+cugraph_error_code_t cugraph_jaccard_coefficients(const cugraph_resource_handle_t* handle,
+                                                  cugraph_graph_t* graph,
+                                                  cugraph_type_erased_device_array_view_t* first,
+                                                  cugraph_type_erased_device_array_view_t* second,
+                                                  bool_t use_weight,
+                                                  bool_t do_expensive_check,
+                                                  cugraph_core_result_t** result,
+                                                  cugraph_error_t** error);
 
 /**
  * @brief     Perform Sorensen similarity computation
@@ -123,14 +123,14 @@ cugraph_error_code_t cugraph_jaccard(const cugraph_resource_handle_t* handle,
  *                           be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
  */
-cugraph_error_code_t cugraph_sorensen(const cugraph_resource_handle_t* handle,
-                                      cugraph_graph_t* graph,
-                                      cugraph_type_erased_device_array_view_t* first,
-                                      cugraph_type_erased_device_array_view_t* second,
-                                      bool_t use_weight,
-                                      bool_t do_expensive_check,
-                                      cugraph_core_result_t** result,
-                                      cugraph_error_t** error);
+cugraph_error_code_t cugraph_sorensen_coefficients(const cugraph_resource_handle_t* handle,
+                                                   cugraph_graph_t* graph,
+                                                   cugraph_type_erased_device_array_view_t* first,
+                                                   cugraph_type_erased_device_array_view_t* second,
+                                                   bool_t use_weight,
+                                                   bool_t do_expensive_check,
+                                                   cugraph_core_result_t** result,
+                                                   cugraph_error_t** error);
 
 /**
  * @brief     Perform overlap similarity computation
@@ -156,14 +156,14 @@ cugraph_error_code_t cugraph_sorensen(const cugraph_resource_handle_t* handle,
  *                           be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
  */
-cugraph_error_code_t cugraph_overlap(const cugraph_resource_handle_t* handle,
-                                     cugraph_graph_t* graph,
-                                     cugraph_type_erased_device_array_view_t* first,
-                                     cugraph_type_erased_device_array_view_t* second,
-                                     bool_t use_weight,
-                                     bool_t do_expensive_check,
-                                     cugraph_core_result_t** result,
-                                     cugraph_error_t** error);
+cugraph_error_code_t cugraph_overlap_coefficients(const cugraph_resource_handle_t* handle,
+                                                  cugraph_graph_t* graph,
+                                                  cugraph_type_erased_device_array_view_t* first,
+                                                  cugraph_type_erased_device_array_view_t* second,
+                                                  bool_t use_weight,
+                                                  bool_t do_expensive_check,
+                                                  cugraph_core_result_t** result,
+                                                  cugraph_error_t** error);
 
 #ifdef __cplusplus
 }

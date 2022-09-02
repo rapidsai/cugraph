@@ -602,6 +602,7 @@ create_graph_from_edgelist(
  * @param  handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param  graph The input graph object
+ * @param  start_vertices Optional list of starting vertices to discover two-hop neighbors of
  * @return tuple containing pairs of vertices that are 2-hops apart.
  */
 template <typename vertex_t,
@@ -611,6 +612,7 @@ template <typename vertex_t,
           bool multi_gpu>
 std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> get_two_hop_neighbors(
   raft::handle_t const& handle,
-  graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> const& graph_view);
+  graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> const& graph_view,
+  std::optional<raft::device_span<vertex_t const>> start_vertices);
 
 }  // namespace cugraph
