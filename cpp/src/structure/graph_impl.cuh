@@ -765,11 +765,12 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
     std::optional<rmm::device_uvector<weight_t>> weights{std::nullopt};
     std::optional<rmm::device_uvector<vertex_t>> dcs_nzd_vertices{std::nullopt};
     auto major_hypersparse_first =
-      use_dcs ? std::optional<vertex_t>{major_range_first +
-                                        (*edge_partition_segment_offsets_)
-                                          [(*(meta.segment_offsets)).size() * i +
-                                           detail::num_sparse_segments_per_vertex_partition]}
-              : std::nullopt;
+      use_dcs
+        ? std::make_optional<vertex_t>(
+            major_range_first +
+            (*edge_partition_segment_offsets_)[(*(meta.segment_offsets)).size() * i +
+                                               detail::num_sparse_segments_per_vertex_partition])
+        : std::nullopt;
     if (edgelists[i].weights) {
       std::tie(offsets, indices, weights, dcs_nzd_vertices) =
         detail::compress_edgelist<edge_t, store_transposed>(edgelists[i].srcs.begin(),
@@ -945,11 +946,12 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
     std::optional<rmm::device_uvector<weight_t>> weights{std::nullopt};
     std::optional<rmm::device_uvector<vertex_t>> dcs_nzd_vertices{std::nullopt};
     auto major_hypersparse_first =
-      use_dcs ? std::optional<vertex_t>{major_range_first +
-                                        (*edge_partition_segment_offsets_)
-                                          [(*(meta.segment_offsets)).size() * i +
-                                           detail::num_sparse_segments_per_vertex_partition]}
-              : std::nullopt;
+      use_dcs
+        ? std::make_optional<vertex_t>(
+            major_range_first +
+            (*edge_partition_segment_offsets_)[(*(meta.segment_offsets)).size() * i +
+                                               detail::num_sparse_segments_per_vertex_partition])
+        : std::nullopt;
     if (edgelists[i].weights) {
       std::tie(offsets, indices, weights, dcs_nzd_vertices) =
         detail::compress_edgelist<edge_t, store_transposed>(edgelists[i].srcs.begin(),
