@@ -64,9 +64,10 @@ class CugraphServiceClient:
         Decorator for methods that require a connection to the server to be
         created prior to calling a server function, then closed upon completion
         or error. If self.hold_open is True, the automatic call to close() will
-        not take place, allowing for multiple subsequent server calls to be made
-        using the same connection. self.hold_open therefore requires the caller
-        to manually call close() in order to allow other clients to connect.
+        not take place, allowing for multiple subsequent server calls to be
+        made using the same connection. self.hold_open therefore requires the
+        caller to manually call close() in order to allow other clients to
+        connect.
         """
         @wraps(method)
         def wrapped_method(self, *args, **kwargs):
@@ -89,8 +90,8 @@ class CugraphServiceClient:
 
         Note: all APIs that access the server will call this method
         automatically, followed automatically by a call to close(), so calling
-        this method should not be necessary. close() is not automatically called
-        if self.hold_open is False.
+        this method should not be necessary. close() is not automatically
+        called if self.hold_open is False.
 
         Parameters
         ----------
@@ -134,9 +135,9 @@ class CugraphServiceClient:
         --------
         >>> from cugraph_service_client import CugraphServiceClient
         >>> client = CugraphServiceClient()
-        >>> # Have the client hold open the connect automatically opened as part
-        >>> # of a server API call until close() is called. This is normally not
-        >>> # necessary and shown here for demonstration purposes.
+        >>> # Have the client hold open the connect automatically opened as
+        >>> # part of a server API call until close() is called. This is
+        >>> # normally not necessary and shown here for demonstration purposes.
         >>> client.hold_open = True
         >>> client.node2vec([0,1], 2)
         >>> # close the connection so other clients can connect
@@ -148,7 +149,7 @@ class CugraphServiceClient:
             self.__client.close()
             self.__client = None
 
-    ############################################################################
+    ###########################################################################
     # Environment management
     @__server_connection
     def uptime(self):
@@ -256,8 +257,8 @@ class CugraphServiceClient:
                                       *func_args, **func_kwargs):
         """
         Calls a graph creation extension on the server that was previously
-        loaded by a prior call to load_graph_creation_extensions(), then returns
-        the graph ID of the graph created by the extension.
+        loaded by a prior call to load_graph_creation_extensions(), then
+        returns the graph ID of the graph created by the extension.
 
         Parameters
         ----------
@@ -268,17 +269,17 @@ class CugraphServiceClient:
 
         *func_args : string, int, list, dictionary (optional)
             The positional args to pass to func_name. Note that func_args are
-            converted to their string representation using repr() on the client,
-            then restored to python objects on the server using eval(), and
-            therefore only objects that can be restored server-side with eval()
-            are supported.
+            converted to their string representation using repr() on the
+            client, then restored to python objects on the server using eval(),
+            and therefore only objects that can be restored server-side with
+            eval() are supported.
 
         **func_kwargs : string, int, list, dictionary
             The keyword args to pass to func_name. Note that func_kwargs are
-            converted to their string representation using repr() on the client,
-            then restored to python objects on the server using eval(), and
-            therefore only objects that can be restored server-side with eval()
-            are supported.
+            converted to their string representation using repr() on the
+            client, then restored to python objects on the server using eval(),
+            and therefore only objects that can be restored server-side with
+            eval() are supported.
 
         Returns
         -------
@@ -290,7 +291,7 @@ class CugraphServiceClient:
         >>> from cugraph_service_client import CugraphServiceClient
         >>> client = CugraphServiceClient()
         >>> # Load the extension file containing "my_complex_create_graph()"
-        >>> client.load_graph_creation_extensions("/some/server/side/directory")
+        >>> client.load_graph_creation_extensions("/some/server/side/dir")
         >>> new_graph_id = client.call_graph_creation_extension(
         ... "my_complex_create_graph",
         ... "/path/to/csv/on/server/graph.csv",
@@ -302,7 +303,7 @@ class CugraphServiceClient:
         return self.__client.call_graph_creation_extension(
             func_name, func_args_repr, func_kwargs_repr)
 
-    ############################################################################
+    ###########################################################################
     # Graph management
     @__server_connection
     def create_graph(self):
@@ -340,8 +341,8 @@ class CugraphServiceClient:
         Parameters
         ----------
         graph_id : int
-            The graph ID to delete. If the ID passed is not valid on the server,
-            CugraphServiceError is raised.
+            The graph ID to delete. If the ID passed is not valid on the
+            server, CugraphServiceError is raised.
 
         Returns
         -------
@@ -394,7 +395,7 @@ class CugraphServiceClient:
         Parameters
         ----------
         graph_id : int, default is defaults.graph_id
-            The graph ID to apply the properties in the CSV to. If not provided,
+            The graph ID to apply the properties in the CSV to. If not provided
             the default graph ID is used.
 
         Returns
@@ -469,22 +470,22 @@ class CugraphServiceClient:
             Character that serves as the delimiter between columns in the CSV
 
         header : int, default is None
-            Row number to use as the column names. Default behavior is to assume
-            column names are explicitely provided (header=None). header="infer"
-            if the column names are to be inferred. If no names are passed,
-            header=0. See also cudf.read_csv
+            Row number to use as the column names. Default behavior is to
+            assume column names are explicitely provided (header=None).
+            header="infer" if the column names are to be inferred. If no names
+            are passed, header=0. See also cudf.read_csv
 
         type_name : string, default is ""
-            The vertex property "type" the CSV data is describing. For instance,
-            CSV data describing properties for "users" might pass type_name as
-            "user". A vertex property type is optional.
+            The vertex property "type" the CSV data is describing. For
+            instance, CSV data describing properties for "users" might pass
+            type_name as "user". A vertex property type is optional.
 
         property_columns : list of strings, default is None
             The column names in the CSV to add as vertex properties. If None,
             all columns will be added as properties.
 
         graph_id : int, default is defaults.graph_id
-            The graph ID to apply the properties in the CSV to. If not provided,
+            The graph ID to apply the properties in the CSV to. If not provided
             the default graph ID is used.
 
         names: list of strings, default is None
@@ -547,17 +548,17 @@ class CugraphServiceClient:
             Types for the columns in the CSV file
 
         vertex_col_names : tuple of strings
-            Names of the columns to use as the source and destination vertex IDs
-            defining the edges
+            Names of the columns to use as the source and destination vertex
+            IDs defining the edges
 
         delimiter : string, default is " "
             Character that serves as the delimiter between columns in the CSV
 
         header : int, default is None
-            Row number to use as the column names. Default behavior is to assume
-            column names are explicitely provided (header=None). header="infer"
-            if the column names are to be inferred. If no names are passed,
-            header=0. See also cudf.read_csv
+            Row number to use as the column names. Default behavior is to
+            assume column names are explicitely provided (header=None).
+            header="infer" if the column names are to be inferred. If no names
+            are passed, header=0. See also cudf.read_csv
 
         type_name : string, default is ""
             The edge property "type" the CSV data is describing. For instance,
@@ -569,7 +570,7 @@ class CugraphServiceClient:
             columns will be added as properties.
 
         graph_id : int, default is defaults.graph_id
-            The graph ID to apply the properties in the CSV to. If not provided,
+            The graph ID to apply the properties in the CSV to. If not provided
             the default graph ID is used.
 
         names: list of strings, default is None
@@ -649,8 +650,8 @@ class CugraphServiceClient:
             of create_using.
 
         edge_weight_property : string, default is ""
-            The name of the property whose values will be used as weights on the
-            returned Graph. If not specified, the returned Graph will be
+            The name of the property whose values will be used as weights on
+            the returned Graph. If not specified, the returned Graph will be
             unweighted.
 
         default_edge_weight : float, default is 1.0
@@ -740,7 +741,6 @@ class CugraphServiceClient:
 
         return pickle.loads(ndarray_bytes)
 
-
     @__server_connection
     def get_graph_edge_data(self,
                             id_or_ids=-1,
@@ -819,7 +819,7 @@ class CugraphServiceClient:
         """
         return self.__client.is_edge_property(property_key, graph_id)
 
-    ############################################################################
+    ###########################################################################
     # Algos
     @__server_connection
     def batched_ego_graphs(self, seeds, radius=1, graph_id=defaults.graph_id):
@@ -842,11 +842,16 @@ class CugraphServiceClient:
                                                                      radius,
                                                                      graph_id)
 
-        # FIXME: ensure dtypes are correct for values returned from cugraph.batched_ego_graphs() in cugraph_handler.py
-        #return (numpy.frombuffer(batched_ego_graphs_result.src_verts, dtype="int32"),
-        #        numpy.frombuffer(batched_ego_graphs_result.dst_verts, dtype="int32"),
-        #        numpy.frombuffer(batched_ego_graphs_result.edge_weights, dtype="float64"),
-        #        numpy.frombuffer(batched_ego_graphs_result.seeds_offsets, dtype="int64"))
+        # FIXME: ensure dtypes are correct for values returned from
+        # cugraph.batched_ego_graphs() in cugraph_handler.py
+        # return (numpy.frombuffer(batched_ego_graphs_result.src_verts,
+        #         dtype="int32"),
+        #         numpy.frombuffer(batched_ego_graphs_result.dst_verts,
+        #         dtype="int32"),
+        #         numpy.frombuffer(batched_ego_graphs_result.edge_weights,
+        #         dtype="float64"),
+        #         numpy.frombuffer(batched_ego_graphs_result.seeds_offsets,
+        #         dtype="int64"))
         return (batched_ego_graphs_result.src_verts,
                 batched_ego_graphs_result.dst_verts,
                 batched_ego_graphs_result.edge_weights,
@@ -877,8 +882,8 @@ class CugraphServiceClient:
         """
         # FIXME: finish docstring above
 
-        # start_vertices must be a list (cannot just be an iterable), and assume
-        # return value is tuple of python lists on host.
+        # start_vertices must be a list (cannot just be an iterable), and
+        # assume return value is tuple of python lists on host.
         if not isinstance(start_vertices, list):
             start_vertices = [start_vertices]
         # FIXME: ensure list is a list of int32, since Thrift interface
@@ -929,8 +934,7 @@ class CugraphServiceClient:
         """
         raise NotImplementedError
 
-
-    ############################################################################
+    ###########################################################################
     # Test/Debug
     @__server_connection
     def _get_graph_type(self, graph_id=defaults.graph_id):
@@ -939,8 +943,7 @@ class CugraphServiceClient:
         """
         return self.__client.get_graph_type(graph_id)
 
-
-    ############################################################################
+    ###########################################################################
     # Private
     @staticmethod
     def __get_vertex_edge_id_obj(id_or_ids):

@@ -18,17 +18,17 @@ import pytest
 
 
 ###############################################################################
-## fixtures
+# fixtures
 # The fixtures used in these tests are defined in conftest.py
 
 
 ###############################################################################
-## tests
+# tests
 
 def test_load_and_call_graph_creation_extension(graph_creation_extension2):
     """
-    Ensures load_extensions reads the extensions and makes the new APIs they add
-    available.
+    Ensures load_extensions reads the extensions and makes the new APIs they
+    add available.
     """
     from cugraph_service_server.cugraph_handler import CugraphHandler
     from cugraph_service_client.exceptions import CugraphServiceError
@@ -169,11 +169,12 @@ def test_get_graph_data_large_vertex_ids(
     # Load the extension and ensure it can be called.
     handler.load_graph_creation_extensions(extension_dir)
     new_graph_id = handler.call_graph_creation_extension(
-        "graph_creation_function_vert_and_edge_data_big_vertex_ids", "()", "{}")
+        "graph_creation_function_vert_and_edge_data_big_vertex_ids",
+        "()", "{}")
 
     invalid_vert_id = 2
     vert_data = handler.get_graph_vertex_data(
-    id_or_ids=invalid_vert_id,
+        id_or_ids=invalid_vert_id,
         null_replacement_value=0,
         graph_id=new_graph_id,
         property_keys=None)
@@ -191,7 +192,7 @@ def test_get_graph_data_large_vertex_ids(
 
     invalid_edge_id = (2**32)+1
     edge_data = handler.get_graph_edge_data(
-    id_or_ids=invalid_edge_id,
+        id_or_ids=invalid_edge_id,
         null_replacement_value=0,
         graph_id=new_graph_id,
         property_keys=None)
@@ -206,6 +207,7 @@ def test_get_graph_data_large_vertex_ids(
         property_keys=None)
 
     assert len(pickle.loads(edge_data)) == 1
+
 
 def test_get_graph_data_empty_graph(graph_creation_extension_empty_graph):
     """
@@ -233,7 +235,7 @@ def test_get_graph_data_empty_graph(graph_creation_extension_empty_graph):
 
     invalid_edge_id = 2
     edge_data = handler.get_graph_edge_data(
-        id_or_ids=invalid_vert_id,
+        id_or_ids=invalid_edge_id,
         null_replacement_value=0,
         graph_id=new_graph_id,
         property_keys=None)

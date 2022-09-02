@@ -30,7 +30,7 @@ class UnionWrapper:
     def get_py_obj(self):
         not_members = set(["default_spec", "thrift_spec", "read", "write"])
         attrs = [a for a in dir(self.union)
-                    if not(a.startswith("_")) and a not in not_members]
+                 if not(a.startswith("_")) and a not in not_members]
         for a in attrs:
             val = getattr(self.union, a)
             if val is not None:

@@ -27,9 +27,9 @@ client = CugraphServiceClient()
 for gid in client.get_graph_ids():
     client.delete_graph(gid)
 
-# Add vertex and edge data to the default graph instance (the default graph does
-# not require a graph ID to access)
-# The file names specified must be visible to the server.
+# Add vertex and edge data to the default graph instance (the default graph
+# does not require a graph ID to access) The file names specified must be
+# visible to the server.
 
 client.load_csv_as_vertex_data(
     (this_dir/"vertex_data.csv").absolute().as_posix(),

@@ -199,16 +199,17 @@ service CugraphService {
 spec = thriftpy2.load_fp(io.StringIO(cugraph_thrift_spec),
                          module_name="cugraph_thrift")
 
+
 def create_server(handler, host, port, client_timeout=90000):
     """
-    Return a server object configured to listen on host/port and use the handler
-    object to handle calls from clients. The handler object must have an
-    interface compatible with the CugraphService service defined in the Thrift
-    specification.
+    Return a server object configured to listen on host/port and use the
+    handler object to handle calls from clients. The handler object must have
+    an interface compatible with the CugraphService service defined in the
+    Thrift specification.
 
-    Note: This function is defined here in order to allow it to have easy access
-    to the Thrift spec loaded here on import, and to keep all thriftpy2 calls in
-    this module. However, this function is likely only called from the
+    Note: This function is defined here in order to allow it to have easy
+    access to the Thrift spec loaded here on import, and to keep all thriftpy2
+    calls in this module. However, this function is likely only called from the
     cugraph_service_server package which depends on the code in this package.
     """
     proto_factory = TBinaryProtocolFactory()
@@ -249,5 +250,5 @@ def create_client(host, port, call_timeout=90000):
         #
         # FIXME: may need to have additional thrift exception handlers
         # FIXME: this exception being raised could use more detail
-        raise spec.CugraphServiceError("could not create a client session with "
-                                       "a cugraph_service server")
+        raise spec.CugraphServiceError("could not create a client session "
+                                       "with a cugraph_service server")

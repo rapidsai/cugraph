@@ -22,8 +22,9 @@ import pytest
 
 from . import data
 
+
 ###############################################################################
-## fixtures
+# fixtures
 
 @pytest.fixture(scope="module")
 def mg_server():
@@ -43,7 +44,7 @@ def mg_server():
 
     try:
         client.uptime()
-        print("\nfound running server, assuming it should be used for testing!")
+        print("FOUND RUNNING SERVER, ASSUMING IT SHOULD BE USED FOR TESTING!")
         yield
 
     except CugraphServiceError:
@@ -96,7 +97,7 @@ def mg_server():
                         retries += 1
                 if retries >= max_retries:
                     raise RuntimeError("error starting server")
-            except:
+            except Exception:
                 print(server_process.stdout.read())
                 if server_process.poll() is None:
                     server_process.terminate()
@@ -124,7 +125,8 @@ def client(mg_server):
     for gid in client.get_graph_ids():
         client.delete_graph(gid)
 
-    #client.unload_graph_creation_extensions()
+    # FIXME: should this fixture always unconditionally unload all extensions?
+    # client.unload_graph_creation_extensions()
 
     # yield control to the tests
     yield client
@@ -148,7 +150,7 @@ def client_with_edgelist_csv_loaded(client):
 
 
 ###############################################################################
-## tests
+# tests
 
 def test_get_default_graph_info(client_with_edgelist_csv_loaded):
     """
@@ -164,6 +166,7 @@ def test_get_default_graph_info(client_with_edgelist_csv_loaded):
     assert client.get_graph_info(["num_edges"]) == test_data["num_edges"]
     assert client.get_server_info()["num_gpus"] > 1
 
+
 def test_get_edge_IDs_for_vertices(client_with_edgelist_csv_loaded):
     """
     """
@@ -174,4 +177,4 @@ def test_get_edge_IDs_for_vertices(client_with_edgelist_csv_loaded):
     assert "MG" in client._get_graph_type()
 
     graph_id = client.extract_subgraph(allow_multi_edges=True)
-    eIDS = client.get_edge_IDs_for_vertices([1, 2, 3], [0, 0, 0], graph_id)
+    client.get_edge_IDs_for_vertices([1, 2, 3], [0, 0, 0], graph_id)

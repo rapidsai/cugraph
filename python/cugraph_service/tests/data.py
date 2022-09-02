@@ -29,31 +29,31 @@ property_csv_data = {
                   (_data_dir/"merchants.csv").absolute().as_posix(),
                   "dtypes": ["int32", "int32", "int32", "float32", "int32",
                              "string"],
-                  "vert_col_name" : "merchant_id",
+                  "vert_col_name": "merchant_id",
                   },
 
     "users": {"csv_file_name":
               (_data_dir/"users.csv").absolute().as_posix(),
               "dtypes": ["int32", "int32", "int32"],
-              "vert_col_name" : "user_id",
+              "vert_col_name": "user_id",
               },
 
     "transactions": {"csv_file_name":
                      (_data_dir/"transactions.csv").absolute().as_posix(),
                      "dtypes": ["int32", "int32", "float32", "float32",
                                 "int32", "string"],
-                     "vert_col_names" : ("user_id", "merchant_id"),
+                     "vert_col_names": ("user_id", "merchant_id"),
                      },
 
     "relationships":  {"csv_file_name":
                        (_data_dir/"relationships.csv").absolute().as_posix(),
                        "dtypes": ["int32", "int32", "int32"],
-                       "vert_col_names" : ("user_id_1", "user_id_2"),
+                       "vert_col_names": ("user_id_1", "user_id_2"),
                        },
 
     "referrals": {"csv_file_name":
                   (_data_dir/"referrals.csv").absolute().as_posix(),
                   "dtypes": ["int32", "int32", "int32", "int32"],
-                  "vert_col_names" : ("user_id_1", "user_id_2"),
+                  "vert_col_names": ("user_id_1", "user_id_2"),
                   },
 }

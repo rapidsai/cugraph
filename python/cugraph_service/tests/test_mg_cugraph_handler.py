@@ -20,8 +20,9 @@ import pytest
 
 from . import data
 
+
 ###############################################################################
-## fixtures
+# fixtures
 
 @pytest.fixture(scope="module")
 def mg_handler():
@@ -32,12 +33,13 @@ def mg_handler():
 
     dask_scheduler_file = os.environ.get("SCHEDULER_FILE")
     if dask_scheduler_file is None:
-        raise EnvironmentError("Environment variable SCHEDULER_FILE must be set"
-                               " to the path to a dask scheduler json file")
+        raise EnvironmentError("Environment variable SCHEDULER_FILE must be "
+                               "set to the path to a dask scheduler json file")
     dask_scheduler_file = Path(dask_scheduler_file)
     if not dask_scheduler_file.exists():
         raise FileNotFoundError("env var SCHEDULER_FILE is set to "
-                                f"{dask_scheduler_file}, which does not exist.")
+                                f"{dask_scheduler_file}, which does not "
+                                "exist.")
 
     handler = CugraphHandler()
     handler.initialize_dask_client(dask_scheduler_file)
@@ -78,7 +80,7 @@ def handler_with_karate_edgelist_loaded(mg_handler):
 
 
 ###############################################################################
-## tests
+# tests
 
 # FIXME: consolidate this with the SG version of this test.
 def test_get_graph_data_large_vertex_ids(
@@ -94,11 +96,12 @@ def test_get_graph_data_large_vertex_ids(
     # Load the extension and ensure it can be called.
     handler.load_graph_creation_extensions(extension_dir)
     new_graph_id = handler.call_graph_creation_extension(
-        "graph_creation_function_vert_and_edge_data_big_vertex_ids", "()", "{}")
+        "graph_creation_function_vert_and_edge_data_big_vertex_ids",
+        "()", "{}")
 
     invalid_vert_id = 2
     vert_data = handler.get_graph_vertex_data(
-    id_or_ids=invalid_vert_id,
+        id_or_ids=invalid_vert_id,
         null_replacement_value=0,
         graph_id=new_graph_id,
         property_keys=None)
@@ -116,7 +119,7 @@ def test_get_graph_data_large_vertex_ids(
 
     invalid_edge_id = (2**32)+1
     edge_data = handler.get_graph_edge_data(
-    id_or_ids=invalid_edge_id,
+        id_or_ids=invalid_edge_id,
         null_replacement_value=0,
         graph_id=new_graph_id,
         property_keys=None)
@@ -160,7 +163,7 @@ def test_get_graph_data_empty_graph(
 
     invalid_edge_id = 2
     edge_data = handler.get_graph_edge_data(
-        id_or_ids=invalid_vert_id,
+        id_or_ids=invalid_edge_id,
         null_replacement_value=0,
         graph_id=new_graph_id,
         property_keys=None)
@@ -239,7 +242,8 @@ def test_get_graph_info_defaults(mg_handler):
                 "num_vertex_properties": 0,
                 "num_edge_properties": 0,
                 }
-    actual = {key:ValueWrapper(val).get_py_obj() for (key, val) in info.items()}
+    actual = {key: ValueWrapper(val).get_py_obj()
+              for (key, val) in info.items()}
 
     assert expected == actual
 
@@ -274,7 +278,8 @@ def test_uniform_neighbor_sampling(handler_with_karate_edgelist_loaded):
                                              add_edge_data=True,
                                              graph_id=defaults.graph_id)
 
-    result = handler.uniform_neighbor_sample(start_list=start_list,
-                                             fanout_vals=fanout_vals,
-                                             with_replacement=with_replacement,
-                                             graph_id=extracted_gid)
+    # Ensure call can be made, assume results verified in other tests
+    handler.uniform_neighbor_sample(start_list=start_list,
+                                    fanout_vals=fanout_vals,
+                                    with_replacement=with_replacement,
+                                    graph_id=extracted_gid)

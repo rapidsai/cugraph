@@ -54,14 +54,14 @@ def call_algo(sg_algo_func, G, **kwargs):
     if sg_algo_func is uniform_neighbor_sample:
         if is_mg_graph:
             possible_args = ["start_list", "fanout_vals", "with_replacement"]
-            kwargs_to_pass = {a:kwargs[a] for a in possible_args
+            kwargs_to_pass = {a: kwargs[a] for a in possible_args
                               if a in kwargs}
             data = mg_uniform_neighbor_sample(G, **kwargs_to_pass)
             data = data.compute()
         else:
             possible_args = ["start_list", "fanout_vals", "with_replacement",
                              "is_edge_ids"]
-            kwargs_to_pass = {a:kwargs[a] for a in possible_args
+            kwargs_to_pass = {a: kwargs[a] for a in possible_args
                               if a in kwargs}
             data = uniform_neighbor_sample(G, **kwargs_to_pass)
 
@@ -100,7 +100,7 @@ class ExtensionServerFacade:
         # The handler returns objects suitable for serialization over RPC so
         # convert them to regular py objs since this call is originating
         # server-side.
-        return {k:ValueWrapper(v).get_py_obj() for (k, v)
+        return {k: ValueWrapper(v).get_py_obj() for (k, v)
                 in self.__handler.get_server_info().items()}
 
 
@@ -124,7 +124,7 @@ class CugraphHandler:
     def __del__(self):
         self.shutdown_dask_client()
 
-    ############################################################################
+    ###########################################################################
     # Environment management
     @property
     def is_mg(self):
@@ -233,7 +233,7 @@ class CugraphHandler:
                                 "last param.")
                     try:
                         graph_obj = func(*func_args, **func_kwargs)
-                    except:
+                    except Exception:
                         # FIXME: raise a more detailed error
                         raise CugraphServiceError(
                             f"error running {func_name} : "
@@ -277,12 +277,12 @@ class CugraphHandler:
 
             self.__dask_client = None
 
-    ############################################################################
+    ###########################################################################
     # Graph management
     def create_graph(self):
         """
-        Create a new graph associated with a new unique graph ID, return the new
-        graph ID.
+        Create a new graph associated with a new unique graph ID, return the
+        new graph ID.
         """
         pG = self.__create_graph()
         return self.__add_graph(pG)
@@ -352,7 +352,8 @@ class CugraphHandler:
                 elif k == "num_edge_properties":
                     info[k] = 0
 
-        return {key:ValueWrapper(value).union for (key, value) in info.items()}
+        return {key: ValueWrapper(value).union
+                for (key, value) in info.items()}
 
     def get_graph_type(self, graph_id):
         """
@@ -397,7 +398,7 @@ class CugraphHandler:
                                type_name=type_name,
                                vertex_col_name=vertex_col_name,
                                property_columns=property_columns)
-        except:
+        except Exception:
             raise CugraphServiceError(f"{traceback.format_exc()}")
 
     def load_csv_as_edge_data(self,
@@ -437,7 +438,7 @@ class CugraphHandler:
                              type_name=type_name,
                              vertex_col_names=vertex_col_names,
                              property_columns=property_columns)
-        except:
+        except Exception:
             raise CugraphServiceError(f"{traceback.format_exc()}")
 
     # FIXME: ensure edge IDs can also be filtered by edge type
@@ -445,10 +446,10 @@ class CugraphHandler:
     def get_edge_IDs_for_vertices(self, src_vert_IDs, dst_vert_IDs, graph_id):
         """
         Return a list of edge IDs corresponding to the vertex IDs in each of
-        src_vert_IDs and dst_vert_IDs that, when combined, define an edge in the
-        graph associated with graph_id.
+        src_vert_IDs and dst_vert_IDs that, when combined, define an edge in
+        the graph associated with graph_id.
 
-        For example, if src_vert_IDs is [0, 1, 2] and dst_vert_IDs is [7, 8, 9],
+        For example, if src_vert_IDs is [0, 1, 2] and dst_vert_IDs is [7, 8, 9]
         return the edge IDs for edges (0, 7), (1, 8), and (2, 9).
 
         graph_id must be associated with a Graph extracted from a PropertyGraph
@@ -497,7 +498,7 @@ class CugraphHandler:
                                     allow_multi_edges,
                                     renumber_graph,
                                     add_edge_data)
-        except:
+        except Exception:
             raise CugraphServiceError(f"{traceback.format_exc()}")
 
         return self.__add_graph(G)
@@ -562,7 +563,7 @@ class CugraphHandler:
 
         raise CugraphServiceError('Graph does not contain properties')
 
-    ############################################################################
+    ###########################################################################
     # Algos
     def batched_ego_graphs(self, seeds, radius, graph_id):
         """
@@ -585,12 +586,13 @@ class CugraphHandler:
             (ego_edge_list, seeds_offsets) = \
                 cugraph.batched_ego_graphs(G, seeds, radius)
 
-            #batched_ego_graphs_result = BatchedEgoGraphsResult(
-            #    src_verts=ego_edge_list["src"].values_host.tobytes(),  #int32
-            #    dst_verts=ego_edge_list["dst"].values_host.tobytes(),  #int32
-            #    edge_weights=ego_edge_list["weight"].values_host.tobytes(),  #float64
-            #    seeds_offsets=seeds_offsets.values_host.tobytes()  #int64
-            #)
+            # batched_ego_graphs_result = BatchedEgoGraphsResult(
+            #     src_verts=ego_edge_list["src"].values_host.tobytes(), #i32
+            #     dst_verts=ego_edge_list["dst"].values_host.tobytes(), #i32
+            #     edge_weights=ego_edge_list["weight"].values_host.tobytes(),
+            #                                                             #f64
+            #     seeds_offsets=seeds_offsets.values_host.tobytes() #i64
+            # )
             batched_ego_graphs_result = BatchedEgoGraphsResult(
                 src_verts=ego_edge_list["src"].values_host,
                 dst_verts=ego_edge_list["dst"].values_host,
@@ -598,7 +600,7 @@ class CugraphHandler:
                 seeds_offsets=seeds_offsets.values_host
             )
             return batched_ego_graphs_result
-        except:
+        except Exception:
             raise CugraphServiceError(f"{traceback.format_exc()}")
 
         return batched_ego_graphs_result
@@ -619,19 +621,19 @@ class CugraphHandler:
 
         try:
             # FIXME: update this to use call_algo()
-            # FIXME: this should not be needed, need to update cugraph.node2vec to
-            # also accept a list
+            # FIXME: this should not be needed, need to update cugraph.node2vec
+            # to also accept a list
             start_vertices = cudf.Series(start_vertices, dtype="int32")
 
             (paths, weights, path_sizes) = \
                 cugraph.node2vec(G, start_vertices, max_depth)
 
             node2vec_result = Node2vecResult(
-                vertex_paths = paths.values_host,
-                edge_weights = weights.values_host,
-                path_sizes = path_sizes.values_host,
+                vertex_paths=paths.values_host,
+                edge_weights=weights.values_host,
+                path_sizes=path_sizes.values_host,
             )
-        except:
+        except Exception:
             raise CugraphServiceError(f"{traceback.format_exc()}")
 
         return node2vec_result
@@ -658,15 +660,15 @@ class CugraphHandler:
                 fanout_vals=fanout_vals,
                 with_replacement=with_replacement
             )
-        except:
-            raise GaasError(f"{traceback.format_exc()}")
+        except Exception:
+            raise CugraphServiceError(f"{traceback.format_exc()}")
 
     def pagerank(self, graph_id):
         """
         """
         raise NotImplementedError
 
-    ############################################################################
+    ###########################################################################
     # "Protected" interface - used for both implementation and test/debug. Will
     # not be exposed to a cugraph_service client.
     def _get_graph(self, graph_id):
@@ -689,7 +691,7 @@ class CugraphHandler:
 
         return pG
 
-    ############################################################################
+    ###########################################################################
     # Private
     def __get_dataframe_from_csv(self,
                                  csv_file_name,
@@ -699,8 +701,8 @@ class CugraphHandler:
                                  names):
         """
         Read a CSV into a DataFrame and return it. This will use either a cuDF
-        DataFrame or a dask_cudf DataFrame based on if the handler is configured
-        to use a dask cluster or not.
+        DataFrame or a dask_cudf DataFrame based on if the handler is
+        configured to use a dask cluster or not.
         """
         gdf = cudf.read_csv(csv_file_name,
                             delimiter=delimiter,
@@ -736,13 +738,13 @@ class CugraphHandler:
         Removes all column names from pg_column_names that are "internal" (ie.
         used for PropertyGraph bookkeeping purposes only)
         """
-        internal_column_names=[PropertyGraph.vertex_col_name,
-                               PropertyGraph.src_col_name,
-                               PropertyGraph.dst_col_name,
-                               PropertyGraph.type_col_name,
-                               PropertyGraph.edge_id_col_name,
-                               PropertyGraph.vertex_id_col_name,
-                               PropertyGraph.weight_col_name]
+        internal_column_names = [PropertyGraph.vertex_col_name,
+                                 PropertyGraph.src_col_name,
+                                 PropertyGraph.dst_col_name,
+                                 PropertyGraph.type_col_name,
+                                 PropertyGraph.edge_id_col_name,
+                                 PropertyGraph.vertex_id_col_name,
+                                 PropertyGraph.weight_col_name]
 
         # Create a list of user-visible columns by removing the internals while
         # preserving order
@@ -762,7 +764,7 @@ class CugraphHandler:
         Return a list of edge IDs corresponding to the vertex IDs in each of
         src_vert_IDs and dst_vert_IDs that, when combined, define an edge in G.
 
-        For example, if src_vert_IDs is [0, 1, 2] and dst_vert_IDs is [7, 8, 9],
+        For example, if src_vert_IDs is [0, 1, 2] and dst_vert_IDs is [7, 8, 9]
         return the edge IDs for edges (0, 7), (1, 8), and (2, 9).
 
         G must have an "edge_data" attribute.
@@ -775,11 +777,13 @@ class CugraphHandler:
                 src_vert_IDs[i]
             dst_mask = G.edge_data[PropertyGraph.dst_col_name] == \
                 dst_vert_IDs[i]
-            value = G.edge_data[src_mask & dst_mask]\
-                [PropertyGraph.edge_id_col_name]
+            value = (G.edge_data[src_mask & dst_mask]
+                     [PropertyGraph.edge_id_col_name]
+                     )
 
             # FIXME: This will compute the result (if using dask) then transfer
-            # to host memory for each iteration - is there a more efficient way?
+            # to host memory for each iteration - is there a more efficient
+            # way?
             if self.is_mg:
                 value = value.compute()
             edge_IDs.append(value.values_host[0])
@@ -790,8 +794,8 @@ class CugraphHandler:
                                         dataframe,
                                         null_replacement_value):
         """
-        Returns a byte array repr of the vertex or edge graph data. Since the byte
-        array cannot represent NA values, null_replacement_value must be
+        Returns a byte array repr of the vertex or edge graph data. Since the
+        byte array cannot represent NA values, null_replacement_value must be
         provided to be used in place of NAs.
         """
         try:
@@ -812,5 +816,5 @@ class CugraphHandler:
             df_numpy = df.to_numpy(na_value=n)
             return df_numpy.dumps()
 
-        except:
+        except Exception:
             raise CugraphServiceError(f"{traceback.format_exc()}")

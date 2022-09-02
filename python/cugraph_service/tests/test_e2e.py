@@ -24,7 +24,7 @@ from . import data
 
 
 ###############################################################################
-## fixtures
+# fixtures
 
 @pytest.fixture(scope="module")
 def server(graph_creation_extension1):
@@ -45,7 +45,7 @@ def server(graph_creation_extension1):
 
     try:
         client.uptime()
-        print("\nfound running server, assuming it should be used for testing!")
+        print("FOUND RUNNING SERVER, ASSUMING IT SHOULD BE USED FOR TESTING!")
         yield
 
     except CugraphServiceError:
@@ -87,7 +87,7 @@ def server(graph_creation_extension1):
                         retries += 1
                 if retries >= max_retries:
                     raise RuntimeError("error starting server")
-            except:
+            except Exception:
                 if server_process.poll() is None:
                     server_process.terminate()
                 raise
@@ -114,7 +114,8 @@ def client(server):
     for gid in client.get_graph_ids():
         client.delete_graph(gid)
 
-    #client.unload_graph_creation_extensions()
+    # FIXME: should this fixture always unconditionally unload all extensions?
+    # client.unload_graph_creation_extensions()
 
     # yield control to the tests
     yield client
@@ -162,14 +163,14 @@ def client_with_property_csvs_loaded(client):
 
     client.load_csv_as_edge_data(transactions["csv_file_name"],
                                  dtypes=transactions["dtypes"],
-                                 vertex_col_names=\
-                                 transactions["vert_col_names"],
+                                 vertex_col_names=transactions[
+                                     "vert_col_names"],
                                  header=0,
                                  type_name="transactions")
     client.load_csv_as_edge_data(relationships["csv_file_name"],
                                  dtypes=relationships["dtypes"],
-                                 vertex_col_names=\
-                                 relationships["vert_col_names"],
+                                 vertex_col_names=relationships[
+                                     "vert_col_names"],
                                  header=0,
                                  type_name="relationships")
     client.load_csv_as_edge_data(referrals["csv_file_name"],
@@ -183,7 +184,7 @@ def client_with_property_csvs_loaded(client):
 
 
 ###############################################################################
-## tests
+# tests
 def test_get_graph_info_key_types(client_with_property_csvs_loaded):
     """
     Tests error handling for info keys passed in.
@@ -205,9 +206,11 @@ def test_get_graph_info_key_types(client_with_property_csvs_loaded):
 
     client.get_graph_info()  # valid
 
+
 def test_get_num_edges_default_graph(client_with_edgelist_csv_loaded):
     (client, test_data) = client_with_edgelist_csv_loaded
     assert client.get_graph_info("num_edges") == test_data["num_edges"]
+
 
 def test_load_csv_as_edge_data_nondefault_graph(client):
     from cugraph_service_client.exceptions import CugraphServiceError
@@ -220,6 +223,7 @@ def test_load_csv_as_edge_data_nondefault_graph(client):
                                      vertex_col_names=["0", "1"],
                                      type_name="",
                                      graph_id=9999)
+
 
 def test_get_num_edges_nondefault_graph(client_with_edgelist_csv_loaded):
     from cugraph_service_client.exceptions import CugraphServiceError
@@ -447,7 +451,8 @@ def test_uniform_neighbor_sampling(client_with_edgelist_csv_loaded):
                                        graph_id=defaults.graph_id)
 
     extracted_gid = client.extract_subgraph(renumber_graph=True)
-    result = client.uniform_neighbor_sample(start_list=start_list,
-                                            fanout_vals=fanout_vals,
-                                            with_replacement=with_replacement,
-                                            graph_id=extracted_gid)
+    # Ensure call can be made, assume results verified in other tests
+    client.uniform_neighbor_sample(start_list=start_list,
+                                   fanout_vals=fanout_vals,
+                                   with_replacement=with_replacement,
+                                   graph_id=extracted_gid)
