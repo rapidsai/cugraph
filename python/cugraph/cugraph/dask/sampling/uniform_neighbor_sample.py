@@ -172,7 +172,7 @@ def uniform_neighbor_sample(input_graph,
     wait(ddf)
 
     # Wait until the inactive futures are released
-    wait([(r.release(), c_r.release()) \
+    wait([(r.release(), c_r.release())
         for r, c_r in zip(result, cudf_result)])
 
     if input_graph.renumbered:
