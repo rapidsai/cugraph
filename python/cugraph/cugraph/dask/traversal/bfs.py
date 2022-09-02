@@ -194,7 +194,7 @@ def bfs(input_graph,
 
     # Wait until the inactive futures are released
     wait([(r.release(), c_r.release())
-            for r, c_r in zip(cupy_result, cudf_result)])
+         for r, c_r in zip(cupy_result, cudf_result)])
 
     if input_graph.renumbered:
         ddf = input_graph.unrenumber(ddf, 'vertex')
