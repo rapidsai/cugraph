@@ -38,7 +38,7 @@ struct renumber_meta_t<vertex_t, edge_t, multi_gpu, std::enable_if_t<multi_gpu>>
   vertex_t number_of_vertices{};
   edge_t number_of_edges{};
   partition_t<vertex_t> partition{};
-  std::vector<vertex_t> segment_offsets{};
+  std::vector<vertex_t> edge_partition_segment_offsets{};
 };
 
 template <typename vertex_t, typename edge_t, bool multi_gpu>

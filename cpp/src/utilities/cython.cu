@@ -130,6 +130,9 @@ template <typename vertex_t,
 std::unique_ptr<graph_t<vertex_t, edge_t, weight_t, transposed, multi_gpu>> create_graph(
   raft::handle_t const& handle, graph_container_t const& graph_container)
 {
+  CUGRAPH_EXPECTS(graph_container.segment_offsets != nullptr,
+                  "graph_container.segment_offsets shouldn't be nullptr in multi-GPU.");
+
   auto num_local_partitions = static_cast<size_t>(graph_container.col_comm_size);
 
   std::vector<vertex_t> partition_offsets_vector(
@@ -172,12 +175,9 @@ std::unique_ptr<graph_t<vertex_t, edge_t, weight_t, transposed, multi_gpu>> crea
       static_cast<edge_t>(graph_container.num_global_edges),
       graph_container.graph_props,
       partition,
-      graph_container.segment_offsets != nullptr
-        ? std::make_optional<std::vector<vertex_t>>(
-            static_cast<vertex_t const*>(graph_container.segment_offsets),
-            static_cast<vertex_t const*>(graph_container.segment_offsets) +
-              graph_container.num_segments + 1)
-        : std::nullopt,
+      std::vector<vertex_t>(static_cast<vertex_t const*>(graph_container.segment_offsets),
+                            static_cast<vertex_t const*>(graph_container.segment_offsets) +
+                              graph_container.num_segments + 1),
       // FIXME: disable (key, value) pairs at this moment (should be enabled once fully tuned).
       std::numeric_limits<vertex_t>::max(),
       std::numeric_limits<vertex_t>::max()},
@@ -942,7 +942,7 @@ std::unique_ptr<renum_tuple_t<vertex_t, edge_t>> call_renumber(
     p_ret->get_num_vertices()    = meta.number_of_vertices;
     p_ret->get_num_edges()       = meta.number_of_edges;
     p_ret->get_partition()       = meta.partition;
-    p_ret->get_segment_offsets() = meta.segment_offsets;
+    p_ret->get_segment_offsets() = meta.edge_partition_segment_offsets;
   } else {
     cugraph::renumber_meta_t<vertex_t, edge_t, false> meta{};
     std::tie(p_ret->get_dv(), meta) =
