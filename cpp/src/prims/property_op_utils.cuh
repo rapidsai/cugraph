@@ -38,18 +38,6 @@ namespace cugraph {
 
 namespace detail {
 
-template <typename InvokeResultEdgeOp, typename Enable = void>
-struct is_valid_edge_op {
-  static constexpr bool value = false;
-};
-
-template <typename InvokeResultEdgeOp>
-struct is_valid_edge_op<
-  InvokeResultEdgeOp,
-  typename std::conditional_t<false, typename InvokeResultEdgeOp::type, void>> {
-  static constexpr bool valid = true;
-};
-
 template <typename key_t,
           typename vertex_t,
           typename weight_t,
@@ -72,9 +60,8 @@ struct edge_op_result_type<
   src_value_t,
   dst_value_t,
   EdgeOp,
-  std::enable_if_t<is_valid_edge_op<
-    typename std::invoke_result<EdgeOp, key_t, vertex_t, weight_t, src_value_t, dst_value_t>>::
-                     valid>> {
+  std::enable_if_t<
+    std::is_invocable_v<EdgeOp, key_t, vertex_t, weight_t, src_value_t, dst_value_t>>> {
   using type =
     typename std::invoke_result<EdgeOp, key_t, vertex_t, weight_t, src_value_t, dst_value_t>::type;
 };
@@ -92,21 +79,8 @@ struct edge_op_result_type<
   src_value_t,
   dst_value_t,
   EdgeOp,
-  std::enable_if_t<is_valid_edge_op<
-    typename std::invoke_result<EdgeOp, key_t, vertex_t, src_value_t, dst_value_t>>::valid>> {
+  std::enable_if_t<std::is_invocable_v<EdgeOp, key_t, vertex_t, src_value_t, dst_value_t>>> {
   using type = typename std::invoke_result<EdgeOp, key_t, vertex_t, src_value_t, dst_value_t>::type;
-};
-
-template <typename InvokeResultIntersectionOp, typename Enable = void>
-struct is_valid_intersection_op {
-  static constexpr bool value = false;
-};
-
-template <typename InvokeResultIntersectionOp>
-struct is_valid_intersection_op<
-  InvokeResultIntersectionOp,
-  typename std::conditional_t<false, typename InvokeResultIntersectionOp::type, void>> {
-  static constexpr bool valid = true;
 };
 
 template <typename vertex_t,
@@ -122,13 +96,12 @@ struct intersection_op_result_type<
   src_value_t,
   dst_value_t,
   IntersectionOp,
-  std::enable_if_t<is_valid_intersection_op<
-    typename std::invoke_result<IntersectionOp,
-                                vertex_t,
-                                vertex_t,
-                                src_value_t,
-                                dst_value_t,
-                                raft::device_span<vertex_t const>>>::valid>> {
+  std::enable_if_t<std::is_invocable_v<IntersectionOp,
+                                       vertex_t,
+                                       vertex_t,
+                                       src_value_t,
+                                       dst_value_t,
+                                       raft::device_span<vertex_t const>>>> {
   using type = typename std::invoke_result<IntersectionOp,
                                            vertex_t,
                                            vertex_t,
@@ -189,9 +162,8 @@ struct evaluate_edge_op {
             typename SV = src_value_type,
             typename DV = dst_value_type,
             typename E  = EdgeOp>
-  __device__ std::enable_if_t<
-    detail::is_valid_edge_op<typename std::invoke_result<E, K, V, W, SV, DV>>::valid,
-    typename std::invoke_result<E, K, V, W, SV, DV>::type>
+  __device__ std::enable_if_t<std::is_invocable_v<E, K, V, W, SV, DV>,
+                              typename std::invoke_result<E, K, V, W, SV, DV>::type>
   compute(K s, V d, W w, SV sv, DV dv, E e) const
   {
     return e(s, d, w, sv, dv);
@@ -203,10 +175,9 @@ struct evaluate_edge_op {
             typename SV = src_value_type,
             typename DV = dst_value_type,
             typename E  = EdgeOp>
-  __device__
-    std::enable_if_t<detail::is_valid_edge_op<typename std::invoke_result<E, K, V, SV, DV>>::valid,
-                     typename std::invoke_result<E, K, V, SV, DV>::type>
-    compute(K s, V d, W w, SV sv, DV dv, E e) const
+  __device__ std::enable_if_t<std::is_invocable_v<E, K, V, SV, DV>,
+                              typename std::invoke_result<E, K, V, SV, DV>::type>
+  compute(K s, V d, W w, SV sv, DV dv, E e) const
   {
     return e(s, d, sv, dv);
   }
@@ -226,11 +197,10 @@ struct evaluate_intersection_op {
             typename SV = src_value_t,
             typename DV = dst_value_t,
             typename I  = IntersectionOp>
-  __device__ std::enable_if_t<
-    detail::is_valid_intersection_op<
-      typename std::invoke_result<I, V, V, SV, DV, raft::device_span<V const>>>::valid,
-    typename std::invoke_result<I, V, V, SV, DV, raft::device_span<V const>>::type>
-  compute(V s, V d, SV sv, DV dv, raft::device_span<V const> intersection, I i)
+  __device__
+    std::enable_if_t<std::is_invocable_v<I, V, V, SV, DV, raft::device_span<V const>>,
+                     typename std::invoke_result<I, V, V, SV, DV, raft::device_span<V const>>::type>
+    compute(V s, V d, SV sv, DV dv, raft::device_span<V const> intersection, I i)
   {
     return i(s, d, sv, dv, intersection);
   }
@@ -257,9 +227,8 @@ struct cast_edge_op_bool_to_integer {
             typename SV = src_value_type,
             typename DV = dst_value_type,
             typename E  = EdgeOp>
-  __device__ std::
-    enable_if_t<detail::is_valid_edge_op<typename std::invoke_result<E, K, V, W, SV, DV>>::valid, T>
-    operator()(K s, V d, W w, SV sv, DV dv) const
+  __device__ std::enable_if_t<std::is_invocable_v<E, K, V, W, SV, DV>, T> operator()(
+    K s, V d, W w, SV sv, DV dv) const
   {
     return e_op(s, d, w, sv, dv) ? T{1} : T{0};
   }
@@ -269,10 +238,10 @@ struct cast_edge_op_bool_to_integer {
             typename SV = src_value_type,
             typename DV = dst_value_type,
             typename E  = EdgeOp>
-  __device__
-    std::enable_if_t<detail::is_valid_edge_op<typename std::invoke_result<E, K, V, SV, DV>>::valid,
-                     T>
-    operator()(K s, V d, SV sv, DV dv) const
+  __device__ std::enable_if_t<std::is_invocable_v<E, K, V, SV, DV>, T> operator()(K s,
+                                                                                  V d,
+                                                                                  SV sv,
+                                                                                  DV dv) const
   {
     return e_op(s, d, sv, dv) ? T{1} : T{0};
   }

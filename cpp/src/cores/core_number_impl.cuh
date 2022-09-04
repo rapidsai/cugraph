@@ -48,6 +48,20 @@ namespace cugraph {
 
 namespace {
 
+template <typename vertex_t, typename edge_t>
+struct e_op_t {
+  size_t k{};
+  edge_t delta{};
+
+  __device__ thrust::optional<edge_t> operator()(vertex_t,
+                                                 vertex_t,
+                                                 thrust::nullopt_t,
+                                                 edge_t dst_val) const
+  {
+    return dst_val >= k ? thrust::optional<edge_t>{delta} : thrust::nullopt;
+  }
+};
+
 // a workaround for cudaErrorInvalidDeviceFunction error when device lambda is used
 template <typename vertex_t, typename edge_t>
 struct v_to_core_number_t {
@@ -210,16 +224,13 @@ void core_number(raft::handle_t const& handle,
         if (graph_view.is_symmetric() || ((degree_type == k_core_degree_type_t::IN) ||
                                           (degree_type == k_core_degree_type_t::INOUT))) {
           auto [new_frontier_vertex_buffer, delta_buffer] =
-            transform_reduce_v_frontier_outgoing_e_by_dst(
-              handle,
-              graph_view,
-              vertex_frontier.bucket(bucket_idx_cur),
-              edge_src_dummy_property_t{}.view(),
-              dst_core_numbers.view(),
-              [k, delta] __device__(vertex_t src, vertex_t dst, auto, auto dst_val) {
-                return dst_val >= k ? thrust::optional<edge_t>{delta} : thrust::nullopt;
-              },
-              reduce_op::plus<edge_t>());
+            transform_reduce_v_frontier_outgoing_e_by_dst(handle,
+                                                          graph_view,
+                                                          vertex_frontier.bucket(bucket_idx_cur),
+                                                          edge_src_dummy_property_t{}.view(),
+                                                          dst_core_numbers.view(),
+                                                          e_op_t<vertex_t, edge_t>{k, delta},
+                                                          reduce_op::plus<edge_t>());
 
           update_v_frontier(
             handle,
