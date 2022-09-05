@@ -60,7 +60,7 @@ def start_server_subprocess(host="localhost",
                                           env=env_dict,
                                           stdout=subprocess.PIPE,
                                           stderr=subprocess.STDOUT,
-                                          text=True) as server_process:
+                                          text=True)
 
         print("\nLaunched cugraph_service server, waiting for it to "
               "start...",
@@ -79,7 +79,7 @@ def start_server_subprocess(host="localhost",
         if retries >= max_retries:
             raise RuntimeError("error starting server")
     except Exception:
-        if server_process.poll() is None:
+        if server_process is not None and server_process.poll() is None:
             server_process.terminate()
         raise
 
@@ -99,6 +99,9 @@ def server(graph_creation_extension1):
     from cugraph_service_client import CugraphServiceClient
     from cugraph_service_client.exceptions import CugraphServiceError
 
+    host = "localhost"
+    port = 9090
+    server_extension_dir = graph_creation_extension1
     client = CugraphServiceClient(host, port)
 
     try:
@@ -110,7 +113,9 @@ def server(graph_creation_extension1):
         # A server was not found, so start one for testing then stop it when
         # testing is done.
         server_process = start_server_subprocess(
-            graph_creation_extension_dir=graph_creation_extension1)
+            host=host,
+            port=port,
+            graph_creation_extension_dir=server_extension_dir)
 
         # yield control to the tests
         yield
@@ -122,15 +127,19 @@ def server(graph_creation_extension1):
 
 
 @pytest.fixture(scope="module")
-def server_on_device_1(graph_creation_extension1):
+def server_on_device_1(graph_creation_extension_large_property_graph):
     """
     Start a cugraph_service server, stop it when done with the fixture.  This
-    also uses graph_creation_extension1 to preload a graph creation extension.
+    also uses graph_creation_extension_large_property_graph to preload the
+    graph creation extension that creates a large PG.
     """
     from cugraph_service_server import server
     from cugraph_service_client import CugraphServiceClient
     from cugraph_service_client.exceptions import CugraphServiceError
 
+    host = "localhost"
+    port = 9090
+    server_extension_dir = graph_creation_extension_large_property_graph
     client = CugraphServiceClient(host, port)
 
     try:
@@ -142,8 +151,10 @@ def server_on_device_1(graph_creation_extension1):
         # A server was not found, so start one for testing then stop it when
         # testing is done.
         server_process = start_server_subprocess(
-            graph_creation_extension_dir=graph_creation_extension1,
-            env_additions={"CUDA_VISIBLE_DEVICES": 1}
+            host=host,
+            port=port,
+            graph_creation_extension_dir=server_extension_dir,
+            env_additions={"CUDA_VISIBLE_DEVICES": "1"}
         )
 
         # yield control to the tests
@@ -171,16 +182,17 @@ def client(server):
     # FIXME: should this fixture always unconditionally unload all extensions?
     # client.unload_graph_creation_extensions()
 
-    # yield control to the tests
+    # yield control to the tests that use this fixture
     yield client
-
-    # tests are done, now stop the server
+    # all tests using this fixture are done, so stop the server
     client.close()
 
 
 @pytest.fixture(scope="function")
 def client_of_server_on_device_1(server_on_device_1):
     """
+    Creates a client instance to a server running on device 1, closes the
+    client when the fixture is no longer used by tests.
     """
     from cugraph_service_client import CugraphServiceClient, defaults
 
@@ -200,36 +212,21 @@ def client_of_server_on_device_1(server_on_device_1):
 
 
 @pytest.fixture(scope="function")
-def client_of_server_on_device_1_large_property_csvs_loaded(
+def client_of_server_on_device_1_large_property_graph_loaded(
         client_of_server_on_device_1
 ):
-    test_data = data.large_prop_data
-    edge_data = test_data["edge_type_1"]
-    client.load_csv_as_edge_data(edge_data["csv_file_name"]
-                                 dtypes=edge_data["dtypes"],
-                                 vertex_col_names=["0", "1"],
-                                 type_name="edge_type_1")
+    client = client_of_server_on_device_1
+    # Assume fixture that starts server on device 1 has the extension loaded
+    # for creating large property graphs.
+    new_graph_id = client.call_graph_creation_extension(
+        "graph_creation_extension_large_property_graph")
 
-    edge_data = test_data["edge_type_2"]
-    client.load_csv_as_edge_data(edge_data["csv_file_name"]
-                                 dtypes=edge_data["dtypes"],
-                                 vertex_col_names=["0", "1"],
-                                 type_name="edge_type_2")
+    assert new_graph_id in client.get_graph_ids()
+    # yield control to the tests that use this fixture
+    yield (client, new_graph_id)
+    # all tests using this fixture are done, so delete the large graph
+    client.delete_graph(new_graph_id)
 
-    vertex_data = test_data["vertex_type_1"]
-    client.load_csv_as_vertex_data(vertex_data["csv_file_name"]
-                                   dtypes=vertex_data["dtypes"],
-                                   vertex_col_name=["0"],
-                                   type_name="vertex_type_1")
-
-    vertex_data = test_data["vertex_type_2"]
-    client.load_csv_as_vertex_data(vertex_data["csv_file_name"]
-                                   dtypes=vertex_data["dtypes"],
-                                   vertex_col_name=["0"],
-                                   type_name="vertex_type_2")
-
-    assert client.get_graph_ids() == [0]
-    return (client, test_data)
 
 
 @pytest.fixture(scope="function")
@@ -390,14 +387,14 @@ def test_load_and_call_graph_creation_extension(client,
     num_files_loaded = client.load_graph_creation_extensions(extension_dir)
     assert num_files_loaded == 1
 
-    new_graph_ID = client.call_graph_creation_extension(
+    new_graph_id = client.call_graph_creation_extension(
         "my_graph_creation_function", "a", "b", "c")
 
-    assert new_graph_ID in client.get_graph_ids()
+    assert new_graph_id in client.get_graph_ids()
 
     # Inspect the PG and ensure it was created from my_graph_creation_function
     # FIXME: add client APIs to allow for a more thorough test of the graph
-    assert client.get_graph_info(["num_edges"], new_graph_ID) == 2
+    assert client.get_graph_info(["num_edges"], new_graph_id) == 2
 
 
 def test_load_and_call_graph_creation_long_running_extension(
@@ -414,14 +411,14 @@ def test_load_and_call_graph_creation_long_running_extension(
     num_files_loaded = client.load_graph_creation_extensions(extension_dir)
     assert num_files_loaded == 1
 
-    new_graph_ID = client.call_graph_creation_extension(
+    new_graph_id = client.call_graph_creation_extension(
         "long_running_graph_creation_function")
 
-    assert new_graph_ID in client.get_graph_ids()
+    assert new_graph_id in client.get_graph_ids()
 
     # Inspect the PG and ensure it was created from my_graph_creation_function
     # FIXME: add client APIs to allow for a more thorough test of the graph
-    assert client.get_graph_info(["num_edges"], new_graph_ID) == 0
+    assert client.get_graph_info(["num_edges"], new_graph_id) == 0
 
 
 def test_call_graph_creation_extension(client):
@@ -429,15 +426,15 @@ def test_call_graph_creation_extension(client):
     Ensure the graph creation extension preloaded by the server fixture is
     callable.
     """
-    new_graph_ID = client.call_graph_creation_extension(
+    new_graph_id = client.call_graph_creation_extension(
         "custom_graph_creation_function")
 
-    assert new_graph_ID in client.get_graph_ids()
+    assert new_graph_id in client.get_graph_ids()
 
     # Inspect the PG and ensure it was created from
     # custom_graph_creation_function
     # FIXME: add client APIs to allow for a more thorough test of the graph
-    assert client.get_graph_info(["num_edges"], new_graph_ID) == 3
+    assert client.get_graph_info(["num_edges"], new_graph_id) == 3
 
 
 def test_get_graph_vertex_data(client_with_property_csvs_loaded):
@@ -543,11 +540,25 @@ def test_get_edge_IDs_for_vertices(client_with_edgelist_csv_loaded):
 
 def test_uniform_neighbor_sampling_device_result(
         gpubenchmark,
-        client_of_server_on_device_1_large_property_csvs_loaded
+        client_of_server_on_device_1_large_property_graph_loaded
 ):
-    (client, test_data) = (
-        client_of_server_on_device_1_large_property_csvs_loaded
+    (client, graph_id) = (
+        client_of_server_on_device_1_large_property_graph_loaded
     )
+
+    extracted_graph_id = client.extract_subgraph(graph_id=graph_id)
+
+    start_list = range(int(1e7))
+    fanout_vals = [2]
+    with_replacement = False
+
+    result = gpubenchmark(
+        client.uniform_neighbor_sample,
+        start_list=start_list,
+        fanout_vals=fanout_vals,
+        with_replacement=with_replacement,
+        graph_id=extracted_graph_id)
+    breakpoint()
 
 def test_uniform_neighbor_sampling(client_with_edgelist_csv_loaded):
     from cugraph_service_client.exceptions import CugraphServiceError

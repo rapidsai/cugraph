@@ -94,7 +94,6 @@ def graph_creation_function(server):
 """
 
 graph_creation_extension_big_vertex_ids_file_contents = """
-import time
 import cudf
 import cupy
 import dask_cudf
@@ -118,6 +117,37 @@ def graph_creation_function_vert_and_edge_data_big_vertex_ids(server):
                         "dst":cupy.arange(big_num+1,big_num+11, dtype="int64"),
                         "edge_prop":cupy.arange(big_num+100, big_num+110,
                                                 dtype="int64")})
+   if server.is_mg:
+      df = dask_cudf.from_cudf(df, npartitions=2)
+   pG.add_edge_data(df, vertex_col_names=["src", "dst"])
+
+   return pG
+"""
+
+graph_creation_extension_large_property_graph_file_contents = """
+import cudf
+import cupy
+import dask_cudf
+from cugraph.experimental import PropertyGraph, MGPropertyGraph
+
+def graph_creation_extension_large_property_graph(server):
+   if server.is_mg:
+      pG = MGPropertyGraph()
+   else:
+      pG = PropertyGraph()
+
+   num_verts = 10e6
+   df = cudf.DataFrame({"vert_id":cupy.arange(num_verts, dtype="int32"),
+                        "vert_prop":cupy.arange(num_verts, dtype="int32"),
+                        })
+   if server.is_mg:
+      df = dask_cudf.from_cudf(df, npartitions=2)
+   pG.add_vertex_data(df, vertex_col_name="vert_id")
+
+   df = cudf.DataFrame({"src":cupy.arange(num_verts, dtype="int32"),
+                        "dst":cupy.arange(1, num_verts+1, dtype="int32"),
+                        "edge_prop":cupy.arange(num_verts, dtype="int32"),
+                        })
    if server.is_mg:
       df = dask_cudf.from_cudf(df, npartitions=2)
    pG.add_edge_data(df, vertex_col_names=["src", "dst"])
@@ -228,6 +258,21 @@ def graph_creation_extension_empty_graph():
             "graph_creation_empty_graph_extension.py",
             "w")
         print(graph_creation_extension_empty_graph_file_contents,
+              file=graph_creation_extension_file,
+              flush=True)
+
+        yield tmp_extension_dir
+
+
+@pytest.fixture(scope="module")
+def graph_creation_extension_large_property_graph():
+    with TemporaryDirectory() as tmp_extension_dir:
+        # write graph creation extension .py file
+        graph_creation_extension_file = open(
+            Path(tmp_extension_dir) /
+            "graph_creation_large_property_graph_extension.py",
+            "w")
+        print(graph_creation_extension_large_property_graph_file_contents,
               file=graph_creation_extension_file,
               flush=True)
 
