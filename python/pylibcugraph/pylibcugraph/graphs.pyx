@@ -133,11 +133,11 @@ cdef class SGGraph(_GPUGraph):
                   src_array,
                   dst_array,
                   weight_array,
-                  edge_id_array=None,
-                  edge_type_array=None,
                   store_transposed=False,
                   renumber=False,
-                  do_expensive_check=False):
+                  do_expensive_check=False,
+                  edge_id_array=None,
+                  edge_type_array=None):
 
         # FIXME: add tests for these
         if not(isinstance(store_transposed, (int, bool))):
@@ -303,11 +303,11 @@ cdef class MGGraph(_GPUGraph):
                   src_array,
                   dst_array,
                   weight_array,
-                  edge_id_array=None,
-                  edge_type_array=None,
                   store_transposed=False,
                   num_edges=-1,
-                  do_expensive_check=False):
+                  do_expensive_check=False,
+                  edge_id_array=None,
+                  edge_type_array=None):
 
         # FIXME: add tests for these
         if not(isinstance(store_transposed, (int, bool))):
