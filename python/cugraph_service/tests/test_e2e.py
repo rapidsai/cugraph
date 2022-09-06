@@ -288,6 +288,12 @@ def client_with_property_csvs_loaded(client):
     return (client, data.property_csv_data)
 
 
+@pytest.fixture(scope="function",
+                params=[None, 0],
+                ids=lambda p: f"device={p}")
+def client_device(request):
+    return request.param
+
 ###############################################################################
 # tests
 def test_get_graph_info_key_types(client_with_property_csvs_loaded):
@@ -540,12 +546,12 @@ def test_get_edge_IDs_for_vertices(client_with_edgelist_csv_loaded):
 
 def test_uniform_neighbor_sampling_device_result(
         gpubenchmark,
-        client_of_server_on_device_1_large_property_graph_loaded
+        client_of_server_on_device_1_large_property_graph_loaded,
+        client_device,
 ):
     (client, graph_id) = (
         client_of_server_on_device_1_large_property_graph_loaded
     )
-
     extracted_graph_id = client.extract_subgraph(graph_id=graph_id)
 
     start_list = range(int(1e7))
@@ -557,8 +563,16 @@ def test_uniform_neighbor_sampling_device_result(
         start_list=start_list,
         fanout_vals=fanout_vals,
         with_replacement=with_replacement,
-        graph_id=extracted_graph_id)
-    breakpoint()
+        graph_id=extracted_graph_id,
+        client_device=client_device)
+
+    dtype = type(result.sources)
+
+    if client_device is None:
+        assert dtype is list
+    else:
+        assert dtype is cupy.ndarray
+
 
 def test_uniform_neighbor_sampling(client_with_edgelist_csv_loaded):
     from cugraph_service_client.exceptions import CugraphServiceError

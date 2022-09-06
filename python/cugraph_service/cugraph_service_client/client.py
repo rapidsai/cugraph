@@ -900,7 +900,9 @@ class CugraphServiceClient:
                                 start_list,
                                 fanout_vals,
                                 with_replacement=True,
-                                graph_id=defaults.graph_id):
+                                *,
+                                graph_id=defaults.graph_id,
+                                client_device=None):
         """
         Samples the graph and returns the graph id of the sampled
         graph.
