@@ -819,6 +819,9 @@ template <typename vertex_t,
           bool store_transposed,
           bool multi_gpu>
 std::tuple<cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>,
+           std::optional<
+             edge_property_t<graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>,
+                             thrust::tuple<edge_t, edge_type_t>>>,
            std::optional<rmm::device_uvector<vertex_t>>>
 create_graph_from_edgelist(
   raft::handle_t const& handle,
@@ -832,16 +835,20 @@ create_graph_from_edgelist(
   bool renumber,
   bool do_expensive_check)
 {
-  return create_graph_from_edgelist_impl<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
-    handle,
-    std::move(vertices),
-    std::move(edgelist_srcs),
-    std::move(edgelist_dsts),
-    std::move(edgelist_weights),
-    std::move(edgelist_id_type_pairs),
-    graph_properties,
-    renumber,
-    do_expensive_check);
+  return create_graph_from_edgelist_impl<vertex_t,
+                                         edge_t,
+                                         weight_t,
+                                         edge_type_t,
+                                         store_transposed,
+                                         multi_gpu>(handle,
+                                                    std::move(vertices),
+                                                    std::move(edgelist_srcs),
+                                                    std::move(edgelist_dsts),
+                                                    std::move(edgelist_weights),
+                                                    std::move(edgelist_id_type_pairs),
+                                                    graph_properties,
+                                                    renumber,
+                                                    do_expensive_check);
 }
 
 }  // namespace cugraph
