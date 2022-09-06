@@ -168,19 +168,9 @@ class Tests_EigenvectorCentrality
     if (eigenvector_usecase.check_correctness) {
       auto [dst_v, src_v, opt_wgt_v] = graph_view.decompress_to_edgelist(handle, std::nullopt);
 
-      std::vector<vertex_t> h_src(src_v.size());
-      std::vector<vertex_t> h_dst(dst_v.size());
-      auto h_weights =
-        opt_wgt_v ? std::make_optional<std::vector<weight_t>>(opt_wgt_v->size()) : std::nullopt;
-
-      raft::update_host(h_src.data(), src_v.data(), src_v.size(), handle.get_stream());
-      raft::update_host(h_dst.data(), dst_v.data(), dst_v.size(), handle.get_stream());
-      if (h_weights) {
-        raft::update_host(
-          h_weights->data(), opt_wgt_v->data(), opt_wgt_v->size(), handle.get_stream());
-      }
-
-      handle.sync_stream();
+      auto h_src     = cugraph::test::to_host(handle, src_v);
+      auto h_dst     = cugraph::test::to_host(handle, dst_v);
+      auto h_weights = cugraph::test::to_host(handle, opt_wgt_v);
 
       std::vector<weight_t> h_reference_centralities(graph_view.number_of_vertices());
 
@@ -194,13 +184,7 @@ class Tests_EigenvectorCentrality
         epsilon,
         eigenvector_usecase.max_iterations);
 
-      std::vector<weight_t> h_cugraph_centralities(graph_view.number_of_vertices());
-      raft::update_host(h_cugraph_centralities.data(),
-                        d_centralities.data(),
-                        d_centralities.size(),
-                        handle.get_stream());
-
-      handle.sync_stream();
+      auto h_cugraph_centralities = cugraph::test::to_host(handle, d_centralities);
 
       auto max_centrality =
         *std::max_element(h_cugraph_centralities.begin(), h_cugraph_centralities.end());

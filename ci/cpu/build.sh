@@ -34,7 +34,7 @@ export CMAKE_GENERATOR="Ninja"
 export CONDA_BLD_DIR="${WORKSPACE}/.conda-bld"
 
 # ucx-py version
-export UCX_PY_VERSION='0.27.*'
+export UCX_PY_VERSION='0.28.*'
 
 ################################################################################
 # SETUP - Check environment

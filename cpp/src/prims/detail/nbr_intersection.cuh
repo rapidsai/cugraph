@@ -15,11 +15,12 @@
  */
 #pragma once
 
+#include <cugraph/graph.hpp>
 #include <cugraph/partition_manager.hpp>
 #include <cugraph/utilities/device_functors.cuh>
-#include <cugraph/utilities/host_scalar_comm.cuh>
+#include <cugraph/utilities/host_scalar_comm.hpp>
 #include <cugraph/utilities/shuffle_comm.cuh>
-#include <cugraph/utilities/thrust_tuple_utils.cuh>
+#include <cugraph/utilities/thrust_tuple_utils.hpp>
 
 #include <cuco/static_map.cuh>
 #include <raft/handle.hpp>

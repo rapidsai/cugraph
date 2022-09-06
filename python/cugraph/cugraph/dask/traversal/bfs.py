@@ -22,6 +22,7 @@ from cugraph.dask.common.input_utils import get_distributed_data
 import cugraph.dask.comms.comms as Comms
 import cudf
 import dask_cudf
+import warnings
 
 
 def convert_to_cudf(cp_arrays):
@@ -119,22 +120,41 @@ def bfs(input_graph,
     """
 
     client = input_graph._client
+    invalid_dtype = False
 
     if not isinstance(start, (dask_cudf.DataFrame, dask_cudf.Series)):
         if not isinstance(start, (cudf.DataFrame, cudf.Series)):
-            start = cudf.Series(start)
-        if isinstance(start, (cudf.DataFrame, cudf.Series)):
-            # convert into a dask_cudf
-            start = dask_cudf.from_cudf(start, input_graph._npartitions)
+            vertex_dtype = input_graph.nodes().dtype
+            start = cudf.Series(start, dtype=vertex_dtype)
+        # convert into a dask_cudf
+        start = dask_cudf.from_cudf(start, input_graph._npartitions)
 
-    def check_valid_vertex(G, start):
-        is_valid_vertex = G.has_node(start)
+    if check_start:
+        if isinstance(start, dask_cudf.Series):
+            vertex_dtype = input_graph.nodes().dtype
+            if start.dtype is not vertex_dtype:
+                invalid_dtype = True
+        else:
+            # Multicolumn vertices case
+            start_dtype = start.dtypes.reset_index(drop=True)
+            vertex_dtype = input_graph.nodes().dtypes.reset_index(drop=True)
+            if not start_dtype.equals(vertex_dtype):
+                invalid_dtype = True
+
+        if invalid_dtype:
+            warning_msg = ("The 'start' values dtype must match "
+                           "the graph's vertices dtype.")
+
+            warnings.warn(warning_msg, UserWarning)
+            if isinstance(start, dask_cudf.Series):
+                start = start.astype(vertex_dtype)
+            else:
+                start = start.astype(vertex_dtype[0])
+
+        is_valid_vertex = input_graph.has_node(start)
         if not is_valid_vertex:
             raise ValueError(
                 'At least one start vertex provided was invalid')
-
-    if check_start:
-        check_valid_vertex(input_graph, start)
 
     if input_graph.renumbered:
         if isinstance(start, dask_cudf.DataFrame):
@@ -156,7 +176,8 @@ def bfs(input_graph,
             st[0],
             depth_limit,
             return_distances,
-            workers=[w]
+            workers=[w],
+            allow_other_workers=False,
         )
         for w, st in data_start.worker_to_parts.items()
     ]
@@ -168,7 +189,12 @@ def bfs(input_graph,
                    for cp_arrays in cupy_result]
     wait(cudf_result)
 
-    ddf = dask_cudf.from_delayed(cudf_result)
+    ddf = dask_cudf.from_delayed(cudf_result).persist()
+    wait(ddf)
+
+    # Wait until the inactive futures are released
+    wait([(r.release(), c_r.release())
+         for r, c_r in zip(cupy_result, cudf_result)])
 
     if input_graph.renumbered:
         ddf = input_graph.unrenumber(ddf, 'vertex')
