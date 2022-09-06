@@ -867,11 +867,6 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
                       (edge_partition_indices[i].size() == (*edge_partition_weights)[i].size()),
                     "Invalid input argument: edge_partition_weights.has_value() && "
                     "edge_partition_indices[].size() != (*edge_partition_weights)[].size().");
-    CUGRAPH_EXPECTS(
-      !edge_partition_dcs_nzd_vertices.has_value() ||
-        (edge_partition_indices[i].size() == (*edge_partition_dcs_nzd_vertices)[i].size()),
-      "Invalid input argument: edge_partition_dcs_nzd_vertices.has_value() && "
-      "edge_partition_indices[].size() != (*edge_partition_dcs_nzd_vertices)[].size().");
   }
 
   edge_partition_segment_offsets_ = meta.edge_partition_segment_offsets;
@@ -884,10 +879,10 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
   edge_partition_dcs_nzd_vertices_ = std::move(edge_partition_dcs_nzd_vertices);
   if (edge_partition_dcs_nzd_vertices_) {
     edge_partition_dcs_nzd_vertex_counts_ =
-      std::vector<vertex_t>((*edge_partition_dcs_nzd_vertices).size());
+      std::vector<vertex_t>((*edge_partition_dcs_nzd_vertices_).size());
     for (size_t i = 0; i < (*edge_partition_dcs_nzd_vertex_counts_).size(); ++i) {
       (*edge_partition_dcs_nzd_vertex_counts_)[i] =
-        static_cast<vertex_t>((*edge_partition_dcs_nzd_vertices)[i].size());
+        static_cast<vertex_t>((*edge_partition_dcs_nzd_vertices_)[i].size());
     }
   }
 

@@ -366,8 +366,9 @@ void sort_adjacency_list(raft::handle_t const& handle,
                  segment_sorted_indices.begin() + (h_edge_offsets[i + 1] - h_edge_offsets[i]),
                  index_first + h_edge_offsets[i]);
     thrust::copy(handle.get_thrust_policy(),
-                 segment_sorted_values.begin(),
-                 segment_sorted_values.begin() + (h_edge_offsets[i + 1] - h_edge_offsets[i]),
+                 get_dataframe_buffer_begin(segment_sorted_values),
+                 get_dataframe_buffer_begin(segment_sorted_values) +
+                   (h_edge_offsets[i + 1] - h_edge_offsets[i]),
                  edge_value_first + h_edge_offsets[i]);
   }
 }
