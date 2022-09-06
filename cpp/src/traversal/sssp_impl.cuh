@@ -43,6 +43,36 @@
 #include <limits>
 
 namespace cugraph {
+
+namespace {
+
+template <typename vertex_t, typename weight_t, bool multi_gpu>
+struct e_op_t {
+  vertex_partition_device_view_t<vertex_t, multi_gpu> vertex_partition{};
+  weight_t const* distances{};
+  weight_t cutoff{};
+
+  __device__ thrust::optional<thrust::tuple<weight_t, vertex_t>> operator()(
+    vertex_t src, vertex_t dst, weight_t w, weight_t src_val, thrust::nullopt_t) const
+  {
+    auto push         = true;
+    auto new_distance = src_val + w;
+    auto threshold    = cutoff;
+    if (vertex_partition.in_local_vertex_partition_range_nocheck(dst)) {
+      auto local_vertex_offset =
+        vertex_partition.local_vertex_partition_offset_from_vertex_nocheck(dst);
+      auto old_distance = *(distances + local_vertex_offset);
+      threshold         = old_distance < threshold ? old_distance : threshold;
+    }
+    if (new_distance >= threshold) { push = false; }
+    return push ? thrust::optional<thrust::tuple<weight_t, vertex_t>>{thrust::make_tuple(
+                    new_distance, src)}
+                : thrust::nullopt;
+  }
+};
+
+}  // namespace
+
 namespace detail {
 
 template <typename GraphViewType, typename PredecessorIterator>
@@ -174,22 +204,8 @@ void sssp(raft::handle_t const& handle,
           ? edge_src_distances.view()
           : detail::edge_major_property_view_t<vertex_t, weight_t const*>(distances),
         edge_dst_dummy_property_t{}.view(),
-        [vertex_partition, distances, cutoff] __device__(
-          vertex_t src, vertex_t dst, weight_t w, auto src_val, auto) {
-          auto push         = true;
-          auto new_distance = src_val + w;
-          auto threshold    = cutoff;
-          if (vertex_partition.in_local_vertex_partition_range_nocheck(dst)) {
-            auto local_vertex_offset =
-              vertex_partition.local_vertex_partition_offset_from_vertex_nocheck(dst);
-            auto old_distance = *(distances + local_vertex_offset);
-            threshold         = old_distance < threshold ? old_distance : threshold;
-          }
-          if (new_distance >= threshold) { push = false; }
-          return push ? thrust::optional<thrust::tuple<weight_t, vertex_t>>{thrust::make_tuple(
-                          new_distance, src)}
-                      : thrust::nullopt;
-        },
+        e_op_t<vertex_t, weight_t, GraphViewType::is_multi_gpu>{
+          vertex_partition, distances, cutoff},
         reduce_op::minimum<thrust::tuple<weight_t, vertex_t>>());
 
     update_v_frontier(
