@@ -12,79 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import os
-import sys
-import subprocess
-import time
 from collections.abc import Sequence
 
 import pytest
+import cupy as cp
 
 from . import data
-
-
-def start_server_subprocess(host="localhost",
-                            port=9090,
-                            graph_creation_extension_dir=None,
-                            env_additions=None):
-    from cugraph_service_server import server
-    from cugraph_service_client import CugraphServiceClient
-    from cugraph_service_client.exceptions import CugraphServiceError
-
-    server_process = None
-    env_dict = os.environ.copy()
-    if env_additions is not None:
-        env_dict.update(env_additions)
-    server_file = server.__file__
-
-    # pytest will update sys.path based on the tests it discovers, and for this
-    # source tree, an entry for the parent of this "tests" directory will be
-    # added. The parent to this "tests" directory also allows imports to find
-    # the cugraph_service sources, so in oder to ensure the server that's
-    # started is also using the same sources, the PYTHONPATH env should be set
-    # to the sys.path being used in this process.
-    env_dict["PYTHONPATH"] = ":".join(sys.path)
-
-    args = [sys.executable,
-            server_file,
-            "--host", host,
-            "--port", str(port),
-            ]
-    if graph_creation_extension_dir is not None:
-        args += ["--graph-creation-extension-dir",
-                 graph_creation_extension_dir,
-                 ]
-
-    try:
-        server_process = subprocess.Popen(args,
-                                          env=env_dict,
-                                          stdout=subprocess.PIPE,
-                                          stderr=subprocess.STDOUT,
-                                          text=True)
-
-        print("\nLaunched cugraph_service server, waiting for it to "
-              "start...",
-              end="", flush=True)
-        client = CugraphServiceClient(host, port)
-        max_retries = 10
-        retries = 0
-        while retries < max_retries:
-            try:
-                client.uptime()
-                print("started.")
-                break
-            except CugraphServiceError:
-                time.sleep(1)
-                retries += 1
-        if retries >= max_retries:
-            raise RuntimeError("error starting server")
-    except Exception:
-        if server_process is not None and server_process.poll() is None:
-            server_process.terminate()
-        raise
-
-    return server_process
-
+from . import utils
 
 ###############################################################################
 # fixtures
@@ -112,50 +46,10 @@ def server(graph_creation_extension1):
     except CugraphServiceError:
         # A server was not found, so start one for testing then stop it when
         # testing is done.
-        server_process = start_server_subprocess(
+        server_process = utils.start_server_subprocess(
             host=host,
             port=port,
-            graph_creation_extension_dir=server_extension_dir)
-
-        # yield control to the tests
-        yield
-
-        # tests are done, now stop the server
-        print("\nTerminating server...", end="", flush=True)
-        server_process.terminate()
-        print("done.", flush=True)
-
-
-@pytest.fixture(scope="module")
-def server_on_device_1(graph_creation_extension_large_property_graph):
-    """
-    Start a cugraph_service server, stop it when done with the fixture.  This
-    also uses graph_creation_extension_large_property_graph to preload the
-    graph creation extension that creates a large PG.
-    """
-    from cugraph_service_server import server
-    from cugraph_service_client import CugraphServiceClient
-    from cugraph_service_client.exceptions import CugraphServiceError
-
-    host = "localhost"
-    port = 9090
-    server_extension_dir = graph_creation_extension_large_property_graph
-    client = CugraphServiceClient(host, port)
-
-    try:
-        client.uptime()
-        print("FOUND RUNNING SERVER, ASSUMING IT SHOULD BE USED FOR TESTING!")
-        yield
-
-    except CugraphServiceError:
-        # A server was not found, so start one for testing then stop it when
-        # testing is done.
-        server_process = start_server_subprocess(
-            host=host,
-            port=port,
-            graph_creation_extension_dir=server_extension_dir,
-            env_additions={"CUDA_VISIBLE_DEVICES": "1"}
-        )
+            graph_creation_extension_dir=server_extension_dir.name)
 
         # yield control to the tests
         yield
@@ -186,47 +80,6 @@ def client(server):
     yield client
     # all tests using this fixture are done, so stop the server
     client.close()
-
-
-@pytest.fixture(scope="function")
-def client_of_server_on_device_1(server_on_device_1):
-    """
-    Creates a client instance to a server running on device 1, closes the
-    client when the fixture is no longer used by tests.
-    """
-    from cugraph_service_client import CugraphServiceClient, defaults
-
-    client = CugraphServiceClient(defaults.host, defaults.port)
-
-    for gid in client.get_graph_ids():
-        client.delete_graph(gid)
-
-    # FIXME: should this fixture always unconditionally unload all extensions?
-    # client.unload_graph_creation_extensions()
-
-    # yield control to the tests
-    yield client
-
-    # tests are done, now stop the server
-    client.close()
-
-
-@pytest.fixture(scope="function")
-def client_of_server_on_device_1_large_property_graph_loaded(
-        client_of_server_on_device_1
-):
-    client = client_of_server_on_device_1
-    # Assume fixture that starts server on device 1 has the extension loaded
-    # for creating large property graphs.
-    new_graph_id = client.call_graph_creation_extension(
-        "graph_creation_extension_large_property_graph")
-
-    assert new_graph_id in client.get_graph_ids()
-    # yield control to the tests that use this fixture
-    yield (client, new_graph_id)
-    # all tests using this fixture are done, so delete the large graph
-    client.delete_graph(new_graph_id)
-
 
 
 @pytest.fixture(scope="function")
@@ -287,12 +140,6 @@ def client_with_property_csvs_loaded(client):
     assert client.get_graph_ids() == [0]
     return (client, data.property_csv_data)
 
-
-@pytest.fixture(scope="function",
-                params=[None, 0],
-                ids=lambda p: f"device={p}")
-def client_device(request):
-    return request.param
 
 ###############################################################################
 # tests
@@ -542,36 +389,6 @@ def test_get_edge_IDs_for_vertices(client_with_edgelist_csv_loaded):
                                                 graph_id=extracted_gid)
 
     assert len(edge_IDs) == len(srcs)
-
-
-def test_uniform_neighbor_sampling_device_result(
-        gpubenchmark,
-        client_of_server_on_device_1_large_property_graph_loaded,
-        client_device,
-):
-    (client, graph_id) = (
-        client_of_server_on_device_1_large_property_graph_loaded
-    )
-    extracted_graph_id = client.extract_subgraph(graph_id=graph_id)
-
-    start_list = range(int(1e7))
-    fanout_vals = [2]
-    with_replacement = False
-
-    result = gpubenchmark(
-        client.uniform_neighbor_sample,
-        start_list=start_list,
-        fanout_vals=fanout_vals,
-        with_replacement=with_replacement,
-        graph_id=extracted_graph_id,
-        client_device=client_device)
-
-    dtype = type(result.sources)
-
-    if client_device is None:
-        assert dtype is list
-    else:
-        assert dtype is cupy.ndarray
 
 
 def test_uniform_neighbor_sampling(client_with_edgelist_csv_loaded):
