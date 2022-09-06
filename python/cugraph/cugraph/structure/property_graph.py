@@ -430,23 +430,9 @@ class EXPERIMENTAL__PropertyGraph:
         # FIXME: handle case of a type_name column already being in tmp_df
 
         # Add `type_name` to the categorical dtype if necessary
-        if type_name in self.__vertex_prop_dataframe.dtypes[TCN].categories:
-            # No need to change the categorical dtype
-            pass
-        elif self.__series_type is cudf.Series:
-            # cudf isn't as fast as pandas; does it scan through the data?
-            # inplace is supported in cudf, but is deprecated in pandas.
-            (
-                self.__vertex_prop_dataframe[TCN]
-                .cat.add_categories([type_name], inplace=True)
-            )
-        else:
-            # Very fast in pandas
-            self.__vertex_prop_dataframe[TCN] = (
-                self.__vertex_prop_dataframe[TCN]
-                .cat.add_categories([type_name])
-            )
-        cat_dtype = self.__vertex_prop_dataframe.dtypes[TCN]
+        cat_dtype = self.__update_categorical_dtype(
+            self.__vertex_prop_dataframe, TCN, type_name
+        )
 
         if self.__series_type is cudf.Series:
             # cudf does not yet support initialization with a scalar
@@ -630,23 +616,9 @@ class EXPERIMENTAL__PropertyGraph:
         tmp_df[self.dst_col_name] = tmp_df[vertex_col_names[1]]
 
         # Add `type_name` to the categorical dtype if necessary
-        if type_name in self.__edge_prop_dataframe.dtypes[TCN].categories:
-            # No need to change the categorical dtype
-            pass
-        elif self.__series_type is cudf.Series:
-            # cudf isn't as fast as pandas; does it scan through the data?
-            # inplace is supported in cudf, but is deprecated in pandas.
-            (
-                self.__edge_prop_dataframe[TCN]
-                .cat.add_categories([type_name], inplace=True)
-            )
-        else:
-            # Very fast in pandas
-            self.__edge_prop_dataframe[TCN] = (
-                self.__edge_prop_dataframe[TCN]
-                .cat.add_categories([type_name])
-            )
-        cat_dtype = self.__edge_prop_dataframe.dtypes[TCN]
+        cat_dtype = self.__update_categorical_dtype(
+            self.__edge_prop_dataframe, TCN, type_name
+        )
 
         if self.__series_type is cudf.Series:
             # cudf does not yet support initialization with a scalar
@@ -1175,3 +1147,21 @@ class EXPERIMENTAL__PropertyGraph:
         # #returning-a-view-versus-a-copy
         # Note that this requires all column names to be strings.
         return df.assign(**update_cols)
+
+    def __update_categorical_dtype(self, df, column, val):
+        """Add a new category to a categorical dtype column of a dataframe.
+
+        Returns the new categorical dtype.
+        """
+        # Add `val` to the categorical dtype if necessary
+        if val in df.dtypes[column].categories:
+            # No need to change the categorical dtype
+            pass
+        elif self.__series_type is cudf.Series:
+            # cudf isn't as fast as pandas; does it scan through the data?
+            # inplace is supported in cudf, but is deprecated in pandas.
+            df[column].cat.add_categories([val], inplace=True)
+        else:
+            # Very fast in pandas
+            df[column] = df[column].cat.add_categories([val])
+        return df.dtypes[column]
