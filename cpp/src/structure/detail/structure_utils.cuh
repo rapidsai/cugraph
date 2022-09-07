@@ -321,14 +321,14 @@ void sort_adjacency_list(raft::handle_t const& handle,
       std::max(max_chunk_size, static_cast<size_t>(h_edge_offsets[i + 1] - h_edge_offsets[i]));
   }
   rmm::device_uvector<vertex_t> segment_sorted_indices(max_chunk_size, handle.get_stream());
+  rmm::device_uvector<std::byte> d_tmp_storage(0, handle.get_stream());
   auto segment_sorted_values =
     allocate_dataframe_buffer<edge_value_t>(max_chunk_size, handle.get_stream());
-  rmm::device_uvector<std::byte> d_tmp_storage(0, handle.get_stream());
-  for (size_t i = 0; i < num_chunks; ++i) {
-    size_t tmp_storage_bytes{0};
-    auto offset_first = thrust::make_transform_iterator(offsets.data() + h_vertex_offsets[i],
-                                                        rebase_offset_t<edge_t>{h_edge_offsets[i]});
-    if constexpr (std::is_arithmetic_v<edge_value_t>) {
+  if constexpr (std::is_arithmetic_v<edge_value_t>) {
+    for (size_t i = 0; i < num_chunks; ++i) {
+      size_t tmp_storage_bytes{0};
+      auto offset_first = thrust::make_transform_iterator(
+        offsets.data() + h_vertex_offsets[i], rebase_offset_t<edge_t>{h_edge_offsets[i]});
       cub::DeviceSegmentedSort::SortPairs(static_cast<void*>(nullptr),
                                           tmp_storage_bytes,
                                           index_first + h_edge_offsets[i],
@@ -340,13 +340,9 @@ void sort_adjacency_list(raft::handle_t const& handle,
                                           offset_first,
                                           offset_first + 1,
                                           handle.get_stream());
-    } else {
-      CUGRAPH_FAIL("unimplemented.");
-    }
-    if (tmp_storage_bytes > d_tmp_storage.size()) {
-      d_tmp_storage = rmm::device_uvector<std::byte>(tmp_storage_bytes, handle.get_stream());
-    }
-    if constexpr (std::is_arithmetic_v<edge_value_t>) {
+      if (tmp_storage_bytes > d_tmp_storage.size()) {
+        d_tmp_storage = rmm::device_uvector<std::byte>(tmp_storage_bytes, handle.get_stream());
+      }
       cub::DeviceSegmentedSort::SortPairs(d_tmp_storage.data(),
                                           tmp_storage_bytes,
                                           index_first + h_edge_offsets[i],
@@ -358,18 +354,70 @@ void sort_adjacency_list(raft::handle_t const& handle,
                                           offset_first,
                                           offset_first + 1,
                                           handle.get_stream());
-    } else {
-      CUGRAPH_FAIL("unimplemented.");
+      thrust::copy(handle.get_thrust_policy(),
+                   segment_sorted_indices.begin(),
+                   segment_sorted_indices.begin() + (h_edge_offsets[i + 1] - h_edge_offsets[i]),
+                   index_first + h_edge_offsets[i]);
+      thrust::copy(handle.get_thrust_policy(),
+                   get_dataframe_buffer_begin(segment_sorted_values),
+                   get_dataframe_buffer_begin(segment_sorted_values) +
+                     (h_edge_offsets[i + 1] - h_edge_offsets[i]),
+                   edge_value_first + h_edge_offsets[i]);
     }
-    thrust::copy(handle.get_thrust_policy(),
-                 segment_sorted_indices.begin(),
-                 segment_sorted_indices.begin() + (h_edge_offsets[i + 1] - h_edge_offsets[i]),
-                 index_first + h_edge_offsets[i]);
-    thrust::copy(handle.get_thrust_policy(),
-                 get_dataframe_buffer_begin(segment_sorted_values),
-                 get_dataframe_buffer_begin(segment_sorted_values) +
-                   (h_edge_offsets[i + 1] - h_edge_offsets[i]),
-                 edge_value_first + h_edge_offsets[i]);
+  } else {  // cub's segmented sort does not support thrust iterators (so we can't directly sort
+            // edge values with thrust::zip_iterator)
+    rmm::device_uvector<edge_t> input_edge_value_offsets(max_chunk_size, handle.get_stream());
+    rmm::device_uvector<edge_t> segment_sorted_edge_value_offsets(max_chunk_size,
+                                                                  handle.get_stream());
+    thrust::sequence(handle.get_thrust_policy(),
+                     input_edge_value_offsets.begin(),
+                     input_edge_value_offsets.end(),
+                     edge_t{0});
+    for (size_t i = 0; i < num_chunks; ++i) {
+      size_t tmp_storage_bytes{0};
+      auto offset_first = thrust::make_transform_iterator(
+        offsets.data() + h_vertex_offsets[i], rebase_offset_t<edge_t>{h_edge_offsets[i]});
+      cub::DeviceSegmentedSort::SortPairs(static_cast<void*>(nullptr),
+                                          tmp_storage_bytes,
+                                          index_first + h_edge_offsets[i],
+                                          segment_sorted_indices.data(),
+                                          input_edge_value_offsets.data(),
+                                          segment_sorted_edge_value_offsets.data(),
+                                          h_edge_offsets[i + 1] - h_edge_offsets[i],
+                                          h_vertex_offsets[i + 1] - h_vertex_offsets[i],
+                                          offset_first,
+                                          offset_first + 1,
+                                          handle.get_stream());
+      if (tmp_storage_bytes > d_tmp_storage.size()) {
+        d_tmp_storage = rmm::device_uvector<std::byte>(tmp_storage_bytes, handle.get_stream());
+      }
+      cub::DeviceSegmentedSort::SortPairs(d_tmp_storage.data(),
+                                          tmp_storage_bytes,
+                                          index_first + h_edge_offsets[i],
+                                          segment_sorted_indices.data(),
+                                          input_edge_value_offsets.data(),
+                                          segment_sorted_edge_value_offsets.data(),
+                                          h_edge_offsets[i + 1] - h_edge_offsets[i],
+                                          h_vertex_offsets[i + 1] - h_vertex_offsets[i],
+                                          offset_first,
+                                          offset_first + 1,
+                                          handle.get_stream());
+      thrust::copy(handle.get_thrust_policy(),
+                   segment_sorted_indices.begin(),
+                   segment_sorted_indices.begin() + (h_edge_offsets[i + 1] - h_edge_offsets[i]),
+                   index_first + h_edge_offsets[i]);
+      thrust::gather(
+        handle.get_thrust_policy(),
+        segment_sorted_edge_value_offsets.begin(),
+        segment_sorted_edge_value_offsets.begin() + (h_edge_offsets[i + 1] - h_edge_offsets[i]),
+        edge_value_first + h_edge_offsets[i],
+        get_dataframe_buffer_begin(segment_sorted_values));
+      thrust::copy(handle.get_thrust_policy(),
+                   get_dataframe_buffer_begin(segment_sorted_values),
+                   get_dataframe_buffer_begin(segment_sorted_values) +
+                     (h_edge_offsets[i + 1] - h_edge_offsets[i]),
+                   edge_value_first + h_edge_offsets[i]);
+    }
   }
 }
 
