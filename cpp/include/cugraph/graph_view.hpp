@@ -638,25 +638,32 @@ class graph_view_t<vertex_t,
         this->local_edge_partition_src_value_start_offset(partition_idx);
     }
     std::optional<vertex_t> major_hypersparse_first{std::nullopt};
+    vertex_t offset_size = (major_range_last - major_range_first) + 1;
     if (this->use_dcs()) {
       major_hypersparse_first =
         major_range_first + (*(this->local_edge_partition_segment_offsets(
                               partition_idx)))[detail::num_sparse_segments_per_vertex_partition];
+      offset_size = ((*major_hypersparse_first) - major_range_first) +
+                    (*edge_partition_dcs_nzd_vertex_counts_)[partition_idx] + 1;
     }
     return edge_partition_view_t<vertex_t, edge_t, weight_t, true>(
-      edge_partition_offsets_[partition_idx],
-      edge_partition_indices_[partition_idx],
-      edge_partition_weights_
-        ? std::optional<weight_t const*>{(*edge_partition_weights_)[partition_idx]}
-        : std::nullopt,
+      raft::device_span<edge_t const>(edge_partition_offsets_[partition_idx],
+                                      edge_partition_offsets_[partition_idx] + offset_size),
+      raft::device_span<vertex_t const>(
+        edge_partition_indices_[partition_idx],
+        edge_partition_indices_[partition_idx] + edge_partition_number_of_edges_[partition_idx]),
+      edge_partition_weights_ ? std::make_optional<raft::device_span<weight_t const>>(
+                                  (*edge_partition_weights_)[partition_idx],
+                                  (*edge_partition_weights_)[partition_idx] +
+                                    edge_partition_number_of_edges_[partition_idx])
+                              : std::nullopt,
       edge_partition_dcs_nzd_vertices_
-        ? std::optional<vertex_t const*>{(*edge_partition_dcs_nzd_vertices_)[partition_idx]}
-        : std::nullopt,
-      edge_partition_dcs_nzd_vertex_counts_
-        ? std::optional<vertex_t>{(*edge_partition_dcs_nzd_vertex_counts_)[partition_idx]}
+        ? std::make_optional<raft::device_span<vertex_t const>>(
+            (*edge_partition_dcs_nzd_vertices_)[partition_idx],
+            (*edge_partition_dcs_nzd_vertices_)[partition_idx] +
+              (*edge_partition_dcs_nzd_vertex_counts_)[partition_idx])
         : std::nullopt,
       major_hypersparse_first,
-      edge_partition_number_of_edges_[partition_idx],
       major_range_first,
       major_range_last,
       minor_range_first,
@@ -965,7 +972,12 @@ class graph_view_t<vertex_t,
   {
     assert(partition_idx == 0);  // there is only one edge partition in single-GPU
     return edge_partition_view_t<vertex_t, edge_t, weight_t, false>(
-      offsets_, indices_, weights_, this->number_of_vertices(), this->number_of_edges());
+      raft::device_span<edge_t const>(offsets_, offsets_ + (this->number_of_vertices() + 1)),
+      raft::device_span<vertex_t const>(indices_, indices_ + this->number_of_edges()),
+      weights_ ? std::make_optional<raft::device_span<weight_t const>>(
+                   *weights_, *weights_ + this->number_of_edges())
+               : std::nullopt,
+      this->number_of_vertices());
   }
 
   rmm::device_uvector<edge_t> compute_in_degrees(raft::handle_t const& handle) const;

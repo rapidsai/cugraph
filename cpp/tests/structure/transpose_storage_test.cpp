@@ -102,43 +102,16 @@ class Tests_TransposeStorage
       auto [d_storage_transposed_srcs, d_storage_transposed_dsts, d_storage_transposed_weights] =
         storage_transposed_graph.decompress_to_edgelist(handle, d_renumber_map_labels, false);
 
-      std::vector<vertex_t> h_org_srcs(d_org_srcs.size());
-      std::vector<vertex_t> h_org_dsts(h_org_srcs.size());
-      auto h_org_weights =
-        d_org_weights ? std::make_optional<std::vector<weight_t>>(h_org_srcs.size()) : std::nullopt;
+      std::vector<vertex_t> h_org_srcs = cugraph::test::to_host(handle, d_org_srcs);
+      std::vector<vertex_t> h_org_dsts = cugraph::test::to_host(handle, d_org_dsts);
+      auto h_org_weights               = cugraph::test::to_host(handle, d_org_weights);
 
-      std::vector<vertex_t> h_storage_transposed_srcs(d_storage_transposed_srcs.size());
-      std::vector<vertex_t> h_storage_transposed_dsts(h_storage_transposed_srcs.size());
+      std::vector<vertex_t> h_storage_transposed_srcs =
+        cugraph::test::to_host(handle, d_storage_transposed_srcs);
+      std::vector<vertex_t> h_storage_transposed_dsts =
+        cugraph::test::to_host(handle, d_storage_transposed_dsts);
       auto h_storage_transposed_weights =
-        d_storage_transposed_weights
-          ? std::make_optional<std::vector<weight_t>>(h_storage_transposed_srcs.size())
-          : std::nullopt;
-
-      raft::update_host(
-        h_org_srcs.data(), d_org_srcs.data(), d_org_srcs.size(), handle.get_stream());
-      raft::update_host(
-        h_org_dsts.data(), d_org_dsts.data(), d_org_dsts.size(), handle.get_stream());
-      if (h_org_weights) {
-        raft::update_host((*h_org_weights).data(),
-                          (*d_org_weights).data(),
-                          (*d_org_weights).size(),
-                          handle.get_stream());
-      }
-
-      raft::update_host(h_storage_transposed_srcs.data(),
-                        d_storage_transposed_srcs.data(),
-                        d_storage_transposed_srcs.size(),
-                        handle.get_stream());
-      raft::update_host(h_storage_transposed_dsts.data(),
-                        d_storage_transposed_dsts.data(),
-                        d_storage_transposed_dsts.size(),
-                        handle.get_stream());
-      if (h_storage_transposed_weights) {
-        raft::update_host((*h_storage_transposed_weights).data(),
-                          (*d_storage_transposed_weights).data(),
-                          (*d_storage_transposed_weights).size(),
-                          handle.get_stream());
-      }
+        cugraph::test::to_host(handle, d_storage_transposed_weights);
 
       if (transpose_storage_usecase.test_weighted) {
         std::vector<std::tuple<vertex_t, vertex_t, weight_t>> org_edges(h_org_srcs.size());

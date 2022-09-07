@@ -18,6 +18,7 @@
 
 #include <cugraph/detail/decompress_edge_partition.cuh>
 #include <cugraph/edge_partition_device_view.cuh>
+#include <cugraph/graph_view.hpp>
 #include <cugraph/partition_manager.hpp>
 #include <cugraph/utilities/device_comm.hpp>
 #include <cugraph/utilities/device_functors.cuh>
@@ -57,10 +58,6 @@ template <typename GraphViewType>
 rmm::device_uvector<typename GraphViewType::edge_type> compute_local_major_degrees(
   raft::handle_t const& handle, GraphViewType const& graph_view)
 {
-  // FIXME: This should be moved into the graph_view, perhaps
-  //   graph_view.compute_major_degrees should call this and then
-  //   do the reduction across the column communicators.
-  static_assert(GraphViewType::is_storage_transposed == false);
   using vertex_t = typename GraphViewType::vertex_type;
   using edge_t   = typename GraphViewType::edge_type;
   using weight_t = typename GraphViewType::weight_type;
@@ -70,64 +67,19 @@ rmm::device_uvector<typename GraphViewType::edge_type> compute_local_major_degre
                                               : graph_view.local_edge_partition_src_range_size(),
                                             handle.get_stream());
 
-  // FIXME optimize for communication
-  // local_edge_partition_src_range_size == summation of major_range_size() of all partitions
-  // belonging to the gpu
   vertex_t partial_offset{0};
   for (size_t i = 0; i < graph_view.number_of_local_edge_partitions(); ++i) {
     auto edge_partition =
       edge_partition_device_view_t<vertex_t, edge_t, weight_t, GraphViewType::is_multi_gpu>(
         graph_view.local_edge_partition_view(i));
 
-    // Check if hypersparse segment is present in the partition
-    if (graph_view.use_dcs()) {
-      auto segment_offsets = graph_view.local_edge_partition_segment_offsets(i);
+    auto edge_partition_local_degrees = edge_partition.compute_local_degrees(handle.get_stream());
+    thrust::copy(handle.get_thrust_policy(),
+                 edge_partition_local_degrees.begin(),
+                 edge_partition_local_degrees.end(),
+                 local_degrees.begin() + partial_offset);
 
-      auto num_sparse_vertices     = (*segment_offsets)[num_sparse_segments_per_vertex_partition];
-      auto major_hypersparse_first = *(edge_partition.major_hypersparse_first());
-
-      // Calculate degrees in sparse region
-      auto sparse_begin = local_degrees.begin() + partial_offset;
-      auto sparse_end   = local_degrees.begin() + partial_offset + num_sparse_vertices;
-
-      thrust::tabulate(handle.get_thrust_policy(),
-                       sparse_begin,
-                       sparse_end,
-                       [offsets = edge_partition.offsets()] __device__(auto i) {
-                         return offsets[i + 1] - offsets[i];
-                       });
-
-      // Calculate degrees in hypersparse region
-      auto dcs_nzd_vertex_count = *(edge_partition.dcs_nzd_vertex_count());
-      // Initialize hypersparse region degrees as 0
-      thrust::fill(handle.get_thrust_policy(),
-                   sparse_end,
-                   sparse_begin + edge_partition.major_range_size(),
-                   edge_t{0});
-      thrust::for_each(handle.get_thrust_policy(),
-                       thrust::make_counting_iterator(vertex_t{0}),
-                       thrust::make_counting_iterator(dcs_nzd_vertex_count),
-                       [major_hypersparse_first,
-                        major_range_first = edge_partition.major_range_first(),
-                        vertex_ids        = *(edge_partition.dcs_nzd_vertices()),
-                        offsets           = edge_partition.offsets(),
-                        local_degrees = thrust::raw_pointer_cast(sparse_begin)] __device__(auto i) {
-                         auto d = offsets[(major_hypersparse_first - major_range_first) + i + 1] -
-                                  offsets[(major_hypersparse_first - major_range_first) + i];
-                         auto v                               = vertex_ids[i];
-                         local_degrees[v - major_range_first] = d;
-                       });
-    } else {
-      auto sparse_begin = local_degrees.begin() + partial_offset;
-      auto sparse_end = local_degrees.begin() + partial_offset + edge_partition.major_range_size();
-      thrust::tabulate(handle.get_thrust_policy(),
-                       sparse_begin,
-                       sparse_end,
-                       [offsets = edge_partition.offsets()] __device__(auto i) {
-                         return offsets[i + 1] - offsets[i];
-                       });
-    }
-    partial_offset += edge_partition.major_range_size();
+    partial_offset += edge_partition_local_degrees.size();
   }
   return local_degrees;
 }

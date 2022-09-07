@@ -34,8 +34,8 @@ ops::gnn::graph::fg_csr<EdgeTypeT> get_graph(
   graph.n_indices = gview.number_of_edges();
   // FIXME: this is evil and is just temporary until we have a matching type in cugraph-ops
   // or we change the type accepted by the functions calling into cugraph-ops
-  graph.offsets = const_cast<EdgeTypeT*>(gview.local_edge_partition_view().offsets());
-  graph.indices = const_cast<EdgeTypeT*>(gview.local_edge_partition_view().indices());
+  graph.offsets = const_cast<EdgeTypeT*>(gview.local_edge_partition_view().offsets().data());
+  graph.indices = const_cast<EdgeTypeT*>(gview.local_edge_partition_view().indices().data());
   return graph;
 }
 

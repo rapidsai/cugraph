@@ -95,7 +95,7 @@ def input_combo(request):
     return parameters
 
 
-def test_neighborhood_sampling_simple(input_combo):
+def test_uniform_neighbor_sample_simple(input_combo):
 
     G = input_combo["Graph"]
 
@@ -168,7 +168,7 @@ def test_neighborhood_sampling_simple(input_combo):
 
 
 @pytest.mark.parametrize("directed", IS_DIRECTED)
-def test_neighborhood_sampling_tree(directed):
+def test_uniform_neighbor_sample_tree(directed):
 
     input_data_path = (utils.RAPIDS_DATASET_ROOT_DIR_PATH /
                        "small_tree.csv").as_posix()
@@ -228,3 +228,34 @@ def test_neighborhood_sampling_tree(directed):
 
     assert set(
         start_list.to_pandas()).issubset(set(result_nbr_vertices.to_pandas()))
+
+
+def test_uniform_neighbor_sample_unweighted():
+    df = cudf.DataFrame({
+        'src': [0, 1, 2, 2, 0, 1, 4, 4],
+        'dst': [3, 2, 1, 4, 1, 3, 1, 2]
+    })
+
+    G = cugraph.Graph()
+    G.from_cudf_edgelist(df, source='src', destination='dst')
+
+    start_list = cudf.Series([0], dtype="int32")
+    fanout_vals = [-1]
+    with_replacement = True
+
+    sampling_results = uniform_neighbor_sample(
+        G,
+        start_list,
+        fanout_vals,
+        with_replacement
+    )
+
+    expected_src = [0, 0]
+    actual_src = sampling_results.sources
+    actual_src = actual_src.to_arrow().to_pylist()
+    assert sorted(actual_src) == sorted(expected_src)
+
+    expected_dst = [3, 1]
+    actual_dst = sampling_results.destinations
+    actual_dst = actual_dst.to_arrow().to_pylist()
+    assert sorted(actual_dst) == sorted(expected_dst)
