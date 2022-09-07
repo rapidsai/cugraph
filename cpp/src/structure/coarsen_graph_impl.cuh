@@ -496,8 +496,10 @@ coarsen_graph(
 
   // 4. create a graph
 
-  auto [coarsened_graph, renumber_map] =
-    create_graph_from_edgelist<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
+  graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> coarsened_graph(handle);
+  std::optional<rmm::device_uvector<vertex_t>> renumber_map{std::nullopt};
+  std::tie(coarsened_graph, std::ignore, renumber_map) =
+    create_graph_from_edgelist<vertex_t, edge_t, weight_t, int32_t, store_transposed, multi_gpu>(
       handle,
       std::move(unique_labels),
       store_transposed ? std::move(concatenated_edgelist_minors)
@@ -505,6 +507,7 @@ coarsen_graph(
       store_transposed ? std::move(concatenated_edgelist_majors)
                        : std::move(concatenated_edgelist_minors),
       std::move(concatenated_edgelist_weights),
+      std::nullopt,
       graph_properties_t{graph_view.is_symmetric(), false},
       true,
       do_expensive_check);
@@ -609,8 +612,10 @@ coarsen_graph(
       thrust::unique(handle.get_thrust_policy(), unique_labels.begin(), unique_labels.end())),
     handle.get_stream());
 
-  auto [coarsened_graph, renumber_map] =
-    create_graph_from_edgelist<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
+  graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> coarsened_graph(handle);
+  std::optional<rmm::device_uvector<vertex_t>> renumber_map{std::nullopt};
+  std::tie(coarsened_graph, std::ignore, renumber_map) =
+    create_graph_from_edgelist<vertex_t, edge_t, weight_t, int32_t, store_transposed, multi_gpu>(
       handle,
       std::optional<rmm::device_uvector<vertex_t>>{std::move(unique_labels)},
       store_transposed ? std::move(coarsened_edgelist_minors)
@@ -618,6 +623,7 @@ coarsen_graph(
       store_transposed ? std::move(coarsened_edgelist_majors)
                        : std::move(coarsened_edgelist_minors),
       std::move(coarsened_edgelist_weights),
+      std::nullopt,
       graph_properties_t{graph_view.is_symmetric(), false},
       true,
       do_expensive_check);

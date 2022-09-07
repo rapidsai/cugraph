@@ -778,44 +778,6 @@ create_graph_from_edgelist_impl(
 template <typename vertex_t,
           typename edge_t,
           typename weight_t,
-          bool store_transposed,
-          bool multi_gpu>
-std::tuple<cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>,
-           std::optional<rmm::device_uvector<vertex_t>>>
-create_graph_from_edgelist(raft::handle_t const& handle,
-                           std::optional<rmm::device_uvector<vertex_t>>&& vertices,
-                           rmm::device_uvector<vertex_t>&& edgelist_srcs,
-                           rmm::device_uvector<vertex_t>&& edgelist_dsts,
-                           std::optional<rmm::device_uvector<weight_t>>&& edgelist_weights,
-                           graph_properties_t graph_properties,
-                           bool renumber,
-                           bool do_expensive_check)
-{
-  graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> graph(handle);
-  std::optional<rmm::device_uvector<vertex_t>> renumber_map{std::nullopt};
-
-  std::tie(graph, std::ignore, renumber_map) =
-    create_graph_from_edgelist_impl<vertex_t,
-                                    edge_t,
-                                    weight_t,
-                                    int32_t /* dummy */,
-                                    store_transposed,
-                                    multi_gpu>(handle,
-                                               std::move(vertices),
-                                               std::move(edgelist_srcs),
-                                               std::move(edgelist_dsts),
-                                               std::move(edgelist_weights),
-                                               std::nullopt,
-                                               graph_properties,
-                                               renumber,
-                                               do_expensive_check);
-
-  return std::make_tuple(std::move(graph), std::move(renumber_map));
-}
-
-template <typename vertex_t,
-          typename edge_t,
-          typename weight_t,
           typename edge_type_t,
           bool store_transposed,
           bool multi_gpu>

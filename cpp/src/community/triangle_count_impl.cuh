@@ -211,12 +211,13 @@ void triangle_count(raft::handle_t const& handle,
         handle, std::move(srcs), std::move(dsts), std::nullopt);
     }
 
-    std::tie(*modified_graph, renumber_map) =
-      create_graph_from_edgelist<vertex_t, edge_t, weight_t, false, multi_gpu>(
+    std::tie(*modified_graph, std::ignore, renumber_map) =
+      create_graph_from_edgelist<vertex_t, edge_t, weight_t, int32_t, false, multi_gpu>(
         handle,
         std::nullopt,
         std::move(srcs),
         std::move(dsts),
+        std::nullopt,
         std::nullopt,
         cugraph::graph_properties_t{true, graph_view.is_multigraph()},
         true);
@@ -268,12 +269,13 @@ void triangle_count(raft::handle_t const& handle,
     }
 
     std::optional<rmm::device_uvector<vertex_t>> tmp_renumber_map{std::nullopt};
-    std::tie(*modified_graph, tmp_renumber_map) =
-      create_graph_from_edgelist<vertex_t, edge_t, weight_t, false, multi_gpu>(
+    std::tie(*modified_graph, std::ignore, tmp_renumber_map) =
+      create_graph_from_edgelist<vertex_t, edge_t, weight_t, int32_t, false, multi_gpu>(
         handle,
         std::nullopt,
         std::move(srcs),
         std::move(dsts),
+        std::nullopt,
         std::nullopt,
         cugraph::graph_properties_t{true, graph_view.is_multigraph()},
         true);
@@ -321,12 +323,13 @@ void triangle_count(raft::handle_t const& handle,
     }
 
     std::optional<rmm::device_uvector<vertex_t>> tmp_renumber_map{std::nullopt};
-    std::tie(*modified_graph, tmp_renumber_map) =
-      create_graph_from_edgelist<vertex_t, edge_t, weight_t, false, multi_gpu>(
+    std::tie(*modified_graph, std::ignore, tmp_renumber_map) =
+      create_graph_from_edgelist<vertex_t, edge_t, weight_t, int32_t, false, multi_gpu>(
         handle,
         std::nullopt,
         std::move(srcs),
         std::move(dsts),
+        std::nullopt,
         std::nullopt,
         cugraph::graph_properties_t{false /* now asymmetric */, cur_graph_view.is_multigraph()},
         true);

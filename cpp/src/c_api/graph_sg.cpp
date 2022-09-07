@@ -102,13 +102,19 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
       rmm::device_uvector<vertex_t>* number_map =
         new rmm::device_uvector<vertex_t>(0, handle_.get_stream());
 
-      std::tie(*graph, new_number_map) = cugraph::
-        create_graph_from_edgelist<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
+      std::tie(*graph, std::ignore, new_number_map) =
+        cugraph::create_graph_from_edgelist<vertex_t,
+                                            edge_t,
+                                            weight_t,
+                                            int32_t,
+                                            store_transposed,
+                                            multi_gpu>(
           handle_,
           std::nullopt,
           std::move(edgelist_srcs),
           std::move(edgelist_dsts),
           std::move(edgelist_weights),
+          std::nullopt,
           cugraph::graph_properties_t{properties_->is_symmetric, properties_->is_multigraph},
           renumber_,
           check_);

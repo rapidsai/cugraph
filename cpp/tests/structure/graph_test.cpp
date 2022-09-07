@@ -32,7 +32,6 @@
 #include <algorithm>
 #include <limits>
 #include <numeric>
-#include <span>
 #include <tuple>
 #include <vector>
 
