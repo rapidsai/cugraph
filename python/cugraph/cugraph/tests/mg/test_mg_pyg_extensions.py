@@ -430,7 +430,7 @@ def test_neighbor_sample(single_vertex_graph):
 
     noi_groups, row_dict, col_dict, _ = graph_store.neighbor_sample(
         index=cupy.array([0, 1, 2, 3, 4], dtype='int32'),
-        num_neighbors=[-1],
+        num_neighbors=[8],
         replace=True,
         directed=True,
         edge_types=[
