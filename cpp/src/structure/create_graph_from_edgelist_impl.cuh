@@ -242,6 +242,7 @@ create_graph_from_edgelist_impl(
     store_transposed ? edgelist_dsts : edgelist_srcs,
     store_transposed ? edgelist_srcs : edgelist_dsts,
     edgelist_weights,
+    edgelist_id_type_pairs,
     true);
 
   std::vector<size_t> h_edge_counts(edge_counts.size());
@@ -322,7 +323,7 @@ create_graph_from_edgelist_impl(
       auto tmp_id_type_pairs = allocate_dataframe_buffer<thrust::tuple<edge_t, edge_type_t>>(
         edgelist_edge_counts[i], handle.get_stream());
       thrust::copy(handle.get_thrust_policy(),
-                   get_dataframe_buffer_begin(*edgelist_id_type_pairs),
+                   get_dataframe_buffer_begin(*edgelist_id_type_pairs) + edgelist_displacements[i],
                    get_dataframe_buffer_begin(*edgelist_id_type_pairs) + edgelist_displacements[i] +
                      edgelist_edge_counts[i],
                    get_dataframe_buffer_begin(tmp_id_type_pairs));
@@ -532,7 +533,7 @@ create_graph_from_edgelist_impl(
                     thrust::tuple<edge_t, edge_type_t>>>
     edge_id_type_pairs{std::nullopt};
   if (edge_partition_id_type_pairs) {
-    *edge_id_type_pairs =
+    edge_id_type_pairs =
       edge_property_t<graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>,
                       thrust::tuple<edge_t, edge_type_t>>(std::move(*edge_partition_id_type_pairs));
   }
