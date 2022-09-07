@@ -15,14 +15,14 @@
  */
 #pragma once
 
-#include <prims/edge_partition_src_dst_property.cuh>
 #include <prims/reduce_v.cuh>
 #include <prims/transform_reduce_v_frontier_outgoing_e_by_dst.cuh>
-#include <prims/update_edge_partition_src_dst_property.cuh>
+#include <prims/update_edge_src_dst_property.cuh>
 #include <prims/update_v_frontier.cuh>
 #include <prims/vertex_frontier.cuh>
 
 #include <cugraph/algorithms.hpp>
+#include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/utilities/error.hpp>
 
@@ -47,6 +47,20 @@
 namespace cugraph {
 
 namespace {
+
+template <typename vertex_t, typename edge_t>
+struct e_op_t {
+  size_t k{};
+  edge_t delta{};
+
+  __device__ thrust::optional<edge_t> operator()(vertex_t,
+                                                 vertex_t,
+                                                 thrust::nullopt_t,
+                                                 edge_t dst_val) const
+  {
+    return dst_val >= k ? thrust::optional<edge_t>{delta} : thrust::nullopt;
+  }
+};
 
 // a workaround for cudaErrorInvalidDeviceFunction error when device lambda is used
 template <typename vertex_t, typename edge_t>
@@ -161,11 +175,11 @@ void core_number(raft::handle_t const& handle,
   constexpr size_t bucket_idx_next = 1;
   constexpr size_t num_buckets     = 2;
 
-  vertex_frontier_t<vertex_t, void, multi_gpu> vertex_frontier(handle, num_buckets);
+  vertex_frontier_t<vertex_t, void, multi_gpu, true> vertex_frontier(handle, num_buckets);
 
-  edge_partition_dst_property_t<graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu>, edge_t>
+  edge_dst_property_t<graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu>, edge_t>
     dst_core_numbers(handle, graph_view);
-  update_edge_partition_dst_property(handle, graph_view, core_numbers, dst_core_numbers);
+  update_edge_dst_property(handle, graph_view, core_numbers, dst_core_numbers);
 
   auto k = std::max(k_first, size_t{2});  // degree 0|1 vertices belong to 0|1-core
   if (graph_view.is_symmetric() && (degree_type == k_core_degree_type_t::INOUT) &&
@@ -210,17 +224,13 @@ void core_number(raft::handle_t const& handle,
         if (graph_view.is_symmetric() || ((degree_type == k_core_degree_type_t::IN) ||
                                           (degree_type == k_core_degree_type_t::INOUT))) {
           auto [new_frontier_vertex_buffer, delta_buffer] =
-            transform_reduce_v_frontier_outgoing_e_by_dst(
-              handle,
-              graph_view,
-              vertex_frontier,
-              bucket_idx_cur,
-              dummy_property_t<vertex_t>{}.device_view(),
-              dst_core_numbers.device_view(),
-              [k, delta] __device__(vertex_t src, vertex_t dst, auto, auto dst_val) {
-                return dst_val >= k ? thrust::optional<edge_t>{delta} : thrust::nullopt;
-              },
-              reduce_op::plus<edge_t>());
+            transform_reduce_v_frontier_outgoing_e_by_dst(handle,
+                                                          graph_view,
+                                                          vertex_frontier.bucket(bucket_idx_cur),
+                                                          edge_src_dummy_property_t{}.view(),
+                                                          dst_core_numbers.view(),
+                                                          e_op_t<vertex_t, edge_t>{k, delta},
+                                                          reduce_op::plus<edge_t>());
 
           update_v_frontier(
             handle,
@@ -253,12 +263,12 @@ void core_number(raft::handle_t const& handle,
           CUGRAPH_FAIL("unimplemented.");
         }
 
-        update_edge_partition_dst_property(handle,
-                                           graph_view,
-                                           vertex_frontier.bucket(bucket_idx_next).begin(),
-                                           vertex_frontier.bucket(bucket_idx_next).end(),
-                                           core_numbers,
-                                           dst_core_numbers);
+        update_edge_dst_property(handle,
+                                 graph_view,
+                                 vertex_frontier.bucket(bucket_idx_next).begin(),
+                                 vertex_frontier.bucket(bucket_idx_next).end(),
+                                 core_numbers,
+                                 dst_core_numbers);
 
         vertex_frontier.bucket(bucket_idx_next)
           .resize(static_cast<size_t>(thrust::distance(

@@ -136,11 +136,9 @@ class Tests_KatzCentrality
 
     auto graph_view = graph.view();
 
-    auto degrees = graph_view.compute_in_degrees(handle);
-    std::vector<edge_t> h_degrees(degrees.size());
-    raft::update_host(h_degrees.data(), degrees.data(), degrees.size(), handle.get_stream());
-    handle.sync_stream();
-    auto max_it = std::max_element(h_degrees.begin(), h_degrees.end());
+    auto degrees   = graph_view.compute_in_degrees(handle);
+    auto h_degrees = cugraph::test::to_host(handle, degrees);
+    auto max_it    = std::max_element(h_degrees.begin(), h_degrees.end());
 
     result_t const alpha = result_t{1.0} / static_cast<result_t>(*max_it + 1);
     result_t constexpr beta{1.0};
@@ -181,28 +179,12 @@ class Tests_KatzCentrality
       }
       auto unrenumbered_graph_view = renumber ? unrenumbered_graph.view() : graph_view;
 
-      std::vector<edge_t> h_offsets(unrenumbered_graph_view.number_of_vertices() + 1);
-      std::vector<vertex_t> h_indices(unrenumbered_graph_view.number_of_edges());
-      auto h_weights = unrenumbered_graph_view.is_weighted()
-                         ? std::make_optional<std::vector<weight_t>>(
-                             unrenumbered_graph_view.number_of_edges(), weight_t{0.0})
-                         : std::nullopt;
-      raft::update_host(h_offsets.data(),
-                        unrenumbered_graph_view.local_edge_partition_view().offsets(),
-                        unrenumbered_graph_view.number_of_vertices() + 1,
-                        handle.get_stream());
-      raft::update_host(h_indices.data(),
-                        unrenumbered_graph_view.local_edge_partition_view().indices(),
-                        unrenumbered_graph_view.number_of_edges(),
-                        handle.get_stream());
-      if (h_weights) {
-        raft::update_host((*h_weights).data(),
-                          *(unrenumbered_graph_view.local_edge_partition_view().weights()),
-                          unrenumbered_graph_view.number_of_edges(),
-                          handle.get_stream());
-      }
-
-      handle.sync_stream();
+      auto h_offsets = cugraph::test::to_host(
+        handle, unrenumbered_graph_view.local_edge_partition_view().offsets());
+      auto h_indices = cugraph::test::to_host(
+        handle, unrenumbered_graph_view.local_edge_partition_view().indices());
+      auto h_weights = cugraph::test::to_host(
+        handle, unrenumbered_graph_view.local_edge_partition_view().weights());
 
       std::vector<result_t> h_reference_katz_centralities(
         unrenumbered_graph_view.number_of_vertices());
@@ -221,21 +203,16 @@ class Tests_KatzCentrality
         false,
         true);
 
-      std::vector<result_t> h_cugraph_katz_centralities(graph_view.number_of_vertices());
+      std::vector<result_t> h_cugraph_katz_centralities{};
       if (renumber) {
         rmm::device_uvector<result_t> d_unrenumbered_katz_centralities(size_t{0},
                                                                        handle.get_stream());
         std::tie(std::ignore, d_unrenumbered_katz_centralities) =
           cugraph::test::sort_by_key(handle, *d_renumber_map_labels, d_katz_centralities);
-        raft::update_host(h_cugraph_katz_centralities.data(),
-                          d_unrenumbered_katz_centralities.data(),
-                          d_unrenumbered_katz_centralities.size(),
-                          handle.get_stream());
+        h_cugraph_katz_centralities =
+          cugraph::test::to_host(handle, d_unrenumbered_katz_centralities);
       } else {
-        raft::update_host(h_cugraph_katz_centralities.data(),
-                          d_katz_centralities.data(),
-                          d_katz_centralities.size(),
-                          handle.get_stream());
+        h_cugraph_katz_centralities = cugraph::test::to_host(handle, d_katz_centralities);
       }
 
       handle.sync_stream();

@@ -79,7 +79,10 @@ def uniform_neighbor_sample(G,
         raise TypeError("fanout_vals must be a list, "
                         f"got: {type(fanout_vals)}")
 
-    weight_t = G.edgelist.edgelist_df['weights'].dtype
+    if 'weights' in G.edgelist.edgelist_df:
+        weight_t = G.edgelist.edgelist_df['weights'].dtype
+    else:
+        weight_t = 'float32'
 
     if G.renumbered is True:
         if isinstance(start_list, cudf.DataFrame):

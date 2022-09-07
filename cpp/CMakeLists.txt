@@ -166,7 +166,7 @@ set(CUGRAPH_SOURCES
     src/detail/shuffle_wrappers.cu
     src/utilities/cython.cu
     src/utilities/path_retrieval.cu
-    src/utilities/graph_bcast.cu
+    src/utilities/graph_bcast.cpp
     src/structure/legacy/graph.cu
     src/linear_assignment/hungarian.cu
     src/traversal/legacy/bfs.cu
@@ -175,8 +175,11 @@ set(CUGRAPH_SOURCES
     src/layout/legacy/force_atlas2.cu
     src/converters/legacy/COOtoCSR.cu
     src/community/legacy/spectral_clustering.cu
+    src/community/detail/common_methods_sg.cu
+    src/community/detail/common_methods_mg.cu
     src/community/louvain_sg.cu
     src/community/louvain_mg.cu
+    src/community/leiden_sg.cu
     src/community/legacy/louvain.cu
     src/community/legacy/leiden.cu
     src/community/legacy/ktruss.cu

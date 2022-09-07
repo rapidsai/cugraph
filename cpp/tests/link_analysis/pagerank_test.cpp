@@ -269,36 +269,16 @@ class Tests_PageRank
       }
       auto unrenumbered_graph_view = renumber ? unrenumbered_graph.view() : graph_view;
 
-      std::vector<edge_t> h_offsets(unrenumbered_graph_view.number_of_vertices() + 1);
-      std::vector<vertex_t> h_indices(unrenumbered_graph_view.number_of_edges());
-      auto h_weights = unrenumbered_graph_view.is_weighted()
-                         ? std::make_optional<std::vector<weight_t>>(
-                             unrenumbered_graph_view.number_of_edges(), weight_t{0.0})
-                         : std::nullopt;
-      raft::update_host(h_offsets.data(),
-                        unrenumbered_graph_view.local_edge_partition_view().offsets(),
-                        unrenumbered_graph_view.number_of_vertices() + 1,
-                        handle.get_stream());
-      raft::update_host(h_indices.data(),
-                        unrenumbered_graph_view.local_edge_partition_view().indices(),
-                        unrenumbered_graph_view.number_of_edges(),
-                        handle.get_stream());
-      if (h_weights) {
-        raft::update_host((*h_weights).data(),
-                          *(unrenumbered_graph_view.local_edge_partition_view().weights()),
-                          unrenumbered_graph_view.number_of_edges(),
-                          handle.get_stream());
-      }
+      auto h_offsets = cugraph::test::to_host(
+        handle, unrenumbered_graph_view.local_edge_partition_view().offsets());
+      auto h_indices = cugraph::test::to_host(
+        handle, unrenumbered_graph_view.local_edge_partition_view().indices());
+      auto h_weights = cugraph::test::to_host(
+        handle, unrenumbered_graph_view.local_edge_partition_view().weights());
 
-      auto h_unrenumbered_personalization_vertices =
-        d_personalization_vertices
-          ? std::make_optional<std::vector<vertex_t>>((*d_personalization_vertices).size())
-          : std::nullopt;
-      auto h_unrenumbered_personalization_values =
-        d_personalization_vertices
-          ? std::make_optional<std::vector<result_t>>((*d_personalization_vertices).size())
-          : std::nullopt;
-      if (h_unrenumbered_personalization_vertices) {
+      std::optional<std::vector<vertex_t>> h_unrenumbered_personalization_vertices{std::nullopt};
+      std::optional<std::vector<result_t>> h_unrenumbered_personalization_values{std::nullopt};
+      if (d_personalization_vertices) {
         if (renumber) {
           rmm::device_uvector<vertex_t> d_unrenumbered_personalization_vertices(
             (*d_personalization_vertices).size(), handle.get_stream());
@@ -323,23 +303,15 @@ class Tests_PageRank
                                        d_unrenumbered_personalization_vertices,
                                        d_unrenumbered_personalization_values);
 
-          raft::update_host((*h_unrenumbered_personalization_vertices).data(),
-                            d_unrenumbered_personalization_vertices.data(),
-                            d_unrenumbered_personalization_vertices.size(),
-                            handle.get_stream());
-          raft::update_host((*h_unrenumbered_personalization_values).data(),
-                            d_unrenumbered_personalization_values.data(),
-                            d_unrenumbered_personalization_values.size(),
-                            handle.get_stream());
+          h_unrenumbered_personalization_vertices =
+            cugraph::test::to_host(handle, d_unrenumbered_personalization_vertices);
+          h_unrenumbered_personalization_values =
+            cugraph::test::to_host(handle, d_unrenumbered_personalization_values);
         } else {
-          raft::update_host((*h_unrenumbered_personalization_vertices).data(),
-                            (*d_personalization_vertices).data(),
-                            (*d_personalization_vertices).size(),
-                            handle.get_stream());
-          raft::update_host((*h_unrenumbered_personalization_values).data(),
-                            (*d_personalization_values).data(),
-                            (*d_personalization_values).size(),
-                            handle.get_stream());
+          h_unrenumbered_personalization_vertices =
+            cugraph::test::to_host(handle, d_personalization_vertices);
+          h_unrenumbered_personalization_values =
+            cugraph::test::to_host(handle, d_personalization_values);
         }
       }
 
@@ -368,18 +340,14 @@ class Tests_PageRank
         std::numeric_limits<size_t>::max(),
         false);
 
-      std::vector<result_t> h_cugraph_pageranks(graph_view.number_of_vertices());
+      std::vector<result_t> h_cugraph_pageranks{};
       if (renumber) {
         rmm::device_uvector<result_t> d_unrenumbered_pageranks(size_t{0}, handle.get_stream());
         std::tie(std::ignore, d_unrenumbered_pageranks) =
           cugraph::test::sort_by_key(handle, *d_renumber_map_labels, d_pageranks);
-        raft::update_host(h_cugraph_pageranks.data(),
-                          d_unrenumbered_pageranks.data(),
-                          d_unrenumbered_pageranks.size(),
-                          handle.get_stream());
+        h_cugraph_pageranks = cugraph::test::to_host(handle, d_unrenumbered_pageranks);
       } else {
-        raft::update_host(
-          h_cugraph_pageranks.data(), d_pageranks.data(), d_pageranks.size(), handle.get_stream());
+        h_cugraph_pageranks = cugraph::test::to_host(handle, d_pageranks);
       }
 
       handle.sync_stream();

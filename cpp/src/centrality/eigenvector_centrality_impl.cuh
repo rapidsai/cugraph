@@ -17,14 +17,14 @@
 
 #include <prims/count_if_e.cuh>
 #include <prims/count_if_v.cuh>
-#include <prims/edge_partition_src_dst_property.cuh>
 #include <prims/per_v_transform_reduce_incoming_outgoing_e.cuh>
 #include <prims/reduce_v.cuh>
 #include <prims/transform_reduce_v.cuh>
-#include <prims/update_edge_partition_src_dst_property.cuh>
+#include <prims/update_edge_src_dst_property.cuh>
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
+#include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/utilities/error.hpp>
 
@@ -59,8 +59,8 @@ rmm::device_uvector<weight_t> eigenvector_centrality(
       auto num_nonpositive_edge_weights =
         count_if_e(handle,
                    pull_graph_view,
-                   dummy_property_t<vertex_t>{}.device_view(),
-                   dummy_property_t<vertex_t>{}.device_view(),
+                   edge_src_dummy_property_t{}.view(),
+                   edge_dst_dummy_property_t{}.view(),
                    [] __device__(vertex_t, vertex_t, weight_t w, auto, auto) { return w <= 0.0; });
       CUGRAPH_EXPECTS(num_nonpositive_edge_weights == 0,
                       "Invalid input argument: input graph should have postive edge weights.");
@@ -84,8 +84,7 @@ rmm::device_uvector<weight_t> eigenvector_centrality(
   // Power iteration
   rmm::device_uvector<weight_t> old_centralities(centralities.size(), handle.get_stream());
 
-  edge_partition_src_property_t<GraphViewType, weight_t> edge_partition_src_centralities(
-    handle, pull_graph_view);
+  edge_src_property_t<GraphViewType, weight_t> edge_src_centralities(handle, pull_graph_view);
 
   size_t iter{0};
   while (true) {
@@ -94,14 +93,13 @@ rmm::device_uvector<weight_t> eigenvector_centrality(
                  centralities.end(),
                  old_centralities.data());
 
-    update_edge_partition_src_property(
-      handle, pull_graph_view, centralities.begin(), edge_partition_src_centralities);
+    update_edge_src_property(handle, pull_graph_view, centralities.begin(), edge_src_centralities);
 
     per_v_transform_reduce_incoming_e(
       handle,
       pull_graph_view,
-      edge_partition_src_centralities.device_view(),
-      dummy_property_t<vertex_t>{}.device_view(),
+      edge_src_centralities.view(),
+      edge_dst_dummy_property_t{}.view(),
       [] __device__(vertex_t, vertex_t, weight_t w, auto src_val, auto) { return src_val * w; },
       weight_t{0},
       centralities.begin());

@@ -100,21 +100,9 @@ class Tests_InducedEgo : public ::testing::TestWithParam<InducedEgo_Usecase> {
     cudaProfilerStop();
     hr_timer.stop();
     hr_timer.display(std::cout);
-    std::vector<size_t> h_cugraph_ego_edge_offsets(d_ego_edge_offsets.size());
-    std::vector<vertex_t> h_cugraph_ego_edgelist_src(d_ego_edgelist_src.size());
-    std::vector<vertex_t> h_cugraph_ego_edgelist_dst(d_ego_edgelist_dst.size());
-    raft::update_host(h_cugraph_ego_edgelist_src.data(),
-                      d_ego_edgelist_src.data(),
-                      d_ego_edgelist_src.size(),
-                      handle.get_stream());
-    raft::update_host(h_cugraph_ego_edgelist_dst.data(),
-                      d_ego_edgelist_dst.data(),
-                      d_ego_edgelist_dst.size(),
-                      handle.get_stream());
-    raft::update_host(h_cugraph_ego_edge_offsets.data(),
-                      d_ego_edge_offsets.data(),
-                      d_ego_edge_offsets.size(),
-                      handle.get_stream());
+    auto h_cugraph_ego_edgelist_src = cugraph::test::to_host(handle, d_ego_edgelist_src);
+    auto h_cugraph_ego_edgelist_dst = cugraph::test::to_host(handle, d_ego_edgelist_dst);
+    auto h_cugraph_ego_edge_offsets = cugraph::test::to_host(handle, d_ego_edge_offsets);
     ASSERT_TRUE(d_ego_edge_offsets.size() == (configuration.ego_sources.size() + 1));
     ASSERT_TRUE(d_ego_edgelist_src.size() == d_ego_edgelist_dst.size());
     if (configuration.test_weighted)

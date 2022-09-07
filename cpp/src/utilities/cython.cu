@@ -25,7 +25,7 @@
 #include <cugraph/utilities/cython.hpp>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/graph_traits.hpp>
-#include <cugraph/utilities/host_scalar_comm.cuh>
+#include <cugraph/utilities/host_scalar_comm.hpp>
 #include <cugraph/utilities/path_retrieval.hpp>
 #include <cugraph/utilities/shuffle_comm.cuh>
 
@@ -544,114 +544,6 @@ std::pair<size_t, weight_t> call_louvain(raft::handle_t const& handle,
     handle, graph_container, functor);
 }
 
-// Wrapper for calling Pagerank through a graph container
-template <typename vertex_t, typename weight_t>
-void call_pagerank(raft::handle_t const& handle,
-                   graph_container_t const& graph_container,
-                   vertex_t* identifiers,
-                   weight_t* p_pagerank,
-                   vertex_t personalization_subset_size,
-                   vertex_t* personalization_subset,
-                   weight_t* personalization_values,
-                   double alpha,
-                   double tolerance,
-                   int64_t max_iter,
-                   bool has_guess)
-{
-  if (graph_container.is_multi_gpu) {
-    auto& comm                                 = handle.get_comms();
-    auto aggregate_personalization_subset_size = cugraph::host_scalar_allreduce(
-      comm, personalization_subset_size, raft::comms::op_t::SUM, handle.get_stream());
-
-    if (graph_container.edgeType == numberTypeEnum::int32Type) {
-      auto graph =
-        detail::create_graph<int32_t, int32_t, weight_t, true, true>(handle, graph_container);
-      cugraph::pagerank<int32_t, int32_t, weight_t>(
-        handle,
-        graph->view(),
-        std::nullopt,
-        aggregate_personalization_subset_size > 0
-          ? std::optional<int32_t const*>{reinterpret_cast<int32_t const*>(personalization_subset)}
-          : std::nullopt,
-        aggregate_personalization_subset_size > 0
-          ? std::optional<weight_t const*>{personalization_values}
-          : std::nullopt,
-        aggregate_personalization_subset_size > 0
-          ? std::optional<int32_t>{static_cast<int32_t>(personalization_subset_size)}
-          : std::nullopt,
-        reinterpret_cast<weight_t*>(p_pagerank),
-        static_cast<weight_t>(alpha),
-        static_cast<weight_t>(tolerance),
-        max_iter,
-        has_guess,
-        true);
-    } else if (graph_container.edgeType == numberTypeEnum::int64Type) {
-      auto graph =
-        detail::create_graph<vertex_t, int64_t, weight_t, true, true>(handle, graph_container);
-      cugraph::pagerank<vertex_t, int64_t, weight_t>(
-        handle,
-        graph->view(),
-        std::nullopt,
-        aggregate_personalization_subset_size > 0
-          ? std::optional<vertex_t const*>{personalization_subset}
-          : std::nullopt,
-        aggregate_personalization_subset_size > 0
-          ? std::optional<weight_t const*>{personalization_values}
-          : std::nullopt,
-        aggregate_personalization_subset_size > 0
-          ? std::optional<vertex_t>{personalization_subset_size}
-          : std::nullopt,
-        reinterpret_cast<weight_t*>(p_pagerank),
-        static_cast<weight_t>(alpha),
-        static_cast<weight_t>(tolerance),
-        max_iter,
-        has_guess,
-        true);
-    }
-  } else {
-    if (graph_container.edgeType == numberTypeEnum::int32Type) {
-      auto graph =
-        detail::create_graph<int32_t, int32_t, weight_t, true, false>(handle, graph_container);
-      cugraph::pagerank<int32_t, int32_t, weight_t>(
-        handle,
-        graph->view(),
-        std::nullopt,
-        personalization_subset_size > 0
-          ? std::optional<int32_t const*>{reinterpret_cast<int32_t const*>(personalization_subset)}
-          : std::nullopt,
-        personalization_subset_size > 0 ? std::optional<weight_t const*>{personalization_values}
-                                        : std::nullopt,
-        personalization_subset_size > 0 ? std::optional<int32_t>{personalization_subset_size}
-                                        : std::nullopt,
-        reinterpret_cast<weight_t*>(p_pagerank),
-        static_cast<weight_t>(alpha),
-        static_cast<weight_t>(tolerance),
-        max_iter,
-        has_guess,
-        true);
-    } else if (graph_container.edgeType == numberTypeEnum::int64Type) {
-      auto graph =
-        detail::create_graph<vertex_t, int64_t, weight_t, true, false>(handle, graph_container);
-      cugraph::pagerank<vertex_t, int64_t, weight_t>(
-        handle,
-        graph->view(),
-        std::nullopt,
-        personalization_subset_size > 0 ? std::optional<vertex_t const*>{personalization_subset}
-                                        : std::nullopt,
-        personalization_subset_size > 0 ? std::optional<weight_t const*>{personalization_values}
-                                        : std::nullopt,
-        personalization_subset_size > 0 ? std::optional<vertex_t>{personalization_subset_size}
-                                        : std::nullopt,
-        reinterpret_cast<weight_t*>(p_pagerank),
-        static_cast<weight_t>(alpha),
-        static_cast<weight_t>(tolerance),
-        max_iter,
-        has_guess,
-        true);
-    }
-  }
-}
-
 // Wrapper for calling extract_egonet through a graph container
 // FIXME : this should not be a legacy COO and it is not clear how to handle C++ api return type as
 // is.graph_container Need to figure out how to return edge lists
@@ -1084,54 +976,6 @@ template std::pair<size_t, double> call_louvain(raft::handle_t const& handle,
                                                 void* parts,
                                                 size_t max_level,
                                                 double resolution);
-
-template void call_pagerank(raft::handle_t const& handle,
-                            graph_container_t const& graph_container,
-                            int* identifiers,
-                            float* p_pagerank,
-                            int32_t personalization_subset_size,
-                            int32_t* personalization_subset,
-                            float* personalization_values,
-                            double alpha,
-                            double tolerance,
-                            int64_t max_iter,
-                            bool has_guess);
-
-template void call_pagerank(raft::handle_t const& handle,
-                            graph_container_t const& graph_container,
-                            int* identifiers,
-                            double* p_pagerank,
-                            int32_t personalization_subset_size,
-                            int32_t* personalization_subset,
-                            double* personalization_values,
-                            double alpha,
-                            double tolerance,
-                            int64_t max_iter,
-                            bool has_guess);
-
-template void call_pagerank(raft::handle_t const& handle,
-                            graph_container_t const& graph_container,
-                            int64_t* identifiers,
-                            float* p_pagerank,
-                            int64_t personalization_subset_size,
-                            int64_t* personalization_subset,
-                            float* personalization_values,
-                            double alpha,
-                            double tolerance,
-                            int64_t max_iter,
-                            bool has_guess);
-
-template void call_pagerank(raft::handle_t const& handle,
-                            graph_container_t const& graph_container,
-                            int64_t* identifiers,
-                            double* p_pagerank,
-                            int64_t personalization_subset_size,
-                            int64_t* personalization_subset,
-                            double* personalization_values,
-                            double alpha,
-                            double tolerance,
-                            int64_t max_iter,
-                            bool has_guess);
 
 template std::unique_ptr<cy_multi_edgelists_t> call_egonet<int32_t, float>(
   raft::handle_t const& handle,

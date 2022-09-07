@@ -22,14 +22,14 @@
 #include <utilities/test_utilities.hpp>
 #include <utilities/thrust_wrapper.hpp>
 
-#include <prims/edge_partition_src_dst_property.cuh>
 #include <prims/transform_reduce_v_frontier_outgoing_e_by_dst.cuh>
-#include <prims/update_edge_partition_src_dst_property.cuh>
+#include <prims/update_edge_src_dst_property.cuh>
 #include <prims/vertex_frontier.cuh>
 
 #include <cugraph/algorithms.hpp>
+#include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/partition_manager.hpp>
-#include <cugraph/utilities/dataframe_buffer.cuh>
+#include <cugraph/utilities/dataframe_buffer.hpp>
 
 #include <cuco/detail/hash_functions.cuh>
 #include <cugraph/edge_partition_view.hpp>
@@ -196,19 +196,19 @@ class Tests_MGTransformReduceVFrontierOutgoingEByDst
                       cugraph::get_dataframe_buffer_begin(mg_property_buffer),
                       property_transform_t<vertex_t, property_t>{hash_bin_count});
 
-    cugraph::edge_partition_src_property_t<decltype(mg_graph_view), property_t> mg_src_properties(
+    cugraph::edge_src_property_t<decltype(mg_graph_view), property_t> mg_src_properties(
       *handle_, mg_graph_view);
-    cugraph::edge_partition_dst_property_t<decltype(mg_graph_view), property_t> mg_dst_properties(
+    cugraph::edge_dst_property_t<decltype(mg_graph_view), property_t> mg_dst_properties(
       *handle_, mg_graph_view);
 
-    update_edge_partition_src_property(*handle_,
-                                       mg_graph_view,
-                                       cugraph::get_dataframe_buffer_cbegin(mg_property_buffer),
-                                       mg_src_properties);
-    update_edge_partition_dst_property(*handle_,
-                                       mg_graph_view,
-                                       cugraph::get_dataframe_buffer_cbegin(mg_property_buffer),
-                                       mg_dst_properties);
+    update_edge_src_property(*handle_,
+                             mg_graph_view,
+                             cugraph::get_dataframe_buffer_cbegin(mg_property_buffer),
+                             mg_src_properties);
+    update_edge_dst_property(*handle_,
+                             mg_graph_view,
+                             cugraph::get_dataframe_buffer_cbegin(mg_property_buffer),
+                             mg_dst_properties);
 
     auto mg_key_buffer = cugraph::allocate_dataframe_buffer<key_t>(
       mg_graph_view.local_vertex_partition_range_size(), handle_->get_stream());
@@ -233,8 +233,8 @@ class Tests_MGTransformReduceVFrontierOutgoingEByDst
     constexpr size_t bucket_idx_cur = 0;
     constexpr size_t num_buckets    = 1;
 
-    cugraph::vertex_frontier_t<vertex_t, tag_t, is_multi_gpu> mg_vertex_frontier(*handle_,
-                                                                                 num_buckets);
+    cugraph::vertex_frontier_t<vertex_t, tag_t, is_multi_gpu, true> mg_vertex_frontier(*handle_,
+                                                                                       num_buckets);
     mg_vertex_frontier.bucket(bucket_idx_cur)
       .insert(cugraph::get_dataframe_buffer_begin(mg_key_buffer),
               cugraph::get_dataframe_buffer_end(mg_key_buffer));
@@ -248,16 +248,15 @@ class Tests_MGTransformReduceVFrontierOutgoingEByDst
     auto mg_new_frontier_key_buffer =
       cugraph::allocate_dataframe_buffer<key_t>(0, handle_->get_stream());
     [[maybe_unused]] auto mg_payload_buffer =
-      cugraph::detail::allocate_optional_payload_buffer<payload_t>(0, handle_->get_stream());
+      cugraph::detail::allocate_optional_dataframe_buffer<payload_t>(0, handle_->get_stream());
 
     if constexpr (std::is_same_v<payload_t, void>) {
       mg_new_frontier_key_buffer = cugraph::transform_reduce_v_frontier_outgoing_e_by_dst(
         *handle_,
         mg_graph_view,
-        mg_vertex_frontier,
-        bucket_idx_cur,
-        mg_src_properties.device_view(),
-        mg_dst_properties.device_view(),
+        mg_vertex_frontier.bucket(bucket_idx_cur),
+        mg_src_properties.view(),
+        mg_dst_properties.view(),
         e_op_t<key_t, vertex_t, property_t, payload_t>{},
         cugraph::reduce_op::null{});
     } else {
@@ -265,10 +264,9 @@ class Tests_MGTransformReduceVFrontierOutgoingEByDst
         cugraph::transform_reduce_v_frontier_outgoing_e_by_dst(
           *handle_,
           mg_graph_view,
-          mg_vertex_frontier,
-          bucket_idx_cur,
-          mg_src_properties.device_view(),
-          mg_dst_properties.device_view(),
+          mg_vertex_frontier.bucket(bucket_idx_cur),
+          mg_src_properties.view(),
+          mg_dst_properties.view(),
           e_op_t<key_t, vertex_t, property_t, payload_t>{},
           cugraph::reduce_op::plus<payload_t>{});
     }
@@ -305,7 +303,7 @@ class Tests_MGTransformReduceVFrontierOutgoingEByDst
       }
 
       [[maybe_unused]] auto mg_aggregate_payload_buffer =
-        cugraph::detail::allocate_optional_payload_buffer<payload_t>(0, handle_->get_stream());
+        cugraph::detail::allocate_optional_dataframe_buffer<payload_t>(0, handle_->get_stream());
       if constexpr (!std::is_same_v<payload_t, void>) {
         if constexpr (std::is_arithmetic_v<payload_t>) {
           mg_aggregate_payload_buffer = cugraph::test::device_gatherv(
@@ -364,18 +362,18 @@ class Tests_MGTransformReduceVFrontierOutgoingEByDst
           cugraph::get_dataframe_buffer_begin(sg_property_buffer),
           property_transform_t<vertex_t, property_t>{hash_bin_count});
 
-        cugraph::edge_partition_src_property_t<decltype(sg_graph_view), property_t>
-          sg_src_properties(*handle_, sg_graph_view);
-        cugraph::edge_partition_dst_property_t<decltype(sg_graph_view), property_t>
-          sg_dst_properties(*handle_, sg_graph_view);
-        update_edge_partition_src_property(*handle_,
-                                           sg_graph_view,
-                                           cugraph::get_dataframe_buffer_cbegin(sg_property_buffer),
-                                           sg_src_properties);
-        update_edge_partition_dst_property(*handle_,
-                                           sg_graph_view,
-                                           cugraph::get_dataframe_buffer_cbegin(sg_property_buffer),
-                                           sg_dst_properties);
+        cugraph::edge_src_property_t<decltype(sg_graph_view), property_t> sg_src_properties(
+          *handle_, sg_graph_view);
+        cugraph::edge_dst_property_t<decltype(sg_graph_view), property_t> sg_dst_properties(
+          *handle_, sg_graph_view);
+        update_edge_src_property(*handle_,
+                                 sg_graph_view,
+                                 cugraph::get_dataframe_buffer_cbegin(sg_property_buffer),
+                                 sg_src_properties);
+        update_edge_dst_property(*handle_,
+                                 sg_graph_view,
+                                 cugraph::get_dataframe_buffer_cbegin(sg_property_buffer),
+                                 sg_dst_properties);
 
         auto sg_key_buffer = cugraph::allocate_dataframe_buffer<key_t>(
           sg_graph_view.local_vertex_partition_range_size(), handle_->get_stream());
@@ -395,8 +393,8 @@ class Tests_MGTransformReduceVFrontierOutgoingEByDst
                            });
         }
 
-        cugraph::vertex_frontier_t<vertex_t, tag_t, !is_multi_gpu> sg_vertex_frontier(*handle_,
-                                                                                      num_buckets);
+        cugraph::vertex_frontier_t<vertex_t, tag_t, !is_multi_gpu, true> sg_vertex_frontier(
+          *handle_, num_buckets);
         sg_vertex_frontier.bucket(bucket_idx_cur)
           .insert(cugraph::get_dataframe_buffer_begin(sg_key_buffer),
                   cugraph::get_dataframe_buffer_end(sg_key_buffer));
@@ -404,15 +402,14 @@ class Tests_MGTransformReduceVFrontierOutgoingEByDst
         auto sg_new_frontier_key_buffer =
           cugraph::allocate_dataframe_buffer<key_t>(0, handle_->get_stream());
         [[maybe_unused]] auto sg_payload_buffer =
-          cugraph::detail::allocate_optional_payload_buffer<payload_t>(0, handle_->get_stream());
+          cugraph::detail::allocate_optional_dataframe_buffer<payload_t>(0, handle_->get_stream());
         if constexpr (std::is_same_v<payload_t, void>) {
           sg_new_frontier_key_buffer = cugraph::transform_reduce_v_frontier_outgoing_e_by_dst(
             *handle_,
             sg_graph_view,
-            sg_vertex_frontier,
-            bucket_idx_cur,
-            sg_src_properties.device_view(),
-            sg_dst_properties.device_view(),
+            sg_vertex_frontier.bucket(bucket_idx_cur),
+            sg_src_properties.view(),
+            sg_dst_properties.view(),
             e_op_t<key_t, vertex_t, property_t, payload_t>{},
             cugraph::reduce_op::null{});
         } else {
@@ -420,10 +417,9 @@ class Tests_MGTransformReduceVFrontierOutgoingEByDst
             cugraph::transform_reduce_v_frontier_outgoing_e_by_dst(
               *handle_,
               sg_graph_view,
-              sg_vertex_frontier,
-              bucket_idx_cur,
-              sg_src_properties.device_view(),
-              sg_dst_properties.device_view(),
+              sg_vertex_frontier.bucket(bucket_idx_cur),
+              sg_src_properties.view(),
+              sg_dst_properties.view(),
               e_op_t<key_t, vertex_t, property_t, payload_t>{},
               cugraph::reduce_op::plus<payload_t>{});
         }

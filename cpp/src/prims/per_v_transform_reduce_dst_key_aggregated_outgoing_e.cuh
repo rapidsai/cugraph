@@ -20,13 +20,16 @@
 
 #include <cugraph/detail/decompress_edge_partition.cuh>
 #include <cugraph/edge_partition_device_view.cuh>
+#include <cugraph/edge_partition_endpoint_property_device_view.cuh>
+#include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph_view.hpp>
-#include <cugraph/utilities/dataframe_buffer.cuh>
+#include <cugraph/utilities/dataframe_buffer.hpp>
 #include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/error.hpp>
-#include <cugraph/utilities/host_scalar_comm.cuh>
+#include <cugraph/utilities/host_scalar_comm.hpp>
 #include <cugraph/utilities/misc_utils.cuh>
 #include <cugraph/utilities/shuffle_comm.cuh>
+#include <cugraph/utilities/thrust_tuple_utils.hpp>
 #include <cugraph/vertex_partition_device_view.cuh>
 
 #include <cuco/static_map.cuh>
@@ -34,6 +37,7 @@
 #include <rmm/mr/device/per_device_resource.hpp>
 #include <rmm/mr/device/polymorphic_allocator.hpp>
 
+#include <cub/cub.cuh>
 #include <thrust/copy.h>
 #include <thrust/count.h>
 #include <thrust/distance.h>
@@ -169,10 +173,8 @@ struct reduce_with_init_t {
  * destination keys to support two level reduction for every vertex.
  *
  * @tparam GraphViewType Type of the passed non-owning graph object.
- * @tparam EdgePartitionSrcValueInputWrapper Type of the wrapper for edge partition source property
- * values.
- * @tparam EdgePartitionDstKeyInputWrapper Type of the wrapper for edge partition destination key
- * values.
+ * @tparam EdgeSrcValueInputWrapper Type of the wrapper for edge source property values.
+ * @tparam EdgeDstKeyInputWrapper Type of the wrapper for edge destination key values.
  * @tparam VertexIterator Type of the iterator for keys in (key, value) pairs (key type should
  * coincide with vertex type).
  * @tparam ValueIterator Type of the iterator for values in (key, value) pairs.
@@ -183,15 +185,14 @@ struct reduce_with_init_t {
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Non-owning graph object.
- * @param edge_partition_src_value_input Device-copyable wrapper used to access source input
- * property values (for the edge sources assigned to this process in multi-GPU). Use either
- * cugraph::edge_partition_src_property_t::device_view() (if @p e_op needs to access source property
- * values) or cugraph::dummy_property_t::device_view() (if @p e_op does not access source property
- * values). Use update_edge_partition_src_property to fill the wrapper.
- * @param edge_partition_dst_key_input Device-copyable wrapper used to access destination input key
- * values (for the edge destinations assigned to this process in multi-GPU). Use
- * cugraph::edge_partition_dst_property_t::device_view(). Use update_edge_partition_dst_property to
- * fill the wrapper.
+ * @param edge_src_value_input Wrapper used to access source input property values (for the edge
+ * sources assigned to this process in multi-GPU). Use either cugraph::edge_src_property_t::view()
+ * (if @p e_op needs to access source property values) or cugraph::edge_src_dummy_property_t::view()
+ * (if @p e_op does not access source property values). Use update_edge_src_property to fill the
+ * wrapper.
+ * @param edge_dst_key_input Wrapper used to access destination input key values (for the edge
+ * destinations assigned to this process in multi-GPU). Use  cugraph::edge_dst_property_t::view().
+ * Use update_edge_dst_property to fill the wrapper.
  * @param map_unique_key_first Iterator pointing to the first (inclusive) key in (key, value) pairs
  * (assigned to this process in multi-GPU, `cugraph::detail::compute_gpu_id_from_ext_vertex_t` is
  * used to map keys to processes). (Key, value) pairs may be provided by
@@ -219,8 +220,8 @@ struct reduce_with_init_t {
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  */
 template <typename GraphViewType,
-          typename EdgePartitionSrcValueInputWrapper,
-          typename EdgePartitionDstKeyInputWrapper,
+          typename EdgeSrcValueInputWrapper,
+          typename EdgeDstKeyInputWrapper,
           typename VertexIterator,
           typename ValueIterator,
           typename KeyAggregatedEdgeOp,
@@ -230,8 +231,8 @@ template <typename GraphViewType,
 void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
   raft::handle_t const& handle,
   GraphViewType const& graph_view,
-  EdgePartitionSrcValueInputWrapper edge_partition_src_value_input,
-  EdgePartitionDstKeyInputWrapper edge_partition_dst_key_input,
+  EdgeSrcValueInputWrapper edge_src_value_input,
+  EdgeDstKeyInputWrapper edge_dst_key_input,
   VertexIterator map_unique_key_first,
   VertexIterator map_unique_key_last,
   ValueIterator map_value_first,
@@ -256,6 +257,25 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
   using edge_t   = typename GraphViewType::edge_type;
   using weight_t = typename GraphViewType::weight_type;
   using value_t  = typename std::iterator_traits<ValueIterator>::value_type;
+
+  using edge_partition_src_input_device_view_t = std::conditional_t<
+    std::is_same_v<typename EdgeSrcValueInputWrapper::value_type, thrust::nullopt_t>,
+    detail::edge_partition_endpoint_dummy_property_device_view_t<vertex_t>,
+    std::conditional_t<GraphViewType::is_storage_transposed,
+                       detail::edge_partition_endpoint_property_device_view_t<
+                         vertex_t,
+                         typename EdgeSrcValueInputWrapper::value_iterator>,
+                       detail::edge_partition_endpoint_property_device_view_t<
+                         vertex_t,
+                         typename EdgeSrcValueInputWrapper::value_iterator>>>;
+  using edge_partition_dst_key_device_view_t =
+    std::conditional_t<GraphViewType::is_storage_transposed,
+                       detail::edge_partition_endpoint_property_device_view_t<
+                         vertex_t,
+                         typename EdgeDstKeyInputWrapper::value_iterator>,
+                       detail::edge_partition_endpoint_property_device_view_t<
+                         vertex_t,
+                         typename EdgeDstKeyInputWrapper::value_iterator>>;
 
   double constexpr load_factor = 0.7;
 
@@ -354,8 +374,9 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
 
       auto minor_key_first = thrust::make_transform_iterator(
         edge_partition.indices(),
-        detail::minor_to_key_t<EdgePartitionDstKeyInputWrapper>{
-          edge_partition_dst_key_input, edge_partition.minor_range_first()});
+        detail::minor_to_key_t<edge_partition_dst_key_device_view_t>{
+          edge_partition_dst_key_device_view_t(edge_dst_key_input),
+          edge_partition.minor_range_first()});
 
       // to limit memory footprint ((1 << 20) is a tuning parameter)
       auto approx_edges_to_sort_per_iteration =
@@ -647,8 +668,8 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
     auto tmp_e_op_result_buffer =
       allocate_dataframe_buffer<T>(tmp_majors.size(), handle.get_stream());
 
-    auto edge_partition_src_value_input_copy = edge_partition_src_value_input;
-    edge_partition_src_value_input_copy.set_local_edge_partition_idx(i);
+    auto edge_partition_src_value_input =
+      edge_partition_src_input_device_view_t(edge_src_value_input, i);
 
     auto triplet_first = thrust::make_zip_iterator(thrust::make_tuple(
       tmp_majors.begin(), tmp_minor_keys.begin(), tmp_key_aggregated_edge_weights.begin()));
@@ -658,11 +679,11 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
                       get_dataframe_buffer_begin(tmp_e_op_result_buffer),
                       detail::call_key_aggregated_e_op_t<vertex_t,
                                                          weight_t,
-                                                         EdgePartitionSrcValueInputWrapper,
+                                                         edge_partition_src_input_device_view_t,
                                                          KeyAggregatedEdgeOp,
                                                          decltype(edge_partition),
                                                          decltype(kv_map.get_device_view())>{
-                        edge_partition_src_value_input_copy,
+                        edge_partition_src_value_input,
                         key_aggregated_e_op,
                         edge_partition,
                         GraphViewType::is_multi_gpu ? multi_gpu_kv_map_ptr->get_device_view()

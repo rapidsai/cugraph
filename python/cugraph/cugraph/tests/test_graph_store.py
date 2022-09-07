@@ -160,7 +160,6 @@ def test_sample_neighbors(graph_file):
     assert len(parents_list) > 0
 
 
-@pytest.mark.skip(reason="Neg one fanout fails see cugraph/issues/2446")
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_sample_neighbor_neg_one_fanout(graph_file):
     cu_M = utils.read_csv_file(graph_file)
@@ -435,7 +434,6 @@ def test_sampling_gs(dataset1_CuGraphStore):
     assert len(src_ser) != 0
 
 
-@pytest.mark.skip(reason="Neg one fanout fails see cugraph/issues/2446")
 def test_sampling_dataset_gs_neg_one_fanout(dataset1_CuGraphStore):
     node_pack = cp.asarray([4]).toDlpack()
     gs = dataset1_CuGraphStore
@@ -470,9 +468,11 @@ def test_sampling_gs_out_dir():
         if sample_src is None:
             sample_src = cudf.Series([]).astype(np.int64)
             sample_dst = cudf.Series([]).astype(np.int64)
+            sample_eid = cudf.Series([]).astype(np.int64)
         else:
             sample_src = cudf.from_dlpack(sample_src)
             sample_dst = cudf.from_dlpack(sample_dst)
+            sample_eid = cudf.from_dlpack(sample_eid)
 
         output_df = cudf.DataFrame({"src": sample_src, "dst": sample_dst})
         output_df = output_df.sort_values(by=["src", "dst"])
@@ -482,6 +482,11 @@ def test_sampling_gs_out_dir():
             {"src": expected_out[seed][0], "dst": expected_out[seed][1]}
         ).astype(np.int64)
         cudf.testing.assert_frame_equal(output_df, expected_df)
+
+        sample_edge_id_df = cudf.DataFrame({"src": sample_src,
+                                            "dst": sample_dst,
+                                            'edge_id': sample_eid})
+        assert_correct_eids(df, sample_edge_id_df)
 
 
 def test_sampling_gs_in_dir():
@@ -508,9 +513,11 @@ def test_sampling_gs_in_dir():
         if sample_src is None:
             sample_src = cudf.Series([]).astype(np.int64)
             sample_dst = cudf.Series([]).astype(np.int64)
+            sample_eid = cudf.Series([]).astype(np.int64)
         else:
             sample_src = cudf.from_dlpack(sample_src)
             sample_dst = cudf.from_dlpack(sample_dst)
+            sample_eid = cudf.from_dlpack(sample_eid)
 
         output_df = cudf.DataFrame({"src": sample_src, "dst": sample_dst})
         output_df = output_df.sort_values(by=["src", "dst"])
@@ -520,3 +527,26 @@ def test_sampling_gs_in_dir():
             {"src": expected_in[seed][0], "dst": expected_in[seed][1]}
         ).astype(np.int64)
         cudf.testing.assert_frame_equal(output_df, expected_df)
+
+        sample_edge_id_df = cudf.DataFrame({"src": sample_src,
+                                            "dst": sample_dst,
+                                            'edge_id': sample_eid})
+
+        assert_correct_eids(df, sample_edge_id_df)
+
+
+def assert_correct_eids(edge_df, sample_edge_id_df):
+    # We test that all src, dst correspond to the correct
+    # eids in the sample_edge_id_df
+    # we do this by ensuring that the inner merge to edge_df
+    # remains the same as sample_edge_id_df
+    # if they don't correspond correctly
+    # the inner merge would fail
+
+    sample_edge_id_df = sample_edge_id_df.sort_values(by='edge_id')
+    sample_edge_id_df = sample_edge_id_df.reset_index(drop=True)
+
+    sample_merged_df = sample_edge_id_df.merge(edge_df, how='inner')
+    sample_merged_df = sample_merged_df.sort_values(by='edge_id')
+    sample_merged_df = sample_merged_df.reset_index(drop=True)
+    assert sample_merged_df.equals(sample_edge_id_df)
