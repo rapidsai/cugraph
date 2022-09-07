@@ -15,14 +15,20 @@
  */
 #pragma once
 
-#include <cugraph/graph.hpp>
-#include <cugraph/graph_view.hpp>
+#include <cugraph/edge_partition_view.hpp>
 #include <cugraph/utilities/error.hpp>
+
+#include <raft/span.hpp>
+#include <rmm/cuda_stream_view.hpp>
+#include <rmm/device_uvector.hpp>
+#include <rmm/exec_policy.hpp>
 
 #include <thrust/binary_search.h>
 #include <thrust/distance.h>
 #include <thrust/execution_policy.h>
 #include <thrust/optional.h>
+#include <thrust/transform.h>
+#include <thrust/transform_reduce.h>
 #include <thrust/tuple.h>
 
 #include <cassert>
@@ -33,56 +39,109 @@ namespace cugraph {
 
 namespace detail {
 
+template <typename vertex_t>
+__device__ thrust::optional<vertex_t> major_hypersparse_idx_from_major_nocheck_impl(
+  raft::device_span<vertex_t const> dcs_nzd_vertices, vertex_t major)
+{
+  // we can avoid binary search (and potentially improve performance) if we add an auxiliary array
+  // or cuco::static_map (at the expense of additional memory)
+  auto it =
+    thrust::lower_bound(thrust::seq, dcs_nzd_vertices.begin(), dcs_nzd_vertices.end(), major);
+  return it != dcs_nzd_vertices.end()
+           ? (*it == major ? thrust::optional<vertex_t>{static_cast<vertex_t>(
+                               thrust::distance(dcs_nzd_vertices.begin(), it))}
+                           : thrust::nullopt)
+           : thrust::nullopt;
+}
+
+template <typename vertex_t, typename edge_t, bool multi_gpu, bool use_dcs>
+struct local_degree_op_t {
+  raft::device_span<edge_t const> offsets{};
+  std::conditional_t<multi_gpu, vertex_t, std::byte /* dummy */> major_range_first{};
+
+  std::conditional_t<use_dcs, raft::device_span<vertex_t const>, std::byte /* dummy */>
+    dcs_nzd_vertices{};
+  std::conditional_t<use_dcs, vertex_t, std::byte /* dummy */> major_hypersparse_first{};
+
+  __device__ edge_t operator()(vertex_t major) const
+  {
+    if constexpr (multi_gpu) {
+      vertex_t idx{};
+      if constexpr (use_dcs) {
+        if (major < major_hypersparse_first) {
+          idx = major - major_range_first;
+          return offsets[idx + 1] - offsets[idx];
+        } else {
+          auto major_hypersparse_idx =
+            major_hypersparse_idx_from_major_nocheck_impl(dcs_nzd_vertices, major);
+          if (major_hypersparse_idx) {
+            idx = (major_hypersparse_first - major_range_first) + *major_hypersparse_idx;
+            return offsets[idx + 1] - offsets[idx];
+          } else {
+            return edge_t{0};
+          }
+        }
+      } else {
+        idx = major - major_range_first;
+        return offsets[idx + 1] - offsets[idx];
+      }
+    } else {
+      return offsets[major + 1] - offsets[major];
+    }
+  }
+};
+
 template <typename vertex_t, typename edge_t, typename weight_t>
 class edge_partition_device_view_base_t {
  public:
-  edge_partition_device_view_base_t(edge_t const* offsets,
-                                    vertex_t const* indices,
-                                    std::optional<weight_t const*> weights,
-                                    edge_t number_of_edges)
+  edge_partition_device_view_base_t(raft::device_span<edge_t const> offsets,
+                                    raft::device_span<vertex_t const> indices,
+                                    std::optional<raft::device_span<weight_t const>> weights)
     : offsets_(offsets),
       indices_(indices),
-      weights_(weights ? thrust::optional<weight_t const*>(*weights) : thrust::nullopt),
-      number_of_edges_(number_of_edges)
+      weights_(weights ? thrust::optional<raft::device_span<weight_t const>>(*weights)
+                       : thrust::nullopt)
   {
   }
 
-  __host__ __device__ edge_t number_of_edges() const { return number_of_edges_; }
+  __host__ __device__ edge_t number_of_edges() const
+  {
+    return static_cast<edge_t>(indices_.size());
+  }
 
-  __host__ __device__ edge_t const* offsets() const { return offsets_; }
-  __host__ __device__ vertex_t const* indices() const { return indices_; }
-  __host__ __device__ thrust::optional<weight_t const*> weights() const { return weights_; }
+  __host__ __device__ edge_t const* offsets() const { return offsets_.data(); }
+  __host__ __device__ vertex_t const* indices() const { return indices_.data(); }
+  __host__ __device__ thrust::optional<weight_t const*> weights() const
+  {
+    return weights_ ? thrust::optional<weight_t const*>{(*weights_).data()} : thrust::nullopt;
+  }
 
   // major_idx == major offset if CSR/CSC, major_offset != major_idx if DCSR/DCSC
   __device__ thrust::tuple<vertex_t const*, thrust::optional<weight_t const*>, edge_t> local_edges(
     vertex_t major_idx) const noexcept
   {
-    auto edge_offset  = *(offsets_ + major_idx);
-    auto local_degree = *(offsets_ + (major_idx + 1)) - edge_offset;
-    auto indices      = indices_ + edge_offset;
-    auto weights =
-      weights_ ? thrust::optional<weight_t const*>{*weights_ + edge_offset} : thrust::nullopt;
+    auto edge_offset  = offsets_[major_idx];
+    auto local_degree = offsets_[major_idx + 1] - edge_offset;
+    auto indices      = indices_.data() + edge_offset;
+    auto weights = weights_ ? thrust::optional<weight_t const*>{(*weights_).data() + edge_offset}
+                            : thrust::nullopt;
     return thrust::make_tuple(indices, weights, local_degree);
   }
 
   // major_idx == major offset if CSR/CSC, major_offset != major_idx if DCSR/DCSC
   __device__ edge_t local_degree(vertex_t major_idx) const noexcept
   {
-    return *(offsets_ + (major_idx + 1)) - *(offsets_ + major_idx);
+    return offsets_[major_idx + 1] - offsets_[major_idx];
   }
 
   // major_idx == major offset if CSR/CSC, major_offset != major_idx if DCSR/DCSC
-  __device__ edge_t local_offset(vertex_t major_idx) const noexcept
-  {
-    return *(offsets_ + major_idx);
-  }
+  __device__ edge_t local_offset(vertex_t major_idx) const noexcept { return offsets_[major_idx]; }
 
- private:
+ protected:
   // should be trivially copyable to device
-  edge_t const* offsets_{nullptr};
-  vertex_t const* indices_{nullptr};
-  thrust::optional<weight_t const*> weights_{thrust::nullopt};
-  edge_t number_of_edges_{0};
+  raft::device_span<edge_t const> offsets_{nullptr};
+  raft::device_span<vertex_t const> indices_{nullptr};
+  thrust::optional<raft::device_span<weight_t const>> weights_{thrust::nullopt};
 };
 
 }  // namespace detail
@@ -105,13 +164,11 @@ class edge_partition_device_view_t<vertex_t,
  public:
   edge_partition_device_view_t(edge_partition_view_t<vertex_t, edge_t, weight_t, multi_gpu> view)
     : detail::edge_partition_device_view_base_t<vertex_t, edge_t, weight_t>(
-        view.offsets(), view.indices(), view.weights(), view.number_of_edges()),
-      dcs_nzd_vertices_(view.dcs_nzd_vertices()
-                          ? thrust::optional<vertex_t const*>{*(view.dcs_nzd_vertices())}
-                          : thrust::nullopt),
-      dcs_nzd_vertex_count_(view.dcs_nzd_vertex_count()
-                              ? thrust::optional<vertex_t>{*(view.dcs_nzd_vertex_count())}
-                              : thrust::nullopt),
+        view.offsets(), view.indices(), view.weights()),
+      dcs_nzd_vertices_(
+        view.dcs_nzd_vertices()
+          ? thrust::optional<raft::device_span<vertex_t const>>{*(view.dcs_nzd_vertices())}
+          : thrust::nullopt),
       major_hypersparse_first_(view.major_hypersparse_first()
                                  ? thrust::optional<vertex_t>{*(view.major_hypersparse_first())}
                                  : thrust::nullopt),
@@ -121,6 +178,80 @@ class edge_partition_device_view_t<vertex_t,
       minor_range_last_(view.minor_range_last()),
       major_value_start_offset_(view.major_value_start_offset())
   {
+  }
+
+  edge_t compute_number_of_edges(raft::device_span<vertex_t const> majors,
+                                 rmm::cuda_stream_view stream) const
+  {
+    return dcs_nzd_vertices_ ? thrust::transform_reduce(
+                                 rmm::exec_policy(stream),
+                                 majors.begin(),
+                                 majors.end(),
+                                 detail::local_degree_op_t<vertex_t, edge_t, multi_gpu, true>{
+                                   this->offsets_,
+                                   major_range_first_,
+                                   *dcs_nzd_vertices_,
+                                   *major_hypersparse_first_},
+                                 edge_t{0},
+                                 thrust::plus<edge_t>())
+                             : thrust::transform_reduce(
+                                 rmm::exec_policy(stream),
+                                 majors.begin(),
+                                 majors.end(),
+                                 detail::local_degree_op_t<vertex_t, edge_t, multi_gpu, false>{
+                                   this->offsets_,
+                                   major_range_first_,
+                                   std::byte{0} /* dummy */,
+                                   std::byte{0} /* dummy */},
+                                 edge_t{0},
+                                 thrust::plus<edge_t>());
+  }
+
+  rmm::device_uvector<edge_t> compute_local_degrees(rmm::cuda_stream_view stream) const
+  {
+    rmm::device_uvector<edge_t> local_degrees(this->major_range_size(), stream);
+    if (dcs_nzd_vertices_) {
+      thrust::transform(
+        rmm::exec_policy(stream),
+        thrust::make_counting_iterator(this->major_range_first()),
+        thrust::make_counting_iterator(this->major_range_last()),
+        local_degrees.begin(),
+        detail::local_degree_op_t<vertex_t, edge_t, multi_gpu, true>{
+          this->offsets_, major_range_first_, *dcs_nzd_vertices_, *major_hypersparse_first_});
+    } else {
+      thrust::transform(
+        rmm::exec_policy(stream),
+        thrust::make_counting_iterator(this->major_range_first()),
+        thrust::make_counting_iterator(this->major_range_last()),
+        local_degrees.begin(),
+        detail::local_degree_op_t<vertex_t, edge_t, multi_gpu, false>{
+          this->offsets_, major_range_first_, std::byte{0} /* dummy */, std::byte{0} /* dummy */});
+    }
+    return local_degrees;
+  }
+
+  rmm::device_uvector<edge_t> compute_local_degrees(raft::device_span<vertex_t const> majors,
+                                                    rmm::cuda_stream_view stream) const
+  {
+    rmm::device_uvector<edge_t> local_degrees(majors.size(), stream);
+    if (dcs_nzd_vertices_) {
+      thrust::transform(
+        rmm::exec_policy(stream),
+        majors.begin(),
+        majors.end(),
+        local_degrees.begin(),
+        detail::local_degree_op_t<vertex_t, edge_t, multi_gpu, true>{
+          this->offsets_, major_range_first_, *dcs_nzd_vertices_, *major_hypersparse_first_});
+    } else {
+      thrust::transform(
+        rmm::exec_policy(stream),
+        majors.begin(),
+        majors.end(),
+        local_degrees.begin(),
+        detail::local_degree_op_t<vertex_t, edge_t, multi_gpu, false>{
+          this->offsets_, major_range_first_, std::byte{0} /* dummy */, std::byte{0} /* dummy */});
+    }
+    return local_degrees;
   }
 
   __host__ __device__ vertex_t major_value_start_offset() const
@@ -171,15 +302,7 @@ class edge_partition_device_view_t<vertex_t,
     vertex_t major) const noexcept
   {
     if (dcs_nzd_vertices_) {
-      // we can avoid binary search (and potentially improve performance) if we add an auxiliary
-      // array or cuco::static_map (at the expense of additional memory)
-      auto it = thrust::lower_bound(
-        thrust::seq, *dcs_nzd_vertices_, *dcs_nzd_vertices_ + *dcs_nzd_vertex_count_, major);
-      return it != *dcs_nzd_vertices_ + *dcs_nzd_vertex_count_
-               ? (*it == major ? thrust::optional<vertex_t>{static_cast<vertex_t>(
-                                   thrust::distance(*dcs_nzd_vertices_, it))}
-                               : thrust::nullopt)
-               : thrust::nullopt;
+      return detail::major_hypersparse_idx_from_major_nocheck_impl(*dcs_nzd_vertices_, major);
     } else {
       return thrust::nullopt;
     }
@@ -201,18 +324,20 @@ class edge_partition_device_view_t<vertex_t,
 
   __host__ __device__ thrust::optional<vertex_t const*> dcs_nzd_vertices() const
   {
-    return dcs_nzd_vertices_;
+    return dcs_nzd_vertices_ ? thrust::optional<vertex_t const*>{(*dcs_nzd_vertices_).data()}
+                             : thrust::nullopt;
   }
   __host__ __device__ thrust::optional<vertex_t> dcs_nzd_vertex_count() const
   {
-    return dcs_nzd_vertex_count_;
+    return dcs_nzd_vertices_
+             ? thrust::optional<vertex_t>{static_cast<vertex_t>((*dcs_nzd_vertices_).size())}
+             : thrust::nullopt;
   }
 
  private:
   // should be trivially copyable to device
 
-  thrust::optional<vertex_t const*> dcs_nzd_vertices_{thrust::nullopt};
-  thrust::optional<vertex_t> dcs_nzd_vertex_count_{thrust::nullopt};
+  thrust::optional<raft::device_span<vertex_t const>> dcs_nzd_vertices_{thrust::nullopt};
   thrust::optional<vertex_t> major_hypersparse_first_{thrust::nullopt};
 
   vertex_t major_range_first_{0};
@@ -234,9 +359,55 @@ class edge_partition_device_view_t<vertex_t,
  public:
   edge_partition_device_view_t(edge_partition_view_t<vertex_t, edge_t, weight_t, multi_gpu> view)
     : detail::edge_partition_device_view_base_t<vertex_t, edge_t, weight_t>(
-        view.offsets(), view.indices(), view.weights(), view.number_of_edges()),
+        view.offsets(), view.indices(), view.weights()),
       number_of_vertices_(view.major_range_last())
   {
+  }
+
+  edge_t compute_number_of_edges(raft::device_span<vertex_t const> majors,
+                                 rmm::cuda_stream_view stream) const
+  {
+    return thrust::transform_reduce(
+      rmm::exec_policy(stream),
+      majors.begin(),
+      majors.end(),
+      detail::local_degree_op_t<vertex_t, edge_t, multi_gpu, false>{this->offsets_,
+                                                                    std::byte{0} /* dummy */,
+                                                                    std::byte{0} /* dummy */,
+                                                                    std::byte{0} /* dummy */},
+      edge_t{0},
+      thrust::plus<edge_t>());
+  }
+
+  rmm::device_uvector<edge_t> compute_local_degrees(rmm::cuda_stream_view stream) const
+  {
+    rmm::device_uvector<edge_t> local_degrees(this->major_range_size(), stream);
+    thrust::transform(
+      rmm::exec_policy(stream),
+      thrust::make_counting_iterator(this->major_range_first()),
+      thrust::make_counting_iterator(this->major_range_last()),
+      local_degrees.begin(),
+      detail::local_degree_op_t<vertex_t, edge_t, multi_gpu, false>{this->offsets_,
+                                                                    std::byte{0} /* dummy */,
+                                                                    std::byte{0} /* dummy */,
+                                                                    std::byte{0} /* dummy */});
+    return local_degrees;
+  }
+
+  rmm::device_uvector<edge_t> compute_local_degrees(raft::device_span<vertex_t const> majors,
+                                                    rmm::cuda_stream_view stream) const
+  {
+    rmm::device_uvector<edge_t> local_degrees(majors.size(), stream);
+    thrust::transform(
+      rmm::exec_policy(stream),
+      majors.begin(),
+      majors.end(),
+      local_degrees.begin(),
+      detail::local_degree_op_t<vertex_t, edge_t, multi_gpu, false>{this->offsets_,
+                                                                    std::byte{0} /* dummy */,
+                                                                    std::byte{0} /* dummy */,
+                                                                    std::byte{0} /* dummy */});
+    return local_degrees;
   }
 
   __host__ __device__ vertex_t major_value_start_offset() const { return vertex_t{0}; }
@@ -306,7 +477,7 @@ class edge_partition_device_view_t<vertex_t,
   }
 
  private:
-  vertex_t number_of_vertices_;
+  vertex_t number_of_vertices_{};
 };
 
 }  // namespace cugraph

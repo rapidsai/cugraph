@@ -274,18 +274,10 @@ class Tests_CoreNumber
       }
       auto unrenumbered_graph_view = renumber ? unrenumbered_graph.view() : graph_view;
 
-      std::vector<edge_t> h_offsets(unrenumbered_graph_view.number_of_vertices() + 1);
-      std::vector<vertex_t> h_indices(unrenumbered_graph_view.number_of_edges());
-      raft::update_host(h_offsets.data(),
-                        unrenumbered_graph_view.local_edge_partition_view().offsets(),
-                        unrenumbered_graph_view.number_of_vertices() + 1,
-                        handle.get_stream());
-      raft::update_host(h_indices.data(),
-                        unrenumbered_graph_view.local_edge_partition_view().indices(),
-                        unrenumbered_graph_view.number_of_edges(),
-                        handle.get_stream());
-
-      handle.sync_stream();
+      auto h_offsets = cugraph::test::to_host(
+        handle, unrenumbered_graph_view.local_edge_partition_view().offsets());
+      auto h_indices = cugraph::test::to_host(
+        handle, unrenumbered_graph_view.local_edge_partition_view().indices());
 
       auto h_reference_core_numbers = core_number_reference(h_offsets.data(),
                                                             h_indices.data(),
@@ -294,24 +286,14 @@ class Tests_CoreNumber
                                                             core_number_usecase.k_first,
                                                             core_number_usecase.k_last);
 
-      std::vector<edge_t> h_cugraph_core_numbers(graph_view.number_of_vertices());
+      std::vector<edge_t> h_cugraph_core_numbers{};
       if (renumber) {
         rmm::device_uvector<edge_t> d_unrenumbered_core_numbers(size_t{0}, handle.get_stream());
         std::tie(std::ignore, d_unrenumbered_core_numbers) =
           cugraph::test::sort_by_key(handle, *d_renumber_map_labels, d_core_numbers);
-        raft::update_host(h_cugraph_core_numbers.data(),
-                          d_unrenumbered_core_numbers.data(),
-                          d_unrenumbered_core_numbers.size(),
-                          handle.get_stream());
-
-        handle.sync_stream();
+        h_cugraph_core_numbers = cugraph::test::to_host(handle, d_unrenumbered_core_numbers);
       } else {
-        raft::update_host(h_cugraph_core_numbers.data(),
-                          d_core_numbers.data(),
-                          d_core_numbers.size(),
-                          handle.get_stream());
-
-        handle.sync_stream();
+        h_cugraph_core_numbers = cugraph::test::to_host(handle, d_core_numbers);
       }
 
       ASSERT_TRUE(std::equal(h_reference_core_numbers.begin(),

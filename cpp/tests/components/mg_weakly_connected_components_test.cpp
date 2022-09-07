@@ -143,19 +143,9 @@ class Tests_MGWeaklyConnectedComponents
 
         // 3-5. compare
 
-        std::vector<vertex_t> h_mg_aggregate_components(mg_graph_view.number_of_vertices());
-        raft::update_host(h_mg_aggregate_components.data(),
-                          d_mg_aggregate_components.data(),
-                          d_mg_aggregate_components.size(),
-                          handle_->get_stream());
-
-        std::vector<vertex_t> h_sg_components(sg_graph_view.number_of_vertices());
-        raft::update_host(h_sg_components.data(),
-                          d_sg_components.data(),
-                          d_sg_components.size(),
-                          handle_->get_stream());
-
-        handle_->sync_stream();
+        auto h_mg_aggregate_components =
+          cugraph::test::to_host(*handle_, d_mg_aggregate_components);
+        auto h_sg_components = cugraph::test::to_host(*handle_, d_sg_components);
 
         std::unordered_map<vertex_t, vertex_t> mg_to_sg_map{};
         for (size_t i = 0; i < h_sg_components.size(); ++i) {

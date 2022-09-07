@@ -218,8 +218,6 @@ TEST(louvain_legacy, success)
   int num_verts = off_h.size() - 1;
   int num_edges = ind_h.size();
 
-  std::vector<int> cluster_id(num_verts, -1);
-
   rmm::device_uvector<int> offsets_v(num_verts + 1, stream);
   rmm::device_uvector<int> indices_v(num_edges, stream);
   rmm::device_uvector<float> weights_v(num_edges, stream);
@@ -245,9 +243,7 @@ TEST(louvain_legacy, success)
   } else {
     std::tie(num_level, modularity) = cugraph::louvain(handle, G, result_v.data());
 
-    raft::update_host(cluster_id.data(), result_v.data(), num_verts, stream);
-
-    RAFT_CUDA_TRY(cudaDeviceSynchronize());
+    auto cluster_id = cugraph::test::to_host(handle, result_v);
 
     int min = *min_element(cluster_id.begin(), cluster_id.end());
 
@@ -289,8 +285,6 @@ TEST(louvain_legacy_renumbered, success)
   int num_verts = off_h.size() - 1;
   int num_edges = ind_h.size();
 
-  std::vector<int> cluster_id(num_verts, -1);
-
   rmm::device_uvector<int> offsets_v(num_verts + 1, stream);
   rmm::device_uvector<int> indices_v(num_edges, stream);
   rmm::device_uvector<float> weights_v(num_edges, stream);
@@ -316,9 +310,7 @@ TEST(louvain_legacy_renumbered, success)
   } else {
     std::tie(num_level, modularity) = cugraph::louvain(handle, G, result_v.data());
 
-    raft::update_host(cluster_id.data(), result_v.data(), num_verts, stream);
-
-    RAFT_CUDA_TRY(cudaDeviceSynchronize());
+    auto cluster_id = cugraph::test::to_host(handle, result_v);
 
     int min = *min_element(cluster_id.begin(), cluster_id.end());
 

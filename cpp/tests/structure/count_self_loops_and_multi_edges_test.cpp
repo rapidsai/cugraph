@@ -141,18 +141,10 @@ class Tests_CountSelfLoopsAndMultiEdges
       }
       auto unrenumbered_graph_view = renumber ? unrenumbered_graph.view() : graph_view;
 
-      std::vector<edge_t> h_offsets(unrenumbered_graph_view.number_of_vertices() + 1);
-      std::vector<vertex_t> h_indices(unrenumbered_graph_view.number_of_edges());
-      raft::update_host(h_offsets.data(),
-                        unrenumbered_graph_view.local_edge_partition_view().offsets(),
-                        unrenumbered_graph_view.number_of_vertices() + 1,
-                        handle.get_stream());
-      raft::update_host(h_indices.data(),
-                        unrenumbered_graph_view.local_edge_partition_view().indices(),
-                        unrenumbered_graph_view.number_of_edges(),
-                        handle.get_stream());
-
-      handle.sync_stream();
+      std::vector<edge_t> h_offsets = cugraph::test::to_host(
+        handle, unrenumbered_graph_view.local_edge_partition_view().offsets());
+      std::vector<vertex_t> h_indices = cugraph::test::to_host(
+        handle, unrenumbered_graph_view.local_edge_partition_view().indices());
 
       auto self_loop_and_multi_edge_counts = count_self_loops_and_multi_edges_reference(
         h_offsets.data(), h_indices.data(), unrenumbered_graph_view.number_of_vertices());

@@ -119,15 +119,8 @@ class Tests_MGExtractBFSPaths
                  false,
                  std::numeric_limits<vertex_t>::max());
 
-    std::vector<vertex_t> h_mg_distances(mg_graph_view.local_vertex_partition_range_size());
-    std::vector<vertex_t> h_mg_predecessors(mg_graph_view.local_vertex_partition_range_size());
-
-    raft::update_host(
-      h_mg_distances.data(), d_mg_distances.data(), d_mg_distances.size(), handle_->get_stream());
-    raft::update_host(h_mg_predecessors.data(),
-                      d_mg_predecessors.data(),
-                      d_mg_predecessors.size(),
-                      handle_->get_stream());
+    auto h_mg_distances    = cugraph::test::to_host(*handle_, d_mg_distances);
+    auto h_mg_predecessors = cugraph::test::to_host(*handle_, d_mg_predecessors);
 
     vertex_t invalid_vertex = cugraph::invalid_vertex_id<vertex_t>::value;
 
@@ -144,8 +137,6 @@ class Tests_MGExtractBFSPaths
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       hr_clock.start();
     }
-
-    RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
 
     vertex_t mg_max_path_length{0};
 
@@ -216,13 +207,8 @@ class Tests_MGExtractBFSPaths
                                                                    d_sg_destinations.data(),
                                                                    d_sg_destinations.size());
 
-      std::vector<vertex_t> h_mg_paths(d_mg_paths.size());
-      std::vector<vertex_t> h_sg_paths(d_sg_paths.size());
-
-      raft::update_host(
-        h_mg_paths.data(), d_mg_paths.data(), d_mg_paths.size(), handle_->get_stream());
-      raft::update_host(
-        h_sg_paths.data(), d_sg_paths.data(), d_sg_paths.size(), handle_->get_stream());
+      std::vector<vertex_t> h_mg_paths = cugraph::test::to_host(*handle_, d_mg_paths);
+      std::vector<vertex_t> h_sg_paths = cugraph::test::to_host(*handle_, d_sg_paths);
 
       ASSERT_EQ(d_mg_paths.size(), mg_max_path_length * d_mg_destinations.size());
       ASSERT_EQ(d_sg_paths.size(), sg_max_path_length * d_sg_destinations.size());

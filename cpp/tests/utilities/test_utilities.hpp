@@ -20,6 +20,7 @@
 #include <cugraph/legacy/graph.hpp>
 
 #include <raft/handle.hpp>
+#include <raft/span.hpp>
 #include <rmm/device_uvector.hpp>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/tuple.h>
@@ -229,11 +230,11 @@ std::pair<bool, std::string> compare_graphs(raft::handle_t const& handle,
     std::vector<vertex_t> lv_ci(num_edges);
 
     raft::update_host(lv_ro.data(),
-                      lgraph_view.local_edge_partition_view().offsets(),
+                      lgraph_view.local_edge_partition_view().offsets().data(),
                       num_vertices + 1,
                       handle.get_stream());
     raft::update_host(lv_ci.data(),
-                      lgraph_view.local_edge_partition_view().indices(),
+                      lgraph_view.local_edge_partition_view().indices().data(),
                       num_edges,
                       handle.get_stream());
 
@@ -241,11 +242,11 @@ std::pair<bool, std::string> compare_graphs(raft::handle_t const& handle,
     std::vector<vertex_t> rv_ci(num_edges);
 
     raft::update_host(rv_ro.data(),
-                      rgraph_view.local_edge_partition_view().offsets(),
+                      rgraph_view.local_edge_partition_view().offsets().data(),
                       num_vertices + 1,
                       handle.get_stream());
     raft::update_host(rv_ci.data(),
-                      rgraph_view.local_edge_partition_view().indices(),
+                      rgraph_view.local_edge_partition_view().indices().data(),
                       num_edges,
                       handle.get_stream());
 
@@ -253,12 +254,12 @@ std::pair<bool, std::string> compare_graphs(raft::handle_t const& handle,
     auto rv_vs = is_weighted ? std::make_optional<std::vector<weight_t>>(num_edges) : std::nullopt;
     if (is_weighted) {
       raft::update_host((*lv_vs).data(),
-                        *(lgraph_view.local_edge_partition_view().weights()),
+                        (*(lgraph_view.local_edge_partition_view().weights())).data(),
                         num_edges,
                         handle.get_stream());
 
       raft::update_host((*rv_vs).data(),
-                        *(rgraph_view.local_edge_partition_view().weights()),
+                        (*(rgraph_view.local_edge_partition_view().weights())).data(),
                         num_edges,
                         handle.get_stream());
     }
@@ -331,12 +332,47 @@ bool renumbered_vectors_same(raft::handle_t const& handle,
   return (error_count == 0);
 }
 
-template <typename T, typename L>
-std::vector<T> to_host(raft::handle_t const& handle, T const* data, L size)
+template <typename T>
+std::vector<T> to_host(raft::handle_t const& handle, raft::device_span<T const> data)
 {
-  std::vector<T> h_data(size);
-  raft::update_host(h_data.data(), data, size, handle.get_stream());
+  std::vector<T> h_data(data.size());
+  raft::update_host(h_data.data(), data.data(), data.size(), handle.get_stream());
   handle.sync_stream();
+  return h_data;
+}
+
+template <typename T>
+std::vector<T> to_host(raft::handle_t const& handle, rmm::device_uvector<T> const& data)
+{
+  std::vector<T> h_data(data.size());
+  raft::update_host(h_data.data(), data.data(), data.size(), handle.get_stream());
+  handle.sync_stream();
+  return h_data;
+}
+
+template <typename T>
+std::optional<std::vector<T>> to_host(raft::handle_t const& handle,
+                                      std::optional<raft::device_span<T const>> data)
+{
+  std::optional<std::vector<T>> h_data{std::nullopt};
+  if (data) {
+    h_data = std::vector<T>((*data).size());
+    raft::update_host((*h_data).data(), (*data).data(), (*data).size(), handle.get_stream());
+    handle.sync_stream();
+  }
+  return h_data;
+}
+
+template <typename T>
+std::optional<std::vector<T>> to_host(raft::handle_t const& handle,
+                                      std::optional<rmm::device_uvector<T>> const& data)
+{
+  std::optional<std::vector<T>> h_data{std::nullopt};
+  if (data) {
+    h_data = std::vector<T>((*data).size());
+    raft::update_host((*h_data).data(), (*data).data(), (*data).size(), handle.get_stream());
+    handle.sync_stream();
+  }
   return h_data;
 }
 
@@ -347,8 +383,7 @@ bool renumbered_vectors_same(raft::handle_t const& handle,
 {
   if (v1.size() != v2.size()) return false;
 
-  return renumbered_vectors_same(
-    handle, to_host(handle, v1.data(), v1.size()), to_host(handle, v2.data(), v2.size()));
+  return renumbered_vectors_same(handle, to_host(handle, v1), to_host(handle, v2));
 }
 
 template <typename T, typename L>
