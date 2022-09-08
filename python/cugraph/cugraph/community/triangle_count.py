@@ -35,7 +35,7 @@ def triangles(G, start_list=None):
         (edge weights are not used in this algorithm).
         The current implementation only supports undirected graphs.
 
-    start_list : not supported
+    start_list : list or cudf.Series
         list of vertices for triangle count. if None the entire set of vertices
         in the graph is processed
 
