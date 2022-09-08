@@ -78,7 +78,7 @@ def convert_to_cudf(cp_arrays):
 
 
 def triangles(input_graph,
-                   start_list=None):
+              start_list=None):
     """
     Computes the number of triangles (cycles of length three) and the number
     per vertex in the input graph.

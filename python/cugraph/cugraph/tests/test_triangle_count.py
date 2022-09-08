@@ -77,7 +77,7 @@ def input_combo(request):
 # =============================================================================
 # Tests
 # =============================================================================
-def test_triangles_no_start(input_combo):
+def test_triangles(input_combo):
     G = input_combo["G"]
     Gnx = input_combo["Gnx"]
     nx_triangle_results = cudf.DataFrame()
@@ -100,7 +100,7 @@ def test_triangles_no_start(input_combo):
     nx_triangle_results["counts"] = dic_results.values()
     nx_triangle_results = nx_triangle_results.sort_values(
         "vertex").reset_index(drop=True)
-    
+
     triangle_results["nx_counts"] = nx_triangle_results["counts"]
     counts_diff = triangle_results.query(
         'nx_counts != cugraph_counts')

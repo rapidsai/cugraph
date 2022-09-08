@@ -17,10 +17,7 @@ import cudf
 from pylibcugraph.experimental import triangle_count as \
     pylibcugraph_triangle_count
 
-from pylibcugraph import (ResourceHandle,
-                          GraphProperties,
-                          SGGraph
-                          )
+from pylibcugraph import ResourceHandle
 
 
 def triangles(G, start_list=None):
@@ -82,8 +79,6 @@ def triangles(G, start_list=None):
                     start_list, start_list.columns)
             else:
                 start_list = G.lookup_internal_vertex_id(start_list)
-
-    resource_handle = ResourceHandle()
 
     # FIXME:  This should be based on the renumber parameter set when creating
     # the graph
