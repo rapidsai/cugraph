@@ -123,3 +123,9 @@ def test_triangles_directed_graph():
 
     with pytest.raises(ValueError):
         cugraph.triangles(G)
+
+def test_experimental_triangle_count(input_combo):
+    G = input_combo["G"]
+    with pytest.warns(Warning):
+        cugraph.experimental.triangle_count(G)
+
