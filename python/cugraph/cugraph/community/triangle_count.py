@@ -14,8 +14,7 @@
 from cugraph.utilities import ensure_cugraph_obj_for_nx
 import cudf
 
-from pylibcugraph.experimental import triangle_count as \
-    pylibcugraph_triangle_count
+from pylibcugraph import triangle_count as pylibcugraph_triangle_count
 
 from pylibcugraph import ResourceHandle
 
