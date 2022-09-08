@@ -148,8 +148,7 @@ def uniform_neighbor_sample(G, start_list=None, fanout_vals=None):
         G, start_list=start_list, fanout_vals=fanout_vals)
 
 def triangle_count(G):
-    # FIXME: Update this calls once triangle_count is promoted
-    return cugraph.experimental.triangle_count(G)
+    return cugraph.triangles(G)
 
 def eigenvector_centrality(G):
     # FIXME: Update this calls once triangle_count is promoted

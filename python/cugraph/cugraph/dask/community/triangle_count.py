@@ -77,7 +77,7 @@ def convert_to_cudf(cp_arrays):
     return df
 
 
-def triangle_count(input_graph,
+def triangles(input_graph,
                    start_list=None):
     """
     Computes the number of triangles (cycles of length three) and the number
@@ -106,7 +106,7 @@ def triangle_count(input_graph,
         Contains the triangle counting counts
     """
     # FIXME: start_list is disabled
-    start_list = None
+    # start_list = None
     if input_graph.is_directed():
         raise ValueError("input graph must be undirected")
     # Initialize dask client

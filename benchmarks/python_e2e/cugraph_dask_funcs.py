@@ -168,7 +168,7 @@ def uniform_neighbor_sample(G, start_list=None, fanout_vals=None):
 
 def triangle_count(G):
     # FIXME: Update this calls once triangle_count is promoted
-    return cugraph.dask.triangle_count(G)
+    return cugraph.dask.triangles(G)
 
 def eigenvector_centrality(G):
     # FIXME: Update this calls once triangle_count is promoted
