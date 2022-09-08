@@ -54,7 +54,7 @@ from pylibcugraph.utils cimport (
 )
 
 
-def EXPERIMENTAL__triangle_count(ResourceHandle resource_handle,
+def triangle_count(ResourceHandle resource_handle,
                                  _GPUGraph graph,
                                  start_list,
                                  bool_t do_expensive_check):
