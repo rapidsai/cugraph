@@ -167,8 +167,8 @@ class simpleGraphImpl:
         else:
             if type(source) is list and type(destination) is list:
                 raise ValueError("set renumber to True for multi column ids")
-            elif (elist[source].dtype not in [np.int32, np.int64] or
-                  elist[destination].dtype not in [np.int32, np.int64]):
+            elif (not np.issubdtype(elist[source].dtype, np.integer) or
+                  not np.issubdtype(elist[destination].dtype, np.integer)):
                 raise ValueError(
                     "set renumber to True for non integer columns ids"
                 )
