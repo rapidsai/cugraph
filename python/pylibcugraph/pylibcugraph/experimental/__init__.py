@@ -66,5 +66,5 @@ hits = promoted_experimental_warning_wrapper(hits)
 from pylibcugraph.node2vec import node2vec
 node2vec = promoted_experimental_warning_wrapper(node2vec)
 
-from pylibcugraph.triangle_count import EXPERIMENTAL__triangle_count
-triangle_count = experimental_warning_wrapper(EXPERIMENTAL__triangle_count)
+from pylibcugraph.triangle_count import triangle_count
+triangle_count = promoted_experimental_warning_wrapper(triangle_count)
