@@ -11,18 +11,22 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from cugraph.community import triangle_count_wrapper
 from cugraph.utilities import ensure_cugraph_obj_for_nx
-import warnings
+import cudf
+
+from pylibcugraph.experimental import triangle_count as \
+    pylibcugraph_triangle_count
+
+from pylibcugraph import (ResourceHandle,
+                          GraphProperties,
+                          SGGraph
+                          )
 
 
-def triangles(G):
+def triangles(G, start_list=None):
     """
     Compute the number of triangles (cycles of length three) in the
     input graph.
-
-    Unlike NetworkX, this algorithm simply returns the total number of
-    triangle and not the number per vertex.
 
     Parameters
     ----------
@@ -31,28 +35,73 @@ def triangles(G):
         (edge weights are not used in this algorithm).
         The current implementation only supports undirected graphs.
 
+    start_list : not supported
+        list of vertices for triangle count. if None the entire set of vertices
+        in the graph is processed
+
     Returns
     -------
-    count : int64
-        A 64 bit integer whose value gives the number of triangles in the
-        graph.
+    result : cudf.DataFrame
+        GPU data frame containing 2 cudf.Series
+
+    ddf['vertex']: cudf.Series
+            Contains the triangle counting vertices
+    ddf['counts']: cudf.Series
+        Contains the triangle counting counts
 
     Examples
     --------
-    >>> from cugraph.experimental.datasets import karate
-    >>> G = karate.get_graph(fetch=True)
+    >>> gdf = cudf.read_csv(datasets_path / 'karate.csv',
+    ...                     delimiter = ' ',
+    ...                     dtype=['int32', 'int32', 'float32'],
+    ...                     header=None)
+    >>> G = cugraph.Graph()
+    >>> G.from_cudf_edgelist(gdf, source='0', destination='1', edge_attr='2')
     >>> count = cugraph.triangles(G)
 
     """
-    warning_msg = ("This call is deprecated and will be refactored "
-                   "in the next release")
-    warnings.warn(warning_msg, PendingDeprecationWarning)
-
     G, _ = ensure_cugraph_obj_for_nx(G)
 
     if G.is_directed():
         raise ValueError("input graph must be undirected")
 
-    result = triangle_count_wrapper.triangles(G)
+    if start_list is not None:
+        if isinstance(start_list, int):
+            start_list = [start_list]
+        if isinstance(start_list, list):
+            start_list = cudf.Series(start_list)
 
-    return result
+        if not isinstance(start_list, cudf.Series):
+            raise TypeError(
+                    f"'start_list' must be either a list or a cudf.Series,"
+                    f"got: {start_list.dtype}")
+
+        if G.renumbered is True:
+            if isinstance(start_list, cudf.DataFrame):
+                start_list = G.lookup_internal_vertex_id(
+                    start_list, start_list.columns)
+            else:
+                start_list = G.lookup_internal_vertex_id(start_list)
+
+    resource_handle = ResourceHandle()
+
+    # FIXME:  This should be based on the renumber parameter set when creating
+    # the graph
+    do_expensive_check = False
+
+    vertex, counts = \
+        pylibcugraph_triangle_count(
+            resource_handle=ResourceHandle(),
+            graph=G._plc_graph,
+            start_list=start_list,
+            do_expensive_check=do_expensive_check
+        )
+
+    df = cudf.DataFrame()
+    df["vertex"] = vertex
+    df["counts"] = counts
+
+    if G.renumbered:
+        df = G.unrenumber(df, "vertex")
+
+    return df
