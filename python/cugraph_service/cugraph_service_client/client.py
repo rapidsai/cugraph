@@ -15,6 +15,8 @@
 from functools import wraps
 from collections.abc import Sequence
 import pickle
+import ucp
+import asyncio
 
 from cugraph_service_client import defaults
 from cugraph_service_client.types import ValueWrapper, GraphVertexEdgeID
@@ -904,8 +906,7 @@ class CugraphServiceClient:
                                 graph_id=defaults.graph_id,
                                 client_device=None):
         """
-        Samples the graph and returns the graph id of the sampled
-        graph.
+        Samples the graph and returns ...
 
         Parameters:
         start_list: list[int]
@@ -916,18 +917,20 @@ class CugraphServiceClient:
 
         graph_id: int, default is defaults.graph_id
 
+        client_device: int, default is None
+
         Returns
         -------
-        The graph id of the sampled graph.
-
         """
-
-        return self.__client.uniform_neighbor_sample(
+        result = self.__client.uniform_neighbor_sample(
             start_list,
             fanout_vals,
             with_replacement,
             graph_id,
+            client_host=None,
+            client_result_port=None
         )
+        return result
 
     @__server_connection
     def pagerank(self, graph_id=defaults.graph_id):

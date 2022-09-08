@@ -19,6 +19,7 @@ import time
 from pathlib import Path
 
 import pytest
+import cupy as cp
 
 from . import data
 from . import utils
@@ -247,7 +248,7 @@ def test_uniform_neighbor_sampling_device_result(
     )
     extracted_graph_id = client.extract_subgraph(graph_id=graph_id)
 
-    start_list = range(int(1e7))
+    start_list = range(int(1e3))
     fanout_vals = [2]
     with_replacement = False
 

@@ -17,8 +17,11 @@ import importlib
 import time
 import traceback
 from inspect import signature
+import asyncio
 
 import numpy as np
+import cupy as cp
+import ucp
 import cudf
 import dask_cudf
 import cugraph
@@ -643,6 +646,8 @@ class CugraphHandler:
                                 fanout_vals,
                                 with_replacement,
                                 graph_id,
+                                client_host,
+                                client_result_port
                                 ):
         G = self._get_graph(graph_id)
         if isinstance(G, (MGPropertyGraph, PropertyGraph)):
@@ -653,13 +658,26 @@ class CugraphHandler:
                                       "on the extracted subgraph instead.")
 
         try:
-            return call_algo(
+            result = call_algo(
                 uniform_neighbor_sample,
                 G,
                 start_list=start_list,
                 fanout_vals=fanout_vals,
                 with_replacement=with_replacement
             )
+            breakpoint()
+            if client_host is not None:
+                #c = await ucp.create_endpoint(client_host, client_result_port)
+                c = asyncio.run(ucp.create_endpoint(client_host, client_result_port))
+                r=cp.arange(3)
+                #await c.send_obj(r)
+                asyncio.run(c.send_obj(r))
+                #await c.close()
+                asyncio.run(c.close())
+                return UniformNeighborSampleResult()
+            else:
+                return result
+
         except Exception:
             raise CugraphServiceError(f"{traceback.format_exc()}")
 

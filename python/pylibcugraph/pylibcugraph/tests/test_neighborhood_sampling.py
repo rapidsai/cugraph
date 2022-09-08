@@ -15,7 +15,8 @@ import pytest
 import cupy as cp
 import numpy as np
 import cudf
-from pylibcugraph import (MGGraph,
+from pylibcugraph import (SGGraph,
+                          MGGraph,
                           ResourceHandle,
                           GraphProperties,
                           )
@@ -124,3 +125,35 @@ def test_neighborhood_sampling_cudf():
                                      do_expensive_check=False)
 
     check_edges(result, device_srcs, device_dsts, device_weights, 6, 8, 2)
+
+
+def test_neighborhood_sampling_buffer():
+    """
+    """
+    resource_handle = ResourceHandle()
+    graph_props = GraphProperties(is_symmetric=False, is_multigraph=False)
+
+    device_srcs = cp.asarray([0, 1, 1, 2, 2, 2, 3, 4], dtype=np.int32)
+    device_dsts = cp.asarray([1, 3, 4, 0, 1, 3, 5, 5], dtype=np.int32)
+    device_weights = cp.asarray([0.1, 2.1, 1.1, 5.1, 3.1, 4.1, 7.2, 3.2],
+                                dtype=np.float32)
+    start_list = cp.asarray([2, 2], dtype=np.int32)
+    fanout_vals = np.asarray([1, 2], dtype=np.int32)
+
+    sg = SGGraph(resource_handle,
+                 graph_props,
+                 device_srcs,
+                 device_dsts,
+                 device_weights,
+                 store_transposed=True,
+                 renumber=False,
+                 do_expensive_check=False)
+
+    result = uniform_neighbor_sample(resource_handle,
+                                     sg,
+                                     start_list,
+                                     fanout_vals,
+                                     with_replacement=True,
+                                     do_expensive_check=False)
+    assert type(result) is tuple
+    breakpoint()

@@ -54,6 +54,7 @@ from pylibcugraph.graphs cimport (
 from pylibcugraph.utils cimport (
     assert_success,
     copy_to_cupy_array,
+    create_pybuffer,
     assert_CAI_type,
     assert_AI_type,
     get_c_type_from_numpy_type,
@@ -141,6 +142,29 @@ def uniform_neighbor_sample(ResourceHandle resource_handle,
         &error_ptr)
     assert_success(error_code, error_ptr, "cugraph_uniform_neighbor_sample")
 
+    #### NEW
+    cdef cugraph_type_erased_device_array_t* src_ptr = \
+        cugraph_sample_result_release_sources(result_ptr)
+    cdef cugraph_type_erased_device_array_t* destinations_ptr = \
+        cugraph_sample_result_release_destinations(result_ptr)
+    cdef cugraph_type_erased_device_array_t* indices_ptr = \
+        cugraph_sample_result_release_indices(result_ptr)
+
+    cupy_sources = transfer_to_device_array_pybuffer(
+        c_resource_handle_ptr, src_ptr)
+    cupy_destinations = transfer_to_device_array_pybuffer(
+        c_resource_handle_ptr, dst_ptr)
+    cupy_indices = transfer_to_device_array_pybuffer(
+        c_resource_handle_ptr, indices_ptr)
+
+    cugraph_sample_result_free(result_ptr)
+    cugraph_type_erased_device_array_view_free(start_ptr)
+    cugraph_type_erased_host_array_view_free(fan_out_ptr)
+
+    return (cupy_sources, cupy_destinations, cupy_indices)
+
+    #### ORIGINAL
+    """
     cdef cugraph_type_erased_device_array_view_t* src_ptr = \
         cugraph_sample_result_get_sources(result_ptr)
     cdef cugraph_type_erased_device_array_view_t* dst_ptr = \
@@ -157,3 +181,4 @@ def uniform_neighbor_sample(ResourceHandle resource_handle,
     cugraph_type_erased_host_array_view_free(fan_out_ptr)
 
     return (cupy_sources, cupy_destinations, cupy_indices)
+    """
