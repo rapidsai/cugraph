@@ -38,7 +38,7 @@ option(FIND_CUGRAPH_CPP "Search for existing CUGRAPH C++ installations before de
 
 if(FIND_CUGRAPH_CPP)
   message(STATUS "Trying to find the package")
-  find_package(cugraph ${cugraph_version} REQUIRED)
+  find_package(cugraph ${pylibcugraph_version} REQUIRED)
 else()
   set(cugraph_FOUND OFF)
 endif()
@@ -54,7 +54,7 @@ if(NOT cugraph_FOUND)
 
   # Since cugraph only enables CUDA optionally, we need to manually include the file that
   # rapids_cuda_init_architectures relies on `project` including.
-  
+
   include("${CMAKE_PROJECT_pylibcugraph-python_INCLUDE}")
 
   add_subdirectory(../../cpp cugraph-cpp)
