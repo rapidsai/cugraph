@@ -13,6 +13,7 @@
 
 from cugraph.utilities.api_tools import experimental_warning_wrapper
 from cugraph.utilities.api_tools import deprecated_warning_wrapper
+from cugraph.utilities.api_tools import promoted_experimental_warning_wrapper
 
 from cugraph.structure.property_graph import EXPERIMENTAL__PropertyGraph
 PropertyGraph = experimental_warning_wrapper(EXPERIMENTAL__PropertyGraph)
@@ -25,6 +26,10 @@ MGPropertyGraph = experimental_warning_wrapper(EXPERIMENTAL__MGPropertyGraph)
 
 from cugraph.dask.structure.mg_property_graph import EXPERIMENTAL__MGPropertySelection
 MGPropertySelection = experimental_warning_wrapper(EXPERIMENTAL__MGPropertySelection)
+
+# FIXME: Remove experimental.triangle_count next release
+from cugraph.community.triangle_count import triangles
+triangle_count = promoted_experimental_warning_wrapper(triangles)
 
 from cugraph.experimental.components.scc import \
     EXPERIMENTAL__strong_connected_component
