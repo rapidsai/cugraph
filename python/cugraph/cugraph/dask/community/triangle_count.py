@@ -76,7 +76,7 @@ def convert_to_cudf(cp_arrays):
     return df
 
 
-def triangles(input_graph,
+def triangle_count(input_graph,
               start_list=None):
     """
     Computes the number of triangles (cycles of length three) and the number

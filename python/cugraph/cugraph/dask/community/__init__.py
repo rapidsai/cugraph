@@ -12,4 +12,4 @@
 # limitations under the License.
 
 from .louvain import louvain
-from .triangle_count import triangles
+from .triangle_count import triangle_count

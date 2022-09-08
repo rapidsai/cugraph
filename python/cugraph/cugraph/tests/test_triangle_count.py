@@ -89,7 +89,7 @@ def test_triangles(input_combo):
     else:
         start_list = None
 
-    cugraph_triangle_results = cugraph.triangles(G, start_list)
+    cugraph_triangle_results = cugraph.triangle_count(G, start_list)
 
     triangle_results = cugraph_triangle_results.sort_values(
             "vertex").reset_index(drop=True).rename(columns={
@@ -122,8 +122,10 @@ def test_triangles_directed_graph():
     )
 
     with pytest.raises(ValueError):
-        cugraph.triangles(G)
+        cugraph.triangle_count(G)
 
+
+# FIXME: Remove this test once experimental.triangle count is removed
 def test_experimental_triangle_count(input_combo):
     G = input_combo["G"]
     with pytest.warns(Warning):

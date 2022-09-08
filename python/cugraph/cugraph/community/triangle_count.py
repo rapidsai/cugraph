@@ -19,7 +19,7 @@ from pylibcugraph import triangle_count as pylibcugraph_triangle_count
 from pylibcugraph import ResourceHandle
 
 
-def triangles(G, start_list=None):
+def triangle_count(G, start_list=None):
     """
     Compute the number of triangles (cycles of length three) in the
     input graph.

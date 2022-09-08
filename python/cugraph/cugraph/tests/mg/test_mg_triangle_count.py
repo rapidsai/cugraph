@@ -75,7 +75,7 @@ def input_expected_output(dask_client, input_combo):
     else:
         start_list = None
 
-    sg_triangle_results = cugraph.triangles(G, start_list)
+    sg_triangle_results = cugraph.triangle_count(G, start_list)
     sg_triangle_results = sg_triangle_results.sort_values(
         "vertex").reset_index(drop=True)
 
@@ -110,7 +110,7 @@ def test_sg_triangles(dask_client, benchmark, input_expected_output):
     sg_triangle_results = None
     G = input_expected_output["SGGraph"]
     start_list = input_expected_output["start_list"]
-    sg_triangle_results = benchmark(cugraph.triangles, G, start_list)
+    sg_triangle_results = benchmark(cugraph.triangle_count, G, start_list)
     assert sg_triangle_results is not None
 
 
@@ -119,7 +119,7 @@ def test_triangles(dask_client, benchmark, input_expected_output):
     dg = input_expected_output["MGGraph"]
     start_list = input_expected_output["start_list"]
 
-    result_counts = benchmark(dcg.triangles, dg, start_list)
+    result_counts = benchmark(dcg.triangle_count, dg, start_list)
 
     result_counts = result_counts.drop_duplicates().compute().sort_values(
         "vertex").reset_index(drop=True).rename(

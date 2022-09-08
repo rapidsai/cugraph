@@ -28,8 +28,8 @@ from cugraph.dask.structure.mg_property_graph import EXPERIMENTAL__MGPropertySel
 MGPropertySelection = experimental_warning_wrapper(EXPERIMENTAL__MGPropertySelection)
 
 # FIXME: Remove experimental.triangle_count next release
-from cugraph.community.triangle_count import triangles
-triangle_count = promoted_experimental_warning_wrapper(triangles)
+from cugraph.community.triangle_count import triangle_count
+triangle_count = promoted_experimental_warning_wrapper(triangle_count)
 
 from cugraph.experimental.components.scc import \
     EXPERIMENTAL__strong_connected_component
