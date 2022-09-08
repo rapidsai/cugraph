@@ -180,6 +180,37 @@ accumulate_new_roots(raft::handle_t const& handle,
   return std::make_tuple(std::move(new_roots), num_scanned, degree_sum);
 }
 
+template <typename vertex_t, typename EdgeIterator>
+struct e_op_t {
+  detail::edge_partition_endpoint_property_device_view_t<vertex_t, vertex_t*> dst_components{};
+  vertex_t dst_first{};
+  EdgeIterator edge_buffer_first{};
+  size_t* num_edge_inserts{};
+
+  __device__ thrust::optional<vertex_t> operator()(thrust::tuple<vertex_t, vertex_t> tagged_src,
+                                                   vertex_t dst,
+                                                   thrust::nullopt_t,
+                                                   thrust::nullopt_t) const
+  {
+    auto tag        = thrust::get<1>(tagged_src);
+    auto dst_offset = dst - dst_first;
+    // FIXME: better switch to atomic_ref after
+    // https://github.com/nvidia/libcudacxx/milestone/2
+    auto old =
+      atomicCAS(dst_components.get_iter(dst_offset), invalid_component_id<vertex_t>::value, tag);
+    if (old != invalid_component_id<vertex_t>::value && old != tag) {  // conflict
+      static_assert(sizeof(unsigned long long int) == sizeof(size_t));
+      auto edge_idx = atomicAdd(reinterpret_cast<unsigned long long int*>(num_edge_inserts),
+                                static_cast<unsigned long long int>(1));
+      // keep only the edges in the lower triangular part
+      *(edge_buffer_first + edge_idx) =
+        tag >= old ? thrust::make_tuple(tag, old) : thrust::make_tuple(old, tag);
+    }
+    return old == invalid_component_id<vertex_t>::value ? thrust::optional<vertex_t>{tag}
+                                                        : thrust::nullopt;
+  }
+};
+
 // FIXME: to silence the spurious warning (missing return statement ...) due to the nvcc bug
 // (https://stackoverflow.com/questions/64523302/cuda-missing-return-statement-at-end-of-non-void-
 // function-in-constexpr-if-fun)
@@ -548,33 +579,16 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
         vertex_frontier.bucket(bucket_idx_cur),
         edge_src_dummy_property_t{}.view(),
         edge_dst_dummy_property_t{}.view(),
-        [col_components =
-           GraphViewType::is_multi_gpu
-             ? edge_dst_components.mutable_view()
-             : detail::edge_partition_endpoint_property_device_view_t<vertex_t, vertex_t*>(
-                 detail::edge_minor_property_view_t<vertex_t, vertex_t*>(level_components,
-                                                                         vertex_t{0})),
-         col_first         = level_graph_view.local_edge_partition_dst_range_first(),
-         edge_buffer_first = get_dataframe_buffer_begin(edge_buffer),
-         num_edge_inserts =
-           num_edge_inserts.data()] __device__(auto tagged_src, vertex_t dst, auto, auto) {
-          auto tag        = thrust::get<1>(tagged_src);
-          auto col_offset = dst - col_first;
-          // FIXME: better switch to atomic_ref after
-          // https://github.com/nvidia/libcudacxx/milestone/2
-          auto old = atomicCAS(
-            col_components.get_iter(col_offset), invalid_component_id<vertex_t>::value, tag);
-          if (old != invalid_component_id<vertex_t>::value && old != tag) {  // conflict
-            static_assert(sizeof(unsigned long long int) == sizeof(size_t));
-            auto edge_idx = atomicAdd(reinterpret_cast<unsigned long long int*>(num_edge_inserts),
-                                      static_cast<unsigned long long int>(1));
-            // keep only the edges in the lower triangular part
-            *(edge_buffer_first + edge_idx) =
-              tag >= old ? thrust::make_tuple(tag, old) : thrust::make_tuple(old, tag);
-          }
-          return old == invalid_component_id<vertex_t>::value ? thrust::optional<vertex_t>{tag}
-                                                              : thrust::nullopt;
-        },
+        e_op_t<vertex_t, decltype(get_dataframe_buffer_begin(edge_buffer))>{
+          GraphViewType::is_multi_gpu
+            ? detail::edge_partition_endpoint_property_device_view_t<vertex_t, vertex_t*>(
+                edge_dst_components.mutable_view())
+            : detail::edge_partition_endpoint_property_device_view_t<vertex_t, vertex_t*>(
+                detail::edge_minor_property_view_t<vertex_t, vertex_t*>(level_components,
+                                                                        vertex_t{0})),
+          level_graph_view.local_edge_partition_dst_range_first(),
+          get_dataframe_buffer_begin(edge_buffer),
+          num_edge_inserts.data()},
         reduce_op::null());
 
       update_v_frontier(handle,
