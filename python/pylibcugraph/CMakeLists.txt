@@ -66,7 +66,14 @@ else()
 
   add_subdirectory(../../cpp cugraph-cpp ${_exclude_from_all})
 
-  install(TARGETS cugraph DESTINATION pylibcugraph)
+  # Since cugraph only enables CUDA optionally, we need to manually include the file that
+  # rapids_cuda_init_architectures relies on `project` including.
+
+  include("${CMAKE_PROJECT_pylibcugraph-python_INCLUDE}")
+
+  add_subdirectory(../../cpp cugraph-cpp)
+
+  install(TARGETS cugraph DESTINATION pylibcugraph/library)
 endif()
 
 include(rapids-cython)
