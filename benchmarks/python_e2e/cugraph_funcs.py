@@ -151,7 +151,6 @@ def triangle_count(G):
     return cugraph.triangles(G)
 
 def eigenvector_centrality(G):
-    # FIXME: Update this calls once triangle_count is promoted
     return cugraph.eigenvector_centrality(G)
 
 ################################################################################
