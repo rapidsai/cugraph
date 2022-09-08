@@ -20,7 +20,6 @@ import cugraph
 from cugraph.testing import utils
 import cugraph.dask as dcg
 import dask_cudf
-from cugraph.experimental import triangle_count as experimental_triangles
 import random
 
 
@@ -82,7 +81,7 @@ def input_expected_output(dask_client, input_combo):
     # FIXME: MG triangle count is failing with the start_list below as well
     # start_list = cudf.Series([41, 35], dtype="int32")
 
-    sg_triangle_results = experimental_triangles(G, start_list)
+    sg_triangle_results = cugraph.triangles(G, start_list)
     sg_triangle_results = sg_triangle_results.sort_values(
         "vertex").reset_index(drop=True)
 
@@ -117,7 +116,7 @@ def test_sg_triangles(dask_client, benchmark, input_expected_output):
     sg_triangle_results = None
     G = input_expected_output["SGGraph"]
     start_list = input_expected_output["start_list"]
-    sg_triangle_results = benchmark(experimental_triangles, G, start_list)
+    sg_triangle_results = benchmark(cugraph.triangles, G, start_list)
     assert sg_triangle_results is not None
 
 
@@ -126,7 +125,7 @@ def test_triangles(dask_client, benchmark, input_expected_output):
     dg = input_expected_output["MGGraph"]
     start_list = input_expected_output["start_list"]
 
-    result_counts = benchmark(dcg.triangle_count, dg, start_list)
+    result_counts = benchmark(dcg.triangles, dg, start_list)
 
     result_counts = result_counts.drop_duplicates().compute().sort_values(
         "vertex").reset_index(drop=True).rename(
