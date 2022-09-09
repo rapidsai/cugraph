@@ -55,9 +55,9 @@ from pylibcugraph.utils cimport (
 
 
 def triangle_count(ResourceHandle resource_handle,
-                                 _GPUGraph graph,
-                                 start_list,
-                                 bool_t do_expensive_check):
+                   _GPUGraph graph,
+                   start_list,
+                   bool_t do_expensive_check):
     """
     Computes the number of triangles (cycles of length three) and the number
     per vertex in the input graph.
