@@ -39,7 +39,7 @@ BLOGS & Conferences
 2022
 ------
   * `GTC: State of cuGraph  (video & slides) <https://www.nvidia.com/gtc/session-catalog/?search=cuGraph&tab.scheduledorondemand=1583520458947001NJiE&search=cuGraph#/session/1635793340204001n4p2>`_
-  * `GTC: Scaling and Validating Louvain in cuGraph against Massive Graphs  (video & slides) <hhttps://www.nvidia.com/gtc/session-catalog/?tab.scheduledorondemand=1583520458947001NJiE&search=cuGraph#/session/1635797342151001A9kR>`_
+  * `GTC: Scaling and Validating Louvain in cuGraph against Massive Graphs  (video & slides) <https://www.nvidia.com/gtc/session-catalog/?tab.scheduledorondemand=1583520458947001NJiE&search=cuGraph#/session/1635797342151001A9kR>`_
   * `KDD Tutorial on Accelerated GNN Training with DGL/PyG and cuGraph <https://github.com/rapidsai-community/event-notebooks/tree/main/KDD_2022>`_
 
 
