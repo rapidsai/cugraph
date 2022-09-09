@@ -76,13 +76,28 @@ cdef extern from "cugraph_c/array.h":
         )
 
     cdef size_t \
+        cugraph_type_erased_device_array_size(
+            const cugraph_type_erased_device_array_t* p
+        )
+
+    cdef size_t \
         cugraph_type_erased_device_array_view_size(
             const cugraph_type_erased_device_array_view_t* p
         )
 
     cdef data_type_id_t \
+        cugraph_type_erased_device_array_type(
+            const cugraph_type_erased_device_array_t* p
+        )
+
+    cdef data_type_id_t \
         cugraph_type_erased_device_array_view_type(
             const cugraph_type_erased_device_array_view_t* p
+        )
+
+    cdef const void* \
+        cugraph_type_erased_device_array_pointer(
+            const cugraph_type_erased_device_array_t* p
         )
 
     cdef const void* \
@@ -140,7 +155,7 @@ cdef extern from "cugraph_c/array.h":
         cugraph_type_erased_host_array_pointer(
             const cugraph_type_erased_host_array_view_t* p
         )
-    
+
     # cdef void* \
     #    cugraph_type_erased_host_array_view_copy(
     #        const cugraph_resource_handle_t* handle,

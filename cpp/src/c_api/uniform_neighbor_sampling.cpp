@@ -222,13 +222,40 @@ extern "C" cugraph_type_erased_host_array_view_t* cugraph_sample_result_get_coun
   return reinterpret_cast<cugraph_type_erased_host_array_view_t*>(internal_pointer->count_->view());
 }
 
+extern "C" cugraph_type_erased_device_array_t* cugraph_sample_result_release_sources(
+  cugraph_sample_result_t* result)
+{
+  auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_sample_result_t*>(result);
+  auto return_pointer = reinterpret_cast<cugraph_type_erased_device_array_t*>(internal_pointer->src_);
+  internal_pointer->src_ = nullptr;
+  return return_pointer;
+}
+
+extern "C" cugraph_type_erased_device_array_t* cugraph_sample_result_release_destinations(
+  cugraph_sample_result_t* result)
+{
+  auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_sample_result_t*>(result);
+  auto return_pointer = reinterpret_cast<cugraph_type_erased_device_array_t*>(internal_pointer->dst_);
+  internal_pointer->dst_ = nullptr;
+  return return_pointer;
+}
+
+extern "C" cugraph_type_erased_device_array_t* cugraph_sample_result_release_index(
+  cugraph_sample_result_t* result)
+{
+  auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_sample_result_t*>(result);
+  auto return_pointer = reinterpret_cast<cugraph_type_erased_device_array_t*>(internal_pointer->index_);
+  internal_pointer->index_ = nullptr;
+  return return_pointer;
+}
+
 extern "C" void cugraph_sample_result_free(cugraph_sample_result_t* result)
 {
   auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_sample_result_t*>(result);
-  delete internal_pointer->src_;
-  delete internal_pointer->dst_;
+  if (internal_pointer->src_ != nullptr) delete internal_pointer->src_;
+  if (internal_pointer->dst_ != nullptr) delete internal_pointer->dst_;
   delete internal_pointer->label_;
-  delete internal_pointer->index_;
+  if (internal_pointer->index_ != nullptr) delete internal_pointer->index_;
   delete internal_pointer->count_;
   delete internal_pointer;
 }

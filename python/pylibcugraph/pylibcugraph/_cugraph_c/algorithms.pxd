@@ -23,6 +23,7 @@ from pylibcugraph._cugraph_c.error cimport (
     cugraph_error_t,
 )
 from pylibcugraph._cugraph_c.array cimport (
+    cugraph_type_erased_device_array_t,
     cugraph_type_erased_device_array_view_t,
     cugraph_type_erased_host_array_view_t,
 )
@@ -160,27 +161,42 @@ cdef extern from "cugraph_c/algorithms.h":
     # sampling
     ctypedef struct cugraph_sample_result_t:
         pass
-    
+
     cdef cugraph_type_erased_device_array_view_t* \
         cugraph_sample_result_get_sources(
             cugraph_sample_result_t* result
         )
-    
+
     cdef cugraph_type_erased_device_array_view_t* \
         cugraph_sample_result_get_destinations(
             cugraph_sample_result_t* result
         )
-    
+
     cdef cugraph_type_erased_device_array_view_t* \
         cugraph_sample_result_get_index(
             cugraph_sample_result_t* result
         )
-    
+
+    cdef cugraph_type_erased_device_array_t* \
+        cugraph_sample_result_release_sources(
+            cugraph_sample_result_t* result
+        )
+
+    cdef cugraph_type_erased_device_array_t* \
+        cugraph_sample_result_release_destinations(
+            cugraph_sample_result_t* result
+        )
+
+    cdef cugraph_type_erased_device_array_t* \
+        cugraph_sample_result_release_index(
+            cugraph_sample_result_t* result
+        )
+
     cdef void \
         cugraph_sample_result_free(
             cugraph_sample_result_t* result
         )
-        
+
     # uniform neighborhood sampling
     cdef cugraph_error_code_t \
         cugraph_uniform_neighbor_sample(

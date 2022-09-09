@@ -19,6 +19,7 @@ from pylibcugraph._cugraph_c.resource_handle cimport (
     cugraph_resource_handle_t,
 )
 from pylibcugraph._cugraph_c.array cimport (
+    cugraph_type_erased_device_array_t,
     cugraph_type_erased_device_array_view_t,
 )
 from pylibcugraph._cugraph_c.error cimport (
@@ -42,6 +43,10 @@ cdef get_c_type_from_numpy_type(numpy_type)
 cdef get_c_weight_type_from_numpy_edge_ids_type(numpy_type)
 
 cdef get_numpy_edge_ids_type_from_c_weight_type(data_type_id_t c_type)
+
+cdef transfer_to_cupy_array(
+   cugraph_resource_handle_t* c_resource_handle_ptr,
+   cugraph_type_erased_device_array_t* device_array_ptr)
 
 cdef copy_to_cupy_array(
    cugraph_resource_handle_t* c_resource_handle_ptr,

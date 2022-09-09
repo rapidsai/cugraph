@@ -131,12 +131,29 @@ cugraph_type_erased_device_array_view_t* cugraph_type_erased_device_array_view_c
 void cugraph_type_erased_device_array_view_free(cugraph_type_erased_device_array_view_t* p);
 
 /**
+ * @brief    Get the size of a type erased device array
+ *
+ * @param [in]  p    Pointer to the type erased device array
+ * @return The number of elements in the array
+ */
+size_t cugraph_type_erased_device_array_size(const cugraph_type_erased_device_array_t* p);
+
+/**
  * @brief    Get the size of a type erased device array view
  *
  * @param [in]  p    Pointer to the type erased device array view
  * @return The number of elements in the array
  */
 size_t cugraph_type_erased_device_array_view_size(const cugraph_type_erased_device_array_view_t* p);
+
+/**
+ * @brief    Get the type of a type erased device array
+ *
+ * @param [in]  p    Pointer to the type erased device array
+ * @return The type of the elements in the array
+ */
+data_type_id_t cugraph_type_erased_device_array_type(
+  const cugraph_type_erased_device_array_t* p);
 
 /**
  * @brief    Get the type of a type erased device array view
@@ -146,6 +163,15 @@ size_t cugraph_type_erased_device_array_view_size(const cugraph_type_erased_devi
  */
 data_type_id_t cugraph_type_erased_device_array_view_type(
   const cugraph_type_erased_device_array_view_t* p);
+
+/**
+ * @brief    Get the raw pointer of the type erased device array
+ *
+ * @param [in]  p    Pointer to the type erased device array
+ * @return Pointer (device memory) for the data in the array
+ */
+const void* cugraph_type_erased_device_array_pointer(
+  const cugraph_type_erased_device_array_t* p);
 
 /**
  * @brief    Get the raw pointer of the type erased device array view
