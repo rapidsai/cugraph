@@ -29,6 +29,8 @@
 #include <raft/handle.hpp>
 #include <rmm/device_uvector.hpp>
 
+#include <cugraph/graph_mask.hpp>
+
 #include <algorithm>
 #include <cassert>
 #include <cstddef>
