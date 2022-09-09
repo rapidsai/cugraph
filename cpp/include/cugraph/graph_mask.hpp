@@ -17,7 +17,7 @@
 #pragma once
 
 #include <raft/core/handle.hpp>
-#include <raft/core/span.hpp>
+#include <raft/core/device_span.hpp>
 #include <rmm/device_uvector.hpp>
 
 #include <cstdint>
