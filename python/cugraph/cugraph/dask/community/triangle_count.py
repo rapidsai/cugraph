@@ -131,9 +131,8 @@ def triangle_count(input_graph, start_list=None):
 
     ddf = input_graph.edgelist.edgelist_df
 
-    # FIXME: The parameter is_multigraph, store_transposed and
-    # do_expensive_check must be derived from the input_graph.
-    # For now, they are hardcoded.
+    # FIXME: The parameter is_multigraph and store_transposed must be derived
+    # from the input_graph. For now, they are hardcoded.
     graph_properties = GraphProperties(
         is_symmetric=True, is_multigraph=False)
     store_transposed = False

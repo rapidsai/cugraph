@@ -79,8 +79,6 @@ def triangle_count(G, start_list=None):
             else:
                 start_list = G.lookup_internal_vertex_id(start_list)
 
-    # FIXME:  This should be based on the renumber parameter set when creating
-    # the graph
     do_expensive_check = False
 
     vertex, counts = \
