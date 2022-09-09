@@ -32,6 +32,9 @@ from torch_geometric.data.graph_store import (
 from torch_geometric.loader.base import DataLoaderIterator
 from torch_geometric.typing import InputEdges, NumNeighbors, OptTensor
 
+from torch_geometric.loader.utils import (
+    edge_type_to_str
+)
 
 class EXPERIMENTAL__CuGraphLinkNeighborSampler(
       EXPERIMENTAL__CuGraphNeighborSampler):
@@ -258,8 +261,7 @@ class EXPERIMENTAL__CuGraphLinkNeighborLoader(torch.utils.data.DataLoader):
         super().__init__(Dataset(edge_label_index, edge_label),
                          collate_fn=self.collate_fn, **kwargs)
 
-    def filter_fn(self, out: Any) -> Union[Data, HeteroData]:
-<<<<<<< HEAD
+    def filter_fn(self, out: Any, add_empty_embeddings=True) -> Union[Data, HeteroData]:
         (node_dict, row_dict, col_dict, feature_dict, edge_label_index,
             edge_label) = out
         feature_store, graph_store = self.data
@@ -281,15 +283,9 @@ class EXPERIMENTAL__CuGraphLinkNeighborLoader(torch.utils.data.DataLoader):
                 attr.index = node_dict[attr.group_name]
                 if attr.attr_name in feature_dict[attr.group_name]:
                     data[attr.group_name][attr.attr_name] = feature_dict[attr.group_name][attr.attr_name]
+                else:
+                    data[attr.group_name][attr.attr_name] = torch.zeros_like(attr.index)
 
-=======
-        (node_dict, row_dict, col_dict, edge_dict, edge_label_index,
-            edge_label) = out
-        feature_store, graph_store = self.data
-
-        data = filter_custom_store(feature_store, graph_store, node_dict,
-                                   row_dict, col_dict, edge_dict)
->>>>>>> 821571d6c2635506c81c4da92d73a785f3798862
         edge_type = self.neighbor_sampler.input_type
         data[edge_type].edge_label_index = edge_label_index
         if edge_label is not None:
