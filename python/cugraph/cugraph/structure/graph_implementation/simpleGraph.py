@@ -87,6 +87,7 @@ class simpleGraphImpl:
     # Functions
     # FIXME: Change to public function
     # FIXME: Make function more modular
+    # edge_attr: None, weight, or (weight, id, type)
     def __from_edgelist(
         self,
         input_df,
@@ -117,12 +118,28 @@ class simpleGraphImpl:
         df_columns = s_col + d_col
 
         if edge_attr is not None:
-            if not (set([edge_attr]).issubset(set(input_df.columns))):
+            if isinstance(edge_attr, str):
+                edge_attr = [edge_attr]
+            if not (set(edge_attr).issubset(set(input_df.columns))):
                 raise ValueError(
                     "edge_attr column name not found in input."
                     "Recheck the edge_attr parameter")
             self.properties.weighted = True
-            df_columns.append(edge_attr)
+            df_columns += edge_attr
+
+            if len(edge_attr) != 1 or len(edge_attr) != 3:
+                raise ValueError('Invalid number of edge attributes '
+                                 'passed.'
+                )
+            
+            # The symmetrize step may add additional edges with unknown
+            # ids and types for an undirected graph.  Therefore, only
+            # directed graphs may be used with ids and types.
+            if(len(edge_attr) == 3 and not self.properties.directed):
+                raise ValueError('User-provided edge ids and edge '
+                                 'types are not permitted for an '
+                                 'undirected graph.'
+                )
 
         input_df = input_df[df_columns]
         # FIXME: check if the consolidated graph fits on the
@@ -202,7 +219,8 @@ class simpleGraphImpl:
         self._make_plc_graph(
             value_col=value_col,
             store_transposed=store_transposed,
-            renumber=renumber
+            renumber=renumber,
+            edge_attr_names=edge_attr
         )
 
     def to_pandas_edgelist(self, source='src', destination='dst',
@@ -767,18 +785,26 @@ class simpleGraphImpl:
     def _make_plc_graph(self,
                         value_col=None,
                         store_transposed=False,
-                        renumber=True):
+                        renumber=True,
+                        edge_attr=None):
         if value_col is None:
-            value_col = cudf.Series(
+            weight_col, id_col, type_col = None, None, None
+        elif isinstance(value_col, cudf.DataFrame):
+            weight_col, id_col, type_col = value_col, None, None
+        elif len(value_col) == 3:
+            weight_col, id_col, type_col = [value_col[ea] for ea in edge_attr]
+        
+        if weight_col is None:
+            weight_col = cudf.Series(
                 cupy.ones(len(self.edgelist.edgelist_df), dtype='float32')
             )
         else:
-            weight_t = value_col.dtype
+            weight_t = weight_col.dtype
 
             if weight_t == "int32":
-                value_col = value_col.astype("float32")
+                value_col = weight_col.astype("float32")
             if weight_t == "int64":
-                value_col = value_col.astype("float64")
+                value_col = weight_col.astype("float64")
 
         graph_props = GraphProperties(
             is_multigraph=self.properties.multi_edge,
@@ -793,7 +819,9 @@ class simpleGraphImpl:
             weight_array=value_col,
             store_transposed=store_transposed,
             renumber=renumber,
-            do_expensive_check=False
+            do_expensive_check=False,
+            edge_id_array=id_col,
+            edge_type_array=type_col
         )
 
     def to_directed(self, DiG, store_transposed=False):
