@@ -82,6 +82,9 @@ def eigenvector_centrality(
         Setting too small a tolerance can lead to non-convergence due to
         numerical roundoff. Usually values between 1e-2 and 1e-6 are
         acceptable.
+    
+    normalized : not supported
+        If True normalize the resulting eigenvector centrality values
 
     Returns
     -------

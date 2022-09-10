@@ -22,7 +22,7 @@ import cupy
 
 
 def eigenvector_centrality(
-    G, max_iter=100, tol=1.0e-6, normalized=True
+    G, max_iter=100, tol=1.0e-6
 ):
     """
     Compute the eigenvector centrality for a graph G.
@@ -51,7 +51,7 @@ def eigenvector_centrality(
         numerical roundoff. Usually values between 1e-2 and 1e-6 are
         acceptable.
 
-    normalized : bool, optional, default=True
+    normalized : not supported
         If True normalize the resulting eigenvector centrality values
 
     Returns
