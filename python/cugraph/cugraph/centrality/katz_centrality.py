@@ -90,7 +90,7 @@ def katz_centrality(
         nstart['values'] : cudf.Series
             Contains the katz centrality values of vertices
 
-    normalized : bool, optional, default=True
+    normalized : not supported
         If True normalize the resulting katz centrality values
 
     Returns
