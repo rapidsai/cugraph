@@ -13,7 +13,7 @@
 # limitations under the License.
 #
 
-from dask.distributed import wait, default_client
+from dask.distributed import wait
 from pylibcugraph import (ResourceHandle,
                           katz_centrality as pylibcugraph_katz
                           )
@@ -145,7 +145,7 @@ def katz_centrality(
     >>> pr = dcg.katz_centrality(dg)
 
     """
-    client = default_client()
+    client = input_graph._client
 
     if alpha is None:
         degree_max = input_graph.degree()['degree'].max().compute()

@@ -13,7 +13,7 @@
 # limitations under the License.
 #
 
-from dask.distributed import wait, default_client
+from dask.distributed import wait
 
 from pylibcugraph import (eigenvector_centrality as pylib_eigen,
                           ResourceHandle,
@@ -114,7 +114,7 @@ def eigenvector_centrality(
     >>> ec = dcg.eigenvector_centrality(dg)
 
     """
-    client = default_client()
+    client = input_graph._client
 
     # FIXME: should we add this parameter as an option?
     do_expensive_check = False
