@@ -192,6 +192,17 @@ cdef extern from "cugraph_c/algorithms.h":
             cugraph_sample_result_t* result
         )
 
+    cdef cugraph_error_code_t \
+        cugraph_sample_result_create(
+            const cugraph_resource_handle_t* handle,
+            const cugraph_type_erased_host_array_view_t* srcs,
+            const cugraph_type_erased_host_array_view_t* dsts,
+            const cugraph_type_erased_host_array_view_t* weights,
+            const cugraph_type_erased_host_array_view_t* counts,
+            cugraph_sample_result_t** result,
+            cugraph_error_t** error
+        )
+
     cdef void \
         cugraph_sample_result_free(
             cugraph_sample_result_t* result
