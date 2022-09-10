@@ -165,3 +165,57 @@ def test_neighborhood_sampling_no_copy():
 
     breakpoint()
     assert type(result) is tuple
+
+
+def test_sample_result():
+    """
+    Ensure the SampleResult class returns zero-opy cupy arrays and properly
+    frees device memory when all references to it are gone and it's garbage
+    collected.
+    """
+    from pylibcugraph.testing.type_utils import create_sampling_result
+
+    gc.collect()
+
+    # Assume GPU 0 will be used and the test has exclusive access and nothing
+    # else can use its memory while the test is running.
+    device = cp.cuda.Device(0)
+    free_memory_before = device.mem_info[0]
+
+    # Use the testing utility to create a large sampling result.  This API is
+    # intended for testing only - SampleResult objects are normally only created
+    # by running a sampling algo.
+    sampling_result = create_sampling_result(
+        sources=list(range(1e8)),
+        destinations=list(range(1, 1e8+1)),
+        indices=cp.list(range(1e8)),
+    )
+
+    assert free_memory_before > device.mem_info[0]
+
+    sources = sampling_result.sources
+    destinations = sampling_result.destinations
+    indices = sampling_result.indices
+
+    assert isinstance(sources, cp.ndarray)
+    assert isinstance(destinations, cp.ndarray)
+    assert isinstance(indices, cp.ndarray)
+
+    # Delete the SampleResult instance. This *should not* free the device memory
+    # yet since the variables sources, destinations, and indices are keeping the
+    # refcount >0.
+    del sampling_result
+    gc.collect()
+    assert free_memory_before > device.mem_info[0]
+
+    assert sources[999]
+    assert destinations[999]
+    assert indices[999]
+
+    # delete the variables which should take the ref count on sampling_result to
+    # 0, which will cause it to be garbage collected.
+    del sources
+    del destinations
+    del indices
+    gc.collect()
+    assert free_memory_before == device.mem_info[0]

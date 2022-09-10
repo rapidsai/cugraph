@@ -249,6 +249,96 @@ extern "C" cugraph_type_erased_device_array_t* cugraph_sample_result_release_ind
   return return_pointer;
 }
 
+extern "C" cugraph_error_code_t cugraph_sample_result_create(
+  const cugraph_resource_handle_t* handle,
+  cugraph_type_erased_host_array_t* srcs,
+  cugraph_type_erased_host_array_t* dsts,
+  cugraph_type_erased_host_array_t* weights,
+  cugraph_type_erased_host_array_t* counts,
+  cugraph_sample_result_t** result,
+  cugraph_error_t** error)
+{
+  *result = nullptr;
+  *error = nullptr;
+  size_t n_bytes{0};
+
+  try {
+    if (!handle) {
+      *error = reinterpret_cast<cugraph_error_t*>(
+        new cugraph::c_api::cugraph_error_t{"invalid resource handle"});
+      return CUGRAPH_INVALID_HANDLE;
+    }
+
+    auto p_handle = reinterpret_cast<cugraph::c_api::cugraph_resource_handle_t const*>(handle);
+    auto host_srcs =
+      reinterpret_cast<cugraph::c_api::cugraph_type_erased_host_array_t*>(srcs);
+    auto new_device_srcs =
+      new cugraph::c_api::cugraph_type_erased_device_array_t(
+        host_srcs->size_,
+	host_srcs->num_bytes_,
+	host_srcs->type_,
+	p_handle->handle_->get_stream());
+    raft::update_device(reinterpret_cast<byte_t*>(new_device_srcs->data_.data()),
+                        reinterpret_cast<byte_t*>(host_srcs->data_.get()),
+                        host_srcs->num_bytes_,
+                        p_handle->handle_->get_stream());
+
+    auto host_dsts =
+      reinterpret_cast<cugraph::c_api::cugraph_type_erased_host_array_t*>(dsts);
+    auto new_device_dsts =
+      new cugraph::c_api::cugraph_type_erased_device_array_t(
+        host_dsts->size_,
+	host_dsts->num_bytes_,
+	host_dsts->type_,
+	p_handle->handle_->get_stream());
+    raft::update_device(reinterpret_cast<byte_t*>(new_device_dsts->data_.data()),
+                        reinterpret_cast<byte_t*>(host_dsts->data_.get()),
+                        host_dsts->num_bytes_,
+                        p_handle->handle_->get_stream());
+
+    auto host_weights =
+      reinterpret_cast<cugraph::c_api::cugraph_type_erased_host_array_t*>(weights);
+    auto new_device_weights =
+      new cugraph::c_api::cugraph_type_erased_device_array_t(
+        host_weights->size_,
+	host_weights->num_bytes_,
+	host_weights->type_,
+	p_handle->handle_->get_stream());
+    raft::update_device(reinterpret_cast<byte_t*>(new_device_weights->data_.data()),
+                        reinterpret_cast<byte_t*>(host_weights->data_.get()),
+                        host_weights->num_bytes_,
+                        p_handle->handle_->get_stream());
+
+    auto host_counts =
+      reinterpret_cast<cugraph::c_api::cugraph_type_erased_host_array_t*>(counts);
+    auto new_device_counts =
+      new cugraph::c_api::cugraph_type_erased_device_array_t(
+        host_counts->size_,
+	host_counts->num_bytes_,
+	host_counts->type_,
+	p_handle->handle_->get_stream());
+    raft::update_device(reinterpret_cast<byte_t*>(new_device_counts->data_.data()),
+                        reinterpret_cast<byte_t*>(host_counts->data_.get()),
+                        host_counts->num_bytes_,
+                        p_handle->handle_->get_stream());
+
+    *result = reinterpret_cast<cugraph_sample_result_t*>(
+      new cugraph::c_api::cugraph_sample_result_t{
+	new_device_srcs,
+	new_device_dsts,
+	nullptr,
+	new_device_weights,
+	nullptr,
+	new_device_counts
+      });
+
+  } catch (std::exception const& ex) {
+    *error = reinterpret_cast<cugraph_error_t*>(new cugraph::c_api::cugraph_error_t{ex.what()});
+    return CUGRAPH_UNKNOWN_ERROR;
+  }
+  return CUGRAPH_SUCCESS;
+}
+
 extern "C" void cugraph_sample_result_free(cugraph_sample_result_t* result)
 {
   auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_sample_result_t*>(result);
