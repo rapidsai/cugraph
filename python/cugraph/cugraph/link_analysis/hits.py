@@ -102,7 +102,7 @@ def hits(
             initial_hubs_guess_vertices=init_hubs_guess_vertices,
             initial_hubs_guess_values=init_hubs_guess_values,
             normalized=normalized,
-            do_expensive_check=False
+            do_expensive_check=do_expensive_check
         )
     results = cudf.DataFrame()
     results["vertex"] = cudf.Series(vertices)

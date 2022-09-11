@@ -46,6 +46,7 @@ def _call_plc_hits(sID,
         do_expensive_check=do_expensive_check
     )
 
+
 def convert_to_cudf(cp_arrays):
     """
     create a cudf DataFrame from cupy arrays

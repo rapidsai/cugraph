@@ -18,7 +18,6 @@ from cugraph.utilities import (ensure_cugraph_obj_for_nx,
                                df_score_to_dictionary,
                                )
 import cudf
-import cupy
 
 
 def eigenvector_centrality(

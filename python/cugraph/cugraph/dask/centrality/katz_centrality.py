@@ -20,7 +20,6 @@ from pylibcugraph import (ResourceHandle,
 import cugraph.dask.comms.comms as Comms
 import dask_cudf
 import cudf
-import cupy
 
 
 def _call_plc_katz_centrality(sID,
