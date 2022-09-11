@@ -11,10 +11,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import gc
+
 import pytest
 import cupy as cp
 import numpy as np
 import cudf
+
 from pylibcugraph import (SGGraph,
                           MGGraph,
                           ResourceHandle,
@@ -177,6 +180,7 @@ def test_sample_result():
 
     gc.collect()
 
+    resource_handle = ResourceHandle()
     # Assume GPU 0 will be used and the test has exclusive access and nothing
     # else can use its memory while the test is running.
     device = cp.cuda.Device(0)
@@ -186,9 +190,10 @@ def test_sample_result():
     # intended for testing only - SampleResult objects are normally only created
     # by running a sampling algo.
     sampling_result = create_sampling_result(
-        sources=list(range(1e8)),
-        destinations=list(range(1, 1e8+1)),
-        indices=cp.list(range(1e8)),
+        resource_handle,
+        sources=np.arange(1e8, dtype="int32"),
+        destinations=np.arange(1, 1e8+1, dtype="int32"),
+        indices=np.arange(1e8, dtype="int32"),
     )
 
     assert free_memory_before > device.mem_info[0]
