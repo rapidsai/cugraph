@@ -193,9 +193,9 @@ def test_sample_result():
 
     assert free_memory_before > device.mem_info[0]
 
-    sources = sampling_result.sources
-    destinations = sampling_result.destinations
-    indices = sampling_result.indices
+    sources = sampling_result.get_sources()
+    destinations = sampling_result.get_destinations()
+    indices = sampling_result.get_indices()
 
     assert isinstance(sources, cp.ndarray)
     assert isinstance(destinations, cp.ndarray)

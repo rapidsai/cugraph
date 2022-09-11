@@ -20,11 +20,11 @@ import numpy
 import cupy
 
 from pylibcugraph._cugraph_c.array cimport (
-    cugraph_type_erased_device_array_pointer,
     cugraph_type_erased_device_array_size,
     cugraph_type_erased_device_array_view_size,
     cugraph_type_erased_device_array_type,
     cugraph_type_erased_device_array_view_type,
+    cugraph_type_erased_device_array_view_pointer,
     cugraph_type_erased_device_array_view_create,
     cugraph_type_erased_device_array_view_copy,
     cugraph_type_erased_device_array_view_free,
@@ -149,29 +149,29 @@ cdef get_numpy_edge_ids_type_from_c_weight_type(data_type_id_t c_weight_type):
         return numpy.int64
 
 
-cdef transfer_to_cupy_array(
-    cugraph_resource_handle_t* c_resource_handle_ptr,
-    cugraph_type_erased_device_array_t* device_array_ptr):
-    """
-    Transfers ownership of device_array_ptr to a new DeviceArrayPyBuffer object,
-    which will then be responsible for deleting it.
-    """
-    cdef c_type = cugraph_type_erased_device_array_type(device_array_ptr)
-    array_size = cugraph_type_erased_device_array_size(device_array_ptr)
-    cdef uintptr_t ptr_value = <uintptr_t> cugraph_type_erased_device_array_pointer(device_array_ptr)
-
-    cpmem = cupy.cuda.UnownedMemory(ptr_value, array_size, None)
-    cpmem_ptr = cupy.cuda.MemoryPointer(cpmem, 0)
-    cupy_array = cupy.ndarray(
-        array_size,
-        dtype=get_numpy_type_from_c_type(c_type),
-        memptr=cpmem_ptr)
-
-    #cupy_array = cupy.empty(array_size,
-    #                        dtype=get_numpy_type_from_c_type(c_type))
-    #cupy_array.__cuda_array_interface__["data"][0] = ptr_value
-
-    return cupy_array
+#cdef transfer_to_cupy_array(
+#    cugraph_resource_handle_t* c_resource_handle_ptr,
+#    cugraph_type_erased_device_array_t* device_array_ptr):
+#    """
+#    Transfers ownership of device_array_ptr to a new DeviceArrayPyBuffer object,
+#    which will then be responsible for deleting it.
+#    """
+#    cdef c_type = cugraph_type_erased_device_array_type(device_array_ptr)
+#    array_size = cugraph_type_erased_device_array_size(device_array_ptr)
+#    cdef uintptr_t ptr_value = <uintptr_t> cugraph_type_erased_device_array_pointer(device_array_ptr)
+#
+#    cpmem = cupy.cuda.UnownedMemory(ptr_value, array_size, None)
+#    cpmem_ptr = cupy.cuda.MemoryPointer(cpmem, 0)
+#    cupy_array = cupy.ndarray(
+#        array_size,
+#        dtype=get_numpy_type_from_c_type(c_type),
+#        memptr=cpmem_ptr)
+#
+#    #cupy_array = cupy.empty(array_size,
+#    #                        dtype=get_numpy_type_from_c_type(c_type))
+#    #cupy_array.__cuda_array_interface__["data"][0] = ptr_value
+#
+#    return cupy_array
 
 
 cdef copy_to_cupy_array(
@@ -259,3 +259,32 @@ cdef cugraph_type_erased_device_array_view_t* \
                 get_c_type_from_numpy_type(python_obj.dtype))
 
         return view_ptr
+
+cdef create_cupy_array_view_for_device_ptr(
+    cugraph_type_erased_device_array_view_t* device_array_view_ptr,
+    owning_py_object):
+
+    cdef c_type = cugraph_type_erased_device_array_view_type(
+        device_array_view_ptr)
+    array_size = cugraph_type_erased_device_array_view_size(
+        device_array_view_ptr)
+
+    cdef uintptr_t ptr_value = \
+        <uintptr_t> cugraph_type_erased_device_array_view_pointer(device_array_view_ptr)
+
+    # cupy.cuda.UnownedMemory takes a reference to an owning python object which
+    # is used to increment the refcount on the owning python object.  This
+    # prevents the owning python object from being garbage collected and having
+    # the memory freed when there are instances of the cupy_array still in use
+    # that need the memory.  When the cupy_array instance returned here is
+    # deleted, it will decrement the refcount on the owning python object, and
+    # when the self refcount reaches zero the owning python object will be
+    # garbage collected and the memory freed.
+    cpmem = cupy.cuda.UnownedMemory(ptr_value, array_size, owning_py_object)
+    cpmem_ptr = cupy.cuda.MemoryPointer(cpmem, 0)
+    cupy_array = cupy.ndarray(
+        array_size,
+        dtype=get_numpy_type_from_c_type(c_type),
+        memptr=cpmem_ptr)
+
+    return cupy_array

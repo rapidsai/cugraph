@@ -44,9 +44,9 @@ cdef get_c_weight_type_from_numpy_edge_ids_type(numpy_type)
 
 cdef get_numpy_edge_ids_type_from_c_weight_type(data_type_id_t c_type)
 
-cdef transfer_to_cupy_array(
-   cugraph_resource_handle_t* c_resource_handle_ptr,
-   cugraph_type_erased_device_array_t* device_array_ptr)
+#cdef transfer_to_cupy_array(
+#   cugraph_resource_handle_t* c_resource_handle_ptr,
+#   cugraph_type_erased_device_array_t* device_array_ptr)
 
 cdef copy_to_cupy_array(
    cugraph_resource_handle_t* c_resource_handle_ptr,
@@ -58,3 +58,7 @@ cdef copy_to_cupy_array_ids(
 
 cdef cugraph_type_erased_device_array_view_t* \
     create_cugraph_type_erased_device_array_view_from_py_obj(python_obj)
+
+cdef create_cupy_array_view_for_device_ptr(
+    cugraph_type_erased_device_array_view_t* device_array_view_ptr,
+    owning_py_object)

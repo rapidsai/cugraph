@@ -14,10 +14,11 @@
 # Have cython use python 3 syntax
 # cython: language_level = 3
 
-from pylibcugraph._cugraph_c.resource_handle cimport (
-    cugraph_resource_handle_t,
+from pylibcugraph._cugraph_c.algorithms cimport (
+    cugraph_sample_result_t,
 )
 
 
 cdef class SamplingResult:
-    cdef cugraph_resource_handle_t* c_resource_handle_ptr
+    cdef cugraph_sample_result_t* c_sample_result_ptr
+    cdef set_ptr(self, cugraph_sample_result_t* sample_result_ptr)

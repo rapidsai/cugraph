@@ -25,7 +25,7 @@ from pylibcugraph._cugraph_c.error cimport (
 from pylibcugraph._cugraph_c.resource_handle cimport (
     cugraph_resource_handle_t,
 )
-from pylibcugraph.internal_types cimport SamplingResult
+from pylibcugraph.internal_types.sampling_result cimport SamplingResult
 from pylibcugraph._cugraph_c.algorithms cimport (
     cugraph_sample_result_t,
     cugraph_sample_result_create,
@@ -75,22 +75,22 @@ def create_sampling_result(ResourceHandle resource_handle,
     cdef uintptr_t ai_cnts_ptr = \
         unused.__array_interface__["data"][0]
 
-    cdef cugraph_type_erased_host_array_view_t* c_srcs_ptr = \
+    cdef cugraph_type_erased_host_array_view_t* c_srcs_view_ptr = \
         cugraph_type_erased_host_array_view_create(
             <void*>ai_srcs_ptr,
             len(sources),
             get_c_type_from_numpy_type(sources.dtype))
-    cdef cugraph_type_erased_host_array_view_t* c_dsts_ptr = \
+    cdef cugraph_type_erased_host_array_view_t* c_dsts_view_ptr = \
         cugraph_type_erased_host_array_view_create(
             <void*>ai_dsts_ptr,
             len(destinations),
             get_c_type_from_numpy_type(sources.dtype))
-    cdef cugraph_type_erased_host_array_view_t* c_inds_ptr = \
+    cdef cugraph_type_erased_host_array_view_t* c_inds_view_ptr = \
         cugraph_type_erased_host_array_view_create(
             <void*>ai_inds_ptr,
             len(indices),
             get_c_type_from_numpy_type(sources.dtype))
-    cdef cugraph_type_erased_host_array_view_t* c_cnts_ptr = \
+    cdef cugraph_type_erased_host_array_view_t* c_cnts_view_ptr = \
         cugraph_type_erased_host_array_view_create(
             <void*>ai_cnts_ptr,
             len(unused),
@@ -98,15 +98,20 @@ def create_sampling_result(ResourceHandle resource_handle,
 
     error_code = cugraph_sample_result_create(
         c_resource_handle_ptr,
-        c_srcs_ptr,
-        c_dsts_ptr,
-        c_inds_ptr,
-        c_cnts_ptr,
+        c_srcs_view_ptr,
+        c_dsts_view_ptr,
+        c_inds_view_ptr,
+        c_cnts_view_ptr,
         &result_ptr,
         &error_ptr)
     assert_success(error_code, error_ptr, "create_sampling_result")
 
-    cugraph_type_erased_host_array_view_free(c_srcs_ptr)
-    cugraph_type_erased_host_array_view_free(c_dsts_ptr)
-    cugraph_type_erased_host_array_view_free(c_inds_ptr)
-    cugraph_type_erased_host_array_view_free(c_cnts_ptr)
+    result = SamplingResult()
+    result.set_ptr(result_ptr)
+
+    cugraph_type_erased_host_array_view_free(c_srcs_view_ptr)
+    cugraph_type_erased_host_array_view_free(c_dsts_view_ptr)
+    cugraph_type_erased_host_array_view_free(c_inds_view_ptr)
+    cugraph_type_erased_host_array_view_free(c_cnts_view_ptr)
+
+    return result
