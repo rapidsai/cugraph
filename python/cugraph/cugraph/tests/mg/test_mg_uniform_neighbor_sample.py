@@ -227,7 +227,8 @@ def test_mg_uniform_neighbor_sample_unweighted(dask_client):
     df = dask_cudf.from_cudf(df, npartitions=2)
 
     G = cugraph.Graph()
-    G.from_dask_cudf_edgelist(df, source='src', destination='dst')
+    G.from_dask_cudf_edgelist(
+        df, source='src', destination='dst', legacy_renum_only=True)
 
     start_list = cudf.Series([0], dtype="int32")
     fanout_vals = [-1]
