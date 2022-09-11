@@ -20,9 +20,7 @@ import numpy
 import cupy
 
 from pylibcugraph._cugraph_c.array cimport (
-    cugraph_type_erased_device_array_size,
     cugraph_type_erased_device_array_view_size,
-    cugraph_type_erased_device_array_type,
     cugraph_type_erased_device_array_view_type,
     cugraph_type_erased_device_array_view_pointer,
     cugraph_type_erased_device_array_view_create,
@@ -147,31 +145,6 @@ cdef get_numpy_edge_ids_type_from_c_weight_type(data_type_id_t c_weight_type):
         return numpy.int32
     else:
         return numpy.int64
-
-
-#cdef transfer_to_cupy_array(
-#    cugraph_resource_handle_t* c_resource_handle_ptr,
-#    cugraph_type_erased_device_array_t* device_array_ptr):
-#    """
-#    Transfers ownership of device_array_ptr to a new DeviceArrayPyBuffer object,
-#    which will then be responsible for deleting it.
-#    """
-#    cdef c_type = cugraph_type_erased_device_array_type(device_array_ptr)
-#    array_size = cugraph_type_erased_device_array_size(device_array_ptr)
-#    cdef uintptr_t ptr_value = <uintptr_t> cugraph_type_erased_device_array_pointer(device_array_ptr)
-#
-#    cpmem = cupy.cuda.UnownedMemory(ptr_value, array_size, None)
-#    cpmem_ptr = cupy.cuda.MemoryPointer(cpmem, 0)
-#    cupy_array = cupy.ndarray(
-#        array_size,
-#        dtype=get_numpy_type_from_c_type(c_type),
-#        memptr=cpmem_ptr)
-#
-#    #cupy_array = cupy.empty(array_size,
-#    #                        dtype=get_numpy_type_from_c_type(c_type))
-#    #cupy_array.__cuda_array_interface__["data"][0] = ptr_value
-#
-#    return cupy_array
 
 
 cdef copy_to_cupy_array(

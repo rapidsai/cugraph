@@ -47,16 +47,20 @@ from pylibcugraph._cugraph_c.array cimport (
 
 
 def create_sampling_result(ResourceHandle resource_handle,
-    			   sources,
-                           destinations,
-                           indices):
+		           host_sources,
+                           host_destinations,
+                           host_indices):
     """
-    Create a SamplingResult object from a cugraph_sample_result_t* typically
-    returned by cugraph C sampling algos.
+    Create a SamplingResult object from individual host arrays.
+
+    This function is currently testing-only because the SamplingResult type is
+    considered internal (ie. pylibcugraph users will not be exposed to it) and
+    because SamplingResult instances will be created from a
+    cugraph_sample_result_t pointer and not host arrays.
     """
-    assert_AI_type(sources, "sources")
-    assert_AI_type(destinations, "destinations")
-    assert_AI_type(indices, "indices")
+    assert_AI_type(host_sources, "host_sources")
+    assert_AI_type(host_destinations, "host_destinations")
+    assert_AI_type(host_indices, "host_indices")
 
     cdef cugraph_resource_handle_t* c_resource_handle_ptr = \
         resource_handle.c_resource_handle_ptr
@@ -66,35 +70,39 @@ def create_sampling_result(ResourceHandle resource_handle,
     cdef cugraph_error_t* error_ptr
 
     cdef uintptr_t ai_srcs_ptr = \
-        sources.__array_interface__["data"][0]
+        host_sources.__array_interface__["data"][0]
     cdef uintptr_t ai_dsts_ptr = \
-        destinations.__array_interface__["data"][0]
+        host_destinations.__array_interface__["data"][0]
     cdef uintptr_t ai_inds_ptr = \
-        indices.__array_interface__["data"][0]
+        host_indices.__array_interface__["data"][0]
     unused = numpy.ndarray(0, dtype="int32")
     cdef uintptr_t ai_cnts_ptr = \
         unused.__array_interface__["data"][0]
 
-    cdef cugraph_type_erased_host_array_view_t* c_srcs_view_ptr = \
+    cdef cugraph_type_erased_host_array_view_t* c_srcs_view_ptr = (
         cugraph_type_erased_host_array_view_create(
             <void*>ai_srcs_ptr,
-            len(sources),
-            get_c_type_from_numpy_type(sources.dtype))
-    cdef cugraph_type_erased_host_array_view_t* c_dsts_view_ptr = \
+            len(host_sources),
+            get_c_type_from_numpy_type(host_sources.dtype))
+    )
+    cdef cugraph_type_erased_host_array_view_t* c_dsts_view_ptr = (
         cugraph_type_erased_host_array_view_create(
             <void*>ai_dsts_ptr,
-            len(destinations),
-            get_c_type_from_numpy_type(sources.dtype))
-    cdef cugraph_type_erased_host_array_view_t* c_inds_view_ptr = \
+            len(host_destinations),
+            get_c_type_from_numpy_type(host_destinations.dtype))
+    )
+    cdef cugraph_type_erased_host_array_view_t* c_inds_view_ptr = (
         cugraph_type_erased_host_array_view_create(
             <void*>ai_inds_ptr,
-            len(indices),
-            get_c_type_from_numpy_type(sources.dtype))
-    cdef cugraph_type_erased_host_array_view_t* c_cnts_view_ptr = \
+            len(host_indices),
+            get_c_type_from_numpy_type(host_indices.dtype))
+    )
+    cdef cugraph_type_erased_host_array_view_t* c_cnts_view_ptr = (
         cugraph_type_erased_host_array_view_create(
             <void*>ai_cnts_ptr,
             len(unused),
             get_c_type_from_numpy_type(unused.dtype))
+    )
 
     error_code = cugraph_sample_result_create(
         c_resource_handle_ptr,
@@ -109,6 +117,7 @@ def create_sampling_result(ResourceHandle resource_handle,
     result = SamplingResult()
     result.set_ptr(result_ptr)
 
+    # Free the non-owning view containers which should not free the data.
     cugraph_type_erased_host_array_view_free(c_srcs_view_ptr)
     cugraph_type_erased_host_array_view_free(c_dsts_view_ptr)
     cugraph_type_erased_host_array_view_free(c_inds_view_ptr)

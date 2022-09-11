@@ -26,7 +26,6 @@ from pylibcugraph._cugraph_c.error cimport (
     cugraph_error_t,
 )
 from pylibcugraph._cugraph_c.array cimport (
-    cugraph_type_erased_device_array_t,
     cugraph_type_erased_device_array_view_t,
     cugraph_type_erased_device_array_view_create,
     cugraph_type_erased_device_array_view_free,
@@ -43,9 +42,6 @@ from pylibcugraph._cugraph_c.algorithms cimport (
     cugraph_sample_result_get_sources,
     cugraph_sample_result_get_destinations,
     cugraph_sample_result_get_index,
-    cugraph_sample_result_release_sources,
-    cugraph_sample_result_release_destinations,
-    cugraph_sample_result_release_index,
     cugraph_sample_result_free,
 )
 from pylibcugraph.resource_handle cimport (
@@ -58,7 +54,6 @@ from pylibcugraph.graphs cimport (
 from pylibcugraph.utils cimport (
     assert_success,
     copy_to_cupy_array,
-    #transfer_to_cupy_array,
     assert_CAI_type,
     assert_AI_type,
     get_c_type_from_numpy_type,
@@ -146,27 +141,6 @@ def uniform_neighbor_sample(ResourceHandle resource_handle,
         &error_ptr)
     assert_success(error_code, error_ptr, "cugraph_uniform_neighbor_sample")
 
-    #### NEW
-    """
-    cdef cugraph_type_erased_device_array_t* src_ptr = \
-        cugraph_sample_result_release_sources(result_ptr)
-    cdef cugraph_type_erased_device_array_t* destinations_ptr = \
-        cugraph_sample_result_release_destinations(result_ptr)
-    cdef cugraph_type_erased_device_array_t* index_ptr = \
-        cugraph_sample_result_release_index(result_ptr)
-
-    cupy_sources = transfer_to_cupy_array(c_resource_handle_ptr, src_ptr)
-    cupy_destinations = transfer_to_cupy_array(c_resource_handle_ptr,
-                                               destinations_ptr)
-    cupy_index = transfer_to_cupy_array(c_resource_handle_ptr, index_ptr)
-
-    cugraph_sample_result_free(result_ptr)
-    cugraph_type_erased_device_array_view_free(start_ptr)
-    cugraph_type_erased_host_array_view_free(fan_out_ptr)
-
-    return (cupy_sources, cupy_destinations, cupy_index)
-    """
-    #### ORIGINAL
     cdef cugraph_type_erased_device_array_view_t* src_ptr = \
         cugraph_sample_result_get_sources(result_ptr)
     cdef cugraph_type_erased_device_array_view_t* dst_ptr = \

@@ -106,14 +106,6 @@ extern "C" void cugraph_type_erased_device_array_view_free(
   delete internal_pointer;
 }
 
-extern "C" size_t cugraph_type_erased_device_array_size(
-  const cugraph_type_erased_device_array_t* p)
-{
-  auto internal_pointer =
-    reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_t const*>(p);
-  return internal_pointer->size_;
-}
-
 extern "C" size_t cugraph_type_erased_device_array_view_size(
   const cugraph_type_erased_device_array_view_t* p)
 {
@@ -122,28 +114,12 @@ extern "C" size_t cugraph_type_erased_device_array_view_size(
   return internal_pointer->size_;
 }
 
-extern "C" data_type_id_t cugraph_type_erased_device_array_type(
-  const cugraph_type_erased_device_array_t* p)
-{
-  auto internal_pointer =
-    reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_t const*>(p);
-  return internal_pointer->type_;
-}
-
 extern "C" data_type_id_t cugraph_type_erased_device_array_view_type(
   const cugraph_type_erased_device_array_view_t* p)
 {
   auto internal_pointer =
     reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(p);
   return internal_pointer->type_;
-}
-
-extern "C" const void* cugraph_type_erased_device_array_pointer(
-  const cugraph_type_erased_device_array_t* p)
-{
-  auto internal_pointer =
-    reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_t const*>(p);
-  return (internal_pointer->data_).data();
 }
 
 extern "C" const void* cugraph_type_erased_device_array_view_pointer(

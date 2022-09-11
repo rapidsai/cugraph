@@ -262,33 +262,6 @@ cugraph_type_erased_host_array_view_t* cugraph_sample_result_get_counts(
   const cugraph_sample_result_t* result);
 
 /**
- * @brief     Release (transfer ownership of) the source vertices from the sampling algorithm result
- *
- * @param [in]   result   The result from a sampling algorithm
- * @return type erased array pointing to the source vertices in device memory
- */
-cugraph_type_erased_device_array_t* cugraph_sample_result_release_sources(
-  cugraph_sample_result_t* result);
-
-/**
- * @brief     Release (transfer ownership of) the destination vertices from the sampling algorithm result
- *
- * @param [in]   result   The result from a sampling algorithm
- * @return type erased array pointing to the destination vertices in device memory
- */
-cugraph_type_erased_device_array_t* cugraph_sample_result_release_destinations(
-  cugraph_sample_result_t* result);
-
-/**
- * @brief     Release (transfer ownership of) the index from the sampling algorithm result
- *
- * @param [in]   result   The result from a sampling algorithm
- * @return type erased array pointing to the index
- */
-cugraph_type_erased_device_array_t* cugraph_sample_result_release_index(
-  cugraph_sample_result_t* result);
-
-/**
  * @brief     Free a sampling result
  *
  * @param [in]   result   The result from a sampling algorithm
@@ -296,15 +269,18 @@ cugraph_type_erased_device_array_t* cugraph_sample_result_release_index(
 void cugraph_sample_result_free(cugraph_sample_result_t* result);
 
 /**
- * @brief     Create a sampling result (only for internal use or testing)
+ * @brief     Create a sampling result (testing API)
  *
  * @param [in]   handle         Handle for accessing resources
  * @param [in]   srcs           Host array view to populate srcs
  * @param [in]   dsts           Host array view to populate dsts
  * @param [in]   weights        Host array view to populate weights
  * @param [in]   counts         Host array view to populate counts
- * @param[out]   result         Pointer to the location to store the cugraph_sample_result_t * @param[out]   error          Pointer to an error object storing details of any error.  Will
- *                              be populated if error code is not CUGRAPH_SUCCESS
+ * @param [out]  result         Pointer to the location to store the
+ *                              cugraph_sample_result_t*
+ * @param [out]  error          Pointer to an error object storing details of
+ *                              any error.  Will be populated if error code is
+ *                              not CUGRAPH_SUCCESS
  * @return error code
  */
 cugraph_error_code_t cugraph_sample_result_create(

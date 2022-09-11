@@ -191,9 +191,9 @@ def test_sample_result():
     # by running a sampling algo.
     sampling_result = create_sampling_result(
         resource_handle,
-        sources=np.arange(1e8, dtype="int32"),
-        destinations=np.arange(1, 1e8+1, dtype="int32"),
-        indices=np.arange(1e8, dtype="int32"),
+        host_sources=np.arange(1e8, dtype="int32"),
+        host_destinations=np.arange(1, 1e8+1, dtype="int32"),
+        host_indices=np.arange(1e8, dtype="int32"),
     )
 
     assert free_memory_before > device.mem_info[0]
@@ -213,14 +213,27 @@ def test_sample_result():
     gc.collect()
     assert free_memory_before > device.mem_info[0]
 
-    assert sources[999]
-    assert destinations[999]
-    assert indices[999]
+    # Check that the data is still valid
+    assert sources[999] == 999
+    assert destinations[999] == 1000
+    assert indices[999] == 999
+
+    # Add yet another reference to the original data, which should prevent it
+    # from being freed when the GC runs.
+    sources2 = sources
 
     # delete the variables which should take the ref count on sampling_result to
     # 0, which will cause it to be garbage collected.
     del sources
     del destinations
     del indices
+    gc.collect()
+
+    # sources2 should be keeping the data alive
+    assert sources2[999] == 999
+    assert free_memory_before > device.mem_info[0]
+
+    # All memory should be freed once the last reference is deleted
+    del sources2
     gc.collect()
     assert free_memory_before == device.mem_info[0]
