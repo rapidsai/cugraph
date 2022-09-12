@@ -201,7 +201,8 @@ def test_neighborhood_sampling_large_sg_graph(gpubenchmark):
     # found. This should be the only failing assertion, so commenting it out
     # will allow CI to make any other failures more noticeable. The PR will be
     # in Draft until this can be uncommented.
-    #assert free_memory_before == device.mem_info[0]
+    #
+    # assert free_memory_before == device.mem_info[0]
 
 
 def test_sample_result():
