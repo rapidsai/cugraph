@@ -14,6 +14,13 @@
 
 cmake_minimum_required(VERSION 3.20.1 FATAL_ERROR)
 
+if(POLICY CMP0094)
+  # Make FindPython{,2,3} modules use LOCATION for lookup strategy.
+  # https://cmake.org/cmake/help/latest/policy/CMP0094.html#policy:CMP0094
+  cmake_policy(SET CMP0094 NEW)
+  set(CMAKE_POLICY_DEFAULT_CMP0094 NEW)
+endif()
+
 set(pylibcugraph_version 22.10.00)
 
 include(../../fetch_rapids.cmake)
@@ -38,7 +45,7 @@ option(FIND_CUGRAPH_CPP "Search for existing CUGRAPH C++ installations before de
 
 if(FIND_CUGRAPH_CPP)
   message(STATUS "Trying to find the package")
-  find_package(cugraph ${cugraph_version} REQUIRED)
+  find_package(cugraph ${pylibcugraph_version} REQUIRED)
 else()
   set(cugraph_FOUND OFF)
 endif()
@@ -54,12 +61,22 @@ if(NOT cugraph_FOUND)
 
   # Since cugraph only enables CUDA optionally, we need to manually include the file that
   # rapids_cuda_init_architectures relies on `project` including.
-  
+
   include("${CMAKE_PROJECT_pylibcugraph-python_INCLUDE}")
 
-  add_subdirectory(../../cpp cugraph-cpp)
+  set(_old_libdir ${CMAKE_INSTALL_LIBDIR})
+  if(CUGRAPH_BUILD_WHEELS)
+    set(CMAKE_INSTALL_LIBDIR pylibcugraph)
+  endif()
 
-  install(TARGETS cugraph DESTINATION pylibcugraph/library)
+  add_subdirectory(../../cpp cugraph-cpp EXCLUDE_FROM_ALL)
+
+  if(CUGRAPH_BUILD_WHEELS)
+    set(CMAKE_INSTALL_LIBDIR ${_old_libdir})
+  else()
+    install(TARGETS cugraph DESTINATION pylibcugraph)
+  endif()
+
 endif()
 
 include(rapids-cython)

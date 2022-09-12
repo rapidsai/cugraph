@@ -80,7 +80,13 @@ setup(name='pylibcugraph'+os.getenv("PYTHON_PACKAGE_CUDA_SUFFIX", default=""),
       ],
       # Include the separately-compiled shared library
       author="NVIDIA Corporation",
-      setup_requires=['Cython>=0.29,<0.30'],
+      setup_requires=[
+        f"rmm{os.getenv('PYTHON_PACKAGE_CUDA_SUFFIX', default='')}",
+      ],
+      install_requires=[
+        f"cudf{os.getenv('PYTHON_PACKAGE_CUDA_SUFFIX', default='')}",
+        f"raft-dask{os.getenv('PYTHON_PACKAGE_CUDA_SUFFIX', default='')}",
+      ],
       packages=find_packages(include=['pylibcugraph', 'pylibcugraph.*']),
       package_data={
         key: ["*.pxd"] for key in find_packages(include=["pylibcugraph*"])

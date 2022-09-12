@@ -22,7 +22,11 @@ from setuputils import get_environment_option
 import versioneer
 
 
-INSTALL_REQUIRES = ['numba', 'cython']
+INSTALL_REQUIRES = [
+    "numba",
+    f"rmm{os.getenv('PYTHON_PACKAGE_CUDA_SUFFIX', default='')}"
+    f"pylibcugraph{os.getenv('PYTHON_PACKAGE_CUDA_SUFFIX', default='')}"
+]
 
 CUDA_HOME = get_environment_option('CUDA_HOME')
 
@@ -89,11 +93,18 @@ setup(name='cugraph'+os.getenv("PYTHON_PACKAGE_CUDA_SUFFIX", default=""),
       ],
       # Include the separately-compiled shared library
       author="NVIDIA Corporation",
-      setup_requires=['Cython>=0.29,<0.30'],
+      setup_requires=[
+        f"rmm{os.getenv('PYTHON_PACKAGE_CUDA_SUFFIX', default='')}",
+      ],
+      install_requires=[
+        "numba",
+        f"cudf{os.getenv('PYTHON_PACKAGE_CUDA_SUFFIX', default='')}",
+        f"raft-dask{os.getenv('PYTHON_PACKAGE_CUDA_SUFFIX', default='')}",
+        f"pylibcugraph{os.getenv('PYTHON_PACKAGE_CUDA_SUFFIX', default='')}"
+      ],
       packages=find_packages(include=['cugraph', 'cugraph.*']),
       package_data=PACKAGE_DATA,
       include_package_data=True,
-      install_requires=INSTALL_REQUIRES,
       license="Apache",
       cmdclass=cmdclass,
       zip_safe=False)
