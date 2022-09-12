@@ -35,29 +35,30 @@
 #include <tuple>
 #include <vector>
 
-TEST(Test_GraphMask, BasicGraphMaskTestInt64) {
+TEST(Test_GraphMask, BasicGraphMaskTestInt64)
+{
+  raft::handle_t handle;
 
-    raft::handle_t handle;
+  int number_of_vertices = 500;
+  int number_of_edges    = 1000;
 
-    int number_of_vertices = 500;
-    int number_of_edges = 1000;
+  cugraph::graph_mask_t<std::int64_t, std::int64_t> mask(
+    handle, number_of_vertices, number_of_edges);
 
-    cugraph::graph_mask_t<std::int64_t, std::int64_t> mask(handle, number_of_vertices, number_of_edges);
+  auto mask_view = mask.view();
 
-    auto mask_view = mask.view();
+  ASSERT_EQ(false, mask.has_vertex_mask());
+  ASSERT_EQ(false, mask.has_edge_mask());
+  ASSERT_EQ(false, mask_view.has_vertex_mask());
+  ASSERT_EQ(false, mask_view.has_edge_mask());
 
-    ASSERT_EQ(false, mask.has_vertex_mask());
-    ASSERT_EQ(false, mask.has_edge_mask());
-    ASSERT_EQ(false, mask_view.has_vertex_mask());
-    ASSERT_EQ(false, mask_view.has_edge_mask());
+  mask.initialize_vertex_mask();
+  mask.initialize_edge_mask();
 
-    mask.initialize_vertex_mask();
-    mask.initialize_edge_mask();
+  auto mask_view2 = mask.view();
 
-    auto mask_view2 = mask.view();
-
-    ASSERT_EQ(true, mask.has_vertex_mask());
-    ASSERT_EQ(true, mask.has_edge_mask());
-    ASSERT_EQ(true, mask_view2.has_vertex_mask());
-    ASSERT_EQ(true, mask_view2.has_edge_mask());
+  ASSERT_EQ(true, mask.has_vertex_mask());
+  ASSERT_EQ(true, mask.has_edge_mask());
+  ASSERT_EQ(true, mask_view2.has_vertex_mask());
+  ASSERT_EQ(true, mask_view2.has_edge_mask());
 }
