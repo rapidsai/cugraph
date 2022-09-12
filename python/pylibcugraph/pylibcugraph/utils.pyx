@@ -237,27 +237,40 @@ cdef create_cupy_array_view_for_device_ptr(
     cugraph_type_erased_device_array_view_t* device_array_view_ptr,
     owning_py_object):
 
+    if device_array_view_ptr == NULL:
+        raise ValueError("device_array_view_ptr cannot be NULL")
+
     cdef c_type = cugraph_type_erased_device_array_view_type(
         device_array_view_ptr)
     array_size = cugraph_type_erased_device_array_view_size(
         device_array_view_ptr)
+    dtype = get_numpy_type_from_c_type(c_type)
 
     cdef uintptr_t ptr_value = \
         <uintptr_t> cugraph_type_erased_device_array_view_pointer(device_array_view_ptr)
 
-    # cupy.cuda.UnownedMemory takes a reference to an owning python object which
-    # is used to increment the refcount on the owning python object.  This
-    # prevents the owning python object from being garbage collected and having
-    # the memory freed when there are instances of the cupy_array still in use
-    # that need the memory.  When the cupy_array instance returned here is
-    # deleted, it will decrement the refcount on the owning python object, and
-    # when the self refcount reaches zero the owning python object will be
-    # garbage collected and the memory freed.
-    cpmem = cupy.cuda.UnownedMemory(ptr_value, array_size, owning_py_object)
-    cpmem_ptr = cupy.cuda.MemoryPointer(cpmem, 0)
-    cupy_array = cupy.ndarray(
-        array_size,
-        dtype=get_numpy_type_from_c_type(c_type),
-        memptr=cpmem_ptr)
+    if ptr_value == <uintptr_t> NULL:
+        # For the case of a NULL ptr, just create a new empty ndarray of the
+        # appropriate type. This will not be associated with the
+        # owning_py_object, but will still be garbage collected correctly.
+        cupy_array = cupy.ndarray(0, dtype=dtype)
+
+    else:
+        # cupy.cuda.UnownedMemory takes a reference to an owning python object
+        # which is used to increment the refcount on the owning python object.
+        # This prevents the owning python object from being garbage collected
+        # and having the memory freed when there are instances of the
+        # cupy_array still in use that need the memory.  When the cupy_array
+        # instance returned here is deleted, it will decrement the refcount on
+        # the owning python object, and when the self refcount reaches zero the
+        # owning python object will be garbage collected and the memory freed.
+        cpmem = cupy.cuda.UnownedMemory(ptr_value,
+                                        array_size,
+                                        owning_py_object)
+        cpmem_ptr = cupy.cuda.MemoryPointer(cpmem, 0)
+        cupy_array = cupy.ndarray(
+            array_size,
+            dtype=dtype,
+            memptr=cpmem_ptr)
 
     return cupy_array
