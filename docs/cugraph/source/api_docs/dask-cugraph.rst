@@ -2,7 +2,7 @@
 Multi-GPU with cuGraph
 ~~~~~~~~~~~~~~~~~~~~~~
 
-cuGraph supports multi-GPU leveraging `Dask <https://dask.org>`_. Dask is a flexible library for parallel computing in Python which makes scaling out your workflow smooth and simple. cuGraph also uses other Dask-based RAPIDS projects such as `dask-cuda <https://github.com/rapidsai/dask-cuda>`_. The maximum graph size is currently limited to 2 Billion vertices (to be waived in the next versions).
+cuGraph supports multi-GPU leveraging `Dask <https://dask.org>`_. Dask is a flexible library for parallel computing in Python which makes scaling out your workflow smooth and simple. cuGraph also uses other Dask-based RAPIDS projects such as `dask-cuda <https://github.com/rapidsai/dask-cuda>`_.
 
 Distributed graph analytics
 ===========================
