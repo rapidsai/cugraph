@@ -117,7 +117,7 @@ def create_sampling_result(ResourceHandle resource_handle,
     result = SamplingResult()
     result.set_ptr(result_ptr)
 
-    # Free the non-owning view containers which should not free the data.
+    # Free the non-owning view containers. This should not free result data.
     cugraph_type_erased_host_array_view_free(c_srcs_view_ptr)
     cugraph_type_erased_host_array_view_free(c_dsts_view_ptr)
     cugraph_type_erased_host_array_view_free(c_inds_view_ptr)

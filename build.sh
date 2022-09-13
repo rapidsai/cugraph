@@ -38,7 +38,7 @@ HELP="$0 [<target> ...] [<flag> ...]
    -n                         - do not install after a successful build
    --allgpuarch               - build for all supported GPU architectures
    --skip_cpp_tests           - do not build the SG test binaries as part of the libcugraph and libcugraph_etl targets
-   --cmake_default_generator  - use the cmake default generator instead of ninja
+   --cmake_default_generator  - use the default cmake generator instead of ninja
    -h                         - print this text
 
  default action (no args) is to build and install 'libcugraph' then 'libcugraph_etl' then 'pylibcugraph' then 'cugraph' then 'docs' targets

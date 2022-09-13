@@ -143,7 +143,7 @@ def uniform_neighbor_sample(ResourceHandle resource_handle,
         &error_ptr)
     assert_success(error_code, error_ptr, "cugraph_uniform_neighbor_sample")
 
-    # Transfer ownership of the result data to a SamplingResult instance.
+    # Have the SamplingResult instance assume ownership of the result data.
     result = SamplingResult()
     result.set_ptr(result_ptr)
 

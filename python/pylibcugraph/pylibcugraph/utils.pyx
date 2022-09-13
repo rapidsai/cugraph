@@ -262,7 +262,7 @@ cdef create_cupy_array_view_for_device_ptr(
         # and having the memory freed when there are instances of the
         # cupy_array still in use that need the memory.  When the cupy_array
         # instance returned here is deleted, it will decrement the refcount on
-        # the owning python object, and when the self refcount reaches zero the
+        # the owning python object, and when that refcount reaches zero the
         # owning python object will be garbage collected and the memory freed.
         cpmem = cupy.cuda.UnownedMemory(ptr_value,
                                         array_size,
