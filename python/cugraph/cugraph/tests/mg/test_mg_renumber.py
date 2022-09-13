@@ -15,8 +15,6 @@
 
 import gc
 import pytest
-import tempfile
-from pathlib import Path
 
 import pandas
 import numpy as np
@@ -303,21 +301,19 @@ def test_pagerank_string_vertex_ids(dask_client):
     """
     # Use pandas and to_csv() to create a CSV file that can be read in by both
     # dask_cudf and cudf.
-    df = pandas.DataFrame({"src": ['a1', 'a1', 'a2', 'a3'],
-                           "dst": ['a2', 'a3', 'a4', 'a4'],
-                           }
-                          )
-    tempdir_object = tempfile.TemporaryDirectory()
-    input_file = Path(tempdir_object.name) / "graph_input.csv"
-    df.to_csv(input_file, index=False, header=False, sep="\t")
+    df = cudf.DataFrame({"src": ['a1', 'a1', 'a2', 'a3'],
+                         "dst": ['a2', 'a3', 'a4', 'a4'],
+                         }
+                        )
+    # SG
+    G = cugraph.Graph(directed=True)
+    G.from_cudf_edgelist(df, source="src", destination="dst")
+
+    sg_results = cugraph.pagerank(G)
+    sg_results = sg_results.sort_values("pagerank").reset_index(drop=True)
 
     # MG
-    chunksize = dcg.get_chunksize(input_file)
-    ddf = dask_cudf.read_csv(
-        input_file, chunksize=chunksize, delimiter="\t",
-        names=["src", "dst"],
-    )
-
+    ddf = dask_cudf.from_cudf(df, npartitions=2)
     G_dask = cugraph.Graph(directed=True)
     G_dask.from_dask_cudf_edgelist(ddf, source="src", destination="dst")
 
@@ -329,17 +325,5 @@ def test_pagerank_string_vertex_ids(dask_client):
                   reset_index(drop=True)
                   )
     mg_results["pagerank"] = mg_results["pagerank"].astype("float32")
-
-    # SG
-    df = cudf.read_csv(
-        input_file, chunksize=chunksize, delimiter="\t",
-        names=["src", "dst"],
-    )
-
-    G = cugraph.Graph(directed=True)
-    G.from_cudf_edgelist(df, source="src", destination="dst")
-
-    sg_results = cugraph.pagerank(G)
-    sg_results = sg_results.sort_values("pagerank").reset_index(drop=True)
 
     assert_frame_equal(sg_results, mg_results)
