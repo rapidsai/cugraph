@@ -447,24 +447,25 @@ def genFixtureParamsProduct(*args):
     paramLists = []
     ids = []
     paramType = pytest.param().__class__
-    for (paramList, id) in args:
+    for (paramList, paramId) in args:
+        paramListCopy = paramList[:]  # do not modify the incoming lists!
         for i in range(len(paramList)):
             if not isinstance(paramList[i], paramType):
-                paramList[i] = pytest.param(paramList[i])
-        paramLists.append(paramList)
-        ids.append(id)
+                paramListCopy[i] = pytest.param(paramList[i])
+        paramLists.append(paramListCopy)
+        ids.append(paramId)
 
     retList = []
     for paramCombo in product(*paramLists):
         values = [p.values[0] for p in paramCombo]
         marks = [m for p in paramCombo for m in p.marks]
         id_strings = []
-        for (p, id) in zip(paramCombo, ids):
-            # Assume id is either a string or a callable
-            if isinstance(id, str):
-                id_strings.append("%s=%s" % (id, p.values[0]))
+        for (p, paramId) in zip(paramCombo, ids):
+            # Assume paramId is either a string or a callable
+            if isinstance(paramId, str):
+                id_strings.append("%s=%s" % (paramId, p.values[0]))
             else:
-                id_strings.append(id(p.values[0]))
+                id_strings.append(paramId(p.values[0]))
         comboid = ",".join(id_strings)
         retList.append(pytest.param(values, marks=marks, id=comboid))
     return retList

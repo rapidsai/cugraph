@@ -15,13 +15,15 @@
 
 import gc
 import pytest
+import tempfile
+from pathlib import Path
 
 import pandas
 import numpy as np
 import dask_cudf
 import dask
 import cudf
-from cudf.testing import assert_series_equal
+from cudf.testing import assert_frame_equal, assert_series_equal
 
 import cugraph.dask as dcg
 import cugraph
@@ -287,3 +289,57 @@ def test_mg_renumber_common_col_names(graph_file, dask_client):
     assert renumber_map.renumbered_dst_col_name != "dst"
     assert renumber_map.renumbered_src_col_name in renumbered_df.columns
     assert renumber_map.renumbered_dst_col_name in renumbered_df.columns
+
+
+@pytest.mark.skipif(
+    is_single_gpu(), reason="skipping MG testing on Single GPU system"
+)
+def test_pagerank_string_vertex_ids(dask_client):
+    """
+    Ensures string vertex IDs can be used.
+
+    Note: the dask_client fixture sets up and tears down a LocalCUDACluster.
+    See ../conftest.py
+    """
+    # Use pandas and to_csv() to create a CSV file that can be read in by both
+    # dask_cudf and cudf.
+    df = pandas.DataFrame({"src": ['a1', 'a1', 'a2', 'a3'],
+                           "dst": ['a2', 'a3', 'a4', 'a4'],
+                           }
+                          )
+    tempdir_object = tempfile.TemporaryDirectory()
+    input_file = Path(tempdir_object.name) / "graph_input.csv"
+    df.to_csv(input_file, index=False, header=False, sep="\t")
+
+    # MG
+    chunksize = dcg.get_chunksize(input_file)
+    ddf = dask_cudf.read_csv(
+        input_file, chunksize=chunksize, delimiter="\t",
+        names=["src", "dst"],
+    )
+
+    G_dask = cugraph.Graph(directed=True)
+    G_dask.from_dask_cudf_edgelist(ddf, source="src", destination="dst")
+
+    mg_results = dcg.pagerank(G_dask)
+    # Organize results for easy comparison, this does not change the values. MG
+    # Pagerank defaults to float64, so convert to float32 when comparing to SG
+    mg_results = (mg_results.compute().
+                  sort_values("pagerank").
+                  reset_index(drop=True)
+                  )
+    mg_results["pagerank"] = mg_results["pagerank"].astype("float32")
+
+    # SG
+    df = cudf.read_csv(
+        input_file, chunksize=chunksize, delimiter="\t",
+        names=["src", "dst"],
+    )
+
+    G = cugraph.Graph(directed=True)
+    G.from_cudf_edgelist(df, source="src", destination="dst")
+
+    sg_results = cugraph.pagerank(G)
+    sg_results = sg_results.sort_values("pagerank").reset_index(drop=True)
+
+    assert_frame_equal(sg_results, mg_results)
