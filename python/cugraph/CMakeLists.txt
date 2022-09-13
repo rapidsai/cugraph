@@ -21,9 +21,14 @@ if(POLICY CMP0094)
   set(CMAKE_POLICY_DEFAULT_CMP0094 NEW)
 endif()
 
-set(cugraph_version 22.10.00)
-
 include(../../fetch_rapids.cmake)
+
+include(rapids-cuda)
+# TODO: This will not be necessary once we upgrade to CMake 3.22, which will pull in the required
+# languages for the C++ project even if this project does not require those languges.
+rapids_cuda_init_architectures(cugraph-python)
+
+set(cugraph_version 22.10.00)
 
 project(
   cugraph-python
@@ -32,7 +37,7 @@ project(
             # language to be enabled here. The test project that is built in scikit-build to verify
             # various linking options for the python library is hardcoded to build with C, so until
             # that is fixed we need to keep C.
-            C CXX
+            C CXX CUDA
 )
 
 ################################################################################
@@ -40,39 +45,30 @@ project(
 option(FIND_CUGRAPH_CPP "Search for existing CUGRAPH C++ installations before defaulting to local files"
        OFF
 )
+option(CUGRAPH_BUILD_WHEELS "Whether we're building a wheel for pypi" OFF)
 
 # If the user requested it,  we attempt to find CUGRAPH.
 if(FIND_CUGRAPH_CPP)
   find_package(cugraph ${cugraph_version} REQUIRED)
 else()
-  set(cugraph_FOUND OFF)
-endif()
+  set(BUILD_TESTS OFF)
+  set(BUILD_CUGRAPH_MG_TESTS OFF)
+  set(BUILD_CUGRAPH_OPS_CPP_TESTS OFF)
 
-if(NOT cugraph_FOUND)
-  # TODO: This will not be necessary once we upgrade to CMake 3.22, which will pull in the required
-  # languages for the C++ project even if this project does not require those languges.
-  include(rapids-cuda)
-  rapids_cuda_init_architectures(cugraph-python)
-  enable_language(CUDA)
+  # Statically link dependencies if building wheels
+  set(CUDA_STATIC_RUNTIME ${CUGRAPH_BUILD_WHEELS})
+  set(CUGRAPH_USE_CUGRAPH_OPS_STATIC ${CUGRAPH_BUILD_WHEELS})
+  set(CUGRAPH_EXCLUDE_CUGRAPH_OPS_FROM_ALL ${CUGRAPH_BUILD_WHEELS})
 
-  # Since cugraph only enables CUDA optionally, we need to manually include the file that
-  # rapids_cuda_init_architectures relies on `project` including.
-
-  include("${CMAKE_PROJECT_cugraph-python_INCLUDE}")
-
-  set(_old_libdir ${CMAKE_INSTALL_LIBDIR})
+  set(_exclude_from_all "")
   if(CUGRAPH_BUILD_WHEELS)
-    set(CMAKE_INSTALL_LIBDIR cugraph)
+    # Don't install the cuML C++ targets into wheels
+    set(_exclude_from_all EXCLUDE_FROM_ALL)
   endif()
 
-  add_subdirectory(../../cpp cugraph-cpp)
+  add_subdirectory(../../cpp cugraph-cpp ${_exclude_from_all})
 
-
-  if(CUGRAPH_BUILD_WHEELS)
-    set(CMAKE_INSTALL_LIBDIR ${_old_libdir})
-  else()
-    install(TARGETS cugraph DESTINATION cugraph)
-  endif()
+  install(TARGETS cugraph DESTINATION cugraph)
 endif()
 
 include(rapids-cython)
