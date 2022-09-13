@@ -51,9 +51,9 @@ __host__ __device__ constexpr int log_bits()
  * @tparam T
  */
 template <typename mask_t, typename T>
-__host__ __device__ int bit_mod(T numer)
+__host__ __device__ int bit_mod(T numerator)
 {
-  return numer & (std::numeric_limits<mask_t>::digits - 1);
+  return numerator & (std::numeric_limits<mask_t>::digits - 1);
 }
 
 namespace detail {
