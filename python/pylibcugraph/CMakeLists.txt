@@ -21,9 +21,14 @@ if(POLICY CMP0094)
   set(CMAKE_POLICY_DEFAULT_CMP0094 NEW)
 endif()
 
-set(pylibcugraph_version 22.10.00)
-
 include(../../fetch_rapids.cmake)
+
+include(rapids-cuda)
+# TODO: This will not be necessary once we upgrade to CMake 3.22, which will pull in the required
+# languages for the C++ project even if this project does not require those languges.
+rapids_cuda_init_architectures(pylibcugraph-python)
+
+set(pylibcugraph_version 22.10.00)
 
 project(
   pylibcugraph-python
@@ -33,6 +38,9 @@ project(
             # various linking options for the python library is hardcoded to build with C, so until
             # that is fixed we need to keep C.
             C CXX
+            # TODO: This will not be necessary once we upgrade to CMake 3.22, which will pull in the required
+            # languages for the C++ project even if this project does not require those languges.
+            CUDA
 )
 
 ################################################################################
@@ -47,36 +55,18 @@ if(FIND_CUGRAPH_CPP)
   message(STATUS "Trying to find the package")
   find_package(cugraph ${pylibcugraph_version} REQUIRED)
 else()
-  set(cugraph_FOUND OFF)
-endif()
+  # Statically link dependencies if building wheels
+  set(CUDA_STATIC_RUNTIME ${CUML_BUILD_WHEELS})
 
-message(STATUS "check if it was found ${cugraph_FOUND}")
-
-if(NOT cugraph_FOUND)
-  # TODO: This will not be necessary once we upgrade to CMake 3.22, which will pull in the required
-  # languages for the C++ project even if this project does not require those languges.
-  include(rapids-cuda)
-  rapids_cuda_init_architectures(pylibcugraph-python)
-  enable_language(CUDA)
-
-  # Since cugraph only enables CUDA optionally, we need to manually include the file that
-  # rapids_cuda_init_architectures relies on `project` including.
-
-  include("${CMAKE_PROJECT_pylibcugraph-python_INCLUDE}")
-
-  set(_old_libdir ${CMAKE_INSTALL_LIBDIR})
-  if(CUGRAPH_BUILD_WHEELS)
-    set(CMAKE_INSTALL_LIBDIR pylibcugraph)
+  set(_exclude_from_all "")
+  if(CUML_BUILD_WHEELS)
+    # Don't install the cuML C++ targets into wheels
+    set(_exclude_from_all EXCLUDE_FROM_ALL)
   endif()
 
-  add_subdirectory(../../cpp cugraph-cpp EXCLUDE_FROM_ALL)
+  add_subdirectory(../../cpp cugraph-cpp ${_exclude_from_all})
 
-  if(CUGRAPH_BUILD_WHEELS)
-    set(CMAKE_INSTALL_LIBDIR ${_old_libdir})
-  else()
-    install(TARGETS cugraph DESTINATION pylibcugraph)
-  endif()
-
+  install(TARGETS cugraph DESTINATION pylibcugraph)
 endif()
 
 include(rapids-cython)
