@@ -73,11 +73,13 @@ def symmetrize_df(df, src_name, dst_name,
         src_name = [src_name]
     if not isinstance(dst_name, list):
         dst_name = [dst_name]
+    if weight_name is not None and not isinstance(weight_name, list):
+        weight_name = [weight_name]
 
     if symmetrize:
         if weight_name:
-            df2 = df[[*dst_name, *src_name, weight_name]]
-            df2.columns = [*src_name, *dst_name, weight_name]
+            df2 = df[[*dst_name, *src_name, *weight_name]]
+            df2.columns = [*src_name, *dst_name, *weight_name]
         else:
             df2 = df[[*dst_name, *src_name]]
             df2.columns = [*src_name, *dst_name]
@@ -157,13 +159,15 @@ def symmetrize_ddf(ddf, src_name, dst_name,
         src_name = [src_name]
     if not isinstance(dst_name, list):
         dst_name = [dst_name]
+    if weight_name is not None and not isinstance(weight_name, list):
+        weight_name = [weight_name]
 
     worker_list = Comms.get_workers()
     num_partitions = len(worker_list)
     if symmetrize:
         if weight_name:
-            ddf2 = ddf[[*dst_name, *src_name, weight_name]]
-            ddf2.columns = [*src_name, *dst_name, weight_name]
+            ddf2 = ddf[[*dst_name, *src_name, *weight_name]]
+            ddf2.columns = [*src_name, *dst_name, *weight_name]
         else:
             ddf2 = ddf[[*dst_name, *src_name]]
             ddf2.columns = [*src_name, *dst_name]
@@ -254,7 +258,7 @@ def symmetrize(input_df, source_col_name, dest_col_name, value_col_name=None,
                 output_df[dest_col_name],
                 output_df[value_col_name],
             )
-        elif isinstance(value_col, cudf.DataFrame):
+        elif isinstance(value_col, (cudf.DataFrame, dask_cudf.DataFrame)):
             return (
                 output_df[source_col_name],
                 output_df[dest_col_name],

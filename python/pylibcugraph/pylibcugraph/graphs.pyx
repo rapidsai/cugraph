@@ -88,16 +88,6 @@ cdef class SGGraph(_GPUGraph):
         order of the array corresponds to the ordering of the src_array and
         dst_array arrays, where the ith item in weight_array is the weight value
         of the ith edge of the graph.
-    
-    edge_id_array : device array type
-        Device array containing the edge ids of each directed edge.  Must match
-        the ordering of the src/dst arrays.  Optional (may be null).  If
-        provided, edge_type_array must also be provided.
-    
-    edge_type_array : device array type
-        Device array containing the edge types of each directed edge.  Must
-        match the ordering of the src/dst/edge_id arrays.  Optional (may be
-        null).  If provided, edge_id_array must be provided.
 
     store_transposed : bool
         Set to True if the graph should be transposed. This is required for some
@@ -111,6 +101,16 @@ cdef class SGGraph(_GPUGraph):
     do_expensive_check : bool
         If True, performs more extensive tests on the inputs to ensure
         validitity, at the expense of increased run time.
+    
+    edge_id_array : device array type
+        Device array containing the edge ids of each directed edge.  Must match
+        the ordering of the src/dst arrays.  Optional (may be null).  If
+        provided, edge_type_array must also be provided.
+    
+    edge_type_array : device array type
+        Device array containing the edge types of each directed edge.  Must
+        match the ordering of the src/dst/edge_id arrays.  Optional (may be
+        null).  If provided, edge_id_array must be provided.
     
     Examples
     ---------
@@ -276,16 +276,6 @@ cdef class MGGraph(_GPUGraph):
         dst_array arrays, where the ith item in weight_array is the weight value
         of the ith edge of the graph.
 
-    edge_id_array : device array type
-        Device array containing the edge ids of each directed edge.  Must match
-        the ordering of the src/dst arrays.  Optional (may be null).  If
-        provided, edge_type_array must also be provided.
-    
-    edge_type_array : device array type
-        Device array containing the edge types of each directed edge.  Must
-        match the ordering of the src/dst/edge_id arrays.  Optional (may be
-        null).  If provided, edge_id_array must be provided.
-
     store_transposed : bool
         Set to True if the graph should be transposed. This is required for some
         algorithms, such as pagerank.
@@ -296,6 +286,16 @@ cdef class MGGraph(_GPUGraph):
     do_expensive_check : bool
         If True, performs more extensive tests on the inputs to ensure
         validitity, at the expense of increased run time.
+
+    edge_id_array : device array type
+        Device array containing the edge ids of each directed edge.  Must match
+        the ordering of the src/dst arrays.  Optional (may be null).  If
+        provided, edge_type_array must also be provided.
+    
+    edge_type_array : device array type
+        Device array containing the edge types of each directed edge.  Must
+        match the ordering of the src/dst/edge_id arrays.  Optional (may be
+        null).  If provided, edge_id_array must be provided.
     """
     def __cinit__(self,
                   ResourceHandle resource_handle,

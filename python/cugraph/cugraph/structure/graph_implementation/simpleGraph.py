@@ -32,6 +32,9 @@ from pylibcugraph import (ResourceHandle,
 
 # FIXME: Change to consistent camel case naming
 class simpleGraphImpl:
+    edgeWeightCol = 'weights'
+    edgeIdCol = 'edge_id'
+    edgeTypeCol = 'edge_type'
 
     class EdgeList:
         def __init__(self, source, destination, edge_attr=None):
@@ -41,9 +44,18 @@ class simpleGraphImpl:
             self.weights = False
             if edge_attr is not None:
                 self.weights = True
-                if type(edge_attr) is dict:
-                    for k in edge_attr.keys():
-                        self.edgelist_df[k] = edge_attr[k]
+                if type(edge_attr) is list:
+                    if len(edge_attr) == 3:
+                        self.edgelist_df[simpleGraphImpl.edgeWeightCol],
+                        self.edgelist_df[simpleGraphImpl.edgeTypeCol],
+                        self.edgelist_df[simpleGraphImpl.edgeIdCol] = edge_attr
+                    elif len(edge_attr) == 1:
+                        self.edgelist_df[simpleGraphImpl.edgeWeightCol] = (
+                            edge_attr[0]
+                        )
+                    else:
+                        raise ValueError('Illegal # of arguments provided'
+                                         'for edge_attr')
                 else:
                     self.edgelist_df["weights"] = edge_attr
 
@@ -127,9 +139,9 @@ class simpleGraphImpl:
             self.properties.weighted = True
             df_columns += edge_attr
 
-            if len(edge_attr) != 1 or len(edge_attr) != 3:
-                raise ValueError('Invalid number of edge attributes '
-                                 'passed.'
+            if len(edge_attr) != 1 and len(edge_attr) != 3:
+                raise ValueError(f'Invalid number of edge attributes '
+                                 f'passed. {edge_attr}'
                 )
             
             # The symmetrize step may add additional edges with unknown
@@ -210,6 +222,9 @@ class simpleGraphImpl:
                 elist, source, destination, multi=self.properties.multi_edge,
                 symmetrize=not self.properties.directed)
 
+        if isinstance(value_col, dict):
+            value_col = [value_col[ea] for ea in edge_attr]
+
         self.edgelist = simpleGraphImpl.EdgeList(source_col, dest_col,
                                                  value_col)
 
@@ -219,8 +234,7 @@ class simpleGraphImpl:
         self._make_plc_graph(
             value_col=value_col,
             store_transposed=store_transposed,
-            renumber=renumber,
-            edge_attr_names=edge_attr
+            renumber=renumber
         )
 
     def to_pandas_edgelist(self, source='src', destination='dst',
@@ -275,7 +289,7 @@ class simpleGraphImpl:
         df = self.edgelist.edgelist_df
         np_array = np.full((nlen, nlen), 0.0)
         for i in range(0, elen):
-            np_array[df['src'].iloc[i], df['dst'].iloc[i]] = df['weights'].\
+            np_array[df['src'].iloc[i], df['dst'].iloc[i]] = df[self.edgeWeightCol].\
                                                              iloc[i]
         return np_array
 
@@ -785,14 +799,36 @@ class simpleGraphImpl:
     def _make_plc_graph(self,
                         value_col=None,
                         store_transposed=False,
-                        renumber=True,
-                        edge_attr=None):
+                        renumber=True):
+        """
+            Parameters
+            ----------
+            value_col : cudf.DataFrame or tuple[cudf.DataFrame]
+                If a single dataframe is provided, this is assumed
+                to contain the edge weight values.
+                If a tuple of dataframes is provided, then it is
+                assumed to contain edge weights, edge ids, and 
+                edge types, in that order.
+            store_transposed : bool (default=False)
+                Whether to store the graph in a transposed
+                format.  Required by some algorithms.
+            renumber : bool (default=True)
+                Whether to renumber the vertices of the graph.
+                Required if inputted vertex ids are not of
+                int32 or int64 type.
+        """
+
         if value_col is None:
             weight_col, id_col, type_col = None, None, None
         elif isinstance(value_col, cudf.DataFrame):
             weight_col, id_col, type_col = value_col, None, None
-        elif len(value_col) == 3:
-            weight_col, id_col, type_col = [value_col[ea] for ea in edge_attr]
+        elif isinstance(value_col, list):
+            if len(value_col) == 3:
+                weight_col, id_col, type_col = value_col
+            elif len(value_col) == 1:
+                weight_col, id_col, type_col = value_col[0], None, None
+        else:
+            raise ValueError(f'Illegal value col {type(value_col)}')
         
         if weight_col is None:
             weight_col = cudf.Series(
@@ -816,7 +852,7 @@ class simpleGraphImpl:
             graph_properties=graph_props,
             src_array=self.edgelist.edgelist_df['src'],
             dst_array=self.edgelist.edgelist_df['dst'],
-            weight_array=value_col,
+            weight_array=weight_col,
             store_transposed=store_transposed,
             renumber=renumber,
             do_expensive_check=False,
@@ -829,6 +865,9 @@ class simpleGraphImpl:
         Return a directed representation of the graph Implementation.
         This function copies the internal structures and returns the
         directed view.
+
+        Note: this will discard any edge ids or edge types but will
+        preserve edge weights if present.
         """
         DiG.properties.renumbered = self.properties.renumbered
         DiG.renumber_map = self.renumber_map
@@ -836,8 +875,8 @@ class simpleGraphImpl:
         DiG.adjlist = self.adjlist
         DiG.transposedadjlist = self.transposedadjlist
 
-        if 'weights' in self.edgelist.edgelist_df:
-            value_col = self.edgelist.edgelist_df['weights']
+        if simpleGraphImpl.edgeWeightCol in self.edgelist.edgelist_df:
+            value_col = self.edgelist.edgelist_df[simpleGraphImpl.edgeWeightCol]
         else:
             value_col = None
 
@@ -846,6 +885,9 @@ class simpleGraphImpl:
     def to_undirected(self, G, store_transposed=False):
         """
         Return an undirected copy of the graph.
+
+        Note: This will discard any edge ids or edge types but will
+        preserve edge weights if present.
         """
         G.properties.renumbered = self.properties.renumbered
         G.renumber_map = self.renumber_map
@@ -857,7 +899,7 @@ class simpleGraphImpl:
             df = self.edgelist.edgelist_df
             if self.edgelist.weights:
                 source_col, dest_col, value_col = symmetrize(
-                    df, 'src', 'dst', 'weights'
+                    df, 'src', 'dst', simpleGraphImpl.edgeWeightCol
                 )
             else:
                 source_col, dest_col = symmetrize(df, 'src', "dst")
@@ -865,8 +907,8 @@ class simpleGraphImpl:
             G.edgelist = simpleGraphImpl.EdgeList(source_col, dest_col,
                                                   value_col)
 
-        if 'weights' in self.edgelist.edgelist_df:
-            value_col = self.edgelist.edgelist_df['weights']
+        if simpleGraphImpl.edgeWeightCol in self.edgelist.edgelist_df:
+            value_col = self.edgelist.edgelist_df[simpleGraphImpl.edgeWeightCol]
         else:
             value_col = None
 

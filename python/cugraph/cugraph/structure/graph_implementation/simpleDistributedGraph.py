@@ -30,6 +30,10 @@ import cugraph.dask.comms.comms as Comms
 
 
 class simpleDistributedGraphImpl:
+    edgeWeightCol = 'value'
+    edgeIdCol = 'edge_id'
+    edgeTypeCol = 'edge_type'
+
     class EdgeList:
         def __init__(self, ddf):
             self.edgelist_df = ddf
@@ -72,14 +76,23 @@ class simpleDistributedGraphImpl:
                         store_transposed,
                         num_edges):
 
-        if 'value' in edata_x[0]:
-            values = edata_x[0]['value']
+        if simpleDistributedGraphImpl.edgeWeightCol in edata_x[0]:
+            values = edata_x[0][simpleDistributedGraphImpl.edgeWeightCol]
             if values.dtype == 'int32':
                 values = values.astype('float32')
             elif values.dtype == 'int64':
                 values = values.astype('float64')
         else:
             values = cudf.Series(cupy.ones(len(edata_x[0])))
+        
+        if simpleDistributedGraphImpl.edgeIdCol in edata_x[0]:
+            if simpleDistributedGraphImpl.edgeTypeCol not in edata_x[0]:
+                raise ValueError('Must provide both edge id and edge type')
+            
+            values_id = edata_x[0][simpleDistributedGraphImpl.edgeIdCol]
+            values_etype = edata_x[0][simpleDistributedGraphImpl.edgeTypeCol]
+        else:
+            values_id, values_etype = None, None
 
         return MGGraph(
             resource_handle=ResourceHandle(
@@ -91,7 +104,9 @@ class simpleDistributedGraphImpl:
             weight_array=values,
             store_transposed=store_transposed,
             num_edges=num_edges,
-            do_expensive_check=False
+            do_expensive_check=False,
+            edge_id_array=values_id,
+            edge_type_array=values_etype
         )
 
     # Functions
@@ -128,16 +143,43 @@ class simpleDistributedGraphImpl:
         # The dataframe will be symmetrized iff the graph is undirected
         # otherwise, the inital dataframe will be returned
         if edge_attr is not None:
-            if not (set([edge_attr]).issubset(set(input_ddf.columns))):
+            if isinstance(edge_attr, str):
+                edge_attr = [edge_attr]
+            if not (set(edge_attr).issubset(set(input_ddf.columns))):
                 raise ValueError(
                     "edge_attr column name not found in input."
                     "Recheck the edge_attr parameter")
             self.properties.weighted = True
-            input_ddf = input_ddf.rename(columns={edge_attr: 'value'})
+
+            if len(edge_attr) == 1:
+                input_ddf = input_ddf.rename(columns={edge_attr[0]: self.edgeWeightCol})
+                value_col_names = [self.edgeWeightCol]
+            elif len(edge_attr) == 3:
+                weight_col, id_col, type_col = edge_attr
+                input_ddf = input_ddf.rename(columns={
+                    weight_col: self.edgeWeightCol,
+                    id_col: self.edgeIdCol,
+                    type_col: self.edgeTypeCol
+                })
+                value_col_names = [self.edgeWeightCol, self.edgeIdCol, self.edgeTypeCol]
+            else:
+                raise ValueError('Only 1 or 3 values may be provided'
+                                 'for edge_attr')
+
+            # The symmetrize step may add additional edges with unknown
+            # ids and types for an undirected graph.  Therefore, only
+            # directed graphs may be used with ids and types.
+            if(len(edge_attr) == 3 and not self.properties.directed):
+                raise ValueError('User-provided edge ids and edge '
+                                 'types are not permitted for an '
+                                 'undirected graph.'
+                )
+
             source_col, dest_col, value_col = symmetrize(
-                input_ddf, source, destination, 'value',
+                input_ddf, source, destination, value_col_names,
                 multi=self.properties.multi_edge,
                 symmetrize=not self.properties.directed)
+            
         else:
             input_ddf = input_ddf[ddf_columns]
             source_col, dest_col = symmetrize(
@@ -156,9 +198,13 @@ class simpleDistributedGraphImpl:
             input_ddf = dask_cudf.concat([source_col, dest_col], axis=1)
 
         if edge_attr is not None:
-            input_ddf['value'] = value_col
+            input_ddf[self.edgeWeightCol] = value_col[self.edgeWeightCol]
+            if len(edge_attr) == 3:
+                input_ddf[self.edgeIdCol] = value_col[self.edgeIdCol]
+                input_ddf[self.edgeTypeCol] = value_col[self.edgeTypeCol]
 
         self.input_df = input_ddf
+        self.input_df.to_csv('/work/deleteme.csv')
 
         #
         # Keep all of the original parameters so we can lazily
