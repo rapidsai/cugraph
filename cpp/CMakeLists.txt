@@ -80,21 +80,15 @@ option(CMAKE_CUDA_LINEINFO "Enable the -lineinfo option for nvcc (useful for cud
 option(BUILD_TESTS "Configure CMake to build tests" ON)
 option(USE_CUGRAPH_OPS "Enable all functions that call cugraph-ops" ON)
 option(CUDA_STATIC_RUNTIME "Statically link the CUDA toolkit runtime and libraries" OFF)
+option(CUGRAPH_USE_CUGRAPH_OPS_STATIC "Build and statically link the cugraph-ops library" OFF)
+option(CUGRAPH_EXCLUDE_CUGRAPH_OPS_FROM_ALL "Exclude cugraph-ops targets from cuGraph's 'all' target" OFF)
+
+message(VERBOSE "CUGRAPH: CUDA_STATIC_RUNTIME=${CUDA_STATIC_RUNTIME}")
+message(VERBOSE "CUGRAPH: CUGRAPH_USE_CUGRAPH_OPS_STATIC=${CUGRAPH_USE_CUGRAPH_OPS_STATIC}")
+message(VERBOSE "CUGRAPH: CUGRAPH_EXCLUDE_CUGRAPH_OPS_FROM_ALL=${CUGRAPH_EXCLUDE_CUGRAPH_OPS_FROM_ALL}")
 
 ################################################################################
 # - compiler options -----------------------------------------------------------
-
-set(_ctk_static_suffix "")
-if(CUDA_STATIC_RUNTIME)
-  # If we're statically linking CTK cuBLAS,
-  # we also want to statically link BLAS
-  set(BLA_STATIC ON)
-  set(_ctk_static_suffix "_static")
-  # Control legacy FindCUDA.cmake behavior too
-  # Remove this after we push it into rapids-cmake:
-  # https://github.com/rapidsai/rapids-cmake/pull/259
-  set(CUDA_USE_STATIC_CUDA_RUNTIME ON)
-endif()
 
 # CUDA runtime
 rapids_cuda_init_runtime(USE_STATIC ${CUDA_STATIC_RUNTIME})
@@ -319,14 +313,23 @@ target_include_directories(cugraph
         "$<INSTALL_INTERFACE:include>"
 )
 
+if(CUDA_STATIC_RUNTIME)
+  get_target_property(_includes raft::raft INTERFACE_INCLUDE_DIRECTORIES)
+  target_include_directories(cugraph PUBLIC ${_includes})
+  # Add CTK include paths because we make our CTK library links private below
+  target_include_directories(cugraph SYSTEM PUBLIC ${CUDAToolkit_INCLUDE_DIRS})
+endif()
+
 ################################################################################
 # - link libraries -------------------------------------------------------------
 if (USE_CUGRAPH_OPS)
     target_link_libraries(cugraph
         PUBLIC
+            rmm::rmm
             cugraph-ops::cugraph-ops++
-            raft::raft
+            $<$<NOT:$<BOOL:${CUDA_STATIC_RUNTIME}>>:raft::raft>
         PRIVATE
+            $<$<BOOL:${CUDA_STATIC_RUNTIME}>:raft::raft>
             cuco::cuco
             cugraph::cuHornet
             NCCL::NCCL
@@ -334,8 +337,10 @@ if (USE_CUGRAPH_OPS)
 else()
     target_link_libraries(cugraph
         PUBLIC
-            raft::raft
+            rmm::rmm
+            $<$<NOT:$<BOOL:${CUDA_STATIC_RUNTIME}>>:raft::raft>
         PRIVATE
+            $<$<BOOL:${CUDA_STATIC_RUNTIME}>:raft::raft>
             cuco::cuco
             cugraph::cuHornet
             NCCL::NCCL
@@ -398,18 +403,21 @@ target_include_directories(cugraph_c
         "$<INSTALL_INTERFACE:include>"
 )
 
+if(CUDA_STATIC_RUNTIME)
+  get_target_property(_includes raft::raft INTERFACE_INCLUDE_DIRECTORIES)
+  target_include_directories(cugraph_c PUBLIC ${_includes})
+  # Add CTK include paths because we make our CTK library links private below
+  target_include_directories(cugraph_c SYSTEM PUBLIC ${CUDAToolkit_INCLUDE_DIRS})
+endif()
+
 ################################################################################
 # - C-API link libraries -------------------------------------------------------
 target_link_libraries(cugraph_c
-        PUBLIC
-                CUDA::cublas${_ctk_static_suffix}
-                CUDA::curand${_ctk_static_suffix}
-                CUDA::cusolver${_ctk_static_suffix}
-                CUDA::cusparse${_ctk_static_suffix}
-                raft::raft
-        PRIVATE
-                cuco::cuco
+        PUBLIC  rmm::rmm
+                $<$<NOT:$<BOOL:${CUDA_STATIC_RUNTIME}>>:raft::raft>
+        PRIVATE cuco::cuco
                 cugraph::cugraph
+                $<$<BOOL:${CUDA_STATIC_RUNTIME}>:raft::raft>
 )
 
 ################################################################################

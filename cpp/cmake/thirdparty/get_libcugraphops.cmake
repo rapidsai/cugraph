@@ -19,12 +19,20 @@ set(CUGRAPH_BRANCH_VERSION_cugraph_ops "${CUGRAPH_VERSION_MAJOR}.${CUGRAPH_VERSI
 
 function(find_and_configure_cugraph_ops)
 
-    set(oneValueArgs VERSION FORK PINNED_TAG CLONE_ON_PIN)
+    set(oneValueArgs VERSION FORK PINNED_TAG BUILD_STATIC EXCLUDE_FROM_ALL CLONE_ON_PIN)
     cmake_parse_arguments(PKG "" "${oneValueArgs}" "" ${ARGN})
 
     if(PKG_CLONE_ON_PIN AND NOT PKG_PINNED_TAG STREQUAL "branch-${CUGRAPH_BRANCH_VERSION_cugraph_ops}")
-        message("Pinned tag found: ${PKG_PINNED_TAG}. Cloning cumlprims locally.")
+        message("Pinned tag found: ${PKG_PINNED_TAG}. Cloning cugraph-ops locally.")
         set(CPM_DOWNLOAD_cugraph-ops ON)
+    elseif(PKG_BUILD_STATIC AND (NOT CPM_cugraph-ops_SOURCE))
+      message(STATUS "CUGRAPH: Cloning cugraph-ops locally to build static libraries.")
+      set(CPM_DOWNLOAD_cugraph-ops ON)
+    endif()
+
+    set(CUGRAPH_OPS_BUILD_SHARED_LIBS ON)
+    if(PKG_BUILD_STATIC)
+      set(CUGRAPH_OPS_BUILD_SHARED_LIBS OFF)
     endif()
 
     rapids_cpm_find(cugraph-ops ${PKG_VERSION} REQUIRED
@@ -32,9 +40,13 @@ function(find_and_configure_cugraph_ops)
       BUILD_EXPORT_SET    cugraph-exports
       INSTALL_EXPORT_SET  cugraph-exports
       CPM_ARGS
-        GIT_REPOSITORY git@github.com:${PKG_FORK}/cugraph-ops.git
-        GIT_TAG        ${PKG_PINNED_TAG}
-        SOURCE_SUBDIR  cpp
+        SOURCE_SUBDIR    cpp
+        GIT_REPOSITORY   git@github.com:${PKG_FORK}/cugraph-ops.git
+        GIT_TAG          ${PKG_PINNED_TAG}
+        EXCLUDE_FROM_ALL ${PKG_EXCLUDE_FROM_ALL}
+        OPTIONS
+          "BUILD_CUGRAPH_OPS_CPP_TESTS OFF"
+          "BUILD_SHARED_LIBS ${CUGRAPH_OPS_BUILD_SHARED_LIBS}"
     )
 endfunction()
 
@@ -47,7 +59,9 @@ endfunction()
 find_and_configure_cugraph_ops(VERSION      ${CUGRAPH_MIN_VERSION_cugraph_ops}
                                FORK         rapidsai
                                PINNED_TAG   branch-${CUGRAPH_BRANCH_VERSION_cugraph_ops}
-                               # When PINNED_TAG above doesn't match cuml,
+                               BUILD_STATIC     ${CUGRAPH_USE_CUGRAPH_OPS_STATIC}
+                               EXCLUDE_FROM_ALL ${CUGRAPH_EXCLUDE_CUGRAPH_OPS_FROM_ALL}
+                              # When PINNED_TAG above doesn't match cuml,
                                # force local cugraph-ops clone in build directory
                                # even if it's already installed.
                                CLONE_ON_PIN ON)
