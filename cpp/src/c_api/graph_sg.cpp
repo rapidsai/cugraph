@@ -70,6 +70,8 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
     if constexpr (multi_gpu || !cugraph::is_candidate<vertex_t, edge_t, weight_t>::value) {
       unsupported();
     } else {
+      using edge_type_t = int32_t;
+
       if (check_) {
         // FIXME:  Need an implementation here.
       }
@@ -106,7 +108,7 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
         cugraph::create_graph_from_edgelist<vertex_t,
                                             edge_t,
                                             weight_t,
-                                            int32_t,
+                                            edge_type_t,
                                             store_transposed,
                                             multi_gpu>(
           handle_,
