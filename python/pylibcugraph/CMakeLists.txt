@@ -37,10 +37,7 @@ project(
             # language to be enabled here. The test project that is built in scikit-build to verify
             # various linking options for the python library is hardcoded to build with C, so until
             # that is fixed we need to keep C.
-            C CXX
-            # TODO: This will not be necessary once we upgrade to CMake 3.22, which will pull in the required
-            # languages for the C++ project even if this project does not require those languges.
-            CUDA
+            C CXX CUDA
 )
 
 ################################################################################
@@ -48,6 +45,7 @@ project(
 option(FIND_CUGRAPH_CPP "Search for existing CUGRAPH C++ installations before defaulting to local files"
        OFF
 )
+option(CUGRAPH_BUILD_WHEELS "Whether we're building a wheel for pypi" OFF)
 
 # If the user requested it we attempt to find CUGRAPH.
 
@@ -55,25 +53,24 @@ if(FIND_CUGRAPH_CPP)
   message(STATUS "Trying to find the package")
   find_package(cugraph ${pylibcugraph_version} REQUIRED)
 else()
+  set(BUILD_TESTS OFF)
+  set(BUILD_CUGRAPH_MG_TESTS OFF)
+  set(BUILD_CUGRAPH_OPS_CPP_TESTS OFF)
+
   # Statically link dependencies if building wheels
-  set(CUDA_STATIC_RUNTIME ${CUML_BUILD_WHEELS})
+  set(CUDA_STATIC_RUNTIME ${CUGRAPH_BUILD_WHEELS})
+  set(CUGRAPH_USE_CUGRAPH_OPS_STATIC ${CUGRAPH_BUILD_WHEELS})
+  set(CUGRAPH_EXCLUDE_CUGRAPH_OPS_FROM_ALL ${CUGRAPH_BUILD_WHEELS})
 
   set(_exclude_from_all "")
-  if(CUML_BUILD_WHEELS)
+  if(CUGRAPH_BUILD_WHEELS)
     # Don't install the cuML C++ targets into wheels
     set(_exclude_from_all EXCLUDE_FROM_ALL)
   endif()
 
   add_subdirectory(../../cpp cugraph-cpp ${_exclude_from_all})
 
-  # Since cugraph only enables CUDA optionally, we need to manually include the file that
-  # rapids_cuda_init_architectures relies on `project` including.
-
-  include("${CMAKE_PROJECT_pylibcugraph-python_INCLUDE}")
-
-  add_subdirectory(../../cpp cugraph-cpp)
-
-  install(TARGETS cugraph DESTINATION pylibcugraph/library)
+  install(TARGETS cugraph cugraph_c DESTINATION pylibcugraph)
 endif()
 
 include(rapids-cython)

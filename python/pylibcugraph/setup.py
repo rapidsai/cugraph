@@ -82,9 +82,11 @@ setup(name='pylibcugraph'+os.getenv("PYTHON_PACKAGE_CUDA_SUFFIX", default=""),
       author="NVIDIA Corporation",
       setup_requires=[
         f"rmm{os.getenv('PYTHON_PACKAGE_CUDA_SUFFIX', default='')}",
+        f"pylibraft{os.getenv('PYTHON_PACKAGE_CUDA_SUFFIX', default='')}",
       ],
       install_requires=[
         f"cudf{os.getenv('PYTHON_PACKAGE_CUDA_SUFFIX', default='')}",
+        f"pylibraft{os.getenv('PYTHON_PACKAGE_CUDA_SUFFIX', default='')}",
         f"raft-dask{os.getenv('PYTHON_PACKAGE_CUDA_SUFFIX', default='')}",
       ],
       packages=find_packages(include=['pylibcugraph', 'pylibcugraph.*']),

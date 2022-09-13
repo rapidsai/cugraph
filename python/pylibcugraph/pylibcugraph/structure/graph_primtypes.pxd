@@ -17,7 +17,7 @@
 # cython: language_level = 3
 
 from libcpp cimport bool
-from pylibcugraph.raft.common.handle cimport *
+from pylibraft.common.handle cimport *
 
 cdef extern from "cugraph/legacy/graph.hpp" namespace "cugraph::legacy":
 

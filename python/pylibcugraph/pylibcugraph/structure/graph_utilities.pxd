@@ -17,7 +17,7 @@
 # cython: language_level = 3
 
 
-from pylibcugraph.raft.common.handle cimport *
+from pylibraft.common.handle cimport *
 from libcpp cimport bool
 
 

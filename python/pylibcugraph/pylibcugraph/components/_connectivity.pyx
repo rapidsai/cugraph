@@ -15,6 +15,7 @@ from libc.stdint cimport uintptr_t
 from libcpp.memory cimport unique_ptr
 
 from pylibcugraph.components._connectivity cimport *
+from pylibraft.common.handle cimport *
 
 
 def _ensure_arg_types(**kwargs):

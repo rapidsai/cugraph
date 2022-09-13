@@ -11,8 +11,11 @@
 # or implied. See the License for the specific language governing permissions and limitations under
 # the License.
 # =============================================================================
+
 add_subdirectory(components)
-add_subdirectory(raft/common)
+
+# add_subdirectory(raft/common)
+
 set(cython_sources
     bfs.pyx
     core_number.pyx
