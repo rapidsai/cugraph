@@ -86,6 +86,7 @@ def _fetch_doctests():
     yield from _find_doctests_in_obj(finder, cugraph.dask, 'dask',
                                      _is_public_name)
 
+
 @pytest.fixture(scope="module",
                 params=_fetch_doctests(),
                 ids=lambda docstring: docstring.name)
