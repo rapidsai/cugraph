@@ -1010,6 +1010,71 @@ class EXPERIMENTAL__PropertyGraph:
 
         return G
 
+    def renumber_vertices_by_type(self):
+        """Renumber vertex IDs to be contiguous by type.
+
+        Returns a DataFrame with the start and stop IDs for each vertex type.
+        Stop is *exclusive*.
+        """
+        if self.__vertex_prop_dataframe is None:
+            return None
+        # We'll need to update this when index is vertex ID
+        df = (
+            self.__vertex_prop_dataframe
+            .sort_values(by=self.type_col_name)
+        )
+        if self.__edge_prop_dataframe is not None:
+            mapper = self.__series_type(
+                df.index, index=df[self.vertex_col_name]
+            )
+            self.__edge_prop_dataframe[self.src_col_name] = (
+                self.__edge_prop_dataframe[self.src_col_name].map(mapper)
+            )
+            self.__edge_prop_dataframe[self.dst_col_name] = (
+                self.__edge_prop_dataframe[self.dst_col_name].map(mapper)
+            )
+            # XXX: what to do about vertices that only exist in edge data?
+            # We can detect this.
+            # Also, is the mapper 1-to-1?  Can vertex IDs be duplicated?
+        df.drop(columns=[self.vertex_col_name], inplace=True)
+        df.index.name = self.vertex_col_name
+        df.reset_index(inplace=True)
+        self.__vertex_prop_dataframe = df
+        rv = (
+            self._vertex_type_value_counts
+            .sort_index()
+            .cumsum()
+            .to_frame("stop")
+        )
+        rv["start"] = rv["stop"].shift(1, fill_value=0)
+        return rv[["start", "stop"]]
+
+    def renumber_edges_by_type(self):
+        """Renumber edge IDs to be contiguous by type.
+
+        Returns a DataFrame with the start and stop IDs for each edge type.
+        Stop is *exclusive*.
+        """
+        # TODO: keep track if edges are already numbered correctly.
+        if self.__edge_prop_dataframe is None:
+            return None
+        # We'll need to update this when index is edge ID
+        self.__edge_prop_dataframe = (
+            self.__edge_prop_dataframe
+            .drop(columns=[self.edge_id_col_name])
+            .sort_values(by=self.type_col_name, ignore_index=True)
+        )
+        self.__edge_prop_dataframe.index.name = self.edge_id_col_name
+        self.__edge_prop_dataframe.reset_index(inplace=True)
+        rv = (
+            self._edge_type_value_counts
+            .sort_index()
+            .cumsum()
+            .to_frame("stop")
+        )
+        rv["start"] = rv["stop"].shift(1, fill_value=0)
+        return rv[["start", "stop"]]
+
     @classmethod
     def has_duplicate_edges(cls, df):
         """

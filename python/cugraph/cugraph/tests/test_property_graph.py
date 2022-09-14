@@ -1414,6 +1414,52 @@ def test_get_data_empty_graphs():
     assert pG.get_edge_data([0, 1, 2]) is None
 
 
+def test_renumber_vertices_by_type(dataset1_PropertyGraph):
+    from cugraph.experimental import PropertyGraph
+
+    (pG, data) = dataset1_PropertyGraph
+    df_id_ranges = pG.renumber_vertices_by_type()
+    expected = {
+        "merchants": [0, 5],  # stop is exclusive
+        "users": [5, 9],
+    }
+    for key, (start, stop) in expected.items():
+        assert df_id_ranges.loc[key, "start"] == start
+        assert df_id_ranges.loc[key, "stop"] == stop
+        df = pG.get_vertex_data(types=[key])
+        assert len(df) == stop - start
+        assert (df["_VERTEX_"] == list(range(start, stop))).all()
+
+    # Make sure we renumber vertex IDs in edge data too
+    df = pG.get_edge_data()
+    assert 0 <= df[pG.src_col_name].min() < df[pG.src_col_name].max() < 9
+    assert 0 <= df[pG.dst_col_name].min() < df[pG.dst_col_name].max() < 9
+
+    empty_pG = PropertyGraph()
+    assert empty_pG.renumber_vertices_by_type() is None
+
+
+def test_renumber_edges_by_type(dataset1_PropertyGraph):
+    from cugraph.experimental import PropertyGraph
+
+    (pG, data) = dataset1_PropertyGraph
+    df_id_ranges = pG.renumber_edges_by_type()
+    expected = {
+        "referrals": [0, 6],  # stop is exclusive
+        "relationships": [6, 10],
+        "transactions": [10, 14],
+    }
+    for key, (start, stop) in expected.items():
+        assert df_id_ranges.loc[key, "start"] == start
+        assert df_id_ranges.loc[key, "stop"] == stop
+        df = pG.get_edge_data(types=[key])
+        assert len(df) == stop - start
+        assert (df[pG.edge_id_col_name] == list(range(start, stop))).all()
+
+    empty_pG = PropertyGraph()
+    assert empty_pG.renumber_edges_by_type() is None
+
+
 # =============================================================================
 # Benchmarks
 # =============================================================================
