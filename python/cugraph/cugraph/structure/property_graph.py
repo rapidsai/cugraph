@@ -263,6 +263,7 @@ class EXPERIMENTAL__PropertyGraph:
                 else:
                     self.__num_vertices = pd.concat(vert_sers).nunique()
             return self.__num_vertices
+
         value_counts = self._vertex_type_value_counts
         if type == self._default_type_name and include_edge_data:
             # The default type, "", can refer to both vertex and edge data
