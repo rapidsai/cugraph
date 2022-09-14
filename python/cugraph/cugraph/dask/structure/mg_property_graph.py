@@ -437,18 +437,20 @@ class EXPERIMENTAL__MGPropertyGraph:
         vertex_ids, columns, and/or types, or all vertex IDs if not specified.
         """
         if self.__vertex_prop_dataframe is not None:
+            df = self.__vertex_prop_dataframe
             if vertex_ids is not None:
-                df_mask = (
-                    self.__vertex_prop_dataframe[self.vertex_col_name]
-                    .isin(vertex_ids)
-                )
-                df = self.__vertex_prop_dataframe.loc[df_mask]
-            else:
-                df = self.__vertex_prop_dataframe
+                if isinstance(vertex_ids, int):
+                    df_mask = df[self.vertex_col_name] == vertex_ids
+                else:
+                    df_mask = df[self.vertex_col_name].isin(vertex_ids)
+                df = df.loc[df_mask]
 
             if types is not None:
                 # FIXME: coerce types to a list-like if not?
-                df_mask = df[self.type_col_name].isin(types)
+                if isinstance(types, str):
+                    df_mask = df[self.type_col_name] == types
+                else:
+                    df_mask = df[self.type_col_name].isin(types)
                 df = df.loc[df_mask]
 
             # The "internal" pG.vertex_col_name and pG.type_col_name columns
@@ -593,16 +595,20 @@ class EXPERIMENTAL__MGPropertyGraph:
         edge_ids, columns, and/or edge type, or all edge IDs if not specified.
         """
         if self.__edge_prop_dataframe is not None:
+            df = self.__edge_prop_dataframe
             if edge_ids is not None:
-                df_mask = self.__edge_prop_dataframe[self.edge_id_col_name]\
-                              .isin(edge_ids)
-                df = self.__edge_prop_dataframe.loc[df_mask]
-            else:
-                df = self.__edge_prop_dataframe
+                if isinstance(edge_ids, int):
+                    df_mask = df[self.edge_id_col_name] == edge_ids
+                else:
+                    df_mask = df[self.edge_id_col_name].isin(edge_ids)
+                df = df.loc[df_mask]
 
             if types is not None:
                 # FIXME: coerce types to a list-like if not?
-                df_mask = df[self.type_col_name].isin(types)
+                if isinstance(types, str):
+                    df_mask = df[self.type_col_name] == types
+                else:
+                    df_mask = df[self.type_col_name].isin(types)
                 df = df.loc[df_mask]
 
             # The "internal" src, dst, edge_id, and type columns are also
