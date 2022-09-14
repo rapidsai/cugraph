@@ -12,10 +12,10 @@
 # limitations under the License.
 
 from collections import defaultdict
-import cudf, dask_cudf
+import cudf
+import dask_cudf
 import cugraph
 from cugraph.experimental import PropertyGraph, MGPropertyGraph
-from cugraph.community.egonet import batched_ego_graphs
 import cupy as cp
 from functools import cached_property
 
@@ -42,36 +42,36 @@ class CuGraphStore:
     """
 
     def __init__(self, graph, backend_lib="torch"):
-        if isinstance(graph, PropertyGraph):
+        if isinstance(graph, (PropertyGraph, MGPropertyGraph)):
             self.__G = graph
         else:
             raise ValueError("graph must be a PropertyGraph")
         # dict to map column names corresponding to edge features
         # of each type
-        self.edata_key_col_d = defaultdict(list)
+        self.edata_feat_col_d = defaultdict(list)
         # dict to map column names corresponding to node features
         # of each type
-        self.ndata_key_col_d = defaultdict(list)
+        self.ndata_feat_col_d = defaultdict(list)
         self.backend_lib = backend_lib
 
-    def add_node_data(self, df, node_col_name, node_key, ntype=None):
+    def add_node_data(self, df, node_col_name, feat_name, ntype=None):
         self.gdata.add_vertex_data(
             df, vertex_col_name=node_col_name, type_name=ntype
         )
         col_names = list(df.columns)
         col_names.remove(node_col_name)
-        self.ndata_key_col_d[node_key] += col_names
+        self.ndata_feat_col_d[feat_name] += col_names
 
-    def add_edge_data(self, df, vertex_col_names, edge_key, etype=None):
+    def add_edge_data(self, df, vertex_col_names, feat_name, etype=None):
         self.gdata.add_edge_data(
             df, vertex_col_names=vertex_col_names, type_name=etype
         )
         col_names = [
             col for col in list(df.columns) if col not in vertex_col_names
         ]
-        self.edata_key_col_d[edge_key] += col_names
+        self.edata_feat_col_d[feat_name] += col_names
 
-    def get_node_storage(self, key, ntype=None):
+    def get_node_storage(self, feat_name, ntype=None):
 
         if ntype is None:
             ntypes = self.ntypes
@@ -84,15 +84,16 @@ class CuGraphStore:
                 )
             ntype = ntypes[0]
 
+        col_names = self.ndata_feat_col_d[feat_name]
+
         return CuFeatureStorage(
             pg=self.gdata,
             col_names=col_names,
-            _type_=ntype,
-            storage_type='node',
+            storage_type="node",
             backend_lib=self.backend_lib,
         )
 
-    def get_edge_storage(self, key, etype=None):
+    def get_edge_storage(self, feat_name, etype=None):
         if etype is None:
             etypes = self.etypes
             if len(self.etypes) > 1:
@@ -104,13 +105,12 @@ class CuGraphStore:
                 )
 
             etype = etypes[0]
-        col_names = self.edata_key_col_d[key]
+        col_names = self.edata_feat_col_d[feat_name]
 
         return CuFeatureStorage(
             pg=self.gdata,
             col_names=col_names,
-            _type_=ntype,
-            storage_type='node',
+            storage_type="node",
             backend_lib=self.backend_lib,
         )
 
@@ -123,7 +123,7 @@ class CuGraphStore:
     @property
     def ntypes(self):
         return self.gdata.vertex_types
- 
+
     @property
     def etypes(self):
         return self.gdata.edge_types
@@ -131,8 +131,7 @@ class CuGraphStore:
     @property
     def is_mg(self):
         return isinstance(self.gdata, MGPropertyGraph)
-    
-   
+
     @property
     def gdata(self):
         return self.__G
@@ -147,13 +146,9 @@ class CuGraphStore:
     def get_vertex_ids(self):
         return self.gdata.vertices_ids()
 
-
     def _get_edgeid_type_d(self, edge_ids, etypes):
-        type_d = {}
         df = self.gdata.get_edge_data(edge_ids=edge_ids, columns=[type_n])
-    
-        return {etype:df[df[type_n]==etype] for etype in etypes}
-
+        return {etype: df[df[type_n] == etype] for etype in etypes}
 
     ######################################
     # Sampling APIs
@@ -206,9 +201,19 @@ class CuGraphStore:
         else:
             sg = self.extracted_subgraph_without_renumbering
 
-        if not hasattr(self, '_sg_node_dtype'):
-            self._sg_node_dtype = sg.edgelist.edgelist_df['src'].dtype
-
+        if not hasattr(self, "_sg_node_dtype"):
+            # FIXME: Remove after we have consistent naming
+            # https://github.com/rapidsai/cugraph/issues/2618
+            sg_columns = sg.edgelist.edgelist_df.columns
+            if "src" in sg_columns:
+                # src for single node graph
+                self._sg_node_dtype = sg.edgelist.edgelist_df["src"].dtype
+            elif src_n in sg_columns:
+                # _SRC_ for multi-node graphs
+                self._sg_node_dtype = sg.edgelist.edgelist_df[src_n].dtype
+            else:
+                raise ValueError(f"Source column {src_n} not \
+                                  found in the subgraph")
 
         if isinstance(nodes_cap, dict):
             nodes = [cudf.from_dlpack(nodes) for nodes in nodes_cap.values()]
@@ -227,36 +232,39 @@ class CuGraphStore:
 
 
         sampled_df = uniform_neighbor_sample(
-            sg, start_list=nodes, fanout_vals=[fanout],
+            sg,
+            start_list=nodes,
+            fanout_vals=[fanout],
             with_replacement=replace,
-            is_edge_ids=True
+            # is_edge_ids=True
+            # FIXME: TODO, Raise issue on dask.cuDF
             # FIXME: is_edge_ids=True does not seem to do anything
             # issue https://github.com/rapidsai/cugraph/issues/2562
         )
 
         # we reverse directions when directions=='in'
         if edge_dir == "in":
-            sampled_df.rename(
-                columns={"destinations": src_n, "sources": dst_n}, inplace=True
+            sampled_df = sampled_df.rename(
+                columns={"destinations": src_n, "sources": dst_n}
             )
         else:
-            sampled_df.rename(
-                columns={"sources": src_n, "destinations": dst_n}, inplace=True
+            sampled_df = sampled_df.rename(
+                columns={"sources": src_n, "destinations": dst_n}
             )
-        
-        ### Transfer data to client
+
+        # Transfer data to client
         if isinstance(sampled_df, dask_cudf.DataFrame):
             sampled_df = sampled_df.compute()
 
-        if len(self.etypes)<=1:
+        if len(self.etypes) <= 1:
             return (
-            sampled_df[src_n].to_dlpack(),
-            sampled_df[dst_n].to_dlpack(),
-            sampled_df['indices'].to_dlpack(),
-        )
-        ### Heterogeneous graph case
+                sampled_df[src_n].to_dlpack(),
+                sampled_df[dst_n].to_dlpack(),
+                sampled_df["indices"].to_dlpack(),
+            )
+        # Heterogeneous graph case
         else:
-            d = self._get_edgeid_type_d(sampled_df['indices'], self.etypes)
+            d = self._get_edgeid_type_d(sampled_df["indices"], self.etypes)
             d = return_dlpack_d(d)
             return d
 
@@ -265,30 +273,41 @@ class CuGraphStore:
         # TODO: Switch to extract_subgraph based on response on
         # https://github.com/rapidsai/cugraph/issues/2458
         subset_df = self.gdata.get_edge_data()
-        subset_df.rename(columns={src_n: dst_n, dst_n: src_n}, inplace=True)
-        subgraph = cugraph.MultiGraph(directed=True)            
-        subgraph.from_cudf_edgelist(
-            subset_df,
-            source=src_n,
-            destination=dst_n,
-            edge_attr=eid_n,
-            renumber=False,
-            legacy_renum_only=False,
-        )
+        subset_df = subset_df.rename(columns={src_n: dst_n, dst_n: src_n})
+        subgraph = cugraph.MultiGraph(directed=True)
+        if self.is_mg:
+            create_subgraph_f = subgraph.from_dask_cudf_edgelist
+        else:
+            create_subgraph_f = subgraph.from_cudf_edgelist
+
+        subgraph = create_subgraph_f(
+                subset_df,
+                source=src_n,
+                destination=dst_n,
+                edge_attr=eid_n,
+                renumber=True,
+                # FIXME: renumber=False is not supported for MNMG algos
+                legacy_renum_only=True)
+
         return subgraph
 
     @cached_property
     def num_nodes_dict(self):
         return {ntype: self.num_nodes(ntype) for ntype in self.ntypes}
 
+    @cached_property
+    def num_edges_dict(self):
+        return {etype: self.num_edges(etype) for etype in self.etypes}
 
     @cached_property
     def extracted_subgraph_without_renumbering(self):
         gr_template = cugraph.MultiGraph(directed=True)
-        subgraph = self.gdata.extract_subgraph(create_using=gr_template,
-                                               edge_weight_property=eid_n,
-                                               allow_multi_edges=True,
-                                               renumber_graph=False)
+        subgraph = self.gdata.extract_subgraph(
+            create_using=gr_template,
+            edge_weight_property=eid_n,
+            allow_multi_edges=True,
+            renumber_graph=False,
+        )
         return subgraph
 
     def find_edges(self, edge_ids_cap, etype):
@@ -361,7 +380,7 @@ class CuFeatureStorage:
     is fine. DGL simply uses duck-typing to implement its sampling pipeline.
     """
 
-    def __init__(self, pg, id_col, col_names, storage_type, backend_lib="torch"):
+    def __init__(self, pg, col_names, storage_type, backend_lib="torch"):
         self.pg = pg
         self.col_names = col_names
         if backend_lib == "torch":
@@ -374,9 +393,10 @@ class CuFeatureStorage:
             raise NotImplementedError(
                 "Only pytorch and tensorflow backends are currently supported"
             )
-        if storage_type not in ['edge', 'node']:
-            raise NotImplementedError("Only edge and node storage is supported")
-        
+        if storage_type not in ["edge", "node"]:
+            raise NotImplementedError("Only edge and \
+                                      node storage is supported")
+
         self.storage_type = storage_type
 
         self.from_dlpack = from_dlpack
@@ -402,10 +422,19 @@ class CuFeatureStorage:
 
         indices = cp.asarray(indices)
 
-        if self.storage_type=='node':
-            subset_df = self.pg.get_vertex_data(vertex_ids=indices, columns=self.col_names)
+        if self.storage_type == "node":
+            subset_df = self.pg.get_vertex_data(
+                vertex_ids=indices, columns=self.col_names
+            )
+            subset_df = subset_df.drop(columns=[vid_n, type_n], axis=0)
         else:
-            subset_df = self.pg.get_edge_data(edge_ids=indices, columns=self.col_names)
+            subset_df = self.pg.get_edge_data(
+                edge_ids=indices, columns=self.col_names
+            )
+            subset_df = subset_df.drop(columns=[src_n, dst_n, type_n], axis=0)
+
+        if isinstance(subset_df, dask_cudf.DataFrame):
+            subset_df = subset_df.compute()
 
         tensor = self.from_dlpack(subset_df.to_dlpack())
 
@@ -419,10 +448,14 @@ class CuFeatureStorage:
 
 def return_dlpack_d(d):
     dlpack_d = {}
-    for k,df in d.items():
-        if len(df)==0:
-            dlpack_d[k]=(None,None,None)
+    for k, df in d.items():
+        if len(df) == 0:
+            dlpack_d[k] = (None, None, None)
         else:
-            dlpack_d[k]=(df[src_n].to_dlpack(),df[dst_n].to_dlpack(),df[eid_n].to_dlpack())
-            
+            dlpack_d[k] = (
+                df[src_n].to_dlpack(),
+                df[dst_n].to_dlpack(),
+                df[eid_n].to_dlpack(),
+            )
+
     return dlpack_d
