@@ -35,8 +35,6 @@ TEST_F(GeneratorsTest, PathGraphTest)
 
   std::vector<vertex_t> expected_src_v({0, 1, 2, 3});
   std::vector<vertex_t> expected_dst_v({1, 2, 3, 4});
-  std::vector<vertex_t> actual_src_v;
-  std::vector<vertex_t> actual_dst_v;
 
   std::vector<std::tuple<vertex_t, vertex_t>> parameters({{5, 0}});
 
@@ -47,11 +45,8 @@ TEST_F(GeneratorsTest, PathGraphTest)
 
   std::tie(src_v, dst_v) = cugraph::generate_path_graph_edgelist<vertex_t>(handle, parameters);
 
-  actual_src_v.resize(src_v.size());
-  actual_dst_v.resize(src_v.size());
-
-  raft::update_host(actual_src_v.data(), src_v.data(), src_v.size(), handle.get_stream());
-  raft::update_host(actual_dst_v.data(), dst_v.data(), dst_v.size(), handle.get_stream());
+  auto actual_src_v = cugraph::test::to_host(handle, src_v);
+  auto actual_dst_v = cugraph::test::to_host(handle, dst_v);
 
   EXPECT_EQ(expected_src_v, actual_src_v);
   EXPECT_EQ(expected_dst_v, actual_dst_v);
@@ -65,9 +60,6 @@ TEST_F(GeneratorsTest, Mesh2DGraphTest)
                                         20, 21, 22, 0, 1, 2, 3, 8, 9,  10, 11, 16, 17, 18, 19});
   std::vector<vertex_t> expected_dst_v({1,  2,  3,  5, 6, 7, 9, 10, 11, 13, 14, 15, 17, 18, 19,
                                         21, 22, 23, 4, 5, 6, 7, 12, 13, 14, 15, 20, 21, 22, 23});
-  std::vector<vertex_t> actual_src_v;
-  std::vector<vertex_t> actual_dst_v;
-
   raft::handle_t handle;
 
   rmm::device_uvector<vertex_t> src_v(0, handle.get_stream());
@@ -78,11 +70,8 @@ TEST_F(GeneratorsTest, Mesh2DGraphTest)
 
   std::tie(src_v, dst_v) = cugraph::generate_2d_mesh_graph_edgelist<vertex_t>(handle, parameters);
 
-  actual_src_v.resize(src_v.size());
-  actual_dst_v.resize(src_v.size());
-
-  raft::update_host(actual_src_v.data(), src_v.data(), src_v.size(), handle.get_stream());
-  raft::update_host(actual_dst_v.data(), dst_v.data(), dst_v.size(), handle.get_stream());
+  auto actual_src_v = cugraph::test::to_host(handle, src_v);
+  auto actual_dst_v = cugraph::test::to_host(handle, dst_v);
 
   thrust::sort(
     thrust::host,
@@ -122,9 +111,6 @@ TEST_F(GeneratorsTest, Mesh3DGraphTest)
      21, 22, 23, 24, 25, 26, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53,
      63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80});
 
-  std::vector<vertex_t> actual_src_v;
-  std::vector<vertex_t> actual_dst_v;
-
   raft::handle_t handle;
 
   rmm::device_uvector<vertex_t> src_v(0, handle.get_stream());
@@ -135,11 +121,8 @@ TEST_F(GeneratorsTest, Mesh3DGraphTest)
 
   std::tie(src_v, dst_v) = cugraph::generate_3d_mesh_graph_edgelist<vertex_t>(handle, parameters);
 
-  actual_src_v.resize(src_v.size());
-  actual_dst_v.resize(src_v.size());
-
-  raft::update_host(actual_src_v.data(), src_v.data(), src_v.size(), handle.get_stream());
-  raft::update_host(actual_dst_v.data(), dst_v.data(), dst_v.size(), handle.get_stream());
+  auto actual_src_v = cugraph::test::to_host(handle, src_v);
+  auto actual_dst_v = cugraph::test::to_host(handle, dst_v);
 
   thrust::sort(
     thrust::host,
@@ -163,8 +146,6 @@ TEST_F(GeneratorsTest, CompleteGraphTestTriangles)
 
   std::vector<vertex_t> expected_src_v({0, 0, 1, 3, 3, 4, 6, 6, 7});
   std::vector<vertex_t> expected_dst_v({1, 2, 2, 4, 5, 5, 7, 8, 8});
-  std::vector<vertex_t> actual_src_v;
-  std::vector<vertex_t> actual_dst_v;
 
   raft::handle_t handle;
 
@@ -175,11 +156,8 @@ TEST_F(GeneratorsTest, CompleteGraphTestTriangles)
 
   std::tie(src_v, dst_v) = cugraph::generate_complete_graph_edgelist<vertex_t>(handle, parameters);
 
-  actual_src_v.resize(src_v.size());
-  actual_dst_v.resize(src_v.size());
-
-  raft::update_host(actual_src_v.data(), src_v.data(), src_v.size(), handle.get_stream());
-  raft::update_host(actual_dst_v.data(), dst_v.data(), dst_v.size(), handle.get_stream());
+  auto actual_src_v = cugraph::test::to_host(handle, src_v);
+  auto actual_dst_v = cugraph::test::to_host(handle, dst_v);
 
   thrust::sort(
     thrust::host,
@@ -208,9 +186,6 @@ TEST_F(GeneratorsTest, CompleteGraphTest5)
                                         6, 6, 7, 7, 8, 10, 10, 10, 10, 11, 11, 11, 12, 12, 13});
   std::vector<vertex_t> expected_dst_v({1, 2, 3, 4, 2, 3,  4,  3,  4,  4,  6,  7,  8,  9,  7,
                                         8, 9, 8, 9, 9, 11, 12, 13, 14, 12, 13, 14, 13, 14, 14});
-  std::vector<vertex_t> actual_src_v;
-  std::vector<vertex_t> actual_dst_v;
-
   raft::handle_t handle;
 
   rmm::device_uvector<vertex_t> src_v(0, handle.get_stream());
@@ -220,11 +195,8 @@ TEST_F(GeneratorsTest, CompleteGraphTest5)
 
   std::tie(src_v, dst_v) = cugraph::generate_complete_graph_edgelist<vertex_t>(handle, parameters);
 
-  actual_src_v.resize(src_v.size());
-  actual_dst_v.resize(src_v.size());
-
-  raft::update_host(actual_src_v.data(), src_v.data(), src_v.size(), handle.get_stream());
-  raft::update_host(actual_dst_v.data(), dst_v.data(), dst_v.size(), handle.get_stream());
+  auto actual_src_v = cugraph::test::to_host(handle, src_v);
+  auto actual_dst_v = cugraph::test::to_host(handle, dst_v);
 
   thrust::sort(
     thrust::host,
@@ -249,8 +221,6 @@ TEST_F(GeneratorsTest, LineGraphTestSymmetric)
   size_t num_vertices{5};
   std::vector<vertex_t> expected_src_v({0, 1, 2, 3, 1, 2, 3, 4});
   std::vector<vertex_t> expected_dst_v({1, 2, 3, 4, 0, 1, 2, 3});
-  std::vector<vertex_t> actual_src_v;
-  std::vector<vertex_t> actual_dst_v;
 
   raft::handle_t handle;
 
@@ -264,11 +234,8 @@ TEST_F(GeneratorsTest, LineGraphTestSymmetric)
     cugraph::symmetrize_edgelist_from_triangular<vertex_t, float>(
       handle, std::move(src_v), std::move(dst_v), std::nullopt);
 
-  actual_src_v.resize(src_v.size());
-  actual_dst_v.resize(src_v.size());
-
-  raft::update_host(actual_src_v.data(), src_v.data(), src_v.size(), handle.get_stream());
-  raft::update_host(actual_dst_v.data(), dst_v.data(), dst_v.size(), handle.get_stream());
+  auto actual_src_v = cugraph::test::to_host(handle, src_v);
+  auto actual_dst_v = cugraph::test::to_host(handle, dst_v);
 
   thrust::sort(
     thrust::host,
@@ -302,8 +269,6 @@ TEST_F(GeneratorsTest, Mesh2DGraphTestSymmetric)
                                         21, 22, 23, 4, 5, 6, 7, 12, 13, 14, 15, 20, 21, 22, 23,
                                         0,  1,  2,  4, 5, 6, 8, 9,  10, 12, 13, 14, 16, 17, 18,
                                         20, 21, 22, 0, 1, 2, 3, 8,  9,  10, 11, 16, 17, 18, 19});
-  std::vector<vertex_t> actual_src_v;
-  std::vector<vertex_t> actual_dst_v;
 
   raft::handle_t handle;
 
@@ -318,11 +283,8 @@ TEST_F(GeneratorsTest, Mesh2DGraphTestSymmetric)
     cugraph::symmetrize_edgelist_from_triangular<vertex_t, float>(
       handle, std::move(src_v), std::move(dst_v), std::nullopt);
 
-  actual_src_v.resize(src_v.size());
-  actual_dst_v.resize(src_v.size());
-
-  raft::update_host(actual_src_v.data(), src_v.data(), src_v.size(), handle.get_stream());
-  raft::update_host(actual_dst_v.data(), dst_v.data(), dst_v.size(), handle.get_stream());
+  auto actual_src_v = cugraph::test::to_host(handle, src_v);
+  auto actual_dst_v = cugraph::test::to_host(handle, dst_v);
 
   thrust::sort(
     thrust::host,
@@ -381,9 +343,6 @@ TEST_F(GeneratorsTest, Mesh3DGraphTestSymmetric)
      27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 54, 55, 56, 57, 58, 59,
      60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71});
 
-  std::vector<vertex_t> actual_src_v;
-  std::vector<vertex_t> actual_dst_v;
-
   raft::handle_t handle;
 
   rmm::device_uvector<vertex_t> src_v(0, handle.get_stream());
@@ -397,11 +356,8 @@ TEST_F(GeneratorsTest, Mesh3DGraphTestSymmetric)
     cugraph::symmetrize_edgelist_from_triangular<vertex_t, float>(
       handle, std::move(src_v), std::move(dst_v), std::nullopt);
 
-  actual_src_v.resize(src_v.size());
-  actual_dst_v.resize(src_v.size());
-
-  raft::update_host(actual_src_v.data(), src_v.data(), src_v.size(), handle.get_stream());
-  raft::update_host(actual_dst_v.data(), dst_v.data(), dst_v.size(), handle.get_stream());
+  auto actual_src_v = cugraph::test::to_host(handle, src_v);
+  auto actual_dst_v = cugraph::test::to_host(handle, dst_v);
 
   thrust::sort(
     thrust::host,
@@ -428,8 +384,6 @@ TEST_F(GeneratorsTest, CompleteGraphTestTrianglesSymmetric)
 
   std::vector<vertex_t> expected_src_v({0, 0, 1, 3, 3, 4, 6, 6, 7, 1, 2, 2, 4, 5, 5, 7, 8, 8});
   std::vector<vertex_t> expected_dst_v({1, 2, 2, 4, 5, 5, 7, 8, 8, 0, 0, 1, 3, 3, 4, 6, 6, 7});
-  std::vector<vertex_t> actual_src_v;
-  std::vector<vertex_t> actual_dst_v;
 
   raft::handle_t handle;
 
@@ -443,11 +397,8 @@ TEST_F(GeneratorsTest, CompleteGraphTestTrianglesSymmetric)
     cugraph::symmetrize_edgelist_from_triangular<vertex_t, float>(
       handle, std::move(src_v), std::move(dst_v), std::nullopt);
 
-  actual_src_v.resize(src_v.size());
-  actual_dst_v.resize(src_v.size());
-
-  raft::update_host(actual_src_v.data(), src_v.data(), src_v.size(), handle.get_stream());
-  raft::update_host(actual_dst_v.data(), dst_v.data(), dst_v.size(), handle.get_stream());
+  auto actual_src_v = cugraph::test::to_host(handle, src_v);
+  auto actual_dst_v = cugraph::test::to_host(handle, dst_v);
 
   thrust::sort(
     thrust::host,
@@ -480,8 +431,6 @@ TEST_F(GeneratorsTest, CompleteGraphTest5Symmetric)
                                         8, 9, 8, 9, 9, 11, 12, 13, 14, 12, 13, 14, 13, 14, 14,
                                         0, 0, 0, 0, 1, 1,  1,  2,  2,  3,  5,  5,  5,  5,  6,
                                         6, 6, 7, 7, 8, 10, 10, 10, 10, 11, 11, 11, 12, 12, 13});
-  std::vector<vertex_t> actual_src_v;
-  std::vector<vertex_t> actual_dst_v;
 
   raft::handle_t handle;
 
@@ -495,11 +444,8 @@ TEST_F(GeneratorsTest, CompleteGraphTest5Symmetric)
     cugraph::symmetrize_edgelist_from_triangular<vertex_t, float>(
       handle, std::move(src_v), std::move(dst_v), std::nullopt);
 
-  actual_src_v.resize(src_v.size());
-  actual_dst_v.resize(src_v.size());
-
-  raft::update_host(actual_src_v.data(), src_v.data(), src_v.size(), handle.get_stream());
-  raft::update_host(actual_dst_v.data(), dst_v.data(), dst_v.size(), handle.get_stream());
+  auto actual_src_v = cugraph::test::to_host(handle, src_v);
+  auto actual_dst_v = cugraph::test::to_host(handle, dst_v);
 
   thrust::sort(
     thrust::host,
@@ -558,14 +504,8 @@ TEST_F(GeneratorsTest, CombineGraphsTest)
   std::tie(src_v, dst_v, std::ignore) = cugraph::combine_edgelists<vertex_t, weight_t>(
     handle, std::move(sources), std::move(dests), std::nullopt);
 
-  std::vector<vertex_t> actual_src_v;
-  std::vector<vertex_t> actual_dst_v;
-
-  actual_src_v.resize(src_v.size());
-  actual_dst_v.resize(dst_v.size());
-
-  raft::update_host(actual_src_v.data(), src_v.data(), src_v.size(), handle.get_stream());
-  raft::update_host(actual_dst_v.data(), dst_v.data(), dst_v.size(), handle.get_stream());
+  auto actual_src_v = cugraph::test::to_host(handle, src_v);
+  auto actual_dst_v = cugraph::test::to_host(handle, dst_v);
 
   thrust::sort(
     thrust::host,
@@ -627,14 +567,8 @@ TEST_F(GeneratorsTest, CombineGraphsOffsetsTest)
   std::tie(src_v, dst_v, std::ignore) = cugraph::combine_edgelists<vertex_t, weight_t>(
     handle, std::move(sources), std::move(dests), std::nullopt);
 
-  std::vector<vertex_t> actual_src_v;
-  std::vector<vertex_t> actual_dst_v;
-
-  actual_src_v.resize(src_v.size());
-  actual_dst_v.resize(dst_v.size());
-
-  raft::update_host(actual_src_v.data(), src_v.data(), src_v.size(), handle.get_stream());
-  raft::update_host(actual_dst_v.data(), dst_v.data(), dst_v.size(), handle.get_stream());
+  auto actual_src_v = cugraph::test::to_host(handle, src_v);
+  auto actual_dst_v = cugraph::test::to_host(handle, dst_v);
 
   thrust::sort(
     thrust::host,
@@ -677,16 +611,14 @@ TEST_F(GeneratorsTest, ScrambleTest)
 
   rmm::device_uvector<vertex_t> d_src_v(input_src_v.size(), handle.get_stream());
   rmm::device_uvector<vertex_t> d_dst_v(input_src_v.size(), handle.get_stream());
-  std::vector<vertex_t> output_src_v(input_src_v.size());
-  std::vector<vertex_t> output_dst_v(input_src_v.size());
 
   raft::update_device(d_src_v.data(), input_src_v.data(), input_src_v.size(), handle.get_stream());
   raft::update_device(d_dst_v.data(), input_dst_v.data(), input_dst_v.size(), handle.get_stream());
 
   cugraph::scramble_vertex_ids(handle, d_src_v, d_dst_v, 5, 0);
 
-  raft::update_host(output_src_v.data(), d_src_v.data(), d_src_v.size(), handle.get_stream());
-  raft::update_host(output_dst_v.data(), d_dst_v.data(), d_dst_v.size(), handle.get_stream());
+  auto output_src_v = cugraph::test::to_host(handle, d_src_v);
+  auto output_dst_v = cugraph::test::to_host(handle, d_dst_v);
 
   EXPECT_TRUE(cugraph::test::renumbered_vectors_same(handle, input_src_v, output_src_v));
   EXPECT_TRUE(cugraph::test::renumbered_vectors_same(handle, input_dst_v, output_dst_v));

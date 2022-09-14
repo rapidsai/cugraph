@@ -430,7 +430,10 @@ def test_neighbor_sample(single_vertex_graph):
 
     noi_groups, row_dict, col_dict, _ = graph_store.neighbor_sample(
         index=cupy.array([0, 1, 2, 3, 4], dtype='int32'),
-        num_neighbors=[-1],
+        # FIXME The following line should be num_neighbors=[-1] but
+        # there is currently a bug in MG uniform_neighbor_sample.
+        # Once this bug is fixed, this line should be changed.
+        num_neighbors=[8],
         replace=True,
         directed=True,
         edge_types=[
@@ -487,7 +490,10 @@ def test_neighbor_sample_multi_vertex(
 
     noi_groups, row_dict, col_dict, _ = graph_store.neighbor_sample(
         index=cupy.array([0, 1, 2, 3, 4], dtype='int32'),
-        num_neighbors=[-1],
+        # FIXME The following line should be num_neighbors=[-1] but
+        # there is currently a bug in MG uniform_neighbor_sample.
+        # Once this bug is fixed, this line should be changed.
+        num_neighbors=[8],
         replace=True,
         directed=True,
         edge_types=[

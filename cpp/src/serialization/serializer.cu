@@ -181,10 +181,6 @@ void serializer_t::serialize(graph_t const& graph, serializer_t::graph_meta_t<gr
 
     gvmeta = graph_meta_t<graph_t>{graph};
 
-    auto offsets = gview.local_edge_partition_view().offsets();
-    auto indices = gview.local_edge_partition_view().indices();
-    auto weights = gview.local_edge_partition_view().weights();
-
     // FIXME: remove when host_bcast() becomes available for vectors;
     //
     // for now, this must come first, because unserialize()
@@ -193,11 +189,14 @@ void serializer_t::serialize(graph_t const& graph, serializer_t::graph_meta_t<gr
     //
     serialize(gvmeta);
 
-    serialize(offsets, num_vertices + 1);
-    serialize(indices, num_edges);
+    auto offsets = gview.local_edge_partition_view().offsets();
+    serialize(offsets.data(), num_vertices + 1);
 
-    if (weights) serialize(*weights, num_edges);
+    auto indices = gview.local_edge_partition_view().indices();
+    serialize(indices.data(), num_edges);
 
+    auto weights = gview.local_edge_partition_view().weights();
+    if (weights) { serialize((*weights).data(), num_edges); }
   } else {
     CUGRAPH_FAIL("Unsupported graph type for serialization.");
   }

@@ -79,6 +79,8 @@ class edge_property_t {
     }
   }
 
+  edge_property_t(std::vector<buffer_type>&& buffers) : buffers_(std::move(buffers)) {}
+
   void clear(raft::handle_t const& handle)
   {
     buffers_.clear();

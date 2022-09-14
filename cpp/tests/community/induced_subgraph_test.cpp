@@ -124,26 +124,12 @@ class Tests_InducedSubgraph : public ::testing::TestWithParam<InducedSubgraph_Us
         handle, configuration.graph_file_full_path, configuration.test_weighted, false);
     auto graph_view = graph.view();
 
-    std::vector<edge_t> h_offsets(graph_view.number_of_vertices() + 1);
-    std::vector<vertex_t> h_indices(graph_view.number_of_edges());
-    auto h_weights = graph_view.is_weighted() ? std::make_optional<std::vector<weight_t>>(
-                                                  graph_view.number_of_edges(), weight_t{0.0})
-                                              : std::nullopt;
-    raft::update_host(h_offsets.data(),
-                      graph_view.local_edge_partition_view().offsets(),
-                      graph_view.number_of_vertices() + 1,
-                      handle.get_stream());
-    raft::update_host(h_indices.data(),
-                      graph_view.local_edge_partition_view().indices(),
-                      graph_view.number_of_edges(),
-                      handle.get_stream());
-    if (h_weights) {
-      raft::update_host((*h_weights).data(),
-                        *(graph_view.local_edge_partition_view().weights()),
-                        graph_view.number_of_edges(),
-                        handle.get_stream());
-    }
-    handle.sync_stream();
+    auto h_offsets =
+      cugraph::test::to_host(handle, graph_view.local_edge_partition_view().offsets());
+    auto h_indices =
+      cugraph::test::to_host(handle, graph_view.local_edge_partition_view().indices());
+    auto h_weights =
+      cugraph::test::to_host(handle, graph_view.local_edge_partition_view().weights());
 
     std::vector<size_t> h_subgraph_offsets(configuration.subgraph_sizes.size() + 1, 0);
     std::partial_sum(configuration.subgraph_sizes.begin(),
@@ -211,33 +197,13 @@ class Tests_InducedSubgraph : public ::testing::TestWithParam<InducedSubgraph_Us
 
     RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
 
-    std::vector<vertex_t> h_cugraph_subgraph_edgelist_majors(d_subgraph_edgelist_majors.size());
-    std::vector<vertex_t> h_cugraph_subgraph_edgelist_minors(d_subgraph_edgelist_minors.size());
+    auto h_cugraph_subgraph_edgelist_majors =
+      cugraph::test::to_host(handle, d_subgraph_edgelist_majors);
+    auto h_cugraph_subgraph_edgelist_minors =
+      cugraph::test::to_host(handle, d_subgraph_edgelist_minors);
     auto h_cugraph_subgraph_edgelist_weights =
-      d_subgraph_edgelist_weights
-        ? std::make_optional<std::vector<weight_t>>((*d_subgraph_edgelist_weights).size())
-        : std::nullopt;
-    std::vector<size_t> h_cugraph_subgraph_edge_offsets(d_subgraph_edge_offsets.size());
-
-    raft::update_host(h_cugraph_subgraph_edgelist_majors.data(),
-                      d_subgraph_edgelist_majors.data(),
-                      d_subgraph_edgelist_majors.size(),
-                      handle.get_stream());
-    raft::update_host(h_cugraph_subgraph_edgelist_minors.data(),
-                      d_subgraph_edgelist_minors.data(),
-                      d_subgraph_edgelist_minors.size(),
-                      handle.get_stream());
-    if (d_subgraph_edgelist_weights) {
-      raft::update_host((*h_cugraph_subgraph_edgelist_weights).data(),
-                        (*d_subgraph_edgelist_weights).data(),
-                        (*d_subgraph_edgelist_weights).size(),
-                        handle.get_stream());
-    }
-    raft::update_host(h_cugraph_subgraph_edge_offsets.data(),
-                      d_subgraph_edge_offsets.data(),
-                      d_subgraph_edge_offsets.size(),
-                      handle.get_stream());
-    handle.sync_stream();
+      cugraph::test::to_host(handle, d_subgraph_edgelist_weights);
+    auto h_cugraph_subgraph_edge_offsets = cugraph::test::to_host(handle, d_subgraph_edge_offsets);
 
     ASSERT_TRUE(h_reference_subgraph_edge_offsets.size() == h_cugraph_subgraph_edge_offsets.size())
       << "Returned subgraph edge offset vector has an invalid size.";

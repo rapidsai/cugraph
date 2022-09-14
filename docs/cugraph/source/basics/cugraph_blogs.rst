@@ -39,10 +39,8 @@ BLOGS & Conferences
 2022
 ------
   * `GTC: State of cuGraph  (video & slides) <https://www.nvidia.com/gtc/session-catalog/?search=cuGraph&tab.scheduledorondemand=1583520458947001NJiE&search=cuGraph#/session/1635793340204001n4p2>`_
-  * `GTC: Scaling and Validating Louvain in cuGraph against Massive Graphs  (video & slides) <hhttps://www.nvidia.com/gtc/session-catalog/?tab.scheduledorondemand=1583520458947001NJiE&search=cuGraph#/session/1635797342151001A9kR>`_
-
-
-
+  * `GTC: Scaling and Validating Louvain in cuGraph against Massive Graphs  (video & slides) <https://www.nvidia.com/gtc/session-catalog/?tab.scheduledorondemand=1583520458947001NJiE&search=cuGraph#/session/1635797342151001A9kR>`_
+  * `KDD Tutorial on Accelerated GNN Training with DGL/PyG and cuGraph <https://github.com/rapidsai-community/event-notebooks/tree/main/KDD_2022>`_
 
 
 Media
@@ -59,12 +57,16 @@ Academic Papers
 
  * Richardson, B., Rees, B., Drabas, T., Oldridge, E., Bader, D. A., & Allen, R. (2020, August). Accelerating and Expanding End-to-End Data Science Workflows with DL/ML Interoperability Using RAPIDS. In Proceedings of the 26th ACM SIGKDD International Conference on Knowledge Discovery & Data Mining (pp. 3503-3504).
 
+ * Alex Fender, Brad Rees, Joe Eaton (2022) `Massive Graph Analytics <https://books.google.com/books?hl=en&lr=&id=QspxEAAAQBAJ&oi=fnd&pg=PT8&dq=book:%22Massive+Graph+Analytics%22&ots=3HAGJ0njKO&sig=8e4v0azmzA6LTQNUNgPw-uTLkoc#v=onepage&q&f=false>`_  Bader, D. (Editor) CRC Press
 
 
 Other BLOGS 
 ========================
-* `4 graph algorithms on steroids for data scientists with cugraph
-  <https://towardsdatascience.com/4-graph-algorithms-on-steroids-for-data-scientists-with-cugraph-43d784de8d0e>`_
+* `4 graph algorithms on steroids for data scientists with cugraph <https://towardsdatascience.com/4-graph-algorithms-on-steroids-for-data-scientists-with-cugraph-43d784de8d0e>`_
 * `Where should I walk <https://towardsdatascience.com/where-should-i-walk-e66b26735de5>`_
 * `Where really are the parking spots? <https://towardsdatascience.com/where-really-are-the-parking-spots-ed6a1129035e>`_
 * `Accelerating Single Cell Genomic Analysis using RAPIDS <https://developer.nvidia.com/blog/accelerating-single-cell-genomic-analysis-using-rapids/>`_
+* `Running Large-Scale Graph Analytics with Memgraph and NVIDIA cuGraph Algorithms <https://developer.nvidia.com/blog/running-large-scale-graph-analytics-with-memgraph-and-nvidia-cugraph-algorithms/>`_
+* `Dev Blog Repost: Similarity in Graphs: Jaccard Versus the Overlap Coefficient <https://developer.nvidia.com/blog/similarity-in-graphs-jaccard-versus-the-overlap-coefficient-2/>`_
+
+

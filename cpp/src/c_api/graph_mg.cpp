@@ -78,6 +78,8 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
     if constexpr (!multi_gpu || !cugraph::is_candidate<vertex_t, edge_t, weight_t>::value) {
       unsupported();
     } else {
+      using edge_type_t = int32_t;
+
       std::optional<rmm::device_uvector<vertex_t>> new_number_map;
 
       std::optional<cugraph::edge_property_t<
@@ -148,15 +150,19 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
         cugraph::graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>,
         thrust::tuple<edge_t, edge_type_t>>(handle_);
 
-      // TODO - update this to the implementation that creates a new graph with edge properties.
-      std::tie(*graph, new_number_map) = cugraph::
-        create_graph_from_edgelist<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
+      std::tie(*graph, new_edge_properties, new_number_map) =
+        cugraph::create_graph_from_edgelist<vertex_t,
+                                            edge_t,
+                                            weight_t,
+                                            edge_type_t,
+                                            store_transposed,
+                                            multi_gpu>(
           handle_,
           std::nullopt,
           std::move(edgelist_srcs),
           std::move(edgelist_dsts),
           std::move(edgelist_weights),
-          // std::move(edgelist_edge_tuple),
+          std::move(edgelist_edge_tuple),
           cugraph::graph_properties_t{properties_->is_symmetric, properties_->is_multigraph},
           renumber_,
           check_);
@@ -171,12 +177,9 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
                                        graph->view().local_vertex_partition_range_first());
       }
 
-      // TODO - update this when edge property creation is available.
-      /*
       if(edgelist_edge_tuple) {
         *edge_properties = std::move(new_edge_properties.value());
       }
-      */
 
       // Set up return
       auto result = new cugraph::c_api::cugraph_graph_t{

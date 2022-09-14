@@ -192,12 +192,8 @@ class Tests_GenerateRmat : public ::testing::TestWithParam<GenerateRmat_Usecase>
 
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
 
-      std::vector<vertex_t> h_cugraph_srcs(d_srcs.size());
-      std::vector<vertex_t> h_cugraph_dsts(d_dsts.size());
-
-      raft::update_host(h_cugraph_srcs.data(), d_srcs.data(), d_srcs.size(), handle.get_stream());
-      raft::update_host(h_cugraph_dsts.data(), d_dsts.data(), d_dsts.size(), handle.get_stream());
-      handle.sync_stream();
+      auto h_cugraph_srcs = cugraph::test::to_host(handle, d_srcs);
+      auto h_cugraph_dsts = cugraph::test::to_host(handle, d_dsts);
 
       ASSERT_TRUE(
         (h_cugraph_srcs.size() == (size_t{1} << configuration.scale) * configuration.edge_factor) &&
