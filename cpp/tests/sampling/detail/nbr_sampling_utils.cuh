@@ -788,14 +788,18 @@ void validate_sampling_depth(raft::handle_t const& handle,
                              rmm::device_uvector<vertex_t>&& d_source_vertices,
                              int max_depth)
 {
-  auto [graph, number_map] =
-    create_graph_from_edgelist<vertex_t, vertex_t, weight_t, false, false>(handle,
-                                                                           std::nullopt,
-                                                                           std::move(d_src),
-                                                                           std::move(d_dst),
-                                                                           std::move(d_wgt),
-                                                                           graph_properties_t{},
-                                                                           true);
+  graph_t<vertex_t, vertex_t, weight_t, false, false> graph(handle);
+  std::optional<rmm::device_uvector<vertex_t>> number_map{std::nullopt};
+  std::tie(graph, std::ignore, number_map) =
+    create_graph_from_edgelist<vertex_t, vertex_t, weight_t, int32_t, false, false>(
+      handle,
+      std::nullopt,
+      std::move(d_src),
+      std::move(d_dst),
+      std::move(d_wgt),
+      std::nullopt,
+      graph_properties_t{},
+      true);
 
   auto graph_view = graph.view();
 
