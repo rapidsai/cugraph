@@ -594,6 +594,13 @@ def test_get_vertex_data(dataset1_PropertyGraph):
     assert len(some_vertex_data) == len(vert_ids)
     assert set(columns) - set(some_vertex_data.columns) == set()
 
+    # Allow a single vertex type and single vertex id to be passed in
+    df1 = pG.get_vertex_data(vertex_ids=[11], types=[vert_type])
+    df2 = pG.get_vertex_data(vertex_ids=11, types=vert_type)
+    assert len(df1) == 1
+    assert df1.shape == df2.shape
+    # assert_frame_equal(df1, df2, check_like=True)
+
 
 def test_get_edge_data(dataset1_PropertyGraph):
     """
@@ -654,6 +661,13 @@ def test_get_edge_data(dataset1_PropertyGraph):
     # specified columns.
     assert len(some_edge_data) == len(edge_ids)
     assert set(columns) - set(some_edge_data.columns) == set()
+
+    # Allow a single edge type and single edge id to be passed in
+    df1 = pG.get_edge_data(edge_ids=[1], types=[edge_type])
+    df2 = pG.get_edge_data(edge_ids=1, types=edge_type)
+    assert len(df1) == 1
+    assert df1.shape == df2.shape
+    # assert_frame_equal(df1, df2, check_like=True)
 
 
 @pytest.mark.parametrize("df_type", df_types, ids=df_type_id)
