@@ -19,6 +19,7 @@
 #include <cugraph_c/array.h>
 #include <cugraph_c/error.h>
 #include <cugraph_c/graph.h>
+#include <cugraph_c/graph_functions.h>
 #include <cugraph_c/resource_handle.h>
 
 #ifdef __cplusplus
@@ -26,35 +27,17 @@ extern "C" {
 #endif
 
 /**
- * @brief       Opaque core number result type
+ * @brief       Opaque similarity result type
  */
 typedef struct {
   int32_t align_;
 } cugraph_similarity_result_t;
 
 /**
- * @brief       Get the first vertex id array
+ * @brief       Get the similarity coefficient array
  *
  * @param [in]     result   The result from a similarity algorithm
- * @return type erased array of vertex ids
- */
-cugraph_type_erased_device_array_view_t* cugraph_similarity_result_get_first(
-  cugraph_similarity_result_t* result);
-
-/**
- * @brief       Get the second vertex id array
- *
- * @param [in]     result   The result from a similarity algorithm
- * @return type erased array of vertex ids
- */
-cugraph_type_erased_device_array_view_t* cugraph_similarity_result_get_second(
-  cugraph_similarity_result_t* result);
-
-/**
- * @brief       Get the similarity score array
- *
- * @param [in]     result   The result from a similarity algorithm
- * @return type erased array of scores
+ * @return type erased array of similarity coefficients
  */
 cugraph_type_erased_device_array_view_t* cugraph_similarity_result_get_similarity(
   cugraph_similarity_result_t* result);
@@ -69,31 +52,25 @@ void cugraph_similarity_result_free(cugraph_similarity_result_t* result);
 /**
  * @brief     Perform Jaccard similarity computation
  *
- * If (first, second) are specified (non-NULL) then compute the similarity of
- * the specified vertex pairs.  If (first, second) are NULL then compute the similarity
- * of all vertices in the graph that are 2 hops away.
+ * Compute the similarity for the specified vertex_pairs
  *
  * Note that Jaccard similarity must run on a symmetric graph.
  *
  * @param [in]  handle       Handle for accessing resources
  * @param [in]  graph        Pointer to graph
- * @param [in]  first        Optional type erased device array identifying first vertex,
- *                           if NULL compute for all vertex pairs
- * @param [in]  second       Optional type erased device array identifying first vertex,
- *                           if NULL compute for all vertex pairs
+ * @param [in]  vertex_pairs Vertex pair for input
  * @param [in]  use_weight   If true consider the edge weight in the graph, if false use an
  *                           edge weight of 1
  * @param [in]  do_expensive_check A flag to run expensive checks for input arguments (if set to
  * `true`).
- * @param [out] result       Opaque pointer to paths results
+ * @param [out] result       Opaque pointer to similarity results
  * @param [out] error        Pointer to an error object storing details of any error.  Will
  *                           be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
  */
 cugraph_error_code_t cugraph_jaccard_coefficients(const cugraph_resource_handle_t* handle,
                                                   cugraph_graph_t* graph,
-                                                  cugraph_type_erased_device_array_view_t* first,
-                                                  cugraph_type_erased_device_array_view_t* second,
+                                                  const cugraph_vertex_pairs_t* vertex_pairs,
                                                   bool_t use_weight,
                                                   bool_t do_expensive_check,
                                                   cugraph_core_result_t** result,
@@ -102,31 +79,25 @@ cugraph_error_code_t cugraph_jaccard_coefficients(const cugraph_resource_handle_
 /**
  * @brief     Perform Sorensen similarity computation
  *
- * If (first, second) are specified (non-NULL) then compute the similarity of
- * the specified vertex pairs.  If (first, second) are NULL then compute the similarity
- * of all vertices in the graph that are 2 hops away.
+ * Compute the similarity for the specified vertex_pairs
  *
  * Note that Sorensen similarity must run on a symmetric graph.
  *
  * @param [in]  handle       Handle for accessing resources
  * @param [in]  graph        Pointer to graph
- * @param [in]  first        Optional type erased device array identifying first vertex,
- *                           if NULL compute for all vertex pairs
- * @param [in]  second       Optional type erased device array identifying first vertex,
- *                           if NULL compute for all vertex pairs
+ * @param [in]  vertex_pairs Vertex pair for input
  * @param [in]  use_weight   If true consider the edge weight in the graph, if false use an
  *                           edge weight of 1
  * @param [in]  do_expensive_check A flag to run expensive checks for input arguments (if set to
  * `true`).
- * @param [out] result       Opaque pointer to paths results
+ * @param [out] result       Opaque pointer to similarity results
  * @param [out] error        Pointer to an error object storing details of any error.  Will
  *                           be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
  */
 cugraph_error_code_t cugraph_sorensen_coefficients(const cugraph_resource_handle_t* handle,
                                                    cugraph_graph_t* graph,
-                                                   cugraph_type_erased_device_array_view_t* first,
-                                                   cugraph_type_erased_device_array_view_t* second,
+                                                   const cugraph_vertex_pairs_t* vertex_pairs,
                                                    bool_t use_weight,
                                                    bool_t do_expensive_check,
                                                    cugraph_core_result_t** result,
@@ -135,31 +106,25 @@ cugraph_error_code_t cugraph_sorensen_coefficients(const cugraph_resource_handle
 /**
  * @brief     Perform overlap similarity computation
  *
- * If (first, second) are specified (non-NULL) then compute the similarity of
- * the specified vertex pairs.  If (first, second) are NULL then compute the similarity
- * of all vertices in the graph that are 2 hops away.
+ * Compute the similarity for the specified vertex_pairs
  *
  * Note that overlap similarity must run on a symmetric graph.
  *
  * @param [in]  handle       Handle for accessing resources
  * @param [in]  graph        Pointer to graph
- * @param [in]  first        Optional type erased device array identifying first vertex,
- *                           if NULL compute for all vertex pairs
- * @param [in]  second       Optional type erased device array identifying first vertex,
- *                           if NULL compute for all vertex pairs
+ * @param [in]  vertex_pairs Vertex pair for input
  * @param [in]  use_weight   If true consider the edge weight in the graph, if false use an
  *                           edge weight of 1
  * @param [in]  do_expensive_check A flag to run expensive checks for input arguments (if set to
  * `true`).
- * @param [out] result       Opaque pointer to paths results
+ * @param [out] result       Opaque pointer to similarity results
  * @param [out] error        Pointer to an error object storing details of any error.  Will
  *                           be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
  */
 cugraph_error_code_t cugraph_overlap_coefficients(const cugraph_resource_handle_t* handle,
                                                   cugraph_graph_t* graph,
-                                                  cugraph_type_erased_device_array_view_t* first,
-                                                  cugraph_type_erased_device_array_view_t* second,
+                                                  const cugraph_vertex_pairs_t* vertex_pairs,
                                                   bool_t use_weight,
                                                   bool_t do_expensive_check,
                                                   cugraph_core_result_t** result,

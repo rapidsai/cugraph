@@ -21,7 +21,7 @@ namespace cugraph {
 namespace c_api {
 
 template <typename functor_t, typename result_t>
-cugraph_error_code_t run_algorithm(::cugraph_graph_t* graph,
+cugraph_error_code_t run_algorithm(::cugraph_graph_t const* graph,
                                    functor_t& functor,
                                    result_t** result,
                                    ::cugraph_error_t** error)
@@ -30,7 +30,7 @@ cugraph_error_code_t run_algorithm(::cugraph_graph_t* graph,
   *error  = nullptr;
 
   try {
-    auto p_graph = reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph);
+    auto p_graph = reinterpret_cast<cugraph::c_api::cugraph_graph_t const*>(graph);
 
     cugraph::dispatch::vertex_dispatcher(cugraph::c_api::dtypes_mapping[p_graph->vertex_type_],
                                          cugraph::c_api::dtypes_mapping[p_graph->edge_type_],

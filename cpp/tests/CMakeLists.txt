@@ -566,7 +566,8 @@ if(BUILD_CUGRAPH_MG_TESTS)
     ConfigureCTestMG(MG_CAPI_RANDOM_WALKS c_api/mg_random_walks_test.c c_api/mg_test_utils.cpp)
     ConfigureCTestMG(MG_CAPI_TRIANGLE_COUNT c_api/mg_triangle_count_test.c c_api/mg_test_utils.cpp)
     ConfigureCTestMG(MG_CAPI_LOUVAIN c_api/mg_louvain_test.c c_api/mg_test_utils.cpp)
-	ConfigureCTestMG(MG_CAPI_CORE_NUMBER c_api/mg_core_number_test.c c_api/mg_test_utils.cpp)
+    ConfigureCTestMG(MG_CAPI_CORE_NUMBER c_api/mg_core_number_test.c c_api/mg_test_utils.cpp)
+    ConfigureCTestMG(MG_CAPI_SIMILARITY c_api/mg_similarity_test.c c_api/mg_test_utils.cpp)
 endif()
 
 ###################################################################################################
@@ -599,18 +600,18 @@ target_link_libraries(cugraph_c_testutil
 
 # FIXME: Disabling these tests, they test an older version of the API which
 #        will be deleted in this release.  Leaving them here to help me remember :-)
-#ConfigureCTest(CAPI_CREATE_SG_GRAPH_ENVELOPE_TEST c_api/create_sg_graph_envelope_test.c)
-#ConfigureCTest(CAPI_RANDOM_WALKS_TEST c_api/random_walks_test.c)
+#ConfigureCTest(CAPI_CREATE_SG_GRAPH_ENVELOPE c_api/create_sg_graph_envelope_test.c)
+#ConfigureCTest(CAPI_RANDOM_WALKS c_api/random_walks_test.c)
 
-ConfigureCTest(CAPI_CREATE_GRAPH_TEST c_api/create_graph_test.c)
-ConfigureCTest(CAPI_PAGERANK_TEST c_api/pagerank_test.c)
-ConfigureCTest(CAPI_KATZ_TEST c_api/katz_test.c)
-ConfigureCTest(CAPI_EIGENVECTOR_CENTRALITY_TEST c_api/eigenvector_centrality_test.c)
-ConfigureCTest(CAPI_HITS_TEST c_api/hits_test.c)
-ConfigureCTest(CAPI_BFS_TEST c_api/bfs_test.c)
-ConfigureCTest(CAPI_SSSP_TEST c_api/sssp_test.c)
-ConfigureCTest(CAPI_EXTRACT_PATHS_TEST c_api/extract_paths_test.c)
-ConfigureCTest(CAPI_NODE2VEC_TEST c_api/node2vec_test.c)
+ConfigureCTest(CAPI_CREATE_GRAPH c_api/create_graph_test.c)
+ConfigureCTest(CAPI_PAGERANK c_api/pagerank_test.c)
+ConfigureCTest(CAPI_KATZ c_api/katz_test.c)
+ConfigureCTest(CAPI_EIGENVECTOR_CENTRALITY c_api/eigenvector_centrality_test.c)
+ConfigureCTest(CAPI_HITS c_api/hits_test.c)
+ConfigureCTest(CAPI_BFS c_api/bfs_test.c)
+ConfigureCTest(CAPI_SSSP c_api/sssp_test.c)
+ConfigureCTest(CAPI_EXTRACT_PATHS c_api/extract_paths_test.c)
+ConfigureCTest(CAPI_NODE2VEC c_api/node2vec_test.c)
 ConfigureCTest(CAPI_WEAKLY_CONNECTED_COMPONENTS c_api/weakly_connected_components_test.c)
 ConfigureCTest(CAPI_STRONGLY_CONNECTED_COMPONENTS c_api/strongly_connected_components_test.c)
 ConfigureCTest(CAPI_UNIFORM_NEIGHBOR_SAMPLE c_api/uniform_neighbor_sample_test.c)
@@ -618,6 +619,7 @@ ConfigureCTest(CAPI_RANDOM_WALKS c_api/sg_random_walks_test.c)
 ConfigureCTest(CAPI_TRIANGLE_COUNT c_api/triangle_count_test.c)
 ConfigureCTest(CAPI_LOUVAIN c_api/louvain_test.c)
 ConfigureCTest(CAPI_CORE_NUMBER c_api/core_number_test.c)
+ConfigureCTest(CAPI_SIMILARITY c_api/similarity_test.c)
 
 ###################################################################################################
 ### enable testing ################################################################################

@@ -1698,7 +1698,7 @@ void triangle_count(raft::handle_t const& handle,
  * In a multi-gpu context each vertex pair should be local to this GPU.
  * @param use_weights If true use the weights associated with the graph.  If false assume a weight
  *                    of 1 for all edges.
- * @return tuple defining vertex pairs and their Jaccard similarity coefficient.
+ * @return similarity coefficient for the corresponding @p vertex_pairs
  */
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 rmm::device_uvector<weight_t> jaccard_coefficients(
@@ -1726,7 +1726,7 @@ rmm::device_uvector<weight_t> jaccard_coefficients(
  * In a multi-gpu context each vertex pair should be local to this GPU.
  * @param use_weights If true use the weights associated with the graph.  If false assume a weight
  *                    of 1 for all edges.
- * @return tuple defining vertex pairs and their Jaccard similarity coefficient.
+ * @return similarity coefficient for the corresponding @p vertex_pairs
  */
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 rmm::device_uvector<weight_t> sorensen_coefficients(
@@ -1754,7 +1754,7 @@ rmm::device_uvector<weight_t> sorensen_coefficients(
  * In a multi-gpu context each vertex pair should be local to this GPU.
  * @param use_weights If true use the weights associated with the graph.  If false assume a weight
  *                    of 1 for all edges.
- * @return tuple defining vertex pairs and their Jaccard similarity coefficient.
+ * @return similarity coefficient for the corresponding @p vertex_pairs
  */
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 rmm::device_uvector<weight_t> overlap_coefficients(
