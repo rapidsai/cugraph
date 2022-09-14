@@ -26,4 +26,3 @@ struct cugraph_vertex_pairs_t {
 
 }  // namespace c_api
 }  // namespace cugraph
-

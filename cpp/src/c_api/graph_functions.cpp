@@ -83,7 +83,8 @@ struct two_hop_neighbors_functor : public cugraph::c_api::abstract_functor {
   cugraph::c_api::cugraph_graph_t const* graph_;
   cugraph::c_api::cugraph_vertex_pairs_t* result_{};
 
-  two_hop_neighbors_functor(::cugraph_resource_handle_t const* handle, ::cugraph_graph_t const* graph)
+  two_hop_neighbors_functor(::cugraph_resource_handle_t const* handle,
+                            ::cugraph_graph_t const* graph)
     : abstract_functor(),
       handle_(*reinterpret_cast<cugraph::c_api::cugraph_resource_handle_t const*>(handle)->handle_),
       graph_(reinterpret_cast<cugraph::c_api::cugraph_graph_t const*>(graph))
