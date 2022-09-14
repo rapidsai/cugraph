@@ -176,7 +176,7 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
         src_->type_,
         edge_type_,
         weights_ ? weights_->type_ : data_type_id_t::FLOAT32,
-        edge_types_ ? edge_types_->type_ : data_type_id_t::UINT8,
+        edge_types_ ? edge_types_->type_ : data_type_id_t::INT32,
         store_transposed,
         multi_gpu,
         graph,
@@ -305,7 +305,7 @@ extern "C" cugraph_error_code_t cugraph_sg_graph_create(
                "Invalid input arguments: src size != edge prop size",
                *error);
 
-  data_type_id_t edge_type_type = data_type_id_t::UINT8;
+  data_type_id_t edge_type_type = data_type_id_t::INT32;
   if (edge_types != nullptr) { edge_type_type = p_edge_types->type_; }
 
   ::create_graph_functor functor(*p_handle->handle_,

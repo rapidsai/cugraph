@@ -183,7 +183,7 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
         src_->type_,
         edge_type_,
         weights_ ? weights_->type_ : data_type_id_t::FLOAT32,
-        edge_types_ ? edge_types_->type_ : data_type_id_t::UINT8,
+        edge_types_ ? edge_types_->type_ : data_type_id_t::INT32,
         store_transposed,
         multi_gpu,
         graph,
@@ -315,7 +315,7 @@ extern "C" cugraph_error_code_t cugraph_mg_graph_create(
 
   data_type_id_t edge_type_type;
   if (edge_types == nullptr) {
-    edge_type_type = data_type_id_t::UINT8;
+    edge_type_type = data_type_id_t::INT32;
   } else {
     edge_type_type = p_edge_types->type_;
   }

@@ -24,7 +24,7 @@
 namespace cugraph {
 namespace visitors {
 
-enum class DTypes { INT32 = 0, INT64, FLOAT32, FLOAT64, UINT8, NTYPES };
+enum class DTypes { INT32 = 0, INT64, FLOAT32, FLOAT64, NTYPES };
 
 template <DTypes>
 struct DMapType;
@@ -49,11 +49,6 @@ struct DMapType<DTypes::FLOAT64> {
   using type = double;
 };
 
-template <>
-struct DMapType<DTypes::UINT8> {
-  using type = uint8_t;
-};
-
 template <typename T>
 struct reverse_dmap_t;
 
@@ -75,11 +70,6 @@ struct reverse_dmap_t<float> {
 template <>
 struct reverse_dmap_t<double> {
   static constexpr DTypes type_id = DTypes::FLOAT64;
-};
-
-template <>
-struct reverse_dmap_t<uint8_t> {
-  static constexpr DTypes type_id = DTypes::UINT8;
 };
 
 }  // namespace visitors

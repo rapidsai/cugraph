@@ -24,10 +24,9 @@ namespace c_api {
 cugraph::visitors::DTypes dtypes_mapping[] = {cugraph::visitors::DTypes::INT32,
                                               cugraph::visitors::DTypes::INT64,
                                               cugraph::visitors::DTypes::FLOAT32,
-                                              cugraph::visitors::DTypes::FLOAT64,
-                                              cugraph::visitors::DTypes::UINT8};
+                                              cugraph::visitors::DTypes::FLOAT64};
 
-size_t data_type_sz[] = {4, 8, 4, 8, 1};
+size_t data_type_sz[] = {4, 8, 4, 8};
 
 }  // namespace c_api
 }  // namespace cugraph

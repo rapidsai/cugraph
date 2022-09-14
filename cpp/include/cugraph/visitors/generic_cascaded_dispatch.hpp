@@ -90,30 +90,25 @@ constexpr decltype(auto) edge_type_type_dispatcher(cugraph::visitors::DTypes edg
                                                    functor_t& functor)
 {
   switch (edge_type_type) {
-    case cugraph::visitors::DTypes::UINT8: {
+    case cugraph::visitors::DTypes::INT32: {
       using edge_type_t =
-        typename cugraph::visitors::DMapType<cugraph::visitors::DTypes::UINT8>::type;
+        typename cugraph::visitors::DMapType<cugraph::visitors::DTypes::INT32>::type;
       return transpose_dispatcher<vertex_t, edge_t, weight_t, edge_type_t>(
         store_transposed, multi_gpu, functor);
-    } break;
-    case cugraph::visitors::DTypes::INT32: {
-      throw std::runtime_error(
-        "ERROR: Data type INT32 not allowed for edge type (valid types: UINT8).");
-      break;
     }
     case cugraph::visitors::DTypes::INT64: {
       throw std::runtime_error(
-        "ERROR: Data type INT64 not allowed for edge type (valid types: UINT8).");
+        "ERROR: Data type INT64 not allowed for edge type (valid types: INT32).");
       break;
     }
     case cugraph::visitors::DTypes::FLOAT32: {
       throw std::runtime_error(
-        "ERROR: Data type FLOAT32 not allowed for edge type (valid types: UINT8).");
+        "ERROR: Data type FLOAT32 not allowed for edge type (valid types: INT32).");
       break;
     }
     case cugraph::visitors::DTypes::FLOAT64: {
       throw std::runtime_error(
-        "ERROR: Data type FLOAT64 not allowed for edge type (valid types: UINT8).");
+        "ERROR: Data type FLOAT64 not allowed for edge type (valid types: INT32).");
       break;
     }
 
@@ -161,10 +156,6 @@ constexpr decltype(auto) weight_dispatcher(cugraph::visitors::DTypes weight_type
       return edge_type_type_dispatcher<vertex_t, edge_t, weight_t>(
         edge_type_type, store_transposed, multi_gpu, functor);
     } break;
-    case cugraph::visitors::DTypes::UINT8: {
-      throw std::runtime_error("ERROR: UINT8 not supported for a weight type");
-      break;
-    }
     default: {
       std::stringstream ss;
       ss << "ERROR: Unknown type enum:" << static_cast<int>(weight_type);
@@ -208,10 +199,6 @@ constexpr decltype(auto) edge_dispatcher(cugraph::visitors::DTypes edge_type,
       return weight_dispatcher<vertex_t, edge_t>(
         weight_type, edge_type_type, store_transposed, multi_gpu, functor);
     } break;
-    case cugraph::visitors::DTypes::UINT8: {
-      throw std::runtime_error("ERROR: UINT8 not supported for an edge type");
-      break;
-    }
     default: {
       std::stringstream ss;
       ss << "ERROR: Unknown type enum:" << static_cast<int>(edge_type);
@@ -252,10 +239,6 @@ inline decltype(auto) vertex_dispatcher(cugraph::visitors::DTypes vertex_type,
     case cugraph::visitors::DTypes::FLOAT64: {
       throw std::runtime_error("ERROR: FLOAT64 not supported for a vertex type");
     } break;
-    case cugraph::visitors::DTypes::UINT8: {
-      throw std::runtime_error("ERROR: UINT8 not supported for a vertex type");
-      break;
-    }
     default: {
       std::stringstream ss;
       ss << "ERROR: Unknown type enum:" << static_cast<int>(vertex_type);
