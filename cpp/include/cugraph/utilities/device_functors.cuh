@@ -76,6 +76,21 @@ struct check_in_range_t {
 };
 
 template <typename T>
+struct strided_sum_t {
+  T const* values{nullptr};
+  size_t stride{0};
+  size_t count{0};
+
+  __device__ T operator()(size_t start_offset) const {
+    T sum{0};
+    for (size_t j = 0; j < count; ++j) {
+      sum += values[start_offset + stride * j];
+    }
+    return sum;
+  }
+};
+
+template <typename T>
 struct shift_left_t {
   T offset{};
 
@@ -102,6 +117,13 @@ struct multiply_and_add_t {
   T adder{};
 
   __device__ T operator()(T input) const { return input * multiplier + adder; }
+};
+
+template <typename T>
+struct divider_t {
+  T divisor{};
+
+  __device__ T operator()(T input) const { return input / divisor; }
 };
 
 }  // namespace detail
