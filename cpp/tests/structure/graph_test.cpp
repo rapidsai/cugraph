@@ -23,6 +23,7 @@
 
 #include <raft/cudart_utils.h>
 #include <raft/handle.hpp>
+#include <raft/span.hpp>
 #include <rmm/device_uvector.hpp>
 #include <rmm/mr/device/cuda_memory_resource.hpp>
 
@@ -97,18 +98,9 @@ class Tests_Graph : public ::testing::TestWithParam<std::tuple<Graph_Usecase, in
 
     edge_t number_of_edges = static_cast<edge_t>(d_srcs.size());
 
-    std::vector<vertex_t> h_srcs(number_of_edges);
-    std::vector<vertex_t> h_dsts(number_of_edges);
-    auto h_weights =
-      d_weights ? std::make_optional<std::vector<weight_t>>(number_of_edges) : std::nullopt;
-
-    raft::update_host(h_srcs.data(), d_srcs.data(), number_of_edges, handle.get_stream());
-    raft::update_host(h_dsts.data(), d_dsts.data(), number_of_edges, handle.get_stream());
-    if (h_weights) {
-      raft::update_host(
-        (*h_weights).data(), (*d_weights).data(), number_of_edges, handle.get_stream());
-    }
-    handle.sync_stream();
+    auto h_srcs    = cugraph::test::to_host(handle, d_srcs);
+    auto h_dsts    = cugraph::test::to_host(handle, d_dsts);
+    auto h_weights = cugraph::test::to_host(handle, d_weights);
 
     auto [h_reference_offsets, h_reference_indices, h_reference_weights] =
       graph_reference<store_transposed>(
@@ -119,10 +111,11 @@ class Tests_Graph : public ::testing::TestWithParam<std::tuple<Graph_Usecase, in
         number_of_edges);
 
     cugraph::edgelist_t<vertex_t, edge_t, weight_t> edgelist{
-      d_srcs.data(),
-      d_dsts.data(),
-      d_weights ? std::optional<weight_t const*>{(*d_weights).data()} : std::nullopt,
-      number_of_edges};
+      raft::device_span<vertex_t const>(d_srcs.data(), d_srcs.size()),
+      raft::device_span<vertex_t const>(d_dsts.data(), d_dsts.size()),
+      d_weights ? std::make_optional<raft::device_span<weight_t const>>((*d_weights).data(),
+                                                                        (*d_weights).size())
+                : std::nullopt};
 
     RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
 
@@ -143,28 +136,12 @@ class Tests_Graph : public ::testing::TestWithParam<std::tuple<Graph_Usecase, in
     ASSERT_EQ(graph_view.number_of_edges(), number_of_edges);
 
     if (graph_usecase.check_correctness) {
-      std::vector<edge_t> h_cugraph_offsets(graph_view.number_of_vertices() + 1);
-      std::vector<vertex_t> h_cugraph_indices(graph_view.number_of_edges());
+      auto h_cugraph_offsets =
+        cugraph::test::to_host(handle, graph_view.local_edge_partition_view().offsets());
+      auto h_cugraph_indices =
+        cugraph::test::to_host(handle, graph_view.local_edge_partition_view().indices());
       auto h_cugraph_weights =
-        graph.is_weighted() ? std::optional<std::vector<weight_t>>(graph_view.number_of_edges())
-                            : std::nullopt;
-
-      raft::update_host(h_cugraph_offsets.data(),
-                        graph_view.local_edge_partition_view().offsets(),
-                        graph_view.number_of_vertices() + 1,
-                        handle.get_stream());
-      raft::update_host(h_cugraph_indices.data(),
-                        graph_view.local_edge_partition_view().indices(),
-                        graph_view.number_of_edges(),
-                        handle.get_stream());
-      if (h_cugraph_weights) {
-        raft::update_host((*h_cugraph_weights).data(),
-                          *(graph_view.local_edge_partition_view().weights()),
-                          graph_view.number_of_edges(),
-                          handle.get_stream());
-      }
-
-      handle.sync_stream();
+        cugraph::test::to_host(handle, graph_view.local_edge_partition_view().weights());
 
       ASSERT_TRUE(std::equal(
         h_reference_offsets.begin(), h_reference_offsets.end(), h_cugraph_offsets.begin()))

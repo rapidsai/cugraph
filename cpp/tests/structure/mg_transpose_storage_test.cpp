@@ -139,41 +139,13 @@ class Tests_MGTransposeStorage
         ASSERT_TRUE(mg_graph.number_of_vertices() == sg_graph.number_of_vertices());
         ASSERT_TRUE(mg_graph.number_of_edges() == sg_graph.number_of_edges());
 
-        std::vector<vertex_t> h_mg_aggregate_srcs(d_mg_aggregate_srcs.size());
-        std::vector<vertex_t> h_mg_aggregate_dsts(d_mg_aggregate_srcs.size());
-        auto h_mg_aggregate_weights =
-          d_mg_aggregate_weights
-            ? std::make_optional<std::vector<weight_t>>(d_mg_aggregate_srcs.size())
-            : std::nullopt;
-        raft::update_host(h_mg_aggregate_srcs.data(),
-                          d_mg_aggregate_srcs.data(),
-                          d_mg_aggregate_srcs.size(),
-                          handle_->get_stream());
-        raft::update_host(h_mg_aggregate_dsts.data(),
-                          d_mg_aggregate_dsts.data(),
-                          d_mg_aggregate_dsts.size(),
-                          handle_->get_stream());
-        if (h_mg_aggregate_weights) {
-          raft::update_host((*h_mg_aggregate_weights).data(),
-                            (*d_mg_aggregate_weights).data(),
-                            (*d_mg_aggregate_weights).size(),
-                            handle_->get_stream());
-        }
+        auto h_mg_aggregate_srcs    = cugraph::test::to_host(*handle_, d_mg_aggregate_srcs);
+        auto h_mg_aggregate_dsts    = cugraph::test::to_host(*handle_, d_mg_aggregate_dsts);
+        auto h_mg_aggregate_weights = cugraph::test::to_host(*handle_, d_mg_aggregate_weights);
 
-        std::vector<vertex_t> h_sg_srcs(d_sg_srcs.size());
-        std::vector<vertex_t> h_sg_dsts(d_sg_srcs.size());
-        auto h_sg_weights =
-          d_sg_weights ? std::make_optional<std::vector<weight_t>>(d_sg_srcs.size()) : std::nullopt;
-        raft::update_host(
-          h_sg_srcs.data(), d_sg_srcs.data(), d_sg_srcs.size(), handle_->get_stream());
-        raft::update_host(
-          h_sg_dsts.data(), d_sg_dsts.data(), d_sg_dsts.size(), handle_->get_stream());
-        if (h_sg_weights) {
-          raft::update_host((*h_sg_weights).data(),
-                            (*d_sg_weights).data(),
-                            (*d_sg_weights).size(),
-                            handle_->get_stream());
-        }
+        auto h_sg_srcs    = cugraph::test::to_host(*handle_, d_sg_srcs);
+        auto h_sg_dsts    = cugraph::test::to_host(*handle_, d_sg_dsts);
+        auto h_sg_weights = cugraph::test::to_host(*handle_, d_sg_weights);
 
         if (transpose_storage_usecase.test_weighted) {
           std::vector<std::tuple<vertex_t, vertex_t, weight_t>> mg_aggregate_edges(

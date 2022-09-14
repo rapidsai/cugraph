@@ -252,18 +252,8 @@ class Tests_MGPageRank
 
         // 4-5. compare
 
-        std::vector<result_t> h_mg_aggregate_pageranks(mg_graph_view.number_of_vertices());
-        raft::update_host(h_mg_aggregate_pageranks.data(),
-                          d_mg_aggregate_pageranks.data(),
-                          d_mg_aggregate_pageranks.size(),
-                          handle_->get_stream());
-
-        std::vector<result_t> h_sg_pageranks(sg_graph_view.number_of_vertices());
-        raft::update_host(h_sg_pageranks.data(),
-                          d_sg_pageranks.data(),
-                          d_sg_pageranks.size(),
-                          handle_->get_stream());
-        handle_->sync_stream();
+        auto h_mg_aggregate_pageranks = cugraph::test::to_host(*handle_, d_mg_aggregate_pageranks);
+        auto h_sg_pageranks           = cugraph::test::to_host(*handle_, d_sg_pageranks);
 
         auto threshold_ratio = 1e-3;
         auto threshold_magnitude =

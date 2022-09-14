@@ -150,7 +150,8 @@ gather_local_edges(
   const rmm::device_uvector<typename GraphViewType::vertex_type>& active_majors,
   rmm::device_uvector<typename GraphViewType::edge_type>&& minor_map,
   typename GraphViewType::edge_type indices_per_major,
-  const rmm::device_uvector<typename GraphViewType::edge_type>& global_degree_offsets);
+  const rmm::device_uvector<typename GraphViewType::edge_type>& global_degree_offsets,
+  bool remove_invalid_vertices = true);
 
 /**
  * @brief Gather edge list for specified vertices

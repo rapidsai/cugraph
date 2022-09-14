@@ -36,15 +36,14 @@ Layout            |                                                             
 | [Link Prediction](link_prediction/README.md) |                                                              |                                                              |
 |                 | [Jaccard Similarity](algorithms/link_prediction/Jaccard-Similarity.ipynb) | Compute vertex similarity score using both:<br />- Jaccard Similarity<br />- Weighted Jaccard |
 |                 | [Overlap Similarity](algorithms/link_prediction/Overlap-Similarity.ipynb) | Compute vertex similarity score using the Overlap Coefficient |
-<!--| Sampling        |
+| [Sampling](sampling/README.md)        |
 |                 | [Random Walk](sampling/RandomWalk.ipynb)                     | Compute Random Walk for a various number of seeds and path lengths |
-| Traversal       |                                                              |                                                              |
+| [Traversal](traversal/README.md)       |                                                              |                                                              |
 |                 | [BFS](traversal/BFS.ipynb)                                   | Compute the Breadth First Search path from a starting vertex to every other vertex in a graph |
 |                 | [SSSP](traversal/SSSP.ipynb)                                 | Single Source Shortest Path  - compute the shortest path from a starting vertex to every other vertex |
-| Structure       |                                                              |                                                              |
+| [Structure](structure/README.md)       |                                                              |                                                              |
 |                 | [Renumbering](structure/Renumber.ipynb) <br> [Renumbering 2](structure/Renumber-2.ipynb) | Renumber the vertex IDs in a graph (two sample notebooks)    |
 |                 | [Symmetrize](structure/Symmetrize.ipynb)                     | Symmetrize the edges in a graph                              |
- -->
 
 [System Requirements](../README.md#requirements)
 
@@ -63,8 +62,4 @@ http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the License for the specific language governing permissions and limitations under the License.
 
-
-
-
-
-![RAPIDS](img/rapids_logo.png)
+![RAPIDS](../img/rapids_logo.png)
