@@ -49,6 +49,7 @@ target_link_libraries(cugraphtestutil
         NCCL::NCCL
     PRIVATE
         cuco::cuco
+        GTest::gtest
 )
 
 ###################################################################################################
@@ -389,7 +390,7 @@ ConfigureTest(RANDOM_WALKS_LOW_LEVEL_TEST sampling/rw_low_level_test.cu)
 # - NBR SAMPLING tests -----------------------------------------------------------------
 ConfigureTest(UNIFORM_NEIGHBOR_SAMPLING_TEST sampling/sg_uniform_neighbor_sampling.cu)
 target_link_libraries(UNIFORM_NEIGHBOR_SAMPLING_TEST PRIVATE cuco::cuco)
-        
+
 ###################################################################################################
 # FIXME: since this is technically not a test, consider refactoring the the
 # ConfigureTest function to share common code with a new ConfigureBenchmark
@@ -448,6 +449,8 @@ if(BUILD_CUGRAPH_MG_TESTS)
             cugraph::cugraph
             NCCL::NCCL
             MPI::MPI_CXX
+        PRIVATE
+            GTest::gtest
     )
 
     # Set the GPU count to 1.  If the caller wants to execute MG tests using
