@@ -15,14 +15,25 @@
 #=============================================================================
 
 set(CUGRAPH_MIN_VERSION_cugraph_ops "${CUGRAPH_VERSION_MAJOR}.${CUGRAPH_VERSION_MINOR}.00")
-set(CUGRAPH_BRANCH_VERSION_cugraph_ops "${CUGRAPH_VERSION_MAJOR}.${CUGRAPH_VERSION_MINOR}")
+
+if(NOT DEFINED CUGRAPH_CUGRAPH_OPS_VERSION)
+  set(CUGRAPH_CUGRAPH_OPS_VERSION "${CUGRAPH_VERSION_MAJOR}.${CUGRAPH_VERSION_MINOR}")
+endif()
+
+if(NOT DEFINED CUGRAPH_CUGRAPH_OPS_BRANCH)
+  set(CUGRAPH_CUGRAPH_OPS_BRANCH "branch-${CUGRAPH_CUGRAPH_OPS_VERSION}")
+endif()
+
+if(NOT DEFINED CUGRAPH_CUGRAPH_OPS_REPOSITORY)
+  set(CUGRAPH_CUGRAPH_OPS_REPOSITORY "git@github.com:rapidsai/cugraph-ops.git")
+endif()
 
 function(find_and_configure_cugraph_ops)
 
-    set(oneValueArgs VERSION FORK PINNED_TAG BUILD_STATIC EXCLUDE_FROM_ALL CLONE_ON_PIN)
+    set(oneValueArgs VERSION REPO PINNED_TAG BUILD_STATIC EXCLUDE_FROM_ALL CLONE_ON_PIN)
     cmake_parse_arguments(PKG "" "${oneValueArgs}" "" ${ARGN})
 
-    if(PKG_CLONE_ON_PIN AND NOT PKG_PINNED_TAG STREQUAL "branch-${CUGRAPH_BRANCH_VERSION_cugraph_ops}")
+    if(PKG_CLONE_ON_PIN AND NOT PKG_PINNED_TAG STREQUAL "branch-${CUGRAPH_CUGRAPH_OPS_VERSION}")
         message("Pinned tag found: ${PKG_PINNED_TAG}. Cloning cugraph-ops locally.")
         set(CPM_DOWNLOAD_cugraph-ops ON)
     elseif(PKG_BUILD_STATIC AND (NOT CPM_cugraph-ops_SOURCE))
@@ -41,7 +52,7 @@ function(find_and_configure_cugraph_ops)
       INSTALL_EXPORT_SET  cugraph-exports
       CPM_ARGS
         SOURCE_SUBDIR    cpp
-        GIT_REPOSITORY   git@github.com:${PKG_FORK}/cugraph-ops.git
+        GIT_REPOSITORY   ${PKG_REPO}
         GIT_TAG          ${PKG_PINNED_TAG}
         EXCLUDE_FROM_ALL ${PKG_EXCLUDE_FROM_ALL}
         OPTIONS
@@ -57,8 +68,8 @@ endfunction()
 # `-D cugraph-ops_ROOT=/path/to/cugraph-ops/build`
 ###
 find_and_configure_cugraph_ops(VERSION      ${CUGRAPH_MIN_VERSION_cugraph_ops}
-                               FORK         rapidsai
-                               PINNED_TAG   branch-${CUGRAPH_BRANCH_VERSION_cugraph_ops}
+                               REPO         ${CUGRAPH_CUGRAPH_OPS_REPOSITORY}
+                               PINNED_TAG   ${CUGRAPH_CUGRAPH_OPS_BRANCH}
                                BUILD_STATIC     ${CUGRAPH_USE_CUGRAPH_OPS_STATIC}
                                EXCLUDE_FROM_ALL ${CUGRAPH_EXCLUDE_CUGRAPH_OPS_FROM_ALL}
                               # When PINNED_TAG above doesn't match cuml,
