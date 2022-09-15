@@ -622,15 +622,20 @@ construct_graph(raft::handle_t const& handle,
 
   if (drop_multi_edges) { sort_and_remove_multi_edges(handle, d_src_v, d_dst_v, d_weights_v); }
 
-  return cugraph::
-    create_graph_from_edgelist<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
+  graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> graph(handle);
+  std::optional<rmm::device_uvector<vertex_t>> renumber_map{std::nullopt};
+  std::tie(graph, std::ignore, renumber_map) = cugraph::
+    create_graph_from_edgelist<vertex_t, edge_t, weight_t, int32_t, store_transposed, multi_gpu>(
       handle,
       std::make_optional(std::move(d_vertices_v)),
       std::move(d_src_v),
       std::move(d_dst_v),
       std::move(d_weights_v),
+      std::nullopt,
       cugraph::graph_properties_t{is_symmetric, drop_multi_edges ? false : true},
       renumber);
+
+  return std::make_tuple(std::move(graph), std::move(renumber_map));
 }
 
 namespace legacy {
