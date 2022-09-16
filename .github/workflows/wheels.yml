@@ -25,8 +25,6 @@ jobs:
       package-name: pylibcugraph
       package-dir: python/pylibcugraph
       python-version: "3.8 3.9"
-      private-deply-keys: |
-        "${{ secrets.CUGRAPH_OPS_SSH_PRIVATE_DEPLOY_KEY }}"
       cibw-before-all: "apt-get install -y libblas-dev liblapack-dev"
       cibw-environment: "PIP_INDEX_URL=https://pypi.k8s.rapids.ai/simple"
       skbuild-configure-options: "--log-level=DEBUG -DCUGRAPH_CUGRAPH_OPS_BRANCH=feat/cibuildwheel -DCPM_DOWNLOAD_ALL=ON -DDETECT_CONDA_ENV=OFF -DCUGRAPH_BUILD_WHEELS=ON -DCMAKE_CUDA_ARCHITECTURES=ALL"
@@ -41,8 +39,6 @@ jobs:
       package-name: cugraph
       package-dir: python/cugraph
       python-version: "3.8 3.9"
-      private-deply-keys: |
-        "${{ secrets.CUGRAPH_OPS_SSH_PRIVATE_DEPLOY_KEY }}"
       cibw-before-all: "apt-get install -y libblas-dev liblapack-dev"
       cibw-environment: "PIP_INDEX_URL=https://pypi.k8s.rapids.ai/simple"
       skbuild-configure-options: "--log-level=DEBUG -DCUGRAPH_CUGRAPH_OPS_BRANCH=feat/cibuildwheel -DCPM_DOWNLOAD_ALL=ON -DDETECT_CONDA_ENV=OFF -DCUGRAPH_BUILD_WHEELS=ON -DCMAKE_CUDA_ARCHITECTURES=ALL"
