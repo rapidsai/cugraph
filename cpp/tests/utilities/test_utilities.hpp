@@ -164,13 +164,14 @@ decltype(auto) make_graph(raft::handle_t const& handle,
   }
 
   cugraph::graph_t<vertex_t, edge_t, weight_t, false, false> graph(handle);
-  std::tie(graph, std::ignore) =
-    cugraph::create_graph_from_edgelist<vertex_t, edge_t, weight_t, false, false>(
+  std::tie(graph, std::ignore, std::ignore) =
+    cugraph::create_graph_from_edgelist<vertex_t, edge_t, weight_t, int32_t, false, false>(
       handle,
       std::nullopt,
       std::move(d_src),
       std::move(d_dst),
       std::move(d_w),
+      std::nullopt,
       cugraph::graph_properties_t{false, false},
       false);
 
