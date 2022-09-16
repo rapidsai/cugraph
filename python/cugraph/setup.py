@@ -73,7 +73,8 @@ class CleanCommand(Command):
 cmdclass = versioneer.get_cmdclass()
 cmdclass["clean"] = CleanCommand
 PACKAGE_DATA = {
-    key: ["*.pxd"] for key in find_packages(include=["cugraph*"])}
+    key: ["*.pxd"] for key in find_packages(include=["cugraph*"])
+}
 
 PACKAGE_DATA['cugraph.experimental.datasets'].extend(
     ['cugraph/experimental/datasets/metadata/*.yaml',
@@ -83,6 +84,8 @@ PACKAGE_DATA['cugraph.experimental.datasets'].extend(
 setup(name='cugraph'+os.getenv("PYTHON_PACKAGE_CUDA_SUFFIX", default=""),
       description="cuGraph - RAPIDS GPU Graph Analytics",
       version=versioneer.get_version(),
+      author="NVIDIA Corporation",
+      license="Apache",
       classifiers=[
           # "Development Status :: 4 - Beta",
           "Intended Audience :: Developers",
@@ -91,8 +94,10 @@ setup(name='cugraph'+os.getenv("PYTHON_PACKAGE_CUDA_SUFFIX", default=""),
           "Programming Language :: Python :: 3.8",
           "Programming Language :: Python :: 3.9"
       ],
-      # Include the separately-compiled shared library
-      author="NVIDIA Corporation",
+      cmdclass=cmdclass,
+      include_package_data=True,
+      package_data=PACKAGE_DATA,
+      packages=find_packages(include=['cugraph', 'cugraph.*']),
       setup_requires=[
         f"rmm{os.getenv('PYTHON_PACKAGE_CUDA_SUFFIX', default='')}",
         f"raft-dask{os.getenv('PYTHON_PACKAGE_CUDA_SUFFIX', default='')}",
@@ -106,9 +111,14 @@ setup(name='cugraph'+os.getenv("PYTHON_PACKAGE_CUDA_SUFFIX", default=""),
         f"dask-cudf{os.getenv('PYTHON_PACKAGE_CUDA_SUFFIX', default='')}",
         f"pylibcugraph{os.getenv('PYTHON_PACKAGE_CUDA_SUFFIX', default='')}"
       ],
-      packages=find_packages(include=['cugraph', 'cugraph.*']),
-      package_data=PACKAGE_DATA,
-      include_package_data=True,
-      license="Apache",
-      cmdclass=cmdclass,
+      extras_require = {
+          "test": [
+              "pytest",
+              "pytest-xdist",
+              "pytest-benchmark",
+              "scipy",
+              "networkx>=2.5.1",
+              "scikit-learn>=0.23.1",
+          ]
+      },
       zip_safe=False)

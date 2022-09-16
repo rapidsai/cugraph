@@ -30,7 +30,7 @@ jobs:
       cibw-before-all: "apt-get install -y libblas-dev liblapack-dev"
       cibw-environment: "PIP_INDEX_URL=https://pypi.k8s.rapids.ai/simple"
       skbuild-configure-options: "--log-level=DEBUG -DCUGRAPH_CUGRAPH_OPS_BRANCH=feat/cibuildwheel -DCPM_DOWNLOAD_ALL=ON -DDETECT_CONDA_ENV=OFF -DCUGRAPH_BUILD_WHEELS=ON -DCMAKE_CUDA_ARCHITECTURES=ALL"
-      cibw-test-requires:  "pytest"
+      cibw-test-extras:  "test"
       cibw-test-command: "pytest -v ./python/pylibcugraph/pylibcugraph/tests"
     secrets: inherit
   cugraph-wheel:
@@ -48,7 +48,7 @@ jobs:
       skbuild-configure-options: "--log-level=DEBUG -DCUGRAPH_CUGRAPH_OPS_BRANCH=feat/cibuildwheel -DCPM_DOWNLOAD_ALL=ON -DDETECT_CONDA_ENV=OFF -DCUGRAPH_BUILD_WHEELS=ON -DCMAKE_CUDA_ARCHITECTURES=ALL"
       gpu-smoketest-before-amd64: "pip install dask-cuda dask-cudf raft-cu11 cudf-cu11 pylibcugraph-cu11 --index-url https://pypi.k8s.rapids.ai/simple"
       gpu-smoketest-before-arm64: "pip install dask-cuda dask-cudf raft-cu11 cudf-cu11 pylibcugraph-cu11 --index-url https://pypi.k8s.rapids.ai/simple"
-      cibw-test-requires:  "pytest"
+      cibw-test-extras:  "test"
       cibw-test-command: "pytest -v ./python/cugraph/cugraph/tests"
       gpu-smoketest: "import cudf, cugraph; gdf = cudf.read_csv('graph_data.csv', names=['src', 'dst'], dtype=['int32', 'int32']); G = cugraph.Graph();G.from_cudf_edgelist(gdf, source='src', destination='dst'); df_page = cugraph.pagerank(G); print(df_page.sort_values('pagerank', ascending=False).head(10))"
     secrets: inherit

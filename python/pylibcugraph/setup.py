@@ -67,9 +67,14 @@ cmdclass = versioneer.get_cmdclass()
 cmdclass.update(versioneer.get_cmdclass())
 cmdclass["clean"] = CleanCommand
 
+def exclude_libcxx_symlink(cmake_manifest):
+    return list(filter(lambda name: not ('include/rapids/libcxx/include' in name), cmake_manifest))
+
 setup(name='pylibcugraph'+os.getenv("PYTHON_PACKAGE_CUDA_SUFFIX", default=""),
-      description="pylibcuGraph - RAPIDS GPU Graph Analytics",
       version=versioneer.get_version(),
+      description="pylibcuGraph - RAPIDS GPU Graph Analytics",
+      author="NVIDIA Corporation",
+      license="Apache",
       classifiers=[
           # "Development Status :: 4 - Beta",
           "Intended Audience :: Developers",
@@ -78,8 +83,12 @@ setup(name='pylibcugraph'+os.getenv("PYTHON_PACKAGE_CUDA_SUFFIX", default=""),
           "Programming Language :: Python :: 3.8",
           "Programming Language :: Python :: 3.9"
       ],
-      # Include the separately-compiled shared library
-      author="NVIDIA Corporation",
+      cmdclass=cmdclass,
+      include_package_data=True,
+      packages=find_packages(include=['pylibcugraph', 'pylibcugraph.*']),
+      package_data={
+        key: ["*.pxd"] for key in find_packages(include=["pylibcugraph*"])
+      },
       setup_requires=[
         f"rmm{os.getenv('PYTHON_PACKAGE_CUDA_SUFFIX', default='')}",
         f"pylibraft{os.getenv('PYTHON_PACKAGE_CUDA_SUFFIX', default='')}",
@@ -88,11 +97,14 @@ setup(name='pylibcugraph'+os.getenv("PYTHON_PACKAGE_CUDA_SUFFIX", default=""),
         f"cudf{os.getenv('PYTHON_PACKAGE_CUDA_SUFFIX', default='')}",
         f"pylibraft{os.getenv('PYTHON_PACKAGE_CUDA_SUFFIX', default='')}",
       ],
-      packages=find_packages(include=['pylibcugraph', 'pylibcugraph.*']),
-      include_package_data=True,
-      package_data={
-        key: ["*.pxd"] for key in find_packages(include=["pylibcugraph*"])
+      extras_require = {
+          "test": [
+              "pytest",
+              "pytest-xdist",
+              "pytest-benchmark",
+              "scipy",
+              "networkx>=2.5.1",
+              "scikit-learn>=0.23.1",
+          ]
       },
-      license="Apache",
-      cmdclass=cmdclass,
       zip_safe=False)
