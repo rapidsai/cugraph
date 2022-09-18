@@ -73,7 +73,7 @@ cugraph_error_code_t cugraph_jaccard_coefficients(const cugraph_resource_handle_
                                                   const cugraph_vertex_pairs_t* vertex_pairs,
                                                   bool_t use_weight,
                                                   bool_t do_expensive_check,
-                                                  cugraph_core_result_t** result,
+                                                  cugraph_similarity_result_t** result,
                                                   cugraph_error_t** error);
 
 /**
@@ -100,7 +100,7 @@ cugraph_error_code_t cugraph_sorensen_coefficients(const cugraph_resource_handle
                                                    const cugraph_vertex_pairs_t* vertex_pairs,
                                                    bool_t use_weight,
                                                    bool_t do_expensive_check,
-                                                   cugraph_core_result_t** result,
+                                                   cugraph_similarity_result_t** result,
                                                    cugraph_error_t** error);
 
 /**
@@ -127,7 +127,7 @@ cugraph_error_code_t cugraph_overlap_coefficients(const cugraph_resource_handle_
                                                   const cugraph_vertex_pairs_t* vertex_pairs,
                                                   bool_t use_weight,
                                                   bool_t do_expensive_check,
-                                                  cugraph_core_result_t** result,
+                                                  cugraph_similarity_result_t** result,
                                                   cugraph_error_t** error);
 
 #ifdef __cplusplus
