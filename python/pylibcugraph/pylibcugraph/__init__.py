@@ -46,3 +46,7 @@ from pylibcugraph.bfs import bfs
 from pylibcugraph.uniform_neighbor_sample import uniform_neighbor_sample
 
 from pylibcugraph.core_number import core_number
+
+from pylibcugraph.jaccard_coefficients import jaccard_coefficients
+
+from pylibcugraph.two_hop_neighbors import get_two_hop_neighbors
