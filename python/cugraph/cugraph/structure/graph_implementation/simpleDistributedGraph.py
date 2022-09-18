@@ -26,6 +26,7 @@ from pylibcugraph import (MGGraph,
 
 from dask.distributed import wait, default_client
 from cugraph.dask.common.input_utils import get_distributed_data
+from pylibcugraph import get_two_hop_neighbors as pylibcugraph_get_two_hop_neighbors
 import cugraph.dask.comms.comms as Comms
 
 
@@ -566,6 +567,70 @@ class simpleDistributedGraphImpl:
             df = df[df['vertex'].isin(vertex_subset)]
 
         return df
+    
+    def get_two_hop_neighbors(self, start_vertices=None):
+        """two_
+        Compute vertex pairs that are two hops apart. The resulting pairs are
+        sorted before returning.
+
+        Returns
+        -------
+        df : cudf.DataFrame
+            df[first] : cudf.Series
+                the first vertex id of a pair, if an external vertex id
+                is defined by only one column
+            df[second] : cudf.Series
+                the second vertex id of a pair, if an external vertex id
+                is defined by only one column
+        """
+        if self.renumbered:
+            start_vertices = self.lookup_internal_vertex_id(
+                start_vertices).compute()
+        def _call_plc_two_hop_neighbors(sID, mg_graph_x, start_vertices):
+            return pylibcugraph_get_two_hop_neighbors(
+                resource_handle=ResourceHandle(),
+                graph=mg_graph_x,
+                start_vertices=start_vertices)
+
+        result = [
+            client.submit(
+                _call_plc_two_hop_neighbors,
+                Comms.get_session_id(),
+                self._plc_graph[w],
+                workers=[w],
+                allow_other_workers=False,
+            )
+            for w in Comms.get_workers()
+        ]
+        wait(result)
+
+        def convert_to_cudf(cp_arrays):
+            """
+            Creates a cudf DataFrame from cupy arrays from pylibcugraph wrapper
+            """
+            first, second = cp_arrays
+            df = cudf.DataFrame()
+            df["first"] = first
+            df["second"] = second
+            return df
+
+        cudf_result = [client.submit(convert_to_cudf,
+                                 cp_arrays)
+                   for cp_arrays in result]
+        
+        wait(cudf_result)
+        ddf = dask_cudf.from_delayed(cudf_result).persist()
+        wait(ddf)
+
+        # Wait until the inactive futures are released
+        wait([(r.release(), c_r.release())
+            for r, c_r in zip(result, cudf_result)])
+        
+        if self.renumbered:
+            ddf = self.unrenumber(ddf, "first")
+            ddf = self.unrenumber(ddf, "second")
+        
+        return ddf
 
     def to_directed(self, DiG):
         """

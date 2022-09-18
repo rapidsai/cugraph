@@ -23,6 +23,7 @@ import cugraph.dask.comms.comms as Comms
 import pandas as pd
 import numpy as np
 from cugraph.dask.structure import replication
+from pylibcugraph import get_two_hop_neighbors as pylibcugraph_get_two_hop_neighbors
 
 from pylibcugraph import (ResourceHandle,
                           GraphProperties,
@@ -503,7 +504,7 @@ class simpleGraphImpl:
         self.batch_transposed_adjlists = True
 
     def get_two_hop_neighbors(self):
-        """
+        """two_
         Compute vertex pairs that are two hops apart. The resulting pairs are
         sorted before returning.
 
@@ -525,6 +526,44 @@ class simpleGraphImpl:
             df = self.renumber_map.unrenumber(df, "second")
 
         return df
+    
+    def get_two_hop_neighbors_exp(self, start_vertices=None):
+        """two_
+        Compute vertex pairs that are two hops apart. The resulting pairs are
+        sorted before returning.
+
+        Returns
+        -------
+        df : cudf.DataFrame
+            df[first] : cudf.Series
+                the first vertex id of a pair, if an external vertex id
+                is defined by only one column
+            df[second] : cudf.Series
+                the second vertex id of a pair, if an external vertex id
+                is defined by only one column
+        """
+        if self.renumbered is True:
+            if isinstance(start_vertices, cudf.DataFrame):
+                start_vertices = self.lookup_internal_vertex_id(
+                    start_vertices, start_vertices.columns)
+        else:
+            start_vertices = self.lookup_internal_vertex_id(start_vertices)
+
+        first, second = pylibcugraph_get_two_hop_neighbors(
+            resource_handle=ResourceHandle(),
+            graph=self._plc_graph,
+            start_vertices=start_vertices)
+
+        df = cudf.DataFrame()
+        df["first"] = first
+        df["second"] = second
+
+        if self.renumbered is True:
+            df = self.unrenumber(df, "first")
+            df = self.unrenumber(df, "second")
+
+        return df
+
 
     def number_of_vertices(self):
         """
