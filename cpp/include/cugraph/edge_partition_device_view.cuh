@@ -211,13 +211,16 @@ class edge_partition_device_view_t<vertex_t,
   {
     rmm::device_uvector<edge_t> local_degrees(this->major_range_size(), stream);
     if (dcs_nzd_vertices_) {
-      thrust::transform(
-        rmm::exec_policy(stream),
-        thrust::make_counting_iterator(this->major_range_first()),
-        thrust::make_counting_iterator(this->major_range_last()),
-        local_degrees.begin(),
-        detail::local_degree_op_t<vertex_t, edge_t, multi_gpu, true>{
-          this->offsets_, major_range_first_, *dcs_nzd_vertices_, *major_hypersparse_first_});
+      assert(major_hypersparse_first_);
+      thrust::transform(rmm::exec_policy(stream),
+                        thrust::make_counting_iterator(this->major_range_first()),
+                        thrust::make_counting_iterator(this->major_range_last()),
+                        local_degrees.begin(),
+                        detail::local_degree_op_t<vertex_t, edge_t, multi_gpu, true>{
+                          this->offsets_,
+                          major_range_first_,
+                          *dcs_nzd_vertices_,
+                          major_hypersparse_first_.value_or(vertex_t{0})});
     } else {
       thrust::transform(
         rmm::exec_policy(stream),
@@ -235,13 +238,16 @@ class edge_partition_device_view_t<vertex_t,
   {
     rmm::device_uvector<edge_t> local_degrees(majors.size(), stream);
     if (dcs_nzd_vertices_) {
-      thrust::transform(
-        rmm::exec_policy(stream),
-        majors.begin(),
-        majors.end(),
-        local_degrees.begin(),
-        detail::local_degree_op_t<vertex_t, edge_t, multi_gpu, true>{
-          this->offsets_, major_range_first_, *dcs_nzd_vertices_, *major_hypersparse_first_});
+      assert(major_hypersparse_first_);
+      thrust::transform(rmm::exec_policy(stream),
+                        majors.begin(),
+                        majors.end(),
+                        local_degrees.begin(),
+                        detail::local_degree_op_t<vertex_t, edge_t, multi_gpu, true>{
+                          this->offsets_,
+                          major_range_first_,
+                          dcs_nzd_vertices_.value(),
+                          major_hypersparse_first_.value_or(vertex_t{0})});
     } else {
       thrust::transform(
         rmm::exec_policy(stream),
