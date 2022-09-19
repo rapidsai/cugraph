@@ -19,7 +19,6 @@ set(cython_sources
     louvain_wrapper.pyx
     spectral_clustering_wrapper.pyx
     subgraph_extraction_wrapper.pyx
-    triangle_count_wrapper.pyx
 )
 
 set(linked_libraries cugraph::cugraph)
