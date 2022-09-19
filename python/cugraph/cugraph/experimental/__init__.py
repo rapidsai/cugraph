@@ -30,6 +30,10 @@ from cugraph.experimental.community.triangle_count import \
     EXPERIMENTAL__triangle_count
 triangle_count = experimental_warning_wrapper(EXPERIMENTAL__triangle_count)
 
+from cugraph.experimental.community.louvain import \
+    EXPERIMENTAL__louvain
+louvain = experimental_warning_wrapper(EXPERIMENTAL__louvain)
+
 from cugraph.experimental.components.scc import \
     EXPERIMENTAL__strong_connected_component
 strong_connected_component = \
