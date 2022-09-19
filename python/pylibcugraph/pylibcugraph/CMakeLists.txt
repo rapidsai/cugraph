@@ -21,6 +21,7 @@ set(cython_sources
     graphs.pyx
     hits.pyx
     katz_centrality.pyx
+    louvain.pyx
     node2vec.pyx
     pagerank.pyx
     personalized_pagerank.pyx
