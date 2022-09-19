@@ -61,3 +61,34 @@ cdef extern from "cugraph_c/community_algorithms.h":
             cugraph_triangle_count_result_t** result,
             cugraph_error_t** error
         )
+
+    ###########################################################################
+    # louvain
+    ctypedef struct cugraph_heirarchical_clustering_result_t:
+        pass
+
+    cdef cugraph_type_erased_device_array_view_t* \
+        cugraph_heirarchical_clustering_result_get_vertices(
+            cugraph_heirarchical_clustering_result_t* result
+        )
+
+    cdef cugraph_type_erased_device_array_view_t* \
+        cugraph_heirarchical_clustering_result_get_clusters(
+            cugraph_heirarchical_clustering_result_t* result
+        )
+
+    cdef void \
+        cugraph_heirarchical_clustering_result_free(
+            cugraph_heirarchical_clustering_result_t* result
+        )
+
+    cdef cugraph_error_code_t \
+        cugraph_louvain(
+            const cugraph_resource_handle_t* handle,
+            cugraph_graph_t* graph,
+            size_t max_level,
+            double resolution,
+            bool_t do_expensive_check,
+            cugraph_heirarchical_clustering_result_t** result,
+            cugraph_error_t** error
+        )
