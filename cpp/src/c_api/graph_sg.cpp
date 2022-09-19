@@ -77,7 +77,7 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
     if constexpr (multi_gpu || !cugraph::is_candidate<vertex_t, edge_t, weight_t>::value) {
       unsupported();
     } else {
-      using edge_type_t = int32_t;
+      //using edge_type_t = int32_t;
 
       if (check_) {
         // FIXME:  Need an implementation here.
@@ -110,7 +110,7 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
                              handle_.get_stream());
       }
 
-      std::optional<thrust::tuple<rmm::device_uvector<edge_t>, rmm::device_uvector<edge_type_t>>>
+      std::optional<std::tuple<rmm::device_uvector<edge_t>, rmm::device_uvector<edge_type_t>>>
         edgelist_edge_tuple = std::nullopt;
 
       if (edge_types_ && edge_ids_) {
@@ -130,7 +130,7 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
                            edge_types_->size_,
                            handle_.get_stream());
 
-        *edgelist_edge_tuple = thrust::tie(edgelist_edge_ids, edgelist_edge_types);
+        *edgelist_edge_tuple = std::make_tuple(std::move(edgelist_edge_ids), std::move(edgelist_edge_types));
       }
 
       auto graph =
@@ -155,7 +155,7 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
           std::move(edgelist_srcs),
           std::move(edgelist_dsts),
           std::move(edgelist_weights),
-          std::move(edgelist_edge_tuple),
+          std::move(*edgelist_edge_tuple),
           cugraph::graph_properties_t{properties_->is_symmetric, properties_->is_multigraph},
           renumber_,
           check_);
