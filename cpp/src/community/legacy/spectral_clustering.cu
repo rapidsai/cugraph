@@ -26,6 +26,8 @@
 
 #include <raft/spectral/modularity_maximization.cuh>
 #include <raft/spectral/partition.cuh>
+#include <raft/distance/specializations.cuh>
+
 
 namespace cugraph {
 
