@@ -15,7 +15,6 @@ from cugraph.utilities import (ensure_cugraph_obj_for_nx,
                                df_score_to_dictionary,
                                )
 import cudf
-import warnings
 
 from pylibcugraph.experimental import louvain as pylibcugraph_louvain
 from pylibcugraph import ResourceHandle
@@ -87,7 +86,7 @@ def EXPERIMENTAL__louvain(G, max_iter=100, resolution=1.):
 
     df = cudf.DataFrame()
     df["vertex"] = vertex
-    df["parition"] = partition
+    df["partition"] = partition
 
     if G.renumbered:
         df = G.unrenumber(df, "vertex")

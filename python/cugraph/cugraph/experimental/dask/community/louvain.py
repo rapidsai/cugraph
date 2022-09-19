@@ -17,11 +17,9 @@ from dask.distributed import wait
 import cugraph.dask.comms.comms as Comms
 import dask_cudf
 import cudf
-import warnings
 
 from pylibcugraph import ResourceHandle
 from pylibcugraph.experimental import louvain as pylibcugraph_louvain
-
 
 
 def convert_to_cudf(cp_arrays):

@@ -14,6 +14,8 @@
 import pytest
 
 import cugraph.dask as dcg
+from cugraph.experimental.dask import louvain as experimental_louvain
+
 import cugraph
 import dask_cudf
 from cugraph.testing import utils
@@ -110,11 +112,13 @@ def uddaskGraphFromDataset(request, dask_client):
 # @pytest.mark.skipif(
 #    is_single_gpu(), reason="skipping MG testing on Single GPU system"
 # )
+# FIXME: Implement more robust tests
 def test_mg_louvain_with_edgevals_directed_graph(daskGraphFromDataset):
     # Directed graphs are not supported by Louvain and a ValueError should be
     # raised
     with pytest.raises(ValueError):
         parts, mod = dcg.louvain(daskGraphFromDataset)
+        experimental_louvain(daskGraphFromDataset)
 
 
 ###############################################################################
@@ -122,8 +126,10 @@ def test_mg_louvain_with_edgevals_directed_graph(daskGraphFromDataset):
 # @pytest.mark.skipif(
 #    is_single_gpu(), reason="skipping MG testing on Single GPU system"
 # )
+# FIXME: Implement more robust tests
 def test_mg_louvain_with_edgevals_undirected_graph(uddaskGraphFromDataset):
     parts, mod = dcg.louvain(uddaskGraphFromDataset)
+    experimental_louvain(uddaskGraphFromDataset)
 
     # FIXME: either call Nx with the same dataset and compare results, or
     # hardcode golden results to compare to.

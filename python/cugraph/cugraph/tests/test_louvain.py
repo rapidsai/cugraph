@@ -18,6 +18,7 @@ import pytest
 
 import cugraph
 from cugraph.testing import utils
+from cugraph.experimental import louvain as experimental_louvain
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
 # (Using or importing the ABCs from 'collections' instead of from
@@ -59,10 +60,12 @@ def cugraph_call(cu_M, edgevals=False, directed=False):
     # cugraph Louvain Call
     t1 = time.time()
     parts, mod = cugraph.louvain(G)
+    # FIXME: experimental 'louvain' doesn't include the modularity_score
+    exp_parts = experimental_louvain(G)
     t2 = time.time() - t1
     print("Cugraph Time : " + str(t2))
 
-    return parts, mod
+    return parts, mod, exp_parts
 
 
 def networkx_call(M):
@@ -85,7 +88,7 @@ def test_louvain_with_edgevals(graph_file):
 
     M = utils.read_csv_for_nx(graph_file)
     cu_M = utils.read_csv_file(graph_file)
-    cu_parts, cu_mod = cugraph_call(cu_M, edgevals=True)
+    cu_parts, cu_mod, exp_cu_parts = cugraph_call(cu_M, edgevals=True)
 
     nx_parts = networkx_call(M)
     # Calculating modularity scores for comparison
@@ -95,14 +98,16 @@ def test_louvain_with_edgevals(graph_file):
     )
 
     cu_parts = cu_parts.to_pandas()
+    exp_cu_parts = exp_cu_parts.to_pandas()
     cu_map = dict(zip(cu_parts["vertex"], cu_parts["partition"]))
+    exp_cu_map = dict(zip(exp_cu_parts["vertex"], exp_cu_parts["partition"]))
 
-    assert set(nx_parts.keys()) == set(cu_map.keys())
+    assert set(nx_parts.keys()) == set(cu_map.keys()) == set(exp_cu_map.keys())
 
     cu_mod_nx = community.modularity(cu_map, Gnx)
     nx_mod = community.modularity(nx_parts, Gnx)
 
-    assert len(cu_parts) == len(nx_parts)
+    assert len(cu_parts) == len(nx_parts) == len(exp_cu_parts)
     assert cu_mod > (0.82 * nx_mod)
     assert abs(cu_mod - cu_mod_nx) < 0.0001
 
@@ -112,7 +117,7 @@ def test_louvain(graph_file):
 
     M = utils.read_csv_for_nx(graph_file)
     cu_M = utils.read_csv_file(graph_file)
-    cu_parts, cu_mod = cugraph_call(cu_M)
+    cu_parts, cu_mod, exp_cu_parts = cugraph_call(cu_M)
     nx_parts = networkx_call(M)
 
     # Calculating modularity scores for comparison
@@ -122,14 +127,16 @@ def test_louvain(graph_file):
     )
 
     cu_parts = cu_parts.to_pandas()
+    exp_cu_parts = exp_cu_parts.to_pandas()
     cu_map = dict(zip(cu_parts["vertex"], cu_parts["partition"]))
+    exp_cu_map = dict(zip(exp_cu_parts["vertex"], exp_cu_parts["partition"]))
 
-    assert set(nx_parts.keys()) == set(cu_map.keys())
+    assert set(nx_parts.keys()) == set(cu_map.keys()) == set(exp_cu_map.keys())
 
     cu_mod_nx = community.modularity(cu_map, Gnx)
     nx_mod = community.modularity(nx_parts, Gnx)
 
-    assert len(cu_parts) == len(nx_parts)
+    assert len(cu_parts) == len(nx_parts) == len(exp_cu_parts)
     assert cu_mod > (0.82 * nx_mod)
     assert abs(cu_mod - cu_mod_nx) < 0.0001
 
@@ -141,4 +148,5 @@ def test_louvain_directed_graph():
     cu_M = utils.read_csv_file(input_data_path)
 
     with pytest.raises(ValueError):
-        cu_parts, cu_mod = cugraph_call(cu_M, directed=True)
+        cugraph_call(cu_M, directed=True)
+        experimental_louvain(cu_M, directed=True)
