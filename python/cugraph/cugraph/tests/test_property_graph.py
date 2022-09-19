@@ -1420,15 +1420,15 @@ def test_renumber_vertices_by_type(dataset1_PropertyGraph):
     (pG, data) = dataset1_PropertyGraph
     df_id_ranges = pG.renumber_vertices_by_type()
     expected = {
-        "merchants": [0, 5],  # stop is exclusive
-        "users": [5, 9],
+        "merchants": [0, 4],  # stop is inclusive
+        "users": [5, 8],
     }
     for key, (start, stop) in expected.items():
         assert df_id_ranges.loc[key, "start"] == start
         assert df_id_ranges.loc[key, "stop"] == stop
         df = pG.get_vertex_data(types=[key])
-        assert len(df) == stop - start
-        assert (df["_VERTEX_"] == list(range(start, stop))).all()
+        assert len(df) == stop - start + 1
+        assert (df["_VERTEX_"] == list(range(start, stop + 1))).all()
 
     # Make sure we renumber vertex IDs in edge data too
     df = pG.get_edge_data()
@@ -1438,6 +1438,12 @@ def test_renumber_vertices_by_type(dataset1_PropertyGraph):
     empty_pG = PropertyGraph()
     assert empty_pG.renumber_vertices_by_type() is None
 
+    # Test when vertex IDs only exist in edge data
+    df = type(df)({"src": [99998], "dst": [99999]})
+    empty_pG.add_edge_data(df, ["src", "dst"])
+    with pytest.raises(NotImplementedError, match="only exist in edge"):
+        empty_pG.renumber_vertices_by_type()
+
 
 def test_renumber_edges_by_type(dataset1_PropertyGraph):
     from cugraph.experimental import PropertyGraph
@@ -1445,16 +1451,16 @@ def test_renumber_edges_by_type(dataset1_PropertyGraph):
     (pG, data) = dataset1_PropertyGraph
     df_id_ranges = pG.renumber_edges_by_type()
     expected = {
-        "referrals": [0, 6],  # stop is exclusive
-        "relationships": [6, 10],
-        "transactions": [10, 14],
+        "referrals": [0, 5],  # stop is inclusive
+        "relationships": [6, 9],
+        "transactions": [10, 13],
     }
     for key, (start, stop) in expected.items():
         assert df_id_ranges.loc[key, "start"] == start
         assert df_id_ranges.loc[key, "stop"] == stop
         df = pG.get_edge_data(types=[key])
-        assert len(df) == stop - start
-        assert (df[pG.edge_id_col_name] == list(range(start, stop))).all()
+        assert len(df) == stop - start + 1
+        assert (df[pG.edge_id_col_name] == list(range(start, stop + 1))).all()
 
     empty_pG = PropertyGraph()
     assert empty_pG.renumber_edges_by_type() is None

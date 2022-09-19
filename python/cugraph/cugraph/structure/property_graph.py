@@ -1014,8 +1014,19 @@ class EXPERIMENTAL__PropertyGraph:
         """Renumber vertex IDs to be contiguous by type.
 
         Returns a DataFrame with the start and stop IDs for each vertex type.
-        Stop is *exclusive*.
+        Stop is *inclusive*.
         """
+        # Check if some vertex IDs exist only in edge data
+        default = self._default_type_name
+        if (
+            self.__edge_prop_dataframe is not None
+            and self.get_num_vertices(default, include_edge_data=True)
+            != self.get_num_vertices(default, include_edge_data=False)
+        ):
+            raise NotImplementedError(
+                "Currently unable to renumber vertices when some vertex "
+                "IDs only exist in edge data"
+            )
         if self.__vertex_prop_dataframe is None:
             return None
         # We'll need to update this when index is vertex ID
@@ -1033,9 +1044,6 @@ class EXPERIMENTAL__PropertyGraph:
             self.__edge_prop_dataframe[self.dst_col_name] = (
                 self.__edge_prop_dataframe[self.dst_col_name].map(mapper)
             )
-            # XXX: what to do about vertices that only exist in edge data?
-            # We can detect this.
-            # Also, is the mapper 1-to-1?  Can vertex IDs be duplicated?
         df.drop(columns=[self.vertex_col_name], inplace=True)
         df.index.name = self.vertex_col_name
         df.reset_index(inplace=True)
@@ -1047,13 +1055,14 @@ class EXPERIMENTAL__PropertyGraph:
             .to_frame("stop")
         )
         rv["start"] = rv["stop"].shift(1, fill_value=0)
+        rv["stop"] -= 1  # Make inclusive
         return rv[["start", "stop"]]
 
     def renumber_edges_by_type(self):
         """Renumber edge IDs to be contiguous by type.
 
         Returns a DataFrame with the start and stop IDs for each edge type.
-        Stop is *exclusive*.
+        Stop is *inclusive*.
         """
         # TODO: keep track if edges are already numbered correctly.
         if self.__edge_prop_dataframe is None:
@@ -1073,6 +1082,7 @@ class EXPERIMENTAL__PropertyGraph:
             .to_frame("stop")
         )
         rv["start"] = rv["stop"].shift(1, fill_value=0)
+        rv["stop"] -= 1  # Make inclusive
         return rv[["start", "stop"]]
 
     @classmethod
