@@ -114,7 +114,7 @@ extern "C" cugraph_error_code_t cugraph_jaccard_coefficients(
   const cugraph_vertex_pairs_t* vertex_pairs,
   bool_t use_weight,
   bool_t do_expensive_check,
-  cugraph_core_result_t** result,
+  cugraph_similarity_result_t** result,
   cugraph_error_t** error)
 {
   similarity_functor functor(handle, graph, vertex_pairs, use_weight, do_expensive_check);
@@ -128,7 +128,7 @@ extern "C" cugraph_error_code_t cugraph_sorensen_coefficients(
   const cugraph_vertex_pairs_t* vertex_pairs,
   bool_t use_weight,
   bool_t do_expensive_check,
-  cugraph_core_result_t** result,
+  cugraph_similarity_result_t** result,
   cugraph_error_t** error)
 {
   similarity_functor functor(handle, graph, vertex_pairs, use_weight, do_expensive_check);
@@ -142,7 +142,7 @@ extern "C" cugraph_error_code_t cugraph_overlap_coefficients(
   const cugraph_vertex_pairs_t* vertex_pairs,
   bool_t use_weight,
   bool_t do_expensive_check,
-  cugraph_core_result_t** result,
+  cugraph_similarity_result_t** result,
   cugraph_error_t** error)
 {
   similarity_functor functor(handle, graph, vertex_pairs, use_weight, do_expensive_check);
