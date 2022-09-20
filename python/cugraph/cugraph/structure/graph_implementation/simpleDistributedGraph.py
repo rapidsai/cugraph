@@ -206,7 +206,6 @@ class simpleDistributedGraphImpl:
                 input_ddf[self.edgeTypeCol] = value_col[self.edgeTypeCol]
 
         self.input_df = input_ddf
-        self.input_df.to_csv('/work/deleteme.csv')
 
         #
         # Keep all of the original parameters so we can lazily
@@ -795,7 +794,7 @@ class simpleDistributedGraphImpl:
             This parameter is added for new algos following the
             C/Pylibcugraph path
         """
-
+        
         if not self.properties.renumber:
             self.edgelist = self.EdgeList(self.input_df)
             self.renumber_map = None

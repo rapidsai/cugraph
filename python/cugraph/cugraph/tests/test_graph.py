@@ -766,7 +766,3 @@ def test_create_graph_with_edge_ids(graph_file):
         destination='1',
         edge_attr=['2', 'id', 'etype']
     )
-
-    print(G.edgelist.edgelist_df)
-
-    assert False
