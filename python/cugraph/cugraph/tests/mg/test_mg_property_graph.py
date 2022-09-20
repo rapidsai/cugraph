@@ -352,8 +352,8 @@ def test_extract_subgraph_no_query(net_MGPropertyGraph, net_PropertyGraph):
     mg_df = dpG.edges.compute().sort_values(by=['_SRC_', '_DST_'])
     mg_df = mg_df.reset_index(drop=True)
     assert (sg_df.equals(mg_df))
-    subgraph = pG.extract_subgraph(allow_multi_edges=False)
-    dask_subgraph = dpG.extract_subgraph(allow_multi_edges=False)
+    subgraph = pG.extract_subgraph()
+    dask_subgraph = dpG.extract_subgraph()
     sg_subgraph_df = \
         subgraph.edge_data.sort_values(by=list(subgraph.edge_data.columns))
     sg_subgraph_df = sg_subgraph_df.reset_index(drop=True)
@@ -369,8 +369,8 @@ def test_extract_subgraph_no_query(net_MGPropertyGraph, net_PropertyGraph):
 def test_adding_fixture(dataset1_PropertyGraph, dataset1_MGPropertyGraph):
     (sgpG, _) = dataset1_PropertyGraph
     (mgPG, _) = dataset1_MGPropertyGraph
-    subgraph = sgpG.extract_subgraph(allow_multi_edges=True)
-    dask_subgraph = mgPG.extract_subgraph(allow_multi_edges=True)
+    subgraph = sgpG.extract_subgraph()
+    dask_subgraph = mgPG.extract_subgraph()
     sg_subgraph_df = \
         subgraph.edge_data.sort_values(by=list(subgraph.edge_data.columns))
     sg_subgraph_df = sg_subgraph_df.reset_index(drop=True)
@@ -423,7 +423,7 @@ def test_property_names_attrs(dataset1_MGPropertyGraph):
     # Extracting a subgraph with weights has/had a side-effect of adding a
     # weight column, so call extract_subgraph() to ensure the internal weight
     # column name is not present.
-    pG.extract_subgraph(default_edge_weight=1.0, allow_multi_edges=True)
+    pG.extract_subgraph(default_edge_weight=1.0)
 
     actual_vert_prop_names = pG.vertex_property_names
     actual_edge_prop_names = pG.edge_property_names
