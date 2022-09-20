@@ -42,8 +42,7 @@ for folder in ${TOPLEVEL_NB_FOLDERS}; do
     echo "FOLDER: ${folder}"
     echo "========================================"
     cd ${NOTEBOOKS_DIR}/${folder}
-    notebookfolder=${NOTEBOOKS_DIR}/${TOPLEVEL_NB_FOLDERS}/${folder}
-    NBLIST=$(python ${WORKSPACE}/ci/gpu/notebook_list.py ${1:-none} ${notebookfolder})
+    NBLIST=$(python ${WORKSPACE}/ci/gpu/notebook_list.py -r ${1})
     for nb in ${NBLIST}; do
         nbBasename=$(basename ${nb})
         cd $(dirname ${nb})

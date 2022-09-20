@@ -12,22 +12,28 @@
 # limitations under the License.
 
 import re
+import getopt
 import sys
 import glob
 import os
+from pathlib import Path
 
 from numba import cuda
 
 CONTINOUS_INTEGRATION = 'ci'
 SKIP_CI_FILE = 'SKIP_CI_TESTING'
 
+NIGHTLY = 'nightly'
+SKIP_NIGHTLY_FILE = 'SKIP_NIGHTLY'
+
+WEEKLY = 'weekly'
+SKIP_WEEKLY_FILE = 'SKIP_WEEKLY'
+
 def skip_book_dir(runtype, filename):
     # Add all run types here, currently only CI supported
-    skipfile = ""
     if (runtype == CONTINOUS_INTEGRATION):
-        skipfile = os.path.dirname(filename)+'/'+SKIP_CI_FILE
-    if os.path.isfile(skipfile):
-        return True
+        if Path(SKIP_CI_FILE).is_file():
+            return True
     return False
 
 cuda_version_string = ".".join([str(n) for n in cuda.runtime.get_version()])
@@ -38,8 +44,24 @@ cuda_version_string = ".".join([str(n) for n in cuda.runtime.get_version()])
 pascal = False
 ampere = False
 device = cuda.get_current_device()
-runtype = sys.argv[1]
-folder = sys.argv[2]
+
+opts, args = getopt.getopt( sys.argv[1:],"r:", ["runtype"])
+
+runtype='ci'
+for opt, arg in opts:
+    if opt in ['-r',"--runtype"]:
+       runtype = arg
+    else:
+       print(f'Unknown argument  = {opt} = {arg}', file=sys.stderr)
+       exit()
+
+#if runtype not in ['ci', 'nightly', 'weekly']:
+#    print(f'Unknown Run Type  = {runtype}', file=sys.stderr)
+#    exit()
+
+
+
+
 
 # check for the attribute using both pre and post numba 0.53 names
 cc = getattr(device, 'COMPUTE_CAPABILITY', None) or \
@@ -51,12 +73,10 @@ if (cc[0] >= 8):
 
 skip = False
 skipdir = False
-#for filename in glob.iglob(folder+'*.ipynb', recursive=True):
-print(f'FOLDER = {folder}', file=sys.stderr)
 for filename in glob.iglob('**/*.ipynb', recursive=True):
     skip = False
-    full_file_name = folder+'/'+filename
-    if (skip_book_dir(runtype, full_file_name) == True):
+    print(f'Filename = {filename}', file=sys.stderr)
+    if (skip_book_dir(runtype, filename) == True):
         print(f'SKIPPING {filename} (Whole folder marked as skip for run type {runtype})', file=sys.stderr)
         skip = True
     else:
