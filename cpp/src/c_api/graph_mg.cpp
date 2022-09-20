@@ -78,7 +78,7 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
     if constexpr (!multi_gpu || !cugraph::is_candidate<vertex_t, edge_t, weight_t>::value) {
       unsupported();
     } else {
-      //using edge_type_t = int32_t;
+      // using edge_type_t = int32_t;
 
       std::optional<rmm::device_uvector<vertex_t>> new_number_map;
 
@@ -127,7 +127,8 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
                            edge_types_->size_,
                            handle_.get_stream());
 
-        edgelist_edge_tuple = std::make_tuple(std::move(edgelist_edge_ids), std::move(edgelist_edge_types));
+        edgelist_edge_tuple =
+          std::make_tuple(std::move(edgelist_edge_ids), std::move(edgelist_edge_types));
       }
 
       // Here's the error.  If store_transposed is true then this needs to be flipped...
@@ -177,9 +178,7 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
                                        graph->view().local_vertex_partition_range_first());
       }
 
-      if(new_edge_properties) {
-        *edge_properties = std::move(new_edge_properties.value());
-      }
+      if (new_edge_properties) { *edge_properties = std::move(new_edge_properties.value()); }
 
       // Set up return
       auto result = new cugraph::c_api::cugraph_graph_t{

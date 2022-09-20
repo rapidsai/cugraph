@@ -147,17 +147,15 @@ class simpleGraphImpl:
 
             if len(edge_attr) != 1 and len(edge_attr) != 3:
                 raise ValueError(f'Invalid number of edge attributes '
-                                 f'passed. {edge_attr}'
-                )
-            
+                                 f'passed. {edge_attr}')
+
             # The symmetrize step may add additional edges with unknown
             # ids and types for an undirected graph.  Therefore, only
             # directed graphs may be used with ids and types.
             if(len(edge_attr) == 3 and not self.properties.directed):
                 raise ValueError('User-provided edge ids and edge '
                                  'types are not permitted for an '
-                                 'undirected graph.'
-                )
+                                 'undirected graph.')
 
         input_df = input_df[df_columns]
         # FIXME: check if the consolidated graph fits on the
@@ -295,8 +293,9 @@ class simpleGraphImpl:
         df = self.edgelist.edgelist_df
         np_array = np.full((nlen, nlen), 0.0)
         for i in range(0, elen):
-            np_array[df['src'].iloc[i], df['dst'].iloc[i]] = df[self.edgeWeightCol].\
-                                                             iloc[i]
+            np_array[df['src'].iloc[i], df['dst'].iloc[i]] = (
+                df[self.edgeWeightCol].iloc[i]
+            )
         return np_array
 
     def to_numpy_matrix(self):
@@ -813,7 +812,7 @@ class simpleGraphImpl:
                 If a single dataframe is provided, this is assumed
                 to contain the edge weight values.
                 If a tuple of dataframes is provided, then it is
-                assumed to contain edge weights, edge ids, and 
+                assumed to contain edge weights, edge ids, and
                 edge types, in that order.
             store_transposed : bool (default=False)
                 Whether to store the graph in a transposed
@@ -835,7 +834,7 @@ class simpleGraphImpl:
                 weight_col, id_col, type_col = value_col[0], None, None
         else:
             raise ValueError(f'Illegal value col {type(value_col)}')
-        
+
         if weight_col is None:
             weight_col = cudf.Series(
                 cupy.ones(len(self.edgelist.edgelist_df), dtype='float32')
@@ -882,7 +881,9 @@ class simpleGraphImpl:
         DiG.transposedadjlist = self.transposedadjlist
 
         if simpleGraphImpl.edgeWeightCol in self.edgelist.edgelist_df:
-            value_col = self.edgelist.edgelist_df[simpleGraphImpl.edgeWeightCol]
+            value_col = (
+                self.edgelist.edgelist_df[simpleGraphImpl.edgeWeightCol]
+            )
         else:
             value_col = None
 
@@ -914,7 +915,9 @@ class simpleGraphImpl:
                                                   value_col)
 
         if simpleGraphImpl.edgeWeightCol in self.edgelist.edgelist_df:
-            value_col = self.edgelist.edgelist_df[simpleGraphImpl.edgeWeightCol]
+            value_col = (
+                self.edgelist.edgelist_df[simpleGraphImpl.edgeWeightCol]
+            )
         else:
             value_col = None
 

@@ -86,11 +86,11 @@ class simpleDistributedGraphImpl:
             values = cudf.Series(
                 cupy.ones(len(edata_x[0]), dtype='float32')
             )
-        
+
         if simpleDistributedGraphImpl.edgeIdCol in edata_x[0]:
             if simpleDistributedGraphImpl.edgeTypeCol not in edata_x[0]:
                 raise ValueError('Must provide both edge id and edge type')
-            
+
             values_id = edata_x[0][simpleDistributedGraphImpl.edgeIdCol]
             values_etype = edata_x[0][simpleDistributedGraphImpl.edgeTypeCol]
         else:
@@ -154,7 +154,9 @@ class simpleDistributedGraphImpl:
             self.properties.weighted = True
 
             if len(edge_attr) == 1:
-                input_ddf = input_ddf.rename(columns={edge_attr[0]: self.edgeWeightCol})
+                input_ddf = input_ddf.rename(
+                    columns={edge_attr[0]: self.edgeWeightCol}
+                )
                 value_col_names = [self.edgeWeightCol]
             elif len(edge_attr) == 3:
                 weight_col, id_col, type_col = edge_attr
@@ -163,7 +165,12 @@ class simpleDistributedGraphImpl:
                     id_col: self.edgeIdCol,
                     type_col: self.edgeTypeCol
                 })
-                value_col_names = [self.edgeWeightCol, self.edgeIdCol, self.edgeTypeCol]
+
+                value_col_names = [
+                    self.edgeWeightCol,
+                    self.edgeIdCol,
+                    self.edgeTypeCol
+                ]
             else:
                 raise ValueError('Only 1 or 3 values may be provided'
                                  'for edge_attr')
@@ -174,14 +181,13 @@ class simpleDistributedGraphImpl:
             if(len(edge_attr) == 3 and not self.properties.directed):
                 raise ValueError('User-provided edge ids and edge '
                                  'types are not permitted for an '
-                                 'undirected graph.'
-                )
+                                 'undirected graph.')
 
             source_col, dest_col, value_col = symmetrize(
                 input_ddf, source, destination, value_col_names,
                 multi=self.properties.multi_edge,
                 symmetrize=not self.properties.directed)
-            
+
         else:
             input_ddf = input_ddf[ddf_columns]
             source_col, dest_col = symmetrize(
@@ -794,7 +800,7 @@ class simpleDistributedGraphImpl:
             This parameter is added for new algos following the
             C/Pylibcugraph path
         """
-        
+
         if not self.properties.renumber:
             self.edgelist = self.EdgeList(self.input_df)
             self.renumber_map = None

@@ -204,6 +204,7 @@ def test_create_mg_graph(dask_client, input_combo):
             err = err + 1
     assert err == 0
 
+
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_create_graph_with_edge_ids(dask_client, graph_file):
     el = utils.read_csv_file(graph_file)
@@ -215,7 +216,7 @@ def test_create_graph_with_edge_ids(dask_client, graph_file):
     num_workers = len(Comms.get_workers())
     el = dask_cudf.from_cudf(el, npartitions=num_workers)
 
-    with pytest.raises(ValueError) as ex:
+    with pytest.raises(ValueError):
         G = cugraph.Graph()
         G.from_dask_cudf_edgelist(
             el,

@@ -742,6 +742,7 @@ def test_create_sg_graph(graph_file):
         assert cdr[cdr.vertex == 11].distance.to_numpy()[0] == 4
         assert cdr[cdr.vertex == 11].predecessor.to_numpy()[0] == 51
 
+
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_create_graph_with_edge_ids(graph_file):
     el = utils.read_csv_file(graph_file)
@@ -750,7 +751,7 @@ def test_create_graph_with_edge_ids(graph_file):
     el['etype'] = cupy.random.random_integers(4, size=len(el))
     el['etype'] = el['etype'].astype('int32')
 
-    with pytest.raises(ValueError) as ex:
+    with pytest.raises(ValueError):
         G = cugraph.Graph()
         G.from_cudf_edgelist(
             el,
