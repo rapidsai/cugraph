@@ -19,7 +19,6 @@ import random
 import cudf
 import cugraph
 from cugraph.testing import utils
-from cugraph.experimental import triangle_count as experimental_triangles
 
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
@@ -45,11 +44,9 @@ def setup_function():
 # Pytest fixtures
 # =============================================================================
 datasets = utils.DATASETS_UNDIRECTED
-# FIXME: The `start_list` parameter is not supported yet therefore it has been
-# disabled in these tests. Enable it once it is supported
 fixture_params = utils.genFixtureParamsProduct((datasets, "graph_file"),
                                                ([True, False], "edgevals"),
-                                               ([False], "start_list"),
+                                               ([True, False], "start_list"),
                                                )
 
 
@@ -80,67 +77,34 @@ def input_combo(request):
 # =============================================================================
 # Tests
 # =============================================================================
-def test_triangles_no_start(input_combo):
-    if not input_combo["start_list"]:
-        G = input_combo["G"]
-        Gnx = input_combo["Gnx"]
-        nx_triangle_results = cudf.DataFrame()
+def test_triangles(input_combo):
+    G = input_combo["G"]
+    Gnx = input_combo["Gnx"]
+    nx_triangle_results = cudf.DataFrame()
 
-        cugraph_legacy_triangle_results = cugraph.triangles(G)
-
-        dic_results = nx.triangles(Gnx)
-        nx_triangle_results["vertex"] = dic_results.keys()
-        nx_triangle_results["counts"] = dic_results.values()
-        nx_triangle_results = nx_triangle_results.sort_values(
-            "vertex").reset_index(drop=True)
-
-        assert cugraph_legacy_triangle_results == \
-            nx_triangle_results["counts"].sum()
-
-        if input_combo["edgevals"]:
-            triangle_results = experimental_triangles(G).sort_values(
-                "vertex").reset_index(drop=True).rename(columns={
-                    "counts": "exp_cugraph_counts"})
-            cugraph_exp_triangle_results = \
-                triangle_results["exp_cugraph_counts"].sum()
-            # Compare the total number of triangles with the experimental
-            # implementation
-            assert cugraph_exp_triangle_results == nx_triangle_results
-            # Compare the number of triangles per vertex with the
-            # experimental implementation
-            triangle_results["nx_counts"] = nx_triangle_results["counts"]
-            counts_diff = triangle_results.query(
-                'nx_counts != exp_cugraph_counts')
-            assert len(counts_diff) == 0
-
-
-def test_triangles_with_start(input_combo):
     if input_combo["start_list"]:
-        # Need weight to create a graph using pylibcugraph
-        if input_combo["edgevals"]:
-            G = input_combo["G"]
-            Gnx = input_combo["Gnx"]
-            nx_triangle_results = cudf.DataFrame()
+        # sample k nodes from the nx graph
+        k = random.randint(1, 10)
+        start_list = random.sample(list(Gnx.nodes()), k)
+    else:
+        start_list = None
 
-            # sample k nodes from the nx graph
-            k = random.randint(1, 10)
-            start_list = random.sample(list(Gnx.nodes()), k)
+    cugraph_triangle_results = cugraph.triangle_count(G, start_list)
 
-            dic_results = nx.triangles(Gnx, start_list)
-            nx_triangle_results["vertex"] = dic_results.keys()
-            nx_triangle_results["counts"] = dic_results.values()
-            nx_triangle_results = nx_triangle_results.sort_values(
-                "vertex").reset_index(drop=True)
+    triangle_results = cugraph_triangle_results.sort_values(
+            "vertex").reset_index(drop=True).rename(columns={
+                "counts": "cugraph_counts"})
 
-            start_list = cudf.Series(start_list, dtype="int32")
-            triangle_results = experimental_triangles(
-                G, start_list).sort_values("vertex").reset_index(
-                    drop=True).rename(columns={"counts": "exp_cugraph_counts"})
+    dic_results = nx.triangles(Gnx, start_list)
+    nx_triangle_results["vertex"] = dic_results.keys()
+    nx_triangle_results["counts"] = dic_results.values()
+    nx_triangle_results = nx_triangle_results.sort_values(
+        "vertex").reset_index(drop=True)
 
-            triangle_results["nx_counts"] = nx_triangle_results["counts"]
-            counts_diff = triangle_results.query(
-                'nx_counts != exp_cugraph_counts')
-            assert len(counts_diff) == 0
+    triangle_results["nx_counts"] = nx_triangle_results["counts"]
+    counts_diff = triangle_results.query(
+        'nx_counts != cugraph_counts')
+    assert len(counts_diff) == 0
 
 
 def test_triangles_directed_graph():
@@ -158,7 +122,11 @@ def test_triangles_directed_graph():
     )
 
     with pytest.raises(ValueError):
-        cugraph.triangles(G)
+        cugraph.triangle_count(G)
 
-    with pytest.raises(ValueError):
-        experimental_triangles(G)
+
+# FIXME: Remove this test once experimental.triangle count is removed
+def test_experimental_triangle_count(input_combo):
+    G = input_combo["G"]
+    with pytest.warns(Warning):
+        cugraph.experimental.triangle_count(G)
