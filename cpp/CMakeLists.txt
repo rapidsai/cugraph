@@ -146,6 +146,7 @@ include(${rapids-cmake-dir}/cpm/cuco.cmake)
 rapids_cpm_cuco(BUILD_EXPORT_SET cugraph-exports)
 
 include(cmake/thirdparty/get_raft.cmake)
+find_package(raft COMPONENTS distance)
 
 if(USE_CUGRAPH_OPS)
   include(cmake/thirdparty/get_libcugraphops.cmake)
@@ -304,6 +305,7 @@ if (USE_CUGRAPH_OPS)
         PUBLIC
             cugraph-ops::cugraph-ops++
             raft::raft
+	    raft::distance
         PRIVATE
             cuco::cuco
             cugraph::cuHornet
@@ -313,6 +315,7 @@ else()
     target_link_libraries(cugraph
         PUBLIC
             raft::raft
+	    raft::distance
         PRIVATE
             cuco::cuco
             cugraph::cuHornet
@@ -383,6 +386,7 @@ target_link_libraries(cugraph_c
                 CUDA::cusolver
                 CUDA::cusparse
                 raft::raft
+	        raft::distance
         PRIVATE
                 cuco::cuco
                 cugraph::cugraph
