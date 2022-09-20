@@ -44,11 +44,17 @@ class simpleGraphImpl:
             self.weights = False
             if edge_attr is not None:
                 self.weights = True
-                if type(edge_attr) is list:
+                if isinstance(edge_attr, (list, tuple)):
                     if len(edge_attr) == 3:
-                        self.edgelist_df[simpleGraphImpl.edgeWeightCol],
-                        self.edgelist_df[simpleGraphImpl.edgeTypeCol],
-                        self.edgelist_df[simpleGraphImpl.edgeIdCol] = edge_attr
+                        self.edgelist_df[simpleGraphImpl.edgeWeightCol] = (
+                            edge_attr[0]
+                        )
+                        self.edgelist_df[simpleGraphImpl.edgeIdCol] = (
+                            edge_attr[1]
+                        )
+                        self.edgelist_df[simpleGraphImpl.edgeTypeCol] = (
+                            edge_attr[2]
+                        )
                     elif len(edge_attr) == 1:
                         self.edgelist_df[simpleGraphImpl.edgeWeightCol] = (
                             edge_attr[0]
@@ -57,7 +63,7 @@ class simpleGraphImpl:
                         raise ValueError('Illegal # of arguments provided'
                                          'for edge_attr')
                 else:
-                    self.edgelist_df["weights"] = edge_attr
+                    self.edgelist_df[simpleGraphImpl.edgeWeightCol] = edge_attr
 
     class AdjList:
         def __init__(self, offsets, indices, value=None):
@@ -838,9 +844,9 @@ class simpleGraphImpl:
             weight_t = weight_col.dtype
 
             if weight_t == "int32":
-                value_col = weight_col.astype("float32")
+                weight_col = weight_col.astype("float32")
             if weight_t == "int64":
-                value_col = weight_col.astype("float64")
+                weight_col = weight_col.astype("float64")
 
         graph_props = GraphProperties(
             is_multigraph=self.properties.multi_edge,

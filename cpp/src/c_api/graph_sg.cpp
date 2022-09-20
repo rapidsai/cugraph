@@ -111,7 +111,7 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
       }
 
       std::optional<std::tuple<rmm::device_uvector<edge_t>, rmm::device_uvector<edge_type_t>>>
-        edgelist_edge_tuple = std::nullopt;
+        edgelist_edge_tuple{};
 
       if (edge_types_ && edge_ids_) {
         auto edgelist_edge_types =
@@ -130,7 +130,7 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
                            edge_types_->size_,
                            handle_.get_stream());
 
-        *edgelist_edge_tuple = std::make_tuple(std::move(edgelist_edge_ids), std::move(edgelist_edge_types));
+        edgelist_edge_tuple = std::make_tuple(std::move(edgelist_edge_ids), std::move(edgelist_edge_types));
       }
 
       auto graph =
@@ -155,7 +155,7 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
           std::move(edgelist_srcs),
           std::move(edgelist_dsts),
           std::move(edgelist_weights),
-          std::move(*edgelist_edge_tuple),
+          std::move(edgelist_edge_tuple),
           cugraph::graph_properties_t{properties_->is_symmetric, properties_->is_multigraph},
           renumber_,
           check_);
@@ -170,12 +170,9 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
                                        graph->view().local_vertex_partition_range_first());
       }
 
-      // TODO - update this when edge property creation is available.
-      /*
-      if(edgelist_edge_tuple) {
+      if(new_edge_properties) {
         *edge_properties = std::move(new_edge_properties.value());
       }
-      */
 
       // Set up return
       auto result = new cugraph::c_api::cugraph_graph_t{
