@@ -54,7 +54,7 @@ from pylibcugraph.utils cimport (
 )
 
 
-def EXPERIMENTAL__louvain(ResourceHandle resource_handle,
+def louvain(ResourceHandle resource_handle,
                           _GPUGraph graph,
                           size_t max_level,
                           double resolution,
