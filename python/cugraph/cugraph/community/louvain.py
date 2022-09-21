@@ -62,6 +62,10 @@ def louvain(G, max_iter=100, resolution=1.):
         df['partition'] : cudf.Series
             Contains the partition assigned to the vertices
 
+    modularity_score : float
+        a floating point number containing the global modularity score of the
+        partitioning.
+
     Examples
     --------
     >>> from cugraph.experimental.datasets import karate
@@ -75,8 +79,7 @@ def louvain(G, max_iter=100, resolution=1.):
     if G.is_directed():
         raise ValueError("input graph must be undirected")
 
-    print("the plc graph is ", G._plc_graph)
-    vertex, partition = \
+    vertex, partition, mod_score = \
         pylibcugraph_louvain(
             resource_handle=ResourceHandle(),
             graph=G._plc_graph,
@@ -95,4 +98,4 @@ def louvain(G, max_iter=100, resolution=1.):
     if isNx is True:
         df = df_score_to_dictionary(df, 'partition')
 
-    return df
+    return df, mod_score

@@ -37,6 +37,7 @@ from pylibcugraph._cugraph_c.community_algorithms cimport (
     cugraph_louvain,
     cugraph_heirarchical_clustering_result_get_vertices,
     cugraph_heirarchical_clustering_result_get_clusters,
+    cugraph_heirarchical_clustering_result_get_modularity,
     cugraph_heirarchical_clustering_result_free,
 )
 from pylibcugraph.resource_handle cimport (
@@ -135,10 +136,13 @@ def louvain(ResourceHandle resource_handle,
         cugraph_heirarchical_clustering_result_get_vertices(result_ptr)
     cdef cugraph_type_erased_device_array_view_t* clusters_ptr = \
         cugraph_heirarchical_clustering_result_get_clusters(result_ptr)
+    cdef double modularity = \
+        cugraph_heirarchical_clustering_result_get_modularity(result_ptr)
 
     cupy_vertices = copy_to_cupy_array(c_resource_handle_ptr, vertices_ptr)
     cupy_clusters = copy_to_cupy_array(c_resource_handle_ptr, clusters_ptr)
+    #cupy_modularity = copy_to_cupy_array(c_resource_handle_ptr, modularity_ptr)
 
     cugraph_heirarchical_clustering_result_free(result_ptr)
 
-    return (cupy_vertices, cupy_clusters)
+    return (cupy_vertices, cupy_clusters, modularity)

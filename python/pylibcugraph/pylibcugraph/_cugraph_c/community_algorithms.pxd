@@ -76,6 +76,10 @@ cdef extern from "cugraph_c/community_algorithms.h":
         cugraph_heirarchical_clustering_result_get_clusters(
             cugraph_heirarchical_clustering_result_t* result
         )
+    
+    cdef double cugraph_heirarchical_clustering_result_get_modularity(
+        cugraph_heirarchical_clustering_result_t* result
+        )
 
     cdef void \
         cugraph_heirarchical_clustering_result_free(

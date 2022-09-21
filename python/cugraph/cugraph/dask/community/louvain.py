@@ -17,18 +17,24 @@ from dask.distributed import wait
 import cugraph.dask.comms.comms as Comms
 import dask_cudf
 import cudf
+import operator as op
 
 from pylibcugraph import ResourceHandle
 from pylibcugraph import louvain as pylibcugraph_louvain
 
 
-def convert_to_cudf(cp_arrays):
+def convert_to_cudf(cupy_vertex, cupy_partition):
     """
     Creates a cudf DataFrame from cupy arrays from pylibcugraph wrapper
     """
-    cupy_vertices, cupy_partition = cp_arrays
+    #print("cp arrays is \n", cp_arrays)
+    #cupy_vertices, cupy_partition, mod_score = cp_arrays
+
+    #print("vertices are \n", cupy_vertices)
+    #print("partitions are \n", cupy_partition)
+    #print("mod score is \n", mod_score)
     df = cudf.DataFrame()
-    df["vertex"] = cupy_vertices
+    df["vertex"] = cupy_vertex
     df["partition"] = cupy_partition
 
     return df
@@ -83,14 +89,18 @@ def louvain(input_graph, max_iter=100, resolution=1.):
 
     Returns
     -------
-    parts : cudf.DataFrame
+    parts : dask_cudf.DataFrame
         GPU data frame of size V containing two columns the vertex id and the
         partition id it is assigned to.
 
-        df['vertex'] : cudf.Series
+        ddf['vertex'] : cudf.Series
             Contains the vertex identifiers
-        df['partition'] : cudf.Series
+        ddf['partition'] : cudf.Series
             Contains the partition assigned to the vertices
+    
+    modularity_score : float
+        a floating point number containing the global modularity score of the
+        partitioning.
 
     Examples
     --------
@@ -124,11 +134,25 @@ def louvain(input_graph, max_iter=100, resolution=1.):
 
     wait(result)
 
+    # futures is a list of Futures containing tuples of (DataFrame, mod_score),
+    # unpack using separate calls to client.submit with a callable to get
+    # individual items.
+    # FIXME: look into an alternate way (not returning a tuples, accessing
+    # tuples differently, etc.) since multiple client.submit() calls may not be
+    # optimal.
+    result_vertex = [client.submit(op.getitem, f, 0) for f in result]
+    result_partition = [client.submit(op.getitem, f, 1) for f in result]
+    mod_score = [client.submit(op.getitem, f, 2) for f in result]
+
     cudf_result = [client.submit(convert_to_cudf,
-                                 cp_arrays)
-                   for cp_arrays in result]
+                                 cp_vertex_arrays,
+                                 cp_partition_arrays)
+                   for cp_vertex_arrays, cp_partition_arrays in zip(
+                       result_vertex, result_partition)]
 
     wait(cudf_result)
+    # Each worker should have computed the same mod_score
+    mod_score = mod_score[0].result()
 
     ddf = dask_cudf.from_delayed(cudf_result).persist()
     wait(ddf)
@@ -140,4 +164,4 @@ def louvain(input_graph, max_iter=100, resolution=1.):
     if input_graph.renumbered:
         ddf = input_graph.unrenumber(ddf, "vertex")
 
-    return ddf
+    return ddf, mod_score
