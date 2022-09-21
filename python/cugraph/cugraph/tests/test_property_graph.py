@@ -1414,6 +1414,58 @@ def test_get_data_empty_graphs():
     assert pG.get_edge_data([0, 1, 2]) is None
 
 
+def test_renumber_vertices_by_type(dataset1_PropertyGraph):
+    from cugraph.experimental import PropertyGraph
+
+    (pG, data) = dataset1_PropertyGraph
+    df_id_ranges = pG.renumber_vertices_by_type()
+    expected = {
+        "merchants": [0, 4],  # stop is inclusive
+        "users": [5, 8],
+    }
+    for key, (start, stop) in expected.items():
+        assert df_id_ranges.loc[key, "start"] == start
+        assert df_id_ranges.loc[key, "stop"] == stop
+        df = pG.get_vertex_data(types=[key])
+        assert len(df) == stop - start + 1
+        assert (df["_VERTEX_"] == list(range(start, stop + 1))).all()
+
+    # Make sure we renumber vertex IDs in edge data too
+    df = pG.get_edge_data()
+    assert 0 <= df[pG.src_col_name].min() < df[pG.src_col_name].max() < 9
+    assert 0 <= df[pG.dst_col_name].min() < df[pG.dst_col_name].max() < 9
+
+    empty_pG = PropertyGraph()
+    assert empty_pG.renumber_vertices_by_type() is None
+
+    # Test when vertex IDs only exist in edge data
+    df = type(df)({"src": [99998], "dst": [99999]})
+    empty_pG.add_edge_data(df, ["src", "dst"])
+    with pytest.raises(NotImplementedError, match="only exist in edge"):
+        empty_pG.renumber_vertices_by_type()
+
+
+def test_renumber_edges_by_type(dataset1_PropertyGraph):
+    from cugraph.experimental import PropertyGraph
+
+    (pG, data) = dataset1_PropertyGraph
+    df_id_ranges = pG.renumber_edges_by_type()
+    expected = {
+        "referrals": [0, 5],  # stop is inclusive
+        "relationships": [6, 9],
+        "transactions": [10, 13],
+    }
+    for key, (start, stop) in expected.items():
+        assert df_id_ranges.loc[key, "start"] == start
+        assert df_id_ranges.loc[key, "stop"] == stop
+        df = pG.get_edge_data(types=[key])
+        assert len(df) == stop - start + 1
+        assert (df[pG.edge_id_col_name] == list(range(start, stop + 1))).all()
+
+    empty_pG = PropertyGraph()
+    assert empty_pG.renumber_edges_by_type() is None
+
+
 # =============================================================================
 # Benchmarks
 # =============================================================================

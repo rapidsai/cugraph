@@ -61,7 +61,7 @@ class edge_partition_edge_dummy_property_device_view_t {
 
   edge_partition_edge_dummy_property_device_view_t() = default;
 
-  edge_partition_edge_dummy_property_device_view_t(edge_dummy_property_view_t<edge_t> const& view,
+  edge_partition_edge_dummy_property_device_view_t(edge_dummy_property_view_t const& view,
                                                    size_t partition_idx)
   {
   }
