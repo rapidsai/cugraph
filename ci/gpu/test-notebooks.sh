@@ -42,12 +42,18 @@ for folder in ${TOPLEVEL_NB_FOLDERS}; do
     echo "FOLDER: ${folder}"
     echo "========================================"
     cd ${NOTEBOOKS_DIR}/${folder}
-    NBLIST=$(python ${WORKSPACE}/ci/gpu/notebook_list.py -r ${1})
+    if [ -z "$1" ]
+        then
+            runtype="all"
+        else
+            runtype=${1}
+    fi
+    NBLIST=$(python ${WORKSPACE}/ci/gpu/notebook_list.py -r ${runtype})
     for nb in ${NBLIST}; do
         nbBasename=$(basename ${nb})
         cd $(dirname ${nb})
-        nvidia-smi
-        ${NBTEST} ${nbBasename}
+#        nvidia-smi
+#        ${NBTEST} ${nbBasename}
         echo "Ran nbtest for $nb : return code was: $?, test script exit code is now: $EXITCODE"
         echo
         rm -rf ${LIBCUDF_KERNEL_CACHE_PATH}/*
