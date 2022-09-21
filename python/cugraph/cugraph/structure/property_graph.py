@@ -1010,6 +1010,81 @@ class EXPERIMENTAL__PropertyGraph:
 
         return G
 
+    def renumber_vertices_by_type(self):
+        """Renumber vertex IDs to be contiguous by type.
+
+        Returns a DataFrame with the start and stop IDs for each vertex type.
+        Stop is *inclusive*.
+        """
+        # Check if some vertex IDs exist only in edge data
+        default = self._default_type_name
+        if (
+            self.__edge_prop_dataframe is not None
+            and self.get_num_vertices(default, include_edge_data=True)
+            != self.get_num_vertices(default, include_edge_data=False)
+        ):
+            raise NotImplementedError(
+                "Currently unable to renumber vertices when some vertex "
+                "IDs only exist in edge data"
+            )
+        if self.__vertex_prop_dataframe is None:
+            return None
+        # We'll need to update this when index is vertex ID
+        df = (
+            self.__vertex_prop_dataframe
+            .sort_values(by=self.type_col_name)
+        )
+        if self.__edge_prop_dataframe is not None:
+            mapper = self.__series_type(
+                df.index, index=df[self.vertex_col_name]
+            )
+            self.__edge_prop_dataframe[self.src_col_name] = (
+                self.__edge_prop_dataframe[self.src_col_name].map(mapper)
+            )
+            self.__edge_prop_dataframe[self.dst_col_name] = (
+                self.__edge_prop_dataframe[self.dst_col_name].map(mapper)
+            )
+        df.drop(columns=[self.vertex_col_name], inplace=True)
+        df.index.name = self.vertex_col_name
+        df.reset_index(inplace=True)
+        self.__vertex_prop_dataframe = df
+        rv = (
+            self._vertex_type_value_counts
+            .sort_index()
+            .cumsum()
+            .to_frame("stop")
+        )
+        rv["start"] = rv["stop"].shift(1, fill_value=0)
+        rv["stop"] -= 1  # Make inclusive
+        return rv[["start", "stop"]]
+
+    def renumber_edges_by_type(self):
+        """Renumber edge IDs to be contiguous by type.
+
+        Returns a DataFrame with the start and stop IDs for each edge type.
+        Stop is *inclusive*.
+        """
+        # TODO: keep track if edges are already numbered correctly.
+        if self.__edge_prop_dataframe is None:
+            return None
+        # We'll need to update this when index is edge ID
+        self.__edge_prop_dataframe = (
+            self.__edge_prop_dataframe
+            .drop(columns=[self.edge_id_col_name])
+            .sort_values(by=self.type_col_name, ignore_index=True)
+        )
+        self.__edge_prop_dataframe.index.name = self.edge_id_col_name
+        self.__edge_prop_dataframe.reset_index(inplace=True)
+        rv = (
+            self._edge_type_value_counts
+            .sort_index()
+            .cumsum()
+            .to_frame("stop")
+        )
+        rv["start"] = rv["stop"].shift(1, fill_value=0)
+        rv["stop"] -= 1  # Make inclusive
+        return rv[["start", "stop"]]
+
     @classmethod
     def has_duplicate_edges(cls, df):
         """
