@@ -197,6 +197,8 @@ set(CUGRAPH_SOURCES
     src/cores/legacy/core_number.cu
     src/cores/core_number_sg.cu
     src/cores/core_number_mg.cu
+    src/cores/k_core_sg.cu
+    src/cores/k_core_mg.cu
     src/traversal/two_hop_neighbors.cu
     src/components/legacy/connectivity.cu
     src/centrality/betweenness_centrality.cu

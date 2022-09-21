@@ -33,6 +33,13 @@ typedef struct {
 } cugraph_core_result_t;
 
 /**
+ * @brief       Opaque k-core result type
+ */
+typedef struct {
+  int32_t align_;
+} cugraph_k_core_result_t;
+
+/**
  * @brief       Get the vertex ids from the core result
  *
  * @param [in]     result   The result from core number
@@ -58,6 +65,42 @@ cugraph_type_erased_device_array_view_t* cugraph_core_result_get_core_numbers(
 void cugraph_core_result_free(cugraph_core_result_t* result);
 
 /**
+ * @brief       Get the src vertex ids from the k-core result
+ *
+ * @param [in]     result   The result from k-core
+ * @return type erased array of src vertex ids
+ */
+cugraph_type_erased_device_array_view_t* cugraph_core_result_get_src_vertices(
+  cugraph_k_core_result_t* result);
+
+/**
+ * @brief       Get the dst vertex ids from the k-core result
+ *
+ * @param [in]     result   The result from k-core
+ * @return type erased array of dst vertex ids
+ */
+cugraph_type_erased_device_array_view_t* cugraph_core_result_get_dst_vertices(
+  cugraph_k_core_result_t* result);
+
+/**
+ * @brief       Get the weights from the k-core result
+ *
+ * Returns NULL if the graph is unweighted
+ *
+ * @param [in]     result   The result from k-core
+ * @return type erased array of weights
+ */
+cugraph_type_erased_device_array_view_t* cugraph_core_result_get_weights(
+  cugraph_k_core_result_t* result);
+
+/**
+ * @brief     Free k-core result
+ *
+ * @param [in]    result    The result from k-core
+ */
+void cugraph_k_core_result_free(cugraph_k_core_result_t* result);
+
+/**
  * @brief     Enumeration for computing core number
  */
 typedef enum {
@@ -74,7 +117,7 @@ typedef enum {
  * @param [in]  degree_type  Compute core_number using in, out or both in and out edges
  * @param [in]  do_expensive_check A flag to run expensive checks for input arguments (if set to
  * `true`).
- * @param [out] result       Opaque pointer to paths results
+ * @param [out] result       Opaque pointer to core number results
  * @param [out] error        Pointer to an error object storing details of any error.  Will
  *                           be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
@@ -85,6 +128,28 @@ cugraph_error_code_t cugraph_core_number(const cugraph_resource_handle_t* handle
                                          bool_t do_expensive_check,
                                          cugraph_core_result_t** result,
                                          cugraph_error_t** error);
+
+/**
+ * @brief     Perform k_core using output from core_number
+ *
+ * @param [in]  handle       Handle for accessing resources
+ * @param [in]  graph        Pointer to graph
+ * @param [in]  k            The value of k to use
+ * @param [in]  core_result  Result from calling cugraph_core_number
+ * @param [in]  do_expensive_check A flag to run expensive checks for input arguments (if set to
+ * `true`).
+ * @param [out] result       Opaque pointer to k_core results
+ * @param [out] error        Pointer to an error object storing details of any error.  Will
+ *                           be populated if error code is not CUGRAPH_SUCCESS
+ * @return error code
+ */
+cugraph_error_code_t cugraph_k_core(const cugraph_resource_handle_t* handle,
+                                    cugraph_graph_t* graph,
+                                    size_t k,
+                                    cugraph_core_result_t** core_result,
+                                    bool_t do_expensive_check,
+                                    cugraph_k_core_result_t** result,
+                                    cugraph_error_t** error);
 
 #ifdef __cplusplus
 }
