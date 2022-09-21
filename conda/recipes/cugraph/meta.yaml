@@ -36,7 +36,8 @@ requirements:
     - scikit-build>=0.13.1
     - libcugraph={{ version }}
     - libraft-headers {{ minor_version }}
-    - pyraft {{ minor_version }}
+    - raft-dask {{ minor_version }}
+    - pylibraft {{ minor_version}}
     - cudf={{ minor_version }}
     - ucx-py {{ ucx_py_version }}
     - ucx-proc=*=gpu

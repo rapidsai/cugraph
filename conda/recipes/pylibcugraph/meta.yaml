@@ -35,6 +35,7 @@ requirements:
     - cython>=0.29,<0.30
     - scikit-build>=0.13.1
     - libcugraph={{ version }}
+    - libraft-headers={{ minor_version }}
     - ucx-py {{ ucx_py_version }}
     - ucx-proc=*=gpu
     - cudatoolkit {{ cuda_version }}.*

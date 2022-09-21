@@ -39,6 +39,8 @@ requirements:
     - doxygen {{ doxygen_version }}
     - cudatoolkit {{ cuda_version }}.*
     - libcugraphops {{ minor_version }}.*
+    - libraft-headers {{ minor_version }}
+    - libraft-distance {{ minor_version }}
     - librmm {{ minor_version }}.*
     - libcudf {{ minor_version }}.*
     - boost-cpp {{ boost_cpp_version }}
