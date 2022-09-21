@@ -11,12 +11,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import pytest
 import cupy as cp
 import numpy as np
 import cudf
 from pylibcugraph import (SGGraph,
-                          MGGraph,
                           ResourceHandle,
                           GraphProperties,
                           )
@@ -28,7 +26,6 @@ def check_results(d_vertices, d_clusters, modularity):
     expected_clusters = np.array([0, 0, 0, 0, 1, 1], dtype=np.int32)
     expected_modularity = 0.125
 
-    #d_vertex_result, d_counts_result = d_result
     h_vertices = d_vertices.get()
     h_clusters = d_clusters.get()
 
