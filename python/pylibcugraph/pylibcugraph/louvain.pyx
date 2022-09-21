@@ -56,10 +56,10 @@ from pylibcugraph.utils cimport (
 
 
 def louvain(ResourceHandle resource_handle,
-                          _GPUGraph graph,
-                          size_t max_level,
-                          double resolution,
-                          bool_t do_expensive_check):
+            _GPUGraph graph,
+            size_t max_level,
+            double resolution,
+            bool_t do_expensive_check):
     """
     Compute the modularity optimizing partition of the input graph using the
     Louvain method.
@@ -91,29 +91,31 @@ def louvain(ResourceHandle resource_handle,
 
     Returns
     -------
-    # FIXME: no modularity_score is returned liek in the legacy implementation
-    A tuple of device arrays, conataining the heirarchical clustering vertices
-    and clusters.
+    A tuple containing the heirarchical clustering vertices, clusters and
+    modularity score
 
     Examples
     --------
-    # FIXME: No example yet
+    >>> import pylibcugraph, cupy, numpy
+    >>> srcs = cupy.asarray([0, 1, 2], dtype=numpy.int32)
+    >>> dsts = cupy.asarray([1, 2, 0], dtype=numpy.int32)
+    >>> weights = cupy.asarray([1.0, 1.0, 1.0], dtype=numpy.float32)
+    >>> resource_handle = pylibcugraph.ResourceHandle()
+    >>> graph_props = pylibcugraph.GraphProperties(
+    ...     is_symmetric=True, is_multigraph=False)
+    >>> G = pylibcugraph.SGGraph(
+    ...     resource_handle, graph_props, srcs, dsts, weights,
+    ...     store_transposed=True, renumber=False, do_expensive_check=False)
+    >>> (vertices, clusters, modularity) = pylibcugraph.louvain(
+                                resource_handle, G, 100, 1., False)
+    >>> vertices
+    [0, 1, 2]
+    >>> clusters
+    [0, 0, 0]
+    >>> modularity
+    0.0
 
     """
-    # FIXME: import these modules here for now until a better pattern can be
-    # used for optional imports (perhaps 'import_optional()' from cugraph), or
-    # these are made hard dependencies.
-    try:
-        import cupy
-    except ModuleNotFoundError:
-        raise RuntimeError("louvain requires the cupy package, which could "
-                           "not be imported")
-    try:
-        import numpy
-    except ModuleNotFoundError:
-        raise RuntimeError("louvain requires the numpy package, which could "
-                           "not be imported")
-
     cdef cugraph_resource_handle_t* c_resource_handle_ptr = \
         resource_handle.c_resource_handle_ptr
     cdef cugraph_graph_t* c_graph_ptr = graph.c_graph_ptr
@@ -141,7 +143,6 @@ def louvain(ResourceHandle resource_handle,
 
     cupy_vertices = copy_to_cupy_array(c_resource_handle_ptr, vertices_ptr)
     cupy_clusters = copy_to_cupy_array(c_resource_handle_ptr, clusters_ptr)
-    #cupy_modularity = copy_to_cupy_array(c_resource_handle_ptr, modularity_ptr)
 
     cugraph_heirarchical_clustering_result_free(result_ptr)
 
