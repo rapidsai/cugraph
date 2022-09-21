@@ -48,7 +48,7 @@ for folder in ${TOPLEVEL_NB_FOLDERS}; do
         else
             runtype=${1}
     fi
-    NBLIST=$(python ${WORKSPACE}/ci/gpu/notebook_list.py -r ${runtype})
+    NBLIST=$(python ${WORKSPACE}/ci/gpu/notebook_list.py ${runtype})
     for nb in ${NBLIST}; do
         nbBasename=$(basename ${nb})
         cd $(dirname ${nb})

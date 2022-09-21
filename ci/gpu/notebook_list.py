@@ -12,7 +12,7 @@
 # limitations under the License.
 
 import re
-import getopt
+import argparse
 import sys
 import glob
 import os
@@ -21,7 +21,8 @@ from pathlib import Path
 from numba import cuda
 
 # for adding another run type and skip file name add to this dictionary
-runtype_dict = {"all" : "", "ci" : "SKIP_CI_TESTING", "nightly" : "SKIP_NIGHTLY", "weekly" : "SKIP_WEEKLY"}
+runtype_dict = {"all" : "", "ci" : "SKIP_CI_TESTING", 
+                "nightly" : "SKIP_NIGHTLY", "weekly" : "SKIP_WEEKLY"}
 
 
 def skip_book_dir(runtype):
@@ -42,15 +43,12 @@ pascal = False
 ampere = False
 device = cuda.get_current_device()
 
-opts, args = getopt.getopt( sys.argv[1:],"r:", ["runtype"])
+parser = argparse.ArgumentParser(description='Condition for running the notebook tests')
+parser.add_argument('runtype', type=str)
 
-runtype='ci'
-for opt, arg in opts:
-    if opt in ['-r',"--runtype"]:
-       runtype = arg
-    else:
-       print(f'Unknown argument  = {opt} = {arg}', file=sys.stderr)
-       exit()
+args = parser.parse_args()
+
+runtype = args.runtype
 
 if runtype not in runtype_dict.keys():
     print(f'Unknown Run Type  = {runtype}', file=sys.stderr)
@@ -66,7 +64,6 @@ if (cc[0] >= 8):
     ampere = True
 
 skip = False
-skipdir = False
 for filename in glob.iglob('**/*.ipynb', recursive=True):
     skip = False
     if (skip_book_dir(runtype) == True):
