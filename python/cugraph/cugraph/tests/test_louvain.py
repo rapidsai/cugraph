@@ -142,4 +142,3 @@ def test_louvain_directed_graph():
 
     with pytest.raises(ValueError):
         cugraph_call(cu_M, directed=True)
-        #experimental_louvain(cu_M, directed=True)

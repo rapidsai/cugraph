@@ -27,12 +27,6 @@ def convert_to_cudf(cupy_vertex, cupy_partition):
     """
     Creates a cudf DataFrame from cupy arrays from pylibcugraph wrapper
     """
-    #print("cp arrays is \n", cp_arrays)
-    #cupy_vertices, cupy_partition, mod_score = cp_arrays
-
-    #print("vertices are \n", cupy_vertices)
-    #print("partitions are \n", cupy_partition)
-    #print("mod score is \n", mod_score)
     df = cudf.DataFrame()
     df["vertex"] = cupy_vertex
     df["partition"] = cupy_partition
@@ -97,7 +91,7 @@ def louvain(input_graph, max_iter=100, resolution=1.):
             Contains the vertex identifiers
         ddf['partition'] : cudf.Series
             Contains the partition assigned to the vertices
-    
+
     modularity_score : float
         a floating point number containing the global modularity score of the
         partitioning.
