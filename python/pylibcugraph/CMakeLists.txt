@@ -69,7 +69,7 @@ IF(NOT EXISTS ${EXTERNAL_INCLUDES_DIRECTORY})
   file(MAKE_DIRECTORY ${EXTERNAL_INCLUDES_DIRECTORY})
 endif()
 
-IF(NOT EXISTS ${EXTERNAL_INCLUDES_DIRECTORY}/cuco)
+IF(NOT EXISTS ${EXTERNAL_INCLUDES_DIRECTORY}/raft)
   execute_process(
           COMMAND git clone "https://github.com/cjnolet/raft" --branch imp-2210-host_device_mdspan
           WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/external_includes)
