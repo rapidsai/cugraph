@@ -31,14 +31,9 @@ class CuGraphStore:
     """
     A wrapper around a cuGraph Property Graph that
     then adds functions to basically match the DGL GraphStorage API.
-    This is not a full duck-types match to a DGL GraphStore.  This class
-    return cuGraph types and had additional functional arguments.
-    For true integration with DGL, a second class would need to be written
-    in DGL that handles the conversion to other types, like DGLGraph, and
-    handles the extra arguments.
+    This is not a full duck-types match to a DGL GraphStore.
 
-    homogeneous graphs, graphs with no attributes - use Property Graph
-    hetrogeneous graphs - use PropertyGraph
+    This class return dlpack types and has additional functional arguments.
     """
 
     def __init__(self, graph, backend_lib="torch"):
@@ -120,6 +115,10 @@ class CuGraphStore:
     def num_edges(self, etype=None):
         return self.gdata.get_num_edges(etype)
 
+    @cached_property
+    def has_multiple_etypes(self):
+        return len(self.etypes) > 1
+
     @property
     def ntypes(self):
         return self.gdata.vertex_types
@@ -162,8 +161,8 @@ class CuGraphStore:
 
         Parameters
         ----------
-        nodes_cap : Dlpack of Node IDs (single dimension)
-            Node IDs to sample neighbors from.
+        nodes_cap : Dlpack or dict of Dlpack of Node IDs
+                    to sample neighbors from.
         fanout : int
             The number of edges to be sampled for each node on each edge type.
             If -1 is given all the neighboring edges for each node on
@@ -196,51 +195,42 @@ class CuGraphStore:
                 f"edge_dir must be either 'in' or 'out' got {edge_dir} instead"
             )
 
-        if edge_dir == "in":
-            sg = self.extracted_reverse_subgraph_without_renumbering
-        else:
-            sg = self.extracted_subgraph_without_renumbering
-
-        if not hasattr(self, "_sg_node_dtype"):
-            # FIXME: Remove after we have consistent naming
-            # https://github.com/rapidsai/cugraph/issues/2618
-            sg_columns = sg.edgelist.edgelist_df.columns
-            if "src" in sg_columns:
-                # src for single node graph
-                self._sg_node_dtype = sg.edgelist.edgelist_df["src"].dtype
-            elif src_n in sg_columns:
-                # _SRC_ for multi-node graphs
-                self._sg_node_dtype = sg.edgelist.edgelist_df[src_n].dtype
-            else:
-                raise ValueError(f"Source column {src_n} not \
-                                  found in the subgraph")
-
         if isinstance(nodes_cap, dict):
             nodes = [cudf.from_dlpack(nodes) for nodes in nodes_cap.values()]
             nodes = cudf.concat(nodes, ignore_index=True)
         else:
             nodes = cudf.from_dlpack(nodes_cap)
 
-        # Uniform sampling assumes fails when the dtype
-        # if the seed dtype is not same as the node dtype
-        nodes = nodes.astype(self._sg_node_dtype)
-
         if self.is_mg:
-            uniform_neighbor_sample = cugraph.dask.uniform_neighbor_sample
+            sample_f = cugraph.dask.uniform_neighbor_sample
         else:
-            uniform_neighbor_sample = cugraph.uniform_neighbor_sample
+            sample_f = cugraph.uniform_neighbor_sample
 
+        if self.has_multiple_etypes:
+            # TODO: Convert into a single call when
+            # https://github.com/rapidsai/cugraph/issues/2696 lands
+            if edge_dir == "in":
+                sgs = self.extracted_reverse_subgraphs_per_type
+            else:
+                sgs = self.extracted_subgraphs_per_type
+            # Uniform sampling fails when the dtype
+            # of the seed dtype is not same as the node dtype
 
-        sampled_df = uniform_neighbor_sample(
-            sg,
-            start_list=nodes,
-            fanout_vals=[fanout],
-            with_replacement=replace,
-            # is_edge_ids=True
-            # FIXME: TODO, Raise issue on dask.cuDF
-            # FIXME: is_edge_ids=True does not seem to do anything
-            # issue https://github.com/rapidsai/cugraph/issues/2562
-        )
+            self.set_sg_node_dtype(list(sgs.values())[0])
+            nodes = nodes.astype(self._sg_node_dtype)
+            sampled_df = sample_multiple_sgs(
+                sgs, sample_f, nodes, fanout, replace
+            )
+        else:
+            if edge_dir == "in":
+                sg = self.extracted_reverse_subgraph
+            else:
+                sg = self.extracted_subgraph
+            # Uniform sampling fails when the dtype
+            # of the seed dtype is not same as the node dtype
+            self.set_sg_node_dtype(sg)
+            nodes = nodes.astype(self._sg_node_dtype)
+            sampled_df = sample_single_sg(sg, sample_f, nodes, fanout, replace)
 
         # we reverse directions when directions=='in'
         if edge_dir == "in":
@@ -251,45 +241,64 @@ class CuGraphStore:
             sampled_df = sampled_df.rename(
                 columns={"sources": src_n, "destinations": dst_n}
             )
-
         # Transfer data to client
         if isinstance(sampled_df, dask_cudf.DataFrame):
             sampled_df = sampled_df.compute()
 
-        if len(self.etypes) <= 1:
+        if self.has_multiple_etypes:
+            # Heterogeneous graph case
+            # TODO: Remove when
+            d = self._get_edgeid_type_d(sampled_df["indices"], self.etypes)
+            d = return_dlpack_d(d)
+            return d
+        else:
             return (
                 sampled_df[src_n].to_dlpack(),
                 sampled_df[dst_n].to_dlpack(),
                 sampled_df["indices"].to_dlpack(),
             )
-        # Heterogeneous graph case
-        else:
-            d = self._get_edgeid_type_d(sampled_df["indices"], self.etypes)
-            d = return_dlpack_d(d)
-            return d
 
     @cached_property
-    def extracted_reverse_subgraph_without_renumbering(self):
-        # TODO: Switch to extract_subgraph based on response on
-        # https://github.com/rapidsai/cugraph/issues/2458
-        subset_df = self.gdata.get_edge_data()
-        subset_df = subset_df.rename(columns={src_n: dst_n, dst_n: src_n})
-        subgraph = cugraph.MultiGraph(directed=True)
-        if self.is_mg:
-            create_subgraph_f = subgraph.from_dask_cudf_edgelist
-        else:
-            create_subgraph_f = subgraph.from_cudf_edgelist
+    def extracted_subgraph(self):
+        edge_list = self.gdata.get_edge_data(
+            columns=[src_n, dst_n, type_n, eid_n]
+        )
+        return get_subgraph_from_edgelist(
+            edge_list, self.is_mg, reverse_edges=False
+        )
 
-        subgraph = create_subgraph_f(
-                subset_df,
-                source=src_n,
-                destination=dst_n,
-                edge_attr=eid_n,
-                renumber=True,
-                # FIXME: renumber=False is not supported for MNMG algos
-                legacy_renum_only=True)
+    @cached_property
+    def extracted_reverse_subgraph(self):
+        edge_list = self.gdata.get_edge_data(
+            columns=[src_n, dst_n, type_n, eid_n]
+        )
+        return get_subgraph_from_edgelist(
+            edge_list, self.is_mg, reverse_edges=True
+        )
 
-        return subgraph
+    @cached_property
+    def extracted_subgraphs_per_type(self):
+        sg_d = {}
+        for etype in self.etypes:
+            edge_list = self.gdata.get_edge_data(
+                columns=[src_n, dst_n, type_n, eid_n], types=[etype]
+            )
+            sg_d[etype] = get_subgraph_from_edgelist(
+                edge_list, self.is_mg, reverse_edges=False
+            )
+        return sg_d
+
+    @cached_property
+    def extracted_reverse_subgraphs_per_type(self):
+        sg_d = {}
+        for etype in self.etypes:
+            edge_list = self.gdata.get_edge_data(
+                columns=[src_n, dst_n, type_n, eid_n], types=[etype]
+            )
+            sg_d[etype] = get_subgraph_from_edgelist(
+                edge_list, self.is_mg, reverse_edges=True
+            )
+        return sg_d
 
     @cached_property
     def num_nodes_dict(self):
@@ -299,16 +308,25 @@ class CuGraphStore:
     def num_edges_dict(self):
         return {etype: self.num_edges(etype) for etype in self.etypes}
 
-    @cached_property
-    def extracted_subgraph_without_renumbering(self):
-        gr_template = cugraph.MultiGraph(directed=True)
-        subgraph = self.gdata.extract_subgraph(
-            create_using=gr_template,
-            edge_weight_property=eid_n,
-            allow_multi_edges=True,
-            renumber_graph=False,
-        )
-        return subgraph
+    def set_sg_node_dtype(self, sg):
+        if hasattr(self, "_sg_node_dtype"):
+            return self._sg_node_dtype
+        else:
+            # FIXME: Remove after we have consistent naming
+            # https://github.com/rapidsai/cugraph/issues/2618
+            sg_columns = sg.edgelist.edgelist_df.columns
+            if "src" in sg_columns:
+                # src for single node graph
+                self._sg_node_dtype = sg.edgelist.edgelist_df["src"].dtype
+            elif src_n in sg_columns:
+                # _SRC_ for multi-node graphs
+                self._sg_node_dtype = sg.edgelist.edgelist_df[src_n].dtype
+            else:
+                raise ValueError(
+                    f"Source column {src_n} not \
+                                    found in the subgraph"
+                )
+            return self._sg_node_dtype
 
     def find_edges(self, edge_ids_cap, etype):
         """Return the source and destination node IDs given the edge IDs within
@@ -328,9 +346,6 @@ class CuGraphStore:
             The dst nodes for the given ids
         """
         edge_ids = cudf.from_dlpack(edge_ids_cap)
-
-        # FIXME: Remove once below lands
-        # https://github.com/rapidsai/cugraph/issues/2444
         subset_df = self.gdata.get_edge_data(edge_ids=edge_ids, columns=type_n)
         if isinstance(subset_df, dask_cudf.DataFrame):
             subset_df = subset_df.compute()
@@ -394,8 +409,10 @@ class CuFeatureStorage:
                 "Only pytorch and tensorflow backends are currently supported"
             )
         if storage_type not in ["edge", "node"]:
-            raise NotImplementedError("Only edge and \
-                                      node storage is supported")
+            raise NotImplementedError(
+                "Only edge and \
+                                      node storage is supported"
+            )
 
         self.storage_type = storage_type
 
@@ -459,3 +476,49 @@ def return_dlpack_d(d):
             )
 
     return dlpack_d
+
+
+def sample_single_sg(sg, sample_f, start_list, fanout, with_replacement):
+    sampled_df = sample_f(
+        sg,
+        start_list=start_list,
+        fanout_vals=[fanout],
+        with_replacement=with_replacement,
+        # FIXME: is_edge_ids=True does not seem to do anything
+        # issue https://github.com/rapidsai/cugraph/issues/2562
+    )
+    return sampled_df
+
+
+def sample_multiple_sgs(sgs, sample_f, start_list, fanout, with_replacement):
+    output_dfs = [
+        sample_single_sg(sg, sample_f, start_list, fanout, with_replacement)
+        for sg in sgs.values()
+    ]
+    if isinstance(output_dfs[0], dask_cudf.DataFrame):
+        return dask_cudf.concat(output_dfs, ignore_index=True)
+    else:
+        return cudf.concat(output_dfs, ignore_index=True)
+
+
+def get_subgraph_from_edgelist(edge_list, is_mg, reverse_edges=False):
+    if reverse_edges:
+        edge_list = edge_list.rename(columns={src_n: dst_n, dst_n: src_n})
+
+    subgraph = cugraph.MultiGraph(directed=True)
+    if is_mg:
+        create_subgraph_f = subgraph.from_dask_cudf_edgelist
+    else:
+        create_subgraph_f = subgraph.from_cudf_edgelist
+
+    create_subgraph_f(
+        edge_list,
+        source=src_n,
+        destination=dst_n,
+        edge_attr=eid_n,
+        renumber=True,
+        # FIXME: renumber=False is not supported for MNMG algos
+        legacy_renum_only=True,
+    )
+
+    return subgraph
