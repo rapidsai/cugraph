@@ -1622,7 +1622,9 @@ void core_number(raft::handle_t const& handle,
  * @return edge list for the graph
  */
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
-std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>, std::optional<rmm::device_uvector<weight_t>>>
+std::tuple<rmm::device_uvector<vertex_t>,
+           rmm::device_uvector<vertex_t>,
+           std::optional<rmm::device_uvector<weight_t>>>
 k_core(raft::handle_t const& handle,
        graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
        size_t k,
