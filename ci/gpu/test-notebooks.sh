@@ -52,8 +52,8 @@ for folder in ${TOPLEVEL_NB_FOLDERS}; do
     for nb in ${NBLIST}; do
         nbBasename=$(basename ${nb})
         cd $(dirname ${nb})
-#        nvidia-smi
-#        ${NBTEST} ${nbBasename}
+        nvidia-smi
+        ${NBTEST} ${nbBasename}
         echo "Ran nbtest for $nb : return code was: $?, test script exit code is now: $EXITCODE"
         echo
         rm -rf ${LIBCUDF_KERNEL_CACHE_PATH}/*

@@ -20,25 +20,18 @@ from pathlib import Path
 
 from numba import cuda
 
-RUN_ALL='all'
+# for adding another run type and skip file name add to this dictionary
+runtype_dict = {"all" : "", "ci" : "SKIP_CI_TESTING", "nightly" : "SKIP_NIGHTLY", "weekly" : "SKIP_WEEKLY"}
 
-CONTINOUS_INTEGRATION = 'ci'
-SKIP_CI_FILE = 'SKIP_CI_TESTING'
-
-NIGHTLY = 'nightly'
-SKIP_NIGHTLY_FILE = 'SKIP_NIGHTLY'
-
-WEEKLY = 'weekly'
-SKIP_WEEKLY_FILE = 'SKIP_WEEKLY'
 
 def skip_book_dir(runtype):
     # Add all run types here, currently only CI supported
-    if (runtype == CONTINOUS_INTEGRATION):
-        if Path(SKIP_CI_FILE).is_file():
+
+    if runtype in runtype_dict.keys():
+        if Path(runtype_dict.get(runtype)).is_file():
             return True
-    if (runtype == RUN_ALL):
-        return False
     return False
+
 
 cuda_version_string = ".".join([str(n) for n in cuda.runtime.get_version()])
 #
@@ -59,7 +52,7 @@ for opt, arg in opts:
        print(f'Unknown argument  = {opt} = {arg}', file=sys.stderr)
        exit()
 
-if runtype not in ['ci', 'nightly', 'weekly', 'all']:
+if runtype not in runtype_dict.keys():
     print(f'Unknown Run Type  = {runtype}', file=sys.stderr)
     exit()
 
@@ -76,7 +69,6 @@ skip = False
 skipdir = False
 for filename in glob.iglob('**/*.ipynb', recursive=True):
     skip = False
-    print(f'Filename = {filename}', file=sys.stderr)
     if (skip_book_dir(runtype) == True):
         print(f'SKIPPING {filename} (Notebook skipped for run type {runtype}) due to skip file in folder.', file=sys.stderr)
         skip = True
