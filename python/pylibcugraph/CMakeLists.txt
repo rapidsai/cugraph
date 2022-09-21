@@ -38,6 +38,7 @@ option(FIND_CUGRAPH_CPP "Search for existing CUGRAPH C++ installations before de
 
 if(FIND_CUGRAPH_CPP)
   message(STATUS "Trying to find the package")
+  include(../../cpp/cmake/thirdparty/get_raft.cmake)
   find_package(cugraph ${cugraph_version} REQUIRED)
 else()
   set(cugraph_FOUND OFF)
