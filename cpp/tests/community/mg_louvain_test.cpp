@@ -110,13 +110,14 @@ class Tests_MGLouvain
       cugraph::test::single_gpu_renumber_edgelist_given_number_map(
         handle, d_edgelist_srcs, d_edgelist_dsts, d_renumber_map_gathered_v);
 
-      std::tie(*sg_graph, std::ignore) =
-        cugraph::create_graph_from_edgelist<vertex_t, edge_t, weight_t, false, false>(
+      std::tie(*sg_graph, std::ignore, std::ignore) =
+        cugraph::create_graph_from_edgelist<vertex_t, edge_t, weight_t, int32_t, false, false>(
           handle,
           std::move(d_vertices),
           std::move(d_edgelist_srcs),
           std::move(d_edgelist_dsts),
           std::move(d_edgelist_weights),
+          std::nullopt,
           cugraph::graph_properties_t{is_symmetric, false},
           false);
     }

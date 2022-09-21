@@ -73,7 +73,7 @@ std::vector<edge_t> update_edge_partition_edge_counts(
   std::vector<edge_t const*> const& edge_partition_offsets,
   std::optional<std::vector<vertex_t>> const& edge_partition_dcs_nzd_vertex_counts,
   partition_t<vertex_t> const& partition,
-  std::optional<std::vector<vertex_t>> const& edge_partition_segment_offsets,
+  std::vector<vertex_t> const& edge_partition_segment_offsets,
   cudaStream_t stream)
 {
   std::vector<edge_t> edge_partition_edge_counts(partition.number_of_local_edge_partitions(), 0);
@@ -81,13 +81,13 @@ std::vector<edge_t> update_edge_partition_edge_counts(
   for (size_t i = 0; i < edge_partition_offsets.size(); ++i) {
     auto [major_range_first, major_range_last] = partition.local_edge_partition_major_range(i);
     auto segment_offset_size_per_partition =
-      (*edge_partition_segment_offsets).size() / edge_partition_offsets.size();
+      edge_partition_segment_offsets.size() / edge_partition_offsets.size();
     raft::update_host(
       &(edge_partition_edge_counts[i]),
       edge_partition_offsets[i] +
         (use_dcs
-           ? ((*edge_partition_segment_offsets)[segment_offset_size_per_partition * i +
-                                                detail::num_sparse_segments_per_vertex_partition] +
+           ? (edge_partition_segment_offsets[segment_offset_size_per_partition * i +
+                                             detail::num_sparse_segments_per_vertex_partition] +
               (*edge_partition_dcs_nzd_vertex_counts)[i])
            : (major_range_last - major_range_first)),
       1,
@@ -106,7 +106,7 @@ rmm::device_uvector<edge_t> compute_major_degrees(
   std::optional<std::vector<vertex_t const*>> const& edge_partition_dcs_nzd_vertices,
   std::optional<std::vector<vertex_t>> const& edge_partition_dcs_nzd_vertex_counts,
   partition_t<vertex_t> const& partition,
-  std::optional<std::vector<vertex_t>> const& edge_partition_segment_offsets)
+  std::vector<vertex_t> const& edge_partition_segment_offsets)
 {
   auto& row_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
   auto const row_comm_rank = row_comm.get_rank();
@@ -136,13 +136,12 @@ rmm::device_uvector<edge_t> compute_major_degrees(
       partition.vertex_partition_range(vertex_partition_idx);
     auto p_offsets = edge_partition_offsets[i];
     auto segment_offset_size_per_partition =
-      (*edge_partition_segment_offsets).size() / static_cast<size_t>(col_comm_size);
+      edge_partition_segment_offsets.size() / static_cast<size_t>(col_comm_size);
     auto major_hypersparse_first =
-      use_dcs
-        ? major_range_first +
-            (*edge_partition_segment_offsets)[segment_offset_size_per_partition * i +
-                                              detail::num_sparse_segments_per_vertex_partition]
-        : major_range_last;
+      use_dcs ? major_range_first +
+                  edge_partition_segment_offsets[segment_offset_size_per_partition * i +
+                                                 detail::num_sparse_segments_per_vertex_partition]
+              : major_range_last;
     auto execution_policy = handle.get_thrust_policy();
     thrust::transform(execution_policy,
                       thrust::make_counting_iterator(vertex_t{0}),
@@ -529,9 +528,8 @@ graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enabl
                   "Internal Error: erroneous edge_partition_offsets.size().");
 
   CUGRAPH_EXPECTS(
-    !(meta.edge_partition_segment_offsets.has_value()) ||
-      ((*(meta.edge_partition_segment_offsets)).size() ==
-       col_comm_size * (detail::num_sparse_segments_per_vertex_partition + (use_dcs ? 3 : 2))),
+    meta.edge_partition_segment_offsets.size() ==
+      col_comm_size * (detail::num_sparse_segments_per_vertex_partition + (use_dcs ? 3 : 2)),
     "Internal Error: invalid edge_partition_segment_offsets.size().");
 
   // skip expensive error checks as this function is only called by graph_t
