@@ -419,7 +419,8 @@ struct node2vec_random_walks_functor : public cugraph::c_api::abstract_functor {
         static_cast<weight_t>(q_),
         seed_);
 
-      // FIXME:  Need to fix invalid_vtx issue here.  We can't unrenumber max_vertex_id+1 properly...
+      // FIXME:  Need to fix invalid_vtx issue here.  We can't unrenumber max_vertex_id+1
+      // properly...
       //   So if the result includes an invalid vertex we don't handle it properly.
 
       //
