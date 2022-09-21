@@ -767,3 +767,7 @@ def test_create_graph_with_edge_ids(graph_file):
         destination='1',
         edge_attr=['2', 'id', 'etype']
     )
+
+    H = G.to_undirected()
+    assert G.is_directed()
+    assert not H.is_directed()

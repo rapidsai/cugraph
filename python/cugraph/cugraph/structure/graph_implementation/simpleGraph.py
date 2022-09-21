@@ -825,7 +825,7 @@ class simpleGraphImpl:
 
         if value_col is None:
             weight_col, id_col, type_col = None, None, None
-        elif isinstance(value_col, cudf.DataFrame):
+        elif isinstance(value_col, (cudf.DataFrame, cudf.Series)):
             weight_col, id_col, type_col = value_col, None, None
         elif isinstance(value_col, list):
             if len(value_col) == 3:
