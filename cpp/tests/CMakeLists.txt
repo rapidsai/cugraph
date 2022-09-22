@@ -348,7 +348,7 @@ ConfigureTest(WEAKLY_CONNECTED_COMPONENTS_TEST components/weakly_connected_compo
 #ConfigureTest(RANDOM_WALKS_TEST sampling/sg_random_walks_test.cpp)
 
 ###################################################################################################
-#ConfigureTest(RANDOM_WALKS_LOW_LEVEL_TEST sampling/rw_low_level_test.cu)
+ConfigureTest(RANDOM_WALKS_LOW_LEVEL_TEST sampling/rw_low_level_test.cu)
 
 ###########################################################################################
 # - MG NBR SAMPLING tests -----------------------------------------------------------------
@@ -555,7 +555,7 @@ if(BUILD_CUGRAPH_MG_TESTS)
 
     ###########################################################################################
     # - RANDOM_WALKS tests --------------------------------------------------------------------
-    ConfigureTestMG(MG_RANDOM_WALKS_TEST sampling/mg_random_walks_test.cpp)
+#    ConfigureTestMG(MG_RANDOM_WALKS_TEST sampling/mg_random_walks_test.cpp)
 
     ###########################################################################################
     # - MG C API tests ------------------------------------------------------------------------
