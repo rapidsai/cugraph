@@ -228,8 +228,8 @@ def bench_overlap(gpubenchmark, anyGraphWithAdjListComputed):
     gpubenchmark(cugraph.overlap, anyGraphWithAdjListComputed)
 
 
-def bench_triangles(gpubenchmark, graphWithAdjListComputed):
-    gpubenchmark(cugraph.triangles, graphWithAdjListComputed)
+def bench_triangle_count(gpubenchmark, graphWithAdjListComputed):
+    gpubenchmark(cugraph.triangle_count, graphWithAdjListComputed)
 
 
 def bench_spectralBalancedCutClustering(gpubenchmark,
