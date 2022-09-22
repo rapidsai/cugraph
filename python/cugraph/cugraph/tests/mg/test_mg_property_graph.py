@@ -550,6 +550,13 @@ def test_get_vertex_data(dataset1_MGPropertyGraph):
     assert len(some_vertex_data) == len(vert_ids)
     assert set(columns) - set(some_vertex_data.columns) == set()
 
+    # Allow a single vertex type and single vertex id to be passed in
+    df1 = pG.get_vertex_data(vertex_ids=[11], types=[vert_type]).compute()
+    df2 = pG.get_vertex_data(vertex_ids=11, types=vert_type).compute()
+    assert len(df1) == 1
+    assert df1.shape == df2.shape
+    assert_frame_equal(df1, df2, check_like=True)
+
 
 def test_get_edge_data(dataset1_MGPropertyGraph):
     """
@@ -611,6 +618,13 @@ def test_get_edge_data(dataset1_MGPropertyGraph):
     # specified columns.
     assert len(some_edge_data) == len(edge_ids)
     assert set(columns) - set(some_edge_data.columns) == set()
+
+    # Allow a single edge type and single edge id to be passed in
+    df1 = pG.get_edge_data(edge_ids=[1], types=[edge_type]).compute()
+    df2 = pG.get_edge_data(edge_ids=1, types=edge_type).compute()
+    assert len(df1) == 1
+    assert df1.shape == df2.shape
+    assert_frame_equal(df1, df2, check_like=True)
 
 
 def test_get_data_empty_graphs(dask_client):
