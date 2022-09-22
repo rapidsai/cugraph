@@ -200,7 +200,7 @@ def client_of_server_on_device_1_large_property_graph_loaded(
 @pytest.fixture(scope="function",
                 params=[None, 0],
                 ids=lambda p: f"device={p}")
-def client_device_id(request):
+def result_device_id(request):
     return request.param
 
 ###############################################################################
@@ -234,10 +234,10 @@ def test_get_edge_IDs_for_vertices(client_with_edgelist_csv_loaded):
     client.get_edge_IDs_for_vertices([1, 2, 3], [0, 0, 0], graph_id)
 
 
-def test_uniform_neighbor_sampling_device_result(
+def test_uniform_neighbor_sampling_result_device(
         gpubenchmark,
         client_of_server_on_device_1_large_property_graph_loaded,
-        client_device_id,
+        result_device_id,
 ):
     """
     Ensures uniform_neighbor_sample() results are transfered from the server to
@@ -258,7 +258,7 @@ def test_uniform_neighbor_sampling_device_result(
         fanout_vals=fanout_vals,
         with_replacement=with_replacement,
         graph_id=extracted_graph_id,
-        client_device=client_device_id)
+        result_device=result_device_id)
 
     assert (len(result.sources) ==
             len(result.destinations) ==
@@ -266,9 +266,9 @@ def test_uniform_neighbor_sampling_device_result(
             )
     dtype = type(result.sources)
 
-    if client_device_id is None:
+    if result_device_id is None:
         assert dtype is list
     else:
         assert dtype is cp.ndarray
-        device_n = cp.cuda.Device(client_device_id)
+        device_n = cp.cuda.Device(result_device_id)
         assert result.sources.device is device_n

@@ -181,12 +181,12 @@ service CugraphService {
 
   UniformNeighborSampleResult
   uniform_neighbor_sample(1:list<i32> start_list,
-                              2:list<i32> fanout_vals,
-                              3:bool with_replacement,
-                              4:i32 graph_id,
-                              5:string client_host,
-                              6:i16 client_result_port
-                              ) throws (1:CugraphServiceError e),
+                          2:list<i32> fanout_vals,
+                          3:bool with_replacement,
+                          4:i32 graph_id,
+                          5:string result_host,
+                          6:i16 result_port
+                          ) throws (1:CugraphServiceError e),
 
   ##############################################################################
   # Test/Debug

@@ -28,7 +28,10 @@ class CugraphServiceClient:
     Client object for cugraph_service, which defines the API that clients can
     use to access the cugraph_service server.
     """
-    def __init__(self, host=defaults.host, port=defaults.port):
+    def __init__(self,
+                 host=defaults.host,
+                 port=defaults.port,
+                 results_port=defaults.results_port):
         """
         Creates a connection to a cugraph_service server running on host/port.
 
@@ -51,6 +54,7 @@ class CugraphServiceClient:
         """
         self.host = host
         self.port = port
+        self.results_port = results_port
         self.__client = None
 
         # If True, do not automatically close a server connection upon
@@ -898,13 +902,13 @@ class CugraphServiceClient:
                 node2vec_result.path_sizes)
 
     @__server_connection
-    def uniform_neighbor_sample(self,
-                                start_list,
-                                fanout_vals,
-                                with_replacement=True,
-                                *,
-                                graph_id=defaults.graph_id,
-                                client_device=None):
+    async def uniform_neighbor_sample(self,
+                                      start_list,
+                                      fanout_vals,
+                                      with_replacement=True,
+                                      *,
+                                      graph_id=defaults.graph_id,
+                                      result_device=None):
         """
         Samples the graph and returns ...
 
@@ -917,20 +921,63 @@ class CugraphServiceClient:
 
         graph_id: int, default is defaults.graph_id
 
-        client_device: int, default is None
+        result_device: int, default is None
 
         Returns
         -------
         """
-        result = self.__client.uniform_neighbor_sample(
-            start_list,
-            fanout_vals,
-            with_replacement,
-            graph_id,
-            client_host=None,
-            client_result_port=None
-        )
-        return result
+        if result_device is not None:
+            # FIXME: check for valid device
+            result_obj = UniformNeighborSampleResult()
+
+            def allocator(nbytes):
+                with cp.cuda.Device(result_device):
+                    a = cp.empty((nbytes//4), dtype="int32")
+                return a
+
+            async def receiver(endpoint):
+                #result_obj.result = await endpoint.recv_obj()
+                with cp.cuda.Device(result_device):
+                    result_obj.sources = await endpoint.recv_obj(
+                        allocator=allocator)
+                    result_obj.destination = await endpoint.recv_obj(
+                        allocator=allocator)
+                    result_obj.indices = await endpoint.recv_obj(
+                        allocator=allocator)
+                await endpoint.close()
+                listener.close()
+
+            listener = ucp.create_listener(receiver, self.results_port)
+
+            uns_thread = threading.Thread(
+                target=self.__client.uniform_neighbor_sample,
+                args=(start_list,
+                      fanout_vals,
+                      with_replacement,
+                      graph_id,
+                      ),
+                kwargs={client_host: self.host,
+                        client_result_port: self.results_port,
+                        },
+            )
+            uns_thread.start()
+
+            while not listener.closed():
+                await asyncio.sleep(0.05)
+
+            uns_thread.join()
+
+        else:
+            result_obj = self.__client.uniform_neighbor_sample(
+                start_list,
+                fanout_vals,
+                with_replacement,
+                graph_id,
+                client_host=None,
+                client_result_port=None
+            )
+
+        return result_obj
 
     @__server_connection
     def pagerank(self, graph_id=defaults.graph_id):

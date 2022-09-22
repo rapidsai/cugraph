@@ -665,16 +665,28 @@ class CugraphHandler:
                 fanout_vals=fanout_vals,
                 with_replacement=with_replacement
             )
-            breakpoint()
-            if client_host is not None:
-                #c = await ucp.create_endpoint(client_host, client_result_port)
-                c = asyncio.run(ucp.create_endpoint(client_host, client_result_port))
-                r=cp.arange(3)
-                #await c.send_obj(r)
-                asyncio.run(c.send_obj(r))
-                #await c.close()
-                asyncio.run(c.close())
+            if (client_host is not None) or (client_result_port is not None):
+                if (client_host is None) or (client_result_port is None):
+                    raise ValueError("both client_host and client_result_port "
+                                     "must be set if either is set. Got: "
+                                     f"{client_host=}, {client_result_port=}")
+                # The cugraph_service_client should have set up a UCX listener
+                # waiting in a background thread for the result. Create an
+                # endpoint, send results, and close.
+                ep = asyncio.run(ucp.create_endpoint(client_host,
+                                                     client_result_port))
+                # Send the individual arrays to the client to be written
+                # directly to the desired device.
+                asyncio.run(ep.send_obj(result.sources))
+                asyncio.run(ep.send_obj(result.destinations))
+                asyncio.run(ep.send_obj(result.indices))
+                asyncio.run(ep.close())
+                # FIXME: Thrift still expects something of the expected type to
+                # be returned to be serialized and sent. Look into a separate
+                # API that uses the Thrift "oneway" modifier when returning
+                # results via client device.
                 return UniformNeighborSampleResult()
+
             else:
                 return result
 
