@@ -67,15 +67,20 @@ LineGraph_Usecase::construct_graph(raft::handle_t const& handle,
 
   handle.sync_stream();
 
-  return cugraph::
-    create_graph_from_edgelist<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
+  graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> graph(handle);
+  std::optional<rmm::device_uvector<vertex_t>> renumber_map{std::nullopt};
+  std::tie(graph, std::ignore, renumber_map) = cugraph::
+    create_graph_from_edgelist<vertex_t, edge_t, weight_t, int32_t, store_transposed, multi_gpu>(
       handle,
       std::move(vertices_v),
       std::move(src_v),
       std::move(dst_v),
       std::nullopt,
+      std::nullopt,
       cugraph::graph_properties_t{true, false},
       false);
+
+  return std::make_tuple(std::move(graph), std::move(renumber_map));
 }
 
 template std::tuple<cugraph::graph_t<int32_t, int32_t, float, false, false>,

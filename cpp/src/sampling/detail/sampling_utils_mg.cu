@@ -150,7 +150,8 @@ gather_local_edges(raft::handle_t const& handle,
                    const rmm::device_uvector<int32_t>& active_majors,
                    rmm::device_uvector<int32_t>&& minor_map,
                    int32_t indices_per_major,
-                   const rmm::device_uvector<int32_t>& global_degree_offsets);
+                   const rmm::device_uvector<int32_t>& global_degree_offsets,
+                   bool remove_invalid_vertices);
 
 template std::tuple<rmm::device_uvector<int32_t>,
                     rmm::device_uvector<int32_t>,
@@ -160,7 +161,8 @@ gather_local_edges(raft::handle_t const& handle,
                    const rmm::device_uvector<int32_t>& active_majors,
                    rmm::device_uvector<int64_t>&& minor_map,
                    int64_t indices_per_major,
-                   const rmm::device_uvector<int64_t>& global_degree_offsets);
+                   const rmm::device_uvector<int64_t>& global_degree_offsets,
+                   bool remove_invalid_vertices);
 
 template std::tuple<rmm::device_uvector<int64_t>,
                     rmm::device_uvector<int64_t>,
@@ -170,7 +172,8 @@ gather_local_edges(raft::handle_t const& handle,
                    const rmm::device_uvector<int64_t>& active_majors,
                    rmm::device_uvector<int64_t>&& minor_map,
                    int64_t indices_per_major,
-                   const rmm::device_uvector<int64_t>& global_degree_offsets);
+                   const rmm::device_uvector<int64_t>& global_degree_offsets,
+                   bool remove_invalid_vertices);
 
 template std::tuple<rmm::device_uvector<int32_t>,
                     rmm::device_uvector<int32_t>,
@@ -180,7 +183,8 @@ gather_local_edges(raft::handle_t const& handle,
                    const rmm::device_uvector<int32_t>& active_majors,
                    rmm::device_uvector<int32_t>&& minor_map,
                    int32_t indices_per_major,
-                   const rmm::device_uvector<int32_t>& global_degree_offsets);
+                   const rmm::device_uvector<int32_t>& global_degree_offsets,
+                   bool remove_invalid_vertices);
 
 template std::tuple<rmm::device_uvector<int32_t>,
                     rmm::device_uvector<int32_t>,
@@ -190,7 +194,8 @@ gather_local_edges(raft::handle_t const& handle,
                    const rmm::device_uvector<int32_t>& active_majors,
                    rmm::device_uvector<int64_t>&& minor_map,
                    int64_t indices_per_major,
-                   const rmm::device_uvector<int64_t>& global_degree_offsets);
+                   const rmm::device_uvector<int64_t>& global_degree_offsets,
+                   bool remove_invalid_vertices);
 
 template std::tuple<rmm::device_uvector<int64_t>,
                     rmm::device_uvector<int64_t>,
@@ -200,7 +205,8 @@ gather_local_edges(raft::handle_t const& handle,
                    const rmm::device_uvector<int64_t>& active_majors,
                    rmm::device_uvector<int64_t>&& minor_map,
                    int64_t indices_per_major,
-                   const rmm::device_uvector<int64_t>& global_degree_offsets);
+                   const rmm::device_uvector<int64_t>& global_degree_offsets,
+                   bool remove_invalid_vertices);
 
 template std::tuple<rmm::device_uvector<int32_t>,
                     rmm::device_uvector<int32_t>,

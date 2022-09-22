@@ -71,6 +71,8 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
     if constexpr (!multi_gpu || !cugraph::is_candidate<vertex_t, edge_t, weight_t>::value) {
       unsupported();
     } else {
+      using edge_type_t = int32_t;
+
       std::optional<rmm::device_uvector<vertex_t>> new_number_map;
 
       rmm::device_uvector<vertex_t> edgelist_srcs(src_->size_, handle_.get_stream());
@@ -109,13 +111,19 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
       rmm::device_uvector<vertex_t>* number_map =
         new rmm::device_uvector<vertex_t>(0, handle_.get_stream());
 
-      std::tie(*graph, new_number_map) = cugraph::
-        create_graph_from_edgelist<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
+      std::tie(*graph, std::ignore, new_number_map) =
+        cugraph::create_graph_from_edgelist<vertex_t,
+                                            edge_t,
+                                            weight_t,
+                                            edge_type_t,
+                                            store_transposed,
+                                            multi_gpu>(
           handle_,
           std::nullopt,
           std::move(edgelist_srcs),
           std::move(edgelist_dsts),
           std::move(edgelist_weights),
+          std::nullopt,
           cugraph::graph_properties_t{properties_->is_symmetric, properties_->is_multigraph},
           renumber_,
           check_);
