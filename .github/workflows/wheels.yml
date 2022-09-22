@@ -13,13 +13,13 @@ jobs:
       package-dir: python/pylibcugraph
       python-version: "3.8 3.9"
 
-      manylinux-container-amd64: "rapidsai/manylinux_2_31"
+      manylinux-container-amd64: "rapidsai/manylinux2014"
       manylinux-container-arm64: "rapidsai/manylinux_2_31"
 
-      auditwheel-repair-command-amd64: "auditwheel --verbose repair -w {dest_dir} --plat manylinux_2_24_x86_64 {wheel}"
+      auditwheel-repair-command-amd64: "auditwheel --verbose repair -w {dest_dir} --plat manylinux_2_17_x86_64 {wheel}"
       auditwheel-repair-command-arm64: "auditwheel --verbose repair -w {dest_dir} --plat manylinux_2_31_aarch64 {wheel}"
 
-      cibw-before-all-amd64: "apt-get install -y libblas-dev liblapack-dev"
+      cibw-before-all-amd64: "yum install -y blas-devel lapack-devel"
       cibw-before-all-arm64: "apt-get install -y libblas-dev liblapack-dev"
       cibw-environment: "PIP_INDEX_URL=https://pypi.k8s.rapids.ai/simple"
 
@@ -38,13 +38,13 @@ jobs:
       package-dir: python/cugraph
       python-version: "3.8 3.9"
 
-      manylinux-container-amd64: "rapidsai/manylinux_2_31"
+      manylinux-container-amd64: "rapidsai/manylinux2014"
       manylinux-container-arm64: "rapidsai/manylinux_2_31"
 
-      auditwheel-repair-command-amd64: "auditwheel --verbose repair -w {dest_dir} --plat manylinux_2_24_x86_64 {wheel}"
+      auditwheel-repair-command-amd64: "auditwheel --verbose repair -w {dest_dir} --plat manylinux_2_17_x86_64 {wheel}"
       auditwheel-repair-command-arm64: "auditwheel --verbose repair -w {dest_dir} --plat manylinux_2_31_aarch64 {wheel}"
 
-      cibw-before-all-amd64: "apt-get install -y libblas-dev liblapack-dev"
+      cibw-before-all-amd64: "yum install -y blas-devel lapack-devel"
       cibw-before-all-arm64: "apt-get install -y libblas-dev liblapack-dev"
       cibw-environment: "PIP_INDEX_URL=https://pypi.k8s.rapids.ai/simple"
 
