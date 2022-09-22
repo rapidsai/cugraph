@@ -32,8 +32,9 @@ namespace cugraph {
 namespace c_api {
 
 struct cugraph_heirarchical_clustering_result_t {
-  cugraph_type_erased_device_array_t* vertices_;
-  cugraph_type_erased_device_array_t* clusters_;
+  double modularity{0};
+  cugraph_type_erased_device_array_t* vertices_{nullptr};
+  cugraph_type_erased_device_array_t* clusters_{nullptr};
 };
 
 }  // namespace c_api
@@ -92,7 +93,7 @@ struct louvain_functor : public cugraph::c_api::abstract_functor {
       rmm::device_uvector<vertex_t> clusters(graph_view.local_vertex_partition_range_size(),
                                              handle_.get_stream());
 
-      cugraph::louvain(
+      auto [level, modularity] = cugraph::louvain(
         handle_, graph_view, clusters.data(), max_level_, static_cast<weight_t>(resolution_));
 
       rmm::device_uvector<vertex_t> vertices(graph_view.local_vertex_partition_range_size(),
@@ -100,6 +101,7 @@ struct louvain_functor : public cugraph::c_api::abstract_functor {
       raft::copy(vertices.data(), number_map->data(), vertices.size(), handle_.get_stream());
 
       result_ = new cugraph::c_api::cugraph_heirarchical_clustering_result_t{
+        modularity,
         new cugraph::c_api::cugraph_type_erased_device_array_t(vertices, graph_->vertex_type_),
         new cugraph::c_api::cugraph_type_erased_device_array_t(clusters, graph_->vertex_type_)};
     }
@@ -126,6 +128,14 @@ cugraph_heirarchical_clustering_result_get_clusters(
     reinterpret_cast<cugraph::c_api::cugraph_heirarchical_clustering_result_t*>(result);
   return reinterpret_cast<cugraph_type_erased_device_array_view_t*>(
     internal_pointer->clusters_->view());
+}
+
+extern "C" double cugraph_heirarchical_clustering_result_get_modularity(
+  cugraph_heirarchical_clustering_result_t* result)
+{
+  auto internal_pointer =
+    reinterpret_cast<cugraph::c_api::cugraph_heirarchical_clustering_result_t*>(result);
+  return internal_pointer->modularity;
 }
 
 extern "C" void cugraph_heirarchical_clustering_result_free(

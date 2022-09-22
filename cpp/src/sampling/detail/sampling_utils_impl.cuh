@@ -333,7 +333,8 @@ gather_local_edges(
   const rmm::device_uvector<typename GraphViewType::vertex_type>& active_majors,
   rmm::device_uvector<typename GraphViewType::edge_type>&& minor_map,
   typename GraphViewType::edge_type indices_per_major,
-  const rmm::device_uvector<typename GraphViewType::edge_type>& global_degree_offsets)
+  const rmm::device_uvector<typename GraphViewType::edge_type>& global_degree_offsets,
+  bool remove_invalid_vertices)
 {
   using vertex_t  = typename GraphViewType::vertex_type;
   using edge_t    = typename GraphViewType::edge_type;
@@ -417,6 +418,7 @@ gather_local_edges(
           }
         } else {
           minors[index] = invalid_vertex_id;
+          if (weights != nullptr) { weights[index] = weight_t{0}; }
         }
       });
   } else {
@@ -485,52 +487,56 @@ gather_local_edges(
           edge_index_first[index] = g_dst_index;
         } else {
           minors[index] = invalid_vertex_id;
+          if (weights != nullptr) { weights[index] = weight_t{0}; }
         }
       });
   }
 
-  if (weights) {
-    auto input_iter = thrust::make_zip_iterator(
-      thrust::make_tuple(majors.begin(), minors.begin(), weights->begin()));
+  if (remove_invalid_vertices) {
+    if (weights) {
+      auto input_iter = thrust::make_zip_iterator(
+        thrust::make_tuple(majors.begin(), minors.begin(), weights->begin()));
 
-    CUGRAPH_EXPECTS(minors.size() < static_cast<size_t>(std::numeric_limits<int32_t>::max()),
-                    "remove_if will fail, minors.size() is too large");
+      CUGRAPH_EXPECTS(minors.size() < std::numeric_limits<int32_t>::max(),
+                      "remove_if will fail, minors.size() is too large");
 
-    // FIXME: remove_if has a 32-bit overflow issue (https://github.com/NVIDIA/thrust/issues/1302)
-    // Seems unlikely here (the goal of sampling is to extract small graphs)
-    // so not going to work around this for now.
-    auto compacted_length = thrust::distance(
-      input_iter,
-      thrust::remove_if(
-        handle.get_thrust_policy(),
+      // FIXME: remove_if has a 32-bit overflow issue
+      // (https://github.com/NVIDIA/thrust/issues/1302) Seems unlikely here (the goal of sampling
+      // is to extract small graphs) so not going to work around this for now.
+      auto compacted_length = thrust::distance(
         input_iter,
-        input_iter + minors.size(),
-        minors.begin(),
-        [invalid_vertex_id] __device__(auto dst) { return (dst == invalid_vertex_id); }));
+        thrust::remove_if(
+          handle.get_thrust_policy(),
+          input_iter,
+          input_iter + minors.size(),
+          minors.begin(),
+          [invalid_vertex_id] __device__(auto dst) { return (dst == invalid_vertex_id); }));
 
-    majors.resize(compacted_length, handle.get_stream());
-    minors.resize(compacted_length, handle.get_stream());
-    weights->resize(compacted_length, handle.get_stream());
-  } else {
-    auto input_iter = thrust::make_zip_iterator(thrust::make_tuple(majors.begin(), minors.begin()));
+      majors.resize(compacted_length, handle.get_stream());
+      minors.resize(compacted_length, handle.get_stream());
+      weights->resize(compacted_length, handle.get_stream());
+    } else {
+      auto input_iter =
+        thrust::make_zip_iterator(thrust::make_tuple(majors.begin(), minors.begin()));
 
-    CUGRAPH_EXPECTS(minors.size() < static_cast<size_t>(std::numeric_limits<int32_t>::max()),
-                    "remove_if will fail, minors.size() is too large");
+      CUGRAPH_EXPECTS(minors.size() < std::numeric_limits<int32_t>::max(),
+                      "remove_if will fail, minors.size() is too large");
 
-    auto compacted_length = thrust::distance(
-      input_iter,
-      // FIXME: remove_if has a 32-bit overflow issue (https://github.com/NVIDIA/thrust/issues/1302)
-      // Seems unlikely here (the goal of sampling is to extract small graphs)
-      // so not going to work around this for now.
-      thrust::remove_if(
-        handle.get_thrust_policy(),
+      auto compacted_length = thrust::distance(
         input_iter,
-        input_iter + minors.size(),
-        minors.begin(),
-        [invalid_vertex_id] __device__(auto dst) { return (dst == invalid_vertex_id); }));
+        // FIXME: remove_if has a 32-bit overflow issue
+        // (https://github.com/NVIDIA/thrust/issues/1302) Seems unlikely here (the goal of
+        // sampling is to extract small graphs) so not going to work around this for now.
+        thrust::remove_if(
+          handle.get_thrust_policy(),
+          input_iter,
+          input_iter + minors.size(),
+          minors.begin(),
+          [invalid_vertex_id] __device__(auto dst) { return (dst == invalid_vertex_id); }));
 
-    majors.resize(compacted_length, handle.get_stream());
-    minors.resize(compacted_length, handle.get_stream());
+      majors.resize(compacted_length, handle.get_stream());
+      minors.resize(compacted_length, handle.get_stream());
+    }
   }
 
   return std::make_tuple(std::move(majors), std::move(minors), std::move(weights));
