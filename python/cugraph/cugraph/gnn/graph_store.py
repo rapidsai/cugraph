@@ -342,7 +342,7 @@ class CuGraphStore:
         # expr="(_SRC in nodes) | (_DST_ in nodes)"
         _g = self.__G.extract_subgraph(
             create_using=cugraph.Graph(directed=directed),
-            do_expensive_check=True,
+            check_multi_edges=True,
         )
 
         if nodes is None:
@@ -375,7 +375,7 @@ class CuGraphStore:
         """
 
         _g = self.__G.extract_subgraph(
-            create_using=cugraph.Graph, do_expensive_check=True
+            create_using=cugraph.Graph, check_multi_edges=True
         )
 
         ego_edge_list, seeds_offsets = batched_ego_graphs(_g, nodes, radius=k)
@@ -415,7 +415,7 @@ class CuGraphStore:
             means the walk has stopped.
         """
         _g = self.__G.extract_subgraph(
-            create_using=cugraph.Graph, do_expensive_check=True
+            create_using=cugraph.Graph, check_multi_edges=True
         )
 
         p, w, s = cugraph.random_walks(

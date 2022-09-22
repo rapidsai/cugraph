@@ -1059,7 +1059,7 @@ def test_extract_subgraph_no_query(dataset1_PropertyGraph):
     (pG, data) = dataset1_PropertyGraph
 
     G = pG.extract_subgraph(create_using=DiGraph_inst,
-                            do_expensive_check=False)
+                            check_multi_edges=False)
 
     num_edges = \
         len(dataset1["transactions"][-1]) + \
@@ -1090,7 +1090,7 @@ def test_extract_subgraph_multi_edges(dataset1_PropertyGraph):
     with pytest.raises(RuntimeError):
         pG.extract_subgraph(selection=selection,
                             create_using=DiGraph_inst,
-                            do_expensive_check=True)
+                            check_multi_edges=True)
 
 
 def test_extract_subgraph_bad_args(dataset1_PropertyGraph):
@@ -1234,7 +1234,7 @@ def test_graph_edge_data_added(dataset1_PropertyGraph):
     # extract_subgraph() should return a directed Graph object with additional
     # meta-data, which includes edge IDs.
     G = pG.extract_subgraph(create_using=DiGraph_inst,
-                            do_expensive_check=False)
+                            check_multi_edges=False)
 
     # G.edge_data should be set to a DataFrame with rows for each graph edge.
     assert len(G.edge_data) == expected_num_edges
@@ -1512,7 +1512,7 @@ def bench_extract_subgraph_for_cyber(gpubenchmark, cyber_PropertyGraph):
                  create_using=cugraph.Graph(directed=True),
                  selection=selected_edges,
                  default_edge_weight=1.0,
-                 do_expensive_check=False)
+                 check_multi_edges=False)
 
 
 def bench_extract_subgraph_for_cyber_detect_duplicate_edges(
@@ -1533,7 +1533,7 @@ def bench_extract_subgraph_for_cyber_detect_duplicate_edges(
             pG.extract_subgraph(create_using=cugraph.Graph(directed=True),
                                 selection=selected_edges,
                                 default_edge_weight=1.0,
-                                do_expensive_check=True)
+                                check_multi_edges=True)
 
     gpubenchmark(func)
 
@@ -1555,7 +1555,7 @@ def bench_extract_subgraph_for_rmat(gpubenchmark, rmat_PropertyGraph):
                  create_using=cugraph.Graph(directed=True),
                  selection=selected_edges,
                  default_edge_weight=1.0,
-                 do_expensive_check=False)
+                 check_multi_edges=False)
 
 
 # This test runs for *minutes* with the current implementation, and since
@@ -1582,6 +1582,6 @@ def bench_extract_subgraph_for_rmat_detect_duplicate_edges(
             pG.extract_subgraph(create_using=cugraph.Graph(directed=True),
                                 selection=selected_edges,
                                 default_edge_weight=1.0,
-                                do_expensive_check=True)
+                                check_multi_edges=True)
 
     gpubenchmark(func)

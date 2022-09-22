@@ -664,7 +664,7 @@ class EXPERIMENTAL__MGPropertyGraph:
                          selection=None,
                          edge_weight_property=None,
                          default_edge_weight=None,
-                         do_expensive_check=True,
+                         check_multi_edges=True,
                          renumber_graph=True,
                          add_edge_data=True
                          ):
@@ -691,7 +691,7 @@ class EXPERIMENTAL__MGPropertyGraph:
             The name of the property whose values will be used as weights on
             the returned Graph. If not specified, the returned Graph will be
             unweighted.
-        do_expensive_check : bool (default is True)
+        check_multi_edges : bool (default is True)
             When True and create_using argument is given and not a MultiGraph,
             this will perform an expensive check to verify that the edges in
             the edge dataframe do not form a multigraph with duplicate edges.
@@ -769,7 +769,7 @@ class EXPERIMENTAL__MGPropertyGraph:
             create_using=create_using,
             edge_weight_property=edge_weight_property,
             default_edge_weight=default_edge_weight,
-            do_expensive_check=do_expensive_check,
+            check_multi_edges=check_multi_edges,
             renumber_graph=renumber_graph,
             add_edge_data=add_edge_data)
 
@@ -781,7 +781,7 @@ class EXPERIMENTAL__MGPropertyGraph:
                             create_using,
                             edge_weight_property=None,
                             default_edge_weight=None,
-                            do_expensive_check=True,
+                            check_multi_edges=True,
                             renumber_graph=True,
                             add_edge_data=True):
         """
@@ -833,7 +833,7 @@ class EXPERIMENTAL__MGPropertyGraph:
         # Prevent duplicate edges (if not allowed) since applying them to
         # non-MultiGraphs would result in ambiguous edge properties.
         if (
-            do_expensive_check
+            check_multi_edges
             and not G.is_multigraph()
             and self.is_multigraph(edge_prop_df).compute()
         ):

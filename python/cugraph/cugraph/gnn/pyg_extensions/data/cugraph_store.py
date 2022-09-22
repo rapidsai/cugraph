@@ -386,7 +386,7 @@ class EXPERIMENTAL__CuGraphStore:
             sg = self.__graph.extract_subgraph(
                 selection=selection,
                 default_edge_weight=1.0,
-                allow_multi_edges=True,
+                check_multi_edges=True,
                 renumber_graph=True,
                 add_edge_data=False
             )
