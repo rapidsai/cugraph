@@ -6,45 +6,51 @@ on:
       - 'pull-request/[0-9]+'
 
 jobs:
-  # libcugraph-wheel:
-  #   uses: rapidsai/shared-action-workflows/.github/workflows/wheels-manylinux.yml@feat/wheel-ci-actions
-  #   with:
-  #     package-name: libcugraph_cu11
-  #     package-dir: cpp
-  #     python-version: "3.8"
-  #     cibw-before-build: "pip install rmm-cu11 libraft-cu11 libcugraphops-cu11 --index-url https://pypi.k8s.rapids.ai/simple"
-  #     skbuild-configure-options: '-DCMAKE_MESSAGE_LOG_LEVEL=DEBUG -DBUILD_TESTS=ON -DBUILD_BENCHMARKS=OFF'
-  #     auditwheel-skip-repair: "true"
-  #     wheel-pattern-override: "py3-none-linux"
-  #     cibw-test-command: ""
-  #   secrets: inherit
   pylibcugraph-wheel:
-    # needs: libcugraph-wheel
-    uses: rapidsai/shared-action-workflows/.github/workflows/wheels-manylinux.yml@feat/wheel-ci-actions-ptaylor
+    uses: rapidsai/shared-action-workflows/.github/workflows/wheels-manylinux.yml@feat/wheel-ci-actions-2
     with:
       package-name: pylibcugraph
       package-dir: python/pylibcugraph
       python-version: "3.8 3.9"
-      cibw-before-all: "apt-get install -y libblas-dev liblapack-dev"
+
+      manylinux-container-amd64: "rapidsai/manylinux_2_31"
+      manylinux-container-arm64: "rapidsai/manylinux_2_31"
+
+      auditwheel-repair-command-amd64: "auditwheel --verbose repair -w {dest_dir} --plat manylinux_2_24_x86_64 {wheel}"
+      auditwheel-repair-command-arm64: "auditwheel --verbose repair -w {dest_dir} --plat manylinux_2_31_aarch64 {wheel}"
+
+      cibw-before-all-amd64: "apt-get install -y libblas-dev liblapack-dev"
+      cibw-before-all-arm64: "apt-get install -y libblas-dev liblapack-dev"
       cibw-environment: "PIP_INDEX_URL=https://pypi.k8s.rapids.ai/simple"
+
       skbuild-configure-options: "--log-level=DEBUG -DCUGRAPH_CUGRAPH_OPS_BRANCH=feat/cibuildwheel -DCPM_DOWNLOAD_ALL=ON -DDETECT_CONDA_ENV=OFF -DCUGRAPH_BUILD_WHEELS=ON -DCMAKE_CUDA_ARCHITECTURES=ALL"
-      cibw-test-extras:  "test"
-      cibw-test-command: " && pytest -v ./pylibcugraph/pylibcugraph/tests"
+
+      test-extras:  "test"
+      test-unittest: "pytest -v ./pylibcugraph/pylibcugraph/tests"
     secrets: inherit
   cugraph-wheel:
     needs: pylibcugraph-wheel
-    # needs: [libcugraph-wheel, pylibcugraph-wheel]
-    uses: rapidsai/shared-action-workflows/.github/workflows/wheels-manylinux.yml@feat/wheel-ci-actions-ptaylor
+    uses: rapidsai/shared-action-workflows/.github/workflows/wheels-manylinux.yml@feat/wheel-ci-actions-2
     with:
       package-name: cugraph
       package-dir: python/cugraph
       python-version: "3.8 3.9"
-      cibw-before-all: "apt-get install -y libblas-dev liblapack-dev"
+
+      manylinux-container-amd64: "rapidsai/manylinux_2_31"
+      manylinux-container-arm64: "rapidsai/manylinux_2_31"
+
+      auditwheel-repair-command-amd64: "auditwheel --verbose repair -w {dest_dir} --plat manylinux_2_24_x86_64 {wheel}"
+      auditwheel-repair-command-arm64: "auditwheel --verbose repair -w {dest_dir} --plat manylinux_2_31_aarch64 {wheel}"
+
+      cibw-before-all-amd64: "apt-get install -y libblas-dev liblapack-dev"
+      cibw-before-all-arm64: "apt-get install -y libblas-dev liblapack-dev"
       cibw-environment: "PIP_INDEX_URL=https://pypi.k8s.rapids.ai/simple"
+
       skbuild-configure-options: "--log-level=DEBUG -DCUGRAPH_CUGRAPH_OPS_BRANCH=feat/cibuildwheel -DCPM_DOWNLOAD_ALL=ON -DDETECT_CONDA_ENV=OFF -DCUGRAPH_BUILD_WHEELS=ON -DCMAKE_CUDA_ARCHITECTURES=ALL"
-      gpu-smoketest-before-amd64: "pip install dask-cuda dask-cudf raft-cu11 cudf-cu11 pylibcugraph-cu11 --index-url https://pypi.k8s.rapids.ai/simple"
-      gpu-smoketest-before-arm64: "pip install dask-cuda dask-cudf raft-cu11 cudf-cu11 pylibcugraph-cu11 --index-url https://pypi.k8s.rapids.ai/simple"
-      cibw-test-extras:  "test"
-      cibw-test-command: "cd python && pytest -v ./cugraph/cugraph/tests"
-      gpu-smoketest: "import cudf, cugraph; gdf = cudf.read_csv('graph_data.csv', names=['src', 'dst'], dtype=['int32', 'int32']); G = cugraph.Graph();G.from_cudf_edgelist(gdf, source='src', destination='dst'); df_page = cugraph.pagerank(G); print(df_page.sort_values('pagerank', ascending=False).head(10))"
+
+      test-before-amd64: "pip install dask-cuda dask-cudf raft-cu11 cudf-cu11 pylibcugraph-cu11 --index-url https://pypi.k8s.rapids.ai/simple"
+      test-before-arm64: "pip install dask-cuda dask-cudf raft-cu11 cudf-cu11 pylibcugraph-cu11 --index-url https://pypi.k8s.rapids.ai/simple"
+      test-extras:  "test"
+      test-unittest: "cd python && pytest -v ./cugraph/cugraph/tests"
+      test-smoketest: "import cudf, cugraph; gdf = cudf.read_csv('graph_data.csv', names=['src', 'dst'], dtype=['int32', 'int32']); G = cugraph.Graph();G.from_cudf_edgelist(gdf, source='src', destination='dst'); df_page = cugraph.pagerank(G); print(df_page.sort_values('pagerank', ascending=False).head(10))"
     secrets: inherit
