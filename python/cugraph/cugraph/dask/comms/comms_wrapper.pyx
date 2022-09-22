@@ -17,7 +17,7 @@
 # cython: language_level = 3
 
 
-from raft.common.handle cimport *
+from pylibraft.common.handle cimport *
 from cugraph.dask.comms.comms cimport init_subcomms as c_init_subcomms
 
 
