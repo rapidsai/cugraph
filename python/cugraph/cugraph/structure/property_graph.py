@@ -462,17 +462,20 @@ class EXPERIMENTAL__PropertyGraph:
         vertex_ids, columns, and/or types, or all vertex IDs if not specified.
         """
         if self.__vertex_prop_dataframe is not None:
+            df = self.__vertex_prop_dataframe
             if vertex_ids is not None:
-                if not isinstance(vertex_ids,
-                                  (list, slice, self.__series_type)):
+                if isinstance(vertex_ids, int):
+                    vertex_ids = [vertex_ids]
+                elif not isinstance(vertex_ids,
+                                    (list, slice, self.__series_type)):
                     vertex_ids = list(vertex_ids)
-                df = self.__vertex_prop_dataframe.loc[vertex_ids]
-            else:
-                df = self.__vertex_prop_dataframe
+                df = df.loc[vertex_ids]
 
             if types is not None:
-                # FIXME: coerce types to a list-like if not?
-                df_mask = df[self.type_col_name].isin(types)
+                if isinstance(types, str):
+                    df_mask = df[self.type_col_name] == types
+                else:
+                    df_mask = df[self.type_col_name].isin(types)
                 df = df.loc[df_mask]
 
             # The "internal" pG.vertex_col_name and pG.type_col_name columns
@@ -644,17 +647,20 @@ class EXPERIMENTAL__PropertyGraph:
         edge_ids, columns, and/or edge type, or all edge IDs if not specified.
         """
         if self.__edge_prop_dataframe is not None:
+            df = self.__edge_prop_dataframe
             if edge_ids is not None:
-                if not isinstance(edge_ids,
-                                  (list, slice, self.__series_type)):
+                if isinstance(edge_ids, int):
+                    edge_ids = [edge_ids]
+                elif not isinstance(edge_ids,
+                                    (list, slice, self.__series_type)):
                     edge_ids = list(edge_ids)
-                df = self.__edge_prop_dataframe.loc[edge_ids]
-            else:
-                df = self.__edge_prop_dataframe
+                df = df.loc[edge_ids]
 
             if types is not None:
-                # FIXME: coerce types to a list-like if not?
-                df_mask = df[self.type_col_name].isin(types)
+                if isinstance(types, str):
+                    df_mask = df[self.type_col_name] == types
+                else:
+                    df_mask = df[self.type_col_name].isin(types)
                 df = df.loc[df_mask]
 
             # The "internal" src, dst, edge_id, and type columns are also
@@ -1058,6 +1064,77 @@ class EXPERIMENTAL__PropertyGraph:
             G.edge_data = self.__create_property_lookup_table(edge_prop_df)
 
         return G
+
+    def renumber_vertices_by_type(self):
+        """Renumber vertex IDs to be contiguous by type.
+
+        Returns a DataFrame with the start and stop IDs for each vertex type.
+        Stop is *inclusive*.
+        """
+        # Check if some vertex IDs exist only in edge data
+        default = self._default_type_name
+        if (
+            self.__edge_prop_dataframe is not None
+            and self.get_num_vertices(default, include_edge_data=True)
+            != self.get_num_vertices(default, include_edge_data=False)
+        ):
+            raise NotImplementedError(
+                "Currently unable to renumber vertices when some vertex "
+                "IDs only exist in edge data"
+            )
+        if self.__vertex_prop_dataframe is None:
+            return None
+        df = (
+            self.__vertex_prop_dataframe
+            .reset_index()
+            .sort_values(by=self.type_col_name)
+        )
+        if self.__edge_prop_dataframe is not None:
+            mapper = self.__series_type(
+                df.index, index=df[self.vertex_col_name]
+            )
+            self.__edge_prop_dataframe[self.src_col_name] = (
+                self.__edge_prop_dataframe[self.src_col_name].map(mapper)
+            )
+            self.__edge_prop_dataframe[self.dst_col_name] = (
+                self.__edge_prop_dataframe[self.dst_col_name].map(mapper)
+            )
+        df.drop(columns=[self.vertex_col_name], inplace=True)
+        df.index.name = self.vertex_col_name
+        self.__vertex_prop_dataframe = df
+        rv = (
+            self._vertex_type_value_counts
+            .sort_index()
+            .cumsum()
+            .to_frame("stop")
+        )
+        rv["start"] = rv["stop"].shift(1, fill_value=0)
+        rv["stop"] -= 1  # Make inclusive
+        return rv[["start", "stop"]]
+
+    def renumber_edges_by_type(self):
+        """Renumber edge IDs to be contiguous by type.
+
+        Returns a DataFrame with the start and stop IDs for each edge type.
+        Stop is *inclusive*.
+        """
+        # TODO: keep track if edges are already numbered correctly.
+        if self.__edge_prop_dataframe is None:
+            return None
+        self.__edge_prop_dataframe = (
+            self.__edge_prop_dataframe
+            .sort_values(by=self.type_col_name, ignore_index=True)
+        )
+        self.__edge_prop_dataframe.index.name = self.edge_id_col_name
+        rv = (
+            self._edge_type_value_counts
+            .sort_index()
+            .cumsum()
+            .to_frame("stop")
+        )
+        rv["start"] = rv["stop"].shift(1, fill_value=0)
+        rv["stop"] -= 1  # Make inclusive
+        return rv[["start", "stop"]]
 
     @classmethod
     def has_duplicate_edges(cls, df):
