@@ -858,11 +858,11 @@ class simpleGraphImpl:
             src_array=self.edgelist.edgelist_df['src'],
             dst_array=self.edgelist.edgelist_df['dst'],
             weight_array=weight_col,
+            edge_id_array=id_col,
+            edge_type_array=type_col,
             store_transposed=store_transposed,
             renumber=renumber,
-            do_expensive_check=False,
-            edge_id_array=id_col,
-            edge_type_array=type_col
+            do_expensive_check=False
         )
 
     def to_directed(self, DiG, store_transposed=False):

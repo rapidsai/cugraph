@@ -104,11 +104,11 @@ class simpleDistributedGraphImpl:
             src_array=edata_x[0][src_col_name],
             dst_array=edata_x[0][dst_col_name],
             weight_array=values,
+            edge_id_array=values_id,
+            edge_type_array=values_etype,
             store_transposed=store_transposed,
             num_edges=num_edges,
-            do_expensive_check=False,
-            edge_id_array=values_id,
-            edge_type_array=values_etype
+            do_expensive_check=False
         )
 
     # Functions
