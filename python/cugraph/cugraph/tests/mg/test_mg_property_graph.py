@@ -550,6 +550,13 @@ def test_get_vertex_data(dataset1_MGPropertyGraph):
     assert len(some_vertex_data) == len(vert_ids)
     assert set(columns) - set(some_vertex_data.columns) == set()
 
+    # Allow a single vertex type and single vertex id to be passed in
+    df1 = pG.get_vertex_data(vertex_ids=[11], types=[vert_type]).compute()
+    df2 = pG.get_vertex_data(vertex_ids=11, types=vert_type).compute()
+    assert len(df1) == 1
+    assert df1.shape == df2.shape
+    assert_frame_equal(df1, df2, check_like=True)
+
 
 def test_get_edge_data(dataset1_MGPropertyGraph):
     """
@@ -612,6 +619,13 @@ def test_get_edge_data(dataset1_MGPropertyGraph):
     assert len(some_edge_data) == len(edge_ids)
     assert set(columns) - set(some_edge_data.columns) == set()
 
+    # Allow a single edge type and single edge id to be passed in
+    df1 = pG.get_edge_data(edge_ids=[1], types=[edge_type]).compute()
+    df2 = pG.get_edge_data(edge_ids=1, types=edge_type).compute()
+    assert len(df1) == 1
+    assert df1.shape == df2.shape
+    assert_frame_equal(df1, df2, check_like=True)
+
 
 def test_get_data_empty_graphs(dask_client):
     """
@@ -625,3 +639,56 @@ def test_get_data_empty_graphs(dask_client):
     assert pG.get_vertex_data([0, 1, 2]) is None
     assert pG.get_edge_data() is None
     assert pG.get_edge_data([0, 1, 2]) is None
+
+
+def test_renumber_vertices_by_type(dataset1_MGPropertyGraph):
+    from cugraph.experimental import MGPropertyGraph
+
+    (pG, data) = dataset1_MGPropertyGraph
+    df_id_ranges = pG.renumber_vertices_by_type()
+    expected = {
+        "merchants": [0, 4],  # stop is inclusive
+        "users": [5, 8],
+    }
+    for key, (start, stop) in expected.items():
+        assert df_id_ranges.loc[key, "start"] == start
+        assert df_id_ranges.loc[key, "stop"] == stop
+        df = pG.get_vertex_data(types=[key]).compute()
+        assert len(df) == stop - start + 1
+        assert (df["_VERTEX_"] == list(range(start, stop + 1))).all()
+
+    # Make sure we renumber vertex IDs in edge data too
+    df = pG.get_edge_data().compute()
+    assert 0 <= df[pG.src_col_name].min() < df[pG.src_col_name].max() < 9
+    assert 0 <= df[pG.dst_col_name].min() < df[pG.dst_col_name].max() < 9
+
+    empty_pG = MGPropertyGraph()
+    assert empty_pG.renumber_vertices_by_type() is None
+
+    # Test when vertex IDs only exist in edge data
+    df = cudf.DataFrame({"src": [99998], "dst": [99999]})
+    df = dask_cudf.from_cudf(df, npartitions=1)
+    empty_pG.add_edge_data(df, ["src", "dst"])
+    with pytest.raises(NotImplementedError, match="only exist in edge"):
+        empty_pG.renumber_vertices_by_type()
+
+
+def test_renumber_edges_by_type(dataset1_MGPropertyGraph):
+    from cugraph.experimental import MGPropertyGraph
+
+    (pG, data) = dataset1_MGPropertyGraph
+    df_id_ranges = pG.renumber_edges_by_type()
+    expected = {
+        "referrals": [0, 5],  # stop is inclusive
+        "relationships": [6, 9],
+        "transactions": [10, 13],
+    }
+    for key, (start, stop) in expected.items():
+        assert df_id_ranges.loc[key, "start"] == start
+        assert df_id_ranges.loc[key, "stop"] == stop
+        df = pG.get_edge_data(types=[key]).compute()
+        assert len(df) == stop - start + 1
+        assert (df[pG.edge_id_col_name] == list(range(start, stop + 1))).all()
+
+    empty_pG = MGPropertyGraph()
+    assert empty_pG.renumber_edges_by_type() is None
