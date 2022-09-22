@@ -23,7 +23,7 @@ from cugraph.community import (
     analyzeClustering_edge_cut,
     analyzeClustering_ratio_cut,
     subgraph,
-    triangles,
+    triangle_count,
     ego_graph,
     batched_ego_graphs,
 )

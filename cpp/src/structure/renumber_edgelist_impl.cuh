@@ -630,6 +630,35 @@ void expensive_check_edgelist(
   }
 }
 
+template <typename vertex_t>
+std::vector<vertex_t> aggregate_segment_offsets(raft::handle_t const& handle,
+                                                std::vector<vertex_t> const& segment_offsets)
+{
+  auto& col_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
+  auto const col_comm_size = col_comm.get_size();
+
+  rmm::device_uvector<vertex_t> d_segment_offsets(segment_offsets.size(), handle.get_stream());
+  raft::update_device(
+    d_segment_offsets.data(), segment_offsets.data(), segment_offsets.size(), handle.get_stream());
+  rmm::device_uvector<vertex_t> d_aggregate_segment_offsets(
+    col_comm_size * d_segment_offsets.size(), handle.get_stream());
+  col_comm.allgather(d_segment_offsets.data(),
+                     d_aggregate_segment_offsets.data(),
+                     d_segment_offsets.size(),
+                     handle.get_stream());
+
+  std::vector<vertex_t> h_aggregate_segment_offsets(d_aggregate_segment_offsets.size(),
+                                                    vertex_t{0});
+  raft::update_host(h_aggregate_segment_offsets.data(),
+                    d_aggregate_segment_offsets.data(),
+                    d_aggregate_segment_offsets.size(),
+                    handle.get_stream());
+
+  handle.sync_stream();  // this is necessary as h_aggregate_offsets can be used right after return.
+
+  return h_aggregate_segment_offsets;
+}
+
 }  // namespace detail
 
 template <typename vertex_t, typename edge_t, bool multi_gpu>
@@ -881,10 +910,13 @@ renumber_edgelist(
     }
   }
 
+  auto edge_partition_segment_offsets =
+    detail::aggregate_segment_offsets(handle, vertex_partition_segment_offsets);
+
   return std::make_tuple(
     std::move(renumber_map_labels),
     renumber_meta_t<vertex_t, edge_t, multi_gpu>{
-      number_of_vertices, number_of_edges, partition, vertex_partition_segment_offsets});
+      number_of_vertices, number_of_edges, partition, edge_partition_segment_offsets});
 }
 
 template <typename vertex_t, typename edge_t, bool multi_gpu>

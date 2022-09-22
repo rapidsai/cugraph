@@ -20,7 +20,7 @@ from pylibcugraph import (SGGraph,
                           ResourceHandle,
                           GraphProperties,
                           )
-from pylibcugraph.experimental import triangle_count
+from pylibcugraph import triangle_count
 
 
 def check_results(d_result):

@@ -20,8 +20,7 @@ import cugraph.dask.comms.comms as Comms
 import dask_cudf
 import cudf
 
-from pylibcugraph.experimental import triangle_count as \
-    pylibcugraph_triangle_count
+from pylibcugraph import triangle_count as pylibcugraph_triangle_count
 
 from pylibcugraph import (ResourceHandle,
                           GraphProperties,
@@ -77,8 +76,7 @@ def convert_to_cudf(cp_arrays):
     return df
 
 
-def triangle_count(input_graph,
-                   start_list=None):
+def triangle_count(input_graph, start_list=None):
     """
     Computes the number of triangles (cycles of length three) and the number
     per vertex in the input graph.
@@ -90,7 +88,7 @@ def triangle_count(input_graph,
         (edge weights are not used in this algorithm).
         The current implementation only supports undirected graphs.
 
-    start_list : not supported
+    start_list : list or cudf.Series
         list of vertices for triangle count. if None the entire set of vertices
         in the graph is processed
 
@@ -105,8 +103,6 @@ def triangle_count(input_graph,
     ddf['counts']: dask_cudf.Series
         Contains the triangle counting counts
     """
-    # FIXME: start_list is disabled
-    start_list = None
     if input_graph.is_directed():
         raise ValueError("input graph must be undirected")
     # Initialize dask client
@@ -122,9 +118,6 @@ def triangle_count(input_graph,
             start_list = [start_list]
         if isinstance(start_list, list):
             start_list = cudf.Series(start_list)
-            if start_list.dtype != 'int32':
-                raise ValueError(f"'start_list' must have int32 values, "
-                                 f"got: {start_list.dtype}")
         if not isinstance(start_list, cudf.Series):
             raise TypeError(
                     f"'start_list' must be either a list or a cudf.Series,"
@@ -138,9 +131,8 @@ def triangle_count(input_graph,
 
     ddf = input_graph.edgelist.edgelist_df
 
-    # FIXME: The parameter is_multigraph, store_transposed and
-    # do_expensive_check must be derived from the input_graph.
-    # For now, they are hardcoded.
+    # FIXME: The parameter is_multigraph and store_transposed must be derived
+    # from the input_graph. For now, they are hardcoded.
     graph_properties = GraphProperties(
         is_symmetric=True, is_multigraph=False)
     store_transposed = False

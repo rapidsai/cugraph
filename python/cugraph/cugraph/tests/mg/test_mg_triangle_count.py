@@ -20,7 +20,6 @@ import cugraph
 from cugraph.testing import utils
 import cugraph.dask as dcg
 import dask_cudf
-from cugraph.experimental import triangle_count as experimental_triangles
 import random
 
 
@@ -35,10 +34,8 @@ def setup_function():
 # Pytest fixtures
 # =============================================================================
 datasets = utils.DATASETS_UNDIRECTED
-# FIXME: The `start_list` parameter is not supported yet therefore it has been
-# disabled in these tests. Enable it once it is supported
 fixture_params = utils.genFixtureParamsProduct((datasets, "graph_file"),
-                                               ([False], "start_list"),
+                                               ([True, False], "start_list"),
                                                )
 
 
@@ -68,8 +65,6 @@ def input_expected_output(dask_client, input_combo):
 
     input_combo["SGGraph"] = G
 
-    # FIXME: MG triangle count is failing with random start_list
-    # sampled from the graph
     if start_list:
         # sample k nodes from the cuGraph graph
         k = random.randint(1, 10)
@@ -79,10 +74,8 @@ def input_expected_output(dask_client, input_combo):
         start_list = nodes.sample(k)
     else:
         start_list = None
-    # FIXME: MG triangle count is failing with the start_list below as well
-    # start_list = cudf.Series([41, 35], dtype="int32")
 
-    sg_triangle_results = experimental_triangles(G, start_list)
+    sg_triangle_results = cugraph.triangle_count(G, start_list)
     sg_triangle_results = sg_triangle_results.sort_values(
         "vertex").reset_index(drop=True)
 
@@ -117,7 +110,7 @@ def test_sg_triangles(dask_client, benchmark, input_expected_output):
     sg_triangle_results = None
     G = input_expected_output["SGGraph"]
     start_list = input_expected_output["start_list"]
-    sg_triangle_results = benchmark(experimental_triangles, G, start_list)
+    sg_triangle_results = benchmark(cugraph.triangle_count, G, start_list)
     assert sg_triangle_results is not None
 
 

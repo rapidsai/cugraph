@@ -437,18 +437,20 @@ class EXPERIMENTAL__MGPropertyGraph:
         vertex_ids, columns, and/or types, or all vertex IDs if not specified.
         """
         if self.__vertex_prop_dataframe is not None:
+            df = self.__vertex_prop_dataframe
             if vertex_ids is not None:
-                df_mask = (
-                    self.__vertex_prop_dataframe[self.vertex_col_name]
-                    .isin(vertex_ids)
-                )
-                df = self.__vertex_prop_dataframe.loc[df_mask]
-            else:
-                df = self.__vertex_prop_dataframe
+                if isinstance(vertex_ids, int):
+                    df_mask = df[self.vertex_col_name] == vertex_ids
+                else:
+                    df_mask = df[self.vertex_col_name].isin(vertex_ids)
+                df = df.loc[df_mask]
 
             if types is not None:
                 # FIXME: coerce types to a list-like if not?
-                df_mask = df[self.type_col_name].isin(types)
+                if isinstance(types, str):
+                    df_mask = df[self.type_col_name] == types
+                else:
+                    df_mask = df[self.type_col_name].isin(types)
                 df = df.loc[df_mask]
 
             # The "internal" pG.vertex_col_name and pG.type_col_name columns
@@ -593,16 +595,20 @@ class EXPERIMENTAL__MGPropertyGraph:
         edge_ids, columns, and/or edge type, or all edge IDs if not specified.
         """
         if self.__edge_prop_dataframe is not None:
+            df = self.__edge_prop_dataframe
             if edge_ids is not None:
-                df_mask = self.__edge_prop_dataframe[self.edge_id_col_name]\
-                              .isin(edge_ids)
-                df = self.__edge_prop_dataframe.loc[df_mask]
-            else:
-                df = self.__edge_prop_dataframe
+                if isinstance(edge_ids, int):
+                    df_mask = df[self.edge_id_col_name] == edge_ids
+                else:
+                    df_mask = df[self.edge_id_col_name].isin(edge_ids)
+                df = df.loc[df_mask]
 
             if types is not None:
                 # FIXME: coerce types to a list-like if not?
-                df_mask = df[self.type_col_name].isin(types)
+                if isinstance(types, str):
+                    df_mask = df[self.type_col_name] == types
+                else:
+                    df_mask = df[self.type_col_name].isin(types)
                 df = df.loc[df_mask]
 
             # The "internal" src, dst, edge_id, and type columns are also
@@ -879,6 +885,94 @@ class EXPERIMENTAL__MGPropertyGraph:
             G.edge_data = self.__create_property_lookup_table(edge_prop_df)
 
         return G
+
+    def renumber_vertices_by_type(self):
+        """Renumber vertex IDs to be contiguous by type.
+
+        Returns a DataFrame with the start and stop IDs for each vertex type.
+        Stop is *inclusive*.
+        """
+        # Check if some vertex IDs exist only in edge data
+        default = self._default_type_name
+        if (
+            self.__edge_prop_dataframe is not None
+            and self.get_num_vertices(default, include_edge_data=True)
+            != self.get_num_vertices(default, include_edge_data=False)
+        ):
+            raise NotImplementedError(
+                "Currently unable to renumber vertices when some vertex "
+                "IDs only exist in edge data"
+            )
+        if self.__vertex_prop_dataframe is None:
+            return None
+        # We'll need to update this when index is vertex ID
+        df = (
+            self.__vertex_prop_dataframe
+            .sort_values(by=self.type_col_name)
+        )
+        if self.__edge_prop_dataframe is not None:
+            new_name = f"new_{self.vertex_col_name}"
+            df[new_name] = 1
+            df[new_name] = df[new_name].cumsum() - 1
+            mapper = df[[self.vertex_col_name, new_name]]
+            self.__edge_prop_dataframe = (
+                self.__edge_prop_dataframe
+                # map src_col_name IDs
+                .merge(mapper, left_on=self.src_col_name,
+                       right_on=self.vertex_col_name)
+                .drop(columns=[self.src_col_name])
+                .rename(columns={new_name: self.src_col_name})
+                # map dst_col_name IDs
+                .merge(mapper, left_on=self.dst_col_name,
+                       right_on=self.vertex_col_name)
+                .drop(columns=[self.dst_col_name])
+                .rename(columns={new_name: self.dst_col_name})
+            )
+            df[self.vertex_col_name] = df[new_name]
+            del df[new_name]
+        else:
+            df[self.vertex_col_name] = 1
+            df[self.vertex_col_name] = df[self.vertex_col_name].cumsum() - 1
+
+        self.__vertex_prop_dataframe = df
+        rv = (
+            self._vertex_type_value_counts
+            .sort_index()
+            .cumsum()
+            .to_frame("stop")
+        )
+        rv["start"] = rv["stop"].shift(1, fill_value=0)
+        rv["stop"] -= 1  # Make inclusive
+        return rv[["start", "stop"]]
+
+    def renumber_edges_by_type(self):
+        """Renumber edge IDs to be contiguous by type.
+
+        Returns a DataFrame with the start and stop IDs for each edge type.
+        Stop is *inclusive*.
+        """
+        # TODO: keep track if edges are already numbered correctly.
+        if self.__edge_prop_dataframe is None:
+            return None
+        # We'll need to update this when index is edge ID
+        self.__edge_prop_dataframe = (
+            self.__edge_prop_dataframe
+            .drop(columns=[self.edge_id_col_name])
+            .sort_values(by=self.type_col_name, ignore_index=True)
+        )
+        self.__edge_prop_dataframe[self.edge_id_col_name] = 1
+        self.__edge_prop_dataframe[self.edge_id_col_name] = (
+            self.__edge_prop_dataframe[self.edge_id_col_name].cumsum() - 1
+        )
+        rv = (
+            self._edge_type_value_counts
+            .sort_index()
+            .cumsum()
+            .to_frame("stop")
+        )
+        rv["start"] = rv["stop"].shift(1, fill_value=0)
+        rv["stop"] -= 1  # Make inclusive
+        return rv[["start", "stop"]]
 
     @classmethod
     def is_multigraph(cls, df):
