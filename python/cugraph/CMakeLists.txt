@@ -58,22 +58,6 @@ if(NOT cugraph_FOUND)
   install(TARGETS cugraph DESTINATION cugraph/library)
 endif()
 
-# START Temporary code to use RAFT headers from specific PR
-set(EXTERNAL_INCLUDES_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/external_includes)
-
-IF(NOT EXISTS ${EXTERNAL_INCLUDES_DIRECTORY})
-  file(MAKE_DIRECTORY ${EXTERNAL_INCLUDES_DIRECTORY})
-endif()
-
-IF(NOT EXISTS ${EXTERNAL_INCLUDES_DIRECTORY}/raft)
-  execute_process(
-          COMMAND git clone "https://github.com/cjnolet/raft" --branch imp-2210-host_device_mdspan
-          WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/external_includes)
-endif()
-
-include_directories(${CMAKE_CURRENT_BINARY_DIR}/external_includes/raft/cpp/include)
-# END
-
 include(rapids-cython)
 rapids_cython_init()
 
