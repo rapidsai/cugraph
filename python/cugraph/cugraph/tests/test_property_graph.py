@@ -1495,9 +1495,13 @@ def test_renumber_edges_by_type(dataset1_PropertyGraph):
     (pG, data) = dataset1_PropertyGraph
     df_id_ranges = pG.renumber_edges_by_type()
     expected = {
-        "referrals": [0, 5],  # stop is inclusive
-        "relationships": [6, 9],
-        "transactions": [10, 13],
+        "transactions": [0, 3],  # stop is inclusive
+        "relationships": [4, 7],
+        "referrals": [8, 13],
+        # Results are no longer alphabetical b/c use of categoricals for types
+        # "referrals": [0, 5],  # stop is inclusive
+        # "relationships": [6, 9],
+        # "transactions": [10, 13],
     }
     for key, (start, stop) in expected.items():
         assert df_id_ranges.loc[key, "start"] == start
