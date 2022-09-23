@@ -81,7 +81,8 @@ struct strided_sum_t {
   size_t stride{0};
   size_t count{0};
 
-  __device__ T operator()(size_t start_offset) const {
+  __device__ T operator()(size_t start_offset) const
+  {
     T sum{0};
     for (size_t j = 0; j < count; ++j) {
       sum += values[start_offset + stride * j];
