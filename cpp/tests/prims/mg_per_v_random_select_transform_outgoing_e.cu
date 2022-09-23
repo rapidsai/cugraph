@@ -29,6 +29,7 @@
 
 #include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/utilities/dataframe_buffer.hpp>
+#include <cugraph/utilities/host_scalar_comm.hpp>
 #include <cugraph/utilities/thrust_tuple_utils.hpp>
 
 #include <cugraph/graph_view.hpp>
@@ -72,6 +73,7 @@ struct e_op_t {
 struct Prims_Usecase {
   size_t K{0};
   bool with_replacement{false};
+  bool use_invalid_value{false};
   bool test_weighted{false};
   bool check_correctness{true};
 };
@@ -154,6 +156,11 @@ class Tests_MGPerVRandomSelectTransformOutgoingE
                                                         cugraph::to_thrust_tuple(property_t{})));
 
     std::optional<result_t> invalid_value{std::nullopt};
+    if (prims_usecase.use_invalid_value) {
+      invalid_value                  = result_t{};
+      thrust::get<0>(*invalid_value) = cugraph::invalid_vertex_id<vertex_t>::value;
+      thrust::get<1>(*invalid_value) = cugraph::invalid_vertex_id<vertex_t>::value;
+    }
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -185,41 +192,141 @@ class Tests_MGPerVRandomSelectTransformOutgoingE
     // 3. validate MG results
 
     if (prims_usecase.check_correctness) {
-#if 0
-      cugraph::graph_t<vertex_t, edge_t, weight_t, false, false> sg_graph(*handle_);
-      std::tie(sg_graph, std::ignore) =
+      auto d_mg_aggregate_renumber_map_labels = cugraph::test::device_allgatherv(
+        *handle_, (*d_mg_renumber_map_labels).data(), (*d_mg_renumber_map_labels).size());
+      auto out_degrees = mg_graph_view.compute_out_degrees(*handle_);
+
+      cugraph::graph_t<vertex_t, edge_t, weight_t, false, false> unrenumbered_graph(*handle_);
+      std::tie(unrenumbered_graph, std::ignore) =
         cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, false>(
           *handle_, input_usecase, prims_usecase.test_weighted, false);
-      auto sg_graph_view = sg_graph.view();
+      auto unrenumbered_graph_view = unrenumbered_graph.view();
 
-// 1. check whether sources coincide with the local vertices in the frontier or not
+      rmm::device_uvector<edge_t> unrenumbered_offsets(
+        unrenumbered_graph_view.number_of_vertices() + vertex_t{1}, handle_->get_stream());
+      thrust::copy(handle_->get_thrust_policy(),
+                   unrenumbered_graph_view.local_edge_partition_view().offsets().begin(),
+                   unrenumbered_graph_view.local_edge_partition_view().offsets().end(),
+                   unrenumbered_offsets.begin());
+      rmm::device_uvector<vertex_t> unrenumbered_indices(unrenumbered_graph_view.number_of_edges(),
+                                                         handle_->get_stream());
+      thrust::copy(handle_->get_thrust_policy(),
+                   unrenumbered_graph_view.local_edge_partition_view().indices().begin(),
+                   unrenumbered_graph_view.local_edge_partition_view().indices().end(),
+                   unrenumbered_indices.begin());
 
-// 2. check sample counts
+      auto num_invalids = static_cast<size_t>(thrust::count_if(
+        handle_->get_thrust_policy(),
+        thrust::make_counting_iterator(size_t{0}),
+        thrust::make_counting_iterator(mg_vertex_frontier.bucket(bucket_idx_cur).size()),
+        [frontier_vertex_first         = mg_vertex_frontier.bucket(bucket_idx_cur).begin(),
+         v_first                       = mg_graph_view.local_vertex_partition_range_first(),
+         sample_offsets                = sample_offsets
+                                           ? thrust::make_optional<size_t const*>((*sample_offsets).data())
+                                           : thrust::nullopt,
+         sample_e_op_results           = cugraph::get_dataframe_buffer_begin(sample_e_op_results),
+         out_degrees                   = out_degrees.begin(),
+         aggregate_renumber_map_labels = d_mg_aggregate_renumber_map_labels.begin(),
+         unrenumbered_offsets          = unrenumbered_offsets.begin(),
+         unrenumbered_indices          = unrenumbered_indices.begin(),
+         K                             = prims_usecase.K,
+         with_replacement              = prims_usecase.with_replacement,
+         invalid_value =
+           invalid_value ? thrust::make_optional<result_t>(*invalid_value) : thrust::nullopt,
+         property_transform = cugraph::test::detail::property_transform<vertex_t, property_t>{
+           hash_bin_count}] __device__(size_t i) {
+          auto v = *(frontier_vertex_first + i);
 
-// 3. check destinations exist in the input graph
+          // check sample_offsets
 
-// 4. check source/destination property values
+          auto offset_first = sample_offsets ? *(*sample_offsets + i) : K * i;
+          auto offset_last  = sample_offsets ? *(*sample_offsets + (i + 1)) : K * (i + 1);
+          if (!sample_offsets) {
+            size_t num_valids{0};
+            for (size_t j = offset_first; j < offset_last; ++j) {
+              auto e_op_result = *(sample_e_op_results + j);
+              if (e_op_result == *invalid_value) { break; }
+              ++num_valids;
+            }
+            for (size_t j = offset_first + num_valids; j < offset_last; ++j) {
+              auto e_op_result = *(sample_e_op_results + j);
+              if (e_op_result != *invalid_value) { return true; }
+            }
+            offset_last = offset_first + num_valids;
+          }
+          auto count = offset_last - offset_first;
 
-      auto sg_vertex_property_data = generate<property_t>::vertex_property(
-        thrust::make_counting_iterator(sg_graph_view.local_vertex_partition_range_first()),
-        thrust::make_counting_iterator(sg_graph_view.local_vertex_partition_range_last()),
-        hash_bin_count,
-        *handle_);
-      auto sg_dst_prop =
-        generate<property_t>::dst_property(*handle_, sg_graph_view, sg_vertex_property_data);
-      auto sg_src_prop =
-        generate<property_t>::src_property(*handle_, sg_graph_view, sg_vertex_property_data);
+          auto v_offset   = v - v_first;
+          auto out_degree = *(out_degrees + v_offset);
+          if (with_replacement) {
+            if ((out_degree > 0 && count != K) || (out_degree == 0 && count != 0)) { return true; }
+          } else {
+            if (count != std::min(static_cast<size_t>(out_degree), K)) { return true; }
+          }
 
-      auto expected_result = count_if_e(
-        *handle_,
-        sg_graph_view,
-        sg_src_prop.view(),
-        sg_dst_prop.view(),
-        [] __device__(auto src, auto dst, weight_t, auto src_property, auto dst_property) {
-          return src_property < dst_property;
-        });
-      ASSERT_TRUE(expected_result == result);
-#endif
+          // check sample_e_op_results
+
+          for (size_t j = offset_first; j < offset_last; ++j) {
+            auto e_op_result = *(sample_e_op_results + j);
+            auto src         = thrust::get<0>(e_op_result);
+            auto dst         = thrust::get<1>(e_op_result);
+            if (src != v) { return true; }
+            auto unrenumbered_src = *(aggregate_renumber_map_labels + src);
+            auto unrenumbered_dst = *(aggregate_renumber_map_labels + dst);
+            auto unrenumbered_dst_first =
+              unrenumbered_indices + *(unrenumbered_offsets + unrenumbered_src);
+            auto unrenumbered_dst_last =
+              unrenumbered_indices + *(unrenumbered_offsets + (unrenumbered_src + vertex_t{1}));
+            if (!thrust::binary_search(thrust::seq,
+                                       unrenumbered_dst_first,
+                                       unrenumbered_dst_last,
+                                       unrenumbered_dst)) {  // assumed neighbor lists are sorted
+              return true;
+            }
+            property_t src_val{};
+            property_t dst_val{};
+            if constexpr (cugraph::is_thrust_tuple_of_arithmetic<property_t>::value) {
+              src_val =
+                thrust::make_tuple(thrust::get<2>(e_op_result), thrust::get<3>(e_op_result));
+              dst_val =
+                thrust::make_tuple(thrust::get<4>(e_op_result), thrust::get<5>(e_op_result));
+            } else {
+              src_val = thrust::get<2>(e_op_result);
+              dst_val = thrust::get<3>(e_op_result);
+            }
+            if (src_val != property_transform(unrenumbered_src)) { return true; }
+            if (dst_val != property_transform(unrenumbered_dst)) { return true; }
+
+            if (!with_replacement) {
+              auto dst_first =
+                thrust::get<1>(sample_e_op_results.get_iterator_tuple()) + offset_first;
+              auto dst_last =
+                thrust::get<1>(sample_e_op_results.get_iterator_tuple()) + offset_last;
+              auto dst_count =
+                thrust::count(thrust::seq,
+                              dst_first,
+                              dst_last,
+                              dst);  // this could be inefficient for high-degree vertices, if we
+                                     // sort [dst_first, dst_last) we can use binary search but we
+                                     // may better not modify the sampling output and allow
+                                     // inefficiency as this is just for testing
+              auto multiplicity = thrust::distance(
+                thrust::lower_bound(
+                  thrust::seq, unrenumbered_dst_first, unrenumbered_dst_last, unrenumbered_dst),
+                thrust::upper_bound(thrust::seq,
+                                    unrenumbered_dst_first,
+                                    unrenumbered_dst_last,
+                                    unrenumbered_dst));  // this assumes neighbor lists are sorted
+              if (dst_count > multiplicity) { return true; }
+            }
+          }
+
+          return false;
+        }));
+
+      num_invalids = cugraph::host_scalar_allreduce(
+        handle_->get_comms(), num_invalids, raft::comms::op_t::SUM, handle_->get_stream());
+      ASSERT_TRUE(num_invalids == 0);
     }
   }
 
@@ -269,7 +376,10 @@ INSTANTIATE_TEST_SUITE_P(
   file_test,
   Tests_MGPerVRandomSelectTransformOutgoingE_File,
   ::testing::Combine(
-    ::testing::Values(Prims_Usecase{true}),
+    ::testing::Values(Prims_Usecase{size_t{4}, false, false, false, true},
+                      Prims_Usecase{size_t{4}, false, true, false, true},
+                      Prims_Usecase{size_t{4}, true, false, false, true},
+                      Prims_Usecase{size_t{4}, true, true, false, true}),
     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
                       cugraph::test::File_Usecase("test/datasets/web-Google.mtx"),
                       cugraph::test::File_Usecase("test/datasets/ljournal-2008.mtx"),
@@ -278,14 +388,20 @@ INSTANTIATE_TEST_SUITE_P(
 INSTANTIATE_TEST_SUITE_P(
   rmat_small_test,
   Tests_MGPerVRandomSelectTransformOutgoingE_Rmat,
-  ::testing::Combine(::testing::Values(Prims_Usecase{true}),
+  ::testing::Combine(::testing::Values(Prims_Usecase{size_t{4}, false, false, false, true},
+                                       Prims_Usecase{size_t{4}, false, true, false, true},
+                                       Prims_Usecase{size_t{4}, true, false, false, true},
+                                       Prims_Usecase{size_t{4}, true, true, false, true}),
                      ::testing::Values(cugraph::test::Rmat_Usecase(
                        10, 16, 0.57, 0.19, 0.19, 0, false, false, 0, true))));
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_large_test,
   Tests_MGPerVRandomSelectTransformOutgoingE_Rmat,
-  ::testing::Combine(::testing::Values(Prims_Usecase{false}),
+  ::testing::Combine(::testing::Values(Prims_Usecase{size_t{4}, false, false, false, false},
+                                       Prims_Usecase{size_t{4}, false, true, false, false},
+                                       Prims_Usecase{size_t{4}, true, false, false, false},
+                                       Prims_Usecase{size_t{4}, true, true, false, false}),
                      ::testing::Values(cugraph::test::Rmat_Usecase(
                        20, 32, 0.57, 0.19, 0.19, 0, false, false, 0, true))));
 
