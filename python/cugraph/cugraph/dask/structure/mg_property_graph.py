@@ -256,6 +256,7 @@ class EXPERIMENTAL__MGPropertyGraph:
             vert_sers = self.__get_all_vertices_series()
             if vert_sers:
                 if self.__series_type is dask_cudf.Series:
+                    print([(x,x.dtype) for x in vert_sers])
                     vert_count = dask_cudf.concat(vert_sers).nunique()
                     self.__num_vertices = vert_count.compute()
             return self.__num_vertices
