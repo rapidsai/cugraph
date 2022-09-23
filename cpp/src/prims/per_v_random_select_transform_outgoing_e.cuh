@@ -410,6 +410,7 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
   rmm::device_uvector<edge_t> sample_nbr_indices(frontier.size() * K, handle.get_stream());
   // FIXME: get_sampling_index is inefficient when degree >> K & with_replacement = false
   if (frontier_degrees.size() > 0) {
+#ifndef NO_CUGRAPH_OPS
     cugraph::ops::gnn::graph::get_sampling_index(sample_nbr_indices.data(),
                                                  rng_state,
                                                  frontier_degrees.data(),
@@ -417,6 +418,9 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
                                                  static_cast<int32_t>(K),
                                                  with_replacement,
                                                  handle.get_stream());
+#else
+    CUGRAPH_FAIL("unimplemented.");
+#endif
   }
   frontier_degrees.resize(0, handle.get_stream());
   frontier_degrees.shrink_to_fit(handle.get_stream());
