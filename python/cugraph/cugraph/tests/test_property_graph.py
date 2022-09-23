@@ -35,6 +35,19 @@ import cugraph
 from cugraph.generators import rmat
 from cugraph.testing import utils
 
+
+def type_is_categorical(pG):
+    return (
+        (
+            pG._vertex_prop_dataframe is None or
+            pG._vertex_prop_dataframe.dtypes[pG.type_col_name] == 'category'
+        ) and (
+            pG._edge_prop_dataframe is None or
+            pG._edge_prop_dataframe.dtypes[pG.type_col_name] == 'category'
+        )
+    )
+
+
 # =============================================================================
 # Test data
 # =============================================================================
@@ -227,6 +240,7 @@ def dataset1_PropertyGraph(request):
                                        "user_id_2"),
                      property_columns=None)
 
+    assert type_is_categorical(pG)
     return (pG, dataset1)
 
 
@@ -246,6 +260,7 @@ def dataset2_simple_PropertyGraph(request):
 
     pG.add_edge_data(df, vertex_col_names=("src", "dst"))
 
+    assert type_is_categorical(pG)
     return (pG, simple)
 
 
@@ -276,6 +291,7 @@ def cyber_PropertyGraph(request):
     pG = PropertyGraph()
     pG.add_edge_data(df, (source_col_name, dest_col_name))
 
+    assert type_is_categorical(pG)
     return pG
 
 
@@ -311,6 +327,7 @@ def rmat_PropertyGraph():
     pG = PropertyGraph()
     pG.add_edge_data(df, (source_col_name, dest_col_name))
 
+    assert type_is_categorical(pG)
     return (pG, df)
 
 
@@ -338,6 +355,7 @@ def test_add_vertex_data(df_type):
     assert pG.get_num_edges() == 0
     expected_props = set(merchants[0].copy()) - {'merchant_id'}
     assert sorted(pG.vertex_property_names) == sorted(expected_props)
+    assert type_is_categorical(pG)
 
 
 @pytest.mark.parametrize("df_type", df_types, ids=df_type_id)
@@ -401,6 +419,7 @@ def test_num_vertices(df_type):
     assert pG.get_num_vertices('users') == 4
     assert pG.get_num_vertices('unknown_type') == 0
     assert pG.get_num_edges() == 0
+    assert type_is_categorical(pG)
 
 
 @pytest.mark.parametrize("df_type", df_types, ids=df_type_id)
@@ -433,6 +452,7 @@ def test_type_names(df_type):
     pG.add_edge_data(df, type_name="etype", vertex_col_names=("src", "dst"))
     assert pG.edge_types == set(["", "etype"])
     assert pG.vertex_types == set(["", "vtype"])
+    assert type_is_categorical(pG)
 
 
 @pytest.mark.parametrize("df_type", df_types, ids=df_type_id)
@@ -688,6 +708,7 @@ def test_null_data(df_type):
     assert pG.get_num_vertices() == 0
     assert pG.get_num_edges() == 0
     assert sorted(pG.vertex_property_names) == sorted([])
+    assert type_is_categorical(pG)
 
 
 @pytest.mark.parametrize("df_type", df_types, ids=df_type_id)
@@ -712,6 +733,7 @@ def test_add_vertex_data_prop_columns(df_type):
     assert pG.get_num_vertices('merchants') == 5
     assert pG.get_num_edges() == 0
     assert sorted(pG.vertex_property_names) == sorted(expected_props)
+    assert type_is_categorical(pG)
 
 
 def test_add_vertex_data_bad_args():
@@ -779,6 +801,7 @@ def test_add_edge_data(df_type):
     # Original SRC and DST columns no longer include "merchant_id", "user_id"
     expected_props = ["volume", "time", "card_num", "card_type"]
     assert sorted(pG.edge_property_names) == sorted(expected_props)
+    assert type_is_categorical(pG)
 
 
 @pytest.mark.parametrize("df_type", df_types, ids=df_type_id)
@@ -805,6 +828,7 @@ def test_add_edge_data_prop_columns(df_type):
     assert pG.get_num_edges() == 4
     assert pG.get_num_edges('transactions') == 4
     assert sorted(pG.edge_property_names) == sorted(expected_props)
+    assert type_is_categorical(pG)
 
 
 def test_add_edge_data_bad_args():

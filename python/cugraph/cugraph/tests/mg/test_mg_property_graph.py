@@ -31,6 +31,19 @@ from cugraph.testing import utils
 
 import cugraph
 
+
+def type_is_categorical(pG):
+    return (
+        (
+            pG._vertex_prop_dataframe is None or
+            pG._vertex_prop_dataframe.dtypes[pG.type_col_name] == 'category'
+        ) and (
+            pG._edge_prop_dataframe is None or
+            pG._edge_prop_dataframe.dtypes[pG.type_col_name] == 'category'
+        )
+    )
+
+
 # =============================================================================
 # Test data
 # =============================================================================
@@ -215,6 +228,7 @@ def dataset1_PropertyGraph(request):
                      vertex_col_names=("user_id_1",
                                        "user_id_2"),
                      property_columns=None)
+    assert type_is_categorical(pG)
     return (pG, dataset1)
 
 
@@ -275,6 +289,7 @@ def dataset1_MGPropertyGraph(dask_client):
                       vertex_col_names=("user_id_1", "user_id_2"),
                       property_columns=None)
 
+    assert type_is_categorical(mpG)
     return (mpG, dataset1)
 
 
@@ -292,6 +307,7 @@ def dataset2_simple_MGPropertyGraph(dask_client):
     mpG.add_edge_data(mgdf,
                       vertex_col_names=("src", "dst"))
 
+    assert type_is_categorical(mpG)
     return (mpG, simple)
 
 
@@ -309,6 +325,7 @@ def dataset2_MGPropertyGraph(dask_client):
     mpG.add_edge_data(mgdf,
                       vertex_col_names=("src", "dst"))
 
+    assert type_is_categorical(mpG)
     return (mpG, simple)
 
 
@@ -334,6 +351,7 @@ def net_MGPropertyGraph(dask_client):
 
     dpG = MGPropertyGraph()
     dpG.add_edge_data(ddf, ("src", "dst"))
+    assert type_is_categorical(dpG)
     return dpG
 
 
@@ -363,6 +381,8 @@ def test_extract_subgraph_no_query(net_MGPropertyGraph, net_PropertyGraph):
     mg_subgraph_df = mg_subgraph_df.reset_index(drop=True)
     assert (sg_subgraph_df[['_SRC_', '_DST_']]
             .equals(mg_subgraph_df[['_SRC_', '_DST_']]))
+    assert sg_subgraph_df.dtypes['_TYPE_'] == 'category'
+    assert mg_subgraph_df.dtypes['_TYPE_'] == 'category'
 
 
 @pytest.mark.skip(reason="Skipping tests because it is a work in progress")
@@ -380,6 +400,8 @@ def test_adding_fixture(dataset1_PropertyGraph, dataset1_MGPropertyGraph):
     mg_subgraph_df = mg_subgraph_df.reset_index(drop=True)
     assert (sg_subgraph_df[['_SRC_', '_DST_']]
             .equals(mg_subgraph_df[['_SRC_', '_DST_']]))
+    assert sg_subgraph_df.dtypes['_TYPE_'] == 'category'
+    assert mg_subgraph_df.dtypes['_TYPE_'] == 'category'
 
 
 @pytest.mark.skip(reason="Skipping tests because it is a work in progress")
@@ -402,6 +424,8 @@ def test_frame_data(dataset1_PropertyGraph, dataset1_MGPropertyGraph):
     mg_ep_df = mgpG._edge_prop_dataframe\
         .compute().sort_values(by=edge_sort_col).reset_index(drop=True)
     assert (sg_ep_df['_SRC_'].equals(mg_ep_df['_SRC_']))
+    assert sg_ep_df.dtypes['_TYPE_'] == 'category'
+    assert mg_ep_df.dtypes['_TYPE_'] == 'category'
 
 
 def test_property_names_attrs(dataset1_MGPropertyGraph):
@@ -488,6 +512,7 @@ def test_num_vertices_with_properties(dataset2_simple_MGPropertyGraph):
     # assume no repeated vertices
     assert pG.get_num_vertices() == len(data[1]) * 2
     assert pG.get_num_vertices(include_edge_data=False) == 2
+    assert type_is_categorical(pG)
 
 
 def test_edges_attr(dataset2_simple_MGPropertyGraph):
@@ -536,6 +561,7 @@ def test_get_vertex_data(dataset1_MGPropertyGraph):
         sorted(some_vertex_data.columns) ==
         sorted(columns + standard_vert_columns)
     )
+    assert some_vertex_data.dtypes['_TYPE_'] == 'category'
 
     # Test with all params specified
     vert_ids = [11, 4, 21]
@@ -549,6 +575,7 @@ def test_get_vertex_data(dataset1_MGPropertyGraph):
     # specified columns.
     assert len(some_vertex_data) == len(vert_ids)
     assert set(columns) - set(some_vertex_data.columns) == set()
+    assert some_vertex_data.dtypes['_TYPE_'] == 'category'
 
     # Allow a single vertex type and single vertex id to be passed in
     df1 = pG.get_vertex_data(vertex_ids=[11], types=[vert_type]).compute()
@@ -577,6 +604,7 @@ def test_get_edge_data(dataset1_MGPropertyGraph):
     if hasattr(actual_edge_ids, "values_host"):
         actual_edge_ids = actual_edge_ids.values_host
     assert sorted(actual_edge_ids) == sorted(edge_ids)
+    assert some_edge_data.dtypes['_TYPE_'] == 'category'
 
     # Create a list of expected column names from the three input tables
     expected_columns = set([pG.src_col_name, pG.dst_col_name,
@@ -604,6 +632,7 @@ def test_get_edge_data(dataset1_MGPropertyGraph):
         sorted(some_edge_data.columns) ==
         sorted(columns + standard_edge_columns)
     )
+    assert some_edge_data.dtypes['_TYPE_'] == 'category'
 
     # Test with all params specified
     # FIXME: since edge IDs are generated, assume that these are correct based
@@ -618,6 +647,7 @@ def test_get_edge_data(dataset1_MGPropertyGraph):
     # specified columns.
     assert len(some_edge_data) == len(edge_ids)
     assert set(columns) - set(some_edge_data.columns) == set()
+    assert some_edge_data.dtypes['_TYPE_'] == 'category'
 
     # Allow a single edge type and single edge id to be passed in
     df1 = pG.get_edge_data(edge_ids=[1], types=[edge_type]).compute()

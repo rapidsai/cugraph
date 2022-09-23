@@ -12,6 +12,7 @@
 # limitations under the License.
 
 import cudf
+import numpy as np
 
 import cugraph
 from cugraph.utilities.utils import import_optional, MissingModule
@@ -360,7 +361,7 @@ class EXPERIMENTAL__PropertyGraph:
         if vertex_col_name not in dataframe.columns:
             raise ValueError(f"{vertex_col_name} is not a column in "
                              f"dataframe: {dataframe.columns}")
-        if (type_name is not None) and not(isinstance(type_name, str)):
+        if (type_name is not None) and not isinstance(type_name, str):
             raise TypeError("type_name must be a string, got: "
                             f"{type(type_name)}")
         if type_name is None:
@@ -393,7 +394,8 @@ class EXPERIMENTAL__PropertyGraph:
 
         # Initialize the __vertex_prop_dataframe if necessary using the same
         # type as the incoming dataframe.
-        default_vertex_columns = [self.vertex_col_name, self.type_col_name]
+        TCN = self.type_col_name
+        default_vertex_columns = [self.vertex_col_name, TCN]
         if self.__vertex_prop_dataframe is None:
             self.__vertex_prop_dataframe = \
                 self.__dataframe_type(columns=default_vertex_columns)
@@ -407,6 +409,16 @@ class EXPERIMENTAL__PropertyGraph:
             self.__vertex_prop_dataframe.set_index(self.vertex_col_name,
                                                    inplace=True)
 
+            # Use categorical dtype for the type column
+            if self.__series_type is cudf.Series:
+                cat_class = cudf.CategoricalDtype
+            else:
+                cat_class = pd.CategoricalDtype
+            cat_dtype = cat_class([type_name], ordered=False)
+            self.__vertex_prop_dataframe[TCN] = (
+                self.__vertex_prop_dataframe[TCN].astype(cat_dtype)
+            )
+
         # Ensure that both the predetermined vertex ID column name and vertex
         # type column name are present for proper merging.
 
@@ -416,7 +428,23 @@ class EXPERIMENTAL__PropertyGraph:
         tmp_df = dataframe.copy(deep=True)
         tmp_df[self.vertex_col_name] = tmp_df[vertex_col_name]
         # FIXME: handle case of a type_name column already being in tmp_df
-        tmp_df[self.type_col_name] = type_name
+
+        # Add `type_name` to the categorical dtype if necessary
+        cat_dtype = self.__update_categorical_dtype(
+            self.__vertex_prop_dataframe, TCN, type_name
+        )
+
+        if self.__series_type is cudf.Series:
+            # cudf does not yet support initialization with a scalar
+            tmp_df[TCN] = cudf.Series(
+                np.repeat(type_name, len(tmp_df)),
+                dtype=cat_dtype
+            )
+        else:
+            # pandas is oddly slow if dtype is passed to the constructor here
+            tmp_df[TCN] = (
+                pd.Series(type_name, index=tmp_df.index).astype(cat_dtype)
+            )
 
         if property_columns:
             # all columns
@@ -534,7 +562,7 @@ class EXPERIMENTAL__PropertyGraph:
         if invalid_columns:
             raise ValueError("vertex_col_names contains column(s) not found "
                              f"in dataframe: {list(invalid_columns)}")
-        if (type_name is not None) and not(isinstance(type_name, str)):
+        if (type_name is not None) and not isinstance(type_name, str):
             raise TypeError("type_name must be a string, got: "
                             f"{type(type_name)}")
         if type_name is None:
@@ -565,9 +593,10 @@ class EXPERIMENTAL__PropertyGraph:
         self.__num_vertices = None
         self.__edge_type_value_counts = None  # Could update instead
 
+        TCN = self.type_col_name
         default_edge_columns = [self.src_col_name,
                                 self.dst_col_name,
-                                self.type_col_name]
+                                TCN]
         if self.__edge_prop_dataframe is None:
             self.__edge_prop_dataframe = \
                 self.__dataframe_type(columns=default_edge_columns)
@@ -581,13 +610,40 @@ class EXPERIMENTAL__PropertyGraph:
                  self.dst_col_name: dataframe[vertex_col_names[1]].dtype})
             self.__edge_prop_dataframe.index.name = self.edge_id_col_name
 
+            # Use categorical dtype for the type column
+            if self.__series_type is cudf.Series:
+                cat_class = cudf.CategoricalDtype
+            else:
+                cat_class = pd.CategoricalDtype
+            cat_dtype = cat_class([type_name], ordered=False)
+            self.__edge_prop_dataframe[TCN] = (
+                self.__edge_prop_dataframe[TCN]
+                .astype(cat_dtype)
+            )
+
         # NOTE: This copies the incoming DataFrame in order to add the new
         # columns. The copied DataFrame is then merged (another copy) and then
         # deleted when out-of-scope.
         tmp_df = dataframe.copy(deep=True)
         tmp_df[self.src_col_name] = tmp_df[vertex_col_names[0]]
         tmp_df[self.dst_col_name] = tmp_df[vertex_col_names[1]]
-        tmp_df[self.type_col_name] = type_name
+
+        # Add `type_name` to the categorical dtype if necessary
+        cat_dtype = self.__update_categorical_dtype(
+            self.__edge_prop_dataframe, TCN, type_name
+        )
+
+        if self.__series_type is cudf.Series:
+            # cudf does not yet support initialization with a scalar
+            tmp_df[TCN] = cudf.Series(
+                np.repeat(type_name, len(tmp_df)),
+                dtype=cat_dtype
+            )
+        else:
+            # pandas is oddly slow if dtype is passed to the constructor here
+            tmp_df[TCN] = (
+                pd.Series(type_name, index=tmp_df.index).astype(cat_dtype)
+            )
 
         # Add unique edge IDs to the new rows. This is just a count for each
         # row starting from the last edge ID value, with initial edge ID 0.
@@ -854,7 +910,7 @@ class EXPERIMENTAL__PropertyGraph:
         # If vertices were specified, select only the edges that contain the
         # selected verts in both src and dst
         if (selected_vertex_dataframe is not None) and \
-           not(selected_vertex_dataframe.empty):
+           not selected_vertex_dataframe.empty:
             has_srcs = selected_edge_dataframe[self.src_col_name]\
                 .isin(selected_vertex_dataframe.index)
             has_dsts = selected_edge_dataframe[self.dst_col_name]\
@@ -1215,3 +1271,21 @@ class EXPERIMENTAL__PropertyGraph:
         # #returning-a-view-versus-a-copy
         # Note that this requires all column names to be strings.
         return df.assign(**update_cols)
+
+    def __update_categorical_dtype(self, df, column, val):
+        """Add a new category to a categorical dtype column of a dataframe.
+
+        Returns the new categorical dtype.
+        """
+        # Add `val` to the categorical dtype if necessary
+        if val in df.dtypes[column].categories:
+            # No need to change the categorical dtype
+            pass
+        elif self.__series_type is cudf.Series:
+            # cudf isn't as fast as pandas; does it scan through the data?
+            # inplace is supported in cudf, but is deprecated in pandas.
+            df[column].cat.add_categories([val], inplace=True)
+        else:
+            # Very fast in pandas
+            df[column] = df[column].cat.add_categories([val])
+        return df.dtypes[column]
