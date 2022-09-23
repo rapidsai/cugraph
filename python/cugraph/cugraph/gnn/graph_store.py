@@ -40,7 +40,7 @@ class CuGraphStore:
         if isinstance(graph, (PropertyGraph, MGPropertyGraph)):
             self.__G = graph
         else:
-            raise ValueError("graph must be a PropertyGraph")
+            raise ValueError("graph must be a PropertyGraph or MGPropertyGraph")
         # dict to map column names corresponding to edge features
         # of each type
         self.edata_feat_col_d = defaultdict(list)
@@ -57,6 +57,9 @@ class CuGraphStore:
         col_names.remove(node_col_name)
         self.ndata_feat_col_d[feat_name] += col_names
 
+        # Ensure that we only keep unique column names lying around
+        self.ndata_feat_col_d[feat_name] = list(set(self.ndata_feat_col_d[feat_name]))
+
     def add_edge_data(self, df, vertex_col_names, feat_name, etype=None):
         self.gdata.add_edge_data(
             df, vertex_col_names=vertex_col_names, type_name=etype
@@ -65,6 +68,8 @@ class CuGraphStore:
             col for col in list(df.columns) if col not in vertex_col_names
         ]
         self.edata_feat_col_d[feat_name] += col_names
+        # Ensure that we only keep unique column names lying around
+        self.edata_feat_col_d[feat_name] = list(set(self.edata_feat_col_d[feat_name]))
 
     def get_node_storage(self, feat_name, ntype=None):
 
@@ -134,20 +139,6 @@ class CuGraphStore:
     @property
     def gdata(self):
         return self.__G
-
-    ######################################
-    # Utilities
-    ######################################
-    @property
-    def num_vertices(self):
-        return self.gdata.get_num_vertices()
-
-    def get_vertex_ids(self):
-        return self.gdata.vertices_ids()
-
-    def _get_edgeid_type_d(self, edge_ids, etypes):
-        df = self.gdata.get_edge_data(edge_ids=edge_ids, columns=[type_n])
-        return {etype: df[df[type_n] == etype] for etype in etypes}
 
     ######################################
     # Sampling APIs
@@ -258,6 +249,20 @@ class CuGraphStore:
                 sampled_df["indices"].to_dlpack(),
             )
 
+    ######################################
+    # Utilities
+    ######################################
+    @property
+    def num_vertices(self):
+        return self.gdata.get_num_vertices()
+
+    def get_vertex_ids(self):
+        return self.gdata.vertices_ids()
+
+    def _get_edgeid_type_d(self, edge_ids, etypes):
+        df = self.gdata.get_edge_data(edge_ids=edge_ids, columns=[type_n])
+        return {etype: df[df[type_n] == etype] for etype in etypes}
+
     @cached_property
     def extracted_subgraph(self):
         edge_list = self.gdata.get_edge_data(
@@ -323,8 +328,7 @@ class CuGraphStore:
                 self._sg_node_dtype = sg.edgelist.edgelist_df[src_n].dtype
             else:
                 raise ValueError(
-                    f"Source column {src_n} not \
-                                    found in the subgraph"
+                    f"Source column {src_n} not found in the subgraph"
                 )
             return self._sg_node_dtype
 
@@ -377,7 +381,7 @@ class CuGraphStore:
         """
         _g = self.gdata.extract_subgraph(
             create_using=create_using,
-            allow_multi_edges=multigraph,
+            allow_multi_edges=cugraph.MultiGraph,
         )
 
         if nodes is None:
@@ -410,8 +414,7 @@ class CuFeatureStorage:
             )
         if storage_type not in ["edge", "node"]:
             raise NotImplementedError(
-                "Only edge and \
-                                      node storage is supported"
+                "Only edge and node storage is supported"
             )
 
         self.storage_type = storage_type
