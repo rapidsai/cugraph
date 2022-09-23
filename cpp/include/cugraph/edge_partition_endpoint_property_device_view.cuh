@@ -19,7 +19,7 @@
 #include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/utilities/device_functors.cuh>
 
-#include <raft/core/device_span.hpp>
+#include <raft/span.hpp>
 
 #include <thrust/binary_search.h>
 #include <thrust/distance.h>

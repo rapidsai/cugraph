@@ -18,7 +18,7 @@
 #include <cugraph/edge_partition_view.hpp>
 #include <cugraph/utilities/error.hpp>
 
-#include <raft/core/device_span.hpp>
+#include <raft/span.hpp>
 #include <rmm/cuda_stream_view.hpp>
 #include <rmm/device_uvector.hpp>
 #include <rmm/exec_policy.hpp>

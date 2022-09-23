@@ -19,8 +19,8 @@
 #include <cugraph/utilities/thrust_tuple_utils.hpp>
 
 #include <raft/comms/comms.hpp>
-#include <raft/core/device_span.hpp>
 #include <raft/device_atomics.cuh>
+#include <raft/span.hpp>
 
 #include <cub/cub.cuh>
 #include <thrust/detail/type_traits/iterator/is_discard_iterator.h>

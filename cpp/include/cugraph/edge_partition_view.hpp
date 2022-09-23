@@ -15,7 +15,7 @@
  */
 #pragma once
 
-#include <raft/core/device_span.hpp>
+#include <raft/span.hpp>
 
 #include <optional>
 #include <type_traits>
