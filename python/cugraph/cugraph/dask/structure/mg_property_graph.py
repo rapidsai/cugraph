@@ -256,8 +256,8 @@ class EXPERIMENTAL__MGPropertyGraph:
             vert_sers = self.__get_all_vertices_series()
             if vert_sers:
                 if self.__series_type is dask_cudf.Series:
-                    print([(x,x.dtype) for x in vert_sers])
-                    vert_count = dask_cudf.concat(vert_sers).nunique()
+                    vert_count = dask_cudf.concat(
+                        vert_sers, ignore_index=True).nunique()
                     self.__num_vertices = vert_count.compute()
             return self.__num_vertices
 
@@ -306,7 +306,9 @@ class EXPERIMENTAL__MGPropertyGraph:
         vert_sers = self.__get_all_vertices_series()
         if vert_sers:
             if self.__series_type is dask_cudf.Series:
-                return self.__series_type(dask_cudf.concat(vert_sers).unique())
+                return self.__series_type(
+                    dask_cudf.concat(vert_sers, ignore_index=True).unique()
+                )
             else:
                 raise TypeError("dataframe must be a CUDF Dask dataframe.")
         return self.__series_type()
@@ -1051,6 +1053,20 @@ class EXPERIMENTAL__MGPropertyGraph:
         if epd is not None:
             vert_sers.append(epd[self.src_col_name])
             vert_sers.append(epd[self.dst_col_name])
+        # `dask_cudf.concat` doesn't work when the index dtypes are different
+        # See: https://github.com/rapidsai/cudf/issues/11741
+        if len(vert_sers) > 1 and not all(
+            cudf.api.types.is_dtype_equal(
+                vert_sers[0].index.dtype, s.index.dtype
+            )
+            for s in vert_sers
+        ):
+            # Cast all to int64
+            first, *rest = vert_sers
+            dtype = first.index.dtype
+            for s in rest:
+                if s.index.dtype != dtype:
+                    s.index = s.index.astype(dtype)
         return vert_sers
 
     @staticmethod
