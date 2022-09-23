@@ -20,8 +20,8 @@
 #include <cugraph/utilities/dataframe_buffer.hpp>
 #include <cugraph/utilities/device_comm.hpp>
 
+#include <raft/core/device_span.hpp>
 #include <raft/handle.hpp>
-#include <raft/span.hpp>
 
 #include <rmm/device_uvector.hpp>
 #include <rmm/exec_policy.hpp>
