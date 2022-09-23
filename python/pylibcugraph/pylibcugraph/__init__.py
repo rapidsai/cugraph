@@ -46,3 +46,5 @@ from pylibcugraph.bfs import bfs
 from pylibcugraph.uniform_neighbor_sample import uniform_neighbor_sample
 
 from pylibcugraph.core_number import core_number
+
+from pylibcugraph.triangle_count import triangle_count

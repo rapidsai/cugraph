@@ -58,7 +58,6 @@ if(NOT cugraph_FOUND)
   install(TARGETS cugraph DESTINATION cugraph/library)
 endif()
 
-
 include(rapids-cython)
 rapids_cython_init()
 

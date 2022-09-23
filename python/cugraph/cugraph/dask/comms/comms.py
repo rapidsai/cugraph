@@ -25,7 +25,7 @@ except ImportError as err:
         get_raft_comm_state = MissingUCXPy()
     else:
         raise
-from raft.common.handle import Handle
+from pylibraft.common.handle import Handle
 from cugraph.dask.comms.comms_wrapper import init_subcomms as c_init_subcomms
 from dask.distributed import default_client
 from cugraph.dask.common import read_utils

@@ -235,12 +235,12 @@ def edge_betweenness_centrality(
     --------
     >>> from cugraph.experimental.datasets import karate
     >>> G = karate.get_graph(fetch=True)
-    >>> bc = cugraph.betweenness_centrality(G)
+    >>> bc = cugraph.edge_betweenness_centrality(G)
 
     """
     if weight is not None:
         raise NotImplementedError(
-            "weighted implementation of betweenness "
+            "weighted implementation of edge betweenness "
             "centrality not currently supported"
         )
     if result_dtype not in [np.float32, np.float64]:

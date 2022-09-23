@@ -23,7 +23,7 @@ from libcpp.vector cimport vector
 
 from rmm._lib.device_buffer cimport device_buffer
 
-from raft.common.handle cimport handle_t
+from pylibraft.common.handle cimport handle_t
 
 
 # C++ graph utilities

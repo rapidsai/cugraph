@@ -24,9 +24,12 @@
 //
 #include <cugraph/visitors/graph_envelope.hpp>
 
+#include <raft/core/device_span.hpp>
+#include <raft/core/host_span.hpp>
 #include <raft/handle.hpp>
-#include <raft/span.hpp>
 #include <rmm/device_uvector.hpp>
+
+#include <cugraph/graph_mask.hpp>
 
 #include <algorithm>
 #include <cassert>
@@ -334,8 +337,8 @@ struct graph_view_meta_t<vertex_t,
 
   partition_t<vertex_t> partition{};
 
-  // segment offsets based on vertex degree, relevant only if vertex IDs are renumbered
-  std::optional<std::vector<vertex_t>> edge_partition_segment_offsets{};
+  // segment offsets based on vertex degree
+  std::vector<vertex_t> edge_partition_segment_offsets{};
 
   std::conditional_t<store_transposed,
                      std::optional<raft::device_span<vertex_t const>>,
@@ -584,27 +587,21 @@ class graph_view_t<vertex_t,
 
   bool use_dcs() const
   {
-    if (edge_partition_segment_offsets_) {
-      auto size_per_partition =
-        (*edge_partition_segment_offsets_).size() / edge_partition_offsets_.size();
-      return size_per_partition > (detail::num_sparse_segments_per_vertex_partition + size_t{2});
-    } else {
-      return false;
-    }
+    auto num_segments_per_vertex_partition =
+      edge_partition_segment_offsets_.size() / edge_partition_offsets_.size();
+    return num_segments_per_vertex_partition >
+           (detail::num_sparse_segments_per_vertex_partition + size_t{2});
   }
 
   std::optional<std::vector<vertex_t>> local_edge_partition_segment_offsets(
     size_t partition_idx) const
   {
-    if (edge_partition_segment_offsets_) {
-      auto size_per_partition =
-        (*edge_partition_segment_offsets_).size() / edge_partition_offsets_.size();
-      return std::vector<vertex_t>(
-        (*edge_partition_segment_offsets_).begin() + partition_idx * size_per_partition,
-        (*edge_partition_segment_offsets_).begin() + (partition_idx + 1) * size_per_partition);
-    } else {
-      return std::nullopt;
-    }
+    auto num_segments_per_vertex_partition =
+      edge_partition_segment_offsets_.size() / edge_partition_offsets_.size();
+    return std::vector<vertex_t>(
+      edge_partition_segment_offsets_.begin() + partition_idx * num_segments_per_vertex_partition,
+      edge_partition_segment_offsets_.begin() +
+        (partition_idx + 1) * num_segments_per_vertex_partition);
   }
 
   vertex_partition_view_t<vertex_t, true> local_vertex_partition_view() const
@@ -797,8 +794,8 @@ class graph_view_t<vertex_t,
 
   partition_t<vertex_t> partition_{};
 
-  // segment offsets based on vertex degree, relevant only if vertex IDs are renumbered
-  std::optional<std::vector<vertex_t>> edge_partition_segment_offsets_{};
+  // segment offsets based on vertex degree
+  std::vector<vertex_t> edge_partition_segment_offsets_{};
 
   // if valid, store source/destination property values in key/value pairs (this saves memory if #
   // unique edge sources/destinations << V / row_comm_size|col_comm_size).
