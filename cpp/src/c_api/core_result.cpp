@@ -18,6 +18,39 @@
 
 #include <c_api/core_result.hpp>
 
+extern "C" cugraph_error_code_t cugraph_core_result_create(
+  const cugraph_resource_handle_t* handle,
+  cugraph_type_erased_device_array_view_t* vertices,
+  cugraph_type_erased_device_array_view_t* core_numbers,
+  cugraph_core_result_t** core_result,
+  cugraph_error_t** error)
+{
+  cugraph_error_code_t error_code{CUGRAPH_SUCCESS};
+
+  cugraph::c_api::cugraph_type_erased_device_array_t* vertices_copy;
+  cugraph::c_api::cugraph_type_erased_device_array_t* core_numbers_copy;
+
+  error_code = cugraph_type_erased_device_array_create_from_view(
+    handle,
+    vertices,
+    reinterpret_cast<cugraph_type_erased_device_array_t**>(&vertices_copy),
+    error);
+  if (error_code == CUGRAPH_SUCCESS) {
+    error_code = cugraph_type_erased_device_array_create_from_view(
+      handle,
+      core_numbers,
+      reinterpret_cast<cugraph_type_erased_device_array_t**>(&core_numbers_copy),
+      error);
+
+    if (error_code == CUGRAPH_SUCCESS) {
+      auto internal_pointer =
+        new cugraph::c_api::cugraph_core_result_t{vertices_copy, core_numbers_copy};
+      *core_result = reinterpret_cast<cugraph_core_result_t*>(internal_pointer);
+    }
+  }
+  return error_code;
+}
+
 extern "C" cugraph_type_erased_device_array_view_t* cugraph_core_result_get_vertices(
   cugraph_core_result_t* result)
 {

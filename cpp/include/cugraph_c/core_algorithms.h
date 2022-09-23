@@ -40,6 +40,24 @@ typedef struct {
 } cugraph_k_core_result_t;
 
 /**
+ * @brief       Create a core_number result (in case it was previously extracted)
+ *
+ * @param [in]  handle       Handle for accessing resources
+ * @param [in]  vertices     The result from core number
+ * @param [in]  core_numbers The result from core number
+ * @param [out] result       Opaque pointer to core number results
+ * @param [out] error        Pointer to an error object storing details of any error.  Will
+ *                           be populated if error code is not CUGRAPH_SUCCESS
+ * @return error code
+ */
+cugraph_error_code_t cugraph_core_result_create(
+  const cugraph_resource_handle_t* handle,
+  cugraph_type_erased_device_array_view_t* vertices,
+  cugraph_type_erased_device_array_view_t* core_numbers,
+  cugraph_core_result_t** core_result,
+  cugraph_error_t** error);
+
+/**
  * @brief       Get the vertex ids from the core result
  *
  * @param [in]     result   The result from core number
