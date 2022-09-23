@@ -19,8 +19,9 @@
 #include <cugraph/utilities/dataframe_buffer.hpp>
 #include <cugraph/utilities/thrust_tuple_utils.hpp>
 
-#include <raft/handle.hpp>
-#include <raft/span.hpp>
+#include <raft/core/device_span.hpp>
+#include <raft/core/handle.hpp>
+#include <raft/core/host_span.hpp>
 
 #include <thrust/iterator/iterator_traits.h>
 #include <thrust/iterator/zip_iterator.h>

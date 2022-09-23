@@ -28,9 +28,9 @@
 #include <cugraph-ops/graph/sampling.hpp>
 #endif
 
+#include <raft/core/device_span.hpp>
 #include <raft/handle.hpp>
 #include <raft/random/rng_state.hpp>
-#include <raft/span.hpp>
 
 /** @ingroup cpp_api
  *  @{

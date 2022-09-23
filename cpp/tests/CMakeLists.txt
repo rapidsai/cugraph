@@ -265,6 +265,10 @@ ConfigureTest(GENERATE_RMAT_TEST generators/generate_rmat_test.cpp)
 ConfigureTest(GRAPH_TEST structure/graph_test.cpp)
 
 ###################################################################################################
+# - Graph mask tests -----------------------------------------------------------------------------------
+ConfigureTest(GRAPH_MASK_TEST structure/graph_mask_test.cpp)
+
+###################################################################################################
 # - Symmetrize tests ------------------------------------------------------------------------------
 ConfigureTest(SYMMETRIZE_TEST structure/symmetrize_test.cpp)
 
@@ -336,12 +340,12 @@ ConfigureTest(WEAKLY_CONNECTED_COMPONENTS_TEST components/weakly_connected_compo
 
 ###################################################################################################
 # - Legacy RANDOM_WALKS tests ----------------------------------------------------------------------------
-ConfigureTest(LEGACY_RANDOM_WALKS_TEST sampling/random_walks_test.cu)
+#ConfigureTest(LEGACY_RANDOM_WALKS_TEST sampling/random_walks_test.cu)
 
 ###################################################################################################
 # - RANDOM_WALKS tests ----------------------------------------------------------------------------
 #  FIXME: Rename to random_walks_test.cu once the legacy implementation is deleted
-ConfigureTest(RANDOM_WALKS_TEST sampling/sg_random_walks_test.cpp)
+#ConfigureTest(RANDOM_WALKS_TEST sampling/sg_random_walks_test.cpp)
 
 ###################################################################################################
 ConfigureTest(RANDOM_WALKS_LOW_LEVEL_TEST sampling/rw_low_level_test.cu)
@@ -557,7 +561,7 @@ if(BUILD_CUGRAPH_MG_TESTS)
 
     ###########################################################################################
     # - RANDOM_WALKS tests --------------------------------------------------------------------
-    ConfigureTestMG(MG_RANDOM_WALKS_TEST sampling/mg_random_walks_test.cpp)
+#    ConfigureTestMG(MG_RANDOM_WALKS_TEST sampling/mg_random_walks_test.cpp)
 
     ###########################################################################################
     # - MG C API tests ------------------------------------------------------------------------

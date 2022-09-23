@@ -24,9 +24,12 @@
 //
 #include <cugraph/visitors/graph_envelope.hpp>
 
+#include <raft/core/device_span.hpp>
+#include <raft/core/host_span.hpp>
 #include <raft/handle.hpp>
-#include <raft/span.hpp>
 #include <rmm/device_uvector.hpp>
+
+#include <cugraph/graph_mask.hpp>
 
 #include <algorithm>
 #include <cassert>
