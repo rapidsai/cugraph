@@ -107,6 +107,51 @@ def test_triangles(input_combo):
     assert len(counts_diff) == 0
 
 
+def test_triangles_int64(input_combo):
+    Gnx = input_combo["Gnx"]
+    count_legacy_32 = cugraph.triangle_count(Gnx)
+
+    graph_files = input_combo["graph_file"]
+    gdf = cudf.read_csv(graph_files,
+                        delimiter=' ',
+                        dtype=['int64', 'int64', 'float32'],
+                        header=None)
+    G = cugraph.Graph()
+    G.from_cudf_edgelist(gdf, source='0', destination='1', edge_attr='2')
+
+    count_exp_64 = cugraph.triangle_count(G).sort_values(
+                "vertex").reset_index(drop=True).rename(columns={
+                    "counts": "exp_cugraph_counts"})
+    cugraph_exp_triangle_results = \
+        count_exp_64["exp_cugraph_counts"].sum()
+    assert G.edgelist.edgelist_df['src'].dtype == 'int64'
+    assert G.edgelist.edgelist_df['dst'].dtype == 'int64'
+    assert cugraph_exp_triangle_results == count_legacy_32
+
+
+def test_triangles_no_weights(input_combo):
+    G_weighted = input_combo["Gnx"]
+    count_legacy = cugraph.triangle_count(G_weighted).sort_values(
+                "vertex").reset_index(drop=True).rename(columns={
+                    "counts": "exp_cugraph_counts"})
+
+    graph_files = input_combo["graph_file"]
+    gdf = cudf.read_csv(graph_files,
+                        delimiter=' ',
+                        dtype=['int32', 'int32', 'float64'],
+                        header=None)
+    G = cugraph.Graph()
+    gdf = gdf.drop('2', axis=1)
+    G.from_cudf_edgelist(gdf, source='0', destination='1')
+    assert (G.is_weighted() is False)
+    triangle_count = cugraph.triangle_count(G).sort_values(
+                "vertex").reset_index(drop=True).rename(columns={
+                    "counts": "exp_cugraph_counts"})
+    cugraph_exp_triangle_results = \
+        triangle_count["exp_cugraph_counts"].sum()
+    assert cugraph_exp_triangle_results == count_legacy
+
+
 def test_triangles_directed_graph():
     input_data_path = (utils.RAPIDS_DATASET_ROOT_DIR_PATH /
                        "karate-asymmetric.csv").as_posix()
