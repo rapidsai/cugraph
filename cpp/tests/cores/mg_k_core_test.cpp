@@ -142,13 +142,14 @@ class Tests_KCore : public ::testing::TestWithParam<std::tuple<KCore_Usecase, in
       hr_clock.start();
     }
 
+    raft::device_span<edge_t const> core_number_span{d_core_numbers.data(), d_core_numbers.size()};
+
 #if 0
     auto subgraph = cugraph::k_core(
-      handle, graph_view, k_core_usecase.k, {d_core_numbers.data(), d_core_numbers.size()});
+      handle, graph_view, k_core_usecase.k, std::make_optional(core_number_span));
 #else
     EXPECT_THROW(
-      cugraph::k_core(
-        handle, graph_view, k_core_usecase.k, {d_core_numbers.data(), d_core_numbers.size()}),
+      cugraph::k_core(handle, graph_view, k_core_usecase.k, std::make_optional(core_number_span)),
       cugraph::logic_error);
 #endif
 
