@@ -33,6 +33,13 @@ with warnings.catch_warnings():
 print("Networkx version : {} ".format(nx.__version__))
 
 
+# =============================================================================
+# Pytest Setup / Teardown - called for each test function
+# =============================================================================
+def setup_function():
+    gc.collect()
+
+
 def calc_k_cores(graph_file, directed=True):
     # directed is used to create either a Graph or DiGraph so the returned
     # cugraph can be compared to nx graph of same type.
@@ -66,7 +73,6 @@ def compare_edges(cg, nxg):
 
 @pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
 def test_k_core_Graph(graph_file):
-    gc.collect()
 
     cu_kcore, nx_kcore = calc_k_cores(graph_file, False)
 
@@ -75,7 +81,6 @@ def test_k_core_Graph(graph_file):
 
 @pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
 def test_k_core_Graph_nx(graph_file):
-    gc.collect()
 
     NM = utils.read_csv_for_nx(graph_file)
     Gnx = nx.from_pandas_edgelist(
@@ -89,7 +94,6 @@ def test_k_core_Graph_nx(graph_file):
 
 @pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
 def test_k_core_corenumber_multicolumn(graph_file):
-    gc.collect()
 
     cu_M = utils.read_csv_file(graph_file)
     cu_M.rename(columns={'0': 'src_0', '1': 'dst_0'}, inplace=True)
