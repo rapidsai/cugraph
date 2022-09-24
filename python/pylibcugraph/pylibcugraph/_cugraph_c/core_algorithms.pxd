@@ -72,17 +72,17 @@ cdef extern from "cugraph_c/core_algorithms.h":
     ctypedef struct cugraph_k_core_result_t:
         pass
 
-    ctypedef cugraph_type_erased_device_array_view_t* \
+    cdef cugraph_type_erased_device_array_view_t* \
         cugraph_core_result_get_src_vertices(
             cugraph_k_core_result_t* result
         )
     
-    ctypedef cugraph_type_erased_device_array_view_t* \
+    cdef cugraph_type_erased_device_array_view_t* \
         cugraph_core_result_get_dst_vertices(
             cugraph_k_core_result_t* result
         )
     
-    ctypedef cugraph_type_erased_device_array_view_t* \
+    cdef cugraph_type_erased_device_array_view_t* \
         cugraph_core_result_get_weights(
             cugraph_k_core_result_t* result
         )
