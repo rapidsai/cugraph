@@ -188,6 +188,8 @@ else
         TEST_MODE_FLAG=""
     fi
 
+    NOTEBOOK_TEST_MODE="ci"
+
     gpuci_logger "Running cuGraph test.sh..."
     if [[ $run_cpp_tests == "true" ]]; then
         ${WORKSPACE}/ci/test.sh ${TEST_MODE_FLAG} --run-cpp-tests --run-python-tests | tee testoutput.txt
@@ -200,7 +202,7 @@ else
 
     if [[ $run_nb_tests == "true" ]]; then
         gpuci_logger "Running cuGraph notebook test script..."
-        ${WORKSPACE}/ci/gpu/test-notebooks.sh 2>&1 | tee nbtest.log
+        ${WORKSPACE}/ci/gpu/test-notebooks.sh ${NOTEBOOK_TEST_MODE} 2>&1 | tee nbtest.log
         gpuci_logger "Ran cuGraph notebook test script : return code was: $?, gpu/build.sh exit code is now: $EXITCODE"
         python ${WORKSPACE}/ci/utils/nbtestlog2junitxml.py nbtest.log
     fi

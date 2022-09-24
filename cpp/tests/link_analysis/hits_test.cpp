@@ -219,14 +219,10 @@ class Tests_Hits : public ::testing::TestWithParam<std::tuple<Hits_Usecase, inpu
         cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, false>(
           handle, input_usecase, false, false);
       auto unrenumbered_graph_view = unrenumbered_graph.view();
-      auto offsets =
-        cugraph::test::to_host(handle,
-                               unrenumbered_graph_view.local_edge_partition_view().offsets(),
-                               unrenumbered_graph_view.number_of_vertices() + 1);
-      auto indices =
-        cugraph::test::to_host(handle,
-                               unrenumbered_graph_view.local_edge_partition_view().indices(),
-                               unrenumbered_graph_view.number_of_edges());
+      auto offsets                 = cugraph::test::to_host(
+        handle, unrenumbered_graph_view.local_edge_partition_view().offsets());
+      auto indices = cugraph::test::to_host(
+        handle, unrenumbered_graph_view.local_edge_partition_view().indices());
       auto reference_result = hits_reference<weight_t>(
         offsets.data(),
         indices.data(),
@@ -238,17 +234,14 @@ class Tests_Hits : public ::testing::TestWithParam<std::tuple<Hits_Usecase, inpu
         true,
         tolerance);
 
-      std::vector<weight_t> h_cugraph_hits(d_hubs.size());
+      std::vector<weight_t> h_cugraph_hits{};
       if (renumber) {
         rmm::device_uvector<weight_t> d_unrenumbered_hubs(size_t{0}, handle.get_stream());
         std::tie(std::ignore, d_unrenumbered_hubs) =
           cugraph::test::sort_by_key(handle, *d_renumber_map_labels, d_hubs);
-        raft::update_host(h_cugraph_hits.data(),
-                          d_unrenumbered_hubs.data(),
-                          d_unrenumbered_hubs.size(),
-                          handle.get_stream());
+        h_cugraph_hits = cugraph::test::to_host(handle, d_unrenumbered_hubs);
       } else {
-        raft::update_host(h_cugraph_hits.data(), d_hubs.data(), d_hubs.size(), handle.get_stream());
+        h_cugraph_hits = cugraph::test::to_host(handle, d_hubs);
       }
       handle.sync_stream();
       auto threshold_ratio = 1e-3;

@@ -112,6 +112,7 @@ rmm::device_uvector<vertex_t> shuffle_int_vertices_by_gpu_id(
  * @param[in/out] d_edgelist_minors Vertex IDs for destinations (if we are internally storing edges
  * in the sparse 2D matrix using sources as major indices) or sources (otherwise)
  * @param[in/out] d_edgelist_weights Optional edge weights
+ * @param[in/out] d_edgelist_id_type_pairs Optional edge (ID, type) pairs
  * @param[in] groupby_and_count_local_partition_by_minor If set to true, groupby and count edges
  * based on (local partition ID, GPU ID) pairs (where GPU IDs are computed by applying the
  * compute_gpu_id_from_vertex_t function to the minor vertex ID). If set to false, groupby and count
@@ -121,12 +122,14 @@ rmm::device_uvector<vertex_t> shuffle_int_vertices_by_gpu_id(
  * groupby_and_count_local_partition is false) or in each segment with the same (local partition ID,
  * GPU ID) pair.
  */
-template <typename vertex_t, typename weight_t>
+template <typename vertex_t, typename edge_t, typename weight_t, typename edge_type_t>
 rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partition_id(
   raft::handle_t const& handle,
   rmm::device_uvector<vertex_t>& d_edgelist_majors,
   rmm::device_uvector<vertex_t>& d_edgelist_minors,
   std::optional<rmm::device_uvector<weight_t>>& d_edgelist_weights,
+  std::optional<std::tuple<rmm::device_uvector<edge_t>, rmm::device_uvector<edge_type_t>>>&
+    d_edgelist_id_type_pairs,
   bool groupby_and_count_local_partition_by_minor = false);
 
 /**

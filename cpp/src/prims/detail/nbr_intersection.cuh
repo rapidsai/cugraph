@@ -15,6 +15,7 @@
  */
 #pragma once
 
+#include <cugraph/graph.hpp>
 #include <cugraph/partition_manager.hpp>
 #include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/host_scalar_comm.hpp>
@@ -22,8 +23,8 @@
 #include <cugraph/utilities/thrust_tuple_utils.hpp>
 
 #include <cuco/static_map.cuh>
+#include <raft/core/device_span.hpp>
 #include <raft/handle.hpp>
-#include <raft/span.hpp>
 #include <rmm/device_uvector.hpp>
 #include <rmm/mr/device/polymorphic_allocator.hpp>
 

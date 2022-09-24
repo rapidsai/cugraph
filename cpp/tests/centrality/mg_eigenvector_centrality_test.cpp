@@ -157,19 +157,10 @@ class Tests_MGEigenvectorCentrality
           cugraph::test::sort_by_key(*handle_, *d_sg_renumber_map_labels, d_sg_centralities);
 
         // 3-5. compare
-        std::vector<weight_t> h_mg_aggregate_centralities(mg_graph_view.number_of_vertices());
-        raft::update_host(h_mg_aggregate_centralities.data(),
-                          d_mg_aggregate_centralities.data(),
-                          d_mg_aggregate_centralities.size(),
-                          handle_->get_stream());
 
-        std::vector<weight_t> h_sg_centralities(sg_graph_view.number_of_vertices());
-        raft::update_host(h_sg_centralities.data(),
-                          d_sg_centralities.data(),
-                          d_sg_centralities.size(),
-                          handle_->get_stream());
-
-        handle_->sync_stream();
+        auto h_mg_aggregate_centralities =
+          cugraph::test::to_host(*handle_, d_mg_aggregate_centralities);
+        auto h_sg_centralities = cugraph::test::to_host(*handle_, d_sg_centralities);
 
         auto max_centrality =
           *std::max_element(h_mg_aggregate_centralities.begin(), h_mg_aggregate_centralities.end());

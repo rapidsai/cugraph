@@ -18,8 +18,8 @@
 #include <cugraph/graph_view.hpp>
 #include <cugraph/utilities/error.hpp>
 
+#include <raft/core/device_span.hpp>
 #include <raft/handle.hpp>
-#include <raft/span.hpp>
 #include <rmm/device_uvector.hpp>
 
 #include <cstddef>
@@ -36,10 +36,9 @@ namespace cugraph {
 
 template <typename vertex_t, typename edge_t, typename weight_t>
 struct edgelist_t {
-  vertex_t const* p_src_vertices{nullptr};
-  vertex_t const* p_dst_vertices{nullptr};
-  std::optional<weight_t const*> p_edge_weights{std::nullopt};
-  edge_t number_of_edges{0};
+  raft::device_span<vertex_t const> srcs{};
+  raft::device_span<vertex_t const> dsts{};
+  std::optional<raft::device_span<weight_t const>> weights{};
 };
 
 template <typename vertex_t, typename edge_t, bool multi_gpu, typename Enable = void>
@@ -54,8 +53,7 @@ struct graph_meta_t<vertex_t, edge_t, multi_gpu, std::enable_if_t<multi_gpu>> {
 
   partition_t<vertex_t> partition{};
 
-  // segment offsets based on vertex degree, relevant only if vertex IDs are renumbered
-  std::optional<std::vector<vertex_t>> segment_offsets{std::nullopt};
+  std::vector<vertex_t> edge_partition_segment_offsets{};
 
   vertex_t num_local_unique_edge_srcs{};
   vertex_t num_local_unique_edge_dsts{};
@@ -97,17 +95,20 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
 
   graph_t(raft::handle_t const& handle) : detail::graph_base_t<vertex_t, edge_t, weight_t>() {}
 
+  // FIXME: to be deleted once we retire cython.cu
   graph_t(raft::handle_t const& handle,
           std::vector<edgelist_t<vertex_t, edge_t, weight_t>> const& edgelists,
           graph_meta_t<vertex_t, edge_t, multi_gpu> meta,
           bool do_expensive_check = false);
 
-  graph_t(raft::handle_t const& handle,
-          std::vector<rmm::device_uvector<vertex_t>>&& edgelist_src_partitions,
-          std::vector<rmm::device_uvector<vertex_t>>&& edgelist_dst_partitions,
-          std::optional<std::vector<rmm::device_uvector<weight_t>>>&& edge_weight_partitions,
-          graph_meta_t<vertex_t, edge_t, multi_gpu> meta,
-          bool do_expensive_check = false);
+  graph_t(
+    raft::handle_t const& handle,
+    std::vector<rmm::device_uvector<edge_t>>&& edge_partition_offsets,
+    std::vector<rmm::device_uvector<vertex_t>>&& edge_partition_indices,
+    std::optional<std::vector<rmm::device_uvector<weight_t>>>&& edge_partition_weights,
+    std::optional<std::vector<rmm::device_uvector<vertex_t>>>&& edge_partition_dcs_nzd_vertices,
+    graph_meta_t<vertex_t, edge_t, multi_gpu> meta,
+    bool do_expensive_check = false);
 
   /**
    * @brief Symmetrize this graph.
@@ -305,15 +306,14 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
   std::vector<rmm::device_uvector<vertex_t>> edge_partition_indices_{};
   std::optional<std::vector<rmm::device_uvector<weight_t>>> edge_partition_weights_{std::nullopt};
 
-  // nzd: nonzero (local) degree, relevant only if segment_offsets.size() > 0
+  // nzd: nonzero (local) degree
   std::optional<std::vector<rmm::device_uvector<vertex_t>>> edge_partition_dcs_nzd_vertices_{
     std::nullopt};
   std::optional<std::vector<vertex_t>> edge_partition_dcs_nzd_vertex_counts_{std::nullopt};
   partition_t<vertex_t> partition_{};
 
-  // segment offsets within the vertex partition based on vertex degree, relevant only if
-  // segment_offsets.size() > 0
-  std::optional<std::vector<vertex_t>> edge_partition_segment_offsets_{std::nullopt};
+  // segment offsets within the vertex partition based on vertex degree
+  std::vector<vertex_t> edge_partition_segment_offsets_{};
 
   // if valid, store row/column properties in key/value pairs (this saves memory if # unique edge
   // rows/cols << V / row_comm_size|col_comm_size).
@@ -367,15 +367,16 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
       offsets_(0, handle.get_stream()),
       indices_(0, handle.get_stream()){};
 
+  // FIXME: to be deleted once we retire cython.cu
   graph_t(raft::handle_t const& handle,
           edgelist_t<vertex_t, edge_t, weight_t> const& edgelist,
           graph_meta_t<vertex_t, edge_t, multi_gpu> meta,
           bool do_expensive_check = false);
 
   graph_t(raft::handle_t const& handle,
-          rmm::device_uvector<vertex_t>&& edgelist_srcs,
-          rmm::device_uvector<vertex_t>&& edgelist_dsts,
-          std::optional<rmm::device_uvector<weight_t>>&& edgelist_weights,
+          rmm::device_uvector<edge_t>&& offsets,
+          rmm::device_uvector<vertex_t>&& indices,
+          std::optional<rmm::device_uvector<weight_t>>&& weights,
           graph_meta_t<vertex_t, edge_t, multi_gpu> meta,
           bool do_expensive_check = false);
 

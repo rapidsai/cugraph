@@ -248,7 +248,7 @@ class Tests_MGTransformReduceVFrontierOutgoingEByDst
     auto mg_new_frontier_key_buffer =
       cugraph::allocate_dataframe_buffer<key_t>(0, handle_->get_stream());
     [[maybe_unused]] auto mg_payload_buffer =
-      cugraph::detail::allocate_optional_payload_buffer<payload_t>(0, handle_->get_stream());
+      cugraph::detail::allocate_optional_dataframe_buffer<payload_t>(0, handle_->get_stream());
 
     if constexpr (std::is_same_v<payload_t, void>) {
       mg_new_frontier_key_buffer = cugraph::transform_reduce_v_frontier_outgoing_e_by_dst(
@@ -303,7 +303,7 @@ class Tests_MGTransformReduceVFrontierOutgoingEByDst
       }
 
       [[maybe_unused]] auto mg_aggregate_payload_buffer =
-        cugraph::detail::allocate_optional_payload_buffer<payload_t>(0, handle_->get_stream());
+        cugraph::detail::allocate_optional_dataframe_buffer<payload_t>(0, handle_->get_stream());
       if constexpr (!std::is_same_v<payload_t, void>) {
         if constexpr (std::is_arithmetic_v<payload_t>) {
           mg_aggregate_payload_buffer = cugraph::test::device_gatherv(
@@ -402,7 +402,7 @@ class Tests_MGTransformReduceVFrontierOutgoingEByDst
         auto sg_new_frontier_key_buffer =
           cugraph::allocate_dataframe_buffer<key_t>(0, handle_->get_stream());
         [[maybe_unused]] auto sg_payload_buffer =
-          cugraph::detail::allocate_optional_payload_buffer<payload_t>(0, handle_->get_stream());
+          cugraph::detail::allocate_optional_dataframe_buffer<payload_t>(0, handle_->get_stream());
         if constexpr (std::is_same_v<payload_t, void>) {
           sg_new_frontier_key_buffer = cugraph::transform_reduce_v_frontier_outgoing_e_by_dst(
             *handle_,

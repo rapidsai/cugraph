@@ -92,22 +92,12 @@ class Tests_WeightSum : public ::testing::TestWithParam<WeightSum_Usecase> {
         handle, configuration.graph_file_full_path, true, false);
     auto graph_view = graph.view();
 
-    std::vector<edge_t> h_offsets(graph_view.number_of_vertices() + 1);
-    std::vector<vertex_t> h_indices(graph_view.number_of_edges());
-    std::vector<weight_t> h_weights(graph_view.number_of_edges());
-    raft::update_host(h_offsets.data(),
-                      graph_view.local_edge_partition_view().offsets(),
-                      graph_view.number_of_vertices() + 1,
-                      handle.get_stream());
-    raft::update_host(h_indices.data(),
-                      graph_view.local_edge_partition_view().indices(),
-                      graph_view.number_of_edges(),
-                      handle.get_stream());
-    raft::update_host(h_weights.data(),
-                      *(graph_view.local_edge_partition_view().weights()),
-                      graph_view.number_of_edges(),
-                      handle.get_stream());
-    handle.sync_stream();
+    auto h_offsets =
+      cugraph::test::to_host(handle, graph_view.local_edge_partition_view().offsets());
+    auto h_indices =
+      cugraph::test::to_host(handle, graph_view.local_edge_partition_view().indices());
+    auto h_weights =
+      cugraph::test::to_host(handle, *(graph_view.local_edge_partition_view().weights()));
 
     std::vector<weight_t> h_reference_in_weight_sums(graph_view.number_of_vertices());
     std::vector<weight_t> h_reference_out_weight_sums(graph_view.number_of_vertices());
@@ -133,18 +123,8 @@ class Tests_WeightSum : public ::testing::TestWithParam<WeightSum_Usecase> {
 
     RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
 
-    std::vector<weight_t> h_cugraph_in_weight_sums(graph_view.number_of_vertices());
-    std::vector<weight_t> h_cugraph_out_weight_sums(graph_view.number_of_vertices());
-
-    raft::update_host(h_cugraph_in_weight_sums.data(),
-                      d_in_weight_sums.data(),
-                      d_in_weight_sums.size(),
-                      handle.get_stream());
-    raft::update_host(h_cugraph_out_weight_sums.data(),
-                      d_out_weight_sums.data(),
-                      d_out_weight_sums.size(),
-                      handle.get_stream());
-    handle.sync_stream();
+    auto h_cugraph_in_weight_sums  = cugraph::test::to_host(handle, d_in_weight_sums);
+    auto h_cugraph_out_weight_sums = cugraph::test::to_host(handle, d_out_weight_sums);
 
     auto threshold_ratio     = weight_t{1e-4};
     auto threshold_magnitude = std::numeric_limits<weight_t>::min();
