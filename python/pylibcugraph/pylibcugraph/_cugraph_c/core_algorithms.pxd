@@ -66,3 +66,39 @@ cdef extern from "cugraph_c/core_algorithms.h":
             cugraph_core_result_t** result,
             cugraph_error_t** error
         )
+    
+    ###########################################################################
+    # k-core
+    ctypedef struct cugraph_k_core_result_t:
+        pass
+
+    ctypedef cugraph_type_erased_device_array_view_t* \
+        cugraph_core_result_get_src_vertices(
+            cugraph_k_core_result_t* result
+        )
+    
+    ctypedef cugraph_type_erased_device_array_view_t* \
+        cugraph_core_result_get_dst_vertices(
+            cugraph_k_core_result_t* result
+        )
+    
+    ctypedef cugraph_type_erased_device_array_view_t* \
+        cugraph_core_result_get_weights(
+            cugraph_k_core_result_t* result
+        )
+    
+    cdef void \
+        cugraph_k_core_result_free(
+            cugraph_core_result_t* result
+        )
+    
+    cdef cugraph_error_code_t \
+        cugraph_k_core(
+            const cugraph_resource_handle_t* handle,
+            cugraph_graph_t* graph,
+            size_t k,
+            cugraph_core_result_t** core_result,
+            bool_t do_expensive_check,
+            cugraph_k_core_result_t** result,
+            cugraph_error_t** error
+        )
