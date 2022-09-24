@@ -40,12 +40,11 @@ fixture_params = utils.genFixtureParamsProduct((datasets, "graph_file"),
 
 
 def compare_edges(k_core_results, expected_k_core_results):
-    k_core_df = k_core_results.view_edge_list().sort_values("src").\
-        reset_index(drop=True)
+    k_core_df = k_core_results.view_edge_list()
 
     expected_k_core_df = expected_k_core_results.view_edge_list().compute(). \
         sort_values("src").reset_index(drop=True)
-    
+
     """
     k_core_df = k_core_df[["src", "dst"]].sort_values("src").\
         reset_index(drop=True).rename(
@@ -80,20 +79,20 @@ def input_expected_output(dask_client, input_combo):
     input_data_path = input_combo["graph_file"]
     G = utils.generate_cugraph_graph_from_file(
         input_data_path, directed=False, edgevals=True)
-    
+
     if core_number:
         # compute the core_number
         core_number = cugraph.core_number(G)
     else:
         core_number = None
 
-    imput_combo["core_number"] = core_number
+    input_combo["core_number"] = core_number
 
     input_combo["SGGraph"] = G
 
     sg_k_core_results = cugraph.k_core(G, core_number)
-    sg_core_number_results = sg_core_number_results.sort_values(
-        "vertex").reset_index(drop=True)
+    sg_k_core_results = sg_k_core_results.sort_values(
+        "src").reset_index(drop=True)
 
     input_combo["sg_k_core_results"] = sg_k_core_results
 
@@ -122,12 +121,12 @@ def input_expected_output(dask_client, input_combo):
 # =============================================================================
 def test_sg_k_core(dask_client, benchmark, input_expected_output):
     # This test is only for benchmark purposes.
-    sg_core_number_results = None
+    sg_k_core = None
     G = input_expected_output["SGGraph"]
     core_number = input_expected_output["core_number"]
 
     sg_k_core = benchmark(cugraph.k_core, G, core_number)
-    assert sg_core_number_results is not None
+    assert sg_k_core is not None
 
 
 def test_k_core(dask_client, benchmark, input_expected_output):

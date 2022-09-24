@@ -11,29 +11,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from cugraph.cores import k_core_wrapper
 import cudf
-from pylibcugraph import (core_number as pylibcugraph_core_number,
+from pylibcugraph import (core_number as pylibcugraph_k_core,
                           ResourceHandle
                           )
 from cugraph.utilities import (ensure_cugraph_obj_for_nx,
                                cugraph_to_nx,
                                )
-
-
-def _call_plc_core_number(G):
-    vertex, core_number = \
-        pylibcugraph_core_number(
-            resource_handle=ResourceHandle(),
-            graph=G._plc_graph,
-            degree_type=None,
-            do_expensive_check=False
-        )
-
-    df = cudf.DataFrame()
-    df["vertex"] = vertex
-    df["core_number"] = core_number
-    return df
 
 
 def k_core(G, k=None, core_number=None):
@@ -96,21 +80,26 @@ def k_core(G, k=None, core_number=None):
             core_number = G.add_internal_vertex_id(core_number, 'vertex',
                                                    cols)
 
-    else:
-        core_number = _call_plc_core_number(G)
-        core_number = core_number.rename(
-            columns={"core_number": "values"}, copy=False
-        )
-
     if k is None:
         k = core_number["values"].max()
 
-    k_core_df = k_core_wrapper.k_core(G, k, core_number)
+    src_vertices, dst_vertices, weights = \
+        pylibcugraph_k_core(
+            resource_handle=ResourceHandle(),
+            graph=G._plc_graph,
+            k=k,
+            core_result=core_number
+        )
+
+    df = cudf.DataFrame()
+    df["src"] = src_vertices
+    df["dst"] = dst_vertices
+    df["weight"] = weights
 
     if G.renumbered:
-        k_core_df, src_names = G.unrenumber(k_core_df, "src",
+        k_core_df, src_names = G.unrenumber(df, "src",
                                             get_column_names=True)
-        k_core_df, dst_names = G.unrenumber(k_core_df, "dst",
+        k_core_df, dst_names = G.unrenumber(df, "dst",
                                             get_column_names=True)
 
     if G.edgelist.weights:

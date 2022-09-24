@@ -18,7 +18,6 @@ import cugraph.dask.comms.comms as Comms
 from cugraph.dask.common.input_utils import get_distributed_data
 import dask_cudf
 import cudf
-import warnings
 
 from pylibcugraph import (ResourceHandle,
                           core_number as pylibcugraph_k_core
@@ -86,7 +85,7 @@ def k_core(input_graph, core_number=None):
     -------
     KCoreGraph : cuGraph.Graph
         K Core of the input graph
-    
+
     Examples
     --------
     >>> import cugraph.dask as dcg
@@ -110,7 +109,7 @@ def k_core(input_graph, core_number=None):
 
     if input_graph.is_directed():
         raise ValueError("input graph must be undirected")
-    
+
     if not isinstance(core_number, dask_cudf.DataFrame):
         if isinstance(core_number, cudf.DataFrame):
             # convert to dask_cudf in order to distribute the edges
@@ -119,12 +118,12 @@ def k_core(input_graph, core_number=None):
         elif core_number is not None:
             raise TypeError(f"'core_number' must be either None or of"
                             f"type cudf/dask_cudf, got type{core_number}")
-    
+
     if isinstance(core_number, dask_cudf.DataFrame):
         if input_graph.renumbered is True:
             core_number = input_graph.add_internal_vertex_id(
                 core_number, "vertex", "vertex")
-    
+
         data_core_number = get_distributed_data(core_number)
         data_core_number = data_core_number.worker_to_parts
     else:
@@ -132,7 +131,7 @@ def k_core(input_graph, core_number=None):
         worker_list = Comms.get_workers()
         # map each worker to None
         data_core_number = dict.fromkeys(worker_list)
-    
+
     # Initialize dask client
     client = input_graph._client
 
@@ -175,15 +174,15 @@ def k_core(input_graph, core_number=None):
             ddf, "src", get_column_names=True)
         ddf, dst_names = input_graph.unrenumber(
             ddf, "dst", get_column_names=True)
-    
-    if G.edgelist.weights:
+
+    if input_graph.edgelist.weights:
         KCoreGraph.from_dask_cudf_edgelist(
-            k_core_df, source=src_names, destination=dst_names,
+            ddf, source=src_names, destination=dst_names,
             edge_attr="weight"
         )
     else:
         KCoreGraph.from_dask_cudf_edgelist(
-            k_core_df, source=src_names, destination=dst_names,
+            ddf, source=src_names, destination=dst_names,
         )
 
     return KCoreGraph
