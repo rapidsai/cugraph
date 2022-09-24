@@ -1,4 +1,4 @@
-name: raft
+name: cugraph_dev
 channels:
 - rapidsai
 - nvidia
