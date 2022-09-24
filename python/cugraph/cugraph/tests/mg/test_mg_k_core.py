@@ -46,6 +46,7 @@ def compare_edges(k_core_results, expected_k_core_results):
         sort_values("src").reset_index(drop=True)
 
     """
+    # FIXME: check this test
     k_core_df = k_core_df[["src", "dst"]].sort_values("src").\
         reset_index(drop=True).rename(
             columns={"src": "expected_src", "dst":"expected_dst"})
