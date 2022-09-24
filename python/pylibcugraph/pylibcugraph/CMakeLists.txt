@@ -20,6 +20,7 @@ set(cython_sources
     graph_properties.pyx
     graphs.pyx
     hits.pyx
+    k_core.pyx
     katz_centrality.pyx
     node2vec.pyx
     pagerank.pyx
