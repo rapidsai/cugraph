@@ -19,7 +19,6 @@ import numpy as np
 import cudf
 
 from pylibcugraph import (SGGraph,
-                          MGGraph,
                           ResourceHandle,
                           GraphProperties,
                           )
@@ -261,9 +260,9 @@ def test_sample_result():
     # created by running a sampling algo.
     sampling_result = create_sampling_result(
         resource_handle,
-        host_sources=np.arange(1e8, dtype="int32"),
-        host_destinations=np.arange(1, 1e8+1, dtype="int32"),
-        host_indices=np.arange(1e8, dtype="int32"),
+        device_sources=cp.arange(1e8, dtype="int32"),
+        device_destinations=cp.arange(1, 1e8+1, dtype="int32"),
+        device_indices=cp.arange(1e8, dtype="int32"),
     )
 
     assert free_memory_before > device.mem_info[0]

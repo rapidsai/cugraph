@@ -184,12 +184,12 @@ cdef extern from "cugraph_c/algorithms.h":
     # testing API - cugraph_sample_result_t instances are normally created only
     # by sampling algos
     cdef cugraph_error_code_t \
-        cugraph_sample_result_create(
+        cugraph_test_sample_result_create(
             const cugraph_resource_handle_t* handle,
-            const cugraph_type_erased_host_array_view_t* srcs,
-            const cugraph_type_erased_host_array_view_t* dsts,
-            const cugraph_type_erased_host_array_view_t* weights,
-            const cugraph_type_erased_host_array_view_t* counts,
+            const cugraph_type_erased_device_array_view_t* srcs,
+            const cugraph_type_erased_device_array_view_t* dsts,
+            const cugraph_type_erased_device_array_view_t* weights,
+            const cugraph_type_erased_device_array_view_t* counts,
             cugraph_sample_result_t** result,
             cugraph_error_t** error
         )
