@@ -24,3 +24,4 @@ from .components.connectivity import weakly_connected_components
 from .sampling.uniform_neighbor_sample import uniform_neighbor_sample
 from .centrality.eigenvector_centrality import eigenvector_centrality
 from .cores.core_number import core_number
+from .cores.k_core import k_core
