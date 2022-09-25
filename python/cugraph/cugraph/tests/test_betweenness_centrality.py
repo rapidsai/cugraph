@@ -115,14 +115,13 @@ def calc_betweenness_centrality(
         edge_attr = "weight"
     else:
         edge_attr = None
-    
+
     # FIXME: Find a cleaner way to return a directed graph
     G = graph_file.get_graph(create_using=G, ignore_weights=not edgevals)
 
     # FIXME: extend the capabilities of the dataset API to return a Nx Graph
     M = G.to_pandas_edgelist().rename(
-        columns={'src':'0', 'dst':'1', 'weights':'weight'})
-
+        columns={'src': '0', 'dst': '1', 'weights': 'weight'})
 
     Gnx = nx.from_pandas_edgelist(
         M, source="0", target="1", edge_attr=edge_attr,

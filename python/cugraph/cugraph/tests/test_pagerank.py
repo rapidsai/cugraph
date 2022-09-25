@@ -19,7 +19,6 @@ import pytest
 
 import cudf
 import cugraph
-from cugraph.testing import utils
 from cugraph.experimental.datasets import DATASETS
 
 
@@ -179,7 +178,7 @@ def test_pagerank(
 
     # NetworkX PageRank
     M = G.to_pandas_edgelist().rename(
-        columns={'src':'0', 'dst':'1', 'weights':'weight'})
+        columns={'src': '0', 'dst': '1', 'weights': 'weight'})
 
     nnz_vtx = np.unique(M[['0', '1']])
     Gnx = nx.from_pandas_edgelist(
@@ -239,7 +238,7 @@ def test_pagerank_nx(
 
     # NetworkX PageRank
     M = G.to_pandas_edgelist().rename(
-        columns={'src':'0', 'dst':'1', 'weights':'weight'})
+        columns={'src': '0', 'dst': '1', 'weights': 'weight'})
 
     nnz_vtx = np.unique(M[['0', '1']])
     Gnx = nx.from_pandas_edgelist(
@@ -294,7 +293,7 @@ def test_pagerank_multi_column(
 
     # NetworkX PageRank
     M = G.to_pandas_edgelist().rename(
-        columns={'src':'0', 'dst':'1', 'weights':'weight'})
+        columns={'src': '0', 'dst': '1', 'weights': 'weight'})
     nnz_vtx = np.unique(M[['0', '1']])
 
     Gnx = nx.from_pandas_edgelist(
@@ -378,17 +377,12 @@ def test_pagerank_multi_column(
 
 
 def test_pagerank_invalid_personalization_dtype():
-    input_data_path = (utils.RAPIDS_DATASET_ROOT_DIR_PATH /
-                       "karate.csv").as_posix()
-    
+
     karate = DATASETS[0]
 
     G = cugraph.Graph(directed=True)
     # FIXME: Find a cleaner way to return a directed graph
     G = karate.get_graph(create_using=G)
-
-    M = G.to_pandas_edgelist().rename(
-        columns={'src':'0', 'dst':'1', 'weights':'weight'})
 
     personalization_vec = cudf.DataFrame()
     personalization_vec['vertex'] = [17, 26]

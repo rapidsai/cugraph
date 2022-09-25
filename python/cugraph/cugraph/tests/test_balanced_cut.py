@@ -19,7 +19,6 @@ import networkx as nx
 import pandas as pd
 import cudf
 import cugraph
-from cugraph.testing import utils
 from cugraph.experimental.datasets import DATASETS
 
 
@@ -67,7 +66,7 @@ def test_edge_cut_clustering(graph_file, partitions):
 
     # read_weights_in_sp=True => value column dtype is float32
     G_edge = graph_file.get_graph(ignore_weights=True)
-  
+
     # Get the edge_cut score for partitioning versus random assignment
     cu_vid, cu_score = cugraph_call(G_edge, partitions)
     rand_vid, rand_score = random_call(G_edge, partitions)
@@ -132,7 +131,7 @@ def test_edge_cut_clustering_with_edgevals_nx(graph_file, partitions):
     # read_weights_in_sp=True => value column dtype is float32
     G = graph_file.get_graph()
     NM = G.to_pandas_edgelist().rename(
-        columns={'src':'0', 'dst':'1', 'weights':'weight'})
+        columns={'src': '0', 'dst': '1', 'weights': 'weight'})
 
     G = nx.from_pandas_edgelist(
                 NM, create_using=nx.Graph(), source="0", target="1",
