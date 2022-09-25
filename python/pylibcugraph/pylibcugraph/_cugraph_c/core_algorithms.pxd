@@ -73,17 +73,17 @@ cdef extern from "cugraph_c/core_algorithms.h":
         pass
 
     cdef cugraph_type_erased_device_array_view_t* \
-        cugraph_core_result_get_src_vertices(
+        cugraph_k_core_result_get_src_vertices(
             cugraph_k_core_result_t* result
         )
     
     cdef cugraph_type_erased_device_array_view_t* \
-        cugraph_core_result_get_dst_vertices(
+        cugraph_k_core_result_get_dst_vertices(
             cugraph_k_core_result_t* result
         )
     
     cdef cugraph_type_erased_device_array_view_t* \
-        cugraph_core_result_get_weights(
+        cugraph_k_core_result_get_weights(
             cugraph_k_core_result_t* result
         )
     
@@ -97,7 +97,8 @@ cdef extern from "cugraph_c/core_algorithms.h":
             const cugraph_resource_handle_t* handle,
             cugraph_graph_t* graph,
             size_t k,
-            cugraph_core_result_t** core_result,
+            cugraph_k_core_degree_type_t degree_type,
+            const cugraph_core_result_t* core_result,
             bool_t do_expensive_check,
             cugraph_k_core_result_t** result,
             cugraph_error_t** error

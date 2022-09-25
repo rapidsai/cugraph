@@ -40,9 +40,9 @@ from pylibcugraph._cugraph_c.core_algorithms cimport (
     cugraph_core_number,
     cugraph_k_core,
     cugraph_k_core_degree_type_t,
-    cugraph_core_result_get_src_vertices,
-    cugraph_core_result_get_dst_vertices,
-    cugraph_core_result_get_weights,
+    cugraph_k_core_result_get_src_vertices,
+    cugraph_k_core_result_get_dst_vertices,
+    cugraph_k_core_result_get_weights,
     cugraph_k_core_result_free,
     cugraph_core_result_free
 )
@@ -62,6 +62,7 @@ from pylibcugraph.utils cimport (
 def k_core(ResourceHandle resource_handle,
            _GPUGraph graph,
            size_t k,
+           degree_type,
            core_result,
            bool_t do_expensive_check):
     """
@@ -78,6 +79,15 @@ def k_core(ResourceHandle resource_handle,
     
     graph : SGGraph or MGGraph
         The input graph, for either Single or Multi-GPU operations.
+    
+    degree_type: str
+        This option determines if the core number computation should be based
+        on input, output, or both directed edges, with valid values being
+        "incoming", "outgoing", and "bidirectional" respectively.
+        This option is currently ignored in this release, and setting it will
+        result in a warning.
+
+        This implementation only supports bidirectional edges.
     
     k : size_t (default=None)
         Order of the core. This value must not be negative. If set to None
@@ -132,7 +142,8 @@ def k_core(ResourceHandle resource_handle,
         error_code = cugraph_k_core(c_resource_handle_ptr,
                                     c_graph_ptr,
                                     k,
-                                    &core_result_ptr,
+                                    degree_type_map[degree_type],
+                                    core_result_ptr,
                                     do_expensive_check,
                                     &k_core_result_ptr,
                                     &error_ptr)
@@ -143,11 +154,11 @@ def k_core(ResourceHandle resource_handle,
         raise NotImplementedError("core_result must be None for now")
 
     cdef cugraph_type_erased_device_array_view_t* src_vertices_ptr = \
-        cugraph_core_result_get_src_vertices(k_core_result_ptr)
+        cugraph_k_core_result_get_src_vertices(k_core_result_ptr)
     cdef cugraph_type_erased_device_array_view_t* dst_vertices_ptr = \
-        cugraph_core_result_get_dst_vertices(k_core_result_ptr)
+        cugraph_k_core_result_get_dst_vertices(k_core_result_ptr)
     cdef cugraph_type_erased_device_array_view_t* weigths_ptr = \
-        cugraph_core_result_get_weights(k_core_result_ptr)
+        cugraph_k_core_result_get_weights(k_core_result_ptr)
 
     cupy_src_vertices = copy_to_cupy_array(c_resource_handle_ptr, src_vertices_ptr)
     cupy_dst_vertices = copy_to_cupy_array(c_resource_handle_ptr, dst_vertices_ptr)

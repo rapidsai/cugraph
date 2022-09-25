@@ -12,7 +12,7 @@
 # limitations under the License.
 
 import cudf
-from pylibcugraph import (core_number as pylibcugraph_k_core,
+from pylibcugraph import (k_core as pylibcugraph_k_core,
                           ResourceHandle
                           )
 from cugraph.utilities import (ensure_cugraph_obj_for_nx,
@@ -20,7 +20,7 @@ from cugraph.utilities import (ensure_cugraph_obj_for_nx,
                                )
 
 
-def k_core(G, k=None, core_number=None):
+def k_core(G, k=None, degree_type=None, core_number=None):
     """
     Compute the k-core of the graph G based on the out degree of its nodes. A
     k-core of a graph is a maximal subgraph that contains nodes of degree k or
@@ -38,6 +38,13 @@ def k_core(G, k=None, core_number=None):
     k : int, optional (default=None)
         Order of the core. This value must not be negative. If set to None, the
         main core is returned.
+    
+    degree_type: str
+        This option determines if the core number computation should be based
+        on input, output, or both directed edges, with valid values being
+        "incoming", "outgoing", and "bidirectional" respectively.
+        This option is currently ignored in this release, and setting it will
+        result in a warning.
 
     core_number : cudf.DataFrame, optional (default=None)
         Precomputed core number of the nodes of the graph G containing two
@@ -81,14 +88,17 @@ def k_core(G, k=None, core_number=None):
                                                    cols)
 
     if k is None:
-        k = core_number["values"].max()
+        k = 5
+        # k = core_number["values"].max()
 
     src_vertices, dst_vertices, weights = \
         pylibcugraph_k_core(
             resource_handle=ResourceHandle(),
             graph=G._plc_graph,
+            degree_type=degree_type,
             k=k,
-            core_result=core_number
+            core_result=core_number,
+            do_expensive_check=False
         )
 
     df = cudf.DataFrame()

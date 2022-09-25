@@ -39,6 +39,8 @@ def convert_to_cudf(cp_arrays):
 
 def _call_plc_k_core(sID,
                      mg_graph_x,
+                     k,
+                     degree_type,
                      core_result,
                      do_expensive_check):
     return pylibcugraph_k_core(
@@ -46,12 +48,14 @@ def _call_plc_k_core(sID,
             Comms.get_handle(sID).getHandle()
         ),
         graph=mg_graph_x,
+        k=k,
+        degree_type=degree_type,
         core_result=core_result,
         do_expensive_check=do_expensive_check
     )
 
 
-def k_core(input_graph, core_number=None):
+def k_core(input_graph, k=None, degree_type=None, core_number=None):
     """
     Compute the k-core of the graph G based on the out degree of its nodes. A
     k-core of a graph is a maximal subgraph that contains nodes of degree k or
@@ -142,6 +146,8 @@ def k_core(input_graph, core_number=None):
             _call_plc_k_core,
             Comms.get_session_id(),
             input_graph._plc_graph[w],
+            k,
+            degree_type,
             core_number,
             do_expensive_check,
             workers=[w],
