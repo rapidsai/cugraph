@@ -20,6 +20,7 @@ import pytest
 import cudf
 import cugraph
 from cugraph.testing import utils
+from cugraph.experimental.datasets import DATASETS
 
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
@@ -159,7 +160,8 @@ def setup_function():
 #
 
 
-@pytest.mark.parametrize("graph_file", utils.DATASETS)
+# FIXME: the dataset name no longer appears when running the tests
+@pytest.mark.parametrize("graph_file", DATASETS)
 @pytest.mark.parametrize("max_iter", MAX_ITERATIONS)
 @pytest.mark.parametrize("tol", TOLERANCE)
 @pytest.mark.parametrize("alpha", ALPHA)
@@ -171,8 +173,14 @@ def test_pagerank(
     has_precomputed_vertex_out_weight
 ):
 
+    G = cugraph.Graph(directed=True)
+    # FIXME: Find a cleaner way to return a directed graph
+    G = graph_file.get_graph(create_using=G)
+
     # NetworkX PageRank
-    M = utils.read_csv_for_nx(graph_file)
+    M = G.to_pandas_edgelist().rename(
+        columns={'src':'0', 'dst':'1', 'weights':'weight'})
+
     nnz_vtx = np.unique(M[['0', '1']])
     Gnx = nx.from_pandas_edgelist(
         M, source="0", target="1", edge_attr="weight",
@@ -191,12 +199,6 @@ def test_pagerank(
     cu_prsn = cudify(networkx_prsn)
 
     # cuGraph PageRank
-    cu_M = utils.read_csv_file(graph_file)
-    G = cugraph.Graph(directed=True)
-    G.from_cudf_edgelist(
-        cu_M, source="0", destination="1", edge_attr="2",
-        legacy_renum_only=True)
-
     if has_precomputed_vertex_out_weight == 1:
         df = G.view_edge_list()[["src", "weights"]]
         pre_vtx_o_wgt = df.groupby(
@@ -221,7 +223,7 @@ def test_pagerank(
     assert err < (0.01 * len(cugraph_pr))
 
 
-@pytest.mark.parametrize("graph_file", utils.DATASETS)
+@pytest.mark.parametrize("graph_file", DATASETS)
 @pytest.mark.parametrize("max_iter", MAX_ITERATIONS)
 @pytest.mark.parametrize("tol", TOLERANCE)
 @pytest.mark.parametrize("alpha", ALPHA)
@@ -231,8 +233,14 @@ def test_pagerank_nx(
     graph_file, max_iter, tol, alpha, personalization_perc, has_guess
 ):
 
+    G = cugraph.Graph(directed=True)
+    # FIXME: Find a cleaner way to return a directed graph
+    G = graph_file.get_graph(create_using=G)
+
     # NetworkX PageRank
-    M = utils.read_csv_for_nx(graph_file)
+    M = G.to_pandas_edgelist().rename(
+        columns={'src':'0', 'dst':'1', 'weights':'weight'})
+
     nnz_vtx = np.unique(M[['0', '1']])
     Gnx = nx.from_pandas_edgelist(
         M, source="0", target="1", create_using=nx.DiGraph()
@@ -268,7 +276,7 @@ def test_pagerank_nx(
     assert err < (0.01 * len(cugraph_pr))
 
 
-@pytest.mark.parametrize("graph_file", utils.DATASETS)
+@pytest.mark.parametrize("graph_file", DATASETS)
 @pytest.mark.parametrize("max_iter", MAX_ITERATIONS)
 @pytest.mark.parametrize("tol", TOLERANCE)
 @pytest.mark.parametrize("alpha", ALPHA)
@@ -280,8 +288,13 @@ def test_pagerank_multi_column(
     has_precomputed_vertex_out_weight
 ):
 
+    G = cugraph.Graph(directed=True)
+    # FIXME: Find a cleaner way to return a directed graph
+    G = graph_file.get_graph(create_using=G)
+
     # NetworkX PageRank
-    M = utils.read_csv_for_nx(graph_file)
+    M = G.to_pandas_edgelist().rename(
+        columns={'src':'0', 'dst':'1', 'weights':'weight'})
     nnz_vtx = np.unique(M[['0', '1']])
 
     Gnx = nx.from_pandas_edgelist(
@@ -319,6 +332,8 @@ def test_pagerank_multi_column(
     cu_M["dst_1"] = cu_M["dst_0"] + 1000
     cu_M["weights"] = cudf.Series(M["weight"])
 
+    # The dataset API can not be leverage to reconstruct
+    # a graph from these edgelist
     cu_G = cugraph.Graph(directed=True)
     cu_G.from_cudf_edgelist(cu_M, source=["src_0", "src_1"],
                             destination=["dst_0", "dst_1"],
@@ -365,16 +380,15 @@ def test_pagerank_multi_column(
 def test_pagerank_invalid_personalization_dtype():
     input_data_path = (utils.RAPIDS_DATASET_ROOT_DIR_PATH /
                        "karate.csv").as_posix()
-    M = utils.read_csv_for_nx(input_data_path)
-    G = cugraph.Graph(directed=True)
-    cu_M = cudf.DataFrame()
-    cu_M["src"] = cudf.Series(M["0"])
-    cu_M["dst"] = cudf.Series(M["1"])
+    
+    karate = DATASETS[0]
 
-    cu_M["weights"] = cudf.Series(M["weight"])
-    G.from_cudf_edgelist(
-        cu_M, source="src", destination="dst", edge_attr="weights"
-    )
+    G = cugraph.Graph(directed=True)
+    # FIXME: Find a cleaner way to return a directed graph
+    G = karate.get_graph(create_using=G)
+
+    M = G.to_pandas_edgelist().rename(
+        columns={'src':'0', 'dst':'1', 'weights':'weight'})
 
     personalization_vec = cudf.DataFrame()
     personalization_vec['vertex'] = [17, 26]
