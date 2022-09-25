@@ -533,7 +533,6 @@ class NumberMap:
         renumber_map.set_renumbered_col_names(
             src_col_names, dst_col_names, df.columns)
 
-        id_type = df[src_col_names[0]].dtype
         if isinstance(df, cudf.DataFrame):
             renumber_map.implementation = NumberMap.SingleGPU(
                 df, src_col_names, dst_col_names, renumber_map.id_type,
@@ -615,6 +614,7 @@ class NumberMap:
                         .astype(id_type)
                     return data[2]
 
+                id_type = df[renumber_map.renumbered_src_col_name].dtype
                 renumbering_map = dask_cudf.from_delayed(
                                     [client.submit(get_renumber_map,
                                                    id_type,
