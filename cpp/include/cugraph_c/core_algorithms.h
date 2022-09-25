@@ -88,7 +88,7 @@ void cugraph_core_result_free(cugraph_core_result_t* result);
  * @param [in]     result   The result from k-core
  * @return type erased array of src vertex ids
  */
-cugraph_type_erased_device_array_view_t* cugraph_core_result_get_src_vertices(
+cugraph_type_erased_device_array_view_t* cugraph_k_core_result_get_src_vertices(
   cugraph_k_core_result_t* result);
 
 /**
@@ -97,7 +97,7 @@ cugraph_type_erased_device_array_view_t* cugraph_core_result_get_src_vertices(
  * @param [in]     result   The result from k-core
  * @return type erased array of dst vertex ids
  */
-cugraph_type_erased_device_array_view_t* cugraph_core_result_get_dst_vertices(
+cugraph_type_erased_device_array_view_t* cugraph_k_core_result_get_dst_vertices(
   cugraph_k_core_result_t* result);
 
 /**
@@ -108,7 +108,7 @@ cugraph_type_erased_device_array_view_t* cugraph_core_result_get_dst_vertices(
  * @param [in]     result   The result from k-core
  * @return type erased array of weights
  */
-cugraph_type_erased_device_array_view_t* cugraph_core_result_get_weights(
+cugraph_type_erased_device_array_view_t* cugraph_k_core_result_get_weights(
   cugraph_k_core_result_t* result);
 
 /**
@@ -153,7 +153,10 @@ cugraph_error_code_t cugraph_core_number(const cugraph_resource_handle_t* handle
  * @param [in]  handle       Handle for accessing resources
  * @param [in]  graph        Pointer to graph
  * @param [in]  k            The value of k to use
- * @param [in]  core_result  Result from calling cugraph_core_number
+ * @param [in]  degree_type  Compute core_number using in, out or both in and out edges.
+ *                           Ignored if core_result is specified.
+ * @param [in]  core_result  Result from calling cugraph_core_number, if NULL then
+ *                           call core_number inside this function call.
  * @param [in]  do_expensive_check A flag to run expensive checks for input arguments (if set to
  * `true`).
  * @param [out] result       Opaque pointer to k_core results
@@ -164,7 +167,8 @@ cugraph_error_code_t cugraph_core_number(const cugraph_resource_handle_t* handle
 cugraph_error_code_t cugraph_k_core(const cugraph_resource_handle_t* handle,
                                     cugraph_graph_t* graph,
                                     size_t k,
-                                    cugraph_core_result_t** core_result,
+                                    cugraph_k_core_degree_type_t degree_type,
+                                    const cugraph_core_result_t* core_result,
                                     bool_t do_expensive_check,
                                     cugraph_k_core_result_t** result,
                                     cugraph_error_t** error);
