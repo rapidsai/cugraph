@@ -44,13 +44,7 @@ DATASETS_UNDIRECTED_WEIGHTS = [netscience]
 
 DATASETS_UNRENUMBERED = [karate_disjoint]
 
-# karate-disjoint, 
 DATASETS = [dolphins, netscience, karate_disjoint]
-
-
-
-
-
 
 MEDIUM_DATASETS = [polbooks]
 
