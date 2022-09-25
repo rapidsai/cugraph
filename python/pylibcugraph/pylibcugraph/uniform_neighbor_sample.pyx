@@ -59,7 +59,9 @@ from pylibcugraph.utils cimport (
     assert_AI_type,
     get_c_type_from_numpy_type,
 )
-
+from pylibcugraph.internal_types.sampling_result cimport (
+    SamplingResult,
+)
 
 def uniform_neighbor_sample(ResourceHandle resource_handle,
                             _GPUGraph input_graph,
@@ -142,29 +144,20 @@ def uniform_neighbor_sample(ResourceHandle resource_handle,
         &error_ptr)
     assert_success(error_code, error_ptr, "cugraph_uniform_neighbor_sample")
 
-    #### NEW
-    cdef cugraph_type_erased_device_array_t* src_ptr = \
-        cugraph_sample_result_release_sources(result_ptr)
-    cdef cugraph_type_erased_device_array_t* destinations_ptr = \
-        cugraph_sample_result_release_destinations(result_ptr)
-    cdef cugraph_type_erased_device_array_t* indices_ptr = \
-        cugraph_sample_result_release_indices(result_ptr)
+    # Have the SamplingResult instance assume ownership of the result data.
+    result = SamplingResult()
+    result.set_ptr(result_ptr)
 
-    cupy_sources = transfer_to_device_array_pybuffer(
-        c_resource_handle_ptr, src_ptr)
-    cupy_destinations = transfer_to_device_array_pybuffer(
-        c_resource_handle_ptr, dst_ptr)
-    cupy_indices = transfer_to_device_array_pybuffer(
-        c_resource_handle_ptr, indices_ptr)
+    # Get cupy "views" of the individual arrays to return. These each increment
+    # the refcount on the SamplingResult instance which will keep the data alive
+    # until all references are removed and the GC runs.
+    cupy_sources = result.get_sources()
+    cupy_destinations = result.get_destinations()
+    cupy_indices = result.get_indices()
 
-    cugraph_sample_result_free(result_ptr)
-    cugraph_type_erased_device_array_view_free(start_ptr)
-    cugraph_type_erased_host_array_view_free(fan_out_ptr)
-
-    return (cupy_sources, cupy_destinations, cupy_indices)
-
-    #### ORIGINAL
     """
+    #### OLD
+    # FIXME: remove unused cimports after this code is removed
     cdef cugraph_type_erased_device_array_view_t* src_ptr = \
         cugraph_sample_result_get_sources(result_ptr)
     cdef cugraph_type_erased_device_array_view_t* dst_ptr = \
@@ -177,6 +170,9 @@ def uniform_neighbor_sample(ResourceHandle resource_handle,
     cupy_indices = copy_to_cupy_array(c_resource_handle_ptr, index_ptr)
 
     cugraph_sample_result_free(result_ptr)
+    ####
+    """
+
     cugraph_type_erased_device_array_view_free(start_ptr)
     cugraph_type_erased_host_array_view_free(fan_out_ptr)
 
