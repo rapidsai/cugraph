@@ -74,3 +74,36 @@ extern "C" void cugraph_core_result_free(cugraph_core_result_t* result)
   delete internal_pointer->core_numbers_;
   delete internal_pointer;
 }
+
+cugraph_type_erased_device_array_view_t* cugraph_k_core_result_get_src_vertices(
+  cugraph_k_core_result_t* result)
+{
+  auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_k_core_result_t*>(result);
+  return reinterpret_cast<cugraph_type_erased_device_array_view_t*>(
+    internal_pointer->src_vertices_->view());
+}
+
+cugraph_type_erased_device_array_view_t* cugraph_k_core_result_get_dst_vertices(
+  cugraph_k_core_result_t* result)
+{
+  auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_k_core_result_t*>(result);
+  return reinterpret_cast<cugraph_type_erased_device_array_view_t*>(
+    internal_pointer->dst_vertices_->view());
+}
+
+cugraph_type_erased_device_array_view_t* cugraph_k_core_result_get_weights(
+  cugraph_k_core_result_t* result)
+{
+  auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_k_core_result_t*>(result);
+  return reinterpret_cast<cugraph_type_erased_device_array_view_t*>(
+    internal_pointer->weights_->view());
+}
+
+void cugraph_k_core_result_free(cugraph_k_core_result_t* result)
+{
+  auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_k_core_result_t*>(result);
+  delete internal_pointer->src_vertices_;
+  delete internal_pointer->dst_vertices_;
+  delete internal_pointer->weights_;
+  delete internal_pointer;
+}

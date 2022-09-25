@@ -1617,8 +1617,11 @@ void core_number(raft::handle_t const& handle,
  * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
  * @param  graph_view      Graph view object.
  * @param  k               Order of the core. This value must not be negative.
- * @param  core_numbers    Optional output from core_number algorithm, if not specified
- *                         k_core will call core_number itself.
+ * @param degree_type Optional parameter to dictate whether to compute the K-core decomposition
+ *                    based on in-degrees, out-degrees, or in-degrees + out_degrees.  One of @p
+ *                    degree_type and @p core_numbers must be specified.
+ * @param  core_numbers    Optional output from core_number algorithm.  If not specified then
+ *                         k_core will call core_number itself using @p degree_type
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  *
  * @return edge list for the graph
@@ -1630,6 +1633,7 @@ std::tuple<rmm::device_uvector<vertex_t>,
 k_core(raft::handle_t const& handle,
        graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
        size_t k,
+       std::optional<k_core_degree_type_t> degree_type,
        std::optional<raft::device_span<edge_t const>> core_numbers,
        bool do_expensive_check = false);
 

@@ -68,6 +68,18 @@ struct cugraph_type_erased_device_array_t {
   {
   }
 
+  template <typename T>
+  T* as_type()
+  {
+    return reinterpret_cast<T*>(data_.data());
+  }
+
+  template <typename T>
+  T const * as_type() const
+  {
+    return reinterpret_cast<T const*>(data_.data());
+  }
+
   auto view()
   {
     return new cugraph_type_erased_device_array_view_t{data_.data(), size_, data_.size(), type_};

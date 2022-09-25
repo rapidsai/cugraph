@@ -28,6 +28,7 @@ std::tuple<rmm::device_uvector<vertex_t>,
 k_core(raft::handle_t const& handle,
        graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
        size_t k,
+       std::optional<k_core_degree_type_t> degree_type,
        std::optional<raft::device_span<edge_t const>> core_numbers,
        bool do_expensive_check)
 {

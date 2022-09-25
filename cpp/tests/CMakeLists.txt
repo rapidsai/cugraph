@@ -562,7 +562,8 @@ if(BUILD_CUGRAPH_MG_TESTS)
     ConfigureCTestMG(MG_CAPI_RANDOM_WALKS c_api/mg_random_walks_test.c c_api/mg_test_utils.cpp)
     ConfigureCTestMG(MG_CAPI_TRIANGLE_COUNT c_api/mg_triangle_count_test.c c_api/mg_test_utils.cpp)
     ConfigureCTestMG(MG_CAPI_LOUVAIN c_api/mg_louvain_test.c c_api/mg_test_utils.cpp)
-	ConfigureCTestMG(MG_CAPI_CORE_NUMBER c_api/mg_core_number_test.c c_api/mg_test_utils.cpp)
+    ConfigureCTestMG(MG_CAPI_CORE_NUMBER c_api/mg_core_number_test.c c_api/mg_test_utils.cpp)
+    ConfigureCTestMG(MG_CAPI_K_CORE c_api/mg_k_core_test.c c_api/mg_test_utils.cpp)
 endif()
 
 ###################################################################################################
@@ -614,6 +615,7 @@ ConfigureCTest(CAPI_RANDOM_WALKS c_api/sg_random_walks_test.c)
 ConfigureCTest(CAPI_TRIANGLE_COUNT c_api/triangle_count_test.c)
 ConfigureCTest(CAPI_LOUVAIN c_api/louvain_test.c)
 ConfigureCTest(CAPI_CORE_NUMBER c_api/core_number_test.c)
+ConfigureCTest(CAPI_K_CORE_TEST c_api/k_core_test.c)
 
 ###################################################################################################
 ### enable testing ################################################################################
