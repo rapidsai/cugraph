@@ -30,12 +30,26 @@ karate = Dataset(meta_path / "karate.yaml")
 karate_data = Dataset(meta_path / "karate_data.yaml")
 karate_undirected = Dataset(meta_path / "karate_undirected.yaml")
 karate_asymmetric = Dataset(meta_path / "karate_asymmetric.yaml")
+karate_disjoint = Dataset(meta_path / "karate-disjoint.yaml")
 dolphins = Dataset(meta_path / "dolphins.yaml")
 polbooks = Dataset(meta_path / "polbooks.yaml")
 netscience = Dataset(meta_path / "netscience.yaml")
 cyber = Dataset(meta_path / "cyber.yaml")
 small_line = Dataset(meta_path / "small_line.yaml")
 small_tree = Dataset(meta_path / "small_tree.yaml")
+
+DATASETS_UNDIRECTED = [karate, dolphins]
+
+DATASETS_UNDIRECTED_WEIGHTS = [netscience]
+
+DATASETS_UNRENUMBERED = [karate_disjoint]
+
+# karate-disjoint, 
+DATASETS = [dolphins, netscience, karate_disjoint]
+
+
+
+
 
 
 MEDIUM_DATASETS = [polbooks]
