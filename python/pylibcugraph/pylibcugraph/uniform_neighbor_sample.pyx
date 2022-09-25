@@ -177,4 +177,3 @@ def uniform_neighbor_sample(ResourceHandle resource_handle,
     cugraph_type_erased_host_array_view_free(fan_out_ptr)
 
     return (cupy_sources, cupy_destinations, cupy_indices)
-    """
