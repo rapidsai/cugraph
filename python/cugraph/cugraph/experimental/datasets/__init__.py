@@ -46,6 +46,8 @@ DATASETS_UNRENUMBERED = [karate_disjoint]
 
 DATASETS = [dolphins, netscience, karate_disjoint]
 
+DATASETS_SMALL = [karate, dolphins, polbooks]
+
 MEDIUM_DATASETS = [polbooks]
 
 SMALL_DATASETS = [karate, dolphins, netscience]
