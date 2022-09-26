@@ -233,8 +233,7 @@ def test_neighborhood_sampling_large_sg_graph(gpubenchmark):
     print(f"  {result_size=} {actual_delta=} {expected_delta=} {leak=}")
     # FIXME: this assertion is commented out until the memory leak is
     # found. This should be the only failing assertion, so commenting it out
-    # will allow CI to make any other failures more noticeable. The PR will be
-    # in Draft until this can be uncommented.
+    # will allow CI to make any other failures more noticeable.
     #
     # assert free_memory_before == device.mem_info[0]
 
