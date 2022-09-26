@@ -20,7 +20,7 @@ REPODIR=$(cd $(dirname $0); pwd)
 LIBCUGRAPH_BUILD_DIR=${LIBCUGRAPH_BUILD_DIR:=${REPODIR}/cpp/build}
 LIBCUGRAPH_ETL_BUILD_DIR=${LIBCUGRAPH_ETL_BUILD_DIR:=${REPODIR}/cpp/libcugraph_etl/build}
 
-VALIDARGS="clean uninstall uninstall_cmake_deps libcugraph libcugraph_etl cugraph pylibcugraph cpp-mgtests docs -v -g -n --allgpuarch --skip_cpp_tests --cmake_default_generator -h --help"
+VALIDARGS="clean uninstall uninstall_cmake_deps libcugraph libcugraph_etl cugraph pylibcugraph cpp-mgtests docs -v -g -n --pydevelop --allgpuarch --skip_cpp_tests --cmake_default_generator -h --help"
 HELP="$0 [<target> ...] [<flag> ...]
  where <target> is:
    clean                      - remove all existing build artifacts and configuration (start over)
@@ -36,6 +36,7 @@ HELP="$0 [<target> ...] [<flag> ...]
    -v                         - verbose build mode
    -g                         - build for debug
    -n                         - do not install after a successful build
+   --pydevelop                - use setup.py develop instead of install
    --allgpuarch               - build for all supported GPU architectures
    --skip_cpp_tests           - do not build the SG test binaries as part of the libcugraph and libcugraph_etl targets
    --cmake_default_generator  - use the default cmake generator instead of ninja
@@ -59,6 +60,7 @@ BUILD_CPP_TESTS=ON
 BUILD_CPP_MG_TESTS=OFF
 BUILD_ALL_GPU_ARCH=0
 CMAKE_GENERATOR_OPTION="-G Ninja"
+PYTHON_INSTALL="install"
 
 # Set defaults for vars that may not have been defined externally
 #  FIXME: if PREFIX is not set, check CONDA_PREFIX, but there is no fallback
@@ -112,6 +114,9 @@ if hasArg cpp-mgtests; then
 fi
 if hasArg --cmake_default_generator; then
     CMAKE_GENERATOR_OPTION=""
+fi
+if hasArg --pydevelop; then
+    PYTHON_INSTALL="develop"
 fi
 
 # If clean or uninstall targets given, run them prior to any other steps
@@ -242,7 +247,7 @@ if buildAll || hasArg pylibcugraph; then
     python setup.py build_ext --inplace -- -DFIND_CUGRAPH_CPP=ON \
            -Dcugraph_ROOT=${LIBCUGRAPH_BUILD_DIR} -- -j${PARALLEL_LEVEL:-1}
     if [[ ${INSTALL_TARGET} != "" ]]; then
-	env CUGRAPH_BUILD_PATH=${CUGRAPH_BUILD_PATH} python setup.py install
+	env CUGRAPH_BUILD_PATH=${CUGRAPH_BUILD_PATH} python setup.py ${PYTHON_INSTALL}
     fi
 fi
 
@@ -256,7 +261,7 @@ if buildAll || hasArg cugraph; then
     python setup.py build_ext --inplace -- -DFIND_CUGRAPH_CPP=ON \
            -Dcugraph_ROOT=${LIBCUGRAPH_BUILD_DIR} -- -j${PARALLEL_LEVEL:-1}
     if [[ ${INSTALL_TARGET} != "" ]]; then
-	env CUGRAPH_BUILD_PATH=${CUGRAPH_BUILD_PATH} python setup.py install
+	env CUGRAPH_BUILD_PATH=${CUGRAPH_BUILD_PATH} python setup.py ${PYTHON_INSTALL}
     fi
 fi
 

@@ -15,10 +15,10 @@
 from collections.abc import Sequence
 
 import pytest
-import cupy as cp
 
 from . import data
 from . import utils
+
 
 ###############################################################################
 # fixtures
@@ -29,7 +29,6 @@ def server(graph_creation_extension1):
     Start a cugraph_service server, stop it when done with the fixture.  This
     also uses graph_creation_extension1 to preload a graph creation extension.
     """
-    from cugraph_service_server import server
     from cugraph_service_client import CugraphServiceClient
     from cugraph_service_client.exceptions import CugraphServiceError
 

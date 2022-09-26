@@ -17,9 +17,15 @@ from collections.abc import Sequence
 import pickle
 import ucp
 import asyncio
+import threading
+
+import cupy as cp
 
 from cugraph_service_client import defaults
-from cugraph_service_client.types import ValueWrapper, GraphVertexEdgeID
+from cugraph_service_client.types import (ValueWrapper,
+                                          GraphVertexEdgeID,
+                                          UniformNeighborSampleResult,
+                                          )
 from cugraph_service_client.cugraph_service_thrift import create_client
 
 
@@ -936,7 +942,7 @@ class CugraphServiceClient:
                 return a
 
             async def receiver(endpoint):
-                #result_obj.result = await endpoint.recv_obj()
+                # result_obj.result = await endpoint.recv_obj()
                 with cp.cuda.Device(result_device):
                     result_obj.sources = await endpoint.recv_obj(
                         allocator=allocator)
@@ -956,8 +962,8 @@ class CugraphServiceClient:
                       with_replacement,
                       graph_id,
                       ),
-                kwargs={client_host: self.host,
-                        client_result_port: self.results_port,
+                kwargs={"client_host": self.host,
+                        "client_result_port": self.results_port,
                         },
             )
             uns_thread.start()

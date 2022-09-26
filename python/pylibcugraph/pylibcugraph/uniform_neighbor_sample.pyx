@@ -54,7 +54,6 @@ from pylibcugraph.graphs cimport (
 from pylibcugraph.utils cimport (
     assert_success,
     copy_to_cupy_array,
-    create_pybuffer,
     assert_CAI_type,
     assert_AI_type,
     get_c_type_from_numpy_type,

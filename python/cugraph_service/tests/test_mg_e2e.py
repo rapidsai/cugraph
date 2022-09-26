@@ -13,9 +13,6 @@
 # limitations under the License.
 
 import os
-import sys
-import subprocess
-import time
 from pathlib import Path
 
 import pytest
@@ -24,20 +21,18 @@ import cupy as cp
 from . import data
 from . import utils
 
+
 ###############################################################################
 # fixtures
-
 @pytest.fixture(scope="module")
 def mg_server():
     """
     Start a cugraph_service server that uses multiple GPUs via a dask
     configuration, then stop it when done with the fixture.
     """
-    from cugraph_service_server import server
     from cugraph_service_client import CugraphServiceClient
     from cugraph_service_client.exceptions import CugraphServiceError
 
-    server_file = server.__file__
     server_process = None
     host = "localhost"
     port = 9090
@@ -84,7 +79,6 @@ def sg_server_on_device_1(graph_creation_extension_large_property_graph):
     also uses graph_creation_extension_large_property_graph to preload the
     graph creation extension that creates a large PG.
     """
-    from cugraph_service_server import server
     from cugraph_service_client import CugraphServiceClient
     from cugraph_service_client.exceptions import CugraphServiceError
 
@@ -202,6 +196,7 @@ def client_of_server_on_device_1_large_property_graph_loaded(
                 ids=lambda p: f"device={p}")
 def result_device_id(request):
     return request.param
+
 
 ###############################################################################
 # tests

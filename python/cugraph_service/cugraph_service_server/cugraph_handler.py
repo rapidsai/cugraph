@@ -20,7 +20,6 @@ from inspect import signature
 import asyncio
 
 import numpy as np
-import cupy as cp
 import ucp
 import cudf
 import dask_cudf
@@ -658,7 +657,7 @@ class CugraphHandler:
                                       "on the extracted subgraph instead.")
 
         try:
-            result = call_algo(
+            results = call_algo(
                 uniform_neighbor_sample,
                 G,
                 start_list=start_list,
@@ -677,9 +676,9 @@ class CugraphHandler:
                                                      client_result_port))
                 # Send the individual arrays to the client to be written
                 # directly to the desired device.
-                asyncio.run(ep.send_obj(result.sources))
-                asyncio.run(ep.send_obj(result.destinations))
-                asyncio.run(ep.send_obj(result.indices))
+                asyncio.run(ep.send_obj(results[0]))
+                asyncio.run(ep.send_obj(results[1]))
+                asyncio.run(ep.send_obj(results[2]))
                 asyncio.run(ep.close())
                 # FIXME: Thrift still expects something of the expected type to
                 # be returned to be serialized and sent. Look into a separate
@@ -688,7 +687,7 @@ class CugraphHandler:
                 return UniformNeighborSampleResult()
 
             else:
-                return result
+                return results
 
         except Exception:
             raise CugraphServiceError(f"{traceback.format_exc()}")

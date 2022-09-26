@@ -50,7 +50,8 @@ class UnionWrapper:
 class ValueWrapper(UnionWrapper):
     """
     Provides an easy-to-use python object for abstracting Thrift "unions",
-    allowing a python obj to be automatically mapped to the correct union field.
+    allowing a python obj to be automatically mapped to the correct union
+    field.
     """
     def __init__(self, val, val_name="value"):
         """

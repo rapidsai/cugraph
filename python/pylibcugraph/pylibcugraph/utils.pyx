@@ -147,16 +147,6 @@ cdef get_numpy_edge_ids_type_from_c_weight_type(data_type_id_t c_weight_type):
         return numpy.int64
 
 
-cdef create_device_array_pybuffer(
-   cugraph_resource_handle_t* c_resource_handle_ptr,
-   cugraph_type_erased_device_array_view_t* device_array_view_ptr):
-    """
-    Create and return an object that implements the python buffer protocol for
-    an underlying cugraph_type_erased_device_array_view_t
-    """
-    pass
-
-
 cdef copy_to_cupy_array(
    cugraph_resource_handle_t* c_resource_handle_ptr,
    cugraph_type_erased_device_array_view_t* device_array_view_ptr):
