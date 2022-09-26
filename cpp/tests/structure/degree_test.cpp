@@ -90,17 +90,10 @@ class Tests_Degree : public ::testing::TestWithParam<Degree_Usecase> {
         handle, configuration.graph_file_full_path, false, false);
     auto graph_view = graph.view();
 
-    std::vector<edge_t> h_offsets(graph_view.number_of_vertices() + 1);
-    std::vector<vertex_t> h_indices(graph_view.number_of_edges());
-    raft::update_host(h_offsets.data(),
-                      graph_view.local_edge_partition_view().offsets(),
-                      graph_view.number_of_vertices() + 1,
-                      handle.get_stream());
-    raft::update_host(h_indices.data(),
-                      graph_view.local_edge_partition_view().indices(),
-                      graph_view.number_of_edges(),
-                      handle.get_stream());
-    handle.sync_stream();
+    auto h_offsets =
+      cugraph::test::to_host(handle, graph_view.local_edge_partition_view().offsets());
+    auto h_indices =
+      cugraph::test::to_host(handle, graph_view.local_edge_partition_view().indices());
 
     std::vector<edge_t> h_reference_in_degrees(graph_view.number_of_vertices());
     std::vector<edge_t> h_reference_out_degrees(graph_view.number_of_vertices());
@@ -124,16 +117,8 @@ class Tests_Degree : public ::testing::TestWithParam<Degree_Usecase> {
 
     RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
 
-    std::vector<edge_t> h_cugraph_in_degrees(graph_view.number_of_vertices());
-    std::vector<edge_t> h_cugraph_out_degrees(graph_view.number_of_vertices());
-
-    raft::update_host(
-      h_cugraph_in_degrees.data(), d_in_degrees.data(), d_in_degrees.size(), handle.get_stream());
-    raft::update_host(h_cugraph_out_degrees.data(),
-                      d_out_degrees.data(),
-                      d_out_degrees.size(),
-                      handle.get_stream());
-    handle.sync_stream();
+    auto h_cugraph_in_degrees  = cugraph::test::to_host(handle, d_in_degrees);
+    auto h_cugraph_out_degrees = cugraph::test::to_host(handle, d_out_degrees);
 
     ASSERT_TRUE(std::equal(
       h_reference_in_degrees.begin(), h_reference_in_degrees.end(), h_cugraph_in_degrees.begin()))

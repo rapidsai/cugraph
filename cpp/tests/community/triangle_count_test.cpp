@@ -195,18 +195,10 @@ class Tests_TriangleCount
       }
       auto unrenumbered_graph_view = renumber ? unrenumbered_graph.view() : graph_view;
 
-      std::vector<edge_t> h_offsets(unrenumbered_graph_view.number_of_vertices() + 1);
-      std::vector<vertex_t> h_indices(unrenumbered_graph_view.number_of_edges());
-      raft::update_host(h_offsets.data(),
-                        unrenumbered_graph_view.local_edge_partition_view().offsets(),
-                        unrenumbered_graph_view.number_of_vertices() + 1,
-                        handle.get_stream());
-      raft::update_host(h_indices.data(),
-                        unrenumbered_graph_view.local_edge_partition_view().indices(),
-                        unrenumbered_graph_view.number_of_edges(),
-                        handle.get_stream());
-
-      handle.sync_stream();
+      auto h_offsets = cugraph::test::to_host(
+        handle, unrenumbered_graph_view.local_edge_partition_view().offsets());
+      auto h_indices = cugraph::test::to_host(
+        handle, unrenumbered_graph_view.local_edge_partition_view().indices());
 
       std::vector<edge_t> h_reference_triangle_counts(unrenumbered_graph_view.number_of_vertices());
 
@@ -215,7 +207,7 @@ class Tests_TriangleCount
                                unrenumbered_graph_view.number_of_vertices(),
                                h_reference_triangle_counts.data());
 
-      std::vector<vertex_t> h_cugraph_vertices(d_triangle_counts.size());
+      std::vector<vertex_t> h_cugraph_vertices{};
       if (d_vertices) {
         if (renumber) {
           cugraph::unrenumber_local_int_vertices(handle,
@@ -226,27 +218,16 @@ class Tests_TriangleCount
                                                  graph_view.number_of_vertices(),
                                                  true);
         }
-        raft::update_host(h_cugraph_vertices.data(),
-                          (*d_vertices).data(),
-                          (*d_vertices).size(),
-                          handle.get_stream());
+        h_cugraph_vertices = cugraph::test::to_host(handle, *d_vertices);
       } else {
         if (renumber) {
-          raft::update_host(h_cugraph_vertices.data(),
-                            (*d_renumber_map_labels).data(),
-                            (*d_renumber_map_labels).size(),
-                            handle.get_stream());
+          h_cugraph_vertices = cugraph::test::to_host(handle, *d_renumber_map_labels);
         } else {
+          h_cugraph_vertices.resize(d_triangle_counts.size());
           std::iota(h_cugraph_vertices.begin(), h_cugraph_vertices.end(), vertex_t{0});
         }
       }
-      std::vector<edge_t> h_cugraph_triangle_counts(d_triangle_counts.size());
-      raft::update_host(h_cugraph_triangle_counts.data(),
-                        d_triangle_counts.data(),
-                        d_triangle_counts.size(),
-                        handle.get_stream());
-
-      handle.sync_stream();
+      auto h_cugraph_triangle_counts = cugraph::test::to_host(handle, d_triangle_counts);
 
       for (size_t i = 0; i < h_cugraph_vertices.size(); ++i) {
         auto v     = h_cugraph_vertices[i];

@@ -163,19 +163,9 @@ class Tests_MGKatzCentrality
 
         // 4-5. compare
 
-        std::vector<result_t> h_mg_aggregate_katz_centralities(mg_graph_view.number_of_vertices());
-        raft::update_host(h_mg_aggregate_katz_centralities.data(),
-                          d_mg_aggregate_katz_centralities.data(),
-                          d_mg_aggregate_katz_centralities.size(),
-                          handle_->get_stream());
-
-        std::vector<result_t> h_sg_katz_centralities(sg_graph_view.number_of_vertices());
-        raft::update_host(h_sg_katz_centralities.data(),
-                          d_sg_katz_centralities.data(),
-                          d_sg_katz_centralities.size(),
-                          handle_->get_stream());
-
-        handle_->sync_stream();
+        auto h_mg_aggregate_katz_centralities =
+          cugraph::test::to_host(*handle_, d_mg_aggregate_katz_centralities);
+        auto h_sg_katz_centralities = cugraph::test::to_host(*handle_, d_sg_katz_centralities);
 
         auto threshold_ratio = 1e-3;
         auto threshold_magnitude =

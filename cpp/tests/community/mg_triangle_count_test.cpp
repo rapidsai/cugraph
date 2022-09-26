@@ -209,19 +209,9 @@ class Tests_MGTriangleCount
 
         // 4-5. compare
 
-        std::vector<edge_t> h_mg_aggregate_triangle_counts(d_mg_aggregate_triangle_counts.size());
-        raft::update_host(h_mg_aggregate_triangle_counts.data(),
-                          d_mg_aggregate_triangle_counts.data(),
-                          d_mg_aggregate_triangle_counts.size(),
-                          handle_->get_stream());
-
-        std::vector<edge_t> h_sg_triangle_counts(d_sg_triangle_counts.size());
-        raft::update_host(h_sg_triangle_counts.data(),
-                          d_sg_triangle_counts.data(),
-                          d_sg_triangle_counts.size(),
-                          handle_->get_stream());
-
-        handle_->sync_stream();
+        auto h_mg_aggregate_triangle_counts =
+          cugraph::test::to_host(*handle_, d_mg_aggregate_triangle_counts);
+        auto h_sg_triangle_counts = cugraph::test::to_host(*handle_, d_sg_triangle_counts);
 
         ASSERT_TRUE(std::equal(h_mg_aggregate_triangle_counts.begin(),
                                h_mg_aggregate_triangle_counts.end(),

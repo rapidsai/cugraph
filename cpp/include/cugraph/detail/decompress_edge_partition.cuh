@@ -16,6 +16,7 @@
 #pragma once
 
 #include <cugraph/edge_partition_device_view.cuh>
+#include <cugraph/graph_view.hpp>
 
 #include <raft/handle.hpp>
 #include <rmm/device_uvector.hpp>
