@@ -1609,6 +1609,37 @@ void core_number(raft::handle_t const& handle,
                  bool do_expensive_check = false);
 
 /**
+ * @brief   Extract K Core of a graph
+ *
+ * @throws     cugraph::logic_error when an error occurs.
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam weight_t Type of edge weights. Needs to be a floating point type.
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
+ * @param  graph_view      Graph view object.
+ * @param  k               Order of the core. This value must not be negative.
+ * @param degree_type Optional parameter to dictate whether to compute the K-core decomposition
+ *                    based on in-degrees, out-degrees, or in-degrees + out_degrees.  One of @p
+ *                    degree_type and @p core_numbers must be specified.
+ * @param  core_numbers    Optional output from core_number algorithm.  If not specified then
+ *                         k_core will call core_number itself using @p degree_type
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
+ *
+ * @return edge list for the graph
+ */
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+std::tuple<rmm::device_uvector<vertex_t>,
+           rmm::device_uvector<vertex_t>,
+           std::optional<rmm::device_uvector<weight_t>>>
+k_core(raft::handle_t const& handle,
+       graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
+       size_t k,
+       std::optional<k_core_degree_type_t> degree_type,
+       std::optional<raft::device_span<edge_t const>> core_numbers,
+       bool do_expensive_check = false);
+
+/**
  * @brief Uniform Neighborhood Sampling.
  *
  * This function traverses from a set of starting vertices, traversing outgoing edges and
