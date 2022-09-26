@@ -69,7 +69,7 @@ int generic_uniform_random_walks_test(vertex_t* h_src,
   ret_code =
     cugraph_uniform_random_walks(handle, graph, d_start_view, max_depth, &result, &ret_error);
 
-#if 1
+#if 0
   TEST_ASSERT(
     test_ret_value, ret_code != CUGRAPH_SUCCESS, "uniform_random_walks should have failed")
 #else
@@ -86,10 +86,10 @@ int generic_uniform_random_walks_test(vertex_t* h_src,
   size_t wgts_size  = cugraph_type_erased_device_array_view_size(wgts);
 
   vertex_t h_result_verts[verts_size];
-  vertex_t h_result_wgts[wgts_size];
+  weight_t h_result_wgts[wgts_size];
 
-  ret_code =
-    cugraph_type_erased_device_array_view_copy_to_host(handle, (byte_t*)h_verts, verts, &ret_error);
+  ret_code = cugraph_type_erased_device_array_view_copy_to_host(
+    handle, (byte_t*)h_result_verts, verts, &ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "copy_to_host failed.");
 
   ret_code = cugraph_type_erased_device_array_view_copy_to_host(
@@ -109,20 +109,24 @@ int generic_uniform_random_walks_test(vertex_t* h_src,
     M[h_src[i]][h_dst[i]] = h_wgt[i];
 
   TEST_ASSERT(test_ret_value,
-              cugraph_random_walk_result_get_max_path_length() == max_depth,
+              cugraph_random_walk_result_get_max_path_length(result) == max_depth,
               "path length does not match");
 
+#if 0
+  // FIXME:  This currently fails if the result has an invalid vertex (if the path stops),
+  //         Need to handle invalid_vtx properly.
   for (int i = 0; (i < num_starts) && (test_ret_value == 0); ++i) {
-    TEST_ASSERT(test_ret_value,
-                M[h_start[i]][h_result_verts[i * (max_depth + 1)]] == h_result_wgts[i * max_depth],
-                "uniform_random_walks got edge that doesn't exist");
-    for (size_t j = 1; j < cugraph_random_walk_result_get_max_path_length(); ++j)
+    TEST_ASSERT(
+      test_ret_value, h_start[i] == h_result_verts[i * (max_depth + 1)], "start of path not found");
+    for (size_t j = 0; j < cugraph_random_walk_result_get_max_path_length(result); ++j) {
       TEST_ASSERT(
         test_ret_value,
-        M[h_start[i * (max_depth + 1) + j - 1]][h_result_verts[i * (max_depth + 1) + j]] ==
-          h_result_wgts[i * max_depth + j - 1],
+        M[h_result_verts[i * (max_depth + 1) + j]][h_result_verts[i * (max_depth + 1) + j + 1]] ==
+          h_result_wgts[i * max_depth + j],
         "uniform_random_walks got edge that doesn't exist");
+    }
   }
+#endif
 
   cugraph_random_walk_result_free(result);
 #endif
@@ -365,7 +369,7 @@ int test_uniform_random_walks()
   vertex_t start[] = {2, 2};
 
   return generic_uniform_random_walks_test(
-    src, dst, wgt, num_vertices, num_edges, start, num_starts, TRUE, FALSE, FALSE);
+    src, dst, wgt, num_vertices, num_edges, start, num_starts, 3, FALSE, FALSE);
 }
 
 int test_biased_random_walks()
@@ -380,7 +384,7 @@ int test_biased_random_walks()
   vertex_t start[] = {2, 2};
 
   return generic_biased_random_walks_test(
-    src, dst, wgt, num_vertices, num_edges, start, num_starts, TRUE, FALSE, FALSE);
+    src, dst, wgt, num_vertices, num_edges, start, num_starts, 3, FALSE, FALSE);
 }
 
 int test_node2vec_random_walks()
@@ -397,7 +401,7 @@ int test_node2vec_random_walks()
   weight_t q       = 9;
 
   return generic_node2vec_random_walks_test(
-    src, dst, wgt, num_vertices, num_edges, start, num_starts, p, q, TRUE, FALSE, FALSE);
+    src, dst, wgt, num_vertices, num_edges, start, num_starts, 3, p, q, FALSE, FALSE);
 }
 
 int main(int argc, char** argv)
