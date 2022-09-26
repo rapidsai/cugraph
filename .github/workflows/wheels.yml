@@ -28,6 +28,9 @@ jobs:
       test-container-amd64: "rapidsai/manylinux_2_27"
       test-container-arm64: "rapidsai/manylinux_2_31"
       test-extras:  "test"
+      test-requires: "dask[distributed,dataframe]"
+      test-before-amd64: "pip install cudf-cu11 dask-cudf-cu11 --index-url https://pypi.k8s.rapids.ai/simple && pip install cupy-cuda115"
+      test-before-arm64: "pip install cudf-cu11 dask-cudf-cu11 --index-url https://pypi.k8s.rapids.ai/simple && pip install cupy-cuda11x -f https://pip.cupy.dev/aarch64"
       test-unittest: "pytest -v ./python/pylibcugraph/pylibcugraph/tests"
     secrets: inherit
   cugraph-wheel:
@@ -52,9 +55,10 @@ jobs:
 
       test-container-amd64: "rapidsai/manylinux_2_27"
       test-container-arm64: "rapidsai/manylinux_2_31"
-      test-before-amd64: "pip install dask-cuda dask-cudf raft-cu11 cudf-cu11 pylibcugraph-cu11 --index-url https://pypi.k8s.rapids.ai/simple"
-      test-before-arm64: "pip install dask-cuda dask-cudf raft-cu11 cudf-cu11 pylibcugraph-cu11 --index-url https://pypi.k8s.rapids.ai/simple"
+      test-before-amd64: "pip install dask-cuda dask-cudf-cu11 raft-cu11 cudf-cu11 pylibcugraph-cu11 --index-url https://pypi.k8s.rapids.ai/simple"
+      test-before-arm64: "pip install dask-cuda dask-cudf-cu11 raft-cu11 cudf-cu11 pylibcugraph-cu11 --index-url https://pypi.k8s.rapids.ai/simple"
       test-extras:  "test"
+      test-requires: "dask[distributed,dataframe]"
       test-unittest: "pytest -v ./python/cugraph/cugraph/tests"
       test-smoketest: "import cudf, cugraph; gdf = cudf.read_csv('graph_data.csv', names=['src', 'dst'], dtype=['int32', 'int32']); G = cugraph.Graph();G.from_cudf_edgelist(gdf, source='src', destination='dst'); df_page = cugraph.pagerank(G); print(df_page.sort_values('pagerank', ascending=False).head(10))"
     secrets: inherit

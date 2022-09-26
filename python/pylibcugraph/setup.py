@@ -103,6 +103,8 @@ setup(name='pylibcugraph'+os.getenv("PYTHON_PACKAGE_CUDA_SUFFIX", default=""),
               "pytest-xdist",
               "pytest-benchmark",
               "scipy",
+              "pandas",
+              "numpy",
               "networkx>=2.5.1",
               "scikit-learn>=0.23.1",
           ]
