@@ -75,7 +75,7 @@ struct cugraph_type_erased_device_array_t {
   }
 
   template <typename T>
-  T const * as_type() const
+  T const* as_type() const
   {
     return reinterpret_cast<T const*>(data_.data());
   }
