@@ -28,7 +28,7 @@ jobs:
       test-container-amd64: "rapidsai/manylinux_2_27"
       test-container-arm64: "rapidsai/manylinux_2_31"
       test-extras:  "test"
-      test-unittest: "pytest -v ./pylibcugraph/pylibcugraph/tests"
+      test-unittest: "pytest -v ./python/pylibcugraph/pylibcugraph/tests"
     secrets: inherit
   cugraph-wheel:
     needs: pylibcugraph-wheel
@@ -55,6 +55,6 @@ jobs:
       test-before-amd64: "pip install dask-cuda dask-cudf raft-cu11 cudf-cu11 pylibcugraph-cu11 --index-url https://pypi.k8s.rapids.ai/simple"
       test-before-arm64: "pip install dask-cuda dask-cudf raft-cu11 cudf-cu11 pylibcugraph-cu11 --index-url https://pypi.k8s.rapids.ai/simple"
       test-extras:  "test"
-      test-unittest: "cd python && pytest -v ./cugraph/cugraph/tests"
+      test-unittest: "pytest -v ./python/cugraph/cugraph/tests"
       test-smoketest: "import cudf, cugraph; gdf = cudf.read_csv('graph_data.csv', names=['src', 'dst'], dtype=['int32', 'int32']); G = cugraph.Graph();G.from_cudf_edgelist(gdf, source='src', destination='dst'); df_page = cugraph.pagerank(G); print(df_page.sort_values('pagerank', ascending=False).head(10))"
     secrets: inherit
