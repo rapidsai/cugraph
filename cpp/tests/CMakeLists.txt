@@ -546,6 +546,12 @@ if(BUILD_CUGRAPH_MG_TESTS)
     target_link_libraries(MG_EXTRACT_TRANSFORM_V_FRONTIER_OUTGOING_E_TEST PRIVATE cuco::cuco)
 
     ###########################################################################################
+    # - MG PRIMS PER_V_RANDOM_SELECT_TRANSFORM_OUTGOING_E tests -------------------------------
+    ConfigureTestMG(MG_PER_V_RANDOM_SELECT_TRANSFORM_OUTGOING_E_TEST
+                    prims/mg_per_v_random_select_transform_outgoing_e.cu)
+    target_link_libraries(MG_PER_V_RANDOM_SELECT_TRANSFORM_OUTGOING_E_TEST PRIVATE cuco::cuco)
+
+    ###########################################################################################
     # - MG GATHER_UTILS tests -----------------------------------------------------------------
     ConfigureTestMG(MG_GATHER_UTILS_TEST sampling/detail/mg_gather_utils.cu)
     target_link_libraries(MG_GATHER_UTILS_TEST PRIVATE cuco::cuco)
