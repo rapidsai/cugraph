@@ -16,6 +16,9 @@ import cudf
 import cugraph
 import dask_cudf
 import cugraph.dask as dcg
+from cugraph.utilities.utils import import_optional
+
+pd = import_optional("pandas")
 
 
 class EXPERIMENTAL__MGPropertySelection:
@@ -256,8 +259,8 @@ class EXPERIMENTAL__MGPropertyGraph:
             vert_sers = self.__get_all_vertices_series()
             if vert_sers:
                 if self.__series_type is dask_cudf.Series:
-                    print([(x,x.dtype) for x in vert_sers])
-                    vert_count = dask_cudf.concat(vert_sers).nunique()
+                    vert_count = dask_cudf.concat(
+                        vert_sers, ignore_index=True).nunique()
                     self.__num_vertices = vert_count.compute()
             return self.__num_vertices
 
@@ -306,7 +309,9 @@ class EXPERIMENTAL__MGPropertyGraph:
         vert_sers = self.__get_all_vertices_series()
         if vert_sers:
             if self.__series_type is dask_cudf.Series:
-                return self.__series_type(dask_cudf.concat(vert_sers).unique())
+                return self.__series_type(
+                    dask_cudf.concat(vert_sers, ignore_index=True).unique()
+                )
             else:
                 raise TypeError("dataframe must be a CUDF Dask dataframe.")
         return self.__series_type()
@@ -379,7 +384,8 @@ class EXPERIMENTAL__MGPropertyGraph:
 
         # Initialize the __vertex_prop_dataframe if necessary using the same
         # type as the incoming dataframe.
-        default_vertex_columns = [self.vertex_col_name, self.type_col_name]
+        TCN = self.type_col_name
+        default_vertex_columns = [self.vertex_col_name, TCN]
         if self.__vertex_prop_dataframe is None:
             temp_dataframe = cudf.DataFrame(columns=default_vertex_columns)
             self.__vertex_prop_dataframe = \
@@ -395,6 +401,16 @@ class EXPERIMENTAL__MGPropertyGraph:
             self.__vertex_prop_dataframe = \
                 self.__vertex_prop_dataframe.set_index(self.vertex_col_name)
 
+            # Use categorical dtype for the type column
+            if self.__series_type is dask_cudf.Series:
+                cat_class = cudf.CategoricalDtype
+            else:
+                cat_class = pd.CategoricalDtype
+            cat_dtype = cat_class([type_name], ordered=False)
+            self.__vertex_prop_dataframe[TCN] = (
+                self.__vertex_prop_dataframe[TCN].astype(cat_dtype)
+            )
+
         # Ensure that both the predetermined vertex ID column name and vertex
         # type column name are present for proper merging.
 
@@ -404,7 +420,14 @@ class EXPERIMENTAL__MGPropertyGraph:
         tmp_df = dataframe.copy()
         tmp_df[self.vertex_col_name] = tmp_df[vertex_col_name]
         # FIXME: handle case of a type_name column already being in tmp_df
-        tmp_df[self.type_col_name] = type_name
+
+        # Add `type_name` to the categorical dtype if necessary
+        cat_dtype = self.__update_categorical_dtype(
+            self.__vertex_prop_dataframe, TCN, type_name
+        )
+
+        tmp_df[TCN] = type_name
+        tmp_df[TCN] = tmp_df[TCN].astype(cat_dtype)
 
         if property_columns:
             # all columns
@@ -447,6 +470,8 @@ class EXPERIMENTAL__MGPropertyGraph:
         self.__vertex_prop_eval_dict[self.vertex_col_name] = (
             self.__vertex_prop_dataframe.index
         )
+        # Should we persist?
+        # self.__vertex_prop_dataframe = self.__vertex_prop_dataframe.persist()
 
     def get_vertex_data(self, vertex_ids=None, types=None, columns=None):
         """
@@ -546,9 +571,10 @@ class EXPERIMENTAL__MGPropertyGraph:
         self.__num_vertices = None
         self.__edge_type_value_counts = None  # Could update instead
 
+        TCN = self.type_col_name
         default_edge_columns = [self.src_col_name,
                                 self.dst_col_name,
-                                self.type_col_name]
+                                TCN]
         if self.__edge_prop_dataframe is None:
             temp_dataframe = cudf.DataFrame(columns=default_edge_columns)
             self.__update_dataframe_dtypes(
@@ -556,6 +582,15 @@ class EXPERIMENTAL__MGPropertyGraph:
                 {self.src_col_name: dataframe[vertex_col_names[0]].dtype,
                  self.dst_col_name: dataframe[vertex_col_names[1]].dtype})
             temp_dataframe.index.name = self.edge_id_col_name
+
+            # Use categorical dtype for the type column
+            if self.__series_type is dask_cudf.Series:
+                cat_class = cudf.CategoricalDtype
+            else:
+                cat_class = pd.CategoricalDtype
+            cat_dtype = cat_class([type_name], ordered=False)
+            temp_dataframe[TCN] = temp_dataframe[TCN].astype(cat_dtype)
+
             self.__edge_prop_dataframe = \
                 dask_cudf.from_cudf(temp_dataframe,
                                     npartitions=self.__num_workers)
@@ -565,7 +600,14 @@ class EXPERIMENTAL__MGPropertyGraph:
         tmp_df = dataframe.copy()
         tmp_df[self.src_col_name] = tmp_df[vertex_col_names[0]]
         tmp_df[self.dst_col_name] = tmp_df[vertex_col_names[1]]
-        tmp_df[self.type_col_name] = type_name
+
+        # Add `type_name` to the categorical dtype if necessary
+        cat_dtype = self.__update_categorical_dtype(
+            self.__edge_prop_dataframe, TCN, type_name
+        )
+
+        tmp_df[TCN] = type_name
+        tmp_df[TCN] = tmp_df[TCN].astype(cat_dtype)
 
         # Add unique edge IDs to the new rows. This is just a count for each
         # row starting from the last edge ID value, with initial edge ID 0.
@@ -577,9 +619,9 @@ class EXPERIMENTAL__MGPropertyGraph:
         tmp_df[self.edge_id_col_name] = (
             tmp_df[self.edge_id_col_name].cumsum() + starting_eid
         )
+        tmp_df = tmp_df.persist()  # before or after "set index"?
+        self.__last_edge_id = starting_eid + len(tmp_df)
         tmp_df = tmp_df.set_index(self.edge_id_col_name)
-        tmp_df = tmp_df.persist()
-        self.__last_edge_id = starting_eid + len(tmp_df.index)
 
         if property_columns:
             # all columns
@@ -621,6 +663,8 @@ class EXPERIMENTAL__MGPropertyGraph:
         self.__edge_prop_eval_dict[self.edge_id_col_name] = (
             self.__edge_prop_dataframe.index
         )
+        # Should we persist?
+        # self.__edge_prop_dataframe = self.__edge_prop_dataframe.persist()
 
     def get_edge_data(self, edge_ids=None, types=None, columns=None):
         """
@@ -775,7 +819,7 @@ class EXPERIMENTAL__MGPropertyGraph:
         # If vertices were specified, select only the edges that contain the
         # selected verts in both src and dst
         if (selected_vertex_dataframe is not None) and \
-           not(selected_vertex_dataframe.empty):
+           not selected_vertex_dataframe.empty:
             has_srcs = selected_edge_dataframe[self.src_col_name]\
                 .isin(selected_vertex_dataframe.index)
             has_dsts = selected_edge_dataframe[self.dst_col_name]\
@@ -1051,6 +1095,20 @@ class EXPERIMENTAL__MGPropertyGraph:
         if epd is not None:
             vert_sers.append(epd[self.src_col_name])
             vert_sers.append(epd[self.dst_col_name])
+        # `dask_cudf.concat` doesn't work when the index dtypes are different
+        # See: https://github.com/rapidsai/cudf/issues/11741
+        if len(vert_sers) > 1 and not all(
+            cudf.api.types.is_dtype_equal(
+                vert_sers[0].index.dtype, s.index.dtype
+            )
+            for s in vert_sers
+        ):
+            # Cast all to int64
+            first, *rest = vert_sers
+            dtype = first.index.dtype
+            for s in rest:
+                if s.index.dtype != dtype:
+                    s.index = s.index.astype(dtype)
         return vert_sers
 
     @staticmethod
@@ -1080,3 +1138,17 @@ class EXPERIMENTAL__MGPropertyGraph:
                 dtype_str = dtype_str.title()
             if str(df[col].dtype) != dtype_str:
                 df[col] = df[col].astype(dtype_str)
+
+    def __update_categorical_dtype(self, df, column, val):
+        """Add a new category to a categorical dtype column of a dataframe.
+
+        Returns the new categorical dtype.
+        """
+        # Add `val` to the categorical dtype if necessary
+        if val in df.dtypes[column].categories:
+            # No need to change the categorical dtype
+            pass
+        else:
+            # dask_cudf doesn't support inplace here like cudf does
+            df[column] = df[column].cat.add_categories([val])
+        return df.dtypes[column]

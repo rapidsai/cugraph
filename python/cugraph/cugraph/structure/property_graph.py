@@ -264,6 +264,7 @@ class EXPERIMENTAL__PropertyGraph:
                 else:
                     self.__num_vertices = pd.concat(vert_sers).nunique()
             return self.__num_vertices
+
         value_counts = self._vertex_type_value_counts
         if type == self._default_type_name and include_edge_data:
             # The default type, "", can refer to both vertex and edge data
@@ -429,23 +430,9 @@ class EXPERIMENTAL__PropertyGraph:
         # FIXME: handle case of a type_name column already being in tmp_df
 
         # Add `type_name` to the categorical dtype if necessary
-        if type_name in self.__vertex_prop_dataframe.dtypes[TCN].categories:
-            # No need to change the categorical dtype
-            pass
-        elif self.__series_type is cudf.Series:
-            # cudf isn't as fast as pandas; does it scan through the data?
-            # inplace is supported in cudf, but is deprecated in pandas.
-            (
-                self.__vertex_prop_dataframe[TCN]
-                .cat.add_categories([type_name], inplace=True)
-            )
-        else:
-            # Very fast in pandas
-            self.__vertex_prop_dataframe[TCN] = (
-                self.__vertex_prop_dataframe[TCN]
-                .cat.add_categories([type_name])
-            )
-        cat_dtype = self.__vertex_prop_dataframe.dtypes[TCN]
+        cat_dtype = self.__update_categorical_dtype(
+            self.__vertex_prop_dataframe, TCN, type_name
+        )
 
         if self.__series_type is cudf.Series:
             # cudf does not yet support initialization with a scalar
@@ -513,7 +500,6 @@ class EXPERIMENTAL__PropertyGraph:
                 df = df.loc[vertex_ids]
 
             if types is not None:
-                # FIXME: coerce types to a list-like if not?
                 if isinstance(types, str):
                     df_mask = df[self.type_col_name] == types
                 else:
@@ -610,8 +596,7 @@ class EXPERIMENTAL__PropertyGraph:
         TCN = self.type_col_name
         default_edge_columns = [self.src_col_name,
                                 self.dst_col_name,
-                                self.type_col_name]
-
+                                TCN]
         if self.__edge_prop_dataframe is None:
             self.__edge_prop_dataframe = \
                 self.__dataframe_type(columns=default_edge_columns)
@@ -644,23 +629,9 @@ class EXPERIMENTAL__PropertyGraph:
         tmp_df[self.dst_col_name] = tmp_df[vertex_col_names[1]]
 
         # Add `type_name` to the categorical dtype if necessary
-        if type_name in self.__edge_prop_dataframe.dtypes[TCN].categories:
-            # No need to change the categorical dtype
-            pass
-        elif self.__series_type is cudf.Series:
-            # cudf isn't as fast as pandas; does it scan through the data?
-            # inplace is supported in cudf, but is deprecated in pandas.
-            (
-                self.__edge_prop_dataframe[TCN]
-                .cat.add_categories([type_name], inplace=True)
-            )
-        else:
-            # Very fast in pandas
-            self.__edge_prop_dataframe[TCN] = (
-                self.__edge_prop_dataframe[TCN]
-                .cat.add_categories([type_name])
-            )
-        cat_dtype = self.__edge_prop_dataframe.dtypes[TCN]
+        cat_dtype = self.__update_categorical_dtype(
+            self.__edge_prop_dataframe, TCN, type_name
+        )
 
         if self.__series_type is cudf.Series:
             # cudf does not yet support initialization with a scalar
@@ -939,7 +910,7 @@ class EXPERIMENTAL__PropertyGraph:
         # If vertices were specified, select only the edges that contain the
         # selected verts in both src and dst
         if (selected_vertex_dataframe is not None) and \
-           not(selected_vertex_dataframe.empty):
+           not selected_vertex_dataframe.empty:
             has_srcs = selected_edge_dataframe[self.src_col_name]\
                 .isin(selected_vertex_dataframe.index)
             has_dsts = selected_edge_dataframe[self.dst_col_name]\
@@ -1066,28 +1037,29 @@ class EXPERIMENTAL__PropertyGraph:
         """
         # FIXME: check default_edge_weight is valid
         if edge_weight_property:
-            if edge_weight_property not in edge_prop_df.columns:
-                if edge_weight_property != self.edge_id_col_name:
-                    raise ValueError("edge_weight_property "
-                                    f'"{edge_weight_property}" was not found in '
-                                    "edge_prop_df")
+            if (
+                edge_weight_property not in edge_prop_df.columns
+                and edge_prop_df.index.name != edge_weight_property
+            ):
+                raise ValueError("edge_weight_property "
+                                 f'"{edge_weight_property}" was not found in '
+                                 "edge_prop_df")
 
             # Ensure a valid edge_weight_property can be used for applying
             # weights to the subgraph, and if a default_edge_weight was
             # specified, apply it to all NAs in the weight column.
-            if edge_weight_property == self.edge_id_col_name:
-                prop_col = edge_prop_df.index
-                edge_prop_df[self.edge_id_col_name] = prop_col
-            else:
+            if edge_weight_property in edge_prop_df.columns:
                 prop_col = edge_prop_df[edge_weight_property]
-                if prop_col.count() != prop_col.size:
-                    if default_edge_weight is None:
-                        raise ValueError("edge_weight_property "
-                                        f'"{edge_weight_property}" '
-                                        "contains NA values in the subgraph and "
-                                        "default_edge_weight is not set")
-                    else:
-                        prop_col.fillna(default_edge_weight, inplace=True)
+            else:
+                prop_col = edge_prop_df.index.to_series()
+            if prop_col.count() != prop_col.size:
+                if default_edge_weight is None:
+                    raise ValueError("edge_weight_property "
+                                     f'"{edge_weight_property}" '
+                                     "contains NA values in the subgraph and "
+                                     "default_edge_weight is not set")
+                else:
+                    prop_col.fillna(default_edge_weight, inplace=True)
             edge_attr = edge_weight_property
 
         # If a default_edge_weight was specified but an edge_weight_property
@@ -1168,9 +1140,9 @@ class EXPERIMENTAL__PropertyGraph:
             )
         if self.__vertex_prop_dataframe is None:
             return None
-        # We'll need to update this when index is vertex ID
         df = (
             self.__vertex_prop_dataframe
+            .reset_index()
             .sort_values(by=self.type_col_name)
         )
         if self.__edge_prop_dataframe is not None:
@@ -1185,7 +1157,6 @@ class EXPERIMENTAL__PropertyGraph:
             )
         df.drop(columns=[self.vertex_col_name], inplace=True)
         df.index.name = self.vertex_col_name
-        df.reset_index(inplace=True)
         self.__vertex_prop_dataframe = df
         rv = (
             self._vertex_type_value_counts
@@ -1206,14 +1177,11 @@ class EXPERIMENTAL__PropertyGraph:
         # TODO: keep track if edges are already numbered correctly.
         if self.__edge_prop_dataframe is None:
             return None
-        # We'll need to update this when index is edge ID
         self.__edge_prop_dataframe = (
             self.__edge_prop_dataframe
-            .drop(columns=[self.edge_id_col_name])
             .sort_values(by=self.type_col_name, ignore_index=True)
         )
         self.__edge_prop_dataframe.index.name = self.edge_id_col_name
-        self.__edge_prop_dataframe.reset_index(inplace=True)
         rv = (
             self._edge_type_value_counts
             .sort_index()
@@ -1259,7 +1227,7 @@ class EXPERIMENTAL__PropertyGraph:
         epd = self.__edge_prop_dataframe
         vert_sers = []
         if vpd is not None:
-            vert_sers.append(cudf.Series(vpd.index, name=self.vertex_col_name))
+            vert_sers.append(vpd.index.to_series())
         if epd is not None:
             vert_sers.append(epd[self.src_col_name])
             vert_sers.append(epd[self.dst_col_name])
@@ -1303,3 +1271,21 @@ class EXPERIMENTAL__PropertyGraph:
         # #returning-a-view-versus-a-copy
         # Note that this requires all column names to be strings.
         return df.assign(**update_cols)
+
+    def __update_categorical_dtype(self, df, column, val):
+        """Add a new category to a categorical dtype column of a dataframe.
+
+        Returns the new categorical dtype.
+        """
+        # Add `val` to the categorical dtype if necessary
+        if val in df.dtypes[column].categories:
+            # No need to change the categorical dtype
+            pass
+        elif self.__series_type is cudf.Series:
+            # cudf isn't as fast as pandas; does it scan through the data?
+            # inplace is supported in cudf, but is deprecated in pandas.
+            df[column].cat.add_categories([val], inplace=True)
+        else:
+            # Very fast in pandas
+            df[column] = df[column].cat.add_categories([val])
+        return df.dtypes[column]
