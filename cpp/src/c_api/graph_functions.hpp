@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2022, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,22 +16,13 @@
 
 #pragma once
 
-#include <cugraph_c/error.h>
-#include <cugraph_c/graph.h>
-#include <cugraph_c/resource_handle.h>
+namespace cugraph {
+namespace c_api {
 
-/** @defgroup c_api cuGraph C API
- *  @{
- */
+struct cugraph_vertex_pairs_t {
+  cugraph_type_erased_device_array_t* first_;
+  cugraph_type_erased_device_array_t* second_;
+};
 
-#include <cugraph_c/centrality_algorithms.h>
-#include <cugraph_c/community_algorithms.h>
-#include <cugraph_c/core_algorithms.h>
-#include <cugraph_c/labeling_algorithms.h>
-#include <cugraph_c/sampling_algorithms.h>
-#include <cugraph_c/similarity_algorithms.h>
-#include <cugraph_c/traversal_algorithms.h>
-
-/**
- *  @}
- */
+}  // namespace c_api
+}  // namespace cugraph
