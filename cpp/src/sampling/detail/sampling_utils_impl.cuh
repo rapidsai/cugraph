@@ -17,7 +17,7 @@
 #pragma once
 
 #include <prims/extract_transform_v_frontier_outgoing_e.cuh>
-#include <prims/update_edge_src_dst_property.cuh> // ??
+#include <prims/update_edge_src_dst_property.cuh>  // ??
 #include <prims/vertex_frontier.cuh>
 
 #include <cugraph/detail/decompress_edge_partition.cuh>
@@ -55,8 +55,8 @@
 #include <rmm/device_uvector.hpp>
 
 #include <numeric>
-#include <vector>
 #include <type_traits>
+#include <vector>
 
 namespace cugraph {
 namespace detail {
@@ -665,77 +665,14 @@ void local_major_degree(
   }
 }
 
-// NEW CODE:
+template <typename vertex_t, typename weight_t, typename property_t>
+struct return_all_edges_e_op {
+  using return_type = thrust::optional<thrust::tuple<vertex_t, vertex_t, weight_t>>;
 
-template <typename key_t, typename vertex_t, typename property_t, typename output_payload_t>
-struct from_test_e_op_t {
-  static_assert(std::is_same_v<key_t, vertex_t> ||
-                std::is_same_v<key_t, thrust::tuple<vertex_t, int32_t>>);
-  static_assert(std::is_same_v<output_payload_t, int32_t> ||
-                std::is_same_v<output_payload_t, thrust::tuple<float, int32_t>>);
-
-  using return_type = thrust::optional<typename std::conditional_t<
-    std::is_same_v<key_t, vertex_t>,
-    std::conditional_t<std::is_arithmetic_v<output_payload_t>,
-                       thrust::tuple<vertex_t, vertex_t, int32_t>,
-                       thrust::tuple<vertex_t, vertex_t, float, int32_t>>,
-    std::conditional_t<std::is_arithmetic_v<output_payload_t>,
-                       thrust::tuple<vertex_t, int32_t, vertex_t, int32_t>,
-                       thrust::tuple<vertex_t, int32_t, vertex_t, float, int32_t>>>>;
-
-  __device__ return_type operator()(key_t optionally_tagged_src,
-                                    vertex_t dst,
-                                    property_t src_val,
-                                    property_t dst_val) const
+  return_type __device__
+  operator()(vertex_t src, vertex_t dst, weight_t wgt, property_t, property_t)
   {
-    auto output_payload = static_cast<output_payload_t>(1);
-    if constexpr (std::is_same_v<key_t, vertex_t>) {
-      if constexpr (std::is_arithmetic_v<output_payload_t>) {
-        return src_val < dst_val ? thrust::make_optional(
-                                     thrust::make_tuple(optionally_tagged_src, dst, output_payload))
-                                 : thrust::nullopt;
-      } else {
-        static_assert(thrust::tuple_size<output_payload_t>::value == size_t{2});
-        return src_val < dst_val
-                 ? thrust::make_optional(thrust::make_tuple(optionally_tagged_src,
-                                                            dst,
-                                                            thrust::get<0>(output_payload),
-                                                            thrust::get<1>(output_payload)))
-                 : thrust::nullopt;
-      }
-    } else {
-      static_assert(thrust::tuple_size<key_t>::value == size_t{2});
-      if constexpr (std::is_arithmetic_v<output_payload_t>) {
-        return src_val < dst_val
-                 ? thrust::make_optional(thrust::make_tuple(thrust::get<0>(optionally_tagged_src),
-                                                            thrust::get<1>(optionally_tagged_src),
-                                                            dst,
-                                                            output_payload))
-                 : thrust::nullopt;
-      } else {
-        static_assert(thrust::tuple_size<output_payload_t>::value == size_t{2});
-        return src_val < dst_val
-                 ? thrust::make_optional(thrust::make_tuple(thrust::get<0>(optionally_tagged_src),
-                                                            thrust::get<1>(optionally_tagged_src),
-                                                            dst,
-                                                            thrust::get<0>(output_payload),
-                                                            thrust::get<1>(output_payload)))
-                 : thrust::nullopt;
-      }
-    }
-  }
-};
-
-// template <typename vertex_t, typename weight_t, typename src_property_t, typename dst_property_t>
-template <typename vertex_t, typename weight_t>
-struct return_all_edges_op_t {
-  using return_type = thrust::tuple<vertex_t, vertex_t, weight_t>;
-
-  __device__ return_type
-  // operator()(vertex_t src, vertex_t dst, weight_t wgt, src_property_t, dst_property_t) const
-  operator()(vertex_t src, vertex_t dst, weight_t wgt, std::nullopt_t, std::nullopt_t) const
-  {
-    return thrust::make_tuple(src, dst, wgt);
+    return thrust::make_optional(thrust::make_tuple(src, dst, wgt));
   }
 };
 
@@ -756,191 +693,29 @@ gather_one_hop_edgelist(
   // FIXME: add as a template parameter
   using tag_t = void;
 
-  using key_t =
-    std::conditional_t<std::is_same_v<tag_t, void>, vertex_t, thrust::tuple<vertex_t, tag_t>>;
+  cugraph::vertex_frontier_t<vertex_t, tag_t, GraphViewType::is_multi_gpu, false> vertex_frontier(
+    handle, 1);
 
-#if 1
-  // NEW CODE:
-  //         Also, how do I get d_out_indices?
-  //         Do I have real edge ids yet?
+  vertex_frontier.bucket(0).insert(active_majors.begin(), active_majors.end());
 
-  // SEE tests/prims/mg_extract_transform_v_frontier_outgoing_e.cu line 244.
-  //     Seem to need to create an mg_key_buffer here...
-  cugraph::vertex_frontier_t<vertex_t, tag_t, GraphViewType::is_multi_gpu, false>
-    mg_vertex_frontier(handle, 1);
-
-#if 0
-  mg_vertex_frontier.bucket(0).insert(cugraph::get_dataframe_buffer_begin(mg_key_buffer),
-                                      cugraph::get_dataframe_buffer_end(mg_key_buffer));
-#endif
-
-#if 1
+  // FIXME:  Shouldn't there be a dummy property equivalent here?
   using property_t = int32_t;
+  cugraph::edge_src_property_t<GraphViewType, property_t> mg_src_properties(handle, graph_view);
+  cugraph::edge_dst_property_t<GraphViewType, property_t> mg_dst_properties(handle, graph_view);
 
-  cugraph::edge_src_property_t<decltype(graph_view), property_t> mg_src_properties(handle,
-                                                                                   graph_view);
-  cugraph::edge_dst_property_t<decltype(graph_view), property_t> mg_dst_properties(handle,
-                                                                                   graph_view);
-
-  auto result = extract_transform_v_frontier_outgoing_e(
+  auto [majors, minors, weights] = cugraph::extract_transform_v_frontier_outgoing_e(
     handle,
     graph_view,
-    mg_vertex_frontier.bucket(0),
+    vertex_frontier.bucket(0),
+    // edge_src_dummy_property_t{},
+    // edge_dst_dummy_property_t{},
     mg_src_properties.view(),
     mg_dst_properties.view(),
-    // edge_src_dummy_property_t{}.view(),
-    // edge_dst_dummy_property_t{}.view(),
-    from_test_e_op_t<key_t, vertex_t, std::nullopt_t, int32_t>{},
-    // return_all_edges_op_t<vertex_t, weight_t>{},
-    // return_all_edges_op_t<vertex_t, weight_t, edge_src_dummy_property_t,
-    // edge_dst_dummy_property_t>{},
-    //[] __device__ (auto src, auto dst, auto wgt, auto, auto) {
-    //  return thrust::make_tuple(src, dst, wgt);
-    //},
+    return_all_edges_e_op<vertex_t, weight_t, property_t>{},
     do_expensive_check);
 
-  std::cout << "result = " << result << std::endl;
-#endif
-
-  // How does the desired return value match the output from the primitive?
-  // return std::make_tuple(std::move(majors), std::move(minors), std::move(weights));
-#else
-
-  rmm::device_uvector<vertex_t> majors(0, handle.get_stream());
-  rmm::device_uvector<vertex_t> minors(0, handle.get_stream());
-
-  auto weights = std::make_optional<rmm::device_uvector<weight_t>>(0, handle.get_stream());
-
-  if constexpr (GraphViewType::is_multi_gpu == true) {
-    std::vector<std::vector<vertex_t>> active_majors_segments;
-    vertex_t max_active_major_count{0};
-    for (size_t i = 0; i < graph_view.number_of_local_edge_partitions(); ++i) {
-      auto partition =
-        edge_partition_device_view_t<vertex_t, edge_t, weight_t, GraphViewType::is_multi_gpu>(
-          graph_view.local_edge_partition_view(i));
-      // Identify segments of active_majors
-      active_majors_segments.emplace_back(
-        get_active_major_segments(handle,
-                                  partition.major_range_first(),
-                                  partition.major_range_last(),
-                                  *(graph_view.local_edge_partition_segment_offsets(i)),
-                                  active_majors));
-      auto& majors_segments = active_majors_segments.back();
-      // Count of active majors belonging to this partition
-      max_active_major_count =
-        std::max(max_active_major_count, majors_segments.back() - majors_segments.front());
-    }
-
-    auto& comm           = handle.get_comms();
-    auto const comm_rank = comm.get_rank();
-    rmm::device_uvector<edge_t> active_majors_out_offsets(1 + max_active_major_count,
-                                                          handle.get_stream());
-    auto edge_count =
-      edgelist_count(handle, graph_view, active_majors.begin(), active_majors.end());
-
-    majors.resize(edge_count, handle.get_stream());
-    minors.resize(edge_count, handle.get_stream());
-    if (weights) weights->resize(edge_count, handle.get_stream());
-
-    edge_t output_offset = 0;
-    vertex_t vertex_offset{0};
-    for (size_t i = 0; i < graph_view.number_of_local_edge_partitions(); ++i) {
-      auto partition =
-        edge_partition_device_view_t<vertex_t, edge_t, weight_t, GraphViewType::is_multi_gpu>(
-          graph_view.local_edge_partition_view(i));
-      auto& majors_segments = active_majors_segments[i];
-      // Calculate local degree offsets
-      auto active_major_count = majors_segments.back() - majors_segments.front();
-      active_majors_out_offsets.set_element_to_zero_async(0, handle.get_stream());
-      local_major_degree(handle,
-                         partition,
-                         active_majors,
-                         majors_segments,
-                         *(graph_view.local_edge_partition_segment_offsets(i)),
-                         1 + active_majors_out_offsets.data());
-      thrust::inclusive_scan(handle.get_thrust_policy(),
-                             active_majors_out_offsets.begin() + 1,
-                             active_majors_out_offsets.begin() + 1 + active_major_count,
-                             active_majors_out_offsets.begin() + 1);
-      active_majors_out_offsets.resize(1 + active_major_count, handle.get_stream());
-      partially_decompress_edge_partition_to_fill_edgelist<vertex_t, edge_t, weight_t, int, true>(
-        handle,
-        partition,
-        active_majors.cbegin(),
-        active_majors_out_offsets.cbegin(),
-        static_cast<vertex_t>(active_majors.size()),
-        majors_segments,
-        output_offset + majors.data(),
-        output_offset + minors.data(),
-        weights ? thrust::make_optional(output_offset + weights->data()) : thrust::nullopt,
-        thrust::nullopt,
-        thrust::nullopt,
-        // FIXME: When PR 2365 is merged, this parameter can be removed
-        graph_view.local_edge_partition_segment_offsets(i));
-
-      output_offset += active_majors_out_offsets.back_element(handle.get_stream());
-      vertex_offset += partition.major_range_size();
-    }
-
-  } else {
-    // Assumes active_majors is sorted
-    auto partition =
-      edge_partition_device_view_t<vertex_t, edge_t, weight_t, GraphViewType::is_multi_gpu>(
-        graph_view.local_edge_partition_view(0));
-
-    // FIXME:  This should probably be in the graph view as:
-    //    rmm::device_uvector<edge_t> compute_major_degrees(handle, graph_view, vertex_list)
-    //
-    rmm::device_uvector<edge_t> active_majors_out_offsets(1 + active_majors.size(),
-                                                          handle.get_stream());
-    thrust::fill_n(handle.get_thrust_policy(), active_majors_out_offsets.begin(), 1, edge_t{0});
-
-    thrust::transform(
-      handle.get_thrust_policy(),
-      active_majors.begin(),
-      active_majors.end(),
-      active_majors_out_offsets.begin() + 1,
-      [offsets = partition.offsets()] __device__(auto v) { return offsets[v + 1] - offsets[v]; });
-
-    thrust::inclusive_scan(handle.get_thrust_policy(),
-                           active_majors_out_offsets.begin(),
-                           active_majors_out_offsets.end(),
-                           active_majors_out_offsets.begin());
-
-    edge_t edge_count;
-    raft::update_host(&edge_count,
-                      active_majors_out_offsets.begin() + active_majors.size(),
-                      1,
-                      handle.get_stream());
-
-    majors.resize(edge_count, handle.get_stream());
-    minors.resize(edge_count, handle.get_stream());
-    if (weights) weights->resize(edge_count, handle.get_stream());
-
-    auto majors_segments = graph_view.local_edge_partition_segment_offsets(0);
-
-    partially_decompress_edge_partition_to_fill_edgelist<vertex_t,
-                                                         edge_t,
-                                                         weight_t,
-                                                         int,
-                                                         GraphViewType::is_multi_gpu>(
-      handle,
-      partition,
-      active_majors.cbegin(),
-      active_majors_out_offsets.cbegin(),
-      static_cast<vertex_t>(active_majors.size()),
-      *majors_segments,
-      majors.data(),
-      minors.data(),
-      weights ? thrust::make_optional(weights->data()) : thrust::nullopt,
-      thrust::nullopt,
-      thrust::nullopt,
-      // FIXME: When PR 2365 is merged, this parameter can be removed
-      std::nullopt);
-  }
-
-  return std::make_tuple(std::move(majors), std::move(minors), std::move(weights));
-#endif
+  return std::make_tuple(
+    std::move(majors), std::move(minors), std::make_optional(std::move(weights)));
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t>

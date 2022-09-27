@@ -813,14 +813,16 @@ extract_transform_v_frontier_e(raft::handle_t const& handle,
   auto frontier_key_last  = frontier.end();
   auto frontier_keys      = allocate_dataframe_buffer<key_t>(size_t{0}, handle.get_stream());
   if constexpr (!VertexFrontierBucketType::is_sorted_unique) {
-    frontier_keys = resize_dataframe_buffer(frontier_keys, frontier.size(), handle.get_stream());
+    resize_dataframe_buffer(frontier_keys, frontier.size(), handle.get_stream());
     thrust::copy(handle.get_thrust_policy(),
                  frontier_key_first,
                  frontier_key_last,
                  get_dataframe_buffer_begin(frontier_keys));
+    thrust::sort(handle.get_thrust_policy(), 
+                 get_dataframe_buffer_begin(frontier_keys),
+                 get_dataframe_buffer_end(frontier_keys));
     frontier_key_first = get_dataframe_buffer_begin(frontier_keys);
     frontier_key_last  = get_dataframe_buffer_end(frontier_keys);
-    thrust::sort(handle.get_thrust_policy(), frontier_key_first, frontier_key_last);
   }
 
   // 1. fill the buffers

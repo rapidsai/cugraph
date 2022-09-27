@@ -173,7 +173,8 @@ std::tuple<rmm::device_uvector<typename GraphViewType::vertex_type>,
 gather_one_hop_edgelist(
   raft::handle_t const& handle,
   GraphViewType const& graph_view,
-  const rmm::device_uvector<typename GraphViewType::vertex_type>& active_majors);
+  const rmm::device_uvector<typename GraphViewType::vertex_type>& active_majors,
+  bool do_expensive_check = false);
 
 template <typename vertex_t, typename edge_t, typename weight_t>
 std::tuple<rmm::device_uvector<vertex_t>,
