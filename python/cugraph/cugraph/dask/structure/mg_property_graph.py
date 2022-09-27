@@ -944,10 +944,17 @@ class EXPERIMENTAL__MGPropertyGraph:
         if self.__vertex_prop_dataframe is None:
             return None
         # We'll need to update this when index is vertex ID
-        df = (
-            self.__vertex_prop_dataframe
-            .sort_values(by=self.type_col_name)
-        )
+        df = self.__vertex_prop_dataframe
+
+        # FIXME DASK_CUDF: https://github.com/rapidsai/cudf/issues/11795
+        cat_dtype = df.dtypes[self.type_col_name]
+        df[self.type_col_name] = df[self.type_col_name].astype(str)
+
+        df = df.sort_values(by=self.type_col_name)
+
+        # FIXME DASK_CUDF: https://github.com/rapidsai/cudf/issues/11795
+        df[self.type_col_name] = df[self.type_col_name].astype(cat_dtype)
+
         if self.__edge_prop_dataframe is not None:
             new_name = f"new_{self.vertex_col_name}"
             df[new_name] = 1
@@ -993,21 +1000,39 @@ class EXPERIMENTAL__MGPropertyGraph:
         if self.__edge_prop_dataframe is None:
             return None
         # We'll need to update this when index is edge ID
-        self.__edge_prop_dataframe = (
+        df = (
             self.__edge_prop_dataframe
             .drop(columns=[self.edge_id_col_name])
-            .sort_values(by=self.type_col_name, ignore_index=True)
         )
-        self.__edge_prop_dataframe[self.edge_id_col_name] = 1
-        self.__edge_prop_dataframe[self.edge_id_col_name] = (
-            self.__edge_prop_dataframe[self.edge_id_col_name].cumsum() - 1
-        )
+        # FIXME DASK_CUDF: https://github.com/rapidsai/cudf/issues/11795
+        cat_dtype = df.dtypes[self.type_col_name]
+        df[self.type_col_name] = df[self.type_col_name].astype(str)
+
+        df = df.sort_values(by=self.type_col_name, ignore_index=True)
+
+        # FIXME DASK_CUDF: https://github.com/rapidsai/cudf/issues/11795
+        df[self.type_col_name] = df[self.type_col_name].astype(cat_dtype)
+
+        df[self.edge_id_col_name] = 1
+        df[self.edge_id_col_name] = df[self.edge_id_col_name].cumsum() - 1
+        self.__edge_prop_dataframe = df
+
+        # FIXME DASK_CUDF: https://github.com/rapidsai/cudf/issues/11795
+        df = self._edge_type_value_counts
+        assert df.index.dtype == cat_dtype
+        df.index = df.index.astype(str)
+
         rv = (
-            self._edge_type_value_counts
+            # self._edge_type_value_counts
+            df
             .sort_index()
             .cumsum()
             .to_frame("stop")
         )
+
+        # FIXME DASK_CUDF: https://github.com/rapidsai/cudf/issues/11795
+        df.index = df.index.astype(cat_dtype)
+
         rv["start"] = rv["stop"].shift(1, fill_value=0)
         rv["stop"] -= 1  # Make inclusive
         return rv[["start", "stop"]]
