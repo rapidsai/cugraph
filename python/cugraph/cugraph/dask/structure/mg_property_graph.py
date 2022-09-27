@@ -990,10 +990,19 @@ class EXPERIMENTAL__MGPropertyGraph:
             return None
         df = self.__vertex_prop_dataframe
         if self.__edge_prop_dataframe is not None:
+
+            # FIXME: ISSUE WITH DASK_CUDF
+            cat_dtype = df.dtypes[self.type_col_name]
+            df[self.type_col_name] = df[self.type_col_name].astype(str)
+
             df = (
                 df.reset_index()
                 .sort_values(by=self.type_col_name)
             )
+
+            # FIXME: ISSUE WITH DASK_CUDF
+            df[self.type_col_name] = df[self.type_col_name].astype(cat_dtype)
+
             new_name = f"new_{self.vertex_col_name}"
             df[new_name] = 1
             df[new_name] = df[new_name].cumsum() - 1
@@ -1021,12 +1030,23 @@ class EXPERIMENTAL__MGPropertyGraph:
         self.__vertex_prop_dataframe = (
             df.set_index(self.vertex_col_name, sorted=True).persist()
         )
+
+        # FIXME: ISSUE WITH DASK_CUDF
+        df = self._vertex_type_value_counts
+        cat_dtype = df.index.dtype
+        df.index = df.index.astype(str)
+
         rv = (
-            self._vertex_type_value_counts
+            # self._vertex_type_value_counts
+            df
             .sort_index()
             .cumsum()
             .to_frame("stop")
         )
+
+        # FIXME: ISSUE WITH DASK_CUDF
+        df.index = df.index.astype(cat_dtype)
+
         rv["start"] = rv["stop"].shift(1, fill_value=0)
         rv["stop"] -= 1  # Make inclusive
         return rv[["start", "stop"]]
@@ -1040,21 +1060,39 @@ class EXPERIMENTAL__MGPropertyGraph:
         # TODO: keep track if edges are already numbered correctly.
         if self.__edge_prop_dataframe is None:
             return None
-        df = (
-            self.__edge_prop_dataframe
-            .sort_values(by=self.type_col_name, ignore_index=True)
-        )
+        df = self.__edge_prop_dataframe
+
+        # FIXME: ISSUE WITH DASK_CUDF
+        cat_dtype = df.dtypes[self.type_col_name]
+        df[self.type_col_name] = df[self.type_col_name].astype(str)
+
+        df = df.sort_values(by=self.type_col_name, ignore_index=True)
+
+        # FIXME: ISSUE WITH DASK_CUDF
+        df[self.type_col_name] = df[self.type_col_name].astype(cat_dtype)
+
         df[self.edge_id_col_name] = 1
         df[self.edge_id_col_name] = df[self.edge_id_col_name].cumsum() - 1
         self.__edge_prop_dataframe = (
             df.set_index(self.edge_id_col_name, sorted=True).persist()
         )
+
+        # FIXME: ISSUE WITH DASK_CUDF
+        df = self._edge_type_value_counts
+        assert df.index.dtype == cat_dtype
+        df.index = df.index.astype(str)
+
         rv = (
-            self._edge_type_value_counts
+            # self._edge_type_value_counts
+            df
             .sort_index()
             .cumsum()
             .to_frame("stop")
         )
+
+        # FIXME: ISSUE WITH DASK_CUDF
+        df.index = df.index.astype(cat_dtype)
+
         rv["start"] = rv["stop"].shift(1, fill_value=0)
         rv["stop"] -= 1  # Make inclusive
         return rv[["start", "stop"]]

@@ -435,7 +435,7 @@ class EXPERIMENTAL__CuGraphStore:
 
         noi = self.__graph.get_vertex_data(
             nodes_of_interest.compute().values_host if self.is_mg
-              else nodes_of_interest,
+            else nodes_of_interest,
             columns=[self.__graph.type_col_name]
         )
 
