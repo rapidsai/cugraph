@@ -188,6 +188,25 @@ def test_add_edge_list_to_adj_list(graph_file):
 
 # Test
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
+def test_add_edge_list_to_adj_list_pipeline(graph_file):
+    cu_M = utils.read_csv_file(graph_file)
+
+    M = utils.read_csv_for_nx(graph_file)
+    N = max(max(M["0"]), max(M["1"])) + 1
+    M = scipy.sparse.csr_matrix((M.weight, (M["0"], M["1"])), shape=(N, N))
+    offsets_exp = M.indptr
+    indices_exp = M.indices
+
+    # cugraph add_egde_list to_adj_list call
+    G = cugraph.Graph(directed=True).from_cudf_edgelist(
+        cu_M, source="0", destination="1", renumber=False)
+    offsets_cu, indices_cu, values_cu = G.view_adj_list()
+    compare_series(offsets_cu, offsets_exp)
+    compare_series(indices_cu, indices_exp)
+    assert values_cu is None
+
+# Test
+@pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_add_adj_list_to_edge_list(graph_file):
     Mnx = utils.read_csv_for_nx(graph_file)
     N = max(max(Mnx["0"]), max(Mnx["1"])) + 1
@@ -212,6 +231,31 @@ def test_add_adj_list_to_edge_list(graph_file):
     compare_series(sources_cu, sources_exp)
     compare_series(destinations_cu, destinations_exp)
 
+
+# Test
+@pytest.mark.parametrize("graph_file", utils.DATASETS)
+def test_add_adj_list_to_edge_list_pipeline(graph_file):
+    Mnx = utils.read_csv_for_nx(graph_file)
+    N = max(max(Mnx["0"]), max(Mnx["1"])) + 1
+    Mcsr = scipy.sparse.csr_matrix(
+        (Mnx.weight, (Mnx["0"], Mnx["1"])), shape=(N, N)
+    )
+
+    offsets = cudf.Series(Mcsr.indptr)
+    indices = cudf.Series(Mcsr.indices)
+
+    Mcoo = Mcsr.tocoo()
+    sources_exp = cudf.Series(Mcoo.row)
+    destinations_exp = cudf.Series(Mcoo.col)
+
+    # cugraph add_adj_list to_edge_list call
+    G = cugraph.Graph(directed=True).from_cudf_adjlist(offsets, indices, None)
+
+    edgelist = G.view_edge_list()
+    sources_cu = edgelist["src"]
+    destinations_cu = edgelist["dst"]
+    compare_series(sources_cu, sources_exp)
+    compare_series(destinations_cu, destinations_exp)
 
 # Test
 @pytest.mark.parametrize("graph_file", utils.DATASETS)

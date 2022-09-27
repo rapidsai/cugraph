@@ -169,6 +169,7 @@ class Graph:
             renumber=renumber,
             store_transposed=store_transposed,
             legacy_renum_only=legacy_renum_only)
+        return self
 
     def from_cudf_adjlist(self, offset_col, index_col, value_col=None):
         """
@@ -224,6 +225,7 @@ class Graph:
         self._Impl._simpleGraphImpl__from_adjlist(offset_col,
                                                   index_col,
                                                   value_col)
+        return self
 
     def from_dask_cudf_edgelist(
         self,
@@ -290,6 +292,7 @@ class Graph:
             store_transposed,
             legacy_renum_only
         )
+        return self
 
     # Move to Compat Module
     def from_pandas_edgelist(
@@ -348,6 +351,7 @@ class Graph:
         gdf = cudf.DataFrame.from_pandas(pdf)
         self.from_cudf_edgelist(gdf, source=source, destination=destination,
                                 edge_attr=edge_attr, renumber=renumber)
+        return self
 
     def from_pandas_adjacency(self, pdf):
         """
@@ -364,6 +368,7 @@ class Graph:
         np_array = pdf.to_numpy()
         columns = pdf.columns
         self.from_numpy_array(np_array, columns)
+        return self
 
     def from_numpy_array(self, np_array, nodes=None):
         """
@@ -393,6 +398,7 @@ class Graph:
             df['dst'] = dst
         df['weight'] = weight
         self.from_cudf_edgelist(df, 'src', 'dst', edge_attr='weight')
+        return self
 
     def from_numpy_matrix(self, np_matrix):
         """
@@ -408,6 +414,7 @@ class Graph:
 
         np_array = np.asarray(np_matrix)
         self.from_numpy_array(np_array)
+        return self
 
     def unrenumber(self, df, column_name, preserve_order=False,
                    get_column_names=False):
@@ -652,6 +659,7 @@ class Graph:
             The nodes of the graph to be stored.
         """
         self._Impl._nodes["all_nodes"] = cudf.Series(nodes)
+        return self
 
     # TODO: Add function
     # def properties():
