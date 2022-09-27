@@ -13,24 +13,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 #pragma once
 
-#include <c_api/array.hpp>
+#include <cugraph/algorithms.hpp>
+#include <cugraph/graph_view.hpp>
+#include <cugraph/utilities/error.hpp>
 
 namespace cugraph {
-namespace c_api {
 
-struct cugraph_core_result_t {
-  cugraph_type_erased_device_array_t* vertex_ids_{};
-  cugraph_type_erased_device_array_t* core_numbers_{};
-};
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+std::tuple<rmm::device_uvector<vertex_t>,
+           rmm::device_uvector<vertex_t>,
+           std::optional<rmm::device_uvector<weight_t>>>
+k_core(raft::handle_t const& handle,
+       graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
+       size_t k,
+       std::optional<k_core_degree_type_t> degree_type,
+       std::optional<raft::device_span<edge_t const>> core_numbers,
+       bool do_expensive_check)
+{
+  CUGRAPH_FAIL("Not implemented");
+}
 
-struct cugraph_k_core_result_t {
-  cugraph_type_erased_device_array_t* src_vertices_{};
-  cugraph_type_erased_device_array_t* dst_vertices_{};
-  cugraph_type_erased_device_array_t* weights_{};
-};
-
-}  // namespace c_api
 }  // namespace cugraph

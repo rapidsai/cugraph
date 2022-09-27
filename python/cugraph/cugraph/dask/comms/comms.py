@@ -15,8 +15,8 @@
 # not available. They are necessary only when doing MG work.
 from cugraph.dask.common.read_utils import MissingUCXPy
 try:
-    from raft.dask.common.comms import Comms as raftComms
-    from raft.dask.common.comms import get_raft_comm_state
+    from raft_dask.common.comms import Comms as raftComms
+    from raft_dask.common.comms import get_raft_comm_state
 except ImportError as err:
     # FIXME: Generalize since err.name is arr when
     # libnuma.so.1 is not available
