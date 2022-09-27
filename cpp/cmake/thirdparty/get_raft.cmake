@@ -36,8 +36,10 @@ function(find_and_configure_raft)
             GIT_REPOSITORY https://github.com/${PKG_FORK}/raft.git
             GIT_TAG        ${PKG_PINNED_TAG}
             SOURCE_SUBDIR  cpp
+            FIND_PACKAGE_ARGUMENTS "COMPONENTS distance"
             OPTIONS
                 "RAFT_COMPILE_LIBRARIES OFF"
+                "RAFT_COMPILE_DIST_LIBRARY ON"
                 "BUILD_TESTS OFF"
                 "BUILD_BENCH OFF"
                 "RAFT_ENABLE_cuco_DEPENDENCY OFF"

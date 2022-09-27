@@ -110,7 +110,7 @@ def uniform_neighbor_sample(input_graph,
 
     if isinstance(start_list, list):
         start_list = cudf.Series(start_list, dtype='int32')
-
+    # FIXME: ensure other sequence types (eg. cudf Series) can be handled.
     if start_list.dtype != "int32":
         raise ValueError(f"'start_list' must have int32 values, "
                          f"got: {start_list.dtype}")
