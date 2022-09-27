@@ -205,6 +205,7 @@ def test_add_edge_list_to_adj_list_pipeline(graph_file):
     compare_series(indices_cu, indices_exp)
     assert values_cu is None
 
+
 # Test
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_add_adj_list_to_edge_list(graph_file):
@@ -256,6 +257,7 @@ def test_add_adj_list_to_edge_list_pipeline(graph_file):
     destinations_cu = edgelist["dst"]
     compare_series(sources_cu, sources_exp)
     compare_series(destinations_cu, destinations_exp)
+
 
 # Test
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
