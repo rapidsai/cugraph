@@ -100,7 +100,24 @@ struct compute_gpu_id_from_int_edge_endpoints_t {
                                         thrust::upper_bound(thrust::seq,
                                                             vertex_partition_range_lasts.begin(),
                                                             vertex_partition_range_lasts.end(),
-                                                            major)));
+                                                            minor)));
+    return (minor_comm_rank / row_comm_size) * row_comm_size + (major_comm_rank % row_comm_size);
+  }
+
+  __device__ int operator()(thrust::tuple<vertex_t, vertex_t> pair /* major, minor */) const
+  {
+    auto major_comm_rank =
+      static_cast<int>(thrust::distance(vertex_partition_range_lasts.begin(),
+                                        thrust::upper_bound(thrust::seq,
+                                                            vertex_partition_range_lasts.begin(),
+                                                            vertex_partition_range_lasts.end(),
+                                                            thrust::get<0>(pair))));
+    auto minor_comm_rank =
+      static_cast<int>(thrust::distance(vertex_partition_range_lasts.begin(),
+                                        thrust::upper_bound(thrust::seq,
+                                                            vertex_partition_range_lasts.begin(),
+                                                            vertex_partition_range_lasts.end(),
+                                                            thrust::get<1>(pair))));
     return (minor_comm_rank / row_comm_size) * row_comm_size + (major_comm_rank % row_comm_size);
   }
 };

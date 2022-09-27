@@ -15,6 +15,7 @@
  */
 #pragma once
 
+#include <cugraph/edge_partition_device_view.cuh>
 #include <cugraph/graph.hpp>
 #include <cugraph/partition_manager.hpp>
 #include <cugraph/utilities/device_functors.cuh>
