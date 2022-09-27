@@ -114,7 +114,9 @@ else
     export VERSION_SUFFIX=""
     gpuci_conda_retry mambabuild conda/recipes/pylibcugraph --no-build-id --croot ${CONDA_BLD_DIR} -c ${CONDA_ARTIFACT_PATH} --python=${PYTHON}
     gpuci_conda_retry mambabuild conda/recipes/cugraph --no-build-id --croot ${CONDA_BLD_DIR} -c ${CONDA_ARTIFACT_PATH} --python=${PYTHON}
-    gpuci_mamba_retry install cugraph pylibcugraph -c ${CONDA_BLD_DIR} -c ${CONDA_ARTIFACT_PATH}
+
+    gpuci_logger "Installing pylibcugraph and cugraph from build / artifact dirs"
+    gpuci_mamba_retry install -c ${CONDA_BLD_DIR} -c ${CONDA_ARTIFACT_PATH} --strict-channel-priority pylibcugraph cugraph
 fi
 
 ################################################################################
