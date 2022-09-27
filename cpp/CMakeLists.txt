@@ -213,6 +213,8 @@ set(CUGRAPH_SOURCES
     src/cores/legacy/core_number.cu
     src/cores/core_number_sg.cu
     src/cores/core_number_mg.cu
+    src/cores/k_core_sg.cu
+    src/cores/k_core_mg.cu
     src/traversal/two_hop_neighbors.cu
     src/components/legacy/connectivity.cu
     src/centrality/betweenness_centrality.cu
@@ -363,6 +365,7 @@ add_library(cugraph_c
         src/c_api/eigenvector_centrality.cpp
         src/c_api/core_number.cpp
         src/c_api/core_result.cpp
+        src/c_api/k_core.cpp
         src/c_api/hits.cpp
         src/c_api/bfs.cpp
         src/c_api/sssp.cpp
