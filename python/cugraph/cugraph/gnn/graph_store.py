@@ -40,7 +40,8 @@ class CuGraphStore:
         if isinstance(graph, (PropertyGraph, MGPropertyGraph)):
             self.__G = graph
         else:
-            raise ValueError("graph must be a PropertyGraph or MGPropertyGraph")
+            raise ValueError("graph must be a PropertyGraph or"
+                             " MGPropertyGraph")
         # dict to map column names corresponding to edge features
         # of each type
         self.edata_feat_col_d = defaultdict(list)
@@ -58,7 +59,8 @@ class CuGraphStore:
         self.ndata_feat_col_d[feat_name] += col_names
 
         # Ensure that we only keep unique column names lying around
-        self.ndata_feat_col_d[feat_name] = list(set(self.ndata_feat_col_d[feat_name]))
+        unique_names = list(set(self.ndata_feat_col_d[feat_name]))
+        self.ndata_feat_col_d[feat_name] = unique_names
 
     def add_edge_data(self, df, vertex_col_names, feat_name, etype=None):
         self.gdata.add_edge_data(
@@ -69,7 +71,8 @@ class CuGraphStore:
         ]
         self.edata_feat_col_d[feat_name] += col_names
         # Ensure that we only keep unique column names lying around
-        self.edata_feat_col_d[feat_name] = list(set(self.edata_feat_col_d[feat_name]))
+        unique_names = list(set(self.edata_feat_col_d[feat_name]))
+        self.edata_feat_col_d[feat_name] = unique_names
 
     def get_node_storage(self, feat_name, ntype=None):
 
@@ -83,6 +86,10 @@ class CuGraphStore:
                     )
                 )
             ntype = ntypes[0]
+        if feat_name not in self.ndata_feat_col_d:
+            raise ValueError(f"feat_name {feat_name} not found in CuGraphStore"
+                             " node features",
+                             f" {list(self.ndata_feat_col_d.keys())}")
 
         col_names = self.ndata_feat_col_d[feat_name]
 
@@ -99,18 +106,22 @@ class CuGraphStore:
             if len(self.etypes) > 1:
                 raise ValueError(
                     (
-                        "Edge type name must be specified if there"
+                        "Edge type name must be specified if there "
                         "are more than one edge types."
                     )
                 )
 
             etype = etypes[0]
+        if feat_name not in self.edata_feat_col_d:
+            raise ValueError(f"feat_name {feat_name} not found in CuGraphStore"
+                             " edge features",
+                             f" {list(self.edata_feat_col_d.keys())}")
         col_names = self.edata_feat_col_d[feat_name]
 
         return CuFeatureStorage(
             pg=self.gdata,
             col_names=col_names,
-            storage_type="node",
+            storage_type="edge",
             backend_lib=self.backend_lib,
         )
 
@@ -126,11 +137,11 @@ class CuGraphStore:
 
     @property
     def ntypes(self):
-        return self.gdata.vertex_types
+        return list(self.gdata.vertex_types)
 
     @property
     def etypes(self):
-        return self.gdata.edge_types
+        return list(self.gdata.edge_types)
 
     @property
     def is_mg(self):
@@ -359,8 +370,6 @@ class CuGraphStore:
         self,
         nodes=None,
         create_using=cugraph.MultiGraph,
-        directed=False,
-        multigraph=True,
     ):
         """
         Return a subgraph induced on the given nodes.
@@ -379,10 +388,7 @@ class CuGraphStore:
             The sampled subgraph with the same node ID space with the original
             graph.
         """
-        _g = self.gdata.extract_subgraph(
-            create_using=create_using,
-            allow_multi_edges=cugraph.MultiGraph,
-        )
+        _g = self.gdata.extract_subgraph(create_using=create_using)
 
         if nodes is None:
             return _g
@@ -455,7 +461,6 @@ class CuFeatureStorage:
 
         if isinstance(subset_df, dask_cudf.DataFrame):
             subset_df = subset_df.compute()
-
         tensor = self.from_dlpack(subset_df.to_dlpack())
 
         if isinstance(tensor, cp.ndarray):
