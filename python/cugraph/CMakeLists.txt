@@ -43,10 +43,14 @@ if(FIND_CUGRAPH_CPP)
   rapids_cuda_init_architectures(cugraph-python)
   enable_language(CUDA)
 
+  set(CUGRAPH_VERSION_MAJOR "${cugraph-python_VERSION_MAJOR}")
+  set(CUGRAPH_VERSION_MINOR "${cugraph-python_VERSION_MINOR}")
+
+
   # We need to call get_raft due to cuML asking for raft::nn and
   # raft::distance targets
   # see issue https://github.com/rapidsai/cuml/issues/4843
-  include(../cpp/cmake/thirdparty/get_raft.cmake)
+  include(../../cpp/cmake/thirdparty/get_raft.cmake)
 
   find_package(cugraph ${cugraph_version} REQUIRED)
 else()
@@ -65,7 +69,10 @@ if(NOT cugraph_FOUND)
   
   include("${CMAKE_PROJECT_cugraph-python_INCLUDE}")
 
-  include(../cpp/cmake/thirdparty/get_raft.cmake)
+  set(CUGRAPH_VERSION_MAJOR "${cugraph-python_VERSION_MAJOR}")
+  set(CUGRAPH_VERSION_MINOR "${cugraph-python_VERSION_MINOR}")
+
+  include(../../cpp/cmake/thirdparty/get_raft.cmake)
 
   add_subdirectory(../../cpp cugraph-cpp)
 
