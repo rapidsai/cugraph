@@ -304,7 +304,7 @@ if (USE_CUGRAPH_OPS)
         PUBLIC
             cugraph-ops::cugraph-ops++
             raft::raft
-	    raft::distance
+	    raft::raft_distance_lib
         PRIVATE
             cuco::cuco
             cugraph::cuHornet
@@ -314,7 +314,7 @@ else()
     target_link_libraries(cugraph
         PUBLIC
             raft::raft
-	    raft::distance
+	    raft::raft_distance_lib
         PRIVATE
             cuco::cuco
             cugraph::cuHornet
@@ -385,7 +385,7 @@ target_link_libraries(cugraph_c
                 CUDA::cusolver
                 CUDA::cusparse
                 raft::raft
-	        raft::distance
+	        raft::raft_distance_lib
         PRIVATE
                 cuco::cuco
                 cugraph::cugraph
