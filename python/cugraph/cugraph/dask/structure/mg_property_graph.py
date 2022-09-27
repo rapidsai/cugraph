@@ -988,6 +988,23 @@ class EXPERIMENTAL__MGPropertyGraph:
             )
         if self.__vertex_prop_dataframe is None:
             return None
+        
+        # Use categorical dtype for the type column
+        if self.__series_type is dask_cudf.Series:
+            cat_class = cudf.CategoricalDtype
+        else:
+            cat_class = pd.CategoricalDtype
+
+        is_cat = isinstance(
+            self.__vertex_prop_dataframe[self.type_col_name].dtype,
+            cat_class
+        )
+        if not is_cat:
+            cat_dtype = cat_class([self.type_col_name], ordered=False)
+            self.__vertex_prop_dataframe[self.type_col_name] = (
+                self.__vertex_prop_dataframe[self.type_col_name].astype(cat_dtype)
+            )
+
         df = self.__vertex_prop_dataframe
         if self.__edge_prop_dataframe is not None:
             df = (
@@ -1040,6 +1057,30 @@ class EXPERIMENTAL__MGPropertyGraph:
         # TODO: keep track if edges are already numbered correctly.
         if self.__edge_prop_dataframe is None:
             return None
+        
+        # Use categorical dtype for the type column
+        if self.__series_type is dask_cudf.Series:
+            cat_class = cudf.CategoricalDtype
+        else:
+            cat_class = pd.CategoricalDtype
+
+        is_cat = isinstance(
+            self.__edge_prop_dataframe[self.type_col_name].dtype,
+            cat_class
+        )
+        if not is_cat:
+            temp_df = self.__edge_prop_dataframe.copy()
+            cat_dtype = cat_class([self.type_col_name], ordered=False)
+            temp_df[self.type_col_name] = (
+                self.__edge_prop_dataframe[self.type_col_name].fillna(0).astype(cat_dtype)
+            )
+            for col in self.__edge_prop_dataframe:
+                if col != self.type_col_name:
+                    temp_df[col] = self.__edge_prop_dataframe[col]
+            self.__edge_prop_dataframe = temp_df
+        
+        print(self.__edge_prop_dataframe.compute())
+
         df = (
             self.__edge_prop_dataframe
             .sort_values(by=self.type_col_name, ignore_index=True)

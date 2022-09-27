@@ -1140,6 +1140,23 @@ class EXPERIMENTAL__PropertyGraph:
             )
         if self.__vertex_prop_dataframe is None:
             return None
+
+        # Use categorical dtype for the type column
+        if self.__series_type is cudf.Series:
+            cat_class = cudf.CategoricalDtype
+        else:
+            cat_class = pd.CategoricalDtype
+
+        is_cat = isinstance(
+            self.__vertex_prop_dataframe[self.type_col_name].dtype,
+            cat_class
+        )
+        if not is_cat:
+            cat_dtype = cat_class([self.type_col_name], ordered=False)
+            self.__vertex_prop_dataframe[self.type_col_name] = (
+                self.__vertex_prop_dataframe[self.type_col_name].astype(cat_dtype)
+            )
+        
         df = (
             self.__vertex_prop_dataframe
             .reset_index()
@@ -1174,9 +1191,27 @@ class EXPERIMENTAL__PropertyGraph:
         Returns a DataFrame with the start and stop IDs for each edge type.
         Stop is *inclusive*.
         """
+
         # TODO: keep track if edges are already numbered correctly.
         if self.__edge_prop_dataframe is None:
             return None
+        
+        # Use categorical dtype for the type column
+        if self.__series_type is cudf.Series:
+            cat_class = cudf.CategoricalDtype
+        else:
+            cat_class = pd.CategoricalDtype
+
+        is_cat = isinstance(
+            self.__edge_prop_dataframe[self.type_col_name].dtype,
+            cat_class
+        )
+        if not is_cat:
+            cat_dtype = cat_class([self.type_col_name], ordered=False)
+            self.__edge_prop_dataframe[self.type_col_name] = (
+                self.__edge_prop_dataframe[self.type_col_name].astype(cat_dtype)
+            )
+
         self.__edge_prop_dataframe = (
             self.__edge_prop_dataframe
             .sort_values(by=self.type_col_name, ignore_index=True)

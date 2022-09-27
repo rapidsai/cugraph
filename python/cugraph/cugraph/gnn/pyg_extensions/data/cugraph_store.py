@@ -179,6 +179,8 @@ class EXPERIMENTAL__CuGraphStore:
 
         # TODO ensure all x properties are float32 type
         # TODO ensure y is of long type
+        if None in G.edge_types:
+            raise ValueError('Unspecified edge types not allowed in PyG')
 
         if backend == 'torch':
             from torch.utils.dlpack import from_dlpack

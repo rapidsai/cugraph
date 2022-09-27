@@ -551,9 +551,9 @@ def test_edges_attr(dataset2_simple_PropertyGraph):
     assert edge_ids.nunique() == expected_num_edges
 
 
-@pytest.mark.skip(reason="This is failing in 22.10 CI with the following "
-                         "error: TypeError: only list-like objects are "
-                         "allowed to be passed to isin(), you passed a [int]")
+#@pytest.mark.skip(reason="This is failing in 22.10 CI with the following "
+#                         "error: TypeError: only list-like objects are "
+#                         "allowed to be passed to isin(), you passed a [int]")
 def test_get_vertex_data(dataset1_PropertyGraph):
     """
     Ensure PG.get_vertex_data() returns the correct data based on vertex IDs
@@ -625,9 +625,9 @@ def test_get_vertex_data(dataset1_PropertyGraph):
     # assert_frame_equal(df1, df2, check_like=True)
 
 
-@pytest.mark.skip(reason="This is failing in 22.10 CI with the following "
-                         "error: TypeError: only list-like objects are "
-                         "allowed to be passed to isin(), you passed a [int]")
+#@pytest.mark.skip(reason="This is failing in 22.10 CI with the following "
+#                         "error: TypeError: only list-like objects are "
+#                         "allowed to be passed to isin(), you passed a [int]")
 def test_get_edge_data(dataset1_PropertyGraph):
     """
     Ensure PG.get_edge_data() returns the correct data based on edge IDs passed
@@ -1495,9 +1495,9 @@ def test_renumber_edges_by_type(dataset1_PropertyGraph):
     (pG, data) = dataset1_PropertyGraph
     df_id_ranges = pG.renumber_edges_by_type()
     expected = {
-        "referrals": [0, 5],  # stop is inclusive
-        "relationships": [6, 9],
-        "transactions": [10, 13],
+        "transactions": [0, 3], # stop is inclusive
+        "relationships": [4, 7],
+        "referrals": [8, 13],
     }
     for key, (start, stop) in expected.items():
         assert df_id_ranges.loc[key, "start"] == start
@@ -1505,6 +1505,7 @@ def test_renumber_edges_by_type(dataset1_PropertyGraph):
         df = pG.get_edge_data(types=[key])
         assert len(df) == stop - start + 1
         assert (df[pG.edge_id_col_name] == list(range(start, stop + 1))).all()
+        
 
     empty_pG = PropertyGraph()
     assert empty_pG.renumber_edges_by_type() is None

@@ -49,7 +49,8 @@ def basic_property_graph_1():
                 1
             ]
         }),
-        vertex_col_names=['src', 'dst']
+        vertex_col_names=['src', 'dst'],
+        type_name='pig'
     )
 
     pG.add_vertex_data(
