@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+#include "property_generator.cuh"
+
 #include <utilities/base_fixture.hpp>
 #include <utilities/device_comm_wrapper.hpp>
 #include <utilities/high_res_clock.h>
@@ -47,87 +49,6 @@
 #include <gtest/gtest.h>
 
 #include <random>
-
-template <typename vertex_t, typename... Args>
-struct property_transform : public thrust::unary_function<vertex_t, thrust::tuple<Args...>> {
-  int mod{};
-  property_transform(int mod_count) : mod(mod_count) {}
-  constexpr __device__ auto operator()(const vertex_t& val)
-  {
-    cuco::detail::MurmurHash3_32<vertex_t> hash_func{};
-    auto value = hash_func(val) % mod;
-    return thrust::make_tuple(static_cast<Args>(value)...);
-  }
-};
-
-template <typename vertex_t, template <typename...> typename Tuple, typename... Args>
-struct property_transform<vertex_t, Tuple<Args...>> : public property_transform<vertex_t, Args...> {
-};
-
-template <typename Tuple, std::size_t... I>
-auto make_iterator_tuple(Tuple& data, std::index_sequence<I...>)
-{
-  return thrust::make_tuple((std::get<I>(data).begin())...);
-}
-
-template <typename... Args>
-auto get_zip_iterator(std::tuple<Args...>& data)
-{
-  return thrust::make_zip_iterator(make_iterator_tuple(
-    data, std::make_index_sequence<std::tuple_size<std::tuple<Args...>>::value>()));
-}
-
-template <typename T>
-auto get_property_iterator(std::tuple<T>& data)
-{
-  return (std::get<0>(data)).begin();
-}
-
-template <typename T0, typename... Args>
-auto get_property_iterator(std::tuple<T0, Args...>& data)
-{
-  return get_zip_iterator(data);
-}
-
-template <typename... Args>
-struct generate_impl {
-  static thrust::tuple<Args...> initial_value(int init)
-  {
-    return thrust::make_tuple(static_cast<Args>(init)...);
-  }
-
-  template <typename label_t>
-  static std::tuple<rmm::device_uvector<Args>...> property(rmm::device_uvector<label_t>& labels,
-                                                           int hash_bin_count,
-                                                           raft::handle_t const& handle)
-  {
-    auto data = std::make_tuple(rmm::device_uvector<Args>(labels.size(), handle.get_stream())...);
-    auto zip  = get_zip_iterator(data);
-    thrust::transform(handle.get_thrust_policy(),
-                      labels.begin(),
-                      labels.end(),
-                      zip,
-                      property_transform<label_t, Args...>(hash_bin_count));
-    return data;
-  }
-
-  template <typename label_t>
-  static std::tuple<rmm::device_uvector<Args>...> property(thrust::counting_iterator<label_t> begin,
-                                                           thrust::counting_iterator<label_t> end,
-                                                           int hash_bin_count,
-                                                           raft::handle_t const& handle)
-  {
-    auto length = thrust::distance(begin, end);
-    auto data   = std::make_tuple(rmm::device_uvector<Args>(length, handle.get_stream())...);
-    auto zip    = get_zip_iterator(data);
-    thrust::transform(handle.get_thrust_policy(),
-                      begin,
-                      end,
-                      zip,
-                      property_transform<label_t, Args...>(hash_bin_count));
-    return data;
-  }
-};
 
 template <typename T>
 struct result_compare {
@@ -171,15 +92,6 @@ struct result_compare<thrust::tuple<Args...>> {
   {
     return (... && (equal(thrust::get<I>(t1), thrust::get<I>(t2))));
   }
-};
-
-template <typename T>
-struct generate : public generate_impl<T> {
-  static T initial_value(int init) { return static_cast<T>(init); }
-};
-
-template <typename... Args>
-struct generate<std::tuple<Args...>> : public generate_impl<Args...> {
 };
 
 struct Prims_Usecase {
@@ -236,17 +148,18 @@ class Tests_MGReduceV
     const int hash_bin_count = 5;
     const int initial_value  = 10;
 
-    auto property_initial_value = generate<result_t>::initial_value(initial_value);
-    using property_t            = decltype(property_initial_value);
-    auto property_data =
-      generate<result_t>::property((*d_mg_renumber_map_labels), hash_bin_count, *handle_);
-    auto property_iter = get_property_iterator(property_data);
+    auto property_initial_value =
+      cugraph::test::generate<vertex_t, result_t>::initial_value(initial_value);
+
+    auto mg_vertex_prop = cugraph::test::generate<vertex_t, result_t>::vertex_property(
+      *handle_, (*d_mg_renumber_map_labels), hash_bin_count);
+    auto property_iter = cugraph::get_dataframe_buffer_begin(mg_vertex_prop);
 
     enum class reduction_type_t { PLUS, MINIMUM, MAXIMUM };
     reduction_type_t reduction_types[] = {
       reduction_type_t::PLUS, reduction_type_t::MINIMUM, reduction_type_t::MAXIMUM};
 
-    std::unordered_map<reduction_type_t, property_t> results;
+    std::unordered_map<reduction_type_t, result_t> results;
 
     for (auto reduction_type : reduction_types) {
       if (cugraph::test::g_perf) {
@@ -261,21 +174,21 @@ class Tests_MGReduceV
                                              mg_graph_view,
                                              property_iter,
                                              property_initial_value,
-                                             cugraph::reduce_op::plus<property_t>{});
+                                             cugraph::reduce_op::plus<result_t>{});
           break;
         case reduction_type_t::MINIMUM:
           results[reduction_type] = reduce_v(*handle_,
                                              mg_graph_view,
                                              property_iter,
                                              property_initial_value,
-                                             cugraph::reduce_op::minimum<property_t>{});
+                                             cugraph::reduce_op::minimum<result_t>{});
           break;
         case reduction_type_t::MAXIMUM:
           results[reduction_type] = reduce_v(*handle_,
                                              mg_graph_view,
                                              property_iter,
                                              property_initial_value,
-                                             cugraph::reduce_op::maximum<property_t>{});
+                                             cugraph::reduce_op::maximum<result_t>{});
           break;
         default: FAIL() << "should not be reached.";
       }
@@ -298,40 +211,40 @@ class Tests_MGReduceV
           *handle_, input_usecase, true, false);
       auto sg_graph_view = sg_graph.view();
 
-      auto sg_property_data = generate<result_t>::property(
+      auto sg_vertex_prop = cugraph::test::generate<vertex_t, result_t>::vertex_property(
+        *handle_,
         thrust::make_counting_iterator(sg_graph_view.local_vertex_partition_range_first()),
         thrust::make_counting_iterator(sg_graph_view.local_vertex_partition_range_last()),
-        hash_bin_count,
-        *handle_);
-      auto sg_property_iter = get_property_iterator(sg_property_data);
+        hash_bin_count);
+      auto sg_property_iter = cugraph::get_dataframe_buffer_begin(sg_vertex_prop);
 
       for (auto reduction_type : reduction_types) {
-        property_t expected_result{};
+        result_t expected_result{};
         switch (reduction_type) {
           case reduction_type_t::PLUS:
             expected_result = reduce_v(*handle_,
                                        sg_graph_view,
                                        sg_property_iter,
                                        property_initial_value,
-                                       cugraph::reduce_op::plus<property_t>{});
+                                       cugraph::reduce_op::plus<result_t>{});
             break;
           case reduction_type_t::MINIMUM:
             expected_result = reduce_v(*handle_,
                                        sg_graph_view,
                                        sg_property_iter,
                                        property_initial_value,
-                                       cugraph::reduce_op::minimum<property_t>{});
+                                       cugraph::reduce_op::minimum<result_t>{});
             break;
           case reduction_type_t::MAXIMUM:
             expected_result = reduce_v(*handle_,
                                        sg_graph_view,
                                        sg_property_iter,
                                        property_initial_value,
-                                       cugraph::reduce_op::maximum<property_t>{});
+                                       cugraph::reduce_op::maximum<result_t>{});
             break;
           default: FAIL() << "should not be reached.";
         }
-        result_compare<property_t> compare{};
+        result_compare<result_t> compare{};
         ASSERT_TRUE(compare(expected_result, results[reduction_type]));
       }
     }
@@ -350,14 +263,14 @@ using Tests_MGReduceV_Rmat = Tests_MGReduceV<cugraph::test::Rmat_Usecase>;
 TEST_P(Tests_MGReduceV_File, CheckInt32Int32FloatTupleIntFloatTransposeFalse)
 {
   auto param = GetParam();
-  run_current_test<int32_t, int32_t, float, std::tuple<int, float>, false>(std::get<0>(param),
-                                                                           std::get<1>(param));
+  run_current_test<int32_t, int32_t, float, thrust::tuple<int32_t, float>, false>(
+    std::get<0>(param), std::get<1>(param));
 }
 
 TEST_P(Tests_MGReduceV_Rmat, CheckInt32Int32FloatTupleIntFloatTransposeFalse)
 {
   auto param = GetParam();
-  run_current_test<int32_t, int32_t, float, std::tuple<int, float>, false>(
+  run_current_test<int32_t, int32_t, float, thrust::tuple<int32_t, float>, false>(
     std::get<0>(param),
     cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
@@ -365,14 +278,14 @@ TEST_P(Tests_MGReduceV_Rmat, CheckInt32Int32FloatTupleIntFloatTransposeFalse)
 TEST_P(Tests_MGReduceV_File, CheckInt32Int32FloatTupleIntFloatTransposeTrue)
 {
   auto param = GetParam();
-  run_current_test<int32_t, int32_t, float, std::tuple<int, float>, true>(std::get<0>(param),
-                                                                          std::get<1>(param));
+  run_current_test<int32_t, int32_t, float, thrust::tuple<int32_t, float>, true>(
+    std::get<0>(param), std::get<1>(param));
 }
 
 TEST_P(Tests_MGReduceV_Rmat, CheckInt32Int32FloatTupleIntFloatTransposeTrue)
 {
   auto param = GetParam();
-  run_current_test<int32_t, int32_t, float, std::tuple<int, float>, true>(
+  run_current_test<int32_t, int32_t, float, thrust::tuple<int32_t, float>, true>(
     std::get<0>(param),
     cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
@@ -380,54 +293,54 @@ TEST_P(Tests_MGReduceV_Rmat, CheckInt32Int32FloatTupleIntFloatTransposeTrue)
 TEST_P(Tests_MGReduceV_File, CheckInt32Int32FloatTransposeFalse)
 {
   auto param = GetParam();
-  run_current_test<int32_t, int32_t, float, int, false>(std::get<0>(param), std::get<1>(param));
+  run_current_test<int32_t, int32_t, float, int32_t, false>(std::get<0>(param), std::get<1>(param));
 }
 
 TEST_P(Tests_MGReduceV_Rmat, CheckInt32Int32FloatTransposeFalse)
 {
   auto param = GetParam();
-  run_current_test<int32_t, int32_t, float, int, false>(
+  run_current_test<int32_t, int32_t, float, int32_t, false>(
     std::get<0>(param), override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
 
 TEST_P(Tests_MGReduceV_Rmat, CheckInt32Int64FloatTransposeFalse)
 {
   auto param = GetParam();
-  run_current_test<int32_t, int64_t, float, int, false>(
+  run_current_test<int32_t, int64_t, float, int32_t, false>(
     std::get<0>(param), override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
 
 TEST_P(Tests_MGReduceV_Rmat, CheckInt64Int64FloatTransposeFalse)
 {
   auto param = GetParam();
-  run_current_test<int64_t, int64_t, float, int, false>(
+  run_current_test<int64_t, int64_t, float, int32_t, false>(
     std::get<0>(param), override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
 
 TEST_P(Tests_MGReduceV_File, CheckInt32Int32FloatTransposeTrue)
 {
   auto param = GetParam();
-  run_current_test<int32_t, int32_t, float, int, true>(std::get<0>(param), std::get<1>(param));
+  run_current_test<int32_t, int32_t, float, int32_t, true>(std::get<0>(param), std::get<1>(param));
 }
 
 TEST_P(Tests_MGReduceV_Rmat, CheckInt32Int32FloatTransposeTrue)
 {
   auto param = GetParam();
-  run_current_test<int32_t, int32_t, float, int, true>(
+  run_current_test<int32_t, int32_t, float, int32_t, true>(
     std::get<0>(param), override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
 
 TEST_P(Tests_MGReduceV_Rmat, CheckInt32Int64FloatTransposeTrue)
 {
   auto param = GetParam();
-  run_current_test<int32_t, int64_t, float, int, true>(
+  run_current_test<int32_t, int64_t, float, int32_t, true>(
     std::get<0>(param), override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
 
 TEST_P(Tests_MGReduceV_Rmat, CheckInt64Int64FloatTransposeTrue)
 {
   auto param = GetParam();
-  run_current_test<int64_t, int64_t, float, int, true>(
+  run_current_test<int64_t, int64_t, float, int32_t, true>(
     std::get<0>(param), override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
 
