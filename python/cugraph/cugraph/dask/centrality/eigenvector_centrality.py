@@ -13,54 +13,32 @@
 # limitations under the License.
 #
 
-from dask.distributed import wait, default_client
-from cugraph.dask.common.input_utils import get_distributed_data
-from pylibcugraph import (ResourceHandle,
-                          GraphProperties,
-                          MGGraph,
-                          eigenvector_centrality as pylib_eigen
+from dask.distributed import wait
+
+from pylibcugraph import (eigenvector_centrality as pylib_eigen,
+                          ResourceHandle,
                           )
 import cugraph.dask.comms.comms as Comms
 import dask_cudf
 import cudf
-import cupy
 
 
-def call_eigenvector_centrality(sID,
-                                data,
-                                graph_properties,
-                                store_transposed,
-                                do_expensive_check,
-                                src_col_name,
-                                dst_col_name,
-                                num_edges,
-                                max_iter,
-                                tol,
-                                normalized):
-    handle = Comms.get_handle(sID)
-    h = ResourceHandle(handle.getHandle())
-    srcs = data[0][src_col_name]
-    dsts = data[0][dst_col_name]
-    weights = cudf.Series(cupy.ones(srcs.size, dtype="float32"))
+def _call_plc_eigenvector_centrality(sID,
+                                     mg_graph_x,
+                                     max_iterations,
+                                     epsilon,
+                                     do_expensive_check,
+                                     ):
 
-    if "value" in data[0].columns:
-        weights = data[0]['value']
-
-    mg = MGGraph(h,
-                 graph_properties,
-                 srcs,
-                 dsts,
-                 weights,
-                 store_transposed,
-                 num_edges,
-                 do_expensive_check)
-
-    result = pylib_eigen(h,
-                         mg,
-                         tol,
-                         max_iter,
-                         do_expensive_check)
-    return result
+    return pylib_eigen(
+        resource_handle=ResourceHandle(
+            Comms.get_handle(sID).getHandle()
+        ),
+        graph=mg_graph_x,
+        epsilon=epsilon,
+        max_iterations=max_iterations,
+        do_expensive_check=do_expensive_check
+    )
 
 
 def convert_to_cudf(cp_arrays):
@@ -75,7 +53,7 @@ def convert_to_cudf(cp_arrays):
 
 
 def eigenvector_centrality(
-    input_graph, max_iter=100, tol=1.0e-6, normalized=True
+    input_graph, max_iter=100, tol=1.0e-6
 ):
     """
     Compute the eigenvector centrality for a graph G.
@@ -104,7 +82,7 @@ def eigenvector_centrality(
         numerical roundoff. Usually values between 1e-2 and 1e-6 are
         acceptable.
 
-    normalized : bool, optional, default=True
+    normalized : not supported
         If True normalize the resulting eigenvector centrality values
 
     Returns
@@ -135,40 +113,24 @@ def eigenvector_centrality(
     >>> ec = dcg.eigenvector_centrality(dg)
 
     """
-    client = default_client()
+    client = input_graph._client
 
-    input_graph.compute_renumber_edge_list(
-        transposed=False, legacy_renum_only=True)
-
-    graph_properties = GraphProperties(
-        is_multigraph=False)
-
-    store_transposed = False
     # FIXME: should we add this parameter as an option?
     do_expensive_check = False
 
-    src_col_name = input_graph.renumber_map.renumbered_src_col_name
-    dst_col_name = input_graph.renumber_map.renumbered_dst_col_name
-
-    ddf = input_graph.edgelist.edgelist_df
-
-    num_edges = len(ddf)
-    data = get_distributed_data(ddf)
-
-    cupy_result = [client.submit(call_eigenvector_centrality,
-                                 Comms.get_session_id(),
-                                 wf[1],
-                                 graph_properties,
-                                 store_transposed,
-                                 do_expensive_check,
-                                 src_col_name,
-                                 dst_col_name,
-                                 num_edges,
-                                 max_iter,
-                                 tol,
-                                 normalized,
-                                 workers=[wf[0]])
-                   for idx, wf in enumerate(data.worker_to_parts.items())]
+    cupy_result = [
+        client.submit(
+            _call_plc_eigenvector_centrality,
+            Comms.get_session_id(),
+            input_graph._plc_graph[w],
+            max_iter,
+            tol,
+            do_expensive_check,
+            workers=[w],
+            allow_other_workers=False,
+        )
+        for w in Comms.get_workers()
+    ]
 
     wait(cupy_result)
 
@@ -180,7 +142,13 @@ def eigenvector_centrality(
 
     wait(cudf_result)
 
-    ddf = dask_cudf.from_delayed(cudf_result)
+    ddf = dask_cudf.from_delayed(cudf_result).persist()
+    wait(ddf)
+
+    # Wait until the inactive futures are released
+    wait([(r.release(), c_r.release())
+         for r, c_r in zip(cupy_result, cudf_result)])
+
     if input_graph.renumbered:
         ddf = input_graph.unrenumber(ddf, "vertex")
 

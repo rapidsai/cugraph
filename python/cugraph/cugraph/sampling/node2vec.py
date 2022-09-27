@@ -12,8 +12,6 @@
 # limitations under the License.
 
 from pylibcugraph import (ResourceHandle,
-                          GraphProperties,
-                          SGGraph,
                           node2vec as pylibcugraph_node2vec,
                           )
 from cugraph.utilities import ensure_cugraph_obj_for_nx
@@ -112,6 +110,7 @@ def node2vec(G,
 
     if isinstance(start_vertices, list):
         start_vertices = cudf.Series(start_vertices, dtype='int32')
+        # FIXME: Verify if this condition still holds
         if start_vertices.dtype != 'int32':
             raise ValueError(f"'start_vertices' must have int32 values, "
                              f"got: {start_vertices.dtype}")
@@ -123,27 +122,16 @@ def node2vec(G,
         else:
             start_vertices = G.lookup_internal_vertex_id(start_vertices)
 
-    srcs = G.edgelist.edgelist_df['src']
-    dsts = G.edgelist.edgelist_df['dst']
-    weights = G.edgelist.edgelist_df['weights']
-
-    if srcs.dtype != 'int32':
-        raise ValueError(f"Graph vertices must have int32 values, "
-                         f"got: {srcs.dtype}")
-
-    resource_handle = ResourceHandle()
-    graph_props = GraphProperties(is_multigraph=G.is_multigraph())
-    store_transposed = False
-    renumber = False
-    do_expensive_check = False
-
-    sg = SGGraph(resource_handle, graph_props, srcs, dsts, weights,
-                 store_transposed, renumber, do_expensive_check)
-
     vertex_set, edge_set, sizes = \
-        pylibcugraph_node2vec(resource_handle, sg, start_vertices,
-                              max_depth, compress_result, p, q)
-
+        pylibcugraph_node2vec(
+            resource_handle=ResourceHandle(),
+            graph=G._plc_graph,
+            seed_array=start_vertices,
+            max_depth=max_depth,
+            compress_result=compress_result,
+            p=p,
+            q=q
+        )
     vertex_set = cudf.Series(vertex_set)
     edge_set = cudf.Series(edge_set)
     sizes = cudf.Series(sizes)

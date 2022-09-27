@@ -14,60 +14,33 @@
 #
 
 
-from dask.distributed import wait, default_client
-from cugraph.dask.common.input_utils import get_distributed_data
+from dask.distributed import wait
 import cugraph.dask.comms.comms as Comms
 import cupy
 import cudf
 import dask_cudf
-from pylibcugraph import sssp as pylibcugraph_sssp
-from pylibcugraph import (ResourceHandle,
-                          GraphProperties,
-                          MGGraph)
+from pylibcugraph import (sssp as pylibcugraph_sssp,
+                          ResourceHandle
+                          )
 
 
 def _call_plc_sssp(
                   sID,
-                  data,
-                  src_col_name,
-                  dst_col_name,
-                  num_edges,
+                  mg_graph_x,
                   source,
                   cutoff,
-                  compute_predecessors=True,
-                  do_expensive_check=False):
-
-    comms_handle = Comms.get_handle(sID)
-    resource_handle = ResourceHandle(comms_handle.getHandle())
-
-    srcs = data[0][src_col_name]
-    dsts = data[0][dst_col_name]
-    weights = data[0]['value'] \
-        if 'value' in data[0].columns \
-        else cudf.Series((srcs + 1) / (srcs + 1), dtype='float32')
-    if weights.dtype not in ('float32', 'double'):
-        weights = weights.astype('double')
-
-    mg = MGGraph(
-        resource_handle=resource_handle,
-        graph_properties=GraphProperties(is_multigraph=False),
-        src_array=srcs,
-        dst_array=dsts,
-        weight_array=weights,
-        store_transposed=False,
-        num_edges=num_edges,
-        do_expensive_check=do_expensive_check
-    )
-
+                  compute_predecessors,
+                  do_expensive_check):
     vertices, distances, predecessors = pylibcugraph_sssp(
-        resource_handle=resource_handle,
-        graph=mg,
+        resource_handle=ResourceHandle(
+            Comms.get_handle(sID).getHandle()
+        ),
+        graph=mg_graph_x,
         source=source,
         cutoff=cutoff,
         compute_predecessors=compute_predecessors,
         do_expensive_check=do_expensive_check
     )
-
     return cudf.DataFrame({
         'distance': cudf.Series(distances),
         'vertex': cudf.Series(vertices),
@@ -132,19 +105,7 @@ def sssp(input_graph, source, cutoff=None, check_source=True):
 
     """
 
-    client = default_client()
-    # FIXME: 'legacy_renum_only' will not trigger the C++ renumbering
-    # In the future, once all the algos follow the C/Pylibcugraph path,
-    # compute_renumber_edge_list will only be used for multicolumn and
-    # string vertices since the renumbering will be done in pylibcugraph
-    input_graph.compute_renumber_edge_list(
-        transposed=False, legacy_renum_only=True)
-    ddf = input_graph.edgelist.edgelist_df
-    num_edges = len(ddf)
-    data = get_distributed_data(ddf)
-
-    src_col_name = input_graph.renumber_map.renumbered_src_col_name
-    dst_col_name = input_graph.renumber_map.renumbered_dst_col_name
+    client = input_graph._client
 
     def check_valid_vertex(G, source):
         is_valid_vertex = G.has_node(source)
@@ -162,21 +123,29 @@ def sssp(input_graph, source, cutoff=None, check_source=True):
             cudf.Series([source])).fillna(-1).compute()
         source = source.iloc[0]
 
-    result = [client.submit(
+    do_expensive_check = False
+    compute_predecessors = True
+    result = [
+        client.submit(
             _call_plc_sssp,
             Comms.get_session_id(),
-            wf[1],
-            src_col_name,
-            dst_col_name,
-            num_edges,
+            input_graph._plc_graph[w],
             source,
             cutoff,
-            True,
-            False,
-            workers=[wf[0]])
-            for idx, wf in enumerate(data.worker_to_parts.items())]
+            compute_predecessors,
+            do_expensive_check,
+            workers=[w],
+            allow_other_workers=False,
+        )
+        for w in Comms.get_workers()
+    ]
+
     wait(result)
-    ddf = dask_cudf.from_delayed(result)
+    ddf = dask_cudf.from_delayed(result).persist()
+    wait(ddf)
+
+    # Wait until the inactive futures are released
+    wait([r.release() for r in result])
 
     if input_graph.renumbered:
         ddf = input_graph.unrenumber(ddf, 'vertex')
