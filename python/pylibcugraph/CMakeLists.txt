@@ -56,6 +56,7 @@ if(NOT cugraph_FOUND)
   # rapids_cuda_init_architectures relies on `project` including.
   
   include("${CMAKE_PROJECT_pylibcugraph-python_INCLUDE}")
+  include(../../cpp/cmake/thirdparty/get_raft.cmake)
 
   add_subdirectory(../../cpp cugraph-cpp)
 
