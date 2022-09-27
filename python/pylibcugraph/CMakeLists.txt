@@ -38,6 +38,17 @@ option(FIND_CUGRAPH_CPP "Search for existing CUGRAPH C++ installations before de
 
 if(FIND_CUGRAPH_CPP)
   message(STATUS "Trying to find the package")
+  include(rapids-cpm)
+  rapids_cpm_init()
+  include(rapids-cuda)
+  rapids_cuda_init_architectures(pylibcugraph-python)
+  enable_language(CUDA)
+
+  # We need to call get_raft due to cuML asking for raft::nn and
+  # raft::distance targets
+  # see issue https://github.com/rapidsai/cuml/issues/4843
+  include(../cpp/cmake/thirdparty/get_raft.cmake)
+
   find_package(cugraph ${cugraph_version} REQUIRED)
 else()
   set(cugraph_FOUND OFF)
