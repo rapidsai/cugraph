@@ -22,7 +22,6 @@ import cupy as cp
 from cugraph.gnn import CuGraphStore
 
 
-# Test
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_no_graph(graph_file):
     with pytest.raises(TypeError):
@@ -78,9 +77,11 @@ def test_node_data_pg(graph_file):
         vertex_col_names=("0", "1"),
         feat_name="edge_feat")
 
-    edata = gstore.get_edge_storage('edge_feat').fetch(indices=[0,1], device='cuda')
+    edata_f = gstore.get_edge_storage('edge_feat')
+    edata = edata_f.fetch(indices=[0, 1], device='cuda')
 
     assert edata.shape[0] > 0
+
 
 @pytest.mark.skip("Skipping egonet testing for now")
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
@@ -210,7 +211,8 @@ def test_get_node_storage_graph_file(graph_file):
         node_col_name="node_id",
     )
 
-    ndata = gstore.get_node_storage(feat_name="node_feat").fetch([0,1,2], device='cuda')
+    ndata_f = gstore.get_node_storage(feat_name="node_feat")
+    ndata = ndata_f.fetch([0, 1, 2], device='cuda')
 
     assert ndata.shape[0] > 0
 
@@ -429,7 +431,6 @@ def test_get_edge_storage_gs(dataset1_CuGraphStore):
     assert cp.allclose(cudf_ar, relationship_t)
 
 
-
 def test_sampling_homogeneous_gs_out_dir():
     src_ser = cudf.Series([1, 1, 1, 1, 1, 2, 2, 3])
     dst_ser = cudf.Series([2, 3, 4, 5, 6, 3, 4, 7])
@@ -540,24 +541,24 @@ def assert_correct_eids(edge_df, sample_edge_id_df):
     assert sample_merged_df.equals(sample_edge_id_df)
 
 
-@pytest.mark.skip("Pytest tends to freeze , todo: DEBUG")
+@pytest.mark.skip("Pytest tends to freeze, works outside, todo: DEBUG")
 def test_sampling_gs_heterogeneous(dataset1_CuGraphStore):
     node_d = {'merchant_id': cp.asarray([4]).toDlpack()}
     gs = dataset1_CuGraphStore
     sampled_obj = gs.sample_neighbors(node_d, fanout=1)
     sampled_d = convert_dlpack_to_cudf_ser(sampled_obj)
-    # Ensure we get sample from at at least one of the etypes 
+    # Ensure we get sample from at at least one of the etypes
     src_ser = cudf.concat([s for s, _, _ in sampled_d.values()])
     assert len(src_ser) != 0
 
 
-@pytest.mark.skip("Pytest tends to freeze , todo: DEBUG")
+@pytest.mark.skip("Pytest tends to freeze, works outside, todo: DEBUG")
 def test_sampling_gs_heterogeneous_neg_one_fanout(dataset1_CuGraphStore):
     node_d = {'merchant_id': cp.asarray([4]).toDlpack()}
     gs = dataset1_CuGraphStore
     sampled_obj = gs.sample_neighbors(node_d, fanout=-1)
     sampled_d = convert_dlpack_to_cudf_ser(sampled_obj)
-    # Ensure we get sample from at at least one of the etypes 
+    # Ensure we get sample from at at least one of the etypes
     src_ser = cudf.concat([s for s, _, _ in sampled_d.values()])
     assert len(src_ser) != 0
 
