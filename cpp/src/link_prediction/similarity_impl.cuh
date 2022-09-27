@@ -15,8 +15,14 @@
  */
 #pragma once
 
-#include <raft/core/span.hpp>
+#include <prims/per_v_pair_transform_dst_nbr_intersection.cuh>
+
+#include <cugraph/graph_view.hpp>
+
+#include <raft/core/device_span.hpp>
 #include <raft/handle.hpp>
+
+#include <rmm/device_uvector.h>
 
 #include <optional>
 #include <tuple>
@@ -32,15 +38,71 @@ rmm::device_uvector<weight_t> similarity(
   bool use_weights,
   functor_t functor)
 {
-  CUGRAPH_FAIL("not implemented");
+  constexpr do_expensive_check = false;
 
-  // Implementation, using primitives, that computes:
-  //   For use_weights == False:  cardinality of A intersect B
-  //   For use_weights == True:   sum of minimum weight in A intersect B, sum of maximum weight in A
-  //   intersect B
-  //
-  // Then use the functor to compute the score
-  //
+  CUGRAPH_ASSERT(std::get<0>(vertex_pairs).size() == std::get<1>(vertex_pairs).size(),
+                 "vertex pairs have mismatched sizes");
+
+  if (use_weights)
+    CUGRAPH_ASSERT(graph_view.is_weighted(), "attempting to use weights on an unweighted graph");
+
+  size_t num_vertex_pairs = std::get<0>(vertex_pairs).size();
+  auto vertex_pairs_begin =
+    thrust::make_zip_iterator(std::get<0>(vertex_pairs).data(), std::get<1>(vertex_pairs).data());
+
+  if (use_weights) {
+    // FIXME: need implementation, similar to unweighted
+    //    Use compute_out_weight_sums instead of compute_out_degrees
+    //    Sum up for each common edge compute (u,a,v): min weight ((u,a), (a,v)) and
+    //        max weight((u,a), (a,v)).
+    //    Use these to compute weighted score
+    //
+    CUGRAPH_FAIL("weighted similarity computations are not supported in this release");
+  } else {
+    auto intermediate_scores =
+      cugraph::allocate_dataframe_buffer<thrust::tuple<edge_t, edge_t, edge_t>>(
+        num_vertex_pairs, handle.get_stream());
+
+    //
+    //  Compute vertex_degree for all vertices, then distribute to each GPU.
+    //  Need to use this instead of the dummy properties below
+    //
+    auto in_degrees = graph_view.compute_in_degrees(handle);
+
+    auto src_degrees = edge_src_property_t<graph_view_t, edge_t>(handle, graph_view);
+    auto dst_degrees = edge_dst_property_t<graph_view_t, edge_t>(handle, graph_view);
+    update_edge_src_property(handle, graph_view, in_degrees.begin(), src_degrees);
+    update_edge_dst_property(handle, graph_view, in_degrees.begin(), dst_degrees);
+
+    //
+    //  For each vertex pair compute the tuple: (src degree, dst degree, cardinality of
+    //  intersection)
+    //
+    per_v_pair_transform_dst_nbr_intersection(
+      handle,
+      graph_view,
+      vertex_pairs_begin,
+      vertex_pairs_begin + num_vertex_pairs,
+      src_degrees.view(),
+      dst_degrees.view(),
+      [] __device__(auto src, auto dst, auto src_degree, auto dst_degree, auto intersection) {
+        return thrust::make_tuple(src_degree, dst_degree, static_cast<edge_t>(intersection.size()));
+      },
+      cugraph::get_dataframe_buffer_begin(intermediate_scores),
+      do_expensive_check);
+
+    //
+    //  Convert to the desired score
+    //
+    rmm::device_uvector<weight_t> similarity_score(num_vertex_pairs, handle.get_stream());
+    thrust::transform(handle.get_thrust_policy(),
+                      get_dataframe_buffer_begin(intermediate_scores),
+                      get_dataframe_buffer_end(intermediate_scores),
+                      similarity_scores.begin(),
+                      functor);
+
+    return similarity_score;
+  }
 }
 
 }  // namespace detail
