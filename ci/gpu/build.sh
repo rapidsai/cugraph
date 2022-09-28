@@ -71,7 +71,9 @@ gpuci_mamba_retry install -c rapidsai-nightly/label/testing -y \
       "cudf=${MINOR_VERSION}" \
       "rmm=${MINOR_VERSION}" \
       "libraft-headers=${MINOR_VERSION}" \
-      "pyraft=${MINOR_VERSION}" \
+      "libraft-distance=${MINOR_VERSION}" \
+      "pylibraft=${MINOR_VERSION}" \
+      "raft-dask=${MINOR_VERSION}" \
       "cudatoolkit=$CUDA_REL" \
       "dask-cudf=${MINOR_VERSION}" \
       "dask-cuda=${MINOR_VERSION}" \
