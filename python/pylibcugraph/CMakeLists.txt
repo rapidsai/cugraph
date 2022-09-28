@@ -47,27 +47,30 @@ option(FIND_CUGRAPH_CPP "Search for existing CUGRAPH C++ installations before de
 )
 option(CUGRAPH_BUILD_WHEELS "Whether we're building a wheel for pypi" OFF)
 
-# If the user requested it we attempt to find CUGRAPH.
+set(CUGRAPH_VERSION_MAJOR "${pylibcugraph-python_VERSION_MAJOR}")
+set(CUGRAPH_VERSION_MINOR "${pylibcugraph-python_VERSION_MINOR}")
 
+# get_raft.cmake requires rapids-cpm to be initialized.
+include(rapids-cpm)
+rapids_cpm_init()
+
+# We need to manually get raft because we need the distance component and
+# even though libcugraph exports it rapids-cmake's export commands do not yet
+# actually support components.
+include(../../cpp/cmake/thirdparty/get_raft.cmake)
+
+
+# If the user requested it we attempt to find CUGRAPH.
 if(FIND_CUGRAPH_CPP)
   message(STATUS "Trying to find the package")
-  include(rapids-cpm)
-  rapids_cpm_init()
-  include(rapids-cuda)
-  rapids_cuda_init_architectures(pylibcugraph-python)
-  enable_language(CUDA)
-
-  set(CUGRAPH_VERSION_MAJOR "${pylibcugraph-python_VERSION_MAJOR}")
-  set(CUGRAPH_VERSION_MINOR "${pylibcugraph-python_VERSION_MINOR}")
-
-  # We need to call get_raft due to cuML asking for raft::nn and
-  # raft::distance targets
-  # see issue https://github.com/rapidsai/cuml/issues/4843
-  include(../../cpp/cmake/thirdparty/get_raft.cmake)
-
-  find_package(cugraph ${cugraph_version} REQUIRED)
   find_package(cugraph ${pylibcugraph_version} REQUIRED)
 else()
+  set(cugraph_FOUND OFF)
+endif()
+
+message(STATUS "check if it was found ${cugraph_FOUND}")
+
+if (NOT cugraph_FOUND)
   set(BUILD_TESTS OFF)
   set(BUILD_CUGRAPH_MG_TESTS OFF)
   set(BUILD_CUGRAPH_OPS_CPP_TESTS OFF)
@@ -83,12 +86,6 @@ else()
     set(_exclude_from_all EXCLUDE_FROM_ALL)
   endif()
 
-  set(CUGRAPH_VERSION_MAJOR "${pylibcugraph-python_VERSION_MAJOR}")
-  set(CUGRAPH_VERSION_MINOR "${pylibcugraph-python_VERSION_MINOR}")
-
-  include(../../cpp/cmake/thirdparty/get_raft.cmake)
-
-  add_subdirectory(../../cpp cugraph-cpp)
   add_subdirectory(../../cpp cugraph-cpp ${_exclude_from_all})
 
   install(TARGETS cugraph cugraph_c DESTINATION pylibcugraph)
