@@ -1096,13 +1096,11 @@ class EXPERIMENTAL__PropertyGraph:
         """
         Return True if df has >1 of the same src, dst pair
         """
-        #FIXME: Fix has_duplicates to handle etypes too
         if df.empty:
             return False
 
         unique_pair_len = len(df[[cls.src_col_name,
-                                  cls.dst_col_name, 
-                                  cls.type_col_name]].drop_duplicates(
+                                  cls.dst_col_name]].drop_duplicates(
                                   ignore_index=True))
 
         # if unique_pairs == len(df)
