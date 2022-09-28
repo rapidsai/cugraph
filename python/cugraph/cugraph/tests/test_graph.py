@@ -177,7 +177,7 @@ def test_add_edge_list_to_adj_list(graph_file):
     offsets_exp = M.indptr
     indices_exp = M.indices
 
-    # cugraph add_egde_list to_adj_list call
+    # cugraph add_edge_list to_adj_list call
     G = cugraph.Graph(directed=True)
     G.from_cudf_edgelist(cu_M, source="0", destination="1", renumber=False)
     offsets_cu, indices_cu, values_cu = G.view_adj_list()
@@ -197,7 +197,7 @@ def test_add_edge_list_to_adj_list_pipeline(graph_file):
     offsets_exp = M.indptr
     indices_exp = M.indices
 
-    # cugraph add_egde_list to_adj_list call
+    # cugraph add_edge_list to_adj_list call
     G = cugraph.Graph(directed=True).from_cudf_edgelist(
         cu_M, source="0", destination="1", renumber=False)
     offsets_cu, indices_cu, values_cu = G.view_adj_list()
