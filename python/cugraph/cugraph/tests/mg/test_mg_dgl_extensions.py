@@ -180,6 +180,47 @@ def test_sampling_homogeneous_gs_out_dir(dask_client):
         cudf.testing.assert_frame_equal(output_df, expected_df)
 
 
+def test_sampling_homogeneous_gs_neg_one_fanout(dask_client):
+
+    src_ser = cudf.Series([1, 1, 1, 1, 1, 2, 2, 3])
+    dst_ser = cudf.Series([2, 3, 4, 5, 6, 3, 4, 7])
+    df = cudf.DataFrame(
+        {"src": src_ser, "dst": dst_ser, "edge_id": np.arange(len(src_ser))}
+    )
+    df = df.astype(np.int32)
+    df = dask_cudf.from_cudf(df, npartitions=3)
+
+    pg = MGPropertyGraph()
+    gs = CuGraphStore(pg)
+    gs.add_edge_data(df, ["src", "dst"], feat_name="edges")
+
+    # Results obtained by running DGL
+    # sample_neighbors on the same graph
+    expected_df_4_in = cudf.DataFrame(
+        {"src": cudf.Series([1, 2]), "dst": cudf.Series([4, 4])}
+    ).astype(np.int32)
+
+    expected_df_1_out = cudf.DataFrame(
+        {"src": [1, 1, 1, 1, 1], "dst": [2, 3, 4, 5, 6]}
+    ).astype(np.int32)
+
+    exprect_d = {"in": expected_df_4_in, "out": expected_df_1_out}
+    for d, seed_n in [("in", 4), ("out", 1)]:
+        seed_cap = cudf.Series(seed_n).astype(np.int32).to_dlpack()
+        sample_src, sample_dst, sample_eid = gs.sample_neighbors(
+            seed_cap, fanout=-1, edge_dir=d
+        )
+        sample_src = cudf.from_dlpack(sample_src)
+        sample_dst = cudf.from_dlpack(sample_dst)
+        sample_eid = cudf.from_dlpack(sample_eid)
+
+        output_df = cudf.DataFrame({"src": sample_src, "dst": sample_dst})
+        output_df = output_df.sort_values(by=["src", "dst"])
+        output_df = output_df.reset_index(drop=True)
+
+        cudf.testing.assert_frame_equal(output_df, exprect_d[d])
+
+
 # @pytest.fixture(
 #     params=[
 #         'basic_mg_graph_gs',
