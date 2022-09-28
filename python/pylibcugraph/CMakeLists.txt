@@ -51,6 +51,21 @@ option(CUGRAPH_BUILD_WHEELS "Whether we're building a wheel for pypi" OFF)
 
 if(FIND_CUGRAPH_CPP)
   message(STATUS "Trying to find the package")
+  include(rapids-cpm)
+  rapids_cpm_init()
+  include(rapids-cuda)
+  rapids_cuda_init_architectures(pylibcugraph-python)
+  enable_language(CUDA)
+
+  set(CUGRAPH_VERSION_MAJOR "${pylibcugraph-python_VERSION_MAJOR}")
+  set(CUGRAPH_VERSION_MINOR "${pylibcugraph-python_VERSION_MINOR}")
+
+  # We need to call get_raft due to cuML asking for raft::nn and
+  # raft::distance targets
+  # see issue https://github.com/rapidsai/cuml/issues/4843
+  include(../../cpp/cmake/thirdparty/get_raft.cmake)
+
+  find_package(cugraph ${cugraph_version} REQUIRED)
   find_package(cugraph ${pylibcugraph_version} REQUIRED)
 else()
   set(BUILD_TESTS OFF)
@@ -68,6 +83,12 @@ else()
     set(_exclude_from_all EXCLUDE_FROM_ALL)
   endif()
 
+  set(CUGRAPH_VERSION_MAJOR "${pylibcugraph-python_VERSION_MAJOR}")
+  set(CUGRAPH_VERSION_MINOR "${pylibcugraph-python_VERSION_MINOR}")
+
+  include(../../cpp/cmake/thirdparty/get_raft.cmake)
+
+  add_subdirectory(../../cpp cugraph-cpp)
   add_subdirectory(../../cpp cugraph-cpp ${_exclude_from_all})
 
   install(TARGETS cugraph cugraph_c DESTINATION pylibcugraph)

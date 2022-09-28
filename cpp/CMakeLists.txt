@@ -330,6 +330,7 @@ if (USE_CUGRAPH_OPS)
             rmm::rmm
             cugraph-ops::cugraph-ops++
             $<$<NOT:$<BOOL:${CUDA_STATIC_RUNTIME}>>:raft::raft>
+            $<$<NOT:$<BOOL:${CUDA_STATIC_RUNTIME}>>:raft::distance>
         PRIVATE
             $<$<BOOL:${CUDA_STATIC_RUNTIME}>:raft::raft>
             cuco::cuco
@@ -341,6 +342,7 @@ else()
         PUBLIC
             rmm::rmm
             $<$<NOT:$<BOOL:${CUDA_STATIC_RUNTIME}>>:raft::raft>
+            $<$<NOT:$<BOOL:${CUDA_STATIC_RUNTIME}>>:raft::distance>
         PRIVATE
             $<$<BOOL:${CUDA_STATIC_RUNTIME}>:raft::raft>
             cuco::cuco
@@ -416,11 +418,19 @@ endif()
 ################################################################################
 # - C-API link libraries -------------------------------------------------------
 target_link_libraries(cugraph_c
-        PUBLIC  rmm::rmm
+        PUBLIC
+                CUDA::cublas
+                CUDA::curand
+                CUDA::cusolver
+                CUDA::cusparse
+                rmm::rmm
                 $<$<NOT:$<BOOL:${CUDA_STATIC_RUNTIME}>>:raft::raft>
-        PRIVATE cuco::cuco
+                $<$<NOT:$<BOOL:${CUDA_STATIC_RUNTIME}>>:raft::distance>
+        PRIVATE
+                cuco::cuco
                 cugraph::cugraph
                 $<$<BOOL:${CUDA_STATIC_RUNTIME}>:raft::raft>
+                $<$<BOOL:${CUDA_STATIC_RUNTIME}>:raft::distance>
 )
 
 ################################################################################
