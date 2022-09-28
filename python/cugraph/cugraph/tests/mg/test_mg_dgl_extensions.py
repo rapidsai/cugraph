@@ -89,6 +89,97 @@ def test_get_edge_storage(basic_mg_gs):
     cp.testing.assert_array_equal(result, expected_result)
 
 
+def test_sampling_homogeneous_gs_in_dir(dask_client):
+    src_ser = cudf.Series([1, 1, 1, 1, 1, 2, 2, 3])
+    dst_ser = cudf.Series([2, 3, 4, 5, 6, 3, 4, 7])
+    df = cudf.DataFrame(
+        {"src": src_ser, "dst": dst_ser, "edge_id": np.arange(len(src_ser))}
+    )
+    df = df.astype(np.int32)
+    df = dask_cudf.from_cudf(df, npartitions=3)
+
+    pg = MGPropertyGraph()
+    gs = CuGraphStore(pg)
+    gs.add_edge_data(df, ["src", "dst"], feat_name="edges")
+
+    # below are obtained from dgl runs on the same graph
+    expected_in = {
+        1: ([], []),
+        2: ([1], [2]),
+        3: ([1, 2], [3, 3]),
+        4: ([1, 2], [4, 4]),
+    }
+
+    for seed in expected_in.keys():
+        seed_cap = cudf.Series([seed]).astype(np.int32).to_dlpack()
+        sample_src, sample_dst, sample_eid = gs.sample_neighbors(
+            seed_cap, fanout=9, edge_dir="in"
+        )
+        if sample_src is None:
+            sample_src = cudf.Series([]).astype(np.int32)
+            sample_dst = cudf.Series([]).astype(np.int32)
+            sample_eid = cudf.Series([]).astype(np.int32)
+        else:
+            sample_src = cudf.from_dlpack(sample_src)
+            sample_dst = cudf.from_dlpack(sample_dst)
+            sample_eid = cudf.from_dlpack(sample_eid)
+
+        output_df = cudf.DataFrame({"src": sample_src, "dst": sample_dst})
+        output_df = output_df.sort_values(by=["src", "dst"])
+        output_df = output_df.reset_index(drop=True)
+
+        expected_df = cudf.DataFrame(
+            {"src": expected_in[seed][0], "dst": expected_in[seed][1]}
+        ).astype(np.int32)
+
+        cudf.testing.assert_frame_equal(output_df, expected_df)
+
+
+def test_sampling_homogeneous_gs_out_dir(dask_client):
+    src_ser = cudf.Series([1, 1, 1, 1, 1, 2, 2, 3])
+    dst_ser = cudf.Series([2, 3, 4, 5, 6, 3, 4, 7])
+    df = cudf.DataFrame(
+        {"src": src_ser, "dst": dst_ser, "edge_id": np.arange(len(src_ser))}
+    )
+    df = df.astype(np.int32)
+    df = dask_cudf.from_cudf(df, npartitions=3)
+
+    pg = MGPropertyGraph()
+    gs = CuGraphStore(pg)
+    gs.add_edge_data(df, ["src", "dst"], feat_name="edges")
+
+    # below are obtained from dgl runs on the same graph
+    expected_out = {
+        1: ([1, 1, 1, 1, 1], [2, 3, 4, 5, 6]),
+        2: ([2, 2], [3, 4]),
+        3: ([3], [7]),
+        4: ([], []),
+    }
+
+    for seed in expected_out.keys():
+        seed_cap = cudf.Series([seed]).to_dlpack()
+        sample_src, sample_dst, sample_eid = gs.sample_neighbors(
+            seed_cap, fanout=9, edge_dir="out"
+        )
+        if sample_src is None:
+            sample_src = cudf.Series([]).astype(np.int64)
+            sample_dst = cudf.Series([]).astype(np.int64)
+            sample_eid = cudf.Series([]).astype(np.int64)
+        else:
+            sample_src = cudf.from_dlpack(sample_src)
+            sample_dst = cudf.from_dlpack(sample_dst)
+            sample_eid = cudf.from_dlpack(sample_eid)
+
+        output_df = cudf.DataFrame({"src": sample_src, "dst": sample_dst})
+        output_df = output_df.sort_values(by=["src", "dst"])
+        output_df = output_df.reset_index(drop=True)
+
+        expected_df = cudf.DataFrame(
+            {"src": expected_out[seed][0], "dst": expected_out[seed][1]}
+        ).astype(np.int32)
+        cudf.testing.assert_frame_equal(output_df, expected_df)
+
+
 # @pytest.fixture(
 #     params=[
 #         'basic_mg_graph_gs',
