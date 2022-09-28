@@ -54,21 +54,19 @@ struct compute_gpu_id_from_ext_vertex_t {
 
 template <typename vertex_t>
 struct compute_gpu_id_from_int_vertex_t {
-  raft::device_span<vertex_t> vertex_partition_range_lasts_span;
+  raft::device_span<vertex_t const> vertex_partition_range_lasts{};
 
   __device__ int operator()(vertex_t v) const
   {
-    return static_cast<int>(
-      thrust::distance(vertex_partition_range_lasts_span.begin(),
-                       thrust::upper_bound(thrust::seq,
-                                           vertex_partition_range_lasts_span.begin(),
-                                           vertex_partition_range_lasts_span.end(),
-                                           v)));
+    return static_cast<int>(thrust::distance(
+      vertex_partition_range_lasts.begin(),
+      thrust::upper_bound(
+        thrust::seq, vertex_partition_range_lasts.begin(), vertex_partition_range_lasts.end(), v)));
   }
 };
 
 template <typename vertex_t>
-struct compute_gpu_id_from_edge_t {
+struct compute_gpu_id_from_ext_edge_endpoints_t {
   int comm_size{0};
   int row_comm_size{0};
   int col_comm_size{0};
@@ -83,7 +81,49 @@ struct compute_gpu_id_from_edge_t {
 };
 
 template <typename vertex_t>
-struct compute_partition_id_from_edge_t {
+struct compute_gpu_id_from_int_edge_endpoints_t {
+  raft::device_span<vertex_t const> vertex_partition_range_lasts{};
+  int comm_size{0};
+  int row_comm_size{0};
+  int col_comm_size{0};
+
+  __device__ int operator()(vertex_t major, vertex_t minor) const
+  {
+    auto major_comm_rank =
+      static_cast<int>(thrust::distance(vertex_partition_range_lasts.begin(),
+                                        thrust::upper_bound(thrust::seq,
+                                                            vertex_partition_range_lasts.begin(),
+                                                            vertex_partition_range_lasts.end(),
+                                                            major)));
+    auto minor_comm_rank =
+      static_cast<int>(thrust::distance(vertex_partition_range_lasts.begin(),
+                                        thrust::upper_bound(thrust::seq,
+                                                            vertex_partition_range_lasts.begin(),
+                                                            vertex_partition_range_lasts.end(),
+                                                            minor)));
+    return (minor_comm_rank / row_comm_size) * row_comm_size + (major_comm_rank % row_comm_size);
+  }
+
+  __device__ int operator()(thrust::tuple<vertex_t, vertex_t> pair /* major, minor */) const
+  {
+    auto major_comm_rank =
+      static_cast<int>(thrust::distance(vertex_partition_range_lasts.begin(),
+                                        thrust::upper_bound(thrust::seq,
+                                                            vertex_partition_range_lasts.begin(),
+                                                            vertex_partition_range_lasts.end(),
+                                                            thrust::get<0>(pair))));
+    auto minor_comm_rank =
+      static_cast<int>(thrust::distance(vertex_partition_range_lasts.begin(),
+                                        thrust::upper_bound(thrust::seq,
+                                                            vertex_partition_range_lasts.begin(),
+                                                            vertex_partition_range_lasts.end(),
+                                                            thrust::get<1>(pair))));
+    return (minor_comm_rank / row_comm_size) * row_comm_size + (major_comm_rank % row_comm_size);
+  }
+};
+
+template <typename vertex_t>
+struct compute_partition_id_from_ext_edge_endpoints_t {
   int comm_size{0};
   int row_comm_size{0};
   int col_comm_size{0};
