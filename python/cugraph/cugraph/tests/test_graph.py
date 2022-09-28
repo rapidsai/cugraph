@@ -200,6 +200,8 @@ def test_add_edge_list_to_adj_list_pipeline(graph_file):
     # cugraph add_edge_list to_adj_list call
     G = cugraph.Graph(directed=True).from_cudf_edgelist(
         cu_M, source="0", destination="1", renumber=False)
+    assert(G is not None)
+
     offsets_cu, indices_cu, values_cu = G.view_adj_list()
     compare_series(offsets_cu, offsets_exp)
     compare_series(indices_cu, indices_exp)
@@ -251,6 +253,7 @@ def test_add_adj_list_to_edge_list_pipeline(graph_file):
 
     # cugraph add_adj_list to_edge_list call
     G = cugraph.Graph(directed=True).from_cudf_adjlist(offsets, indices, None)
+    assert(G is not None)
 
     edgelist = G.view_edge_list()
     sources_cu = edgelist["src"]
