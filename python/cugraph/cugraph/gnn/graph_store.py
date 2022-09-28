@@ -40,8 +40,9 @@ class CuGraphStore:
         if isinstance(graph, (PropertyGraph, MGPropertyGraph)):
             self.__G = graph
         else:
-            raise ValueError("graph must be a PropertyGraph or"
-                             " MGPropertyGraph")
+            raise ValueError(
+                "graph must be a PropertyGraph or" " MGPropertyGraph"
+            )
         # dict to map column names corresponding to edge features
         # of each type
         self.edata_feat_col_d = defaultdict(list)
@@ -54,25 +55,17 @@ class CuGraphStore:
         self.gdata.add_vertex_data(
             df, vertex_col_name=node_col_name, type_name=ntype
         )
-        col_names = list(df.columns)
-        col_names.remove(node_col_name)
-        self.ndata_feat_col_d[feat_name] += col_names
-
-        # Ensure that we only keep unique column names lying around
-        unique_names = list(set(self.ndata_feat_col_d[feat_name]))
-        self.ndata_feat_col_d[feat_name] = unique_names
+        columns = [col for col in list(df.columns) if col != node_col_name]
+        self.ndata_feat_col_d[feat_name] = columns
 
     def add_edge_data(self, df, vertex_col_names, feat_name, etype=None):
         self.gdata.add_edge_data(
             df, vertex_col_names=vertex_col_names, type_name=etype
         )
-        col_names = [
+        columns = [
             col for col in list(df.columns) if col not in vertex_col_names
         ]
-        self.edata_feat_col_d[feat_name] += col_names
-        # Ensure that we only keep unique column names lying around
-        unique_names = list(set(self.edata_feat_col_d[feat_name]))
-        self.edata_feat_col_d[feat_name] = unique_names
+        self.edata_feat_col_d[feat_name] = columns
 
     def get_node_storage(self, feat_name, ntype=None):
 
@@ -87,15 +80,17 @@ class CuGraphStore:
                 )
             ntype = ntypes[0]
         if feat_name not in self.ndata_feat_col_d:
-            raise ValueError(f"feat_name {feat_name} not found in CuGraphStore"
-                             " node features",
-                             f" {list(self.ndata_feat_col_d.keys())}")
+            raise ValueError(
+                f"feat_name {feat_name} not found in CuGraphStore"
+                " node features",
+                f" {list(self.ndata_feat_col_d.keys())}",
+            )
 
-        col_names = self.ndata_feat_col_d[feat_name]
+        columns = self.ndata_feat_col_d[feat_name]
 
         return CuFeatureStorage(
             pg=self.gdata,
-            col_names=col_names,
+            columns=columns,
             storage_type="node",
             backend_lib=self.backend_lib,
         )
@@ -113,14 +108,16 @@ class CuGraphStore:
 
             etype = etypes[0]
         if feat_name not in self.edata_feat_col_d:
-            raise ValueError(f"feat_name {feat_name} not found in CuGraphStore"
-                             " edge features",
-                             f" {list(self.edata_feat_col_d.keys())}")
-        col_names = self.edata_feat_col_d[feat_name]
+            raise ValueError(
+                f"feat_name {feat_name} not found in CuGraphStore"
+                " edge features",
+                f" {list(self.edata_feat_col_d.keys())}",
+            )
+        columns = self.edata_feat_col_d[feat_name]
 
         return CuFeatureStorage(
             pg=self.gdata,
-            col_names=col_names,
+            columns=columns,
             storage_type="edge",
             backend_lib=self.backend_lib,
         )
@@ -249,7 +246,6 @@ class CuGraphStore:
 
         if self.has_multiple_etypes:
             # Heterogeneous graph case
-            # TODO: Remove when
             d = self._get_edgeid_type_d(sampled_df["indices"], self.etypes)
             d = return_dlpack_d(d)
             return d
@@ -405,9 +401,9 @@ class CuFeatureStorage:
     is fine. DGL simply uses duck-typing to implement its sampling pipeline.
     """
 
-    def __init__(self, pg, col_names, storage_type, backend_lib="torch"):
+    def __init__(self, pg, columns, storage_type, backend_lib="torch"):
         self.pg = pg
-        self.col_names = col_names
+        self.columns = columns
         if backend_lib == "torch":
             from torch.utils.dlpack import from_dlpack
         elif backend_lib == "tf":
@@ -427,7 +423,7 @@ class CuFeatureStorage:
 
         self.from_dlpack = from_dlpack
 
-    def fetch(self, indices, device, pin_memory=False, **kwargs):
+    def fetch(self, indices, device=None, pin_memory=False, **kwargs):
         """Fetch the features of the given node/edge IDs to the
         given device.
 
@@ -450,14 +446,14 @@ class CuFeatureStorage:
 
         if self.storage_type == "node":
             subset_df = self.pg.get_vertex_data(
-                vertex_ids=indices, columns=self.col_names
+                vertex_ids=indices, columns=self.columns
             )
-            subset_df = subset_df.drop(columns=[vid_n, type_n], axis=0)
         else:
             subset_df = self.pg.get_edge_data(
-                edge_ids=indices, columns=self.col_names
+                edge_ids=indices, columns=self.columns
             )
-            subset_df = subset_df.drop(columns=[src_n, dst_n, type_n], axis=0)
+
+        subset_df = subset_df[self.columns]
 
         if isinstance(subset_df, dask_cudf.DataFrame):
             subset_df = subset_df.compute()
@@ -468,7 +464,10 @@ class CuFeatureStorage:
             # a different device for cupy
             return tensor
         else:
-            return tensor.to(device)
+            if device:
+                tensor = tensor.to(device)
+            else:
+                return tensor
 
 
 def return_dlpack_d(d):
