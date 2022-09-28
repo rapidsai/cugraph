@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+#include "property_generator.cuh"
+
 #include <utilities/base_fixture.hpp>
 #include <utilities/device_comm_wrapper.hpp>
 #include <utilities/high_res_clock.h>
@@ -55,39 +57,6 @@
 #include <gtest/gtest.h>
 
 #include <random>
-
-template <typename TupleType, typename T, std::size_t... Is>
-__device__ __host__ auto make_type_casted_tuple_from_scalar(T val, std::index_sequence<Is...>)
-{
-  return thrust::make_tuple(
-    static_cast<typename thrust::tuple_element<Is, TupleType>::type>(val)...);
-}
-
-template <typename property_t, typename T>
-__device__ __host__ auto make_property_value(T val)
-{
-  property_t ret{};
-  if constexpr (cugraph::is_thrust_tuple_of_arithmetic<property_t>::value) {
-    ret = make_type_casted_tuple_from_scalar<property_t>(
-      val, std::make_index_sequence<thrust::tuple_size<property_t>::value>{});
-  } else {
-    ret = static_cast<property_t>(val);
-  }
-  return ret;
-}
-
-template <typename vertex_t, typename property_t>
-struct property_transform_t {
-  int mod{};
-
-  constexpr __device__ property_t operator()(vertex_t const v) const
-  {
-    static_assert(cugraph::is_thrust_tuple_of_arithmetic<property_t>::value ||
-                  std::is_arithmetic_v<property_t>);
-    cuco::detail::MurmurHash3_32<vertex_t> hash_func{};
-    return make_property_value<property_t>(hash_func(v) % mod);
-  }
-};
 
 template <typename key_t, typename vertex_t, typename property_t, typename payload_t>
 struct e_op_t {
@@ -169,7 +138,7 @@ class Tests_MGTransformReduceVFrontierOutgoingEByDst
       hr_clock.start();
     }
 
-    auto [mg_graph, mg_renumber_map_labels] =
+    auto [mg_graph, d_mg_renumber_map_labels] =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, store_transposed, is_multi_gpu>(
         *handle_, input_usecase, false, renumber);
 
@@ -187,28 +156,12 @@ class Tests_MGTransformReduceVFrontierOutgoingEByDst
 
     const int hash_bin_count = 5;
 
-    auto mg_property_buffer = cugraph::allocate_dataframe_buffer<property_t>(
-      mg_graph_view.local_vertex_partition_range_size(), handle_->get_stream());
-
-    thrust::transform(handle_->get_thrust_policy(),
-                      (*mg_renumber_map_labels).begin(),
-                      (*mg_renumber_map_labels).end(),
-                      cugraph::get_dataframe_buffer_begin(mg_property_buffer),
-                      property_transform_t<vertex_t, property_t>{hash_bin_count});
-
-    cugraph::edge_src_property_t<decltype(mg_graph_view), property_t> mg_src_properties(
-      *handle_, mg_graph_view);
-    cugraph::edge_dst_property_t<decltype(mg_graph_view), property_t> mg_dst_properties(
-      *handle_, mg_graph_view);
-
-    update_edge_src_property(*handle_,
-                             mg_graph_view,
-                             cugraph::get_dataframe_buffer_cbegin(mg_property_buffer),
-                             mg_src_properties);
-    update_edge_dst_property(*handle_,
-                             mg_graph_view,
-                             cugraph::get_dataframe_buffer_cbegin(mg_property_buffer),
-                             mg_dst_properties);
+    auto mg_vertex_prop = cugraph::test::generate<vertex_t, property_t>::vertex_property(
+      *handle_, *d_mg_renumber_map_labels, hash_bin_count);
+    auto mg_src_prop = cugraph::test::generate<vertex_t, property_t>::src_property(
+      *handle_, mg_graph_view, mg_vertex_prop);
+    auto mg_dst_prop = cugraph::test::generate<vertex_t, property_t>::dst_property(
+      *handle_, mg_graph_view, mg_vertex_prop);
 
     auto mg_key_buffer = cugraph::allocate_dataframe_buffer<key_t>(
       mg_graph_view.local_vertex_partition_range_size(), handle_->get_stream());
@@ -221,7 +174,7 @@ class Tests_MGTransformReduceVFrontierOutgoingEByDst
       thrust::tabulate(handle_->get_thrust_policy(),
                        cugraph::get_dataframe_buffer_begin(mg_key_buffer),
                        cugraph::get_dataframe_buffer_end(mg_key_buffer),
-                       [mg_renumber_map_labels = (*mg_renumber_map_labels).data(),
+                       [mg_renumber_map_labels = (*d_mg_renumber_map_labels).data(),
                         local_vertex_partition_range_first =
                           mg_graph_view.local_vertex_partition_range_first()] __device__(size_t i) {
                          return thrust::make_tuple(
@@ -255,8 +208,8 @@ class Tests_MGTransformReduceVFrontierOutgoingEByDst
         *handle_,
         mg_graph_view,
         mg_vertex_frontier.bucket(bucket_idx_cur),
-        mg_src_properties.view(),
-        mg_dst_properties.view(),
+        mg_src_prop.view(),
+        mg_dst_prop.view(),
         e_op_t<key_t, vertex_t, property_t, payload_t>{},
         cugraph::reduce_op::null{});
     } else {
@@ -265,8 +218,8 @@ class Tests_MGTransformReduceVFrontierOutgoingEByDst
           *handle_,
           mg_graph_view,
           mg_vertex_frontier.bucket(bucket_idx_cur),
-          mg_src_properties.view(),
-          mg_dst_properties.view(),
+          mg_src_prop.view(),
+          mg_dst_prop.view(),
           e_op_t<key_t, vertex_t, property_t, payload_t>{},
           cugraph::reduce_op::plus<payload_t>{});
     }
@@ -284,7 +237,7 @@ class Tests_MGTransformReduceVFrontierOutgoingEByDst
 
     if (prims_usecase.check_correctness) {
       auto mg_aggregate_renumber_map_labels = cugraph::test::device_gatherv(
-        *handle_, (*mg_renumber_map_labels).data(), (*mg_renumber_map_labels).size());
+        *handle_, (*d_mg_renumber_map_labels).data(), (*d_mg_renumber_map_labels).size());
 
       auto mg_aggregate_new_frontier_key_buffer =
         cugraph::allocate_dataframe_buffer<key_t>(0, handle_->get_stream());
@@ -352,28 +305,15 @@ class Tests_MGTransformReduceVFrontierOutgoingEByDst
             *handle_, input_usecase, false, false);
         auto sg_graph_view = sg_graph.view();
 
-        auto sg_property_buffer = cugraph::allocate_dataframe_buffer<property_t>(
-          sg_graph_view.local_vertex_partition_range_size(), handle_->get_stream());
-
-        thrust::transform(
-          handle_->get_thrust_policy(),
-          thrust::make_counting_iterator(vertex_t{0}),
-          thrust::make_counting_iterator(sg_graph_view.local_vertex_partition_range_size()),
-          cugraph::get_dataframe_buffer_begin(sg_property_buffer),
-          property_transform_t<vertex_t, property_t>{hash_bin_count});
-
-        cugraph::edge_src_property_t<decltype(sg_graph_view), property_t> sg_src_properties(
-          *handle_, sg_graph_view);
-        cugraph::edge_dst_property_t<decltype(sg_graph_view), property_t> sg_dst_properties(
-          *handle_, sg_graph_view);
-        update_edge_src_property(*handle_,
-                                 sg_graph_view,
-                                 cugraph::get_dataframe_buffer_cbegin(sg_property_buffer),
-                                 sg_src_properties);
-        update_edge_dst_property(*handle_,
-                                 sg_graph_view,
-                                 cugraph::get_dataframe_buffer_cbegin(sg_property_buffer),
-                                 sg_dst_properties);
+        auto sg_vertex_prop = cugraph::test::generate<vertex_t, property_t>::vertex_property(
+          *handle_,
+          thrust::make_counting_iterator(sg_graph_view.local_vertex_partition_range_first()),
+          thrust::make_counting_iterator(sg_graph_view.local_vertex_partition_range_last()),
+          hash_bin_count);
+        auto sg_src_prop = cugraph::test::generate<vertex_t, property_t>::src_property(
+          *handle_, sg_graph_view, sg_vertex_prop);
+        auto sg_dst_prop = cugraph::test::generate<vertex_t, property_t>::dst_property(
+          *handle_, sg_graph_view, sg_vertex_prop);
 
         auto sg_key_buffer = cugraph::allocate_dataframe_buffer<key_t>(
           sg_graph_view.local_vertex_partition_range_size(), handle_->get_stream());
@@ -408,8 +348,8 @@ class Tests_MGTransformReduceVFrontierOutgoingEByDst
             *handle_,
             sg_graph_view,
             sg_vertex_frontier.bucket(bucket_idx_cur),
-            sg_src_properties.view(),
-            sg_dst_properties.view(),
+            sg_src_prop.view(),
+            sg_dst_prop.view(),
             e_op_t<key_t, vertex_t, property_t, payload_t>{},
             cugraph::reduce_op::null{});
         } else {
@@ -418,8 +358,8 @@ class Tests_MGTransformReduceVFrontierOutgoingEByDst
               *handle_,
               sg_graph_view,
               sg_vertex_frontier.bucket(bucket_idx_cur),
-              sg_src_properties.view(),
-              sg_dst_properties.view(),
+              sg_src_prop.view(),
+              sg_dst_prop.view(),
               e_op_t<key_t, vertex_t, property_t, payload_t>{},
               cugraph::reduce_op::plus<payload_t>{});
         }

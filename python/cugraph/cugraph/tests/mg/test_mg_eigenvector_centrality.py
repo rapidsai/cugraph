@@ -51,7 +51,7 @@ def test_dask_eigenvector_centrality(dask_client, directed, input_data_path):
         dtype=["int32", "int32", "float32"],
     )
     dg = cugraph.Graph(directed=True)
-    dg.from_dask_cudf_edgelist(ddf, "src", "dst")
+    dg.from_dask_cudf_edgelist(ddf, "src", "dst", legacy_renum_only=True)
     mg_res = dcg.eigenvector_centrality(dg, tol=1e-6)
     mg_res = mg_res.compute()
     import networkx as nx
@@ -65,6 +65,7 @@ def test_dask_eigenvector_centrality(dask_client, directed, input_data_path):
         Gnx = nx.from_pandas_edgelist(
             NM, create_using=nx.Graph(), source="0", target="1"
         )
+    # FIXME: Compare against cugraph instead of nx
     nk = nx.eigenvector_centrality(Gnx)
     import pandas as pd
     pdf = pd.DataFrame(nk.items(),

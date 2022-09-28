@@ -68,8 +68,8 @@ def triangle_count(ResourceHandle resource_handle,
         Handle to the underlying device and host resources needed for
         referencing data and running algorithms.
 
-    graph: MGGraph
-        The input graph, for Multi-GPU operations.
+    graph : SGGraph or MGGraph
+        The input graph, for either Single or Multi-GPU operations.
 
     start_list: device array type
         Device array containing the list of vertices for triangle counting.

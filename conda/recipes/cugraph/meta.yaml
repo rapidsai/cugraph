@@ -36,6 +36,7 @@ requirements:
     - scikit-build>=0.13.1
     - libcugraph={{ version }}
     - libraft-headers {{ minor_version }}
+    - libraft-distance {{ minor_version }}
     - raft-dask {{ minor_version }}
     - pylibraft {{ minor_version}}
     - cudf={{ minor_version }}
@@ -50,6 +51,7 @@ requirements:
     - pylibcugraph={{ version }}
     - libcugraph={{ version }}
     - libraft-headers {{ minor_version }}
+    - libraft-distance {{ minor_version }}
     - raft-dask {{ minor_version }}
     - pylibraft {{ minor_version }}
     - cudf={{ minor_version }}
