@@ -438,6 +438,7 @@ class EXPERIMENTAL__PropertyGraph:
             # cudf does not yet support initialization with a scalar
             tmp_df[TCN] = cudf.Series(
                 np.repeat(type_name, len(tmp_df)),
+                index=tmp_df.index,
                 dtype=cat_dtype
             )
         else:
