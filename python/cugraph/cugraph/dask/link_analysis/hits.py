@@ -136,6 +136,7 @@ def hits(input_graph, tol=1.0e-5, max_iter=100,  nstart=None, normalized=True):
         warning_msg = ("HITS expects the 'store_transposed' flag "
                        "to be set to 'True' for optimal performance during "
                        "the graph creation")
+        warnings.warn(warning_msg, UserWarning)
 
     do_expensive_check = False
     initial_hubs_guess_vertices = None

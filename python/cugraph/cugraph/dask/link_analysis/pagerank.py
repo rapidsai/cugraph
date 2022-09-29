@@ -237,6 +237,7 @@ def pagerank(input_graph,
         warning_msg = ("Pagerank expects the 'store_transposed' flag "
                        "to be set to 'True' for optimal performance during "
                        "the graph creation")
+        warnings.warn(warning_msg, UserWarning)
 
     initial_guess_vertices = None
     initial_guess_values = None

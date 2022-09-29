@@ -151,6 +151,7 @@ def katz_centrality(
         warning_msg = ("Katz centrality expects the 'store_transposed' flag "
                        "to be set to 'True' for optimal performance during "
                        "the graph creation")
+        warnings.warn(warning_msg, UserWarning)
 
     if alpha is None:
         degree_max = input_graph.degree()['degree'].max().compute()
