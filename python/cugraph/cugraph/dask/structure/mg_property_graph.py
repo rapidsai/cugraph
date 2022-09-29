@@ -983,6 +983,7 @@ class EXPERIMENTAL__MGPropertyGraph:
         Stop is *inclusive*.
         """
         # Check if some vertex IDs exist only in edge data
+        TCN = self.type_col_name
         default = self._default_type_name
         if (
             self.__edge_prop_dataframe is not None
@@ -995,7 +996,7 @@ class EXPERIMENTAL__MGPropertyGraph:
             )
         if self.__vertex_prop_dataframe is None:
             return None
-        
+
         # Use categorical dtype for the type column
         if self.__series_type is dask_cudf.Series:
             cat_class = cudf.CategoricalDtype
@@ -1003,29 +1004,29 @@ class EXPERIMENTAL__MGPropertyGraph:
             cat_class = pd.CategoricalDtype
 
         is_cat = isinstance(
-            self.__vertex_prop_dataframe[self.type_col_name].dtype,
+            self.__vertex_prop_dataframe[TCN].dtype,
             cat_class
         )
         if not is_cat:
-            cat_dtype = cat_class([self.type_col_name], ordered=False)
-            self.__vertex_prop_dataframe[self.type_col_name] = (
-                self.__vertex_prop_dataframe[self.type_col_name].astype(cat_dtype)
+            cat_dtype = cat_class([TCN], ordered=False)
+            self.__vertex_prop_dataframe[TCN] = (
+                self.__vertex_prop_dataframe[TCN].astype(cat_dtype)
             )
 
         df = self.__vertex_prop_dataframe
         if self.__edge_prop_dataframe is not None:
 
             # FIXME: ISSUE WITH DASK_CUDF
-            cat_dtype = df.dtypes[self.type_col_name]
-            df[self.type_col_name] = df[self.type_col_name].astype(str)
+            cat_dtype = df.dtypes[TCN]
+            df[TCN] = df[TCN].astype(str)
 
             df = (
                 df.reset_index()
-                .sort_values(by=self.type_col_name)
+                .sort_values(by=TCN)
             )
 
             # FIXME: ISSUE WITH DASK_CUDF
-            df[self.type_col_name] = df[self.type_col_name].astype(cat_dtype)
+            df[TCN] = df[TCN].astype(cat_dtype)
 
             new_name = f"new_{self.vertex_col_name}"
             df[new_name] = 1

@@ -540,7 +540,7 @@ def test_get_all_tensor_attrs(graph):
         tensor_attrs.append(CuGraphTensorAttr(
             vertex_type,
             'x',
-            properties=['prop1','prop2'],
+            properties=['prop1', 'prop2'],
             dtype=cupy.float32
         ))
 
@@ -550,7 +550,7 @@ def test_get_all_tensor_attrs(graph):
 def test_get_tensor_unspec_props(graph):
     pG = graph
     feature_store, graph_store = to_pyg(pG, backend='cupy')
-    
+
     idx = cupy.array([0, 1, 2, 3, 4])
 
     for vertex_type in pG.vertex_types:
@@ -570,6 +570,7 @@ def test_get_tensor_unspec_props(graph):
 
         assert t.tolist() == data.tolist()
 
+
 def test_multi_get_tensor_unspec_props(
         multi_edge_multi_vertex_property_graph_1):
     pG = multi_edge_multi_vertex_property_graph_1
@@ -585,7 +586,7 @@ def test_multi_get_tensor_unspec_props(
             'x',
             idx
         ))
-    
+
     tensors = feature_store.multi_get_tensor(tensors_to_get)
     assert tensors[0].tolist() == [
         [400.0, 2.0],
@@ -601,7 +602,7 @@ def test_multi_get_tensor_unspec_props(
 def test_get_tensor_from_tensor_attrs(graph):
     pG = graph
     feature_store, graph_store = to_pyg(pG, backend='cupy')
-    
+
     tensor_attrs = feature_store.get_all_tensor_attrs()
     for tensor_attr in tensor_attrs:
         tensor_attr.index = cupy.array([0, 1, 2, 3, 4])
@@ -614,6 +615,7 @@ def test_get_tensor_from_tensor_attrs(graph):
         )
 
         assert feature_store.get_tensor(tensor_attr).tolist() == data.tolist()
+
 
 def test_get_tensor_size(graph):
     pG = graph

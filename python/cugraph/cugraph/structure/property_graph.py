@@ -1130,6 +1130,7 @@ class EXPERIMENTAL__PropertyGraph:
         Stop is *inclusive*.
         """
         # Check if some vertex IDs exist only in edge data
+        TCN = self.type_col_name
         default = self._default_type_name
         if (
             self.__edge_prop_dataframe is not None
@@ -1150,19 +1151,19 @@ class EXPERIMENTAL__PropertyGraph:
             cat_class = pd.CategoricalDtype
 
         is_cat = isinstance(
-            self.__vertex_prop_dataframe[self.type_col_name].dtype,
+            self.__vertex_prop_dataframe[TCN].dtype,
             cat_class
         )
         if not is_cat:
-            cat_dtype = cat_class([self.type_col_name], ordered=False)
-            self.__vertex_prop_dataframe[self.type_col_name] = (
-                self.__vertex_prop_dataframe[self.type_col_name].astype(cat_dtype)
+            cat_dtype = cat_class([TCN], ordered=False)
+            self.__vertex_prop_dataframe[TCN] = (
+                self.__vertex_prop_dataframe[TCN].astype(cat_dtype)
             )
-        
+
         df = (
             self.__vertex_prop_dataframe
             .reset_index()
-            .sort_values(by=self.type_col_name)
+            .sort_values(by=TCN)
         )
         if self.__edge_prop_dataframe is not None:
             mapper = self.__series_type(
@@ -1194,10 +1195,12 @@ class EXPERIMENTAL__PropertyGraph:
         Stop is *inclusive*.
         """
 
+        TCN = self.type_col_name
+
         # TODO: keep track if edges are already numbered correctly.
         if self.__edge_prop_dataframe is None:
             return None
-        
+
         # Use categorical dtype for the type column
         if self.__series_type is cudf.Series:
             cat_class = cudf.CategoricalDtype
@@ -1205,18 +1208,18 @@ class EXPERIMENTAL__PropertyGraph:
             cat_class = pd.CategoricalDtype
 
         is_cat = isinstance(
-            self.__edge_prop_dataframe[self.type_col_name].dtype,
+            self.__edge_prop_dataframe[TCN].dtype,
             cat_class
         )
         if not is_cat:
-            cat_dtype = cat_class([self.type_col_name], ordered=False)
-            self.__edge_prop_dataframe[self.type_col_name] = (
-                self.__edge_prop_dataframe[self.type_col_name].astype(cat_dtype)
+            cat_dtype = cat_class([TCN], ordered=False)
+            self.__edge_prop_dataframe[TCN] = (
+                self.__edge_prop_dataframe[TCN].astype(cat_dtype)
             )
 
         self.__edge_prop_dataframe = (
             self.__edge_prop_dataframe
-            .sort_values(by=self.type_col_name, ignore_index=True)
+            .sort_values(by=TCN, ignore_index=True)
         )
         self.__edge_prop_dataframe.index.name = self.edge_id_col_name
         rv = (

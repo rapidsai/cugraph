@@ -580,7 +580,7 @@ def test_get_all_tensor_attrs(graph):
         tensor_attrs.append(CuGraphTensorAttr(
             vertex_type,
             'x',
-            properties=['prop1','prop2'],
+            properties=['prop1', 'prop2'],
             dtype=cupy.float32
         ))
 

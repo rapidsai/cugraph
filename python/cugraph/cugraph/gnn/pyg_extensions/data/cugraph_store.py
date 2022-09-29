@@ -25,7 +25,6 @@ from dataclasses import dataclass
 from collections import defaultdict
 from itertools import chain
 
-from copy import copy
 
 class EdgeLayout(Enum):
     COO = 'coo'
@@ -455,7 +454,7 @@ class EXPERIMENTAL__CuGraphStore:
             uniform_neighbor_sample = cugraph.dask.uniform_neighbor_sample
         else:
             uniform_neighbor_sample = cugraph.uniform_neighbor_sample
-        
+
         sampling_results = uniform_neighbor_sample(
                 G,
                 index,
@@ -469,7 +468,7 @@ class EXPERIMENTAL__CuGraphStore:
         nodes_of_interest = concat_fn(
             [sampling_results.destinations, sampling_results.sources]
         ).unique()
-        
+
         if self.is_mg:
             nodes_of_interest = nodes_of_interest.compute()
 
@@ -479,7 +478,8 @@ class EXPERIMENTAL__CuGraphStore:
         # the node type groupings, and the node properties.
         noi_index, noi_groups, noi_tensors = (
             self.__get_renumbered_vertex_data_from_sample(
-                nodes_of_interest.values_host if self.is_mg else nodes_of_interest
+                nodes_of_interest.values_host if self.is_mg
+                else nodes_of_interest
             )
         )
         del nodes_of_interest
@@ -497,7 +497,7 @@ class EXPERIMENTAL__CuGraphStore:
         """
         nodes_of_interest must be sorted
         """
-        #noi_types = self.__graph.vertex_types
+
         # noi contains all property values
         noi = self.__graph.get_vertex_data(
             nodes_of_interest
@@ -508,32 +508,33 @@ class EXPERIMENTAL__CuGraphStore:
         noi_groups = {}
         noi_tensors = {}
         for t_code, t in enumerate(noi_types):
-            noi_t = noi[noi[self.__graph.type_col_name].cat.codes==t_code]
+            noi_t = noi[noi[self.__graph.type_col_name].cat.codes == t_code]
             # noi_t should be sorted since the input nodes of interest were
 
             if len(noi_t) > 0:
                 # store the renumbering for this vertex type
                 # renumbered vertex id is the index of the old id
                 noi_index[t] = (
-                    noi_t[self.__graph.vertex_col_name].compute().to_cupy() if self.is_mg
+                    noi_t[self.__graph.vertex_col_name].compute().to_cupy()
+                    if self.is_mg
                     else noi_t[self.__graph.vertex_col_name].to_cupy()
                 )
 
                 # renumber for each noi group
-                
+
                 noi_groups[t] = self.from_dlpack(
                     cupy.arange(len(noi_t)).toDlpack()
-                    #noi_t.index.compute().to_dlpack() if self.is_mg
-                    #else noi_t.index.to_dlpack()
                 )
 
                 # store the property data
                 attrs = self._tensor_attr_dict[t]
                 noi_tensors[t] = {
-                    attr.attr_name: self.__get_tensor_from_dataframe(noi_t, attr)
+                    attr.attr_name: (
+                        self.__get_tensor_from_dataframe(noi_t, attr)
+                    )
                     for attr in attrs
                 }
-        
+
         return noi_index, noi_groups, noi_tensors
 
     def __get_renumbered_edges_from_sample(self, sampling_results, noi_index):
@@ -559,8 +560,8 @@ class EXPERIMENTAL__CuGraphStore:
             src_type, edge_type, dst_type = t_pyg_type
             t_pyg_c_type = edge_type_to_str(t_pyg_type)
 
-            eoi_t = eoi[eoi[self.__graph.type_col_name].cat.codes==t_code]
-            
+            eoi_t = eoi[eoi[self.__graph.type_col_name].cat.codes == t_code]
+
             if len(eoi_t) > 0:
                 eoi_t = eoi_t.drop(self.__graph.edge_id_col_name, axis=1)
 
@@ -570,8 +571,10 @@ class EXPERIMENTAL__CuGraphStore:
                 src_id_table = noi_index[src_type]
 
                 src = self.from_dlpack(
-                    cupy.searchsorted(src_id_table, sources.to_cupy()).toDlpack()
-                    #src_id_table.loc[sources].to_dlpack()
+                    cupy.searchsorted(
+                        src_id_table,
+                        sources.to_cupy()
+                    ).toDlpack()
                 )
                 row_dict[t_pyg_c_type] = src
 
@@ -581,17 +584,13 @@ class EXPERIMENTAL__CuGraphStore:
                 dst_id_table = noi_index[dst_type]
 
                 dst = self.from_dlpack(
-                    cupy.searchsorted(dst_id_table, destinations.to_cupy()).toDlpack()
-                    #dst_id_table.loc[destinations].to_dlpack()
+                    cupy.searchsorted(
+                        dst_id_table, destinations.to_cupy()
+                    ).toDlpack()
                 )
                 col_dict[t_pyg_c_type] = dst
 
         return row_dict, col_dict
-
-    # Begin Feature Store Functions
-    @property
-    def is_mg(self):
-        return isinstance(self.__graph, MGPropertyGraph)
 
     def put_tensor(self, tensor, attr):
         raise NotImplementedError('Adding properties not supported.')
@@ -633,7 +632,7 @@ class EXPERIMENTAL__CuGraphStore:
                         self.vertex_dtype
                     )
                 df.drop('y', axis=1, inplace=True)
-            
+
             x_cols = []
             for col in df.columns:
                 if not df[col].isnull().values.any():
@@ -664,7 +663,6 @@ class EXPERIMENTAL__CuGraphStore:
 
         if self.is_mg:
             df = df.compute()
-        
 
         # FIXME handle vertices without properties
         output = self.from_dlpack(
@@ -807,14 +805,14 @@ class EXPERIMENTAL__CuGraphStore:
                         attr.properties = n.properties
             else:
                 raise KeyError(f'Invalid group name {attr.group_name}')
-        
+
         if attr.dtype == _field_status.UNSET:
             # attempt to infer dtype
             if attr.group_name in self._tensor_attr_dict:
                 for n in self._tensor_attr_dict[attr.group_name]:
                     if attr.attr_name == n.attr_name:
                         attr.dtype = n.dtype
-        
+
         return attr
 
     def __len__(self):
