@@ -101,4 +101,5 @@ Other
    :toctree: api/
 
    cugraph.hypergraph
+   cugraph.EXPERIMENTAL__PropertyGraph
    cugraph.structure.shuffle
