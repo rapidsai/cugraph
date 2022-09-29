@@ -11,16 +11,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from pylibcugraph import (ResourceHandle,
-                          GraphProperties,
-                          SGGraph,
-                          katz_centrality as pylibcugraph_katz
+from pylibcugraph import (katz_centrality as pylibcugraph_katz,
+                          ResourceHandle
                           )
 from cugraph.utilities import (ensure_cugraph_obj_for_nx,
                                df_score_to_dictionary,
                                )
 import cudf
 import warnings
+
 
 def katz_centrality(
     G, alpha=None, beta=1.0, max_iter=100, tol=1.0e-6,
@@ -92,7 +91,7 @@ def katz_centrality(
         nstart['values'] : cudf.Series
             Contains the katz centrality values of vertices
 
-    normalized : bool, optional, default=True
+    normalized : not supported
         If True normalize the resulting katz centrality values
 
     Returns
@@ -115,7 +114,6 @@ def katz_centrality(
     G, isNx = ensure_cugraph_obj_for_nx(G)
 
     if G.store_transposed is False:
-        print("transposed is set to ", G.store_transposed)
         warning_msg = ("Katz centrality expects the 'store_transposed' flag "
                        "to be set to 'True' for optimal performance during "
                        "the graph creation")
@@ -138,15 +136,6 @@ def katz_centrality(
     if (not isinstance(tol, float)) or (tol <= 0.0):
         raise ValueError(f"'tol' must be a positive float, got: {tol}")
 
-    srcs = G.edgelist.edgelist_df['src']
-    dsts = G.edgelist.edgelist_df['dst']
-    if 'weights' in G.edgelist.edgelist_df.columns:
-        weights = G.edgelist.edgelist_df['weights']
-    else:
-        # FIXME: If weights column is not imported, a weights column of 1s
-        # with type hardcoded to float32 is passed into wrapper
-        weights = cudf.Series((srcs + 1) / (srcs + 1), dtype="float32")
-
     if nstart is not None:
         if G.renumbered is True:
             if len(G.renumber_map.implementation.col_names) > 1:
@@ -156,18 +145,17 @@ def katz_centrality(
             nstart = G.add_internal_vertex_id(nstart, 'vertex', cols)
             nstart = nstart[nstart.columns[0]]
 
-    resource_handle = ResourceHandle()
-    graph_props = GraphProperties(is_multigraph=G.is_multigraph())
-    store_transposed = False
-    renumber = False
-    do_expensive_check = False
-
-    sg = SGGraph(resource_handle, graph_props, srcs, dsts, weights,
-                 store_transposed, renumber, do_expensive_check)
-
-    vertices, values = pylibcugraph_katz(resource_handle, sg, nstart, alpha,
-                                         beta, tol, max_iter,
-                                         do_expensive_check)
+    vertices, values = \
+        pylibcugraph_katz(
+            resource_handle=ResourceHandle(),
+            graph=G._plc_graph,
+            betas=nstart,
+            alpha=alpha,
+            beta=beta,
+            epsilon=tol,
+            max_iterations=max_iter,
+            do_expensive_check=False
+        )
 
     vertices = cudf.Series(vertices)
     values = cudf.Series(values)
