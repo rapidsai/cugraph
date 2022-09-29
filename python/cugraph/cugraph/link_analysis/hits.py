@@ -20,6 +20,7 @@ from pylibcugraph import (ResourceHandle,
                           hits as pylibcugraph_hits
                           )
 import cudf
+import warnings
 
 
 def hits(

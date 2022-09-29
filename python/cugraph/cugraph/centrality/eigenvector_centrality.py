@@ -79,9 +79,9 @@ def eigenvector_centrality(
 
     G, isNx = ensure_cugraph_obj_for_nx(G)
     if G.store_transposed is False:
-        warning_msg = ("Eigenvector centrality expects the 'store_transposed' flag "
-                       "to be set to 'True' for optimal performance during "
-                       "the graph creation")
+        warning_msg = ("Eigenvector centrality expects the 'store_transposed' "
+                       "flag to be set to 'True' for optimal performance "
+                       "during the graph creation")
         warnings.warn(warning_msg, UserWarning)
 
     vertices, values = \

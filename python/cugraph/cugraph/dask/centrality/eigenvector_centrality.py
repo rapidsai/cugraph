@@ -117,9 +117,9 @@ def eigenvector_centrality(
     client = input_graph._client
 
     if input_graph.store_transposed is False:
-        warning_msg = ("Eigenvector centrality expects the 'store_transposed' flag "
-                       "to be set to 'True' for optimal performance during "
-                       "the graph creation")
+        warning_msg = ("Eigenvector centrality expects the 'store_transposed' "
+                       "flag to be set to 'True' for optimal performance "
+                       "during the graph creation")
         warnings.warn(warning_msg, UserWarning)
 
     # FIXME: should we add this parameter as an option?
