@@ -56,6 +56,64 @@ def basic_mg_gs(dask_client):
     return gs
 
 
+# @pytest.fixture(scope="module")
+# def gs_heterogeneous_dgl_eg(dask_client):
+def create_gs_heterogeneous_dgl_eg(dask_client):
+    pg = MGPropertyGraph()
+    gs = CuGraphStore(pg)
+    # Changing npartitions is leading to errors
+    npartitions = 2
+
+    # Add Edge Data
+    src_ser = [0, 1, 2, 0, 1, 2, 7, 9, 10, 11]
+    dst_ser = [3, 4, 5, 6, 7, 8, 6, 6, 6, 6]
+    etype_ser = [0, 0, 0, 1, 1, 1, 2, 2, 2, 2]
+    edge_feat = [10, 10, 10, 11, 11, 11, 12, 12, 12, 13]
+
+    etype_map = {
+        0: "('nt.a', 'connects', 'nt.b')",
+        1: "('nt.a', 'connects', 'nt.c')",
+        2: "('nt.c', 'connects', 'nt.c')",
+    }
+
+    df = cudf.DataFrame(
+        {
+            "src": src_ser,
+            "dst": dst_ser,
+            "etype": etype_ser,
+            "edge_feat": edge_feat,
+        }
+    )
+    df = df.astype(np.int32)
+    df = dask_cudf.from_cudf(df, npartitions=npartitions)
+    for e in df["etype"].unique().compute().values_host:
+        subset_df = df[df["etype"] == e][
+            ["src", "dst", "edge_feat"]
+        ].reset_index(drop=True)
+        gs.add_edge_data(
+            subset_df,
+            ["src", "dst"],
+            feat_name="edge_feat",
+            etype=etype_map[e],
+        )
+
+    # Add Node Data
+    node_ser = np.arange(0, 12)
+    node_type = ["nt.a"] * 3 + ["nt.b"] * 3 + ["nt.c"] * 6
+    node_feat = np.arange(0, 12) * 10
+    df = cudf.DataFrame(
+        {"node_id": node_ser, "ntype": node_type, "node_feat": node_feat}
+    )
+    df = dask_cudf.from_cudf(df, npartitions=npartitions)
+    for n in df["ntype"].unique().compute().values_host:
+        subset_df = df[df["ntype"] == n][["node_id", "node_feat"]]
+        gs.add_node_data(
+            subset_df, "node_id", feat_name="node_feat", ntype=str(n)
+        )
+
+    return gs
+
+
 def test_num_nodes(basic_mg_gs):
     assert basic_mg_gs.num_nodes() == 5
 
@@ -221,21 +279,53 @@ def test_sampling_homogeneous_gs_neg_one_fanout(dask_client):
         cudf.testing.assert_frame_equal(output_df, exprect_d[d])
 
 
-# @pytest.fixture(
-#     params=[
-#         'basic_mg_graph_gs',
-#     ]
-# )
-# def cugraph_graphstore(request):
-#     return request.getfixturevalue(request.param)
+# Test against DGLs output
+# See below notebook
+# https://gist.github.com/VibhuJawa/f85fda8e1183886078f2a34c28c4638c
+def test_sampling_dgl_heterogeneous_gs_m_fanouts(dask_client):
+    gs = create_gs_heterogeneous_dgl_eg(dask_client)
+    expected_output = {
+        1: {
+            "('nt.a', 'connects', 'nt.b')": 0,
+            "('nt.a', 'connects', 'nt.c')": 1,
+            "('nt.c', 'connects', 'nt.c')": 1,
+        },
+        2: {
+            "('nt.a', 'connects', 'nt.b')": 0,
+            "('nt.a', 'connects', 'nt.c')": 1,
+            "('nt.c', 'connects', 'nt.c')": 2,
+        },
+        # TODO: replace=False
+        # leads to 4 neighbors
+        # instead of 3 with dask.UniformSampling
+        # Raise issue and link here
+        # 3: {
+        #     "('nt.a', 'connects', 'nt.b')": 0,
+        #     "('nt.a', 'connects', 'nt.c')": 1,
+        #     "('nt.c', 'connects', 'nt.c')": 3,
+        # },
+        -1: {
+            "('nt.a', 'connects', 'nt.b')": 0,
+            "('nt.a', 'connects', 'nt.c')": 1,
+            "('nt.c', 'connects', 'nt.c')": 4,
+        },
+    }
+    # taking a subgraph with non contiguous numbering
+    # to help with cugraph testing
+    for fanout in expected_output.keys():
+        sampled_node = [6]
+        sampled_node_p = cudf.Series(sampled_node).astype(np.int32).to_dlpack()
 
-# test_num_nodes_gs
-# test_num_edges_gs
+        sampled_g = gs.sample_neighbors(
+            {"nt.c": sampled_node_p}, fanout=fanout
+        )
+        sampled_g = convert_dlpack_dict_to_df(sampled_g)
+        for etype, output_df in sampled_g.items():
+            assert expected_output[fanout][etype] == len(output_df)
+
+
 # test_get_node_storage_gs
 # test_get_edge_storage_gs
-# test_sampling_homogeneous_gs_in_dir
-# test_sampling_homogeneous_gs_out_dir
-# test_sampling_gs_homogeneous_neg_one_fanout
 # test_sampling_gs_heterogeneous_in_dir
 # test_sampling_gs_heterogeneous_out_dir
 # test_sampling_gs_heterogeneous_neg_one_fanout
@@ -252,3 +342,12 @@ def get_cudf_ser_from_cap_tup(cap_t):
         dst_id = cudf.Series([]).astype(np.int32)
         e_id = cudf.Series([]).astype(np.int32)
     return src_id, dst_id, e_id
+
+
+def convert_dlpack_dict_to_df(d):
+    df_d = {k: get_cudf_ser_from_cap_tup(v) for k, v in d.items()}
+    df_d = {
+        k: cudf.DataFrame({"src": s, "dst": d, "eids": e})
+        for k, (s, d, e) in df_d.items()
+    }
+    return df_d

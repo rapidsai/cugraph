@@ -268,6 +268,8 @@ class CuGraphStore:
 
     def _get_edgeid_type_d(self, edge_ids, etypes):
         df = self.gdata.get_edge_data(edge_ids=edge_ids, columns=[type_n])
+        if isinstance(df, dask_cudf.DataFrame):
+            df = df.compute()
         return {etype: df[df[type_n] == etype] for etype in etypes}
 
     @cached_property
@@ -275,6 +277,8 @@ class CuGraphStore:
         edge_list = self.gdata.get_edge_data(
             columns=[src_n, dst_n, type_n, eid_n]
         )
+        edge_list = edge_list.reset_index(drop=True)
+
         return get_subgraph_from_edgelist(
             edge_list, self.is_mg, reverse_edges=False
         )
