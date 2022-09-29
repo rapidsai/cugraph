@@ -233,6 +233,11 @@ def pagerank(input_graph,
     # Initialize dask client
     client = input_graph._client
 
+    if input_graph.store_transposed is False:
+        warning_msg = ("Pagerank expects the 'store_transposed' flag "
+                       "to be set to 'True' for optimal performance during "
+                       "the graph creation")
+
     initial_guess_vertices = None
     initial_guess_values = None
     precomputed_vertex_out_weight_vertices = None

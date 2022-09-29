@@ -18,6 +18,7 @@ from dask.distributed import wait
 import cugraph.dask.comms.comms as Comms
 import dask_cudf
 import cudf
+import warnings
 
 from pylibcugraph import (ResourceHandle,
                           hits as pylibcugraph_hits
@@ -130,6 +131,11 @@ def hits(input_graph, tol=1.0e-5, max_iter=100,  nstart=None, normalized=True):
     """
 
     client = input_graph._client
+
+    if input_graph.store_transposed is False:
+        warning_msg = ("HITS expects the 'store_transposed' flag "
+                       "to be set to 'True' for optimal performance during "
+                       "the graph creation")
 
     do_expensive_check = False
     initial_hubs_guess_vertices = None
