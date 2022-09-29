@@ -43,6 +43,10 @@ unset GIT_DESCRIBE_TAG
 # ucx-py version
 export UCX_PY_VERSION='0.28.*'
 
+# Whether to keep `dask/label/dev` channel in the env. If INSTALL_DASK_MAIN=0,
+# `dask/label/dev` channel is removed.
+export INSTALL_DASK_MAIN=0
+
 ################################################################################
 # SETUP - Check environment
 ################################################################################
@@ -57,6 +61,12 @@ gpuci_logger "Activate conda env"
 . /opt/conda/etc/profile.d/conda.sh
 conda activate rapids
 export PATH=$(conda info --base)/envs/rapids/bin:$PATH
+
+
+# Remove `dask/label/dev` channel if INSTALL_DASK_MAIN=0
+if [[ "${INSTALL_DASK_MAIN}" == 0 ]]; then
+  conda config --system --remove channels dask/label/dev
+fi
 
 gpuci_logger "Install dependencies"
 # Assume libcudf and librmm will be installed via cudf and rmm respectively.
