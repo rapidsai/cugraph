@@ -590,12 +590,72 @@ def create_gs_heterogeneous_dgl_eg():
     return gs
 
 
-# Test against DGLs output
-# See below notebook
-# https://gist.github.com/VibhuJawa/f85fda8e1183886078f2a34c28c4638c
+@pytest.mark.skip("Skipping because tends to hang")
+def test_sampling_gs_heterogeneous_in_dir():
+    gs = create_gs_heterogeneous_dgl_eg()
+    # DGL expected_output from
+    # https://gist.github.com/VibhuJawa/f85fda8e1183886078f2a34c28c4638c
+    expeced_val_d = {
+        6: {
+            "('nt.a', 'connects', 'nt.b')": (
+                cudf.Series([], dtype=np.int32),
+                cudf.Series([], dtype=np.int32),
+            ),
+            "('nt.a', 'connects', 'nt.c')": (
+                cudf.Series([0]),
+                cudf.Series([6]),
+            ),
+            "('nt.c', 'connects', 'nt.c')": (
+                cudf.Series([7, 9, 10, 11]),
+                cudf.Series([6, 6, 6, 6]),
+            ),
+        },
+        7: {
+            "('nt.a', 'connects', 'nt.b')": (
+                cudf.Series([], dtype=np.int32),
+                cudf.Series([], dtype=np.int32),
+            ),
+            "('nt.a', 'connects', 'nt.c')": (
+                cudf.Series([1]),
+                cudf.Series([7]),
+            ),
+            "('nt.c', 'connects', 'nt.c')": (
+                cudf.Series([], dtype=np.int32),
+                cudf.Series([], dtype=np.int32),
+            ),
+        },
+    }
+
+    for seed in expeced_val_d.keys():
+        fanout = 4
+        sampled_node_p = cudf.Series(seed).astype(np.int32).to_dlpack()
+        sampled_g = gs.sample_neighbors(
+            {"nt.c": sampled_node_p}, fanout=fanout, edge_dir="in"
+        )
+        sampled_g = convert_dlpack_dict_to_df(sampled_g)
+        for etype, df in sampled_g.items():
+            output_df = (
+                df[["src", "dst"]]
+                .sort_values(by=["src", "dst"])
+                .reset_index(drop=True)
+                .astype(np.int32)
+            )
+            expected_df = cudf.DataFrame(
+                {
+                    "src": expeced_val_d[seed][etype][0],
+                    "dst": expeced_val_d[seed][etype][1],
+                }
+            ).astype(np.int32)
+            cudf.testing.assert_frame_equal(output_df, expected_df)
+
+
 @pytest.mark.skip("Skipping because tends to hang")
 def test_sampling_dgl_heterogeneous_gs_m_fanouts():
     gs = create_gs_heterogeneous_dgl_eg()
+    # Test against DGLs output
+    # See below notebook
+    # https://gist.github.com/VibhuJawa/f85fda8e1183886078f2a34c28c4638c
+
     expected_output = {
         1: {
             "('nt.a', 'connects', 'nt.b')": 0,
