@@ -561,13 +561,13 @@ if(BUILD_CUGRAPH_MG_TESTS)
 
     ###########################################################################################
     # - MG GATHER_UTILS tests -----------------------------------------------------------------
-    ConfigureTestMG(MG_GATHER_UTILS_TEST sampling/detail/mg_gather_utils.cu)
-    target_link_libraries(MG_GATHER_UTILS_TEST PRIVATE cuco::cuco)
+    #ConfigureTestMG(MG_GATHER_UTILS_TEST sampling/detail/mg_gather_utils.cu)
+    #target_link_libraries(MG_GATHER_UTILS_TEST PRIVATE cuco::cuco)
 
     ###########################################################################################
     # - MG GATHER_ONE_HOP tests ---------------------------------------------------------------
-    ConfigureTestMG(MG_GATHER_ONE_HOP_TEST sampling/detail/mg_gather_one_hop.cu)
-    target_link_libraries(MG_GATHER_ONE_HOP_TEST PRIVATE cuco::cuco)
+    #ConfigureTestMG(MG_GATHER_ONE_HOP_TEST sampling/detail/mg_gather_one_hop.cu)
+    #target_link_libraries(MG_GATHER_ONE_HOP_TEST PRIVATE cuco::cuco)
 
     ###########################################################################################
     # - MG NBR SAMPLING tests -----------------------------------------------------------------
