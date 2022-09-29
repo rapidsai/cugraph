@@ -17,7 +17,6 @@
 // Andrei Schaffer, aschaffer@nvidia.com
 //
 #include "random_walks.cuh"
-#include <cugraph/algorithms.hpp>
 
 namespace cugraph {
 // template explicit instantiation directives (EIDir's):
