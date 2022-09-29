@@ -333,6 +333,7 @@ if (USE_CUGRAPH_OPS)
             $<$<NOT:$<BOOL:${CUDA_STATIC_RUNTIME}>>:raft::distance>
         PRIVATE
             $<$<BOOL:${CUDA_STATIC_RUNTIME}>:raft::raft>
+            $<$<BOOL:${CUDA_STATIC_RUNTIME}>:raft::distance>
             cuco::cuco
             cugraph::cuHornet
             NCCL::NCCL
@@ -345,6 +346,7 @@ else()
             $<$<NOT:$<BOOL:${CUDA_STATIC_RUNTIME}>>:raft::distance>
         PRIVATE
             $<$<BOOL:${CUDA_STATIC_RUNTIME}>:raft::raft>
+            $<$<BOOL:${CUDA_STATIC_RUNTIME}>:raft::distance>
             cuco::cuco
             cugraph::cuHornet
             NCCL::NCCL
