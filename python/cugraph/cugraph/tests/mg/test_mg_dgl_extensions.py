@@ -382,7 +382,74 @@ def test_sampling_gs_heterogeneous_in_dir(dask_client):
             cudf.testing.assert_frame_equal(output_df, expected_df)
 
 
-# test_sampling_gs_heterogeneous_out_dir
+def test_sampling_gs_heterogeneous_out_dir(dask_client):
+    gs = create_gs_heterogeneous_dgl_eg(dask_client)
+    # DGL expected_output from
+    # https://gist.github.com/VibhuJawa/f85fda8e1183886078f2a34c28c4638c
+    expeced_val_d = {
+        0: {
+            "('nt.a', 'connects', 'nt.b')": (
+                cudf.Series([0], dtype=np.int32),
+                cudf.Series([3], dtype=np.int32),
+            ),
+            "('nt.a', 'connects', 'nt.c')": (
+                cudf.Series([0]),
+                cudf.Series([6]),
+            ),
+            "('nt.c', 'connects', 'nt.c')": (cudf.Series([]), cudf.Series([])),
+        },
+        1: {
+            "('nt.a', 'connects', 'nt.b')": (
+                cudf.Series([1], dtype=np.int32),
+                cudf.Series([4], dtype=np.int32),
+            ),
+            "('nt.a', 'connects', 'nt.c')": (
+                cudf.Series([1]),
+                cudf.Series([7]),
+            ),
+            "('nt.c', 'connects', 'nt.c')": (
+                cudf.Series([], dtype=np.int32),
+                cudf.Series([], dtype=np.int32),
+            ),
+        },
+        2: {
+            "('nt.a', 'connects', 'nt.b')": (
+                cudf.Series([2], dtype=np.int32),
+                cudf.Series([5], dtype=np.int32),
+            ),
+            "('nt.a', 'connects', 'nt.c')": (
+                cudf.Series([2]),
+                cudf.Series([8]),
+            ),
+            "('nt.c', 'connects', 'nt.c')": (
+                cudf.Series([], dtype=np.int32),
+                cudf.Series([], dtype=np.int32),
+            ),
+        },
+    }
+
+    for seed in expeced_val_d.keys():
+        fanout = 4
+        sampled_node_p = cudf.Series(seed).astype(np.int32).to_dlpack()
+        sampled_g = gs.sample_neighbors(
+            {"nt.a": sampled_node_p}, fanout=fanout, edge_dir="out"
+        )
+        sampled_g = convert_dlpack_dict_to_df(sampled_g)
+        for etype, df in sampled_g.items():
+            output_df = (
+                df[["src", "dst"]]
+                .sort_values(by=["src", "dst"])
+                .reset_index(drop=True)
+                .astype(np.int32)
+            )
+            expected_df = cudf.DataFrame(
+                {
+                    "src": expeced_val_d[seed][etype][0],
+                    "dst": expeced_val_d[seed][etype][1],
+                }
+            ).astype(np.int32)
+            cudf.testing.assert_frame_equal(output_df, expected_df)
+
 
 # Util to help testing
 def get_cudf_ser_from_cap_tup(cap_t):
