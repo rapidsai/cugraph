@@ -22,9 +22,10 @@ import dask_cudf
 import cugraph
 
 from dataclasses import dataclass
-from itertools import chain
 from collections import defaultdict
+from itertools import chain
 
+from copy import copy
 
 class EdgeLayout(Enum):
     COO = 'coo'
@@ -205,7 +206,7 @@ class EXPERIMENTAL__CuGraphStore:
             self.__graph.vertex_col_name
         ] + list(reserved_keys)
 
-        self.__dict__['_tensor_attr_cls'] = CuGraphTensorAttr
+        self._tensor_attr_cls = CuGraphTensorAttr
         self._tensor_attr_dict = defaultdict(list)
         self.__infer_x_and_y_tensors()
 
@@ -467,16 +468,18 @@ class EXPERIMENTAL__CuGraphStore:
 
         nodes_of_interest = concat_fn(
             [sampling_results.destinations, sampling_results.sources]
-        ).unique().sort_values()
+        ).unique()
         
         if self.is_mg:
             nodes_of_interest = nodes_of_interest.compute()
+
+        nodes_of_interest = nodes_of_interest.sort_values()
 
         # Get the node index (for creating the edge index),
         # the node type groupings, and the node properties.
         noi_index, noi_groups, noi_tensors = (
             self.__get_renumbered_vertex_data_from_sample(
-                nodes_of_interest
+                nodes_of_interest.values_host if self.is_mg else nodes_of_interest
             )
         )
         del nodes_of_interest
@@ -513,7 +516,8 @@ class EXPERIMENTAL__CuGraphStore:
                 # store the renumbering for this vertex type
                 # renumbered vertex id is the index of the old id
                 noi_index[t] = (
-                    noi_t[self.__graph.vertex_col_name].to_cupy()
+                    noi_t[self.__graph.vertex_col_name].to_cupy() if self.is_mg
+                    else noi_t[self.__graph.vertex_col_name].compute().to_cupy()
                 )
 
                 # renumber for each noi group
@@ -605,7 +609,7 @@ class EXPERIMENTAL__CuGraphStore:
         for vtype in self.__graph.vertex_types:
             df = self.__graph.get_vertex_data(types=[vtype])
             for rk in self.__reserved_keys:
-                df.drop(rk, axis=1, inplace=True)
+                df = df.drop(rk, axis=1)
 
             if 'y' in df.columns:
                 if df.y.isnull().values.any():
@@ -644,9 +648,8 @@ class EXPERIMENTAL__CuGraphStore:
     def get_all_tensor_attrs(self):
         r"""Obtains all tensor attributes stored in this feature store."""
         # unpack and return the list of lists
-        return chain.from_iterable(
-            self._tensor_attr_dict.values()
-        )
+        it = chain.from_iterable(self._tensor_attr_dict.values())
+        return [CuGraphTensorAttr.cast(c) for c in it]
 
     def __get_tensor_from_dataframe(self, df, attr):
         df = df[attr.properties]
@@ -718,7 +721,8 @@ class EXPERIMENTAL__CuGraphStore:
             KeyError: if a tensor corresponding to an attr was not found.
             ValueError: if any input `TensorAttr` is not fully specified.
         """
-        attrs = [self._tensor_attr_cls.cast(attr) for attr in attrs]
+        attrs = [self._infer_unspecified_attr(self._tensor_attr_cls.cast(attr))
+                 for attr in attrs]
         bad_attrs = [attr for attr in attrs if not attr.is_fully_specified()]
         if len(bad_attrs) > 0:
             raise ValueError(
@@ -760,6 +764,8 @@ class EXPERIMENTAL__CuGraphStore:
         """
 
         attr = self._tensor_attr_cls.cast(*args, **kwargs)
+        attr = self._infer_unspecified_attr(attr)
+
         if not attr.is_fully_specified():
             raise ValueError(f"The input TensorAttr '{attr}' is not fully "
                              f"specified. Please fully specify the input by "
@@ -783,6 +789,25 @@ class EXPERIMENTAL__CuGraphStore:
 
     def _remove_tensor(self, attr):
         raise NotImplementedError('Removing features not supported')
+
+    def _infer_unspecified_attr(self, attr):
+        if attr.properties == _field_status.UNSET:
+            # attempt to infer property names
+            if attr.group_name in self._tensor_attr_dict:
+                for n in self._tensor_attr_dict[attr.group_name]:
+                    if attr.attr_name == n.attr_name:
+                        attr.properties = n.properties
+            else:
+                raise KeyError(f'Invalid group name {attr.group_name}')
+        
+        if attr.dtype == _field_status.UNSET:
+            # attempt to infer dtype
+            if attr.group_name in self._tensor_attr_dict:
+                for n in self._tensor_attr_dict[attr.group_name]:
+                    if attr.attr_name == n.attr_name:
+                        attr.dtype = n.dtype
+        
+        return attr
 
     def __len__(self):
         return len(self.get_all_tensor_attrs())

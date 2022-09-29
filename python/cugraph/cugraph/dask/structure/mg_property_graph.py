@@ -874,7 +874,10 @@ class EXPERIMENTAL__MGPropertyGraph:
         """
         # FIXME: check default_edge_weight is valid
         if edge_weight_property:
-            if edge_weight_property not in edge_prop_df.columns:
+            if (
+                edge_weight_property not in edge_prop_df.columns
+                and edge_prop_df.index.name != edge_weight_property
+            ):
                 raise ValueError("edge_weight_property "
                                  f'"{edge_weight_property}" was not found in '
                                  "edge_prop_df")
@@ -882,8 +885,12 @@ class EXPERIMENTAL__MGPropertyGraph:
             # Ensure a valid edge_weight_property can be used for applying
             # weights to the subgraph, and if a default_edge_weight was
             # specified, apply it to all NAs in the weight column.
-            prop_col = edge_prop_df[edge_weight_property]
-            if prop_col.count() != prop_col.size:
+            if edge_weight_property in edge_prop_df.columns:
+                prop_col = edge_prop_df[edge_weight_property]
+            else:
+                prop_col = edge_prop_df.index.to_series()
+                edge_prop_df[edge_weight_property] = prop_col
+            if prop_col.count().compute() != prop_col.size:
                 if default_edge_weight is None:
                     raise ValueError("edge_weight_property "
                                      f'"{edge_weight_property}" '
