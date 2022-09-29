@@ -63,6 +63,7 @@ class simpleGraphImpl:
             self.directed = properties.directed
             self.renumbered = False
             self.self_loop = None
+            self.store_transposed = False
             self.isolated_vertices = None
             self.node_count = None
             self.edge_count = None
@@ -151,6 +152,7 @@ class simpleGraphImpl:
 
         # Renumbering
         self.renumber_map = None
+        self.store_transposed = store_transposed
         if renumber:
             # FIXME: Should SG do lazy evaluation like MG?
             elist, renumber_map = NumberMap.renumber(
