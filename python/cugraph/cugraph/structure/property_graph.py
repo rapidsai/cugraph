@@ -480,6 +480,7 @@ class EXPERIMENTAL__PropertyGraph:
     def add_edge_data(self,
                       dataframe,
                       vertex_col_names,
+                      edge_id_col_name=None,
                       type_name=None,
                       property_columns=None
                       ):
@@ -494,6 +495,9 @@ class EXPERIMENTAL__PropertyGraph:
         vertex_col_names : list of strings
             The column names that contain the values to be used as the source
             and destination vertex IDs for the edges.
+        edge_id_col_name : string, optional
+            The column name that contains the values to be used as edge IDs.
+            If unspecified, edge IDs will be automatically assigned.
         type_name : string
             The name to be assigned to the type of property being added. For
             example, if dataframe contains data about transactions, type_name
@@ -518,6 +522,13 @@ class EXPERIMENTAL__PropertyGraph:
         if type(vertex_col_names) not in [list, tuple]:
             raise TypeError("vertex_col_names must be a list or tuple, got: "
                             f"{type(vertex_col_names)}")
+        if edge_id_col_name is not None:
+            if not isinstance(edge_id_col_name, str):
+                raise TypeError("edge_id_col_name must be a string, got: "
+                                f"{type(edge_id_col_name)}")
+            if edge_id_col_name not in dataframe.columns:
+                raise ValueError("edge_id_col_name argument not in columns, "
+                                 f"got {edge_id_col_name!r}")
         invalid_columns = set(vertex_col_names).difference(dataframe.columns)
         if invalid_columns:
             raise ValueError("vertex_col_names contains column(s) not found "
@@ -580,14 +591,21 @@ class EXPERIMENTAL__PropertyGraph:
 
         # Add unique edge IDs to the new rows. This is just a count for each
         # row starting from the last edge ID value, with initial edge ID 0.
-        starting_eid = (
-            -1 if self.__last_edge_id is None else self.__last_edge_id
-        )
-        tmp_df[self.edge_id_col_name] = 1
-        tmp_df[self.edge_id_col_name] = (
-            tmp_df[self.edge_id_col_name].cumsum() + starting_eid
-        )
-        self.__last_edge_id = starting_eid + len(tmp_df.index)
+        if edge_id_col_name is None:
+            starting_eid = (
+                -1 if self.__last_edge_id is None else self.__last_edge_id
+            )
+            tmp_df[self.edge_id_col_name] = 1
+            tmp_df[self.edge_id_col_name] = (
+                tmp_df[self.edge_id_col_name].cumsum() + starting_eid
+            )
+            self.__last_edge_id = starting_eid + len(tmp_df.index)
+        else:
+            tmp_df[self.edge_id_col_name] = tmp_df[edge_id_col_name]
+            self.__last_edge_id = max(
+                self.__last_edge_id or 0,
+                tmp_df[self.edge_id_col_name].max()
+            )
 
         if property_columns:
             # all columns
@@ -597,6 +615,8 @@ class EXPERIMENTAL__PropertyGraph:
                                                    default_edge_columns)
         else:
             column_names_to_drop = {vertex_col_names[0], vertex_col_names[1]}
+        if edge_id_col_name is not None:
+            column_names_to_drop.add(edge_id_col_name)
         tmp_df.drop(labels=column_names_to_drop, axis=1, inplace=True)
 
         # Save the original dtypes for each new column so they can be restored

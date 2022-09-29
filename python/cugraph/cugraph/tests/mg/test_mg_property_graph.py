@@ -17,7 +17,7 @@ import dask_cudf
 import pytest
 import pandas as pd
 import cudf
-from cudf.testing import assert_frame_equal
+from cudf.testing import assert_frame_equal, assert_series_equal
 
 import cugraph.dask as dcg
 from cugraph.testing.utils import RAPIDS_DATASET_ROOT_DIR_PATH
@@ -402,6 +402,60 @@ def test_frame_data(dataset1_PropertyGraph, dataset1_MGPropertyGraph):
     mg_ep_df = mgpG._edge_prop_dataframe\
         .compute().sort_values(by=edge_sort_col).reset_index(drop=True)
     assert (sg_ep_df['_SRC_'].equals(mg_ep_df['_SRC_']))
+
+
+def test_add_edge_data_with_ids(dask_client):
+    """
+    add_edge_data() on "transactions" table, all properties.
+    """
+    from cugraph.experimental import MGPropertyGraph
+
+    transactions = dataset1["transactions"]
+    transactions_df = cudf.DataFrame(columns=transactions[0],
+                                     data=transactions[1])
+    transactions_df["edge_id"] = list(range(10, 10 + len(transactions_df)))
+    transactions_df = dask_cudf.from_cudf(transactions_df, npartitions=2)
+
+    pG = MGPropertyGraph()
+    pG.add_edge_data(transactions_df,
+                     type_name="transactions",
+                     edge_id_col_name="edge_id",
+                     vertex_col_names=("user_id", "merchant_id"),
+                     property_columns=None)
+
+    assert pG.get_num_vertices() == 7
+    # 'transactions' is edge type, not vertex type
+    assert pG.get_num_vertices('transactions') == 0
+    assert pG.get_num_edges() == 4
+    assert pG.get_num_edges('transactions') == 4
+    # Original SRC and DST columns no longer include "merchant_id", "user_id"
+    expected_props = ["volume", "time", "card_num", "card_type"]
+    assert sorted(pG.edge_property_names) == sorted(expected_props)
+
+    relationships = dataset1["relationships"]
+    relationships_df = cudf.DataFrame(columns=relationships[0],
+                                      data=relationships[1])
+    relationships_df["edge_id"] = list(range(30, 30 + len(relationships_df)))
+    relationships_df = dask_cudf.from_cudf(relationships_df, npartitions=2)
+
+    pG.add_edge_data(relationships_df,
+                     type_name="relationships",
+                     edge_id_col_name="edge_id",
+                     vertex_col_names=("user_id_1", "user_id_2"),
+                     property_columns=None)
+
+    df = pG.get_edge_data(types='transactions').compute()
+    assert_series_equal(
+        df[pG.edge_id_col_name].sort_values().reset_index(drop=True),
+        transactions_df["edge_id"].compute(),
+        check_names=False,
+    )
+    df = pG.get_edge_data(types='relationships').compute()
+    assert_series_equal(
+        df[pG.edge_id_col_name].sort_values().reset_index(drop=True),
+        relationships_df["edge_id"].compute(),
+        check_names=False,
+    )
 
 
 def test_property_names_attrs(dataset1_MGPropertyGraph):
