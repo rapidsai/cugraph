@@ -424,8 +424,8 @@ def test_get_subgraph(graph):
     assert sg.number_of_edges() == num_edges
 
 
-def test_neighbor_sample(single_vertex_graph):
-    pG = single_vertex_graph
+def test_neighbor_sample(basic_property_graph_1):
+    pG = basic_property_graph_1
     feature_store, graph_store = to_pyg(pG, backend='cupy')
 
     noi_groups, row_dict, col_dict, _ = graph_store.neighbor_sample(
@@ -534,8 +534,6 @@ def test_get_tensor(graph):
                     cupy.int64
                 )
 
-                print(base_series)
-                print(tsr)
                 assert list(tsr) == list(base_series)
 
 
@@ -570,8 +568,6 @@ def test_multi_get_tensor(graph):
                 assert len(tsr) == 1
                 tsr = tsr[0]
 
-                print(base_series)
-                print(tsr)
                 assert list(tsr) == list(base_series)
 
 
@@ -641,7 +637,5 @@ def test_get_x(graph):
             vertex_ids
         )
 
-        print(base_x)
-        print(tsr)
         for t, b in zip(tsr, base_x):
             assert list(t) == list(b)

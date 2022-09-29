@@ -510,19 +510,21 @@ class EXPERIMENTAL__CuGraphStore:
         for t_code, t in enumerate(noi_types):
             noi_t = noi[noi[self.__graph.type_col_name].cat.codes==t_code]
             # noi_t should be sorted since the input nodes of interest were
-            #print(noi_t[self.__graph.vertex_col_name])
 
             if len(noi_t) > 0:
                 # store the renumbering for this vertex type
                 # renumbered vertex id is the index of the old id
                 noi_index[t] = (
-                    noi_t[self.__graph.vertex_col_name].to_cupy() if self.is_mg
-                    else noi_t[self.__graph.vertex_col_name].compute().to_cupy()
+                    noi_t[self.__graph.vertex_col_name].compute().to_cupy() if self.is_mg
+                    else noi_t[self.__graph.vertex_col_name].to_cupy()
                 )
 
                 # renumber for each noi group
+                
                 noi_groups[t] = self.from_dlpack(
-                    noi_t.index.to_dlpack()
+                    cupy.arange(len(noi_t)).toDlpack()
+                    #noi_t.index.compute().to_dlpack() if self.is_mg
+                    #else noi_t.index.to_dlpack()
                 )
 
                 # store the property data
@@ -531,12 +533,15 @@ class EXPERIMENTAL__CuGraphStore:
                     attr.attr_name: self.__get_tensor_from_dataframe(noi_t, attr)
                     for attr in attrs
                 }
-
+        
         return noi_index, noi_groups, noi_tensors
 
     def __get_renumbered_edges_from_sample(self, sampling_results, noi_index):
         eoi = self.__graph.get_edge_data(
-            edge_ids=sampling_results.indices,
+            edge_ids=(
+                sampling_results.indices.compute().values_host if self.is_mg
+                else sampling_results.indices
+            ),
             columns=[
                 self.__graph.src_col_name,
                 self.__graph.dst_col_name
@@ -557,11 +562,12 @@ class EXPERIMENTAL__CuGraphStore:
             eoi_t = eoi[eoi[self.__graph.type_col_name].cat.codes==t_code]
             
             if len(eoi_t) > 0:
-                eoi_t.drop(self.__graph.edge_id_col_name, axis=1, inplace=True)
+                eoi_t = eoi_t.drop(self.__graph.edge_id_col_name, axis=1)
 
                 sources = eoi_t[self.__graph.src_col_name]
+                if self.is_mg:
+                    sources = sources.compute()
                 src_id_table = noi_index[src_type]
-                #print(src_id_table)
 
                 src = self.from_dlpack(
                     cupy.searchsorted(src_id_table, sources.to_cupy()).toDlpack()
@@ -570,6 +576,8 @@ class EXPERIMENTAL__CuGraphStore:
                 row_dict[t_pyg_c_type] = src
 
                 destinations = eoi_t[self.__graph.dst_col_name]
+                if self.is_mg:
+                    destinations = destinations.compute()
                 dst_id_table = noi_index[dst_type]
 
                 dst = self.from_dlpack(

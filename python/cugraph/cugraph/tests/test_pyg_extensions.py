@@ -413,8 +413,6 @@ def test_neighbor_sample(basic_property_graph_1):
     pG = basic_property_graph_1
     feature_store, graph_store = to_pyg(pG, backend='cupy')
 
-    print(pG._edge_prop_dataframe)
-
     noi_groups, row_dict, col_dict, _ = graph_store.neighbor_sample(
         index=cupy.array([0, 1, 2, 3, 4], dtype='int64'),
         num_neighbors=[10],
@@ -425,8 +423,6 @@ def test_neighbor_sample(basic_property_graph_1):
             for v in graph_store._edge_types_to_attrs.values()
         ]
     )
-
-    print(list(graph_store._EXPERIMENTAL__CuGraphStore__subgraphs.values())[0].edgelist.edgelist_df)
 
     for node_type, node_ids in noi_groups.items():
         actual_vertex_ids = pG.get_vertex_data(
@@ -449,9 +445,6 @@ def test_neighbor_sample(basic_property_graph_1):
     base_df = base_df[cols]
     base_df = base_df.sort_values(cols)
     base_df = base_df.reset_index().drop('index', axis=1)
-
-    print(combined_df)
-    print(base_df)
 
     assert combined_df.to_arrow().to_pylist() == base_df.to_arrow().to_pylist()
 
@@ -504,8 +497,6 @@ def test_get_tensor(graph):
                     cupy.int64
                 )
 
-                print(base_series)
-                print(tsr)
                 assert list(tsr) == list(base_series)
 
 
@@ -553,8 +544,6 @@ def test_get_all_tensor_attrs(graph):
             dtype=cupy.float32
         ))
 
-    print(tensor_attrs)
-    print(list(feature_store.get_all_tensor_attrs()))
     assert tensor_attrs == list(feature_store.get_all_tensor_attrs())
 
 
@@ -677,8 +666,6 @@ def test_get_x(graph):
             cupy.int64
         )
 
-        print(base_x)
-        print(tsr)
         for t, b in zip(tsr, base_x):
             assert list(t) == list(b)
 
