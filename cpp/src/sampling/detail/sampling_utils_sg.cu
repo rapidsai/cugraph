@@ -19,61 +19,55 @@
 namespace cugraph {
 namespace detail {
 
-template
-std::tuple<rmm::device_uvector<int32_t>,
-           rmm::device_uvector<int32_t>,
-           rmm::device_uvector<float>,
-           rmm::device_uvector<int32_t>>
+template std::tuple<rmm::device_uvector<int32_t>,
+                    rmm::device_uvector<int32_t>,
+                    rmm::device_uvector<float>,
+                    rmm::device_uvector<int32_t>>
 count_and_remove_duplicates(raft::handle_t const& handle,
                             rmm::device_uvector<int32_t>&& src,
                             rmm::device_uvector<int32_t>&& dst,
                             rmm::device_uvector<float>&& wgt);
 
-template
-std::tuple<rmm::device_uvector<int32_t>,
-           rmm::device_uvector<int32_t>,
-           rmm::device_uvector<float>,
-           rmm::device_uvector<int64_t>>
+template std::tuple<rmm::device_uvector<int32_t>,
+                    rmm::device_uvector<int32_t>,
+                    rmm::device_uvector<float>,
+                    rmm::device_uvector<int64_t>>
 count_and_remove_duplicates(raft::handle_t const& handle,
                             rmm::device_uvector<int32_t>&& src,
                             rmm::device_uvector<int32_t>&& dst,
                             rmm::device_uvector<float>&& wgt);
 
-template
-std::tuple<rmm::device_uvector<int64_t>,
-           rmm::device_uvector<int64_t>,
-           rmm::device_uvector<float>,
-           rmm::device_uvector<int64_t>>
+template std::tuple<rmm::device_uvector<int64_t>,
+                    rmm::device_uvector<int64_t>,
+                    rmm::device_uvector<float>,
+                    rmm::device_uvector<int64_t>>
 count_and_remove_duplicates(raft::handle_t const& handle,
                             rmm::device_uvector<int64_t>&& src,
                             rmm::device_uvector<int64_t>&& dst,
                             rmm::device_uvector<float>&& wgt);
 
-template
-std::tuple<rmm::device_uvector<int32_t>,
-           rmm::device_uvector<int32_t>,
-           rmm::device_uvector<double>,
-           rmm::device_uvector<int32_t>>
+template std::tuple<rmm::device_uvector<int32_t>,
+                    rmm::device_uvector<int32_t>,
+                    rmm::device_uvector<double>,
+                    rmm::device_uvector<int32_t>>
 count_and_remove_duplicates(raft::handle_t const& handle,
                             rmm::device_uvector<int32_t>&& src,
                             rmm::device_uvector<int32_t>&& dst,
                             rmm::device_uvector<double>&& wgt);
 
-template
-std::tuple<rmm::device_uvector<int32_t>,
-           rmm::device_uvector<int32_t>,
-           rmm::device_uvector<double>,
-           rmm::device_uvector<int64_t>>
+template std::tuple<rmm::device_uvector<int32_t>,
+                    rmm::device_uvector<int32_t>,
+                    rmm::device_uvector<double>,
+                    rmm::device_uvector<int64_t>>
 count_and_remove_duplicates(raft::handle_t const& handle,
                             rmm::device_uvector<int32_t>&& src,
                             rmm::device_uvector<int32_t>&& dst,
                             rmm::device_uvector<double>&& wgt);
 
-template
-std::tuple<rmm::device_uvector<int64_t>,
-           rmm::device_uvector<int64_t>,
-           rmm::device_uvector<double>,
-           rmm::device_uvector<int64_t>>
+template std::tuple<rmm::device_uvector<int64_t>,
+                    rmm::device_uvector<int64_t>,
+                    rmm::device_uvector<double>,
+                    rmm::device_uvector<int64_t>>
 count_and_remove_duplicates(raft::handle_t const& handle,
                             rmm::device_uvector<int64_t>&& src,
                             rmm::device_uvector<int64_t>&& dst,

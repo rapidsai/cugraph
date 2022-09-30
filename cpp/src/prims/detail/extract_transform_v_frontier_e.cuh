@@ -818,7 +818,7 @@ extract_transform_v_frontier_e(raft::handle_t const& handle,
                  frontier_key_first,
                  frontier_key_last,
                  get_dataframe_buffer_begin(frontier_keys));
-    thrust::sort(handle.get_thrust_policy(), 
+    thrust::sort(handle.get_thrust_policy(),
                  get_dataframe_buffer_begin(frontier_keys),
                  get_dataframe_buffer_end(frontier_keys));
     frontier_key_first = get_dataframe_buffer_begin(frontier_keys);
