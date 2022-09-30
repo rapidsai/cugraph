@@ -711,7 +711,7 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
           get_dataframe_buffer_begin(edge_buffer),
           get_dataframe_buffer_end(edge_buffer),
           [key_func =
-             cugraph::detail::compute_gpu_id_from_edge_t<vertex_t>{
+             cugraph::detail::compute_gpu_id_from_ext_edge_endpoints_t<vertex_t>{
                comm_size, row_comm_size, col_comm_size}] __device__(auto val) {
             return key_func(thrust::get<0>(val), thrust::get<1>(val));
           },

@@ -51,7 +51,8 @@ struct renumber_meta_t<vertex_t, edge_t, multi_gpu, std::enable_if_t<!multi_gpu>
  *
  * This function assumes that vertices are pre-shuffled to their target processes and edges are
  * pre-shuffled to their target processess and edge partitions using compute_gpu_id_from_vertex_t
- * and compute_gpu_id_from_edge_t & compute_partition_id_from_edge_t functors, respectively.
+ * and compute_gpu_id_from_ext_edge_endpoints_t & compute_partition_id_from_ext_edge_endpoints_t
+ * functors, respectively.
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
  * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
@@ -65,12 +66,12 @@ struct renumber_meta_t<vertex_t, edge_t, multi_gpu, std::enable_if_t<!multi_gpu>
  * work (vertices should be pre-shuffled).
  * @param edgelist_srcs Pointers (one pointer per local edge partition assigned to this process) to
  * edge source vertex IDs. Source IDs are updated in-place ([INOUT] parameter). Applying the
- * compute_gpu_id_from_edge_t functor to every (destination ID, source ID) pair (if store_transposed
- * = true) or (source ID, destination ID) pair (if store_transposed = false) should return the local
- * GPU ID for this function to work (edges should be pre-shuffled). Applying the
- * compute_partition_id_from_edge_t to every (destination ID, source ID) pair (if store_transposed =
- * true) or (source ID, destination ID) pair (if store_transposed = false) should also return the
- * corresponding edge partition ID. The best way to enforce this is to use
+ * compute_gpu_id_from_ext_edge_endpoints_t functor to every (destination ID, source ID) pair (if
+ * store_transposed = true) or (source ID, destination ID) pair (if store_transposed = false) should
+ * return the local GPU ID for this function to work (edges should be pre-shuffled). Applying the
+ * compute_partition_id_from_ext_edge_endpoints_t to every (destination ID, source ID) pair (if
+ * store_transposed = true) or (source ID, destination ID) pair (if store_transposed = false) should
+ * also return the corresponding edge partition ID. The best way to enforce this is to use
  * shuffle_edgelist_by_gpu_id & groupby_and_count_edgelist_by_local_partition_id.
  * @param edgelist_dsts Pointers (one pointer per local edge partition assigned to this process) to
  * edge destination vertex IDs. Destination IDs are updated in-place ([INOUT] parameter).
@@ -347,8 +348,8 @@ void renumber_local_ext_vertices(raft::handle_t const& handle,
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param edgelist_srcs Vector of edge source vertex IDs. If multi-GPU, applying the
- * compute_gpu_id_from_edge_t to every edge should return the local GPU ID for this function to work
- * (edges should be pre-shuffled).
+ * compute_gpu_id_from_ext_edge_endpoints_t to every edge should return the local GPU ID for this
+ * function to work (edges should be pre-shuffled).
  * @param edgelist_dsts Vector of edge destination vertex IDs.
  * @param edgelist_weights Vector of edge weights.
  * @param reciprocal Flag indicating whether to keep (if set to `false`) or discard (if set to
@@ -500,8 +501,8 @@ extract_induced_subgraphs(
  * compute_gpu_id_from_vertex_t to every vertex should return the local GPU ID for this function to
  * work (vertices should be pre-shuffled).
  * @param edgelist_srcs Vector of edge source vertex IDs. If multi-GPU, applying the
- * compute_gpu_id_from_edge_t to every edge should return the local GPU ID for this function to work
- * (edges should be pre-shuffled).
+ * compute_gpu_id_from_ext_edge_endpoints_t to every edge should return the local GPU ID for this
+ * function to work (edges should be pre-shuffled).
  * @param edgelist_dsts Vector of edge destination vertex IDs.
  * @param edgelist_weights Vector of edge weights.
  * @param edgelist_id_type_pairs Vector of edge ID and type pairs.
@@ -538,5 +539,36 @@ create_graph_from_edgelist(
   graph_properties_t graph_properties,
   bool renumber,
   bool do_expensive_check = false);
+
+/**
+ * @brief      Find all 2-hop neighbors in the graph
+ *
+ * Find pairs of vertices in the input graph such that each pair is connected by
+ * a path that is two hops in length.
+ *
+ * @throws     cugraph::logic_error when an error occurs.
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam weight_t Type of edge weights. Needs to be a floating point type.
+ * @tparam store_transposed Flag indicating whether to use sources (if false) or destinations (if
+ * true) as major indices in storing edges using a 2D sparse matrix. transposed.
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
+ * or multi-GPU (true).
+ * @param  handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param  graph The input graph object
+ * @param  start_vertices Optional list of starting vertices to discover two-hop neighbors of
+ * @return tuple containing pairs of vertices that are 2-hops apart.
+ */
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          bool store_transposed,
+          bool multi_gpu>
+std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> get_two_hop_neighbors(
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> const& graph_view,
+  std::optional<raft::device_span<vertex_t const>> start_vertices);
 
 }  // namespace cugraph
