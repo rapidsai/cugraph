@@ -54,7 +54,7 @@ def test_dask_katz_centrality(dask_client, directed):
     )
 
     dg = cugraph.Graph(directed=True)
-    dg.from_dask_cudf_edgelist(ddf, "src", "dst")
+    dg.from_dask_cudf_edgelist(ddf, "src", "dst", legacy_renum_only=True)
 
     degree_max = dg.degree()['degree'].max().compute()
     katz_alpha = 1 / (degree_max)
@@ -113,7 +113,7 @@ def test_dask_katz_centrality_nstart(dask_client, directed):
     )
 
     dg = cugraph.Graph(directed=True)
-    dg.from_dask_cudf_edgelist(ddf, "src", "dst")
+    dg.from_dask_cudf_edgelist(ddf, "src", "dst", legacy_renum_only=True)
 
     mg_res = dcg.katz_centrality(dg, max_iter=50, tol=1e-6)
     mg_res = mg_res.compute()

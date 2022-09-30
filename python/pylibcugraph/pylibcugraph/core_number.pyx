@@ -68,8 +68,8 @@ def core_number(ResourceHandle resource_handle,
         Handle to the underlying device and host resource needed for
         referencing data and running algorithms.
     
-    graph: MGGraph
-        The input graph, for Multi-GPU operations.
+    graph : SGGraph or MGGraph
+        The input graph, for either Single or Multi-GPU operations.
     
     degree_type: str
         This option determines if the core number computation should be based

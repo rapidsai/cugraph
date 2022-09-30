@@ -18,7 +18,7 @@
 #include <cugraph/utilities/error.hpp>
 #include <utilities/graph_utils.cuh>
 
-#include <raft/device_atomics.cuh>
+#include <raft/util/device_atomics.cuh>
 #include <rmm/exec_policy.hpp>
 
 #include <thrust/for_each.h>

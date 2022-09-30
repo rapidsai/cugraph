@@ -22,6 +22,7 @@ build:
     - PARALLEL_LEVEL
   ignore_run_exports_from:
     - {{ compiler('cuda') }}
+  preserve_egg_dir: True
 
 requirements:
   build:
@@ -36,7 +37,9 @@ requirements:
     - scikit-build>=0.13.1
     - libcugraph={{ version }}
     - libraft-headers {{ minor_version }}
-    - pyraft {{ minor_version }}
+    - libraft-distance {{ minor_version }}
+    - raft-dask {{ minor_version }}
+    - pylibraft {{ minor_version}}
     - cudf={{ minor_version }}
     - ucx-py {{ ucx_py_version }}
     - ucx-proc=*=gpu
@@ -49,7 +52,9 @@ requirements:
     - pylibcugraph={{ version }}
     - libcugraph={{ version }}
     - libraft-headers {{ minor_version }}
-    - pyraft {{ minor_version }}
+    - libraft-distance {{ minor_version }}
+    - raft-dask {{ minor_version }}
+    - pylibraft {{ minor_version }}
     - cudf={{ minor_version }}
     - dask-cudf {{ minor_version }}
     - dask-cuda {{ minor_version }}

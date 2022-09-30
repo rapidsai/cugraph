@@ -170,8 +170,14 @@ set(CUGRAPH_SOURCES
     src/structure/legacy/graph.cu
     src/linear_assignment/hungarian.cu
     src/traversal/legacy/bfs.cu
-    src/link_prediction/jaccard.cu
-    src/link_prediction/overlap.cu
+    src/link_prediction/legacy/jaccard.cu
+    src/link_prediction/legacy/overlap.cu
+    src/link_prediction/jaccard_sg.cu
+    src/link_prediction/sorensen_sg.cu
+    src/link_prediction/overlap_sg.cu
+    src/link_prediction/jaccard_mg.cu
+    src/link_prediction/sorensen_mg.cu
+    src/link_prediction/overlap_mg.cu
     src/layout/legacy/force_atlas2.cu
     src/converters/legacy/COOtoCSR.cu
     src/community/legacy/spectral_clustering.cu
@@ -197,6 +203,8 @@ set(CUGRAPH_SOURCES
     src/cores/legacy/core_number.cu
     src/cores/core_number_sg.cu
     src/cores/core_number_mg.cu
+    src/cores/k_core_sg.cu
+    src/cores/k_core_mg.cu
     src/traversal/two_hop_neighbors.cu
     src/components/legacy/connectivity.cu
     src/centrality/betweenness_centrality.cu
@@ -304,6 +312,7 @@ if (USE_CUGRAPH_OPS)
         PUBLIC
             cugraph-ops::cugraph-ops++
             raft::raft
+    	    raft::distance
         PRIVATE
             cuco::cuco
             cugraph::cuHornet
@@ -313,6 +322,7 @@ else()
     target_link_libraries(cugraph
         PUBLIC
             raft::raft
+   	        raft::distance
         PRIVATE
             cuco::cuco
             cugraph::cuHornet
@@ -329,17 +339,20 @@ add_library(cugraph_c
         src/c_api/error.cpp
         src/c_api/graph_sg.cpp
         src/c_api/graph_mg.cpp
+        src/c_api/graph_functions.cpp
         src/c_api/pagerank.cpp
         src/c_api/katz.cpp
         src/c_api/centrality_result.cpp
         src/c_api/eigenvector_centrality.cpp
         src/c_api/core_number.cpp
         src/c_api/core_result.cpp
+        src/c_api/k_core.cpp
         src/c_api/hits.cpp
         src/c_api/bfs.cpp
         src/c_api/sssp.cpp
         src/c_api/extract_paths.cpp
         src/c_api/random_walks.cpp
+        src/c_api/similarity.cpp
         src/c_api/louvain.cpp
         src/c_api/triangle_count.cpp
         src/c_api/uniform_neighbor_sampling.cpp
@@ -383,6 +396,7 @@ target_link_libraries(cugraph_c
                 CUDA::cusolver
                 CUDA::cusparse
                 raft::raft
+     	        raft::distance
         PRIVATE
                 cuco::cuco
                 cugraph::cugraph
