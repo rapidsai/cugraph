@@ -92,15 +92,15 @@ if (NOT cugraph_FOUND)
   # we'll need to have those relative links copied to the installed libraries
   # as well (especially for wheel building where auditwheel needs the links to
   # pull in the libraries).
-  set_target_properties(cugraph
-      PROPERTIES
-      INSTALL_RPATH_USE_LINK_PATH TRUE
-  )
-  set_target_properties(cugraph_c
-      PROPERTIES
-      INSTALL_RPATH_USE_LINK_PATH TRUE
-  )
-  install(TARGETS cugraph cugraph_c DESTINATION pylibcugraph)
+  #set_target_properties(cugraph
+  #    PROPERTIES
+  #    INSTALL_RPATH_USE_LINK_PATH TRUE
+  #)
+  #set_target_properties(cugraph_c
+  #    PROPERTIES
+  #    INSTALL_RPATH_USE_LINK_PATH TRUE
+  #)
+  install(TARGETS raft::distance cugraph cugraph_c DESTINATION pylibcugraph)
 endif()
 
 include(rapids-cython)
