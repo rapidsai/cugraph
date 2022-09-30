@@ -16,13 +16,14 @@
 #pragma once
 
 #include <prims/per_v_pair_transform_dst_nbr_intersection.cuh>
+#include <prims/update_edge_src_dst_property.cuh>
 
 #include <cugraph/graph_view.hpp>
 
 #include <raft/core/device_span.hpp>
 #include <raft/handle.hpp>
 
-#include <rmm/device_uvector.h>
+#include <rmm/device_uvector.hpp>
 
 #include <optional>
 #include <tuple>
@@ -38,13 +39,14 @@ rmm::device_uvector<weight_t> similarity(
   bool use_weights,
   functor_t functor)
 {
-  constexpr do_expensive_check = false;
+  using GraphViewType               = graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu>;
+  constexpr bool do_expensive_check = false;
 
-  CUGRAPH_ASSERT(std::get<0>(vertex_pairs).size() == std::get<1>(vertex_pairs).size(),
-                 "vertex pairs have mismatched sizes");
+  CUGRAPH_EXPECTS(std::get<0>(vertex_pairs).size() == std::get<1>(vertex_pairs).size(),
+                  "vertex pairs have mismatched sizes");
 
   if (use_weights)
-    CUGRAPH_ASSERT(graph_view.is_weighted(), "attempting to use weights on an unweighted graph");
+    CUGRAPH_EXPECTS(graph_view.is_weighted(), "attempting to use weights on an unweighted graph");
 
   size_t num_vertex_pairs = std::get<0>(vertex_pairs).size();
   auto vertex_pairs_begin =
@@ -69,8 +71,8 @@ rmm::device_uvector<weight_t> similarity(
     //
     auto in_degrees = graph_view.compute_in_degrees(handle);
 
-    auto src_degrees = edge_src_property_t<graph_view_t, edge_t>(handle, graph_view);
-    auto dst_degrees = edge_dst_property_t<graph_view_t, edge_t>(handle, graph_view);
+    auto src_degrees = edge_src_property_t<GraphViewType, edge_t>(handle, graph_view);
+    auto dst_degrees = edge_dst_property_t<GraphViewType, edge_t>(handle, graph_view);
     update_edge_src_property(handle, graph_view, in_degrees.begin(), src_degrees);
     update_edge_dst_property(handle, graph_view, in_degrees.begin(), dst_degrees);
 
@@ -83,8 +85,9 @@ rmm::device_uvector<weight_t> similarity(
       graph_view,
       vertex_pairs_begin,
       vertex_pairs_begin + num_vertex_pairs,
-      src_degrees.view(),
-      dst_degrees.view(),
+      in_degrees.begin(),
+      // src_degrees.view(),
+      // dst_degrees.view(),
       [] __device__(auto src, auto dst, auto src_degree, auto dst_degree, auto intersection) {
         return thrust::make_tuple(src_degree, dst_degree, static_cast<edge_t>(intersection.size()));
       },
@@ -98,8 +101,13 @@ rmm::device_uvector<weight_t> similarity(
     thrust::transform(handle.get_thrust_policy(),
                       get_dataframe_buffer_begin(intermediate_scores),
                       get_dataframe_buffer_end(intermediate_scores),
-                      similarity_scores.begin(),
-                      functor);
+                      similarity_score.begin(),
+                      [functor] __device__(auto tuple) {
+                        auto src_degree        = static_cast<weight_t>(thrust::get<0>(tuple));
+                        auto dst_degree        = static_cast<weight_t>(thrust::get<1>(tuple));
+                        auto intersection_size = static_cast<weight_t>(thrust::get<2>(tuple));
+                        return functor.compute_score(src_degree, dst_degree, intersection_size);
+                      });
 
     return similarity_score;
   }

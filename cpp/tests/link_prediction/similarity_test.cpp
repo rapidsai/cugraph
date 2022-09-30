@@ -65,7 +65,7 @@ class Tests_Similarity
 
     auto [graph, d_renumber_map_labels] =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, false>(
-        handle, input_usecase, false, renumber);
+        handle, input_usecase, true, renumber);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -85,10 +85,15 @@ class Tests_Similarity
 
     // FIXME:  Need to add some tests that specify actual vertex pairs
     // FIXME:  Need to a variation that calls call the two hop neighbors function
+    // FIXME:  Debugging state as of EOD 9/28:
+    //           1) Tested case of no vertex pairs... works great :-)
+    //           2) Don't have a 2-hop on GPU yet.  Perhaps write a 2-hop on CPU
+    //              for now?  We could then use that for testing the 2-hop function
+    //              later.
     std::tuple<raft::device_span<vertex_t const>, raft::device_span<vertex_t const>> vertex_pairs{
       {nullptr, size_t{0}}, {nullptr, size_t{0}}};
 
-#if 0
+#if 1
     auto result_score =
       test_functor.run(handle, graph_view, vertex_pairs, similarity_usecase.use_weights);
 #else
@@ -103,12 +108,14 @@ class Tests_Similarity
     }
 
     if (similarity_usecase.check_correctness) {
-#if 0
+#if 1
       auto [src, dst, wgt] = cugraph::test::graph_to_host_coo(handle, graph_view);
 
-      size_t check_size = std::min(std::get<0>(vertex_pairs).size(), similarity_usecase.max_vertex_pairs_to_check);
+      size_t check_size =
+        std::min(std::get<0>(vertex_pairs).size(), similarity_usecase.max_vertex_pairs_to_check);
       //
-      // FIXME: Need to reorder here.  thrust::shuffle on the tuples (vertex_pairs_1, vertex_pairs_2, result_score) would
+      // FIXME: Need to reorder here.  thrust::shuffle on the tuples (vertex_pairs_1,
+      // vertex_pairs_2, result_score) would
       //        be sufficient.
       //
 
@@ -116,25 +123,18 @@ class Tests_Similarity
       std::vector<vertex_t> h_vertex_pair_2(check_size);
       std::vector<weight_t> h_result_score(check_size);
 
-      raft::update_host(h_vertex_pair_1.data(),
-                        std::get<0>(vertex_pairs).data(),
-                        check_size,
-                        handle.get_stream());
-      raft::update_host(h_vertex_pair_2.data(),
-                        std::get<1>(vertex_pairs).data(),
-                        check_size,
-                        handle.get_stream());
+      raft::update_host(
+        h_vertex_pair_1.data(), std::get<0>(vertex_pairs).data(), check_size, handle.get_stream());
+      raft::update_host(
+        h_vertex_pair_2.data(), std::get<1>(vertex_pairs).data(), check_size, handle.get_stream());
       raft::update_host(
         h_result_score.data(), result_score.data(), result_score.size(), handle.get_stream());
 
-      std::tuple<std::vector<vertex_t>, std::vector<vertex_t>, std::optional<std::vector<weight_t>>>
-        &&edge_list, std::tuple<std::vector<vertex_t>, std::vector<vertex_t>>&&vertex_pairs,
-        similarity_compare(graph_view.number_of_vertices(),
-                           std::make_tuple(std::move(src), std::move(dst), std::move(wgt)),
-                           std::move(h_result_src),
-                           std::move(h_result_dst),
-                           std::move(h_result_score),
-                           test_functor);
+      similarity_compare(graph_view.number_of_vertices(),
+                         std::make_tuple(std::move(src), std::move(dst), std::move(wgt)),
+                         std::make_tuple(std::move(h_vertex_pair_1), std::move(h_vertex_pair_2)),
+                         std::move(h_result_score),
+                         test_functor);
 #endif
     }
   }
@@ -220,17 +220,21 @@ INSTANTIATE_TEST_SUITE_P(
   Tests_Similarity_File,
   ::testing::Combine(
     // enable correctness checks
-    ::testing::Values(Similarity_Usecase{true, true, 100}, Similarity_Usecase{false, true, 100}),
+    // Disable weighted computation testing in 22.10
+    //::testing::Values(Similarity_Usecase{true, true, 100}, Similarity_Usecase{false, true, 100}),
+    ::testing::Values(Similarity_Usecase{false, true, 100}),
     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
                       cugraph::test::File_Usecase("test/datasets/dolphins.mtx"))));
 
-INSTANTIATE_TEST_SUITE_P(rmat_small_test,
-                         Tests_Similarity_Rmat,
-                         // enable correctness checks
-                         ::testing::Combine(::testing::Values(Similarity_Usecase{true, true, 100},
-                                                              Similarity_Usecase{false, true, 100}),
-                                            ::testing::Values(cugraph::test::Rmat_Usecase(
-                                              10, 16, 0.57, 0.19, 0.19, 0, false, false))));
+INSTANTIATE_TEST_SUITE_P(
+  rmat_small_test,
+  Tests_Similarity_Rmat,
+  ::testing::Combine(
+    // enable correctness checks
+    // Disable weighted computation testing in 22.10
+    //::testing::Values(Similarity_Usecase{true, true, 100}, Similarity_Usecase{false, true, 100}),
+    ::testing::Values(Similarity_Usecase{false, true, 100}),
+    ::testing::Values(cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, false, false))));
 
 INSTANTIATE_TEST_SUITE_P(
   file_benchmark_test, /* note that the test filename can be overridden in benchmarking (with
@@ -241,7 +245,9 @@ INSTANTIATE_TEST_SUITE_P(
   Tests_Similarity_File,
   ::testing::Combine(
     // disable correctness checks
-    ::testing::Values(Similarity_Usecase{false, false}, Similarity_Usecase{true, false}),
+    // Disable weighted computation testing in 22.10
+    //::testing::Values(Similarity_Usecase{false, false}, Similarity_Usecase{true, false}),
+    ::testing::Values(Similarity_Usecase{false, false}),
     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"))));
 
 INSTANTIATE_TEST_SUITE_P(
@@ -251,9 +257,10 @@ INSTANTIATE_TEST_SUITE_P(
                           include more than one Rmat_Usecase that differ only in scale or edge
                           factor (to avoid running same benchmarks more than once) */
   Tests_Similarity_Rmat,
-  // disable correctness checks for large graphs
   ::testing::Combine(
-    ::testing::Values(Similarity_Usecase{false, false}, Similarity_Usecase{true, false}),
+    // disable correctness checks for large graphs
+    //::testing::Values(Similarity_Usecase{false, false}, Similarity_Usecase{true, false}),
+    ::testing::Values(Similarity_Usecase{false, false}),
     ::testing::Values(cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, false, false))));
 
 CUGRAPH_TEST_PROGRAM_MAIN()
