@@ -84,6 +84,33 @@ void expensive_check_edgelist(raft::handle_t const& handle,
                                                                         sorted_vertices.end()))) ==
                       sorted_vertices.size(),
                     "Invalid input argument: vertices should not have duplicates.");
+    if (!renumber) {
+      CUGRAPH_EXPECTS(static_cast<size_t>(thrust::count_if(
+                        handle.get_thrust_policy(),
+                        sorted_vertices.begin(),
+                        sorted_vertices.end(),
+                        check_out_of_range_t<vertex_t>{
+                          vertex_t{0}, std::numeric_limits<vertex_t>::max()})) == size_t{0},
+                      "Invalid input argument: vertex IDs should be in [0, "
+                      "std::numeric_limits<vertex_t>::max()) if renumber is false.");
+    }
+  } else if (!renumber) {
+    CUGRAPH_EXPECTS(static_cast<size_t>(thrust::count_if(
+                      handle.get_thrust_policy(),
+                      edgelist_majors.begin(),
+                      edgelist_majors.end(),
+                      check_out_of_range_t<vertex_t>{
+                        vertex_t{0}, std::numeric_limits<vertex_t>::max()})) == size_t{0},
+                    "Invalid input argument: vertex IDs should be in [0, "
+                    "std::numeric_limits<vertex_t>::max()) if renumber is false.");
+    CUGRAPH_EXPECTS(static_cast<size_t>(thrust::count_if(
+                      handle.get_thrust_policy(),
+                      edgelist_minors.begin(),
+                      edgelist_minors.end(),
+                      check_out_of_range_t<vertex_t>{
+                        vertex_t{0}, std::numeric_limits<vertex_t>::max()})) == size_t{0},
+                    "Invalid input argument: vertex IDs should be in [0, "
+                    "std::numeric_limits<vertex_t>::max()) if renumber is false.");
   }
 
   if constexpr (multi_gpu) {
@@ -95,17 +122,19 @@ void expensive_check_edgelist(raft::handle_t const& handle,
     auto& col_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
     auto const col_comm_size = col_comm.get_size();
 
-    CUGRAPH_EXPECTS(
-      thrust::count_if(
-        handle.get_thrust_policy(),
-        (*vertices).begin(),
-        (*vertices).end(),
-        [comm_rank,
-         key_func =
-           detail::compute_gpu_id_from_ext_vertex_t<vertex_t>{comm_size}] __device__(auto val) {
-          return key_func(val) != comm_rank;
-        }) == 0,
-      "Invalid input argument: vertices should be pre-shuffled.");
+    if (vertices) {
+      CUGRAPH_EXPECTS(
+        thrust::count_if(
+          handle.get_thrust_policy(),
+          (*vertices).begin(),
+          (*vertices).end(),
+          [comm_rank,
+           key_func =
+             detail::compute_gpu_id_from_ext_vertex_t<vertex_t>{comm_size}] __device__(auto val) {
+            return key_func(val) != comm_rank;
+          }) == 0,
+        "Invalid input argument: vertices should be pre-shuffled.");
+    }
 
     auto edge_first = thrust::make_zip_iterator(
       thrust::make_tuple(edgelist_majors.begin(), edgelist_minors.begin()));
@@ -237,7 +266,7 @@ create_graph_from_edgelist_impl(
   // 1. groupby edges to their target local adjacency matrix partition (and further groupby within
   // the local partition by applying the compute_gpu_id_from_vertex_t to minor vertex IDs).
 
-  auto edge_counts = cugraph::detail::groupby_and_count_edgelist_by_local_partition_id(
+  auto d_edge_counts = cugraph::detail::groupby_and_count_edgelist_by_local_partition_id(
     handle,
     store_transposed ? edgelist_dsts : edgelist_srcs,
     store_transposed ? edgelist_srcs : edgelist_dsts,
@@ -245,9 +274,9 @@ create_graph_from_edgelist_impl(
     edgelist_id_type_pairs,
     true);
 
-  std::vector<size_t> h_edge_counts(edge_counts.size());
+  std::vector<size_t> h_edge_counts(d_edge_counts.size());
   raft::update_host(
-    h_edge_counts.data(), edge_counts.data(), edge_counts.size(), handle.get_stream());
+    h_edge_counts.data(), d_edge_counts.data(), d_edge_counts.size(), handle.get_stream());
   handle.sync_stream();
 
   std::vector<edge_t> edgelist_edge_counts(col_comm_size, edge_t{0});
@@ -579,6 +608,9 @@ create_graph_from_edgelist_impl(
   bool renumber,
   bool do_expensive_check)
 {
+  CUGRAPH_EXPECTS(renumber || (!vertices.has_value()),
+                  "Invalid input arguments: if renumber is false, vertices are assumed and "
+                  "vertices.has_value() should be false.");
   CUGRAPH_EXPECTS(edgelist_srcs.size() == edgelist_dsts.size(),
                   "Invalid input arguments: edgelist_srcs.size() != edgelist_dsts.size().");
   CUGRAPH_EXPECTS(!edgelist_weights || (edgelist_srcs.size() == (*edgelist_weights).size()),
@@ -621,12 +653,8 @@ create_graph_from_edgelist_impl(
   if (renumber) {
     num_vertices = static_cast<vertex_t>((*renumber_map_labels).size());
   } else {
-    if (vertices) {
-      num_vertices = input_vertex_list_size;
-    } else {
-      num_vertices = 1 + cugraph::detail::compute_maximum_vertex_id(
-                           handle.get_stream(), edgelist_srcs, edgelist_dsts);
-    }
+    num_vertices = 1 + cugraph::detail::compute_maximum_vertex_id(
+                         handle.get_stream(), edgelist_srcs, edgelist_dsts);
   }
 
   // convert edge list (COO) to compressed sparse format (CSR or CSC)

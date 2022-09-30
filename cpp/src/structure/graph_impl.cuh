@@ -1080,13 +1080,7 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
       std::move(edgelist_weights),
       reciprocal);
 
-  auto vertex_span = renumber ? std::move(renumber_map)
-                              : std::make_optional<rmm::device_uvector<vertex_t>>(
-                                  number_of_vertices, handle.get_stream());
-  if (!renumber) {
-    thrust::sequence(
-      handle.get_thrust_policy(), (*vertex_span).begin(), (*vertex_span).end(), vertex_t{0});
-  }
+  auto vertex_span = renumber ? std::move(renumber_map) : std::nullopt;
 
   graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> symmetrized_graph(handle);
   std::optional<rmm::device_uvector<vertex_t>> new_renumber_map{std::nullopt};
@@ -1166,13 +1160,7 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
 
   auto [edgelist_srcs, edgelist_dsts, edgelist_weights] =
     this->decompress_to_edgelist(handle, renumber_map, true);
-  auto vertex_span = renumber ? std::move(renumber_map)
-                              : std::make_optional<rmm::device_uvector<vertex_t>>(
-                                  number_of_vertices, handle.get_stream());
-  if (!renumber) {
-    thrust::sequence(
-      handle.get_thrust_policy(), (*vertex_span).begin(), (*vertex_span).end(), vertex_t{0});
-  }
+  auto vertex_span = renumber ? std::move(renumber_map) : std::nullopt;
 
   graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> transposed_graph(handle);
   std::optional<rmm::device_uvector<vertex_t>> new_renumber_map{std::nullopt};
@@ -1253,13 +1241,7 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
 
   auto [edgelist_srcs, edgelist_dsts, edgelist_weights] =
     this->decompress_to_edgelist(handle, renumber_map, destroy);
-  auto vertex_span = renumber ? std::move(renumber_map)
-                              : std::make_optional<rmm::device_uvector<vertex_t>>(
-                                  number_of_vertices, handle.get_stream());
-  if (!renumber) {
-    thrust::sequence(
-      handle.get_thrust_policy(), (*vertex_span).begin(), (*vertex_span).end(), vertex_t{0});
-  }
+  auto vertex_span = renumber ? std::move(renumber_map) : std::nullopt;
 
   graph_t<vertex_t, edge_t, weight_t, !store_transposed, multi_gpu> storage_transposed_graph(
     handle);
