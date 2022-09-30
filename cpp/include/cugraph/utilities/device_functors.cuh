@@ -37,6 +37,16 @@ struct typecast_t {
   __device__ output_t operator()(input_t val) const { return static_cast<output_t>(val); }
 };
 
+template <typename Iterator>
+struct indirection_t {
+  Iterator first{};
+
+  __device__ typename thrust::iterator_traits<Iterator>::value_type operator()(size_t i) const
+  {
+    return *(first + i);
+  }
+};
+
 template <typename T>
 struct not_equal_t {
   T compare{};

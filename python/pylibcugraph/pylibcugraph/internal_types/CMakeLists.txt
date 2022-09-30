@@ -12,36 +12,17 @@
 # the License.
 # =============================================================================
 
-add_subdirectory(components)
-# add_subdirectory(raft/common)
-add_subdirectory(internal_types)
-add_subdirectory(testing)
-
 set(cython_sources
-    bfs.pyx
-    core_number.pyx
-    eigenvector_centrality.pyx
-    graph_properties.pyx
-    graphs.pyx
-    hits.pyx
-    katz_centrality.pyx
-    node2vec.pyx
-    pagerank.pyx
-    personalized_pagerank.pyx
-    resource_handle.pyx
-    sssp.pyx
-    triangle_count.pyx
-    uniform_neighbor_sample.pyx
-    utils.pyx
+    sampling_result.pyx
 )
-set(linked_libraries cugraph::cugraph;cugraph::cugraph_c)
+set(linked_libraries cugraph::cugraph;cugraph_c)
 
 rapids_cython_create_modules(
   CXX
   SOURCE_FILES "${cython_sources}"
-  LINKED_LIBRARIES ${linked_libraries}
+  LINKED_LIBRARIES "${linked_libraries}"
 )
 
 foreach(cython_module IN LISTS RAPIDS_CYTHON_CREATED_TARGETS)
-  set_target_properties(${cython_module} PROPERTIES INSTALL_RPATH "\$ORIGIN;")
+  set_target_properties(${cython_module} PROPERTIES INSTALL_RPATH "\$ORIGIN;\$ORIGIN/../library")
 endforeach()
