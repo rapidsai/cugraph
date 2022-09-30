@@ -36,8 +36,8 @@
 namespace cugraph {
 namespace detail {
 
-#if 0
-// FIXME: Unused, but we wanted to add this as a separate function
+// FIXME: Need to move this to a publicly available function
+template <typename vertex_t, typename edge_t, typename weight_t>
 std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
            rmm::device_uvector<weight_t>,
@@ -76,38 +76,6 @@ count_and_remove_duplicates(raft::handle_t const& handle,
 
   return std::make_tuple(
     std::move(result_src), std::move(result_dst), std::move(result_wgt), std::move(result_count));
-}
-#endif
-
-template <typename vertex_t>
-rmm::device_uvector<vertex_t> allgather_active_majors(raft::handle_t const& handle,
-                                                      rmm::device_uvector<vertex_t>&& d_in)
-{
-  auto const& col_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
-  size_t source_count  = d_in.size();
-
-  auto external_source_counts =
-    cugraph::host_scalar_allgather(col_comm, source_count, handle.get_stream());
-
-  auto total_external_source_count =
-    std::accumulate(external_source_counts.begin(), external_source_counts.end(), size_t{0});
-  std::vector<size_t> displacements(external_source_counts.size(), size_t{0});
-  std::exclusive_scan(
-    external_source_counts.begin(), external_source_counts.end(), displacements.begin(), size_t{0});
-
-  rmm::device_uvector<vertex_t> active_majors(total_external_source_count, handle.get_stream());
-
-  // Get the sources other gpus on the same row are working on
-  // FIXME : replace with device_bcast for better scaling
-  device_allgatherv(col_comm,
-                    d_in.data(),
-                    active_majors.data(),
-                    external_source_counts,
-                    displacements,
-                    handle.get_stream());
-  thrust::sort(handle.get_thrust_policy(), active_majors.begin(), active_majors.end());
-
-  return active_majors;
 }
 
 template <typename vertex_t, typename weight_t, typename property_t>
@@ -170,7 +138,6 @@ struct sample_edges_op_t {
   __device__ result_t operator()(
     vertex_t src, vertex_t dst, weight_t wgt, property_t src_prop, property_t dst_prop) const
   {
-    printf("src = %d, dst = %d, wgt = %g\n", (int)src, (int)dst, (float)wgt);
     return thrust::make_tuple(src, dst, wgt, src_prop, dst_prop);
   }
 };
@@ -204,8 +171,6 @@ sample_edges(raft::handle_t const& handle,
 
   using result_t = thrust::tuple<vertex_t, vertex_t, weight_t, property_t, property_t>;
 
-  raft::print_device_vector("active_majors", active_majors.data(), active_majors.size(), std::cout);
-
   auto [sample_offsets, sample_e_op_results] = cugraph::per_v_random_select_transform_outgoing_e(
     handle,
     graph_view,
@@ -217,7 +182,8 @@ sample_edges(raft::handle_t const& handle,
     fanout,
     with_replacement,
     std::make_optional(result_t{cugraph::invalid_vertex_id<vertex_t>::value,
-                                cugraph::invalid_vertex_id<vertex_t>::value}));
+                                cugraph::invalid_vertex_id<vertex_t>::value}),
+    true);
 
   //
   // FIXME: Debugging status, EOD 9/18/22
@@ -227,8 +193,6 @@ sample_edges(raft::handle_t const& handle,
   //   3) Finally... can I switch to using cugraph::invalid_vertex_id<vertex_t> instead of
   //   number_of_vertices()? 4) I'm close, I should do the code cleanup.
   //
-  std::cout << "after per_v_random_..., sample_e_op_results size = " << size_dataframe_buffer(sample_e_op_results) << std::endl;
-
   auto end_iter = thrust::copy_if(handle.get_thrust_policy(),
                                   get_dataframe_buffer_begin(sample_e_op_results),
                                   get_dataframe_buffer_end(sample_e_op_results),
@@ -243,22 +207,12 @@ sample_edges(raft::handle_t const& handle,
 
   size_t new_size = thrust::distance(get_dataframe_buffer_begin(sample_e_op_results), end_iter);
 
-  std::cout << "  new_size = " << new_size << std::endl;
-
   if (new_size != size_dataframe_buffer(sample_e_op_results)) {
     resize_dataframe_buffer(sample_e_op_results, new_size, handle.get_stream());
     shrink_to_fit_dataframe_buffer(sample_e_op_results, handle.get_stream());
   }
 
   auto& [majors, minors, weights, p1, p2] = sample_e_op_results;
-
-  std::cout << "with_replacement = " << (with_replacement ? "TRUE" : "FALSE") << std::endl;
-  if (sample_offsets)
-    raft::print_device_vector(
-      "sample_offsets", sample_offsets->data(), sample_offsets->size(), std::cout);
-  raft::print_device_vector("majors", majors.data(), majors.size(), std::cout);
-  raft::print_device_vector("minors", minors.data(), minors.size(), std::cout);
-  raft::print_device_vector("weights", weights.data(), weights.size(), std::cout);
 
   return std::make_tuple(
     std::move(majors), std::move(minors), std::make_optional(std::move(weights)));

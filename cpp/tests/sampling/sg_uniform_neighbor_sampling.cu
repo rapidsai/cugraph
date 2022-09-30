@@ -90,20 +90,12 @@ class Tests_Uniform_Neighbor_Sampling
                    prims_usecase.flag_replacement),
                  std::exception);
 #else
-    std::cout << "call uniform_nbr_sample" << std::endl;
-
     auto&& [d_src_out, d_dst_out, d_indices, d_counts] = cugraph::uniform_nbr_sample(
       handle,
       graph_view,
       raft::device_span<vertex_t>(random_sources.data(), random_sources.size()),
       raft::host_span<const int>(h_fan_out.data(), h_fan_out.size()),
       prims_usecase.flag_replacement);
-
-    std::cout << "num_vertices = " << graph_view.number_of_vertices() << std::endl;
-    raft::print_host_vector("h_fan_out", h_fan_out.data(), h_fan_out.size(), std::cout);
-    raft::print_device_vector("random_sources", random_sources.data(), random_sources.size(), std::cout);
-    raft::print_device_vector("d_src_out", d_src_out.data(), d_src_out.size(), std::cout);
-    raft::print_device_vector("d_dst_out", d_dst_out.data(), d_dst_out.size(), std::cout);
 
     if (prims_usecase.check_correctness) {
       //  First validate that the extracted edges are actually a subset of the
@@ -157,7 +149,6 @@ using Tests_Uniform_Neighbor_Sampling_Rmat =
 
 TEST_P(Tests_Uniform_Neighbor_Sampling_File, CheckInt32Int32Float)
 {
-  std::cout << "Starting test" << std::endl;
   auto param = GetParam();
   run_current_test<int32_t, int32_t, float>(std::get<0>(param), std::get<1>(param));
 }

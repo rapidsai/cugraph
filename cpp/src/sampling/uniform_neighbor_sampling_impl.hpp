@@ -21,23 +21,10 @@
 #include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/graph.hpp>
-#include <cugraph/partition_manager.hpp>
 
 #include <raft/handle.hpp>
 
 #include <rmm/device_uvector.hpp>
-
-#ifndef NO_CUGRAPH_OPS
-#include <cugraph-ops/graph/sampling.hpp>
-#endif
-
-#include <thrust/optional.h>
-
-#include <algorithm>
-#include <limits>
-#include <numeric>
-#include <type_traits>
-#include <vector>
 
 namespace cugraph {
 namespace detail {
@@ -47,13 +34,12 @@ std::tuple<rmm::device_uvector<typename graph_view_t::vertex_type>,
            rmm::device_uvector<typename graph_view_t::vertex_type>,
            rmm::device_uvector<typename graph_view_t::weight_type>,
            rmm::device_uvector<typename graph_view_t::edge_type>>
-uniform_nbr_sample_impl(
-  raft::handle_t const& handle,
-  graph_view_t const& graph_view,
-  rmm::device_uvector<typename graph_view_t::vertex_type>& d_in,
-  raft::host_span<const int> h_fan_out,
-  bool with_replacement,
-  uint64_t seed)
+uniform_nbr_sample_impl(raft::handle_t const& handle,
+                        graph_view_t const& graph_view,
+                        rmm::device_uvector<typename graph_view_t::vertex_type>& d_in,
+                        raft::host_span<const int> h_fan_out,
+                        bool with_replacement,
+                        uint64_t seed)
 {
   using vertex_t = typename graph_view_t::vertex_type;
   using edge_t   = typename graph_view_t::edge_type;
@@ -73,12 +59,11 @@ uniform_nbr_sample_impl(
     thrust::make_optional(rmm::device_uvector<weight_t>(0, handle.get_stream()));
 
   size_t level{0};
-  size_t row_comm_size{1};
+  size_t comm_size{1};
 
   if constexpr (graph_view_t::is_multi_gpu) {
-    auto& row_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
-    seed += row_comm.get_rank();
-    row_comm_size = row_comm.get_size();
+    seed += handle.get_comms().get_rank();
+    comm_size = handle.get_comms().get_size();
   }
 
   for (auto&& k_level : h_fan_out) {
@@ -86,7 +71,6 @@ uniform_nbr_sample_impl(
     if constexpr (graph_view_t::is_multi_gpu) {
       d_in = shuffle_int_vertices_by_gpu_id(
         handle, std::move(d_in), graph_view.vertex_partition_range_lasts());
-      d_in = allgather_active_majors(handle, std::move(d_in));
     }
 
     rmm::device_uvector<vertex_t> d_out_src(0, handle.get_stream());
@@ -95,15 +79,10 @@ uniform_nbr_sample_impl(
 
     if (k_level > 0) {
       raft::random::RngState rng_state(seed);
-      seed += d_in.size() * k_level * row_comm_size;
+      seed += d_in.size() * k_level * comm_size;
 
-      std::tie(d_out_src, d_out_dst, d_out_indices) =
-        sample_edges(handle,
-                     graph_view,
-                     rng_state,
-                     d_in,
-                     static_cast<size_t>(k_level),
-                     with_replacement);
+      std::tie(d_out_src, d_out_dst, d_out_indices) = sample_edges(
+        handle, graph_view, rng_state, d_in, static_cast<size_t>(k_level), with_replacement);
     } else {
       std::tie(d_out_src, d_out_dst, d_out_indices) =
         gather_one_hop_edgelist(handle, graph_view, d_in);
@@ -117,8 +96,6 @@ uniform_nbr_sample_impl(
     d_result_src.resize(new_sz, handle.get_stream());
     d_result_dst.resize(new_sz, handle.get_stream());
     d_result_indices->resize(new_sz, handle.get_stream());
-
-    // FIXME: Get rid of undefined
 
     raft::copy(
       d_result_src.begin() + old_sz, d_out_src.begin(), d_out_src.size(), handle.get_stream());
@@ -134,14 +111,8 @@ uniform_nbr_sample_impl(
     ++level;
   }
 
-  // FIXME:  Should get rid of this, we'll do the counting elsewhere
-  rmm::device_uvector<edge_t> count(d_result_src.size(), handle.get_stream());
-  scalar_fill(handle, count.data(), count.size(), edge_t{1});
-
-  return std::make_tuple(std::move(d_result_src),
-                         std::move(d_result_dst),
-                         std::move(*d_result_indices),
-                         std::move(count));
+  return count_and_remove_duplicates<vertex_t, edge_t, weight_t>(
+    handle, std::move(d_result_src), std::move(d_result_dst), std::move(*d_result_indices));
 #endif
 }
 }  // namespace detail
@@ -167,12 +138,8 @@ uniform_nbr_sample(
   raft::copy(
     d_start_vs.data(), starting_vertices.data(), starting_vertices.size(), handle.get_stream());
 
-  return detail::uniform_nbr_sample_impl(handle,
-                                         graph_view,
-                                         d_start_vs,
-                                         fan_out,
-                                         with_replacement,
-                                         seed);
+  return detail::uniform_nbr_sample_impl(
+    handle, graph_view, d_start_vs, fan_out, with_replacement, seed);
 }
 
 }  // namespace cugraph

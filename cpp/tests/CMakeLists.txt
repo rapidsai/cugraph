@@ -346,28 +346,15 @@ ConfigureTest(WEAKLY_CONNECTED_COMPONENTS_TEST components/weakly_connected_compo
 ConfigureTest(SIMILARITY_TEST link_prediction/similarity_test.cpp)
 
 ###################################################################################################
-# - Legacy RANDOM_WALKS tests ----------------------------------------------------------------------------
-#ConfigureTest(LEGACY_RANDOM_WALKS_TEST sampling/random_walks_test.cu)
-
-###################################################################################################
 # - RANDOM_WALKS tests ----------------------------------------------------------------------------
 #  FIXME: Rename to random_walks_test.cu once the legacy implementation is deleted
-#ConfigureTest(RANDOM_WALKS_TEST sampling/sg_random_walks_test.cpp)
-
-###################################################################################################
-ConfigureTest(RANDOM_WALKS_LOW_LEVEL_TEST sampling/rw_low_level_test.cu)
+ConfigureTest(RANDOM_WALKS_TEST sampling/sg_random_walks_test.cpp)
 
 ###########################################################################################
 # - NBR SAMPLING tests -----------------------------------------------------------------
 ConfigureTest(UNIFORM_NEIGHBOR_SAMPLING_TEST sampling/sg_uniform_neighbor_sampling.cu)
 target_link_libraries(UNIFORM_NEIGHBOR_SAMPLING_TEST PRIVATE cuco::cuco)
         
-###################################################################################################
-# FIXME: since this is technically not a test, consider refactoring the the
-# ConfigureTest function to share common code with a new ConfigureBenchmark
-# function (which would not link gtest, etc.)
-ConfigureTest(RANDOM_WALKS_PROFILING sampling/random_walks_profiling.cu)
-
 ###################################################################################################
 # - Serialization tests ---------------------------------------------------------------------------
 ConfigureTest(SERIALIZATION_TEST serialization/un_serialize_test.cpp)
@@ -576,7 +563,7 @@ if(BUILD_CUGRAPH_MG_TESTS)
 
     ###########################################################################################
     # - RANDOM_WALKS tests --------------------------------------------------------------------
-#    ConfigureTestMG(MG_RANDOM_WALKS_TEST sampling/mg_random_walks_test.cpp)
+    ConfigureTestMG(MG_RANDOM_WALKS_TEST sampling/mg_random_walks_test.cpp)
 
     ###################################################################################################
     # - SIMILARITY tests ------------------------------------------------------------------------------
@@ -634,7 +621,6 @@ target_link_libraries(cugraph_c_testutil
 # FIXME: Disabling these tests, they test an older version of the API which
 #        will be deleted in this release.  Leaving them here to help me remember :-)
 #ConfigureCTest(CAPI_CREATE_SG_GRAPH_ENVELOPE c_api/create_sg_graph_envelope_test.c)
-#ConfigureCTest(CAPI_RANDOM_WALKS c_api/random_walks_test.c)
 
 ConfigureCTest(CAPI_CREATE_GRAPH_TEST c_api/create_graph_test.c)
 ConfigureCTest(CAPI_PAGERANK_TEST c_api/pagerank_test.c)
