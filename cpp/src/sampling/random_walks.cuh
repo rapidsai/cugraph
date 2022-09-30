@@ -18,13 +18,14 @@
 //
 #pragma once
 
+#include <cugraph/algorithms.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/graph.hpp>
 
 #include <utilities/graph_utils.cuh>
 
-#include <raft/device_atomics.cuh>
 #include <raft/handle.hpp>
+#include <raft/util/device_atomics.cuh>
 
 #include <rmm/device_uvector.hpp>
 

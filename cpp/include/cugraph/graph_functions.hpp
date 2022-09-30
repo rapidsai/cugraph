@@ -51,7 +51,8 @@ struct renumber_meta_t<vertex_t, edge_t, multi_gpu, std::enable_if_t<!multi_gpu>
  *
  * This function assumes that vertices are pre-shuffled to their target processes and edges are
  * pre-shuffled to their target processess and edge partitions using compute_gpu_id_from_vertex_t
- * and compute_gpu_id_from_edge_t & compute_partition_id_from_edge_t functors, respectively.
+ * and compute_gpu_id_from_ext_edge_endpoints_t & compute_partition_id_from_ext_edge_endpoints_t
+ * functors, respectively.
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
  * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
@@ -65,12 +66,12 @@ struct renumber_meta_t<vertex_t, edge_t, multi_gpu, std::enable_if_t<!multi_gpu>
  * work (vertices should be pre-shuffled).
  * @param edgelist_srcs Pointers (one pointer per local edge partition assigned to this process) to
  * edge source vertex IDs. Source IDs are updated in-place ([INOUT] parameter). Applying the
- * compute_gpu_id_from_edge_t functor to every (destination ID, source ID) pair (if store_transposed
- * = true) or (source ID, destination ID) pair (if store_transposed = false) should return the local
- * GPU ID for this function to work (edges should be pre-shuffled). Applying the
- * compute_partition_id_from_edge_t to every (destination ID, source ID) pair (if store_transposed =
- * true) or (source ID, destination ID) pair (if store_transposed = false) should also return the
- * corresponding edge partition ID. The best way to enforce this is to use
+ * compute_gpu_id_from_ext_edge_endpoints_t functor to every (destination ID, source ID) pair (if
+ * store_transposed = true) or (source ID, destination ID) pair (if store_transposed = false) should
+ * return the local GPU ID for this function to work (edges should be pre-shuffled). Applying the
+ * compute_partition_id_from_ext_edge_endpoints_t to every (destination ID, source ID) pair (if
+ * store_transposed = true) or (source ID, destination ID) pair (if store_transposed = false) should
+ * also return the corresponding edge partition ID. The best way to enforce this is to use
  * shuffle_edgelist_by_gpu_id & groupby_and_count_edgelist_by_local_partition_id.
  * @param edgelist_dsts Pointers (one pointer per local edge partition assigned to this process) to
  * edge destination vertex IDs. Destination IDs are updated in-place ([INOUT] parameter).
@@ -347,8 +348,8 @@ void renumber_local_ext_vertices(raft::handle_t const& handle,
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param edgelist_srcs Vector of edge source vertex IDs. If multi-GPU, applying the
- * compute_gpu_id_from_edge_t to every edge should return the local GPU ID for this function to work
- * (edges should be pre-shuffled).
+ * compute_gpu_id_from_ext_edge_endpoints_t to every edge should return the local GPU ID for this
+ * function to work (edges should be pre-shuffled).
  * @param edgelist_dsts Vector of edge destination vertex IDs.
  * @param edgelist_weights Vector of edge weights.
  * @param reciprocal Flag indicating whether to keep (if set to `false`) or discard (if set to
@@ -500,8 +501,8 @@ extract_induced_subgraphs(
  * compute_gpu_id_from_vertex_t to every vertex should return the local GPU ID for this function to
  * work (vertices should be pre-shuffled).
  * @param edgelist_srcs Vector of edge source vertex IDs. If multi-GPU, applying the
- * compute_gpu_id_from_edge_t to every edge should return the local GPU ID for this function to work
- * (edges should be pre-shuffled).
+ * compute_gpu_id_from_ext_edge_endpoints_t to every edge should return the local GPU ID for this
+ * function to work (edges should be pre-shuffled).
  * @param edgelist_dsts Vector of edge destination vertex IDs.
  * @param edgelist_weights Vector of edge weights.
  * @param edgelist_id_type_pairs Vector of edge ID and type pairs.

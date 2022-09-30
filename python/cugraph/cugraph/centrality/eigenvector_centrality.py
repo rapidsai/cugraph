@@ -11,20 +11,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from pylibcugraph import (ResourceHandle,
-                          GraphProperties,
-                          SGGraph,
-                          eigenvector_centrality as pylib_eigen
+from pylibcugraph import (eigenvector_centrality as pylib_eigen,
+                          ResourceHandle,
                           )
 from cugraph.utilities import (ensure_cugraph_obj_for_nx,
                                df_score_to_dictionary,
                                )
 import cudf
-import cupy
 
 
 def eigenvector_centrality(
-    G, max_iter=100, tol=1.0e-6, normalized=True
+    G, max_iter=100, tol=1.0e-6
 ):
     """
     Compute the eigenvector centrality for a graph G.
@@ -53,7 +50,7 @@ def eigenvector_centrality(
         numerical roundoff. Usually values between 1e-2 and 1e-6 are
         acceptable.
 
-    normalized : bool, optional, default=True
+    normalized : not supported
         If True normalize the resulting eigenvector centrality values
 
     Returns
@@ -81,27 +78,14 @@ def eigenvector_centrality(
 
     G, isNx = ensure_cugraph_obj_for_nx(G)
 
-    srcs = G.edgelist.edgelist_df['src']
-    dsts = G.edgelist.edgelist_df['dst']
-    if 'weights' in G.edgelist.edgelist_df.columns:
-        weights = G.edgelist.edgelist_df['weights']
-    else:
-        # FIXME: If weights column is not imported, a weights column of 1s
-        # with type hardcoded to float32 is passed into wrapper
-        weights = cudf.Series(cupy.ones(srcs.size, dtype="float32"))
-
-    resource_handle = ResourceHandle()
-    graph_props = GraphProperties(is_multigraph=G.is_multigraph())
-    store_transposed = False
-    renumber = False
-    do_expensive_check = False
-
-    sg = SGGraph(resource_handle, graph_props, srcs, dsts, weights,
-                 store_transposed, renumber, do_expensive_check)
-
-    vertices, values = pylib_eigen(resource_handle, sg,
-                                   tol, max_iter,
-                                   do_expensive_check)
+    vertices, values = \
+        pylib_eigen(
+            resource_handle=ResourceHandle(),
+            graph=G._plc_graph,
+            epsilon=tol,
+            max_iterations=max_iter,
+            do_expensive_check=False
+        )
 
     vertices = cudf.Series(vertices)
     values = cudf.Series(values)
