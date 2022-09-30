@@ -14,8 +14,8 @@ dependencies:
 - rmm=22.12.*
 - librmm=22.12.*
 - libraft-headers=22.12.*
-- raft-dask=22.10.*
-- pylibraft=22.10.*
+- raft-dask=22.12.*
+- pylibraft=22.12.*
 - cuda-python>=11.5,<11.7.1
 - dask>=2022.7.1
 - distributed>=2022.7.1
