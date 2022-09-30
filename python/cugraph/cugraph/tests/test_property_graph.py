@@ -577,9 +577,6 @@ def test_edges_attr(dataset2_simple_PropertyGraph):
     assert edge_ids.nunique() == expected_num_edges
 
 
-@pytest.mark.skip(reason="This is failing in 22.10 CI with the following "
-                         "error: TypeError: only list-like objects are "
-                         "allowed to be passed to isin(), you passed a [int]")
 def test_get_vertex_data(dataset1_PropertyGraph):
     """
     Ensure PG.get_vertex_data() returns the correct data based on vertex IDs
@@ -651,9 +648,6 @@ def test_get_vertex_data(dataset1_PropertyGraph):
     # assert_frame_equal(df1, df2, check_like=True)
 
 
-@pytest.mark.skip(reason="This is failing in 22.10 CI with the following "
-                         "error: TypeError: only list-like objects are "
-                         "allowed to be passed to isin(), you passed a [int]")
 def test_get_edge_data(dataset1_PropertyGraph):
     """
     Ensure PG.get_edge_data() returns the correct data based on edge IDs passed
@@ -720,6 +714,31 @@ def test_get_edge_data(dataset1_PropertyGraph):
     assert len(df1) == 1
     assert df1.shape == df2.shape
     # assert_frame_equal(df1, df2, check_like=True)
+
+
+@pytest.mark.parametrize("df_type", df_types, ids=df_type_id)
+def test_get_edge_data_repeated(df_type):
+    from cugraph.experimental import PropertyGraph
+
+    df = df_type(
+        {"src": [1, 1, 1, 2], "dst": [2, 3, 4, 1], "edge_feat": np.arange(4)}
+    )
+    pg = PropertyGraph()
+    pg.add_edge_data(df, vertex_col_names=['src', 'dst'])
+    df1 = pg.get_edge_data(edge_ids=[2, 1, 3, 1], columns=['edge_feat'])
+    expected = df_type({
+        "_EDGE_ID_": [2, 1, 3, 1],
+        "_SRC_": [1, 1, 2, 1],
+        "_DST_": [4, 3, 1, 3],
+        "_TYPE_": ["", "", "", ""],
+        "edge_feat": [2, 1, 3, 1],
+    })
+    df1["_TYPE_"] = df1["_TYPE_"].astype(str)  # Undo categorical
+    if df_type is cudf.DataFrame:
+        afe = assert_frame_equal
+    else:
+        afe = pd.testing.assert_frame_equal
+    afe(df1, expected)
 
 
 @pytest.mark.parametrize("df_type", df_types, ids=df_type_id)

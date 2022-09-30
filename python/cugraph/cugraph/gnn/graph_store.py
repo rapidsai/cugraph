@@ -134,11 +134,11 @@ class CuGraphStore:
 
     @property
     def ntypes(self):
-        return list(self.gdata.vertex_types)
+        return sorted(self.gdata.vertex_types)
 
     @property
     def etypes(self):
-        return list(self.gdata.edge_types)
+        return sorted(self.gdata.edge_types)
 
     @property
     def is_mg(self):
@@ -275,7 +275,7 @@ class CuGraphStore:
     @cached_property
     def extracted_subgraph(self):
         edge_list = self.gdata.get_edge_data(
-            columns=[src_n, dst_n, type_n, eid_n]
+            columns=[src_n, dst_n, type_n]
         )
         edge_list = edge_list.reset_index(drop=True)
 
@@ -286,7 +286,7 @@ class CuGraphStore:
     @cached_property
     def extracted_reverse_subgraph(self):
         edge_list = self.gdata.get_edge_data(
-            columns=[src_n, dst_n, type_n, eid_n]
+            columns=[src_n, dst_n, type_n]
         )
         return get_subgraph_from_edgelist(
             edge_list, self.is_mg, reverse_edges=True
@@ -297,7 +297,7 @@ class CuGraphStore:
         sg_d = {}
         for etype in self.etypes:
             edge_list = self.gdata.get_edge_data(
-                columns=[src_n, dst_n, type_n, eid_n], types=[etype]
+                columns=[src_n, dst_n, type_n], types=[etype]
             )
             sg_d[etype] = get_subgraph_from_edgelist(
                 edge_list, self.is_mg, reverse_edges=False
@@ -309,7 +309,7 @@ class CuGraphStore:
         sg_d = {}
         for etype in self.etypes:
             edge_list = self.gdata.get_edge_data(
-                columns=[src_n, dst_n, type_n, eid_n], types=[etype]
+                columns=[src_n, dst_n, type_n], types=[etype]
             )
             sg_d[etype] = get_subgraph_from_edgelist(
                 edge_list, self.is_mg, reverse_edges=True
