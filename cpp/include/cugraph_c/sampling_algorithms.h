@@ -268,6 +268,30 @@ cugraph_type_erased_host_array_view_t* cugraph_sample_result_get_counts(
  */
 void cugraph_sample_result_free(cugraph_sample_result_t* result);
 
+/**
+ * @brief     Create a sampling result (testing API)
+ *
+ * @param [in]   handle         Handle for accessing resources
+ * @param [in]   srcs           Device array view to populate srcs
+ * @param [in]   dsts           Device array view to populate dsts
+ * @param [in]   weights        Device array view to populate weights
+ * @param [in]   counts         Device array view to populate counts
+ * @param [out]  result         Pointer to the location to store the
+ *                              cugraph_sample_result_t*
+ * @param [out]  error          Pointer to an error object storing details of
+ *                              any error.  Will be populated if error code is
+ *                              not CUGRAPH_SUCCESS
+ * @return error code
+ */
+cugraph_error_code_t cugraph_test_sample_result_create(
+  const cugraph_resource_handle_t* handle,
+  const cugraph_type_erased_device_array_view_t* srcs,
+  const cugraph_type_erased_device_array_view_t* dsts,
+  const cugraph_type_erased_device_array_view_t* weights,
+  const cugraph_type_erased_device_array_view_t* counts,
+  cugraph_sample_result_t** result,
+  cugraph_error_t** error);
+
 #ifdef __cplusplus
 }
 #endif

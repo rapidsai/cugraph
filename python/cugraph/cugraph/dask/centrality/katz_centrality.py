@@ -13,60 +13,36 @@
 # limitations under the License.
 #
 
-from dask.distributed import wait, default_client
-from cugraph.dask.common.input_utils import get_distributed_data
+from dask.distributed import wait
 from pylibcugraph import (ResourceHandle,
-                          GraphProperties,
-                          MGGraph,
                           katz_centrality as pylibcugraph_katz
                           )
 import cugraph.dask.comms.comms as Comms
 import dask_cudf
 import cudf
-import cupy
 
 
-def call_katz_centrality(sID,
-                         data,
-                         graph_properties,
-                         store_transposed,
-                         do_expensive_check,
-                         src_col_name,
-                         dst_col_name,
-                         num_edges,
-                         alpha,
-                         beta,
-                         max_iter,
-                         tol,
-                         initial_hubs_guess_values,
-                         normalized):
-    handle = Comms.get_handle(sID)
-    h = ResourceHandle(handle.getHandle())
-    srcs = data[0][src_col_name]
-    dsts = data[0][dst_col_name]
-    weights = cudf.Series(cupy.ones(srcs.size, dtype="float32"))
+def _call_plc_katz_centrality(sID,
+                              mg_graph_x,
+                              betas,
+                              alpha,
+                              beta,
+                              epsilon,
+                              max_iterations,
+                              do_expensive_check):
 
-    if "value" in data[0].columns:
-        weights = data[0]['value']
-
-    mg = MGGraph(h,
-                 graph_properties,
-                 srcs,
-                 dsts,
-                 weights,
-                 store_transposed,
-                 num_edges,
-                 do_expensive_check)
-
-    result = pylibcugraph_katz(h,
-                               mg,
-                               initial_hubs_guess_values,
-                               alpha,
-                               beta,
-                               tol,
-                               max_iter,
-                               do_expensive_check)
-    return result
+    return pylibcugraph_katz(
+        resource_handle=ResourceHandle(
+            Comms.get_handle(sID).getHandle()
+        ),
+        graph=mg_graph_x,
+        betas=betas,
+        alpha=alpha,
+        beta=beta,
+        epsilon=epsilon,
+        max_iterations=max_iterations,
+        do_expensive_check=do_expensive_check
+    )
 
 
 def convert_to_cudf(cp_arrays):
@@ -137,7 +113,7 @@ def katz_centrality(
         nstart['values'] : dask_cudf.Series
             Contains the katz centrality values of vertices
 
-    normalized : bool, optional (default=True)
+    normalized : not supported
         If True normalize the resulting katz centrality values
 
     Returns
@@ -168,7 +144,7 @@ def katz_centrality(
     >>> pr = dcg.katz_centrality(dg)
 
     """
-    client = default_client()
+    client = input_graph._client
 
     if alpha is None:
         degree_max = input_graph.degree()['degree'].max().compute()
@@ -178,27 +154,8 @@ def katz_centrality(
         raise ValueError(f"'alpha' must be a positive float or None, "
                          f"got: {alpha}")
 
-    # FIXME: 'legacy_renum_only' will not trigger the C++ renumbering
-    # In the future, once all the algos follow the C/Pylibcugraph path,
-    # compute_renumber_edge_list will only be used for multicolumn and
-    # string vertices since the renumbering will be done in pylibcugraph
-    input_graph.compute_renumber_edge_list(transposed=True,
-                                           legacy_renum_only=True)
-
-    graph_properties = GraphProperties(
-        is_multigraph=False)
-
-    store_transposed = False
     # FIXME: should we add this parameter as an option?
     do_expensive_check = False
-
-    src_col_name = input_graph.renumber_map.renumbered_src_col_name
-    dst_col_name = input_graph.renumber_map.renumbered_dst_col_name
-
-    ddf = input_graph.edgelist.edgelist_df
-
-    num_edges = len(ddf)
-    data = get_distributed_data(ddf)
 
     initial_hubs_guess_values = None
     if nstart:
@@ -214,23 +171,22 @@ def katz_centrality(
             if isinstance(nstart, dask_cudf.DataFrame):
                 initial_hubs_guess_values = initial_hubs_guess_values.compute()
 
-    cupy_result = [client.submit(call_katz_centrality,
-                                 Comms.get_session_id(),
-                                 wf[1],
-                                 graph_properties,
-                                 store_transposed,
-                                 do_expensive_check,
-                                 src_col_name,
-                                 dst_col_name,
-                                 num_edges,
-                                 alpha,
-                                 beta,
-                                 max_iter,
-                                 tol,
-                                 initial_hubs_guess_values,
-                                 normalized,
-                                 workers=[wf[0]])
-                   for idx, wf in enumerate(data.worker_to_parts.items())]
+    cupy_result = [
+        client.submit(
+            _call_plc_katz_centrality,
+            Comms.get_session_id(),
+            input_graph._plc_graph[w],
+            initial_hubs_guess_values,
+            alpha,
+            beta,
+            tol,
+            max_iter,
+            do_expensive_check,
+            workers=[w],
+            allow_other_workers=False,
+        )
+        for w in Comms.get_workers()
+    ]
 
     wait(cupy_result)
 
@@ -242,7 +198,13 @@ def katz_centrality(
 
     wait(cudf_result)
 
-    ddf = dask_cudf.from_delayed(cudf_result)
+    ddf = dask_cudf.from_delayed(cudf_result).persist()
+    wait(ddf)
+
+    # Wait until the inactive futures are released
+    wait([(r.release(), c_r.release())
+         for r, c_r in zip(cupy_result, cudf_result)])
+
     if input_graph.renumbered:
         return input_graph.unrenumber(ddf, 'vertex')
 

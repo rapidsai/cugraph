@@ -31,6 +31,18 @@ except ImportError:
     import pytest_benchmark
     gpubenchmark = pytest_benchmark.plugin.benchmark
 
+# FIXME: remove when fully-migrated to pandas 1.5.0
+try:
+    # pandas 1.5.0
+    from pandas.errors import (
+        SettingWithCopyWarning as pandas_SettingWithCopyWarning
+    )
+except ImportError:
+    # pandas 1.4
+    from pandas.core.common import (
+        SettingWithCopyWarning as pandas_SettingWithCopyWarning
+    )
+
 import cugraph
 from cugraph.generators import rmat
 from cugraph.testing import utils
@@ -152,7 +164,7 @@ def raise_on_pandas_warning():
     filters = list(warnings.filters)
     warnings.filterwarnings(
         "error",
-        category=pd.core.common.SettingWithCopyWarning
+        category=pandas_SettingWithCopyWarning
     )
     yield
     warnings.filters = filters

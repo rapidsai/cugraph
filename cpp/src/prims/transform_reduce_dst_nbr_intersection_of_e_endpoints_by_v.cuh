@@ -275,24 +275,6 @@ void transform_reduce_dst_nbr_intersection_of_e_endpoints_by_v(
                vertex_value_output_first + graph_view.local_vertex_partition_range_size(),
                init);
 
-  std::optional<rmm::device_uvector<vertex_t>>
-    d_vertex_partition_range_lasts_in_edge_partition_minor_range{std::nullopt};
-  if constexpr (GraphViewType::is_multi_gpu) {
-    auto& row_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
-    auto const row_comm_size = row_comm.get_size();
-
-    auto& col_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
-    auto const col_comm_rank = col_comm.get_rank();
-
-    d_vertex_partition_range_lasts_in_edge_partition_minor_range =
-      rmm::device_uvector<vertex_t>(row_comm_size, handle.get_stream());
-    auto h_vertex_partition_range_lasts = graph_view.vertex_partition_range_lasts();
-    raft::update_device((*d_vertex_partition_range_lasts_in_edge_partition_minor_range).data(),
-                        h_vertex_partition_range_lasts.data() + row_comm_size * col_comm_rank,
-                        row_comm_size,
-                        handle.get_stream());
-  }
-
   for (size_t i = 0; i < graph_view.number_of_local_edge_partitions(); ++i) {
     auto edge_partition =
       edge_partition_device_view_t<vertex_t, edge_t, weight_t, GraphViewType::is_multi_gpu>(
@@ -325,7 +307,7 @@ void transform_reduce_dst_nbr_intersection_of_e_endpoints_by_v(
 
     // FIXME: Peak memory requirement is also dependent on the average minimum degree of the input
     // vertex pairs. We may need a more sophisticated mechanism to set max_chunk_size considering
-    // vertex degrees. to limit memory footprint ((1 << 10) is a tuning parameter)
+    // vertex degrees. to limit memory footprint ((1 << 15) is a tuning parameter)
     auto max_chunk_size =
       static_cast<size_t>(handle.get_device_properties().multiProcessorCount) * (1 << 15);
     auto max_num_chunks = (majors.size() + max_chunk_size - 1) / max_chunk_size;

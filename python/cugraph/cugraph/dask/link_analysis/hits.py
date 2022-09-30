@@ -13,61 +13,38 @@
 # limitations under the License.
 #
 
-from dask.distributed import wait, default_client
-from cugraph.dask.common.input_utils import get_distributed_data
+from dask.distributed import wait
 
 import cugraph.dask.comms.comms as Comms
 import dask_cudf
 import cudf
 
 from pylibcugraph import (ResourceHandle,
-                          GraphProperties,
-                          MGGraph,
                           hits as pylibcugraph_hits
                           )
 
 
-def call_hits(sID,
-              data,
-              src_col_name,
-              dst_col_name,
-              graph_properties,
-              store_transposed,
-              num_edges,
-              do_expensive_check,
-              tolerance,
-              max_iter,
-              initial_hubs_guess_vertices,
-              initial_hubs_guess_value,
-              normalized):
+def _call_plc_hits(sID,
+                   mg_graph_x,
+                   tol,
+                   max_iter,
+                   initial_hubs_guess_vertices,
+                   initial_hubs_guess_values,
+                   normalized,
+                   do_expensive_check):
 
-    handle = Comms.get_handle(sID)
-    h = ResourceHandle(handle.getHandle())
-    srcs = data[0][src_col_name]
-    dsts = data[0][dst_col_name]
-    weights = None
-    if "value" in data[0].columns:
-        weights = data[0]['value']
-
-    mg = MGGraph(h,
-                 graph_properties,
-                 srcs,
-                 dsts,
-                 weights,
-                 store_transposed,
-                 num_edges,
-                 do_expensive_check)
-
-    result = pylibcugraph_hits(h,
-                               mg,
-                               tolerance,
-                               max_iter,
-                               initial_hubs_guess_vertices,
-                               initial_hubs_guess_value,
-                               normalized,
-                               do_expensive_check)
-
-    return result
+    return pylibcugraph_hits(
+        resource_handle=ResourceHandle(
+            Comms.get_handle(sID).getHandle()
+        ),
+        graph=mg_graph_x,
+        tol=tol,
+        max_iter=max_iter,
+        initial_hubs_guess_vertices=initial_hubs_guess_vertices,
+        initial_hubs_guess_values=initial_hubs_guess_values,
+        normalized=normalized,
+        do_expensive_check=do_expensive_check
+    )
 
 
 def convert_to_cudf(cp_arrays):
@@ -152,50 +129,32 @@ def hits(input_graph, tol=1.0e-5, max_iter=100,  nstart=None, normalized=True):
 
     """
 
-    client = default_client()
+    client = input_graph._client
 
-    # FIXME: 'legacy_renum_only' will not trigger the C++ renumbering
-    # In the future, once all the algos follow the C/Pylibcugraph path,
-    # compute_renumber_edge_list will only be used for multicolumn and
-    # string vertices since the renumbering will be done in pylibcugraph
-    input_graph.compute_renumber_edge_list(
-        transposed=False, legacy_renum_only=True)
-    ddf = input_graph.edgelist.edgelist_df
-
-    graph_properties = GraphProperties(
-        is_multigraph=False)
-
-    store_transposed = False
     do_expensive_check = False
     initial_hubs_guess_vertices = None
     initial_hubs_guess_values = None
-
-    src_col_name = input_graph.renumber_map.renumbered_src_col_name
-    dst_col_name = input_graph.renumber_map.renumbered_dst_col_name
-
-    num_edges = len(ddf)
-    data = get_distributed_data(ddf)
 
     if nstart is not None:
         initial_hubs_guess_vertices = nstart['vertex']
         initial_hubs_guess_values = nstart['values']
 
-    cupy_result = [client.submit(call_hits,
-                                 Comms.get_session_id(),
-                                 wf[1],
-                                 src_col_name,
-                                 dst_col_name,
-                                 graph_properties,
-                                 store_transposed,
-                                 num_edges,
-                                 do_expensive_check,
-                                 tol,
-                                 max_iter,
-                                 initial_hubs_guess_vertices,
-                                 initial_hubs_guess_values,
-                                 normalized,
-                                 workers=[wf[0]])
-                   for idx, wf in enumerate(data.worker_to_parts.items())]
+    cupy_result = [
+        client.submit(
+            _call_plc_hits,
+            Comms.get_session_id(),
+            input_graph._plc_graph[w],
+            tol,
+            max_iter,
+            initial_hubs_guess_vertices,
+            initial_hubs_guess_values,
+            normalized,
+            do_expensive_check,
+            workers=[w],
+            allow_other_workers=False,
+        )
+        for w in Comms.get_workers()
+    ]
 
     wait(cupy_result)
 
@@ -207,7 +166,13 @@ def hits(input_graph, tol=1.0e-5, max_iter=100,  nstart=None, normalized=True):
 
     wait(cudf_result)
 
-    ddf = dask_cudf.from_delayed(cudf_result)
+    ddf = dask_cudf.from_delayed(cudf_result).persist()
+
+    wait(ddf)
+
+    # Wait until the inactive futures are released
+    wait([(r.release(), c_r.release())
+         for r, c_r in zip(cupy_result, cudf_result)])
 
     if input_graph.renumbered:
         return input_graph.unrenumber(ddf, 'vertex')
