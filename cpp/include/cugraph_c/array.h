@@ -57,6 +57,24 @@ cugraph_error_code_t cugraph_type_erased_device_array_create(
   cugraph_error_t** error);
 
 /**
+ * @brief     Create a type erased device array from a view
+ *
+ * Copies the data from the view into the new device array
+ *
+ * @param [in]  handle Handle for accessing resources
+ * @param [in]  view   Type erased device array view to copy from
+ * @param [out] array  Pointer to the location to store the pointer to the device array
+ * @param [out] error  Pointer to an error object storing details of any error.  Will
+ *                     be populated if error code is not CUGRAPH_SUCCESS
+ * @return error code
+ */
+cugraph_error_code_t cugraph_type_erased_device_array_create_from_view(
+  const cugraph_resource_handle_t* handle,
+  const cugraph_type_erased_device_array_view_t* view,
+  cugraph_type_erased_device_array_t** array,
+  cugraph_error_t** error);
+
+/**
  * @brief    Destroy a type erased device array
  *
  * @param [in]  p    Pointer to the type erased device array
