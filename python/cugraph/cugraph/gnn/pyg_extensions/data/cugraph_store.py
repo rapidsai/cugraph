@@ -205,14 +205,14 @@ class EXPERIMENTAL__CuGraphStore:
                 srcs = srcs.compute()
 
             dst_types = self.__graph.get_vertex_data(
-                vertex_ids=dsts,
+                vertex_ids=dsts.values_host,
                 columns=[self.__graph.type_col_name]
             )[self.__graph.type_col_name].unique()
 
             src_types = self.__graph.get_vertex_data(
-                vertex_ids=srcs,
-                columns=['_TYPE_']
-            )._TYPE_.unique()
+                vertex_ids=srcs.values_host,
+                columns=[self.__graph.type_col_name]
+            )[self.__graph.type_col_name].unique()
 
             if self.is_mg:
                 dst_types = dst_types.compute()
@@ -434,8 +434,9 @@ class EXPERIMENTAL__CuGraphStore:
         ).unique()
 
         noi = self.__graph.get_vertex_data(
-            nodes_of_interest.compute() if self.is_mg else nodes_of_interest,
-            columns=[self.__graph.vertex_col_name, self.__graph.type_col_name]
+            nodes_of_interest.compute().values_host if self.is_mg
+            else nodes_of_interest,
+            columns=[self.__graph.type_col_name]
         )
 
         noi_types = noi[self.__graph.type_col_name].unique()
@@ -595,13 +596,13 @@ class EXPERIMENTAL__CuGraphFeatureStore:
         if len(self.__graph.vertex_types) == 1:
             # make sure we don't waste computation if there's only 1 type
             df = self.__graph.get_vertex_data(
-                vertex_ids=idx,
+                vertex_ids=idx.get(),
                 types=None,
                 columns=cols
             )
         else:
             df = self.__graph.get_vertex_data(
-                vertex_ids=idx,
+                vertex_ids=idx.get(),
                 types=[attr.group_name],
                 columns=cols
             )

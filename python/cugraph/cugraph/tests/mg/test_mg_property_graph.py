@@ -17,7 +17,7 @@ import dask_cudf
 import pytest
 import pandas as pd
 import cudf
-from cudf.testing import assert_frame_equal
+from cudf.testing import assert_frame_equal, assert_series_equal
 
 import cugraph.dask as dcg
 from cugraph.testing.utils import RAPIDS_DATASET_ROOT_DIR_PATH
@@ -585,6 +585,26 @@ def test_get_vertex_data(dataset1_MGPropertyGraph):
     assert_frame_equal(df1, df2, check_like=True)
 
 
+def test_get_vertex_data_repeated(dask_client):
+    from cugraph.experimental import MGPropertyGraph
+
+    df = cudf.DataFrame(
+        {"vertex": [2, 3, 4, 1], "feat": [0, 1, 2, 3]}
+    )
+    df = dask_cudf.from_cudf(df, npartitions=2)
+    pG = MGPropertyGraph()
+    pG.add_vertex_data(df, "vertex")
+    df1 = pG.get_vertex_data(vertex_ids=[2, 1, 3, 1], columns=['feat'])
+    df1 = df1.compute()
+    expected = cudf.DataFrame({
+        pG.vertex_col_name: [2, 1, 3, 1],
+        pG.type_col_name: ["", "", "", ""],
+        "feat": [0, 3, 1, 3],
+    })
+    df1[pG.type_col_name] = df1[pG.type_col_name].astype(str)  # Undo category
+    assert_frame_equal(df1, expected)
+
+
 def test_get_edge_data(dataset1_MGPropertyGraph):
     """
     Ensure PG.get_edge_data() returns the correct data based on edge IDs passed
@@ -657,6 +677,28 @@ def test_get_edge_data(dataset1_MGPropertyGraph):
     assert_frame_equal(df1, df2, check_like=True)
 
 
+def test_get_edge_data_repeated(dask_client):
+    from cugraph.experimental import MGPropertyGraph
+
+    df = cudf.DataFrame(
+        {"src": [1, 1, 1, 2], "dst": [2, 3, 4, 1], "edge_feat": [0, 1, 2, 3]}
+    )
+    df = dask_cudf.from_cudf(df, npartitions=2)
+    pG = MGPropertyGraph()
+    pG.add_edge_data(df, vertex_col_names=['src', 'dst'])
+    df1 = pG.get_edge_data(edge_ids=[2, 1, 3, 1], columns=['edge_feat'])
+    df1 = df1.compute()
+    expected = cudf.DataFrame({
+        pG.edge_id_col_name: [2, 1, 3, 1],
+        pG.src_col_name: [1, 1, 2, 1],
+        pG.dst_col_name: [4, 3, 1, 3],
+        pG.type_col_name: ["", "", "", ""],
+        "edge_feat": [2, 1, 3, 1],
+    })
+    df1[pG.type_col_name] = df1[pG.type_col_name].astype(str)  # Undo category
+    assert_frame_equal(df1, expected)
+
+
 def test_get_data_empty_graphs(dask_client):
     """
     Ensures that calls to pG.get_*_data() on an empty pG are handled correctly.
@@ -722,3 +764,50 @@ def test_renumber_edges_by_type(dataset1_MGPropertyGraph):
 
     empty_pG = MGPropertyGraph()
     assert empty_pG.renumber_edges_by_type() is None
+
+
+def test_add_data_noncontiguous():
+    from cugraph.experimental import MGPropertyGraph
+
+    df = cudf.DataFrame({
+        'src': [0, 0, 1, 2, 2, 3, 3, 1, 2, 4],
+        'dst': [1, 2, 4, 3, 3, 1, 2, 4, 4, 3],
+        'edge_type':
+            ['pig', 'dog', 'cat', 'pig', 'cat',
+             'pig', 'dog', 'pig', 'cat', 'dog']
+    })
+    counts = df["edge_type"].value_counts()
+    df = dask_cudf.from_cudf(df, npartitions=2)
+
+    pG = MGPropertyGraph()
+    for edge_type in ["cat", "dog", "pig"]:
+        pG.add_edge_data(
+            df[df.edge_type == edge_type],
+            vertex_col_names=['src', 'dst'],
+            type_name=edge_type
+        )
+    for edge_type in ["cat", "dog", "pig"]:
+        cur_df = pG.get_edge_data(types=edge_type).compute()
+        assert len(cur_df) == counts[edge_type]
+        assert_series_equal(
+            cur_df[pG.type_col_name].astype(str),
+            cur_df["edge_type"],
+            check_names=False,
+        )
+
+    df['vertex'] = 10 * df['src'] + df['dst']
+    pG = MGPropertyGraph()
+    for edge_type in ["cat", "dog", "pig"]:
+        pG.add_vertex_data(
+            df[df.edge_type == edge_type],
+            vertex_col_name='vertex',
+            type_name=edge_type
+        )
+    for edge_type in ["cat", "dog", "pig"]:
+        cur_df = pG.get_vertex_data(types=edge_type).compute()
+        assert len(cur_df) == counts[edge_type]
+        assert_series_equal(
+            cur_df[pG.type_col_name].astype(str),
+            cur_df["edge_type"],
+            check_names=False,
+        )

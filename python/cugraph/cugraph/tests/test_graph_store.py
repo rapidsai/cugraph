@@ -380,13 +380,19 @@ def test_num_edges():
     assert gs.num_edges() == 14
 
 
-# Skipping because pg.get_vertex_data(indices)
-# returns unsorted non duplicated values
-@pytest.mark.skip(
-    "Depends upon pg set index PR "
-    + "https://github.com/rapidsai/cugraph/pull/2523"
-)
-def test_get_node_storage_gs(dataset1_CuGraphStore):
+def test_etypes():
+    dataset1_CuGraphStore = get_dataset1_CuGraphStore()
+    assert dataset1_CuGraphStore.etypes == [
+        'referrals', 'relationships', 'transactions'
+    ]
+
+
+def test_ntypes():
+    dataset1_CuGraphStore = get_dataset1_CuGraphStore()
+    assert dataset1_CuGraphStore.ntypes == ['merchant', 'taxpayers', 'user']
+
+
+def test_get_node_storage_gs():
     dataset1_CuGraphStore = get_dataset1_CuGraphStore()
     fs = dataset1_CuGraphStore.get_node_storage(
         feat_name="merchant_k", ntype="merchant"
@@ -402,12 +408,6 @@ def test_get_node_storage_gs(dataset1_CuGraphStore):
     assert cp.allclose(cudf_ar, merchant_gs)
 
 
-# Skipping because pg.get_edge_data(indices)
-# returns unsorted non duplicated values
-@pytest.mark.skip(
-    "Depends upon pg set index PR "
-    + "https://github.com/rapidsai/cugraph/pull/2523"
-)
 def test_get_edge_storage_gs():
     dataset1_CuGraphStore = get_dataset1_CuGraphStore()
     fs = dataset1_CuGraphStore.get_edge_storage(
