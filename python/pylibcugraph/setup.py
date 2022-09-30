@@ -71,7 +71,8 @@ def exclude_libcxx_symlink(cmake_manifest):
     return list(filter(lambda name: not ('include/rapids/libcxx/include' in name), cmake_manifest))
 
 setup(name='pylibcugraph'+os.getenv("PYTHON_PACKAGE_CUDA_SUFFIX", default=""),
-      version=versioneer.get_version(),
+      version=os.getenv("RAPIDS_PY_WHEEL_VERSIONEER_OVERRIDE",
+                        default=versioneer.get_version()),
       description="pylibcuGraph - RAPIDS GPU Graph Analytics",
       author="NVIDIA Corporation",
       license="Apache",

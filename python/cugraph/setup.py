@@ -83,7 +83,8 @@ PACKAGE_DATA['cugraph.experimental.datasets'].extend(
 
 setup(name='cugraph'+os.getenv("PYTHON_PACKAGE_CUDA_SUFFIX", default=""),
       description="cuGraph - RAPIDS GPU Graph Analytics",
-      version=versioneer.get_version(),
+      version=os.getenv("RAPIDS_PY_WHEEL_VERSIONEER_OVERRIDE",
+                        default=versioneer.get_version()),
       author="NVIDIA Corporation",
       license="Apache",
       classifiers=[
