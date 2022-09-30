@@ -472,8 +472,6 @@ class EXPERIMENTAL__CuGraphStore:
         if self.is_mg:
             nodes_of_interest = nodes_of_interest.compute()
 
-        nodes_of_interest = nodes_of_interest.sort_values()
-
         # Get the node index (for creating the edge index),
         # the node type groupings, and the node properties.
         noi_index, noi_groups, noi_tensors = (
@@ -494,9 +492,7 @@ class EXPERIMENTAL__CuGraphStore:
         return (noi_groups, row_dict, col_dict, noi_tensors)
 
     def __get_renumbered_vertex_data_from_sample(self, nodes_of_interest):
-        """
-        nodes_of_interest must be sorted
-        """
+        nodes_of_interest = nodes_of_interest.sort_values()
 
         # noi contains all property values
         noi = self.__graph.get_vertex_data(
