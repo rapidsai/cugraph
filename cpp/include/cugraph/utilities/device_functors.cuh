@@ -76,6 +76,14 @@ struct check_in_range_t {
 };
 
 template <typename T>
+struct check_out_of_range_t {
+  T min{};  // inclusive
+  T max{};  // exclusive
+
+  __device__ bool operator()(T val) const { return (val < min) || (val >= max); }
+};
+
+template <typename T>
 struct shift_left_t {
   T offset{};
 
