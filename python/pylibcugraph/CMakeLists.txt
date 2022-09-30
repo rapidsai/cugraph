@@ -88,19 +88,14 @@ if (NOT cugraph_FOUND)
 
   add_subdirectory(../../cpp cugraph-cpp ${_exclude_from_all})
 
-  # If either of these libraries triggered builds of dependencies (e.g. raft)
-  # we'll need to have those relative links copied to the installed libraries
-  # as well (especially for wheel building where auditwheel needs the links to
-  # pull in the libraries).
-  #set_target_properties(cugraph
-  #    PROPERTIES
-  #    INSTALL_RPATH_USE_LINK_PATH TRUE
-  #)
-  #set_target_properties(cugraph_c
-  #    PROPERTIES
-  #    INSTALL_RPATH_USE_LINK_PATH TRUE
-  #)
-  install(TARGETS raft::distance cugraph cugraph_c DESTINATION pylibcugraph)
+  install(TARGETS cugraph cugraph_c DESTINATION pylibcugraph)
+
+  if(CUGRAPH_BUILD_WHEELS)
+    # Wheels need libraft_distance.so installed as well. In other cases even if
+    # we built libcugraph we still assume that users install raft separately.
+    install(TARGETS raft_distance DESTINATION pylibcugraph)
+  endif()
+
 endif()
 
 include(rapids-cython)
