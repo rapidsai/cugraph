@@ -36,6 +36,10 @@ export CONDA_BLD_DIR="${WORKSPACE}/.conda-bld"
 # ucx-py version
 export UCX_PY_VERSION='0.28.*'
 
+# Whether to keep `dask/label/dev` channel in the env. If INSTALL_DASK_MAIN=0,
+# `dask/label/dev` channel is removed.
+export INSTALL_DASK_MAIN=0
+
 ################################################################################
 # SETUP - Check environment
 ################################################################################
@@ -50,6 +54,12 @@ conda activate rapids
 # Remove rapidsai-nightly channel if we are building main branch
 if [ "$SOURCE_BRANCH" = "main" ]; then
   conda config --system --remove channels rapidsai-nightly
+  conda config --system --remove channels dask/label/dev
+fi
+
+# Remove `dask/label/dev` channel if INSTALL_DASK_MAIN=0
+if [[ "${INSTALL_DASK_MAIN}" == 0 ]]; then
+  conda config --system --remove channels dask/label/dev
 fi
 
 gpuci_logger "Check versions"

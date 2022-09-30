@@ -510,9 +510,10 @@ void expensive_check_edgelist(
            col_comm_rank,
            i,
            gpu_id_key_func =
-             detail::compute_gpu_id_from_edge_t<vertex_t>{comm_size, row_comm_size, col_comm_size},
+             detail::compute_gpu_id_from_ext_edge_endpoints_t<vertex_t>{
+               comm_size, row_comm_size, col_comm_size},
            partition_id_key_func =
-             detail::compute_partition_id_from_edge_t<vertex_t>{
+             detail::compute_partition_id_from_ext_edge_endpoints_t<vertex_t>{
                comm_size, row_comm_size, col_comm_size}] __device__(auto edge) {
             return (gpu_id_key_func(thrust::get<0>(edge), thrust::get<1>(edge)) != comm_rank) ||
                    (partition_id_key_func(thrust::get<0>(edge), thrust::get<1>(edge)) !=
