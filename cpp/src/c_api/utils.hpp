@@ -35,6 +35,7 @@ cugraph_error_code_t run_algorithm(::cugraph_graph_t const* graph,
     cugraph::dispatch::vertex_dispatcher(cugraph::c_api::dtypes_mapping[p_graph->vertex_type_],
                                          cugraph::c_api::dtypes_mapping[p_graph->edge_type_],
                                          cugraph::c_api::dtypes_mapping[p_graph->weight_type_],
+                                         cugraph::c_api::dtypes_mapping[p_graph->edge_type_type_],
                                          p_graph->store_transposed_,
                                          p_graph->multi_gpu_,
                                          functor);
