@@ -29,6 +29,7 @@
 struct Similarity_Usecase {
   bool use_weights{false};
   bool check_correctness{true};
+  size_t max_seeds{std::numeric_limits<size_t>::max()};
   size_t max_vertex_pairs_to_check{std::numeric_limits<size_t>::max()};
 };
 
@@ -83,6 +84,63 @@ class Tests_Similarity
       hr_clock.start();
     }
 
+    //
+    // FIXME:  Don't currently have an MG implementation of 2-hop neighbors.
+    //         For now we'll do that on the CPU (really slowly, so keep max_seed
+    //         small)
+    //
+    rmm::device_uvector<vertex_t> d_v1(0, handle.get_stream());
+    rmm::device_uvector<vertex_t> d_v2(0, handle.get_stream());
+
+    {
+      auto [src, dst, wgt] = cugraph::test::graph_to_host_coo(handle, graph_view);
+
+      size_t max_vertices = std::min(static_cast<size_t>(graph_view.number_of_vertices()),
+                                     similarity_usecase.max_seeds);
+      std::vector<vertex_t> h_v1;
+      std::vector<vertex_t> h_v2;
+      std::vector<vertex_t> one_hop_v1;
+      std::vector<vertex_t> one_hop_v2;
+
+      for (size_t seed = 0; seed < max_vertices; ++seed) {
+        std::for_each(thrust::make_zip_iterator(src.begin(), dst.begin()),
+                      thrust::make_zip_iterator(src.end(), dst.end()),
+                      [&one_hop_v1, &one_hop_v2, seed](auto t) {
+                        auto u = thrust::get<0>(t);
+                        auto v = thrust::get<1>(t);
+                        if (u == seed) {
+                          one_hop_v1.push_back(u);
+                          one_hop_v2.push_back(v);
+                        }
+                      });
+      }
+
+      std::for_each(thrust::make_zip_iterator(one_hop_v1.begin(), one_hop_v2.begin()),
+                    thrust::make_zip_iterator(one_hop_v1.end(), one_hop_v2.end()),
+                    [&](auto t1) {
+                        auto seed = thrust::get<0>(t1);
+                        auto neighbor = thrust::get<1>(t1);
+                      std::for_each(thrust::make_zip_iterator(src.begin(), dst.begin()),
+                                    thrust::make_zip_iterator(src.end(), dst.end()),
+                                    [&](auto t2) {
+                                      auto u = thrust::get<0>(t2);
+                                      auto v = thrust::get<1>(t2);
+                                      if (u == neighbor) {
+                                        h_v1.push_back(seed);
+                                        h_v2.push_back(v);
+                                      }
+                                    });
+                    });
+
+      d_v1.resize(h_v1.size(), handle.get_stream());
+      d_v2.resize(h_v2.size(), handle.get_stream());
+
+      raft::update_device(d_v1.data(), h_v1.data(), h_v1.size(), handle.get_stream());
+      raft::update_device(d_v2.data(), h_v2.data(), h_v2.size(), handle.get_stream());
+    }
+
+    std::cout << "creating device span" << std::endl;
+
     // FIXME:  Need to add some tests that specify actual vertex pairs
     // FIXME:  Need to a variation that calls call the two hop neighbors function
     // FIXME:  Debugging state as of EOD 9/28:
@@ -91,11 +149,13 @@ class Tests_Similarity
     //              for now?  We could then use that for testing the 2-hop function
     //              later.
     std::tuple<raft::device_span<vertex_t const>, raft::device_span<vertex_t const>> vertex_pairs{
-      {nullptr, size_t{0}}, {nullptr, size_t{0}}};
+      {d_v1.data(), d_v1.size()}, {d_v2.data(), d_v2.size()}};
 
 #if 1
+    std::cout << "calling functor" << std::endl;
     auto result_score =
       test_functor.run(handle, graph_view, vertex_pairs, similarity_usecase.use_weights);
+    std::cout << "back from functor" << std::endl;
 #else
     EXPECT_THROW(test_functor.run(handle, graph_view, vertex_pairs, similarity_usecase.use_weights),
                  std::exception);
@@ -113,6 +173,8 @@ class Tests_Similarity
 
       size_t check_size =
         std::min(std::get<0>(vertex_pairs).size(), similarity_usecase.max_vertex_pairs_to_check);
+
+      std::cout << "check_size = " << check_size << std::endl;
       //
       // FIXME: Need to reorder here.  thrust::shuffle on the tuples (vertex_pairs_1,
       // vertex_pairs_2, result_score) would
@@ -130,13 +192,19 @@ class Tests_Similarity
       raft::update_host(
         h_result_score.data(), result_score.data(), result_score.size(), handle.get_stream());
 
+      std::cout << "calling similarity_compare" << std::endl;
+
+#if 0
       similarity_compare(graph_view.number_of_vertices(),
-                         std::make_tuple(std::move(src), std::move(dst), std::move(wgt)),
-                         std::make_tuple(std::move(h_vertex_pair_1), std::move(h_vertex_pair_2)),
-                         std::move(h_result_score),
+                         std::tie(src, dst, wgt),
+                         std::tie(h_vertex_pair_1, h_vertex_pair_2),
+                         h_result_score,
                          test_functor);
 #endif
+#endif
     }
+
+    std::cout << "done with test" << std::endl;
   }
 };
 
@@ -221,8 +289,9 @@ INSTANTIATE_TEST_SUITE_P(
   ::testing::Combine(
     // enable correctness checks
     // Disable weighted computation testing in 22.10
-    //::testing::Values(Similarity_Usecase{true, true, 100}, Similarity_Usecase{false, true, 100}),
-    ::testing::Values(Similarity_Usecase{false, true, 100}),
+    //::testing::Values(Similarity_Usecase{true, true, 20, 100}, Similarity_Usecase{false, true, 20,
+    // 100}),
+    ::testing::Values(Similarity_Usecase{false, true, 20, 100}),
     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
                       cugraph::test::File_Usecase("test/datasets/dolphins.mtx"))));
 
@@ -232,8 +301,9 @@ INSTANTIATE_TEST_SUITE_P(
   ::testing::Combine(
     // enable correctness checks
     // Disable weighted computation testing in 22.10
-    //::testing::Values(Similarity_Usecase{true, true, 100}, Similarity_Usecase{false, true, 100}),
-    ::testing::Values(Similarity_Usecase{false, true, 100}),
+    //::testing::Values(Similarity_Usecase{true, true, 20, 100}, Similarity_Usecase{false, true, 20,
+    // 100}),
+    ::testing::Values(Similarity_Usecase{false, true, 20, 100}),
     ::testing::Values(cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, false, false))));
 
 INSTANTIATE_TEST_SUITE_P(
