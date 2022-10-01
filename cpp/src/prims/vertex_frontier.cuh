@@ -153,7 +153,8 @@ class key_bucket_t {
         vertices_ = std::move(merged_vertices);
       } else {
         auto cur_size = vertices_.size();
-        vertices_.resize(cur_size + thrust::distance(vertex_first, vertex_last));
+        vertices_.resize(cur_size + thrust::distance(vertex_first, vertex_last),
+                         handle_ptr_->get_stream());
         thrust::copy(handle_ptr_->get_thrust_policy(),
                      vertex_first,
                      vertex_last,

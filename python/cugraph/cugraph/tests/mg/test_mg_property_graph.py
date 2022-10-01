@@ -657,6 +657,28 @@ def test_get_edge_data(dataset1_MGPropertyGraph):
     assert_frame_equal(df1, df2, check_like=True)
 
 
+def test_get_edge_data_repeated(dask_client):
+    from cugraph.experimental import MGPropertyGraph
+
+    df = cudf.DataFrame(
+        {"src": [1, 1, 1, 2], "dst": [2, 3, 4, 1], "edge_feat": [0, 1, 2, 3]}
+    )
+    df = dask_cudf.from_cudf(df, npartitions=2)
+    pg = MGPropertyGraph()
+    pg.add_edge_data(df, vertex_col_names=['src', 'dst'])
+    df1 = pg.get_edge_data(edge_ids=[2, 1, 3, 1], columns=['edge_feat'])
+    df1 = df1.compute()
+    expected = cudf.DataFrame({
+        "_EDGE_ID_": [2, 1, 3, 1],
+        "_SRC_": [1, 1, 2, 1],
+        "_DST_": [4, 3, 1, 3],
+        "_TYPE_": ["", "", "", ""],
+        "edge_feat": [2, 1, 3, 1],
+    })
+    df1["_TYPE_"] = df1["_TYPE_"].astype(str)  # Undo categorical
+    assert_frame_equal(df1, expected)
+
+
 def test_get_data_empty_graphs(dask_client):
     """
     Ensures that calls to pG.get_*_data() on an empty pG are handled correctly.

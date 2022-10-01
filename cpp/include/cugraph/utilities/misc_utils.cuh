@@ -23,7 +23,9 @@
 #include <thrust/gather.h>
 #include <thrust/iterator/counting_iterator.h>
 #include <thrust/iterator/transform_iterator.h>
+#include <thrust/optional.h>
 
+#include <optional>
 #include <tuple>
 #include <vector>
 
@@ -70,6 +72,14 @@ std::tuple<std::vector<vertex_t>, std::vector<edge_t>> compute_offset_aligned_ed
   handle.sync_stream();
 
   return std::make_tuple(h_vertex_offsets, h_edge_offsets);
+}
+
+template <typename T>
+thrust::optional<T> to_thrust_optional(std::optional<T> val)
+{
+  thrust::optional<T> ret{thrust::nullopt};
+  if (val) { ret = *val; }
+  return ret;
 }
 
 }  // namespace detail

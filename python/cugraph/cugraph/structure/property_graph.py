@@ -912,7 +912,7 @@ class EXPERIMENTAL__PropertyGraph:
         # If vertices were specified, select only the edges that contain the
         # selected verts in both src and dst
         if (selected_vertex_dataframe is not None) and \
-           not selected_vertex_dataframe.empty:
+           not(selected_vertex_dataframe.empty):
             has_srcs = selected_edge_dataframe[self.src_col_name]\
                 .isin(selected_vertex_dataframe.index)
             has_dsts = selected_edge_dataframe[self.dst_col_name]\

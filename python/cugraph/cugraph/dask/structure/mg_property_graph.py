@@ -470,8 +470,6 @@ class EXPERIMENTAL__MGPropertyGraph:
         self.__vertex_prop_eval_dict[self.vertex_col_name] = (
             self.__vertex_prop_dataframe.index
         )
-        # Should we persist?
-        # self.__vertex_prop_dataframe = self.__vertex_prop_dataframe.persist()
 
     def get_vertex_data(self, vertex_ids=None, types=None, columns=None):
         """

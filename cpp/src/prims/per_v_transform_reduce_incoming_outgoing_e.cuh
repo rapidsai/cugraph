@@ -32,7 +32,7 @@
 
 #include <raft/cudart_utils.h>
 #include <raft/handle.hpp>
-#include <raft/integer_utils.h>
+#include <raft/util/integer_utils.hpp>
 #include <rmm/exec_policy.hpp>
 
 #include <cub/cub.cuh>
