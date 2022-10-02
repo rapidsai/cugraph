@@ -380,24 +380,13 @@ def test_num_edges():
     assert gs.num_edges() == 14
 
 
-<<<<<<< HEAD
-def test_etypes(dataset1_CuGraphStore):
-=======
 def test_etypes():
     dataset1_CuGraphStore = get_dataset1_CuGraphStore()
->>>>>>> 854e51abd8183544b37f04877e38345c145d5893
     assert dataset1_CuGraphStore.etypes == [
         'referrals', 'relationships', 'transactions'
     ]
 
 
-<<<<<<< HEAD
-def test_ntypes(dataset1_CuGraphStore):
-    assert dataset1_CuGraphStore.ntypes == ['merchant', 'taxpayers', 'user']
-
-
-def test_get_node_storage_gs(dataset1_CuGraphStore):
-=======
 def test_ntypes():
     dataset1_CuGraphStore = get_dataset1_CuGraphStore()
     assert dataset1_CuGraphStore.ntypes == ['merchant', 'taxpayers', 'user']
@@ -405,7 +394,6 @@ def test_ntypes():
 
 def test_get_node_storage_gs():
     dataset1_CuGraphStore = get_dataset1_CuGraphStore()
->>>>>>> 854e51abd8183544b37f04877e38345c145d5893
     fs = dataset1_CuGraphStore.get_node_storage(
         feat_name="merchant_k", ntype="merchant"
     )
