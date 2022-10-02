@@ -45,6 +45,9 @@ void similarity_compare(
   std::vector<weight_t>& similarity_score,
   test_t const& test_functor)
 {
+  raft::print_host_vector("pair1", std::get<0>(vertex_pairs).data(), std::get<0>(vertex_pairs).size(), std::cout);
+  raft::print_host_vector("pair2", std::get<1>(vertex_pairs).data(), std::get<1>(vertex_pairs).size(), std::cout);
+  raft::print_host_vector("score", similarity_score.data(), similarity_score.size(), std::cout);
   // TBD
 }
 

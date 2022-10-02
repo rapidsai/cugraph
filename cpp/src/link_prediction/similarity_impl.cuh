@@ -61,53 +61,33 @@ rmm::device_uvector<weight_t> similarity(
     //
     CUGRAPH_FAIL("weighted similarity computations are not supported in this release");
   } else {
-    auto intermediate_scores =
-      cugraph::allocate_dataframe_buffer<thrust::tuple<edge_t, edge_t, edge_t>>(
-        num_vertex_pairs, handle.get_stream());
+    rmm::device_uvector<weight_t> similarity_score(num_vertex_pairs, handle.get_stream());
 
     //
     //  Compute vertex_degree for all vertices, then distribute to each GPU.
     //  Need to use this instead of the dummy properties below
     //
-    auto in_degrees = graph_view.compute_in_degrees(handle);
+    auto out_degrees = graph_view.compute_out_degrees(handle);
 
-    auto src_degrees = edge_src_property_t<GraphViewType, edge_t>(handle, graph_view);
-    auto dst_degrees = edge_dst_property_t<GraphViewType, edge_t>(handle, graph_view);
-    update_edge_src_property(handle, graph_view, in_degrees.begin(), src_degrees);
-    update_edge_dst_property(handle, graph_view, in_degrees.begin(), dst_degrees);
-
-    //
-    //  For each vertex pair compute the tuple: (src degree, dst degree, cardinality of
-    //  intersection)
-    //
     per_v_pair_transform_dst_nbr_intersection(
       handle,
       graph_view,
       vertex_pairs_begin,
       vertex_pairs_begin + num_vertex_pairs,
-      in_degrees.begin(),
-      // src_degrees.view(),
-      // dst_degrees.view(),
-      [] __device__(auto src, auto dst, auto src_degree, auto dst_degree, auto intersection) {
-        return thrust::make_tuple(src_degree, dst_degree, static_cast<edge_t>(intersection.size()));
+      out_degrees.begin(),
+      [functor] __device__(auto v1, auto v2, auto v1_degree, auto v2_degree, auto intersection) {
+        printf("v1 = %d, v2 = %d, v1_degree = %d, v2_degree = %d, intersection size = %d\n",
+               (int)v1,
+               (int)v2,
+               (int)v1_degree,
+               (int)v2_degree,
+               (int)intersection.size());
+        return functor.compute_score(static_cast<weight_t>(v1_degree),
+                                     static_cast<weight_t>(v2_degree),
+                                     static_cast<weight_t>(intersection.size()));
       },
-      cugraph::get_dataframe_buffer_begin(intermediate_scores),
+      similarity_score.begin(),
       do_expensive_check);
-
-    //
-    //  Convert to the desired score
-    //
-    rmm::device_uvector<weight_t> similarity_score(num_vertex_pairs, handle.get_stream());
-    thrust::transform(handle.get_thrust_policy(),
-                      get_dataframe_buffer_begin(intermediate_scores),
-                      get_dataframe_buffer_end(intermediate_scores),
-                      similarity_score.begin(),
-                      [functor] __device__(auto tuple) {
-                        auto src_degree        = static_cast<weight_t>(thrust::get<0>(tuple));
-                        auto dst_degree        = static_cast<weight_t>(thrust::get<1>(tuple));
-                        auto intersection_size = static_cast<weight_t>(thrust::get<2>(tuple));
-                        return functor.compute_score(src_degree, dst_degree, intersection_size);
-                      });
 
     return similarity_score;
   }

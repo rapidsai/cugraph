@@ -46,12 +46,14 @@
 template <typename vertex_t, typename edge_t>
 struct intersection_op_t {
   __device__ thrust::tuple<edge_t, edge_t> operator()(
-    vertex_t,
-    vertex_t,
+    vertex_t v1,
+    vertex_t v2,
     edge_t v0_prop /* out degree */,
     edge_t v1_prop /* out degree */,
     raft::device_span<vertex_t const> intersection) const
   {
+printf("v1 = %d, v2 = %d, v1_degree = %d, v2_degree = %d, intersection_size = %d\n",
+         (int) v1, (int) v2, (int) v0_prop, (int) v1_prop, (int) intersection.size());
     return thrust::make_tuple(v0_prop + v1_prop, static_cast<edge_t>(intersection.size()));
   }
 };

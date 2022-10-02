@@ -30,6 +30,8 @@
 struct Similarity_Usecase {
   bool use_weights{false};
   bool check_correctness{true};
+  size_t max_seeds{std::numeric_limits<size_t>::max()};
+  size_t max_vertex_pairs_to_check{std::numeric_limits<size_t>::max()};
 };
 
 template <typename input_usecase_t>
@@ -82,19 +84,82 @@ class Tests_MGSimilarity
       hr_clock.start();
     }
 
+    //
+    // FIXME:  Don't currently have an MG implementation of 2-hop neighbors.
+    //         For now we'll do that on the CPU (really slowly, so keep max_seed
+    //         small)
+    //
+    rmm::device_uvector<vertex_t> d_v1(0, handle_->get_stream());
+    rmm::device_uvector<vertex_t> d_v2(0, handle_->get_stream());
+
+    {
+      auto [src, dst, wgt] = cugraph::test::graph_to_host_coo(*handle_, mg_graph_view);
+
+      size_t max_vertices = std::min(static_cast<size_t>(mg_graph_view.number_of_vertices()),
+                                     similarity_usecase.max_seeds);
+      std::vector<vertex_t> h_v1;
+      std::vector<vertex_t> h_v2;
+      std::vector<vertex_t> one_hop_v1;
+      std::vector<vertex_t> one_hop_v2;
+
+      for (size_t seed = 0; seed < max_vertices; ++seed) {
+        std::for_each(thrust::make_zip_iterator(src.begin(), dst.begin()),
+                      thrust::make_zip_iterator(src.end(), dst.end()),
+                      [&one_hop_v1, &one_hop_v2, seed](auto t) {
+                        auto u = thrust::get<0>(t);
+                        auto v = thrust::get<1>(t);
+                        if (u == seed) {
+                          one_hop_v1.push_back(u);
+                          one_hop_v2.push_back(v);
+                        }
+                      });
+      }
+
+      std::for_each(thrust::make_zip_iterator(one_hop_v1.begin(), one_hop_v2.begin()),
+                    thrust::make_zip_iterator(one_hop_v1.end(), one_hop_v2.end()),
+                    [&](auto t1) {
+                      auto seed     = thrust::get<0>(t1);
+                      auto neighbor = thrust::get<1>(t1);
+                      std::for_each(thrust::make_zip_iterator(src.begin(), dst.begin()),
+                                    thrust::make_zip_iterator(src.end(), dst.end()),
+                                    [&](auto t2) {
+                                      auto u = thrust::get<0>(t2);
+                                      auto v = thrust::get<1>(t2);
+                                      if (u == neighbor) {
+                                        h_v1.push_back(seed);
+                                        h_v2.push_back(v);
+                                      }
+                                    });
+                    });
+
+      std::sort(thrust::make_zip_iterator(h_v1.begin(), h_v2.begin()),
+                thrust::make_zip_iterator(h_v1.end(), h_v2.end()));
+
+      auto end_iter = std::unique(thrust::make_zip_iterator(h_v1.begin(), h_v2.begin()),
+                                  thrust::make_zip_iterator(h_v1.end(), h_v2.end()),
+                                  [](auto t1, auto t2) {
+                                    return (thrust::get<0>(t1) == thrust::get<0>(t2)) &&
+                                           (thrust::get<1>(t1) == thrust::get<1>(t2));
+                                  });
+
+      h_v1.resize(
+        thrust::distance(thrust::make_zip_iterator(h_v1.begin(), h_v2.begin()), end_iter));
+      h_v2.resize(h_v1.size());
+
+      d_v1.resize(h_v1.size(), handle_->get_stream());
+      d_v2.resize(h_v2.size(), handle_->get_stream());
+
+      raft::update_device(d_v1.data(), h_v1.data(), h_v1.size(), handle_->get_stream());
+      raft::update_device(d_v2.data(), h_v2.data(), h_v2.size(), handle_->get_stream());
+    }
+
     // FIXME:  Need to add some tests that specify actual vertex pairs
     // FIXME:  Need to a variation that calls call the two hop neighbors function
     std::tuple<raft::device_span<vertex_t const>, raft::device_span<vertex_t const>> vertex_pairs{
-      {nullptr, size_t{0}}, {nullptr, size_t{0}}};
+      {d_v1.data(), d_v1.size()}, {d_v2.data(), d_v2.size()}};
 
-#if 0
-    auto [result_src, result_dst, result_score] =
+    auto result_score =
       test_functor.run(*handle_, mg_graph_view, vertex_pairs, similarity_usecase.use_weights);
-#else
-    EXPECT_THROW(
-      test_functor.run(*handle_, mg_graph_view, vertex_pairs, similarity_usecase.use_weights),
-      std::exception);
-#endif
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -107,36 +172,42 @@ class Tests_MGSimilarity
     // 3. compare SG & MG results
 
     if (similarity_usecase.check_correctness) {
-#if 0
       auto [src, dst, wgt] = cugraph::test::graph_to_host_coo(*handle_, mg_graph_view);
 
-      result_src = cugraph::test::device_gatherv(*handle_, result_src.data(), result_src.size());
-      result_dst = cugraph::test::device_gatherv(*handle_, result_dst.data(), result_dst.size());
+      d_v1 = cugraph::test::device_gatherv(*handle_, d_v1.data(), d_v1.size());
+      d_v2 = cugraph::test::device_gatherv(*handle_, d_v2.data(), d_v2.size());
       result_score =
         cugraph::test::device_gatherv(*handle_, result_score.data(), result_score.size());
 
-      if (result_src.size() > 0) {
-        std::vector<vertex_t> h_result_src(result_src.size());
-        std::vector<vertex_t> h_result_dst(result_dst.size());
-        std::vector<weight_t> h_result_score(result_score.size());
+      size_t check_size = std::min(d_v1.size(), similarity_usecase.max_vertex_pairs_to_check);
 
+      if (check_size > 0) {
+        //
+        // FIXME: Need to reorder here.  thrust::shuffle on the tuples (vertex_pairs_1,
+        // vertex_pairs_2, result_score) would
+        //        be sufficient.
+        //
+        std::vector<vertex_t> h_vertex_pair_1(check_size);
+        std::vector<vertex_t> h_vertex_pair_2(check_size);
+        std::vector<weight_t> h_result_score(check_size);
+
+        raft::update_host(h_vertex_pair_1.data(),
+                          std::get<0>(vertex_pairs).data(),
+                          check_size,
+                          handle_->get_stream());
+        raft::update_host(h_vertex_pair_2.data(),
+                          std::get<1>(vertex_pairs).data(),
+                          check_size,
+                          handle_->get_stream());
         raft::update_host(
-          h_result_src.data(), result_src.data(), result_src.size(), handle_->get_stream());
-        raft::update_host(
-          h_result_dst.data(), result_dst.data(), result_dst.size(), handle_->get_stream());
-        raft::update_host(
-          h_result_score.data(), result_score.data(), result_score.size(), handle_->get_stream());
+          h_result_score.data(), result_score.data(), check_size, handle_->get_stream());
 
         similarity_compare(mg_graph_view.number_of_vertices(),
-                           std::move(src),
-                           std::move(dst),
-                           std::move(wgt),
-                           std::move(h_result_src),
-                           std::move(h_result_dst),
-                           std::move(h_result_score),
+                           std::tie(src, dst, wgt),
+                           std::tie(h_vertex_pair_1, h_vertex_pair_2),
+                           h_result_score,
                            test_functor);
       }
-#endif
     }
   }
 
@@ -231,20 +302,26 @@ INSTANTIATE_TEST_SUITE_P(
   Tests_MGSimilarity_File,
   ::testing::Combine(
     // enable correctness checks
-    ::testing::Values(Similarity_Usecase{true, false}, Similarity_Usecase{true, true}),
+    // Disable weighted computation testing in 22.10
+    //::testing::Values(Similarity_Usecase{true, true, 20, 100}, Similarity_Usecase{false, true, 20,
+    // 100}),
+    ::testing::Values(Similarity_Usecase{false, true, 20, 100}),
     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
                       cugraph::test::File_Usecase("test/datasets/web-Google.mtx"),
                       cugraph::test::File_Usecase("test/datasets/ljournal-2008.mtx"),
                       cugraph::test::File_Usecase("test/datasets/webbase-1M.mtx"))));
 
-INSTANTIATE_TEST_SUITE_P(rmat_small_test,
-                         Tests_MGSimilarity_Rmat,
-                         ::testing::Combine(
-                           // enable correctness checks
-                           ::testing::Values(Similarity_Usecase{true, false},
-                                             Similarity_Usecase{true, true}),
-                           ::testing::Values(cugraph::test::Rmat_Usecase(
-                             10, 16, 0.57, 0.19, 0.19, 0, false, false, 0, true))));
+INSTANTIATE_TEST_SUITE_P(
+  rmat_small_test,
+  Tests_MGSimilarity_Rmat,
+  ::testing::Combine(
+    // enable correctness checks
+    // Disable weighted computation testing in 22.10
+    //::testing::Values(Similarity_Usecase{true, true, 20, 100}, Similarity_Usecase{false, true, 20,
+    // 100}),
+    ::testing::Values(Similarity_Usecase{false, true, 20, 100}),
+    ::testing::Values(
+      cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, false, false, 0, true))));
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_benchmark_test, /* note that scale & edge factor can be overridden in benchmarking (with
@@ -255,7 +332,7 @@ INSTANTIATE_TEST_SUITE_P(
   Tests_MGSimilarity_Rmat,
   ::testing::Combine(
     // disable correctness checks for large graphs
-    ::testing::Values(Similarity_Usecase{false, false}),
+    ::testing::Values(Similarity_Usecase{false, false, 20}),
     ::testing::Values(
       cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false, 0, true))));
 

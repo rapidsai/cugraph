@@ -118,8 +118,8 @@ class Tests_Similarity
       std::for_each(thrust::make_zip_iterator(one_hop_v1.begin(), one_hop_v2.begin()),
                     thrust::make_zip_iterator(one_hop_v1.end(), one_hop_v2.end()),
                     [&](auto t1) {
-                        auto seed = thrust::get<0>(t1);
-                        auto neighbor = thrust::get<1>(t1);
+                      auto seed     = thrust::get<0>(t1);
+                      auto neighbor = thrust::get<1>(t1);
                       std::for_each(thrust::make_zip_iterator(src.begin(), dst.begin()),
                                     thrust::make_zip_iterator(src.end(), dst.end()),
                                     [&](auto t2) {
@@ -132,14 +132,26 @@ class Tests_Similarity
                                     });
                     });
 
+      std::sort(thrust::make_zip_iterator(h_v1.begin(), h_v2.begin()),
+                thrust::make_zip_iterator(h_v1.end(), h_v2.end()));
+
+      auto end_iter = std::unique(thrust::make_zip_iterator(h_v1.begin(), h_v2.begin()),
+                                  thrust::make_zip_iterator(h_v1.end(), h_v2.end()),
+                                  [](auto t1, auto t2) {
+                                    return (thrust::get<0>(t1) == thrust::get<0>(t2)) &&
+                                           (thrust::get<1>(t1) == thrust::get<1>(t2));
+                                  });
+
+      h_v1.resize(
+        thrust::distance(thrust::make_zip_iterator(h_v1.begin(), h_v2.begin()), end_iter));
+      h_v2.resize(h_v1.size());
+
       d_v1.resize(h_v1.size(), handle.get_stream());
       d_v2.resize(h_v2.size(), handle.get_stream());
 
       raft::update_device(d_v1.data(), h_v1.data(), h_v1.size(), handle.get_stream());
       raft::update_device(d_v2.data(), h_v2.data(), h_v2.size(), handle.get_stream());
     }
-
-    std::cout << "creating device span" << std::endl;
 
     // FIXME:  Need to add some tests that specify actual vertex pairs
     // FIXME:  Need to a variation that calls call the two hop neighbors function
@@ -151,15 +163,9 @@ class Tests_Similarity
     std::tuple<raft::device_span<vertex_t const>, raft::device_span<vertex_t const>> vertex_pairs{
       {d_v1.data(), d_v1.size()}, {d_v2.data(), d_v2.size()}};
 
-#if 1
-    std::cout << "calling functor" << std::endl;
     auto result_score =
       test_functor.run(handle, graph_view, vertex_pairs, similarity_usecase.use_weights);
-    std::cout << "back from functor" << std::endl;
-#else
-    EXPECT_THROW(test_functor.run(handle, graph_view, vertex_pairs, similarity_usecase.use_weights),
-                 std::exception);
-#endif
+
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       double elapsed_time{0.0};
@@ -168,19 +174,15 @@ class Tests_Similarity
     }
 
     if (similarity_usecase.check_correctness) {
-#if 1
       auto [src, dst, wgt] = cugraph::test::graph_to_host_coo(handle, graph_view);
 
-      size_t check_size =
-        std::min(std::get<0>(vertex_pairs).size(), similarity_usecase.max_vertex_pairs_to_check);
+      size_t check_size = std::min(d_v1.size(), similarity_usecase.max_vertex_pairs_to_check);
 
-      std::cout << "check_size = " << check_size << std::endl;
       //
       // FIXME: Need to reorder here.  thrust::shuffle on the tuples (vertex_pairs_1,
       // vertex_pairs_2, result_score) would
       //        be sufficient.
       //
-
       std::vector<vertex_t> h_vertex_pair_1(check_size);
       std::vector<vertex_t> h_vertex_pair_2(check_size);
       std::vector<weight_t> h_result_score(check_size);
@@ -190,21 +192,14 @@ class Tests_Similarity
       raft::update_host(
         h_vertex_pair_2.data(), std::get<1>(vertex_pairs).data(), check_size, handle.get_stream());
       raft::update_host(
-        h_result_score.data(), result_score.data(), result_score.size(), handle.get_stream());
+        h_result_score.data(), result_score.data(), check_size, handle.get_stream());
 
-      std::cout << "calling similarity_compare" << std::endl;
-
-#if 0
       similarity_compare(graph_view.number_of_vertices(),
                          std::tie(src, dst, wgt),
                          std::tie(h_vertex_pair_1, h_vertex_pair_2),
                          h_result_score,
                          test_functor);
-#endif
-#endif
     }
-
-    std::cout << "done with test" << std::endl;
   }
 };
 
