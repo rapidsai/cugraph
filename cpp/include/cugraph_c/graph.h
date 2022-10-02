@@ -41,6 +41,10 @@ typedef struct {
  * @param [in]  dst         Device array containing the destination vertex ids
  * @param [in]  weights     Device array containing the edge weights.  Note that an unweighted
  *                          graph can be created by passing weights == NULL.
+ * @param [in]  edge_ids    Device array containing the edge ids for each edge.  Optional
+                            argument that can be NULL if edge ids are not used.
+ * @param [in]  edge_types  Device array containing the edge types for each edge.  Optional
+                            argument that can be NULL if edge types are not used.
  * @param [in]  store_transposed If true create the graph initially in transposed format
  * @param [in]  renumber    If true, renumber vertices to make an efficient data structure.
  *    If false, do not renumber.  Renumbering is required if the vertices are not sequential
@@ -54,16 +58,19 @@ typedef struct {
  *
  * @return error code
  */
-cugraph_error_code_t cugraph_sg_graph_create(const cugraph_resource_handle_t* handle,
-                                             const cugraph_graph_properties_t* properties,
-                                             const cugraph_type_erased_device_array_view_t* src,
-                                             const cugraph_type_erased_device_array_view_t* dst,
-                                             const cugraph_type_erased_device_array_view_t* weights,
-                                             bool_t store_transposed,
-                                             bool_t renumber,
-                                             bool_t check,
-                                             cugraph_graph_t** graph,
-                                             cugraph_error_t** error);
+cugraph_error_code_t cugraph_sg_graph_create(
+  const cugraph_resource_handle_t* handle,
+  const cugraph_graph_properties_t* properties,
+  const cugraph_type_erased_device_array_view_t* src,
+  const cugraph_type_erased_device_array_view_t* dst,
+  const cugraph_type_erased_device_array_view_t* weights,
+  const cugraph_type_erased_device_array_view_t* edge_ids,
+  const cugraph_type_erased_device_array_view_t* edge_types,
+  bool_t store_transposed,
+  bool_t renumber,
+  bool_t check,
+  cugraph_graph_t** graph,
+  cugraph_error_t** error);
 
 /**
  * @brief     Destroy an SG graph
@@ -87,6 +94,10 @@ void cugraph_sg_graph_free(cugraph_graph_t* graph);
  *                          graph is to be created, the weights device array should be created
  *                          on each rank, but the pointer can be NULL and the size 0
  *                          if there are no inputs provided by this rank
+ * @param [in]  edge_ids    Device array containing the edge ids for each edge.  Optional
+                            argument that can be NULL if edge ids are not used.
+ * @param [in]  edge_types  Device array containing the edge types for each edge.  Optional
+                            argument that can be NULL if edge types are not used.
  * @param [in]  store_transposed If true create the graph initially in transposed format
  * @param [in]  num_edges   Number of edges
  * @param [in]  check       If true, do expensive checks to validate the input data
@@ -96,16 +107,19 @@ void cugraph_sg_graph_free(cugraph_graph_t* graph);
  *                          be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
  */
-cugraph_error_code_t cugraph_mg_graph_create(const cugraph_resource_handle_t* handle,
-                                             const cugraph_graph_properties_t* properties,
-                                             const cugraph_type_erased_device_array_view_t* src,
-                                             const cugraph_type_erased_device_array_view_t* dst,
-                                             const cugraph_type_erased_device_array_view_t* weights,
-                                             bool_t store_transposed,
-                                             size_t num_edges,
-                                             bool_t check,
-                                             cugraph_graph_t** graph,
-                                             cugraph_error_t** error);
+cugraph_error_code_t cugraph_mg_graph_create(
+  const cugraph_resource_handle_t* handle,
+  const cugraph_graph_properties_t* properties,
+  const cugraph_type_erased_device_array_view_t* src,
+  const cugraph_type_erased_device_array_view_t* dst,
+  const cugraph_type_erased_device_array_view_t* weights,
+  const cugraph_type_erased_device_array_view_t* edge_ids,
+  const cugraph_type_erased_device_array_view_t* edge_types,
+  bool_t store_transposed,
+  size_t num_edges,
+  bool_t check,
+  cugraph_graph_t** graph,
+  cugraph_error_t** error);
 
 /**
  * @brief     Destroy an MG graph

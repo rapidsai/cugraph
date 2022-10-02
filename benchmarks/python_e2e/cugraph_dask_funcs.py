@@ -167,7 +167,7 @@ def uniform_neighbor_sample(G, start_list=None, fanout_vals=None):
         G, start_list=start_list, fanout_vals=fanout_vals)
 
 def triangle_count(G):
-    return cugraph.dask.triangles(G)
+    return cugraph.dask.triangle_count(G)
 
 def eigenvector_centrality(G):
     return cugraph.dask.eigenvector_centrality(G)
