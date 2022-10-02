@@ -24,6 +24,7 @@ from pylibcugraph import \
     uniform_neighbor_sample as pylibcugraph_uniform_neighbor_sample
 
 from cugraph.dask.comms import comms as Comms
+from cugraph.dask.common.input_utils import get_distributed_data
 
 
 def convert_to_cudf(cp_arrays, weight_t):
@@ -55,7 +56,7 @@ def _call_plc_uniform_neighbor_sample(sID,
             Comms.get_handle(sID).getHandle()
         ),
         input_graph=mg_graph_x,
-        start_list=st_x.to_cupy(),
+        start_list=st_x,
         h_fan_out=fanout_vals,
         with_replacement=with_replacement,
         # FIXME: should we add this parameter as an option?
@@ -134,15 +135,14 @@ def uniform_neighbor_sample(input_graph,
         start_list = input_graph.lookup_internal_vertex_id(
             start_list).compute()
 
-    '''
-    FIXME update the API to scatter the start list as shown below.
+    
     start_list = dask_cudf.from_cudf(
         start_list,
-        npartitions=input_graph._npartitions
+        npartitions=min(input_graph._npartitions, len(start_list))
     )
     start_list = get_distributed_data(start_list)
     wait(start_list)
-    '''
+    start_list = start_list.worker_to_parts
 
     client = input_graph._client
 
@@ -151,7 +151,7 @@ def uniform_neighbor_sample(input_graph,
             _call_plc_uniform_neighbor_sample,
             Comms.get_session_id(),
             input_graph._plc_graph[w],
-            start_list,
+            start_list[w][0],
             fanout_vals,
             with_replacement,
             workers=[w],
