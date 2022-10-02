@@ -135,7 +135,6 @@ def uniform_neighbor_sample(input_graph,
         start_list = input_graph.lookup_internal_vertex_id(
             start_list).compute()
 
-    
     start_list = dask_cudf.from_cudf(
         start_list,
         npartitions=min(input_graph._npartitions, len(start_list))
