@@ -16,7 +16,7 @@
 #include <cugraph/utilities/error.hpp>
 
 #include <raft/cudart_utils.h>
-#include <raft/device_atomics.cuh>
+#include <raft/util/device_atomics.cuh>
 #include <rmm/device_uvector.hpp>
 #include <rmm/exec_policy.hpp>
 

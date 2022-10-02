@@ -99,6 +99,8 @@ int test_create_mg_graph_simple(const cugraph_resource_handle_t* handle)
                                      src_view,
                                      dst_view,
                                      wgt_view,
+                                     NULL,
+                                     NULL,
                                      FALSE,
                                      num_edges,
                                      TRUE,

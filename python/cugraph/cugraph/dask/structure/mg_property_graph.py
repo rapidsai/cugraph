@@ -58,7 +58,6 @@ class EXPERIMENTAL__MGPropertyGraph:
     dst_col_name = "_DST_"
     type_col_name = "_TYPE_"
     edge_id_col_name = "_EDGE_ID_"
-    vertex_id_col_name = "_VERTEX_ID_"
     weight_col_name = "_WEIGHT_"
     _default_type_name = ""
 
@@ -139,16 +138,15 @@ class EXPERIMENTAL__MGPropertyGraph:
     @property
     def edges(self):
         if self.__edge_prop_dataframe is not None:
-            return self.__edge_prop_dataframe[[self.src_col_name,
-                                               self.dst_col_name,
-                                               self.edge_id_col_name]]
+            return self.__edge_prop_dataframe[
+                [self.src_col_name, self.dst_col_name]
+            ].reset_index()
         return None
 
     @property
     def vertex_property_names(self):
         if self.__vertex_prop_dataframe is not None:
             props = list(self.__vertex_prop_dataframe.columns)
-            props.remove(self.vertex_col_name)
             props.remove(self.type_col_name)  # should "type" be removed?
             return props
         return []
@@ -159,7 +157,6 @@ class EXPERIMENTAL__MGPropertyGraph:
             props = list(self.__edge_prop_dataframe.columns)
             props.remove(self.src_col_name)
             props.remove(self.dst_col_name)
-            props.remove(self.edge_id_col_name)
             props.remove(self.type_col_name)  # should "type" be removed?
             if self.weight_col_name in props:
                 props.remove(self.weight_col_name)
@@ -259,7 +256,8 @@ class EXPERIMENTAL__MGPropertyGraph:
             vert_sers = self.__get_all_vertices_series()
             if vert_sers:
                 if self.__series_type is dask_cudf.Series:
-                    vert_count = dask_cudf.concat(vert_sers).nunique()
+                    vert_count = dask_cudf.concat(
+                        vert_sers, ignore_index=True).nunique()
                     self.__num_vertices = vert_count.compute()
             return self.__num_vertices
 
@@ -308,7 +306,9 @@ class EXPERIMENTAL__MGPropertyGraph:
         vert_sers = self.__get_all_vertices_series()
         if vert_sers:
             if self.__series_type is dask_cudf.Series:
-                return self.__series_type(dask_cudf.concat(vert_sers).unique())
+                return self.__series_type(
+                    dask_cudf.concat(vert_sers, ignore_index=True).unique()
+                )
             else:
                 raise TypeError("dataframe must be a CUDF Dask dataframe.")
         return self.__series_type()
@@ -394,6 +394,8 @@ class EXPERIMENTAL__MGPropertyGraph:
             self.__update_dataframe_dtypes(
                 self.__vertex_prop_dataframe,
                 {self.vertex_col_name: dataframe[vertex_col_name].dtype})
+            self.__vertex_prop_dataframe = \
+                self.__vertex_prop_dataframe.set_index(self.vertex_col_name)
 
         # Ensure that both the predetermined vertex ID column name and vertex
         # type column name are present for proper merging.
@@ -423,13 +425,30 @@ class EXPERIMENTAL__MGPropertyGraph:
                            tmp_df, self.__vertex_prop_dataframe)
         self.__vertex_prop_dtypes.update(new_col_info)
 
-        self.__vertex_prop_dataframe = \
-            self.__vertex_prop_dataframe.merge(tmp_df, how="outer")
-        self.__vertex_prop_dataframe.reset_index()
+        # Join on shared columns and the indices
+        tmp_df = tmp_df.set_index(self.vertex_col_name)
+        cols = (
+            self.__vertex_prop_dataframe.columns.intersection(tmp_df.columns)
+            .to_list()
+        )
+        cols.append(self.vertex_col_name)
+        # FIXME: workaround for: https://github.com/rapidsai/cudf/issues/11550
+        self.__vertex_prop_dataframe = (
+            self.__vertex_prop_dataframe
+            .reset_index()
+            .merge(tmp_df.reset_index(), on=cols, how='outer')
+            .set_index(self.vertex_col_name)
+        )
+        # self.__vertex_prop_dataframe = \
+        #     self.__vertex_prop_dataframe.merge(tmp_df, on=cols, how="outer")
+
         # Update the vertex eval dict with the latest column instances
-        latest = dict([(n, self.__vertex_prop_dataframe[n])
-                       for n in self.__vertex_prop_dataframe.columns])
+        latest = {n: self.__vertex_prop_dataframe[n]
+                  for n in self.__vertex_prop_dataframe.columns}
         self.__vertex_prop_eval_dict.update(latest)
+        self.__vertex_prop_eval_dict[self.vertex_col_name] = (
+            self.__vertex_prop_dataframe.index
+        )
 
     def get_vertex_data(self, vertex_ids=None, types=None, columns=None):
         """
@@ -440,13 +459,13 @@ class EXPERIMENTAL__MGPropertyGraph:
             df = self.__vertex_prop_dataframe
             if vertex_ids is not None:
                 if isinstance(vertex_ids, int):
-                    df_mask = df[self.vertex_col_name] == vertex_ids
-                else:
-                    df_mask = df[self.vertex_col_name].isin(vertex_ids)
-                df = df.loc[df_mask]
+                    vertex_ids = [vertex_ids]
+                elif not isinstance(vertex_ids,
+                                    (list, slice, self.__series_type)):
+                    vertex_ids = list(vertex_ids)
+                df = df.loc[vertex_ids]
 
             if types is not None:
-                # FIXME: coerce types to a list-like if not?
                 if isinstance(types, str):
                     df_mask = df[self.type_col_name] == types
                 else:
@@ -456,12 +475,11 @@ class EXPERIMENTAL__MGPropertyGraph:
             # The "internal" pG.vertex_col_name and pG.type_col_name columns
             # are also included/added since they are assumed to be needed by
             # the caller.
-            if columns is None:
-                return df
-            else:
+            if columns is not None:
                 # FIXME: invalid columns will result in a KeyError, should a
                 # check be done here and a more PG-specific error raised?
-                return df[[self.vertex_col_name, self.type_col_name] + columns]
+                df = df[[self.type_col_name] + columns]
+            return df.reset_index()
 
         return None
 
@@ -532,15 +550,14 @@ class EXPERIMENTAL__MGPropertyGraph:
 
         default_edge_columns = [self.src_col_name,
                                 self.dst_col_name,
-                                self.edge_id_col_name,
                                 self.type_col_name]
         if self.__edge_prop_dataframe is None:
             temp_dataframe = cudf.DataFrame(columns=default_edge_columns)
             self.__update_dataframe_dtypes(
                 temp_dataframe,
                 {self.src_col_name: dataframe[vertex_col_names[0]].dtype,
-                 self.dst_col_name: dataframe[vertex_col_names[1]].dtype,
-                 self.edge_id_col_name: "Int64"})
+                 self.dst_col_name: dataframe[vertex_col_names[1]].dtype})
+            temp_dataframe.index.name = self.edge_id_col_name
             self.__edge_prop_dataframe = \
                 dask_cudf.from_cudf(temp_dataframe,
                                     npartitions=self.__num_workers)
@@ -554,6 +571,7 @@ class EXPERIMENTAL__MGPropertyGraph:
 
         # Add unique edge IDs to the new rows. This is just a count for each
         # row starting from the last edge ID value, with initial edge ID 0.
+        # FIXME: can we assign index instead of column?
         starting_eid = (
             -1 if self.__last_edge_id is None else self.__last_edge_id
         )
@@ -561,8 +579,9 @@ class EXPERIMENTAL__MGPropertyGraph:
         tmp_df[self.edge_id_col_name] = (
             tmp_df[self.edge_id_col_name].cumsum() + starting_eid
         )
+        tmp_df = tmp_df.set_index(self.edge_id_col_name)
+        tmp_df = tmp_df.persist()
         self.__last_edge_id = starting_eid + len(tmp_df.index)
-        tmp_df.persist()
 
         if property_columns:
             # all columns
@@ -581,13 +600,29 @@ class EXPERIMENTAL__MGPropertyGraph:
             tmp_df, self.__edge_prop_dataframe)
         self.__edge_prop_dtypes.update(new_col_info)
 
-        self.__edge_prop_dataframe = \
-            self.__edge_prop_dataframe.merge(tmp_df, how="outer")
+        # Join on shared columns and the indices
+        cols = (
+            self.__edge_prop_dataframe.columns.intersection(tmp_df.columns)
+            .to_list()
+        )
+        cols.append(self.edge_id_col_name)
+        # FIXME: workaround for: https://github.com/rapidsai/cudf/issues/11550
+        self.__edge_prop_dataframe = (
+            self.__edge_prop_dataframe
+            .reset_index()
+            .merge(tmp_df.reset_index(), on=cols, how='outer')
+            .set_index(self.edge_id_col_name)
+        )
+        # self.__edge_prop_dataframe = \
+        #     self.__edge_prop_dataframe.merge(tmp_df, on=cols, how="outer")
 
-        # Update the vertex eval dict with the latest column instances
+        # Update the edge eval dict with the latest column instances
         latest = dict([(n, self.__edge_prop_dataframe[n])
                        for n in self.__edge_prop_dataframe.columns])
         self.__edge_prop_eval_dict.update(latest)
+        self.__edge_prop_eval_dict[self.edge_id_col_name] = (
+            self.__edge_prop_dataframe.index
+        )
 
     def get_edge_data(self, edge_ids=None, types=None, columns=None):
         """
@@ -598,13 +633,13 @@ class EXPERIMENTAL__MGPropertyGraph:
             df = self.__edge_prop_dataframe
             if edge_ids is not None:
                 if isinstance(edge_ids, int):
-                    df_mask = df[self.edge_id_col_name] == edge_ids
-                else:
-                    df_mask = df[self.edge_id_col_name].isin(edge_ids)
-                df = df.loc[df_mask]
+                    edge_ids = [edge_ids]
+                elif not isinstance(edge_ids,
+                                    (list, slice, self.__series_type)):
+                    edge_ids = list(edge_ids)
+                df = df.loc[edge_ids]
 
             if types is not None:
-                # FIXME: coerce types to a list-like if not?
                 if isinstance(types, str):
                     df_mask = df[self.type_col_name] == types
                 else:
@@ -618,13 +653,13 @@ class EXPERIMENTAL__MGPropertyGraph:
                 all_columns = list(self.__edge_prop_dataframe.columns)
                 if self.weight_col_name in all_columns:
                     all_columns.remove(self.weight_col_name)
-                return df[all_columns]
+                df = df[all_columns]
             else:
                 # FIXME: invalid columns will result in a KeyError, should a
                 # check be done here and a more PG-specific error raised?
-                return df[[self.src_col_name, self.dst_col_name,
-                           self.edge_id_col_name, self.type_col_name]
-                          + columns]
+                df = df[[self.src_col_name, self.dst_col_name,
+                         self.type_col_name] + columns]
+            return df.reset_index()
 
         return None
 
@@ -743,12 +778,21 @@ class EXPERIMENTAL__MGPropertyGraph:
         # selected verts in both src and dst
         if (selected_vertex_dataframe is not None) and \
            not(selected_vertex_dataframe.empty):
-            selected_verts = selected_vertex_dataframe[self.vertex_col_name]
             has_srcs = selected_edge_dataframe[self.src_col_name]\
-                .isin(selected_verts)
+                .isin(selected_vertex_dataframe.index)
             has_dsts = selected_edge_dataframe[self.dst_col_name]\
-                .isin(selected_verts)
+                .isin(selected_vertex_dataframe.index)
             edges = selected_edge_dataframe[has_srcs & has_dsts]
+            # Alternative to benchmark
+            # edges = selected_edge_dataframe.merge(
+            #     selected_vertex_dataframe[[]],
+            #     left_on=self.src_col_name,
+            #     right_index=True,
+            # ).merge(
+            #     selected_vertex_dataframe[[]],
+            #     left_on=self.dst_col_name,
+            #     right_index=True,
+            # )
         else:
             edges = selected_edge_dataframe
 
@@ -902,12 +946,12 @@ class EXPERIMENTAL__MGPropertyGraph:
             )
         if self.__vertex_prop_dataframe is None:
             return None
-        # We'll need to update this when index is vertex ID
-        df = (
-            self.__vertex_prop_dataframe
-            .sort_values(by=self.type_col_name)
-        )
+        df = self.__vertex_prop_dataframe
         if self.__edge_prop_dataframe is not None:
+            df = (
+                df.reset_index()
+                .sort_values(by=self.type_col_name)
+            )
             new_name = f"new_{self.vertex_col_name}"
             df[new_name] = 1
             df[new_name] = df[new_name].cumsum() - 1
@@ -928,10 +972,13 @@ class EXPERIMENTAL__MGPropertyGraph:
             df[self.vertex_col_name] = df[new_name]
             del df[new_name]
         else:
+            df = df.sort_values(by=self.type_col_name, ignore_index=True)
             df[self.vertex_col_name] = 1
             df[self.vertex_col_name] = df[self.vertex_col_name].cumsum() - 1
 
-        self.__vertex_prop_dataframe = df
+        self.__vertex_prop_dataframe = (
+            df.set_index(self.vertex_col_name, sorted=True).persist()
+        )
         rv = (
             self._vertex_type_value_counts
             .sort_index()
@@ -951,15 +998,14 @@ class EXPERIMENTAL__MGPropertyGraph:
         # TODO: keep track if edges are already numbered correctly.
         if self.__edge_prop_dataframe is None:
             return None
-        # We'll need to update this when index is edge ID
-        self.__edge_prop_dataframe = (
+        df = (
             self.__edge_prop_dataframe
-            .drop(columns=[self.edge_id_col_name])
             .sort_values(by=self.type_col_name, ignore_index=True)
         )
-        self.__edge_prop_dataframe[self.edge_id_col_name] = 1
-        self.__edge_prop_dataframe[self.edge_id_col_name] = (
-            self.__edge_prop_dataframe[self.edge_id_col_name].cumsum() - 1
+        df[self.edge_id_col_name] = 1
+        df[self.edge_id_col_name] = df[self.edge_id_col_name].cumsum() - 1
+        self.__edge_prop_dataframe = (
+            df.set_index(self.edge_id_col_name, sorted=True).persist()
         )
         rv = (
             self._edge_type_value_counts
@@ -992,8 +1038,7 @@ class EXPERIMENTAL__MGPropertyGraph:
         values from edge_prop_df.
         """
         return edge_prop_df[[self.src_col_name,
-                             self.dst_col_name,
-                             self.edge_id_col_name]]
+                             self.dst_col_name]].reset_index()
 
     def __get_all_vertices_series(self):
         """
@@ -1004,10 +1049,24 @@ class EXPERIMENTAL__MGPropertyGraph:
         epd = self.__edge_prop_dataframe
         vert_sers = []
         if vpd is not None:
-            vert_sers.append(vpd[self.vertex_col_name])
+            vert_sers.append(vpd.index.to_series())
         if epd is not None:
             vert_sers.append(epd[self.src_col_name])
             vert_sers.append(epd[self.dst_col_name])
+        # `dask_cudf.concat` doesn't work when the index dtypes are different
+        # See: https://github.com/rapidsai/cudf/issues/11741
+        if len(vert_sers) > 1 and not all(
+            cudf.api.types.is_dtype_equal(
+                vert_sers[0].index.dtype, s.index.dtype
+            )
+            for s in vert_sers
+        ):
+            # Cast all to int64
+            first, *rest = vert_sers
+            dtype = first.index.dtype
+            for s in rest:
+                if s.index.dtype != dtype:
+                    s.index = s.index.astype(dtype)
         return vert_sers
 
     @staticmethod

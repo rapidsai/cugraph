@@ -18,6 +18,7 @@ import dask_cudf
 from cugraph.testing import utils
 import cugraph
 import random
+import cupy
 
 from pylibcugraph import bfs as pylibcugraph_bfs
 from pylibcugraph import ResourceHandle
@@ -202,3 +203,32 @@ def test_create_mg_graph(dask_client, input_combo):
         ):
             err = err + 1
     assert err == 0
+
+
+@pytest.mark.parametrize("graph_file", utils.DATASETS)
+def test_create_graph_with_edge_ids(dask_client, graph_file):
+    el = utils.read_csv_file(graph_file)
+    el['id'] = cupy.random.permutation(len(el))
+    el['id'] = el['id'].astype(el['1'].dtype)
+    el['etype'] = cupy.random.random_integers(4, size=len(el))
+    el['etype'] = el['etype'].astype('int32')
+
+    num_workers = len(Comms.get_workers())
+    el = dask_cudf.from_cudf(el, npartitions=num_workers)
+
+    with pytest.raises(ValueError):
+        G = cugraph.Graph()
+        G.from_dask_cudf_edgelist(
+            el,
+            source='0',
+            destination='1',
+            edge_attr=['2', 'id', 'etype']
+        )
+
+    G = cugraph.Graph(directed=True)
+    G.from_dask_cudf_edgelist(
+        el,
+        source='0',
+        destination='1',
+        edge_attr=['2', 'id', 'etype']
+    )

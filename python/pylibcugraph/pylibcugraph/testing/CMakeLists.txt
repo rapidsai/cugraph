@@ -12,14 +12,17 @@
 # the License.
 # =============================================================================
 
-set(cython_sources louvain_wrapper.pyx)
-set(linked_libraries cugraph::cugraph)
+set(cython_sources
+    type_utils.pyx
+)
+set(linked_libraries cugraph::cugraph;cugraph_c)
+
 rapids_cython_create_modules(
   CXX
   SOURCE_FILES "${cython_sources}"
-  LINKED_LIBRARIES "${linked_libraries}" MODULE_PREFIX dask_community_
+  LINKED_LIBRARIES "${linked_libraries}"
 )
 
 foreach(cython_module IN LISTS RAPIDS_CYTHON_CREATED_TARGETS)
-  set_target_properties(${cython_module} PROPERTIES INSTALL_RPATH "\$ORIGIN;\$ORIGIN/../../library")
+  set_target_properties(${cython_module} PROPERTIES INSTALL_RPATH "\$ORIGIN;\$ORIGIN/../library")
 endforeach()
