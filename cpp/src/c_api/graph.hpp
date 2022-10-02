@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2022, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,11 +30,15 @@ struct cugraph_graph_t {
   data_type_id_t vertex_type_;
   data_type_id_t edge_type_;
   data_type_id_t weight_type_;
+  data_type_id_t edge_type_type_;
   bool store_transposed_;
   bool multi_gpu_;
 
-  void* graph_;       // graph_t<...>*
-  void* number_map_;  // rmm::device_uvector<vertex_t>*
+  void* graph_;            // graph_t<...>*
+  void* number_map_;       // rmm::device_uvector<vertex_t>*
+  void* edge_properties_;  // edge_property_t<
+                           //    graph_view_t<vertex_t, edge_t, weight_t, store_transposed,
+                           //    multi_gpu>, thrust::tuple<edge_t, edge_type_t>>>
 };
 
 template <typename vertex_t,
