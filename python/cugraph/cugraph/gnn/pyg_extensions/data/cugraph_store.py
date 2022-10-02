@@ -469,7 +469,6 @@ class EXPERIMENTAL__CuGraphStore:
             [sampling_results.destinations, sampling_results.sources]
         ).unique()
 
-<<<<<<< HEAD
         if self.is_mg:
             nodes_of_interest = nodes_of_interest.compute()
 
@@ -488,12 +487,6 @@ class EXPERIMENTAL__CuGraphStore:
         row_dict, col_dict = self.__get_renumbered_edges_from_sample(
             sampling_results,
             noi_index
-=======
-        noi = self.__graph.get_vertex_data(
-            nodes_of_interest.compute().values_host if self.is_mg
-            else nodes_of_interest,
-            columns=[self.__graph.type_col_name]
->>>>>>> 854e51abd8183544b37f04877e38345c145d5893
         )
 
         return (noi_groups, row_dict, col_dict, noi_tensors)
