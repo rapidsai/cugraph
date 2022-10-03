@@ -76,12 +76,6 @@ rmm::device_uvector<weight_t> similarity(
       vertex_pairs_begin + num_vertex_pairs,
       out_degrees.begin(),
       [functor] __device__(auto v1, auto v2, auto v1_degree, auto v2_degree, auto intersection) {
-        printf("v1 = %d, v2 = %d, v1_degree = %d, v2_degree = %d, intersection size = %d\n",
-               (int)v1,
-               (int)v2,
-               (int)v1_degree,
-               (int)v2_degree,
-               (int)intersection.size());
         return functor.compute_score(static_cast<weight_t>(v1_degree),
                                      static_cast<weight_t>(v2_degree),
                                      static_cast<weight_t>(intersection.size()));

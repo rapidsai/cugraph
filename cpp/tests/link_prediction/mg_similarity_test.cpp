@@ -92,7 +92,7 @@ class Tests_MGSimilarity
     rmm::device_uvector<vertex_t> d_v1(0, handle_->get_stream());
     rmm::device_uvector<vertex_t> d_v2(0, handle_->get_stream());
 
-    {
+    if (handle_->get_comms().get_rank() == 0) {
       auto [src, dst, wgt] = cugraph::test::graph_to_host_coo(*handle_, mg_graph_view);
 
       size_t max_vertices = std::min(static_cast<size_t>(mg_graph_view.number_of_vertices()),
@@ -191,14 +191,8 @@ class Tests_MGSimilarity
         std::vector<vertex_t> h_vertex_pair_2(check_size);
         std::vector<weight_t> h_result_score(check_size);
 
-        raft::update_host(h_vertex_pair_1.data(),
-                          std::get<0>(vertex_pairs).data(),
-                          check_size,
-                          handle_->get_stream());
-        raft::update_host(h_vertex_pair_2.data(),
-                          std::get<1>(vertex_pairs).data(),
-                          check_size,
-                          handle_->get_stream());
+        raft::update_host(h_vertex_pair_1.data(), d_v1.data(), check_size, handle_->get_stream());
+        raft::update_host(h_vertex_pair_2.data(), d_v2.data(), check_size, handle_->get_stream());
         raft::update_host(
           h_result_score.data(), result_score.data(), check_size, handle_->get_stream());
 
@@ -307,9 +301,7 @@ INSTANTIATE_TEST_SUITE_P(
     // 100}),
     ::testing::Values(Similarity_Usecase{false, true, 20, 100}),
     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
-                      cugraph::test::File_Usecase("test/datasets/web-Google.mtx"),
-                      cugraph::test::File_Usecase("test/datasets/ljournal-2008.mtx"),
-                      cugraph::test::File_Usecase("test/datasets/webbase-1M.mtx"))));
+                      cugraph::test::File_Usecase("test/datasets/web-Google.mtx"))));
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_small_test,

@@ -90,11 +90,10 @@ struct test_overlap_t {
 template <typename vertex_t, typename weight_t, typename test_t>
 void similarity_compare(
   vertex_t num_vertices,
-  std::tuple<std::vector<vertex_t> &,
-             std::vector<vertex_t> &,
-             std::optional<std::vector<weight_t>> &> edge_list,
-  std::tuple<std::vector<vertex_t> &, std::vector<vertex_t> &> vertex_pairs,
-  std::vector<weight_t> & similarity_score,
+  std::tuple<std::vector<vertex_t>&, std::vector<vertex_t>&, std::optional<std::vector<weight_t>>&>
+    edge_list,
+  std::tuple<std::vector<vertex_t>&, std::vector<vertex_t>&> vertex_pairs,
+  std::vector<weight_t>& similarity_score,
   test_t const& test_functor);
 
 }  // namespace test
