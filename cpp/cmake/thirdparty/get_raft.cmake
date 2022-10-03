@@ -28,6 +28,12 @@ if(NOT DEFINED CUGRAPH_RAFT_REPOSITORY)
   set(CUGRAPH_RAFT_REPOSITORY "https://github.com/rapidsai/raft.git")
 endif()
 
+if(CUGRAPH_BUILD_WHEELS)
+    set(BUILD_RAFT_SHARED OFF)
+else()
+    set(BUILD_RAFT_SHARED ON)
+endif()
+
 function(find_and_configure_raft)
 
     set(oneValueArgs VERSION REPO PINNED_TAG CLONE_ON_PIN)
@@ -56,6 +62,7 @@ function(find_and_configure_raft)
                 "RAFT_COMPILE_DIST_LIBRARY ON"
                 "BUILD_TESTS OFF"
                 "BUILD_BENCH OFF"
+                "BUILD_SHARED_LIBS ${BUILD_RAFT_SHARED}"
                 "RAFT_ENABLE_cuco_DEPENDENCY OFF"
     )
 

@@ -89,13 +89,6 @@ if (NOT cugraph_FOUND)
   add_subdirectory(../../cpp cugraph-cpp ${_exclude_from_all})
 
   install(TARGETS cugraph cugraph_c DESTINATION pylibcugraph)
-
-  if(CUGRAPH_BUILD_WHEELS)
-    # Wheels need libraft_distance.so installed as well. In other cases even if
-    # we built libcugraph we still assume that users install raft separately.
-    install(TARGETS raft_distance_lib DESTINATION pylibcugraph)
-  endif()
-
 endif()
 
 include(rapids-cython)
