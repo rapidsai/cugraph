@@ -93,7 +93,7 @@ if (NOT cugraph_FOUND)
   if(CUGRAPH_BUILD_WHEELS)
     # Wheels need libraft_distance.so installed as well. In other cases even if
     # we built libcugraph we still assume that users install raft separately.
-    install(TARGETS raft_distance DESTINATION pylibcugraph)
+    install(TARGETS raft_distance_lib DESTINATION pylibcugraph)
   endif()
 
 endif()
