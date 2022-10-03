@@ -21,6 +21,7 @@ from pylibcugraph import (eigenvector_centrality as pylib_eigen,
 import cugraph.dask.comms.comms as Comms
 import dask_cudf
 import cudf
+import warnings
 
 
 def _call_plc_eigenvector_centrality(sID,
@@ -114,6 +115,12 @@ def eigenvector_centrality(
 
     """
     client = input_graph._client
+
+    if input_graph.store_transposed is False:
+        warning_msg = ("Eigenvector centrality expects the 'store_transposed' "
+                       "flag to be set to 'True' for optimal performance "
+                       "during the graph creation")
+        warnings.warn(warning_msg, UserWarning)
 
     # FIXME: should we add this parameter as an option?
     do_expensive_check = False

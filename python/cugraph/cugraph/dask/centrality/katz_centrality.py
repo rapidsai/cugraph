@@ -20,6 +20,7 @@ from pylibcugraph import (ResourceHandle,
 import cugraph.dask.comms.comms as Comms
 import dask_cudf
 import cudf
+import warnings
 
 
 def _call_plc_katz_centrality(sID,
@@ -145,6 +146,12 @@ def katz_centrality(
 
     """
     client = input_graph._client
+
+    if input_graph.store_transposed is False:
+        warning_msg = ("Katz centrality expects the 'store_transposed' flag "
+                       "to be set to 'True' for optimal performance during "
+                       "the graph creation")
+        warnings.warn(warning_msg, UserWarning)
 
     if alpha is None:
         degree_max = input_graph.degree()['degree'].max().compute()
