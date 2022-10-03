@@ -77,4 +77,4 @@ Triangle Counting
 .. autosummary::
    :toctree: api/
 
-   cugraph.triangles
+   cugraph.triangle_count
