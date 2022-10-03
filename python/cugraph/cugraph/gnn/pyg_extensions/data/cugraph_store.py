@@ -480,7 +480,6 @@ class EXPERIMENTAL__CuGraphStore:
                 else nodes_of_interest
             )
         )
-        del nodes_of_interest
 
         # Get the new edge index (by type as expected for HeteroData)
         # FIXME handle edge ids
