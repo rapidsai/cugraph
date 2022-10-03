@@ -401,7 +401,7 @@ def test_get_subgraph(graph):
     assert isinstance(sg, cugraph.Graph)
 
     # duplicate edges are automatically dropped in from_edgelist
-    cols = [pG.src_col_name, pG.dst_col_name]
+    cols = [pG.src_col_name, pG.dst_col_name, pG.type_col_name]
     num_edges = pG.get_edge_data(
         columns=cols
     )[cols].drop_duplicates().shape[0]
