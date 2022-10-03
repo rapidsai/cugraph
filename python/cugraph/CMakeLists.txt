@@ -12,7 +12,7 @@
 # the License.
 # =============================================================================
 
-cmake_minimum_required(VERSION 3.20.1 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.23.1 FATAL_ERROR)
 
 set(cugraph_version 22.10.00)
 
@@ -88,7 +88,6 @@ add_subdirectory(cugraph/components)
 add_subdirectory(cugraph/cores)
 add_subdirectory(cugraph/dask/centrality)
 add_subdirectory(cugraph/dask/comms)
-add_subdirectory(cugraph/dask/community)
 add_subdirectory(cugraph/dask/components)
 add_subdirectory(cugraph/dask/structure)
 add_subdirectory(cugraph/generators)
