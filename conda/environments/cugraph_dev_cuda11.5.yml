@@ -18,8 +18,8 @@ dependencies:
 - raft-dask=22.10.*
 - pylibraft=22.10.*
 - cuda-python>=11.5,<11.7.1
-- dask>=2022.7.1
-- distributed>=2022.7.1
+- dask==2022.9.2
+- distributed==2022.9.2
 - dask-cuda=22.10.*
 - dask-cudf=22.10.*
 - nccl>=2.9.9
