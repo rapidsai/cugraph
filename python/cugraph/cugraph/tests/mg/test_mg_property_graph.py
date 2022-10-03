@@ -459,6 +459,14 @@ def test_add_edge_data_with_ids(dask_client):
     relationships = dataset1["relationships"]
     relationships_df = cudf.DataFrame(columns=relationships[0],
                                       data=relationships[1])
+
+    # user-provided, then auto-gen (not allowed)
+    with pytest.raises(NotImplementedError):
+        pG.add_edge_data(dask_cudf.from_cudf(relationships_df, npartitions=2),
+                         type_name="relationships",
+                         vertex_col_names=("user_id_1", "user_id_2"),
+                         property_columns=None)
+
     relationships_df["edge_id"] = list(range(30, 30 + len(relationships_df)))
     relationships_df = dask_cudf.from_cudf(relationships_df, npartitions=2)
 
@@ -480,6 +488,19 @@ def test_add_edge_data_with_ids(dask_client):
         relationships_df["edge_id"].compute(),
         check_names=False,
     )
+
+    # auto-gen, then user-provided (not allowed)
+    pG = MGPropertyGraph()
+    pG.add_edge_data(transactions_df,
+                     type_name="transactions",
+                     vertex_col_names=("user_id", "merchant_id"),
+                     property_columns=None)
+    with pytest.raises(NotImplementedError):
+        pG.add_edge_data(relationships_df,
+                         type_name="relationships",
+                         edge_id_col_name="edge_id",
+                         vertex_col_names=("user_id_1", "user_id_2"),
+                         property_columns=None)
 
 
 def test_property_names_attrs(dataset1_MGPropertyGraph):

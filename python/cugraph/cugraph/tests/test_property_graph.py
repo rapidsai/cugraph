@@ -950,6 +950,14 @@ def test_add_edge_data_with_ids(df_type):
     relationships = dataset1["relationships"]
     relationships_df = df_type(columns=relationships[0],
                                data=relationships[1])
+
+    # user-provided, then auto-gen (not allowed)
+    with pytest.raises(NotImplementedError):
+        pG.add_edge_data(relationships_df,
+                         type_name="relationships",
+                         vertex_col_names=("user_id_1", "user_id_2"),
+                         property_columns=None)
+
     relationships_df["edge_id"] = list(range(30, 30 + len(relationships_df)))
 
     pG.add_edge_data(relationships_df,
@@ -974,6 +982,19 @@ def test_add_edge_data_with_ids(df_type):
         relationships_df["edge_id"],
         check_names=False,
     )
+
+    # auto-gen, then user-provided (not allowed)
+    pG = PropertyGraph()
+    pG.add_edge_data(transactions_df,
+                     type_name="transactions",
+                     vertex_col_names=("user_id", "merchant_id"),
+                     property_columns=None)
+    with pytest.raises(NotImplementedError):
+        pG.add_edge_data(relationships_df,
+                         type_name="relationships",
+                         edge_id_col_name="edge_id",
+                         vertex_col_names=("user_id_1", "user_id_2"),
+                         property_columns=None)
 
 
 def test_add_edge_data_bad_args():
