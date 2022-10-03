@@ -141,4 +141,4 @@ def test_louvain_directed_graph():
     cu_M = utils.read_csv_file(input_data_path)
 
     with pytest.raises(ValueError):
-        cu_parts, cu_mod = cugraph_call(cu_M, directed=True)
+        cugraph_call(cu_M, directed=True)

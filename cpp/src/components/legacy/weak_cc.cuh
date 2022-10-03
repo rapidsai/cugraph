@@ -27,7 +27,7 @@
 #include <type_traits>
 
 #include <raft/cudart_utils.h>
-#include <raft/device_atomics.cuh>
+#include <raft/util/device_atomics.cuh>
 
 #include "utils.h"
 #include <rmm/device_vector.hpp>
