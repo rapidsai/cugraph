@@ -81,7 +81,7 @@ extract_transform_v_frontier_outgoing_e(raft::handle_t const& handle,
   static_assert(!GraphViewType::is_storage_transposed);
 
   using e_op_result_t = typename evaluate_edge_op<GraphViewType,
-                                                  key_t,
+                                                  typename VertexFrontierBucketType::key_type,
                                                   EdgeSrcValueInputWrapper,
                                                   EdgeDstValueInputWrapper,
                                                   EdgeOp>::result_type;

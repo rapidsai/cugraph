@@ -17,7 +17,10 @@
 
 #include <prims/property_op_utils.cuh>
 
+#include <cugraph/edge_partition_device_view.cuh>
+#include <cugraph/edge_partition_endpoint_property_device_view.cuh>
 #include <cugraph/utilities/dataframe_buffer.hpp>
+#include <cugraph/utilities/host_scalar_comm.hpp>
 #include <cugraph/utilities/misc_utils.cuh>
 #include <cugraph/utilities/shuffle_comm.cuh>
 
@@ -127,7 +130,6 @@ struct transform_and_count_local_nbr_indices_t {
       major = thrust::get<0>(key);
     }
     auto major_offset = edge_partition.major_offset_from_major_nocheck(major);
-    printf("major=%d major_offste=%d\n", (int)major, (int)major_offset);
     vertex_t const* indices{nullptr};
     thrust::optional<weight_t const*> weights{thrust::nullopt};
     [[maybe_unused]] edge_t local_degree{0};

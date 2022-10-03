@@ -12,7 +12,7 @@
 # the License.
 # =============================================================================
 
-cmake_minimum_required(VERSION 3.20.1 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.23.1 FATAL_ERROR)
 
 if(POLICY CMP0094)
   # Make FindPython{,2,3} modules use LOCATION for lookup strategy.
@@ -101,7 +101,6 @@ add_subdirectory(cugraph/components)
 add_subdirectory(cugraph/cores)
 add_subdirectory(cugraph/dask/centrality)
 add_subdirectory(cugraph/dask/comms)
-add_subdirectory(cugraph/dask/community)
 add_subdirectory(cugraph/dask/components)
 add_subdirectory(cugraph/dask/structure)
 add_subdirectory(cugraph/generators)
