@@ -37,7 +37,10 @@ from cugraph.dask.common.mg_utils import get_client
 CUPY_MATRIX_TYPES = [cp_coo_matrix, cp_csr_matrix, cp_csc_matrix]
 SCIPY_MATRIX_TYPES = [sp_coo_matrix, sp_csr_matrix, sp_csc_matrix]
 
-RAPIDS_DATASET_ROOT_DIR = os.getenv("RAPIDS_DATASET_ROOT_DIR", "../datasets")
+RAPIDS_DATASET_ROOT_DIR = os.getenv(
+    "RAPIDS_DATASET_ROOT_DIR",
+    os.path.join(os.path.dirname(__file__), "../datasets")
+)
 RAPIDS_DATASET_ROOT_DIR_PATH = Path(RAPIDS_DATASET_ROOT_DIR)
 
 #

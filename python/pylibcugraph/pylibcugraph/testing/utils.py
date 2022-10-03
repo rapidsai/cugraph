@@ -19,7 +19,10 @@ import pytest
 import cudf
 
 
-RAPIDS_DATASET_ROOT_DIR = os.getenv("RAPIDS_DATASET_ROOT_DIR", "../datasets")
+RAPIDS_DATASET_ROOT_DIR = os.getenv(
+    "RAPIDS_DATASET_ROOT_DIR",
+    os.path.join(os.path.dirname(__file__), "../datasets")
+)
 RAPIDS_DATASET_ROOT_DIR_PATH = Path(RAPIDS_DATASET_ROOT_DIR)
 
 
