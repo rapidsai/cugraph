@@ -249,13 +249,13 @@ def multi_edge_multi_vertex_property_graph_1(dask_client):
                 3,
                 4
             ], dtype='int32'),
-            'vertex_type': [
+            'vertex_type': cudf.Series([
                 'brown',
                 'brown',
                 'brown',
                 'black',
                 'black',
-            ]
+            ], dtype=str)
         }),
         npartitions=2
     )
@@ -444,8 +444,7 @@ def test_neighbor_sample(single_vertex_graph):
 
     for node_type, node_ids in noi_groups.items():
         actual_vertex_ids = pG.get_vertex_data(
-            types=[node_type],
-            columns=[pG.vertex_col_name]
+            types=[node_type]
         )[pG.vertex_col_name].compute().to_cupy()
 
         assert list(node_ids) == list(actual_vertex_ids)
@@ -518,7 +517,7 @@ def test_get_tensor(graph):
             if property_name != 'vertex_type':
                 base_series = pG.get_vertex_data(
                     types=[vertex_type],
-                    columns=[property_name, pG.vertex_col_name]
+                    columns=[property_name]
                 )
 
                 vertex_ids = base_series[pG.vertex_col_name]
@@ -548,7 +547,7 @@ def test_multi_get_tensor(graph):
             if property_name != 'vertex_type':
                 base_series = pG.get_vertex_data(
                     types=[vertex_type],
-                    columns=[property_name, pG.vertex_col_name]
+                    columns=[property_name]
                 )
 
                 vertex_ids = base_series[pG.vertex_col_name]
@@ -592,7 +591,7 @@ def test_get_tensor_size(graph):
             if property_name != 'vertex_type':
                 base_series = pG.get_vertex_data(
                     types=[vertex_type],
-                    columns=[property_name, pG.vertex_col_name]
+                    columns=[property_name]
                 )
 
                 vertex_ids = base_series[pG.vertex_col_name]

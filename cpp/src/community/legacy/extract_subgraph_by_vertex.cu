@@ -18,7 +18,7 @@
 #include <cugraph/legacy/graph.hpp>
 #include <cugraph/utilities/error.hpp>
 
-#include <raft/device_atomics.cuh>
+#include <raft/util/device_atomics.cuh>
 #include <rmm/device_vector.hpp>
 #include <rmm/exec_policy.hpp>
 
