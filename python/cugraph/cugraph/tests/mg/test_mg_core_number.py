@@ -151,7 +151,7 @@ def test_core_number_invalid_input(input_expected_output):
     dg = cugraph.Graph(directed=True)
     dg.from_dask_cudf_edgelist(
         ddf, source='src', destination='dst',
-        edge_attr="value", renumber=True)
+        edge_attr="value", renumber=True, legacy_renum_only=True)
 
     with pytest.raises(ValueError):
         dcg.core_number(dg)

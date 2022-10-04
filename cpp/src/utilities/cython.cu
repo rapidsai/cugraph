@@ -840,7 +840,7 @@ std::unique_ptr<major_minor_weights_t<vertex_t, edge_t, weight_t>> call_shuffle(
         zip_edge,
         zip_edge + num_edgelist_edges,
         [key_func =
-           cugraph::detail::compute_gpu_id_from_edge_t<vertex_t>{
+           cugraph::detail::compute_gpu_id_from_ext_edge_endpoints_t<vertex_t>{
              comm.get_size(), row_comm.get_size(), col_comm.get_size()}] __device__(auto val) {
           return key_func(thrust::get<0>(val), thrust::get<1>(val));
         },
@@ -856,7 +856,7 @@ std::unique_ptr<major_minor_weights_t<vertex_t, edge_t, weight_t>> call_shuffle(
         zip_edge,
         zip_edge + num_edgelist_edges,
         [key_func =
-           cugraph::detail::compute_gpu_id_from_edge_t<vertex_t>{
+           cugraph::detail::compute_gpu_id_from_ext_edge_endpoints_t<vertex_t>{
              comm.get_size(), row_comm.get_size(), col_comm.get_size()}] __device__(auto val) {
           return key_func(thrust::get<0>(val), thrust::get<1>(val));
         },
@@ -865,7 +865,7 @@ std::unique_ptr<major_minor_weights_t<vertex_t, edge_t, weight_t>> call_shuffle(
 
   auto local_partition_id_op =
     [comm_size,
-     key_func = cugraph::detail::compute_partition_id_from_edge_t<vertex_t>{
+     key_func = cugraph::detail::compute_partition_id_from_ext_edge_endpoints_t<vertex_t>{
        comm_size, row_comm_size, col_comm_size}] __device__(auto pair) {
       return key_func(thrust::get<0>(pair), thrust::get<1>(pair)) /
              comm_size;  // global partition id to local partition id

@@ -12,7 +12,7 @@
 # the License.
 # =============================================================================
 
-cmake_minimum_required(VERSION 3.20.1 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.23.1 FATAL_ERROR)
 
 set(cugraph_version 22.12.00)
 
@@ -36,6 +36,22 @@ option(FIND_CUGRAPH_CPP "Search for existing CUGRAPH C++ installations before de
 
 # If the user requested it,  we attempt to find CUGRAPH.
 if(FIND_CUGRAPH_CPP)
+
+  include(rapids-cpm)
+  rapids_cpm_init()
+  include(rapids-cuda)
+  rapids_cuda_init_architectures(cugraph-python)
+  enable_language(CUDA)
+
+  set(CUGRAPH_VERSION_MAJOR "${cugraph-python_VERSION_MAJOR}")
+  set(CUGRAPH_VERSION_MINOR "${cugraph-python_VERSION_MINOR}")
+
+
+  # We need to call get_raft due to cuML asking for raft::nn and
+  # raft::distance targets
+  # see issue https://github.com/rapidsai/cuml/issues/4843
+  include(../../cpp/cmake/thirdparty/get_raft.cmake)
+
   find_package(cugraph ${cugraph_version} REQUIRED)
 else()
   set(cugraph_FOUND OFF)
@@ -53,6 +69,11 @@ if(NOT cugraph_FOUND)
   
   include("${CMAKE_PROJECT_cugraph-python_INCLUDE}")
 
+  set(CUGRAPH_VERSION_MAJOR "${cugraph-python_VERSION_MAJOR}")
+  set(CUGRAPH_VERSION_MINOR "${cugraph-python_VERSION_MINOR}")
+
+  include(../../cpp/cmake/thirdparty/get_raft.cmake)
+
   add_subdirectory(../../cpp cugraph-cpp)
 
   install(TARGETS cugraph DESTINATION cugraph/library)
@@ -67,7 +88,6 @@ add_subdirectory(cugraph/components)
 add_subdirectory(cugraph/cores)
 add_subdirectory(cugraph/dask/centrality)
 add_subdirectory(cugraph/dask/comms)
-add_subdirectory(cugraph/dask/community)
 add_subdirectory(cugraph/dask/components)
 add_subdirectory(cugraph/dask/structure)
 add_subdirectory(cugraph/generators)

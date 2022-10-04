@@ -220,14 +220,21 @@ def test_mg_uniform_neighbor_sample_tree(dask_client, directed):
 
 def test_mg_uniform_neighbor_sample_unweighted(dask_client):
     df = cudf.DataFrame({
-        'src': [0, 1, 2, 2, 0, 1, 4, 4],
-        'dst': [3, 2, 1, 4, 1, 3, 1, 2]
+        'src': cudf.Series(
+            [0, 1, 2, 2, 0, 1, 4, 4],
+            dtype='int32'
+        ),
+        'dst': cudf.Series(
+            [3, 2, 1, 4, 1, 3, 1, 2],
+            dtype='int32'
+        )
     })
 
     df = dask_cudf.from_cudf(df, npartitions=2)
 
     G = cugraph.Graph()
-    G.from_dask_cudf_edgelist(df, source='src', destination='dst')
+    G.from_dask_cudf_edgelist(
+        df, source='src', destination='dst', legacy_renum_only=True)
 
     start_list = cudf.Series([0], dtype="int32")
     fanout_vals = [-1]
@@ -249,3 +256,34 @@ def test_mg_uniform_neighbor_sample_unweighted(dask_client):
     actual_dst = sampling_results.destinations
     actual_dst = actual_dst.compute().to_arrow().to_pylist()
     assert sorted(actual_dst) == sorted(expected_dst)
+
+
+def test_mg_uniform_neighbor_sample_ensure_no_duplicates(dask_client):
+    # See issue #2760
+    # This ensures that the starts are properly distributed
+
+    df = cudf.DataFrame({
+        'src': [6, 6, 6, 6],
+        'dst': [7, 9, 10, 11]
+    })
+    df = df.astype('int32')
+
+    dask_df = dask_cudf.from_cudf(df, npartitions=2)
+
+    mg_G = cugraph.MultiGraph(directed=True)
+    mg_G.from_dask_cudf_edgelist(
+        dask_df,
+        source='src',
+        destination='dst',
+        renumber=True,
+        legacy_renum_only=True
+    )
+
+    output_df = cugraph.dask.uniform_neighbor_sample(
+        mg_G,
+        cudf.Series([6]).astype('int32'),
+        fanout_vals=[3],
+        with_replacement=False,
+    )
+
+    assert len(output_df.compute()) == 3

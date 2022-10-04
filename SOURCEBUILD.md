@@ -9,7 +9,7 @@ The cuGraph package include both a C/C++ CUDA portion and a python portion.  Bot
 __Compiler__:
 * `gcc`         version 9.3+
 * `nvcc`        version 11.0+
-* `cmake`       version 3.20.1+
+* `cmake`       version 3.23.1+
 
 __CUDA:__
 * CUDA 11.0+
