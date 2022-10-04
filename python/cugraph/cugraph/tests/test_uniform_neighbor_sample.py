@@ -14,10 +14,10 @@ import gc
 import random
 
 import pytest
-import cugraph
 import cudf
 import cupy
 
+import cugraph
 from cugraph.testing import utils
 from cugraph import uniform_neighbor_sample
 

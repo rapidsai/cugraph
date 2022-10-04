@@ -11,14 +11,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import gc
+import random
+
 import pytest
+import cudf
+import dask_cudf
+import cupy
+
 import cugraph.dask as dcg
 import cugraph
-import dask_cudf
-import cudf
 from cugraph.testing import utils
 from cugraph.dask import uniform_neighbor_sample
-import random
 
 
 # =============================================================================
@@ -110,7 +113,7 @@ def simple_unweighted_input_expected_output(request):
         'src': [0, 1, 2, 2, 0, 1, 4, 4],
         'dst': [3, 2, 1, 4, 1, 3, 1, 2]
     })
-    ddf = dask_cudf.from_cudf(df)
+    ddf = dask_cudf.from_cudf(df, npartitions=2)
 
     G = cugraph.Graph()
     G.from_dask_cudf_edgelist(ddf, source='src', destination='dst')
@@ -320,6 +323,7 @@ def test_mg_uniform_neighbor_sample_ensure_no_duplicates(dask_client):
 
 
 def test_uniform_neighbor_sample_unweighted_arrays_returned(
+        dask_client,
         simple_unweighted_input_expected_output):
 
     """

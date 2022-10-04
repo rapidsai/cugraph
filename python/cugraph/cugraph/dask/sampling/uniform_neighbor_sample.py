@@ -178,4 +178,22 @@ def uniform_neighbor_sample(input_graph,
         ddf = input_graph.unrenumber(ddf, "sources", preserve_order=True)
         ddf = input_graph.unrenumber(ddf, "destinations", preserve_order=True)
 
-    return ddf
+    # FIXME: this will convert to a dask_cudf.DataFrame even if arrays are to
+    # be returned so the unrenumbering step above can be used. A better
+    # approach would be to update the renumbering code to accept cupy arrays to
+    # renumber.
+    if (hasattr(uniform_neighbor_sample, "_return_type") and
+       uniform_neighbor_sample._return_type == "arrays"):
+        uniform_neighbor_sample._return_type = ""
+        # This calls compute() on each Series to convert to individual cupy
+        # arrays, which will cause all results to reside on a single GPU.
+        # Since the main purpose of returning cupy arrays is to transfer
+        # results to another GPU via cugraph_service, this may be acceptable,
+        # but users must know their results have to fit on a single GPU for
+        # this use case.
+        return (ddf["sources"].compute().to_cupy(),
+                ddf["destinations"].compute().to_cupy(),
+                ddf["indices"].compute().to_cupy(),
+                )
+    else:
+        return ddf
