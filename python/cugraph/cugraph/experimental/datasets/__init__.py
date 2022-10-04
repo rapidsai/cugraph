@@ -37,6 +37,9 @@ netscience = Dataset(meta_path / "netscience.yaml")
 cyber = Dataset(meta_path / "cyber.yaml")
 small_line = Dataset(meta_path / "small_line.yaml")
 small_tree = Dataset(meta_path / "small_tree.yaml")
+toy_graph = Dataset(meta_path / "toy_graph.yaml")
+email_Eu_core = Dataset(meta_path / "email-Eu-core.yaml")
+ktruss_polbooks = Dataset(meta_path / "ktruss_polbooks.yaml")
 
 DATASETS_UNDIRECTED = [karate, dolphins]
 
@@ -49,7 +52,9 @@ DATASETS = [dolphins, netscience, karate_disjoint]
 DATASETS_SMALL = [karate, dolphins, polbooks]
 
 # Add email-Eu-core.csv
-STRONGDATASETS = [dolphins, netscience]
+STRONGDATASETS = [dolphins, netscience, email_Eu_core]
+
+DATASETS_KTRUSS = [(polbooks, ktruss_polbooks)]
 
 MEDIUM_DATASETS = [polbooks]
 
@@ -65,6 +70,6 @@ ALL_DATASETS_WGT = [karate, dolphins, netscience, polbooks,
 
 TEST_GROUP = [dolphins, netscience]
 
-DATASETS_KTRUSS = [polbooks]
+#DATASETS_KTRUSS = [polbooks]
 
 # DATASETS_UNDIRECTED = [karate_undirected, small_line, karate_asymmetric]
