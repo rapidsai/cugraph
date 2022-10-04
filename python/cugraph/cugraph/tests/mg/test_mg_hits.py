@@ -93,7 +93,8 @@ def input_expected_output(input_combo):
 
     dg = cugraph.Graph(directed=directed)
     dg.from_dask_cudf_edgelist(
-        ddf, source='src', destination='dst', edge_attr='value', renumber=True)
+        ddf, source='src', destination='dst', edge_attr='value',
+        renumber=True, legacy_renum_only=True, store_transposed=True)
 
     input_combo["MGGraph"] = dg
 
@@ -143,3 +144,29 @@ def test_dask_hits(dask_client, benchmark, input_expected_output):
     assert len(hubs_diffs2) == 0
     assert len(authorities_diffs1) == 0
     assert len(authorities_diffs2) == 0
+
+
+def test_dask_hots_transposed_false(dask_client):
+    input_data_path = (utils.RAPIDS_DATASET_ROOT_DIR_PATH /
+                       "karate.csv").as_posix()
+
+    chunksize = dcg.get_chunksize(input_data_path)
+
+    ddf = dask_cudf.read_csv(
+        input_data_path,
+        chunksize=chunksize,
+        delimiter=" ",
+        names=["src", "dst", "value"],
+        dtype=["int32", "int32", "float32"],
+    )
+
+    dg = cugraph.Graph(directed=True)
+    dg.from_dask_cudf_edgelist(
+        ddf, "src", "dst", legacy_renum_only=True, store_transposed=False)
+
+    warning_msg = ("HITS expects the 'store_transposed' "
+                   "flag to be set to 'True' for optimal performance during "
+                   "the graph creation")
+
+    with pytest.warns(UserWarning, match=warning_msg):
+        dcg.hits(dg)

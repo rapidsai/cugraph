@@ -119,3 +119,20 @@ def test_hits(benchmark, input_expected_output):
     assert len(hubs_diffs2) == 0
     assert len(authorities_diffs1) == 0
     assert len(authorities_diffs2) == 0
+
+
+def test_hits_transposed_false():
+    input_data_path = (utils.RAPIDS_DATASET_ROOT_DIR_PATH /
+                       "karate.csv").as_posix()
+    cu_M = utils.read_csv_file(input_data_path)
+    G = cugraph.Graph(directed=True)
+    G.from_cudf_edgelist(
+        cu_M, source="0", destination="1", edge_attr="2",
+        legacy_renum_only=True, store_transposed=False)
+
+    warning_msg = ("Pagerank expects the 'store_transposed' "
+                   "flag to be set to 'True' for optimal performance during "
+                   "the graph creation")
+
+    with pytest.warns(UserWarning, match=warning_msg):
+        cugraph.pagerank(G)

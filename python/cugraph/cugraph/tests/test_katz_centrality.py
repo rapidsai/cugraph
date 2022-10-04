@@ -50,7 +50,8 @@ def topKVertices(katz, col, k):
 def calc_katz(graph_file):
     cu_M = utils.read_csv_file(graph_file)
     G = cugraph.Graph(directed=True)
-    G.from_cudf_edgelist(cu_M, source="0", destination="1")
+    G.from_cudf_edgelist(
+        cu_M, source="0", destination="1", store_transposed=True)
 
     degree_max = G.degree()['degree'].max()
     katz_alpha = 1 / (degree_max)
@@ -118,10 +119,12 @@ def test_katz_centrality_multi_column(graph_file):
 
     G1 = cugraph.Graph(directed=True)
     G1.from_cudf_edgelist(cu_M, source=["src_0", "src_1"],
-                          destination=["dst_0", "dst_1"])
+                          destination=["dst_0", "dst_1"],
+                          store_transposed=True)
 
     G2 = cugraph.Graph(directed=True)
-    G2.from_cudf_edgelist(cu_M, source="src_0", destination="dst_0")
+    G2.from_cudf_edgelist(
+        cu_M, source="src_0", destination="dst_0", store_transposed=True)
 
     k_df_exp = cugraph.katz_centrality(G2, alpha=None, max_iter=1000)
     k_df_exp = k_df_exp.sort_values("vertex").reset_index(drop=True)
@@ -148,7 +151,8 @@ def test_katz_centrality_toy(graph_file):
     df = cudf.read_csv(graph_file, delimiter=' ',
                        dtype=['int32', 'int32', 'float32'], header=None)
     G = cugraph.Graph(directed=True)
-    G.from_cudf_edgelist(df, source='0', destination='1', edge_attr='2')
+    G.from_cudf_edgelist(
+        df, source='0', destination='1', edge_attr='2', store_transposed=True)
 
     alpha = 0.01
     beta = 1.0
@@ -167,3 +171,20 @@ def test_katz_centrality_toy(graph_file):
         assert pytest.approx(expected_score, abs=1e-2) == actual_score, \
             f"Katz centrality score is {actual_score}, should have" \
             f"been {expected_score}"
+
+
+def test_katz_centrality_transposed_false():
+    input_data_path = (utils.RAPIDS_DATASET_ROOT_DIR_PATH /
+                       "karate.csv").as_posix()
+    cu_M = utils.read_csv_file(input_data_path)
+    G = cugraph.Graph(directed=True)
+    G.from_cudf_edgelist(
+        cu_M, source="0", destination="1", edge_attr="2",
+        legacy_renum_only=True, store_transposed=False)
+
+    warning_msg = ("Katz centrality expects the 'store_transposed' "
+                   "flag to be set to 'True' for optimal performance during "
+                   "the graph creation")
+
+    with pytest.warns(UserWarning, match=warning_msg):
+        cugraph.katz_centrality(G)

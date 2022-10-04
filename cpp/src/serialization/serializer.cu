@@ -21,8 +21,6 @@
 
 #include <utilities/graph_utils.cuh>
 
-#include <raft/device_atomics.cuh>
-
 #include <thrust/copy.h>
 
 #include <type_traits>
