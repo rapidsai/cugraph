@@ -88,6 +88,8 @@ int test_create_sg_graph_simple()
                                      src_view,
                                      dst_view,
                                      wgt_view,
+                                     NULL,
+                                     NULL,
                                      FALSE,
                                      FALSE,
                                      FALSE,

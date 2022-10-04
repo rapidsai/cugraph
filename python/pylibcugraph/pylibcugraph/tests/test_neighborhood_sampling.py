@@ -218,7 +218,8 @@ def test_neighborhood_sampling_large_sg_graph(gpubenchmark):
     assert result[1][0].dtype == np.int32
     assert result[2][0].dtype == np.float32
 
-    # FIXME: this is to help debug the leak, remove once leak is fixed
+    # FIXME: this is to help debug a leak in uniform_neighbor_sample, remove
+    # once leak is fixed
     free_before_cleanup = device.mem_info[0]
     print(f"{free_before_cleanup=}")
     result_bytes = (len(result[0]) + len(result[1]) + len(result[2])) * (32//8)
@@ -228,12 +229,14 @@ def test_neighborhood_sampling_large_sg_graph(gpubenchmark):
     del result
     gc.collect()
 
-    # FIXME: this is to help debug the leak, remove once leak is fixed
+    # FIXME: this is to help debug a leak in uniform_neighbor_sample, remove
+    # once leak is fixed
     free_after_cleanup = device.mem_info[0]
     print(f"{free_after_cleanup=}")
     actual_delta = free_after_cleanup - free_before_cleanup
     expected_delta = free_memory_before - free_before_cleanup
     leak = expected_delta - actual_delta
+
     print(f"  {result_bytes=} {actual_delta=} {expected_delta=} {leak=}")
 
     # FIXME: this assertion is commented out until the memory leak is

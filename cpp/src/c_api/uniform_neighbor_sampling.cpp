@@ -80,6 +80,7 @@ struct uniform_neighbor_sampling_functor : public cugraph::c_api::abstract_funct
   template <typename vertex_t,
             typename edge_t,
             typename weight_t,
+            typename edge_type_type_t,
             bool store_transposed,
             bool multi_gpu>
   void operator()()
@@ -242,38 +243,61 @@ extern "C" cugraph_error_code_t cugraph_test_sample_result_create(
     return CUGRAPH_INVALID_HANDLE;
   }
 
+  // Create unique_ptrs and release them during cugraph_sample_result_t
+  // construction. This allows the arrays to be cleaned up if this function
+  // returns early on error.
+  using device_array_unique_ptr_t =
+    std::unique_ptr<cugraph_type_erased_device_array_t,
+                    decltype(&cugraph_type_erased_device_array_free)>;
+
   // copy srcs to new device array
-  cugraph_type_erased_device_array_t* new_device_srcs{nullptr};
+  cugraph_type_erased_device_array_t* new_device_srcs_ptr{nullptr};
   error_code =
-    cugraph_type_erased_device_array_create_from_view(handle, srcs, &new_device_srcs, error);
+    cugraph_type_erased_device_array_create_from_view(handle, srcs, &new_device_srcs_ptr, error);
   if (error_code != CUGRAPH_SUCCESS) return error_code;
+
+  device_array_unique_ptr_t new_device_srcs(new_device_srcs_ptr,
+                                            &cugraph_type_erased_device_array_free);
 
   // copy dsts to new device array
-  cugraph_type_erased_device_array_t* new_device_dsts{nullptr};
+  cugraph_type_erased_device_array_t* new_device_dsts_ptr{nullptr};
   error_code =
-    cugraph_type_erased_device_array_create_from_view(handle, dsts, &new_device_dsts, error);
+    cugraph_type_erased_device_array_create_from_view(handle, dsts, &new_device_dsts_ptr, error);
   if (error_code != CUGRAPH_SUCCESS) return error_code;
+
+  device_array_unique_ptr_t new_device_dsts(new_device_dsts_ptr,
+                                            &cugraph_type_erased_device_array_free);
 
   // copy weights to new device array
-  cugraph_type_erased_device_array_t* new_device_weights{nullptr};
-  error_code =
-    cugraph_type_erased_device_array_create_from_view(handle, weights, &new_device_weights, error);
+  cugraph_type_erased_device_array_t* new_device_weights_ptr{nullptr};
+  error_code = cugraph_type_erased_device_array_create_from_view(
+    handle, weights, &new_device_weights_ptr, error);
   if (error_code != CUGRAPH_SUCCESS) return error_code;
 
+  device_array_unique_ptr_t new_device_weights(new_device_weights_ptr,
+                                               &cugraph_type_erased_device_array_free);
+
   // copy counts to new device array
-  cugraph_type_erased_device_array_t* new_device_counts{nullptr};
-  error_code =
-    cugraph_type_erased_device_array_create_from_view(handle, counts, &new_device_counts, error);
+  cugraph_type_erased_device_array_t* new_device_counts_ptr{nullptr};
+  error_code = cugraph_type_erased_device_array_create_from_view(
+    handle, counts, &new_device_counts_ptr, error);
   if (error_code != CUGRAPH_SUCCESS) return error_code;
+
+  device_array_unique_ptr_t new_device_counts(new_device_counts_ptr,
+                                              &cugraph_type_erased_device_array_free);
 
   // create new cugraph_sample_result_t
   *result = reinterpret_cast<cugraph_sample_result_t*>(new cugraph::c_api::cugraph_sample_result_t{
-    reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_t*>(new_device_srcs),
-    reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_t*>(new_device_dsts),
+    reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_t*>(
+      new_device_srcs.release()),
+    reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_t*>(
+      new_device_dsts.release()),
     nullptr,
-    reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_t*>(new_device_weights),
+    reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_t*>(
+      new_device_weights.release()),
     nullptr,
-    reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_t*>(new_device_counts)});
+    reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_t*>(
+      new_device_counts.release())});
 
   return CUGRAPH_SUCCESS;
 }

@@ -78,8 +78,8 @@ def uniform_neighbor_sample(ResourceHandle resource_handle,
         Handle to the underlying device and host resources needed for
         referencing data and running algorithms.
 
-    input_graph: MGGraph
-        The input graph, for Multi-GPU operations.
+    input_graph : SGGraph or MGGraph
+        The input graph, for either Single or Multi-GPU operations.
 
     start_list: device array type
         Device array containing the list of starting vertices for sampling.

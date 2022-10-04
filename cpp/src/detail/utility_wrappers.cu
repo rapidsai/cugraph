@@ -61,6 +61,26 @@ template void uniform_random_fill(rmm::cuda_stream_view const& stream_view,
                                   uint64_t seed);
 
 template <typename value_t>
+void scalar_fill(raft::handle_t const& handle, value_t* d_value, size_t size, value_t value)
+{
+  thrust::fill_n(handle.get_thrust_policy(), d_value, size, value);
+}
+
+template void scalar_fill(raft::handle_t const& handle,
+                          int32_t* d_value,
+                          size_t size,
+                          int32_t value);
+
+template void scalar_fill(raft::handle_t const& handle,
+                          int64_t* d_value,
+                          size_t size,
+                          int64_t value);
+
+template void scalar_fill(raft::handle_t const& handle, float* d_value, size_t size, float value);
+
+template void scalar_fill(raft::handle_t const& handle, double* d_value, size_t size, double value);
+
+template <typename value_t>
 void sequence_fill(rmm::cuda_stream_view const& stream_view,
                    value_t* d_value,
                    size_t size,
@@ -78,6 +98,11 @@ template void sequence_fill(rmm::cuda_stream_view const& stream_view,
                             int64_t* d_value,
                             size_t size,
                             int64_t start_value);
+
+template void sequence_fill(rmm::cuda_stream_view const& stream_view,
+                            uint64_t* d_value,
+                            size_t size,
+                            uint64_t start_value);
 
 template <typename vertex_t>
 vertex_t compute_maximum_vertex_id(rmm::cuda_stream_view const& stream_view,
