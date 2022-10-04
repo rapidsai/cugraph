@@ -52,10 +52,11 @@ count_and_remove_duplicates(raft::handle_t const& handle,
 
   thrust::sort(handle.get_thrust_policy(), tuple_iter_begin, tuple_iter_begin + src.size());
 
-  auto num_uniques = thrust::count_if(handle.get_thrust_policy(),
-                                      thrust::make_counting_iterator(size_t{0}),
-                                      thrust::make_counting_iterator(src.size()),
-                                      detail::is_first_in_run_t<decltype(tuple_iter_begin)>{tuple_iter_begin});
+  auto num_uniques =
+    thrust::count_if(handle.get_thrust_policy(),
+                     thrust::make_counting_iterator(size_t{0}),
+                     thrust::make_counting_iterator(src.size()),
+                     detail::is_first_in_run_t<decltype(tuple_iter_begin)>{tuple_iter_begin});
 
   rmm::device_uvector<vertex_t> result_src(num_uniques, handle.get_stream());
   rmm::device_uvector<vertex_t> result_dst(num_uniques, handle.get_stream());
