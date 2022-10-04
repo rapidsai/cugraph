@@ -18,6 +18,7 @@ from cugraph.utilities import (ensure_cugraph_obj_for_nx,
                                df_score_to_dictionary,
                                )
 import cudf
+import warnings
 
 
 def katz_centrality(
@@ -111,6 +112,12 @@ def katz_centrality(
 
     """
     G, isNx = ensure_cugraph_obj_for_nx(G)
+
+    if G.store_transposed is False:
+        warning_msg = ("Katz centrality expects the 'store_transposed' flag "
+                       "to be set to 'True' for optimal performance during "
+                       "the graph creation")
+        warnings.warn(warning_msg, UserWarning)
 
     if alpha is None:
         degree_max = G.degree()['degree'].max()

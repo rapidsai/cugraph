@@ -919,6 +919,84 @@ def test_add_edge_data_prop_columns(df_type):
     assert type_is_categorical(pG)
 
 
+@pytest.mark.parametrize("df_type", df_types, ids=df_type_id)
+def test_add_edge_data_with_ids(df_type):
+    """
+    add_edge_data() on "transactions" table, all properties.
+    """
+    from cugraph.experimental import PropertyGraph
+
+    transactions = dataset1["transactions"]
+    transactions_df = df_type(columns=transactions[0],
+                              data=transactions[1])
+    transactions_df["edge_id"] = list(range(10, 10 + len(transactions_df)))
+
+    pG = PropertyGraph()
+    pG.add_edge_data(transactions_df,
+                     type_name="transactions",
+                     edge_id_col_name="edge_id",
+                     vertex_col_names=("user_id", "merchant_id"),
+                     property_columns=None)
+
+    assert pG.get_num_vertices() == 7
+    # 'transactions' is edge type, not vertex type
+    assert pG.get_num_vertices('transactions') == 0
+    assert pG.get_num_edges() == 4
+    assert pG.get_num_edges('transactions') == 4
+    # Original SRC and DST columns no longer include "merchant_id", "user_id"
+    expected_props = ["volume", "time", "card_num", "card_type"]
+    assert sorted(pG.edge_property_names) == sorted(expected_props)
+
+    relationships = dataset1["relationships"]
+    relationships_df = df_type(columns=relationships[0],
+                               data=relationships[1])
+
+    # user-provided, then auto-gen (not allowed)
+    with pytest.raises(NotImplementedError):
+        pG.add_edge_data(relationships_df,
+                         type_name="relationships",
+                         vertex_col_names=("user_id_1", "user_id_2"),
+                         property_columns=None)
+
+    relationships_df["edge_id"] = list(range(30, 30 + len(relationships_df)))
+
+    pG.add_edge_data(relationships_df,
+                     type_name="relationships",
+                     edge_id_col_name="edge_id",
+                     vertex_col_names=("user_id_1", "user_id_2"),
+                     property_columns=None)
+
+    if df_type is cudf.DataFrame:
+        ase = assert_series_equal
+    else:
+        ase = pd.testing.assert_series_equal
+    df = pG.get_edge_data(types='transactions')
+    ase(
+        df[pG.edge_id_col_name].sort_values().reset_index(drop=True),
+        transactions_df["edge_id"],
+        check_names=False,
+    )
+    df = pG.get_edge_data(types='relationships')
+    ase(
+        df[pG.edge_id_col_name].sort_values().reset_index(drop=True),
+        relationships_df["edge_id"],
+        check_names=False,
+    )
+
+    # auto-gen, then user-provided (not allowed)
+    pG = PropertyGraph()
+    pG.add_edge_data(transactions_df,
+                     type_name="transactions",
+                     vertex_col_names=("user_id", "merchant_id"),
+                     property_columns=None)
+    with pytest.raises(NotImplementedError):
+        pG.add_edge_data(relationships_df,
+                         type_name="relationships",
+                         edge_id_col_name="edge_id",
+                         vertex_col_names=("user_id_1", "user_id_2"),
+                         property_columns=None)
+
+
 def test_add_edge_data_bad_args():
     """
     add_edge_data() with various bad args, checks that proper exceptions are
@@ -956,6 +1034,18 @@ def test_add_edge_data_bad_args():
                          type_name="transactions",
                          vertex_col_names=("user_id", "merchant_id"),
                          property_columns="time")
+    with pytest.raises(TypeError):
+        pG.add_edge_data(transactions_df,
+                         type_name="transactions",
+                         edge_id_col_name=42,
+                         vertex_col_names=("user_id", "merchant_id"),
+                         property_columns=None)
+    with pytest.raises(ValueError):
+        pG.add_edge_data(transactions_df,
+                         type_name="transactions",
+                         edge_id_col_name="MISSING",
+                         vertex_col_names=("user_id", "merchant_id"),
+                         property_columns=None)
 
 
 def test_extract_subgraph_vertex_prop_condition_only(dataset1_PropertyGraph):

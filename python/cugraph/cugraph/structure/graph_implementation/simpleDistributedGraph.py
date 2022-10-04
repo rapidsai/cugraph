@@ -408,7 +408,10 @@ class simpleDistributedGraphImpl:
         nodes.columns = vertex_col_names
 
         df["degree"] = 1
-        in_degree = df.groupby(dst_col_name).degree.count().reset_index()
+
+        # FIXME: leverage the C++ in_degree for optimal performance
+        in_degree = df.groupby(dst_col_name).degree.count(
+            split_out=df.npartitions).reset_index()
 
         # Add vertices with zero in_degree
         in_degree = nodes.merge(in_degree, how='outer').fillna(0)
@@ -494,7 +497,9 @@ class simpleDistributedGraphImpl:
         nodes.columns = vertex_col_names
 
         df["degree"] = 1
-        out_degree = df.groupby(src_col_name).degree.count().reset_index()
+        # leverage the C++ out_degree for optimal performance
+        out_degree = df.groupby(src_col_name).degree.count(
+            split_out=df.npartitions).reset_index()
 
         # Add vertices with zero out_degree
         out_degree = nodes.merge(out_degree, how='outer').fillna(0)
@@ -560,8 +565,10 @@ class simpleDistributedGraphImpl:
 
         vertex_in_degree = self.in_degree(vertex_subset)
         vertex_out_degree = self.out_degree(vertex_subset)
+        # FIXME: leverage the C++ degree for optimal performance
         vertex_degree = dask_cudf.concat([vertex_in_degree, vertex_out_degree])
-        vertex_degree = vertex_degree.groupby(['vertex'], as_index=False).sum()
+        vertex_degree = vertex_degree.groupby(['vertex'], as_index=False).sum(
+            split_out=self.input_df.npartitions)
 
         return vertex_degree
 

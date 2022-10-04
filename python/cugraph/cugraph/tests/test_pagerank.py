@@ -195,7 +195,7 @@ def test_pagerank(
     G = cugraph.Graph(directed=True)
     G.from_cudf_edgelist(
         cu_M, source="0", destination="1", edge_attr="2",
-        legacy_renum_only=True)
+        legacy_renum_only=True, store_transposed=True)
 
     if has_precomputed_vertex_out_weight == 1:
         df = G.view_edge_list()[["src", "weights"]]
@@ -322,7 +322,7 @@ def test_pagerank_multi_column(
     cu_G = cugraph.Graph(directed=True)
     cu_G.from_cudf_edgelist(cu_M, source=["src_0", "src_1"],
                             destination=["dst_0", "dst_1"],
-                            edge_attr="weights")
+                            edge_attr="weights", store_transposed=True)
 
     if has_precomputed_vertex_out_weight == 1:
         df = cu_M[["src_0", "src_1", "weights"]]
@@ -373,7 +373,8 @@ def test_pagerank_invalid_personalization_dtype():
 
     cu_M["weights"] = cudf.Series(M["weight"])
     G.from_cudf_edgelist(
-        cu_M, source="src", destination="dst", edge_attr="weights"
+        cu_M, source="src", destination="dst", edge_attr="weights",
+        store_transposed=True
     )
 
     personalization_vec = cudf.DataFrame()
@@ -386,3 +387,20 @@ def test_pagerank_invalid_personalization_dtype():
 
     with pytest.warns(UserWarning, match=warning_msg):
         cugraph.pagerank(G, personalization=personalization_vec)
+
+
+def test_pagerank_transposed_false():
+    input_data_path = (utils.RAPIDS_DATASET_ROOT_DIR_PATH /
+                       "karate.csv").as_posix()
+    cu_M = utils.read_csv_file(input_data_path)
+    G = cugraph.Graph(directed=True)
+    G.from_cudf_edgelist(
+        cu_M, source="0", destination="1", edge_attr="2",
+        legacy_renum_only=True, store_transposed=False)
+
+    warning_msg = ("Pagerank expects the 'store_transposed' "
+                   "flag to be set to 'True' for optimal performance during "
+                   "the graph creation")
+
+    with pytest.warns(UserWarning, match=warning_msg):
+        cugraph.pagerank(G)

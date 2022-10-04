@@ -51,7 +51,8 @@ def test_dask_eigenvector_centrality(dask_client, directed, input_data_path):
         dtype=["int32", "int32", "float32"],
     )
     dg = cugraph.Graph(directed=True)
-    dg.from_dask_cudf_edgelist(ddf, "src", "dst", legacy_renum_only=True)
+    dg.from_dask_cudf_edgelist(
+        ddf, "src", "dst", legacy_renum_only=True, store_transposed=True)
     mg_res = dcg.eigenvector_centrality(dg, tol=1e-6)
     mg_res = mg_res.compute()
     import networkx as nx
@@ -84,3 +85,28 @@ def test_dask_eigenvector_centrality(dask_client, directed, input_data_path):
         if diff > tol * 1.1:
             err = err + 1
     assert err == 0
+
+
+def test_dask_eigenvector_centrality_transposed_false(dask_client):
+    input_data_path = DATASETS[0]
+
+    chunksize = dcg.get_chunksize(input_data_path)
+
+    ddf = dask_cudf.read_csv(
+        input_data_path,
+        chunksize=chunksize,
+        delimiter=" ",
+        names=["src", "dst", "value"],
+        dtype=["int32", "int32", "float32"],
+    )
+
+    dg = cugraph.Graph(directed=True)
+    dg.from_dask_cudf_edgelist(
+        ddf, "src", "dst", legacy_renum_only=True, store_transposed=False)
+
+    warning_msg = ("Eigenvector centrality expects the 'store_transposed' "
+                   "flag to be set to 'True' for optimal performance during "
+                   "the graph creation")
+
+    with pytest.warns(UserWarning, match=warning_msg):
+        dcg.eigenvector_centrality(dg)
