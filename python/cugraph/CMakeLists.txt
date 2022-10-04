@@ -47,8 +47,8 @@ option(FIND_CUGRAPH_CPP "Search for existing CUGRAPH C++ installations before de
 )
 option(CUGRAPH_BUILD_WHEELS "Whether we're building a wheel for pypi" OFF)
 
-set(CUGRAPH_VERSION_MAJOR "${pylibcugraph-python_VERSION_MAJOR}")
-set(CUGRAPH_VERSION_MINOR "${pylibcugraph-python_VERSION_MINOR}")
+set(CUGRAPH_VERSION_MAJOR "${cugraph-python_VERSION_MAJOR}")
+set(CUGRAPH_VERSION_MINOR "${cugraph-python_VERSION_MINOR}")
 
 # get_raft.cmake requires rapids-cpm to be initialized.
 include(rapids-cpm)
@@ -60,12 +60,10 @@ rapids_cpm_init()
 include(../../cpp/cmake/thirdparty/get_raft.cmake)
 
 
-
-
 # If the user requested it,  we attempt to find CUGRAPH.
 if(FIND_CUGRAPH_CPP)
   message(STATUS "Trying to find the package")
-  find_package(cugraph ${pylibcugraph_version} REQUIRED)
+  find_package(cugraph ${cugraph_version} REQUIRED)
 else()
   set(cugraph_FOUND OFF)
 endif()
