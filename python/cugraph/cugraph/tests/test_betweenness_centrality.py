@@ -106,10 +106,7 @@ def calc_betweenness_centrality(
     """
     G = None
     Gnx = None
-    """
-    G, Gnx = utils.build_cu_and_nx_graphs(graph_file, directed=directed,
-                                          edgevals=edgevals)
-    """
+
     if edgevals:
         edge_attr = "weight"
     else:
@@ -119,7 +116,6 @@ def calc_betweenness_centrality(
         create_using=cugraph.Graph(
             directed=directed), ignore_weights=not edgevals)
 
-    # FIXME: extend the capabilities of the dataset API to return a Nx Graph
     M = G.to_pandas_edgelist().rename(
         columns={'src': '0', 'dst': '1', 'weights': 'weight'})
 
