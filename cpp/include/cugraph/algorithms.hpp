@@ -1316,6 +1316,10 @@ extract_ego(raft::handle_t const& handle,
  * @brief returns random walks (RW) from starting sources, where each path is of given maximum
  * length. Uniform distribution is assumed for the random engine.
  *
+ * @deprecated This algorithm will be deprecated once all of the functionality is migrated
+ *             to the newer APIS: uniform_random_walks(), biased_random_walks(), and
+ *             node2vec_random_walks().
+ *
  * @tparam graph_t Type of graph/view (typically, graph_view_t).
  * @tparam index_t Type used to store indexing and sizes.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
@@ -1607,6 +1611,37 @@ void core_number(raft::handle_t const& handle,
                  size_t k_first          = 0,
                  size_t k_last           = std::numeric_limits<size_t>::max(),
                  bool do_expensive_check = false);
+
+/**
+ * @brief   Extract K Core of a graph
+ *
+ * @throws     cugraph::logic_error when an error occurs.
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam weight_t Type of edge weights. Needs to be a floating point type.
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
+ * @param  graph_view      Graph view object.
+ * @param  k               Order of the core. This value must not be negative.
+ * @param degree_type Optional parameter to dictate whether to compute the K-core decomposition
+ *                    based on in-degrees, out-degrees, or in-degrees + out_degrees.  One of @p
+ *                    degree_type and @p core_numbers must be specified.
+ * @param  core_numbers    Optional output from core_number algorithm.  If not specified then
+ *                         k_core will call core_number itself using @p degree_type
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
+ *
+ * @return edge list for the graph
+ */
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+std::tuple<rmm::device_uvector<vertex_t>,
+           rmm::device_uvector<vertex_t>,
+           std::optional<rmm::device_uvector<weight_t>>>
+k_core(raft::handle_t const& handle,
+       graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
+       size_t k,
+       std::optional<k_core_degree_type_t> degree_type,
+       std::optional<raft::device_span<edge_t const>> core_numbers,
+       bool do_expensive_check = false);
 
 /**
  * @brief Uniform Neighborhood Sampling.

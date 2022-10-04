@@ -43,6 +43,10 @@ unset GIT_DESCRIBE_TAG
 # ucx-py version
 export UCX_PY_VERSION='0.28.*'
 
+# Whether to keep `dask/label/dev` channel in the env. If INSTALL_DASK_MAIN=0,
+# `dask/label/dev` channel is removed.
+export INSTALL_DASK_MAIN=0
+
 ################################################################################
 # SETUP - Check environment
 ################################################################################
@@ -58,6 +62,12 @@ gpuci_logger "Activate conda env"
 conda activate rapids
 export PATH=$(conda info --base)/envs/rapids/bin:$PATH
 
+
+# Remove `dask/label/dev` channel if INSTALL_DASK_MAIN=0
+if [[ "${INSTALL_DASK_MAIN}" == 0 ]]; then
+  conda config --system --remove channels dask/label/dev
+fi
+
 gpuci_logger "Install dependencies"
 # Assume libcudf and librmm will be installed via cudf and rmm respectively.
 # This is done to prevent the following install scenario:
@@ -71,7 +81,9 @@ gpuci_mamba_retry install -c rapidsai-nightly/label/testing -y \
       "cudf=${MINOR_VERSION}" \
       "rmm=${MINOR_VERSION}" \
       "libraft-headers=${MINOR_VERSION}" \
-      "pyraft=${MINOR_VERSION}" \
+      "libraft-distance=${MINOR_VERSION}" \
+      "pylibraft=${MINOR_VERSION}" \
+      "raft-dask=${MINOR_VERSION}" \
       "cudatoolkit=$CUDA_REL" \
       "dask-cudf=${MINOR_VERSION}" \
       "dask-cuda=${MINOR_VERSION}" \
@@ -114,7 +126,9 @@ else
     export VERSION_SUFFIX=""
     gpuci_conda_retry mambabuild conda/recipes/pylibcugraph --no-build-id --croot ${CONDA_BLD_DIR} -c ${CONDA_ARTIFACT_PATH} --python=${PYTHON}
     gpuci_conda_retry mambabuild conda/recipes/cugraph --no-build-id --croot ${CONDA_BLD_DIR} -c ${CONDA_ARTIFACT_PATH} --python=${PYTHON}
-    gpuci_mamba_retry install cugraph pylibcugraph -c ${CONDA_BLD_DIR} -c ${CONDA_ARTIFACT_PATH}
+
+    gpuci_logger "Installing pylibcugraph and cugraph from build / artifact dirs"
+    gpuci_mamba_retry install -c ${CONDA_BLD_DIR} -c ${CONDA_ARTIFACT_PATH} --strict-channel-priority pylibcugraph cugraph
 fi
 
 ################################################################################

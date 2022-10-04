@@ -14,7 +14,7 @@
 # limitations under the License.
 #=============================================================================
 
-cmake_minimum_required(VERSION 3.20.1 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.23.1 FATAL_ERROR)
 
 include(../fetch_rapids.cmake)
 include(rapids-cmake)
@@ -161,9 +161,17 @@ endif()
 ################################################################################
 # - libcugraph library target --------------------------------------------------
 
+# NOTE: The most expensive compilations are listed first
+#       since ninja will run them in parallel in this order,
+#       which should give us a better parallel schedule.
+
 set(CUGRAPH_SOURCES
-    src/detail/utility_wrappers.cu
     src/detail/shuffle_wrappers.cu
+    src/sampling/random_walks_mg.cu
+    src/community/detail/common_methods_mg.cu
+    src/community/detail/common_methods_sg.cu
+    src/detail/utility_wrappers.cu
+    src/structure/graph_view_mg.cu
     src/utilities/cython.cu
     src/utilities/path_retrieval.cu
     src/utilities/graph_bcast.cpp
@@ -181,8 +189,6 @@ set(CUGRAPH_SOURCES
     src/layout/legacy/force_atlas2.cu
     src/converters/legacy/COOtoCSR.cu
     src/community/legacy/spectral_clustering.cu
-    src/community/detail/common_methods_sg.cu
-    src/community/detail/common_methods_mg.cu
     src/community/louvain_sg.cu
     src/community/louvain_mg.cu
     src/community/leiden_sg.cu
@@ -195,7 +201,6 @@ set(CUGRAPH_SOURCES
     src/community/legacy/egonet.cu
     src/sampling/random_walks.cu
     src/sampling/random_walks_sg.cu
-    src/sampling/random_walks_mg.cu
     src/sampling/detail/sampling_utils_mg.cu
     src/sampling/detail/sampling_utils_sg.cu
     src/sampling/uniform_neighbor_sampling_mg.cpp
@@ -203,6 +208,8 @@ set(CUGRAPH_SOURCES
     src/cores/legacy/core_number.cu
     src/cores/core_number_sg.cu
     src/cores/core_number_mg.cu
+    src/cores/k_core_sg.cu
+    src/cores/k_core_mg.cu
     src/traversal/two_hop_neighbors.cu
     src/components/legacy/connectivity.cu
     src/centrality/betweenness_centrality.cu
@@ -213,7 +220,6 @@ set(CUGRAPH_SOURCES
     src/structure/graph_sg.cu
     src/structure/graph_mg.cu
     src/structure/graph_view_sg.cu
-    src/structure/graph_view_mg.cu
     src/structure/coarsen_graph_sg.cu
     src/structure/coarsen_graph_mg.cu
     src/structure/renumber_edgelist_sg.cu
@@ -310,6 +316,7 @@ if (USE_CUGRAPH_OPS)
         PUBLIC
             cugraph-ops::cugraph-ops++
             raft::raft
+    	    raft::distance
         PRIVATE
             cuco::cuco
             cugraph::cuHornet
@@ -319,6 +326,7 @@ else()
     target_link_libraries(cugraph
         PUBLIC
             raft::raft
+   	        raft::distance
         PRIVATE
             cuco::cuco
             cugraph::cuHornet
@@ -342,6 +350,7 @@ add_library(cugraph_c
         src/c_api/eigenvector_centrality.cpp
         src/c_api/core_number.cpp
         src/c_api/core_result.cpp
+        src/c_api/k_core.cpp
         src/c_api/hits.cpp
         src/c_api/bfs.cpp
         src/c_api/sssp.cpp
@@ -391,6 +400,7 @@ target_link_libraries(cugraph_c
                 CUDA::cusolver
                 CUDA::cusparse
                 raft::raft
+     	        raft::distance
         PRIVATE
                 cuco::cuco
                 cugraph::cugraph
