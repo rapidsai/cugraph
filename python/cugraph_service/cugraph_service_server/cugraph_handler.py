@@ -669,17 +669,14 @@ class CugraphHandler:
                     raise ValueError("both client_host and client_result_port "
                                      "must be set if either is set. Got: "
                                      f"{client_host=}, {client_result_port=}")
-                # The cugraph_service_client should have set up a UCX listener
-                # waiting in a background thread for the result. Create an
-                # endpoint, send results, and close.
-                ep = asyncio.run(ucp.create_endpoint(client_host,
-                                                     client_result_port))
-                # Send the individual arrays to the client to be written
-                # directly to the desired device.
-                asyncio.run(ep.send_obj(results[0]))
-                asyncio.run(ep.send_obj(results[1]))
-                asyncio.run(ep.send_obj(results[2]))
-                asyncio.run(ep.close())
+                asyncio.run(
+                    self.__ucx_send_results(client_host,
+                                            client_result_port,
+                                            results[0],
+                                            results[1],
+                                            results[2],
+                                            )
+                )
                 # FIXME: Thrift still expects something of the expected type to
                 # be returned to be serialized and sent. Look into a separate
                 # API that uses the Thrift "oneway" modifier when returning
@@ -722,6 +719,22 @@ class CugraphHandler:
 
     ###########################################################################
     # Private
+    async def __ucx_send_results(self,
+                                 client_host,
+                                 client_result_port,
+                                 *results):
+        # The cugraph_service_client should have set up a UCX listener waiting
+        # in a background thread for the result. Create an endpoint, send
+        # results, and close.
+        ep = ucp.create_endpoint(client_host, client_result_port)
+
+        # Send the individual arrays to the client to be written
+        # directly to the desired device.
+        for r in results:
+            ep.send_obj(r)
+
+        ep.close()
+
     def __get_dataframe_from_csv(self,
                                  csv_file_name,
                                  delimiter,

@@ -98,6 +98,36 @@ def input_combo(request):
     return parameters
 
 
+@pytest.fixture(scope="module")
+def simple_unweighted_input_expected_output(request):
+    """
+    Fixture for providing the input for a uniform_neighbor_sample test using a
+    small/simple unweighted graph and the corresponding expected output.
+    """
+    test_data = {}
+
+    df = cudf.DataFrame({
+        'src': [0, 1, 2, 2, 0, 1, 4, 4],
+        'dst': [3, 2, 1, 4, 1, 3, 1, 2]
+    })
+    ddf = dask_cudf.from_cudf(df)
+
+    G = cugraph.Graph()
+    G.from_dask_cudf_edgelist(ddf, source='src', destination='dst')
+    test_data["Graph"] = G
+    test_data["start_list"] = cudf.Series([0], dtype="int32")
+    test_data["fanout_vals"] = [-1]
+    test_data["with_replacement"] = True
+
+    test_data["expected_src"] = [0, 0]
+    test_data["expected_dst"] = [3, 1]
+
+    return test_data
+
+
+# =============================================================================
+# Tests
+# =============================================================================
 def test_mg_uniform_neighbor_sample_simple(dask_client, input_combo):
 
     dg = input_combo["MGGraph"]
@@ -287,3 +317,37 @@ def test_mg_uniform_neighbor_sample_ensure_no_duplicates(dask_client):
     )
 
     assert len(output_df.compute()) == 3
+
+
+def test_uniform_neighbor_sample_unweighted_arrays_returned(
+        simple_unweighted_input_expected_output):
+
+    """
+    Ensure that a tuple of cupy arrays are returned when specified instead of a
+    cudf DataFrame.
+    """
+    test_data = simple_unweighted_input_expected_output
+
+    # Set the flag to return a tuple of cupy arrays
+    uniform_neighbor_sample._return_type = "arrays"
+
+    result = uniform_neighbor_sample(
+        test_data["Graph"],
+        test_data["start_list"],
+        test_data["fanout_vals"],
+        test_data["with_replacement"]
+    )
+
+    # After the call, ensure the flag is reset to allow the default return type
+    assert uniform_neighbor_sample._return_type == ""
+
+    assert type(result) is tuple
+    assert isinstance(result[0], cupy.ndarray)
+    assert isinstance(result[1], cupy.ndarray)
+    assert isinstance(result[2], cupy.ndarray)
+
+    actual_src = result[0]
+    assert sorted(actual_src) == sorted(test_data["expected_src"])
+
+    actual_dst = result[1]
+    assert sorted(actual_dst) == sorted(test_data["expected_dst"])

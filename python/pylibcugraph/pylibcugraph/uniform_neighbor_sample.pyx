@@ -154,24 +154,6 @@ def uniform_neighbor_sample(ResourceHandle resource_handle,
     cupy_destinations = result.get_destinations()
     cupy_indices = result.get_indices()
 
-    """
-    #### OLD
-    # FIXME: remove unused cimports after this code is removed
-    cdef cugraph_type_erased_device_array_view_t* src_ptr = \
-        cugraph_sample_result_get_sources(result_ptr)
-    cdef cugraph_type_erased_device_array_view_t* dst_ptr = \
-        cugraph_sample_result_get_destinations(result_ptr)
-    cdef cugraph_type_erased_device_array_view_t* index_ptr = \
-        cugraph_sample_result_get_index(result_ptr)
-
-    cupy_sources = copy_to_cupy_array(c_resource_handle_ptr, src_ptr)
-    cupy_destinations = copy_to_cupy_array(c_resource_handle_ptr, dst_ptr)
-    cupy_indices = copy_to_cupy_array(c_resource_handle_ptr, index_ptr)
-
-    cugraph_sample_result_free(result_ptr)
-    ####
-    """
-
     cugraph_type_erased_device_array_view_free(start_ptr)
     cugraph_type_erased_host_array_view_free(fan_out_ptr)
 

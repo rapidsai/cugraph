@@ -936,21 +936,21 @@ class CugraphServiceClient:
             # FIXME: check for valid device
             result_obj = UniformNeighborSampleResult()
 
-            def allocator(nbytes):
+            def uint8_allocator(nbytes):
                 with cp.cuda.Device(result_device):
-                    a = cp.empty((nbytes//4), dtype="int32")
+                    a = cp.empty(nbytes, dtype="uint8")
                 return a
 
             async def receiver(endpoint):
                 # result_obj.result = await endpoint.recv_obj()
                 with cp.cuda.Device(result_device):
                     result_obj.sources = await endpoint.recv_obj(
-                        allocator=allocator)
+                        allocator=uint8_allocator)
                     result_obj.destination = await endpoint.recv_obj(
-                        allocator=allocator)
+                        allocator=uint8_allocator)
                     result_obj.indices = await endpoint.recv_obj(
-                        allocator=allocator)
-                await endpoint.close()
+                        allocator=uint8_allocator)
+                #await endpoint.close()
                 listener.close()
 
             listener = ucp.create_listener(receiver, self.results_port)
