@@ -770,8 +770,8 @@ class EXPERIMENTAL__MGPropertyGraph:
             unweighted.
         check_multi_edges : bool (default is True)
             When True and create_using argument is given and not a MultiGraph,
-            this will perform an expensive check to verify that the edges in
-            the edge dataframe do not form a multigraph with duplicate edges.
+            this will perform a check to verify that the edges in the edge
+            dataframe do not form a multigraph with duplicate edges.
         renumber_graph : bool (default is True)
             If True, return a Graph that has been renumbered for use by graph
             algorithms. If False, the returned graph will need to be manually
