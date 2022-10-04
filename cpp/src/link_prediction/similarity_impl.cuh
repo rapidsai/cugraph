@@ -15,8 +15,15 @@
  */
 #pragma once
 
-#include <raft/core/span.hpp>
+#include <prims/per_v_pair_transform_dst_nbr_intersection.cuh>
+#include <prims/update_edge_src_dst_property.cuh>
+
+#include <cugraph/graph_view.hpp>
+
+#include <raft/core/device_span.hpp>
 #include <raft/handle.hpp>
+
+#include <rmm/device_uvector.hpp>
 
 #include <optional>
 #include <tuple>
@@ -32,15 +39,52 @@ rmm::device_uvector<weight_t> similarity(
   bool use_weights,
   functor_t functor)
 {
-  CUGRAPH_FAIL("not implemented");
+  using GraphViewType               = graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu>;
+  constexpr bool do_expensive_check = false;
 
-  // Implementation, using primitives, that computes:
-  //   For use_weights == False:  cardinality of A intersect B
-  //   For use_weights == True:   sum of minimum weight in A intersect B, sum of maximum weight in A
-  //   intersect B
-  //
-  // Then use the functor to compute the score
-  //
+  CUGRAPH_EXPECTS(std::get<0>(vertex_pairs).size() == std::get<1>(vertex_pairs).size(),
+                  "vertex pairs have mismatched sizes");
+
+  if (use_weights)
+    CUGRAPH_EXPECTS(graph_view.is_weighted(), "attempting to use weights on an unweighted graph");
+
+  size_t num_vertex_pairs = std::get<0>(vertex_pairs).size();
+  auto vertex_pairs_begin =
+    thrust::make_zip_iterator(std::get<0>(vertex_pairs).data(), std::get<1>(vertex_pairs).data());
+
+  if (use_weights) {
+    // FIXME: need implementation, similar to unweighted
+    //    Use compute_out_weight_sums instead of compute_out_degrees
+    //    Sum up for each common edge compute (u,a,v): min weight ((u,a), (a,v)) and
+    //        max weight((u,a), (a,v)).
+    //    Use these to compute weighted score
+    //
+    CUGRAPH_FAIL("weighted similarity computations are not supported in this release");
+  } else {
+    rmm::device_uvector<weight_t> similarity_score(num_vertex_pairs, handle.get_stream());
+
+    //
+    //  Compute vertex_degree for all vertices, then distribute to each GPU.
+    //  Need to use this instead of the dummy properties below
+    //
+    auto out_degrees = graph_view.compute_out_degrees(handle);
+
+    per_v_pair_transform_dst_nbr_intersection(
+      handle,
+      graph_view,
+      vertex_pairs_begin,
+      vertex_pairs_begin + num_vertex_pairs,
+      out_degrees.begin(),
+      [functor] __device__(auto v1, auto v2, auto v1_degree, auto v2_degree, auto intersection) {
+        return functor.compute_score(static_cast<weight_t>(v1_degree),
+                                     static_cast<weight_t>(v2_degree),
+                                     static_cast<weight_t>(intersection.size()));
+      },
+      similarity_score.begin(),
+      do_expensive_check);
+
+    return similarity_score;
+  }
 }
 
 }  // namespace detail

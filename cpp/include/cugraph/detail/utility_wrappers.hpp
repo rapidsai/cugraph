@@ -48,6 +48,21 @@ void uniform_random_fill(rmm::cuda_stream_view const& stream_view,
                          uint64_t seed);
 
 /**
+ * @brief    Fill a buffer with a constant value
+ *
+ * @tparam      value_t      type of the value to operate on
+ *
+ * @param [in]  handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator,
+ * and handles to various CUDA libraries) to run graph algorithms.
+ * @param[out]  d_value      device array to fill
+ * @param[in]   size         number of elements in array
+ * @param[in]   value        value
+ *
+ */
+template <typename value_t>
+void scalar_fill(raft::handle_t const& handle, value_t* d_value, size_t size, value_t value);
+
+/**
  * @brief    Fill a buffer with a sequence of values
  *
  * Fills the buffer with the sequence:
