@@ -127,7 +127,7 @@ def test_digraph_rejected():
 def test_edge_cut_clustering_with_edgevals_nx(graph_file, partitions):
     gc.collect()
 
-    G = cugraph.Graph()
+    # G = cugraph.Graph()
     # read_weights_in_sp=True => value column dtype is float32
     G = graph_file.get_graph()
     NM = G.to_pandas_edgelist().rename(
