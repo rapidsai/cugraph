@@ -908,13 +908,13 @@ class CugraphServiceClient:
                 node2vec_result.path_sizes)
 
     @__server_connection
-    async def uniform_neighbor_sample(self,
-                                      start_list,
-                                      fanout_vals,
-                                      with_replacement=True,
-                                      *,
-                                      graph_id=defaults.graph_id,
-                                      result_device=None):
+    def uniform_neighbor_sample(self,
+                                start_list,
+                                fanout_vals,
+                                with_replacement=True,
+                                *,
+                                graph_id=defaults.graph_id,
+                                result_device=None):
         """
         Samples the graph and returns ...
 
@@ -933,46 +933,14 @@ class CugraphServiceClient:
         -------
         """
         if result_device is not None:
-            # FIXME: check for valid device
-            result_obj = UniformNeighborSampleResult()
-
-            def uint8_allocator(nbytes):
-                with cp.cuda.Device(result_device):
-                    a = cp.empty(nbytes, dtype="uint8")
-                return a
-
-            async def receiver(endpoint):
-                # result_obj.result = await endpoint.recv_obj()
-                with cp.cuda.Device(result_device):
-                    result_obj.sources = await endpoint.recv_obj(
-                        allocator=uint8_allocator)
-                    result_obj.destination = await endpoint.recv_obj(
-                        allocator=uint8_allocator)
-                    result_obj.indices = await endpoint.recv_obj(
-                        allocator=uint8_allocator)
-                #await endpoint.close()
-                listener.close()
-
-            listener = ucp.create_listener(receiver, self.results_port)
-
-            uns_thread = threading.Thread(
-                target=self.__client.uniform_neighbor_sample,
-                args=(start_list,
-                      fanout_vals,
-                      with_replacement,
-                      graph_id,
-                      ),
-                kwargs={"client_host": self.host,
-                        "client_result_port": self.results_port,
-                        },
+            result_obj = asyncio.run(
+                self.__uniform_neighbor_sample_to_device(
+                    start_list,
+                    fanout_vals,
+                    with_replacement,
+                    graph_id,
+                    result_device)
             )
-            uns_thread.start()
-
-            while not listener.closed():
-                await asyncio.sleep(0.05)
-
-            uns_thread.join()
-
         else:
             result_obj = self.__client.uniform_neighbor_sample(
                 start_list,
@@ -1003,6 +971,57 @@ class CugraphServiceClient:
 
     ###########################################################################
     # Private
+    async def __uniform_neighbor_sample_to_device(self,
+                                                  start_list,
+                                                  fanout_vals,
+                                                  with_replacement,
+                                                  graph_id,
+                                                  result_device):
+        """
+        Run uniform_neighbor_sample() with the args provided, but have the
+        result send directly to the device specified by result_device.
+        """
+        # FIXME: check for valid device
+        result_obj = UniformNeighborSampleResult()
+
+        def uint8_allocator(nbytes):
+            with cp.cuda.Device(result_device):
+                a = cp.empty(nbytes, dtype="uint8")
+            return a
+
+        async def receiver(endpoint):
+            # result_obj.result = await endpoint.recv_obj()
+            with cp.cuda.Device(result_device):
+                result_obj.sources = await endpoint.recv_obj(
+                    allocator=uint8_allocator)
+                result_obj.destination = await endpoint.recv_obj(
+                    allocator=uint8_allocator)
+                result_obj.indices = await endpoint.recv_obj(
+                    allocator=uint8_allocator)
+            # await endpoint.close()
+            listener.close()
+
+        listener = ucp.create_listener(receiver, self.results_port)
+
+        uns_thread = threading.Thread(
+            target=self.__client.uniform_neighbor_sample,
+            args=(start_list,
+                  fanout_vals,
+                  with_replacement,
+                  graph_id,
+                  ),
+            kwargs={"client_host": self.host,
+                    "client_result_port": self.results_port,
+                    },
+        )
+        uns_thread.start()
+
+        while not listener.closed():
+            await asyncio.sleep(0.05)
+
+        uns_thread.join()
+        return result_obj
+
     @staticmethod
     def __get_vertex_edge_id_obj(id_or_ids):
         # FIXME: do not assume all values are int32

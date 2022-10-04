@@ -29,6 +29,12 @@ def mg_server():
     """
     Start a cugraph_service server that uses multiple GPUs via a dask
     configuration, then stop it when done with the fixture.
+
+    This requires that a dask scheduler be running, and the corresponding
+    SCHEDULER_FILE env var is set.  The scheduler can be started using the
+    script in this repo:
+    "<repo>/python/cugraph_service/scripts/run-dask-process.sh scheduler
+    workers"
     """
     from cugraph_service_client import CugraphServiceClient
     from cugraph_service_client.exceptions import CugraphServiceError
