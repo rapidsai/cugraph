@@ -72,7 +72,8 @@ class Dataset:
         self._dl_path = default_download_dir
         self._edgelist = None
         self._graph = None
-        self._path = None
+        self._path = self._dl_path.path / (self.metadata['name'] +
+                                           self.metadata['file_type'])
 
     def __download_csv(self, url):
         self._dl_path.path.mkdir(parents=True, exist_ok=True)
@@ -98,9 +99,7 @@ class Dataset:
         """
 
         if self._edgelist is None:
-            full_path = self._dl_path.path / (self.metadata['name'] +
-                                              self.metadata['file_type'])
-
+            full_path = self._path
             if not full_path.is_file():
                 if fetch:
                     self.__download_csv(self.metadata['url'])
@@ -113,7 +112,7 @@ class Dataset:
                                            delimiter=self.metadata['delim'],
                                            names=self.metadata['col_names'],
                                            dtype=self.metadata['col_types'])
-            self._path = full_path
+            # self._path = full_path
 
         return self._edgelist
 
@@ -144,6 +143,7 @@ class Dataset:
         if create_using is None:
             self._graph = Graph()
         elif isinstance(create_using, Graph):
+            # what about BFS if trnaposed is True
             attrs = {"directed": create_using.is_directed()}
             self._graph = type(create_using)(**attrs)
         elif type(create_using) is type:
@@ -166,10 +166,6 @@ class Dataset:
         """
         Returns the location of the stored dataset file
         """
-        if self._path is None:
-            raise RuntimeError("Path to datafile has not been set." +
-                               " Call get_edgelist or get_graph first")
-
         return self._path.absolute()
 
 
