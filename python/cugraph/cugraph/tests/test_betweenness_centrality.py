@@ -115,7 +115,6 @@ def calc_betweenness_centrality(
     else:
         edge_attr = None
 
-    # FIXME: Find a cleaner way to return a directed graph
     G = graph_file.get_graph(
         create_using=cugraph.Graph(
             directed=directed), ignore_weights=not edgevals)
