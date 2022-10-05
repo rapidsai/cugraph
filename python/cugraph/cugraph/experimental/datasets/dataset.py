@@ -72,8 +72,11 @@ class Dataset:
         self._dl_path = default_download_dir
         self._edgelist = None
         self._graph = None
+        self._path = None
+        """
         self._path = self._dl_path.path / (self.metadata['name'] +
                                            self.metadata['file_type'])
+        """
 
     def __download_csv(self, url):
         self._dl_path.path.mkdir(parents=True, exist_ok=True)
@@ -99,7 +102,7 @@ class Dataset:
         """
 
         if self._edgelist is None:
-            full_path = self._path
+            full_path = self.get_path()
             if not full_path.is_file():
                 if fetch:
                     self.__download_csv(self.metadata['url'])
@@ -168,6 +171,9 @@ class Dataset:
         """
         Returns the location of the stored dataset file
         """
+        self._path = self._dl_path.path / (self.metadata['name'] +
+                                           self.metadata['file_type'])
+
         return self._path.absolute()
 
 
