@@ -997,23 +997,23 @@ class CugraphServiceClient:
         async def receiver(endpoint):
             # result_obj.result = await endpoint.recv_obj()
             with cp.cuda.Device(result_device):
-                print("CLIENT receiving sources...",end="",flush=True)
+                print("CLIENT receiving sources...", end="", flush=True)
                 result_obj.sources = await endpoint.recv_obj(
                     allocator=uint8_allocator)
                 result_obj.sources.astype("int32")
-                print("done",flush=True)
+                print("done", flush=True)
 
-                print("CLIENT receiving dsts...",end="",flush=True)
+                print("CLIENT receiving dsts...", end="", flush=True)
                 result_obj.destination = await endpoint.recv_obj(
                     allocator=uint8_allocator)
                 result_obj.destination.astype("int32")
-                print("done",flush=True)
+                print("done", flush=True)
 
-                print("CLIENT receiving indices...",end="",flush=True)
+                print("CLIENT receiving indices...", end="", flush=True)
                 result_obj.indices = await endpoint.recv_obj(
                     allocator=uint8_allocator)
                 result_obj.indices.astype("float64")
-                print("done",flush=True)
+                print("done", flush=True)
             # await endpoint.close()
             listener.close()
 
