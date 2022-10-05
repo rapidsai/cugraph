@@ -425,7 +425,6 @@ def test_bfs_invalid_start(gpubenchmark,
     (G, dataset, directed, nx_values, start_vertex, depth_limit) = \
         dataset_nxresults_startvertex_spc
 
-    el = G.edgelist.edgelist_df.rename()
     el = G.view_edge_list()
 
     newval = max(el.src.max(), el.dst.max()) + 1

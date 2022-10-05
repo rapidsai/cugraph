@@ -19,6 +19,8 @@ import random
 import cudf
 import cugraph
 from cugraph.testing import utils
+from cugraph.experimental.datasets import (
+    DATASETS_UNDIRECTED, karate_asymmetric)
 
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
@@ -43,7 +45,7 @@ def setup_function():
 # =============================================================================
 # Pytest fixtures
 # =============================================================================
-datasets = utils.DATASETS_UNDIRECTED
+datasets = DATASETS_UNDIRECTED
 fixture_params = utils.genFixtureParamsProduct((datasets, "graph_file"),
                                                ([True, False], "edgevals"),
                                                ([True, False], "start_list"),
@@ -59,11 +61,15 @@ def input_combo(request):
     parameters = dict(
         zip(("graph_file", "edgevals", "start_list"), request.param))
 
-    input_data_path = parameters["graph_file"]
+    graph_file = parameters["graph_file"]
+    input_data_path = graph_file.get_path()
     edgevals = parameters["edgevals"]
-
+    """
     G = utils.generate_cugraph_graph_from_file(
         input_data_path, directed=False, edgevals=edgevals)
+    """
+
+    G = graph_file.get_graph(ignore_weights=not edgevals)
 
     Gnx = utils.generate_nx_graph_from_file(
         input_data_path, directed=False, edgevals=edgevals)
@@ -111,13 +117,10 @@ def test_triangles_int64(input_combo):
     Gnx = input_combo["Gnx"]
     count_legacy_32 = cugraph.triangle_count(Gnx)
 
-    graph_files = input_combo["graph_file"]
-    gdf = cudf.read_csv(graph_files,
-                        delimiter=' ',
-                        dtype=['int64', 'int64', 'float32'],
-                        header=None)
-    G = cugraph.Graph()
-    G.from_cudf_edgelist(gdf, source='0', destination='1', edge_attr='2')
+    graph_file = input_combo["graph_file"]
+    G = graph_file.get_graph()
+    G.edgelist.edgelist_df = G.edgelist.edgelist_df.astype(
+        {"src": "int64", "dst": "int64"})
 
     count_exp_64 = cugraph.triangle_count(G).sort_values(
                 "vertex").reset_index(drop=True).rename(columns={
@@ -135,14 +138,9 @@ def test_triangles_no_weights(input_combo):
                 "vertex").reset_index(drop=True).rename(columns={
                     "counts": "exp_cugraph_counts"})
 
-    graph_files = input_combo["graph_file"]
-    gdf = cudf.read_csv(graph_files,
-                        delimiter=' ',
-                        dtype=['int32', 'int32', 'float64'],
-                        header=None)
-    G = cugraph.Graph()
-    gdf = gdf.drop('2', axis=1)
-    G.from_cudf_edgelist(gdf, source='0', destination='1')
+    graph_file = input_combo["graph_file"]
+    G = graph_file.get_graph(ignore_weights=True)
+
     assert (G.is_weighted() is False)
     triangle_count = cugraph.triangle_count(G).sort_values(
                 "vertex").reset_index(drop=True).rename(columns={
@@ -153,8 +151,7 @@ def test_triangles_no_weights(input_combo):
 
 
 def test_triangles_directed_graph():
-    input_data_path = (utils.RAPIDS_DATASET_ROOT_DIR_PATH /
-                       "karate-asymmetric.csv").as_posix()
+    input_data_path = karate_asymmetric.get_path()
     M = utils.read_csv_for_nx(input_data_path)
     G = cugraph.Graph(directed=True)
     cu_M = cudf.DataFrame()
