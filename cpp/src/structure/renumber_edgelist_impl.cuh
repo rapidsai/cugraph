@@ -117,14 +117,16 @@ struct search_and_increment_degree_t {
 
 template <typename vertex_t>
 std::optional<vertex_t> find_locally_unused_ext_vertex_id(
-  raft::handle_t const& handle, raft::device_span<vertex_t const> sorted_local_vertices)
+  raft::handle_t const& handle,
+  raft::device_span<vertex_t const> sorted_local_vertices,
+  bool multi_gpu)
 {
   // 1. check whether we can quickly find a locally unused external vertex ID (this should be the
   // case except for some pathological cases)
 
   // 1.1 look for a vertex ID outside the edge source/destination range this GPU covers
 
-  if (handle.comms_initialized()) {
+  if (multi_gpu) {
     auto& comm               = handle.get_comms();
     auto const comm_size     = comm.get_size();
     auto& row_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
@@ -173,7 +175,7 @@ std::optional<vertex_t> find_locally_unused_ext_vertex_id(
                       handle.get_stream());
     handle.sync_stream();
   }
-  if (handle.comms_initialized() && (handle.get_comms().get_size() > int{1})) {
+  if (multi_gpu && (handle.get_comms().get_size() > int{1})) {
     min =
       host_scalar_allreduce(handle.get_comms(), min, raft::comms::op_t::MIN, handle.get_stream());
     max =
@@ -191,8 +193,8 @@ std::optional<vertex_t> find_locally_unused_ext_vertex_id(
   auto num_workers =
     std::min(static_cast<size_t>(handle.get_device_properties().multiProcessorCount) * size_t{1024},
              sorted_local_vertices.size() + size_t{1});
-  auto gpu_id_op = compute_gpu_id_from_ext_vertex_t<vertex_t>{
-    handle.comms_initialized() ? handle.get_comms().get_size() : int{1}};
+  auto gpu_id_op =
+    compute_gpu_id_from_ext_vertex_t<vertex_t>{multi_gpu ? handle.get_comms().get_size() : int{1}};
   auto unused_id = thrust::transform_reduce(
     handle.get_thrust_policy(),
     thrust::make_counting_iterator(size_t{0}),
@@ -200,13 +202,13 @@ std::optional<vertex_t> find_locally_unused_ext_vertex_id(
     find_unused_id_t<vertex_t>{sorted_local_vertices,
                                num_workers,
                                gpu_id_op,
-                               handle.comms_initialized() ? handle.get_comms().get_rank() : int{0},
+                               multi_gpu ? handle.get_comms().get_rank() : int{0},
                                std::numeric_limits<vertex_t>::max()},
     std::numeric_limits<vertex_t>::max(),  // already taken in the step 1.2, so this can't be a
                                            // valid answer
     thrust::minimum<vertex_t>{});
 
-  if (handle.comms_initialized() && (handle.get_comms().get_size() > int{1})) {
+  if (multi_gpu && (handle.get_comms().get_size() > int{1})) {
     unused_id = host_scalar_allreduce(
       handle.get_comms(), unused_id, raft::comms::op_t::MIN, handle.get_stream());
   }
@@ -339,7 +341,8 @@ std::tuple<rmm::device_uvector<vertex_t>, std::vector<vertex_t>, vertex_t> compu
 
   auto locally_unused_vertex_id = find_locally_unused_ext_vertex_id(
     handle,
-    raft::device_span<vertex_t const>(sorted_local_vertices.data(), sorted_local_vertices.size()));
+    raft::device_span<vertex_t const>(sorted_local_vertices.data(), sorted_local_vertices.size()),
+    multi_gpu);
   CUGRAPH_EXPECTS(locally_unused_vertex_id.has_value(),
                   "Invalid input arguments: there is no unused value in the entire range of "
                   "vertex_t, increase vertex_t to 64 bit.");
