@@ -18,7 +18,7 @@ import os
 from pathlib import Path
 from tempfile import NamedTemporaryFile, TemporaryDirectory
 from cugraph.experimental.datasets import (ALL_DATASETS, ALL_DATASETS_WGT,
-                                           SMALL_DATASETS)
+                                           SMALL_DATASETS, dolphins)
 from cugraph.structure import Graph
 
 
@@ -159,13 +159,6 @@ def test_get_path(dataset, datasets):
 
     assert dataset.get_path().is_file()
     tmpd.cleanup()
-
-
-# Path is None until a dataset initializes its edgelist
-@pytest.mark.parametrize("dataset", ALL_DATASETS)
-def test_get_path_raises(dataset):
-    with pytest.raises(RuntimeError):
-        dataset.get_path()
 
 
 @pytest.mark.parametrize("dataset", ALL_DATASETS_WGT)
