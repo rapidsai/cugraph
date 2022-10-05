@@ -4,6 +4,7 @@ author: null
 url: https://raw.githubusercontent.com/rapidsai/cugraph/branch-22.08/datasets/karate-disjoint.csv
 refs: null
 delim: " "
+header: None
 col_names:
   - src
   - dst
