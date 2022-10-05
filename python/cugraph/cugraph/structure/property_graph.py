@@ -873,7 +873,7 @@ class EXPERIMENTAL__PropertyGraph:
                          selection=None,
                          edge_weight_property=None,
                          default_edge_weight=None,
-                         allow_multi_edges=False,
+                         check_multi_edges=True,
                          renumber_graph=True,
                          add_edge_data=True
                          ):
@@ -888,7 +888,7 @@ class EXPERIMENTAL__PropertyGraph:
             is specified, the type of the instance is used to construct the
             return Graph, and all relevant attributes set on the instance are
             copied to the return Graph (eg. directed). If not specified the
-            returned Graph will be a directed cugraph.Graph instance.
+            returned Graph will be a directed cugraph.MultiGraph instance.
         selection : PropertySelection
             A PropertySelection returned from one or more calls to
             select_vertices() and/or select_edges(), used for creating a Graph
@@ -900,9 +900,10 @@ class EXPERIMENTAL__PropertyGraph:
             The name of the property whose values will be used as weights on
             the returned Graph. If not specified, the returned Graph will be
             unweighted.
-        allow_multi_edges : bool
-            If True, multiple edges should be used to create the return Graph,
-            otherwise multiple edges will be detected and an exception raised.
+        check_multi_edges : bool (default is True)
+            When True and create_using argument is given and not a MultiGraph,
+            this will perform an expensive check to verify that the edges in
+            the edge dataframe do not form a multigraph with duplicate edges.
         renumber_graph : bool (default is True)
             If True, return a Graph that has been renumbered for use by graph
             algorithms. If False, the returned graph will need to be manually
@@ -979,14 +980,14 @@ class EXPERIMENTAL__PropertyGraph:
         # Default create_using set here instead of function signature to
         # prevent cugraph from running on import. This may help diagnose errors
         if create_using is None:
-            create_using = cugraph.Graph(directed=True)
+            create_using = cugraph.MultiGraph(directed=True)
 
         return self.edge_props_to_graph(
             edges,
             create_using=create_using,
             edge_weight_property=edge_weight_property,
             default_edge_weight=default_edge_weight,
-            allow_multi_edges=allow_multi_edges,
+            check_multi_edges=check_multi_edges,
             renumber_graph=renumber_graph,
             add_edge_data=add_edge_data)
 
@@ -1070,7 +1071,7 @@ class EXPERIMENTAL__PropertyGraph:
                             create_using,
                             edge_weight_property=None,
                             default_edge_weight=None,
-                            allow_multi_edges=False,
+                            check_multi_edges=True,
                             renumber_graph=True,
                             add_edge_data=True):
         """
@@ -1127,9 +1128,11 @@ class EXPERIMENTAL__PropertyGraph:
 
         # Prevent duplicate edges (if not allowed) since applying them to
         # non-MultiGraphs would result in ambiguous edge properties.
-        # FIXME: make allow_multi_edges accept "auto" for use with MultiGraph
-        if (allow_multi_edges is False) and \
-           self.has_duplicate_edges(edge_prop_df):
+        if (
+            check_multi_edges
+            and not G.is_multigraph()
+            and self.is_multigraph(edge_prop_df)
+        ):
             if create_using:
                 if type(create_using) is type:
                     t = create_using.__name__
@@ -1272,17 +1275,27 @@ class EXPERIMENTAL__PropertyGraph:
         return rv[["start", "stop"]]
 
     @classmethod
-    def has_duplicate_edges(cls, df):
+    def is_multigraph(cls, df):
         """
         Return True if df has >1 of the same src, dst pair
         """
+        return cls._has_duplicates(df, [cls.src_col_name, cls.dst_col_name])
+
+    @classmethod
+    def has_duplicate_edges(cls, df, columns=None):
+        """
+        Return True if df has rows with the same src, dst, type, and columns
+        """
+        cols = [cls.src_col_name, cls.dst_col_name, cls.type_col_name]
+        if columns:
+            cols.extend(columns)
+        return cls._has_duplicates(df, cols)
+
+    @classmethod
+    def _has_duplicates(cls, df, cols):
         if df.empty:
             return False
-
-        unique_pair_len = len(df[[cls.src_col_name,
-                                  cls.dst_col_name]].drop_duplicates(
-                                  ignore_index=True))
-
+        unique_pair_len = len(df[cols].drop_duplicates(ignore_index=True))
         # if unique_pairs == len(df)
         # then no duplicate edges
         return unique_pair_len != len(df)

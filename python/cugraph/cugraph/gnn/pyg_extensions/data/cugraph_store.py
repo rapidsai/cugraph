@@ -421,7 +421,7 @@ class EXPERIMENTAL__CuGraphStore:
                 selection=selection,
                 edge_weight_property=self.__graph.edge_id_col_name,
                 default_edge_weight=1.0,
-                allow_multi_edges=True,
+                check_multi_edges=True,
                 renumber_graph=True,
                 add_edge_data=False
             )
@@ -476,8 +476,7 @@ class EXPERIMENTAL__CuGraphStore:
         # the node type groupings, and the node properties.
         noi_index, noi_groups, noi_tensors = (
             self.__get_renumbered_vertex_data_from_sample(
-                nodes_of_interest.values_host if self.is_mg
-                else nodes_of_interest
+                nodes_of_interest
             )
         )
 
@@ -495,7 +494,8 @@ class EXPERIMENTAL__CuGraphStore:
 
         # noi contains all property values
         noi = self.__graph.get_vertex_data(
-            nodes_of_interest
+            nodes_of_interest.values_host if self.is_mg
+            else nodes_of_interest
         )
         noi_types = noi[self.__graph.type_col_name].cat.categories.values_host
 

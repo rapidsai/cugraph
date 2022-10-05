@@ -388,7 +388,8 @@ class CuGraphStore:
             The sampled subgraph with the same node ID space with the original
             graph.
         """
-        _g = self.gdata.extract_subgraph(create_using=create_using)
+        _g = self.gdata.extract_subgraph(create_using=create_using,
+                                         check_multi_edges=True)
 
         if nodes is None:
             return _g
