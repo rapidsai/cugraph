@@ -18,7 +18,7 @@ import os
 from pathlib import Path
 from tempfile import NamedTemporaryFile, TemporaryDirectory
 from cugraph.experimental.datasets import (ALL_DATASETS, ALL_DATASETS_WGT,
-                                           SMALL_DATASETS, dolphins)
+                                           SMALL_DATASETS)
 from cugraph.structure import Graph
 
 
