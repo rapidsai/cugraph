@@ -268,8 +268,10 @@ def test_uniform_neighbor_sampling_result_device(
     dtype = type(result.sources)
 
     if result_device_id is None:
+        # host memory
         assert dtype is list
     else:
+        # device memory
         assert dtype is cp.ndarray
         device_n = cp.cuda.Device(result_device_id)
         assert result.sources.device is device_n
