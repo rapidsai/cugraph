@@ -107,12 +107,14 @@ class Dataset:
                     raise RuntimeError(f"The datafile {full_path} does not"
                                        " exist. Try get_edgelist(fetch=True)"
                                        " to download the datafile")
-
+            header = None
+            if isinstance(self.metadata['header'], int):
+                header = self.metadata['header']
             self._edgelist = cudf.read_csv(full_path,
                                            delimiter=self.metadata['delim'],
                                            names=self.metadata['col_names'],
-                                           dtype=self.metadata['col_types'])
-            # self._path = full_path
+                                           dtype=self.metadata['col_types'],
+                                           header=header)
 
         return self._edgelist
 
