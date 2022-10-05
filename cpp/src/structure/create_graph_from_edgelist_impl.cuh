@@ -35,6 +35,7 @@
 #include <thrust/copy.h>
 #include <thrust/count.h>
 #include <thrust/distance.h>
+#include <thrust/equal.h>
 #include <thrust/execution_policy.h>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/sort.h>
@@ -95,6 +96,15 @@ void expensive_check_edgelist(raft::handle_t const& handle,
                           vertex_t{0}, std::numeric_limits<vertex_t>::max()})) == size_t{0},
                       "Invalid input argument: vertex IDs should be in [0, "
                       "std::numeric_limits<vertex_t>::max()) if renumber is false.");
+      assert(!multi_gpu);  // renumbering is required in multi-GPU
+      rmm::device_uvector<vertex_t> sequences(sorted_vertices.size(), handle.get_stream());
+      thrust::sequence(handle.get_thrust_policy(), sequences.begin(), sequences.end(), vertex_t{0});
+      CUGRAPH_EXPECTS(thrust::equal(handle.get_thrust_policy(),
+                                    sorted_vertices.begin(),
+                                    sorted_vertices.end(),
+                                    sequences.begin()),
+                      "Invalid input argument: vertex IDs should be consecutive integers starting "
+                      "from 0 if renumber is false.");
     }
   } else if (!renumber) {
     CUGRAPH_EXPECTS(static_cast<size_t>(thrust::count_if(
@@ -617,9 +627,6 @@ create_graph_from_edgelist_impl(
   bool renumber,
   bool do_expensive_check)
 {
-  CUGRAPH_EXPECTS(renumber || (!vertices.has_value()),
-                  "Invalid input arguments: if renumber is false, vertices are assumed and "
-                  "vertices.has_value() should be false.");
   CUGRAPH_EXPECTS(!vertices || ((*vertices).size() < std::numeric_limits<vertex_t>::max()),
                   "Invalid input arguments: # unique vertex IDs should be smaller than "
                   "std::numeric_limits<vertex_t>::Max().");
@@ -664,8 +671,12 @@ create_graph_from_edgelist_impl(
   if (renumber) {
     num_vertices = static_cast<vertex_t>((*renumber_map_labels).size());
   } else {
-    num_vertices = 1 + cugraph::detail::compute_maximum_vertex_id(
-                         handle.get_stream(), edgelist_srcs, edgelist_dsts);
+    if (vertices) {
+      num_vertices = (*vertices).size();
+    } else {
+      num_vertices = 1 + cugraph::detail::compute_maximum_vertex_id(
+                           handle.get_stream(), edgelist_srcs, edgelist_dsts);
+    }
   }
 
   // convert edge list (COO) to compressed sparse format (CSR or CSC)
