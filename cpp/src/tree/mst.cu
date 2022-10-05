@@ -25,7 +25,7 @@
 #include <cugraph/legacy/graph.hpp>
 #include <cugraph/utilities/error.hpp>
 
-#include <raft/sparse/mst/mst.cuh>
+#include <raft/sparse/solver/mst.cuh>
 
 namespace cugraph {
 
@@ -40,14 +40,14 @@ std::unique_ptr<legacy::GraphCOO<vertex_t, edge_t, weight_t>> mst_impl(
 {
   auto stream = handle.get_stream();
   rmm::device_uvector<vertex_t> colors(graph.number_of_vertices, stream);
-  auto mst_edges = raft::mst::mst<vertex_t, edge_t, weight_t>(handle,
-                                                              graph.offsets,
-                                                              graph.indices,
-                                                              graph.edge_data,
-                                                              graph.number_of_vertices,
-                                                              graph.number_of_edges,
-                                                              colors.data(),
-                                                              stream);
+  auto mst_edges = raft::sparse::solver::mst<vertex_t, edge_t, weight_t>(handle,
+                                                                         graph.offsets,
+                                                                         graph.indices,
+                                                                         graph.edge_data,
+                                                                         graph.number_of_vertices,
+                                                                         graph.number_of_edges,
+                                                                         colors.data(),
+                                                                         stream);
 
   legacy::GraphCOOContents<vertex_t, edge_t, weight_t> coo_contents{
     graph.number_of_vertices,

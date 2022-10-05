@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+#include "property_generator.cuh"
+
 #include <utilities/base_fixture.hpp>
 #include <utilities/device_comm_wrapper.hpp>
 #include <utilities/high_res_clock.h>
@@ -44,28 +46,14 @@
 
 #include <random>
 
-template <typename vertex_t, typename T>
-struct property_transform : public thrust::unary_function<vertex_t, T> {
-  int mod{};
-  property_transform(int mod_count) : mod(mod_count) {}
-  constexpr __device__ auto operator()(vertex_t, const vertex_t& val)
-  {
-    cuco::detail::MurmurHash3_32<vertex_t> hash_func{};
-    auto value = hash_func(val) % mod;
-    return static_cast<T>(value);
-  }
-};
+template <typename vertex_t, typename property_t>
+struct v_op_t {
+  int32_t mod{};
 
-template <typename vertex_t, typename... Args>
-struct property_transform<vertex_t, std::tuple<Args...>>
-  : public thrust::unary_function<vertex_t, thrust::tuple<Args...>> {
-  int mod{};
-  property_transform(int mod_count) : mod(mod_count) {}
-  constexpr __device__ auto operator()(vertex_t, const vertex_t& val)
+  __device__ auto operator()(vertex_t, vertex_t val) const
   {
     cuco::detail::MurmurHash3_32<vertex_t> hash_func{};
-    auto value = hash_func(val) % mod;
-    return thrust::make_tuple(static_cast<Args>(value)...);
+    return cugraph::test::detail::make_property_value<property_t>(hash_func(val) % mod);
   }
 };
 
@@ -110,18 +98,6 @@ struct result_compare<thrust::tuple<Args...>> {
   constexpr auto equality_impl(T& t1, T& t2, std::index_sequence<I...>)
   {
     return (... && (equal(thrust::get<I>(t1), thrust::get<I>(t2))));
-  }
-};
-
-template <typename T>
-struct generate {
-  static T initial_value(int init) { return static_cast<T>(init); }
-};
-template <typename... Args>
-struct generate<std::tuple<Args...>> {
-  static thrust::tuple<Args...> initial_value(int init)
-  {
-    return thrust::make_tuple(static_cast<Args>(init)...);
   }
 };
 
@@ -178,14 +154,14 @@ class Tests_MGTransformReduceV
     const int hash_bin_count = 5;
     const int initial_value  = 10;
 
-    property_transform<vertex_t, result_t> prop(hash_bin_count);
-    auto property_initial_value = generate<result_t>::initial_value(initial_value);
-    using property_t            = decltype(property_initial_value);
+    v_op_t<vertex_t, result_t> v_op{hash_bin_count};
+    auto property_initial_value =
+      cugraph::test::generate<vertex_t, result_t>::initial_value(initial_value);
     enum class reduction_type_t { PLUS, MINIMUM, MAXIMUM };
     reduction_type_t reduction_types[] = {
       reduction_type_t::PLUS, reduction_type_t::MINIMUM, reduction_type_t::MAXIMUM};
 
-    std::unordered_map<reduction_type_t, property_t> results;
+    std::unordered_map<reduction_type_t, result_t> results;
 
     for (auto reduction_type : reduction_types) {
       if (cugraph::test::g_perf) {
@@ -198,26 +174,26 @@ class Tests_MGTransformReduceV
         case reduction_type_t::PLUS:
           results[reduction_type] = transform_reduce_v(*handle_,
                                                        mg_graph_view,
-                                                       d_mg_renumber_map_labels->begin(),
-                                                       prop,
+                                                       (*d_mg_renumber_map_labels).begin(),
+                                                       v_op,
                                                        property_initial_value,
-                                                       cugraph::reduce_op::plus<property_t>{});
+                                                       cugraph::reduce_op::plus<result_t>{});
           break;
         case reduction_type_t::MINIMUM:
           results[reduction_type] = transform_reduce_v(*handle_,
                                                        mg_graph_view,
-                                                       d_mg_renumber_map_labels->begin(),
-                                                       prop,
+                                                       (*d_mg_renumber_map_labels).begin(),
+                                                       v_op,
                                                        property_initial_value,
-                                                       cugraph::reduce_op::minimum<property_t>{});
+                                                       cugraph::reduce_op::minimum<result_t>{});
           break;
         case reduction_type_t::MAXIMUM:
           results[reduction_type] = transform_reduce_v(*handle_,
                                                        mg_graph_view,
-                                                       d_mg_renumber_map_labels->begin(),
-                                                       prop,
+                                                       (*d_mg_renumber_map_labels).begin(),
+                                                       v_op,
                                                        property_initial_value,
-                                                       cugraph::reduce_op::maximum<property_t>{});
+                                                       cugraph::reduce_op::maximum<result_t>{});
           break;
         default: FAIL() << "should not be reached.";
       }
@@ -241,38 +217,38 @@ class Tests_MGTransformReduceV
       auto sg_graph_view = sg_graph.view();
 
       for (auto reduction_type : reduction_types) {
-        property_t expected_result{};
+        result_t expected_result{};
         switch (reduction_type) {
           case reduction_type_t::PLUS:
             expected_result = transform_reduce_v(
               *handle_,
               sg_graph_view,
               thrust::make_counting_iterator(sg_graph_view.local_vertex_partition_range_first()),
-              prop,
+              v_op,
               property_initial_value,
-              cugraph::reduce_op::plus<property_t>{});
+              cugraph::reduce_op::plus<result_t>{});
             break;
           case reduction_type_t::MINIMUM:
             expected_result = transform_reduce_v(
               *handle_,
               sg_graph_view,
               thrust::make_counting_iterator(sg_graph_view.local_vertex_partition_range_first()),
-              prop,
+              v_op,
               property_initial_value,
-              cugraph::reduce_op::minimum<property_t>{});
+              cugraph::reduce_op::minimum<result_t>{});
             break;
           case reduction_type_t::MAXIMUM:
             expected_result = transform_reduce_v(
               *handle_,
               sg_graph_view,
               thrust::make_counting_iterator(sg_graph_view.local_vertex_partition_range_first()),
-              prop,
+              v_op,
               property_initial_value,
-              cugraph::reduce_op::maximum<property_t>{});
+              cugraph::reduce_op::maximum<result_t>{});
             break;
           default: FAIL() << "should not be reached.";
         }
-        result_compare<property_t> compare{};
+        result_compare<result_t> compare{};
         ASSERT_TRUE(compare(expected_result, results[reduction_type]));
       }
     }
@@ -291,14 +267,14 @@ using Tests_MGTransformReduceV_Rmat = Tests_MGTransformReduceV<cugraph::test::Rm
 TEST_P(Tests_MGTransformReduceV_File, CheckInt32Int32FloatTupleIntFloatTransposeFalse)
 {
   auto param = GetParam();
-  run_current_test<int32_t, int32_t, float, std::tuple<int, float>, false>(std::get<0>(param),
-                                                                           std::get<1>(param));
+  run_current_test<int32_t, int32_t, float, thrust::tuple<int, float>, false>(std::get<0>(param),
+                                                                              std::get<1>(param));
 }
 
 TEST_P(Tests_MGTransformReduceV_Rmat, CheckInt32Int32FloatTupleIntFloatTransposeFalse)
 {
   auto param = GetParam();
-  run_current_test<int32_t, int32_t, float, std::tuple<int, float>, false>(
+  run_current_test<int32_t, int32_t, float, thrust::tuple<int, float>, false>(
     std::get<0>(param),
     cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
@@ -306,14 +282,14 @@ TEST_P(Tests_MGTransformReduceV_Rmat, CheckInt32Int32FloatTupleIntFloatTranspose
 TEST_P(Tests_MGTransformReduceV_File, CheckInt32Int32FloatTupleIntFloatTransposeTrue)
 {
   auto param = GetParam();
-  run_current_test<int32_t, int32_t, float, std::tuple<int, float>, true>(std::get<0>(param),
-                                                                          std::get<1>(param));
+  run_current_test<int32_t, int32_t, float, thrust::tuple<int, float>, true>(std::get<0>(param),
+                                                                             std::get<1>(param));
 }
 
 TEST_P(Tests_MGTransformReduceV_Rmat, CheckInt32Int32FloatTupleIntFloatTransposeTrue)
 {
   auto param = GetParam();
-  run_current_test<int32_t, int32_t, float, std::tuple<int, float>, true>(
+  run_current_test<int32_t, int32_t, float, thrust::tuple<int, float>, true>(
     std::get<0>(param),
     cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }

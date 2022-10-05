@@ -18,6 +18,7 @@ import dask_cudf
 from cugraph.testing import utils
 import cugraph
 import random
+import cupy
 
 from pylibcugraph import bfs as pylibcugraph_bfs
 from pylibcugraph import ResourceHandle
@@ -202,3 +203,55 @@ def test_create_mg_graph(dask_client, input_combo):
         ):
             err = err + 1
     assert err == 0
+
+
+@pytest.mark.parametrize("graph_file", utils.DATASETS)
+def test_create_graph_with_edge_ids(dask_client, graph_file):
+    el = utils.read_csv_file(graph_file)
+    el['id'] = cupy.random.permutation(len(el))
+    el['id'] = el['id'].astype(el['1'].dtype)
+    el['etype'] = cupy.random.random_integers(4, size=len(el))
+    el['etype'] = el['etype'].astype('int32')
+
+    num_workers = len(Comms.get_workers())
+    el = dask_cudf.from_cudf(el, npartitions=num_workers)
+
+    with pytest.raises(ValueError):
+        G = cugraph.Graph()
+        G.from_dask_cudf_edgelist(
+            el,
+            source='0',
+            destination='1',
+            edge_attr=['2', 'id', 'etype']
+        )
+
+    G = cugraph.Graph(directed=True)
+    G.from_dask_cudf_edgelist(
+        el,
+        source='0',
+        destination='1',
+        edge_attr=['2', 'id', 'etype']
+    )
+
+
+def test_graph_repartition(dask_client):
+    input_data_path = (utils.RAPIDS_DATASET_ROOT_DIR_PATH /
+                       "karate.csv").as_posix()
+    print(f"dataset={input_data_path}")
+    chunksize = dcg.get_chunksize(input_data_path)
+
+    num_workers = len(Comms.get_workers())
+
+    ddf = dask_cudf.read_csv(
+        input_data_path,
+        chunksize=chunksize,
+        delimiter=" ",
+        names=["src", "dst", "value"],
+        dtype=["int32", "int32", "float32"],
+    )
+    more_partitions = num_workers * 100
+    ddf = ddf.repartition(npartitions=more_partitions)
+    ddf = get_distributed_data(ddf)
+
+    num_futures = len(ddf.worker_to_parts.values())
+    assert num_futures == num_workers

@@ -84,7 +84,7 @@ shuffle_edgelist_by_gpu_id(raft::handle_t const& handle,
       edge_first,
       edge_first + d_edgelist_majors.size(),
       [key_func =
-         cugraph::detail::compute_gpu_id_from_edge_t<vertex_t>{
+         cugraph::detail::compute_gpu_id_from_ext_edge_endpoints_t<vertex_t>{
            comm_size, row_comm_size, col_comm_size}] __device__(auto val) {
         return key_func(thrust::get<0>(val), thrust::get<1>(val));
       },
@@ -133,7 +133,7 @@ shuffle_edgelist_by_gpu_id(raft::handle_t const& handle,
       edge_first,
       edge_first + d_edgelist_majors.size(),
       [key_func =
-         cugraph::detail::compute_gpu_id_from_edge_t<vertex_t>{
+         cugraph::detail::compute_gpu_id_from_ext_edge_endpoints_t<vertex_t>{
            comm_size, row_comm_size, col_comm_size}] __device__(auto val) {
         return key_func(thrust::get<0>(val), thrust::get<1>(val));
       },
@@ -364,7 +364,7 @@ rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partition_id(
       [comm_size,
        row_comm_size,
        partition_id_key_func =
-         cugraph::detail::compute_partition_id_from_edge_t<vertex_t>{
+         cugraph::detail::compute_partition_id_from_ext_edge_endpoints_t<vertex_t>{
            comm_size, row_comm_size, col_comm_size},
        gpu_id_key_func = cugraph::detail::compute_gpu_id_from_ext_vertex_t<vertex_t>{
          comm_size}] __device__(auto pair) {
@@ -412,7 +412,7 @@ rmm::device_uvector<size_t> groupby_and_count_edgelist_by_local_partition_id(
   } else {
     auto local_partition_id_op =
       [comm_size,
-       key_func = cugraph::detail::compute_partition_id_from_edge_t<vertex_t>{
+       key_func = cugraph::detail::compute_partition_id_from_ext_edge_endpoints_t<vertex_t>{
          comm_size, row_comm_size, col_comm_size}] __device__(auto pair) {
         return key_func(thrust::get<0>(pair), thrust::get<1>(pair)) /
                comm_size;  // global partition id to local partition id

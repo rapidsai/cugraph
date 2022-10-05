@@ -342,7 +342,7 @@ read_edgelist_from_matrix_market_file(raft::handle_t const& handle,
       handle.get_stream());
     d_vertices.shrink_to_fit(handle.get_stream());
 
-    auto edge_key_func = cugraph::detail::compute_gpu_id_from_edge_t<vertex_t>{
+    auto edge_key_func = cugraph::detail::compute_gpu_id_from_ext_edge_endpoints_t<vertex_t>{
       comm_size, row_comm_size, col_comm_size};
     size_t number_of_local_edges{};
     if (d_edgelist_weights) {

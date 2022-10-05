@@ -15,6 +15,7 @@
  */
 #pragma once
 
+#include <cugraph/edge_partition_device_view.cuh>
 #include <cugraph/graph.hpp>
 #include <cugraph/partition_manager.hpp>
 #include <cugraph/utilities/device_functors.cuh>
@@ -473,6 +474,77 @@ struct gatherv_indices_t {
   }
 };
 
+template <typename GraphViewType, typename VertexPairIterator>
+size_t count_invalid_vertex_pairs(raft::handle_t const& handle,
+                                  GraphViewType const& graph_view,
+                                  VertexPairIterator vertex_pair_first,
+                                  VertexPairIterator vertex_pair_last)
+{
+  using vertex_t = typename GraphViewType::vertex_type;
+
+  std::vector<vertex_t> h_edge_partition_major_range_firsts(
+    graph_view.number_of_local_edge_partitions());
+  std::vector<vertex_t> h_edge_partition_major_range_lasts(
+    h_edge_partition_major_range_firsts.size());
+  vertex_t edge_partition_minor_range_first{};
+  vertex_t edge_partition_minor_range_last{};
+  if constexpr (GraphViewType::is_multi_gpu) {
+    for (size_t i = 0; i < graph_view.number_of_local_edge_partitions(); i++) {
+      if constexpr (GraphViewType::is_storage_transposed) {
+        h_edge_partition_major_range_firsts[i] = graph_view.local_edge_partition_dst_range_first(i);
+        h_edge_partition_major_range_lasts[i]  = graph_view.local_edge_partition_dst_range_last(i);
+      } else {
+        h_edge_partition_major_range_firsts[i] = graph_view.local_edge_partition_src_range_first(i);
+        h_edge_partition_major_range_lasts[i]  = graph_view.local_edge_partition_src_range_last(i);
+      }
+    }
+    if constexpr (GraphViewType::is_storage_transposed) {
+      edge_partition_minor_range_first = graph_view.local_edge_partition_src_range_first();
+      edge_partition_minor_range_last  = graph_view.local_edge_partition_src_range_last();
+    } else {
+      edge_partition_minor_range_first = graph_view.local_edge_partition_dst_range_first();
+      edge_partition_minor_range_last  = graph_view.local_edge_partition_dst_range_last();
+    }
+  } else {
+    h_edge_partition_major_range_firsts[0] = vertex_t{0};
+    h_edge_partition_major_range_lasts[0]  = graph_view.number_of_vertices();
+    edge_partition_minor_range_first       = vertex_t{0};
+    edge_partition_minor_range_last        = graph_view.number_of_vertices();
+  }
+  rmm::device_uvector<vertex_t> d_edge_partition_major_range_firsts(
+    h_edge_partition_major_range_firsts.size(), handle.get_stream());
+  rmm::device_uvector<vertex_t> d_edge_partition_major_range_lasts(
+    h_edge_partition_major_range_lasts.size(), handle.get_stream());
+  raft::update_device(d_edge_partition_major_range_firsts.data(),
+                      h_edge_partition_major_range_firsts.data(),
+                      h_edge_partition_major_range_firsts.size(),
+                      handle.get_stream());
+  raft::update_device(d_edge_partition_major_range_lasts.data(),
+                      h_edge_partition_major_range_lasts.data(),
+                      h_edge_partition_major_range_lasts.size(),
+                      handle.get_stream());
+
+  auto num_invalid_pairs = thrust::count_if(
+    handle.get_thrust_policy(),
+    vertex_pair_first,
+    vertex_pair_last,
+    is_invalid_input_vertex_pair_t<vertex_t>{
+      graph_view.number_of_vertices(),
+      raft::device_span<vertex_t const>(d_edge_partition_major_range_firsts.begin(),
+                                        d_edge_partition_major_range_firsts.end()),
+      raft::device_span<vertex_t const>(d_edge_partition_major_range_lasts.begin(),
+                                        d_edge_partition_major_range_lasts.end()),
+      edge_partition_minor_range_first,
+      edge_partition_minor_range_last});
+  if constexpr (GraphViewType::is_multi_gpu) {
+    auto& comm = handle.get_comms();
+    num_invalid_pairs =
+      host_scalar_allreduce(comm, num_invalid_pairs, raft::comms::op_t::SUM, handle.get_stream());
+  }
+
+  return num_invalid_pairs;
+}
+
 // In multi-GPU, the first element of every vertex pair in [vertex_pair_first, vertex_pair) should
 // be within the valid edge partition major range assigned to this process and the second element
 // should be within the valid edge partition minor range assigned to this process.
@@ -483,7 +555,7 @@ struct gatherv_indices_t {
 // one can limit the number of unique vertices (aggregated over column communicator in multi-GPU) to
 // build neighbor list; we need to bulid neighbor lists for the first element of every input vertex
 // pair if intersect_dst_nbr[0] == GraphViewType::is_storage_transposed and build neighbor lists for
-// the second element of every input vertex pair if single-GPU and intersect_dst_nbr[0] ==
+// the second element of every input vertex pair if single-GPU and intersect_dst_nbr[1] ==
 // GraphViewType::is_storage_transposed or multi-GPU. For load balancing,
 // thrust::distance(vertex_pair_first, vertex_pair_last) should be comparable across the global
 // communicator. If we need to build the neighbor lists, grouping based on applying "vertex ID %
@@ -517,79 +589,22 @@ nbr_intersection(raft::handle_t const& handle,
   if (do_expensive_check) {
     auto is_sorted =
       thrust::is_sorted(handle.get_thrust_policy(), vertex_pair_first, vertex_pair_last);
-
-    std::vector<vertex_t> h_edge_partition_major_range_firsts(
-      graph_view.number_of_local_edge_partitions());
-    std::vector<vertex_t> h_edge_partition_major_range_lasts(
-      h_edge_partition_major_range_firsts.size());
-    vertex_t edge_partition_minor_range_first{};
-    vertex_t edge_partition_minor_range_last{};
-    if constexpr (GraphViewType::is_multi_gpu) {
-      for (size_t i = 0; i < graph_view.number_of_local_edge_partitions(); i++) {
-        if constexpr (GraphViewType::is_storage_transposed) {
-          h_edge_partition_major_range_firsts[i] =
-            graph_view.local_edge_partition_dst_range_first(i);
-          h_edge_partition_major_range_lasts[i] = graph_view.local_edge_partition_dst_range_last(i);
-        } else {
-          h_edge_partition_major_range_firsts[i] =
-            graph_view.local_edge_partition_src_range_first(i);
-          h_edge_partition_major_range_lasts[i] = graph_view.local_edge_partition_src_range_last(i);
-        }
-      }
-      if constexpr (GraphViewType::is_storage_transposed) {
-        edge_partition_minor_range_first = graph_view.local_edge_partition_src_range_first();
-        edge_partition_minor_range_last  = graph_view.local_edge_partition_src_range_last();
-      } else {
-        edge_partition_minor_range_first = graph_view.local_edge_partition_dst_range_first();
-        edge_partition_minor_range_last  = graph_view.local_edge_partition_dst_range_last();
-      }
-    } else {
-      h_edge_partition_major_range_firsts[0] = vertex_t{0};
-      h_edge_partition_major_range_lasts[0]  = graph_view.number_of_vertices();
-      edge_partition_minor_range_first       = vertex_t{0};
-      edge_partition_minor_range_last        = graph_view.number_of_vertices();
-    }
-    rmm::device_uvector<vertex_t> d_edge_partition_major_range_firsts(
-      h_edge_partition_major_range_firsts.size(), handle.get_stream());
-    rmm::device_uvector<vertex_t> d_edge_partition_major_range_lasts(
-      h_edge_partition_major_range_lasts.size(), handle.get_stream());
-    raft::update_device(d_edge_partition_major_range_firsts.data(),
-                        h_edge_partition_major_range_firsts.data(),
-                        h_edge_partition_major_range_firsts.size(),
-                        handle.get_stream());
-    raft::update_device(d_edge_partition_major_range_lasts.data(),
-                        h_edge_partition_major_range_lasts.data(),
-                        h_edge_partition_major_range_lasts.size(),
-                        handle.get_stream());
-
-    auto num_invalid_pairs = thrust::count_if(
-      handle.get_thrust_policy(),
-      vertex_pair_first,
-      vertex_pair_last,
-      is_invalid_input_vertex_pair_t<vertex_t>{
-        graph_view.number_of_vertices(),
-        raft::device_span<vertex_t const>(d_edge_partition_major_range_firsts.begin(),
-                                          d_edge_partition_major_range_firsts.end()),
-        raft::device_span<vertex_t const>(d_edge_partition_major_range_lasts.begin(),
-                                          d_edge_partition_major_range_lasts.end()),
-        edge_partition_minor_range_first,
-        edge_partition_minor_range_last});
     if constexpr (GraphViewType::is_multi_gpu) {
       auto& comm = handle.get_comms();
-
-      is_sorted = static_cast<bool>(host_scalar_allreduce(
+      is_sorted  = static_cast<bool>(host_scalar_allreduce(
         comm, static_cast<int>(is_sorted), raft::comms::op_t::MIN, handle.get_stream()));
-      num_invalid_pairs =
-        host_scalar_allreduce(comm, num_invalid_pairs, raft::comms::op_t::SUM, handle.get_stream());
     }
-
     CUGRAPH_EXPECTS(is_sorted, "Invalid input arguments: input vertex pairs should be sorted.");
+
+    auto num_invalid_pairs =
+      count_invalid_vertex_pairs(handle, graph_view, vertex_pair_first, vertex_pair_last);
     CUGRAPH_EXPECTS(num_invalid_pairs == 0,
                     "Invalid input arguments: there are invalid input vertex pairs.");
   }
 
   // 2. Collect neighbor lists for unique second pair elements (for the neighbors within the minor
-  // range for this GPU)
+  // range for this GPU); Note that no need to collect for first pair elements as they already
+  // locally reside.
 
   auto poly_alloc = rmm::mr::polymorphic_allocator<char>(rmm::mr::get_current_device_resource());
   [[maybe_unused]] auto stream_adapter =
@@ -634,6 +649,9 @@ nbr_intersection(raft::handle_t const& handle,
         unique_majors.shrink_to_fit(handle.get_stream());
 
         if (col_comm_size > 1) {
+          // FIXME: We may refactor this code to improve scalability. We may call multiple gatherv
+          // calls, perform local sort and unique, and call multiple broadcasts rather than
+          // performing sort and unique for the entire range in every GPU in col_comm.
           auto rx_counts =
             host_scalar_allgather(col_comm, unique_majors.size(), handle.get_stream());
           std::vector<size_t> rx_displacements(rx_counts.size());

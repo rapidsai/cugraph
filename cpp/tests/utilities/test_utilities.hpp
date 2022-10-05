@@ -408,5 +408,17 @@ graph_to_host_coo(
   cugraph::graph_view_t<vertex_t, edge_t, weight_t, store_transposed, is_multi_gpu> const&
     graph_view);
 
+template <typename type_t>
+struct nearly_equal {
+  const type_t threshold_ratio;
+  const type_t threshold_magnitude;
+
+  bool operator()(type_t lhs, type_t rhs) const
+  {
+    return std::abs(lhs - rhs) <
+           std::max(std::max(lhs, rhs) * threshold_ratio, threshold_magnitude);
+  }
+};
+
 }  // namespace test
 }  // namespace cugraph

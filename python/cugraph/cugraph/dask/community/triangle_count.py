@@ -13,55 +13,31 @@
 # limitations under the License.
 #
 
-from dask.distributed import wait, default_client
-from cugraph.dask.common.input_utils import get_distributed_data
+from dask.distributed import wait
 
 import cugraph.dask.comms.comms as Comms
 import dask_cudf
 import cudf
 
-from pylibcugraph import triangle_count as pylibcugraph_triangle_count
-
 from pylibcugraph import (ResourceHandle,
-                          GraphProperties,
-                          MGGraph
+                          triangle_count as pylibcugraph_triangle_count
                           )
 
 
-def call_triangles(sID,
-                   data,
-                   src_col_name,
-                   dst_col_name,
-                   graph_properties,
-                   store_transposed,
-                   num_edges,
-                   do_expensive_check,
-                   start_list
-                   ):
+def _call_triangle_count(sID,
+                         mg_graph_x,
+                         start_list,
+                         do_expensive_check,
+                         ):
 
-    handle = Comms.get_handle(sID)
-    h = ResourceHandle(handle.getHandle())
-    srcs = data[0][src_col_name]
-    dsts = data[0][dst_col_name]
-    weights = None
-    if "value" in data[0].columns:
-        weights = data[0]['value']
-
-    mg = MGGraph(h,
-                 graph_properties,
-                 srcs,
-                 dsts,
-                 weights,
-                 store_transposed,
-                 num_edges,
-                 do_expensive_check)
-
-    result = pylibcugraph_triangle_count(h,
-                                         mg,
-                                         start_list,
-                                         do_expensive_check)
-
-    return result
+    return pylibcugraph_triangle_count(
+        resource_handle=ResourceHandle(
+            Comms.get_handle(sID).getHandle()
+        ),
+        graph=mg_graph_x,
+        start_list=start_list,
+        do_expensive_check=do_expensive_check
+    )
 
 
 def convert_to_cudf(cp_arrays):
@@ -106,12 +82,7 @@ def triangle_count(input_graph, start_list=None):
     if input_graph.is_directed():
         raise ValueError("input graph must be undirected")
     # Initialize dask client
-    client = default_client()
-    # In the future, once all the algos follow the C/Pylibcugraph path,
-    # compute_renumber_edge_list will only be used for multicolumn and
-    # string vertices since the renumbering will be done in pylibcugraph
-    input_graph.compute_renumber_edge_list(
-        transposed=False, legacy_renum_only=True)
+    client = input_graph._client
 
     if start_list is not None:
         if isinstance(start_list, int):
@@ -129,35 +100,20 @@ def triangle_count(input_graph, start_list=None):
             start_list = input_graph.lookup_internal_vertex_id(
                 start_list).compute()
 
-    ddf = input_graph.edgelist.edgelist_df
-
-    # FIXME: The parameter is_multigraph and store_transposed must be derived
-    # from the input_graph. For now, they are hardcoded.
-    graph_properties = GraphProperties(
-        is_symmetric=True, is_multigraph=False)
-    store_transposed = False
-    # FIXME: should we add this parameter as an option?
     do_expensive_check = False
 
-    num_edges = len(ddf)
-    data = get_distributed_data(ddf)
-
-    src_col_name = input_graph.renumber_map.renumbered_src_col_name
-    dst_col_name = input_graph.renumber_map.renumbered_dst_col_name
-
-    result = [client.submit(call_triangles,
-                            Comms.get_session_id(),
-                            wf[1],
-                            src_col_name,
-                            dst_col_name,
-                            graph_properties,
-                            store_transposed,
-                            num_edges,
-                            do_expensive_check,
-                            start_list,
-                            workers=[wf[0]])
-              for idx, wf in enumerate(data.worker_to_parts.items())]
-
+    result = [
+        client.submit(
+            _call_triangle_count,
+            Comms.get_session_id(),
+            input_graph._plc_graph[w],
+            start_list,
+            do_expensive_check,
+            workers=[w],
+            allow_other_workers=False,
+        )
+        for w in Comms.get_workers()
+    ]
     wait(result)
 
     cudf_result = [client.submit(convert_to_cudf,
@@ -166,7 +122,12 @@ def triangle_count(input_graph, start_list=None):
 
     wait(cudf_result)
 
-    ddf = dask_cudf.from_delayed(cudf_result)
+    ddf = dask_cudf.from_delayed(cudf_result).persist()
+    wait(ddf)
+    # Wait until the inactive futures are released
+    wait([(r.release(), c_r.release())
+         for r, c_r in zip(result, cudf_result)])
+
     if input_graph.renumbered:
         ddf = input_graph.unrenumber(ddf, "vertex")
 
