@@ -262,8 +262,7 @@ def get_cu_graph_nx_graph_and_params(dataset, directed):
     Helper for fixtures returning a Nx graph obj and params.
     """
     # create graph
-    G = cugraph.Graph(directed=directed)
-    G = dataset.get_graph(create_using=G)
+    G = dataset.get_graph(create_using=cugraph.Graph(directed=directed))
     dataset_path = dataset.get_path()
 
     return (G, dataset_path, directed,

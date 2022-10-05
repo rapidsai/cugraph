@@ -64,10 +64,6 @@ def input_combo(request):
     graph_file = parameters["graph_file"]
     input_data_path = graph_file.get_path()
     edgevals = parameters["edgevals"]
-    """
-    G = utils.generate_cugraph_graph_from_file(
-        input_data_path, directed=False, edgevals=edgevals)
-    """
 
     G = graph_file.get_graph(ignore_weights=not edgevals)
 
