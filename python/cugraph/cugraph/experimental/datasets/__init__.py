@@ -52,7 +52,6 @@ DATASETS = [dolphins, netscience, karate_disjoint]
 
 DATASETS_SMALL = [karate, dolphins, polbooks]
 
-# Add email-Eu-core.csv
 STRONGDATASETS = [dolphins, netscience, email_Eu_core]
 
 DATASETS_KTRUSS = [(polbooks, ktruss_polbooks)]
@@ -70,7 +69,3 @@ ALL_DATASETS_WGT = [karate, dolphins, netscience, polbooks,
                     small_line, small_tree]
 
 TEST_GROUP = [dolphins, netscience]
-
-#DATASETS_KTRUSS = [polbooks]
-
-# DATASETS_UNDIRECTED = [karate_undirected, small_line, karate_asymmetric]
