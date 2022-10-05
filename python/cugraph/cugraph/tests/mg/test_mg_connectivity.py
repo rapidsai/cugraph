@@ -14,10 +14,12 @@
 import pytest
 import cugraph.dask as dcg
 import gc
+
 # import pytest
 import cugraph
 import dask_cudf
 import cudf
+
 # from cugraph.dask.common.mg_utils import is_single_gpu
 from cugraph.testing.utils import RAPIDS_DATASET_ROOT_DIR_PATH
 
@@ -39,8 +41,7 @@ IS_DIRECTED = [True, False]
 @pytest.mark.parametrize("directed", IS_DIRECTED)
 def test_dask_wcc(dask_client, directed):
 
-    input_data_path = (RAPIDS_DATASET_ROOT_DIR_PATH /
-                       "netscience.csv").as_posix()
+    input_data_path = (RAPIDS_DATASET_ROOT_DIR_PATH / "netscience.csv").as_posix()
     print(f"dataset={input_data_path}")
     chunksize = dcg.get_chunksize(input_data_path)
 
@@ -73,9 +74,9 @@ def test_dask_wcc(dask_client, directed):
         result_dist, on="vertex", suffixes=["_local", "_dask"]
     )
 
-    unique_local_labels = compare_dist['labels_local'].unique()
+    unique_local_labels = compare_dist["labels_local"].unique()
 
     for label in unique_local_labels.values.tolist():
-        dask_labels_df = compare_dist[compare_dist['labels_local'] == label]
-        dask_labels = dask_labels_df['labels_dask']
+        dask_labels_df = compare_dist[compare_dist["labels_local"] == label]
+        dask_labels = dask_labels_df["labels_dask"]
         assert (dask_labels.iloc[0] == dask_labels).all()

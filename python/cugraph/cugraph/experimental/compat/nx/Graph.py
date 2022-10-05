@@ -20,4 +20,5 @@ class Graph(nx.Graph):
     NetworkX functionality and will be overridden as this compatibility
     layer moves functionality to gpus in future releases.
     """
+
     pass

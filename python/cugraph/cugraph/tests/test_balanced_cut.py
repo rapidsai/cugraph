@@ -27,9 +27,7 @@ def cugraph_call(G, partitions):
         G, partitions, num_eigen_vects=partitions
     )
 
-    score = cugraph.analyzeClustering_edge_cut(
-        G, partitions, df, 'vertex', 'cluster'
-    )
+    score = cugraph.analyzeClustering_edge_cut(G, partitions, df, "vertex", "cluster")
     return set(df["vertex"].to_numpy()), score
 
 
@@ -43,12 +41,10 @@ def random_call(G, partitions):
         for i in range(num_verts):
             assignment.append(random.randint(0, partitions - 1))
 
-        assignment_cu = cudf.DataFrame(assignment, columns=['cluster'])
-        assignment_cu['vertex'] = assignment_cu.index
+        assignment_cu = cudf.DataFrame(assignment, columns=["cluster"])
+        assignment_cu["vertex"] = assignment_cu.index
 
-        score += cugraph.analyzeClustering_edge_cut(
-            G, partitions, assignment_cu
-        )
+        score += cugraph.analyzeClustering_edge_cut(G, partitions, assignment_cu)
 
     return set(range(num_verts)), (score / 10.0)
 
@@ -76,7 +72,7 @@ def test_edge_cut_clustering(graph_file, partitions):
 
     # Assert that the partitioning has better edge_cut than the random
     # assignment
-    print('graph_file = ', graph_file, ', partitions = ', partitions)
+    print("graph_file = ", graph_file, ", partitions = ", partitions)
     print(cu_score, rand_score)
     assert cu_score < rand_score
 
@@ -133,8 +129,7 @@ def test_edge_cut_clustering_with_edgevals_nx(graph_file, partitions):
     # FIXME: replace with utils.generate_nx_graph_from_file()
     NM = utils.read_csv_for_nx(graph_file, read_weights_in_sp=True)
     G = nx.from_pandas_edgelist(
-                NM, create_using=nx.Graph(), source="0", target="1",
-                edge_attr="weight"
+        NM, create_using=nx.Graph(), source="0", target="1", edge_attr="weight"
     )
 
     # Get the edge_cut score for partitioning versus random assignment
@@ -142,12 +137,12 @@ def test_edge_cut_clustering_with_edgevals_nx(graph_file, partitions):
         G, partitions, num_eigen_vects=partitions
     )
 
-    pdf = pd.DataFrame.from_dict(df, orient='index').reset_index()
+    pdf = pd.DataFrame.from_dict(df, orient="index").reset_index()
     pdf.columns = ["vertex", "cluster"]
     gdf = cudf.from_pandas(pdf)
 
     cu_score = cugraph.analyzeClustering_edge_cut(
-        G, partitions, gdf, 'vertex', 'cluster'
+        G, partitions, gdf, "vertex", "cluster"
     )
 
     df = set(gdf["vertex"].to_numpy())

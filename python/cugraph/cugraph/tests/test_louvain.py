@@ -33,9 +33,11 @@ with warnings.catch_warnings():
 try:
     import community
 except ModuleNotFoundError:
-    pytest.exit("community module not found\n"
-                "The python-louvain module needs to be installed\n"
-                "please run `pip install python-louvain`")
+    pytest.exit(
+        "community module not found\n"
+        "The python-louvain module needs to be installed\n"
+        "please run `pip install python-louvain`"
+    )
 
 
 print("Networkx version : {} ".format(nx.__version__))
@@ -90,8 +92,7 @@ def test_louvain_with_edgevals(graph_file):
     nx_parts = networkx_call(M)
     # Calculating modularity scores for comparison
     Gnx = nx.from_pandas_edgelist(
-        M, source="0", target="1",
-        edge_attr="weight", create_using=nx.Graph()
+        M, source="0", target="1", edge_attr="weight", create_using=nx.Graph()
     )
 
     cu_parts = cu_parts.to_pandas()
@@ -117,8 +118,7 @@ def test_louvain(graph_file):
 
     # Calculating modularity scores for comparison
     Gnx = nx.from_pandas_edgelist(
-        M, source="0", target="1",
-        edge_attr="weight", create_using=nx.Graph()
+        M, source="0", target="1", edge_attr="weight", create_using=nx.Graph()
     )
 
     cu_parts = cu_parts.to_pandas()
@@ -135,8 +135,9 @@ def test_louvain(graph_file):
 
 
 def test_louvain_directed_graph():
-    input_data_path = (utils.RAPIDS_DATASET_ROOT_DIR_PATH /
-                       "karate-asymmetric.csv").as_posix()
+    input_data_path = (
+        utils.RAPIDS_DATASET_ROOT_DIR_PATH / "karate-asymmetric.csv"
+    ).as_posix()
 
     cu_M = utils.read_csv_file(input_data_path)
 

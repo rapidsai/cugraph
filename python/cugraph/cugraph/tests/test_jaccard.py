@@ -164,8 +164,9 @@ def test_directed_graph_check(read_csv):
     cu_M["src_1"] = cu_M["src_0"] + 1000
     cu_M["dst_1"] = cu_M["dst_0"] + 1000
     G1 = cugraph.Graph(directed=True)
-    G1.from_cudf_edgelist(cu_M, source=["src_0", "src_1"],
-                          destination=["dst_0", "dst_1"])
+    G1.from_cudf_edgelist(
+        cu_M, source=["src_0", "src_1"], destination=["dst_0", "dst_1"]
+    )
 
     vertex_pair = cu_M[["src_0", "src_1", "dst_0", "dst_1"]]
     vertex_pair = vertex_pair[:5]
@@ -180,8 +181,7 @@ def test_nx_jaccard_time(read_csv, gpubenchmark):
 
 
 @pytest.mark.parametrize(
-    "graph_file",
-    [utils.RAPIDS_DATASET_ROOT_DIR_PATH/"netscience.csv"]
+    "graph_file", [utils.RAPIDS_DATASET_ROOT_DIR_PATH / "netscience.csv"]
 )
 def test_jaccard_edgevals(gpubenchmark, graph_file):
 
@@ -207,9 +207,7 @@ def test_jaccard_two_hop(read_csv):
 
     M, cu_M = read_csv
 
-    Gnx = nx.from_pandas_edgelist(
-        M, source="0", target="1", create_using=nx.Graph()
-    )
+    Gnx = nx.from_pandas_edgelist(M, source="0", target="1", create_using=nx.Graph())
     G = cugraph.Graph()
     G.from_cudf_edgelist(cu_M, source="0", destination="1")
 
@@ -232,9 +230,7 @@ def test_jaccard_two_hop_edge_vals(read_csv):
 def test_jaccard_nx(read_csv):
 
     M, _ = read_csv
-    Gnx = nx.from_pandas_edgelist(
-        M, source="0", target="1", create_using=nx.Graph()
-    )
+    Gnx = nx.from_pandas_edgelist(M, source="0", target="1", create_using=nx.Graph())
 
     nx_j = nx.jaccard_coefficient(Gnx)
     nv_js = sorted(nx_j, key=len, reverse=True)
@@ -258,8 +254,9 @@ def test_jaccard_multi_column(read_csv):
     cu_M["src_1"] = cu_M["src_0"] + 1000
     cu_M["dst_1"] = cu_M["dst_0"] + 1000
     G1 = cugraph.Graph()
-    G1.from_cudf_edgelist(cu_M, source=["src_0", "src_1"],
-                          destination=["dst_0", "dst_1"])
+    G1.from_cudf_edgelist(
+        cu_M, source=["src_0", "src_1"], destination=["dst_0", "dst_1"]
+    )
 
     vertex_pair = cu_M[["src_0", "src_1", "dst_0", "dst_1"]]
     vertex_pair = vertex_pair[:5]
@@ -267,8 +264,7 @@ def test_jaccard_multi_column(read_csv):
     df_res = cugraph.jaccard(G1, vertex_pair)
 
     G2 = cugraph.Graph()
-    G2.from_cudf_edgelist(cu_M, source="src_0",
-                          destination="dst_0")
+    G2.from_cudf_edgelist(cu_M, source="src_0", destination="dst_0")
     df_exp = cugraph.jaccard(G2, vertex_pair[["src_0", "dst_0"]])
 
     # Calculating mismatch

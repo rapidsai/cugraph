@@ -19,24 +19,21 @@ import cugraph.dask.comms.comms as Comms
 import dask_cudf
 import cudf
 
-from pylibcugraph import (ResourceHandle,
-                          triangle_count as pylibcugraph_triangle_count
-                          )
+from pylibcugraph import ResourceHandle, triangle_count as pylibcugraph_triangle_count
 
 
-def _call_triangle_count(sID,
-                         mg_graph_x,
-                         start_list,
-                         do_expensive_check,
-                         ):
+def _call_triangle_count(
+    sID,
+    mg_graph_x,
+    start_list,
+    do_expensive_check,
+):
 
     return pylibcugraph_triangle_count(
-        resource_handle=ResourceHandle(
-            Comms.get_handle(sID).getHandle()
-        ),
+        resource_handle=ResourceHandle(Comms.get_handle(sID).getHandle()),
         graph=mg_graph_x,
         start_list=start_list,
-        do_expensive_check=do_expensive_check
+        do_expensive_check=do_expensive_check,
     )
 
 
@@ -91,14 +88,14 @@ def triangle_count(input_graph, start_list=None):
             start_list = cudf.Series(start_list)
         if not isinstance(start_list, cudf.Series):
             raise TypeError(
-                    f"'start_list' must be either a list or a cudf.Series,"
-                    f"got: {start_list.dtype}")
+                f"'start_list' must be either a list or a cudf.Series,"
+                f"got: {start_list.dtype}"
+            )
 
         # start_list uses "external" vertex IDs, but since the graph has been
         # renumbered, the start vertex IDs must also be renumbered.
         if input_graph.renumbered:
-            start_list = input_graph.lookup_internal_vertex_id(
-                start_list).compute()
+            start_list = input_graph.lookup_internal_vertex_id(start_list).compute()
 
     do_expensive_check = False
 
@@ -116,17 +113,14 @@ def triangle_count(input_graph, start_list=None):
     ]
     wait(result)
 
-    cudf_result = [client.submit(convert_to_cudf,
-                                 cp_arrays)
-                   for cp_arrays in result]
+    cudf_result = [client.submit(convert_to_cudf, cp_arrays) for cp_arrays in result]
 
     wait(cudf_result)
 
     ddf = dask_cudf.from_delayed(cudf_result).persist()
     wait(ddf)
     # Wait until the inactive futures are released
-    wait([(r.release(), c_r.release())
-         for r, c_r in zip(result, cudf_result)])
+    wait([(r.release(), c_r.release()) for r, c_r in zip(result, cudf_result)])
 
     if input_graph.renumbered:
         ddf = input_graph.unrenumber(ddf, "vertex")

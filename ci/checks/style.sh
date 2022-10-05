@@ -25,6 +25,11 @@ conda activate rapids
 FLAKE=`flake8 --config=python/.flake8 python`
 ERRORCODE=$((ERRORCODE | $?))
 
+# Run black and get results/return code
+BLACK=`black --target-version=py38 --check python`
+BLACK_FORMAT_RETVAL=$?
+ERRORCODE=$((ERRORCODE | $?))
+
 # Run clang-format and check for a consistent code format
 CLANG_FORMAT=`python cpp/scripts/run-clang-format.py 2>&1`
 CLANG_FORMAT_RETVAL=$?
@@ -37,6 +42,14 @@ if [ "$FLAKE" != "" ]; then
   echo -e "\n\n>>>> FAILED: flake8 style check; end output\n\n"
 else
   echo -e "\n\n>>>> PASSED: flake8 style check\n\n"
+fi
+
+if [ "$BLACK_FORMAT_RETVAL" != "0" ]; then
+  echo -e "\n\n>>>> FAILED: black format check; begin output\n\n"
+  echo -e "$BLACK_FORMAT"
+  echo -e "\n\n>>>> FAILED: black format check; end output\n\n"
+else
+  echo -e "\n\n>>>> PASSED: black format check\n\n"
 fi
 
 if [ "$CLANG_FORMAT_RETVAL" != "0" ]; then

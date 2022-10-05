@@ -70,9 +70,7 @@ def test_node_data_pg(graph_file):
 
     pG = PropertyGraph()
     gstore = cugraph.gnn.CuGraphStore(graph=pG, backend_lib="cupy")
-    gstore.add_edge_data(
-        cu_M, vertex_col_names=("0", "1"), feat_name="edge_feat"
-    )
+    gstore.add_edge_data(cu_M, vertex_col_names=("0", "1"), feat_name="edge_feat")
 
     edata_f = gstore.get_edge_storage("edge_feat")
     edata = edata_f.fetch(indices=[0, 1], device="cuda")
@@ -93,9 +91,7 @@ def test_egonet(graph_file):
 
     pG = PropertyGraph()
     gstore = cugraph.gnn.CuGraphStore(graph=pG, backend_lib="cupy")
-    gstore.add_edge_data(
-        cu_M, vertex_col_names=("0", "1"), feat_name="edge_feat"
-    )
+    gstore.add_edge_data(cu_M, vertex_col_names=("0", "1"), feat_name="edge_feat")
 
     nodes = [1, 2]
 
@@ -149,9 +145,7 @@ def test_sample_neighbors(graph_file):
 
     sampled_nodes = nodes[:5].to_dlpack()
 
-    parents_cap, children_cap, edge_id_cap = gstore.sample_neighbors(
-        sampled_nodes, 2
-    )
+    parents_cap, children_cap, edge_id_cap = gstore.sample_neighbors(sampled_nodes, 2)
 
     parents_list = cudf.from_dlpack(parents_cap)
     assert len(parents_list) > 0
@@ -171,9 +165,7 @@ def test_sample_neighbor_neg_one_fanout(graph_file):
     nodes = gstore.get_vertex_ids()
     sampled_nodes = nodes[:5].to_dlpack()
     # -1, default fan_out
-    parents_cap, children_cap, edge_id_cap = gstore.sample_neighbors(
-        sampled_nodes, -1
-    )
+    parents_cap, children_cap, edge_id_cap = gstore.sample_neighbors(sampled_nodes, -1)
     parents_list = cudf.from_dlpack(parents_cap)
     assert len(parents_list) > 0
 
@@ -315,9 +307,7 @@ def get_dataset1_CuGraphStore():
     merchant_df = create_df_from_dataset(
         dataset1["merchants"][0], dataset1["merchants"][1]
     )
-    user_df = create_df_from_dataset(
-        dataset1["users"][0], dataset1["users"][1]
-    )
+    user_df = create_df_from_dataset(dataset1["users"][0], dataset1["users"][1])
     taxpayers_df = create_df_from_dataset(
         dataset1["taxpayers"][0], dataset1["taxpayers"][1]
     )
@@ -383,13 +373,15 @@ def test_num_edges():
 def test_etypes():
     dataset1_CuGraphStore = get_dataset1_CuGraphStore()
     assert dataset1_CuGraphStore.etypes == [
-        'referrals', 'relationships', 'transactions'
+        "referrals",
+        "relationships",
+        "transactions",
     ]
 
 
 def test_ntypes():
     dataset1_CuGraphStore = get_dataset1_CuGraphStore()
-    assert dataset1_CuGraphStore.ntypes == ['merchant', 'taxpayers', 'user']
+    assert dataset1_CuGraphStore.ntypes == ["merchant", "taxpayers", "user"]
 
 
 def test_get_node_storage_gs():
@@ -410,9 +402,7 @@ def test_get_node_storage_gs():
 
 def test_get_edge_storage_gs():
     dataset1_CuGraphStore = get_dataset1_CuGraphStore()
-    fs = dataset1_CuGraphStore.get_edge_storage(
-        "relationships_k", "relationships"
-    )
+    fs = dataset1_CuGraphStore.get_edge_storage("relationships_k", "relationships")
     relationship_t = fs.fetch([6, 7, 8], device="cuda")
 
     relationships_df = create_df_from_dataset(
@@ -583,9 +573,7 @@ def create_gs_heterogeneous_dgl_eg():
     )
     for n in df["ntype"].unique().values_host:
         subset_df = df[df["ntype"] == n][["node_id", "node_feat"]]
-        gs.add_node_data(
-            subset_df, "node_id", feat_name="node_feat", ntype=str(n)
-        )
+        gs.add_node_data(subset_df, "node_id", feat_name="node_feat", ntype=str(n))
 
     return gs
 
@@ -752,9 +740,7 @@ def test_sampling_dgl_heterogeneous_gs_m_fanouts():
     for fanout in [1, 2, 3, -1]:
         sampled_node = [6]
         sampled_node_p = cudf.Series(sampled_node).to_dlpack()
-        sampled_g = gs.sample_neighbors(
-            {"nt.c": sampled_node_p}, fanout=fanout
-        )
+        sampled_g = gs.sample_neighbors({"nt.c": sampled_node_p}, fanout=fanout)
         sampled_g = convert_dlpack_dict_to_df(sampled_g)
         for etype, output_df in sampled_g.items():
             assert expected_output[fanout][etype] == len(output_df)

@@ -49,11 +49,7 @@ def setup_function():
 # currently in networkx master and will hopefully will make it to a release
 # soon.
 def ktruss_ground_truth(graph_file):
-    G = nx.read_edgelist(
-        str(graph_file),
-        nodetype=int,
-        data=(("weights", float),)
-    )
+    G = nx.read_edgelist(str(graph_file), nodetype=int, data=(("weights", float),))
     df = nx.to_pandas_edgelist(G)
     return df
 
@@ -103,9 +99,10 @@ def test_unsupported_cuda_version():
         cugraph.k_truss(G, k)
 
 
-@pytest.mark.skipif((__cuda_version == __unsupported_cuda_version),
-                    reason="skipping on unsupported CUDA "
-                    f"{__unsupported_cuda_version} environment.")
+@pytest.mark.skipif(
+    (__cuda_version == __unsupported_cuda_version),
+    reason="skipping on unsupported CUDA " f"{__unsupported_cuda_version} environment.",
+)
 @pytest.mark.parametrize("graph_file, nx_ground_truth", utils.DATASETS_KTRUSS)
 def test_ktruss_subgraph_Graph(graph_file, nx_ground_truth):
 
@@ -118,17 +115,17 @@ def test_ktruss_subgraph_Graph(graph_file, nx_ground_truth):
     compare_k_truss(k_subgraph, k, nx_ground_truth)
 
 
-@pytest.mark.skipif((__cuda_version == __unsupported_cuda_version),
-                    reason="skipping on unsupported CUDA "
-                    f"{__unsupported_cuda_version} environment.")
+@pytest.mark.skipif(
+    (__cuda_version == __unsupported_cuda_version),
+    reason="skipping on unsupported CUDA " f"{__unsupported_cuda_version} environment.",
+)
 @pytest.mark.parametrize("graph_file, nx_ground_truth", utils.DATASETS_KTRUSS)
 def test_ktruss_subgraph_Graph_nx(graph_file, nx_ground_truth):
 
     k = 5
     M = utils.read_csv_for_nx(graph_file, read_weights_in_sp=True)
     G = nx.from_pandas_edgelist(
-        M, source="0", target="1", edge_attr="weight",
-        create_using=nx.Graph()
+        M, source="0", target="1", edge_attr="weight", create_using=nx.Graph()
     )
     k_subgraph = cugraph.k_truss(G, k)
     k_truss_nx = nx.k_truss(G, k)
@@ -136,12 +133,14 @@ def test_ktruss_subgraph_Graph_nx(graph_file, nx_ground_truth):
     assert nx.is_isomorphic(k_subgraph, k_truss_nx)
 
 
-@pytest.mark.skipif((__cuda_version == __unsupported_cuda_version),
-                    reason="skipping on unsupported CUDA "
-                    f"{__unsupported_cuda_version} environment.")
+@pytest.mark.skipif(
+    (__cuda_version == __unsupported_cuda_version),
+    reason="skipping on unsupported CUDA " f"{__unsupported_cuda_version} environment.",
+)
 def test_ktruss_subgraph_directed_Graph():
-    input_data_path = (utils.RAPIDS_DATASET_ROOT_DIR_PATH /
-                       "karate-asymmetric.csv").as_posix()
+    input_data_path = (
+        utils.RAPIDS_DATASET_ROOT_DIR_PATH / "karate-asymmetric.csv"
+    ).as_posix()
     k = 5
     edgevals = True
     cu_M = utils.read_csv_file(input_data_path)

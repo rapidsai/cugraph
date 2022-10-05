@@ -34,9 +34,7 @@ def compare_edges(cg, nxg):
     assert cg.edgelist.weights is False
     assert len(edgelist_df) == nxg.size()
     for i in range(len(edgelist_df)):
-        assert nxg.has_edge(
-            edgelist_df["src"].iloc[i], edgelist_df["dst"].iloc[i]
-        )
+        assert nxg.has_edge(edgelist_df["src"].iloc[i], edgelist_df["dst"].iloc[i])
     return True
 
 
@@ -61,9 +59,7 @@ def nx_call(M, verts, directed=True):
             M, source="0", target="1", create_using=nx.DiGraph()
         )
     else:
-        G = nx.from_pandas_edgelist(
-            M, source="0", target="1", create_using=nx.Graph()
-        )
+        G = nx.from_pandas_edgelist(M, source="0", target="1", create_using=nx.Graph())
     return nx.subgraph(G, verts)
 
 
@@ -107,9 +103,7 @@ def test_subgraph_extraction_Graph_nx(graph_file):
             M, source="0", target="1", create_using=nx.DiGraph()
         )
     else:
-        G = nx.from_pandas_edgelist(
-            M, source="0", target="1", create_using=nx.Graph()
-        )
+        G = nx.from_pandas_edgelist(M, source="0", target="1", create_using=nx.Graph())
 
     nx_sub = nx.subgraph(G, verts)
 
@@ -130,13 +124,14 @@ def test_subgraph_extraction_multi_column(graph_file):
     cu_M["src_1"] = cu_M["src_0"] + 1000
     cu_M["dst_1"] = cu_M["dst_0"] + 1000
     G1 = cugraph.Graph()
-    G1.from_cudf_edgelist(cu_M, source=["src_0", "src_1"],
-                          destination=["dst_0", "dst_1"])
+    G1.from_cudf_edgelist(
+        cu_M, source=["src_0", "src_1"], destination=["dst_0", "dst_1"]
+    )
 
     verts = cudf.Series([0, 1, 17])
     verts_G1 = cudf.DataFrame()
-    verts_G1['v_0'] = verts
-    verts_G1['v_1'] = verts + 1000
+    verts_G1["v_0"] = verts
+    verts_G1["v_1"] = verts + 1000
 
     sG1 = cugraph.subgraph(G1, verts_G1)
 
@@ -150,8 +145,9 @@ def test_subgraph_extraction_multi_column(graph_file):
     edgelist_df_res = sG1.unrenumber(edgelist_df, "src")
     edgelist_df_res = sG1.unrenumber(edgelist_df_res, "dst")
     for i in range(len(edgelist_df_res)):
-        assert sG2.has_edge(edgelist_df_res["0_src"].iloc[i],
-                            edgelist_df_res["0_dst"].iloc[i])
+        assert sG2.has_edge(
+            edgelist_df_res["0_src"].iloc[i], edgelist_df_res["0_dst"].iloc[i]
+        )
 
 
 # FIXME: the coverage provided by this test could probably be handled by
@@ -161,8 +157,9 @@ def test_subgraph_extraction_graph_not_renumbered():
     Ensure subgraph() works with a Graph that has not been renumbered
     """
     graph_file = utils.RAPIDS_DATASET_ROOT_DIR_PATH / "karate.csv"
-    gdf = cudf.read_csv(graph_file, delimiter=" ",
-                        dtype=["int32", "int32", "float32"], header=None)
+    gdf = cudf.read_csv(
+        graph_file, delimiter=" ", dtype=["int32", "int32", "float32"], header=None
+    )
     verts = np.array([0, 1, 2], dtype=np.int32)
     sverts = cudf.Series(verts)
     G = cugraph.Graph()
