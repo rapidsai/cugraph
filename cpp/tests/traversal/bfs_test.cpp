@@ -161,30 +161,15 @@ class Tests_BFS : public ::testing::TestWithParam<std::tuple<BFS_Usecase, input_
       }
       auto unrenumbered_graph_view = renumber ? unrenumbered_graph.view() : graph_view;
 
-      std::vector<edge_t> h_offsets(unrenumbered_graph_view.number_of_vertices() + 1);
-      std::vector<vertex_t> h_indices(unrenumbered_graph_view.number_of_edges());
-      raft::update_host(h_offsets.data(),
-                        unrenumbered_graph_view.local_edge_partition_view().offsets(),
-                        unrenumbered_graph_view.number_of_vertices() + 1,
-                        handle.get_stream());
-      raft::update_host(h_indices.data(),
-                        unrenumbered_graph_view.local_edge_partition_view().indices(),
-                        unrenumbered_graph_view.number_of_edges(),
-                        handle.get_stream());
-
-      handle.sync_stream();
+      auto h_offsets = cugraph::test::to_host(
+        handle, unrenumbered_graph_view.local_edge_partition_view().offsets());
+      auto h_indices = cugraph::test::to_host(
+        handle, unrenumbered_graph_view.local_edge_partition_view().indices());
 
       auto unrenumbered_source = static_cast<vertex_t>(bfs_usecase.source);
       if (renumber) {
-        std::vector<vertex_t> h_renumber_map_labels((*d_renumber_map_labels).size());
-        raft::update_host(h_renumber_map_labels.data(),
-                          (*d_renumber_map_labels).data(),
-                          (*d_renumber_map_labels).size(),
-                          handle.get_stream());
-
-        handle.sync_stream();
-
-        unrenumbered_source = h_renumber_map_labels[bfs_usecase.source];
+        auto h_renumber_map_labels = cugraph::test::to_host(handle, *d_renumber_map_labels);
+        unrenumbered_source        = h_renumber_map_labels[bfs_usecase.source];
       }
 
       std::vector<vertex_t> h_reference_distances(unrenumbered_graph_view.number_of_vertices());
@@ -198,8 +183,8 @@ class Tests_BFS : public ::testing::TestWithParam<std::tuple<BFS_Usecase, input_
                     unrenumbered_source,
                     std::numeric_limits<vertex_t>::max());
 
-      std::vector<vertex_t> h_cugraph_distances(graph_view.number_of_vertices());
-      std::vector<vertex_t> h_cugraph_predecessors(graph_view.number_of_vertices());
+      std::vector<vertex_t> h_cugraph_distances{};
+      std::vector<vertex_t> h_cugraph_predecessors{};
       if (renumber) {
         cugraph::unrenumber_local_int_vertices(handle,
                                                d_predecessors.data(),
@@ -215,25 +200,11 @@ class Tests_BFS : public ::testing::TestWithParam<std::tuple<BFS_Usecase, input_
         rmm::device_uvector<vertex_t> d_unrenumbered_predecessors(size_t{0}, handle.get_stream());
         std::tie(std::ignore, d_unrenumbered_predecessors) =
           cugraph::test::sort_by_key(handle, *d_renumber_map_labels, d_predecessors);
-        raft::update_host(h_cugraph_distances.data(),
-                          d_unrenumbered_distances.data(),
-                          d_unrenumbered_distances.size(),
-                          handle.get_stream());
-        raft::update_host(h_cugraph_predecessors.data(),
-                          d_unrenumbered_predecessors.data(),
-                          d_unrenumbered_predecessors.size(),
-                          handle.get_stream());
-
-        handle.sync_stream();
+        h_cugraph_distances    = cugraph::test::to_host(handle, d_unrenumbered_distances);
+        h_cugraph_predecessors = cugraph::test::to_host(handle, d_unrenumbered_predecessors);
       } else {
-        raft::update_host(
-          h_cugraph_distances.data(), d_distances.data(), d_distances.size(), handle.get_stream());
-        raft::update_host(h_cugraph_predecessors.data(),
-                          d_predecessors.data(),
-                          d_predecessors.size(),
-                          handle.get_stream());
-
-        handle.sync_stream();
+        h_cugraph_distances    = cugraph::test::to_host(handle, d_distances);
+        h_cugraph_predecessors = cugraph::test::to_host(handle, d_predecessors);
       }
 
       ASSERT_TRUE(std::equal(

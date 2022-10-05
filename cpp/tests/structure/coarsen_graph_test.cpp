@@ -38,19 +38,18 @@
 #include <vector>
 
 template <typename vertex_t, typename edge_t, typename weight_t>
-void check_coarsened_graph_results(edge_t* org_offsets,
-                                   vertex_t* org_indices,
-                                   weight_t* org_weights,
-                                   vertex_t* org_labels,
-                                   edge_t* coarse_offsets,
-                                   vertex_t* coarse_indices,
-                                   weight_t* coarse_weights,
-                                   vertex_t* coarse_vertex_labels,
+void check_coarsened_graph_results(edge_t const* org_offsets,
+                                   vertex_t const* org_indices,
+                                   std::optional<weight_t const*> org_weights,
+                                   vertex_t const* org_labels,
+                                   edge_t const* coarse_offsets,
+                                   vertex_t const* coarse_indices,
+                                   std::optional<weight_t const*> coarse_weights,
+                                   vertex_t const* coarse_vertex_labels,
                                    vertex_t num_org_vertices,
                                    vertex_t num_coarse_vertices)
 {
-  ASSERT_TRUE(((org_weights == nullptr) && (coarse_weights == nullptr)) ||
-              ((org_weights != nullptr) && (coarse_weights != nullptr)));
+  ASSERT_TRUE(org_weights.has_value() == coarse_weights.has_value());
   ASSERT_TRUE(std::is_sorted(org_offsets, org_offsets + num_org_vertices));
   ASSERT_TRUE(std::count_if(org_indices,
                             org_indices + org_offsets[num_org_vertices],
@@ -98,14 +97,14 @@ void check_coarsened_graph_results(edge_t* org_offsets,
     label_to_coarse_vertex_map[coarse_vertex_labels[i]] = i;
   }
 
-  auto threshold_ratio = (org_weights == nullptr) ? weight_t{1.0} /* irrelevant */ : weight_t{1e-4};
+  auto threshold_ratio = org_weights ? weight_t{1e-4} : weight_t{1.0} /* irrelevant */;
   auto threshold_magnitude =
-    (org_weights == nullptr)
-      ? weight_t{1.0} /* irrelevant */
-      : (std::accumulate(
-           coarse_weights, coarse_weights + coarse_offsets[num_coarse_vertices], weight_t{0.0}) /
+    org_weights
+      ? (std::accumulate(
+           *coarse_weights, *coarse_weights + coarse_offsets[num_coarse_vertices], weight_t{0.0}) /
          static_cast<weight_t>(coarse_offsets[num_coarse_vertices])) *
-          threshold_ratio;
+          threshold_ratio
+      : weight_t{1.0} /* irrelevant */;
 
   for (size_t i = 0; i < org_unique_labels.size(); ++i) {  // for each vertex in the coarse graph
     auto lb =
@@ -122,42 +121,13 @@ void check_coarsened_graph_results(edge_t* org_offsets,
                        [](auto lhs, auto rhs) { return std::get<0>(lhs) < std::get<0>(rhs); });
     auto count  = std::distance(lb, ub);
     auto offset = std::distance(label_org_vertex_pairs.begin(), lb);
-    if (org_weights == nullptr) {
-      std::vector<vertex_t> coarse_nbrs0{};
-      std::for_each(
-        lb,
-        ub,
-        [org_offsets, org_indices, org_labels, &label_to_coarse_vertex_map, &coarse_nbrs0](auto t) {
-          auto org_vertex = std::get<1>(t);
-          std::vector<vertex_t> tmp_nbrs(org_offsets[org_vertex + 1] - org_offsets[org_vertex]);
-          std::transform(org_indices + org_offsets[org_vertex],
-                         org_indices + org_offsets[org_vertex + 1],
-                         tmp_nbrs.begin(),
-                         [org_labels, &label_to_coarse_vertex_map](auto nbr) {
-                           return label_to_coarse_vertex_map[org_labels[nbr]];
-                         });
-          coarse_nbrs0.insert(coarse_nbrs0.end(), tmp_nbrs.begin(), tmp_nbrs.end());
-        });
-      std::sort(coarse_nbrs0.begin(), coarse_nbrs0.end());
-      coarse_nbrs0.resize(
-        std::distance(coarse_nbrs0.begin(), std::unique(coarse_nbrs0.begin(), coarse_nbrs0.end())));
-
-      auto coarse_vertex = label_to_coarse_vertex_map[org_unique_labels[i]];
-      auto coarse_offset = coarse_offsets[coarse_vertex];
-      auto coarse_count  = coarse_offsets[coarse_vertex + 1] - coarse_offset;
-      std::vector<vertex_t> coarse_nbrs1(coarse_indices + coarse_offset,
-                                         coarse_indices + coarse_offset + coarse_count);
-      std::sort(coarse_nbrs1.begin(), coarse_nbrs1.end());
-
-      ASSERT_TRUE(coarse_nbrs0.size() == coarse_nbrs1.size());
-      ASSERT_TRUE(std::equal(coarse_nbrs0.begin(), coarse_nbrs0.end(), coarse_nbrs1.begin()));
-    } else {
+    if (org_weights) {
       std::vector<std::tuple<vertex_t, weight_t>> coarse_nbr_weight_pairs0{};
       std::for_each(lb,
                     ub,
                     [org_offsets,
                      org_indices,
-                     org_weights,
+                     org_weights = (*org_weights),
                      org_labels,
                      &label_to_coarse_vertex_map,
                      &coarse_nbr_weight_pairs0](auto t) {
@@ -198,7 +168,7 @@ void check_coarsened_graph_results(edge_t* org_offsets,
         coarse_offsets[coarse_vertex + 1] - coarse_offsets[coarse_vertex]);
       for (auto j = coarse_offsets[coarse_vertex]; j < coarse_offsets[coarse_vertex + 1]; ++j) {
         coarse_nbr_weight_pairs1[j - coarse_offsets[coarse_vertex]] =
-          std::make_tuple(coarse_indices[j], coarse_weights[j]);
+          std::make_tuple(coarse_indices[j], (*coarse_weights)[j]);
       }
       std::sort(coarse_nbr_weight_pairs1.begin(), coarse_nbr_weight_pairs1.end());
 
@@ -215,6 +185,35 @@ void check_coarsened_graph_results(edge_t* org_offsets,
                                threshold_magnitude))
                    : false;
         }));
+    } else {
+      std::vector<vertex_t> coarse_nbrs0{};
+      std::for_each(
+        lb,
+        ub,
+        [org_offsets, org_indices, org_labels, &label_to_coarse_vertex_map, &coarse_nbrs0](auto t) {
+          auto org_vertex = std::get<1>(t);
+          std::vector<vertex_t> tmp_nbrs(org_offsets[org_vertex + 1] - org_offsets[org_vertex]);
+          std::transform(org_indices + org_offsets[org_vertex],
+                         org_indices + org_offsets[org_vertex + 1],
+                         tmp_nbrs.begin(),
+                         [org_labels, &label_to_coarse_vertex_map](auto nbr) {
+                           return label_to_coarse_vertex_map[org_labels[nbr]];
+                         });
+          coarse_nbrs0.insert(coarse_nbrs0.end(), tmp_nbrs.begin(), tmp_nbrs.end());
+        });
+      std::sort(coarse_nbrs0.begin(), coarse_nbrs0.end());
+      coarse_nbrs0.resize(
+        std::distance(coarse_nbrs0.begin(), std::unique(coarse_nbrs0.begin(), coarse_nbrs0.end())));
+
+      auto coarse_vertex = label_to_coarse_vertex_map[org_unique_labels[i]];
+      auto coarse_offset = coarse_offsets[coarse_vertex];
+      auto coarse_count  = coarse_offsets[coarse_vertex + 1] - coarse_offset;
+      std::vector<vertex_t> coarse_nbrs1(coarse_indices + coarse_offset,
+                                         coarse_indices + coarse_offset + coarse_count);
+      std::sort(coarse_nbrs1.begin(), coarse_nbrs1.end());
+
+      ASSERT_TRUE(coarse_nbrs0.size() == coarse_nbrs1.size());
+      ASSERT_TRUE(std::equal(coarse_nbrs0.begin(), coarse_nbrs0.end(), coarse_nbrs1.begin()));
     }
   }
 
@@ -306,64 +305,36 @@ class Tests_CoarsenGraph
     }
 
     if (coarsen_graph_usecase.check_correctness) {
-      std::vector<edge_t> h_org_offsets(graph_view.number_of_vertices() + 1);
-      std::vector<vertex_t> h_org_indices(graph_view.number_of_edges());
-      std::vector<weight_t> h_org_weights{};
-      raft::update_host(h_org_offsets.data(),
-                        graph_view.local_edge_partition_view().offsets(),
-                        graph_view.number_of_vertices() + 1,
-                        handle.get_stream());
-      raft::update_host(h_org_indices.data(),
-                        graph_view.local_edge_partition_view().indices(),
-                        graph_view.number_of_edges(),
-                        handle.get_stream());
-      if (graph_view.is_weighted()) {
-        h_org_weights.assign(graph_view.number_of_edges(), weight_t{0.0});
-        raft::update_host(h_org_weights.data(),
-                          *(graph_view.local_edge_partition_view().weights()),
-                          graph_view.number_of_edges(),
-                          handle.get_stream());
-      }
+      auto h_org_offsets =
+        cugraph::test::to_host(handle, graph_view.local_edge_partition_view().offsets());
+      auto h_org_indices =
+        cugraph::test::to_host(handle, graph_view.local_edge_partition_view().indices());
+      auto h_org_weights =
+        cugraph::test::to_host(handle, graph_view.local_edge_partition_view().weights());
 
       auto coarse_graph_view = coarse_graph.view();
 
-      std::vector<edge_t> h_coarse_offsets(coarse_graph_view.number_of_vertices() + 1);
-      std::vector<vertex_t> h_coarse_indices(coarse_graph_view.number_of_edges());
-      std::vector<weight_t> h_coarse_weights{};
-      raft::update_host(h_coarse_offsets.data(),
-                        coarse_graph_view.local_edge_partition_view().offsets(),
-                        coarse_graph_view.number_of_vertices() + 1,
-                        handle.get_stream());
-      raft::update_host(h_coarse_indices.data(),
-                        coarse_graph_view.local_edge_partition_view().indices(),
-                        coarse_graph_view.number_of_edges(),
-                        handle.get_stream());
-      if (graph_view.is_weighted()) {
-        h_coarse_weights.resize(coarse_graph_view.number_of_edges());
-        raft::update_host(h_coarse_weights.data(),
-                          *(coarse_graph_view.local_edge_partition_view().weights()),
-                          coarse_graph_view.number_of_edges(),
-                          handle.get_stream());
-      }
+      auto h_coarse_offsets =
+        cugraph::test::to_host(handle, coarse_graph_view.local_edge_partition_view().offsets());
+      auto h_coarse_indices =
+        cugraph::test::to_host(handle, coarse_graph_view.local_edge_partition_view().indices());
+      auto h_coarse_weights =
+        cugraph::test::to_host(handle, coarse_graph_view.local_edge_partition_view().weights());
 
-      std::vector<vertex_t> h_coarse_vertices_to_labels(coarse_vertices_to_labels.size());
-      raft::update_host(h_coarse_vertices_to_labels.data(),
-                        coarse_vertices_to_labels.data(),
-                        coarse_vertices_to_labels.size(),
-                        handle.get_stream());
+      auto h_coarse_vertices_to_labels = cugraph::test::to_host(handle, coarse_vertices_to_labels);
 
-      handle.sync_stream();
-
-      check_coarsened_graph_results(h_org_offsets.data(),
-                                    h_org_indices.data(),
-                                    h_org_weights.data(),
-                                    h_labels.data(),
-                                    h_coarse_offsets.data(),
-                                    h_coarse_indices.data(),
-                                    h_coarse_weights.data(),
-                                    h_coarse_vertices_to_labels.data(),
-                                    graph_view.number_of_vertices(),
-                                    coarse_graph_view.number_of_vertices());
+      check_coarsened_graph_results(
+        h_org_offsets.data(),
+        h_org_indices.data(),
+        h_org_weights ? std::optional<weight_t const*>{(*h_org_weights).data()} : std::nullopt,
+        h_labels.data(),
+        h_coarse_offsets.data(),
+        h_coarse_indices.data(),
+        h_coarse_weights ? std::optional<weight_t const*>{(*h_coarse_weights).data()}
+                         : std::nullopt,
+        h_coarse_vertices_to_labels.data(),
+        graph_view.number_of_vertices(),
+        coarse_graph_view.number_of_vertices());
     }
   }
 };

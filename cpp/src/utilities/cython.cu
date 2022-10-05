@@ -30,6 +30,7 @@
 #include <cugraph/utilities/shuffle_comm.cuh>
 
 #include <raft/handle.hpp>
+#include <raft/span.hpp>
 
 #include <rmm/device_uvector.hpp>
 #include <rmm/exec_policy.hpp>
@@ -129,6 +130,9 @@ template <typename vertex_t,
 std::unique_ptr<graph_t<vertex_t, edge_t, weight_t, transposed, multi_gpu>> create_graph(
   raft::handle_t const& handle, graph_container_t const& graph_container)
 {
+  CUGRAPH_EXPECTS(graph_container.segment_offsets != nullptr,
+                  "graph_container.segment_offsets shouldn't be nullptr in multi-GPU.");
+
   auto num_local_partitions = static_cast<size_t>(graph_container.col_comm_size);
 
   std::vector<vertex_t> partition_offsets_vector(
@@ -144,13 +148,17 @@ std::unique_ptr<graph_t<vertex_t, edge_t, weight_t, transposed, multi_gpu>> crea
   std::vector<cugraph::edgelist_t<vertex_t, edge_t, weight_t>> edgelists(num_local_partitions);
   for (size_t i = 0; i < edgelists.size(); ++i) {
     edgelists[i] = cugraph::edgelist_t<vertex_t, edge_t, weight_t>{
-      reinterpret_cast<vertex_t*>(graph_container.src_vertices) + displacements[i],
-      reinterpret_cast<vertex_t*>(graph_container.dst_vertices) + displacements[i],
+      raft::device_span<vertex_t const>(
+        reinterpret_cast<vertex_t const*>(graph_container.src_vertices) + displacements[i],
+        edge_counts[i]),
+      raft::device_span<vertex_t const>(
+        reinterpret_cast<vertex_t const*>(graph_container.dst_vertices) + displacements[i],
+        edge_counts[i]),
       graph_container.is_weighted
-        ? std::optional<weight_t const*>(
-            {static_cast<weight_t const*>(graph_container.weights) + displacements[i]})
-        : std::nullopt,
-      edge_counts[i]};
+        ? std::make_optional<raft::device_span<weight_t const>>(
+            reinterpret_cast<weight_t const*>(graph_container.weights) + displacements[i],
+            edge_counts[i])
+        : std::nullopt};
   }
 
   partition_t<vertex_t> partition(partition_offsets_vector,
@@ -167,12 +175,9 @@ std::unique_ptr<graph_t<vertex_t, edge_t, weight_t, transposed, multi_gpu>> crea
       static_cast<edge_t>(graph_container.num_global_edges),
       graph_container.graph_props,
       partition,
-      graph_container.segment_offsets != nullptr
-        ? std::make_optional<std::vector<vertex_t>>(
-            static_cast<vertex_t const*>(graph_container.segment_offsets),
-            static_cast<vertex_t const*>(graph_container.segment_offsets) +
-              graph_container.num_segments + 1)
-        : std::nullopt,
+      std::vector<vertex_t>(static_cast<vertex_t const*>(graph_container.segment_offsets),
+                            static_cast<vertex_t const*>(graph_container.segment_offsets) +
+                              graph_container.num_segments + 1),
       // FIXME: disable (key, value) pairs at this moment (should be enabled once fully tuned).
       std::numeric_limits<vertex_t>::max(),
       std::numeric_limits<vertex_t>::max()},
@@ -189,12 +194,16 @@ std::unique_ptr<graph_t<vertex_t, edge_t, weight_t, transposed, multi_gpu>> crea
   raft::handle_t const& handle, graph_container_t const& graph_container)
 {
   edgelist_t<vertex_t, edge_t, weight_t> edgelist{
-    reinterpret_cast<vertex_t*>(graph_container.src_vertices),
-    reinterpret_cast<vertex_t*>(graph_container.dst_vertices),
-    graph_container.is_weighted
-      ? std::optional<weight_t const*>{reinterpret_cast<weight_t*>(graph_container.weights)}
-      : std::nullopt,
-    static_cast<edge_t>(graph_container.num_local_edges)};
+    raft::device_span<vertex_t const>(
+      reinterpret_cast<vertex_t const*>(graph_container.src_vertices),
+      graph_container.num_local_edges),
+    raft::device_span<vertex_t const>(
+      reinterpret_cast<vertex_t const*>(graph_container.dst_vertices),
+      graph_container.num_local_edges),
+    graph_container.is_weighted ? std::make_optional<raft::device_span<weight_t const>>(
+                                    reinterpret_cast<weight_t const*>(graph_container.weights),
+                                    graph_container.num_local_edges)
+                                : std::nullopt};
   return std::make_unique<graph_t<vertex_t, edge_t, weight_t, transposed, multi_gpu>>(
     handle,
     edgelist,
@@ -831,7 +840,7 @@ std::unique_ptr<major_minor_weights_t<vertex_t, edge_t, weight_t>> call_shuffle(
         zip_edge,
         zip_edge + num_edgelist_edges,
         [key_func =
-           cugraph::detail::compute_gpu_id_from_edge_t<vertex_t>{
+           cugraph::detail::compute_gpu_id_from_ext_edge_endpoints_t<vertex_t>{
              comm.get_size(), row_comm.get_size(), col_comm.get_size()}] __device__(auto val) {
           return key_func(thrust::get<0>(val), thrust::get<1>(val));
         },
@@ -847,7 +856,7 @@ std::unique_ptr<major_minor_weights_t<vertex_t, edge_t, weight_t>> call_shuffle(
         zip_edge,
         zip_edge + num_edgelist_edges,
         [key_func =
-           cugraph::detail::compute_gpu_id_from_edge_t<vertex_t>{
+           cugraph::detail::compute_gpu_id_from_ext_edge_endpoints_t<vertex_t>{
              comm.get_size(), row_comm.get_size(), col_comm.get_size()}] __device__(auto val) {
           return key_func(thrust::get<0>(val), thrust::get<1>(val));
         },
@@ -856,7 +865,7 @@ std::unique_ptr<major_minor_weights_t<vertex_t, edge_t, weight_t>> call_shuffle(
 
   auto local_partition_id_op =
     [comm_size,
-     key_func = cugraph::detail::compute_partition_id_from_edge_t<vertex_t>{
+     key_func = cugraph::detail::compute_partition_id_from_ext_edge_endpoints_t<vertex_t>{
        comm_size, row_comm_size, col_comm_size}] __device__(auto pair) {
       return key_func(thrust::get<0>(pair), thrust::get<1>(pair)) /
              comm_size;  // global partition id to local partition id
@@ -933,7 +942,7 @@ std::unique_ptr<renum_tuple_t<vertex_t, edge_t>> call_renumber(
     p_ret->get_num_vertices()    = meta.number_of_vertices;
     p_ret->get_num_edges()       = meta.number_of_edges;
     p_ret->get_partition()       = meta.partition;
-    p_ret->get_segment_offsets() = meta.segment_offsets;
+    p_ret->get_segment_offsets() = meta.edge_partition_segment_offsets;
   } else {
     cugraph::renumber_meta_t<vertex_t, edge_t, false> meta{};
     std::tie(p_ret->get_dv(), meta) =

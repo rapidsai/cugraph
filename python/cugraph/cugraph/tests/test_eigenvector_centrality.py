@@ -41,7 +41,8 @@ def topKVertices(eigen, col, k):
 def calc_eigenvector(graph_file):
     cu_M = utils.read_csv_file(graph_file)
     G = cugraph.Graph(directed=True)
-    G.from_cudf_edgelist(cu_M, source="0", destination="1")
+    G.from_cudf_edgelist(
+        cu_M, source="0", destination="1", store_transposed=True)
 
     k_df = cugraph.eigenvector_centrality(G, max_iter=1000)
     k_df = k_df.sort_values("vertex").reset_index(drop=True)
@@ -106,10 +107,12 @@ def test_eigenvector_centrality_multi_column(graph_file):
 
     G1 = cugraph.Graph(directed=True)
     G1.from_cudf_edgelist(cu_M, source=["src_0", "src_1"],
-                          destination=["dst_0", "dst_1"])
+                          destination=["dst_0", "dst_1"],
+                          store_transposed=True)
 
     G2 = cugraph.Graph(directed=True)
-    G2.from_cudf_edgelist(cu_M, source="src_0", destination="dst_0")
+    G2.from_cudf_edgelist(
+        cu_M, source="src_0", destination="dst_0", store_transposed=True)
 
     k_df_exp = cugraph.eigenvector_centrality(G2)
     k_df_exp = k_df_exp.sort_values("vertex").reset_index(drop=True)
@@ -136,7 +139,8 @@ def test_eigenvector_centrality_toy(graph_file):
     df = cudf.read_csv(graph_file, delimiter=' ',
                        dtype=['int32', 'int32', 'float32'], header=None)
     G = cugraph.Graph(directed=True)
-    G.from_cudf_edgelist(df, source='0', destination='1', edge_attr='2')
+    G.from_cudf_edgelist(
+        df, source='0', destination='1', edge_attr='2', store_transposed=True)
 
     tol = 1e-6
     max_iter = 200
@@ -151,3 +155,20 @@ def test_eigenvector_centrality_toy(graph_file):
         assert pytest.approx(expected_score, abs=1e-4) == actual_score, \
             f"Eigenvector centrality score is {actual_score}, should have" \
             f" been {expected_score}"
+
+
+def test_eigenvector_centrality_transposed_false():
+    input_data_path = (utils.RAPIDS_DATASET_ROOT_DIR_PATH /
+                       "karate.csv").as_posix()
+    cu_M = utils.read_csv_file(input_data_path)
+    G = cugraph.Graph(directed=True)
+    G.from_cudf_edgelist(
+        cu_M, source="0", destination="1", edge_attr="2",
+        legacy_renum_only=True, store_transposed=False)
+
+    warning_msg = ("Eigenvector centrality expects the 'store_transposed' "
+                   "flag to be set to 'True' for optimal performance during "
+                   "the graph creation")
+
+    with pytest.warns(UserWarning, match=warning_msg):
+        cugraph.eigenvector_centrality(G)

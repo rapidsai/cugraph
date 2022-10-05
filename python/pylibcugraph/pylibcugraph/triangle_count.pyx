@@ -54,10 +54,10 @@ from pylibcugraph.utils cimport (
 )
 
 
-def EXPERIMENTAL__triangle_count(ResourceHandle resource_handle,
-                                 _GPUGraph graph,
-                                 start_list,
-                                 bool_t do_expensive_check):
+def triangle_count(ResourceHandle resource_handle,
+                   _GPUGraph graph,
+                   start_list,
+                   bool_t do_expensive_check):
     """
     Computes the number of triangles (cycles of length three) and the number
     per vertex in the input graph.
@@ -68,8 +68,8 @@ def EXPERIMENTAL__triangle_count(ResourceHandle resource_handle,
         Handle to the underlying device and host resources needed for
         referencing data and running algorithms.
 
-    graph: MGGraph
-        The input graph, for Multi-GPU operations.
+    graph : SGGraph or MGGraph
+        The input graph, for either Single or Multi-GPU operations.
 
     start_list: device array type
         Device array containing the list of vertices for triangle counting.

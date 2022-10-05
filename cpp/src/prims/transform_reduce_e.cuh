@@ -603,6 +603,7 @@ auto transform_reduce_e(raft::handle_t const& handle,
   using dst_value_t = typename EdgeDstValueInputWrapper::value_type;
   using T           = typename detail::
     edge_op_result_type<vertex_t, vertex_t, weight_t, src_value_t, dst_value_t, EdgeOp>::type;
+  static_assert(!std::is_same_v<T, void>);
 
   if (do_expensive_check) {
     // currently, nothing to do

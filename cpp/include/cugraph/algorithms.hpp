@@ -28,9 +28,11 @@
 #include <cugraph-ops/graph/sampling.hpp>
 #endif
 
+#include <raft/core/device_span.hpp>
 #include <raft/handle.hpp>
 #include <raft/random/rng_state.hpp>
-#include <raft/span.hpp>
+
+#include <tuple>
 
 /** @ingroup cpp_api
  *  @{
@@ -1314,6 +1316,10 @@ extract_ego(raft::handle_t const& handle,
  * @brief returns random walks (RW) from starting sources, where each path is of given maximum
  * length. Uniform distribution is assumed for the random engine.
  *
+ * @deprecated This algorithm will be deprecated once all of the functionality is migrated
+ *             to the newer APIS: uniform_random_walks(), biased_random_walks(), and
+ *             node2vec_random_walks().
+ *
  * @tparam graph_t Type of graph/view (typically, graph_view_t).
  * @tparam index_t Type used to store indexing and sizes.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
@@ -1607,6 +1613,37 @@ void core_number(raft::handle_t const& handle,
                  bool do_expensive_check = false);
 
 /**
+ * @brief   Extract K Core of a graph
+ *
+ * @throws     cugraph::logic_error when an error occurs.
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam weight_t Type of edge weights. Needs to be a floating point type.
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
+ * @param  graph_view      Graph view object.
+ * @param  k               Order of the core. This value must not be negative.
+ * @param degree_type Optional parameter to dictate whether to compute the K-core decomposition
+ *                    based on in-degrees, out-degrees, or in-degrees + out_degrees.  One of @p
+ *                    degree_type and @p core_numbers must be specified.
+ * @param  core_numbers    Optional output from core_number algorithm.  If not specified then
+ *                         k_core will call core_number itself using @p degree_type
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
+ *
+ * @return edge list for the graph
+ */
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+std::tuple<rmm::device_uvector<vertex_t>,
+           rmm::device_uvector<vertex_t>,
+           std::optional<rmm::device_uvector<weight_t>>>
+k_core(raft::handle_t const& handle,
+       graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
+       size_t k,
+       std::optional<k_core_degree_type_t> degree_type,
+       std::optional<raft::device_span<edge_t const>> core_numbers,
+       bool do_expensive_check = false);
+
+/**
  * @brief Uniform Neighborhood Sampling.
  *
  * This function traverses from a set of starting vertices, traversing outgoing edges and
@@ -1676,6 +1713,90 @@ void triangle_count(raft::handle_t const& handle,
                     std::optional<raft::device_span<vertex_t const>> vertices,
                     raft::device_span<edge_t> counts,
                     bool do_expensive_check = false);
+
+/**
+ * @brief     Compute Jaccard similarity coefficient
+ *
+ * Similarity is computed for every pair of vertices specified. Note that
+ * similarity algorithms expect a symmetric graph.
+ *
+ * @throws                 cugraph::logic_error when an error occurs.
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam weight_t Type of edge weights. Needs to be a floating point type.
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param graph_view Graph view object.
+ * @param vertex_pairs tuple of device spans defining the vertex pairs to compute similarity for
+ * In a multi-gpu context each vertex pair should be local to this GPU.
+ * @param use_weights If true use the weights associated with the graph.  If false assume a weight
+ *                    of 1 for all edges.
+ * @return similarity coefficient for the corresponding @p vertex_pairs
+ */
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+rmm::device_uvector<weight_t> jaccard_coefficients(
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
+  std::tuple<raft::device_span<vertex_t const>, raft::device_span<vertex_t const>> vertex_pairs,
+  bool use_weights);
+
+/**
+ * @brief     Compute Sorensen similarity coefficient
+ *
+ * Similarity is computed for every pair of vertices specified. Note that
+ * similarity algorithms expect a symmetric graph.
+ *
+ * @throws                 cugraph::logic_error when an error occurs.
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam weight_t Type of edge weights. Needs to be a floating point type.
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param graph_view Graph view object.
+ * @param vertex_pairs tuple of device spans defining the vertex pairs to compute similarity for
+ * In a multi-gpu context each vertex pair should be local to this GPU.
+ * @param use_weights If true use the weights associated with the graph.  If false assume a weight
+ *                    of 1 for all edges.
+ * @return similarity coefficient for the corresponding @p vertex_pairs
+ */
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+rmm::device_uvector<weight_t> sorensen_coefficients(
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
+  std::tuple<raft::device_span<vertex_t const>, raft::device_span<vertex_t const>> vertex_pairs,
+  bool use_weights);
+
+/**
+ * @brief     Compute overlap similarity coefficient
+ *
+ * Similarity is computed for every pair of vertices specified. Note that
+ * similarity algorithms expect a symmetric graph.
+ *
+ * @throws                 cugraph::logic_error when an error occurs.
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam weight_t Type of edge weights. Needs to be a floating point type.
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param graph_view Graph view object.
+ * @param vertex_pairs tuple of device spans defining the vertex pairs to compute similarity for
+ * In a multi-gpu context each vertex pair should be local to this GPU.
+ * @param use_weights If true use the weights associated with the graph.  If false assume a weight
+ *                    of 1 for all edges.
+ * @return similarity coefficient for the corresponding @p vertex_pairs
+ */
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+rmm::device_uvector<weight_t> overlap_coefficients(
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
+  std::tuple<raft::device_span<vertex_t const>, raft::device_span<vertex_t const>> vertex_pairs,
+  bool use_weights);
 
 }  // namespace cugraph
 

@@ -10,6 +10,7 @@
  */
 
 #include <utilities/high_res_timer.hpp>
+#include <utilities/test_utilities.hpp>
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/legacy/graph.hpp>
@@ -70,7 +71,6 @@ TEST_F(HungarianTest, Bipartite4x4)
 
   float min_cost = 18.0;
   std::vector<int32_t> expected({6, 7, 5, 4});
-  std::vector<int32_t> assignment({0, 0, 0, 0});
 
   int32_t length         = sizeof(src_data) / sizeof(src_data[0]);
   int32_t length_workers = sizeof(workers) / sizeof(workers[0]);
@@ -93,7 +93,7 @@ TEST_F(HungarianTest, Bipartite4x4)
 
   float r = cugraph::hungarian(handle, g, length_workers, workers_v.data(), assignment_v.data());
 
-  raft::update_host(assignment.data(), assignment_v.begin(), length_workers, handle.get_stream());
+  auto assignment = cugraph::test::to_host(handle, assignment_v);
 
   EXPECT_EQ(min_cost, r);
   EXPECT_EQ(assignment, expected);
@@ -112,7 +112,6 @@ TEST_F(HungarianTest, Bipartite5x5)
 
   float min_cost = 51.0;
   std::vector<int32_t> expected({5, 7, 8, 6, 9});
-  std::vector<int32_t> assignment({0, 0, 0, 0, 0});
 
   int32_t length         = sizeof(src_data) / sizeof(src_data[0]);
   int32_t length_workers = sizeof(workers) / sizeof(workers[0]);
@@ -135,8 +134,7 @@ TEST_F(HungarianTest, Bipartite5x5)
 
   float r = cugraph::hungarian(handle, g, length_workers, workers_v.data(), assignment_v.data());
 
-  raft::update_host(
-    assignment.data(), assignment_v.begin(), assignment_v.size(), handle.get_stream());
+  auto assignment = cugraph::test::to_host(handle, assignment_v);
 
   EXPECT_EQ(min_cost, r);
   EXPECT_EQ(assignment, expected);
@@ -158,7 +156,6 @@ TEST_F(HungarianTest, Bipartite4x4_multiple_answers)
   std::vector<int32_t> expected2({6, 7, 5, 4});
   std::vector<int32_t> expected3({7, 6, 4, 5});
   std::vector<int32_t> expected4({6, 7, 4, 5});
-  std::vector<int32_t> assignment({0, 0, 0, 0});
 
   int32_t length         = sizeof(src_data) / sizeof(src_data[0]);
   int32_t length_workers = sizeof(workers) / sizeof(workers[0]);
@@ -183,8 +180,7 @@ TEST_F(HungarianTest, Bipartite4x4_multiple_answers)
 
   EXPECT_EQ(min_cost, r);
 
-  raft::update_host(
-    assignment.data(), assignment_v.data(), assignment_v.size(), handle.get_stream());
+  auto assignment = cugraph::test::to_host(handle, assignment_v);
 
   EXPECT_TRUE(std::equal(assignment.begin(), assignment.end(), expected1.begin()) ||
               std::equal(assignment.begin(), assignment.end(), expected2.begin()) ||
@@ -203,7 +199,6 @@ TEST_F(HungarianTest, May29InfLoop)
   float min_cost = 2;
 
   std::vector<int32_t> expected({3, 2, 1, 0});
-  std::vector<int32_t> assignment({0, 0, 0, 0});
 
   rmm::device_uvector<float> cost_v(num_rows * num_cols, handle.get_stream());
   rmm::device_uvector<int32_t> assignment_v(num_rows, handle.get_stream());
@@ -213,8 +208,7 @@ TEST_F(HungarianTest, May29InfLoop)
   float r =
     cugraph::dense::hungarian(handle, cost_v.data(), num_rows, num_cols, assignment_v.data());
 
-  raft::update_host(
-    assignment.data(), assignment_v.data(), assignment_v.size(), handle.get_stream());
+  auto assignment = cugraph::test::to_host(handle, assignment_v);
 
   EXPECT_EQ(min_cost, r);
   EXPECT_EQ(assignment, expected);
@@ -232,7 +226,6 @@ TEST_F(HungarianTest, Dense4x6)
   float min_cost = 2;
 
   std::vector<int32_t> expected({3, 2, 1, 0});
-  std::vector<int32_t> assignment({0, 0, 0, 0});
 
   rmm::device_uvector<float> cost_v(num_rows * num_cols, handle.get_stream());
   rmm::device_uvector<int32_t> assignment_v(num_rows, handle.get_stream());
@@ -242,8 +235,7 @@ TEST_F(HungarianTest, Dense4x6)
   float r =
     cugraph::dense::hungarian(handle, cost_v.data(), num_rows, num_cols, assignment_v.data());
 
-  raft::update_host(
-    assignment.data(), assignment_v.data(), assignment_v.size(), handle.get_stream());
+  auto assignment = cugraph::test::to_host(handle, assignment_v);
 
   EXPECT_EQ(min_cost, r);
   EXPECT_EQ(assignment, expected);
@@ -262,7 +254,6 @@ TEST_F(HungarianTest, Dense6x4)
 
   std::vector<int32_t> expected1({3, 2, 4, 1, 5, 0});
   std::vector<int32_t> expected2({3, 2, 5, 1, 4, 0});
-  std::vector<int32_t> assignment({0, 0, 0, 0, 0, 0});
 
   rmm::device_uvector<float> cost_v(num_rows * num_cols, handle.get_stream());
   rmm::device_uvector<int32_t> assignment_v(num_rows, handle.get_stream());
@@ -272,8 +263,7 @@ TEST_F(HungarianTest, Dense6x4)
   float r =
     cugraph::dense::hungarian(handle, cost_v.data(), num_rows, num_cols, assignment_v.data());
 
-  raft::update_host(
-    assignment.data(), assignment_v.data(), assignment_v.size(), handle.get_stream());
+  auto assignment = cugraph::test::to_host(handle, assignment_v);
 
   EXPECT_EQ(min_cost, r);
   EXPECT_TRUE(std::equal(assignment.begin(), assignment.end(), expected1.begin()) ||
@@ -320,7 +310,6 @@ TEST_F(HungarianTest, PythonTestFailure)
   float min_cost = 16;
 
   std::vector<int32_t> expected({0, 2, 1, 4, 3});
-  std::vector<int32_t> assignment({0, 0, 0, 0, 0});
 
   rmm::device_uvector<float> cost_v(num_rows * num_cols, handle.get_stream());
   rmm::device_uvector<int32_t> assignment_v(num_rows, handle.get_stream());
@@ -330,8 +319,7 @@ TEST_F(HungarianTest, PythonTestFailure)
   float r =
     cugraph::dense::hungarian(handle, cost_v.data(), num_rows, num_cols, assignment_v.data());
 
-  raft::update_host(
-    assignment.data(), assignment_v.data(), assignment_v.size(), handle.get_stream());
+  auto assignment = cugraph::test::to_host(handle, assignment_v);
 
   EXPECT_EQ(min_cost, r);
   EXPECT_EQ(assignment, expected);
