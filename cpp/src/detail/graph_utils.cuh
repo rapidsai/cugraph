@@ -45,7 +45,7 @@ template <typename vertex_t>
 struct compute_gpu_id_from_ext_vertex_t {
   int comm_size{0};
 
-  __device__ int operator()(vertex_t v) const
+  __host__ __device__ int operator()(vertex_t v) const
   {
     cuco::detail::MurmurHash3_32<vertex_t> hash_func{};
     return hash_func(v) % comm_size;
@@ -56,7 +56,7 @@ template <typename vertex_t>
 struct compute_gpu_id_from_int_vertex_t {
   raft::device_span<vertex_t> vertex_partition_range_lasts_span;
 
-  __device__ int operator()(vertex_t v) const
+  __host__ __device__ int operator()(vertex_t v) const
   {
     return static_cast<int>(
       thrust::distance(vertex_partition_range_lasts_span.begin(),
@@ -73,7 +73,7 @@ struct compute_gpu_id_from_edge_t {
   int row_comm_size{0};
   int col_comm_size{0};
 
-  __device__ int operator()(vertex_t major, vertex_t minor) const
+  __host__ __device__ int operator()(vertex_t major, vertex_t minor) const
   {
     cuco::detail::MurmurHash3_32<vertex_t> hash_func{};
     auto major_comm_rank = static_cast<int>(hash_func(major) % comm_size);
@@ -88,7 +88,7 @@ struct compute_partition_id_from_edge_t {
   int row_comm_size{0};
   int col_comm_size{0};
 
-  __device__ int operator()(vertex_t major, vertex_t minor) const
+  __host__ __device__ int operator()(vertex_t major, vertex_t minor) const
   {
     cuco::detail::MurmurHash3_32<vertex_t> hash_func{};
     auto major_comm_rank = static_cast<int>(hash_func(major) % comm_size);
