@@ -981,6 +981,11 @@ class CugraphServiceClient:
         Run uniform_neighbor_sample() with the args provided, but have the
         result send directly to the device specified by result_device.
         """
+        # global listener
+
+        with cp.cuda.Device(result_device):
+            cp.ndarray(1)
+
         # FIXME: check for valid device
         result_obj = UniformNeighborSampleResult()
 
@@ -992,15 +997,27 @@ class CugraphServiceClient:
         async def receiver(endpoint):
             # result_obj.result = await endpoint.recv_obj()
             with cp.cuda.Device(result_device):
+                print("CLIENT receiving sources...",end="",flush=True)
                 result_obj.sources = await endpoint.recv_obj(
                     allocator=uint8_allocator)
+                result_obj.sources.astype("int32")
+                print("done",flush=True)
+
+                print("CLIENT receiving dsts...",end="",flush=True)
                 result_obj.destination = await endpoint.recv_obj(
                     allocator=uint8_allocator)
+                result_obj.destination.astype("int32")
+                print("done",flush=True)
+
+                print("CLIENT receiving indices...",end="",flush=True)
                 result_obj.indices = await endpoint.recv_obj(
                     allocator=uint8_allocator)
+                result_obj.indices.astype("float64")
+                print("done",flush=True)
             # await endpoint.close()
             listener.close()
 
+        print(f"{self.results_port=}")
         listener = ucp.create_listener(receiver, self.results_port)
 
         uns_thread = threading.Thread(
@@ -1010,8 +1027,8 @@ class CugraphServiceClient:
                   with_replacement,
                   graph_id,
                   ),
-            kwargs={"client_host": self.host,
-                    "client_result_port": self.results_port,
+            kwargs={"result_host": self.host,
+                    "result_port": self.results_port,
                     },
         )
         uns_thread.start()

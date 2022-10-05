@@ -93,7 +93,7 @@ def start_server_subprocess(host="localhost",
               "start...",
               end="", flush=True)
         client = CugraphServiceClient(host, port)
-        max_retries = 10
+        max_retries = 20
         retries = 0
         while retries < max_retries:
             try:

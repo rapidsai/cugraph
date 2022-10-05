@@ -20,6 +20,7 @@ from inspect import signature
 import asyncio
 
 import numpy as np
+import cupy as cp
 import ucp
 import cudf
 import dask_cudf
@@ -58,19 +59,20 @@ def call_algo(sg_algo_func, G, **kwargs):
             possible_args = ["start_list", "fanout_vals", "with_replacement"]
             kwargs_to_pass = {a: kwargs[a] for a in possible_args
                               if a in kwargs}
+            mg_uniform_neighbor_sample._return_type = "arrays"
             data = mg_uniform_neighbor_sample(G, **kwargs_to_pass)
-            data = data.compute()
         else:
             possible_args = ["start_list", "fanout_vals", "with_replacement",
                              "is_edge_ids"]
             kwargs_to_pass = {a: kwargs[a] for a in possible_args
                               if a in kwargs}
+            uniform_neighbor_sample._return_type = "arrays"
             data = uniform_neighbor_sample(G, **kwargs_to_pass)
 
         return UniformNeighborSampleResult(
-            sources=data.sources.values_host,
-            destinations=data.destinations.values_host,
-            indices=data.indices.values_host
+            sources=data[0],
+            destinations=data[1],
+            indices=data[2],
         )
 
     else:
@@ -645,8 +647,8 @@ class CugraphHandler:
                                 fanout_vals,
                                 with_replacement,
                                 graph_id,
-                                client_host,
-                                client_result_port
+                                result_host,
+                                result_port
                                 ):
         G = self._get_graph(graph_id)
         if isinstance(G, (MGPropertyGraph, PropertyGraph)):
@@ -657,24 +659,24 @@ class CugraphHandler:
                                       "on the extracted subgraph instead.")
 
         try:
-            results = call_algo(
+            uns_result = call_algo(
                 uniform_neighbor_sample,
                 G,
                 start_list=start_list,
                 fanout_vals=fanout_vals,
                 with_replacement=with_replacement
             )
-            if (client_host is not None) or (client_result_port is not None):
-                if (client_host is None) or (client_result_port is None):
-                    raise ValueError("both client_host and client_result_port "
-                                     "must be set if either is set. Got: "
-                                     f"{client_host=}, {client_result_port=}")
+            if (result_host is not None) or (result_port is not None):
+                if (result_host is None) or (result_port is None):
+                    raise ValueError("both result_host and result_port must "
+                                     "be set if either is set. Got: "
+                                     f"{result_host=}, {result_port=}")
                 asyncio.run(
-                    self.__ucx_send_results(client_host,
-                                            client_result_port,
-                                            results[0],
-                                            results[1],
-                                            results[2],
+                    self.__ucx_send_results(result_host,
+                                            result_port,
+                                            uns_result.sources,
+                                            uns_result.destinations,
+                                            uns_result.indices,
                                             )
                 )
                 # FIXME: Thrift still expects something of the expected type to
@@ -684,7 +686,10 @@ class CugraphHandler:
                 return UniformNeighborSampleResult()
 
             else:
-                return results
+                uns_result.sources = cp.asnumpy(uns_result.sources)
+                uns_result.destinations = cp.asnumpy(uns_result.destinations)
+                uns_result.indices = cp.asnumpy(uns_result.indices)
+                return uns_result
 
         except Exception:
             raise CugraphServiceError(f"{traceback.format_exc()}")
@@ -720,20 +725,21 @@ class CugraphHandler:
     ###########################################################################
     # Private
     async def __ucx_send_results(self,
-                                 client_host,
-                                 client_result_port,
+                                 result_host,
+                                 result_port,
                                  *results):
         # The cugraph_service_client should have set up a UCX listener waiting
         # in a background thread for the result. Create an endpoint, send
         # results, and close.
-        ep = ucp.create_endpoint(client_host, client_result_port)
+        breakpoint()
+        ep = await ucp.create_endpoint(result_host, result_port)
 
         # Send the individual arrays to the client to be written
         # directly to the desired device.
         for r in results:
-            ep.send_obj(r)
+            await ep.send_obj(r)
 
-        ep.close()
+        # ep.close()
 
     def __get_dataframe_from_csv(self,
                                  csv_file_name,
