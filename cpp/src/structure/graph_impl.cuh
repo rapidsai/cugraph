@@ -1080,14 +1080,20 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
       std::move(edgelist_weights),
       reciprocal);
 
-  auto vertex_span = renumber ? std::move(renumber_map) : std::nullopt;
+  auto vertices = renumber ? std::move(renumber_map)
+                           : std::make_optional<rmm::device_uvector<vertex_t>>(number_of_vertices,
+                                                                               handle.get_stream());
+  if (!renumber) {
+    thrust::sequence(
+      handle.get_thrust_policy(), (*vertices).begin(), (*vertices).end(), vertex_t{0});
+  }
 
   graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> symmetrized_graph(handle);
   std::optional<rmm::device_uvector<vertex_t>> new_renumber_map{std::nullopt};
   std::tie(symmetrized_graph, std::ignore, new_renumber_map) =
     create_graph_from_edgelist<vertex_t, edge_t, weight_t, int32_t, store_transposed, multi_gpu>(
       handle,
-      std::move(vertex_span),
+      std::move(vertices),
       std::move(edgelist_srcs),
       std::move(edgelist_dsts),
       std::move(edgelist_weights),
@@ -1160,14 +1166,20 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
 
   auto [edgelist_srcs, edgelist_dsts, edgelist_weights] =
     this->decompress_to_edgelist(handle, renumber_map, true);
-  auto vertex_span = renumber ? std::move(renumber_map) : std::nullopt;
+  auto vertices = renumber ? std::move(renumber_map)
+                           : std::make_optional<rmm::device_uvector<vertex_t>>(number_of_vertices,
+                                                                               handle.get_stream());
+  if (!renumber) {
+    thrust::sequence(
+      handle.get_thrust_policy(), (*vertices).begin(), (*vertices).end(), vertex_t{0});
+  }
 
   graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> transposed_graph(handle);
   std::optional<rmm::device_uvector<vertex_t>> new_renumber_map{std::nullopt};
   std::tie(transposed_graph, std::ignore, new_renumber_map) =
     create_graph_from_edgelist<vertex_t, edge_t, weight_t, int32_t, store_transposed, multi_gpu>(
       handle,
-      std::move(vertex_span),
+      std::move(vertices),
       std::move(edgelist_dsts),
       std::move(edgelist_srcs),
       std::move(edgelist_weights),
@@ -1241,7 +1253,13 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
 
   auto [edgelist_srcs, edgelist_dsts, edgelist_weights] =
     this->decompress_to_edgelist(handle, renumber_map, destroy);
-  auto vertex_span = renumber ? std::move(renumber_map) : std::nullopt;
+  auto vertices = renumber ? std::move(renumber_map)
+                           : std::make_optional<rmm::device_uvector<vertex_t>>(number_of_vertices,
+                                                                               handle.get_stream());
+  if (!renumber) {
+    thrust::sequence(
+      handle.get_thrust_policy(), (*vertices).begin(), (*vertices).end(), vertex_t{0});
+  }
 
   graph_t<vertex_t, edge_t, weight_t, !store_transposed, multi_gpu> storage_transposed_graph(
     handle);
@@ -1249,7 +1267,7 @@ graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_
   std::tie(storage_transposed_graph, std::ignore, new_renumber_map) =
     create_graph_from_edgelist<vertex_t, edge_t, weight_t, int32_t, !store_transposed, multi_gpu>(
       handle,
-      std::move(vertex_span),
+      std::move(vertices),
       std::move(edgelist_srcs),
       std::move(edgelist_dsts),
       std::move(edgelist_weights),
