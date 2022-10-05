@@ -93,7 +93,7 @@ def networkx_weak_call(graph_file):
 
 
 def networkx_strong_call(graph_file):
-    G = graph_file.get_graph()
+    G = graph_file.get_graph(create_using=cugraph.Graph(directed=True))
     dataset_path = graph_file.get_path()
     M = utils.read_csv_for_nx(dataset_path)
     Gnx = nx.from_pandas_edgelist(
