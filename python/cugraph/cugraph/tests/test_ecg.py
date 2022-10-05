@@ -55,7 +55,7 @@ ENSEMBLE_SIZES = [16, 32]
 @pytest.mark.parametrize("graph_file", DATASETS)
 @pytest.mark.parametrize("min_weight", MIN_WEIGHTS)
 @pytest.mark.parametrize("ensemble_size", ENSEMBLE_SIZES)
-def test_ecg_clustering_1(graph_file, min_weight, ensemble_size):
+def test_ecg_clustering(graph_file, min_weight, ensemble_size):
     gc.collect()
 
     # Read in the graph and get a cugraph object
