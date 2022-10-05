@@ -1266,7 +1266,8 @@ def test_extract_subgraph_no_query(dataset1_PropertyGraph):
     """
     (pG, data) = dataset1_PropertyGraph
 
-    G = pG.extract_subgraph(create_using=DiGraph_inst, allow_multi_edges=True)
+    G = pG.extract_subgraph(create_using=DiGraph_inst,
+                            check_multi_edges=False)
 
     num_edges = \
         len(dataset1["transactions"][-1]) + \
@@ -1296,7 +1297,8 @@ def test_extract_subgraph_multi_edges(dataset1_PropertyGraph):
     # FIXME: use a better exception
     with pytest.raises(RuntimeError):
         pG.extract_subgraph(selection=selection,
-                            create_using=DiGraph_inst)
+                            create_using=DiGraph_inst,
+                            check_multi_edges=True)
 
 
 def test_extract_subgraph_bad_args(dataset1_PropertyGraph):
@@ -1379,8 +1381,7 @@ def test_extract_subgraph_default_edge_weight_no_property(
     """
     (pG, data) = dataset1_PropertyGraph
     edge_weight = 99.2
-    G = pG.extract_subgraph(allow_multi_edges=True,
-                            default_edge_weight=edge_weight)
+    G = pG.extract_subgraph(default_edge_weight=edge_weight)
     assert (G.edgelist.edgelist_df["weights"] == edge_weight).all()
 
 
@@ -1440,7 +1441,8 @@ def test_graph_edge_data_added(dataset1_PropertyGraph):
 
     # extract_subgraph() should return a directed Graph object with additional
     # meta-data, which includes edge IDs.
-    G = pG.extract_subgraph(create_using=DiGraph_inst, allow_multi_edges=True)
+    G = pG.extract_subgraph(create_using=DiGraph_inst,
+                            check_multi_edges=False)
 
     # G.edge_data should be set to a DataFrame with rows for each graph edge.
     assert len(G.edge_data) == expected_num_edges
@@ -1602,7 +1604,7 @@ def test_property_names_attrs(dataset1_PropertyGraph):
     # Extracting a subgraph with weights has/had a side-effect of adding a
     # weight column, so call extract_subgraph() to ensure the internal weight
     # column name is not present.
-    pG.extract_subgraph(default_edge_weight=1.0, allow_multi_edges=True)
+    pG.extract_subgraph(default_edge_weight=1.0)
 
     actual_vert_prop_names = pG.vertex_property_names
     actual_edge_prop_names = pG.edge_property_names
@@ -1781,7 +1783,7 @@ def bench_extract_subgraph_for_cyber(gpubenchmark, cyber_PropertyGraph):
                  create_using=cugraph.Graph(directed=True),
                  selection=selected_edges,
                  default_edge_weight=1.0,
-                 allow_multi_edges=True)
+                 check_multi_edges=False)
 
 
 def bench_extract_subgraph_for_cyber_detect_duplicate_edges(
@@ -1802,7 +1804,7 @@ def bench_extract_subgraph_for_cyber_detect_duplicate_edges(
             pG.extract_subgraph(create_using=cugraph.Graph(directed=True),
                                 selection=selected_edges,
                                 default_edge_weight=1.0,
-                                allow_multi_edges=False)
+                                check_multi_edges=True)
 
     gpubenchmark(func)
 
@@ -1824,7 +1826,7 @@ def bench_extract_subgraph_for_rmat(gpubenchmark, rmat_PropertyGraph):
                  create_using=cugraph.Graph(directed=True),
                  selection=selected_edges,
                  default_edge_weight=1.0,
-                 allow_multi_edges=True)
+                 check_multi_edges=False)
 
 
 # This test runs for *minutes* with the current implementation, and since
@@ -1851,6 +1853,6 @@ def bench_extract_subgraph_for_rmat_detect_duplicate_edges(
             pG.extract_subgraph(create_using=cugraph.Graph(directed=True),
                                 selection=selected_edges,
                                 default_edge_weight=1.0,
-                                allow_multi_edges=False)
+                                check_multi_edges=True)
 
     gpubenchmark(func)
