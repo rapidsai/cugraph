@@ -255,12 +255,6 @@ std::tuple<rmm::device_uvector<vertex_t>, std::vector<vertex_t>, vertex_t> compu
     if (edgelist_majors.size() > 1) {
       thrust::sort(
         handle.get_thrust_policy(), sorted_unique_majors.begin(), sorted_unique_majors.end());
-      // FIXME: is this unique & resize necessary?
-      sorted_unique_majors.resize(thrust::distance(sorted_unique_majors.begin(),
-                                                   thrust::unique(handle.get_thrust_policy(),
-                                                                  sorted_unique_majors.begin(),
-                                                                  sorted_unique_majors.end())),
-                                  handle.get_stream());
     }
     sorted_unique_majors.shrink_to_fit(handle.get_stream());
   }
