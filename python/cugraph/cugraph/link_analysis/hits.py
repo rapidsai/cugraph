@@ -20,6 +20,7 @@ from pylibcugraph import (ResourceHandle,
                           hits as pylibcugraph_hits
                           )
 import cudf
+import warnings
 
 
 def hits(
@@ -84,6 +85,11 @@ def hits(
     """
 
     G, isNx = ensure_cugraph_obj_for_nx(G)
+    if G.store_transposed is False:
+        warning_msg = ("HITS expects the 'store_transposed' flag "
+                       "to be set to 'True' for optimal performance during "
+                       "the graph creation")
+        warnings.warn(warning_msg, UserWarning)
 
     do_expensive_check = False
     init_hubs_guess_vertices = None

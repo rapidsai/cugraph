@@ -19,6 +19,7 @@ import pandas as pd
 import numpy as np
 import cudf
 from cudf.testing import assert_frame_equal, assert_series_equal
+from cugraph.experimental.datasets import cyber
 
 # If the rapids-pytest-benchmark plugin is installed, the "gpubenchmark"
 # fixture will be available automatically. Check that this fixture is available
@@ -320,19 +321,12 @@ def cyber_PropertyGraph(request):
     from cugraph.experimental import PropertyGraph
 
     dataframe_type = request.param[0]
-    cyber_csv = utils.RAPIDS_DATASET_ROOT_DIR_PATH/"cyber.csv"
     source_col_name = "srcip"
     dest_col_name = "dstip"
 
+    df = cyber.get_edgelist()
     if dataframe_type is pd.DataFrame:
-        read_csv = pd.read_csv
-    else:
-        read_csv = cudf.read_csv
-    df = read_csv(cyber_csv, delimiter=",",
-                  dtype={"idx": "int32",
-                         source_col_name: "str",
-                         dest_col_name: "str"},
-                  header=0)
+        df = df.to_pandas()
 
     pG = PropertyGraph()
     pG.add_edge_data(df, (source_col_name, dest_col_name))
@@ -919,6 +913,84 @@ def test_add_edge_data_prop_columns(df_type):
     assert type_is_categorical(pG)
 
 
+@pytest.mark.parametrize("df_type", df_types, ids=df_type_id)
+def test_add_edge_data_with_ids(df_type):
+    """
+    add_edge_data() on "transactions" table, all properties.
+    """
+    from cugraph.experimental import PropertyGraph
+
+    transactions = dataset1["transactions"]
+    transactions_df = df_type(columns=transactions[0],
+                              data=transactions[1])
+    transactions_df["edge_id"] = list(range(10, 10 + len(transactions_df)))
+
+    pG = PropertyGraph()
+    pG.add_edge_data(transactions_df,
+                     type_name="transactions",
+                     edge_id_col_name="edge_id",
+                     vertex_col_names=("user_id", "merchant_id"),
+                     property_columns=None)
+
+    assert pG.get_num_vertices() == 7
+    # 'transactions' is edge type, not vertex type
+    assert pG.get_num_vertices('transactions') == 0
+    assert pG.get_num_edges() == 4
+    assert pG.get_num_edges('transactions') == 4
+    # Original SRC and DST columns no longer include "merchant_id", "user_id"
+    expected_props = ["volume", "time", "card_num", "card_type"]
+    assert sorted(pG.edge_property_names) == sorted(expected_props)
+
+    relationships = dataset1["relationships"]
+    relationships_df = df_type(columns=relationships[0],
+                               data=relationships[1])
+
+    # user-provided, then auto-gen (not allowed)
+    with pytest.raises(NotImplementedError):
+        pG.add_edge_data(relationships_df,
+                         type_name="relationships",
+                         vertex_col_names=("user_id_1", "user_id_2"),
+                         property_columns=None)
+
+    relationships_df["edge_id"] = list(range(30, 30 + len(relationships_df)))
+
+    pG.add_edge_data(relationships_df,
+                     type_name="relationships",
+                     edge_id_col_name="edge_id",
+                     vertex_col_names=("user_id_1", "user_id_2"),
+                     property_columns=None)
+
+    if df_type is cudf.DataFrame:
+        ase = assert_series_equal
+    else:
+        ase = pd.testing.assert_series_equal
+    df = pG.get_edge_data(types='transactions')
+    ase(
+        df[pG.edge_id_col_name].sort_values().reset_index(drop=True),
+        transactions_df["edge_id"],
+        check_names=False,
+    )
+    df = pG.get_edge_data(types='relationships')
+    ase(
+        df[pG.edge_id_col_name].sort_values().reset_index(drop=True),
+        relationships_df["edge_id"],
+        check_names=False,
+    )
+
+    # auto-gen, then user-provided (not allowed)
+    pG = PropertyGraph()
+    pG.add_edge_data(transactions_df,
+                     type_name="transactions",
+                     vertex_col_names=("user_id", "merchant_id"),
+                     property_columns=None)
+    with pytest.raises(NotImplementedError):
+        pG.add_edge_data(relationships_df,
+                         type_name="relationships",
+                         edge_id_col_name="edge_id",
+                         vertex_col_names=("user_id_1", "user_id_2"),
+                         property_columns=None)
+
+
 def test_add_edge_data_bad_args():
     """
     add_edge_data() with various bad args, checks that proper exceptions are
@@ -956,6 +1028,18 @@ def test_add_edge_data_bad_args():
                          type_name="transactions",
                          vertex_col_names=("user_id", "merchant_id"),
                          property_columns="time")
+    with pytest.raises(TypeError):
+        pG.add_edge_data(transactions_df,
+                         type_name="transactions",
+                         edge_id_col_name=42,
+                         vertex_col_names=("user_id", "merchant_id"),
+                         property_columns=None)
+    with pytest.raises(ValueError):
+        pG.add_edge_data(transactions_df,
+                         type_name="transactions",
+                         edge_id_col_name="MISSING",
+                         vertex_col_names=("user_id", "merchant_id"),
+                         property_columns=None)
 
 
 def test_extract_subgraph_vertex_prop_condition_only(dataset1_PropertyGraph):
@@ -1176,7 +1260,8 @@ def test_extract_subgraph_no_query(dataset1_PropertyGraph):
     """
     (pG, data) = dataset1_PropertyGraph
 
-    G = pG.extract_subgraph(create_using=DiGraph_inst, allow_multi_edges=True)
+    G = pG.extract_subgraph(create_using=DiGraph_inst,
+                            check_multi_edges=False)
 
     num_edges = \
         len(dataset1["transactions"][-1]) + \
@@ -1206,7 +1291,8 @@ def test_extract_subgraph_multi_edges(dataset1_PropertyGraph):
     # FIXME: use a better exception
     with pytest.raises(RuntimeError):
         pG.extract_subgraph(selection=selection,
-                            create_using=DiGraph_inst)
+                            create_using=DiGraph_inst,
+                            check_multi_edges=True)
 
 
 def test_extract_subgraph_bad_args(dataset1_PropertyGraph):
@@ -1289,8 +1375,7 @@ def test_extract_subgraph_default_edge_weight_no_property(
     """
     (pG, data) = dataset1_PropertyGraph
     edge_weight = 99.2
-    G = pG.extract_subgraph(allow_multi_edges=True,
-                            default_edge_weight=edge_weight)
+    G = pG.extract_subgraph(default_edge_weight=edge_weight)
     assert (G.edgelist.edgelist_df["weights"] == edge_weight).all()
 
 
@@ -1350,7 +1435,8 @@ def test_graph_edge_data_added(dataset1_PropertyGraph):
 
     # extract_subgraph() should return a directed Graph object with additional
     # meta-data, which includes edge IDs.
-    G = pG.extract_subgraph(create_using=DiGraph_inst, allow_multi_edges=True)
+    G = pG.extract_subgraph(create_using=DiGraph_inst,
+                            check_multi_edges=False)
 
     # G.edge_data should be set to a DataFrame with rows for each graph edge.
     assert len(G.edge_data) == expected_num_edges
@@ -1512,7 +1598,7 @@ def test_property_names_attrs(dataset1_PropertyGraph):
     # Extracting a subgraph with weights has/had a side-effect of adding a
     # weight column, so call extract_subgraph() to ensure the internal weight
     # column name is not present.
-    pG.extract_subgraph(default_edge_weight=1.0, allow_multi_edges=True)
+    pG.extract_subgraph(default_edge_weight=1.0)
 
     actual_vert_prop_names = pG.vertex_property_names
     actual_edge_prop_names = pG.edge_property_names
@@ -1691,7 +1777,7 @@ def bench_extract_subgraph_for_cyber(gpubenchmark, cyber_PropertyGraph):
                  create_using=cugraph.Graph(directed=True),
                  selection=selected_edges,
                  default_edge_weight=1.0,
-                 allow_multi_edges=True)
+                 check_multi_edges=False)
 
 
 def bench_extract_subgraph_for_cyber_detect_duplicate_edges(
@@ -1712,7 +1798,7 @@ def bench_extract_subgraph_for_cyber_detect_duplicate_edges(
             pG.extract_subgraph(create_using=cugraph.Graph(directed=True),
                                 selection=selected_edges,
                                 default_edge_weight=1.0,
-                                allow_multi_edges=False)
+                                check_multi_edges=True)
 
     gpubenchmark(func)
 
@@ -1734,7 +1820,7 @@ def bench_extract_subgraph_for_rmat(gpubenchmark, rmat_PropertyGraph):
                  create_using=cugraph.Graph(directed=True),
                  selection=selected_edges,
                  default_edge_weight=1.0,
-                 allow_multi_edges=True)
+                 check_multi_edges=False)
 
 
 # This test runs for *minutes* with the current implementation, and since
@@ -1761,6 +1847,6 @@ def bench_extract_subgraph_for_rmat_detect_duplicate_edges(
             pG.extract_subgraph(create_using=cugraph.Graph(directed=True),
                                 selection=selected_edges,
                                 default_edge_weight=1.0,
-                                allow_multi_edges=False)
+                                check_multi_edges=True)
 
     gpubenchmark(func)

@@ -171,9 +171,17 @@ endif()
 ################################################################################
 # - libcugraph library target --------------------------------------------------
 
+# NOTE: The most expensive compilations are listed first
+#       since ninja will run them in parallel in this order,
+#       which should give us a better parallel schedule.
+
 set(CUGRAPH_SOURCES
-    src/detail/utility_wrappers.cu
     src/detail/shuffle_wrappers.cu
+    src/sampling/random_walks_mg.cu
+    src/community/detail/common_methods_mg.cu
+    src/community/detail/common_methods_sg.cu
+    src/detail/utility_wrappers.cu
+    src/structure/graph_view_mg.cu
     src/utilities/cython.cu
     src/utilities/path_retrieval.cu
     src/utilities/graph_bcast.cpp
@@ -191,8 +199,6 @@ set(CUGRAPH_SOURCES
     src/layout/legacy/force_atlas2.cu
     src/converters/legacy/COOtoCSR.cu
     src/community/legacy/spectral_clustering.cu
-    src/community/detail/common_methods_sg.cu
-    src/community/detail/common_methods_mg.cu
     src/community/louvain_sg.cu
     src/community/louvain_mg.cu
     src/community/leiden_sg.cu
@@ -205,7 +211,6 @@ set(CUGRAPH_SOURCES
     src/community/legacy/egonet.cu
     src/sampling/random_walks.cu
     src/sampling/random_walks_sg.cu
-    src/sampling/random_walks_mg.cu
     src/sampling/detail/sampling_utils_mg.cu
     src/sampling/detail/sampling_utils_sg.cu
     src/sampling/uniform_neighbor_sampling_mg.cpp
@@ -225,7 +230,6 @@ set(CUGRAPH_SOURCES
     src/structure/graph_sg.cu
     src/structure/graph_mg.cu
     src/structure/graph_view_sg.cu
-    src/structure/graph_view_mg.cu
     src/structure/coarsen_graph_sg.cu
     src/structure/coarsen_graph_mg.cu
     src/structure/renumber_edgelist_sg.cu

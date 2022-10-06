@@ -16,10 +16,6 @@ Graph Implementation
     delete_adj_list
 
     enable_batch
-    batch_adjlists
-    batch_edgelists
-    batch_enabled
-    batch_transposed_adjlists
 
     get_two_hop_neighbors
     number_of_vertices

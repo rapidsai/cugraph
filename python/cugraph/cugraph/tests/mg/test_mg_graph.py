@@ -232,3 +232,26 @@ def test_create_graph_with_edge_ids(dask_client, graph_file):
         destination='1',
         edge_attr=['2', 'id', 'etype']
     )
+
+
+def test_graph_repartition(dask_client):
+    input_data_path = (utils.RAPIDS_DATASET_ROOT_DIR_PATH /
+                       "karate.csv").as_posix()
+    print(f"dataset={input_data_path}")
+    chunksize = dcg.get_chunksize(input_data_path)
+
+    num_workers = len(Comms.get_workers())
+
+    ddf = dask_cudf.read_csv(
+        input_data_path,
+        chunksize=chunksize,
+        delimiter=" ",
+        names=["src", "dst", "value"],
+        dtype=["int32", "int32", "float32"],
+    )
+    more_partitions = num_workers * 100
+    ddf = ddf.repartition(npartitions=more_partitions)
+    ddf = get_distributed_data(ddf)
+
+    num_futures = len(ddf.worker_to_parts.values())
+    assert num_futures == num_workers

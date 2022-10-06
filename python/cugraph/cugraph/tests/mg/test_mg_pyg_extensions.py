@@ -417,15 +417,15 @@ def test_get_subgraph(graph):
     assert isinstance(sg, cugraph.Graph)
 
     # duplicate edges are automatically dropped in from_edgelist
-    cols = [pG.src_col_name, pG.dst_col_name]
+    cols = [pG.src_col_name, pG.dst_col_name, pG.type_col_name]
     num_edges = pG.get_edge_data(
         columns=cols
     )[cols].drop_duplicates().compute().shape[0]
     assert sg.number_of_edges() == num_edges
 
 
-def test_neighbor_sample(single_vertex_graph):
-    pG = single_vertex_graph
+def test_neighbor_sample(basic_property_graph_1):
+    pG = basic_property_graph_1
     feature_store, graph_store = to_pyg(pG, backend='cupy')
 
     noi_groups, row_dict, col_dict, _ = graph_store.neighbor_sample(
@@ -433,7 +433,7 @@ def test_neighbor_sample(single_vertex_graph):
         # FIXME The following line should be num_neighbors=[-1] but
         # there is currently a bug in MG uniform_neighbor_sample.
         # Once this bug is fixed, this line should be changed.
-        num_neighbors=[8],
+        num_neighbors=[10],
         replace=True,
         directed=True,
         edge_types=[
@@ -490,9 +490,9 @@ def test_neighbor_sample_multi_vertex(
     noi_groups, row_dict, col_dict, _ = graph_store.neighbor_sample(
         index=cupy.array([0, 1, 2, 3, 4], dtype='int32'),
         # FIXME The following line should be num_neighbors=[-1] but
-        # there is currently a bug in MG uniform_neighbor_sample.
+        # there is currently a bug in uniform_neighbor_sample.
         # Once this bug is fixed, this line should be changed.
-        num_neighbors=[8],
+        num_neighbors=[10],
         replace=True,
         directed=True,
         edge_types=[
@@ -529,11 +529,11 @@ def test_get_tensor(graph):
                 tsr = feature_store.get_tensor(
                     vertex_type,
                     property_name,
-                    vertex_ids
+                    vertex_ids,
+                    [property_name],
+                    cupy.int64
                 )
 
-                print(base_series)
-                print(tsr)
                 assert list(tsr) == list(base_series)
 
 
@@ -557,13 +557,17 @@ def test_multi_get_tensor(graph):
                 base_series = base_series.compute().to_cupy()
 
                 tsr = feature_store.multi_get_tensor(
-                    [[vertex_type, property_name, vertex_ids]]
+                    [[
+                        vertex_type,
+                        property_name,
+                        vertex_ids,
+                        [property_name],
+                        cupy.int64
+                    ]]
                 )
                 assert len(tsr) == 1
                 tsr = tsr[0]
 
-                print(base_series)
-                print(tsr)
                 assert list(tsr) == list(base_series)
 
 
@@ -575,7 +579,9 @@ def test_get_all_tensor_attrs(graph):
     for vertex_type in pG.vertex_types:
         tensor_attrs.append(CuGraphTensorAttr(
             vertex_type,
-            'x'
+            'x',
+            properties=['prop1', 'prop2'],
+            dtype=cupy.float32
         ))
 
     assert tensor_attrs == feature_store.get_all_tensor_attrs()
@@ -599,7 +605,9 @@ def test_get_tensor_size(graph):
                 size = feature_store.get_tensor_size(
                     vertex_type,
                     property_name,
-                    vertex_ids
+                    vertex_ids,
+                    [property_name],
+                    cupy.int64
                 )
 
                 assert len(base_series) == size
@@ -629,7 +637,5 @@ def test_get_x(graph):
             vertex_ids
         )
 
-        print(base_x)
-        print(tsr)
         for t, b in zip(tsr, base_x):
             assert list(t) == list(b)

@@ -370,8 +370,8 @@ def test_extract_subgraph_no_query(net_MGPropertyGraph, net_PropertyGraph):
     mg_df = dpG.edges.compute().sort_values(by=['_SRC_', '_DST_'])
     mg_df = mg_df.reset_index(drop=True)
     assert (sg_df.equals(mg_df))
-    subgraph = pG.extract_subgraph(allow_multi_edges=False)
-    dask_subgraph = dpG.extract_subgraph(allow_multi_edges=False)
+    subgraph = pG.extract_subgraph()
+    dask_subgraph = dpG.extract_subgraph()
     sg_subgraph_df = \
         subgraph.edge_data.sort_values(by=list(subgraph.edge_data.columns))
     sg_subgraph_df = sg_subgraph_df.reset_index(drop=True)
@@ -389,8 +389,8 @@ def test_extract_subgraph_no_query(net_MGPropertyGraph, net_PropertyGraph):
 def test_adding_fixture(dataset1_PropertyGraph, dataset1_MGPropertyGraph):
     (sgpG, _) = dataset1_PropertyGraph
     (mgPG, _) = dataset1_MGPropertyGraph
-    subgraph = sgpG.extract_subgraph(allow_multi_edges=True)
-    dask_subgraph = mgPG.extract_subgraph(allow_multi_edges=True)
+    subgraph = sgpG.extract_subgraph()
+    dask_subgraph = mgPG.extract_subgraph()
     sg_subgraph_df = \
         subgraph.edge_data.sort_values(by=list(subgraph.edge_data.columns))
     sg_subgraph_df = sg_subgraph_df.reset_index(drop=True)
@@ -428,6 +428,81 @@ def test_frame_data(dataset1_PropertyGraph, dataset1_MGPropertyGraph):
     assert mg_ep_df.dtypes['_TYPE_'] == 'category'
 
 
+def test_add_edge_data_with_ids(dask_client):
+    """
+    add_edge_data() on "transactions" table, all properties.
+    """
+    from cugraph.experimental import MGPropertyGraph
+
+    transactions = dataset1["transactions"]
+    transactions_df = cudf.DataFrame(columns=transactions[0],
+                                     data=transactions[1])
+    transactions_df["edge_id"] = list(range(10, 10 + len(transactions_df)))
+    transactions_df = dask_cudf.from_cudf(transactions_df, npartitions=2)
+
+    pG = MGPropertyGraph()
+    pG.add_edge_data(transactions_df,
+                     type_name="transactions",
+                     edge_id_col_name="edge_id",
+                     vertex_col_names=("user_id", "merchant_id"),
+                     property_columns=None)
+
+    assert pG.get_num_vertices() == 7
+    # 'transactions' is edge type, not vertex type
+    assert pG.get_num_vertices('transactions') == 0
+    assert pG.get_num_edges() == 4
+    assert pG.get_num_edges('transactions') == 4
+    # Original SRC and DST columns no longer include "merchant_id", "user_id"
+    expected_props = ["volume", "time", "card_num", "card_type"]
+    assert sorted(pG.edge_property_names) == sorted(expected_props)
+
+    relationships = dataset1["relationships"]
+    relationships_df = cudf.DataFrame(columns=relationships[0],
+                                      data=relationships[1])
+
+    # user-provided, then auto-gen (not allowed)
+    with pytest.raises(NotImplementedError):
+        pG.add_edge_data(dask_cudf.from_cudf(relationships_df, npartitions=2),
+                         type_name="relationships",
+                         vertex_col_names=("user_id_1", "user_id_2"),
+                         property_columns=None)
+
+    relationships_df["edge_id"] = list(range(30, 30 + len(relationships_df)))
+    relationships_df = dask_cudf.from_cudf(relationships_df, npartitions=2)
+
+    pG.add_edge_data(relationships_df,
+                     type_name="relationships",
+                     edge_id_col_name="edge_id",
+                     vertex_col_names=("user_id_1", "user_id_2"),
+                     property_columns=None)
+
+    df = pG.get_edge_data(types='transactions').compute()
+    assert_series_equal(
+        df[pG.edge_id_col_name].sort_values().reset_index(drop=True),
+        transactions_df["edge_id"].compute(),
+        check_names=False,
+    )
+    df = pG.get_edge_data(types='relationships').compute()
+    assert_series_equal(
+        df[pG.edge_id_col_name].sort_values().reset_index(drop=True),
+        relationships_df["edge_id"].compute(),
+        check_names=False,
+    )
+
+    # auto-gen, then user-provided (not allowed)
+    pG = MGPropertyGraph()
+    pG.add_edge_data(transactions_df,
+                     type_name="transactions",
+                     vertex_col_names=("user_id", "merchant_id"),
+                     property_columns=None)
+    with pytest.raises(NotImplementedError):
+        pG.add_edge_data(relationships_df,
+                         type_name="relationships",
+                         edge_id_col_name="edge_id",
+                         vertex_col_names=("user_id_1", "user_id_2"),
+                         property_columns=None)
+
+
 def test_property_names_attrs(dataset1_MGPropertyGraph):
     """
     Ensure the correct number of user-visible properties for vertices and edges
@@ -447,7 +522,7 @@ def test_property_names_attrs(dataset1_MGPropertyGraph):
     # Extracting a subgraph with weights has/had a side-effect of adding a
     # weight column, so call extract_subgraph() to ensure the internal weight
     # column name is not present.
-    pG.extract_subgraph(default_edge_weight=1.0, allow_multi_edges=True)
+    pG.extract_subgraph(default_edge_weight=1.0)
 
     actual_vert_prop_names = pG.vertex_property_names
     actual_edge_prop_names = pG.edge_property_names

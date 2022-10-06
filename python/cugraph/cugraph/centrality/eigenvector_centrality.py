@@ -18,6 +18,7 @@ from cugraph.utilities import (ensure_cugraph_obj_for_nx,
                                df_score_to_dictionary,
                                )
 import cudf
+import warnings
 
 
 def eigenvector_centrality(
@@ -77,6 +78,11 @@ def eigenvector_centrality(
         raise ValueError(f"'tol' must be a positive float, got: {tol}")
 
     G, isNx = ensure_cugraph_obj_for_nx(G)
+    if G.store_transposed is False:
+        warning_msg = ("Eigenvector centrality expects the 'store_transposed' "
+                       "flag to be set to 'True' for optimal performance "
+                       "during the graph creation")
+        warnings.warn(warning_msg, UserWarning)
 
     vertices, values = \
         pylib_eigen(

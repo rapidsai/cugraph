@@ -46,8 +46,8 @@
 template <typename vertex_t, typename edge_t>
 struct intersection_op_t {
   __device__ thrust::tuple<edge_t, edge_t> operator()(
-    vertex_t,
-    vertex_t,
+    vertex_t v1,
+    vertex_t v2,
     edge_t v0_prop /* out degree */,
     edge_t v1_prop /* out degree */,
     raft::device_span<vertex_t const> intersection) const
@@ -142,7 +142,7 @@ class Tests_MGPerVPairTransformDstNbrIntersection
     std::tie(mg_vertex_pair_buffer, std::ignore) = cugraph::groupby_gpu_id_and_shuffle_values(
       handle_->get_comms(),
       cugraph::get_dataframe_buffer_begin(mg_vertex_pair_buffer),
-      cugraph::get_dataframe_buffer_begin(mg_vertex_pair_buffer),
+      cugraph::get_dataframe_buffer_end(mg_vertex_pair_buffer),
       cugraph::detail::compute_gpu_id_from_int_edge_endpoints_t<vertex_t>{
         raft::device_span<vertex_t const>(d_vertex_partition_range_lasts.data(),
                                           d_vertex_partition_range_lasts.size()),

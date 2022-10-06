@@ -14,7 +14,6 @@
 from cugraph.structure import graph_classes as csg
 import cudf
 import dask_cudf
-from cugraph.dask.comms import comms as Comms
 
 
 def symmetrize_df(df, src_name, dst_name,
@@ -162,8 +161,6 @@ def symmetrize_ddf(ddf, src_name, dst_name,
     if weight_name is not None and not isinstance(weight_name, list):
         weight_name = [weight_name]
 
-    worker_list = Comms.get_workers()
-    num_partitions = len(worker_list)
     if symmetrize:
         if weight_name:
             ddf2 = ddf[[*dst_name, *src_name, *weight_name]]
@@ -178,13 +175,13 @@ def symmetrize_ddf(ddf, src_name, dst_name,
         # The concat call doubles the number of partitions therefore,
         # repartition the result so that the number of partitions equals
         # the number of workers
-        result = result.repartition(npartitions=num_partitions)
+        result = result.repartition(npartitions=ddf.npartitions)
         return result
     else:
         vertex_col_name = src_name + dst_name
         result = result.groupby(
                 by=[*vertex_col_name]).min(
-                    split_out=num_partitions).reset_index()
+                    split_out=ddf.npartitions).reset_index()
 
         return result
 
