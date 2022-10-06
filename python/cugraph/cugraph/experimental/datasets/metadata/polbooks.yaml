@@ -4,6 +4,7 @@ author: V. Krebs
 url: https://raw.githubusercontent.com/rapidsai/cugraph/branch-22.08/datasets/polbooks.csv
 refs: null
 delim: " "
+header: None
 col_names:
   - src
   - dst

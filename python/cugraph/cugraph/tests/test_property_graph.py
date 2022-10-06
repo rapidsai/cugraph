@@ -19,6 +19,7 @@ import pandas as pd
 import numpy as np
 import cudf
 from cudf.testing import assert_frame_equal, assert_series_equal
+from cugraph.experimental.datasets import cyber
 
 # If the rapids-pytest-benchmark plugin is installed, the "gpubenchmark"
 # fixture will be available automatically. Check that this fixture is available
@@ -320,19 +321,12 @@ def cyber_PropertyGraph(request):
     from cugraph.experimental import PropertyGraph
 
     dataframe_type = request.param[0]
-    cyber_csv = utils.RAPIDS_DATASET_ROOT_DIR_PATH/"cyber.csv"
     source_col_name = "srcip"
     dest_col_name = "dstip"
 
+    df = cyber.get_edgelist()
     if dataframe_type is pd.DataFrame:
-        read_csv = pd.read_csv
-    else:
-        read_csv = cudf.read_csv
-    df = read_csv(cyber_csv, delimiter=",",
-                  dtype={"idx": "int32",
-                         source_col_name: "str",
-                         dest_col_name: "str"},
-                  header=0)
+        df = df.to_pandas()
 
     pG = PropertyGraph()
     pG.add_edge_data(df, (source_col_name, dest_col_name))

@@ -16,6 +16,8 @@ import cugraph
 import cudf
 from cugraph.testing import utils
 from cugraph import uniform_neighbor_sample
+from cugraph.experimental.datasets import (
+    DATASETS_UNDIRECTED, email_Eu_core, small_tree)
 import random
 
 
@@ -31,8 +33,7 @@ def setup_function():
 # =============================================================================
 IS_DIRECTED = [True, False]
 
-datasets = utils.DATASETS_UNDIRECTED + \
-    [utils.RAPIDS_DATASET_ROOT_DIR_PATH/"email-Eu-core.csv"]
+datasets = DATASETS_UNDIRECTED + [email_Eu_core]
 
 fixture_params = utils.genFixtureParamsProduct(
     (datasets, "graph_file"),
@@ -55,7 +56,7 @@ def input_combo(request):
 
     indices_type = parameters["indices_type"]
 
-    input_data_path = parameters["graph_file"]
+    input_data_path = parameters["graph_file"].get_path()
     directed = parameters["directed"]
 
     df = cudf.read_csv(
@@ -170,8 +171,7 @@ def test_uniform_neighbor_sample_simple(input_combo):
 @pytest.mark.parametrize("directed", IS_DIRECTED)
 def test_uniform_neighbor_sample_tree(directed):
 
-    input_data_path = (utils.RAPIDS_DATASET_ROOT_DIR_PATH /
-                       "small_tree.csv").as_posix()
+    input_data_path = small_tree.get_path()
 
     df = cudf.read_csv(
         input_data_path,

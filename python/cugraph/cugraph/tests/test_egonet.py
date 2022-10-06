@@ -18,6 +18,7 @@ import pytest
 import cudf
 import cugraph
 from cugraph.testing import utils
+from cugraph.experimental.datasets import DATASETS
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
 # (Using or importing the ABCs from 'collections' instead of from
@@ -36,14 +37,15 @@ SEEDS = [0, 5, 13]
 RADIUS = [1, 2, 3]
 
 
-@pytest.mark.parametrize("graph_file", utils.DATASETS)
+@pytest.mark.parametrize("graph_file", DATASETS)
 @pytest.mark.parametrize("seed", SEEDS)
 @pytest.mark.parametrize("radius", RADIUS)
 def test_ego_graph_nx(graph_file, seed, radius):
     gc.collect()
 
     # Nx
-    df = utils.read_csv_for_nx(graph_file, read_weights_in_sp=True)
+    dataset_path = graph_file.get_path()
+    df = utils.read_csv_for_nx(dataset_path, read_weights_in_sp=True)
     Gnx = nx.from_pandas_edgelist(
         df, create_using=nx.Graph(), source="0", target="1", edge_attr="weight"
     )
@@ -55,14 +57,15 @@ def test_ego_graph_nx(graph_file, seed, radius):
     assert nx.is_isomorphic(ego_nx, ego_cugraph)
 
 
-@pytest.mark.parametrize("graph_file", utils.DATASETS)
+@pytest.mark.parametrize("graph_file", DATASETS)
 @pytest.mark.parametrize("seeds", [[0, 5, 13]])
 @pytest.mark.parametrize("radius", [1, 2, 3])
 def test_batched_ego_graphs(graph_file, seeds, radius):
     gc.collect()
 
     # Nx
-    df = utils.read_csv_for_nx(graph_file, read_weights_in_sp=True)
+    dataset_path = graph_file.get_path()
+    df = utils.read_csv_for_nx(dataset_path, read_weights_in_sp=True)
     Gnx = nx.from_pandas_edgelist(
         df, create_using=nx.Graph(), source="0", target="1", edge_attr="weight"
     )
@@ -78,13 +81,14 @@ def test_batched_ego_graphs(graph_file, seeds, radius):
     assert nx.is_isomorphic(ego_nx, ego_cugraph)
 
 
-@pytest.mark.parametrize("graph_file", utils.DATASETS)
+@pytest.mark.parametrize("graph_file", DATASETS)
 @pytest.mark.parametrize("seed", SEEDS)
 @pytest.mark.parametrize("radius", RADIUS)
 def test_multi_column_ego_graph(graph_file, seed, radius):
     gc.collect()
 
-    df = utils.read_csv_file(graph_file, read_weights_in_sp=True)
+    dataset_path = graph_file.get_path()
+    df = utils.read_csv_file(dataset_path, read_weights_in_sp=True)
     df.rename(columns={'0': 'src_0', '1': 'dst_0'}, inplace=True)
     df['src_1'] = df['src_0'] + 1000
     df['dst_1'] = df['dst_0'] + 1000

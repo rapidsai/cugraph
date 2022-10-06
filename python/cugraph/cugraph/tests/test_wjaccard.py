@@ -21,6 +21,7 @@ from cudf.testing import assert_series_equal
 
 import cugraph
 from cugraph.testing import utils
+from cugraph.experimental.datasets import DATASETS_UNDIRECTED
 
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
@@ -44,17 +45,18 @@ def setup_function():
     gc.collect()
 
 
-def cugraph_call(benchmark_callable, cu_M):
+def cugraph_call(benchmark_callable, graph_file):
     # Device data
+    cu_M = graph_file.get_edgelist()
     weight_arr = cudf.Series(
-        np.ones(max(cu_M["0"].max(), cu_M["1"].max()) + 1, dtype=np.float32)
+        np.ones(
+            max(cu_M["src"].max(), cu_M["dst"].max()) + 1, dtype=np.float32)
     )
     weights = cudf.DataFrame()
     weights['vertex'] = np.arange(len(weight_arr), dtype=np.int32)
     weights['weight'] = weight_arr
 
-    G = cugraph.Graph()
-    G.from_cudf_edgelist(cu_M, source="0", destination="1")
+    G = graph_file.get_graph(ignore_weights=True)
 
     # cugraph Jaccard Call
     df = benchmark_callable(cugraph.jaccard_w, G, weights)
@@ -98,22 +100,23 @@ def networkx_call(M, benchmark_callable=None):
 # =============================================================================
 # Pytest Fixtures
 # =============================================================================
-@pytest.fixture(scope="module", params=utils.DATASETS_UNDIRECTED)
+@pytest.fixture(scope="module", params=DATASETS_UNDIRECTED)
 def read_csv(request):
     """
     Read csv file for both networkx and cugraph
     """
-    M = utils.read_csv_for_nx(request.param)
-    cu_M = utils.read_csv_file(request.param)
+    graph_file = request.param
+    dataset_path = graph_file.get_path()
+    M = utils.read_csv_for_nx(dataset_path)
 
-    return M, cu_M
+    return M, graph_file
 
 
 def test_wjaccard(gpubenchmark, read_csv):
 
-    M, cu_M = read_csv
+    M, graph_file = read_csv
 
-    cu_coeff = cugraph_call(gpubenchmark, cu_M)
+    cu_coeff = cugraph_call(gpubenchmark, graph_file)
     nx_coeff = networkx_call(M)
     for i in range(len(cu_coeff)):
         diff = abs(nx_coeff[i] - cu_coeff[i])
@@ -128,9 +131,9 @@ def test_nx_wjaccard_time(gpubenchmark, read_csv):
 
 def test_wjaccard_multi_column_weights(gpubenchmark, read_csv):
 
-    M, cu_M = read_csv
+    M, graph_file = read_csv
 
-    cu_coeff = cugraph_call(gpubenchmark, cu_M)
+    cu_coeff = cugraph_call(gpubenchmark, graph_file)
     nx_coeff = networkx_call(M)
     for i in range(len(cu_coeff)):
         diff = abs(nx_coeff[i] - cu_coeff[i])
