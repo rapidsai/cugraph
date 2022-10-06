@@ -6,6 +6,7 @@ refs:
   W. W. Zachary, An information flow model for conflict and fission in small groups,
   Journal of Anthropological Research 33, 452-473 (1977).
 delim: "\t"
+header: None
 col_names:
   - src
   - dst

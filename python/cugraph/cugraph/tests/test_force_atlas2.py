@@ -17,10 +17,10 @@ import pytest
 import cudf
 import cugraph
 from cugraph.internals import GraphBasedDimRedCallback
-from cugraph.testing import utils
 from sklearn.manifold import trustworthiness
 import scipy.io
-from pathlib import PurePath
+from cugraph.experimental.datasets import (
+    karate, polbooks, dolphins, netscience)
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
 # (Using or importing the ABCs from 'collections' instead of from
@@ -29,17 +29,17 @@ from pathlib import PurePath
 # relocated in the third-party group once this gets fixed.
 
 
-def cugraph_call(cu_M, max_iter, pos_list, outbound_attraction_distribution,
+def cugraph_call(cu_M, max_iter, pos_list,
+                 outbound_attraction_distribution,
                  lin_log_mode, prevent_overlapping, edge_weight_influence,
                  jitter_tolerance, barnes_hut_theta, barnes_hut_optimize,
                  scaling_ratio, strong_gravity_mode, gravity, callback=None):
 
     G = cugraph.Graph()
     G.from_cudf_edgelist(
-        cu_M, source="0", destination="1", edge_attr="2", renumber=False
+        cu_M, source="src", destination="dst", edge_attr="wgt", renumber=False
     )
 
-    # cugraph Force Atlas 2 Call
     t1 = time.time()
     pos = cugraph.force_atlas2(
             G,
@@ -62,11 +62,10 @@ def cugraph_call(cu_M, max_iter, pos_list, outbound_attraction_distribution,
 
 
 DATASETS = [
-    (PurePath(utils.RAPIDS_DATASET_ROOT_DIR)/f,)+(d,) for (f, d) in [
-        ("karate.csv", 0.70),
-        ("polbooks.csv", 0.75),
-        ("dolphins.csv", 0.66),
-        ("netscience.csv", 0.66)]
+    (karate, 0.70),
+    (polbooks, 0.75),
+    (dolphins, 0.66),
+    (netscience, 0.66)
 ]
 
 
@@ -96,7 +95,8 @@ class TestCallback(GraphBasedDimRedCallback):
 @pytest.mark.parametrize('barnes_hut_optimize', BARNES_HUT_OPTIMIZE)
 def test_force_atlas2(graph_file, score, max_iter,
                       barnes_hut_optimize):
-    cu_M = utils.read_csv_file(graph_file)
+    cu_M = graph_file.get_edgelist()
+    dataset_path = graph_file.get_path()
     test_callback = TestCallback()
     cu_pos = cugraph_call(cu_M,
                           max_iter=max_iter,
@@ -124,7 +124,7 @@ def test_force_atlas2(graph_file, score, max_iter,
         iterations on a given graph.
     """
 
-    matrix_file = graph_file.with_suffix(".mtx")
+    matrix_file = dataset_path.with_suffix(".mtx")
     M = scipy.io.mmread(matrix_file)
     M = M.todense()
     cu_trust = trustworthiness(M, cu_pos[["x", "y"]].to_pandas())
@@ -146,7 +146,8 @@ def test_force_atlas2(graph_file, score, max_iter,
 @pytest.mark.parametrize('barnes_hut_optimize', BARNES_HUT_OPTIMIZE)
 def test_force_atlas2_multi_column_pos_list(graph_file, score, max_iter,
                                             barnes_hut_optimize):
-    cu_M = utils.read_csv_file(graph_file)
+    cu_M = graph_file.get_edgelist()
+    dataset_path = graph_file.get_path()
     test_callback = TestCallback()
     pos = cugraph_call(cu_M,
                        max_iter=max_iter,
@@ -197,7 +198,7 @@ def test_force_atlas2_multi_column_pos_list(graph_file, score, max_iter,
                callback=test_callback)
 
     cu_pos = cu_pos.sort_values('0_vertex')
-    matrix_file = graph_file.with_suffix(".mtx")
+    matrix_file = dataset_path.with_suffix(".mtx")
     M = scipy.io.mmread(matrix_file)
     M = M.todense()
     cu_trust = trustworthiness(M, cu_pos[["x", "y"]].to_pandas())

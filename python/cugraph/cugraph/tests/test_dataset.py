@@ -161,13 +161,6 @@ def test_get_path(dataset, datasets):
     tmpd.cleanup()
 
 
-# Path is None until a dataset initializes its edgelist
-@pytest.mark.parametrize("dataset", ALL_DATASETS)
-def test_get_path_raises(dataset):
-    with pytest.raises(RuntimeError):
-        dataset.get_path()
-
-
 @pytest.mark.parametrize("dataset", ALL_DATASETS_WGT)
 def test_weights(dataset, datasets):
     datasets.set_download_dir(dataset_path)
