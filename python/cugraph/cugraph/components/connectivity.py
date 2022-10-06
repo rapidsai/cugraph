@@ -12,13 +12,14 @@
 # limitations under the License.
 
 
-from cugraph.utilities import (df_score_to_dictionary,
-                               ensure_cugraph_obj,
-                               is_matrix_type,
-                               is_cp_matrix_type,
-                               is_nx_graph_type,
-                               cupy_package as cp,
-                               )
+from cugraph.utilities import (
+    df_score_to_dictionary,
+    ensure_cugraph_obj,
+    is_matrix_type,
+    is_cp_matrix_type,
+    is_nx_graph_type,
+    cupy_package as cp,
+)
 from cugraph.structure import Graph, DiGraph
 from cugraph.components import connectivity_wrapper
 
@@ -49,17 +50,14 @@ def _ensure_args(api_name, G, directed, connection, return_labels):
     # Handle connection type, based on API being called
     if api_name == "strongly_connected_components":
         if (connection is not None) and (connection != "strong"):
-            raise TypeError("'connection' must be 'strong' for "
-                            f"{api_name}()")
+            raise TypeError("'connection' must be 'strong' for " f"{api_name}()")
         connection = "strong"
     elif api_name == "weakly_connected_components":
         if (connection is not None) and (connection != "weak"):
-            raise TypeError("'connection' must be 'weak' for "
-                            f"{api_name}()")
+            raise TypeError("'connection' must be 'weak' for " f"{api_name}()")
         connection = "weak"
     else:
-        raise RuntimeError("invalid API name specified (internal): "
-                           f"{api_name}")
+        raise RuntimeError("invalid API name specified (internal): " f"{api_name}")
 
     return (directed, connection, return_labels)
 
@@ -98,10 +96,7 @@ def _convert_df_to_output_type(df, input_type, return_labels):
         raise TypeError(f"input type {input_type} is not a supported type.")
 
 
-def weakly_connected_components(G,
-                                directed=None,
-                                connection=None,
-                                return_labels=None):
+def weakly_connected_components(G, directed=None, connection=None, return_labels=None):
     """
     Generate the Weakly Connected Components and attach a component label to
     each vertex.
@@ -177,12 +172,13 @@ def weakly_connected_components(G,
 
     """
     (directed, connection, return_labels) = _ensure_args(
-        "weakly_connected_components", G, directed, connection, return_labels)
+        "weakly_connected_components", G, directed, connection, return_labels
+    )
 
     # FIXME: allow nx_weight_attr to be specified
     (G, input_type) = ensure_cugraph_obj(
-        G, nx_weight_attr="weight",
-        matrix_graph_type=Graph(directed=directed))
+        G, nx_weight_attr="weight", matrix_graph_type=Graph(directed=directed)
+    )
 
     df = connectivity_wrapper.weakly_connected_components(G)
 
@@ -192,10 +188,9 @@ def weakly_connected_components(G,
     return _convert_df_to_output_type(df, input_type, return_labels)
 
 
-def strongly_connected_components(G,
-                                  directed=None,
-                                  connection=None,
-                                  return_labels=None):
+def strongly_connected_components(
+    G, directed=None, connection=None, return_labels=None
+):
     """
     Generate the Strongly Connected Components and attach a component label to
     each vertex.
@@ -271,13 +266,13 @@ def strongly_connected_components(G,
 
     """
     (directed, connection, return_labels) = _ensure_args(
-        "strongly_connected_components", G, directed,
-        connection, return_labels)
+        "strongly_connected_components", G, directed, connection, return_labels
+    )
 
     # FIXME: allow nx_weight_attr to be specified
     (G, input_type) = ensure_cugraph_obj(
-        G, nx_weight_attr="weight",
-        matrix_graph_type=Graph(directed=directed))
+        G, nx_weight_attr="weight", matrix_graph_type=Graph(directed=directed)
+    )
 
     df = connectivity_wrapper.strongly_connected_components(G)
 
@@ -287,10 +282,7 @@ def strongly_connected_components(G,
     return _convert_df_to_output_type(df, input_type, return_labels)
 
 
-def connected_components(G,
-                         directed=None,
-                         connection="weak",
-                         return_labels=None):
+def connected_components(G, directed=None, connection="weak", return_labels=None):
     """
     Generate either the strongly or weakly connected components and attach a
     component label to each vertex.
@@ -365,11 +357,11 @@ def connected_components(G,
 
     """
     if connection == "weak":
-        return weakly_connected_components(G, directed,
-                                           connection, return_labels)
+        return weakly_connected_components(G, directed, connection, return_labels)
     elif connection == "strong":
-        return strongly_connected_components(G, directed,
-                                             connection, return_labels)
+        return strongly_connected_components(G, directed, connection, return_labels)
     else:
-        raise ValueError(f"invalid connection type: {connection}, "
-                         "must be either 'strong' or 'weak'")
+        raise ValueError(
+            f"invalid connection type: {connection}, "
+            "must be either 'strong' or 'weak'"
+        )

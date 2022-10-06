@@ -52,49 +52,54 @@ def get_traversed_cost(df, source, source_col, dest_col, value_col):
         Unreachable vertices will have value the max value of the weight type.
     """
 
-    if 'vertex' not in df.columns:
-        raise ValueError("DataFrame does not appear to be a BFS or "
-                         "SSP result - 'vertex' column missing")
-    if 'distance' not in df.columns:
-        raise ValueError("DataFrame does not appear to be a BFS or "
-                         "SSP result - 'distance' column missing")
-    if 'predecessor' not in df.columns:
-        raise ValueError("DataFrame does not appear to be a BFS or "
-                         "SSP result - 'predecessor' column missing")
+    if "vertex" not in df.columns:
+        raise ValueError(
+            "DataFrame does not appear to be a BFS or "
+            "SSP result - 'vertex' column missing"
+        )
+    if "distance" not in df.columns:
+        raise ValueError(
+            "DataFrame does not appear to be a BFS or "
+            "SSP result - 'distance' column missing"
+        )
+    if "predecessor" not in df.columns:
+        raise ValueError(
+            "DataFrame does not appear to be a BFS or "
+            "SSP result - 'predecessor' column missing"
+        )
 
-    src, dst, val = symmetrize(source_col,
-                               dest_col,
-                               value_col)
+    src, dst, val = symmetrize(source_col, dest_col, value_col)
 
     symmetrized_df = cudf.DataFrame()
-    symmetrized_df['source'] = src
-    symmetrized_df['destination'] = dst
-    symmetrized_df['weights'] = val
+    symmetrized_df["source"] = src
+    symmetrized_df["destination"] = dst
+    symmetrized_df["weights"] = val
 
-    input_df = df.merge(symmetrized_df,
-                        left_on=['vertex', 'predecessor'],
-                        right_on=['source', 'destination'],
-                        how="left"
-                        )
+    input_df = df.merge(
+        symmetrized_df,
+        left_on=["vertex", "predecessor"],
+        right_on=["source", "destination"],
+        how="left",
+    )
 
     # Set unreachable vertex weights to max float and source vertex weight to 0
     max_val = np.finfo(val.dtype).max
-    input_df[['weights']] = input_df[['weights']].fillna(max_val)
-    input_df.loc[input_df['vertex'] == source, 'weights'] = 0
+    input_df[["weights"]] = input_df[["weights"]].fillna(max_val)
+    input_df.loc[input_df["vertex"] == source, "weights"] = 0
 
     # Renumber
-    renumbered_gdf, renumber_map = NumberMap.renumber(input_df,
-                                                      ["vertex"],
-                                                      ["predecessor"],
-                                                      preserve_order=True)
-    renumbered_gdf = renumbered_gdf.rename(columns={'src': 'vertex',
-                                                    'dst': 'predecessor'})
+    renumbered_gdf, renumber_map = NumberMap.renumber(
+        input_df, ["vertex"], ["predecessor"], preserve_order=True
+    )
+    renumbered_gdf = renumbered_gdf.rename(
+        columns={"src": "vertex", "dst": "predecessor"}
+    )
     stop_vertex = renumber_map.to_internal_vertex_id(cudf.Series(-1)).values[0]
 
-    out_df = path_retrieval_wrapper.get_traversed_cost(renumbered_gdf,
-                                                       stop_vertex)
+    out_df = path_retrieval_wrapper.get_traversed_cost(renumbered_gdf, stop_vertex)
 
     # Unrenumber
-    out_df['vertex'] = renumber_map.unrenumber(renumbered_gdf, 'vertex',
-                                               preserve_order=True)["vertex"]
+    out_df["vertex"] = renumber_map.unrenumber(
+        renumbered_gdf, "vertex", preserve_order=True
+    )["vertex"]
     return out_df

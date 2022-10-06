@@ -69,25 +69,24 @@ def triangle_count(G, start_list=None):
 
         if not isinstance(start_list, cudf.Series):
             raise TypeError(
-                    f"'start_list' must be either a list or a cudf.Series,"
-                    f"got: {start_list.dtype}")
+                f"'start_list' must be either a list or a cudf.Series,"
+                f"got: {start_list.dtype}"
+            )
 
         if G.renumbered is True:
             if isinstance(start_list, cudf.DataFrame):
-                start_list = G.lookup_internal_vertex_id(
-                    start_list, start_list.columns)
+                start_list = G.lookup_internal_vertex_id(start_list, start_list.columns)
             else:
                 start_list = G.lookup_internal_vertex_id(start_list)
 
     do_expensive_check = False
 
-    vertex, counts = \
-        pylibcugraph_triangle_count(
-            resource_handle=ResourceHandle(),
-            graph=G._plc_graph,
-            start_list=start_list,
-            do_expensive_check=do_expensive_check
-        )
+    vertex, counts = pylibcugraph_triangle_count(
+        resource_handle=ResourceHandle(),
+        graph=G._plc_graph,
+        start_list=start_list,
+        do_expensive_check=do_expensive_check,
+    )
 
     df = cudf.DataFrame()
     df["vertex"] = vertex

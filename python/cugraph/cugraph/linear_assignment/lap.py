@@ -72,8 +72,7 @@ def hungarian(G, workers, epsilon=None):
 
     if G.renumbered:
         if isinstance(workers, cudf.DataFrame):
-            local_workers = G.lookup_internal_vertex_id(workers,
-                                                        workers.columns)
+            local_workers = G.lookup_internal_vertex_id(workers, workers.columns)
         else:
             local_workers = G.lookup_internal_vertex_id(workers)
     else:
@@ -82,7 +81,7 @@ def hungarian(G, workers, epsilon=None):
     cost, df = lap_wrapper.sparse_hungarian(G, local_workers, epsilon)
 
     if G.renumbered:
-        df = G.unrenumber(df, 'vertex')
+        df = G.unrenumber(df, "vertex")
 
     return cost, df
 

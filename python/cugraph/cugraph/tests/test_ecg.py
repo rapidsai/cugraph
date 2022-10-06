@@ -38,10 +38,7 @@ def golden_call(graph_file):
         return 0.4962422251701355
     if graph_file == PurePath(utils.RAPIDS_DATASET_ROOT_DIR) / "karate.csv":
         return 0.38428664207458496
-    if (
-        graph_file
-        == PurePath(utils.RAPIDS_DATASET_ROOT_DIR) / "netscience.csv"
-    ):
+    if graph_file == PurePath(utils.RAPIDS_DATASET_ROOT_DIR) / "netscience.csv":
         return 0.9279554486274719
 
 
@@ -63,8 +60,9 @@ def test_ecg_clustering(graph_file, min_weight, ensemble_size):
     G = graph_file.get_graph()
     dataset_path = graph_file.get_path()
     # read_weights_in_sp=False => value column dtype is float64
-    G.edgelist.edgelist_df['weights'] = \
-        G.edgelist.edgelist_df['weights'].astype("float64")
+    G.edgelist.edgelist_df["weights"] = G.edgelist.edgelist_df["weights"].astype(
+        "float64"
+    )
 
     # Get the modularity score for partitioning versus random assignment
     cu_score, num_parts = cugraph_call(G, min_weight, ensemble_size)
