@@ -114,7 +114,9 @@ def read_csv(request):
 
     Mnx = utils.read_csv_for_nx(request.param)
     N = max(max(Mnx["0"]), max(Mnx["1"])) + 1
-    M = scipy.sparse.csr_matrix((Mnx.weight, (Mnx["0"], Mnx["1"])), shape=(N, N))
+    M = scipy.sparse.csr_matrix(
+        (Mnx.weight, (Mnx["0"], Mnx["1"])), shape=(N, N)
+    )
 
     cu_M = utils.read_csv_file(request.param)
     print("cu_M is \n", cu_M)
@@ -172,9 +174,8 @@ def test_overlap_multi_column(graph_file):
     cu_M["src_1"] = cu_M["src_0"] + 1000
     cu_M["dst_1"] = cu_M["dst_0"] + 1000
     G1 = cugraph.Graph()
-    G1.from_cudf_edgelist(
-        cu_M, source=["src_0", "src_1"], destination=["dst_0", "dst_1"]
-    )
+    G1.from_cudf_edgelist(cu_M, source=["src_0", "src_1"],
+                          destination=["dst_0", "dst_1"])
 
     vertex_pair = cu_M[["src_0", "src_1", "dst_0", "dst_1"]]
     vertex_pair = vertex_pair[:5]
@@ -182,7 +183,8 @@ def test_overlap_multi_column(graph_file):
     df_res = cugraph.overlap(G1, vertex_pair)
 
     G2 = cugraph.Graph()
-    G2.from_cudf_edgelist(cu_M, source="src_0", destination="dst_0")
+    G2.from_cudf_edgelist(cu_M, source="src_0",
+                          destination="dst_0")
     df_exp = cugraph.overlap(G2, vertex_pair[["src_0", "dst_0"]])
 
     # Calculating mismatch

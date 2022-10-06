@@ -14,7 +14,6 @@
 # FIXME: these raft imports break the library if ucx-py is
 # not available. They are necessary only when doing MG work.
 from cugraph.dask.common.read_utils import MissingUCXPy
-
 try:
     from raft_dask.common.comms import Comms as raftComms
     from raft_dask.common.comms import get_raft_comm_state
@@ -42,7 +41,7 @@ def __get_2D_div(ngpus):
     prows = int(math.sqrt(ngpus))
     while ngpus % prows != 0:
         prows = prows - 1
-    return prows, int(ngpus / prows)
+    return prows, int(ngpus/prows)
 
 
 def subcomm_init(prows, pcols, partition_type):
@@ -55,25 +54,19 @@ def subcomm_init(prows, pcols, partition_type):
             prows, pcols = __get_2D_div(ngpus)
     else:
         if prows is not None and pcols is not None:
-            if ngpus != prows * pcols:
-                raise Exception(
-                    "prows*pcols should be equal to the\
- number of processes"
-                )
+            if ngpus != prows*pcols:
+                raise Exception('prows*pcols should be equal to the\
+ number of processes')
         elif prows is not None:
             if ngpus % prows != 0:
-                raise Exception(
-                    "prows must be a factor of the number\
- of processes"
-                )
-            pcols = int(ngpus / prows)
+                raise Exception('prows must be a factor of the number\
+ of processes')
+            pcols = int(ngpus/prows)
         elif pcols is not None:
             if ngpus % pcols != 0:
-                raise Exception(
-                    "pcols must be a factor of the number\
- of processes"
-                )
-            prows = int(ngpus / pcols)
+                raise Exception('pcols must be a factor of the number\
+ of processes')
+            prows = int(ngpus/pcols)
 
     client = default_client()
     client.run(_subcomm_init, sID, pcols)
@@ -86,7 +79,11 @@ def _subcomm_init(sID, partition_row_size):
     c_init_subcomms(handle, partition_row_size)
 
 
-def initialize(comms=None, p2p=False, prows=None, pcols=None, partition_type=1):
+def initialize(comms=None,
+               p2p=False,
+               prows=None,
+               pcols=None,
+               partition_type=1):
     """
     Initialize a communicator for multi-node/multi-gpu communications.  It is
     expected to be called right after client initialization for running
@@ -229,13 +226,12 @@ def get_default_handle():
 
 # Functions to be called from within workers
 
-
 def get_handle(sID):
     """
     Returns the handle from within the worker using the sessionstate.
     """
     sessionstate = get_raft_comm_state(sID)
-    return sessionstate["handle"]
+    return sessionstate['handle']
 
 
 def get_worker_id(sID):
@@ -243,7 +239,7 @@ def get_worker_id(sID):
     Returns the worker's sessionId from within the worker.
     """
     sessionstate = get_raft_comm_state(sID)
-    return sessionstate["wid"]
+    return sessionstate['wid']
 
 
 # FIXME: There are several similar instances of utility functions for getting
@@ -258,4 +254,4 @@ def get_n_workers(sID=None):
         return read_utils.get_n_workers()
     else:
         sessionstate = get_raft_comm_state(sID)
-        return sessionstate["nworkers"]
+        return sessionstate['nworkers']

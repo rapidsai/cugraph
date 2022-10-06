@@ -36,8 +36,8 @@ def cugraph_call(benchmark_callable, cu_M, pairs):
         np.ones(max(cu_M["0"].max(), cu_M["1"].max()) + 1, dtype=np.float32)
     )
     weights = cudf.DataFrame()
-    weights["vertex"] = np.arange(len(weights_arr), dtype=np.int32)
-    weights["weight"] = weights_arr
+    weights['vertex'] = np.arange(len(weights_arr), dtype=np.int32)
+    weights['weight'] = weights_arr
 
     G = cugraph.Graph(directed=True)
     G.from_cudf_edgelist(cu_M, source="0", destination="1")
@@ -97,7 +97,9 @@ def test_woverlap(gpubenchmark, graph_file):
 
     Mnx = utils.read_csv_for_nx(graph_file)
     N = max(max(Mnx["0"]), max(Mnx["1"])) + 1
-    M = scipy.sparse.csr_matrix((Mnx.weight, (Mnx["0"], Mnx["1"])), shape=(N, N))
+    M = scipy.sparse.csr_matrix(
+        (Mnx.weight, (Mnx["0"], Mnx["1"])), shape=(N, N)
+    )
 
     cu_M = utils.read_csv_file(graph_file)
     G = cugraph.Graph()
@@ -132,26 +134,27 @@ def test_woverlap_multi_column(graph_file):
     cu_M["src_1"] = cu_M["src_0"] + 1000
     cu_M["dst_1"] = cu_M["dst_0"] + 1000
     G1 = cugraph.Graph()
-    G1.from_cudf_edgelist(
-        cu_M, source=["src_0", "src_1"], destination=["dst_0", "dst_1"]
-    )
+    G1.from_cudf_edgelist(cu_M, source=["src_0", "src_1"],
+                          destination=["dst_0", "dst_1"])
 
     G2 = cugraph.Graph()
-    G2.from_cudf_edgelist(cu_M, source="src_0", destination="dst_0")
+    G2.from_cudf_edgelist(cu_M, source="src_0",
+                          destination="dst_0")
 
     vertex_pair = cu_M[["src_0", "src_1", "dst_0", "dst_1"]]
     vertex_pair = vertex_pair[:5]
 
-    weight_arr = cudf.Series(np.ones(G2.number_of_vertices(), dtype=np.float32))
+    weight_arr = cudf.Series(np.ones(G2.number_of_vertices(),
+                                     dtype=np.float32))
 
     weights = cudf.DataFrame()
-    weights["vertex"] = G2.nodes()
-    weights["vertex_"] = weights["vertex"] + 1000
-    weights["weight"] = weight_arr
+    weights['vertex'] = G2.nodes()
+    weights['vertex_'] = weights['vertex'] + 1000
+    weights['weight'] = weight_arr
 
     df_res = cugraph.overlap_w(G1, weights, vertex_pair)
 
-    weights = weights[["vertex", "weight"]]
+    weights = weights[['vertex', 'weight']]
     df_exp = cugraph.overlap_w(G2, weights, vertex_pair[["src_0", "dst_0"]])
 
     # Calculating mismatch

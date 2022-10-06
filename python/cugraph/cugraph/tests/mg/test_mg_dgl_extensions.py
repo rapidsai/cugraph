@@ -87,9 +87,9 @@ def create_gs_heterogeneous_dgl_eg(dask_client):
     df = df.astype(np.int32)
     df = dask_cudf.from_cudf(df, npartitions=npartitions)
     for e in df["etype"].unique().compute().values_host:
-        subset_df = df[df["etype"] == e][["src", "dst", "edge_feat"]].reset_index(
-            drop=True
-        )
+        subset_df = df[df["etype"] == e][
+            ["src", "dst", "edge_feat"]
+        ].reset_index(drop=True)
         gs.add_edge_data(
             subset_df,
             ["src", "dst"],
@@ -107,7 +107,9 @@ def create_gs_heterogeneous_dgl_eg(dask_client):
     df = dask_cudf.from_cudf(df, npartitions=npartitions)
     for n in df["ntype"].unique().compute().values_host:
         subset_df = df[df["ntype"] == n][["node_id", "node_feat"]]
-        gs.add_node_data(subset_df, "node_id", feat_name="node_feat", ntype=str(n))
+        gs.add_node_data(
+            subset_df, "node_id", feat_name="node_feat", ntype=str(n)
+        )
 
     return gs
 
@@ -128,14 +130,18 @@ def test_sampling(basic_mg_gs):
 
 
 def test_get_node_storage(basic_mg_gs):
-    result = basic_mg_gs.get_node_storage(feat_name="prop").fetch(indices=[2, 3])
+    result = basic_mg_gs.get_node_storage(feat_name="prop").fetch(
+        indices=[2, 3]
+    )
     expected_result = cp.asarray([[300, 3], [400, 2]]).astype(cp.int32)
 
     cp.testing.assert_array_equal(result, expected_result)
 
 
 def test_get_edge_storage(basic_mg_gs):
-    result = basic_mg_gs.get_edge_storage(feat_name="edge_w").fetch(indices=[1, 2])
+    result = basic_mg_gs.get_edge_storage(feat_name="edge_w").fetch(
+        indices=[1, 2]
+    )
     expected_result = cp.asarray([[20, 21], [40, 41]]).astype(cp.int32)
 
     cp.testing.assert_array_equal(result, expected_result)
@@ -310,7 +316,9 @@ def test_sampling_dgl_heterogeneous_gs_m_fanouts(dask_client):
         sampled_node = [6]
         sampled_node_p = cudf.Series(sampled_node).astype(np.int32).to_dlpack()
 
-        sampled_g = gs.sample_neighbors({"nt.c": sampled_node_p}, fanout=fanout)
+        sampled_g = gs.sample_neighbors(
+            {"nt.c": sampled_node_p}, fanout=fanout
+        )
         sampled_g = convert_dlpack_dict_to_df(sampled_g)
         for etype, output_df in sampled_g.items():
             assert expected_output[fanout][etype] == len(output_df)

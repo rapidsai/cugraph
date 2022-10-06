@@ -12,13 +12,12 @@
 # limitations under the License.
 
 from cugraph.community import leiden_wrapper
-from cugraph.utilities import (
-    ensure_cugraph_obj_for_nx,
-    df_score_to_dictionary,
-)
+from cugraph.utilities import (ensure_cugraph_obj_for_nx,
+                               df_score_to_dictionary,
+                               )
 
 
-def leiden(G, max_iter=100, resolution=1.0):
+def leiden(G, max_iter=100, resolution=1.):
     """
     Compute the modularity optimizing partition of the input graph using the
     Leiden algorithm
@@ -77,7 +76,9 @@ def leiden(G, max_iter=100, resolution=1.0):
     if G.is_directed():
         raise ValueError("input graph must be undirected")
 
-    parts, modularity_score = leiden_wrapper.leiden(G, max_iter, resolution)
+    parts, modularity_score = leiden_wrapper.leiden(
+        G, max_iter, resolution
+    )
 
     if G.renumbered:
         parts = G.unrenumber(parts, "vertex")

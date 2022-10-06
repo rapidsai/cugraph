@@ -70,7 +70,8 @@ def setup_function():
 # =============================================================================
 # Helper functions
 # =============================================================================
-def cugraph_call(gpu_benchmark_callable, input_G_or_matrix, source, edgevals=False):
+def cugraph_call(gpu_benchmark_callable, input_G_or_matrix,
+                 source, edgevals=False):
     """
     Call cugraph.sssp on input_G_or_matrix, then convert the result to a
     standard format (dictionary of vertex IDs to (distance, predecessor)
@@ -115,16 +116,13 @@ def cugraph_call(gpu_benchmark_callable, input_G_or_matrix, source, edgevals=Fal
             max_val = np.finfo(result[0].dtype).max
 
         # Get unique verts from input since they are not incuded in output
-        if type(input_G_or_matrix) in [
-            cp_csr_matrix,
-            cp_csc_matrix,
-            sp_csr_matrix,
-            sp_csc_matrix,
-        ]:
+        if type(input_G_or_matrix) in [cp_csr_matrix, cp_csc_matrix,
+                                       sp_csr_matrix, sp_csc_matrix]:
             coo = input_G_or_matrix.tocoo(copy=False)
         else:
             coo = input_G_or_matrix
-        verts = sorted(set([n.item() for n in coo.col] + [n.item() for n in coo.row]))
+        verts = sorted(set([n.item() for n in coo.col] +
+                           [n.item() for n in coo.row]))
         dists = [n.item() for n in result[0]]
         preds = [n.item() for n in result[1]]
         assert len(verts) == len(dists) == len(preds)
@@ -172,10 +170,10 @@ def networkx_call(graph_file, source, edgevals=False):
 # full test name.
 DATASETS = [pytest.param(d) for d in utils.DATASETS]
 SOURCES = [pytest.param(1)]
-fixture_params = utils.genFixtureParamsProduct((DATASETS, "ds"), (SOURCES, "src"))
-fixture_params_single_dataset = utils.genFixtureParamsProduct(
-    ([DATASETS[0]], "ds"), (SOURCES, "src")
-)
+fixture_params = utils.genFixtureParamsProduct((DATASETS, "ds"),
+                                               (SOURCES, "src"))
+fixture_params_single_dataset = \
+    utils.genFixtureParamsProduct(([DATASETS[0]], "ds"), (SOURCES, "src"))
 
 
 # These fixtures will call networkx BFS algos and save the result. The networkx
@@ -210,7 +208,8 @@ def test_sssp(gpubenchmark, dataset_source_nxresults, cugraph_input_type):
     # Extract the params generated from the fixture
     (graph_file, source, nx_paths, Gnx) = dataset_source_nxresults
 
-    input_G_or_matrix = utils.create_obj_from_csv(graph_file, cugraph_input_type)
+    input_G_or_matrix = utils.create_obj_from_csv(graph_file,
+                                                  cugraph_input_type)
     cu_paths, max_val = cugraph_call(gpubenchmark, input_G_or_matrix, source)
 
     # Calculating mismatch
@@ -234,47 +233,51 @@ def test_sssp(gpubenchmark, dataset_source_nxresults, cugraph_input_type):
 
 
 @pytest.mark.parametrize("cugraph_input_type", utils.CUGRAPH_DIR_INPUT_TYPES)
-def test_sssp_invalid_start(gpubenchmark, dataset_source_nxresults, cugraph_input_type):
+def test_sssp_invalid_start(gpubenchmark, dataset_source_nxresults,
+                            cugraph_input_type):
     (graph_file, source, nx_paths, Gnx) = dataset_source_nxresults
     el = cudf.read_csv(
         graph_file,
-        sep=" ",
-        dtype=["int32", "int32", "float32"],
-        names=["src", "tar", "w"],
+        sep=' ',
+        dtype=['int32', 'int32', 'float32'],
+        names=['src', 'tar', 'w']
     ).dropna()
     newval = max(el.src.max(), el.tar.max()) + 1
     el.src = el.src.replace(source, newval)
     el.tar = el.tar.replace(source, newval)
     G = cugraph.from_cudf_edgelist(
-        el, source="src", destination="tar", edge_attr="w", renumber=True
+        el,
+        source='src',
+        destination='tar',
+        edge_attr='w',
+        renumber=True
     )
 
     with pytest.raises(ValueError):
         cugraph_call(gpubenchmark, G, source)
 
 
-@pytest.mark.parametrize(
-    "cugraph_input_type", utils.NX_DIR_INPUT_TYPES + utils.MATRIX_INPUT_TYPES
-)
-def test_sssp_nonnative_inputs(
-    gpubenchmark, single_dataset_source_nxresults, cugraph_input_type
-):
-    test_sssp(gpubenchmark, single_dataset_source_nxresults, cugraph_input_type)
+@pytest.mark.parametrize("cugraph_input_type",
+                         utils.NX_DIR_INPUT_TYPES + utils.MATRIX_INPUT_TYPES)
+def test_sssp_nonnative_inputs(gpubenchmark,
+                               single_dataset_source_nxresults,
+                               cugraph_input_type):
+    test_sssp(gpubenchmark,
+              single_dataset_source_nxresults,
+              cugraph_input_type)
 
 
 @pytest.mark.parametrize("cugraph_input_type", utils.CUGRAPH_DIR_INPUT_TYPES)
-def test_sssp_edgevals(
-    gpubenchmark, dataset_source_nxresults_weighted, cugraph_input_type
-):
+def test_sssp_edgevals(gpubenchmark, dataset_source_nxresults_weighted,
+                       cugraph_input_type):
     # Extract the params generated from the fixture
     (graph_file, source, nx_paths, Gnx) = dataset_source_nxresults_weighted
 
-    input_G_or_matrix = utils.create_obj_from_csv(
-        graph_file, cugraph_input_type, edgevals=True
-    )
-    cu_paths, max_val = cugraph_call(
-        gpubenchmark, input_G_or_matrix, source, edgevals=True
-    )
+    input_G_or_matrix = utils.create_obj_from_csv(graph_file,
+                                                  cugraph_input_type,
+                                                  edgevals=True)
+    cu_paths, max_val = cugraph_call(gpubenchmark, input_G_or_matrix,
+                                     source, edgevals=True)
 
     # Calculating mismatch
     err = 0
@@ -298,15 +301,15 @@ def test_sssp_edgevals(
     assert err == 0
 
 
-@pytest.mark.parametrize(
-    "cugraph_input_type", utils.NX_DIR_INPUT_TYPES + utils.MATRIX_INPUT_TYPES
-)
+@pytest.mark.parametrize("cugraph_input_type",
+                         utils.NX_DIR_INPUT_TYPES + utils.MATRIX_INPUT_TYPES)
 def test_sssp_edgevals_nonnative_inputs(
-    gpubenchmark, single_dataset_source_nxresults_weighted, cugraph_input_type
-):
-    test_sssp_edgevals(
-        gpubenchmark, single_dataset_source_nxresults_weighted, cugraph_input_type
-    )
+        gpubenchmark,
+        single_dataset_source_nxresults_weighted,
+        cugraph_input_type):
+    test_sssp_edgevals(gpubenchmark,
+                       single_dataset_source_nxresults_weighted,
+                       cugraph_input_type)
 
 
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
@@ -366,22 +369,24 @@ def test_sssp_data_type_conversion(graph_file, source):
 def test_scipy_api_compat():
     graph_file = utils.DATASETS[0]
 
-    input_cugraph_graph = utils.create_obj_from_csv(
-        graph_file, cugraph.Graph, edgevals=True
-    )
-    input_coo_matrix = utils.create_obj_from_csv(
-        graph_file, cp_coo_matrix, edgevals=True
-    )
+    input_cugraph_graph = utils.create_obj_from_csv(graph_file, cugraph.Graph,
+                                                    edgevals=True)
+    input_coo_matrix = utils.create_obj_from_csv(graph_file, cp_coo_matrix,
+                                                 edgevals=True)
 
     # Ensure scipy-only options are rejected for cugraph inputs
     with pytest.raises(TypeError):
-        cugraph.shortest_path(input_cugraph_graph, source=0, directed=False)
+        cugraph.shortest_path(input_cugraph_graph, source=0,
+                              directed=False)
     with pytest.raises(TypeError):
-        cugraph.shortest_path(input_cugraph_graph, source=0, unweighted=False)
+        cugraph.shortest_path(input_cugraph_graph, source=0,
+                              unweighted=False)
     with pytest.raises(TypeError):
-        cugraph.shortest_path(input_cugraph_graph, source=0, overwrite=False)
+        cugraph.shortest_path(input_cugraph_graph, source=0,
+                              overwrite=False)
     with pytest.raises(TypeError):
-        cugraph.shortest_path(input_cugraph_graph, source=0, return_predecessors=False)
+        cugraph.shortest_path(input_cugraph_graph, source=0,
+                              return_predecessors=False)
 
     # Ensure cugraph-compatible options work as expected
     # cannot set both source and indices, but must set one
@@ -390,7 +395,8 @@ def test_scipy_api_compat():
     with pytest.raises(TypeError):
         cugraph.shortest_path(input_cugraph_graph)
     with pytest.raises(ValueError):
-        cugraph.shortest_path(input_cugraph_graph, source=0, method="BF")
+        cugraph.shortest_path(input_cugraph_graph, source=0,
+                              method="BF")
     cugraph.shortest_path(input_cugraph_graph, indices=0)
     with pytest.raises(ValueError):
         cugraph.shortest_path(input_cugraph_graph, indices=[0, 1, 2])
@@ -412,22 +418,27 @@ def test_scipy_api_compat():
     cugraph.shortest_path(input_coo_matrix, source=0, directed=False)
 
     with pytest.raises(ValueError):
-        cugraph.shortest_path(input_coo_matrix, source=0, return_predecessors=3)
-    (distances, preds) = cugraph.shortest_path(
-        input_coo_matrix, source=0, return_predecessors=True
-    )
-    distances = cugraph.shortest_path(
-        input_coo_matrix, source=0, return_predecessors=False
-    )
+        cugraph.shortest_path(input_coo_matrix, source=0,
+                              return_predecessors=3)
+    (distances, preds) = cugraph.shortest_path(input_coo_matrix,
+                                               source=0,
+                                               return_predecessors=True)
+    distances = cugraph.shortest_path(input_coo_matrix,
+                                      source=0,
+                                      return_predecessors=False)
     assert type(distances) != tuple
 
     with pytest.raises(ValueError):
-        cugraph.shortest_path(input_coo_matrix, source=0, unweighted=False)
-    cugraph.shortest_path(input_coo_matrix, source=0, unweighted=True)
+        cugraph.shortest_path(input_coo_matrix, source=0,
+                              unweighted=False)
+    cugraph.shortest_path(input_coo_matrix, source=0,
+                          unweighted=True)
 
     with pytest.raises(ValueError):
-        cugraph.shortest_path(input_coo_matrix, source=0, overwrite=True)
-    cugraph.shortest_path(input_coo_matrix, source=0, overwrite=False)
+        cugraph.shortest_path(input_coo_matrix, source=0,
+                              overwrite=True)
+    cugraph.shortest_path(input_coo_matrix, source=0,
+                          overwrite=False)
 
     with pytest.raises(ValueError):
         cugraph.shortest_path(input_coo_matrix, indices=[0, 1, 2])

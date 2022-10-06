@@ -50,7 +50,8 @@ def _get_param_args(param_name, param_values):
     as the args to pytest.mark.parametrize(). The pytest.param list also
     contains param id string formed from the param name and values.
     """
-    return (param_name, [pytest.param(v, id=f"{param_name}={v}") for v in param_values])
+    return (param_name,
+            [pytest.param(v, id=f"{param_name}={v}") for v in param_values])
 
 
 @pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED_WEIGHTS)
@@ -112,7 +113,9 @@ def test_random_minimum_spanning_tree_nx(graph_size):
     gdf = cudf.from_pandas(df)
     # cugraph
     G = cugraph.Graph()
-    G.from_cudf_edgelist(gdf, source="src", destination="dst", edge_attr="weight")
+    G.from_cudf_edgelist(
+        gdf, source="src", destination="dst", edge_attr="weight"
+    )
     # Just for getting relevant timing
     G.view_adj_list()
     t1 = time.time()

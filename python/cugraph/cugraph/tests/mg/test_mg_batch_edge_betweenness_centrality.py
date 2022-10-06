@@ -25,7 +25,7 @@ from cugraph.testing.utils import RAPIDS_DATASET_ROOT_DIR_PATH
 # As tests directory is not a module, we need to add it to the path
 # FIXME: Test must be reworked to import from 'cugraph.testing' instead of
 # importing from other tests
-sys.path.insert(0, ".")
+sys.path.insert(0, '.')
 from test_edge_betweenness_centrality import (  # noqa: E402
     DIRECTED_GRAPH_OPTIONS,
     NORMALIZED_OPTIONS,
@@ -56,8 +56,11 @@ def setup_function():
     gc.collect()
 
 
-@pytest.mark.skipif(is_single_gpu(), reason="skipping MG testing on Single GPU system")
-@pytest.mark.parametrize("graph_file", DATASETS, ids=[f"dataset={d}" for d in DATASETS])
+@pytest.mark.skipif(
+    is_single_gpu(), reason="skipping MG testing on Single GPU system"
+)
+@pytest.mark.parametrize("graph_file", DATASETS,
+                         ids=[f"dataset={d}" for d in DATASETS])
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
 @pytest.mark.parametrize("subset_size", SUBSET_SIZE_OPTIONS)
 @pytest.mark.parametrize("normalized", NORMALIZED_OPTIONS)
@@ -72,7 +75,7 @@ def test_mg_edge_betweenness_centrality(
     weight,
     subset_seed,
     result_dtype,
-    dask_client,
+    dask_client
 ):
     sorted_df = calc_edge_betweenness_centrality(
         graph_file,

@@ -14,12 +14,10 @@
 import pytest
 import cugraph.dask as dcg
 import gc
-
 # import pytest
 import cugraph
 import dask_cudf
 import cudf
-
 # from cugraph.dask.common.mg_utils import is_single_gpu
 from cugraph.testing.utils import RAPIDS_DATASET_ROOT_DIR_PATH
 
@@ -44,11 +42,13 @@ def test_dask_pagerank(dask_client, directed):
     # Initialize and run pagerank on two distributed graphs
     # with same communicator
 
-    input_data_path1 = (RAPIDS_DATASET_ROOT_DIR_PATH / "karate.csv").as_posix()
+    input_data_path1 = (RAPIDS_DATASET_ROOT_DIR_PATH /
+                        "karate.csv").as_posix()
     print(f"dataset1={input_data_path1}")
     chunksize1 = dcg.get_chunksize(input_data_path1)
 
-    input_data_path2 = (RAPIDS_DATASET_ROOT_DIR_PATH / "dolphins.csv").as_posix()
+    input_data_path2 = (RAPIDS_DATASET_ROOT_DIR_PATH /
+                        "dolphins.csv").as_posix()
     print(f"dataset2={input_data_path2}")
     chunksize2 = dcg.get_chunksize(input_data_path2)
 
@@ -115,7 +115,8 @@ def test_dask_pagerank(dask_client, directed):
 
     for i in range(len(compare_pr1)):
         diff = abs(
-            compare_pr1["pagerank_local"].iloc[i] - compare_pr1["pagerank_dask"].iloc[i]
+            compare_pr1["pagerank_local"].iloc[i]
+            - compare_pr1["pagerank_dask"].iloc[i]
         )
         if diff > tol * 1.1:
             err1 = err1 + 1
@@ -129,7 +130,8 @@ def test_dask_pagerank(dask_client, directed):
 
     for i in range(len(compare_pr2)):
         diff = abs(
-            compare_pr2["pagerank_local"].iloc[i] - compare_pr2["pagerank_dask"].iloc[i]
+            compare_pr2["pagerank_local"].iloc[i]
+            - compare_pr2["pagerank_dask"].iloc[i]
         )
         if diff > tol * 1.1:
             err2 = err2 + 1

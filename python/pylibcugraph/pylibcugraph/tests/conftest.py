@@ -29,51 +29,51 @@ class COOTestGraphDeviceData:
         self.dsts = dsts
         self.weights = weights
         self.name = name
-        self.is_valid = not (name.startswith("Invalid"))
+        self.is_valid = not(name.startswith("Invalid"))
 
 
 InvalidNumWeights_1 = COOTestGraphDeviceData(
     srcs=cp.asarray([0, 1, 2], dtype=np.int32),
     dsts=cp.asarray([1, 2, 3], dtype=np.int32),
     weights=cp.asarray([1.0, 1.0, 1.0, 1.0], dtype=np.float32),
-    name="InvalidNumWeights_1",
-)
+    name="InvalidNumWeights_1"
+    )
 
 InvalidNumVerts_1 = COOTestGraphDeviceData(
     srcs=cp.asarray([1, 2], dtype=np.int32),
     dsts=cp.asarray([1, 2, 3], dtype=np.int32),
     weights=cp.asarray([1.0, 1.0, 1.0], dtype=np.float32),
-    name="InvalidNumVerts_1",
-)
+    name="InvalidNumVerts_1"
+    )
 
 Simple_1 = COOTestGraphDeviceData(
     srcs=cp.asarray([0, 1, 2], dtype=np.int32),
     dsts=cp.asarray([1, 2, 3], dtype=np.int32),
     weights=cp.asarray([1.0, 1.0, 1.0], dtype=np.float32),
-    name="Simple_1",
-)
+    name="Simple_1"
+    )
 
 Simple_2 = COOTestGraphDeviceData(
     srcs=cp.asarray([0, 1, 1, 2, 2, 2, 3, 4], dtype=np.int32),
     dsts=cp.asarray([1, 3, 4, 0, 1, 3, 5, 5], dtype=np.int32),
-    weights=cp.asarray([0.1, 2.1, 1.1, 5.1, 3.1, 4.1, 7.2, 3.2], dtype=np.float32),
-    name="Simple_2",
-)
+    weights=cp.asarray([0.1, 2.1, 1.1, 5.1, 3.1, 4.1, 7.2, 3.2],
+                       dtype=np.float32),
+    name="Simple_2"
+    )
 
 
 # The objects in these lists must have a "name" attr, since fixtures will
 # access that to pass to tests, which then may use the name to associate to
 # expected test results. The name attr is also used for the pytest test ID.
-valid_datasets = [
-    utils.RAPIDS_DATASET_ROOT_DIR_PATH / "karate.csv",
-    utils.RAPIDS_DATASET_ROOT_DIR_PATH / "dolphins.csv",
-    Simple_1,
-    Simple_2,
-]
-all_datasets = valid_datasets + [
-    InvalidNumWeights_1,
-    InvalidNumVerts_1,
-]
+valid_datasets = [utils.RAPIDS_DATASET_ROOT_DIR_PATH/"karate.csv",
+                  utils.RAPIDS_DATASET_ROOT_DIR_PATH/"dolphins.csv",
+                  Simple_1,
+                  Simple_2,
+                  ]
+all_datasets = valid_datasets + \
+               [InvalidNumWeights_1,
+                InvalidNumVerts_1,
+                ]
 
 
 # =============================================================================
@@ -92,13 +92,12 @@ def get_graph_data_for_dataset(ds, ds_name):
         device_weights = ds.weights
         is_valid = ds.is_valid
     else:
-        pdf = pd.read_csv(
-            ds,
-            delimiter=" ",
-            header=None,
-            names=["0", "1", "weight"],
-            dtype={"0": "int32", "1": "int32", "weight": "float32"},
-        )
+        pdf = pd.read_csv(ds,
+                          delimiter=" ", header=None,
+                          names=["0", "1", "weight"],
+                          dtype={"0": "int32", "1": "int32",
+                                 "weight": "float32"},
+                          )
         device_srcs = cp.asarray(pdf["0"].to_numpy(), dtype=np.int32)
         device_dsts = cp.asarray(pdf["1"].to_numpy(), dtype=np.int32)
         device_weights = cp.asarray(pdf["weight"].to_numpy(), dtype=np.float32)
@@ -108,30 +107,29 @@ def get_graph_data_for_dataset(ds, ds_name):
     return (device_srcs, device_dsts, device_weights, ds_name, is_valid)
 
 
-def create_SGGraph(device_srcs, device_dsts, device_weights, transposed=False):
+def create_SGGraph(device_srcs,
+                   device_dsts,
+                   device_weights,
+                   transposed=False):
     """
     Creates and returns a SGGraph instance and the corresponding ResourceHandle
     using the parameters passed in.
     """
-    from pylibcugraph import (
-        SGGraph,
-        ResourceHandle,
-        GraphProperties,
-    )
-
+    from pylibcugraph import (SGGraph,
+                              ResourceHandle,
+                              GraphProperties,
+                              )
     resource_handle = ResourceHandle()
     graph_props = GraphProperties(is_symmetric=False, is_multigraph=False)
 
-    g = SGGraph(
-        resource_handle,
-        graph_props,
-        device_srcs,
-        device_dsts,
-        device_weights,
-        store_transposed=transposed,
-        renumber=False,
-        do_expensive_check=False,
-    )
+    g = SGGraph(resource_handle,
+                graph_props,
+                device_srcs,
+                device_dsts,
+                device_weights,
+                store_transposed=transposed,
+                renumber=False,
+                do_expensive_check=False)
 
     # FIXME: add coverage for renumber=True and do_expensive_check=True
 
@@ -141,9 +139,8 @@ def create_SGGraph(device_srcs, device_dsts, device_weights, transposed=False):
 # =============================================================================
 # Pytest fixtures
 # =============================================================================
-@pytest.fixture(
-    scope="package", params=[pytest.param(ds, id=ds.name) for ds in all_datasets]
-)
+@pytest.fixture(scope="package",
+                params=[pytest.param(ds, id=ds.name) for ds in all_datasets])
 def graph_data(request):
     """
     Return a series of cupy arrays that can be used to construct Graph
@@ -154,9 +151,8 @@ def graph_data(request):
     return get_graph_data_for_dataset(request.param, request.param.name)
 
 
-@pytest.fixture(
-    scope="package", params=[pytest.param(ds, id=ds.name) for ds in valid_datasets]
-)
+@pytest.fixture(scope="package",
+                params=[pytest.param(ds, id=ds.name) for ds in valid_datasets])
 def valid_graph_data(request):
     """
     Return a series of cupy arrays that can be used to construct Graph objects,
@@ -173,14 +169,17 @@ def sg_graph_objs(valid_graph_data, request):
     the associated resource handle, and the name of the dataset
     used to construct the graph.
     """
-    (device_srcs, device_dsts, device_weights, ds_name, is_valid) = valid_graph_data
+    (device_srcs, device_dsts, device_weights, ds_name, is_valid) = \
+        valid_graph_data
 
     if is_valid is False:
         pytest.exit("got invalid graph data - expecting only valid data")
 
-    (g, resource_handle) = create_SGGraph(
-        device_srcs, device_dsts, device_weights, transposed=False
-    )
+    (g, resource_handle) = \
+        create_SGGraph(device_srcs,
+                       device_dsts,
+                       device_weights,
+                       transposed=False)
 
     return (g, resource_handle, ds_name)
 
@@ -194,13 +193,16 @@ def sg_transposed_graph_objs(valid_graph_data, request):
     used to construct the graph.
     The SGGraph object is created with the transposed arg set to True.
     """
-    (device_srcs, device_dsts, device_weights, ds_name, is_valid) = valid_graph_data
+    (device_srcs, device_dsts, device_weights, ds_name, is_valid) = \
+        valid_graph_data
 
     if is_valid is False:
         pytest.exit("got invalid graph data - expecting only valid data")
 
-    (g, resource_handle) = create_SGGraph(
-        device_srcs, device_dsts, device_weights, transposed=True
-    )
+    (g, resource_handle) = \
+        create_SGGraph(device_srcs,
+                       device_dsts,
+                       device_weights,
+                       transposed=True)
 
     return (g, resource_handle, ds_name)

@@ -38,7 +38,6 @@ class GPUMetricPoller(threading.Thread):
     """
     Polls smi in a forked child process, saves measurements to instance vars
     """
-
     def __init__(self, *args, **kwargs):
         self.__stop = False
         super().__init__(*args, **kwargs)
@@ -70,7 +69,8 @@ class GPUMetricPoller(threading.Thread):
         gpuMetricsStr = self.__waitForInput(parentReadPipe)
         while True:
             # FIXME: this assumes the input received is perfect!
-            (memUsed, gpuUtil) = [int(x) for x in gpuMetricsStr.strip().split()]
+            (memUsed, gpuUtil) = [int(x) for x in
+                                  gpuMetricsStr.strip().split()]
 
             if memUsed > self.maxGpuMemUsed:
                 self.maxGpuMemUsed = memUsed
@@ -108,7 +108,8 @@ class GPUMetricPoller(threading.Thread):
             gpuUtil = utilObj.gpu - initialGpuUtil
 
             if controlStr.strip() == "1":
-                self.__writeToPipe(childWritePipe, "%s %s\n" % (memUsed, gpuUtil))
+                self.__writeToPipe(childWritePipe, "%s %s\n"
+                                   % (memUsed, gpuUtil))
             elif controlStr.strip() == "0":
                 break
             controlStr = self.__waitForInput(childReadPipe)

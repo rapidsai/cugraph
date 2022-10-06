@@ -53,13 +53,12 @@ def parts_to_ranks(client, worker_info, part_futures):
     :param part_futures: list of (worker, future) tuples
     :return: [(part, size)] in the same order of part_futures
     """
-    futures = [
-        (
-            worker_info[wf[0]]["rank"],
-            client.submit(_func_get_rows, wf[1], workers=[wf[0]], pure=False),
-        )
-        for idx, wf in enumerate(part_futures)
-    ]
+    futures = [(worker_info[wf[0]]["rank"],
+                client.submit(_func_get_rows,
+                              wf[1],
+                              workers=[wf[0]],
+                              pure=False))
+               for idx, wf in enumerate(part_futures)]
 
     sizes = client.compute(list(map(lambda x: x[1], futures)), sync=True)
     total = reduce(lambda a, b: a + b, sizes)
@@ -95,10 +94,9 @@ async def _extract_partitions(dask_obj, client=None, batch_enabled=False):
         else:
             # Have the first n workers persisting the n partitions
             # Ideally, there would be as many partitions as there are workers
-            persisted = [
-                client.persist(dask_obj.get_partition(p), workers=w)
-                for p, w in enumerate(worker_list[: dask_obj.npartitions])
-            ]
+            persisted = [client.persist(
+                dask_obj.get_partition(p), workers=w) for p, w in enumerate(
+                    worker_list[:dask_obj.npartitions])]
             # Persist empty dataframe/series with the remaining workers if
             # there are less partitions than workers
             if dask_obj.npartitions < len(worker_list):
@@ -106,13 +104,12 @@ async def _extract_partitions(dask_obj, client=None, batch_enabled=False):
                 # dask_obj
                 if isinstance(dask_obj, dask_cudf.DataFrame):
                     empty_df = cudf.DataFrame(columns=list(dask_obj.columns))
-                    empty_df = empty_df.astype(
-                        dict(zip(dask_obj.columns, dask_obj.dtypes))
-                    )
+                    empty_df = empty_df.astype(dict(zip(
+                        dask_obj.columns, dask_obj.dtypes)))
                 else:
                     empty_df = cudf.Series(dtype=dask_obj.dtype)
 
-                for p, w in enumerate(worker_list[dask_obj.npartitions :]):
+                for p, w in enumerate(worker_list[dask_obj.npartitions:]):
                     empty_ddf = dask_cudf.from_cudf(empty_df, npartitions=1)
                     persisted.append(client.persist(empty_ddf, workers=w))
 
@@ -134,7 +131,8 @@ async def _extract_partitions(dask_obj, client=None, batch_enabled=False):
     await wait(parts)
     key_to_part = [(str(part.key), part) for part in parts]
     who_has = await client.who_has(parts)
-    return [(first(who_has[key]), part) for key, part in key_to_part]
+    return [(first(who_has[key]), part)
+            for key, part in key_to_part]
 
 
 def create_dict(futures):
@@ -148,7 +146,7 @@ def create_dict(futures):
 
 def set_global_index(df, cumsum):
     df.index = df.index + cumsum
-    df.index = df.index.astype("int64")
+    df.index = df.index.astype('int64')
     return df
 
 
@@ -161,24 +159,27 @@ def repartition(ddf, cumsum):
     # for load balancing.
 
     import math
-
     npartitions = ddf.npartitions
-    count = math.ceil(len(ddf) / npartitions)
+    count = math.ceil(len(ddf)/npartitions)
     new_divisions = [0]
     move_count = 0
     i = npartitions - 2
-    for i in range(npartitions - 1):
+    for i in range(npartitions-1):
         search_val = count - move_count
         index = cumsum[i].searchsorted(search_val)
         if index == len(cumsum[i]):
             index = -1
         elif index > 0:
-            left = cumsum[i].iloc[index - 1]
+            left = cumsum[i].iloc[index-1]
             right = cumsum[i].iloc[index]
             index -= search_val - left < right - search_val
-        new_divisions.append(new_divisions[i] + cumsum[i].iloc[index] + move_count)
+        new_divisions.append(new_divisions[i] +
+                             cumsum[i].iloc[index] +
+                             move_count)
         move_count = cumsum[i].iloc[-1] - cumsum[i].iloc[index]
-    new_divisions.append(new_divisions[i + 1] + cumsum[-1].iloc[-1] + move_count - 1)
+    new_divisions.append(new_divisions[i+1] +
+                         cumsum[-1].iloc[-1] +
+                         move_count - 1)
 
     return ddf.repartition(divisions=tuple(new_divisions))
 
@@ -195,16 +196,16 @@ def load_balance_func(ddf_, by, client=None):
 
     who_has = client.who_has(parts)
     key_to_part = [(str(part.key), part) for part in parts]
-    gpu_fututres = [
-        (first(who_has[key]), part.key[1], part) for key, part in key_to_part
-    ]
+    gpu_fututres = [(first(who_has[key]),
+                     part.key[1], part) for key, part in key_to_part]
     worker_to_data = create_dict(gpu_fututres)
 
     # Calculate cumulative sum in each dataframe partition
-    cumsum_parts = [
-        client.submit(get_cumsum, wf[1][0][0], by, workers=[wf[0]]).result()
-        for idx, wf in enumerate(worker_to_data.items())
-    ]
+    cumsum_parts = [client.submit(get_cumsum,
+                    wf[1][0][0],
+                    by,
+                    workers=[wf[0]]).result()
+                    for idx, wf in enumerate(worker_to_data.items())]
 
     num_rows = []
     for cumsum in cumsum_parts:
@@ -217,12 +218,11 @@ def load_balance_func(ddf_, by, client=None):
 
     # Set global index from 0 to len(dask_cudf_dataframe) so that global
     # indexing of divisions can be used for repartitioning.
-    futures = [
-        client.submit(
-            set_global_index, wf[1][0][0], divisions[wf[1][0][1]], workers=[wf[0]]
-        )
-        for idx, wf in enumerate(worker_to_data.items())
-    ]
+    futures = [client.submit(set_global_index,
+               wf[1][0][0],
+               divisions[wf[1][0][1]],
+               workers=[wf[0]])
+               for idx, wf in enumerate(worker_to_data.items())]
     wait(futures)
 
     ddf = dask_cudf.from_delayed(futures)

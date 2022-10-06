@@ -14,11 +14,10 @@
 import cudf
 from cugraph.structure.graph_classes import Graph
 from cugraph.link_prediction import jaccard_wrapper
-from cugraph.utilities import (
-    ensure_cugraph_obj_for_nx,
-    df_edge_score_to_dictionary,
-    renumber_vertex_pair,
-)
+from cugraph.utilities import (ensure_cugraph_obj_for_nx,
+                               df_edge_score_to_dictionary,
+                               renumber_vertex_pair,
+                               )
 
 
 def sorensen(input_graph, vertex_pair=None):
@@ -83,8 +82,9 @@ def sorensen(input_graph, vertex_pair=None):
         raise ValueError("vertex_pair must be a cudf dataframe")
 
     df = jaccard_wrapper.jaccard(input_graph, None, vertex_pair)
-    df.jaccard_coeff = (2 * df.jaccard_coeff) / (1 + df.jaccard_coeff)
-    df.rename({"jaccard_coeff": "sorensen_coeff"}, axis=1, inplace=True)
+    df.jaccard_coeff = ((2*df.jaccard_coeff)/(1+df.jaccard_coeff))
+    df.rename(
+        {'jaccard_coeff': 'sorensen_coeff'}, axis=1, inplace=True)
     if input_graph.renumbered:
         df = input_graph.unrenumber(df, "source")
         df = input_graph.unrenumber(df, "destination")
@@ -145,8 +145,9 @@ def sorensen_coefficient(G, ebunch=None):
     df = sorensen(G, vertex_pair)
 
     if isNx is True:
-        df = df_edge_score_to_dictionary(
-            df, k="sorensen_coeff", src="source", dst="destination"
-        )
+        df = df_edge_score_to_dictionary(df,
+                                         k="sorensen_coeff",
+                                         src="source",
+                                         dst="destination")
 
     return df

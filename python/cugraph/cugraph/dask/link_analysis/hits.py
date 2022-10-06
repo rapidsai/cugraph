@@ -20,29 +20,31 @@ import dask_cudf
 import cudf
 import warnings
 
-from pylibcugraph import ResourceHandle, hits as pylibcugraph_hits
+from pylibcugraph import (ResourceHandle,
+                          hits as pylibcugraph_hits
+                          )
 
 
-def _call_plc_hits(
-    sID,
-    mg_graph_x,
-    tol,
-    max_iter,
-    initial_hubs_guess_vertices,
-    initial_hubs_guess_values,
-    normalized,
-    do_expensive_check,
-):
+def _call_plc_hits(sID,
+                   mg_graph_x,
+                   tol,
+                   max_iter,
+                   initial_hubs_guess_vertices,
+                   initial_hubs_guess_values,
+                   normalized,
+                   do_expensive_check):
 
     return pylibcugraph_hits(
-        resource_handle=ResourceHandle(Comms.get_handle(sID).getHandle()),
+        resource_handle=ResourceHandle(
+            Comms.get_handle(sID).getHandle()
+        ),
         graph=mg_graph_x,
         tol=tol,
         max_iter=max_iter,
         initial_hubs_guess_vertices=initial_hubs_guess_vertices,
         initial_hubs_guess_values=initial_hubs_guess_values,
         normalized=normalized,
-        do_expensive_check=do_expensive_check,
+        do_expensive_check=do_expensive_check
     )
 
 
@@ -58,7 +60,7 @@ def convert_to_cudf(cp_arrays):
     return df
 
 
-def hits(input_graph, tol=1.0e-5, max_iter=100, nstart=None, normalized=True):
+def hits(input_graph, tol=1.0e-5, max_iter=100,  nstart=None, normalized=True):
     """
     Compute HITS hubs and authorities values for each vertex
 
@@ -131,11 +133,9 @@ def hits(input_graph, tol=1.0e-5, max_iter=100, nstart=None, normalized=True):
     client = input_graph._client
 
     if input_graph.store_transposed is False:
-        warning_msg = (
-            "HITS expects the 'store_transposed' flag "
-            "to be set to 'True' for optimal performance during "
-            "the graph creation"
-        )
+        warning_msg = ("HITS expects the 'store_transposed' flag "
+                       "to be set to 'True' for optimal performance during "
+                       "the graph creation")
         warnings.warn(warning_msg, UserWarning)
 
     do_expensive_check = False
@@ -143,8 +143,8 @@ def hits(input_graph, tol=1.0e-5, max_iter=100, nstart=None, normalized=True):
     initial_hubs_guess_values = None
 
     if nstart is not None:
-        initial_hubs_guess_vertices = nstart["vertex"]
-        initial_hubs_guess_values = nstart["values"]
+        initial_hubs_guess_vertices = nstart['vertex']
+        initial_hubs_guess_values = nstart['values']
 
     cupy_result = [
         client.submit(
@@ -165,12 +165,11 @@ def hits(input_graph, tol=1.0e-5, max_iter=100, nstart=None, normalized=True):
 
     wait(cupy_result)
 
-    cudf_result = [
-        client.submit(
-            convert_to_cudf, cp_arrays, workers=client.who_has(cp_arrays)[cp_arrays.key]
-        )
-        for cp_arrays in cupy_result
-    ]
+    cudf_result = [client.submit(convert_to_cudf,
+                                 cp_arrays,
+                                 workers=client.who_has(
+                                     cp_arrays)[cp_arrays.key])
+                   for cp_arrays in cupy_result]
 
     wait(cudf_result)
 
@@ -179,9 +178,10 @@ def hits(input_graph, tol=1.0e-5, max_iter=100, nstart=None, normalized=True):
     wait(ddf)
 
     # Wait until the inactive futures are released
-    wait([(r.release(), c_r.release()) for r, c_r in zip(cupy_result, cudf_result)])
+    wait([(r.release(), c_r.release())
+         for r, c_r in zip(cupy_result, cudf_result)])
 
     if input_graph.renumbered:
-        return input_graph.unrenumber(ddf, "vertex")
+        return input_graph.unrenumber(ddf, 'vertex')
 
     return ddf

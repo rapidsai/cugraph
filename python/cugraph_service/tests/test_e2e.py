@@ -26,7 +26,6 @@ from . import data
 ###############################################################################
 # fixtures
 
-
 @pytest.fixture(scope="module")
 def server(graph_creation_extension1):
     """
@@ -63,27 +62,19 @@ def server(graph_creation_extension1):
         env_dict["PYTHONPATH"] = ":".join(sys.path)
 
         with subprocess.Popen(
-            [
-                sys.executable,
-                server_file,
-                "--host",
-                host,
-                "--port",
-                str(port),
-                "--graph-creation-extension-dir",
-                graph_creation_extension_dir,
-            ],
-            env=env_dict,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            text=True,
-        ) as server_process:
+                [sys.executable, server_file,
+                 "--host", host,
+                 "--port", str(port),
+                 "--graph-creation-extension-dir",
+                 graph_creation_extension_dir],
+                env=env_dict,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True) as server_process:
             try:
-                print(
-                    "\nLaunched cugraph_service server, waiting for it to " "start...",
-                    end="",
-                    flush=True,
-                )
+                print("\nLaunched cugraph_service server, waiting for it to "
+                      "start...",
+                      end="", flush=True)
                 max_retries = 10
                 retries = 0
                 while retries < max_retries:
@@ -139,12 +130,10 @@ def client_with_edgelist_csv_loaded(client):
     Loads the karate CSV into the default graph on the server.
     """
     test_data = data.edgelist_csv_data["karate"]
-    client.load_csv_as_edge_data(
-        test_data["csv_file_name"],
-        dtypes=test_data["dtypes"],
-        vertex_col_names=["0", "1"],
-        type_name="",
-    )
+    client.load_csv_as_edge_data(test_data["csv_file_name"],
+                                 dtypes=test_data["dtypes"],
+                                 vertex_col_names=["0", "1"],
+                                 type_name="")
     assert client.get_graph_ids() == [0]
     return (client, test_data)
 
@@ -161,42 +150,34 @@ def client_with_property_csvs_loaded(client):
     relationships = data.property_csv_data["relationships"]
     referrals = data.property_csv_data["referrals"]
 
-    client.load_csv_as_vertex_data(
-        merchants["csv_file_name"],
-        dtypes=merchants["dtypes"],
-        vertex_col_name=merchants["vert_col_name"],
-        header=0,
-        type_name="merchants",
-    )
-    client.load_csv_as_vertex_data(
-        users["csv_file_name"],
-        dtypes=users["dtypes"],
-        vertex_col_name=users["vert_col_name"],
-        header=0,
-        type_name="users",
-    )
+    client.load_csv_as_vertex_data(merchants["csv_file_name"],
+                                   dtypes=merchants["dtypes"],
+                                   vertex_col_name=merchants["vert_col_name"],
+                                   header=0,
+                                   type_name="merchants")
+    client.load_csv_as_vertex_data(users["csv_file_name"],
+                                   dtypes=users["dtypes"],
+                                   vertex_col_name=users["vert_col_name"],
+                                   header=0,
+                                   type_name="users")
 
-    client.load_csv_as_edge_data(
-        transactions["csv_file_name"],
-        dtypes=transactions["dtypes"],
-        vertex_col_names=transactions["vert_col_names"],
-        header=0,
-        type_name="transactions",
-    )
-    client.load_csv_as_edge_data(
-        relationships["csv_file_name"],
-        dtypes=relationships["dtypes"],
-        vertex_col_names=relationships["vert_col_names"],
-        header=0,
-        type_name="relationships",
-    )
-    client.load_csv_as_edge_data(
-        referrals["csv_file_name"],
-        dtypes=referrals["dtypes"],
-        vertex_col_names=referrals["vert_col_names"],
-        header=0,
-        type_name="referrals",
-    )
+    client.load_csv_as_edge_data(transactions["csv_file_name"],
+                                 dtypes=transactions["dtypes"],
+                                 vertex_col_names=transactions[
+                                     "vert_col_names"],
+                                 header=0,
+                                 type_name="transactions")
+    client.load_csv_as_edge_data(relationships["csv_file_name"],
+                                 dtypes=relationships["dtypes"],
+                                 vertex_col_names=relationships[
+                                     "vert_col_names"],
+                                 header=0,
+                                 type_name="relationships")
+    client.load_csv_as_edge_data(referrals["csv_file_name"],
+                                 dtypes=referrals["dtypes"],
+                                 vertex_col_names=referrals["vert_col_names"],
+                                 header=0,
+                                 type_name="referrals")
 
     assert client.get_graph_ids() == [0]
     return (client, data.property_csv_data)
@@ -237,13 +218,11 @@ def test_load_csv_as_edge_data_nondefault_graph(client):
     test_data = data.edgelist_csv_data["karate"]
 
     with pytest.raises(CugraphServiceError):
-        client.load_csv_as_edge_data(
-            test_data["csv_file_name"],
-            dtypes=test_data["dtypes"],
-            vertex_col_names=["0", "1"],
-            type_name="",
-            graph_id=9999,
-        )
+        client.load_csv_as_edge_data(test_data["csv_file_name"],
+                                     dtypes=test_data["dtypes"],
+                                     vertex_col_names=["0", "1"],
+                                     type_name="",
+                                     graph_id=9999)
 
 
 def test_get_num_edges_nondefault_graph(client_with_edgelist_csv_loaded):
@@ -255,19 +234,15 @@ def test_get_num_edges_nondefault_graph(client_with_edgelist_csv_loaded):
         client.get_graph_info("num_edges", graph_id=9999)
 
     new_graph_id = client.create_graph()
-    client.load_csv_as_edge_data(
-        test_data["csv_file_name"],
-        dtypes=test_data["dtypes"],
-        vertex_col_names=["0", "1"],
-        type_name="",
-        graph_id=new_graph_id,
-    )
+    client.load_csv_as_edge_data(test_data["csv_file_name"],
+                                 dtypes=test_data["dtypes"],
+                                 vertex_col_names=["0", "1"],
+                                 type_name="",
+                                 graph_id=new_graph_id)
 
     assert client.get_graph_info("num_edges") == test_data["num_edges"]
-    assert (
-        client.get_graph_info("num_edges", graph_id=new_graph_id)
+    assert client.get_graph_info("num_edges", graph_id=new_graph_id) \
         == test_data["num_edges"]
-    )
 
 
 def test_node2vec(client_with_edgelist_csv_loaded):
@@ -275,9 +250,8 @@ def test_node2vec(client_with_edgelist_csv_loaded):
     extracted_gid = client.extract_subgraph()
     start_vertices = 11
     max_depth = 2
-    (vertex_paths, edge_weights, path_sizes) = client.node2vec(
-        start_vertices, max_depth, extracted_gid
-    )
+    (vertex_paths, edge_weights, path_sizes) = \
+        client.node2vec(start_vertices, max_depth, extracted_gid)
     # FIXME: consider a more thorough test
     assert isinstance(vertex_paths, list) and len(vertex_paths)
     assert isinstance(edge_weights, list) and len(edge_weights)
@@ -286,18 +260,17 @@ def test_node2vec(client_with_edgelist_csv_loaded):
 
 def test_extract_subgraph(client_with_edgelist_csv_loaded):
     (client, test_data) = client_with_edgelist_csv_loaded
-    Gid = client.extract_subgraph(
-        create_using=None,
-        selection=None,
-        edge_weight_property="2",
-        default_edge_weight=None,
-        allow_multi_edges=False,
-    )
+    Gid = client.extract_subgraph(create_using=None,
+                                  selection=None,
+                                  edge_weight_property="2",
+                                  default_edge_weight=None,
+                                  allow_multi_edges=False)
     # FIXME: consider a more thorough test
     assert Gid in client.get_graph_ids()
 
 
-def test_load_and_call_graph_creation_extension(client, graph_creation_extension2):
+def test_load_and_call_graph_creation_extension(client,
+                                                graph_creation_extension2):
     """
     Tests calling a user-defined server-side graph creation extension from the
     cugraph_service client.
@@ -310,8 +283,7 @@ def test_load_and_call_graph_creation_extension(client, graph_creation_extension
     assert num_files_loaded == 1
 
     new_graph_ID = client.call_graph_creation_extension(
-        "my_graph_creation_function", "a", "b", "c"
-    )
+        "my_graph_creation_function", "a", "b", "c")
 
     assert new_graph_ID in client.get_graph_ids()
 
@@ -321,8 +293,8 @@ def test_load_and_call_graph_creation_extension(client, graph_creation_extension
 
 
 def test_load_and_call_graph_creation_long_running_extension(
-    client, graph_creation_extension_long_running
-):
+        client,
+        graph_creation_extension_long_running):
     """
     Tests calling a user-defined server-side graph creation extension from the
     cugraph_service client.
@@ -335,8 +307,7 @@ def test_load_and_call_graph_creation_long_running_extension(
     assert num_files_loaded == 1
 
     new_graph_ID = client.call_graph_creation_extension(
-        "long_running_graph_creation_function"
-    )
+        "long_running_graph_creation_function")
 
     assert new_graph_ID in client.get_graph_ids()
 
@@ -351,8 +322,7 @@ def test_call_graph_creation_extension(client):
     callable.
     """
     new_graph_ID = client.call_graph_creation_extension(
-        "custom_graph_creation_function"
-    )
+        "custom_graph_creation_function")
 
     assert new_graph_ID in client.get_graph_ids()
 
@@ -415,8 +385,10 @@ def test_get_graph_edge_data(client_with_property_csvs_loaded):
 def test_get_graph_info(client_with_property_csvs_loaded):
     (client, test_data) = client_with_property_csvs_loaded
 
-    info = client.get_graph_info(["num_vertices", "num_vertex_properties"])
-    data = (info["num_vertices"], info["num_vertex_properties"])
+    info = client.get_graph_info(["num_vertices",
+                                  "num_vertex_properties"])
+    data = (info["num_vertices"],
+            info["num_vertex_properties"])
     # FIXME: do not hardcode values, get them from the input data.
     assert data == (9, 7)
 
@@ -433,7 +405,8 @@ def test_batched_ego_graphs(client_with_edgelist_csv_loaded):
 
     # These are known vertex IDs in the default graph loaded
     seeds = [0, 1, 2]
-    results_lists = client.batched_ego_graphs(seeds, radius=1, graph_id=extracted_gid)
+    results_lists = client.batched_ego_graphs(
+        seeds, radius=1, graph_id=extracted_gid)
 
     (srcs, dsts, weights, seeds_offsets) = results_lists
 
@@ -454,7 +427,8 @@ def test_get_edge_IDs_for_vertices(client_with_edgelist_csv_loaded):
     srcs = [1, 2, 3]
     dsts = [0, 0, 0]
 
-    edge_IDs = client.get_edge_IDs_for_vertices(srcs, dsts, graph_id=extracted_gid)
+    edge_IDs = client.get_edge_IDs_for_vertices(srcs, dsts,
+                                                graph_id=extracted_gid)
 
     assert len(edge_IDs) == len(srcs)
 
@@ -471,18 +445,14 @@ def test_uniform_neighbor_sampling(client_with_edgelist_csv_loaded):
 
     # invalid graph type - default graph is a PG, needs an extracted subgraph
     with pytest.raises(CugraphServiceError):
-        client.uniform_neighbor_sample(
-            start_list=start_list,
-            fanout_vals=fanout_vals,
-            with_replacement=with_replacement,
-            graph_id=defaults.graph_id,
-        )
+        client.uniform_neighbor_sample(start_list=start_list,
+                                       fanout_vals=fanout_vals,
+                                       with_replacement=with_replacement,
+                                       graph_id=defaults.graph_id)
 
     extracted_gid = client.extract_subgraph(renumber_graph=True)
     # Ensure call can be made, assume results verified in other tests
-    client.uniform_neighbor_sample(
-        start_list=start_list,
-        fanout_vals=fanout_vals,
-        with_replacement=with_replacement,
-        graph_id=extracted_gid,
-    )
+    client.uniform_neighbor_sample(start_list=start_list,
+                                   fanout_vals=fanout_vals,
+                                   with_replacement=with_replacement,
+                                   graph_id=extracted_gid)

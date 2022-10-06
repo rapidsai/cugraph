@@ -34,11 +34,14 @@ def setup_function():
 IS_DIRECTED = [True, False]
 
 
-@pytest.mark.skipif(is_single_gpu(), reason="skipping MG testing on Single GPU system")
+@pytest.mark.skipif(
+    is_single_gpu(), reason="skipping MG testing on Single GPU system"
+)
 @pytest.mark.parametrize("directed", IS_DIRECTED)
 def test_dask_katz_centrality(dask_client, directed):
 
-    input_data_path = (RAPIDS_DATASET_ROOT_DIR_PATH / "karate.csv").as_posix()
+    input_data_path = (RAPIDS_DATASET_ROOT_DIR_PATH /
+                       "karate.csv").as_posix()
     print(f"dataset={input_data_path}")
     chunksize = dcg.get_chunksize(input_data_path)
 
@@ -52,10 +55,9 @@ def test_dask_katz_centrality(dask_client, directed):
 
     dg = cugraph.Graph(directed=True)
     dg.from_dask_cudf_edgelist(
-        ddf, "src", "dst", legacy_renum_only=True, store_transposed=True
-    )
+        ddf, "src", "dst", legacy_renum_only=True, store_transposed=True)
 
-    degree_max = dg.degree()["degree"].max().compute()
+    degree_max = dg.degree()['degree'].max().compute()
     katz_alpha = 1 / (degree_max)
 
     mg_res = dcg.katz_centrality(dg, alpha=katz_alpha, tol=1e-6)
@@ -63,7 +65,6 @@ def test_dask_katz_centrality(dask_client, directed):
 
     import networkx as nx
     from cugraph.testing import utils
-
     NM = utils.read_csv_for_nx(input_data_path)
     if directed:
         Gnx = nx.from_pandas_edgelist(
@@ -75,13 +76,14 @@ def test_dask_katz_centrality(dask_client, directed):
         )
     nk = nx.katz_centrality(Gnx, alpha=katz_alpha)
     import pandas as pd
-
-    pdf = pd.DataFrame(nk.items(), columns=["vertex", "katz_centrality"])
+    pdf = pd.DataFrame(nk.items(), columns=['vertex', 'katz_centrality'])
     exp_res = cudf.DataFrame(pdf)
     err = 0
     tol = 1.0e-05
 
-    compare_res = exp_res.merge(mg_res, on="vertex", suffixes=["_local", "_dask"])
+    compare_res = exp_res.merge(
+        mg_res, on="vertex", suffixes=["_local", "_dask"]
+    )
 
     for i in range(len(compare_res)):
         diff = abs(
@@ -93,10 +95,13 @@ def test_dask_katz_centrality(dask_client, directed):
     assert err == 0
 
 
-@pytest.mark.skipif(is_single_gpu(), reason="skipping MG testing on Single GPU system")
+@pytest.mark.skipif(
+    is_single_gpu(), reason="skipping MG testing on Single GPU system"
+)
 @pytest.mark.parametrize("directed", IS_DIRECTED)
 def test_dask_katz_centrality_nstart(dask_client, directed):
-    input_data_path = (RAPIDS_DATASET_ROOT_DIR_PATH / "karate.csv").as_posix()
+    input_data_path = (RAPIDS_DATASET_ROOT_DIR_PATH /
+                       "karate.csv").as_posix()
     print(f"dataset={input_data_path}")
     chunksize = dcg.get_chunksize(input_data_path)
 
@@ -110,19 +115,19 @@ def test_dask_katz_centrality_nstart(dask_client, directed):
 
     dg = cugraph.Graph(directed=True)
     dg.from_dask_cudf_edgelist(
-        ddf, "src", "dst", legacy_renum_only=True, store_transposed=True
-    )
+        ddf, "src", "dst", legacy_renum_only=True, store_transposed=True)
 
     mg_res = dcg.katz_centrality(dg, max_iter=50, tol=1e-6)
     mg_res = mg_res.compute()
 
     estimate = mg_res.copy()
-    estimate = estimate.rename(
-        columns={"vertex": "vertex", "katz_centrality": "values"}
-    )
+    estimate = estimate.rename(columns={"vertex": "vertex",
+                                        "katz_centrality": "values"})
     estimate["values"] = 0.5
 
-    mg_estimate_res = dcg.katz_centrality(dg, nstart=estimate, max_iter=50, tol=1e-6)
+    mg_estimate_res = dcg.katz_centrality(dg,
+                                          nstart=estimate,
+                                          max_iter=50, tol=1e-6)
     mg_estimate_res = mg_estimate_res.compute()
 
     err = 0
@@ -142,7 +147,8 @@ def test_dask_katz_centrality_nstart(dask_client, directed):
 
 
 def test_dask_katz_centrality_transposed_false(dask_client):
-    input_data_path = (RAPIDS_DATASET_ROOT_DIR_PATH / "karate.csv").as_posix()
+    input_data_path = (RAPIDS_DATASET_ROOT_DIR_PATH /
+                       "karate.csv").as_posix()
 
     chunksize = dcg.get_chunksize(input_data_path)
 
@@ -156,14 +162,11 @@ def test_dask_katz_centrality_transposed_false(dask_client):
 
     dg = cugraph.Graph(directed=True)
     dg.from_dask_cudf_edgelist(
-        ddf, "src", "dst", legacy_renum_only=True, store_transposed=False
-    )
+        ddf, "src", "dst", legacy_renum_only=True, store_transposed=False)
 
-    warning_msg = (
-        "Katz centrality expects the 'store_transposed' "
-        "flag to be set to 'True' for optimal performance during "
-        "the graph creation"
-    )
+    warning_msg = ("Katz centrality expects the 'store_transposed' "
+                   "flag to be set to 'True' for optimal performance during "
+                   "the graph creation")
 
     with pytest.warns(UserWarning, match=warning_msg):
         dcg.katz_centrality(dg)

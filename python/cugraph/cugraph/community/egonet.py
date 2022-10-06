@@ -104,10 +104,12 @@ def ego_graph(G, n, radius=1, center=True, undirected=False, distance=None):
 
     if G.edgelist.weights:
         result_graph.from_cudf_edgelist(
-            df, source=src_names, destination=dst_names, edge_attr="weight"
+            df, source=src_names, destination=dst_names,
+            edge_attr="weight"
         )
     else:
-        result_graph.from_cudf_edgelist(df, source=src_names, destination=dst_names)
+        result_graph.from_cudf_edgelist(df, source=src_names,
+                                        destination=dst_names)
     return _convert_graph_to_output_type(result_graph, input_type)
 
 

@@ -43,55 +43,51 @@ from cudf.testing.testing import assert_frame_equal
 import cugraph
 
 
-simple_df = cudf.DataFrame.from_pandas(
-    pd.DataFrame(
-        {
-            "id": ["a", "b", "c"],
-            "a1": [1, 2, 3],
-            "a2": ["red", "blue", "green"],
-            "🙈": ["æski ēˈmōjē", "😋", "s"],
-        }
-    )
-)
+simple_df = cudf.DataFrame.from_pandas(pd.DataFrame({
+    "id": ["a", "b", "c"],
+    "a1": [1, 2, 3],
+    "a2": ["red", "blue", "green"],
+    "🙈": ["æski ēˈmōjē", "😋", "s"],
+}))
 
-hyper_df = cudf.DataFrame.from_pandas(
-    pd.DataFrame({"aa": [0, 1, 2], "bb": ["a", "b", "c"], "cc": ["b", "0", "1"]})
-)
+hyper_df = cudf.DataFrame.from_pandas(pd.DataFrame({
+    "aa": [0, 1, 2],
+    "bb": ["a", "b", "c"],
+    "cc": ["b", "0", "1"]
+}))
 
 
 def test_complex_df():
-    complex_df = pd.DataFrame(
-        {
-            "src": [0, 1, 2, 3],
-            "dst": [1, 2, 3, 0],
-            "colors": [1, 1, 2, 2],
-            "bool": [True, False, True, True],
-            "char": ["a", "b", "c", "d"],
-            "str": ["a", "b", "c", "d"],
-            "ustr": ["a", "b", "c", "d"],
-            "emoji": ["😋", "😋😋", "😋", "😋"],
-            "int": [0, 1, 2, 3],
-            "num": [0.5, 1.5, 2.5, 3.5],
-            "date_str": [
-                "2018-01-01 00:00:00",
-                "2018-01-02 00:00:00",
-                "2018-01-03 00:00:00",
-                "2018-01-05 00:00:00",
-            ],
-            "date": [
-                dt.datetime(2018, 1, 1),
-                dt.datetime(2018, 1, 1),
-                dt.datetime(2018, 1, 1),
-                dt.datetime(2018, 1, 1),
-            ],
-            "time": [
-                pd.Timestamp("2018-01-05"),
-                pd.Timestamp("2018-01-05"),
-                pd.Timestamp("2018-01-05"),
-                pd.Timestamp("2018-01-05"),
-            ],
-        }
-    )
+    complex_df = pd.DataFrame({
+        "src": [0, 1, 2, 3],
+        "dst": [1, 2, 3, 0],
+        "colors": [1, 1, 2, 2],
+        "bool": [True, False, True, True],
+        "char": ["a", "b", "c", "d"],
+        "str": ["a", "b", "c", "d"],
+        "ustr": [u"a", u"b", u"c", u"d"],
+        "emoji": ["😋", "😋😋", "😋", "😋"],
+        "int": [0, 1, 2, 3],
+        "num": [0.5, 1.5, 2.5, 3.5],
+        "date_str": [
+            "2018-01-01 00:00:00",
+            "2018-01-02 00:00:00",
+            "2018-01-03 00:00:00",
+            "2018-01-05 00:00:00",
+        ],
+        "date": [
+            dt.datetime(2018, 1, 1),
+            dt.datetime(2018, 1, 1),
+            dt.datetime(2018, 1, 1),
+            dt.datetime(2018, 1, 1),
+        ],
+        "time": [
+            pd.Timestamp("2018-01-05"),
+            pd.Timestamp("2018-01-05"),
+            pd.Timestamp("2018-01-05"),
+            pd.Timestamp("2018-01-05"),
+        ],
+    })
 
     for c in complex_df.columns:
         try:
@@ -109,68 +105,68 @@ def test_complex_df():
 @pytest.mark.parametrize("categorical_metadata", [False, True])
 def test_hyperedges(categorical_metadata):
 
-    h = cugraph.hypergraph(simple_df, categorical_metadata=categorical_metadata)
+    h = cugraph.hypergraph(simple_df,
+                           categorical_metadata=categorical_metadata)
 
-    assert len(h.keys()) == len(["entities", "nodes", "edges", "events", "graph"])
+    assert len(h.keys()) == len(
+        ["entities", "nodes", "edges", "events", "graph"])
 
-    edges = cudf.from_pandas(
-        pd.DataFrame(
-            {
-                "event_id": [
-                    "event_id::0",
-                    "event_id::1",
-                    "event_id::2",
-                    "event_id::0",
-                    "event_id::1",
-                    "event_id::2",
-                    "event_id::0",
-                    "event_id::1",
-                    "event_id::2",
-                    "event_id::0",
-                    "event_id::1",
-                    "event_id::2",
-                ],
-                "edge_type": [
-                    "a1",
-                    "a1",
-                    "a1",
-                    "a2",
-                    "a2",
-                    "a2",
-                    "id",
-                    "id",
-                    "id",
-                    "🙈",
-                    "🙈",
-                    "🙈",
-                ],
-                "attrib_id": [
-                    "a1::1",
-                    "a1::2",
-                    "a1::3",
-                    "a2::red",
-                    "a2::blue",
-                    "a2::green",
-                    "id::a",
-                    "id::b",
-                    "id::c",
-                    "🙈::æski ēˈmōjē",
-                    "🙈::😋",
-                    "🙈::s",
-                ],
-                "id": ["a", "b", "c"] * 4,
-                "a1": [1, 2, 3] * 4,
-                "a2": ["red", "blue", "green"] * 4,
-                "🙈": ["æski ēˈmōjē", "😋", "s"] * 4,
-            }
-        )
-    )
+    edges = cudf.from_pandas(pd.DataFrame({
+        "event_id": [
+            "event_id::0",
+            "event_id::1",
+            "event_id::2",
+            "event_id::0",
+            "event_id::1",
+            "event_id::2",
+            "event_id::0",
+            "event_id::1",
+            "event_id::2",
+            "event_id::0",
+            "event_id::1",
+            "event_id::2",
+        ],
+        "edge_type": [
+            "a1",
+            "a1",
+            "a1",
+            "a2",
+            "a2",
+            "a2",
+            "id",
+            "id",
+            "id",
+            "🙈",
+            "🙈",
+            "🙈",
+        ],
+        "attrib_id": [
+            "a1::1",
+            "a1::2",
+            "a1::3",
+            "a2::red",
+            "a2::blue",
+            "a2::green",
+            "id::a",
+            "id::b",
+            "id::c",
+            "🙈::æski ēˈmōjē",
+            "🙈::😋",
+            "🙈::s",
+        ],
+        "id": ["a", "b", "c"] * 4,
+        "a1": [1, 2, 3] * 4,
+        "a2": ["red", "blue", "green"] * 4,
+        "🙈": ["æski ēˈmōjē", "😋", "s"] * 4,
+    }))
 
     if categorical_metadata:
         edges = edges.astype({"edge_type": "category"})
 
     assert_frame_equal(edges, h["edges"], check_dtype=False)
-    for (k, v) in [("entities", 12), ("nodes", 15), ("edges", 12), ("events", 3)]:
+    for (k, v) in [
+        ("entities", 12), ("nodes", 15), ("edges", 12), ("events", 3)
+    ]:
         assert len(h[k]) == v
 
 
@@ -218,51 +214,50 @@ def test_hyperedges_direct_manual_shaping():
 @pytest.mark.parametrize("categorical_metadata", [False, True])
 def test_drop_edge_attrs(categorical_metadata):
 
-    h = cugraph.hypergraph(
-        simple_df,
-        columns=["id", "a1", "🙈"],
-        drop_edge_attrs=True,
-        categorical_metadata=categorical_metadata,
-    )
+    h = cugraph.hypergraph(simple_df,
+                           columns=["id", "a1", "🙈"],
+                           drop_edge_attrs=True,
+                           categorical_metadata=categorical_metadata)
 
-    assert len(h.keys()) == len(["entities", "nodes", "edges", "events", "graph"])
+    assert len(h.keys()) == len(
+        ["entities", "nodes", "edges", "events", "graph"])
 
-    edges = cudf.DataFrame.from_pandas(
-        pd.DataFrame(
-            {
-                "event_id": [
-                    "event_id::0",
-                    "event_id::1",
-                    "event_id::2",
-                    "event_id::0",
-                    "event_id::1",
-                    "event_id::2",
-                    "event_id::0",
-                    "event_id::1",
-                    "event_id::2",
-                ],
-                "edge_type": ["a1", "a1", "a1", "id", "id", "id", "🙈", "🙈", "🙈"],
-                "attrib_id": [
-                    "a1::1",
-                    "a1::2",
-                    "a1::3",
-                    "id::a",
-                    "id::b",
-                    "id::c",
-                    "🙈::æski ēˈmōjē",
-                    "🙈::😋",
-                    "🙈::s",
-                ],
-            }
-        )
-    )
+    edges = cudf.DataFrame.from_pandas(pd.DataFrame({
+        "event_id": [
+            "event_id::0",
+            "event_id::1",
+            "event_id::2",
+            "event_id::0",
+            "event_id::1",
+            "event_id::2",
+            "event_id::0",
+            "event_id::1",
+            "event_id::2",
+        ],
+        "edge_type": [
+            "a1", "a1", "a1", "id", "id", "id", "🙈", "🙈", "🙈"
+        ],
+        "attrib_id": [
+            "a1::1",
+            "a1::2",
+            "a1::3",
+            "id::a",
+            "id::b",
+            "id::c",
+            "🙈::æski ēˈmōjē",
+            "🙈::😋",
+            "🙈::s",
+        ],
+    }))
 
     if categorical_metadata:
         edges = edges.astype({"edge_type": "category"})
 
     assert_frame_equal(edges, h["edges"], check_dtype=False)
 
-    for (k, v) in [("entities", 9), ("nodes", 12), ("edges", 9), ("events", 3)]:
+    for (k, v) in [
+        ("entities", 9), ("nodes", 12), ("edges", 9), ("events", 3)
+    ]:
         assert len(h[k]) == v
 
 
@@ -278,25 +273,24 @@ def test_drop_edge_attrs_direct(categorical_metadata):
         categorical_metadata=categorical_metadata,
     )
 
-    assert len(h.keys()) == len(["entities", "nodes", "edges", "events", "graph"])
+    assert len(h.keys()) == len(
+        ["entities", "nodes", "edges", "events", "graph"])
 
-    edges = cudf.DataFrame.from_pandas(
-        pd.DataFrame(
-            {
-                "event_id": [
-                    "event_id::0",
-                    "event_id::1",
-                    "event_id::2",
-                    "event_id::0",
-                    "event_id::1",
-                    "event_id::2",
-                ],
-                "edge_type": ["a1::🙈", "a1::🙈", "a1::🙈", "id::a1", "id::a1", "id::a1"],
-                "src": ["a1::1", "a1::2", "a1::3", "id::a", "id::b", "id::c"],
-                "dst": ["🙈::æski ēˈmōjē", "🙈::😋", "🙈::s", "a1::1", "a1::2", "a1::3"],
-            }
-        )
-    )
+    edges = cudf.DataFrame.from_pandas(pd.DataFrame({
+        "event_id": [
+            "event_id::0",
+            "event_id::1",
+            "event_id::2",
+            "event_id::0",
+            "event_id::1",
+            "event_id::2",
+        ],
+        "edge_type": [
+            "a1::🙈", "a1::🙈", "a1::🙈", "id::a1", "id::a1", "id::a1"
+        ],
+        "src": ["a1::1", "a1::2", "a1::3", "id::a", "id::b", "id::c"],
+        "dst": ["🙈::æski ēˈmōjē", "🙈::😋", "🙈::s", "a1::1", "a1::2", "a1::3"],
+    }))
 
     if categorical_metadata:
         edges = edges.astype({"edge_type": "category"})
@@ -309,9 +303,11 @@ def test_drop_edge_attrs_direct(categorical_metadata):
 
 def test_skip_hyper():
 
-    df = cudf.DataFrame.from_pandas(
-        pd.DataFrame({"a": ["a", None, "b"], "b": ["a", "b", "c"], "c": [1, 2, 3]})
-    )
+    df = cudf.DataFrame.from_pandas(pd.DataFrame({
+        "a": ["a", None, "b"],
+        "b": ["a", "b", "c"],
+        "c": [1, 2, 3]
+    }))
 
     hg = cugraph.hypergraph(df, SKIP=["c"], dropna=False)
 
@@ -321,9 +317,11 @@ def test_skip_hyper():
 
 def test_skip_drop_na_hyper():
 
-    df = cudf.DataFrame.from_pandas(
-        pd.DataFrame({"a": ["a", None, "b"], "b": ["a", "b", "c"], "c": [1, 2, 3]})
-    )
+    df = cudf.DataFrame.from_pandas(pd.DataFrame({
+        "a": ["a", None, "b"],
+        "b": ["a", "b", "c"],
+        "c": [1, 2, 3]
+    }))
 
     hg = cugraph.hypergraph(df, SKIP=["c"], dropna=True)
 
@@ -333,9 +331,11 @@ def test_skip_drop_na_hyper():
 
 def test_skip_direct():
 
-    df = cudf.DataFrame.from_pandas(
-        pd.DataFrame({"a": ["a", None, "b"], "b": ["a", "b", "c"], "c": [1, 2, 3]})
-    )
+    df = cudf.DataFrame.from_pandas(pd.DataFrame({
+        "a": ["a", None, "b"],
+        "b": ["a", "b", "c"],
+        "c": [1, 2, 3]
+    }))
 
     hg = cugraph.hypergraph(df, SKIP=["c"], dropna=False, direct=True)
 
@@ -345,9 +345,11 @@ def test_skip_direct():
 
 def test_skip_drop_na_direct():
 
-    df = cudf.DataFrame.from_pandas(
-        pd.DataFrame({"a": ["a", None, "b"], "b": ["a", "b", "c"], "c": [1, 2, 3]})
-    )
+    df = cudf.DataFrame.from_pandas(pd.DataFrame({
+        "a": ["a", None, "b"],
+        "b": ["a", "b", "c"],
+        "c": [1, 2, 3]
+    }))
 
     hg = cugraph.hypergraph(df, SKIP=["c"], dropna=True, direct=True)
 
@@ -381,13 +383,16 @@ def test_drop_na_direct():
 
 def test_skip_na_hyperedge():
 
-    nans_df = cudf.DataFrame.from_pandas(
-        pd.DataFrame({"x": ["a", "b", "c"], "y": ["aa", None, "cc"]})
-    )
+    nans_df = cudf.DataFrame.from_pandas(pd.DataFrame({
+        "x": ["a", "b", "c"],
+        "y": ["aa", None, "cc"]
+    }))
 
     expected_hits = ["a", "b", "c", "aa", "cc"]
 
-    skip_attr_h_edges = cugraph.hypergraph(nans_df, drop_edge_attrs=True)["edges"]
+    skip_attr_h_edges = cugraph.hypergraph(
+        nans_df, drop_edge_attrs=True
+    )["edges"]
 
     assert len(skip_attr_h_edges) == len(expected_hits)
 
@@ -397,9 +402,10 @@ def test_skip_na_hyperedge():
 
 def test_hyper_to_pa_vanilla():
 
-    df = cudf.DataFrame.from_pandas(
-        pd.DataFrame({"x": ["a", "b", "c"], "y": ["d", "e", "f"]})
-    )
+    df = cudf.DataFrame.from_pandas(pd.DataFrame({
+        "x": ["a", "b", "c"],
+        "y": ["d", "e", "f"]
+    }))
 
     hg = cugraph.hypergraph(df)
     nodes_arr = hg["graph"].nodes().to_arrow()
@@ -410,9 +416,10 @@ def test_hyper_to_pa_vanilla():
 
 def test_hyper_to_pa_mixed():
 
-    df = cudf.DataFrame.from_pandas(
-        pd.DataFrame({"x": ["a", "b", "c"], "y": [1, 2, 3]})
-    )
+    df = cudf.DataFrame.from_pandas(pd.DataFrame({
+        "x": ["a", "b", "c"],
+        "y": [1, 2, 3]
+    }))
 
     hg = cugraph.hypergraph(df)
     nodes_arr = hg["graph"].nodes().to_arrow()
@@ -423,9 +430,10 @@ def test_hyper_to_pa_mixed():
 
 def test_hyper_to_pa_na():
 
-    df = cudf.DataFrame.from_pandas(
-        pd.DataFrame({"x": ["a", None, "c"], "y": [1, 2, None]})
-    )
+    df = cudf.DataFrame.from_pandas(pd.DataFrame({
+        "x": ["a", None, "c"],
+        "y": [1, 2, None]
+    }))
 
     hg = cugraph.hypergraph(df, dropna=False)
     print(hg["graph"].nodes())

@@ -19,27 +19,33 @@ import cugraph.dask.comms.comms as Comms
 import cupy
 import cudf
 import dask_cudf
-from pylibcugraph import sssp as pylibcugraph_sssp, ResourceHandle
+from pylibcugraph import (sssp as pylibcugraph_sssp,
+                          ResourceHandle
+                          )
 
 
 def _call_plc_sssp(
-    sID, mg_graph_x, source, cutoff, compute_predecessors, do_expensive_check
-):
+                  sID,
+                  mg_graph_x,
+                  source,
+                  cutoff,
+                  compute_predecessors,
+                  do_expensive_check):
     vertices, distances, predecessors = pylibcugraph_sssp(
-        resource_handle=ResourceHandle(Comms.get_handle(sID).getHandle()),
+        resource_handle=ResourceHandle(
+            Comms.get_handle(sID).getHandle()
+        ),
         graph=mg_graph_x,
         source=source,
         cutoff=cutoff,
         compute_predecessors=compute_predecessors,
-        do_expensive_check=do_expensive_check,
+        do_expensive_check=do_expensive_check
     )
-    return cudf.DataFrame(
-        {
-            "distance": cudf.Series(distances),
-            "vertex": cudf.Series(vertices),
-            "predecessor": cudf.Series(predecessors),
-        }
-    )
+    return cudf.DataFrame({
+        'distance': cudf.Series(distances),
+        'vertex': cudf.Series(vertices),
+        'predecessor': cudf.Series(predecessors),
+    })
 
 
 def sssp(input_graph, source, cutoff=None, check_source=True):
@@ -104,7 +110,7 @@ def sssp(input_graph, source, cutoff=None, check_source=True):
     def check_valid_vertex(G, source):
         is_valid_vertex = G.has_node(source)
         if not is_valid_vertex:
-            raise ValueError("Invalid source vertex")
+            raise ValueError('Invalid source vertex')
 
     if check_source:
         check_valid_vertex(input_graph, source)
@@ -113,11 +119,8 @@ def sssp(input_graph, source, cutoff=None, check_source=True):
         cutoff = cupy.inf
 
     if input_graph.renumbered:
-        source = (
-            input_graph.lookup_internal_vertex_id(cudf.Series([source]))
-            .fillna(-1)
-            .compute()
-        )
+        source = input_graph.lookup_internal_vertex_id(
+            cudf.Series([source])).fillna(-1).compute()
         source = source.iloc[0]
 
     do_expensive_check = False
@@ -145,8 +148,8 @@ def sssp(input_graph, source, cutoff=None, check_source=True):
     wait([r.release() for r in result])
 
     if input_graph.renumbered:
-        ddf = input_graph.unrenumber(ddf, "vertex")
-        ddf = input_graph.unrenumber(ddf, "predecessor")
+        ddf = input_graph.unrenumber(ddf, 'vertex')
+        ddf = input_graph.unrenumber(ddf, 'predecessor')
         ddf["predecessor"] = ddf["predecessor"].fillna(-1)
 
     return ddf

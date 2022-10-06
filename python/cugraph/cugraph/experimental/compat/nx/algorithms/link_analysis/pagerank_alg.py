@@ -30,8 +30,9 @@ def create_cudf_from_dict(dict_in):
     -------
     a cudf DataFrame of (vertex)ids and values.
     """
-    if not (isinstance(dict_in, dict)):
-        raise TypeError("type_name must be a dict, got: " f"{type(dict_in)}")
+    if not(isinstance(dict_in, dict)):
+        raise TypeError("type_name must be a dict, got: "
+                        f"{type(dict_in)}")
     # FIXME: Looking to replacing fromiter with rename and
     # compare performance
     k = np.fromiter(dict_in.keys(), dtype="int32")
@@ -41,15 +42,14 @@ def create_cudf_from_dict(dict_in):
 
 
 def pagerank(
-    G,
-    alpha=0.85,
-    personalization=None,
-    max_iter=100,
-    tol=1.0e-6,
-    nstart=None,
-    weight="weight",
-    dangling=None,
-):
+        G,
+        alpha=0.85,
+        personalization=None,
+        max_iter=100,
+        tol=1.0e-6,
+        nstart=None,
+        weight="weight",
+        dangling=None):
 
     """
     Calls the cugraph pagerank algorithm taking in a networkX object.
@@ -109,17 +109,16 @@ def pagerank(
     """
     local_pers = None
     local_nstart = None
-    if personalization is not None:
+    if (personalization is not None):
         local_pers = create_cudf_from_dict(personalization)
-    if nstart is not None:
+    if (nstart is not None):
         local_nstart = create_cudf_from_dict(nstart)
     return cugraph.pagerank(
-        G,
-        alpha=alpha,
-        personalization=local_pers,
-        max_iter=max_iter,
-        tol=tol,
-        nstart=local_nstart,
-        weight=weight,
-        dangling=dangling,
-    )
+            G,
+            alpha=alpha,
+            personalization=local_pers,
+            max_iter=max_iter,
+            tol=tol,
+            nstart=local_nstart,
+            weight=weight,
+            dangling=dangling)

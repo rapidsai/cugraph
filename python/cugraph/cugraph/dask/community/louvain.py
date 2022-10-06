@@ -34,17 +34,23 @@ def convert_to_cudf(cupy_vertex, cupy_partition):
     return df
 
 
-def _call_plc_louvain(sID, mg_graph_x, max_iter, resolution, do_expensive_check):
+def _call_plc_louvain(sID,
+                      mg_graph_x,
+                      max_iter,
+                      resolution,
+                      do_expensive_check):
     return pylibcugraph_louvain(
-        resource_handle=ResourceHandle(Comms.get_handle(sID).getHandle()),
+        resource_handle=ResourceHandle(
+            Comms.get_handle(sID).getHandle()
+        ),
         graph=mg_graph_x,
         max_level=max_iter,
         resolution=resolution,
-        do_expensive_check=do_expensive_check,
+        do_expensive_check=do_expensive_check
     )
 
 
-def louvain(input_graph, max_iter=100, resolution=1.0):
+def louvain(input_graph, max_iter=100, resolution=1.):
     """
     Compute the modularity optimizing partition of the input graph using the
     Louvain method
@@ -132,12 +138,11 @@ def louvain(input_graph, max_iter=100, resolution=1.0):
     result_partition = [client.submit(op.getitem, f, 1) for f in result]
     mod_score = [client.submit(op.getitem, f, 2) for f in result]
 
-    cudf_result = [
-        client.submit(convert_to_cudf, cp_vertex_arrays, cp_partition_arrays)
-        for cp_vertex_arrays, cp_partition_arrays in zip(
-            result_vertex, result_partition
-        )
-    ]
+    cudf_result = [client.submit(convert_to_cudf,
+                                 cp_vertex_arrays,
+                                 cp_partition_arrays)
+                   for cp_vertex_arrays, cp_partition_arrays in zip(
+                       result_vertex, result_partition)]
 
     wait(cudf_result)
     # Each worker should have computed the same mod_score
@@ -147,7 +152,8 @@ def louvain(input_graph, max_iter=100, resolution=1.0):
     wait(ddf)
 
     # Wait until the inactive futures are released
-    wait([(r.release(), c_r.release()) for r, c_r in zip(result, cudf_result)])
+    wait([(r.release(), c_r.release())
+         for r, c_r in zip(result, cudf_result)])
 
     if input_graph.renumbered:
         ddf = input_graph.unrenumber(ddf, "vertex")

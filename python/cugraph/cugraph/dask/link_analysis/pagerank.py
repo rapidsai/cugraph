@@ -21,11 +21,10 @@ import numpy as np
 import warnings
 from cugraph.dask.common.input_utils import get_distributed_data
 
-from pylibcugraph import (
-    ResourceHandle,
-    pagerank as pylibcugraph_pagerank,
-    personalized_pagerank as pylibcugraph_p_pagerank,
-)
+from pylibcugraph import (ResourceHandle,
+                          pagerank as pylibcugraph_pagerank,
+                          personalized_pagerank as pylibcugraph_p_pagerank
+                          )
 
 
 def convert_to_cudf(cp_arrays):
@@ -50,42 +49,40 @@ def ensure_valid_dtype(input_graph, input_df, input_df_name):
 
     input_df_dtype = input_df["values"].dtype
     if input_df_dtype != edge_attr_dtype:
-        warning_msg = (
-            f"PageRank requires '{input_df_name}' values "
-            "to match the graph's 'edge_attr' type. "
-            f"edge_attr type is: {edge_attr_dtype} and got "
-            f"'{input_df_name}' values of type: "
-            f"{input_df_dtype}."
-        )
+        warning_msg = (f"PageRank requires '{input_df_name}' values "
+                       "to match the graph's 'edge_attr' type. "
+                       f"edge_attr type is: {edge_attr_dtype} and got "
+                       f"'{input_df_name}' values of type: "
+                       f"{input_df_dtype}.")
         warnings.warn(warning_msg, UserWarning)
-        input_df = input_df.astype({"values": edge_attr_dtype})
+        input_df = input_df.astype(
+            {"values": edge_attr_dtype})
 
     return input_df
 
 
 def renumber_vertices(input_graph, input_df):
     input_df = input_graph.add_internal_vertex_id(
-        input_df, "vertex", "vertex"
-    ).compute()
+        input_df, "vertex", "vertex").compute()
 
     return input_df
 
 
-def _call_plc_pagerank(
-    sID,
-    mg_graph_x,
-    pre_vtx_o_wgt_vertices,
-    pre_vtx_o_wgt_sums,
-    initial_guess_vertices,
-    initial_guess_values,
-    alpha,
-    epsilon,
-    max_iterations,
-    do_expensive_check,
-):
+def _call_plc_pagerank(sID,
+                       mg_graph_x,
+                       pre_vtx_o_wgt_vertices,
+                       pre_vtx_o_wgt_sums,
+                       initial_guess_vertices,
+                       initial_guess_values,
+                       alpha,
+                       epsilon,
+                       max_iterations,
+                       do_expensive_check):
 
     return pylibcugraph_pagerank(
-        resource_handle=ResourceHandle(Comms.get_handle(sID).getHandle()),
+        resource_handle=ResourceHandle(
+            Comms.get_handle(sID).getHandle()
+        ),
         graph=mg_graph_x,
         precomputed_vertex_out_weight_vertices=pre_vtx_o_wgt_vertices,
         precomputed_vertex_out_weight_sums=pre_vtx_o_wgt_sums,
@@ -94,27 +91,27 @@ def _call_plc_pagerank(
         alpha=alpha,
         epsilon=epsilon,
         max_iterations=max_iterations,
-        do_expensive_check=do_expensive_check,
+        do_expensive_check=do_expensive_check
     )
 
 
-def _call_plc_personalized_pagerank(
-    sID,
-    mg_graph_x,
-    pre_vtx_o_wgt_vertices,
-    pre_vtx_o_wgt_sums,
-    data_personalization,
-    initial_guess_vertices,
-    initial_guess_values,
-    alpha,
-    epsilon,
-    max_iterations,
-    do_expensive_check,
-):
+def _call_plc_personalized_pagerank(sID,
+                                    mg_graph_x,
+                                    pre_vtx_o_wgt_vertices,
+                                    pre_vtx_o_wgt_sums,
+                                    data_personalization,
+                                    initial_guess_vertices,
+                                    initial_guess_values,
+                                    alpha,
+                                    epsilon,
+                                    max_iterations,
+                                    do_expensive_check):
     personalization_vertices = data_personalization["vertex"]
     personalization_values = data_personalization["values"]
     return pylibcugraph_p_pagerank(
-        resource_handle=ResourceHandle(Comms.get_handle(sID).getHandle()),
+        resource_handle=ResourceHandle(
+            Comms.get_handle(sID).getHandle()
+        ),
         graph=mg_graph_x,
         precomputed_vertex_out_weight_vertices=pre_vtx_o_wgt_vertices,
         precomputed_vertex_out_weight_sums=pre_vtx_o_wgt_sums,
@@ -125,19 +122,14 @@ def _call_plc_personalized_pagerank(
         alpha=alpha,
         epsilon=epsilon,
         max_iterations=max_iterations,
-        do_expensive_check=do_expensive_check,
+        do_expensive_check=do_expensive_check
     )
 
 
-def pagerank(
-    input_graph,
-    alpha=0.85,
-    personalization=None,
-    precomputed_vertex_out_weight=None,
-    max_iter=100,
-    tol=1.0e-5,
-    nstart=None,
-):
+def pagerank(input_graph,
+             alpha=0.85, personalization=None,
+             precomputed_vertex_out_weight=None,
+             max_iter=100, tol=1.0e-5, nstart=None):
     """
     Find the PageRank values for each vertex in a graph using multiple GPUs.
     cuGraph computes an approximation of the Pagerank using the power method.
@@ -242,11 +234,9 @@ def pagerank(
     client = input_graph._client
 
     if input_graph.store_transposed is False:
-        warning_msg = (
-            "Pagerank expects the 'store_transposed' flag "
-            "to be set to 'True' for optimal performance during "
-            "the graph creation"
-        )
+        warning_msg = ("Pagerank expects the 'store_transposed' flag "
+                       "to be set to 'True' for optimal performance during "
+                       "the graph creation")
         warnings.warn(warning_msg, UserWarning)
 
     initial_guess_vertices = None
@@ -261,16 +251,18 @@ def pagerank(
     if precomputed_vertex_out_weight is not None:
         if input_graph.renumbered is True:
             precomputed_vertex_out_weight = renumber_vertices(
-                input_graph, precomputed_vertex_out_weight
-            )
-        precomputed_vertex_out_weight_vertices = precomputed_vertex_out_weight["vertex"]
-        precomputed_vertex_out_weight_sums = precomputed_vertex_out_weight["sums"]
+                input_graph, precomputed_vertex_out_weight)
+        precomputed_vertex_out_weight_vertices = \
+            precomputed_vertex_out_weight["vertex"]
+        precomputed_vertex_out_weight_sums = \
+            precomputed_vertex_out_weight["sums"]
 
     # FIXME: Distribute the 'nstart' across GPUs for performance optimization
     if nstart is not None:
         if input_graph.renumbered is True:
             nstart = renumber_vertices(input_graph, nstart)
-        nstart = ensure_valid_dtype(input_graph, nstart, "nstart")
+        nstart = ensure_valid_dtype(
+            input_graph, nstart, "nstart")
         initial_guess_vertices = nstart["vertex"]
         initial_guess_values = nstart["values"]
 
@@ -278,12 +270,10 @@ def pagerank(
         if input_graph.renumbered is True:
             personalization = renumber_vertices(input_graph, personalization)
         personalization = ensure_valid_dtype(
-            input_graph, personalization, "personalization"
-        )
+            input_graph, personalization, "personalization")
 
         personalization_ddf = dask_cudf.from_cudf(
-            personalization, npartitions=len(Comms.get_workers())
-        )
+            personalization, npartitions=len(Comms.get_workers()))
 
         data_prsztn = get_distributed_data(personalization_ddf)
 
@@ -328,7 +318,9 @@ def pagerank(
 
     wait(result)
 
-    cudf_result = [client.submit(convert_to_cudf, cp_arrays) for cp_arrays in result]
+    cudf_result = [client.submit(convert_to_cudf,
+                                 cp_arrays)
+                   for cp_arrays in result]
 
     wait(cudf_result)
 
@@ -336,7 +328,8 @@ def pagerank(
     wait(ddf)
 
     # Wait until the inactive futures are released
-    wait([(r.release(), c_r.release()) for r, c_r in zip(result, cudf_result)])
+    wait([(r.release(), c_r.release())
+         for r, c_r in zip(result, cudf_result)])
 
     if input_graph.renumbered:
         ddf = input_graph.unrenumber(ddf, "vertex")

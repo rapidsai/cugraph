@@ -15,30 +15,30 @@
 
 from dask.distributed import wait
 
-from pylibcugraph import (
-    eigenvector_centrality as pylib_eigen,
-    ResourceHandle,
-)
+from pylibcugraph import (eigenvector_centrality as pylib_eigen,
+                          ResourceHandle,
+                          )
 import cugraph.dask.comms.comms as Comms
 import dask_cudf
 import cudf
 import warnings
 
 
-def _call_plc_eigenvector_centrality(
-    sID,
-    mg_graph_x,
-    max_iterations,
-    epsilon,
-    do_expensive_check,
-):
+def _call_plc_eigenvector_centrality(sID,
+                                     mg_graph_x,
+                                     max_iterations,
+                                     epsilon,
+                                     do_expensive_check,
+                                     ):
 
     return pylib_eigen(
-        resource_handle=ResourceHandle(Comms.get_handle(sID).getHandle()),
+        resource_handle=ResourceHandle(
+            Comms.get_handle(sID).getHandle()
+        ),
         graph=mg_graph_x,
         epsilon=epsilon,
         max_iterations=max_iterations,
-        do_expensive_check=do_expensive_check,
+        do_expensive_check=do_expensive_check
     )
 
 
@@ -53,7 +53,9 @@ def convert_to_cudf(cp_arrays):
     return df
 
 
-def eigenvector_centrality(input_graph, max_iter=100, tol=1.0e-6):
+def eigenvector_centrality(
+    input_graph, max_iter=100, tol=1.0e-6
+):
     """
     Compute the eigenvector centrality for a graph G.
 
@@ -115,11 +117,9 @@ def eigenvector_centrality(input_graph, max_iter=100, tol=1.0e-6):
     client = input_graph._client
 
     if input_graph.store_transposed is False:
-        warning_msg = (
-            "Eigenvector centrality expects the 'store_transposed' "
-            "flag to be set to 'True' for optimal performance "
-            "during the graph creation"
-        )
+        warning_msg = ("Eigenvector centrality expects the 'store_transposed' "
+                       "flag to be set to 'True' for optimal performance "
+                       "during the graph creation")
         warnings.warn(warning_msg, UserWarning)
 
     # FIXME: should we add this parameter as an option?
@@ -141,12 +141,11 @@ def eigenvector_centrality(input_graph, max_iter=100, tol=1.0e-6):
 
     wait(cupy_result)
 
-    cudf_result = [
-        client.submit(
-            convert_to_cudf, cp_arrays, workers=client.who_has(cp_arrays)[cp_arrays.key]
-        )
-        for cp_arrays in cupy_result
-    ]
+    cudf_result = [client.submit(convert_to_cudf,
+                                 cp_arrays,
+                                 workers=client.who_has(
+                                     cp_arrays)[cp_arrays.key])
+                   for cp_arrays in cupy_result]
 
     wait(cudf_result)
 
@@ -154,7 +153,8 @@ def eigenvector_centrality(input_graph, max_iter=100, tol=1.0e-6):
     wait(ddf)
 
     # Wait until the inactive futures are released
-    wait([(r.release(), c_r.release()) for r, c_r in zip(cupy_result, cudf_result)])
+    wait([(r.release(), c_r.release())
+         for r, c_r in zip(cupy_result, cudf_result)])
 
     if input_graph.renumbered:
         ddf = input_graph.unrenumber(ddf, "vertex")

@@ -55,50 +55,51 @@ def clean_folder(path):
     path : String
         Path to the folder to be cleaned.
     """
-    shutil.rmtree(path + "/__pycache__", ignore_errors=True)
+    shutil.rmtree(path + '/__pycache__', ignore_errors=True)
 
-    folders = glob.glob(path + "/*/")
+    folders = glob.glob(path + '/*/')
     for folder in folders:
-        shutil.rmtree(folder + "/__pycache__", ignore_errors=True)
+        shutil.rmtree(folder + '/__pycache__', ignore_errors=True)
 
         clean_folder(folder)
 
-        cython_exts = glob.glob(folder + "/*.cpp")
-        cython_exts.extend(glob.glob(folder + "/*.cpython*"))
+        cython_exts = glob.glob(folder + '/*.cpp')
+        cython_exts.extend(glob.glob(folder + '/*.cpython*'))
         for file in cython_exts:
             os.remove(file)
 
 
-def clone_repo_if_needed(name, cpp_build_path=None, git_info_file=None):
+def clone_repo_if_needed(name, cpp_build_path=None,
+                         git_info_file=None):
     if git_info_file is None:
-        git_info_file = _get_repo_path() + "/cpp/cmake/thirdparty/get_{}.cmake".format(
-            name
-        )
+        git_info_file = \
+            _get_repo_path() + '/cpp/cmake/thirdparty/get_{}.cmake'.format(
+                name
+            )
 
     if cpp_build_path is None or cpp_build_path is False:
-        cpp_build_path = _get_repo_path() + "/cpp/build/_deps/"
+        cpp_build_path = _get_repo_path() + '/cpp/build/_deps/'
 
-    repo_cloned = get_submodule_dependency(
-        name, cpp_build_path=cpp_build_path, git_info_file=git_info_file
-    )
+    repo_cloned = get_submodule_dependency(name,
+                                           cpp_build_path=cpp_build_path,
+                                           git_info_file=git_info_file)
 
     if repo_cloned:
         # FIXME: should _external_repositories go in the "python" dir instead,
         # to be shared by both packages?
-        repo_path = (
-            _get_repo_path() + "/python/cugraph/_external_repositories/" + name + "/"
-        )
+        repo_path = (_get_repo_path() +
+                     '/python/cugraph/_external_repositories/' +
+                     name +
+                     '/')
     else:
-        repo_path = os.path.join(cpp_build_path, name + "-src/")
+        repo_path = os.path.join(cpp_build_path, name + '-src/')
 
     return repo_path, repo_cloned
 
 
-def get_submodule_dependency(
-    repo,
-    git_info_file="../cpp/cmake/Dependencies.cmake",
-    cpp_build_path="../cpp/build/",
-):
+def get_submodule_dependency(repo,
+                             git_info_file='../cpp/cmake/Dependencies.cmake',
+                             cpp_build_path='../cpp/build/'):
     """
     Function to check if sub repositories (i.e. submodules in git terminology)
     already exist in the libcugraph build folder, otherwise will clone the
@@ -131,23 +132,19 @@ def get_submodule_dependency(
 
     repo_info = get_repo_cmake_info(repos, git_info_file)
 
-    if os.path.exists(os.path.join(cpp_build_path, repos[0] + "-src/")):
-        print(
-            "-- Third party modules found succesfully in the libcugraph++ "
-            "build folder."
-        )
+    if os.path.exists(os.path.join(cpp_build_path, repos[0] + '-src/')):
+        print("-- Third party modules found succesfully in the libcugraph++ "
+              "build folder.")
 
         return False
 
     else:
 
-        print(
-            "-- Third party repositories have not been found so they"
-            "will be cloned. To avoid this set the environment "
-            "variable CUGRAPH_BUILD_PATH, containing the relative "
-            "path of the root of the repository to the folder "
-            "where libcugraph++ was built."
-        )
+        print("-- Third party repositories have not been found so they"
+              "will be cloned. To avoid this set the environment "
+              "variable CUGRAPH_BUILD_PATH, containing the relative "
+              "path of the root of the repository to the folder "
+              "where libcugraph++ was built.")
 
         for repo in repos:
             clone_repo(repo, repo_info[repo][0], repo_info[repo][1])
@@ -155,13 +152,8 @@ def get_submodule_dependency(
         return True
 
 
-def clone_repo(
-    name,
-    GIT_REPOSITORY,
-    GIT_TAG,
-    location_to_clone="_external_repositories/",
-    force_clone=False,
-):
+def clone_repo(name, GIT_REPOSITORY, GIT_TAG,
+               location_to_clone='_external_repositories/', force_clone=False):
     """
     Function to clone repos if they have not been cloned already.
     Variables are named identical to the cmake counterparts for clarity,
@@ -183,16 +175,19 @@ def clone_repo(
     """
 
     if not os.path.exists(location_to_clone + name) or force_clone:
-        print("Cloning repository " + name + " into " + location_to_clone + name)
-        subprocess.check_call(
-            ["git", "clone", GIT_REPOSITORY, location_to_clone + name]
-        )
+        print("Cloning repository " + name + " into " + location_to_clone +
+              name)
+        subprocess.check_call(['git', 'clone',
+                               GIT_REPOSITORY,
+                               location_to_clone + name])
         wd = os.getcwd()
         os.chdir(location_to_clone + name)
-        subprocess.check_call(["git", "checkout", GIT_TAG])
+        subprocess.check_call(['git', 'checkout',
+                               GIT_TAG])
         os.chdir(wd)
     else:
-        print("Found repository " + name + " in _external_repositories/" + name)
+        print("Found repository " + name + " in _external_repositories/" +
+              name)
 
 
 def get_repo_cmake_info(names, file_path):
@@ -225,22 +220,22 @@ def get_repo_cmake_info(names, file_path):
     results = {}
 
     for name in names:
-        repo = re.findall(r"\s.*GIT_REPOSITORY.*", s)
+        repo = re.findall(r'\s.*GIT_REPOSITORY.*', s)
         repo = repo[-1].split()[-1]
-        fork = re.findall(r"\s.*FORK.*", s)
+        fork = re.findall(r'\s.*FORK.*', s)
         fork = fork[-1].split()[-1]
         repo = repo.replace("${PKG_FORK}", fork)
-        tag = re.findall(r"\s.*PINNED_TAG.*", s)
+        tag = re.findall(r'\s.*PINNED_TAG.*', s)
         tag = tag[-1].split()[-1]
         results[name] = [repo, tag]
-        if tag == "branch-${CUGRAPH_BRANCH_VERSION_raft}":
-            loc = _get_repo_path() + "/cpp/CMakeLists.txt"
+        if tag == 'branch-${CUGRAPH_BRANCH_VERSION_raft}':
+            loc = _get_repo_path() + '/cpp/CMakeLists.txt'
             with open(loc) as f:
                 cmakelists = f.read()
-                tag = re.findall(r"\s.*project\(CUGRAPH VERSION.*", cmakelists)
+                tag = re.findall(r'\s.*project\(CUGRAPH VERSION.*', cmakelists)
                 print(tag)
-                tag = tag[-1].split()[2].split(".")
-                tag = "branch-{}.{}".format(tag[0], tag[1])
+                tag = tag[-1].split()[2].split('.')
+                tag = 'branch-{}.{}'.format(tag[0], tag[1])
 
         results[name] = [repo, tag]
 

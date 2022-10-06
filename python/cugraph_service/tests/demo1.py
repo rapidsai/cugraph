@@ -32,17 +32,15 @@ for gid in client.get_graph_ids():
 # visible to the server.
 
 client.load_csv_as_vertex_data(
-    (this_dir / "vertex_data.csv").absolute().as_posix(),
+    (this_dir/"vertex_data.csv").absolute().as_posix(),
     dtypes=["int32", "string", "int32"],
     vertex_col_name="vertex_id",
-    header="infer",
-)
+    header="infer")
 client.load_csv_as_edge_data(
-    (this_dir / "edge_data.csv").absolute().as_posix(),
+    (this_dir/"edge_data.csv").absolute().as_posix(),
     dtypes=["int32", "int32", "string", "int32"],
     vertex_col_names=("src", "dst"),
-    header="infer",
-)
+    header="infer")
 
 # Verify the number of edges
 assert client.get_num_edges() == 10000
@@ -51,9 +49,8 @@ assert client.get_num_edges() == 10000
 extracted_gid = client.extract_subgraph(allow_multi_edges=True)
 start_vertices = 11
 max_depth = 2
-(vertex_paths, edge_weights, path_sizes) = client.node2vec(
-    start_vertices, max_depth, extracted_gid
-)
+(vertex_paths, edge_weights, path_sizes) = \
+    client.node2vec(start_vertices, max_depth, extracted_gid)
 
 # Create another graph on the server
 graph2 = client.create_graph()
@@ -63,12 +60,11 @@ assert len(client.get_graph_ids()) == 3
 
 # Add edge data to the new graph
 client.load_csv_as_vertex_data(
-    (this_dir / "vertex_data.csv").absolute().as_posix(),
+    (this_dir/"vertex_data.csv").absolute().as_posix(),
     dtypes=["int32", "string", "int32"],
     vertex_col_name="vertex_id",
     header="infer",
-    graph_id=graph2,
-)
+    graph_id=graph2)
 
 # Remove the new graph from the server and verify
 client.delete_graph(graph2)

@@ -18,7 +18,7 @@ from cugraph.experimental.datasets.dataset import (
     set_config,
     set_download_dir,
     get_download_dir,
-    default_download_dir,
+    default_download_dir
 )
 from cugraph.experimental.datasets import metadata
 from pathlib import Path
@@ -44,9 +44,11 @@ SMALL_DATASETS = [karate, dolphins, netscience]
 
 RLY_SMALL_DATASETS = [small_line, small_tree]
 
-ALL_DATASETS = [karate, dolphins, netscience, polbooks, small_line, small_tree]
+ALL_DATASETS = [karate, dolphins, netscience, polbooks,
+                small_line, small_tree]
 
-ALL_DATASETS_WGT = [karate, dolphins, netscience, polbooks, small_line, small_tree]
+ALL_DATASETS_WGT = [karate, dolphins, netscience, polbooks,
+                    small_line, small_tree]
 
 TEST_GROUP = [dolphins, netscience]
 

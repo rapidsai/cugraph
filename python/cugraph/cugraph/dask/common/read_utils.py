@@ -15,9 +15,8 @@
 
 def get_n_workers():
     from dask.distributed import default_client
-
     client = default_client()
-    return len(client.scheduler_info()["workers"])
+    return len(client.scheduler_info()['workers'])
 
 
 def get_chunksize(input_path):
@@ -39,7 +38,7 @@ def get_chunksize(input_path):
     input_files = sorted(glob(str(input_path)))
     if len(input_files) == 1:
         size = os.path.getsize(input_files[0])
-        chunksize = math.ceil(size / get_n_workers())
+        chunksize = math.ceil(size/get_n_workers())
     else:
         size = [os.path.getsize(_file) for _file in input_files]
         chunksize = max(size)
@@ -48,6 +47,5 @@ def get_chunksize(input_path):
 
 class MissingUCXPy:
     def __getattr__(self, *args, **kwargs):
-        raise ModuleNotFoundError(
-            "ucx-py could not be imported but is" " required for MG operations"
-        )
+        raise ModuleNotFoundError("ucx-py could not be imported but is"
+                                  " required for MG operations")

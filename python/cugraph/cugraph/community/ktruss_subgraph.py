@@ -13,10 +13,9 @@
 
 from cugraph.community import ktruss_subgraph_wrapper
 from cugraph.structure.graph_classes import Graph
-from cugraph.utilities import (
-    ensure_cugraph_obj_for_nx,
-    cugraph_to_nx,
-)
+from cugraph.utilities import (ensure_cugraph_obj_for_nx,
+                               cugraph_to_nx,
+                               )
 
 from numba import cuda
 
@@ -34,9 +33,8 @@ def _ensure_compatible_cuda_version():
 
     if cuda_version == unsupported_cuda_version:
         ver_string = ".".join([str(n) for n in unsupported_cuda_version])
-        raise NotImplementedError(
-            "k_truss is not currently supported in CUDA" f" {ver_string} environments."
-        )
+        raise NotImplementedError("k_truss is not currently supported in CUDA"
+                                  f" {ver_string} environments.")
 
 
 def k_truss(G, k):
@@ -85,7 +83,6 @@ def k_truss(G, k):
         return S
     else:
         return ktruss_subgraph(G, k)
-
 
 # FIXME: merge this function with k_truss
 
@@ -172,6 +169,8 @@ def ktruss_subgraph(G, k, use_weights=True):
             subgraph_df, source="src", destination="dst", edge_attr="weight"
         )
     else:
-        KTrussSubgraph.from_cudf_edgelist(subgraph_df, source="src", destination="dst")
+        KTrussSubgraph.from_cudf_edgelist(
+            subgraph_df, source="src", destination="dst"
+        )
 
     return KTrussSubgraph

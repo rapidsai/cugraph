@@ -19,11 +19,10 @@ import cupy
 import cudf
 import dask_cudf
 
-from pylibcugraph import (
-    MGGraph,
-    ResourceHandle,
-    GraphProperties,
-)
+from pylibcugraph import (MGGraph,
+                          ResourceHandle,
+                          GraphProperties,
+                          )
 
 from dask.distributed import wait, default_client
 from cugraph.dask.common.input_utils import get_distributed_data
@@ -31,9 +30,9 @@ import cugraph.dask.comms.comms as Comms
 
 
 class simpleDistributedGraphImpl:
-    edgeWeightCol = "value"
-    edgeIdCol = "edge_id"
-    edgeTypeCol = "edge_type"
+    edgeWeightCol = 'value'
+    edgeIdCol = 'edge_id'
+    edgeTypeCol = 'edge_type'
 
     class EdgeList:
         def __init__(self, ddf):
@@ -49,7 +48,7 @@ class simpleDistributedGraphImpl:
 
     class Properties:
         def __init__(self, properties):
-            self.multi_edge = getattr(properties, "multi_edge", False)
+            self.multi_edge = getattr(properties, 'multi_edge', False)
             self.directed = properties.directed
             self.renumber = False
             self.store_transposed = False
@@ -69,27 +68,28 @@ class simpleDistributedGraphImpl:
         self.destination_columns = None
 
     def _make_plc_graph(
-        sID,
-        edata_x,
-        graph_props,
-        src_col_name,
-        dst_col_name,
-        store_transposed,
-        num_edges,
-    ):
+                        sID,
+                        edata_x,
+                        graph_props,
+                        src_col_name,
+                        dst_col_name,
+                        store_transposed,
+                        num_edges):
 
         if simpleDistributedGraphImpl.edgeWeightCol in edata_x[0]:
             values = edata_x[0][simpleDistributedGraphImpl.edgeWeightCol]
-            if values.dtype == "int32":
-                values = values.astype("float32")
-            elif values.dtype == "int64":
-                values = values.astype("float64")
+            if values.dtype == 'int32':
+                values = values.astype('float32')
+            elif values.dtype == 'int64':
+                values = values.astype('float64')
         else:
-            values = cudf.Series(cupy.ones(len(edata_x[0]), dtype="float32"))
+            values = cudf.Series(
+                cupy.ones(len(edata_x[0]), dtype='float32')
+            )
 
         if simpleDistributedGraphImpl.edgeIdCol in edata_x[0]:
             if simpleDistributedGraphImpl.edgeTypeCol not in edata_x[0]:
-                raise ValueError("Must provide both edge id and edge type")
+                raise ValueError('Must provide both edge id and edge type')
 
             values_id = edata_x[0][simpleDistributedGraphImpl.edgeIdCol]
             values_etype = edata_x[0][simpleDistributedGraphImpl.edgeTypeCol]
@@ -97,7 +97,9 @@ class simpleDistributedGraphImpl:
             values_id, values_etype = None, None
 
         return MGGraph(
-            resource_handle=ResourceHandle(Comms.get_handle(sID).getHandle()),
+            resource_handle=ResourceHandle(
+                Comms.get_handle(sID).getHandle()
+            ),
             graph_properties=graph_props,
             src_array=edata_x[0][src_col_name],
             dst_array=edata_x[0][dst_col_name],
@@ -106,7 +108,7 @@ class simpleDistributedGraphImpl:
             edge_type_array=values_etype,
             store_transposed=store_transposed,
             num_edges=num_edges,
-            do_expensive_check=False,
+            do_expensive_check=False
         )
 
     # Functions
@@ -118,7 +120,7 @@ class simpleDistributedGraphImpl:
         edge_attr=None,
         renumber=True,
         store_transposed=False,
-        legacy_renum_only=False,
+        legacy_renum_only=False
     ):
         if not isinstance(input_ddf, dask_cudf.DataFrame):
             raise TypeError("input should be a dask_cudf dataFrame")
@@ -148,55 +150,50 @@ class simpleDistributedGraphImpl:
             if not (set(edge_attr).issubset(set(input_ddf.columns))):
                 raise ValueError(
                     "edge_attr column name not found in input."
-                    "Recheck the edge_attr parameter"
-                )
+                    "Recheck the edge_attr parameter")
             self.properties.weighted = True
 
             if len(edge_attr) == 1:
-                input_ddf = input_ddf.rename(columns={edge_attr[0]: self.edgeWeightCol})
+                input_ddf = input_ddf.rename(
+                    columns={edge_attr[0]: self.edgeWeightCol}
+                )
                 value_col_names = [self.edgeWeightCol]
             elif len(edge_attr) == 3:
                 weight_col, id_col, type_col = edge_attr
-                input_ddf = input_ddf.rename(
-                    columns={
-                        weight_col: self.edgeWeightCol,
-                        id_col: self.edgeIdCol,
-                        type_col: self.edgeTypeCol,
-                    }
-                )
+                input_ddf = input_ddf.rename(columns={
+                    weight_col: self.edgeWeightCol,
+                    id_col: self.edgeIdCol,
+                    type_col: self.edgeTypeCol
+                })
 
-                value_col_names = [self.edgeWeightCol, self.edgeIdCol, self.edgeTypeCol]
+                value_col_names = [
+                    self.edgeWeightCol,
+                    self.edgeIdCol,
+                    self.edgeTypeCol
+                ]
             else:
-                raise ValueError("Only 1 or 3 values may be provided" "for edge_attr")
+                raise ValueError('Only 1 or 3 values may be provided'
+                                 'for edge_attr')
 
             # The symmetrize step may add additional edges with unknown
             # ids and types for an undirected graph.  Therefore, only
             # directed graphs may be used with ids and types.
-            if len(edge_attr) == 3 and not self.properties.directed:
-                raise ValueError(
-                    "User-provided edge ids and edge "
-                    "types are not permitted for an "
-                    "undirected graph."
-                )
+            if(len(edge_attr) == 3 and not self.properties.directed):
+                raise ValueError('User-provided edge ids and edge '
+                                 'types are not permitted for an '
+                                 'undirected graph.')
 
             source_col, dest_col, value_col = symmetrize(
-                input_ddf,
-                source,
-                destination,
-                value_col_names,
+                input_ddf, source, destination, value_col_names,
                 multi=self.properties.multi_edge,
-                symmetrize=not self.properties.directed,
-            )
+                symmetrize=not self.properties.directed)
 
         else:
             input_ddf = input_ddf[ddf_columns]
             source_col, dest_col = symmetrize(
-                input_ddf,
-                source,
-                destination,
+                input_ddf, source, destination,
                 multi=self.properties.multi_edge,
-                symmetrize=not self.properties.directed,
-            )
+                symmetrize=not self.properties.directed)
 
         if isinstance(source_col, dask_cudf.Series):
             # Create a dask_cudf dataframe from the cudf series obtained
@@ -232,7 +229,8 @@ class simpleDistributedGraphImpl:
         # C++ renumbering is enabled by default for algorithms that
         # support it (but only called if renumbering is on)
         self.compute_renumber_edge_list(
-            transposed=store_transposed, legacy_renum_only=legacy_renum_only
+            transposed=store_transposed,
+            legacy_renum_only=legacy_renum_only
         )
 
         self.properties.renumbered = self.renumber_map.implementation.numbered
@@ -244,7 +242,7 @@ class simpleDistributedGraphImpl:
         dst_col_name = self.renumber_map.renumbered_dst_col_name
         graph_props = GraphProperties(
             is_multigraph=self.properties.multi_edge,
-            is_symmetric=not self.properties.directed,
+            is_symmetric=not self.properties.directed
         )
 
         self._client = default_client()
@@ -274,9 +272,7 @@ class simpleDistributedGraphImpl:
         if self.edgelist is not None:
             if self.edgelist.edgelist_df is not None and (
                 set(renumbered_vertex_col_names).issubset(
-                    set(self.edgelist.edgelist_df.columns)
-                )
-            ):
+                    set(self.edgelist.edgelist_df.columns))):
                 return True
         return False
 
@@ -393,7 +389,8 @@ class simpleDistributedGraphImpl:
         dst_col_name = self.destination_columns
 
         # select only the vertex columns
-        if not isinstance(src_col_name, list) and not isinstance(dst_col_name, list):
+        if not isinstance(src_col_name, list) and \
+           not isinstance(dst_col_name, list):
             vertex_col_names = [src_col_name] + [dst_col_name]
 
         df = self.input_df[vertex_col_names]
@@ -413,18 +410,16 @@ class simpleDistributedGraphImpl:
         df["degree"] = 1
 
         # FIXME: leverage the C++ in_degree for optimal performance
-        in_degree = (
-            df.groupby(dst_col_name)
-            .degree.count(split_out=df.npartitions)
-            .reset_index()
-        )
+        in_degree = df.groupby(dst_col_name).degree.count(
+            split_out=df.npartitions).reset_index()
 
         # Add vertices with zero in_degree
-        in_degree = nodes.merge(in_degree, how="outer").fillna(0)
+        in_degree = nodes.merge(in_degree, how='outer').fillna(0)
 
         # Convert vertex_subset to dataframe.
         if vertex_subset is not None:
-            if not isinstance(vertex_subset, (dask_cudf.DataFrame, cudf.DataFrame)):
+            if not isinstance(vertex_subset, (
+               dask_cudf.DataFrame, cudf.DataFrame)):
                 if isinstance(vertex_subset, dask_cudf.Series):
                     vertex_subset = vertex_subset.to_frame()
                 else:
@@ -432,15 +427,14 @@ class simpleDistributedGraphImpl:
                     if isinstance(vertex_subset, (cudf.Series, list)):
                         df["vertex"] = vertex_subset
                         vertex_subset = df
-            if isinstance(vertex_subset, (dask_cudf.DataFrame, cudf.DataFrame)):
+            if isinstance(vertex_subset, (
+               dask_cudf.DataFrame, cudf.DataFrame)):
                 vertex_subset.columns = vertex_col_names
-                in_degree = in_degree.merge(vertex_subset, how="inner")
+                in_degree = in_degree.merge(vertex_subset, how='inner')
             else:
-                raise TypeError(
-                    f"Expected type are: cudf, dask_cudf objects, "
-                    f"iterable container, got "
-                    f"{type(vertex_subset)}"
-                )
+                raise TypeError(f"Expected type are: cudf, dask_cudf objects, "
+                                f"iterable container, got "
+                                f"{type(vertex_subset)}")
         return in_degree
 
     def out_degree(self, vertex_subset=None):
@@ -483,7 +477,8 @@ class simpleDistributedGraphImpl:
         dst_col_name = self.destination_columns
 
         # select only the vertex columns
-        if not isinstance(src_col_name, list) and not isinstance(dst_col_name, list):
+        if not isinstance(src_col_name, list) and \
+           not isinstance(dst_col_name, list):
             vertex_col_names = [src_col_name] + [dst_col_name]
 
         df = self.input_df[vertex_col_names]
@@ -503,18 +498,16 @@ class simpleDistributedGraphImpl:
 
         df["degree"] = 1
         # leverage the C++ out_degree for optimal performance
-        out_degree = (
-            df.groupby(src_col_name)
-            .degree.count(split_out=df.npartitions)
-            .reset_index()
-        )
+        out_degree = df.groupby(src_col_name).degree.count(
+            split_out=df.npartitions).reset_index()
 
         # Add vertices with zero out_degree
-        out_degree = nodes.merge(out_degree, how="outer").fillna(0)
+        out_degree = nodes.merge(out_degree, how='outer').fillna(0)
 
         # Convert vertex_subset to dataframe.
         if vertex_subset is not None:
-            if not isinstance(vertex_subset, (dask_cudf.DataFrame, cudf.DataFrame)):
+            if not isinstance(vertex_subset, (
+               dask_cudf.DataFrame, cudf.DataFrame)):
                 if isinstance(vertex_subset, dask_cudf.Series):
                     vertex_subset = vertex_subset.to_frame()
                 else:
@@ -522,15 +515,14 @@ class simpleDistributedGraphImpl:
                     if isinstance(vertex_subset, (cudf.Series, list)):
                         df["vertex"] = vertex_subset
                         vertex_subset = df
-            if isinstance(vertex_subset, (dask_cudf.DataFrame, cudf.DataFrame)):
+            if isinstance(vertex_subset, (
+               dask_cudf.DataFrame, cudf.DataFrame)):
                 vertex_subset.columns = vertex_col_names
-                out_degree = out_degree.merge(vertex_subset, how="inner")
+                out_degree = out_degree.merge(vertex_subset, how='inner')
             else:
-                raise TypeError(
-                    f"Expected type are: cudf, dask_cudf objects, "
-                    f"iterable container, got "
-                    f"{type(vertex_subset)}"
-                )
+                raise TypeError(f"Expected type are: cudf, dask_cudf objects, "
+                                f"iterable container, got "
+                                f"{type(vertex_subset)}")
 
         return out_degree
 
@@ -575,9 +567,8 @@ class simpleDistributedGraphImpl:
         vertex_out_degree = self.out_degree(vertex_subset)
         # FIXME: leverage the C++ degree for optimal performance
         vertex_degree = dask_cudf.concat([vertex_in_degree, vertex_out_degree])
-        vertex_degree = vertex_degree.groupby(["vertex"], as_index=False).sum(
-            split_out=self.input_df.npartitions
-        )
+        vertex_degree = vertex_degree.groupby(['vertex'], as_index=False).sum(
+            split_out=self.input_df.npartitions)
 
         return vertex_degree
 
@@ -622,7 +613,8 @@ class simpleDistributedGraphImpl:
         raise NotImplementedError("Not supported for distributed graph")
 
     def _degree(self, vertex_subset, direction=Direction.ALL):
-        vertex_col, degree_col = graph_primtypes_wrapper._mg_degree(self, direction)
+        vertex_col, degree_col = graph_primtypes_wrapper._mg_degree(self,
+                                                                    direction)
         df = cudf.DataFrame()
         df["vertex"] = vertex_col
         df["degree"] = degree_col
@@ -631,7 +623,7 @@ class simpleDistributedGraphImpl:
             df = self.renumber_map.unrenumber(df, "vertex")
 
         if vertex_subset is not None:
-            df = df[df["vertex"].isin(vertex_subset)]
+            df = df[df['vertex'].isin(vertex_subset)]
 
         return df
 
@@ -713,7 +705,8 @@ class simpleDistributedGraphImpl:
 
         if isinstance(n, (dask_cudf.DataFrame, cudf.DataFrame)):
             nodes = self.nodes()
-            if not isinstance(self.nodes(), (dask_cudf.DataFrame, cudf.DataFrame)):
+            if not isinstance(self.nodes(), (
+               dask_cudf.DataFrame, cudf.DataFrame)):
                 nodes = nodes.to_frame()
 
             nodes.columns = n.columns
@@ -774,8 +767,8 @@ class simpleDistributedGraphImpl:
         else:
             df = self.input_df
             return dask_cudf.concat(
-                [df[self.source_columns], df[self.destination_columns]]
-            ).drop_duplicates()
+                [df[self.source_columns],
+                    df[self.destination_columns]]).drop_duplicates()
 
     def neighbors(self, n):
         if self.edgelist is None:
@@ -784,7 +777,9 @@ class simpleDistributedGraphImpl:
         ddf = self.edgelist.edgelist_df
         return ddf[ddf["src"] == n]["dst"].reset_index(drop=True)
 
-    def compute_renumber_edge_list(self, transposed=False, legacy_renum_only=False):
+    def compute_renumber_edge_list(self,
+                                   transposed=False,
+                                   legacy_renum_only=False):
         """
         Compute a renumbered edge list
         This function works in the MNMG pipeline and will transform
@@ -826,17 +821,13 @@ class simpleDistributedGraphImpl:
 
                 del self.edgelist
 
-            (
-                renumbered_ddf,
-                number_map,
-                aggregate_segment_offsets,
-            ) = NumberMap.renumber_and_segment(
-                self.input_df,
-                self.source_columns,
-                self.destination_columns,
-                store_transposed=transposed,
-                legacy_renum_only=legacy_renum_only,
-            )
+            renumbered_ddf, number_map, aggregate_segment_offsets = \
+                NumberMap.renumber_and_segment(
+                    self.input_df,
+                    self.source_columns,
+                    self.destination_columns,
+                    store_transposed=transposed,
+                    legacy_renum_only=legacy_renum_only)
 
             self.edgelist = self.EdgeList(renumbered_ddf)
             self.renumber_map = number_map

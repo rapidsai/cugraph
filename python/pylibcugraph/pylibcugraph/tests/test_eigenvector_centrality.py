@@ -14,16 +14,14 @@
 import pytest
 import cupy as cp
 import numpy as np
-from pylibcugraph import (
-    ResourceHandle,
-    GraphProperties,
-    SGGraph,
-    eigenvector_centrality,
-)
+from pylibcugraph import (ResourceHandle,
+                          GraphProperties,
+                          SGGraph,
+                          eigenvector_centrality)
 from pylibcugraph.testing import utils
 
 
-TOY = utils.RAPIDS_DATASET_ROOT_DIR_PATH / "toy_graph.csv"
+TOY = utils.RAPIDS_DATASET_ROOT_DIR_PATH/'toy_graph.csv'
 
 
 # =============================================================================
@@ -35,40 +33,32 @@ def _get_param_args(param_name, param_values):
     as the args to pytest.mark.parametrize(). The pytest.param list also
     contains param id string formed from the param name and values.
     """
-    return (param_name, [pytest.param(v, id=f"{param_name}={v}") for v in param_values])
+    return (param_name,
+            [pytest.param(v, id=f"{param_name}={v}") for v in param_values])
 
 
-def _generic_eigenvector_test(
-    src_arr,
-    dst_arr,
-    wgt_arr,
-    result_arr,
-    num_vertices,
-    num_edges,
-    store_transposed,
-    epsilon,
-    max_iterations,
-):
+def _generic_eigenvector_test(src_arr,
+                              dst_arr,
+                              wgt_arr,
+                              result_arr,
+                              num_vertices,
+                              num_edges,
+                              store_transposed,
+                              epsilon,
+                              max_iterations):
     """
     Builds a graph from the input arrays and runs eigen using the other args,
     similar to how eigen is tested in libcugraph.
     """
     resource_handle = ResourceHandle()
     graph_props = GraphProperties(is_symmetric=False, is_multigraph=False)
-    G = SGGraph(
-        resource_handle,
-        graph_props,
-        src_arr,
-        dst_arr,
-        wgt_arr,
-        store_transposed=False,
-        renumber=False,
-        do_expensive_check=True,
-    )
+    G = SGGraph(resource_handle, graph_props, src_arr, dst_arr, wgt_arr,
+                store_transposed=False, renumber=False,
+                do_expensive_check=True)
 
-    (vertices, centralities) = eigenvector_centrality(
-        resource_handle, G, epsilon, max_iterations, do_expensive_check=False
-    )
+    (vertices, centralities) = eigenvector_centrality(resource_handle, G,
+                                                      epsilon, max_iterations,
+                                                      do_expensive_check=False)
 
     result_arr = result_arr.get()
     vertices = vertices.get()
@@ -79,27 +69,24 @@ def _generic_eigenvector_test(
         expected_result = result_arr[vertex_id]
         actual_result = centralities[idx]
 
-        assert pytest.approx(expected_result, 1e-4) == actual_result, (
-            f"Vertex {idx} has centrality {actual_result}, should have"
+        assert pytest.approx(expected_result, 1e-4) == actual_result, \
+            f"Vertex {idx} has centrality {actual_result}, should have" \
             f" been {expected_result}"
-        )
 
 
 def test_eigenvector():
     num_edges = 16
     num_vertices = 6
-    graph_data = np.genfromtxt(TOY, delimiter=" ")
+    graph_data = np.genfromtxt(TOY, delimiter=' ')
     src = cp.asarray(graph_data[:, 0], dtype=np.int32)
     dst = cp.asarray(graph_data[:, 1], dtype=np.int32)
     wgt = cp.asarray(graph_data[:, 2], dtype=np.float32)
-    result = cp.asarray(
-        [0.236325, 0.292055, 0.458457, 0.60533, 0.190498, 0.495942], dtype=np.float32
-    )
+    result = cp.asarray([0.236325, 0.292055, 0.458457, 0.60533,
+                        0.190498, 0.495942], dtype=np.float32)
 
     epsilon = 1e-6
     max_iterations = 200
 
     # Eigenvector requires store_transposed to be True?
-    _generic_eigenvector_test(
-        src, dst, wgt, result, num_vertices, num_edges, True, epsilon, max_iterations
-    )
+    _generic_eigenvector_test(src, dst, wgt, result, num_vertices, num_edges,
+                              True, epsilon, max_iterations)

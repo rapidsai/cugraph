@@ -32,14 +32,17 @@ def setup_function():
 
 IS_DIRECTED = [True, False]
 
-DATA_PATH = [
-    (RAPIDS_DATASET_ROOT_DIR_PATH / "karate-asymmetric.csv").as_posix(),
-    (RAPIDS_DATASET_ROOT_DIR_PATH / "polbooks.csv").as_posix(),
-    (RAPIDS_DATASET_ROOT_DIR_PATH / "email-Eu-core.csv").as_posix(),
-]
+DATA_PATH = [(RAPIDS_DATASET_ROOT_DIR_PATH /
+             "karate-asymmetric.csv").as_posix(),
+             (RAPIDS_DATASET_ROOT_DIR_PATH /
+             "polbooks.csv").as_posix(),
+             (RAPIDS_DATASET_ROOT_DIR_PATH /
+             "email-Eu-core.csv").as_posix()]
 
 
-@pytest.mark.skipif(is_single_gpu(), reason="skipping MG testing on Single GPU system")
+@pytest.mark.skipif(
+    is_single_gpu(), reason="skipping MG testing on Single GPU system"
+)
 @pytest.mark.parametrize("directed", IS_DIRECTED)
 @pytest.mark.parametrize("data_file", DATA_PATH)
 def test_dask_mg_degree(dask_client, directed, data_file):
@@ -82,26 +85,19 @@ def test_dask_mg_degree(dask_client, directed, data_file):
     )
 
     merge_df_degree = (
-        dg.degree().merge(g.degree(), on="vertex", suffixes=["_dg", "_g"]).compute()
+        dg.degree()
+        .merge(g.degree(), on="vertex", suffixes=["_dg", "_g"])
+        .compute()
     )
 
     assert_series_equal(
-        merge_df_in_degree["degree_dg"],
-        merge_df_in_degree["degree_g"],
-        check_names=False,
-        check_dtype=False,
-    )
+        merge_df_in_degree["degree_dg"], merge_df_in_degree["degree_g"],
+        check_names=False, check_dtype=False)
 
     assert_series_equal(
-        merge_df_out_degree["degree_dg"],
-        merge_df_out_degree["degree_g"],
-        check_names=False,
-        check_dtype=False,
-    )
+        merge_df_out_degree["degree_dg"], merge_df_out_degree["degree_g"],
+        check_names=False, check_dtype=False)
 
     assert_series_equal(
-        merge_df_degree["degree_dg"],
-        merge_df_degree["degree_g"],
-        check_names=False,
-        check_dtype=False,
-    )
+        merge_df_degree["degree_dg"], merge_df_degree["degree_g"],
+        check_names=False, check_dtype=False)

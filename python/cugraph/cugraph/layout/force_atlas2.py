@@ -34,98 +34,98 @@ def force_atlas2(
 ):
 
     """
-    ForceAtlas2 is a continuous graph layout algorithm for handy network
-    visualization.
+        ForceAtlas2 is a continuous graph layout algorithm for handy network
+        visualization.
 
-    NOTE: Peak memory allocation occurs at 30*V.
+        NOTE: Peak memory allocation occurs at 30*V.
 
-    Parameters
-    ----------
-    input_graph : cugraph.Graph
-        cuGraph graph descriptor with connectivity information.
-        Edge weights, if present, should be single or double precision
-        floating point values.
+        Parameters
+        ----------
+        input_graph : cugraph.Graph
+            cuGraph graph descriptor with connectivity information.
+            Edge weights, if present, should be single or double precision
+            floating point values.
 
-    max_iter : integer, optional (default=500)
-        This controls the maximum number of levels/iterations of the Force
-        Atlas algorithm. When specified the algorithm will terminate after
-        no more than the specified number of iterations.
-        No error occurs when the algorithm terminates in this manner.
-        Good short-term quality can be achieved with 50-100 iterations.
-        Above 1000 iterations is discouraged.
+        max_iter : integer, optional (default=500)
+            This controls the maximum number of levels/iterations of the Force
+            Atlas algorithm. When specified the algorithm will terminate after
+            no more than the specified number of iterations.
+            No error occurs when the algorithm terminates in this manner.
+            Good short-term quality can be achieved with 50-100 iterations.
+            Above 1000 iterations is discouraged.
 
-    pos_list: cudf.DataFrame, optional (default=None)
-        Data frame with initial vertex positions containing two columns:
-        'x' and 'y' positions.
+        pos_list: cudf.DataFrame, optional (default=None)
+            Data frame with initial vertex positions containing two columns:
+            'x' and 'y' positions.
 
-    outbound_attraction_distribution: bool, optional (default=True)
-        Distributes attraction along outbound edges.
-        Hubs attract less and thus are pushed to the borders.
+        outbound_attraction_distribution: bool, optional (default=True)
+            Distributes attraction along outbound edges.
+            Hubs attract less and thus are pushed to the borders.
 
-    lin_log_mode: bool, optional (default=False)
-        Switch Force Atlas model from lin-lin to lin-log.
-        Makes clusters more tight.
+        lin_log_mode: bool, optional (default=False)
+            Switch Force Atlas model from lin-lin to lin-log.
+            Makes clusters more tight.
 
-    prevent_overlapping: bool, optional (default=False)
-        Prevent nodes to overlap.
+        prevent_overlapping: bool, optional (default=False)
+            Prevent nodes to overlap.
 
-    edge_weight_influence: float, optional (default=1.0)
-        How much influence you give to the edges weight.
-        0 is “no influence” and 1 is “normal”.
+        edge_weight_influence: float, optional (default=1.0)
+            How much influence you give to the edges weight.
+            0 is “no influence” and 1 is “normal”.
 
-    jitter_tolerance: float, optional (default=1.0)
-        How much swinging you allow. Above 1 discouraged.
-        Lower gives less speed and more precision.
+        jitter_tolerance: float, optional (default=1.0)
+            How much swinging you allow. Above 1 discouraged.
+            Lower gives less speed and more precision.
 
-    barnes_hut_optimize: bool, optional (default=True)
-        Whether to use the Barnes Hut approximation or the slower
-        exact version.
+        barnes_hut_optimize: bool, optional (default=True)
+            Whether to use the Barnes Hut approximation or the slower
+            exact version.
 
-    barnes_hut_theta: float, optional (default=0.5)
-        Float between 0 and 1. Tradeoff for speed (1) vs
-        accuracy (0) for Barnes Hut only.
+        barnes_hut_theta: float, optional (default=0.5)
+            Float between 0 and 1. Tradeoff for speed (1) vs
+            accuracy (0) for Barnes Hut only.
 
-    scaling_ratio: float, optional (default=2.0)
-        How much repulsion you want. More makes a more sparse graph.
-        Switching from regular mode to LinLog mode needs a readjustment
-        of the scaling parameter.
+        scaling_ratio: float, optional (default=2.0)
+            How much repulsion you want. More makes a more sparse graph.
+            Switching from regular mode to LinLog mode needs a readjustment
+            of the scaling parameter.
 
-    strong_gravity_mode: bool, optional (default=False)
-        Sets a force that attracts the nodes that are distant from the
-        center more. It is so strong that it can sometimes dominate other
-        forces.
+        strong_gravity_mode: bool, optional (default=False)
+            Sets a force that attracts the nodes that are distant from the
+            center more. It is so strong that it can sometimes dominate other
+            forces.
 
-    gravity : float, optional (default=1.0)
-        Attracts nodes to the center. Prevents islands from drifting away.
+        gravity : float, optional (default=1.0)
+            Attracts nodes to the center. Prevents islands from drifting away.
 
-    verbose: bool, optional (default=False)
-        Output convergence info at each interation.
+        verbose: bool, optional (default=False)
+            Output convergence info at each interation.
 
-    callback: GraphBasedDimRedCallback, optional (default=None)
-        An instance of GraphBasedDimRedCallback class to intercept
-        the internal state of positions while they are being trained.
+        callback: GraphBasedDimRedCallback, optional (default=None)
+            An instance of GraphBasedDimRedCallback class to intercept
+            the internal state of positions while they are being trained.
 
-        Example of callback usage:
-            from cugraph.internals import GraphBasedDimRedCallback
-                class CustomCallback(GraphBasedDimRedCallback):
-                    def on_preprocess_end(self, positions):
-                        print(positions.copy_to_host())
-                    def on_epoch_end(self, positions):
-                        print(positions.copy_to_host())
-                    def on_train_end(self, positions):
-                        print(positions.copy_to_host())
+            Example of callback usage:
+                from cugraph.internals import GraphBasedDimRedCallback
+                    class CustomCallback(GraphBasedDimRedCallback):
+                        def on_preprocess_end(self, positions):
+                            print(positions.copy_to_host())
+                        def on_epoch_end(self, positions):
+                            print(positions.copy_to_host())
+                        def on_train_end(self, positions):
+                            print(positions.copy_to_host())
 
-    Returns
-    -------
-    pos : cudf.DataFrame
-        GPU data frame of size V containing three columns:
-        the vertex identifiers and the x and y positions.
+        Returns
+        -------
+        pos : cudf.DataFrame
+            GPU data frame of size V containing three columns:
+            the vertex identifiers and the x and y positions.
 
-    Examples
-    --------
-    >>> from cugraph.experimental.datasets import karate
-    >>> G = karate.get_graph(fetch=True)
-    >>> pos = cugraph.force_atlas2(G)
+        Examples
+        --------
+        >>> from cugraph.experimental.datasets import karate
+        >>> G = karate.get_graph(fetch=True)
+        >>> pos = cugraph.force_atlas2(G)
 
     """
     input_graph, isNx = ensure_cugraph_obj_for_nx(input_graph)
@@ -135,8 +135,10 @@ def force_atlas2(
             if input_graph.vertex_column_size() > 1:
                 cols = pos_list.columns[:-2].to_list()
             else:
-                cols = "vertex"
-            pos_list = input_graph.add_internal_vertex_id(pos_list, "vertex", cols)
+                cols = 'vertex'
+            pos_list = input_graph.add_internal_vertex_id(pos_list,
+                                                          "vertex",
+                                                          cols)
 
     if prevent_overlapping:
         raise Exception("Feature not supported")

@@ -50,8 +50,8 @@ def cugraph_call(benchmark_callable, cu_M):
         np.ones(max(cu_M["0"].max(), cu_M["1"].max()) + 1, dtype=np.float32)
     )
     weights = cudf.DataFrame()
-    weights["vertex"] = np.arange(len(weight_arr), dtype=np.int32)
-    weights["weight"] = weight_arr
+    weights['vertex'] = np.arange(len(weight_arr), dtype=np.int32)
+    weights['weight'] = weight_arr
 
     G = cugraph.Graph()
     G.from_cudf_edgelist(cu_M, source="0", destination="1")
@@ -79,7 +79,9 @@ def networkx_call(M, benchmark_callable=None):
     print("Format conversion ... ")
 
     # NetworkX graph
-    Gnx = nx.from_pandas_edgelist(M, source="0", target="1", create_using=nx.Graph())
+    Gnx = nx.from_pandas_edgelist(
+        M, source="0", target="1", create_using=nx.Graph()
+    )
     # Networkx Jaccard Call
     print("Solving... ")
     if benchmark_callable is not None:
@@ -93,7 +95,7 @@ def networkx_call(M, benchmark_callable=None):
         # to get a more robust test
 
         # Conversion from Networkx Jaccard to Sorensen
-        coeff.append((2 * p) / (1 + p))
+        coeff.append((2*p)/(1+p))
     return coeff
 
 
@@ -149,25 +151,26 @@ def test_wsorensen_multi_column(read_csv):
     cu_M["src_1"] = cu_M["src_0"] + 1000
     cu_M["dst_1"] = cu_M["dst_0"] + 1000
     G1 = cugraph.Graph()
-    G1.from_cudf_edgelist(
-        cu_M, source=["src_0", "src_1"], destination=["dst_0", "dst_1"]
-    )
+    G1.from_cudf_edgelist(cu_M, source=["src_0", "src_1"],
+                          destination=["dst_0", "dst_1"])
 
     G2 = cugraph.Graph()
-    G2.from_cudf_edgelist(cu_M, source="src_0", destination="dst_0")
+    G2.from_cudf_edgelist(cu_M, source="src_0",
+                          destination="dst_0")
 
     vertex_pair = cu_M[["src_0", "src_1", "dst_0", "dst_1"]]
     vertex_pair = vertex_pair[:5]
 
-    weight_arr = cudf.Series(np.ones(G2.number_of_vertices(), dtype=np.float32))
+    weight_arr = cudf.Series(np.ones(G2.number_of_vertices(),
+                                     dtype=np.float32))
     weights = cudf.DataFrame()
-    weights["vertex"] = G2.nodes()
-    weights["vertex_"] = weights["vertex"] + 1000
-    weights["weight"] = weight_arr
+    weights['vertex'] = G2.nodes()
+    weights['vertex_'] = weights['vertex'] + 1000
+    weights['weight'] = weight_arr
 
     df_res = cugraph.sorensen_w(G1, weights, vertex_pair)
 
-    weights = weights[["vertex", "weight"]]
+    weights = weights[['vertex', 'weight']]
     df_exp = cugraph.sorensen_w(G2, weights, vertex_pair[["src_0", "dst_0"]])
 
     # Calculating mismatch

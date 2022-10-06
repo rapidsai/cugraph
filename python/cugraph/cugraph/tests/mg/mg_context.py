@@ -35,10 +35,8 @@ def skip_if_not_enough_devices(required_devices):
         visible_devices = get_visible_devices()
         number_of_visible_devices = len(visible_devices)
         if required_devices > number_of_visible_devices:
-            pytest.skip(
-                "Not enough devices available to "
-                "test MG({})".format(required_devices)
-            )
+            pytest.skip("Not enough devices available to "
+                        "test MG({})".format(required_devices))
 
 
 class MGContext:
@@ -55,15 +53,17 @@ class MGContext:
     p2p : bool
         Initialize UCX endpoints if True. Default is False.
     """
-
-    def __init__(self, number_of_devices=None, rmm_managed_memory=False, p2p=False):
+    def __init__(self,
+                 number_of_devices=None,
+                 rmm_managed_memory=False,
+                 p2p=False):
         self._number_of_devices = number_of_devices
         self._rmm_managed_memory = rmm_managed_memory
         self._client = None
         self._p2p = p2p
         self._cluster = CUDACluster(
             n_workers=self._number_of_devices,
-            rmm_managed_memory=self._rmm_managed_memory,
+            rmm_managed_memory=self._rmm_managed_memory
         )
 
     @property
@@ -103,14 +103,13 @@ class MGContext:
 # NOTE: This only looks for the number of  workers
 # Tries to rescale the given cluster and wait until all workers are ready
 # or until the maximal number of attempts is reached
-def enforce_rescale(
-    cluster, scale, max_attempts=DEFAULT_MAX_ATTEMPT, wait_time=DEFAULT_WAIT_TIME
-):
+def enforce_rescale(cluster, scale, max_attempts=DEFAULT_MAX_ATTEMPT,
+                    wait_time=DEFAULT_WAIT_TIME):
     cluster.scale(scale)
     attempt = 0
-    ready = len(cluster.workers) == scale
+    ready = (len(cluster.workers) == scale)
     while (attempt < max_attempts) and not ready:
         time.sleep(wait_time)
-        ready = len(cluster.workers) == scale
+        ready = (len(cluster.workers) == scale)
         attempt += 1
     assert ready, "Unable to rescale cluster to {}".format(scale)

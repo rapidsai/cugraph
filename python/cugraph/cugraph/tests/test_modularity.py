@@ -28,7 +28,9 @@ def cugraph_call(G, partitions):
     df = cugraph.spectralModularityMaximizationClustering(
         G, partitions, num_eigen_vects=(partitions - 1)
     )
-    score = cugraph.analyzeClustering_modularity(G, partitions, df, "vertex", "cluster")
+    score = cugraph.analyzeClustering_modularity(G, partitions, df,
+                                                 'vertex',
+                                                 'cluster')
     return score
 
 
@@ -39,12 +41,13 @@ def random_call(G, partitions):
     for i in range(num_verts):
         assignment.append(random.randint(0, partitions - 1))
 
-    assignment_cu = cudf.DataFrame(assignment, columns=["cluster"])
-    assignment_cu["vertex"] = assignment_cu.index
+    assignment_cu = cudf.DataFrame(assignment, columns=['cluster'])
+    assignment_cu['vertex'] = assignment_cu.index
 
-    score = cugraph.analyzeClustering_modularity(
-        G, partitions, assignment_cu, "vertex", "cluster"
-    )
+    score = cugraph.analyzeClustering_modularity(G, partitions,
+                                                 assignment_cu,
+                                                 'vertex',
+                                                 'cluster')
     return score
 
 
@@ -77,12 +80,12 @@ def test_modularity_clustering_nx(graph_file, partitions):
     csv_data = utils.read_csv_for_nx(graph_file, read_weights_in_sp=True)
 
     nxG = nx.from_pandas_edgelist(
-        csv_data,
-        source="0",
-        target="1",
-        edge_attr="weight",
-        create_using=nx.Graph(),
-    )
+            csv_data,
+            source="0",
+            target="1",
+            edge_attr="weight",
+            create_using=nx.Graph(),
+        )
     assert nx.is_directed(nxG) is False
     assert nx.is_weighted(nxG) is True
 
@@ -104,25 +107,28 @@ def test_modularity_clustering_nx(graph_file, partitions):
 def test_modularity_clustering_multi_column(graph_file, partitions):
     # Read in the graph and get a cugraph object
     cu_M = utils.read_csv_file(graph_file, read_weights_in_sp=False)
-    cu_M.rename(columns={"0": "src_0", "1": "dst_0"}, inplace=True)
-    cu_M["src_1"] = cu_M["src_0"] + 1000
-    cu_M["dst_1"] = cu_M["dst_0"] + 1000
+    cu_M.rename(columns={'0': 'src_0', '1': 'dst_0'}, inplace=True)
+    cu_M['src_1'] = cu_M['src_0'] + 1000
+    cu_M['dst_1'] = cu_M['dst_0'] + 1000
 
     G1 = cugraph.Graph()
-    G1.from_cudf_edgelist(
-        cu_M, source=["src_0", "src_1"], destination=["dst_0", "dst_1"], edge_attr="2"
-    )
+    G1.from_cudf_edgelist(cu_M, source=["src_0", "src_1"],
+                          destination=["dst_0", "dst_1"],
+                          edge_attr="2")
 
     df1 = cugraph.spectralModularityMaximizationClustering(
         G1, partitions, num_eigen_vects=(partitions - 1)
     )
 
-    cu_score = cugraph.analyzeClustering_modularity(
-        G1, partitions, df1, ["0_vertex", "1_vertex"], "cluster"
-    )
+    cu_score = cugraph.analyzeClustering_modularity(G1, partitions, df1,
+                                                    ['0_vertex',
+                                                     '1_vertex'],
+                                                    'cluster')
 
     G2 = cugraph.Graph()
-    G2.from_cudf_edgelist(cu_M, source="src_0", destination="dst_0", edge_attr="2")
+    G2.from_cudf_edgelist(cu_M, source="src_0",
+                          destination="dst_0",
+                          edge_attr="2")
 
     rand_score = random_call(G2, partitions)
     # Assert that the partitioning has better modularity than the random

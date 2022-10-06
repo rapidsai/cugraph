@@ -18,11 +18,10 @@ import cupy as cp
 import numpy as np
 import cudf
 
-from pylibcugraph import (
-    SGGraph,
-    ResourceHandle,
-    GraphProperties,
-)
+from pylibcugraph import (SGGraph,
+                          ResourceHandle,
+                          GraphProperties,
+                          )
 from pylibcugraph import uniform_neighbor_sample
 
 
@@ -64,7 +63,8 @@ def check_edges(result, srcs, dsts, weights, num_verts, num_edges, num_seeds):
         M[h_dst_arr[idx]][h_src_arr[idx]] = h_wgt_arr[idx]
 
     for edge in range(len(h_result_indices)):
-        assert M[h_result_dsts[edge]][h_result_srcs[edge]] == h_result_indices[edge]
+        assert M[h_result_dsts[edge]][h_result_srcs[edge]] == \
+            h_result_indices[edge]
 
 
 # TODO: Coverage for the MG implementation
@@ -72,14 +72,17 @@ def check_edges(result, srcs, dsts, weights, num_verts, num_edges, num_seeds):
 @pytest.mark.parametrize("renumber", [True, False])
 @pytest.mark.parametrize("store_transposed", [True, False])
 @pytest.mark.parametrize("with_replacement", [True, False])
-def test_neighborhood_sampling_cupy(
-    sg_graph_objs, valid_graph_data, renumber, store_transposed, with_replacement
-):
+def test_neighborhood_sampling_cupy(sg_graph_objs,
+                                    valid_graph_data,
+                                    renumber,
+                                    store_transposed,
+                                    with_replacement):
 
     resource_handle = ResourceHandle()
     graph_props = GraphProperties(is_symmetric=False, is_multigraph=False)
 
-    device_srcs, device_dsts, device_weights, ds_name, is_valid = valid_graph_data
+    device_srcs, device_dsts, device_weights, ds_name, is_valid = \
+        valid_graph_data
     start_list = cp.random.choice(device_srcs, size=3)
     fanout_vals = np.asarray([1, 2], dtype="int32")
 
@@ -89,35 +92,25 @@ def test_neighborhood_sampling_cupy(
     num_verts = len(vertices)
     num_edges = max(len(device_srcs), len(device_dsts))
 
-    sg = SGGraph(
-        resource_handle,
-        graph_props,
-        device_srcs,
-        device_dsts,
-        device_weights,
-        store_transposed=store_transposed,
-        renumber=renumber,
-        do_expensive_check=False,
-    )
+    sg = SGGraph(resource_handle,
+                 graph_props,
+                 device_srcs,
+                 device_dsts,
+                 device_weights,
+                 store_transposed=store_transposed,
+                 renumber=renumber,
+                 do_expensive_check=False)
 
-    result = uniform_neighbor_sample(
-        resource_handle,
-        sg,
-        start_list,
-        fanout_vals,
-        with_replacement=with_replacement,
-        do_expensive_check=False,
-    )
+    result = uniform_neighbor_sample(resource_handle,
+                                     sg,
+                                     start_list,
+                                     fanout_vals,
+                                     with_replacement=with_replacement,
+                                     do_expensive_check=False)
 
     check_edges(
-        result,
-        device_srcs,
-        device_dsts,
-        device_weights,
-        num_verts,
-        num_edges,
-        len(start_list),
-    )
+        result, device_srcs, device_dsts, device_weights,
+        num_verts, num_edges, len(start_list))
 
 
 # TODO: Coverage for the MG implementation
@@ -125,14 +118,17 @@ def test_neighborhood_sampling_cupy(
 @pytest.mark.parametrize("renumber", [True, False])
 @pytest.mark.parametrize("store_transposed", [True, False])
 @pytest.mark.parametrize("with_replacement", [True, False])
-def test_neighborhood_sampling_cudf(
-    sg_graph_objs, valid_graph_data, renumber, store_transposed, with_replacement
-):
+def test_neighborhood_sampling_cudf(sg_graph_objs,
+                                    valid_graph_data,
+                                    renumber,
+                                    store_transposed,
+                                    with_replacement):
 
     resource_handle = ResourceHandle()
     graph_props = GraphProperties(is_symmetric=False, is_multigraph=False)
 
-    device_srcs, device_dsts, device_weights, ds_name, is_valid = valid_graph_data
+    device_srcs, device_dsts, device_weights, ds_name, is_valid = \
+        valid_graph_data
     # FIXME cupy has no attribute cp.union1d
     vertices = np.union1d(cp.asnumpy(device_srcs), cp.asnumpy(device_dsts))
     vertices = cp.asarray(vertices)
@@ -147,35 +143,25 @@ def test_neighborhood_sampling_cudf(
     num_verts = len(vertices)
     num_edges = max(len(device_srcs), len(device_dsts))
 
-    sg = SGGraph(
-        resource_handle,
-        graph_props,
-        device_srcs,
-        device_dsts,
-        device_weights,
-        store_transposed=store_transposed,
-        renumber=renumber,
-        do_expensive_check=False,
-    )
+    sg = SGGraph(resource_handle,
+                 graph_props,
+                 device_srcs,
+                 device_dsts,
+                 device_weights,
+                 store_transposed=store_transposed,
+                 renumber=renumber,
+                 do_expensive_check=False)
 
-    result = uniform_neighbor_sample(
-        resource_handle,
-        sg,
-        start_list,
-        fanout_vals,
-        with_replacement=with_replacement,
-        do_expensive_check=False,
-    )
+    result = uniform_neighbor_sample(resource_handle,
+                                     sg,
+                                     start_list,
+                                     fanout_vals,
+                                     with_replacement=with_replacement,
+                                     do_expensive_check=False)
 
     check_edges(
-        result,
-        device_srcs,
-        device_dsts,
-        device_weights,
-        num_verts,
-        num_edges,
-        len(start_list),
-    )
+        result, device_srcs, device_dsts, device_weights,
+        num_verts, num_edges, len(start_list))
 
 
 def test_neighborhood_sampling_large_sg_graph(gpubenchmark):
@@ -189,23 +175,21 @@ def test_neighborhood_sampling_large_sg_graph(gpubenchmark):
     # FIXME: this graph is just a line - consider a better graph that exercises
     # neighborhood sampling better/differently
     device_srcs = cp.arange(1e6, dtype=np.int32)
-    device_dsts = cp.arange(1, 1e6 + 1, dtype=np.int32)
-    device_weights = cp.asarray([1.0] * int(1e6), dtype=np.float32)
+    device_dsts = cp.arange(1, 1e6+1, dtype=np.int32)
+    device_weights = cp.asarray([1.0]*int(1e6), dtype=np.float32)
 
     # start_list == every vertex is intentionally excessive
     start_list = device_srcs
     fanout_vals = np.asarray([1, 2], dtype=np.int32)
 
-    sg = SGGraph(
-        resource_handle,
-        graph_props,
-        device_srcs,
-        device_dsts,
-        device_weights,
-        store_transposed=True,
-        renumber=False,
-        do_expensive_check=False,
-    )
+    sg = SGGraph(resource_handle,
+                 graph_props,
+                 device_srcs,
+                 device_dsts,
+                 device_weights,
+                 store_transposed=True,
+                 renumber=False,
+                 do_expensive_check=False)
 
     # Ensure the only memory used after the algo call is for the result, so
     # take a snapshot here.
@@ -223,8 +207,7 @@ def test_neighborhood_sampling_large_sg_graph(gpubenchmark):
         start_list,
         fanout_vals,
         with_replacement=True,
-        do_expensive_check=False,
-    )
+        do_expensive_check=False)
 
     assert type(result) is tuple
     assert isinstance(result[0], cp.ndarray)
@@ -239,7 +222,7 @@ def test_neighborhood_sampling_large_sg_graph(gpubenchmark):
     # amount prior to running the algo.
     free_before_cleanup = device.mem_info[0]
     print(f"{free_before_cleanup=}")
-    result_size = (len(result[0]) + len(result[1]) + len(result[2])) * (32 // 8)
+    result_size = (len(result[0]) + len(result[1]) + len(result[2])) * (32//8)
     del result
     gc.collect()
     free_after_cleanup = device.mem_info[0]
@@ -277,7 +260,7 @@ def test_sample_result():
     sampling_result = create_sampling_result(
         resource_handle,
         device_sources=cp.arange(1e8, dtype="int32"),
-        device_destinations=cp.arange(1, 1e8 + 1, dtype="int32"),
+        device_destinations=cp.arange(1, 1e8+1, dtype="int32"),
         device_indices=cp.arange(1e8, dtype="int32"),
     )
 

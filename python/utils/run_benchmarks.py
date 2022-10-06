@@ -60,39 +60,44 @@ def getBenchmarks(G, edgelist_gdf, args):
     """
 
     benches = [
-        Benchmark(
-            name="cugraph.pagerank",
-            func=cugraph.pagerank,
-            args=(G, args.damping_factor, None, args.max_iter, args.tolerance),
-        ),
-        Benchmark(name="cugraph.bfs", func=cugraph.bfs, args=(G, args.source, True)),
-        Benchmark(name="cugraph.sssp", func=cugraph.sssp, args=(G, args.source)),
-        Benchmark(name="cugraph.jaccard", func=cugraph.jaccard, args=(G,)),
-        Benchmark(name="cugraph.louvain", func=cugraph.louvain, args=(G,)),
-        Benchmark(
-            name="cugraph.weakly_connected_components",
-            func=cugraph.weakly_connected_components,
-            args=(G,),
-        ),
-        Benchmark(name="cugraph.overlap", func=cugraph.overlap, args=(G,)),
-        Benchmark(name="cugraph.triangles", func=cugraph.triangles, args=(G,)),
-        Benchmark(
-            name="cugraph.spectralBalancedCutClustering",
-            func=cugraph.spectralBalancedCutClustering,
-            args=(G, 2),
-        ),
-        Benchmark(
-            name="cugraph.spectralModularityMaximizationClustering",
-            func=cugraph.spectralModularityMaximizationClustering,
-            args=(G, 2),
-        ),
-        Benchmark(
-            name="cugraph.renumber",
-            func=cugraph.renumber,
-            args=(edgelist_gdf["src"], edgelist_gdf["dst"]),
-        ),
-        Benchmark(name="cugraph.graph.degree", func=G.degree),
-        Benchmark(name="cugraph.graph.degrees", func=G.degrees),
+        Benchmark(name="cugraph.pagerank",
+                  func=cugraph.pagerank,
+                  args=(G, args.damping_factor, None, args.max_iter,
+                        args.tolerance)),
+        Benchmark(name="cugraph.bfs",
+                  func=cugraph.bfs,
+                  args=(G, args.source, True)),
+        Benchmark(name="cugraph.sssp",
+                  func=cugraph.sssp,
+                  args=(G, args.source)),
+        Benchmark(name="cugraph.jaccard",
+                  func=cugraph.jaccard,
+                  args=(G,)),
+        Benchmark(name="cugraph.louvain",
+                  func=cugraph.louvain,
+                  args=(G,)),
+        Benchmark(name="cugraph.weakly_connected_components",
+                  func=cugraph.weakly_connected_components,
+                  args=(G,)),
+        Benchmark(name="cugraph.overlap",
+                  func=cugraph.overlap,
+                  args=(G,)),
+        Benchmark(name="cugraph.triangles",
+                  func=cugraph.triangles,
+                  args=(G,)),
+        Benchmark(name="cugraph.spectralBalancedCutClustering",
+                  func=cugraph.spectralBalancedCutClustering,
+                  args=(G, 2)),
+        Benchmark(name="cugraph.spectralModularityMaximizationClustering",
+                  func=cugraph.spectralModularityMaximizationClustering,
+                  args=(G, 2)),
+        Benchmark(name="cugraph.renumber",
+                  func=cugraph.renumber,
+                  args=(edgelist_gdf["src"], edgelist_gdf["dst"])),
+        Benchmark(name="cugraph.graph.degree",
+                  func=G.degree),
+        Benchmark(name="cugraph.graph.degrees",
+                  func=G.degrees),
     ]
     # Return a dictionary of Benchmark name to Benchmark obj mappings
     return dict([(b.name, b) for b in benches])
@@ -100,7 +105,7 @@ def getBenchmarks(G, edgelist_gdf, args):
 
 ########################################
 # cugraph benchmarking utilities
-def loadDataFile(file_name, csv_delimiter=" "):
+def loadDataFile(file_name, csv_delimiter=' '):
     file_type = file_name.split(".")[-1]
 
     if file_type == "mtx":
@@ -108,10 +113,8 @@ def loadDataFile(file_name, csv_delimiter=" "):
     elif file_type == "csv":
         edgelist_gdf = read_csv(file_name, csv_delimiter)
     else:
-        raise ValueError(
-            "bad file type: '%s', %s " % (file_type, file_name)
-            + "must have a .csv or .mtx extension"
-        )
+        raise ValueError("bad file type: '%s', %s " % (file_type, file_name) +
+                         "must have a .csv or .mtx extension")
     return edgelist_gdf
 
 
@@ -120,13 +123,9 @@ def createGraph(edgelist_gdf, createDiGraph, renumber, symmetrized):
         G = cugraph.DiGraph()
     else:
         G = cugraph.Graph(symmetrized=symmetrized)
-    G.from_cudf_edgelist(
-        edgelist_gdf,
-        source="src",
-        destination="dst",
-        edge_attr="val",
-        renumber=renumber,
-    )
+    G.from_cudf_edgelist(edgelist_gdf, source="src",
+                         destination="dst", edge_attr="val",
+                         renumber=renumber)
     return G
 
 
@@ -146,133 +145,84 @@ def computeAdjList(graphObj, transposed=False):
 def read_mtx(mtx_file):
     M = mmread(mtx_file).asfptype()
     gdf = cudf.DataFrame()
-    gdf["src"] = cudf.Series(M.row)
-    gdf["dst"] = cudf.Series(M.col)
+    gdf['src'] = cudf.Series(M.row)
+    gdf['dst'] = cudf.Series(M.col)
     if M.data is None:
-        gdf["val"] = 1.0
+        gdf['val'] = 1.0
     else:
-        gdf["val"] = cudf.Series(M.data)
+        gdf['val'] = cudf.Series(M.data)
 
     return gdf
 
 
 def read_csv(csv_file, delimiter):
     cols = ["src", "dst", "val"]
-    dtypes = OrderedDict(
-        [
+    dtypes = OrderedDict([
             ("src", "int32"),
             ("dst", "int32"),
             ("val", "float32"),
-        ]
-    )
+            ])
 
-    gdf = cudf.read_csv(
-        csv_file, names=cols, delimiter=delimiter, dtype=list(dtypes.values())
-    )
+    gdf = cudf.read_csv(csv_file, names=cols, delimiter=delimiter,
+                        dtype=list(dtypes.values()))
 
-    if gdf["src"].null_count > 0:
+    if gdf['src'].null_count > 0:
         print("The reader failed to parse the input")
-    if gdf["dst"].null_count > 0:
+    if gdf['dst'].null_count > 0:
         print("The reader failed to parse the input")
     # Assume an edge weight of 1.0 if dataset does not provide it
-    if gdf["val"].null_count > 0:
-        gdf["val"] = 1.0
+    if gdf['val'].null_count > 0:
+        gdf['val'] = 1.0
     return gdf
 
 
 def parseCLI(argv):
-    parser = argparse.ArgumentParser(description="CuGraph benchmark script.")
-    parser.add_argument("file", type=str, help="Path to the input file")
-    parser.add_argument(
-        "--algo",
-        type=str,
-        action="append",
-        help='Algorithm to run, must be one of %s, or "ALL"'
-        % ", ".join(['"%s"' % k for k in getAllPossibleAlgos()]),
-    )
-    parser.add_argument(
-        "--damping_factor",
-        type=float,
-        default=0.85,
-        help="Damping factor for pagerank algo. Default is " "0.85",
-    )
-    parser.add_argument(
-        "--max_iter",
-        type=int,
-        default=100,
-        help="Maximum number of iteration for any iterative " "algo. Default is 100",
-    )
-    parser.add_argument(
-        "--tolerance",
-        type=float,
-        default=1e-5,
-        help="Tolerance for any approximation algo. Default " "is 1e-5",
-    )
-    parser.add_argument(
-        "--source", type=int, default=0, help="Source for bfs or sssp. Default is 0"
-    )
-    parser.add_argument(
-        "--compute_adj_list",
-        action="store_true",
-        help="Compute and benchmark the adjacency list "
-        "computation separately. Default is to NOT compute "
-        "the adjacency list and allow the algo to compute it "
-        "if necessary.",
-    )
-    parser.add_argument(
-        "--compute_transposed_adj_list",
-        action="store_true",
-        help="Compute and benchmark the transposed adjacency "
-        "list computation separately. Default is to NOT "
-        "compute the transposed adjacency list and allow the "
-        "algo to compute it if necessary.",
-    )
-    parser.add_argument(
-        "--delimiter",
-        type=str,
-        choices=["tab", "space"],
-        default="space",
-        help="Delimiter for csv files (default is space)",
-    )
-    parser.add_argument(
-        "--update_results_dir",
-        type=str,
-        help="Add (and compare) results to the dir specified",
-    )
-    parser.add_argument(
-        "--update_asv_dir",
-        type=str,
-        help="Add results to the specified ASV dir in ASV " "format",
-    )
-    parser.add_argument(
-        "--report_cuda_ver",
-        type=str,
-        default="",
-        help="The CUDA version to include in reports",
-    )
-    parser.add_argument(
-        "--report_python_ver",
-        type=str,
-        default="",
-        help="The Python version to include in reports",
-    )
-    parser.add_argument(
-        "--report_os_type",
-        type=str,
-        default="",
-        help="The OS type to include in reports",
-    )
-    parser.add_argument(
-        "--report_machine_name",
-        type=str,
-        default="",
-        help="The machine name to include in reports",
-    )
-    parser.add_argument(
-        "--digraph",
-        action="store_true",
-        help="Create a directed graph (default is undirected)",
-    )
+    parser = argparse.ArgumentParser(description='CuGraph benchmark script.')
+    parser.add_argument('file', type=str,
+                        help='Path to the input file')
+    parser.add_argument('--algo', type=str, action="append",
+                        help='Algorithm to run, must be one of %s, or "ALL"'
+                        % ", ".join(['"%s"' % k
+                                     for k in getAllPossibleAlgos()]))
+    parser.add_argument('--damping_factor', type=float, default=0.85,
+                        help='Damping factor for pagerank algo. Default is '
+                        '0.85')
+    parser.add_argument('--max_iter', type=int, default=100,
+                        help='Maximum number of iteration for any iterative '
+                        'algo. Default is 100')
+    parser.add_argument('--tolerance', type=float, default=1e-5,
+                        help='Tolerance for any approximation algo. Default '
+                        'is 1e-5')
+    parser.add_argument('--source', type=int, default=0,
+                        help='Source for bfs or sssp. Default is 0')
+    parser.add_argument('--compute_adj_list', action="store_true",
+                        help='Compute and benchmark the adjacency list '
+                        'computation separately. Default is to NOT compute '
+                        'the adjacency list and allow the algo to compute it '
+                        'if necessary.')
+    parser.add_argument('--compute_transposed_adj_list', action="store_true",
+                        help='Compute and benchmark the transposed adjacency '
+                        'list computation separately. Default is to NOT '
+                        'compute the transposed adjacency list and allow the '
+                        'algo to compute it if necessary.')
+    parser.add_argument('--delimiter', type=str, choices=["tab", "space"],
+                        default="space",
+                        help='Delimiter for csv files (default is space)')
+    parser.add_argument('--update_results_dir', type=str,
+                        help='Add (and compare) results to the dir specified')
+    parser.add_argument('--update_asv_dir', type=str,
+                        help='Add results to the specified ASV dir in ASV '
+                        'format')
+    parser.add_argument('--report_cuda_ver', type=str, default="",
+                        help='The CUDA version to include in reports')
+    parser.add_argument('--report_python_ver', type=str, default="",
+                        help='The Python version to include in reports')
+    parser.add_argument('--report_os_type', type=str, default="",
+                        help='The OS type to include in reports')
+    parser.add_argument('--report_machine_name', type=str, default="",
+                        help='The machine name to include in reports')
+    parser.add_argument('--digraph', action="store_true",
+                        help='Create a directed graph (default is undirected)')
 
     return parser.parse_args(argv)
 
@@ -308,9 +258,8 @@ if __name__ == "__main__":
         allowedAlgoNames = allPossibleAlgos + ["ALL"]
         if (set(args.algo) - set(allowedAlgoNames)) != set():
             raise ValueError(
-                "bad algo(s): '%s', must be in set of %s"
-                % (args.algo, ", ".join(['"%s"' % a for a in allowedAlgoNames]))
-            )
+                "bad algo(s): '%s', must be in set of %s" %
+                (args.algo, ", ".join(['"%s"' % a for a in allowedAlgoNames])))
         algosToRun = args.algo
     else:
         algosToRun = allPossibleAlgos
@@ -320,18 +269,17 @@ if __name__ == "__main__":
     # benchmarked. In this case, "loadDataFile" and "createGraph" return a
     # Dataframe and Graph object respectively, so save those and use them for
     # future benchmarks.
-    csvDelim = {"space": " ", "tab": "\t"}[args.delimiter]
-    edgelist_gdf = Benchmark(
-        loadDataFile, "cugraph.loadDataFile", args=(args.file, csvDelim)
-    ).run()
+    csvDelim = {"space": ' ', "tab": '\t'}[args.delimiter]
+    edgelist_gdf = Benchmark(loadDataFile,
+                             "cugraph.loadDataFile",
+                             args=(args.file, csvDelim)).run()
     renumber = True
     symmetrized = True
 
-    G = Benchmark(
-        createGraph,
-        "cugraph.createGraph",
-        args=(edgelist_gdf, args.digraph, renumber, symmetrized),
-    ).run()
+    G = Benchmark(createGraph,
+                  "cugraph.createGraph",
+                  args=(edgelist_gdf, args.digraph, renumber,
+                        symmetrized)).run()
 
     if G is None:
         raise RuntimeError("could not create graph!")
@@ -342,11 +290,13 @@ if __name__ == "__main__":
     # benchmark be performed in a separate run since there's only one Graph obj
     # and both an adj list and transposed adj list are probably not needed.
     if args.compute_adj_list:
-        Benchmark(computeAdjList, "cugraph.graph.view_adj_list", args=(G, False)).run()
+        Benchmark(computeAdjList,
+                  "cugraph.graph.view_adj_list",
+                  args=(G, False)).run()
     if args.compute_transposed_adj_list and ("cugraph.pagerank" in algosToRun):
-        Benchmark(
-            computeAdjList, "cugraph.graph.view_transposed_adj_list", args=(G, True)
-        ).run()
+        Benchmark(computeAdjList,
+                  "cugraph.graph.view_transposed_adj_list",
+                  args=(G, True)).run()
 
     print("-" * 80)
 
@@ -368,12 +318,10 @@ if __name__ == "__main__":
         # the leading parts are redundant and take up UI space.
         datasetName = "/".join(args.file.split("/")[-3:])
 
-        cugraph_update_asv(
-            asvDir=args.update_asv_dir,
-            datasetName=datasetName,
-            algoRunResults=Benchmark.resultsDict,
-            cudaVer=args.report_cuda_ver,
-            pythonVer=args.report_python_ver,
-            osType=args.report_os_type,
-            machineName=args.report_machine_name,
-        )
+        cugraph_update_asv(asvDir=args.update_asv_dir,
+                           datasetName=datasetName,
+                           algoRunResults=Benchmark.resultsDict,
+                           cudaVer=args.report_cuda_ver,
+                           pythonVer=args.report_python_ver,
+                           osType=args.report_os_type,
+                           machineName=args.report_machine_name)

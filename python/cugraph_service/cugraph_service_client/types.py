@@ -27,14 +27,10 @@ class UnionWrapper:
     """
     Provides easy conversions between py objs and Thrift "unions".
     """
-
     def get_py_obj(self):
         not_members = set(["default_spec", "thrift_spec", "read", "write"])
-        attrs = [
-            a
-            for a in dir(self.union)
-            if not (a.startswith("_")) and a not in not_members
-        ]
+        attrs = [a for a in dir(self.union)
+                 if not(a.startswith("_")) and a not in not_members]
         for a in attrs:
             val = getattr(self.union, a)
             if val is not None:
@@ -61,11 +57,9 @@ class ValueWrapper(UnionWrapper):
         elif isinstance(val, bool):
             self.union = Value(bool_value=val)
         else:
-            raise TypeError(
-                f"{val_name} must be one of the "
-                "following types: [int, str, bool], got "
-                f"{type(val)}"
-            )
+            raise TypeError(f"{val_name} must be one of the "
+                            "following types: [int, str, bool], got "
+                            f"{type(val)}")
 
 
 class GraphVertexEdgeIDWrapper(UnionWrapper):
@@ -84,8 +78,6 @@ class GraphVertexEdgeIDWrapper(UnionWrapper):
             else:
                 self.union = GraphVertexEdgeID(int32_ids=val)
         else:
-            raise TypeError(
-                f"{val_name} must be one of the "
-                "following types: [int, list<int>], got "
-                f"{type(val)}"
-            )
+            raise TypeError(f"{val_name} must be one of the "
+                            "following types: [int, list<int>], got "
+                            f"{type(val)}")

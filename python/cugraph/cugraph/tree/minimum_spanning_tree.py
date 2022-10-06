@@ -13,10 +13,9 @@
 
 from cugraph.tree import minimum_spanning_tree_wrapper
 from cugraph.structure.graph_classes import Graph
-from cugraph.utilities import (
-    ensure_cugraph_obj_for_nx,
-    cugraph_to_nx,
-)
+from cugraph.utilities import (ensure_cugraph_obj_for_nx,
+                               cugraph_to_nx,
+                               )
 
 
 def _minimum_spanning_tree_subgraph(G):
@@ -62,7 +61,9 @@ def _maximum_spanning_tree_subgraph(G):
     return mst_subgraph
 
 
-def minimum_spanning_tree(G, weight=None, algorithm="boruvka", ignore_nan=False):
+def minimum_spanning_tree(
+    G, weight=None, algorithm="boruvka", ignore_nan=False
+):
     """
     Returns a minimum spanning tree (MST) or forest (MSF) on an undirected
     graph
@@ -105,7 +106,9 @@ def minimum_spanning_tree(G, weight=None, algorithm="boruvka", ignore_nan=False)
         return _minimum_spanning_tree_subgraph(G)
 
 
-def maximum_spanning_tree(G, weight=None, algorithm="boruvka", ignore_nan=False):
+def maximum_spanning_tree(
+    G, weight=None, algorithm="boruvka", ignore_nan=False
+):
     """
     Returns a maximum spanning tree (MST) or forest (MSF) on an undirected
     graph. Also computes the adjacency list if G does not have one.

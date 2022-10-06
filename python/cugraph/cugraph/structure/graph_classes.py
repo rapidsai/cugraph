@@ -12,11 +12,9 @@
 # limitations under the License.
 
 import numpy as np
-from .graph_implementation import (
-    simpleGraphImpl,
-    simpleDistributedGraphImpl,
-    npartiteGraphImpl,
-)
+from .graph_implementation import (simpleGraphImpl,
+                                   simpleDistributedGraphImpl,
+                                   npartiteGraphImpl)
 import cudf
 import dask_cudf
 import warnings
@@ -72,14 +70,13 @@ class Graph:
                     weights = "weights"
                 else:
                     weights = None
-                self.from_cudf_edgelist(
-                    elist, source="src", destination="dst", edge_attr=weights
-                )
+                self.from_cudf_edgelist(elist,
+                                        source="src",
+                                        destination="dst",
+                                        edge_attr=weights)
             else:
-                raise TypeError(
-                    "m_graph can only be an instance of a "
-                    f"cugraph.MultiGraph, got {type(m_graph)}"
-                )
+                raise TypeError("m_graph can only be an instance of a "
+                                f"cugraph.MultiGraph, got {type(m_graph)}")
 
     def __getattr__(self, name):
         if self._Impl is None:
@@ -103,7 +100,7 @@ class Graph:
         edge_attr=None,
         renumber=True,
         store_transposed=False,
-        legacy_renum_only=False,
+        legacy_renum_only=False
     ):
         """
         Initialize a graph from the edge list. It is an error to call this
@@ -161,7 +158,8 @@ class Graph:
             self._Impl = simpleGraphImpl(self.graph_properties)
         elif type(self._Impl) is not simpleGraphImpl:
             raise RuntimeError("Graph is already initialized")
-        elif self._Impl.edgelist is not None or self._Impl.adjlist is not None:
+        elif (self._Impl.edgelist is not None or
+              self._Impl.adjlist is not None):
             raise RuntimeError("Graph already has values")
         self._Impl._simpleGraphImpl__from_edgelist(
             input_df,
@@ -170,8 +168,7 @@ class Graph:
             edge_attr=edge_attr,
             renumber=renumber,
             store_transposed=store_transposed,
-            legacy_renum_only=legacy_renum_only,
-        )
+            legacy_renum_only=legacy_renum_only)
 
     def from_cudf_adjlist(self, offset_col, index_col, value_col=None):
         """
@@ -221,9 +218,12 @@ class Graph:
             self._Impl = simpleGraphImpl(self.graph_properties)
         elif type(self._Impl) is not simpleGraphImpl:
             raise RuntimeError("Graph is already initialized")
-        elif self._Impl.edgelist is not None or self._Impl.adjlist is not None:
+        elif (self._Impl.edgelist is not None or
+              self._Impl.adjlist is not None):
             raise RuntimeError("Graph already has values")
-        self._Impl._simpleGraphImpl__from_adjlist(offset_col, index_col, value_col)
+        self._Impl._simpleGraphImpl__from_adjlist(offset_col,
+                                                  index_col,
+                                                  value_col)
 
     def from_dask_cudf_edgelist(
         self,
@@ -233,7 +233,7 @@ class Graph:
         edge_attr=None,
         renumber=True,
         store_transposed=False,
-        legacy_renum_only=False,
+        legacy_renum_only=False
     ):
         """
         Initializes the distributed graph from the dask_cudf.DataFrame
@@ -279,7 +279,7 @@ class Graph:
             self._Impl = simpleDistributedGraphImpl(self.graph_properties)
         elif type(self._Impl) is not simpleDistributedGraphImpl:
             raise RuntimeError("Graph is already initialized")
-        elif self._Impl.edgelist is not None:
+        elif (self._Impl.edgelist is not None):
             raise RuntimeError("Graph already has values")
         self._Impl._simpleDistributedGraphImpl__from_edgelist(
             input_ddf,
@@ -288,7 +288,7 @@ class Graph:
             edge_attr,
             renumber,
             store_transposed,
-            legacy_renum_only,
+            legacy_renum_only
         )
 
     # Move to Compat Module
@@ -346,13 +346,8 @@ class Graph:
             raise TypeError("pdf input is not a Pandas DataFrame")
 
         gdf = cudf.DataFrame.from_pandas(pdf)
-        self.from_cudf_edgelist(
-            gdf,
-            source=source,
-            destination=destination,
-            edge_attr=edge_attr,
-            renumber=renumber,
-        )
+        self.from_cudf_edgelist(gdf, source=source, destination=destination,
+                                edge_attr=edge_attr, renumber=renumber)
 
     def from_pandas_adjacency(self, pdf):
         """
@@ -391,13 +386,13 @@ class Graph:
         weight = np_array[src, dst]
         df = cudf.DataFrame()
         if nodes is not None:
-            df["src"] = nodes[src]
-            df["dst"] = nodes[dst]
+            df['src'] = nodes[src]
+            df['dst'] = nodes[dst]
         else:
-            df["src"] = src
-            df["dst"] = dst
-        df["weight"] = weight
-        self.from_cudf_edgelist(df, "src", "dst", edge_attr="weight")
+            df['src'] = src
+            df['dst'] = dst
+        df['weight'] = weight
+        self.from_cudf_edgelist(df, 'src', 'dst', edge_attr='weight')
 
     def from_numpy_matrix(self, np_matrix):
         """
@@ -414,7 +409,8 @@ class Graph:
         np_array = np.asarray(np_matrix)
         self.from_numpy_array(np_array)
 
-    def unrenumber(self, df, column_name, preserve_order=False, get_column_names=False):
+    def unrenumber(self, df, column_name, preserve_order=False,
+                   get_column_names=False):
         """
         Given a DataFrame containing internal vertex ids in the identified
         column, replace this with external vertex ids. If the renumbering
@@ -450,9 +446,8 @@ class Graph:
             vertex dentifiers are added to the DataFrame, the internal
             vertex identifier column is removed from the dataframe.
         """
-        return self.renumber_map.unrenumber(
-            df, column_name, preserve_order, get_column_names
-        )
+        return self.renumber_map.unrenumber(df, column_name, preserve_order,
+                                            get_column_names)
 
     def lookup_internal_vertex_id(self, df, column_name=None):
         """
@@ -611,7 +606,8 @@ class Graph:
 
         directed_graph = type(self)()
         directed_graph.graph_properties.directed = True
-        directed_graph._Impl = type(self._Impl)(directed_graph.graph_properties)
+        directed_graph._Impl = type(self._Impl)(directed_graph.
+                                                graph_properties)
         self._Impl.to_directed(directed_graph._Impl)
         return directed_graph
 
@@ -641,7 +637,8 @@ class Graph:
             undirected_graph = type(self)()
         else:
             undirected_graph = self.__class__.__bases__[0]()
-        undirected_graph._Impl = type(self._Impl)(undirected_graph.graph_properties)
+        undirected_graph._Impl = type(self._Impl)(undirected_graph.
+                                                  graph_properties)
         self._Impl.to_undirected(undirected_graph._Impl)
         return undirected_graph
 
@@ -664,7 +661,7 @@ class DiGraph(Graph):
     def __init__(self, m_graph=None):
         warnings.warn(
             "DiGraph is deprecated, use Graph(directed=True) instead",
-            DeprecationWarning,
+            DeprecationWarning
         )
         super(DiGraph, self).__init__(m_graph, directed=True)
 
@@ -673,7 +670,6 @@ class MultiGraph(Graph):
     """
     A Multigraph; a Graph containing more than one edge between vertex pairs.
     """
-
     def __init__(self, directed=False):
         super(MultiGraph, self).__init__(directed=directed)
         self.graph_properties.multi_edge = True
@@ -691,7 +687,7 @@ class MultiDiGraph(MultiGraph):
         warnings.warn(
             "MultiDiGraph is deprecated,\
                 use MultiGraph(directed=True) instead",
-            DeprecationWarning,
+            DeprecationWarning
         )
         super(MultiDiGraph, self).__init__(directed=True)
 
@@ -700,7 +696,6 @@ class Tree(Graph):
     """
     A Tree
     """
-
     def __init__(self, directed=False):
         super(Tree, self).__init__(directed=directed)
         self.graph_properties.tree = True
@@ -720,7 +715,7 @@ class NPartiteGraph(Graph):
         edge_attr=None,
         renumber=True,
         store_transposed=False,
-        legacy_renum_only=False,
+        legacy_renum_only=False
     ):
         """
         Initialize a graph from the edge list. It is an error to call this
@@ -783,7 +778,7 @@ class NPartiteGraph(Graph):
             source=source,
             destination=destination,
             edge_attr=edge_attr,
-            renumber=renumber,
+            renumber=renumber
         )
 
     def from_dask_cudf_edgelist(
@@ -794,7 +789,7 @@ class NPartiteGraph(Graph):
         edge_attr=None,
         renumber=True,
         store_transposed=False,
-        legacy_renum_only=False,
+        legacy_renum_only=False
     ):
         """
         Initializes the distributed graph from the dask_cudf.DataFrame
@@ -862,9 +857,8 @@ class NPartiteGraph(Graph):
         if bipartite is None and multipartite is None:
             self._Impl._nodes["all_nodes"] = cudf.Series(nodes)
         else:
-            self._Impl.add_nodes_from(
-                nodes, bipartite=bipartite, multipartite=multipartite
-            )
+            self._Impl.add_nodes_from(nodes, bipartite=bipartite,
+                                      multipartite=multipartite)
 
     def is_multipartite(self):
         """
@@ -879,7 +873,6 @@ class BiPartiteGraph(NPartiteGraph):
     """
     A Bipartite Graph
     """
-
     def __init__(self, directed=False):
         super(BiPartiteGraph, self).__init__(directed=directed, bipartite=True)
 
@@ -896,12 +889,11 @@ class BiPartiteDiGraph(BiPartiteGraph):
     """
     A Directed Bipartite Graph
     """
-
     def __init__(self):
         warnings.warn(
             "BiPartiteDiGraph is deprecated,\
  use BiPartiteGraph(directed=True) instead",
-            DeprecationWarning,
+            DeprecationWarning
         )
         super(BiPartiteDiGraph, self).__init__(directed=True)
 
@@ -911,7 +903,7 @@ class NPartiteDiGraph(NPartiteGraph):
         warnings.warn(
             "NPartiteDiGraph is deprecated,\
  use NPartiteGraph(directed=True) instead",
-            DeprecationWarning,
+            DeprecationWarning
         )
         super(NPartiteGraph, self).__init__(directed=True)
 

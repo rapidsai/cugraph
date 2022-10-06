@@ -12,10 +12,9 @@
 # limitations under the License.
 
 
-from cugraph.utilities import (
-    ensure_cugraph_obj_for_nx,
-    df_score_to_dictionary,
-)
+from cugraph.utilities import (ensure_cugraph_obj_for_nx,
+                               df_score_to_dictionary,
+                               )
 
 
 def degree_centrality(G, normalized=True):
@@ -54,7 +53,7 @@ def degree_centrality(G, normalized=True):
     df.rename(columns={"degree": "degree_centrality"}, inplace=True)
 
     if normalized:
-        df["degree_centrality"] /= G.number_of_nodes() - 1
+        df["degree_centrality"] /= (G.number_of_nodes() - 1)
 
     if isNx is True:
         dict = df_score_to_dictionary(df, "degree_centrality")

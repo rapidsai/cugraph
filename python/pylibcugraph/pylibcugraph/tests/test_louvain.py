@@ -14,11 +14,10 @@
 import cupy as cp
 import numpy as np
 import cudf
-from pylibcugraph import (
-    SGGraph,
-    ResourceHandle,
-    GraphProperties,
-)
+from pylibcugraph import (SGGraph,
+                          ResourceHandle,
+                          GraphProperties,
+                          )
 from pylibcugraph import louvain
 
 
@@ -48,51 +47,31 @@ def test_sg_louvain_cupy():
     resource_handle = ResourceHandle()
     graph_props = GraphProperties(is_symmetric=True, is_multigraph=False)
 
-    device_srcs = cp.asarray(
-        [0, 1, 1, 2, 2, 2, 3, 4, 1, 3, 4, 0, 1, 3, 5, 5], dtype=np.int32
-    )
-    device_dsts = cp.asarray(
-        [1, 3, 4, 0, 1, 3, 5, 5, 0, 1, 1, 2, 2, 2, 3, 4], dtype=np.int32
-    )
+    device_srcs = cp.asarray([0, 1, 1, 2, 2, 2, 3, 4, 1, 3, 4, 0, 1, 3, 5, 5],
+                             dtype=np.int32)
+    device_dsts = cp.asarray([1, 3, 4, 0, 1, 3, 5, 5, 0, 1, 1, 2, 2, 2, 3, 4],
+                             dtype=np.int32)
     device_weights = cp.asarray(
-        [
-            1.0,
-            1.0,
-            1.0,
-            1.0,
-            1.0,
-            1.0,
-            1.0,
-            1.0,
-            1.0,
-            1.0,
-            1.0,
-            1.0,
-            1.0,
-            1.0,
-            1.0,
-            1.0,
-        ],
-        dtype=np.float32,
-    )
+        [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+            1.0, 1.0, 1.0], dtype=np.float32)
 
     max_level = 100
-    resolution = 1.0
+    resolution = 1.
 
-    sg = SGGraph(
-        resource_handle,
-        graph_props,
-        device_srcs,
-        device_dsts,
-        device_weights,
-        store_transposed=False,
-        renumber=True,
-        do_expensive_check=False,
-    )
+    sg = SGGraph(resource_handle,
+                 graph_props,
+                 device_srcs,
+                 device_dsts,
+                 device_weights,
+                 store_transposed=False,
+                 renumber=True,
+                 do_expensive_check=False)
 
-    vertices, clusters, modularity = louvain(
-        resource_handle, sg, max_level, resolution, do_expensive_check=False
-    )
+    vertices, clusters, modularity = louvain(resource_handle,
+                                             sg,
+                                             max_level,
+                                             resolution,
+                                             do_expensive_check=False)
 
     check_results(vertices, clusters, modularity)
 
@@ -101,50 +80,30 @@ def test_sg_louvain_cudf():
     resource_handle = ResourceHandle()
     graph_props = GraphProperties(is_symmetric=True, is_multigraph=False)
 
-    device_srcs = cudf.Series(
-        [0, 1, 1, 2, 2, 2, 3, 4, 1, 3, 4, 0, 1, 3, 5, 5], dtype=np.int32
-    )
-    device_dsts = cudf.Series(
-        [1, 3, 4, 0, 1, 3, 5, 5, 0, 1, 1, 2, 2, 2, 3, 4], dtype=np.int32
-    )
+    device_srcs = cudf.Series([0, 1, 1, 2, 2, 2, 3, 4, 1, 3, 4, 0, 1, 3, 5, 5],
+                              dtype=np.int32)
+    device_dsts = cudf.Series([1, 3, 4, 0, 1, 3, 5, 5, 0, 1, 1, 2, 2, 2, 3, 4],
+                              dtype=np.int32)
     device_weights = cudf.Series(
-        [
-            1.0,
-            1.0,
-            1.0,
-            1.0,
-            1.0,
-            1.0,
-            1.0,
-            1.0,
-            1.0,
-            1.0,
-            1.0,
-            1.0,
-            1.0,
-            1.0,
-            1.0,
-            1.0,
-        ],
-        dtype=np.float32,
-    )
+        [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+            1.0, 1.0, 1.0], dtype=np.float32)
 
     max_level = 100
-    resolution = 1.0
+    resolution = 1.
 
-    sg = SGGraph(
-        resource_handle,
-        graph_props,
-        device_srcs,
-        device_dsts,
-        device_weights,
-        store_transposed=False,
-        renumber=True,
-        do_expensive_check=False,
-    )
+    sg = SGGraph(resource_handle,
+                 graph_props,
+                 device_srcs,
+                 device_dsts,
+                 device_weights,
+                 store_transposed=False,
+                 renumber=True,
+                 do_expensive_check=False)
 
-    vertices, clusters, modularity = louvain(
-        resource_handle, sg, max_level, resolution, do_expensive_check=False
-    )
+    vertices, clusters, modularity = louvain(resource_handle,
+                                             sg,
+                                             max_level,
+                                             resolution,
+                                             do_expensive_check=False)
 
     check_results(vertices, clusters, modularity)

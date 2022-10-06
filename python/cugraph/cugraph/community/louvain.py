@@ -11,17 +11,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from cugraph.utilities import (
-    ensure_cugraph_obj_for_nx,
-    df_score_to_dictionary,
-)
+from cugraph.utilities import (ensure_cugraph_obj_for_nx,
+                               df_score_to_dictionary,
+                               )
 import cudf
 
 from pylibcugraph import louvain as pylibcugraph_louvain
 from pylibcugraph import ResourceHandle
 
 
-def louvain(G, max_iter=100, resolution=1.0):
+def louvain(G, max_iter=100, resolution=1.):
     """
     Compute the modularity optimizing partition of the input graph using the
     Louvain method
@@ -80,13 +79,14 @@ def louvain(G, max_iter=100, resolution=1.0):
     if G.is_directed():
         raise ValueError("input graph must be undirected")
 
-    vertex, partition, mod_score = pylibcugraph_louvain(
-        resource_handle=ResourceHandle(),
-        graph=G._plc_graph,
-        max_level=max_iter,
-        resolution=resolution,
-        do_expensive_check=False,
-    )
+    vertex, partition, mod_score = \
+        pylibcugraph_louvain(
+            resource_handle=ResourceHandle(),
+            graph=G._plc_graph,
+            max_level=max_iter,
+            resolution=resolution,
+            do_expensive_check=False
+        )
 
     df = cudf.DataFrame()
     df["vertex"] = vertex
@@ -96,6 +96,6 @@ def louvain(G, max_iter=100, resolution=1.0):
         df = G.unrenumber(df, "vertex")
 
     if isNx is True:
-        df = df_score_to_dictionary(df, "partition")
+        df = df_score_to_dictionary(df, 'partition')
 
     return df, mod_score
