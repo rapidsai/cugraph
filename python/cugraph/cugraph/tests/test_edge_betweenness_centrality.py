@@ -17,6 +17,8 @@ import pytest
 
 import cugraph
 from cugraph.testing import utils
+from cugraph.experimental.datasets import (
+    DATASETS_SMALL, DATASETS_UNRENUMBERED)
 import random
 import numpy as np
 import cupy
@@ -122,8 +124,14 @@ def calc_edge_betweenness_centrality(
     """
     G = None
     Gnx = None
-    G, Gnx = utils.build_cu_and_nx_graphs(graph_file, directed=directed,
-                                          edgevals=edgevals)
+    dataset_path = graph_file.get_path()
+    Gnx = utils.generate_nx_graph_from_file(
+        dataset_path, directed=directed, edgevals=edgevals)
+
+    G = graph_file.get_graph(
+        create_using=cugraph.Graph(
+            directed=directed), ignore_weights=not edgevals)
+
     assert G is not None and Gnx is not None
     if multi_gpu_batch:
         G.enable_batch()
@@ -303,7 +311,7 @@ def generate_upper_triangle(dataframe):
     return dataframe
 
 
-@pytest.mark.parametrize("graph_file", utils.DATASETS_SMALL)
+@pytest.mark.parametrize("graph_file", DATASETS_SMALL)
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
 @pytest.mark.parametrize("subset_size", SUBSET_SIZE_OPTIONS)
 @pytest.mark.parametrize("normalized", NORMALIZED_OPTIONS)
@@ -334,7 +342,7 @@ def test_edge_betweenness_centrality(
     compare_scores(sorted_df, first_key="cu_bc", second_key="ref_bc")
 
 
-@pytest.mark.parametrize("graph_file", utils.DATASETS_SMALL)
+@pytest.mark.parametrize("graph_file", DATASETS_SMALL)
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
 @pytest.mark.parametrize("subset_size", [None])
 @pytest.mark.parametrize("normalized", NORMALIZED_OPTIONS)
@@ -375,7 +383,7 @@ def test_edge_betweenness_centrality_k_full(
 #       the function operating the comparison inside is first proceeding
 #       to a random sampling over the number of vertices (thus direct offsets)
 #       in the graph structure instead of actual vertices identifiers
-@pytest.mark.parametrize("graph_file", utils.DATASETS_UNRENUMBERED)
+@pytest.mark.parametrize("graph_file", DATASETS_UNRENUMBERED)
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
 @pytest.mark.parametrize("subset_size", SUBSET_SIZE_OPTIONS)
 @pytest.mark.parametrize("normalized", NORMALIZED_OPTIONS)
@@ -411,7 +419,7 @@ def test_edge_betweenness_centrality_fixed_sample(
     compare_scores(sorted_df, first_key="cu_bc", second_key="ref_bc")
 
 
-@pytest.mark.parametrize("graph_file", utils.DATASETS_SMALL)
+@pytest.mark.parametrize("graph_file", DATASETS_SMALL)
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
 @pytest.mark.parametrize("subset_size", SUBSET_SIZE_OPTIONS)
 @pytest.mark.parametrize("normalized", NORMALIZED_OPTIONS)
@@ -449,7 +457,7 @@ def test_edge_betweenness_centrality_weight_except(
         compare_scores(sorted_df, first_key="cu_bc", second_key="ref_bc")
 
 
-@pytest.mark.parametrize("graph_file", utils.DATASETS_SMALL)
+@pytest.mark.parametrize("graph_file", DATASETS_SMALL)
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
 @pytest.mark.parametrize("normalized", NORMALIZED_OPTIONS)
 @pytest.mark.parametrize("subset_size", SUBSET_SIZE_OPTIONS)
@@ -483,7 +491,7 @@ def test_edge_betweenness_invalid_dtype(
         compare_scores(sorted_df, first_key="cu_bc", second_key="ref_bc")
 
 
-@pytest.mark.parametrize("graph_file", utils.DATASETS_SMALL)
+@pytest.mark.parametrize("graph_file", DATASETS_SMALL)
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
 @pytest.mark.parametrize("edgevals", WEIGHTED_GRAPH_OPTIONS)
 def test_edge_betweenness_centrality_nx(
@@ -491,7 +499,8 @@ def test_edge_betweenness_centrality_nx(
         directed,
         edgevals
 ):
-    Gnx = utils.generate_nx_graph_from_file(graph_file, directed, edgevals)
+    dataset_path = graph_file.get_path()
+    Gnx = utils.generate_nx_graph_from_file(dataset_path, directed, edgevals)
     assert nx.is_directed(Gnx) == directed
 
     nx_bc = nx.edge_betweenness_centrality(Gnx)

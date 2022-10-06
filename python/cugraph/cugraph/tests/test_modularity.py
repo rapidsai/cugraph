@@ -20,6 +20,7 @@ import cudf
 import cugraph
 from cugraph.testing import utils
 from cugraph.utilities import ensure_cugraph_obj_for_nx
+from cugraph.experimental.datasets import DATASETS
 
 import networkx as nx
 
@@ -54,15 +55,16 @@ def random_call(G, partitions):
 PARTITIONS = [2, 4, 8]
 
 
-@pytest.mark.parametrize("graph_file", utils.DATASETS)
+@pytest.mark.parametrize("graph_file", DATASETS)
 @pytest.mark.parametrize("partitions", PARTITIONS)
 def test_modularity_clustering(graph_file, partitions):
     gc.collect()
 
     # Read in the graph and get a cugraph object
-    cu_M = utils.read_csv_file(graph_file, read_weights_in_sp=False)
-    G = cugraph.Graph()
-    G.from_cudf_edgelist(cu_M, source="0", destination="1", edge_attr="2")
+    G = graph_file.get_graph()
+    # read_weights_in_sp=False => value column dtype is float64
+    G.edgelist.edgelist_df['weights'] = \
+        G.edgelist.edgelist_df['weights'].astype("float64")
 
     # Get the modularity score for partitioning versus random assignment
     cu_score = cugraph_call(G, partitions)
@@ -73,11 +75,12 @@ def test_modularity_clustering(graph_file, partitions):
     assert cu_score > rand_score
 
 
-@pytest.mark.parametrize("graph_file", utils.DATASETS)
+@pytest.mark.parametrize("graph_file", DATASETS)
 @pytest.mark.parametrize("partitions", PARTITIONS)
 def test_modularity_clustering_nx(graph_file, partitions):
     # Read in the graph and get a cugraph object
-    csv_data = utils.read_csv_for_nx(graph_file, read_weights_in_sp=True)
+    dataset_path = graph_file.get_path()
+    csv_data = utils.read_csv_for_nx(dataset_path, read_weights_in_sp=True)
 
     nxG = nx.from_pandas_edgelist(
             csv_data,
@@ -102,11 +105,12 @@ def test_modularity_clustering_nx(graph_file, partitions):
     assert cu_score > rand_score
 
 
-@pytest.mark.parametrize("graph_file", utils.DATASETS)
+@pytest.mark.parametrize("graph_file", DATASETS)
 @pytest.mark.parametrize("partitions", PARTITIONS)
 def test_modularity_clustering_multi_column(graph_file, partitions):
     # Read in the graph and get a cugraph object
-    cu_M = utils.read_csv_file(graph_file, read_weights_in_sp=False)
+    dataset_path = graph_file.get_path()
+    cu_M = utils.read_csv_file(dataset_path, read_weights_in_sp=False)
     cu_M.rename(columns={'0': 'src_0', '1': 'dst_0'}, inplace=True)
     cu_M['src_1'] = cu_M['src_0'] + 1000
     cu_M['dst_1'] = cu_M['dst_0'] + 1000

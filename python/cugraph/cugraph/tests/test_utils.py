@@ -12,26 +12,20 @@
 # limitations under the License.
 
 import gc
-from pathlib import PurePath
 
 import pytest
 
 import cugraph
 import cudf
 from cugraph.testing import utils
+from cugraph.experimental.datasets import karate
 import numpy as np
 
 
 def test_bfs_paths():
     with pytest.raises(ValueError) as ErrorMsg:
         gc.collect()
-
-        graph_file = PurePath(utils.RAPIDS_DATASET_ROOT_DIR)/"karate.csv"
-
-        cu_M = utils.read_csv_file(graph_file)
-
-        G = cugraph.Graph()
-        G.from_cudf_edgelist(cu_M, source='0', destination='1', edge_attr='2')
+        G = karate.get_graph()
 
         # run BFS starting at vertex 17
         df = cugraph.bfs(G,  16)
@@ -50,13 +44,7 @@ def test_bfs_paths():
 def test_bfs_paths_array():
     with pytest.raises(ValueError) as ErrorMsg:
         gc.collect()
-
-        graph_file = PurePath(utils.RAPIDS_DATASET_ROOT_DIR)/"karate.csv"
-
-        cu_M = utils.read_csv_file(graph_file)
-
-        G = cugraph.Graph()
-        G.from_cudf_edgelist(cu_M, source='0', destination='1', edge_attr='2')
+        G = karate.get_graph()
 
         # run BFS starting at vertex 17
         df = cugraph.bfs(G,  16)
