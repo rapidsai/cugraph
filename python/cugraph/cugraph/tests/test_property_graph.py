@@ -193,7 +193,7 @@ def setup_function():
     gc.collect()
     # Set the global DiGraph_inst. This is used for calls that require a Graph
     # type or instance to be provided for tests that use a directed graph.
-    DiGraph_inst = cugraph.Graph(directed=True)  # noqa: F841
+    DiGraph_inst = cugraph.Graph(directed=True)
 
 
 # =============================================================================
