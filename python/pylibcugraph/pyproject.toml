@@ -10,3 +10,6 @@ requires = [
     "cmake>=3.23.1",
     "ninja",
 ]
+
+[tool.black]
+extend-exclude = "versioneer.py"

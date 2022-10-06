@@ -81,14 +81,16 @@ def test_sg_graph(graph_data):
     resource_handle = ResourceHandle()
 
     if is_valid:
-        g = SGGraph(resource_handle,  # noqa:F841
-                    graph_props,
-                    device_srcs,
-                    device_dsts,
-                    device_weights,
-                    store_transposed=False,
-                    renumber=False,
-                    do_expensive_check=False)
+        g = SGGraph(  # noqa:F841
+            resource_handle,
+            graph_props,
+            device_srcs,
+            device_dsts,
+            device_weights,
+            store_transposed=False,
+            renumber=False,
+            do_expensive_check=False,
+        )
         # call SGGraph.__dealloc__()
         del g
 
