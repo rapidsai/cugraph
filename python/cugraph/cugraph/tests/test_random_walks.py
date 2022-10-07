@@ -17,17 +17,16 @@ import random
 import pytest
 from cudf.testing import assert_series_equal
 
-from cugraph.testing import utils
 import cugraph
-
+from cugraph.experimental.datasets import DATASETS, DATASETS_SMALL
 
 # =============================================================================
 # Parameters
 # =============================================================================
 DIRECTED_GRAPH_OPTIONS = [False, True]
 WEIGHTED_GRAPH_OPTIONS = [False, True]
-DATASETS = [pytest.param(d) for d in utils.DATASETS]
-DATASETS_SMALL = [pytest.param(d) for d in utils.DATASETS_SMALL]
+DATASETS = [pytest.param(d) for d in DATASETS]
+DATASETS_SMALL = [pytest.param(d) for d in DATASETS_SMALL]
 
 
 # =============================================================================
@@ -74,8 +73,7 @@ def calc_random_walks(graph_file,
     sizes: int
         The path size in case of coalesced paths.
     """
-    G = utils.generate_cugraph_graph_from_file(
-        graph_file, directed=directed, edgevals=True)
+    G = graph_file.get_graph(create_using=cugraph.Graph(directed=directed))
     assert G is not None
 
     k = random.randint(1, 10)
@@ -123,7 +121,7 @@ def check_random_walks(path_data, seeds, df_G=None):
     assert invalid_seeds == 0
 
 
-@pytest.mark.parametrize("graph_file", utils.DATASETS_SMALL)
+@pytest.mark.parametrize("graph_file", DATASETS_SMALL)
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
 @pytest.mark.parametrize("max_depth", [None])
 def test_random_walks_invalid_max_dept(graph_file,
@@ -137,16 +135,14 @@ def test_random_walks_invalid_max_dept(graph_file,
         )
 
 
-@pytest.mark.parametrize("graph_file", utils.DATASETS_SMALL)
+@pytest.mark.parametrize("graph_file", DATASETS_SMALL)
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
 def test_random_walks_coalesced(
     graph_file,
     directed
 ):
     max_depth = random.randint(2, 10)
-    df_G = utils.read_csv_file(graph_file)
-    df_G.rename(
-        columns={"0": "src", "1": "dst", "2": "weight"}, inplace=True)
+    df_G = graph_file.get_edgelist()
     path_data, seeds = calc_random_walks(
         graph_file,
         directed,
@@ -164,16 +160,13 @@ def test_random_walks_coalesced(
     assert df['weight_offsets'].to_numpy().tolist() == w_offsets
 
 
-@pytest.mark.parametrize("graph_file", utils.DATASETS_SMALL)
+@pytest.mark.parametrize("graph_file", DATASETS_SMALL)
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
 def test_random_walks_padded(
     graph_file,
     directed
 ):
     max_depth = random.randint(2, 10)
-    df_G = utils.read_csv_file(graph_file)
-    df_G.rename(
-        columns={"0": "src", "1": "dst", "2": "weight"}, inplace=True)
     path_data, seeds = calc_random_walks(
         graph_file,
         directed,

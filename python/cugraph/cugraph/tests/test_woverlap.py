@@ -18,6 +18,7 @@ import scipy
 import numpy as np
 import cudf
 from cudf.testing import assert_series_equal
+from cugraph.experimental.datasets import DATASETS_UNDIRECTED
 
 import cugraph
 from cugraph.testing import utils
@@ -30,17 +31,18 @@ def setup_function():
     gc.collect()
 
 
-def cugraph_call(benchmark_callable, cu_M, pairs):
+def cugraph_call(benchmark_callable, graph_file, pairs):
     # Device data
+    cu_M = graph_file.get_edgelist()
     weights_arr = cudf.Series(
-        np.ones(max(cu_M["0"].max(), cu_M["1"].max()) + 1, dtype=np.float32)
+        np.ones(
+            max(cu_M["src"].max(), cu_M["dst"].max()) + 1, dtype=np.float32)
     )
     weights = cudf.DataFrame()
     weights['vertex'] = np.arange(len(weights_arr), dtype=np.int32)
     weights['weight'] = weights_arr
 
-    G = cugraph.Graph(directed=True)
-    G.from_cudf_edgelist(cu_M, source="0", destination="1")
+    G = graph_file.get_graph(create_using=cugraph.Graph(directed=True))
 
     # cugraph Overlap Call
     df = benchmark_callable(cugraph.overlap_w, G, weights, pairs)
@@ -92,25 +94,23 @@ def cpu_call(M, first, second):
     return result
 
 
-@pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
+@pytest.mark.parametrize("graph_file", DATASETS_UNDIRECTED)
 def test_woverlap(gpubenchmark, graph_file):
-
-    Mnx = utils.read_csv_for_nx(graph_file)
+    dataset_path = graph_file.get_path()
+    Mnx = utils.read_csv_for_nx(dataset_path)
     N = max(max(Mnx["0"]), max(Mnx["1"])) + 1
     M = scipy.sparse.csr_matrix(
         (Mnx.weight, (Mnx["0"], Mnx["1"])), shape=(N, N)
     )
 
-    cu_M = utils.read_csv_file(graph_file)
-    G = cugraph.Graph()
-    G.from_cudf_edgelist(cu_M, source="0", destination="1")
+    G = graph_file.get_graph(ignore_weights=True)
     pairs = (
         G.get_two_hop_neighbors()
         .sort_values(["first", "second"])
         .reset_index(drop=True)
     )
 
-    cu_coeff = cugraph_call(gpubenchmark, cu_M, pairs)
+    cu_coeff = cugraph_call(gpubenchmark, graph_file, pairs)
     cpu_coeff = cpu_call(M, pairs["first"], pairs["second"])
     assert len(cu_coeff) == len(cpu_coeff)
     for i in range(len(cu_coeff)):
@@ -123,10 +123,10 @@ def test_woverlap(gpubenchmark, graph_file):
             assert diff < 1.0e-6
 
 
-@pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
+@pytest.mark.parametrize("graph_file", DATASETS_UNDIRECTED)
 def test_woverlap_multi_column(graph_file):
-
-    M = utils.read_csv_for_nx(graph_file)
+    dataset_path = graph_file.get_path()
+    M = utils.read_csv_for_nx(dataset_path)
 
     cu_M = cudf.DataFrame()
     cu_M["src_0"] = cudf.Series(M["0"])
