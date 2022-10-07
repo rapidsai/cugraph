@@ -15,13 +15,15 @@
  */
 #pragma once
 
-#include <prims/extract_transform_v_frontier_outgoing_e.cuh>
+#include <prims/reduce_op.cuh>
+#include <prims/transform_reduce_v_frontier_outgoing_e_by_dst.cuh>
 #include <prims/vertex_frontier.cuh>
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/utilities/error.hpp>
+#include <cugraph/utilities/shuffle_comm.cuh>
 #include <cugraph/vertex_partition_device_view.cuh>
 
 #include <raft/handle.hpp>
@@ -44,12 +46,12 @@ namespace {
 
 template <typename vertex_t>
 struct e_op_t {
-  __device__ thrust::tuple<vertex_t, size_t> operator()(thrust::tuple<vertex_t, size_t> tagged_src,
-                                                        vertex_t dst,
-                                                        thrust::nullopt_t,
-                                                        thrust::nullopt_t) const
+  __device__ thrust::optional<size_t> operator()(thrust::tuple<vertex_t, size_t> tagged_src,
+                                                 vertex_t,
+                                                 thrust::nullopt_t,
+                                                 thrust::nullopt_t) const
   {
-    return thrust::make_tuple(dst, thrust::get<1>(tagged_src));
+    return thrust::get<1>(tagged_src);
   }
 };
 
@@ -67,7 +69,7 @@ struct compute_gpu_id_t {
 
 namespace detail {
 
-template <typename GraphViewType, typename PredecessorIterator>
+template <typename GraphViewType>
 std::tuple<rmm::device_uvector<size_t>, rmm::device_uvector<typename GraphViewType::vertex_type>>
 k_hop_nbrs(raft::handle_t const& handle,
            GraphViewType const& push_graph_view,
@@ -89,7 +91,7 @@ k_hop_nbrs(raft::handle_t const& handle,
   } else {
     start_vertex_counts = std::vector<size_t>{start_vertices.size()};
   }
-  std::vector<vertex_t> start_vertex_displacements(start_vertex_counts.size());
+  std::vector<size_t> start_vertex_displacements(start_vertex_counts.size());
   if constexpr (GraphViewType::is_multi_gpu) {
     std::exclusive_scan(start_vertex_counts.begin(),
                         start_vertex_counts.end(),
@@ -133,23 +135,23 @@ k_hop_nbrs(raft::handle_t const& handle,
   auto key_first = thrust::make_zip_iterator(
     start_vertices.begin(),
     thrust::make_counting_iterator(
-      start_vertex_displacements[multi_gpu ? handle.get_comms().get_rank() : 0]));
+      start_vertex_displacements[GraphViewType::is_multi_gpu ? handle.get_comms().get_rank() : 0]));
   frontier.bucket(bucket_idx_cur).insert(key_first, key_first + start_vertices.size());
 
   // 3. K-hop nbrs iteration
 
   rmm::device_uvector<size_t> start_vertex_indices(0, handle.get_stream());
-  rmm::device_uvector<size_t> nbrs(0, handle.get_stream());
+  rmm::device_uvector<vertex_t> nbrs(0, handle.get_stream());
   for (size_t iter = 0; iter < k; ++iter) {
     auto new_frontier_key_buffer =
-      extract_transform_v_frontier_outgoing_e(handle,
-                                              push_graph_view,
-                                              vertex_frontier.bucket(bucket_idx_cur),
-                                              edge_src_dummy_property_t{}.view(),
-                                              edge_dst_dummy_property_t{}.view(),
-                                              e_op_t<vertex_t>{},
-                                              do_expensive_check);
-
+      transform_reduce_v_frontier_outgoing_e_by_dst(handle,
+                                                    push_graph_view,
+                                                    frontier.bucket(bucket_idx_cur),
+                                                    edge_src_dummy_property_t{}.view(),
+                                                    edge_dst_dummy_property_t{}.view(),
+                                                    e_op_t<vertex_t>{},
+                                                    reduce_op::null{},
+                                                    do_expensive_check);
     if (iter < (k - 1)) {
       frontier.bucket(bucket_idx_cur).clear();
       frontier.bucket(bucket_idx_cur)
@@ -157,18 +159,18 @@ k_hop_nbrs(raft::handle_t const& handle,
                 get_dataframe_buffer_end(new_frontier_key_buffer));
       frontier.bucket(bucket_idx_cur).shrink_to_fit();
     } else {
-      start_vertex_indices = std::get<1>(new_frontier_key_buffer);
-      nbrs                 = std::get<0>(new_frontier_key_buffer);
+      start_vertex_indices = std::move(std::get<1>(new_frontier_key_buffer));
+      nbrs                 = std::move(std::get<0>(new_frontier_key_buffer));
     }
   }
 
-  if constexpr (GraphViewType::is_multi_gpu && (handle.get_comms().get_size() > 1)) {
+  if (GraphViewType::is_multi_gpu && (handle.get_comms().get_size() > 1)) {
     rmm::device_uvector<size_t> lasts(handle.get_comms().get_size(), handle.get_stream());
     raft::update_device(lasts.data(),
                         start_vertex_displacements.data() + 1,
                         start_vertex_displacements.size() - 1,
                         handle.get_stream());
-    auto num_elements = start_vertex_displacements.back() + start_vertex_counts.back();
+    auto num_indices = start_vertex_displacements.back() + start_vertex_counts.back();
     lasts.set_element_async(lasts.size() - 1, num_indices, handle.get_stream());
     std::tie(start_vertex_indices, nbrs, std::ignore) = groupby_gpu_id_and_shuffle_kv_pairs(
       handle.get_comms(),
@@ -212,7 +214,7 @@ k_hop_nbrs(raft::handle_t const& handle,
   thrust::exclusive_scan(
     handle.get_thrust_policy(), offsets.begin(), offsets.end(), offsets.begin(), size_t{0});
 
-  return std::make_tuple(std::move(offsets), std::move(nbrs);
+  return std::make_tuple(std::move(offsets), std::move(nbrs));
 }
 
 }  // namespace detail
