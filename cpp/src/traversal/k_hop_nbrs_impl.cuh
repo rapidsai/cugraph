@@ -164,6 +164,8 @@ k_hop_nbrs(raft::handle_t const& handle,
     }
   }
 
+  // 4. update offsets (and sort nbrs accordingly)
+
   if (GraphViewType::is_multi_gpu && (handle.get_comms().get_size() > 1)) {
     rmm::device_uvector<size_t> lasts(handle.get_comms().get_size(), handle.get_stream());
     raft::update_device(lasts.data(),
