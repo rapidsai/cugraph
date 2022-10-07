@@ -282,6 +282,10 @@ class CuGraphStore:
         return self.gdata.vertices_ids()
 
     def _get_edgeid_type_d(self, edge_ids, etypes):
+        if isinstance(edge_ids, cudf.Series):
+            # Work around for below issue
+            # https://github.com/rapidsai/cudf/issues/11877
+            edge_ids = edge_ids.values_host
         df = self.gdata.get_edge_data(edge_ids=edge_ids, columns=[type_n])
         if isinstance(df, dask_cudf.DataFrame):
             df = df.compute()

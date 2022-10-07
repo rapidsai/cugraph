@@ -377,7 +377,7 @@ def test_sampling_gs_heterogeneous_in_dir(gs_heterogeneous_dgl_eg):
             cudf.testing.assert_frame_equal(output_df, expected_df)
 
 
-def test_sampling_gs_heterogeneous_out_dir(dask_client):
+def test_sampling_gs_heterogeneous_out_dir(gs_heterogeneous_dgl_eg):
     gs = gs_heterogeneous_dgl_eg
     # DGL expected_output from
     # https://gist.github.com/VibhuJawa/f85fda8e1183886078f2a34c28c4638c
