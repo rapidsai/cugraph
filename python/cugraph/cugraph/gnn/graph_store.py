@@ -51,24 +51,36 @@ class CuGraphStore:
         self.ndata_feat_col_d = defaultdict(list)
         self.backend_lib = backend_lib
 
-    def add_node_data(self, df, node_col_name, feat_name, ntype=None):
+    def add_node_data(
+        self, df, node_col_name, feat_name, ntype=None, is_vector_feature=True
+    ):
         self.gdata.add_vertex_data(
             df, vertex_col_name=node_col_name, type_name=ntype
         )
         columns = [col for col in list(df.columns) if col != node_col_name]
-        self.ndata_feat_col_d[feat_name] = columns
 
-    def add_edge_data(self, df, vertex_col_names, feat_name, etype=None):
+        if is_vector_feature:
+            self.ndata_feat_col_d[feat_name] = columns
+        else:
+            for col in columns:
+                self.ndata_feat_col_d[col] = [col]
+
+    def add_edge_data(
+        self, df, node_col_names, feat_name, etype=None, is_vector_feature=True
+    ):
         self.gdata.add_edge_data(
-            df, vertex_col_names=vertex_col_names, type_name=etype
+            df, vertex_col_names=node_col_names, type_name=etype
         )
         columns = [
-            col for col in list(df.columns) if col not in vertex_col_names
+            col for col in list(df.columns) if col not in node_col_names
         ]
-        self.edata_feat_col_d[feat_name] = columns
+        if is_vector_feature:
+            self.edata_feat_col_d[feat_name] = columns
+        else:
+            for col in columns:
+                self.edata_feat_col_d[col] = [col]
 
     def get_node_storage(self, feat_name, ntype=None):
-
         if ntype is None:
             ntypes = self.ntypes
             if len(self.ntypes) > 1:
@@ -195,8 +207,7 @@ class CuGraphStore:
             )
 
         if isinstance(nodes_cap, dict):
-            nodes = [cudf.from_dlpack(nodes) for nodes in nodes_cap.values()]
-            nodes = cudf.concat(nodes, ignore_index=True)
+            nodes = {t: cudf.from_dlpack(n) for t, n in nodes_cap.items()}
         else:
             nodes = cudf.from_dlpack(nodes_cap)
 
@@ -216,20 +227,24 @@ class CuGraphStore:
             # of the seed dtype is not same as the node dtype
 
             self.set_sg_node_dtype(list(sgs.values())[0])
-            nodes = nodes.astype(self._sg_node_dtype)
             sampled_df = sample_multiple_sgs(
-                sgs, sample_f, nodes, fanout, replace
+                sgs,
+                sample_f,
+                nodes,
+                self._sg_node_dtype,
+                edge_dir,
+                fanout,
+                replace,
             )
         else:
             if edge_dir == "in":
                 sg = self.extracted_reverse_subgraph
             else:
                 sg = self.extracted_subgraph
-            # Uniform sampling fails when the dtype
-            # of the seed dtype is not same as the node dtype
             self.set_sg_node_dtype(sg)
-            nodes = nodes.astype(self._sg_node_dtype)
-            sampled_df = sample_single_sg(sg, sample_f, nodes, fanout, replace)
+            sampled_df = sample_single_sg(
+                sg, sample_f, nodes, self._sg_node_dtype, fanout, replace
+            )
 
         # we reverse directions when directions=='in'
         if edge_dir == "in":
@@ -274,9 +289,7 @@ class CuGraphStore:
 
     @cached_property
     def extracted_subgraph(self):
-        edge_list = self.gdata.get_edge_data(
-            columns=[src_n, dst_n, type_n]
-        )
+        edge_list = self.gdata.get_edge_data(columns=[src_n, dst_n, type_n])
         edge_list = edge_list.reset_index(drop=True)
 
         return get_subgraph_from_edgelist(
@@ -285,9 +298,7 @@ class CuGraphStore:
 
     @cached_property
     def extracted_reverse_subgraph(self):
-        edge_list = self.gdata.get_edge_data(
-            columns=[src_n, dst_n, type_n]
-        )
+        edge_list = self.gdata.get_edge_data(columns=[src_n, dst_n, type_n])
         return get_subgraph_from_edgelist(
             edge_list, self.is_mg, reverse_edges=True
         )
@@ -361,7 +372,9 @@ class CuGraphStore:
             The dst nodes for the given ids
         """
         edge_ids = cudf.from_dlpack(edge_ids_cap)
-        subset_df = self.gdata.get_edge_data(edge_ids=edge_ids, columns=type_n)
+        subset_df = self.gdata.get_edge_data(
+            edge_ids=edge_ids, columns=type_n, types=[etype]
+        )
         if isinstance(subset_df, dask_cudf.DataFrame):
             subset_df = subset_df.compute()
         return subset_df[src_n].to_dlpack(), subset_df[dst_n].to_dlpack()
@@ -388,8 +401,9 @@ class CuGraphStore:
             The sampled subgraph with the same node ID space with the original
             graph.
         """
-        _g = self.gdata.extract_subgraph(create_using=create_using,
-                                         check_multi_edges=True)
+        _g = self.gdata.extract_subgraph(
+            create_using=create_using, check_multi_edges=True
+        )
 
         if nodes is None:
             return _g
@@ -397,6 +411,11 @@ class CuGraphStore:
             _n = cudf.Series(nodes)
             _subg = cugraph.subgraph(_g, _n)
             return _subg
+
+    def __clear_cached_properties():
+        # TODO: Clear cached properties
+        # After adding edge/node properties
+        pass
 
 
 class CuFeatureStorage:
@@ -462,7 +481,10 @@ class CuFeatureStorage:
 
         if isinstance(subset_df, dask_cudf.DataFrame):
             subset_df = subset_df.compute()
-        tensor = self.from_dlpack(subset_df.to_dlpack())
+        if len(subset_df) == 0:
+            raise ValueError("indices={indices} not found in FeatureStorage")
+        else:
+            tensor = self.from_dlpack(subset_df.to_dlpack())
 
         if isinstance(tensor, cp.ndarray):
             # can not transfer to
@@ -490,7 +512,15 @@ def return_dlpack_d(d):
     return dlpack_d
 
 
-def sample_single_sg(sg, sample_f, start_list, fanout, with_replacement):
+def sample_single_sg(
+    sg, sample_f, start_list, start_list_dtype, fanout, with_replacement
+):
+    if isinstance(start_list, dict):
+        start_list = cudf.concat(list(start_list.values()))
+
+    # Uniform sampling fails when the dtype
+    # of the seed dtype is not same as the node dtype
+    start_list = start_list.astype(start_list_dtype)
     sampled_df = sample_f(
         sg,
         start_list=start_list,
@@ -502,15 +532,57 @@ def sample_single_sg(sg, sample_f, start_list, fanout, with_replacement):
     return sampled_df
 
 
-def sample_multiple_sgs(sgs, sample_f, start_list, fanout, with_replacement):
+def sample_multiple_sgs(
+    sgs,
+    sample_f,
+    start_list_d,
+    start_list_dtype,
+    edge_dir,
+    fanout,
+    with_replacement,
+):
+    start_list_types = list(start_list_d.keys())
     output_dfs = [
-        sample_single_sg(sg, sample_f, start_list, fanout, with_replacement)
-        for sg in sgs.values()
+        sample_single_sg(
+            sg,
+            sample_f,
+            start_list_d,
+            start_list_dtype,
+            fanout,
+            with_replacement,
+        )
+        for can_etype, sg in sgs.items()
+        if _edge_types_contains_canonical_etype(
+            can_etype, start_list_types, edge_dir
+        )
     ]
+
+    if len(output_dfs) == 0:
+        empty_df = cudf.DataFrame(
+            {"sources": [], "destinations": [], "indices": []}
+        )
+        return empty_df.astype(cp.int32)
+
     if isinstance(output_dfs[0], dask_cudf.DataFrame):
         return dask_cudf.concat(output_dfs, ignore_index=True)
     else:
         return cudf.concat(output_dfs, ignore_index=True)
+
+
+def _edge_types_contains_canonical_etype(can_etype_s, edge_types, edge_dir):
+    (src_type, etype, dst_type) = _convert_can_etype_s_to_tup(can_etype_s)
+    if edge_dir == "in":
+        return dst_type in edge_types
+    else:
+        return src_type in edge_types
+
+
+def _convert_can_etype_s_to_tup(canonical_etype_s):
+    src_type, etype, dst_type = canonical_etype_s.split(",")
+    src_type = src_type[2:-1]
+    dst_type = dst_type[2:-2]
+    etype = etype[2:-1]
+    return (src_type, etype, dst_type)
 
 
 def get_subgraph_from_edgelist(edge_list, is_mg, reverse_edges=False):

@@ -71,7 +71,7 @@ def test_node_data_pg(graph_file):
     pG = PropertyGraph()
     gstore = cugraph.gnn.CuGraphStore(graph=pG, backend_lib="cupy")
     gstore.add_edge_data(
-        cu_M, vertex_col_names=("0", "1"), feat_name="edge_feat"
+        cu_M, node_col_names=("0", "1"), feat_name="edge_feat"
     )
 
     edata_f = gstore.get_edge_storage("edge_feat")
@@ -94,7 +94,7 @@ def test_egonet(graph_file):
     pG = PropertyGraph()
     gstore = cugraph.gnn.CuGraphStore(graph=pG, backend_lib="cupy")
     gstore.add_edge_data(
-        cu_M, vertex_col_names=("0", "1"), feat_name="edge_feat"
+        cu_M, node_col_names=("0", "1"), feat_name="edge_feat"
     )
 
     nodes = [1, 2]
@@ -118,7 +118,7 @@ def test_workflow(graph_file):
 
     pg = PropertyGraph()
     gstore = cugraph.gnn.CuGraphStore(graph=pg)
-    gstore.add_edge_data(cu_M, vertex_col_names=("0", "1"), feat_name="feat")
+    gstore.add_edge_data(cu_M, node_col_names=("0", "1"), feat_name="feat")
     nodes = gstore.get_vertex_ids()
     num_nodes = len(nodes)
 
@@ -140,7 +140,7 @@ def test_sample_neighbors(graph_file):
 
     pg = PropertyGraph()
     gstore = cugraph.gnn.CuGraphStore(graph=pg)
-    gstore.add_edge_data(cu_M, feat_name="feat", vertex_col_names=("0", "1"))
+    gstore.add_edge_data(cu_M, feat_name="feat", node_col_names=("0", "1"))
 
     nodes = gstore.get_vertex_ids()
     num_nodes = len(nodes)
@@ -166,7 +166,7 @@ def test_sample_neighbor_neg_one_fanout(graph_file):
 
     pg = PropertyGraph()
     gstore = cugraph.gnn.CuGraphStore(graph=pg)
-    gstore.add_edge_data(cu_M, feat_name="edge_k", vertex_col_names=("0", "1"))
+    gstore.add_edge_data(cu_M, feat_name="edge_k", node_col_names=("0", "1"))
 
     nodes = gstore.get_vertex_ids()
     sampled_nodes = nodes[:5].to_dlpack()
@@ -188,7 +188,7 @@ def test_get_node_storage_graph_file(graph_file):
     gstore.add_edge_data(
         cu_M,
         feat_name="feat",
-        vertex_col_names=("0", "1"),
+        node_col_names=("0", "1"),
     )
 
     num_nodes = gstore.num_nodes()
@@ -214,7 +214,7 @@ def test_edge_storage_data_graph_file(graph_file):
 
     pg = PropertyGraph()
     gstore = cugraph.gnn.CuGraphStore(graph=pg, backend_lib="cupy")
-    gstore.add_edge_data(cu_M, vertex_col_names=("0", "1"), feat_name="edge_k")
+    gstore.add_edge_data(cu_M, node_col_names=("0", "1"), feat_name="edge_k")
 
     edata_s = gstore.get_edge_storage(feat_name="edge_k")
     edata = edata_s.fetch([0, 1, 2, 3], device="cuda")
@@ -346,24 +346,23 @@ def get_dataset1_CuGraphStore():
     graph.add_node_data(merchant_df, "merchant_id", "merchant_k", "merchant")
     graph.add_node_data(user_df, "user_id", "user_k", "user")
     graph.add_node_data(taxpayers_df, "payer_id", "taxpayers_k", "taxpayers")
-
     graph.add_edge_data(
         referrals_df,
         ("user_id_1", "user_id_2"),
         "referrals_k",
-        "referrals",
+        "('user', 'refers', 'user')",
     )
     graph.add_edge_data(
         relationships_df,
         ("user_id_1", "user_id_2"),
         "relationships_k",
-        "relationships",
+        "('user', 'relationship', 'user')",
     )
     graph.add_edge_data(
         transactions_df,
         ("user_id", "merchant_id"),
         "transactions_k",
-        "transactions",
+        "('user', 'transactions', 'merchant')",
     )
 
     return graph
@@ -382,14 +381,18 @@ def test_num_edges():
 
 def test_etypes():
     dataset1_CuGraphStore = get_dataset1_CuGraphStore()
-    assert dataset1_CuGraphStore.etypes == [
-        'referrals', 'relationships', 'transactions'
+
+    expected_types = [
+        "('user', 'refers', 'user')",
+        "('user', 'relationship', 'user')",
+        "('user', 'transactions', 'merchant')",
     ]
+    assert dataset1_CuGraphStore.etypes == expected_types
 
 
 def test_ntypes():
     dataset1_CuGraphStore = get_dataset1_CuGraphStore()
-    assert dataset1_CuGraphStore.ntypes == ['merchant', 'taxpayers', 'user']
+    assert dataset1_CuGraphStore.ntypes == ["merchant", "taxpayers", "user"]
 
 
 def test_get_node_storage_gs():
@@ -423,9 +426,8 @@ def test_get_edge_storage_gs():
     assert cp.allclose(cudf_ar, relationship_t)
 
 
-@pytest.mark.skip("Skipping because it tends to hang sometimes")
 def test_sampling_gs_heterogeneous_ds1():
-    node_d = {"merchant_id": cudf.Series([4], dtype="int64").to_dlpack()}
+    node_d = {"merchant": cudf.Series([4], dtype="int64").to_dlpack()}
     gs = get_dataset1_CuGraphStore()
     sampled_obj = gs.sample_neighbors(node_d, fanout=1)
     sampled_d = convert_dlpack_to_cudf_ser(sampled_obj)
@@ -434,10 +436,8 @@ def test_sampling_gs_heterogeneous_ds1():
     assert len(src_ser) != 0
 
 
-@pytest.mark.skip("Skipping because it tends to hang sometimes")
 def test_sampling_gs_heterogeneous_ds1_neg_one_fanout():
-
-    node_d = {"merchant_id": cudf.Series([4], dtype="int64").to_dlpack()}
+    node_d = {"merchant": cudf.Series([4], dtype="int64").to_dlpack()}
     gs = get_dataset1_CuGraphStore()
     sampled_obj = gs.sample_neighbors(node_d, fanout=-1)
     sampled_d = convert_dlpack_to_cudf_ser(sampled_obj)
@@ -590,7 +590,6 @@ def create_gs_heterogeneous_dgl_eg():
     return gs
 
 
-@pytest.mark.skip("Skipping because tends to hang")
 def test_sampling_gs_heterogeneous_in_dir():
     gs = create_gs_heterogeneous_dgl_eg()
     # DGL expected_output from
@@ -649,7 +648,6 @@ def test_sampling_gs_heterogeneous_in_dir():
             cudf.testing.assert_frame_equal(output_df, expected_df)
 
 
-@pytest.mark.skip("Skipping because tends to hang")
 def test_sampling_gs_heterogeneous_out_dir():
     gs = create_gs_heterogeneous_dgl_eg()
     # DGL expected_output from
@@ -719,7 +717,6 @@ def test_sampling_gs_heterogeneous_out_dir():
             cudf.testing.assert_frame_equal(output_df, expected_df)
 
 
-@pytest.mark.skip("Skipping because tends to hang")
 def test_sampling_dgl_heterogeneous_gs_m_fanouts():
     gs = create_gs_heterogeneous_dgl_eg()
     # Test against DGLs output
