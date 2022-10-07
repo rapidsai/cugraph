@@ -379,6 +379,10 @@ ConfigureTest(K_CORE_TEST cores/k_core_test.cpp)
 ConfigureTest(TRIANGLE_COUNT_TEST community/triangle_count_test.cpp)
 
 ###################################################################################################
+# - K-hop Neighbors tests -------------------------------------------------------------------------
+ConfigureTest(K_HOP_NBRS_TEST traversal/k_hop_nbrs_test.cpp)
+
+###################################################################################################
 # - MG tests --------------------------------------------------------------------------------------
 
 if(BUILD_CUGRAPH_MG_TESTS)
