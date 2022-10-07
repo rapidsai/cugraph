@@ -731,7 +731,6 @@ class CugraphHandler:
         # The cugraph_service_client should have set up a UCX listener waiting
         # in a background thread for the result. Create an endpoint, send
         # results, and close.
-        breakpoint()
         ep = await ucp.create_endpoint(result_host, result_port)
 
         # Send the individual arrays to the client to be written

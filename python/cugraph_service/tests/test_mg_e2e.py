@@ -236,7 +236,7 @@ def test_get_edge_IDs_for_vertices(client_with_edgelist_csv_loaded):
 
 
 def test_uniform_neighbor_sampling_result_device(
-        gpubenchmark,
+        benchmark,
         client_of_server_on_device_1_large_property_graph_loaded,
         result_device_id,
 ):
@@ -253,7 +253,7 @@ def test_uniform_neighbor_sampling_result_device(
     fanout_vals = [2]
     with_replacement = False
 
-    result = gpubenchmark(
+    result = benchmark(
         client.uniform_neighbor_sample,
         start_list=start_list,
         fanout_vals=fanout_vals,
@@ -274,4 +274,4 @@ def test_uniform_neighbor_sampling_result_device(
         # device memory
         assert dtype is cp.ndarray
         device_n = cp.cuda.Device(result_device_id)
-        assert result.sources.device is device_n
+        assert result.sources.device == device_n

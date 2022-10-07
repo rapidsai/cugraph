@@ -989,35 +989,26 @@ class CugraphServiceClient:
         # FIXME: check for valid device
         result_obj = UniformNeighborSampleResult()
 
-        def uint8_allocator(nbytes):
+        def int32_allocator(nbytes):
             with cp.cuda.Device(result_device):
-                a = cp.empty(nbytes, dtype="uint8")
+                a = cp.empty(nbytes//4, dtype="int32")
+            return a
+
+        def float64_allocator(nbytes):
+            with cp.cuda.Device(result_device):
+                a = cp.empty((nbytes//8), dtype="float64")
             return a
 
         async def receiver(endpoint):
-            # result_obj.result = await endpoint.recv_obj()
             with cp.cuda.Device(result_device):
-                print("CLIENT receiving sources...", end="", flush=True)
                 result_obj.sources = await endpoint.recv_obj(
-                    allocator=uint8_allocator)
-                result_obj.sources.astype("int32")
-                print("done", flush=True)
-
-                print("CLIENT receiving dsts...", end="", flush=True)
-                result_obj.destination = await endpoint.recv_obj(
-                    allocator=uint8_allocator)
-                result_obj.destination.astype("int32")
-                print("done", flush=True)
-
-                print("CLIENT receiving indices...", end="", flush=True)
+                    allocator=int32_allocator)
+                result_obj.destinations = await endpoint.recv_obj(
+                    allocator=int32_allocator)
                 result_obj.indices = await endpoint.recv_obj(
-                    allocator=uint8_allocator)
-                result_obj.indices.astype("float64")
-                print("done", flush=True)
-            # await endpoint.close()
+                    allocator=float64_allocator)
             listener.close()
 
-        print(f"{self.results_port=}")
         listener = ucp.create_listener(receiver, self.results_port)
 
         uns_thread = threading.Thread(
@@ -1026,10 +1017,9 @@ class CugraphServiceClient:
                   fanout_vals,
                   with_replacement,
                   graph_id,
+                  self.host,
+                  self.results_port,
                   ),
-            kwargs={"result_host": self.host,
-                    "result_port": self.results_port,
-                    },
         )
         uns_thread.start()
 

@@ -13,12 +13,6 @@
 
     TBD
 
-### Example
-Starting the server
-```
-$> PYTHONPATH=./python/cugraph_service python -m cugraph_service_server.server
-```
-
 ## Client
 (description)
 ### Installing the `cugraph_service_client` conda package
@@ -26,11 +20,62 @@ $> PYTHONPATH=./python/cugraph_service python -m cugraph_service_server.server
     TBD
 
 ### Example
+Starting a server for single-GPU-only cuGraph, using server extensions in `/my/cugraph_service/extensions`:
+```
+$> PYTHONPATH=/Projects/cugraph/python/cugraph_service python -m cugraph_service_server.server --graph-creation-extension-dir=/my/cugraph_service/extensions
+```
+
+Starting a server for multi-GPU cuGraph, same extensions:
+```
+$> export SCHEDULER_FILE=/tmp/scheduler.json
+$> /Projects/cugraph/python/cugraph_service/scripts/run-dask-process.sh scheduler workers &
+$> PYTHONPATH=/Projects/cugraph/python/cugraph_service python -m cugraph_service_server.server --graph-creation-extension-dir=/my/cugraph_service/extensions --dask-scheduler-file=$SCHEDULER_FILE
+```
+
+### Example
 Creating a client
 ```
 >>> from cugraph_service_client import CugraphServiceClient
 >>> client = CugraphServiceClient()
 >>> client.load_csv_as_vertex_data(...)
+```
+
+### Debugging
+#### UCX-Py related variables:
+`UCX_TLS` - set the transports to use, in priority order. Example:
+```
+UCX_TLS=tcp,cuda_copy,cuda_ipc
+```
+`UCX_TCP_CM_REUSEADDR` - reuse addresses. This can be used to avoid "resource in use" errors during starting/restarting the service repeatedly.
+```
+UCX_TCP_CM_REUSEADDR=y
+```
+`UCX_LOG_LEVEL` - set the level for which UCX will output messages to the console. The example below will only output "ERROR" or higher. Set to "DEBUG" to see debug and higher messages.
+```
+UCX_LOG_LEVEL=ERROR
+```
+
+#### UCX performance checks:
+Because cugraph-service uses UCX-Py for direct-to-client GPU data transfers when specified, it can be helpful to understand the various UCX performance chacks available to ensure cugraph-service is transfering results as efficiently as the system is capable of.
+```
+ucx_perftest -m cuda -t tag_bw -n 100 -s 16000 &
+ucx_perftest -m cuda -t tag_bw -n 100 -s 16000 localhost
+```
+```
+ucx_perftest -m cuda -t tag_bw -n 100 -s 1000000000 &
+ucx_perftest -m cuda -t tag_bw -n 100 -s 1000000000 localhost
+```
+```
+CUDA_VISIBLE_DEVICES=0,1 ucx_perftest -m cuda -t tag_bw -n 100 -s 16000 &
+CUDA_VISIBLE_DEVICES=0,1 ucx_perftest -m cuda -t tag_bw -n 100 -s 16000 localhost
+```
+```
+CUDA_VISIBLE_DEVICES=0,1 ucx_perftest -m cuda -t tag_bw -n 100 -s 1000000000 &
+CUDA_VISIBLE_DEVICES=0,1 ucx_perftest -m cuda -t tag_bw -n 100 -s 1000000000 localhost
+```
+```
+CUDA_VISIBLE_DEVICES=0,1 ucx_perftest -m cuda -t tag_bw -n 1000000 -s 1000000000 &
+CUDA_VISIBLE_DEVICES=0,1 ucx_perftest -m cuda -t tag_bw -n 1000000 -s 1000000000 localhost
 ```
 
 ------
