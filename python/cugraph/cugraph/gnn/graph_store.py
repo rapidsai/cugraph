@@ -467,6 +467,10 @@ class CuFeatureStorage:
         # Default implementation uses synchronous fetch.
 
         indices = cp.asarray(indices)
+        if isinstance(self.pg, MGPropertyGraph):
+            # dask_cudf loc breaks if we provide dask_cudf series
+            # https://github.com/rapidsai/cudf/issues/11877
+            indices = indices.get()
 
         if self.storage_type == "node":
             subset_df = self.pg.get_vertex_data(
