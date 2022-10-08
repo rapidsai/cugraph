@@ -5,17 +5,18 @@ url: https://raw.githubusercontent.com/rapidsai/cugraph/branch-22.08/datasets/cy
 refs: N/A
 col_names:
   - idx
-  - src
-  - dst
+  - srcip
+  - dstip
 col_types:
   - int32
   - str
   - str
 delim: ","
+header: 0
 has_loop: true
 is_directed: true
 is_multigraph: false
 is_symmetric: false
-number_of_edges: 54
-number_of_nodes: 314
+number_of_edges: 2546575
+number_of_nodes: 706529
 number_of_lines: 2546576

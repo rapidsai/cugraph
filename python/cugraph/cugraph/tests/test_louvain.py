@@ -18,6 +18,8 @@ import pytest
 
 import cugraph
 from cugraph.testing import utils
+from cugraph.experimental.datasets import (
+    DATASETS_UNDIRECTED, karate_asymmetric)
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
 # (Using or importing the ABCs from 'collections' instead of from
@@ -48,14 +50,10 @@ def setup_function():
     gc.collect()
 
 
-def cugraph_call(cu_M, edgevals=False, directed=False):
-
-    G = cugraph.Graph(directed=directed)
-    if edgevals:
-        G.from_cudf_edgelist(cu_M, source="0", destination="1", edge_attr="2")
-    else:
-        G.from_cudf_edgelist(cu_M, source="0", destination="1")
-
+def cugraph_call(graph_file, edgevals=False, directed=False):
+    G = graph_file.get_graph(
+        create_using=cugraph.Graph(
+            directed=directed), ignore_weights=not edgevals)
     # cugraph Louvain Call
     t1 = time.time()
     parts, mod = cugraph.louvain(G)
@@ -80,13 +78,11 @@ def networkx_call(M):
     return parts
 
 
-@pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
+@pytest.mark.parametrize("graph_file", DATASETS_UNDIRECTED)
 def test_louvain_with_edgevals(graph_file):
-
-    M = utils.read_csv_for_nx(graph_file)
-    cu_M = utils.read_csv_file(graph_file)
-    cu_parts, cu_mod = cugraph_call(cu_M, edgevals=True)
-
+    dataset_path = graph_file.get_path()
+    M = utils.read_csv_for_nx(dataset_path)
+    cu_parts, cu_mod = cugraph_call(graph_file, edgevals=True)
     nx_parts = networkx_call(M)
     # Calculating modularity scores for comparison
     Gnx = nx.from_pandas_edgelist(
@@ -107,12 +103,11 @@ def test_louvain_with_edgevals(graph_file):
     assert abs(cu_mod - cu_mod_nx) < 0.0001
 
 
-@pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
+@pytest.mark.parametrize("graph_file", DATASETS_UNDIRECTED)
 def test_louvain(graph_file):
-
-    M = utils.read_csv_for_nx(graph_file)
-    cu_M = utils.read_csv_file(graph_file)
-    cu_parts, cu_mod = cugraph_call(cu_M)
+    dataset_path = graph_file.get_path()
+    M = utils.read_csv_for_nx(dataset_path)
+    cu_parts, cu_mod = cugraph_call(graph_file)
     nx_parts = networkx_call(M)
 
     # Calculating modularity scores for comparison
@@ -135,10 +130,5 @@ def test_louvain(graph_file):
 
 
 def test_louvain_directed_graph():
-    input_data_path = (utils.RAPIDS_DATASET_ROOT_DIR_PATH /
-                       "karate-asymmetric.csv").as_posix()
-
-    cu_M = utils.read_csv_file(input_data_path)
-
     with pytest.raises(ValueError):
-        cugraph_call(cu_M, directed=True)
+        cugraph_call(karate_asymmetric, directed=True)
