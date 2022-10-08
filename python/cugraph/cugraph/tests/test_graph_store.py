@@ -750,20 +750,55 @@ def test_sampling_dgl_heterogeneous_gs_m_fanouts():
 
 def test_clear_cache():
     gs = create_gs_heterogeneous_dgl_eg()
-    prev_nodes = gs.num_nodes_dict['nt.a']
+    prev_nodes = gs.num_nodes_dict["nt.a"]
 
     df = cudf.DataFrame()
     df["node_id"] = [1000, 2000, 3000]
     df["new_node_feat"] = [float(i + 1) for i in range(len(df))]
     gs.add_node_data(
-        df,
-        feat_name="new_node_feat",
-        node_col_name="node_id",
-        ntype='nt.a'
+        df, feat_name="new_node_feat", node_col_name="node_id", ntype="nt.a"
     )
 
-    new_nodes = gs.num_nodes_dict['nt.a']
-    assert new_nodes == prev_nodes+3
+    new_nodes = gs.num_nodes_dict["nt.a"]
+    assert new_nodes == prev_nodes + 3
+
+
+def test_add_node_data_scaler_vector_feats():
+    pg = PropertyGraph()
+    gs = CuGraphStore(pg, backend_lib="cupy")
+    df = cudf.DataFrame()
+    df["node_id"] = [1, 2, 3]
+    df["node_scaler_feat_1"] = [10, 20, 30]
+    df["node_scaler_feat_2"] = [15, 25, 35]
+    gs.add_node_data(df, "node_id", is_single_vector_feature=False)
+
+    out_1 = gs.get_node_storage("node_scaler_feat_1").fetch([1, 3])
+    exp_1 = cp.asarray([10, 30])
+    cp.testing.assert_array_equal(exp_1, out_1)
+
+    out_2 = gs.get_node_storage("node_scaler_feat_2").fetch([1, 2])
+    exp_2 = cp.asarray([15, 25])
+    cp.testing.assert_array_equal(exp_2, out_2)
+
+    df = cudf.DataFrame()
+    df["node_id"] = [1, 2, 3]
+    df["v_s1"] = [10, 20, 30]
+    df["v_s2"] = [15, 25, 35]
+    gs.add_node_data(
+        df, "node_id", feat_name="vector_feat", is_single_vector_feature=True
+    )
+
+    out_vec = gs.get_node_storage("vector_feat").fetch([1, 2])
+    exp_vec = cp.asarray([[10, 15], [20, 25]])
+    cp.testing.assert_array_equal(out_vec, exp_vec)
+
+    with pytest.raises(ValueError):
+        gs.add_node_data(
+            df,
+            "node_id",
+            feat_name="vector_feat",
+            is_single_vector_feature=False,
+        )
 
 
 def assert_correct_eids(edge_df, sample_edge_id_df):

@@ -52,14 +52,58 @@ class CuGraphStore:
         self.backend_lib = backend_lib
 
     def add_node_data(
-        self, df, node_col_name, feat_name, ntype=None, is_vector_feature=True
+        self,
+        df,
+        node_col_name,
+        feat_name=None,
+        ntype=None,
+        is_single_vector_feature=True,
     ):
+        """
+        Add a dataframe describing node properties to the PropertyGraph.
+
+        Parameters
+        ----------
+        dataframe : DataFrame-compatible instance
+            A DataFrame instance with a compatible Pandas-like DataFrame
+            interface.
+        node_col_name : string
+            The column name that contains the values to be used as vertex IDs.
+        feat_name : string
+            The feature name under which we should save the added properties
+            (ignored if is_single_vector_feature=False)
+        ntype : string
+            The node type to be added.
+            For example, if dataframe contains data about users, ntype
+            might be "users".
+            If not specified, the type of properties will be added as
+            an empty string.
+        is_single_vector_feature : True
+            Wether to treat all the columns of the dataframe being added as
+            a single 2d feature
+        Returns
+        -------
+        None
+        """
         self.gdata.add_vertex_data(
             df, vertex_col_name=node_col_name, type_name=ntype
         )
         columns = [col for col in list(df.columns) if col != node_col_name]
 
-        if is_vector_feature:
+        if is_single_vector_feature:
+            if feat_name is None:
+                raise ValueError(
+                    "feature name must be provided when wrapping"
+                    + " multiple columns under a single feature name"
+                )
+
+        elif feat_name:
+            raise ValueError(
+                "feat_name is only valid when wrapping"
+                + " multiple columns under a single feature name"
+            )
+
+        if is_single_vector_feature:
             self.ndata_feat_col_d[feat_name] = columns
         else:
             for col in columns:
@@ -68,15 +112,59 @@ class CuGraphStore:
         self.__clear_cached_properties()
 
     def add_edge_data(
-        self, df, node_col_names, feat_name, etype=None, is_vector_feature=True
+        self,
+        df,
+        node_col_names,
+        feat_name=None,
+        etype=None,
+        is_single_vector_feature=True,
     ):
+        """
+        Add a dataframe describing edge properties to the PropertyGraph.
+
+        Parameters
+        ----------
+        dataframe : DataFrame-compatible instance
+            A DataFrame instance with a compatible Pandas-like DataFrame
+            interface.
+        node_col_names : string
+            The column names that contain the values to be used as the source
+            and destination vertex IDs for the edges.
+        feat_name : string
+            The feature name under which we should save the added properties
+            (ignored if is_single_vector_feature=False)
+        etype : string
+            The edge type to be added. This should follow the string format
+            '(src_type),(edge_type),(dst_type)'
+            If not specified, the type of properties will be added as
+            an empty string.
+        is_single_vector_feature : True
+            Wether to treat all the columns of the dataframe being
+            added as a single 2d feature
+        Returns
+        -------
+        None
+        """
         self.gdata.add_edge_data(
             df, vertex_col_names=node_col_names, type_name=etype
         )
         columns = [
             col for col in list(df.columns) if col not in node_col_names
         ]
-        if is_vector_feature:
+        if is_single_vector_feature:
+            if feat_name is None:
+                raise ValueError(
+                    "feature name must be provided when wrapping"
+                    + " multiple columns under a single feature name"
+                )
+
+        elif feat_name:
+            raise ValueError(
+                "feat_name is only valid when wrapping"
+                + " multiple columns under a single feature name"
+            )
+
+        if is_single_vector_feature:
             self.edata_feat_col_d[feat_name] = columns
         else:
             for col in columns:
@@ -422,25 +510,25 @@ class CuGraphStore:
             return _subg
 
     def __clear_cached_properties(self):
-        if hasattr(self, 'has_multiple_etypes'):
+        if hasattr(self, "has_multiple_etypes"):
             del self.has_multiple_etypes
 
-        if hasattr(self, 'num_nodes_dict'):
+        if hasattr(self, "num_nodes_dict"):
             del self.num_nodes_dict
 
-        if hasattr(self, 'num_edges_dict'):
+        if hasattr(self, "num_edges_dict"):
             del self.num_edges_dict
 
-        if hasattr(self, 'extracted_subgraph'):
+        if hasattr(self, "extracted_subgraph"):
             del self.extracted_subgraph
 
-        if hasattr(self, 'extracted_reverse_subgraph'):
+        if hasattr(self, "extracted_reverse_subgraph"):
             del self.extracted_reverse_subgraph
 
-        if hasattr(self, 'extracted_subgraphs_per_type'):
+        if hasattr(self, "extracted_subgraphs_per_type"):
             del self.extracted_subgraphs_per_type
 
-        if hasattr(self, 'extracted_reverse_subgraphs_per_type'):
+        if hasattr(self, "extracted_reverse_subgraphs_per_type"):
             del self.extracted_reverse_subgraphs_per_type
 
 
