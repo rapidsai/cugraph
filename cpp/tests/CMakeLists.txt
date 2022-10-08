@@ -561,14 +561,17 @@ if(BUILD_CUGRAPH_MG_TESTS)
     ConfigureTestMG(MG_UNIFORM_NEIGHBOR_SAMPLING_TEST sampling/mg_uniform_neighbor_sampling.cu)
     target_link_libraries(MG_UNIFORM_NEIGHBOR_SAMPLING_TEST PRIVATE cuco::cuco)
 
-    ###########################################################################################
-    # - RANDOM_WALKS tests --------------------------------------------------------------------
+    ###############################################################################################
+    # - MG RANDOM_WALKS tests ---------------------------------------------------------------------
     ConfigureTestMG(MG_RANDOM_WALKS_TEST sampling/mg_random_walks_test.cpp)
 
     ###############################################################################################
-    # - SIMILARITY tests --------------------------------------------------------------------------
+    # - MG SIMILARITY tests -----------------------------------------------------------------------
     ConfigureTestMG(MG_SIMILARITY_TEST link_prediction/mg_similarity_test.cpp)
 
+    ###############################################################################################
+    # - MG K_HOP_NBRS tests -----------------------------------------------------------------------
+    ConfigureTestMG(MG_K_HOP_NBRS_TEST traversal/mg_k_hop_nbrs_test.cpp)
 
     ###############################################################################################
     # - MG C API tests ----------------------------------------------------------------------------
