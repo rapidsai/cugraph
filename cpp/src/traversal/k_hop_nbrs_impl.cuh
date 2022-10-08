@@ -61,7 +61,7 @@ struct compute_gpu_id_t {
   __device__ int operator()(size_t i) const
   {
     return static_cast<int>(thrust::distance(
-      lasts.begin(), thrust::lower_bound(thrust::seq, lasts.begin(), lasts.end(), i)));
+      lasts.begin(), thrust::upper_bound(thrust::seq, lasts.begin(), lasts.end(), i)));
   }
 };
 
