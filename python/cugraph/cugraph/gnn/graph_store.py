@@ -64,6 +64,8 @@ class CuGraphStore:
         else:
             for col in columns:
                 self.ndata_feat_col_d[col] = [col]
+        # Clear properties if set as data has changed
+        self.__clear_cached_properties()
 
     def add_edge_data(
         self, df, node_col_names, feat_name, etype=None, is_vector_feature=True
@@ -79,6 +81,9 @@ class CuGraphStore:
         else:
             for col in columns:
                 self.edata_feat_col_d[col] = [col]
+
+        # Clear properties if set as data has changed
+        self.__clear_cached_properties()
 
     def get_node_storage(self, feat_name, ntype=None):
         if ntype is None:
@@ -416,10 +421,27 @@ class CuGraphStore:
             _subg = cugraph.subgraph(_g, _n)
             return _subg
 
-    def __clear_cached_properties():
-        # TODO: Clear cached properties
-        # After adding edge/node properties
-        pass
+    def __clear_cached_properties(self):
+        if hasattr(self, 'has_multiple_etypes'):
+            del self.has_multiple_etypes
+
+        if hasattr(self, 'num_nodes_dict'):
+            del self.num_nodes_dict
+
+        if hasattr(self, 'num_edges_dict'):
+            del self.num_edges_dict
+
+        if hasattr(self, 'extracted_subgraph'):
+            del self.extracted_subgraph
+
+        if hasattr(self, 'extracted_reverse_subgraph'):
+            del self.extracted_reverse_subgraph
+
+        if hasattr(self, 'extracted_subgraphs_per_type'):
+            del self.extracted_subgraphs_per_type
+
+        if hasattr(self, 'extracted_reverse_subgraphs_per_type'):
+            del self.extracted_reverse_subgraphs_per_type
 
 
 class CuFeatureStorage:

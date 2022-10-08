@@ -303,11 +303,8 @@ def create_df_from_dataset(col_n, rows):
     return cudf.DataFrame(data_d)
 
 
-# @pytest.fixture()
-# TODO: Creating a fixture seems to hang the pytests
-
-
-def get_dataset1_CuGraphStore():
+@pytest.fixture(scope="module")
+def dataset1_CuGraphStore():
     """
     Fixture which returns an instance of a CuGraphStore with vertex and edge
     data added from dataset1, parameterized for different DataFrame types.
@@ -368,20 +365,17 @@ def get_dataset1_CuGraphStore():
     return graph
 
 
-def test_num_nodes_gs():
-    gs = get_dataset1_CuGraphStore()
+def test_num_nodes_gs(dataset1_CuGraphStore):
     # Added unique id in tax_payer so changed to 16
-    assert gs.num_nodes() == 16
+    assert dataset1_CuGraphStore.num_nodes() == 16
 
 
-def test_num_edges():
-    gs = get_dataset1_CuGraphStore()
+def test_num_edges(dataset1_CuGraphStore):
+    gs = dataset1_CuGraphStore
     assert gs.num_edges() == 14
 
 
-def test_etypes():
-    dataset1_CuGraphStore = get_dataset1_CuGraphStore()
-
+def test_etypes(dataset1_CuGraphStore):
     expected_types = [
         "('user', 'refers', 'user')",
         "('user', 'relationship', 'user')",
@@ -390,13 +384,11 @@ def test_etypes():
     assert dataset1_CuGraphStore.etypes == expected_types
 
 
-def test_ntypes():
-    dataset1_CuGraphStore = get_dataset1_CuGraphStore()
+def test_ntypes(dataset1_CuGraphStore):
     assert dataset1_CuGraphStore.ntypes == ["merchant", "taxpayers", "user"]
 
 
-def test_get_node_storage_gs():
-    dataset1_CuGraphStore = get_dataset1_CuGraphStore()
+def test_get_node_storage_gs(dataset1_CuGraphStore):
     fs = dataset1_CuGraphStore.get_node_storage(
         feat_name="merchant_k", ntype="merchant"
     )
@@ -411,8 +403,7 @@ def test_get_node_storage_gs():
     assert cp.allclose(cudf_ar, merchant_gs)
 
 
-def test_get_edge_storage_gs():
-    dataset1_CuGraphStore = get_dataset1_CuGraphStore()
+def test_get_edge_storage_gs(dataset1_CuGraphStore):
     fs = dataset1_CuGraphStore.get_edge_storage(
         "relationships_k", "relationships"
     )
@@ -426,9 +417,9 @@ def test_get_edge_storage_gs():
     assert cp.allclose(cudf_ar, relationship_t)
 
 
-def test_sampling_gs_heterogeneous_ds1():
+def test_sampling_gs_heterogeneous_ds1(dataset1_CuGraphStore):
     node_d = {"merchant": cudf.Series([4], dtype="int64").to_dlpack()}
-    gs = get_dataset1_CuGraphStore()
+    gs = dataset1_CuGraphStore
     sampled_obj = gs.sample_neighbors(node_d, fanout=1)
     sampled_d = convert_dlpack_to_cudf_ser(sampled_obj)
     # Ensure we get sample from at at least one of the etypes
@@ -436,9 +427,9 @@ def test_sampling_gs_heterogeneous_ds1():
     assert len(src_ser) != 0
 
 
-def test_sampling_gs_heterogeneous_ds1_neg_one_fanout():
+def test_sampling_gs_heterogeneous_ds1_neg_one_fanout(dataset1_CuGraphStore):
     node_d = {"merchant": cudf.Series([4], dtype="int64").to_dlpack()}
-    gs = get_dataset1_CuGraphStore()
+    gs = dataset1_CuGraphStore
     sampled_obj = gs.sample_neighbors(node_d, fanout=-1)
     sampled_d = convert_dlpack_to_cudf_ser(sampled_obj)
     # Ensure we get sample from at at least one of the etypes
@@ -755,6 +746,24 @@ def test_sampling_dgl_heterogeneous_gs_m_fanouts():
         sampled_g = convert_dlpack_dict_to_df(sampled_g)
         for etype, output_df in sampled_g.items():
             assert expected_output[fanout][etype] == len(output_df)
+
+
+def test_clear_cache():
+    gs = create_gs_heterogeneous_dgl_eg()
+    prev_nodes = gs.num_nodes_dict['nt.a']
+
+    df = cudf.DataFrame()
+    df["node_id"] = [1000, 2000, 3000]
+    df["new_node_feat"] = [float(i + 1) for i in range(len(df))]
+    gs.add_node_data(
+        df,
+        feat_name="new_node_feat",
+        node_col_name="node_id",
+        ntype='nt.a'
+    )
+
+    new_nodes = gs.num_nodes_dict['nt.a']
+    assert new_nodes == prev_nodes+3
 
 
 def assert_correct_eids(edge_df, sample_edge_id_df):
