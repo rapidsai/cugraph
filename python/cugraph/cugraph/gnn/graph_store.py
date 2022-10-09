@@ -12,6 +12,7 @@
 # limitations under the License.
 
 from collections import defaultdict
+
 import cudf
 import dask_cudf
 import cugraph
@@ -426,6 +427,9 @@ class CuGraphStore:
 
     @cached_property
     def num_nodes_dict(self):
+        """
+            Return num_nodes_dict of the graph
+        """
         return {ntype: self.num_nodes(ntype) for ntype in self.ntypes}
 
     @cached_property
@@ -582,10 +586,11 @@ class CuFeatureStorage:
 
         indices = cp.asarray(indices)
         if isinstance(self.pg, MGPropertyGraph):
-            # dask_cudf loc breaks if we provide dask_cudf series
+            # dask_cudf loc breaks if we provide cudf series/numpy array
             # https://github.com/rapidsai/cudf/issues/11877
             indices = indices.get()
-
+        else:
+            indices = cudf.Series(indices)
         if self.storage_type == "node":
             subset_df = self.pg.get_vertex_data(
                 vertex_ids=indices, columns=self.columns
@@ -660,20 +665,42 @@ def sample_multiple_sgs(
     with_replacement,
 ):
     start_list_types = list(start_list_d.keys())
-    output_dfs = [
-        sample_single_sg(
-            sg,
-            sample_f,
-            start_list_d,
-            start_list_dtype,
-            fanout,
-            with_replacement,
-        )
-        for can_etype, sg in sgs.items()
-        if _edge_types_contains_canonical_etype(
-            can_etype, start_list_types, edge_dir
-        )
-    ]
+    output_dfs = []
+    for can_etype, sg in sgs.items():
+        can_etype = _convert_can_etype_s_to_tup(can_etype)
+        if _edge_types_contains_canonical_etype(can_etype, start_list_types, edge_dir):
+            if edge_dir == 'in':
+                # TODO cleanup code
+                # then we sample dst
+                subset_type = can_etype[2]
+            else:
+                subset_type = can_etype[0]
+
+            output = sample_single_sg(
+                sg,
+                sample_f,
+                start_list_d[subset_type],
+                start_list_dtype,
+                fanout,
+                with_replacement,
+            )
+            output_dfs.append(output)
+    
+    
+    # output_dfs = [
+    #     sample_single_sg(
+    #         sg,
+    #         sample_f,
+    #         start_list_d,
+    #         start_list_dtype,
+    #         fanout,
+    #         with_replacement,
+    #     )
+    #     for can_etype, sg in sgs.items()
+    #     if _edge_types_contains_canonical_etype(
+    #         can_etype, start_list_types, edge_dir
+    #     )
+    # ]
 
     if len(output_dfs) == 0:
         empty_df = cudf.DataFrame(
@@ -687,8 +714,8 @@ def sample_multiple_sgs(
         return cudf.concat(output_dfs, ignore_index=True)
 
 
-def _edge_types_contains_canonical_etype(can_etype_s, edge_types, edge_dir):
-    (src_type, etype, dst_type) = _convert_can_etype_s_to_tup(can_etype_s)
+def _edge_types_contains_canonical_etype(can_etype, edge_types, edge_dir):
+    src_type, _, dst_type = can_etype
     if edge_dir == "in":
         return dst_type in edge_types
     else:
@@ -709,16 +736,20 @@ def get_subgraph_from_edgelist(edge_list, is_mg, reverse_edges=False):
 
     subgraph = cugraph.MultiGraph(directed=True)
     if is_mg:
+        #TODO: Vibhu Jawa fix
         create_subgraph_f = subgraph.from_dask_cudf_edgelist
+        renumber = True
     else:
+        #TODO: Vibhu Jawa fix
         create_subgraph_f = subgraph.from_cudf_edgelist
+        renumber = False
 
     create_subgraph_f(
         edge_list,
         source=src_n,
         destination=dst_n,
         edge_attr=eid_n,
-        renumber=True,
+        renumber=renumber,
         # FIXME: renumber=False is not supported for MNMG algos
         legacy_renum_only=True,
     )
