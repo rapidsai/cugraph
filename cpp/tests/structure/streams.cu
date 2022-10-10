@@ -22,25 +22,37 @@
 #include <rmm/mr/device/cuda_memory_resource.hpp>
 #include <thrust/functional.h>
 #include <thrust/transform.h>
+
 struct StreamTest : public ::testing::Test {
 };
+
 TEST_F(StreamTest, basic_test)
 {
-  int n_streams    = 4;
+  size_t n_streams = 4;
   auto stream_pool = std::make_shared<rmm::cuda_stream_pool>(n_streams);
   raft::handle_t handle(rmm::cuda_stream_per_thread, stream_pool);
 
-  const size_t intput_size = 4096;
+  const size_t input_size = 4096;
 
-#pragma omp parallel for
-  for (int i = 0; i < n_streams; i++) {
-    rmm::device_uvector<int> u(intput_size, handle.get_next_usable_stream(i)),
-      v(intput_size, handle.get_next_usable_stream(i));
-    thrust::transform(rmm::exec_policy(handle.get_next_usable_stream(i)),
-                      u.begin(),
-                      u.end(),
-                      v.begin(),
-                      v.begin(),
-                      2 * thrust::placeholders::_1 + thrust::placeholders::_2);
+  std::vector<std::thread> threads(n_streams);
+
+  for (size_t i = 0; i < n_streams; ++i) {
+    threads[i] = std::thread(
+      [&handle, input_size](size_t i) {
+        rmm::device_uvector<int> u(input_size, handle.get_next_usable_stream(i));
+        rmm::device_uvector<int> v(input_size, handle.get_next_usable_stream(i));
+        thrust::transform(rmm::exec_policy(handle.get_next_usable_stream(i)),
+                          u.begin(),
+                          u.end(),
+                          v.begin(),
+                          v.begin(),
+                          2 * thrust::placeholders::_1 + thrust::placeholders::_2);
+        CUDA_TRY(cudaStreamSynchronize(handle.get_next_usable_stream(i)));
+      },
+      i);
+  }
+
+  for (size_t i = 0; i < n_streams; ++i) {
+    threads[i].join();
   }
 }

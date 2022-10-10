@@ -1316,6 +1316,10 @@ extract_ego(raft::handle_t const& handle,
  * @brief returns random walks (RW) from starting sources, where each path is of given maximum
  * length. Uniform distribution is assumed for the random engine.
  *
+ * @deprecated This algorithm will be deprecated once all of the functionality is migrated
+ *             to the newer APIS: uniform_random_walks(), biased_random_walks(), and
+ *             node2vec_random_walks().
+ *
  * @tparam graph_t Type of graph/view (typically, graph_view_t).
  * @tparam index_t Type used to store indexing and sizes.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and

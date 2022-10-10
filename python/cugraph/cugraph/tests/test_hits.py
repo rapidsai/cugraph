@@ -20,6 +20,8 @@ import cudf
 
 import cugraph
 from cugraph.testing import utils
+from cugraph.experimental.datasets import (
+    DATASETS_UNDIRECTED, email_Eu_core, karate)
 
 
 # =============================================================================
@@ -32,8 +34,7 @@ def setup_function():
 # =============================================================================
 # Pytest fixtures
 # =============================================================================
-datasets = utils.DATASETS_UNDIRECTED + \
-           [utils.RAPIDS_DATASET_ROOT_DIR_PATH/"email-Eu-core.csv"]
+datasets = DATASETS_UNDIRECTED + [email_Eu_core]
 fixture_params = utils.genFixtureParamsProduct((datasets, "graph_file"),
                                                ([50], "max_iter"),
                                                ([1.0e-6], "tol"),
@@ -61,7 +62,8 @@ def input_expected_output(input_combo):
     # previously on the same input_combo to save their results for re-use
     # elsewhere.
     if "nxResults" not in input_combo:
-        Gnx = utils.generate_nx_graph_from_file(input_combo["graph_file"],
+        dataset_path = input_combo["graph_file"].get_path()
+        Gnx = utils.generate_nx_graph_from_file(dataset_path,
                                                 directed=True)
         nxResults = nx.hits(Gnx, input_combo["max_iter"], input_combo["tol"],
                             normalized=True)
@@ -78,7 +80,8 @@ def test_nx_hits(benchmark, input_combo):
     cuGraph HITS tests.
     This is only in place for generating comparison performance numbers.
     """
-    Gnx = utils.generate_nx_graph_from_file(input_combo["graph_file"],
+    dataset_path = input_combo["graph_file"].get_path()
+    Gnx = utils.generate_nx_graph_from_file(dataset_path,
                                             directed=True)
     nxResults = benchmark(
         nx.hits,
@@ -91,8 +94,9 @@ def test_nx_hits(benchmark, input_combo):
 
 
 def test_hits(benchmark, input_expected_output):
-    G = utils.generate_cugraph_graph_from_file(
-        input_expected_output["graph_file"])
+    graph_file = input_expected_output["graph_file"]
+
+    G = graph_file.get_graph(create_using=cugraph.Graph(directed=True))
     cugraph_hits = benchmark(cugraph.hits,
                              G,
                              input_expected_output["max_iter"],
@@ -107,7 +111,6 @@ def test_hits(benchmark, input_expected_output):
     cugraph_hits["nx_hubs"] = cudf.Series.from_pandas(pdf[0])
     pdf = pd.DataFrame.from_dict(nx_authorities, orient="index").sort_index()
     cugraph_hits["nx_authorities"] = cudf.Series.from_pandas(pdf[0])
-
     hubs_diffs1 = cugraph_hits.query('hubs - nx_hubs > 0.00001')
     hubs_diffs2 = cugraph_hits.query('hubs - nx_hubs < -0.00001')
     authorities_diffs1 = cugraph_hits.query(
@@ -119,3 +122,14 @@ def test_hits(benchmark, input_expected_output):
     assert len(hubs_diffs2) == 0
     assert len(authorities_diffs1) == 0
     assert len(authorities_diffs2) == 0
+
+
+def test_hits_transposed_false():
+
+    G = karate.get_graph(create_using=cugraph.Graph(directed=True))
+    warning_msg = ("Pagerank expects the 'store_transposed' "
+                   "flag to be set to 'True' for optimal performance during "
+                   "the graph creation")
+
+    with pytest.warns(UserWarning, match=warning_msg):
+        cugraph.pagerank(G)

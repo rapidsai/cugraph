@@ -20,6 +20,7 @@ import pytest
 import cudf
 import cugraph
 from cugraph.testing import utils
+from cugraph.experimental.datasets import DATASETS, karate
 
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
@@ -159,7 +160,7 @@ def setup_function():
 #
 
 
-@pytest.mark.parametrize("graph_file", utils.DATASETS)
+@pytest.mark.parametrize("graph_file", DATASETS)
 @pytest.mark.parametrize("max_iter", MAX_ITERATIONS)
 @pytest.mark.parametrize("tol", TOLERANCE)
 @pytest.mark.parametrize("alpha", ALPHA)
@@ -172,7 +173,8 @@ def test_pagerank(
 ):
 
     # NetworkX PageRank
-    M = utils.read_csv_for_nx(graph_file)
+    dataset_path = graph_file.get_path()
+    M = utils.read_csv_for_nx(dataset_path)
     nnz_vtx = np.unique(M[['0', '1']])
     Gnx = nx.from_pandas_edgelist(
         M, source="0", target="1", edge_attr="weight",
@@ -191,11 +193,7 @@ def test_pagerank(
     cu_prsn = cudify(networkx_prsn)
 
     # cuGraph PageRank
-    cu_M = utils.read_csv_file(graph_file)
-    G = cugraph.Graph(directed=True)
-    G.from_cudf_edgelist(
-        cu_M, source="0", destination="1", edge_attr="2",
-        legacy_renum_only=True)
+    G = graph_file.get_graph(create_using=cugraph.Graph(directed=True))
 
     if has_precomputed_vertex_out_weight == 1:
         df = G.view_edge_list()[["src", "weights"]]
@@ -221,7 +219,7 @@ def test_pagerank(
     assert err < (0.01 * len(cugraph_pr))
 
 
-@pytest.mark.parametrize("graph_file", utils.DATASETS)
+@pytest.mark.parametrize("graph_file", DATASETS)
 @pytest.mark.parametrize("max_iter", MAX_ITERATIONS)
 @pytest.mark.parametrize("tol", TOLERANCE)
 @pytest.mark.parametrize("alpha", ALPHA)
@@ -232,7 +230,8 @@ def test_pagerank_nx(
 ):
 
     # NetworkX PageRank
-    M = utils.read_csv_for_nx(graph_file)
+    dataset_path = graph_file.get_path()
+    M = utils.read_csv_for_nx(dataset_path)
     nnz_vtx = np.unique(M[['0', '1']])
     Gnx = nx.from_pandas_edgelist(
         M, source="0", target="1", create_using=nx.DiGraph()
@@ -268,7 +267,7 @@ def test_pagerank_nx(
     assert err < (0.01 * len(cugraph_pr))
 
 
-@pytest.mark.parametrize("graph_file", utils.DATASETS)
+@pytest.mark.parametrize("graph_file", DATASETS)
 @pytest.mark.parametrize("max_iter", MAX_ITERATIONS)
 @pytest.mark.parametrize("tol", TOLERANCE)
 @pytest.mark.parametrize("alpha", ALPHA)
@@ -281,7 +280,8 @@ def test_pagerank_multi_column(
 ):
 
     # NetworkX PageRank
-    M = utils.read_csv_for_nx(graph_file)
+    dataset_path = graph_file.get_path()
+    M = utils.read_csv_for_nx(dataset_path)
     nnz_vtx = np.unique(M[['0', '1']])
 
     Gnx = nx.from_pandas_edgelist(
@@ -322,7 +322,7 @@ def test_pagerank_multi_column(
     cu_G = cugraph.Graph(directed=True)
     cu_G.from_cudf_edgelist(cu_M, source=["src_0", "src_1"],
                             destination=["dst_0", "dst_1"],
-                            edge_attr="weights")
+                            edge_attr="weights", store_transposed=True)
 
     if has_precomputed_vertex_out_weight == 1:
         df = cu_M[["src_0", "src_1", "weights"]]
@@ -363,9 +363,8 @@ def test_pagerank_multi_column(
 
 
 def test_pagerank_invalid_personalization_dtype():
-    input_data_path = (utils.RAPIDS_DATASET_ROOT_DIR_PATH /
-                       "karate.csv").as_posix()
-    M = utils.read_csv_for_nx(input_data_path)
+    dataset_path = karate.get_path()
+    M = utils.read_csv_for_nx(dataset_path)
     G = cugraph.Graph(directed=True)
     cu_M = cudf.DataFrame()
     cu_M["src"] = cudf.Series(M["0"])
@@ -373,7 +372,8 @@ def test_pagerank_invalid_personalization_dtype():
 
     cu_M["weights"] = cudf.Series(M["weight"])
     G.from_cudf_edgelist(
-        cu_M, source="src", destination="dst", edge_attr="weights"
+        cu_M, source="src", destination="dst", edge_attr="weights",
+        store_transposed=True
     )
 
     personalization_vec = cudf.DataFrame()
@@ -386,3 +386,13 @@ def test_pagerank_invalid_personalization_dtype():
 
     with pytest.warns(UserWarning, match=warning_msg):
         cugraph.pagerank(G, personalization=personalization_vec)
+
+
+def test_pagerank_transposed_false():
+    G = karate.get_graph(create_using=cugraph.Graph(directed=True))
+    warning_msg = ("Pagerank expects the 'store_transposed' "
+                   "flag to be set to 'True' for optimal performance during "
+                   "the graph creation")
+
+    with pytest.warns(UserWarning, match=warning_msg):
+        cugraph.pagerank(G)

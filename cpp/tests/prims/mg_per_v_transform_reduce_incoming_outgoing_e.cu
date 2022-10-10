@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+#include "property_generator.cuh"
+
 #include <utilities/base_fixture.hpp>
 #include <utilities/device_comm_wrapper.hpp>
 #include <utilities/high_res_clock.h>
@@ -51,111 +53,6 @@
 #include <gtest/gtest.h>
 
 #include <random>
-
-template <typename... Args>
-struct property_type {
-  using type = std::conditional_t<(sizeof...(Args) > 1),
-                                  thrust::tuple<Args...>,
-                                  typename thrust::tuple_element<0, thrust::tuple<Args...>>::type>;
-};
-
-template <typename vertex_t, typename... Args>
-struct property_transform
-  : public thrust::unary_function<vertex_t, typename property_type<Args...>::type> {
-  int mod{};
-  property_transform(int mod_count) : mod(mod_count) {}
-
-  template <typename type = typename property_type<Args...>::type>
-  constexpr __device__
-    typename std::enable_if_t<cugraph::is_thrust_tuple_of_arithmetic<type>::value, type>
-    operator()(const vertex_t& val)
-  {
-    cuco::detail::MurmurHash3_32<vertex_t> hash_func{};
-    auto value = hash_func(val) % mod;
-    return thrust::make_tuple(static_cast<Args>(value)...);
-  }
-
-  template <typename type = typename property_type<Args...>::type>
-  constexpr __device__ typename std::enable_if_t<std::is_arithmetic<type>::value, type> operator()(
-    const vertex_t& val)
-  {
-    cuco::detail::MurmurHash3_32<vertex_t> hash_func{};
-    auto value = hash_func(val) % mod;
-    return static_cast<type>(value);
-  }
-};
-
-template <typename vertex_t, template <typename...> typename Tuple, typename... Args>
-struct property_transform<vertex_t, Tuple<Args...>> : public property_transform<vertex_t, Args...> {
-};
-
-template <typename... Args>
-struct generate_impl {
- private:
-  using property_buffer_type = std::conditional_t<
-    (sizeof...(Args) > 1),
-    std::tuple<rmm::device_uvector<Args>...>,
-    rmm::device_uvector<typename thrust::tuple_element<0, thrust::tuple<Args...>>::type>>;
-
- public:
-  using type = typename property_type<Args...>::type;
-  static thrust::tuple<Args...> initial_value(int init)
-  {
-    return thrust::make_tuple(static_cast<Args>(init)...);
-  }
-  template <typename label_t>
-  static auto vertex_property(rmm::device_uvector<label_t>& labels,
-                              int hash_bin_count,
-                              raft::handle_t const& handle)
-  {
-    auto data = cugraph::allocate_dataframe_buffer<type>(labels.size(), handle.get_stream());
-    auto zip  = cugraph::get_dataframe_buffer_begin(data);
-    thrust::transform(handle.get_thrust_policy(),
-                      labels.begin(),
-                      labels.end(),
-                      zip,
-                      property_transform<label_t, Args...>(hash_bin_count));
-    return data;
-  }
-  template <typename label_t>
-  static auto vertex_property(thrust::counting_iterator<label_t> begin,
-                              thrust::counting_iterator<label_t> end,
-                              int hash_bin_count,
-                              raft::handle_t const& handle)
-  {
-    auto length = thrust::distance(begin, end);
-    auto data   = cugraph::allocate_dataframe_buffer<type>(length, handle.get_stream());
-    auto zip    = cugraph::get_dataframe_buffer_begin(data);
-    thrust::transform(handle.get_thrust_policy(),
-                      begin,
-                      end,
-                      zip,
-                      property_transform<label_t, Args...>(hash_bin_count));
-    return data;
-  }
-
-  template <typename graph_view_type>
-  static auto column_property(raft::handle_t const& handle,
-                              graph_view_type const& graph_view,
-                              property_buffer_type& property)
-  {
-    auto output_property = cugraph::edge_dst_property_t<graph_view_type, type>(handle, graph_view);
-    update_edge_dst_property(
-      handle, graph_view, cugraph::get_dataframe_buffer_begin(property), output_property);
-    return output_property;
-  }
-
-  template <typename graph_view_type>
-  static auto row_property(raft::handle_t const& handle,
-                           graph_view_type const& graph_view,
-                           property_buffer_type& property)
-  {
-    auto output_property = cugraph::edge_src_property_t<graph_view_type, type>(handle, graph_view);
-    update_edge_src_property(
-      handle, graph_view, cugraph::get_dataframe_buffer_begin(property), output_property);
-    return output_property;
-  }
-};
 
 template <typename T>
 struct comparator {
@@ -211,14 +108,6 @@ buffer_type aggregate(const raft::handle_t& handle, const buffer_type& result)
   return aggregated_result;
 }
 
-template <typename T>
-struct generate : public generate_impl<T> {
-  static T initial_value(int init) { return static_cast<T>(init); }
-};
-template <typename... Args>
-struct generate<std::tuple<Args...>> : public generate_impl<Args...> {
-};
-
 struct Prims_Usecase {
   bool check_correctness{true};
   bool test_weighted{false};
@@ -273,16 +162,19 @@ class Tests_MGPerVTransformReduceIncomingOutgoingE
     const int hash_bin_count = 5;
     const int initial_value  = 4;
 
-    auto property_initial_value = generate<result_t>::initial_value(initial_value);
-    using property_t            = decltype(property_initial_value);
-    auto vertex_property_data =
-      generate<result_t>::vertex_property((*d_mg_renumber_map_labels), hash_bin_count, *handle_);
-    auto col_prop =
-      generate<result_t>::column_property(*handle_, mg_graph_view, vertex_property_data);
-    auto row_prop = generate<result_t>::row_property(*handle_, mg_graph_view, vertex_property_data);
-    auto out_result = cugraph::allocate_dataframe_buffer<property_t>(
+    auto property_initial_value =
+      cugraph::test::generate<vertex_t, result_t>::initial_value(initial_value);
+
+    auto mg_vertex_prop = cugraph::test::generate<vertex_t, result_t>::vertex_property(
+      *handle_, *d_mg_renumber_map_labels, hash_bin_count);
+    auto mg_src_prop = cugraph::test::generate<vertex_t, result_t>::src_property(
+      *handle_, mg_graph_view, mg_vertex_prop);
+    auto mg_dst_prop = cugraph::test::generate<vertex_t, result_t>::dst_property(
+      *handle_, mg_graph_view, mg_vertex_prop);
+
+    auto out_result = cugraph::allocate_dataframe_buffer<result_t>(
       mg_graph_view.local_vertex_partition_range_size(), handle_->get_stream());
-    auto in_result = cugraph::allocate_dataframe_buffer<property_t>(
+    auto in_result = cugraph::allocate_dataframe_buffer<result_t>(
       mg_graph_view.local_vertex_partition_range_size(), handle_->get_stream());
 
     if (cugraph::test::g_perf) {
@@ -294,13 +186,13 @@ class Tests_MGPerVTransformReduceIncomingOutgoingE
     per_v_transform_reduce_incoming_e(
       *handle_,
       mg_graph_view,
-      row_prop.view(),
-      col_prop.view(),
-      [] __device__(auto row, auto col, weight_t wt, auto row_property, auto col_property) {
-        if (row_property < col_property) {
-          return row_property;
+      mg_src_prop.view(),
+      mg_dst_prop.view(),
+      [] __device__(auto src, auto dst, weight_t wt, auto src_property, auto dst_property) {
+        if (src_property < dst_property) {
+          return src_property;
         } else {
-          return col_property;
+          return dst_property;
         }
       },
       property_initial_value,
@@ -323,13 +215,13 @@ class Tests_MGPerVTransformReduceIncomingOutgoingE
     per_v_transform_reduce_outgoing_e(
       *handle_,
       mg_graph_view,
-      row_prop.view(),
-      col_prop.view(),
-      [] __device__(auto row, auto col, weight_t wt, auto row_property, auto col_property) {
-        if (row_property < col_property) {
-          return row_property;
+      mg_src_prop.view(),
+      mg_dst_prop.view(),
+      [] __device__(auto src, auto dst, weight_t wt, auto src_property, auto dst_property) {
+        if (src_property < dst_property) {
+          return src_property;
         } else {
-          return col_property;
+          return dst_property;
         }
       },
       property_initial_value,
@@ -352,46 +244,46 @@ class Tests_MGPerVTransformReduceIncomingOutgoingE
           *handle_, input_usecase, true, false);
       auto sg_graph_view = sg_graph.view();
 
-      auto sg_vertex_property_data = generate<result_t>::vertex_property(
+      auto sg_vertex_prop = cugraph::test::generate<vertex_t, result_t>::vertex_property(
+        *handle_,
         thrust::make_counting_iterator(sg_graph_view.local_vertex_partition_range_first()),
         thrust::make_counting_iterator(sg_graph_view.local_vertex_partition_range_last()),
-        hash_bin_count,
-        *handle_);
-      auto sg_col_prop =
-        generate<result_t>::column_property(*handle_, sg_graph_view, sg_vertex_property_data);
-      auto sg_row_prop =
-        generate<result_t>::row_property(*handle_, sg_graph_view, sg_vertex_property_data);
+        hash_bin_count);
+      auto sg_dst_prop = cugraph::test::generate<vertex_t, result_t>::dst_property(
+        *handle_, sg_graph_view, sg_vertex_prop);
+      auto sg_src_prop = cugraph::test::generate<vertex_t, result_t>::src_property(
+        *handle_, sg_graph_view, sg_vertex_prop);
       result_compare comp{*handle_};
 
-      auto global_out_result = cugraph::allocate_dataframe_buffer<property_t>(
+      auto global_out_result = cugraph::allocate_dataframe_buffer<result_t>(
         sg_graph_view.local_vertex_partition_range_size(), handle_->get_stream());
       per_v_transform_reduce_outgoing_e(
         *handle_,
         sg_graph_view,
-        sg_row_prop.view(),
-        sg_col_prop.view(),
-        [] __device__(auto row, auto col, weight_t wt, auto row_property, auto col_property) {
-          if (row_property < col_property) {
-            return row_property;
+        sg_src_prop.view(),
+        sg_dst_prop.view(),
+        [] __device__(auto src, auto dst, weight_t wt, auto src_property, auto dst_property) {
+          if (src_property < dst_property) {
+            return src_property;
           } else {
-            return col_property;
+            return dst_property;
           }
         },
         property_initial_value,
         cugraph::get_dataframe_buffer_begin(global_out_result));
 
-      auto global_in_result = cugraph::allocate_dataframe_buffer<property_t>(
+      auto global_in_result = cugraph::allocate_dataframe_buffer<result_t>(
         sg_graph_view.local_vertex_partition_range_size(), handle_->get_stream());
       per_v_transform_reduce_incoming_e(
         *handle_,
         sg_graph_view,
-        sg_row_prop.view(),
-        sg_col_prop.view(),
-        [] __device__(auto row, auto col, weight_t wt, auto row_property, auto col_property) {
-          if (row_property < col_property) {
-            return row_property;
+        sg_src_prop.view(),
+        sg_dst_prop.view(),
+        [] __device__(auto src, auto dst, weight_t wt, auto src_property, auto dst_property) {
+          if (src_property < dst_property) {
+            return src_property;
           } else {
-            return col_property;
+            return dst_property;
           }
         },
         property_initial_value,
@@ -427,15 +319,15 @@ TEST_P(Tests_MGPerVTransformReduceIncomingOutgoingE_File,
        CheckInt32Int32FloatTupleIntFloatTransposeFalse)
 {
   auto param = GetParam();
-  run_current_test<int32_t, int32_t, float, std::tuple<int, float>, false>(std::get<0>(param),
-                                                                           std::get<1>(param));
+  run_current_test<int32_t, int32_t, float, thrust::tuple<int, float>, false>(std::get<0>(param),
+                                                                              std::get<1>(param));
 }
 
 TEST_P(Tests_MGPerVTransformReduceIncomingOutgoingE_Rmat,
        CheckInt32Int32FloatTupleIntFloatTransposeFalse)
 {
   auto param = GetParam();
-  run_current_test<int32_t, int32_t, float, std::tuple<int, float>, false>(
+  run_current_test<int32_t, int32_t, float, thrust::tuple<int, float>, false>(
     std::get<0>(param),
     cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }
@@ -444,15 +336,15 @@ TEST_P(Tests_MGPerVTransformReduceIncomingOutgoingE_File,
        CheckInt32Int32FloatTupleIntFloatTransposeTrue)
 {
   auto param = GetParam();
-  run_current_test<int32_t, int32_t, float, std::tuple<int, float>, true>(std::get<0>(param),
-                                                                          std::get<1>(param));
+  run_current_test<int32_t, int32_t, float, thrust::tuple<int, float>, true>(std::get<0>(param),
+                                                                             std::get<1>(param));
 }
 
 TEST_P(Tests_MGPerVTransformReduceIncomingOutgoingE_Rmat,
        CheckInt32Int32FloatTupleIntFloatTransposeTrue)
 {
   auto param = GetParam();
-  run_current_test<int32_t, int32_t, float, std::tuple<int, float>, true>(
+  run_current_test<int32_t, int32_t, float, thrust::tuple<int, float>, true>(
     std::get<0>(param),
     cugraph::test::override_Rmat_Usecase_with_cmd_line_arguments(std::get<1>(param)));
 }

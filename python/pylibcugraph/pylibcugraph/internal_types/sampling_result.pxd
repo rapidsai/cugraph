@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2021, NVIDIA CORPORATION.
+# Copyright (c) 2022, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -11,22 +11,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# cython: profile=False
-# distutils: language = c++
-# cython: embedsignature = True
+# Have cython use python 3 syntax
 # cython: language_level = 3
 
 
-from libcpp.utility cimport pair
-from cugraph.structure.graph_utilities cimport *
+from pylibcugraph._cugraph_c.algorithms cimport (
+    cugraph_sample_result_t,
+)
 
 
-cdef extern from "cugraph/utilities/cython.hpp" namespace "cugraph::cython":
-
-    cdef pair[size_t, weight_t] call_louvain[weight_t](
-        const handle_t &handle,
-        const graph_container_t &g,
-        void *identifiers,
-        void *parts,
-        size_t max_level,
-        weight_t resolution) except +
+cdef class SamplingResult:
+    cdef cugraph_sample_result_t* c_sample_result_ptr
+    cdef set_ptr(self, cugraph_sample_result_t* sample_result_ptr)

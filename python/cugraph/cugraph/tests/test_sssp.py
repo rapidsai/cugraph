@@ -28,6 +28,7 @@ from scipy.sparse import csc_matrix as sp_csc_matrix
 import cudf
 import cugraph
 from cugraph.testing import utils
+from cugraph.experimental import datasets
 
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
@@ -135,7 +136,8 @@ def cugraph_call(gpu_benchmark_callable, input_G_or_matrix,
 
 
 def networkx_call(graph_file, source, edgevals=False):
-    M = utils.read_csv_for_nx(graph_file, read_weights_in_sp=True)
+    dataset_path = graph_file.get_path()
+    M = utils.read_csv_for_nx(dataset_path, read_weights_in_sp=True)
     # Directed NetworkX graph
     edge_attr = "weight" if edgevals else None
     Gnx = nx.from_pandas_edgelist(
@@ -153,10 +155,14 @@ def networkx_call(graph_file, source, edgevals=False):
     else:
         nx_paths = nx.single_source_dijkstra_path_length(Gnx, source)
 
+    G = graph_file.get_graph(
+        create_using=cugraph.Graph(
+            directed=True), ignore_weights=not edgevals)
+
     t2 = time.time() - t1
     print("NX Time : " + str(t2))
 
-    return (graph_file, source, nx_paths, Gnx)
+    return (G, dataset_path, source, nx_paths, Gnx)
 
 
 # =============================================================================
@@ -168,7 +174,7 @@ def networkx_call(graph_file, source, edgevals=False):
 # not do this automatically (unlike multiply-parameterized tests). The 2nd
 # item in the tuple is a label for the param value used when displaying the
 # full test name.
-DATASETS = [pytest.param(d) for d in utils.DATASETS]
+DATASETS = [pytest.param(d) for d in datasets.DATASETS]
 SOURCES = [pytest.param(1)]
 fixture_params = utils.genFixtureParamsProduct((DATASETS, "ds"),
                                                (SOURCES, "src"))
@@ -206,10 +212,14 @@ def single_dataset_source_nxresults_weighted(request):
 @pytest.mark.parametrize("cugraph_input_type", utils.CUGRAPH_DIR_INPUT_TYPES)
 def test_sssp(gpubenchmark, dataset_source_nxresults, cugraph_input_type):
     # Extract the params generated from the fixture
-    (graph_file, source, nx_paths, Gnx) = dataset_source_nxresults
+    (G, dataset_path, source, nx_paths, Gnx) = dataset_source_nxresults
 
-    input_G_or_matrix = utils.create_obj_from_csv(graph_file,
-                                                  cugraph_input_type)
+    if not isinstance(cugraph_input_type, (cugraph.Graph, cugraph.DiGraph)):
+        input_G_or_matrix = utils.create_obj_from_csv(
+            dataset_path, cugraph_input_type)
+    else:
+        input_G_or_matrix = G
+
     cu_paths, max_val = cugraph_call(gpubenchmark, input_G_or_matrix, source)
 
     # Calculating mismatch
@@ -235,23 +245,11 @@ def test_sssp(gpubenchmark, dataset_source_nxresults, cugraph_input_type):
 @pytest.mark.parametrize("cugraph_input_type", utils.CUGRAPH_DIR_INPUT_TYPES)
 def test_sssp_invalid_start(gpubenchmark, dataset_source_nxresults,
                             cugraph_input_type):
-    (graph_file, source, nx_paths, Gnx) = dataset_source_nxresults
-    el = cudf.read_csv(
-        graph_file,
-        sep=' ',
-        dtype=['int32', 'int32', 'float32'],
-        names=['src', 'tar', 'w']
-    ).dropna()
-    newval = max(el.src.max(), el.tar.max()) + 1
-    el.src = el.src.replace(source, newval)
-    el.tar = el.tar.replace(source, newval)
-    G = cugraph.from_cudf_edgelist(
-        el,
-        source='src',
-        destination='tar',
-        edge_attr='w',
-        renumber=True
-    )
+    (G, _, source, nx_paths, Gnx) = dataset_source_nxresults
+    el = G.view_edge_list()
+
+    newval = max(el.src.max(), el.dst.max()) + 1
+    source = newval
 
     with pytest.raises(ValueError):
         cugraph_call(gpubenchmark, G, source)
@@ -271,11 +269,9 @@ def test_sssp_nonnative_inputs(gpubenchmark,
 def test_sssp_edgevals(gpubenchmark, dataset_source_nxresults_weighted,
                        cugraph_input_type):
     # Extract the params generated from the fixture
-    (graph_file, source, nx_paths, Gnx) = dataset_source_nxresults_weighted
+    (G, _, source, nx_paths, Gnx) = dataset_source_nxresults_weighted
+    input_G_or_matrix = G
 
-    input_G_or_matrix = utils.create_obj_from_csv(graph_file,
-                                                  cugraph_input_type,
-                                                  edgevals=True)
     cu_paths, max_val = cugraph_call(gpubenchmark, input_G_or_matrix,
                                      source, edgevals=True)
 
@@ -312,11 +308,12 @@ def test_sssp_edgevals_nonnative_inputs(
                        cugraph_input_type)
 
 
-@pytest.mark.parametrize("graph_file", utils.DATASETS)
+@pytest.mark.parametrize("graph_file", DATASETS)
 @pytest.mark.parametrize("source", SOURCES)
 def test_sssp_data_type_conversion(graph_file, source):
-    M = utils.read_csv_for_nx(graph_file)
-    cu_M = utils.read_csv_file(graph_file)
+    dataset_path = graph_file.get_path()
+    M = utils.read_csv_for_nx(dataset_path)
+    cu_M = utils.read_csv_file(dataset_path)
 
     # cugraph call with int32 weights
     cu_M["2"] = cu_M["2"].astype(np.int32)
@@ -367,11 +364,10 @@ def test_sssp_data_type_conversion(graph_file, source):
 
 
 def test_scipy_api_compat():
-    graph_file = utils.DATASETS[0]
-
-    input_cugraph_graph = utils.create_obj_from_csv(graph_file, cugraph.Graph,
-                                                    edgevals=True)
-    input_coo_matrix = utils.create_obj_from_csv(graph_file, cp_coo_matrix,
+    graph_file = datasets.DATASETS[0]
+    dataset_path = graph_file.get_path()
+    input_cugraph_graph = graph_file.get_graph()
+    input_coo_matrix = utils.create_obj_from_csv(dataset_path, cp_coo_matrix,
                                                  edgevals=True)
 
     # Ensure scipy-only options are rejected for cugraph inputs

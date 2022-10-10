@@ -20,6 +20,7 @@ import networkx as nx
 import cudf
 import cugraph
 from cugraph.testing import utils
+from cugraph.experimental.datasets import DATASETS, karate
 
 
 ###############################################################################
@@ -68,9 +69,10 @@ def nx_call(M, verts, directed=True):
 
 
 ###############################################################################
-@pytest.mark.parametrize("graph_file", utils.DATASETS)
+@pytest.mark.parametrize("graph_file", DATASETS)
 def test_subgraph_extraction_DiGraph(graph_file):
-    M = utils.read_csv_for_nx(graph_file)
+    dataset_path = graph_file.get_path()
+    M = utils.read_csv_for_nx(dataset_path)
     verts = np.zeros(3, dtype=np.int32)
     verts[0] = 0
     verts[1] = 1
@@ -80,9 +82,10 @@ def test_subgraph_extraction_DiGraph(graph_file):
     assert compare_edges(cu_sg, nx_sg)
 
 
-@pytest.mark.parametrize("graph_file", utils.DATASETS)
+@pytest.mark.parametrize("graph_file", DATASETS)
 def test_subgraph_extraction_Graph(graph_file):
-    M = utils.read_csv_for_nx(graph_file)
+    dataset_path = graph_file.get_path()
+    M = utils.read_csv_for_nx(dataset_path)
     verts = np.zeros(3, dtype=np.int32)
     verts[0] = 0
     verts[1] = 1
@@ -92,15 +95,15 @@ def test_subgraph_extraction_Graph(graph_file):
     assert compare_edges(cu_sg, nx_sg)
 
 
-@pytest.mark.parametrize("graph_file", utils.DATASETS)
+@pytest.mark.parametrize("graph_file", DATASETS)
 def test_subgraph_extraction_Graph_nx(graph_file):
     directed = False
     verts = np.zeros(3, dtype=np.int32)
     verts[0] = 0
     verts[1] = 1
     verts[2] = 17
-
-    M = utils.read_csv_for_nx(graph_file)
+    dataset_path = graph_file.get_path()
+    M = utils.read_csv_for_nx(dataset_path)
 
     if directed:
         G = nx.from_pandas_edgelist(
@@ -120,9 +123,10 @@ def test_subgraph_extraction_Graph_nx(graph_file):
         assert nx_sub.has_edge(u, v)
 
 
-@pytest.mark.parametrize("graph_file", utils.DATASETS)
+@pytest.mark.parametrize("graph_file", DATASETS)
 def test_subgraph_extraction_multi_column(graph_file):
-    M = utils.read_csv_for_nx(graph_file)
+    dataset_path = graph_file.get_path()
+    M = utils.read_csv_for_nx(dataset_path)
 
     cu_M = cudf.DataFrame()
     cu_M["src_0"] = cudf.Series(M["0"])
@@ -160,13 +164,11 @@ def test_subgraph_extraction_graph_not_renumbered():
     """
     Ensure subgraph() works with a Graph that has not been renumbered
     """
-    graph_file = utils.RAPIDS_DATASET_ROOT_DIR_PATH / "karate.csv"
-    gdf = cudf.read_csv(graph_file, delimiter=" ",
-                        dtype=["int32", "int32", "float32"], header=None)
+    gdf = karate.get_edgelist()
     verts = np.array([0, 1, 2], dtype=np.int32)
     sverts = cudf.Series(verts)
     G = cugraph.Graph()
-    G.from_cudf_edgelist(gdf, source="0", destination="1", renumber=False)
+    G.from_cudf_edgelist(gdf, source="src", destination="dst", renumber=False)
     Sg = cugraph.subgraph(G, sverts)
 
     assert Sg.number_of_vertices() == 3
