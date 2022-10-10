@@ -106,7 +106,7 @@ setup(name='cugraph'+os.getenv("PYTHON_PACKAGE_CUDA_SUFFIX", default=""),
       ],
       install_requires=[
         "numba",
-        f"dask-cuda>=22.8",
+        f"dask-cuda>=22.10",
         f"cudf{os.getenv('PYTHON_PACKAGE_CUDA_SUFFIX', default='')}",
         f"raft-dask{os.getenv('PYTHON_PACKAGE_CUDA_SUFFIX', default='')}",
         f"dask-cudf{os.getenv('PYTHON_PACKAGE_CUDA_SUFFIX', default='')}",
