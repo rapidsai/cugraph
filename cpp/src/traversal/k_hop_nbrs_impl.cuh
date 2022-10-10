@@ -129,8 +129,8 @@ k_hop_nbrs(raft::handle_t const& handle,
   constexpr size_t bucket_idx_cur = 0;
   constexpr size_t num_buckets    = 1;
 
-  vertex_frontier_t<vertex_t, size_t, GraphViewType::is_multi_gpu, true> frontier(handle,
-                                                                                  num_buckets);
+  vertex_frontier_t<vertex_t, size_t, GraphViewType::is_multi_gpu, false> frontier(handle,
+                                                                                   num_buckets);
 
   auto key_first = thrust::make_zip_iterator(
     start_vertices.begin(),
