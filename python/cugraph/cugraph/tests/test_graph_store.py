@@ -14,44 +14,33 @@
 from collections import defaultdict
 import pytest
 import cugraph
-from cugraph.testing import utils
 from cugraph.experimental import PropertyGraph
 import numpy as np
 import cudf
 import cupy as cp
 from cugraph.gnn import CuGraphStore
+from cugraph.experimental.datasets import DATASETS
 
 
-@pytest.mark.parametrize("graph_file", utils.DATASETS)
+@pytest.mark.parametrize("graph_file", DATASETS)
 def test_no_graph(graph_file):
     with pytest.raises(TypeError):
         gstore = cugraph.gnn.CuGraphStore()
         gstore.num_edges()
 
 
-@pytest.mark.parametrize("graph_file", utils.DATASETS)
+@pytest.mark.parametrize("graph_file", DATASETS)
 def test_using_graph(graph_file):
     with pytest.raises(ValueError):
-
-        cu_M = utils.read_csv_file(graph_file)
-
-        g = cugraph.Graph()
-        g.from_cudf_edgelist(
-            cu_M, source="0", destination="1", edge_attr="2", renumber=True
-        )
-
+        g = graph_file.get_graph()
         cugraph.gnn.CuGraphStore(graph=g)
 
 
-@pytest.mark.parametrize("graph_file", utils.DATASETS)
+@pytest.mark.parametrize("graph_file", DATASETS)
 def test_using_pgraph(graph_file):
-    cu_M = utils.read_csv_file(graph_file)
-
-    g = cugraph.Graph(directed=True)
-    g.from_cudf_edgelist(
-        cu_M, source="0", destination="1", edge_attr="2", renumber=True
-    )
-
+    g = graph_file.get_graph(create_using=cugraph.Graph(directed=True))
+    cu_M = graph_file.get_edgelist().rename(
+        columns={"src": "0", "dst": "1", "wgt": "2"})
     pG = PropertyGraph()
     pG.add_edge_data(cu_M, vertex_col_names=("0", "1"), property_columns=None)
 
@@ -63,11 +52,10 @@ def test_using_pgraph(graph_file):
     assert g.number_of_vertices() == gstore.num_vertices
 
 
-@pytest.mark.parametrize("graph_file", utils.DATASETS)
+@pytest.mark.parametrize("graph_file", DATASETS)
 def test_node_data_pg(graph_file):
-
-    cu_M = utils.read_csv_file(graph_file)
-
+    cu_M = graph_file.get_edgelist().rename(
+        columns={"src": "0", "dst": "1", "wgt": "2"})
     pG = PropertyGraph()
     gstore = cugraph.gnn.CuGraphStore(graph=pG, backend_lib="cupy")
     gstore.add_edge_data(
@@ -81,16 +69,14 @@ def test_node_data_pg(graph_file):
 
 
 @pytest.mark.skip("Skipping egonet testing for now")
-@pytest.mark.parametrize("graph_file", utils.DATASETS)
+@pytest.mark.parametrize("graph_file", DATASETS)
 def test_egonet(graph_file):
 
     from cugraph.community.egonet import batched_ego_graphs
 
-    cu_M = utils.read_csv_file(graph_file)
-
-    g = cugraph.Graph(directed=True)
-    g.from_cudf_edgelist(cu_M, source="0", destination="1", renumber=True)
-
+    g = graph_file.get_graph(create_using=cugraph.Graph(directed=True))
+    cu_M = graph_file.get_edgelist().rename(
+        columns={"src": "0", "dst": "1", "wgt": "2"})
     pG = PropertyGraph()
     gstore = cugraph.gnn.CuGraphStore(graph=pG, backend_lib="cupy")
     gstore.add_edge_data(
@@ -107,15 +93,11 @@ def test_egonet(graph_file):
 
 
 @pytest.mark.skip("Skipping egonet testing for now")
-@pytest.mark.parametrize("graph_file", utils.DATASETS)
+@pytest.mark.parametrize("graph_file", DATASETS)
 def test_workflow(graph_file):
     # from cugraph.community.egonet import batched_ego_graphs
-
-    cu_M = utils.read_csv_file(graph_file)
-
-    g = cugraph.Graph(directed=True)
-    g.from_cudf_edgelist(cu_M, source="0", destination="1", renumber=True)
-
+    cu_M = graph_file.get_edgelist().rename(
+        columns={"src": "0", "dst": "1", "wgt": "2"})
     pg = PropertyGraph()
     gstore = cugraph.gnn.CuGraphStore(graph=pg)
     gstore.add_edge_data(cu_M, node_col_names=("0", "1"), feat_name="feat")
@@ -131,13 +113,10 @@ def test_workflow(graph_file):
     assert len(ego_edge_list) > 0
 
 
-@pytest.mark.parametrize("graph_file", utils.DATASETS)
+@pytest.mark.parametrize("graph_file", DATASETS)
 def test_sample_neighbors(graph_file):
-    cu_M = utils.read_csv_file(graph_file)
-
-    g = cugraph.Graph(directed=True)
-    g.from_cudf_edgelist(cu_M, source="0", destination="1", renumber=True)
-
+    cu_M = graph_file.get_edgelist().rename(
+        columns={"src": "0", "dst": "1", "wgt": "2"})
     pg = PropertyGraph()
     gstore = cugraph.gnn.CuGraphStore(graph=pg)
     gstore.add_edge_data(cu_M, feat_name="feat", node_col_names=("0", "1"))
@@ -157,13 +136,10 @@ def test_sample_neighbors(graph_file):
     assert len(parents_list) > 0
 
 
-@pytest.mark.parametrize("graph_file", utils.DATASETS)
+@pytest.mark.parametrize("graph_file", DATASETS)
 def test_sample_neighbor_neg_one_fanout(graph_file):
-    cu_M = utils.read_csv_file(graph_file)
-
-    g = cugraph.Graph(directed=True)
-    g.from_cudf_edgelist(cu_M, source="0", destination="1", renumber=True)
-
+    cu_M = graph_file.get_edgelist().rename(
+        columns={"src": "0", "dst": "1", "wgt": "2"})
     pg = PropertyGraph()
     gstore = cugraph.gnn.CuGraphStore(graph=pg)
     gstore.add_edge_data(cu_M, feat_name="edge_k", node_col_names=("0", "1"))
@@ -178,9 +154,10 @@ def test_sample_neighbor_neg_one_fanout(graph_file):
     assert len(parents_list) > 0
 
 
-@pytest.mark.parametrize("graph_file", utils.DATASETS)
+@pytest.mark.parametrize("graph_file", DATASETS)
 def test_get_node_storage_graph_file(graph_file):
-    cu_M = utils.read_csv_file(graph_file)
+    cu_M = graph_file.get_edgelist().rename(
+        columns={"src": "0", "dst": "1", "wgt": "2"})
 
     pg = PropertyGraph()
     gstore = cugraph.gnn.CuGraphStore(graph=pg, backend_lib="cupy")
@@ -208,10 +185,10 @@ def test_get_node_storage_graph_file(graph_file):
     assert ndata.shape[0] > 0
 
 
-@pytest.mark.parametrize("graph_file", utils.DATASETS)
+@pytest.mark.parametrize("graph_file", DATASETS)
 def test_edge_storage_data_graph_file(graph_file):
-    cu_M = utils.read_csv_file(graph_file)
-
+    cu_M = graph_file.get_edgelist().rename(
+        columns={"src": "0", "dst": "1", "wgt": "2"})
     pg = PropertyGraph()
     gstore = cugraph.gnn.CuGraphStore(graph=pg, backend_lib="cupy")
     gstore.add_edge_data(cu_M, node_col_names=("0", "1"), feat_name="edge_k")
