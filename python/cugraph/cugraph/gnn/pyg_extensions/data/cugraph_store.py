@@ -32,7 +32,9 @@ class EdgeLayout(Enum):
 
 @dataclass
 class CuGraphEdgeAttr:
-    r"""Defines the attributes of an :obj:`GraphStore` edge."""
+    """
+    Defines the attributes of an :obj:`GraphStore` edge.
+    """
 
     # The type of the edge
     edge_type: Optional[Any]
@@ -70,18 +72,22 @@ class CuGraphEdgeAttr:
 
 def EXPERIMENTAL__to_pyg(G, backend='torch'):
     """
-        Returns the PyG wrappers for the provided PropertyGraph or
-        MGPropertyGraph.
+    Returns the PyG wrappers for the provided PropertyGraph or
+    MGPropertyGraph.
 
     Parameters
     ----------
     G : PropertyGraph or MGPropertyGraph
         The graph to produce PyG wrappers for.
-
+    
     Returns
     -------
     Tuple (CuGraphFeatureStore, CuGraphStore)
-    Wrappers for the provided property graph.
+        Wrappers for the provided property graph.
+    
+    Examples
+    --------
+
     """
     return (
         EXPERIMENTAL__CuGraphFeatureStore(G, backend=backend),
@@ -94,7 +100,8 @@ _field_status = Enum("FieldStatus", "UNSET")
 
 @dataclass
 class CuGraphTensorAttr:
-    r"""Defines the attributes of a class:`FeatureStore` tensor; in particular,
+    """
+    Defines the attributes of a class:`FeatureStore` tensor; in particular,
     all the parameters necessary to uniquely identify a tensor from the feature
     store.
 
@@ -116,26 +123,44 @@ class CuGraphTensorAttr:
     # Convenience methods #####################################################
 
     def is_set(self, key):
-        r"""Whether an attribute is set in :obj:`TensorAttr`."""
+        """
+        Whether an attribute is set in :obj:`TensorAttr`.
+        
+        Parameters
+        ----------
+        key : str
+            Attribute name
+
+        """
         if key not in self.__dataclass_fields__:
             raise KeyError(key)
         attr = getattr(self, key)
         return type(attr) != _field_status or attr != _field_status.UNSET
 
     def is_fully_specified(self):
-        r"""Whether the :obj:`TensorAttr` has no unset fields."""
+        """
+        Whether the :obj:`TensorAttr` has no unset fields.
+        """
         return all([self.is_set(key) for key in self.__dataclass_fields__])
 
     def fully_specify(self):
-        r"""Sets all :obj:`UNSET` fields to :obj:`None`."""
+        """
+        Sets all :obj:`UNSET` fields to :obj:`None`.
+        """
         for key in self.__dataclass_fields__:
             if not self.is_set(key):
                 setattr(self, key, None)
         return self
 
     def update(self, attr):
-        r"""Updates an :class:`TensorAttr` with set attributes from another
-        :class:`TensorAttr`."""
+        """
+        Updates an :class:`TensorAttr` with set attributes from another
+        :class:`TensorAttr`.
+        
+        Parameters
+        ----------
+        attr : set of 
+        """
         for key in self.__dataclass_fields__:
             if attr.is_set(key):
                 setattr(self, key, getattr(attr, key))
@@ -245,6 +270,9 @@ class EXPERIMENTAL__CuGraphStore:
         return isinstance(self.__graph, MGPropertyGraph)
 
     def put_edge_index(self, edge_index, edge_attr):
+        """
+            Adding indices not supported.
+        """
         raise NotImplementedError('Adding indices not supported.')
 
     def get_all_edge_attrs(self):
@@ -255,24 +283,24 @@ class EXPERIMENTAL__CuGraphStore:
 
     def _get_edge_index(self, attr):
         """
-            Returns the edge index in the requested format
-            (as defined by attr).  Currently, only unsorted
-            COO is supported, which is returned as a (src,dst)
-            tuple as expected by the PyG API.
+        Returns the edge index in the requested format
+        (as defined by attr).  Currently, only unsorted
+        COO is supported, which is returned as a (src,dst)
+        tuple as expected by the PyG API.
 
-            Parameters
-            ----------
-            attr: CuGraphEdgeAttr
-                The CuGraphEdgeAttr specifying the
-                desired edge type, layout (i.e. CSR, COO, CSC), and
-                whether the returned index should be sorted (if COO).
-                Currently, only unsorted COO is supported.
+        Parameters
+        ----------
+        attr: CuGraphEdgeAttr
+            The CuGraphEdgeAttr specifying the
+            desired edge type, layout (i.e. CSR, COO, CSC), and
+            whether the returned index should be sorted (if COO).
+            Currently, only unsorted COO is supported.
 
-            Returns
-            -------
-            (src, dst) : Tuple[tensor type]
-                Tuple of the requested edge index in COO form.
-                Currently, only COO form is supported.
+        Returns
+        -------
+        (src, dst) : Tuple[tensor type]
+            Tuple of the requested edge index in COO form.
+            Currently, only COO form is supported.
         """
 
         if attr.layout != EdgeLayout.COO:
@@ -330,11 +358,14 @@ class EXPERIMENTAL__CuGraphStore:
         return (src, dst)
 
     def get_edge_index(self, *args, **kwargs):
-        r"""Synchronously gets an edge_index tensor from the materialized
+        """
+        Synchronously gets an edge_index tensor from the materialized
         graph.
 
-        Args:
-            **attr(EdgeAttr): the edge attributes.
+        Parameters
+        ----------
+
+        args (EdgeAttr): the edge attributes.
 
         Returns:
             EdgeTensorType: an edge_index tensor corresonding to the provided
@@ -401,6 +432,23 @@ class EXPERIMENTAL__CuGraphStore:
             replace,
             directed,
             edge_types):
+        """
+        Wraps cuGraph uniform_neighbor_sample for single or multi gpu cugraphs.
+
+        Parameters
+        ----------
+        index : type ??
+            U
+        num_neighbors : int
+            Currently must be a constant number of neigbors per edge type
+        replace : bool
+            Flag to specify if the random sampling is done with replacement
+        directed : bool
+            Not currently used.
+        edge_types : list of edge types
+            Contains valid edge types in the graph
+
+        """
 
         if isinstance(num_neighbors, dict):
             # FIXME support variable num neighbors per edge type
@@ -518,7 +566,10 @@ class EXPERIMENTAL__CuGraphFeatureStore:
         Duck-typed version of PyG's FeatureStore.
     """
     def __init__(self, G, reserved_keys=[], backend='torch'):
+
         """
+        Parameters
+        ----------
         G : PropertyGraph or MGPropertyGraph where the graph is stored.
         reserved_keys : Properties in the graph that are not used for
             training (the 'x' attribute will ignore these properties).
@@ -551,21 +602,45 @@ class EXPERIMENTAL__CuGraphFeatureStore:
 
     @property
     def is_mg(self):
+        """
+        Is the instance multi-gpu?
+        """
         return isinstance(self.__graph, MGPropertyGraph)
 
     def put_tensor(self, tensor, attr):
+        """
+        This method will add properties.
+        It is not yet implemented.
+
+        Parameters
+        ----------
+        tensor : 
+        """
         raise NotImplementedError('Adding properties not supported.')
 
     def create_named_tensor(self, attr, properties):
         """
-            Create a named tensor that contains a subset of
-            properties in the graph.
+        Create a named tensor that contains a subset of
+        properties in the graph.
+        This method is not yet implemented.
+        
+        Parameters
+        ----------
+        properties
+        
+        attr : 
+
+        properties : 
+            Only supports props x and y
+        
         """
         # FIXME implement this to allow props other than x and y
         raise NotImplementedError('Not yet supported')
 
     def get_all_tensor_attrs(self):
-        r"""Obtains all tensor attributes stored in this feature store."""
+        """
+        Obtains all tensor attributes stored in this feature store.
+        """
         attrs = []
         for vertex_type in self.__graph.vertex_types:
             # FIXME handle differing properties by type
@@ -583,6 +658,14 @@ class EXPERIMENTAL__CuGraphFeatureStore:
         return attrs
 
     def _get_tensor(self, attr):
+        """
+        
+
+        Parameters
+        ----------
+        attrs (List[TensorAttr]): a list of :class:`TensorAttr` attributes
+            that identify the tensors to get.
+        """
         if attr.attr_name == 'x':
             cols = None
         else:
@@ -642,13 +725,16 @@ class EXPERIMENTAL__CuGraphFeatureStore:
         return [self._get_tensor(attr) for attr in attrs]
 
     def multi_get_tensor(self, attrs):
-        r"""Synchronously obtains a :class:`FeatureTensorType` object from the
+        
+        """
+        Synchronously obtains a :class:`FeatureTensorType` object from the
         feature store for each tensor associated with the attributes in
         `attrs`.
 
-        Args:
-            attrs (List[TensorAttr]): a list of :class:`TensorAttr` attributes
-                that identify the tensors to get.
+        Parameters
+        ----------
+        attrs (List[TensorAttr]): a list of :class:`TensorAttr` attributes
+            that identify the tensors to get.
 
         Returns:
             List[FeatureTensorType]: a Tensor of the same type as the index for
@@ -679,24 +765,27 @@ class EXPERIMENTAL__CuGraphFeatureStore:
         ]
 
     def get_tensor(self, *args, **kwargs):
-        r"""Synchronously obtains a :class:`FeatureTensorType` object from the
+        """
+        Synchronously obtains a :class:`FeatureTensorType` object from the
         feature store. Feature store implementors guarantee that the call
         :obj:`get_tensor(put_tensor(tensor, attr), attr) = tensor` holds.
 
-        Args:
-            **attr (TensorAttr): Any relevant tensor attributes that correspond
-                to the feature tensor. See the :class:`TensorAttr`
-                documentation for required and optional attributes. It is the
-                job of implementations of a :class:`FeatureStore` to store this
-                metadata in a meaningful way that allows for tensor retrieval
-                from a :class:`TensorAttr` object.
+        Parameters
+        ----------
+        **attr (TensorAttr): Any relevant tensor attributes that correspond
+            to the feature tensor. See the :class:`TensorAttr`
+            documentation for required and optional attributes. It is the
+            job of implementations of a :class:`FeatureStore` to store this
+            metadata in a meaningful way that allows for tensor retrieval
+            from a :class:`TensorAttr` object.
 
-        Returns:
-            FeatureTensorType: a Tensor of the same type as the index.
+        Returns
+        -------
+        FeatureTensorType: a Tensor of the same type as the index.
 
         Raises:
-            KeyError: if the tensor corresponding to attr was not found.
-            ValueError: if the input `TensorAttr` is not fully specified.
+        KeyError: if the tensor corresponding to attr was not found.
+        ValueError: if the input `TensorAttr` is not fully specified.
         """
 
         attr = self._tensor_attr_cls.cast(*args, **kwargs)
@@ -714,14 +803,20 @@ class EXPERIMENTAL__CuGraphFeatureStore:
         return self._get_tensor(attr).size
 
     def get_tensor_size(self, *args, **kwargs):
-        r"""Obtains the size of a tensor given its attributes, or :obj:`None`
-        if the tensor does not exist."""
+        """
+        Obtains the size of a tensor given its attributes, or :obj:`None`
+        if the tensor does not exist.
+        """
         attr = self._tensor_attr_cls.cast(*args, **kwargs)
         if not attr.is_set('index'):
             attr.index = None
         return self._get_tensor_size(attr)
 
     def _remove_tensor(self, attr):
+        """
+        Removes features
+        Not yet supported.
+        """
         raise NotImplementedError('Removing features not supported')
 
     def __len__(self):
@@ -733,8 +828,14 @@ def edge_type_to_str(edge_type):
     Converts the PyG (src, type, dst) edge representation into
     the equivalent C++ representation.
 
+    Parameters
+    ----------
     edge_type : The PyG (src, type, dst) tuple edge representation
         to convert to the C++ representation.
+
+    Returns
+    -------
+
     """
     # Since C++ cannot take dictionaries with tuples as key as input, edge type
     # triplets need to be converted into single strings.
