@@ -92,8 +92,10 @@ class Tests_MGKHopNbrs
     auto mg_graph_view = mg_graph.view();
 
     std::vector<vertex_t> h_mg_start_vertices(
-      (k_hop_nbrs_usecase.num_start_vertices / comm_size) +
-      (comm_rank < (k_hop_nbrs_usecase.num_start_vertices % comm_size) ? 1 : 0));
+      std::min(static_cast<size_t>(
+                 (k_hop_nbrs_usecase.num_start_vertices / comm_size) +
+                 (comm_rank < (k_hop_nbrs_usecase.num_start_vertices % comm_size) ? 1 : 0)),
+               static_cast<size_t>(mg_graph_view.local_vertex_partition_range_size())));
     for (size_t i = 0; i < h_mg_start_vertices.size(); ++i) {
       h_mg_start_vertices[i] =
         mg_graph_view.local_vertex_partition_range_first() +
@@ -209,7 +211,7 @@ class Tests_MGKHopNbrs
           h_mg_aggregate_offsets.begin(), h_mg_aggregate_offsets.end(), h_sg_offsets.begin()))
           << "MG & SG offsets do not match.";
 
-        for (size_t i = 0; i < k_hop_nbrs_usecase.num_start_vertices; ++i) {
+        for (size_t i = 0; i < d_mg_aggregate_start_vertices.size(); ++i) {
           std::sort(h_sg_nbrs.begin() + h_sg_offsets[i], h_sg_nbrs.begin() + h_sg_offsets[i + 1]);
           std::sort(h_mg_aggregate_nbrs.begin() + h_mg_aggregate_offsets[i],
                     h_mg_aggregate_nbrs.begin() + h_mg_aggregate_offsets[i + 1]);
