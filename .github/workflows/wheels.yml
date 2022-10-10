@@ -5,6 +5,10 @@ on:
     branches:
       - 'pull-request/[0-9]+'
 
+concurrency:
+  group: "${{ github.workflow }}-${{ github.ref }}"
+  cancel-in-progress: true
+
 jobs:
   pylibcugraph-wheel:
     uses: rapidsai/shared-action-workflows/.github/workflows/wheels-manylinux.yml@feat/wheel-ci-actions-2
@@ -12,7 +16,7 @@ jobs:
       package-name: pylibcugraph
       package-dir: python/pylibcugraph
       python-package-versioneer-override: "22.10.00a"
-      python-package-build-tag: "7"
+      python-package-build-tag: "8"
       python-version: "3.8 3.9"
 
       manylinux-container-amd64: "rapidsai/manylinux2014"
@@ -43,7 +47,7 @@ jobs:
       package-name: cugraph
       package-dir: python/cugraph
       python-package-versioneer-override: "22.10.00a"
-      python-package-build-tag: "7"
+      python-package-build-tag: "8"
       python-version: "3.8 3.9"
 
       manylinux-container-amd64: "rapidsai/manylinux2014"
