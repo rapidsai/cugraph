@@ -79,12 +79,12 @@ def EXPERIMENTAL__to_pyg(G, backend='torch'):
     ----------
     G : PropertyGraph or MGPropertyGraph
         The graph to produce PyG wrappers for.
-    
+
     Returns
     -------
     Tuple (CuGraphFeatureStore, CuGraphStore)
         Wrappers for the provided property graph.
-    
+
     Examples
     --------
 
@@ -125,7 +125,7 @@ class CuGraphTensorAttr:
     def is_set(self, key):
         """
         Whether an attribute is set in :obj:`TensorAttr`.
-        
+
         Parameters
         ----------
         key : str
@@ -156,10 +156,12 @@ class CuGraphTensorAttr:
         """
         Updates an :class:`TensorAttr` with set attributes from another
         :class:`TensorAttr`.
-        
+
         Parameters
         ----------
-        attr : set of 
+        attrs (List[TensorAttr]): a list of :class:`TensorAttr` attributes
+            that identify the tensors to get.
+
         """
         for key in self.__dataclass_fields__:
             if attr.is_set(key):
@@ -614,7 +616,7 @@ class EXPERIMENTAL__CuGraphFeatureStore:
 
         Parameters
         ----------
-        tensor : 
+
         """
         raise NotImplementedError('Adding properties not supported.')
 
@@ -623,16 +625,15 @@ class EXPERIMENTAL__CuGraphFeatureStore:
         Create a named tensor that contains a subset of
         properties in the graph.
         This method is not yet implemented.
-        
+
         Parameters
         ----------
-        properties
-        
-        attr : 
+        attrs (List[TensorAttr]): a list of :class:`TensorAttr` attributes
+            that identify the tensors to get.
 
-        properties : 
+        properties : list of properties to add
             Only supports props x and y
-        
+
         """
         # FIXME implement this to allow props other than x and y
         raise NotImplementedError('Not yet supported')
@@ -659,7 +660,6 @@ class EXPERIMENTAL__CuGraphFeatureStore:
 
     def _get_tensor(self, attr):
         """
-        
 
         Parameters
         ----------
@@ -725,7 +725,6 @@ class EXPERIMENTAL__CuGraphFeatureStore:
         return [self._get_tensor(attr) for attr in attrs]
 
     def multi_get_tensor(self, attrs):
-        
         """
         Synchronously obtains a :class:`FeatureTensorType` object from the
         feature store for each tensor associated with the attributes in
