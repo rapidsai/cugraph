@@ -428,7 +428,7 @@ class CuGraphStore:
     @cached_property
     def num_nodes_dict(self):
         """
-            Return num_nodes_dict of the graph
+        Return num_nodes_dict of the graph
         """
         return {ntype: self.num_nodes(ntype) for ntype in self.ntypes}
 
@@ -586,7 +586,7 @@ class CuFeatureStorage:
 
         indices = cp.asarray(indices)
         if isinstance(self.pg, MGPropertyGraph):
-            # dask_cudf loc breaks if we provide cudf series/numpy array
+            # dask_cudf loc breaks if we provide cudf series/cupy array
             # https://github.com/rapidsai/cudf/issues/11877
             indices = indices.get()
         else:
@@ -668,10 +668,10 @@ def sample_multiple_sgs(
     output_dfs = []
     for can_etype, sg in sgs.items():
         can_etype = _convert_can_etype_s_to_tup(can_etype)
-        if _edge_types_contains_canonical_etype(can_etype, start_list_types, edge_dir):
-            if edge_dir == 'in':
-                # TODO cleanup code
-                # then we sample dst
+        if _edge_types_contains_canonical_etype(
+            can_etype, start_list_types, edge_dir
+        ):
+            if edge_dir == "in":
                 subset_type = can_etype[2]
             else:
                 subset_type = can_etype[0]
@@ -685,22 +685,6 @@ def sample_multiple_sgs(
                 with_replacement,
             )
             output_dfs.append(output)
-    
-    
-    # output_dfs = [
-    #     sample_single_sg(
-    #         sg,
-    #         sample_f,
-    #         start_list_d,
-    #         start_list_dtype,
-    #         fanout,
-    #         with_replacement,
-    #     )
-    #     for can_etype, sg in sgs.items()
-    #     if _edge_types_contains_canonical_etype(
-    #         can_etype, start_list_types, edge_dir
-    #     )
-    # ]
 
     if len(output_dfs) == 0:
         empty_df = cudf.DataFrame(
@@ -736,11 +720,15 @@ def get_subgraph_from_edgelist(edge_list, is_mg, reverse_edges=False):
 
     subgraph = cugraph.MultiGraph(directed=True)
     if is_mg:
-        #TODO: Vibhu Jawa fix
+        # FIXME: Can not switch to renumber = False
+        # For MNMG Algos
+        # Remove when https://github.com/rapidsai/cugraph/issues/2437
+        # lands
         create_subgraph_f = subgraph.from_dask_cudf_edgelist
         renumber = True
     else:
-        #TODO: Vibhu Jawa fix
+        # Note: We have to keep renumber = False
+        # to handle cases when the seed_nodes is not present in sugraph
         create_subgraph_f = subgraph.from_cudf_edgelist
         renumber = False
 
