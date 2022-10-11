@@ -37,32 +37,32 @@
 
 template <bool store_transposed, typename vertex_t, typename edge_t, typename weight_t>
 std::tuple<std::vector<edge_t>, std::vector<vertex_t>, std::optional<std::vector<weight_t>>>
-graph_reference(vertex_t const* p_src_vertices,
-                vertex_t const* p_dst_vertices,
-                std::optional<weight_t const*> p_edge_weights,
+graph_reference(vertex_t const* edge_srcs,
+                vertex_t const* edge_dsts,
+                std::optional<weight_t const*> edge_weights,
                 vertex_t number_of_vertices,
                 edge_t number_of_edges)
 {
   std::vector<edge_t> offsets(number_of_vertices + 1, edge_t{0});
   std::vector<vertex_t> indices(number_of_edges, vertex_t{0});
-  auto weights = p_edge_weights
+  auto weights = edge_weights
                    ? std::make_optional<std::vector<weight_t>>(number_of_edges, weight_t{0.0})
                    : std::nullopt;
 
   for (edge_t i = 0; i < number_of_edges; ++i) {
-    auto major = store_transposed ? p_dst_vertices[i] : p_src_vertices[i];
+    auto major = store_transposed ? edge_dsts[i] : edge_srcs[i];
     offsets[1 + major]++;
   }
   std::partial_sum(offsets.begin() + 1, offsets.end(), offsets.begin() + 1);
 
   for (edge_t i = 0; i < number_of_edges; ++i) {
-    auto major           = store_transposed ? p_dst_vertices[i] : p_src_vertices[i];
-    auto minor           = store_transposed ? p_src_vertices[i] : p_dst_vertices[i];
+    auto major           = store_transposed ? edge_dsts[i] : edge_srcs[i];
+    auto minor           = store_transposed ? edge_srcs[i] : edge_dsts[i];
     auto start           = offsets[major];
     auto degree          = offsets[major + 1] - start;
     auto idx             = indices[start + degree - 1]++;
     indices[start + idx] = minor;
-    if (p_edge_weights) { (*weights)[start + idx] = (*p_edge_weights)[i]; }
+    if (edge_weights) { (*weights)[start + idx] = (*edge_weights)[i]; }
   }
 
   return std::make_tuple(std::move(offsets), std::move(indices), std::move(weights));
@@ -97,18 +97,6 @@ class Tests_Graph : public ::testing::TestWithParam<std::tuple<Graph_Usecase, in
 
     edge_t number_of_edges = static_cast<edge_t>(d_srcs.size());
 
-    auto h_srcs    = cugraph::test::to_host(handle, d_srcs);
-    auto h_dsts    = cugraph::test::to_host(handle, d_dsts);
-    auto h_weights = cugraph::test::to_host(handle, d_weights);
-
-    auto [h_reference_offsets, h_reference_indices, h_reference_weights] =
-      graph_reference<store_transposed>(
-        h_srcs.data(),
-        h_dsts.data(),
-        h_weights ? std::optional<weight_t const*>{(*h_weights).data()} : std::nullopt,
-        number_of_vertices,
-        number_of_edges);
-
     cugraph::edgelist_t<vertex_t, edge_t, weight_t> edgelist{
       raft::device_span<vertex_t const>(d_srcs.data(), d_srcs.size()),
       raft::device_span<vertex_t const>(d_dsts.data(), d_dsts.size()),
@@ -135,6 +123,18 @@ class Tests_Graph : public ::testing::TestWithParam<std::tuple<Graph_Usecase, in
     ASSERT_EQ(graph_view.number_of_edges(), number_of_edges);
 
     if (graph_usecase.check_correctness) {
+      auto h_srcs    = cugraph::test::to_host(handle, d_srcs);
+      auto h_dsts    = cugraph::test::to_host(handle, d_dsts);
+      auto h_weights = cugraph::test::to_host(handle, d_weights);
+
+      auto [h_reference_offsets, h_reference_indices, h_reference_weights] =
+        graph_reference<store_transposed>(
+          h_srcs.data(),
+          h_dsts.data(),
+          h_weights ? std::optional<weight_t const*>{(*h_weights).data()} : std::nullopt,
+          number_of_vertices,
+          number_of_edges);
+
       auto h_cugraph_offsets =
         cugraph::test::to_host(handle, graph_view.local_edge_partition_view().offsets());
       auto h_cugraph_indices =

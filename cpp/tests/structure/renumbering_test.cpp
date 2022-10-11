@@ -69,9 +69,8 @@ class Tests_Renumbering
     rmm::device_uvector<vertex_t> src_v(0, handle.get_stream());
     rmm::device_uvector<vertex_t> dst_v(0, handle.get_stream());
     rmm::device_uvector<vertex_t> renumber_map_labels_v(0, handle.get_stream());
-    vertex_t number_of_vertices{};
 
-    std::tie(src_v, dst_v, std::ignore, std::ignore, number_of_vertices, std::ignore) =
+    std::tie(src_v, dst_v, std::ignore, std::ignore, std::ignore, std::ignore) =
       input_usecase.template construct_edgelist<vertex_t, weight_t>(handle, false, false, false);
 
     if (renumbering_usecase.check_correctness) {
