@@ -26,7 +26,7 @@ FLAKE=`flake8 --config=python/.flake8 python`
 ERRORCODE=$((ERRORCODE | $?))
 
 # Run black and get results/return code
-BLACK_FORMAT=`black --target-version=py38 --check python 2>&1`
+BLACK_FORMAT=`black --target-version=py38 --check --exclude versioneer.py python 2>&1`
 BLACK_FORMAT_RETVAL=$?
 ERRORCODE=$((ERRORCODE | ${BLACK_FORMAT_RETVAL}))
 
