@@ -14,24 +14,23 @@
  * limitations under the License.
  */
 
-#include <detail/graph_utils.cuh>
 #include <utilities/test_utilities.hpp>
 
+#include <detail/graph_utils.cuh>
+
 #include <cugraph/graph_functions.hpp>
-#include <cugraph/legacy/functions.hpp>
 #include <cugraph/partition_manager.hpp>
 #include <cugraph/utilities/error.hpp>
 
-#include <raft/cudart_utils.h>
-#include <rmm/exec_policy.hpp>
+#include <raft/handle.hpp>
+#include <rmm/device_uvector.hpp>
 
 #include <thrust/distance.h>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/remove.h>
-#include <thrust/sequence.h>
-#include <thrust/tuple.h>
 
 #include <cstdint>
+#include <fstream>
 
 namespace cugraph {
 namespace test {
@@ -77,8 +76,9 @@ bool check_symmetric(raft::handle_t const& handle,
                  (*symmetrized_weights).begin());
   }
 
-  [ symmetrized_srcs, symmetrized_dsts, symmetrized_weights ] =
-    symmetrize_edgelist<vertex_t, weight_t, false, false>(std::move(symmetrized_srcs),
+  std::tie(symmetrized_srcs, symmetrized_dsts, symmetrized_weights) =
+    symmetrize_edgelist<vertex_t, weight_t, false, false>(handle,
+                                                          std::move(symmetrized_srcs),
                                                           std::move(symmetrized_dsts),
                                                           std::move(symmetrized_weights),
                                                           true);
@@ -120,36 +120,58 @@ read_edgelist_from_csv_file(raft::handle_t const& handle,
                             bool multi_gpu)
 {
   std::ifstream file(graph_file_full_path);
-  CUGRAPH_EXPECTS(file.is_open(), "File open (" << graph_file_full_path << ") failure.");
+  CUGRAPH_EXPECTS(file.is_open(), "File open (%s) failure.", graph_file_full_path.c_str());
+
+  file.seekg(0, file.end);
+  auto length = file.tellg();
+  file.seekg(0, file.beg);
+
+  std::vector<char> buffer(length + 1);
+
+  file.read(buffer.data(), length);
+  CUGRAPH_EXPECTS(file, "File read failure.");
+
+  buffer.back() = '\0';  // null termination
+
+  file.close();
+
+  char const* delimiters = ", \t\n";
 
   std::vector<vertex_t> h_edgelist_srcs{};
   std::vector<vertex_t> h_edgelist_dsts{};
   std::vector<weight_t> h_edgelist_weights{};
 
-  std::string line{};
-  const char* delimiters = ", \t" while (std::getline(file, line))
-  {
-    if (line.length() == 0) { continue; }
-
-    char* token = std::strtok(line.c_str(), delimiters);
-    size_t num_tokens{0};
-    while (token) {
-      if (num_tokens < 2) {
-        auto id = atoll(token);
-        CUGRAPH_EXPECTS(id <= std::numeric_limits<vertex_t>::max(),
-                        "Vertex ID overflows vertex_t.");
-        if (num_tokens == 0) {
-          h_edgelist_srcs.push_back(static_cast<vertex_t>(id));
-        } else {
-          h_edgelist_dsts.push_back(static_cast<vertex_t>(id));
-        }
-      } else if (num_tokens == 2) {
-        auto w = atof(token);
-        h_edgelist_weights.push_back(w);
+  char const* cur = buffer.data();
+  size_t num_tokens_this_line{0};
+  while (cur) {
+    char const* prev = cur;
+    auto cur         = strpbrk(prev, delimiters);
+    if (cur) {
+      auto token = std::string(prev, cur);
+      if (num_tokens_this_line == 0) {  // source
+        auto src = stoll(token);
+        CUGRAPH_EXPECTS((src >= std::numeric_limits<vertex_t>::lowest()) &&
+                          (src <= std::numeric_limits<vertex_t>::max()),
+                        "vertex_t overflow.");
+        h_edgelist_srcs.push_back(static_cast<vertex_t>(src));
+      } else if (num_tokens_this_line == 1) {  // destination
+        auto dst = stoll(token);
+        CUGRAPH_EXPECTS((dst >= std::numeric_limits<vertex_t>::lowest()) &&
+                          (dst <= std::numeric_limits<vertex_t>::max()),
+                        "vertex_t overflow.");
+        h_edgelist_dsts.push_back(static_cast<vertex_t>(dst));
+      } else if (num_tokens_this_line == 2) {  // weight
+        auto w = stod(token);
+        h_edgelist_weights.push_back(static_cast<weight_t>(w));
+      } else {
+        CUGRAPH_FAIL("Too many tokens in a line.");
       }
-      ++num_tokens;
-      CUGRAPH_EXPECTS(num_tokens <= 3, "Too many tokens in a line.");
-      token = std::strtok(nullptr, delimiters);
+      ++num_tokens_this_line;
+      auto num_delimiters = std::strspn(cur, delimiters);
+      for (size_t i = 0; i < num_delimiters; ++i) {
+        if (*cur == '\n') { num_tokens_this_line = 0; }
+      }
+      cur += num_delimiters;
     }
   }
 
@@ -204,29 +226,31 @@ read_edgelist_from_csv_file(raft::handle_t const& handle,
         d_edgelist_srcs.begin(), d_edgelist_dsts.begin(), (*d_edgelist_weights).begin()));
       number_of_local_edges = thrust::distance(
         edge_first,
-        thrust::remove_if(execution_policy,
-                          edge_first,
-                          edge_first + d_edgelist_srcs.size(),
-                          [comm_rank, key_func = edge_key_func] __device__(auto e) {
-                            auto major = thrust::get<0>(e);
-                            auto minor = thrust::get<1>(e);
-                            return store_transposed ? key_func(minor, major) != comm_rank
-                                                    : key_func(major, minor) != comm_rank;
-                          }));
+        thrust::remove_if(
+          handle.get_thrust_policy(),
+          edge_first,
+          edge_first + d_edgelist_srcs.size(),
+          [store_transposed, comm_rank, key_func = edge_key_func] __device__(auto e) {
+            auto major = thrust::get<0>(e);
+            auto minor = thrust::get<1>(e);
+            return store_transposed ? key_func(minor, major) != comm_rank
+                                    : key_func(major, minor) != comm_rank;
+          }));
     } else {
       auto edge_first = thrust::make_zip_iterator(
         thrust::make_tuple(d_edgelist_srcs.begin(), d_edgelist_dsts.begin()));
       number_of_local_edges = thrust::distance(
         edge_first,
-        thrust::remove_if(execution_policy,
-                          edge_first,
-                          edge_first + d_edgelist_srcs.size(),
-                          [comm_rank, key_func = edge_key_func] __device__(auto e) {
-                            auto major = thrust::get<0>(e);
-                            auto minor = thrust::get<1>(e);
-                            return store_transposed ? key_func(minor, major) != comm_rank
-                                                    : key_func(major, minor) != comm_rank;
-                          }));
+        thrust::remove_if(
+          handle.get_thrust_policy(),
+          edge_first,
+          edge_first + d_edgelist_srcs.size(),
+          [store_transposed, comm_rank, key_func = edge_key_func] __device__(auto e) {
+            auto major = thrust::get<0>(e);
+            auto minor = thrust::get<1>(e);
+            return store_transposed ? key_func(minor, major) != comm_rank
+                                    : key_func(major, minor) != comm_rank;
+          }));
     }
 
     d_edgelist_srcs.resize(number_of_local_edges, handle.get_stream());
@@ -258,7 +282,7 @@ read_graph_from_csv_file(raft::handle_t const& handle,
                          bool renumber)
 {
   auto [d_edgelist_srcs, d_edgelist_dsts, d_edgelist_weights, is_symmetric] =
-    read_edgelist_from_csv_file<vertex_t, weight_t, store_transposed, multi_gpu>(
+    read_edgelist_from_csv_file<vertex_t, weight_t>(
       handle, graph_file_full_path, test_weighted, store_transposed, multi_gpu);
 
   graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> graph(handle);
@@ -288,16 +312,6 @@ read_edgelist_from_csv_file<int32_t, float>(raft::handle_t const& handle,
                                             bool test_weighted,
                                             bool store_transposed,
                                             bool multi_gpu);
-
-template std::tuple<rmm::device_uvector<int32_t>,
-                    rmm::device_uvector<int32_t>,
-                    std::optional<rmm::device_uvector<double>>,
-                    bool>
-read_edgelist_from_csv_file<int32_t, double>(raft::handle_t const& handle,
-                                             std::string const& graph_file_full_path,
-                                             bool test_weighted,
-                                             bool store_transposed,
-                                             bool multi_gpu);
 
 template std::tuple<cugraph::graph_t<int32_t, int32_t, float, false, false>,
                     std::optional<rmm::device_uvector<int32_t>>>
