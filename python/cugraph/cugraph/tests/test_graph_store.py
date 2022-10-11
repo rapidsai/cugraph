@@ -60,13 +60,7 @@ def test_node_data_pg(graph_file):
     )
     pG = PropertyGraph()
     gstore = cugraph.gnn.CuGraphStore(graph=pG, backend_lib="cupy")
-<<<<<<< HEAD
-    gstore.add_edge_data(cu_M, vertex_col_names=("0", "1"), feat_name="edge_feat")
-=======
-    gstore.add_edge_data(
-        cu_M, node_col_names=("0", "1"), feat_name="edge_feat"
-    )
->>>>>>> branch-22.12
+    gstore.add_edge_data(cu_M, node_col_names=("0", "1"), feat_name="edge_feat")
 
     edata_f = gstore.get_edge_storage("edge_feat")
     edata = edata_f.fetch(indices=[0, 1], device="cuda")
@@ -86,13 +80,7 @@ def test_egonet(graph_file):
     )
     pG = PropertyGraph()
     gstore = cugraph.gnn.CuGraphStore(graph=pG, backend_lib="cupy")
-<<<<<<< HEAD
-    gstore.add_edge_data(cu_M, vertex_col_names=("0", "1"), feat_name="edge_feat")
-=======
-    gstore.add_edge_data(
-        cu_M, node_col_names=("0", "1"), feat_name="edge_feat"
-    )
->>>>>>> branch-22.12
+    gstore.add_edge_data(cu_M, node_col_names=("0", "1"), feat_name="edge_feat")
 
     nodes = [1, 2]
 
@@ -362,30 +350,16 @@ def test_num_edges(dataset1_CuGraphStore):
     assert gs.num_edges() == 14
 
 
-<<<<<<< HEAD
-def test_etypes():
-    dataset1_CuGraphStore = get_dataset1_CuGraphStore()
-    assert dataset1_CuGraphStore.etypes == [
-        "referrals",
-        "relationships",
-        "transactions",
-=======
 def test_etypes(dataset1_CuGraphStore):
     expected_types = [
         "('user', 'refers', 'user')",
         "('user', 'relationship', 'user')",
         "('user', 'transactions', 'merchant')",
->>>>>>> branch-22.12
     ]
     assert dataset1_CuGraphStore.etypes == expected_types
 
 
-<<<<<<< HEAD
-def test_ntypes():
-    dataset1_CuGraphStore = get_dataset1_CuGraphStore()
-=======
 def test_ntypes(dataset1_CuGraphStore):
->>>>>>> branch-22.12
     assert dataset1_CuGraphStore.ntypes == ["merchant", "taxpayers", "user"]
 
 
@@ -404,16 +378,8 @@ def test_get_node_storage_gs(dataset1_CuGraphStore):
     assert cp.allclose(cudf_ar, merchant_gs)
 
 
-<<<<<<< HEAD
-def test_get_edge_storage_gs():
-    dataset1_CuGraphStore = get_dataset1_CuGraphStore()
-    fs = dataset1_CuGraphStore.get_edge_storage("relationships_k", "relationships")
-=======
 def test_get_edge_storage_gs(dataset1_CuGraphStore):
-    fs = dataset1_CuGraphStore.get_edge_storage(
-        "relationships_k", "relationships"
-    )
->>>>>>> branch-22.12
+    fs = dataset1_CuGraphStore.get_edge_storage("relationships_k", "relationships")
     relationship_t = fs.fetch([6, 7, 8], device="cuda")
 
     relationships_df = create_df_from_dataset(

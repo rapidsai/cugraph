@@ -50,10 +50,6 @@ class CuGraphStore:
         self.ndata_feat_col_d = defaultdict(list)
         self.backend_lib = backend_lib
 
-<<<<<<< HEAD
-    def add_node_data(self, df, node_col_name, feat_name, ntype=None):
-        self.gdata.add_vertex_data(df, vertex_col_name=node_col_name, type_name=ntype)
-=======
     def add_node_data(
         self,
         df,
@@ -89,18 +85,9 @@ class CuGraphStore:
         -------
         None
         """
-        self.gdata.add_vertex_data(
-            df, vertex_col_name=node_col_name, type_name=ntype
-        )
->>>>>>> branch-22.12
+        self.gdata.add_vertex_data(df, vertex_col_name=node_col_name, type_name=ntype)
         columns = [col for col in list(df.columns) if col != node_col_name]
 
-<<<<<<< HEAD
-    def add_edge_data(self, df, vertex_col_names, feat_name, etype=None):
-        self.gdata.add_edge_data(df, vertex_col_names=vertex_col_names, type_name=etype)
-        columns = [col for col in list(df.columns) if col not in vertex_col_names]
-        self.edata_feat_col_d[feat_name] = columns
-=======
         if is_single_vector_feature:
             if feat_name is None:
                 raise ValueError(
@@ -157,19 +144,14 @@ class CuGraphStore:
         -------
         None
         """
-        self.gdata.add_edge_data(
-            df, vertex_col_names=node_col_names, type_name=etype
-        )
-        columns = [
-            col for col in list(df.columns) if col not in node_col_names
-        ]
+        self.gdata.add_edge_data(df, vertex_col_names=node_col_names, type_name=etype)
+        columns = [col for col in list(df.columns) if col not in node_col_names]
         if is_single_vector_feature:
             if feat_name is None:
                 raise ValueError(
                     "feature name must be provided when wrapping"
                     + " multiple columns under a single feature name"
                 )
->>>>>>> branch-22.12
 
         elif feat_name:
             raise ValueError(
@@ -331,10 +313,6 @@ class CuGraphStore:
             # of the seed dtype is not same as the node dtype
 
             self.set_sg_node_dtype(list(sgs.values())[0])
-<<<<<<< HEAD
-            nodes = nodes.astype(self._sg_node_dtype)
-            sampled_df = sample_multiple_sgs(sgs, sample_f, nodes, fanout, replace)
-=======
             sampled_df = sample_multiple_sgs(
                 sgs,
                 sample_f,
@@ -344,7 +322,6 @@ class CuGraphStore:
                 fanout,
                 replace,
             )
->>>>>>> branch-22.12
         else:
             if edge_dir == "in":
                 sg = self.extracted_reverse_subgraph
@@ -410,13 +387,7 @@ class CuGraphStore:
     @cached_property
     def extracted_reverse_subgraph(self):
         edge_list = self.gdata.get_edge_data(columns=[src_n, dst_n, type_n])
-<<<<<<< HEAD
         return get_subgraph_from_edgelist(edge_list, self.is_mg, reverse_edges=True)
-=======
-        return get_subgraph_from_edgelist(
-            edge_list, self.is_mg, reverse_edges=True
-        )
->>>>>>> branch-22.12
 
     @cached_property
     def extracted_subgraphs_per_type(self):
@@ -679,9 +650,7 @@ def sample_multiple_sgs(
     output_dfs = []
     for can_etype, sg in sgs.items():
         can_etype = _convert_can_etype_s_to_tup(can_etype)
-        if _edge_types_contains_canonical_etype(
-            can_etype, start_list_types, edge_dir
-        ):
+        if _edge_types_contains_canonical_etype(can_etype, start_list_types, edge_dir):
             if edge_dir == "in":
                 subset_type = can_etype[2]
             else:
@@ -698,9 +667,7 @@ def sample_multiple_sgs(
             output_dfs.append(output)
 
     if len(output_dfs) == 0:
-        empty_df = cudf.DataFrame(
-            {"sources": [], "destinations": [], "indices": []}
-        )
+        empty_df = cudf.DataFrame({"sources": [], "destinations": [], "indices": []})
         return empty_df.astype(cp.int32)
 
     if isinstance(output_dfs[0], dask_cudf.DataFrame):
