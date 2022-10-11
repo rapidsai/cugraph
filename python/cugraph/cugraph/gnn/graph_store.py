@@ -81,7 +81,7 @@ class CuGraphStore:
             If not specified, the type of properties will be added as
             an empty string.
         is_single_vector_feature : True
-            Wether to treat all the columns of the dataframe being added as
+            Whether to treat all the columns of the dataframe being added as
             a single 2d feature
         Returns
         -------
@@ -607,7 +607,7 @@ class CuFeatureStorage:
         if isinstance(subset_df, dask_cudf.DataFrame):
             subset_df = subset_df.compute()
         if len(subset_df) == 0:
-            raise ValueError("indices={indices} not found in FeatureStorage")
+            raise ValueError(f"{indices=} not found in FeatureStorage")
         else:
             tensor = self.from_dlpack(subset_df.to_dlpack())
 
