@@ -605,7 +605,7 @@ class CuFeatureStorage:
         if isinstance(subset_df, dask_cudf.DataFrame):
             subset_df = subset_df.compute()
         if len(subset_df) == 0:
-            raise ValueError("indices={indices} not found in FeatureStorage")
+            raise ValueError(f"{indices=} not found in FeatureStorage")
         else:
             tensor = self.from_dlpack(subset_df.to_dlpack())
 
