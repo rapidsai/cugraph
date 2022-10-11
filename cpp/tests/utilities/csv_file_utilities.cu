@@ -145,7 +145,7 @@ read_edgelist_from_csv_file(raft::handle_t const& handle,
   size_t num_tokens_this_line{0};
   while (cur) {
     char const* prev = cur;
-    cur         = strpbrk(prev, delimiters);
+    cur              = strpbrk(prev, delimiters);
     if (cur) {
       auto token = std::string(prev, cur);
       if (num_tokens_this_line == 0) {  // source
