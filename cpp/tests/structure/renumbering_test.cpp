@@ -140,7 +140,8 @@ INSTANTIATE_TEST_SUITE_P(
   ::testing::Combine(
     // enable correctness checks
     ::testing::Values(Renumbering_Usecase{}),
-    ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
+    ::testing::Values(cugraph::test::File_Usecase("test/datasets/negative-vertex-id.csv"),
+                      cugraph::test::File_Usecase("test/datasets/karate.csv"),
                       cugraph::test::File_Usecase("test/datasets/web-Google.mtx"),
                       cugraph::test::File_Usecase("test/datasets/ljournal-2008.mtx"),
                       cugraph::test::File_Usecase("test/datasets/webbase-1M.mtx"))));
