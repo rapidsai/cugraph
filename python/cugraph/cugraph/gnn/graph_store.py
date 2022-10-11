@@ -80,7 +80,7 @@ class CuGraphStore:
             If not specified, the type of properties will be added as
             an empty string.
         is_single_vector_feature : True
-            Wether to treat all the columns of the dataframe being added as
+            Whether to treat all the columns of the dataframe being added as
             a single 2d feature
         Returns
         -------
