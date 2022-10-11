@@ -502,7 +502,13 @@ class EXPERIMENTAL__PropertyGraph:
             if vertex_ids is not None:
                 if isinstance(vertex_ids, int):
                     vertex_ids = [vertex_ids]
+<<<<<<< HEAD
                 elif not isinstance(vertex_ids, (list, slice, self.__series_type)):
+=======
+                elif not isinstance(vertex_ids,
+                                    (list, slice, np.ndarray,
+                                     self.__series_type)):
+>>>>>>> branch-22.12
                     vertex_ids = list(vertex_ids)
                 df = df.loc[vertex_ids]
 
@@ -752,7 +758,13 @@ class EXPERIMENTAL__PropertyGraph:
             if edge_ids is not None:
                 if isinstance(edge_ids, int):
                     edge_ids = [edge_ids]
+<<<<<<< HEAD
                 elif not isinstance(edge_ids, (list, slice, self.__series_type)):
+=======
+                elif not isinstance(edge_ids,
+                                    (list, slice, np.ndarray,
+                                     self.__series_type)):
+>>>>>>> branch-22.12
                     edge_ids = list(edge_ids)
                 df = df.loc[edge_ids]
 

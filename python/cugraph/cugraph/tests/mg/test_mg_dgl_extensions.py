@@ -39,7 +39,7 @@ def basic_mg_gs(dask_client):
 
     df_1 = dask_cudf.from_cudf(df_1, npartitions=2)
 
-    gs.add_edge_data(df_1, vertex_col_names=["src", "dst"], feat_name="edge_w")
+    gs.add_edge_data(df_1, node_col_names=["src", "dst"], feat_name="edge_w")
 
     df_2 = cudf.DataFrame(
         {
@@ -56,9 +56,8 @@ def basic_mg_gs(dask_client):
     return gs
 
 
-# @pytest.fixture(scope="module")
-# def gs_heterogeneous_dgl_eg(dask_client):
-def create_gs_heterogeneous_dgl_eg(dask_client):
+@pytest.fixture(scope="module")
+def gs_heterogeneous_dgl_eg(dask_client):
     pg = MGPropertyGraph()
     gs = CuGraphStore(pg)
     # Changing npartitions is leading to errors
@@ -276,8 +275,8 @@ def test_sampling_homogeneous_gs_neg_one_fanout(dask_client):
 # Test against DGLs output
 # See below notebook
 # https://gist.github.com/VibhuJawa/f85fda8e1183886078f2a34c28c4638c
-def test_sampling_dgl_heterogeneous_gs_m_fanouts(dask_client):
-    gs = create_gs_heterogeneous_dgl_eg(dask_client)
+def test_sampling_dgl_heterogeneous_gs_m_fanouts(gs_heterogeneous_dgl_eg):
+    gs = gs_heterogeneous_dgl_eg
     expected_output = {
         1: {
             "('nt.a', 'connects', 'nt.b')": 0,
@@ -289,15 +288,11 @@ def test_sampling_dgl_heterogeneous_gs_m_fanouts(dask_client):
             "('nt.a', 'connects', 'nt.c')": 1,
             "('nt.c', 'connects', 'nt.c')": 2,
         },
-        # TODO: replace=False
-        # leads to 4 neighbors
-        # instead of 3 with dask.UniformSampling
-        # Raise issue and link here
-        # 3: {
-        #     "('nt.a', 'connects', 'nt.b')": 0,
-        #     "('nt.a', 'connects', 'nt.c')": 1,
-        #     "('nt.c', 'connects', 'nt.c')": 3,
-        # },
+        3: {
+            "('nt.a', 'connects', 'nt.b')": 0,
+            "('nt.a', 'connects', 'nt.c')": 1,
+            "('nt.c', 'connects', 'nt.c')": 3,
+        },
         -1: {
             "('nt.a', 'connects', 'nt.b')": 0,
             "('nt.a', 'connects', 'nt.c')": 1,
@@ -316,8 +311,8 @@ def test_sampling_dgl_heterogeneous_gs_m_fanouts(dask_client):
             assert expected_output[fanout][etype] == len(output_df)
 
 
-def test_sampling_gs_heterogeneous_in_dir(dask_client):
-    gs = create_gs_heterogeneous_dgl_eg(dask_client)
+def test_sampling_gs_heterogeneous_in_dir(gs_heterogeneous_dgl_eg):
+    gs = gs_heterogeneous_dgl_eg
     # DGL expected_output from
     # https://gist.github.com/VibhuJawa/f85fda8e1183886078f2a34c28c4638c
     expeced_val_d = {
@@ -374,8 +369,8 @@ def test_sampling_gs_heterogeneous_in_dir(dask_client):
             cudf.testing.assert_frame_equal(output_df, expected_df)
 
 
-def test_sampling_gs_heterogeneous_out_dir(dask_client):
-    gs = create_gs_heterogeneous_dgl_eg(dask_client)
+def test_sampling_gs_heterogeneous_out_dir(gs_heterogeneous_dgl_eg):
+    gs = gs_heterogeneous_dgl_eg
     # DGL expected_output from
     # https://gist.github.com/VibhuJawa/f85fda8e1183886078f2a34c28c4638c
     expeced_val_d = {
