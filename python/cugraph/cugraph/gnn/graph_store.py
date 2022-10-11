@@ -72,7 +72,8 @@ class CuGraphStore:
             The column name that contains the values to be used as vertex IDs.
         feat_name : string
             The feature name under which we should save the added properties
-            (ignored if is_single_vector_feature=False)
+            (ignored if is_single_vector_feature=False and the col names of
+            the dataframe are treated as corresponding feature names)
         ntype : string
             The node type to be added.
             For example, if dataframe contains data about users, ntype
@@ -133,7 +134,8 @@ class CuGraphStore:
             and destination vertex IDs for the edges.
         feat_name : string
             The feature name under which we should save the added properties
-            (ignored if is_single_vector_feature=False)
+            (ignored if is_single_vector_feature=False and the col names of
+            the dataframe are treated as corresponding feature names)
         etype : string
             The edge type to be added. This should follow the string format
             '(src_type),(edge_type),(dst_type)'
