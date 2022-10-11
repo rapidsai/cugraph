@@ -318,7 +318,7 @@ INSTANTIATE_TEST_SUITE_P(
                       PageRank_Usecase{0.5, false},
                       PageRank_Usecase{0.0, true},
                       PageRank_Usecase{0.5, true}),
-    ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
+    ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.csv"),
                       cugraph::test::File_Usecase("test/datasets/web-Google.mtx"),
                       cugraph::test::File_Usecase("test/datasets/ljournal-2008.mtx"),
                       cugraph::test::File_Usecase("test/datasets/webbase-1M.mtx"))));
