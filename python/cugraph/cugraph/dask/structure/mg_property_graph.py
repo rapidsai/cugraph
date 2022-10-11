@@ -12,7 +12,7 @@
 # limitations under the License.
 
 import cudf
-
+import numpy as np
 import cugraph
 import dask_cudf
 import cugraph.dask as dcg
@@ -488,7 +488,8 @@ class EXPERIMENTAL__MGPropertyGraph:
                 if isinstance(vertex_ids, int):
                     vertex_ids = [vertex_ids]
                 elif not isinstance(vertex_ids,
-                                    (list, slice, self.__series_type)):
+                                    (list, slice, np.ndarray,
+                                     self.__series_type)):
                     vertex_ids = list(vertex_ids)
                 df = df.loc[vertex_ids]
 
@@ -724,7 +725,8 @@ class EXPERIMENTAL__MGPropertyGraph:
                 if isinstance(edge_ids, int):
                     edge_ids = [edge_ids]
                 elif not isinstance(edge_ids,
-                                    (list, slice, self.__series_type)):
+                                    (list, slice, np.ndarray,
+                                     self.__series_type)):
                     edge_ids = list(edge_ids)
                 df = df.loc[edge_ids]
 
