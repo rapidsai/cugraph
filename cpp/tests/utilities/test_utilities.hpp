@@ -114,8 +114,8 @@ static const std::string& get_rapids_dataset_root_dir()
   return rdrd;
 }
 
-// returns a tuple of (rows, columns, weights, number_of_vertices, is_symmetric)
-template <typename vertex_t, typename weight_t, bool store_transposed, bool multi_gpu>
+// returns a tuple of (rows, columns, weights, vertices, number_of_vertices, is_symmetric)
+template <typename vertex_t, typename weight_t>
 std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<weight_t>>,
@@ -124,7 +124,9 @@ std::tuple<rmm::device_uvector<vertex_t>,
            bool>
 read_edgelist_from_matrix_market_file(raft::handle_t const& handle,
                                       std::string const& graph_file_full_path,
-                                      bool test_weighted);
+                                      bool test_weighted,
+                                      bool store_transposed,
+                                      bool multi_gpu);
 
 // renumber must be true if multi_gpu is true
 template <typename vertex_t,

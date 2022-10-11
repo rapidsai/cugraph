@@ -92,9 +92,8 @@ class Tests_Graph : public ::testing::TestWithParam<std::tuple<Graph_Usecase, in
     auto [graph_usecase, input_usecase] = param;
 
     auto [d_srcs, d_dsts, d_weights, d_vertices, number_of_vertices, is_symmetric] =
-      input_usecase
-        .template construct_edgelist<vertex_t, edge_t, weight_t, store_transposed, false>(
-          handle, graph_usecase.test_weighted);
+      input_usecase.template construct_edgelist<vertex_t, weight_t>(
+        handle, graph_usecase.test_weighted, store_transposed, false);
 
     edge_t number_of_edges = static_cast<edge_t>(d_srcs.size());
 

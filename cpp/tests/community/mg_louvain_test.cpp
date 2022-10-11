@@ -101,8 +101,7 @@ class Tests_MGLouvain
             d_vertices,
             number_of_vertices,
             is_symmetric] =
-        input_usecase.template construct_edgelist<vertex_t, edge_t, weight_t, false, false>(handle,
-                                                                                            true);
+        input_usecase.template construct_edgelist<vertex_t, weight_t>(handle, true, false, false);
 
       d_clustering_v.resize(d_vertices.size(), handle_->get_stream());
 

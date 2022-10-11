@@ -115,22 +115,21 @@ class File_Usecase : public detail::TranslateGraph_Usecase {
     }
   }
 
-  template <typename vertex_t,
-            typename edge_t,
-            typename weight_t,
-            bool store_transposed,
-            bool multi_gpu>
+  template <typename vertex_t, typename weight_t>
   std::tuple<rmm::device_uvector<vertex_t>,
              rmm::device_uvector<vertex_t>,
              std::optional<rmm::device_uvector<weight_t>>,
              rmm::device_uvector<vertex_t>,
              vertex_t,
              bool>
-  construct_edgelist(raft::handle_t const& handle, bool test_weighted) const
+  construct_edgelist(raft::handle_t const& handle,
+                     bool test_weighted,
+                     bool store_transposed,
+                     bool multi_gpu) const
   {
     auto [d_src_v, d_dst_v, d_weights_v, d_vertices_v, num_vertices, is_symmetric] =
-      read_edgelist_from_matrix_market_file<vertex_t, weight_t, store_transposed, multi_gpu>(
-        handle, graph_file_full_path_, test_weighted);
+      read_edgelist_from_matrix_market_file<vertex_t, weight_t>(
+        handle, graph_file_full_path_, test_weighted, store_transposed, multi_gpu);
 
     translate(handle, d_src_v, d_dst_v);
 
@@ -174,25 +173,21 @@ class Rmat_Usecase : public detail::TranslateGraph_Usecase {
   {
   }
 
-  template <typename vertex_t,
-            typename edge_t,
-            typename weight_t,
-            bool store_transposed,
-            bool multi_gpu>
+  template <typename vertex_t, typename weight_t>
   std::tuple<rmm::device_uvector<vertex_t>,
              rmm::device_uvector<vertex_t>,
              std::optional<rmm::device_uvector<weight_t>>,
              rmm::device_uvector<vertex_t>,
              vertex_t,
              bool>
-  construct_edgelist(raft::handle_t const& handle, bool test_weighted) const
+  construct_edgelist(raft::handle_t const& handle,
+                     bool test_weighted,
+                     bool store_transposed,
+                     bool multi_gpu) const
   {
     CUGRAPH_EXPECTS(
       (size_t{1} << scale_) <= static_cast<size_t>(std::numeric_limits<vertex_t>::max()),
       "Invalid template parameter: scale_ too large for vertex_t.");
-    CUGRAPH_EXPECTS(((size_t{1} << scale_) * edge_factor_) <=
-                      static_cast<size_t>(std::numeric_limits<edge_t>::max()),
-                    "Invalid template parameter: (scale_, edge_factor_) too large for edge_t");
     // generate in multi-partitions to limit peak memory usage (thrust::sort &
     // shuffle_edgelist_by_gpu_id requires a temporary buffer with the size of the original data)
     // With the current implementation, the temporary memory requirement is roughly 50% of the
@@ -223,10 +218,10 @@ class Rmat_Usecase : public detail::TranslateGraph_Usecase {
     }
 
     vertex_t number_of_vertices = static_cast<vertex_t>(size_t{1} << scale_);
-    edge_t number_of_edges =
-      static_cast<edge_t>(static_cast<size_t>(number_of_vertices) * edge_factor_);
+    size_t number_of_edges =
+      static_cast<size_t>(static_cast<size_t>(number_of_vertices) * edge_factor_);
 
-    std::vector<edge_t> partition_edge_counts(partition_ids.size());
+    std::vector<size_t> partition_edge_counts(partition_ids.size());
     std::vector<vertex_t> partition_vertex_firsts(partition_ids.size());
     std::vector<vertex_t> partition_vertex_lasts(partition_ids.size());
 
@@ -234,7 +229,7 @@ class Rmat_Usecase : public detail::TranslateGraph_Usecase {
       auto id = partition_ids[i];
 
       partition_edge_counts[i] = number_of_edges / num_partitions +
-                                 (id < number_of_edges % num_partitions ? edge_t{1} : edge_t{0});
+                                 (id < number_of_edges % num_partitions ? size_t{1} : size_t{0});
 
       partition_vertex_firsts[i] = (number_of_vertices / num_partitions) * id;
       partition_vertex_lasts[i]  = (number_of_vertices / num_partitions) * (id + 1);
@@ -342,7 +337,7 @@ class Rmat_Usecase : public detail::TranslateGraph_Usecase {
       v_offset += partition_vertex_lasts[i] - partition_vertex_firsts[i];
     }
 
-    if constexpr (multi_gpu) {
+    if (multi_gpu) {
       vertex_v = cugraph::detail::shuffle_ext_vertices_by_gpu_id(handle, std::move(vertex_v));
     }
 
@@ -382,18 +377,17 @@ class PathGraph_Usecase {
   {
   }
 
-  template <typename vertex_t,
-            typename edge_t,
-            typename weight_t,
-            bool store_transposed,
-            bool multi_gpu>
+  template <typename vertex_t, typename weight_t>
   std::tuple<rmm::device_uvector<vertex_t>,
              rmm::device_uvector<vertex_t>,
              std::optional<rmm::device_uvector<weight_t>>,
              rmm::device_uvector<vertex_t>,
              vertex_t,
              bool>
-  construct_edgelist(raft::handle_t const& handle, bool test_weighted) const
+  construct_edgelist(raft::handle_t const& handle,
+                     bool test_weighted,
+                     bool store_transposed,
+                     bool multi_gpu) const
   {
     constexpr bool symmetric{true};
 
@@ -439,18 +433,17 @@ class Mesh2DGraph_Usecase {
   {
   }
 
-  template <typename vertex_t,
-            typename edge_t,
-            typename weight_t,
-            bool store_transposed,
-            bool multi_gpu>
+  template <typename vertex_t, typename weight_t>
   std::tuple<rmm::device_uvector<vertex_t>,
              rmm::device_uvector<vertex_t>,
              std::optional<rmm::device_uvector<weight_t>>,
              rmm::device_uvector<vertex_t>,
              vertex_t,
              bool>
-  construct_edgelist(raft::handle_t const& handle, bool test_weighted) const
+  construct_edgelist(raft::handle_t const& handle,
+                     bool test_weighted,
+                     bool store_transposed,
+                     bool multi_gpu) const
   {
   }
 
@@ -469,18 +462,17 @@ class Mesh3DGraph_Usecase {
   {
   }
 
-  template <typename vertex_t,
-            typename edge_t,
-            typename weight_t,
-            bool store_transposed,
-            bool multi_gpu>
+  template <typename vertex_t, typename weight_t>
   std::tuple<rmm::device_uvector<vertex_t>,
              rmm::device_uvector<vertex_t>,
              std::optional<rmm::device_uvector<weight_t>>,
              rmm::device_uvector<vertex_t>,
              vertex_t,
              bool>
-  construct_edgelist(raft::handle_t const& handle, bool test_weighted) const;
+  construct_edgelist(raft::handle_t const& handle,
+                     bool test_weighted,
+                     bool store_transposed,
+                     bool multi_gpu) const;
 
  private:
   std::vector<std::tuple<size_t, size_t, size_t, size_t>> parms_{};
@@ -496,18 +488,17 @@ class CompleteGraph_Usecase {
   {
   }
 
-  template <typename vertex_t,
-            typename edge_t,
-            typename weight_t,
-            bool store_transposed,
-            bool multi_gpu>
+  template <typename vertex_t, typename weight_t>
   std::tuple<rmm::device_uvector<vertex_t>,
              rmm::device_uvector<vertex_t>,
              std::optional<rmm::device_uvector<weight_t>>,
              rmm::device_uvector<vertex_t>,
              vertex_t,
              bool>
-  construct_edgelist(raft::handle_t const& handle, bool test_weighted) const;
+  construct_edgelist(raft::handle_t const& handle,
+                     bool test_weighted,
+                     bool store_transposed,
+                     bool multi_gpu) const;
 
  private:
   std::vector<std::tuple<size_t, size_t>> parms_{};
@@ -570,18 +561,17 @@ class CombinedGenerator_Usecase {
 
   CombinedGenerator_Usecase(generator_tuple_t const& tuple) : generator_tuple_(tuple) {}
 
-  template <typename vertex_t,
-            typename edge_t,
-            typename weight_t,
-            bool store_transposed,
-            bool multi_gpu>
+  template <typename vertex_t, typename weight_t>
   std::tuple<rmm::device_uvector<vertex_t>,
              rmm::device_uvector<vertex_t>,
              std::optional<rmm::device_uvector<weight_t>>,
              rmm::device_uvector<vertex_t>,
              vertex_t,
              bool>
-  construct_edgelist(raft::handle_t const& handle, bool test_weighted) const
+  construct_edgelist(raft::handle_t const& handle,
+                     bool test_weighted,
+                     bool store_transposed,
+                     bool multi_gpu) const
   {
     size_t constexpr tuple_size{std::tuple_size<generator_tuple_t>::value};
 
@@ -614,10 +604,11 @@ construct_graph(raft::handle_t const& handle,
                 bool drop_multi_edges = false)
 {
   auto [d_src_v, d_dst_v, d_weights_v, d_vertices_v, num_vertices, is_symmetric] =
-    input_usecase
-      .template construct_edgelist<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
-        handle, test_weighted);
+    input_usecase.template construct_edgelist<vertex_t, weight_t>(
+      handle, test_weighted, store_transposed, multi_gpu);
 
+  CUGRAPH_EXPECTS(d_src_v.size() <= static_cast<size_t>(std::numeric_limits<edge_t>::max()),
+                  "Invalid template parameter: edge_t overflow.");
   if (drop_self_loops) { remove_self_loops(handle, d_src_v, d_dst_v, d_weights_v); }
 
   if (drop_multi_edges) { sort_and_remove_multi_edges(handle, d_src_v, d_dst_v, d_weights_v); }
@@ -645,8 +636,8 @@ std::unique_ptr<cugraph::legacy::GraphCSR<vertex_t, edge_t, weight_t>> construct
   raft::handle_t const& handle, input_usecase_t const& input_usecase, bool test_weighted)
 {
   auto [d_src_v, d_dst_v, d_weight_v, d_vertices_v, num_vertices, is_symmetric] =
-    input_usecase.template construct_edgelist<vertex_t, edge_t, weight_t, false, false>(
-      handle, test_weighted);
+    input_usecase.template construct_edgelist<vertex_t, weight_t>(
+      handle, test_weighted, false, false);
 
   cugraph::legacy::GraphCOOView<vertex_t, edge_t, weight_t> cooview(
     d_src_v.data(),

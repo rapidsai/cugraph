@@ -263,7 +263,7 @@ std::unique_ptr<cugraph::legacy::GraphCSR<vertex_t, edge_t, weight_t>> generate_
   return cugraph::coo_to_csr(cooview);
 }
 
-template <typename vertex_t, typename weight_t, bool store_transposed, bool multi_gpu>
+template <typename vertex_t, typename weight_t>
 std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<weight_t>>,
@@ -272,7 +272,9 @@ std::tuple<rmm::device_uvector<vertex_t>,
            bool>
 read_edgelist_from_matrix_market_file(raft::handle_t const& handle,
                                       std::string const& graph_file_full_path,
-                                      bool test_weighted)
+                                      bool test_weighted,
+                                      bool store_transposed,
+                                      bool multi_gpu)
 {
   MM_typecode mc{};
   vertex_t m{};
@@ -318,9 +320,7 @@ read_edgelist_from_matrix_market_file(raft::handle_t const& handle,
       (*d_edgelist_weights).data(), h_weights.data(), h_weights.size(), handle.get_stream());
   }
 
-  auto execution_policy = handle.get_thrust_policy();
-  thrust::sequence(execution_policy, d_vertices.begin(), d_vertices.end(), vertex_t{0});
-  handle.sync_stream();
+  thrust::sequence(handle.get_thrust_policy(), d_vertices.begin(), d_vertices.end(), vertex_t{0});
 
   if (multi_gpu) {
     auto& comm               = handle.get_comms();
@@ -334,7 +334,7 @@ read_edgelist_from_matrix_market_file(raft::handle_t const& handle,
     auto vertex_key_func = cugraph::detail::compute_gpu_id_from_ext_vertex_t<vertex_t>{comm_size};
     d_vertices.resize(
       thrust::distance(d_vertices.begin(),
-                       thrust::remove_if(execution_policy,
+                       thrust::remove_if(handle.get_thrust_policy(),
                                          d_vertices.begin(),
                                          d_vertices.end(),
                                          [comm_rank, key_func = vertex_key_func] __device__(
@@ -350,29 +350,31 @@ read_edgelist_from_matrix_market_file(raft::handle_t const& handle,
         d_edgelist_srcs.begin(), d_edgelist_dsts.begin(), (*d_edgelist_weights).begin()));
       number_of_local_edges = thrust::distance(
         edge_first,
-        thrust::remove_if(execution_policy,
-                          edge_first,
-                          edge_first + d_edgelist_srcs.size(),
-                          [comm_rank, key_func = edge_key_func] __device__(auto e) {
-                            auto major = thrust::get<0>(e);
-                            auto minor = thrust::get<1>(e);
-                            return store_transposed ? key_func(minor, major) != comm_rank
-                                                    : key_func(major, minor) != comm_rank;
-                          }));
+        thrust::remove_if(
+          handle.get_thrust_policy(),
+          edge_first,
+          edge_first + d_edgelist_srcs.size(),
+          [store_transposed, comm_rank, key_func = edge_key_func] __device__(auto e) {
+            auto major = thrust::get<0>(e);
+            auto minor = thrust::get<1>(e);
+            return store_transposed ? key_func(minor, major) != comm_rank
+                                    : key_func(major, minor) != comm_rank;
+          }));
     } else {
       auto edge_first = thrust::make_zip_iterator(
         thrust::make_tuple(d_edgelist_srcs.begin(), d_edgelist_dsts.begin()));
       number_of_local_edges = thrust::distance(
         edge_first,
-        thrust::remove_if(execution_policy,
-                          edge_first,
-                          edge_first + d_edgelist_srcs.size(),
-                          [comm_rank, key_func = edge_key_func] __device__(auto e) {
-                            auto major = thrust::get<0>(e);
-                            auto minor = thrust::get<1>(e);
-                            return store_transposed ? key_func(minor, major) != comm_rank
-                                                    : key_func(major, minor) != comm_rank;
-                          }));
+        thrust::remove_if(
+          handle.get_thrust_policy(),
+          edge_first,
+          edge_first + d_edgelist_srcs.size(),
+          [store_transposed, comm_rank, key_func = edge_key_func] __device__(auto e) {
+            auto major = thrust::get<0>(e);
+            auto minor = thrust::get<1>(e);
+            return store_transposed ? key_func(minor, major) != comm_rank
+                                    : key_func(major, minor) != comm_rank;
+          }));
     }
 
     d_edgelist_srcs.resize(number_of_local_edges, handle.get_stream());
@@ -384,8 +386,6 @@ read_edgelist_from_matrix_market_file(raft::handle_t const& handle,
       (*d_edgelist_weights).shrink_to_fit(handle.get_stream());
     }
   }
-
-  handle.sync_stream();
 
   return std::make_tuple(std::move(d_edgelist_srcs),
                          std::move(d_edgelist_dsts),
@@ -413,8 +413,8 @@ read_graph_from_matrix_market_file(raft::handle_t const& handle,
         d_vertices,
         number_of_vertices,
         is_symmetric] =
-    read_edgelist_from_matrix_market_file<vertex_t, weight_t, store_transposed, multi_gpu>(
-      handle, graph_file_full_path, test_weighted);
+    read_edgelist_from_matrix_market_file<vertex_t, weight_t>(
+      handle, graph_file_full_path, test_weighted, store_transposed, multi_gpu);
 
   graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> graph(handle);
   std::optional<rmm::device_uvector<vertex_t>> renumber_map{std::nullopt};
@@ -469,6 +469,18 @@ generate_graph_csr_from_mm(bool& directed, std::string mm_file);
 
 template std::unique_ptr<cugraph::legacy::GraphCSR<int64_t, int64_t, float>>
 generate_graph_csr_from_mm(bool& directed, std::string mm_file);
+
+template std::tuple<rmm::device_uvector<int32_t>,
+                    rmm::device_uvector<int32_t>,
+                    std::optional<rmm::device_uvector<float>>,
+                    rmm::device_uvector<int32_t>,
+                    int32_t,
+                    bool>
+read_edgelist_from_matrix_market_file<int32_t, float>(raft::handle_t const& handle,
+                                                      std::string const& graph_file_full_path,
+                                                      bool test_weighted,
+                                                      bool store_transposed,
+                                                      bool multi_gpu);
 
 template std::tuple<cugraph::graph_t<int32_t, int32_t, float, false, false>,
                     std::optional<rmm::device_uvector<int32_t>>>
@@ -661,42 +673,6 @@ read_graph_from_matrix_market_file<int64_t, int64_t, double, true, true>(
   std::string const& graph_file_full_path,
   bool test_weighted,
   bool renumber);
-
-template std::tuple<rmm::device_uvector<int32_t>,
-                    rmm::device_uvector<int32_t>,
-                    std::optional<rmm::device_uvector<float>>,
-                    rmm::device_uvector<int32_t>,
-                    int32_t,
-                    bool>
-read_edgelist_from_matrix_market_file<int32_t, float, true, true>(
-  raft::handle_t const& handle, std::string const& graph_file_full_path, bool test_weighted);
-
-template std::tuple<rmm::device_uvector<int32_t>,
-                    rmm::device_uvector<int32_t>,
-                    std::optional<rmm::device_uvector<float>>,
-                    rmm::device_uvector<int32_t>,
-                    int32_t,
-                    bool>
-read_edgelist_from_matrix_market_file<int32_t, float, true, false>(
-  raft::handle_t const& handle, std::string const& graph_file_full_path, bool test_weighted);
-
-template std::tuple<rmm::device_uvector<int32_t>,
-                    rmm::device_uvector<int32_t>,
-                    std::optional<rmm::device_uvector<float>>,
-                    rmm::device_uvector<int32_t>,
-                    int32_t,
-                    bool>
-read_edgelist_from_matrix_market_file<int32_t, float, false, true>(
-  raft::handle_t const& handle, std::string const& graph_file_full_path, bool test_weighted);
-
-template std::tuple<rmm::device_uvector<int32_t>,
-                    rmm::device_uvector<int32_t>,
-                    std::optional<rmm::device_uvector<float>>,
-                    rmm::device_uvector<int32_t>,
-                    int32_t,
-                    bool>
-read_edgelist_from_matrix_market_file<int32_t, float, false, false>(
-  raft::handle_t const& handle, std::string const& graph_file_full_path, bool test_weighted);
 
 }  // namespace test
 }  // namespace cugraph
