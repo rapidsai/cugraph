@@ -737,8 +737,7 @@ class CugraphHandler:
         # directly to the desired device.
         for r in results:
             await ep.send_obj(r)
-
-        # ep.close()
+        await ep.close()
 
     def __get_dataframe_from_csv(self,
                                  csv_file_name,

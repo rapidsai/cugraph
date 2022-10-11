@@ -29,6 +29,22 @@ from cugraph_service_client.types import (ValueWrapper,
 from cugraph_service_client.cugraph_service_thrift import create_client
 
 
+class DeviceArrayAllocator:
+    """
+    This class is used to create a callable instance for allocating a cupy
+    array on a specific device. It is constructed with a particular device
+    number, and can be called repeatedly with the number of bytes to allocate,
+    returning an array of the requested size on the device.
+    """
+    def __init__(self, device):
+        self.device = device
+
+    def __call__(self, nbytes):
+        with cp.cuda.Device(self.device):
+            a = cp.empty(nbytes, dtype="uint8")
+        return a
+
+
 class CugraphServiceClient:
     """
     Client object for cugraph_service, which defines the API that clients can
@@ -981,32 +997,24 @@ class CugraphServiceClient:
         Run uniform_neighbor_sample() with the args provided, but have the
         result send directly to the device specified by result_device.
         """
-        # global listener
-
-        with cp.cuda.Device(result_device):
-            cp.ndarray(1)
-
         # FIXME: check for valid device
         result_obj = UniformNeighborSampleResult()
 
-        def int32_allocator(nbytes):
-            with cp.cuda.Device(result_device):
-                a = cp.empty(nbytes//4, dtype="int32")
-            return a
-
-        def float64_allocator(nbytes):
-            with cp.cuda.Device(result_device):
-                a = cp.empty((nbytes//8), dtype="float64")
-            return a
+        allocator = DeviceArrayAllocator(result_device)
 
         async def receiver(endpoint):
             with cp.cuda.Device(result_device):
                 result_obj.sources = await endpoint.recv_obj(
-                    allocator=int32_allocator)
+                        allocator=allocator)
+                result_obj.sources = result_obj.sources.view("int32")
                 result_obj.destinations = await endpoint.recv_obj(
-                    allocator=int32_allocator)
+                        allocator=allocator)
+                result_obj.destinations = result_obj.destinations.view("int32")
                 result_obj.indices = await endpoint.recv_obj(
-                    allocator=float64_allocator)
+                        allocator=allocator)
+                result_obj.indices = result_obj.indices.view("float64")
+
+            await endpoint.close()
             listener.close()
 
         listener = ucp.create_listener(receiver, self.results_port)
