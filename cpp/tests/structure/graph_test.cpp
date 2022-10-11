@@ -91,9 +91,24 @@ class Tests_Graph : public ::testing::TestWithParam<std::tuple<Graph_Usecase, in
     raft::handle_t handle{};
     auto [graph_usecase, input_usecase] = param;
 
-    auto [d_srcs, d_dsts, d_weights, d_vertices, number_of_vertices, is_symmetric] =
+    auto [d_srcs, d_dsts, d_weights, d_vertices, is_symmetric] =
       input_usecase.template construct_edgelist<vertex_t, weight_t>(
         handle, graph_usecase.test_weighted, store_transposed, false);
+    vertex_t
+      number_of_vertices{};  // assuming that vertex IDs are non-negative consecutive integers
+    if (d_vertices) {
+      number_of_vertices =
+        cugraph::test::max_element(
+          handle, raft::device_span<vertex_t const>((*d_vertices).data(), (*d_vertices).size())) +
+        1;
+    } else {
+      number_of_vertices =
+        std::max(cugraph::test::max_element(
+                   handle, raft::device_span<vertex_t const>(d_srcs.data(), d_srcs.size())),
+                 cugraph::test::max_element(
+                   handle, raft::device_span<vertex_t const>(d_dsts.data(), d_dsts.size()))) +
+        1;
+    }
 
     edge_t number_of_edges = static_cast<edge_t>(d_srcs.size());
 

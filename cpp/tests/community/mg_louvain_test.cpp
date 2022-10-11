@@ -95,15 +95,13 @@ class Tests_MGLouvain
     if (rank == 0) {
       // Create initial SG graph, renumbered according to the MNMG renumber map
 
-      auto [d_edgelist_srcs,
-            d_edgelist_dsts,
-            d_edgelist_weights,
-            d_vertices,
-            number_of_vertices,
-            is_symmetric] =
+      auto [d_edgelist_srcs, d_edgelist_dsts, d_edgelist_weights, d_vertices, is_symmetric] =
         input_usecase.template construct_edgelist<vertex_t, weight_t>(handle, true, false, false);
 
-      d_clustering_v.resize(d_vertices.size(), handle_->get_stream());
+      EXPECT_TRUE(d_vertices.has_value())
+        << "This test expects d_vertices are defined and d_vertices elements are consecutive "
+           "integers starting from 0.";
+      d_clustering_v.resize((*d_vertices).size(), handle_->get_stream());
 
       // renumber using d_renumber_map_gathered_v
       cugraph::test::single_gpu_renumber_edgelist_given_number_map(
