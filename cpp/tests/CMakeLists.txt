@@ -20,6 +20,7 @@
 
 add_library(cugraphtestutil STATIC
             utilities/matrix_market_file_utilities.cu
+            utilities/csv_file_utilities.cu
             utilities/thrust_wrapper.cu
             utilities/misc_utilities.cpp
             utilities/test_utilities_sg.cu

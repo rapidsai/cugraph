@@ -268,7 +268,6 @@ std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<weight_t>>,
            rmm::device_uvector<vertex_t>,
-           vertex_t,
            bool>
 read_edgelist_from_matrix_market_file(raft::handle_t const& handle,
                                       std::string const& graph_file_full_path,
@@ -391,7 +390,6 @@ read_edgelist_from_matrix_market_file(raft::handle_t const& handle,
                          std::move(d_edgelist_dsts),
                          std::move(d_edgelist_weights),
                          std::move(d_vertices),
-                         number_of_vertices,
                          is_symmetric);
 }
 
@@ -407,12 +405,7 @@ read_graph_from_matrix_market_file(raft::handle_t const& handle,
                                    bool test_weighted,
                                    bool renumber)
 {
-  auto [d_edgelist_srcs,
-        d_edgelist_dsts,
-        d_edgelist_weights,
-        d_vertices,
-        number_of_vertices,
-        is_symmetric] =
+  auto [d_edgelist_srcs, d_edgelist_dsts, d_edgelist_weights, d_vertices, is_symmetric] =
     read_edgelist_from_matrix_market_file<vertex_t, weight_t>(
       handle, graph_file_full_path, test_weighted, store_transposed, multi_gpu);
 
@@ -474,7 +467,6 @@ template std::tuple<rmm::device_uvector<int32_t>,
                     rmm::device_uvector<int32_t>,
                     std::optional<rmm::device_uvector<float>>,
                     rmm::device_uvector<int32_t>,
-                    int32_t,
                     bool>
 read_edgelist_from_matrix_market_file<int32_t, float>(raft::handle_t const& handle,
                                                       std::string const& graph_file_full_path,

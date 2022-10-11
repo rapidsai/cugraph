@@ -135,18 +135,26 @@ class File_Usecase : public detail::TranslateGraph_Usecase {
                      bool store_transposed,
                      bool multi_gpu) const
   {
-    auto [d_src_v, d_dst_v, d_weights_v, d_vertices_v, num_vertices, is_symmetric] =
-      read_edgelist_from_matrix_market_file<vertex_t, weight_t>(
+    rmm::device_uvector<vertex_t> srcs(0, handle.get_stream());
+    rmm::device_uvector<vertex_t> dsts(0, handle.get_stream());
+    std::optional<rmm::device_uvector<weight_t>> weights{};
+    std::optional<rmm::device_uvector<vertex_t>> vertices{};
+    bool is_symmetric{};
+    auto extension = graph_file_full_path_.substr(graph_file_full_path_.find_last_of(".") + 1);
+    if (extension == "mtx") {
+      std::tie(srcs, dsts, weights, vertices, is_symmetric) =
+        read_edgelist_from_matrix_market_file<vertex_t, weight_t>(
+          handle, graph_file_full_path_, test_weighted, store_transposed, multi_gpu);
+    } else if (extension == "csv") {
+      std::tie(srcs, dsts, weights, is_symmetric) = read_edgelist_from_csv_file<vertex_t, weight_t>(
         handle, graph_file_full_path_, test_weighted, store_transposed, multi_gpu);
+    }
 
-    translate(handle, d_src_v, d_dst_v);
-    translate(handle, d_vertices_v);
+    translate(handle, srcs, dsts);
+    if (vertices) { translate(handle, *vertices); }
 
-    return std::make_tuple(std::move(d_src_v),
-                           std::move(d_dst_v),
-                           std::move(d_weights_v),
-                           std::move(d_vertices_v),
-                           is_symmetric);
+    return std::make_tuple(
+      std::move(srcs), std::move(dsts), std::move(weights), std::move(vertices), is_symmetric);
   }
 
  private:
