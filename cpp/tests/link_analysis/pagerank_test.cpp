@@ -407,8 +407,8 @@ INSTANTIATE_TEST_SUITE_P(
                       PageRank_Usecase{0.5, false},
                       PageRank_Usecase{0.0, true},
                       PageRank_Usecase{0.5, true}),
-    ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
-                      cugraph::test::File_Usecase("test/datasets/dolphins.mtx"))));
+    ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.csv"),
+                      cugraph::test::File_Usecase("test/datasets/dolphins.csv"))));
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_small_test,
