@@ -40,7 +40,7 @@ jobs:
       test-unittest: "RAPIDS_DATASET_ROOT_DIR=`pwd`/datasets pytest -v ./python/pylibcugraph/pylibcugraph/tests"
     secrets: inherit
   cugraph-wheel:
-    #needs: pylibcugraph-wheel
+    needs: pylibcugraph-wheel
     uses: rapidsai/shared-action-workflows/.github/workflows/wheels-manylinux.yml@feat/wheel-ci-actions-2
     with:
       package-name: cugraph
