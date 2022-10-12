@@ -196,7 +196,6 @@ set(CUGRAPH_SOURCES
     src/community/legacy/leiden.cu
     src/community/legacy/ktruss.cu
     src/community/legacy/ecg.cu
-    src/community/legacy/triangles_counting.cu
     src/community/legacy/extract_subgraph_by_vertex.cu
     src/community/legacy/egonet.cu
     src/sampling/random_walks.cu
@@ -205,7 +204,6 @@ set(CUGRAPH_SOURCES
     src/sampling/detail/sampling_utils_sg.cu
     src/sampling/uniform_neighbor_sampling_mg.cpp
     src/sampling/uniform_neighbor_sampling_sg.cpp
-    src/cores/legacy/core_number.cu
     src/cores/core_number_sg.cu
     src/cores/core_number_mg.cu
     src/cores/k_core_sg.cu

@@ -224,10 +224,6 @@ ConfigureTest(ECG_TEST community/ecg_test.cpp)
 ConfigureTest(BALANCED_TEST community/balanced_edge_test.cpp)
 
 ###################################################################################################
-# - TRIANGLE tests --------------------------------------------------------------------------------
-ConfigureTest(TRIANGLE_TEST community/triangle_test.cu)
-
-###################################################################################################
 # - EGO tests --------------------------------------------------------------------------------
 ConfigureTest(EGO_TEST community/egonet_test.cu)
 
