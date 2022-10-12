@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#include <community/flatten_dendrogram.cuh>
+#include <community/flatten_dendrogram.hpp>
 #include <community/legacy/leiden.cuh>
 
 #include <rmm/device_uvector.hpp>

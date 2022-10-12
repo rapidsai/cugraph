@@ -192,17 +192,8 @@ class Tests_MGHits : public ::testing::TestWithParam<std::tuple<Hits_Usecase, in
 
         // 3-5. compare
 
-        std::vector<result_t> h_mg_aggregate_hubs(mg_graph_view.number_of_vertices());
-        raft::update_host(h_mg_aggregate_hubs.data(),
-                          d_mg_aggregate_hubs.data(),
-                          d_mg_aggregate_hubs.size(),
-                          handle_->get_stream());
-
-        std::vector<result_t> h_sg_hubs(sg_graph_view.number_of_vertices());
-        raft::update_host(
-          h_sg_hubs.data(), d_sg_hubs.data(), d_sg_hubs.size(), handle_->get_stream());
-
-        handle_->sync_stream();
+        auto h_mg_aggregate_hubs = cugraph::test::to_host(*handle_, d_mg_aggregate_hubs);
+        auto h_sg_hubs           = cugraph::test::to_host(*handle_, d_sg_hubs);
 
         auto threshold_ratio = 1e-3;
         auto threshold_magnitude =

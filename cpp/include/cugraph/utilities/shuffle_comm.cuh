@@ -15,8 +15,8 @@
  */
 #pragma once
 
-#include <cugraph/utilities/dataframe_buffer.cuh>
-#include <cugraph/utilities/device_comm.cuh>
+#include <cugraph/utilities/dataframe_buffer.hpp>
+#include <cugraph/utilities/device_comm.hpp>
 
 #include <raft/handle.hpp>
 #include <rmm/device_uvector.hpp>

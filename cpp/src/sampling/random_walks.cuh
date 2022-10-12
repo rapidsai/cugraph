@@ -18,13 +18,14 @@
 //
 #pragma once
 
+#include <cugraph/algorithms.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/graph.hpp>
 
 #include <utilities/graph_utils.cuh>
 
-#include <raft/device_atomics.cuh>
 #include <raft/handle.hpp>
+#include <raft/util/device_atomics.cuh>
 
 #include <rmm/device_uvector.hpp>
 
@@ -178,9 +179,12 @@ struct col_indx_extract_t<graph_t, index_t, std::enable_if_t<graph_t::is_multi_g
                      index_t num_paths,
                      index_t max_depth)
     : handle_(handle),
-      col_indices_(graph.local_edge_partition_view().indices()),
-      row_offsets_(graph.local_edge_partition_view().offsets()),
-      values_(graph.local_edge_partition_view().weights()),
+      col_indices_(graph.local_edge_partition_view().indices().data()),
+      row_offsets_(graph.local_edge_partition_view().offsets().data()),
+      values_(
+        graph.local_edge_partition_view().weights()
+          ? std::optional<weight_t const*>{(*(graph.local_edge_partition_view().weights())).data()}
+          : std::nullopt),
       out_degs_(p_d_crt_out_degs),
       sizes_(p_d_sizes),
       num_paths_(num_paths),

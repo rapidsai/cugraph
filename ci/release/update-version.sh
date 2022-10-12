@@ -47,6 +47,8 @@ sed_runner 's/'"CUGRAPH VERSION .* LANGUAGES C CXX CUDA)"'/'"CUGRAPH VERSION ${N
 sed_runner 's|'"branch-.*/RAPIDS.cmake"'|'"branch-${NEXT_SHORT_TAG}/RAPIDS.cmake"'|g' cpp/CMakeLists.txt
 sed_runner 's/'"CUGRAPH_ETL VERSION .* LANGUAGES C CXX CUDA)"'/'"CUGRAPH_ETL VERSION ${NEXT_FULL_TAG} LANGUAGES C CXX CUDA)"'/g' cpp/libcugraph_etl/CMakeLists.txt
 sed_runner 's|'"branch-.*/RAPIDS.cmake"'|'"branch-${NEXT_SHORT_TAG}/RAPIDS.cmake"'|g' cpp/libcugraph_etl/CMakeLists.txt
+sed_runner "s/set(pylibcugraph_version .*)/set(pylibcugraph_version ${NEXT_FULL_TAG})/g" python/pylibcugraph/CMakeLists.txt
+sed_runner "s/set(cugraph_version .*)/set(cugraph_version ${NEXT_FULL_TAG})/g" python/cugraph/CMakeLists.txt
 
 # RTD update
 sed_runner 's/version = .*/version = '"'${NEXT_SHORT_TAG}'"'/g' docs/cugraph/source/conf.py
@@ -58,6 +60,8 @@ for FILE in conda/environments/*.yml; do
    sed_runner "s/rmm=${CURRENT_SHORT_TAG}/rmm=${NEXT_SHORT_TAG}/g" ${FILE};
    sed_runner "s/libraft-headers=${CURRENT_SHORT_TAG}/libraft-headers=${NEXT_SHORT_TAG}/g" ${FILE};
    sed_runner "s/pyraft=${CURRENT_SHORT_TAG}/pyraft=${NEXT_SHORT_TAG}/g" ${FILE};
+   sed_runner "s/raft-dask=${CURRENT_SHORT_TAG}/raft-dask=${NEXT_SHORT_TAG}/g" ${FILE};
+   sed_runner "s/pylibraft=${CURRENT_SHORT_TAG}/pylibraft=${NEXT_SHORT_TAG}/g" ${FILE};
    sed_runner "s/dask-cuda=${CURRENT_SHORT_TAG}/dask-cuda=${NEXT_SHORT_TAG}/g" ${FILE};
    sed_runner "s/dask-cudf=${CURRENT_SHORT_TAG}/dask-cudf=${NEXT_SHORT_TAG}/g" ${FILE};
    sed_runner "s/cuxfilter=${CURRENT_SHORT_TAG}/cuxfilter=${NEXT_SHORT_TAG}/g" ${FILE};

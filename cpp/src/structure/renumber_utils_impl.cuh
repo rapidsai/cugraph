@@ -21,7 +21,7 @@
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/utilities/error.hpp>
-#include <cugraph/utilities/host_scalar_comm.cuh>
+#include <cugraph/utilities/host_scalar_comm.hpp>
 
 #include <cuco/static_map.cuh>
 #include <rmm/mr/device/per_device_resource.hpp>

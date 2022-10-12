@@ -17,16 +17,16 @@
 #pragma once
 
 #include <detail/graph_utils.cuh>
-#include <prims/edge_partition_src_dst_property.cuh>
 #include <prims/per_v_transform_reduce_incoming_outgoing_e.cuh>
 #include <prims/transform_reduce_e.cuh>
 
 #include <cugraph/detail/decompress_edge_partition.cuh>
+#include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/partition_manager.hpp>
 #include <cugraph/utilities/error.hpp>
-#include <cugraph/utilities/host_scalar_comm.cuh>
+#include <cugraph/utilities/host_scalar_comm.hpp>
 
 #include <raft/cudart_utils.h>
 #include <raft/handle.hpp>
@@ -73,7 +73,7 @@ std::vector<edge_t> update_edge_partition_edge_counts(
   std::vector<edge_t const*> const& edge_partition_offsets,
   std::optional<std::vector<vertex_t>> const& edge_partition_dcs_nzd_vertex_counts,
   partition_t<vertex_t> const& partition,
-  std::optional<std::vector<vertex_t>> const& edge_partition_segment_offsets,
+  std::vector<vertex_t> const& edge_partition_segment_offsets,
   cudaStream_t stream)
 {
   std::vector<edge_t> edge_partition_edge_counts(partition.number_of_local_edge_partitions(), 0);
@@ -81,13 +81,13 @@ std::vector<edge_t> update_edge_partition_edge_counts(
   for (size_t i = 0; i < edge_partition_offsets.size(); ++i) {
     auto [major_range_first, major_range_last] = partition.local_edge_partition_major_range(i);
     auto segment_offset_size_per_partition =
-      (*edge_partition_segment_offsets).size() / edge_partition_offsets.size();
+      edge_partition_segment_offsets.size() / edge_partition_offsets.size();
     raft::update_host(
       &(edge_partition_edge_counts[i]),
       edge_partition_offsets[i] +
         (use_dcs
-           ? ((*edge_partition_segment_offsets)[segment_offset_size_per_partition * i +
-                                                detail::num_sparse_segments_per_vertex_partition] +
+           ? (edge_partition_segment_offsets[segment_offset_size_per_partition * i +
+                                             detail::num_sparse_segments_per_vertex_partition] +
               (*edge_partition_dcs_nzd_vertex_counts)[i])
            : (major_range_last - major_range_first)),
       1,
@@ -106,7 +106,7 @@ rmm::device_uvector<edge_t> compute_major_degrees(
   std::optional<std::vector<vertex_t const*>> const& edge_partition_dcs_nzd_vertices,
   std::optional<std::vector<vertex_t>> const& edge_partition_dcs_nzd_vertex_counts,
   partition_t<vertex_t> const& partition,
-  std::optional<std::vector<vertex_t>> const& edge_partition_segment_offsets)
+  std::vector<vertex_t> const& edge_partition_segment_offsets)
 {
   auto& row_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
   auto const row_comm_rank = row_comm.get_rank();
@@ -136,13 +136,12 @@ rmm::device_uvector<edge_t> compute_major_degrees(
       partition.vertex_partition_range(vertex_partition_idx);
     auto p_offsets = edge_partition_offsets[i];
     auto segment_offset_size_per_partition =
-      (*edge_partition_segment_offsets).size() / static_cast<size_t>(col_comm_size);
+      edge_partition_segment_offsets.size() / static_cast<size_t>(col_comm_size);
     auto major_hypersparse_first =
-      use_dcs
-        ? major_range_first +
-            (*edge_partition_segment_offsets)[segment_offset_size_per_partition * i +
-                                              detail::num_sparse_segments_per_vertex_partition]
-        : major_range_last;
+      use_dcs ? major_range_first +
+                  edge_partition_segment_offsets[segment_offset_size_per_partition * i +
+                                                 detail::num_sparse_segments_per_vertex_partition]
+              : major_range_last;
     auto execution_policy = handle.get_thrust_policy();
     thrust::transform(execution_policy,
                       thrust::make_counting_iterator(vertex_t{0}),
@@ -211,8 +210,8 @@ rmm::device_uvector<edge_t> compute_minor_degrees(
     per_v_transform_reduce_outgoing_e(
       handle,
       graph_view,
-      dummy_property_t<vertex_t>{}.device_view(),
-      dummy_property_t<vertex_t>{}.device_view(),
+      edge_src_dummy_property_t{}.view(),
+      edge_dst_dummy_property_t{}.view(),
       [] __device__(vertex_t, vertex_t, weight_t, auto, auto) { return edge_t{1}; },
       edge_t{0},
       minor_degrees.data());
@@ -220,8 +219,8 @@ rmm::device_uvector<edge_t> compute_minor_degrees(
     per_v_transform_reduce_incoming_e(
       handle,
       graph_view,
-      dummy_property_t<vertex_t>{}.device_view(),
-      dummy_property_t<vertex_t>{}.device_view(),
+      edge_src_dummy_property_t{}.view(),
+      edge_dst_dummy_property_t{}.view(),
       [] __device__(vertex_t, vertex_t, weight_t, auto, auto) { return edge_t{1}; },
       edge_t{0},
       minor_degrees.data());
@@ -246,8 +245,8 @@ rmm::device_uvector<weight_t> compute_weight_sums(
     per_v_transform_reduce_incoming_e(
       handle,
       graph_view,
-      dummy_property_t<vertex_t>{}.device_view(),
-      dummy_property_t<vertex_t>{}.device_view(),
+      edge_src_dummy_property_t{}.view(),
+      edge_dst_dummy_property_t{}.view(),
       [] __device__(vertex_t, vertex_t, weight_t w, auto, auto) { return w; },
       weight_t{0.0},
       weight_sums.data());
@@ -255,8 +254,8 @@ rmm::device_uvector<weight_t> compute_weight_sums(
     per_v_transform_reduce_outgoing_e(
       handle,
       graph_view,
-      dummy_property_t<vertex_t>{}.device_view(),
-      dummy_property_t<vertex_t>{}.device_view(),
+      edge_src_dummy_property_t{}.view(),
+      edge_dst_dummy_property_t{}.view(),
       [] __device__(vertex_t, vertex_t, weight_t w, auto, auto) { return w; },
       weight_t{0.0},
       weight_sums.data());
@@ -442,6 +441,19 @@ edge_t count_edge_partition_multi_edges(
   }
 }
 
+template <typename graph_view_t>
+typename graph_view_t::weight_type compute_graph_total_edge_weight(raft::handle_t const& handle,
+                                                                   graph_view_t const& graph_view)
+{
+  return transform_reduce_e(
+    handle,
+    graph_view,
+    edge_src_dummy_property_t{}.view(),
+    edge_dst_dummy_property_t{}.view(),
+    [] __device__(auto, auto, auto wt, auto, auto) { return wt; },
+    typename graph_view_t::weight_type{0});
+}
+
 }  // namespace
 
 template <typename vertex_t,
@@ -516,9 +528,8 @@ graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enabl
                   "Internal Error: erroneous edge_partition_offsets.size().");
 
   CUGRAPH_EXPECTS(
-    !(meta.edge_partition_segment_offsets.has_value()) ||
-      ((*(meta.edge_partition_segment_offsets)).size() ==
-       col_comm_size * (detail::num_sparse_segments_per_vertex_partition + (use_dcs ? 3 : 2))),
+    meta.edge_partition_segment_offsets.size() ==
+      col_comm_size * (detail::num_sparse_segments_per_vertex_partition + (use_dcs ? 3 : 2)),
     "Internal Error: invalid edge_partition_segment_offsets.size().");
 
   // skip expensive error checks as this function is only called by graph_t
@@ -888,6 +899,34 @@ template <typename vertex_t,
           typename weight_t,
           bool store_transposed,
           bool multi_gpu>
+weight_t
+graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_t<multi_gpu>>::
+  compute_total_edge_weight(raft::handle_t const& handle) const
+{
+  return compute_graph_total_edge_weight(handle, *this);
+}
+
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          bool store_transposed,
+          bool multi_gpu>
+weight_t graph_view_t<vertex_t,
+                      edge_t,
+                      weight_t,
+                      store_transposed,
+                      multi_gpu,
+                      std::enable_if_t<!multi_gpu>>::compute_total_edge_weight(raft::handle_t const&
+                                                                                 handle) const
+{
+  return compute_graph_total_edge_weight(handle, *this);
+}
+
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          bool store_transposed,
+          bool multi_gpu>
 edge_t
 graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enable_if_t<multi_gpu>>::
   count_self_loops(raft::handle_t const& handle) const
@@ -895,8 +934,8 @@ graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enabl
   return transform_reduce_e(
     handle,
     *this,
-    dummy_property_t<vertex_t>{}.device_view(),
-    dummy_property_t<vertex_t>{}.device_view(),
+    edge_src_dummy_property_t{}.view(),
+    edge_dst_dummy_property_t{}.view(),
     [] __device__(vertex_t src, vertex_t dst, auto src_val, auto dst_val) {
       return src == dst ? edge_t{1} : edge_t{0};
     },
@@ -919,8 +958,8 @@ edge_t graph_view_t<vertex_t,
   return transform_reduce_e(
     handle,
     *this,
-    dummy_property_t<vertex_t>{}.device_view(),
-    dummy_property_t<vertex_t>{}.device_view(),
+    edge_src_dummy_property_t{}.view(),
+    edge_dst_dummy_property_t{}.view(),
     [] __device__(vertex_t src, vertex_t dst, auto src_val, auto dst_val) {
       return src == dst ? edge_t{1} : edge_t{0};
     },

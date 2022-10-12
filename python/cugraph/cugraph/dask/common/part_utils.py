@@ -81,6 +81,10 @@ def persist_distributed_data(dask_df, client):
 async def _extract_partitions(dask_obj, client=None, batch_enabled=False):
     client = default_client() if client is None else client
     worker_list = Comms.get_workers()
+
+    # repartition the 'dask_obj' to get as many partitions as there
+    # are workers
+    dask_obj = dask_obj.repartition(npartitions=len(worker_list))
     # dask.dataframe or dask.array
     if isinstance(dask_obj, (daskDataFrame, daskArray, daskSeries)):
         # parts = persist_distributed_data(dask_obj, client)

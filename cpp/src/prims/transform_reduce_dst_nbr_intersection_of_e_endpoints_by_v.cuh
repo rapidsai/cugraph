@@ -17,10 +17,11 @@
 
 #include <detail/graph_utils.cuh>
 #include <prims/detail/nbr_intersection.cuh>
-#include <prims/edge_partition_src_dst_property.cuh>
 #include <prims/property_op_utils.cuh>
 
 #include <cugraph/edge_partition_device_view.cuh>
+#include <cugraph/edge_partition_endpoint_property_device_view.cuh>
+#include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/error.hpp>
@@ -190,26 +191,24 @@ struct accumulate_vertex_property_t {
  * function is inspired by thrust::transform_reduce().
  *
  * @tparam GraphViewType Type of the passed non-owning graph object.
- * @tparam EdgePartitionSrcValueInputWrapper Type of the wrapper for edge partition source property
- * values.
- * @tparam EdgePartitionDstValueInputWrapper Type of the wrapper for edge partition destination
- * property values.
+ * @tparam EdgeSrcValueInputWrapper Type of the wrapper for edge source property values.
+ * @tparam EdgeDstValueInputWrapper Type of the wrapper for edge destination property values.
  * @tparam IntersectionOp Type of the quinary per intersection operator.
  * @tparam T Type of the initial value for per-vertex reduction.
  * @tparam VertexValueOutputIterator Type of the iterator for vertex output property variables.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Non-owning graph object.
- * @param edge_partition_src_value_input Device-copyable wrapper used to access source input
- * property values (for the edge sources assigned to this process in multi-GPU). Use either
- * cugraph::edge_partition_src_property_t::device_view() (if @p e_op needs to access source property
- * values) or cugraph::dummy_property_t::device_view() (if @p e_op does not access source property
- * values). Use update_edge_partition_src_property to fill the wrapper.
- * @param edge_partition_dst_value_input Device-copyable wrapper used to access destination input
- * property values (for the edge destinations assigned to this process in multi-GPU). Use either
- * cugraph::edge_partition_dst_property_t::device_view() (if @p e_op needs to access destination
- * property values) or cugraph::dummy_property_t::device_view() (if @p e_op does not access
- * destination property values). Use update_edge_partition_dst_property to fill the wrapper.
+ * @param edge_src_value_input Wrapper used to access source input property values (for the edge
+ * sources assigned to this process in multi-GPU). Use either cugraph::edge_src_property_t::view()
+ * (if @p e_op needs to access source property values) or cugraph::edge_src_dummy_property_t::view()
+ * (if @p e_op does not access source property values). Use update_edge_src_property to fill the
+ * wrapper.
+ * @param edge_dst_value_input Wrapper used to access destination input property values (for the
+ * edge destinations assigned to this process in multi-GPU). Use either
+ * cugraph::edge_dst_property_t::view() (if @p e_op needs to access destination property values) or
+ * cugraph::edge_dst_dummy_property_t::view() (if @p e_op does not access destination property
+ * values). Use update_edge_dst_property to fill the wrapper.
  * @param intersection_op quinary operator takes edge source, edge destination, property values for
  * the source, property values for the destination, and a list of vertices in the intersection of
  * edge source & destination vertices' destination neighbors and returns a thrust::tuple of three
@@ -224,16 +223,16 @@ struct accumulate_vertex_property_t {
  * @param A flag to run expensive checks for input arguments (if set to `true`).
  */
 template <typename GraphViewType,
-          typename EdgePartitionSrcValueInputWrapper,
-          typename EdgePartitionDstValueInputWrapper,
+          typename EdgeSrcValueInputWrapper,
+          typename EdgeDstValueInputWrapper,
           typename IntersectionOp,
           typename T,
           typename VertexValueOutputIterator>
 void transform_reduce_dst_nbr_intersection_of_e_endpoints_by_v(
   raft::handle_t const& handle,
   GraphViewType const& graph_view,
-  EdgePartitionSrcValueInputWrapper edge_partition_src_value_input,
-  EdgePartitionDstValueInputWrapper edge_partition_dst_value_input,
+  EdgeSrcValueInputWrapper edge_src_value_input,
+  EdgeDstValueInputWrapper edge_dst_value_input,
   IntersectionOp intersection_op,
   T init,
   VertexValueOutputIterator vertex_value_output_first,
@@ -246,6 +245,27 @@ void transform_reduce_dst_nbr_intersection_of_e_endpoints_by_v(
   using edge_t   = typename GraphViewType::edge_type;
   using weight_t = typename GraphViewType::weight_type;
 
+  using edge_partition_src_input_device_view_t = std::conditional_t<
+    std::is_same_v<typename EdgeSrcValueInputWrapper::value_type, thrust::nullopt_t>,
+    detail::edge_partition_endpoint_dummy_property_device_view_t<vertex_t>,
+    std::conditional_t<GraphViewType::is_storage_transposed,
+                       detail::edge_partition_endpoint_property_device_view_t<
+                         vertex_t,
+                         typename EdgeSrcValueInputWrapper::value_iterator>,
+                       detail::edge_partition_endpoint_property_device_view_t<
+                         vertex_t,
+                         typename EdgeSrcValueInputWrapper::value_iterator>>>;
+  using edge_partition_dst_input_device_view_t = std::conditional_t<
+    std::is_same_v<typename EdgeDstValueInputWrapper::value_type, thrust::nullopt_t>,
+    detail::edge_partition_endpoint_dummy_property_device_view_t<vertex_t>,
+    std::conditional_t<GraphViewType::is_storage_transposed,
+                       detail::edge_partition_endpoint_property_device_view_t<
+                         vertex_t,
+                         typename EdgeDstValueInputWrapper::value_iterator>,
+                       detail::edge_partition_endpoint_property_device_view_t<
+                         vertex_t,
+                         typename EdgeDstValueInputWrapper::value_iterator>>>;
+
   if (do_expensive_check) {
     // currently, nothing to do.
   }
@@ -255,28 +275,23 @@ void transform_reduce_dst_nbr_intersection_of_e_endpoints_by_v(
                vertex_value_output_first + graph_view.local_vertex_partition_range_size(),
                init);
 
-  std::optional<rmm::device_uvector<vertex_t>>
-    d_vertex_partition_range_lasts_in_edge_partition_minor_range{std::nullopt};
-  if constexpr (GraphViewType::is_multi_gpu) {
-    auto& row_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
-    auto const row_comm_size = row_comm.get_size();
-
-    auto& col_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
-    auto const col_comm_rank = col_comm.get_rank();
-
-    d_vertex_partition_range_lasts_in_edge_partition_minor_range =
-      rmm::device_uvector<vertex_t>(row_comm_size, handle.get_stream());
-    auto h_vertex_partition_range_lasts = graph_view.vertex_partition_range_lasts();
-    raft::update_device((*d_vertex_partition_range_lasts_in_edge_partition_minor_range).data(),
-                        h_vertex_partition_range_lasts.data() + row_comm_size * col_comm_rank,
-                        row_comm_size,
-                        handle.get_stream());
-  }
-
   for (size_t i = 0; i < graph_view.number_of_local_edge_partitions(); ++i) {
     auto edge_partition =
       edge_partition_device_view_t<vertex_t, edge_t, weight_t, GraphViewType::is_multi_gpu>(
         graph_view.local_edge_partition_view(i));
+
+    edge_partition_src_input_device_view_t edge_partition_src_value_input{};
+    edge_partition_dst_input_device_view_t edge_partition_dst_value_input{};
+    if constexpr (GraphViewType::is_storage_transposed) {
+      edge_partition_src_value_input = edge_partition_src_input_device_view_t(edge_src_value_input);
+      edge_partition_dst_value_input =
+        edge_partition_dst_input_device_view_t(edge_dst_value_input, i);
+    } else {
+      edge_partition_src_value_input =
+        edge_partition_src_input_device_view_t(edge_src_value_input, i);
+      edge_partition_dst_value_input = edge_partition_dst_input_device_view_t(edge_dst_value_input);
+    }
+
     rmm::device_uvector<vertex_t> majors(edge_partition.number_of_edges(), handle.get_stream());
     rmm::device_uvector<vertex_t> minors(majors.size(), handle.get_stream());
 
@@ -292,7 +307,7 @@ void transform_reduce_dst_nbr_intersection_of_e_endpoints_by_v(
 
     // FIXME: Peak memory requirement is also dependent on the average minimum degree of the input
     // vertex pairs. We may need a more sophisticated mechanism to set max_chunk_size considering
-    // vertex degrees. to limit memory footprint ((1 << 10) is a tuning parameter)
+    // vertex degrees. to limit memory footprint ((1 << 15) is a tuning parameter)
     auto max_chunk_size =
       static_cast<size_t>(handle.get_device_properties().multiProcessorCount) * (1 << 15);
     auto max_num_chunks = (majors.size() + max_chunk_size - 1) / max_chunk_size;
@@ -347,8 +362,8 @@ void transform_reduce_dst_nbr_intersection_of_e_endpoints_by_v(
                        triplet_first,
                        triplet_first + this_chunk_size,
                        detail::call_intersection_op_t<GraphViewType,
-                                                      EdgePartitionSrcValueInputWrapper,
-                                                      EdgePartitionDstValueInputWrapper,
+                                                      edge_partition_src_input_device_view_t,
+                                                      edge_partition_dst_input_device_view_t,
                                                       IntersectionOp,
                                                       decltype(chunk_vertex_pair_first)>{
                          edge_partition,

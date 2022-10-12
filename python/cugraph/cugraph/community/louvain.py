@@ -11,10 +11,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from cugraph.community import louvain_wrapper
 from cugraph.utilities import (ensure_cugraph_obj_for_nx,
                                df_score_to_dictionary,
                                )
+import cudf
+
+from pylibcugraph import louvain as pylibcugraph_louvain
+from pylibcugraph import ResourceHandle
 
 
 def louvain(G, max_iter=100, resolution=1.):
@@ -67,7 +70,7 @@ def louvain(G, max_iter=100, resolution=1.):
     --------
     >>> from cugraph.experimental.datasets import karate
     >>> G = karate.get_graph(fetch=True)
-    >>> parts, modularity_score = cugraph.louvain(G)
+    >>> parts = cugraph.louvain(G)
 
     """
 
@@ -76,14 +79,23 @@ def louvain(G, max_iter=100, resolution=1.):
     if G.is_directed():
         raise ValueError("input graph must be undirected")
 
-    parts, modularity_score = louvain_wrapper.louvain(
-        G, max_iter, resolution
-    )
+    vertex, partition, mod_score = \
+        pylibcugraph_louvain(
+            resource_handle=ResourceHandle(),
+            graph=G._plc_graph,
+            max_level=max_iter,
+            resolution=resolution,
+            do_expensive_check=False
+        )
+
+    df = cudf.DataFrame()
+    df["vertex"] = vertex
+    df["partition"] = partition
 
     if G.renumbered:
-        parts = G.unrenumber(parts, "vertex")
+        df = G.unrenumber(df, "vertex")
 
     if isNx is True:
-        parts = df_score_to_dictionary(parts, "partition")
+        df = df_score_to_dictionary(df, 'partition')
 
-    return parts, modularity_score
+    return df, mod_score

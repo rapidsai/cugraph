@@ -16,11 +16,12 @@
 #pragma once
 
 #include <detail/graph_utils.cuh>
-#include <prims/edge_partition_src_dst_property.cuh>
-#include <prims/update_edge_partition_src_dst_property.cuh>
+#include <prims/update_edge_src_dst_property.cuh>
 
 #include <cugraph/detail/decompress_edge_partition.cuh>
 #include <cugraph/detail/shuffle_wrappers.hpp>
+#include <cugraph/edge_partition_endpoint_property_device_view.cuh>
+#include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
@@ -136,7 +137,7 @@ template <typename vertex_t,
           typename edge_t,
           typename weight_t,
           bool multi_gpu,
-          typename AdjMatrixMinorLabelInputWrapper>
+          typename EdgeMinorLabelInputWrapper>
 std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<weight_t>>>
@@ -144,11 +145,11 @@ decompress_edge_partition_to_relabeled_and_grouped_and_coarsened_edgelist(
   raft::handle_t const& handle,
   edge_partition_device_view_t<vertex_t, edge_t, weight_t, multi_gpu> const edge_partition,
   vertex_t const* major_label_first,
-  AdjMatrixMinorLabelInputWrapper const minor_label_input,
+  EdgeMinorLabelInputWrapper const minor_label_input,
   std::optional<std::vector<vertex_t>> const& segment_offsets,
   bool lower_triangular_only)
 {
-  static_assert(std::is_same_v<typename AdjMatrixMinorLabelInputWrapper::value_type, vertex_t>);
+  static_assert(std::is_same_v<typename EdgeMinorLabelInputWrapper::value_type, vertex_t>);
 
   // FIXME: it might be possible to directly create relabled & coarsened edgelist from the
   // compressed sparse format to save memory
@@ -175,7 +176,9 @@ decompress_edge_partition_to_relabeled_and_grouped_and_coarsened_edgelist(
                     pair_first + edgelist_majors.size(),
                     pair_first,
                     [major_label_first,
-                     minor_label_input,
+                     minor_label_input = detail::edge_partition_endpoint_property_device_view_t<
+                       vertex_t,
+                       decltype(minor_label_input.value_first())>(minor_label_input),
                      major_range_first = edge_partition.major_range_first(),
                      minor_range_first = edge_partition.minor_range_first()] __device__(auto val) {
                       return thrust::make_tuple(
@@ -263,18 +266,17 @@ coarsen_graph(
 
   bool lower_triangular_only = graph_view.is_symmetric();
 
-  std::conditional_t<store_transposed,
-                     edge_partition_src_property_t<
-                       graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>,
-                       vertex_t>,
-                     edge_partition_dst_property_t<
-                       graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>,
-                       vertex_t>>
-    edge_partition_minor_labels(handle, graph_view);
+  std::conditional_t<
+    store_transposed,
+    edge_src_property_t<graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>,
+                        vertex_t>,
+    edge_dst_property_t<graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>,
+                        vertex_t>>
+    edge_minor_labels(handle, graph_view);
   if constexpr (store_transposed) {
-    update_edge_partition_src_property(handle, graph_view, labels, edge_partition_minor_labels);
+    update_edge_src_property(handle, graph_view, labels, edge_minor_labels);
   } else {
-    update_edge_partition_dst_property(handle, graph_view, labels, edge_partition_minor_labels);
+    update_edge_dst_property(handle, graph_view, labels, edge_minor_labels);
   }
 
   std::vector<rmm::device_uvector<vertex_t>> coarsened_edgelist_majors{};
@@ -311,7 +313,7 @@ coarsen_graph(
         edge_partition_device_view_t<vertex_t, edge_t, weight_t, multi_gpu>(
           graph_view.local_edge_partition_view(i)),
         major_labels.data(),
-        edge_partition_minor_labels.device_view(),
+        edge_minor_labels.view(),
         graph_view.local_edge_partition_segment_offsets(i),
         lower_triangular_only);
 
@@ -335,7 +337,7 @@ coarsen_graph(
     coarsened_edgelist_minors.push_back(std::move(edgelist_minors));
     if (edgelist_weights) { (*coarsened_edgelist_weights).push_back(std::move(*edgelist_weights)); }
   }
-  edge_partition_minor_labels.clear(handle);
+  edge_minor_labels.clear(handle);
 
   // 2. concatenate and groupby and coarsen again (and if the input graph is symmetric, 1) create a
   // copy excluding self loops, 2) globally shuffle, and 3) concatenate again)
@@ -494,8 +496,10 @@ coarsen_graph(
 
   // 4. create a graph
 
-  auto [coarsened_graph, renumber_map] =
-    create_graph_from_edgelist<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
+  graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> coarsened_graph(handle);
+  std::optional<rmm::device_uvector<vertex_t>> renumber_map{std::nullopt};
+  std::tie(coarsened_graph, std::ignore, renumber_map) =
+    create_graph_from_edgelist<vertex_t, edge_t, weight_t, int32_t, store_transposed, multi_gpu>(
       handle,
       std::move(unique_labels),
       store_transposed ? std::move(concatenated_edgelist_minors)
@@ -503,6 +507,7 @@ coarsen_graph(
       store_transposed ? std::move(concatenated_edgelist_majors)
                        : std::move(concatenated_edgelist_minors),
       std::move(concatenated_edgelist_weights),
+      std::nullopt,
       graph_properties_t{graph_view.is_symmetric(), false},
       true,
       do_expensive_check);
@@ -537,8 +542,7 @@ coarsen_graph(
       edge_partition_device_view_t<vertex_t, edge_t, weight_t, multi_gpu>(
         graph_view.local_edge_partition_view()),
       labels,
-      detail::edge_partition_minor_property_device_view_t<vertex_t, vertex_t const*>(labels,
-                                                                                     vertex_t{0}),
+      detail::edge_minor_property_view_t<vertex_t, vertex_t const*>(labels, vertex_t{0}),
       graph_view.local_edge_partition_segment_offsets(0),
       lower_triangular_only);
 
@@ -608,8 +612,10 @@ coarsen_graph(
       thrust::unique(handle.get_thrust_policy(), unique_labels.begin(), unique_labels.end())),
     handle.get_stream());
 
-  auto [coarsened_graph, renumber_map] =
-    create_graph_from_edgelist<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
+  graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> coarsened_graph(handle);
+  std::optional<rmm::device_uvector<vertex_t>> renumber_map{std::nullopt};
+  std::tie(coarsened_graph, std::ignore, renumber_map) =
+    create_graph_from_edgelist<vertex_t, edge_t, weight_t, int32_t, store_transposed, multi_gpu>(
       handle,
       std::optional<rmm::device_uvector<vertex_t>>{std::move(unique_labels)},
       store_transposed ? std::move(coarsened_edgelist_minors)
@@ -617,6 +623,7 @@ coarsen_graph(
       store_transposed ? std::move(coarsened_edgelist_majors)
                        : std::move(coarsened_edgelist_minors),
       std::move(coarsened_edgelist_weights),
+      std::nullopt,
       graph_properties_t{graph_view.is_symmetric(), false},
       true,
       do_expensive_check);

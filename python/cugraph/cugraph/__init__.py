@@ -23,7 +23,7 @@ from cugraph.community import (
     analyzeClustering_edge_cut,
     analyzeClustering_ratio_cut,
     subgraph,
-    triangles,
+    triangle_count,
     ego_graph,
     batched_ego_graphs,
 )
@@ -106,7 +106,7 @@ from cugraph.experimental import find_bicliques
 
 from cugraph.linear_assignment import hungarian, dense_hungarian
 from cugraph.layout import force_atlas2
-from raft import raft_include_test
+from raft_dask import raft_include_test
 
 from cugraph.sampling import (
     random_walks,

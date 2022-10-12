@@ -68,8 +68,8 @@ def eigenvector_centrality(ResourceHandle resource_handle,
         Handle to the underlying device resources needed for referencing data
         and running algorithms.
 
-    graph : SGGraph
-        The input graph.
+    graph : SGGraph or MGGraph
+        The input graph, for either Single or Multi-GPU operations.
 
     epsilon : double
         Error tolerance to check convergence

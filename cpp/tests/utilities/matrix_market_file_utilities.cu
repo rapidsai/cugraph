@@ -342,7 +342,7 @@ read_edgelist_from_matrix_market_file(raft::handle_t const& handle,
       handle.get_stream());
     d_vertices.shrink_to_fit(handle.get_stream());
 
-    auto edge_key_func = cugraph::detail::compute_gpu_id_from_edge_t<vertex_t>{
+    auto edge_key_func = cugraph::detail::compute_gpu_id_from_ext_edge_endpoints_t<vertex_t>{
       comm_size, row_comm_size, col_comm_size};
     size_t number_of_local_edges{};
     if (d_edgelist_weights) {
@@ -416,15 +416,20 @@ read_graph_from_matrix_market_file(raft::handle_t const& handle,
     read_edgelist_from_matrix_market_file<vertex_t, weight_t, store_transposed, multi_gpu>(
       handle, graph_file_full_path, test_weighted);
 
-  return cugraph::
-    create_graph_from_edgelist<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
+  graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> graph(handle);
+  std::optional<rmm::device_uvector<vertex_t>> renumber_map{std::nullopt};
+  std::tie(graph, std::ignore, renumber_map) = cugraph::
+    create_graph_from_edgelist<vertex_t, edge_t, weight_t, int32_t, store_transposed, multi_gpu>(
       handle,
       std::move(d_vertices),
       std::move(d_edgelist_srcs),
       std::move(d_edgelist_dsts),
       std::move(d_edgelist_weights),
+      std::nullopt,
       cugraph::graph_properties_t{is_symmetric, false},
       renumber);
+
+  return std::make_tuple(std::move(graph), std::move(renumber_map));
 }
 
 // explicit instantiations

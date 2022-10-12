@@ -16,16 +16,17 @@
 #pragma once
 
 #include <detail/graph_utils.cuh>
-#include <prims/edge_partition_src_dst_property.cuh>
+#include <prims/fill_edge_src_dst_property.cuh>
 #include <prims/transform_reduce_v_frontier_outgoing_e_by_dst.cuh>
-#include <prims/update_edge_partition_src_dst_property.cuh>
+#include <prims/update_edge_src_dst_property.cuh>
 #include <prims/update_v_frontier.cuh>
 #include <prims/vertex_frontier.cuh>
 
 #include <cugraph/algorithms.hpp>
+#include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
-#include <cugraph/utilities/device_comm.cuh>
+#include <cugraph/utilities/device_comm.hpp>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/shuffle_comm.cuh>
 
@@ -178,6 +179,37 @@ accumulate_new_roots(raft::handle_t const& handle,
 
   return std::make_tuple(std::move(new_roots), num_scanned, degree_sum);
 }
+
+template <typename vertex_t, typename EdgeIterator>
+struct e_op_t {
+  detail::edge_partition_endpoint_property_device_view_t<vertex_t, vertex_t*> dst_components{};
+  vertex_t dst_first{};
+  EdgeIterator edge_buffer_first{};
+  size_t* num_edge_inserts{};
+
+  __device__ thrust::optional<vertex_t> operator()(thrust::tuple<vertex_t, vertex_t> tagged_src,
+                                                   vertex_t dst,
+                                                   thrust::nullopt_t,
+                                                   thrust::nullopt_t) const
+  {
+    auto tag        = thrust::get<1>(tagged_src);
+    auto dst_offset = dst - dst_first;
+    // FIXME: better switch to atomic_ref after
+    // https://github.com/nvidia/libcudacxx/milestone/2
+    auto old =
+      atomicCAS(dst_components.get_iter(dst_offset), invalid_component_id<vertex_t>::value, tag);
+    if (old != invalid_component_id<vertex_t>::value && old != tag) {  // conflict
+      static_assert(sizeof(unsigned long long int) == sizeof(size_t));
+      auto edge_idx = atomicAdd(reinterpret_cast<unsigned long long int*>(num_edge_inserts),
+                                static_cast<unsigned long long int>(1));
+      // keep only the edges in the lower triangular part
+      *(edge_buffer_first + edge_idx) =
+        tag >= old ? thrust::make_tuple(tag, old) : thrust::make_tuple(old, tag);
+    }
+    return old == invalid_component_id<vertex_t>::value ? thrust::optional<vertex_t>{tag}
+                                                        : thrust::nullopt;
+  }
+};
 
 // FIXME: to silence the spurious warning (missing return statement ...) due to the nvcc bug
 // (https://stackoverflow.com/questions/64523302/cuda-missing-return-statement-at-end-of-non-void-
@@ -462,11 +494,11 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
       init_max_new_roots = std::min(init_max_new_roots, max_new_roots);
     }
 
-    // 2-3. initialize vertex frontier, edge_buffer, and edge_partition_dst_components (if
+    // 2-3. initialize vertex frontier, edge_buffer, and edge_dst_components (if
     // multi-gpu)
 
-    vertex_frontier_t<vertex_t, vertex_t, GraphViewType::is_multi_gpu> vertex_frontier(handle,
-                                                                                       num_buckets);
+    vertex_frontier_t<vertex_t, vertex_t, GraphViewType::is_multi_gpu, true> vertex_frontier(
+      handle, num_buckets);
     vertex_t next_candidate_offset{0};
     edge_t edge_count{0};
 
@@ -476,12 +508,13 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
     // requires placing the atomic variable on managed memory and this make it less attractive.
     rmm::device_scalar<size_t> num_edge_inserts(size_t{0}, handle.get_stream());
 
-    auto edge_partition_dst_components =
+    auto edge_dst_components =
       GraphViewType::is_multi_gpu
-        ? edge_partition_dst_property_t<GraphViewType, vertex_t>(handle, level_graph_view)
-        : edge_partition_dst_property_t<GraphViewType, vertex_t>(handle);
+        ? edge_dst_property_t<GraphViewType, vertex_t>(handle, level_graph_view)
+        : edge_dst_property_t<GraphViewType, vertex_t>(handle);
     if constexpr (GraphViewType::is_multi_gpu) {
-      edge_partition_dst_components.fill(handle, invalid_component_id<vertex_t>::value);
+      fill_edge_dst_property(
+        handle, level_graph_view, invalid_component_id<vertex_t>::value, edge_dst_components);
     }
 
     // 2.4 iterate till every vertex gets visited
@@ -520,18 +553,18 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
       if (vertex_frontier.bucket(bucket_idx_cur).aggregate_size() == 0) { break; }
 
       if constexpr (GraphViewType::is_multi_gpu) {
-        update_edge_partition_dst_property(
+        update_edge_dst_property(
           handle,
           level_graph_view,
           thrust::get<0>(vertex_frontier.bucket(bucket_idx_cur).begin().get_iterator_tuple()),
           thrust::get<0>(vertex_frontier.bucket(bucket_idx_cur).end().get_iterator_tuple()),
           level_components,
-          edge_partition_dst_components);
+          edge_dst_components);
       }
 
       auto max_pushes = GraphViewType::is_multi_gpu
                           ? compute_num_out_nbrs_from_frontier(
-                              handle, level_graph_view, vertex_frontier, bucket_idx_cur)
+                              handle, level_graph_view, vertex_frontier.bucket(bucket_idx_cur))
                           : edge_count;
 
       // FIXME: if we use cuco::static_map (no duplicates, ideally we need static_set), edge_buffer
@@ -543,36 +576,19 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
       auto new_frontier_tagged_vertex_buffer = transform_reduce_v_frontier_outgoing_e_by_dst(
         handle,
         level_graph_view,
-        vertex_frontier,
-        bucket_idx_cur,
-        dummy_property_t<vertex_t>{}.device_view(),
-        dummy_property_t<vertex_t>{}.device_view(),
-        [col_components =
-           GraphViewType::is_multi_gpu
-             ? edge_partition_dst_components.mutable_device_view()
-             : detail::edge_partition_minor_property_device_view_t<vertex_t, vertex_t*>(
-                 level_components, vertex_t{0}),
-         col_first         = level_graph_view.local_edge_partition_dst_range_first(),
-         edge_buffer_first = get_dataframe_buffer_begin(edge_buffer),
-         num_edge_inserts =
-           num_edge_inserts.data()] __device__(auto tagged_src, vertex_t dst, auto, auto) {
-          auto tag        = thrust::get<1>(tagged_src);
-          auto col_offset = dst - col_first;
-          // FIXME: better switch to atomic_ref after
-          // https://github.com/nvidia/libcudacxx/milestone/2
-          auto old = atomicCAS(
-            col_components.get_iter(col_offset), invalid_component_id<vertex_t>::value, tag);
-          if (old != invalid_component_id<vertex_t>::value && old != tag) {  // conflict
-            static_assert(sizeof(unsigned long long int) == sizeof(size_t));
-            auto edge_idx = atomicAdd(reinterpret_cast<unsigned long long int*>(num_edge_inserts),
-                                      static_cast<unsigned long long int>(1));
-            // keep only the edges in the lower triangular part
-            *(edge_buffer_first + edge_idx) =
-              tag >= old ? thrust::make_tuple(tag, old) : thrust::make_tuple(old, tag);
-          }
-          return old == invalid_component_id<vertex_t>::value ? thrust::optional<vertex_t>{tag}
-                                                              : thrust::nullopt;
-        },
+        vertex_frontier.bucket(bucket_idx_cur),
+        edge_src_dummy_property_t{}.view(),
+        edge_dst_dummy_property_t{}.view(),
+        e_op_t<vertex_t, decltype(get_dataframe_buffer_begin(edge_buffer))>{
+          GraphViewType::is_multi_gpu
+            ? detail::edge_partition_endpoint_property_device_view_t<vertex_t, vertex_t*>(
+                edge_dst_components.mutable_view())
+            : detail::edge_partition_endpoint_property_device_view_t<vertex_t, vertex_t*>(
+                detail::edge_minor_property_view_t<vertex_t, vertex_t*>(level_components,
+                                                                        vertex_t{0})),
+          level_graph_view.local_edge_partition_dst_range_first(),
+          get_dataframe_buffer_begin(edge_buffer),
+          num_edge_inserts.data()},
         reduce_op::null());
 
       update_v_frontier(handle,
@@ -695,7 +711,7 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
           get_dataframe_buffer_begin(edge_buffer),
           get_dataframe_buffer_end(edge_buffer),
           [key_func =
-             cugraph::detail::compute_gpu_id_from_edge_t<vertex_t>{
+             cugraph::detail::compute_gpu_id_from_ext_edge_endpoints_t<vertex_t>{
                comm_size, row_comm_size, col_comm_size}] __device__(auto val) {
             return key_func(thrust::get<0>(val), thrust::get<1>(val));
           },
@@ -711,15 +727,17 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
       }
 
       std::optional<rmm::device_uvector<vertex_t>> tmp_renumber_map{std::nullopt};
-      std::tie(level_graph, tmp_renumber_map) =
+      std::tie(level_graph, std::ignore, tmp_renumber_map) =
         create_graph_from_edgelist<vertex_t,
                                    edge_t,
                                    weight_t,
+                                   int32_t,
                                    GraphViewType::is_storage_transposed,
                                    GraphViewType::is_multi_gpu>(handle,
                                                                 std::nullopt,
                                                                 std::move(std::get<0>(edge_buffer)),
                                                                 std::move(std::get<1>(edge_buffer)),
+                                                                std::nullopt,
                                                                 std::nullopt,
                                                                 graph_properties_t{true, false},
                                                                 true);

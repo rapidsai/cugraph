@@ -8,14 +8,16 @@
  * license agreement from NVIDIA CORPORATION is strictly prohibited.
  *
  */
-#include <gtest/gtest.h>
+#include <utilities/test_utilities.hpp>
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/legacy/graph.hpp>
 
+#include <rmm/exec_policy.hpp>
+
 #include <thrust/extrema.h>
 
-#include <rmm/exec_policy.hpp>
+#include <gtest/gtest.h>
 
 TEST(leiden_karate, success)
 {
@@ -48,8 +50,6 @@ TEST(leiden_karate, success)
   int num_verts = off_h.size() - 1;
   int num_edges = ind_h.size();
 
-  std::vector<int> cluster_id(num_verts, -1);
-
   rmm::device_uvector<int> offsets_v(num_verts + 1, stream);
   rmm::device_uvector<int> indices_v(num_edges, stream);
   rmm::device_uvector<float> weights_v(num_edges, stream);
@@ -75,9 +75,7 @@ TEST(leiden_karate, success)
   } else {
     std::tie(num_level, modularity) = cugraph::leiden(handle, G, result_v.data());
 
-    raft::update_host(cluster_id.data(), result_v.data(), num_verts, stream);
-
-    RAFT_CUDA_TRY(cudaDeviceSynchronize());
+    auto cluster_id = cugraph::test::to_host(handle, result_v);
 
     int min = *min_element(cluster_id.begin(), cluster_id.end());
 

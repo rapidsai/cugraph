@@ -19,6 +19,7 @@ import cudf
 import cugraph
 import networkx as nx
 from cugraph.testing import utils
+from cugraph.experimental.datasets import DATASETS_UNDIRECTED
 
 
 # =============================================================================
@@ -31,7 +32,7 @@ def setup_function():
 # =============================================================================
 # Pytest fixtures
 # =============================================================================
-datasets = utils.DATASETS_UNDIRECTED
+datasets = DATASETS_UNDIRECTED
 degree_type = ["incoming", "outgoing"]
 
 fixture_params = utils.genFixtureParamsProduct((datasets, "graph_file"),
@@ -48,10 +49,9 @@ def input_combo(request):
     parameters = dict(
         zip(("graph_file", "degree_type"), request.param))
 
-    input_data_path = parameters["graph_file"]
-
-    G = utils.generate_cugraph_graph_from_file(
-        input_data_path, directed=False, edgevals=True)
+    graph_file = parameters["graph_file"]
+    G = graph_file.get_graph()
+    input_data_path = graph_file.get_path()
 
     Gnx = utils.generate_nx_graph_from_file(
         input_data_path, directed=False, edgevals=True)
