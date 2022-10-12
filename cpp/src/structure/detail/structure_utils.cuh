@@ -17,9 +17,9 @@
 #pragma once
 
 #include <cugraph/graph.hpp>
+#include <cugraph/utilities/dataframe_buffer.hpp>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/misc_utils.cuh>
-#include <cugraph/utilities/dataframe_buffer.hpp>
 
 #include <raft/handle.hpp>
 #include <raft/util/device_atomics.cuh>

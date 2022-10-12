@@ -179,8 +179,7 @@ rmm::device_uvector<T> randomly_select(raft::handle_t const& handle,
   tmp.resize(std::min(count, tmp.size()), handle.get_stream());
   tmp.shrink_to_fit(handle.get_stream());
 
-  if (sort_results)
-    thrust::sort(handle.get_thrust_policy(), tmp.begin(), tmp.end());
+  if (sort_results) thrust::sort(handle.get_thrust_policy(), tmp.begin(), tmp.end());
 
   return tmp;
 }

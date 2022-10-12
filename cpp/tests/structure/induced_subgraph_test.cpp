@@ -23,9 +23,9 @@
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
 
+#include <raft/core/device_span.hpp>
 #include <raft/cudart_utils.h>
 #include <raft/handle.hpp>
-#include <raft/core/device_span.hpp>
 #include <rmm/device_uvector.hpp>
 #include <rmm/mr/device/cuda_memory_resource.hpp>
 

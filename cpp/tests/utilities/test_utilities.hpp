@@ -397,7 +397,7 @@ rmm::device_uvector<T> to_device(raft::handle_t const& handle, std::vector<T> co
 
 template <typename T>
 std::optional<rmm::device_uvector<T>> to_device(raft::handle_t const& handle,
-                                      std::optional<raft::host_span<T const>> data)
+                                                std::optional<raft::host_span<T const>> data)
 {
   std::optional<rmm::device_uvector<T>> d_data{std::nullopt};
   if (data) {
@@ -410,7 +410,7 @@ std::optional<rmm::device_uvector<T>> to_device(raft::handle_t const& handle,
 
 template <typename T>
 std::optional<rmm::device_uvector<T>> to_device(raft::handle_t const& handle,
-                                      std::optional<std::vector<T>> const& data)
+                                                std::optional<std::vector<T>> const& data)
 {
   std::optional<rmm::device_uvector<T>> d_data{std::nullopt};
   if (data) {
@@ -420,7 +420,6 @@ std::optional<rmm::device_uvector<T>> to_device(raft::handle_t const& handle,
   }
   return d_data;
 }
-
 
 template <typename vertex_t>
 bool renumbered_vectors_same(raft::handle_t const& handle,

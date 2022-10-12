@@ -126,7 +126,7 @@ graph_to_host_csr(
     to_host(handle, raft::device_span<edge_t const>(d_offsets.data(), d_offsets.size())),
     to_host(handle, raft::device_span<vertex_t const>(d_dst.data(), d_dst.size())),
     d_wgt ? to_host(handle, raft::device_span<weight_t const>(d_wgt->data(), d_wgt->size()))
-    : std::optional<std::vector<weight_t>>(std::nullopt));
+          : std::optional<std::vector<weight_t>>(std::nullopt));
 }
 
 }  // namespace test
