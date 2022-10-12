@@ -18,7 +18,11 @@ import pytest
 import cugraph
 from cugraph.testing import utils
 from cugraph.experimental.datasets import (
-    toy_graph, karate, DATASETS_UNDIRECTED, DATASETS)
+    toy_graph,
+    karate,
+    DATASETS_UNDIRECTED,
+    DATASETS,
+)
 
 import networkx as nx
 
@@ -41,21 +45,19 @@ def topKVertices(eigen, col, k):
 
 def calc_eigenvector(graph_file):
     dataset_path = graph_file.get_path()
-    G = graph_file.get_graph(create_using=cugraph.Graph(
-        directed=True), ignore_weights=True)
+    G = graph_file.get_graph(
+        create_using=cugraph.Graph(directed=True), ignore_weights=True
+    )
 
     k_df = cugraph.eigenvector_centrality(G, max_iter=1000)
     k_df = k_df.sort_values("vertex").reset_index(drop=True)
 
     NM = utils.read_csv_for_nx(dataset_path)
-    Gnx = nx.from_pandas_edgelist(
-        NM, create_using=nx.DiGraph(), source="0", target="1"
-    )
+    Gnx = nx.from_pandas_edgelist(NM, create_using=nx.DiGraph(), source="0", target="1")
     nk = nx.eigenvector_centrality(Gnx)
     pdf = [nk[k] for k in sorted(nk.keys())]
     k_df["nx_eigen"] = pdf
-    k_df = k_df.rename(columns={"eigenvector_centrality": "cu_eigen"},
-                       copy=False)
+    k_df = k_df.rename(columns={"eigenvector_centrality": "cu_eigen"}, copy=False)
     return k_df
 
 
@@ -75,7 +77,10 @@ def test_eigenvector_centrality_nx(graph_file):
     NM = utils.read_csv_for_nx(dataset_path)
 
     Gnx = nx.from_pandas_edgelist(
-        NM, create_using=nx.DiGraph(), source="0", target="1",
+        NM,
+        create_using=nx.DiGraph(),
+        source="0",
+        target="1",
     )
 
     nk = nx.eigenvector_centrality(Gnx)
@@ -87,10 +92,7 @@ def test_eigenvector_centrality_nx(graph_file):
     err = 0
     assert len(ck) == len(nk)
     for i in range(len(ck)):
-        if (
-            abs(ck[i][1] - nk[i][1]) > 0.1
-            and ck[i][0] == nk[i][0]
-        ):
+        if abs(ck[i][1] - nk[i][1]) > 0.1 and ck[i][0] == nk[i][0]:
             err = err + 1
     print("Mismatches:", err)
     assert err < (0.1 * len(ck))
@@ -148,16 +150,19 @@ def test_eigenvector_centrality_toy(graph_file):
     for vertex in ck["vertex"].to_pandas():
         expected_score = centralities[vertex]
         actual_score = ck["eigenvector_centrality"].iloc[vertex]
-        assert pytest.approx(expected_score, abs=1e-4) == actual_score, \
-            f"Eigenvector centrality score is {actual_score}, should have" \
+        assert pytest.approx(expected_score, abs=1e-4) == actual_score, (
+            f"Eigenvector centrality score is {actual_score}, should have"
             f" been {expected_score}"
+        )
 
 
 def test_eigenvector_centrality_transposed_false():
     G = karate.get_graph(create_using=cugraph.Graph(directed=True))
-    warning_msg = ("Eigenvector centrality expects the 'store_transposed' "
-                   "flag to be set to 'True' for optimal performance during "
-                   "the graph creation")
+    warning_msg = (
+        "Eigenvector centrality expects the 'store_transposed' "
+        "flag to be set to 'True' for optimal performance during "
+        "the graph creation"
+    )
 
     with pytest.warns(UserWarning, match=warning_msg):
         cugraph.eigenvector_centrality(G)

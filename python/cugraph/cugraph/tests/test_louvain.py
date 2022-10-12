@@ -18,8 +18,7 @@ import pytest
 
 import cugraph
 from cugraph.testing import utils
-from cugraph.experimental.datasets import (
-    DATASETS_UNDIRECTED, karate_asymmetric)
+from cugraph.experimental.datasets import DATASETS_UNDIRECTED, karate_asymmetric
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
 # (Using or importing the ABCs from 'collections' instead of from
@@ -35,9 +34,11 @@ with warnings.catch_warnings():
 try:
     import community
 except ModuleNotFoundError:
-    pytest.exit("community module not found\n"
-                "The python-louvain module needs to be installed\n"
-                "please run `pip install python-louvain`")
+    pytest.exit(
+        "community module not found\n"
+        "The python-louvain module needs to be installed\n"
+        "please run `pip install python-louvain`"
+    )
 
 
 print("Networkx version : {} ".format(nx.__version__))
@@ -52,8 +53,8 @@ def setup_function():
 
 def cugraph_call(graph_file, edgevals=False, directed=False):
     G = graph_file.get_graph(
-        create_using=cugraph.Graph(
-            directed=directed), ignore_weights=not edgevals)
+        create_using=cugraph.Graph(directed=directed), ignore_weights=not edgevals
+    )
     # cugraph Louvain Call
     t1 = time.time()
     parts, mod = cugraph.louvain(G)
@@ -86,8 +87,7 @@ def test_louvain_with_edgevals(graph_file):
     nx_parts = networkx_call(M)
     # Calculating modularity scores for comparison
     Gnx = nx.from_pandas_edgelist(
-        M, source="0", target="1",
-        edge_attr="weight", create_using=nx.Graph()
+        M, source="0", target="1", edge_attr="weight", create_using=nx.Graph()
     )
 
     cu_parts = cu_parts.to_pandas()
@@ -112,8 +112,7 @@ def test_louvain(graph_file):
 
     # Calculating modularity scores for comparison
     Gnx = nx.from_pandas_edgelist(
-        M, source="0", target="1",
-        edge_attr="weight", create_using=nx.Graph()
+        M, source="0", target="1", edge_attr="weight", create_using=nx.Graph()
     )
 
     cu_parts = cu_parts.to_pandas()

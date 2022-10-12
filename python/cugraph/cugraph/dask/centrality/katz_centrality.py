@@ -14,35 +14,26 @@
 #
 
 from dask.distributed import wait
-from pylibcugraph import (ResourceHandle,
-                          katz_centrality as pylibcugraph_katz
-                          )
+from pylibcugraph import ResourceHandle, katz_centrality as pylibcugraph_katz
 import cugraph.dask.comms.comms as Comms
 import dask_cudf
 import cudf
 import warnings
 
 
-def _call_plc_katz_centrality(sID,
-                              mg_graph_x,
-                              betas,
-                              alpha,
-                              beta,
-                              epsilon,
-                              max_iterations,
-                              do_expensive_check):
+def _call_plc_katz_centrality(
+    sID, mg_graph_x, betas, alpha, beta, epsilon, max_iterations, do_expensive_check
+):
 
     return pylibcugraph_katz(
-        resource_handle=ResourceHandle(
-            Comms.get_handle(sID).getHandle()
-        ),
+        resource_handle=ResourceHandle(Comms.get_handle(sID).getHandle()),
         graph=mg_graph_x,
         betas=betas,
         alpha=alpha,
         beta=beta,
         epsilon=epsilon,
         max_iterations=max_iterations,
-        do_expensive_check=do_expensive_check
+        do_expensive_check=do_expensive_check,
     )
 
 
@@ -58,8 +49,13 @@ def convert_to_cudf(cp_arrays):
 
 
 def katz_centrality(
-    input_graph, alpha=None, beta=1.0, max_iter=100, tol=1.0e-6,
-    nstart=None, normalized=True
+    input_graph,
+    alpha=None,
+    beta=1.0,
+    max_iter=100,
+    tol=1.0e-6,
+    nstart=None,
+    normalized=True,
 ):
     """
     Compute the Katz centrality for the nodes of the graph G.
@@ -148,18 +144,19 @@ def katz_centrality(
     client = input_graph._client
 
     if input_graph.store_transposed is False:
-        warning_msg = ("Katz centrality expects the 'store_transposed' flag "
-                       "to be set to 'True' for optimal performance during "
-                       "the graph creation")
+        warning_msg = (
+            "Katz centrality expects the 'store_transposed' flag "
+            "to be set to 'True' for optimal performance during "
+            "the graph creation"
+        )
         warnings.warn(warning_msg, UserWarning)
 
     if alpha is None:
-        degree_max = input_graph.degree()['degree'].max().compute()
+        degree_max = input_graph.degree()["degree"].max().compute()
         alpha = 1 / (degree_max)
 
     if (alpha is not None) and (alpha <= 0.0):
-        raise ValueError(f"'alpha' must be a positive float or None, "
-                         f"got: {alpha}")
+        raise ValueError(f"'alpha' must be a positive float or None, " f"got: {alpha}")
 
     # FIXME: should we add this parameter as an option?
     do_expensive_check = False
@@ -170,8 +167,8 @@ def katz_centrality(
             if len(input_graph.renumber_map.implementation.col_names) > 1:
                 cols = nstart.columns[:-1].to_list()
             else:
-                cols = 'vertex'
-            nstart = input_graph.add_internal_vertex_id(nstart, 'vertex', cols)
+                cols = "vertex"
+            nstart = input_graph.add_internal_vertex_id(nstart, "vertex", cols)
             initial_hubs_guess_values = nstart[nstart.columns[0]].compute()
         else:
             initial_hubs_guess_values = nstart["values"]
@@ -197,11 +194,12 @@ def katz_centrality(
 
     wait(cupy_result)
 
-    cudf_result = [client.submit(convert_to_cudf,
-                                 cp_arrays,
-                                 workers=client.who_has(
-                                     cp_arrays)[cp_arrays.key])
-                   for cp_arrays in cupy_result]
+    cudf_result = [
+        client.submit(
+            convert_to_cudf, cp_arrays, workers=client.who_has(cp_arrays)[cp_arrays.key]
+        )
+        for cp_arrays in cupy_result
+    ]
 
     wait(cudf_result)
 
@@ -209,10 +207,9 @@ def katz_centrality(
     wait(ddf)
 
     # Wait until the inactive futures are released
-    wait([(r.release(), c_r.release())
-         for r, c_r in zip(cupy_result, cudf_result)])
+    wait([(r.release(), c_r.release()) for r, c_r in zip(cupy_result, cudf_result)])
 
     if input_graph.renumbered:
-        return input_graph.unrenumber(ddf, 'vertex')
+        return input_graph.unrenumber(ddf, "vertex")
 
     return ddf
