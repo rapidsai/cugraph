@@ -19,6 +19,7 @@
 #include <cugraph/graph.hpp>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/misc_utils.cuh>
+#include <cugraph/utilities/dataframe_buffer.hpp>
 
 #include <raft/handle.hpp>
 #include <raft/util/device_atomics.cuh>
@@ -34,6 +35,7 @@
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/remove.h>
 #include <thrust/scan.h>
+#include <thrust/sequence.h>
 #include <thrust/transform.h>
 
 #include <algorithm>

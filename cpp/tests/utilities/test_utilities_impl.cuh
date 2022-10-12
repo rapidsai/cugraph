@@ -15,6 +15,7 @@
  */
 #pragma once
 
+#include <structure/detail/structure_utils.cuh>
 #include <utilities/device_comm_wrapper.hpp>
 #include <utilities/test_utilities.hpp>
 
@@ -57,6 +58,75 @@ graph_to_host_coo(
   }
 
   return std::make_tuple(std::move(h_src), std::move(h_dst), std::move(h_wgt));
+}
+
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          bool store_transposed,
+          bool is_multi_gpu>
+std::tuple<std::vector<edge_t>, std::vector<vertex_t>, std::optional<std::vector<weight_t>>>
+graph_to_host_csr(
+  raft::handle_t const& handle,
+  cugraph::graph_view_t<vertex_t, edge_t, weight_t, store_transposed, is_multi_gpu> const&
+    graph_view)
+{
+  auto [d_src, d_dst, d_wgt] = graph_view.decompress_to_edgelist(handle, std::nullopt);
+
+  if constexpr (is_multi_gpu) {
+    d_src = cugraph::test::device_gatherv(
+      handle, raft::device_span<vertex_t const>{d_src.data(), d_src.size()});
+    d_dst = cugraph::test::device_gatherv(
+      handle, raft::device_span<vertex_t const>{d_dst.data(), d_dst.size()});
+    if (d_wgt)
+      *d_wgt = cugraph::test::device_gatherv(
+        handle, raft::device_span<weight_t const>{d_wgt->data(), d_wgt->size()});
+  }
+
+  rmm::device_uvector<edge_t> d_offsets(0, handle.get_stream());
+
+  if (d_wgt) {
+    std::tie(d_offsets, d_dst, *d_wgt, std::ignore) =
+      detail::compress_edgelist<edge_t, store_transposed>(d_src.begin(),
+                                                          d_src.end(),
+                                                          d_dst.begin(),
+                                                          d_wgt->begin(),
+                                                          vertex_t{0},
+                                                          std::optional<vertex_t>{std::nullopt},
+                                                          graph_view.number_of_vertices(),
+                                                          vertex_t{0},
+                                                          graph_view.number_of_vertices(),
+                                                          handle.get_stream());
+
+    // segmented sort neighbors
+    detail::sort_adjacency_list(handle,
+                                raft::device_span<edge_t const>(d_offsets.data(), d_offsets.size()),
+                                d_dst.begin(),
+                                d_dst.end(),
+                                d_wgt->begin());
+  } else {
+    std::tie(d_offsets, d_dst, std::ignore) =
+      detail::compress_edgelist<edge_t, store_transposed>(d_src.begin(),
+                                                          d_src.end(),
+                                                          d_dst.begin(),
+                                                          vertex_t{0},
+                                                          std::optional<vertex_t>{std::nullopt},
+                                                          graph_view.number_of_vertices(),
+                                                          vertex_t{0},
+                                                          graph_view.number_of_vertices(),
+                                                          handle.get_stream());
+    // segmented sort neighbors
+    detail::sort_adjacency_list(handle,
+                                raft::device_span<edge_t const>(d_offsets.data(), d_offsets.size()),
+                                d_dst.begin(),
+                                d_dst.end());
+  }
+
+  return std::make_tuple(
+    to_host(handle, raft::device_span<edge_t const>(d_offsets.data(), d_offsets.size())),
+    to_host(handle, raft::device_span<vertex_t const>(d_dst.data(), d_dst.size())),
+    d_wgt ? to_host(handle, raft::device_span<weight_t const>(d_wgt->data(), d_wgt->size()))
+    : std::optional<std::vector<weight_t>>(std::nullopt));
 }
 
 }  // namespace test

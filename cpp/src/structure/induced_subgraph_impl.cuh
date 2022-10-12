@@ -57,9 +57,8 @@ std::tuple<rmm::device_uvector<vertex_t>,
 extract_induced_subgraphs(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> const& graph_view,
-  raft::device_span<size_t const> subgraph_offsets /* size == num_subgraphs + 1 */,
-  raft::device_span<vertex_t const> subgraph_vertices /* size == subgraph_offsets[num_subgraphs] */,
-  size_t num_subgraphs,
+  raft::device_span<size_t const> subgraph_offsets,
+  raft::device_span<vertex_t const> subgraph_vertices,
   bool do_expensive_check)
 {
 #ifdef TIMING
@@ -80,7 +79,7 @@ extract_induced_subgraphs(
     size_t num_aggregate_subgraph_vertices{};
     raft::update_host(&should_be_zero, subgraph_offsets.data(), 1, handle.get_stream());
     raft::update_host(&num_aggregate_subgraph_vertices,
-                      subgraph_offsets.data() + num_subgraphs,
+                      subgraph_offsets.data() + subgraph_offsets.size() - 1,
                       1,
                       handle.get_stream());
     handle.sync_stream();
@@ -107,7 +106,7 @@ extract_induced_subgraphs(
       thrust::count_if(
         handle.get_thrust_policy(),
         thrust::make_counting_iterator(size_t{0}),
-        thrust::make_counting_iterator(num_subgraphs),
+        thrust::make_counting_iterator(subgraph_offsets.size() - 1),
         [subgraph_offsets, subgraph_vertices] __device__(auto i) {
           // vertices are sorted and unique
           return !thrust::is_sorted(thrust::seq,
@@ -138,7 +137,7 @@ extract_induced_subgraphs(
 
     size_t num_aggregate_subgraph_vertices{};
     raft::update_host(&num_aggregate_subgraph_vertices,
-                      subgraph_offsets.data() + num_subgraphs,
+                      subgraph_offsets.data() + subgraph_offsets.size() - 1,
                       1,
                       handle.get_stream());
     handle.sync_stream();
@@ -156,7 +155,10 @@ extract_induced_subgraphs(
       thrust::make_counting_iterator(size_t{0}),
       thrust::make_counting_iterator(num_aggregate_subgraph_vertices),
       subgraph_vertex_output_offsets.begin(),
-      [subgraph_offsets, subgraph_vertices, num_subgraphs, edge_partition] __device__(auto i) {
+      [subgraph_offsets,
+       subgraph_vertices,
+       num_subgraphs = subgraph_offsets.size() - 1,
+       edge_partition] __device__(auto i) {
         auto subgraph_idx =
           thrust::distance(subgraph_offsets.begin() + 1,
                            thrust::upper_bound(
@@ -206,7 +208,7 @@ extract_induced_subgraphs(
       thrust::make_counting_iterator(num_aggregate_subgraph_vertices),
       [subgraph_offsets,
        subgraph_vertices,
-       num_subgraphs,
+       num_subgraphs = subgraph_offsets.size() - 1,
        edge_partition,
        subgraph_vertex_output_offsets = subgraph_vertex_output_offsets.data(),
        edge_majors                    = edge_majors.data(),
@@ -257,7 +259,7 @@ extract_induced_subgraphs(
         }
       });
 
-    rmm::device_uvector<size_t> subgraph_edge_offsets(num_subgraphs + 1, handle.get_stream());
+    rmm::device_uvector<size_t> subgraph_edge_offsets(subgraph_offsets.size(), handle.get_stream());
     thrust::gather(handle.get_thrust_policy(),
                    subgraph_offsets.begin(),
                    subgraph_offsets.end(),

@@ -176,9 +176,8 @@ extract(raft::handle_t const& handle,
   return cugraph::extract_induced_subgraphs(
     handle,
     csr_view,
-    raft::device_span<size_t const>(neighbors_offsets.data().get(), neighbors_offsets.size()),
+    raft::device_span<size_t const>(neighbors_offsets.data().get(), n_subgraphs),
     raft::device_span<vertex_t const>(neighbors.data().get(), neighbors.size()),
-    n_subgraphs,
     false);
 }
 

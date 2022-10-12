@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2022, NVIDIA CORPORATION.
+ * Copyright (c) 2022, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,9 +13,11 @@
  * See the License for the specific language governin_from_mtxg permissions and
  * limitations under the License.
  */
+#include <community/induced_subgraph_validate.hpp>
 
 #include <utilities/base_fixture.hpp>
-#include <utilities/test_utilities.hpp>
+#include <utilities/high_res_clock.h>
+#include <utilities/test_graphs.hpp>
 
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_functions.hpp>
@@ -23,87 +25,24 @@
 
 #include <raft/cudart_utils.h>
 #include <raft/handle.hpp>
-#include <raft/span.hpp>
+#include <raft/core/device_span.hpp>
 #include <rmm/device_uvector.hpp>
 #include <rmm/mr/device/cuda_memory_resource.hpp>
 
 #include <gtest/gtest.h>
 
-#include <algorithm>
-#include <iterator>
-#include <limits>
-#include <numeric>
-#include <random>
-#include <tuple>
+#include <optional>
 #include <vector>
 
-template <typename vertex_t, typename edge_t, typename weight_t>
-std::tuple<std::vector<vertex_t>,
-           std::vector<vertex_t>,
-           std::optional<std::vector<weight_t>>,
-           std::vector<size_t>>
-extract_induced_subgraph_reference(edge_t const* offsets,
-                                   vertex_t const* indices,
-                                   std::optional<weight_t const*> weights,
-                                   size_t const* subgraph_offsets,
-                                   vertex_t const* subgraph_vertices,
-                                   vertex_t num_vertices,
-                                   size_t num_subgraphs)
-{
-  std::vector<vertex_t> edgelist_majors{};
-  std::vector<vertex_t> edgelist_minors{};
-  auto edgelist_weights = weights ? std::make_optional<std::vector<weight_t>>(0) : std::nullopt;
-  std::vector<size_t> subgraph_edge_offsets{0};
-
-  for (size_t i = 0; i < num_subgraphs; ++i) {
-    std::for_each(subgraph_vertices + subgraph_offsets[i],
-                  subgraph_vertices + subgraph_offsets[i + 1],
-                  [offsets,
-                   indices,
-                   weights,
-                   subgraph_vertices,
-                   subgraph_offsets,
-                   &edgelist_majors,
-                   &edgelist_minors,
-                   &edgelist_weights,
-                   i](auto v) {
-                    auto first = offsets[v];
-                    auto last  = offsets[v + 1];
-                    for (auto j = first; j < last; ++j) {
-                      if (std::binary_search(subgraph_vertices + subgraph_offsets[i],
-                                             subgraph_vertices + subgraph_offsets[i + 1],
-                                             indices[j])) {
-                        edgelist_majors.push_back(v);
-                        edgelist_minors.push_back(indices[j]);
-                        if (weights) { (*edgelist_weights).push_back((*weights)[j]); }
-                      }
-                    }
-                  });
-    subgraph_edge_offsets.push_back(edgelist_majors.size());
-  }
-
-  return std::make_tuple(edgelist_majors, edgelist_minors, edgelist_weights, subgraph_edge_offsets);
-}
-
-typedef struct InducedSubgraph_Usecase_t {
-  std::string graph_file_full_path{};
+struct InducedSubgraph_Usecase {
   std::vector<size_t> subgraph_sizes{};
   bool test_weighted{false};
+  bool check_correctness{false};
+};
 
-  InducedSubgraph_Usecase_t(std::string const& graph_file_path,
-                            std::vector<size_t> const& subgraph_sizes,
-                            bool test_weighted)
-    : subgraph_sizes(subgraph_sizes), test_weighted(test_weighted)
-  {
-    if ((graph_file_path.length() > 0) && (graph_file_path[0] != '/')) {
-      graph_file_full_path = cugraph::test::get_rapids_dataset_root_dir() + "/" + graph_file_path;
-    } else {
-      graph_file_full_path = graph_file_path;
-    }
-  };
-} InducedSubgraph_Usecase;
-
-class Tests_InducedSubgraph : public ::testing::TestWithParam<InducedSubgraph_Usecase> {
+template <typename input_usecase_t>
+class Tests_InducedSubgraph
+  : public ::testing::TestWithParam<std::tuple<InducedSubgraph_Usecase, input_usecase_t>> {
  public:
   Tests_InducedSubgraph() {}
 
@@ -114,73 +53,65 @@ class Tests_InducedSubgraph : public ::testing::TestWithParam<InducedSubgraph_Us
   virtual void TearDown() {}
 
   template <typename vertex_t, typename edge_t, typename weight_t, bool store_transposed>
-  void run_current_test(InducedSubgraph_Usecase const& configuration)
+  void run_current_test(
+    std::tuple<InducedSubgraph_Usecase const&, input_usecase_t const&> const& param)
   {
-    raft::handle_t handle{};
+    auto [induced_subgraph_usecase, input_usecase] = param;
 
-    cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed, false> graph(handle);
-    std::tie(graph, std::ignore) = cugraph::test::
-      read_graph_from_matrix_market_file<vertex_t, edge_t, weight_t, store_transposed, false>(
-        handle, configuration.graph_file_full_path, configuration.test_weighted, false);
+    raft::handle_t handle{};
+    HighResClock hr_clock{};
+
+    if (cugraph::test::g_perf) {
+      RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      hr_clock.start();
+    }
+
+    auto [graph, d_renumber_map_labels] =
+      cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, false>(
+        handle, input_usecase, induced_subgraph_usecase.test_weighted, true);
+
+    if (cugraph::test::g_perf) {
+      RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      double elapsed_time{0.0};
+      hr_clock.stop(&elapsed_time);
+      std::cout << "construct_graph took " << elapsed_time * 1e-6 << " s.\n";
+    }
+
     auto graph_view = graph.view();
 
-    auto h_offsets =
-      cugraph::test::to_host(handle, graph_view.local_edge_partition_view().offsets());
-    auto h_indices =
-      cugraph::test::to_host(handle, graph_view.local_edge_partition_view().indices());
-    auto h_weights =
-      cugraph::test::to_host(handle, graph_view.local_edge_partition_view().weights());
-
-    std::vector<size_t> h_subgraph_offsets(configuration.subgraph_sizes.size() + 1, 0);
-    std::partial_sum(configuration.subgraph_sizes.begin(),
-                     configuration.subgraph_sizes.end(),
+    // Construct random subgraph vertex lists
+    std::vector<size_t> h_subgraph_offsets(induced_subgraph_usecase.subgraph_sizes.size() + 1, 0);
+    std::partial_sum(induced_subgraph_usecase.subgraph_sizes.begin(),
+                     induced_subgraph_usecase.subgraph_sizes.end(),
                      h_subgraph_offsets.begin() + 1);
-    std::vector<vertex_t> h_subgraph_vertices(h_subgraph_offsets.back(),
-                                              cugraph::invalid_vertex_id<vertex_t>::value);
-    std::default_random_engine generator{};
-    std::uniform_int_distribution<vertex_t> distribution{0, graph_view.number_of_vertices() - 1};
 
-    for (size_t i = 0; i < configuration.subgraph_sizes.size(); ++i) {
+    rmm::device_uvector<vertex_t> all_vertices(graph_view.number_of_vertices(),
+                                               handle.get_stream());
+    cugraph::detail::sequence_fill(
+      handle.get_stream(), all_vertices.data(), all_vertices.size(), vertex_t{0});
+
+    rmm::device_uvector<vertex_t> d_subgraph_vertices(h_subgraph_offsets.back(),
+                                                      handle.get_stream());
+
+    for (size_t i = 0; i < induced_subgraph_usecase.subgraph_sizes.size(); ++i) {
       auto start = h_subgraph_offsets[i];
       auto last  = h_subgraph_offsets[i + 1];
       ASSERT_TRUE(last - start <= graph_view.number_of_vertices()) << "Invalid subgraph size.";
       // this is inefficient if last - start << graph_view.number_of_vertices() but this is for
-      // the test puspose only and the time & memory cost is only linear to
+      // the test purpose only and the time & memory cost is only linear to
       // graph_view.number_of_vertices(), so this may not matter.
-      std::vector<vertex_t> vertices(graph_view.number_of_vertices());
-      std::iota(vertices.begin(), vertices.end(), vertex_t{0});
-      std::random_shuffle(vertices.begin(), vertices.end());
-      std::copy(
-        vertices.begin(), vertices.begin() + (last - start), h_subgraph_vertices.begin() + start);
-      std::sort(h_subgraph_vertices.begin() + start, h_subgraph_vertices.begin() + last);
+
+      auto vertices = cugraph::test::randomly_select(handle, all_vertices, (last - start), true);
+      raft::copy(
+        d_subgraph_vertices.data() + start, vertices.data(), vertices.size(), handle.get_stream());
     }
 
-    rmm::device_uvector<size_t> d_subgraph_offsets(h_subgraph_offsets.size(), handle.get_stream());
-    rmm::device_uvector<vertex_t> d_subgraph_vertices(h_subgraph_vertices.size(),
-                                                      handle.get_stream());
-    raft::update_device(d_subgraph_offsets.data(),
-                        h_subgraph_offsets.data(),
-                        h_subgraph_offsets.size(),
-                        handle.get_stream());
-    raft::update_device(d_subgraph_vertices.data(),
-                        h_subgraph_vertices.data(),
-                        h_subgraph_vertices.size(),
-                        handle.get_stream());
+    auto d_subgraph_offsets = cugraph::test::to_device(handle, h_subgraph_offsets);
 
-    auto [h_reference_subgraph_edgelist_majors,
-          h_reference_subgraph_edgelist_minors,
-          h_reference_subgraph_edgelist_weights,
-          h_reference_subgraph_edge_offsets] =
-      extract_induced_subgraph_reference(
-        h_offsets.data(),
-        h_indices.data(),
-        h_weights ? std::optional<weight_t const*>{(*h_weights).data()} : std::nullopt,
-        h_subgraph_offsets.data(),
-        h_subgraph_vertices.data(),
-        graph_view.number_of_vertices(),
-        configuration.subgraph_sizes.size());
-
-    RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+    if (cugraph::test::g_perf) {
+      RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      hr_clock.start();
+    }
 
     // FIXME: turn-off do_expensive_check once verified.
     auto [d_subgraph_edgelist_majors,
@@ -192,102 +123,106 @@ class Tests_InducedSubgraph : public ::testing::TestWithParam<InducedSubgraph_Us
         graph_view,
         raft::device_span<size_t const>(d_subgraph_offsets.data(), d_subgraph_offsets.size()),
         raft::device_span<vertex_t const>(d_subgraph_vertices.data(), d_subgraph_vertices.size()),
-        configuration.subgraph_sizes.size(),
         true);
 
-    RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+    if (cugraph::test::g_perf) {
+      RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+      double elapsed_time{0.0};
+      hr_clock.stop(&elapsed_time);
+      std::cout << "induced subgraph took " << elapsed_time * 1e-6 << " s.\n";
+    }
 
-    auto h_cugraph_subgraph_edgelist_majors =
-      cugraph::test::to_host(handle, d_subgraph_edgelist_majors);
-    auto h_cugraph_subgraph_edgelist_minors =
-      cugraph::test::to_host(handle, d_subgraph_edgelist_minors);
-    auto h_cugraph_subgraph_edgelist_weights =
-      cugraph::test::to_host(handle, d_subgraph_edgelist_weights);
-    auto h_cugraph_subgraph_edge_offsets = cugraph::test::to_host(handle, d_subgraph_edge_offsets);
+    if (induced_subgraph_usecase.check_correctness) {
+      auto h_subgraph_vertices = cugraph::test::to_host(handle, d_subgraph_vertices);
 
-    ASSERT_TRUE(h_reference_subgraph_edge_offsets.size() == h_cugraph_subgraph_edge_offsets.size())
-      << "Returned subgraph edge offset vector has an invalid size.";
-    ASSERT_TRUE(std::equal(h_reference_subgraph_edge_offsets.begin(),
-                           h_reference_subgraph_edge_offsets.end(),
-                           h_cugraph_subgraph_edge_offsets.begin()))
-      << "Returned subgraph edge offset values do not match with the reference values.";
-    ASSERT_TRUE(h_reference_subgraph_edgelist_weights.has_value() == configuration.test_weighted);
-    ASSERT_TRUE(h_cugraph_subgraph_edgelist_weights.has_value() ==
-                h_reference_subgraph_edgelist_weights.has_value());
+      auto [h_offsets, h_indices, h_weights] = cugraph::test::graph_to_host_csr(handle, graph_view);
 
-    for (size_t i = 0; i < configuration.subgraph_sizes.size(); ++i) {
-      auto start = h_reference_subgraph_edge_offsets[i];
-      auto last  = h_reference_subgraph_edge_offsets[i + 1];
-      if (configuration.test_weighted) {
-        std::vector<std::tuple<vertex_t, vertex_t, weight_t>> reference_tuples(last - start);
-        std::vector<std::tuple<vertex_t, vertex_t, weight_t>> cugraph_tuples(last - start);
-        for (auto j = start; j < last; ++j) {
-          reference_tuples[j - start] =
-            std::make_tuple(h_reference_subgraph_edgelist_majors[j],
-                            h_reference_subgraph_edgelist_minors[j],
-                            (*h_reference_subgraph_edgelist_weights)[j]);
-          cugraph_tuples[j - start] = std::make_tuple(h_cugraph_subgraph_edgelist_majors[j],
-                                                      h_cugraph_subgraph_edgelist_minors[j],
-                                                      (*h_cugraph_subgraph_edgelist_weights)[j]);
-        }
-        ASSERT_TRUE(
-          std::equal(reference_tuples.begin(), reference_tuples.end(), cugraph_tuples.begin()))
-          << "Extracted subgraph edges do not match with the edges extracted by the reference "
-             "implementation.";
-      } else {
-        std::vector<std::tuple<vertex_t, vertex_t>> reference_tuples(last - start);
-        std::vector<std::tuple<vertex_t, vertex_t>> cugraph_tuples(last - start);
-        for (auto j = start; j < last; ++j) {
-          reference_tuples[j - start] = std::make_tuple(h_reference_subgraph_edgelist_majors[j],
-                                                        h_reference_subgraph_edgelist_minors[j]);
-          cugraph_tuples[j - start]   = std::make_tuple(h_cugraph_subgraph_edgelist_majors[j],
-                                                      h_cugraph_subgraph_edgelist_minors[j]);
-        }
-        ASSERT_TRUE(
-          std::equal(reference_tuples.begin(), reference_tuples.end(), cugraph_tuples.begin()))
-          << "Extracted subgraph edges do not match with the edges extracted by the reference "
-             "implementation.";
-      }
+      auto h_cugraph_subgraph_edgelist_majors =
+        cugraph::test::to_host(handle, d_subgraph_edgelist_majors);
+      auto h_cugraph_subgraph_edgelist_minors =
+        cugraph::test::to_host(handle, d_subgraph_edgelist_minors);
+      auto h_cugraph_subgraph_edgelist_weights =
+        cugraph::test::to_host(handle, d_subgraph_edgelist_weights);
+      auto h_cugraph_subgraph_edge_offsets =
+        cugraph::test::to_host(handle, d_subgraph_edge_offsets);
+
+      induced_subgraph_validate(h_offsets,
+                                h_indices,
+                                h_weights,
+                                h_subgraph_offsets,
+                                h_subgraph_vertices,
+                                h_cugraph_subgraph_edgelist_majors,
+                                h_cugraph_subgraph_edgelist_minors,
+                                h_cugraph_subgraph_edgelist_weights,
+                                h_cugraph_subgraph_edge_offsets);
     }
   }
 };
 
+using Tests_InducedSubgraph_File = Tests_InducedSubgraph<cugraph::test::File_Usecase>;
+using Tests_InducedSubgraph_Rmat = Tests_InducedSubgraph<cugraph::test::Rmat_Usecase>;
+
 // FIXME: add tests for type combinations
 
-TEST_P(Tests_InducedSubgraph, CheckInt32Int32FloatTransposeFalse)
+TEST_P(Tests_InducedSubgraph_File, CheckInt32Int32FloatTransposeFalse)
 {
-  run_current_test<int32_t, int32_t, float, false>(GetParam());
+  run_current_test<int32_t, int32_t, float, false>(
+    override_File_Usecase_with_cmd_line_arguments(GetParam()));
 }
 
-TEST_P(Tests_InducedSubgraph, CheckInt32Int32FloatTransposeTrue)
+TEST_P(Tests_InducedSubgraph_File, CheckInt32Int32FloatTransposeTrue)
 {
-  run_current_test<int32_t, int32_t, float, true>(GetParam());
+  run_current_test<int32_t, int32_t, float, true>(
+    override_File_Usecase_with_cmd_line_arguments(GetParam()));
+}
+
+TEST_P(Tests_InducedSubgraph_Rmat, CheckInt32Int32FloatTransposeFalse)
+{
+  run_current_test<int32_t, int32_t, float, false>(
+    override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
+}
+
+TEST_P(Tests_InducedSubgraph_Rmat, CheckInt32Int32FloatTransposeTrue)
+{
+  run_current_test<int32_t, int32_t, float, true>(
+    override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
 }
 
 INSTANTIATE_TEST_SUITE_P(
-  simple_test,
-  Tests_InducedSubgraph,
-  ::testing::Values(
-    InducedSubgraph_Usecase("test/datasets/karate.mtx", std::vector<size_t>{0}, false),
-    InducedSubgraph_Usecase("test/datasets/karate.mtx", std::vector<size_t>{1}, false),
-    InducedSubgraph_Usecase("test/datasets/karate.mtx", std::vector<size_t>{10}, false),
-    InducedSubgraph_Usecase("test/datasets/karate.mtx", std::vector<size_t>{34}, false),
-    InducedSubgraph_Usecase("test/datasets/karate.mtx", std::vector<size_t>{10, 0, 5}, false),
-    InducedSubgraph_Usecase("test/datasets/karate.mtx", std::vector<size_t>{9, 3, 10}, false),
-    InducedSubgraph_Usecase("test/datasets/karate.mtx", std::vector<size_t>{5, 12, 13}, true),
-    InducedSubgraph_Usecase("test/datasets/web-Google.mtx",
-                            std::vector<size_t>{250, 130, 15},
-                            false),
-    InducedSubgraph_Usecase("test/datasets/web-Google.mtx",
-                            std::vector<size_t>{125, 300, 70},
-                            true),
-    InducedSubgraph_Usecase("test/datasets/ljournal-2008.mtx",
-                            std::vector<size_t>{300, 20, 400},
-                            false),
-    InducedSubgraph_Usecase("test/datasets/ljournal-2008.mtx",
-                            std::vector<size_t>{9130, 1200, 300},
-                            true),
-    InducedSubgraph_Usecase("test/datasets/webbase-1M.mtx", std::vector<size_t>{700}, false),
-    InducedSubgraph_Usecase("test/datasets/webbase-1M.mtx", std::vector<size_t>{500}, true)));
+  karate_test,
+  Tests_InducedSubgraph_File,
+  ::testing::Combine(
+    ::testing::Values(InducedSubgraph_Usecase{std::vector<size_t>{0}, false, true},
+                      InducedSubgraph_Usecase{std::vector<size_t>{1}, false, true},
+                      InducedSubgraph_Usecase{std::vector<size_t>{10}, false, true},
+                      InducedSubgraph_Usecase{std::vector<size_t>{34}, false, true},
+                      InducedSubgraph_Usecase{std::vector<size_t>{10, 0, 5}, false, true},
+                      InducedSubgraph_Usecase{std::vector<size_t>{9, 3, 10}, false, true},
+                      InducedSubgraph_Usecase{std::vector<size_t>{5, 12, 13}, true, true}),
+    ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"))));
+
+INSTANTIATE_TEST_SUITE_P(
+  web_google_test,
+  Tests_InducedSubgraph_File,
+  ::testing::Combine(
+    ::testing::Values(InducedSubgraph_Usecase{std::vector<size_t>{250, 130, 15}, false, true},
+                      InducedSubgraph_Usecase{std::vector<size_t>{125, 300, 70}, true, true}),
+    ::testing::Values(cugraph::test::File_Usecase("test/datasets/web-Google.mtx"))));
+
+INSTANTIATE_TEST_SUITE_P(
+  ljournal_2008_test,
+  Tests_InducedSubgraph_File,
+  ::testing::Combine(
+    ::testing::Values(InducedSubgraph_Usecase{std::vector<size_t>{300, 20, 400}, false, true},
+                      InducedSubgraph_Usecase{std::vector<size_t>{9130, 1200, 300}, true, true}),
+    ::testing::Values(cugraph::test::File_Usecase("test/datasets/ljournal-2008.mtx"))));
+
+INSTANTIATE_TEST_SUITE_P(
+  webbase_1M_test,
+  Tests_InducedSubgraph_File,
+  ::testing::Combine(
+    ::testing::Values(InducedSubgraph_Usecase{std::vector<size_t>{700}, false, true},
+                      InducedSubgraph_Usecase{std::vector<size_t>{500}, true, true}),
+    ::testing::Values(cugraph::test::File_Usecase("test/datasets/webbase-1M.mtx"))));
 
 CUGRAPH_TEST_PROGRAM_MAIN()

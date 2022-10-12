@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#pragma once
 
 #include <raft/handle.hpp>
 #include <rmm/device_uvector.hpp>
@@ -42,7 +43,8 @@ void populate_vertex_ids(raft::handle_t const& handle,
 template <typename T>
 rmm::device_uvector<T> randomly_select(raft::handle_t const& handle,
                                        rmm::device_uvector<T> const& input,
-                                       size_t count);
+                                       size_t count,
+                                       bool sort_results = false);
 
 template <typename vertex_t, typename weight_t>
 void remove_self_loops(raft::handle_t const& handle,

@@ -448,11 +448,9 @@ void relabel(raft::handle_t const& handle,
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Graph view object, we extract induced subgraphs from @p graph_view.
- * @param subgraph_offsets Pointer to subgraph vertex offsets (size == @p num_subgraphs + 1).
- * @param subgraph_vertices Pointer to subgraph vertices (size == @p subgraph_offsets[@p
- * num_subgraphs]). The elements of @p subgraph_vertices for each subgraph should be sorted in
- * ascending order and unique.
- * @param num_subgraphs Number of induced subgraphs to extract.
+ * @param subgraph_offsets Span pointing to subgraph vertex offsets
+ * @param subgraph_vertices Span pointing to subgraph vertices The elements of @p subgraph_vertices
+ *        for each subgraph should be sorted in ascending order and unique.
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  * @return std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>,
  * rmm::device_uvector<weight_t>, rmm::device_uvector<size_t>> Quadraplet of edge major (destination
@@ -474,9 +472,8 @@ std::tuple<rmm::device_uvector<vertex_t>,
 extract_induced_subgraphs(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> const& graph_view,
-  raft::device_span<size_t const> subgraph_offsets /* size == num_subgraphs + 1 */,
-  raft::device_span<vertex_t const> subgraph_vertices /* size == subgraph_offsets[num_subgraphs] */,
-  size_t num_subgraphs,
+  raft::device_span<size_t const> subgraph_offsets,
+  raft::device_span<vertex_t const> subgraph_vertices,
   bool do_expensive_check = false);
 
 // FIXME: this code should be re-factored (there should be a header file for this function including
