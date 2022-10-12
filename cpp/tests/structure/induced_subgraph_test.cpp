@@ -13,7 +13,7 @@
  * See the License for the specific language governin_from_mtxg permissions and
  * limitations under the License.
  */
-#include <community/induced_subgraph_validate.hpp>
+#include <structure/induced_subgraph_validate.hpp>
 
 #include <utilities/base_fixture.hpp>
 #include <utilities/high_res_clock.h>
