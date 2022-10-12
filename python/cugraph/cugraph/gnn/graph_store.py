@@ -56,8 +56,8 @@ class CuGraphStore:
         self,
         df,
         node_col_name,
-        feat_name=None,
         ntype=None,
+        feat_name=None,
         contains_vector_features=False,
     ):
         """
@@ -70,17 +70,17 @@ class CuGraphStore:
             interface.
         node_col_name : string
             The column name that contains the values to be used as vertex IDs.
-        feat_name : {} or string
-            A map of feature names under which we should save the added
-            properties like {"feat_1":[f1, f2], "feat_2":[f3, f4]}
-            (ignored if contains_vector_features=False and the col names of
-            the dataframe are treated as corresponding feature names)
         ntype : string
             The node type to be added.
             For example, if dataframe contains data about users, ntype
             might be "users".
             If not specified, the type of properties will be added as
             an empty string.
+        feat_name : {} or string
+            A map of feature names under which we should save the added
+            properties like {"feat_1":[f1, f2], "feat_2":[f3, f4]}
+            (ignored if contains_vector_features=False and the col names of
+            the dataframe are treated as corresponding feature names)
         contains_vector_features : False
             Wether to treat the columns of the dataframe being added as
             as 2d features
@@ -104,8 +104,8 @@ class CuGraphStore:
         self,
         df,
         node_col_names,
+        canonical_etype=None,
         feat_name=None,
-        etype=None,
         contains_vector_features=False,
     ):
         """
@@ -123,7 +123,7 @@ class CuGraphStore:
             The feature name under which we should save the added properties
             (ignored if contains_vector_features=False and the col names of
             the dataframe are treated as corresponding feature names)
-        etype : string
+        canonical_etype : string
             The edge type to be added. This should follow the string format
             '(src_type),(edge_type),(dst_type)'
             If not specified, the type of properties will be added as
@@ -136,7 +136,7 @@ class CuGraphStore:
         None
         """
         self.gdata.add_edge_data(
-            df, vertex_col_names=node_col_names, type_name=etype
+            df, vertex_col_names=node_col_names, type_name=canonical_etype
         )
         columns = [
             col for col in list(df.columns) if col not in node_col_names
@@ -147,7 +147,7 @@ class CuGraphStore:
         # Clear properties if set as data has changed
         self.__clear_cached_properties()
 
-    def get_node_storage(self, feat_name, ntype=None):
+    def get_node_storage(self, key, ntype=None, indices_offset=0):
         if ntype is None:
             ntypes = self.ntypes
             if len(self.ntypes) > 1:
@@ -158,23 +158,23 @@ class CuGraphStore:
                     )
                 )
             ntype = ntypes[0]
-        if feat_name not in self.ndata_feat_col_d:
+        if key not in self.ndata_feat_col_d:
             raise ValueError(
-                f"feat_name {feat_name} not found in CuGraphStore"
-                " node features",
+                f"key {key} not found in CuGraphStore" " node features",
                 f" {list(self.ndata_feat_col_d.keys())}",
             )
 
-        columns = self.ndata_feat_col_d[feat_name]
+        columns = self.ndata_feat_col_d[key]
 
         return CuFeatureStorage(
             pg=self.gdata,
             columns=columns,
             storage_type="node",
+            indices_offset=indices_offset,
             backend_lib=self.backend_lib,
         )
 
-    def get_edge_storage(self, feat_name, etype=None):
+    def get_edge_storage(self, key, etype=None, indices_offset=0):
         if etype is None:
             etypes = self.etypes
             if len(self.etypes) > 1:
@@ -186,19 +186,19 @@ class CuGraphStore:
                 )
 
             etype = etypes[0]
-        if feat_name not in self.edata_feat_col_d:
+        if key not in self.edata_feat_col_d:
             raise ValueError(
-                f"feat_name {feat_name} not found in CuGraphStore"
-                " edge features",
+                f"key {key} not found in CuGraphStore" " edge features",
                 f" {list(self.edata_feat_col_d.keys())}",
             )
-        columns = self.edata_feat_col_d[feat_name]
+        columns = self.edata_feat_col_d[key]
 
         return CuFeatureStorage(
             pg=self.gdata,
             columns=columns,
             storage_type="edge",
             backend_lib=self.backend_lib,
+            indices_offset=indices_offset,
         )
 
     def num_nodes(self, ntype=None):
@@ -518,7 +518,9 @@ class CuFeatureStorage:
     is fine. DGL simply uses duck-typing to implement its sampling pipeline.
     """
 
-    def __init__(self, pg, columns, storage_type, backend_lib="torch"):
+    def __init__(
+        self, pg, columns, storage_type, backend_lib="torch", indices_offset=0
+    ):
         self.pg = pg
         self.columns = columns
         if backend_lib == "torch":
@@ -539,6 +541,7 @@ class CuFeatureStorage:
         self.storage_type = storage_type
 
         self.from_dlpack = from_dlpack
+        self.indices_offset = indices_offset
 
     def fetch(self, indices, device=None, pin_memory=False, **kwargs):
         """Fetch the features of the given node/edge IDs to the
@@ -566,6 +569,9 @@ class CuFeatureStorage:
             indices = indices.get()
         else:
             indices = cudf.Series(indices)
+
+        indices = indices + self.indices_offset
+
         if self.storage_type == "node":
             subset_df = self.pg.get_vertex_data(
                 vertex_ids=indices, columns=self.columns
@@ -580,9 +586,13 @@ class CuFeatureStorage:
         if isinstance(subset_df, dask_cudf.DataFrame):
             subset_df = subset_df.compute()
         if len(subset_df) == 0:
-            raise ValueError(f"{indices=} not found in FeatureStorage")
+            raise ValueError(
+                f"indices = {indices} not found in FeatureStorage"
+            )
         else:
-            tensor = self.from_dlpack(subset_df.to_dlpack())
+            cap = subset_df.to_dlpack()
+            tensor = self.from_dlpack(cap)
+            del cap
 
         if isinstance(tensor, cp.ndarray):
             # can not transfer to
@@ -754,9 +764,8 @@ def _update_feature_map(
     else:
         if feat_name_obj:
             raise ValueError(
-                f"feat_name {feat_name_obj} is only valid "
-                "wrappign multiple columns under feature names"
+                f"feat_name {feat_name_obj} is only valid when "
+                "wrapping multiple columns under feature names"
             )
-
         for col in columns:
             pg_feature_map[col] = [col]
