@@ -10,38 +10,38 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  pylibcugraph-wheel:
-    uses: rapidsai/shared-action-workflows/.github/workflows/wheels-manylinux.yml@feat/wheel-ci-actions-2
-    with:
-      package-name: pylibcugraph
-      package-dir: python/pylibcugraph
-      python-package-versioneer-override: "22.10.00a"
-      python-package-build-tag: "11"
-      python-version: "3.8 3.9"
-
-      manylinux-container-amd64: "rapidsai/manylinux2014"
-      manylinux-container-arm64: "rapidsai/manylinux_2_31"
-
-      auditwheel-repair-command-amd64: "auditwheel --verbose repair -w {dest_dir} --plat manylinux_2_17_x86_64 {wheel}"
-      auditwheel-repair-command-arm64: "auditwheel --verbose repair -w {dest_dir} --plat manylinux_2_31_aarch64 {wheel}"
-
-      cibw-before-all-amd64: "yum install -y blas-devel lapack-devel"
-      cibw-before-all-arm64: "apt-get install -y libblas-dev liblapack-dev"
-      cibw-environment: "PIP_INDEX_URL=https://pypi.k8s.rapids.ai/simple"
-
-      skbuild-configure-options: "--log-level=DEBUG -DCUGRAPH_RAFT_REPOSITORY=https://github.com/sevagh/raft.git -DCUGRAPH_RAFT_BRANCH=feat/cibuildwheel -DCUGRAPH_CUGRAPH_OPS_BRANCH=feat/cibuildwheel -DCPM_DOWNLOAD_ALL=ON -DDETECT_CONDA_ENV=OFF -DCUGRAPH_BUILD_WHEELS=ON -DCMAKE_CUDA_ARCHITECTURES=ALL"
-
-      test-container-amd64: "rapidsai/manylinux_2_27"
-      test-container-arm64: "rapidsai/manylinux_2_31"
-      test-extras:  "test"
-      test-requires: "dask[distributed,dataframe]"
-      # This is a comment
-      test-before-amd64: "if [ ! -d dask-cuda ]; then git clone https://github.com/rapidsai/dask-cuda.git && cd dask-cuda && git checkout branch-22.10 && sed -i 's/version = os.environ.*/version = \"22.10.00\"/g' setup.py; else cd dask-cuda; fi; GIT_DESCRIBE_TAG='placeholder' pip install .; pip install rmm-cu11 cudf-cu11 raft-dask-cu11 pylibraft-cu11 dask-cudf-cu11 --index-url https://pypi.k8s.rapids.ai/simple && pip install cupy-cuda115 && pip install git+https://github.com/rapidsai/asvdb.git@main && pip install git+https://github.com/vyasr/benchmark.git@versioned_rmm_req#subdirectory=rapids_pytest_benchmark"
-      test-before-arm64: "if [ ! -d dask-cuda ]; then git clone https://github.com/rapidsai/dask-cuda.git && cd dask-cuda && git checkout branch-22.10 && sed -i 's/version = os.environ.*/version = \"22.10.00\"/g' setup.py; else cd dask-cuda; fi; GIT_DESCRIBE_TAG='placeholder' pip install .; pip install rmm-cu11 cudf-cu11 raft-dask-cu11 pylibraft-cu11 dask-cudf-cu11 --index-url https://pypi.k8s.rapids.ai/simple && pip install cupy-cuda11x -f https://pip.cupy.dev/aarch64 && pip install git+https://github.com/rapidsai/asvdb.git@main && pip install git+https://github.com/vyasr/benchmark.git@versioned_rmm_req#subdirectory=rapids_pytest_benchmark"
-      test-unittest: "RAPIDS_DATASET_ROOT_DIR=`pwd`/datasets pytest -v ./python/pylibcugraph/pylibcugraph/tests"
-    secrets: inherit
+  #pylibcugraph-wheel:
+  #  uses: rapidsai/shared-action-workflows/.github/workflows/wheels-manylinux.yml@feat/wheel-ci-actions-2
+  #  with:
+  #    package-name: pylibcugraph
+  #    package-dir: python/pylibcugraph
+  #    python-package-versioneer-override: "22.10.00a"
+  #    python-package-build-tag: "11"
+  #    python-version: "3.8 3.9"
+  #
+  #    manylinux-container-amd64: "rapidsai/manylinux2014"
+  #    manylinux-container-arm64: "rapidsai/manylinux_2_31"
+  #
+  #    auditwheel-repair-command-amd64: "auditwheel --verbose repair -w {dest_dir} --plat manylinux_2_17_x86_64 {wheel}"
+  #    auditwheel-repair-command-arm64: "auditwheel --verbose repair -w {dest_dir} --plat manylinux_2_31_aarch64 {wheel}"
+  #
+  #    cibw-before-all-amd64: "yum install -y blas-devel lapack-devel"
+  #    cibw-before-all-arm64: "apt-get install -y libblas-dev liblapack-dev"
+  #    cibw-environment: "PIP_INDEX_URL=https://pypi.k8s.rapids.ai/simple"
+  #
+  #    skbuild-configure-options: "--log-level=DEBUG -DCUGRAPH_RAFT_REPOSITORY=https://github.com/sevagh/raft.git -DCUGRAPH_RAFT_BRANCH=feat/cibuildwheel -DCUGRAPH_CUGRAPH_OPS_BRANCH=feat/cibuildwheel -DCPM_DOWNLOAD_ALL=ON -DDETECT_CONDA_ENV=OFF -DCUGRAPH_BUILD_WHEELS=ON -DCMAKE_CUDA_ARCHITECTURES=ALL"
+  #
+  #    test-container-amd64: "rapidsai/manylinux_2_27"
+  #    test-container-arm64: "rapidsai/manylinux_2_31"
+  #    test-extras:  "test"
+  #    test-requires: "dask[distributed,dataframe]"
+  #    # This is a comment
+  #    test-before-amd64: "if [ ! -d dask-cuda ]; then git clone https://github.com/rapidsai/dask-cuda.git && cd dask-cuda && git checkout branch-22.10 && sed -i 's/version = os.environ.*/version = \"22.10.00\"/g' setup.py; else cd dask-cuda; fi; GIT_DESCRIBE_TAG='placeholder' pip install .; pip install rmm-cu11 cudf-cu11 raft-dask-cu11 pylibraft-cu11 dask-cudf-cu11 --index-url https://pypi.k8s.rapids.ai/simple && pip install cupy-cuda115 && pip install git+https://github.com/rapidsai/asvdb.git@main && pip install git+https://github.com/vyasr/benchmark.git@versioned_rmm_req#subdirectory=rapids_pytest_benchmark"
+  #    test-before-arm64: "if [ ! -d dask-cuda ]; then git clone https://github.com/rapidsai/dask-cuda.git && cd dask-cuda && git checkout branch-22.10 && sed -i 's/version = os.environ.*/version = \"22.10.00\"/g' setup.py; else cd dask-cuda; fi; GIT_DESCRIBE_TAG='placeholder' pip install .; pip install rmm-cu11 cudf-cu11 raft-dask-cu11 pylibraft-cu11 dask-cudf-cu11 --index-url https://pypi.k8s.rapids.ai/simple && pip install cupy-cuda11x -f https://pip.cupy.dev/aarch64 && pip install git+https://github.com/rapidsai/asvdb.git@main && pip install git+https://github.com/vyasr/benchmark.git@versioned_rmm_req#subdirectory=rapids_pytest_benchmark"
+  #    test-unittest: "RAPIDS_DATASET_ROOT_DIR=`pwd`/datasets pytest -v ./python/pylibcugraph/pylibcugraph/tests"
+  #  secrets: inherit
   cugraph-wheel:
-    needs: pylibcugraph-wheel
+    #needs: pylibcugraph-wheel
     uses: rapidsai/shared-action-workflows/.github/workflows/wheels-manylinux.yml@feat/wheel-ci-actions-2
     with:
       package-name: cugraph
