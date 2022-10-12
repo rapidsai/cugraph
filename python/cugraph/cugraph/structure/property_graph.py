@@ -468,15 +468,36 @@ class EXPERIMENTAL__PropertyGraph:
                            tmp_df, self.__vertex_prop_dataframe)
         self.__vertex_prop_dtypes.update(new_col_info)
 
-        # Join on shared columns and the indices
+        # Join on vertex ids (the index)
         tmp_df.set_index(self.vertex_col_name, inplace=True)
+        # Option 1
+        # df = self.__vertex_prop_dataframe.merge(
+        #     tmp_df,
+        #     on=self.vertex_col_name,
+        #     how="outer",
+        #     suffixes=("", "_NEW_"),
+        # )
+        # Option 2
+        df = self.__vertex_prop_dataframe.join(
+            tmp_df,
+            how="outer",
+            rsuffix="_NEW_",
+        )
         cols = (
             self.__vertex_prop_dataframe.columns.intersection(tmp_df.columns)
             .to_list()
         )
-        cols.append(self.vertex_col_name)
-        self.__vertex_prop_dataframe = \
-            self.__vertex_prop_dataframe.merge(tmp_df, on=cols, how="outer")
+        if cols:
+            rename_cols = {f"{col}_NEW_": col for col in cols}
+            new_cols = list(rename_cols)
+            sub_df = df[new_cols].rename(columns=rename_cols)
+            df.drop(columns=new_cols, inplace=True)
+            # TODO: should we use the values from `sub_df` if both are non-null?
+            df.fillna(sub_df, inplace=True)  # Option 1
+            # df[sub_df.columns] = sub_df.fillna(df[sub_df.columns])  # Option 2
+            # Should we update the dtypes?
+
+        self.__vertex_prop_dataframe = df
 
         # Update the vertex eval dict with the latest column instances
         if self.__series_type is cudf.Series:

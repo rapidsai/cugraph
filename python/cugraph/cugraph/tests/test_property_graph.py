@@ -1721,7 +1721,11 @@ def test_add_data_noncontiguous(df_type):
             check_names=False,
         )
 
-    df['vertex'] = 10 * df['src'] + df['dst']
+    df["vertex"] = (
+        100 * df["src"]
+        + df["dst"]
+        + df["edge_type"].map({"pig": 0, "dog": 10, "cat": 20})
+    )
     pG = PropertyGraph()
     for edge_type in ["cat", "dog", "pig"]:
         pG.add_vertex_data(
