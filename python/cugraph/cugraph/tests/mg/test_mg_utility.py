@@ -43,8 +43,7 @@ IS_DIRECTED = [True, False]
 # )
 @pytest.mark.parametrize("directed", IS_DIRECTED)
 def test_from_edgelist(dask_client, directed):
-    input_data_path = (RAPIDS_DATASET_ROOT_DIR_PATH /
-                       "karate.csv").as_posix()
+    input_data_path = (RAPIDS_DATASET_ROOT_DIR_PATH / "karate.csv").as_posix()
     print(f"dataset={input_data_path}")
     chunksize = dcg.get_chunksize(input_data_path)
     ddf = dask_cudf.read_csv(
@@ -56,20 +55,20 @@ def test_from_edgelist(dask_client, directed):
     )
 
     dg1 = cugraph.from_edgelist(
-        ddf, source="src", destination="dst", edge_attr="value",
-        create_using=cugraph.Graph(directed=directed))
+        ddf,
+        source="src",
+        destination="dst",
+        edge_attr="value",
+        create_using=cugraph.Graph(directed=directed),
+    )
 
     dg2 = cugraph.Graph(directed=directed)
-    dg2.from_dask_cudf_edgelist(
-        ddf, source="src", destination="dst", edge_attr="value"
-    )
+    dg2.from_dask_cudf_edgelist(ddf, source="src", destination="dst", edge_attr="value")
 
     assert dg1.EdgeList == dg2.EdgeList
 
 
-@pytest.mark.skipif(
-    is_single_gpu(), reason="skipping MG testing on Single GPU system"
-)
+@pytest.mark.skipif(is_single_gpu(), reason="skipping MG testing on Single GPU system")
 @pytest.mark.skip(reason="MG not supported on CI")
 def test_parquet_concat_within_workers(dask_client):
     if not os.path.exists("test_files_parquet"):
@@ -86,9 +85,7 @@ def test_parquet_concat_within_workers(dask_client):
 
     print("Read_parquet... ")
     t1 = time.time()
-    ddf = dask_cudf.read_parquet(
-        "test_files_parquet/*", dtype=["int32", "int32"]
-    )
+    ddf = dask_cudf.read_parquet("test_files_parquet/*", dtype=["int32", "int32"])
     ddf = ddf.persist()
     futures_of(ddf)
     wait(ddf)

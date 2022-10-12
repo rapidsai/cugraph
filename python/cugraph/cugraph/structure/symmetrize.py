@@ -16,8 +16,9 @@ import cudf
 import dask_cudf
 
 
-def symmetrize_df(df, src_name, dst_name,
-                  weight_name=None, multi=False, symmetrize=True):
+def symmetrize_df(
+    df, src_name, dst_name, weight_name=None, multi=False, symmetrize=True
+):
     """
     Take a COO stored in a DataFrame, along with the column names of
     the source and destination columns and create a new data frame
@@ -93,8 +94,9 @@ def symmetrize_df(df, src_name, dst_name,
         return result
 
 
-def symmetrize_ddf(ddf, src_name, dst_name,
-                   weight_name=None, multi=False, symmetrize=True):
+def symmetrize_ddf(
+    ddf, src_name, dst_name, weight_name=None, multi=False, symmetrize=True
+):
     """
     Take a COO stored in a distributed DataFrame, and the column names of
     the source and destination columns and create a new data frame
@@ -179,15 +181,23 @@ def symmetrize_ddf(ddf, src_name, dst_name,
         return result
     else:
         vertex_col_name = src_name + dst_name
-        result = result.groupby(
-                by=[*vertex_col_name]).min(
-                    split_out=ddf.npartitions).reset_index()
+        result = (
+            result.groupby(by=[*vertex_col_name])
+            .min(split_out=ddf.npartitions)
+            .reset_index()
+        )
 
         return result
 
 
-def symmetrize(input_df, source_col_name, dest_col_name, value_col_name=None,
-               multi=False, symmetrize=True):
+def symmetrize(
+    input_df,
+    source_col_name,
+    dest_col_name,
+    value_col_name=None,
+    multi=False,
+    symmetrize=True,
+):
     """
     Take a dataframe of source destination pairs along with associated
     values stored in a single GPU or distributed
@@ -240,13 +250,23 @@ def symmetrize(input_df, source_col_name, dest_col_name, value_col_name=None,
     csg.null_check(input_df[dest_col_name])
 
     if isinstance(input_df, dask_cudf.DataFrame):
-        output_df = symmetrize_ddf(input_df, source_col_name, dest_col_name,
-                                   value_col_name, multi, symmetrize,
-                                   )
+        output_df = symmetrize_ddf(
+            input_df,
+            source_col_name,
+            dest_col_name,
+            value_col_name,
+            multi,
+            symmetrize,
+        )
     else:
-        output_df = symmetrize_df(input_df, source_col_name, dest_col_name,
-                                  value_col_name, multi, symmetrize,
-                                  )
+        output_df = symmetrize_df(
+            input_df,
+            source_col_name,
+            dest_col_name,
+            value_col_name,
+            multi,
+            symmetrize,
+        )
     if value_col_name is not None:
         value_col = output_df[value_col_name]
         if isinstance(value_col, (cudf.Series, dask_cudf.Series)):

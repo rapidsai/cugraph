@@ -22,23 +22,25 @@ from pathlib import Path
 from cugraph_service_client import CugraphServiceClient
 
 
-_data_dir = (Path(__file__).parent)/"data"
+_data_dir = (Path(__file__).parent) / "data"
 
 edgelist_csv_data = {
-    "karate": {"csv_file_name":
-               (_data_dir/"karate.csv").absolute().as_posix(),
-               "dtypes": ["int32", "int32", "float32"],
-               "num_edges": 156,
-               },
+    "karate": {
+        "csv_file_name": (_data_dir / "karate.csv").absolute().as_posix(),
+        "dtypes": ["int32", "int32", "float32"],
+        "num_edges": 156,
+    },
 }
 
 client = CugraphServiceClient()
 
 test_data = edgelist_csv_data["karate"]
-client.load_csv_as_edge_data(test_data["csv_file_name"],
-                             dtypes=test_data["dtypes"],
-                             vertex_col_names=["0", "1"],
-                             type_name="")
+client.load_csv_as_edge_data(
+    test_data["csv_file_name"],
+    dtypes=test_data["dtypes"],
+    vertex_col_names=["0", "1"],
+    type_name="",
+)
 time.sleep(10)
 n = int(random.random() * 1000)
 

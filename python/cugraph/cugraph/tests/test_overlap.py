@@ -21,6 +21,7 @@ from cudf.testing import assert_series_equal
 
 import cugraph
 from cugraph.testing import utils
+from cugraph.experimental.datasets import DATASETS_UNDIRECTED
 
 
 # =============================================================================
@@ -46,13 +47,11 @@ def compare_overlap(cu_coeff, cpu_coeff):
             assert diff < 1.0e-6
 
 
-def cugraph_call(benchmark_callable, cu_M, pairs, edgevals=False):
-    G = cugraph.DiGraph()
+def cugraph_call(benchmark_callable, graph_file, pairs, edgevals=False):
     # Device data
-    if edgevals is True:
-        G.from_cudf_edgelist(cu_M, source="0", destination="1", edge_attr="2")
-    else:
-        G.from_cudf_edgelist(cu_M, source="0", destination="1")
+    G = graph_file.get_graph(
+        create_using=cugraph.Graph(directed=True), ignore_weights=not edgevals
+    )
     # cugraph Overlap Call
     df = benchmark_callable(cugraph.overlap, G, pairs)
     df = df.sort_values(by=["source", "destination"])
@@ -106,21 +105,18 @@ def cpu_call(M, first, second):
 # =============================================================================
 # Pytest Fixtures
 # =============================================================================
-@pytest.fixture(scope="module", params=utils.DATASETS_UNDIRECTED)
+@pytest.fixture(scope="module", params=DATASETS_UNDIRECTED)
 def read_csv(request):
     """
     Read csv file for both networkx and cugraph
     """
-
-    Mnx = utils.read_csv_for_nx(request.param)
+    graph_file = request.param
+    dataset_path = graph_file.get_path()
+    Mnx = utils.read_csv_for_nx(dataset_path)
     N = max(max(Mnx["0"]), max(Mnx["1"])) + 1
-    M = scipy.sparse.csr_matrix(
-        (Mnx.weight, (Mnx["0"], Mnx["1"])), shape=(N, N)
-    )
+    M = scipy.sparse.csr_matrix((Mnx.weight, (Mnx["0"], Mnx["1"])), shape=(N, N))
 
-    cu_M = utils.read_csv_file(request.param)
-    print("cu_M is \n", cu_M)
-    return M, cu_M
+    return M, graph_file
 
 
 @pytest.fixture(scope="module")
@@ -128,9 +124,8 @@ def extract_two_hop(read_csv):
     """
     Build graph and extract two hop neighbors
     """
-    G = cugraph.Graph()
-    _, cu_M = read_csv
-    G.from_cudf_edgelist(cu_M, source="0", destination="1")
+    _, graph_file = read_csv
+    G = graph_file.get_graph(ignore_weights=True)
     pairs = (
         G.get_two_hop_neighbors()
         .sort_values(["first", "second"])
@@ -142,10 +137,10 @@ def extract_two_hop(read_csv):
 # Test
 def test_overlap(gpubenchmark, read_csv, extract_two_hop):
 
-    M, cu_M = read_csv
+    M, graph_file = read_csv
     pairs = extract_two_hop
 
-    cu_coeff = cugraph_call(gpubenchmark, cu_M, pairs)
+    cu_coeff = cugraph_call(gpubenchmark, graph_file, pairs)
     cpu_coeff = cpu_call(M, pairs["first"], pairs["second"])
 
     compare_overlap(cu_coeff, cpu_coeff)
@@ -154,19 +149,19 @@ def test_overlap(gpubenchmark, read_csv, extract_two_hop):
 # Test
 def test_overlap_edge_vals(gpubenchmark, read_csv, extract_two_hop):
 
-    M, cu_M = read_csv
+    M, graph_file = read_csv
     pairs = extract_two_hop
 
-    cu_coeff = cugraph_call(gpubenchmark, cu_M, pairs, edgevals=True)
+    cu_coeff = cugraph_call(gpubenchmark, graph_file, pairs, edgevals=True)
     cpu_coeff = cpu_call(M, pairs["first"], pairs["second"])
 
     compare_overlap(cu_coeff, cpu_coeff)
 
 
-@pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
+@pytest.mark.parametrize("graph_file", DATASETS_UNDIRECTED)
 def test_overlap_multi_column(graph_file):
-
-    M = utils.read_csv_for_nx(graph_file)
+    dataset_path = graph_file.get_path()
+    M = utils.read_csv_for_nx(dataset_path)
 
     cu_M = cudf.DataFrame()
     cu_M["src_0"] = cudf.Series(M["0"])
@@ -174,8 +169,9 @@ def test_overlap_multi_column(graph_file):
     cu_M["src_1"] = cu_M["src_0"] + 1000
     cu_M["dst_1"] = cu_M["dst_0"] + 1000
     G1 = cugraph.Graph()
-    G1.from_cudf_edgelist(cu_M, source=["src_0", "src_1"],
-                          destination=["dst_0", "dst_1"])
+    G1.from_cudf_edgelist(
+        cu_M, source=["src_0", "src_1"], destination=["dst_0", "dst_1"]
+    )
 
     vertex_pair = cu_M[["src_0", "src_1", "dst_0", "dst_1"]]
     vertex_pair = vertex_pair[:5]
@@ -183,8 +179,7 @@ def test_overlap_multi_column(graph_file):
     df_res = cugraph.overlap(G1, vertex_pair)
 
     G2 = cugraph.Graph()
-    G2.from_cudf_edgelist(cu_M, source="src_0",
-                          destination="dst_0")
+    G2.from_cudf_edgelist(cu_M, source="src_0", destination="dst_0")
     df_exp = cugraph.overlap(G2, vertex_pair[["src_0", "dst_0"]])
 
     # Calculating mismatch

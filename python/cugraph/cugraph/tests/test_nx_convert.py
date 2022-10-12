@@ -17,6 +17,7 @@ import cudf
 
 import cugraph
 from cugraph.testing import utils
+from cugraph.experimental.datasets import DATASETS
 
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
@@ -39,11 +40,10 @@ def _compare_graphs(nxG, cuG, has_wt=True):
     if has_wt is True:
         cu_df = cu_df.drop(columns=["weights"])
 
-    out_of_order = cu_df[cu_df['src'] > cu_df['dst']]
+    out_of_order = cu_df[cu_df["src"] > cu_df["dst"]]
     if len(out_of_order) > 0:
-        out_of_order = out_of_order.rename(
-            columns={"src": "dst", "dst": "src"})
-        right_order = cu_df[cu_df['src'] < cu_df['dst']]
+        out_of_order = out_of_order.rename(columns={"src": "dst", "dst": "src"})
+        right_order = cu_df[cu_df["src"] < cu_df["dst"]]
         cu_df = pd.concat([out_of_order, right_order])
         del out_of_order
         del right_order
@@ -53,13 +53,12 @@ def _compare_graphs(nxG, cuG, has_wt=True):
     if has_wt is True:
         nx_df = nx_df.drop(columns=["weight"])
     nx_df = nx_df.rename(columns={"source": "src", "target": "dst"})
-    nx_df = nx_df.astype('int32')
+    nx_df = nx_df.astype("int32")
 
-    out_of_order = nx_df[nx_df['src'] > nx_df['dst']]
+    out_of_order = nx_df[nx_df["src"] > nx_df["dst"]]
     if len(out_of_order) > 0:
-        out_of_order = out_of_order.rename(
-                                    columns={"src": "dst", "dst": "src"})
-        right_order = nx_df[nx_df['src'] < nx_df['dst']]
+        out_of_order = out_of_order.rename(columns={"src": "dst", "dst": "src"})
+        right_order = nx_df[nx_df["src"] < nx_df["dst"]]
 
         nx_df = pd.concat([out_of_order, right_order])
         del out_of_order
@@ -70,16 +69,16 @@ def _compare_graphs(nxG, cuG, has_wt=True):
     assert cu_df.to_dict() == nx_df.to_dict()
 
 
-@pytest.mark.parametrize("graph_file", utils.DATASETS)
+@pytest.mark.parametrize("graph_file", DATASETS)
 def test_networkx_compatibility(graph_file):
     # test to make sure cuGraph and Nx build similar Graphs
     # Read in the graph
-    M = utils.read_csv_for_nx(graph_file, read_weights_in_sp=True)
+    dataset_path = graph_file.get_path()
+    M = utils.read_csv_for_nx(dataset_path, read_weights_in_sp=True)
 
     # create a NetworkX DiGraph
     nxG = nx.from_pandas_edgelist(
-        M, source="0", target="1", edge_attr="weight",
-        create_using=nx.DiGraph()
+        M, source="0", target="1", edge_attr="weight", create_using=nx.DiGraph()
     )
 
     # create a cuGraph DiGraph
@@ -96,10 +95,11 @@ def test_networkx_compatibility(graph_file):
     _compare_graphs(nxG, cuG)
 
 
-@pytest.mark.parametrize("graph_file", utils.DATASETS)
+@pytest.mark.parametrize("graph_file", DATASETS)
 def test_nx_convert_undirected(graph_file):
     # read data and create a Nx Graph
-    nx_df = utils.read_csv_for_nx(graph_file)
+    dataset_path = graph_file.get_path()
+    nx_df = utils.read_csv_for_nx(dataset_path)
     nxG = nx.from_pandas_edgelist(nx_df, "0", "1", create_using=nx.Graph)
     assert nx.is_directed(nxG) is False
     assert nx.is_weighted(nxG) is False
@@ -111,10 +111,11 @@ def test_nx_convert_undirected(graph_file):
     _compare_graphs(nxG, cuG, has_wt=False)
 
 
-@pytest.mark.parametrize("graph_file", utils.DATASETS)
+@pytest.mark.parametrize("graph_file", DATASETS)
 def test_nx_convert_directed(graph_file):
     # read data and create a Nx DiGraph
-    nx_df = utils.read_csv_for_nx(graph_file)
+    dataset_path = graph_file.get_path()
+    nx_df = utils.read_csv_for_nx(dataset_path)
     nxG = nx.from_pandas_edgelist(nx_df, "0", "1", create_using=nx.DiGraph)
     assert nxG.is_directed() is True
 
@@ -125,12 +126,12 @@ def test_nx_convert_directed(graph_file):
     _compare_graphs(nxG, cuG, has_wt=False)
 
 
-@pytest.mark.parametrize("graph_file", utils.DATASETS)
+@pytest.mark.parametrize("graph_file", DATASETS)
 def test_nx_convert_weighted(graph_file):
     # read data and create a Nx DiGraph
-    nx_df = utils.read_csv_for_nx(graph_file, read_weights_in_sp=True)
-    nxG = nx.from_pandas_edgelist(nx_df, "0", "1", "weight",
-                                  create_using=nx.DiGraph)
+    dataset_path = graph_file.get_path()
+    nx_df = utils.read_csv_for_nx(dataset_path, read_weights_in_sp=True)
+    nxG = nx.from_pandas_edgelist(nx_df, "0", "1", "weight", create_using=nx.DiGraph)
     assert nx.is_directed(nxG) is True
     assert nx.is_weighted(nxG) is True
 
@@ -141,17 +142,16 @@ def test_nx_convert_weighted(graph_file):
     _compare_graphs(nxG, cuG, has_wt=True)
 
 
-@pytest.mark.parametrize("graph_file", utils.DATASETS)
+@pytest.mark.parametrize("graph_file", DATASETS)
 def test_nx_convert_multicol(graph_file):
     # read data and create a Nx Graph
-    nx_df = utils.read_csv_for_nx(graph_file)
+    dataset_path = graph_file.get_path()
+    nx_df = utils.read_csv_for_nx(dataset_path)
 
     G = nx.DiGraph()
 
     for row in nx_df.iterrows():
-        G.add_edge(
-            row[1]["0"], row[1]["1"], count=[row[1]["0"], row[1]["1"]]
-        )
+        G.add_edge(row[1]["0"], row[1]["1"], count=[row[1]["0"], row[1]["1"]])
 
     nxG = nx.from_pandas_edgelist(nx_df, "0", "1")
 
