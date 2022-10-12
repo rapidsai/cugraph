@@ -40,7 +40,8 @@ def test_using_graph(graph_file):
 def test_using_pgraph(graph_file):
     g = graph_file.get_graph(create_using=cugraph.Graph(directed=True))
     cu_M = graph_file.get_edgelist().rename(
-        columns={"src": "0", "dst": "1", "wgt": "2"})
+        columns={"src": "0", "dst": "1", "wgt": "2"}
+    )
     pG = PropertyGraph()
     pG.add_edge_data(cu_M, vertex_col_names=("0", "1"), property_columns=None)
 
@@ -55,7 +56,8 @@ def test_using_pgraph(graph_file):
 @pytest.mark.parametrize("graph_file", DATASETS)
 def test_node_data_pg(graph_file):
     cu_M = graph_file.get_edgelist().rename(
-        columns={"src": "0", "dst": "1", "wgt": "2"})
+        columns={"src": "0", "dst": "1", "wgt": "2"}
+    )
     pG = PropertyGraph()
     gstore = cugraph.gnn.CuGraphStore(graph=pG, backend_lib="cupy")
     gstore.add_edge_data(
@@ -76,7 +78,8 @@ def test_egonet(graph_file):
 
     g = graph_file.get_graph(create_using=cugraph.Graph(directed=True))
     cu_M = graph_file.get_edgelist().rename(
-        columns={"src": "0", "dst": "1", "wgt": "2"})
+        columns={"src": "0", "dst": "1", "wgt": "2"}
+    )
     pG = PropertyGraph()
     gstore = cugraph.gnn.CuGraphStore(graph=pG, backend_lib="cupy")
     gstore.add_edge_data(
@@ -97,7 +100,8 @@ def test_egonet(graph_file):
 def test_workflow(graph_file):
     # from cugraph.community.egonet import batched_ego_graphs
     cu_M = graph_file.get_edgelist().rename(
-        columns={"src": "0", "dst": "1", "wgt": "2"})
+        columns={"src": "0", "dst": "1", "wgt": "2"}
+    )
     pg = PropertyGraph()
     gstore = cugraph.gnn.CuGraphStore(graph=pg)
     gstore.add_edge_data(cu_M, node_col_names=("0", "1"), feat_name="feat")
@@ -116,7 +120,8 @@ def test_workflow(graph_file):
 @pytest.mark.parametrize("graph_file", DATASETS)
 def test_sample_neighbors(graph_file):
     cu_M = graph_file.get_edgelist().rename(
-        columns={"src": "0", "dst": "1", "wgt": "2"})
+        columns={"src": "0", "dst": "1", "wgt": "2"}
+    )
     pg = PropertyGraph()
     gstore = cugraph.gnn.CuGraphStore(graph=pg)
     gstore.add_edge_data(cu_M, feat_name="feat", node_col_names=("0", "1"))
@@ -139,7 +144,8 @@ def test_sample_neighbors(graph_file):
 @pytest.mark.parametrize("graph_file", DATASETS)
 def test_sample_neighbor_neg_one_fanout(graph_file):
     cu_M = graph_file.get_edgelist().rename(
-        columns={"src": "0", "dst": "1", "wgt": "2"})
+        columns={"src": "0", "dst": "1", "wgt": "2"}
+    )
     pg = PropertyGraph()
     gstore = cugraph.gnn.CuGraphStore(graph=pg)
     gstore.add_edge_data(cu_M, feat_name="edge_k", node_col_names=("0", "1"))
@@ -157,7 +163,8 @@ def test_sample_neighbor_neg_one_fanout(graph_file):
 @pytest.mark.parametrize("graph_file", DATASETS)
 def test_get_node_storage_graph_file(graph_file):
     cu_M = graph_file.get_edgelist().rename(
-        columns={"src": "0", "dst": "1", "wgt": "2"})
+        columns={"src": "0", "dst": "1", "wgt": "2"}
+    )
 
     pg = PropertyGraph()
     gstore = cugraph.gnn.CuGraphStore(graph=pg, backend_lib="cupy")
@@ -188,7 +195,8 @@ def test_get_node_storage_graph_file(graph_file):
 @pytest.mark.parametrize("graph_file", DATASETS)
 def test_edge_storage_data_graph_file(graph_file):
     cu_M = graph_file.get_edgelist().rename(
-        columns={"src": "0", "dst": "1", "wgt": "2"})
+        columns={"src": "0", "dst": "1", "wgt": "2"}
+    )
     pg = PropertyGraph()
     gstore = cugraph.gnn.CuGraphStore(graph=pg, backend_lib="cupy")
     gstore.add_edge_data(cu_M, node_col_names=("0", "1"), feat_name="edge_k")
@@ -747,7 +755,7 @@ def test_add_node_data_scaler_vector_feats():
     df["node_id"] = [1, 2, 3]
     df["node_scaler_feat_1"] = [10, 20, 30]
     df["node_scaler_feat_2"] = [15, 25, 35]
-    gs.add_node_data(df, "node_id", is_single_vector_feature=False)
+    gs.add_node_data(df, "node_id", contains_vector_features=False)
 
     out_1 = gs.get_node_storage("node_scaler_feat_1").fetch([1, 3])
     exp_1 = cp.asarray([10, 30])
@@ -762,7 +770,7 @@ def test_add_node_data_scaler_vector_feats():
     df["v_s1"] = [10, 20, 30]
     df["v_s2"] = [15, 25, 35]
     gs.add_node_data(
-        df, "node_id", feat_name="vector_feat", is_single_vector_feature=True
+        df, "node_id", feat_name="vector_feat", contains_vector_features=True
     )
 
     out_vec = gs.get_node_storage("vector_feat").fetch([1, 2])
@@ -774,7 +782,7 @@ def test_add_node_data_scaler_vector_feats():
             df,
             "node_id",
             feat_name="vector_feat",
-            is_single_vector_feature=False,
+            contains_vector_features=False,
         )
 
 

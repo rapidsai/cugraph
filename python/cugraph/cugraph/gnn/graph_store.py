@@ -58,7 +58,7 @@ class CuGraphStore:
         node_col_name,
         feat_name=None,
         ntype=None,
-        is_single_vector_feature=True,
+        contains_vector_features=False,
     ):
         """
         Add a dataframe describing node properties to the PropertyGraph.
@@ -70,9 +70,10 @@ class CuGraphStore:
             interface.
         node_col_name : string
             The column name that contains the values to be used as vertex IDs.
-        feat_name : string
-            The feature name under which we should save the added properties
-            (ignored if is_single_vector_feature=False and the col names of
+        feat_name : {} or string
+            A map of feature names under which we should save the added
+            properties like {"feat_1":[f1, f2], "feat_2":[f3, f4]}
+            (ignored if contains_vector_features=False and the col names of
             the dataframe are treated as corresponding feature names)
         ntype : string
             The node type to be added.
@@ -80,9 +81,9 @@ class CuGraphStore:
             might be "users".
             If not specified, the type of properties will be added as
             an empty string.
-        is_single_vector_feature : True
-            Whether to treat all the columns of the dataframe being added as
-            a single 2d feature
+        contains_vector_features : False
+            Wether to treat the columns of the dataframe being added as
+            as 2d features
         Returns
         -------
         None
@@ -92,25 +93,11 @@ class CuGraphStore:
         )
         columns = [col for col in list(df.columns) if col != node_col_name]
 
-        if is_single_vector_feature:
-            if feat_name is None:
-                raise ValueError(
-                    "feature name must be provided when wrapping"
-                    + " multiple columns under a single feature name"
-                )
-
-        elif feat_name:
-            raise ValueError(
-                "feat_name is only valid when wrapping"
-                + " multiple columns under a single feature name"
-            )
-
-        if is_single_vector_feature:
-            self.ndata_feat_col_d[feat_name] = columns
-        else:
-            for col in columns:
-                self.ndata_feat_col_d[col] = [col]
+        _update_feature_map(
+            self.ndata_feat_col_d, feat_name, contains_vector_features, columns
+        )
         # Clear properties if set as data has changed
+
         self.__clear_cached_properties()
 
     def add_edge_data(
@@ -119,7 +106,7 @@ class CuGraphStore:
         node_col_names,
         feat_name=None,
         etype=None,
-        is_single_vector_feature=True,
+        contains_vector_features=False,
     ):
         """
         Add a dataframe describing edge properties to the PropertyGraph.
@@ -132,18 +119,18 @@ class CuGraphStore:
         node_col_names : string
             The column names that contain the values to be used as the source
             and destination vertex IDs for the edges.
-        feat_name : string
+        feat_name : string or dict {}
             The feature name under which we should save the added properties
-            (ignored if is_single_vector_feature=False and the col names of
+            (ignored if contains_vector_features=False and the col names of
             the dataframe are treated as corresponding feature names)
         etype : string
             The edge type to be added. This should follow the string format
             '(src_type),(edge_type),(dst_type)'
             If not specified, the type of properties will be added as
             an empty string.
-        is_single_vector_feature : True
-            Wether to treat all the columns of the dataframe being
-            added as a single 2d feature
+        contains_vector_features : False
+            Wether to treat the columns of the dataframe being added as
+            as 2d features
         Returns
         -------
         None
@@ -154,25 +141,9 @@ class CuGraphStore:
         columns = [
             col for col in list(df.columns) if col not in node_col_names
         ]
-        if is_single_vector_feature:
-            if feat_name is None:
-                raise ValueError(
-                    "feature name must be provided when wrapping"
-                    + " multiple columns under a single feature name"
-                )
-
-        elif feat_name:
-            raise ValueError(
-                "feat_name is only valid when wrapping"
-                + " multiple columns under a single feature name"
-            )
-
-        if is_single_vector_feature:
-            self.edata_feat_col_d[feat_name] = columns
-        else:
-            for col in columns:
-                self.edata_feat_col_d[col] = [col]
-
+        _update_feature_map(
+            self.edata_feat_col_d, feat_name, contains_vector_features, columns
+        )
         # Clear properties if set as data has changed
         self.__clear_cached_properties()
 
@@ -516,25 +487,27 @@ class CuGraphStore:
             return _subg
 
     def __clear_cached_properties(self):
-        if hasattr(self, "has_multiple_etypes"):
+        # has_attr caused access to the attribute
+        # forcing computation
+        if "has_multiple_etypes" in self.__dict__:
             del self.has_multiple_etypes
 
-        if hasattr(self, "num_nodes_dict"):
+        if "num_nodes_dict" in self.__dict__:
             del self.num_nodes_dict
 
-        if hasattr(self, "num_edges_dict"):
+        if "num_edges_dict" in self.__dict__:
             del self.num_edges_dict
 
-        if hasattr(self, "extracted_subgraph"):
+        if "extracted_subgraph" in self.__dict__:
             del self.extracted_subgraph
 
-        if hasattr(self, "extracted_reverse_subgraph"):
+        if "extracted_reverse_subgraph" in self.__dict__:
             del self.extracted_reverse_subgraph
 
-        if hasattr(self, "extracted_subgraphs_per_type"):
+        if "extracted_subgraphs_per_type" in self.__dict__:
             del self.extracted_subgraphs_per_type
 
-        if hasattr(self, "extracted_reverse_subgraphs_per_type"):
+        if "extracted_reverse_subgraphs_per_type" in self.__dict__:
             del self.extracted_reverse_subgraphs_per_type
 
 
@@ -745,3 +718,45 @@ def get_subgraph_from_edgelist(edge_list, is_mg, reverse_edges=False):
     )
 
     return subgraph
+
+
+def _update_feature_map(
+    pg_feature_map, feat_name_obj, contains_vector_features, columns
+):
+    if contains_vector_features:
+        if feat_name_obj is None:
+            raise ValueError(
+                "feature name must be provided when wrapping"
+                + " multiple columns under a single feature name"
+                + " or a feature map"
+            )
+
+        if isinstance(feat_name_obj, str):
+            pg_feature_map[feat_name_obj] = columns
+
+        elif isinstance(feat_name_obj, dict):
+            covered_columns = []
+            for col in feat_name_obj.keys():
+                covered_columns = covered_columns + feat_name_obj[col]
+
+            intersection_s = set(covered_columns).intersection(set(columns))
+            if len(intersection_s) != len(covered_columns):
+                raise ValueError(
+                    "All the columns not covered in"
+                    f"feature_map {feat_name_obj} provided"
+                )
+
+            for key in feat_name_obj.keys():
+                pg_feature_map[key] = feat_name_obj[col]
+
+        else:
+            raise ValueError(f"{feat_name_obj} should be str or dict")
+    else:
+        if feat_name_obj:
+            raise ValueError(
+                f"feat_name {feat_name_obj} is only valid "
+                "wrappign multiple columns under feature names"
+            )
+
+        for col in columns:
+            pg_feature_map[col] = [col]
