@@ -18,7 +18,7 @@
 #include <cugraph/utilities/error.hpp>
 #include <generators/scramble.cuh>
 
-#include <raft/cuda_utils.cuh>
+#include <raft/util/cuda_utils.cuh>
 
 #include <rmm/device_uvector.hpp>
 

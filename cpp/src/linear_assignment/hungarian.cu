@@ -16,7 +16,7 @@
 #include <cugraph/legacy/graph.hpp>
 #include <cugraph/utilities/error.hpp>
 
-#include <raft/lap/lap.cuh>
+#include <raft/solver/linear_assignment.cuh>
 
 #include <rmm/cuda_stream_view.hpp>
 #include <rmm/device_uvector.hpp>
@@ -74,7 +74,7 @@ weight_t hungarian(raft::handle_t const& handle,
     rmm::device_uvector<index_t> col_assignments_v(num_rows, handle.get_stream());
 
     // Create an instance of LinearAssignmentProblem using problem size, number of subproblems
-    raft::lap::LinearAssignmentProblem<index_t, weight_t> lpx(handle, num_rows, 1, epsilon);
+    raft::solver::LinearAssignmentProblem<index_t, weight_t> lpx(handle, num_rows, 1, epsilon);
 
     // Solve LAP(s) for given cost matrix
     lpx.solve(d_original_cost, d_assignment, col_assignments_v.data());
@@ -109,7 +109,7 @@ weight_t hungarian(raft::handle_t const& handle,
                                  : max_cost;
                       });
 
-    raft::lap::LinearAssignmentProblem<index_t, weight_t> lpx(handle, n, 1, epsilon);
+    raft::solver::LinearAssignmentProblem<index_t, weight_t> lpx(handle, n, 1, epsilon);
 
     // Solve LAP(s) for given cost matrix
     lpx.solve(tmp_cost_v.begin(), tmp_row_assignment_v.begin(), tmp_col_assignment_v.begin());

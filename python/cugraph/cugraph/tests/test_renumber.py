@@ -22,6 +22,7 @@ from cudf.testing import assert_series_equal
 
 from cugraph.structure.number_map import NumberMap
 from cugraph.testing import utils
+from cugraph.experimental.datasets import DATASETS
 
 
 def test_renumber_ips():
@@ -195,11 +196,11 @@ def test_renumber_negative_col():
     )
 
 
-@pytest.mark.parametrize("graph_file", utils.DATASETS)
+@pytest.mark.parametrize("graph_file", DATASETS)
 def test_renumber_files(graph_file):
     gc.collect()
-
-    M = utils.read_csv_for_nx(graph_file)
+    dataset_path = graph_file.get_path()
+    M = utils.read_csv_for_nx(dataset_path)
     sources = cudf.Series(M["0"])
     destinations = cudf.Series(M["1"])
 
@@ -233,11 +234,11 @@ def test_renumber_files(graph_file):
                         check_names=False)
 
 
-@pytest.mark.parametrize("graph_file", utils.DATASETS)
+@pytest.mark.parametrize("graph_file", DATASETS)
 def test_renumber_files_col(graph_file):
     gc.collect()
-
-    M = utils.read_csv_for_nx(graph_file)
+    dataset_path = graph_file.get_path()
+    M = utils.read_csv_for_nx(dataset_path)
     sources = cudf.Series(M["0"])
     destinations = cudf.Series(M["1"])
 
@@ -271,11 +272,11 @@ def test_renumber_files_col(graph_file):
                         check_names=False)
 
 
-@pytest.mark.parametrize("graph_file", utils.DATASETS)
+@pytest.mark.parametrize("graph_file", DATASETS)
 def test_renumber_files_multi_col(graph_file):
     gc.collect()
-
-    M = utils.read_csv_for_nx(graph_file)
+    dataset_path = graph_file.get_path()
+    M = utils.read_csv_for_nx(dataset_path)
     sources = cudf.Series(M["0"])
     destinations = cudf.Series(M["1"])
 

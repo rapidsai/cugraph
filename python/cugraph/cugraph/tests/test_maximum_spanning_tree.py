@@ -21,6 +21,7 @@ import cudf
 
 import cugraph
 from cugraph.testing import utils
+from cugraph.experimental.datasets import DATASETS_UNDIRECTED_WEIGHTS
 
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
@@ -54,12 +55,14 @@ def _get_param_args(param_name, param_values):
             [pytest.param(v, id=f"{param_name}={v}") for v in param_values])
 
 
-@pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED_WEIGHTS)
+@pytest.mark.parametrize("graph_file", DATASETS_UNDIRECTED_WEIGHTS)
 def test_maximum_spanning_tree_nx(graph_file):
     # cugraph
-    cuG = utils.read_csv_file(graph_file, read_weights_in_sp=True)
-    G = cugraph.Graph()
-    G.from_cudf_edgelist(cuG, source="0", destination="1", edge_attr="2")
+    G = graph_file.get_graph()
+    # read_weights_in_sp=False => value column dtype is float64
+    G.edgelist.edgelist_df['weights'] = \
+        G.edgelist.edgelist_df['weights'].astype("float64")
+
     # Just for getting relevant timing
     G.view_adj_list()
     t1 = time.time()
@@ -68,7 +71,8 @@ def test_maximum_spanning_tree_nx(graph_file):
     print("CuGraph time : " + str(t2))
 
     # Nx
-    df = utils.read_csv_for_nx(graph_file, read_weights_in_sp=True)
+    dataset_path = graph_file.get_path()
+    df = utils.read_csv_for_nx(dataset_path, read_weights_in_sp=True)
     Gnx = nx.from_pandas_edgelist(
         df, create_using=nx.Graph(), source="0", target="1", edge_attr="weight"
     )
@@ -80,12 +84,13 @@ def test_maximum_spanning_tree_nx(graph_file):
     utils.compare_mst(cugraph_mst, mst_nx)
 
 
-@pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED_WEIGHTS)
+@pytest.mark.parametrize("graph_file", DATASETS_UNDIRECTED_WEIGHTS)
 @pytest.mark.parametrize(*_get_param_args("use_adjlist", [True, False]))
 def test_maximum_spanning_tree_graph_repr_compat(graph_file, use_adjlist):
-    cuG = utils.read_csv_file(graph_file, read_weights_in_sp=True)
-    G = cugraph.Graph()
-    G.from_cudf_edgelist(cuG, source="0", destination="1", edge_attr="2")
+    G = graph_file.get_graph()
+    # read_weights_in_sp=False => value column dtype is float64
+    G.edgelist.edgelist_df['weights'] = \
+        G.edgelist.edgelist_df['weights'].astype("float64")
     if use_adjlist:
         G.view_adj_list()
     cugraph.maximum_spanning_tree(G)

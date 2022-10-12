@@ -397,5 +397,28 @@ std::vector<T> random_vector(L size, unsigned seed = 0)
   return v;
 }
 
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          bool store_transposed,
+          bool is_multi_gpu>
+std::tuple<std::vector<vertex_t>, std::vector<vertex_t>, std::optional<std::vector<weight_t>>>
+graph_to_host_coo(
+  raft::handle_t const& handle,
+  cugraph::graph_view_t<vertex_t, edge_t, weight_t, store_transposed, is_multi_gpu> const&
+    graph_view);
+
+template <typename type_t>
+struct nearly_equal {
+  const type_t threshold_ratio;
+  const type_t threshold_magnitude;
+
+  bool operator()(type_t lhs, type_t rhs) const
+  {
+    return std::abs(lhs - rhs) <
+           std::max(std::max(lhs, rhs) * threshold_ratio, threshold_magnitude);
+  }
+};
+
 }  // namespace test
 }  // namespace cugraph

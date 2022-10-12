@@ -18,7 +18,7 @@ import pytest
 import pandas as pd
 import cudf
 import cugraph
-from cugraph.testing import utils
+from cugraph.experimental.datasets import DATASETS
 
 
 def test_version():
@@ -148,21 +148,21 @@ def compare(src1, dst1, val1, src2, dst2, val2):
 
 
 @pytest.mark.skip("debugging")
-@pytest.mark.parametrize("graph_file", utils.DATASETS)
+@pytest.mark.parametrize("graph_file", DATASETS)
 def test_symmetrize_unweighted(graph_file):
     gc.collect()
 
-    cu_M = utils.read_csv_file(graph_file)
-
-    sym_sources, sym_destinations = cugraph.symmetrize(cu_M["0"], cu_M["1"])
+    cu_M = graph_file.get_edgelist()
+    sym_sources, sym_destinations = cugraph.symmetrize(
+        cu_M["src"], cu_M["dst"])
 
     #
     #  Check to see if all pairs in sources/destinations exist in
     #  both directions
     #
     compare(
-        cu_M["0"],
-        cu_M["1"],
+        cu_M["src"],
+        cu_M["dst"],
         None,
         sym_sources,
         sym_destinations,
@@ -171,14 +171,13 @@ def test_symmetrize_unweighted(graph_file):
 
 
 @pytest.mark.skip("debugging")
-@pytest.mark.parametrize("graph_file", utils.DATASETS)
+@pytest.mark.parametrize("graph_file", DATASETS)
 def test_symmetrize_weighted(graph_file):
     gc.collect()
-
-    cu_M = utils.read_csv_file(graph_file)
+    cu_M = graph_file.get_edgelist()
 
     sym_src, sym_dst, sym_w = cugraph.symmetrize(
-        cu_M["0"], cu_M["1"], cu_M["2"]
+        cu_M["src"], cu_M["dst"], cu_M["wgt"]
     )
 
-    compare(cu_M["0"], cu_M["1"], cu_M["2"], sym_src, sym_dst, sym_w)
+    compare(cu_M["src"], cu_M["dst"], cu_M["wgt"], sym_src, sym_dst, sym_w)
