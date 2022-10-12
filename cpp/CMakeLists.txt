@@ -245,7 +245,7 @@ set(CUGRAPH_SOURCES
     src/centrality/eigenvector_centrality_sg.cu
     src/centrality/eigenvector_centrality_mg.cu
     src/serialization/serializer.cu
-    src/tree/mst.cu
+    src/tree/legacy/mst.cu
     src/components/weakly_connected_components_sg.cu
     src/components/weakly_connected_components_mg.cu
     src/structure/create_graph_from_edgelist_sg.cu
