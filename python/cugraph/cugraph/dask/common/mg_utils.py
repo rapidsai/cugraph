@@ -21,6 +21,7 @@ from dask.distributed import Client
 # FIXME: this raft import breaks the library if ucx-py is
 # not available. They are necessary only when doing MG work.
 from cugraph.dask.common.read_utils import MissingUCXPy
+
 try:
     from raft_dask.common.utils import default_client
 except ImportError as err:

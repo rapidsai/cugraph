@@ -26,10 +26,20 @@ def test_connectivity():
 def test_pagerank_result_type():
     G = nx.DiGraph()
     [G.add_node(k) for k in ["A", "B", "C", "D", "E", "F", "G"]]
-    G.add_edges_from([('G', 'A'), ('A', 'G'), ('B', 'A'),
-                     ('C', 'A'), ('A', 'C'), ('A', 'D'),
-                     ('E', 'A'), ('F', 'A'), ('D', 'B'),
-                     ('D', 'F')])
+    G.add_edges_from(
+        [
+            ("G", "A"),
+            ("A", "G"),
+            ("B", "A"),
+            ("C", "A"),
+            ("A", "C"),
+            ("A", "D"),
+            ("E", "A"),
+            ("F", "A"),
+            ("D", "B"),
+            ("D", "F"),
+        ]
+    )
     ppr1 = nx.pagerank(G)
     # This just tests that the right type is returned.
     assert isinstance(ppr1, dict)
