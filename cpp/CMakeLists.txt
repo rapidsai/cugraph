@@ -212,7 +212,7 @@ set(CUGRAPH_SOURCES
     src/cores/k_core_mg.cu
     src/traversal/two_hop_neighbors.cu
     src/components/legacy/connectivity.cu
-    src/centrality/betweenness_centrality.cu
+    src/centrality/legacy/betweenness_centrality.cu
     src/generators/generate_rmat_edgelist.cu
     src/generators/generator_tools.cu
     src/generators/simple_generators.cu
