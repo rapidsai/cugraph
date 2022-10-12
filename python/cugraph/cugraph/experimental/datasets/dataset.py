@@ -25,9 +25,11 @@ class DefaultDownloadDir:
     in order to allow for the download directory to be defined and updated by
     a single object.
     """
+
     def __init__(self):
-        self._path = Path(os.environ.get("RAPIDS_DATASET_ROOT_DIR",
-                                         Path.home() / ".cugraph/datasets"))
+        self._path = Path(
+            os.environ.get("RAPIDS_DATASET_ROOT_DIR", Path.home() / ".cugraph/datasets")
+        )
 
     @property
     def path(self):
@@ -37,9 +39,11 @@ class DefaultDownloadDir:
         user's home directory.
         """
         if self._path is None:
-            self._path = Path(os.environ.get("RAPIDS_DATASET_ROOT_DIR",
-                                             Path.home() /
-                                             ".cugraph/datasets"))
+            self._path = Path(
+                os.environ.get(
+                    "RAPIDS_DATASET_ROOT_DIR", Path.home() / ".cugraph/datasets"
+                )
+            )
         return self._path
 
     @path.setter
@@ -65,8 +69,9 @@ class Dataset:
         information on the name, type, url link, data loading format, graph
         properties
     """
+
     def __init__(self, meta_data_file_name):
-        with open(meta_data_file_name, 'r') as file:
+        with open(meta_data_file_name, "r") as file:
             self.metadata = yaml.safe_load(file)
 
         self._dl_path = default_download_dir
@@ -81,14 +86,15 @@ class Dataset:
     def __download_csv(self, url):
         self._dl_path.path.mkdir(parents=True, exist_ok=True)
 
-        filename = self.metadata['name'] + self.metadata['file_type']
+        filename = self.metadata["name"] + self.metadata["file_type"]
         if self._dl_path.path.is_dir():
             df = cudf.read_csv(url)
             df.to_csv(self._dl_path.path / filename, index=False)
 
         else:
-            raise RuntimeError(f"The directory {self._dl_path.path.absolute()}"
-                               "does not exist")
+            raise RuntimeError(
+                f"The directory {self._dl_path.path.absolute()}" "does not exist"
+            )
 
     def get_edgelist(self, fetch=False):
         """
@@ -105,19 +111,23 @@ class Dataset:
             full_path = self.get_path()
             if not full_path.is_file():
                 if fetch:
-                    self.__download_csv(self.metadata['url'])
+                    self.__download_csv(self.metadata["url"])
                 else:
-                    raise RuntimeError(f"The datafile {full_path} does not"
-                                       " exist. Try get_edgelist(fetch=True)"
-                                       " to download the datafile")
+                    raise RuntimeError(
+                        f"The datafile {full_path} does not"
+                        " exist. Try get_edgelist(fetch=True)"
+                        " to download the datafile"
+                    )
             header = None
-            if isinstance(self.metadata['header'], int):
-                header = self.metadata['header']
-            self._edgelist = cudf.read_csv(full_path,
-                                           delimiter=self.metadata['delim'],
-                                           names=self.metadata['col_names'],
-                                           dtype=self.metadata['col_types'],
-                                           header=header)
+            if isinstance(self.metadata["header"], int):
+                header = self.metadata["header"]
+            self._edgelist = cudf.read_csv(
+                full_path,
+                delimiter=self.metadata["delim"],
+                names=self.metadata["col_names"],
+                dtype=self.metadata["col_types"],
+                header=header,
+            )
 
         return self._edgelist
 
@@ -154,16 +164,20 @@ class Dataset:
         elif type(create_using) is type:
             self._graph = create_using()
         else:
-            raise TypeError("create_using must be a cugraph.Graph "
-                            "(or subclass) type or instance, got: "
-                            f"{type(create_using)}")
+            raise TypeError(
+                "create_using must be a cugraph.Graph "
+                "(or subclass) type or instance, got: "
+                f"{type(create_using)}"
+            )
 
-        if (len(self.metadata['col_names']) > 2 and not(ignore_weights)):
-            self._graph.from_cudf_edgelist(self._edgelist, source='src',
-                                           destination='dst', edge_attr='wgt')
+        if len(self.metadata["col_names"]) > 2 and not (ignore_weights):
+            self._graph.from_cudf_edgelist(
+                self._edgelist, source="src", destination="dst", edge_attr="wgt"
+            )
         else:
-            self._graph.from_cudf_edgelist(self._edgelist, source='src',
-                                           destination='dst')
+            self._graph.from_cudf_edgelist(
+                self._edgelist, source="src", destination="dst"
+            )
 
         return self._graph
 
@@ -171,8 +185,9 @@ class Dataset:
         """
         Returns the location of the stored dataset file
         """
-        self._path = self._dl_path.path / (self.metadata['name'] +
-                                           self.metadata['file_type'])
+        self._path = self._dl_path.path / (
+            self.metadata["name"] + self.metadata["file_type"]
+        )
 
         return self._path.absolute()
 
@@ -191,15 +206,15 @@ def load_all(force=False):
     meta_path = Path(__file__).parent.absolute() / "metadata"
     for file in meta_path.iterdir():
         meta = None
-        if file.suffix == '.yaml':
-            with open(meta_path / file, 'r') as metafile:
+        if file.suffix == ".yaml":
+            with open(meta_path / file, "r") as metafile:
                 meta = yaml.safe_load(metafile)
 
-            if 'url' in meta:
-                filename = meta['name'] + meta['file_type']
+            if "url" in meta:
+                filename = meta["name"] + meta["file_type"]
                 save_to = default_download_dir.path / filename
                 if not save_to.is_file() or force:
-                    df = cudf.read_csv(meta['url'])
+                    df = cudf.read_csv(meta["url"])
                     df.to_csv(save_to, index=False)
 
 
@@ -212,9 +227,9 @@ def set_config(cfgpath):
     cfgfile : String
         Read the custom config file given its path, and override the default
     """
-    with open(Path(cfgpath), 'r') as file:
+    with open(Path(cfgpath), "r") as file:
         cfg = yaml.safe_load(file)
-        default_download_dir.path = Path(cfg['download_dir'])
+        default_download_dir.path = Path(cfg["download_dir"])
 
 
 def set_download_dir(path):
