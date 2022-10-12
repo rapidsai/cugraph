@@ -69,5 +69,4 @@ jobs:
       test-extras:  "test"
       test-requires: "dask[distributed,dataframe] dask-cuda"
       test-unittest: "RAPIDS_DATASET_ROOT_DIR=`pwd`/datasets pytest -v ./python/cugraph/cugraph/tests"
-      test-smoketest: "import cudf, cugraph; gdf = cudf.read_csv('graph_data.csv', names=['src', 'dst'], dtype=['int32', 'int32']); G = cugraph.Graph();G.from_cudf_edgelist(gdf, source='src', destination='dst'); df_page = cugraph.pagerank(G); print(df_page.sort_values('pagerank', ascending=False).head(10))"
     secrets: inherit
