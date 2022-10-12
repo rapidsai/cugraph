@@ -176,7 +176,7 @@ set(CUGRAPH_SOURCES
     src/utilities/path_retrieval.cu
     src/utilities/graph_bcast.cpp
     src/structure/legacy/graph.cu
-    src/linear_assignment/hungarian.cu
+    src/linear_assignment/legacy/hungarian.cu
     src/traversal/legacy/bfs.cu
     src/link_prediction/legacy/jaccard.cu
     src/link_prediction/legacy/overlap.cu
