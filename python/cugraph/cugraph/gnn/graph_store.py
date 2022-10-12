@@ -585,24 +585,19 @@ class CuFeatureStorage:
 
         if isinstance(subset_df, dask_cudf.DataFrame):
             subset_df = subset_df.compute()
+
         if len(subset_df) == 0:
             raise ValueError(
                 f"indices = {indices} not found in FeatureStorage"
             )
-        else:
-            cap = subset_df.to_dlpack()
-            tensor = self.from_dlpack(cap)
-            del cap
-
-        if isinstance(tensor, cp.ndarray):
-            # can not transfer to
-            # a different device for cupy
-            return tensor
-        else:
-            if device:
+        cap = subset_df.to_dlpack()
+        tensor = self.from_dlpack(cap)
+        del cap
+        if device:
+            if not isinstance(tensor, cp.ndarray):
+                # Cant transfer to different device for cupy
                 tensor = tensor.to(device)
-            else:
-                return tensor
+        return tensor
 
 
 def return_dlpack_d(d):
