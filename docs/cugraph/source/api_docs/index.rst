@@ -11,6 +11,7 @@ This page provides a list of all publicly accessible modules, methods and classe
 
     structure
     graph_implementation
+    property_graph
     centrality
     community
     components
