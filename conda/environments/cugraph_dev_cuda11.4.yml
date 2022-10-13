@@ -17,10 +17,10 @@ dependencies:
 - raft-dask=22.12.*
 - pylibraft=22.12.*
 - cuda-python>=11.5,<11.7.1
-- dask==2022.9.2
-- distributed==2022.9.2
 - dask-cuda=22.12.*
 - dask-cudf=22.12.*
+- dask>=2022.9.2
+- distributed>=2022.9.2
 - nccl>=2.9.9
 - ucx-py=0.29.*
 - ucx-proc=*=gpu
