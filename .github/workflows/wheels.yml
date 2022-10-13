@@ -16,7 +16,7 @@ jobs:
       package-name: pylibcugraph
       package-dir: python/pylibcugraph
       python-package-versioneer-override: "22.10.00a"
-      python-package-build-tag: "11"
+      python-package-build-tag: "12"
       python-version: "3.8 3.9"
   
       skbuild-configure-options: "--log-level=DEBUG -DCUGRAPH_RAFT_REPOSITORY=https://github.com/sevagh/raft.git -DCUGRAPH_RAFT_BRANCH=feat/cibuildwheel -DCUGRAPH_CUGRAPH_OPS_BRANCH=feat/cibuildwheel -DCPM_DOWNLOAD_ALL=ON -DDETECT_CONDA_ENV=OFF -DCUGRAPH_BUILD_WHEELS=ON -DCMAKE_CUDA_ARCHITECTURES=ALL"
@@ -34,11 +34,8 @@ jobs:
       package-name: cugraph
       package-dir: python/cugraph
       python-package-versioneer-override: "22.10.00a"
-      python-package-build-tag: "11"
+      python-package-build-tag: "12"
       python-version: "3.8 3.9"
-
-      # TODO: We should be able to remove this installation of dask-cuda now and just rely on the PIP_INDEX_URL, but need to verify that.
-      cibw-before-build: "git clone https://github.com/rapidsai/dask-cuda.git && cd dask-cuda && git checkout branch-22.10 && sed -i 's/version = os.environ.*/version = \"22.10.00\"/g' setup.py && GIT_DESCRIBE_TAG='placeholder' pip install . && cd .. && rm -rf dask-cuda"
 
       skbuild-configure-options: "--log-level=DEBUG -DCUGRAPH_RAFT_REPOSITORY=https://github.com/sevagh/raft.git -DCUGRAPH_RAFT_BRANCH=feat/cibuildwheel -DCUGRAPH_CUGRAPH_OPS_BRANCH=feat/cibuildwheel -DCPM_DOWNLOAD_ALL=ON -DDETECT_CONDA_ENV=OFF -DCUGRAPH_BUILD_WHEELS=ON -DCMAKE_CUDA_ARCHITECTURES=ALL"
 
