@@ -25,6 +25,7 @@ add_library(cugraphtestutil STATIC
             utilities/test_utilities_sg.cu
             utilities/test_utilities_mg.cu
             link_prediction/similarity_compare.cpp
+            components/wcc_graphs.cu
             sampling/random_walks_check_sg.cu
             ../../thirdparty/mmio/mmio.c)
 
@@ -212,15 +213,15 @@ ConfigureTest(LOUVAIN_TEST community/louvain_test.cpp)
 
 ###################################################################################################
 # - LEIDEN tests ---------------------------------------------------------------------------------
-ConfigureTest(LEGACY_LEIDEN_TEST community/legacy/leiden_test.cpp)
+ConfigureTest(LEIDEN_TEST community/leiden_test.cpp)
 
 ###################################################################################################
 # - ECG tests ---------------------------------------------------------------------------------
-ConfigureTest(LEGACY_ECG_TEST community/legacy/ecg_test.cpp)
+ConfigureTest(ECG_TEST community/ecg_test.cpp)
 
 ###################################################################################################
 # - Balanced cut clustering tests -----------------------------------------------------------------
-ConfigureTest(LEGACY_BALANCED_TEST community/legacy/balanced_edge_test.cpp)
+ConfigureTest(BALANCED_TEST community/balanced_edge_test.cpp)
 
 ###################################################################################################
 # - EGO tests --------------------------------------------------------------------------------
@@ -228,23 +229,23 @@ ConfigureTest(EGO_TEST community/egonet_test.cu)
 
 ###################################################################################################
 # - FORCE ATLAS 2  tests --------------------------------------------------------------------------
-ConfigureTest(LEGACY_FA2_TEST layout/legacy/force_atlas2_test.cu)
+ConfigureTest(FA2_TEST layout/force_atlas2_test.cu)
 
 ###################################################################################################
 # - CONNECTED COMPONENTS  tests -------------------------------------------------------------------
-ConfigureTest(LEGACY_CONNECT_TEST components/legacy/con_comp_test.cu)
+ConfigureTest(CONNECT_TEST components/con_comp_test.cu)
 
 ###################################################################################################
 # - STRONGLY CONNECTED COMPONENTS  tests ----------------------------------------------------------
-ConfigureTest(LEGACY_SCC_TEST components/legacy/scc_test.cu)
+ConfigureTest(SCC_TEST components/scc_test.cu)
 
 ###################################################################################################
 #-Hungarian (Linear Assignment Problem)  tests ----------------------------------------------------
-ConfigureTest(LEGACY_HUNGARIAN_TEST linear_assignment/legacy/hungarian_test.cu)
+ConfigureTest(HUNGARIAN_TEST linear_assignment/hungarian_test.cu)
 
 ###################################################################################################
 # - MST tests -------------------------------------------------------------------------------------
-ConfigureTest(LEGACY_MST_TEST tree/legacy/mst_test.cu)
+ConfigureTest(MST_TEST tree/mst_test.cu)
 
 ###################################################################################################
 # - Stream tests ----------------------------------------------------------------------------------

@@ -603,6 +603,32 @@ std::unique_ptr<legacy::GraphCOO<vertex_t, edge_t, weight_t>> minimum_spanning_t
   legacy::GraphCSRView<vertex_t, edge_t, weight_t> const& graph,
   rmm::mr::device_memory_resource* mr = rmm::mr::get_current_device_resource());
 
+namespace subgraph {
+/**
+ * @brief             Extract subgraph by vertices
+ *
+ * This function will identify all edges that connect pairs of vertices
+ * that are both contained in the vertices list and return a COO containing
+ * these edges.
+ *
+ * @throws     cugraph::logic_error when an error occurs.
+ *
+ * @tparam VT                        Type of vertex identifiers. Supported value : int (signed,
+ * 32-bit)
+ * @tparam ET                        Type of edge identifiers.  Supported value : int (signed,
+ * 32-bit)
+ * @tparam WT                        Type of edge weights. Supported values : float or double.
+ *
+ * @param[in]  graph                 input graph object (COO)
+ * @param[in]  vertices              device pointer to an array of vertex ids
+ * @param[in]  num_vertices          number of vertices in the array vertices
+ * @param[out] result                a graph in COO format containing the edges in the subgraph
+ */
+template <typename VT, typename ET, typename WT>
+std::unique_ptr<legacy::GraphCOO<VT, ET, WT>> extract_subgraph_vertex(
+  legacy::GraphCOOView<VT, ET, WT> const& graph, VT const* vertices, VT num_vertices);
+}  // namespace subgraph
+
 /**
  * @brief     Wrapper function for Nvgraph balanced cut clustering
  *
