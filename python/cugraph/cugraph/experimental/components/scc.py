@@ -73,7 +73,7 @@ def EXPERIMENTAL__strong_connected_component(source, destination):
 
     # get a list of vertices and sort the list on out_degree
     d = G_fw.degrees()
-    d = d.sort_values(by='out_degree', ascending=False)
+    d = d.sort_values(by="out_degree", ascending=False)
 
     num_verts = len(d)
 
@@ -86,10 +86,10 @@ def EXPERIMENTAL__strong_connected_component(source, destination):
     single_count = 0
 
     # remove vertices that cannot be in a component
-    bad = d.query('in_degree == 0 or out_degree == 0')
+    bad = d.query("in_degree == 0 or out_degree == 0")
 
     if len(bad):
-        bad = bad.drop(['in_degree', 'out_degree'])
+        bad = bad.drop(["in_degree", "out_degree"])
 
         single_components[single_count] = bad
         single_count = single_count + 1
@@ -98,7 +98,7 @@ def EXPERIMENTAL__strong_connected_component(source, destination):
     # ----- Start processing -----
     while len(d) > 0:
 
-        v = d['vertex'][0]
+        v = d["vertex"][0]
 
         # compute the forward BFS
         bfs_fw = cugraph.bfs(G_fw, v)
@@ -109,10 +109,10 @@ def EXPERIMENTAL__strong_connected_component(source, destination):
         bfs_bw = bfs_bw.query("distance != @max_value")
 
         # intersection
-        common = bfs_fw.merge(bfs_bw, on='vertex', how='inner')
+        common = bfs_fw.merge(bfs_bw, on="vertex", how="inner")
 
         if len(common) > 1:
-            common['id'] = v
+            common["id"] = v
             components[count] = common
             d = _filter_list(d, common)
             count = count + 1
@@ -120,7 +120,7 @@ def EXPERIMENTAL__strong_connected_component(source, destination):
         else:
             # v is an isolated vertex
             vdf = cudf.DataFrame()
-            vdf['vertex'] = v
+            vdf["vertex"] = v
 
             single_components[single_count] = vdf
             single_count = single_count + 1
@@ -133,19 +133,20 @@ def EXPERIMENTAL__strong_connected_component(source, destination):
 
     return comp, sing, count
 
+
 #  ---------
 
 
 def _filter_list(vert_list, drop_list):
     t = cudf.DataFrame()
-    t['vertex'] = drop_list['vertex']
-    t['d'] = 0
+    t["vertex"] = drop_list["vertex"]
+    t["d"] = 0
 
-    df = vert_list.merge(t, on='vertex', how="left")
+    df = vert_list.merge(t, on="vertex", how="left")
 
-    df['d'] = df['d'].fillna(1)
-    df = df.query('d == 1')
-    df.drop('d', inplace=True)
+    df["d"] = df["d"].fillna(1)
+    df = df.query("d == 1")
+    df.drop("d", inplace=True)
 
     return df
 

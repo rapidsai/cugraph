@@ -41,9 +41,7 @@ class CuGraphStore:
         if isinstance(graph, (PropertyGraph, MGPropertyGraph)):
             self.__G = graph
         else:
-            raise ValueError(
-                "graph must be a PropertyGraph or" " MGPropertyGraph"
-            )
+            raise ValueError("graph must be a PropertyGraph or" " MGPropertyGraph")
         # dict to map column names corresponding to edge features
         # of each type
         self.edata_feat_col_d = defaultdict(list)
@@ -88,9 +86,7 @@ class CuGraphStore:
         -------
         None
         """
-        self.gdata.add_vertex_data(
-            df, vertex_col_name=node_col_name, type_name=ntype
-        )
+        self.gdata.add_vertex_data(df, vertex_col_name=node_col_name, type_name=ntype)
         columns = [col for col in list(df.columns) if col != node_col_name]
 
         _update_feature_map(
@@ -144,6 +140,7 @@ class CuGraphStore:
         _update_feature_map(
             self.edata_feat_col_d, feat_name, contains_vector_features, columns
         )
+
         # Clear properties if set as data has changed
         self.__clear_cached_properties()
 
@@ -363,16 +360,12 @@ class CuGraphStore:
         edge_list = self.gdata.get_edge_data(columns=[src_n, dst_n, type_n])
         edge_list = edge_list.reset_index(drop=True)
 
-        return get_subgraph_from_edgelist(
-            edge_list, self.is_mg, reverse_edges=False
-        )
+        return get_subgraph_from_edgelist(edge_list, self.is_mg, reverse_edges=False)
 
     @cached_property
     def extracted_reverse_subgraph(self):
         edge_list = self.gdata.get_edge_data(columns=[src_n, dst_n, type_n])
-        return get_subgraph_from_edgelist(
-            edge_list, self.is_mg, reverse_edges=True
-        )
+        return get_subgraph_from_edgelist(edge_list, self.is_mg, reverse_edges=True)
 
     @cached_property
     def extracted_subgraphs_per_type(self):
@@ -423,9 +416,7 @@ class CuGraphStore:
                 # _SRC_ for multi-node graphs
                 self._sg_node_dtype = sg.edgelist.edgelist_df[src_n].dtype
             else:
-                raise ValueError(
-                    f"Source column {src_n} not found in the subgraph"
-                )
+                raise ValueError(f"Source column {src_n} not found in the subgraph")
             return self._sg_node_dtype
 
     def find_edges(self, edge_ids_cap, etype):
@@ -534,9 +525,7 @@ class CuFeatureStorage:
                 "Only pytorch and tensorflow backends are currently supported"
             )
         if storage_type not in ["edge", "node"]:
-            raise NotImplementedError(
-                "Only edge and node storage is supported"
-            )
+            raise NotImplementedError("Only edge and node storage is supported")
 
         self.storage_type = storage_type
 
@@ -577,9 +566,7 @@ class CuFeatureStorage:
                 vertex_ids=indices, columns=self.columns
             )
         else:
-            subset_df = self.pg.get_edge_data(
-                edge_ids=indices, columns=self.columns
-            )
+            subset_df = self.pg.get_edge_data(edge_ids=indices, columns=self.columns)
 
         subset_df = subset_df[self.columns]
 
@@ -648,9 +635,7 @@ def sample_multiple_sgs(
     output_dfs = []
     for can_etype, sg in sgs.items():
         can_etype = _convert_can_etype_s_to_tup(can_etype)
-        if _edge_types_contains_canonical_etype(
-            can_etype, start_list_types, edge_dir
-        ):
+        if _edge_types_contains_canonical_etype(can_etype, start_list_types, edge_dir):
             if edge_dir == "in":
                 subset_type = can_etype[2]
             else:
@@ -667,9 +652,7 @@ def sample_multiple_sgs(
             output_dfs.append(output)
 
     if len(output_dfs) == 0:
-        empty_df = cudf.DataFrame(
-            {"sources": [], "destinations": [], "indices": []}
-        )
+        empty_df = cudf.DataFrame({"sources": [], "destinations": [], "indices": []})
         return empty_df.astype(cp.int32)
 
     if isinstance(output_dfs[0], dask_cudf.DataFrame):
