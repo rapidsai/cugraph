@@ -178,6 +178,8 @@ set(CUGRAPH_SOURCES
     src/structure/legacy/graph.cu
     src/linear_assignment/legacy/hungarian.cu
     src/traversal/legacy/bfs.cu
+    src/link_prediction/legacy/jaccard.cu
+    src/link_prediction/legacy/overlap.cu
     src/link_prediction/jaccard_sg.cu
     src/link_prediction/sorensen_sg.cu
     src/link_prediction/overlap_sg.cu
@@ -194,6 +196,7 @@ set(CUGRAPH_SOURCES
     src/community/legacy/leiden.cu
     src/community/legacy/ktruss.cu
     src/community/legacy/ecg.cu
+    src/community/legacy/extract_subgraph_by_vertex.cu
     src/community/legacy/egonet.cu
     src/sampling/random_walks.cu
     src/sampling/random_walks_sg.cu
