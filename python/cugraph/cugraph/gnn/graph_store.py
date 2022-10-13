@@ -115,15 +115,15 @@ class CuGraphStore:
         node_col_names : string
             The column names that contain the values to be used as the source
             and destination vertex IDs for the edges.
-        feat_name : string or dict {}
-            The feature name under which we should save the added properties
-            (ignored if contains_vector_features=False and the col names of
-            the dataframe are treated as corresponding feature names)
         canonical_etype : string
             The edge type to be added. This should follow the string format
             '(src_type),(edge_type),(dst_type)'
             If not specified, the type of properties will be added as
             an empty string.
+        feat_name : string or dict {}
+            The feature name under which we should save the added properties
+            (ignored if contains_vector_features=False and the col names of
+            the dataframe are treated as corresponding feature names)
         contains_vector_features : False
             Wether to treat the columns of the dataframe being added as
             as 2d features
