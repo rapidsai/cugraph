@@ -1,51 +1,41 @@
-import cugraph
 from cugraph.utilities.utils import MissingModule, import_optional
 from cugraph.gnn.pyg_extensions.loader.dispatch import call_cugraph_algorithm
-from cugraph.gnn.pyg_extensions.data import CuGraphStore
 
 import cudf
 import cupy
 
-import_optional('dask_cudf')
+dask_cudf = import_optional("dask_cudf")
 
 
 class EXPERIMENTAL__CuGraphSampler:
-    '''
+    """
     Duck-typed version of PyG's BaseSampler
-    '''
+    """
 
-    UNIFORM_NEIGHBOR = 'uniform_neighbor'
+    UNIFORM_NEIGHBOR = "uniform_neighbor"
     SAMPLING_METHODS = [
         UNIFORM_NEIGHBOR,
     ]
 
     def __init__(self, data, method=UNIFORM_NEIGHBOR, **kwargs):
         if method not in self.SAMPLING_METHODS:
-            raise ValueError(f'{method} is not a valid sampling method')
+            raise ValueError(f"{method} is not a valid sampling method")
         self.__method = method
         self.__sampling_args = kwargs
 
         fs, gs = data
-        
-        if not isinstance(fs, CuGraphStore):
-            raise TypeError('Feature store must be a CuGraphStore')
-        if not isinstance(gs, CuGraphStore):
-            raise TypeError('GraphStore must be a CuGraphStore')
         self.__feature_store = fs
         self.__graph_store = gs
 
     def sample_from_nodes(self, index):
-        '''
+        """
         index: input node tensor
-        '''
+        """
         if self.__method == self.UNIFORM_NEIGHBOR:
-            self.__neighbor_sample(
-                index,
-                **self.__sampling_args
-            )
+            return self.__neighbor_sample(index, **self.__sampling_args)
 
     def sample_from_edges(self, index):
-        raise NotImplementedError('Edge sampling currently unsupported')
+        raise NotImplementedError("Edge sampling currently unsupported")
 
     @property
     def method(self):
@@ -54,46 +44,46 @@ class EXPERIMENTAL__CuGraphSampler:
     @property
     def edge_permutation(self):
         return None
-    
-    '''
+
+    """
     SAMPLER IMPLEMENTATIONS
-    '''
+    """
 
     def __neighbor_sample(
-            self,
-            index,
-            num_neighbors,
-            replace,
-            directed=True,
-            edge_types=None,
-            **kwargs):
+        self, index, num_neighbors, replace, directed=True, edge_types=None, **kwargs
+    ):
         is_mg = self.__graph_store.is_mg
         if is_mg and dask_cudf == MissingModule:
-            raise ImportError('Cannot use a multi-GPU store without dask_cudf')
+            raise ImportError("Cannot use a multi-GPU store without dask_cudf")
         if is_mg != self.__feature_store.is_mg:
-            raise ValueError(f'Graph store multi-GPU is {is_mg}'
-                             f' but feature store multi-GPU is '
-                             f'{self.__feature_store.is_mg}')
+            raise ValueError(
+                f"Graph store multi-GPU is {is_mg}"
+                f" but feature store multi-GPU is "
+                f"{self.__feature_store.is_mg}"
+            )
 
         backend = self.__graph_store.backend
         if backend != self.__feature_store.backend:
-            raise ValueError(f'Graph store backend {backend}'
-                             f'does not match feature store '
-                             f'backend {self.__feature_store.backend}')
-        
+            raise ValueError(
+                f"Graph store backend {backend}"
+                f"does not match feature store "
+                f"backend {self.__feature_store.backend}"
+            )
+
         if not directed:
-            raise ValueError('Undirected sampling not currently supported')
-        
+            raise ValueError("Undirected sampling not currently supported")
+
         if edge_types is None:
-            edge_types = [attr.edge_type 
-                          for attr in self.__graph_store.get_all_edge_attrs]
+            edge_types = [
+                attr.edge_type for attr in self.__graph_store.get_all_edge_attrs
+            ]
 
         if isinstance(num_neighbors, dict):
             # FIXME support variable num neighbors per edge type
             num_neighbors = list(num_neighbors.values())[0]
 
         # FIXME eventually get uniform neighbor sample to accept longs
-        if backend == 'torch' and not index.is_cuda:
+        if backend == "torch" and not index.is_cuda:
             index = index.cuda()
         index = cupy.from_dlpack(index.__dlpack__())
 
@@ -103,13 +93,13 @@ class EXPERIMENTAL__CuGraphSampler:
         index = cudf.Series(index)
 
         sampling_results = call_cugraph_algorithm(
-                'uniform_neighbor_sample',
-                G,
-                index,
-                # conversion required by cugraph api
-                list(num_neighbors),
-                replace
-            )
+            "uniform_neighbor_sample",
+            G,
+            index,
+            # conversion required by cugraph api
+            list(num_neighbors),
+            replace,
+        )
 
         concat_fn = dask_cudf.concat if is_mg else cudf.concat
 
@@ -122,17 +112,18 @@ class EXPERIMENTAL__CuGraphSampler:
 
         # Get the node index (for creating the edge index),
         # the node type groupings, and the node properties.
-        noi_index, noi_groups, noi_tensors = (
-            self.__feature_store._get_renumbered_vertex_data_from_sample(
-                nodes_of_interest
-            )
+        (
+            noi_index,
+            noi_groups,
+            noi_tensors,
+        ) = self.__feature_store._get_renumbered_vertex_data_from_sample(
+            nodes_of_interest
         )
 
         # Get the new edge index (by type as expected for HeteroData)
         # FIXME handle edge ids
         row_dict, col_dict = self.__graph_store._get_renumbered_edges_from_sample(
-            sampling_results,
-            noi_index
+            sampling_results, noi_index
         )
 
         return (noi_groups, row_dict, col_dict, noi_tensors)

@@ -18,12 +18,8 @@ from collections import OrderedDict
 
 
 def EXPERIMENTAL__find_bicliques(
-        df, k,
-        offset=0,
-        max_iter=-1,
-        support=1.0,
-        min_features=1,
-        min_machines=10):
+    df, k, offset=0, max_iter=-1, support=1.0, min_features=1, min_machines=10
+):
     """
     Find the top k maximal bicliques
 
@@ -65,19 +61,19 @@ def EXPERIMENTAL__find_bicliques(
     PART_SIZE = int(1000)
 
     x = [col for col in df.columns]
-    if 'src' not in x:
-        raise NameError('src column not found')
-    if 'dst' not in x:
-        raise NameError('dst column not found')
-    if 'flag' not in x:
-        raise NameError('flag column not found')
+    if "src" not in x:
+        raise NameError("src column not found")
+    if "dst" not in x:
+        raise NameError("dst column not found")
+    if "flag" not in x:
+        raise NameError("flag column not found")
 
     if support > 1.0 or support < 0.1:
-        raise NameError('support must be between 0.1 and 1.0')
+        raise NameError("support must be between 0.1 and 1.0")
 
     # this removes a prep step that offset the values for CUDA process
     if offset > 0:
-        df['dst'] = df['dst'] - offset
+        df["dst"] = df["dst"] - offset
 
     # break the data into chunks to improve join/search performance
     src_by_dst, num_parts = _partition_data_by_feature(df, PART_SIZE)
@@ -105,11 +101,11 @@ def EXPERIMENTAL__find_bicliques(
     for i in range(iter_max):
 
         # pop the next feature to process
-        feature = f_list['dst'][i]
-        degree = f_list['count'][i]
+        feature = f_list["dst"][i]
+        degree = f_list["count"][i]
 
         # compute the index to this item (which dataframe chunk is in)
-        idx = int(feature/PART_SIZE)
+        idx = int(feature / PART_SIZE)
 
         # get all machines that have this feature
         machines = get_src_from_dst(src_by_dst[idx], feature)
@@ -126,13 +122,14 @@ def EXPERIMENTAL__find_bicliques(
             goal = int(degree * support)  # NOQA
 
             # only get dst nodes with the same degree
-            c = ic.query('count >= @goal')
+            c = ic.query("count >= @goal")
 
             # need more than X feature to make a biclique
             if len(c) > min_features:
                 if len(machines) >= min_machines:
                     bicliques, stats = update_results(
-                            machines, c, answer_id, bicliques, stats)
+                        machines, c, answer_id, bicliques, stats
+                    )
 
                     answer_id = answer_id + 1
 
@@ -148,7 +145,7 @@ def EXPERIMENTAL__find_bicliques(
 
     # All done, reset data
     if offset > 0:
-        df['dst'] = df['dst'] + offset
+        df["dst"] = df["dst"] + offset
 
     return bicliques, stats
 
@@ -156,7 +153,7 @@ def EXPERIMENTAL__find_bicliques(
 def _partition_data_by_feature(_df, PART_SIZE):
 
     # compute the number of sets
-    m = int((_df['dst'].max() / PART_SIZE) + 1)
+    m = int((_df["dst"].max() / PART_SIZE) + 1)
 
     _ui = [None] * (m + 1)
 
@@ -165,7 +162,7 @@ def _partition_data_by_feature(_df, PART_SIZE):
     e = s + PART_SIZE
 
     for i in range(m):
-        _ui[i] = _df.query('dst >= @s and dst < @e')
+        _ui[i] = _df.query("dst >= @s and dst < @e")
 
         s = e
         e = e + PART_SIZE
@@ -176,14 +173,14 @@ def _partition_data_by_feature(_df, PART_SIZE):
 def _count_features(_gdf, sort=True):
 
     aggs = OrderedDict()
-    aggs['dst'] = 'count'
+    aggs["dst"] = "count"
 
-    c = _gdf.groupby(['dst'], as_index=False).agg(aggs)
+    c = _gdf.groupby(["dst"], as_index=False).agg(aggs)
 
-    c = c.rename(columns={'count_dst': 'count'}, copy=False)
+    c = c.rename(columns={"count_dst": "count"}, copy=False)
 
-    if (sort):
-        c = c.sort_values(by='count', ascending=False)
+    if sort:
+        c = c.sort_values(by="count", ascending=False)
 
     return c
 
@@ -191,9 +188,9 @@ def _count_features(_gdf, sort=True):
 # get all src vertices for a given dst
 def get_src_from_dst(_gdf, id):
 
-    _src_list = (_gdf.query('dst == @id'))
+    _src_list = _gdf.query("dst == @id")
 
-    _src_list.drop('dst', inplace=True)
+    _src_list.drop("dst", inplace=True)
 
     return _src_list
 
@@ -201,10 +198,10 @@ def get_src_from_dst(_gdf, id):
 def is_same_as_last(_old, _new):
     status = False
 
-    if (len(_old) == len(_new)):
-        m = _old.merge(_new, on='src', how="left")
+    if len(_old) == len(_new):
+        m = _old.merge(_new, on="src", how="left")
 
-        if m['src'].null_count == 0:
+        if m["src"].null_count == 0:
             status = True
 
     return status
@@ -216,7 +213,7 @@ def get_all_feature(_gdf, src_list_df, N):
     c = [None] * N
 
     for i in range(N):
-        c[i] = src_list_df.merge(_gdf[i], on='src', how="inner")
+        c[i] = src_list_df.merge(_gdf[i], on="src", how="inner")
 
     return cudf.concat(c)
 
@@ -256,14 +253,14 @@ def update_results(m, f, key, b, s):
     S = cudf.DataFrame()
 
     m_df = cudf.DataFrame()
-    m_df['vert'] = m['src']
-    m_df['id'] = int(key)
-    m_df['type'] = int(0)
+    m_df["vert"] = m["src"]
+    m_df["id"] = int(key)
+    m_df["type"] = int(0)
 
     f_df = cudf.DataFrame()
-    f_df['vert'] = f['dst'].astype(np.int32)
-    f_df['id'] = int(key)
-    f_df['type'] = int(1)
+    f_df["vert"] = f["dst"].astype(np.int32)
+    f_df["id"] = int(key)
+    f_df["type"] = int(1)
 
     if len(b) == 0:
         B = cudf.concat([m_df, f_df])
@@ -275,16 +272,16 @@ def update_results(m, f, key, b, s):
     num_f = len(f_df)
     total = num_m + num_f
 
-    num_bad = len(m.query('flag == 1'))
+    num_bad = len(m.query("flag == 1"))
     ratio = num_bad / total
 
     # now stats
     s_tmp = cudf.DataFrame()
-    s_tmp['id'] = key
-    s_tmp['total'] = total
-    s_tmp['machines'] = num_m
-    s_tmp['features'] = num_f
-    s_tmp['bad_ratio'] = ratio
+    s_tmp["id"] = key
+    s_tmp["total"] = total
+    s_tmp["machines"] = num_m
+    s_tmp["features"] = num_f
+    s_tmp["bad_ratio"] = ratio
 
     if len(s) == 0:
         S = s_tmp

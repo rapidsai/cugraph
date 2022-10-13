@@ -1,26 +1,20 @@
-import cugraph
-from cugraph.structure.graph_implementation import simpleDistributedGraph, simpleGraph
+from cugraph.structure.graph_implementation import (
+    simpleDistributedGraphImpl,
+    simpleGraphImpl,
+)
 
-def call_cugraph_algorithm(
-    name,
-    graph,
-    *args,
-    **kwargs
-):
+
+def call_cugraph_algorithm(name, graph, *args, **kwargs):
     # TODO check using graph property in a future PR
-    if isinstance(graph._Impl, simpleDistributedGraph):
+    if isinstance(graph._Impl, simpleDistributedGraphImpl):
         import cugraph.dask
-        getattr(cugraph.dask, name)(
-            *args,
-            **kwargs
-        )
+
+        return getattr(cugraph.dask, name)(graph, *args, **kwargs)
 
     # TODO check using graph property in a future PR
-    elif isinstance(graph._Impl, simpleGraph):
+    elif isinstance(graph._Impl, simpleGraphImpl):
         import cugraph
-        getattr(cugraph, name)(
-            *args,
-            **kwargs
-        )
+
+        return getattr(cugraph, name)(graph, *args, **kwargs)
 
     # TODO Properly dispatch for cugraph-service.

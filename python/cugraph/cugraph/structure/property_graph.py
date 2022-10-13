@@ -260,12 +260,15 @@ class EXPERIMENTAL__PropertyGraph:
                 return self.__num_vertices
             self.__num_vertices = 0
             vert_sers = self.__get_all_vertices_series()
-            print('vs:', vert_sers)
             if vert_sers:
                 if self.__series_type is cudf.Series:
-                    self.__num_vertices = cudf.concat(vert_sers).nunique()
+                    self.__num_vertices = cudf.concat(
+                        vert_sers, ignore_index=True
+                    ).nunique()
                 else:
-                    self.__num_vertices = pd.concat(vert_sers).nunique()
+                    self.__num_vertices = pd.concat(
+                        vert_sers, ignore_index=True
+                    ).nunique()
             return self.__num_vertices
 
         value_counts = self._vertex_type_value_counts
@@ -313,9 +316,13 @@ class EXPERIMENTAL__PropertyGraph:
         vert_sers = self.__get_all_vertices_series()
         if vert_sers:
             if self.__series_type is cudf.Series:
-                return self.__series_type(cudf.concat(vert_sers).unique())
+                return self.__series_type(
+                    cudf.concat(vert_sers, ignore_index=True).unique()
+                )
             else:
-                return self.__series_type(pd.concat(vert_sers).unique())
+                return self.__series_type(
+                    pd.concat(vert_sers, ignore_index=True).unique()
+                )
         return self.__series_type()
 
     def vertices_ids(self):
@@ -1327,6 +1334,11 @@ class EXPERIMENTAL__PropertyGraph:
         if epd is not None:
             vert_sers.append(epd[self.src_col_name])
             vert_sers.append(epd[self.dst_col_name])
+        if len(vert_sers) > 1 and not all(
+            cudf.api.types.is_dtype_equal(vert_sers[0].index.dtype, s.index.dtype)
+            for s in vert_sers
+        ):
+            vert_sers = [s.reset_index(drop=True) for s in vert_sers]
         return vert_sers
 
     @staticmethod

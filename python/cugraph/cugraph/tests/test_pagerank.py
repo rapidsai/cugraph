@@ -48,8 +48,7 @@ def cudify(d):
     return cuD
 
 
-def cugraph_call(G, max_iter, tol, alpha, personalization,
-                 nstart, pre_vtx_o_wgt):
+def cugraph_call(G, max_iter, tol, alpha, personalization, nstart, pre_vtx_o_wgt):
     # cugraph Pagerank Call
     t1 = time.time()
     df = cugraph.pagerank(
@@ -101,9 +100,7 @@ def networkx_call(Gnx, max_iter, tol, alpha, personalization_perc, nnz_vtx):
     personalization = None
     if personalization_perc != 0:
         personalization = {}
-        personalization_count = int(
-            (nnz_vtx.size * personalization_perc) / 100.0
-        )
+        personalization_count = int((nnz_vtx.size * personalization_perc) / 100.0)
         nnz_vtx = np.random.choice(
             nnz_vtx, min(nnz_vtx.size, personalization_count), replace=False
         )
@@ -168,17 +165,21 @@ def setup_function():
 @pytest.mark.parametrize("has_guess", HAS_GUESS)
 @pytest.mark.parametrize("has_precomputed_vertex_out_weight", HAS_PRECOMPUTED)
 def test_pagerank(
-    graph_file, max_iter, tol, alpha, personalization_perc, has_guess,
-    has_precomputed_vertex_out_weight
+    graph_file,
+    max_iter,
+    tol,
+    alpha,
+    personalization_perc,
+    has_guess,
+    has_precomputed_vertex_out_weight,
 ):
 
     # NetworkX PageRank
     dataset_path = graph_file.get_path()
     M = utils.read_csv_for_nx(dataset_path)
-    nnz_vtx = np.unique(M[['0', '1']])
+    nnz_vtx = np.unique(M[["0", "1"]])
     Gnx = nx.from_pandas_edgelist(
-        M, source="0", target="1", edge_attr="weight",
-        create_using=nx.DiGraph()
+        M, source="0", target="1", edge_attr="weight", create_using=nx.DiGraph()
     )
 
     networkx_pr, networkx_prsn = networkx_call(
@@ -197,13 +198,15 @@ def test_pagerank(
 
     if has_precomputed_vertex_out_weight == 1:
         df = G.view_edge_list()[["src", "weights"]]
-        pre_vtx_o_wgt = df.groupby(
-            ['src'], as_index=False).sum().rename(
-                columns={"src": "vertex", "weights": "sums"})
+        pre_vtx_o_wgt = (
+            df.groupby(["src"], as_index=False)
+            .sum()
+            .rename(columns={"src": "vertex", "weights": "sums"})
+        )
 
     cugraph_pr = cugraph_call(
-        G, max_iter, tol, alpha, cu_prsn, cu_nstart,
-        pre_vtx_o_wgt)
+        G, max_iter, tol, alpha, cu_prsn, cu_nstart, pre_vtx_o_wgt
+    )
 
     # Calculating mismatch
     networkx_pr = sorted(networkx_pr.items(), key=lambda x: x[0])
@@ -225,17 +228,13 @@ def test_pagerank(
 @pytest.mark.parametrize("alpha", ALPHA)
 @pytest.mark.parametrize("personalization_perc", PERSONALIZATION_PERC)
 @pytest.mark.parametrize("has_guess", HAS_GUESS)
-def test_pagerank_nx(
-    graph_file, max_iter, tol, alpha, personalization_perc, has_guess
-):
+def test_pagerank_nx(graph_file, max_iter, tol, alpha, personalization_perc, has_guess):
 
     # NetworkX PageRank
     dataset_path = graph_file.get_path()
     M = utils.read_csv_for_nx(dataset_path)
-    nnz_vtx = np.unique(M[['0', '1']])
-    Gnx = nx.from_pandas_edgelist(
-        M, source="0", target="1", create_using=nx.DiGraph()
-    )
+    nnz_vtx = np.unique(M[["0", "1"]])
+    Gnx = nx.from_pandas_edgelist(M, source="0", target="1", create_using=nx.DiGraph())
 
     networkx_pr, networkx_prsn = networkx_call(
         Gnx, max_iter, tol, alpha, personalization_perc, nnz_vtx
@@ -275,18 +274,22 @@ def test_pagerank_nx(
 @pytest.mark.parametrize("has_guess", HAS_GUESS)
 @pytest.mark.parametrize("has_precomputed_vertex_out_weight", HAS_PRECOMPUTED)
 def test_pagerank_multi_column(
-    graph_file, max_iter, tol, alpha, personalization_perc, has_guess,
-    has_precomputed_vertex_out_weight
+    graph_file,
+    max_iter,
+    tol,
+    alpha,
+    personalization_perc,
+    has_guess,
+    has_precomputed_vertex_out_weight,
 ):
 
     # NetworkX PageRank
     dataset_path = graph_file.get_path()
     M = utils.read_csv_for_nx(dataset_path)
-    nnz_vtx = np.unique(M[['0', '1']])
+    nnz_vtx = np.unique(M[["0", "1"]])
 
     Gnx = nx.from_pandas_edgelist(
-        M, source="0", target="1", edge_attr="weight",
-        create_using=nx.DiGraph()
+        M, source="0", target="1", edge_attr="weight", create_using=nx.DiGraph()
     )
 
     networkx_pr, networkx_prsn = networkx_call(
@@ -320,15 +323,21 @@ def test_pagerank_multi_column(
     cu_M["weights"] = cudf.Series(M["weight"])
 
     cu_G = cugraph.Graph(directed=True)
-    cu_G.from_cudf_edgelist(cu_M, source=["src_0", "src_1"],
-                            destination=["dst_0", "dst_1"],
-                            edge_attr="weights", store_transposed=True)
+    cu_G.from_cudf_edgelist(
+        cu_M,
+        source=["src_0", "src_1"],
+        destination=["dst_0", "dst_1"],
+        edge_attr="weights",
+        store_transposed=True,
+    )
 
     if has_precomputed_vertex_out_weight == 1:
         df = cu_M[["src_0", "src_1", "weights"]]
-        pre_vtx_o_wgt = df.groupby(
-            ['src_0', "src_1"], as_index=False).sum().rename(
-                columns={"weights": "sums"})
+        pre_vtx_o_wgt = (
+            df.groupby(["src_0", "src_1"], as_index=False)
+            .sum()
+            .rename(columns={"weights": "sums"})
+        )
 
     df = cugraph.pagerank(
         cu_G,
@@ -337,7 +346,7 @@ def test_pagerank_multi_column(
         tol=tol,
         personalization=cu_prsn,
         nstart=cu_nstart,
-        precomputed_vertex_out_weight=pre_vtx_o_wgt
+        precomputed_vertex_out_weight=pre_vtx_o_wgt,
     )
 
     cugraph_pr = []
@@ -372,17 +381,22 @@ def test_pagerank_invalid_personalization_dtype():
 
     cu_M["weights"] = cudf.Series(M["weight"])
     G.from_cudf_edgelist(
-        cu_M, source="src", destination="dst", edge_attr="weights",
-        store_transposed=True
+        cu_M,
+        source="src",
+        destination="dst",
+        edge_attr="weights",
+        store_transposed=True,
     )
 
     personalization_vec = cudf.DataFrame()
-    personalization_vec['vertex'] = [17, 26]
-    personalization_vec['values'] = [0.5, 0.75]
-    warning_msg = ("PageRank requires 'personalization' values to match the "
-                   "graph's 'edge_attr' type. edge_attr type is: "
-                   "float32 and got 'personalization' values "
-                   "of type: float64.")
+    personalization_vec["vertex"] = [17, 26]
+    personalization_vec["values"] = [0.5, 0.75]
+    warning_msg = (
+        "PageRank requires 'personalization' values to match the "
+        "graph's 'edge_attr' type. edge_attr type is: "
+        "float32 and got 'personalization' values "
+        "of type: float64."
+    )
 
     with pytest.warns(UserWarning, match=warning_msg):
         cugraph.pagerank(G, personalization=personalization_vec)
@@ -390,9 +404,11 @@ def test_pagerank_invalid_personalization_dtype():
 
 def test_pagerank_transposed_false():
     G = karate.get_graph(create_using=cugraph.Graph(directed=True))
-    warning_msg = ("Pagerank expects the 'store_transposed' "
-                   "flag to be set to 'True' for optimal performance during "
-                   "the graph creation")
+    warning_msg = (
+        "Pagerank expects the 'store_transposed' "
+        "flag to be set to 'True' for optimal performance during "
+        "the graph creation"
+    )
 
     with pytest.warns(UserWarning, match=warning_msg):
         cugraph.pagerank(G)

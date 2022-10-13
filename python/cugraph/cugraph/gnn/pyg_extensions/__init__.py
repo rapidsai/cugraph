@@ -12,3 +12,5 @@
 # limitations under the License.
 
 from cugraph.gnn.pyg_extensions.data import to_pyg
+from cugraph.gnn.pyg_extensions.data import CuGraphStore
+from cugraph.gnn.pyg_extensions.sampler import CuGraphSampler
