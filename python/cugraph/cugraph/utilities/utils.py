@@ -54,6 +54,7 @@ scipy_package = sp
 
 try:
     import networkx as nx
+
     __nx_graph_types = [nx.Graph, nx.DiGraph]
 except ModuleNotFoundError:
     nx = None
@@ -112,9 +113,8 @@ def get_traversed_path(df, id):
             "DataFrame does not appear to be a BFS or "
             "SSP result - 'predecessor' column missing"
         )
-    if isinstance(id, type(df['vertex'].iloc[0])):
-        raise ValueError(
-            "The vertex 'id' needs to be the same as df['vertex']")
+    if isinstance(id, type(df["vertex"].iloc[0])):
+        raise ValueError("The vertex 'id' needs to be the same as df['vertex']")
 
     # There is no guarantee that the dataframe has not been filtered
     # or edited.  Therefore we cannot assume that using the vertex ID
@@ -180,9 +180,8 @@ def get_traversed_path_list(df, id):
             "DataFrame does not appear to be a BFS or "
             "SSP result - 'predecessor' column missing"
         )
-    if isinstance(id, type(df['vertex'].iloc[0])):
-        raise ValueError(
-            "The vertex 'id' needs to be the same as df['vertex']")
+    if isinstance(id, type(df["vertex"].iloc[0])):
+        raise ValueError("The vertex 'id' needs to be the same as df['vertex']")
 
     # There is no guarantee that the dataframe has not been filtered
     # or edited.  Therefore we cannot assume that using the vertex ID
@@ -272,8 +271,7 @@ def ensure_cugraph_obj(obj, nx_weight_attr=None, matrix_graph_type=None):
     elif is_nx_graph_type(input_type):
         return (convert_from_nx(obj, weight=nx_weight_attr), input_type)
 
-    elif (input_type in __cp_matrix_types) or \
-         (input_type in __sp_matrix_types):
+    elif (input_type in __cp_matrix_types) or (input_type in __sp_matrix_types):
         if matrix_graph_type is None:
             matrix_graph_type = Graph
         elif matrix_graph_type not in [Graph]:
@@ -282,9 +280,7 @@ def ensure_cugraph_obj(obj, nx_weight_attr=None, matrix_graph_type=None):
                     f"matrix_graph_type must be either a cugraph "
                     f"Graph, got: {matrix_graph_type}"
                 )
-        if input_type in (
-            __cp_compressed_matrix_types + __sp_compressed_matrix_types
-        ):
+        if input_type in (__cp_compressed_matrix_types + __sp_compressed_matrix_types):
             coo = obj.tocoo(copy=False)
         else:
             coo = obj
@@ -340,8 +336,10 @@ def ensure_cugraph_obj_for_nx(obj, nx_weight_attr="weight",
     elif is_cugraph_graph_type(input_type):
         return (obj, False)
     else:
-        raise TypeError("input must be either a cuGraph or NetworkX graph "
-                        f"type, got {input_type}")
+        raise TypeError(
+            "input must be either a cuGraph or NetworkX graph "
+            f"type, got {input_type}"
+        )
 
 
 def is_cp_matrix_type(m):
@@ -363,6 +361,7 @@ def is_nx_graph_type(g):
 def is_cugraph_graph_type(g):
     # FIXME: importing here to avoid circular import
     from cugraph.structure import Graph, DiGraph, MultiGraph, MultiDiGraph
+
     # FIXME: Remove DiGraph when support is dropped
     return g in [Graph, DiGraph, MultiGraph, MultiDiGraph]
 
@@ -373,9 +372,7 @@ def renumber_vertex_pair(input_graph, vertex_pair):
     if vertex_size == 1:
         for col in vertex_pair.columns:
             if input_graph.renumbered:
-                vertex_pair = input_graph.add_internal_vertex_id(
-                    vertex_pair, col, col
-                )
+                vertex_pair = input_graph.add_internal_vertex_id(vertex_pair, col, col)
     else:
         if input_graph.renumbered:
             vertex_pair = input_graph.add_internal_vertex_id(
@@ -396,12 +393,12 @@ class MissingModule:
     cannot be found, which allows for code to import optional dependencies, and
     have only the code paths that use the module affected.
     """
+
     def __init__(self, mod_name):
         self.name = mod_name
 
     def __getattr__(self, attr):
-        raise RuntimeError(f"This feature requires the {self.name} "
-                           "package/module")
+        raise RuntimeError(f"This feature requires the {self.name} " "package/module")
 
 
 def import_optional(mod, default_mod_class=MissingModule):
@@ -457,28 +454,26 @@ def create_random_bipartite(v1, v2, size, dtype):
     from cugraph.structure import Graph
 
     df1 = cudf.DataFrame()
-    df1['src'] = cudf.Series(range(0, v1, 1))
-    df1['key'] = 1
+    df1["src"] = cudf.Series(range(0, v1, 1))
+    df1["key"] = 1
 
     df2 = cudf.DataFrame()
-    df2['dst'] = cudf.Series(range(v1, v1+v2, 1))
-    df2['key'] = 1
+    df2["dst"] = cudf.Series(range(v1, v1 + v2, 1))
+    df2["key"] = 1
 
-    edges = df1.merge(df2, on='key')[['src', 'dst']]
-    edges = edges.sort_values(['src', 'dst']).reset_index()
+    edges = df1.merge(df2, on="key")[["src", "dst"]]
+    edges = edges.sort_values(["src", "dst"]).reset_index()
 
     # Generate edge weights
     a = np.random.randint(1, high=size, size=(v1, v2)).astype(dtype)
-    edges['weight'] = a.flatten()
+    edges["weight"] = a.flatten()
 
     g = Graph()
-    g.from_cudf_edgelist(edges,
-                         source='src',
-                         destination='dst',
-                         edge_attr='weight',
-                         renumber=False)
+    g.from_cudf_edgelist(
+        edges, source="src", destination="dst", edge_attr="weight", renumber=False
+    )
 
-    return df1['src'], g, a
+    return df1["src"], g, a
 
 
 def sample_groups(df, by, n_samples):

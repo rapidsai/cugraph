@@ -50,16 +50,16 @@ def _get_param_args(param_name, param_values):
     as the args to pytest.mark.parametrize(). The pytest.param list also
     contains param id string formed from the param name and values.
     """
-    return (param_name,
-            [pytest.param(v, id=f"{param_name}={v}") for v in param_values])
+    return (param_name, [pytest.param(v, id=f"{param_name}={v}") for v in param_values])
 
 
 @pytest.mark.parametrize("graph_file", DATASETS_UNDIRECTED_WEIGHTS)
 def test_minimum_spanning_tree_nx(graph_file):
     # cugraph
     G = graph_file.get_graph()
-    G.edgelist.edgelist_df['weights'] = \
-        G.edgelist.edgelist_df['weights'].astype("float64")
+    G.edgelist.edgelist_df["weights"] = G.edgelist.edgelist_df["weights"].astype(
+        "float64"
+    )
     # Just for getting relevant timing
     G.view_adj_list()
     t1 = time.time()
@@ -86,8 +86,9 @@ def test_minimum_spanning_tree_nx(graph_file):
 def test_minimum_spanning_tree_graph_repr_compat(graph_file, use_adjlist):
     G = graph_file.get_graph()
     # read_weights_in_sp=False => value column dtype is float64
-    G.edgelist.edgelist_df['weights'] = \
-        G.edgelist.edgelist_df['weights'].astype("float64")
+    G.edgelist.edgelist_df["weights"] = G.edgelist.edgelist_df["weights"].astype(
+        "float64"
+    )
     if use_adjlist:
         G.view_adj_list()
     cugraph.minimum_spanning_tree(G)
@@ -115,9 +116,7 @@ def test_random_minimum_spanning_tree_nx(graph_size):
     gdf = cudf.from_pandas(df)
     # cugraph
     G = cugraph.Graph()
-    G.from_cudf_edgelist(
-        gdf, source="src", destination="dst", edge_attr="weight"
-    )
+    G.from_cudf_edgelist(gdf, source="src", destination="dst", edge_attr="weight")
     # Just for getting relevant timing
     G.view_adj_list()
     t1 = time.time()

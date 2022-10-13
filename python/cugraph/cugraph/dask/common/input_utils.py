@@ -20,9 +20,11 @@ from dask_cudf.core import DataFrame as dcDataFrame
 from dask_cudf.core import Series as daskSeries
 
 import cugraph.dask.comms.comms as Comms
+
 # FIXME: this raft import breaks the library if ucx-py is
 # not available. They are necessary only when doing MG work.
 from cugraph.dask.common.read_utils import MissingUCXPy
+
 try:
     from raft_dask.common.utils import get_client
 except ImportError as err:
@@ -55,8 +57,9 @@ class DistributedDataHandler:
 
     """
 
-    def __init__(self, gpu_futures=None, workers=None,
-                 datatype=None, multiple=False, client=None):
+    def __init__(
+        self, gpu_futures=None, workers=None, datatype=None, multiple=False, client=None
+    ):
         self.client = get_client(client)
         self.gpu_futures = gpu_futures
         self.worker_to_parts = _workers_to_parts(gpu_futures)
@@ -95,18 +98,22 @@ class DistributedDataHandler:
 
         multiple = isinstance(data, Sequence)
 
-        if isinstance(first(data) if multiple else data,
-                      (dcDataFrame, daskSeries)):
-            datatype = 'cudf'
+        if isinstance(first(data) if multiple else data, (dcDataFrame, daskSeries)):
+            datatype = "cudf"
         else:
             raise Exception("Graph data must be dask-cudf dataframe")
 
         gpu_futures = client.sync(
-            _extract_partitions, data, client, batch_enabled=batch_enabled)
+            _extract_partitions, data, client, batch_enabled=batch_enabled
+        )
         workers = tuple(OrderedDict.fromkeys(map(lambda x: x[0], gpu_futures)))
-        return DistributedDataHandler(gpu_futures=gpu_futures, workers=workers,
-                                      datatype=datatype, multiple=multiple,
-                                      client=client)
+        return DistributedDataHandler(
+            gpu_futures=gpu_futures,
+            workers=workers,
+            datatype=datatype,
+            multiple=multiple,
+            client=client,
+        )
 
     """ Methods to calculate further attributes """
 
@@ -127,20 +134,21 @@ class DistributedDataHandler:
 
         self.parts_to_sizes = dict()
 
-        parts = [(wf[0], self.client.submit(
-            _get_rows,
-            wf[1],
-            self.multiple,
-            workers=[wf[0]],
-            pure=False))
-            for idx, wf in enumerate(self.worker_to_parts.items())]
+        parts = [
+            (
+                wf[0],
+                self.client.submit(
+                    _get_rows, wf[1], self.multiple, workers=[wf[0]], pure=False
+                ),
+            )
+            for idx, wf in enumerate(self.worker_to_parts.items())
+        ]
 
         sizes = self.client.compute(parts, sync=True)
 
         for w, sizes_parts in sizes:
             sizes, total = sizes_parts
-            self.parts_to_sizes[self.worker_info[w]["rank"]] = \
-                sizes
+            self.parts_to_sizes[self.worker_info[w]["rank"]] = sizes
 
             self.total_rows += total
 
@@ -149,38 +157,39 @@ class DistributedDataHandler:
         if self.worker_info is None and comms is not None:
             self.calculate_worker_and_rank_info(comms)
 
-        local_data = dict([(self.worker_info[wf[0]]["rank"],
-                            self.client.submit(
-                            _get_local_data,
-                            wf[1],
-                            by,
-                            workers=[wf[0]]))
-                          for idx, wf in enumerate(self.worker_to_parts.items()
-                                                   )])
+        local_data = dict(
+            [
+                (
+                    self.worker_info[wf[0]]["rank"],
+                    self.client.submit(_get_local_data, wf[1], by, workers=[wf[0]]),
+                )
+                for idx, wf in enumerate(self.worker_to_parts.items())
+            ]
+        )
 
         _local_data_dict = self.client.compute(local_data, sync=True)
-        local_data_dict = {'edges': [], 'offsets': [], 'verts': []}
+        local_data_dict = {"edges": [], "offsets": [], "verts": []}
         max_vid = 0
         for rank in range(len(_local_data_dict)):
             data = _local_data_dict[rank]
-            local_data_dict['edges'].append(data[0])
+            local_data_dict["edges"].append(data[0])
             if rank == 0:
                 local_offset = 0
             else:
-                prev_data = _local_data_dict[rank-1]
+                prev_data = _local_data_dict[rank - 1]
                 local_offset = prev_data[1] + 1
-            local_data_dict['offsets'].append(local_offset)
-            local_data_dict['verts'].append(data[1] - local_offset + 1)
+            local_data_dict["offsets"].append(local_offset)
+            local_data_dict["verts"].append(data[1] - local_offset + 1)
             if data[2] > max_vid:
                 max_vid = data[2]
 
         import numpy as np
-        local_data_dict['edges'] = np.array(local_data_dict['edges'],
-                                            dtype=np.int32)
-        local_data_dict['offsets'] = np.array(local_data_dict['offsets'],
-                                              dtype=np.int32)
-        local_data_dict['verts'] = np.array(local_data_dict['verts'],
-                                            dtype=np.int32)
+
+        local_data_dict["edges"] = np.array(local_data_dict["edges"], dtype=np.int32)
+        local_data_dict["offsets"] = np.array(
+            local_data_dict["offsets"], dtype=np.int32
+        )
+        local_data_dict["verts"] = np.array(local_data_dict["verts"], dtype=np.int32)
         self.local_data = local_data_dict
         self.max_vertex_id = max_vid
 
@@ -189,7 +198,7 @@ def _get_local_data(df, by):
     df = df[0]
     num_local_edges = len(df)
     local_by_max = df[by].iloc[-1]
-    local_max = df[['src', 'dst']].max().max()
+    local_max = df[["src", "dst"]].max().max()
     return num_local_edges, local_by_max, local_max
 
 
@@ -215,14 +224,17 @@ def _workers_to_parts(futures):
 
 
 def _get_rows(objs, multiple):
-    def get_obj(x): return x[0] if multiple else x
+    def get_obj(x):
+        return x[0] if multiple else x
+
     total = list(map(lambda x: get_obj(x).shape[0], objs))
     return total, reduce(lambda a, b: a + b, total)
 
 
 def get_mg_batch_data(dask_cudf_data, batch_enabled=False):
     data = DistributedDataHandler.create(
-        data=dask_cudf_data, batch_enabled=batch_enabled)
+        data=dask_cudf_data, batch_enabled=batch_enabled
+    )
     return data
 
 
@@ -237,13 +249,16 @@ def get_distributed_data(input_ddf):
 
 def get_vertex_partition_offsets(input_graph):
     import cudf
-    renumber_vertex_count = input_graph.renumber_map.implementation.ddf.\
-        map_partitions(len).compute()
+
+    renumber_vertex_count = input_graph.renumber_map.implementation.ddf.map_partitions(
+        len
+    ).compute()
     renumber_vertex_cumsum = renumber_vertex_count.cumsum()
     # Assume the input_graph edgelist was renumbered
     src_col_name = input_graph.renumber_map.renumbered_src_col_name
     vertex_dtype = input_graph.edgelist.edgelist_df[src_col_name].dtype
     vertex_partition_offsets = cudf.Series([0], dtype=vertex_dtype)
-    vertex_partition_offsets = vertex_partition_offsets.append(cudf.Series(
-        renumber_vertex_cumsum, dtype=vertex_dtype))
+    vertex_partition_offsets = vertex_partition_offsets.append(
+        cudf.Series(renumber_vertex_cumsum, dtype=vertex_dtype)
+    )
     return vertex_partition_offsets
