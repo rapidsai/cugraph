@@ -1,4 +1,4 @@
-# Copyright (c) 2018-2020, NVIDIA CORPORATION.
+# Copyright (c) 2018-2022, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -48,7 +48,7 @@ def consecutive_entries_per_row(M):
     # not to be mixed with the longest sequence or the number of sequences
     v = [0] * M.shape[0]
     for i in range(M.shape[0]):
-        v[i] = count_consecutive(M.indices[M.indptr[i]:M.indptr[i + 1]])
+        v[i] = count_consecutive(M.indices[M.indptr[i] : M.indptr[i + 1]])
     return np.array(v)
 
 

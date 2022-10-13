@@ -357,10 +357,6 @@ ConfigureTest(UNIFORM_NEIGHBOR_SAMPLING_TEST sampling/sg_uniform_neighbor_sampli
 target_link_libraries(UNIFORM_NEIGHBOR_SAMPLING_TEST PRIVATE cuco::cuco)
         
 ###################################################################################################
-# - Serialization tests ---------------------------------------------------------------------------
-ConfigureTest(SERIALIZATION_TEST serialization/un_serialize_test.cpp)
-
-###################################################################################################
 # - Renumber tests --------------------------------------------------------------------------------
 set(RENUMBERING_TEST_SRCS
     "${CMAKE_CURRENT_SOURCE_DIR}/structure/renumbering_test.cpp")
@@ -378,6 +374,10 @@ ConfigureTest(K_CORE_TEST cores/k_core_test.cpp)
 ###################################################################################################
 # - Triangle Count tests --------------------------------------------------------------------------
 ConfigureTest(TRIANGLE_COUNT_TEST community/triangle_count_test.cpp)
+
+###################################################################################################
+# - K-hop Neighbors tests -------------------------------------------------------------------------
+ConfigureTest(K_HOP_NBRS_TEST traversal/k_hop_nbrs_test.cpp)
 
 ###################################################################################################
 # - MG tests --------------------------------------------------------------------------------------
@@ -478,10 +478,6 @@ if(BUILD_CUGRAPH_MG_TESTS)
                     components/mg_weakly_connected_components_test.cpp)
 
     ###############################################################################################
-    # - MG GRAPH BROADCAST tests ------------------------------------------------------------------
-    ConfigureTestMG(MG_GRAPH_BROADCAST_TEST bcast/mg_graph_bcast.cpp)
-
-    ###############################################################################################
     # - MG Core Number tests ----------------------------------------------------------------------
     ConfigureTestMG(MG_CORE_NUMBER_TEST cores/mg_core_number_test.cpp)
 
@@ -558,14 +554,17 @@ if(BUILD_CUGRAPH_MG_TESTS)
     ConfigureTestMG(MG_UNIFORM_NEIGHBOR_SAMPLING_TEST sampling/mg_uniform_neighbor_sampling.cu)
     target_link_libraries(MG_UNIFORM_NEIGHBOR_SAMPLING_TEST PRIVATE cuco::cuco)
 
-    ###########################################################################################
-    # - RANDOM_WALKS tests --------------------------------------------------------------------
+    ###############################################################################################
+    # - MG RANDOM_WALKS tests ---------------------------------------------------------------------
     ConfigureTestMG(MG_RANDOM_WALKS_TEST sampling/mg_random_walks_test.cpp)
 
     ###############################################################################################
-    # - SIMILARITY tests --------------------------------------------------------------------------
+    # - MG SIMILARITY tests -----------------------------------------------------------------------
     ConfigureTestMG(MG_SIMILARITY_TEST link_prediction/mg_similarity_test.cpp)
 
+    ###############################################################################################
+    # - MG K_HOP_NBRS tests -----------------------------------------------------------------------
+    ConfigureTestMG(MG_K_HOP_NBRS_TEST traversal/mg_k_hop_nbrs_test.cpp)
 
     ###############################################################################################
     # - MG C API tests ----------------------------------------------------------------------------

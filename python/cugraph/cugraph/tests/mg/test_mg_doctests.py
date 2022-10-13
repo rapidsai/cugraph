@@ -34,7 +34,7 @@ def _is_public_name(name):
 
 
 def _is_python_module(member):
-    return os.path.splitext(member.__file__)[1] == '.py'
+    return os.path.splitext(member.__file__)[1] == ".py"
 
 
 def _module_from_library(member, libname):
@@ -72,8 +72,7 @@ def _find_doctests_in_obj(finder, obj, obj_name, criteria=None):
         if criteria is not None and not criteria(name):
             continue
         if inspect.ismodule(member):
-            yield from _find_doctests_in_obj(finder, member, obj_name,
-                                             criteria)
+            yield from _find_doctests_in_obj(finder, member, obj_name, criteria)
         if inspect.isfunction(member):
             yield from _find_doctests_in_docstring(finder, member)
         if inspect.isclass(member):
@@ -83,13 +82,12 @@ def _find_doctests_in_obj(finder, obj, obj_name, criteria=None):
 
 def _fetch_doctests():
     finder = doctest.DocTestFinder()
-    yield from _find_doctests_in_obj(finder, cugraph.dask, 'dask',
-                                     _is_public_name)
+    yield from _find_doctests_in_obj(finder, cugraph.dask, "dask", _is_public_name)
 
 
-@pytest.fixture(scope="module",
-                params=_fetch_doctests(),
-                ids=lambda docstring: docstring.name)
+@pytest.fixture(
+    scope="module", params=_fetch_doctests(), ids=lambda docstring: docstring.name
+)
 def docstring(request):
     return request.param
 
@@ -114,9 +112,14 @@ class TestDoctests:
         optionflags = doctest.ELLIPSIS | doctest.NORMALIZE_WHITESPACE
         runner = doctest.DocTestRunner(optionflags=optionflags)
         np.random.seed(6)
-        globs = dict(cudf=cudf, np=np, cugraph=cugraph,
-                     datasets_path=self.abs_datasets_path,
-                     scipy=scipy, pd=pd)
+        globs = dict(
+            cudf=cudf,
+            np=np,
+            cugraph=cugraph,
+            datasets_path=self.abs_datasets_path,
+            scipy=scipy,
+            pd=pd,
+        )
         docstring.globs = globs
 
         # Capture stdout and include failing outputs in the traceback.

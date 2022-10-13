@@ -46,16 +46,15 @@ def test_multigraph(graph_file):
     assert G.number_of_edges() == Gnx.number_of_edges()
     assert G.number_of_nodes() == Gnx.number_of_nodes()
     cuedges = cugraph.to_pandas_edgelist(G)
-    cuedges.rename(columns={"src": "source", "dst": "target",
-                   "weights": "weight"}, inplace=True)
+    cuedges.rename(
+        columns={"src": "source", "dst": "target", "weights": "weight"}, inplace=True
+    )
     cuedges["weight"] = cuedges["weight"].round(decimals=3)
-    nxedges = nx.to_pandas_edgelist(Gnx).astype(dtype={"source": "int32",
-                                                       "target": "int32",
-                                                       "weight": "float32"})
-    cuedges = cuedges.sort_values(by=["source", "target"]).\
-        reset_index(drop=True)
-    nxedges = nxedges.sort_values(by=["source", "target"]).\
-        reset_index(drop=True)
+    nxedges = nx.to_pandas_edgelist(Gnx).astype(
+        dtype={"source": "int32", "target": "int32", "weight": "float32"}
+    )
+    cuedges = cuedges.sort_values(by=["source", "target"]).reset_index(drop=True)
+    nxedges = nxedges.sort_values(by=["source", "target"]).reset_index(drop=True)
     nxedges["weight"] = nxedges["weight"].round(decimals=3)
     assert nxedges.equals(cuedges[["source", "target", "weight"]])
 
@@ -108,7 +107,7 @@ def test_multigraph_sssp(graph_file):
     )
     nx_paths = nx.single_source_dijkstra_path_length(Gnx, 0)
 
-    cu_dist = cu_paths.sort_values(by='vertex')['distance'].to_numpy()
+    cu_dist = cu_paths.sort_values(by="vertex")["distance"].to_numpy()
     nx_dist = [i[1] for i in sorted(nx_paths.items())]
 
     assert (cu_dist == nx_dist).all()

@@ -17,8 +17,7 @@ import pytest
 
 import cugraph
 from cugraph.testing import utils
-from cugraph.experimental.datasets import (
-    DATASETS_SMALL, DATASETS_UNRENUMBERED)
+from cugraph.experimental.datasets import DATASETS_SMALL, DATASETS_UNRENUMBERED
 import random
 import numpy as np
 import cupy
@@ -74,9 +73,9 @@ def calc_edge_betweenness_centrality(
     result_dtype=np.float64,
     use_k_full=False,
     multi_gpu_batch=False,
-    edgevals=False
+    edgevals=False,
 ):
-    """ Generate both cugraph and networkx edge betweenness centrality
+    """Generate both cugraph and networkx edge betweenness centrality
 
     Parameters
     ----------
@@ -126,11 +125,12 @@ def calc_edge_betweenness_centrality(
     Gnx = None
     dataset_path = graph_file.get_path()
     Gnx = utils.generate_nx_graph_from_file(
-        dataset_path, directed=directed, edgevals=edgevals)
+        dataset_path, directed=directed, edgevals=edgevals
+    )
 
     G = graph_file.get_graph(
-        create_using=cugraph.Graph(
-            directed=directed), ignore_weights=not edgevals)
+        create_using=cugraph.Graph(directed=directed), ignore_weights=not edgevals
+    )
 
     assert G is not None and Gnx is not None
     if multi_gpu_batch:
@@ -184,17 +184,18 @@ def _calc_bc_subset(G, Gnx, normalized, weight, k, seed, result_dtype):
         columns={"betweenness_centrality": "ref_bc"}, copy=False
     )
 
-    merged_df = df.merge(nx_df, on=['src', 'dst']).rename(
-        columns={"betweenness_centrality": "cu_bc"}, copy=False
-    ).reset_index(drop=True)
+    merged_df = (
+        df.merge(nx_df, on=["src", "dst"])
+        .rename(columns={"betweenness_centrality": "cu_bc"}, copy=False)
+        .reset_index(drop=True)
+    )
 
     return merged_df
 
 
 def _calc_bc_subset_fixed(G, Gnx, normalized, weight, k, seed, result_dtype):
     assert isinstance(k, int), (
-        "This test is meant for verifying coherence "
-        "when k is given as an int"
+        "This test is meant for verifying coherence " "when k is given as an int"
     )
     # In the fixed set we compare cu_bc against itself as we random.seed(seed)
     # on the same seed and then sample on the number of vertices themselves
@@ -204,8 +205,8 @@ def _calc_bc_subset_fixed(G, Gnx, normalized, weight, k, seed, result_dtype):
     sources = random.sample(range(G.number_of_vertices()), k)
 
     if G.renumbered:
-        sources_df = cudf.DataFrame({'src': sources})
-        sources = G.unrenumber(sources_df, 'src')['src'].to_pandas().tolist()
+        sources_df = cudf.DataFrame({"src": sources})
+        sources = G.unrenumber(sources_df, "src")["src"].to_pandas().tolist()
 
     # The first call is going to proceed to the random sampling in the same
     # fashion as the lines above
@@ -216,25 +217,25 @@ def _calc_bc_subset_fixed(G, Gnx, normalized, weight, k, seed, result_dtype):
         weight=weight,
         seed=seed,
         result_dtype=result_dtype,
-    ).rename(
-        columns={"betweenness_centrality": "cu_bc"}, copy=False
-    )
+    ).rename(columns={"betweenness_centrality": "cu_bc"}, copy=False)
 
     # The second call is going to process source that were already sampled
     # We set seed to None as k : int, seed : not none should not be normal
     # behavior
-    df2 = cugraph.edge_betweenness_centrality(
-        G,
-        k=sources,
-        normalized=normalized,
-        weight=weight,
-        seed=None,
-        result_dtype=result_dtype,
-    ).rename(
-        columns={"betweenness_centrality": "ref_bc"}, copy=False
-    ).reset_index(drop=True)
+    df2 = (
+        cugraph.edge_betweenness_centrality(
+            G,
+            k=sources,
+            normalized=normalized,
+            weight=weight,
+            seed=None,
+            result_dtype=result_dtype,
+        )
+        .rename(columns={"betweenness_centrality": "ref_bc"}, copy=False)
+        .reset_index(drop=True)
+    )
 
-    merged_df = df.merge(df2, on=['src', 'dst']).reset_index(drop=True)
+    merged_df = df.merge(df2, on=["src", "dst"]).reset_index(drop=True)
 
     return merged_df
 
@@ -261,9 +262,11 @@ def _calc_bc_full(G, Gnx, normalized, weight, k, seed, result_dtype):
         columns={"betweenness_centrality": "ref_bc"}, copy=False
     )
 
-    merged_df = df.merge(nx_df, on=['src', 'dst']).rename(
-        columns={"betweenness_centrality": "cu_bc"}, copy=False
-    ).reset_index(drop=True)
+    merged_df = (
+        df.merge(nx_df, on=["src", "dst"])
+        .rename(columns={"betweenness_centrality": "cu_bc"}, copy=False)
+        .reset_index(drop=True)
+    )
 
     return merged_df
 
@@ -271,9 +274,7 @@ def _calc_bc_full(G, Gnx, normalized, weight, k, seed, result_dtype):
 # =============================================================================
 def compare_scores(sorted_df, first_key, second_key, epsilon=DEFAULT_EPSILON):
     errors = sorted_df[
-        ~cupy.isclose(
-            sorted_df[first_key], sorted_df[second_key], rtol=epsilon
-        )
+        ~cupy.isclose(sorted_df[first_key], sorted_df[second_key], rtol=epsilon)
     ]
     num_errors = len(errors)
     if num_errors > 0:
@@ -297,9 +298,7 @@ def generate_nx_result(nx_res_dict, directed):
 def generate_dataframe_from_nx_dict(nx_dict):
     nx_edges, nx_bc = zip(*sorted(nx_dict.items()))
     nx_src, nx_dst = zip(*nx_edges)
-    df = cudf.DataFrame(
-        {"src": nx_src, "dst": nx_dst, "betweenness_centrality": nx_bc}
-    )
+    df = cudf.DataFrame({"src": nx_src, "dst": nx_dst, "betweenness_centrality": nx_bc})
     return df
 
 
@@ -327,7 +326,7 @@ def test_edge_betweenness_centrality(
     weight,
     subset_seed,
     result_dtype,
-    edgevals
+    edgevals,
 ):
     sorted_df = calc_edge_betweenness_centrality(
         graph_file,
@@ -337,7 +336,7 @@ def test_edge_betweenness_centrality(
         weight=weight,
         seed=subset_seed,
         result_dtype=result_dtype,
-        edgevals=edgevals
+        edgevals=edgevals,
     )
     compare_scores(sorted_df, first_key="cu_bc", second_key="ref_bc")
 
@@ -361,7 +360,7 @@ def test_edge_betweenness_centrality_k_full(
     subset_seed,
     result_dtype,
     use_k_full,
-    edgevals
+    edgevals,
 ):
     """Tests full edge betweenness centrality by using k = G.number_of_vertices()
     instead of k=None, checks that k scales properly"""
@@ -374,7 +373,7 @@ def test_edge_betweenness_centrality_k_full(
         seed=subset_seed,
         result_dtype=result_dtype,
         use_k_full=use_k_full,
-        edgevals=edgevals
+        edgevals=edgevals,
     )
     compare_scores(sorted_df, first_key="cu_bc", second_key="ref_bc")
 
@@ -400,7 +399,7 @@ def test_edge_betweenness_centrality_fixed_sample(
     weight,
     subset_seed,
     result_dtype,
-    edgevals
+    edgevals,
 ):
     """Test Edge Betweenness Centrality using a subset
 
@@ -414,7 +413,7 @@ def test_edge_betweenness_centrality_fixed_sample(
         weight=weight,
         seed=subset_seed,
         result_dtype=result_dtype,
-        edgevals=edgevals
+        edgevals=edgevals,
     )
     compare_scores(sorted_df, first_key="cu_bc", second_key="ref_bc")
 
@@ -436,7 +435,7 @@ def test_edge_betweenness_centrality_weight_except(
     weight,
     subset_seed,
     result_dtype,
-    edgevals
+    edgevals,
 ):
     """Test calls edge_betweeness_centrality with weight parameter
 
@@ -452,7 +451,7 @@ def test_edge_betweenness_centrality_weight_except(
             weight=weight,
             seed=subset_seed,
             result_dtype=result_dtype,
-            edgevals=edgevals
+            edgevals=edgevals,
         )
         compare_scores(sorted_df, first_key="cu_bc", second_key="ref_bc")
 
@@ -473,7 +472,7 @@ def test_edge_betweenness_invalid_dtype(
     weight,
     subset_seed,
     result_dtype,
-    edgevals
+    edgevals,
 ):
     """Test calls edge_betwenness_centrality an invalid type"""
 
@@ -486,7 +485,7 @@ def test_edge_betweenness_invalid_dtype(
             weight=weight,
             seed=subset_seed,
             result_dtype=result_dtype,
-            edgevals=edgevals
+            edgevals=edgevals,
         )
         compare_scores(sorted_df, first_key="cu_bc", second_key="ref_bc")
 
@@ -494,11 +493,7 @@ def test_edge_betweenness_invalid_dtype(
 @pytest.mark.parametrize("graph_file", DATASETS_SMALL)
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
 @pytest.mark.parametrize("edgevals", WEIGHTED_GRAPH_OPTIONS)
-def test_edge_betweenness_centrality_nx(
-        graph_file,
-        directed,
-        edgevals
-):
+def test_edge_betweenness_centrality_nx(graph_file, directed, edgevals):
     dataset_path = graph_file.get_path()
     Gnx = utils.generate_nx_graph_from_file(dataset_path, directed, edgevals)
     assert nx.is_directed(Gnx) == directed
