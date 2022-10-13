@@ -134,9 +134,7 @@ class CuGraphStore:
         self.gdata.add_edge_data(
             df, vertex_col_names=node_col_names, type_name=canonical_etype
         )
-        columns = [
-            col for col in list(df.columns) if col not in node_col_names
-        ]
+        columns = [col for col in list(df.columns) if col not in node_col_names]
         _update_feature_map(
             self.edata_feat_col_d, feat_name, contains_vector_features, columns
         )
@@ -574,9 +572,7 @@ class CuFeatureStorage:
             subset_df = subset_df.compute()
 
         if len(subset_df) == 0:
-            raise ValueError(
-                f"indices = {indices} not found in FeatureStorage"
-            )
+            raise ValueError(f"indices = {indices} not found in FeatureStorage")
         cap = subset_df.to_dlpack()
         tensor = self.from_dlpack(cap)
         del cap
