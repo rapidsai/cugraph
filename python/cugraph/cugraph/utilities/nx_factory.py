@@ -34,8 +34,8 @@ def convert_unweighted_to_gdf(NX_G):
     dst = [d for _, d in _edges]
 
     _gdf = cudf.DataFrame()
-    _gdf['src'] = src
-    _gdf['dst'] = dst
+    _gdf["src"] = src
+    _gdf["dst"] = dst
 
     return _gdf
 
@@ -48,12 +48,12 @@ def convert_weighted_named_to_gdf(NX_G, weight):
     wt = [w for _, _, w in _edges]
 
     _gdf = cudf.DataFrame()
-    _gdf['src'] = src
-    _gdf['dst'] = dst
-    _gdf['weight'] = wt
+    _gdf["src"] = src
+    _gdf["dst"] = dst
+    _gdf["weight"] = wt
 
     # FIXME: The weight dtype is hardcoded.
-    _gdf = _gdf.astype({'weight': 'float32'})
+    _gdf = _gdf.astype({"weight": "float32"})
 
     return _gdf
 
@@ -63,8 +63,7 @@ def convert_weighted_unnamed_to_gdf(NX_G):
     nx_col = ["source", "target"]
     wt_col = [col for col in _pdf.columns if col not in nx_col]
     if len(wt_col) != 1:
-        raise ValueError(
-            "Unable to determine weight column name")
+        raise ValueError("Unable to determine weight column name")
 
     if wt_col[0] != "weight":
         _pdf.rename(columns={wt_col[0]: "weight"})
@@ -85,23 +84,35 @@ def convert_from_nx(nxG, weight=None, do_renumber=True):
         G = cugraph.Graph()
     else:
         raise TypeError(
-            f"nxG must be either a NetworkX Graph or DiGraph, got {type(nxG)}")
+            f"nxG must be either a NetworkX Graph or DiGraph, got {type(nxG)}"
+        )
 
     is_weighted = nx.is_weighted(nxG)
 
     if is_weighted is False:
         _gdf = convert_unweighted_to_gdf(nxG)
-        G.from_cudf_edgelist(_gdf, source="src", destination="dst",
-                             edge_attr=None, renumber=do_renumber)
+        G.from_cudf_edgelist(
+            _gdf, source="src", destination="dst", edge_attr=None, renumber=do_renumber
+        )
     else:
         if weight is None:
             _gdf = convert_weighted_unnamed_to_gdf(nxG)
-            G.from_cudf_edgelist(_gdf, source="source", destination="target",
-                                 edge_attr='weight', renumber=do_renumber)
+            G.from_cudf_edgelist(
+                _gdf,
+                source="source",
+                destination="target",
+                edge_attr="weight",
+                renumber=do_renumber,
+            )
         else:
             _gdf = convert_weighted_named_to_gdf(nxG, weight)
-            G.from_cudf_edgelist(_gdf, source="src", destination="dst",
-                                 edge_attr='weight', renumber=do_renumber)
+            G.from_cudf_edgelist(
+                _gdf,
+                source="src",
+                destination="dst",
+                edge_attr="weight",
+                renumber=do_renumber,
+            )
 
     return G
 
@@ -183,7 +194,8 @@ def cugraph_to_nx(G):
     if num_col == 2:
         Gnx = nx.from_pandas_edgelist(pdf, source="src", target="dst")
     else:
-        Gnx = nx.from_pandas_edgelist(pdf, source="src", target="dst",
-                                      edge_attr="weights")
+        Gnx = nx.from_pandas_edgelist(
+            pdf, source="src", target="dst", edge_attr="weights"
+        )
 
     return Gnx

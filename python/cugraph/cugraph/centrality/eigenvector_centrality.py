@@ -11,19 +11,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from pylibcugraph import (eigenvector_centrality as pylib_eigen,
-                          ResourceHandle,
-                          )
-from cugraph.utilities import (ensure_cugraph_obj_for_nx,
-                               df_score_to_dictionary,
-                               )
+from pylibcugraph import (
+    eigenvector_centrality as pylib_eigen,
+    ResourceHandle,
+)
+from cugraph.utilities import (
+    ensure_cugraph_obj_for_nx,
+    df_score_to_dictionary,
+)
 import cudf
 import warnings
 
 
-def eigenvector_centrality(
-    G, max_iter=100, tol=1.0e-6
-):
+def eigenvector_centrality(G, max_iter=100, tol=1.0e-6):
     """
     Compute the eigenvector centrality for a graph G.
 
@@ -72,26 +72,26 @@ def eigenvector_centrality(
 
     """
     if (not isinstance(max_iter, int)) or max_iter <= 0:
-        raise ValueError(f"'max_iter' must be a positive integer"
-                         f", got: {max_iter}")
+        raise ValueError(f"'max_iter' must be a positive integer" f", got: {max_iter}")
     if (not isinstance(tol, float)) or (tol <= 0.0):
         raise ValueError(f"'tol' must be a positive float, got: {tol}")
 
     G, isNx = ensure_cugraph_obj_for_nx(G)
     if G.store_transposed is False:
-        warning_msg = ("Eigenvector centrality expects the 'store_transposed' "
-                       "flag to be set to 'True' for optimal performance "
-                       "during the graph creation")
+        warning_msg = (
+            "Eigenvector centrality expects the 'store_transposed' "
+            "flag to be set to 'True' for optimal performance "
+            "during the graph creation"
+        )
         warnings.warn(warning_msg, UserWarning)
 
-    vertices, values = \
-        pylib_eigen(
-            resource_handle=ResourceHandle(),
-            graph=G._plc_graph,
-            epsilon=tol,
-            max_iterations=max_iter,
-            do_expensive_check=False
-        )
+    vertices, values = pylib_eigen(
+        resource_handle=ResourceHandle(),
+        graph=G._plc_graph,
+        epsilon=tol,
+        max_iterations=max_iter,
+        do_expensive_check=False,
+    )
 
     vertices = cudf.Series(vertices)
     values = cudf.Series(values)

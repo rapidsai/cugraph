@@ -16,10 +16,7 @@ from cugraph.sampling import random_walks_wrapper
 from cugraph.utilities import ensure_cugraph_obj_for_nx
 
 
-def random_walks(G,
-                 start_vertices,
-                 max_depth=None,
-                 use_padding=False):
+def random_walks(G, start_vertices, max_depth=None, use_padding=False):
     """
     compute random walks for each nodes in 'start_vertices'
 
@@ -81,22 +78,23 @@ def random_walks(G,
     if G.renumbered is True:
         if isinstance(start_vertices, cudf.DataFrame):
             start_vertices = G.lookup_internal_vertex_id(
-                start_vertices,
-                start_vertices.columns)
+                start_vertices, start_vertices.columns
+            )
         else:
             start_vertices = G.lookup_internal_vertex_id(start_vertices)
 
     vertex_set, edge_set, sizes = random_walks_wrapper.random_walks(
-        G, start_vertices, max_depth, use_padding)
+        G, start_vertices, max_depth, use_padding
+    )
 
     if G.renumbered:
         df_ = cudf.DataFrame()
-        df_['vertex_set'] = vertex_set
-        df_ = G.unrenumber(df_, 'vertex_set', preserve_order=True)
-        vertex_set = cudf.Series(df_['vertex_set'])
+        df_["vertex_set"] = vertex_set
+        df_ = G.unrenumber(df_, "vertex_set", preserve_order=True)
+        vertex_set = cudf.Series(df_["vertex_set"])
 
     if use_padding:
-        edge_set_sz = (max_depth-1)*len(start_vertices)
+        edge_set_sz = (max_depth - 1) * len(start_vertices)
         return vertex_set, edge_set[:edge_set_sz], sizes
 
     vertex_set_sz = sizes.sum()
