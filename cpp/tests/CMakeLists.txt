@@ -357,10 +357,6 @@ ConfigureTest(UNIFORM_NEIGHBOR_SAMPLING_TEST sampling/sg_uniform_neighbor_sampli
 target_link_libraries(UNIFORM_NEIGHBOR_SAMPLING_TEST PRIVATE cuco::cuco)
         
 ###################################################################################################
-# - Serialization tests ---------------------------------------------------------------------------
-ConfigureTest(SERIALIZATION_TEST serialization/un_serialize_test.cpp)
-
-###################################################################################################
 # - Renumber tests --------------------------------------------------------------------------------
 set(RENUMBERING_TEST_SRCS
     "${CMAKE_CURRENT_SOURCE_DIR}/structure/renumbering_test.cpp")
@@ -480,10 +476,6 @@ if(BUILD_CUGRAPH_MG_TESTS)
     # - MG WEAKLY CONNECTED COMPONENTS tests ------------------------------------------------------
     ConfigureTestMG(MG_WEAKLY_CONNECTED_COMPONENTS_TEST
                     components/mg_weakly_connected_components_test.cpp)
-
-    ###############################################################################################
-    # - MG GRAPH BROADCAST tests ------------------------------------------------------------------
-    ConfigureTestMG(MG_GRAPH_BROADCAST_TEST bcast/mg_graph_bcast.cpp)
 
     ###############################################################################################
     # - MG Core Number tests ----------------------------------------------------------------------
