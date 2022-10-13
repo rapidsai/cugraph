@@ -303,6 +303,92 @@ void edge_betweenness_centrality(const raft::handle_t& handle,
                                  vertex_t k               = 0,
                                  vertex_t const* vertices = nullptr);
 
+/**
+ * @brief     Compute betweenness centrality for a graph
+ *
+ * Betweenness centrality for a vertex is the sum of the fraction of
+ * all pairs shortest paths that pass through the vertex.
+ *
+ * The current implementation does not support a weighted graph.
+ *
+ * If @p num_vertices and @p vertices are not specified then this function will compute
+ * exact betweenness (compute betweenness using a traversal from all vertices).
+ *
+ * If @p num_vertices or @p vertices are specified then we will compute approximate
+ * betweenness either by random sampling @p num_vertices as the seeds of the traversal, or
+ * by using the provided @p vertices as the seeds of the traversal.
+ *
+ * If both @p and @num_vertices are specified we will throw an error.
+ *
+ * @throws                 cugraph::logic_error when an error occurs.
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam weight_t Type of edge weights. Needs to be a floating point type.
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
+ *
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param graph_view Graph view object.
+ * @param num_vertices Optional, if specified, how many vertices to randomly select
+ * @param vertices Optional, if specified this provides the list of vertices to app
+ * @param normalized         A flag indicating results should be normalized
+ * @param include_endpoints  A flag indicating whether endpoints of a path should be counted
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
+ *
+ * @return device vector containing the centralities.
+ */
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+rmm::device_uvector<weight_t> betweenness_centrality(
+  const raft::handle_t& handle,
+  graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
+  std::optional<vertex_t> num_vertices,
+  std::optional<raft::device_span<vertex_t const>> vertices,
+  bool const normalized         = true,
+  bool const include_endpoints  = false,
+  bool const do_expensive_check = false);
+
+/**
+ * @brief     Compute edge betweenness centrality for a graph
+ *
+ * Betweenness centrality of an edge is the sum of the fraction of all-pairs shortest paths that
+ * pass through this edge. The weight parameter is currenlty not supported
+ *
+ * If @p num_vertices and @p vertices are not specified then this function will compute
+ * exact betweenness (compute betweenness using a traversal from all vertices).
+ *
+ * If @p num_vertices or @p vertices are specified then we will compute approximate
+ * betweenness either by random sampling @p num_vertices as the seeds of the traversal, or
+ * by using the provided @p vertices as the seeds of the traversal.
+ *
+ * If both @p and @num_vertices are specified we will throw an error.
+ *
+ * @throws                 cugraph::logic_error when an error occurs.
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam weight_t Type of edge weights. Needs to be a floating point type.
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
+ *
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param graph_view Graph view object.
+ * @param num_vertices Optional, if specified, how many vertices to randomly select
+ * @param vertices Optional, if specified this provides the list of vertices to app
+ * @param normalized         A flag indicating whether or not to normalize the result
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
+ *
+ * @return device vector containing the centralities.
+ */
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+rmm::device_uvector<weight_t> edge_betweenness_centrality(
+  const raft::handle_t& handle,
+  graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
+  std::optional<vertex_t> num_vertices,
+  std::optional<raft::device_span<vertex_t const>> vertices,
+  bool normalized         = true,
+  bool do_expensive_check = false);
+
 enum class cugraph_cc_t {
   CUGRAPH_WEAK = 0,  ///> Weakly Connected Components
   CUGRAPH_STRONG,    ///> Strongly Connected Components
