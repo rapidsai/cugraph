@@ -163,7 +163,7 @@ def pagerank(
     pre_vtx_o_wgt_vertices = None
     pre_vtx_o_wgt_sums = None
 
-    G, isNx = ensure_cugraph_obj_for_nx(G, weight, transposed=True)
+    G, isNx = ensure_cugraph_obj_for_nx(G, weight, store_transposed=True)
     if G.store_transposed is False:
         warning_msg = ("Pagerank expects the 'store_transposed' flag "
                        "to be set to 'True' for optimal performance during "
