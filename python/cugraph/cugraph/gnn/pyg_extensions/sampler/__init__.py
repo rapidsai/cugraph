@@ -12,7 +12,8 @@
 # limitations under the License.
 
 from cugraph.utilities.api_tools import experimental_warning_wrapper
-
-from cugraph.gnn.pyg_extensions.sampler.cugraph_sampler import EXPERIMENTAL__CuGraphSampler
+from cugraph.gnn.pyg_extensions.sampler.cugraph_sampler import (
+    EXPERIMENTAL__CuGraphSampler,
+)
 
 CuGraphSampler = experimental_warning_wrapper(EXPERIMENTAL__CuGraphSampler)
