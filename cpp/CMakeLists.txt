@@ -174,7 +174,6 @@ set(CUGRAPH_SOURCES
     src/structure/graph_view_mg.cu
     src/utilities/cython.cu
     src/utilities/path_retrieval.cu
-    src/utilities/graph_bcast.cpp
     src/structure/legacy/graph.cu
     src/linear_assignment/hungarian.cu
     src/traversal/legacy/bfs.cu
@@ -256,6 +255,8 @@ set(CUGRAPH_SOURCES
     src/structure/symmetrize_edgelist_mg.cu
     src/community/triangle_count_sg.cu
     src/community/triangle_count_mg.cu
+    src/traversal/k_hop_nbrs_sg.cu
+    src/traversal/k_hop_nbrs_mg.cu
 )
 
 if(USE_CUGRAPH_OPS)

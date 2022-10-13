@@ -18,12 +18,13 @@ from pylibcugraph import ResourceHandle
 from pylibcugraph import bfs as pylibcugraph_bfs
 
 from cugraph.structure.graph_classes import Graph, DiGraph
-from cugraph.utilities import (ensure_cugraph_obj,
-                               is_matrix_type,
-                               is_cp_matrix_type,
-                               is_nx_graph_type,
-                               cupy_package as cp,
-                               )
+from cugraph.utilities import (
+    ensure_cugraph_obj,
+    is_matrix_type,
+    is_cp_matrix_type,
+    is_nx_graph_type,
+    cupy_package as cp,
+)
 
 
 def _ensure_args(G, start, i_start, directed):
@@ -44,49 +45,37 @@ def _ensure_args(G, start, i_start, directed):
     # Check for Graph-type inputs
     if (G_type in [Graph, DiGraph]) or is_nx_graph_type(G_type):
         if directed is not None:
-            raise TypeError("'directed' cannot be specified for a "
-                            "Graph-type input")
+            raise TypeError("'directed' cannot be specified for a " "Graph-type input")
 
         # ensure start vertex is valid
-        invalid_vertex_err = ValueError('A provided vertex was not valid')
+        invalid_vertex_err = ValueError("A provided vertex was not valid")
         if is_nx_graph_type(G_type):
             if start not in G:
                 raise invalid_vertex_err
         else:
             if not isinstance(start, cudf.DataFrame):
                 if not isinstance(start, dask_cudf.DataFrame):
-                    start = cudf.DataFrame(
-                        {'starts': cudf.Series(start)}
-                    )
+                    start = cudf.DataFrame({"starts": cudf.Series(start)})
 
             if G.is_renumbered():
                 validlen = len(
-                    G.renumber_map.to_internal_vertex_id(
-                        start,
-                        start.columns
-                    ).dropna()
+                    G.renumber_map.to_internal_vertex_id(start, start.columns).dropna()
                 )
                 if validlen < len(start):
                     raise invalid_vertex_err
             else:
                 el = G.edgelist.edgelist_df[["src", "dst"]]
                 col = start.columns[0]
-                null_l = el \
-                    .merge(
-                        start[col].rename('src'),
-                        on='src',
-                        how='right'
-                    ) \
-                    .dst.isnull() \
+                null_l = (
+                    el.merge(start[col].rename("src"), on="src", how="right")
+                    .dst.isnull()
                     .sum()
-                null_r = el \
-                    .merge(
-                        start[col].rename('dst'),
-                        on='dst',
-                        how='right'
-                    ) \
-                    .src.isnull() \
+                )
+                null_r = (
+                    el.merge(start[col].rename("dst"), on="dst", how="right")
+                    .src.isnull()
                     .sum()
+                )
                 if null_l + null_r > 0:
                     raise invalid_vertex_err
 
@@ -124,12 +113,14 @@ def _convert_df_to_output_type(df, input_type):
         raise TypeError(f"input type {input_type} is not a supported type.")
 
 
-def bfs(G,
-        start=None,
-        depth_limit=None,
-        i_start=None,
-        directed=None,
-        return_predecessors=True):
+def bfs(
+    G,
+    start=None,
+    depth_limit=None,
+    i_start=None,
+    directed=None,
+    return_predecessors=True,
+):
     """
     Find the distances and predecessors for a breadth first traversal of a
     graph.
@@ -211,19 +202,18 @@ def bfs(G,
     >>> df = cugraph.bfs(G, 0)
 
     """
-    (start, directed) = \
-        _ensure_args(G, start, i_start, directed)
+    (start, directed) = _ensure_args(G, start, i_start, directed)
 
     # FIXME: allow nx_weight_attr to be specified
     (G, input_type) = ensure_cugraph_obj(
-        G, nx_weight_attr="weight",
-        matrix_graph_type=Graph(directed=directed)
+        G, nx_weight_attr="weight", matrix_graph_type=Graph(directed=directed)
     )
 
     # The BFS C++ extension assumes the start vertex is a cudf.Series object,
     # and operates on internal vertex IDs if renumbered.
-    is_dataframe = isinstance(start, cudf.DataFrame) or \
-        isinstance(start, dask_cudf.DataFrame)
+    is_dataframe = isinstance(start, cudf.DataFrame) or isinstance(
+        start, dask_cudf.DataFrame
+    )
     if G.renumbered is True:
         if is_dataframe:
             start = G.lookup_internal_vertex_id(start, start.columns)
@@ -234,24 +224,25 @@ def bfs(G,
         if is_dataframe:
             start = start[start.columns[0]]
         else:
-            start = cudf.Series(start, name='starts')
+            start = cudf.Series(start, name="starts")
 
-    distances, predecessors, vertices = \
-        pylibcugraph_bfs(
-            handle=ResourceHandle(),
-            graph=G._plc_graph,
-            sources=start,
-            direction_optimizing=False,
-            depth_limit=depth_limit if depth_limit is not None else -1,
-            compute_predecessors=return_predecessors,
-            do_expensive_check=False
-        )
+    distances, predecessors, vertices = pylibcugraph_bfs(
+        handle=ResourceHandle(),
+        graph=G._plc_graph,
+        sources=start,
+        direction_optimizing=False,
+        depth_limit=depth_limit if depth_limit is not None else -1,
+        compute_predecessors=return_predecessors,
+        do_expensive_check=False,
+    )
 
-    result_df = cudf.DataFrame({
-        'vertex': cudf.Series(vertices),
-        'distance': cudf.Series(distances),
-        'predecessor': cudf.Series(predecessors),
-    })
+    result_df = cudf.DataFrame(
+        {
+            "vertex": cudf.Series(vertices),
+            "distance": cudf.Series(distances),
+            "predecessor": cudf.Series(predecessors),
+        }
+    )
 
     if G.renumbered:
         result_df = G.unrenumber(result_df, "vertex")
