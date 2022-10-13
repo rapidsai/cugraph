@@ -113,20 +113,29 @@ def convert_from_nx(nxG, weight=None, do_renumber=True,
 
     if is_weighted is False:
         _gdf = convert_unweighted_to_gdf(nxG)
-        G.from_cudf_edgelist(_gdf, source="src", destination="dst",
-                             edge_attr=None, renumber=do_renumber,
-                             store_transposed=store_transposed)
+        G.from_cudf_edgelist(
+            _gdf, source="src",
+            destination="dst",
+            edge_attr=None,
+            renumber=do_renumber,
+            store_transposed=store_transposed)
     else:
         if weight is None:
             _gdf = convert_weighted_unnamed_to_gdf(nxG)
-            G.from_cudf_edgelist(_gdf, source="source", destination="target",
-                                 edge_attr='weight', renumber=do_renumber,
-                                 store_transposed=store_transposed)
+            G.from_cudf_edgelist(
+                _gdf, source="source",
+                destination="target",
+                edge_attr='weight',
+                renumber=do_renumber,
+                store_transposed=store_transposed)
         else:
             _gdf = convert_weighted_named_to_gdf(nxG, weight)
-            G.from_cudf_edgelist(_gdf, source="src", destination="dst",
-                                 edge_attr='weight', renumber=do_renumber,
-                                 store_transposed=store_transposed)
+            G.from_cudf_edgelist(
+                _gdf, source="src",
+                destination="dst",
+                edge_attr='weight',
+                renumber=do_renumber,
+                store_transposed=store_transposed)
 
     return G
 
