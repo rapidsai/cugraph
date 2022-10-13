@@ -979,7 +979,45 @@ class CugraphServiceClient:
     ###########################################################################
     # Test/Debug
     @__server_connection
+    def _create_test_array(self, nbytes):
+        """
+        Creates an array of bytes (int8 values set to 127) on the server and
+        returns an ID to use to reference the array in later test calls.
+
+        The test array must be deleted on the server by calling
+        _delete_test_array().
+        """
+        return self.__client.create_test_array(nbytes)
+
+    @__server_connection
+    def _delete_test_array(self, test_array_id):
+        """
+        Deletes the test array on the server identified by test_array_id.
+        """
+        self.__client.delete_test_array(test_array_id)
+
+    @__server_connection
+    def _receive_test_array(self, test_array_id, result_device=None):
+        """
+        Returns the array of bytes (int8 values set to 127) from the server,
+        either to result_device or on the client host. The array returned must
+        have been created by a prior call to create_test_array() which returned
+        test_array_id.
+
+        This can be used to verify transfer speeds from server to client are
+        performing as expected.
+        """
+        if result_device is not None:
+            return asyncio.run(
+                self.__receive_test_array_to_device(test_array_id,
+                                                    result_device)
+            )
+        else:
+            return self.__client.receive_test_array(test_array_id)
+
+    @__server_connection
     def _get_graph_type(self, graph_id=defaults.graph_id):
+
         """
         Test/debug API for returning a string repr of the graph_id instance.
         """
@@ -987,6 +1025,36 @@ class CugraphServiceClient:
 
     ###########################################################################
     # Private
+    async def __receive_test_array_to_device(self,
+                                             test_array_id,
+                                             result_device):
+        # Create an object to set results on in the "receiver" callback below.
+        result_obj = type("Result", (), {})()
+        allocator = DeviceArrayAllocator(result_device)
+
+        async def receiver(endpoint):
+            with cp.cuda.Device(result_device):
+                result_obj.array = await endpoint.recv_obj(
+                    allocator=allocator)
+                result_obj.array = result_obj.array.view("int8")
+
+            await endpoint.close()
+            listener.close()
+
+        listener = ucp.create_listener(receiver, self.results_port)
+
+        # This sends a one-way request to the server and returns
+        # immediately. The server will create and send the array back to the
+        # listener started above.
+        self.__client.receive_test_array_to_device(test_array_id,
+                                                   self.host,
+                                                   self.results_port)
+
+        while not listener.closed():
+            await asyncio.sleep(0.05)
+
+        return result_obj.array
+
     async def __uniform_neighbor_sample_to_device(self,
                                                   start_list,
                                                   fanout_vals,

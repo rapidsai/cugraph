@@ -117,7 +117,7 @@ def sg_server_on_device_1(graph_creation_extension_large_property_graph):
         print("done.", flush=True)
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture(scope="module")
 def client(mg_server):
     """
     Creates a client instance to the running server, closes the client when the
@@ -127,16 +127,10 @@ def client(mg_server):
 
     client = CugraphServiceClient(defaults.host, defaults.port)
 
-    for gid in client.get_graph_ids():
-        client.delete_graph(gid)
-
-    # FIXME: should this fixture always unconditionally unload all extensions?
-    # client.unload_graph_creation_extensions()
-
     # yield control to the tests
     yield client
 
-    # tests are done, now stop the server
+    # tests are done, now close the connection
     client.close()
 
 
@@ -151,10 +145,15 @@ def client_with_edgelist_csv_loaded(client):
                                  vertex_col_names=["0", "1"],
                                  type_name="")
     assert client.get_graph_ids() == [0]
-    return (client, test_data)
+
+    yield (client, test_data)
+
+    # Cleanup after the test
+    for gid in client.get_graph_ids():
+        client.delete_graph(gid)
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture(scope="module")
 def client_of_server_on_device_1(sg_server_on_device_1):
     """
     Creates a client instance to a server running on device 1, closes the
@@ -173,9 +172,30 @@ def client_of_server_on_device_1(sg_server_on_device_1):
     # yield control to the tests
     yield client
 
-    # tests are done, now stop the server
+    # tests are done, now close the connection
     client.close()
 
+import time
+@pytest.fixture(scope="module",
+                params=[int(n) for n in [1e1, 1e3, 1e6, 1e9, 2e9, 5e9, 10e9]],
+                ids=lambda p: f"bytes={p:.1e}")
+def client_of_server_on_device_1_with_test_array(
+        request,
+        sg_server_on_device_1,
+):
+    from cugraph_service_client import CugraphServiceClient, defaults
+
+    client = CugraphServiceClient(defaults.host, defaults.port)
+    nbytes = request.param
+    print(f"\nCREATING TEST ARRAY nbytes={nbytes:.1e}",flush=True)
+    st=time.time()
+    test_array_id = client._create_test_array(nbytes)
+    print(f"DONE CREATING TEST ARRAY, time: {time.time()-st} s",flush=True)
+
+    yield (client, test_array_id, nbytes)
+
+    client._delete_test_array(test_array_id)
+    client.close()
 
 @pytest.fixture(scope="function")
 def client_of_server_on_device_1_large_property_graph_loaded(
@@ -197,7 +217,7 @@ def client_of_server_on_device_1_large_property_graph_loaded(
 # Because pytest does not allow mixing fixtures and parametrization decorators
 # for test functions, this fixture is parametrized for different device IDs to
 # test against, and simply returns the param value to the test using it.
-@pytest.fixture(scope="function",
+@pytest.fixture(scope="module",
                 params=[None, 0],
                 ids=lambda p: f"device={p}")
 def result_device_id(request):
@@ -235,10 +255,49 @@ def test_get_edge_IDs_for_vertices(client_with_edgelist_csv_loaded):
     client.get_edge_IDs_for_vertices([1, 2, 3], [0, 0, 0], graph_id)
 
 
+def test_device_transfer(
+        benchmark,
+        result_device_id,
+        client_of_server_on_device_1_with_test_array,
+):
+    (client, test_array_id, nbytes) = (
+        client_of_server_on_device_1_with_test_array
+    )
+
+    # device to host via RPC is too slow for large transfers, so skip
+    if result_device_id is None and nbytes > 1e6:
+        return
+
+    print("RUNNING BENCHMARK...",flush=True)
+    st=time.time()
+    bytes_returned = benchmark(client._receive_test_array,
+                               test_array_id,
+                               result_device=result_device_id,
+                               )
+    print(f"DONE RUNNING BENCHMARK, time: {time.time()-st}",flush=True)
+
+    # bytes_returned should be a cupy array of int8 values on
+    # result_device_id, and each value should be 1.
+    # Why not uint8 and value 255? Because when transferring data to a CPU
+    # (result_device=None), Apache Thrift is used, which does not support
+    # unsigned int types.
+    print("CHECKING RESULTS...",flush=True)
+    st=time.time()
+    assert len(bytes_returned) == nbytes
+    if result_device_id is None:
+        assert type(bytes_returned) is list
+        assert False not in [n == 1 for n in bytes_returned]
+    else:
+        assert type(bytes_returned) is cp.ndarray
+        assert (bytes_returned == cp.ones(nbytes, dtype="int8")).all()
+        device_n = cp.cuda.Device(result_device_id)
+        assert bytes_returned.device == device_n
+    print(f"DONE CHECKING RESULTS, time: {time.time()-st}",flush=True)
+
 def test_uniform_neighbor_sampling_result_device(
         benchmark,
-        client_of_server_on_device_1_large_property_graph_loaded,
         result_device_id,
+        client_of_server_on_device_1_large_property_graph_loaded,
 ):
     """
     Ensures uniform_neighbor_sample() results are transfered from the server to

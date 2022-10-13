@@ -124,6 +124,8 @@ class CugraphHandler:
         self.__dask_client = None
         self.__dask_cluster = None
         self.__start_time = int(time.time())
+        self.__next_test_array_id = 0
+        self.__test_arrays = {}
 
     def __del__(self):
         self.shutdown_dask_client()
@@ -358,12 +360,6 @@ class CugraphHandler:
 
         return {key: ValueWrapper(value).union
                 for (key, value) in info.items()}
-
-    def get_graph_type(self, graph_id):
-        """
-        Returns a string repr of the graph type associated with graph_id.
-        """
-        return repr(type(self._get_graph(graph_id)))
 
     def load_csv_as_vertex_data(self,
                                 csv_file_name,
@@ -700,6 +696,63 @@ class CugraphHandler:
         raise NotImplementedError
 
     ###########################################################################
+    # Test/Debug APIs
+    def create_test_array(self, nbytes):
+        """
+        Creates an array of bytes (int8 values set to 1) and returns an ID to
+        use to reference the array in later test calls.
+
+        The test array must be deleted by calling delete_test_array().
+        """
+        aid = self.__next_test_array_id
+        self.__test_arrays[aid] = cp.ones(nbytes, dtype="int8")
+        self.__next_test_array_id += 1
+        return aid
+
+    def delete_test_array(self, test_array_id):
+        """
+        Deletes the test array identified by test_array_id.
+        """
+        a = self.__test_arrays.pop(test_array_id, None)
+        if a is None:
+            raise CugraphServiceError(f"invalid test_array_id {test_array_id}")
+        print(f"\nDELETING {test_array_id=}",flush=True)
+        del a
+
+    def receive_test_array(self, test_array_id):
+        """
+        Returns the test array identified by test_array_id to the client.
+
+        This can be used to verify transfer speeds from server to client are
+        performing as expected.
+        """
+        return self.__test_arrays[test_array_id]
+
+    def receive_test_array_to_device(self,
+                                     test_array_id,
+                                     result_host,
+                                     result_port):
+        """
+        Returns the test array identified by test_array_id to the client via
+        UCX-Py listening on result_host/result_port.
+
+        This can be used to verify transfer speeds from server to client are
+        performing as expected.
+        """
+        asyncio.run(
+            self.__ucx_send_results(result_host,
+                                    result_port,
+                                    self.__test_arrays[test_array_id]
+                                    )
+        )
+
+    def get_graph_type(self, graph_id):
+        """
+        Returns a string repr of the graph type associated with graph_id.
+        """
+        return repr(type(self._get_graph(graph_id)))
+
+    ###########################################################################
     # "Protected" interface - used for both implementation and test/debug. Will
     # not be exposed to a cugraph_service client.
     def _get_graph(self, graph_id):
@@ -729,12 +782,8 @@ class CugraphHandler:
                                  result_port,
                                  *results):
         # The cugraph_service_client should have set up a UCX listener waiting
-        # in a background thread for the result. Create an endpoint, send
-        # results, and close.
+        # for the result. Create an endpoint, send results, and close.
         ep = await ucp.create_endpoint(result_host, result_port)
-
-        # Send the individual arrays to the client to be written
-        # directly to the desired device.
         for r in results:
             await ep.send_obj(r)
         await ep.close()

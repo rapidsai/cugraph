@@ -190,6 +190,19 @@ service CugraphService {
 
   ##############################################################################
   # Test/Debug
+  i32 create_test_array(1:i64 nbytes
+                        ) throws (1:CugraphServiceError e),
+
+  void delete_test_array(1:i32 test_array_id) throws (1:CugraphServiceError e),
+
+  list<byte> receive_test_array(1:i32 test_array_id
+                                ) throws (1:CugraphServiceError e),
+
+  oneway void receive_test_array_to_device(1:i32 test_array_id,
+                                           2:string result_host,
+                                           3:i16 result_port
+                                           ) throws (1:CugraphServiceError e),
+
   string get_graph_type(1:i32 graph_id) throws(1:CugraphServiceError e),
 }
 """
