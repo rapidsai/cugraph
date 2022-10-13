@@ -187,10 +187,6 @@ class CuGraphStore:
                     )
                 )
             ntype = ntypes[0]
-<<<<<<< HEAD
-        df = self.gdata.get_vertex_data()
-        col_names = self.ndata_key_col_d[key]
-=======
         if feat_name not in self.ndata_feat_col_d:
             raise ValueError(
                 f"feat_name {feat_name} not found in CuGraphStore"
@@ -200,7 +196,6 @@ class CuGraphStore:
 
         columns = self.ndata_feat_col_d[feat_name]
 
->>>>>>> 9ee03f2e54b40fb1a8f99dfcf5b9778e48b5911c
         return CuFeatureStorage(
             pg=self.gdata,
             columns=columns,
@@ -220,10 +215,6 @@ class CuGraphStore:
                 )
 
             etype = etypes[0]
-<<<<<<< HEAD
-        col_names = self.edata_key_col_d[key]
-        df = self.gdata.get_edge_data()
-=======
         if feat_name not in self.edata_feat_col_d:
             raise ValueError(
                 f"feat_name {feat_name} not found in CuGraphStore"
@@ -232,7 +223,6 @@ class CuGraphStore:
             )
         columns = self.edata_feat_col_d[feat_name]
 
->>>>>>> 9ee03f2e54b40fb1a8f99dfcf5b9778e48b5911c
         return CuFeatureStorage(
             pg=self.gdata,
             columns=columns,
@@ -407,29 +397,10 @@ class CuGraphStore:
         )
 
     @cached_property
-<<<<<<< HEAD
-    def extracted_reverse_subgraph_without_renumbering(self):
-        # TODO: Switch to extract_subgraph based on response on
-        # https://github.com/rapidsai/cugraph/issues/2458
-
-        subset_df = self.gdata._edge_prop_dataframe[[src_n, dst_n]]
-        subset_df.reset_index(inplace=True)  # set edge id to column
-
-        subset_df.rename(columns={src_n: dst_n, dst_n: src_n}, inplace=True)
-        subgraph = cugraph.Graph(directed=True)
-        subgraph.from_cudf_edgelist(
-            subset_df,
-            source=src_n,
-            destination=dst_n,
-            edge_attr=eid_n,
-            renumber=False,
-            legacy_renum_only=False,
-=======
     def extracted_reverse_subgraph(self):
         edge_list = self.gdata.get_edge_data(columns=[src_n, dst_n, type_n])
         return get_subgraph_from_edgelist(
             edge_list, self.is_mg, reverse_edges=True
->>>>>>> 9ee03f2e54b40fb1a8f99dfcf5b9778e48b5911c
         )
 
     @cached_property
@@ -504,14 +475,8 @@ class CuGraphStore:
             The dst nodes for the given ids
         """
         edge_ids = cudf.from_dlpack(edge_ids_cap)
-<<<<<<< HEAD
-        edge_df = self.gdata.get_edge_data(columns=[])
-        subset_df = get_subset_df(
-            edge_df, PropertyGraph.edge_id_col_name, edge_ids, etype
-=======
         subset_df = self.gdata.get_edge_data(
             edge_ids=edge_ids, columns=type_n, types=[etype]
->>>>>>> 9ee03f2e54b40fb1a8f99dfcf5b9778e48b5911c
         )
         if isinstance(subset_df, dask_cudf.DataFrame):
             subset_df = subset_df.compute()

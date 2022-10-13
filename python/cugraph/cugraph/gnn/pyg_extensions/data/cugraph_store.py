@@ -428,68 +428,8 @@ class EXPERIMENTAL__CuGraphStore:
             self.__subgraphs[edge_types] = sg
 
         return self.__subgraphs[edge_types]
-
-    def neighbor_sample(
-            self,
-            index,
-            num_neighbors,
-            replace,
-            directed,
-            edge_types):
-
-        if isinstance(num_neighbors, dict):
-            # FIXME support variable num neighbors per edge type
-            num_neighbors = list(num_neighbors.values())[0]
-
-        # FIXME eventually get uniform neighbor sample to accept longs
-        if self.__backend == 'torch' and not index.is_cuda:
-            index = index.cuda()
-        index = cupy.from_dlpack(index.__dlpack__())
-
-        # FIXME resolve the directed/undirected issue
-        G = self._subgraph([et[1] for et in edge_types])
-
-        index = cudf.Series(index)
-        if self.is_mg:
-            uniform_neighbor_sample = cugraph.dask.uniform_neighbor_sample
-        else:
-            uniform_neighbor_sample = cugraph.uniform_neighbor_sample
-
-        sampling_results = uniform_neighbor_sample(
-                G,
-                index,
-                # conversion required by cugraph api
-                list(num_neighbors),
-                replace
-            )
-
-        concat_fn = dask_cudf.concat if self.is_mg else cudf.concat
-
-        nodes_of_interest = concat_fn(
-            [sampling_results.destinations, sampling_results.sources]
-        ).unique()
-
-        if self.is_mg:
-            nodes_of_interest = nodes_of_interest.compute()
-
-        # Get the node index (for creating the edge index),
-        # the node type groupings, and the node properties.
-        noi_index, noi_groups, noi_tensors = (
-            self.__get_renumbered_vertex_data_from_sample(
-                nodes_of_interest
-            )
-        )
-
-        # Get the new edge index (by type as expected for HeteroData)
-        # FIXME handle edge ids
-        row_dict, col_dict = self.__get_renumbered_edges_from_sample(
-            sampling_results,
-            noi_index
-        )
-
-        return (noi_groups, row_dict, col_dict, noi_tensors)
-
-    def __get_renumbered_vertex_data_from_sample(self, nodes_of_interest):
+    
+    def _get_renumbered_vertex_data_from_sample(self, nodes_of_interest):
         nodes_of_interest = nodes_of_interest.sort_values()
 
         # noi contains all property values
@@ -532,7 +472,7 @@ class EXPERIMENTAL__CuGraphStore:
 
         return noi_index, noi_groups, noi_tensors
 
-    def __get_renumbered_edges_from_sample(self, sampling_results, noi_index):
+    def _get_renumbered_edges_from_sample(self, sampling_results, noi_index):
         eoi = self.__graph.get_edge_data(
             edge_ids=(
                 sampling_results.indices.compute().values_host if self.is_mg
