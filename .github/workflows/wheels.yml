@@ -41,5 +41,5 @@ jobs:
       test-before-arm64: "pip install rmm-cu11 cudf-cu11 dask-cudf-cu11 raft-dask-cu11 pylibraft-cu11 pylibcugraph-cu11 ucx-py-cu11 --index-url https://pypi.k8s.rapids.ai/simple && pip install cupy-cuda11x -f https://pip.cupy.dev/aarch64 && pip install python-louvain requests aiohttp && pip install git+https://github.com/rapidsai/asvdb.git@main && pip install git+https://github.com/vyasr/benchmark.git@versioned_rmm_req#subdirectory=rapids_pytest_benchmark"
       test-extras:  "test"
       test-requires: "dask[distributed,dataframe] dask-cuda"
-        #test-unittest: "RAPIDS_DATASET_ROOT_DIR=`pwd`/datasets pytest -v ./python/cugraph/cugraph/tests --benchmark-columns='min,max,mean'"
+        #test-unittest: "RAPIDS_DATASET_ROOT_DIR=`pwd`/datasets pytest -v ./python/cugraph/cugraph/tests --benchmark-gpu-disable"
     secrets: inherit
