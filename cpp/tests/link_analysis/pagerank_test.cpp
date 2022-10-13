@@ -398,17 +398,16 @@ TEST_P(Tests_PageRank_Rmat, CheckInt64Int64FloatFloat)
     override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
 }
 
-INSTANTIATE_TEST_SUITE_P(
-  file_test,
-  Tests_PageRank_File,
-  ::testing::Combine(
-    // enable correctness checks
-    ::testing::Values(PageRank_Usecase{0.0, false},
-                      PageRank_Usecase{0.5, false},
-                      PageRank_Usecase{0.0, true},
-                      PageRank_Usecase{0.5, true}),
-    ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.csv"),
-                      cugraph::test::File_Usecase("test/datasets/dolphins.csv"))));
+INSTANTIATE_TEST_SUITE_P(file_test,
+                         Tests_PageRank_File,
+                         ::testing::Combine(
+                           // enable correctness checks
+                           ::testing::Values(PageRank_Usecase{0.0, false},
+                                             PageRank_Usecase{0.5, false},
+                                             PageRank_Usecase{0.0, true},
+                                             PageRank_Usecase{0.5, true}),
+                           ::testing::Values(cugraph::test::File_Usecase("karate.csv"),
+                                             cugraph::test::File_Usecase("dolphins.csv"))));
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_small_test,
