@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 #pragma once
+
 #include <cugraph/edge_partition_device_view.cuh>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
@@ -157,7 +158,6 @@ extract_induced_subgraphs(
       subgraph_vertex_output_offsets.begin(),
       [subgraph_offsets,
        subgraph_vertices,
-       num_subgraphs = subgraph_offsets.size() - 1,
        edge_partition] __device__(auto i) {
         auto subgraph_idx =
           thrust::distance(subgraph_offsets.begin() + 1,
@@ -208,7 +208,6 @@ extract_induced_subgraphs(
       thrust::make_counting_iterator(num_aggregate_subgraph_vertices),
       [subgraph_offsets,
        subgraph_vertices,
-       num_subgraphs = subgraph_offsets.size() - 1,
        edge_partition,
        subgraph_vertex_output_offsets = subgraph_vertex_output_offsets.data(),
        edge_majors                    = edge_majors.data(),
