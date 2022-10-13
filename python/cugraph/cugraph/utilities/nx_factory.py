@@ -72,8 +72,7 @@ def convert_weighted_unnamed_to_gdf(NX_G):
     return _gdf
 
 
-def convert_from_nx(nxG, weight=None, do_renumber=True,
-                    store_transposed=False):
+def convert_from_nx(nxG, weight=None, do_renumber=True, store_transposed=False):
     """
     Convert a NetworkX Graph into a cuGraph Graph.
     This might not be the most effecient way since the
@@ -114,28 +113,34 @@ def convert_from_nx(nxG, weight=None, do_renumber=True,
     if is_weighted is False:
         _gdf = convert_unweighted_to_gdf(nxG)
         G.from_cudf_edgelist(
-            _gdf, source="src",
+            _gdf,
+            source="src",
             destination="dst",
             edge_attr=None,
             renumber=do_renumber,
-            store_transposed=store_transposed)
+            store_transposed=store_transposed,
+        )
     else:
         if weight is None:
             _gdf = convert_weighted_unnamed_to_gdf(nxG)
             G.from_cudf_edgelist(
-                _gdf, source="source",
+                _gdf,
+                source="source",
                 destination="target",
-                edge_attr='weight',
+                edge_attr="weight",
                 renumber=do_renumber,
-                store_transposed=store_transposed)
+                store_transposed=store_transposed,
+            )
         else:
             _gdf = convert_weighted_named_to_gdf(nxG, weight)
             G.from_cudf_edgelist(
-                _gdf, source="src",
+                _gdf,
+                source="src",
                 destination="dst",
-                edge_attr='weight',
+                edge_attr="weight",
                 renumber=do_renumber,
-                store_transposed=store_transposed)
+                store_transposed=store_transposed,
+            )
 
     return G
 
