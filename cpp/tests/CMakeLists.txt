@@ -229,7 +229,7 @@ ConfigureTest(EGO_TEST community/egonet_test.cu)
 
 ###################################################################################################
 # - FORCE ATLAS 2  tests --------------------------------------------------------------------------
-ConfigureTest(FA2_TEST layout/force_atlas2_test.cu)
+ConfigureTest(LEGACY_FA2_TEST layout/legacy/force_atlas2_test.cu)
 
 ###################################################################################################
 # - CONNECTED COMPONENTS  tests -------------------------------------------------------------------
