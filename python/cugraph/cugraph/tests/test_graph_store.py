@@ -748,7 +748,7 @@ def test_clear_cache():
     assert new_nodes == prev_nodes + 3
 
 
-def test_add_node_data_scaler_vector_feats():
+def test_add_node_data_scaler_feats():
     pg = PropertyGraph()
     gs = CuGraphStore(pg, backend_lib="cupy")
     df = cudf.DataFrame()
@@ -784,6 +784,39 @@ def test_add_node_data_scaler_vector_feats():
             feat_name="vector_feat",
             contains_vector_features=False,
         )
+
+
+def test_add_node_data_vector_feats():
+    pg = PropertyGraph()
+    gs = CuGraphStore(pg, backend_lib="cupy")
+    df = cudf.DataFrame()
+    df["node_id"] = [1, 2, 3]
+    df["vec1_1"] = [10, 20, 30]
+    df["vec1_2"] = [15, 25, 35]
+    df["vec2_1"] = [19, 29, 39]
+    df["vec3"] = [18, 17, 16]
+    gs.add_node_data(
+        df,
+        "node_id",
+        feat_name={
+            "vec1": ["vec1_1", "vec1_2"],
+            "vec2": ["vec2_1"],
+            "vec3": "vec3",
+        },
+        contains_vector_features=True,
+    )
+
+    out_vec = gs.get_node_storage("vec1").fetch([1, 2])
+    exp_vec = cp.asarray([[10, 15], [20, 25]])
+    cp.testing.assert_array_equal(out_vec, exp_vec)
+
+    out_vec = gs.get_node_storage("vec2").fetch([1, 2])
+    exp_vec = cp.asarray([19, 29])
+    cp.testing.assert_array_equal(out_vec, exp_vec)
+
+    out_vec = gs.get_node_storage("vec3").fetch([1, 2])
+    exp_vec = cp.asarray([18, 17])
+    cp.testing.assert_array_equal(out_vec, exp_vec)
 
 
 def assert_correct_eids(edge_df, sample_edge_id_df):

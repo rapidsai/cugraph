@@ -742,18 +742,22 @@ def _update_feature_map(
         elif isinstance(feat_name_obj, dict):
             covered_columns = []
             for col in feat_name_obj.keys():
-                covered_columns = covered_columns + feat_name_obj[col]
+                current_cols = feat_name_obj[col]
+                # Handle strings too
+                if isinstance(current_cols, str):
+                    current_cols = [current_cols]
+                covered_columns = covered_columns + current_cols
 
-            intersection_s = set(covered_columns).intersection(set(columns))
-            if len(intersection_s) != len(covered_columns):
+            if set(covered_columns) != set(columns):
                 raise ValueError(
-                    "All the columns not covered in"
-                    f"feature_map {feat_name_obj} provided"
+                    f"All the columns {columns} not covered in {columns} "
+                    f"Please check the feature_map {feat_name_obj} provided"
                 )
 
-            for key in feat_name_obj.keys():
-                pg_feature_map[key] = feat_name_obj[col]
-
+            for key, cols in feat_name_obj.items():
+                if isinstance(cols, str):
+                    cols = [cols]
+                pg_feature_map[key] = cols
         else:
             raise ValueError(f"{feat_name_obj} should be str or dict")
     else:
