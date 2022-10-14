@@ -162,7 +162,8 @@ def graph_creation_extension_large_property_graph(server):
 @pytest.fixture(scope="module")
 def graph_creation_extension1():
     tmp_extension_dir = utils.create_tmp_extension_dir(
-        graph_creation_extension1_file_contents)
+        graph_creation_extension1_file_contents
+    )
 
     yield tmp_extension_dir
 
@@ -170,7 +171,8 @@ def graph_creation_extension1():
 @pytest.fixture(scope="module")
 def graph_creation_extension2():
     tmp_extension_dir = utils.create_tmp_extension_dir(
-        graph_creation_extension2_file_contents)
+        graph_creation_extension2_file_contents
+    )
 
     yield tmp_extension_dir
 
@@ -178,7 +180,8 @@ def graph_creation_extension2():
 @pytest.fixture(scope="module")
 def graph_creation_extension_long_running():
     tmp_extension_dir = utils.create_tmp_extension_dir(
-        graph_creation_extension_long_running_file_contents)
+        graph_creation_extension_long_running_file_contents
+    )
 
     yield tmp_extension_dir
 
@@ -186,7 +189,8 @@ def graph_creation_extension_long_running():
 @pytest.fixture(scope="module")
 def graph_creation_extension_no_facade_arg():
     tmp_extension_dir = utils.create_tmp_extension_dir(
-        graph_creation_extension_no_facade_arg_file_contents)
+        graph_creation_extension_no_facade_arg_file_contents
+    )
 
     yield tmp_extension_dir
 
@@ -194,7 +198,8 @@ def graph_creation_extension_no_facade_arg():
 @pytest.fixture(scope="module")
 def graph_creation_extension_bad_arg_order():
     tmp_extension_dir = utils.create_tmp_extension_dir(
-        graph_creation_extension_bad_arg_order_file_contents)
+        graph_creation_extension_bad_arg_order_file_contents
+    )
 
     yield tmp_extension_dir
 
@@ -202,7 +207,8 @@ def graph_creation_extension_bad_arg_order():
 @pytest.fixture(scope="module")
 def graph_creation_extension_big_vertex_ids():
     tmp_extension_dir = utils.create_tmp_extension_dir(
-        graph_creation_extension_big_vertex_ids_file_contents)
+        graph_creation_extension_big_vertex_ids_file_contents
+    )
 
     yield tmp_extension_dir
 
@@ -210,7 +216,8 @@ def graph_creation_extension_big_vertex_ids():
 @pytest.fixture(scope="module")
 def graph_creation_extension_empty_graph():
     tmp_extension_dir = utils.create_tmp_extension_dir(
-        graph_creation_extension_empty_graph_file_contents)
+        graph_creation_extension_empty_graph_file_contents
+    )
 
     yield tmp_extension_dir
 
@@ -218,6 +225,7 @@ def graph_creation_extension_empty_graph():
 @pytest.fixture(scope="module")
 def graph_creation_extension_large_property_graph():
     tmp_extension_dir = utils.create_tmp_extension_dir(
-        graph_creation_extension_large_property_graph_file_contents)
+        graph_creation_extension_large_property_graph_file_contents
+    )
 
     yield tmp_extension_dir

@@ -20,8 +20,7 @@ from tempfile import TemporaryDirectory
 from pathlib import Path
 
 
-def create_tmp_extension_dir(file_contents,
-                             file_name="graph_creation_extension.py"):
+def create_tmp_extension_dir(file_contents, file_name="graph_creation_extension.py"):
     """
     Create and return a temporary dir to be used as a dir containing extensions
     to be read by a cugraph_service server. file_contents is a string
@@ -29,21 +28,19 @@ def create_tmp_extension_dir(file_contents,
     """
     tmp_extension_dir = TemporaryDirectory()
 
-    graph_creation_extension_file = open(
-        Path(tmp_extension_dir.name) / file_name,
-        "w")
-    print(file_contents,
-          file=graph_creation_extension_file,
-          flush=True)
+    graph_creation_extension_file = open(Path(tmp_extension_dir.name) / file_name, "w")
+    print(file_contents, file=graph_creation_extension_file, flush=True)
 
     return tmp_extension_dir
 
 
-def start_server_subprocess(host="localhost",
-                            port=9090,
-                            graph_creation_extension_dir=None,
-                            dask_scheduler_file=None,
-                            env_additions=None):
+def start_server_subprocess(
+    host="localhost",
+    port=9090,
+    graph_creation_extension_dir=None,
+    dask_scheduler_file=None,
+    env_additions=None,
+):
     """
     Start a cugraph_service server as a subprocess. Returns the Popen object
     for the server.
@@ -68,30 +65,39 @@ def start_server_subprocess(host="localhost",
     # to the sys.path being used in this process.
     env_dict["PYTHONPATH"] = ":".join(sys.path)
 
-    args = [sys.executable,
-            server_file,
-            "--host", host,
-            "--port", str(port),
-            ]
+    args = [
+        sys.executable,
+        server_file,
+        "--host",
+        host,
+        "--port",
+        str(port),
+    ]
     if graph_creation_extension_dir is not None:
-        args += ["--graph-creation-extension-dir",
-                 graph_creation_extension_dir,
-                 ]
+        args += [
+            "--graph-creation-extension-dir",
+            graph_creation_extension_dir,
+        ]
     if dask_scheduler_file is not None:
-        args += ["--dask-scheduler-file",
-                 dask_scheduler_file,
-                 ]
+        args += [
+            "--dask-scheduler-file",
+            dask_scheduler_file,
+        ]
 
     try:
-        server_process = subprocess.Popen(args,
-                                          env=env_dict,
-                                          stdout=subprocess.PIPE,
-                                          stderr=subprocess.STDOUT,
-                                          text=True)
+        server_process = subprocess.Popen(
+            args,
+            env=env_dict,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+        )
 
-        print("\nLaunched cugraph_service server, waiting for it to "
-              "start...",
-              end="", flush=True)
+        print(
+            "\nLaunched cugraph_service server, waiting for it to " "start...",
+            end="",
+            flush=True,
+        )
         client = CugraphServiceClient(host, port)
         max_retries = 20
         retries = 0

@@ -47,9 +47,8 @@ def server(graph_creation_extension1):
         # A server was not found, so start one for testing then stop it when
         # testing is done.
         server_process = utils.start_server_subprocess(
-            host=host,
-            port=port,
-            graph_creation_extension_dir=server_extension_dir.name)
+            host=host, port=port, graph_creation_extension_dir=server_extension_dir.name
+        )
 
         # yield control to the tests
         yield
@@ -259,7 +258,8 @@ def test_load_and_call_graph_creation_extension(client, graph_creation_extension
     assert num_files_loaded == 1
 
     new_graph_id = client.call_graph_creation_extension(
-        "my_graph_creation_function", "a", "b", "c")
+        "my_graph_creation_function", "a", "b", "c"
+    )
 
     assert new_graph_id in client.get_graph_ids()
 
@@ -283,7 +283,8 @@ def test_load_and_call_graph_creation_long_running_extension(
     assert num_files_loaded == 1
 
     new_graph_id = client.call_graph_creation_extension(
-        "long_running_graph_creation_function")
+        "long_running_graph_creation_function"
+    )
 
     assert new_graph_id in client.get_graph_ids()
 
@@ -299,7 +300,8 @@ def test_call_graph_creation_extension(client):
     """
 
     new_graph_id = client.call_graph_creation_extension(
-        "custom_graph_creation_function")
+        "custom_graph_creation_function"
+    )
 
     assert new_graph_id in client.get_graph_ids()
 

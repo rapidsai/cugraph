@@ -666,7 +666,7 @@ class CugraphHandler:
         with_replacement,
         graph_id,
         result_host,
-        result_port
+        result_port,
     ):
         G = self._get_graph(graph_id)
         if isinstance(G, (MGPropertyGraph, PropertyGraph)):
@@ -688,16 +688,19 @@ class CugraphHandler:
             )
             if (result_host is not None) or (result_port is not None):
                 if (result_host is None) or (result_port is None):
-                    raise ValueError("both result_host and result_port must "
-                                     "be set if either is set. Got: "
-                                     f"{result_host=}, {result_port=}")
+                    raise ValueError(
+                        "both result_host and result_port must "
+                        "be set if either is set. Got: "
+                        f"{result_host=}, {result_port=}"
+                    )
                 asyncio.run(
-                    self.__ucx_send_results(result_host,
-                                            result_port,
-                                            uns_result.sources,
-                                            uns_result.destinations,
-                                            uns_result.indices,
-                                            )
+                    self.__ucx_send_results(
+                        result_host,
+                        result_port,
+                        uns_result.sources,
+                        uns_result.destinations,
+                        uns_result.indices,
+                    )
                 )
                 # FIXME: Thrift still expects something of the expected type to
                 # be returned to be serialized and sent. Look into a separate
@@ -739,7 +742,6 @@ class CugraphHandler:
         a = self.__test_arrays.pop(test_array_id, None)
         if a is None:
             raise CugraphServiceError(f"invalid test_array_id {test_array_id}")
-        print(f"\nDELETING {test_array_id=}",flush=True)
         del a
 
     def receive_test_array(self, test_array_id):
@@ -751,10 +753,7 @@ class CugraphHandler:
         """
         return self.__test_arrays[test_array_id]
 
-    def receive_test_array_to_device(self,
-                                     test_array_id,
-                                     result_host,
-                                     result_port):
+    def receive_test_array_to_device(self, test_array_id, result_host, result_port):
         """
         Returns the test array identified by test_array_id to the client via
         UCX-Py listening on result_host/result_port.
@@ -763,10 +762,9 @@ class CugraphHandler:
         performing as expected.
         """
         asyncio.run(
-            self.__ucx_send_results(result_host,
-                                    result_port,
-                                    self.__test_arrays[test_array_id]
-                                    )
+            self.__ucx_send_results(
+                result_host, result_port, self.__test_arrays[test_array_id]
+            )
         )
 
     def get_graph_type(self, graph_id):
@@ -800,10 +798,7 @@ class CugraphHandler:
 
     ###########################################################################
     # Private
-    async def __ucx_send_results(self,
-                                 result_host,
-                                 result_port,
-                                 *results):
+    async def __ucx_send_results(self, result_host, result_port, *results):
         # The cugraph_service_client should have set up a UCX listener waiting
         # for the result. Create an endpoint, send results, and close.
         ep = await ucp.create_endpoint(result_host, result_port)

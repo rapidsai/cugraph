@@ -117,14 +117,13 @@ def simple_unweighted_input_expected_output(request):
     """
     test_data = {}
 
-    df = cudf.DataFrame({
-        'src': [0, 1, 2, 2, 0, 1, 4, 4],
-        'dst': [3, 2, 1, 4, 1, 3, 1, 2]
-    })
+    df = cudf.DataFrame(
+        {"src": [0, 1, 2, 2, 0, 1, 4, 4], "dst": [3, 2, 1, 4, 1, 3, 1, 2]}
+    )
     ddf = dask_cudf.from_cudf(df, npartitions=2)
 
     G = cugraph.Graph()
-    G.from_dask_cudf_edgelist(ddf, source='src', destination='dst')
+    G.from_dask_cudf_edgelist(ddf, source="src", destination="dst")
     test_data["Graph"] = G
     test_data["start_list"] = cudf.Series([0], dtype="int32")
     test_data["fanout_vals"] = [-1]
@@ -331,8 +330,8 @@ def test_mg_uniform_neighbor_sample_ensure_no_duplicates(dask_client):
 
 
 def test_uniform_neighbor_sample_unweighted_arrays_returned(
-        dask_client,
-        simple_unweighted_input_expected_output):
+    dask_client, simple_unweighted_input_expected_output
+):
 
     """
     Ensure that a tuple of cupy arrays are returned when specified instead of a
@@ -347,7 +346,7 @@ def test_uniform_neighbor_sample_unweighted_arrays_returned(
         test_data["Graph"],
         test_data["start_list"],
         test_data["fanout_vals"],
-        test_data["with_replacement"]
+        test_data["with_replacement"],
     )
 
     # After the call, ensure the flag is reset to allow the default return type

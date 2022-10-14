@@ -114,12 +114,15 @@ def uniform_neighbor_sample(
 
     # If arrays are to be returned, return cupy arrays from individual columns
     # *after* the indices dtype conversion and possible unrenumbering steps.
-    if (hasattr(uniform_neighbor_sample, "_return_type") and
-       uniform_neighbor_sample._return_type == "arrays"):
+    if (
+        hasattr(uniform_neighbor_sample, "_return_type")
+        and uniform_neighbor_sample._return_type == "arrays"
+    ):
         uniform_neighbor_sample._return_type = ""
-        return (df["sources"].to_cupy(),
-                df["destinations"].to_cupy(),
-                df["indices"].to_cupy(),
-                )
+        return (
+            df["sources"].to_cupy(),
+            df["destinations"].to_cupy(),
+            df["indices"].to_cupy(),
+        )
     else:
         return df

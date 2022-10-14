@@ -108,13 +108,12 @@ def simple_unweighted_input_expected_output(request):
     """
     test_data = {}
 
-    df = cudf.DataFrame({
-        'src': [0, 1, 2, 2, 0, 1, 4, 4],
-        'dst': [3, 2, 1, 4, 1, 3, 1, 2]
-    })
+    df = cudf.DataFrame(
+        {"src": [0, 1, 2, 2, 0, 1, 4, 4], "dst": [3, 2, 1, 4, 1, 3, 1, 2]}
+    )
 
     G = cugraph.Graph()
-    G.from_cudf_edgelist(df, source='src', destination='dst')
+    G.from_cudf_edgelist(df, source="src", destination="dst")
     test_data["Graph"] = G
     test_data["start_list"] = cudf.Series([0], dtype="int32")
     test_data["fanout_vals"] = [-1]
@@ -274,15 +273,14 @@ def test_uniform_neighbor_sample_tree(directed):
     assert set(start_list.to_pandas()).issubset(set(result_nbr_vertices.to_pandas()))
 
 
-def test_uniform_neighbor_sample_unweighted(
-        simple_unweighted_input_expected_output):
+def test_uniform_neighbor_sample_unweighted(simple_unweighted_input_expected_output):
     test_data = simple_unweighted_input_expected_output
 
     sampling_results = uniform_neighbor_sample(
         test_data["Graph"],
         test_data["start_list"],
         test_data["fanout_vals"],
-        test_data["with_replacement"]
+        test_data["with_replacement"],
     )
 
     actual_src = sampling_results.sources
@@ -295,7 +293,8 @@ def test_uniform_neighbor_sample_unweighted(
 
 
 def test_uniform_neighbor_sample_unweighted_arrays_returned(
-        simple_unweighted_input_expected_output):
+    simple_unweighted_input_expected_output,
+):
 
     """
     Ensure that a tuple of cupy arrays are returned when specified instead of a
@@ -310,7 +309,7 @@ def test_uniform_neighbor_sample_unweighted_arrays_returned(
         test_data["Graph"],
         test_data["start_list"],
         test_data["fanout_vals"],
-        test_data["with_replacement"]
+        test_data["with_replacement"],
     )
 
     # After the call, ensure the flag is reset to allow the default return type

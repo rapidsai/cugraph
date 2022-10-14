@@ -57,6 +57,7 @@ class ValueWrapper(UnionWrapper):
     allowing a python obj to be automatically mapped to the correct union
     field.
     """
+
     def __init__(self, val, val_name="value"):
         """
         Construct with a value supported by the Value "union". See

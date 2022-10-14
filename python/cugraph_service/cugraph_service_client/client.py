@@ -22,10 +22,11 @@ import threading
 import cupy as cp
 
 from cugraph_service_client import defaults
-from cugraph_service_client.types import (ValueWrapper,
-                                          GraphVertexEdgeID,
-                                          UniformNeighborSampleResult,
-                                          )
+from cugraph_service_client.types import (
+    ValueWrapper,
+    GraphVertexEdgeID,
+    UniformNeighborSampleResult,
+)
 from cugraph_service_client.cugraph_service_thrift import create_client
 
 
@@ -36,6 +37,7 @@ class DeviceArrayAllocator:
     number, and can be called repeatedly with the number of bytes to allocate,
     returning an array of the requested size on the device.
     """
+
     def __init__(self, device):
         self.device = device
 
@@ -50,7 +52,10 @@ class CugraphServiceClient:
     Client object for cugraph_service, which defines the API that clients can
     use to access the cugraph_service server.
     """
-    def __init__(self, host=defaults.host, port=defaults.port, results_port=defaults.results_port):
+
+    def __init__(
+        self, host=defaults.host, port=defaults.port, results_port=defaults.results_port
+    ):
         """
         Creates a connection to a cugraph_service server running on host/port.
 
@@ -935,7 +940,13 @@ class CugraphServiceClient:
 
     @__server_connection
     def uniform_neighbor_sample(
-        self, start_list, fanout_vals, with_replacement=True, *, graph_id=defaults.graph_id, result_device=None
+        self,
+        start_list,
+        fanout_vals,
+        with_replacement=True,
+        *,
+        graph_id=defaults.graph_id,
+        result_device=None,
     ):
         """
         Samples the graph and returns ...
@@ -957,11 +968,8 @@ class CugraphServiceClient:
         if result_device is not None:
             result_obj = asyncio.run(
                 self.__uniform_neighbor_sample_to_device(
-                    start_list,
-                    fanout_vals,
-                    with_replacement,
-                    graph_id,
-                    result_device)
+                    start_list, fanout_vals, with_replacement, graph_id, result_device
+                )
             )
         else:
             result_obj = self.__client.uniform_neighbor_sample(
@@ -970,7 +978,7 @@ class CugraphServiceClient:
                 with_replacement,
                 graph_id,
                 client_host=None,
-                client_result_port=None
+                client_result_port=None,
             )
 
         return result_obj
@@ -1015,8 +1023,7 @@ class CugraphServiceClient:
         """
         if result_device is not None:
             return asyncio.run(
-                self.__receive_test_array_to_device(test_array_id,
-                                                    result_device)
+                self.__receive_test_array_to_device(test_array_id, result_device)
             )
         else:
             return self.__client.receive_test_array(test_array_id)
@@ -1031,17 +1038,14 @@ class CugraphServiceClient:
 
     ###########################################################################
     # Private
-    async def __receive_test_array_to_device(self,
-                                             test_array_id,
-                                             result_device):
+    async def __receive_test_array_to_device(self, test_array_id, result_device):
         # Create an object to set results on in the "receiver" callback below.
         result_obj = type("Result", (), {})()
         allocator = DeviceArrayAllocator(result_device)
 
         async def receiver(endpoint):
             with cp.cuda.Device(result_device):
-                result_obj.array = await endpoint.recv_obj(
-                    allocator=allocator)
+                result_obj.array = await endpoint.recv_obj(allocator=allocator)
                 result_obj.array = result_obj.array.view("int8")
 
             await endpoint.close()
@@ -1052,21 +1056,18 @@ class CugraphServiceClient:
         # This sends a one-way request to the server and returns
         # immediately. The server will create and send the array back to the
         # listener started above.
-        self.__client.receive_test_array_to_device(test_array_id,
-                                                   self.host,
-                                                   self.results_port)
+        self.__client.receive_test_array_to_device(
+            test_array_id, self.host, self.results_port
+        )
 
         while not listener.closed():
             await asyncio.sleep(0.05)
 
         return result_obj.array
 
-    async def __uniform_neighbor_sample_to_device(self,
-                                                  start_list,
-                                                  fanout_vals,
-                                                  with_replacement,
-                                                  graph_id,
-                                                  result_device):
+    async def __uniform_neighbor_sample_to_device(
+        self, start_list, fanout_vals, with_replacement, graph_id, result_device
+    ):
         """
         Run uniform_neighbor_sample() with the args provided, but have the
         result send directly to the device specified by result_device.
@@ -1078,14 +1079,11 @@ class CugraphServiceClient:
 
         async def receiver(endpoint):
             with cp.cuda.Device(result_device):
-                result_obj.sources = await endpoint.recv_obj(
-                        allocator=allocator)
+                result_obj.sources = await endpoint.recv_obj(allocator=allocator)
                 result_obj.sources = result_obj.sources.view("int32")
-                result_obj.destinations = await endpoint.recv_obj(
-                        allocator=allocator)
+                result_obj.destinations = await endpoint.recv_obj(allocator=allocator)
                 result_obj.destinations = result_obj.destinations.view("int32")
-                result_obj.indices = await endpoint.recv_obj(
-                        allocator=allocator)
+                result_obj.indices = await endpoint.recv_obj(allocator=allocator)
                 result_obj.indices = result_obj.indices.view("float64")
 
             await endpoint.close()
@@ -1095,13 +1093,14 @@ class CugraphServiceClient:
 
         uns_thread = threading.Thread(
             target=self.__client.uniform_neighbor_sample,
-            args=(start_list,
-                  fanout_vals,
-                  with_replacement,
-                  graph_id,
-                  self.host,
-                  self.results_port,
-                  ),
+            args=(
+                start_list,
+                fanout_vals,
+                with_replacement,
+                graph_id,
+                self.host,
+                self.results_port,
+            ),
         )
         uns_thread.start()
 

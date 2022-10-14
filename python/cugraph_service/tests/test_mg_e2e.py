@@ -71,9 +71,8 @@ def mg_server():
             )
 
         server_process = utils.start_server_subprocess(
-            host=host,
-            port=port,
-            dask_scheduler_file=dask_scheduler_file)
+            host=host, port=port, dask_scheduler_file=dask_scheduler_file
+        )
 
         # yield control to the tests
         yield
@@ -111,7 +110,7 @@ def sg_server_on_device_1(graph_creation_extension_large_property_graph):
             host=host,
             port=port,
             graph_creation_extension_dir=server_extension_dir.name,
-            env_additions={"CUDA_VISIBLE_DEVICES": "1"}
+            env_additions={"CUDA_VISIBLE_DEVICES": "1"},
         )
 
         # yield control to the tests
@@ -183,37 +182,39 @@ def client_of_server_on_device_1(sg_server_on_device_1):
     # tests are done, now close the connection
     client.close()
 
-import time
-@pytest.fixture(scope="module",
-                params=[int(n) for n in [1e1, 1e3, 1e6, 1e9, 2e9, 5e9, 10e9]],
-                ids=lambda p: f"bytes={p:.1e}")
+
+@pytest.fixture(
+    scope="module",
+    params=[int(n) for n in [1e1, 1e3, 1e6, 1e9, 2e9, 5e9]],
+    ids=lambda p: f"bytes={p:.1e}",
+)
 def client_of_server_on_device_1_with_test_array(
-        request,
-        sg_server_on_device_1,
+    request,
+    sg_server_on_device_1,
 ):
     from cugraph_service_client import CugraphServiceClient, defaults
 
     client = CugraphServiceClient(defaults.host, defaults.port)
     nbytes = request.param
-    print(f"\nCREATING TEST ARRAY nbytes={nbytes:.1e}",flush=True)
-    st=time.time()
+
     test_array_id = client._create_test_array(nbytes)
-    print(f"DONE CREATING TEST ARRAY, time: {time.time()-st} s",flush=True)
 
     yield (client, test_array_id, nbytes)
 
     client._delete_test_array(test_array_id)
     client.close()
 
+
 @pytest.fixture(scope="function")
 def client_of_server_on_device_1_large_property_graph_loaded(
-        client_of_server_on_device_1
+    client_of_server_on_device_1,
 ):
     client = client_of_server_on_device_1
     # Assume fixture that starts server on device 1 has the extension loaded
     # for creating large property graphs.
     new_graph_id = client.call_graph_creation_extension(
-        "graph_creation_extension_large_property_graph")
+        "graph_creation_extension_large_property_graph"
+    )
 
     assert new_graph_id in client.get_graph_ids()
     # yield control to the tests that use this fixture
@@ -225,9 +226,7 @@ def client_of_server_on_device_1_large_property_graph_loaded(
 # Because pytest does not allow mixing fixtures and parametrization decorators
 # for test functions, this fixture is parametrized for different device IDs to
 # test against, and simply returns the param value to the test using it.
-@pytest.fixture(scope="module",
-                params=[None, 0],
-                ids=lambda p: f"device={p}")
+@pytest.fixture(scope="module", params=[None, 0], ids=lambda p: f"device={p}")
 def result_device_id(request):
     return request.param
 
@@ -264,33 +263,27 @@ def test_get_edge_IDs_for_vertices(client_with_edgelist_csv_loaded):
 
 
 def test_device_transfer(
-        benchmark,
-        result_device_id,
-        client_of_server_on_device_1_with_test_array,
+    benchmark,
+    result_device_id,
+    client_of_server_on_device_1_with_test_array,
 ):
-    (client, test_array_id, nbytes) = (
-        client_of_server_on_device_1_with_test_array
-    )
+    (client, test_array_id, nbytes) = client_of_server_on_device_1_with_test_array
 
     # device to host via RPC is too slow for large transfers, so skip
     if result_device_id is None and nbytes > 1e6:
         return
 
-    print("RUNNING BENCHMARK...",flush=True)
-    st=time.time()
-    bytes_returned = benchmark(client._receive_test_array,
-                               test_array_id,
-                               result_device=result_device_id,
-                               )
-    print(f"DONE RUNNING BENCHMARK, time: {time.time()-st}",flush=True)
+    bytes_returned = benchmark(
+        client._receive_test_array,
+        test_array_id,
+        result_device=result_device_id,
+    )
 
     # bytes_returned should be a cupy array of int8 values on
     # result_device_id, and each value should be 1.
     # Why not uint8 and value 255? Because when transferring data to a CPU
     # (result_device=None), Apache Thrift is used, which does not support
     # unsigned int types.
-    print("CHECKING RESULTS...",flush=True)
-    st=time.time()
     assert len(bytes_returned) == nbytes
     if result_device_id is None:
         assert type(bytes_returned) is list
@@ -300,20 +293,18 @@ def test_device_transfer(
         assert (bytes_returned == cp.ones(nbytes, dtype="int8")).all()
         device_n = cp.cuda.Device(result_device_id)
         assert bytes_returned.device == device_n
-    print(f"DONE CHECKING RESULTS, time: {time.time()-st}",flush=True)
+
 
 def test_uniform_neighbor_sampling_result_device(
-        benchmark,
-        result_device_id,
-        client_of_server_on_device_1_large_property_graph_loaded,
+    benchmark,
+    result_device_id,
+    client_of_server_on_device_1_large_property_graph_loaded,
 ):
     """
     Ensures uniform_neighbor_sample() results are transfered from the server to
     a specific client device when specified.
     """
-    (client, graph_id) = (
-        client_of_server_on_device_1_large_property_graph_loaded
-    )
+    (client, graph_id) = client_of_server_on_device_1_large_property_graph_loaded
     extracted_graph_id = client.extract_subgraph(graph_id=graph_id)
 
     start_list = range(int(1e3))
@@ -326,12 +317,10 @@ def test_uniform_neighbor_sampling_result_device(
         fanout_vals=fanout_vals,
         with_replacement=with_replacement,
         graph_id=extracted_graph_id,
-        result_device=result_device_id)
+        result_device=result_device_id,
+    )
 
-    assert (len(result.sources) ==
-            len(result.destinations) ==
-            len(result.indices)
-            )
+    assert len(result.sources) == len(result.destinations) == len(result.indices)
     dtype = type(result.sources)
 
     if result_device_id is None:
