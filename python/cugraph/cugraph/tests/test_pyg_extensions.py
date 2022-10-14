@@ -264,6 +264,69 @@ def test_get_subgraph(graph):
     assert sg.number_of_edges() == num_edges
 
 
+def test_neighbor_sample(basic_property_graph_1):
+    pG = basic_property_graph_1
+    feature_store, graph_store = to_pyg(pG, backend="cupy")
+    sampler = CuGraphSampler(
+        (feature_store, graph_store),
+        num_neighbors=[10],
+        replace=True,
+        directed=True,
+        edge_types=[v.edge_type for v in graph_store._edge_types_to_attrs.values()],
+    )
+
+    noi_groups, row_dict, col_dict, _ = sampler.sample_from_nodes(
+        index=cupy.array([0, 1, 2, 3, 4], dtype="int64")
+    )
+
+    for node_type, node_ids in noi_groups.items():
+        actual_vertex_ids = pG.get_vertex_data(types=[node_type])[
+            pG.vertex_col_name
+        ].to_cupy()
+
+        assert list(node_ids) == list(actual_vertex_ids)
+
+    cols = [pG.src_col_name, pG.dst_col_name, pG.type_col_name]
+    combined_df = cudf.DataFrame()
+    for edge_type, row in row_dict.items():
+        col = col_dict[edge_type]
+        df = cudf.DataFrame({pG.src_col_name: row, pG.dst_col_name: col})
+        df[pG.type_col_name] = edge_type.replace("__", "")
+        combined_df = cudf.concat([combined_df, df])
+    combined_df = combined_df.sort_values(cols)
+    combined_df = combined_df.reset_index().drop("index", axis=1)
+
+    base_df = pG.get_edge_data()
+    base_df = base_df[cols]
+    base_df = base_df.sort_values(cols)
+    base_df = base_df.reset_index().drop("index", axis=1)
+
+    assert combined_df.to_arrow().to_pylist() == base_df.to_arrow().to_pylist()
+
+
+def test_neighbor_sample_multi_vertex(multi_edge_multi_vertex_property_graph_1):
+    pG = multi_edge_multi_vertex_property_graph_1
+    feature_store, graph_store = to_pyg(pG, backend="cupy")
+    sampler = CuGraphSampler(
+        (feature_store, graph_store),
+        num_neighbors=[10],
+        replace=True,
+        directed=True,
+        edge_types=[v.edge_type for v in graph_store._edge_types_to_attrs.values()],
+    )
+
+    ex = re.compile(r"[A-z]+__([A-z]+)__[A-z]+")
+
+    noi_groups, row_dict, col_dict, _ = sampler.sample_from_nodes(
+        index=cupy.array([0, 1, 2, 3, 4], dtype="int64"),
+    )
+
+    for pyg_cpp_edge_type, srcs in row_dict.items():
+        cugraph_edge_type = ex.match(pyg_cpp_edge_type).groups()[0]
+        num_edges = len(pG.get_edge_data(types=[cugraph_edge_type]))
+        assert num_edges == len(srcs)
+
+
 def test_renumber(graph):
     pass
 
@@ -440,66 +503,3 @@ def test_named_tensor(graph):
     pG = graph
     feature_store, graph_store = to_pyg(pG, backend="cupy")
     pass
-
-
-def test_neighbor_sample(basic_property_graph_1):
-    pG = basic_property_graph_1
-    feature_store, graph_store = to_pyg(pG, backend="cupy")
-    sampler = CuGraphSampler(
-        (feature_store, graph_store),
-        num_neighbors=[10],
-        replace=True,
-        directed=True,
-        edge_types=[v.edge_type for v in graph_store._edge_types_to_attrs.values()],
-    )
-
-    noi_groups, row_dict, col_dict, _ = sampler.sample_from_nodes(
-        index=cupy.array([0, 1, 2, 3, 4], dtype="int64")
-    )
-
-    for node_type, node_ids in noi_groups.items():
-        actual_vertex_ids = pG.get_vertex_data(types=[node_type])[
-            pG.vertex_col_name
-        ].to_cupy()
-
-        assert list(node_ids) == list(actual_vertex_ids)
-
-    cols = [pG.src_col_name, pG.dst_col_name, pG.type_col_name]
-    combined_df = cudf.DataFrame()
-    for edge_type, row in row_dict.items():
-        col = col_dict[edge_type]
-        df = cudf.DataFrame({pG.src_col_name: row, pG.dst_col_name: col})
-        df[pG.type_col_name] = edge_type.replace("__", "")
-        combined_df = cudf.concat([combined_df, df])
-    combined_df = combined_df.sort_values(cols)
-    combined_df = combined_df.reset_index().drop("index", axis=1)
-
-    base_df = pG.get_edge_data()
-    base_df = base_df[cols]
-    base_df = base_df.sort_values(cols)
-    base_df = base_df.reset_index().drop("index", axis=1)
-
-    assert combined_df.to_arrow().to_pylist() == base_df.to_arrow().to_pylist()
-
-
-def test_neighbor_sample_multi_vertex(multi_edge_multi_vertex_property_graph_1):
-    pG = multi_edge_multi_vertex_property_graph_1
-    feature_store, graph_store = to_pyg(pG, backend="cupy")
-    sampler = CuGraphSampler(
-        (feature_store, graph_store),
-        num_neighbors=[10],
-        replace=True,
-        directed=True,
-        edge_types=[v.edge_type for v in graph_store._edge_types_to_attrs.values()],
-    )
-
-    ex = re.compile(r"[A-z]+__([A-z]+)__[A-z]+")
-
-    noi_groups, row_dict, col_dict, _ = sampler.sample_from_nodes(
-        index=cupy.array([0, 1, 2, 3, 4], dtype="int64"),
-    )
-
-    for pyg_cpp_edge_type, srcs in row_dict.items():
-        cugraph_edge_type = ex.match(pyg_cpp_edge_type).groups()[0]
-        num_edges = len(pG.get_edge_data(types=[cugraph_edge_type]))
-        assert num_edges == len(srcs)

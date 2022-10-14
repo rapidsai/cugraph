@@ -13,7 +13,7 @@
 
 import cugraph
 from cugraph.experimental import MGPropertyGraph
-from cugraph.gnn.pyg_extensions import to_pyg
+from cugraph.gnn.pyg_extensions import to_pyg, CuGraphSampler
 from cugraph.gnn.pyg_extensions.data.cugraph_store import (
     CuGraphTensorAttr,
     CuGraphEdgeAttr,
@@ -295,9 +295,8 @@ def test_get_subgraph(graph):
 def test_neighbor_sample(basic_property_graph_1):
     pG = basic_property_graph_1
     feature_store, graph_store = to_pyg(pG, backend="cupy")
-
-    noi_groups, row_dict, col_dict, _ = graph_store.neighbor_sample(
-        index=cupy.array([0, 1, 2, 3, 4], dtype="int32"),
+    sampler = CuGraphSampler(
+        (feature_store, graph_store),
         # FIXME The following line should be num_neighbors=[-1] but
         # there is currently a bug in MG uniform_neighbor_sample.
         # Once this bug is fixed, this line should be changed.
@@ -305,6 +304,10 @@ def test_neighbor_sample(basic_property_graph_1):
         replace=True,
         directed=True,
         edge_types=[v.edge_type for v in graph_store._edge_types_to_attrs.values()],
+    )
+
+    noi_groups, row_dict, col_dict, _ = sampler.sample_from_nodes(
+        index=cupy.array([0, 1, 2, 3, 4], dtype="int32"),
     )
 
     for node_type, node_ids in noi_groups.items():
@@ -347,13 +350,10 @@ def test_neighbor_sample(basic_property_graph_1):
 def test_neighbor_sample_multi_vertex(multi_edge_multi_vertex_property_graph_1):
     pG = multi_edge_multi_vertex_property_graph_1
     feature_store, graph_store = to_pyg(pG, backend="cupy")
-
-    ex = re.compile(r"[A-z]+__([A-z]+)__[A-z]+")
-
-    noi_groups, row_dict, col_dict, _ = graph_store.neighbor_sample(
-        index=cupy.array([0, 1, 2, 3, 4], dtype="int32"),
+    sampler = CuGraphSampler(
+        (feature_store, graph_store),
         # FIXME The following line should be num_neighbors=[-1] but
-        # there is currently a bug in uniform_neighbor_sample.
+        # there is currently a bug in MG uniform_neighbor_sample.
         # Once this bug is fixed, this line should be changed.
         num_neighbors=[10],
         replace=True,
@@ -361,10 +361,20 @@ def test_neighbor_sample_multi_vertex(multi_edge_multi_vertex_property_graph_1):
         edge_types=[v.edge_type for v in graph_store._edge_types_to_attrs.values()],
     )
 
+    ex = re.compile(r"[A-z]+__([A-z]+)__[A-z]+")
+
+    noi_groups, row_dict, col_dict, _ = sampler.sample_from_nodes(
+        index=cupy.array([0, 1, 2, 3, 4], dtype="int32"),
+    )
+
     for pyg_cpp_edge_type, srcs in row_dict.items():
         cugraph_edge_type = ex.match(pyg_cpp_edge_type).groups()[0]
         num_edges = len(pG.get_edge_data(types=[cugraph_edge_type]).compute())
         assert num_edges == len(srcs)
+
+
+def test_renumber(graph):
+    pass
 
 
 def test_get_tensor(graph):
