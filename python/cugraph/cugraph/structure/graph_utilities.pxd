@@ -63,22 +63,6 @@ cdef extern from "cugraph/utilities/cython.hpp" namespace "cugraph::cython":
         LegacyCSC "cugraph::cython::graphTypeEnum::LegacyCSC"
         LegacyCOO "cugraph::cython::graphTypeEnum::LegacyCOO"
 
-    cdef void populate_graph_container_legacy(
-        graph_container_t &graph_container,
-        graphTypeEnum legacyType,
-        const handle_t &handle,
-        void *offsets,
-        void *indices,
-        void *weights,
-        numberTypeEnum offsetType,
-        numberTypeEnum indexType,
-        numberTypeEnum weightType,
-        size_t num_global_vertices,
-        size_t num_global_edges,
-        int *local_vertices,
-        int *local_edges,
-        int *local_offsets) except +
-
     cdef cppclass cy_multi_edgelists_t:
         size_t number_of_vertices
         size_t number_of_edges
