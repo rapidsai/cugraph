@@ -158,6 +158,7 @@ def graph_creation_extension_large_property_graph(server):
 ###############################################################################
 # module scope fixtures
 
+
 @pytest.fixture(scope="module")
 def graph_creation_extension1():
     tmp_extension_dir = utils.create_tmp_extension_dir(

@@ -30,13 +30,17 @@ class UnionWrapper:
     classes below, these objects allow the caller to go from py objects/Thrift
     unions to Thrift unions/py objects.
     """
+
     def get_py_obj(self):
         """
         Get the python object set in the union.
         """
         not_members = set(["default_spec", "thrift_spec", "read", "write"])
-        attrs = [a for a in dir(self.union)
-                 if not(a.startswith("_")) and a not in not_members]
+        attrs = [
+            a
+            for a in dir(self.union)
+            if not (a.startswith("_")) and a not in not_members
+        ]
         # Much like a C union, only one field will be set. Return the first
         # non-None value encountered.
         for a in attrs:
@@ -77,9 +81,11 @@ class ValueWrapper(UnionWrapper):
         elif isinstance(val, bool):
             self.union = Value(bool_value=val)
         else:
-            raise TypeError(f"{val_name} must be one of the "
-                            "following types: [int, str, bool], got "
-                            f"{type(val)}")
+            raise TypeError(
+                f"{val_name} must be one of the "
+                "following types: [int, str, bool], got "
+                f"{type(val)}"
+            )
 
 
 class GraphVertexEdgeIDWrapper(UnionWrapper):
@@ -98,6 +104,8 @@ class GraphVertexEdgeIDWrapper(UnionWrapper):
             else:
                 self.union = GraphVertexEdgeID(int32_ids=val)
         else:
-            raise TypeError(f"{val_name} must be one of the "
-                            "following types: [int, list<int>], got "
-                            f"{type(val)}")
+            raise TypeError(
+                f"{val_name} must be one of the "
+                "following types: [int, list<int>], got "
+                f"{type(val)}"
+            )

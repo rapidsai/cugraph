@@ -25,7 +25,7 @@ include(rapids-find)
 
 rapids_cuda_init_architectures(CUGRAPH)
 
-project(CUGRAPH VERSION 22.10.00 LANGUAGES C CXX CUDA)
+project(CUGRAPH VERSION 22.12.00 LANGUAGES C CXX CUDA)
 
 if(CMAKE_CUDA_COMPILER_ID STREQUAL "NVIDIA" AND
    CMAKE_CUDA_COMPILER_VERSION VERSION_LESS 11.0)
@@ -174,7 +174,6 @@ set(CUGRAPH_SOURCES
     src/structure/graph_view_mg.cu
     src/utilities/cython.cu
     src/utilities/path_retrieval.cu
-    src/utilities/graph_bcast.cpp
     src/structure/legacy/graph.cu
     src/linear_assignment/hungarian.cu
     src/traversal/legacy/bfs.cu
@@ -244,7 +243,6 @@ set(CUGRAPH_SOURCES
     src/centrality/katz_centrality_mg.cu
     src/centrality/eigenvector_centrality_sg.cu
     src/centrality/eigenvector_centrality_mg.cu
-    src/serialization/serializer.cu
     src/tree/mst.cu
     src/components/weakly_connected_components_sg.cu
     src/components/weakly_connected_components_mg.cu
@@ -254,6 +252,8 @@ set(CUGRAPH_SOURCES
     src/structure/symmetrize_edgelist_mg.cu
     src/community/triangle_count_sg.cu
     src/community/triangle_count_mg.cu
+    src/traversal/k_hop_nbrs_sg.cu
+    src/traversal/k_hop_nbrs_mg.cu
 )
 
 if(USE_CUGRAPH_OPS)

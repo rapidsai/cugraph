@@ -211,8 +211,7 @@ service CugraphService {
 # problems will be apparent immediately on import, and it allows any other
 # module to import this and access the various types defined in the Thrift
 # specification without being exposed to the thriftpy2 API.
-spec = thriftpy2.load_fp(io.StringIO(cugraph_thrift_spec),
-                         module_name="cugraph_thrift")
+spec = thriftpy2.load_fp(io.StringIO(cugraph_thrift_spec), module_name="cugraph_thrift")
 
 
 def create_server(handler, host, port, client_timeout=90000):
@@ -232,11 +231,13 @@ def create_server(handler, host, port, client_timeout=90000):
     client_timeout = client_timeout
 
     processor = TProcessor(spec.CugraphService, handler)
-    server_socket = TServerSocket(host=host, port=port,
-                                  client_timeout=client_timeout)
-    server = TSimpleServer(processor, server_socket,
-                           iprot_factory=proto_factory,
-                           itrans_factory=trans_factory)
+    server_socket = TServerSocket(host=host, port=port, client_timeout=client_timeout)
+    server = TSimpleServer(
+        processor,
+        server_socket,
+        iprot_factory=proto_factory,
+        itrans_factory=trans_factory,
+    )
     return server
 
 
@@ -250,8 +251,9 @@ def create_client(host, port, call_timeout=90000):
     does not return in call_timeout milliseconds, an exception is raised.
     """
     try:
-        return make_client(spec.CugraphService, host=host, port=port,
-                           timeout=call_timeout)
+        return make_client(
+            spec.CugraphService, host=host, port=port, timeout=call_timeout
+        )
     except TTransportException:
         # Raise a CugraphServiceError in order to completely encapsulate all
         # Thrift details in this module. If this was not done, callers of this
@@ -265,5 +267,6 @@ def create_client(host, port, call_timeout=90000):
         #
         # FIXME: may need to have additional thrift exception handlers
         # FIXME: this exception being raised could use more detail
-        raise spec.CugraphServiceError("could not create a client session "
-                                       "with a cugraph_service server")
+        raise spec.CugraphServiceError(
+            "could not create a client session " "with a cugraph_service server"
+        )

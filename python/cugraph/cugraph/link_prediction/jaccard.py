@@ -13,10 +13,11 @@
 
 import cudf
 from cugraph.link_prediction import jaccard_wrapper
-from cugraph.utilities import (ensure_cugraph_obj_for_nx,
-                               df_edge_score_to_dictionary,
-                               renumber_vertex_pair,
-                               )
+from cugraph.utilities import (
+    ensure_cugraph_obj_for_nx,
+    df_edge_score_to_dictionary,
+    renumber_vertex_pair,
+)
 
 
 def jaccard(input_graph, vertex_pair=None):
@@ -173,9 +174,8 @@ def jaccard_coefficient(G, ebunch=None):
     df = jaccard(G, vertex_pair)
 
     if isNx is True:
-        df = df_edge_score_to_dictionary(df,
-                                         k="jaccard_coeff",
-                                         src="source",
-                                         dst="destination")
+        df = df_edge_score_to_dictionary(
+            df, k="jaccard_coeff", src="source", dst="destination"
+        )
 
     return df

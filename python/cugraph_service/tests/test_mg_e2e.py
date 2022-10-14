@@ -24,6 +24,8 @@ from . import utils
 
 ###############################################################################
 # fixtures
+
+
 @pytest.fixture(scope="module")
 def mg_server():
     """
@@ -55,14 +57,18 @@ def mg_server():
 
         dask_scheduler_file = os.environ.get("SCHEDULER_FILE")
         if dask_scheduler_file is None:
-            raise EnvironmentError("Environment variable SCHEDULER_FILE must "
-                                   "be set to the path to a dask scheduler "
-                                   "json file")
+            raise EnvironmentError(
+                "Environment variable SCHEDULER_FILE must "
+                "be set to the path to a dask scheduler "
+                "json file"
+            )
         dask_scheduler_file = Path(dask_scheduler_file)
         if not dask_scheduler_file.exists():
-            raise FileNotFoundError("env var SCHEDULER_FILE is set to "
-                                    f"{dask_scheduler_file}, which does not "
-                                    "exist.")
+            raise FileNotFoundError(
+                "env var SCHEDULER_FILE is set to "
+                f"{dask_scheduler_file}, which does not "
+                "exist."
+            )
 
         server_process = utils.start_server_subprocess(
             host=host,
@@ -140,10 +146,12 @@ def client_with_edgelist_csv_loaded(client):
     Loads the karate CSV into the default graph on the server.
     """
     test_data = data.edgelist_csv_data["karate"]
-    client.load_csv_as_edge_data(test_data["csv_file_name"],
-                                 dtypes=test_data["dtypes"],
-                                 vertex_col_names=["0", "1"],
-                                 type_name="")
+    client.load_csv_as_edge_data(
+        test_data["csv_file_name"],
+        dtypes=test_data["dtypes"],
+        vertex_col_names=["0", "1"],
+        type_name="",
+    )
     assert client.get_graph_ids() == [0]
 
     yield (client, test_data)
@@ -227,6 +235,7 @@ def result_device_id(request):
 ###############################################################################
 # tests
 
+
 def test_get_default_graph_info(client_with_edgelist_csv_loaded):
     """
     Test to ensure various info on the default graph loaded from the specified
@@ -243,8 +252,7 @@ def test_get_default_graph_info(client_with_edgelist_csv_loaded):
 
 
 def test_get_edge_IDs_for_vertices(client_with_edgelist_csv_loaded):
-    """
-    """
+    """ """
     (client, test_data) = client_with_edgelist_csv_loaded
 
     # get_graph_type() is a test/debug API which returns a string repr of the

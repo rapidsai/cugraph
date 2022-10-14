@@ -50,10 +50,7 @@ class CugraphServiceClient:
     Client object for cugraph_service, which defines the API that clients can
     use to access the cugraph_service server.
     """
-    def __init__(self,
-                 host=defaults.host,
-                 port=defaults.port,
-                 results_port=defaults.results_port):
+    def __init__(self, host=defaults.host, port=defaults.port, results_port=defaults.results_port):
         """
         Creates a connection to a cugraph_service server running on host/port.
 
@@ -97,6 +94,7 @@ class CugraphServiceClient:
         caller to manually call close() in order to allow other clients to
         connect.
         """
+
         @wraps(method)
         def wrapped_method(self, *args, **kwargs):
             self.open()
@@ -106,6 +104,7 @@ class CugraphServiceClient:
                 if not self.hold_open:
                     self.close()
             return ret_val
+
         return wrapped_method
 
     def open(self, call_timeout=900000):
@@ -142,8 +141,9 @@ class CugraphServiceClient:
 
         """
         if self.__client is None:
-            self.__client = create_client(self.host, self.port,
-                                          call_timeout=call_timeout)
+            self.__client = create_client(
+                self.host, self.port, call_timeout=call_timeout
+            )
 
     def close(self):
         """
@@ -228,8 +228,7 @@ class CugraphServiceClient:
         server_info = self.__client.get_server_info()
         # server_info is a dictionary of Value objects ("union" types returned
         # from the server), so convert them to simple py types.
-        return dict((k, ValueWrapper(server_info[k]).get_py_obj())
-                    for k in server_info)
+        return dict((k, ValueWrapper(server_info[k]).get_py_obj()) for k in server_info)
 
     @__server_connection
     def load_graph_creation_extensions(self, extension_dir_path):
@@ -281,8 +280,7 @@ class CugraphServiceClient:
         return self.__client.unload_graph_creation_extensions()
 
     @__server_connection
-    def call_graph_creation_extension(self, func_name,
-                                      *func_args, **func_kwargs):
+    def call_graph_creation_extension(self, func_name, *func_args, **func_kwargs):
         """
         Calls a graph creation extension on the server that was previously
         loaded by a prior call to load_graph_creation_extensions(), then
@@ -329,7 +327,8 @@ class CugraphServiceClient:
         func_args_repr = repr(func_args)
         func_kwargs_repr = repr(func_kwargs)
         return self.__client.call_graph_creation_extension(
-            func_name, func_args_repr, func_kwargs_repr)
+            func_name, func_args_repr, func_kwargs_repr
+        )
 
     ###########################################################################
     # Graph management
@@ -451,8 +450,9 @@ class CugraphServiceClient:
             if False in [isinstance(k, str) for k in keys]:
                 raise TypeError(f"keys must be a list of strings, got {keys}")
         else:
-            raise TypeError("keys must be a string or list of strings, got "
-                            f"{type(keys)}")
+            raise TypeError(
+                "keys must be a string or list of strings, got " f"{type(keys)}"
+            )
 
         graph_info = self.__client.get_graph_info(keys, graph_id)
 
@@ -463,21 +463,21 @@ class CugraphServiceClient:
 
         # graph_info is a dictionary of Value objects ("union" types returned
         # from the graph), so convert them to simple py types.
-        return dict((k, ValueWrapper(graph_info[k]).get_py_obj())
-                    for k in graph_info)
+        return dict((k, ValueWrapper(graph_info[k]).get_py_obj()) for k in graph_info)
 
     @__server_connection
-    def load_csv_as_vertex_data(self,
-                                csv_file_name,
-                                dtypes,
-                                vertex_col_name,
-                                delimiter=" ",
-                                header=None,
-                                type_name="",
-                                property_columns=None,
-                                graph_id=defaults.graph_id,
-                                names=None,
-                                ):
+    def load_csv_as_vertex_data(
+        self,
+        csv_file_name,
+        dtypes,
+        vertex_col_name,
+        delimiter=" ",
+        header=None,
+        type_name="",
+        property_columns=None,
+        graph_id=defaults.graph_id,
+        names=None,
+    ):
 
         """
         Reads csv_file_name and applies it as vertex data to the graph
@@ -541,28 +541,31 @@ class CugraphServiceClient:
             header = -1
         elif header is None:
             header = -2
-        return self.__client.load_csv_as_vertex_data(csv_file_name,
-                                                     delimiter,
-                                                     dtypes,
-                                                     header,
-                                                     vertex_col_name,
-                                                     type_name,
-                                                     property_columns or [],
-                                                     graph_id,
-                                                     names or [])
+        return self.__client.load_csv_as_vertex_data(
+            csv_file_name,
+            delimiter,
+            dtypes,
+            header,
+            vertex_col_name,
+            type_name,
+            property_columns or [],
+            graph_id,
+            names or [],
+        )
 
     @__server_connection
-    def load_csv_as_edge_data(self,
-                              csv_file_name,
-                              dtypes,
-                              vertex_col_names,
-                              delimiter=" ",
-                              header=None,
-                              type_name="",
-                              property_columns=None,
-                              graph_id=defaults.graph_id,
-                              names=None
-                              ):
+    def load_csv_as_edge_data(
+        self,
+        csv_file_name,
+        dtypes,
+        vertex_col_names,
+        delimiter=" ",
+        header=None,
+        type_name="",
+        property_columns=None,
+        graph_id=defaults.graph_id,
+        names=None,
+    ):
         """
         Reads csv_file_name and applies it as edge data to the graph identified
         as graph_id (or the default graph if not specified).
@@ -626,38 +629,41 @@ class CugraphServiceClient:
             header = -1
         elif header is None:
             header = -2
-        return self.__client.load_csv_as_edge_data(csv_file_name,
-                                                   delimiter,
-                                                   dtypes,
-                                                   header,
-                                                   vertex_col_names,
-                                                   type_name,
-                                                   property_columns or [],
-                                                   graph_id,
-                                                   names or [])
+        return self.__client.load_csv_as_edge_data(
+            csv_file_name,
+            delimiter,
+            dtypes,
+            header,
+            vertex_col_names,
+            type_name,
+            property_columns or [],
+            graph_id,
+            names or [],
+        )
 
     @__server_connection
-    def get_edge_IDs_for_vertices(self, src_vert_IDs, dst_vert_IDs,
-                                  graph_id=defaults.graph_id):
-        """
-        """
+    def get_edge_IDs_for_vertices(
+        self, src_vert_IDs, dst_vert_IDs, graph_id=defaults.graph_id
+    ):
+        """ """
         # FIXME: finish docstring above
         # FIXME: add type checking
-        return self.__client.get_edge_IDs_for_vertices(src_vert_IDs,
-                                                       dst_vert_IDs,
-                                                       graph_id)
+        return self.__client.get_edge_IDs_for_vertices(
+            src_vert_IDs, dst_vert_IDs, graph_id
+        )
 
     @__server_connection
-    def extract_subgraph(self,
-                         create_using=None,
-                         selection=None,
-                         edge_weight_property="",
-                         default_edge_weight=1.0,
-                         allow_multi_edges=False,
-                         renumber_graph=True,
-                         add_edge_data=True,
-                         graph_id=defaults.graph_id
-                         ):
+    def extract_subgraph(
+        self,
+        create_using=None,
+        selection=None,
+        edge_weight_property="",
+        default_edge_weight=1.0,
+        allow_multi_edges=False,
+        renumber_graph=True,
+        add_edge_data=True,
+        graph_id=defaults.graph_id,
+    ):
         """
         Return a graph ID for a subgraph of the graph referenced by graph_id
         that containing vertices and edges that match a selection.
@@ -712,22 +718,25 @@ class CugraphServiceClient:
         create_using = create_using or ""
         selection = selection or ""
 
-        return self.__client.extract_subgraph(create_using,
-                                              selection,
-                                              edge_weight_property,
-                                              default_edge_weight,
-                                              allow_multi_edges,
-                                              renumber_graph,
-                                              add_edge_data,
-                                              graph_id)
+        return self.__client.extract_subgraph(
+            create_using,
+            selection,
+            edge_weight_property,
+            default_edge_weight,
+            allow_multi_edges,
+            renumber_graph,
+            add_edge_data,
+            graph_id,
+        )
 
     @__server_connection
-    def get_graph_vertex_data(self,
-                              id_or_ids=-1,
-                              null_replacement_value=0,
-                              graph_id=defaults.graph_id,
-                              property_keys=None
-                              ):
+    def get_graph_vertex_data(
+        self,
+        id_or_ids=-1,
+        null_replacement_value=0,
+        graph_id=defaults.graph_id,
+        property_keys=None,
+    ):
         """
         Returns ...
 
@@ -756,26 +765,26 @@ class CugraphServiceClient:
 
         vertex_edge_id_obj = self.__get_vertex_edge_id_obj(id_or_ids)
         null_replacement_value_obj = ValueWrapper(
-            null_replacement_value,
-            val_name="null_replacement_value").union
+            null_replacement_value, val_name="null_replacement_value"
+        ).union
 
-        ndarray_bytes = \
-            self.__client.get_graph_vertex_data(
-                vertex_edge_id_obj,
-                null_replacement_value_obj,
-                graph_id,
-                property_keys or []
-            )
+        ndarray_bytes = self.__client.get_graph_vertex_data(
+            vertex_edge_id_obj,
+            null_replacement_value_obj,
+            graph_id,
+            property_keys or [],
+        )
 
         return pickle.loads(ndarray_bytes)
 
     @__server_connection
-    def get_graph_edge_data(self,
-                            id_or_ids=-1,
-                            null_replacement_value=0,
-                            graph_id=defaults.graph_id,
-                            property_keys=None
-                            ):
+    def get_graph_edge_data(
+        self,
+        id_or_ids=-1,
+        null_replacement_value=0,
+        graph_id=defaults.graph_id,
+        property_keys=None,
+    ):
         """
         Returns ...
 
@@ -804,16 +813,15 @@ class CugraphServiceClient:
 
         vertex_edge_id_obj = self.__get_vertex_edge_id_obj(id_or_ids)
         null_replacement_value_obj = ValueWrapper(
-            null_replacement_value,
-            val_name="null_replacement_value").union
+            null_replacement_value, val_name="null_replacement_value"
+        ).union
 
-        ndarray_bytes = \
-            self.__client.get_graph_edge_data(
-                vertex_edge_id_obj,
-                null_replacement_value_obj,
-                graph_id,
-                property_keys or []
-            )
+        ndarray_bytes = self.__client.get_graph_edge_data(
+            vertex_edge_id_obj,
+            null_replacement_value_obj,
+            graph_id,
+            property_keys or [],
+        )
 
         return pickle.loads(ndarray_bytes)
 
@@ -866,9 +874,9 @@ class CugraphServiceClient:
 
         if not isinstance(seeds, list):
             seeds = [seeds]
-        batched_ego_graphs_result = self.__client.batched_ego_graphs(seeds,
-                                                                     radius,
-                                                                     graph_id)
+        batched_ego_graphs_result = self.__client.batched_ego_graphs(
+            seeds, radius, graph_id
+        )
 
         # FIXME: ensure dtypes are correct for values returned from
         # cugraph.batched_ego_graphs() in cugraph_handler.py
@@ -880,10 +888,12 @@ class CugraphServiceClient:
         #         dtype="float64"),
         #         numpy.frombuffer(batched_ego_graphs_result.seeds_offsets,
         #         dtype="int64"))
-        return (batched_ego_graphs_result.src_verts,
-                batched_ego_graphs_result.dst_verts,
-                batched_ego_graphs_result.edge_weights,
-                batched_ego_graphs_result.seeds_offsets)
+        return (
+            batched_ego_graphs_result.src_verts,
+            batched_ego_graphs_result.dst_verts,
+            batched_ego_graphs_result.edge_weights,
+            batched_ego_graphs_result.seeds_offsets,
+        )
 
     @__server_connection
     def node2vec(self, start_vertices, max_depth, graph_id=defaults.graph_id):
@@ -916,21 +926,17 @@ class CugraphServiceClient:
             start_vertices = [start_vertices]
         # FIXME: ensure list is a list of int32, since Thrift interface
         # specifies that?
-        node2vec_result = self.__client.node2vec(start_vertices,
-                                                 max_depth,
-                                                 graph_id)
-        return (node2vec_result.vertex_paths,
-                node2vec_result.edge_weights,
-                node2vec_result.path_sizes)
+        node2vec_result = self.__client.node2vec(start_vertices, max_depth, graph_id)
+        return (
+            node2vec_result.vertex_paths,
+            node2vec_result.edge_weights,
+            node2vec_result.path_sizes,
+        )
 
     @__server_connection
-    def uniform_neighbor_sample(self,
-                                start_list,
-                                fanout_vals,
-                                with_replacement=True,
-                                *,
-                                graph_id=defaults.graph_id,
-                                result_device=None):
+    def uniform_neighbor_sample(
+        self, start_list, fanout_vals, with_replacement=True, *, graph_id=defaults.graph_id, result_device=None
+    ):
         """
         Samples the graph and returns ...
 

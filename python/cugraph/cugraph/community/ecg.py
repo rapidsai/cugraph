@@ -12,9 +12,10 @@
 # limitations under the License.
 
 from cugraph.community import ecg_wrapper
-from cugraph.utilities import (ensure_cugraph_obj_for_nx,
-                               df_score_to_dictionary,
-                               )
+from cugraph.utilities import (
+    ensure_cugraph_obj_for_nx,
+    df_score_to_dictionary,
+)
 
 
 def ecg(input_graph, min_weight=0.05, ensemble_size=16, weight=None):
@@ -75,6 +76,6 @@ def ecg(input_graph, min_weight=0.05, ensemble_size=16, weight=None):
         parts = input_graph.unrenumber(parts, "vertex")
 
     if isNx is True:
-        return df_score_to_dictionary(parts, 'partition')
+        return df_score_to_dictionary(parts, "partition")
     else:
         return parts

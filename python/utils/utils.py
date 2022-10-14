@@ -1,4 +1,4 @@
-# Copyright (c) 2018-2020, NVIDIA CORPORATION.
+# Copyright (c) 2018-2022, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -22,23 +22,23 @@ def getRepoInfo():
 
 
 def getCommandOutput(cmd):
-    result = subprocess.run(cmd,
-                            stdout=subprocess.PIPE,
-                            stderr=subprocess.PIPE,
-                            shell=True)
+    result = subprocess.run(
+        cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True
+    )
     stdout = result.stdout.decode().strip()
     if result.returncode == 0:
         return stdout
 
     stderr = result.stderr.decode().strip()
-    raise RuntimeError("Problem running '%s' (STDOUT: '%s' STDERR: '%s')"
-                       % (cmd, stdout, stderr))
+    raise RuntimeError(
+        "Problem running '%s' (STDOUT: '%s' STDERR: '%s')" % (cmd, stdout, stderr)
+    )
 
 
 def getCommitInfo():
     commitHash = getCommandOutput("git rev-parse HEAD")
     commitTime = getCommandOutput("git log -n1 --pretty=%%ct %s" % commitHash)
-    return (commitHash, str(int(commitTime)*100))
+    return (commitHash, str(int(commitTime) * 100))
 
 
 def getCudaVer():
