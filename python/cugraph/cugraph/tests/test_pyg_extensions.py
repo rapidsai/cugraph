@@ -327,8 +327,71 @@ def test_neighbor_sample_multi_vertex(multi_edge_multi_vertex_property_graph_1):
         assert num_edges == len(srcs)
 
 
-def test_renumber(graph):
-    pass
+def test_renumber_vertices(graph):
+    pG = graph
+    feature_store, graph_store = to_pyg(pG, backend="cupy")
+
+    nodes_of_interest = pG.get_vertices().sample(3)
+    vc_actual = pG.get_vertex_data(nodes_of_interest)[pG.type_col_name].value_counts()
+    index, groups, tensors = graph_store._get_renumbered_vertex_data_from_sample(
+        nodes_of_interest
+    )
+
+    print(f"{index}\n{groups}\n{tensors}\n")
+    for vtype in index:
+        assert len(index[vtype]) == vc_actual[vtype]
+        assert len(index[vtype]) == len(groups[vtype])
+        assert groups[vtype].tolist() == cupy.arange(len(index[vtype])).tolist()
+
+        assert (
+            tensors[vtype]["x"].tolist()
+            == pG.get_vertex_data(index[vtype])
+            .drop(pG.vertex_col_name, axis=1)
+            .drop(pG.type_col_name, axis=1)
+            .to_cupy(dtype="float")
+            .tolist()
+        )
+
+
+def test_renumber_edges(graph):
+    pG = graph
+    feature_store, graph_store = to_pyg(pG, backend="cupy")
+    eoi_df = pG.get_edge_data().sample(4)
+    nodes_of_interest = (
+        cudf.concat([eoi_df[pG.src_col_name], eoi_df[pG.dst_col_name]])
+        .unique()
+        .sort_values()
+    )
+    vd = pG.get_vertex_data(nodes_of_interest)
+    noi_index = {
+        vd[pG.type_col_name]
+        .cat.categories[gg[0]]: vd.loc[gg[1].values_host][pG.vertex_col_name]
+        .to_cupy()
+        for gg in vd.groupby(pG.type_col_name).groups.items()
+    }
+
+    sdf = cudf.DataFrame(
+        {
+            "sources": eoi_df[pG.src_col_name],
+            "destinations": eoi_df[pG.dst_col_name],
+            "indices": eoi_df[pG.edge_id_col_name],
+        }
+    )
+    row, col = graph_store._get_renumbered_edges_from_sample(sdf, noi_index)
+
+    for etype in row:
+        stype, ctype, dtype = etype.split("__")
+        src = noi_index[stype][row[etype]]
+        dst = noi_index[dtype][col[etype]]
+        assert len(src) == len(dst)
+        print(src)
+        for i in range(len(src)):
+            src_i = int(src[i])
+            dst_i = int(dst[i])
+            f = eoi_df[eoi_df[pG.src_col_name] == src_i]
+            f = f[f[pG.dst_col_name] == dst_i]
+            f = f[f[pG.type_col_name] == ctype]
+            assert len(f) == 1  # make sure we match exactly 1 edge
 
 
 def test_get_tensor(graph):
