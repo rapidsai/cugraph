@@ -174,7 +174,6 @@ set(CUGRAPH_SOURCES
     src/structure/graph_view_mg.cu
     src/utilities/cython.cu
     src/utilities/path_retrieval.cu
-    src/utilities/graph_bcast.cpp
     src/structure/legacy/graph.cu
     src/linear_assignment/legacy/hungarian.cu
     src/traversal/legacy/bfs.cu
@@ -243,7 +242,6 @@ set(CUGRAPH_SOURCES
     src/centrality/katz_centrality_mg.cu
     src/centrality/eigenvector_centrality_sg.cu
     src/centrality/eigenvector_centrality_mg.cu
-    src/serialization/serializer.cu
     src/tree/legacy/mst.cu
     src/components/weakly_connected_components_sg.cu
     src/components/weakly_connected_components_mg.cu
@@ -253,6 +251,8 @@ set(CUGRAPH_SOURCES
     src/structure/symmetrize_edgelist_mg.cu
     src/community/triangle_count_sg.cu
     src/community/triangle_count_mg.cu
+    src/traversal/k_hop_nbrs_sg.cu
+    src/traversal/k_hop_nbrs_mg.cu
 )
 
 if(USE_CUGRAPH_OPS)
