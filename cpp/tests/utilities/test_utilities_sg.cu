@@ -114,5 +114,6 @@ template std::tuple<std::vector<int64_t>, std::vector<int64_t>, std::optional<st
 graph_to_host_csr(raft::handle_t const& handle,
                   cugraph::graph_view_t<int64_t, int64_t, double, true, false> const& graph_view);
 
+
 }  // namespace test
 }  // namespace cugraph

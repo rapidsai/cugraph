@@ -25,6 +25,7 @@ add_library(cugraphtestutil STATIC
             utilities/test_utilities_sg.cu
             utilities/test_utilities_mg.cu
             link_prediction/similarity_compare.cpp
+	    structure/induced_subgraph_validate.cu
             components/wcc_graphs.cu
             sampling/random_walks_check_sg.cu
             ../../thirdparty/mmio/mmio.c)
@@ -302,7 +303,7 @@ ConfigureTest(COARSEN_GRAPH_TEST structure/coarsen_graph_test.cpp)
 
 ###################################################################################################
 # - Induced subgraph tests ------------------------------------------------------------------------
-ConfigureTest(INDUCED_SUBGRAPH_TEST structure/induced_subgraph_test.cpp structure/induced_subgraph_validate.cpp)
+ConfigureTest(INDUCED_SUBGRAPH_TEST structure/induced_subgraph_test.cpp)
 
 ###################################################################################################
 # - BFS tests -------------------------------------------------------------------------------------
@@ -494,7 +495,7 @@ if(BUILD_CUGRAPH_MG_TESTS)
 
     ###############################################################################################
     # - MG INDUCED SUBGRAPH tests -----------------------------------------------------------------
-    ConfigureTestMG(MG_INDUCED_SUBGRAPH_TEST structure/mg_induced_subgraph_test.cpp structure/induced_subgraph_validate.cpp)
+    ConfigureTestMG(MG_INDUCED_SUBGRAPH_TEST structure/mg_induced_subgraph_test.cpp)
 
     ###############################################################################################
     # - MG PRIMS COUNT_IF_V tests -----------------------------------------------------------------

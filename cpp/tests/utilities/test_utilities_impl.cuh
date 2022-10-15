@@ -129,5 +129,40 @@ graph_to_host_csr(
           : std::optional<std::vector<weight_t>>(std::nullopt));
 }
 
+template <typename vertex_t, typename edge_t, typename weight_t, bool store_transposed>
+std::tuple<cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed, false>,
+           std::optional<rmm::device_uvector<vertex_t>>>
+mg_graph_to_sg_graph(
+  raft::handle_t const& handle,
+  cugraph::graph_view_t<vertex_t, edge_t, weight_t, store_transposed, true> const& graph_view,
+  std::optional<rmm::device_uvector<vertex_t>> const& number_map,
+  bool renumber)
+{
+  auto [d_src, d_dst, d_wgt] = graph_view.decompress_to_edgelist(handle, number_map);
+
+  d_src = cugraph::test::device_gatherv(
+    handle, raft::device_span<vertex_t const>{d_src.data(), d_src.size()});
+  d_dst = cugraph::test::device_gatherv(
+    handle, raft::device_span<vertex_t const>{d_dst.data(), d_dst.size()});
+  if (d_wgt)
+    *d_wgt = cugraph::test::device_gatherv(
+      handle, raft::device_span<weight_t const>{d_wgt->data(), d_wgt->size()});
+
+  graph_t<vertex_t, edge_t, weight_t, store_transposed, false> graph(handle);
+  std::optional<rmm::device_uvector<vertex_t>> new_number_map;
+  std::tie(graph, std::ignore, new_number_map) = cugraph::
+    create_graph_from_edgelist<vertex_t, edge_t, weight_t, int32_t, store_transposed, false>(
+      handle,
+      std::optional<rmm::device_uvector<vertex_t>>{std::nullopt},
+      std::move(d_src),
+      std::move(d_dst),
+      std::move(d_wgt),
+      std::nullopt,
+      cugraph::graph_properties_t{graph_view.is_symmetric(), graph_view.is_multigraph()},
+      renumber);
+
+  return std::make_tuple(std::move(graph), std::move(new_number_map));
+}
+
 }  // namespace test
 }  // namespace cugraph

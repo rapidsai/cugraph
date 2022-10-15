@@ -16,17 +16,20 @@
 
 #pragma once
 
-#include <optional>
-#include <vector>
+#include <raft/handle.hpp>
 
-template <typename vertex_t, typename edge_t, typename weight_t>
+#include <rmm/device_uvector.hpp>
+
+#include <optional>
+
+template <typename vertex_t, typename weight_t>
 void induced_subgraph_validate(
-  std::vector<edge_t> const& h_offsets,
-  std::vector<vertex_t> const& h_indices,
-  std::optional<std::vector<weight_t>> const& h_weights,
-  std::vector<size_t> const& h_subgraph_offsets,
-  std::vector<vertex_t> const& h_subgraph_vertices,
-  std::vector<vertex_t> const& h_cugraph_subgraph_edgelist_majors,
-  std::vector<vertex_t> const& h_cugraph_subgraph_edgelist_minors,
-  std::optional<std::vector<weight_t>> const& h_cugraph_subgraph_edgelist_weights,
-  std::vector<size_t> const& h_cugraph_subgraph_edge_offsets);
+  raft::handle_t const& handle,
+  rmm::device_uvector<vertex_t> & d_cugraph_subgraph_edgelist_majors,
+  rmm::device_uvector<vertex_t> & d_cugraph_subgraph_edgelist_minors,
+  std::optional<rmm::device_uvector<weight_t>> & d_cugraph_subgraph_edgelist_weights,
+  rmm::device_uvector<size_t> & d_cugraph_subgraph_edge_offsets,
+  rmm::device_uvector<vertex_t> & d_reference_subgraph_edgelist_majors,
+  rmm::device_uvector<vertex_t> & d_reference_subgraph_edgelist_minors,
+  std::optional<rmm::device_uvector<weight_t>> & d_reference_subgraph_edgelist_weights,
+  rmm::device_uvector<size_t> & d_reference_subgraph_edge_offsets);

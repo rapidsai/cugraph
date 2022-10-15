@@ -34,6 +34,53 @@
 #include <optional>
 #include <vector>
 
+template <typename vertex_t, typename edge_t, typename weight_t>
+std::tuple<std::vector<vertex_t>,
+           std::vector<vertex_t>,
+           std::optional<std::vector<weight_t>>,
+           std::vector<size_t>>
+extract_induced_subgraph_reference(std::vector<edge_t> const& offsets,
+                                   std::vector<vertex_t> const& indices,
+                                   std::optional<std::vector<weight_t>> const& weights,
+                                   std::vector<size_t> const& subgraph_offsets,
+                                   std::vector<vertex_t> const& subgraph_vertices,
+                                   size_t num_vertices)
+{
+  std::vector<vertex_t> edgelist_majors{};
+  std::vector<vertex_t> edgelist_minors{};
+  auto edgelist_weights = weights ? std::make_optional<std::vector<weight_t>>(0) : std::nullopt;
+  std::vector<size_t> subgraph_edge_offsets{0};
+
+  for (size_t i = 0; i < (subgraph_offsets.size() - 1); ++i) {
+    std::for_each(subgraph_vertices.data() + subgraph_offsets[i],
+                  subgraph_vertices.data() + subgraph_offsets[i + 1],
+                  [offsets,
+                   indices,
+                   weights,
+                   subgraph_vertices,
+                   subgraph_offsets,
+                   &edgelist_majors,
+                   &edgelist_minors,
+                   &edgelist_weights,
+                   i](auto v) {
+                    auto first = offsets[v];
+                    auto last  = offsets[v + 1];
+                    for (auto j = first; j < last; ++j) {
+                      if (std::binary_search(subgraph_vertices.data() + subgraph_offsets[i],
+                                             subgraph_vertices.data() + subgraph_offsets[i + 1],
+                                             indices[j])) {
+                        edgelist_majors.push_back(v);
+                        edgelist_minors.push_back(indices[j]);
+                        if (weights) { (*edgelist_weights).push_back((*weights)[j]); }
+                      }
+                    }
+                  });
+    subgraph_edge_offsets.push_back(edgelist_majors.size());
+  }
+
+  return std::make_tuple(edgelist_majors, edgelist_minors, edgelist_weights, subgraph_edge_offsets);
+}
+
 struct InducedSubgraph_Usecase {
   std::vector<size_t> subgraph_sizes{};
   bool test_weighted{false};
@@ -137,24 +184,35 @@ class Tests_InducedSubgraph
 
       auto [h_offsets, h_indices, h_weights] = cugraph::test::graph_to_host_csr(handle, graph_view);
 
-      auto h_cugraph_subgraph_edgelist_majors =
-        cugraph::test::to_host(handle, d_subgraph_edgelist_majors);
-      auto h_cugraph_subgraph_edgelist_minors =
-        cugraph::test::to_host(handle, d_subgraph_edgelist_minors);
-      auto h_cugraph_subgraph_edgelist_weights =
-        cugraph::test::to_host(handle, d_subgraph_edgelist_weights);
-      auto h_cugraph_subgraph_edge_offsets =
-        cugraph::test::to_host(handle, d_subgraph_edge_offsets);
+      auto [h_reference_subgraph_edgelist_majors,
+            h_reference_subgraph_edgelist_minors,
+            h_reference_subgraph_edgelist_weights,
+            h_reference_subgraph_edge_offsets] =
+        extract_induced_subgraph_reference(h_offsets,
+                                           h_indices,
+                                           h_weights,
+                                           h_subgraph_offsets,
+                                           h_subgraph_vertices,
+                                           graph_view.number_of_vertices());
 
-      induced_subgraph_validate(h_offsets,
-                                h_indices,
-                                h_weights,
-                                h_subgraph_offsets,
-                                h_subgraph_vertices,
-                                h_cugraph_subgraph_edgelist_majors,
-                                h_cugraph_subgraph_edgelist_minors,
-                                h_cugraph_subgraph_edgelist_weights,
-                                h_cugraph_subgraph_edge_offsets);
+      auto d_reference_subgraph_edgelist_majors =
+        cugraph::test::to_device(handle, h_reference_subgraph_edgelist_majors);
+      auto d_reference_subgraph_edgelist_minors =
+        cugraph::test::to_device(handle, h_reference_subgraph_edgelist_minors);
+      auto d_reference_subgraph_edgelist_weights =
+        cugraph::test::to_device(handle, h_reference_subgraph_edgelist_weights);
+      auto d_reference_subgraph_edge_offsets =
+        cugraph::test::to_device(handle, h_reference_subgraph_edge_offsets);
+
+      induced_subgraph_validate(handle,
+                                d_subgraph_edgelist_majors,
+                                d_subgraph_edgelist_minors,
+                                d_subgraph_edgelist_weights,
+                                d_subgraph_edge_offsets,
+                                d_reference_subgraph_edgelist_majors,
+                                d_reference_subgraph_edgelist_minors,
+                                d_reference_subgraph_edgelist_weights,
+                                d_reference_subgraph_edge_offsets);
     }
   }
 };

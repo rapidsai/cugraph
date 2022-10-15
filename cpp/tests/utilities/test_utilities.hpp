@@ -414,7 +414,7 @@ std::optional<rmm::device_uvector<T>> to_device(raft::handle_t const& handle,
 {
   std::optional<rmm::device_uvector<T>> d_data{std::nullopt};
   if (data) {
-    d_data = rmm::device_uvector<T>(data->size());
+    d_data = rmm::device_uvector<T>(data->size(), handle.get_stream());
     raft::update_host(d_data->data(), data->data(), data->size(), handle.get_stream());
     handle.sync_stream();
   }
@@ -463,6 +463,15 @@ graph_to_host_csr(
   cugraph::graph_view_t<vertex_t, edge_t, weight_t, store_transposed, is_multi_gpu> const&
     graph_view);
 
+template <typename vertex_t, typename edge_t, typename weight_t, bool store_transposed>
+std::tuple<cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed, false>,
+           std::optional<rmm::device_uvector<vertex_t>>>
+mg_graph_to_sg_graph(
+  raft::handle_t const& handle,
+  cugraph::graph_view_t<vertex_t, edge_t, weight_t, store_transposed, true> const& graph_view,
+  std::optional<rmm::device_uvector<vertex_t>> const& number_map,
+  bool renumber);
+
 template <typename type_t>
 struct nearly_equal {
   const type_t threshold_ratio;
@@ -472,6 +481,18 @@ struct nearly_equal {
   {
     return std::abs(lhs - rhs) <
            std::max(std::max(lhs, rhs) * threshold_ratio, threshold_magnitude);
+  }
+};
+
+template <typename type_t>
+struct device_nearly_equal {
+  const type_t threshold_ratio;
+  const type_t threshold_magnitude;
+
+  bool __device__ operator()(type_t lhs, type_t rhs) const
+  {
+    return std::abs(lhs - rhs) <
+           thrust::max(thrust::max(lhs, rhs) * threshold_ratio, threshold_magnitude);
   }
 };
 

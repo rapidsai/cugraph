@@ -114,5 +114,101 @@ template std::tuple<std::vector<int64_t>, std::vector<int64_t>, std::optional<st
 graph_to_host_csr(raft::handle_t const& handle,
                   cugraph::graph_view_t<int64_t, int64_t, double, true, true> const& graph_view);
 
+template std::tuple<cugraph::graph_t<int32_t, int32_t, float, true, false>,
+                    std::optional<rmm::device_uvector<int32_t>>>
+mg_graph_to_sg_graph(
+  raft::handle_t const& handle,
+  cugraph::graph_view_t<int32_t, int32_t, float, true, true> const& graph_view,
+  std::optional<rmm::device_uvector<int32_t>> const& number_map,
+  bool renumber);
+
+template std::tuple<cugraph::graph_t<int32_t, int64_t, float, true, false>,
+                    std::optional<rmm::device_uvector<int32_t>>>
+mg_graph_to_sg_graph(
+  raft::handle_t const& handle,
+  cugraph::graph_view_t<int32_t, int64_t, float, true, true> const& graph_view,
+  std::optional<rmm::device_uvector<int32_t>> const& number_map,
+  bool renumber);
+
+template std::tuple<cugraph::graph_t<int64_t, int64_t, float, true, false>,
+                    std::optional<rmm::device_uvector<int64_t>>>
+mg_graph_to_sg_graph(
+  raft::handle_t const& handle,
+  cugraph::graph_view_t<int64_t, int64_t, float, true, true> const& graph_view,
+  std::optional<rmm::device_uvector<int64_t>> const& number_map,
+  bool renumber);
+
+template std::tuple<cugraph::graph_t<int32_t, int32_t, double, true, false>,
+                    std::optional<rmm::device_uvector<int32_t>>>
+mg_graph_to_sg_graph(
+  raft::handle_t const& handle,
+  cugraph::graph_view_t<int32_t, int32_t, double, true, true> const& graph_view,
+  std::optional<rmm::device_uvector<int32_t>> const& number_map,
+  bool renumber);
+
+template std::tuple<cugraph::graph_t<int32_t, int64_t, double, true, false>,
+                    std::optional<rmm::device_uvector<int32_t>>>
+mg_graph_to_sg_graph(
+  raft::handle_t const& handle,
+  cugraph::graph_view_t<int32_t, int64_t, double, true, true> const& graph_view,
+  std::optional<rmm::device_uvector<int32_t>> const& number_map,
+  bool renumber);
+
+template std::tuple<cugraph::graph_t<int64_t, int64_t, double, true, false>,
+                    std::optional<rmm::device_uvector<int64_t>>>
+mg_graph_to_sg_graph(
+  raft::handle_t const& handle,
+  cugraph::graph_view_t<int64_t, int64_t, double, true, true> const& graph_view,
+  std::optional<rmm::device_uvector<int64_t>> const& number_map,
+  bool renumber);
+
+template std::tuple<cugraph::graph_t<int32_t, int32_t, float, false, false>,
+                    std::optional<rmm::device_uvector<int32_t>>>
+mg_graph_to_sg_graph(
+  raft::handle_t const& handle,
+  cugraph::graph_view_t<int32_t, int32_t, float, false, true> const& graph_view,
+  std::optional<rmm::device_uvector<int32_t>> const& number_map,
+  bool renumber);
+
+template std::tuple<cugraph::graph_t<int32_t, int64_t, float, false, false>,
+                    std::optional<rmm::device_uvector<int32_t>>>
+mg_graph_to_sg_graph(
+  raft::handle_t const& handle,
+  cugraph::graph_view_t<int32_t, int64_t, float, false, true> const& graph_view,
+  std::optional<rmm::device_uvector<int32_t>> const& number_map,
+  bool renumber);
+
+template std::tuple<cugraph::graph_t<int64_t, int64_t, float, false, false>,
+                    std::optional<rmm::device_uvector<int64_t>>>
+mg_graph_to_sg_graph(
+  raft::handle_t const& handle,
+  cugraph::graph_view_t<int64_t, int64_t, float, false, true> const& graph_view,
+  std::optional<rmm::device_uvector<int64_t>> const& number_map,
+  bool renumber);
+
+template std::tuple<cugraph::graph_t<int32_t, int32_t, double, false, false>,
+                    std::optional<rmm::device_uvector<int32_t>>>
+mg_graph_to_sg_graph(
+  raft::handle_t const& handle,
+  cugraph::graph_view_t<int32_t, int32_t, double, false, true> const& graph_view,
+  std::optional<rmm::device_uvector<int32_t>> const& number_map,
+  bool renumber);
+
+template std::tuple<cugraph::graph_t<int32_t, int64_t, double, false, false>,
+                    std::optional<rmm::device_uvector<int32_t>>>
+mg_graph_to_sg_graph(
+  raft::handle_t const& handle,
+  cugraph::graph_view_t<int32_t, int64_t, double, false, true> const& graph_view,
+  std::optional<rmm::device_uvector<int32_t>> const& number_map,
+  bool renumber);
+
+template std::tuple<cugraph::graph_t<int64_t, int64_t, double, false, false>,
+                    std::optional<rmm::device_uvector<int64_t>>>
+mg_graph_to_sg_graph(
+  raft::handle_t const& handle,
+  cugraph::graph_view_t<int64_t, int64_t, double, false, true> const& graph_view,
+  std::optional<rmm::device_uvector<int64_t>> const& number_map,
+  bool renumber);
+
 }  // namespace test
 }  // namespace cugraph

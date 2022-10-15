@@ -208,30 +208,34 @@ class Tests_MGInducedSubgraph
         raft::device_span<size_t const>(d_subgraph_edge_offsets.data(),
                                         d_subgraph_edge_offsets.size()));
 
-      auto [h_offsets, h_indices, h_weights] =
-        cugraph::test::graph_to_host_csr(*handle_, mg_graph_view);
+      auto [sg_graph, sg_number_map] =
+        cugraph::test::mg_graph_to_sg_graph(*handle_, mg_graph_view, d_renumber_map_labels, true);
 
       if (my_rank == 0) {
         auto h_subgraph_vertices = cugraph::test::to_host(*handle_, d_subgraph_vertices);
 
-        auto h_cugraph_subgraph_edgelist_majors =
-          cugraph::test::to_host(*handle_, d_subgraph_edgelist_majors);
-        auto h_cugraph_subgraph_edgelist_minors =
-          cugraph::test::to_host(*handle_, d_subgraph_edgelist_minors);
-        auto h_cugraph_subgraph_edgelist_weights =
-          cugraph::test::to_host(*handle_, d_subgraph_edgelist_weights);
-        auto h_cugraph_subgraph_edge_offsets =
-          cugraph::test::to_host(*handle_, d_subgraph_edge_offsets);
+        auto [d_reference_subgraph_edgelist_majors,
+              d_reference_subgraph_edgelist_minors,
+              d_reference_subgraph_edgelist_weights,
+              d_reference_subgraph_edge_offsets] =
+          cugraph::extract_induced_subgraphs(
+            *handle_,
+            sg_graph.view(),
+            raft::device_span<size_t const>(d_subgraph_offsets.data(),
+                                            induced_subgraph_usecase.subgraph_sizes.size()),
+            raft::device_span<vertex_t const>(d_subgraph_vertices.data(),
+                                              d_subgraph_vertices.size()),
+            false);
 
-        induced_subgraph_validate(h_offsets,
-                                  h_indices,
-                                  h_weights,
-                                  h_subgraph_offsets,
-                                  h_subgraph_vertices,
-                                  h_cugraph_subgraph_edgelist_majors,
-                                  h_cugraph_subgraph_edgelist_minors,
-                                  h_cugraph_subgraph_edgelist_weights,
-                                  h_cugraph_subgraph_edge_offsets);
+        induced_subgraph_validate(*handle_,
+                                  d_subgraph_edgelist_majors,
+                                  d_subgraph_edgelist_minors,
+                                  d_subgraph_edgelist_weights,
+                                  d_subgraph_edge_offsets,
+                                  d_reference_subgraph_edgelist_majors,
+                                  d_reference_subgraph_edgelist_minors,
+                                  d_reference_subgraph_edgelist_weights,
+                                  d_reference_subgraph_edge_offsets);
       }
 #endif
     }
