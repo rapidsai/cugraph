@@ -243,7 +243,8 @@ class EXPERIMENTAL__PropertyGraph:
         return self.__edge_type_value_counts
 
     def get_num_vertices(self, type=None, *, include_edge_data=True):
-        """Return the number of all vertices or vertices of a given type.
+        """
+        Return the number of all vertices or vertices of a given type.
 
         Parameters
         ----------
@@ -345,12 +346,12 @@ class EXPERIMENTAL__PropertyGraph:
             interface.
         vertex_col_name : string
             The column name that contains the values to be used as vertex IDs.
-        type_name : string
+        type_name : string, optional
             The name to be assigned to the type of property being added. For
             example, if dataframe contains data about users, type_name might be
             "users". If not specified, the type of properties will be added as
             the empty string, "".
-        property_columns : list of strings
+        property_columns : list of strings, optional
             List of column names in dataframe to be added as properties. All
             other columns in dataframe will be ignored. If not specified, all
             columns in dataframe are added.
@@ -559,12 +560,12 @@ class EXPERIMENTAL__PropertyGraph:
             If unspecified, edge IDs will be automatically assigned.
             Currently, all edge data must be added with the same method: either
             with automatically generated IDs, or from user-provided edge IDs.
-        type_name : string
+        type_name : string, optional
             The name to be assigned to the type of property being added. For
             example, if dataframe contains data about transactions, type_name
             might be "transactions". If not specified, the type of properties
             will be added as the empty string "".
-        property_columns : list of strings
+        property_columns : list of strings, optional
             List of column names in dataframe to be added as properties. All
             other columns in dataframe will be ignored. If not specified, all
             columns in dataframe are added.
@@ -917,6 +918,8 @@ class EXPERIMENTAL__PropertyGraph:
             The name of the property whose values will be used as weights on
             the returned Graph. If not specified, the returned Graph will be
             unweighted.
+        default_edge_weight : float64, optional
+
         check_multi_edges : bool (default is True)
             When True and create_using argument is given and not a MultiGraph,
             this will perform an expensive check to verify that the edges in
@@ -1115,6 +1118,7 @@ class EXPERIMENTAL__PropertyGraph:
             Value used to replace NA in the specified weight column
         check_multi_edges : bool
             Prevent duplicate edges (if not allowed)
+        renumber_graph : bool
 
         
 
