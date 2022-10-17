@@ -93,8 +93,8 @@ template <typename T>
 struct is_thrust_tuple : std::false_type {
 };
 
-template <typename... Ts>
-struct is_thrust_tuple<thrust::tuple<Ts...>> : std::true_type {
+template <typename... Args>
+struct is_thrust_tuple<thrust::tuple<Args...>> : std::true_type {
 };
 
 template <typename TupleType>
@@ -115,17 +115,17 @@ template <typename T>
 struct is_std_tuple : std::false_type {
 };
 
-template <typename... Ts>
-struct is_std_tuple<std::tuple<Ts...>> : std::true_type {
+template <typename... Args>
+struct is_std_tuple<std::tuple<Args...>> : std::true_type {
 };
 
-template <typename T, template <typename> typename Vector>
+template <typename T>
 struct is_arithmetic_vector : std::false_type {
 };
 
-template <template <typename> typename Vector, typename T>
-struct is_arithmetic_vector<Vector<T>, Vector>
-  : std::integral_constant<bool, std::is_arithmetic<T>::value> {
+template <typename Arg>
+struct is_arithmetic_vector<rmm::device_uvector<Arg>> {
+  static constexpr bool value = std::is_arithmetic_v<Arg>;
 };
 
 template <typename T>
@@ -142,18 +142,18 @@ struct is_arithmetic_or_thrust_tuple_of_arithmetic
   : std::integral_constant<bool, std::is_arithmetic<T>::value> {
 };
 
-template <typename... Ts>
-struct is_arithmetic_or_thrust_tuple_of_arithmetic<thrust::tuple<Ts...>>
-  : std::integral_constant<bool, is_thrust_tuple_of_arithmetic<thrust::tuple<Ts...>>::value> {
+template <typename... Args>
+struct is_arithmetic_or_thrust_tuple_of_arithmetic<thrust::tuple<Args...>>
+  : std::integral_constant<bool, is_thrust_tuple_of_arithmetic<thrust::tuple<Args...>>::value> {
 };
 
 template <typename T>
 struct thrust_tuple_size_or_one : std::integral_constant<size_t, 1> {
 };
 
-template <typename... Ts>
-struct thrust_tuple_size_or_one<thrust::tuple<Ts...>>
-  : std::integral_constant<size_t, thrust::tuple_size<thrust::tuple<Ts...>>::value> {
+template <typename... Args>
+struct thrust_tuple_size_or_one<thrust::tuple<Args...>>
+  : std::integral_constant<size_t, thrust::tuple_size<thrust::tuple<Args...>>::value> {
 };
 
 template <typename TupleType>
@@ -190,8 +190,8 @@ auto to_thrust_tuple(T scalar_value)
   return thrust::make_tuple(scalar_value);
 }
 
-template <typename... Ts>
-auto to_thrust_tuple(thrust::tuple<Ts...> tuple_value)
+template <typename... Args>
+auto to_thrust_tuple(thrust::tuple<Args...> tuple_value)
 {
   return tuple_value;
 }
