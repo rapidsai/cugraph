@@ -41,14 +41,14 @@ conda list --show-channel-urls
 gpuci_logger "Build Doxygen docs"
 wget "https://raw.githubusercontent.com/rapidsai/docs/gh-pages/api/librmm/${BRANCH_VERSION}/rmm.tag" || echo "Failed to download rmm Doxygen tag"
 cd $PROJECT_WORKSPACE/cpp/build
-make docs_cugraph
+cmake --build . -t docs_cugraph
 
 # Build Python docs
 gpuci_logger "Build Sphinx docs"
 cd $PROJECT_WORKSPACE/docs/cugraph
 make html
 
-#Commit to Website
+# Commit to Website
 cd $DOCS_WORKSPACE
 
 for PROJECT in ${PROJECTS[@]}; do
