@@ -21,23 +21,23 @@
 
 #include <gtest/gtest.h>
 
-#include <thrust/equal.h>
-#include <thrust/tabulate.h>
 #include <thrust/binary_search.h>
+#include <thrust/equal.h>
 #include <thrust/execution_policy.h>
 #include <thrust/sort.h>
+#include <thrust/tabulate.h>
 
 template <typename vertex_t, typename weight_t>
 void induced_subgraph_validate(
   raft::handle_t const& handle,
-  rmm::device_uvector<vertex_t> & d_cugraph_subgraph_edgelist_majors,
-  rmm::device_uvector<vertex_t> & d_cugraph_subgraph_edgelist_minors,
-  std::optional<rmm::device_uvector<weight_t>> & d_cugraph_subgraph_edgelist_weights,
-  rmm::device_uvector<size_t> & d_cugraph_subgraph_edge_offsets,
-  rmm::device_uvector<vertex_t> & d_reference_subgraph_edgelist_majors,
-  rmm::device_uvector<vertex_t> & d_reference_subgraph_edgelist_minors,
-  std::optional<rmm::device_uvector<weight_t>> & d_reference_subgraph_edgelist_weights,
-  rmm::device_uvector<size_t> & d_reference_subgraph_edge_offsets)
+  rmm::device_uvector<vertex_t>& d_cugraph_subgraph_edgelist_majors,
+  rmm::device_uvector<vertex_t>& d_cugraph_subgraph_edgelist_minors,
+  std::optional<rmm::device_uvector<weight_t>>& d_cugraph_subgraph_edgelist_weights,
+  rmm::device_uvector<size_t>& d_cugraph_subgraph_edge_offsets,
+  rmm::device_uvector<vertex_t>& d_reference_subgraph_edgelist_majors,
+  rmm::device_uvector<vertex_t>& d_reference_subgraph_edgelist_minors,
+  std::optional<rmm::device_uvector<weight_t>>& d_reference_subgraph_edgelist_weights,
+  rmm::device_uvector<size_t>& d_reference_subgraph_edge_offsets)
 {
   ASSERT_TRUE(d_reference_subgraph_edge_offsets.size() == d_cugraph_subgraph_edge_offsets.size())
     << "Returned subgraph edge offset vector has an invalid size.";
@@ -137,26 +137,24 @@ void induced_subgraph_validate(
   }
 }
 
-template
-void induced_subgraph_validate(
+template void induced_subgraph_validate(
   raft::handle_t const& handle,
-  rmm::device_uvector<int32_t> & d_cugraph_subgraph_edgelist_majors,
-  rmm::device_uvector<int32_t> & d_cugraph_subgraph_edgelist_minors,
-  std::optional<rmm::device_uvector<float>> & d_cugraph_subgraph_edgelist_weights,
-  rmm::device_uvector<size_t> & d_cugraph_subgraph_edge_offsets,
-  rmm::device_uvector<int32_t> & d_reference_subgraph_edgelist_majors,
-  rmm::device_uvector<int32_t> & d_reference_subgraph_edgelist_minors,
-  std::optional<rmm::device_uvector<float>> & d_reference_subgraph_edgelist_weights,
-  rmm::device_uvector<size_t> & d_reference_subgraph_edge_offsets);
+  rmm::device_uvector<int32_t>& d_cugraph_subgraph_edgelist_majors,
+  rmm::device_uvector<int32_t>& d_cugraph_subgraph_edgelist_minors,
+  std::optional<rmm::device_uvector<float>>& d_cugraph_subgraph_edgelist_weights,
+  rmm::device_uvector<size_t>& d_cugraph_subgraph_edge_offsets,
+  rmm::device_uvector<int32_t>& d_reference_subgraph_edgelist_majors,
+  rmm::device_uvector<int32_t>& d_reference_subgraph_edgelist_minors,
+  std::optional<rmm::device_uvector<float>>& d_reference_subgraph_edgelist_weights,
+  rmm::device_uvector<size_t>& d_reference_subgraph_edge_offsets);
 
-template
-void induced_subgraph_validate(
+template void induced_subgraph_validate(
   raft::handle_t const& handle,
-  rmm::device_uvector<int64_t> & d_cugraph_subgraph_edgelist_majors,
-  rmm::device_uvector<int64_t> & d_cugraph_subgraph_edgelist_minors,
-  std::optional<rmm::device_uvector<float>> & d_cugraph_subgraph_edgelist_weights,
-  rmm::device_uvector<size_t> & d_cugraph_subgraph_edge_offsets,
-  rmm::device_uvector<int64_t> & d_reference_subgraph_edgelist_majors,
-  rmm::device_uvector<int64_t> & d_reference_subgraph_edgelist_minors,
-  std::optional<rmm::device_uvector<float>> & d_reference_subgraph_edgelist_weights,
-  rmm::device_uvector<size_t> & d_reference_subgraph_edge_offsets);
+  rmm::device_uvector<int64_t>& d_cugraph_subgraph_edgelist_majors,
+  rmm::device_uvector<int64_t>& d_cugraph_subgraph_edgelist_minors,
+  std::optional<rmm::device_uvector<float>>& d_cugraph_subgraph_edgelist_weights,
+  rmm::device_uvector<size_t>& d_cugraph_subgraph_edge_offsets,
+  rmm::device_uvector<int64_t>& d_reference_subgraph_edgelist_majors,
+  rmm::device_uvector<int64_t>& d_reference_subgraph_edgelist_minors,
+  std::optional<rmm::device_uvector<float>>& d_reference_subgraph_edgelist_weights,
+  rmm::device_uvector<size_t>& d_reference_subgraph_edge_offsets);

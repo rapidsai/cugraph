@@ -156,9 +156,7 @@ extract_induced_subgraphs(
       thrust::make_counting_iterator(size_t{0}),
       thrust::make_counting_iterator(num_aggregate_subgraph_vertices),
       subgraph_vertex_output_offsets.begin(),
-      [subgraph_offsets,
-       subgraph_vertices,
-       edge_partition] __device__(auto i) {
+      [subgraph_offsets, subgraph_vertices, edge_partition] __device__(auto i) {
         auto subgraph_idx =
           thrust::distance(subgraph_offsets.begin() + 1,
                            thrust::upper_bound(
