@@ -103,6 +103,8 @@ class Tests_InducedSubgraph
   void run_current_test(
     std::tuple<InducedSubgraph_Usecase const&, input_usecase_t const&> const& param)
   {
+    constexpr bool do_expensive_check{false};
+
     auto [induced_subgraph_usecase, input_usecase] = param;
 
     raft::handle_t handle{};
@@ -160,7 +162,6 @@ class Tests_InducedSubgraph
       hr_clock.start();
     }
 
-    // FIXME: turn-off do_expensive_check once verified.
     auto [d_subgraph_edgelist_majors,
           d_subgraph_edgelist_minors,
           d_subgraph_edgelist_weights,
@@ -170,7 +171,7 @@ class Tests_InducedSubgraph
         graph_view,
         raft::device_span<size_t const>(d_subgraph_offsets.data(), d_subgraph_offsets.size()),
         raft::device_span<vertex_t const>(d_subgraph_vertices.data(), d_subgraph_vertices.size()),
-        true);
+        do_expensive_check);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
