@@ -61,6 +61,7 @@ def test_graph_properties():
 
 def test_resource_handle():
     from pylibcugraph import ResourceHandle
+
     # This type has no attributes and is just defined to pass a struct from C
     # back in to C. In the future it may take args to acquire specific
     # resources, but for now just make sure nothing crashes.
@@ -69,10 +70,12 @@ def test_resource_handle():
 
 
 def test_sg_graph(graph_data):
-    from pylibcugraph import (SGGraph,
-                              ResourceHandle,
-                              GraphProperties,
-                              )
+    from pylibcugraph import (
+        SGGraph,
+        ResourceHandle,
+        GraphProperties,
+    )
+
     # is_valid will only be True if the arrays are expected to produce a valid
     # graph. If False, ensure SGGraph() raises the proper exception.
     (device_srcs, device_dsts, device_weights, ds_name, is_valid) = graph_data
@@ -81,24 +84,28 @@ def test_sg_graph(graph_data):
     resource_handle = ResourceHandle()
 
     if is_valid:
-        g = SGGraph(resource_handle,  # noqa:F841
-                    graph_props,
-                    device_srcs,
-                    device_dsts,
-                    device_weights,
-                    store_transposed=False,
-                    renumber=False,
-                    do_expensive_check=False)
+        g = SGGraph(  # noqa:F841
+            resource_handle,
+            graph_props,
+            device_srcs,
+            device_dsts,
+            device_weights,
+            store_transposed=False,
+            renumber=False,
+            do_expensive_check=False,
+        )
         # call SGGraph.__dealloc__()
         del g
 
     else:
         with pytest.raises(ValueError):
-            SGGraph(resource_handle,
-                    graph_props,
-                    device_srcs,
-                    device_dsts,
-                    device_weights,
-                    store_transposed=False,
-                    renumber=False,
-                    do_expensive_check=False)
+            SGGraph(
+                resource_handle,
+                graph_props,
+                device_srcs,
+                device_dsts,
+                device_weights,
+                store_transposed=False,
+                renumber=False,
+                do_expensive_check=False,
+            )

@@ -80,9 +80,7 @@ def test_leiden_nx(graph_file):
     NM = utils.read_csv_for_nx(dataset_path)
 
     if edgevals:
-        G = nx.from_pandas_edgelist(
-            NM, create_using=nx.Graph(), source="0", target="1"
-        )
+        G = nx.from_pandas_edgelist(NM, create_using=nx.Graph(), source="0", target="1")
     else:
         G = nx.from_pandas_edgelist(
             NM, create_using=nx.Graph(), source="0", target="1", edge_attr="2"
@@ -99,8 +97,8 @@ def test_leiden_directed_graph():
 
     edgevals = True
     G = karate_asymmetric.get_graph(
-        create_using=cugraph.Graph(
-            directed=True), ignore_weights=not edgevals)
+        create_using=cugraph.Graph(directed=True), ignore_weights=not edgevals
+    )
 
     with pytest.raises(ValueError):
         parts, mod = cugraph_leiden(G)

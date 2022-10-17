@@ -44,16 +44,10 @@ def _get_param_args(param_name, param_values):
     as the args to pytest.mark.parametrize(). The pytest.param list also
     contains param id string formed from the param name and values.
     """
-    return (param_name,
-            [pytest.param(v, id=f"{param_name}={v}") for v in param_values])
+    return (param_name, [pytest.param(v, id=f"{param_name}={v}") for v in param_values])
 
 
-def calc_node2vec(G,
-                  start_vertices,
-                  max_depth,
-                  compress_result,
-                  p=1.0,
-                  q=1.0):
+def calc_node2vec(G, start_vertices, max_depth, compress_result, p=1.0, q=1.0):
     """
     Compute node2vec for each nodes in 'start_vertices'
 
@@ -74,18 +68,18 @@ def calc_node2vec(G,
     assert G is not None
 
     vertex_paths, edge_weights, vertex_path_sizes = cugraph.node2vec(
-        G, start_vertices, max_depth, compress_result, p, q)
+        G, start_vertices, max_depth, compress_result, p, q
+    )
     return (vertex_paths, edge_weights, vertex_path_sizes), start_vertices
 
 
 @pytest.mark.parametrize(*_get_param_args("graph_file", [KARATE]))
-def test_node2vec_invalid(
-    graph_file
-):
+def test_node2vec_invalid(graph_file):
     G = graph_file.get_graph(create_using=cugraph.Graph(directed=True))
     k = random.randint(1, 10)
-    start_vertices = cudf.Series(random.sample(range(G.number_of_vertices()),
-                                 k), dtype="int32")
+    start_vertices = cudf.Series(
+        random.sample(range(G.number_of_vertices()), k), dtype="int32"
+    )
     compress = True
     max_depth = 1
     p = 1
@@ -97,25 +91,44 @@ def test_node2vec_invalid(
     # Tests for invalid max_depth
     for bad_depth in invalid_max_depths:
         with pytest.raises(ValueError):
-            df, seeds = calc_node2vec(G, start_vertices, max_depth=bad_depth,
-                                      compress_result=compress, p=p, q=q)
+            df, seeds = calc_node2vec(
+                G,
+                start_vertices,
+                max_depth=bad_depth,
+                compress_result=compress,
+                p=p,
+                q=q,
+            )
     # Tests for invalid p
     for bad_p in invalid_pqs:
         with pytest.raises(ValueError):
-            df, seeds = calc_node2vec(G, start_vertices, max_depth=max_depth,
-                                      compress_result=compress, p=bad_p, q=q)
+            df, seeds = calc_node2vec(
+                G,
+                start_vertices,
+                max_depth=max_depth,
+                compress_result=compress,
+                p=bad_p,
+                q=q,
+            )
     # Tests for invalid q
     for bad_q in invalid_pqs:
         with pytest.raises(ValueError):
-            df, seeds = calc_node2vec(G, start_vertices, max_depth=max_depth,
-                                      compress_result=compress, p=p, q=bad_q)
+            df, seeds = calc_node2vec(
+                G,
+                start_vertices,
+                max_depth=max_depth,
+                compress_result=compress,
+                p=p,
+                q=bad_q,
+            )
 
     # Tests for invalid start_vertices dtypes, modify when more types are
     # supported
     for bad_start in invalid_start_vertices:
         with pytest.raises(ValueError):
-            df, seeds = calc_node2vec(G, bad_start, max_depth=max_depth,
-                                      compress_result=compress, p=p, q=q)
+            df, seeds = calc_node2vec(
+                G, bad_start, max_depth=max_depth, compress_result=compress, p=p, q=q
+            )
 
 
 @pytest.mark.parametrize(*_get_param_args("graph_file", [LINE]))
@@ -125,12 +138,7 @@ def test_node2vec_line(graph_file, directed):
     max_depth = 3
     start_vertices = cudf.Series([0, 3, 6], dtype="int32")
     df, seeds = calc_node2vec(
-        G,
-        start_vertices,
-        max_depth,
-        compress_result=True,
-        p=0.8,
-        q=0.5
+        G, start_vertices, max_depth, compress_result=True, p=0.8, q=0.5
     )
 
 
@@ -147,20 +155,15 @@ def test_node2vec(
 
     G = cugraph.Graph(directed=directed)
 
-    G.from_cudf_edgelist(cu_M, source="0", destination="1", edge_attr="2",
-                         renumber=False)
+    G.from_cudf_edgelist(
+        cu_M, source="0", destination="1", edge_attr="2", renumber=False
+    )
     num_verts = G.number_of_vertices()
     k = random.randint(6, 12)
-    start_vertices = cudf.Series(random.sample(range(num_verts), k),
-                                 dtype="int32")
+    start_vertices = cudf.Series(random.sample(range(num_verts), k), dtype="int32")
     max_depth = 5
     result, seeds = calc_node2vec(
-        G,
-        start_vertices,
-        max_depth,
-        compress_result=compress,
-        p=0.8,
-        q=0.5
+        G, start_vertices, max_depth, compress_result=compress, p=0.8, q=0.5
     )
     vertex_paths, edge_weights, vertex_path_sizes = result
 
@@ -183,8 +186,7 @@ def test_node2vec(
                     expr = "(src == {} and dst == {})".format(u, v)
                     edge_query = G.edgelist.edgelist_df.query(expr)
                     if edge_query.empty:
-                        raise ValueError("edge_query didn't find:({},{})".
-                                         format(u, v))
+                        raise ValueError("edge_query didn't find:({},{})".format(u, v))
                     else:
                         if edge_query["weights"].values[0] != weight:
                             raise ValueError("edge_query weight incorrect")
@@ -205,8 +207,7 @@ def test_node2vec(
                     expr = "(src == {} and dst == {})".format(u, v)
                     edge_query = G.edgelist.edgelist_df.query(expr)
                     if edge_query.empty:
-                        raise ValueError("edge_query didn't find:({},{})".
-                                         format(u, v))
+                        raise ValueError("edge_query didn't find:({},{})".format(u, v))
                     else:
                         if edge_query["weights"].values[0] != weight:
                             raise ValueError("edge_query weight incorrect")
@@ -238,8 +239,7 @@ def test_node2vec(
                 expr = "(src == {} and dst == {})".format(u, v)
                 edge_query = G.edgelist.edgelist_df.query(expr)
                 if edge_query.empty:
-                    raise ValueError("edge_query didn't find:({},{})".
-                                     format(u, v))
+                    raise ValueError("edge_query didn't find:({},{})".format(u, v))
                 else:
                     if edge_query["weights"].values[0] != weight:
                         raise ValueError("edge_query weight incorrect")
@@ -251,38 +251,40 @@ def test_node2vec(
                     path_at_end = True
             # Check that path sizes matches up correctly with paths
             if vertex_paths[i * max_depth] != seeds[i]:
-                raise ValueError("vertex_path start did not match seed \
-                                 vertex:{}".format(vertex_paths.values))
+                raise ValueError(
+                    "vertex_path start did not match seed \
+                                 vertex:{}".format(
+                        vertex_paths.values
+                    )
+                )
 
 
 @pytest.mark.parametrize(*_get_param_args("graph_file", [LINE]))
 @pytest.mark.parametrize(*_get_param_args("renumber", [True, False]))
-def test_node2vec_renumber_cudf(
-    graph_file,
-    renumber
-):
+def test_node2vec_renumber_cudf(graph_file, renumber):
     dataset_path = graph_file.get_path()
-    cu_M = cudf.read_csv(dataset_path, delimiter=' ',
-                         dtype=['int32', 'int32', 'float32'], header=None)
+    cu_M = cudf.read_csv(
+        dataset_path, delimiter=" ", dtype=["int32", "int32", "float32"], header=None
+    )
     G = cugraph.Graph(directed=True)
-    G.from_cudf_edgelist(cu_M, source="0", destination="1", edge_attr="2",
-                         renumber=renumber)
+    G.from_cudf_edgelist(
+        cu_M, source="0", destination="1", edge_attr="2", renumber=renumber
+    )
 
     start_vertices = cudf.Series([8, 0, 7, 1, 6, 2], dtype="int32")
     num_seeds = 6
     max_depth = 4
 
     df, seeds = calc_node2vec(
-        G,
-        start_vertices,
-        max_depth,
-        compress_result=False,
-        p=0.8,
-        q=0.5
+        G, start_vertices, max_depth, compress_result=False, p=0.8, q=0.5
     )
     vertex_paths, edge_weights, vertex_path_sizes = df
 
     for i in range(num_seeds):
         if vertex_paths[i * max_depth] != seeds[i]:
-            raise ValueError("vertex_path {} start did not match seed \
-                             vertex".format(vertex_paths.values))
+            raise ValueError(
+                "vertex_path {} start did not match seed \
+                             vertex".format(
+                    vertex_paths.values
+                )
+            )

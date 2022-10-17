@@ -35,9 +35,10 @@ def setup_function():
 datasets = DATASETS_UNDIRECTED
 degree_type = ["incoming", "outgoing"]
 
-fixture_params = utils.genFixtureParamsProduct((datasets, "graph_file"),
-                                               (degree_type, "degree_type"),
-                                               )
+fixture_params = utils.genFixtureParamsProduct(
+    (datasets, "graph_file"),
+    (degree_type, "degree_type"),
+)
 
 
 @pytest.fixture(scope="module", params=fixture_params)
@@ -46,15 +47,15 @@ def input_combo(request):
     This fixture returns a dictionary containing all input params required to
     run a Core number algo
     """
-    parameters = dict(
-        zip(("graph_file", "degree_type"), request.param))
+    parameters = dict(zip(("graph_file", "degree_type"), request.param))
 
     graph_file = parameters["graph_file"]
     G = graph_file.get_graph()
     input_data_path = graph_file.get_path()
 
     Gnx = utils.generate_nx_graph_from_file(
-        input_data_path, directed=False, edgevals=True)
+        input_data_path, directed=False, edgevals=True
+    )
 
     parameters["G"] = G
     parameters["Gnx"] = Gnx
@@ -74,30 +75,32 @@ def test_core_number(input_combo):
     dic_results = nx.core_number(Gnx)
     nx_core_number_results["vertex"] = dic_results.keys()
     nx_core_number_results["core_number"] = dic_results.values()
-    nx_core_number_results = nx_core_number_results.sort_values(
-        "vertex").reset_index(drop=True)
+    nx_core_number_results = nx_core_number_results.sort_values("vertex").reset_index(
+        drop=True
+    )
 
-    warning_msg = (
-            "The 'degree_type' parameter is ignored in this release.")
+    warning_msg = "The 'degree_type' parameter is ignored in this release."
 
     # FIXME: Remove this warning test once 'degree_type' is supported"
     with pytest.warns(Warning, match=warning_msg):
-        core_number_results = cugraph.core_number(G, degree_type).sort_values(
-            "vertex").reset_index(drop=True).rename(columns={
-                "core_number": "cugraph_core_number"})
+        core_number_results = (
+            cugraph.core_number(G, degree_type)
+            .sort_values("vertex")
+            .reset_index(drop=True)
+            .rename(columns={"core_number": "cugraph_core_number"})
+        )
 
     # Compare the nx core number results with cugraph
-    core_number_results["nx_core_number"] = \
-        nx_core_number_results["core_number"]
+    core_number_results["nx_core_number"] = nx_core_number_results["core_number"]
 
-    counts_diff = core_number_results.query(
-        'nx_core_number != cugraph_core_number')
+    counts_diff = core_number_results.query("nx_core_number != cugraph_core_number")
     assert len(counts_diff) == 0
 
 
 def test_core_number_invalid_input(input_combo):
-    input_data_path = (utils.RAPIDS_DATASET_ROOT_DIR_PATH /
-                       "karate-asymmetric.csv").as_posix()
+    input_data_path = (
+        utils.RAPIDS_DATASET_ROOT_DIR_PATH / "karate-asymmetric.csv"
+    ).as_posix()
     M = utils.read_csv_for_nx(input_data_path)
     G = cugraph.Graph(directed=True)
     cu_M = cudf.DataFrame()
@@ -105,9 +108,7 @@ def test_core_number_invalid_input(input_combo):
     cu_M["dst"] = cudf.Series(M["1"])
 
     cu_M["weights"] = cudf.Series(M["weight"])
-    G.from_cudf_edgelist(
-        cu_M, source="src", destination="dst", edge_attr="weights"
-    )
+    G.from_cudf_edgelist(cu_M, source="src", destination="dst", edge_attr="weights")
 
     with pytest.raises(ValueError):
         cugraph.core_number(G)
