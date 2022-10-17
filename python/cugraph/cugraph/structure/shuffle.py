@@ -16,16 +16,23 @@ import cudf
 import cugraph.dask.comms.comms as Comms
 
 
-def _set_partitions_pre(df, vertex_row_partitions, vertex_col_partitions,
-                        prows, pcols, transposed, partition_type):
+def _set_partitions_pre(
+    df,
+    vertex_row_partitions,
+    vertex_col_partitions,
+    prows,
+    pcols,
+    transposed,
+    partition_type,
+):
     if transposed:
-        r = df['dst']
-        c = df['src']
+        r = df["dst"]
+        c = df["src"]
     else:
-        r = df['src']
-        c = df['dst']
-    r_div = vertex_row_partitions.searchsorted(r, side='right')-1
-    c_div = vertex_col_partitions.searchsorted(c, side='right')-1
+        r = df["src"]
+        c = df["dst"]
+    r_div = vertex_row_partitions.searchsorted(r, side="right") - 1
+    c_div = vertex_col_partitions.searchsorted(c, side="right") - 1
 
     if partition_type == 1:
         partitions = r_div * pcols + c_div
@@ -51,42 +58,46 @@ def shuffle(dg, transposed=False):
     ngpus = Comms.get_n_workers()
     prows, pcols, partition_type = Comms.get_2D_partition()
 
-    renumber_vertex_count = dg.renumber_map.implementation.\
-        ddf.map_partitions(len).compute()
+    renumber_vertex_count = dg.renumber_map.implementation.ddf.map_partitions(
+        len
+    ).compute()
     renumber_vertex_cumsum = renumber_vertex_count.cumsum()
 
     if transposed:
-        row_dtype = ddf['dst'].dtype
-        col_dtype = ddf['src'].dtype
+        row_dtype = ddf["dst"].dtype
+        col_dtype = ddf["src"].dtype
     else:
-        row_dtype = ddf['src'].dtype
-        col_dtype = ddf['dst'].dtype
+        row_dtype = ddf["src"].dtype
+        col_dtype = ddf["dst"].dtype
 
     vertex_partition_offsets = cudf.Series([0], dtype=row_dtype)
-    vertex_partition_offsets = vertex_partition_offsets.append(cudf.Series(
-        renumber_vertex_cumsum, dtype=row_dtype))
+    vertex_partition_offsets = vertex_partition_offsets.append(
+        cudf.Series(renumber_vertex_cumsum, dtype=row_dtype)
+    )
     num_verts = vertex_partition_offsets.iloc[-1]
     if partition_type == 1:
         vertex_row_partitions = []
         for i in range(prows + 1):
-            vertex_row_partitions.append(
-                vertex_partition_offsets.iloc[i*pcols])
-        vertex_row_partitions = cudf.Series(
-            vertex_row_partitions, dtype=row_dtype)
+            vertex_row_partitions.append(vertex_partition_offsets.iloc[i * pcols])
+        vertex_row_partitions = cudf.Series(vertex_row_partitions, dtype=row_dtype)
     else:
         vertex_row_partitions = vertex_partition_offsets
     vertex_col_partitions = []
     for i in range(pcols + 1):
-        vertex_col_partitions.append(vertex_partition_offsets.iloc[i*prows])
+        vertex_col_partitions.append(vertex_partition_offsets.iloc[i * prows])
     vertex_col_partitions = cudf.Series(vertex_col_partitions, dtype=col_dtype)
 
     meta = ddf._meta._constructor_sliced([0])
     partitions = ddf.map_partitions(
         _set_partitions_pre,
         vertex_row_partitions=vertex_row_partitions,
-        vertex_col_partitions=vertex_col_partitions, prows=prows,
-        pcols=pcols, transposed=transposed, partition_type=partition_type,
-        meta=meta)
+        vertex_col_partitions=vertex_col_partitions,
+        prows=prows,
+        pcols=pcols,
+        transposed=transposed,
+        partition_type=partition_type,
+        meta=meta,
+    )
     ddf2 = ddf.assign(_partitions=partitions)
     ddf3 = rearrange_by_column(
         ddf2,
@@ -100,8 +111,10 @@ def shuffle(dg, transposed=False):
     partition_row_size = pcols
     partition_col_size = prows
 
-    return (ddf3,
-            num_verts,
-            partition_row_size,
-            partition_col_size,
-            vertex_partition_offsets)
+    return (
+        ddf3,
+        num_verts,
+        partition_row_size,
+        partition_col_size,
+        vertex_partition_offsets,
+    )

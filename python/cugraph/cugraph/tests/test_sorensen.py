@@ -66,7 +66,7 @@ def compare_sorensen_two_hop(G, Gnx):
 
         # Conversion from Networkx Jaccard to Sorensen
         # No networkX equivalent
-        nx_coeff.append((2*p)/(1+p))
+        nx_coeff.append((2 * p) / (1 + p))
     df = cugraph.sorensen(G, pairs)
     df = df.sort_values(by=["source", "destination"]).reset_index(drop=True)
     assert len(nx_coeff) == len(df)
@@ -123,7 +123,7 @@ def networkx_call(M, benchmark_callable=None):
         dst.append(v)
         # Conversion from Networkx Jaccard to Sorensen
         # No networkX equivalent
-        coeff.append((2*p)/(1+p))
+        coeff.append((2 * p) / (1 + p))
     return src, dst, coeff
 
 
@@ -172,8 +172,7 @@ def test_sorensen_edgevals(gpubenchmark, graph_file):
     dataset_path = graph_file.get_path()
     M = utils.read_csv_for_nx(dataset_path)
 
-    cu_src, cu_dst, cu_coeff = cugraph_call(
-        gpubenchmark, graph_file, edgevals=True)
+    cu_src, cu_dst, cu_coeff = cugraph_call(gpubenchmark, graph_file, edgevals=True)
     nx_src, nx_dst, nx_coeff = networkx_call(M)
 
     # Calculating mismatch
@@ -193,9 +192,7 @@ def test_sorensen_two_hop(read_csv):
 
     M, graph_file = read_csv
 
-    Gnx = nx.from_pandas_edgelist(
-        M, source="0", target="1", create_using=nx.Graph()
-    )
+    Gnx = nx.from_pandas_edgelist(M, source="0", target="1", create_using=nx.Graph())
     G = graph_file.get_graph(ignore_weights=True)
 
     compare_sorensen_two_hop(G, Gnx)
@@ -223,8 +220,9 @@ def test_sorensen_multi_column(read_csv):
     cu_M["src_1"] = cu_M["src_0"] + 1000
     cu_M["dst_1"] = cu_M["dst_0"] + 1000
     G1 = cugraph.Graph()
-    G1.from_cudf_edgelist(cu_M, source=["src_0", "src_1"],
-                          destination=["dst_0", "dst_1"])
+    G1.from_cudf_edgelist(
+        cu_M, source=["src_0", "src_1"], destination=["dst_0", "dst_1"]
+    )
 
     vertex_pair = cu_M[["src_0", "src_1", "dst_0", "dst_1"]]
     vertex_pair = vertex_pair[:5]
@@ -232,8 +230,7 @@ def test_sorensen_multi_column(read_csv):
     df_res = cugraph.sorensen(G1, vertex_pair)
 
     G2 = cugraph.Graph()
-    G2.from_cudf_edgelist(cu_M, source="src_0",
-                          destination="dst_0")
+    G2.from_cudf_edgelist(cu_M, source="src_0", destination="dst_0")
     df_exp = cugraph.sorensen(G2, vertex_pair[["src_0", "dst_0"]])
 
     # Calculating mismatch

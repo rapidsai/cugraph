@@ -40,7 +40,8 @@ def test_using_graph(graph_file):
 def test_using_pgraph(graph_file):
     g = graph_file.get_graph(create_using=cugraph.Graph(directed=True))
     cu_M = graph_file.get_edgelist().rename(
-        columns={"src": "0", "dst": "1", "wgt": "2"})
+        columns={"src": "0", "dst": "1", "wgt": "2"}
+    )
     pG = PropertyGraph()
     pG.add_edge_data(cu_M, vertex_col_names=("0", "1"), property_columns=None)
 
@@ -55,12 +56,11 @@ def test_using_pgraph(graph_file):
 @pytest.mark.parametrize("graph_file", DATASETS)
 def test_node_data_pg(graph_file):
     cu_M = graph_file.get_edgelist().rename(
-        columns={"src": "0", "dst": "1", "wgt": "2"})
+        columns={"src": "0", "dst": "1", "wgt": "2"}
+    )
     pG = PropertyGraph()
     gstore = cugraph.gnn.CuGraphStore(graph=pG, backend_lib="cupy")
-    gstore.add_edge_data(
-        cu_M, vertex_col_names=("0", "1"), feat_name="edge_feat"
-    )
+    gstore.add_edge_data(cu_M, node_col_names=("0", "1"), feat_name="edge_feat")
 
     edata_f = gstore.get_edge_storage("edge_feat")
     edata = edata_f.fetch(indices=[0, 1], device="cuda")
@@ -76,12 +76,11 @@ def test_egonet(graph_file):
 
     g = graph_file.get_graph(create_using=cugraph.Graph(directed=True))
     cu_M = graph_file.get_edgelist().rename(
-        columns={"src": "0", "dst": "1", "wgt": "2"})
+        columns={"src": "0", "dst": "1", "wgt": "2"}
+    )
     pG = PropertyGraph()
     gstore = cugraph.gnn.CuGraphStore(graph=pG, backend_lib="cupy")
-    gstore.add_edge_data(
-        cu_M, vertex_col_names=("0", "1"), feat_name="edge_feat"
-    )
+    gstore.add_edge_data(cu_M, node_col_names=("0", "1"), feat_name="edge_feat")
 
     nodes = [1, 2]
 
@@ -97,10 +96,11 @@ def test_egonet(graph_file):
 def test_workflow(graph_file):
     # from cugraph.community.egonet import batched_ego_graphs
     cu_M = graph_file.get_edgelist().rename(
-        columns={"src": "0", "dst": "1", "wgt": "2"})
+        columns={"src": "0", "dst": "1", "wgt": "2"}
+    )
     pg = PropertyGraph()
     gstore = cugraph.gnn.CuGraphStore(graph=pg)
-    gstore.add_edge_data(cu_M, vertex_col_names=("0", "1"), feat_name="feat")
+    gstore.add_edge_data(cu_M, node_col_names=("0", "1"), feat_name="feat")
     nodes = gstore.get_vertex_ids()
     num_nodes = len(nodes)
 
@@ -116,10 +116,11 @@ def test_workflow(graph_file):
 @pytest.mark.parametrize("graph_file", DATASETS)
 def test_sample_neighbors(graph_file):
     cu_M = graph_file.get_edgelist().rename(
-        columns={"src": "0", "dst": "1", "wgt": "2"})
+        columns={"src": "0", "dst": "1", "wgt": "2"}
+    )
     pg = PropertyGraph()
     gstore = cugraph.gnn.CuGraphStore(graph=pg)
-    gstore.add_edge_data(cu_M, feat_name="feat", vertex_col_names=("0", "1"))
+    gstore.add_edge_data(cu_M, feat_name="feat", node_col_names=("0", "1"))
 
     nodes = gstore.get_vertex_ids()
     num_nodes = len(nodes)
@@ -128,9 +129,7 @@ def test_sample_neighbors(graph_file):
 
     sampled_nodes = nodes[:5].to_dlpack()
 
-    parents_cap, children_cap, edge_id_cap = gstore.sample_neighbors(
-        sampled_nodes, 2
-    )
+    parents_cap, children_cap, edge_id_cap = gstore.sample_neighbors(sampled_nodes, 2)
 
     parents_list = cudf.from_dlpack(parents_cap)
     assert len(parents_list) > 0
@@ -139,17 +138,16 @@ def test_sample_neighbors(graph_file):
 @pytest.mark.parametrize("graph_file", DATASETS)
 def test_sample_neighbor_neg_one_fanout(graph_file):
     cu_M = graph_file.get_edgelist().rename(
-        columns={"src": "0", "dst": "1", "wgt": "2"})
+        columns={"src": "0", "dst": "1", "wgt": "2"}
+    )
     pg = PropertyGraph()
     gstore = cugraph.gnn.CuGraphStore(graph=pg)
-    gstore.add_edge_data(cu_M, feat_name="edge_k", vertex_col_names=("0", "1"))
+    gstore.add_edge_data(cu_M, feat_name="edge_k", node_col_names=("0", "1"))
 
     nodes = gstore.get_vertex_ids()
     sampled_nodes = nodes[:5].to_dlpack()
     # -1, default fan_out
-    parents_cap, children_cap, edge_id_cap = gstore.sample_neighbors(
-        sampled_nodes, -1
-    )
+    parents_cap, children_cap, edge_id_cap = gstore.sample_neighbors(sampled_nodes, -1)
     parents_list = cudf.from_dlpack(parents_cap)
     assert len(parents_list) > 0
 
@@ -157,7 +155,8 @@ def test_sample_neighbor_neg_one_fanout(graph_file):
 @pytest.mark.parametrize("graph_file", DATASETS)
 def test_get_node_storage_graph_file(graph_file):
     cu_M = graph_file.get_edgelist().rename(
-        columns={"src": "0", "dst": "1", "wgt": "2"})
+        columns={"src": "0", "dst": "1", "wgt": "2"}
+    )
 
     pg = PropertyGraph()
     gstore = cugraph.gnn.CuGraphStore(graph=pg, backend_lib="cupy")
@@ -165,7 +164,7 @@ def test_get_node_storage_graph_file(graph_file):
     gstore.add_edge_data(
         cu_M,
         feat_name="feat",
-        vertex_col_names=("0", "1"),
+        node_col_names=("0", "1"),
     )
 
     num_nodes = gstore.num_nodes()
@@ -188,10 +187,11 @@ def test_get_node_storage_graph_file(graph_file):
 @pytest.mark.parametrize("graph_file", DATASETS)
 def test_edge_storage_data_graph_file(graph_file):
     cu_M = graph_file.get_edgelist().rename(
-        columns={"src": "0", "dst": "1", "wgt": "2"})
+        columns={"src": "0", "dst": "1", "wgt": "2"}
+    )
     pg = PropertyGraph()
     gstore = cugraph.gnn.CuGraphStore(graph=pg, backend_lib="cupy")
-    gstore.add_edge_data(cu_M, vertex_col_names=("0", "1"), feat_name="edge_k")
+    gstore.add_edge_data(cu_M, node_col_names=("0", "1"), feat_name="edge_k")
 
     edata_s = gstore.get_edge_storage(feat_name="edge_k")
     edata = edata_s.fetch([0, 1, 2, 3], device="cuda")
@@ -280,17 +280,16 @@ def create_df_from_dataset(col_n, rows):
     return cudf.DataFrame(data_d)
 
 
-# @pytest.fixture()
-# TODO: Creating a fixture seems to hang the pytests
-
-
-def get_dataset1_CuGraphStore():
+@pytest.fixture(scope="module")
+def dataset1_CuGraphStore():
+    """
+    Fixture which returns an instance of a CuGraphStore with vertex and edge
+    data added from dataset1, parameterized for different DataFrame types.
+    """
     merchant_df = create_df_from_dataset(
         dataset1["merchants"][0], dataset1["merchants"][1]
     )
-    user_df = create_df_from_dataset(
-        dataset1["users"][0], dataset1["users"][1]
-    )
+    user_df = create_df_from_dataset(dataset1["users"][0], dataset1["users"][1])
     taxpayers_df = create_df_from_dataset(
         dataset1["taxpayers"][0], dataset1["taxpayers"][1]
     )
@@ -319,54 +318,52 @@ def get_dataset1_CuGraphStore():
     graph.add_node_data(merchant_df, "merchant_id", "merchant_k", "merchant")
     graph.add_node_data(user_df, "user_id", "user_k", "user")
     graph.add_node_data(taxpayers_df, "payer_id", "taxpayers_k", "taxpayers")
-
     graph.add_edge_data(
         referrals_df,
         ("user_id_1", "user_id_2"),
         "referrals_k",
-        "referrals",
+        "('user', 'refers', 'user')",
     )
     graph.add_edge_data(
         relationships_df,
         ("user_id_1", "user_id_2"),
         "relationships_k",
-        "relationships",
+        "('user', 'relationship', 'user')",
     )
     graph.add_edge_data(
         transactions_df,
         ("user_id", "merchant_id"),
         "transactions_k",
-        "transactions",
+        "('user', 'transactions', 'merchant')",
     )
 
     return graph
 
 
-def test_num_nodes_gs():
-    gs = get_dataset1_CuGraphStore()
+def test_num_nodes_gs(dataset1_CuGraphStore):
     # Added unique id in tax_payer so changed to 16
-    assert gs.num_nodes() == 16
+    assert dataset1_CuGraphStore.num_nodes() == 16
 
 
-def test_num_edges():
-    gs = get_dataset1_CuGraphStore()
+def test_num_edges(dataset1_CuGraphStore):
+    gs = dataset1_CuGraphStore
     assert gs.num_edges() == 14
 
 
-def test_etypes():
-    dataset1_CuGraphStore = get_dataset1_CuGraphStore()
-    assert dataset1_CuGraphStore.etypes == [
-        'referrals', 'relationships', 'transactions'
+def test_etypes(dataset1_CuGraphStore):
+    expected_types = [
+        "('user', 'refers', 'user')",
+        "('user', 'relationship', 'user')",
+        "('user', 'transactions', 'merchant')",
     ]
+    assert dataset1_CuGraphStore.etypes == expected_types
 
 
-def test_ntypes():
-    dataset1_CuGraphStore = get_dataset1_CuGraphStore()
-    assert dataset1_CuGraphStore.ntypes == ['merchant', 'taxpayers', 'user']
+def test_ntypes(dataset1_CuGraphStore):
+    assert dataset1_CuGraphStore.ntypes == ["merchant", "taxpayers", "user"]
 
 
-def test_get_node_storage_gs():
-    dataset1_CuGraphStore = get_dataset1_CuGraphStore()
+def test_get_node_storage_gs(dataset1_CuGraphStore):
     fs = dataset1_CuGraphStore.get_node_storage(
         feat_name="merchant_k", ntype="merchant"
     )
@@ -381,11 +378,8 @@ def test_get_node_storage_gs():
     assert cp.allclose(cudf_ar, merchant_gs)
 
 
-def test_get_edge_storage_gs():
-    dataset1_CuGraphStore = get_dataset1_CuGraphStore()
-    fs = dataset1_CuGraphStore.get_edge_storage(
-        "relationships_k", "relationships"
-    )
+def test_get_edge_storage_gs(dataset1_CuGraphStore):
+    fs = dataset1_CuGraphStore.get_edge_storage("relationships_k", "relationships")
     relationship_t = fs.fetch([6, 7, 8], device="cuda")
 
     relationships_df = create_df_from_dataset(
@@ -396,10 +390,9 @@ def test_get_edge_storage_gs():
     assert cp.allclose(cudf_ar, relationship_t)
 
 
-@pytest.mark.skip("Skipping because it tends to hang sometimes")
-def test_sampling_gs_heterogeneous_ds1():
-    node_d = {"merchant_id": cudf.Series([4], dtype="int64").to_dlpack()}
-    gs = get_dataset1_CuGraphStore()
+def test_sampling_gs_heterogeneous_ds1(dataset1_CuGraphStore):
+    node_d = {"merchant": cudf.Series([4], dtype="int64").to_dlpack()}
+    gs = dataset1_CuGraphStore
     sampled_obj = gs.sample_neighbors(node_d, fanout=1)
     sampled_d = convert_dlpack_to_cudf_ser(sampled_obj)
     # Ensure we get sample from at at least one of the etypes
@@ -407,11 +400,9 @@ def test_sampling_gs_heterogeneous_ds1():
     assert len(src_ser) != 0
 
 
-@pytest.mark.skip("Skipping because it tends to hang sometimes")
-def test_sampling_gs_heterogeneous_ds1_neg_one_fanout():
-
-    node_d = {"merchant_id": cudf.Series([4], dtype="int64").to_dlpack()}
-    gs = get_dataset1_CuGraphStore()
+def test_sampling_gs_heterogeneous_ds1_neg_one_fanout(dataset1_CuGraphStore):
+    node_d = {"merchant": cudf.Series([4], dtype="int64").to_dlpack()}
+    gs = dataset1_CuGraphStore
     sampled_obj = gs.sample_neighbors(node_d, fanout=-1)
     sampled_d = convert_dlpack_to_cudf_ser(sampled_obj)
     # Ensure we get sample from at at least one of the etypes
@@ -556,14 +547,11 @@ def create_gs_heterogeneous_dgl_eg():
     )
     for n in df["ntype"].unique().values_host:
         subset_df = df[df["ntype"] == n][["node_id", "node_feat"]]
-        gs.add_node_data(
-            subset_df, "node_id", feat_name="node_feat", ntype=str(n)
-        )
+        gs.add_node_data(subset_df, "node_id", feat_name="node_feat", ntype=str(n))
 
     return gs
 
 
-@pytest.mark.skip("Skipping because tends to hang")
 def test_sampling_gs_heterogeneous_in_dir():
     gs = create_gs_heterogeneous_dgl_eg()
     # DGL expected_output from
@@ -622,7 +610,6 @@ def test_sampling_gs_heterogeneous_in_dir():
             cudf.testing.assert_frame_equal(output_df, expected_df)
 
 
-@pytest.mark.skip("Skipping because tends to hang")
 def test_sampling_gs_heterogeneous_out_dir():
     gs = create_gs_heterogeneous_dgl_eg()
     # DGL expected_output from
@@ -692,7 +679,6 @@ def test_sampling_gs_heterogeneous_out_dir():
             cudf.testing.assert_frame_equal(output_df, expected_df)
 
 
-@pytest.mark.skip("Skipping because tends to hang")
 def test_sampling_dgl_heterogeneous_gs_m_fanouts():
     gs = create_gs_heterogeneous_dgl_eg()
     # Test against DGLs output
@@ -725,12 +711,63 @@ def test_sampling_dgl_heterogeneous_gs_m_fanouts():
     for fanout in [1, 2, 3, -1]:
         sampled_node = [6]
         sampled_node_p = cudf.Series(sampled_node).to_dlpack()
-        sampled_g = gs.sample_neighbors(
-            {"nt.c": sampled_node_p}, fanout=fanout
-        )
+        sampled_g = gs.sample_neighbors({"nt.c": sampled_node_p}, fanout=fanout)
         sampled_g = convert_dlpack_dict_to_df(sampled_g)
         for etype, output_df in sampled_g.items():
             assert expected_output[fanout][etype] == len(output_df)
+
+
+def test_clear_cache():
+    gs = create_gs_heterogeneous_dgl_eg()
+    prev_nodes = gs.num_nodes_dict["nt.a"]
+
+    df = cudf.DataFrame()
+    df["node_id"] = [1000, 2000, 3000]
+    df["new_node_feat"] = [float(i + 1) for i in range(len(df))]
+    gs.add_node_data(
+        df, feat_name="new_node_feat", node_col_name="node_id", ntype="nt.a"
+    )
+
+    new_nodes = gs.num_nodes_dict["nt.a"]
+    assert new_nodes == prev_nodes + 3
+
+
+def test_add_node_data_scaler_vector_feats():
+    pg = PropertyGraph()
+    gs = CuGraphStore(pg, backend_lib="cupy")
+    df = cudf.DataFrame()
+    df["node_id"] = [1, 2, 3]
+    df["node_scaler_feat_1"] = [10, 20, 30]
+    df["node_scaler_feat_2"] = [15, 25, 35]
+    gs.add_node_data(df, "node_id", is_single_vector_feature=False)
+
+    out_1 = gs.get_node_storage("node_scaler_feat_1").fetch([1, 3])
+    exp_1 = cp.asarray([10, 30])
+    cp.testing.assert_array_equal(exp_1, out_1)
+
+    out_2 = gs.get_node_storage("node_scaler_feat_2").fetch([1, 2])
+    exp_2 = cp.asarray([15, 25])
+    cp.testing.assert_array_equal(exp_2, out_2)
+
+    df = cudf.DataFrame()
+    df["node_id"] = [1, 2, 3]
+    df["v_s1"] = [10, 20, 30]
+    df["v_s2"] = [15, 25, 35]
+    gs.add_node_data(
+        df, "node_id", feat_name="vector_feat", is_single_vector_feature=True
+    )
+
+    out_vec = gs.get_node_storage("vector_feat").fetch([1, 2])
+    exp_vec = cp.asarray([[10, 15], [20, 25]])
+    cp.testing.assert_array_equal(out_vec, exp_vec)
+
+    with pytest.raises(ValueError):
+        gs.add_node_data(
+            df,
+            "node_id",
+            feat_name="vector_feat",
+            is_single_vector_feature=False,
+        )
 
 
 def assert_correct_eids(edge_df, sample_edge_id_df):

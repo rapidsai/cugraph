@@ -21,10 +21,7 @@ from torch_geometric.data.feature_store import FeatureStore
 from torch_geometric.data.graph_store import GraphStore
 from torch_geometric.loader.base import DataLoaderIterator
 from torch_geometric.loader.neighbor_loader import get_input_nodes
-from torch_geometric.loader.utils import (
-    edge_type_to_str,
-    filter_custom_store
-)
+from torch_geometric.loader.utils import edge_type_to_str, filter_custom_store
 from torch_geometric.typing import InputNodes, NumNeighbors
 
 
@@ -54,7 +51,8 @@ class EXPERIMENTAL__CuGraphNeighborSampler:
             # do so, we make an explicit feature store GET call here with
             # the relevant 'TensorAttr's
             time_attrs = [
-                attr for attr in feature_store.get_all_tensor_attrs()
+                attr
+                for attr in feature_store.get_all_tensor_attrs()
                 if attr.attr_name == time_attr
             ]
             for attr in time_attrs:
@@ -69,10 +67,8 @@ class EXPERIMENTAL__CuGraphNeighborSampler:
         node_attrs = feature_store.get_all_tensor_attrs()
         edge_attrs = graph_store.get_all_edge_attrs()
 
-        self.node_types = list(
-            set(node_attr.group_name for node_attr in node_attrs))
-        self.edge_types = list(
-            set(edge_attr.edge_type for edge_attr in edge_attrs))
+        self.node_types = list(set(node_attr.group_name for node_attr in node_attrs))
+        self.edge_types = list(set(edge_attr.edge_type for edge_attr in edge_attrs))
 
         # Set other required parameters:
         self._set_num_neighbors_and_num_hops(num_neighbors)
@@ -88,8 +84,7 @@ class EXPERIMENTAL__CuGraphNeighborSampler:
             num_neighbors = {key: num_neighbors for key in self.edge_types}
         assert isinstance(num_neighbors, dict)
         self.num_neighbors = {
-            edge_type_to_str(key): value
-            for key, value in num_neighbors.items()
+            edge_type_to_str(key): value for key, value in num_neighbors.items()
         }
         # Add at least one element to the list to ensure `max` is well-defined
         self.num_hops = max([0] + [len(v) for v in num_neighbors.values()])
@@ -99,15 +94,11 @@ class EXPERIMENTAL__CuGraphNeighborSampler:
             index = torch.LongTensor(index)
 
         out = self.graph_store.neighbor_sample(
-            index,
-            self.num_neighbors,
-            self.replace,
-            self.directed,
-            self.edge_types
+            index, self.num_neighbors, self.replace, self.directed, self.edge_types
         )
 
         # call cugraph sampler
-        return out + (index.numel(), )
+        return out + (index.numel(),)
 
 
 class EXPERIMENTAL__CuGraphNeighborLoader(torch.utils.data.DataLoader):
@@ -199,6 +190,7 @@ class EXPERIMENTAL__CuGraphNeighborLoader(torch.utils.data.DataLoader):
             :class:`torch.utils.data.DataLoader`, such as :obj:`batch_size`,
             :obj:`shuffle`, :obj:`drop_last` or :obj:`num_workers`.
     """
+
     def __init__(
         self,
         data: Tuple[FeatureStore, GraphStore],
@@ -210,19 +202,17 @@ class EXPERIMENTAL__CuGraphNeighborLoader(torch.utils.data.DataLoader):
         transform: Callable = None,
         is_sorted: bool = False,
         filter_per_worker: bool = False,
-        neighbor_sampler: Optional[
-            EXPERIMENTAL__CuGraphNeighborSampler
-        ] = None,
+        neighbor_sampler: Optional[EXPERIMENTAL__CuGraphNeighborSampler] = None,
         **kwargs,
     ):
         # Remove for PyTorch Lightning:
-        if 'dataset' in kwargs:
-            del kwargs['dataset']
-        if 'collate_fn' in kwargs:
-            del kwargs['collate_fn']
+        if "dataset" in kwargs:
+            del kwargs["dataset"]
+        if "collate_fn" in kwargs:
+            del kwargs["collate_fn"]
 
         if is_sorted is not False:
-            raise ValueError('is_sorted must be false')
+            raise ValueError("is_sorted must be false")
 
         self.data = data
 
@@ -245,7 +235,7 @@ class EXPERIMENTAL__CuGraphNeighborLoader(torch.utils.data.DataLoader):
                 directed,
                 input_type=node_type,
                 time_attr=time_attr,
-                share_memory=kwargs.get('num_workers', 0) > 0,
+                share_memory=kwargs.get("num_workers", 0) > 0,
             )
 
         super().__init__(input_nodes, collate_fn=self.collate_fn, **kwargs)
@@ -253,8 +243,9 @@ class EXPERIMENTAL__CuGraphNeighborLoader(torch.utils.data.DataLoader):
     def filter_fn(self, out: Any) -> HeteroData:
         node_dict, row_dict, col_dict, edge_dict, batch_size = out
         feature_store, graph_store = self.data
-        data = filter_custom_store(feature_store, graph_store, node_dict,
-                                   row_dict, col_dict, edge_dict)
+        data = filter_custom_store(
+            feature_store, graph_store, node_dict, row_dict, col_dict, edge_dict
+        )
         data[self.neighbor_sampler.input_type].batch_size = batch_size
 
         return data if self.transform is None else self.transform(data)
@@ -273,4 +264,4 @@ class EXPERIMENTAL__CuGraphNeighborLoader(torch.utils.data.DataLoader):
         return DataLoaderIterator(super()._get_iterator(), self.filter_fn)
 
     def __repr__(self) -> str:
-        return f'{self.__class__.__name__}()'
+        return f"{self.__class__.__name__}()"

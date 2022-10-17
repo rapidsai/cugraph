@@ -74,7 +74,7 @@ def test_mg_edge_betweenness_centrality(
     weight,
     subset_seed,
     result_dtype,
-    dask_client
+    dask_client,
 ):
     sorted_df = calc_edge_betweenness_centrality(
         graph_file,
