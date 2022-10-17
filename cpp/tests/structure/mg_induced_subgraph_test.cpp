@@ -49,7 +49,6 @@ class Tests_MGInducedSubgraph
   Tests_MGInducedSubgraph() {}
 
   static void SetUpTestCase() { handle_ = cugraph::test::initialize_mg_handle(); }
-
   static void TearDownTestCase() { handle_.reset(); }
 
   virtual void SetUp() {}
@@ -141,8 +140,12 @@ class Tests_MGInducedSubgraph
     d_subgraph_vertices.resize(h_subgraph_offsets.back(), handle_->get_stream());
     d_subgraph_vertices.shrink_to_fit(handle_->get_stream());
 
-    // 3. run MG InducedSubgraph
+    if (my_rank == 0) {
+      all_vertices.resize(0, handle_->get_stream());
+      all_vertices.shrink_to_fit(handle_->get_stream());
+    }
 
+    // 3. run MG InducedSubgraph
     auto d_subgraph_offsets = cugraph::test::to_device(*handle_, h_subgraph_offsets);
 
     if (cugraph::test::g_perf) {
@@ -227,6 +230,7 @@ class Tests_MGInducedSubgraph
                                               d_subgraph_vertices.size()),
             false);
 
+        // FIXME: Might need to pass in MG and SG number maps to properly compare
         induced_subgraph_validate(*handle_,
                                   d_subgraph_edgelist_majors,
                                   d_subgraph_edgelist_minors,

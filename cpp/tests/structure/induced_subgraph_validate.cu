@@ -49,7 +49,7 @@ void induced_subgraph_validate(
   ASSERT_TRUE(d_cugraph_subgraph_edgelist_weights.has_value() ==
               d_reference_subgraph_edgelist_weights.has_value());
 
-  // FIXME: This would be more efficient if we could do a segmented sort on the subgraphs.
+  // FIXME: This might be more efficient if we could do a segmented sort on the subgraphs.
   rmm::device_uvector<vertex_t> d_subgraph_index(d_cugraph_subgraph_edgelist_majors.size(),
                                                  handle.get_stream());
   thrust::tabulate(
