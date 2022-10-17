@@ -170,7 +170,6 @@ def multi_edge_multi_vertex_property_graph_1(dask_client):
     return pG
 
 
-@pytest.mark.skip(reason="Need to guarantee graph has weights, " "not doing that yet")
 def test_tensor_attr():
     ta = CuGraphTensorAttr("group0", "property1")
     assert not ta.is_fully_specified()
@@ -200,7 +199,6 @@ def test_tensor_attr():
     assert casted_ta3.index == [1, 2, 3]
 
 
-@pytest.mark.skip(reason="Need to guarantee graph has weights, " "not doing that yet")
 def test_edge_attr():
     ea = CuGraphEdgeAttr("type0", EdgeLayout.COO, False, 10)
     assert ea.edge_type == "type0"
@@ -234,7 +232,6 @@ def single_vertex_graph(request):
     return request.getfixturevalue(request.param)
 
 
-@pytest.mark.skip(reason="Need to guarantee graph has weights, " "not doing that yet")
 def test_get_edge_index(graph):
     pG = graph
     feature_store, graph_store = to_pyg(pG, backend="cupy")
@@ -263,7 +260,6 @@ def test_get_edge_index(graph):
         assert merged_df.compute().counter.sum() == len(src)
 
 
-@pytest.mark.skip(reason="Need to guarantee graph has weights, " "not doing that yet")
 def test_edge_types(graph):
     pG = graph
     feature_store, graph_store = to_pyg(pG, backend="cupy")
@@ -272,11 +268,10 @@ def test_edge_types(graph):
     assert eta.keys() == pG.edge_types
 
     for attr_name, attr_repr in eta.items():
-        assert pG.get_num_edges(attr_name) == attr_repr.size
+        assert pG.get_num_edges(attr_name) == attr_repr.size[-1]
         assert attr_name == attr_repr.edge_type[1]
 
 
-@pytest.mark.skip(reason="Need to guarantee graph has weights, " "not doing that yet")
 def test_get_subgraph(graph):
     pG = graph
     feature_store, graph_store = to_pyg(pG, backend="cupy")
@@ -297,7 +292,6 @@ def test_get_subgraph(graph):
     assert sg.number_of_edges() == num_edges
 
 
-@pytest.mark.skip(reason="Need to guarantee graph has weights, " "not doing that yet")
 def test_neighbor_sample(basic_property_graph_1):
     pG = basic_property_graph_1
     feature_store, graph_store = to_pyg(pG, backend="cupy")
@@ -353,7 +347,6 @@ def test_neighbor_sample(basic_property_graph_1):
     assert combined_df.to_arrow().to_pylist() == base_df.to_arrow().to_pylist()
 
 
-@pytest.mark.skip(reason="Need to guarantee graph has weights, " "not doing that yet")
 def test_neighbor_sample_multi_vertex(multi_edge_multi_vertex_property_graph_1):
     pG = multi_edge_multi_vertex_property_graph_1
     feature_store, graph_store = to_pyg(pG, backend="cupy")
@@ -460,7 +453,6 @@ def test_renumber_edges(graph):
             assert len(f) == 1  # make sure we match exactly 1 edge
 
 
-@pytest.mark.skip(reason="Need to guarantee graph has weights, " "not doing that yet")
 def test_get_tensor(graph):
     pG = graph
     feature_store, graph_store = to_pyg(pG, backend="cupy")
@@ -486,7 +478,6 @@ def test_get_tensor(graph):
                 assert list(tsr) == list(base_series)
 
 
-@pytest.mark.skip(reason="Need to guarantee graph has weights, " "not doing that yet")
 def test_multi_get_tensor(graph):
     pG = graph
     feature_store, graph_store = to_pyg(pG, backend="cupy")
@@ -522,7 +513,6 @@ def test_multi_get_tensor(graph):
                 assert list(tsr) == list(base_series)
 
 
-@pytest.mark.skip(reason="Need to guarantee graph has weights, " "not doing that yet")
 def test_get_all_tensor_attrs(graph):
     pG = graph
     feature_store, graph_store = to_pyg(pG, backend="cupy")
@@ -538,7 +528,6 @@ def test_get_all_tensor_attrs(graph):
     assert tensor_attrs == feature_store.get_all_tensor_attrs()
 
 
-@pytest.mark.skip(reason="Need to guarantee graph has weights, " "not doing that yet")
 def test_get_tensor_size(graph):
     pG = graph
     feature_store, graph_store = to_pyg(pG, backend="cupy")
@@ -560,7 +549,6 @@ def test_get_tensor_size(graph):
                 assert len(base_series) == size
 
 
-@pytest.mark.skip(reason="Need to guarantee graph has weights, " "not doing that yet")
 def test_get_x(graph):
     pG = graph
     feature_store, graph_store = to_pyg(pG, backend="cupy")

@@ -241,7 +241,7 @@ class EXPERIMENTAL__CuGraphStore:
                 edge_type=pyg_edge_type,
                 layout=EdgeLayout.COO,
                 is_sorted=False,
-                size=len(edges),
+                size=(len(edges), len(edges)),
             )
 
             self._edge_attr_cls = CuGraphEdgeAttr

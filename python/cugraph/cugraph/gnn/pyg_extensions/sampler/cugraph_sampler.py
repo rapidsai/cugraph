@@ -63,7 +63,13 @@ class EXPERIMENTAL__CuGraphSampler:
     """
 
     def __neighbor_sample(
-        self, index, num_neighbors, replace, directed=True, edge_types=None, **kwargs
+        self,
+        index,
+        num_neighbors,
+        replace=True,
+        directed=True,
+        edge_types=None,
+        **kwargs,
     ):
         is_mg = self.__graph_store.is_mg
         if is_mg and dask_cudf == MissingModule:
@@ -88,7 +94,7 @@ class EXPERIMENTAL__CuGraphSampler:
 
         if edge_types is None:
             edge_types = [
-                attr.edge_type for attr in self.__graph_store.get_all_edge_attrs
+                attr.edge_type for attr in self.__graph_store.get_all_edge_attrs()
             ]
 
         if isinstance(num_neighbors, dict):

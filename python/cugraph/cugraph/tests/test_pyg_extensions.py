@@ -242,7 +242,7 @@ def test_edge_types(graph):
     assert eta.keys() == pG.edge_types
 
     for attr_name, attr_repr in eta.items():
-        assert pG.get_num_edges(attr_name) == attr_repr.size
+        assert pG.get_num_edges(attr_name) == attr_repr.size[-1]
         assert attr_name == attr_repr.edge_type[1]
 
 
