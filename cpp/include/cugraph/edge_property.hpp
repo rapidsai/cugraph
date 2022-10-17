@@ -29,27 +29,31 @@ namespace cugraph {
 
 namespace detail {
 
-template <typename edge_t, typename ValueIterator>
+template <typename edge_t, typename T>
 class edge_property_view_t {
  public:
-  using value_type     = typename thrust::iterator_traits<ValueIterator>::value_type;
-  using value_iterator = ValueIterator;
+  using value_type  = std::remove_const_t<T>;
+  using buffer_type = decltype(allocate_dataframe_buffer<value_type>(0, rmm::cuda_stream_view{}));
+  using value_iterator = std::conditional_t<
+    std::is_const_v<T>,
+    std::invoke_result_t<decltype(get_dataframe_buffer_cbegin<buffer_type>), buffer_type&>,
+    std::invoke_result_t<decltype(get_dataframe_buffer_begin<buffer_type>), buffer_type&>>;
 
   edge_property_view_t() = default;
 
-  edge_property_view_t(std::vector<ValueIterator> const& edge_partition_value_firsts,
+  edge_property_view_t(std::vector<value_iterator> const& edge_partition_value_firsts,
                        std::vector<edge_t> const& edge_partition_edge_counts)
     : edge_partition_value_firsts_(edge_partition_value_firsts),
       edge_partition_edge_counts_(edge_partition_edge_counts)
   {
   }
 
-  std::vector<ValueIterator> const& value_firsts() const { return edge_partition_value_firsts_; }
+  std::vector<value_iterator> const& value_firsts() const { return edge_partition_value_firsts_; }
 
   std::vector<edge_t> const& edge_counts() const { return edge_partition_edge_counts_; }
 
  private:
-  std::vector<ValueIterator> edge_partition_value_firsts_{};
+  std::vector<value_iterator> edge_partition_value_firsts_{};
   std::vector<edge_t> edge_partition_edge_counts_{};
 };
 
@@ -98,8 +102,8 @@ class edge_property_t {
       edge_partition_edge_counts[i]  = size_dataframe_buffer(buffers_[i]);
     }
 
-    return detail::edge_property_view_t<edge_type, const_value_iterator>(
-      edge_partition_value_firsts, edge_partition_edge_counts);
+    return detail::edge_property_view_t<edge_type, T const>(edge_partition_value_firsts,
+                                                            edge_partition_edge_counts);
   }
 
   auto mutable_view()
@@ -113,8 +117,8 @@ class edge_property_t {
       edge_partition_edge_counts[i]  = size_dataframe_buffer(buffers_[i]);
     }
 
-    return detail::edge_property_view_t<edge_type, value_iterator>(edge_partition_value_firsts,
-                                                                   edge_partition_edge_counts);
+    return detail::edge_property_view_t<edge_type, T>(edge_partition_value_firsts,
+                                                      edge_partition_edge_counts);
   }
 
  private:

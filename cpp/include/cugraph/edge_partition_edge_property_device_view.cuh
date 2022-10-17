@@ -32,26 +32,31 @@ namespace cugraph {
 
 namespace detail {
 
-template <typename edge_t, typename ValueIterator>
+template <typename edge_t, typename T>
 class edge_partition_edge_property_device_view_t {
  public:
-  using value_type = typename thrust::iterator_traits<ValueIterator>::value_type;
+  using value_type  = std::remove_const_t<T>;
+  using buffer_type = decltype(allocate_dataframe_buffer<value_type>(0, rmm::cuda_stream_view{}));
+  using value_iterator = std::conditional_t<
+    std::is_const_v<T>,
+    std::invoke_result_t<decltype(get_dataframe_buffer_cbegin<buffer_type>), buffer_type&>,
+    std::invoke_result_t<decltype(get_dataframe_buffer_begin<buffer_type>), buffer_type&>>;
 
   edge_partition_edge_property_device_view_t() = default;
 
-  edge_partition_edge_property_device_view_t(
-    edge_property_view_t<edge_t, ValueIterator> const& view, size_t partition_idx)
+  edge_partition_edge_property_device_view_t(edge_property_view_t<edge_t, T> const& view,
+                                             size_t partition_idx)
     : value_first_(view.value_firsts()[partition_idx])
   {
     value_first_ = view.value_firsts()[partition_idx];
   }
 
-  __device__ ValueIterator get_iter(edge_t offset) const { return value_first_ + offset; }
+  __device__ value_iterator get_iter(edge_t offset) const { return value_first_ + offset; }
 
   __device__ value_type get(edge_t offset) const { return *get_iter(offset); }
 
  private:
-  ValueIterator value_first_{};
+  value_iterator value_first_{};
 };
 
 template <typename edge_t>

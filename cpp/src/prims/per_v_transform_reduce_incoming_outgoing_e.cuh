@@ -507,20 +507,20 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
     std::conditional_t<GraphViewType::is_storage_transposed,
                        detail::edge_partition_endpoint_property_device_view_t<
                          vertex_t,
-                         typename EdgeSrcValueInputWrapper::value_iterator>,
+                         typename EdgeSrcValueInputWrapper::value_type const>,
                        detail::edge_partition_endpoint_property_device_view_t<
                          vertex_t,
-                         typename EdgeSrcValueInputWrapper::value_iterator>>>;
+                         typename EdgeSrcValueInputWrapper::value_type const>>>;
   using edge_partition_dst_input_device_view_t = std::conditional_t<
     std::is_same_v<typename EdgeDstValueInputWrapper::value_type, thrust::nullopt_t>,
     detail::edge_partition_endpoint_dummy_property_device_view_t<vertex_t>,
     std::conditional_t<GraphViewType::is_storage_transposed,
                        detail::edge_partition_endpoint_property_device_view_t<
                          vertex_t,
-                         typename EdgeDstValueInputWrapper::value_iterator>,
+                         typename EdgeDstValueInputWrapper::value_type const>,
                        detail::edge_partition_endpoint_property_device_view_t<
                          vertex_t,
-                         typename EdgeDstValueInputWrapper::value_iterator>>>;
+                         typename EdgeDstValueInputWrapper::value_type const>>>;
 
   static_assert(is_arithmetic_or_thrust_tuple_of_arithmetic<T>::value);
 
@@ -539,9 +539,7 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
   using edge_partition_minor_output_device_view_t =
     std::conditional_t<update_major,
                        void /* dummy */,
-                       detail::edge_partition_endpoint_property_device_view_t<
-                         vertex_t,
-                         decltype(minor_tmp_buffer.mutable_view().value_first())>>;
+                       detail::edge_partition_endpoint_property_device_view_t<vertex_t, T>>;
 
   if constexpr (update_major) {
     size_t partition_idx = 0;

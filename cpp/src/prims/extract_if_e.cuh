@@ -148,20 +148,20 @@ extract_if_e(raft::handle_t const& handle,
     std::conditional_t<GraphViewType::is_storage_transposed,
                        detail::edge_partition_endpoint_property_device_view_t<
                          vertex_t,
-                         typename EdgeSrcValueInputWrapper::value_iterator>,
+                         typename EdgeSrcValueInputWrapper::value_type const>,
                        detail::edge_partition_endpoint_property_device_view_t<
                          vertex_t,
-                         typename EdgeSrcValueInputWrapper::value_iterator>>>;
+                         typename EdgeSrcValueInputWrapper::value_type const>>>;
   using edge_partition_dst_input_device_view_t = std::conditional_t<
     std::is_same_v<typename EdgeDstValueInputWrapper::value_type, thrust::nullopt_t>,
     detail::edge_partition_endpoint_dummy_property_device_view_t<vertex_t>,
     std::conditional_t<GraphViewType::is_storage_transposed,
                        detail::edge_partition_endpoint_property_device_view_t<
                          vertex_t,
-                         typename EdgeDstValueInputWrapper::value_iterator>,
+                         typename EdgeDstValueInputWrapper::value_type const>,
                        detail::edge_partition_endpoint_property_device_view_t<
                          vertex_t,
-                         typename EdgeDstValueInputWrapper::value_iterator>>>;
+                         typename EdgeDstValueInputWrapper::value_type const>>>;
 
   if (do_expensive_check) {
     // currently, nothing to do

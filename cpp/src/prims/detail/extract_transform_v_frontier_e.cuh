@@ -756,20 +756,20 @@ extract_transform_v_frontier_e(raft::handle_t const& handle,
     std::conditional_t<GraphViewType::is_storage_transposed,
                        edge_partition_endpoint_property_device_view_t<
                          vertex_t,
-                         typename EdgeSrcValueInputWrapper::value_iterator>,
+                         typename EdgeSrcValueInputWrapper::value_type const>,
                        edge_partition_endpoint_property_device_view_t<
                          vertex_t,
-                         typename EdgeSrcValueInputWrapper::value_iterator>>>;
+                         typename EdgeSrcValueInputWrapper::value_type const>>>;
   using edge_partition_dst_input_device_view_t = std::conditional_t<
     std::is_same_v<typename EdgeDstValueInputWrapper::value_type, thrust::nullopt_t>,
     edge_partition_endpoint_dummy_property_device_view_t<vertex_t>,
     std::conditional_t<GraphViewType::is_storage_transposed,
                        edge_partition_endpoint_property_device_view_t<
                          vertex_t,
-                         typename EdgeDstValueInputWrapper::value_iterator>,
+                         typename EdgeDstValueInputWrapper::value_type const>,
                        edge_partition_endpoint_property_device_view_t<
                          vertex_t,
-                         typename EdgeDstValueInputWrapper::value_iterator>>>;
+                         typename EdgeDstValueInputWrapper::value_type const>>>;
 
   static_assert(GraphViewType::is_storage_transposed == incoming);
   static_assert(!std::is_same_v<output_key_t, void> ||

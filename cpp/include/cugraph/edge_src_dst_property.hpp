@@ -34,22 +34,26 @@ namespace cugraph {
 
 namespace detail {
 
-template <typename vertex_t, typename ValueIterator>
+template <typename vertex_t, typename T>
 class edge_major_property_view_t {
  public:
-  using value_type     = typename thrust::iterator_traits<ValueIterator>::value_type;
-  using value_iterator = ValueIterator;
+  using value_type  = std::remove_const_t<T>;
+  using buffer_type = decltype(allocate_dataframe_buffer<value_type>(0, rmm::cuda_stream_view{}));
+  using value_iterator = std::conditional_t<
+    std::is_const_v<T>,
+    std::invoke_result_t<decltype(get_dataframe_buffer_cbegin<buffer_type>), buffer_type&>,
+    std::invoke_result_t<decltype(get_dataframe_buffer_begin<buffer_type>), buffer_type&>>;
 
   edge_major_property_view_t() = default;
 
   edge_major_property_view_t(
-    ValueIterator value_first)  // for single-GPU only and for advanced users
-    : edge_partition_value_firsts_(std::vector<ValueIterator>{value_first}),
+    value_iterator value_first)  // for single-GPU only and for advanced users
+    : edge_partition_value_firsts_(std::vector<value_iterator>{value_first}),
       edge_partition_major_range_firsts_(std::vector<vertex_t>{vertex_t{0}})
   {
   }
 
-  edge_major_property_view_t(std::vector<ValueIterator> const& edge_partition_value_firsts,
+  edge_major_property_view_t(std::vector<value_iterator> const& edge_partition_value_firsts,
                              std::vector<vertex_t> const& edge_partition_major_range_firsts)
     : edge_partition_value_firsts_(edge_partition_value_firsts),
       edge_partition_major_range_firsts_(edge_partition_major_range_firsts)
@@ -60,7 +64,7 @@ class edge_major_property_view_t {
     raft::host_span<raft::device_span<vertex_t const> const> edge_partition_keys,
     raft::host_span<raft::device_span<vertex_t const> const> edge_partition_key_chunk_start_offsets,
     size_t key_chunk_size,
-    std::vector<ValueIterator> const& edge_partition_value_firsts,
+    std::vector<value_iterator> const& edge_partition_value_firsts,
     std::vector<vertex_t> const& edge_partition_major_range_firsts)
     : edge_partition_keys_(edge_partition_keys),
       edge_partition_key_chunk_start_offsets_(edge_partition_key_chunk_start_offsets),
@@ -83,7 +87,7 @@ class edge_major_property_view_t {
 
   std::optional<size_t> key_chunk_size() const { return key_chunk_size_; }
 
-  std::vector<ValueIterator> const& value_firsts() const { return edge_partition_value_firsts_; }
+  std::vector<value_iterator> const& value_firsts() const { return edge_partition_value_firsts_; }
 
   std::vector<vertex_t> const& major_range_firsts() const
   {
@@ -97,19 +101,23 @@ class edge_major_property_view_t {
     edge_partition_key_chunk_start_offsets_{std::nullopt};
   std::optional<size_t> key_chunk_size_{std::nullopt};
 
-  std::vector<ValueIterator> edge_partition_value_firsts_{};
+  std::vector<value_iterator> edge_partition_value_firsts_{};
   std::vector<vertex_t> edge_partition_major_range_firsts_{};
 };
 
-template <typename vertex_t, typename ValueIterator>
+template <typename vertex_t, typename T>
 class edge_minor_property_view_t {
  public:
-  using value_type     = typename thrust::iterator_traits<ValueIterator>::value_type;
-  using value_iterator = ValueIterator;
+  using value_type  = std::remove_const_t<T>;
+  using buffer_type = decltype(allocate_dataframe_buffer<value_type>(0, rmm::cuda_stream_view{}));
+  using value_iterator = std::conditional_t<
+    std::is_const_v<T>,
+    std::invoke_result_t<decltype(get_dataframe_buffer_cbegin<buffer_type>), buffer_type&>,
+    std::invoke_result_t<decltype(get_dataframe_buffer_begin<buffer_type>), buffer_type&>>;
 
   edge_minor_property_view_t() = default;
 
-  edge_minor_property_view_t(ValueIterator value_first, vertex_t minor_range_first)
+  edge_minor_property_view_t(value_iterator value_first, vertex_t minor_range_first)
     : value_first_(value_first), minor_range_first_(minor_range_first)
   {
   }
@@ -117,7 +125,7 @@ class edge_minor_property_view_t {
   edge_minor_property_view_t(raft::device_span<vertex_t const> keys,
                              raft::device_span<vertex_t const> key_chunk_start_offsets,
                              size_t key_chunk_size,
-                             ValueIterator value_first,
+                             value_iterator value_first,
                              vertex_t minor_range_first)
     : keys_(keys),
       key_chunk_start_offsets_(key_chunk_start_offsets),
@@ -136,7 +144,7 @@ class edge_minor_property_view_t {
 
   std::optional<size_t> key_chunk_size() const { return key_chunk_size_; }
 
-  ValueIterator value_first() const { return value_first_; }
+  value_iterator value_first() const { return value_first_; }
 
   vertex_t minor_range_first() const { return minor_range_first_; }
 
@@ -145,14 +153,16 @@ class edge_minor_property_view_t {
   std::optional<raft::device_span<vertex_t const>> key_chunk_start_offsets_{std::nullopt};
   std::optional<size_t> key_chunk_size_{std::nullopt};
 
-  ValueIterator value_first_{};
+  value_iterator value_first_{};
   vertex_t minor_range_first_{};
 };
 
 template <typename vertex_t, typename T>
 class edge_major_property_t {
  public:
+  using value_type  = T;
   using buffer_type = decltype(allocate_dataframe_buffer<T>(size_t{0}, rmm::cuda_stream_view{}));
+  static_assert(is_arithmetic_or_thrust_tuple_of_arithmetic<T>::value);
 
   edge_major_property_t(raft::handle_t const& handle) {}
 
@@ -208,15 +218,14 @@ class edge_major_property_t {
     }
 
     if (edge_partition_keys_) {
-      return edge_major_property_view_t<vertex_t, const_value_iterator>(
-        *edge_partition_keys_,
-        *edge_partition_key_chunk_start_offsets_,
-        *key_chunk_size_,
-        edge_partition_value_firsts,
-        edge_partition_major_range_firsts_);
+      return edge_major_property_view_t<vertex_t, T const>(*edge_partition_keys_,
+                                                           *edge_partition_key_chunk_start_offsets_,
+                                                           *key_chunk_size_,
+                                                           edge_partition_value_firsts,
+                                                           edge_partition_major_range_firsts_);
     } else {
-      return edge_major_property_view_t<vertex_t, const_value_iterator>(
-        edge_partition_value_firsts, edge_partition_major_range_firsts_);
+      return edge_major_property_view_t<vertex_t, T const>(edge_partition_value_firsts,
+                                                           edge_partition_major_range_firsts_);
     }
   }
 
@@ -230,15 +239,14 @@ class edge_major_property_t {
     }
 
     if (edge_partition_keys_) {
-      return edge_major_property_view_t<vertex_t, value_iterator>(
-        *edge_partition_keys_,
-        *edge_partition_key_chunk_start_offsets_,
-        *key_chunk_size_,
-        edge_partition_value_firsts,
-        edge_partition_major_range_firsts_);
+      return edge_major_property_view_t<vertex_t, T>(*edge_partition_keys_,
+                                                     *edge_partition_key_chunk_start_offsets_,
+                                                     *key_chunk_size_,
+                                                     edge_partition_value_firsts,
+                                                     edge_partition_major_range_firsts_);
     } else {
-      return edge_major_property_view_t<vertex_t, value_iterator>(
-        edge_partition_value_firsts, edge_partition_major_range_firsts_);
+      return edge_major_property_view_t<vertex_t, T>(edge_partition_value_firsts,
+                                                     edge_partition_major_range_firsts_);
     }
   }
 
@@ -256,6 +264,9 @@ class edge_major_property_t {
 template <typename vertex_t, typename T>
 class edge_minor_property_t {
  public:
+  using value_type = T;
+  static_assert(is_arithmetic_or_thrust_tuple_of_arithmetic<T>::value);
+
   edge_minor_property_t(raft::handle_t const& handle)
     : buffer_(allocate_dataframe_buffer<T>(size_t{0}, handle.get_stream())),
       minor_range_first_(vertex_t{0})
@@ -298,11 +309,10 @@ class edge_minor_property_t {
   {
     auto value_first = get_dataframe_buffer_cbegin(buffer_);
     if (keys_) {
-      return edge_minor_property_view_t<vertex_t, decltype(value_first)>(
+      return edge_minor_property_view_t<vertex_t, T const>(
         *keys_, *key_chunk_start_offsets_, *key_chunk_size_, value_first, minor_range_first_);
     } else {
-      return edge_minor_property_view_t<vertex_t, decltype(value_first)>(value_first,
-                                                                         minor_range_first_);
+      return edge_minor_property_view_t<vertex_t, T const>(value_first, minor_range_first_);
     }
   }
 
@@ -310,11 +320,10 @@ class edge_minor_property_t {
   {
     auto value_first = get_dataframe_buffer_begin(buffer_);
     if (keys_) {
-      return edge_minor_property_view_t<vertex_t, decltype(value_first)>(
+      return edge_minor_property_view_t<vertex_t, T>(
         *keys_, *key_chunk_start_offsets_, *key_chunk_size_, value_first, minor_range_first_);
     } else {
-      return edge_minor_property_view_t<vertex_t, decltype(value_first)>(value_first,
-                                                                         minor_range_first_);
+      return edge_minor_property_view_t<vertex_t, T>(value_first, minor_range_first_);
     }
   }
 
@@ -336,7 +345,7 @@ class edge_endpoint_dummy_property_view_t {
 template <typename Iterator,
           typename std::enable_if_t<std::is_arithmetic<
             typename std::iterator_traits<Iterator>::value_type>::value>* = nullptr>
-auto to_thrust_tuple(Iterator iter)
+auto iter_to_thrust_tuple(Iterator iter)
 {
   return thrust::make_tuple(iter);
 }
@@ -344,7 +353,7 @@ auto to_thrust_tuple(Iterator iter)
 template <typename Iterator,
           typename std::enable_if_t<is_thrust_tuple_of_arithmetic<
             typename std::iterator_traits<Iterator>::value_type>::value>* = nullptr>
-auto to_thrust_tuple(Iterator iter)
+auto iter_to_thrust_tuple(Iterator iter)
 {
   return iter.get_iterator_tuple();
 }
@@ -557,26 +566,34 @@ class edge_dst_dummy_property_t {
 template <typename vertex_t, typename... Ts>
 auto view_concat(detail::edge_major_property_view_t<vertex_t, Ts> const&... views)
 {
+  static_assert((... && std::is_const_v<Ts>) || (... && !std::is_const_v<Ts>));
+
+  using concat_value_type     = decltype(thrust_tuple_cat(
+    to_thrust_tuple(typename detail::edge_major_property_view_t<vertex_t, Ts>::value_type{})...));
   using concat_value_iterator = decltype(thrust::make_zip_iterator(
-    thrust_tuple_cat(detail::to_thrust_tuple(views.value_firsts()[0])...)));
+    thrust_tuple_cat(detail::iter_to_thrust_tuple(views.value_firsts()[0])...)));
 
   std::vector<concat_value_iterator> edge_partition_concat_value_firsts{};
   auto first_view = detail::get_first_of_pack(views...);
   edge_partition_concat_value_firsts.resize(first_view.major_range_firsts().size());
   for (size_t i = 0; i < edge_partition_concat_value_firsts.size(); ++i) {
     edge_partition_concat_value_firsts[i] = thrust::make_zip_iterator(
-      thrust_tuple_cat(detail::to_thrust_tuple(views.value_firsts()[i])...));
+      thrust_tuple_cat(detail::iter_to_thrust_tuple(views.value_firsts()[i])...));
   }
 
   if (first_view.key_chunk_size()) {
-    return detail::edge_major_property_view_t<vertex_t, concat_value_iterator>(
+    return detail::edge_major_property_view_t<
+      vertex_t,
+      std::conditional_t<(... && std::is_const_v<Ts>), concat_value_type const, concat_value_type>>(
       *(first_view.keys()),
       *(first_view.key_chunk_start_offsets()),
       *(first_view.key_chunk_size()),
       edge_partition_concat_value_firsts,
       first_view.major_range_firsts());
   } else {
-    return detail::edge_major_property_view_t<vertex_t, concat_value_iterator>(
+    return detail::edge_major_property_view_t<
+      vertex_t,
+      std::conditional_t<(... && std::is_const_v<Ts>), concat_value_type const, concat_value_type>>(
       edge_partition_concat_value_firsts, first_view.major_range_firsts());
   }
 }

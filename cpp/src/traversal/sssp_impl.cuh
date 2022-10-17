@@ -202,7 +202,7 @@ void sssp(raft::handle_t const& handle,
         vertex_frontier.bucket(bucket_idx_cur_near),
         GraphViewType::is_multi_gpu
           ? edge_src_distances.view()
-          : detail::edge_major_property_view_t<vertex_t, weight_t const*>(distances),
+          : detail::edge_major_property_view_t<vertex_t, weight_t const>(distances),
         edge_dst_dummy_property_t{}.view(),
         e_op_t<vertex_t, weight_t, GraphViewType::is_multi_gpu>{
           vertex_partition, distances, cutoff},

@@ -182,7 +182,7 @@ accumulate_new_roots(raft::handle_t const& handle,
 
 template <typename vertex_t, typename EdgeIterator>
 struct e_op_t {
-  detail::edge_partition_endpoint_property_device_view_t<vertex_t, vertex_t*> dst_components{};
+  detail::edge_partition_endpoint_property_device_view_t<vertex_t, vertex_t> dst_components{};
   vertex_t dst_first{};
   EdgeIterator edge_buffer_first{};
   size_t* num_edge_inserts{};
@@ -581,11 +581,11 @@ void weakly_connected_components_impl(raft::handle_t const& handle,
         edge_dst_dummy_property_t{}.view(),
         e_op_t<vertex_t, decltype(get_dataframe_buffer_begin(edge_buffer))>{
           GraphViewType::is_multi_gpu
-            ? detail::edge_partition_endpoint_property_device_view_t<vertex_t, vertex_t*>(
+            ? detail::edge_partition_endpoint_property_device_view_t<vertex_t, vertex_t>(
                 edge_dst_components.mutable_view())
-            : detail::edge_partition_endpoint_property_device_view_t<vertex_t, vertex_t*>(
-                detail::edge_minor_property_view_t<vertex_t, vertex_t*>(level_components,
-                                                                        vertex_t{0})),
+            : detail::edge_partition_endpoint_property_device_view_t<vertex_t, vertex_t>(
+                detail::edge_minor_property_view_t<vertex_t, vertex_t>(level_components,
+                                                                       vertex_t{0})),
           level_graph_view.local_edge_partition_dst_range_first(),
           get_dataframe_buffer_begin(edge_buffer),
           num_edge_inserts.data()},

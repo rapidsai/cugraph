@@ -264,18 +264,18 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
     std::conditional_t<GraphViewType::is_storage_transposed,
                        detail::edge_partition_endpoint_property_device_view_t<
                          vertex_t,
-                         typename EdgeSrcValueInputWrapper::value_iterator>,
+                         typename EdgeSrcValueInputWrapper::value_type const>,
                        detail::edge_partition_endpoint_property_device_view_t<
                          vertex_t,
-                         typename EdgeSrcValueInputWrapper::value_iterator>>>;
+                         typename EdgeSrcValueInputWrapper::value_type const>>>;
   using edge_partition_dst_key_device_view_t =
     std::conditional_t<GraphViewType::is_storage_transposed,
                        detail::edge_partition_endpoint_property_device_view_t<
                          vertex_t,
-                         typename EdgeDstKeyInputWrapper::value_iterator>,
+                         typename EdgeDstKeyInputWrapper::value_type const>,
                        detail::edge_partition_endpoint_property_device_view_t<
                          vertex_t,
-                         typename EdgeDstKeyInputWrapper::value_iterator>>;
+                         typename EdgeDstKeyInputWrapper::value_type const>>;
 
   double constexpr load_factor = 0.7;
 

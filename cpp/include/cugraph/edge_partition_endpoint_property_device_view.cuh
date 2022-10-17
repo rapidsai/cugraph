@@ -32,15 +32,20 @@ namespace cugraph {
 
 namespace detail {
 
-template <typename vertex_t, typename ValueIterator>
+template <typename vertex_t, typename T>
 class edge_partition_endpoint_property_device_view_t {
  public:
-  using value_type = typename thrust::iterator_traits<ValueIterator>::value_type;
+  using value_type  = std::remove_const_t<T>;
+  using buffer_type = decltype(allocate_dataframe_buffer<value_type>(0, rmm::cuda_stream_view{}));
+  using value_iterator = std::conditional_t<
+    std::is_const_v<T>,
+    std::invoke_result_t<decltype(get_dataframe_buffer_cbegin<buffer_type>), buffer_type&>,
+    std::invoke_result_t<decltype(get_dataframe_buffer_begin<buffer_type>), buffer_type&>>;
 
   edge_partition_endpoint_property_device_view_t() = default;
 
   edge_partition_endpoint_property_device_view_t(
-    edge_major_property_view_t<vertex_t, ValueIterator> const& view, size_t partition_idx)
+    edge_major_property_view_t<vertex_t, T> const& view, size_t partition_idx)
     : value_first_(view.value_firsts()[partition_idx]),
       range_first_(view.major_range_firsts()[partition_idx])
   {
@@ -54,7 +59,7 @@ class edge_partition_endpoint_property_device_view_t {
   }
 
   edge_partition_endpoint_property_device_view_t(
-    edge_minor_property_view_t<vertex_t, ValueIterator> const& view)
+    edge_minor_property_view_t<vertex_t, T> const& view)
   {
     if (view.keys()) {
       keys_                    = *(view.keys());
@@ -65,7 +70,7 @@ class edge_partition_endpoint_property_device_view_t {
     range_first_ = view.minor_range_first();
   }
 
-  __device__ ValueIterator get_iter(vertex_t offset) const
+  __device__ value_iterator get_iter(vertex_t offset) const
   {
     auto value_offset = offset;
     if (keys_) {
@@ -83,14 +88,14 @@ class edge_partition_endpoint_property_device_view_t {
     return value_first_ + value_offset;
   }
 
-  __device__ value_type get(vertex_t offset) const { return *get_iter(offset); }
+  __device__ std::remove_const_t<T> get(vertex_t offset) const { return *get_iter(offset); }
 
  private:
   thrust::optional<raft::device_span<vertex_t const>> keys_{thrust::nullopt};
   thrust::optional<raft::device_span<vertex_t const>> key_chunk_start_offsets_{thrust::nullopt};
   thrust::optional<size_t> key_chunk_size_{thrust::nullopt};
 
-  ValueIterator value_first_{};
+  value_iterator value_first_{};
   vertex_t range_first_{};
 };
 

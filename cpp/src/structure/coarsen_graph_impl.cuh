@@ -178,7 +178,7 @@ decompress_edge_partition_to_relabeled_and_grouped_and_coarsened_edgelist(
                     [major_label_first,
                      minor_label_input = detail::edge_partition_endpoint_property_device_view_t<
                        vertex_t,
-                       decltype(minor_label_input.value_first())>(minor_label_input),
+                       typename EdgeMinorLabelInputWrapper::value_type const>(minor_label_input),
                      major_range_first = edge_partition.major_range_first(),
                      minor_range_first = edge_partition.minor_range_first()] __device__(auto val) {
                       return thrust::make_tuple(
@@ -542,7 +542,7 @@ coarsen_graph(
       edge_partition_device_view_t<vertex_t, edge_t, weight_t, multi_gpu>(
         graph_view.local_edge_partition_view()),
       labels,
-      detail::edge_minor_property_view_t<vertex_t, vertex_t const*>(labels, vertex_t{0}),
+      detail::edge_minor_property_view_t<vertex_t, vertex_t const>(labels, vertex_t{0}),
       graph_view.local_edge_partition_segment_offsets(0),
       lower_triangular_only);
 

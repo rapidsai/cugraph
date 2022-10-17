@@ -53,7 +53,7 @@ namespace {
 template <typename vertex_t, bool multi_gpu>
 struct e_op_t {
   std::conditional_t<multi_gpu,
-                     detail::edge_partition_endpoint_property_device_view_t<vertex_t, uint8_t*>,
+                     detail::edge_partition_endpoint_property_device_view_t<vertex_t, uint8_t>,
                      uint32_t*>
     visited_flags{};
   uint32_t const* prev_visited_flags{
@@ -223,7 +223,7 @@ void bfs(raft::handle_t const& handle,
       e_op_t<vertex_t, GraphViewType::is_multi_gpu> e_op{};
       if constexpr (GraphViewType::is_multi_gpu) {
         e_op.visited_flags =
-          detail::edge_partition_endpoint_property_device_view_t<vertex_t, uint8_t*>(
+          detail::edge_partition_endpoint_property_device_view_t<vertex_t, uint8_t>(
             dst_visited_flags.mutable_view());
         e_op.dst_first = push_graph_view.local_edge_partition_dst_range_first();
       } else {

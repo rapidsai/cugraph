@@ -150,9 +150,9 @@ typename graph_view_t::weight_type compute_modularity(
     graph_view,
     graph_view_t::is_multi_gpu
       ? src_clusters_cache.view()
-      : detail::edge_major_property_view_t<vertex_t, vertex_t const*>(next_clusters.begin()),
+      : detail::edge_major_property_view_t<vertex_t, vertex_t const>(next_clusters.begin()),
     graph_view_t::is_multi_gpu ? dst_clusters_cache.view()
-                               : detail::edge_minor_property_view_t<vertex_t, vertex_t const*>(
+                               : detail::edge_minor_property_view_t<vertex_t, vertex_t const>(
                                    next_clusters.begin(), vertex_t{0}),
     [] __device__(auto, auto, weight_t wt, auto src_cluster, auto nbr_cluster) {
       if (src_cluster == nbr_cluster) {
@@ -272,9 +272,9 @@ rmm::device_uvector<typename graph_view_t::vertex_type> update_clustering_by_del
     graph_view,
     graph_view_t::is_multi_gpu
       ? src_clusters_cache.view()
-      : detail::edge_major_property_view_t<vertex_t, vertex_t const*>(next_clusters_v.data()),
+      : detail::edge_major_property_view_t<vertex_t, vertex_t const>(next_clusters_v.data()),
     graph_view_t::is_multi_gpu ? dst_clusters_cache.view()
-                               : detail::edge_minor_property_view_t<vertex_t, vertex_t const*>(
+                               : detail::edge_minor_property_view_t<vertex_t, vertex_t const>(
                                    next_clusters_v.data(), vertex_t{0}),
     [] __device__(auto src, auto dst, auto wt, auto src_cluster, auto nbr_cluster) {
       weight_t sum{0};
@@ -320,12 +320,11 @@ rmm::device_uvector<typename graph_view_t::vertex_type> update_clustering_by_del
                     src_cluster_weights.view(),
                     src_old_cluster_sum_subtract_pairs.view())
       : view_concat(
-          detail::edge_major_property_view_t<vertex_t, weight_t const*>(vertex_weights_v.data()),
-          detail::edge_major_property_view_t<vertex_t, vertex_t const*>(next_clusters_v.data()),
-          detail::edge_major_property_view_t<vertex_t, weight_t const*>(
+          detail::edge_major_property_view_t<vertex_t, weight_t const>(vertex_weights_v.data()),
+          detail::edge_major_property_view_t<vertex_t, vertex_t const>(next_clusters_v.data()),
+          detail::edge_major_property_view_t<vertex_t, weight_t const>(
             vertex_cluster_weights_v.data()),
-          detail::edge_major_property_view_t<vertex_t,
-                                             decltype(cluster_old_sum_subtract_pair_first)>(
+          detail::edge_major_property_view_t<vertex_t, thrust::tuple<weight_t, weight_t> const>(
             cluster_old_sum_subtract_pair_first));
 
   per_v_transform_reduce_dst_key_aggregated_outgoing_e(
@@ -333,7 +332,7 @@ rmm::device_uvector<typename graph_view_t::vertex_type> update_clustering_by_del
     graph_view,
     zipped_src_device_view,
     graph_view_t::is_multi_gpu ? dst_clusters_cache.view()
-                               : detail::edge_minor_property_view_t<vertex_t, vertex_t const*>(
+                               : detail::edge_minor_property_view_t<vertex_t, vertex_t const>(
                                    next_clusters_v.data(), vertex_t{0}),
     cluster_keys_v.begin(),
     cluster_keys_v.end(),
@@ -374,7 +373,7 @@ compute_cluster_keys_and_values(
     edge_dst_dummy_property_t{}.view(),
     graph_view_t::is_multi_gpu
       ? src_clusters_cache.view()
-      : detail::edge_major_property_view_t<vertex_t, vertex_t const*>(next_clusters_v.data()),
+      : detail::edge_major_property_view_t<vertex_t, vertex_t const>(next_clusters_v.data()),
     detail::return_edge_weight_t<vertex_t, weight_t>{},
     weight_t{0});
 
