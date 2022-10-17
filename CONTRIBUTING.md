@@ -11,6 +11,7 @@ If you are ready to contribute, jump right to the [Contribute Code](#code) secti
 __Style Formatting Tools:__
 * `clang-format`  version 8.01+
 * `flake8`        version 3.5.0+
+* `black`         version 22.3.0
 
 
 
@@ -153,9 +154,46 @@ implementation of the issue, ask them in the issue instead of the PR.
 
 
 ### Style Guide
-All Python code most pass flake8 style checking
+All Python code most pass flake8 and black style checking; see using pre-commit below.
+
 All C++ code must pass clang style checking
+
 All code must adhere to the [RAPIDS Style Guide](https://docs.rapids.ai/resources/style/)
+
+#### Python / Pre-commit hooks
+
+cuGraph developers may use [pre-commit](https://pre-commit.com/) to locally run code
+linters and formatters including [Black](https://black.readthedocs.io/en/stable/)
+and [flake8](https://flake8.pycqa.org/en/latest/). These tools ensure a consistent
+code format throughout the project. Using pre-commit ensures that linter versions
+and options are aligned for all developers. Additionally, there is a CI check in
+place to enforce that committed code follows our standards.
+
+To use `pre-commit`, install via `conda` or `pip`:
+
+```bash
+conda install -c conda-forge pre-commit
+```
+
+```bash
+pip install pre-commit
+```
+
+Then run pre-commit hooks before committing code:
+
+```bash
+pre-commit run
+```
+
+Optionally, you may set up the pre-commit hooks to run automatically when you make a git commit. This can be done by running:
+
+```bash
+pre-commit install
+```
+
+Now code linters and formatters will be run each time you commit changes.
+
+You can skip these checks with `git commit --no-verify` or with the short version `git commit -n`.
 
 ### Tests
 All code must have associate test cases.  Code without test will not be accepted

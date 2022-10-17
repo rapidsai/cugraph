@@ -20,6 +20,7 @@ import cudf
 
 import cugraph
 from cugraph.testing import utils
+from cugraph.experimental.datasets import DATASETS_UNDIRECTED, email_Eu_core, karate
 
 
 # =============================================================================
@@ -32,12 +33,12 @@ def setup_function():
 # =============================================================================
 # Pytest fixtures
 # =============================================================================
-datasets = utils.DATASETS_UNDIRECTED + \
-           [utils.RAPIDS_DATASET_ROOT_DIR_PATH/"email-Eu-core.csv"]
-fixture_params = utils.genFixtureParamsProduct((datasets, "graph_file"),
-                                               ([50], "max_iter"),
-                                               ([1.0e-6], "tol"),
-                                               )
+datasets = DATASETS_UNDIRECTED + [email_Eu_core]
+fixture_params = utils.genFixtureParamsProduct(
+    (datasets, "graph_file"),
+    ([50], "max_iter"),
+    ([1.0e-6], "tol"),
+)
 
 
 @pytest.fixture(scope="module", params=fixture_params)
@@ -61,10 +62,11 @@ def input_expected_output(input_combo):
     # previously on the same input_combo to save their results for re-use
     # elsewhere.
     if "nxResults" not in input_combo:
-        Gnx = utils.generate_nx_graph_from_file(input_combo["graph_file"],
-                                                directed=True)
-        nxResults = nx.hits(Gnx, input_combo["max_iter"], input_combo["tol"],
-                            normalized=True)
+        dataset_path = input_combo["graph_file"].get_path()
+        Gnx = utils.generate_nx_graph_from_file(dataset_path, directed=True)
+        nxResults = nx.hits(
+            Gnx, input_combo["max_iter"], input_combo["tol"], normalized=True
+        )
         input_combo["nxResults"] = nxResults
     return input_combo
 
@@ -78,11 +80,10 @@ def test_nx_hits(benchmark, input_combo):
     cuGraph HITS tests.
     This is only in place for generating comparison performance numbers.
     """
-    Gnx = utils.generate_nx_graph_from_file(input_combo["graph_file"],
-                                            directed=True)
+    dataset_path = input_combo["graph_file"].get_path()
+    Gnx = utils.generate_nx_graph_from_file(dataset_path, directed=True)
     nxResults = benchmark(
-        nx.hits,
-        Gnx, input_combo["max_iter"], input_combo["tol"], normalized=True
+        nx.hits, Gnx, input_combo["max_iter"], input_combo["tol"], normalized=True
     )
     # Save the results back to the input_combo dictionary to prevent redundant
     # Nx runs. Other tests using the input_combo fixture will look for them,
@@ -91,12 +92,12 @@ def test_nx_hits(benchmark, input_combo):
 
 
 def test_hits(benchmark, input_expected_output):
-    G = utils.generate_cugraph_graph_from_file(
-        input_expected_output["graph_file"])
-    cugraph_hits = benchmark(cugraph.hits,
-                             G,
-                             input_expected_output["max_iter"],
-                             input_expected_output["tol"])
+    graph_file = input_expected_output["graph_file"]
+
+    G = graph_file.get_graph(create_using=cugraph.Graph(directed=True))
+    cugraph_hits = benchmark(
+        cugraph.hits, G, input_expected_output["max_iter"], input_expected_output["tol"]
+    )
     cugraph_hits = cugraph_hits.sort_values("vertex").reset_index(drop=True)
 
     (nx_hubs, nx_authorities) = input_expected_output["nxResults"]
@@ -107,13 +108,10 @@ def test_hits(benchmark, input_expected_output):
     cugraph_hits["nx_hubs"] = cudf.Series.from_pandas(pdf[0])
     pdf = pd.DataFrame.from_dict(nx_authorities, orient="index").sort_index()
     cugraph_hits["nx_authorities"] = cudf.Series.from_pandas(pdf[0])
-
-    hubs_diffs1 = cugraph_hits.query('hubs - nx_hubs > 0.00001')
-    hubs_diffs2 = cugraph_hits.query('hubs - nx_hubs < -0.00001')
-    authorities_diffs1 = cugraph_hits.query(
-        'authorities - nx_authorities > 0.0001')
-    authorities_diffs2 = cugraph_hits.query(
-        'authorities - nx_authorities < -0.0001')
+    hubs_diffs1 = cugraph_hits.query("hubs - nx_hubs > 0.00001")
+    hubs_diffs2 = cugraph_hits.query("hubs - nx_hubs < -0.00001")
+    authorities_diffs1 = cugraph_hits.query("authorities - nx_authorities > 0.0001")
+    authorities_diffs2 = cugraph_hits.query("authorities - nx_authorities < -0.0001")
 
     assert len(hubs_diffs1) == 0
     assert len(hubs_diffs2) == 0
@@ -122,17 +120,13 @@ def test_hits(benchmark, input_expected_output):
 
 
 def test_hits_transposed_false():
-    input_data_path = (utils.RAPIDS_DATASET_ROOT_DIR_PATH /
-                       "karate.csv").as_posix()
-    cu_M = utils.read_csv_file(input_data_path)
-    G = cugraph.Graph(directed=True)
-    G.from_cudf_edgelist(
-        cu_M, source="0", destination="1", edge_attr="2",
-        legacy_renum_only=True, store_transposed=False)
 
-    warning_msg = ("Pagerank expects the 'store_transposed' "
-                   "flag to be set to 'True' for optimal performance during "
-                   "the graph creation")
+    G = karate.get_graph(create_using=cugraph.Graph(directed=True))
+    warning_msg = (
+        "Pagerank expects the 'store_transposed' "
+        "flag to be set to 'True' for optimal performance during "
+        "the graph creation"
+    )
 
     with pytest.warns(UserWarning, match=warning_msg):
         cugraph.pagerank(G)

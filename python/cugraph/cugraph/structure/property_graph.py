@@ -32,9 +32,8 @@ class EXPERIMENTAL__PropertySelection:
     extract a Graph containing vertices and edges with only the selected
     properties.
     """
-    def __init__(self,
-                 vertex_selection_series=None,
-                 edge_selection_series=None):
+
+    def __init__(self, vertex_selection_series=None, edge_selection_series=None):
         self.vertex_selections = vertex_selection_series
         self.edge_selections = edge_selection_series
 
@@ -59,6 +58,7 @@ class EXPERIMENTAL__PropertyGraph:
     Graphs from individual property selections and used later to annotate graph
     algorithm results with corresponding properties.
     """
+
     # column name constants used in internal DataFrames
     vertex_col_name = "_VERTEX_"
     src_col_name = "_SRC_"
@@ -216,10 +216,9 @@ class EXPERIMENTAL__PropertyGraph:
             return
         if self.__vertex_type_value_counts is None:
             # Types should all be strings; what should we do if we see NaN?
-            self.__vertex_type_value_counts = (
-                self.__vertex_prop_dataframe[self.type_col_name]
-                .value_counts(sort=False, dropna=False)
-            )
+            self.__vertex_type_value_counts = self.__vertex_prop_dataframe[
+                self.type_col_name
+            ].value_counts(sort=False, dropna=False)
         return self.__vertex_type_value_counts
 
     @property
@@ -229,10 +228,9 @@ class EXPERIMENTAL__PropertyGraph:
             return
         if self.__edge_type_value_counts is None:
             # Types should all be strings; what should we do if we see NaN?
-            self.__edge_type_value_counts = (
-                self.__edge_prop_dataframe[self.type_col_name]
-                .value_counts(sort=False, dropna=False)
-            )
+            self.__edge_type_value_counts = self.__edge_prop_dataframe[
+                self.type_col_name
+            ].value_counts(sort=False, dropna=False)
         return self.__edge_type_value_counts
 
     def get_num_vertices(self, type=None, *, include_edge_data=True):
@@ -325,12 +323,9 @@ class EXPERIMENTAL__PropertyGraph:
         """
         return self.get_vertices()
 
-    def add_vertex_data(self,
-                        dataframe,
-                        vertex_col_name,
-                        type_name=None,
-                        property_columns=None
-                        ):
+    def add_vertex_data(
+        self, dataframe, vertex_col_name, type_name=None, property_columns=None
+    ):
         """
         Add a dataframe describing vertex properties to the PropertyGraph.
 
@@ -360,26 +355,31 @@ class EXPERIMENTAL__PropertyGraph:
         >>>
         """
         if type(dataframe) not in _dataframe_types:
-            raise TypeError("dataframe must be one of the following types: "
-                            f"{_dataframe_types}, got: {type(dataframe)}")
+            raise TypeError(
+                "dataframe must be one of the following types: "
+                f"{_dataframe_types}, got: {type(dataframe)}"
+            )
         if vertex_col_name not in dataframe.columns:
-            raise ValueError(f"{vertex_col_name} is not a column in "
-                             f"dataframe: {dataframe.columns}")
+            raise ValueError(
+                f"{vertex_col_name} is not a column in "
+                f"dataframe: {dataframe.columns}"
+            )
         if (type_name is not None) and not isinstance(type_name, str):
-            raise TypeError("type_name must be a string, got: "
-                            f"{type(type_name)}")
+            raise TypeError("type_name must be a string, got: " f"{type(type_name)}")
         if type_name is None:
             type_name = self._default_type_name
         if property_columns:
             if type(property_columns) is not list:
-                raise TypeError("property_columns must be a list, got: "
-                                f"{type(property_columns)}")
-            invalid_columns = \
-                set(property_columns).difference(dataframe.columns)
+                raise TypeError(
+                    "property_columns must be a list, got: " f"{type(property_columns)}"
+                )
+            invalid_columns = set(property_columns).difference(dataframe.columns)
             if invalid_columns:
-                raise ValueError("property_columns contains column(s) not "
-                                 "found in dataframe: "
-                                 f"{list(invalid_columns)}")
+                raise ValueError(
+                    "property_columns contains column(s) not "
+                    "found in dataframe: "
+                    f"{list(invalid_columns)}"
+                )
 
         # Save the DataFrame and Series types for future instantiations
         if (self.__dataframe_type is None) or (self.__series_type is None):
@@ -387,9 +387,11 @@ class EXPERIMENTAL__PropertyGraph:
             self.__series_type = type(dataframe[dataframe.columns[0]])
         else:
             if type(dataframe) is not self.__dataframe_type:
-                raise TypeError(f"dataframe is type {type(dataframe)} but "
-                                "the PropertyGraph was already initialized "
-                                f"using type {self.__dataframe_type}")
+                raise TypeError(
+                    f"dataframe is type {type(dataframe)} but "
+                    "the PropertyGraph was already initialized "
+                    f"using type {self.__dataframe_type}"
+                )
 
         # Clear the cached values related to the number of vertices since more
         # could be added in this method.
@@ -401,17 +403,18 @@ class EXPERIMENTAL__PropertyGraph:
         TCN = self.type_col_name
         default_vertex_columns = [self.vertex_col_name, TCN]
         if self.__vertex_prop_dataframe is None:
-            self.__vertex_prop_dataframe = \
-                self.__dataframe_type(columns=default_vertex_columns)
+            self.__vertex_prop_dataframe = self.__dataframe_type(
+                columns=default_vertex_columns
+            )
             # Initialize the new columns to the same dtype as the appropriate
             # column in the incoming dataframe, since the initial merge may not
             # result in the same dtype. (see
             # https://github.com/rapidsai/cudf/issues/9981)
             self.__vertex_prop_dataframe = self.__update_dataframe_dtypes(
                 self.__vertex_prop_dataframe,
-                {self.vertex_col_name: dataframe[vertex_col_name].dtype})
-            self.__vertex_prop_dataframe.set_index(self.vertex_col_name,
-                                                   inplace=True)
+                {self.vertex_col_name: dataframe[vertex_col_name].dtype},
+            )
+            self.__vertex_prop_dataframe.set_index(self.vertex_col_name, inplace=True)
 
             # Use categorical dtype for the type column
             if self.__series_type is cudf.Series:
@@ -419,9 +422,9 @@ class EXPERIMENTAL__PropertyGraph:
             else:
                 cat_class = pd.CategoricalDtype
             cat_dtype = cat_class([type_name], ordered=False)
-            self.__vertex_prop_dataframe[TCN] = (
-                self.__vertex_prop_dataframe[TCN].astype(cat_dtype)
-            )
+            self.__vertex_prop_dataframe[TCN] = self.__vertex_prop_dataframe[
+                TCN
+            ].astype(cat_dtype)
 
         # Ensure that both the predetermined vertex ID column name and vertex
         # type column name are present for proper merging.
@@ -441,22 +444,19 @@ class EXPERIMENTAL__PropertyGraph:
         if self.__series_type is cudf.Series:
             # cudf does not yet support initialization with a scalar
             tmp_df[TCN] = cudf.Series(
-                np.repeat(type_name, len(tmp_df)),
-                index=tmp_df.index,
-                dtype=cat_dtype
+                np.repeat(type_name, len(tmp_df)), index=tmp_df.index, dtype=cat_dtype
             )
         else:
             # pandas is oddly slow if dtype is passed to the constructor here
-            tmp_df[TCN] = (
-                pd.Series(type_name, index=tmp_df.index).astype(cat_dtype)
-            )
+            tmp_df[TCN] = pd.Series(type_name, index=tmp_df.index).astype(cat_dtype)
 
         if property_columns:
             # all columns
             column_names_to_drop = set(tmp_df.columns)
             # remove the ones to keep
-            column_names_to_drop.difference_update(property_columns +
-                                                   default_vertex_columns)
+            column_names_to_drop.difference_update(
+                property_columns + default_vertex_columns
+            )
         else:
             column_names_to_drop = {vertex_col_name}
         tmp_df.drop(labels=column_names_to_drop, axis=1, inplace=True)
@@ -465,29 +465,32 @@ class EXPERIMENTAL__PropertyGraph:
         # prior to constructing subgraphs (since column dtypes may get altered
         # during merge to accommodate NaN values).
         new_col_info = self.__get_new_column_dtypes(
-                           tmp_df, self.__vertex_prop_dataframe)
+            tmp_df, self.__vertex_prop_dataframe
+        )
         self.__vertex_prop_dtypes.update(new_col_info)
 
         # Join on shared columns and the indices
         tmp_df.set_index(self.vertex_col_name, inplace=True)
-        cols = (
-            self.__vertex_prop_dataframe.columns.intersection(tmp_df.columns)
-            .to_list()
-        )
+        cols = self.__vertex_prop_dataframe.columns.intersection(
+            tmp_df.columns
+        ).to_list()
         cols.append(self.vertex_col_name)
-        self.__vertex_prop_dataframe = \
-            self.__vertex_prop_dataframe.merge(tmp_df, on=cols, how="outer")
+        self.__vertex_prop_dataframe = self.__vertex_prop_dataframe.merge(
+            tmp_df, on=cols, how="outer"
+        )
 
         # Update the vertex eval dict with the latest column instances
         if self.__series_type is cudf.Series:
-            latest = {n: self.__vertex_prop_dataframe[n]
-                      for n in self.__vertex_prop_dataframe.columns}
+            latest = {
+                n: self.__vertex_prop_dataframe[n]
+                for n in self.__vertex_prop_dataframe.columns
+            }
         else:
-            latest = self.__vertex_prop_dataframe.to_dict('series')
+            latest = self.__vertex_prop_dataframe.to_dict("series")
         self.__vertex_prop_eval_dict.update(latest)
-        self.__vertex_prop_eval_dict[self.vertex_col_name] = (
-            self.__vertex_prop_dataframe.index
-        )
+        self.__vertex_prop_eval_dict[
+            self.vertex_col_name
+        ] = self.__vertex_prop_dataframe.index
 
     def get_vertex_data(self, vertex_ids=None, types=None, columns=None):
         """
@@ -499,8 +502,9 @@ class EXPERIMENTAL__PropertyGraph:
             if vertex_ids is not None:
                 if isinstance(vertex_ids, int):
                     vertex_ids = [vertex_ids]
-                elif not isinstance(vertex_ids,
-                                    (list, slice, self.__series_type)):
+                elif not isinstance(
+                    vertex_ids, (list, slice, np.ndarray, self.__series_type)
+                ):
                     vertex_ids = list(vertex_ids)
                 df = df.loc[vertex_ids]
 
@@ -522,13 +526,14 @@ class EXPERIMENTAL__PropertyGraph:
 
         return None
 
-    def add_edge_data(self,
-                      dataframe,
-                      vertex_col_names,
-                      edge_id_col_name=None,
-                      type_name=None,
-                      property_columns=None
-                      ):
+    def add_edge_data(
+        self,
+        dataframe,
+        vertex_col_names,
+        edge_id_col_name=None,
+        type_name=None,
+        property_columns=None,
+    ):
         """
         Add a dataframe describing edge properties to the PropertyGraph.
 
@@ -564,37 +569,48 @@ class EXPERIMENTAL__PropertyGraph:
         >>>
         """
         if type(dataframe) not in _dataframe_types:
-            raise TypeError("dataframe must be one of the following types: "
-                            f"{_dataframe_types}, got: {type(dataframe)}")
+            raise TypeError(
+                "dataframe must be one of the following types: "
+                f"{_dataframe_types}, got: {type(dataframe)}"
+            )
         if type(vertex_col_names) not in [list, tuple]:
-            raise TypeError("vertex_col_names must be a list or tuple, got: "
-                            f"{type(vertex_col_names)}")
+            raise TypeError(
+                "vertex_col_names must be a list or tuple, got: "
+                f"{type(vertex_col_names)}"
+            )
         if edge_id_col_name is not None:
             if not isinstance(edge_id_col_name, str):
-                raise TypeError("edge_id_col_name must be a string, got: "
-                                f"{type(edge_id_col_name)}")
+                raise TypeError(
+                    "edge_id_col_name must be a string, got: "
+                    f"{type(edge_id_col_name)}"
+                )
             if edge_id_col_name not in dataframe.columns:
-                raise ValueError("edge_id_col_name argument not in columns, "
-                                 f"got {edge_id_col_name!r}")
+                raise ValueError(
+                    "edge_id_col_name argument not in columns, "
+                    f"got {edge_id_col_name!r}"
+                )
         invalid_columns = set(vertex_col_names).difference(dataframe.columns)
         if invalid_columns:
-            raise ValueError("vertex_col_names contains column(s) not found "
-                             f"in dataframe: {list(invalid_columns)}")
+            raise ValueError(
+                "vertex_col_names contains column(s) not found "
+                f"in dataframe: {list(invalid_columns)}"
+            )
         if (type_name is not None) and not isinstance(type_name, str):
-            raise TypeError("type_name must be a string, got: "
-                            f"{type(type_name)}")
+            raise TypeError("type_name must be a string, got: " f"{type(type_name)}")
         if type_name is None:
             type_name = self._default_type_name
         if property_columns:
             if type(property_columns) is not list:
-                raise TypeError("property_columns must be a list, got: "
-                                f"{type(property_columns)}")
-            invalid_columns = \
-                set(property_columns).difference(dataframe.columns)
+                raise TypeError(
+                    "property_columns must be a list, got: " f"{type(property_columns)}"
+                )
+            invalid_columns = set(property_columns).difference(dataframe.columns)
             if invalid_columns:
-                raise ValueError("property_columns contains column(s) not "
-                                 "found in dataframe: "
-                                 f"{list(invalid_columns)}")
+                raise ValueError(
+                    "property_columns contains column(s) not "
+                    "found in dataframe: "
+                    f"{list(invalid_columns)}"
+                )
 
         # Save the DataFrame and Series types for future instantiations
         if (self.__dataframe_type is None) or (self.__series_type is None):
@@ -602,22 +618,18 @@ class EXPERIMENTAL__PropertyGraph:
             self.__series_type = type(dataframe[dataframe.columns[0]])
         else:
             if type(dataframe) is not self.__dataframe_type:
-                raise TypeError(f"dataframe is type {type(dataframe)} but "
-                                "the PropertyGraph was already initialized "
-                                f"using type {self.__dataframe_type}")
-        if (
-            self.__is_edge_id_autogenerated is False
-            and edge_id_col_name is None
-        ):
+                raise TypeError(
+                    f"dataframe is type {type(dataframe)} but "
+                    "the PropertyGraph was already initialized "
+                    f"using type {self.__dataframe_type}"
+                )
+        if self.__is_edge_id_autogenerated is False and edge_id_col_name is None:
             raise NotImplementedError(
                 "Unable to automatically generate edge IDs. "
                 "`edge_id_col_name` must be specified if edge data has been "
                 "previously added with edge_id_col_name."
             )
-        if (
-            self.__is_edge_id_autogenerated is True
-            and edge_id_col_name is not None
-        ):
+        if self.__is_edge_id_autogenerated is True and edge_id_col_name is not None:
             raise NotImplementedError(
                 "Invalid use of `edge_id_col_name`. Edge data has already "
                 "been added with automatically generated IDs, so now all "
@@ -630,20 +642,22 @@ class EXPERIMENTAL__PropertyGraph:
         self.__edge_type_value_counts = None  # Could update instead
 
         TCN = self.type_col_name
-        default_edge_columns = [self.src_col_name,
-                                self.dst_col_name,
-                                TCN]
+        default_edge_columns = [self.src_col_name, self.dst_col_name, TCN]
         if self.__edge_prop_dataframe is None:
-            self.__edge_prop_dataframe = \
-                self.__dataframe_type(columns=default_edge_columns)
+            self.__edge_prop_dataframe = self.__dataframe_type(
+                columns=default_edge_columns
+            )
             # Initialize the new columns to the same dtype as the appropriate
             # column in the incoming dataframe, since the initial merge may not
             # result in the same dtype. (see
             # https://github.com/rapidsai/cudf/issues/9981)
             self.__edge_prop_dataframe = self.__update_dataframe_dtypes(
                 self.__edge_prop_dataframe,
-                {self.src_col_name: dataframe[vertex_col_names[0]].dtype,
-                 self.dst_col_name: dataframe[vertex_col_names[1]].dtype})
+                {
+                    self.src_col_name: dataframe[vertex_col_names[0]].dtype,
+                    self.dst_col_name: dataframe[vertex_col_names[1]].dtype,
+                },
+            )
             self.__edge_prop_dataframe.index.name = self.edge_id_col_name
 
             # Use categorical dtype for the type column
@@ -652,9 +666,8 @@ class EXPERIMENTAL__PropertyGraph:
             else:
                 cat_class = pd.CategoricalDtype
             cat_dtype = cat_class([type_name], ordered=False)
-            self.__edge_prop_dataframe[TCN] = (
-                self.__edge_prop_dataframe[TCN]
-                .astype(cat_dtype)
+            self.__edge_prop_dataframe[TCN] = self.__edge_prop_dataframe[TCN].astype(
+                cat_dtype
             )
             self.__is_edge_id_autogenerated = edge_id_col_name is None
 
@@ -673,29 +686,22 @@ class EXPERIMENTAL__PropertyGraph:
         if self.__series_type is cudf.Series:
             # cudf does not yet support initialization with a scalar
             tmp_df[TCN] = cudf.Series(
-                np.repeat(type_name, len(tmp_df)),
-                index=tmp_df.index,
-                dtype=cat_dtype
+                np.repeat(type_name, len(tmp_df)), index=tmp_df.index, dtype=cat_dtype
             )
         else:
             # pandas is oddly slow if dtype is passed to the constructor here
-            tmp_df[TCN] = (
-                pd.Series(type_name, index=tmp_df.index).astype(cat_dtype)
-            )
+            tmp_df[TCN] = pd.Series(type_name, index=tmp_df.index).astype(cat_dtype)
 
         # Add unique edge IDs to the new rows. This is just a count for each
         # row starting from the last edge ID value, with initial edge ID 0.
         if edge_id_col_name is None:
-            start_eid = (
-                0 if self.__last_edge_id is None else self.__last_edge_id
-            )
+            start_eid = 0 if self.__last_edge_id is None else self.__last_edge_id
             end_eid = start_eid + len(tmp_df)  # exclusive
             if self.__series_type is cudf.Series:
                 index_class = cudf.RangeIndex
             else:
                 index_class = pd.RangeIndex
-            tmp_df.index = index_class(start_eid, end_eid,
-                                       name=self.edge_id_col_name)
+            tmp_df.index = index_class(start_eid, end_eid, name=self.edge_id_col_name)
             self.__last_edge_id = end_eid
         else:
             tmp_df.set_index(edge_id_col_name, inplace=True)
@@ -705,8 +711,9 @@ class EXPERIMENTAL__PropertyGraph:
             # all columns
             column_names_to_drop = set(tmp_df.columns)
             # remove the ones to keep
-            column_names_to_drop.difference_update(property_columns +
-                                                   default_edge_columns)
+            column_names_to_drop.difference_update(
+                property_columns + default_edge_columns
+            )
         else:
             column_names_to_drop = {vertex_col_names[0], vertex_col_names[1]}
         tmp_df.drop(labels=column_names_to_drop, axis=1, inplace=True)
@@ -714,29 +721,28 @@ class EXPERIMENTAL__PropertyGraph:
         # Save the original dtypes for each new column so they can be restored
         # prior to constructing subgraphs (since column dtypes may get altered
         # during merge to accommodate NaN values).
-        new_col_info = self.__get_new_column_dtypes(
-            tmp_df, self.__edge_prop_dataframe)
+        new_col_info = self.__get_new_column_dtypes(tmp_df, self.__edge_prop_dataframe)
         self.__edge_prop_dtypes.update(new_col_info)
 
         # Join on shared columns and the indices
-        cols = (
-            self.__edge_prop_dataframe.columns.intersection(tmp_df.columns)
-            .to_list()
-        )
+        cols = self.__edge_prop_dataframe.columns.intersection(tmp_df.columns).to_list()
         cols.append(self.edge_id_col_name)
-        self.__edge_prop_dataframe = \
-            self.__edge_prop_dataframe.merge(tmp_df, on=cols, how="outer")
+        self.__edge_prop_dataframe = self.__edge_prop_dataframe.merge(
+            tmp_df, on=cols, how="outer"
+        )
 
         # Update the edge eval dict with the latest column instances
         if self.__series_type is cudf.Series:
-            latest = {n: self.__edge_prop_dataframe[n]
-                      for n in self.__edge_prop_dataframe.columns}
+            latest = {
+                n: self.__edge_prop_dataframe[n]
+                for n in self.__edge_prop_dataframe.columns
+            }
         else:
-            latest = self.__edge_prop_dataframe.to_dict('series')
+            latest = self.__edge_prop_dataframe.to_dict("series")
         self.__edge_prop_eval_dict.update(latest)
-        self.__edge_prop_eval_dict[self.edge_id_col_name] = (
-            self.__edge_prop_dataframe.index
-        )
+        self.__edge_prop_eval_dict[
+            self.edge_id_col_name
+        ] = self.__edge_prop_dataframe.index
 
     def get_edge_data(self, edge_ids=None, types=None, columns=None):
         """
@@ -748,8 +754,9 @@ class EXPERIMENTAL__PropertyGraph:
             if edge_ids is not None:
                 if isinstance(edge_ids, int):
                     edge_ids = [edge_ids]
-                elif not isinstance(edge_ids,
-                                    (list, slice, self.__series_type)):
+                elif not isinstance(
+                    edge_ids, (list, slice, np.ndarray, self.__series_type)
+                ):
                     edge_ids = list(edge_ids)
                 df = df.loc[edge_ids]
 
@@ -771,8 +778,9 @@ class EXPERIMENTAL__PropertyGraph:
             else:
                 # FIXME: invalid columns will result in a KeyError, should a
                 # check be done here and a more PG-specific error raised?
-                df = df[[self.src_col_name, self.dst_col_name,
-                         self.type_col_name] + columns]
+                df = df[
+                    [self.src_col_name, self.dst_col_name, self.type_col_name] + columns
+                ]
             return df.reset_index()
 
         return None
@@ -808,16 +816,18 @@ class EXPERIMENTAL__PropertyGraph:
         # Check if the expr is to be evaluated in the context of properties
         # from only the previously selected vertices (as opposed to all
         # properties from all vertices)
-        if (from_previous_selection is not None) and \
-           (from_previous_selection.vertex_selections is not None):
+        if (from_previous_selection is not None) and (
+            from_previous_selection.vertex_selections is not None
+        ):
             previously_selected_rows = self.__vertex_prop_dataframe[
-                from_previous_selection.vertex_selections]
+                from_previous_selection.vertex_selections
+            ]
 
             rows_to_eval = self.__vertex_prop_dataframe.loc[
-                previously_selected_rows.index]
+                previously_selected_rows.index
+            ]
 
-            locals = dict([(n, rows_to_eval[n])
-                           for n in rows_to_eval.columns])
+            locals = dict([(n, rows_to_eval[n]) for n in rows_to_eval.columns])
             locals[self.vertex_col_name] = rows_to_eval.index
         else:
             locals = self.__vertex_prop_eval_dict
@@ -833,12 +843,10 @@ class EXPERIMENTAL__PropertyGraph:
         # a Graph from a query.
         if num_rows != len(selected_col):
             selected_col = selected_col.reindex(
-                self.__vertex_prop_dataframe.index,
-                fill_value=False,
-                copy=False)
+                self.__vertex_prop_dataframe.index, fill_value=False, copy=False
+            )
 
-        return EXPERIMENTAL__PropertySelection(
-            vertex_selection_series=selected_col)
+        return EXPERIMENTAL__PropertySelection(vertex_selection_series=selected_col)
 
     def select_edges(self, expr):
         """
@@ -865,18 +873,18 @@ class EXPERIMENTAL__PropertyGraph:
         locals = self.__edge_prop_eval_dict
 
         selected_col = eval(expr, globals, locals)
-        return EXPERIMENTAL__PropertySelection(
-            edge_selection_series=selected_col)
+        return EXPERIMENTAL__PropertySelection(edge_selection_series=selected_col)
 
-    def extract_subgraph(self,
-                         create_using=None,
-                         selection=None,
-                         edge_weight_property=None,
-                         default_edge_weight=None,
-                         check_multi_edges=True,
-                         renumber_graph=True,
-                         add_edge_data=True
-                         ):
+    def extract_subgraph(
+        self,
+        create_using=None,
+        selection=None,
+        edge_weight_property=None,
+        default_edge_weight=None,
+        check_multi_edges=True,
+        renumber_graph=True,
+        add_edge_data=True,
+    ):
         """
         Return a subgraph of the overall PropertyGraph containing vertices
         and edges that match a selection.
@@ -922,10 +930,13 @@ class EXPERIMENTAL__PropertyGraph:
         --------
         >>>
         """
-        if (selection is not None) and \
-           not isinstance(selection, EXPERIMENTAL__PropertySelection):
-            raise TypeError("selection must be an instance of "
-                            f"PropertySelection, got {type(selection)}")
+        if (selection is not None) and not isinstance(
+            selection, EXPERIMENTAL__PropertySelection
+        ):
+            raise TypeError(
+                "selection must be an instance of "
+                f"PropertySelection, got {type(selection)}"
+            )
 
         # NOTE: the expressions passed in to extract specific edges and
         # vertices assume the original dtypes in the user input have been
@@ -933,17 +944,17 @@ class EXPERIMENTAL__PropertyGraph:
         # dtypes (eg. int64 to float64 in order to add NaN entries). This
         # should not be a problem since the conversions do not change the
         # values.
-        if (selection is not None) and \
-           (selection.vertex_selections is not None):
-            selected_vertex_dataframe = \
-                self.__vertex_prop_dataframe[selection.vertex_selections]
+        if (selection is not None) and (selection.vertex_selections is not None):
+            selected_vertex_dataframe = self.__vertex_prop_dataframe[
+                selection.vertex_selections
+            ]
         else:
             selected_vertex_dataframe = None
 
-        if (selection is not None) and \
-           (selection.edge_selections is not None):
-            selected_edge_dataframe = \
-                self.__edge_prop_dataframe[selection.edge_selections]
+        if (selection is not None) and (selection.edge_selections is not None):
+            selected_edge_dataframe = self.__edge_prop_dataframe[
+                selection.edge_selections
+            ]
         else:
             selected_edge_dataframe = self.__edge_prop_dataframe
 
@@ -951,12 +962,15 @@ class EXPERIMENTAL__PropertyGraph:
 
         # If vertices were specified, select only the edges that contain the
         # selected verts in both src and dst
-        if (selected_vertex_dataframe is not None) and \
-           not selected_vertex_dataframe.empty:
-            has_srcs = selected_edge_dataframe[self.src_col_name]\
-                .isin(selected_vertex_dataframe.index)
-            has_dsts = selected_edge_dataframe[self.dst_col_name]\
-                .isin(selected_vertex_dataframe.index)
+        if (
+            selected_vertex_dataframe is not None
+        ) and not selected_vertex_dataframe.empty:
+            has_srcs = selected_edge_dataframe[self.src_col_name].isin(
+                selected_vertex_dataframe.index
+            )
+            has_dsts = selected_edge_dataframe[self.dst_col_name].isin(
+                selected_vertex_dataframe.index
+            )
             edges = selected_edge_dataframe[has_srcs & has_dsts]
             # Alternative to benchmark
             # edges = selected_edge_dataframe.merge(
@@ -989,7 +1003,8 @@ class EXPERIMENTAL__PropertyGraph:
             default_edge_weight=default_edge_weight,
             check_multi_edges=check_multi_edges,
             renumber_graph=renumber_graph,
-            add_edge_data=add_edge_data)
+            add_edge_data=add_edge_data,
+        )
 
     def annotate_dataframe(self, df, G, edge_vertex_col_names):
         """
@@ -1024,8 +1039,10 @@ class EXPERIMENTAL__PropertyGraph:
 
         df_type = type(df)
         if df_type is not self.__dataframe_type:
-            raise TypeError(f"df type {df_type} does not match DataFrame type "
-                            f"{self.__dataframe_type} used in PropertyGraph")
+            raise TypeError(
+                f"df type {df_type} does not match DataFrame type "
+                f"{self.__dataframe_type} used in PropertyGraph"
+            )
 
         if hasattr(G, "edge_data"):
             edge_info_df = G.edge_data
@@ -1033,32 +1050,31 @@ class EXPERIMENTAL__PropertyGraph:
             raise AttributeError("Graph G does not have attribute 'edge_data'")
 
         # Join on shared columns and the indices
-        cols = (
-            self.__edge_prop_dataframe.columns
-            .intersection(edge_info_df.columns)
-            .to_list()
-        )
+        cols = self.__edge_prop_dataframe.columns.intersection(
+            edge_info_df.columns
+        ).to_list()
         cols.append(self.edge_id_col_name)
 
         # New result includes only properties from the src/dst edges identified
         # by edge IDs. All other data in df is merged based on src/dst values.
         # NOTE: results from MultiGraph graphs will have to include edge IDs!
-        edge_props_df = edge_info_df.merge(self.__edge_prop_dataframe,
-                                           on=cols, how="inner")
+        edge_props_df = edge_info_df.merge(
+            self.__edge_prop_dataframe, on=cols, how="inner"
+        )
 
         # FIXME: also allow edge ID col to be passed in and renamed.
-        new_df = df.rename(columns={src_col_name: self.src_col_name,
-                                    dst_col_name: self.dst_col_name})
+        new_df = df.rename(
+            columns={src_col_name: self.src_col_name, dst_col_name: self.dst_col_name}
+        )
         new_df = new_df.merge(edge_props_df)
         # restore the original src/dst column names
-        new_df.rename(columns={self.src_col_name: src_col_name,
-                               self.dst_col_name: dst_col_name},
-                      inplace=True)
+        new_df.rename(
+            columns={self.src_col_name: src_col_name, self.dst_col_name: dst_col_name},
+            inplace=True,
+        )
 
         # restore the original dtypes
-        new_df = self.__update_dataframe_dtypes(
-            new_df, self.__edge_prop_dtypes
-        )
+        new_df = self.__update_dataframe_dtypes(new_df, self.__edge_prop_dtypes)
         for col in df.columns:
             new_df[col] = new_df[col].astype(df[col].dtype)
 
@@ -1066,14 +1082,16 @@ class EXPERIMENTAL__PropertyGraph:
         # columns from edge types not included in the edges in df.
         return new_df
 
-    def edge_props_to_graph(self,
-                            edge_prop_df,
-                            create_using,
-                            edge_weight_property=None,
-                            default_edge_weight=None,
-                            check_multi_edges=True,
-                            renumber_graph=True,
-                            add_edge_data=True):
+    def edge_props_to_graph(
+        self,
+        edge_prop_df,
+        create_using,
+        edge_weight_property=None,
+        default_edge_weight=None,
+        check_multi_edges=True,
+        renumber_graph=True,
+        add_edge_data=True,
+    ):
         """
         Create and return a Graph from the edges in edge_prop_df.
         """
@@ -1083,9 +1101,11 @@ class EXPERIMENTAL__PropertyGraph:
                 edge_weight_property not in edge_prop_df.columns
                 and edge_prop_df.index.name != edge_weight_property
             ):
-                raise ValueError("edge_weight_property "
-                                 f'"{edge_weight_property}" was not found in '
-                                 "edge_prop_df")
+                raise ValueError(
+                    "edge_weight_property "
+                    f'"{edge_weight_property}" was not found in '
+                    "edge_prop_df"
+                )
 
             # Ensure a valid edge_weight_property can be used for applying
             # weights to the subgraph, and if a default_edge_weight was
@@ -1096,10 +1116,12 @@ class EXPERIMENTAL__PropertyGraph:
                 prop_col = edge_prop_df.index.to_series()
             if prop_col.count() != prop_col.size:
                 if default_edge_weight is None:
-                    raise ValueError("edge_weight_property "
-                                     f'"{edge_weight_property}" '
-                                     "contains NA values in the subgraph and "
-                                     "default_edge_weight is not set")
+                    raise ValueError(
+                        "edge_weight_property "
+                        f'"{edge_weight_property}" '
+                        "contains NA values in the subgraph and "
+                        "default_edge_weight is not set"
+                    )
                 else:
                     prop_col.fillna(default_edge_weight, inplace=True)
             edge_attr = edge_weight_property
@@ -1122,9 +1144,11 @@ class EXPERIMENTAL__PropertyGraph:
         elif type(create_using) is type(type):
             G = create_using()
         else:
-            raise TypeError("create_using must be a cugraph.Graph "
-                            "(or subclass) type or instance, got: "
-                            f"{type(create_using)}")
+            raise TypeError(
+                "create_using must be a cugraph.Graph "
+                "(or subclass) type or instance, got: "
+                f"{type(create_using)}"
+            )
 
         # Prevent duplicate edges (if not allowed) since applying them to
         # non-MultiGraphs would result in ambiguous edge properties.
@@ -1141,14 +1165,17 @@ class EXPERIMENTAL__PropertyGraph:
                 msg = f"'{t}' graph type specified by create_using"
             else:
                 msg = "default Graph graph type"
-            raise RuntimeError("query resulted in duplicate edges which "
-                               f"cannot be represented with the {msg}")
+            raise RuntimeError(
+                "query resulted in duplicate edges which "
+                f"cannot be represented with the {msg}"
+            )
 
-        create_args = {"source": self.src_col_name,
-                       "destination": self.dst_col_name,
-                       "edge_attr": edge_attr,
-                       "renumber": renumber_graph,
-                       }
+        create_args = {
+            "source": self.src_col_name,
+            "destination": self.dst_col_name,
+            "edge_attr": edge_attr,
+            "renumber": renumber_graph,
+        }
         if type(edge_prop_df) is cudf.DataFrame:
             G.from_cudf_edgelist(edge_prop_df.reset_index(), **create_args)
         else:
@@ -1174,11 +1201,9 @@ class EXPERIMENTAL__PropertyGraph:
         # Check if some vertex IDs exist only in edge data
         TCN = self.type_col_name
         default = self._default_type_name
-        if (
-            self.__edge_prop_dataframe is not None
-            and self.get_num_vertices(default, include_edge_data=True)
-            != self.get_num_vertices(default, include_edge_data=False)
-        ):
+        if self.__edge_prop_dataframe is not None and self.get_num_vertices(
+            default, include_edge_data=True
+        ) != self.get_num_vertices(default, include_edge_data=False):
             raise NotImplementedError(
                 "Currently unable to renumber vertices when some vertex "
                 "IDs only exist in edge data"
@@ -1192,40 +1217,26 @@ class EXPERIMENTAL__PropertyGraph:
         else:
             cat_class = pd.CategoricalDtype
 
-        is_cat = isinstance(
-            self.__vertex_prop_dataframe[TCN].dtype,
-            cat_class
-        )
+        is_cat = isinstance(self.__vertex_prop_dataframe[TCN].dtype, cat_class)
         if not is_cat:
             cat_dtype = cat_class([TCN], ordered=False)
-            self.__vertex_prop_dataframe[TCN] = (
-                self.__vertex_prop_dataframe[TCN].astype(cat_dtype)
-            )
+            self.__vertex_prop_dataframe[TCN] = self.__vertex_prop_dataframe[
+                TCN
+            ].astype(cat_dtype)
 
-        df = (
-            self.__vertex_prop_dataframe
-            .reset_index()
-            .sort_values(by=TCN)
-        )
+        df = self.__vertex_prop_dataframe.reset_index().sort_values(by=TCN)
         if self.__edge_prop_dataframe is not None:
-            mapper = self.__series_type(
-                df.index, index=df[self.vertex_col_name]
-            )
-            self.__edge_prop_dataframe[self.src_col_name] = (
-                self.__edge_prop_dataframe[self.src_col_name].map(mapper)
-            )
-            self.__edge_prop_dataframe[self.dst_col_name] = (
-                self.__edge_prop_dataframe[self.dst_col_name].map(mapper)
-            )
+            mapper = self.__series_type(df.index, index=df[self.vertex_col_name])
+            self.__edge_prop_dataframe[self.src_col_name] = self.__edge_prop_dataframe[
+                self.src_col_name
+            ].map(mapper)
+            self.__edge_prop_dataframe[self.dst_col_name] = self.__edge_prop_dataframe[
+                self.dst_col_name
+            ].map(mapper)
         df.drop(columns=[self.vertex_col_name], inplace=True)
         df.index.name = self.vertex_col_name
         self.__vertex_prop_dataframe = df
-        rv = (
-            self._vertex_type_value_counts
-            .sort_index()
-            .cumsum()
-            .to_frame("stop")
-        )
+        rv = self._vertex_type_value_counts.sort_index().cumsum().to_frame("stop")
         rv["start"] = rv["stop"].shift(1, fill_value=0)
         rv["stop"] -= 1  # Make inclusive
         return rv[["start", "stop"]]
@@ -1249,27 +1260,18 @@ class EXPERIMENTAL__PropertyGraph:
         else:
             cat_class = pd.CategoricalDtype
 
-        is_cat = isinstance(
-            self.__edge_prop_dataframe[TCN].dtype,
-            cat_class
-        )
+        is_cat = isinstance(self.__edge_prop_dataframe[TCN].dtype, cat_class)
         if not is_cat:
             cat_dtype = cat_class([TCN], ordered=False)
-            self.__edge_prop_dataframe[TCN] = (
-                self.__edge_prop_dataframe[TCN].astype(cat_dtype)
+            self.__edge_prop_dataframe[TCN] = self.__edge_prop_dataframe[TCN].astype(
+                cat_dtype
             )
 
-        self.__edge_prop_dataframe = (
-            self.__edge_prop_dataframe
-            .sort_values(by=TCN, ignore_index=True)
+        self.__edge_prop_dataframe = self.__edge_prop_dataframe.sort_values(
+            by=TCN, ignore_index=True
         )
         self.__edge_prop_dataframe.index.name = self.edge_id_col_name
-        rv = (
-            self._edge_type_value_counts
-            .sort_index()
-            .cumsum()
-            .to_frame("stop")
-        )
+        rv = self._edge_type_value_counts.sort_index().cumsum().to_frame("stop")
         rv["start"] = rv["stop"].shift(1, fill_value=0)
         rv["stop"] -= 1  # Make inclusive
         return rv[["start", "stop"]]
@@ -1307,8 +1309,9 @@ class EXPERIMENTAL__PropertyGraph:
         """
         src = edge_prop_df[self.src_col_name]
         dst = edge_prop_df[self.dst_col_name]
-        return self.__dataframe_type({self.src_col_name: src,
-                                      self.dst_col_name: dst}).reset_index()
+        return self.__dataframe_type(
+            {self.src_col_name: src, self.dst_col_name: dst}
+        ).reset_index()
 
     def __get_all_vertices_series(self):
         """

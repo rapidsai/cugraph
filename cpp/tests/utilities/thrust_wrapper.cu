@@ -22,6 +22,7 @@
 
 #include <thrust/copy.h>
 #include <thrust/distance.h>
+#include <thrust/extrema.h>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/random.h>
 #include <thrust/remove.h>
@@ -117,22 +118,30 @@ sort_by_key(raft::handle_t const& handle,
             std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<float>> const& values);
 
 template <typename vertex_t>
+vertex_t max_element(raft::handle_t const& handle, raft::device_span<vertex_t const> vertices)
+{
+  auto ptr = thrust::max_element(
+    handle.get_thrust_policy(), vertices.data(), vertices.data() + vertices.size());
+  vertex_t ret{};
+  raft::update_host(&ret, ptr, size_t{1}, handle.get_stream());
+  handle.sync_stream();
+  return ret;
+}
+
+template int32_t max_element(raft::handle_t const& handle,
+                             raft::device_span<int32_t const> vertices);
+template int64_t max_element(raft::handle_t const& handle,
+                             raft::device_span<int64_t const> vertices);
+
+template <typename vertex_t>
 void translate_vertex_ids(raft::handle_t const& handle,
-                          rmm::device_uvector<vertex_t>& d_src_v,
-                          rmm::device_uvector<vertex_t>& d_dst_v,
+                          rmm::device_uvector<vertex_t>& vertices,
                           vertex_t vertex_id_offset)
 {
-  auto execution_policy = handle.get_thrust_policy();
-  thrust::transform(execution_policy,
-                    d_src_v.begin(),
-                    d_src_v.end(),
-                    d_src_v.begin(),
-                    [offset = vertex_id_offset] __device__(vertex_t v) { return offset + v; });
-
-  thrust::transform(execution_policy,
-                    d_dst_v.begin(),
-                    d_dst_v.end(),
-                    d_dst_v.begin(),
+  thrust::transform(handle.get_thrust_policy(),
+                    vertices.begin(),
+                    vertices.end(),
+                    vertices.begin(),
                     [offset = vertex_id_offset] __device__(vertex_t v) { return offset + v; });
 }
 
@@ -146,13 +155,11 @@ void populate_vertex_ids(raft::handle_t const& handle,
 }
 
 template void translate_vertex_ids(raft::handle_t const& handle,
-                                   rmm::device_uvector<int32_t>& d_src_v,
-                                   rmm::device_uvector<int32_t>& d_dst_v,
+                                   rmm::device_uvector<int32_t>& vertices,
                                    int32_t vertex_id_offset);
 
 template void translate_vertex_ids(raft::handle_t const& handle,
-                                   rmm::device_uvector<int64_t>& d_src_v,
-                                   rmm::device_uvector<int64_t>& d_dst_v,
+                                   rmm::device_uvector<int64_t>& vertices,
                                    int64_t vertex_id_offset);
 
 template void populate_vertex_ids(raft::handle_t const& handle,

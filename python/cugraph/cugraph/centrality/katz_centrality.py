@@ -11,19 +11,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from pylibcugraph import (katz_centrality as pylibcugraph_katz,
-                          ResourceHandle
-                          )
-from cugraph.utilities import (ensure_cugraph_obj_for_nx,
-                               df_score_to_dictionary,
-                               )
+from pylibcugraph import katz_centrality as pylibcugraph_katz, ResourceHandle
+from cugraph.utilities import (
+    ensure_cugraph_obj_for_nx,
+    df_score_to_dictionary,
+)
 import cudf
 import warnings
 
 
 def katz_centrality(
-    G, alpha=None, beta=1.0, max_iter=100, tol=1.0e-6,
-    nstart=None, normalized=True
+    G, alpha=None, beta=1.0, max_iter=100, tol=1.0e-6, nstart=None, normalized=True
 ):
     """
     Compute the Katz centrality for the nodes of the graph G. This
@@ -111,28 +109,27 @@ def katz_centrality(
     >>> kc = cugraph.katz_centrality(G)
 
     """
-    G, isNx = ensure_cugraph_obj_for_nx(G)
+    G, isNx = ensure_cugraph_obj_for_nx(G, store_transposed=True)
 
     if G.store_transposed is False:
-        warning_msg = ("Katz centrality expects the 'store_transposed' flag "
-                       "to be set to 'True' for optimal performance during "
-                       "the graph creation")
+        warning_msg = (
+            "Katz centrality expects the 'store_transposed' flag "
+            "to be set to 'True' for optimal performance during "
+            "the graph creation"
+        )
         warnings.warn(warning_msg, UserWarning)
 
     if alpha is None:
-        degree_max = G.degree()['degree'].max()
+        degree_max = G.degree()["degree"].max()
         alpha = 1 / (degree_max)
 
     if (alpha is not None) and (alpha <= 0.0):
-        raise ValueError(f"'alpha' must be a positive float or None, "
-                         f"got: {alpha}")
+        raise ValueError(f"'alpha' must be a positive float or None, " f"got: {alpha}")
 
     elif (not isinstance(beta, float)) or (beta <= 0.0):
-        raise ValueError(f"'beta' must be a positive float or None, "
-                         f"got: {beta}")
+        raise ValueError(f"'beta' must be a positive float or None, " f"got: {beta}")
     if (not isinstance(max_iter, int)) or (max_iter <= 0):
-        raise ValueError(f"'max_iter' must be a positive integer"
-                         f", got: {max_iter}")
+        raise ValueError(f"'max_iter' must be a positive integer" f", got: {max_iter}")
     if (not isinstance(tol, float)) or (tol <= 0.0):
         raise ValueError(f"'tol' must be a positive float, got: {tol}")
 
@@ -141,21 +138,20 @@ def katz_centrality(
             if len(G.renumber_map.implementation.col_names) > 1:
                 cols = nstart.columns[:-1].to_list()
             else:
-                cols = 'vertex'
-            nstart = G.add_internal_vertex_id(nstart, 'vertex', cols)
+                cols = "vertex"
+            nstart = G.add_internal_vertex_id(nstart, "vertex", cols)
             nstart = nstart[nstart.columns[0]]
 
-    vertices, values = \
-        pylibcugraph_katz(
-            resource_handle=ResourceHandle(),
-            graph=G._plc_graph,
-            betas=nstart,
-            alpha=alpha,
-            beta=beta,
-            epsilon=tol,
-            max_iterations=max_iter,
-            do_expensive_check=False
-        )
+    vertices, values = pylibcugraph_katz(
+        resource_handle=ResourceHandle(),
+        graph=G._plc_graph,
+        betas=nstart,
+        alpha=alpha,
+        beta=beta,
+        epsilon=tol,
+        max_iterations=max_iter,
+        do_expensive_check=False,
+    )
 
     vertices = cudf.Series(vertices)
     values = cudf.Series(values)
