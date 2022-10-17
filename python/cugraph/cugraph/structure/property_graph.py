@@ -34,6 +34,15 @@ class EXPERIMENTAL__PropertySelection:
     """
 
     def __init__(self, vertex_selection_series=None, edge_selection_series=None):
+        """
+        Create a PropertySelection out of list of vertices and/or edges. 
+
+        Parameters
+        ----------
+        vertex_selection_series : 
+        edge_selection_series : 
+
+        """
         self.vertex_selections = vertex_selection_series
         self.edge_selections = edge_selection_series
 
@@ -795,7 +804,7 @@ class EXPERIMENTAL__PropertyGraph:
         expr : string
             A python expression using property names and operators to select
             specific vertices.
-        from_previous_selection : PropertySelection
+        from_previous_selection : PropertySelection, optional
             A PropertySelection instance returned from a prior call to
             select_vertices() that can be used to select a subset of vertices
             to evaluate the expression against. This allows for a selection of
@@ -897,14 +906,14 @@ class EXPERIMENTAL__PropertyGraph:
             return Graph, and all relevant attributes set on the instance are
             copied to the return Graph (eg. directed). If not specified the
             returned Graph will be a directed cugraph.MultiGraph instance.
-        selection : PropertySelection
+        selection : PropertySelection, optional
             A PropertySelection returned from one or more calls to
             select_vertices() and/or select_edges(), used for creating a Graph
             with only the selected properties. If not speciied the returned
             Graph will have all properties. Note, this could result in a Graph
             with multiple edges, which may not be supported based on the value
             of create_using.
-        edge_weight_property : string
+        edge_weight_property : string, optional
             The name of the property whose values will be used as weights on
             the returned Graph. If not specified, the returned Graph will be
             unweighted.
@@ -1094,6 +1103,22 @@ class EXPERIMENTAL__PropertyGraph:
     ):
         """
         Create and return a Graph from the edges in edge_prop_df.
+
+        Parameters
+        ----------
+        edge_prop_df : cudf.DataFrame or pandas.DataFrame
+        create_using : cugraph.Graph (or subclass of) instance.
+            Attributes of the graph are passed to the returned graph.
+        edge_weight_property : string, optional
+            Property used to weight the returned graph.
+        default_edge_weight : float64, optional
+            Value used to replace NA in the specified weight column
+        check_multi_edges : bool
+            Prevent duplicate edges (if not allowed)
+
+        
+
+
         """
         # FIXME: check default_edge_weight is valid
         if edge_weight_property:
