@@ -35,12 +35,12 @@ class EXPERIMENTAL__PropertySelection:
 
     def __init__(self, vertex_selection_series=None, edge_selection_series=None):
         """
-        Create a PropertySelection out of list of vertices and/or edges. 
+        Create a PropertySelection out of list of vertices and/or edges.
 
         Parameters
         ----------
-        vertex_selection_series : 
-        edge_selection_series : 
+        vertex_selection_series : cudf or pandas series containing vertices for the selection
+        edge_selection_series : cudf or pandas series containing edges for the selection
 
         """
         self.vertex_selections = vertex_selection_series
@@ -50,6 +50,14 @@ class EXPERIMENTAL__PropertySelection:
         """
         Add either the vertex_selections, edge_selections, or both to this
         instance from "other" if either are not already set.
+
+        Parameters
+        ----------
+        other : PropertySelection to add
+
+        Returns
+        -------
+        PropertySelection that results from the addition
         """
         vs = self.vertex_selections
         if vs is None:
@@ -172,6 +180,9 @@ class EXPERIMENTAL__PropertyGraph:
 
     @property
     def edge_property_names(self):
+        """
+        Names of custom edge property names defined in the graph data
+        """
         if self.__edge_prop_dataframe is not None:
             props = list(self.__edge_prop_dataframe.columns)
             props.remove(self.src_col_name)
@@ -184,7 +195,9 @@ class EXPERIMENTAL__PropertyGraph:
 
     @property
     def vertex_types(self):
-        """The set of vertex type names"""
+        """
+        The set of vertex type names
+        """
         value_counts = self._vertex_type_value_counts
         if value_counts is None:
             names = set()
@@ -200,7 +213,9 @@ class EXPERIMENTAL__PropertyGraph:
 
     @property
     def edge_types(self):
-        """The set of edge type names"""
+        """
+        The set of edge type names
+        """
         value_counts = self._edge_type_value_counts
         if value_counts is None:
             return set()
@@ -232,7 +247,9 @@ class EXPERIMENTAL__PropertyGraph:
 
     @property
     def _edge_type_value_counts(self):
-        """A Series of the counts of types in __edge_prop_dataframe"""
+        """
+        Series of the counts of types in __edge_prop_dataframe
+        """
         if self.__edge_prop_dataframe is None:
             return
         if self.__edge_type_value_counts is None:
@@ -292,7 +309,8 @@ class EXPERIMENTAL__PropertyGraph:
         return value_counts[type] if type in value_counts else 0
 
     def get_num_edges(self, type=None):
-        """Return the number of all edges or edges of a given type.
+        """
+        Return the number of all edges or edges of a given type.
 
         Parameters
         ----------
@@ -318,6 +336,17 @@ class EXPERIMENTAL__PropertyGraph:
         """
         Return a Series containing the unique vertex IDs contained in both
         the vertex and edge property data.
+        selection is not yet supported.
+
+        Parameters
+        ----------
+        selection : PropertySelection, optional
+            A PropertySelection returned from one or more calls to
+            select_vertices() and/or select_edges()
+
+        Returns
+        -------
+        cudf series or pandas series containing matching vertices
         """
         vert_sers = self.__get_all_vertices_series()
         if vert_sers:
@@ -330,6 +359,10 @@ class EXPERIMENTAL__PropertyGraph:
     def vertices_ids(self):
         """
         Alias for get_vertices()
+
+        Returns
+        -------
+        cudf series or pandas series containing matching vertices
         """
         return self.get_vertices()
 
@@ -576,8 +609,28 @@ class EXPERIMENTAL__PropertyGraph:
 
         Examples
         --------
-        >>>
+        >>> import cugraph
+        >>> import cudf
+        >>> dataset2 = {
+        ...     "simple": [
+        ...         ["src", "dst", "some_property"],
+        ...         [
+        ...             (99, 22, "a"),
+        ...             (98, 34, "b"),
+        ...             (97, 56, "c"),
+        ...             (96, 88, "d"),
+        ...         ],
+        ...     ],
+        ... }
+        >>> from cugraph.experimental import PropertyGraph
+        >>> dataframe_type = cudf.DataFrame
+        >>> simple = dataset2["simple"]
+        >>> pG = PropertyGraph()
+        >>> df = cudf.DataFrame(columns=simple[0], data=simple[1])
+        >>> pG.add_edge_data(df, vertex_col_names=("src", "dst"))
+        >>> pG.get_edge_data()
         """
+
         if type(dataframe) not in _dataframe_types:
             raise TypeError(
                 "dataframe must be one of the following types: "
@@ -756,8 +809,16 @@ class EXPERIMENTAL__PropertyGraph:
 
     def get_edge_data(self, edge_ids=None, types=None, columns=None):
         """
-        Return a dataframe containing edge properties for only the specified
+        Create a dataframe containing edge properties for only the specified
         edge_ids, columns, and/or edge type, or all edge IDs if not specified.
+
+        Parameters
+        ----------
+        edge_ids :
+        types : list of edge types to include in returned dataframe, optional
+            None is the default and will allow any edge type
+        columns : which edge columns will be returned, optional
+            None is the default and will result in all columns being returned
         """
         if self.__edge_prop_dataframe is not None:
             df = self.__edge_prop_dataframe
@@ -910,7 +971,7 @@ class EXPERIMENTAL__PropertyGraph:
         selection : PropertySelection, optional
             A PropertySelection returned from one or more calls to
             select_vertices() and/or select_edges(), used for creating a Graph
-            with only the selected properties. If not speciied the returned
+            with only the selected properties. If not specified the returned
             Graph will have all properties. Note, this could result in a Graph
             with multiple edges, which may not be supported based on the value
             of create_using.
@@ -919,19 +980,18 @@ class EXPERIMENTAL__PropertyGraph:
             the returned Graph. If not specified, the returned Graph will be
             unweighted.
         default_edge_weight : float64, optional
-
-        check_multi_edges : bool (default is True)
+            Value that replaces empty weight property fields
+        check_multi_edges : bool (default True)
             When True and create_using argument is given and not a MultiGraph,
             this will perform an expensive check to verify that the edges in
             the edge dataframe do not form a multigraph with duplicate edges.
-        renumber_graph : bool (default is True)
+        renumber_graph : bool (default True)
             If True, return a Graph that has been renumbered for use by graph
             algorithms. If False, the returned graph will need to be manually
             renumbered prior to calling graph algos.
-        add_edge_data : bool (default is True)
+        add_edge_data : bool (default True)
             If True, add meta data about the edges contained in the extracted
             graph which are required for future calls to annotate_dataframe().
-
         Returns
         -------
         A Graph instance of the same type as create_using containing only the
@@ -1105,7 +1165,7 @@ class EXPERIMENTAL__PropertyGraph:
         add_edge_data=True,
     ):
         """
-        Create and return a Graph from the edges in edge_prop_df.
+        Create a Graph from the edges in edge_prop_df.
 
         Parameters
         ----------
@@ -1116,13 +1176,13 @@ class EXPERIMENTAL__PropertyGraph:
             Property used to weight the returned graph.
         default_edge_weight : float64, optional
             Value used to replace NA in the specified weight column
-        check_multi_edges : bool
+        check_multi_edges : bool (default = True )
             Prevent duplicate edges (if not allowed)
-        renumber_graph : bool
+        renumber_graph : bool (default )
 
-        
-
-
+        Returns
+        -------
+        A Graph from the edges in edge_prop_df
         """
         # FIXME: check default_edge_weight is valid
         if edge_weight_property:
@@ -1222,7 +1282,8 @@ class EXPERIMENTAL__PropertyGraph:
         return G
 
     def renumber_vertices_by_type(self):
-        """Renumber vertex IDs to be contiguous by type.
+        """
+        Renumber vertex IDs to be contiguous by type.
 
         Returns a DataFrame with the start and stop IDs for each vertex type.
         Stop is *inclusive*.
@@ -1271,9 +1332,12 @@ class EXPERIMENTAL__PropertyGraph:
         return rv[["start", "stop"]]
 
     def renumber_edges_by_type(self):
-        """Renumber edge IDs to be contiguous by type.
+        """
+        Renumber edge IDs to be contiguous by type.
 
-        Returns a DataFrame with the start and stop IDs for each edge type.
+        Returns
+        -------
+        a DataFrame with the start and stop IDs for each edge type.
         Stop is *inclusive*.
         """
 
@@ -1315,7 +1379,9 @@ class EXPERIMENTAL__PropertyGraph:
     @classmethod
     def has_duplicate_edges(cls, df, columns=None):
         """
-        Return True if df has rows with the same src, dst, type, and columns
+        Returns
+        -------
+        True if df has rows with the same src, dst, type, and columns
         """
         cols = [cls.src_col_name, cls.dst_col_name, cls.type_col_name]
         if columns:
@@ -1397,7 +1463,8 @@ class EXPERIMENTAL__PropertyGraph:
         return df.assign(**update_cols)
 
     def __update_categorical_dtype(self, df, column, val):
-        """Add a new category to a categorical dtype column of a dataframe.
+        """
+        Add a new category to a categorical dtype column of a dataframe.
 
         Returns the new categorical dtype.
         """
