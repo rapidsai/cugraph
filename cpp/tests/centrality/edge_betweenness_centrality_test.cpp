@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 #include <centrality/betweenness_centrality_validate.hpp>
+#include <centrality/betweenness_centrality_reference.hpp>
 
 #include <utilities/base_fixture.hpp>
 #include <utilities/high_res_clock.h>
@@ -122,13 +123,22 @@ class Tests_EdgeBetweennessCentrality
 
     if (betweenness_usecase.check_correctness) {
 #if 0
-      auto [h_src, h_dst, h_wgt] = cugraph::test::graph_to_host_coo(handle, graph_view);
+      auto [h_offsets, h_indices, h_wgt] = cugraph::test::graph_to_host_csr(handle, graph_view);
 
-      auto h_centralities = cugraph::test::to_host(handle, d_centralities);
       auto h_seeds        = cugraph::test::to_host(handle, d_seeds);
 
-      cugraph::test::edge_betweenness_centrality_validate(
-        h_src, h_dst, h_wgt, h_centralities, h_seeds);
+      auto h_reference_centralities =
+        betweenness_centrality_reference(h_offsets, h_indices, h_wgt, h_seeds, betweenness_usecase.include_endpoints);
+
+      auto d_reference_centralities = cugraph::test::to_device(handle, h_reference_centralities);
+
+      //  Need to get edges in order...
+
+      cugraph::test::edge_betweenness_centrality_validate(handle,
+                                                          d_renumber_map_labels,
+                                                          d_centralities,
+                                                          std::nullopt,
+                                                          d_reference_centralities);
 #endif
     }
   }

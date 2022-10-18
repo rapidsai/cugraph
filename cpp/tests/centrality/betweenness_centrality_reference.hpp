@@ -13,7 +13,9 @@
  * See the License for the specific language governin_from_mtxg permissions and
  * limitations under the License.
  */
-#include <centrality/betweenness_centrality_validate.hpp>
+
+#pragma once
+
 #include <utilities/test_utilities.hpp>
 
 #include <gtest/gtest.h>
@@ -230,97 +232,3 @@ std::vector<weight_t> edge_betweenness_centrality_reference(
   return result;
 }
 }  // namespace
-
-namespace cugraph {
-namespace test {
-
-template <typename vertex_t, typename edge_t, typename weight_t>
-void betweenness_centrality_validate(std::vector<edge_t> const& h_offsets,
-                                     std::vector<vertex_t> const& h_indices,
-                                     std::optional<std::vector<weight_t>> const& h_wgt,
-                                     std::vector<weight_t> const& h_cugraph_results,
-                                     std::vector<vertex_t> const& h_seeds,
-                                     bool count_endpoints)
-{
-  auto h_reference_centralities =
-    ::betweenness_centrality_reference(h_offsets, h_indices, h_wgt, h_seeds, count_endpoints);
-
-  auto compare_functor = cugraph::test::nearly_equal<weight_t>{
-    weight_t{1e-3},
-    weight_t{(weight_t{1} / static_cast<weight_t>(h_reference_centralities.size())) *
-             weight_t{1e-3}}};
-
-  EXPECT_EQ(h_cugraph_results.size(), h_reference_centralities.size());
-
-  for (size_t i = 0; i < h_cugraph_results.size(); ++i) {
-    EXPECT_TRUE(compare_functor(h_cugraph_results[i], h_reference_centralities[i]))
-      << "score mismatch for vertex " << i << ", got: " << h_cugraph_results[i]
-      << ", expected: " << h_reference_centralities[i];
-  }
-}
-
-template <typename vertex_t, typename edge_t, typename weight_t>
-void edge_betweenness_centrality_validate(std::vector<edge_t> const& h_offsets,
-                                          std::vector<vertex_t> const& h_indices,
-                                          std::optional<std::vector<weight_t>> const& h_wgt,
-                                          std::vector<weight_t> const& h_cugraph_results,
-                                          std::vector<vertex_t> const& h_seeds)
-{
-  auto h_reference_centralities =
-    edge_betweenness_centrality_reference(h_offsets, h_indices, h_wgt, h_seeds);
-
-  auto compare_functor = cugraph::test::nearly_equal<weight_t>{
-    weight_t{1e-3},
-    weight_t{(weight_t{1} / static_cast<weight_t>(h_reference_centralities.size())) *
-             weight_t{1e-3}}};
-
-  EXPECT_EQ(h_cugraph_results.size(), h_reference_centralities.size());
-
-  for (size_t i = 0; i < h_cugraph_results.size(); ++i) {
-    EXPECT_TRUE(compare_functor(h_cugraph_results[i], h_reference_centralities[i]))
-      << "score mismatch for edge " << i << ", got: " << h_cugraph_results[i]
-      << ", expected: " << h_reference_centralities[i];
-  }
-}
-
-template void betweenness_centrality_validate(std::vector<int32_t> const& h_offsets,
-                                              std::vector<int32_t> const& h_indices,
-                                              std::optional<std::vector<float>> const& h_wgt,
-                                              std::vector<float> const& h_cugraph_results,
-                                              std::vector<int32_t> const& h_seeds,
-                                              bool count_endpoints);
-
-template void betweenness_centrality_validate(std::vector<int64_t> const& h_offsets,
-                                              std::vector<int32_t> const& h_indices,
-                                              std::optional<std::vector<float>> const& h_wgt,
-                                              std::vector<float> const& h_cugraph_results,
-                                              std::vector<int32_t> const& h_seeds,
-                                              bool count_endpoints);
-
-template void betweenness_centrality_validate(std::vector<int64_t> const& h_offsets,
-                                              std::vector<int64_t> const& h_indices,
-                                              std::optional<std::vector<float>> const& h_wgt,
-                                              std::vector<float> const& h_cugraph_results,
-                                              std::vector<int64_t> const& h_seeds,
-                                              bool count_endpoints);
-
-template void edge_betweenness_centrality_validate(std::vector<int32_t> const& h_offsets,
-                                                   std::vector<int32_t> const& h_indices,
-                                                   std::optional<std::vector<float>> const& h_wgt,
-                                                   std::vector<float> const& h_cugraph_results,
-                                                   std::vector<int32_t> const& h_seeds);
-
-template void edge_betweenness_centrality_validate(std::vector<int64_t> const& h_offsets,
-                                                   std::vector<int32_t> const& h_indices,
-                                                   std::optional<std::vector<float>> const& h_wgt,
-                                                   std::vector<float> const& h_cugraph_results,
-                                                   std::vector<int32_t> const& h_seeds);
-
-template void edge_betweenness_centrality_validate(std::vector<int64_t> const& h_offsets,
-                                                   std::vector<int64_t> const& h_indices,
-                                                   std::optional<std::vector<float>> const& h_wgt,
-                                                   std::vector<float> const& h_cugraph_results,
-                                                   std::vector<int64_t> const& h_seeds);
-
-}  // namespace test
-}  // namespace cugraph

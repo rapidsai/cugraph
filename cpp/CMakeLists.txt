@@ -245,7 +245,6 @@ set(CUGRAPH_SOURCES
     src/centrality/eigenvector_centrality_mg.cu
     src/centrality/betweenness_centrality_sg.cu
     src/centrality/betweenness_centrality_mg.cu
-    src/serialization/serializer.cu
     src/tree/mst.cu
     src/components/weakly_connected_components_sg.cu
     src/components/weakly_connected_components_mg.cu
