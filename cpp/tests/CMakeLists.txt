@@ -226,16 +226,12 @@ ConfigureTest(ECG_TEST community/ecg_test.cpp)
 ConfigureTest(BALANCED_TEST community/balanced_edge_test.cpp)
 
 ###################################################################################################
-# - TRIANGLE tests --------------------------------------------------------------------------------
-ConfigureTest(TRIANGLE_TEST community/triangle_test.cu)
-
-###################################################################################################
 # - EGO tests --------------------------------------------------------------------------------
 ConfigureTest(EGO_TEST community/egonet_test.cu)
 
 ###################################################################################################
 # - FORCE ATLAS 2  tests --------------------------------------------------------------------------
-ConfigureTest(FA2_TEST layout/force_atlas2_test.cu)
+ConfigureTest(LEGACY_FA2_TEST layout/legacy/force_atlas2_test.cu)
 
 ###################################################################################################
 # - CONNECTED COMPONENTS  tests -------------------------------------------------------------------
@@ -244,10 +240,6 @@ ConfigureTest(CONNECT_TEST components/con_comp_test.cu)
 ###################################################################################################
 # - STRONGLY CONNECTED COMPONENTS  tests ----------------------------------------------------------
 ConfigureTest(SCC_TEST components/scc_test.cu)
-
-###################################################################################################
-# - WEAKLY CONNECTED COMPONENTS  tests ----------------------------------------------------------
-ConfigureTest(WCC_TEST components/wcc_test.cpp)
 
 ###################################################################################################
 #-Hungarian (Linear Assignment Problem)  tests ----------------------------------------------------

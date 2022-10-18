@@ -831,26 +831,6 @@ std::unique_ptr<legacy::GraphCOO<vertex_t, edge_t, weight_t>> minimum_spanning_t
   legacy::GraphCSRView<vertex_t, edge_t, weight_t> const& graph,
   rmm::mr::device_memory_resource* mr = rmm::mr::get_current_device_resource());
 
-namespace triangle {
-/**
- * @brief             Count the number of triangles in the graph
- *
- * @throws     cugraph::logic_error when an error occurs.
- *
- * @tparam VT                        Type of vertex identifiers. Supported value : int (signed,
- * 32-bit)
- * @tparam ET                        Type of edge identifiers.  Supported value : int (signed,
- * 32-bit)
- * @tparam WT                        Type of edge weights. Supported values : float or double.
- *
- * @param[in]  graph                 input graph object (CSR)
- *
- * @return                           The number of triangles
- */
-template <typename VT, typename ET, typename WT>
-uint64_t triangle_count(legacy::GraphCSRView<VT, ET, WT> const& graph);
-}  // namespace triangle
-
 namespace subgraph {
 /**
  * @brief             Extract subgraph by vertices

@@ -575,12 +575,6 @@ std::unique_ptr<random_walk_path_t> call_rw_paths(raft::handle_t const& handle,
                                                   index_t num_paths,
                                                   index_t const* vertex_path_sizes);
 
-// convertor from random_walks return type to COO:
-//
-template <typename vertex_t, typename index_t>
-std::unique_ptr<random_walk_coo_t> random_walks_to_coo(raft::handle_t const& handle,
-                                                       random_walk_ret_t& rw_ret);
-
 // wrapper for shuffling:
 //
 template <typename vertex_t, typename edge_t, typename weight_t>

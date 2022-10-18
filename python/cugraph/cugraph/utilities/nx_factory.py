@@ -72,10 +72,31 @@ def convert_weighted_unnamed_to_gdf(NX_G):
     return _gdf
 
 
-def convert_from_nx(nxG, weight=None, do_renumber=True):
+def convert_from_nx(nxG, weight=None, do_renumber=True, store_transposed=False):
     """
-    weight: weight column name. Only used if
-    nxG.is_weighted() is True
+    Convert a NetworkX Graph into a cuGraph Graph.
+    This might not be the most effecient way since the
+    process first extracts the data from Nx into a Pandas array.
+
+    Parameters
+    ----------
+     nxG : NetworkX Graph
+        The NetworkX Graph top be converted.
+
+    weight : str or None
+        the weight column name.  If the graph is weighted this
+        identifies which column in the Nx data to extract
+
+    do_renumber : boolean, default is True
+        Should the data be renumbered
+
+    store_transposed : boolean, defaukt is False
+        should the cuGraph Graph store the transpose of the graph
+
+    Returns
+    -------
+    G : cuGraph Graph
+
     """
 
     if isinstance(nxG, nx.classes.digraph.DiGraph):
@@ -92,7 +113,12 @@ def convert_from_nx(nxG, weight=None, do_renumber=True):
     if is_weighted is False:
         _gdf = convert_unweighted_to_gdf(nxG)
         G.from_cudf_edgelist(
-            _gdf, source="src", destination="dst", edge_attr=None, renumber=do_renumber
+            _gdf,
+            source="src",
+            destination="dst",
+            edge_attr=None,
+            renumber=do_renumber,
+            store_transposed=store_transposed,
         )
     else:
         if weight is None:
@@ -103,6 +129,7 @@ def convert_from_nx(nxG, weight=None, do_renumber=True):
                 destination="target",
                 edge_attr="weight",
                 renumber=do_renumber,
+                store_transposed=store_transposed,
             )
         else:
             _gdf = convert_weighted_named_to_gdf(nxG, weight)
@@ -112,6 +139,7 @@ def convert_from_nx(nxG, weight=None, do_renumber=True):
                 destination="dst",
                 edge_attr="weight",
                 renumber=do_renumber,
+                store_transposed=store_transposed,
             )
 
     return G

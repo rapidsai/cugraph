@@ -20,7 +20,6 @@
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_generators.hpp>
 #include <cugraph/graph_view.hpp>
-#include <cugraph/legacy/graph.hpp>
 #include <cugraph/partition_manager.hpp>
 #include <cugraph/utilities/cython.hpp>
 #include <cugraph/utilities/error.hpp>
@@ -284,95 +283,6 @@ void populate_graph_container(graph_container_t& graph_container,
   graph_container.graph_type = graphTypeEnum::graph_t;
 }
 
-void populate_graph_container_legacy(graph_container_t& graph_container,
-                                     graphTypeEnum legacyType,
-                                     raft::handle_t const& handle,
-                                     void* offsets,
-                                     void* indices,
-                                     void* weights,
-                                     numberTypeEnum offsetType,
-                                     numberTypeEnum indexType,
-                                     numberTypeEnum weightType,
-                                     size_t num_global_vertices,
-                                     size_t num_global_edges,
-                                     int* local_vertices,
-                                     int* local_edges,
-                                     int* local_offsets)
-{
-  CUGRAPH_EXPECTS(graph_container.graph_type == graphTypeEnum::null,
-                  "populate_graph_container_legacy() can only be called on an empty container.");
-
-  // FIXME: This is soon-to-be legacy code left in place until the new graph_t
-  // class is supported everywhere else. Remove everything down to the comment
-  // line after the return stmnt.
-  // Keep new code below return stmnt enabled to ensure it builds.
-  if (weightType == numberTypeEnum::floatType) {
-    switch (legacyType) {
-      case graphTypeEnum::LegacyCSR: {
-        graph_container.graph_ptr_union.GraphCSRViewFloatPtr =
-          std::make_unique<legacy::GraphCSRView<int, int, float>>(reinterpret_cast<int*>(offsets),
-                                                                  reinterpret_cast<int*>(indices),
-                                                                  reinterpret_cast<float*>(weights),
-                                                                  num_global_vertices,
-                                                                  num_global_edges);
-        graph_container.graph_type = graphTypeEnum::GraphCSRViewFloat;
-        (graph_container.graph_ptr_union.GraphCSRViewFloatPtr)
-          ->set_local_data(local_vertices, local_edges, local_offsets);
-        (graph_container.graph_ptr_union.GraphCSRViewFloatPtr)
-          ->set_handle(const_cast<raft::handle_t*>(&handle));
-      } break;
-      case graphTypeEnum::LegacyCOO: {
-        graph_container.graph_ptr_union.GraphCOOViewFloatPtr =
-          std::make_unique<legacy::GraphCOOView<int, int, float>>(reinterpret_cast<int*>(offsets),
-                                                                  reinterpret_cast<int*>(indices),
-                                                                  reinterpret_cast<float*>(weights),
-                                                                  num_global_vertices,
-                                                                  num_global_edges);
-        graph_container.graph_type = graphTypeEnum::GraphCOOViewFloat;
-        (graph_container.graph_ptr_union.GraphCOOViewFloatPtr)
-          ->set_local_data(local_vertices, local_edges, local_offsets);
-        (graph_container.graph_ptr_union.GraphCOOViewFloatPtr)
-          ->set_handle(const_cast<raft::handle_t*>(&handle));
-      } break;
-      default: CUGRAPH_FAIL("unsupported graphTypeEnum value"); break;
-    }
-
-  } else {
-    switch (legacyType) {
-      case graphTypeEnum::LegacyCSR: {
-        graph_container.graph_ptr_union.GraphCSRViewDoublePtr =
-          std::make_unique<legacy::GraphCSRView<int, int, double>>(
-            reinterpret_cast<int*>(offsets),
-            reinterpret_cast<int*>(indices),
-            reinterpret_cast<double*>(weights),
-            num_global_vertices,
-            num_global_edges);
-        graph_container.graph_type = graphTypeEnum::GraphCSRViewDouble;
-        (graph_container.graph_ptr_union.GraphCSRViewDoublePtr)
-          ->set_local_data(local_vertices, local_edges, local_offsets);
-        (graph_container.graph_ptr_union.GraphCSRViewDoublePtr)
-          ->set_handle(const_cast<raft::handle_t*>(&handle));
-      } break;
-      case graphTypeEnum::LegacyCOO: {
-        graph_container.graph_ptr_union.GraphCOOViewDoublePtr =
-          std::make_unique<legacy::GraphCOOView<int, int, double>>(
-            reinterpret_cast<int*>(offsets),
-            reinterpret_cast<int*>(indices),
-            reinterpret_cast<double*>(weights),
-            num_global_vertices,
-            num_global_edges);
-        graph_container.graph_type = graphTypeEnum::GraphCOOViewDouble;
-        (graph_container.graph_ptr_union.GraphCOOViewDoublePtr)
-          ->set_local_data(local_vertices, local_edges, local_offsets);
-        (graph_container.graph_ptr_union.GraphCOOViewDoublePtr)
-          ->set_handle(const_cast<raft::handle_t*>(&handle));
-      } break;
-      default: CUGRAPH_FAIL("unsupported graphTypeEnum value"); break;
-    }
-  }
-  return;
-}
-
 // Wrapper for calling extract_egonet through a graph container
 // FIXME : this should not be a legacy COO and it is not clear how to handle C++ api return type as
 // is.graph_container Need to figure out how to return edge lists
@@ -568,27 +478,6 @@ std::unique_ptr<random_walk_path_t> call_rw_paths(raft::handle_t const& handle,
     std::make_unique<rmm::device_buffer>(std::get<1>(triplet).release()),
     std::make_unique<rmm::device_buffer>(std::get<2>(triplet).release())};
   return std::make_unique<random_walk_path_t>(std::move(rw_path_tri));
-}
-
-template <typename vertex_t, typename index_t>
-std::unique_ptr<random_walk_coo_t> random_walks_to_coo(raft::handle_t const& handle,
-                                                       random_walk_ret_t& rw_tri)
-{
-  auto triplet =
-    cugraph::convert_paths_to_coo<vertex_t, index_t>(handle,
-                                                     static_cast<index_t>(rw_tri.coalesced_sz_v_),
-                                                     static_cast<index_t>(rw_tri.num_paths_),
-                                                     std::move(*rw_tri.d_coalesced_v_),
-                                                     std::move(*rw_tri.d_sizes_));
-
-  random_walk_coo_t rw_coo{std::get<0>(triplet).size(),
-                           std::get<2>(triplet).size(),
-                           std::make_unique<rmm::device_buffer>(std::get<0>(triplet).release()),
-                           std::make_unique<rmm::device_buffer>(std::get<1>(triplet).release()),
-                           std::move(rw_tri.d_coalesced_w_),  // pass-through
-                           std::make_unique<rmm::device_buffer>(std::get<2>(triplet).release())};
-
-  return std::make_unique<random_walk_coo_t>(std::move(rw_coo));
 }
 
 // wrapper for weakly connected components:
@@ -849,15 +738,6 @@ template std::unique_ptr<random_walk_path_t> call_rw_paths<int32_t>(
 
 template std::unique_ptr<random_walk_path_t> call_rw_paths<int64_t>(
   raft::handle_t const& handle, int64_t num_paths, int64_t const* vertex_path_sizes);
-
-template std::unique_ptr<random_walk_coo_t> random_walks_to_coo<int32_t, int32_t>(
-  raft::handle_t const& handle, random_walk_ret_t& rw_tri);
-
-template std::unique_ptr<random_walk_coo_t> random_walks_to_coo<int32_t, int64_t>(
-  raft::handle_t const& handle, random_walk_ret_t& rw_tri);
-
-template std::unique_ptr<random_walk_coo_t> random_walks_to_coo<int64_t, int64_t>(
-  raft::handle_t const& handle, random_walk_ret_t& rw_tri);
 
 template void call_wcc<int32_t, float>(raft::handle_t const& handle,
                                        graph_container_t const& graph_container,
