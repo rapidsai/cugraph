@@ -1760,6 +1760,22 @@ def test_renumber_vertices_by_type(dataset1_PropertyGraph):
         empty_pG.renumber_vertices_by_type()
 
 
+def test_get_num_vertices():
+    from cugraph.experimental import PropertyGraph
+
+    pg = PropertyGraph()
+    node_df = cudf.DataFrame()
+    node_df["node_id"] = cudf.Series([0, 1, 2]).astype("int32")
+    pg.add_vertex_data(node_df, "node_id", type_name="_N")
+
+    edge_df = cudf.DataFrame()
+    edge_df["src"] = cudf.Series([0, 1, 2]).astype("int32")
+    edge_df["dst"] = cudf.Series([0, 1, 2]).astype("int32")
+    pg.add_edge_data(edge_df, ["src", "dst"], type_name="_E")
+
+    assert pg.get_num_vertices() == 3
+
+
 def test_renumber_edges_by_type(dataset1_PropertyGraph):
     from cugraph.experimental import PropertyGraph
 
