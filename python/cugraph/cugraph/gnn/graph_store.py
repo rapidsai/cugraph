@@ -729,7 +729,7 @@ def _update_feature_map(
 
             if set(covered_columns) != set(columns):
                 raise ValueError(
-                    f"All the columns {columns} not covered in {columns} "
+                    f"All the columns {columns} not covered in {covered_columns} "
                     f"Please check the feature_map {feat_name_obj} provided"
                 )
 
