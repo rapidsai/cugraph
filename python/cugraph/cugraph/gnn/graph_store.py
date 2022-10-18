@@ -41,7 +41,7 @@ class CuGraphStore:
         if isinstance(graph, (PropertyGraph, MGPropertyGraph)):
             self.__G = graph
         else:
-            raise ValueError("graph must be a PropertyGraph or" " MGPropertyGraph")
+            raise ValueError("graph must be a PropertyGraph or MGPropertyGraph")
         # dict to map column names corresponding to edge features
         # of each type
         self.edata_feat_col_d = defaultdict(list)
