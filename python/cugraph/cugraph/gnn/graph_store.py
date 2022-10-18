@@ -288,7 +288,7 @@ class CuGraphStore:
             # Uniform sampling fails when the dtype
             # of the seed dtype is not same as the node dtype
 
-            self.set_sg_node_dtype(list(sgs.values())[0])
+            self.set_sg_node_dtype(list(sgs.values())[0][0])
             sampled_df = sample_multiple_sgs(
                 sgs,
                 sample_f,
@@ -300,12 +300,18 @@ class CuGraphStore:
             )
         else:
             if edge_dir == "in":
-                sg = self.extracted_reverse_subgraph
+                sg, start_list_range = self.extracted_reverse_subgraph
             else:
-                sg = self.extracted_subgraph
+                sg, start_list_range = self.extracted_subgraph
             self.set_sg_node_dtype(sg)
             sampled_df = sample_single_sg(
-                sg, sample_f, nodes, self._sg_node_dtype, fanout, replace
+                sg,
+                sample_f,
+                nodes,
+                self._sg_node_dtype,
+                start_list_range,
+                fanout,
+                replace,
             )
 
         # we reverse directions when directions=='in'
@@ -599,7 +605,13 @@ def return_dlpack_d(d):
 
 
 def sample_single_sg(
-    sg, sample_f, start_list, start_list_dtype, fanout, with_replacement
+    sg,
+    sample_f,
+    start_list,
+    start_list_dtype,
+    start_list_range,
+    fanout,
+    with_replacement,
 ):
     if isinstance(start_list, dict):
         start_list = cudf.concat(list(start_list.values()))
@@ -607,6 +619,13 @@ def sample_single_sg(
     # Uniform sampling fails when the dtype
     # of the seed dtype is not same as the node dtype
     start_list = start_list.astype(start_list_dtype)
+    # Filter start list by ranges
+    # https://github.com/rapidsai/cugraph/blob/branch-22.12/cpp/src/prims/per_v_random_select_transform_outgoing_e.cuh
+
+    start_list = start_list[
+        (start_list >= start_list_range[0]) & (start_list <= start_list_range[1])
+    ]
+
     sampled_df = sample_f(
         sg,
         start_list=start_list,
@@ -629,19 +648,19 @@ def sample_multiple_sgs(
 ):
     start_list_types = list(start_list_d.keys())
     output_dfs = []
-    for can_etype, sg in sgs.items():
+    for can_etype, (sg, start_list_range) in sgs.items():
         can_etype = _convert_can_etype_s_to_tup(can_etype)
         if _edge_types_contains_canonical_etype(can_etype, start_list_types, edge_dir):
             if edge_dir == "in":
                 subset_type = can_etype[2]
             else:
                 subset_type = can_etype[0]
-
             output = sample_single_sg(
                 sg,
                 sample_f,
                 start_list_d[subset_type],
                 start_list_dtype,
+                start_list_range,
                 fanout,
                 with_replacement,
             )
@@ -685,11 +704,15 @@ def get_subgraph_from_edgelist(edge_list, is_mg, reverse_edges=False):
         # lands
         create_subgraph_f = subgraph.from_dask_cudf_edgelist
         renumber = True
+        edge_list = edge_list.persist()
+        src_range = edge_list[src_n].min().compute(), edge_list[src_n].max().compute()
+
     else:
         # Note: We have to keep renumber = False
-        # to handle cases when the seed_nodes is not present in sugraph
+        # to handle cases when the seed_nodes is not present in subgraph
         create_subgraph_f = subgraph.from_cudf_edgelist
         renumber = False
+        src_range = edge_list[src_n].min(), edge_list[src_n].max()
 
     create_subgraph_f(
         edge_list,
@@ -701,7 +724,7 @@ def get_subgraph_from_edgelist(edge_list, is_mg, reverse_edges=False):
         legacy_renum_only=True,
     )
 
-    return subgraph
+    return subgraph, src_range
 
 
 def _update_feature_map(
