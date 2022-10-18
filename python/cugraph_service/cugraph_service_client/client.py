@@ -718,8 +718,9 @@ class CugraphServiceClient:
         self,
         id_or_ids=-1,
         null_replacement_value=0,
-        graph_id=defaults.graph_id,
         property_keys=None,
+        types=None,
+        graph_id=defaults.graph_id,
     ):
         """
         Returns ...
@@ -730,13 +731,13 @@ class CugraphServiceClient:
 
         null_replacement_value : number or string (default 0)
 
-        graph_id : int, default is defaults.graph_id
-           The graph ID to extract the subgraph from. If the ID passed is not
-           valid on the server, CugraphServiceError is raised.
-
         property_keys : list of strings (default [])
             The keys (names) of properties to retrieve.  If omitted, returns
             the whole dataframe.
+
+        graph_id : int, default is defaults.graph_id
+           The graph ID to extract the subgraph from. If the ID passed is not
+           valid on the server, CugraphServiceError is raised.
 
         Returns
         -------

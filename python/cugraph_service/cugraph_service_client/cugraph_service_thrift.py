@@ -150,14 +150,16 @@ service CugraphService {
 
   binary get_graph_vertex_data(1:GraphVertexEdgeID vertex_id,
                                2:Value null_replacement_value,
-                               3:i32 graph_id,
-                               4:list<string> property_keys
+                               3:list<string> property_keys,
+                               4:list<string> types,
+                               5:i32 graph_id
                                ) throws (1:CugraphServiceError e),
 
   binary get_graph_edge_data(1:GraphVertexEdgeID edge_id,
-                             2:Value null_replacement_value
-                             3:i32 graph_id,
-                             4:list<string> property_keys
+                             2:Value null_replacement_value,
+                             3:list<string> property_keys,
+                             4:list<string> types,
+                             5:i32 graph_id,
                              ) throws (1:CugraphServiceError e),
 
   bool is_vertex_property(1:string property_key,
