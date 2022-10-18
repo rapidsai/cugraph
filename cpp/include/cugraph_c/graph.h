@@ -170,7 +170,7 @@ cugraph_error_code_t cugraph_data_mask_create(
  * @return error code
  */
 cugraph_error_code_t cugraph_graph_get_data_mask(cugraph_graph_t* graph,
-                                                 graph_data_mask_t** mask,
+                                                 cugraph_data_mask_t** mask,
                                                  cugraph_error_t** error);
 
 /**
@@ -185,7 +185,7 @@ cugraph_error_code_t cugraph_graph_get_data_mask(cugraph_graph_t* graph,
  * @return error code
  */
 cugraph_error_code_t cugraph_graph_add_data_mask(cugraph_graph_t* graph,
-                                                 graph_data_mask_t* mask,
+                                                 cugraph_data_mask_t* mask,
                                                  cugraph_error_t** error);
 
 /**
@@ -209,7 +209,7 @@ cugraph_error_code_t cugraph_graph_add_data_mask(cugraph_graph_t* graph,
  * @return error code
  */
 cugraph_error_code_t cugraph_graph_release_data_mask(cugraph_graph_t* graph,
-                                                     graph_data_mask_t** mask,
+                                                     cugraph_data_mask_t** mask,
                                                      cugraph_error_t** error);
 
 /**
