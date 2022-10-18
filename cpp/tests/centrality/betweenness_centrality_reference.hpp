@@ -191,11 +191,9 @@ std::vector<weight_t> betweenness_centrality_reference(
       ref_bfs(offsets, indices, Q, S, dist, pred, sigmas, s);
 
       if (count_endpoints) {
-        ref_endpoints_accumulation<vertex_t, edge_t, weight_t>(
-          result, S, pred, sigmas, deltas, s);
+        ref_endpoints_accumulation<vertex_t, edge_t, weight_t>(result, S, pred, sigmas, deltas, s);
       } else {
-        ref_accumulation<vertex_t, edge_t, weight_t>(
-          result, S, pred, sigmas, deltas, s);
+        ref_accumulation<vertex_t, edge_t, weight_t>(result, S, pred, sigmas, deltas, s);
       }
     }
   }

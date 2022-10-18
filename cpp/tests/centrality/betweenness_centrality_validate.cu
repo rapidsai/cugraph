@@ -96,17 +96,19 @@ void edge_betweenness_centrality_validate(raft::handle_t const& handle,
     << "Mismatch in centrality results";
 }
 
-template void betweenness_centrality_validate(raft::handle_t const& handle,
-                                              std::optional<rmm::device_uvector<int32_t>>& d_cugraph_vertex_ids,
-                                              rmm::device_uvector<float>& d_cugraph_results,
-                                              std::optional<rmm::device_uvector<int32_t>>& d_reference_vertex_ids,
-                                              rmm::device_uvector<float>& d_reference_results);
+template void betweenness_centrality_validate(
+  raft::handle_t const& handle,
+  std::optional<rmm::device_uvector<int32_t>>& d_cugraph_vertex_ids,
+  rmm::device_uvector<float>& d_cugraph_results,
+  std::optional<rmm::device_uvector<int32_t>>& d_reference_vertex_ids,
+  rmm::device_uvector<float>& d_reference_results);
 
-template void betweenness_centrality_validate(raft::handle_t const& handle,
-                                              std::optional<rmm::device_uvector<int64_t>>& d_cugraph_vertex_ids,
-                                              rmm::device_uvector<float>& d_cugraph_results,
-                                              std::optional<rmm::device_uvector<int64_t>>& d_reference_vertex_ids,
-                                              rmm::device_uvector<float>& d_reference_results);
+template void betweenness_centrality_validate(
+  raft::handle_t const& handle,
+  std::optional<rmm::device_uvector<int64_t>>& d_cugraph_vertex_ids,
+  rmm::device_uvector<float>& d_cugraph_results,
+  std::optional<rmm::device_uvector<int64_t>>& d_reference_vertex_ids,
+  rmm::device_uvector<float>& d_reference_results);
 
 template void edge_betweenness_centrality_validate(
   raft::handle_t const& handle,

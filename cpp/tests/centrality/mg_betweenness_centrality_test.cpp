@@ -85,7 +85,8 @@ class Tests_MGBetweennessCentrality
     rmm::device_uvector<vertex_t> d_seeds(0, handle_->get_stream());
 
     if (handle_->get_comms().get_rank() == 0) {
-      rmm::device_uvector<vertex_t> d_seeds(mg_graph_view.number_of_vertices(), handle_->get_stream());
+      rmm::device_uvector<vertex_t> d_seeds(mg_graph_view.number_of_vertices(),
+                                            handle_->get_stream());
       cugraph::detail::sequence_fill(
         handle_->get_stream(), d_seeds.data(), d_seeds.size(), vertex_t{0});
 

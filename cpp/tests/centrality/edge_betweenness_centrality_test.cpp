@@ -13,8 +13,8 @@
  * See the License for the specific language governin_from_mtxg permissions and
  * limitations under the License.
  */
-#include <centrality/betweenness_centrality_validate.hpp>
 #include <centrality/betweenness_centrality_reference.hpp>
+#include <centrality/betweenness_centrality_validate.hpp>
 
 #include <utilities/base_fixture.hpp>
 #include <utilities/high_res_clock.h>

@@ -13,8 +13,8 @@
  * See the License for the specific language governin_from_mtxg permissions and
  * limitations under the License.
  */
-#include <centrality/betweenness_centrality_validate.hpp>
 #include <centrality/betweenness_centrality_reference.hpp>
+#include <centrality/betweenness_centrality_validate.hpp>
 
 #include <utilities/base_fixture.hpp>
 #include <utilities/high_res_clock.h>
@@ -104,14 +104,16 @@ class Tests_BetweennessCentrality
       betweenness_usecase.include_endpoints,
       do_expensive_check);
 #else
-    EXPECT_THROW(cugraph::betweenness_centrality(
-      handle,
-      graph_view,
-      std::optional<vertex_t>{std::nullopt},
-      std::make_optional<raft::device_span<vertex_t const>>(d_seeds.data(), d_seeds.size()),
-      betweenness_usecase.normalized,
-      betweenness_usecase.include_endpoints,
-      do_expensive_check), cugraph::logic_error);
+    EXPECT_THROW(
+      cugraph::betweenness_centrality(
+        handle,
+        graph_view,
+        std::optional<vertex_t>{std::nullopt},
+        std::make_optional<raft::device_span<vertex_t const>>(d_seeds.data(), d_seeds.size()),
+        betweenness_usecase.normalized,
+        betweenness_usecase.include_endpoints,
+        do_expensive_check),
+      cugraph::logic_error);
 #endif
 
     if (cugraph::test::g_perf) {

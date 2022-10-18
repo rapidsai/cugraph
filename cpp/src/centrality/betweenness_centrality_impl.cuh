@@ -33,8 +33,7 @@ rmm::device_uvector<weight_t> betweenness_centrality(
   bool const include_endpoints,
   bool const do_expensive_check)
 {
-  if (do_expensive_check) {
-  }
+  if (do_expensive_check) {}
 
   rmm::device_uvector<weight_t> centralities(graph_view.local_vertex_partition_range_size(),
                                              handle.get_stream());
@@ -51,8 +50,7 @@ rmm::device_uvector<weight_t> edge_betweenness_centrality(
   bool const normalized,
   bool const do_expensive_check)
 {
-  if (do_expensive_check) {
-  }
+  if (do_expensive_check) {}
 
   rmm::device_uvector<weight_t> centralities(0, handle.get_stream());
 
