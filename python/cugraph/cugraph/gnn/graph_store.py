@@ -80,7 +80,7 @@ class CuGraphStore:
             (ignored if contains_vector_features=False and the col names of
             the dataframe are treated as corresponding feature names)
         contains_vector_features : False
-            Wether to treat the columns of the dataframe being added as
+            Whether to treat the columns of the dataframe being added as
             as 2d features
         Returns
         -------
