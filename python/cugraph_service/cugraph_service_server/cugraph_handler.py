@@ -599,6 +599,47 @@ class CugraphHandler:
 
         raise CugraphServiceError("Graph does not contain properties")
 
+    def get_graph_vertex_types(self, graph_id):
+        G = self._get_graph(graph_id)
+        if isinstance(G, (PropertyGraph, MGPropertyGraph)):
+            return G.vertex_types
+
+        raise CugraphServiceError("Graph does not contain properties")
+        # Note: this is currently invalid for a graph without properties
+
+    def get_graph_edge_types(self, graph_id):
+        G = self._get_graph(graph_id)
+        if isinstance(G, (PropertyGraph, MGPropertyGraph)):
+            return G.edge_types
+
+        raise CugraphServiceError("Graph does not contain properties")
+        # FIXME this should be valid for a graph without properties
+
+    def get_num_vertices(self, vertex_type, include_edge_data, graph_id):
+        # FIXME should include_edge_data always be True in the remote case?
+        G = self._get_graph(graph_id)
+        if isinstance(G, (PropertyGraph, MGPropertyGraph)):
+            if vertex_type == "":
+                return G.get_num_vertices(include_edge_data=include_edge_data)
+            else:
+                return G.get_num_vertices(
+                    type=vertex_type, include_edge_data=include_edge_data
+                )
+
+        raise CugraphServiceError("Graph does not contain properties")
+        # FIXME this should be valid for a graph without properties (but not by type)
+
+    def get_num_edges(self, edge_type, graph_id):
+        G = self._get_graph(graph_id)
+        if isinstance(G, (PropertyGraph, MGPropertyGraph)):
+            if edge_type == "":
+                return G.get_num_edges()
+            else:
+                return G.get_num_edges(type=edge_type)
+
+        raise CugraphServiceError("Graph does not contain properties")
+        # FIXME this should be valid for a graph without properties
+
     ###########################################################################
     # Algos
     def batched_ego_graphs(self, seeds, radius, graph_id):

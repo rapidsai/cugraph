@@ -172,6 +172,18 @@ service CugraphService {
   list<string> get_graph_edge_property_names(1:i32 graph_id)
                throws (1:CugraphServiceError e),
 
+  list<string> get_graph_vertex_types(1:i32 graph_id)
+               throws (1:CugraphServiceError e),
+
+  list<string> get_graph_edge_types(1:i32 graph_id)
+               throws (1:CugraphServiceError e),
+
+  i64 get_num_vertices(1:string vertex_type,
+                       2:bool include_edge_data,
+                       3:i32 graph_id) throws (1:CugraphServiceError e),
+
+  i64 get_num_edges(1:string edge_type,
+                    2:i32 graph_id) throws (1:CugraphServiceError e),
   ##############################################################################
   # Algos
   BatchedEgoGraphsResult

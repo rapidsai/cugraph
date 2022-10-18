@@ -842,7 +842,7 @@ class CugraphServiceClient:
     @__server_connection
     def get_graph_vertex_property_names(self, graph_id=defaults.graph_id):
         """
-        Returns an array of the vertex property names for the graph with
+        Returns a list of the vertex property names for the graph with
         the given graph id.
 
         Parameters
@@ -855,7 +855,7 @@ class CugraphServiceClient:
     @__server_connection
     def get_graph_edge_property_names(self, graph_id=defaults.graph_id):
         """
-        Returns an array of the vertex property names for the graph with
+        Returns a list of the edge property names for the graph with
         the given graph id.
 
         Parameters
@@ -864,6 +864,68 @@ class CugraphServiceClient:
             The id of the graph of interest
         """
         return self.__client.get_graph_edge_property_names(graph_id)
+
+    @__server_connection
+    def get_graph_vertex_types(self, graph_id=defaults.graph_id):
+        """
+        Returns a list of the vertex type names for the graph with
+        the given graph id.
+
+        Parameters
+        ----------
+        graph_id: it
+            The id of the graph of interest
+        """
+        return self.__client.get_graph_vertex_types(graph_id)
+
+    @__server_connection
+    def get_graph_edge_types(self, graph_id=defaults.graph_id):
+        """
+        Returns a list of the edge type names for the graph with
+        the given graph id.
+
+        Parameters
+        ----------
+        graph_id: int
+            The id of the graph of interest
+        """
+        return self.__client.get_graph_edge_types(graph_id)
+
+    @__server_connection
+    def get_num_vertices(
+        self, vertex_type=None, include_edge_data=True, graph_id=defaults.graph_id
+    ):
+        """
+        Returns the number of vertices in the graph with the given
+        graph id.
+
+        Parameters
+        ----------
+        vertex_type: string
+            The vertex type to count. If not defined, all types are counted.
+        include_edge_data: bool
+            Whether to include vertices added only as part of the edgelist.
+        graph_id: int
+            The id of the grpah of interest.
+        """
+        return self.__client.get_num_vertices(
+            vertex_type or "", include_edge_data, graph_id
+        )
+
+    @__server_connection
+    def get_num_edges(self, edge_type=None, graph_id=defaults.graph_id):
+        """
+        Returns the number of edges in the graph with the given
+        graph id.
+
+        Parameters
+        ----------
+        edge_type: string
+            The edge type to count. If not defined, all types are counted.
+        graph_id: int
+            The id of the grpah of interest.
+        """
+        return self.__client.get_num_edges(edge_type or "", graph_id)
 
     ###########################################################################
     # Algos

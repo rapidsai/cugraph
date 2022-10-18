@@ -101,36 +101,24 @@ class RemotePropertyGraph:
         """
         Return a Python list of vertex property names.
         """
-        np_names = self.__client.get_graph_vertex_property_names(self.__graph_id)
-        return np_names
+        return self.__client.get_graph_vertex_property_names(self.__graph_id)
 
     @property
     def edge_property_names(self):
         """
         Return a Python list of edge property names.
         """
-        np_names = self.__client.get_graph_edge_property_names(self.__graph_id)
-        return np_names
+        return self.__client.get_graph_edge_property_names(self.__graph_id)
 
     @property
     def vertex_types(self):
         """The set of vertex type names"""
-        raise NotImplementedError("not implemented")
+        return self.__client.get_graph_vertex_types(self.__graph_id)
 
     @property
     def edge_types(self):
         """The set of edge type names"""
-        raise NotImplementedError("not implemented")
-
-    @property
-    def _vertex_type_value_counts(self):
-        """A Series of the counts of types in __vertex_prop_dataframe"""
-        raise NotImplementedError("not implemented")
-
-    @property
-    def _edge_type_value_counts(self):
-        """A Series of the counts of types in __edge_prop_dataframe"""
-        raise NotImplementedError("not implemented")
+        return self.__client.get_graph_edge_types(self.__graph_id)
 
     def get_num_vertices(self, type=None, *, include_edge_data=True):
         """Return the number of all vertices or vertices of a given type.
@@ -150,7 +138,7 @@ class RemotePropertyGraph:
         --------
         RemotePropertyGraph.get_num_edges
         """
-        raise NotImplementedError("not implemented")
+        return self.__client.get_num_vertices(type, include_edge_data, self.__graph_id)
 
     def get_num_edges(self, type=None):
         """Return the number of all edges or edges of a given type.
@@ -165,7 +153,7 @@ class RemotePropertyGraph:
         --------
         PropertyGraph.get_num_vertices
         """
-        raise NotImplementedError("not implemented")
+        return self.__client.get_num_edges(type, self.__graph_id)
 
     def get_vertices(self, selection=None):
         """
