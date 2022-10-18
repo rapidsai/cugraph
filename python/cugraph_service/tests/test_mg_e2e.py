@@ -307,7 +307,7 @@ def test_uniform_neighbor_sampling_result_device(
     (client, graph_id) = client_of_server_on_device_1_large_property_graph_loaded
     extracted_graph_id = client.extract_subgraph(graph_id=graph_id)
 
-    start_list = range(int(1e3))
+    start_list = [0, 1, 2]
     fanout_vals = [2]
     with_replacement = False
 

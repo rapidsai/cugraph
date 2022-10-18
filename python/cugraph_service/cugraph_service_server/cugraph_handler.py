@@ -72,9 +72,9 @@ def call_algo(sg_algo_func, G, **kwargs):
             data = uniform_neighbor_sample(G, **kwargs_to_pass)
 
         return UniformNeighborSampleResult(
-            sources=data.sources.values_host,
-            destinations=data.destinations.values_host,
-            indices=data.indices.values_host,
+            sources=data[0],
+            destinations=data[1],
+            indices=data[2],
         )
 
     else:
@@ -258,8 +258,10 @@ class CugraphHandler:
         Initialize a dask client to be used for MG operations.
         """
         if dask_scheduler_file is not None:
-            # Env var UCX_MAX_RNDV_RAILS=1 must be set too.
+            # FIXME: read the config from user options instead of hardcoding here.
+            # FIXME: for the config below, env var UCX_MAX_RNDV_RAILS=1 must be set too.
             dask_initialize(
+                create_cuda_context=False,
                 enable_tcp_over_ucx=True,
                 enable_nvlink=True,
                 enable_infiniband=True,
