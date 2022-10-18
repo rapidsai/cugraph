@@ -760,8 +760,9 @@ class CugraphServiceClient:
         ndarray_bytes = self.__client.get_graph_vertex_data(
             vertex_edge_id_obj,
             null_replacement_value_obj,
-            graph_id,
             property_keys or [],
+            types or [],
+            graph_id,
         )
 
         return pickle.loads(ndarray_bytes)
@@ -771,8 +772,9 @@ class CugraphServiceClient:
         self,
         id_or_ids=-1,
         null_replacement_value=0,
-        graph_id=defaults.graph_id,
         property_keys=None,
+        types=None,
+        graph_id=defaults.graph_id,
     ):
         """
         Returns ...
@@ -783,13 +785,17 @@ class CugraphServiceClient:
 
         null_replacement_value : number or string (default 0)
 
-        graph_id : int, default is defaults.graph_id
-           The graph ID to extract the subgraph from. If the ID passed is not
-           valid on the server, CugraphServiceError is raised.
-
         property_keys : list of strings (default [])
             The keys (names) of properties to retrieve.  If omitted, returns
             the whole dataframe.
+
+        types : list of strings (default [])
+            The types of edges to include in the query.  If ommitted, returns
+            data for all edge types.
+
+        graph_id : int, default is defaults.graph_id
+           The graph ID to extract the subgraph from. If the ID passed is not
+           valid on the server, CugraphServiceError is raised.
 
         Returns
         -------
@@ -808,8 +814,9 @@ class CugraphServiceClient:
         ndarray_bytes = self.__client.get_graph_edge_data(
             vertex_edge_id_obj,
             null_replacement_value_obj,
-            graph_id,
             property_keys or [],
+            types or [],
+            graph_id,
         )
 
         return pickle.loads(ndarray_bytes)

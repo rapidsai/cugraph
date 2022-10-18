@@ -530,7 +530,7 @@ class CugraphHandler:
         return self.__add_graph(G)
 
     def get_graph_vertex_data(
-        self, id_or_ids, null_replacement_value, graph_id, property_keys
+        self, id_or_ids, null_replacement_value, property_keys, types, graph_id
     ):
         """
         Returns the vertex data as a serialized numpy array for the given
@@ -547,11 +547,13 @@ class CugraphHandler:
             columns = None
         else:
             columns = property_keys
-        df = pG.get_vertex_data(vertex_ids=ids, columns=columns)
+        if types == []:
+            types = None
+        df = pG.get_vertex_data(vertex_ids=ids, columns=columns, types=types)
         return self.__get_graph_data_as_numpy_bytes(df, null_replacement_value)
 
     def get_graph_edge_data(
-        self, id_or_ids, null_replacement_value, graph_id, property_keys
+        self, id_or_ids, null_replacement_value, property_keys, types, graph_id
     ):
         """
         Returns the edge data as a serialized numpy array for the given
@@ -568,7 +570,9 @@ class CugraphHandler:
             columns = None
         else:
             columns = property_keys
-        df = pG.get_edge_data(edge_ids=ids, columns=columns)
+        if types == []:
+            types = None
+        df = pG.get_edge_data(edge_ids=ids, columns=columns, types=types)
         return self.__get_graph_data_as_numpy_bytes(df, null_replacement_value)
 
     def is_vertex_property(self, property_key, graph_id):

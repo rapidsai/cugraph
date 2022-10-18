@@ -48,16 +48,40 @@ class RemoteGraph:
     def is_remote(self):
         return True
 
+    def is_bipartite(self):
+        return False
+
+    def is_multipartite(self):
+        return False
+
+    def is_directed(self):
+        return True
+
     def is_multigraph(self):
-        return self.__multigraph
+        return True
+
+    def is_weighted(self):
+        return True
+
+    def has_isolated_vertices(self):
+        raise NotImplementedError("not implemented")
+
+    def to_directed(self):
+        raise NotImplementedError("not implemented")
+
+    def to_undirected(self):
+        raise NotImplementedError("not implemented")
+
+    @property
+    def edgelist(self):
+        raise NotImplementedError("not implemented")
+
+    @property
+    def adjlist(self):
+        raise NotImplementedError("not implemented")
 
 
 class RemotePropertyGraph:
-    """
-    Supports method-by-method selection of backend type (cupy, cudf, etc.)
-    to avoid costly conversion such as row-major to column-major transformation.
-    """
-
     # column name constants used in internal DataFrames
     vertex_col_name = "_VERTEX_"
     src_col_name = "_SRC_"
@@ -70,11 +94,23 @@ class RemotePropertyGraph:
     def __init__(self, cgs_client, cgs_graph_id):
         self.__client = cgs_client
         self.__graph_id = cgs_graph_id
+        self.__vertex_categorical_dtype = None
+        self.__edge_categorical_dtype = None
 
-    def __transform_to_backend_dtype(self, data, column_names, backend):
+    def __transform_to_backend_dtype(self, data, column_names, backend, dtypes=[]):
         """
+        Supports method-by-method selection of backend type (cupy, cudf, etc.)
+        to avoid costly conversion such as row-major to column-major transformation.
+
         data : cupy.ndarray, np.ndarray
             The raw ndarray that will be transformed to the backend type.
+        column_names : list[string]
+            The names of the columns, if creating a dataframe.
+        backend : ('cudf', 'cupy') [default = 'cudf']
+            The data backend to convert the provided data to.
+        dtypes : ('int32', 'int64', 'float32', etc.)
+            Optional.  The data type to use when storing data in a dataframe.
+            May be a list, or dictionary corresponding to column names.
         """
 
         if backend == "cupy":
@@ -83,9 +119,30 @@ class RemotePropertyGraph:
             return data
         else:
             # cudf
-            return cudf.DataFrame.from_records(data, columns=column_names)
-
+            df = cudf.DataFrame.from_records(data, columns=column_names)
+            if isinstance(dtypes, list):
+                for i, t in enumerate(dtypes):
+                    if t is not None:
+                        df[column_names[i]] = df[column_names[i]].astype(t)
+            elif isinstance(dtypes, dict):
+                for col_name, t in dtypes.items():
+                    df[col_name] = df[col_name].astype(t)
+            return df
         # TODO support torch
+
+    @property
+    def _vertex_categorical_dtype(self):
+        if self.__vertex_categorical_dtype is None:
+            cats = self.vertex_types
+            self.__vertex_categorical_dtype = cudf.CategoricalDtype(cats)
+        return self.__vertex_categorical_dtype
+
+    @property
+    def _edge_categorical_dtype(self):
+        if self.__edge_categorical_dtype is None:
+            cats = self.edge_types
+            self.__edge_categorical_dtype = cudf.CategoricalDtype(cats)
+        return self.__edge_categorical_dtype
 
     @property
     def graph_info(self):
@@ -93,6 +150,11 @@ class RemotePropertyGraph:
 
     @property
     def edges(self, _backend="cudf"):
+        """
+        Returns the edge list for this property graph as a dataframe
+        containing edge ids, source vertex, destination vertex,
+        and edge type.
+        """
         np_edges = self.__client.get_graph_edge_data(
             -1,
             graph_id=self.__graph_id,
@@ -108,6 +170,7 @@ class RemotePropertyGraph:
                 self.type_col_name,
             ],
             _backend,
+            dtypes=[None, None, None, self._edge_categorical_dtype],
         )
 
     @property
@@ -127,12 +190,12 @@ class RemotePropertyGraph:
     @property
     def vertex_types(self):
         """The set of vertex type names"""
-        return self.__client.get_graph_vertex_types(self.__graph_id)
+        return set(self.__client.get_graph_vertex_types(self.__graph_id))
 
     @property
     def edge_types(self):
         """The set of edge type names"""
-        return self.__client.get_graph_edge_types(self.__graph_id)
+        return set(self.__client.get_graph_edge_types(self.__graph_id))
 
     def get_num_vertices(self, type=None, *, include_edge_data=True):
         """Return the number of all vertices or vertices of a given type.
@@ -215,11 +278,28 @@ class RemotePropertyGraph:
         """
         raise NotImplementedError("not implemented")
 
-    def get_vertex_data(self, vertex_ids=None, types=None, columns=None):
-        # vertex_data = self.__client.get_graph_vertex_data(
-        #    vertex_ids,
-        # )
-        pass
+    def get_vertex_data(
+        self, vertex_ids=None, types=None, columns=None, _backend="cudf"
+    ):
+        # FIXME expose na handling
+
+        if columns is None:
+            columns = self.vertex_property_names
+
+        vertex_data = self.__client.get_graph_vertex_data(
+            id_or_ids=vertex_ids or -1,
+            property_keys=columns,
+            types=types,
+            graph_id=self.__graph_id,
+        )
+
+        column_names = [self.vertex_col_name, self.type_col_name] + list(columns)
+        return self.__transform_to_backend_dtype(
+            vertex_data,
+            column_names,
+            _backend,
+            dtypes={self.type_col_name: self._vertex_categorical_dtype},
+        )
 
     def add_edge_data(
         self,
@@ -265,12 +345,36 @@ class RemotePropertyGraph:
         """
         raise NotImplementedError("not implemented")
 
-    def get_edge_data(self, edge_ids=None, types=None, columns=None):
+    def get_edge_data(self, edge_ids=None, types=None, columns=None, _backend="cudf"):
         """
         Return a dataframe containing edge properties for only the specified
         edge_ids, columns, and/or edge type, or all edge IDs if not specified.
         """
-        raise NotImplementedError("not implemented")
+
+        # FIXME expose na handling
+
+        if columns is None:
+            columns = self.edge_property_names
+
+        edge_data = self.__client.get_graph_edge_data(
+            id_or_ids=edge_ids or -1,
+            property_keys=columns,
+            types=types,
+            graph_id=self.__graph_id,
+        )
+
+        column_names = [
+            self.edge_id_col_name,
+            self.src_col_name,
+            self.dst_col_name,
+            self.type_col_name,
+        ] + list(columns)
+        return self.__transform_to_backend_dtype(
+            edge_data,
+            column_names,
+            _backend,
+            dtypes={self.type_col_name: self._edge_categorical_dtype},
+        )
 
     def select_vertices(self, expr, from_previous_selection=None):
         """
@@ -408,21 +512,6 @@ class RemotePropertyGraph:
         >>>
         """
         raise NotImplementedError("not ipmlemented")
-
-    def edge_props_to_graph(
-        self,
-        edge_prop_df,
-        create_using,
-        edge_weight_property=None,
-        default_edge_weight=None,
-        check_multi_edges=True,
-        renumber_graph=True,
-        add_edge_data=True,
-    ):
-        """
-        Create and return a Graph from the edges in edge_prop_df.
-        """
-        raise NotImplementedError("not implemented")
 
     def renumber_vertices_by_type(self):
         """Renumber vertex IDs to be contiguous by type.
