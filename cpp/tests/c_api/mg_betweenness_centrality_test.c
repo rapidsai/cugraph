@@ -50,6 +50,9 @@ int generic_betweenness_centrality_test(const cugraph_resource_handle_t* handle,
 
   ret_code = cugraph_betweenness_centrality(
     handle, p_graph, num_vertices_to_sample, NULL, FALSE, FALSE, FALSE, &p_result, &ret_error);
+#if 1
+  TEST_ASSERT(test_ret_value, ret_code != CUGRAPH_SUCCESS, "cugraph_betweenness_centrality should have failed");
+#else
   TEST_ASSERT(
     test_ret_value, ret_code == CUGRAPH_SUCCESS, "cugraph_betweenness_centrality failed.");
 
@@ -83,6 +86,8 @@ int generic_betweenness_centrality_test(const cugraph_resource_handle_t* handle,
   }
 
   cugraph_centrality_result_free(p_result);
+#endif
+
   cugraph_mg_graph_free(p_graph);
   cugraph_error_free(ret_error);
 
@@ -103,9 +108,9 @@ int test_betweenness_centrality(const cugraph_resource_handle_t* handle)
   double epsilon        = 1e-6;
   size_t max_iterations = 200;
 
-  // Eigenvector centrality wants store_transposed = TRUE
+  // Betweenness centrality wants store_transposed = FALSE
   return generic_betweenness_centrality_test(
-    handle, h_src, h_dst, h_wgt, h_result, num_vertices, num_edges, TRUE, 5);
+    handle, h_src, h_dst, h_wgt, h_result, num_vertices, num_edges, FALSE, 5);
 }
 
 /******************************************************************************/
