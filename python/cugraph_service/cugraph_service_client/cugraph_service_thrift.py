@@ -129,7 +129,8 @@ service CugraphService {
                              6:string type_name,
                              7:list<string> property_columns,
                              8:i32 graph_id,
-                             9:list<string> names
+                             9:list<string> names,
+                             10:string edge_id_col_name
                              ) throws (1:CugraphServiceError e),
 
   list<i32> get_edge_IDs_for_vertices(1:list<i32> src_vert_IDs,
@@ -164,6 +165,12 @@ service CugraphService {
 
   bool is_edge_property(1:string property_key,
                         2:i32 graph_id) throws (1:CugraphServiceError e),
+
+  list<string> get_graph_vertex_property_names(1:i32 graph_id)
+               throws (1:CugraphServiceError e),
+
+  list<string> get_graph_edge_property_names(1:i32 graph_id)
+               throws (1:CugraphServiceError e),
 
   ##############################################################################
   # Algos

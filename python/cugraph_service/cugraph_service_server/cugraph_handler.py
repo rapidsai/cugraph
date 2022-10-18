@@ -424,6 +424,7 @@ class CugraphHandler:
         property_columns,
         graph_id,
         names,
+        edge_id_col_name,
     ):
         """
         Given a CSV csv_file_name present on the server's file system, read it
@@ -441,6 +442,9 @@ class CugraphHandler:
         if len(names) == 0:
             names = None
 
+        if edge_id_col_name == "":
+            edge_id_col_name = None
+
         try:
             gdf = self.__get_dataframe_from_csv(
                 csv_file_name,
@@ -454,6 +458,7 @@ class CugraphHandler:
                 type_name=type_name,
                 vertex_col_names=vertex_col_names,
                 property_columns=property_columns,
+                edge_id_col_name=edge_id_col_name,
             )
         except Exception:
             raise CugraphServiceError(f"{traceback.format_exc()}")
@@ -577,6 +582,20 @@ class CugraphHandler:
         G = self._get_graph(graph_id)
         if isinstance(G, (PropertyGraph, MGPropertyGraph)):
             return property_key in G.edge_property_names
+
+        raise CugraphServiceError("Graph does not contain properties")
+
+    def get_graph_vertex_property_names(self, graph_id):
+        G = self._get_graph(graph_id)
+        if isinstance(G, (PropertyGraph, MGPropertyGraph)):
+            return G.vertex_property_names
+
+        raise CugraphServiceError("Graph does not contain properties")
+
+    def get_graph_edge_property_names(self, graph_id):
+        G = self._get_graph(graph_id)
+        if isinstance(G, (PropertyGraph, MGPropertyGraph)):
+            return G.edge_property_names
 
         raise CugraphServiceError("Graph does not contain properties")
 

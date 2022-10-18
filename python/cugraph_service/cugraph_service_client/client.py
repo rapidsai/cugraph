@@ -539,6 +539,7 @@ class CugraphServiceClient:
         header=None,
         type_name="",
         property_columns=None,
+        edge_id_col_name=None,
         graph_id=defaults.graph_id,
         names=None,
     ):
@@ -575,6 +576,12 @@ class CugraphServiceClient:
         property_columns : list of strings, default is None
             The column names in the CSV to add as edge properties. If None, all
             columns will be added as properties.
+
+        edge_id_col_name : string, optional
+            The column name that contains the values to be used as edge IDs.
+            If unspecified, edge IDs will be automatically assigned.
+            Currently, all edge data must be added with the same method: either
+            with automatically generated IDs, or from user-provided edge IDs.
 
         graph_id : int, default is defaults.graph_id
             The graph ID to apply the properties in the CSV to. If not provided
@@ -615,6 +622,7 @@ class CugraphServiceClient:
             property_columns or [],
             graph_id,
             names or [],
+            edge_id_col_name or "",
         )
 
     @__server_connection
@@ -830,6 +838,32 @@ class CugraphServiceClient:
             The id of the graph of interest
         """
         return self.__client.is_edge_property(property_key, graph_id)
+
+    @__server_connection
+    def get_graph_vertex_property_names(self, graph_id=defaults.graph_id):
+        """
+        Returns an array of the vertex property names for the graph with
+        the given graph id.
+
+        Parameters
+        ----------
+        graph_id: int
+            The id of the graph of interest
+        """
+        return self.__client.get_graph_vertex_property_names(graph_id)
+
+    @__server_connection
+    def get_graph_edge_property_names(self, graph_id=defaults.graph_id):
+        """
+        Returns an array of the vertex property names for the graph with
+        the given graph id.
+
+        Parameters
+        ----------
+        graph_id: int
+            The id of the graph of interest
+        """
+        return self.__client.get_graph_edge_property_names(graph_id)
 
     ###########################################################################
     # Algos
