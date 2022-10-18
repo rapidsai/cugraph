@@ -476,7 +476,8 @@ class CuGraphStore:
             return _subg
 
     def __clear_cached_properties(self):
-        # Check for cached properties using self.__dict__ because calling hasattr() accesses the attribute and forces computation
+        # Check for cached properties using self.__dict__ because calling
+        # hasattr() accesses the attribute and forces computation
         if "has_multiple_etypes" in self.__dict__:
             del self.has_multiple_etypes
 
@@ -612,7 +613,7 @@ def sample_single_sg(
         fanout_vals=[fanout],
         with_replacement=with_replacement,
         # FIXME: is_edge_ids=True does not seem to do anything
-        # issue https://github.com/rapidsai/cugraph/issues/2562
+        # issue: https://github.com/rapidsai/cugraph/issues/2562
     )
     return sampled_df
 
