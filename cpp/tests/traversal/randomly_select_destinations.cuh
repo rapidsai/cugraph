@@ -54,7 +54,7 @@ rmm::device_uvector<vertex_t> randomly_select_destinations(
 
   d_vertices.resize(thrust::distance(d_vertices.begin(), end_iter), handle.get_stream());
 
-  return cugraph::test::randomly_select(handle, d_vertices, num_paths_to_check);
+  return cugraph::test::randomly_select(handle, std::move(d_vertices), num_paths_to_check);
 }
 
 }  // namespace test

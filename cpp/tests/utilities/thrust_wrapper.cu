@@ -173,7 +173,8 @@ template void populate_vertex_ids(raft::handle_t const& handle,
 template <typename T>
 rmm::device_uvector<T> randomly_select(raft::handle_t const& handle,
                                        rmm::device_uvector<T> const& input,
-                                       size_t count)
+                                       size_t count,
+                                       bool sort_results)
 {
   thrust::default_random_engine random_engine;
 
@@ -185,15 +186,19 @@ rmm::device_uvector<T> randomly_select(raft::handle_t const& handle,
   tmp.resize(std::min(count, tmp.size()), handle.get_stream());
   tmp.shrink_to_fit(handle.get_stream());
 
+  if (sort_results) thrust::sort(handle.get_thrust_policy(), tmp.begin(), tmp.end());
+
   return tmp;
 }
 
 template rmm::device_uvector<int32_t> randomly_select(raft::handle_t const& handle,
                                                       rmm::device_uvector<int32_t> const& input,
-                                                      size_t count);
+                                                      size_t count,
+                                                      bool sort_results);
 template rmm::device_uvector<int64_t> randomly_select(raft::handle_t const& handle,
                                                       rmm::device_uvector<int64_t> const& input,
-                                                      size_t count);
+                                                      size_t count,
+                                                      bool sort_results);
 
 template <typename vertex_t, typename weight_t>
 void remove_self_loops(raft::handle_t const& handle,
