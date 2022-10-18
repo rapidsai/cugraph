@@ -476,8 +476,7 @@ class CuGraphStore:
             return _subg
 
     def __clear_cached_properties(self):
-        # has_attr caused access to the attribute
-        # forcing computation
+        # Check for cached properties using self.__dict__ because calling hasattr() accesses the attribute and forces computation
         if "has_multiple_etypes" in self.__dict__:
             del self.has_multiple_etypes
 
