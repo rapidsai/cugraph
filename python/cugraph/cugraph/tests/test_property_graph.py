@@ -1845,6 +1845,27 @@ def test_add_data_noncontiguous(df_type):
         )
 
 
+@pytest.mark.parametrize("df_type", df_types, ids=df_type_id)
+def test_get_num_vertices(df_type):
+    from cugraph.experimental import PropertyGraph
+
+    if df_type is pd.DataFrame:
+        series_type = pd.Series
+    else:
+        series_type = cudf.Series
+    pg = PropertyGraph()
+    node_df = df_type()
+    node_df["node_id"] = series_type([0, 1, 2]).astype("int32")
+    pg.add_vertex_data(node_df, "node_id", type_name="_N")
+
+    edge_df = df_type()
+    edge_df["src"] = series_type([0, 1, 2]).astype("int32")
+    edge_df["dst"] = series_type([0, 1, 2]).astype("int32")
+    pg.add_edge_data(edge_df, ["src", "dst"], type_name="_E")
+
+    assert pg.get_num_vertices() == 3
+
+
 @pytest.mark.skip(reason="feature not implemented")
 def test_single_csv_multi_vertex_edge_attrs():
     """
