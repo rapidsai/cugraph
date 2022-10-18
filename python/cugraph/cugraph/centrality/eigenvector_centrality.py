@@ -76,7 +76,7 @@ def eigenvector_centrality(G, max_iter=100, tol=1.0e-6):
     if (not isinstance(tol, float)) or (tol <= 0.0):
         raise ValueError(f"'tol' must be a positive float, got: {tol}")
 
-    G, isNx = ensure_cugraph_obj_for_nx(G)
+    G, isNx = ensure_cugraph_obj_for_nx(G, store_transposed=True)
     if G.store_transposed is False:
         warning_msg = (
             "Eigenvector centrality expects the 'store_transposed' "

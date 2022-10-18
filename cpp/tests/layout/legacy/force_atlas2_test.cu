@@ -18,7 +18,7 @@
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/legacy/graph.hpp>
-#include <layout/trust_worthiness.h>
+#include <layout/legacy/trust_worthiness.h>
 
 #include <raft/error.hpp>
 #include <rmm/exec_policy.hpp>
