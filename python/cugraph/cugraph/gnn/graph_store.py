@@ -572,7 +572,7 @@ class CuFeatureStorage:
             subset_df = subset_df.compute()
 
         if len(subset_df) == 0:
-            raise ValueError(f"indices = {indices} not found in FeatureStorage")
+            raise ValueError(f"{indices=} not found in FeatureStorage")
         cap = subset_df.to_dlpack()
         tensor = self.from_dlpack(cap)
         del cap
