@@ -69,7 +69,7 @@ class Tests_MGBetweennessCentrality
       hr_clock.start();
     }
 
-    auto [graph, d_renumber_map_labels] =
+    auto [mg_graph, mg_renumber_map] =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, true>(
         *handle_, input_usecase, betweenness_usecase.test_weighted, renumber);
 
@@ -80,12 +80,12 @@ class Tests_MGBetweennessCentrality
       std::cout << "construct_graph took " << elapsed_time * 1e-6 << " s.\n";
     }
 
-    auto graph_view = graph.view();
+    auto mg_graph_view = mg_graph.view();
 
     rmm::device_uvector<vertex_t> d_seeds(0, handle_->get_stream());
 
     if (handle_->get_comms().get_rank() == 0) {
-      rmm::device_uvector<vertex_t> d_seeds(graph_view.number_of_vertices(), handle_->get_stream());
+      rmm::device_uvector<vertex_t> d_seeds(mg_graph_view.number_of_vertices(), handle_->get_stream());
       cugraph::detail::sequence_fill(
         handle_->get_stream(), d_seeds.data(), d_seeds.size(), vertex_t{0});
 
@@ -102,7 +102,7 @@ class Tests_MGBetweennessCentrality
 #if 0
     auto d_centralities = cugraph::betweenness_centrality(
       *handle_,
-      graph_view,
+      mg_graph_view,
       std::optional<vertex_t>{std::nullopt},
       std::make_optional<raft::device_span<vertex_t const>>(d_seeds.data(), d_seeds.size()),
       betweenness_usecase.normalized,
@@ -112,7 +112,7 @@ class Tests_MGBetweennessCentrality
     EXPECT_THROW(
       cugraph::betweenness_centrality(
         *handle_,
-        graph_view,
+        mg_graph_view,
         std::optional<vertex_t>{std::nullopt},
         std::make_optional<raft::device_span<vertex_t const>>(d_seeds.data(), d_seeds.size()),
         betweenness_usecase.normalized,
@@ -135,14 +135,24 @@ class Tests_MGBetweennessCentrality
       d_seeds = cugraph::test::device_gatherv(
         *handle_, raft::device_span<vertex_t const>{d_seeds.data(), d_seeds.size()});
 
-      auto [h_src, h_dst, h_wgt] = cugraph::test::graph_to_host_coo(*handle_, graph_view);
+      auto [sg_graph, sg_renumber_map] =
+        cugraph::test::mg_graph_to_sg_graph(*handle_, mg_graph_view, mg_renumber_map, true);
 
-      if (h_src.size() > 0) {
-        auto h_centralities = cugraph::test::to_host(*handle_, d_centralities);
-        auto h_seeds        = cugraph::test::to_host(*handle_, d_seeds);
+      auto d_reference_centralities = cugraph::betweenness_centrality(
+        *handle_,
+        sg_graph.view(),
+        std::optional<vertex_t>{std::nullopt},
+        std::make_optional<raft::device_span<vertex_t const>>(d_seeds.data(), d_seeds.size()),
+        betweenness_usecase.normalized,
+        betweenness_usecase.include_endpoints,
+        do_expensive_check);
 
-        betweenness_centrality_validate(
-          h_src, h_dst, h_wgt, h_centralities, h_seeds, betweenness_usecase.include_endpoints);
+      if (d_seeds.size() > 0) {
+        cugraph::test::betweenness_centrality_validate(handle,
+                                                       mg_renumber_map,
+                                                       d_centralities,
+                                                       sg_renumber_map,
+                                                       d_reference_centralities);
       }
 #endif
     }
