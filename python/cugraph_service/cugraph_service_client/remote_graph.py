@@ -216,11 +216,10 @@ class RemotePropertyGraph:
         raise NotImplementedError("not implemented")
 
     def get_vertex_data(self, vertex_ids=None, types=None, columns=None):
-        """
-        Return a dataframe containing vertex properties for only the specified
-        vertex_ids, columns, and/or types, or all vertex IDs if not specified.
-        """
-        raise NotImplementedError("not implemented")
+        # vertex_data = self.__client.get_graph_vertex_data(
+        #    vertex_ids,
+        # )
+        pass
 
     def add_edge_data(
         self,

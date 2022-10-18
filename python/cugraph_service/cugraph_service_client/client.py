@@ -735,6 +735,10 @@ class CugraphServiceClient:
             The keys (names) of properties to retrieve.  If omitted, returns
             the whole dataframe.
 
+        types : list of strings (default [])
+            The vertex types to include in the query.  If ommitted, returns
+            properties for all types.
+
         graph_id : int, default is defaults.graph_id
            The graph ID to extract the subgraph from. If the ID passed is not
            valid on the server, CugraphServiceError is raised.
