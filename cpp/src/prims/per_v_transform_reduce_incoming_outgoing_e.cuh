@@ -17,7 +17,6 @@
 
 #include <prims/fill_edge_src_dst_property.cuh>
 #include <prims/property_op_utils.cuh>
-#include <prims/reduce_op.cuh>
 
 #include <cugraph/edge_partition_device_view.cuh>
 #include <cugraph/edge_partition_endpoint_property_device_view.cuh>
@@ -32,7 +31,7 @@
 
 #include <raft/cudart_utils.h>
 #include <raft/handle.hpp>
-#include <raft/integer_utils.h>
+#include <raft/util/integer_utils.hpp>
 #include <rmm/exec_policy.hpp>
 
 #include <cub/cub.cuh>
@@ -128,10 +127,8 @@ __global__ void per_v_transform_reduce_e_hypersparse(
       auto minor_offset = edge_partition.minor_offset_from_minor_nocheck(minor);
       auto src          = GraphViewType::is_storage_transposed ? minor : major;
       auto dst          = GraphViewType::is_storage_transposed ? major : minor;
-      auto src_offset =
-        GraphViewType::is_storage_transposed ? minor_offset : static_cast<vertex_t>(major_offset);
-      auto dst_offset =
-        GraphViewType::is_storage_transposed ? static_cast<vertex_t>(major_offset) : minor_offset;
+      auto src_offset   = GraphViewType::is_storage_transposed ? minor_offset : major_offset;
+      auto dst_offset   = GraphViewType::is_storage_transposed ? major_offset : minor_offset;
       return evaluate_edge_op<GraphViewType,
                               vertex_t,
                               EdgePartitionSrcValueInputWrapper,

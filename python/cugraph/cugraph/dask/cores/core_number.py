@@ -19,9 +19,7 @@ import dask_cudf
 import cudf
 import warnings
 
-from pylibcugraph import (ResourceHandle,
-                          core_number as pylibcugraph_core_number
-                          )
+from pylibcugraph import ResourceHandle, core_number as pylibcugraph_core_number
 
 
 def convert_to_cudf(cp_arrays):
@@ -36,23 +34,16 @@ def convert_to_cudf(cp_arrays):
     return df
 
 
-def _call_plc_core_number(sID,
-                          mg_graph_x,
-                          dt_x,
-                          do_expensive_check
-                          ):
+def _call_plc_core_number(sID, mg_graph_x, dt_x, do_expensive_check):
     return pylibcugraph_core_number(
-        resource_handle=ResourceHandle(
-            Comms.get_handle(sID).getHandle()
-        ),
+        resource_handle=ResourceHandle(Comms.get_handle(sID).getHandle()),
         graph=mg_graph_x,
         degree_type=dt_x,
-        do_expensive_check=do_expensive_check
+        do_expensive_check=do_expensive_check,
     )
 
 
-def core_number(input_graph,
-                degree_type=None):
+def core_number(input_graph, degree_type=None):
     """
     Compute the core numbers for the nodes of the graph G. A k-core of a graph
     is a maximal subgraph that contains nodes of degree k or more.
@@ -90,8 +81,7 @@ def core_number(input_graph,
         raise ValueError("input graph must be undirected")
 
     if degree_type is not None:
-        warning_msg = (
-            "The 'degree_type' parameter is ignored in this release.")
+        warning_msg = "The 'degree_type' parameter is ignored in this release."
         warnings.warn(warning_msg, Warning)
 
     # FIXME: enable this check once 'degree_type' is supported
@@ -114,19 +104,23 @@ def core_number(input_graph,
             degree_type,
             do_expensive_check,
             workers=[w],
+            allow_other_workers=False,
         )
         for w in Comms.get_workers()
     ]
 
     wait(result)
 
-    cudf_result = [client.submit(convert_to_cudf,
-                                 cp_arrays)
-                   for cp_arrays in result]
+    cudf_result = [client.submit(convert_to_cudf, cp_arrays) for cp_arrays in result]
 
     wait(cudf_result)
 
-    ddf = dask_cudf.from_delayed(cudf_result)
+    ddf = dask_cudf.from_delayed(cudf_result).persist()
+    wait(ddf)
+
+    # Wait until the inactive futures are released
+    wait([(r.release(), c_r.release()) for r, c_r in zip(result, cudf_result)])
+
     if input_graph.renumbered:
         ddf = input_graph.unrenumber(ddf, "vertex")
 

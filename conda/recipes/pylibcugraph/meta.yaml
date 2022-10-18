@@ -35,14 +35,16 @@ requirements:
     - cython>=0.29,<0.30
     - scikit-build>=0.13.1
     - libcugraph={{ version }}
+    - libraft-headers={{ minor_version }}
+    - libraft-distance {{ minor_version }}
     - ucx-py {{ ucx_py_version }}
     - ucx-proc=*=gpu
     - cudatoolkit {{ cuda_version }}.*
     - rmm {{ minor_version }}.*
-    - libraft-headers {{ minor_version }}
+    # FIXME: this pin can be removed once we move to the GitHub Actions build process
+    - setuptools<=65.2.0
   run:
     - python x.x
-    - libraft-headers {{ minor_version }}
     - libcugraph={{ version }}
     - {{ pin_compatible('cudatoolkit', max_pin='x', min_pin='x') }}
 

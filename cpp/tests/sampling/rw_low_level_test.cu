@@ -209,17 +209,12 @@ TEST_F(RandomWalksPrimsTest, SimpleGraphRWStart)
 
   auto graph_view = graph.view();
 
-  edge_t const* offsets   = graph_view.local_edge_partition_view().offsets();
-  vertex_t const* indices = graph_view.local_edge_partition_view().indices();
-  weight_t const* values  = *(graph_view.local_edge_partition_view().weights());
-
-  std::vector<edge_t> v_ro(num_vertices + 1);
-  std::vector<vertex_t> v_ci(num_edges);
-  std::vector<weight_t> v_vs(num_edges);
-
-  raft::update_host(v_ro.data(), offsets, num_vertices + 1, handle.get_stream());
-  raft::update_host(v_ci.data(), indices, num_edges, handle.get_stream());
-  raft::update_host(v_vs.data(), values, num_edges, handle.get_stream());
+  std::vector<edge_t> v_ro =
+    cugraph::test::to_host(handle, graph_view.local_edge_partition_view().offsets());
+  std::vector<vertex_t> v_ci =
+    cugraph::test::to_host(handle, graph_view.local_edge_partition_view().indices());
+  std::vector<weight_t> v_vs =
+    cugraph::test::to_host(handle, *(graph_view.local_edge_partition_view().weights()));
 
   std::vector<edge_t> v_ro_expected{0, 1, 3, 6, 7, 8, 8};
   std::vector<vertex_t> v_ci_expected{1, 3, 4, 0, 1, 3, 5, 5};
@@ -290,10 +285,6 @@ TEST_F(RandomWalksPrimsTest, SimpleGraphCoalesceExperiments)
     handle, v_src, v_dst, std::optional<std::vector<weight_t>>{v_w}, num_vertices, num_edges);
 
   auto graph_view = graph.view();
-
-  edge_t const* offsets   = graph_view.local_edge_partition_view().offsets();
-  vertex_t const* indices = graph_view.local_edge_partition_view().indices();
-  weight_t const* values  = *(graph_view.local_edge_partition_view().weights());
 
   index_t num_paths = 4;
   index_t max_depth = 3;
@@ -367,10 +358,6 @@ TEST_F(RandomWalksPrimsTest, SimpleGraphColExtraction)
     handle, v_src, v_dst, std::optional<std::vector<weight_t>>{v_w}, num_vertices, num_edges);
 
   auto graph_view = graph.view();
-
-  edge_t const* offsets   = graph_view.local_edge_partition_view().offsets();
-  vertex_t const* indices = graph_view.local_edge_partition_view().indices();
-  weight_t const* values  = *(graph_view.local_edge_partition_view().weights());
 
   index_t num_paths = 4;
   index_t max_depth = 3;
@@ -467,10 +454,6 @@ TEST_F(RandomWalksPrimsTest, SimpleGraphRndGenColIndx)
 
   auto graph_view = graph.view();
 
-  edge_t const* offsets   = graph_view.local_edge_partition_view().offsets();
-  vertex_t const* indices = graph_view.local_edge_partition_view().indices();
-  weight_t const* values  = *(graph_view.local_edge_partition_view().weights());
-
   index_t num_paths = 4;
   index_t max_depth = 3;
   index_t total_sz  = num_paths * max_depth;
@@ -544,10 +527,6 @@ TEST_F(RandomWalksPrimsTest, SimpleGraphUpdatePathSizes)
 
   auto graph_view = graph.view();
 
-  edge_t const* offsets   = graph_view.local_edge_partition_view().offsets();
-  vertex_t const* indices = graph_view.local_edge_partition_view().indices();
-  weight_t const* values  = *(graph_view.local_edge_partition_view().weights());
-
   index_t num_paths = 4;
   index_t max_depth = 3;
   index_t total_sz  = num_paths * max_depth;
@@ -617,10 +596,6 @@ TEST_F(RandomWalksPrimsTest, SimpleGraphScatterUpdate)
     handle, v_src, v_dst, std::optional<std::vector<weight_t>>{v_w}, num_vertices, num_edges);
 
   auto graph_view = graph.view();
-
-  edge_t const* offsets   = graph_view.local_edge_partition_view().offsets();
-  vertex_t const* indices = graph_view.local_edge_partition_view().indices();
-  weight_t const* values  = *(graph_view.local_edge_partition_view().weights());
 
   index_t num_paths = 4;
   index_t max_depth = 3;
@@ -771,10 +746,6 @@ TEST_F(RandomWalksPrimsTest, SimpleGraphCoalesceDefragment)
 
   auto graph_view = graph.view();
 
-  edge_t const* offsets   = graph_view.local_edge_partition_view().offsets();
-  vertex_t const* indices = graph_view.local_edge_partition_view().indices();
-  weight_t const* values  = *(graph_view.local_edge_partition_view().weights());
-
   index_t num_paths = 4;
   index_t max_depth = 3;
   index_t total_sz  = num_paths * max_depth;
@@ -852,17 +823,9 @@ TEST_F(RandomWalksPrimsTest, SimpleGraphRandomWalk)
 
   auto graph_view = graph.view();
 
-  edge_t const* offsets   = graph_view.local_edge_partition_view().offsets();
-  vertex_t const* indices = graph_view.local_edge_partition_view().indices();
-  weight_t const* values  = *(graph_view.local_edge_partition_view().weights());
-
-  std::vector<edge_t> v_ro(num_vertices + 1);
-  std::vector<vertex_t> v_ci(num_edges);
-  std::vector<weight_t> v_vals(num_edges);
-
-  raft::update_host(v_ro.data(), offsets, v_ro.size(), handle.get_stream());
-  raft::update_host(v_ci.data(), indices, v_ci.size(), handle.get_stream());
-  raft::update_host(v_vals.data(), values, v_vals.size(), handle.get_stream());
+  auto v_ro   = cugraph::test::to_host(handle, graph_view.local_edge_partition_view().offsets());
+  auto v_ci   = cugraph::test::to_host(handle, graph_view.local_edge_partition_view().indices());
+  auto v_vals = cugraph::test::to_host(handle, *(graph_view.local_edge_partition_view().weights()));
 
   std::vector<vertex_t> v_start{1, 0, 4, 2};
   vector_test_t<vertex_t> d_v_start(v_start.size(), handle.get_stream());
@@ -917,17 +880,9 @@ TEST(RandomWalksQuery, GraphRWQueryOffsets)
 
   auto graph_view = graph.view();
 
-  edge_t const* offsets   = graph_view.local_edge_partition_view().offsets();
-  vertex_t const* indices = graph_view.local_edge_partition_view().indices();
-  weight_t const* values  = *(graph_view.local_edge_partition_view().weights());
-
-  std::vector<edge_t> v_ro(num_vertices + 1);
-  std::vector<vertex_t> v_ci(num_edges);
-  std::vector<weight_t> v_vals(num_edges);
-
-  raft::update_host(v_ro.data(), offsets, v_ro.size(), handle.get_stream());
-  raft::update_host(v_ci.data(), indices, v_ci.size(), handle.get_stream());
-  raft::update_host(v_vals.data(), values, v_vals.size(), handle.get_stream());
+  auto v_ro   = cugraph::test::to_host(handle, graph_view.local_edge_partition_view().offsets());
+  auto v_ci   = cugraph::test::to_host(handle, graph_view.local_edge_partition_view().indices());
+  auto v_vals = cugraph::test::to_host(handle, *(graph_view.local_edge_partition_view().weights()));
 
   std::vector<vertex_t> v_start{1, 0, 4, 2};
   vector_test_t<vertex_t> d_v_start(v_start.size(), handle.get_stream());
@@ -987,17 +942,9 @@ TEST(RandomWalksSpecialCase, SingleRandomWalk)
 
   auto graph_view = graph.view();
 
-  edge_t const* offsets   = graph_view.local_edge_partition_view().offsets();
-  vertex_t const* indices = graph_view.local_edge_partition_view().indices();
-  weight_t const* values  = *(graph_view.local_edge_partition_view().weights());
-
-  std::vector<edge_t> v_ro(num_vertices + 1);
-  std::vector<vertex_t> v_ci(num_edges);
-  std::vector<weight_t> v_vals(num_edges);
-
-  raft::update_host(v_ro.data(), offsets, v_ro.size(), handle.get_stream());
-  raft::update_host(v_ci.data(), indices, v_ci.size(), handle.get_stream());
-  raft::update_host(v_vals.data(), values, v_vals.size(), handle.get_stream());
+  auto v_ro   = cugraph::test::to_host(handle, graph_view.local_edge_partition_view().offsets());
+  auto v_ci   = cugraph::test::to_host(handle, graph_view.local_edge_partition_view().indices());
+  auto v_vals = cugraph::test::to_host(handle, *(graph_view.local_edge_partition_view().weights()));
 
   std::vector<vertex_t> v_start{2};
   vector_test_t<vertex_t> d_v_start(v_start.size(), handle.get_stream());
@@ -1051,15 +998,9 @@ TEST(RandomWalksSpecialCase, UnweightedGraph)
 
   auto graph_view = graph.view();
 
-  edge_t const* offsets   = graph_view.local_edge_partition_view().offsets();
-  vertex_t const* indices = graph_view.local_edge_partition_view().indices();
+  auto v_ro = cugraph::test::to_host(handle, graph_view.local_edge_partition_view().offsets());
+  auto v_ci = cugraph::test::to_host(handle, graph_view.local_edge_partition_view().indices());
   ASSERT_TRUE(graph_view.local_edge_partition_view().weights().has_value() == false);
-
-  std::vector<edge_t> v_ro(num_vertices + 1);
-  std::vector<vertex_t> v_ci(num_edges);
-
-  raft::update_host(v_ro.data(), offsets, v_ro.size(), handle.get_stream());
-  raft::update_host(v_ci.data(), indices, v_ci.size(), handle.get_stream());
 
   std::vector<vertex_t> v_start{2};
   vector_test_t<vertex_t> d_v_start(v_start.size(), handle.get_stream());
@@ -1114,17 +1055,9 @@ TEST(RandomWalksPadded, SimpleGraph)
 
   auto graph_view = graph.view();
 
-  edge_t const* offsets   = graph_view.local_edge_partition_view().offsets();
-  vertex_t const* indices = graph_view.local_edge_partition_view().indices();
-  weight_t const* values  = *(graph_view.local_edge_partition_view().weights());
-
-  std::vector<edge_t> v_ro(num_vertices + 1);
-  std::vector<vertex_t> v_ci(num_edges);
-  std::vector<weight_t> v_vals(num_edges);
-
-  raft::update_host(v_ro.data(), offsets, v_ro.size(), handle.get_stream());
-  raft::update_host(v_ci.data(), indices, v_ci.size(), handle.get_stream());
-  raft::update_host(v_vals.data(), values, v_vals.size(), handle.get_stream());
+  auto v_ro   = cugraph::test::to_host(handle, graph_view.local_edge_partition_view().offsets());
+  auto v_ci   = cugraph::test::to_host(handle, graph_view.local_edge_partition_view().indices());
+  auto v_vals = cugraph::test::to_host(handle, *(graph_view.local_edge_partition_view().weights()));
 
   std::vector<vertex_t> v_start{2};
   vector_test_t<vertex_t> d_v_start(v_start.size(), handle.get_stream());
@@ -1282,12 +1215,6 @@ TEST(BiasedRandomWalks, SelectorSmallGraph)
 
   auto graph_view = graph.view();
 
-  edge_t const* offsets = graph_view.local_edge_partition_view().offsets();
-
-  vertex_t const* indices = graph_view.local_edge_partition_view().indices();
-
-  weight_t const* values = *(graph_view.local_edge_partition_view().weights());
-
   cugraph::detail::original::biased_selector_t selector{handle, graph_view, 0.0f};
 
   std::vector<weight_t> h_correct_sum_w{0.1f, 3.2f, 12.3f, 7.2f, 3.2f, 0.0f};
@@ -1387,12 +1314,6 @@ TEST(Node2VecRandomWalks, Node2VecSmallGraph)
 
   auto graph_view = graph.view();
 
-  edge_t const* offsets = graph_view.local_edge_partition_view().offsets();
-
-  vertex_t const* indices = graph_view.local_edge_partition_view().indices();
-
-  weight_t const* values = *(graph_view.local_edge_partition_view().weights());
-
   // Step 2: `node2vec` selection on original graph:
   //
   cugraph::detail::original::node2vec_selector_t n2v_selector{handle, graph_view, 0.0f, p, q};
@@ -1416,14 +1337,10 @@ TEST(Node2VecRandomWalks, Node2VecSmallGraph)
   //         alpha scaled weights;
   //
   std::vector<weight_t> scaled_weights(v_w);
-  std::vector<edge_t> row_offsets(num_vertices + 1);
-  std::vector<vertex_t> col_indices(num_edges);
-
-  raft::update_host(
-    row_offsets.data(), offsets, static_cast<size_t>(num_vertices + 1), handle.get_stream());
-
-  raft::update_host(
-    col_indices.data(), indices, static_cast<size_t>(num_edges), handle.get_stream());
+  auto row_offsets =
+    cugraph::test::to_host(handle, graph_view.local_edge_partition_view().offsets());
+  auto col_indices =
+    cugraph::test::to_host(handle, graph_view.local_edge_partition_view().indices());
 
   std::vector<edge_t> v_ro{0, 1, 3, 6, 7, 8, 8};
   std::vector<vertex_t> v_ci{1, 3, 4, 0, 1, 3, 5, 5};
@@ -1507,12 +1424,6 @@ TEST(Node2VecRandomWalks, CachedNode2VecSmallGraph)
 
   auto graph_view = graph.view();
 
-  edge_t const* offsets = graph_view.local_edge_partition_view().offsets();
-
-  vertex_t const* indices = graph_view.local_edge_partition_view().indices();
-
-  weight_t const* values = *(graph_view.local_edge_partition_view().weights());
-
   // Step 2: `node2vec` selection on original graph:
   //
   // CAVEAT: next_node2vec(), steps in parallel, so it simulates
@@ -1561,14 +1472,10 @@ TEST(Node2VecRandomWalks, CachedNode2VecSmallGraph)
   //         alpha scaled weights;
   //
   std::vector<weight_t> scaled_weights(v_w);
-  std::vector<edge_t> row_offsets(num_vertices + 1);
-  std::vector<vertex_t> col_indices(num_edges);
-
-  raft::update_host(
-    row_offsets.data(), offsets, static_cast<size_t>(num_vertices + 1), handle.get_stream());
-
-  raft::update_host(
-    col_indices.data(), indices, static_cast<size_t>(num_edges), handle.get_stream());
+  auto row_offsets =
+    cugraph::test::to_host(handle, graph_view.local_edge_partition_view().offsets());
+  auto col_indices =
+    cugraph::test::to_host(handle, graph_view.local_edge_partition_view().indices());
 
   std::vector<edge_t> v_ro{0, 1, 3, 6, 7, 8, 8};
   std::vector<vertex_t> v_ci{1, 3, 4, 0, 1, 3, 5, 5};

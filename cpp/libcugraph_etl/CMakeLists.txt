@@ -14,10 +14,8 @@
 # limitations under the License.
 #=============================================================================
 
-cmake_minimum_required(VERSION 3.20.1 FATAL_ERROR)
-file(DOWNLOAD https://raw.githubusercontent.com/rapidsai/rapids-cmake/branch-22.10/RAPIDS.cmake
-    ${CMAKE_BINARY_DIR}/RAPIDS.cmake)
-include(${CMAKE_BINARY_DIR}/RAPIDS.cmake)
+cmake_minimum_required(VERSION 3.23.1 FATAL_ERROR)
+include(../../fetch_rapids.cmake)
 
 include(rapids-cmake)
 include(rapids-cpm)
@@ -27,7 +25,7 @@ include(rapids-find)
 
 rapids_cuda_init_architectures(CUGRAPH_ETL)
 
-project(CUGRAPH_ETL VERSION 22.10.00 LANGUAGES C CXX CUDA)
+project(CUGRAPH_ETL VERSION 22.12.00 LANGUAGES C CXX CUDA)
 
 if(CMAKE_CUDA_COMPILER_ID STREQUAL "NVIDIA" AND
    CMAKE_CUDA_COMPILER_VERSION VERSION_LESS 11.0)

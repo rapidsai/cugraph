@@ -20,6 +20,7 @@
 #include <detail/graph_utils.cuh>
 #include <prims/per_v_transform_reduce_dst_key_aggregated_outgoing_e.cuh>
 #include <prims/per_v_transform_reduce_incoming_outgoing_e.cuh>
+#include <prims/reduce_op.cuh>
 #include <prims/transform_reduce_e.cuh>
 #include <prims/transform_reduce_e_by_src_dst_key.cuh>
 #include <prims/update_edge_src_dst_property.cuh>
@@ -376,7 +377,8 @@ compute_cluster_keys_and_values(
       ? src_clusters_cache.view()
       : detail::edge_major_property_view_t<vertex_t, vertex_t const*>(next_clusters_v.data()),
     detail::return_edge_weight_t<vertex_t, weight_t>{},
-    weight_t{0});
+    weight_t{0},
+    reduce_op::plus<weight_t>{});
 
   return std::make_tuple(std::move(cluster_keys), std::move(cluster_values));
 }

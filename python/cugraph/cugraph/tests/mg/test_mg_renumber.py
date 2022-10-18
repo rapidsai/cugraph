@@ -21,7 +21,7 @@ import numpy as np
 import dask_cudf
 import dask
 import cudf
-from cudf.testing import assert_series_equal
+from cudf.testing import assert_frame_equal, assert_series_equal
 
 import cugraph.dask as dcg
 import cugraph
@@ -41,12 +41,12 @@ def setup_function():
 IS_DIRECTED = [True, False]
 
 
-@pytest.mark.skipif(
-    is_single_gpu(), reason="skipping MG testing on Single GPU system"
+@pytest.mark.skipif(is_single_gpu(), reason="skipping MG testing on Single GPU system")
+@pytest.mark.parametrize(
+    "graph_file",
+    utils.DATASETS_UNRENUMBERED,
+    ids=[f"dataset={d.as_posix()}" for d in utils.DATASETS_UNRENUMBERED],
 )
-@pytest.mark.parametrize("graph_file", utils.DATASETS_UNRENUMBERED,
-                         ids=[f"dataset={d.as_posix()}"
-                              for d in utils.DATASETS_UNRENUMBERED])
 def test_mg_renumber(graph_file, dask_client):
 
     M = utils.read_csv_for_nx(graph_file)
@@ -62,19 +62,19 @@ def test_mg_renumber(graph_file, dask_client):
     gdf["dst"] = destinations + translate
 
     ddf = dask.dataframe.from_pandas(
-        gdf, npartitions=len(dask_client.scheduler_info()['workers']))
+        gdf, npartitions=len(dask_client.scheduler_info()["workers"])
+    )
 
     # preserve_order is not supported for MG
-    renumbered_df, renumber_map = NumberMap.renumber(ddf,
-                                                     ["src", "src_old"],
-                                                     ["dst", "dst_old"],
-                                                     preserve_order=False)
+    renumbered_df, renumber_map = NumberMap.renumber(
+        ddf, ["src", "src_old"], ["dst", "dst_old"], preserve_order=False
+    )
     unrenumbered_df = renumber_map.unrenumber(
-        renumbered_df, renumber_map.renumbered_src_col_name,
-        preserve_order=False)
+        renumbered_df, renumber_map.renumbered_src_col_name, preserve_order=False
+    )
     unrenumbered_df = renumber_map.unrenumber(
-        unrenumbered_df, renumber_map.renumbered_dst_col_name,
-        preserve_order=False)
+        unrenumbered_df, renumber_map.renumbered_dst_col_name, preserve_order=False
+    )
 
     # sort needed only for comparisons, since preserve_order is False
     gdf = gdf.sort_values(by=["src", "src_old", "dst", "dst_old"])
@@ -82,26 +82,23 @@ def test_mg_renumber(graph_file, dask_client):
     unrenumbered_df = unrenumbered_df.compute()
     src = renumber_map.renumbered_src_col_name
     dst = renumber_map.renumbered_dst_col_name
-    unrenumbered_df = unrenumbered_df.sort_values(by=[f"0_{src}", f"1_{src}",
-                                                      f"0_{dst}", f"1_{dst}"])
+    unrenumbered_df = unrenumbered_df.sort_values(
+        by=[f"0_{src}", f"1_{src}", f"0_{dst}", f"1_{dst}"]
+    )
     unrenumbered_df = unrenumbered_df.reset_index()
 
-    assert_series_equal(gdf["src"], unrenumbered_df[f"0_{src}"],
-                        check_names=False)
-    assert_series_equal(gdf["src_old"], unrenumbered_df[f"1_{src}"],
-                        check_names=False)
-    assert_series_equal(gdf["dst"], unrenumbered_df[f"0_{dst}"],
-                        check_names=False)
-    assert_series_equal(gdf["dst_old"], unrenumbered_df[f"1_{dst}"],
-                        check_names=False)
+    assert_series_equal(gdf["src"], unrenumbered_df[f"0_{src}"], check_names=False)
+    assert_series_equal(gdf["src_old"], unrenumbered_df[f"1_{src}"], check_names=False)
+    assert_series_equal(gdf["dst"], unrenumbered_df[f"0_{dst}"], check_names=False)
+    assert_series_equal(gdf["dst_old"], unrenumbered_df[f"1_{dst}"], check_names=False)
 
 
-@pytest.mark.skipif(
-    is_single_gpu(), reason="skipping MG testing on Single GPU system"
+@pytest.mark.skipif(is_single_gpu(), reason="skipping MG testing on Single GPU system")
+@pytest.mark.parametrize(
+    "graph_file",
+    utils.DATASETS_UNRENUMBERED,
+    ids=[f"dataset={d.as_posix()}" for d in utils.DATASETS_UNRENUMBERED],
 )
-@pytest.mark.parametrize("graph_file", utils.DATASETS_UNRENUMBERED,
-                         ids=[f"dataset={d.as_posix()}"
-                              for d in utils.DATASETS_UNRENUMBERED])
 def test_mg_renumber_add_internal_vertex_id(graph_file, dask_client):
     M = utils.read_csv_for_nx(graph_file)
     sources = cudf.Series(M["0"])
@@ -117,28 +114,25 @@ def test_mg_renumber_add_internal_vertex_id(graph_file, dask_client):
     gdf["weight"] = gdf.index.astype(np.float)
 
     ddf = dask.dataframe.from_pandas(
-        gdf, npartitions=len(dask_client.scheduler_info()['workers']))
-
-    ren2, num2 = NumberMap.renumber(
-        ddf, ["src", "src_old"], ["dst", "dst_old"]
+        gdf, npartitions=len(dask_client.scheduler_info()["workers"])
     )
+
+    ren2, num2 = NumberMap.renumber(ddf, ["src", "src_old"], ["dst", "dst_old"])
 
     test_df = gdf[["src", "src_old"]].head()
 
     # simply check that this does not raise an exception
-    num2.add_internal_vertex_id(test_df, num2.renumbered_src_col_name,
-                                ["src", "src_old"])
+    num2.add_internal_vertex_id(
+        test_df, num2.renumbered_src_col_name, ["src", "src_old"]
+    )
 
 
-@pytest.mark.skipif(
-    is_single_gpu(), reason="skipping MG testing on Single GPU system"
-)
+@pytest.mark.skipif(is_single_gpu(), reason="skipping MG testing on Single GPU system")
 @pytest.mark.parametrize("directed", IS_DIRECTED)
 def test_dask_pagerank(dask_client, directed):
     pandas.set_option("display.max_rows", 10000)
 
-    input_data_path = (RAPIDS_DATASET_ROOT_DIR_PATH /
-                       "karate.csv").as_posix()
+    input_data_path = (RAPIDS_DATASET_ROOT_DIR_PATH / "karate.csv").as_posix()
     chunksize = dcg.get_chunksize(input_data_path)
 
     ddf = dask_cudf.read_csv(
@@ -170,14 +164,11 @@ def test_dask_pagerank(dask_client, directed):
 
     assert len(expected_pr) == len(result_pr)
 
-    compare_pr = expected_pr.merge(
-        result_pr, on="vertex", suffixes=["_local", "_dask"]
-    )
+    compare_pr = expected_pr.merge(result_pr, on="vertex", suffixes=["_local", "_dask"])
 
     for i in range(len(compare_pr)):
         diff = abs(
-            compare_pr["pagerank_local"].iloc[i]
-            - compare_pr["pagerank_dask"].iloc[i]
+            compare_pr["pagerank_local"].iloc[i] - compare_pr["pagerank_dask"].iloc[i]
         )
         if diff > tol * 1.1:
             err = err + 1
@@ -185,14 +176,11 @@ def test_dask_pagerank(dask_client, directed):
     assert err == 0
 
 
-@pytest.mark.skipif(
-    is_single_gpu(), reason="skipping MG testing on Single GPU system"
-)
+@pytest.mark.skipif(is_single_gpu(), reason="skipping MG testing on Single GPU system")
 @pytest.mark.parametrize("renumber", [False])
 @pytest.mark.parametrize("directed", IS_DIRECTED)
 def test_graph_renumber_false(renumber, dask_client, directed):
-    input_data_path = (RAPIDS_DATASET_ROOT_DIR_PATH /
-                       "karate.csv").as_posix()
+    input_data_path = (RAPIDS_DATASET_ROOT_DIR_PATH / "karate.csv").as_posix()
     chunksize = dcg.get_chunksize(input_data_path)
 
     ddf = dask_cudf.read_csv(
@@ -208,14 +196,13 @@ def test_graph_renumber_false(renumber, dask_client, directed):
         dg.from_dask_cudf_edgelist(ddf, "src", "dst", renumber=renumber)
 
 
-@pytest.mark.skipif(
-    is_single_gpu(), reason="skipping MG testing on Single GPU system"
-)
+@pytest.mark.skipif(is_single_gpu(), reason="skipping MG testing on Single GPU system")
 @pytest.mark.parametrize("renumber", [False])
 @pytest.mark.parametrize("directed", IS_DIRECTED)
 def test_multi_graph_renumber_false(renumber, dask_client, directed):
-    input_data_path = (RAPIDS_DATASET_ROOT_DIR_PATH /
-                       "karate_multi_edge.csv").as_posix()
+    input_data_path = (
+        RAPIDS_DATASET_ROOT_DIR_PATH / "karate_multi_edge.csv"
+    ).as_posix()
     chunksize = dcg.get_chunksize(input_data_path)
 
     ddf = dask_cudf.read_csv(
@@ -233,12 +220,12 @@ def test_multi_graph_renumber_false(renumber, dask_client, directed):
         dg.from_dask_cudf_edgelist(ddf, "src", "dst", renumber=renumber)
 
 
-@pytest.mark.skipif(
-    is_single_gpu(), reason="skipping MG testing on Single GPU system"
+@pytest.mark.skipif(is_single_gpu(), reason="skipping MG testing on Single GPU system")
+@pytest.mark.parametrize(
+    "graph_file",
+    utils.DATASETS_UNRENUMBERED,
+    ids=[f"dataset={d.as_posix()}" for d in utils.DATASETS_UNRENUMBERED],
 )
-@pytest.mark.parametrize("graph_file", utils.DATASETS_UNRENUMBERED,
-                         ids=[f"dataset={d.as_posix()}"
-                              for d in utils.DATASETS_UNRENUMBERED])
 def test_mg_renumber_common_col_names(graph_file, dask_client):
     """
     Ensure that commonly-used column names in the input do not conflict with
@@ -253,18 +240,24 @@ def test_mg_renumber_common_col_names(graph_file, dask_client):
     floats = [float(n) for n in numbers]
 
     # test multi-column ("legacy" renumbering code path)
-    gdf = cudf.DataFrame({"src": numbers,
-                          "dst": numbers,
-                          "weights": floats,
-                          "col_a": sources,
-                          "col_b": sources,
-                          "col_c": destinations,
-                          "col_d": destinations})
+    gdf = cudf.DataFrame(
+        {
+            "src": numbers,
+            "dst": numbers,
+            "weights": floats,
+            "col_a": sources,
+            "col_b": sources,
+            "col_c": destinations,
+            "col_d": destinations,
+        }
+    )
     ddf = dask.dataframe.from_pandas(
-        gdf, npartitions=len(dask_client.scheduler_info()['workers']))
+        gdf, npartitions=len(dask_client.scheduler_info()["workers"])
+    )
 
     renumbered_df, renumber_map = NumberMap.renumber(
-        ddf, ["col_a", "col_b"], ["col_c", "col_d"])
+        ddf, ["col_a", "col_b"], ["col_c", "col_d"]
+    )
 
     assert renumber_map.renumbered_src_col_name != "src"
     assert renumber_map.renumbered_dst_col_name != "dst"
@@ -272,14 +265,19 @@ def test_mg_renumber_common_col_names(graph_file, dask_client):
     assert renumber_map.renumbered_dst_col_name in renumbered_df.columns
 
     # test experimental renumbering code path
-    gdf = cudf.DataFrame({"src": numbers,
-                          "dst": offset_numbers,
-                          "weights": floats,
-                          "col_a": sources,
-                          "col_b": destinations})
+    gdf = cudf.DataFrame(
+        {
+            "src": numbers,
+            "dst": offset_numbers,
+            "weights": floats,
+            "col_a": sources,
+            "col_b": destinations,
+        }
+    )
 
     ddf = dask.dataframe.from_pandas(
-        gdf, npartitions=len(dask_client.scheduler_info()['workers']))
+        gdf, npartitions=len(dask_client.scheduler_info()["workers"])
+    )
 
     renumbered_df, renumber_map = NumberMap.renumber(ddf, "col_a", "col_b")
 
@@ -287,3 +285,40 @@ def test_mg_renumber_common_col_names(graph_file, dask_client):
     assert renumber_map.renumbered_dst_col_name != "dst"
     assert renumber_map.renumbered_src_col_name in renumbered_df.columns
     assert renumber_map.renumbered_dst_col_name in renumbered_df.columns
+
+
+@pytest.mark.skipif(is_single_gpu(), reason="skipping MG testing on Single GPU system")
+def test_pagerank_string_vertex_ids(dask_client):
+    """
+    Ensures string vertex IDs can be used.
+
+    Note: the dask_client fixture sets up and tears down a LocalCUDACluster.
+    See ../conftest.py
+    """
+    # Use pandas and to_csv() to create a CSV file that can be read in by both
+    # dask_cudf and cudf.
+    df = cudf.DataFrame(
+        {
+            "src": ["a1", "a1", "a2", "a3"],
+            "dst": ["a2", "a3", "a4", "a4"],
+        }
+    )
+    # SG
+    G = cugraph.Graph(directed=True)
+    G.from_cudf_edgelist(df, source="src", destination="dst")
+
+    sg_results = cugraph.pagerank(G)
+    sg_results = sg_results.sort_values("pagerank").reset_index(drop=True)
+
+    # MG
+    ddf = dask_cudf.from_cudf(df, npartitions=2)
+    G_dask = cugraph.Graph(directed=True)
+    G_dask.from_dask_cudf_edgelist(ddf, source="src", destination="dst")
+
+    mg_results = dcg.pagerank(G_dask)
+    # Organize results for easy comparison, this does not change the values. MG
+    # Pagerank defaults to float64, so convert to float32 when comparing to SG
+    mg_results = mg_results.compute().sort_values("pagerank").reset_index(drop=True)
+    mg_results["pagerank"] = mg_results["pagerank"].astype("float32")
+
+    assert_frame_equal(sg_results, mg_results)

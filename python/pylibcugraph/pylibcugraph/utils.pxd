@@ -53,3 +53,7 @@ cdef copy_to_cupy_array_ids(
 
 cdef cugraph_type_erased_device_array_view_t* \
     create_cugraph_type_erased_device_array_view_from_py_obj(python_obj)
+
+cdef create_cupy_array_view_for_device_ptr(
+    cugraph_type_erased_device_array_view_t* device_array_view_ptr,
+    owning_py_object)

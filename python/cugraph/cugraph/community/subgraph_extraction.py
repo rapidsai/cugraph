@@ -14,9 +14,10 @@
 import cudf
 
 from cugraph.community import subgraph_extraction_wrapper
-from cugraph.utilities import (ensure_cugraph_obj_for_nx,
-                               cugraph_to_nx,
-                               )
+from cugraph.utilities import (
+    ensure_cugraph_obj_for_nx,
+    cugraph_to_nx,
+)
 
 
 def subgraph(G, vertices):
@@ -74,12 +75,10 @@ def subgraph(G, vertices):
 
     if G.edgelist.weights:
         result_graph.from_cudf_edgelist(
-            df, source=src_names, destination=dst_names,
-            edge_attr="weight"
+            df, source=src_names, destination=dst_names, edge_attr="weight"
         )
     else:
-        result_graph.from_cudf_edgelist(df, source=src_names,
-                                        destination=dst_names)
+        result_graph.from_cudf_edgelist(df, source=src_names, destination=dst_names)
 
     if isNx is True:
         result_graph = cugraph_to_nx(result_graph)

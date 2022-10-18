@@ -19,6 +19,7 @@ import pytest
 import networkx as nx
 import cugraph
 from cugraph.testing import utils
+from cugraph.experimental.datasets import DATASETS, karate_asymmetric
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
 # (Using or importing the ABCs from 'collections' instead of from
@@ -60,18 +61,11 @@ def cugraph_louvain(G):
     return parts, mod
 
 
-@pytest.mark.parametrize("graph_file", utils.DATASETS)
+@pytest.mark.parametrize("graph_file", DATASETS)
 def test_leiden(graph_file):
     edgevals = True
 
-    cu_M = utils.read_csv_file(graph_file)
-
-    G = cugraph.Graph()
-    if edgevals:
-        G.from_cudf_edgelist(cu_M, source="0", destination="1", edge_attr="2")
-    else:
-        G.from_cudf_edgelist(cu_M, source="0", destination="1")
-
+    G = graph_file.get_graph(ignore_weights=not edgevals)
     leiden_parts, leiden_mod = cugraph_leiden(G)
     louvain_parts, louvain_mod = cugraph_louvain(G)
 
@@ -79,16 +73,14 @@ def test_leiden(graph_file):
     assert leiden_mod >= (0.99 * louvain_mod)
 
 
-@pytest.mark.parametrize("graph_file", utils.DATASETS)
+@pytest.mark.parametrize("graph_file", DATASETS)
 def test_leiden_nx(graph_file):
     edgevals = True
-
-    NM = utils.read_csv_for_nx(graph_file)
+    dataset_path = graph_file.get_path()
+    NM = utils.read_csv_for_nx(dataset_path)
 
     if edgevals:
-        G = nx.from_pandas_edgelist(
-            NM, create_using=nx.Graph(), source="0", target="1"
-        )
+        G = nx.from_pandas_edgelist(NM, create_using=nx.Graph(), source="0", target="1")
     else:
         G = nx.from_pandas_edgelist(
             NM, create_using=nx.Graph(), source="0", target="1", edge_attr="2"
@@ -102,16 +94,11 @@ def test_leiden_nx(graph_file):
 
 
 def test_leiden_directed_graph():
-    input_data_path = (utils.RAPIDS_DATASET_ROOT_DIR_PATH /
-                       "karate-asymmetric.csv").as_posix()
 
     edgevals = True
-    cu_M = utils.read_csv_file(input_data_path)
-    G = cugraph.Graph(directed=True)
-    if edgevals:
-        G.from_cudf_edgelist(cu_M, source="0", destination="1", edge_attr="2")
-    else:
-        G.from_cudf_edgelist(cu_M, source="0", destination="1")
+    G = karate_asymmetric.get_graph(
+        create_using=cugraph.Graph(directed=True), ignore_weights=not edgevals
+    )
 
     with pytest.raises(ValueError):
         parts, mod = cugraph_leiden(G)

@@ -82,6 +82,9 @@ template rmm::device_uvector<int32_t> device_gatherv(raft::handle_t const& handl
 template rmm::device_uvector<int64_t> device_gatherv(raft::handle_t const& handle,
                                                      raft::device_span<int64_t const> d_input);
 
+template rmm::device_uvector<size_t> device_gatherv(raft::handle_t const& handle,
+                                                    raft::device_span<size_t const> d_input);
+
 template rmm::device_uvector<float> device_gatherv(raft::handle_t const& handle,
                                                    raft::device_span<float const> d_input);
 
@@ -93,6 +96,9 @@ template rmm::device_uvector<int32_t> device_allgatherv(raft::handle_t const& ha
 
 template rmm::device_uvector<int64_t> device_allgatherv(raft::handle_t const& handle,
                                                         raft::device_span<int64_t const> d_input);
+
+template rmm::device_uvector<size_t> device_allgatherv(raft::handle_t const& handle,
+                                                       raft::device_span<size_t const> d_input);
 
 template rmm::device_uvector<float> device_allgatherv(raft::handle_t const& handle,
                                                       raft::device_span<float const> d_input);

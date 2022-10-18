@@ -70,6 +70,7 @@ struct node2vec_functor : public abstract_functor {
   template <typename vertex_t,
             typename edge_t,
             typename weight_t,
+            typename edge_type_type_t,
             bool store_transposed,
             bool multi_gpu>
   void operator()()
@@ -172,6 +173,7 @@ struct uniform_random_walks_functor : public cugraph::c_api::abstract_functor {
   template <typename vertex_t,
             typename edge_t,
             typename weight_t,
+            typename edge_type_type_t,
             bool store_transposed,
             bool multi_gpu>
   void operator()()
@@ -266,6 +268,7 @@ struct biased_random_walks_functor : public cugraph::c_api::abstract_functor {
   template <typename vertex_t,
             typename edge_t,
             typename weight_t,
+            typename edge_type_type_t,
             bool store_transposed,
             bool multi_gpu>
   void operator()()
@@ -366,6 +369,7 @@ struct node2vec_random_walks_functor : public cugraph::c_api::abstract_functor {
   template <typename vertex_t,
             typename edge_t,
             typename weight_t,
+            typename edge_type_type_t,
             bool store_transposed,
             bool multi_gpu>
   void operator()()
@@ -419,11 +423,15 @@ struct node2vec_random_walks_functor : public cugraph::c_api::abstract_functor {
         static_cast<weight_t>(q_),
         seed_);
 
+      // FIXME:  Need to fix invalid_vtx issue here.  We can't unrenumber max_vertex_id+1
+      // properly...
+      //   So if the result includes an invalid vertex we don't handle it properly.
+
       //
       // Need to unrenumber the vertices in the resulting paths
       //
       cugraph::unrenumber_local_int_vertices<vertex_t>(
-        handle_, paths.data(), paths.size(), number_map->data(), 0, paths.size() - 1, false);
+        handle_, paths.data(), paths.size(), number_map->data(), 0, paths.size(), false);
 
       result_ = new cugraph::c_api::cugraph_random_walk_result_t{
         false,

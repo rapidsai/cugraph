@@ -36,13 +36,13 @@ Layout            |                                                             
 |                 | [Jaccard Similarity](algorithms/link_prediction/Jaccard-Similarity.ipynb) | Compute vertex similarity score using both:<br />- Jaccard Similarity<br />- Weighted Jaccard |
 |                 | [Overlap Similarity](algorithms/link_prediction/Overlap-Similarity.ipynb) | Compute vertex similarity score using the Overlap Coefficient |
 | Sampling        |
-|                 | [Random Walk](sampling/RandomWalk.ipynb)                     | Compute Random Walk for a various number of seeds and path lengths |
+|                 | [Random Walk](algorithms/sampling/RandomWalk.ipynb)                     | Compute Random Walk for a various number of seeds and path lengths |
 | Traversal       |                                                              |                                                              |
-|                 | [BFS](traversal/BFS.ipynb)                                   | Compute the Breadth First Search path from a starting vertex to every other vertex in a graph |
-|                 | [SSSP](traversal/SSSP.ipynb)                                 | Single Source Shortest Path  - compute the shortest path from a starting vertex to every other vertex |
+|                 | [BFS](algorithms/traversal/BFS.ipynb)                                   | Compute the Breadth First Search path from a starting vertex to every other vertex in a graph |
+|                 | [SSSP](algorithms/traversal/SSSP.ipynb)                                 | Single Source Shortest Path  - compute the shortest path from a starting vertex to every other vertex |
 | Structure       |                                                              |                                                              |
-|                 | [Renumbering](structure/Renumber.ipynb) <br> [Renumbering 2](structure/Renumber-2.ipynb) | Renumber the vertex IDs in a graph (two sample notebooks)    |
-|                 | [Symmetrize](structure/Symmetrize.ipynb)                     | Symmetrize the edges in a graph                              |
+|                 | [Renumbering](algorithms/structure/Renumber.ipynb) <br> [Renumbering 2](algorithms/structure/Renumber-2.ipynb) | Renumber the vertex IDs in a graph (two sample notebooks)    |
+|                 | [Symmetrize](algorithms/structure/Symmetrize.ipynb)                     | Symmetrize the edges in a graph                              |
 
 
 ## RAPIDS notebooks
