@@ -175,7 +175,7 @@ set(CUGRAPH_SOURCES
     src/utilities/cython.cu
     src/utilities/path_retrieval.cu
     src/structure/legacy/graph.cu
-    src/linear_assignment/hungarian.cu
+    src/linear_assignment/legacy/hungarian.cu
     src/traversal/legacy/bfs.cu
     src/link_prediction/legacy/jaccard.cu
     src/link_prediction/legacy/overlap.cu
@@ -195,7 +195,6 @@ set(CUGRAPH_SOURCES
     src/community/legacy/leiden.cu
     src/community/legacy/ktruss.cu
     src/community/legacy/ecg.cu
-    src/community/legacy/triangles_counting.cu
     src/community/legacy/extract_subgraph_by_vertex.cu
     src/community/legacy/egonet.cu
     src/sampling/random_walks.cu
@@ -209,9 +208,9 @@ set(CUGRAPH_SOURCES
     src/cores/core_number_mg.cu
     src/cores/k_core_sg.cu
     src/cores/k_core_mg.cu
-    src/traversal/two_hop_neighbors.cu
+    src/traversal/legacy/two_hop_neighbors.cu
     src/components/legacy/connectivity.cu
-    src/centrality/betweenness_centrality.cu
+    src/centrality/legacy/betweenness_centrality.cu
     src/generators/generate_rmat_edgelist.cu
     src/generators/generator_tools.cu
     src/generators/simple_generators.cu
@@ -243,7 +242,7 @@ set(CUGRAPH_SOURCES
     src/centrality/katz_centrality_mg.cu
     src/centrality/eigenvector_centrality_sg.cu
     src/centrality/eigenvector_centrality_mg.cu
-    src/tree/mst.cu
+    src/tree/legacy/mst.cu
     src/components/weakly_connected_components_sg.cu
     src/components/weakly_connected_components_mg.cu
     src/structure/create_graph_from_edgelist_sg.cu
