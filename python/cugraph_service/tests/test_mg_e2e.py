@@ -74,28 +74,24 @@ def mg_server():
             host=host, port=port, dask_scheduler_file=dask_scheduler_file
         )
 
-        # yield control to the tests
+        # yield control to the tests, cleanup on return
         yield
 
-        # tests are done, now stop the server
         print("\nTerminating server...", end="", flush=True)
         server_process.terminate()
         print("done.", flush=True)
 
 
 @pytest.fixture(scope="module")
-def sg_server_on_device_1(graph_creation_extension_large_property_graph):
+def sg_server_on_device_1():
     """
-    Start a cugraph_service server, stop it when done with the fixture.  This
-    also uses graph_creation_extension_large_property_graph to preload the
-    graph creation extension that creates a large PG.
+    Start a cugraph_service server, stop it when done with the fixture.
     """
     from cugraph_service_client import CugraphServiceClient
     from cugraph_service_client.exceptions import CugraphServiceError
 
     host = "localhost"
     port = 9090
-    server_extension_dir = graph_creation_extension_large_property_graph
     client = CugraphServiceClient(host, port)
 
     try:
@@ -109,59 +105,56 @@ def sg_server_on_device_1(graph_creation_extension_large_property_graph):
         server_process = utils.start_server_subprocess(
             host=host,
             port=port,
-            graph_creation_extension_dir=server_extension_dir.name,
             env_additions={"CUDA_VISIBLE_DEVICES": "1"},
         )
 
-        # yield control to the tests
+        # yield control to the tests, cleanup on return
         yield
 
-        # tests are done, now stop the server
         print("\nTerminating server...", end="", flush=True)
         server_process.terminate()
         print("done.", flush=True)
 
 
 @pytest.fixture(scope="module")
-def client(mg_server):
+def client_of_mg_server(mg_server):
     """
     Creates a client instance to the running server, closes the client when the
     fixture is no longer used by tests.
     """
     from cugraph_service_client import CugraphServiceClient, defaults
 
-    client = CugraphServiceClient(defaults.host, defaults.port)
+    client_of_mg_server = CugraphServiceClient(defaults.host, defaults.port)
 
-    # yield control to the tests
-    yield client
+    # yield control to the tests, cleanup on return
+    yield client_of_mg_server
 
-    # tests are done, now close the connection
-    client.close()
+    client_of_mg_server.close()
 
 
 @pytest.fixture(scope="function")
-def client_with_edgelist_csv_loaded(client):
+def client_of_mg_server_with_edgelist_csv_loaded(client_of_mg_server):
     """
     Loads the karate CSV into the default graph on the server.
     """
     test_data = data.edgelist_csv_data["karate"]
-    client.load_csv_as_edge_data(
+    client_of_mg_server.load_csv_as_edge_data(
         test_data["csv_file_name"],
         dtypes=test_data["dtypes"],
         vertex_col_names=["0", "1"],
         type_name="",
     )
-    assert client.get_graph_ids() == [0]
+    assert client_of_mg_server.get_graph_ids() == [0]
 
-    yield (client, test_data)
+    # yield control to the tests, cleanup on return
+    yield (client_of_mg_server, test_data)
 
-    # Cleanup after the test
-    for gid in client.get_graph_ids():
-        client.delete_graph(gid)
+    for gid in client_of_mg_server.get_graph_ids():
+        client_of_mg_server.delete_graph(gid)
 
 
 @pytest.fixture(scope="module")
-def client_of_server_on_device_1(sg_server_on_device_1):
+def client_of_sg_server_on_device_1(sg_server_on_device_1):
     """
     Creates a client instance to a server running on device 1, closes the
     client when the fixture is no longer used by tests.
@@ -176,10 +169,9 @@ def client_of_server_on_device_1(sg_server_on_device_1):
     # FIXME: should this fixture always unconditionally unload all extensions?
     # client.unload_graph_creation_extensions()
 
-    # yield control to the tests
+    # yield control to the tests, cleanup on return
     yield client
 
-    # tests are done, now close the connection
     client.close()
 
 
@@ -188,13 +180,11 @@ def client_of_server_on_device_1(sg_server_on_device_1):
     params=[int(n) for n in [1e1, 1e3, 1e6, 1e9, 2e9, 5e9]],
     ids=lambda p: f"bytes={p:.1e}",
 )
-def client_of_server_on_device_1_with_test_array(
+def client_of_sg_server_on_device_1_with_test_array(
     request,
-    sg_server_on_device_1,
+    client_of_sg_server_on_device_1,
 ):
-    from cugraph_service_client import CugraphServiceClient, defaults
-
-    client = CugraphServiceClient(defaults.host, defaults.port)
+    client = client_of_sg_server_on_device_1
     nbytes = request.param
 
     test_array_id = client._create_test_array(nbytes)
@@ -202,14 +192,18 @@ def client_of_server_on_device_1_with_test_array(
     yield (client, test_array_id, nbytes)
 
     client._delete_test_array(test_array_id)
-    client.close()
 
 
 @pytest.fixture(scope="function")
-def client_of_server_on_device_1_large_property_graph_loaded(
-    client_of_server_on_device_1,
+def client_of_sg_server_on_device_1_large_property_graph_loaded(
+    client_of_sg_server_on_device_1,
+    graph_creation_extension_large_property_graph,
 ):
-    client = client_of_server_on_device_1
+    client = client_of_sg_server_on_device_1
+    server_extension_dir = graph_creation_extension_large_property_graph
+
+    client.load_graph_creation_extensions(server_extension_dir.name)
+
     # Assume fixture that starts server on device 1 has the extension loaded
     # for creating large property graphs.
     new_graph_id = client.call_graph_creation_extension(
@@ -217,10 +211,11 @@ def client_of_server_on_device_1_large_property_graph_loaded(
     )
 
     assert new_graph_id in client.get_graph_ids()
-    # yield control to the tests that use this fixture
+
     yield (client, new_graph_id)
-    # all tests using this fixture are done, so delete the large graph
+
     client.delete_graph(new_graph_id)
+    client.unload_graph_creation_extensions()
 
 
 # Because pytest does not allow mixing fixtures and parametrization decorators
@@ -235,39 +230,39 @@ def result_device_id(request):
 # tests
 
 
-def test_get_default_graph_info(client_with_edgelist_csv_loaded):
+def test_get_default_graph_info(client_of_mg_server_with_edgelist_csv_loaded):
     """
     Test to ensure various info on the default graph loaded from the specified
     fixture is correct.
     """
-    (client, test_data) = client_with_edgelist_csv_loaded
+    (client_of_mg_server, test_data) = client_of_mg_server_with_edgelist_csv_loaded
 
     # get_graph_type() is a test/debug API which returns a string repr of the
     # graph type. Ideally, users should not need to know the graph type.
-    assert "MG" in client._get_graph_type()
+    assert "MG" in client_of_mg_server._get_graph_type()
 
-    assert client.get_graph_info(["num_edges"]) == test_data["num_edges"]
-    assert client.get_server_info()["num_gpus"] > 1
+    assert client_of_mg_server.get_graph_info(["num_edges"]) == test_data["num_edges"]
+    assert client_of_mg_server.get_server_info()["num_gpus"] > 1
 
 
-def test_get_edge_IDs_for_vertices(client_with_edgelist_csv_loaded):
+def test_get_edge_IDs_for_vertices(client_of_mg_server_with_edgelist_csv_loaded):
     """ """
-    (client, test_data) = client_with_edgelist_csv_loaded
+    (client_of_mg_server, test_data) = client_of_mg_server_with_edgelist_csv_loaded
 
     # get_graph_type() is a test/debug API which returns a string repr of the
     # graph type. Ideally, users should not need to know the graph type.
-    assert "MG" in client._get_graph_type()
+    assert "MG" in client_of_mg_server._get_graph_type()
 
-    graph_id = client.extract_subgraph(allow_multi_edges=True)
-    client.get_edge_IDs_for_vertices([1, 2, 3], [0, 0, 0], graph_id)
+    graph_id = client_of_mg_server.extract_subgraph(allow_multi_edges=True)
+    client_of_mg_server.get_edge_IDs_for_vertices([1, 2, 3], [0, 0, 0], graph_id)
 
 
 def test_device_transfer(
     benchmark,
     result_device_id,
-    client_of_server_on_device_1_with_test_array,
+    client_of_sg_server_on_device_1_with_test_array,
 ):
-    (client, test_array_id, nbytes) = client_of_server_on_device_1_with_test_array
+    (client, test_array_id, nbytes) = client_of_sg_server_on_device_1_with_test_array
 
     # device to host via RPC is too slow for large transfers, so skip
     if result_device_id is None and nbytes > 1e6:
@@ -298,13 +293,13 @@ def test_device_transfer(
 def test_uniform_neighbor_sampling_result_device(
     benchmark,
     result_device_id,
-    client_of_server_on_device_1_large_property_graph_loaded,
+    client_of_sg_server_on_device_1_large_property_graph_loaded,
 ):
     """
     Ensures uniform_neighbor_sample() results are transfered from the server to
     a specific client device when specified.
     """
-    (client, graph_id) = client_of_server_on_device_1_large_property_graph_loaded
+    (client, graph_id) = client_of_sg_server_on_device_1_large_property_graph_loaded
     extracted_graph_id = client.extract_subgraph(graph_id=graph_id)
 
     start_list = [0, 1, 2]
