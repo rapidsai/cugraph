@@ -277,6 +277,29 @@ class EXPERIMENTAL__PropertyGraph:
         See Also
         --------
         PropertyGraph.get_num_edges
+
+        Examples
+        --------
+        >>> import cugraph
+        >>> import cudf
+        >>> dataset2 = {
+        ...     "simple": [
+        ...         ["src", "dst", "some_property"],
+        ...         [
+        ...             (99, 22, "a"),
+        ...             (98, 34, "b"),
+        ...             (97, 56, "c"),
+        ...             (96, 88, "d"),
+        ...         ],
+        ...     ],
+        ... }
+        >>> from cugraph.experimental import PropertyGraph
+        >>> dataframe_type = cudf.DataFrame
+        >>> simple = dataset2["simple"]
+        >>> pG = PropertyGraph()
+        >>> df = cudf.DataFrame(columns=simple[0], data=simple[1])
+        >>> pG.add_edge_data(df, vertex_col_names=("src", "dst"))
+        >>> pG.get_num_vertices()
         """
         if type is None:
             if not include_edge_data:
@@ -336,7 +359,7 @@ class EXPERIMENTAL__PropertyGraph:
         """
         Return a Series containing the unique vertex IDs contained in both
         the vertex and edge property data.
-        selection is not yet supported.
+        Selection is not yet supported.
 
         Parameters
         ----------
@@ -1285,7 +1308,9 @@ class EXPERIMENTAL__PropertyGraph:
         """
         Renumber vertex IDs to be contiguous by type.
 
-        Returns a DataFrame with the start and stop IDs for each vertex type.
+        Returns
+        -------
+        a DataFrame with the start and stop IDs for each vertex type.
         Stop is *inclusive*.
         """
         # Check if some vertex IDs exist only in edge data
@@ -1372,13 +1397,27 @@ class EXPERIMENTAL__PropertyGraph:
     @classmethod
     def is_multigraph(cls, df):
         """
-        Return True if df has >1 of the same src, dst pair
+        Parameters
+        ----------
+        df : dataframe containing edge data
+
+        Returns
+        -------
+        True if df has >= 1 of the same src, dst pair
         """
         return cls._has_duplicates(df, [cls.src_col_name, cls.dst_col_name])
 
     @classmethod
     def has_duplicate_edges(cls, df, columns=None):
         """
+        test for duplicate edges in the dataframe
+
+        Parameters
+        ----------
+        df : dataframe containing the edges
+        columns : list of columns to include in the duplicate test, optional
+            None is the default all columns values must be duplicated.
+
         Returns
         -------
         True if df has rows with the same src, dst, type, and columns
@@ -1399,7 +1438,7 @@ class EXPERIMENTAL__PropertyGraph:
 
     def __create_property_lookup_table(self, edge_prop_df):
         """
-        Returns a DataFrame containing the src vertex, dst vertex, and edge_id
+        a DataFrame containing the src vertex, dst vertex, and edge_id
         values from edge_prop_df.
         """
         src = edge_prop_df[self.src_col_name]
