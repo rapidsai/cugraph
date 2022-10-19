@@ -37,12 +37,18 @@ namespace detail {
 template <typename vertex_t, typename T>
 class edge_major_property_view_t {
  public:
-  using value_type  = std::remove_const_t<T>;
-  using buffer_type = decltype(allocate_dataframe_buffer<value_type>(0, rmm::cuda_stream_view{}));
+  using value_type = std::remove_const_t<T>;
+  using buffer_type =
+    std::conditional_t<std::is_same_v<value_type, bool>,
+                       decltype(allocate_dataframe_buffer<uint32_t>(0, rmm::cuda_stream_view{})),
+                       decltype(allocate_dataframe_buffer<value_type>(0, rmm::cuda_stream_view{}))>;
   using value_iterator = std::conditional_t<
-    std::is_const_v<T>,
-    std::invoke_result_t<decltype(get_dataframe_buffer_cbegin<buffer_type>), buffer_type&>,
-    std::invoke_result_t<decltype(get_dataframe_buffer_begin<buffer_type>), buffer_type&>>;
+    std::is_same_v<value_type, bool>,
+    std::conditional_t<std::is_const_v<T>, uint32_t const*, uint32_t*>,
+    std::conditional_t<
+      std::is_const_v<T>,
+      std::invoke_result_t<decltype(get_dataframe_buffer_cbegin<buffer_type>), buffer_type&>,
+      std::invoke_result_t<decltype(get_dataframe_buffer_begin<buffer_type>), buffer_type&>>>;
 
   edge_major_property_view_t() = default;
 
@@ -108,12 +114,18 @@ class edge_major_property_view_t {
 template <typename vertex_t, typename T>
 class edge_minor_property_view_t {
  public:
-  using value_type  = std::remove_const_t<T>;
-  using buffer_type = decltype(allocate_dataframe_buffer<value_type>(0, rmm::cuda_stream_view{}));
+  using value_type = std::remove_const_t<T>;
+  using buffer_type =
+    std::conditional_t<std::is_same_v<value_type, bool>,
+                       decltype(allocate_dataframe_buffer<uint32_t>(0, rmm::cuda_stream_view{})),
+                       decltype(allocate_dataframe_buffer<value_type>(0, rmm::cuda_stream_view{}))>;
   using value_iterator = std::conditional_t<
-    std::is_const_v<T>,
-    std::invoke_result_t<decltype(get_dataframe_buffer_cbegin<buffer_type>), buffer_type&>,
-    std::invoke_result_t<decltype(get_dataframe_buffer_begin<buffer_type>), buffer_type&>>;
+    std::is_same_v<value_type, bool>,
+    std::conditional_t<std::is_const_v<T>, uint32_t const*, uint32_t*>,
+    std::conditional_t<
+      std::is_const_v<T>,
+      std::invoke_result_t<decltype(get_dataframe_buffer_cbegin<buffer_type>), buffer_type&>,
+      std::invoke_result_t<decltype(get_dataframe_buffer_begin<buffer_type>), buffer_type&>>>;
 
   edge_minor_property_view_t() = default;
 
@@ -160,8 +172,11 @@ class edge_minor_property_view_t {
 template <typename vertex_t, typename T>
 class edge_major_property_t {
  public:
-  using value_type  = T;
-  using buffer_type = decltype(allocate_dataframe_buffer<T>(size_t{0}, rmm::cuda_stream_view{}));
+  using value_type = T;
+  using buffer_type =
+    std::conditional_t<std::is_same_v<value_type, bool>,
+                       decltype(allocate_dataframe_buffer<uint32_t>(0, rmm::cuda_stream_view{})),
+                       decltype(allocate_dataframe_buffer<value_type>(0, rmm::cuda_stream_view{}))>;
   static_assert(is_arithmetic_or_thrust_tuple_of_arithmetic<T>::value);
 
   edge_major_property_t(raft::handle_t const& handle) {}
@@ -173,8 +188,16 @@ class edge_major_property_t {
   {
     buffers_.reserve(edge_partition_major_range_firsts_.size());
     for (size_t i = 0; i < edge_partition_major_range_firsts_.size(); ++i) {
-      buffers_.push_back(
-        allocate_dataframe_buffer<T>(edge_partition_major_range_sizes[i], handle.get_stream()));
+      if constexpr (std::is_same_v<T, bool>) {
+        auto packed_buffer_size =
+          (static_cast<size_t>(edge_partition_major_range_sizes[i]) + (sizeof(uint32_t) * 8 - 1)) /
+          (sizeof(uint32_t) * 8);
+        buffers_.push_back(
+          allocate_dataframe_buffer<uint32_t>(packed_buffer_size, handle.get_stream()));
+      } else {
+        buffers_.push_back(
+          allocate_dataframe_buffer<T>(edge_partition_major_range_sizes[i], handle.get_stream()));
+      }
     }
   }
 
@@ -193,6 +216,16 @@ class edge_major_property_t {
     for (size_t i = 0; i < edge_partition_major_range_firsts_.size(); ++i) {
       buffers_.push_back(
         allocate_dataframe_buffer<T>(edge_partition_keys[i].size(), handle.get_stream()));
+      if constexpr (std::is_same_v<T, bool>) {
+        auto packed_buffer_size =
+          (static_cast<size_t>(edge_partition_keys[i].size()) + (sizeof(uint32_t) * 8 - 1)) /
+          (sizeof(uint32_t) * 8);
+        buffers_.push_back(
+          allocate_dataframe_buffer<uint32_t>(packed_buffer_size, handle.get_stream()));
+      } else {
+        buffers_.push_back(
+          allocate_dataframe_buffer<T>(edge_partition_keys[i].size(), handle.get_stream()));
+      }
     }
   }
 
@@ -265,10 +298,16 @@ template <typename vertex_t, typename T>
 class edge_minor_property_t {
  public:
   using value_type = T;
+  using buffer_type =
+    std::conditional_t<std::is_same_v<value_type, bool>,
+                       decltype(allocate_dataframe_buffer<uint32_t>(0, rmm::cuda_stream_view{})),
+                       decltype(allocate_dataframe_buffer<value_type>(0, rmm::cuda_stream_view{}))>;
   static_assert(is_arithmetic_or_thrust_tuple_of_arithmetic<T>::value);
 
   edge_minor_property_t(raft::handle_t const& handle)
-    : buffer_(allocate_dataframe_buffer<T>(size_t{0}, handle.get_stream())),
+    : buffer_(allocate_dataframe_buffer<
+              std::conditional_t<std::is_same_v<value_type, bool>, uint32_t, T>>(
+        size_t{0}, handle.get_stream())),
       minor_range_first_(vertex_t{0})
   {
   }
@@ -276,9 +315,17 @@ class edge_minor_property_t {
   edge_minor_property_t(raft::handle_t const& handle,
                         vertex_t buffer_size,
                         vertex_t minor_range_first)
-    : buffer_(allocate_dataframe_buffer<T>(buffer_size, handle.get_stream())),
+    : buffer_(allocate_dataframe_buffer<
+              std::conditional_t<std::is_same_v<value_type, bool>, uint32_t, T>>(
+        0, handle.get_stream())),
       minor_range_first_(minor_range_first)
   {
+    if constexpr (std::is_same_v<value_type, bool>) {
+      auto packed_buffer_size = (buffer_size + (sizeof(uint32_t) * 8 - 1)) / (sizeof(uint32_t) * 8);
+      buffer_ = allocate_dataframe_buffer<uint32_t>(packed_buffer_size, handle.get_stream());
+    } else {
+      buffer_ = allocate_dataframe_buffer<T>(buffer_size, handle.get_stream());
+    }
   }
 
   edge_minor_property_t(raft::handle_t const& handle,
@@ -289,9 +336,17 @@ class edge_minor_property_t {
     : keys_(keys),
       key_chunk_start_offsets_(key_chunk_start_offsets),
       key_chunk_size_(key_chunk_size),
-      buffer_(allocate_dataframe_buffer<T>(keys.size(), handle.get_stream())),
+      buffer_(allocate_dataframe_buffer<
+              std::conditional_t<std::is_same_v<value_type, bool>, uint32_t, T>>(
+        0, handle.get_stream())),
       minor_range_first_(minor_range_first)
   {
+    if constexpr (std::is_same_v<value_type, bool>) {
+      auto packed_buffer_size = (keys.size() + (sizeof(uint32_t) * 8 - 1)) / (sizeof(uint32_t) * 8);
+      buffer_ = allocate_dataframe_buffer<uint32_t>(packed_buffer_size, handle.get_stream());
+    } else {
+      buffer_ = allocate_dataframe_buffer<T>(keys.size(), handle.get_stream());
+    }
   }
 
   void clear(raft::handle_t const& handle)
@@ -332,7 +387,7 @@ class edge_minor_property_t {
   std::optional<raft::device_span<vertex_t const>> key_chunk_start_offsets_{std::nullopt};
   std::optional<size_t> key_chunk_size_{std::nullopt};
 
-  decltype(allocate_dataframe_buffer<T>(size_t{0}, rmm::cuda_stream_view{})) buffer_;
+  buffer_type buffer_;
   vertex_t minor_range_first_{};
 };
 

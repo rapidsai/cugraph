@@ -17,6 +17,8 @@
 #pragma once
 
 #include <cugraph/edge_src_dst_property.hpp>
+#include <cugraph/utilities/atomic_op_utils.cuh>
+#include <cugraph/utilities/dataframe_buffer.hpp>
 #include <cugraph/utilities/device_functors.cuh>
 
 #include <raft/core/device_span.hpp>
@@ -35,12 +37,18 @@ namespace detail {
 template <typename vertex_t, typename T>
 class edge_partition_endpoint_property_device_view_t {
  public:
-  using value_type  = std::remove_const_t<T>;
-  using buffer_type = decltype(allocate_dataframe_buffer<value_type>(0, rmm::cuda_stream_view{}));
+  using value_type = std::remove_const_t<T>;
+  using buffer_type =
+    std::conditional_t<std::is_same_v<value_type, bool>,
+                       decltype(allocate_dataframe_buffer<uint32_t>(0, rmm::cuda_stream_view{})),
+                       decltype(allocate_dataframe_buffer<value_type>(0, rmm::cuda_stream_view{}))>;
   using value_iterator = std::conditional_t<
-    std::is_const_v<T>,
-    std::invoke_result_t<decltype(get_dataframe_buffer_cbegin<buffer_type>), buffer_type&>,
-    std::invoke_result_t<decltype(get_dataframe_buffer_begin<buffer_type>), buffer_type&>>;
+    std::is_same_v<value_type, bool>,
+    std::conditional_t<std::is_const_v<T>, uint32_t const*, uint32_t*>,
+    std::conditional_t<
+      std::is_const_v<T>,
+      std::invoke_result_t<decltype(get_dataframe_buffer_cbegin<buffer_type>), buffer_type&>,
+      std::invoke_result_t<decltype(get_dataframe_buffer_begin<buffer_type>), buffer_type&>>>;
 
   edge_partition_endpoint_property_device_view_t() = default;
 
@@ -70,25 +78,57 @@ class edge_partition_endpoint_property_device_view_t {
     range_first_ = view.minor_range_first();
   }
 
-  __device__ value_iterator get_iter(vertex_t offset) const
+  __device__ value_type get(vertex_t offset) const
   {
-    auto value_offset = offset;
-    if (keys_) {
-      auto chunk_idx = static_cast<size_t>(offset) / (*key_chunk_size_);
-      auto it        = thrust::lower_bound(thrust::seq,
-                                    (*keys_).begin() + (*key_chunk_start_offsets_)[chunk_idx],
-                                    (*keys_).begin() + (*key_chunk_start_offsets_)[chunk_idx + 1],
-                                    range_first_ + offset);
-      assert((it != (*keys_).begin() + (*key_chunk_start_offsets_)[chunk_idx + 1]) &&
-             (*it == (range_first_ + offset)));
-      value_offset = (*key_chunk_start_offsets_)[chunk_idx] +
-                     static_cast<vertex_t>(thrust::distance(
-                       (*keys_).begin() + (*key_chunk_start_offsets_)[chunk_idx], it));
+    auto val_offset = value_offset(offset);
+    if constexpr (std::is_same_v<value_type, bool>) {
+      auto mask = uint32_t{1} << (val_offset % (sizeof(uint32_t) * 8));
+      return static_cast<bool>(*(value_first_ + (val_offset / (sizeof(uint32_t) * 8))) & mask);
+    } else {
+      return *(value_first_ + val_offset);
     }
-    return value_first_ + value_offset;
   }
 
-  __device__ std::remove_const_t<T> get(vertex_t offset) const { return *get_iter(offset); }
+  template <typename Tp = T>
+  __device__ std::enable_if_t<!std::is_const_v<Tp>, value_type> atomic_cas(vertex_t offset,
+                                                                           value_type compare,
+                                                                           value_type val) const
+  {
+    auto val_offset = value_offset(offset);
+    if constexpr (std::is_same_v<value_type, bool>) {
+      auto mask = uint32_t{1} << (val_offset % (sizeof(uint32_t) * 8));
+      auto old  = val ? atomicOr(value_first_ + (val_offset / (sizeof(uint32_t) * 8)), mask)
+                      : atomicAnd(value_first_ + (val_offset / (sizeof(uint32_t) * 8)), ~mask);
+      return static_cast<bool>(old & mask);
+    } else {
+      return cugraph::atomic_cas(value_first_ + val_offset, compare, val);
+    }
+  }
+
+  template <typename Tp = T>
+  __device__ std::enable_if_t<!std::is_const_v<Tp>, value_type> atomic_or(vertex_t offset,
+                                                                          value_type val) const
+  {
+    auto val_offset = value_offset(offset);
+    if constexpr (std::is_same_v<value_type, bool>) {
+      auto mask = uint32_t{1} << (val_offset % (sizeof(uint32_t) * 8));
+      auto old =
+        atomicOr(value_first_ + (val_offset / (sizeof(uint32_t) * 8)), val ? mask : uint32_t{0});
+      return static_cast<bool>(old & mask);
+    } else {
+      return cugraph::atomic_or(value_first_ + val_offset, val);
+    }
+  }
+
+  template <typename Tp = T>
+  __device__ std::enable_if_t<!std::is_const_v<Tp> &&
+                                !std::is_same_v<Tp, bool> /* accumulation undefined for bool */,
+                              void>
+  atomic_accumulate(vertex_t offset, value_type val) const
+  {
+    auto val_offset = value_offset(offset);
+    cugraph::atomic_accumulate(value_first_ + val_offset, val);
+  }
 
  private:
   thrust::optional<raft::device_span<vertex_t const>> keys_{thrust::nullopt};
@@ -97,6 +137,24 @@ class edge_partition_endpoint_property_device_view_t {
 
   value_iterator value_first_{};
   vertex_t range_first_{};
+
+  __device__ vertex_t value_offset(vertex_t offset) const
+  {
+    auto val_offset = offset;
+    if (keys_) {
+      auto chunk_idx = static_cast<size_t>(offset) / (*key_chunk_size_);
+      auto it        = thrust::lower_bound(thrust::seq,
+                                    (*keys_).begin() + (*key_chunk_start_offsets_)[chunk_idx],
+                                    (*keys_).begin() + (*key_chunk_start_offsets_)[chunk_idx + 1],
+                                    range_first_ + offset);
+      assert((it != (*keys_).begin() + (*key_chunk_start_offsets_)[chunk_idx + 1]) &&
+             (*it == (range_first_ + offset)));
+      val_offset = (*key_chunk_start_offsets_)[chunk_idx] +
+                   static_cast<vertex_t>(thrust::distance(
+                     (*keys_).begin() + (*key_chunk_start_offsets_)[chunk_idx], it));
+    }
+    return val_offset;
+  }
 };
 
 template <typename vertex_t>

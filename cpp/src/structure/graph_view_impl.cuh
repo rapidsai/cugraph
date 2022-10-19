@@ -25,6 +25,7 @@
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/partition_manager.hpp>
+#include <cugraph/utilities/atomic_op_utils.cuh>
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/host_scalar_comm.hpp>
 
@@ -298,7 +299,7 @@ __global__ void for_all_major_for_all_nbr_mid_degree(
   }
 
   count_sum = BlockReduce(temp_storage).Reduce(count_sum, edge_property_add);
-  if (threadIdx.x == 0) { atomic_accumulate_edge_op_result(count, count_sum); }
+  if (threadIdx.x == 0) { atomic_accumulate(count, count_sum); }
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
@@ -330,7 +331,7 @@ __global__ void for_all_major_for_all_nbr_high_degree(
   }
 
   count_sum = BlockReduce(temp_storage).Reduce(count_sum, edge_property_add);
-  if (threadIdx.x == 0) { atomic_accumulate_edge_op_result(count, count_sum); }
+  if (threadIdx.x == 0) { atomic_accumulate(count, count_sum); }
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>

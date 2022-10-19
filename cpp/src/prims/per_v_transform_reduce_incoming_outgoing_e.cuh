@@ -161,8 +161,7 @@ __global__ void per_v_transform_reduce_e_hypersparse(
             auto e_op_result  = transform_op(i);
             auto minor        = indices[i];
             auto minor_offset = edge_partition.minor_offset_from_minor_nocheck(minor);
-            atomic_accumulate_edge_op_result(result_value_output.get_iter(minor_offset),
-                                             e_op_result);
+            result_value_output.atomic_accumulate(minor_offset, e_op_result);
           });
       } else {
         thrust::for_each(
@@ -173,7 +172,7 @@ __global__ void per_v_transform_reduce_e_hypersparse(
             auto e_op_result  = transform_op(i);
             auto minor        = indices[i];
             auto minor_offset = edge_partition.minor_offset_from_minor_nocheck(minor);
-            atomic_accumulate_edge_op_result(result_value_output + minor_offset, e_op_result);
+            atomic_accumulate(result_value_output + minor_offset, e_op_result);
           });
       }
     }
@@ -273,8 +272,7 @@ __global__ void per_v_transform_reduce_e_low_degree(
             auto e_op_result  = transform_op(i);
             auto minor        = indices[i];
             auto minor_offset = edge_partition.minor_offset_from_minor_nocheck(minor);
-            atomic_accumulate_edge_op_result(result_value_output.get_iter(minor_offset),
-                                             e_op_result);
+            result_value_output.atomic_accumulate(minor_offset, e_op_result);
           });
       } else {
         thrust::for_each(
@@ -285,7 +283,7 @@ __global__ void per_v_transform_reduce_e_low_degree(
             auto e_op_result  = transform_op(i);
             auto minor        = indices[i];
             auto minor_offset = edge_partition.minor_offset_from_minor_nocheck(minor);
-            atomic_accumulate_edge_op_result(result_value_output + minor_offset, e_op_result);
+            atomic_accumulate(result_value_output + minor_offset, e_op_result);
           });
       }
     }
@@ -372,9 +370,9 @@ __global__ void per_v_transform_reduce_e_mid_degree(
         e_op_result_sum = edge_property_add(e_op_result_sum, e_op_result);
       } else {
         if constexpr (GraphViewType::is_multi_gpu) {
-          atomic_accumulate_edge_op_result(result_value_output.get_iter(minor_offset), e_op_result);
+          result_value_output.atomic_accumulate(minor_offset, e_op_result);
         } else {
-          atomic_accumulate_edge_op_result(result_value_output + minor_offset, e_op_result);
+          atomic_accumulate(result_value_output + minor_offset, e_op_result);
         }
       }
     }
@@ -463,9 +461,9 @@ __global__ void per_v_transform_reduce_e_high_degree(
         e_op_result_sum = edge_property_add(e_op_result_sum, e_op_result);
       } else {
         if constexpr (GraphViewType::is_multi_gpu) {
-          atomic_accumulate_edge_op_result(result_value_output.get_iter(minor_offset), e_op_result);
+          result_value_output.atomic_accumulate(minor_offset, e_op_result);
         } else {
-          atomic_accumulate_edge_op_result(result_value_output + minor_offset, e_op_result);
+          atomic_accumulate(result_value_output + minor_offset, e_op_result);
         }
       }
     }
