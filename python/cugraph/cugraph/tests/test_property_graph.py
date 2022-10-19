@@ -1846,7 +1846,11 @@ def test_add_data_noncontiguous(df_type):
 
 
 @pytest.mark.parametrize("df_type", df_types, ids=df_type_id)
-def test_get_num_vertices(df_type):
+def test_vertex_ids_different_type(df_type):
+    """Getting the number of vertices requires combining vertex ids from multiples columns.
+
+    This tests ensures combining these columns works even if they are different types.
+    """
     from cugraph.experimental import PropertyGraph
 
     if df_type is pd.DataFrame:
@@ -1860,7 +1864,7 @@ def test_get_num_vertices(df_type):
 
     edge_df = df_type()
     edge_df["src"] = series_type([0, 1, 2]).astype("int32")
-    edge_df["dst"] = series_type([0, 1, 2]).astype("int32")
+    edge_df["dst"] = series_type([0, 1, 2]).astype("int64")
     pg.add_edge_data(edge_df, ["src", "dst"], type_name="_E")
 
     assert pg.get_num_vertices() == 3

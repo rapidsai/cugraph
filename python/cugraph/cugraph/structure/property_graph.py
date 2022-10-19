@@ -1334,11 +1334,6 @@ class EXPERIMENTAL__PropertyGraph:
         if epd is not None:
             vert_sers.append(epd[self.src_col_name])
             vert_sers.append(epd[self.dst_col_name])
-        if len(vert_sers) > 1 and not all(
-            cudf.api.types.is_dtype_equal(vert_sers[0].index.dtype, s.index.dtype)
-            for s in vert_sers
-        ):
-            vert_sers = [s.reset_index(drop=True) for s in vert_sers]
         return vert_sers
 
     @staticmethod
