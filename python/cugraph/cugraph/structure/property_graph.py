@@ -39,8 +39,8 @@ class EXPERIMENTAL__PropertySelection:
 
         Parameters
         ----------
-        vertex_selection_series : cudf or pandas series containing vertices for the selection
-        edge_selection_series : cudf or pandas series containing edges for the selection
+        vertex_selection_series : cudf or pandas series containing selected vertices
+        edge_selection_series : cudf or pandas series containing selected edges
 
         """
         self.vertex_selections = vertex_selection_series
