@@ -337,7 +337,6 @@ def test_renumber_vertices(graph):
         nodes_of_interest
     )
 
-    print(f"{index}\n{groups}\n{tensors}\n")
     for vtype in index:
         assert len(index[vtype]) == vc_actual[vtype]
         assert len(index[vtype]) == len(groups[vtype])
@@ -384,7 +383,7 @@ def test_renumber_edges(graph):
         src = noi_index[stype][row[etype]]
         dst = noi_index[dtype][col[etype]]
         assert len(src) == len(dst)
-        print(src)
+
         for i in range(len(src)):
             src_i = int(src[i])
             dst_i = int(dst[i])

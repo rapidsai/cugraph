@@ -387,7 +387,6 @@ def test_renumber_vertices(graph):
         nodes_of_interest
     )
 
-    print(f"{index}\n{groups}\n{tensors}\n")
     for vtype in index:
         assert len(index[vtype]) == vc_actual[vtype]
         assert len(index[vtype]) == len(groups[vtype])
@@ -435,15 +434,12 @@ def test_renumber_edges(graph):
     )
     row, col = graph_store._get_renumbered_edges_from_sample(sdf, noi_index)
 
-    print(row)
-    print(col)
-    print(noi_index)
     for etype in row:
         stype, ctype, dtype = etype.split("__")
         src = noi_index[stype][row[etype]]
         dst = noi_index[dtype][col[etype]]
         assert len(src) == len(dst)
-        print(src, dst, ctype)
+
         for i in range(len(src)):
             src_i = int(src[i])
             dst_i = int(dst[i])
