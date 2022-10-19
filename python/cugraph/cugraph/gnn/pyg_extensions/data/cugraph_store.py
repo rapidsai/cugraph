@@ -803,8 +803,8 @@ class EXPERIMENTAL__CuGraphStore:
         feature store. Feature store implementors guarantee that the call
         :obj:`get_tensor(put_tensor(tensor, attr), attr) = tensor` holds.
 
-        Parameter
-        ---------
+        Parameters
+        ----------
         **attr (TensorAttr): Any relevant tensor attributes that correspond
             to the feature tensor. See the :class:`TensorAttr`
             documentation for required and optional attributes. It is the
@@ -884,6 +884,11 @@ def edge_type_to_str(edge_type):
     ----------
     edge_type : The PyG (src, type, dst) tuple edge representation
         to convert to the C++ representation.
+    
+    Returns
+    -------
+    str
+        contains all triplet information in a single string
     """
     # Since C++ cannot take dictionaries with tuples as key as input, edge type
     # triplets need to be converted into single strings.
