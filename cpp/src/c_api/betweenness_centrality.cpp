@@ -90,11 +90,14 @@ struct betweenness_centrality_functor : public cugraph::c_api::abstract_functor 
       auto centralities = cugraph::betweenness_centrality<vertex_t, edge_t, weight_t, multi_gpu>(
         handle_,
         graph_view,
-        num_vertices_ > 0 ? std::make_optional(static_cast<vertex_t>(num_vertices_))
-                          : std::optional<vertex_t>{std::nullopt},
-        vertex_list_ == NULL ? std::optional<raft::device_span<vertex_t const>>{std::nullopt}
-                             : std::make_optional<raft::device_span<vertex_t const>>(
-                                 vertex_list_->as_type<vertex_t const>(), vertex_list_->size_),
+        num_vertices_ > 0
+          ? std::make_optional(std::variant<vertex_t, raft::device_span<vertex_t const>>(
+              static_cast<vertex_t>(num_vertices_)))
+        : vertex_list_ == NULL
+          ? std::optional<std::variant<vertex_t, raft::device_span<vertex_t const>>>{std::nullopt}
+          : std::make_optional<std::variant<vertex_t, raft::device_span<vertex_t const>>>(
+              raft::device_span<vertex_t const>{vertex_list_->as_type<vertex_t const>(),
+                                                vertex_list_->size_}),
         normalized_,
         include_endpoints_,
         do_expensive_check_);
@@ -168,11 +171,14 @@ struct edge_betweenness_centrality_functor : public cugraph::c_api::abstract_fun
         cugraph::edge_betweenness_centrality<vertex_t, edge_t, weight_t, multi_gpu>(
           handle_,
           graph_view,
-          num_vertices_ > 0 ? std::make_optional(static_cast<vertex_t>(num_vertices_))
-                            : std::optional<vertex_t>{std::nullopt},
-          vertex_list_ == NULL ? std::optional<raft::device_span<vertex_t const>>{std::nullopt}
-                               : std::make_optional<raft::device_span<vertex_t const>>(
-                                   vertex_list_->as_type<vertex_t const>(), vertex_list_->size_),
+          num_vertices_ > 0
+            ? std::make_optional(std::variant<vertex_t, raft::device_span<vertex_t const>>{
+                static_cast<vertex_t>(num_vertices_)})
+          : vertex_list_ == NULL
+            ? std::optional<std::variant<vertex_t, raft::device_span<vertex_t const>>>{std::nullopt}
+            : std::make_optional<std::variant<vertex_t, raft::device_span<vertex_t const>>>(
+                raft::device_span<vertex_t const>{vertex_list_->as_type<vertex_t const>(),
+                                                  vertex_list_->size_}),
           normalized_,
           do_expensive_check_);
 
@@ -201,6 +207,11 @@ extern "C" cugraph_error_code_t cugraph_betweenness_centrality(
   cugraph_centrality_result_t** result,
   cugraph_error_t** error)
 {
+  CAPI_EXPECTS(((num_vertices == 0) || (vertex_list == NULL)),
+               CUGRAPH_INVALID_INPUT,
+               "Cannot specify both num_vertices and vertex_list",
+               *error);
+
   betweenness_centrality_functor functor(
     handle, graph, num_vertices, vertex_list, normalized, include_endpoints, do_expensive_check);
 
@@ -217,6 +228,11 @@ extern "C" cugraph_error_code_t cugraph_edge_betweenness_centrality(
   cugraph_edge_centrality_result_t** result,
   cugraph_error_t** error)
 {
+  CAPI_EXPECTS(((num_vertices == 0) || (vertex_list == NULL)),
+               CUGRAPH_INVALID_INPUT,
+               "Cannot specify both num_vertices and vertex_list",
+               *error);
+
   edge_betweenness_centrality_functor functor(
     handle, graph, num_vertices, vertex_list, normalized, do_expensive_check);
 

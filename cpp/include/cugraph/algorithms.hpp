@@ -33,6 +33,8 @@
 #include <raft/random/rng_state.hpp>
 
 #include <tuple>
+#include <optional>
+#include <variant>
 
 /** @ingroup cpp_api
  *  @{
@@ -311,14 +313,14 @@ void edge_betweenness_centrality(const raft::handle_t& handle,
  *
  * The current implementation does not support a weighted graph.
  *
- * If @p num_vertices and @p vertices are not specified then this function will compute
- * exact betweenness (compute betweenness using a traversal from all vertices).
+ * If @p vertices is an optional variant.  If it is not specified the algorithm
+ * will compute exact betweenness (compute betweenness using a traversal from all vertices).
  *
- * If @p num_vertices or @p vertices are specified then we will compute approximate
- * betweenness either by random sampling @p num_vertices as the seeds of the traversal, or
- * by using the provided @p vertices as the seeds of the traversal.
+ * If @p vertices is specified as a vertex_t, it will compute approximate betweenness by 
+ * random sampling @p vertices as the seeds of the traversals.
  *
- * If both @p and @num_vertices are specified we will throw an error.
+ * If @p vertices is specified as a device_span, it will compute approximate betweenness
+ * using the provided @p vertices as the seeds of the traversals.
  *
  * @throws                 cugraph::logic_error when an error occurs.
  *
@@ -330,8 +332,9 @@ void edge_betweenness_centrality(const raft::handle_t& handle,
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Graph view object.
- * @param num_vertices Optional, if specified, how many vertices to randomly select
- * @param vertices Optional, if specified this provides the list of vertices to app
+ * @param vertices Optional, if specified this provides either a vertex_t count of how many
+ *         random seeds to select, or a device_span identifying a list of pre-selected vertices
+ *         to use as seeds for the traversals for approximating betweenness.
  * @param normalized         A flag indicating results should be normalized
  * @param include_endpoints  A flag indicating whether endpoints of a path should be counted
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
@@ -342,8 +345,7 @@ template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 rmm::device_uvector<weight_t> betweenness_centrality(
   const raft::handle_t& handle,
   graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
-  std::optional<vertex_t> num_vertices,
-  std::optional<raft::device_span<vertex_t const>> vertices,
+  std::optional<std::variant<vertex_t, raft::device_span<vertex_t const>>> vertices,
   bool const normalized         = true,
   bool const include_endpoints  = false,
   bool const do_expensive_check = false);
@@ -354,14 +356,14 @@ rmm::device_uvector<weight_t> betweenness_centrality(
  * Betweenness centrality of an edge is the sum of the fraction of all-pairs shortest paths that
  * pass through this edge. The weight parameter is currenlty not supported
  *
- * If @p num_vertices and @p vertices are not specified then this function will compute
- * exact betweenness (compute betweenness using a traversal from all vertices).
+ * If @p vertices is an optional variant.  If it is not specified the algorithm
+ * will compute exact betweenness (compute betweenness using a traversal from all vertices).
  *
- * If @p num_vertices or @p vertices are specified then we will compute approximate
- * betweenness either by random sampling @p num_vertices as the seeds of the traversal, or
- * by using the provided @p vertices as the seeds of the traversal.
+ * If @p vertices is specified as a vertex_t, it will compute approximate betweenness by 
+ * random sampling @p vertices as the seeds of the traversals.
  *
- * If both @p and @num_vertices are specified we will throw an error.
+ * If @p vertices is specified as a device_span, it will compute approximate betweenness
+ * using the provided @p vertices as the seeds of the traversals.
  *
  * @throws                 cugraph::logic_error when an error occurs.
  *
@@ -373,8 +375,9 @@ rmm::device_uvector<weight_t> betweenness_centrality(
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Graph view object.
- * @param num_vertices Optional, if specified, how many vertices to randomly select
- * @param vertices Optional, if specified this provides the list of vertices to app
+ * @param vertices Optional, if specified this provides either a vertex_t count of how many
+ *         random seeds to select, or a device_span identifying a list of pre-selected vertices
+ *         to use as seeds for the traversals for approximating betweenness.
  * @param normalized         A flag indicating whether or not to normalize the result
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  *
@@ -384,8 +387,7 @@ template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 rmm::device_uvector<weight_t> edge_betweenness_centrality(
   const raft::handle_t& handle,
   graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
-  std::optional<vertex_t> num_vertices,
-  std::optional<raft::device_span<vertex_t const>> vertices,
+  std::optional<std::variant<vertex_t, raft::device_span<vertex_t const>>> vertices,
   bool normalized         = true,
   bool do_expensive_check = false);
 

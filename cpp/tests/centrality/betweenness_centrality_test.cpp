@@ -98,22 +98,21 @@ class Tests_BetweennessCentrality
     auto d_centralities = cugraph::betweenness_centrality(
       handle,
       graph_view,
-      std::optional<vertex_t>{std::nullopt},
-      std::make_optional<raft::device_span<vertex_t const>>(d_seeds.data(), d_seeds.size()),
+      std::make_optional<std::variant<vertex_t, raft::device_span<vertex_t const>>>(
+        raft::device_span<vertex_t const>{d_seeds.data(), d_seeds.size()}),
       betweenness_usecase.normalized,
       betweenness_usecase.include_endpoints,
       do_expensive_check);
 #else
-    EXPECT_THROW(
-      cugraph::betweenness_centrality(
-        handle,
-        graph_view,
-        std::optional<vertex_t>{std::nullopt},
-        std::make_optional<raft::device_span<vertex_t const>>(d_seeds.data(), d_seeds.size()),
-        betweenness_usecase.normalized,
-        betweenness_usecase.include_endpoints,
-        do_expensive_check),
-      cugraph::logic_error);
+    EXPECT_THROW(cugraph::betweenness_centrality(
+                   handle,
+                   graph_view,
+                   std::make_optional<std::variant<vertex_t, raft::device_span<vertex_t const>>>(
+                     raft::device_span<vertex_t const>{d_seeds.data(), d_seeds.size()}),
+                   betweenness_usecase.normalized,
+                   betweenness_usecase.include_endpoints,
+                   do_expensive_check),
+                 cugraph::logic_error);
 #endif
 
     if (cugraph::test::g_perf) {
