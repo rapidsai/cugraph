@@ -17,6 +17,8 @@
 
 #include <rmm/device_uvector.hpp>
 
+#include <thrust/iterator/iterator_traits.h>
+#include <thrust/memory.h>
 #include <thrust/tuple.h>
 
 #include <array>
@@ -72,16 +74,14 @@ auto std_tuple_to_thrust_tuple(TupleType tup, std::index_sequence<Is...>)
 }
 
 template <typename TupleType, std::size_t... Is>
-constexpr TupleType thrust_tuple_of_arithmetic_numeric_limits_lowest(TupleType t,
-                                                                     std::index_sequence<Is...>)
+constexpr TupleType thrust_tuple_of_arithmetic_numeric_limits_lowest(std::index_sequence<Is...>)
 {
   return thrust::make_tuple(
     std::numeric_limits<typename thrust::tuple_element<Is, TupleType>::type>::lowest()...);
 }
 
 template <typename TupleType, std::size_t... Is>
-constexpr TupleType thrust_tuple_of_arithmetic_numeric_limits_max(TupleType t,
-                                                                  std::index_sequence<Is...>)
+constexpr TupleType thrust_tuple_of_arithmetic_numeric_limits_max(std::index_sequence<Is...>)
 {
   return thrust::make_tuple(
     std::numeric_limits<typename thrust::tuple_element<Is, TupleType>::type>::max()...);
@@ -207,15 +207,15 @@ auto thrust_tuple_cat(TupleTypes... tups)
 template <typename TupleType>
 constexpr TupleType thrust_tuple_of_arithmetic_numeric_limits_lowest()
 {
-  return detail::thrust_tuple_of_arithmetic_numeric_limits_lowest(
-    TupleType{}, std::make_index_sequence<thrust::tuple_size<TupleType>::value>());
+  return detail::thrust_tuple_of_arithmetic_numeric_limits_lowest<TupleType>(
+    std::make_index_sequence<thrust::tuple_size<TupleType>::value>());
 }
 
 template <typename TupleType>
 constexpr TupleType thrust_tuple_of_arithmetic_numeric_limits_max()
 {
-  return detail::thrust_tuple_of_arithmetic_numeric_limits_max(
-    TupleType{}, std::make_index_sequence<thrust::tuple_size<TupleType>::value>());
+  return detail::thrust_tuple_of_arithmetic_numeric_limits_max<TupleType>(
+    std::make_index_sequence<thrust::tuple_size<TupleType>::value>());
 }
 
 template <typename TupleType, size_t I>
