@@ -32,8 +32,8 @@
 #include <raft/handle.hpp>
 #include <raft/random/rng_state.hpp>
 
-#include <tuple>
 #include <optional>
+#include <tuple>
 #include <variant>
 
 /** @ingroup cpp_api
@@ -316,7 +316,7 @@ void edge_betweenness_centrality(const raft::handle_t& handle,
  * If @p vertices is an optional variant.  If it is not specified the algorithm
  * will compute exact betweenness (compute betweenness using a traversal from all vertices).
  *
- * If @p vertices is specified as a vertex_t, it will compute approximate betweenness by 
+ * If @p vertices is specified as a vertex_t, it will compute approximate betweenness by
  * random sampling @p vertices as the seeds of the traversals.
  *
  * If @p vertices is specified as a device_span, it will compute approximate betweenness
@@ -359,7 +359,7 @@ rmm::device_uvector<weight_t> betweenness_centrality(
  * If @p vertices is an optional variant.  If it is not specified the algorithm
  * will compute exact betweenness (compute betweenness using a traversal from all vertices).
  *
- * If @p vertices is specified as a vertex_t, it will compute approximate betweenness by 
+ * If @p vertices is specified as a vertex_t, it will compute approximate betweenness by
  * random sampling @p vertices as the seeds of the traversals.
  *
  * If @p vertices is specified as a device_span, it will compute approximate betweenness
