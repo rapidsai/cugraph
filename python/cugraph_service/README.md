@@ -22,14 +22,15 @@
 ### Example
 Starting a server for single-GPU-only cuGraph, using server extensions in `/my/cugraph_service/extensions`:
 ```
-$> PYTHONPATH=/Projects/cugraph/python/cugraph_service python -m cugraph_service_server.server --graph-creation-extension-dir=/my/cugraph_service/extensions
+$> export PYTHONPATH=/rapids/cugraph/python/cugraph_service
+$> python -m cugraph_service_server.server --graph-creation-extension-dir=/my/cugraph_service/extensions
 ```
 
 Starting a server for multi-GPU cuGraph, same extensions:
 ```
 $> export SCHEDULER_FILE=/tmp/scheduler.json
-$> /Projects/cugraph/python/cugraph_service/scripts/run-dask-process.sh scheduler workers &
-$> PYTHONPATH=/Projects/cugraph/python/cugraph_service python -m cugraph_service_server.server --graph-creation-extension-dir=/my/cugraph_service/extensions --dask-scheduler-file=$SCHEDULER_FILE
+$> /rapids/cugraph/python/cugraph_service/scripts/run-dask-process.sh scheduler workers &
+$> python -m cugraph_service_server.server --graph-creation-extension-dir=/my/cugraph_service/extensions --dask-scheduler-file=$SCHEDULER_FILE
 ```
 
 ### Example
