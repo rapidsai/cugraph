@@ -884,7 +884,7 @@ def edge_type_to_str(edge_type):
     ----------
     edge_type : The PyG (src, type, dst) tuple edge representation
         to convert to the C++ representation.
-    
+
     Returns
     -------
     str
