@@ -122,9 +122,8 @@ class Tests_Uniform_Neighbor_Sampling
       auto [d_src_in, d_dst_in, d_indices_in, d_ignore] = extract_induced_subgraphs(
         handle,
         graph_view,
-        raft::device_span<size_t const>(d_subgraph_offsets.data(), d_subgraph_offsets.size()),
+        raft::device_span<size_t const>(d_subgraph_offsets.data(), 2),
         raft::device_span<vertex_t const>(d_vertices.data(), d_vertices.size()),
-        1,
         true);
 
       cugraph::test::validate_extracted_graph_is_subgraph(
