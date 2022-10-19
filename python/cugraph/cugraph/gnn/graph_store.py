@@ -163,7 +163,7 @@ class CuGraphStore:
             ntype = ntypes[0]
         if key not in self.ndata_feat_col_d:
             raise ValueError(
-                f"key {key} not found in CuGraphStore" " node features",
+                f"key {key} not found in CuGraphStore node features",
                 f" {list(self.ndata_feat_col_d.keys())}",
             )
 

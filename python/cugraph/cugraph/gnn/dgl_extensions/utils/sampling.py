@@ -89,7 +89,6 @@ def sample_multiple_sgs(
                 with_replacement,
             )
             output_dfs.append(output)
-
     if len(output_dfs) == 0:
         empty_df = cudf.DataFrame({"sources": [], "destinations": [], "indices": []})
         return empty_df.astype(cp.int32)
@@ -115,20 +114,19 @@ def sample_single_sg(
     # Uniform sampling fails when the dtype
     # of the seed dtype is not same as the node dtype
     start_list = start_list.astype(start_list_dtype)
-    # Filter start list by ranges
-    # https://github.com/rapidsai/cugraph/blob/branch-22.12/cpp/src/prims/per_v_random_select_transform_outgoing_e.cuh
 
+    # Filter start list by ranges
+    # to enure the seed is with in index values
+    # see below:
+    # https://github.com/rapidsai/cugraph/blob/branch-22.12/cpp/src/prims/per_v_random_select_transform_outgoing_e.cuh
     start_list = start_list[
         (start_list >= start_list_range[0]) & (start_list <= start_list_range[1])
     ]
-
     sampled_df = sample_f(
         sg,
         start_list=start_list,
         fanout_vals=[fanout],
         with_replacement=with_replacement,
-        # FIXME: is_edge_ids=True does not seem to do anything
-        # issue https://github.com/rapidsai/cugraph/issues/2562
     )
     return sampled_df
 
