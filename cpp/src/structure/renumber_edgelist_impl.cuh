@@ -75,6 +75,30 @@ struct check_edge_src_and_dst_t {
   }
 };
 
+template <typename vertex_t>
+struct find_unused_id_t {
+  raft::device_span<vertex_t const> sorted_local_vertices{};
+  size_t num_workers{};
+  compute_gpu_id_from_ext_vertex_t<vertex_t> gpu_id_op{};
+  int comm_rank{};
+  vertex_t invalid_id{};
+
+  __device__ vertex_t operator()(size_t worker_id) const
+  {
+    for (size_t i = worker_id; i < sorted_local_vertices.size() + size_t{1}; i += num_workers) {
+      auto start = (i == size_t{0}) ? std::numeric_limits<vertex_t>::lowest()
+                                    : sorted_local_vertices[i - size_t{1}];
+      if (start != std::numeric_limits<vertex_t>::max()) { ++start; };  // now inclusive
+      auto end = (i == sorted_local_vertices.size()) ? std::numeric_limits<vertex_t>::max()
+                                                     : sorted_local_vertices[i];  // exclusive
+      for (vertex_t v = start; v < end; ++v) {
+        if (gpu_id_op(v) == comm_rank) { return v; }
+      }
+    }
+    return invalid_id;
+  }
+};
+
 template <typename vertex_t, typename edge_t>
 struct search_and_increment_degree_t {
   vertex_t const* sorted_vertices{nullptr};
@@ -91,9 +115,112 @@ struct search_and_increment_degree_t {
   }
 };
 
+template <typename vertex_t>
+std::optional<vertex_t> find_locally_unused_ext_vertex_id(
+  raft::handle_t const& handle,
+  raft::device_span<vertex_t const> sorted_local_vertices,
+  bool multi_gpu)
+{
+  // 1. check whether we can quickly find a locally unused external vertex ID (this should be the
+  // case except for some pathological cases)
+
+  // 1.1 look for a vertex ID outside the edge source/destination range this GPU covers
+
+  if (multi_gpu) {
+    auto& comm               = handle.get_comms();
+    auto const comm_size     = comm.get_size();
+    auto& row_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
+    auto const row_comm_size = row_comm.get_size();
+    auto const row_comm_rank = row_comm.get_rank();
+    auto& col_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
+    auto const col_comm_size = col_comm.get_size();
+    auto const col_comm_rank = col_comm.get_rank();
+    if ((row_comm_size < comm_size) &&
+        (col_comm_size < comm_size)) {  // if neither of the edge source/destination range covers
+                                        // the entire vertex range
+      std::vector<bool> locally_used(comm_size, false);
+      for (int i = 0; i < col_comm_size; ++i) {
+        locally_used[i * row_comm_size + row_comm_rank] = true;
+      }
+      for (int i = 0; i < row_comm_size; ++i) {
+        locally_used[col_comm_rank * row_comm_size + i] = true;
+      }
+      assert(std::find(locally_used.begin(), locally_used.end(), false) != locally_used.end());
+      std::optional<vertex_t> ret{std::nullopt};
+      vertex_t v     = std::numeric_limits<vertex_t>::lowest();
+      auto gpu_id_op = compute_gpu_id_from_ext_vertex_t<vertex_t>{comm_size};
+      while (true) {  // the acutal loop count should be smaller than or comparable to comm_size
+        if (!locally_used[gpu_id_op(v)]) {
+          ret = v;
+          break;
+        }
+        if (v == std::numeric_limits<vertex_t>::max()) { break; }
+        ++v;
+      }
+      auto found = static_cast<bool>(host_scalar_allreduce(
+        comm, static_cast<int>(ret.has_value()), raft::comms::op_t::MIN, handle.get_stream()));
+      if (found) { return ret; }
+    }
+  }
+
+  // 1.2. look for a vertex ID outside the [min, max] vertex IDs used in the entire input graph
+
+  auto min = std::numeric_limits<vertex_t>::max();
+  auto max = std::numeric_limits<vertex_t>::lowest();
+  if (sorted_local_vertices.size() > size_t{0}) {
+    raft::update_host(&min, sorted_local_vertices.data(), size_t{1}, handle.get_stream());
+    raft::update_host(&max,
+                      sorted_local_vertices.data() + (sorted_local_vertices.size() - size_t{1}),
+                      size_t{1},
+                      handle.get_stream());
+    handle.sync_stream();
+  }
+  if (multi_gpu && (handle.get_comms().get_size() > int{1})) {
+    min =
+      host_scalar_allreduce(handle.get_comms(), min, raft::comms::op_t::MIN, handle.get_stream());
+    max =
+      host_scalar_allreduce(handle.get_comms(), max, raft::comms::op_t::MAX, handle.get_stream());
+  }
+  if (min > std::numeric_limits<vertex_t>::lowest()) {
+    return std::numeric_limits<vertex_t>::lowest();
+  }
+  if (max < std::numeric_limits<vertex_t>::max()) { return std::numeric_limits<vertex_t>::max(); }
+
+  // 2. in case the vertex ID range covers [std::numeric_limits<vertex_t>::lowest(),
+  // std::numeric_limits<vertex_t>::max()] (this is very unlikely to be the case in reality, but for
+  // completeness)
+
+  auto num_workers =
+    std::min(static_cast<size_t>(handle.get_device_properties().multiProcessorCount) * size_t{1024},
+             sorted_local_vertices.size() + size_t{1});
+  auto gpu_id_op =
+    compute_gpu_id_from_ext_vertex_t<vertex_t>{multi_gpu ? handle.get_comms().get_size() : int{1}};
+  auto unused_id = thrust::transform_reduce(
+    handle.get_thrust_policy(),
+    thrust::make_counting_iterator(size_t{0}),
+    thrust::make_counting_iterator(num_workers),
+    find_unused_id_t<vertex_t>{sorted_local_vertices,
+                               num_workers,
+                               gpu_id_op,
+                               multi_gpu ? handle.get_comms().get_rank() : int{0},
+                               std::numeric_limits<vertex_t>::max()},
+    std::numeric_limits<vertex_t>::max(),  // already taken in the step 1.2, so this can't be a
+                                           // valid answer
+    thrust::minimum<vertex_t>{});
+
+  if (multi_gpu && (handle.get_comms().get_size() > int{1})) {
+    unused_id = host_scalar_allreduce(
+      handle.get_comms(), unused_id, raft::comms::op_t::MIN, handle.get_stream());
+  }
+
+  return (unused_id != std::numeric_limits<vertex_t>::max())
+           ? std::make_optional<vertex_t>(unused_id)
+           : std::nullopt /* if the entire range of vertex_t is used */;
+}
+
 // returns renumber map and segment_offsets
 template <typename vertex_t, typename edge_t, bool multi_gpu>
-std::tuple<rmm::device_uvector<vertex_t>, std::vector<vertex_t>> compute_renumber_map(
+std::tuple<rmm::device_uvector<vertex_t>, std::vector<vertex_t>, vertex_t> compute_renumber_map(
   raft::handle_t const& handle,
   std::optional<rmm::device_uvector<vertex_t>>&& local_vertices,
   std::vector<vertex_t const*> const& edgelist_majors,
@@ -130,11 +257,6 @@ std::tuple<rmm::device_uvector<vertex_t>, std::vector<vertex_t>> compute_renumbe
     if (edgelist_majors.size() > 1) {
       thrust::sort(
         handle.get_thrust_policy(), sorted_unique_majors.begin(), sorted_unique_majors.end());
-      sorted_unique_majors.resize(thrust::distance(sorted_unique_majors.begin(),
-                                                   thrust::unique(handle.get_thrust_policy(),
-                                                                  sorted_unique_majors.begin(),
-                                                                  sorted_unique_majors.end())),
-                                  handle.get_stream());
     }
     sorted_unique_majors.shrink_to_fit(handle.get_stream());
   }
@@ -216,6 +338,14 @@ std::tuple<rmm::device_uvector<vertex_t>, std::vector<vertex_t>> compute_renumbe
       sorted_local_vertices.shrink_to_fit(handle.get_stream());
     }
   }
+
+  auto locally_unused_vertex_id = find_locally_unused_ext_vertex_id(
+    handle,
+    raft::device_span<vertex_t const>(sorted_local_vertices.data(), sorted_local_vertices.size()),
+    multi_gpu);
+  CUGRAPH_EXPECTS(locally_unused_vertex_id.has_value(),
+                  "Invalid input arguments: there is no unused value in the entire range of "
+                  "vertex_t, increase vertex_t to 64 bit.");
 
   // 4. compute global degrees for the sorted local vertices
 
@@ -448,7 +578,8 @@ std::tuple<rmm::device_uvector<vertex_t>, std::vector<vertex_t>> compute_renumbe
                     handle.get_stream());
   handle.sync_stream();
 
-  return std::make_tuple(std::move(sorted_local_vertices), h_segment_offsets);
+  return std::make_tuple(
+    std::move(sorted_local_vertices), h_segment_offsets, *locally_unused_vertex_id);
 }
 
 template <typename vertex_t, typename edge_t, bool multi_gpu>
@@ -736,15 +867,14 @@ renumber_edgelist(
 
   // 1. compute renumber map
 
-  auto [renumber_map_labels, vertex_partition_segment_offsets] =
+  auto [renumber_map_labels, vertex_partition_segment_offsets, locally_unused_vertex_id] =
     detail::compute_renumber_map<vertex_t, edge_t, multi_gpu>(handle,
                                                               std::move(local_vertices),
                                                               edgelist_const_majors,
                                                               edgelist_const_minors,
                                                               edgelist_edge_counts);
 
-  // 2. initialize partition_t object, number_of_vertices, and number_of_edges for the coarsened
-  // graph
+  // 2. initialize partition_t object, number_of_vertices, and number_of_edges
 
   auto vertex_counts = host_scalar_allgather(
     comm, static_cast<vertex_t>(renumber_map_labels.size()), handle.get_stream());
@@ -766,9 +896,6 @@ renumber_edgelist(
 
   double constexpr load_factor = 0.7;
 
-  // FIXME: compare this hash based approach with a binary search based approach in both memory
-  // footprint and execution time
-
   {
     vertex_t max_edge_partition_major_range_size{0};
     for (size_t i = 0; i < edgelist_majors.size(); ++i) {
@@ -777,6 +904,7 @@ renumber_edgelist(
     }
     rmm::device_uvector<vertex_t> renumber_map_major_labels(max_edge_partition_major_range_size,
                                                             handle.get_stream());
+    // FIXME: we may run this in parallel if memory is sufficient
     for (size_t i = 0; i < edgelist_majors.size(); ++i) {
       device_bcast(col_comm,
                    renumber_map_labels.data(),
@@ -795,7 +923,7 @@ renumber_edgelist(
                      static_cast<double>(partition.local_edge_partition_major_range_size(i)) /
                      load_factor),
                    static_cast<size_t>(partition.local_edge_partition_major_range_size(i)) + 1),
-          cuco::sentinel::empty_key<vertex_t>{invalid_vertex_id<vertex_t>::value},
+          cuco::sentinel::empty_key<vertex_t>{locally_unused_vertex_id},
           cuco::sentinel::empty_value<vertex_t>{invalid_vertex_id<vertex_t>::value},
           stream_adapter,
           handle.get_stream()};
@@ -843,7 +971,7 @@ renumber_edgelist(
         renumber_map{// cuco::static_map requires at least one empty slot
                      std::max(static_cast<size_t>(static_cast<double>(segment_size) / load_factor),
                               static_cast<size_t>(segment_size) + 1),
-                     cuco::sentinel::empty_key<vertex_t>{invalid_vertex_id<vertex_t>::value},
+                     cuco::sentinel::empty_key<vertex_t>{locally_unused_vertex_id},
                      cuco::sentinel::empty_value<vertex_t>{invalid_vertex_id<vertex_t>::value},
                      stream_adapter,
                      handle.get_stream()};
@@ -889,7 +1017,7 @@ renumber_edgelist(
                    std::max(static_cast<size_t>(
                               static_cast<double>(renumber_map_minor_labels.size()) / load_factor),
                             renumber_map_minor_labels.size() + 1),
-                   cuco::sentinel::empty_key<vertex_t>{invalid_vertex_id<vertex_t>::value},
+                   cuco::sentinel::empty_key<vertex_t>{locally_unused_vertex_id},
                    cuco::sentinel::empty_value<vertex_t>{invalid_vertex_id<vertex_t>::value},
                    stream_adapter,
                    handle.get_stream()};
@@ -945,7 +1073,7 @@ renumber_edgelist(raft::handle_t const& handle,
       std::nullopt);
   }
 
-  auto [renumber_map_labels, segment_offsets] =
+  auto [renumber_map_labels, segment_offsets, locally_unused_vertex_id] =
     detail::compute_renumber_map<vertex_t, edge_t, multi_gpu>(
       handle,
       std::move(vertices),
@@ -965,7 +1093,7 @@ renumber_edgelist(raft::handle_t const& handle,
       // cuco::static_map requires at least one empty slot
       std::max(static_cast<size_t>(static_cast<double>(renumber_map_labels.size()) / load_factor),
                renumber_map_labels.size() + 1),
-      cuco::sentinel::empty_key<vertex_t>{invalid_vertex_id<vertex_t>::value},
+      cuco::sentinel::empty_key<vertex_t>{locally_unused_vertex_id},
       cuco::sentinel::empty_value<vertex_t>{invalid_vertex_id<vertex_t>::value},
       stream_adapter,
       handle.get_stream()};

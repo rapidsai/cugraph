@@ -88,7 +88,7 @@ class CuGraphStore:
             (ignored if contains_vector_features=False and the col names of
             the dataframe are treated as corresponding feature names)
         contains_vector_features : False
-            Wether to treat the columns of the dataframe being added as
+            Whether to treat the columns of the dataframe being added as
             as 2d features
         Returns
         -------
@@ -133,7 +133,7 @@ class CuGraphStore:
             (ignored if contains_vector_features=False and the col names of
             the dataframe are treated as corresponding feature names)
         contains_vector_features : False
-            Wether to treat the columns of the dataframe being added as
+            Whether to treat the columns of the dataframe being added as
             as 2d features
         Returns
         -------
@@ -163,7 +163,7 @@ class CuGraphStore:
             ntype = ntypes[0]
         if key not in self.ndata_feat_col_d:
             raise ValueError(
-                f"key {key} not found in CuGraphStore" " node features",
+                f"key {key} not found in CuGraphStore node features",
                 f" {list(self.ndata_feat_col_d.keys())}",
             )
 
@@ -484,8 +484,8 @@ class CuGraphStore:
             return _subg
 
     def __clear_cached_properties(self):
-        # has_attr caused access to the attribute
-        # forcing computation
+        # Check for cached properties using self.__dict__ because calling
+        # hasattr() accesses the attribute and forces computation
         if "has_multiple_etypes" in self.__dict__:
             del self.has_multiple_etypes
 
