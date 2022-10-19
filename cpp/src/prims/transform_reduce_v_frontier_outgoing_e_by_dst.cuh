@@ -210,10 +210,9 @@ auto sort_and_reduce_buffer_elements(
 }  // namespace detail
 
 template <typename GraphViewType, typename VertexFrontierBucketType>
-typename GraphViewType::edge_type compute_num_out_nbrs_from_frontier(
-  raft::handle_t const& handle,
-  GraphViewType const& graph_view,
-  VertexFrontierBucketType const& frontier)
+size_t compute_num_out_nbrs_from_frontier(raft::handle_t const& handle,
+                                          GraphViewType const& graph_view,
+                                          VertexFrontierBucketType const& frontier)
 {
   static_assert(!GraphViewType::is_storage_transposed,
                 "GraphViewType should support the push model.");
@@ -223,7 +222,7 @@ typename GraphViewType::edge_type compute_num_out_nbrs_from_frontier(
   using weight_t = typename GraphViewType::weight_type;
   using key_t    = typename VertexFrontierBucketType::key_type;
 
-  edge_t ret{0};
+  size_t ret{0};
 
   vertex_t const* local_frontier_vertex_first{nullptr};
   if constexpr (std::is_same_v<key_t, vertex_t>) {
@@ -244,7 +243,6 @@ typename GraphViewType::edge_type compute_num_out_nbrs_from_frontier(
       edge_partition_device_view_t<vertex_t, edge_t, weight_t, GraphViewType::is_multi_gpu>(
         graph_view.local_edge_partition_view(i));
 
-    // FIXME: edge_partition.compute_number_of_edges()???
     if constexpr (GraphViewType::is_multi_gpu) {
       auto& col_comm = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
       auto const col_comm_rank = col_comm.get_rank();
