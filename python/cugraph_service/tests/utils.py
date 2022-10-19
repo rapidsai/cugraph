@@ -94,7 +94,7 @@ def start_server_subprocess(
         )
 
         print(
-            "\nLaunched cugraph_service server, waiting for it to " "start...",
+            "\nLaunched cugraph_service server, waiting for it to start...",
             end="",
             flush=True,
         )

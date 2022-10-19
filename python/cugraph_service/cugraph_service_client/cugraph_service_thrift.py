@@ -268,5 +268,5 @@ def create_client(host, port, call_timeout=90000):
         # FIXME: may need to have additional thrift exception handlers
         # FIXME: this exception being raised could use more detail
         raise spec.CugraphServiceError(
-            "could not create a client session " "with a cugraph_service server"
+            "could not create a client session with a cugraph_service server"
         )

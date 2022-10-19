@@ -58,8 +58,11 @@ def call_algo(sg_algo_func, G, **kwargs):
         if is_mg_graph:
             possible_args = ["start_list", "fanout_vals", "with_replacement"]
             kwargs_to_pass = {a: kwargs[a] for a in possible_args if a in kwargs}
-            mg_uniform_neighbor_sample._return_type = "arrays"
-            data = mg_uniform_neighbor_sample(G, **kwargs_to_pass)
+            result_ddf = mg_uniform_neighbor_sample(G, **kwargs_to_pass)
+            # Convert DataFrame into CuPy arrays for returning to the client
+            sources = result_ddf["sources"].compute().to_cupy()
+            destinations = result_ddf["destinations"].compute().to_cupy()
+            indices = result_ddf["indices"].compute().to_cupy()
         else:
             possible_args = [
                 "start_list",
@@ -68,13 +71,16 @@ def call_algo(sg_algo_func, G, **kwargs):
                 "is_edge_ids",
             ]
             kwargs_to_pass = {a: kwargs[a] for a in possible_args if a in kwargs}
-            uniform_neighbor_sample._return_type = "arrays"
-            data = uniform_neighbor_sample(G, **kwargs_to_pass)
+            result_df = uniform_neighbor_sample(G, **kwargs_to_pass)
+            # Convert DataFrame into CuPy arrays for returning to the client
+            sources = result_df["sources"].to_cupy()
+            destinations = result_df["destinations"].to_cupy()
+            indices = result_df["indices"].to_cupy()
 
         return UniformNeighborSampleResult(
-            sources=data[0],
-            destinations=data[1],
-            indices=data[2],
+            sources=sources,
+            destinations=destinations,
+            indices=indices,
         )
 
     else:
@@ -343,30 +349,33 @@ class CugraphHandler:
 
         G = self._get_graph(graph_id)
         info = {}
-        if isinstance(G, (PropertyGraph, MGPropertyGraph)):
-            for k in keys:
-                if k == "num_vertices":
-                    info[k] = G.get_num_vertices()
-                elif k == "num_vertices_from_vertex_data":
-                    info[k] = G.get_num_vertices(include_edge_data=False)
-                elif k == "num_edges":
-                    info[k] = G.get_num_edges()
-                elif k == "num_vertex_properties":
-                    info[k] = len(G.vertex_property_names)
-                elif k == "num_edge_properties":
-                    info[k] = len(G.edge_property_names)
-        else:
-            for k in keys:
-                if k == "num_vertices":
-                    info[k] = G.number_of_vertices()
-                elif k == "num_vertices_from_vertex_data":
-                    info[k] = 0
-                elif k == "num_edges":
-                    info[k] = G.number_of_edges()
-                elif k == "num_vertex_properties":
-                    info[k] = 0
-                elif k == "num_edge_properties":
-                    info[k] = 0
+        try:
+            if isinstance(G, (PropertyGraph, MGPropertyGraph)):
+                for k in keys:
+                    if k == "num_vertices":
+                        info[k] = G.get_num_vertices()
+                    elif k == "num_vertices_from_vertex_data":
+                        info[k] = G.get_num_vertices(include_edge_data=False)
+                    elif k == "num_edges":
+                        info[k] = G.get_num_edges()
+                    elif k == "num_vertex_properties":
+                        info[k] = len(G.vertex_property_names)
+                    elif k == "num_edge_properties":
+                        info[k] = len(G.edge_property_names)
+            else:
+                for k in keys:
+                    if k == "num_vertices":
+                        info[k] = G.number_of_vertices()
+                    elif k == "num_vertices_from_vertex_data":
+                        info[k] = 0
+                    elif k == "num_edges":
+                        info[k] = G.number_of_edges()
+                    elif k == "num_vertex_properties":
+                        info[k] = 0
+                    elif k == "num_edge_properties":
+                        info[k] = 0
+        except Exception:
+            raise CugraphServiceError(f"{traceback.format_exc()}")
 
         return {key: ValueWrapper(value).union for (key, value) in info.items()}
 
@@ -544,7 +553,12 @@ class CugraphHandler:
             columns = None
         else:
             columns = property_keys
-        df = pG.get_vertex_data(vertex_ids=ids, columns=columns)
+        try:
+            df = pG.get_vertex_data(vertex_ids=ids, columns=columns)
+            if isinstance(df, dask_cudf.DataFrame):
+                df = df.compute()
+        except KeyError:
+            df = None
         return self.__get_graph_data_as_numpy_bytes(df, null_replacement_value)
 
     def get_graph_edge_data(
@@ -565,7 +579,12 @@ class CugraphHandler:
             columns = None
         else:
             columns = property_keys
-        df = pG.get_edge_data(edge_ids=ids, columns=columns)
+        try:
+            df = pG.get_edge_data(edge_ids=ids, columns=columns)
+            if isinstance(df, dask_cudf.DataFrame):
+                df = df.compute()
+        except KeyError:
+            df = None
         return self.__get_graph_data_as_numpy_bytes(df, null_replacement_value)
 
     def is_vertex_property(self, property_key, graph_id):
@@ -902,10 +921,6 @@ class CugraphHandler:
         try:
             if dataframe is None:
                 return np.ndarray(shape=(0, 0)).dumps()
-            elif isinstance(dataframe, dask_cudf.DataFrame):
-                df = dataframe.compute()
-            else:
-                df = dataframe
 
             # null_replacement_value is a Value "union"
             n = ValueWrapper(null_replacement_value).get_py_obj()
@@ -914,7 +929,7 @@ class CugraphHandler:
             # FIXME: should something other than a numpy type be serialized to
             # prevent a copy? (note: any other type required to be de-serialzed
             # on the client end could add dependencies on the client)
-            df_numpy = df.to_numpy(na_value=n)
+            df_numpy = dataframe.to_numpy(na_value=n)
             return df_numpy.dumps()
 
         except Exception:

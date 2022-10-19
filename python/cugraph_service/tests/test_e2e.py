@@ -254,7 +254,7 @@ def test_load_and_call_graph_creation_extension(client, graph_creation_extension
     # the extension
     extension_dir = graph_creation_extension2
 
-    num_files_loaded = client.load_graph_creation_extensions(extension_dir)
+    num_files_loaded = client.load_graph_creation_extensions(extension_dir.name)
     assert num_files_loaded == 1
 
     new_graph_id = client.call_graph_creation_extension(
@@ -279,7 +279,7 @@ def test_load_and_call_graph_creation_long_running_extension(
     # the extension
     extension_dir = graph_creation_extension_long_running
 
-    num_files_loaded = client.load_graph_creation_extensions(extension_dir)
+    num_files_loaded = client.load_graph_creation_extensions(extension_dir.name)
     assert num_files_loaded == 1
 
     new_graph_id = client.call_graph_creation_extension(
@@ -348,17 +348,17 @@ def test_get_graph_edge_data(client_with_property_csvs_loaded):
     edge_ids = [0, 1, 2]
     np_array = client.get_graph_edge_data(edge_ids)
     assert np_array.shape == (3, 11)
-    # The 3rd element is the edge ID
+    # The 0th element is the edge ID
     for (i, eid) in enumerate(edge_ids):
-        assert np_array[i][2] == eid
+        assert np_array[i][0] == eid
 
     np_array = client.get_graph_edge_data(0)
     assert np_array.shape == (1, 11)
-    assert np_array[0][2] == 0
+    assert np_array[0][0] == 0
 
     np_array = client.get_graph_edge_data(1)
     assert np_array.shape == (1, 11)
-    assert np_array[0][2] == 1
+    assert np_array[0][0] == 1
 
 
 def test_get_graph_info(client_with_property_csvs_loaded):

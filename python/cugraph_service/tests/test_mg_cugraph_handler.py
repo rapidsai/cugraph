@@ -100,7 +100,7 @@ def test_get_graph_data_large_vertex_ids(
     extension_dir = graph_creation_extension_big_vertex_ids
 
     # Load the extension and ensure it can be called.
-    handler.load_graph_creation_extensions(extension_dir)
+    handler.load_graph_creation_extensions(extension_dir.name)
     new_graph_id = handler.call_graph_creation_extension(
         "graph_creation_function_vert_and_edge_data_big_vertex_ids", "()", "{}"
     )
@@ -158,7 +158,7 @@ def test_get_graph_data_empty_graph(
     extension_dir = graph_creation_extension_empty_graph
 
     # Load the extension and ensure it can be called.
-    handler.load_graph_creation_extensions(extension_dir)
+    handler.load_graph_creation_extensions(extension_dir.name)
     new_graph_id = handler.call_graph_creation_extension(
         "graph_creation_function", "()", "{}"
     )
@@ -283,6 +283,8 @@ def test_uniform_neighbor_sampling(handler_with_karate_edgelist_loaded):
             fanout_vals=fanout_vals,
             with_replacement=with_replacement,
             graph_id=defaults.graph_id,
+            result_host=None,
+            result_port=None,
         )
 
     # FIXME: add test coverage for specifying the edge ID as the
@@ -306,4 +308,6 @@ def test_uniform_neighbor_sampling(handler_with_karate_edgelist_loaded):
         fanout_vals=fanout_vals,
         with_replacement=with_replacement,
         graph_id=extracted_gid,
+        result_host=None,
+        result_port=None,
     )

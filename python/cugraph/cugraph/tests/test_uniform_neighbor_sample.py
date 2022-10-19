@@ -15,7 +15,6 @@ import random
 
 import pytest
 import cudf
-import cupy
 
 import cugraph
 from cugraph.testing import utils
@@ -289,39 +288,4 @@ def test_uniform_neighbor_sample_unweighted(simple_unweighted_input_expected_out
 
     actual_dst = sampling_results.destinations
     actual_dst = actual_dst.to_arrow().to_pylist()
-    assert sorted(actual_dst) == sorted(test_data["expected_dst"])
-
-
-def test_uniform_neighbor_sample_unweighted_arrays_returned(
-    simple_unweighted_input_expected_output,
-):
-
-    """
-    Ensure that a tuple of cupy arrays are returned when specified instead of a
-    cudf DataFrame.
-    """
-    test_data = simple_unweighted_input_expected_output
-
-    # Set the flag to return a tuple of cupy arrays
-    uniform_neighbor_sample._return_type = "arrays"
-
-    result = uniform_neighbor_sample(
-        test_data["Graph"],
-        test_data["start_list"],
-        test_data["fanout_vals"],
-        test_data["with_replacement"],
-    )
-
-    # After the call, ensure the flag is reset to allow the default return type
-    assert uniform_neighbor_sample._return_type == ""
-
-    assert type(result) is tuple
-    assert isinstance(result[0], cupy.ndarray)
-    assert isinstance(result[1], cupy.ndarray)
-    assert isinstance(result[2], cupy.ndarray)
-
-    actual_src = result[0]
-    assert sorted(actual_src) == sorted(test_data["expected_src"])
-
-    actual_dst = result[1]
     assert sorted(actual_dst) == sorted(test_data["expected_dst"])
