@@ -60,7 +60,12 @@ def test_node_data_pg(graph_file):
     )
     pG = PropertyGraph()
     gstore = cugraph.gnn.CuGraphStore(graph=pG, backend_lib="cupy")
-    gstore.add_edge_data(cu_M, node_col_names=("0", "1"), feat_name="edge_feat")
+    gstore.add_edge_data(
+        cu_M,
+        node_col_names=("0", "1"),
+        feat_name="edge_feat",
+        contains_vector_features=True,
+    )
 
     edata_f = gstore.get_edge_storage("edge_feat")
     edata = edata_f.fetch(indices=[0, 1], device="cuda")
@@ -80,8 +85,7 @@ def test_egonet(graph_file):
     )
     pG = PropertyGraph()
     gstore = cugraph.gnn.CuGraphStore(graph=pG, backend_lib="cupy")
-    gstore.add_edge_data(cu_M, node_col_names=("0", "1"), feat_name="edge_feat")
-
+    gstore.add_edge_data(cu_M, node_col_names=("0", "1"))
     nodes = [1, 2]
 
     ego_edge_list1, seeds_offsets1 = gstore.egonet(nodes, k=1)
@@ -100,7 +104,7 @@ def test_workflow(graph_file):
     )
     pg = PropertyGraph()
     gstore = cugraph.gnn.CuGraphStore(graph=pg)
-    gstore.add_edge_data(cu_M, node_col_names=("0", "1"), feat_name="feat")
+    gstore.add_edge_data(cu_M, node_col_names=("0", "1"))
     nodes = gstore.get_vertex_ids()
     num_nodes = len(nodes)
 
@@ -120,7 +124,7 @@ def test_sample_neighbors(graph_file):
     )
     pg = PropertyGraph()
     gstore = cugraph.gnn.CuGraphStore(graph=pg)
-    gstore.add_edge_data(cu_M, feat_name="feat", node_col_names=("0", "1"))
+    gstore.add_edge_data(cu_M, node_col_names=("0", "1"))
 
     nodes = gstore.get_vertex_ids()
     num_nodes = len(nodes)
@@ -142,7 +146,7 @@ def test_sample_neighbor_neg_one_fanout(graph_file):
     )
     pg = PropertyGraph()
     gstore = cugraph.gnn.CuGraphStore(graph=pg)
-    gstore.add_edge_data(cu_M, feat_name="edge_k", node_col_names=("0", "1"))
+    gstore.add_edge_data(cu_M, node_col_names=("0", "1"))
 
     nodes = gstore.get_vertex_ids()
     sampled_nodes = nodes[:5].to_dlpack()
@@ -163,7 +167,6 @@ def test_get_node_storage_graph_file(graph_file):
 
     gstore.add_edge_data(
         cu_M,
-        feat_name="feat",
         node_col_names=("0", "1"),
     )
 
@@ -176,9 +179,10 @@ def test_get_node_storage_graph_file(graph_file):
         df_feat,
         feat_name="node_feat",
         node_col_name="node_id",
+        contains_vector_features=True,
     )
 
-    ndata_f = gstore.get_node_storage(feat_name="node_feat")
+    ndata_f = gstore.get_node_storage(key="node_feat")
     ndata = ndata_f.fetch([0, 1, 2], device="cuda")
 
     assert ndata.shape[0] > 0
@@ -191,9 +195,14 @@ def test_edge_storage_data_graph_file(graph_file):
     )
     pg = PropertyGraph()
     gstore = cugraph.gnn.CuGraphStore(graph=pg, backend_lib="cupy")
-    gstore.add_edge_data(cu_M, node_col_names=("0", "1"), feat_name="edge_k")
+    gstore.add_edge_data(
+        cu_M,
+        node_col_names=("0", "1"),
+        feat_name="edge_k",
+        contains_vector_features=True,
+    )
 
-    edata_s = gstore.get_edge_storage(feat_name="edge_k")
+    edata_s = gstore.get_edge_storage(key="edge_k")
     edata = edata_s.fetch([0, 1, 2, 3], device="cuda")
     assert edata.shape[0] > 0
 
@@ -315,26 +324,30 @@ def dataset1_CuGraphStore():
     # property_columns=None (the default) means all columns except
     # vertex_col_name will be used as properties for the vertices/edges.
 
-    graph.add_node_data(merchant_df, "merchant_id", "merchant_k", "merchant")
-    graph.add_node_data(user_df, "user_id", "user_k", "user")
-    graph.add_node_data(taxpayers_df, "payer_id", "taxpayers_k", "taxpayers")
+    graph.add_node_data(merchant_df, "merchant_id", "merchant", "merchant_k", True)
+
+    graph.add_node_data(user_df, "user_id", "user", "user_k", True)
+    graph.add_node_data(taxpayers_df, "payer_id", "taxpayers", "taxpayers_k", True)
     graph.add_edge_data(
         referrals_df,
         ("user_id_1", "user_id_2"),
-        "referrals_k",
         "('user', 'refers', 'user')",
+        "referrals_k",
+        True,
     )
     graph.add_edge_data(
         relationships_df,
         ("user_id_1", "user_id_2"),
-        "relationships_k",
         "('user', 'relationship', 'user')",
+        "relationships_k",
+        True,
     )
     graph.add_edge_data(
         transactions_df,
         ("user_id", "merchant_id"),
-        "transactions_k",
         "('user', 'transactions', 'merchant')",
+        "transactions_k",
+        True,
     )
 
     return graph
@@ -364,9 +377,7 @@ def test_ntypes(dataset1_CuGraphStore):
 
 
 def test_get_node_storage_gs(dataset1_CuGraphStore):
-    fs = dataset1_CuGraphStore.get_node_storage(
-        feat_name="merchant_k", ntype="merchant"
-    )
+    fs = dataset1_CuGraphStore.get_node_storage(key="merchant_k", ntype="merchant")
     # indices = [11, 4, 21, 316, 11]
     indices = [11, 4, 21, 316]
 
@@ -418,7 +429,9 @@ def test_sampling_homogeneous_gs_out_dir():
     )
     pg = PropertyGraph()
     gs = CuGraphStore(pg)
-    gs.add_edge_data(df, ["src", "dst"], feat_name="edges")
+    gs.add_edge_data(
+        df, ["src", "dst"], feat_name="edges", contains_vector_features=True
+    )
 
     # below are obtained from dgl runs on the same graph
     expected_out = {
@@ -465,7 +478,7 @@ def test_sampling_homogeneous_gs_in_dir():
     )
     pg = PropertyGraph()
     gs = CuGraphStore(pg)
-    gs.add_edge_data(df, ["src", "dst"], feat_name="edges")
+    gs.add_edge_data(df, ["src", "dst"])
 
     # below are obtained from dgl runs on the same graph
     expected_in = {
@@ -534,8 +547,7 @@ def create_gs_heterogeneous_dgl_eg():
         gs.add_edge_data(
             subset_df,
             ["src", "dst"],
-            feat_name="edge_feat",
-            etype=etype_map[e],
+            canonical_etype=etype_map[e],
         )
 
     # Add Node Data
@@ -547,7 +559,7 @@ def create_gs_heterogeneous_dgl_eg():
     )
     for n in df["ntype"].unique().values_host:
         subset_df = df[df["ntype"] == n][["node_id", "node_feat"]]
-        gs.add_node_data(subset_df, "node_id", feat_name="node_feat", ntype=str(n))
+        gs.add_node_data(subset_df, "node_id", ntype=str(n))
 
     return gs
 
@@ -724,22 +736,20 @@ def test_clear_cache():
     df = cudf.DataFrame()
     df["node_id"] = [1000, 2000, 3000]
     df["new_node_feat"] = [float(i + 1) for i in range(len(df))]
-    gs.add_node_data(
-        df, feat_name="new_node_feat", node_col_name="node_id", ntype="nt.a"
-    )
+    gs.add_node_data(df, node_col_name="node_id", ntype="nt.a")
 
     new_nodes = gs.num_nodes_dict["nt.a"]
     assert new_nodes == prev_nodes + 3
 
 
-def test_add_node_data_scaler_vector_feats():
+def test_add_node_data_scaler_feats():
     pg = PropertyGraph()
     gs = CuGraphStore(pg, backend_lib="cupy")
     df = cudf.DataFrame()
     df["node_id"] = [1, 2, 3]
     df["node_scaler_feat_1"] = [10, 20, 30]
     df["node_scaler_feat_2"] = [15, 25, 35]
-    gs.add_node_data(df, "node_id", is_single_vector_feature=False)
+    gs.add_node_data(df, "node_id", contains_vector_features=False)
 
     out_1 = gs.get_node_storage("node_scaler_feat_1").fetch([1, 3])
     exp_1 = cp.asarray([10, 30])
@@ -754,7 +764,7 @@ def test_add_node_data_scaler_vector_feats():
     df["v_s1"] = [10, 20, 30]
     df["v_s2"] = [15, 25, 35]
     gs.add_node_data(
-        df, "node_id", feat_name="vector_feat", is_single_vector_feature=True
+        df, "node_id", feat_name="vector_feat", contains_vector_features=True
     )
 
     out_vec = gs.get_node_storage("vector_feat").fetch([1, 2])
@@ -766,8 +776,41 @@ def test_add_node_data_scaler_vector_feats():
             df,
             "node_id",
             feat_name="vector_feat",
-            is_single_vector_feature=False,
+            contains_vector_features=False,
         )
+
+
+def test_add_node_data_vector_feats():
+    pg = PropertyGraph()
+    gs = CuGraphStore(pg, backend_lib="cupy")
+    df = cudf.DataFrame()
+    df["node_id"] = [1, 2, 3]
+    df["vec1_1"] = [10, 20, 30]
+    df["vec1_2"] = [15, 25, 35]
+    df["vec2_1"] = [19, 29, 39]
+    df["vec3"] = [18, 17, 16]
+    gs.add_node_data(
+        df,
+        "node_id",
+        feat_name={
+            "vec1": ["vec1_1", "vec1_2"],
+            "vec2": ["vec2_1"],
+            "vec3": "vec3",
+        },
+        contains_vector_features=True,
+    )
+
+    out_vec = gs.get_node_storage("vec1").fetch([1, 2])
+    exp_vec = cp.asarray([[10, 15], [20, 25]])
+    cp.testing.assert_array_equal(out_vec, exp_vec)
+
+    out_vec = gs.get_node_storage("vec2").fetch([1, 2])
+    exp_vec = cp.asarray([19, 29])
+    cp.testing.assert_array_equal(out_vec, exp_vec)
+
+    out_vec = gs.get_node_storage("vec3").fetch([1, 2])
+    exp_vec = cp.asarray([18, 17])
+    cp.testing.assert_array_equal(out_vec, exp_vec)
 
 
 def assert_correct_eids(edge_df, sample_edge_id_df):
