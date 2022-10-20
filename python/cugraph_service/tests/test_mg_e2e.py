@@ -124,12 +124,12 @@ def client_of_mg_server(mg_server):
     """
     from cugraph_service_client import CugraphServiceClient, defaults
 
-    client_of_mg_server = CugraphServiceClient(defaults.host, defaults.port)
+    client = CugraphServiceClient(defaults.host, defaults.port)
 
     # yield control to the tests, cleanup on return
-    yield client_of_mg_server
+    yield client
 
-    client_of_mg_server.close()
+    client.close()
 
 
 @pytest.fixture(scope="function")
@@ -138,19 +138,20 @@ def client_of_mg_server_with_edgelist_csv_loaded(client_of_mg_server):
     Loads the karate CSV into the default graph on the server.
     """
     test_data = data.edgelist_csv_data["karate"]
-    client_of_mg_server.load_csv_as_edge_data(
+    client = client_of_mg_server
+    client.load_csv_as_edge_data(
         test_data["csv_file_name"],
         dtypes=test_data["dtypes"],
         vertex_col_names=["0", "1"],
         type_name="",
     )
-    assert client_of_mg_server.get_graph_ids() == [0]
+    assert client.get_graph_ids() == [0]
 
     # yield control to the tests, cleanup on return
-    yield (client_of_mg_server, test_data)
+    yield (client, test_data)
 
-    for gid in client_of_mg_server.get_graph_ids():
-        client_of_mg_server.delete_graph(gid)
+    for gid in client.get_graph_ids():
+        client.delete_graph(gid)
 
 
 @pytest.fixture(scope="module")
@@ -177,7 +178,7 @@ def client_of_sg_server_on_device_1(sg_server_on_device_1):
 
 @pytest.fixture(
     scope="module",
-    params=[int(n) for n in [1e1, 1e3, 1e6, 1e9, 2e9, 5e9]],
+    params=[int(n) for n in [1e1, 1e3, 1e6, 1e9, 2e9]],
     ids=lambda p: f"bytes={p:.1e}",
 )
 def client_of_sg_server_on_device_1_with_test_array(

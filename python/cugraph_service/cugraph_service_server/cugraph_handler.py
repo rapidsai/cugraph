@@ -190,13 +190,12 @@ class CugraphHandler:
             raise CugraphServiceError(f"bad directory: {extension_dir}")
 
         num_files_read = 0
-
         for ext_file in extension_dir.glob("*_extension.py"):
-            module_name = ext_file.stem
-            spec = importlib.util.spec_from_file_location(module_name, ext_file)
+            module_file_path = ext_file.absolute().as_posix()
+            spec = importlib.util.spec_from_file_location(module_file_path, ext_file)
             module = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(module)
-            self.__graph_creation_extensions[module_name] = module
+            self.__graph_creation_extensions[module_file_path] = module
             num_files_read += 1
 
         return num_files_read
