@@ -40,10 +40,49 @@ except ModuleNotFoundError:
     cudf = MissingModule("cudf")
 
 
+def __transform_to_backend_dtype(self, data, column_names, backend, dtypes=[]):
+    """
+    Supports method-by-method selection of backend type (cupy, cudf, etc.)
+    to avoid costly conversion such as row-major to column-major transformation.
+
+    data : cupy.ndarray, np.ndarray
+        The raw ndarray that will be transformed to the backend type.
+    column_names : list[string]
+        The names of the columns, if creating a dataframe.
+    backend : ('cudf', 'cupy') [default = 'cudf']
+        The data backend to convert the provided data to.
+    dtypes : ('int32', 'int64', 'float32', etc.)
+        Optional.  The data type to use when storing data in a dataframe.
+        May be a list, or dictionary corresponding to column names.
+    """
+
+    if backend == "cupy":
+        if isinstance(data, np.ndarray):
+            data = cupy.array(data)
+        return data
+    else:
+        # cudf
+        df = cudf.DataFrame.from_records(data, columns=column_names)
+        if isinstance(dtypes, list):
+            for i, t in enumerate(dtypes):
+                if t is not None:
+                    df[column_names[i]] = df[column_names[i]].astype(t)
+        elif isinstance(dtypes, dict):
+            for col_name, t in dtypes.items():
+                df[col_name] = df[col_name].astype(t)
+        return df
+    # TODO support torch
+
+
 class RemoteGraph:
+    """
+    Duck-typed version of a cugraph structural Graph (a graph without properties)
+    that wraps the cugraph-service client API.
+    """
+
     def __init__(self, cgs_client, cgs_graph_id):
         self.__client = cgs_client
-        self.__cgs_graph_id = cgs_graph_id
+        self.__graph_id = cgs_graph_id
 
     def is_remote(self):
         return True
@@ -73,8 +112,29 @@ class RemoteGraph:
         raise NotImplementedError("not implemented")
 
     @property
-    def edgelist(self):
-        raise NotImplementedError("not implemented")
+    def edgelist(self, _backend="cudf"):
+        data = self.__client.get_graph_edge_data(graph_id=self.__graph_id)
+        if data.shape(1) == 2:
+            cols = [self.src_col_name, self.dst_col_name]
+        elif data.shape(1) == 4:
+            cols = [
+                self.src_col_name,
+                self.dst_col_name,
+                self.edge_id_col_name,
+                self.edge_type_col_name,
+            ]
+        else:
+            raise ValueError(f"Invalid edgelist shape {data.shape}")
+        return __transform_to_backend_dtype(
+            data,
+            cols,
+        )
+
+    def get_vertices(self, _backend="cudf"):
+        return self.__client.get_vertex_data(graph_id=self.__graph_id)
+
+    def vertices_ids(self, _backend="cudf"):
+        return self.get_vertices()
 
     @property
     def adjlist(self):
@@ -96,39 +156,6 @@ class RemotePropertyGraph:
         self.__graph_id = cgs_graph_id
         self.__vertex_categorical_dtype = None
         self.__edge_categorical_dtype = None
-
-    def __transform_to_backend_dtype(self, data, column_names, backend, dtypes=[]):
-        """
-        Supports method-by-method selection of backend type (cupy, cudf, etc.)
-        to avoid costly conversion such as row-major to column-major transformation.
-
-        data : cupy.ndarray, np.ndarray
-            The raw ndarray that will be transformed to the backend type.
-        column_names : list[string]
-            The names of the columns, if creating a dataframe.
-        backend : ('cudf', 'cupy') [default = 'cudf']
-            The data backend to convert the provided data to.
-        dtypes : ('int32', 'int64', 'float32', etc.)
-            Optional.  The data type to use when storing data in a dataframe.
-            May be a list, or dictionary corresponding to column names.
-        """
-
-        if backend == "cupy":
-            if isinstance(data, np.ndarray):
-                data = cupy.array(data)
-            return data
-        else:
-            # cudf
-            df = cudf.DataFrame.from_records(data, columns=column_names)
-            if isinstance(dtypes, list):
-                for i, t in enumerate(dtypes):
-                    if t is not None:
-                        df[column_names[i]] = df[column_names[i]].astype(t)
-            elif isinstance(dtypes, dict):
-                for col_name, t in dtypes.items():
-                    df[col_name] = df[col_name].astype(t)
-            return df
-        # TODO support torch
 
     @property
     def _vertex_categorical_dtype(self):
@@ -161,7 +188,7 @@ class RemotePropertyGraph:
             property_keys=[self.src_col_name, self.dst_col_name],
         )
 
-        return self.__transform_to_backend_dtype(
+        return __transform_to_backend_dtype(
             np_edges,
             [
                 self.edge_id_col_name,
@@ -294,7 +321,7 @@ class RemotePropertyGraph:
         )
 
         column_names = [self.vertex_col_name, self.type_col_name] + list(columns)
-        return self.__transform_to_backend_dtype(
+        return __transform_to_backend_dtype(
             vertex_data,
             column_names,
             _backend,
@@ -369,7 +396,7 @@ class RemotePropertyGraph:
             self.dst_col_name,
             self.type_col_name,
         ] + list(columns)
-        return self.__transform_to_backend_dtype(
+        return __transform_to_backend_dtype(
             edge_data,
             column_names,
             _backend,

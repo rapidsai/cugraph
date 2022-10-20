@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from functools import cached_property
 from pathlib import Path
 import importlib
 import time
@@ -131,13 +132,21 @@ class CugraphHandler:
 
     ###########################################################################
     # Environment management
-    @property
+    @cached_property
     def is_mg(self):
         """
         True if the CugraphHandler has multiple GPUs available via a dask
         cluster.
         """
         return self.__dask_client is not None
+
+    @cached_property
+    def num_gpus(self):
+        """
+        If dask is not available, this returns "1".  Otherwise it returns
+        the number of GPUs accessible through dask.
+        """
+        return len(self.__dask_client.scheduler_info()["workers"]) if self.is_mg else 1
 
     def uptime(self):
         """
@@ -153,15 +162,8 @@ class CugraphHandler:
         "unions" used for RPC serialization.
         """
         # FIXME: expose self.__dask_client.scheduler_info() as needed
-        if self.__dask_client is not None:
-            num_gpus = len(self.__dask_client.scheduler_info()["workers"])
-        else:
-            # The assumption is that cugraph_service server requires at least 1
-            # GPU (ie.  currently there is no CPU-only version of
-            # cugraph_service server)
-            num_gpus = 1
 
-        return {"num_gpus": ValueWrapper(num_gpus).union}
+        return {"num_gpus": ValueWrapper(self.num_gpus).union}
 
     def load_graph_creation_extensions(self, extension_dir_path):
         """
@@ -536,8 +538,12 @@ class CugraphHandler:
         Returns the vertex data as a serialized numpy array for the given
         id_or_ids.  null_replacement_value must be provided if the data
         contains NA values, since NA values cannot be serialized.
+
+        If the graph is a structural graph (a graph without properties),
+        this method does not accept the id_or_ids, property_keys, or types
+        arguments, and instead returns a list of valid vertex ids.
         """
-        pG = self._get_graph(graph_id)
+        G = self._get_graph(graph_id)
         ids = GraphVertexEdgeIDWrapper(id_or_ids).get_py_obj()
         if ids == -1:
             ids = None
@@ -549,7 +555,31 @@ class CugraphHandler:
             columns = property_keys
         if types == []:
             types = None
-        df = pG.get_vertex_data(vertex_ids=ids, columns=columns, types=types)
+        if isinstance(G, (PropertyGraph, MGPropertyGraph)):
+            df = G.get_vertex_data(vertex_ids=ids, columns=columns, types=types)
+        else:
+            if (columns is not None) or (ids is not None) or (types is not None):
+                raise CugraphServiceError("Graph does not contain properties")
+            if self.is_mg:
+                s = (
+                    dask_cudf.concat(
+                        G.edgelist.edgelist_df["renumbered_src"],
+                        G.edgelist.edgelist_df["renumbered_dst"],
+                    )
+                    .unique()
+                    .compute()
+                )
+                df = cudf.DataFrame()
+                df["id"] = s
+                df = dask_cudf.from_cudf(df, npartitions=self.num_gpus)
+            else:
+                s = dask_cudf.concat(
+                    G.edgelist.edgelist_df["src"],
+                    G.edgelist.edgelist_df["dst"],
+                ).unique()
+                df = cudf.DataFrame()
+                df["id"] = s
+            df = G.unrenumber(df, "id", preserve_order=True)
         return self.__get_graph_data_as_numpy_bytes(df, null_replacement_value)
 
     def get_graph_edge_data(
@@ -560,7 +590,7 @@ class CugraphHandler:
         id_or_ids.  null_replacement_value must be provided if the data
         contains NA values, since NA values cannot be serialized.
         """
-        pG = self._get_graph(graph_id)
+        G = self._get_graph(graph_id)
         ids = GraphVertexEdgeIDWrapper(id_or_ids).get_py_obj()
         if ids == -1:
             ids = None
@@ -572,7 +602,23 @@ class CugraphHandler:
             columns = property_keys
         if types == []:
             types = None
-        df = pG.get_edge_data(edge_ids=ids, columns=columns, types=types)
+        if isinstance(G, (PropertyGraph, MGPropertyGraph)):
+            df = G.get_edge_data(edge_ids=ids, columns=columns, types=types)
+        else:
+            if columns is not None:
+                raise CugraphServiceError("Graph does not contain properties")
+            df = G.edgelist.edgelist_df
+            if ids is not None:
+                if "edge_id" not in df.columns:
+                    raise CugraphServiceError("Graph does not have edge ids")
+                ids = cudf.Series(ids)
+                if self.is_mg:
+                    ids = dask_cudf.from_cudf(ids, npartitions=self.num_gpus)
+                df = df.reindex(df["edge_id"]).loc[ids]
+            if types is not None:
+                if "edge_type" not in df.columns:
+                    raise CugraphServiceError("Graph does not have typed edges")
+                df = df[df["edge_type"].isin(types)]
         return self.__get_graph_data_as_numpy_bytes(df, null_replacement_value)
 
     def is_vertex_property(self, property_key, graph_id):
@@ -790,8 +836,7 @@ class CugraphHandler:
             csv_file_name, delimiter=delimiter, dtype=dtypes, header=header, names=names
         )
         if self.is_mg:
-            num_gpus = len(self.__dask_client.scheduler_info()["workers"])
-            return dask_cudf.from_cudf(gdf, npartitions=num_gpus)
+            return dask_cudf.from_cudf(gdf, npartitions=self.num_gpus)
 
         return gdf
 
