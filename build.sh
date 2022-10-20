@@ -261,7 +261,7 @@ if buildAll || hasArg cugraph; then
 fi
 
 # Build the docs
-if buildAll || hasArg docs; then
+if hasArg docs; then
     if [ ! -d ${LIBCUGRAPH_BUILD_DIR} ]; then
         mkdir -p ${LIBCUGRAPH_BUILD_DIR}
         cd ${LIBCUGRAPH_BUILD_DIR}
