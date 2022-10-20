@@ -25,6 +25,8 @@
 #include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
 #include <cugraph/graph.hpp>
+#include <thrust/sort.h>
+#include <thrust/unique.h>
 
 #include <rmm/device_uvector.hpp>
 
@@ -78,17 +80,17 @@ std::unique_ptr<rmm::device_uvector<vertex_t>> refine_partition(
   // Every vertex starts as a singleton cluster in the refined partition
   //
 
-  rmm::device_uvector<vertex_t> partition_r(current_graph_view.local_vertex_partition_range_size(),
+  rmm::device_uvector<vertex_t> partition_r(graph_view.local_vertex_partition_range_size(),
                                             handle.get_stream());
 
   detail::sequence_fill(handle.get_stream(),
                         partition_r.begin(),
                         partition_r.size(),
-                        current_graph_view.local_vertex_partition_range_first());
+                        graph_view.local_vertex_partition_range_first());
 
   // TODO: Refine incoming partition
 
-  return std::move(refined_partition);
+  return std::move(partition_r);
 }
 
 template <typename vertex_t,
@@ -114,13 +116,13 @@ void aggregate_graph(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>& current_graph_view,
   graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>& current_graph,
-  std::unique_ptr<Dendrogram<vertex_t>>& dendrogram)
+  // std::unique_ptr<Dendrogram<vertex_t>>& dendrogram)
+  rmm::device_uvector<vertex_t>& refined_partition)
 {
   current_graph = cugraph::detail::graph_contraction(
     handle,
     current_graph_view,
-    raft::device_span<vertex_t>{dendrogram->current_level_begin(),
-                                dendrogram->current_level_size()});
+    raft::device_span<vertex_t>{refined_partition.begin(), refined_partition.size()});
   current_graph_view = current_graph.view();
 }
 
@@ -152,14 +154,14 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
   //
   // Bookkeeping per cluster
   //
-  rmm::device_uvector<vertex_t> clusters_ids(0, handle.get_stream());     //#C
+  rmm::device_uvector<vertex_t> cluster_keys(0, handle.get_stream());     //#C
   rmm::device_uvector<weight_t> cluster_weights(0, handle.get_stream());  //#C
 
   //
   // Bookkeeping per vertex
   //
   rmm::device_uvector<weight_t> vertex_weights(0, handle.get_stream());                   //#V
-  rmm::device_uvector<vertex_t> cluster_assignment_for_vertices(0, handle.get_stream());  //#V
+  rmm::device_uvector<vertex_t> louvain_assignment_for_vertices(0, handle.get_stream());  //#V
 
   //
   // Edge source cache
@@ -189,20 +191,20 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
       handle, hr_timer, "compute_vertex_and_cluster_weights");
 
     vertex_weights = current_graph_view.compute_out_weight_sums(handle);
-    clusters_ids.resize(vertex_weights.size(), handle.get_stream());
+    cluster_keys.resize(vertex_weights.size(), handle.get_stream());
     cluster_weights.resize(vertex_weights.size(), handle.get_stream());
 
     detail::sequence_fill(handle.get_stream(),
-                          clusters_ids.begin(),
-                          clusters_ids.size(),
+                          cluster_keys.begin(),
+                          cluster_keys.size(),
                           current_graph_view.local_vertex_partition_range_first());
 
     raft::copy(
       cluster_weights.begin(), vertex_weights.begin(), vertex_weights.size(), handle.get_stream());
 
     if constexpr (graph_view_t::is_multi_gpu) {
-      std::tie(clusters_ids, cluster_weights) = shuffle_ext_vertices_and_values_by_gpu_id(
-        handle, std::move(clusters_ids), std::move(cluster_weights));
+      std::tie(cluster_keys, cluster_weights) = shuffle_ext_vertices_and_values_by_gpu_id(
+        handle, std::move(cluster_keys), std::move(cluster_weights));
 
       //
       // Hash(cluster_id) % #GPUs => current GPU
@@ -223,7 +225,7 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
     //
     detail::timer_start<graph_view_t::is_multi_gpu>(handle, hr_timer, "update_clustering");
 
-    cluster_assignment_for_vertices =
+    louvain_assignment_for_vertices =
       rmm::device_uvector<vertex_t>(dendrogram->current_level_size(), handle.get_stream());
 
     // rmm::device_uvector<uint8_t> candidate_flags(0, handle.get_stream()); //#V
@@ -231,7 +233,7 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
     // handle.get_stream()); thrust::fill(handle.get_thrust_policy(), candidate_flags.begin(),
     // candidate_flags.end(), uint8_t{1});
 
-    raft::copy(cluster_assignment_for_vertices.begin(),
+    raft::copy(louvain_assignment_for_vertices.begin(),
                dendrogram->current_level_begin(),
                dendrogram->current_level_size(),
                handle.get_stream());
@@ -241,29 +243,29 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
         edge_src_property_t<graph_view_t, vertex_t>(handle, current_graph_view);
       update_edge_src_property(handle,
                                current_graph_view,
-                               cluster_assignment_for_vertices.begin(),
+                               louvain_assignment_for_vertices.begin(),
                                src_vertex_cluster_assignment_cache);
       dst_vertex_cluster_assignment_cache =
         edge_dst_property_t<graph_view_t, vertex_t>(handle, current_graph_view);
       update_edge_dst_property(handle,
                                current_graph_view,
-                               cluster_assignment_for_vertices.begin(),
+                               louvain_assignment_for_vertices.begin(),
                                dst_vertex_cluster_assignment_cache);
 
-      // Couldn't we clear cluster_assignment_for_vertices here?
+      // Couldn't we clear louvain_assignment_for_vertices here?
     }
 
     weight_t new_Q = detail::compute_modularity(handle,
                                                 current_graph_view,
                                                 src_vertex_cluster_assignment_cache,
                                                 dst_vertex_cluster_assignment_cache,
-                                                cluster_assignment_for_vertices,
+                                                louvain_assignment_for_vertices,
                                                 cluster_weights,
                                                 total_edge_weight,
                                                 resolution);
     weight_t cur_Q = new_Q - 1;
 
-    // To avoid the potential of having two vertices swap clusters_ids
+    // To avoid the potential of having two vertices swap cluster_keys
     // we will only allow vertices to move up (true) or down (false)
     // during each iteration of the loop
     bool up_down = true;
@@ -288,75 +290,35 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
       // IMPORTANT NOTE: Need to think which vertices are considered first
       //
 
-      cluster_assignment_for_vertices =
+      louvain_assignment_for_vertices =
         detail::update_clustering_by_delta_modularity(handle,
                                                       current_graph_view,
                                                       total_edge_weight,
                                                       resolution,
                                                       vertex_weights,
-                                                      std::move(clusters_ids),
+                                                      std::move(cluster_keys),
                                                       std::move(cluster_weights),
-                                                      std::move(cluster_assignment_for_vertices),
+                                                      std::move(louvain_assignment_for_vertices),
                                                       src_vertex_weights_cache,
                                                       src_vertex_cluster_assignment_cache,
                                                       dst_vertex_cluster_assignment_cache,
                                                       up_down);
 
-      //
-      // Count number of unique clusters (aka partitions) and if it's same as before then break
-      //
-
-      rmm::device_uvector<vertex_t> copied_partition(copied_partition.size(), handle.get_stream());
-
-      thrust::copy(handle.get_thrust_policy(),
-                   cluster_assignment_for_vertices.begin(),
-                   cluster_assignment_for_vertices.end(),
-                   copied_partition.begin());
-
-      thrust::sort(handle.get_thrust_policy(), copied_partition.begin(), copied_partition.end());
-
-      auto nr_unique_clusters = static_cast<vertex_t>(thrust::distance(
-        copied_partition.begin(),
-        thrust::unique(
-          handle.get_thrust_policy(), copied_partition.begin(), copied_partition.end())));
-
-      if constexpr (graph_view_t::is_multi_gpu) {
-        copied_partition.resize(nr_unique_clusters);
-        copied_partition =
-          shuffle_ext_vertices_and_values_by_gpu_id(handle, std::move(copied_partition));
-
-        thrust::sort(handle.get_thrust_policy(), copied_partition.begin(), copied_partition.end());
-
-        nr_unique_clusters = static_cast<vertex_t>(thrust::distance(
-          copied_partition.begin(),
-          thrust::unique(
-            handle.get_thrust_policy(), copied_partition.begin(), copied_partition.end())));
-
-        nr_unique_clusters = host_scalar_allreduce(
-          handle.get_comms(), nr_unique_clusters, raft::comms::op_t::SUM, handle.get_stream());
-      }
-
-      if (nr_unique_clusters == current_graph_view.number_of_vertices()) { break; }
-
-      //
-      // Refine the current partition
-      //
-
       if constexpr (graph_view_t::is_multi_gpu) {
         update_edge_src_property(handle,
                                  current_graph_view,
-                                 cluster_assignment_for_vertices.begin(),
+                                 louvain_assignment_for_vertices.begin(),
                                  src_vertex_cluster_assignment_cache);
         update_edge_dst_property(handle,
                                  current_graph_view,
-                                 cluster_assignment_for_vertices.begin(),
+                                 louvain_assignment_for_vertices.begin(),
                                  dst_vertex_cluster_assignment_cache);
       }
 
-      std::tie(clusters_ids, cluster_weights) =
+      std::tie(cluster_keys, cluster_weights) =
         detail::compute_cluster_keys_and_values(handle,
                                                 current_graph_view,
-                                                cluster_assignment_for_vertices,
+                                                louvain_assignment_for_vertices,
                                                 src_vertex_cluster_assignment_cache);
 
       up_down = !up_down;
@@ -365,15 +327,15 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
                                          current_graph_view,
                                          src_vertex_cluster_assignment_cache,
                                          dst_vertex_cluster_assignment_cache,
-                                         cluster_assignment_for_vertices,
+                                         louvain_assignment_for_vertices,
                                          cluster_weights,
                                          total_edge_weight,
                                          resolution);
 
       if (new_Q > cur_Q) {
         raft::copy(dendrogram->current_level_begin(),
-                   cluster_assignment_for_vertices.begin(),
-                   cluster_assignment_for_vertices.size(),
+                   louvain_assignment_for_vertices.begin(),
+                   louvain_assignment_for_vertices.size(),
                    handle.get_stream());
       }
     }
@@ -383,26 +345,99 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
     if (cur_Q <= best_modularity) { break; }
 
     best_modularity = cur_Q;
+    ////------------////
 
+    //
+    // Count number of unique clusters (aka partitions) and if it's same as before then break
+    //
+
+    rmm::device_uvector<vertex_t> copied_louvain_partition(louvain_assignment_for_vertices.size(),
+                                                           handle.get_stream());
+
+    thrust::copy(handle.get_thrust_policy(),
+                 louvain_assignment_for_vertices.begin(),
+                 louvain_assignment_for_vertices.end(),
+                 copied_louvain_partition.begin());
+
+    thrust::sort(
+      handle.get_thrust_policy(), copied_louvain_partition.begin(), copied_louvain_partition.end());
+
+    auto nr_unique_clusters =
+      static_cast<vertex_t>(thrust::distance(copied_louvain_partition.begin(),
+                                             thrust::unique(handle.get_thrust_policy(),
+                                                            copied_louvain_partition.begin(),
+                                                            copied_louvain_partition.end())));
+
+    copied_louvain_partition.resize(nr_unique_clusters, handle.get_stream());
+
+    if constexpr (graph_view_t::is_multi_gpu) {
+      copied_louvain_partition =
+        shuffle_ext_vertices_and_values_by_gpu_id(handle, std::move(copied_louvain_partition));
+
+      thrust::sort(handle.get_thrust_policy(),
+                   copied_louvain_partition.begin(),
+                   copied_louvain_partition.end());
+
+      nr_unique_clusters =
+        static_cast<vertex_t>(thrust::distance(copied_louvain_partition.begin(),
+                                               thrust::unique(handle.get_thrust_policy(),
+                                                              copied_louvain_partition.begin(),
+                                                              copied_louvain_partition.end())));
+
+      nr_unique_clusters = host_scalar_allreduce(
+        handle.get_comms(), nr_unique_clusters, raft::comms::op_t::SUM, handle.get_stream());
+    }
+
+    if (nr_unique_clusters == current_graph_view.number_of_vertices()) { break; }
+
+    //
+    // Refine the current partition
+    //
+
+    if constexpr (graph_view_t::is_multi_gpu) {
+      update_edge_src_property(handle,
+                               current_graph_view,
+                               louvain_assignment_for_vertices.begin(),
+                               src_vertex_cluster_assignment_cache);
+      update_edge_dst_property(handle,
+                               current_graph_view,
+                               louvain_assignment_for_vertices.begin(),
+                               dst_vertex_cluster_assignment_cache);
+    }
+
+    auto leiden_partition = detail::refine_clustering(handle,
+                                                      current_graph_view,
+                                                      total_edge_weight,
+                                                      resolution,
+                                                      vertex_weights,
+                                                      std::move(cluster_keys),
+                                                      std::move(cluster_weights),
+                                                      std::move(louvain_assignment_for_vertices),
+                                                      src_vertex_weights_cache,
+                                                      src_vertex_cluster_assignment_cache,
+                                                      dst_vertex_cluster_assignment_cache,
+                                                      up_down);
+
+    ///---------///
     //
     // Clear buffer and contract the graph
     //
 
     detail::timer_start<graph_view_t::is_multi_gpu>(handle, hr_timer, "contract graph");
 
-    clusters_ids.resize(0, handle.get_stream());
+    cluster_keys.resize(0, handle.get_stream());
     cluster_weights.resize(0, handle.get_stream());
     vertex_weights.resize(0, handle.get_stream());
-    cluster_assignment_for_vertices.resize(0, handle.get_stream());
-    clusters_ids.shrink_to_fit(handle.get_stream());
+    louvain_assignment_for_vertices.resize(0, handle.get_stream());
+    cluster_keys.shrink_to_fit(handle.get_stream());
     cluster_weights.shrink_to_fit(handle.get_stream());
     vertex_weights.shrink_to_fit(handle.get_stream());
-    cluster_assignment_for_vertices.shrink_to_fit(handle.get_stream());
+    louvain_assignment_for_vertices.shrink_to_fit(handle.get_stream());
     src_vertex_weights_cache.clear(handle);
     src_vertex_cluster_assignment_cache.clear(handle);
     dst_vertex_cluster_assignment_cache.clear(handle);
 
-    aggregate_graph(handle, current_graph_view, current_graph, dendrogram);
+    aggregate_graph(handle, current_graph_view, current_graph, leiden_partition);
 
     detail::timer_stop<graph_view_t::is_multi_gpu>(handle, hr_timer);
   }
