@@ -444,6 +444,48 @@ def test_sampling_gs_heterogeneous_out_dir(gs_heterogeneous_dgl_eg):
             cudf.testing.assert_frame_equal(output_df, expected_df)
 
 
+def test_sampling_with_out_of_index_seed(dask_client):
+    pg = MGPropertyGraph()
+    gs = CuGraphStore(pg)
+    node_df = cudf.DataFrame()
+    node_df["node_id"] = cudf.Series([0, 1, 2, 3, 4, 5]).astype("int32")
+    node_df = dask_cudf.from_cudf(node_df, npartitions=2)
+    gs.add_node_data(node_df, "node_id", "_N")
+
+    edge_df = cudf.DataFrame()
+    edge_df["src"] = cudf.Series([0, 1, 2]).astype("int32")
+    edge_df["dst"] = cudf.Series([0, 0, 0]).astype("int32")
+    edge_df = dask_cudf.from_cudf(edge_df, npartitions=2)
+    gs.add_edge_data(edge_df, ["src", "dst"], canonical_etype="('_N', 'con.a', '_N')")
+
+    edge_df = cudf.DataFrame()
+    edge_df["src"] = cudf.Series([3, 4, 5]).astype("int32")
+    edge_df["dst"] = cudf.Series([3, 3, 3]).astype("int32")
+    edge_df = dask_cudf.from_cudf(edge_df, npartitions=2)
+    gs.add_edge_data(edge_df, ["src", "dst"], canonical_etype="('_N', 'con.b', '_N')")
+
+    output = gs.sample_neighbors(
+        {"_N": cudf.Series([0, 1, 3, 5], "int32").to_dlpack()}, fanout=3
+    )
+    output_e1 = (
+        cudf.from_dlpack(output["('_N', 'con.a', '_N')"][0])
+        .sort_values()
+        .reset_index(drop=True)
+    )
+    output_e2 = (
+        cudf.from_dlpack(output["('_N', 'con.b', '_N')"][0])
+        .sort_values()
+        .reset_index(drop=True)
+    )
+
+    cudf.testing.assert_series_equal(
+        output_e1, cudf.Series([0, 1, 2], dtype="int32", name=0)
+    )
+    cudf.testing.assert_series_equal(
+        output_e2, cudf.Series([3, 4, 5], dtype="int32", name=0)
+    )
+
+
 # Util to help testing
 def get_cudf_ser_from_cap_tup(cap_t):
     src_id, dst_id, e_id = cap_t
