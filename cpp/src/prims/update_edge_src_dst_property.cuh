@@ -79,36 +79,123 @@ void update_edge_major_property(raft::handle_t const& handle,
         max_rx_size = std::max(
           max_rx_size, graph_view.vertex_partition_range_size(i * row_comm_size + row_comm_rank));
       }
-      auto rx_value_buffer = allocate_dataframe_buffer<
-        typename std::iterator_traits<VertexPropertyInputIterator>::value_type>(
-        max_rx_size, handle.get_stream());
-      auto rx_value_first = get_dataframe_buffer_begin(rx_value_buffer);
-      for (int i = 0; i < col_comm_size; ++i) {
-        device_bcast(col_comm,
-                     vertex_property_input_first,
-                     rx_value_first,
-                     graph_view.vertex_partition_range_size(i * row_comm_size + row_comm_rank),
-                     i,
-                     handle.get_stream());
-
-        auto v_offset_first = thrust::make_transform_iterator(
-          (*edge_partition_keys)[i].begin(),
-          [v_first = graph_view.vertex_partition_range_first(
-             i * row_comm_size + row_comm_rank)] __device__(auto v) { return v - v_first; });
-        thrust::gather(handle.get_thrust_policy(),
-                       v_offset_first,
-                       v_offset_first + (*edge_partition_keys)[i].size(),
+      if constexpr (std::is_same_v<typename EdgeMajorPropertyOutputWrapper::value_type, bool>) {
+        auto max_packed_buffer_size =
+          (static_cast<size_t>(max_rx_size) + (sizeof(uint32_t) * 8 - 1)) / (sizeof(uint32_t) * 8);
+        rmm::device_uvector<uint32_t> packed_buffer(max_packed_buffer_size, handle.get_stream());
+        for (int i = 0; i < col_comm_size; ++i) {
+          auto vertex_partition_size =
+            graph_view.vertex_partition_range_size(i * row_comm_size + row_comm_rank);
+          auto packed_buffer_size =
+            (static_cast<size_t>(vertex_partition_size) + (sizeof(uint32_t) * 8 - 1)) /
+            (sizeof(uint32_t) * 8);
+          if (i == col_comm_rank) {
+            thrust::tablulate(
+              handle.get_thrust_policy(),
+              packed_buffer.begin(),
+              packed_buffer.begin() + packed_buffer_size,
+              pack_bool_t<VertexPropertyInputIterator>{vertex_property_input_first,
+                                                       static_cast<size_t>(vertex_partition_size)});
+          }
+          device_bcast(col_comm,
+                       packed_buffer.begin(),
+                       packed_buffer.begin() + packed_buffer_size,
+                       packed_buffer_size,
+                       i,
+                       handle.get_stream());
+          auto packed_value_buffer_size =
+            ((*edge_partition_keys)[i].size() + (sizeof(uint32_t) * 8 - 1)) /
+            (sizeof(uint32_t) * 8);
+          thrust::transform(
+            handle.get_thrust_policy(),
+            edge_partition_value_firsts[i],
+            edge_partition_value_firsts[i] + packed_value_buffer_size,
+            [keys    = raft::device_span<vertex_t const>((*edge_partition_keys)[i].data(),
+                                                      (*edge_partition_keys)[i].size()),
+             packed_buffer_first = packed_buffer.begin(),
+             v_first = graph_view.vertex_partition_range_first(
+               i * row_comm_size + row_comm_rank)] __device__(size_t i) {
+              auto first = i * (sizeof(uint32_t) * 8);
+              auto last  = std::min((i + 1) * (sizeof(uint32_t) * 8), keys.size());
+              uint32_t ret{0};
+              for (auto j = first; j < last; ++j) {
+                auto v_offset = keys[j] - v_first;
+                auto mask     = uint32_t{1} << (v_offset % (sizeof(uint32_t) * 8));
+                if (*(packed_buffer_first + v_offset / (sizeof(uint32_t) * 8)) & mask) {
+                  ret |= mask;
+                }
+              }
+              return ret;
+            });
+        }
+      } else {
+        auto rx_value_buffer = allocate_dataframe_buffer<
+          typename std::iterator_traits<VertexPropertyInputIterator>::value_type>(
+          max_rx_size, handle.get_stream());
+        auto rx_value_first = get_dataframe_buffer_begin(rx_value_buffer);
+        for (int i = 0; i < col_comm_size; ++i) {
+          device_bcast(col_comm,
+                       vertex_property_input_first,
                        rx_value_first,
-                       edge_partition_value_firsts[i]);
+                       graph_view.vertex_partition_range_size(i * row_comm_size + row_comm_rank),
+                       i,
+                       handle.get_stream());
+
+          auto v_offset_first = thrust::make_transform_iterator(
+            (*edge_partition_keys)[i].begin(),
+            shift_left_t<vertex_t>{
+              graph_view.vertex_partition_range_first(i * row_comm_size + row_comm_rank)});
+          thrust::gather(handle.get_thrust_policy(),
+                         v_offset_first,
+                         v_offset_first + (*edge_partition_keys)[i].size(),
+                         rx_value_first,
+                         edge_partition_value_firsts[i]);
+        }
       }
     } else {
-      for (int i = 0; i < col_comm_size; ++i) {
-        device_bcast(col_comm,
-                     vertex_property_input_first,
-                     edge_partition_value_firsts[i],
-                     graph_view.vertex_partition_range_size(i * row_comm_size + row_comm_rank),
-                     i,
-                     handle.get_stream());
+      if constexpr (std::is_same_v<typename EdgeMajorPropertyOutputWrapper::value_type, bool>) {
+        vertex_t max_rx_size{0};
+        for (int i = 0; i < col_comm_size; ++i) {
+          max_rx_size = std::max(
+            max_rx_size, graph_view.vertex_partition_range_size(i * row_comm_size + row_comm_rank));
+        }
+        auto max_packed_buffer_size =
+          (static_cast<size_t>(max_rx_size) + (sizeof(uint32_t) * 8 - 1)) / (sizeof(uint32_t) * 8);
+        rmm::device_uvector<uint32_t> packed_buffer(max_packed_buffer_size, handle.get_stream());
+        for (int i = 0; i < col_comm_size; ++i) {
+          auto vertex_partition_size =
+            graph_view.vertex_partition_range_size(i * row_comm_size + row_comm_rank);
+          auto packed_buffer_size =
+            (static_cast<size_t>(vertex_partition_size) + (sizeof(uint32_t) * 8 - 1)) /
+            (sizeof(uint32_t) * 8);
+          if (i == col_comm_rank) {
+            thrust::tablulate(
+              handle.get_thrust_policy(),
+              packed_buffer.begin(),
+              packed_buffer.begin() + packed_buffer_size,
+              pack_bool_t<VertexPropertyInputIterator>{vertex_property_input_first,
+                                                       static_cast<size_t>(vertex_partition_size)});
+          }
+          device_bcast(col_comm,
+                       packed_buffer.begin(),
+                       packed_buffer.begin() + packed_buffer_size,
+                       packed_buffer_size,
+                       i,
+                       handle.get_stream());
+          thrust::copy(handle.get_thrust_policy(),
+                       packed_buffer.begin(),
+                       packed_buffer.begin() + packed_buffer_size,
+                       edge_partition_value_firsts[i]);
+        }
+      } else {
+        for (int i = 0; i < col_comm_size; ++i) {
+          device_bcast(col_comm,
+                       vertex_property_input_first,
+                       edge_partition_value_firsts[i],
+                       graph_view.vertex_partition_range_size(i * row_comm_size + row_comm_rank),
+                       i,
+                       handle.get_stream());
+        }
       }
     }
   } else {
@@ -116,10 +203,23 @@ void update_edge_major_property(raft::handle_t const& handle,
              ? graph_view.local_edge_partition_dst_range_size()
              : graph_view.local_edge_partition_src_range_size());
     assert(edge_partition_value_firsts.size() == size_t{1});
-    thrust::copy(handle.get_thrust_policy(),
-                 vertex_property_input_first,
-                 vertex_property_input_first + graph_view.local_vertex_partition_range_size(),
-                 edge_partition_value_firsts[0]);
+    if constexpr (std::is_same_v<typename EdgeMajorPropertyOutputWrapper::value_type, bool>) {
+      auto packed_buffer_size =
+        (static_cast<size_t>(graph_view.local_vertex_partition_range_size()) +
+         (sizeof(uint32_t) * 8 - 1)) /
+        (sizeof(uint32_t) * 8);
+      thrust::tablulate(handle.get_thrust_policy(),
+                        edge_partition_value_firsts[0],
+                        edge_partition_value_firsts[0] + packed_buffer_size,
+                        pack_bool_t<VertexPropertyInputIterator>{
+                          vertex_property_input_first,
+                          static_cast<size_t>(graph_view.local_vertex_partition_range_size())});
+    } else {
+      thrust::copy(handle.get_thrust_policy(),
+                   vertex_property_input_first,
+                   vertex_property_input_first + graph_view.local_vertex_partition_range_size(),
+                   edge_partition_value_firsts[0]);
+    }
   }
 }
 
