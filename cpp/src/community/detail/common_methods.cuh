@@ -274,7 +274,10 @@ cugraph::graph_t<vertex_t, edge_t, weight_t, false, multi_gpu> graph_contraction
 }
 
 template <typename graph_view_t>
-rmm::device_uvector<typename graph_view_t::vertex_type> refine_clustering(
+std::tuple<rmm::device_uvector<typename graph_view_t::vertex_type>,
+           std::pair<rmm::device_uvector<typename graph_view_t::vertex_type>,
+                     rmm::device_uvector<typename graph_view_t::vertex_type>>>
+refine_clustering(
   raft::handle_t const& handle,
   graph_view_t const& graph_view,
   typename graph_view_t::weight_type total_edge_weight,
@@ -564,26 +567,26 @@ rmm::device_uvector<typename graph_view_t::vertex_type> refine_clustering(
   //
   // Construct Leiden to Louvain mapping
   //
-  rmm::device_uvector<vertex_t> copied_leiden_assignment(leiden_assignment.size(),
-                                                         handle.get_stream());
-  rmm::device_uvector<vertex_t> copied_louvain_assignment(next_clusters_v.size(),
-                                                          handle.get_stream());
+  rmm::device_uvector<vertex_t> keys_of_leiden_to_louvain_map(leiden_assignment.size(),
+                                                              handle.get_stream());
+  rmm::device_uvector<vertex_t> values_of_leiden_to_louvain_map(next_clusters_v.size(),
+                                                                handle.get_stream());
 
   thrust::copy(handle.get_thrust_policy(),
                next_clusters_v.begin(),
                next_clusters_v.end(),
-               copied_louvain_assignment.begin());
+               values_of_leiden_to_louvain_map.begin());
 
   thrust::copy(handle.get_thrust_policy(),
                leiden_assignment.begin(),
                leiden_assignment.end(),
-               copied_leiden_assignment.begin());
+               keys_of_leiden_to_louvain_map.begin());
 
-  auto louvain_leiden_zipped_begin = thrust::make_zip_iterator(
-    thrust::make_tuple(copied_louvain_assignment.begin(), copied_leiden_assignment.begin()));
+  auto louvain_leiden_zipped_begin = thrust::make_zip_iterator(thrust::make_tuple(
+    values_of_leiden_to_louvain_map.begin(), keys_of_leiden_to_louvain_map.begin()));
 
   auto louvain_leiden_zipped_end = thrust::make_zip_iterator(
-    thrust::make_tuple(copied_louvain_assignment.end(), copied_leiden_assignment.end()));
+    thrust::make_tuple(values_of_leiden_to_louvain_map.end(), keys_of_leiden_to_louvain_map.end()));
 
   thrust::sort(handle.get_thrust_policy(),
                louvain_leiden_zipped_begin,
@@ -599,39 +602,41 @@ rmm::device_uvector<typename graph_view_t::vertex_type> refine_clustering(
   auto nr_unique_leiden_louvain_pairs = static_cast<size_t>(
     thrust::distance(louvain_leiden_zipped_begin, last_unique_leiden_louvain_pair));
 
-  copied_leiden_assignment.resize(nr_unique_leiden_louvain_pairs, handle.get_stream());
-  copied_louvain_assignment.resize(nr_unique_leiden_louvain_pairs, handle.get_stream());
+  keys_of_leiden_to_louvain_map.resize(nr_unique_leiden_louvain_pairs, handle.get_stream());
+  values_of_leiden_to_louvain_map.resize(nr_unique_leiden_louvain_pairs, handle.get_stream());
 
   //
-  // Collect Louvain cluster assignment for refined clusters (ie Leiden clusters)
+  // Collect Louvain cluster ids for refined (aka Leiden) clusters
   //
   rmm::device_uvector<vertex_t> lovain_of_refined_comms(0, handle.get_stream());
 
   if constexpr (graph_view_t::is_multi_gpu) {
-    std::tie(copied_leiden_assignment, copied_louvain_assignment) =
-      shuffle_ext_vertices_and_values_by_gpu_id(
-        handle, std::move(copied_leiden_assignment), std::move(copied_louvain_assignment));
+    std::tie(keys_of_leiden_to_louvain_map, values_of_leiden_to_louvain_map) =
+      shuffle_ext_vertices_and_values_by_gpu_id(handle,
+                                                std::move(keys_of_leiden_to_louvain_map),
+                                                std::move(values_of_leiden_to_louvain_map));
 
     cugraph::detail::compute_gpu_id_from_ext_vertex_t<vertex_t> vertex_to_gpu_id_op{
       handle.get_comms().get_size()};
 
-    lovain_of_refined_comms = cugraph::collect_values_for_keys(handle.get_comms(),
-                                                               copied_leiden_assignment.begin(),
-                                                               copied_leiden_assignment.end(),
-                                                               copied_louvain_assignment.data(),
-                                                               leiden_cluster_keys.begin(),
-                                                               leiden_cluster_keys.end(),
-                                                               vertex_to_gpu_id_op,
-                                                               invalid_vertex_id<vertex_t>::value,
-                                                               invalid_vertex_id<vertex_t>::value,
-                                                               handle.get_stream());
+    lovain_of_refined_comms =
+      cugraph::collect_values_for_keys(handle.get_comms(),
+                                       keys_of_leiden_to_louvain_map.begin(),
+                                       keys_of_leiden_to_louvain_map.end(),
+                                       values_of_leiden_to_louvain_map.data(),
+                                       leiden_cluster_keys.begin(),
+                                       leiden_cluster_keys.end(),
+                                       vertex_to_gpu_id_op,
+                                       invalid_vertex_id<vertex_t>::value,
+                                       invalid_vertex_id<vertex_t>::value,
+                                       handle.get_stream());
 
   } else {
     // sort so we can use lower_bound in the transform function
     thrust::sort_by_key(handle.get_thrust_policy(),
-                        copied_leiden_assignment.begin(),
-                        copied_leiden_assignment.end(),
-                        copied_louvain_assignment.begin());
+                        keys_of_leiden_to_louvain_map.begin(),
+                        keys_of_leiden_to_louvain_map.end(),
+                        values_of_leiden_to_louvain_map.begin());
 
     lovain_of_refined_comms.resize(leiden_cluster_keys.size(), handle.get_stream());
     thrust::transform(
@@ -639,9 +644,9 @@ rmm::device_uvector<typename graph_view_t::vertex_type> refine_clustering(
       leiden_cluster_keys.begin(),
       leiden_cluster_keys.end(),
       lovain_of_refined_comms.begin(),
-      [d_map_values = copied_louvain_assignment.data(),
-       d_map_keys   = copied_leiden_assignment.data(),
-       d_map_size   = copied_leiden_assignment.size()] __device__(vertex_t leiden_cluster) {
+      [d_map_values = values_of_leiden_to_louvain_map.data(),
+       d_map_keys   = keys_of_leiden_to_louvain_map.data(),
+       d_map_size   = keys_of_leiden_to_louvain_map.size()] __device__(vertex_t leiden_cluster) {
         auto ptr =
           thrust::lower_bound(thrust::seq, d_map_keys, d_map_keys + d_map_size, leiden_cluster);
         return d_map_values[ptr - d_map_keys];
@@ -678,6 +683,10 @@ rmm::device_uvector<typename graph_view_t::vertex_type> refine_clustering(
     detail::reduce_op_t<vertex_t, weight_t>{},
     cugraph::get_dataframe_buffer_begin(output_buffer));
 
+  //
+  // Move singleton vertex to other singleton/non-singleton Leiden community
+  //
+
   thrust::transform(handle.get_thrust_policy(),
                     leiden_assignment.begin(),
                     leiden_assignment.end(),
@@ -689,7 +698,84 @@ rmm::device_uvector<typename graph_view_t::vertex_type> refine_clustering(
   // TODO: Make sure that the moves make sense?
   //
 
-  return std::move(leiden_assignment);
+  //
+  // Re-read the map from Leiden to Louvain, but for remaining (after moving) Leiden communities
+  //
+  rmm::device_uvector<vertex_t> keys_to_read_value_for(leiden_assignment.size(),
+                                                       handle.get_stream());  //#C
+
+  thrust::copy(handle.get_thrust_policy(),
+               leiden_assignment.begin(),
+               leiden_assignment.end(),
+               keys_to_read_value_for.begin());
+
+  thrust::sort(
+    handle.get_thrust_policy(), keys_to_read_value_for.begin(), keys_to_read_value_for.end());
+  auto nr_remaining_leiden_cluster = static_cast<size_t> thrust::distance(
+    keys_to_read_value_for.begin(),
+    thrust::unique(
+      handle.get_thrust_policy(), keys_to_read_value_for.begin(), keys_to_read_value_for.end()));
+
+  if constexpr (graph_view::is_multi_gpu) {
+    keys_to_read_value_for =
+      shuffle_ext_vertices_and_values_by_gpu_id(handle, std::move(keys_to_read_value_for));
+
+    thrust::sort(
+      handle.get_thrust_policy(), keys_to_read_value_for.begin(), keys_to_read_value_for.end());
+
+    nr_remaining_leiden_cluster = static_cast<size_t> thrust::distance(
+      keys_to_read_value_for.begin(),
+      thrust::unique(
+        handle.get_thrust_policy(), keys_to_read_value_for.begin(), keys_to_read_value_for.end()));
+  }
+
+  keys_to_read_value_for.resize(nr_remaining_leiden_cluster, handle.get_stream());
+
+  // TODO: Put this in a function
+  // Collect Louvain cluster ids for refined (aka Leiden) clusters
+  //
+
+  if constexpr (graph_view_t::is_multi_gpu) {
+    cugraph::detail::compute_gpu_id_from_ext_vertex_t<vertex_t> vertex_to_gpu_id_op{
+      handle.get_comms().get_size()};
+
+    lovain_of_refined_comms =
+      cugraph::collect_values_for_keys(handle.get_comms(),
+                                       keys_of_leiden_to_louvain_map.begin(),
+                                       keys_of_leiden_to_louvain_map.end(),
+                                       values_of_leiden_to_louvain_map.data(),
+                                       keys_to_read_value_for.begin(),
+                                       keys_to_read_value_for.end(),
+                                       vertex_to_gpu_id_op,
+                                       invalid_vertex_id<vertex_t>::value,
+                                       invalid_vertex_id<vertex_t>::value,
+                                       handle.get_stream());
+
+  } else {
+    // sort so we can use lower_bound in the transform function
+    thrust::sort_by_key(handle.get_thrust_policy(),
+                        keys_of_leiden_to_louvain_map.begin(),
+                        keys_of_leiden_to_louvain_map.end(),
+                        values_of_leiden_to_louvain_map.begin());
+
+    lovain_of_refined_comms.resize(keys_to_read_value_for.size(), handle.get_stream());
+    thrust::transform(
+      handle.get_thrust_policy(),
+      keys_to_read_value_for.begin(),
+      keys_to_read_value_for.end(),
+      lovain_of_refined_comms.begin(),
+      [d_map_values = values_of_leiden_to_louvain_map.data(),
+       d_map_keys   = keys_of_leiden_to_louvain_map.data(),
+       d_map_size   = keys_of_leiden_to_louvain_map.size()] __device__(vertex_t leiden_cluster) {
+        auto ptr =
+          thrust::lower_bound(thrust::seq, d_map_keys, d_map_keys + d_map_size, leiden_cluster);
+        return d_map_values[ptr - d_map_keys];
+      });
+  }
+
+  return std::make_tuple(
+    std::move(leiden_assignment),
+    std::make_pair(std::move(keys_to_read_value_for), std::move(lovain_of_refined_comms)));
 }
 
 template <typename graph_view_t>

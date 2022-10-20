@@ -405,18 +405,19 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
                                dst_vertex_cluster_assignment_cache);
     }
 
-    auto leiden_partition = detail::refine_clustering(handle,
-                                                      current_graph_view,
-                                                      total_edge_weight,
-                                                      resolution,
-                                                      vertex_weights,
-                                                      std::move(cluster_keys),
-                                                      std::move(cluster_weights),
-                                                      std::move(louvain_assignment_for_vertices),
-                                                      src_vertex_weights_cache,
-                                                      src_vertex_cluster_assignment_cache,
-                                                      dst_vertex_cluster_assignment_cache,
-                                                      up_down);
+    auto [leiden_partition, leiden_to_louvain_map] =
+      detail::refine_clustering(handle,
+                                current_graph_view,
+                                total_edge_weight,
+                                resolution,
+                                vertex_weights,
+                                std::move(cluster_keys),
+                                std::move(cluster_weights),
+                                std::move(louvain_assignment_for_vertices),
+                                src_vertex_weights_cache,
+                                src_vertex_cluster_assignment_cache,
+                                dst_vertex_cluster_assignment_cache,
+                                up_down);
 
     ///---------///
     //

@@ -104,7 +104,10 @@ rmm::device_uvector<typename graph_view_t::vertex_type> update_clustering_by_del
   bool up_down);
 
 template <typename graph_view_t>
-rmm::device_uvector<typename graph_view_t::vertex_type> refine_clustering(
+std::tuple<rmm::device_uvector<typename graph_view_t::vertex_type>,
+           std::pair<rmm::device_uvector<typename graph_view_t::vertex_type>,
+                     rmm::device_uvector<typename graph_view_t::vertex_type>>>
+refine_clustering(
   raft::handle_t const& handle,
   graph_view_t const& graph_view,
   typename graph_view_t::weight_type total_edge_weight,
