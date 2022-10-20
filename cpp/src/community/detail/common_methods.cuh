@@ -176,11 +176,11 @@ cugraph::graph_t<vertex_t, edge_t, weight_t, false, multi_gpu> graph_contraction
   cugraph::graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
   raft::device_span<vertex_t> labels)
 {
-  auto [new_graph, numbering_map] = coarsen_graph(handle, graph_view, labels.data());
+  auto [new_graph, numbering_map] = coarsen_graph(handle, graph_view, labels.data(), true);
 
   auto new_graph_view = new_graph.view();
 
-  rmm::device_uvector<vertex_t> numbering_indices(numbering_map.size(), handle.get_stream());
+  rmm::device_uvector<vertex_t> numbering_indices((*numbering_map).size(), handle.get_stream());
   detail::sequence_fill(handle.get_stream(),
                         numbering_indices.data(),
                         numbering_indices.size(),
@@ -188,7 +188,7 @@ cugraph::graph_t<vertex_t, edge_t, weight_t, false, multi_gpu> graph_contraction
 
   relabel<vertex_t, multi_gpu>(
     handle,
-    std::make_tuple(static_cast<vertex_t const*>(numbering_map.begin()),
+    std::make_tuple(static_cast<vertex_t const*>((*numbering_map).begin()),
                     static_cast<vertex_t const*>(numbering_indices.begin())),
     new_graph_view.local_vertex_partition_range_size(),
     labels.data(),
