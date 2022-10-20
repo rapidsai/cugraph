@@ -214,8 +214,6 @@ class edge_major_property_t {
   {
     buffers_.reserve(edge_partition_major_range_firsts_.size());
     for (size_t i = 0; i < edge_partition_major_range_firsts_.size(); ++i) {
-      buffers_.push_back(
-        allocate_dataframe_buffer<T>(edge_partition_keys[i].size(), handle.get_stream()));
       if constexpr (std::is_same_v<T, bool>) {
         auto packed_buffer_size =
           (static_cast<size_t>(edge_partition_keys[i].size()) + (sizeof(uint32_t) * 8 - 1)) /
