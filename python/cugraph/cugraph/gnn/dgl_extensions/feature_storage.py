@@ -36,7 +36,8 @@ class CuFeatureStorage:
             from cupy import from_dlpack
         else:
             raise NotImplementedError(
-                f"Only PyTorch ('torch'), TensorFlow ('tf'), and CuPy ('cupy') backends are currently supported, got {backend_lib=}"
+                f"Only PyTorch ('torch'), TensorFlow ('tf'), and CuPy ('cupy') "
+                f"backends are currently supported, got {backend_lib=}"
             )
         if storage_type not in ["edge", "node"]:
             raise NotImplementedError("Only edge and node storage is supported")
