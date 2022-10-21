@@ -643,7 +643,7 @@ class CugraphServiceClient:
         selection=None,
         edge_weight_property="",
         default_edge_weight=1.0,
-        allow_multi_edges=False,
+        check_multi_edges=True,
         renumber_graph=True,
         add_edge_data=True,
         graph_id=defaults.graph_id,
@@ -657,7 +657,7 @@ class CugraphServiceClient:
         create_using : string, default is None
             String describing the type of Graph object to create from the
             selected subgraph of vertices and edges. The default (None) results
-            in a cugraph.Graph object.
+            in a directed cugraph.MultiGraph object.
 
         selection : int, default is None
             A PropertySelection ID returned from one or more calls to
@@ -676,10 +676,10 @@ class CugraphServiceClient:
             The value to use when an edge property is specified but not present
             on an edge.
 
-        allow_multi_edges : bool
-            If True, multiple edges should be used to create the resulting
-            Graph, otherwise multiple edges will be detected and an exception
-            raised.
+        check_multi_edges : bool (default is True)
+            When True and create_using argument is given and not a MultiGraph,
+            this will perform an expensive check to verify that the edges in
+            the edge dataframe do not form a multigraph with duplicate edges.
 
         graph_id : int, default is defaults.graph_id
            The graph ID to extract the subgraph from. If the ID passed is not
@@ -707,7 +707,7 @@ class CugraphServiceClient:
             selection,
             edge_weight_property,
             default_edge_weight,
-            allow_multi_edges,
+            check_multi_edges,
             renumber_graph,
             add_edge_data,
             graph_id,

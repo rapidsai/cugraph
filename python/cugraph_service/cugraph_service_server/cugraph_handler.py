@@ -17,7 +17,9 @@ from pathlib import Path
 import importlib
 import time
 import traceback
+import re
 from inspect import signature
+
 
 import numpy as np
 import cudf
@@ -495,7 +497,7 @@ class CugraphHandler:
         selection,
         edge_weight_property,
         default_edge_weight,
-        allow_multi_edges,
+        check_multi_edges,
         renumber_graph,
         add_edge_data,
         graph_id,
@@ -510,19 +512,22 @@ class CugraphHandler:
             )
         # Convert defaults needed for the RPC API into defaults used by
         # PropertyGraph.extract_subgraph()
-        create_using = create_using or cugraph.Graph
-        selection = selection or None
-        edge_weight_property = edge_weight_property or None
-
-        # FIXME: create_using and selection should not be strings at this point
-
         try:
+            create_using = self.__graph_class_from_string(
+                create_using or "MultiGraph(directed=True)"
+            )
+            edge_weight_property = edge_weight_property or None
+            if selection is not None:
+                selection = pG.select(selection)
+
+            # FIXME: create_using and selection should not be strings at this point
+
             G = pG.extract_subgraph(
                 create_using,
                 selection,
                 edge_weight_property,
                 default_edge_weight,
-                allow_multi_edges,
+                check_multi_edges,
                 renumber_graph,
                 add_edge_data,
             )
@@ -826,6 +831,32 @@ class CugraphHandler:
 
     ###########################################################################
     # Private
+    def __graph_class_from_string(self, s):
+        g_or_mg = r"((Graph)|(MultiGraph))(.*)"
+        graph_type, _, _, args = re.match(g_or_mg, s).groups()
+
+        if graph_type is None or graph_type == "":
+            raise TypeError(f"Invalid graph type {s}")
+        if graph_type == "Graph":
+            graph_type = cugraph.Graph
+        else:
+            graph_type = cugraph.MultiGraph
+
+        if args is None or args == "":
+            return graph_type()
+
+        arg_dict = {}
+        for arg in args.split(","):
+            k, v = arg.split("=")
+            if v == "True":
+                arg_dict[k] = True
+            elif v == "False":
+                arg_dict[k] = False
+            else:
+                raise ValueError(v)
+
+        return graph_type(**arg_dict)
+
     def __get_dataframe_from_csv(self, csv_file_name, delimiter, dtypes, header, names):
         """
         Read a CSV into a DataFrame and return it. This will use either a cuDF

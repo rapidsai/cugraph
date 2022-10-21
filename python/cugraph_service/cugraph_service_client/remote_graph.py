@@ -508,7 +508,17 @@ class RemotePropertyGraph:
         --------
         >>>
         """
-        raise NotImplementedError("not implemented")
+        sg_graph_id = self.__client.extract_subgraph(
+            create_using=create_using,
+            selection=selection,
+            edge_weight_property=edge_weight_property,
+            check_multi_edges=check_multi_edges,
+            renumber_graph=renumber_graph,
+            add_edge_data=add_edge_data,
+            default_edge_weight=default_edge_weight,
+        )
+
+        return RemoteGraph(self.__client, sg_graph_id)
 
     def annotate_dataframe(self, df, G, edge_vertex_col_names):
         """
