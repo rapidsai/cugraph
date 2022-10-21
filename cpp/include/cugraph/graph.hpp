@@ -446,29 +446,6 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
                                                                        segment_offsets_});
   }
 
-  // FIXME: possibley to be added later;
-  // for now it's unnecessary;
-  // (commented out, per reviewer request)
-  //
-  // generic in-place sorter on CSR structure;
-  // this is specifically targetting
-  // segmented-sort by weigths; but
-  // must be generic enough to support future
-  // types of sorting;
-  // Notes:
-  // (1.) criterion is mutable (non-const)
-  //      to allow for sorter obejcts for which
-  //      the sorting operation fills additional structures
-  //      (later to be retrieved; e.g., for debugging);
-  // (2.) sorting object is responsible for updating "in-place"
-  //      any of the (offsets, indices, weights) arrays;
-  //
-  // template <typename in_place_sorter_t>
-  // void sort(in_place_sorter_t& criterion)
-  // {
-  //   criterion(offsets_, indices_, weights_);
-  // }
-
   std::tuple<rmm::device_uvector<vertex_t>,
              rmm::device_uvector<vertex_t>,
              std::optional<rmm::device_uvector<weight_t>>>
