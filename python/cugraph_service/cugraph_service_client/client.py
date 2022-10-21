@@ -949,7 +949,7 @@ class CugraphServiceClient:
         result_device=None,
     ):
         """
-        Samples the graph and returns ...
+        Samples the graph and returns a UniformNeighborSampleResult instance.
 
         Parameters:
         start_list: list[int]
@@ -964,6 +964,15 @@ class CugraphServiceClient:
 
         Returns
         -------
+        result : UniformNeighborSampleResult
+            Instance containing three CuPy device arrays.
+
+            result.sources: CuPy array
+                Contains the source vertices from the sampling result
+            result.destinations: CuPy array
+                Contains the destination vertices from the sampling result
+            result.indices: CuPy array
+                Contains the indices from the sampling result for path reconstruction
         """
         if result_device is not None:
             result_obj = asyncio.run(
@@ -995,7 +1004,7 @@ class CugraphServiceClient:
     @__server_connection
     def _create_test_array(self, nbytes):
         """
-        Creates an array of bytes (int8 values set to 127) on the server and
+        Creates an array of bytes (int8 values set to 1) on the server and
         returns an ID to use to reference the array in later test calls.
 
         The test array must be deleted on the server by calling
@@ -1013,7 +1022,7 @@ class CugraphServiceClient:
     @__server_connection
     def _receive_test_array(self, test_array_id, result_device=None):
         """
-        Returns the array of bytes (int8 values set to 127) from the server,
+        Returns the array of bytes (int8 values set to 1) from the server,
         either to result_device or on the client host. The array returned must
         have been created by a prior call to create_test_array() which returned
         test_array_id.
