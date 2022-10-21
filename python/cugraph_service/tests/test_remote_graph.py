@@ -25,6 +25,7 @@ from . import data
 
 import cudf
 
+import cugraph
 from cugraph.experimental import PropertyGraph
 from cugraph_service_client import RemotePropertyGraph
 
@@ -443,3 +444,43 @@ def test_get_vertices_with_selection(
     client_with_property_csvs_loaded, pG_with_property_csvs_loaded
 ):
     raise NotImplementedError()
+
+
+@pytest.mark.parametrize(
+    "create_using",
+    [
+        (None, None),
+        (cugraph.Graph(), "Graph"),
+        (cugraph.MultiGraph(), "MultiGraph"),
+        (cugraph.Graph(directed=True), "Graph(directed=True)"),
+        (cugraph.MultiGraph(directed=True), "MultiGraph(directed=True)"),
+    ],
+)
+@pytest.mark.parametrize(
+    "selection",
+    [
+        (True, None),
+        (False, '_TYPE_=="transactions"'),
+        (True, '(_TYPE_=="transactions") | (_TYPE_=="relationships")'),
+    ],
+)
+def test_extract_subgraph(
+    client_with_property_csvs_loaded,
+    pG_with_property_csvs_loaded,
+    create_using,
+    selection,
+):
+    mg_only, selection = selection
+    if mg_only and create_using[0] is not None and not create_using[0].is_multigraph():
+        pytest.skip()
+
+    rpG = RemotePropertyGraph(client_with_property_csvs_loaded, 0)
+    pG = pG_with_property_csvs_loaded
+
+    sg = pG.extract_subgraph(
+        create_using=create_using[0],
+        selection=None if selection is None else pG.select_edges(selection),
+    )
+    remote_sg = rpG.extract_subgraph(create_using=create_using[1], selection=selection)
+
+    assert remote_sg.number_of_vertices() == sg.number_of_vertices()

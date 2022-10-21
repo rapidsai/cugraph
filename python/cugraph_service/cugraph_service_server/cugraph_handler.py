@@ -513,23 +513,26 @@ class CugraphHandler:
         # Convert defaults needed for the RPC API into defaults used by
         # PropertyGraph.extract_subgraph()
         try:
-            create_using = self.__graph_class_from_string(
-                create_using or "MultiGraph(directed=True)"
-            )
+            if create_using == "":
+                create_using = None
+            else:
+                create_using = self.__parse_create_using_string(create_using)
             edge_weight_property = edge_weight_property or None
-            if selection is not None:
-                selection = pG.select(selection)
+            if selection == "":
+                selection = None
+            else:
+                selection = pG.select_edges(selection)
 
             # FIXME: create_using and selection should not be strings at this point
 
             G = pG.extract_subgraph(
-                create_using,
-                selection,
-                edge_weight_property,
-                default_edge_weight,
-                check_multi_edges,
-                renumber_graph,
-                add_edge_data,
+                create_using=create_using,
+                selection=selection,
+                edge_weight_property=edge_weight_property,
+                default_edge_weight=default_edge_weight,
+                check_multi_edges=check_multi_edges,
+                renumber_graph=renumber_graph,
+                add_edge_data=add_edge_data,
             )
         except Exception:
             raise CugraphServiceError(f"{traceback.format_exc()}")
@@ -568,8 +571,10 @@ class CugraphHandler:
             if self.is_mg:
                 s = (
                     dask_cudf.concat(
-                        G.edgelist.edgelist_df["renumbered_src"],
-                        G.edgelist.edgelist_df["renumbered_dst"],
+                        [
+                            G.edgelist.edgelist_df["renumbered_src"],
+                            G.edgelist.edgelist_df["renumbered_dst"],
+                        ]
                     )
                     .unique()
                     .compute()
@@ -578,9 +583,11 @@ class CugraphHandler:
                 df["id"] = s
                 df = dask_cudf.from_cudf(df, npartitions=self.num_gpus)
             else:
-                s = dask_cudf.concat(
-                    G.edgelist.edgelist_df["src"],
-                    G.edgelist.edgelist_df["dst"],
+                s = cudf.concat(
+                    [
+                        G.edgelist.edgelist_df["src"],
+                        G.edgelist.edgelist_df["dst"],
+                    ]
                 ).unique()
                 df = cudf.DataFrame()
                 df["id"] = s
@@ -831,31 +838,32 @@ class CugraphHandler:
 
     ###########################################################################
     # Private
-    def __graph_class_from_string(self, s):
-        g_or_mg = r"((Graph)|(MultiGraph))(.*)"
-        graph_type, _, _, args = re.match(g_or_mg, s).groups()
 
-        if graph_type is None or graph_type == "":
-            raise TypeError(f"Invalid graph type {s}")
-        if graph_type == "Graph":
-            graph_type = cugraph.Graph
+    def __parse_create_using_string(self, create_using):
+        match = re.match(r"([MultiGraph|Graph]+)(.*)", create_using)
+        if match is None:
+            raise TypeError(f"Invalid graph type {create_using}")
         else:
-            graph_type = cugraph.MultiGraph
+            graph_type, args = match.groups()
+            args_dict = {}
+            if args != "" and args != "()":
+                for arg in args.replace(" ", "").split(",")[1:-1]:
+                    try:
+                        k, v = arg.split("=")
+                        if v == "True":
+                            args[k] = True
+                        elif v == "False":
+                            args[k] = False
+                        else:
+                            raise ValueError(f"Could not parse value {v}")
+                    except Exception as e:
+                        raise ValueError(f"Could not parse argument {arg}", e)
 
-        if args is None or args == "":
-            return graph_type()
-
-        arg_dict = {}
-        for arg in args.split(","):
-            k, v = arg.split("=")
-            if v == "True":
-                arg_dict[k] = True
-            elif v == "False":
-                arg_dict[k] = False
+            if graph_type == "Graph":
+                graph_type = cugraph.Graph
             else:
-                raise ValueError(v)
-
-        return graph_type(**arg_dict)
+                graph_type = cugraph.MultiGraph
+            return graph_type(**args_dict)
 
     def __get_dataframe_from_csv(self, csv_file_name, delimiter, dtypes, header, names):
         """

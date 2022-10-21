@@ -139,6 +139,24 @@ class RemoteGraph:
     def vertices_ids(self, _backend="cudf"):
         return self.get_vertices()
 
+    def number_of_vertices(self):
+        """
+        Returns the number of vertices in this graph.
+        """
+        return len(self.get_vertices())
+
+    def number_of_nodes(self):
+        """
+        Alias for number_of_vertices()
+        """
+        return self.number_of_vertices()
+
+    def number_of_edges(self):
+        """
+        Returns the number of edges in this graph.
+        """
+        return len(self.edgelist)
+
     @property
     def adjlist(self):
         raise NotImplementedError("not implemented")
@@ -527,6 +545,7 @@ class RemotePropertyGraph:
             renumber_graph=renumber_graph,
             add_edge_data=add_edge_data,
             default_edge_weight=default_edge_weight,
+            graph_id=self.__graph_id,
         )
 
         return RemoteGraph(self.__client, sg_graph_id)
