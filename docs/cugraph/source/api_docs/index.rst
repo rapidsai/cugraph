@@ -1,5 +1,5 @@
 =============
-API reference
+CuGraph API
 =============
 
 This page provides a list of all publicly accessible modules, methods and classes through
@@ -7,7 +7,7 @@ This page provides a list of all publicly accessible modules, methods and classe
 
 .. toctree::
     :maxdepth: 2
-    :caption: API Documentation
+    :caption: Cugraph API
 
     structure
     graph_implementation
@@ -22,7 +22,3 @@ This page provides a list of all publicly accessible modules, methods and classe
     sampling
     traversal
     tree
-    generator
-    helper_functions
-    dask-cugraph.rst
-    pylibcugraph.rst

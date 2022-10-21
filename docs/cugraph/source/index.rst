@@ -6,11 +6,17 @@ easily call graph algorithms using data stored in GPU DataFrames,
 NetworkX Graphs, or even CuPy or SciPy sparse Matrices.
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
    :caption: Contents:
 
    basics/index
    api_docs/index
+   api_docs/generator
+   api_docs/helper_functions
+   api_docs/dask-cugraph.rst
+   api_docs/pylibcugraph.rst
+   api_docs/gnn.rst
+
 
 Indices and tables
 ==================

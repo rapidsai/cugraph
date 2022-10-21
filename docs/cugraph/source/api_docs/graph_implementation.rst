@@ -1,11 +1,11 @@
-====================
-Graph Implementation
-====================
+===============
+Graph Class API
+===============
 .. currentmodule:: cugraph.structure.graph_implementation.simpleGraphImpl
 
 
-Graph Implementation
--------------------------
+Graph Class API
+---------------
 .. autosummary::
     :toctree: api/
 
