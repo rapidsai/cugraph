@@ -28,7 +28,6 @@
 #include <type_traits>
 #include <vector>
 
-
 /** @defgroup cpp_api cuGraph C++ API
  *  @{
  */
