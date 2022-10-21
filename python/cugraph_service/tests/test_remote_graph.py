@@ -427,3 +427,19 @@ def test_add_vertex_data(
 def test_add_edge_data(client_with_property_csvs_loaded, pG_with_property_csvs_loaded):
 
     raise NotImplementedError()
+
+
+def test_get_vertices(client_with_property_csvs_loaded, pG_with_property_csvs_loaded):
+    rpG = RemotePropertyGraph(client_with_property_csvs_loaded, 0)
+    pG = pG_with_property_csvs_loaded
+
+    assert set(rpG.get_vertices().to_cupy().tolist()) == set(
+        pG.get_vertices().to_cupy().tolist()
+    )
+
+
+@pytest.mark.skip(reason="not yet implemented")
+def test_get_vertices_with_selection(
+    client_with_property_csvs_loaded, pG_with_property_csvs_loaded
+):
+    raise NotImplementedError()

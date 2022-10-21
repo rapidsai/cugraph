@@ -40,7 +40,7 @@ except ModuleNotFoundError:
     cudf = MissingModule("cudf")
 
 
-def __transform_to_backend_dtype(self, data, column_names, backend, dtypes=[]):
+def _transform_to_backend_dtype(data, column_names, backend, dtypes=[]):
     """
     Supports method-by-method selection of backend type (cupy, cudf, etc.)
     to avoid costly conversion such as row-major to column-major transformation.
@@ -125,13 +125,16 @@ class RemoteGraph:
             ]
         else:
             raise ValueError(f"Invalid edgelist shape {data.shape}")
-        return __transform_to_backend_dtype(
+        return _transform_to_backend_dtype(
             data,
             cols,
         )
 
     def get_vertices(self, _backend="cudf"):
-        return self.__client.get_vertex_data(graph_id=self.__graph_id)
+        vdata = self.__client.get_graph_vertex_data(graph_id=self.__graph_id)[:, 0]
+        if _backend == "cudf":
+            return cudf.Series(vdata)
+        return cupy.array(vdata)
 
     def vertices_ids(self, _backend="cudf"):
         return self.get_vertices()
@@ -188,7 +191,7 @@ class RemotePropertyGraph:
             property_keys=[self.src_col_name, self.dst_col_name],
         )
 
-        return __transform_to_backend_dtype(
+        return _transform_to_backend_dtype(
             np_edges,
             [
                 self.edge_id_col_name,
@@ -259,12 +262,20 @@ class RemotePropertyGraph:
         """
         return self.__client.get_num_edges(type, self.__graph_id)
 
-    def get_vertices(self, selection=None):
+    def get_vertices(self, selection=None, _backend="cudf"):
         """
         Return a Series containing the unique vertex IDs contained in both
         the vertex and edge property data.
         """
-        raise NotImplementedError("not implemented")
+        if selection is not None:
+            raise NotImplementedError(
+                "Use of get_vertices() with selection"
+                " not available for remote property graph."
+            )
+        vdata = self.__client.get_graph_vertex_data()[:, 0]
+        if _backend == "cudf":
+            return cudf.Series(vdata)
+        return cupy.array(vdata)
 
     def vertices_ids(self):
         """
@@ -321,7 +332,7 @@ class RemotePropertyGraph:
         )
 
         column_names = [self.vertex_col_name, self.type_col_name] + list(columns)
-        return __transform_to_backend_dtype(
+        return _transform_to_backend_dtype(
             vertex_data,
             column_names,
             _backend,
@@ -396,7 +407,7 @@ class RemotePropertyGraph:
             self.dst_col_name,
             self.type_col_name,
         ] + list(columns)
-        return __transform_to_backend_dtype(
+        return _transform_to_backend_dtype(
             edge_data,
             column_names,
             _backend,
