@@ -112,18 +112,22 @@ template <typename vertex_t,
           typename weight_t,
           bool multi_gpu,
           bool store_transposed = false>
-void aggregate_graph(
+rmm::device_uvector<vertex_t> aggregate_graph(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>& current_graph_view,
   graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>& current_graph,
   // std::unique_ptr<Dendrogram<vertex_t>>& dendrogram)
   rmm::device_uvector<vertex_t>& refined_partition)
 {
-  current_graph = cugraph::detail::graph_contraction(
+  rmm::device_uvector<vertex_t> leiden_of_coarsen_graph(0, handle.get_stream());
+
+  std::tie(current_graph, leiden_of_coarsen_graph) = cugraph::detail::graph_contraction(
     handle,
     current_graph_view,
     raft::device_span<vertex_t>{refined_partition.begin(), refined_partition.size()});
   current_graph_view = current_graph.view();
+
+  std::move(leiden_of_coarsen_graph);
 }
 
 template <typename vertex_t,
@@ -388,7 +392,7 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
         handle.get_comms(), nr_unique_clusters, raft::comms::op_t::SUM, handle.get_stream());
     }
 
-    if (nr_unique_clusters == current_graph_view.number_of_vertices()) { break; }
+    // if (nr_unique_clusters == current_graph_view.number_of_vertices()) { break; }
 
     //
     // Refine the current partition
@@ -438,7 +442,8 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
     src_vertex_cluster_assignment_cache.clear(handle);
     dst_vertex_cluster_assignment_cache.clear(handle);
 
-    aggregate_graph(handle, current_graph_view, current_graph, leiden_partition);
+    auto leiden_of_coarse_graph =
+      aggregate_graph(handle, current_graph_view, current_graph, leiden_partition);
 
     detail::timer_stop<graph_view_t::is_multi_gpu>(handle, hr_timer);
   }

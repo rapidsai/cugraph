@@ -82,7 +82,9 @@ typename graph_view_t::weight_type compute_modularity(
   typename graph_view_t::weight_type resolution);
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
-cugraph::graph_t<vertex_t, edge_t, weight_t, false, multi_gpu> graph_contraction(
+std::tuple<cugraph::graph_t<vertex_t, edge_t, weight_t, false, multi_gpu>,
+           rmm::device_uvector<vertex_t>>
+graph_contraction(
   raft::handle_t const& handle,
   cugraph::graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
   raft::device_span<vertex_t> labels);

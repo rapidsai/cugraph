@@ -221,7 +221,7 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> louvain(
     src_clusters_cache.clear(handle);
     dst_clusters_cache.clear(handle);
 
-    current_graph = cugraph::detail::graph_contraction(
+    std::tie(current_graph, std::ignore) = cugraph::detail::graph_contraction(
       handle,
       current_graph_view,
       raft::device_span<vertex_t>{dendrogram->current_level_begin(),

@@ -90,35 +90,41 @@ template double compute_modularity(
   double total_edge_weight,
   double resolution);
 
-template cugraph::graph_t<int32_t, int32_t, float, false, false> graph_contraction(
-  raft::handle_t const& handle,
-  cugraph::graph_view_t<int32_t, int32_t, float, false, false> const& graph_view,
-  raft::device_span<int32_t> labels);
+template std::tuple<cugraph::graph_t<int32_t, int32_t, float, false, false>,
+                    rmm::device_uvector<int32_t>>
+graph_contraction(raft::handle_t const& handle,
+                  cugraph::graph_view_t<int32_t, int32_t, float, false, false> const& graph_view,
+                  raft::device_span<int32_t> labels);
 
-template cugraph::graph_t<int32_t, int64_t, float, false, false> graph_contraction(
-  raft::handle_t const& handle,
-  cugraph::graph_view_t<int32_t, int64_t, float, false, false> const& graph_view,
-  raft::device_span<int32_t> labels);
+template std::tuple<cugraph::graph_t<int32_t, int64_t, float, false, false>,
+                    rmm::device_uvector<int32_t>>
+graph_contraction(raft::handle_t const& handle,
+                  cugraph::graph_view_t<int32_t, int64_t, float, false, false> const& graph_view,
+                  raft::device_span<int32_t> labels);
 
-template cugraph::graph_t<int64_t, int64_t, float, false, false> graph_contraction(
-  raft::handle_t const& handle,
-  cugraph::graph_view_t<int64_t, int64_t, float, false, false> const& graph_view,
-  raft::device_span<int64_t> labels);
+template std::tuple<cugraph::graph_t<int64_t, int64_t, float, false, false>,
+                    rmm::device_uvector<int64_t>>
+graph_contraction(raft::handle_t const& handle,
+                  cugraph::graph_view_t<int64_t, int64_t, float, false, false> const& graph_view,
+                  raft::device_span<int64_t> labels);
 
-template cugraph::graph_t<int32_t, int32_t, double, false, false> graph_contraction(
-  raft::handle_t const& handle,
-  cugraph::graph_view_t<int32_t, int32_t, double, false, false> const& graph_view,
-  raft::device_span<int32_t> labels);
+template std::tuple<cugraph::graph_t<int32_t, int32_t, double, false, false>,
+                    rmm::device_uvector<int32_t>>
+graph_contraction(raft::handle_t const& handle,
+                  cugraph::graph_view_t<int32_t, int32_t, double, false, false> const& graph_view,
+                  raft::device_span<int32_t> labels);
 
-template cugraph::graph_t<int32_t, int64_t, double, false, false> graph_contraction(
-  raft::handle_t const& handle,
-  cugraph::graph_view_t<int32_t, int64_t, double, false, false> const& graph_view,
-  raft::device_span<int32_t> labels);
+template std::tuple<cugraph::graph_t<int32_t, int64_t, double, false, false>,
+                    rmm::device_uvector<int32_t>>
+graph_contraction(raft::handle_t const& handle,
+                  cugraph::graph_view_t<int32_t, int64_t, double, false, false> const& graph_view,
+                  raft::device_span<int32_t> labels);
 
-template cugraph::graph_t<int64_t, int64_t, double, false, false> graph_contraction(
-  raft::handle_t const& handle,
-  cugraph::graph_view_t<int64_t, int64_t, double, false, false> const& graph_view,
-  raft::device_span<int64_t> labels);
+template std::tuple<cugraph::graph_t<int64_t, int64_t, double, false, false>,
+                    rmm::device_uvector<int64_t>>
+graph_contraction(raft::handle_t const& handle,
+                  cugraph::graph_view_t<int64_t, int64_t, double, false, false> const& graph_view,
+                  raft::device_span<int64_t> labels);
 
 template rmm::device_uvector<int32_t> update_clustering_by_delta_modularity(
   raft::handle_t const& handle,

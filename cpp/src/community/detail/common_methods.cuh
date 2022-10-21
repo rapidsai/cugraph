@@ -246,7 +246,9 @@ typename graph_view_t::weight_type compute_modularity(
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
-cugraph::graph_t<vertex_t, edge_t, weight_t, false, multi_gpu> graph_contraction(
+std::tuple<cugraph::graph_t<vertex_t, edge_t, weight_t, false, multi_gpu>,
+           rmm::device_uvector<vertex_t>>
+graph_contraction(
   raft::handle_t const& handle,
   cugraph::graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
   raft::device_span<vertex_t> labels)
@@ -270,7 +272,7 @@ cugraph::graph_t<vertex_t, edge_t, weight_t, false, multi_gpu> graph_contraction
     labels.size(),
     false);
 
-  return std::move(new_graph);
+  return std::make_tuple(std::move(new_graph), std::move(numbering_map));
 }
 
 template <typename graph_view_t>
@@ -711,22 +713,22 @@ refine_clustering(
 
   thrust::sort(
     handle.get_thrust_policy(), keys_to_read_value_for.begin(), keys_to_read_value_for.end());
-  auto nr_remaining_leiden_cluster = static_cast<size_t> thrust::distance(
+  auto nr_remaining_leiden_cluster = static_cast<size_t>(thrust::distance(
     keys_to_read_value_for.begin(),
     thrust::unique(
-      handle.get_thrust_policy(), keys_to_read_value_for.begin(), keys_to_read_value_for.end()));
+      handle.get_thrust_policy(), keys_to_read_value_for.begin(), keys_to_read_value_for.end())));
 
-  if constexpr (graph_view::is_multi_gpu) {
+  if constexpr (graph_view_t::is_multi_gpu) {
     keys_to_read_value_for =
       shuffle_ext_vertices_and_values_by_gpu_id(handle, std::move(keys_to_read_value_for));
 
     thrust::sort(
       handle.get_thrust_policy(), keys_to_read_value_for.begin(), keys_to_read_value_for.end());
 
-    nr_remaining_leiden_cluster = static_cast<size_t> thrust::distance(
+    nr_remaining_leiden_cluster = static_cast<size_t>(thrust::distance(
       keys_to_read_value_for.begin(),
       thrust::unique(
-        handle.get_thrust_policy(), keys_to_read_value_for.begin(), keys_to_read_value_for.end()));
+        handle.get_thrust_policy(), keys_to_read_value_for.begin(), keys_to_read_value_for.end())));
   }
 
   keys_to_read_value_for.resize(nr_remaining_leiden_cluster, handle.get_stream());
