@@ -181,13 +181,28 @@ service CugraphService {
 
   UniformNeighborSampleResult
   uniform_neighbor_sample(1:list<i32> start_list,
-                              2:list<i32> fanout_vals,
-                              3:bool with_replacement,
-                              4:i32 graph_id
-                              ) throws (1:CugraphServiceError e),
+                          2:list<i32> fanout_vals,
+                          3:bool with_replacement,
+                          4:i32 graph_id,
+                          5:string result_host,
+                          6:i16 result_port
+                          ) throws (1:CugraphServiceError e),
 
   ##############################################################################
   # Test/Debug
+  i32 create_test_array(1:i64 nbytes
+                        ) throws (1:CugraphServiceError e),
+
+  void delete_test_array(1:i32 test_array_id) throws (1:CugraphServiceError e),
+
+  list<byte> receive_test_array(1:i32 test_array_id
+                                ) throws (1:CugraphServiceError e),
+
+  oneway void receive_test_array_to_device(1:i32 test_array_id,
+                                           2:string result_host,
+                                           3:i16 result_port
+                                           ) throws (1:CugraphServiceError e),
+
   string get_graph_type(1:i32 graph_id) throws(1:CugraphServiceError e),
 }
 """
@@ -253,5 +268,5 @@ def create_client(host, port, call_timeout=90000):
         # FIXME: may need to have additional thrift exception handlers
         # FIXME: this exception being raised could use more detail
         raise spec.CugraphServiceError(
-            "could not create a client session " "with a cugraph_service server"
+            "could not create a client session with a cugraph_service server"
         )

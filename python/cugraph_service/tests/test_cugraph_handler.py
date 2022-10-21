@@ -47,7 +47,7 @@ def test_load_and_call_graph_creation_extension(graph_creation_extension2):
         handler.load_graph_creation_extensions(__file__)
 
     # Load the extension and call the function defined in it
-    num_files_read = handler.load_graph_creation_extensions(extension_dir)
+    num_files_read = handler.load_graph_creation_extensions(extension_dir.name)
     assert num_files_read == 1
 
     # Private function should not be callable
@@ -90,7 +90,7 @@ def test_load_and_unload_graph_creation_extension(graph_creation_extension2):
     extension_dir = graph_creation_extension2
 
     # Load the extensions and ensure it can be called.
-    handler.load_graph_creation_extensions(extension_dir)
+    handler.load_graph_creation_extensions(extension_dir.name)
     new_graph_ID = handler.call_graph_creation_extension(
         "my_graph_creation_function", "('a', 'b', 'c')", "{}"
     )
@@ -116,7 +116,7 @@ def test_load_and_unload_graph_creation_extension_no_args(graph_creation_extensi
     extension_dir = graph_creation_extension1
 
     # Load the extensions and ensure it can be called.
-    handler.load_graph_creation_extensions(extension_dir)
+    handler.load_graph_creation_extensions(extension_dir.name)
     new_graph_ID = handler.call_graph_creation_extension(
         "custom_graph_creation_function", "()", "{}"
     )
@@ -136,7 +136,7 @@ def test_load_and_unload_graph_creation_extension_no_facade_arg(
     extension_dir = graph_creation_extension_no_facade_arg
 
     # Load the extensions and ensure it can be called.
-    handler.load_graph_creation_extensions(extension_dir)
+    handler.load_graph_creation_extensions(extension_dir.name)
     new_graph_ID = handler.call_graph_creation_extension(
         "graph_creation_function", "('a')", "{'arg2':33}"
     )
@@ -157,7 +157,7 @@ def test_load_and_unload_graph_creation_extension_bad_arg_order(
     extension_dir = graph_creation_extension_bad_arg_order
 
     # Load the extensions and ensure it can be called.
-    handler.load_graph_creation_extensions(extension_dir)
+    handler.load_graph_creation_extensions(extension_dir.name)
     with pytest.raises(CugraphServiceError):
         handler.call_graph_creation_extension(
             "graph_creation_function", "('a', 'b')", "{}"
@@ -175,7 +175,7 @@ def test_get_graph_data_large_vertex_ids(graph_creation_extension_big_vertex_ids
     extension_dir = graph_creation_extension_big_vertex_ids
 
     # Load the extension and ensure it can be called.
-    handler.load_graph_creation_extensions(extension_dir)
+    handler.load_graph_creation_extensions(extension_dir.name)
     new_graph_id = handler.call_graph_creation_extension(
         "graph_creation_function_vert_and_edge_data_big_vertex_ids", "()", "{}"
     )
@@ -232,7 +232,7 @@ def test_get_graph_data_empty_graph(graph_creation_extension_empty_graph):
     extension_dir = graph_creation_extension_empty_graph
 
     # Load the extension and ensure it can be called.
-    handler.load_graph_creation_extensions(extension_dir)
+    handler.load_graph_creation_extensions(extension_dir.name)
     new_graph_id = handler.call_graph_creation_extension(
         "graph_creation_function", "()", "{}"
     )
