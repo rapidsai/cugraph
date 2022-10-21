@@ -813,6 +813,45 @@ def test_add_node_data_vector_feats():
     cp.testing.assert_array_equal(out_vec, exp_vec)
 
 
+def test_sampling_with_out_of_index_seed():
+    pg = PropertyGraph()
+    gs = CuGraphStore(pg)
+    node_df = cudf.DataFrame()
+    node_df["node_id"] = cudf.Series([0, 1, 2, 3, 4, 5]).astype("int32")
+    gs.add_node_data(node_df, "node_id", "_N")
+
+    edge_df = cudf.DataFrame()
+    edge_df["src"] = cudf.Series([0, 1, 2]).astype("int32")
+    edge_df["dst"] = cudf.Series([0, 0, 0]).astype("int32")
+    gs.add_edge_data(edge_df, ["src", "dst"], canonical_etype="('_N', 'con.a', '_N')")
+
+    edge_df = cudf.DataFrame()
+    edge_df["src"] = cudf.Series([3, 4, 5]).astype("int32")
+    edge_df["dst"] = cudf.Series([3, 3, 3]).astype("int32")
+    gs.add_edge_data(edge_df, ["src", "dst"], canonical_etype="('_N', 'con.b', '_N')")
+
+    output = gs.sample_neighbors(
+        {"_N": cudf.Series([0, 1, 3, 5], "int32").to_dlpack()}, fanout=3
+    )
+    output_e1 = (
+        cudf.from_dlpack(output["('_N', 'con.a', '_N')"][0])
+        .sort_values()
+        .reset_index(drop=True)
+    )
+    output_e2 = (
+        cudf.from_dlpack(output["('_N', 'con.b', '_N')"][0])
+        .sort_values()
+        .reset_index(drop=True)
+    )
+
+    cudf.testing.assert_series_equal(
+        output_e1, cudf.Series([0, 1, 2], dtype="int32", name=0)
+    )
+    cudf.testing.assert_series_equal(
+        output_e2, cudf.Series([3, 4, 5], dtype="int32", name=0)
+    )
+
+
 def assert_correct_eids(edge_df, sample_edge_id_df):
     # We test that all src, dst correspond to the correct
     # eids in the sample_edge_id_df
