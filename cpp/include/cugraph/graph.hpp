@@ -28,6 +28,11 @@
 #include <type_traits>
 #include <vector>
 
+
+/** @defgroup cpp_api cuGraph C++ API
+ *  @{
+ */
+
 namespace cugraph {
 
 template <typename vertex_t, typename edge_t, typename weight_t>
@@ -454,8 +459,6 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
                          bool destroy = false);
 
  private:
-  friend class cugraph::serializer::serializer_t;
-
   rmm::device_uvector<edge_t> offsets_;
   rmm::device_uvector<vertex_t> indices_;
   std::optional<rmm::device_uvector<weight_t>> weights_{std::nullopt};
@@ -510,3 +513,7 @@ __host__ __device__ std::enable_if_t<std::is_unsigned<vertex_t>::value, bool> is
 }  // namespace cugraph
 
 #include "eidecl_graph.hpp"
+
+/**
+ * @}
+ */
