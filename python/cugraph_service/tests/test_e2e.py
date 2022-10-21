@@ -25,17 +25,15 @@ from . import utils
 
 
 @pytest.fixture(scope="module")
-def server(graph_creation_extension1):
+def server():
     """
-    Start a cugraph_service server, stop it when done with the fixture.  This
-    also uses graph_creation_extension1 to preload a graph creation extension.
+    Start a cugraph_service server, stop it when done with the fixture.
     """
     from cugraph_service_client import CugraphServiceClient
     from cugraph_service_client.exceptions import CugraphServiceError
 
     host = "localhost"
     port = 9090
-    server_extension_dir = graph_creation_extension1
     client = CugraphServiceClient(host, port)
 
     try:
@@ -46,11 +44,9 @@ def server(graph_creation_extension1):
     except CugraphServiceError:
         # A server was not found, so start one for testing then stop it when
         # testing is done.
-        server_process = utils.start_server_subprocess(
-            host=host, port=port, graph_creation_extension_dir=server_extension_dir.name
-        )
+        server_process = utils.start_server_subprocess(host=host, port=port)
 
-        # yield control to the tests
+        # yield control to the tests, cleanup on return
         yield
 
         # tests are done, now stop the server
@@ -75,10 +71,25 @@ def client(server):
     # FIXME: should this fixture always unconditionally unload all extensions?
     # client.unload_graph_creation_extensions()
 
-    # yield control to the tests that use this fixture
+    # yield control to the tests, cleanup on return
     yield client
-    # all tests using this fixture are done, so stop the server
+
     client.close()
+
+
+@pytest.fixture(scope="function")
+def client_with_graph_creation_extension_loaded(client, graph_creation_extension1):
+    """
+    Loads the extension defined in graph_creation_extension1, unloads upon completion.
+    """
+    server_extension_dir = graph_creation_extension1
+
+    client.load_graph_creation_extensions(server_extension_dir.name)
+
+    # yield control to the tests, cleanup on return
+    yield client
+
+    client.unload_graph_creation_extensions()
 
 
 @pytest.fixture(scope="function")
@@ -245,7 +256,9 @@ def test_extract_subgraph(client_with_edgelist_csv_loaded):
     assert Gid in client.get_graph_ids()
 
 
-def test_load_and_call_graph_creation_extension(client, graph_creation_extension2):
+def test_load_and_call_graph_creation_extension(
+    client_with_graph_creation_extension_loaded, graph_creation_extension2
+):
     """
     Tests calling a user-defined server-side graph creation extension from the
     cugraph_service client.
@@ -253,6 +266,7 @@ def test_load_and_call_graph_creation_extension(client, graph_creation_extension
     # The graph_creation_extension returns the tmp dir created which contains
     # the extension
     extension_dir = graph_creation_extension2
+    client = client_with_graph_creation_extension_loaded
 
     num_files_loaded = client.load_graph_creation_extensions(extension_dir.name)
     assert num_files_loaded == 1
@@ -267,9 +281,17 @@ def test_load_and_call_graph_creation_extension(client, graph_creation_extension
     # FIXME: add client APIs to allow for a more thorough test of the graph
     assert client.get_graph_info(["num_edges"], new_graph_id) == 2
 
+    # Ensure the other graph creation extension (loaded as part of
+    # client_with_graph_creation_extension_loaded) can still be called
+    new_graph_id = client.call_graph_creation_extension(
+        "custom_graph_creation_function"
+    )
+
+    assert new_graph_id in client.get_graph_ids()
+
 
 def test_load_and_call_graph_creation_long_running_extension(
-    client, graph_creation_extension_long_running
+    client_with_graph_creation_extension_loaded, graph_creation_extension_long_running
 ):
     """
     Tests calling a user-defined server-side graph creation extension from the
@@ -278,6 +300,7 @@ def test_load_and_call_graph_creation_long_running_extension(
     # The graph_creation_extension returns the tmp dir created which contains
     # the extension
     extension_dir = graph_creation_extension_long_running
+    client = client_with_graph_creation_extension_loaded
 
     num_files_loaded = client.load_graph_creation_extensions(extension_dir.name)
     assert num_files_loaded == 1
@@ -293,11 +316,12 @@ def test_load_and_call_graph_creation_long_running_extension(
     assert client.get_graph_info(["num_edges"], new_graph_id) == 0
 
 
-def test_call_graph_creation_extension(client):
+def test_call_graph_creation_extension(client_with_graph_creation_extension_loaded):
     """
     Ensure the graph creation extension preloaded by the server fixture is
     callable.
     """
+    client = client_with_graph_creation_extension_loaded
 
     new_graph_id = client.call_graph_creation_extension(
         "custom_graph_creation_function"

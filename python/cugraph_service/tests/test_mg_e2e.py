@@ -190,6 +190,7 @@ def client_of_sg_server_on_device_1_with_test_array(
 
     test_array_id = client._create_test_array(nbytes)
 
+    # yield control to the tests, cleanup on return
     yield (client, test_array_id, nbytes)
 
     client._delete_test_array(test_array_id)
@@ -213,6 +214,7 @@ def client_of_sg_server_on_device_1_large_property_graph_loaded(
 
     assert new_graph_id in client.get_graph_ids()
 
+    # yield control to the tests, cleanup on return
     yield (client, new_graph_id)
 
     client.delete_graph(new_graph_id)

@@ -182,7 +182,6 @@ class CugraphHandler:
 
         The modules are searched and their functions are called (if a match is
         found) when call_graph_creation_extension() is called.
-
         """
         extension_dir = Path(extension_dir_path)
 
