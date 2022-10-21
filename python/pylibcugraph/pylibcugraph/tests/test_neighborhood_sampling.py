@@ -254,7 +254,7 @@ def test_neighborhood_sampling_large_sg_graph(gpubenchmark):
     actual_delta = free_after_cleanup - free_before_cleanup
     expected_delta = free_memory_before - free_before_cleanup
     leak = expected_delta - actual_delta
-    print(f"  {result_size=} {actual_delta=} {expected_delta=} {leak=}")
+    print(f"  {result_bytes=} {actual_delta=} {expected_delta=} {leak=}")
     assert free_memory_before == device.mem_info[0]
 
 
