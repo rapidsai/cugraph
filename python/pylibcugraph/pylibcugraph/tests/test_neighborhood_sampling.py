@@ -235,13 +235,20 @@ def test_neighborhood_sampling_large_sg_graph(gpubenchmark):
     assert result[1][0].dtype == np.int32
     assert result[2][0].dtype == np.float32
 
-    # Cleanup the result - this should leave the memory used equal to the
-    # amount prior to running the algo.
+    # FIXME: this is to help debug a leak in uniform_neighbor_sample, remove
+    # once leak is fixed
     free_before_cleanup = device.mem_info[0]
     print(f"{free_before_cleanup=}")
-    result_size = (len(result[0]) + len(result[1]) + len(result[2])) * (32 // 8)
+
+    result_bytes = (len(result[0]) + len(result[1]) + len(result[2])) * (32 // 8)
+
+    # Cleanup the result - this should leave the memory used equal to the
+    # amount prior to running the algo.
     del result
     gc.collect()
+
+    # FIXME: this is to help debug a leak in uniform_neighbor_sample, remove
+    # once leak is fixed
     free_after_cleanup = device.mem_info[0]
     print(f"{free_after_cleanup=}")
     actual_delta = free_after_cleanup - free_before_cleanup

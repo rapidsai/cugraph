@@ -12,4 +12,4 @@
 # limitations under the License.
 
 from .graph_store import CuGraphStore
-from .graph_store import CuFeatureStorage
+from .dgl_extensions.feature_storage import CuFeatureStorage
