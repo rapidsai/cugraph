@@ -335,6 +335,38 @@ void renumber_local_ext_vertices(raft::handle_t const& handle,
                                  vertex_t local_int_vertex_first,
                                  vertex_t local_int_vertex_last,
                                  bool do_expensive_check = false);
+/**
+ * @brief Construct the edge list from the graph view object.
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam weight_t Type of edge weights. Needs to be a floating point type.
+ * @tparam store_transposed Flag indicating whether to use sources (if false) or destinations (if
+ * true) as major indices in storing edges using a 2D sparse matrix. transposed.
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
+ * or multi-GPU (true).
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param graph_view Graph view object of the graph to be decompressed.
+ * @param renumber_map If valid, return the renumbered edge list based on the provided @p
+ * renumber_map
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
+ * @return Tuple of edge sources, destinations, and (optional) edge weights (if the input graph is
+ * weighted).
+ */
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          bool store_transposed,
+          bool multi_gpu>
+std::tuple<rmm::device_uvector<vertex_t>,
+           rmm::device_uvector<vertex_t>,
+           std::optional<rmm::device_uvector<weight_t>>>
+decompress_to_edgelist(
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> const& graph_view,
+  std::optional<raft::device_span<vertex_t const>> renumber_map,
+  bool do_expensive_check = false);
 
 /**
  * @brief Symmetrize edgelist.
@@ -367,6 +399,106 @@ symmetrize_edgelist(raft::handle_t const& handle,
                     rmm::device_uvector<vertex_t>&& edgelist_dsts,
                     std::optional<rmm::device_uvector<weight_t>>&& edgelist_weights,
                     bool reciprocal);
+
+/**
+ * @brief Symmetrize the input graph.
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam weight_t Type of edge weights. Needs to be a floating point type.
+ * @tparam store_transposed Flag indicating whether to use sources (if false) or destinations (if
+ * true) as major indices in storing edges using a 2D sparse matrix. transposed.
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
+ * or multi-GPU (true).
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param graph Graph object to be symmetrized.
+ * @param renumber_map Renumber map to recover the original vertex IDs from the renumbered vertex
+ * IDs. This should be valid if multi-GPU.
+ * @param reciprocal If true, an edge is kept only when the reversed edge also exists. If false,
+ * keep (and symmetrize) all the edges that appear only in one direction.
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
+ * @return rmm::device_uvector<vertex_t> Return a symmetrized graph and anew renumber map (to
+ * recover the original vertex IDs).
+ */
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          bool store_transposed,
+          bool multi_gpu>
+std::tuple<graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>,
+           std::optional<rmm::device_uvector<vertex_t>>>
+symmetrize_graph(raft::handle_t const& handle,
+                 graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>&& graph,
+                 std::optional<rmm::device_uvector<vertex_t>>&& renumber_map,
+                 bool reciprocal         = false,
+                 bool do_expensive_check = false);
+
+/**
+ * @brief Transpose the input graph.
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam weight_t Type of edge weights. Needs to be a floating point type.
+ * @tparam store_transposed Flag indicating whether to use sources (if false) or destinations (if
+ * true) as major indices in storing edges using a 2D sparse matrix. transposed.
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
+ * or multi-GPU (true).
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param graph Graph object to be transposed.
+ * @param renumber_map Renumber map to recover the original vertex IDs from the renumbered vertex
+ * IDs. This should be valid if multi-GPU.
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
+ * @return rmm::device_uvector<vertex_t> Return a transposed graph and a new renumber map (to
+ * recover the original vertex IDs).
+ */
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          bool store_transposed,
+          bool multi_gpu>
+std::tuple<graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>,
+           std::optional<rmm::device_uvector<vertex_t>>>
+transpose_graph(raft::handle_t const& handle,
+                graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>&& graph,
+                std::optional<rmm::device_uvector<vertex_t>>&& renumber_map,
+                bool do_expensive_check = false);
+
+/**
+ * @brief Transpose the storage format (no change in an actual graph topology).
+ *
+ * In SG, convert between CSR and CSC. In multi-GPU, currently convert between CSR + DCSR hybrid
+ * and CSC + DCSC hybrid (but the internal representation in multi-GPU is subject to change).
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam weight_t Type of edge weights. Needs to be a floating point type.
+ * @tparam store_transposed Flag indicating whether to use sources (if false) or destinations (if
+ * true) as major indices in storing edges using a 2D sparse matrix. transposed.
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
+ * or multi-GPU (true).
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param graph Graph object to transpose its storage format.
+ * @param renumber_map Renumber map to recover the original vertex IDs from the renumbered vertex
+ * IDs. This should be valid if multi-GPU.
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
+ * @return std::tuple<graph_t<vertex_t, edge_t, weight_t, !store_transposed, multi_gpu>,
+ * rmm::device_uvector<vertex_t>> Return a storage transposed graph and a new renumber map (to
+ * recover the original vertex IDs for the returned graph).
+ */
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          bool store_transposed,
+          bool multi_gpu>
+std::tuple<graph_t<vertex_t, edge_t, weight_t, !store_transposed, multi_gpu>,
+           std::optional<rmm::device_uvector<vertex_t>>>
+transpose_graph_storage(raft::handle_t const& handle,
+                        graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>&& graph,
+                        std::optional<rmm::device_uvector<vertex_t>>&& renumber_map,
+                        bool do_expensive_check = false);
 
 /**
  * @brief Compute the coarsened graph.
