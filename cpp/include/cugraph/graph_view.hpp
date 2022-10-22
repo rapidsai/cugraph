@@ -666,16 +666,8 @@ class graph_view_t<vertex_t,
   rmm::device_uvector<edge_t> compute_in_degrees(raft::handle_t const& handle) const;
   rmm::device_uvector<edge_t> compute_out_degrees(raft::handle_t const& handle) const;
 
-  rmm::device_uvector<weight_t> compute_in_weight_sums(raft::handle_t const& handle) const;
-  rmm::device_uvector<weight_t> compute_out_weight_sums(raft::handle_t const& handle) const;
-
   edge_t compute_max_in_degree(raft::handle_t const& handle) const;
   edge_t compute_max_out_degree(raft::handle_t const& handle) const;
-
-  weight_t compute_max_in_weight_sum(raft::handle_t const& handle) const;
-  weight_t compute_max_out_weight_sum(raft::handle_t const& handle) const;
-
-  weight_t compute_total_edge_weight(raft::handle_t const& handle) const;
 
   edge_t count_self_loops(raft::handle_t const& handle) const;
   edge_t count_multi_edges(raft::handle_t const& handle) const;
@@ -969,16 +961,8 @@ class graph_view_t<vertex_t,
   rmm::device_uvector<edge_t> compute_in_degrees(raft::handle_t const& handle) const;
   rmm::device_uvector<edge_t> compute_out_degrees(raft::handle_t const& handle) const;
 
-  rmm::device_uvector<weight_t> compute_in_weight_sums(raft::handle_t const& handle) const;
-  rmm::device_uvector<weight_t> compute_out_weight_sums(raft::handle_t const& handle) const;
-
   edge_t compute_max_in_degree(raft::handle_t const& handle) const;
   edge_t compute_max_out_degree(raft::handle_t const& handle) const;
-
-  weight_t compute_max_in_weight_sum(raft::handle_t const& handle) const;
-  weight_t compute_max_out_weight_sum(raft::handle_t const& handle) const;
-
-  weight_t compute_total_edge_weight(raft::handle_t const& handle) const;
 
   edge_t count_self_loops(raft::handle_t const& handle) const;
   edge_t count_multi_edges(raft::handle_t const& handle) const;

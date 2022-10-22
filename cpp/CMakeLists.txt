@@ -228,6 +228,8 @@ set(CUGRAPH_SOURCES
     src/structure/transpose_graph_storage_mg.cu
     src/structure/coarsen_graph_sg.cu
     src/structure/coarsen_graph_mg.cu
+    src/structure/graph_weight_utils_mg.cu
+    src/structure/graph_weight_utils_sg.cu
     src/structure/renumber_edgelist_sg.cu
     src/structure/renumber_edgelist_mg.cu
     src/structure/renumber_utils_sg.cu

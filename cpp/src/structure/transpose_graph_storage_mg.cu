@@ -17,7 +17,7 @@
 
 namespace cugraph {
 
-// SG instantiation
+// MG instantiation
 
 template std::tuple<graph_t<int32_t, int32_t, float, false, true>,
                     std::optional<rmm::device_uvector<int32_t>>>

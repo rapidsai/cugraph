@@ -24,6 +24,7 @@
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/edge_src_dst_property.hpp>
+#include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/utilities/error.hpp>
 
@@ -158,7 +159,7 @@ void pagerank(
   auto tmp_vertex_out_weight_sums = precomputed_vertex_out_weight_sums
                                       ? std::nullopt
                                       : std::optional<rmm::device_uvector<weight_t>>{
-                                          pull_graph_view.compute_out_weight_sums(handle)};
+                                          compute_out_weight_sums(handle, pull_graph_view)};
   auto vertex_out_weight_sums     = precomputed_vertex_out_weight_sums
                                       ? *precomputed_vertex_out_weight_sums
                                       : (*tmp_vertex_out_weight_sums).data();

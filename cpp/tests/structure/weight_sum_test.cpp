@@ -20,6 +20,7 @@
 #include <cugraph/algorithms.hpp>
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_view.hpp>
+#include <cugraph/graph_functions.hpp>
 
 #include <raft/cudart_utils.h>
 #include <raft/handle.hpp>
@@ -118,8 +119,8 @@ class Tests_WeightSum : public ::testing::TestWithParam<WeightSum_Usecase> {
 
     RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
 
-    auto d_in_weight_sums  = graph_view.compute_in_weight_sums(handle);
-    auto d_out_weight_sums = graph_view.compute_out_weight_sums(handle);
+    auto d_in_weight_sums  = cugraph::compute_in_weight_sums(handle, graph_view);
+    auto d_out_weight_sums = cugraph::compute_out_weight_sums(handle, graph_view);
 
     RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
 
