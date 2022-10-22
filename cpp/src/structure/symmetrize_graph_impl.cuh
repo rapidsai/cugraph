@@ -16,47 +16,19 @@
 
 #pragma once
 
-#include <detail/graph_utils.cuh>
-#include <structure/detail/structure_utils.cuh>
-
-#include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_functions.hpp>
-#include <cugraph/partition_manager.hpp>
-#include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/error.hpp>
-#include <cugraph/utilities/host_scalar_comm.hpp>
-#include <cugraph/utilities/misc_utils.cuh>
 
 #include <raft/handle.hpp>
-#include <raft/util/device_atomics.cuh>
 #include <rmm/device_uvector.hpp>
-#include <rmm/exec_policy.hpp>
 
-#include <cub/cub.cuh>
-#include <thrust/adjacent_difference.h>
-#include <thrust/binary_search.h>
-#include <thrust/copy.h>
-#include <thrust/count.h>
-#include <thrust/distance.h>
-#include <thrust/equal.h>
-#include <thrust/fill.h>
-#include <thrust/for_each.h>
-#include <thrust/gather.h>
-#include <thrust/iterator/counting_iterator.h>
-#include <thrust/iterator/transform_iterator.h>
-#include <thrust/iterator/zip_iterator.h>
-#include <thrust/reduce.h>
-#include <thrust/remove.h>
-#include <thrust/scan.h>
 #include <thrust/sequence.h>
-#include <thrust/sort.h>
-#include <thrust/transform.h>
-#include <thrust/tuple.h>
-#include <thrust/unique.h>
 
 #include <algorithm>
+#include <optional>
 #include <tuple>
+#include <type_traits>
 
 namespace cugraph {
 

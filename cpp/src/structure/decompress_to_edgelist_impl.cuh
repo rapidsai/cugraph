@@ -35,6 +35,8 @@
 #include <thrust/tuple.h>
 
 #include <algorithm>
+#include <optional>
+#include <tuple>
 #include <type_traits>
 #include <vector>
 
