@@ -40,9 +40,6 @@
 #include <vector>
 
 namespace cugraph {
-namespace serializer {
-class serializer_t;  // forward...
-}
 
 /**
  * @brief store vertex partitioning map
@@ -301,8 +298,6 @@ class graph_base_t : public graph_envelope_t::base_graph_t /*<- visitor logic*/ 
   }
 
  protected:
-  friend class cugraph::serializer::serializer_t;
-
   raft::handle_t const* handle_ptr() const { return handle_ptr_; };
   graph_properties_t graph_properties() const { return properties_; }
 
