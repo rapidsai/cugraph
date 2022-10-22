@@ -254,14 +254,8 @@ def test_neighborhood_sampling_large_sg_graph(gpubenchmark):
     actual_delta = free_after_cleanup - free_before_cleanup
     expected_delta = free_memory_before - free_before_cleanup
     leak = expected_delta - actual_delta
-
     print(f"  {result_bytes=} {actual_delta=} {expected_delta=} {leak=}")
-
-    # FIXME: this assertion is commented out until the memory leak is
-    # found. This should be the only failing assertion, so commenting it out
-    # will allow CI to make any other failures more noticeable.
-    #
-    # assert free_memory_before == device.mem_info[0]
+    assert free_memory_before == device.mem_info[0]
 
 
 def test_sample_result():
