@@ -144,7 +144,7 @@ void bfs(raft::handle_t const& handle,
         sleep(handle.get_comms().get_rank());
         std::cout << "rank = " << handle.get_comms().get_rank()
                   << ", num_invalid = " << num_invalid_vertices << std::endl;
-        raft::print_device_vector("sources", sources.data(), sources.size(), std::cout);
+        raft::print_device_vector("sources", sources, n_sources, std::cout);
       }
 
       num_invalid_vertices = host_scalar_allreduce(
