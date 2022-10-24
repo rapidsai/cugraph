@@ -218,8 +218,18 @@ set(CUGRAPH_SOURCES
     src/structure/graph_sg.cu
     src/structure/graph_mg.cu
     src/structure/graph_view_sg.cu
+    src/structure/decompress_to_edgelist_sg.cu
+    src/structure/decompress_to_edgelist_mg.cu
+    src/structure/symmetrize_graph_sg.cu
+    src/structure/symmetrize_graph_mg.cu
+    src/structure/transpose_graph_sg.cu
+    src/structure/transpose_graph_mg.cu
+    src/structure/transpose_graph_storage_sg.cu
+    src/structure/transpose_graph_storage_mg.cu
     src/structure/coarsen_graph_sg.cu
     src/structure/coarsen_graph_mg.cu
+    src/structure/graph_weight_utils_mg.cu
+    src/structure/graph_weight_utils_sg.cu
     src/structure/renumber_edgelist_sg.cu
     src/structure/renumber_edgelist_mg.cu
     src/structure/renumber_utils_sg.cu

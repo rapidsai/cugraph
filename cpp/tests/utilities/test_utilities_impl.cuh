@@ -19,6 +19,10 @@
 #include <utilities/device_comm_wrapper.hpp>
 #include <utilities/test_utilities.hpp>
 
+#include <cugraph/graph_functions.hpp>
+
+#include <raft/core/device_span.hpp>
+
 namespace cugraph {
 namespace test {
 
@@ -33,7 +37,8 @@ graph_to_host_coo(
   cugraph::graph_view_t<vertex_t, edge_t, weight_t, store_transposed, is_multi_gpu> const&
     graph_view)
 {
-  auto [d_src, d_dst, d_wgt] = graph_view.decompress_to_edgelist(handle, std::nullopt);
+  auto [d_src, d_dst, d_wgt] = cugraph::decompress_to_edgelist(
+    handle, graph_view, std::optional<raft::device_span<vertex_t const>>{std::nullopt});
 
   if constexpr (is_multi_gpu) {
     d_src = cugraph::test::device_gatherv(
@@ -71,7 +76,8 @@ graph_to_host_csr(
   cugraph::graph_view_t<vertex_t, edge_t, weight_t, store_transposed, is_multi_gpu> const&
     graph_view)
 {
-  auto [d_src, d_dst, d_wgt] = graph_view.decompress_to_edgelist(handle, std::nullopt);
+  auto [d_src, d_dst, d_wgt] = cugraph::decompress_to_edgelist(
+    handle, graph_view, std::optional<raft::device_span<vertex_t const>>{std::nullopt});
 
   if constexpr (is_multi_gpu) {
     d_src = cugraph::test::device_gatherv(
@@ -138,7 +144,12 @@ mg_graph_to_sg_graph(
   std::optional<rmm::device_uvector<vertex_t>> const& number_map,
   bool renumber)
 {
-  auto [d_src, d_dst, d_wgt] = graph_view.decompress_to_edgelist(handle, number_map);
+  auto [d_src, d_dst, d_wgt] = cugraph::decompress_to_edgelist(
+    handle,
+    graph_view,
+    number_map ? std::make_optional<raft::device_span<vertex_t const>>((*number_map).data(),
+                                                                       (*number_map).size())
+               : std::nullopt);
 
   d_src = cugraph::test::device_gatherv(
     handle, raft::device_span<vertex_t const>{d_src.data(), d_src.size()});
