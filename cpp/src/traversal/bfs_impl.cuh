@@ -140,6 +140,13 @@ void bfs(raft::handle_t const& handle,
                                   vertex_partition.in_local_vertex_partition_range_nocheck(val));
                        });
     if constexpr (GraphViewType::is_multi_gpu) {
+      if (num_invalid_vertices > 0) {
+        sleep(handle.get_comms().get_rank());
+        std::cout << "rank = " << handle.get_comms().get_rank()
+                  << ", num_invalid = " << num_invalid_vertices << std::endl;
+        raft::print_device_vector("sources", sources.data(), sources.size(), std::cout);
+      }
+
       num_invalid_vertices = host_scalar_allreduce(
         handle.get_comms(), num_invalid_vertices, raft::comms::op_t::SUM, handle.get_stream());
     }
