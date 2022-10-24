@@ -39,9 +39,10 @@ class EXPERIMENTAL__PropertySelection:
 
         Parameters
         ----------
-        vertex_selection_series : cudf or pandas series containing selected vertices
-        edge_selection_series : cudf or pandas series containing selected edges
-
+        vertex_selection_series : cudf or pandas series, optional
+            Contains booleans representing selected vertices
+        edge_selection_series : cudf or pandas series, optional
+            Contains booleans representing selected edges
         """
         self.vertex_selections = vertex_selection_series
         self.edge_selections = edge_selection_series
@@ -57,7 +58,11 @@ class EXPERIMENTAL__PropertySelection:
 
         Returns
         -------
-        PropertySelection that results from the addition
+        PropertySelection
+            New PropertySelection instance containing the selection
+            Series objects from either the current instance if present,
+            or instances from "other" only if those instances are not already
+            present in the current instance.
         """
         vs = self.vertex_selections
         if vs is None:
@@ -164,6 +169,10 @@ class EXPERIMENTAL__PropertyGraph:
     # PropertyGraph read-only attributes
     @property
     def edges(self):
+        """
+        All the edges in the graph as a DataFrame containing
+        sources and destinations. It does not return the edge weights.
+        """
         if self.__edge_prop_dataframe is not None:
             return self.__edge_prop_dataframe[
                 [self.src_col_name, self.dst_col_name]
@@ -172,6 +181,9 @@ class EXPERIMENTAL__PropertyGraph:
 
     @property
     def vertex_property_names(self):
+        """
+        Names of all the vertex properties excluding type.
+        """
         if self.__vertex_prop_dataframe is not None:
             props = list(self.__vertex_prop_dataframe.columns)
             props.remove(self.type_col_name)  # should "type" be removed?
@@ -196,7 +208,7 @@ class EXPERIMENTAL__PropertyGraph:
     @property
     def vertex_types(self):
         """
-        The set of vertex type names
+        Series containing vertex type names
         """
         value_counts = self._vertex_type_value_counts
         if value_counts is None:
@@ -214,7 +226,7 @@ class EXPERIMENTAL__PropertyGraph:
     @property
     def edge_types(self):
         """
-        The set of edge type names
+        Series containing the set of edge type names
         """
         value_counts = self._edge_type_value_counts
         if value_counts is None:
@@ -261,7 +273,7 @@ class EXPERIMENTAL__PropertyGraph:
 
     def get_num_vertices(self, type=None, *, include_edge_data=True):
         """
-        Return the number of all vertices or vertices of a given type.
+        Get the number of all vertices or vertices of a given type.
 
         Parameters
         ----------
@@ -333,12 +345,16 @@ class EXPERIMENTAL__PropertyGraph:
 
     def get_num_edges(self, type=None):
         """
-        Return the number of all edges or edges of a given type.
+        Get the number of all edges or edges of a given type.
 
         Parameters
         ----------
         type : string, optional
-            If type is None (the default), return the total number of edges,
+             Edge type or None
+        Returns
+        -------
+        int
+        If type is None (the default), returns the total number of edges,
             otherwise return the number of edges of the specified type.
 
         See Also
@@ -418,6 +434,7 @@ class EXPERIMENTAL__PropertyGraph:
 
         Examples
         --------
+
         >>>
         """
         if type(dataframe) not in _dataframe_types:
@@ -634,26 +651,18 @@ class EXPERIMENTAL__PropertyGraph:
         --------
         >>> import cugraph
         >>> import cudf
-        >>> dataset2 = {
-        ...     "simple": [
-        ...         ["src", "dst", "some_property"],
-        ...         [
-        ...             (99, 22, "a"),
-        ...             (98, 34, "b"),
-        ...             (97, 56, "c"),
-        ...             (96, 88, "d"),
-        ...         ],
-        ...     ],
-        ... }
         >>> from cugraph.experimental import PropertyGraph
-        >>> dataframe_type = cudf.DataFrame
-        >>> simple = dataset2["simple"]
+        >>> df = cudf.DataFrame(columns=["src", "dst", "some_property"],
+        ...                     data=[(99, 22, "a"),
+        ...                           (98, 34, "b"),
+        ...                           (97, 56, "c"),
+        ...                           (96, 88, "d"),
+        ...                           ])
         >>> pG = PropertyGraph()
-        >>> df = cudf.DataFrame(columns=simple[0], data=simple[1])
         >>> pG.add_edge_data(df, vertex_col_names=("src", "dst"))
-        >>> pG.get_edge_data()
+        >>> pG.get_num_vertices()
+        8
         """
-
         if type(dataframe) not in _dataframe_types:
             raise TypeError(
                 "dataframe must be one of the following types: "
@@ -838,10 +847,29 @@ class EXPERIMENTAL__PropertyGraph:
         Parameters
         ----------
         edge_ids :
+
         types : list of edge types to include in returned dataframe, optional
             None is the default and will allow any edge type
         columns : which edge columns will be returned, optional
             None is the default and will result in all columns being returned
+        Examples
+        --------
+        >>> import cudf
+        >>> from cugraph.experimental import PropertyGraph
+        >>> df = cudf.DataFrame(columns=["src", "dst", "some_property"],
+        ...                              data=[(99, 22, "a"),
+        ...                                    (98, 34, "b"),
+        ...                                    (97, 56, "c"),
+        ...                                    (96, 88, "d"),
+        ...                                  ])
+        >>> pG = PropertyGraph()
+        >>> pG.add_edge_data(df, type_name="etype", vertex_col_names=("src", "dst"))
+        >>> pG.get_edge_data(types="etype")
+        _EDGE_ID_  _SRC_  _DST_ _TYPE_ some_property
+        0          0     99     22  etype             a
+        1          1     98     34  etype             b
+        2          2     97     56  etype             c
+        3          3     96     88  etype             d
         """
         if self.__edge_prop_dataframe is not None:
             df = self.__edge_prop_dataframe
