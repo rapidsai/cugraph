@@ -19,17 +19,11 @@ namespace cugraph {
 
 // MG instantiation
 
-template class graph_view_t<int32_t, int32_t, float, true, true>;
-template class graph_view_t<int32_t, int32_t, float, false, true>;
-template class graph_view_t<int32_t, int32_t, double, true, true>;
-template class graph_view_t<int32_t, int32_t, double, false, true>;
-template class graph_view_t<int32_t, int64_t, float, true, true>;
-template class graph_view_t<int32_t, int64_t, float, false, true>;
-template class graph_view_t<int32_t, int64_t, double, true, true>;
-template class graph_view_t<int32_t, int64_t, double, false, true>;
-template class graph_view_t<int64_t, int64_t, float, true, true>;
-template class graph_view_t<int64_t, int64_t, float, false, true>;
-template class graph_view_t<int64_t, int64_t, double, true, true>;
-template class graph_view_t<int64_t, int64_t, double, false, true>;
+template class graph_view_t<int32_t, int32_t, true, true>;
+template class graph_view_t<int32_t, int32_t, false, true>;
+template class graph_view_t<int32_t, int64_t, true, true>;
+template class graph_view_t<int32_t, int64_t, false, true>;
+template class graph_view_t<int64_t, int64_t, true, true>;
+template class graph_view_t<int64_t, int64_t, false, true>;
 
 }  // namespace cugraph

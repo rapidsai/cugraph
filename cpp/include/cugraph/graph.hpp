@@ -34,13 +34,6 @@
 
 namespace cugraph {
 
-template <typename vertex_t, typename edge_t, typename weight_t>
-struct edgelist_t {
-  raft::device_span<vertex_t const> srcs{};
-  raft::device_span<vertex_t const> dsts{};
-  std::optional<raft::device_span<weight_t const>> weights{};
-};
-
 template <typename vertex_t, typename edge_t, bool multi_gpu, typename Enable = void>
 struct graph_meta_t;
 
