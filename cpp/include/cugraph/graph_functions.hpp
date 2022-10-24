@@ -631,7 +631,6 @@ extract_induced_subgraphs(
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
  * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
- * @tparam weight_t Type of edge weights. Needs to be a floating point type.
  * @tparam edge_type_t Type of edge type identifiers. Needs to be an integral type.
  * @tparam store_transposed Flag indicating whether to use sources (if false) or destinations (if
  * true) as major indices in storing edges using a 2D sparse matrix. transposed.
@@ -655,12 +654,10 @@ extract_induced_subgraphs(
  * @param renumber Flag indicating whether to renumber vertices or not (must be true if @p multi_gpu
  * is true).
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
- * @return std::tuple<graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>,
- * std::optional<edge_property_t<graph_view_t<vertex_t, edge_t, weight_t, store_transposed,
- * multi_gpu>, thrust::tuple<edge_t, edge_type_t>>>, std::optional<rmm::device_uvector<vertex_t>>>
- * Tuple of the generated graph and optional edge_property_t object storing edge IDs and types
- * (valid if @p edgelist_id_type_pairss.has_value() is true, and a renumber map (if @p renumber is
- * true) or) std::nullopt (if @p renumber is false).
+ * @return Tuple of the generated graph and optional edge_property_t objects storing edge weights
+ * and edge IDs & types (valid if @p edgelist_weights.has_value() and @p
+ * edgelist_id_type_pairss.has_value() are true, respectively) and a renumber map (if @p renumber is
+ * true).
  */
 template <typename vertex_t,
           typename edge_t,
@@ -668,11 +665,13 @@ template <typename vertex_t,
           typename edge_type_t,
           bool store_transposed,
           bool multi_gpu>
-std::tuple<graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>,
-           std::optional<
-             edge_property_t<graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>,
-                             thrust::tuple<edge_t, edge_type_t>>>,
-           std::optional<rmm::device_uvector<vertex_t>>>
+std::tuple<
+  graph_t<vertex_t, edge_t, store_transposed, multi_gpu>,
+  std::optional<
+    edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, weight_t>>,
+  std::optional<edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>,
+                                thrust::tuple<edge_t, edge_type_t>>>,
+  std::optional<rmm::device_uvector<vertex_t>>>
 create_graph_from_edgelist(
   raft::handle_t const& handle,
   std::optional<rmm::device_uvector<vertex_t>>&& vertices,
