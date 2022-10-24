@@ -295,7 +295,7 @@ class Tests_CoarsenGraph
     }
 
     auto [coarse_graph, coarse_vertices_to_labels] =
-      cugraph::coarsen_graph(handle, graph_view, d_labels.begin());
+      cugraph::coarsen_graph(handle, graph_view, d_labels.begin(), true);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -321,7 +321,7 @@ class Tests_CoarsenGraph
       auto h_coarse_weights =
         cugraph::test::to_host(handle, coarse_graph_view.local_edge_partition_view().weights());
 
-      auto h_coarse_vertices_to_labels = cugraph::test::to_host(handle, coarse_vertices_to_labels);
+      auto h_coarse_vertices_to_labels = cugraph::test::to_host(handle, *coarse_vertices_to_labels);
 
       check_coarsened_graph_results(
         h_org_offsets.data(),
