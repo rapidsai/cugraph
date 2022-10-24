@@ -19,14 +19,14 @@ import cugraph
 from cugraph.experimental import PropertyGraph, MGPropertyGraph
 from functools import cached_property
 
-from .dgl_extensions.utils.add_data import _update_feature_map
-from .dgl_extensions.utils.sampling import sample_multiple_sgs, sample_single_sg
-from .dgl_extensions.utils.sampling import (
+from .utils.add_data import _update_feature_map
+from .utils.sampling import sample_multiple_sgs, sample_single_sg
+from .utils.sampling import (
     get_subgraph_and_src_range_from_edgelist,
     get_underlying_dtype_from_sg,
 )
-from .dgl_extensions.utils.sampling import create_dlpack_d
-from .dgl_extensions.feature_storage import CuFeatureStorage
+from .utils.sampling import create_dlpack_d
+from .feature_storage import CuFeatureStorage
 
 
 src_n = PropertyGraph.src_col_name

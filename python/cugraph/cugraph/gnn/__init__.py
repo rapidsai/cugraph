@@ -11,5 +11,5 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .graph_store import CuGraphStore
+from .dgl_extensions.cugraph_store import CuGraphStore
 from .dgl_extensions.feature_storage import CuFeatureStorage
