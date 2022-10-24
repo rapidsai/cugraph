@@ -103,6 +103,7 @@ struct bfs_functor : public abstract_functor {
 
         sleep(handle_.get_comms().get_rank());
         std::cout << "before renumber, rank = " << handle_.get_comms().get_rank() << std::endl;
+        std::cout << "  sources type: " << sources_->type_ << ", graph vertex type = " << graph_->vertex_type_ << std::endl;
         raft::print_device_vector("  sources", sources.data(), sources.size(), std::cout);
       }
 
