@@ -19,8 +19,8 @@
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/graph.hpp>
-#include <cugraph/graph_view.hpp>
 #include <cugraph/graph_functions.hpp>
+#include <cugraph/graph_view.hpp>
 
 #include <raft/cudart_utils.h>
 #include <raft/handle.hpp>

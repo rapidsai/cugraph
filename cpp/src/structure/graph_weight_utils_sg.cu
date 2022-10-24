@@ -79,7 +79,8 @@ template rmm::device_uvector<float> compute_out_weight_sums<int32_t, int32_t, fl
   raft::handle_t const& handle,
   graph_view_t<int32_t, int32_t, float, true, false> const& graph_view);
 
-template rmm::device_uvector<double> compute_out_weight_sums<int32_t, int32_t, double, false, false>(
+template rmm::device_uvector<double>
+compute_out_weight_sums<int32_t, int32_t, double, false, false>(
   raft::handle_t const& handle,
   graph_view_t<int32_t, int32_t, double, false, false> const& graph_view);
 
@@ -95,7 +96,8 @@ template rmm::device_uvector<float> compute_out_weight_sums<int32_t, int64_t, fl
   raft::handle_t const& handle,
   graph_view_t<int32_t, int64_t, float, true, false> const& graph_view);
 
-template rmm::device_uvector<double> compute_out_weight_sums<int32_t, int64_t, double, false, false>(
+template rmm::device_uvector<double>
+compute_out_weight_sums<int32_t, int64_t, double, false, false>(
   raft::handle_t const& handle,
   graph_view_t<int32_t, int64_t, double, false, false> const& graph_view);
 
@@ -111,7 +113,8 @@ template rmm::device_uvector<float> compute_out_weight_sums<int64_t, int64_t, fl
   raft::handle_t const& handle,
   graph_view_t<int64_t, int64_t, float, true, false> const& graph_view);
 
-template rmm::device_uvector<double> compute_out_weight_sums<int64_t, int64_t, double, false, false>(
+template rmm::device_uvector<double>
+compute_out_weight_sums<int64_t, int64_t, double, false, false>(
   raft::handle_t const& handle,
   graph_view_t<int64_t, int64_t, double, false, false> const& graph_view);
 
