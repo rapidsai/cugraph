@@ -152,6 +152,14 @@ extern "C" cugraph_error_code_t cugraph_sssp(const cugraph_resource_handle_t* ha
                                              cugraph_paths_result_t** result,
                                              cugraph_error_t** error)
 {
+  CAPI_EXPECTS(
+    reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph)->vertex_type_ ==
+      reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(sources)
+        ->type_,
+    CUGRAPH_INVALID_INPUT,
+    "vertex type of graph and sources must match",
+    *error);
+
   cugraph::c_api::sssp_functor functor(
     handle, graph, source, cutoff, compute_predecessors, do_expensive_check);
 

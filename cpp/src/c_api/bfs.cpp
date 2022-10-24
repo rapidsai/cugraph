@@ -100,12 +100,6 @@ struct bfs_functor : public abstract_functor {
 
       if constexpr (multi_gpu) {
         sources = detail::shuffle_ext_vertices_by_gpu_id(handle_, std::move(sources));
-
-        sleep(handle_.get_comms().get_rank());
-        std::cout << "before renumber, rank = " << handle_.get_comms().get_rank() << std::endl;
-        std::cout << "  sources type: " << sources_->type_
-                  << ", graph vertex type = " << graph_->vertex_type_ << std::endl;
-        raft::print_device_vector("  sources", sources.data(), sources.size(), std::cout);
       }
 
       //
@@ -118,11 +112,6 @@ struct bfs_functor : public abstract_functor {
                                                  graph_view.local_vertex_partition_range_first(),
                                                  graph_view.local_vertex_partition_range_last(),
                                                  do_expensive_check_);
-
-      if constexpr (multi_gpu) {
-        std::cout << "after renumber, rank = " << handle_.get_comms().get_rank() << std::endl;
-        raft::print_device_vector("  sources", sources.data(), sources.size(), std::cout);
-      }
 
       cugraph::bfs<vertex_t, edge_t, weight_t, multi_gpu>(
         handle_,
