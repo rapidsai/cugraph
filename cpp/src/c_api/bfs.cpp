@@ -103,7 +103,8 @@ struct bfs_functor : public abstract_functor {
 
         sleep(handle_.get_comms().get_rank());
         std::cout << "before renumber, rank = " << handle_.get_comms().get_rank() << std::endl;
-        std::cout << "  sources type: " << sources_->type_ << ", graph vertex type = " << graph_->vertex_type_ << std::endl;
+        std::cout << "  sources type: " << sources_->type_
+                  << ", graph vertex type = " << graph_->vertex_type_ << std::endl;
         raft::print_device_vector("  sources", sources.data(), sources.size(), std::cout);
       }
 
@@ -204,6 +205,14 @@ extern "C" cugraph_error_code_t cugraph_bfs(const cugraph_resource_handle_t* han
                                             cugraph_paths_result_t** result,
                                             cugraph_error_t** error)
 {
+  CAPI_EXPECTS(
+    reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph)->vertex_type_ ==
+      reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(sources)
+        ->type_,
+    CUGRAPH_INVALID_INPUT,
+    "vertex type of graph and sources must match",
+    *error);
+
   cugraph::c_api::bfs_functor functor(handle,
                                       graph,
                                       sources,
