@@ -3,15 +3,15 @@
 
 BLUF: cuGraph does not support method cascading
 
-[Method Cascading](https://en.wikipedia.org/wiki/Method_cascading) is a popular, and useful, functional programing concept and is a great way to make code more readable.  Pythom supports method cascading ... _for the most part_.  There are a number of Python built-in classes that do not support cascading. 
+[Method Cascading](https://en.wikipedia.org/wiki/Method_cascading) is a popular, and useful, functional programming concept and is a great way to make code more readable.  Python supports method cascading ... _for the most part_.  There are a number of Python built-in classes that do not support cascading. 
 
-An example, from cuDF, is a sequencs of method calls for  loading data and then finding the largest values from a subset of the data (yes there are other ways this could be done):
+An example, from cuDF, is a sequence of method calls for  loading data and then finding the largest values from a subset of the data (yes there are other ways this could be done):
 
 ```
 gdf = cudf.from_pandas(df).query(‘val > 200’).nlargest(‘va’3)
 ```
 
-cuGraph does not support method cascading.  That is due to two main reasons: (1) the object-oriented nature of the Graph data object leverages in-place methods, and (2) the fact that algorithms operate on graphs rather than graphs running algorithms.  
+cuGraph does not support method cascading for two main reasons: (1) the object-oriented nature of the Graph data object leverages in-place methods, and (2) the fact that algorithms operate on graphs rather than graphs running algorithms.  
 
 ## Graph Data Objects
 cuGraph follow an object-oriented design for the Graph objects.  Users create a Graph and can then add data to object, but every add method call returns `None`.  
@@ -38,14 +38,14 @@ _Why not add a flag "return_self" to the methods?_<br>
 # cascade flow - makes sense
 G = cugraph.Graph().from_cudf_edgelist(df, return_self=True)
 ```
-The fact that a developer would explictily add a "return_self" flag to the method indicates that the developer is aware that the method returns None. It is just as easy for the developer to use a non-cascading workflow.
+The fact that a developer would explicitly add a "return_self" flag to the method indicates that the developer is aware that the method returns None. It is just as easy for the developer to use a non-cascading workflow.
 
 ### Algorithms
 Algorithms operate on graph object.
 ```
 cugraph.pagerank(G) and not G.pagerank()
 ```
-This is also due to cuGraph following a object-oreient model.  Data object just understand data, not operations on the data.  That fact makes it so that the developer cannot cascade graph creation into an algorithm
+This is also due to cuGraph following a object-orient model.  Data objects just understand data, not operations on the data.  That fact makes it so that the developer cannot cascade graph creation into an algorithm
 
 ```
 # will not work
