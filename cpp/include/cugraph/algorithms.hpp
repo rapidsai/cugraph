@@ -979,7 +979,6 @@ weight_t hungarian(raft::handle_t const& handle,
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
  * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
- * @tparam weight_t Type of edge weights. Needs to be a floating point type.
  * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
  * or multi-GPU (true).
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
@@ -999,9 +998,9 @@ weight_t hungarian(raft::handle_t const& handle,
  * farther than @p depth_limit hops from @p source_vertex will be marked as unreachable.
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  */
-template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+template <typename vertex_t, typename edge_t, bool multi_gpu>
 void bfs(raft::handle_t const& handle,
-         graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
+         graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
          vertex_t* distances,
          vertex_t* predecessors,
          vertex_t const* sources,
