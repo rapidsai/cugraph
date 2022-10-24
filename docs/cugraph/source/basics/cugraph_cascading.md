@@ -3,7 +3,7 @@
 
 BLUF: cuGraph does not support method cascading
 
-[Method Cascading](https://en.wikipedia.org/wiki/Method_cascading) is a popular, and useful, functional programing concept and is a great way to make code more readable.  Pythom supports method cascading ... _for the most part_.  There are a number of built-in classes that do not. 
+[Method Cascading](https://en.wikipedia.org/wiki/Method_cascading) is a popular, and useful, functional programing concept and is a great way to make code more readable.  Pythom supports method cascading ... _for the most part_.  There are a number of Python built-in classes that do not support cascading. 
 
 An example, from cuDF, is a sequencs of method calls for  loading data and then finding the largest values from a subset of the data (yes there are other ways this could be done):
 
