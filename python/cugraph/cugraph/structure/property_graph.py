@@ -171,7 +171,7 @@ class EXPERIMENTAL__PropertyGraph:
     def edges(self):
         """
         All the edges in the graph as a DataFrame containing
-        sources and destinations. It does not return the edge weights.
+        sources and destinations. It does not return the edge properties.
         """
         if self.__edge_prop_dataframe is not None:
             return self.__edge_prop_dataframe[
@@ -294,24 +294,17 @@ class EXPERIMENTAL__PropertyGraph:
         --------
         >>> import cugraph
         >>> import cudf
-        >>> dataset2 = {
-        ...     "simple": [
-        ...         ["src", "dst", "some_property"],
-        ...         [
-        ...             (99, 22, "a"),
-        ...             (98, 34, "b"),
-        ...             (97, 56, "c"),
-        ...             (96, 88, "d"),
-        ...         ],
-        ...     ],
-        ... }
         >>> from cugraph.experimental import PropertyGraph
-        >>> dataframe_type = cudf.DataFrame
-        >>> simple = dataset2["simple"]
+        >>> df = cudf.DataFrame(columns=["src", "dst", "some_property"],
+        ...                     data=[(99, 22, "a"),
+        ...                           (98, 34, "b"),
+        ...                           (97, 56, "c"),
+        ...                           (96, 88, "d"),
+        ...                           ])
         >>> pG = PropertyGraph()
-        >>> df = cudf.DataFrame(columns=simple[0], data=simple[1])
         >>> pG.add_edge_data(df, vertex_col_names=("src", "dst"))
         >>> pG.get_num_vertices()
+        8
         """
         if type is None:
             if not include_edge_data:
@@ -360,6 +353,7 @@ class EXPERIMENTAL__PropertyGraph:
         See Also
         --------
         PropertyGraph.get_num_vertices
+        
         """
         if type is None:
             if self.__edge_prop_dataframe is not None:
@@ -434,8 +428,8 @@ class EXPERIMENTAL__PropertyGraph:
 
         Examples
         --------
-
         >>>
+        
         """
         if type(dataframe) not in _dataframe_types:
             raise TypeError(
@@ -577,8 +571,48 @@ class EXPERIMENTAL__PropertyGraph:
 
     def get_vertex_data(self, vertex_ids=None, types=None, columns=None):
         """
-        Return a dataframe containing vertex properties for only the specified
-        vertex_ids, columns, and/or types, or all vertex IDs if not specified.
+        gets a dataframe containing vertex properties
+        
+        Parameters
+        ----------
+        vertex_ids : one or a collection of integers, optional
+            single, list, slice, pandas array, or series of integers which
+            are the vertices to include in the returned datafram
+        types : str or collection of str, optional
+            types of the vertices to include in the returns data.
+            Default is to return all vertex types.
+        columns : str or list of str, optional
+            property or properties to include in return.
+            Default includes all properties.
+        Returns
+        ------- 
+        a dataframe containing vertex properties for only the specified
+            vertex_ids, columns, and/or types, or all vertex IDs if not specified.
+
+        Examples
+        --------
+        >>> import cudf
+        >>> from cugraph.experimental import PropertyGraph
+        >>> df = cudf.DataFrame(columns=["src", "dst", "some_property"],
+        ...                              data=[(99, 22, "a"),
+        ...                                    (98, 34, "b"),
+        ...                                    (97, 56, "c"),
+        ...                                    (96, 88, "d"),
+        ...                                  ])
+        >>> pG = PropertyGraph()
+        >>> pG.add_edge_data(df, type_name="etype", vertex_col_names=("src", "dst"))
+        >>> vert_df = cudf.DataFrame({"vert_id": [99, 22, 98, 34, 97, 56, 96, 88], "v_prop": [1 ,2 ,3, 4, 5, 6, 7, 8]})
+        >>> pG.add_vertex_data(vert_df, type_name="etype", vertex_col_name="vert_id")
+        >>> print(pG.get_vertex_data())
+        _VERTEX_ _TYPE_  v_prop
+        0        99  etype       1
+        1        22  etype       2
+        2        98  etype       3
+        3        34  etype       4
+        4        97  etype       5
+        5        56  etype       6
+        6        96  etype       7
+        7        88  etype       8
         """
         if self.__vertex_prop_dataframe is not None:
             df = self.__vertex_prop_dataframe
@@ -846,8 +880,8 @@ class EXPERIMENTAL__PropertyGraph:
 
         Parameters
         ----------
-        edge_ids :
-
+        edge_ids : int or collection of int
+            The list of edges to include in the edge data
         types : list of edge types to include in returned dataframe, optional
             None is the default and will allow any edge type
         columns : which edge columns will be returned, optional
@@ -1221,6 +1255,7 @@ class EXPERIMENTAL__PropertyGraph:
         Parameters
         ----------
         edge_prop_df : cudf.DataFrame or pandas.DataFrame
+            conains the edge data with properties
         create_using : cugraph.Graph (or subclass of) instance.
             Attributes of the graph are passed to the returned graph.
         edge_weight_property : string, optional
@@ -1438,13 +1473,13 @@ class EXPERIMENTAL__PropertyGraph:
     @classmethod
     def has_duplicate_edges(cls, df, columns=None):
         """
-        test for duplicate edges in the dataframe
+        Tests for duplicate edges in the graph
 
         Parameters
         ----------
         df : dataframe containing the edges
         columns : list of columns to include in the duplicate test, optional
-            None is the default all columns values must be duplicated.
+            none is the default all columns values must be duplicated.
 
         Returns
         -------
