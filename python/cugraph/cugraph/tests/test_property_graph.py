@@ -724,6 +724,7 @@ def test_get_vertex_data_repeated(df_type):
         afe = assert_frame_equal
     else:
         afe = pd.testing.assert_frame_equal
+    expected["feat"] = expected["feat"].astype("Int64")
     afe(df1, expected)
 
 
@@ -819,6 +820,8 @@ def test_get_edge_data_repeated(df_type):
         afe = assert_frame_equal
     else:
         afe = pd.testing.assert_frame_equal
+    for col in ["edge_feat", pG.src_col_name, pG.dst_col_name]:
+        expected[col] = expected[col].astype("Int64")
     afe(df1, expected)
 
 
