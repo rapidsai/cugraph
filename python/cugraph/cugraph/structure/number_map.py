@@ -497,8 +497,7 @@ class NumberMap:
             df[src_col_names].dtype == np.int32 or df[src_col_names].dtype == np.int64
         ):
             renumber_type = "legacy"
-            # If the vertices are of type 'string', set the renumber id_type
-            # to "int32"
+            # If the vertices are non-integers, set the renumber 'id_type' to "int32"
             id_type = "int32"
         else:
             # The renumber_type 'experimental' only runs the C++
