@@ -6,18 +6,19 @@
 <div align="center">
 
 [![Build Status](https://gpuci.gpuopenanalytics.com/job/rapidsai/job/gpuci/job/cugraph/job/branches/job/cugraph-branch-pipeline/badge/icon)](https://gpuci.gpuopenanalytics.com/job/rapidsai/job/gpuci/job/cugraph/job/branches/job/cugraph-branch-pipeline/)
-  <a href="https://github.com/rapidsai/cugraph/blob/main/LICENSE">
+<a href="https://github.com/rapidsai/cugraph/blob/main/LICENSE">
     <img src="https://img.shields.io/badge/License-Apache%202.0-blue.svg" alt="License"></a>
 <img alt="GitHub tag (latest by date)" src="https://img.shields.io/github/v/tag/rapidsai/cugraph">
 
-  <a href="https://github.com/rapidsai/cugraph/stargazers">
-    <img src="https://img.shields.io/github/stars/rapidsai/cugraph" alt="License"></a>
+<a href="https://github.com/rapidsai/cugraph/stargazers">
+    <img src="https://img.shields.io/github/stars/rapidsai/cugraph"></a>
 <img alt="Conda" src="https://img.shields.io/conda/dn/rapidsai/cugraph">
 <img alt="GitHub last commit" src="https://img.shields.io/github/last-commit/rapidsai/cugraph">
 
-<img alt="Conda" src="https://img.shields.io/conda/pn/rapidsai/cugraph">
+<img alt="Conda" src="https://img.shields.io/conda/pn/rapidsai/cugraph" />
 
-  <a href="https://rapids.ai/"><img src="img/rapids_logo.png" alt="RAPIDS" width="100"></a>
+<a href="https://rapids.ai/"><img src="img/rapids_logo.png" alt="RAPIDS" width="100"></a>
+
 </div>
 
 <br>
@@ -27,9 +28,10 @@
 <div align="center">
 
 [Gettintg cuGraph](./readme_pages/getting_cugraph.md) *
-[Performance](./readme_pages/performance/performance.md) *
+[Graph Algorithms](./readme_pages/algorithms.md) *
 [cugraph-service]() *
 [Property Graph]() *
+[GNNs]()
 
 </div>
 
@@ -53,11 +55,11 @@
   - [Contributing to cuGraph](./readme_pages/CONTRIBUTING.md)
 - API Docs
   - Python
-    - [cuGraph Python Nightly](https://docs.rapids.ai/api/cugraph/nightly/)
-    - [cuGraph Python Stable](https://docs.rapids.ai/api/cugraph/stable/)
+    - [Python Nightly](https://docs.rapids.ai/api/cugraph/nightly/)
+    - [Python Stable](https://docs.rapids.ai/api/cugraph/stable/)
   - C++
-    - [cuGraph C++ Nightly](https://docs.rapids.ai/api/libcugraph/nightly/)
-    - [cuGraph C++ Stable](https://docs.rapids.ai/api/libcugraph/stable/)
+    - [C++ Nightly](https://docs.rapids.ai/api/libcugraph/nightly/)
+    - [C++ Stable](https://docs.rapids.ai/api/libcugraph/stable/)
 - References
   - [RAPIDS](#rapids)
   - [ARROW](#arrow)
@@ -103,14 +105,20 @@ df_page.sort_values('pagerank', ascending=False).head(10)
 
 </br>
 
+[Why cuGraph does not support Method Cascading]()
+
+
+
 ------
 # Projects that use cuGraph
 
 (alphabetical order)
 * ArangoDB - a free and open-source native multi-model database system  - https://www.arangodb.com/
 * CuPy - "NumPy/SciPy-compatible Array Library for GPU-accelerated Computing with Python" -  https://cupy.dev/
-* Memgraph - In-memory database - https://memgraph.com/
+* Memgraph - In-memory Graph database - https://memgraph.com/
 * ScanPy - a scalable toolkit for analyzing single-cell gene expression data - https://scanpy.readthedocs.io/en/stable/
+  
+(please post an issue if you have a project to add to this list)
 
 
 
