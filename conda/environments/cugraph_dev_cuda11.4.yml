@@ -1,9 +1,9 @@
 name: cugraph_dev
 channels:
 - rapidsai
-- nvidia
 - rapidsai-nightly
 - conda-forge
+- nvidia
 dependencies:
 - c-compiler
 - cxx-compiler

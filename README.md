@@ -2,7 +2,7 @@
 
 [![Build Status](https://gpuci.gpuopenanalytics.com/job/rapidsai/job/gpuci/job/cugraph/job/branches/job/cugraph-branch-pipeline/badge/icon)](https://gpuci.gpuopenanalytics.com/job/rapidsai/job/gpuci/job/cugraph/job/branches/job/cugraph-branch-pipeline/)
 
-The [RAPIDS](https://rapids.ai) cuGraph library is a collection of GPU accelerated graph algorithms that process data found in [GPU DataFrames](https://github.com/rapidsai/cudf).  The vision of cuGraph is _to make graph analysis ubiquitous to the point that users just think in terms of analysis and not technologies or frameworks_.  To realize that vision, cuGraph operates, at the Python layer, on GPU DataFrames, thereby allowing for seamless passing of data between ETL tasks in [cuDF](https://github.com/rapidsai/cudf) and machine learning tasks in [cuML](https://github.com/rapidsai/cuml).  Data scientists familiar with Python will quickly pick up how cuGraph integrates with the Pandas-like API of cuDF.  Likewise, users familiar with NetworkX will quickly recognize the NetworkX-like API provided in cuGraph, with the goal to allow existing code to be ported with minimal effort into RAPIDS.  
+The [RAPIDS](https://rapids.ai) cuGraph library is a collection of GPU accelerated graph algorithms that process data found in [GPU DataFrames](https://github.com/rapidsai/cudf).  The vision of cuGraph is _to make graph analysis ubiquitous to the point that users just think in terms of analysis and not technologies or frameworks_.  To realize that vision, cuGraph operates, at the Python layer, on GPU DataFrames, thereby allowing for seamless passing of data between ETL tasks in [cuDF](https://github.com/rapidsai/cudf) and machine learning tasks in [cuML](https://github.com/rapidsai/cuml).  Data scientists familiar with Python will quickly pick up how cuGraph integrates with the Pandas-like API of cuDF.  Likewise, users familiar with NetworkX will quickly recognize the NetworkX-like API provided in cuGraph, with the goal to allow existing code to be ported with minimal effort into RAPIDS.
 
 While the high-level cugraph python API provides an easy-to-use and familiar interface for data scientists that's consistent with other RAPIDS libraries in their workflow, some use cases require access to lower-level graph theory concepts.  For these users, we provide an additional Python API called pylibcugraph, intended for applications that require a tighter integration with cuGraph at the Python layer with fewer dependencies.  Users familiar with C/C++/CUDA and graph structures can access libcugraph and libcugraph_c for low level integration outside of python.
 
@@ -43,13 +43,13 @@ There are 3 ways to get cuGraph :
 # cuGraph News
 
 ### Scaling to 1 Trillion Edges
-At GTC Spring '22 we presented results of running cuGraph on the [Selene](https://top500.org/system/179842/) supercomputer using 2,048 GPUs and processing a graph with `1.1 Trillion edges`. Synthetic data created with the RMAT generator found in cuGraph. 
+At GTC Spring '22 we presented results of running cuGraph on the [Selene](https://top500.org/system/179842/) supercomputer using 2,048 GPUs and processing a graph with `1.1 Trillion edges`. Synthetic data created with the RMAT generator found in cuGraph.
 
 <div align="left"><img src="img/Scaling.png" width="500px" style="background-color: white;"/>&nbsp;</br>cuGraph Scaling</div>
 </br></br>
 
 ### cuGraph Software Stack
-cuGraph has a new multi-layer software stack that allows users and system integrators to access cuGraph at different layers.  
+cuGraph has a new multi-layer software stack that allows users and system integrators to access cuGraph at different layers.
 
 <div align="left"><img src="img/cugraph-stack.png" width="500px" style="background-color: white;"/>&nbsp;</br>cuGraph Software Stack</div>
 </br></br>
@@ -143,7 +143,7 @@ _Italic_ algorithms are planned for future releases.
 | Other        |                                        |               |                     |
 |              | Renumbering                            | <mark>Multi-GPU</mark> | multiple columns, any data type  |
 |              | Symmetrize                             | <mark>Multi-GPU</mark> |                     |
-|              | Path Extraction                        |               | Extract paths from BFS/SSP results in parallel | 
+|              | Path Extraction                        |               | Extract paths from BFS/SSP results in parallel |
 | Data Generator  |                                     |               |                     |
 |              | RMAT                                   | <mark>Multi-GPU</mark> |                     |
 |              | _Barabasi-Albert_                      |  ---          |                     |
@@ -154,7 +154,7 @@ _Italic_ algorithms are planned for future releases.
 
 ## cuGraph Notice
 
-Vertex IDs are expected to be contiguous integers starting from 0.  If your data doesn't match that restriction, we have a solution.  cuGraph provides the renumber function, which is by default automatically called when data is added to a graph.  Input vertex IDs for the renumber function can be any type, can be non-contiguous, can be multiple columns, and can start from an arbitrary number. The renumber function maps the provided input vertex IDs to either 32- or 64-bit contiguous integers starting from 0. 
+Vertex IDs are expected to be contiguous integers starting from 0.  If your data doesn't match that restriction, we have a solution.  cuGraph provides the renumber function, which is by default automatically called when data is added to a graph.  Input vertex IDs for the renumber function can be any type, can be non-contiguous, can be multiple columns, and can start from an arbitrary number. The renumber function maps the provided input vertex IDs to either 32- or 64-bit contiguous integers starting from 0.
 
 Additionally, when using the auto-renumbering feature, vertices are automatically un-renumbered in results.
 
@@ -183,19 +183,14 @@ It is easy to install cuGraph using conda. You can get a minimal conda installat
 Install and update cuGraph using the conda command:
 
 ```bash
-
-
-
-
+# CUDA 11.5
+conda install -c rapidsai -c numba -c conda-forge -c nvidia cugraph cudatoolkit=11.5
 
 # CUDA 11.4
-conda install -c nvidia -c rapidsai -c numba -c conda-forge cugraph cudatoolkit=11.4
-
-# CUDA 11.5
-conda install -c nvidia -c rapidsai -c numba -c conda-forge cugraph cudatoolkit=11.5
-
-For CUDA > 11.5, please use the 11.5 environment
+conda install -c rapidsai -c numba -c conda-forge -c nvidia cugraph cudatoolkit=11.4
 ```
+
+For CUDA > 11.5, please use the 11.5 environment.
 
 Note: This conda installation only applies to Linux and Python versions 3.8/3.9.
 
