@@ -44,7 +44,6 @@ def _call_plc_bfs(
     return_distances=True,
     do_expensive_check=False,
 ):
-    print("python: the start type in _call_plc_bfs is \n", st_x.dtype)
     return pylibcugraph_bfs(
         ResourceHandle(Comms.get_handle(sID).getHandle()),
         graph=mg_graph_x,
