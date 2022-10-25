@@ -951,6 +951,13 @@ class EXPERIMENTAL__PropertyGraph:
             None is the default and will allow any edge type
         columns : which edge columns will be returned, optional
             None is the default and will result in all columns being returned
+
+        Returns
+        -------
+        Dataframe
+            Containst edge ids, typem edge source and destination,
+            and all the columns specified on the columns parameter
+
         Examples
         --------
         >>> import cudf
@@ -1026,8 +1033,9 @@ class EXPERIMENTAL__PropertyGraph:
 
         Returns
         -------
-        PropertySelection instance to be used for calls to extract_subgraph()
-        in order to construct a Graph containing only specific vertices.
+        PropertySelection
+            used for calls to extract_subgraph()
+            in order to construct a Graph containing only specific vertices.
 
         Examples
         --------
