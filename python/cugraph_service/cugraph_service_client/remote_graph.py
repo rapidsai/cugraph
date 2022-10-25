@@ -199,7 +199,12 @@ class RemotePropertyGraph:
     weight_col_name = "_WEIGHT_"
     _default_type_name = ""
 
-    def __init__(self, cgs_client, cgs_graph_id, backend="numpy"):
+    def __init__(
+        self,
+        cgs_client,
+        cgs_graph_id,
+        backend=("cudf" if cudf is not None else "numpy"),
+    ):
         self.__client = cgs_client
         self.__graph_id = cgs_graph_id
         self.__vertex_categorical_dtype = None
