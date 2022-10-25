@@ -239,11 +239,12 @@ template <typename vertex_t,
           bool multi_gpu>
 std::enable_if_t<multi_gpu,
                  std::tuple<graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>,
-                            rmm::device_uvector<vertex_t>>>
+                            std::optional<rmm::device_uvector<vertex_t>>>>
 coarsen_graph(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> const& graph_view,
   vertex_t const* labels,
+  bool renumber,
   bool do_expensive_check)
 {
   auto& comm               = handle.get_comms();
@@ -255,6 +256,9 @@ coarsen_graph(
   auto& col_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
   auto const col_comm_size = col_comm.get_size();
   auto const col_comm_rank = col_comm.get_rank();
+
+  CUGRAPH_EXPECTS(renumber,
+                  "Invalid input arguments: renumber should be true if multi_gpu is true.");
 
   if (do_expensive_check) {
     // currently, nothing to do
@@ -496,8 +500,10 @@ coarsen_graph(
 
   // 4. create a graph
 
-  auto [coarsened_graph, renumber_map] =
-    create_graph_from_edgelist<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
+  graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> coarsened_graph(handle);
+  std::optional<rmm::device_uvector<vertex_t>> renumber_map{std::nullopt};
+  std::tie(coarsened_graph, std::ignore, renumber_map) =
+    create_graph_from_edgelist<vertex_t, edge_t, weight_t, int32_t, store_transposed, multi_gpu>(
       handle,
       std::move(unique_labels),
       store_transposed ? std::move(concatenated_edgelist_minors)
@@ -505,11 +511,13 @@ coarsen_graph(
       store_transposed ? std::move(concatenated_edgelist_majors)
                        : std::move(concatenated_edgelist_minors),
       std::move(concatenated_edgelist_weights),
+      std::nullopt,
       graph_properties_t{graph_view.is_symmetric(), false},
       true,
       do_expensive_check);
 
-  return std::make_tuple(std::move(coarsened_graph), std::move(*renumber_map));
+  return std::make_tuple(std::move(coarsened_graph),
+                         std::optional<rmm::device_uvector<vertex_t>>{std::move(*renumber_map)});
 }
 
 // single-GPU version
@@ -520,15 +528,25 @@ template <typename vertex_t,
           bool multi_gpu>
 std::enable_if_t<!multi_gpu,
                  std::tuple<graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>,
-                            rmm::device_uvector<vertex_t>>>
+                            std::optional<rmm::device_uvector<vertex_t>>>>
 coarsen_graph(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> const& graph_view,
   vertex_t const* labels,
+  bool renumber,
   bool do_expensive_check)
 {
   if (do_expensive_check) {
-    // currently, nothing to do
+    if (!renumber) {
+      auto num_invalids =
+        thrust::count_if(handle.get_thrust_policy(),
+                         labels,
+                         labels + graph_view.number_of_vertices(),
+                         check_out_of_range_t<vertex_t>{0, std::numeric_limits<vertex_t>::max()});
+      CUGRAPH_EXPECTS(num_invalids == 0,
+                      "Invalid input aguments: if renumber is false, labels should be non-negative "
+                      "integers smaller than std::numeric_limits<vertex_t>::max().");
+    }
   }
 
   bool lower_triangular_only = graph_view.is_symmetric();
@@ -599,27 +617,39 @@ coarsen_graph(
     }
   }
 
-  rmm::device_uvector<vertex_t> unique_labels(graph_view.number_of_vertices(), handle.get_stream());
-  thrust::copy(
-    handle.get_thrust_policy(), labels, labels + unique_labels.size(), unique_labels.begin());
-  thrust::sort(handle.get_thrust_policy(), unique_labels.begin(), unique_labels.end());
-  unique_labels.resize(
-    thrust::distance(
-      unique_labels.begin(),
-      thrust::unique(handle.get_thrust_policy(), unique_labels.begin(), unique_labels.end())),
-    handle.get_stream());
+  rmm::device_uvector<vertex_t> vertices(graph_view.number_of_vertices(), handle.get_stream());
+  if (renumber) {
+    thrust::copy(handle.get_thrust_policy(), labels, labels + vertices.size(), vertices.begin());
+    thrust::sort(handle.get_thrust_policy(), vertices.begin(), vertices.end());
+    vertices.resize(thrust::distance(
+                      vertices.begin(),
+                      thrust::unique(handle.get_thrust_policy(), vertices.begin(), vertices.end())),
+                    handle.get_stream());
+  } else {
+    vertex_t number_of_vertices = thrust::reduce(handle.get_thrust_policy(),
+                                                 labels,
+                                                 labels + vertices.size(),
+                                                 vertex_t{0},
+                                                 thrust::maximum<vertex_t>{}) +
+                                  1;
+    vertices = rmm::device_uvector<vertex_t>(number_of_vertices, handle.get_stream());
+    thrust::sequence(handle.get_thrust_policy(), vertices.begin(), vertices.end(), vertex_t{0});
+  }
 
-  auto [coarsened_graph, renumber_map] =
-    create_graph_from_edgelist<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(
+  graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> coarsened_graph(handle);
+  std::optional<rmm::device_uvector<vertex_t>> renumber_map{std::nullopt};
+  std::tie(coarsened_graph, std::ignore, renumber_map) =
+    create_graph_from_edgelist<vertex_t, edge_t, weight_t, int32_t, store_transposed, multi_gpu>(
       handle,
-      std::optional<rmm::device_uvector<vertex_t>>{std::move(unique_labels)},
+      std::optional<rmm::device_uvector<vertex_t>>{std::move(vertices)},
       store_transposed ? std::move(coarsened_edgelist_minors)
                        : std::move(coarsened_edgelist_majors),
       store_transposed ? std::move(coarsened_edgelist_majors)
                        : std::move(coarsened_edgelist_minors),
       std::move(coarsened_edgelist_weights),
+      std::nullopt,
       graph_properties_t{graph_view.is_symmetric(), false},
-      true,
+      renumber,
       do_expensive_check);
 
   return std::make_tuple(std::move(coarsened_graph), std::move(*renumber_map));
@@ -633,15 +663,16 @@ template <typename vertex_t,
           bool store_transposed,
           bool multi_gpu>
 std::tuple<graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>,
-           rmm::device_uvector<vertex_t>>
+           std::optional<rmm::device_uvector<vertex_t>>>
 coarsen_graph(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> const& graph_view,
   vertex_t const* labels,
+  bool renumber,
   bool do_expensive_check)
 {
   do_expensive_check = true;
-  return detail::coarsen_graph(handle, graph_view, labels, do_expensive_check);
+  return detail::coarsen_graph(handle, graph_view, labels, renumber, do_expensive_check);
 }
 
 }  // namespace cugraph

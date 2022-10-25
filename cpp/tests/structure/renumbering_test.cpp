@@ -69,18 +69,13 @@ class Tests_Renumbering
     rmm::device_uvector<vertex_t> src_v(0, handle.get_stream());
     rmm::device_uvector<vertex_t> dst_v(0, handle.get_stream());
     rmm::device_uvector<vertex_t> renumber_map_labels_v(0, handle.get_stream());
-    vertex_t number_of_vertices{};
 
-    std::tie(src_v, dst_v, std::ignore, std::ignore, number_of_vertices, std::ignore) =
-      input_usecase.template construct_edgelist<vertex_t, edge_t, weight_t, false, false>(handle,
-                                                                                          false);
+    std::tie(src_v, dst_v, std::ignore, std::ignore, std::ignore) =
+      input_usecase.template construct_edgelist<vertex_t, weight_t>(handle, false, false, false);
 
     if (renumbering_usecase.check_correctness) {
-      h_original_src_v.resize(src_v.size());
-      h_original_dst_v.resize(dst_v.size());
-
-      raft::update_host(h_original_src_v.data(), src_v.data(), src_v.size(), handle.get_stream());
-      raft::update_host(h_original_dst_v.data(), dst_v.data(), dst_v.size(), handle.get_stream());
+      h_original_src_v = cugraph::test::to_host(handle, src_v);
+      h_original_dst_v = cugraph::test::to_host(handle, dst_v);
     }
 
     if (cugraph::test::g_perf) {
@@ -113,11 +108,8 @@ class Tests_Renumbering
                                              0,
                                              static_cast<vertex_t>(renumber_map_labels_v.size()));
 
-      h_final_src_v.resize(src_v.size());
-      h_final_dst_v.resize(dst_v.size());
-
-      raft::update_host(h_final_src_v.data(), src_v.data(), src_v.size(), handle.get_stream());
-      raft::update_host(h_final_dst_v.data(), dst_v.data(), dst_v.size(), handle.get_stream());
+      h_final_src_v = cugraph::test::to_host(handle, src_v);
+      h_final_dst_v = cugraph::test::to_host(handle, dst_v);
 
       EXPECT_EQ(h_original_src_v, h_original_src_v);
       EXPECT_EQ(h_original_dst_v, h_original_dst_v);
@@ -148,7 +140,8 @@ INSTANTIATE_TEST_SUITE_P(
   ::testing::Combine(
     // enable correctness checks
     ::testing::Values(Renumbering_Usecase{}),
-    ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
+    ::testing::Values(cugraph::test::File_Usecase("negative-vertex-id.csv"),
+                      cugraph::test::File_Usecase("karate.csv"),
                       cugraph::test::File_Usecase("test/datasets/web-Google.mtx"),
                       cugraph::test::File_Usecase("test/datasets/ljournal-2008.mtx"),
                       cugraph::test::File_Usecase("test/datasets/webbase-1M.mtx"))));

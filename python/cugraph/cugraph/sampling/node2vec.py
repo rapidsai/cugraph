@@ -11,22 +11,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from pylibcugraph import (ResourceHandle,
-                          GraphProperties,
-                          SGGraph,
-                          node2vec as pylibcugraph_node2vec,
-                          )
+from pylibcugraph import (
+    ResourceHandle,
+    node2vec as pylibcugraph_node2vec,
+)
 from cugraph.utilities import ensure_cugraph_obj_for_nx
 
 import cudf
 
 
-def node2vec(G,
-             start_vertices,
-             max_depth=1,
-             compress_result=True,
-             p=1.0,
-             q=1.0):
+def node2vec(G, start_vertices, max_depth=1, compress_result=True, p=1.0, q=1.0):
     """
     Computes random walks for each node in 'start_vertices', under the
     node2vec sampling framework.
@@ -95,11 +89,13 @@ def node2vec(G,
 
     """
     if (not isinstance(max_depth, int)) or (max_depth < 1):
-        raise ValueError(f"'max_depth' must be a positive integer, "
-                         f"got: {max_depth}")
-    if (not isinstance(compress_result, bool)):
-        raise ValueError(f"'compress_result' must be a bool, "
-                         f"got: {compress_result}")
+        raise ValueError(
+            f"'max_depth' must be a positive integer, " f"got: {max_depth}"
+        )
+    if not isinstance(compress_result, bool):
+        raise ValueError(
+            f"'compress_result' must be a bool, " f"got: {compress_result}"
+        )
     if (not isinstance(p, float)) or (p <= 0.0):
         raise ValueError(f"'p' must be a positive float, got: {p}")
     if (not isinstance(q, float)) or (q <= 0.0):
@@ -111,46 +107,38 @@ def node2vec(G,
         start_vertices = [start_vertices]
 
     if isinstance(start_vertices, list):
-        start_vertices = cudf.Series(start_vertices, dtype='int32')
-        if start_vertices.dtype != 'int32':
-            raise ValueError(f"'start_vertices' must have int32 values, "
-                             f"got: {start_vertices.dtype}")
+        start_vertices = cudf.Series(start_vertices, dtype="int32")
+        # FIXME: Verify if this condition still holds
+        if start_vertices.dtype != "int32":
+            raise ValueError(
+                f"'start_vertices' must have int32 values, "
+                f"got: {start_vertices.dtype}"
+            )
 
     if G.renumbered is True:
         if isinstance(start_vertices, cudf.DataFrame):
             start_vertices = G.lookup_internal_vertex_id(
-                start_vertices, start_vertices.columns)
+                start_vertices, start_vertices.columns
+            )
         else:
             start_vertices = G.lookup_internal_vertex_id(start_vertices)
 
-    srcs = G.edgelist.edgelist_df['src']
-    dsts = G.edgelist.edgelist_df['dst']
-    weights = G.edgelist.edgelist_df['weights']
-
-    if srcs.dtype != 'int32':
-        raise ValueError(f"Graph vertices must have int32 values, "
-                         f"got: {srcs.dtype}")
-
-    resource_handle = ResourceHandle()
-    graph_props = GraphProperties(is_multigraph=G.is_multigraph())
-    store_transposed = False
-    renumber = False
-    do_expensive_check = False
-
-    sg = SGGraph(resource_handle, graph_props, srcs, dsts, weights,
-                 store_transposed, renumber, do_expensive_check)
-
-    vertex_set, edge_set, sizes = \
-        pylibcugraph_node2vec(resource_handle, sg, start_vertices,
-                              max_depth, compress_result, p, q)
-
+    vertex_set, edge_set, sizes = pylibcugraph_node2vec(
+        resource_handle=ResourceHandle(),
+        graph=G._plc_graph,
+        seed_array=start_vertices,
+        max_depth=max_depth,
+        compress_result=compress_result,
+        p=p,
+        q=q,
+    )
     vertex_set = cudf.Series(vertex_set)
     edge_set = cudf.Series(edge_set)
     sizes = cudf.Series(sizes)
 
     if G.renumbered:
         df_ = cudf.DataFrame()
-        df_['vertex_set'] = vertex_set
-        df_ = G.unrenumber(df_, 'vertex_set', preserve_order=True)
-        vertex_set = cudf.Series(df_['vertex_set'])
+        df_["vertex_set"] = vertex_set
+        df_ = G.unrenumber(df_, "vertex_set", preserve_order=True)
+        vertex_set = cudf.Series(df_["vertex_set"])
     return vertex_set, edge_set, sizes

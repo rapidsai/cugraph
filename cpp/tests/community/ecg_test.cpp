@@ -109,8 +109,6 @@ TEST(ecg, dolphin)
   int num_verts = off_h.size() - 1;
   int num_edges = ind_h.size();
 
-  std::vector<int> cluster_id(num_verts, -1);
-
   rmm::device_uvector<int> offsets_v(num_verts + 1, stream);
   rmm::device_uvector<int> indices_v(num_edges, stream);
   rmm::device_uvector<float> weights_v(num_edges, stream);
@@ -135,9 +133,7 @@ TEST(ecg, dolphin)
   } else {
     cugraph::ecg<int32_t, int32_t, float>(handle, graph_csr, .05, 16, result_v.data());
 
-    raft::update_host(cluster_id.data(), result_v.data(), num_verts, stream);
-
-    RAFT_CUDA_TRY(cudaDeviceSynchronize());
+    auto cluster_id = cugraph::test::to_host(handle, result_v);
 
     int max = *max_element(cluster_id.begin(), cluster_id.end());
     int min = *min_element(cluster_id.begin(), cluster_id.end());

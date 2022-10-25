@@ -18,7 +18,7 @@ import pytest
 import pandas as pd
 import cudf
 import cugraph
-from cugraph.testing import utils
+from cugraph.experimental.datasets import DATASETS
 
 
 def test_version():
@@ -54,13 +54,18 @@ def compare(src1, dst1, val1, src2, dst2, val2):
     join = df1.merge(df2, left_on=["src1", "dst1"], right_on=["src2", "dst2"])
 
     if len(df1) != len(join):
-        join2 = df1.merge(df2, how='left',
-                          left_on=["src1", "dst1"], right_on=["src2", "dst2"])
-        pd.set_option('display.max_rows', 500)
-        print('df1 = \n', df1.sort_values(["src1", "dst1"]))
-        print('df2 = \n', df2.sort_values(["src2", "dst2"]))
-        print('join2 = \n', join2.sort_values(["src1", "dst1"])
-              .to_pandas().query('src2.isnull()', engine='python'))
+        join2 = df1.merge(
+            df2, how="left", left_on=["src1", "dst1"], right_on=["src2", "dst2"]
+        )
+        pd.set_option("display.max_rows", 500)
+        print("df1 = \n", df1.sort_values(["src1", "dst1"]))
+        print("df2 = \n", df2.sort_values(["src2", "dst2"]))
+        print(
+            "join2 = \n",
+            join2.sort_values(["src1", "dst1"])
+            .to_pandas()
+            .query("src2.isnull()", engine="python"),
+        )
 
     assert len(df1) == len(join)
 
@@ -148,21 +153,20 @@ def compare(src1, dst1, val1, src2, dst2, val2):
 
 
 @pytest.mark.skip("debugging")
-@pytest.mark.parametrize("graph_file", utils.DATASETS)
+@pytest.mark.parametrize("graph_file", DATASETS)
 def test_symmetrize_unweighted(graph_file):
     gc.collect()
 
-    cu_M = utils.read_csv_file(graph_file)
-
-    sym_sources, sym_destinations = cugraph.symmetrize(cu_M["0"], cu_M["1"])
+    cu_M = graph_file.get_edgelist()
+    sym_sources, sym_destinations = cugraph.symmetrize(cu_M["src"], cu_M["dst"])
 
     #
     #  Check to see if all pairs in sources/destinations exist in
     #  both directions
     #
     compare(
-        cu_M["0"],
-        cu_M["1"],
+        cu_M["src"],
+        cu_M["dst"],
         None,
         sym_sources,
         sym_destinations,
@@ -171,14 +175,11 @@ def test_symmetrize_unweighted(graph_file):
 
 
 @pytest.mark.skip("debugging")
-@pytest.mark.parametrize("graph_file", utils.DATASETS)
+@pytest.mark.parametrize("graph_file", DATASETS)
 def test_symmetrize_weighted(graph_file):
     gc.collect()
+    cu_M = graph_file.get_edgelist()
 
-    cu_M = utils.read_csv_file(graph_file)
+    sym_src, sym_dst, sym_w = cugraph.symmetrize(cu_M["src"], cu_M["dst"], cu_M["wgt"])
 
-    sym_src, sym_dst, sym_w = cugraph.symmetrize(
-        cu_M["0"], cu_M["1"], cu_M["2"]
-    )
-
-    compare(cu_M["0"], cu_M["1"], cu_M["2"], sym_src, sym_dst, sym_w)
+    compare(cu_M["src"], cu_M["dst"], cu_M["wgt"], sym_src, sym_dst, sym_w)

@@ -24,9 +24,12 @@
 //
 #include <cugraph/visitors/graph_envelope.hpp>
 
+#include <raft/core/device_span.hpp>
+#include <raft/core/host_span.hpp>
 #include <raft/handle.hpp>
-#include <raft/span.hpp>
 #include <rmm/device_uvector.hpp>
+
+#include <cugraph/graph_mask.hpp>
 
 #include <algorithm>
 #include <cassert>
@@ -334,8 +337,8 @@ struct graph_view_meta_t<vertex_t,
 
   partition_t<vertex_t> partition{};
 
-  // segment offsets based on vertex degree, relevant only if vertex IDs are renumbered
-  std::optional<std::vector<vertex_t>> edge_partition_segment_offsets{};
+  // segment offsets based on vertex degree
+  std::vector<vertex_t> edge_partition_segment_offsets{};
 
   std::conditional_t<store_transposed,
                      std::optional<raft::device_span<vertex_t const>>,
@@ -584,27 +587,21 @@ class graph_view_t<vertex_t,
 
   bool use_dcs() const
   {
-    if (edge_partition_segment_offsets_) {
-      auto size_per_partition =
-        (*edge_partition_segment_offsets_).size() / edge_partition_offsets_.size();
-      return size_per_partition > (detail::num_sparse_segments_per_vertex_partition + size_t{2});
-    } else {
-      return false;
-    }
+    auto num_segments_per_vertex_partition =
+      edge_partition_segment_offsets_.size() / edge_partition_offsets_.size();
+    return num_segments_per_vertex_partition >
+           (detail::num_sparse_segments_per_vertex_partition + size_t{2});
   }
 
   std::optional<std::vector<vertex_t>> local_edge_partition_segment_offsets(
     size_t partition_idx) const
   {
-    if (edge_partition_segment_offsets_) {
-      auto size_per_partition =
-        (*edge_partition_segment_offsets_).size() / edge_partition_offsets_.size();
-      return std::vector<vertex_t>(
-        (*edge_partition_segment_offsets_).begin() + partition_idx * size_per_partition,
-        (*edge_partition_segment_offsets_).begin() + (partition_idx + 1) * size_per_partition);
-    } else {
-      return std::nullopt;
-    }
+    auto num_segments_per_vertex_partition =
+      edge_partition_segment_offsets_.size() / edge_partition_offsets_.size();
+    return std::vector<vertex_t>(
+      edge_partition_segment_offsets_.begin() + partition_idx * num_segments_per_vertex_partition,
+      edge_partition_segment_offsets_.begin() +
+        (partition_idx + 1) * num_segments_per_vertex_partition);
   }
 
   vertex_partition_view_t<vertex_t, true> local_vertex_partition_view() const
@@ -638,25 +635,32 @@ class graph_view_t<vertex_t,
         this->local_edge_partition_src_value_start_offset(partition_idx);
     }
     std::optional<vertex_t> major_hypersparse_first{std::nullopt};
+    vertex_t offset_size = (major_range_last - major_range_first) + 1;
     if (this->use_dcs()) {
       major_hypersparse_first =
         major_range_first + (*(this->local_edge_partition_segment_offsets(
                               partition_idx)))[detail::num_sparse_segments_per_vertex_partition];
+      offset_size = ((*major_hypersparse_first) - major_range_first) +
+                    (*edge_partition_dcs_nzd_vertex_counts_)[partition_idx] + 1;
     }
     return edge_partition_view_t<vertex_t, edge_t, weight_t, true>(
-      edge_partition_offsets_[partition_idx],
-      edge_partition_indices_[partition_idx],
-      edge_partition_weights_
-        ? std::optional<weight_t const*>{(*edge_partition_weights_)[partition_idx]}
-        : std::nullopt,
+      raft::device_span<edge_t const>(edge_partition_offsets_[partition_idx],
+                                      edge_partition_offsets_[partition_idx] + offset_size),
+      raft::device_span<vertex_t const>(
+        edge_partition_indices_[partition_idx],
+        edge_partition_indices_[partition_idx] + edge_partition_number_of_edges_[partition_idx]),
+      edge_partition_weights_ ? std::make_optional<raft::device_span<weight_t const>>(
+                                  (*edge_partition_weights_)[partition_idx],
+                                  (*edge_partition_weights_)[partition_idx] +
+                                    edge_partition_number_of_edges_[partition_idx])
+                              : std::nullopt,
       edge_partition_dcs_nzd_vertices_
-        ? std::optional<vertex_t const*>{(*edge_partition_dcs_nzd_vertices_)[partition_idx]}
-        : std::nullopt,
-      edge_partition_dcs_nzd_vertex_counts_
-        ? std::optional<vertex_t>{(*edge_partition_dcs_nzd_vertex_counts_)[partition_idx]}
+        ? std::make_optional<raft::device_span<vertex_t const>>(
+            (*edge_partition_dcs_nzd_vertices_)[partition_idx],
+            (*edge_partition_dcs_nzd_vertices_)[partition_idx] +
+              (*edge_partition_dcs_nzd_vertex_counts_)[partition_idx])
         : std::nullopt,
       major_hypersparse_first,
-      edge_partition_number_of_edges_[partition_idx],
       major_range_first,
       major_range_last,
       minor_range_first,
@@ -790,8 +794,8 @@ class graph_view_t<vertex_t,
 
   partition_t<vertex_t> partition_{};
 
-  // segment offsets based on vertex degree, relevant only if vertex IDs are renumbered
-  std::optional<std::vector<vertex_t>> edge_partition_segment_offsets_{};
+  // segment offsets based on vertex degree
+  std::vector<vertex_t> edge_partition_segment_offsets_{};
 
   // if valid, store source/destination property values in key/value pairs (this saves memory if #
   // unique edge sources/destinations << V / row_comm_size|col_comm_size).
@@ -965,7 +969,12 @@ class graph_view_t<vertex_t,
   {
     assert(partition_idx == 0);  // there is only one edge partition in single-GPU
     return edge_partition_view_t<vertex_t, edge_t, weight_t, false>(
-      offsets_, indices_, weights_, this->number_of_vertices(), this->number_of_edges());
+      raft::device_span<edge_t const>(offsets_, offsets_ + (this->number_of_vertices() + 1)),
+      raft::device_span<vertex_t const>(indices_, indices_ + this->number_of_edges()),
+      weights_ ? std::make_optional<raft::device_span<weight_t const>>(
+                   *weights_, *weights_ + this->number_of_edges())
+               : std::nullopt,
+      this->number_of_vertices());
   }
 
   rmm::device_uvector<edge_t> compute_in_degrees(raft::handle_t const& handle) const;

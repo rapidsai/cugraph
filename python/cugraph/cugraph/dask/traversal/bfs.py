@@ -13,9 +13,7 @@
 # limitations under the License.
 #
 
-from pylibcugraph import (ResourceHandle,
-                          bfs as pylibcugraph_bfs
-                          )
+from pylibcugraph import ResourceHandle, bfs as pylibcugraph_bfs
 
 from dask.distributed import wait
 from cugraph.dask.common.input_utils import get_distributed_data
@@ -37,27 +35,19 @@ def convert_to_cudf(cp_arrays):
     return df
 
 
-def _call_plc_bfs(sID,
-                  mg_graph_x,
-                  st_x,
-                  depth_limit=None,
-                  return_distances=True):
+def _call_plc_bfs(sID, mg_graph_x, st_x, depth_limit=None, return_distances=True):
     return pylibcugraph_bfs(
         ResourceHandle(Comms.get_handle(sID).getHandle()),
         mg_graph_x,
-        cudf.Series(st_x, dtype='int32'),
+        cudf.Series(st_x, dtype="int32"),
         False,
         depth_limit if depth_limit is not None else 0,
         return_distances,
-        True
+        True,
     )
 
 
-def bfs(input_graph,
-        start,
-        depth_limit=None,
-        return_distances=True,
-        check_start=True):
+def bfs(input_graph, start, depth_limit=None, return_distances=True, check_start=True):
     """
     Find the distances and predecessors for a breadth-first traversal of a
     graph.
@@ -142,8 +132,9 @@ def bfs(input_graph,
                 invalid_dtype = True
 
         if invalid_dtype:
-            warning_msg = ("The 'start' values dtype must match "
-                           "the graph's vertices dtype.")
+            warning_msg = (
+                "The 'start' values dtype must match " "the graph's vertices dtype."
+            )
 
             warnings.warn(warning_msg, UserWarning)
             if isinstance(start, dask_cudf.Series):
@@ -153,8 +144,7 @@ def bfs(input_graph,
 
         is_valid_vertex = input_graph.has_node(start)
         if not is_valid_vertex:
-            raise ValueError(
-                'At least one start vertex provided was invalid')
+            raise ValueError("At least one start vertex provided was invalid")
 
     if input_graph.renumbered:
         if isinstance(start, dask_cudf.DataFrame):
@@ -163,8 +153,7 @@ def bfs(input_graph,
         elif isinstance(start, dask_cudf.Series):
             tmp_col_names = None
 
-        start = input_graph.lookup_internal_vertex_id(
-            start, tmp_col_names)
+        start = input_graph.lookup_internal_vertex_id(start, tmp_col_names)
 
     data_start = get_distributed_data(start)
 
@@ -176,22 +165,27 @@ def bfs(input_graph,
             st[0],
             depth_limit,
             return_distances,
-            workers=[w]
+            workers=[w],
+            allow_other_workers=False,
         )
         for w, st in data_start.worker_to_parts.items()
     ]
 
     wait(cupy_result)
 
-    cudf_result = [client.submit(convert_to_cudf,
-                                 cp_arrays)
-                   for cp_arrays in cupy_result]
+    cudf_result = [
+        client.submit(convert_to_cudf, cp_arrays) for cp_arrays in cupy_result
+    ]
     wait(cudf_result)
 
-    ddf = dask_cudf.from_delayed(cudf_result)
+    ddf = dask_cudf.from_delayed(cudf_result).persist()
+    wait(ddf)
+
+    # Wait until the inactive futures are released
+    wait([(r.release(), c_r.release()) for r, c_r in zip(cupy_result, cudf_result)])
 
     if input_graph.renumbered:
-        ddf = input_graph.unrenumber(ddf, 'vertex')
-        ddf = input_graph.unrenumber(ddf, 'predecessor')
+        ddf = input_graph.unrenumber(ddf, "vertex")
+        ddf = input_graph.unrenumber(ddf, "predecessor")
         ddf = ddf.fillna(-1)
     return ddf

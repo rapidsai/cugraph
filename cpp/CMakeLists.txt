@@ -14,7 +14,7 @@
 # limitations under the License.
 #=============================================================================
 
-cmake_minimum_required(VERSION 3.20.1 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.23.1 FATAL_ERROR)
 
 include(../fetch_rapids.cmake)
 include(rapids-cmake)
@@ -25,7 +25,7 @@ include(rapids-find)
 
 rapids_cuda_init_architectures(CUGRAPH)
 
-project(CUGRAPH VERSION 22.10.00 LANGUAGES C CXX CUDA)
+project(CUGRAPH VERSION 22.12.00 LANGUAGES C CXX CUDA)
 
 if(CMAKE_CUDA_COMPILER_ID STREQUAL "NVIDIA" AND
    CMAKE_CUDA_COMPILER_VERSION VERSION_LESS 11.0)
@@ -161,22 +161,33 @@ endif()
 ################################################################################
 # - libcugraph library target --------------------------------------------------
 
+# NOTE: The most expensive compilations are listed first
+#       since ninja will run them in parallel in this order,
+#       which should give us a better parallel schedule.
+
 set(CUGRAPH_SOURCES
-    src/detail/utility_wrappers.cu
     src/detail/shuffle_wrappers.cu
+    src/sampling/random_walks_mg.cu
+    src/community/detail/common_methods_mg.cu
+    src/community/detail/common_methods_sg.cu
+    src/detail/utility_wrappers.cu
+    src/structure/graph_view_mg.cu
     src/utilities/cython.cu
     src/utilities/path_retrieval.cu
-    src/utilities/graph_bcast.cpp
     src/structure/legacy/graph.cu
-    src/linear_assignment/hungarian.cu
+    src/linear_assignment/legacy/hungarian.cu
     src/traversal/legacy/bfs.cu
-    src/link_prediction/jaccard.cu
-    src/link_prediction/overlap.cu
+    src/link_prediction/legacy/jaccard.cu
+    src/link_prediction/legacy/overlap.cu
+    src/link_prediction/jaccard_sg.cu
+    src/link_prediction/sorensen_sg.cu
+    src/link_prediction/overlap_sg.cu
+    src/link_prediction/jaccard_mg.cu
+    src/link_prediction/sorensen_mg.cu
+    src/link_prediction/overlap_mg.cu
     src/layout/legacy/force_atlas2.cu
     src/converters/legacy/COOtoCSR.cu
     src/community/legacy/spectral_clustering.cu
-    src/community/detail/common_methods_sg.cu
-    src/community/detail/common_methods_mg.cu
     src/community/louvain_sg.cu
     src/community/louvain_mg.cu
     src/community/leiden_sg.cu
@@ -184,12 +195,10 @@ set(CUGRAPH_SOURCES
     src/community/legacy/leiden.cu
     src/community/legacy/ktruss.cu
     src/community/legacy/ecg.cu
-    src/community/legacy/triangles_counting.cu
     src/community/legacy/extract_subgraph_by_vertex.cu
     src/community/legacy/egonet.cu
     src/sampling/random_walks.cu
     src/sampling/random_walks_sg.cu
-    src/sampling/random_walks_mg.cu
     src/sampling/detail/sampling_utils_mg.cu
     src/sampling/detail/sampling_utils_sg.cu
     src/sampling/uniform_neighbor_sampling_mg.cpp
@@ -197,9 +206,11 @@ set(CUGRAPH_SOURCES
     src/cores/legacy/core_number.cu
     src/cores/core_number_sg.cu
     src/cores/core_number_mg.cu
-    src/traversal/two_hop_neighbors.cu
+    src/cores/k_core_sg.cu
+    src/cores/k_core_mg.cu
+    src/traversal/legacy/two_hop_neighbors.cu
     src/components/legacy/connectivity.cu
-    src/centrality/betweenness_centrality.cu
+    src/centrality/legacy/betweenness_centrality.cu
     src/generators/generate_rmat_edgelist.cu
     src/generators/generator_tools.cu
     src/generators/simple_generators.cu
@@ -207,7 +218,6 @@ set(CUGRAPH_SOURCES
     src/structure/graph_sg.cu
     src/structure/graph_mg.cu
     src/structure/graph_view_sg.cu
-    src/structure/graph_view_mg.cu
     src/structure/coarsen_graph_sg.cu
     src/structure/coarsen_graph_mg.cu
     src/structure/renumber_edgelist_sg.cu
@@ -232,8 +242,7 @@ set(CUGRAPH_SOURCES
     src/centrality/katz_centrality_mg.cu
     src/centrality/eigenvector_centrality_sg.cu
     src/centrality/eigenvector_centrality_mg.cu
-    src/serialization/serializer.cu
-    src/tree/mst.cu
+    src/tree/legacy/mst.cu
     src/components/weakly_connected_components_sg.cu
     src/components/weakly_connected_components_mg.cu
     src/structure/create_graph_from_edgelist_sg.cu
@@ -242,6 +251,8 @@ set(CUGRAPH_SOURCES
     src/structure/symmetrize_edgelist_mg.cu
     src/community/triangle_count_sg.cu
     src/community/triangle_count_mg.cu
+    src/traversal/k_hop_nbrs_sg.cu
+    src/traversal/k_hop_nbrs_mg.cu
 )
 
 if(USE_CUGRAPH_OPS)
@@ -304,6 +315,7 @@ if (USE_CUGRAPH_OPS)
         PUBLIC
             cugraph-ops::cugraph-ops++
             raft::raft
+    	    raft::distance
         PRIVATE
             cuco::cuco
             cugraph::cuHornet
@@ -313,6 +325,7 @@ else()
     target_link_libraries(cugraph
         PUBLIC
             raft::raft
+   	        raft::distance
         PRIVATE
             cuco::cuco
             cugraph::cuHornet
@@ -329,17 +342,20 @@ add_library(cugraph_c
         src/c_api/error.cpp
         src/c_api/graph_sg.cpp
         src/c_api/graph_mg.cpp
+        src/c_api/graph_functions.cpp
         src/c_api/pagerank.cpp
         src/c_api/katz.cpp
         src/c_api/centrality_result.cpp
         src/c_api/eigenvector_centrality.cpp
         src/c_api/core_number.cpp
         src/c_api/core_result.cpp
+        src/c_api/k_core.cpp
         src/c_api/hits.cpp
         src/c_api/bfs.cpp
         src/c_api/sssp.cpp
         src/c_api/extract_paths.cpp
         src/c_api/random_walks.cpp
+        src/c_api/similarity.cpp
         src/c_api/louvain.cpp
         src/c_api/triangle_count.cpp
         src/c_api/uniform_neighbor_sampling.cpp
@@ -383,6 +399,7 @@ target_link_libraries(cugraph_c
                 CUDA::cusolver
                 CUDA::cusparse
                 raft::raft
+     	        raft::distance
         PRIVATE
                 cuco::cuco
                 cugraph::cugraph

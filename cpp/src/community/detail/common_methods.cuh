@@ -20,6 +20,7 @@
 #include <detail/graph_utils.cuh>
 #include <prims/per_v_transform_reduce_dst_key_aggregated_outgoing_e.cuh>
 #include <prims/per_v_transform_reduce_incoming_outgoing_e.cuh>
+#include <prims/reduce_op.cuh>
 #include <prims/transform_reduce_e.cuh>
 #include <prims/transform_reduce_e_by_src_dst_key.cuh>
 #include <prims/update_edge_src_dst_property.cuh>
@@ -253,11 +254,11 @@ graph_contraction(
   cugraph::graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
   raft::device_span<vertex_t> labels)
 {
-  auto [new_graph, numbering_map] = coarsen_graph(handle, graph_view, labels.data());
+  auto [new_graph, numbering_map] = coarsen_graph(handle, graph_view, labels.data(), true);
 
   auto new_graph_view = new_graph.view();
 
-  rmm::device_uvector<vertex_t> numbering_indices(numbering_map.size(), handle.get_stream());
+  rmm::device_uvector<vertex_t> numbering_indices((*numbering_map).size(), handle.get_stream());
   detail::sequence_fill(handle.get_stream(),
                         numbering_indices.data(),
                         numbering_indices.size(),
@@ -265,7 +266,7 @@ graph_contraction(
 
   relabel<vertex_t, multi_gpu>(
     handle,
-    std::make_tuple(static_cast<vertex_t const*>(numbering_map.begin()),
+    std::make_tuple(static_cast<vertex_t const*>((*numbering_map).begin()),
                     static_cast<vertex_t const*>(numbering_indices.begin())),
     new_graph_view.local_vertex_partition_range_size(),
     labels.data(),
@@ -959,7 +960,8 @@ compute_cluster_keys_and_values(
       ? src_clusters_cache.view()
       : detail::edge_major_property_view_t<vertex_t, vertex_t const*>(next_clusters_v.data()),
     detail::return_edge_weight_t<vertex_t, weight_t>{},
-    weight_t{0});
+    weight_t{0},
+    reduce_op::plus<weight_t>{});
 
   return std::make_tuple(std::move(cluster_keys), std::move(cluster_values));
 }

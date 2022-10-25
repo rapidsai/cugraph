@@ -158,19 +158,9 @@ class Tests_MGCoreNumber
 
         // 3-5. compare
 
-        std::vector<edge_t> h_mg_aggregate_core_numbers(mg_graph_view.number_of_vertices());
-        raft::update_host(h_mg_aggregate_core_numbers.data(),
-                          d_mg_aggregate_core_numbers.data(),
-                          d_mg_aggregate_core_numbers.size(),
-                          handle_->get_stream());
-
-        std::vector<edge_t> h_sg_core_numbers(sg_graph_view.number_of_vertices());
-        raft::update_host(h_sg_core_numbers.data(),
-                          d_sg_core_numbers.data(),
-                          d_sg_core_numbers.size(),
-                          handle_->get_stream());
-
-        handle_->sync_stream();
+        auto h_mg_aggregate_core_numbers =
+          cugraph::test::to_host(*handle_, d_mg_aggregate_core_numbers);
+        auto h_sg_core_numbers = cugraph::test::to_host(*handle_, d_sg_core_numbers);
 
         ASSERT_TRUE(std::equal(h_mg_aggregate_core_numbers.begin(),
                                h_mg_aggregate_core_numbers.end(),

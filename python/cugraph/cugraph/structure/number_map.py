@@ -25,30 +25,32 @@ from cugraph.structure import renumber_wrapper as c_renumber
 import cugraph.dask.comms.comms as Comms
 
 
-def call_renumber(sID,
-                  data,
-                  renumbered_src_col_name,
-                  renumbered_dst_col_name,
-                  num_edges,
-                  is_mnmg,
-                  store_transposed):
+def call_renumber(
+    sID,
+    data,
+    renumbered_src_col_name,
+    renumbered_dst_col_name,
+    num_edges,
+    is_mnmg,
+    store_transposed,
+):
     wid = Comms.get_worker_id(sID)
     handle = Comms.get_handle(sID)
-    return c_renumber.renumber(data[0],
-                               renumbered_src_col_name,
-                               renumbered_dst_col_name,
-                               num_edges,
-                               wid,
-                               handle,
-                               is_mnmg,
-                               store_transposed)
+    return c_renumber.renumber(
+        data[0],
+        renumbered_src_col_name,
+        renumbered_dst_col_name,
+        num_edges,
+        wid,
+        handle,
+        is_mnmg,
+        store_transposed,
+    )
 
 
 class NumberMap:
-
     class SingleGPU:
-        def __init__(self, df, src_col_names, dst_col_names, id_type,
-                     store_transposed):
+        def __init__(self, df, src_col_names, dst_col_names, id_type, store_transposed):
             self.col_names = NumberMap.compute_vals(src_col_names)
             self.src_col_names = src_col_names
             self.dst_col_names = dst_col_names
@@ -90,8 +92,9 @@ class NumberMap:
                     copy=False,
                 )
 
-        def add_internal_vertex_id(self, df, id_column_name, col_names,
-                                   drop, preserve_order):
+        def add_internal_vertex_id(
+            self, df, id_column_name, col_names, drop, preserve_order
+        ):
             ret = None
 
             if preserve_order:
@@ -113,22 +116,17 @@ class NumberMap:
             elif col_names == self.col_names:
                 ret = merge_df.merge(tmp_df, on=self.col_names, how="right")
             else:
-                ret = (
-                    merge_df.merge(
-                        tmp_df,
-                        right_on=col_names,
-                        left_on=self.col_names,
-                        how="right",
-                    )
-                    .drop(columns=self.col_names)
-                )
+                ret = merge_df.merge(
+                    tmp_df,
+                    right_on=col_names,
+                    left_on=self.col_names,
+                    how="right",
+                ).drop(columns=self.col_names)
 
             if drop:
                 ret = ret.drop(columns=col_names)
 
-            ret = ret.rename(
-                columns={id_name: id_column_name}, copy=False
-            )
+            ret = ret.rename(columns={id_name: id_column_name}, copy=False)
 
             if preserve_order:
                 ret = ret.sort_values(index_name).reset_index(drop=True)
@@ -151,12 +149,7 @@ class NumberMap:
             )
 
             if dst_col_names is not None:
-                tmp_dst = (
-                    df[dst_col_names]
-                    .groupby(dst_col_names)
-                    .count()
-                    .reset_index()
-                )
+                tmp_dst = df[dst_col_names].groupby(dst_col_names).count().reset_index()
                 # Need to have the same column names before both df can be
                 # concat
                 tmp_dst.columns = tmp.columns
@@ -184,7 +177,8 @@ class NumberMap:
 
         def to_internal_vertex_id(self, ddf, col_names):
             tmp_ddf = ddf[col_names].rename(
-                columns=dict(zip(col_names, self.col_names)))
+                columns=dict(zip(col_names, self.col_names))
+            )
             for name in self.col_names:
                 tmp_ddf[name] = tmp_ddf[name].astype(self.ddf[name].dtype)
             x = self.ddf.merge(
@@ -192,33 +186,28 @@ class NumberMap:
                 on=self.col_names,
                 how="right",
             )
-            return x['global_id']
+            return x["global_id"]
 
         def from_internal_vertex_id(
             self, df, internal_column_name, external_column_names
         ):
             tmp_df = self.ddf.merge(
-                df,
-                right_on=internal_column_name,
-                left_on="global_id",
-                how="right"
+                df, right_on=internal_column_name, left_on="global_id", how="right"
             ).map_partitions(lambda df: df.drop(columns="global_id"))
 
             if external_column_names is None:
                 return tmp_df
             else:
                 return tmp_df.map_partitions(
-                    lambda df:
-                    df.rename(
-                        columns=dict(
-                            zip(self.col_names, external_column_names)
-                        ),
-                        copy=False
+                    lambda df: df.rename(
+                        columns=dict(zip(self.col_names, external_column_names)),
+                        copy=False,
                     )
                 )
 
-        def add_internal_vertex_id(self, ddf, id_column_name, col_names, drop,
-                                   preserve_order):
+        def add_internal_vertex_id(
+            self, ddf, id_column_name, col_names, drop, preserve_order
+        ):
             # At the moment, preserve_order cannot be done on
             # multi-GPU
             if preserve_order:
@@ -226,27 +215,19 @@ class NumberMap:
 
             ret = None
             if col_names is None:
-                ret = self.ddf.merge(
-                    ddf, on=self.col_names, how="right"
-                )
+                ret = self.ddf.merge(ddf, on=self.col_names, how="right")
             elif col_names == self.col_names:
-                ret = self.ddf.merge(
-                    ddf, on=col_names, how="right"
-                )
+                ret = self.ddf.merge(ddf, on=col_names, how="right")
             else:
                 ret = self.ddf.merge(
                     ddf, right_on=col_names, left_on=self.col_names
-                ).map_partitions(
-                    lambda df: df.drop(columns=self.col_names)
-                )
+                ).map_partitions(lambda df: df.drop(columns=self.col_names))
 
             if drop:
                 ret = ret.map_partitions(lambda df: df.drop(columns=col_names))
 
             ret = ret.map_partitions(
-                lambda df: df.rename(
-                    columns={"global_id": id_column_name}, copy=False
-                )
+                lambda df: df.rename(columns={"global_id": id_column_name}, copy=False)
             )
 
             return ret
@@ -265,10 +246,7 @@ class NumberMap:
 
             if dst_col_names is not None:
                 tmp_dst = (
-                    ddf[dst_col_names]
-                    .groupby(dst_col_names)
-                    .count()
-                    .reset_index()
+                    ddf[dst_col_names].groupby(dst_col_names).count().reset_index()
                 )
                 tmp_dst.columns = tmp.columns
                 tmp_df = dask_cudf.concat([tmp, tmp_dst])
@@ -280,8 +258,8 @@ class NumberMap:
 
             # Set global index
             tmp_ddf = tmp_ddf.assign(idx=1)
-            tmp_ddf['global_id'] = tmp_ddf.idx.cumsum() - 1
-            tmp_ddf = tmp_ddf.drop(columns='idx')
+            tmp_ddf["global_id"] = tmp_ddf.idx.cumsum() - 1
+            tmp_ddf = tmp_ddf.drop(columns="idx")
             tmp_ddf = tmp_ddf.persist()
             self.ddf = tmp_ddf
             return tmp_ddf
@@ -300,9 +278,7 @@ class NumberMap:
         """
         Helper function to compute internal column names and types
         """
-        return {
-            str(i): df[column_names[i]].dtype for i in range(len(column_names))
-        }
+        return {str(i): df[column_names[i]].dtype for i in range(len(column_names))}
 
     @staticmethod
     def generate_unused_column_name(column_names, start_with_name="col"):
@@ -361,13 +337,11 @@ class NumberMap:
             tmp_df = df
             tmp_col_names = col_names
 
-        reply = self.implementation.to_internal_vertex_id(tmp_df,
-                                                          tmp_col_names)
+        reply = self.implementation.to_internal_vertex_id(tmp_df, tmp_col_names)
         return reply
 
     def add_internal_vertex_id(
-        self, df, id_column_name="id", col_names=None, drop=False,
-        preserve_order=False
+        self, df, id_column_name="id", col_names=None, drop=False, preserve_order=False
     ):
         """
         Given a collection of external vertex ids, return the internal vertex
@@ -426,8 +400,7 @@ class NumberMap:
                 tmp_col_names = [col_names]
 
         return self.implementation.add_internal_vertex_id(
-            tmp_df, id_column_name, tmp_col_names, (drop and can_drop),
-            preserve_order
+            tmp_df, id_column_name, tmp_col_names, (drop and can_drop), preserve_order
         )
 
     def from_internal_vertex_id(
@@ -498,8 +471,12 @@ class NumberMap:
 
     @staticmethod
     def renumber_and_segment(
-        df, src_col_names, dst_col_names, preserve_order=False,
-        store_transposed=False, legacy_renum_only=False
+        df,
+        src_col_names,
+        dst_col_names,
+        preserve_order=False,
+        store_transposed=False,
+        legacy_renum_only=False,
     ):
         renumbered = True
         # FIXME: Drop the renumber_type 'experimental' once all the
@@ -508,18 +485,19 @@ class NumberMap:
         # The renumber_type 'legacy' runs both the python and the
         # C++ renumbering.
         if isinstance(src_col_names, list):
-            renumber_type = 'legacy'
-        elif not (df[src_col_names].dtype == np.int32 or
-                  df[src_col_names].dtype == np.int64):
-            renumber_type = 'legacy'
+            renumber_type = "legacy"
+        elif not (
+            df[src_col_names].dtype == np.int32 or df[src_col_names].dtype == np.int64
+        ):
+            renumber_type = "legacy"
         else:
             # The renumber_type 'experimental' only runs the C++
             # renumbering
-            renumber_type = 'experimental'
+            renumber_type = "experimental"
 
-        if legacy_renum_only and renumber_type == 'experimental':
+        if legacy_renum_only and renumber_type == "experimental":
             # The original dataframe will be returned.
-            renumber_type = 'skip_renumbering'
+            renumber_type = "skip_renumbering"
             renumbered = False
 
         renumber_map = NumberMap()
@@ -530,39 +508,40 @@ class NumberMap:
         # Assign the new src and dst column names to be used in the renumbered
         # dataframe to return (renumbered_src_col_name and
         # renumbered_dst_col_name)
-        renumber_map.set_renumbered_col_names(
-            src_col_names, dst_col_names, df.columns)
+        renumber_map.set_renumbered_col_names(src_col_names, dst_col_names, df.columns)
 
-        id_type = df[src_col_names[0]].dtype
         if isinstance(df, cudf.DataFrame):
             renumber_map.implementation = NumberMap.SingleGPU(
-                df, src_col_names, dst_col_names, renumber_map.id_type,
-                store_transposed
+                df, src_col_names, dst_col_names, renumber_map.id_type, store_transposed
             )
         elif isinstance(df, dask_cudf.DataFrame):
             renumber_map.implementation = NumberMap.MultiGPU(
-                df, src_col_names, dst_col_names, renumber_map.id_type,
-                store_transposed
+                df, src_col_names, dst_col_names, renumber_map.id_type, store_transposed
             )
         else:
             raise TypeError("df must be cudf.DataFrame or dask_cudf.DataFrame")
 
         renumber_map.implementation.numbered = renumbered
 
-        if renumber_type == 'legacy':
-            indirection_map = renumber_map.implementation.\
-                              indirection_map(df,
-                                              src_col_names,
-                                              dst_col_names)
-            df = renumber_map.add_internal_vertex_id(
-                df, renumber_map.renumbered_src_col_name, src_col_names,
-                drop=True, preserve_order=preserve_order
+        if renumber_type == "legacy":
+            indirection_map = renumber_map.implementation.indirection_map(
+                df, src_col_names, dst_col_names
             )
             df = renumber_map.add_internal_vertex_id(
-                df, renumber_map.renumbered_dst_col_name, dst_col_names,
-                drop=True, preserve_order=preserve_order
+                df,
+                renumber_map.renumbered_src_col_name,
+                src_col_names,
+                drop=True,
+                preserve_order=preserve_order,
             )
-        elif renumber_type == 'skip_renumbering':
+            df = renumber_map.add_internal_vertex_id(
+                df,
+                renumber_map.renumbered_dst_col_name,
+                dst_col_names,
+                drop=True,
+                preserve_order=preserve_order,
+            )
+        elif renumber_type == "skip_renumbering":
             # Update the renumbered source and destination column name
             # with the original input's source and destination name
             renumber_map.renumbered_src_col_name = src_col_names[0]
@@ -570,10 +549,10 @@ class NumberMap:
 
         else:
             df = df.rename(
-                columns={src_col_names[0]:
-                         renumber_map.renumbered_src_col_name,
-                         dst_col_names[0]:
-                         renumber_map.renumbered_dst_col_name}
+                columns={
+                    src_col_names[0]: renumber_map.renumbered_src_col_name,
+                    dst_col_names[0]: renumber_map.renumbered_dst_col_name,
+                }
             )
         num_edges = len(df)
 
@@ -584,20 +563,26 @@ class NumberMap:
 
         if is_mnmg:
             # Do not renumber the algos following the C/Pylibcugraph path
-            if renumber_type in ['legacy', 'experimental']:
+            if renumber_type in ["legacy", "experimental"]:
                 client = default_client()
                 data = get_distributed_data(df)
-                result = [(client.submit(call_renumber,
-                                         Comms.get_session_id(),
-                                         wf[1],
-                                         renumber_map.renumbered_src_col_name,
-                                         renumber_map.renumbered_dst_col_name,
-                                         num_edges,
-                                         is_mnmg,
-                                         store_transposed,
-                                         workers=[wf[0]]), wf[0])
-                          for idx, wf in enumerate(
-                              data.worker_to_parts.items())]
+                result = [
+                    (
+                        client.submit(
+                            call_renumber,
+                            Comms.get_session_id(),
+                            wf[1],
+                            renumber_map.renumbered_src_col_name,
+                            renumber_map.renumbered_dst_col_name,
+                            num_edges,
+                            is_mnmg,
+                            store_transposed,
+                            workers=[wf[0]],
+                        ),
+                        wf[0],
+                    )
+                    for idx, wf in enumerate(data.worker_to_parts.items())
+                ]
                 wait(result)
 
                 def get_renumber_map(id_type, data):
@@ -607,46 +592,53 @@ class NumberMap:
                     return data[1]
 
                 def get_renumbered_df(id_type, data):
-                    data[2][renumber_map.renumbered_src_col_name] = \
-                        data[2][renumber_map.renumbered_src_col_name]\
-                        .astype(id_type)
-                    data[2][renumber_map.renumbered_dst_col_name] = \
-                        data[2][renumber_map.renumbered_dst_col_name]\
-                        .astype(id_type)
+                    data[2][renumber_map.renumbered_src_col_name] = data[2][
+                        renumber_map.renumbered_src_col_name
+                    ].astype(id_type)
+                    data[2][renumber_map.renumbered_dst_col_name] = data[2][
+                        renumber_map.renumbered_dst_col_name
+                    ].astype(id_type)
                     return data[2]
 
+                id_type = df[renumber_map.renumbered_src_col_name].dtype
                 renumbering_map = dask_cudf.from_delayed(
-                                    [client.submit(get_renumber_map,
-                                                   id_type,
-                                                   data,
-                                                   workers=[wf])
-                                        for (data, wf) in result])
+                    [
+                        client.submit(get_renumber_map, id_type, data, workers=[wf])
+                        for (data, wf) in result
+                    ]
+                )
 
                 list_of_segment_offsets = client.gather(
-                                            [client.submit(get_segment_offsets,
-                                                           data,
-                                                           workers=[wf])
-                                                for (data, wf) in result])
+                    [
+                        client.submit(get_segment_offsets, data, workers=[wf])
+                        for (data, wf) in result
+                    ]
+                )
                 aggregate_segment_offsets = []
                 for segment_offsets in list_of_segment_offsets:
                     aggregate_segment_offsets.extend(segment_offsets)
 
                 renumbered_df = dask_cudf.from_delayed(
-                                [client.submit(get_renumbered_df,
-                                               id_type,
-                                               data,
-                                               workers=[wf])
-                                    for (data, wf) in result])
-                if renumber_type == 'legacy':
-                    renumber_map.implementation.ddf = indirection_map.merge(
-                        renumbering_map,
-                        right_on='original_ids', left_on='global_id',
-                        how='right').\
-                        drop(columns=['global_id', 'original_ids'])\
-                        .rename(columns={'new_ids': 'global_id'})
+                    [
+                        client.submit(get_renumbered_df, id_type, data, workers=[wf])
+                        for (data, wf) in result
+                    ]
+                )
+                if renumber_type == "legacy":
+                    renumber_map.implementation.ddf = (
+                        indirection_map.merge(
+                            renumbering_map,
+                            right_on="original_ids",
+                            left_on="global_id",
+                            how="right",
+                        )
+                        .drop(columns=["global_id", "original_ids"])
+                        .rename(columns={"new_ids": "global_id"})
+                    )
                 else:
                     renumber_map.implementation.ddf = renumbering_map.rename(
-                        columns={'original_ids': '0', 'new_ids': 'global_id'})
+                        columns={"original_ids": "0", "new_ids": "global_id"}
+                    )
                 return renumbered_df, renumber_map, aggregate_segment_offsets
 
             else:
@@ -656,26 +648,29 @@ class NumberMap:
 
         else:
             # Do not renumber the algos following the C/Pylibcugraph path
-            if renumber_type in ['legacy', 'experimental']:
-                renumbering_map, segment_offsets, renumbered_df = \
-                    c_renumber.renumber(df,
-                                        renumber_map.renumbered_src_col_name,
-                                        renumber_map.renumbered_dst_col_name,
-                                        num_edges,
-                                        0,
-                                        Comms.get_default_handle(),
-                                        is_mnmg,
-                                        store_transposed)
-                if renumber_type == 'legacy':
-                    renumber_map.implementation.df = indirection_map.merge(
-                        renumbering_map,
-                        right_on='original_ids',
-                        left_on='id').drop(columns=['id', 'original_ids'])\
-                        .rename(columns={'new_ids': 'id'}, copy=False)
+            if renumber_type in ["legacy", "experimental"]:
+                renumbering_map, segment_offsets, renumbered_df = c_renumber.renumber(
+                    df,
+                    renumber_map.renumbered_src_col_name,
+                    renumber_map.renumbered_dst_col_name,
+                    num_edges,
+                    0,
+                    Comms.get_default_handle(),
+                    is_mnmg,
+                    store_transposed,
+                )
+                if renumber_type == "legacy":
+                    renumber_map.implementation.df = (
+                        indirection_map.merge(
+                            renumbering_map, right_on="original_ids", left_on="id"
+                        )
+                        .drop(columns=["id", "original_ids"])
+                        .rename(columns={"new_ids": "id"}, copy=False)
+                    )
                 else:
                     renumber_map.implementation.df = renumbering_map.rename(
-                        columns={
-                            'original_ids': '0', 'new_ids': 'id'}, copy=False)
+                        columns={"original_ids": "0", "new_ids": "id"}, copy=False
+                    )
 
                 return renumbered_df, renumber_map, segment_offsets
             else:
@@ -684,14 +679,24 @@ class NumberMap:
                 return df, renumber_map, None
 
     @staticmethod
-    def renumber(df, src_col_names, dst_col_names, preserve_order=False,
-                 store_transposed=False, legacy_renum_only=False):
+    def renumber(
+        df,
+        src_col_names,
+        dst_col_names,
+        preserve_order=False,
+        store_transposed=False,
+        legacy_renum_only=False,
+    ):
         return NumberMap.renumber_and_segment(
-            df, src_col_names, dst_col_names,
-            preserve_order, store_transposed, legacy_renum_only)[0:2]
+            df,
+            src_col_names,
+            dst_col_names,
+            preserve_order,
+            store_transposed,
+            legacy_renum_only,
+        )[0:2]
 
-    def unrenumber(self, df, column_name, preserve_order=False,
-                   get_column_names=False):
+    def unrenumber(self, df, column_name, preserve_order=False, get_column_names=False):
         """
         Given a DataFrame containing internal vertex ids in the identified
         column, replace this with external vertex ids.  If the renumbering
@@ -763,14 +768,14 @@ class NumberMap:
         df = self.from_internal_vertex_id(df, column_name, drop=True)
 
         if preserve_order:
-            df = df.sort_values(
-                index_name
-            ).drop(columns=index_name).reset_index(drop=True)
+            df = (
+                df.sort_values(index_name)
+                .drop(columns=index_name)
+                .reset_index(drop=True)
+            )
 
         if type(df) is dask_cudf.DataFrame:
-            df = df.map_partitions(
-                lambda df: df.rename(columns=mapping, copy=False)
-            )
+            df = df.map_partitions(lambda df: df.rename(columns=mapping, copy=False))
         else:
             df = df.rename(columns=mapping, copy=False)
         if get_column_names:
@@ -781,10 +786,9 @@ class NumberMap:
     def vertex_column_size(self):
         return len(self.implementation.col_names)
 
-    def set_renumbered_col_names(self,
-                                 src_col_names_to_replace,
-                                 dst_col_names_to_replace,
-                                 all_col_names):
+    def set_renumbered_col_names(
+        self, src_col_names_to_replace, dst_col_names_to_replace, all_col_names
+    ):
         """
         Sets self.renumbered_src_col_name and self.renumbered_dst_col_name to
         values that can be used to replace src_col_names_to_replace and
@@ -801,13 +805,12 @@ class NumberMap:
         # No need to consider the col_names_to_replace when picking new unique
         # names, since those names will be replaced anyway, and replacing a
         # name with the same value is allowed.
-        reserved_col_names = set(all_col_names) - \
-            set(src_col_names_to_replace + dst_col_names_to_replace)
-        self.renumbered_src_col_name = \
-            self.generate_unused_column_name(
-                reserved_col_names,
-                start_with_name=self.renumbered_src_col_name)
-        self.renumbered_dst_col_name = \
-            self.generate_unused_column_name(
-                reserved_col_names,
-                start_with_name=self.renumbered_dst_col_name)
+        reserved_col_names = set(all_col_names) - set(
+            src_col_names_to_replace + dst_col_names_to_replace
+        )
+        self.renumbered_src_col_name = self.generate_unused_column_name(
+            reserved_col_names, start_with_name=self.renumbered_src_col_name
+        )
+        self.renumbered_dst_col_name = self.generate_unused_column_name(
+            reserved_col_names, start_with_name=self.renumbered_dst_col_name
+        )

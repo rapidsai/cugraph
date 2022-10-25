@@ -20,6 +20,7 @@
 #include <cugraph/legacy/graph.hpp>
 
 #include <raft/handle.hpp>
+#include <raft/span.hpp>
 #include <rmm/device_uvector.hpp>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/tuple.h>
@@ -113,17 +114,18 @@ static const std::string& get_rapids_dataset_root_dir()
   return rdrd;
 }
 
-// returns a tuple of (rows, columns, weights, number_of_vertices, is_symmetric)
-template <typename vertex_t, typename weight_t, bool store_transposed, bool multi_gpu>
+// returns a tuple of (rows, columns, weights, vertices, is_symmetric)
+template <typename vertex_t, typename weight_t>
 std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<weight_t>>,
            rmm::device_uvector<vertex_t>,
-           vertex_t,
            bool>
 read_edgelist_from_matrix_market_file(raft::handle_t const& handle,
                                       std::string const& graph_file_full_path,
-                                      bool test_weighted);
+                                      bool test_weighted,
+                                      bool store_transposed,
+                                      bool multi_gpu);
 
 // renumber must be true if multi_gpu is true
 template <typename vertex_t,
@@ -137,6 +139,17 @@ read_graph_from_matrix_market_file(raft::handle_t const& handle,
                                    std::string const& graph_file_full_path,
                                    bool test_weighted,
                                    bool renumber);
+
+template <typename vertex_t, typename weight_t>
+std::tuple<rmm::device_uvector<vertex_t>,
+           rmm::device_uvector<vertex_t>,
+           std::optional<rmm::device_uvector<weight_t>>,
+           bool>
+read_edgelist_from_csv_file(raft::handle_t const& handle,
+                            std::string const& graph_file_full_path,
+                            bool test_weighted,
+                            bool store_transposed,
+                            bool multi_gpu);
 
 // alias for easy customization for debug purposes:
 //
@@ -163,13 +176,14 @@ decltype(auto) make_graph(raft::handle_t const& handle,
   }
 
   cugraph::graph_t<vertex_t, edge_t, weight_t, false, false> graph(handle);
-  std::tie(graph, std::ignore) =
-    cugraph::create_graph_from_edgelist<vertex_t, edge_t, weight_t, false, false>(
+  std::tie(graph, std::ignore, std::ignore) =
+    cugraph::create_graph_from_edgelist<vertex_t, edge_t, weight_t, int32_t, false, false>(
       handle,
       std::nullopt,
       std::move(d_src),
       std::move(d_dst),
       std::move(d_w),
+      std::nullopt,
       cugraph::graph_properties_t{false, false},
       false);
 
@@ -229,11 +243,11 @@ std::pair<bool, std::string> compare_graphs(raft::handle_t const& handle,
     std::vector<vertex_t> lv_ci(num_edges);
 
     raft::update_host(lv_ro.data(),
-                      lgraph_view.local_edge_partition_view().offsets(),
+                      lgraph_view.local_edge_partition_view().offsets().data(),
                       num_vertices + 1,
                       handle.get_stream());
     raft::update_host(lv_ci.data(),
-                      lgraph_view.local_edge_partition_view().indices(),
+                      lgraph_view.local_edge_partition_view().indices().data(),
                       num_edges,
                       handle.get_stream());
 
@@ -241,11 +255,11 @@ std::pair<bool, std::string> compare_graphs(raft::handle_t const& handle,
     std::vector<vertex_t> rv_ci(num_edges);
 
     raft::update_host(rv_ro.data(),
-                      rgraph_view.local_edge_partition_view().offsets(),
+                      rgraph_view.local_edge_partition_view().offsets().data(),
                       num_vertices + 1,
                       handle.get_stream());
     raft::update_host(rv_ci.data(),
-                      rgraph_view.local_edge_partition_view().indices(),
+                      rgraph_view.local_edge_partition_view().indices().data(),
                       num_edges,
                       handle.get_stream());
 
@@ -253,12 +267,12 @@ std::pair<bool, std::string> compare_graphs(raft::handle_t const& handle,
     auto rv_vs = is_weighted ? std::make_optional<std::vector<weight_t>>(num_edges) : std::nullopt;
     if (is_weighted) {
       raft::update_host((*lv_vs).data(),
-                        *(lgraph_view.local_edge_partition_view().weights()),
+                        (*(lgraph_view.local_edge_partition_view().weights())).data(),
                         num_edges,
                         handle.get_stream());
 
       raft::update_host((*rv_vs).data(),
-                        *(rgraph_view.local_edge_partition_view().weights()),
+                        (*(rgraph_view.local_edge_partition_view().weights())).data(),
                         num_edges,
                         handle.get_stream());
     }
@@ -331,13 +345,92 @@ bool renumbered_vectors_same(raft::handle_t const& handle,
   return (error_count == 0);
 }
 
-template <typename T, typename L>
-std::vector<T> to_host(raft::handle_t const& handle, T const* data, L size)
+template <typename T>
+std::vector<T> to_host(raft::handle_t const& handle, raft::device_span<T const> data)
 {
-  std::vector<T> h_data(size);
-  raft::update_host(h_data.data(), data, size, handle.get_stream());
+  std::vector<T> h_data(data.size());
+  raft::update_host(h_data.data(), data.data(), data.size(), handle.get_stream());
   handle.sync_stream();
   return h_data;
+}
+
+template <typename T>
+std::vector<T> to_host(raft::handle_t const& handle, rmm::device_uvector<T> const& data)
+{
+  std::vector<T> h_data(data.size());
+  raft::update_host(h_data.data(), data.data(), data.size(), handle.get_stream());
+  handle.sync_stream();
+  return h_data;
+}
+
+template <typename T>
+std::optional<std::vector<T>> to_host(raft::handle_t const& handle,
+                                      std::optional<raft::device_span<T const>> data)
+{
+  std::optional<std::vector<T>> h_data{std::nullopt};
+  if (data) {
+    h_data = std::vector<T>((*data).size());
+    raft::update_host((*h_data).data(), (*data).data(), (*data).size(), handle.get_stream());
+    handle.sync_stream();
+  }
+  return h_data;
+}
+
+template <typename T>
+std::optional<std::vector<T>> to_host(raft::handle_t const& handle,
+                                      std::optional<rmm::device_uvector<T>> const& data)
+{
+  std::optional<std::vector<T>> h_data{std::nullopt};
+  if (data) {
+    h_data = std::vector<T>((*data).size());
+    raft::update_host((*h_data).data(), (*data).data(), (*data).size(), handle.get_stream());
+    handle.sync_stream();
+  }
+  return h_data;
+}
+
+template <typename T>
+rmm::device_uvector<T> to_device(raft::handle_t const& handle, raft::host_span<T const> data)
+{
+  rmm::device_uvector<T> d_data(data.size(), handle.get_stream());
+  raft::update_device(d_data.data(), data.data(), data.size(), handle.get_stream());
+  handle.sync_stream();
+  return d_data;
+}
+
+template <typename T>
+rmm::device_uvector<T> to_device(raft::handle_t const& handle, std::vector<T> const& data)
+{
+  rmm::device_uvector<T> d_data(data.size(), handle.get_stream());
+  raft::update_device(d_data.data(), data.data(), data.size(), handle.get_stream());
+  handle.sync_stream();
+  return d_data;
+}
+
+template <typename T>
+std::optional<rmm::device_uvector<T>> to_device(raft::handle_t const& handle,
+                                                std::optional<raft::host_span<T const>> data)
+{
+  std::optional<rmm::device_uvector<T>> d_data{std::nullopt};
+  if (data) {
+    d_data = rmm::device_uvector<T>(data->size(), handle.get_stream());
+    raft::update_device(d_data->data(), data->data(), data->size(), handle.get_stream());
+    handle.sync_stream();
+  }
+  return d_data;
+}
+
+template <typename T>
+std::optional<rmm::device_uvector<T>> to_device(raft::handle_t const& handle,
+                                                std::optional<std::vector<T>> const& data)
+{
+  std::optional<rmm::device_uvector<T>> d_data{std::nullopt};
+  if (data) {
+    d_data = rmm::device_uvector<T>(data->size(), handle.get_stream());
+    raft::update_host(d_data->data(), data->data(), data->size(), handle.get_stream());
+    handle.sync_stream();
+  }
+  return d_data;
 }
 
 template <typename vertex_t>
@@ -347,8 +440,7 @@ bool renumbered_vectors_same(raft::handle_t const& handle,
 {
   if (v1.size() != v2.size()) return false;
 
-  return renumbered_vectors_same(
-    handle, to_host(handle, v1.data(), v1.size()), to_host(handle, v2.data(), v2.size()));
+  return renumbered_vectors_same(handle, to_host(handle, v1), to_host(handle, v2));
 }
 
 template <typename T, typename L>
@@ -360,6 +452,61 @@ std::vector<T> random_vector(L size, unsigned seed = 0)
   std::generate(v.begin(), v.end(), [&] { return dist(gen); });
   return v;
 }
+
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          bool store_transposed,
+          bool is_multi_gpu>
+std::tuple<std::vector<vertex_t>, std::vector<vertex_t>, std::optional<std::vector<weight_t>>>
+graph_to_host_coo(
+  raft::handle_t const& handle,
+  cugraph::graph_view_t<vertex_t, edge_t, weight_t, store_transposed, is_multi_gpu> const&
+    graph_view);
+
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          bool store_transposed,
+          bool is_multi_gpu>
+std::tuple<std::vector<edge_t>, std::vector<vertex_t>, std::optional<std::vector<weight_t>>>
+graph_to_host_csr(
+  raft::handle_t const& handle,
+  cugraph::graph_view_t<vertex_t, edge_t, weight_t, store_transposed, is_multi_gpu> const&
+    graph_view);
+
+template <typename vertex_t, typename edge_t, typename weight_t, bool store_transposed>
+std::tuple<cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed, false>,
+           std::optional<rmm::device_uvector<vertex_t>>>
+mg_graph_to_sg_graph(
+  raft::handle_t const& handle,
+  cugraph::graph_view_t<vertex_t, edge_t, weight_t, store_transposed, true> const& graph_view,
+  std::optional<rmm::device_uvector<vertex_t>> const& number_map,
+  bool renumber);
+
+template <typename type_t>
+struct nearly_equal {
+  const type_t threshold_ratio;
+  const type_t threshold_magnitude;
+
+  bool operator()(type_t lhs, type_t rhs) const
+  {
+    return std::abs(lhs - rhs) <
+           std::max(std::max(lhs, rhs) * threshold_ratio, threshold_magnitude);
+  }
+};
+
+template <typename type_t>
+struct device_nearly_equal {
+  const type_t threshold_ratio;
+  const type_t threshold_magnitude;
+
+  bool __device__ operator()(type_t lhs, type_t rhs) const
+  {
+    return std::abs(lhs - rhs) <
+           thrust::max(thrust::max(lhs, rhs) * threshold_ratio, threshold_magnitude);
+  }
+};
 
 }  // namespace test
 }  // namespace cugraph

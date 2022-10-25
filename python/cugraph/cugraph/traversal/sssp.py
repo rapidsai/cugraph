@@ -15,20 +15,19 @@ import numpy as np
 
 import cudf
 from cugraph.structure import Graph, DiGraph, MultiGraph, MultiDiGraph
-from cugraph.utilities import (ensure_cugraph_obj,
-                               is_matrix_type,
-                               is_cp_matrix_type,
-                               is_nx_graph_type,
-                               cupy_package as cp,
-                               )
-from pylibcugraph import sssp as pylibcugraph_sssp
-from pylibcugraph import (ResourceHandle,
-                          GraphProperties,
-                          SGGraph)
+from cugraph.utilities import (
+    ensure_cugraph_obj,
+    is_matrix_type,
+    is_cp_matrix_type,
+    is_nx_graph_type,
+    cupy_package as cp,
+)
+from pylibcugraph import sssp as pylibcugraph_sssp, ResourceHandle
 
 
-def _ensure_args(G, source, method, directed,
-                 return_predecessors, unweighted, overwrite, indices):
+def _ensure_args(
+    G, source, method, directed, return_predecessors, unweighted, overwrite, indices
+):
     """
     Ensures the args passed in are usable for the API api_name and returns the
     args with proper defaults if not specified, or raises TypeError or
@@ -73,15 +72,12 @@ def _ensure_args(G, source, method, directed,
     else:
         if (directed is not None) and (type(directed) != bool):
             raise ValueError("'directed' must be a bool")
-        if (return_predecessors is not None) and \
-           (type(return_predecessors) != bool):
+        if (return_predecessors is not None) and (type(return_predecessors) != bool):
             raise ValueError("'return_predecessors' must be a bool")
         if (unweighted is not None) and (unweighted is not True):
-            raise ValueError("'unweighted' currently must be True if "
-                             "specified")
+            raise ValueError("'unweighted' currently must be True if " "specified")
         if (overwrite is not None) and (overwrite is not False):
-            raise ValueError("'overwrite' currently must be False if "
-                             "specified")
+            raise ValueError("'overwrite' currently must be False if " "specified")
 
     source = source if source is not None else indices
     if return_predecessors is None:
@@ -111,11 +107,15 @@ def _convert_df_to_output_type(df, input_type, return_predecessors):
         sorted_df = df.sort_values("vertex")
         if return_predecessors:
             if is_cp_matrix_type(input_type):
-                return (cp.fromDlpack(sorted_df["distance"].to_dlpack()),
-                        cp.fromDlpack(sorted_df["predecessor"].to_dlpack()))
+                return (
+                    cp.fromDlpack(sorted_df["distance"].to_dlpack()),
+                    cp.fromDlpack(sorted_df["predecessor"].to_dlpack()),
+                )
             else:
-                return (sorted_df["distance"].to_numpy(),
-                        sorted_df["predecessor"].to_numpy())
+                return (
+                    sorted_df["distance"].to_numpy(),
+                    sorted_df["predecessor"].to_numpy(),
+                )
         else:
             if is_cp_matrix_type(input_type):
                 return cp.fromDlpack(sorted_df["distance"].to_dlpack())
@@ -125,65 +125,22 @@ def _convert_df_to_output_type(df, input_type, return_predecessors):
         raise TypeError(f"input type {input_type} is not a supported type.")
 
 
-def _call_plc_sssp(
-        G,
-        source,
-        cutoff,
-        compute_predecessors=True,
-        do_expensive_check=False):
-    srcs = G.edgelist.edgelist_df['src']
-    dsts = G.edgelist.edgelist_df['dst']
-    weights = G.edgelist.edgelist_df['weights'] \
-        if 'weights' in G.edgelist.edgelist_df \
-        else cudf.Series((srcs + 1) / (srcs + 1), dtype='float32')
-    if weights.dtype not in ('float32', 'double'):
-        weights = weights.astype('double')
-
-    handle = ResourceHandle()
-
-    sg = SGGraph(
-        resource_handle=handle,
-        graph_properties=GraphProperties(is_multigraph=G.is_multigraph()),
-        src_array=srcs,
-        dst_array=dsts,
-        weight_array=weights,
-        store_transposed=False,
-        renumber=False,
-        do_expensive_check=do_expensive_check
-    )
-
-    vertices, distances, predecessors = pylibcugraph_sssp(
-        resource_handle=handle,
-        graph=sg,
-        source=source,
-        cutoff=cutoff,
-        compute_predecessors=compute_predecessors,
-        do_expensive_check=do_expensive_check
-    )
-
-    df = cudf.DataFrame({
-        'distance': cudf.Series(distances),
-        'vertex': cudf.Series(vertices),
-        'predecessor': cudf.Series(predecessors),
-    })
-
-    return df
-
-
 # FIXME: if G is a Nx type, the weight attribute is assumed to be "weight", if
 # set. An additional optional parameter for the weight attr name when accepting
 # Nx graphs may be needed.  From the Nx docs:
 # |      Many NetworkX algorithms designed for weighted graphs use
 # |      an edge attribute (by default `weight`) to hold a numerical value.
-def sssp(G,
-         source=None,
-         method=None,
-         directed=None,
-         return_predecessors=None,
-         unweighted=None,
-         overwrite=None,
-         indices=None,
-         cutoff=None):
+def sssp(
+    G,
+    source=None,
+    method=None,
+    directed=None,
+    return_predecessors=None,
+    unweighted=None,
+    overwrite=None,
+    indices=None,
+    cutoff=None,
+):
     """
     Compute the distance and predecessors for shortest paths from the specified
     source to all the vertices in the graph. The distances column will store
@@ -249,30 +206,43 @@ def sssp(G,
 
     """
     (source, directed, return_predecessors) = _ensure_args(
-        G, source, method, directed, return_predecessors, unweighted,
-        overwrite, indices)
+        G, source, method, directed, return_predecessors, unweighted, overwrite, indices
+    )
 
     # FIXME: allow nx_weight_attr to be specified
     (G, input_type) = ensure_cugraph_obj(
-        G, nx_weight_attr="weight",
-        matrix_graph_type=Graph(directed=directed))
+        G, nx_weight_attr="weight", matrix_graph_type=Graph(directed=directed)
+    )
 
     if G.renumbered:
         if isinstance(source, cudf.DataFrame):
-            source = G.lookup_internal_vertex_id(
-                source, source.columns).iloc[0]
+            source = G.lookup_internal_vertex_id(source, source.columns).iloc[0]
         else:
             source = G.lookup_internal_vertex_id(cudf.Series([source]))[0]
 
     if source is cudf.NA:
-        raise ValueError(
-            "Starting vertex should be between 0 to number of vertices")
+        raise ValueError("Starting vertex should be between 0 to number of vertices")
 
     if cutoff is None:
         cutoff = np.inf
 
     # compute_predecessors MUST be true in the current version of sssp
-    df = _call_plc_sssp(G, source, cutoff, compute_predecessors=True)
+    vertices, distances, predecessors = pylibcugraph_sssp(
+        resource_handle=ResourceHandle(),
+        graph=G._plc_graph,
+        source=source,
+        cutoff=cutoff,
+        compute_predecessors=True,
+        do_expensive_check=False,
+    )
+
+    df = cudf.DataFrame(
+        {
+            "distance": cudf.Series(distances),
+            "vertex": cudf.Series(vertices),
+            "predecessor": cudf.Series(predecessors),
+        }
+    )
 
     if G.renumbered:
         df = G.unrenumber(df, "vertex")
@@ -312,20 +282,23 @@ def filter_unreachable(df):
         raise TypeError("distance type unsupported")
 
 
-def shortest_path(G,
-                  source=None,
-                  method=None,
-                  directed=None,
-                  return_predecessors=None,
-                  unweighted=None,
-                  overwrite=None,
-                  indices=None):
+def shortest_path(
+    G,
+    source=None,
+    method=None,
+    directed=None,
+    return_predecessors=None,
+    unweighted=None,
+    overwrite=None,
+    indices=None,
+):
     """
     Alias for sssp(), provided for API compatibility with NetworkX. See sssp()
     for details.
     """
-    return sssp(G, source, method, directed, return_predecessors,
-                unweighted, overwrite, indices)
+    return sssp(
+        G, source, method, directed, return_predecessors, unweighted, overwrite, indices
+    )
 
 
 def shortest_path_length(G, source, target=None):
@@ -378,8 +351,7 @@ def shortest_path_length(G, source, target=None):
         if not hasattr(G, "has_node"):
             # G is a cupy coo_matrix. Extract maximum possible vertex value
             as_matrix = G.toarray()
-            if target < 0 or target >= max(as_matrix.shape[0],
-                                           as_matrix.shape[1]):
+            if target < 0 or target >= max(as_matrix.shape[0], as_matrix.shape[1]):
                 raise ValueError("Graph does not contain target vertex")
         elif not G.has_node(target):
             # G is an instance of cugraph or networkx graph
@@ -390,7 +362,7 @@ def shortest_path_length(G, source, target=None):
     if isinstance(df, tuple):
         # cupy path, df is tuple of (distance, predecessor)
         if target:
-            return df[0][target-1]
+            return df[0][target - 1]
         results = cudf.DataFrame()
         results["vertex"] = range(df[0].shape[0])
         results["distance"] = df[0]

@@ -16,10 +16,11 @@ import numpy as np
 import cudf
 from cugraph.centrality import betweenness_centrality_wrapper
 from cugraph.centrality import edge_betweenness_centrality_wrapper
-from cugraph.utilities import (df_edge_score_to_dictionary,
-                               df_score_to_dictionary,
-                               ensure_cugraph_obj_for_nx,
-                               )
+from cugraph.utilities import (
+    df_edge_score_to_dictionary,
+    df_score_to_dictionary,
+    ensure_cugraph_obj_for_nx,
+)
 
 
 # NOTE: result_type=float could be an intuitive way to indicate the result type
@@ -138,19 +139,14 @@ def betweenness_centrality(
         df = G.unrenumber(df, "vertex")
 
     if isNx is True:
-        dict = df_score_to_dictionary(df, 'betweenness_centrality')
+        dict = df_score_to_dictionary(df, "betweenness_centrality")
         return dict
     else:
         return df
 
 
 def edge_betweenness_centrality(
-    G,
-    k=None,
-    normalized=True,
-    weight=None,
-    seed=None,
-    result_dtype=np.float64
+    G, k=None, normalized=True, weight=None, seed=None, result_dtype=np.float64
 ):
     """
     Compute the edge betweenness centrality for all edges of the graph G.
@@ -235,12 +231,12 @@ def edge_betweenness_centrality(
     --------
     >>> from cugraph.experimental.datasets import karate
     >>> G = karate.get_graph(fetch=True)
-    >>> bc = cugraph.betweenness_centrality(G)
+    >>> bc = cugraph.edge_betweenness_centrality(G)
 
     """
     if weight is not None:
         raise NotImplementedError(
-            "weighted implementation of betweenness "
+            "weighted implementation of edge betweenness "
             "centrality not currently supported"
         )
     if result_dtype not in [np.float32, np.float64]:
@@ -259,19 +255,21 @@ def edge_betweenness_centrality(
 
     if G.is_directed() is False:
         # select the lower triangle of the df based on src/dst vertex value
-        lower_triangle = df['src'] >= df['dst']
+        lower_triangle = df["src"] >= df["dst"]
         # swap the src and dst vertices for the lower triangle only. Because
         # this is a symmeterized graph, this operation results in a df with
         # multiple src/dst entries.
-        df['src'][lower_triangle], df['dst'][lower_triangle] = \
-            df['dst'][lower_triangle], df['src'][lower_triangle]
+        df["src"][lower_triangle], df["dst"][lower_triangle] = (
+            df["dst"][lower_triangle],
+            df["src"][lower_triangle],
+        )
         # overwrite the df with the sum of the values for all alike src/dst
         # vertex pairs, resulting in half the edges of the original df from the
         # symmeterized graph.
         df = df.groupby(by=["src", "dst"]).sum().reset_index()
 
     if isNx is True:
-        return df_edge_score_to_dictionary(df, 'betweenness_centrality')
+        return df_edge_score_to_dictionary(df, "betweenness_centrality")
     else:
         return df
 
@@ -312,8 +310,6 @@ def _initialize_vertices_from_indices_sampling(G, k, seed):
 def _initialize_vertices_from_identifiers_list(G, identifiers):
     vertices = identifiers
     if G.renumbered:
-        vertices = G.lookup_internal_vertex_id(
-            cudf.Series(vertices)
-        ).to_numpy()
+        vertices = G.lookup_internal_vertex_id(cudf.Series(vertices)).to_numpy()
 
     return vertices

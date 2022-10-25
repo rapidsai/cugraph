@@ -78,7 +78,7 @@ def pagerank(ResourceHandle resource_handle,
         and running algorithms.
 
     graph : SGGraph or MGGraph
-        The input graph.
+        The input graph, for either Single or Multi-GPU operations.
 
     precomputed_vertex_out_weight_vertices: device array type
         Subset of vertices of graph for precomputed_vertex_out_weight
