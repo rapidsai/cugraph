@@ -266,9 +266,10 @@ class NumberMap:
             self.ddf = tmp_ddf
             return tmp_ddf
 
-    def __init__(self, id_type=np.int32, renumber_type=None):
+    def __init__(self, renumber_id_type=np.int32, unrenumbered_id_type=np.int32):
         self.implementation = None
-        self.id_type = id_type
+        self.renumber_id_type = renumber_id_type
+        self.unrenumbered_id_type = unrenumbered_id_type
         # The default src/dst column names in the resulting renumbered
         # dataframe. These may be updated by the renumbering methods if the
         # input dataframe uses the default names.
@@ -482,9 +483,19 @@ class NumberMap:
     ):
         renumbered = True
 
-        # This assumes that the vertex columns are of the same type
-        # which should be the case
-        id_type = df.dtypes[0]
+        # For columns with mismatch dtypes, set the renumbered
+        # id_type to either 'int32' or 'int64'
+        if df.dtypes.nunique() > 1:
+            # can't determine the edgelist input type
+            unrenumbered_id_type = None
+        else:
+            unrenumbered_id_type = df.dtypes[0]
+
+        if np.int64 in list(df.dtypes):
+            renumber_id_type = np.int64
+        else:
+            # renumber the edgelist to 'int32'
+            renumber_id_type = np.int32
 
         # FIXME: Drop the renumber_type 'experimental' once all the
         # algos follow the C/Pylibcugraph path
@@ -493,12 +504,11 @@ class NumberMap:
         # C++ renumbering.
         if isinstance(src_col_names, list):
             renumber_type = "legacy"
+
         elif not (
             df[src_col_names].dtype == np.int32 or df[src_col_names].dtype == np.int64
         ):
             renumber_type = "legacy"
-            # If the vertices are non-integers, set the renumber 'id_type' to "int32"
-            id_type = "int32"
         else:
             # The renumber_type 'experimental' only runs the C++
             # renumbering
@@ -509,7 +519,7 @@ class NumberMap:
             renumber_type = "skip_renumbering"
             renumbered = False
 
-        renumber_map = NumberMap(id_type=id_type)
+        renumber_map = NumberMap(renumber_id_type, unrenumbered_id_type)
         if not isinstance(src_col_names, list):
             src_col_names = [src_col_names]
             dst_col_names = [dst_col_names]
@@ -521,11 +531,19 @@ class NumberMap:
 
         if isinstance(df, cudf.DataFrame):
             renumber_map.implementation = NumberMap.SingleGPU(
-                df, src_col_names, dst_col_names, renumber_map.id_type, store_transposed
+                df,
+                src_col_names,
+                dst_col_names,
+                renumber_map.renumber_id_type,
+                store_transposed,
             )
         elif isinstance(df, dask_cudf.DataFrame):
             renumber_map.implementation = NumberMap.MultiGPU(
-                df, src_col_names, dst_col_names, renumber_map.id_type, store_transposed
+                df,
+                src_col_names,
+                dst_col_names,
+                renumber_map.renumber_id_type,
+                store_transposed,
             )
         else:
             raise TypeError("df must be cudf.DataFrame or dask_cudf.DataFrame")
