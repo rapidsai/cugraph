@@ -745,26 +745,6 @@ std::unique_ptr<legacy::GraphCOO<vertex_t, edge_t, weight_t>> minimum_spanning_t
   legacy::GraphCSRView<vertex_t, edge_t, weight_t> const& graph,
   rmm::mr::device_memory_resource* mr = rmm::mr::get_current_device_resource());
 
-namespace triangle {
-/**
- * @brief             Count the number of triangles in the graph
- *
- * @throws     cugraph::logic_error when an error occurs.
- *
- * @tparam VT                        Type of vertex identifiers. Supported value : int (signed,
- * 32-bit)
- * @tparam ET                        Type of edge identifiers.  Supported value : int (signed,
- * 32-bit)
- * @tparam WT                        Type of edge weights. Supported values : float or double.
- *
- * @param[in]  graph                 input graph object (CSR)
- *
- * @return                           The number of triangles
- */
-template <typename VT, typename ET, typename WT>
-uint64_t triangle_count(legacy::GraphCSRView<VT, ET, WT> const& graph);
-}  // namespace triangle
-
 namespace subgraph {
 /**
  * @brief             Extract subgraph by vertices
@@ -1797,6 +1777,36 @@ rmm::device_uvector<weight_t> overlap_coefficients(
   graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
   std::tuple<raft::device_span<vertex_t const>, raft::device_span<vertex_t const>> vertex_pairs,
   bool use_weights);
+
+/*
+ * @brief Enumerate K-hop neighbors
+ *
+ * Note that the number of K-hop neighbors (and memory footprint) can grow very fast if there are
+ * high-degree vertices. Limit the number of start vertices and @p k to avoid rapid increase in
+ * memory footprint.
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam weight_t Type of edge weights. Needs to be a floating point type.
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param graph_view Graph view object.
+ * @param start_vertices Find K-hop neighbors from each vertex in @p start_vertices.
+ * @param k Number of hops to make to enumerate neighbors.
+ * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
+ * @return Tuple of two arrays: offsets and K-hop neighbors. The size of the offset array is @p
+ * start_vertices.size() + 1. The i'th and (i+1)'th elements of the offset array demarcates the
+ * beginning (inclusive) and end (exclusive) of the K-hop neighbors of the i'th element of @p
+ * start_vertices, respectively.
+ */
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+std::tuple<rmm::device_uvector<size_t>, rmm::device_uvector<vertex_t>> k_hop_nbrs(
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
+  raft::device_span<vertex_t const> start_vertices,
+  size_t k,
+  bool do_expensive_check = false);
 
 }  // namespace cugraph
 

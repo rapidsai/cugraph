@@ -12,20 +12,18 @@
 # limitations under the License.
 
 import gc
-import sys
 
 import pytest
 import numpy as np
 
 from cugraph.dask.common.mg_utils import is_single_gpu
-from cugraph.testing.utils import RAPIDS_DATASET_ROOT_DIR_PATH
+from cugraph.experimental.datasets import karate
 
 # Get parameters from standard betwenness_centrality_test
 # As tests directory is not a module, we need to add it to the path
 # FIXME: Test must be reworked to import from 'cugraph.testing' instead of
 # importing from other tests
-sys.path.insert(0, "../")
-from test_betweenness_centrality import (  # noqa: E402
+from test_betweenness_centrality import (
     DIRECTED_GRAPH_OPTIONS,
     ENDPOINTS_OPTIONS,
     NORMALIZED_OPTIONS,
@@ -34,7 +32,7 @@ from test_betweenness_centrality import (  # noqa: E402
     SUBSET_SEED_OPTIONS,
 )
 
-from test_betweenness_centrality import (  # noqa: E402
+from test_betweenness_centrality import (
     calc_betweenness_centrality,
     compare_scores,
 )
@@ -42,7 +40,7 @@ from test_betweenness_centrality import (  # noqa: E402
 # =============================================================================
 # Parameters
 # =============================================================================
-DATASETS = [(RAPIDS_DATASET_ROOT_DIR_PATH / "karate.csv").as_posix()]
+DATASETS = [karate]
 # FIXME: The "preset_gpu_count" from 21.08 and below are currently not
 # supported and have been removed
 
@@ -57,7 +55,9 @@ def setup_function():
 
 
 @pytest.mark.skipif(is_single_gpu(), reason="skipping MG testing on Single GPU system")
-@pytest.mark.parametrize("graph_file", DATASETS, ids=[f"dataset={d}" for d in DATASETS])
+@pytest.mark.parametrize(
+    "graph_file", DATASETS, ids=[f"dataset={d.get_path().stem}" for d in DATASETS]
+)
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
 @pytest.mark.parametrize("subset_size", SUBSET_SIZE_OPTIONS)
 @pytest.mark.parametrize("normalized", NORMALIZED_OPTIONS)

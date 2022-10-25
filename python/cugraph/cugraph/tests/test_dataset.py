@@ -99,6 +99,9 @@ def test_set_download_dir(datasets):
     tmpd.cleanup()
 
 
+@pytest.mark.skip(
+    reason="Timeout errors; see: https://github.com/rapidsai/cugraph/issues/2810"
+)
 def test_load_all(datasets):
     tmpd = TemporaryDirectory()
     cfg = create_config(custom_path=tmpd.name)

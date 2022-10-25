@@ -1845,6 +1845,31 @@ def test_add_data_noncontiguous(df_type):
         )
 
 
+@pytest.mark.parametrize("df_type", df_types, ids=df_type_id)
+def test_vertex_ids_different_type(df_type):
+    """Getting the number of vertices requires combining vertex ids from multiples columns.
+
+    This tests ensures combining these columns works even if they are different types.
+    """
+    from cugraph.experimental import PropertyGraph
+
+    if df_type is pd.DataFrame:
+        series_type = pd.Series
+    else:
+        series_type = cudf.Series
+    pg = PropertyGraph()
+    node_df = df_type()
+    node_df["node_id"] = series_type([0, 1, 2]).astype("int32")
+    pg.add_vertex_data(node_df, "node_id", type_name="_N")
+
+    edge_df = df_type()
+    edge_df["src"] = series_type([0, 1, 2]).astype("int32")
+    edge_df["dst"] = series_type([0, 1, 2]).astype("int64")
+    pg.add_edge_data(edge_df, ["src", "dst"], type_name="_E")
+
+    assert pg.get_num_vertices() == 3
+
+
 @pytest.mark.skip(reason="feature not implemented")
 def test_single_csv_multi_vertex_edge_attrs():
     """
@@ -1960,5 +1985,25 @@ def bench_extract_subgraph_for_rmat_detect_duplicate_edges(
                 default_edge_weight=1.0,
                 check_multi_edges=True,
             )
+
+    gpubenchmark(func)
+
+
+@pytest.mark.slow
+@pytest.mark.parametrize("N", [1, 3, 10, 30])
+def bench_add_edges_cyber(gpubenchmark, N):
+    from cugraph.experimental import PropertyGraph
+
+    # Partition the dataframe to add in chunks
+    cyber_df = cyber.get_edgelist()
+    chunk = (len(cyber_df) + N - 1) // N
+    dfs = [cyber_df.iloc[i * chunk : (i + 1) * chunk] for i in range(N)]
+
+    def func():
+        pG = PropertyGraph()
+        for df in dfs:
+            pG.add_edge_data(df, ("srcip", "dstip"))
+        df = pG.get_edge_data()
+        assert len(df) == len(cyber_df)
 
     gpubenchmark(func)
