@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import importlib
 import os
 import sys
 import subprocess
@@ -24,6 +25,9 @@ import pytest
 from . import data
 
 import cudf
+import cupy
+import pandas as pd
+import numpy as np
 
 from cugraph.experimental import PropertyGraph
 from cugraph_service_client import RemotePropertyGraph
@@ -258,7 +262,7 @@ def pG_with_property_csvs_loaded():
 
 
 def test_graph_info(client_with_property_csvs_loaded, pG_with_property_csvs_loaded):
-    rpG = RemotePropertyGraph(client_with_property_csvs_loaded, 0)
+    rpG = RemotePropertyGraph(client_with_property_csvs_loaded, 0, backend="cudf")
     pG = pG_with_property_csvs_loaded
     graph_info = rpG.graph_info
 
@@ -277,7 +281,7 @@ def test_graph_info(client_with_property_csvs_loaded, pG_with_property_csvs_load
 
 def test_edges(client_with_property_csvs_loaded, pG_with_property_csvs_loaded):
     # FIXME update this when edges() method issue is resolved.
-    rpG = RemotePropertyGraph(client_with_property_csvs_loaded, 0)
+    rpG = RemotePropertyGraph(client_with_property_csvs_loaded, 0, backend="cudf")
     pG = pG_with_property_csvs_loaded
 
     edges = pG.get_edge_data(
@@ -297,7 +301,7 @@ def test_edges(client_with_property_csvs_loaded, pG_with_property_csvs_loaded):
 def test_property_type_names(
     client_with_property_csvs_loaded, pG_with_property_csvs_loaded
 ):
-    rpG = RemotePropertyGraph(client_with_property_csvs_loaded, 0)
+    rpG = RemotePropertyGraph(client_with_property_csvs_loaded, 0, backend="cudf")
     pG = pG_with_property_csvs_loaded
 
     assert rpG.vertex_property_names == pG.vertex_property_names
@@ -307,7 +311,7 @@ def test_property_type_names(
 
 
 def test_num_elements(client_with_property_csvs_loaded, pG_with_property_csvs_loaded):
-    rpG = RemotePropertyGraph(client_with_property_csvs_loaded, 0)
+    rpG = RemotePropertyGraph(client_with_property_csvs_loaded, 0, backend="cudf")
     pG = pG_with_property_csvs_loaded
 
     assert rpG.get_num_vertices() == pG.get_num_vertices()
@@ -328,7 +332,7 @@ def test_num_elements(client_with_property_csvs_loaded, pG_with_property_csvs_lo
 def test_get_vertex_data(
     client_with_property_csvs_loaded, pG_with_property_csvs_loaded
 ):
-    rpG = RemotePropertyGraph(client_with_property_csvs_loaded, 0)
+    rpG = RemotePropertyGraph(client_with_property_csvs_loaded, 0, backend="cudf")
     pG = pG_with_property_csvs_loaded
 
     vd = rpG.get_vertex_data()
@@ -371,7 +375,7 @@ def test_get_vertex_data(
 
 
 def test_get_edge_data(client_with_property_csvs_loaded, pG_with_property_csvs_loaded):
-    rpG = RemotePropertyGraph(client_with_property_csvs_loaded, 0)
+    rpG = RemotePropertyGraph(client_with_property_csvs_loaded, 0, backend="cudf")
     pG = pG_with_property_csvs_loaded
 
     ed = rpG.get_edge_data()
@@ -427,3 +431,221 @@ def test_add_vertex_data(
 def test_add_edge_data(client_with_property_csvs_loaded, pG_with_property_csvs_loaded):
 
     raise NotImplementedError()
+
+
+def test_backend_pandas(client_with_property_csvs_loaded, pG_with_property_csvs_loaded):
+    rpG = RemotePropertyGraph(client_with_property_csvs_loaded, 0, backend="pandas")
+    pG = pG_with_property_csvs_loaded
+
+    # edges()
+    rpg_edges = rpG.edges
+    pg_edges = pG.get_edge_data(
+        columns=[pG.src_col_name, pG.dst_col_name, pG.type_col_name]
+    )
+    assert isinstance(rpg_edges, pd.DataFrame)
+    assert (
+        rpg_edges[rpG.src_col_name].tolist()
+        == pg_edges[pG.src_col_name].values_host.tolist()
+    )
+    assert (
+        rpg_edges[rpG.dst_col_name].tolist()
+        == pg_edges[pG.dst_col_name].values_host.tolist()
+    )
+    assert (
+        rpg_edges[rpG.type_col_name].tolist()
+        == pg_edges[pG.type_col_name].values_host.tolist()
+    )
+    assert (
+        rpg_edges[rpG.edge_id_col_name].tolist()
+        == pg_edges[pG.edge_id_col_name].values_host.tolist()
+    )
+
+    # get_vertex_data()
+    rpg_vertex_data = rpG.get_vertex_data()
+    pg_vertex_data = pG.get_vertex_data().fillna(0)
+    assert isinstance(rpg_vertex_data, pd.DataFrame)
+    assert list(rpg_vertex_data.columns) == list(pg_vertex_data.columns)
+    for col in rpg_vertex_data.columns:
+        assert rpg_vertex_data[col].tolist() == pg_vertex_data[col].values_host.tolist()
+
+    # get_edge_data()
+    rpg_edge_data = rpG.get_edge_data()
+    pg_edge_data = pG.get_edge_data().fillna(0)
+    assert isinstance(rpg_edge_data, pd.DataFrame)
+    assert list(rpg_edge_data.columns) == list(pg_edge_data.columns)
+    for col in rpg_edge_data.columns:
+        assert rpg_edge_data[col].tolist() == pg_edge_data[col].values_host.tolist()
+
+
+def test_backend_cupy(client_with_property_csvs_loaded, pG_with_property_csvs_loaded):
+    rpG = RemotePropertyGraph(client_with_property_csvs_loaded, 0, backend="cupy")
+    pG = pG_with_property_csvs_loaded
+
+    # edges()
+    rpg_edges = rpG.edges
+    pg_edges = pG.get_edge_data(
+        columns=[pG.src_col_name, pG.dst_col_name, pG.type_col_name]
+    )
+    for out_tensor in rpg_edges:
+        assert isinstance(out_tensor, cupy.ndarray)
+    assert rpg_edges[1].get().tolist() == pg_edges[pG.src_col_name].values_host.tolist()
+    assert rpg_edges[2].get().tolist() == pg_edges[pG.dst_col_name].values_host.tolist()
+    assert (
+        rpg_edges[0].get().tolist()
+        == pg_edges[pG.edge_id_col_name].values_host.tolist()
+    )
+
+    rpg_types = rpg_edges[3].get().tolist()
+    pg_types = [
+        rpG._edge_categorical_dtype[t] for t in pg_edges[pG.type_col_name].values_host
+    ]
+    assert rpg_types == pg_types
+
+    # get_vertex_data()
+    cols_of_interest = [
+        "merchant_location",
+        "merchant_size",
+        "merchant_sales",
+        "merchant_num_employees",
+    ]
+    rpg_vertex_data = rpG.get_vertex_data(types=["merchants"], columns=cols_of_interest)
+    pg_vertex_data = pG.get_vertex_data(
+        types=["merchants"], columns=cols_of_interest
+    ).fillna(0)
+    for out_tensor in rpg_vertex_data:
+        assert isinstance(out_tensor, cupy.ndarray)
+    assert len(rpg_vertex_data) == len(pg_vertex_data.columns)
+    for i, col in enumerate(cols_of_interest):
+        assert (
+            rpg_vertex_data[i + 2].tolist() == pg_vertex_data[col].values_host.tolist()
+        )
+
+    # get_edge_data()
+    cols_of_interest = ["time", "volume", "card_num"]
+    rpg_edge_data = rpG.get_edge_data(types=["transactions"], columns=cols_of_interest)
+    pg_edge_data = pG.get_edge_data(
+        types=["transactions"], columns=cols_of_interest
+    ).fillna(0)
+    for out_tensor in rpg_edge_data:
+        assert isinstance(out_tensor, cupy.ndarray)
+    assert len(rpg_edge_data) == len(pg_edge_data.columns)
+    for i, col in enumerate(cols_of_interest):
+        assert rpg_edge_data[i + 4].tolist() == pg_edge_data[col].values_host.tolist()
+
+
+def test_backend_numpy(client_with_property_csvs_loaded, pG_with_property_csvs_loaded):
+    rpG = RemotePropertyGraph(client_with_property_csvs_loaded, 0, backend="numpy")
+    pG = pG_with_property_csvs_loaded
+
+    # edges()
+    rpg_edges = rpG.edges
+    pg_edges = pG.get_edge_data(
+        columns=[pG.src_col_name, pG.dst_col_name, pG.type_col_name]
+    )
+    for out_tensor in rpg_edges:
+        assert isinstance(out_tensor, np.ndarray)
+    assert rpg_edges[1].tolist() == pg_edges[pG.src_col_name].values_host.tolist()
+    assert rpg_edges[2].tolist() == pg_edges[pG.dst_col_name].values_host.tolist()
+    assert rpg_edges[0].tolist() == pg_edges[pG.edge_id_col_name].values_host.tolist()
+
+    rpg_types = rpg_edges[3].tolist()
+    pg_types = [
+        rpG._edge_categorical_dtype[t] for t in pg_edges[pG.type_col_name].values_host
+    ]
+    assert rpg_types == pg_types
+
+    # get_vertex_data()
+    cols_of_interest = [
+        "merchant_location",
+        "merchant_size",
+        "merchant_sales",
+        "merchant_num_employees",
+    ]
+    rpg_vertex_data = rpG.get_vertex_data(types=["merchants"], columns=cols_of_interest)
+    pg_vertex_data = pG.get_vertex_data(
+        types=["merchants"], columns=cols_of_interest
+    ).fillna(0)
+    for out_tensor in rpg_vertex_data:
+        assert isinstance(out_tensor, np.ndarray)
+    assert len(rpg_vertex_data) == len(pg_vertex_data.columns)
+    for i, col in enumerate(cols_of_interest):
+        assert (
+            rpg_vertex_data[i + 2].tolist() == pg_vertex_data[col].values_host.tolist()
+        )
+
+    # get_edge_data()
+    cols_of_interest = ["time", "volume", "card_num"]
+    rpg_edge_data = rpG.get_edge_data(types=["transactions"], columns=cols_of_interest)
+    pg_edge_data = pG.get_edge_data(
+        types=["transactions"], columns=cols_of_interest
+    ).fillna(0)
+    for out_tensor in rpg_edge_data:
+        assert isinstance(out_tensor, np.ndarray)
+    assert len(rpg_edge_data) == len(pg_edge_data.columns)
+    for i, col in enumerate(cols_of_interest):
+        assert rpg_edge_data[i + 4].tolist() == pg_edge_data[col].values_host.tolist()
+
+
+try:
+    torch = importlib.import_module("torch")
+except ModuleNotFoundError:
+    torch = None
+
+
+@pytest.mark.skipif(torch is None, reason="torch not available")
+@pytest.mark.parametrize("torch_backend", ["torch", "torch:0", "torch:cuda"])
+def test_backend_torch(
+    client_with_property_csvs_loaded, pG_with_property_csvs_loaded, torch_backend
+):
+    rpG = RemotePropertyGraph(
+        client_with_property_csvs_loaded, 0, backend=torch_backend
+    )
+    pG = pG_with_property_csvs_loaded
+
+    # edges()
+    rpg_edges = rpG.edges
+    pg_edges = pG.get_edge_data(
+        columns=[pG.src_col_name, pG.dst_col_name, pG.type_col_name]
+    )
+    for out_tensor in rpg_edges:
+        assert isinstance(out_tensor, torch.Tensor)
+    assert rpg_edges[1].tolist() == pg_edges[pG.src_col_name].values_host.tolist()
+    assert rpg_edges[2].tolist() == pg_edges[pG.dst_col_name].values_host.tolist()
+    assert rpg_edges[0].tolist() == pg_edges[pG.edge_id_col_name].values_host.tolist()
+
+    rpg_types = rpg_edges[3].tolist()
+    pg_types = [
+        rpG._edge_categorical_dtype[t] for t in pg_edges[pG.type_col_name].values_host
+    ]
+    assert rpg_types == pg_types
+
+    # get_vertex_data()
+    cols_of_interest = [
+        "merchant_location",
+        "merchant_size",
+        "merchant_sales",
+        "merchant_num_employees",
+    ]
+    rpg_vertex_data = rpG.get_vertex_data(types=["merchants"], columns=cols_of_interest)
+    pg_vertex_data = pG.get_vertex_data(
+        types=["merchants"], columns=cols_of_interest
+    ).fillna(0)
+    for out_tensor in rpg_vertex_data:
+        assert isinstance(out_tensor, torch.Tensor)
+    assert len(rpg_vertex_data) == len(pg_vertex_data.columns)
+    for i, col in enumerate(cols_of_interest):
+        assert (
+            rpg_vertex_data[i + 2].tolist() == pg_vertex_data[col].values_host.tolist()
+        )
+
+    # get_edge_data()
+    cols_of_interest = ["time", "volume", "card_num"]
+    rpg_edge_data = rpG.get_edge_data(types=["transactions"], columns=cols_of_interest)
+    pg_edge_data = pG.get_edge_data(
+        types=["transactions"], columns=cols_of_interest
+    ).fillna(0)
+    for out_tensor in rpg_edge_data:
+        assert isinstance(out_tensor, torch.Tensor)
+    assert len(rpg_edge_data) == len(pg_edge_data.columns)
+    for i, col in enumerate(cols_of_interest):
+        assert rpg_edge_data[i + 4].tolist() == pg_edge_data[col].values_host.tolist()

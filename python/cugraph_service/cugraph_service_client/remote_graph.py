@@ -13,7 +13,6 @@
 # limitations under the License.
 
 import numpy as np
-import cupy
 import importlib
 
 
@@ -39,11 +38,111 @@ try:
 except ModuleNotFoundError:
     cudf = MissingModule("cudf")
 
+try:
+    cupy = importlib.import_module("cupy")
+except ModuleNotFoundError:
+    cupy = MissingModule("cupy")
+
+try:
+    pandas = importlib.import_module("pandas")
+except ModuleNotFoundError:
+    pandas = MissingModule("pandas")
+
+try:
+    torch = importlib.import_module("torch")
+except ModuleNotFoundError:
+    torch = MissingModule("torch")
+
+
+def _transform_to_backend_dtype(data, column_names, backend="numpy", dtypes=None):
+    """
+    Supports method-by-method selection of backend type (cupy, cudf, etc.)
+    to avoid costly conversion such as row-major to column-major transformation.
+    If using an array or tensor backend, this method will likely be followed with
+    one or more stack() operations to create a matrix or matrices.
+
+    Note: If using inferred dtypes, the returned dataframes, arrays, or tensors may
+    infer a different dtype than what was originally on the server (i.e promotion
+    of int32 to int64).  In the future, the server may also return dtype to prevent
+    this from occurring.
+
+    data : numpy.ndarray
+        The raw ndarray that will be transformed to the backend type.
+    column_names : list[string]
+        The names of the columns, if creating a dataframe.
+    backend : ('numpy', 'pandas', 'cupy', 'cudf', 'torch', 'torch:<device>')
+              [default = 'cudf']
+        The data backend to convert the provided data to.
+    dtypes : ('int32', 'int64', 'float32', etc.)
+        Optional.  The data type to use when storing data in a dataframe or array.
+        If not set, it will be inferred for dataframe backends, and assumed as float64
+        for array and tensor backends.
+        May be a list, or dictionary corresponding to column names.  Unspecified
+        columns in the dictionary will have their dtype inferred.  Note: for array
+        and tensor backends, the inferred type is always 'float64' which will result
+        in a error for non-numeric inputs.
+        i.e. ['int32', 'int64', 'int32', 'float64']
+        i.e. {'col1':'int32', 'col2': 'int64', 'col3': 'float64'}
+    """
+
+    default_dtype = None if backend in ["cudf", "pandas"] else "float64"
+
+    if dtypes is None:
+        dtypes = [default_dtype] * data.shape[1]
+    elif isinstance(dtypes, (list, tuple)):
+        if len(dtypes) != data.shape[1]:
+            raise ValueError("Datatype array length must match number of columns!")
+    elif isinstance(dtypes, dict):
+        dtypes = [
+            dtypes[name] if name in dtypes else default_dtype for name in column_names
+        ]
+    else:
+        raise ValueError("dtypes must be None, a list/tuple, or a dict")
+
+    if not isinstance(data, np.ndarray):
+        raise TypeError("Numpy ndarray expected")
+
+    if backend == "cupy":
+        return [cupy.array(data[:, c], dtype=dtypes[c]) for c in range(data.shape[1])]
+    elif backend == "numpy":
+        print("dtypes:", dtypes)
+        return [np.array(data[:, c], dtype=dtypes[c]) for c in range(data.shape[1])]
+
+    elif backend == "pandas" or backend == "cudf":
+        from_records = (
+            pandas.DataFrame.from_records
+            if backend == "pandas"
+            else cudf.DataFrame.from_records
+        )
+        df = from_records(data, columns=column_names)
+        for i, t in enumerate(dtypes):
+            if t is not None:
+                df[column_names[i]] = df[column_names[i]].astype(t)
+        return df
+    elif backend == "torch":
+        return [
+            torch.tensor(data[:, c].astype(dtypes[c])) for c in range(data.shape[1])
+        ]
+
+    backend = backend.split(":")
+    if backend[0] == "torch":
+        try:
+            device = int(backend[1])
+        except ValueError:
+            device = backend[1]
+        return [
+            torch.tensor(data[:, c].astype(dtypes[c]), device=device)
+            for c in range(data.shape[1])
+        ]
+
+    raise ValueError(f"invalid backend {backend[0]}")
+
 
 class RemoteGraph:
-    def __init__(self, cgs_client, cgs_graph_id):
+    def __init__(self, cgs_client, cgs_graph_id, backend="numpy"):
         self.__client = cgs_client
         self.__cgs_graph_id = cgs_graph_id
+        self.__backend = backend
 
     def is_remote(self):
         return True
@@ -73,6 +172,10 @@ class RemoteGraph:
         raise NotImplementedError("not implemented")
 
     @property
+    def backend(self):
+        return self.__backend
+
+    @property
     def edgelist(self):
         raise NotImplementedError("not implemented")
 
@@ -91,57 +194,39 @@ class RemotePropertyGraph:
     weight_col_name = "_WEIGHT_"
     _default_type_name = ""
 
-    def __init__(self, cgs_client, cgs_graph_id):
+    def __init__(self, cgs_client, cgs_graph_id, backend="numpy"):
         self.__client = cgs_client
         self.__graph_id = cgs_graph_id
         self.__vertex_categorical_dtype = None
         self.__edge_categorical_dtype = None
+        self.__backend = backend
 
-    def __transform_to_backend_dtype(self, data, column_names, backend, dtypes=[]):
-        """
-        Supports method-by-method selection of backend type (cupy, cudf, etc.)
-        to avoid costly conversion such as row-major to column-major transformation.
-
-        data : cupy.ndarray, np.ndarray
-            The raw ndarray that will be transformed to the backend type.
-        column_names : list[string]
-            The names of the columns, if creating a dataframe.
-        backend : ('cudf', 'cupy') [default = 'cudf']
-            The data backend to convert the provided data to.
-        dtypes : ('int32', 'int64', 'float32', etc.)
-            Optional.  The data type to use when storing data in a dataframe.
-            May be a list, or dictionary corresponding to column names.
-        """
-
-        if backend == "cupy":
-            if isinstance(data, np.ndarray):
-                data = cupy.array(data)
-            return data
-        else:
-            # cudf
-            df = cudf.DataFrame.from_records(data, columns=column_names)
-            if isinstance(dtypes, list):
-                for i, t in enumerate(dtypes):
-                    if t is not None:
-                        df[column_names[i]] = df[column_names[i]].astype(t)
-            elif isinstance(dtypes, dict):
-                for col_name, t in dtypes.items():
-                    df[col_name] = df[col_name].astype(t)
-            return df
-        # TODO support torch
+    @property
+    def backend(self):
+        return self.__backend
 
     @property
     def _vertex_categorical_dtype(self):
         if self.__vertex_categorical_dtype is None:
             cats = self.vertex_types
-            self.__vertex_categorical_dtype = cudf.CategoricalDtype(cats)
+            if self.__backend == "cudf":
+                self.__vertex_categorical_dtype = cudf.CategoricalDtype(cats)
+            elif self.__backend == "pandas":
+                self.__vertex_categorical_dtype = pandas.CategoricalDtype(cats)
+            else:
+                self.__vertex_categorical_dtype = {cat: i for i, cat in enumerate(cats)}
         return self.__vertex_categorical_dtype
 
     @property
     def _edge_categorical_dtype(self):
         if self.__edge_categorical_dtype is None:
             cats = self.edge_types
-            self.__edge_categorical_dtype = cudf.CategoricalDtype(cats)
+            if self.__backend == "cudf":
+                self.__edge_categorical_dtype = cudf.CategoricalDtype(cats)
+            elif self.__backend == "pandas":
+                self.__edge_categorical_dtype = pandas.CategoricalDtype(cats)
+            else:
+                self.__edge_categorical_dtype = {cat: i for i, cat in enumerate(cats)}
         return self.__edge_categorical_dtype
 
     @property
@@ -149,11 +234,11 @@ class RemotePropertyGraph:
         return self.__client.get_graph_info(graph_id=self.__graph_id)
 
     @property
-    def edges(self, _backend="cudf"):
+    def edges(self):
         """
-        Returns the edge list for this property graph as a dataframe
-        containing edge ids, source vertex, destination vertex,
-        and edge type.
+        Returns the edge list for this property graph as a dataframe,
+        array, or tensor containing edge ids, source vertex,
+        destination vertex, and edge type.
         """
         np_edges = self.__client.get_graph_edge_data(
             -1,
@@ -161,7 +246,15 @@ class RemotePropertyGraph:
             property_keys=[self.src_col_name, self.dst_col_name],
         )
 
-        return self.__transform_to_backend_dtype(
+        # Convert edge type to numeric if necessary
+        if self.__backend not in ["cudf", "pandas"]:
+            edge_cat_types = self._edge_categorical_dtype
+            np_edges[:, 3] = np.array([edge_cat_types[t] for t in np_edges[:, 3]])
+            cat_dtype = "int32"
+        else:
+            cat_dtype = self._edge_categorical_dtype
+
+        return _transform_to_backend_dtype(
             np_edges,
             [
                 self.edge_id_col_name,
@@ -169,8 +262,8 @@ class RemotePropertyGraph:
                 self.dst_col_name,
                 self.type_col_name,
             ],
-            _backend,
-            dtypes=[None, None, None, self._edge_categorical_dtype],
+            self.__backend,
+            dtypes=["int64", "int64", "int64", cat_dtype],
         )
 
     @property
@@ -278,9 +371,7 @@ class RemotePropertyGraph:
         """
         raise NotImplementedError("not implemented")
 
-    def get_vertex_data(
-        self, vertex_ids=None, types=None, columns=None, _backend="cudf"
-    ):
+    def get_vertex_data(self, vertex_ids=None, types=None, columns=None):
         # FIXME expose na handling
 
         if columns is None:
@@ -293,12 +384,22 @@ class RemotePropertyGraph:
             graph_id=self.__graph_id,
         )
 
+        # Convert type to numeric if necessary
+        if self.__backend not in ["cudf", "pandas"]:
+            vertex_cat_types = self._vertex_categorical_dtype
+            vertex_data[:, 1] = np.array(
+                [vertex_cat_types[t] for t in vertex_data[:, 1]]
+            )
+            cat_dtype = "int32"
+        else:
+            cat_dtype = self._vertex_categorical_dtype
+
         column_names = [self.vertex_col_name, self.type_col_name] + list(columns)
-        return self.__transform_to_backend_dtype(
+        return _transform_to_backend_dtype(
             vertex_data,
             column_names,
-            _backend,
-            dtypes={self.type_col_name: self._vertex_categorical_dtype},
+            self.__backend,
+            dtypes={self.type_col_name: cat_dtype},
         )
 
     def add_edge_data(
@@ -345,7 +446,7 @@ class RemotePropertyGraph:
         """
         raise NotImplementedError("not implemented")
 
-    def get_edge_data(self, edge_ids=None, types=None, columns=None, _backend="cudf"):
+    def get_edge_data(self, edge_ids=None, types=None, columns=None):
         """
         Return a dataframe containing edge properties for only the specified
         edge_ids, columns, and/or edge type, or all edge IDs if not specified.
@@ -363,17 +464,25 @@ class RemotePropertyGraph:
             graph_id=self.__graph_id,
         )
 
+        # Convert edge type to numeric if necessary
+        if self.__backend not in ["cudf", "pandas"]:
+            edge_cat_types = self._edge_categorical_dtype
+            edge_data[:, 3] = np.array([edge_cat_types[t] for t in edge_data[:, 3]])
+            cat_dtype = "int32"
+        else:
+            cat_dtype = self._edge_categorical_dtype
+
         column_names = [
             self.edge_id_col_name,
             self.src_col_name,
             self.dst_col_name,
             self.type_col_name,
         ] + list(columns)
-        return self.__transform_to_backend_dtype(
+        return _transform_to_backend_dtype(
             edge_data,
             column_names,
-            _backend,
-            dtypes={self.type_col_name: self._edge_categorical_dtype},
+            self.__backend,
+            dtypes={self.type_col_name: cat_dtype},
         )
 
     def select_vertices(self, expr, from_previous_selection=None):
