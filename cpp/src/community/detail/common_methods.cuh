@@ -701,7 +701,7 @@ refine_clustering(
   //
 
   //
-  // Re-read the map from Leiden to Louvain, but for remaining (after moving) Leiden communities
+  // Re-read Leiden to Louvain map, but for remaining (after moving) Leiden communities
   //
   rmm::device_uvector<vertex_t> keys_to_read_value_for(leiden_assignment.size(),
                                                        handle.get_stream());  //#C

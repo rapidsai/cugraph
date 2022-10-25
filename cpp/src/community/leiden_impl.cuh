@@ -409,7 +409,7 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
                                dst_vertex_cluster_assignment_cache);
     }
 
-    auto [leiden_partition, leiden_to_louvain_map] =
+    auto [refined_leiden_partition, leiden_to_louvain_map] =
       detail::refine_clustering(handle,
                                 current_graph_view,
                                 total_edge_weight,
@@ -443,7 +443,16 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
     dst_vertex_cluster_assignment_cache.clear(handle);
 
     auto leiden_of_coarse_graph =
-      aggregate_graph(handle, current_graph_view, current_graph, leiden_partition);
+      aggregate_graph(handle, current_graph_view, current_graph, refined_leiden_partition);
+
+    relabel<vertex_t, multi_gpu>(
+      handle,
+      std::make_tuple(static_cast<vertex_t const*>(leiden_to_louvain_map.first.begin()),
+                      static_cast<vertex_t const*>(leiden_to_louvain_map.second.begin())),
+      leiden_to_louvain_map.first.size(),
+      leiden_of_coarse_graph.data(),
+      leiden_of_coarse_graph.size(),
+      false);
 
     detail::timer_stop<graph_view_t::is_multi_gpu>(handle, hr_timer);
   }
