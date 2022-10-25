@@ -19,3 +19,10 @@ from cugraph.gnn.pyg_extensions.loader.link_neighbor_loader import (
 from cugraph.gnn.pyg_extensions.loader.neighbor_loader import (
     EXPERIMENTAL__CuGraphNeighborLoader,
 )
+
+CuGraphLinkNeighborLoader = experimental_warning_wrapper(
+    EXPERIMENTAL__CuGraphLinkNeighborLoader
+)
+CuGraphNeighborLoader = experimental_warning_wrapper(
+    EXPERIMENTAL__CuGraphNeighborLoader
+)
