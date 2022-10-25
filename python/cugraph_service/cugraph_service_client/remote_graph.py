@@ -139,7 +139,12 @@ def _transform_to_backend_dtype(data, column_names, backend="numpy", dtypes=None
 
 
 class RemoteGraph:
-    def __init__(self, cgs_client, cgs_graph_id, backend="numpy"):
+    def __init__(
+        self,
+        cgs_client,
+        cgs_graph_id,
+        backend=("cudf" if cudf is not None else "numpy"),
+    ):
         self.__client = cgs_client
         self.__cgs_graph_id = cgs_graph_id
         self.__backend = backend
