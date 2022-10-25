@@ -135,7 +135,7 @@ class simpleGraphImpl:
                 edge_attr = [edge_attr]
             if not (set(edge_attr).issubset(set(input_df.columns))):
                 raise ValueError(
-                    "edge_attr column name not found in input."
+                    f"edge_attr column {edge_attr} not found in input."
                     "Recheck the edge_attr parameter"
                 )
             self.properties.weighted = True

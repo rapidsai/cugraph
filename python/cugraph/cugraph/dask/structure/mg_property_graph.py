@@ -444,7 +444,9 @@ class EXPERIMENTAL__MGPropertyGraph:
         else:
             # Join on vertex ids (the index)
             # TODO: can we automagically determine when we to use concat?
-            df = self.__vertex_prop_dataframe.join(tmp_df, how="outer", rsuffix="_NEW_")
+            df = self.__vertex_prop_dataframe.join(
+                tmp_df, how="outer", rsuffix="_NEW_"
+            ).persist()
             cols = self.__vertex_prop_dataframe.columns.intersection(
                 tmp_df.columns
             ).to_list()
@@ -452,7 +454,7 @@ class EXPERIMENTAL__MGPropertyGraph:
             new_cols = list(rename_cols)
             sub_df = df[new_cols].rename(columns=rename_cols)
             # This only adds data--it doesn't replace existing data
-            df = df.drop(columns=new_cols).fillna(sub_df)
+            df = df.drop(columns=new_cols).fillna(sub_df).persist()
             self.__vertex_prop_dataframe = df
 
         # Update the vertex eval dict with the latest column instances
@@ -632,16 +634,15 @@ class EXPERIMENTAL__MGPropertyGraph:
             tmp_df[self.edge_id_col_name] = (
                 tmp_df[self.edge_id_col_name].cumsum() + starting_eid
             )
-            tmp_df = tmp_df.persist()
-            tmp_df = tmp_df.set_index(self.edge_id_col_name)
-            tmp_df = tmp_df.persist()
+            tmp_df = tmp_df.persist().set_index(self.edge_id_col_name).persist()
             self.__last_edge_id = starting_eid + len(tmp_df)
         else:
-            tmp_df = tmp_df.persist()
-            tmp_df = tmp_df.rename(
-                columns={edge_id_col_name: self.edge_id_col_name}
-            ).set_index(self.edge_id_col_name)
-            tmp_df = tmp_df.persist()
+            tmp_df = (
+                tmp_df.rename(columns={edge_id_col_name: self.edge_id_col_name})
+                .persist()
+                .set_index(self.edge_id_col_name)
+                .persist()
+            )
 
         if property_columns:
             # all columns
@@ -673,7 +674,9 @@ class EXPERIMENTAL__MGPropertyGraph:
         else:
             # Join on edge ids (the index)
             # TODO: can we automagically determine when we to use concat?
-            df = self.__edge_prop_dataframe.join(tmp_df, how="outer", rsuffix="_NEW_")
+            df = self.__edge_prop_dataframe.join(
+                tmp_df, how="outer", rsuffix="_NEW_"
+            ).persist()
             cols = self.__edge_prop_dataframe.columns.intersection(
                 tmp_df.columns
             ).to_list()
@@ -681,7 +684,7 @@ class EXPERIMENTAL__MGPropertyGraph:
             new_cols = list(rename_cols)
             sub_df = df[new_cols].rename(columns=rename_cols)
             # This only adds data--it doesn't replace existing data
-            df = df.drop(columns=new_cols).fillna(sub_df)
+            df = df.drop(columns=new_cols).fillna(sub_df).persist()
             self.__edge_prop_dataframe = df
 
         # Update the edge eval dict with the latest column instances
@@ -1094,9 +1097,9 @@ class EXPERIMENTAL__MGPropertyGraph:
             df[self.vertex_col_name] = 1
             df[self.vertex_col_name] = df[self.vertex_col_name].cumsum() - 1
 
-        self.__vertex_prop_dataframe = df.set_index(
-            self.vertex_col_name, sorted=True
-        ).persist()
+        self.__vertex_prop_dataframe = (
+            df.persist().set_index(self.vertex_col_name, sorted=True).persist()
+        )
 
         # FIXME DASK_CUDF: https://github.com/rapidsai/cudf/issues/11795
         df = self._vertex_type_value_counts
@@ -1135,9 +1138,9 @@ class EXPERIMENTAL__MGPropertyGraph:
 
         df[self.edge_id_col_name] = 1
         df[self.edge_id_col_name] = df[self.edge_id_col_name].cumsum() - 1
-        self.__edge_prop_dataframe = df.set_index(
-            self.edge_id_col_name, sorted=True
-        ).persist()
+        self.__edge_prop_dataframe = (
+            df.persist().set_index(self.edge_id_col_name, sorted=True).persist()
+        )
 
         # FIXME DASK_CUDF: https://github.com/rapidsai/cudf/issues/11795
         df = self._edge_type_value_counts

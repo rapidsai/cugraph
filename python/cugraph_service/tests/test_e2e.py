@@ -12,15 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import os
-import sys
-import subprocess
-import time
 from collections.abc import Sequence
 
 import pytest
 
 from . import data
+from . import utils
 
 
 ###############################################################################
@@ -28,20 +25,15 @@ from . import data
 
 
 @pytest.fixture(scope="module")
-def server(graph_creation_extension1):
+def server():
     """
-    Start a cugraph_service server, stop it when done with the fixture.  This
-    also uses graph_creation_extension1 to preload a graph creation extension.
+    Start a cugraph_service server, stop it when done with the fixture.
     """
-    from cugraph_service_server import server
     from cugraph_service_client import CugraphServiceClient
     from cugraph_service_client.exceptions import CugraphServiceError
 
-    server_file = server.__file__
-    server_process = None
     host = "localhost"
     port = 9090
-    graph_creation_extension_dir = graph_creation_extension1
     client = CugraphServiceClient(host, port)
 
     try:
@@ -52,62 +44,15 @@ def server(graph_creation_extension1):
     except CugraphServiceError:
         # A server was not found, so start one for testing then stop it when
         # testing is done.
+        server_process = utils.start_server_subprocess(host=host, port=port)
 
-        # pytest will update sys.path based on the tests it discovers, and for
-        # this source tree, an entry for the parent of this "tests" directory
-        # will be added. The parent to this "tests" directory also allows
-        # imports to find the cugraph_service sources, so in oder to ensure the
-        # server that's started is also using the same sources, the PYTHONPATH
-        # env should be set to the sys.path being used in this process.
-        env_dict = os.environ.copy()
-        env_dict["PYTHONPATH"] = ":".join(sys.path)
+        # yield control to the tests, cleanup on return
+        yield
 
-        with subprocess.Popen(
-            [
-                sys.executable,
-                server_file,
-                "--host",
-                host,
-                "--port",
-                str(port),
-                "--graph-creation-extension-dir",
-                graph_creation_extension_dir,
-            ],
-            env=env_dict,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            text=True,
-        ) as server_process:
-            try:
-                print(
-                    "\nLaunched cugraph_service server, waiting for it to " "start...",
-                    end="",
-                    flush=True,
-                )
-                max_retries = 10
-                retries = 0
-                while retries < max_retries:
-                    try:
-                        client.uptime()
-                        print("started.")
-                        break
-                    except CugraphServiceError:
-                        time.sleep(1)
-                        retries += 1
-                if retries >= max_retries:
-                    raise RuntimeError("error starting server")
-            except Exception:
-                if server_process.poll() is None:
-                    server_process.terminate()
-                raise
-
-            # yield control to the tests
-            yield
-
-            # tests are done, now stop the server
-            print("\nTerminating server...", end="", flush=True)
-            server_process.terminate()
-            print("done.", flush=True)
+        # tests are done, now stop the server
+        print("\nTerminating server...", end="", flush=True)
+        server_process.terminate()
+        print("done.", flush=True)
 
 
 @pytest.fixture(scope="function")
@@ -126,11 +71,25 @@ def client(server):
     # FIXME: should this fixture always unconditionally unload all extensions?
     # client.unload_graph_creation_extensions()
 
-    # yield control to the tests
+    # yield control to the tests, cleanup on return
     yield client
 
-    # tests are done, now stop the server
     client.close()
+
+
+@pytest.fixture(scope="function")
+def client_with_graph_creation_extension_loaded(client, graph_creation_extension1):
+    """
+    Loads the extension defined in graph_creation_extension1, unloads upon completion.
+    """
+    server_extension_dir = graph_creation_extension1
+
+    client.load_graph_creation_extensions(server_extension_dir.name)
+
+    # yield control to the tests, cleanup on return
+    yield client
+
+    client.unload_graph_creation_extensions()
 
 
 @pytest.fixture(scope="function")
@@ -297,7 +256,9 @@ def test_extract_subgraph(client_with_edgelist_csv_loaded):
     assert Gid in client.get_graph_ids()
 
 
-def test_load_and_call_graph_creation_extension(client, graph_creation_extension2):
+def test_load_and_call_graph_creation_extension(
+    client_with_graph_creation_extension_loaded, graph_creation_extension2
+):
     """
     Tests calling a user-defined server-side graph creation extension from the
     cugraph_service client.
@@ -305,23 +266,32 @@ def test_load_and_call_graph_creation_extension(client, graph_creation_extension
     # The graph_creation_extension returns the tmp dir created which contains
     # the extension
     extension_dir = graph_creation_extension2
+    client = client_with_graph_creation_extension_loaded
 
-    num_files_loaded = client.load_graph_creation_extensions(extension_dir)
+    num_files_loaded = client.load_graph_creation_extensions(extension_dir.name)
     assert num_files_loaded == 1
 
-    new_graph_ID = client.call_graph_creation_extension(
+    new_graph_id = client.call_graph_creation_extension(
         "my_graph_creation_function", "a", "b", "c"
     )
 
-    assert new_graph_ID in client.get_graph_ids()
+    assert new_graph_id in client.get_graph_ids()
 
     # Inspect the PG and ensure it was created from my_graph_creation_function
     # FIXME: add client APIs to allow for a more thorough test of the graph
-    assert client.get_graph_info(["num_edges"], new_graph_ID) == 2
+    assert client.get_graph_info(["num_edges"], new_graph_id) == 2
+
+    # Ensure the other graph creation extension (loaded as part of
+    # client_with_graph_creation_extension_loaded) can still be called
+    new_graph_id = client.call_graph_creation_extension(
+        "custom_graph_creation_function"
+    )
+
+    assert new_graph_id in client.get_graph_ids()
 
 
 def test_load_and_call_graph_creation_long_running_extension(
-    client, graph_creation_extension_long_running
+    client_with_graph_creation_extension_loaded, graph_creation_extension_long_running
 ):
     """
     Tests calling a user-defined server-side graph creation extension from the
@@ -330,36 +300,39 @@ def test_load_and_call_graph_creation_long_running_extension(
     # The graph_creation_extension returns the tmp dir created which contains
     # the extension
     extension_dir = graph_creation_extension_long_running
+    client = client_with_graph_creation_extension_loaded
 
-    num_files_loaded = client.load_graph_creation_extensions(extension_dir)
+    num_files_loaded = client.load_graph_creation_extensions(extension_dir.name)
     assert num_files_loaded == 1
 
-    new_graph_ID = client.call_graph_creation_extension(
+    new_graph_id = client.call_graph_creation_extension(
         "long_running_graph_creation_function"
     )
 
-    assert new_graph_ID in client.get_graph_ids()
+    assert new_graph_id in client.get_graph_ids()
 
     # Inspect the PG and ensure it was created from my_graph_creation_function
     # FIXME: add client APIs to allow for a more thorough test of the graph
-    assert client.get_graph_info(["num_edges"], new_graph_ID) == 0
+    assert client.get_graph_info(["num_edges"], new_graph_id) == 0
 
 
-def test_call_graph_creation_extension(client):
+def test_call_graph_creation_extension(client_with_graph_creation_extension_loaded):
     """
     Ensure the graph creation extension preloaded by the server fixture is
     callable.
     """
-    new_graph_ID = client.call_graph_creation_extension(
+    client = client_with_graph_creation_extension_loaded
+
+    new_graph_id = client.call_graph_creation_extension(
         "custom_graph_creation_function"
     )
 
-    assert new_graph_ID in client.get_graph_ids()
+    assert new_graph_id in client.get_graph_ids()
 
     # Inspect the PG and ensure it was created from
     # custom_graph_creation_function
     # FIXME: add client APIs to allow for a more thorough test of the graph
-    assert client.get_graph_info(["num_edges"], new_graph_ID) == 3
+    assert client.get_graph_info(["num_edges"], new_graph_id) == 3
 
 
 def test_get_graph_vertex_data(client_with_property_csvs_loaded):
@@ -399,17 +372,17 @@ def test_get_graph_edge_data(client_with_property_csvs_loaded):
     edge_ids = [0, 1, 2]
     np_array = client.get_graph_edge_data(edge_ids)
     assert np_array.shape == (3, 11)
-    # The 3rd element is the edge ID
+    # The 0th element is the edge ID
     for (i, eid) in enumerate(edge_ids):
-        assert np_array[i][2] == eid
+        assert np_array[i][0] == eid
 
     np_array = client.get_graph_edge_data(0)
     assert np_array.shape == (1, 11)
-    assert np_array[0][2] == 0
+    assert np_array[0][0] == 0
 
     np_array = client.get_graph_edge_data(1)
     assert np_array.shape == (1, 11)
-    assert np_array[0][2] == 1
+    assert np_array[0][0] == 1
 
 
 def test_get_graph_info(client_with_property_csvs_loaded):

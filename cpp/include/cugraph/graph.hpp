@@ -450,29 +450,6 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
                                                                        segment_offsets_});
   }
 
-  // FIXME: possibley to be added later;
-  // for now it's unnecessary;
-  // (commented out, per reviewer request)
-  //
-  // generic in-place sorter on CSR structure;
-  // this is specifically targetting
-  // segmented-sort by weigths; but
-  // must be generic enough to support future
-  // types of sorting;
-  // Notes:
-  // (1.) criterion is mutable (non-const)
-  //      to allow for sorter obejcts for which
-  //      the sorting operation fills additional structures
-  //      (later to be retrieved; e.g., for debugging);
-  // (2.) sorting object is responsible for updating "in-place"
-  //      any of the (offsets, indices, weights) arrays;
-  //
-  // template <typename in_place_sorter_t>
-  // void sort(in_place_sorter_t& criterion)
-  // {
-  //   criterion(offsets_, indices_, weights_);
-  // }
-
   std::tuple<rmm::device_uvector<vertex_t>,
              rmm::device_uvector<vertex_t>,
              std::optional<rmm::device_uvector<weight_t>>>
@@ -481,27 +458,6 @@ class graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu, std::enab
                          bool destroy = false);
 
  private:
-  friend class cugraph::serializer::serializer_t;
-
-  // cnstr. to be used _only_ for un/serialization purposes:
-  //
-  graph_t(raft::handle_t const& handle,
-          vertex_t number_of_vertices,
-          edge_t number_of_edges,
-          graph_properties_t properties,
-          rmm::device_uvector<edge_t>&& offsets,
-          rmm::device_uvector<vertex_t>&& indices,
-          std::optional<rmm::device_uvector<weight_t>>&& weights,
-          std::optional<std::vector<vertex_t>>&& segment_offsets)
-    : detail::graph_base_t<vertex_t, edge_t, weight_t>(
-        handle, number_of_vertices, number_of_edges, properties),
-      offsets_(std::move(offsets)),
-      indices_(std::move(indices)),
-      weights_(std::move(weights)),
-      segment_offsets_(std::move(segment_offsets))
-  {
-  }
-
   rmm::device_uvector<edge_t> offsets_;
   rmm::device_uvector<vertex_t> indices_;
   std::optional<rmm::device_uvector<weight_t>> weights_{std::nullopt};

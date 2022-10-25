@@ -262,9 +262,13 @@ class EXPERIMENTAL__PropertyGraph:
             vert_sers = self.__get_all_vertices_series()
             if vert_sers:
                 if self.__series_type is cudf.Series:
-                    self.__num_vertices = cudf.concat(vert_sers).nunique()
+                    self.__num_vertices = cudf.concat(
+                        vert_sers, ignore_index=True
+                    ).nunique()
                 else:
-                    self.__num_vertices = pd.concat(vert_sers).nunique()
+                    self.__num_vertices = pd.concat(
+                        vert_sers, ignore_index=True
+                    ).nunique()
             return self.__num_vertices
 
         value_counts = self._vertex_type_value_counts
@@ -312,9 +316,13 @@ class EXPERIMENTAL__PropertyGraph:
         vert_sers = self.__get_all_vertices_series()
         if vert_sers:
             if self.__series_type is cudf.Series:
-                return self.__series_type(cudf.concat(vert_sers).unique())
+                return self.__series_type(
+                    cudf.concat(vert_sers, ignore_index=True).unique()
+                )
             else:
-                return self.__series_type(pd.concat(vert_sers).unique())
+                return self.__series_type(
+                    pd.concat(vert_sers, ignore_index=True).unique()
+                )
         return self.__series_type()
 
     def vertices_ids(self):
