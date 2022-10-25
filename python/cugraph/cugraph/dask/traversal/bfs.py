@@ -35,17 +35,19 @@ def convert_to_cudf(cp_arrays):
     return df
 
 
-def _call_plc_bfs(sID, mg_graph_x, st_x, depth_limit=None, return_distances=True):
+def _call_plc_bfs(
+    sID, mg_graph_x, st_x, depth_limit=None, direction_optimizing=False,
+    return_distances=True, do_expensive_check=False):
+    print("python: the start type in _call_plc_bfs is \n", st_x.dtype)
     return pylibcugraph_bfs(
         ResourceHandle(Comms.get_handle(sID).getHandle()),
-        mg_graph_x,
-        cudf.Series(st_x, dtype="int32"),
-        False,
-        depth_limit if depth_limit is not None else 0,
-        return_distances,
-        True,
+        graph=mg_graph_x,
+        sources=st_x,
+        direction_optimizing=direction_optimizing,
+        depth_limit=depth_limit if depth_limit is not None else 0,
+        compute_predecessors=return_distances,
+        do_expensive_check=do_expensive_check,
     )
-
 
 def bfs(input_graph, start, depth_limit=None, return_distances=True, check_start=True):
     """
@@ -156,6 +158,10 @@ def bfs(input_graph, start, depth_limit=None, return_distances=True, check_start
         start = input_graph.lookup_internal_vertex_id(start, tmp_col_names)
 
     data_start = get_distributed_data(start)
+    do_expensive_check = False
+    # FIXME: Why is 'direction_optimizing' not part of the python cugraph API
+    # and why is it set to 'False' by default
+    direction_optimizing = False
 
     cupy_result = [
         client.submit(
@@ -164,7 +170,9 @@ def bfs(input_graph, start, depth_limit=None, return_distances=True, check_start
             input_graph._plc_graph[w],
             st[0],
             depth_limit,
+            direction_optimizing,
             return_distances,
+            do_expensive_check,
             workers=[w],
             allow_other_workers=False,
         )
