@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2022, NVIDIA CORPORATION.
+# Copyright (c) 2022, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -19,3 +19,16 @@ from cugraph.gnn.pyg_extensions.loader.link_neighbor_loader import (
 from cugraph.gnn.pyg_extensions.loader.neighbor_loader import (
     EXPERIMENTAL__CuGraphNeighborLoader,
 )
+
+from cugraph.gnn.pyg_extensions.data.cugraph_store import EXPERIMENTAL__CuGraphStore
+from cugraph.gnn.pyg_extensions.data.cugraph_store import EXPERIMENTAL__to_pyg
+
+CuGraphLinkNeighborLoader = experimental_warning_wrapper(
+    EXPERIMENTAL__CuGraphLinkNeighborLoader
+)
+CuGraphNeighborLoader = experimental_warning_wrapper(
+    EXPERIMENTAL__CuGraphNeighborLoader
+)
+
+CuGraphStore = experimental_warning_wrapper(EXPERIMENTAL__CuGraphStore)
+to_pyg = experimental_warning_wrapper(EXPERIMENTAL__to_pyg)
