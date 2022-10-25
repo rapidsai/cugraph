@@ -258,7 +258,9 @@ class NumberMap:
 
             # Set global index
             tmp_ddf = tmp_ddf.assign(idx=1)
-            tmp_ddf["global_id"] = tmp_ddf.idx.cumsum() - 1
+            # ensure the original vertex and the 'global_id' columns are
+            # of the same type unless the original vertex type is 'string'
+            tmp_ddf["global_id"] = tmp_ddf.idx.cumsum().astype(self.id_type) - 1
             tmp_ddf = tmp_ddf.drop(columns="idx")
             tmp_ddf = tmp_ddf.persist()
             self.ddf = tmp_ddf
@@ -479,6 +481,11 @@ class NumberMap:
         legacy_renum_only=False,
     ):
         renumbered = True
+
+        # This assumes that the vertex columns are of the same type
+        # which should be the case
+        id_type = df.dtypes[0]
+
         # FIXME: Drop the renumber_type 'experimental' once all the
         # algos follow the C/Pylibcugraph path
 
@@ -490,6 +497,9 @@ class NumberMap:
             df[src_col_names].dtype == np.int32 or df[src_col_names].dtype == np.int64
         ):
             renumber_type = "legacy"
+            # If the vertices are of type 'string', set the renumber id_type
+            # to "int32"
+            id_type = "int32"
         else:
             # The renumber_type 'experimental' only runs the C++
             # renumbering
@@ -500,7 +510,7 @@ class NumberMap:
             renumber_type = "skip_renumbering"
             renumbered = False
 
-        renumber_map = NumberMap()
+        renumber_map = NumberMap(id_type=id_type)
         if not isinstance(src_col_names, list):
             src_col_names = [src_col_names]
             dst_col_names = [dst_col_names]

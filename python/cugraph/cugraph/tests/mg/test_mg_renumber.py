@@ -308,7 +308,7 @@ def test_pagerank_string_vertex_ids(dask_client):
     G.from_cudf_edgelist(df, source="src", destination="dst")
 
     sg_results = cugraph.pagerank(G)
-    sg_results = sg_results.sort_values("pagerank").reset_index(drop=True)
+    sg_results = sg_results.sort_values("vertex").reset_index(drop=True)
 
     # MG
     ddf = dask_cudf.from_cudf(df, npartitions=2)
@@ -318,7 +318,31 @@ def test_pagerank_string_vertex_ids(dask_client):
     mg_results = dcg.pagerank(G_dask)
     # Organize results for easy comparison, this does not change the values. MG
     # Pagerank defaults to float64, so convert to float32 when comparing to SG
-    mg_results = mg_results.compute().sort_values("pagerank").reset_index(drop=True)
+    mg_results = mg_results.compute().sort_values("vertex").reset_index(drop=True)
     mg_results["pagerank"] = mg_results["pagerank"].astype("float32")
 
     assert_frame_equal(sg_results, mg_results)
+
+
+@pytest.mark.parametrize("dtype", ["int32", "int64"])
+def test_mg_renumber_multi_column(dtype, dask_client):
+    df = cudf.DataFrame(
+        {"src_a":[i for i in range(0,10)], "dst_a":[i for i in range(10, 20)]}).\
+            astype(dtype)
+
+    df["src_b"] = df["src_a"] + 10
+    df["dst_b"] = df["dst_a"] + 20
+    src_col = ["src_a", "src_b"]
+    dst_col = ["dst_a", "dst_b"]
+
+    ddf = dask_cudf.from_cudf(df, npartitions=2)
+    edgelist_type = list(ddf.dtypes)
+    G = cugraph.Graph()
+    G.from_dask_cudf_edgelist(ddf, source=src_col, destination=dst_col)
+    renumbered_ddf = G.edgelist.edgelist_df
+    renumbered_edgelist_type = list(renumbered_ddf.dtypes)
+
+    assert set(renumbered_edgelist_type).issubset(set(edgelist_type))
+
+
+
