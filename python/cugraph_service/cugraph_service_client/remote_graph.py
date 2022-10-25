@@ -620,7 +620,7 @@ class RemotePropertyGraph:
         --------
         >>>
         """
-        raise NotImplementedError("not ipmlemented")
+        raise NotImplementedError("not implemented")
 
     def renumber_vertices_by_type(self):
         """Renumber vertex IDs to be contiguous by type.
