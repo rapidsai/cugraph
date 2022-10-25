@@ -13,7 +13,7 @@
 
 import cugraph
 from cugraph.experimental import MGPropertyGraph
-from cugraph.gnn.pyg_extensions import to_pyg, CuGraphSampler
+from cugraph.experimental.pyg_extensions import to_pyg, CuGraphSampler
 from cugraph.gnn.pyg_extensions.data.cugraph_store import (
     CuGraphTensorAttr,
     CuGraphEdgeAttr,
