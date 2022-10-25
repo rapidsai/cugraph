@@ -327,8 +327,8 @@ def test_pagerank_string_vertex_ids(dask_client):
 @pytest.mark.parametrize("dtype", ["int32", "int64"])
 def test_mg_renumber_multi_column(dtype, dask_client):
     df = cudf.DataFrame(
-        {"src_a":[i for i in range(0,10)], "dst_a":[i for i in range(10, 20)]}).\
-            astype(dtype)
+        {"src_a": [i for i in range(0, 10)], "dst_a": [i for i in range(10, 20)]}
+    ).astype(dtype)
 
     df["src_b"] = df["src_a"] + 10
     df["dst_b"] = df["dst_a"] + 20
@@ -343,6 +343,3 @@ def test_mg_renumber_multi_column(dtype, dask_client):
     renumbered_edgelist_type = list(renumbered_ddf.dtypes)
 
     assert set(renumbered_edgelist_type).issubset(set(edgelist_type))
-
-
-

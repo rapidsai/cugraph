@@ -36,8 +36,14 @@ def convert_to_cudf(cp_arrays):
 
 
 def _call_plc_bfs(
-    sID, mg_graph_x, st_x, depth_limit=None, direction_optimizing=False,
-    return_distances=True, do_expensive_check=False):
+    sID,
+    mg_graph_x,
+    st_x,
+    depth_limit=None,
+    direction_optimizing=False,
+    return_distances=True,
+    do_expensive_check=False,
+):
     print("python: the start type in _call_plc_bfs is \n", st_x.dtype)
     return pylibcugraph_bfs(
         ResourceHandle(Comms.get_handle(sID).getHandle()),
@@ -48,6 +54,7 @@ def _call_plc_bfs(
         compute_predecessors=return_distances,
         do_expensive_check=do_expensive_check,
     )
+
 
 def bfs(input_graph, start, depth_limit=None, return_distances=True, check_start=True):
     """
