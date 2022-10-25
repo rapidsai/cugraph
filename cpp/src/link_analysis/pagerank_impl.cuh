@@ -26,6 +26,7 @@
 #include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
+#include <cugraph/utilities/device_functors.cuh>
 #include <cugraph/utilities/error.hpp>
 
 #include <raft/handle.hpp>
@@ -45,11 +46,13 @@ namespace cugraph {
 namespace detail {
 
 // FIXME: personalization_vector_size is confusing in OPG (local or aggregate?)
-template <typename GraphViewType, typename result_t>
+template <typename GraphViewType, typename weight_t, typename result_t>
 void pagerank(
   raft::handle_t const& handle,
   GraphViewType const& pull_graph_view,
-  std::optional<typename GraphViewType::weight_type const*> precomputed_vertex_out_weight_sums,
+  std::optional<edge_property_view_t<typename GraphViewType::edge_type, weight_t const*>>
+    edge_weights,
+  std::optional<weight_t const*> precomputed_vertex_out_weight_sums,
   std::optional<typename GraphViewType::vertex_type const*> personalization_vertices,
   std::optional<result_t const*> personalization_values,
   std::optional<typename GraphViewType::vertex_type> personalization_vector_size,
@@ -61,7 +64,7 @@ void pagerank(
   bool do_expensive_check)
 {
   using vertex_t = typename GraphViewType::vertex_type;
-  using weight_t = typename GraphViewType::weight_type;
+  using edge_t   = typename GraphViewType::edge_type;
 
   static_assert(std::is_integral<vertex_t>::value,
                 "GraphViewType::vertex_type should be integral.");
@@ -105,15 +108,17 @@ void pagerank(
         "Invalid input argument: outgoing edge weight sum values should be non-negative.");
     }
 
-    if (pull_graph_view.is_weighted()) {
+    if (edge_weights) {
       auto num_negative_edge_weights =
         count_if_e(handle,
                    pull_graph_view,
                    edge_src_dummy_property_t{}.view(),
                    edge_dst_dummy_property_t{}.view(),
-                   [] __device__(vertex_t, vertex_t, weight_t w, auto, auto) { return w < 0.0; });
-      CUGRAPH_EXPECTS(num_negative_edge_weights == 0,
-                      "Invalid input argument: input graph should have non-negative edge weights.");
+                   *edge_weights,
+                   [] __device__(vertex_t, vertex_t, auto, auto, weight_t w) { return w < 0.0; });
+      CUGRAPH_EXPECTS(
+        num_negative_edge_weights == 0,
+        "Invalid input argument: input edge weights should have non-negative values.");
     }
 
     if (has_initial_guess) {
@@ -156,13 +161,24 @@ void pagerank(
 
   // 2. compute the sums of the out-going edge weights (if not provided)
 
-  auto tmp_vertex_out_weight_sums = precomputed_vertex_out_weight_sums
-                                      ? std::nullopt
-                                      : std::optional<rmm::device_uvector<weight_t>>{
-                                          compute_out_weight_sums(handle, pull_graph_view)};
-  auto vertex_out_weight_sums     = precomputed_vertex_out_weight_sums
-                                      ? *precomputed_vertex_out_weight_sums
-                                      : (*tmp_vertex_out_weight_sums).data();
+  std::optional<rmm::device_uvector<weight_t>> tmp_vertex_out_weight_sums{std::nullopt};
+  if (!precomputed_vertex_out_weight_sums) {
+    if (edge_weights) {
+      tmp_vertex_out_weight_sums = compute_out_weight_sums(handle, pull_graph_view, *edge_weights);
+    } else {
+      auto tmp_vertex_out_degrees = pull_graph_view.compute_out_degrees(handle);
+      tmp_vertex_out_weight_sums =
+        rmm::device_uvector<weight_t>(tmp_vertex_out_degrees.size(), handle.get_stream());
+      thrust::transform(handle.get_thrust_policy(),
+                        tmp_vertex_out_degrees.begin(),
+                        tmp_vertex_out_degrees.end(),
+                        (*tmp_vertex_out_weight_sums).begin(),
+                        detail::typecast_t<edge_t, weight_t>{});
+    }
+  }
+  auto vertex_out_weight_sums = precomputed_vertex_out_weight_sums
+                                  ? *precomputed_vertex_out_weight_sums
+                                  : (*tmp_vertex_out_weight_sums).data();
 
   // 3. initialize pagerank values
 
@@ -246,16 +262,31 @@ void pagerank(
                                 static_cast<result_t>(num_vertices)
                             : result_t{0.0};
 
-    per_v_transform_reduce_incoming_e(
-      handle,
-      pull_graph_view,
-      edge_src_pageranks.view(),
-      edge_dst_dummy_property_t{}.view(),
-      [alpha] __device__(vertex_t, vertex_t, weight_t w, auto src_val, auto) {
-        return src_val * w * alpha;
-      },
-      unvarying_part,
-      pageranks);
+    if (edge_weights) {
+      per_v_transform_reduce_incoming_e(
+        handle,
+        pull_graph_view,
+        edge_src_pageranks.view(),
+        edge_dst_dummy_property_t{}.view(),
+        *edge_weights,
+        [alpha] __device__(vertex_t, vertex_t, auto src_val, auto, weight_t w) {
+          return src_val * w * alpha;
+        },
+        unvarying_part,
+        pageranks);
+    } else {
+      per_v_transform_reduce_incoming_e(
+        handle,
+        pull_graph_view,
+        edge_src_pageranks.view(),
+        edge_dst_dummy_property_t{}.view(),
+        edge_dummy_property_t{}.view(),
+        [alpha] __device__(vertex_t, vertex_t, auto src_val, auto, auto) {
+          return src_val * 1.0 * alpha;
+        },
+        unvarying_part,
+        pageranks);
+    }
 
     if (aggregate_personalization_vector_size > 0) {
       auto vertex_partition = vertex_partition_device_view_t<vertex_t, GraphViewType::is_multi_gpu>(
@@ -297,7 +328,8 @@ void pagerank(
 
 template <typename vertex_t, typename edge_t, typename weight_t, typename result_t, bool multi_gpu>
 void pagerank(raft::handle_t const& handle,
-              graph_view_t<vertex_t, edge_t, weight_t, true, multi_gpu> const& graph_view,
+              graph_view_t<vertex_t, edge_t, true, multi_gpu> const& graph_view,
+              std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weights,
               std::optional<weight_t const*> precomputed_vertex_out_weight_sums,
               std::optional<vertex_t const*> personalization_vertices,
               std::optional<result_t const*> personalization_values,
@@ -311,6 +343,7 @@ void pagerank(raft::handle_t const& handle,
 {
   detail::pagerank(handle,
                    graph_view,
+                   edge_weights,
                    precomputed_vertex_out_weight_sums,
                    personalization_vertices,
                    personalization_values,

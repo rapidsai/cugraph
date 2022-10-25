@@ -459,7 +459,7 @@ __global__ void per_v_transform_reduce_e_high_degree(
                                     dst,
                                     edge_partition_src_value_input.get(src_offset),
                                     edge_partition_dst_value_input.get(dst_offset),
-                                    edge_partition_dst_value_input.get(edge_offset + i),
+                                    edge_partition_e_value_input.get(edge_offset + i),
                                     e_op);
       if constexpr (update_major) {
         e_op_result_sum = edge_property_add(e_op_result_sum, e_op_result);
