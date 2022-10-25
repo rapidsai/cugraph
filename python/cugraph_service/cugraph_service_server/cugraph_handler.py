@@ -17,8 +17,11 @@ import importlib
 import time
 import traceback
 from inspect import signature
+import asyncio
 
 import numpy as np
+import cupy as cp
+import ucp
 import cudf
 import dask_cudf
 import cugraph
@@ -55,8 +58,11 @@ def call_algo(sg_algo_func, G, **kwargs):
         if is_mg_graph:
             possible_args = ["start_list", "fanout_vals", "with_replacement"]
             kwargs_to_pass = {a: kwargs[a] for a in possible_args if a in kwargs}
-            data = mg_uniform_neighbor_sample(G, **kwargs_to_pass)
-            data = data.compute()
+            result_ddf = mg_uniform_neighbor_sample(G, **kwargs_to_pass)
+            # Convert DataFrame into CuPy arrays for returning to the client
+            sources = result_ddf["sources"].compute().to_cupy()
+            destinations = result_ddf["destinations"].compute().to_cupy()
+            indices = result_ddf["indices"].compute().to_cupy()
         else:
             possible_args = [
                 "start_list",
@@ -65,12 +71,16 @@ def call_algo(sg_algo_func, G, **kwargs):
                 "is_edge_ids",
             ]
             kwargs_to_pass = {a: kwargs[a] for a in possible_args if a in kwargs}
-            data = uniform_neighbor_sample(G, **kwargs_to_pass)
+            result_df = uniform_neighbor_sample(G, **kwargs_to_pass)
+            # Convert DataFrame into CuPy arrays for returning to the client
+            sources = result_df["sources"].to_cupy()
+            destinations = result_df["destinations"].to_cupy()
+            indices = result_df["indices"].to_cupy()
 
         return UniformNeighborSampleResult(
-            sources=data.sources.values_host,
-            destinations=data.destinations.values_host,
-            indices=data.indices.values_host,
+            sources=sources,
+            destinations=destinations,
+            indices=indices,
         )
 
     else:
@@ -125,6 +135,8 @@ class CugraphHandler:
         self.__dask_client = None
         self.__dask_cluster = None
         self.__start_time = int(time.time())
+        self.__next_test_array_id = 0
+        self.__test_arrays = {}
 
     def __del__(self):
         self.shutdown_dask_client()
@@ -170,7 +182,6 @@ class CugraphHandler:
 
         The modules are searched and their functions are called (if a match is
         found) when call_graph_creation_extension() is called.
-
         """
         extension_dir = Path(extension_dir_path)
 
@@ -178,13 +189,12 @@ class CugraphHandler:
             raise CugraphServiceError(f"bad directory: {extension_dir}")
 
         num_files_read = 0
-
         for ext_file in extension_dir.glob("*_extension.py"):
-            module_name = ext_file.stem
-            spec = importlib.util.spec_from_file_location(module_name, ext_file)
+            module_file_path = ext_file.absolute().as_posix()
+            spec = importlib.util.spec_from_file_location(module_file_path, ext_file)
             module = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(module)
-            self.__graph_creation_extensions[module_name] = module
+            self.__graph_creation_extensions[module_file_path] = module
             num_files_read += 1
 
         return num_files_read
@@ -252,8 +262,10 @@ class CugraphHandler:
         Initialize a dask client to be used for MG operations.
         """
         if dask_scheduler_file is not None:
-            # Env var UCX_MAX_RNDV_RAILS=1 must be set too.
+            # FIXME: read the config from user options instead of hardcoding here.
+            # FIXME: for the config below, env var UCX_MAX_RNDV_RAILS=1 must be set too.
             dask_initialize(
+                create_cuda_context=False,
                 enable_tcp_over_ucx=True,
                 enable_nvlink=True,
                 enable_infiniband=True,
@@ -335,38 +347,35 @@ class CugraphHandler:
 
         G = self._get_graph(graph_id)
         info = {}
-        if isinstance(G, (PropertyGraph, MGPropertyGraph)):
-            for k in keys:
-                if k == "num_vertices":
-                    info[k] = G.get_num_vertices()
-                elif k == "num_vertices_from_vertex_data":
-                    info[k] = G.get_num_vertices(include_edge_data=False)
-                elif k == "num_edges":
-                    info[k] = G.get_num_edges()
-                elif k == "num_vertex_properties":
-                    info[k] = len(G.vertex_property_names)
-                elif k == "num_edge_properties":
-                    info[k] = len(G.edge_property_names)
-        else:
-            for k in keys:
-                if k == "num_vertices":
-                    info[k] = G.number_of_vertices()
-                elif k == "num_vertices_from_vertex_data":
-                    info[k] = 0
-                elif k == "num_edges":
-                    info[k] = G.number_of_edges()
-                elif k == "num_vertex_properties":
-                    info[k] = 0
-                elif k == "num_edge_properties":
-                    info[k] = 0
+        try:
+            if isinstance(G, (PropertyGraph, MGPropertyGraph)):
+                for k in keys:
+                    if k == "num_vertices":
+                        info[k] = G.get_num_vertices()
+                    elif k == "num_vertices_from_vertex_data":
+                        info[k] = G.get_num_vertices(include_edge_data=False)
+                    elif k == "num_edges":
+                        info[k] = G.get_num_edges()
+                    elif k == "num_vertex_properties":
+                        info[k] = len(G.vertex_property_names)
+                    elif k == "num_edge_properties":
+                        info[k] = len(G.edge_property_names)
+            else:
+                for k in keys:
+                    if k == "num_vertices":
+                        info[k] = G.number_of_vertices()
+                    elif k == "num_vertices_from_vertex_data":
+                        info[k] = 0
+                    elif k == "num_edges":
+                        info[k] = G.number_of_edges()
+                    elif k == "num_vertex_properties":
+                        info[k] = 0
+                    elif k == "num_edge_properties":
+                        info[k] = 0
+        except Exception:
+            raise CugraphServiceError(f"{traceback.format_exc()}")
 
         return {key: ValueWrapper(value).union for (key, value) in info.items()}
-
-    def get_graph_type(self, graph_id):
-        """
-        Returns a string repr of the graph type associated with graph_id.
-        """
-        return repr(type(self._get_graph(graph_id)))
 
     def load_csv_as_vertex_data(
         self,
@@ -549,7 +558,13 @@ class CugraphHandler:
             columns = property_keys
         if types == []:
             types = None
-        df = pG.get_vertex_data(vertex_ids=ids, columns=columns, types=types)
+
+        try:
+            df = pG.get_vertex_data(vertex_ids=ids, columns=columns)
+            if isinstance(df, dask_cudf.DataFrame):
+                df = df.compute()
+        except KeyError:
+            df = None
         return self.__get_graph_data_as_numpy_bytes(df, null_replacement_value)
 
     def get_graph_edge_data(
@@ -572,7 +587,13 @@ class CugraphHandler:
             columns = property_keys
         if types == []:
             types = None
-        df = pG.get_edge_data(edge_ids=ids, columns=columns, types=types)
+
+        try:
+            df = pG.get_edge_data(edge_ids=ids, columns=columns)
+            if isinstance(df, dask_cudf.DataFrame):
+                df = df.compute()
+        except KeyError:
+            df = None
         return self.__get_graph_data_as_numpy_bytes(df, null_replacement_value)
 
     def is_vertex_property(self, property_key, graph_id):
@@ -729,6 +750,8 @@ class CugraphHandler:
         fanout_vals,
         with_replacement,
         graph_id,
+        result_host,
+        result_port,
     ):
         G = self._get_graph(graph_id)
         if isinstance(G, (MGPropertyGraph, PropertyGraph)):
@@ -741,19 +764,99 @@ class CugraphHandler:
             )
 
         try:
-            return call_algo(
+            uns_result = call_algo(
                 uniform_neighbor_sample,
                 G,
                 start_list=start_list,
                 fanout_vals=fanout_vals,
                 with_replacement=with_replacement,
             )
+            if (result_host is not None) or (result_port is not None):
+                if (result_host is None) or (result_port is None):
+                    raise ValueError(
+                        "both result_host and result_port must "
+                        "be set if either is set. Got: "
+                        f"{result_host=}, {result_port=}"
+                    )
+                asyncio.run(
+                    self.__ucx_send_results(
+                        result_host,
+                        result_port,
+                        uns_result.sources,
+                        uns_result.destinations,
+                        uns_result.indices,
+                    )
+                )
+                # FIXME: Thrift still expects something of the expected type to
+                # be returned to be serialized and sent. Look into a separate
+                # API that uses the Thrift "oneway" modifier when returning
+                # results via client device.
+                return UniformNeighborSampleResult()
+
+            else:
+                uns_result.sources = cp.asnumpy(uns_result.sources)
+                uns_result.destinations = cp.asnumpy(uns_result.destinations)
+                uns_result.indices = cp.asnumpy(uns_result.indices)
+                return uns_result
+
         except Exception:
             raise CugraphServiceError(f"{traceback.format_exc()}")
 
     def pagerank(self, graph_id):
         """ """
         raise NotImplementedError
+
+    ###########################################################################
+    # Test/Debug APIs
+    def create_test_array(self, nbytes):
+        """
+        Creates an array of bytes (int8 values set to 1) and returns an ID to
+        use to reference the array in later test calls.
+
+        The test array must be deleted by calling delete_test_array().
+        """
+        aid = self.__next_test_array_id
+        self.__test_arrays[aid] = cp.ones(nbytes, dtype="int8")
+        self.__next_test_array_id += 1
+        return aid
+
+    def delete_test_array(self, test_array_id):
+        """
+        Deletes the test array identified by test_array_id.
+        """
+        a = self.__test_arrays.pop(test_array_id, None)
+        if a is None:
+            raise CugraphServiceError(f"invalid test_array_id {test_array_id}")
+        del a
+
+    def receive_test_array(self, test_array_id):
+        """
+        Returns the test array identified by test_array_id to the client.
+
+        This can be used to verify transfer speeds from server to client are
+        performing as expected.
+        """
+        return self.__test_arrays[test_array_id]
+
+    def receive_test_array_to_device(self, test_array_id, result_host, result_port):
+        """
+        Returns the test array identified by test_array_id to the client via
+        UCX-Py listening on result_host/result_port.
+
+        This can be used to verify transfer speeds from server to client are
+        performing as expected.
+        """
+        asyncio.run(
+            self.__ucx_send_results(
+                result_host, result_port, self.__test_arrays[test_array_id]
+            )
+        )
+
+    def get_graph_type(self, graph_id):
+        """
+        Returns a string repr of the graph type associated with graph_id.
+        """
+        return repr(type(self._get_graph(graph_id)))
 
     ###########################################################################
     # "Protected" interface - used for both implementation and test/debug. Will
@@ -780,6 +883,14 @@ class CugraphHandler:
 
     ###########################################################################
     # Private
+    async def __ucx_send_results(self, result_host, result_port, *results):
+        # The cugraph_service_client should have set up a UCX listener waiting
+        # for the result. Create an endpoint, send results, and close.
+        ep = await ucp.create_endpoint(result_host, result_port)
+        for r in results:
+            await ep.send_obj(r)
+        await ep.close()
+
     def __get_dataframe_from_csv(self, csv_file_name, delimiter, dtypes, header, names):
         """
         Read a CSV into a DataFrame and return it. This will use either a cuDF
@@ -874,10 +985,6 @@ class CugraphHandler:
         try:
             if dataframe is None:
                 return np.ndarray(shape=(0, 0)).dumps()
-            elif isinstance(dataframe, dask_cudf.DataFrame):
-                df = dataframe.compute()
-            else:
-                df = dataframe
 
             # null_replacement_value is a Value "union"
             n = ValueWrapper(null_replacement_value).get_py_obj()
@@ -886,7 +993,7 @@ class CugraphHandler:
             # FIXME: should something other than a numpy type be serialized to
             # prevent a copy? (note: any other type required to be de-serialzed
             # on the client end could add dependencies on the client)
-            df_numpy = df.to_numpy(na_value=n)
+            df_numpy = dataframe.to_numpy(na_value=n)
             return df_numpy.dumps()
 
         except Exception:

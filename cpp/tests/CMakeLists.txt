@@ -26,6 +26,7 @@ add_library(cugraphtestutil STATIC
             utilities/test_utilities_sg.cu
             utilities/test_utilities_mg.cu
             link_prediction/similarity_compare.cpp
+	    structure/induced_subgraph_validate.cu
             components/wcc_graphs.cu
             sampling/random_walks_check_sg.cu
             ../../thirdparty/mmio/mmio.c)
@@ -257,10 +258,6 @@ ConfigureTest(STREAM_TEST structure/streams.cu)
 ConfigureTest(GENERATE_RMAT_TEST generators/generate_rmat_test.cpp)
 
 ###################################################################################################
-# - Graph tests -----------------------------------------------------------------------------------
-ConfigureTest(GRAPH_TEST structure/graph_test.cpp)
-
-###################################################################################################
 # - Graph mask tests -----------------------------------------------------------------------------------
 ConfigureTest(GRAPH_MASK_TEST structure/graph_mask_test.cpp)
 
@@ -295,7 +292,7 @@ ConfigureTest(COARSEN_GRAPH_TEST structure/coarsen_graph_test.cpp)
 
 ###################################################################################################
 # - Induced subgraph tests ------------------------------------------------------------------------
-ConfigureTest(INDUCED_SUBGRAPH_TEST community/induced_subgraph_test.cpp)
+ConfigureTest(INDUCED_SUBGRAPH_TEST structure/induced_subgraph_test.cpp)
 
 ###################################################################################################
 # - BFS tests -------------------------------------------------------------------------------------
@@ -480,6 +477,10 @@ if(BUILD_CUGRAPH_MG_TESTS)
     ###############################################################################################
     # - MG TRIANGLE COUNT tests -------------------------------------------------------------------
     ConfigureTestMG(MG_TRIANGLE_COUNT_TEST community/mg_triangle_count_test.cpp)
+
+    ###############################################################################################
+    # - MG INDUCED SUBGRAPH tests -----------------------------------------------------------------
+    ConfigureTestMG(MG_INDUCED_SUBGRAPH_TEST structure/mg_induced_subgraph_test.cpp)
 
     ###############################################################################################
     # - MG PRIMS COUNT_IF_V tests -----------------------------------------------------------------
