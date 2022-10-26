@@ -276,7 +276,7 @@ class CuGraphStore:
         # of the seed dtype is not same as the node dtype
         self.set_sg_node_dtype(first_sg)
 
-        # Below will be called from dict
+        # Below will be called from remote storage
         sampled_result_arrays = sample_pg(
             self.gdata,
             has_multiple_etypes=self.has_multiple_etypes,
