@@ -22,6 +22,7 @@ import threading
 import cupy as cp
 
 from cugraph_service_client import defaults
+from cugraph_service_client.remote_graph import RemotePropertyGraph
 from cugraph_service_client.types import (
     ValueWrapper,
     GraphVertexEdgeID,
@@ -393,6 +394,12 @@ class CugraphServiceClient:
         >>> client.delete_graph(my_graph_id)
         """
         return self.__client.delete_graph(graph_id)
+
+    def graph(self):
+        """
+        Constructs an empty RemotePropertyGraph object.
+        """
+        return RemotePropertyGraph(self, self.create_graph())
 
     @__server_connection
     def get_graph_ids(self):

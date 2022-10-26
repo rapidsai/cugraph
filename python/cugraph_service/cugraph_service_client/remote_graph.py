@@ -142,11 +142,12 @@ class RemoteGraph:
         self,
         cgs_client,
         cgs_graph_id,
-        backend=("cudf" if cudf is not None else "numpy"),
     ):
         self.__client = cgs_client
-        self.__cgs_graph_id = cgs_graph_id
-        self.__backend = backend
+        self.__graph_id = cgs_graph_id
+
+    def __del__(self):
+        self.__client.delete_graph(self.__graph_id)
 
     def is_remote(self):
         return True
@@ -176,10 +177,6 @@ class RemoteGraph:
         raise NotImplementedError("not implemented")
 
     @property
-    def backend(self):
-        return self.__backend
-
-    @property
     def edgelist(self):
         raise NotImplementedError("not implemented")
 
@@ -202,48 +199,34 @@ class RemotePropertyGraph:
         self,
         cgs_client,
         cgs_graph_id,
-        backend=("cudf" if cudf is not None else "numpy"),
     ):
         self.__client = cgs_client
         self.__graph_id = cgs_graph_id
         self.__vertex_categorical_dtype = None
         self.__edge_categorical_dtype = None
-        self.__backend = backend
 
-    @property
-    def backend(self):
-        return self.__backend
+    def __del__(self):
+        self.__client.delete_graph(self.__graph_id)
 
     @property
     def _vertex_categorical_dtype(self):
         if self.__vertex_categorical_dtype is None:
             cats = self.vertex_types
-            if self.__backend == "cudf":
-                self.__vertex_categorical_dtype = cudf.CategoricalDtype(cats)
-            elif self.__backend == "pandas":
-                self.__vertex_categorical_dtype = pandas.CategoricalDtype(cats)
-            else:
-                self.__vertex_categorical_dtype = {cat: i for i, cat in enumerate(cats)}
+            self.__vertex_categorical_dtype = {cat: i for i, cat in enumerate(cats)}
         return self.__vertex_categorical_dtype
 
     @property
     def _edge_categorical_dtype(self):
         if self.__edge_categorical_dtype is None:
             cats = self.edge_types
-            if self.__backend == "cudf":
-                self.__edge_categorical_dtype = cudf.CategoricalDtype(cats)
-            elif self.__backend == "pandas":
-                self.__edge_categorical_dtype = pandas.CategoricalDtype(cats)
-            else:
-                self.__edge_categorical_dtype = {cat: i for i, cat in enumerate(cats)}
+            self.__edge_categorical_dtype = {cat: i for i, cat in enumerate(cats)}
         return self.__edge_categorical_dtype
 
     @property
     def graph_info(self):
         return self.__client.get_graph_info(graph_id=self.__graph_id)
 
-    @property
-    def edges(self):
+    def edges(self, backend=("cudf" if cudf is not None else "numpy")):
         """
         Returns the edge list for this property graph as a dataframe,
         array, or tensor containing edge ids, source vertex,
@@ -256,12 +239,17 @@ class RemotePropertyGraph:
         )
 
         # Convert edge type to numeric if necessary
-        if self.__backend not in ["cudf", "pandas"]:
+        if backend not in ["cudf", "pandas"]:
             edge_cat_types = self._edge_categorical_dtype
             np_edges[:, 3] = np.array([edge_cat_types[t] for t in np_edges[:, 3]])
             cat_dtype = "int32"
         else:
-            cat_dtype = self._edge_categorical_dtype
+            cat_dtype_class = (
+                cudf.CategoricalDtype if backend == "cudf" else pandas.CategoricalDtype
+            )
+            cat_dtype = cat_dtype_class(
+                self._edge_categorical_dtype.keys(), ordered=True
+            )
 
         return _transform_to_backend_dtype(
             np_edges,
@@ -271,7 +259,7 @@ class RemotePropertyGraph:
                 self.dst_col_name,
                 self.type_col_name,
             ],
-            self.__backend,
+            backend,
             dtypes=["int64", "int64", "int64", cat_dtype],
         )
 
@@ -380,7 +368,13 @@ class RemotePropertyGraph:
         """
         raise NotImplementedError("not implemented")
 
-    def get_vertex_data(self, vertex_ids=None, types=None, columns=None):
+    def get_vertex_data(
+        self,
+        vertex_ids=None,
+        types=None,
+        columns=None,
+        backend=("cudf" if cudf is not None else "numpy"),
+    ):
         # FIXME expose na handling
 
         if columns is None:
@@ -394,20 +388,25 @@ class RemotePropertyGraph:
         )
 
         # Convert type to numeric if necessary
-        if self.__backend not in ["cudf", "pandas"]:
+        if backend not in ["cudf", "pandas"]:
             vertex_cat_types = self._vertex_categorical_dtype
             vertex_data[:, 1] = np.array(
                 [vertex_cat_types[t] for t in vertex_data[:, 1]]
             )
             cat_dtype = "int32"
         else:
-            cat_dtype = self._vertex_categorical_dtype
+            cat_dtype_class = (
+                cudf.CategoricalDtype if backend == "cudf" else pandas.CategoricalDtype
+            )
+            cat_dtype = cat_dtype_class(
+                self._vertex_categorical_dtype.keys(), ordered=True
+            )
 
         column_names = [self.vertex_col_name, self.type_col_name] + list(columns)
         return _transform_to_backend_dtype(
             vertex_data,
             column_names,
-            self.__backend,
+            backend,
             dtypes={self.type_col_name: cat_dtype},
         )
 
@@ -455,7 +454,13 @@ class RemotePropertyGraph:
         """
         raise NotImplementedError("not implemented")
 
-    def get_edge_data(self, edge_ids=None, types=None, columns=None):
+    def get_edge_data(
+        self,
+        edge_ids=None,
+        types=None,
+        columns=None,
+        backend=("cudf" if cudf is not None else "numpy"),
+    ):
         """
         Return a dataframe containing edge properties for only the specified
         edge_ids, columns, and/or edge type, or all edge IDs if not specified.
@@ -474,12 +479,17 @@ class RemotePropertyGraph:
         )
 
         # Convert edge type to numeric if necessary
-        if self.__backend not in ["cudf", "pandas"]:
+        if backend not in ["cudf", "pandas"]:
             edge_cat_types = self._edge_categorical_dtype
             edge_data[:, 3] = np.array([edge_cat_types[t] for t in edge_data[:, 3]])
             cat_dtype = "int32"
         else:
-            cat_dtype = self._edge_categorical_dtype
+            cat_dtype_class = (
+                cudf.CategoricalDtype if backend == "cudf" else pandas.CategoricalDtype
+            )
+            cat_dtype = cat_dtype_class(
+                self._edge_categorical_dtype.keys(), ordered=True
+            )
 
         column_names = [
             self.edge_id_col_name,
@@ -490,7 +500,7 @@ class RemotePropertyGraph:
         return _transform_to_backend_dtype(
             edge_data,
             column_names,
-            self.__backend,
+            backend,
             dtypes={self.type_col_name: cat_dtype},
         )
 

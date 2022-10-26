@@ -262,7 +262,7 @@ def pG_with_property_csvs_loaded():
 
 
 def test_graph_info(client_with_property_csvs_loaded, pG_with_property_csvs_loaded):
-    rpG = RemotePropertyGraph(client_with_property_csvs_loaded, 0, backend="cudf")
+    rpG = RemotePropertyGraph(client_with_property_csvs_loaded, 0)
     pG = pG_with_property_csvs_loaded
     graph_info = rpG.graph_info
 
@@ -281,7 +281,7 @@ def test_graph_info(client_with_property_csvs_loaded, pG_with_property_csvs_load
 
 def test_edges(client_with_property_csvs_loaded, pG_with_property_csvs_loaded):
     # FIXME update this when edges() method issue is resolved.
-    rpG = RemotePropertyGraph(client_with_property_csvs_loaded, 0, backend="cudf")
+    rpG = RemotePropertyGraph(client_with_property_csvs_loaded, 0)
     pG = pG_with_property_csvs_loaded
 
     edges = pG.get_edge_data(
@@ -301,7 +301,7 @@ def test_edges(client_with_property_csvs_loaded, pG_with_property_csvs_loaded):
 def test_property_type_names(
     client_with_property_csvs_loaded, pG_with_property_csvs_loaded
 ):
-    rpG = RemotePropertyGraph(client_with_property_csvs_loaded, 0, backend="cudf")
+    rpG = RemotePropertyGraph(client_with_property_csvs_loaded, 0)
     pG = pG_with_property_csvs_loaded
 
     assert rpG.vertex_property_names == pG.vertex_property_names
@@ -311,7 +311,7 @@ def test_property_type_names(
 
 
 def test_num_elements(client_with_property_csvs_loaded, pG_with_property_csvs_loaded):
-    rpG = RemotePropertyGraph(client_with_property_csvs_loaded, 0, backend="cudf")
+    rpG = RemotePropertyGraph(client_with_property_csvs_loaded, 0)
     pG = pG_with_property_csvs_loaded
 
     assert rpG.get_num_vertices() == pG.get_num_vertices()
@@ -332,7 +332,7 @@ def test_num_elements(client_with_property_csvs_loaded, pG_with_property_csvs_lo
 def test_get_vertex_data(
     client_with_property_csvs_loaded, pG_with_property_csvs_loaded
 ):
-    rpG = RemotePropertyGraph(client_with_property_csvs_loaded, 0, backend="cudf")
+    rpG = RemotePropertyGraph(client_with_property_csvs_loaded, 0)
     pG = pG_with_property_csvs_loaded
 
     vd = rpG.get_vertex_data()
@@ -375,7 +375,7 @@ def test_get_vertex_data(
 
 
 def test_get_edge_data(client_with_property_csvs_loaded, pG_with_property_csvs_loaded):
-    rpG = RemotePropertyGraph(client_with_property_csvs_loaded, 0, backend="cudf")
+    rpG = RemotePropertyGraph(client_with_property_csvs_loaded, 0)
     pG = pG_with_property_csvs_loaded
 
     ed = rpG.get_edge_data()
@@ -434,11 +434,11 @@ def test_add_edge_data(client_with_property_csvs_loaded, pG_with_property_csvs_l
 
 
 def test_backend_pandas(client_with_property_csvs_loaded, pG_with_property_csvs_loaded):
-    rpG = RemotePropertyGraph(client_with_property_csvs_loaded, 0, backend="pandas")
+    rpG = RemotePropertyGraph(client_with_property_csvs_loaded, 0)
     pG = pG_with_property_csvs_loaded
 
     # edges()
-    rpg_edges = rpG.edges
+    rpg_edges = rpG.edges(backend="pandas")
     pg_edges = pG.get_edge_data(
         columns=[pG.src_col_name, pG.dst_col_name, pG.type_col_name]
     )
@@ -461,7 +461,7 @@ def test_backend_pandas(client_with_property_csvs_loaded, pG_with_property_csvs_
     )
 
     # get_vertex_data()
-    rpg_vertex_data = rpG.get_vertex_data()
+    rpg_vertex_data = rpG.get_vertex_data(backend="pandas")
     pg_vertex_data = pG.get_vertex_data().fillna(0)
     assert isinstance(rpg_vertex_data, pd.DataFrame)
     assert list(rpg_vertex_data.columns) == list(pg_vertex_data.columns)
@@ -469,7 +469,7 @@ def test_backend_pandas(client_with_property_csvs_loaded, pG_with_property_csvs_
         assert rpg_vertex_data[col].tolist() == pg_vertex_data[col].values_host.tolist()
 
     # get_edge_data()
-    rpg_edge_data = rpG.get_edge_data()
+    rpg_edge_data = rpG.get_edge_data(backend="pandas")
     pg_edge_data = pG.get_edge_data().fillna(0)
     assert isinstance(rpg_edge_data, pd.DataFrame)
     assert list(rpg_edge_data.columns) == list(pg_edge_data.columns)
@@ -478,11 +478,11 @@ def test_backend_pandas(client_with_property_csvs_loaded, pG_with_property_csvs_
 
 
 def test_backend_cupy(client_with_property_csvs_loaded, pG_with_property_csvs_loaded):
-    rpG = RemotePropertyGraph(client_with_property_csvs_loaded, 0, backend="cupy")
+    rpG = RemotePropertyGraph(client_with_property_csvs_loaded, 0)
     pG = pG_with_property_csvs_loaded
 
     # edges()
-    rpg_edges = rpG.edges
+    rpg_edges = rpG.edges(backend="cupy")
     pg_edges = pG.get_edge_data(
         columns=[pG.src_col_name, pG.dst_col_name, pG.type_col_name]
     )
@@ -508,7 +508,9 @@ def test_backend_cupy(client_with_property_csvs_loaded, pG_with_property_csvs_lo
         "merchant_sales",
         "merchant_num_employees",
     ]
-    rpg_vertex_data = rpG.get_vertex_data(types=["merchants"], columns=cols_of_interest)
+    rpg_vertex_data = rpG.get_vertex_data(
+        types=["merchants"], columns=cols_of_interest, backend="cupy"
+    )
     pg_vertex_data = pG.get_vertex_data(
         types=["merchants"], columns=cols_of_interest
     ).fillna(0)
@@ -522,7 +524,9 @@ def test_backend_cupy(client_with_property_csvs_loaded, pG_with_property_csvs_lo
 
     # get_edge_data()
     cols_of_interest = ["time", "volume", "card_num"]
-    rpg_edge_data = rpG.get_edge_data(types=["transactions"], columns=cols_of_interest)
+    rpg_edge_data = rpG.get_edge_data(
+        types=["transactions"], columns=cols_of_interest, backend="cupy"
+    )
     pg_edge_data = pG.get_edge_data(
         types=["transactions"], columns=cols_of_interest
     ).fillna(0)
@@ -534,11 +538,11 @@ def test_backend_cupy(client_with_property_csvs_loaded, pG_with_property_csvs_lo
 
 
 def test_backend_numpy(client_with_property_csvs_loaded, pG_with_property_csvs_loaded):
-    rpG = RemotePropertyGraph(client_with_property_csvs_loaded, 0, backend="numpy")
+    rpG = RemotePropertyGraph(client_with_property_csvs_loaded, 0)
     pG = pG_with_property_csvs_loaded
 
     # edges()
-    rpg_edges = rpG.edges
+    rpg_edges = rpG.edges(backend="numpy")
     pg_edges = pG.get_edge_data(
         columns=[pG.src_col_name, pG.dst_col_name, pG.type_col_name]
     )
@@ -561,7 +565,9 @@ def test_backend_numpy(client_with_property_csvs_loaded, pG_with_property_csvs_l
         "merchant_sales",
         "merchant_num_employees",
     ]
-    rpg_vertex_data = rpG.get_vertex_data(types=["merchants"], columns=cols_of_interest)
+    rpg_vertex_data = rpG.get_vertex_data(
+        types=["merchants"], columns=cols_of_interest, backend="numpy"
+    )
     pg_vertex_data = pG.get_vertex_data(
         types=["merchants"], columns=cols_of_interest
     ).fillna(0)
@@ -575,7 +581,9 @@ def test_backend_numpy(client_with_property_csvs_loaded, pG_with_property_csvs_l
 
     # get_edge_data()
     cols_of_interest = ["time", "volume", "card_num"]
-    rpg_edge_data = rpG.get_edge_data(types=["transactions"], columns=cols_of_interest)
+    rpg_edge_data = rpG.get_edge_data(
+        types=["transactions"], columns=cols_of_interest, backend="numpy"
+    )
     pg_edge_data = pG.get_edge_data(
         types=["transactions"], columns=cols_of_interest
     ).fillna(0)
@@ -597,13 +605,11 @@ except ModuleNotFoundError:
 def test_backend_torch(
     client_with_property_csvs_loaded, pG_with_property_csvs_loaded, torch_backend
 ):
-    rpG = RemotePropertyGraph(
-        client_with_property_csvs_loaded, 0, backend=torch_backend
-    )
+    rpG = RemotePropertyGraph(client_with_property_csvs_loaded, 0)
     pG = pG_with_property_csvs_loaded
 
     # edges()
-    rpg_edges = rpG.edges
+    rpg_edges = rpG.edges(backend=torch_backend)
     pg_edges = pG.get_edge_data(
         columns=[pG.src_col_name, pG.dst_col_name, pG.type_col_name]
     )
@@ -626,7 +632,9 @@ def test_backend_torch(
         "merchant_sales",
         "merchant_num_employees",
     ]
-    rpg_vertex_data = rpG.get_vertex_data(types=["merchants"], columns=cols_of_interest)
+    rpg_vertex_data = rpG.get_vertex_data(
+        types=["merchants"], columns=cols_of_interest, backend=torch_backend
+    )
     pg_vertex_data = pG.get_vertex_data(
         types=["merchants"], columns=cols_of_interest
     ).fillna(0)
@@ -640,7 +648,9 @@ def test_backend_torch(
 
     # get_edge_data()
     cols_of_interest = ["time", "volume", "card_num"]
-    rpg_edge_data = rpG.get_edge_data(types=["transactions"], columns=cols_of_interest)
+    rpg_edge_data = rpG.get_edge_data(
+        types=["transactions"], columns=cols_of_interest, backend=torch_backend
+    )
     pg_edge_data = pG.get_edge_data(
         types=["transactions"], columns=cols_of_interest
     ).fillna(0)
