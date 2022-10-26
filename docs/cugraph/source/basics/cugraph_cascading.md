@@ -26,7 +26,7 @@ It would be simple to modify the methods to return `self` rather than `None`, ho
 # cascade flow - makes sense
 G = cugraph.Graph().from_cudf_edgelist(df)
 
-# none cascaded code can be confusing
+# non-cascaded code can be confusing
 G = cugraph.Graph()
 G2 = G.from_cudf_edgelist(df)
 G3 = G.from_cudf_edgelist(df2)
