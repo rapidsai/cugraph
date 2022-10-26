@@ -16,6 +16,7 @@
 #include <sampling/random_walks_check.hpp>
 
 #include <cugraph/graph.hpp>
+#include <cugraph/graph_functions.hpp>
 
 #include <utilities/device_comm_wrapper.hpp>
 
@@ -38,7 +39,8 @@ void random_walks_validate(
   using vertex_t = typename graph_view_type::vertex_type;
   using weight_t = typename graph_view_type::weight_type;
 
-  auto [d_src, d_dst, d_wgt] = graph_view.decompress_to_edgelist(handle, std::nullopt);
+  auto [d_src, d_dst, d_wgt] = cugraph::decompress_to_edgelist(
+    handle, graph_view, std::optional<raft::device_span<vertex_t const>>{std::nullopt});
 
   if constexpr (graph_view_type::is_multi_gpu) {
     d_src = cugraph::test::device_gatherv(
