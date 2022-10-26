@@ -177,7 +177,7 @@ class RemoteGraph:
         raise NotImplementedError("not implemented")
 
     @property
-    def edgelist(self, _backend="cudf"):
+    def edgelist(self, backend="cudf"):
         data = self.__client.get_graph_edge_data(graph_id=self.__graph_id)
         if data.shape(1) == 2:
             cols = [self.src_col_name, self.dst_col_name]
@@ -199,13 +199,13 @@ class RemoteGraph:
     def adjlist(self):
         raise NotImplementedError("not implemented")
 
-    def get_vertices(self, _backend="cudf"):
+    def get_vertices(self, backend="cudf"):
         vdata = self.__client.get_graph_vertex_data(graph_id=self.__graph_id)[:, 0]
-        if _backend == "cudf":
+        if backend == "cudf":
             return cudf.Series(vdata)
         return cupy.array(vdata)
 
-    def vertices_ids(self, _backend="cudf"):
+    def vertices_ids(self, backend="cudf"):
         return self.get_vertices()
 
     def number_of_vertices(self):
@@ -371,7 +371,7 @@ class RemotePropertyGraph:
         """
         return self.__client.get_num_edges(type, self.__graph_id)
 
-    def get_vertices(self, selection=None, _backend="cudf"):
+    def get_vertices(self, selection=None, backend="cudf"):
         """
         Return a Series containing the unique vertex IDs contained in both
         the vertex and edge property data.
@@ -382,7 +382,7 @@ class RemotePropertyGraph:
                 " not available for remote property graph."
             )
         vdata = self.__client.get_graph_vertex_data()[:, 0]
-        if _backend == "cudf":
+        if backend == "cudf":
             return cudf.Series(vdata)
         return cupy.array(vdata)
 
