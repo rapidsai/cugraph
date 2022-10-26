@@ -42,22 +42,23 @@ extern "C" cugraph_type_erased_device_array_view_t* cugraph_induced_subgraph_get
   return reinterpret_cast<cugraph_type_erased_device_array_view_t*>(internal_pointer->wgt_->view());
 }
 
-extern "C" cugraph_type_erased_device_array_view_t* cugraph_induced_subgraph_get_subgraph_ids(
+extern "C" cugraph_type_erased_device_array_view_t* cugraph_induced_subgraph_get_subgraph_offsets(
   cugraph_induced_subgraph_result_t* induced_subgraph)
 {
   auto internal_pointer =
     reinterpret_cast<cugraph::c_api::cugraph_induced_subgraph_result_t*>(induced_subgraph);
   return reinterpret_cast<cugraph_type_erased_device_array_view_t*>(
-    internal_pointer->subgraph_id_->view());
+    internal_pointer->subgraph_offsets_->view());
 }
 
-extern "C" void cugraph_induced_subgraph_result_free(cugraph_induced_subgraph_result_t* induced_subgraph)
+extern "C" void cugraph_induced_subgraph_result_free(
+  cugraph_induced_subgraph_result_t* induced_subgraph)
 {
   auto internal_pointer =
     reinterpret_cast<cugraph::c_api::cugraph_induced_subgraph_result_t*>(induced_subgraph);
   delete internal_pointer->src_;
   delete internal_pointer->dst_;
   delete internal_pointer->wgt_;
-  delete internal_pointer->subgraph_id_;
+  delete internal_pointer->subgraph_offsets_;
   delete internal_pointer;
 }

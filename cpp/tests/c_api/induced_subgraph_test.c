@@ -40,6 +40,7 @@ int generic_induced_subgraph_test(vertex_t* h_src,
                                   vertex_t* h_result_src,
                                   vertex_t* h_result_dst,
                                   weight_t* h_result_wgt,
+                                  size_t* h_result_offsets,
                                   size_t num_results)
 {
   int test_ret_value = 0;
@@ -100,19 +101,19 @@ int generic_induced_subgraph_test(vertex_t* h_src,
   cugraph_type_erased_device_array_view_t* extracted_src;
   cugraph_type_erased_device_array_view_t* extracted_dst;
   cugraph_type_erased_device_array_view_t* extracted_wgt;
-  cugraph_type_erased_device_array_view_t* extracted_graph_id;
+  cugraph_type_erased_device_array_view_t* extracted_graph_offsets;
 
-  extracted_src      = cugraph_induced_subgraph_get_sources(result);
-  extracted_dst      = cugraph_induced_subgraph_get_destinations(result);
-  extracted_wgt      = cugraph_induced_subgraph_get_edge_weights(result);
-  extracted_graph_id = cugraph_induced_subgraph_get_subgraph_ids(result);
+  extracted_src           = cugraph_induced_subgraph_get_sources(result);
+  extracted_dst           = cugraph_induced_subgraph_get_destinations(result);
+  extracted_wgt           = cugraph_induced_subgraph_get_edge_weights(result);
+  extracted_graph_offsets = cugraph_induced_subgraph_get_subgraph_offsets(result);
 
   size_t extracted_size = cugraph_type_erased_device_array_view_size(extracted_src);
 
   vertex_t h_extracted_src[extracted_size];
   vertex_t h_extracted_dst[extracted_size];
   weight_t h_extracted_wgt[extracted_size];
-  vertex_t h_extracted_graph_id[extracted_size];
+  size_t h_extracted_graph_offsets[num_subgraph_offsets];
 
   ret_code = cugraph_type_erased_device_array_view_copy_to_host(
     handle, (byte_t*)h_extracted_src, extracted_src, &ret_error);
@@ -127,24 +128,22 @@ int generic_induced_subgraph_test(vertex_t* h_src,
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "copy_to_host failed.");
 
   ret_code = cugraph_type_erased_device_array_view_copy_to_host(
-    handle, (byte_t*)h_extracted_graph_id, extracted_graph_id, &ret_error);
+    handle, (byte_t*)h_extracted_graph_offsets, extracted_graph_offsets, &ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "copy_to_host failed.");
 
   TEST_ASSERT(test_ret_value, extracted_size == num_results, "results not the same size");
 
-  for (size_t i = 0; (i < num_results) ; ++i) {
-    printf("edge (%d): (%d, %d, %g, %d)\n", (int) i, (int) h_extracted_src[i], (int) h_extracted_dst[i], (float) h_extracted_wgt[i], (int) h_extracted_graph_id[i]);
-  }
-
-  for (size_t i = 0; (i < num_results) && (test_ret_value == 0); ++i) {
-    TEST_ASSERT(test_ret_value, h_extracted_graph_id[i] == 0, "graph id should be 0");
+  for (size_t i = 0; (i < num_subgraph_offsets) && (test_ret_value == 0); ++i) {
+    TEST_ASSERT(test_ret_value,
+                h_extracted_graph_offsets[i] == h_result_offsets[i],
+                "graph offsets should match");
   }
 
   for (size_t i = 0; (i < num_results) && (test_ret_value == 0); ++i) {
     bool_t found = FALSE;
     for (size_t j = 0; (j < num_results) && !found; ++j) {
-      if ((h_extracted_src[i] == h_src[j]) && (h_extracted_dst[i] == h_dst[j]) &&
-          (h_wgt[i] == h_wgt[j]))
+      if ((h_extracted_src[i] == h_result_src[j]) && (h_extracted_dst[i] == h_result_dst[j]) &&
+          (nearlyEqual(h_extracted_wgt[i], h_result_wgt[j], 0.001)))
         found = TRUE;
     }
     TEST_ASSERT(test_ret_value, found, "extracted an edge that doesn't match");
@@ -168,20 +167,21 @@ int test_induced_subgraph()
   vertex_t h_result_src[]        = {0, 1, 2, 2, 2};
   vertex_t h_result_dst[]        = {1, 3, 0, 1, 3};
   weight_t h_result_wgt[]        = {0.1f, 2.1f, 5.1f, 3.1f, 4.1f};
+  size_t h_result_offsets[]      = {0, 5};
 
-  // Pagerank wants store_transposed = TRUE
   return generic_induced_subgraph_test(h_src,
                                        h_dst,
                                        h_wgt,
                                        num_vertices,
                                        num_edges,
-                                       TRUE,
+                                       FALSE,
                                        h_subgraph_offsets,
                                        h_subgraph_vertices,
                                        num_subgraph_offsets,
                                        h_result_src,
                                        h_result_dst,
                                        h_result_wgt,
+                                       h_result_offsets,
                                        num_results);
 }
 

@@ -134,12 +134,12 @@ cugraph_type_erased_device_array_view_t* cugraph_induced_subgraph_get_edge_weigh
   cugraph_induced_subgraph_result_t* induced_subgraph);
 
 /**
- * @brief       Get the subgraph identifiers
+ * @brief       Get the subgraph offsets
  *
  * @param [in]     induced_subgraph   Opaque pointer to induced subgraph
  * @return type erased array view of subgraph identifiers
  */
-cugraph_type_erased_device_array_view_t* cugraph_induced_subgraph_get_subgraph_ids(
+cugraph_type_erased_device_array_view_t* cugraph_induced_subgraph_get_subgraph_offsets(
   cugraph_induced_subgraph_result_t* induced_subgraph);
 
 /**
@@ -174,7 +174,7 @@ void cugraph_induced_subgraph_result_free(cugraph_induced_subgraph_result_t* ind
  */
 cugraph_error_code_t cugraph_extract_induced_subgraph(
   const cugraph_resource_handle_t* handle,
-  const cugraph_graph_t* graph,
+  cugraph_graph_t* graph,
   const cugraph_type_erased_device_array_view_t* subgraph_offsets,
   const cugraph_type_erased_device_array_view_t* subgraph_vertices,
   bool_t do_expensive_check,

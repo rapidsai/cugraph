@@ -13,20 +13,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 #pragma once
 
-#include <c_api/array.hpp>
+#include <raft/core/device_span.hpp>
+#include <raft/handle.hpp>
+#include <rmm/device_uvector.hpp>
+
+#include <tuple>
 
 namespace cugraph {
 namespace c_api {
+namespace detail {
 
-struct cugraph_induced_subgraph_result_t {
-  cugraph_type_erased_device_array_t* src_{};
-  cugraph_type_erased_device_array_t* dst_{};
-  cugraph_type_erased_device_array_t* wgt_{};
-  cugraph_type_erased_device_array_t* subgraph_offsets_{};
-};
+template <typename vertex_t>
+std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<size_t>>
+shuffle_vertex_ids_and_offsets(raft::handle_t const& handle,
+                               rmm::device_uvector<vertex_t>&& vertices,
+                               raft::device_span<size_t const> offsets);
 
+}  // namespace detail
 }  // namespace c_api
 }  // namespace cugraph
