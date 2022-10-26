@@ -13,16 +13,12 @@
 # limitations under the License.
 
 import importlib
-import os
-import sys
-import subprocess
 import random
-import time
 
 
 import pytest
 
-from . import data
+from . import data, utils
 
 import cudf
 import cupy
@@ -37,20 +33,15 @@ from cugraph_service_client import RemotePropertyGraph
 
 
 @pytest.fixture(scope="module")
-def server(graph_creation_extension1):
+def server():
     """
-    Start a cugraph_service server, stop it when done with the fixture.  This
-    also uses graph_creation_extension1 to preload a graph creation extension.
+    Start a cugraph_service server, stop it when done with the fixture.
     """
-    from cugraph_service_server import server
     from cugraph_service_client import CugraphServiceClient
     from cugraph_service_client.exceptions import CugraphServiceError
 
-    server_file = server.__file__
-    server_process = None
     host = "localhost"
     port = 9090
-    graph_creation_extension_dir = graph_creation_extension1
     client = CugraphServiceClient(host, port)
 
     try:
@@ -61,62 +52,15 @@ def server(graph_creation_extension1):
     except CugraphServiceError:
         # A server was not found, so start one for testing then stop it when
         # testing is done.
+        server_process = utils.start_server_subprocess(host=host, port=port)
 
-        # pytest will update sys.path based on the tests it discovers, and for
-        # this source tree, an entry for the parent of this "tests" directory
-        # will be added. The parent to this "tests" directory also allows
-        # imports to find the cugraph_service sources, so in oder to ensure the
-        # server that's started is also using the same sources, the PYTHONPATH
-        # env should be set to the sys.path being used in this process.
-        env_dict = os.environ.copy()
-        env_dict["PYTHONPATH"] = ":".join(sys.path)
+        # yield control to the tests, cleanup on return
+        yield
 
-        with subprocess.Popen(
-            [
-                sys.executable,
-                server_file,
-                "--host",
-                host,
-                "--port",
-                str(port),
-                "--graph-creation-extension-dir",
-                graph_creation_extension_dir,
-            ],
-            env=env_dict,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            text=True,
-        ) as server_process:
-            try:
-                print(
-                    "\nLaunched cugraph_service server, waiting for it to " "start...",
-                    end="",
-                    flush=True,
-                )
-                max_retries = 10
-                retries = 0
-                while retries < max_retries:
-                    try:
-                        client.uptime()
-                        print("started.")
-                        break
-                    except CugraphServiceError:
-                        time.sleep(1)
-                        retries += 1
-                if retries >= max_retries:
-                    raise RuntimeError("error starting server")
-            except Exception:
-                if server_process.poll() is None:
-                    server_process.terminate()
-                raise
-
-            # yield control to the tests
-            yield
-
-            # tests are done, now stop the server
-            print("\nTerminating server...", end="", flush=True)
-            server_process.terminate()
-            print("done.", flush=True)
+        # tests are done, now stop the server
+        print("\nTerminating server...", end="", flush=True)
+        server_process.terminate()
+        print("done.", flush=True)
 
 
 @pytest.fixture(scope="function")
@@ -148,6 +92,7 @@ def client_with_property_csvs_loaded(client):
     Loads each of the vertex and edge property CSVs into the default graph on
     the server.
     """
+
     merchants = data.property_csv_data["merchants"]
     users = data.property_csv_data["users"]
     transactions = data.property_csv_data["transactions"]
@@ -287,7 +232,7 @@ def test_edges(client_with_property_csvs_loaded, pG_with_property_csvs_loaded):
     edges = pG.get_edge_data(
         columns=[pG.src_col_name, pG.dst_col_name, pG.type_col_name]
     )
-    rpG_edges = rpG.edges
+    rpG_edges = rpG.edges()
 
     assert (edges[pG.edge_id_col_name] == rpG_edges[rpG.edge_id_col_name]).all()
     assert (edges[pG.src_col_name] == rpG_edges[rpG.src_col_name]).all()

@@ -177,6 +177,10 @@ class RemoteGraph:
         raise NotImplementedError("not implemented")
 
     @property
+    def _graph_id(self):
+        return self.__graph_id
+
+    @property
     def edgelist(self):
         raise NotImplementedError("not implemented")
 
@@ -225,6 +229,10 @@ class RemotePropertyGraph:
     @property
     def graph_info(self):
         return self.__client.get_graph_info(graph_id=self.__graph_id)
+
+    @property
+    def _graph_id(self):
+        return self.__graph_id
 
     def edges(self, backend=("cudf" if cudf is not None else "numpy")):
         """

@@ -560,7 +560,7 @@ class CugraphHandler:
             types = None
 
         try:
-            df = pG.get_vertex_data(vertex_ids=ids, columns=columns)
+            df = pG.get_vertex_data(vertex_ids=ids, columns=columns, types=types)
             if isinstance(df, dask_cudf.DataFrame):
                 df = df.compute()
         except KeyError:
@@ -589,7 +589,7 @@ class CugraphHandler:
             types = None
 
         try:
-            df = pG.get_edge_data(edge_ids=ids, columns=columns)
+            df = pG.get_edge_data(edge_ids=ids, columns=columns, types=types)
             if isinstance(df, dask_cudf.DataFrame):
                 df = df.compute()
         except KeyError:
