@@ -165,19 +165,18 @@ def _convert_can_etype_s_to_tup(canonical_etype_s):
     return (src_type, etype, dst_type)
 
 
-def create_dlpack_d(d):
-    dlpack_d = {}
+def create_cp_result_ls(d):
+    cupy_result_ls = []
     for k, df in d.items():
         if len(df) == 0:
-            dlpack_d[k] = (None, None, None)
+            cupy_result_ls.append(cp.empty(shape=0, dtype=cp.int32))
+            cupy_result_ls.append(cp.empty(shape=0, dtype=cp.int32))
+            cupy_result_ls.append(cp.empty(shape=0, dtype=cp.int32))
         else:
-            dlpack_d[k] = (
-                df[src_n].to_dlpack(),
-                df[dst_n].to_dlpack(),
-                df[eid_n].to_dlpack(),
-            )
-
-    return dlpack_d
+            cupy_result_ls.append(df[src_n].values)
+            cupy_result_ls.append(df[dst_n].values)
+            cupy_result_ls.append(df[eid_n].values)
+    return cupy_result_ls
 
 
 def get_underlying_dtype_from_sg(sg):
@@ -274,11 +273,10 @@ def sample_pg(
     if has_multiple_etypes:
         # Heterogeneous graph case
         d = get_edgeid_type_d(pg, sampled_df["indices"], etypes)
-        d = create_dlpack_d(d)
-        return d
+        return create_cp_result_ls(d)
     else:
         return (
-            sampled_df[src_n].to_dlpack(),
-            sampled_df[dst_n].to_dlpack(),
-            sampled_df["indices"].to_dlpack(),
+            sampled_df[src_n].values,
+            sampled_df[dst_n].values,
+            sampled_df["indices"].values,
         )

@@ -32,9 +32,8 @@ class CuGraphStore:
     """
 
     def __init__(self, graph, backend_lib="torch"):
-        from cugraph.experimental import PropertyGraph, MGPropertyGraph
 
-        if isinstance(graph, (PropertyGraph, MGPropertyGraph)):
+        if type(graph).__name__ in ["PropertyGraph", "MGPropertyGraph"]:
             self.__G = graph
         else:
             raise ValueError("graph must be a PropertyGraph or MGPropertyGraph")
@@ -276,7 +275,9 @@ class CuGraphStore:
         # Uniform sampling fails when the dtype
         # of the seed dtype is not same as the node dtype
         self.set_sg_node_dtype(first_sg)
-        return sample_pg(
+
+        # Below will be called from dict
+        sampled_result_arrays = sample_pg(
             self.gdata,
             has_multiple_etypes=self.has_multiple_etypes,
             etypes=self.etypes,
@@ -288,6 +289,7 @@ class CuGraphStore:
             fanout=fanout,
             edge_dir=edge_dir,
         )
+        return create_dlpack_results_from_arrays(sampled_result_arrays, self.etypes)
 
     ######################################
     # Utilities
@@ -421,3 +423,29 @@ class CuGraphStore:
 
         if "extracted_reverse_subgraphs_per_type" in self.__dict__:
             del self.extracted_reverse_subgraphs_per_type
+
+
+def create_dlpack_results_from_arrays(sampled_result_arrays, etypes: list[str]):
+    # TODO: Extend to pytorch/numpy/etc
+    import cupy as cp
+
+    if len(etypes) <= 1:
+        s, d, e_id = sampled_result_arrays
+        # Handle numpy array, cupy array, lists etc
+        s, d, e_id = cp.asarray(s), cp.asarray(d), cp.asarray(e_id)
+        return s.toDlpack(), d.toDlpack(), e_id.toDlpack()
+    else:
+        result_d = {}
+        array_start_offset = 0
+        for etype in etypes:
+            s = sampled_result_arrays[array_start_offset]
+            d = sampled_result_arrays[array_start_offset + 1]
+            e_id = sampled_result_arrays[array_start_offset + 2]
+            s, d, e_id = cp.asarray(s), cp.asarray(d), cp.asarray(e_id)
+            array_start_offset = array_start_offset + 3
+            if s is not None and len(s) >= 0:
+                s, d, e_id = s.toDlpack(), d.toDlpack(), e_id.toDlpack()
+            else:
+                s, d, e_id = None, None, None
+            result_d[etype] = (s, d, e_id)
+        return result_d
