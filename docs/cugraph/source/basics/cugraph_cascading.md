@@ -14,7 +14,7 @@ gdf = cudf.from_pandas(df).query(‘val > 200’).nlargest(‘va’3)
 cuGraph does not support method cascading for two main reasons: (1) the object-oriented nature of the Graph data object leverages in-place methods, and (2) the fact that algorithms operate on graphs rather than graphs running algorithms.  
 
 ## Graph Data Objects
-cuGraph follow an object-oriented design for the Graph objects.  Users create a Graph and can then add data to object, but every add method call returns `None`.  
+cuGraph follows an object-oriented design for the Graph objects.  Users create a Graph and can then add data to object, but every add method call returns `None`.  
 
 _Why Inplace methods?_ <br>
 cuGraph focuses on the big graph problems where there are 10s of millions to trillions of edges (Giga bytes to Terabytes of data). At that scale, creating a copy of the data becomes memory inefficient.  
