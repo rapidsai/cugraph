@@ -15,10 +15,37 @@
 from functools import wraps
 from collections.abc import Sequence
 import pickle
+import ucp
+import asyncio
+import threading
+
+import cupy as cp
 
 from cugraph_service_client import defaults
-from cugraph_service_client.types import ValueWrapper, GraphVertexEdgeID
+from cugraph_service_client.remote_graph import RemotePropertyGraph
+from cugraph_service_client.types import (
+    ValueWrapper,
+    GraphVertexEdgeID,
+    UniformNeighborSampleResult,
+)
 from cugraph_service_client.cugraph_service_thrift import create_client
+
+
+class DeviceArrayAllocator:
+    """
+    This class is used to create a callable instance for allocating a cupy
+    array on a specific device. It is constructed with a particular device
+    number, and can be called repeatedly with the number of bytes to allocate,
+    returning an array of the requested size on the device.
+    """
+
+    def __init__(self, device):
+        self.device = device
+
+    def __call__(self, nbytes):
+        with cp.cuda.Device(self.device):
+            a = cp.empty(nbytes, dtype="uint8")
+        return a
 
 
 class CugraphServiceClient:
@@ -27,7 +54,9 @@ class CugraphServiceClient:
     use to access the cugraph_service server.
     """
 
-    def __init__(self, host=defaults.host, port=defaults.port):
+    def __init__(
+        self, host=defaults.host, port=defaults.port, results_port=defaults.results_port
+    ):
         """
         Creates a connection to a cugraph_service server running on host/port.
 
@@ -50,6 +79,7 @@ class CugraphServiceClient:
         """
         self.host = host
         self.port = port
+        self.results_port = results_port
         self.__client = None
 
         # If True, do not automatically close a server connection upon
@@ -364,6 +394,12 @@ class CugraphServiceClient:
         >>> client.delete_graph(my_graph_id)
         """
         return self.__client.delete_graph(graph_id)
+
+    def graph(self):
+        """
+        Constructs an empty RemotePropertyGraph object.
+        """
+        return RemotePropertyGraph(self, self.create_graph())
 
     @__server_connection
     def get_graph_ids(self):
@@ -1019,11 +1055,16 @@ class CugraphServiceClient:
 
     @__server_connection
     def uniform_neighbor_sample(
-        self, start_list, fanout_vals, with_replacement=True, graph_id=defaults.graph_id
+        self,
+        start_list,
+        fanout_vals,
+        with_replacement=True,
+        *,
+        graph_id=defaults.graph_id,
+        result_device=None,
     ):
         """
-        Samples the graph and returns the graph id of the sampled
-        graph.
+        Samples the graph and returns a UniformNeighborSampleResult instance.
 
         Parameters:
         start_list: list[int]
@@ -1034,18 +1075,37 @@ class CugraphServiceClient:
 
         graph_id: int, default is defaults.graph_id
 
+        result_device: int, default is None
+
         Returns
         -------
-        The graph id of the sampled graph.
+        result : UniformNeighborSampleResult
+            Instance containing three CuPy device arrays.
 
+            result.sources: CuPy array
+                Contains the source vertices from the sampling result
+            result.destinations: CuPy array
+                Contains the destination vertices from the sampling result
+            result.indices: CuPy array
+                Contains the indices from the sampling result for path reconstruction
         """
+        if result_device is not None:
+            result_obj = asyncio.run(
+                self.__uniform_neighbor_sample_to_device(
+                    start_list, fanout_vals, with_replacement, graph_id, result_device
+                )
+            )
+        else:
+            result_obj = self.__client.uniform_neighbor_sample(
+                start_list,
+                fanout_vals,
+                with_replacement,
+                graph_id,
+                client_host=None,
+                client_result_port=None,
+            )
 
-        return self.__client.uniform_neighbor_sample(
-            start_list,
-            fanout_vals,
-            with_replacement,
-            graph_id,
-        )
+        return result_obj
 
     @__server_connection
     def pagerank(self, graph_id=defaults.graph_id):
@@ -1057,7 +1117,44 @@ class CugraphServiceClient:
     ###########################################################################
     # Test/Debug
     @__server_connection
+    def _create_test_array(self, nbytes):
+        """
+        Creates an array of bytes (int8 values set to 1) on the server and
+        returns an ID to use to reference the array in later test calls.
+
+        The test array must be deleted on the server by calling
+        _delete_test_array().
+        """
+        return self.__client.create_test_array(nbytes)
+
+    @__server_connection
+    def _delete_test_array(self, test_array_id):
+        """
+        Deletes the test array on the server identified by test_array_id.
+        """
+        self.__client.delete_test_array(test_array_id)
+
+    @__server_connection
+    def _receive_test_array(self, test_array_id, result_device=None):
+        """
+        Returns the array of bytes (int8 values set to 1) from the server,
+        either to result_device or on the client host. The array returned must
+        have been created by a prior call to create_test_array() which returned
+        test_array_id.
+
+        This can be used to verify transfer speeds from server to client are
+        performing as expected.
+        """
+        if result_device is not None:
+            return asyncio.run(
+                self.__receive_test_array_to_device(test_array_id, result_device)
+            )
+        else:
+            return self.__client.receive_test_array(test_array_id)
+
+    @__server_connection
     def _get_graph_type(self, graph_id=defaults.graph_id):
+
         """
         Test/debug API for returning a string repr of the graph_id instance.
         """
@@ -1065,6 +1162,78 @@ class CugraphServiceClient:
 
     ###########################################################################
     # Private
+    async def __receive_test_array_to_device(self, test_array_id, result_device):
+        # Create an object to set results on in the "receiver" callback below.
+        result_obj = type("Result", (), {})()
+        allocator = DeviceArrayAllocator(result_device)
+
+        async def receiver(endpoint):
+            with cp.cuda.Device(result_device):
+                result_obj.array = await endpoint.recv_obj(allocator=allocator)
+                result_obj.array = result_obj.array.view("int8")
+
+            await endpoint.close()
+            listener.close()
+
+        listener = ucp.create_listener(receiver, self.results_port)
+
+        # This sends a one-way request to the server and returns
+        # immediately. The server will create and send the array back to the
+        # listener started above.
+        self.__client.receive_test_array_to_device(
+            test_array_id, self.host, self.results_port
+        )
+
+        while not listener.closed():
+            await asyncio.sleep(0.05)
+
+        return result_obj.array
+
+    async def __uniform_neighbor_sample_to_device(
+        self, start_list, fanout_vals, with_replacement, graph_id, result_device
+    ):
+        """
+        Run uniform_neighbor_sample() with the args provided, but have the
+        result send directly to the device specified by result_device.
+        """
+        # FIXME: check for valid device
+        result_obj = UniformNeighborSampleResult()
+
+        allocator = DeviceArrayAllocator(result_device)
+
+        async def receiver(endpoint):
+            with cp.cuda.Device(result_device):
+                result_obj.sources = await endpoint.recv_obj(allocator=allocator)
+                result_obj.sources = result_obj.sources.view("int32")
+                result_obj.destinations = await endpoint.recv_obj(allocator=allocator)
+                result_obj.destinations = result_obj.destinations.view("int32")
+                result_obj.indices = await endpoint.recv_obj(allocator=allocator)
+                result_obj.indices = result_obj.indices.view("float64")
+
+            await endpoint.close()
+            listener.close()
+
+        listener = ucp.create_listener(receiver, self.results_port)
+
+        uns_thread = threading.Thread(
+            target=self.__client.uniform_neighbor_sample,
+            args=(
+                start_list,
+                fanout_vals,
+                with_replacement,
+                graph_id,
+                self.host,
+                self.results_port,
+            ),
+        )
+        uns_thread.start()
+
+        while not listener.closed():
+            await asyncio.sleep(0.05)
+
+        uns_thread.join()
+        return result_obj
+
     @staticmethod
     def __get_vertex_edge_id_obj(id_or_ids):
         # FIXME: do not assume all values are int32

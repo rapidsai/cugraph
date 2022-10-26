@@ -272,7 +272,8 @@ create_graph_from_edgelist_impl(
                   "Invalid input arguments: edgelist_srcs.size() != edgelist_dsts.size().");
   CUGRAPH_EXPECTS(!edgelist_weights || (edgelist_srcs.size() == (*edgelist_weights).size()),
                   "Invalid input arguments: edgelist_srcs.size() != edgelist_weights.size().");
-  CUGRAPH_EXPECTS(renumber, "renumber should be true if multi_gpu is true.");
+  CUGRAPH_EXPECTS(renumber,
+                  "Invalid input arguments: renumber should be true if multi_gpu is true.");
 
   if (do_expensive_check) {
     expensive_check_edgelist<vertex_t, multi_gpu>(handle,

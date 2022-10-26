@@ -310,5 +310,6 @@ extern "C" void cugraph_sample_result_free(cugraph_sample_result_t* result)
   delete internal_pointer->label_;
   delete internal_pointer->index_;
   delete internal_pointer->count_;
+  delete internal_pointer->experimental_count_;
   delete internal_pointer;
 }

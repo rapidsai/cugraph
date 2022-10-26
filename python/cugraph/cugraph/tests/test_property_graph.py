@@ -1987,3 +1987,23 @@ def bench_extract_subgraph_for_rmat_detect_duplicate_edges(
             )
 
     gpubenchmark(func)
+
+
+@pytest.mark.slow
+@pytest.mark.parametrize("N", [1, 3, 10, 30])
+def bench_add_edges_cyber(gpubenchmark, N):
+    from cugraph.experimental import PropertyGraph
+
+    # Partition the dataframe to add in chunks
+    cyber_df = cyber.get_edgelist()
+    chunk = (len(cyber_df) + N - 1) // N
+    dfs = [cyber_df.iloc[i * chunk : (i + 1) * chunk] for i in range(N)]
+
+    def func():
+        pG = PropertyGraph()
+        for df in dfs:
+            pG.add_edge_data(df, ("srcip", "dstip"))
+        df = pG.get_edge_data()
+        assert len(df) == len(cyber_df)
+
+    gpubenchmark(func)
