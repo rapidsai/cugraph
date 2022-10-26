@@ -13,21 +13,13 @@
 
 from collections import defaultdict
 
-import cudf
-import dask_cudf
-import cugraph
-from cugraph.experimental import PropertyGraph, MGPropertyGraph
 from functools import cached_property
-
+from .utils.find_edges import find_edges
+from .utils.node_subgraph import node_subgraph
 from .utils.add_data import _update_feature_map
 from .utils.sampling import sample_pg, get_subgraph_and_src_range_from_pg
 from .utils.sampling import get_underlying_dtype_from_sg
 from .feature_storage import CuFeatureStorage
-
-
-src_n = PropertyGraph.src_col_name
-dst_n = PropertyGraph.dst_col_name
-type_n = PropertyGraph.type_col_name
 
 
 class CuGraphStore:
@@ -40,6 +32,8 @@ class CuGraphStore:
     """
 
     def __init__(self, graph, backend_lib="torch"):
+        from cugraph.experimental import PropertyGraph, MGPropertyGraph
+
         if isinstance(graph, (PropertyGraph, MGPropertyGraph)):
             self.__G = graph
         else:
@@ -214,9 +208,6 @@ class CuGraphStore:
     def etypes(self):
         return sorted(self.gdata.edge_types)
 
-    def is_mg(self):
-        return isinstance(self.gdata, MGPropertyGraph)
-
     @property
     def gdata(self):
         return self.__G
@@ -375,18 +366,12 @@ class CuGraphStore:
         DLPack capsule
             The dst nodes for the given ids
         """
-        edge_ids = cudf.from_dlpack(edge_ids_cap)
-        subset_df = self.gdata.get_edge_data(
-            edge_ids=edge_ids, columns=type_n, types=[etype]
-        )
-        if isinstance(subset_df, dask_cudf.DataFrame):
-            subset_df = subset_df.compute()
-        return subset_df[src_n].to_dlpack(), subset_df[dst_n].to_dlpack()
+        return find_edges(edge_ids_cap, etype)
 
     def node_subgraph(
         self,
         nodes=None,
-        create_using=cugraph.MultiGraph,
+        create_using=None,
     ):
         """
         Return a subgraph induced on the given nodes.
@@ -405,16 +390,7 @@ class CuGraphStore:
             The sampled subgraph with the same node ID space with the original
             graph.
         """
-        _g = self.gdata.extract_subgraph(
-            create_using=create_using, check_multi_edges=True
-        )
-
-        if nodes is None:
-            return _g
-        else:
-            _n = cudf.Series(nodes)
-            _subg = cugraph.subgraph(_g, _n)
-            return _subg
+        return node_subgraph(self.gdata, nodes, create_using)
 
     def __clear_cached_properties(self):
         # Check for cached properties using self.__dict__ because calling
