@@ -100,6 +100,8 @@ class ValueWrapper(UnionWrapper):
         ):
             # self.union = Value(list_value=val.tolist())
             self.union = Value(list_value=[ValueWrapper(i) for i in val.tolist()])
+        elif val is None:
+            self.union = Value()
         else:
             raise TypeError(
                 f"{val_name} must be one of the "

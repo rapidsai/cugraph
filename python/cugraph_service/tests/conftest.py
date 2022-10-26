@@ -168,6 +168,32 @@ def my_nines_function(array1_size, array1_dtype, array2_size, array2_dtype):
 """
 
 
+extension_with_facade_file_contents = """
+import cupy
+
+def my_extension(arg1, arg2, server):
+
+    # This extension assumes the server already has a single PG loaded via
+    # calling graph_creation_extension1
+    gid = server.get_graph_ids()[0]
+    pG = server.get_graph(gid)
+
+    edge_df = pG.get_edge_data()
+
+    # Do an arbitrary operation on the PG based on the args, and return the
+    # result as a cupy array.
+
+    retval = cupy.array(edge_df[pG.edge_id_col_name] + arg1 + arg2)
+    return retval
+"""
+
+extension_returns_none_file_contents = """
+
+def my_extension():
+    return None
+"""
+
+
 ###############################################################################
 # module scope fixtures
 
@@ -250,5 +276,23 @@ def graph_creation_extension_large_property_graph():
 @pytest.fixture(scope="module")
 def extension1():
     tmp_extension_dir = utils.create_tmp_extension_dir(extension1_file_contents)
+
+    yield tmp_extension_dir.name
+
+
+@pytest.fixture(scope="module")
+def extension_with_facade():
+    tmp_extension_dir = utils.create_tmp_extension_dir(
+        extension_with_facade_file_contents
+    )
+
+    yield tmp_extension_dir.name
+
+
+@pytest.fixture(scope="module")
+def extension_returns_none():
+    tmp_extension_dir = utils.create_tmp_extension_dir(
+        extension_returns_none_file_contents
+    )
 
     yield tmp_extension_dir.name

@@ -118,6 +118,12 @@ class ExtensionServerFacade:
             for (k, v) in self.__handler.get_server_info().items()
         }
 
+    def get_graph_ids(self):
+        return self.__handler.get_graph_ids()
+
+    def get_graph(self, graph_id):
+        return self.__handler._get_graph(graph_id)
+
 
 class CugraphHandler:
     """
@@ -794,7 +800,8 @@ class CugraphHandler:
 
     ###########################################################################
     # "Protected" interface - used for both implementation and test/debug. Will
-    # not be exposed to a cugraph_service client.
+    # not be exposed to a cugraph_service client, but will be used by extensions
+    # via the ExtensionServerFacade.
     def _get_graph(self, graph_id):
         """
         Return the cuGraph Graph object associated with graph_id.

@@ -249,7 +249,6 @@ def test_get_default_graph_info(client_of_mg_server_with_edgelist_csv_loaded):
 
 
 def test_get_edge_IDs_for_vertices(client_of_mg_server_with_edgelist_csv_loaded):
-    """ """
     (client_of_mg_server, test_data) = client_of_mg_server_with_edgelist_csv_loaded
 
     # get_graph_type() is a test/debug API which returns a string repr of the
@@ -293,7 +292,7 @@ def test_device_transfer(
         assert bytes_returned.device == device_n
 
 
-def test_uniform_neighbor_sampling_result_device(
+def test_uniform_neighbor_sampling_result_on_device(
     benchmark,
     result_device_id,
     client_of_sg_server_on_device_1_large_property_graph_loaded,
@@ -329,3 +328,52 @@ def test_uniform_neighbor_sampling_result_device(
         assert dtype is cp.ndarray
         device_n = cp.cuda.Device(result_device_id)
         assert result.sources.device == device_n
+
+
+def test_call_extension_result_on_device(
+    benchmark, extension1, result_device_id, client_of_sg_server_on_device_1
+):
+    client = client_of_sg_server_on_device_1
+    extension_dir = extension1
+    array1_len = 33
+    array2_len = 21
+
+    # Loading
+    ext_mod_names = client.load_extensions(extension_dir)
+
+    # Running
+    # my_nines_function in extension1 returns a list of two lists of 9's with
+    # sizes and dtypes based on args.
+    results = client.call_extension(
+        "my_nines_function",
+        array1_len,
+        "int32",
+        array2_len,
+        "float64",
+        result_device=result_device_id,
+    )
+    if result_device_id is None:
+        assert len(results) == 2
+        assert len(results[0]) == array1_len
+        assert len(results[1]) == array2_len
+        assert type(results[0][0]) == int
+        assert type(results[1][0]) == float
+        assert results[0][0] == 9
+        assert results[1][0] == 9.0
+    else:
+        # results will be a n-tuple where n is the number of arrays returned. The
+        # n-tuple contains each array as a device array on result_device_id.
+        assert isinstance(results, tuple)
+        assert len(results) == 2
+
+        device_n = cp.cuda.Device(result_device_id)
+        assert isinstance(results[0], cp.ndarray)
+        assert results[0].device == device_n
+        assert results[0].tolist() == [9] * array1_len
+
+        assert isinstance(results[1], cp.ndarray)
+        assert results[1].device == device_n
+        assert results[1].tolist() == [9.0] * array2_len
+
+    for mod_name in ext_mod_names:
+        client.unload_extension_module(mod_name)

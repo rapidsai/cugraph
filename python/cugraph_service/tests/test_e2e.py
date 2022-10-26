@@ -373,6 +373,23 @@ def test_load_call_unload_extension(client, extension1):
         client.call_extension("my_nines_function", 33, "int32", 21, "float64")
 
 
+def test_extension_returns_none(client, extension_returns_none):
+    """
+    Ensures an extension that returns None is handled
+    """
+    extension_dir = extension_returns_none
+
+    ext_mod_names = client.load_extensions(extension_dir)
+
+    result = client.call_extension("my_extension")
+    assert result is None
+
+    # FIXME: much of this test could be in a fixture which ensures the extension
+    # is unloaded from the server before returning
+    for mod_name in ext_mod_names:
+        client.unload_extension_module(mod_name)
+
+
 def test_get_graph_vertex_data(client_with_property_csvs_loaded):
     (client, test_data) = client_with_property_csvs_loaded
 

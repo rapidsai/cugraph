@@ -108,7 +108,8 @@ def test_load_and_unload_extensions(graph_creation_extension2, extension1):
     results = handler.call_extension(
         "my_nines_function", "(33, 'int32', 21, 'float64')", "{}"
     )
-    # Check the ValueWrapper object
+    # results is a ValueWrapper object which Thrift will understand to be a
+    # Value, which it can serialize. Check the ValueWrapper object here.
     assert len(results.list_value) == 2
     assert len(results.list_value[0].list_value) == 33
     assert len(results.list_value[1].list_value) == 21
@@ -138,6 +139,45 @@ def test_load_and_unload_extensions(graph_creation_extension2, extension1):
         handler.call_extension(
             "my_nines_function", "(33, 'int32', 21, 'float64')", "{}"
         )
+
+
+def test_extension_with_facade_graph_access(
+    graph_creation_extension1, extension_with_facade
+):
+    """
+    Creates a Graph then calls an extension that accesses the graph in order to
+    return data.
+    """
+    from cugraph_service_server.cugraph_handler import CugraphHandler
+
+    handler = CugraphHandler()
+    gc_extension_dir = graph_creation_extension1
+    extension_dir = extension_with_facade
+
+    # Load the extensions - use the graph creation extension to create a known PG
+    # for use by the extension being tested.
+    handler.load_graph_creation_extensions(gc_extension_dir)
+    handler.load_extensions(extension_dir)
+
+    new_graph_ID = handler.call_graph_creation_extension(
+        "custom_graph_creation_function", "()", "{}"
+    )
+    assert new_graph_ID in handler.get_graph_ids()
+
+    val1 = 33
+    val2 = 22.1
+
+    # Call the extension under test, it will access the PG loaded above to return
+    # results. This extension just adds val1 + val2 to each edge ID.
+    results = handler.call_extension("my_extension", f"({val1}, {val2})", "{}")
+
+    # results is a ValueWrapper object which Thrift will understand to be a Value, which
+    # it can serialize. Check the ValueWrapper object here, it should contain the 3 edge
+    # IDs starting from 0 with the values added to each.
+    assert len(results.list_value) == 3
+    assert results.list_value[0].double_value == 0 + val1 + val2
+    assert results.list_value[1].double_value == 1 + val1 + val2
+    assert results.list_value[2].double_value == 2 + val1 + val2
 
 
 def test_load_and_unload_graph_creation_extension_no_args(graph_creation_extension1):
