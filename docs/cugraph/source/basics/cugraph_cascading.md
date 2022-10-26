@@ -41,7 +41,7 @@ G = cugraph.Graph().from_cudf_edgelist(df, return_self=True)
 The fact that a developer would explicitly add a "return_self" flag to the method indicates that the developer is aware that the method returns None. It is just as easy for the developer to use a non-cascading workflow.
 
 ### Algorithms
-Algorithms operate on graph object.
+Algorithms operate on graph objects.
 ```
 cugraph.pagerank(G) and not G.pagerank()
 ```
