@@ -105,7 +105,6 @@ def _transform_to_backend_dtype(data, column_names, backend="numpy", dtypes=None
     if backend == "cupy":
         return [cupy.array(data[:, c], dtype=dtypes[c]) for c in range(data.shape[1])]
     elif backend == "numpy":
-        print("dtypes:", dtypes)
         return [np.array(data[:, c], dtype=dtypes[c]) for c in range(data.shape[1])]
 
     elif backend == "pandas" or backend == "cudf":
