@@ -31,7 +31,7 @@ G = cugraph.Graph()
 G2 = G.from_cudf_edgelist(df)
 G3 = G.from_cudf_edgelist(df2)
 ```
-The confusion with the none-cascade code is that G, G1, and G3 are all the same object with the same data.   Users could be confused since it is not obvious that changing G3 would also change G2 (and even G).  To prevent confusion cuGraph has opted to not return `self`.
+The confusion with the non-cascade code is that G, G1, and G3 are all the same object with the same data.   Users could be confused since it is not obvious that changing G3 would also change both G2 and G.  To prevent confusion, cuGraph has opted to not return `self`.
 
 _Why not add a flag "return_self" to the methods?_<br>
 ```
