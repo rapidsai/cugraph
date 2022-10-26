@@ -15,7 +15,6 @@
 import cudf
 import dask_cudf
 import cupy as cp
-from cugraph.experimental import MGPropertyGraph
 
 
 class CuFeatureStorage:
@@ -36,7 +35,7 @@ class CuFeatureStorage:
             from cupy import from_dlpack
         else:
             raise NotImplementedError(
-                f"Only PyTorch ('torch'), TensorFlow ('tf'), and CuPy ('cupy') "
+                f"Only PyTorch ('torch'), TensorFlow ('tf'), and CuPy ('cupy') g"
                 f"backends are currently supported, got {backend_lib=}"
             )
         if storage_type not in ["edge", "node"]:
@@ -67,7 +66,7 @@ class CuFeatureStorage:
         # Default implementation uses synchronous fetch.
 
         indices = cp.asarray(indices)
-        if isinstance(self.pg, MGPropertyGraph):
+        if type(self.pg).__name__ in "MGPropertyGraph":
             # dask_cudf loc breaks if we provide cudf series/cupy array
             # https://github.com/rapidsai/cudf/issues/11877
             indices = indices.get()
