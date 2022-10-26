@@ -13,7 +13,7 @@
 
 import cugraph
 from cugraph.experimental import PropertyGraph
-from cugraph.gnn.pyg_extensions import to_pyg
+from cugraph.experimental.pyg_extensions import to_pyg, CuGraphSampler
 from cugraph.gnn.pyg_extensions.data.cugraph_store import (
     CuGraphTensorAttr,
     CuGraphEdgeAttr,
@@ -242,7 +242,7 @@ def test_edge_types(graph):
     assert eta.keys() == pG.edge_types
 
     for attr_name, attr_repr in eta.items():
-        assert pG.get_num_edges(attr_name) == attr_repr.size
+        assert pG.get_num_edges(attr_name) == attr_repr.size[-1]
         assert attr_name == attr_repr.edge_type[1]
 
 
@@ -267,13 +267,16 @@ def test_get_subgraph(graph):
 def test_neighbor_sample(basic_property_graph_1):
     pG = basic_property_graph_1
     feature_store, graph_store = to_pyg(pG, backend="cupy")
-
-    noi_groups, row_dict, col_dict, _ = graph_store.neighbor_sample(
-        index=cupy.array([0, 1, 2, 3, 4], dtype="int64"),
+    sampler = CuGraphSampler(
+        (feature_store, graph_store),
         num_neighbors=[10],
         replace=True,
         directed=True,
         edge_types=[v.edge_type for v in graph_store._edge_types_to_attrs.values()],
+    )
+
+    noi_groups, row_dict, col_dict, _ = sampler.sample_from_nodes(
+        index=cupy.array([0, 1, 2, 3, 4], dtype="int64")
     )
 
     for node_type, node_ids in noi_groups.items():
@@ -304,21 +307,90 @@ def test_neighbor_sample(basic_property_graph_1):
 def test_neighbor_sample_multi_vertex(multi_edge_multi_vertex_property_graph_1):
     pG = multi_edge_multi_vertex_property_graph_1
     feature_store, graph_store = to_pyg(pG, backend="cupy")
-
-    ex = re.compile(r"[A-z]+__([A-z]+)__[A-z]+")
-
-    noi_groups, row_dict, col_dict, _ = graph_store.neighbor_sample(
-        index=cupy.array([0, 1, 2, 3, 4], dtype="int64"),
+    sampler = CuGraphSampler(
+        (feature_store, graph_store),
         num_neighbors=[10],
         replace=True,
         directed=True,
         edge_types=[v.edge_type for v in graph_store._edge_types_to_attrs.values()],
     )
 
+    ex = re.compile(r"[A-z]+__([A-z]+)__[A-z]+")
+
+    noi_groups, row_dict, col_dict, _ = sampler.sample_from_nodes(
+        index=cupy.array([0, 1, 2, 3, 4], dtype="int64"),
+    )
+
     for pyg_cpp_edge_type, srcs in row_dict.items():
         cugraph_edge_type = ex.match(pyg_cpp_edge_type).groups()[0]
         num_edges = len(pG.get_edge_data(types=[cugraph_edge_type]))
         assert num_edges == len(srcs)
+
+
+def test_renumber_vertices(graph):
+    pG = graph
+    feature_store, graph_store = to_pyg(pG, backend="cupy")
+
+    nodes_of_interest = pG.get_vertices().sample(3)
+    vc_actual = pG.get_vertex_data(nodes_of_interest)[pG.type_col_name].value_counts()
+    index, groups, tensors = graph_store._get_renumbered_vertex_data_from_sample(
+        nodes_of_interest
+    )
+
+    for vtype in index:
+        assert len(index[vtype]) == vc_actual[vtype]
+        assert len(index[vtype]) == len(groups[vtype])
+        assert groups[vtype].tolist() == cupy.arange(len(index[vtype])).tolist()
+
+        assert (
+            tensors[vtype]["x"].tolist()
+            == pG.get_vertex_data(index[vtype])
+            .drop(pG.vertex_col_name, axis=1)
+            .drop(pG.type_col_name, axis=1)
+            .to_cupy(dtype="float")
+            .tolist()
+        )
+
+
+def test_renumber_edges(graph):
+    pG = graph
+    feature_store, graph_store = to_pyg(pG, backend="cupy")
+    eoi_df = pG.get_edge_data().sample(4)
+    nodes_of_interest = (
+        cudf.concat([eoi_df[pG.src_col_name], eoi_df[pG.dst_col_name]])
+        .unique()
+        .sort_values()
+    )
+    vd = pG.get_vertex_data(nodes_of_interest)
+    noi_index = {
+        vd[pG.type_col_name]
+        .cat.categories[gg[0]]: vd.loc[gg[1].values_host][pG.vertex_col_name]
+        .to_cupy()
+        for gg in vd.groupby(pG.type_col_name).groups.items()
+    }
+
+    sdf = cudf.DataFrame(
+        {
+            "sources": eoi_df[pG.src_col_name],
+            "destinations": eoi_df[pG.dst_col_name],
+            "indices": eoi_df[pG.edge_id_col_name],
+        }
+    )
+    row, col = graph_store._get_renumbered_edges_from_sample(sdf, noi_index)
+
+    for etype in row:
+        stype, ctype, dtype = etype.split("__")
+        src = noi_index[stype][row[etype]]
+        dst = noi_index[dtype][col[etype]]
+        assert len(src) == len(dst)
+
+        for i in range(len(src)):
+            src_i = int(src[i])
+            dst_i = int(dst[i])
+            f = eoi_df[eoi_df[pG.src_col_name] == src_i]
+            f = f[f[pG.dst_col_name] == dst_i]
+            f = f[f[pG.type_col_name] == ctype]
+            assert len(f) == 1  # make sure we match exactly 1 edge
 
 
 def test_get_tensor(graph):

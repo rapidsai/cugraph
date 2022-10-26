@@ -252,6 +252,8 @@ set(CUGRAPH_SOURCES
     src/centrality/katz_centrality_mg.cu
     src/centrality/eigenvector_centrality_sg.cu
     src/centrality/eigenvector_centrality_mg.cu
+    src/centrality/betweenness_centrality_sg.cu
+    src/centrality/betweenness_centrality_mg.cu
     src/tree/legacy/mst.cu
     src/components/weakly_connected_components_sg.cu
     src/components/weakly_connected_components_mg.cu
@@ -357,6 +359,7 @@ add_library(cugraph_c
         src/c_api/katz.cpp
         src/c_api/centrality_result.cpp
         src/c_api/eigenvector_centrality.cpp
+        src/c_api/betweenness_centrality.cpp
         src/c_api/core_number.cpp
         src/c_api/core_result.cpp
         src/c_api/k_core.cpp

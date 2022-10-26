@@ -314,9 +314,7 @@ class EXPERIMENTAL__MGPropertyGraph:
         vert_sers = self.__get_all_vertices_series()
         if vert_sers:
             if self.__series_type is dask_cudf.Series:
-                return self.__series_type(
-                    dask_cudf.concat(vert_sers, ignore_index=True).unique()
-                )
+                return dask_cudf.concat(vert_sers, ignore_index=True).unique()
             else:
                 raise TypeError("dataframe must be a CUDF Dask dataframe.")
         return self.__series_type()
@@ -456,7 +454,7 @@ class EXPERIMENTAL__MGPropertyGraph:
         self.__vertex_prop_dtypes.update(new_col_info)
 
         # Join on shared columns and the indices
-        tmp_df = tmp_df.set_index(self.vertex_col_name)
+        tmp_df = tmp_df.persist().set_index(self.vertex_col_name).persist()
         cols = self.__vertex_prop_dataframe.columns.intersection(
             tmp_df.columns
         ).to_list()
@@ -465,7 +463,9 @@ class EXPERIMENTAL__MGPropertyGraph:
         self.__vertex_prop_dataframe = (
             self.__vertex_prop_dataframe.reset_index()
             .merge(tmp_df.reset_index(), on=cols, how="outer")
+            .persist()
             .set_index(self.vertex_col_name)
+            .persist()
         )
         # self.__vertex_prop_dataframe = \
         #     self.__vertex_prop_dataframe.merge(tmp_df, on=cols, how="outer")
@@ -479,8 +479,6 @@ class EXPERIMENTAL__MGPropertyGraph:
         self.__vertex_prop_eval_dict[
             self.vertex_col_name
         ] = self.__vertex_prop_dataframe.index
-        # Should we persist?
-        # self.__vertex_prop_dataframe = self.__vertex_prop_dataframe.persist()
 
     def get_vertex_data(self, vertex_ids=None, types=None, columns=None):
         """
@@ -666,16 +664,15 @@ class EXPERIMENTAL__MGPropertyGraph:
             tmp_df[self.edge_id_col_name] = (
                 tmp_df[self.edge_id_col_name].cumsum() + starting_eid
             )
-            tmp_df = tmp_df.persist()
-            tmp_df = tmp_df.set_index(self.edge_id_col_name)
-            tmp_df = tmp_df.persist()
+            tmp_df = tmp_df.persist().set_index(self.edge_id_col_name).persist()
             self.__last_edge_id = starting_eid + len(tmp_df)
         else:
-            tmp_df = tmp_df.persist()
-            tmp_df = tmp_df.rename(
-                columns={edge_id_col_name: self.edge_id_col_name}
-            ).set_index(self.edge_id_col_name)
-            tmp_df = tmp_df.persist()
+            tmp_df = (
+                tmp_df.rename(columns={edge_id_col_name: self.edge_id_col_name})
+                .persist()
+                .set_index(self.edge_id_col_name)
+                .persist()
+            )
 
         if property_columns:
             # all columns
@@ -701,7 +698,9 @@ class EXPERIMENTAL__MGPropertyGraph:
         self.__edge_prop_dataframe = (
             self.__edge_prop_dataframe.reset_index()
             .merge(tmp_df.reset_index(), on=cols, how="outer")
+            .persist()
             .set_index(self.edge_id_col_name)
+            .persist()
         )
         # self.__edge_prop_dataframe = \
         #     self.__edge_prop_dataframe.merge(tmp_df, on=cols, how="outer")
@@ -717,8 +716,6 @@ class EXPERIMENTAL__MGPropertyGraph:
         self.__edge_prop_eval_dict[
             self.edge_id_col_name
         ] = self.__edge_prop_dataframe.index
-        # Should we persist?
-        # self.__edge_prop_dataframe = self.__edge_prop_dataframe.persist()
 
     def get_edge_data(self, edge_ids=None, types=None, columns=None):
         """
@@ -1118,9 +1115,9 @@ class EXPERIMENTAL__MGPropertyGraph:
             df[self.vertex_col_name] = 1
             df[self.vertex_col_name] = df[self.vertex_col_name].cumsum() - 1
 
-        self.__vertex_prop_dataframe = df.set_index(
-            self.vertex_col_name, sorted=True
-        ).persist()
+        self.__vertex_prop_dataframe = (
+            df.persist().set_index(self.vertex_col_name, sorted=True).persist()
+        )
 
         # FIXME DASK_CUDF: https://github.com/rapidsai/cudf/issues/11795
         df = self._vertex_type_value_counts
@@ -1163,9 +1160,9 @@ class EXPERIMENTAL__MGPropertyGraph:
 
         df[self.edge_id_col_name] = 1
         df[self.edge_id_col_name] = df[self.edge_id_col_name].cumsum() - 1
-        self.__edge_prop_dataframe = df.set_index(
-            self.edge_id_col_name, sorted=True
-        ).persist()
+        self.__edge_prop_dataframe = (
+            df.persist().set_index(self.edge_id_col_name, sorted=True).persist()
+        )
 
         # FIXME DASK_CUDF: https://github.com/rapidsai/cudf/issues/11795
         df = self._edge_type_value_counts

@@ -42,7 +42,7 @@ HELP="$0 [<target> ...] [<flag> ...]
    --cmake_default_generator  - use the default cmake generator instead of ninja
    -h                         - print this text
 
- default action (no args) is to build and install 'libcugraph' then 'libcugraph_etl' then 'pylibcugraph' then 'cugraph' then 'docs' targets
+ default action (no args) is to build and install 'libcugraph' then 'libcugraph_etl' then 'pylibcugraph' then 'cugraph' targets
 
  libcugraph build dir is: ${LIBCUGRAPH_BUILD_DIR}
 
@@ -266,7 +266,7 @@ if buildAll || hasArg cugraph; then
 fi
 
 # Build the docs
-if buildAll || hasArg docs; then
+if hasArg docs; then
     if [ ! -d ${LIBCUGRAPH_BUILD_DIR} ]; then
         mkdir -p ${LIBCUGRAPH_BUILD_DIR}
         cd ${LIBCUGRAPH_BUILD_DIR}
