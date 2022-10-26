@@ -204,7 +204,7 @@ def client_of_sg_server_on_device_1_large_property_graph_loaded(
     client = client_of_sg_server_on_device_1
     server_extension_dir = graph_creation_extension_large_property_graph
 
-    client.load_graph_creation_extensions(server_extension_dir.name)
+    ext_mod_names = client.load_graph_creation_extensions(server_extension_dir)
 
     # Assume fixture that starts server on device 1 has the extension loaded
     # for creating large property graphs.
@@ -218,12 +218,12 @@ def client_of_sg_server_on_device_1_large_property_graph_loaded(
     yield (client, new_graph_id)
 
     client.delete_graph(new_graph_id)
-    client.unload_graph_creation_extensions()
+    for mod_name in ext_mod_names:
+        client.unload_extension_module(mod_name)
 
 
-# Because pytest does not allow mixing fixtures and parametrization decorators
-# for test functions, this fixture is parametrized for different device IDs to
-# test against, and simply returns the param value to the test using it.
+# This fixture is parametrized for different device IDs to test against, and
+# simply returns the param value to the test using it.
 @pytest.fixture(scope="module", params=[None, 0], ids=lambda p: f"device={p}")
 def result_device_id(request):
     return request.param

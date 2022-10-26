@@ -132,6 +132,7 @@ class CugraphHandler:
         self.__next_graph_id = defaults.graph_id + 1
         self.__graph_objs = {}
         self.__graph_creation_extensions = {}
+        self.__extensions = {}
         self.__dask_client = None
         self.__dask_cluster = None
         self.__start_time = int(time.time())
@@ -173,7 +174,7 @@ class CugraphHandler:
             # cugraph_service server)
             num_gpus = 1
 
-        return {"num_gpus": ValueWrapper(num_gpus).union}
+        return {"num_gpus": ValueWrapper(num_gpus)}
 
     def load_graph_creation_extensions(self, extension_dir_path):
         """
@@ -188,90 +189,89 @@ class CugraphHandler:
         if (not extension_dir.exists()) or (not extension_dir.is_dir()):
             raise CugraphServiceError(f"bad directory: {extension_dir}")
 
-        num_files_read = 0
+        modules_loaded = []
         for ext_file in extension_dir.glob("*_extension.py"):
             module_file_path = ext_file.absolute().as_posix()
             spec = importlib.util.spec_from_file_location(module_file_path, ext_file)
             module = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(module)
             self.__graph_creation_extensions[module_file_path] = module
-            num_files_read += 1
+            modules_loaded.append(module_file_path)
 
-        return num_files_read
+        return modules_loaded
 
-    def unload_graph_creation_extensions(self):
+    def load_extensions(self, extension_dir_path):
         """
-        Removes all graph creation extensions.
+        Loads ("imports") all modules matching the pattern *_extension.py in
+        the directory specified by extension_dir_path.
+
+        The modules are searched and their functions are called (if a match is
+        found) when call_extension() is called.
         """
-        self.__graph_creation_extensions.clear()
+        extension_dir = Path(extension_dir_path)
+
+        if (not extension_dir.exists()) or (not extension_dir.is_dir()):
+            raise CugraphServiceError(f"bad directory: {extension_dir}")
+
+        modules_loaded = []
+        for ext_file in extension_dir.glob("*_extension.py"):
+            module_file_path = ext_file.absolute().as_posix()
+            spec = importlib.util.spec_from_file_location(module_file_path, ext_file)
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+            self.__extensions[module_file_path] = module
+            modules_loaded.append(module_file_path)
+
+        return modules_loaded
+
+    def unload_extension_module(self, modname):
+        """
+        Removes all extension functions in modname.
+        """
+        if (self.__graph_creation_extensions.pop(modname, None) is None) and (
+            self.__extensions.pop(modname, None) is None
+        ):
+            raise CugraphServiceError(f"bad extension module {modname}")
 
     def call_graph_creation_extension(
         self, func_name, func_args_repr, func_kwargs_repr
     ):
         """
         Calls the graph creation extension function func_name and passes it the
-        eval'd func_args_repr and func_kwargs_repr objects.
-
-        The arg/kwarg reprs are eval'd prior to calling in order to pass actual
-        python objects to func_name (this is needed to allow arbitrary arg
-        objects to be serialized as part of the RPC call from the
-        client).
+        eval'd func_args_repr and func_kwargs_repr objects.  If successful, it
+        associates the graph returned by the extension function with a new graph
+        ID and returns it.
 
         func_name cannot be a private name (name starting with __).
-
-        All loaded extension modules are checked when searching for func_name,
-        and the first extension module that contains it will have its function
-        called.
         """
-        if not (func_name.startswith("__")):
-            for module in self.__graph_creation_extensions.values():
-                # Ignore private functions
-                func = getattr(module, func_name, None)
-                if func is not None:
-                    func_args = eval(func_args_repr)
-                    func_kwargs = eval(func_kwargs_repr)
-                    func_sig = signature(func)
-                    func_params = list(func_sig.parameters.keys())
-                    facade_param = self.__server_facade_extension_param_name
+        graph_obj = self.__call_extension(
+            self.__graph_creation_extensions,
+            func_name,
+            func_args_repr,
+            func_kwargs_repr,
+        )
+        # FIXME: ensure graph_obj is a graph obj
+        return self.__add_graph(graph_obj)
 
-                    # Graph creation extensions that have the last arg named
-                    # self.__server_facade_extension_param_name are passed a
-                    # ExtensionServerFacade instance to allow them to query the
-                    # "server" in a safe way, if needed.
-                    if facade_param in func_params:
-                        if func_params[-1] == facade_param:
-                            func_kwargs[facade_param] = ExtensionServerFacade(self)
-                        else:
-                            raise CugraphServiceError(
-                                f"{facade_param}, if specified, must be the "
-                                "last param."
-                            )
-                    try:
-                        graph_obj = func(*func_args, **func_kwargs)
-                    except Exception:
-                        # FIXME: raise a more detailed error
-                        raise CugraphServiceError(
-                            f"error running {func_name} : " f"{traceback.format_exc()}"
-                        )
-                    return self.__add_graph(graph_obj)
+    def call_extension(self, func_name, func_args_repr, func_kwargs_repr):
+        """
+        Calls the extension function func_name and passes it the eval'd
+        func_args_repr and func_kwargs_repr objects. If successful, returns a
+        Value object containing the results returned by the extension function.
 
-        raise CugraphServiceError(f"{func_name} is not a graph creation extension")
+        func_name cannot be a private name (name starting with __).
+        """
+        result = self.__call_extension(
+            self.__extensions, func_name, func_args_repr, func_kwargs_repr
+        )
+        return ValueWrapper(result)
 
     def initialize_dask_client(self, dask_scheduler_file=None):
         """
         Initialize a dask client to be used for MG operations.
         """
         if dask_scheduler_file is not None:
-            # FIXME: read the config from user options instead of hardcoding here.
-            # FIXME: for the config below, env var UCX_MAX_RNDV_RAILS=1 must be set too.
-            dask_initialize(
-                create_cuda_context=False,
-                enable_tcp_over_ucx=True,
-                enable_nvlink=True,
-                enable_infiniband=True,
-                enable_rdmacm=True,
-                # net_devices="mlx5_0:1",
-            )
+            dask_initialize()
             self.__dask_client = Client(scheduler_file=dask_scheduler_file)
         else:
             # FIXME: LocalCUDACluster init. Implement when tests are in place.
@@ -375,7 +375,7 @@ class CugraphHandler:
         except Exception:
             raise CugraphServiceError(f"{traceback.format_exc()}")
 
-        return {key: ValueWrapper(value).union for (key, value) in info.items()}
+        return {key: ValueWrapper(value) for (key, value) in info.items()}
 
     def load_csv_as_vertex_data(
         self,
@@ -932,3 +932,56 @@ class CugraphHandler:
 
         except Exception:
             raise CugraphServiceError(f"{traceback.format_exc()}")
+
+    def __call_extension(
+        self, extension_dict, func_name, func_args_repr, func_kwargs_repr
+    ):
+        """
+        Calls the extension function func_name and passes it the eval'd
+        func_args_repr and func_kwargs_repr objects. If successful, returns a
+        Value object containing the results returned by the extension function.
+
+        The arg/kwarg reprs are eval'd prior to calling in order to pass actual
+        python objects to func_name (this is needed to allow arbitrary arg
+        objects to be serialized as part of the RPC call from the
+        client).
+
+        func_name cannot be a private name (name starting with __).
+
+        All loaded extension modules are checked when searching for func_name,
+        and the first extension module that contains it will have its function
+        called.
+        """
+        if func_name.startswith("__"):
+            raise CugraphServiceError(f"Cannot call private function {func_name}")
+
+        for module in extension_dict.values():
+            # Ignore private functions
+            func = getattr(module, func_name, None)
+            if func is not None:
+                func_args = eval(func_args_repr)
+                func_kwargs = eval(func_kwargs_repr)
+                func_sig = signature(func)
+                func_params = list(func_sig.parameters.keys())
+                facade_param = self.__server_facade_extension_param_name
+
+                # Graph creation extensions that have the last arg named
+                # self.__server_facade_extension_param_name are passed a
+                # ExtensionServerFacade instance to allow them to query the
+                # "server" in a safe way, if needed.
+                if facade_param in func_params:
+                    if func_params[-1] == facade_param:
+                        func_kwargs[facade_param] = ExtensionServerFacade(self)
+                    else:
+                        raise CugraphServiceError(
+                            f"{facade_param}, if specified, must be the " "last param."
+                        )
+                try:
+                    return func(*func_args, **func_kwargs)
+                except Exception:
+                    # FIXME: raise a more detailed error
+                    raise CugraphServiceError(
+                        f"error running {func_name} : " f"{traceback.format_exc()}"
+                    )
+
+        raise CugraphServiceError(f"extension {func_name} was not found")

@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import pickle
+from pathlib import Path
 
 import pytest
 
@@ -47,8 +48,10 @@ def test_load_and_call_graph_creation_extension(graph_creation_extension2):
         handler.load_graph_creation_extensions(__file__)
 
     # Load the extension and call the function defined in it
-    num_files_read = handler.load_graph_creation_extensions(extension_dir.name)
-    assert num_files_read == 1
+    ext_mod_names = handler.load_graph_creation_extensions(extension_dir)
+    assert len(ext_mod_names) == 1
+    expected_mod_name = (Path(extension_dir) / "graph_creation_extension.py").as_posix()
+    assert ext_mod_names[0] == expected_mod_name
 
     # Private function should not be callable
     with pytest.raises(CugraphServiceError):
@@ -78,30 +81,62 @@ def test_load_and_call_graph_creation_extension(graph_creation_extension2):
     assert "c" in edge_props
 
 
-def test_load_and_unload_graph_creation_extension(graph_creation_extension2):
+def test_load_and_unload_extensions(graph_creation_extension2, extension1):
     """
-    Ensure extensions can be unloaded.
+    Ensure extensions can be loaded, run, and unloaded.
     """
     from cugraph_service_server.cugraph_handler import CugraphHandler
     from cugraph_service_client.exceptions import CugraphServiceError
 
     handler = CugraphHandler()
 
-    extension_dir = graph_creation_extension2
+    graph_creation_extension_dir = graph_creation_extension2
+    extension_dir = extension1
 
-    # Load the extensions and ensure it can be called.
-    handler.load_graph_creation_extensions(extension_dir.name)
+    # Loading
+    gc_ext_mod_names = handler.load_graph_creation_extensions(
+        graph_creation_extension_dir
+    )
+    ext_mod_names = handler.load_extensions(extension_dir)
+
+    # Running
     new_graph_ID = handler.call_graph_creation_extension(
         "my_graph_creation_function", "('a', 'b', 'c')", "{}"
     )
     assert new_graph_ID in handler.get_graph_ids()
 
-    # Unload then try to run the same call again, which should fail
-    handler.unload_graph_creation_extensions()
+    results = handler.call_extension(
+        "my_nines_function", "(33, 'int32', 21, 'float64')", "{}"
+    )
+    # Check the ValueWrapper object
+    assert len(results.list_value) == 2
+    assert len(results.list_value[0].list_value) == 33
+    assert len(results.list_value[1].list_value) == 21
+    assert type(results.list_value[0].list_value[0].int32_value) is int
+    assert type(results.list_value[1].list_value[0].double_value) is float
+    assert results.list_value[0].list_value[0].int32_value == 9
+    assert results.list_value[1].list_value[0].double_value == 9.0
+
+    # Unloading
+    with pytest.raises(CugraphServiceError):
+        handler.unload_extension_module("invalid_module")
+
+    for mod_name in gc_ext_mod_names:
+        handler.unload_extension_module(mod_name)
 
     with pytest.raises(CugraphServiceError):
         handler.call_graph_creation_extension(
             "my_graph_creation_function", "('a', 'b', 'c')", "{}"
+        )
+
+    handler.call_extension("my_nines_function", "(33, 'int32', 21, 'float64')", "{}")
+
+    for mod_name in ext_mod_names:
+        handler.unload_extension_module(mod_name)
+
+    with pytest.raises(CugraphServiceError):
+        handler.call_extension(
+            "my_nines_function", "(33, 'int32', 21, 'float64')", "{}"
         )
 
 
@@ -116,7 +151,7 @@ def test_load_and_unload_graph_creation_extension_no_args(graph_creation_extensi
     extension_dir = graph_creation_extension1
 
     # Load the extensions and ensure it can be called.
-    handler.load_graph_creation_extensions(extension_dir.name)
+    handler.load_graph_creation_extensions(extension_dir)
     new_graph_ID = handler.call_graph_creation_extension(
         "custom_graph_creation_function", "()", "{}"
     )
@@ -136,7 +171,7 @@ def test_load_and_unload_graph_creation_extension_no_facade_arg(
     extension_dir = graph_creation_extension_no_facade_arg
 
     # Load the extensions and ensure it can be called.
-    handler.load_graph_creation_extensions(extension_dir.name)
+    handler.load_graph_creation_extensions(extension_dir)
     new_graph_ID = handler.call_graph_creation_extension(
         "graph_creation_function", "('a')", "{'arg2':33}"
     )
@@ -157,7 +192,7 @@ def test_load_and_unload_graph_creation_extension_bad_arg_order(
     extension_dir = graph_creation_extension_bad_arg_order
 
     # Load the extensions and ensure it can be called.
-    handler.load_graph_creation_extensions(extension_dir.name)
+    handler.load_graph_creation_extensions(extension_dir)
     with pytest.raises(CugraphServiceError):
         handler.call_graph_creation_extension(
             "graph_creation_function", "('a', 'b')", "{}"
@@ -175,7 +210,7 @@ def test_get_graph_data_large_vertex_ids(graph_creation_extension_big_vertex_ids
     extension_dir = graph_creation_extension_big_vertex_ids
 
     # Load the extension and ensure it can be called.
-    handler.load_graph_creation_extensions(extension_dir.name)
+    handler.load_graph_creation_extensions(extension_dir)
     new_graph_id = handler.call_graph_creation_extension(
         "graph_creation_function_vert_and_edge_data_big_vertex_ids", "()", "{}"
     )
@@ -232,7 +267,7 @@ def test_get_graph_data_empty_graph(graph_creation_extension_empty_graph):
     extension_dir = graph_creation_extension_empty_graph
 
     # Load the extension and ensure it can be called.
-    handler.load_graph_creation_extensions(extension_dir.name)
+    handler.load_graph_creation_extensions(extension_dir)
     new_graph_id = handler.call_graph_creation_extension(
         "graph_creation_function", "()", "{}"
     )

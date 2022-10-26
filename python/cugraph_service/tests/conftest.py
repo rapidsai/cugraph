@@ -154,6 +154,19 @@ def graph_creation_extension_large_property_graph(server):
    return pG
 """
 
+extension1_file_contents = """
+import cupy as cp
+
+
+def my_nines_function(array1_size, array1_dtype, array2_size, array2_dtype):
+    '''
+    Returns 2 arrays of size and dtype specified containing only 9s
+    '''
+    array1 = cp.array([9] * array1_size, dtype=array1_dtype)
+    array2 = cp.array([9] * array2_size, dtype=array2_dtype)
+    return (array1, array2)
+"""
+
 
 ###############################################################################
 # module scope fixtures
@@ -165,7 +178,7 @@ def graph_creation_extension1():
         graph_creation_extension1_file_contents
     )
 
-    yield tmp_extension_dir
+    yield tmp_extension_dir.name
 
 
 @pytest.fixture(scope="module")
@@ -174,7 +187,7 @@ def graph_creation_extension2():
         graph_creation_extension2_file_contents
     )
 
-    yield tmp_extension_dir
+    yield tmp_extension_dir.name
 
 
 @pytest.fixture(scope="module")
@@ -183,7 +196,7 @@ def graph_creation_extension_long_running():
         graph_creation_extension_long_running_file_contents
     )
 
-    yield tmp_extension_dir
+    yield tmp_extension_dir.name
 
 
 @pytest.fixture(scope="module")
@@ -192,7 +205,7 @@ def graph_creation_extension_no_facade_arg():
         graph_creation_extension_no_facade_arg_file_contents
     )
 
-    yield tmp_extension_dir
+    yield tmp_extension_dir.name
 
 
 @pytest.fixture(scope="module")
@@ -201,7 +214,7 @@ def graph_creation_extension_bad_arg_order():
         graph_creation_extension_bad_arg_order_file_contents
     )
 
-    yield tmp_extension_dir
+    yield tmp_extension_dir.name
 
 
 @pytest.fixture(scope="module")
@@ -210,7 +223,7 @@ def graph_creation_extension_big_vertex_ids():
         graph_creation_extension_big_vertex_ids_file_contents
     )
 
-    yield tmp_extension_dir
+    yield tmp_extension_dir.name
 
 
 @pytest.fixture(scope="module")
@@ -219,7 +232,7 @@ def graph_creation_extension_empty_graph():
         graph_creation_extension_empty_graph_file_contents
     )
 
-    yield tmp_extension_dir
+    yield tmp_extension_dir.name
 
 
 @pytest.fixture(scope="module")
@@ -228,4 +241,14 @@ def graph_creation_extension_large_property_graph():
         graph_creation_extension_large_property_graph_file_contents
     )
 
-    yield tmp_extension_dir
+    yield tmp_extension_dir.name
+
+
+# General (ie. not graph creation) extension
+
+
+@pytest.fixture(scope="module")
+def extension1():
+    tmp_extension_dir = utils.create_tmp_extension_dir(extension1_file_contents)
+
+    yield tmp_extension_dir.name

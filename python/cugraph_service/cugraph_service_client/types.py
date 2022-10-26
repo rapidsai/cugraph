@@ -12,7 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import numpy
+# Optional modules: additional features are enabled if these are present
+try:
+    import numpy
+except ModuleNotFoundError:
+    numpy = None
+try:
+    import cupy
+except ModuleNotFoundError:
+    cupy = None
 
 from cugraph_service_client.cugraph_service_thrift import spec
 
@@ -31,24 +39,7 @@ class UnionWrapper:
     unions to Thrift unions/py objects.
     """
 
-    def get_py_obj(self):
-        """
-        Get the python object set in the union.
-        """
-        not_members = set(["default_spec", "thrift_spec", "read", "write"])
-        attrs = [
-            a
-            for a in dir(self.union)
-            if not (a.startswith("_")) and a not in not_members
-        ]
-        # Much like a C union, only one field will be set. Return the first
-        # non-None value encountered.
-        for a in attrs:
-            val = getattr(self.union, a)
-            if val is not None:
-                return val
-
-        return None
+    non_attrs = set(["default_spec", "thrift_spec", "read", "write"])
 
 
 class ValueWrapper(UnionWrapper):
@@ -57,6 +48,12 @@ class ValueWrapper(UnionWrapper):
     allowing a python obj to be automatically mapped to the correct union
     field.
     """
+
+    valid_types = ["int", "float", "str", "bool"]
+    if numpy:
+        valid_types += ["numpy.int32", "numpy.int64", "numpy.ndarray"]
+    if cupy:
+        valid_types += ["cupy.int32", "cupy.int64", "cupy.ndarray"]
 
     def __init__(self, val, val_name="value"):
         """
@@ -73,20 +70,93 @@ class ValueWrapper(UnionWrapper):
                 self.union = Value(int32_value=val)
             else:
                 self.union = Value(int64_value=val)
-        elif isinstance(val, numpy.int32):
+        elif isinstance(val, float):
+            self.union = Value(double_value=val)
+        elif (numpy and isinstance(val, numpy.int32)) or (
+            cupy and isinstance(val, cupy.int32)
+        ):
             self.union = Value(int32_value=int(val))
-        elif isinstance(val, numpy.int64):
+        elif (numpy and isinstance(val, numpy.int64)) or (
+            cupy and isinstance(val, cupy.int64)
+        ):
             self.union = Value(int64_value=int(val))
+        elif (
+            (numpy and isinstance(val, numpy.float32))
+            or (cupy and isinstance(val, cupy.float32))
+            or (numpy and isinstance(val, numpy.float64))
+            or (cupy and isinstance(val, cupy.float64))
+        ):
+            self.union = Value(double_value=float(val))
         elif isinstance(val, str):
             self.union = Value(string_value=val)
         elif isinstance(val, bool):
             self.union = Value(bool_value=val)
+        elif isinstance(val, (list, tuple)):
+            self.union = Value(list_value=[ValueWrapper(i) for i in val])
+        # FIXME: Assume ndarrays contain values Thrift can accept! Otherwise,
+        # check and possibly convert ndarray dtypes.
+        elif (numpy and isinstance(val, numpy.ndarray)) or (
+            cupy and isinstance(val, cupy.ndarray)
+        ):
+            # self.union = Value(list_value=val.tolist())
+            self.union = Value(list_value=[ValueWrapper(i) for i in val.tolist()])
         else:
             raise TypeError(
                 f"{val_name} must be one of the "
-                "following types: [int, str, bool], got "
+                f"following types: {self.valid_types}, got "
                 f"{type(val)}"
             )
+        """
+        # Also add members with values matching the now complete self.union
+        # Value object. This will essentially duck-type this ValueWrapper
+        # instance and allow it to be returned to Thrift and treated as a Value
+        self.int32_value = self.union.int32_value
+        self.int64_value = self.union.int64_value
+        self.string_value = self.union.string_value
+        self.bool_value = self.union.bool_value
+        self.double_value = self.union.double_value
+        self.list_value = self.union.list_value
+        """
+
+    def __getattr__(self, attr):
+        """
+        Retrieve all other attrs from the underlying Value object. This will
+        essentially duck-type this ValueWrapper instance and allow it to be
+        returned to Thrift and treated as a Value.
+        """
+        return getattr(self.union, attr)
+
+    def get_py_obj(self):
+        """
+        Get the python object set in the union.
+        """
+        attrs = [
+            a
+            for a in dir(self.union)
+            if not (a.startswith("_")) and a not in self.non_attrs
+        ]
+        # Much like a C union, only one field will be set. Return the first
+        # non-None value encountered.
+        for a in attrs:
+            val = getattr(self.union, a)
+            if val is not None:
+                # Assume all lists are homogeneous. Check the first item to see
+                # if it is a Value or ValueWrapper obj, and if so recurse.
+                # FIXME: this might be slow, consider handling lists of numbers
+                # differently
+                if isinstance(val, list) and len(val) > 0:
+                    if isinstance(val[0], Value):
+                        return [ValueWrapper(i).get_py_obj() for i in val]
+                    elif isinstance(val[0], ValueWrapper):
+                        return [i.get_py_obj() for i in val]
+                    else:
+                        raise TypeError(
+                            f"expected Value or ValueWrapper, got {type(val)}"
+                        )
+                else:
+                    return val
+
+        return None
 
 
 class GraphVertexEdgeIDWrapper(UnionWrapper):
@@ -110,3 +180,21 @@ class GraphVertexEdgeIDWrapper(UnionWrapper):
                 "following types: [int, list<int>], got "
                 f"{type(val)}"
             )
+
+    def get_py_obj(self):
+        """
+        Get the python object set in the union.
+        """
+        attrs = [
+            a
+            for a in dir(self.union)
+            if not (a.startswith("_")) and a not in self.non_attrs
+        ]
+        # Much like a C union, only one field will be set. Return the first
+        # non-None value encountered.
+        for a in attrs:
+            val = getattr(self.union, a)
+            if val is not None:
+                return val
+
+        return None

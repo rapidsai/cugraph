@@ -100,7 +100,7 @@ def test_get_graph_data_large_vertex_ids(
     extension_dir = graph_creation_extension_big_vertex_ids
 
     # Load the extension and ensure it can be called.
-    handler.load_graph_creation_extensions(extension_dir.name)
+    handler.load_graph_creation_extensions(extension_dir)
     new_graph_id = handler.call_graph_creation_extension(
         "graph_creation_function_vert_and_edge_data_big_vertex_ids", "()", "{}"
     )
@@ -158,7 +158,7 @@ def test_get_graph_data_empty_graph(
     extension_dir = graph_creation_extension_empty_graph
 
     # Load the extension and ensure it can be called.
-    handler.load_graph_creation_extensions(extension_dir.name)
+    handler.load_graph_creation_extensions(extension_dir)
     new_graph_id = handler.call_graph_creation_extension(
         "graph_creation_function", "()", "{}"
     )

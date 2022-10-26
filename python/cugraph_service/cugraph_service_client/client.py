@@ -249,27 +249,57 @@ class CugraphServiceClient:
 
         Returns
         -------
-        num_files_read : int
-            Number of extension files read in the extension_dir_path directory.
+        extension_modnames : list
+            List of the module names loaded. These can be used in calls to
+            unload_extension_module()
 
         Examples
         --------
         >>> from cugraph_service_client import CugraphServiceClient
         >>> client = CugraphServiceClient()
-        >>> num_files_read = client.load_graph_creation_extensions(
+        >>> extension_modnames = client.load_graph_creation_extensions(
         ... "/some/server/side/directory")
         >>>
         """
         return self.__client.load_graph_creation_extensions(extension_dir_path)
 
     @__server_connection
-    def unload_graph_creation_extensions(self):
+    def load_extensions(self, extension_dir_path):
         """
-        Removes all extensions for graph creation previously loaded.
+        Loads the extensions present in the directory specified by extension_dir_path.
 
         Parameters
         ----------
-        None
+        extension_dir_path : string
+            Path to the directory containing the extension files (.py source
+            files). This directory must be readable by the server.
+
+        Returns
+        -------
+        extension_modnames : list
+            List of the module names loaded. These can be used in calls to
+            unload_extension_module()
+
+        Examples
+        --------
+        >>> from cugraph_service_client import CugraphServiceClient
+        >>> client = CugraphServiceClient()
+        >>> extension_modnames = client.load_graph_creation_extensions(
+        ... "/some/server/side/directory")
+        >>>
+        """
+        return self.__client.load_extensions(extension_dir_path)
+
+    @__server_connection
+    def unload_extension_module(self, modname):
+        """
+        Removes all extensions contained in the modname module.
+
+        Parameters
+        ----------
+        modname : string
+            Name of the module to be unloaded. All extension functions contained in
+            modname will no longer be callable.
 
         Returns
         -------
@@ -279,10 +309,12 @@ class CugraphServiceClient:
         --------
         >>> from cugraph_service_client import CugraphServiceClient
         >>> client = CugraphServiceClient()
-        >>> client.unload_graph_creation_extensions()
+        >>> ext_mod_name = client.load_graph_creation_extensions(
+        ...                    "/some/server/side/directory")
+        >>> client.unload_extension_module(ext_mod_name)
         >>>
         """
-        return self.__client.unload_graph_creation_extensions()
+        return self.__client.unload_extension_module(modname)
 
     @__server_connection
     def call_graph_creation_extension(self, func_name, *func_args, **func_kwargs):
@@ -334,6 +366,58 @@ class CugraphServiceClient:
         return self.__client.call_graph_creation_extension(
             func_name, func_args_repr, func_kwargs_repr
         )
+
+    @__server_connection
+    def call_extension(self, func_name, *func_args, **func_kwargs):
+        """
+        Calls an extension on the server that was previously
+        loaded by a prior call to load_extensions(), then
+        returns the result returned by the extension.
+
+        Parameters
+        ----------
+        func_name : string
+            The name of the server-side extension function loaded by a prior
+            call to load_graph_creation_extensions(). All graph creation
+            extension functions are expected to return a new graph.
+
+        *func_args : string, int, list, dictionary (optional)
+            The positional args to pass to func_name. Note that func_args are
+            converted to their string representation using repr() on the
+            client, then restored to python objects on the server using eval(),
+            and therefore only objects that can be restored server-side with
+            eval() are supported.
+
+        **func_kwargs : string, int, list, dictionary
+            The keyword args to pass to func_name. Note that func_kwargs are
+            converted to their string representation using repr() on the
+            client, then restored to python objects on the server using eval(),
+            and therefore only objects that can be restored server-side with
+            eval() are supported.
+
+        Returns
+        -------
+        result : python int, float, string, list
+            The result returned by the extension
+
+        Examples
+        --------
+        >>> from cugraph_service_client import CugraphServiceClient
+        >>> client = CugraphServiceClient()
+        >>> # Load the extension file containing "my_serverside_function()"
+        >>> client.load_extensions("/some/server/side/dir")
+        >>> result = client.call_extension(
+        ... "my_serverside_function", 33, 22, "some_string")
+        >>>
+        """
+        func_args_repr = repr(func_args)
+        func_kwargs_repr = repr(func_kwargs)
+        result = self.__client.call_extension(
+            func_name, func_args_repr, func_kwargs_repr
+        )
+        # FIXME: ValueWrapper ctor and get_py_obj are recursive and could be slow,
+        # especially if Value is a list. Consider returning the Value obj as-is.
+        return ValueWrapper(result).get_py_obj()
 
     ###########################################################################
     # Graph management
@@ -883,16 +967,6 @@ class CugraphServiceClient:
             seeds, radius, graph_id
         )
 
-        # FIXME: ensure dtypes are correct for values returned from
-        # cugraph.batched_ego_graphs() in cugraph_handler.py
-        # return (numpy.frombuffer(batched_ego_graphs_result.src_verts,
-        #         dtype="int32"),
-        #         numpy.frombuffer(batched_ego_graphs_result.dst_verts,
-        #         dtype="int32"),
-        #         numpy.frombuffer(batched_ego_graphs_result.edge_weights,
-        #         dtype="float64"),
-        #         numpy.frombuffer(batched_ego_graphs_result.seeds_offsets,
-        #         dtype="int64"))
         return (
             batched_ego_graphs_result.src_verts,
             batched_ego_graphs_result.dst_verts,

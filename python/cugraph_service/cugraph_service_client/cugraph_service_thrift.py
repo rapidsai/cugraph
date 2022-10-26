@@ -77,6 +77,8 @@ union Value {
   2:i64 int64_value
   3:string string_value
   4:bool bool_value
+  5:double double_value
+  6:list<Value> list_value
 }
 
 service CugraphService {
@@ -87,16 +89,23 @@ service CugraphService {
 
   map<string, Value> get_server_info() throws (1:CugraphServiceError e),
 
-  i32 load_graph_creation_extensions(1:string extension_dir_path
-                                     ) throws (1:CugraphServiceError e),
+  list<string> load_graph_creation_extensions(1:string extension_dir_path
+                                              ) throws (1:CugraphServiceError e),
 
-  void unload_graph_creation_extensions(),
+  list<string> load_extensions(1:string extension_dir_path
+                              ) throws (1:CugraphServiceError e),
+
+  void unload_extension_module(1:string modname) throws (1:CugraphServiceError e),
 
   i32 call_graph_creation_extension(1:string func_name,
                                     2:string func_args_repr,
                                     3:string func_kwargs_repr
                                     ) throws (1:CugraphServiceError e),
 
+  Value call_extension(1:string func_name,
+                       2:string func_args_repr,
+                       3:string func_kwargs_repr
+                       ) throws (1:CugraphServiceError e),
 
   ##############################################################################
   # Graph management
