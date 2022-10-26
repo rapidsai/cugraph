@@ -291,7 +291,7 @@ def test_load_and_call_graph_creation_extension(
 
     ext_mod_names = client.load_graph_creation_extensions(extension_dir)
     assert len(ext_mod_names) == 1
-    expected_mod_name = (Path(extension_dir) / "graph_creation_extension.py").as_posix()
+    expected_mod_name = (Path(extension_dir) / "my_extension.py").as_posix()
     assert ext_mod_names[0] == expected_mod_name
 
     new_graph_id = client.call_graph_creation_extension(
@@ -328,7 +328,7 @@ def test_load_and_call_graph_creation_long_running_extension(
 
     ext_mod_names = client.load_graph_creation_extensions(extension_dir)
     assert len(ext_mod_names) == 1
-    expected_mod_name = (Path(extension_dir) / "graph_creation_extension.py").as_posix()
+    expected_mod_name = (Path(extension_dir) / "my_extension.py").as_posix()
     assert ext_mod_names[0] == expected_mod_name
 
     new_graph_id = client.call_graph_creation_extension(

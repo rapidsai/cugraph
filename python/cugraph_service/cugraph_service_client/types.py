@@ -106,17 +106,6 @@ class ValueWrapper(UnionWrapper):
                 f"following types: {self.valid_types}, got "
                 f"{type(val)}"
             )
-        """
-        # Also add members with values matching the now complete self.union
-        # Value object. This will essentially duck-type this ValueWrapper
-        # instance and allow it to be returned to Thrift and treated as a Value
-        self.int32_value = self.union.int32_value
-        self.int64_value = self.union.int64_value
-        self.string_value = self.union.string_value
-        self.bool_value = self.union.bool_value
-        self.double_value = self.union.double_value
-        self.list_value = self.union.list_value
-        """
 
     def __getattr__(self, attr):
         """

@@ -214,7 +214,6 @@ def test_get_graph_info(handler_with_karate_edgelist_loaded):
     get_graph_info() for specific args.
     """
     from cugraph_service_client import defaults
-    from cugraph_service_client.types import ValueWrapper
 
     (handler, test_data) = handler_with_karate_edgelist_loaded
 
@@ -224,11 +223,11 @@ def test_get_graph_info(handler_with_karate_edgelist_loaded):
     info = handler.get_graph_info(
         ["num_edges", "num_edge_properties"], defaults.graph_id
     )
-    # info is a dictionary containing cugraph_service_client.types.Value objs,
-    # so access the int32 member directly for easy comparison.
+    # info is a dictionary containing cugraph_service_client.types.ValueWrapper
+    # objs, so access the int32 member directly for easy comparison.
     shape = (
-        ValueWrapper(info["num_edges"]).get_py_obj(),
-        ValueWrapper(info["num_edge_properties"]).get_py_obj(),
+        info["num_edges"].get_py_obj(),
+        info["num_edge_properties"].get_py_obj(),
     )
     assert shape == (156, 1)  # The single edge property is the weight
 
@@ -236,8 +235,8 @@ def test_get_graph_info(handler_with_karate_edgelist_loaded):
         ["num_vertices_from_vertex_data", "num_vertex_properties"], defaults.graph_id
     )
     shape = (
-        ValueWrapper(info["num_vertices_from_vertex_data"]).get_py_obj(),
-        ValueWrapper(info["num_vertex_properties"]).get_py_obj(),
+        info["num_vertices_from_vertex_data"].get_py_obj(),
+        info["num_vertex_properties"].get_py_obj(),
     )
     assert shape == (0, 0)
 
@@ -248,7 +247,6 @@ def test_get_graph_info_defaults(mg_handler):
     keys present for an empty default graph.
     """
     from cugraph_service_client import defaults
-    from cugraph_service_client.types import ValueWrapper
 
     handler = mg_handler
 
@@ -261,7 +259,7 @@ def test_get_graph_info_defaults(mg_handler):
         "num_vertex_properties": 0,
         "num_edge_properties": 0,
     }
-    actual = {key: ValueWrapper(val).get_py_obj() for (key, val) in info.items()}
+    actual = {key: val.get_py_obj() for (key, val) in info.items()}
 
     assert expected == actual
 

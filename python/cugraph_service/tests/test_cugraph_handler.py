@@ -50,7 +50,7 @@ def test_load_and_call_graph_creation_extension(graph_creation_extension2):
     # Load the extension and call the function defined in it
     ext_mod_names = handler.load_graph_creation_extensions(extension_dir)
     assert len(ext_mod_names) == 1
-    expected_mod_name = (Path(extension_dir) / "graph_creation_extension.py").as_posix()
+    expected_mod_name = (Path(extension_dir) / "my_extension.py").as_posix()
     assert ext_mod_names[0] == expected_mod_name
 
     # Private function should not be callable
