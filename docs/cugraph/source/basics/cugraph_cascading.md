@@ -45,7 +45,7 @@ Algorithms operate on graph objects.
 ```
 cugraph.pagerank(G) and not G.pagerank()
 ```
-This is also due to cuGraph following a object-orient model.  Data objects just understand data, not operations on the data.  That fact makes it so that the developer cannot cascade graph creation into an algorithm
+This pattern allows cuGraph to maintain a particular object-oriented model, where Graph objects simply maintain graph data, and algorithm functions operate independently on Graph objects. While this model has benefits that simplify the overall design and its usability in the majority of use cases, it does mean that the developer cannot cascade graph creation into an algorithm call.
 
 ```
 # will not work
