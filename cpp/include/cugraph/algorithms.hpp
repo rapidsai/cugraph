@@ -18,9 +18,9 @@
 #include <cugraph/api_helpers.hpp>
 
 #include <cugraph/dendrogram.hpp>
+#include <cugraph/edge_property.hpp>
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_view.hpp>
-#include <cugraph/edge_property.hpp>
 
 #include <cugraph/legacy/graph.hpp>
 #include <cugraph/legacy/internals.hpp>
@@ -1188,14 +1188,11 @@ rmm::device_uvector<weight_t> eigenvector_centrality(
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
  * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
- * @tparam weight_t Type of edge weights. Needs to be a floating point type.
  * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
  * or multi-GPU (true).
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Graph view object.
- * @param edge_weights Optional view object holding edge weights for @p graph_view. If @p
- * edge_weight.has_value() == false, edge weights are assumed to be 1.0.
  * @param hubs Pointer to the input/output hub score array.
  * @param authorities Pointer to the output authorities score array.
  * @param epsilon Error tolerance to check convergence. Convergence is assumed if the sum of the
@@ -1207,21 +1204,19 @@ rmm::device_uvector<weight_t> eigenvector_centrality(
  * @param normalize If set to `true`, final hub and authority scores are normalized (the L1-norm of
  * the returned hub and authority score arrays is 1.0) before returning.
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
- * @return std::tuple<weight_t, size_t> A tuple of sum of the differences of hub scores of the last
+ * @return std::tuple<result_t, size_t> A tuple of sum of the differences of hub scores of the last
  * two iterations and the total number of iterations taken to reach the final result
  */
-template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
-std::tuple<weight_t, size_t> hits(
-  raft::handle_t const& handle,
-  graph_view_t<vertex_t, edge_t, true, multi_gpu> const& graph_view,
-  std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weights,
-  weight_t* hubs,
-  weight_t* authorities,
-  weight_t epsilon,
-  size_t max_iterations,
-  bool has_initial_hubs_guess,
-  bool normalize,
-  bool do_expensive_check);
+template <typename vertex_t, typename edge_t, typename result_t, bool multi_gpu>
+std::tuple<result_t, size_t> hits(raft::handle_t const& handle,
+                                  graph_view_t<vertex_t, edge_t, true, multi_gpu> const& graph_view,
+                                  result_t* hubs,
+                                  result_t* authorities,
+                                  result_t epsilon,
+                                  size_t max_iterations,
+                                  bool has_initial_hubs_guess,
+                                  bool normalize,
+                                  bool do_expensive_check);
 
 /**
  * @brief Compute Katz Centrality scores.
