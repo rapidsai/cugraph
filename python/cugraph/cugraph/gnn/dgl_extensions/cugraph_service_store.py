@@ -32,7 +32,6 @@ class CuGraphRemoteStore(BaseCuGraphStore):
     """
 
     def __init__(self, graph, graph_client, backend_lib="torch"):
-
         if type(graph).__name__ in ["RemoteGraph"]:
             self.__G = graph
             self.client = graph_client
