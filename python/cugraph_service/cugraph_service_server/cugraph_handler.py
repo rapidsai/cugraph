@@ -36,6 +36,10 @@ from cugraph.structure.graph_implementation.simpleDistributedGraph import (
 )
 
 from cugraph_service_client import defaults
+from cugraph_service_client import (
+    extension_return_dtype_map,
+    supported_extension_return_dtypes,
+)
 from cugraph_service_client.exceptions import CugraphServiceError
 from cugraph_service_client.types import (
     BatchedEgoGraphsResult,
@@ -216,7 +220,10 @@ class CugraphHandler:
         """
         extension_dir = Path(extension_dir_path)
 
+        # extension_dir_path is either a path on disk or an importable module path
+        # (eg. import foo.bar.module)
         if (not extension_dir.exists()) or (not extension_dir.is_dir()):
+
             raise CugraphServiceError(f"bad directory: {extension_dir}")
 
         modules_loaded = []
@@ -259,7 +266,14 @@ class CugraphHandler:
         # FIXME: ensure graph_obj is a graph obj
         return self.__add_graph(graph_obj)
 
-    def call_extension(self, func_name, func_args_repr, func_kwargs_repr):
+    def call_extension(
+        self,
+        func_name,
+        func_args_repr,
+        func_kwargs_repr,
+        result_host=None,
+        result_port=None,
+    ):
         """
         Calls the extension function func_name and passes it the eval'd
         func_args_repr and func_kwargs_repr objects. If successful, returns a
@@ -267,10 +281,57 @@ class CugraphHandler:
 
         func_name cannot be a private name (name starting with __).
         """
-        result = self.__call_extension(
-            self.__extensions, func_name, func_args_repr, func_kwargs_repr
-        )
-        return ValueWrapper(result)
+        try:
+            result = self.__call_extension(
+                self.__extensions, func_name, func_args_repr, func_kwargs_repr
+            )
+            if self.__check_host_port_args(result_host, result_port):
+                # Ensure result is in list format for calling __ucx_send_results so it
+                # sends the contents as individual arrays.
+                if isinstance(result, (list, tuple)):
+                    result_list = result
+                else:
+                    result_list = [result]
+
+                # Form the meta-data array to send first. This array contains uint8
+                # values which map to dtypes the client uses when converting bytes to
+                # values.
+                meta_data = []
+                for r in result_list:
+                    if hasattr(r, "dtype"):
+                        dtype_str = str(r.dtype)
+                    else:
+                        dtype_str = type(r).__name__
+
+                    dtype_enum_val = extension_return_dtype_map.get(dtype_str)
+                    if dtype_enum_val is None:
+                        raise TypeError(
+                            f"extension {func_name} returned an invalid type "
+                            f"{dtype_str}, only "
+                            f"{supported_extension_return_dtypes} are supported"
+                        )
+                    meta_data.append(dtype_enum_val)
+                # FIXME: meta_data should not need to be a cupy array
+                meta_data = cp.array(meta_data, dtype="uint8")
+
+                asyncio.run(
+                    self.__ucx_send_results(
+                        result_host,
+                        result_port,
+                        meta_data,
+                        *result_list,
+                    )
+                )
+                # FIXME: Thrift still expects something of the expected type to
+                # be returned to be serialized and sent. Look into a separate
+                # API that uses the Thrift "oneway" modifier when returning
+                # results via client device.
+                return ValueWrapper(None)
+            else:
+                return ValueWrapper(result)
+
+        except Exception:
+            raise CugraphServiceError(f"{traceback.format_exc()}")
 
     def initialize_dask_client(self, dask_scheduler_file=None):
         """
@@ -711,13 +772,7 @@ class CugraphHandler:
                 fanout_vals=fanout_vals,
                 with_replacement=with_replacement,
             )
-            if (result_host is not None) or (result_port is not None):
-                if (result_host is None) or (result_port is None):
-                    raise ValueError(
-                        "both result_host and result_port must "
-                        "be set if either is set. Got: "
-                        f"{result_host=}, {result_port=}"
-                    )
+            if self.__check_host_port_args(result_host, result_port):
                 asyncio.run(
                     self.__ucx_send_results(
                         result_host,
@@ -824,6 +879,21 @@ class CugraphHandler:
 
     ###########################################################################
     # Private
+    @staticmethod
+    def __check_host_port_args(result_host, result_port):
+        """
+        Return True if host and port are set correctly, False if not set, and raise
+        ValueError if set incorrectly.
+        """
+        if (result_host is not None) or (result_port is not None):
+            if (result_host is None) or (result_port is None):
+                raise ValueError(
+                    "both result_host and result_port must be set if either is set. "
+                    f"Got: {result_host=}, {result_port=}"
+                )
+            return True
+        return False
+
     async def __ucx_send_results(self, result_host, result_port, *results):
         # The cugraph_service_client should have set up a UCX listener waiting
         # for the result. Create an endpoint, send results, and close.
@@ -833,6 +903,7 @@ class CugraphHandler:
         await ep.close()
 
     def __get_dataframe_from_csv(self, csv_file_name, delimiter, dtypes, header, names):
+
         """
         Read a CSV into a DataFrame and return it. This will use either a cuDF
         DataFrame or a dask_cudf DataFrame based on if the handler is
@@ -963,7 +1034,6 @@ class CugraphHandler:
             raise CugraphServiceError(f"Cannot call private function {func_name}")
 
         for module in extension_dict.values():
-            # Ignore private functions
             func = getattr(module, func_name, None)
             if func is not None:
                 func_args = eval(func_args_repr)

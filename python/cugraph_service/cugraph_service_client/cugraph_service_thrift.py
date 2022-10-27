@@ -105,6 +105,8 @@ service CugraphService {
   Value call_extension(1:string func_name,
                        2:string func_args_repr,
                        3:string func_kwargs_repr
+                       4:string result_host,
+                       5:i16 result_port
                        ) throws (1:CugraphServiceError e),
 
   ##############################################################################

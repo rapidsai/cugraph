@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import sys
 import pickle
 from pathlib import Path
 
@@ -180,7 +181,67 @@ def test_extension_with_facade_graph_access(
     assert results.list_value[2].double_value == 2 + val1 + val2
 
 
+def test_load_and_unload_extensions_python_module_path(extension1):
+    """
+    Load, run, unload an extension that was loaded using a python module path
+    (as would be used by an import statement) instead of a file path.
+    """
+    from cugraph_service_client.exceptions import CugraphServiceError
+    from cugraph_service_server.cugraph_handler import CugraphHandler
+
+    handler = CugraphHandler()
+    extension_dir = extension1
+    extension_dir_path = Path(extension_dir)
+
+    # Create an __init__py file and add the dir to sys.path so it can be
+    # imported as a package.
+    with open(extension_dir_path / "__init__.py", "w") as f:
+        f.write("")
+    # FIXME: this should go into a fixture which can unmodify sys.path when done
+    sys.path.append(extension_dir_path.parent)
+
+    # Load everything in the package
+    # ext_mod_names is a list of python module paths (eg. "foo.bar.module")
+    # containing only 1 module
+    ext_mod_names1 = handler.load_extensions(extension_dir_path.stem)
+    assert len(ext_mod_names1) == 1
+
+    results = handler.call_extension(
+        "my_nines_function", "(33, 'int32', 21, 'float64')", "{}"
+    )
+    assert results.list_value[0].list_value[0].int32_value == 9
+    assert results.list_value[1].list_value[0].double_value == 9.0
+
+    for mod_name in ext_mod_names1:
+        handler.unload_extension_module(mod_name)
+
+    with pytest.raises(CugraphServiceError):
+        handler.call_extension(
+            "my_nines_function", "(33, 'int32', 21, 'float64')", "{}"
+        )
+
+    # Load just an individual module in the package
+    # ext_mod_names should be the same as above
+    ext_mod_names2 = handler.load_extensions(extension_dir_path.stem)
+    assert ext_mod_names1 == ext_mod_names2
+
+    results = handler.call_extension(
+        "my_nines_function", "(33, 'int32', 21, 'float64')", "{}"
+    )
+    assert results.list_value[0].list_value[0].int32_value == 9
+    assert results.list_value[1].list_value[0].double_value == 9.0
+
+    for mod_name in ext_mod_names2:
+        handler.unload_extension_module(mod_name)
+
+    with pytest.raises(CugraphServiceError):
+        handler.call_extension(
+            "my_nines_function", "(33, 'int32', 21, 'float64')", "{}"
+        )
+
+
 def test_load_and_unload_graph_creation_extension_no_args(graph_creation_extension1):
+
     """
     Test graph_creation_extension1 which contains an extension with no args.
     """

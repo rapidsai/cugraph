@@ -22,6 +22,7 @@ import threading
 import cupy as cp
 
 from cugraph_service_client import defaults
+from cugraph_service_client import extension_return_dtype_map
 from cugraph_service_client.types import (
     ValueWrapper,
     GraphVertexEdgeID,
@@ -368,11 +369,17 @@ class CugraphServiceClient:
         )
 
     @__server_connection
-    def call_extension(self, func_name, *func_args, **func_kwargs):
+    def call_extension(
+        self,
+        func_name,
+        *func_args,
+        result_device=None,
+        **func_kwargs,
+    ):
         """
-        Calls an extension on the server that was previously
-        loaded by a prior call to load_extensions(), then
-        returns the result returned by the extension.
+        Calls an extension on the server that was previously loaded by a prior
+        call to load_extensions(), then returns the result returned by the
+        extension.
 
         Parameters
         ----------
@@ -388,12 +395,18 @@ class CugraphServiceClient:
             and therefore only objects that can be restored server-side with
             eval() are supported.
 
-        **func_kwargs : string, int, list, dictionary
-            The keyword args to pass to func_name. Note that func_kwargs are
-            converted to their string representation using repr() on the
-            client, then restored to python objects on the server using eval(),
-            and therefore only objects that can be restored server-side with
-            eval() are supported.
+        **func_kwargs : string, int, list, dictionary The keyword args to pass
+            to func_name. func_kwargs are converted to their string
+            representation using repr() on the client, then restored to python
+            objects on the server using eval(), and therefore only objects that
+            can be restored server-side with eval() are supported.
+
+            result_device is reserved for use in specifying an optional GPU
+            device ID to have the server transfer results to.
+
+        result_device : int, default is None
+            If specified, must be the integer ID of a GPU device to have the
+            server transfer results to as one or more cupy ndarrays
 
         Returns
         -------
@@ -412,12 +425,26 @@ class CugraphServiceClient:
         """
         func_args_repr = repr(func_args)
         func_kwargs_repr = repr(func_kwargs)
-        result = self.__client.call_extension(
-            func_name, func_args_repr, func_kwargs_repr
-        )
-        # FIXME: ValueWrapper ctor and get_py_obj are recursive and could be slow,
-        # especially if Value is a list. Consider returning the Value obj as-is.
-        return ValueWrapper(result).get_py_obj()
+        if result_device is not None:
+            result_obj = asyncio.run(
+                self.__call_extension_to_device(
+                    func_name, func_args_repr, func_kwargs_repr, result_device
+                )
+            )
+            # result_obj is a cupy array or tuple of cupy arrays on result_device
+            return result_obj
+        else:
+            result_obj = self.__client.call_extension(
+                func_name,
+                func_args_repr,
+                func_kwargs_repr,
+                client_host=None,
+                client_result_port=None,
+            )
+            # Convert the structure returned from the RPC call to a python type
+            # FIXME: ValueWrapper ctor and get_py_obj are recursive and could be slow,
+            # especially if Value is a list. Consider returning the Value obj as-is.
+            return ValueWrapper(result_obj).get_py_obj()
 
     ###########################################################################
     # Graph management
@@ -1026,15 +1053,15 @@ class CugraphServiceClient:
         Samples the graph and returns a UniformNeighborSampleResult instance.
 
         Parameters:
-        start_list: list[int]
+        start_list : list[int]
 
-        fanout_vals: list[int]
+        fanout_vals : list[int]
 
-        with_replacement: bool
+        with_replacement : bool
 
-        graph_id: int, default is defaults.graph_id
+        graph_id : int, default is defaults.graph_id
 
-        result_device: int, default is None
+        result_device : int, default is None
 
         Returns
         -------
@@ -1192,6 +1219,63 @@ class CugraphServiceClient:
 
         uns_thread.join()
         return result_obj
+
+    async def __call_extension_to_device(
+        self, func_name, func_args_repr, func_kwargs_repr, result_device
+    ):
+        """
+        Run the server-side extension func_name with the args/kwargs and have the
+        result sent directly to the device specified by result_device.
+        """
+        # FIXME: there's probably a better way to do this, eg. create a class containing
+        # both allocator and receiver that maintains results, devices, etc. that's
+        # callable from the listener
+        result = []
+
+        # FIXME: check for valid device
+        allocator = DeviceArrayAllocator(result_device)
+
+        async def receiver(endpoint):
+            # Format of data sent is assumed to be:
+            # 1) a single array of length n describing the dtypes for the n arrays that
+            #    follow
+            # 2) n arrays
+            with cp.cuda.Device(result_device):
+                # First get the array describing the data
+                # FIXME: meta_data doesn't need to be a cupy array
+                dtype_meta_data = await endpoint.recv_obj(allocator=allocator)
+                for dtype_enum in [int(i) for i in dtype_meta_data]:
+                    # FIXME: safe to assume dtype_enum will always be valid?
+                    dtype = extension_return_dtype_map[dtype_enum]
+                    a = await endpoint.recv_obj(allocator=allocator)
+                    result.append(a.view(dtype))
+
+            await endpoint.close()
+            listener.close()
+
+        listener = ucp.create_listener(receiver, self.results_port)
+
+        ce_thread = threading.Thread(
+            target=self.__client.call_extension,
+            args=(
+                func_name,
+                func_args_repr,
+                func_kwargs_repr,
+                self.host,
+                self.results_port,
+            ),
+        )
+        ce_thread.start()
+
+        while not listener.closed():
+            await asyncio.sleep(0.05)
+
+        ce_thread.join()
+
+        # special case, assume a list of len 1 should not be a list
+        if len(result) == 1:
+            result = result[0]
+        return result
 
     @staticmethod
     def __get_vertex_edge_id_obj(id_or_ids):

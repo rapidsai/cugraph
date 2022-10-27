@@ -363,7 +363,7 @@ def test_call_extension_result_on_device(
     else:
         # results will be a n-tuple where n is the number of arrays returned. The
         # n-tuple contains each array as a device array on result_device_id.
-        assert isinstance(results, tuple)
+        assert isinstance(results, list)
         assert len(results) == 2
 
         device_n = cp.cuda.Device(result_device_id)
