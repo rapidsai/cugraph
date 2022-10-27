@@ -13,6 +13,8 @@
 
 from collections import defaultdict
 
+from .base_cugraph_store import BaseCuGraphStore
+
 from functools import cached_property
 from .utils.find_edges import find_edges
 from .utils.node_subgraph import node_subgraph
@@ -22,7 +24,7 @@ from .utils.sampling import get_underlying_dtype_from_sg
 from .feature_storage import CuFeatureStorage
 
 
-class CuGraphStore:
+class CuGraphStore(BaseCuGraphStore):
     """
     A wrapper around a cuGraph Property Graph that
     then adds functions to basically match the DGL GraphStorage API.
@@ -37,6 +39,8 @@ class CuGraphStore:
             self.__G = graph
         else:
             raise ValueError("graph must be a PropertyGraph or MGPropertyGraph")
+
+        BaseCuGraphStore.__init__(self, graph)
         # dict to map column names corresponding to edge features
         # of each type
         self.edata_feat_col_d = defaultdict(list)
@@ -189,28 +193,6 @@ class CuGraphStore:
             indices_offset=indices_offset,
         )
 
-    def num_nodes(self, ntype=None):
-        return self.gdata.get_num_vertices(ntype)
-
-    def num_edges(self, etype=None):
-        return self.gdata.get_num_edges(etype)
-
-    @cached_property
-    def has_multiple_etypes(self):
-        return len(self.etypes) > 1
-
-    @cached_property
-    def ntypes(self):
-        return sorted(self.gdata.vertex_types)
-
-    @cached_property
-    def etypes(self):
-        return sorted(self.gdata.edge_types)
-
-    @property
-    def gdata(self):
-        return self.__G
-
     ######################################
     # Sampling APIs
     ######################################
@@ -332,17 +314,6 @@ class CuGraphStore:
                 self.gdata, reverse_edges=True, etype=etype
             )
         return sg_d, sg_src_range_d
-
-    @cached_property
-    def num_nodes_dict(self):
-        """
-        Return num_nodes_dict of the graph
-        """
-        return {ntype: self.num_nodes(ntype) for ntype in self.ntypes}
-
-    @cached_property
-    def num_edges_dict(self):
-        return {etype: self.num_edges(etype) for etype in self.etypes}
 
     def set_sg_node_dtype(self, sg):
         if hasattr(self, "_sg_node_dtype"):
