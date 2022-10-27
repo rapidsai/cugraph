@@ -32,6 +32,10 @@ class BaseCuGraphStore:
     def gdata(self):
         return self.__G
 
+    @property
+    def num_vertices(self):
+        return self.gdata.get_num_vertices()
+
     def num_nodes(self, ntype=None):
         return self.gdata.get_num_vertices(ntype)
 
