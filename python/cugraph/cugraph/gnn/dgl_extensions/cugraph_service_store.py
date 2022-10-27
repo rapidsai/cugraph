@@ -31,11 +31,11 @@ class CuGraphRemoteStore(BaseCuGraphStore):
     This class return dlpack types and has additional functional arguments.
     """
 
-    def __init__(self, graph, backend_lib="torch"):
+    def __init__(self, graph, graph_client, backend_lib="torch"):
 
         if type(graph).__name__ in ["RemoteGraph"]:
             self.__G = graph
-            self.client = graph._client
+            self.client = graph_client
         else:
             raise ValueError("graph must be a RemoteGraph")
 
@@ -172,7 +172,7 @@ class CuGraphRemoteStore(BaseCuGraphStore):
             node_col_name=node_col_name,
             node_offset=node_offset,
             type=ntype,
-            graph_id=self.gdata.id,
+            graph_id=self.gdata._id,
         )
         loaded_columns = deserialize_strings_from_char_ars(loaded_columns)
 
@@ -228,7 +228,7 @@ class CuGraphRemoteStore(BaseCuGraphStore):
             canonical_etype=canonical_etype,
             src_offset=src_offset,
             dst_offset=dst_offset,
-            graph_id=self.gdata,
+            graph_id=self.gdata._id,
         )
         loaded_columns = deserialize_strings_from_char_ars(loaded_column_ars)
         columns = [col for col in loaded_columns if col not in node_col_names]
