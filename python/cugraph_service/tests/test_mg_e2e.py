@@ -292,6 +292,31 @@ def test_device_transfer(
         assert bytes_returned.device == device_n
 
 
+def test_uniform_neighbor_sampling_result_on_device_error(
+    client_of_sg_server_on_device_1_large_property_graph_loaded,
+):
+    """
+    Ensure errors are handled properly when using device transfer
+    """
+    from cugraph_service_client.exceptions import CugraphServiceError
+
+    (client, graph_id) = client_of_sg_server_on_device_1_large_property_graph_loaded
+    extracted_graph_id = client.extract_subgraph(graph_id=graph_id)
+
+    start_list = [0, 1, 2]
+    fanout_vals = []  # should raise an exception
+    with_replacement = False
+
+    with pytest.raises(CugraphServiceError):
+        client.uniform_neighbor_sample(
+            start_list=start_list,
+            fanout_vals=fanout_vals,
+            with_replacement=with_replacement,
+            graph_id=extracted_graph_id,
+            result_device=0,
+        )
+
+
 def test_uniform_neighbor_sampling_result_on_device(
     benchmark,
     result_device_id,
@@ -330,21 +355,49 @@ def test_uniform_neighbor_sampling_result_on_device(
         assert result.sources.device == device_n
 
 
+def test_call_extension_result_on_device_error(
+    extension1, client_of_sg_server_on_device_1
+):
+    """
+    Ensure errors are handled properly when using device transfer
+    """
+    from cugraph_service_client.exceptions import CugraphServiceError
+
+    client = client_of_sg_server_on_device_1
+    extension_dir = extension1
+    array1_len = 1.23  # should raise an exception
+    array2_len = 10
+
+    ext_mod_names = client.load_extensions(extension_dir)
+
+    with pytest.raises(CugraphServiceError):
+        client.call_extension(
+            "my_nines_function",
+            array1_len,
+            "int32",
+            array2_len,
+            "float64",
+            result_device=0,
+        )
+
+    for mod_name in ext_mod_names:
+        client.unload_extension_module(mod_name)
+
+
 def test_call_extension_result_on_device(
     benchmark, extension1, result_device_id, client_of_sg_server_on_device_1
 ):
     client = client_of_sg_server_on_device_1
     extension_dir = extension1
-    array1_len = 33
-    array2_len = 21
+    array1_len = int(1e5)
+    array2_len = int(1e5)
 
-    # Loading
     ext_mod_names = client.load_extensions(extension_dir)
 
-    # Running
     # my_nines_function in extension1 returns a list of two lists of 9's with
     # sizes and dtypes based on args.
-    results = client.call_extension(
+    results = benchmark(
+        client.call_extension,
         "my_nines_function",
         array1_len,
         "int32",
@@ -352,6 +405,7 @@ def test_call_extension_result_on_device(
         "float64",
         result_device=result_device_id,
     )
+
     if result_device_id is None:
         assert len(results) == 2
         assert len(results[0]) == array1_len

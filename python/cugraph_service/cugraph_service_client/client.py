@@ -1208,7 +1208,16 @@ class CugraphServiceClient:
 
         listener = ucp.create_listener(receiver, self.results_port)
 
-        uns_thread = threading.Thread(
+        # Use an excepthook to store an exception on the thread object if one is
+        # raised in the thread.
+        def excepthook(exc):
+            if exc.thread is not None:
+                exc.thread.exception = exc.exc_type(exc.exc_value)
+
+        orig_excepthook = threading.excepthook
+        threading.excepthook = excepthook
+
+        thread = threading.Thread(
             target=self.__client.uniform_neighbor_sample,
             args=(
                 start_list,
@@ -1219,12 +1228,19 @@ class CugraphServiceClient:
                 self.results_port,
             ),
         )
-        uns_thread.start()
+        thread.start()
 
+        # Poll the listener and the state of the thread. Close the listener if
+        # the thread died and raise the stored exception.
         while not listener.closed():
             await asyncio.sleep(0.05)
+            if not thread.is_alive():
+                listener.close()
+                threading.excepthook = orig_excepthook
+                if hasattr(thread, "exception"):
+                    raise thread.exception
 
-        uns_thread.join()
+        thread.join()
         return result_obj
 
     async def __call_extension_to_device(
@@ -1262,7 +1278,16 @@ class CugraphServiceClient:
 
         listener = ucp.create_listener(receiver, self.results_port)
 
-        ce_thread = threading.Thread(
+        # Use an excepthook to store an exception on the thread object if one is
+        # raised in the thread.
+        def excepthook(exc):
+            if exc.thread is not None:
+                exc.thread.exception = exc.exc_type(exc.exc_value)
+
+        orig_excepthook = threading.excepthook
+        threading.excepthook = excepthook
+
+        thread = threading.Thread(
             target=self.__client.call_extension,
             args=(
                 func_name,
@@ -1272,12 +1297,19 @@ class CugraphServiceClient:
                 self.results_port,
             ),
         )
-        ce_thread.start()
+        thread.start()
 
+        # Poll the listener and the state of the thread. Close the listener if
+        # the thread died and raise the stored exception.
         while not listener.closed():
             await asyncio.sleep(0.05)
+            if not thread.is_alive():
+                listener.close()
+                threading.excepthook = orig_excepthook
+                if hasattr(thread, "exception"):
+                    raise thread.exception
 
-        ce_thread.join()
+        thread.join()
 
         # special case, assume a list of len 1 should not be a list
         if len(result) == 1:

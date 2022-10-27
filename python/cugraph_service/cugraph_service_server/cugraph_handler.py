@@ -1048,6 +1048,7 @@ class CugraphHandler:
         for module in extension_dict.values():
             func = getattr(module, func_name, None)
             if func is not None:
+                # FIXME: look for a way to do this without using eval()
                 func_args = eval(func_args_repr)
                 func_kwargs = eval(func_kwargs_repr)
                 func_sig = signature(func)
