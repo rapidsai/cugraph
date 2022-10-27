@@ -22,6 +22,7 @@ import threading
 import cupy as cp
 
 from cugraph_service_client import defaults
+from cugraph_service_client.remote_graph import RemotePropertyGraph
 from cugraph_service_client.types import (
     ValueWrapper,
     GraphVertexEdgeID,
@@ -394,6 +395,12 @@ class CugraphServiceClient:
         """
         return self.__client.delete_graph(graph_id)
 
+    def graph(self):
+        """
+        Constructs an empty RemotePropertyGraph object.
+        """
+        return RemotePropertyGraph(self, self.create_graph())
+
     @__server_connection
     def get_graph_ids(self):
         """
@@ -568,6 +575,7 @@ class CugraphServiceClient:
         header=None,
         type_name="",
         property_columns=None,
+        edge_id_col_name=None,
         graph_id=defaults.graph_id,
         names=None,
     ):
@@ -604,6 +612,12 @@ class CugraphServiceClient:
         property_columns : list of strings, default is None
             The column names in the CSV to add as edge properties. If None, all
             columns will be added as properties.
+
+        edge_id_col_name : string, optional
+            The column name that contains the values to be used as edge IDs.
+            If unspecified, edge IDs will be automatically assigned.
+            Currently, all edge data must be added with the same method: either
+            with automatically generated IDs, or from user-provided edge IDs.
 
         graph_id : int, default is defaults.graph_id
             The graph ID to apply the properties in the CSV to. If not provided
@@ -644,6 +658,7 @@ class CugraphServiceClient:
             property_columns or [],
             graph_id,
             names or [],
+            edge_id_col_name or "",
         )
 
     @__server_connection
@@ -739,8 +754,9 @@ class CugraphServiceClient:
         self,
         id_or_ids=-1,
         null_replacement_value=0,
-        graph_id=defaults.graph_id,
         property_keys=None,
+        types=None,
+        graph_id=defaults.graph_id,
     ):
         """
         Returns ...
@@ -751,13 +767,17 @@ class CugraphServiceClient:
 
         null_replacement_value : number or string (default 0)
 
-        graph_id : int, default is defaults.graph_id
-           The graph ID to extract the subgraph from. If the ID passed is not
-           valid on the server, CugraphServiceError is raised.
-
         property_keys : list of strings (default [])
             The keys (names) of properties to retrieve.  If omitted, returns
             the whole dataframe.
+
+        types : list of strings (default [])
+            The vertex types to include in the query.  If ommitted, returns
+            properties for all types.
+
+        graph_id : int, default is defaults.graph_id
+           The graph ID to extract the subgraph from. If the ID passed is not
+           valid on the server, CugraphServiceError is raised.
 
         Returns
         -------
@@ -776,8 +796,9 @@ class CugraphServiceClient:
         ndarray_bytes = self.__client.get_graph_vertex_data(
             vertex_edge_id_obj,
             null_replacement_value_obj,
-            graph_id,
             property_keys or [],
+            types or [],
+            graph_id,
         )
 
         return pickle.loads(ndarray_bytes)
@@ -787,8 +808,9 @@ class CugraphServiceClient:
         self,
         id_or_ids=-1,
         null_replacement_value=0,
-        graph_id=defaults.graph_id,
         property_keys=None,
+        types=None,
+        graph_id=defaults.graph_id,
     ):
         """
         Returns ...
@@ -799,13 +821,17 @@ class CugraphServiceClient:
 
         null_replacement_value : number or string (default 0)
 
-        graph_id : int, default is defaults.graph_id
-           The graph ID to extract the subgraph from. If the ID passed is not
-           valid on the server, CugraphServiceError is raised.
-
         property_keys : list of strings (default [])
             The keys (names) of properties to retrieve.  If omitted, returns
             the whole dataframe.
+
+        types : list of strings (default [])
+            The types of edges to include in the query.  If ommitted, returns
+            data for all edge types.
+
+        graph_id : int, default is defaults.graph_id
+           The graph ID to extract the subgraph from. If the ID passed is not
+           valid on the server, CugraphServiceError is raised.
 
         Returns
         -------
@@ -824,8 +850,9 @@ class CugraphServiceClient:
         ndarray_bytes = self.__client.get_graph_edge_data(
             vertex_edge_id_obj,
             null_replacement_value_obj,
-            graph_id,
             property_keys or [],
+            types or [],
+            graph_id,
         )
 
         return pickle.loads(ndarray_bytes)
@@ -859,6 +886,94 @@ class CugraphServiceClient:
             The id of the graph of interest
         """
         return self.__client.is_edge_property(property_key, graph_id)
+
+    @__server_connection
+    def get_graph_vertex_property_names(self, graph_id=defaults.graph_id):
+        """
+        Returns a list of the vertex property names for the graph with
+        the given graph id.
+
+        Parameters
+        ----------
+        graph_id: int
+            The id of the graph of interest
+        """
+        return self.__client.get_graph_vertex_property_names(graph_id)
+
+    @__server_connection
+    def get_graph_edge_property_names(self, graph_id=defaults.graph_id):
+        """
+        Returns a list of the edge property names for the graph with
+        the given graph id.
+
+        Parameters
+        ----------
+        graph_id: int
+            The id of the graph of interest
+        """
+        return self.__client.get_graph_edge_property_names(graph_id)
+
+    @__server_connection
+    def get_graph_vertex_types(self, graph_id=defaults.graph_id):
+        """
+        Returns a list of the vertex type names for the graph with
+        the given graph id.
+
+        Parameters
+        ----------
+        graph_id: it
+            The id of the graph of interest
+        """
+        return self.__client.get_graph_vertex_types(graph_id)
+
+    @__server_connection
+    def get_graph_edge_types(self, graph_id=defaults.graph_id):
+        """
+        Returns a list of the edge type names for the graph with
+        the given graph id.
+
+        Parameters
+        ----------
+        graph_id: int
+            The id of the graph of interest
+        """
+        return self.__client.get_graph_edge_types(graph_id)
+
+    @__server_connection
+    def get_num_vertices(
+        self, vertex_type=None, include_edge_data=True, graph_id=defaults.graph_id
+    ):
+        """
+        Returns the number of vertices in the graph with the given
+        graph id.
+
+        Parameters
+        ----------
+        vertex_type: string
+            The vertex type to count. If not defined, all types are counted.
+        include_edge_data: bool
+            Whether to include vertices added only as part of the edgelist.
+        graph_id: int
+            The id of the grpah of interest.
+        """
+        return self.__client.get_num_vertices(
+            vertex_type or "", include_edge_data, graph_id
+        )
+
+    @__server_connection
+    def get_num_edges(self, edge_type=None, graph_id=defaults.graph_id):
+        """
+        Returns the number of edges in the graph with the given
+        graph id.
+
+        Parameters
+        ----------
+        edge_type: string
+            The edge type to count. If not defined, all types are counted.
+        graph_id: int
+            The id of the grpah of interest.
+        """
+        return self.__client.get_num_edges(edge_type or "", graph_id)
 
     ###########################################################################
     # Algos

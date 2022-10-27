@@ -587,6 +587,12 @@ class Graph:
         """
         return self.properties.isolated_vertices
 
+    def is_remote(self):
+        """
+        Returns True if the graph is remote; otherwise returns False.
+        """
+        return False
+
     def to_directed(self):
         """
         Return a directed representation of the graph.
