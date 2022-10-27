@@ -265,21 +265,27 @@ class CugraphServiceClient:
         return self.__client.load_graph_creation_extensions(extension_dir_path)
 
     @__server_connection
-    def load_extensions(self, extension_dir_path):
+    def load_extensions(self, extension_dir_or_mod_path):
         """
-        Loads the extensions present in the directory specified by extension_dir_path.
+        Loads the extensions present in the directory (path on disk), or module or
+        package path (as used in an import statement) specified by
+        extension_dir_or_mod_path.
 
         Parameters
         ----------
-        extension_dir_path : string
+        extension_dir_or_mod_path : string
             Path to the directory containing the extension files (.py source
-            files). This directory must be readable by the server.
+            files), or an importable module or package path (eg. my.package or
+            my.package.module). If a directory is specified it must be readable
+            by the server, and if a module or package path is specified it must
+            be importable by the server (ie. present in the sys.path of the
+            running server).
 
         Returns
         -------
         extension_modnames : list
-            List of the module names loaded. These can be used in calls to
-            unload_extension_module()
+            List of the module names loaded as paths to files on disk. These can
+            be used in calls to unload_extension_module()
 
         Examples
         --------
@@ -287,9 +293,10 @@ class CugraphServiceClient:
         >>> client = CugraphServiceClient()
         >>> extension_modnames = client.load_graph_creation_extensions(
         ... "/some/server/side/directory")
-        >>>
+        >>> more_extension_modnames = client.load_graph_creation_extensions(
+        ... "my_project.extensions.etl")
         """
-        return self.__client.load_extensions(extension_dir_path)
+        return self.__client.load_extensions(extension_dir_or_mod_path)
 
     @__server_connection
     def unload_extension_module(self, modname):
