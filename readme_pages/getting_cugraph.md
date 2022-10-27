@@ -29,3 +29,10 @@ For CUDA > 11.5, please use the 11.5 environment
 ```
 
 Note: This conda installation only applies to Linux and Python versions 3.8/3.9.
+
+## PIP
+cuGraph, and all of RAPIDS, is available via pip.  
+
+```
+pip install cugraph-cu11 --extra-index-url=https://pypi.ngc.nvidia.com
+```
