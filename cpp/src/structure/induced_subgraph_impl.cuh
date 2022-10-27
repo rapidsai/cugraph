@@ -208,6 +208,9 @@ extract_induced_subgraphs(
                  thrust::make_zip_iterator(graph_ids_v.end(), dst_subgraph_vertices_v.end()));
   }
 
+  graph_ids_v.resize(0, handle.get_stream());
+  graph_ids_v.shrink_to_fit(handle.get_stream());
+
   dst_subgraph_vertices = raft::device_span<vertex_t const>(dst_subgraph_vertices_v.data(),
                                                             dst_subgraph_vertices_v.size());
 
@@ -222,6 +225,8 @@ extract_induced_subgraphs(
                     subgraph_offsets.data(),
                     subgraph_offsets.size(),
                     handle.get_stream());
+
+  graph_ids_v = detail::expand_sparse_offsets(subgraph_offsets, size_t{0}, handle.get_stream());
 
   vertex_frontier.bucket(0).insert(
     thrust::make_zip_iterator(subgraph_vertices.begin(), graph_ids_v.begin()),

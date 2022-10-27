@@ -85,8 +85,8 @@ struct rebase_offset_t {
 
 template <typename idx_t, typename offset_t>
 rmm::device_uvector<idx_t> expand_sparse_offsets(raft::device_span<offset_t const> offsets,
-                                                    idx_t base_idx,
-                                                    rmm::cuda_stream_view stream_view)
+                                                 idx_t base_idx,
+                                                 rmm::cuda_stream_view stream_view)
 {
   assert(offsets.size() > 0);
 
