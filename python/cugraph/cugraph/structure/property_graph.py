@@ -691,29 +691,30 @@ class EXPERIMENTAL__PropertyGraph:
 
         Examples
         --------
+        >>> import cugraph
         >>> import cudf
         >>> from cugraph.experimental import PropertyGraph
         >>> df = cudf.DataFrame(columns=["src", "dst", "some_property"],
-        ...                              data=[(99, 22, "a"),
-        ...                                    (98, 34, "b"),
-        ...                                    (97, 56, "c"),
-        ...                                    (96, 88, "d"),
-        ...                                  ])
+        ...                                          data=[(99, 22, "a"),
+        ...                                                (98, 34, "b"),
+        ...                                                (97, 56, "c"),
+        ...                                                (96, 88, "d"),
+        ...                                               ])
         >>> pG = PropertyGraph()
         >>> pG.add_edge_data(df, type_name="etype", vertex_col_names=("src", "dst"))
         >>> vert_df = cudf.DataFrame({"vert_id": [99, 22, 98, 34, 97, 56, 96, 88],
         ...                           "v_prop": [1 ,2 ,3, 4, 5, 6, 7, 8]})
-        >>> pG.add_vertex_data(vert_df, type_name="etype", vertex_col_name="vert_id")
+        >>> pG.add_vertex_data(vert_df, type_name="vtype", vertex_col_name="vert_id")
         >>> pG.get_vertex_data()
         _VERTEX_ _TYPE_  v_prop
-        0        99  etype       1
-        1        22  etype       2
-        2        98  etype       3
-        3        34  etype       4
-        4        97  etype       5
-        5        56  etype       6
-        6        96  etype       7
-        7        88  etype       8
+        0        99  vtype       1
+        1        22  vtype       2
+        2        98  vtype       3
+        3        34  vtype       4
+        4        97  vtype       5
+        5        56  vtype       6
+        6        96  vtype       7
+        7        88  vtype       8
         """
         if self.__vertex_prop_dataframe is not None:
             df = self.__vertex_prop_dataframe
@@ -1075,29 +1076,26 @@ class EXPERIMENTAL__PropertyGraph:
 
         Examples
         --------
-        >>> import cudf
         >>> import cugraph
-        >>> from cugraph.experimental import PropertyGraph
+        >>> import cudf
         >>> from cugraph.experimental import PropertyGraph
         >>> df = cudf.DataFrame(columns=["src", "dst", "some_property"],
-        ...                              data=[(99, 22, "a"),
-        ...                                    (98, 34, "b"),
-        ...                                    (97, 56, "c"),
-        ...                                    (96, 88, "d"),
-        ...                                  ])
+        ...                                          data=[(99, 22, "a"),
+        ...                                                (98, 34, "b"),
+        ...                                                (97, 56, "c"),
+        ...                                                (96, 88, "d"),
+        ...                                              ])
         >>> pG = PropertyGraph()
         >>> pG.add_edge_data(df, type_name="etype", vertex_col_names=("src", "dst"))
         >>> vert_df = cudf.DataFrame({"vert_id": [99, 22, 98, 34, 97, 56, 96, 88],
-        ...                           "v_prop": [1 ,2 ,3, 4, 5, 6, 7, 8]})
-        >>> pG.add_vertex_data(vert_df, type_name="etype", vertex_col_name="vert_id")
-        >>> selection = pG.select_edges("(_TYPE_ == 'etype') &
-        ...                              (some_property == 'd')")
+        ...                                       "v_prop": [1 ,2 ,3, 4, 5, 6, 7, 8]})
+        >>> pG.add_vertex_data(vert_df, type_name="vtype", vertex_col_name="vert_id")
+        >>> selection = pG.select_vertices("(_TYPE_ == 'vtype') & (v_prop > 4)")
         >>> G = pG.extract_subgraph(selection=selection,
-                                    create_using=cugraph.Graph(directed=True),
-                                    renumber_graph=False)
-        >>> print (G.edges())
-        src  dst
-        0   96   88
+        ...                         create_using=cugraph.Graph(directed=True),
+        ...                         renumber_graph=True)
+        >>> print (G.number_of_vertices())
+        4
         """
         # FIXME: check types
 
