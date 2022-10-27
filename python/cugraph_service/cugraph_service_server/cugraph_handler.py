@@ -210,7 +210,7 @@ class CugraphHandler:
 
         return modules_loaded
 
-    def load_extensions(self, extension_dir_path):
+    def load_extensions(self, extension_dir_or_mod_path):
         """
         Loads ("imports") all modules matching the pattern *_extension.py in
         the directory specified by extension_dir_path.
@@ -218,16 +218,28 @@ class CugraphHandler:
         The modules are searched and their functions are called (if a match is
         found) when call_extension() is called.
         """
-        extension_dir = Path(extension_dir_path)
+        modules_loaded = []
+        extension_path = Path(extension_dir_or_mod_path)
 
         # extension_dir_path is either a path on disk or an importable module path
         # (eg. import foo.bar.module)
-        if (not extension_dir.exists()) or (not extension_dir.is_dir()):
+        if (not extension_path.exists()) or (not extension_path.is_dir()):
+            try:
+                mod = importlib.import_module(str(extension_path))
+            except ModuleNotFoundError:
+                raise CugraphServiceError(f"bad path: {extension_dir_or_mod_path}")
 
-            raise CugraphServiceError(f"bad directory: {extension_dir}")
+            mod_file_path = Path(mod.__file__).absolute()
 
-        modules_loaded = []
-        for ext_file in extension_dir.glob("*_extension.py"):
+            # If mod is a package, find all the .py files in it
+            if mod_file_path.name == "__init__.py":
+                extension_files = mod_file_path.parent.glob("*.py")
+            else:
+                extension_files = [mod_file_path]
+        else:
+            extension_files = extension_path.glob("*_extension.py")
+
+        for ext_file in extension_files:
             module_file_path = ext_file.absolute().as_posix()
             spec = importlib.util.spec_from_file_location(module_file_path, ext_file)
             module = importlib.util.module_from_spec(spec)

@@ -191,20 +191,29 @@ def test_load_and_unload_extensions_python_module_path(extension1):
 
     handler = CugraphHandler()
     extension_dir = extension1
-    extension_dir_path = Path(extension_dir)
+    extension_dir_path = Path(extension_dir).absolute()
+    package_name = extension_dir_path.name  # last name in the path only
 
     # Create an __init__py file and add the dir to sys.path so it can be
     # imported as a package.
     with open(extension_dir_path / "__init__.py", "w") as f:
         f.write("")
     # FIXME: this should go into a fixture which can unmodify sys.path when done
-    sys.path.append(extension_dir_path.parent)
+    sys.path.append(extension_dir_path.parent.as_posix())
 
-    # Load everything in the package
-    # ext_mod_names is a list of python module paths (eg. "foo.bar.module")
-    # containing only 1 module
-    ext_mod_names1 = handler.load_extensions(extension_dir_path.stem)
-    assert len(ext_mod_names1) == 1
+    # Create another .py file to test multiple module loading
+    with open(extension_dir_path / "foo.py", "w") as f:
+        f.write("def foo_func(): return 33")
+
+    # Load everything in the package, ext_mod_names should be a list of python
+    # files containing 3 files (2 modules + __init__.py file).
+    # Assume the .py file in the generated extension dir is named
+    # "my_extension.py"
+    ext_mod_names1 = handler.load_extensions(package_name)
+    assert len(ext_mod_names1) == 3
+    assert str(extension_dir_path / "my_extension.py") in ext_mod_names1
+    assert str(extension_dir_path / "foo.py") in ext_mod_names1
+    assert str(extension_dir_path / "__init__.py") in ext_mod_names1
 
     results = handler.call_extension(
         "my_nines_function", "(33, 'int32', 21, 'float64')", "{}"
@@ -212,6 +221,10 @@ def test_load_and_unload_extensions_python_module_path(extension1):
     assert results.list_value[0].list_value[0].int32_value == 9
     assert results.list_value[1].list_value[0].double_value == 9.0
 
+    result = handler.call_extension("foo_func", "()", "{}")
+    assert result.int32_value == 33
+
+    # unload
     for mod_name in ext_mod_names1:
         handler.unload_extension_module(mod_name)
 
@@ -219,11 +232,14 @@ def test_load_and_unload_extensions_python_module_path(extension1):
         handler.call_extension(
             "my_nines_function", "(33, 'int32', 21, 'float64')", "{}"
         )
+    with pytest.raises(CugraphServiceError):
+        handler.call_extension("foo_func", "()", "{}")
 
-    # Load just an individual module in the package
-    # ext_mod_names should be the same as above
-    ext_mod_names2 = handler.load_extensions(extension_dir_path.stem)
-    assert ext_mod_names1 == ext_mod_names2
+    # Load just an individual module in the package, ext_mod_names should only
+    # contain 1 file.
+    mod_name = f"{package_name}.my_extension"
+    ext_mod_names2 = handler.load_extensions(mod_name)
+    assert ext_mod_names2 == [str(extension_dir_path / "my_extension.py")]
 
     results = handler.call_extension(
         "my_nines_function", "(33, 'int32', 21, 'float64')", "{}"
