@@ -40,7 +40,7 @@ class CuGraphStore(BaseCuGraphStore):
         else:
             raise ValueError("graph must be a PropertyGraph or MGPropertyGraph")
 
-        BaseCuGraphStore.__init__(self, graph)
+        super().__init__(graph)
         # dict to map column names corresponding to edge features
         # of each type
         self.edata_feat_col_d = defaultdict(list)
