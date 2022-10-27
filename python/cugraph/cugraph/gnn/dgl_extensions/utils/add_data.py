@@ -60,3 +60,23 @@ def _update_feature_map(
             )
         for col in columns:
             pg_feature_map[col] = [col]
+
+
+def deserialize_strings_from_char_ars(char_ar, len_ar):
+    string_start = 0
+    string_list = []
+    for string_offset in len_ar:
+        string_end = string_start + string_offset
+        s = char_ar[string_start:string_end]
+
+        # Check of cupy array
+        if type(s).__module__ == "cupy":
+            s = s.get()
+
+        # Check for numpy
+        if type(s).__module__ == "numpy":
+            s = s.tolist()
+        s = "".join([chr(i) for i in s])
+        string_list.append(s)
+        string_start = string_end
+    return string_list
