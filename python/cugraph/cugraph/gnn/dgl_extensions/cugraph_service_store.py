@@ -16,7 +16,8 @@ from collections import defaultdict
 from .base_cugraph_store import BaseCuGraphStore
 
 from functools import cached_property
-from .utils.add_data import _update_feature_map, deserialize_strings_from_char_ars
+from .utils.add_data import _update_feature_map
+from .utils.add_data import deserialize_strings_from_char_ars
 from .utils.sampling import sample_pg, get_subgraph_and_src_range_from_pg
 from .utils.sampling import get_underlying_dtype_from_sg
 from .feature_storage import CuFeatureStorage
@@ -32,7 +33,7 @@ class CuGraphRemoteStore(BaseCuGraphStore):
     """
 
     def __init__(self, graph, graph_client, backend_lib="torch"):
-        if type(graph).__name__ in ["RemoteGraph"]:
+        if type(graph).__name__ in ["RemotePropertyGraph", "RemoteMGPropertyGraph"]:
             self.__G = graph
             self.client = graph_client
         else:
