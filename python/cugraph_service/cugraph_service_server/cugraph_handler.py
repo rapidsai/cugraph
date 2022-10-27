@@ -512,6 +512,7 @@ class CugraphHandler:
         property_columns,
         graph_id,
         names,
+        edge_id_col_name,
     ):
         """
         Given a CSV csv_file_name present on the server's file system, read it
@@ -529,6 +530,9 @@ class CugraphHandler:
         if len(names) == 0:
             names = None
 
+        if edge_id_col_name == "":
+            edge_id_col_name = None
+
         try:
             gdf = self.__get_dataframe_from_csv(
                 csv_file_name,
@@ -542,6 +546,7 @@ class CugraphHandler:
                 type_name=type_name,
                 vertex_col_names=vertex_col_names,
                 property_columns=property_columns,
+                edge_id_col_name=edge_id_col_name,
             )
         except Exception:
             raise CugraphServiceError(f"{traceback.format_exc()}")
@@ -613,7 +618,7 @@ class CugraphHandler:
         return self.__add_graph(G)
 
     def get_graph_vertex_data(
-        self, id_or_ids, null_replacement_value, graph_id, property_keys
+        self, id_or_ids, null_replacement_value, property_keys, types, graph_id
     ):
         """
         Returns the vertex data as a serialized numpy array for the given
@@ -630,8 +635,11 @@ class CugraphHandler:
             columns = None
         else:
             columns = property_keys
+        if types == []:
+            types = None
+
         try:
-            df = pG.get_vertex_data(vertex_ids=ids, columns=columns)
+            df = pG.get_vertex_data(vertex_ids=ids, columns=columns, types=types)
             if isinstance(df, dask_cudf.DataFrame):
                 df = df.compute()
         except KeyError:
@@ -639,7 +647,7 @@ class CugraphHandler:
         return self.__get_graph_data_as_numpy_bytes(df, null_replacement_value)
 
     def get_graph_edge_data(
-        self, id_or_ids, null_replacement_value, graph_id, property_keys
+        self, id_or_ids, null_replacement_value, property_keys, types, graph_id
     ):
         """
         Returns the edge data as a serialized numpy array for the given
@@ -656,8 +664,11 @@ class CugraphHandler:
             columns = None
         else:
             columns = property_keys
+        if types == []:
+            types = None
+
         try:
-            df = pG.get_edge_data(edge_ids=ids, columns=columns)
+            df = pG.get_edge_data(edge_ids=ids, columns=columns, types=types)
             if isinstance(df, dask_cudf.DataFrame):
                 df = df.compute()
         except KeyError:
@@ -677,6 +688,61 @@ class CugraphHandler:
             return property_key in G.edge_property_names
 
         raise CugraphServiceError("Graph does not contain properties")
+
+    def get_graph_vertex_property_names(self, graph_id):
+        G = self._get_graph(graph_id)
+        if isinstance(G, (PropertyGraph, MGPropertyGraph)):
+            return G.vertex_property_names
+
+        raise CugraphServiceError("Graph does not contain properties")
+
+    def get_graph_edge_property_names(self, graph_id):
+        G = self._get_graph(graph_id)
+        if isinstance(G, (PropertyGraph, MGPropertyGraph)):
+            return G.edge_property_names
+
+        raise CugraphServiceError("Graph does not contain properties")
+
+    def get_graph_vertex_types(self, graph_id):
+        G = self._get_graph(graph_id)
+        if isinstance(G, (PropertyGraph, MGPropertyGraph)):
+            return G.vertex_types
+
+        raise CugraphServiceError("Graph does not contain properties")
+        # Note: this is currently invalid for a graph without properties
+
+    def get_graph_edge_types(self, graph_id):
+        G = self._get_graph(graph_id)
+        if isinstance(G, (PropertyGraph, MGPropertyGraph)):
+            return G.edge_types
+
+        raise CugraphServiceError("Graph does not contain properties")
+        # FIXME this should be valid for a graph without properties
+
+    def get_num_vertices(self, vertex_type, include_edge_data, graph_id):
+        # FIXME should include_edge_data always be True in the remote case?
+        G = self._get_graph(graph_id)
+        if isinstance(G, (PropertyGraph, MGPropertyGraph)):
+            if vertex_type == "":
+                return G.get_num_vertices(include_edge_data=include_edge_data)
+            else:
+                return G.get_num_vertices(
+                    type=vertex_type, include_edge_data=include_edge_data
+                )
+
+        raise CugraphServiceError("Graph does not contain properties")
+        # FIXME this should be valid for a graph without properties (but not by type)
+
+    def get_num_edges(self, edge_type, graph_id):
+        G = self._get_graph(graph_id)
+        if isinstance(G, (PropertyGraph, MGPropertyGraph)):
+            if edge_type == "":
+                return G.get_num_edges()
+            else:
+                return G.get_num_edges(type=edge_type)
+
+        raise CugraphServiceError("Graph does not contain properties")
+        # FIXME this should be valid for a graph without properties
 
     ###########################################################################
     # Algos

@@ -33,3 +33,5 @@ extension_return_dtype_map.update(
 )
 
 from cugraph_service_client.client import CugraphServiceClient
+from cugraph_service_client.remote_graph import RemoteGraph
+from cugraph_service_client.remote_graph import RemotePropertyGraph

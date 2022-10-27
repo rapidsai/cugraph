@@ -514,3 +514,16 @@ def test_uniform_neighbor_sampling(client_with_edgelist_csv_loaded):
         with_replacement=with_replacement,
         graph_id=extracted_gid,
     )
+
+
+def test_create_property_graph(client):
+    old_ids = set(client.get_graph_ids())
+    pG = client.graph()
+    assert pG._RemotePropertyGraph__graph_id not in old_ids
+
+    new_ids = set(client.get_graph_ids())
+    assert pG._RemotePropertyGraph__graph_id in new_ids
+    assert len(old_ids) + 1 == len(new_ids)
+
+    del pG
+    assert set(client.get_graph_ids()) == old_ids
