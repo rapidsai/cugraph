@@ -77,6 +77,46 @@ cugraph_error_code_t cugraph_sg_graph_create(
   cugraph_error_t** error);
 
 /**
+ * @brief     Construct an SG graph from a CSR input
+ *
+ * @param [in]  handle      Handle for accessing resources
+ * @param [in]  properties  Properties of the constructed graph
+ * @param [in]  offsets     Device array containing the CSR offsets array
+ * @param [in]  indices     Device array containing the destination vertex ids
+ * @param [in]  weights     Device array containing the edge weights.  Note that an unweighted
+ *                          graph can be created by passing weights == NULL.
+ * @param [in]  edge_ids    Device array containing the edge ids for each edge.  Optional
+                            argument that can be NULL if edge ids are not used.
+ * @param [in]  edge_types  Device array containing the edge types for each edge.  Optional
+                            argument that can be NULL if edge types are not used.
+ * @param [in]  store_transposed If true create the graph initially in transposed format
+ * @param [in]  renumber    If true, renumber vertices to make an efficient data structure.
+ *    If false, do not renumber.  Renumbering is required if the vertices are not sequential
+ *    integer values from 0 to num_vertices.
+ * @param [in]  do_expensive_check    If true, do expensive checks to validate the input data
+ *    is consistent with software assumptions.  If false bypass these checks.
+ * @param [in]  properties  Properties of the graph
+ * @param [out] graph       A pointer to the graph object
+ * @param [out] error       Pointer to an error object storing details of any error.  Will
+ *                          be populated if error code is not CUGRAPH_SUCCESS
+ *
+ * @return error code
+ */
+cugraph_error_code_t cugraph_sg_graph_create_from_csr(
+  const cugraph_resource_handle_t* handle,
+  const cugraph_graph_properties_t* properties,
+  const cugraph_type_erased_device_array_view_t* offsets,
+  const cugraph_type_erased_device_array_view_t* indices,
+  const cugraph_type_erased_device_array_view_t* weights,
+  const cugraph_type_erased_device_array_view_t* edge_ids,
+  const cugraph_type_erased_device_array_view_t* edge_types,
+  bool_t store_transposed,
+  bool_t renumber,
+  bool_t check,
+  cugraph_graph_t** graph,
+  cugraph_error_t** error);
+
+/**
  * @brief     Destroy an SG graph
  *
  * @param [in]  graph  A pointer to the graph object to destroy
