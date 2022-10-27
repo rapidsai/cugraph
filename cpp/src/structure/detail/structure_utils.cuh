@@ -83,36 +83,35 @@ struct rebase_offset_t {
   __device__ edge_t operator()(edge_t offset) const { return offset - base_offset; }
 };
 
-template <typename vertex_t, typename edge_t>
-rmm::device_uvector<vertex_t> expand_sparse_offsets(raft::device_span<edge_t const> offsets,
-                                                    vertex_t base_vertex_id,
+template <typename idx_t, typename offset_t>
+rmm::device_uvector<idx_t> expand_sparse_offsets(raft::device_span<offset_t const> offsets,
+                                                    idx_t base_idx,
                                                     rmm::cuda_stream_view stream_view)
 {
-  edge_t num_edges{0};
+  assert(offsets.size() > 0);
 
-  if (offsets.size() > 0) {
-    raft::update_host(&num_edges, offsets.data() + offsets.size() - 1, 1, stream_view);
-  }
+  offset_t num_entries{0};
+  raft::update_host(&num_entries, offsets.data() + offsets.size() - 1, 1, stream_view);
 
-  rmm::device_uvector<vertex_t> vertices(num_edges, stream_view);
+  rmm::device_uvector<idx_t> results(num_entries, stream_view);
 
-  if (num_edges > 0) {
-    thrust::fill(rmm::exec_policy(stream_view), vertices.begin(), vertices.end(), vertex_t{0});
+  if (num_entries > 0) {
+    thrust::fill(rmm::exec_policy(stream_view), results.begin(), results.end(), idx_t{0});
 
-    raft::update_device(vertices.data(), &base_vertex_id, 1, stream_view);
+    raft::update_device(results.data(), &base_idx, 1, stream_view);
 
     thrust::for_each(
       rmm::exec_policy(stream_view),
       offsets.begin() + 1,
       offsets.end(),
-      [d_vertices = vertices.data(), n_vertices = vertices.size()] __device__(auto offset) {
-        if (offset < n_vertices) { atomicAdd(&d_vertices[offset], vertex_t{1}); }
+      [d_results = results.data(), n_results = results.size()] __device__(auto offset) {
+        if (offset < n_results) { atomicAdd(&d_results[offset], idx_t{1}); }
       });
     thrust::inclusive_scan(
-      rmm::exec_policy(stream_view), vertices.begin(), vertices.end(), vertices.begin());
+      rmm::exec_policy(stream_view), results.begin(), results.end(), results.begin());
   }
 
-  return vertices;
+  return results;
 }
 
 template <typename edge_t, typename VertexIterator>
