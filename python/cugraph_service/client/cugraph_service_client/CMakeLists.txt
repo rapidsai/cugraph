@@ -12,22 +12,4 @@
 # the License.
 # =============================================================================
 
-cmake_minimum_required(VERSION 3.23.1 FATAL_ERROR)
-
-set(cugraph_service_version 22.12.00)
-
-include(../../../fetch_rapids.cmake)
-
-project(
-  cugraph-service-server-python
-  VERSION ${cugraph_service_version}
-  LANGUAGES # TODO: Building Python extension modules via the python_extension_module requires the C
-            # language to be enabled here. The test project that is built in scikit-build to verify
-            # various linking options for the python library is hardcoded to build with C, so until
-            # that is fixed we need to keep C.
-            C CXX
-)
-
-
-add_subdirectory(cugraph_service_service)
 

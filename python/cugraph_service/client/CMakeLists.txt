@@ -19,7 +19,7 @@ set(cugraph_service_version 22.12.00)
 include(../../../fetch_rapids.cmake)
 
 project(
-  cugraph-service-python
+  cugraph-service-client-python
   VERSION ${cugraph_service_version}
   LANGUAGES # TODO: Building Python extension modules via the python_extension_module requires the C
             # language to be enabled here. The test project that is built in scikit-build to verify
@@ -30,5 +30,3 @@ project(
 
 
 add_subdirectory(cugraph_service_client)
-add_subdirectory(cugraph_service_service)
-

@@ -22,7 +22,7 @@ from setuputils import get_environment_option
 import versioneer
 
 
-INSTALL_REQUIRES = ["thriftpy2", "numba"]
+INSTALL_REQUIRES = ["thriftpy2"]
 
 CUDA_HOME = get_environment_option("CUDA_HOME")
 
