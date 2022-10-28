@@ -129,7 +129,8 @@ service CugraphService {
                              6:string type_name,
                              7:list<string> property_columns,
                              8:i32 graph_id,
-                             9:list<string> names
+                             9:list<string> names,
+                             10:string edge_id_col_name
                              ) throws (1:CugraphServiceError e),
 
   list<i32> get_edge_IDs_for_vertices(1:list<i32> src_vert_IDs,
@@ -149,14 +150,16 @@ service CugraphService {
 
   binary get_graph_vertex_data(1:GraphVertexEdgeID vertex_id,
                                2:Value null_replacement_value,
-                               3:i32 graph_id,
-                               4:list<string> property_keys
+                               3:list<string> property_keys,
+                               4:list<string> types,
+                               5:i32 graph_id
                                ) throws (1:CugraphServiceError e),
 
   binary get_graph_edge_data(1:GraphVertexEdgeID edge_id,
-                             2:Value null_replacement_value
-                             3:i32 graph_id,
-                             4:list<string> property_keys
+                             2:Value null_replacement_value,
+                             3:list<string> property_keys,
+                             4:list<string> types,
+                             5:i32 graph_id,
                              ) throws (1:CugraphServiceError e),
 
   bool is_vertex_property(1:string property_key,
@@ -165,6 +168,24 @@ service CugraphService {
   bool is_edge_property(1:string property_key,
                         2:i32 graph_id) throws (1:CugraphServiceError e),
 
+  list<string> get_graph_vertex_property_names(1:i32 graph_id)
+               throws (1:CugraphServiceError e),
+
+  list<string> get_graph_edge_property_names(1:i32 graph_id)
+               throws (1:CugraphServiceError e),
+
+  list<string> get_graph_vertex_types(1:i32 graph_id)
+               throws (1:CugraphServiceError e),
+
+  list<string> get_graph_edge_types(1:i32 graph_id)
+               throws (1:CugraphServiceError e),
+
+  i64 get_num_vertices(1:string vertex_type,
+                       2:bool include_edge_data,
+                       3:i32 graph_id) throws (1:CugraphServiceError e),
+
+  i64 get_num_edges(1:string edge_type,
+                    2:i32 graph_id) throws (1:CugraphServiceError e),
   ##############################################################################
   # Algos
   BatchedEgoGraphsResult
@@ -181,13 +202,28 @@ service CugraphService {
 
   UniformNeighborSampleResult
   uniform_neighbor_sample(1:list<i32> start_list,
-                              2:list<i32> fanout_vals,
-                              3:bool with_replacement,
-                              4:i32 graph_id
-                              ) throws (1:CugraphServiceError e),
+                          2:list<i32> fanout_vals,
+                          3:bool with_replacement,
+                          4:i32 graph_id,
+                          5:string result_host,
+                          6:i16 result_port
+                          ) throws (1:CugraphServiceError e),
 
   ##############################################################################
   # Test/Debug
+  i32 create_test_array(1:i64 nbytes
+                        ) throws (1:CugraphServiceError e),
+
+  void delete_test_array(1:i32 test_array_id) throws (1:CugraphServiceError e),
+
+  list<byte> receive_test_array(1:i32 test_array_id
+                                ) throws (1:CugraphServiceError e),
+
+  oneway void receive_test_array_to_device(1:i32 test_array_id,
+                                           2:string result_host,
+                                           3:i16 result_port
+                                           ) throws (1:CugraphServiceError e),
+
   string get_graph_type(1:i32 graph_id) throws(1:CugraphServiceError e),
 }
 """
@@ -253,5 +289,5 @@ def create_client(host, port, call_timeout=90000):
         # FIXME: may need to have additional thrift exception handlers
         # FIXME: this exception being raised could use more detail
         raise spec.CugraphServiceError(
-            "could not create a client session " "with a cugraph_service server"
+            "could not create a client session with a cugraph_service server"
         )

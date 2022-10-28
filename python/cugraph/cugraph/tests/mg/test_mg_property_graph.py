@@ -20,6 +20,7 @@ import cudf
 from cudf.testing import assert_frame_equal, assert_series_equal
 
 import cugraph.dask as dcg
+from cugraph.experimental.datasets import cyber
 from cugraph.testing.utils import RAPIDS_DATASET_ROOT_DIR_PATH
 from cugraph.testing import utils
 
@@ -28,6 +29,12 @@ from cugraph.testing import utils
 # by trying to import rapids_pytest_benchmark, and if that fails, set
 # "gpubenchmark" to the standard "benchmark" fixture provided by
 # pytest-benchmark.
+try:
+    import rapids_pytest_benchmark  # noqa: F401
+except ImportError:
+    import pytest_benchmark
+
+    gpubenchmark = pytest_benchmark.plugin.benchmark
 
 import cugraph
 
@@ -942,3 +949,31 @@ def test_add_data_noncontiguous():
             cur_df["edge_type"],
             check_names=False,
         )
+
+
+# =============================================================================
+# Benchmarks
+# =============================================================================
+
+
+@pytest.mark.slow
+@pytest.mark.parametrize("N", [1, 3, 10, 30])
+def bench_add_edges_cyber(gpubenchmark, dask_client, N):
+    from cugraph.experimental import MGPropertyGraph
+
+    # Partition the dataframe to add in chunks
+    cyber_df = cyber.get_edgelist()
+    chunk = (len(cyber_df) + N - 1) // N
+    dfs = [
+        dask_cudf.from_cudf(cyber_df.iloc[i * chunk : (i + 1) * chunk], npartitions=2)
+        for i in range(N)
+    ]
+
+    def func():
+        mpG = MGPropertyGraph()
+        for df in dfs:
+            mpG.add_edge_data(df, ("srcip", "dstip"))
+        df = mpG.get_edge_data().compute()
+        assert len(df) == len(cyber_df)
+
+    gpubenchmark(func)

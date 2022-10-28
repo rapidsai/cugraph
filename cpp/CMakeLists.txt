@@ -218,8 +218,18 @@ set(CUGRAPH_SOURCES
     src/structure/graph_sg.cu
     src/structure/graph_mg.cu
     src/structure/graph_view_sg.cu
+    src/structure/decompress_to_edgelist_sg.cu
+    src/structure/decompress_to_edgelist_mg.cu
+    src/structure/symmetrize_graph_sg.cu
+    src/structure/symmetrize_graph_mg.cu
+    src/structure/transpose_graph_sg.cu
+    src/structure/transpose_graph_mg.cu
+    src/structure/transpose_graph_storage_sg.cu
+    src/structure/transpose_graph_storage_mg.cu
     src/structure/coarsen_graph_sg.cu
     src/structure/coarsen_graph_mg.cu
+    src/structure/graph_weight_utils_mg.cu
+    src/structure/graph_weight_utils_sg.cu
     src/structure/renumber_edgelist_sg.cu
     src/structure/renumber_edgelist_mg.cu
     src/structure/renumber_utils_sg.cu
@@ -242,6 +252,8 @@ set(CUGRAPH_SOURCES
     src/centrality/katz_centrality_mg.cu
     src/centrality/eigenvector_centrality_sg.cu
     src/centrality/eigenvector_centrality_mg.cu
+    src/centrality/betweenness_centrality_sg.cu
+    src/centrality/betweenness_centrality_mg.cu
     src/tree/legacy/mst.cu
     src/components/weakly_connected_components_sg.cu
     src/components/weakly_connected_components_mg.cu
@@ -347,6 +359,7 @@ add_library(cugraph_c
         src/c_api/katz.cpp
         src/c_api/centrality_result.cpp
         src/c_api/eigenvector_centrality.cpp
+        src/c_api/betweenness_centrality.cpp
         src/c_api/core_number.cpp
         src/c_api/core_result.cpp
         src/c_api/k_core.cpp
