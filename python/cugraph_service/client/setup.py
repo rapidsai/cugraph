@@ -69,7 +69,6 @@ class CleanCommand(Command):
 
 cmdclass = versioneer.get_cmdclass()
 cmdclass["clean"] = CleanCommand
-PACKAGE_DATA = {key: ["*.pxd"] for key in find_packages(include=["cugraph*"])}
 
 setup(
     name="cugraph_service_client",
@@ -85,10 +84,8 @@ setup(
     ],
     # Include the separately-compiled shared library
     author="NVIDIA Corporation",
-    setup_requires=["Cython>=0.29,<0.30"],
-    packages=find_packages(include=["cugraph", "cugraph.*"]),
-    package_data=PACKAGE_DATA,
-    include_package_data=True,
+    packages=find_packages(include=["cugraph_service_client"]),
+    include_package_data=False,
     install_requires=INSTALL_REQUIRES,
     license="Apache",
     cmdclass=cmdclass,
