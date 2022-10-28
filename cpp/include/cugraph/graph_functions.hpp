@@ -348,12 +348,12 @@ void renumber_local_ext_vertices(raft::handle_t const& handle,
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Graph view object of the graph to be decompressed.
- * @param edge_weight Optional view object holding edge weights for @p graph_view.
+ * @param edge_weight_view Optional view object holding edge weights for @p graph_view.
  * @param renumber_map If valid, return the renumbered edge list based on the provided @p
  * renumber_map
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  * @return Tuple of edge sources, destinations, and (optional) edge weights (if @p
- * edge_weights.has_value() is true).
+ * edge_weight_view.has_value() is true).
  */
 template <typename vertex_t,
           typename edge_t,
@@ -366,7 +366,7 @@ std::tuple<rmm::device_uvector<vertex_t>,
 decompress_to_edgelist(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
-  std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weights,
+  std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
   std::optional<raft::device_span<vertex_t const>> renumber_map,
   bool do_expensive_check = false);
 
@@ -439,7 +439,7 @@ symmetrize_graph(
   raft::handle_t const& handle,
   graph_t<vertex_t, edge_t, store_transposed, multi_gpu>&& graph,
   std::optional<edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>,
-                                weight_t const*>>&& edge_weights,
+                                weight_t>>&& edge_weights,
   std::optional<rmm::device_uvector<vertex_t>>&& renumber_map,
   bool reciprocal         = false,
   bool do_expensive_check = false);
@@ -543,7 +543,7 @@ transpose_graph_storage(
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Graph view object of the input graph to be coarsened.
- * @param edge_weights Optional view object holding edge weights for @p graph_view.
+ * @param edge_weight_view Optional view object holding edge weights for @p graph_view.
  * @param labels Vertex labels (assigned to this process in multi-GPU) to be used in coarsening.
  * @param renumber Flag indicating whether to renumber vertices or not (must be true if @p multi_gpu
  * is true). Setting @p renumber to false is highly discouraged except for testing as this
@@ -554,7 +554,7 @@ transpose_graph_storage(
  * multi-GPU) in @p labels is much smaller than the assumed number of vertices.
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  * @return Tuple of the coarsened graph, coarsened graph edge weights (if @p
- * edge_weights.has_value() is true) and the renumber map (if @p renumber is true).
+ * edge_weight_view.has_value() is true) and the renumber map (if @p renumber is true).
  */
 template <typename vertex_t,
           typename edge_t,
@@ -568,7 +568,7 @@ std::tuple<
   std::optional<rmm::device_uvector<vertex_t>>>
 coarsen_graph(raft::handle_t const& handle,
               graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
-              std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weights,
+              std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
               vertex_t const* labels,
               bool renumber,
               bool do_expensive_check = false);
@@ -619,7 +619,7 @@ void relabel(raft::handle_t const& handle,
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Graph view object, we extract induced subgraphs from @p graph_view.
- * @param edge_weights Optional view object holding edge weights for @p graph_view.
+ * @param edge_weight_view Optional view object holding edge weights for @p graph_view.
  * @param subgraph_offsets Span pointing to subgraph vertex offsets
  * @param subgraph_vertices Span pointing to subgraph vertices The elements of @p subgraph_vertices
  *        for each subgraph should be sorted in ascending order and unique.
@@ -632,7 +632,7 @@ void relabel(raft::handle_t const& handle,
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  * @return Quadraplet of edge major (destination if @p store_transposed is true, source otherwise)
  * vertices, edge minor (source if @p store_transposed  is true, destination otherwise) vertices,
- * edge weights (if @p edge_weights.has_value() is true), and edge offsets for each induced
+ * edge weights (if @p edge_weight_view.has_value() is true), and edge offsets for each induced
  * subgraphs (size == num_subgraphs + 1). The sizes of the edge major & minor vertices are
  * edge_offsets[num_subgraphs].
  */
@@ -648,7 +648,7 @@ std::tuple<rmm::device_uvector<vertex_t>,
 extract_induced_subgraphs(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
-  std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weights,
+  std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
   raft::device_span<size_t const> subgraph_offsets,
   raft::device_span<vertex_t const> subgraph_vertices,
   bool do_expensive_check = false);
@@ -755,7 +755,7 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> get_two
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Graph view object of the input graph to compute per-vertex incoming edge weight
  * sums.
- * @param edge_weights View object holding edge weights for @p graph_view.
+ * @param edge_weight_view View object holding edge weights for @p graph_view.
  * @return Incoming edge weight sums for each vertex.
  */
 template <typename vertex_t,
@@ -766,7 +766,7 @@ template <typename vertex_t,
 rmm::device_uvector<weight_t> compute_in_weight_sums(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
-  edge_property_view_t<edge_t, weight_t const*> edge_weights);
+  edge_property_view_t<edge_t, weight_t const*> edge_weight_view);
 
 /**
  * @brief Compute per-vertex outgoing edge weight sums.
@@ -782,7 +782,7 @@ rmm::device_uvector<weight_t> compute_in_weight_sums(
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Graph view object of the input graph to compute per-vertex outgoing edge weight
  * sums.
- * @param edge_weights View object holding edge weights for @p graph_view.
+ * @param edge_weight_view View object holding edge weights for @p graph_view.
  * @return Outgoing edge weight sums for each vertex.
  */
 template <typename vertex_t,
@@ -793,7 +793,7 @@ template <typename vertex_t,
 rmm::device_uvector<weight_t> compute_out_weight_sums(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
-  edge_property_view_t<edge_t, weight_t const*> edge_weights);
+  edge_property_view_t<edge_t, weight_t const*> edge_weight_view);
 
 /**
  * @brief Compute maximum per-vertex incoming edge weight sums.
@@ -809,7 +809,7 @@ rmm::device_uvector<weight_t> compute_out_weight_sums(
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Graph view object of the input graph to compute the maximum per-vertex incoming
  * edge weight sums.
- * @param edge_weights View object holding edge weights for @p graph_view.
+ * @param edge_weight_view View object holding edge weights for @p graph_view.
  * @return Maximum per-vertex incoming edge weight sums.
  */
 template <typename vertex_t,
@@ -820,7 +820,7 @@ template <typename vertex_t,
 weight_t compute_max_in_weight_sum(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
-  edge_property_view_t<edge_t, weight_t const*> edge_weights);
+  edge_property_view_t<edge_t, weight_t const*> edge_weight_view);
 
 /**
  * @brief Compute maximum per-vertex outgoing edge weight sums.
@@ -836,7 +836,7 @@ weight_t compute_max_in_weight_sum(
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Graph view object of the input graph to compute the maximum per-vertex outgoing
  * edge weight sums.
- * @param edge_weights View object holding edge weights for @p graph_view.
+ * @param edge_weight_view View object holding edge weights for @p graph_view.
  * @return Maximum per-vertex outgoing edge weight sums.
  */
 template <typename vertex_t,
@@ -847,7 +847,7 @@ template <typename vertex_t,
 weight_t compute_max_out_weight_sum(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
-  edge_property_view_t<edge_t, weight_t const*> edge_weights);
+  edge_property_view_t<edge_t, weight_t const*> edge_weight_view);
 
 /**
  * @brief Sum the weights of the entire set of edges.
@@ -862,7 +862,7 @@ weight_t compute_max_out_weight_sum(
  * @param  handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Graph view object of the input graph to sum the edge weights.
- * @param edge_weights View object holding edge weights for @p graph_view.
+ * @param edge_weight_view View object holding edge weights for @p graph_view.
  * @return Sum of the weights of the entire set of edges.
  */
 template <typename vertex_t,
@@ -873,130 +873,6 @@ template <typename vertex_t,
 weight_t compute_total_edge_weight(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
-  edge_property_view_t<edge_t, weight_t const*> edge_weights);
-
-/**
- * @brief Compute per-vertex incoming edge weight sums.
- *
- * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
- * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
- * @tparam weight_t Type of edge weights. Needs to be a floating point type.
- * @tparam store_transposed Flag indicating whether to use sources (if false) or destinations (if
- * true) as major indices in storing edges using a 2D sparse matrix. transposed.
- * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
- * or multi-GPU (true).
- * @param  handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
- * handles to various CUDA libraries) to run graph algorithms.
- * @param graph_view Graph view object of the input graph to compute per-vertex incoming edge weight
- * sums.
- * @return Incoming edge weight sums for each vertex.
- */
-template <typename vertex_t,
-          typename edge_t,
-          typename weight_t,
-          bool store_transposed,
-          bool multi_gpu>
-rmm::device_uvector<weight_t> compute_in_weight_sums(
-  raft::handle_t const& handle,
-  graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> const& graph_view);
-
-/**
- * @brief Compute per-vertex outgoing edge weight sums.
- *
- * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
- * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
- * @tparam weight_t Type of edge weights. Needs to be a floating point type.
- * @tparam store_transposed Flag indicating whether to use sources (if false) or destinations (if
- * true) as major indices in storing edges using a 2D sparse matrix. transposed.
- * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
- * or multi-GPU (true).
- * @param  handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
- * handles to various CUDA libraries) to run graph algorithms.
- * @param graph_view Graph view object of the input graph to compute per-vertex outgoing edge weight
- * sums.
- * @return Outgoing edge weight sums for each vertex.
- */
-template <typename vertex_t,
-          typename edge_t,
-          typename weight_t,
-          bool store_transposed,
-          bool multi_gpu>
-rmm::device_uvector<weight_t> compute_out_weight_sums(
-  raft::handle_t const& handle,
-  graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> const& graph_view);
-
-/**
- * @brief Compute maximum per-vertex incoming edge weight sums.
- *
- * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
- * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
- * @tparam weight_t Type of edge weights. Needs to be a floating point type.
- * @tparam store_transposed Flag indicating whether to use sources (if false) or destinations (if
- * true) as major indices in storing edges using a 2D sparse matrix. transposed.
- * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
- * or multi-GPU (true).
- * @param  handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
- * handles to various CUDA libraries) to run graph algorithms.
- * @param graph_view Graph view object of the input graph to compute the maximum per-vertex incoming
- * edge weight sums.
- * @return Maximum per-vertex incoming edge weight sums.
- */
-template <typename vertex_t,
-          typename edge_t,
-          typename weight_t,
-          bool store_transposed,
-          bool multi_gpu>
-weight_t compute_max_in_weight_sum(
-  raft::handle_t const& handle,
-  graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> const& graph_view);
-
-/**
- * @brief Compute maximum per-vertex outgoing edge weight sums.
- *
- * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
- * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
- * @tparam weight_t Type of edge weights. Needs to be a floating point type.
- * @tparam store_transposed Flag indicating whether to use sources (if false) or destinations (if
- * true) as major indices in storing edges using a 2D sparse matrix. transposed.
- * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
- * or multi-GPU (true).
- * @param  handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
- * handles to various CUDA libraries) to run graph algorithms.
- * @param graph_view Graph view object of the input graph to compute the maximum per-vertex outgoing
- * edge weight sums.
- * @return Maximum per-vertex outgoing edge weight sums.
- */
-template <typename vertex_t,
-          typename edge_t,
-          typename weight_t,
-          bool store_transposed,
-          bool multi_gpu>
-weight_t compute_max_out_weight_sum(
-  raft::handle_t const& handle,
-  graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> const& graph_view);
-
-/**
- * @brief Sum the weights of the entire set of edges.
- *
- * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
- * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
- * @tparam weight_t Type of edge weights. Needs to be a floating point type.
- * @tparam store_transposed Flag indicating whether to use sources (if false) or destinations (if
- * true) as major indices in storing edges using a 2D sparse matrix. transposed.
- * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
- * or multi-GPU (true).
- * @param  handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
- * handles to various CUDA libraries) to run graph algorithms.
- * @param graph_view Graph view object of the input graph to sum the edge weights.
- * @return Sum of the weights of the entire set of edges.
- */
-template <typename vertex_t,
-          typename edge_t,
-          typename weight_t,
-          bool store_transposed,
-          bool multi_gpu>
-weight_t compute_total_edge_weight(
-  raft::handle_t const& handle,
-  graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> const& graph_view);
+  edge_property_view_t<edge_t, weight_t const*> edge_weight_view);
 
 }  // namespace cugraph

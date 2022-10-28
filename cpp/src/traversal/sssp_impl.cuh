@@ -78,7 +78,7 @@ namespace detail {
 template <typename GraphViewType, typename weight_t, typename PredecessorIterator>
 void sssp(raft::handle_t const& handle,
           GraphViewType const& push_graph_view,
-          edge_property_view_t<typename GraphViewType::edge_type, weight_t const*> edge_weights,
+          edge_property_view_t<typename GraphViewType::edge_type, weight_t const*> edge_weight_view,
           weight_t* distances,
           PredecessorIterator predecessor_first,
           typename GraphViewType::vertex_type source_vertex,
@@ -111,7 +111,7 @@ void sssp(raft::handle_t const& handle,
                  push_graph_view,
                  edge_src_dummy_property_t{}.view(),
                  edge_dst_dummy_property_t{}.view(),
-                 edge_weights,
+                 edge_weight_view,
                  [] __device__(vertex_t, vertex_t, auto, auto, weight_t w) { return w < 0.0; });
     CUGRAPH_EXPECTS(num_negative_edge_weights == 0,
                     "Invalid input argument: input edge weights should have non-negative values.");
@@ -145,7 +145,7 @@ void sssp(raft::handle_t const& handle,
     push_graph_view,
     edge_src_dummy_property_t{}.view(),
     edge_dst_dummy_property_t{}.view(),
-    edge_weights,
+    edge_weight_view,
     [] __device__(vertex_t, vertex_t, auto, auto, weight_t w) {
       return thrust::make_tuple(weight_t{1.0}, w);
     },
@@ -203,7 +203,7 @@ void sssp(raft::handle_t const& handle,
           ? edge_src_distances.view()
           : detail::edge_major_property_view_t<vertex_t, weight_t const*>(distances),
         edge_dst_dummy_property_t{}.view(),
-        edge_weights,
+        edge_weight_view,
         e_op_t<vertex_t, weight_t, GraphViewType::is_multi_gpu>{
           vertex_partition, distances, cutoff},
         reduce_op::minimum<thrust::tuple<weight_t, vertex_t>>());
@@ -272,7 +272,7 @@ void sssp(raft::handle_t const& handle,
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 void sssp(raft::handle_t const& handle,
           graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
-          edge_property_view_t<edge_t, weight_t const*> edge_weights,
+          edge_property_view_t<edge_t, weight_t const*> edge_weight_view,
           weight_t* distances,
           vertex_t* predecessors,
           vertex_t source_vertex,
@@ -282,7 +282,7 @@ void sssp(raft::handle_t const& handle,
   if (predecessors != nullptr) {
     detail::sssp(handle,
                  graph_view,
-                 edge_weights,
+                 edge_weight_view,
                  distances,
                  predecessors,
                  source_vertex,
@@ -291,7 +291,7 @@ void sssp(raft::handle_t const& handle,
   } else {
     detail::sssp(handle,
                  graph_view,
-                 edge_weights,
+                 edge_weight_view,
                  distances,
                  thrust::make_discard_iterator(),
                  source_vertex,

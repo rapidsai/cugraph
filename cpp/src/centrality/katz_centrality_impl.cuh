@@ -43,7 +43,7 @@ void katz_centrality(
   raft::handle_t const& handle,
   GraphViewType const& pull_graph_view,
   std::optional<edge_property_view_t<typename GraphViewType::edge_type, weight_t const*>>
-    edge_weights,
+    edge_weight_view,
   result_t const* betas,
   result_t* katz_centralities,
   result_t alpha,
@@ -109,13 +109,13 @@ void katz_centrality(
     update_edge_src_property(
       handle, pull_graph_view, old_katz_centralities, edge_src_katz_centralities);
 
-    if (edge_weights) {
+    if (edge_weight_view) {
       per_v_transform_reduce_incoming_e(
         handle,
         pull_graph_view,
         edge_src_katz_centralities.view(),
         edge_dst_dummy_property_t{}.view(),
-        *edge_weights,
+        *edge_weight_view,
         [alpha] __device__(vertex_t, vertex_t, auto src_val, auto, weight_t w) {
           return static_cast<result_t>(alpha * src_val * w);
         },
@@ -194,7 +194,7 @@ void katz_centrality(
 template <typename vertex_t, typename edge_t, typename weight_t, typename result_t, bool multi_gpu>
 void katz_centrality(raft::handle_t const& handle,
                      graph_view_t<vertex_t, edge_t, true, multi_gpu> const& graph_view,
-                     std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weights,
+                     std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
                      result_t const* betas,
                      result_t* katz_centralities,
                      result_t alpha,
@@ -207,7 +207,7 @@ void katz_centrality(raft::handle_t const& handle,
 {
   detail::katz_centrality(handle,
                           graph_view,
-                          edge_weights,
+                          edge_weight_view,
                           betas,
                           katz_centralities,
                           alpha,

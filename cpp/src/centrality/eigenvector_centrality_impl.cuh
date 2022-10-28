@@ -45,7 +45,7 @@ template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 rmm::device_uvector<weight_t> eigenvector_centrality(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, true, multi_gpu> const& pull_graph_view,
-  std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weights,
+  std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
   std::optional<raft::device_span<weight_t const>> initial_centralities,
   weight_t epsilon,
   size_t max_iterations,
@@ -56,13 +56,13 @@ rmm::device_uvector<weight_t> eigenvector_centrality(
   if (num_vertices == 0) { return rmm::device_uvector<weight_t>(0, handle.get_stream()); }
 
   if (do_expensive_check) {
-    if (edge_weights) {
+    if (edge_weight_view) {
       auto num_nonpositive_edge_weights =
         count_if_e(handle,
                    pull_graph_view,
                    edge_src_dummy_property_t{}.view(),
                    edge_dst_dummy_property_t{}.view(),
-                   *edge_weights,
+                   *edge_weight_view,
                    [] __device__(vertex_t, vertex_t, auto, auto, weight_t w) { return w <= 0.0; });
       CUGRAPH_EXPECTS(num_nonpositive_edge_weights == 0,
                       "Invalid input argument: input edge weights should have postive values.");
@@ -97,13 +97,13 @@ rmm::device_uvector<weight_t> eigenvector_centrality(
 
     update_edge_src_property(handle, pull_graph_view, centralities.begin(), edge_src_centralities);
 
-    if (edge_weights) {
+    if (edge_weight_view) {
       per_v_transform_reduce_incoming_e(
         handle,
         pull_graph_view,
         edge_src_centralities.view(),
         edge_dst_dummy_property_t{}.view(),
-        *edge_weights,
+        *edge_weight_view,
         [] __device__(vertex_t, vertex_t, auto src_val, auto, weight_t w) { return src_val * w; },
         weight_t{0},
         centralities.begin());
@@ -158,7 +158,7 @@ template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 rmm::device_uvector<weight_t> eigenvector_centrality(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, true, multi_gpu> const& graph_view,
-  std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weights,
+  std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
   std::optional<raft::device_span<weight_t const>> initial_centralities,
   weight_t epsilon,
   size_t max_iterations,
@@ -177,7 +177,7 @@ rmm::device_uvector<weight_t> eigenvector_centrality(
 
   return detail::eigenvector_centrality(handle,
                                         graph_view,
-                                        edge_weights,
+                                        edge_weight_view,
                                         initial_centralities,
                                         epsilon,
                                         max_iterations,

@@ -333,6 +333,8 @@ void edge_betweenness_centrality(const raft::handle_t& handle,
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Graph view object.
+ * @param edge_weight_view Optional view object holding edge weights for @p graph_view. Currently,
+ * edge_weight_view.has_value() should be false as we don't support weighted graphs, yet.
  * @param vertices Optional, if specified this provides either a vertex_t count of how many
  *         random seeds to select, or a device_span identifying a list of pre-selected vertices
  *         to use as seeds for the traversals for approximating betweenness.
@@ -345,7 +347,8 @@ void edge_betweenness_centrality(const raft::handle_t& handle,
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 rmm::device_uvector<weight_t> betweenness_centrality(
   const raft::handle_t& handle,
-  graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
+  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+  std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
   std::optional<std::variant<vertex_t, raft::device_span<vertex_t const>>> vertices,
   bool const normalized         = true,
   bool const include_endpoints  = false,
@@ -376,6 +379,8 @@ rmm::device_uvector<weight_t> betweenness_centrality(
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Graph view object.
+ * @param edge_weight_view Optional view object holding edge weights for @p graph_view. Currently,
+ * edge_weight_view.has_value() should be false as we don't support weighted graphs, yet.
  * @param vertices Optional, if specified this provides either a vertex_t count of how many
  *         random seeds to select, or a device_span identifying a list of pre-selected vertices
  *         to use as seeds for the traversals for approximating betweenness.
@@ -387,7 +392,8 @@ rmm::device_uvector<weight_t> betweenness_centrality(
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 rmm::device_uvector<weight_t> edge_betweenness_centrality(
   const raft::handle_t& handle,
-  graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
+  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+  std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
   std::optional<std::variant<vertex_t, raft::device_span<vertex_t const>>> vertices,
   bool normalized         = true,
   bool do_expensive_check = false);
@@ -666,13 +672,14 @@ weight_t hungarian(raft::handle_t const& handle,
  *                                     2) modularity of the returned clustering
  *
  */
-template <typename graph_view_t>
-std::pair<size_t, typename graph_view_t::weight_type> louvain(
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+std::pair<size_t, weight_t> louvain(
   raft::handle_t const& handle,
-  graph_view_t const& graph_view,
-  typename graph_view_t::vertex_type* clustering,
-  size_t max_level                              = 100,
-  typename graph_view_t::weight_type resolution = typename graph_view_t::weight_type{1});
+  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+  std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
+  vertex_t* clustering,
+  size_t max_level    = 100,
+  weight_t resolution = weight_t{1});
 
 /**
  * @brief      Louvain implementation, returning dendrogram
@@ -703,13 +710,13 @@ std::pair<size_t, typename graph_view_t::weight_type> louvain(
  *                                     2) modularity of the returned clustering
  *
  */
-template <typename graph_view_t>
-std::pair<std::unique_ptr<Dendrogram<typename graph_view_t::vertex_type>>,
-          typename graph_view_t::weight_type>
-louvain(raft::handle_t const& handle,
-        graph_view_t const& graph_view,
-        size_t max_level                              = 100,
-        typename graph_view_t::weight_type resolution = typename graph_view_t::weight_type{1});
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> louvain(
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+  std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
+  size_t max_level    = 100,
+  weight_t resolution = weight_t{1});
 
 /**
  * @brief      Flatten a Dendrogram at a particular level
@@ -1153,7 +1160,7 @@ std::tuple<rmm::device_uvector<vertex_t>, vertex_t> extract_bfs_paths(
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Graph view object.
- * @param edge_weights View object holding edge weights for @p graph_view.
+ * @param edge_weight_view View object holding edge weights for @p graph_view.
  * @param distances Pointer to the output distance array.
  * @param predecessors Pointer to the output predecessor array or `nullptr`.
  * @param source_vertex Source vertex to start single-source shortest-path.
@@ -1165,7 +1172,7 @@ std::tuple<rmm::device_uvector<vertex_t>, vertex_t> extract_bfs_paths(
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 void sssp(raft::handle_t const& handle,
           graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
-          edge_property_view_t<edge_t, weight_t const*> edge_weights,
+          edge_property_view_t<edge_t, weight_t const*> edge_weight_view,
           weight_t* distances,
           vertex_t* predecessors,
           vertex_t source_vertex,
@@ -1190,8 +1197,8 @@ void sssp(raft::handle_t const& handle,
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Graph view object.
- * @param edge_weights Optional view object holding edge weights for @p graph_view. If @p
- * edge_weight.has_value() == false, edge weights are assumed to be 1.0.
+ * @param edge_weight_view Optional view object holding edge weights for @p graph_view. If @p
+ * edge_weight_view.has_value() == false, edge weights are assumed to be 1.0.
  * @param precomputed_vertex_out_weight_sums Pointer to an array storing sums of out-going edge
  * weights for the vertices (for re-use) or `std::nullopt`. If `std::nullopt`, these values are
  * freshly computed. Computing these values outside this function reduces the number of memory
@@ -1218,7 +1225,7 @@ void sssp(raft::handle_t const& handle,
 template <typename vertex_t, typename edge_t, typename weight_t, typename result_t, bool multi_gpu>
 void pagerank(raft::handle_t const& handle,
               graph_view_t<vertex_t, edge_t, true, multi_gpu> const& graph_view,
-              std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weights,
+              std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
               std::optional<weight_t const*> precomputed_vertex_out_weight_sums,
               std::optional<vertex_t const*> personalization_vertices,
               std::optional<result_t const*> personalization_values,
@@ -1246,8 +1253,8 @@ void pagerank(raft::handle_t const& handle,
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Graph view object.
- * @param edge_weights Optional view object holding edge weights for @p graph_view. If @p
- * edge_weight.has_value() == false, edge weights are assumed to be 1.0.
+ * @param edge_weight_view Optional view object holding edge weights for @p graph_view. If @p
+ * edge_weight_view.has_value() == false, edge weights are assumed to be 1.0.
  * @param initial_centralities Optional device span containing initial values for the eigenvector
  * centralities
  * @param epsilon Error tolerance to check convergence. Convergence is assumed if the sum of the
@@ -1261,7 +1268,7 @@ template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 rmm::device_uvector<weight_t> eigenvector_centrality(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, true, multi_gpu> const& graph_view,
-  std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weights,
+  std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
   std::optional<raft::device_span<weight_t const>> initial_centralities,
   weight_t epsilon,
   size_t max_iterations   = 500,
@@ -1323,8 +1330,8 @@ std::tuple<result_t, size_t> hits(raft::handle_t const& handle,
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Graph view object.
- * @param edge_weights Optional view object holding edge weights for @p graph_view. If @p
- * edge_weight.has_value() == false, edge weights are assumed to be 1.0.
+ * @param edge_weight_view Optional view object holding edge weights for @p graph_view. If @p
+ * edge_weight_view.has_value() == false, edge weights are assumed to be 1.0.
  * @param betas Pointer to an array holding the values to be added to each vertex's new Katz
  * Centrality score in every iteration or `nullptr`. If set to `nullptr`, constant @p beta is used
  * instead.
@@ -1347,7 +1354,7 @@ std::tuple<result_t, size_t> hits(raft::handle_t const& handle,
 template <typename vertex_t, typename edge_t, typename weight_t, typename result_t, bool multi_gpu>
 void katz_centrality(raft::handle_t const& handle,
                      graph_view_t<vertex_t, edge_t, true, multi_gpu> const& graph_view,
-                     std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weights,
+                     std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
                      result_t const* betas,
                      result_t* katz_centralities,
                      result_t alpha,
@@ -1369,13 +1376,13 @@ void katz_centrality(raft::handle_t const& handle,
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms. Must have at least one worker stream.
  * @param graph_view Graph view object of, we extract induced egonet subgraphs from @p graph_view.
- * @param edge_weights Optional view object holding edge weights for @p graph_view.
+ * @param edge_weight_view Optional view object holding edge weights for @p graph_view.
  * @param source_vertex Pointer to egonet center vertices (size == @p n_subgraphs).
  * @param n_subgraphs Number of induced EgoNet subgraphs to extract (ie. number of elements in @p
  * source_vertex).
  * @param radius  Include all neighbors of distance <= radius from @p source_vertex.
  * @return Quadraplet of edge source vertices, edge destination vertices, edge weights (if @p
- * edge_weights.has_value() == true), and edge offsets for each induced EgoNet subgraph.
+ * edge_weight_view.has_value() == true), and edge offsets for each induced EgoNet subgraph.
  */
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 std::tuple<rmm::device_uvector<vertex_t>,
@@ -1384,7 +1391,7 @@ std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<size_t>>
 extract_ego(raft::handle_t const& handle,
             graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
-            std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weights,
+            std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
             vertex_t* source_vertex,
             vertex_t n_subgraphs,
             vertex_t radius);
@@ -1440,8 +1447,8 @@ random_walks(raft::handle_t const& handle,
  * @p start_vertices can contain duplicates, in which case different random walks will
  * be generated for each instance.
  *
- * If @p edge_weights.has_value() is true, the return contains edge weights.  If the graph is @p
- * edge_weights.has_value() is false, the returned value will be std::nullopt.
+ * If @p edge_weight_view.has_value() is true, the return contains edge weights.  If the graph is @p
+ * edge_weight_view.has_value() is false, the returned value will be std::nullopt.
  *
  * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
  * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
@@ -1450,12 +1457,12 @@ random_walks(raft::handle_t const& handle,
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view graph view to operate on
- * @param edge_weights Optional view object holding edge weights for @p graph_view.
+ * @param edge_weight_view Optional view object holding edge weights for @p graph_view.
  * @param start_vertices Device span defining the starting vertices
  * @param max_length maximum length of random walk
  * @param seed (optional, defaults to system time), seed for random number generation
  * @return tuple containing device vectors of vertices and the edge weights (if
- *         @p edge_weights.has_value() is true)<br>
+ *         @p edge_weight_view.has_value() is true)<br>
  *         For each input selector there will be (max_length+1) elements in the
  *         vertex vector with the starting vertex followed by the subsequent
  *         vertices in the random walk.  If a path terminates before max_length,
@@ -1473,7 +1480,7 @@ template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 std::tuple<rmm::device_uvector<vertex_t>, std::optional<rmm::device_uvector<weight_t>>>
 uniform_random_walks(raft::handle_t const& handle,
                      graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
-                     std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weights,
+                     std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
                      raft::device_span<vertex_t const> start_vertices,
                      size_t max_length,
                      uint64_t seed = std::numeric_limits<uint64_t>::max());
@@ -1497,7 +1504,7 @@ uniform_random_walks(raft::handle_t const& handle,
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view graph view to operate on
- * @param edge_weights View object holding edge weights for @p graph_view.
+ * @param edge_weight_view View object holding edge weights for @p graph_view.
  * @param start_vertices Device span defining the starting vertices
  * @param max_length maximum length of random walk
  * @param seed (optional, defaults to system time), seed for random number generation
@@ -1517,7 +1524,7 @@ template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 std::tuple<rmm::device_uvector<vertex_t>, std::optional<rmm::device_uvector<weight_t>>>
 biased_random_walks(raft::handle_t const& handle,
                     graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
-                    edge_property_view_t<edge_t, weight_t const*> edge_weights,
+                    edge_property_view_t<edge_t, weight_t const*> edge_weight_view,
                     raft::device_span<vertex_t const> start_vertices,
                     size_t max_length,
                     uint64_t seed = std::numeric_limits<uint64_t>::max());
@@ -1529,8 +1536,8 @@ biased_random_walks(raft::handle_t const& handle,
  * @p start_vertices can contain duplicates, in which case different random walks will
  * be generated for each instance.
  *
- * If the @p edge_weights.has_value() = true, the return contains edge weights and the node2vec
- * computation will utilize the edge weights.  If @p edge_weights.has_value() == false, then the
+ * If the @p edge_weight_view.has_value() = true, the return contains edge weights and the node2vec
+ * computation will utilize the edge weights.  If @p edge_weight_view.has_value() == false, then the
  * return will not contain edge weights and the node2vec computation will assume an edge weight of 1
  * for all edges.
  *
@@ -1541,8 +1548,8 @@ biased_random_walks(raft::handle_t const& handle,
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view graph view to operate on
- * @param edge_weights Optional view object holding edge weights for @p graph_view. If @p
- * edge_weight.has_value() == false, edge weights are assumed to be 1.0.
+ * @param edge_weight_view Optional view object holding edge weights for @p graph_view. If @p
+ * edge_weight_view.has_value() == false, edge weights are assumed to be 1.0.
  * @param start_vertices Device span defining the starting vertices
  * @param max_length maximum length of random walk
  * @param p node2vec return parameter
@@ -1564,7 +1571,7 @@ template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 std::tuple<rmm::device_uvector<vertex_t>, std::optional<rmm::device_uvector<weight_t>>>
 node2vec_random_walks(raft::handle_t const& handle,
                       graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
-                      std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weights,
+                      std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
                       raft::device_span<vertex_t const> start_vertices,
                       size_t max_length,
                       weight_t p,
@@ -1704,7 +1711,7 @@ void core_number(raft::handle_t const& handle,
  * @tparam weight_t Type of edge weights. Needs to be a floating point type.
  * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
  * @param  graph_view      Graph view object.
- * @param edge_weights Optional view object holding edge weights for @p graph_view.
+ * @param edge_weight_view Optional view object holding edge weights for @p graph_view.
  * @param  k               Order of the core. This value must not be negative.
  * @param degree_type Optional parameter to dictate whether to compute the K-core decomposition
  *                    based on in-degrees, out-degrees, or in-degrees + out_degrees.  One of @p
@@ -1721,7 +1728,7 @@ std::tuple<rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<weight_t>>>
 k_core(raft::handle_t const& handle,
        graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
-       std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weights,
+       std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
        size_t k,
        std::optional<k_core_degree_type_t> degree_type,
        std::optional<raft::device_span<edge_t const>> core_numbers,
@@ -1745,7 +1752,7 @@ k_core(raft::handle_t const& handle,
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Graph View object to generate NBR Sampling on.
- * @param edge_weights Optional view object holding edge weights for @p graph_view.
+ * @param edge_weight_view Optional view object holding edge weights for @p graph_view.
  * @param starting_vertices Device span of starting vertex IDs for the NBR Sampling.
  * @param fan_out Host span defining branching out (fan-out) degree per source vertex for each
  * level
@@ -1766,7 +1773,7 @@ std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<edge_t>>
 uniform_nbr_sample(raft::handle_t const& handle,
                    graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
-                   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weights,
+                   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
                    raft::device_span<vertex_t> starting_vertices,
                    raft::host_span<const int> fan_out,
                    bool with_replacement = true,
@@ -1813,9 +1820,9 @@ void triangle_count(raft::handle_t const& handle,
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Graph view object.
- * @param edge_weights Optional view object holding edge weights for @p graph_view. If @p
- * edge_weights.has_value() == true, use the weights associated with the graph. If false, assume a
- * weight of 1 for all edges.
+ * @param edge_weight_view Optional view object holding edge weights for @p graph_view. If @p
+ * edge_weight_view.has_value() == true, use the weights associated with the graph. If false, assume
+ * a weight of 1 for all edges.
  * @param vertex_pairs tuple of device spans defining the vertex pairs to compute similarity for
  * In a multi-gpu context each vertex pair should be local to this GPU.
  * @return similarity coefficient for the corresponding @p vertex_pairs
@@ -1824,7 +1831,7 @@ template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 rmm::device_uvector<weight_t> jaccard_coefficients(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
-  std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weights,
+  std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
   std::tuple<raft::device_span<vertex_t const>, raft::device_span<vertex_t const>> vertex_pairs);
 
 /**
@@ -1842,9 +1849,9 @@ rmm::device_uvector<weight_t> jaccard_coefficients(
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Graph view object.
- * @param edge_weights Optional view object holding edge weights for @p graph_view. If @p
- * edge_weights.has_value() == true, use the weights associated with the graph. If false, assume a
- * weight of 1 for all edges.
+ * @param edge_weight_view Optional view object holding edge weights for @p graph_view. If @p
+ * edge_weight_view.has_value() == true, use the weights associated with the graph. If false, assume
+ * a weight of 1 for all edges.
  * @param vertex_pairs tuple of device spans defining the vertex pairs to compute similarity for
  * @param vertex_pairs tuple of device spans defining the vertex pairs to compute similarity for
  * In a multi-gpu context each vertex pair should be local to this GPU.
@@ -1854,7 +1861,7 @@ template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 rmm::device_uvector<weight_t> sorensen_coefficients(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
-  std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weights,
+  std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
   std::tuple<raft::device_span<vertex_t const>, raft::device_span<vertex_t const>> vertex_pairs);
 
 /**
@@ -1872,9 +1879,9 @@ rmm::device_uvector<weight_t> sorensen_coefficients(
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Graph view object.
- * @param edge_weights Optional view object holding edge weights for @p graph_view. If @p
- * edge_weights.has_value() == true, use the weights associated with the graph. If false, assume a
- * weight of 1 for all edges.
+ * @param edge_weight_view Optional view object holding edge weights for @p graph_view. If @p
+ * edge_weight_view.has_value() == true, use the weights associated with the graph. If false, assume
+ * a weight of 1 for all edges.
  * @param vertex_pairs tuple of device spans defining the vertex pairs to compute similarity for
  * @param vertex_pairs tuple of device spans defining the vertex pairs to compute similarity for
  * In a multi-gpu context each vertex pair should be local to this GPU.
@@ -1884,7 +1891,7 @@ template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 rmm::device_uvector<weight_t> overlap_coefficients(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
-  std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weights,
+  std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
   std::tuple<raft::device_span<vertex_t const>, raft::device_span<vertex_t const>> vertex_pairs);
 
 /*

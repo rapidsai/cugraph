@@ -81,7 +81,7 @@ struct uniform_selector {
     raft::handle_t const& handle,
     GraphViewType const& graph_view,
     std::optional<edge_property_view_t<typename GraphViewType::edge_type, weight_t const*>>
-      edge_weights,
+      edge_weight_view,
     rmm::device_uvector<typename GraphViewType::vertex_type> const& current_vertices)
   {
     using vertex_t = typename GraphViewType::vertex_type;
@@ -96,7 +96,7 @@ struct uniform_selector {
 
     rmm::device_uvector<vertex_t> minors(0, handle.get_stream());
     std::optional<rmm::device_uvector<weight_t>> weights{std::nullopt};
-    if (edge_weights) {
+    if (edge_weight_view) {
       auto [sample_offsets, sample_e_op_results] =
         cugraph::per_v_random_select_transform_outgoing_e(
           handle,
@@ -104,7 +104,7 @@ struct uniform_selector {
           vertex_frontier.bucket(0),
           edge_src_dummy_property_t{}.view(),
           edge_dst_dummy_property_t{}.view(),
-          *edge_weights,
+          *edge_weight_view,
           sample_edges_op_t<vertex_t, weight_t>{},
           rng_state_,
           size_t{1},
@@ -146,7 +146,7 @@ struct biased_selector {
     raft::handle_t const& handle,
     GraphViewType const& graph_view,
     std::optional<edge_property_view_t<typename GraphViewType::edge_type, weight_t const*>>
-      edge_weights,
+      edge_weight_view,
     rmm::device_uvector<typename GraphViewType::vertex_type> const& current_vertices)
   {
     //  To do biased sampling, I need out_weights instead of out_degrees.
@@ -171,7 +171,7 @@ struct node2vec_selector {
     raft::handle_t const& handle,
     GraphViewType const& graph_view,
     std::optional<edge_property_view_t<typename GraphViewType::edge_type, weight_t const*>>
-      edge_weights,
+      edge_weight_view,
     rmm::device_uvector<typename GraphViewType::vertex_type> const& current_vertices)
   {
     //  To do node2vec, I need the following:
@@ -193,16 +193,17 @@ template <typename vertex_t,
 std::tuple<rmm::device_uvector<vertex_t>, std::optional<rmm::device_uvector<weight_t>>>
 random_walk_impl(raft::handle_t const& handle,
                  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
-                 std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weights,
+                 std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
                  raft::device_span<vertex_t const> start_vertices,
                  size_t max_length,
                  random_selector_t random_selector)
 {
   rmm::device_uvector<vertex_t> result_vertices(start_vertices.size() * (max_length + 1),
                                                 handle.get_stream());
-  auto result_weights = edge_weights ? std::make_optional<rmm::device_uvector<weight_t>>(
-                                         start_vertices.size() * max_length, handle.get_stream())
-                                     : std::nullopt;
+  auto result_weights = edge_weight_view
+                          ? std::make_optional<rmm::device_uvector<weight_t>>(
+                              start_vertices.size() * max_length, handle.get_stream())
+                          : std::nullopt;
 
   detail::scalar_fill(handle,
                       result_vertices.data(),
@@ -214,7 +215,7 @@ random_walk_impl(raft::handle_t const& handle,
   rmm::device_uvector<vertex_t> current_vertices(start_vertices.size(), handle.get_stream());
   rmm::device_uvector<size_t> current_position(0, handle.get_stream());
   rmm::device_uvector<int> current_gpu(0, handle.get_stream());
-  auto new_weights = edge_weights
+  auto new_weights = edge_weight_view
                        ? std::make_optional<rmm::device_uvector<weight_t>>(0, handle.get_stream())
                        : std::nullopt;
 
@@ -269,7 +270,7 @@ random_walk_impl(raft::handle_t const& handle,
     }
 
     std::tie(current_vertices, new_weights) =
-      random_selector.follow_random_edge(handle, graph_view, edge_weights, current_vertices);
+      random_selector.follow_random_edge(handle, graph_view, edge_weight_view, current_vertices);
 
     if constexpr (multi_gpu) {
       //
@@ -420,14 +421,14 @@ template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 std::tuple<rmm::device_uvector<vertex_t>, std::optional<rmm::device_uvector<weight_t>>>
 uniform_random_walks(raft::handle_t const& handle,
                      graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
-                     std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weights,
+                     std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
                      raft::device_span<vertex_t const> start_vertices,
                      size_t max_length,
                      uint64_t seed)
 {
   return detail::random_walk_impl(handle,
                                   graph_view,
-                                  edge_weights,
+                                  edge_weight_view,
                                   start_vertices,
                                   max_length,
                                   detail::uniform_selector<weight_t>(
@@ -438,7 +439,7 @@ template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 std::tuple<rmm::device_uvector<vertex_t>, std::optional<rmm::device_uvector<weight_t>>>
 biased_random_walks(raft::handle_t const& handle,
                     graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
-                    edge_property_view_t<edge_t, weight_t const*> edge_weights,
+                    edge_property_view_t<edge_t, weight_t const*> edge_weight_view,
                     raft::device_span<vertex_t const> start_vertices,
                     size_t max_length,
                     uint64_t seed)
@@ -446,7 +447,7 @@ biased_random_walks(raft::handle_t const& handle,
   return detail::random_walk_impl(
     handle,
     graph_view,
-    std::optional<edge_property_view_t<edge_t, weight_t const*>>{edge_weights},
+    std::optional<edge_property_view_t<edge_t, weight_t const*>>{edge_weight_view},
     start_vertices,
     max_length,
     detail::biased_selector<weight_t>{(seed == 0 ? detail::get_current_time_nanoseconds() : seed)});
@@ -456,7 +457,7 @@ template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 std::tuple<rmm::device_uvector<vertex_t>, std::optional<rmm::device_uvector<weight_t>>>
 node2vec_random_walks(raft::handle_t const& handle,
                       graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
-                      std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weights,
+                      std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
                       raft::device_span<vertex_t const> start_vertices,
                       size_t max_length,
                       weight_t p,
@@ -466,7 +467,7 @@ node2vec_random_walks(raft::handle_t const& handle,
   return detail::random_walk_impl(
     handle,
     graph_view,
-    edge_weights,
+    edge_weight_view,
     start_vertices,
     max_length,
     detail::node2vec_selector<weight_t>{
