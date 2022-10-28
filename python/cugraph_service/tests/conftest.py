@@ -187,10 +187,41 @@ def my_extension(arg1, arg2, server):
     return retval
 """
 
+
 extension_returns_none_file_contents = """
 
 def my_extension():
     return None
+"""
+
+
+extension_adds_graph_file_contents = """
+import cupy
+import cudf
+from cugraph.experimental import PropertyGraph
+
+def my_extension(arg1, arg2, server):
+    '''
+    This extension creates a new graph, registers it with the server, and
+    returns the new graph ID and some additional data.
+    '''
+    df = cudf.DataFrame({"src": [0, 1, 2],
+                         "dst": [1, 2, 3],
+                         "edge_prop": ["a", "b", "c"],
+                         })
+    pG = PropertyGraph()
+    pG.add_edge_data(df, vertex_col_names=["src", "dst"])
+
+    pG_gid = server.add_graph(pG)
+
+    edge_df = pG.get_edge_data()
+    values = cupy.array(edge_df[pG.edge_id_col_name] + arg1 + arg2)
+
+    # UCX-Py transfers require cupy types, and cupy types are converted to host
+    # for non-UCX-Py transfers.
+    pG_gid = cupy.int8(pG_gid)
+
+    return (pG_gid, values)
 """
 
 
@@ -293,6 +324,15 @@ def extension_with_facade():
 def extension_returns_none():
     tmp_extension_dir = utils.create_tmp_extension_dir(
         extension_returns_none_file_contents
+    )
+
+    yield tmp_extension_dir.name
+
+
+@pytest.fixture(scope="module")
+def extension_adds_graph():
+    tmp_extension_dir = utils.create_tmp_extension_dir(
+        extension_adds_graph_file_contents
     )
 
     yield tmp_extension_dir.name

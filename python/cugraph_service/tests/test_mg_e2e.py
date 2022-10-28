@@ -431,3 +431,48 @@ def test_call_extension_result_on_device(
 
     for mod_name in ext_mod_names:
         client.unload_extension_module(mod_name)
+
+
+def test_extension_adds_graph(
+    extension_adds_graph, result_device_id, client_of_sg_server_on_device_1
+):
+    """
+    Ensures an extension can create and add a graph to the server and return the
+    new graph ID and other data.
+    """
+    extension_dir = extension_adds_graph
+    client = client_of_sg_server_on_device_1
+
+    ext_mod_names = client.load_extensions(extension_dir)
+
+    # The extension will add a graph, compute a value based on the graph data,
+    # and return the new graph ID and the result.
+    graph_ids_before = client.get_graph_ids()
+
+    val1 = 22
+    val2 = 33.1
+    results = client.call_extension(
+        "my_extension", val1, val2, result_device=result_device_id
+    )
+
+    graph_ids_after = client.get_graph_ids()
+
+    assert len(graph_ids_after) - len(graph_ids_before) == 1
+    new_gid = (set(graph_ids_after) - set(graph_ids_before)).pop()
+    assert len(results) == 2
+    assert results[0] == new_gid
+    expected_edge_ids = [0, 1, 2]
+    expected_val = [n + val1 + val2 for n in expected_edge_ids]
+
+    if result_device_id is None:
+        assert results[1] == expected_val
+    else:
+        device_n = cp.cuda.Device(result_device_id)
+        assert results[0].device == device_n
+        assert results[1].device == device_n
+        assert results[1].tolist() == expected_val
+
+    # FIXME: much of this test could be in a fixture which ensures the extension
+    # is unloaded from the server before returning
+    for mod_name in ext_mod_names:
+        client.unload_extension_module(mod_name)
