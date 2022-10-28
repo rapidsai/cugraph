@@ -28,8 +28,7 @@ project(
             C CXX
 )
 
-################################################################################
-# - User Options  --------------------------------------------------------------
 
+add_subdirectory(cugraph_service_client)
+add_subdirectory(cugraph_service_service)
 
-add_subdirectory(cugraph_service)
