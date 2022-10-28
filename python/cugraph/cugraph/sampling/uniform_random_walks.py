@@ -12,17 +12,15 @@
 # limitations under the License.
 
 from pylibcugraph import ResourceHandle
-from pylibcugraph import uniform_random_walks as \
-    pylibcugraph_uniform_random_walks
+from pylibcugraph import uniform_random_walks as pylibcugraph_uniform_random_walks
 
-import numpy
+# FIXME: get rid of this call as it is using 'cython.cu'
+from cugraph.sampling import random_walks_wrapper
 
 import cudf
 
 
-def uniform_random_walks(
-    G, start_vertices, max_depth=None, use_padding=False
-):
+def uniform_random_walks(G, start_vertices, max_depth=None, use_padding=False):
     """
     compute random walks for each nodes in 'start_vertices'
 
@@ -75,7 +73,9 @@ def uniform_random_walks(
 
     if G.renumbered is True:
         if isinstance(start_vertices, cudf.DataFrame):
-            start_vertices = G.lookup_internal_vertex_id(start_vertices, start_vertices.columns)
+            start_vertices = G.lookup_internal_vertex_id(
+                start_vertices, start_vertices.columns
+            )
         else:
             start_vertices = G.lookup_internal_vertex_id(start_vertices)
 
@@ -84,7 +84,7 @@ def uniform_random_walks(
         resource_handle=ResourceHandle(),
         input_graph=G._plc_graph,
         start_vertices=start_vertices,
-        max_length=max_depth
+        max_length=max_depth,
     )
 
     if G.renumbered:
@@ -92,8 +92,8 @@ def uniform_random_walks(
         df_["vertex_set"] = vertex_set
         df_ = G.unrenumber(df_, "vertex_set", preserve_order=True)
         vertex_set = cudf.Series(df_["vertex_set"])
-    
-     # FIXME: The call below is from the legacy implementation
+
+    # FIXME: The call below is from the legacy implementation
     # What difference does this make?
     if use_padding:
         edge_set_sz = (max_depth - 1) * len(start_vertices)
@@ -106,7 +106,8 @@ def uniform_random_walks(
     """
     # FIXME: wouldn't 'vertex_set_sz' and 'edge_set_sz' always be the
     # size of 'vertex_set' and 'edge_set'?
-    return vertex_set[:vertex_set_sz], edge_set[:edge_set_sz], sizes
+    # return vertex_set[:vertex_set_sz], edge_set[:edge_set_sz], sizes
+    return vertex_set, edge_set, sizes
 
 
 def rw_path(num_paths, sizes):
