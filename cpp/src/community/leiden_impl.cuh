@@ -112,14 +112,14 @@ template <typename vertex_t,
           typename weight_t,
           bool multi_gpu,
           bool store_transposed = false>
-rmm::device_uvector<vertex_t> aggregate_graph(
+std::optional<rmm::device_uvector<vertex_t>> aggregate_graph(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>& current_graph_view,
   graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>& current_graph,
   // std::unique_ptr<Dendrogram<vertex_t>>& dendrogram)
   rmm::device_uvector<vertex_t>& refined_partition)
 {
-  rmm::device_uvector<vertex_t> leiden_of_coarsen_graph(0, handle.get_stream());
+  std::optional<rmm::device_uvector<vertex_t>> leiden_of_coarsen_graph{std::nullopt};
 
   std::tie(current_graph, leiden_of_coarsen_graph) = cugraph::detail::graph_contraction(
     handle,
@@ -127,7 +127,7 @@ rmm::device_uvector<vertex_t> aggregate_graph(
     raft::device_span<vertex_t>{refined_partition.begin(), refined_partition.size()});
   current_graph_view = current_graph.view();
 
-  std::move(leiden_of_coarsen_graph);
+  return leiden_of_coarsen_graph;
 }
 
 template <typename vertex_t,
@@ -450,8 +450,8 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
       std::make_tuple(static_cast<vertex_t const*>(leiden_to_louvain_map.first.begin()),
                       static_cast<vertex_t const*>(leiden_to_louvain_map.second.begin())),
       leiden_to_louvain_map.first.size(),
-      leiden_of_coarse_graph.data(),
-      leiden_of_coarse_graph.size(),
+      (*leiden_of_coarse_graph).data(),
+      (*leiden_of_coarse_graph).size(),
       false);
 
     detail::timer_stop<graph_view_t::is_multi_gpu>(handle, hr_timer);
