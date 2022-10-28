@@ -66,8 +66,7 @@ std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<size_t>>
 extract(raft::handle_t const& handle,
         cugraph::graph_view_t<vertex_t, edge_t, weight_t, false, false> const& csr_view,
-        vertex_t* source_vertex,
-        vertex_t n_subgraphs,
+        raft::device_span<vertex_t const> source_vertex,
         vertex_t radius)
 {
   auto v                = csr_view.number_of_vertices();
@@ -243,6 +242,64 @@ extract_ego(raft::handle_t const&,
             int64_t,
             int64_t);
 
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+std::tuple<rmm::device_uvector<vertex_t>,
+           rmm::device_uvector<vertex_t>,
+           std::optional<rmm::device_uvector<weight_t>>,
+           rmm::device_uvector<size_t>>
+extract_ego(raft::handle_t const& handle,
+            graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
+            vertex_t* source_vertex,
+            vertex_t n_subgraphs,
+            vertex_t radius)
+{
+  if (multi_gpu) {
+    CUGRAPH_FAIL("Unimplemented.");
+    return std::make_tuple(rmm::device_uvector<vertex_t>(0, handle.get_stream()),
+                           rmm::device_uvector<vertex_t>(0, handle.get_stream()),
+                           rmm::device_uvector<weight_t>(0, handle.get_stream()),
+                           rmm::device_uvector<size_t>(0, handle.get_stream()));
+  }
+  CUGRAPH_EXPECTS(n_subgraphs > 0, "Need at least one source to extract the egonet from");
+  CUGRAPH_EXPECTS(n_subgraphs < graph_view.number_of_vertices(),
+                  "Can't have more sources to extract from than vertices in the graph");
+  CUGRAPH_EXPECTS(radius > 0, "Radius should be at least 1");
+  CUGRAPH_EXPECTS(radius < graph_view.number_of_vertices(), "radius is too large");
+  // source_vertex range is checked in bfs.
+
+  return extract<vertex_t, edge_t, weight_t>(
+    handle, graph_view, source_vertex, n_subgraphs, radius);
+}
+
+// SG FP32
+template std::tuple<rmm::device_uvector<int32_t>,
+                    rmm::device_uvector<int32_t>,
+                    std::optional<rmm::device_uvector<float>>,
+                    rmm::device_uvector<size_t>>
+extract_ego(raft::handle_t const&,
+            graph_view_t<int32_t, int32_t, float, false, false> const&,
+            int32_t*,
+            int32_t,
+            int32_t);
+template std::tuple<rmm::device_uvector<int32_t>,
+                    rmm::device_uvector<int32_t>,
+                    std::optional<rmm::device_uvector<float>>,
+                    rmm::device_uvector<size_t>>
+extract_ego(raft::handle_t const&,
+            graph_view_t<int32_t, int64_t, float, false, false> const&,
+            int32_t*,
+            int32_t,
+            int32_t);
+template std::tuple<rmm::device_uvector<int64_t>,
+                    rmm::device_uvector<int64_t>,
+                    std::optional<rmm::device_uvector<float>>,
+                    rmm::device_uvector<size_t>>
+extract_ego(raft::handle_t const&,
+            graph_view_t<int64_t, int64_t, float, false, false> const&,
+            int64_t*,
+            int64_t,
+            int64_t);
+
 // SG FP64
 template std::tuple<rmm::device_uvector<int32_t>,
                     rmm::device_uvector<int32_t>,
@@ -272,3 +329,33 @@ extract_ego(raft::handle_t const&,
             int64_t,
             int64_t);
 }  // namespace cugraph
+
+// SG FP64
+template std::tuple<rmm::device_uvector<int32_t>,
+                    rmm::device_uvector<int32_t>,
+                    std::optional<rmm::device_uvector<double>>,
+                    rmm::device_uvector<size_t>>
+extract_ego(raft::handle_t const&,
+            graph_view_t<int32_t, int32_t, double, false, false> const&,
+            int32_t*,
+            int32_t,
+            int32_t);
+template std::tuple<rmm::device_uvector<int32_t>,
+                    rmm::device_uvector<int32_t>,
+                    std::optional<rmm::device_uvector<double>>,
+                    rmm::device_uvector<size_t>>
+extract_ego(raft::handle_t const&,
+            graph_view_t<int32_t, int64_t, double, false, false> const&,
+            int32_t*,
+            int32_t,
+            int32_t);
+template std::tuple<rmm::device_uvector<int64_t>,
+                    rmm::device_uvector<int64_t>,
+                    std::optional<rmm::device_uvector<double>>,
+                    rmm::device_uvector<size_t>>
+extract_ego(raft::handle_t const&,
+            graph_view_t<int64_t, int64_t, double, false, false> const&,
+            int64_t*,
+            int64_t,
+            int64_t);
+
