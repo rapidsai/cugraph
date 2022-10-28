@@ -13,6 +13,7 @@
 
 from cugraph.gnn.dgl_extensions.cugraph_service_store import CuGraphRemoteStore
 from cugraph_service_client.client import CugraphServiceClient as Client
+import cudf
 import numpy as np
 
 
@@ -112,6 +113,31 @@ def assert_correct_gs(gs):
     result = result.cpu().numpy()
     expected_result = np.asarray([16, 18], dtype=np.int32)
     np.testing.assert_equal(result, expected_result)
+
+    # Verify set_sg_dtype
+    # verify extracted_reverse_subgraph
+    subgraph, src_range = gs.extracted_reverse_subgraph
+    dtype = gs.set_sg_node_dtype(subgraph)
+    assert dtype == "int32"
+
+    # Verify Sampling Results
+    nodes_cap = {"nt.c": cudf.Series([6]).to_dlpack()}
+    result = gs.sample_neighbors(nodes_cap)
+    result = {
+        k: cudf.DataFrame(
+            {
+                "src": cudf.from_dlpack(v[0]),
+                "dst": cudf.from_dlpack(v[1]),
+                "eid": cudf.from_dlpack(v[2]),
+            }
+        )
+        for k, v in result.items()
+        if v[0] is not None
+    }
+    src_vals = result["('nt.c', 'connects', 'nt.c')"]["src"].values.get()
+    sorted(src_vals)
+    expected_vals = np.asarray([7, 8, 9], dtype=np.int32)
+    np.testing.assert_equal(src_vals, expected_vals)
 
 
 def test_remote_wrappers():

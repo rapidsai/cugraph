@@ -12,15 +12,15 @@
 # limitations under the License.
 
 from collections import defaultdict
-
 from .base_cugraph_store import BaseCuGraphStore
-
 from functools import cached_property
-from .utils.add_data import _update_feature_map
-from .utils.add_data import deserialize_strings_from_char_ars
-from .utils.sampling import sample_pg, get_subgraph_and_src_range_from_pg
-from .utils.sampling import get_underlying_dtype_from_sg
-from .feature_storage import CuFeatureStorage
+from cugraph.gnn.dgl_extensions.utils.add_data import _update_feature_map
+from cugraph.gnn.dgl_extensions.utils.add_data import deserialize_strings_from_char_ars
+from cugraph.gnn.dgl_extensions.feature_storage import CuFeatureStorage
+
+# TODO: Make this optional in next release
+# Only used cause cant transfer dlpack objects through remote
+import cupy as cp
 
 
 class CuGraphRemoteStore(BaseCuGraphStore):
@@ -39,6 +39,8 @@ class CuGraphRemoteStore(BaseCuGraphStore):
 
             add_data_module = "cugraph.gnn.dgl_extensions.service_extensions.add_data"
             _ = self.client.load_extensions(add_data_module)
+            sampling_module = "cugraph.gnn.dgl_extensions.service_extensions.sampling"
+            _ = self.client.load_extensions(sampling_module)
             del _
 
         else:
@@ -358,20 +360,27 @@ class CuGraphRemoteStore(BaseCuGraphStore):
             first_sg = sgs_obj
         # Uniform sampling fails when the dtype
         # of the seed dtype is not same as the node dtype
-        # TODO: Update this function
         self.set_sg_node_dtype(first_sg)
 
-        # Below will be called from remote storage
-        # Call via Remote Storage
-        # TODO: Update this function
-        sampled_result_arrays = sample_pg(
-            self.gdata,
+        # TODO: Cant send dlpack or cupy arrays or numpys arrays
+        # through  extensions
+        # Ask Rick
+        if isinstance(nodes_cap, dict):
+            nodes_ar = {
+                k: cp.from_dlpack(v).get().tolist() for k, v in nodes_cap.items()
+            }
+        else:
+            nodes_ar = cp.from_dlpack(nodes_cap).get().tolist()
+
+        sampled_result_arrays = self.client.call_extension(
+            "sample_pg_remote",
+            graph_id=self.gdata._graph_id,
             has_multiple_etypes=self.has_multiple_etypes,
             etypes=self.etypes,
             sgs_obj=sgs_obj,
             sgs_src_range_obj=sgs_src_range_obj,
             sg_node_dtype=self._sg_node_dtype,
-            nodes_cap=nodes_cap,
+            nodes_ar=nodes_ar,
             replace=replace,
             fanout=fanout,
             edge_dir=edge_dir,
@@ -383,14 +392,20 @@ class CuGraphRemoteStore(BaseCuGraphStore):
     ######################################
     @cached_property
     def extracted_subgraph(self):
-        return get_subgraph_and_src_range_from_pg(
-            self.gdata, reverse_edges=False, etype=None
+        return self.client.call_extension(
+            "get_subgraph_and_src_range_from_pg_remote",
+            graph_id=self.gdata._graph_id,
+            reverse_edges=False,
+            etype=None,
         )
 
     @cached_property
     def extracted_reverse_subgraph(self):
-        return get_subgraph_and_src_range_from_pg(
-            self.gdata, reverse_edges=True, etype=None
+        return self.client.call_extension(
+            "get_subgraph_and_src_range_from_pg_remote",
+            graph_id=self.gdata._graph_id,
+            reverse_edges=True,
+            etype=None,
         )
 
     @cached_property
@@ -398,8 +413,11 @@ class CuGraphRemoteStore(BaseCuGraphStore):
         sg_d = {}
         sg_src_range_d = {}
         for etype in self.etypes:
-            sg_d[etype], sg_src_range_d[etype] = get_subgraph_and_src_range_from_pg(
-                self.gdata, reverse_edges=False, etype=etype
+            sg_d[etype], sg_src_range_d[etype] = self.client.call_extension(
+                "get_subgraph_and_src_range_from_pg_remote",
+                graph_id=self.gdata._graph_id,
+                reverse_edges=False,
+                etype=etype,
             )
         return sg_d, sg_src_range_d
 
@@ -408,16 +426,26 @@ class CuGraphRemoteStore(BaseCuGraphStore):
         sg_d = {}
         sg_src_range_d = {}
         for etype in self.etypes:
-            sg_d[etype], sg_src_range_d[etype] = get_subgraph_and_src_range_from_pg(
-                self.gdata, reverse_edges=True, etype=etype
+            sg_d[etype], sg_src_range_d[etype] = self.client.call_extension(
+                "get_subgraph_and_src_range_from_pg_remote",
+                graph_id=self.gdata._graph_id,
+                reverse_edges=True,
+                etype=etype,
             )
         return sg_d, sg_src_range_d
 
-    def set_sg_node_dtype(self, sg):
+    def set_sg_node_dtype(self, sg_id):
         if hasattr(self, "_sg_node_dtype"):
             return self._sg_node_dtype
         else:
-            self._sg_node_dtype = get_underlying_dtype_from_sg(sg)
+            dtype_nbytes = self.client.call_extension(
+                "get_underlying_dtype_from_sg_remote", sg_id
+            )
+            if dtype_nbytes == 32:
+                dtype = "int32"
+            else:
+                dtype = "int64"
+            self._sg_node_dtype = dtype
         return self._sg_node_dtype
 
     def find_edges(self, edge_ids_cap, etype):
@@ -496,8 +524,6 @@ class CuGraphRemoteStore(BaseCuGraphStore):
 
 def create_dlpack_results_from_arrays(sampled_result_arrays, etypes: list[str]):
     # TODO: Extend to pytorch/numpy/etc
-    import cupy as cp
-
     if len(etypes) <= 1:
         s, d, e_id = sampled_result_arrays
         # Handle numpy array, cupy array, lists etc
@@ -512,7 +538,7 @@ def create_dlpack_results_from_arrays(sampled_result_arrays, etypes: list[str]):
             e_id = sampled_result_arrays[array_start_offset + 2]
             s, d, e_id = cp.asarray(s), cp.asarray(d), cp.asarray(e_id)
             array_start_offset = array_start_offset + 3
-            if s is not None and len(s) >= 0:
+            if s is not None and len(s) > 0:
                 s, d, e_id = s.toDlpack(), d.toDlpack(), e_id.toDlpack()
             else:
                 s, d, e_id = None, None, None

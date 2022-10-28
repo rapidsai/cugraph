@@ -266,7 +266,7 @@ class CuGraphStore(BaseCuGraphStore):
             sgs_obj=sgs_obj,
             sgs_src_range_obj=sgs_src_range_obj,
             sg_node_dtype=self._sg_node_dtype,
-            nodes_cap=nodes_cap,
+            nodes_ar=nodes_cap,
             replace=replace,
             fanout=fanout,
             edge_dir=edge_dir,
