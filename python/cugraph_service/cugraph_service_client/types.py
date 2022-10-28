@@ -51,9 +51,9 @@ class ValueWrapper(UnionWrapper):
 
     valid_types = ["int", "float", "str", "bool"]
     if numpy:
-        valid_types += ["numpy.int32", "numpy.int64", "numpy.ndarray"]
+        valid_types += ["numpy.int8", "numpy.int32", "numpy.int64", "numpy.ndarray"]
     if cupy:
-        valid_types += ["cupy.int32", "cupy.int64", "cupy.ndarray"]
+        valid_types += ["cupy.int8", "cupy.int32", "cupy.int64", "cupy.ndarray"]
 
     def __init__(self, val, val_name="value"):
         """
@@ -72,8 +72,8 @@ class ValueWrapper(UnionWrapper):
                 self.union = Value(int64_value=val)
         elif isinstance(val, float):
             self.union = Value(double_value=val)
-        elif (numpy and isinstance(val, numpy.int32)) or (
-            cupy and isinstance(val, cupy.int32)
+        elif (numpy and isinstance(val, (numpy.int8, numpy.int32))) or (
+            cupy and isinstance(val, (cupy.int8, cupy.int32))
         ):
             self.union = Value(int32_value=int(val))
         elif (numpy and isinstance(val, numpy.int64)) or (

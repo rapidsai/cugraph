@@ -128,6 +128,9 @@ class ExtensionServerFacade:
     def get_graph(self, graph_id):
         return self.__handler._get_graph(graph_id)
 
+    def add_graph(self, G):
+        return self.__handler._add_graph(G)
+
 
 class CugraphHandler:
     """
@@ -276,7 +279,7 @@ class CugraphHandler:
             func_kwargs_repr,
         )
         # FIXME: ensure graph_obj is a graph obj
-        return self.__add_graph(graph_obj)
+        return self._add_graph(graph_obj)
 
     def call_extension(
         self,
@@ -381,7 +384,7 @@ class CugraphHandler:
         new graph ID.
         """
         pG = self.__create_graph()
-        return self.__add_graph(pG)
+        return self._add_graph(pG)
 
     def delete_graph(self, graph_id):
         """
@@ -615,7 +618,7 @@ class CugraphHandler:
         except Exception:
             raise CugraphServiceError(f"{traceback.format_exc()}")
 
-        return self.__add_graph(G)
+        return self._add_graph(G)
 
     def get_graph_vertex_data(
         self, id_or_ids, null_replacement_value, property_keys, types, graph_id
@@ -935,6 +938,16 @@ class CugraphHandler:
     # "Protected" interface - used for both implementation and test/debug. Will
     # not be exposed to a cugraph_service client, but will be used by extensions
     # via the ExtensionServerFacade.
+    def _add_graph(self, G):
+        """
+        Create a new graph ID for G and add G to the internal mapping of
+        graph ID:graph instance.
+        """
+        gid = self.__next_graph_id
+        self.__graph_objs[gid] = G
+        self.__next_graph_id += 1
+        return gid
+
     def _get_graph(self, graph_id):
         """
         Return the cuGraph Graph object associated with graph_id.
@@ -995,16 +1008,6 @@ class CugraphHandler:
             return dask_cudf.from_cudf(gdf, npartitions=num_gpus)
 
         return gdf
-
-    def __add_graph(self, G):
-        """
-        Create a new graph ID for G and add G to the internal mapping of
-        graph ID:graph instance.
-        """
-        gid = self.__next_graph_id
-        self.__graph_objs[gid] = G
-        self.__next_graph_id += 1
-        return gid
 
     def __create_graph(self):
         """

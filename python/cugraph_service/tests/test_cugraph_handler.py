@@ -336,8 +336,9 @@ def test_get_graph_data_large_vertex_ids(graph_creation_extension_big_vertex_ids
     vert_data = handler.get_graph_vertex_data(
         id_or_ids=invalid_vert_id,
         null_replacement_value=0,
-        graph_id=new_graph_id,
         property_keys=None,
+        types=None,
+        graph_id=new_graph_id,
     )
 
     assert len(pickle.loads(vert_data)) == 0
@@ -346,8 +347,9 @@ def test_get_graph_data_large_vertex_ids(graph_creation_extension_big_vertex_ids
     vert_data = handler.get_graph_vertex_data(
         id_or_ids=large_vert_id,
         null_replacement_value=0,
-        graph_id=new_graph_id,
         property_keys=None,
+        types=None,
+        graph_id=new_graph_id,
     )
 
     assert len(pickle.loads(vert_data)) == 1
@@ -356,8 +358,9 @@ def test_get_graph_data_large_vertex_ids(graph_creation_extension_big_vertex_ids
     edge_data = handler.get_graph_edge_data(
         id_or_ids=invalid_edge_id,
         null_replacement_value=0,
-        graph_id=new_graph_id,
         property_keys=None,
+        types=None,
+        graph_id=new_graph_id,
     )
 
     assert len(pickle.loads(edge_data)) == 0
@@ -366,8 +369,9 @@ def test_get_graph_data_large_vertex_ids(graph_creation_extension_big_vertex_ids
     edge_data = handler.get_graph_edge_data(
         id_or_ids=small_edge_id,
         null_replacement_value=0,
-        graph_id=new_graph_id,
         property_keys=None,
+        types=None,
+        graph_id=new_graph_id,
     )
 
     assert len(pickle.loads(edge_data)) == 1
@@ -393,8 +397,9 @@ def test_get_graph_data_empty_graph(graph_creation_extension_empty_graph):
     vert_data = handler.get_graph_vertex_data(
         id_or_ids=invalid_vert_id,
         null_replacement_value=0,
-        graph_id=new_graph_id,
         property_keys=None,
+        types=None,
+        graph_id=new_graph_id,
     )
 
     assert len(pickle.loads(vert_data)) == 0
@@ -403,8 +408,9 @@ def test_get_graph_data_empty_graph(graph_creation_extension_empty_graph):
     edge_data = handler.get_graph_edge_data(
         id_or_ids=invalid_edge_id,
         null_replacement_value=0,
-        graph_id=new_graph_id,
         property_keys=None,
+        types=None,
+        graph_id=new_graph_id,
     )
 
     assert len(pickle.loads(edge_data)) == 0
