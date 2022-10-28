@@ -5,9 +5,9 @@ from cugraph.experimental import MGPropertyGraph
 
 
 def add_node_data_from_parquet(
-    file_path, node_col_name, node_offset, ntype, gid, server
+    file_path, node_col_name, node_offset, ntype, graph_id, server
 ):
-    pG = server.get_graph(gid)
+    pG = server.get_graph(graph_id)
     if isinstance(pG, MGPropertyGraph):
         df = dask_cudf.read_parquet(file_path)
     else:
@@ -22,16 +22,16 @@ def add_node_data_from_parquet(
 
 
 def add_edge_data_from_parquet(
-    file_path, node_col_names, canonical_etype, src_offset, dst_offset, gid, server
+    file_path, node_col_names, canonical_etype, src_offset, dst_offset, graph_id, server
 ):
-    pG = server.get_graph(gid)
+    pG = server.get_graph(graph_id)
     if isinstance(pG, MGPropertyGraph):
         df = dask_cudf.read_parquet(file_path)
     else:
         df = cudf.read_parquet(file_path)
 
-    df[node_col_names[0]] = df[node_col_names] + src_offset
-    df[node_col_names[1]] = df[node_col_names] + dst_offset
+    df[node_col_names[0]] = df[node_col_names[0]] + src_offset
+    df[node_col_names[1]] = df[node_col_names[1]] + dst_offset
     pG.add_edge_data(df, vertex_col_names=node_col_names, type_name=canonical_etype)
 
     columns_list = list(df.columns)

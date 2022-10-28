@@ -36,6 +36,11 @@ class CuGraphRemoteStore(BaseCuGraphStore):
         if type(graph).__name__ in ["RemotePropertyGraph", "RemoteMGPropertyGraph"]:
             self.__G = graph
             self.client = graph_client
+
+            add_data_module = "cugraph.gnn.dgl_extensions.service_extensions.add_data"
+            _ = self.client.load_extensions(add_data_module)
+            del _
+
         else:
             raise ValueError("graph must be a RemoteGraph")
 
@@ -166,15 +171,15 @@ class CuGraphRemoteStore(BaseCuGraphStore):
         None
         """
         # TODO: Use PR 2850: https://github.com/rapidsai/cugraph/pull/2850
-        loaded_columns = self.client.call_extension(
+        c_ar, len_ar = self.client.call_extension(
             func_name="add_node_data_from_parquet",
             file_path=file_path,
             node_col_name=node_col_name,
             node_offset=node_offset,
-            type=ntype,
-            graph_id=self.gdata._id,
+            ntype=ntype,
+            graph_id=self.gdata._graph_id,
         )
-        loaded_columns = deserialize_strings_from_char_ars(loaded_columns)
+        loaded_columns = deserialize_strings_from_char_ars(c_ar, len_ar)
 
         columns = [col for col in loaded_columns if col != node_col_name]
         _update_feature_map(
@@ -221,20 +226,21 @@ class CuGraphRemoteStore(BaseCuGraphStore):
         """
 
         # TODO: Use PR 2850: https://github.com/rapidsai/cugraph/pull/2850
-        loaded_column_ars = self.client.call_extension(
+        c_ar, len_ar = self.client.call_extension(
             func_name="add_edge_data_from_parquet",
             file_path=file_path,
             node_col_names=node_col_names,
             canonical_etype=canonical_etype,
             src_offset=src_offset,
             dst_offset=dst_offset,
-            graph_id=self.gdata._id,
+            graph_id=self.gdata._graph_id,
         )
-        loaded_columns = deserialize_strings_from_char_ars(loaded_column_ars)
+        loaded_columns = deserialize_strings_from_char_ars(c_ar, len_ar)
         columns = [col for col in loaded_columns if col not in node_col_names]
         _update_feature_map(
             self.edata_feat_col_d, feat_name, contains_vector_features, columns
         )
+        self.__clear_cached_properties()
 
     def get_node_storage(self, key, ntype=None, indices_offset=0):
         if ntype is None:

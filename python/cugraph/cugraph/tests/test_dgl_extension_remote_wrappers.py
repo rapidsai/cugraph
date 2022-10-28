@@ -1,0 +1,108 @@
+from cugraph.gnn.dgl_extensions.cugraph_service_store import CuGraphRemoteStore
+from cugraph_service_client.client import CugraphServiceClient as Client
+import numpy as np
+
+
+def create_gs(client):
+    gs = CuGraphRemoteStore(client.graph(), client)
+    gs.add_node_data_from_parquet(
+        file_path="nt.a.parquet", node_col_name="node_id", ntype="nt.a", node_offset=0
+    )
+    gs.add_node_data_from_parquet(
+        file_path="nt.b.parquet",
+        node_col_name="node_id",
+        ntype="nt.b",
+        node_offset=gs.num_nodes(),
+    )
+    gs.add_node_data_from_parquet(
+        file_path="nt.c.parquet",
+        node_col_name="node_id",
+        ntype="nt.c",
+        node_offset=gs.num_nodes(),
+    )
+
+    can_etype = "('nt.a', 'connects', 'nt.b')"
+    gs.add_edge_data_from_parquet(
+        file_path=f"{can_etype}.parquet",
+        node_col_names=["src", "dst"],
+        src_offset=0,
+        dst_offset=3,
+        canonical_etype=can_etype,
+    )
+    can_etype = "('nt.a', 'connects', 'nt.c')"
+    gs.add_edge_data_from_parquet(
+        file_path=f"{can_etype}.parquet",
+        node_col_names=["src", "dst"],
+        src_offset=0,
+        dst_offset=6,
+        canonical_etype=can_etype,
+    )
+    can_etype = "('nt.c', 'connects', 'nt.c')"
+    gs.add_edge_data_from_parquet(
+        file_path=f"{can_etype}.parquet",
+        node_col_names=["src", "dst"],
+        src_offset=6,
+        dst_offset=6,
+        canonical_etype=can_etype,
+    )
+
+    return gs
+
+
+def assert_correct_gs(gs):
+    assert gs.etypes[0] == "('nt.a', 'connects', 'nt.b')"
+    assert gs.ntypes[0] == "nt.a"
+    assert gs.num_nodes_dict["nt.a"] == 3
+    assert gs.num_edges_dict["('nt.a', 'connects', 'nt.b')"] == 3
+    assert gs.num_nodes("nt.c") == 5
+
+    # Test Get Node Storage
+    result = gs.get_node_storage(key="node_feat", ntype="nt.a", indices_offset=0).fetch(
+        [0, 1, 2]
+    )
+    result = result.cpu().numpy()
+    expected_result = np.asarray([0, 10, 20], dtype=np.int32)
+    np.testing.assert_equal(result, expected_result)
+
+    result = gs.get_node_storage(key="node_feat", ntype="nt.b", indices_offset=3).fetch(
+        [0, 1, 2]
+    )
+    result = result.cpu().numpy()
+    expected_result = np.asarray([30, 40, 50], dtype=np.int32)
+    np.testing.assert_equal(result, expected_result)
+
+    result = gs.get_node_storage(key="node_feat", ntype="nt.c", indices_offset=5).fetch(
+        [1, 2, 3]
+    )
+    result = result.cpu().numpy()
+    expected_result = np.asarray([60, 70, 80], dtype=np.int32)
+    np.testing.assert_equal(result, expected_result)
+
+    # Test Get Edge Storage
+    result = gs.get_edge_storage(
+        key="edge_feat", etype="('nt.a', 'connects', 'nt.b')", indices_offset=0
+    ).fetch([0, 1, 2])
+    result = result.cpu().numpy()
+    expected_result = np.asarray([10, 11, 12], dtype=np.int32)
+    np.testing.assert_equal(result, expected_result)
+
+    result = gs.get_edge_storage(
+        key="edge_feat", etype="('nt.a', 'connects', 'nt.c')", indices_offset=0
+    ).fetch([4, 5])
+    result = result.cpu().numpy()
+    expected_result = np.asarray([14, 15], dtype=np.int32)
+    np.testing.assert_equal(result, expected_result)
+
+    result = gs.get_edge_storage(
+        key="edge_feat", etype="('nt.c', 'connects', 'nt.c')", indices_offset=0
+    ).fetch([6, 8])
+    result = result.cpu().numpy()
+    expected_result = np.asarray([16, 18], dtype=np.int32)
+    np.testing.assert_equal(result, expected_result)
+
+
+def test_remote_wrappers():
+    # TODO: Check with rick on how to test it
+    c = Client()
+    gs = create_gs(c)
+    assert_correct_gs(gs)

@@ -479,8 +479,13 @@ class RemotePropertyGraph:
         if columns is None:
             columns = self.edge_property_names
 
+        if edge_ids is None:
+            ids = -1
+        else:
+            ids = edge_ids
+
         edge_data = self.__client.get_graph_edge_data(
-            id_or_ids=edge_ids or -1,
+            id_or_ids=ids,
             property_keys=columns,
             types=types,
             graph_id=self.__graph_id,
