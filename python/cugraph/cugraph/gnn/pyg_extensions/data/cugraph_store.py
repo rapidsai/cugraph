@@ -416,6 +416,75 @@ class EXPERIMENTAL__CuGraphStore:
 
         return self.__subgraphs[edge_types]
 
+    def _get_vertex_groups_from_sample(self, nodes_of_interest):
+        nodes_of_interest = nodes_of_interest.sort_values()
+
+        # noi contains all property values
+        noi = self.__graph.get_vertex_data(
+            nodes_of_interest.values_host if self.is_mg else nodes_of_interest
+        )
+        noi_types = noi[self.__graph.type_col_name].cat.categories.values_host
+
+        noi_index = {}
+        for t_code, t in enumerate(noi_types):
+            noi_t = noi[noi[self.__graph.type_col_name].cat.codes == t_code]
+            # noi_t should be sorted since the input nodes of interest were
+
+            if len(noi_t) > 0:
+                # store the renumbering for this vertex type
+                # renumbered vertex id is the index of the old id
+                noi_index[t] = (
+                    noi_t[self.__graph.vertex_col_name].compute().to_cupy()
+                    if self.is_mg
+                    else noi_t[self.__graph.vertex_col_name].to_cupy()
+                )
+
+        return noi_index
+
+    def _get_renumbered_edge_groups_from_sample(self, sampling_results, noi_index):
+        eoi = self.__graph.get_edge_data(
+            edge_ids=(
+                sampling_results.indices.compute().values_host
+                if self.is_mg
+                else sampling_results.indices
+            ),
+            columns=[self.__graph.src_col_name, self.__graph.dst_col_name],
+        )
+        eoi_types = eoi[self.__graph.type_col_name].cat.categories.values_host
+
+        row_dict = {}
+        col_dict = {}
+        for t_code, t in enumerate(eoi_types):
+            t_pyg_type = self.__edge_types_to_attrs[t].edge_type
+            src_type, edge_type, dst_type = t_pyg_type
+
+            eoi_t = eoi[eoi[self.__graph.type_col_name].cat.codes == t_code]
+
+            if len(eoi_t) > 0:
+                eoi_t = eoi_t.drop(self.__graph.edge_id_col_name, axis=1)
+
+                sources = eoi_t[self.__graph.src_col_name]
+                if self.is_mg:
+                    sources = sources.compute()
+                src_id_table = noi_index[src_type]
+
+                src = self.from_dlpack(
+                    cupy.searchsorted(src_id_table, sources.to_cupy()).toDlpack()
+                )
+                row_dict[t_pyg_type] = src
+
+                destinations = eoi_t[self.__graph.dst_col_name]
+                if self.is_mg:
+                    destinations = destinations.compute()
+                dst_id_table = noi_index[dst_type]
+
+                dst = self.from_dlpack(
+                    cupy.searchsorted(dst_id_table, destinations.to_cupy()).toDlpack()
+                )
+                col_dict[t_pyg_type] = dst
+
+        return row_dict, col_dict
+
     def _get_renumbered_vertex_data_from_sample(self, nodes_of_interest):
         """
         Given a cudf (NOT dask_cudf) Series of nodes of interest, this

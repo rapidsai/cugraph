@@ -131,11 +131,7 @@ class EXPERIMENTAL__CuGraphSampler:
 
         # Get the node index (for creating the edge index),
         # the node type groupings, and the node properties.
-        (
-            noi_index,
-            noi_groups,
-            noi_tensors,
-        ) = self.__feature_store._get_renumbered_vertex_data_from_sample(
+        noi_index = self.__feature_store._get_renumbered_vertex_data_from_sample(
             nodes_of_interest
         )
 
@@ -145,4 +141,4 @@ class EXPERIMENTAL__CuGraphSampler:
             sampling_results, noi_index
         )
 
-        return (noi_groups, row_dict, col_dict, noi_tensors)
+        return (noi_index, row_dict, col_dict, None)
