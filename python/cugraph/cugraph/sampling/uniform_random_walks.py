@@ -26,11 +26,8 @@ def uniform_random_walks(G, start_vertices, max_depth=None, use_padding=False):
 
     parameters
     ----------
-    G : cuGraph.Graph or networkx.Graph
-        The graph can be either directed (DiGraph) or undirected (Graph).
-        Weights in the graph are ignored.
-        Use weight parameter if weights need to be considered
-        (currently not supported)
+    G : cuGraph.Graph
+        The graph can be either directed or undirected.
 
     start_vertices : int or list or cudf.Series or cudf.DataFrame
         A single node or a list or a cudf.Series of nodes from which to run
