@@ -91,7 +91,6 @@ def uniform_random_walks(ResourceHandle resource_handle,
     the vertices path, the edge path weights and path sizes
 
     """
-    print("I am in randomwalks pylibcugraph")
     cdef cugraph_resource_handle_t* c_resource_handle_ptr = \
         resource_handle.c_resource_handle_ptr
     cdef cugraph_graph_t* c_graph_ptr = input_graph.c_graph_ptr
@@ -124,19 +123,9 @@ def uniform_random_walks(ResourceHandle resource_handle,
         cugraph_random_walk_result_get_paths(result_ptr)
     cdef cugraph_type_erased_device_array_view_t* weights_ptr = \
         cugraph_random_walk_result_get_weights(result_ptr)
-    
-    # FIXME: retrieving this parameter create a Seg Fault
-    """
-    cdef cugraph_type_erased_device_array_view_t* path_sizes_ptr = \
-        cugraph_random_walk_result_get_path_sizes(result_ptr)
-    print("done retrieving path_sizes")
-    """
-    cupy_path_sizes = None
-
 
     max_path_length = \
         cugraph_random_walk_result_get_max_path_length(result_ptr)
-
 
     cupy_paths = copy_to_cupy_array(c_resource_handle_ptr, path_ptr)
     cupy_weights = copy_to_cupy_array(c_resource_handle_ptr, weights_ptr)
@@ -144,4 +133,4 @@ def uniform_random_walks(ResourceHandle resource_handle,
     cugraph_random_walk_result_free(result_ptr)
     cugraph_type_erased_device_array_view_free(start_ptr)
 
-    return (cupy_paths, cupy_weights, cupy_path_sizes, max_path_length)
+    return (cupy_paths, cupy_weights, max_path_length)
