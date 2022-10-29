@@ -13,6 +13,7 @@
 
 from pylibcugraph import ResourceHandle
 from pylibcugraph import uniform_random_walks as pylibcugraph_uniform_random_walks
+from cugraph.utilities import ensure_cugraph_obj_for_nx
 
 # FIXME: get rid of this call as it is using 'cython.cu'
 from cugraph.sampling import random_walks_wrapper
@@ -113,7 +114,7 @@ def uniform_random_walks(G, start_vertices, max_depth=None, use_padding=False):
     # FIXME: wouldn't 'vertex_set_sz' and 'edge_set_sz' always be the
     # size of 'vertex_set' and 'edge_set'?
     # return vertex_set[:vertex_set_sz], edge_set[:edge_set_sz], sizes
-    return vertex_set, edge_set, sizes
+    return vertex_set, edge_set, max_path_length
 
 
 def rw_path(num_paths, sizes):
