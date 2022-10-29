@@ -22,7 +22,7 @@ def random_walks(G, start_vertices, max_depth=None, use_padding=False):
 
     parameters
     ----------
-    G : cuGraph.Graph
+    G : cuGraph.Graph or networkx.Graph
         The graph can be either directed or undirected.
 
     start_vertices : int or list or cudf.Series or cudf.DataFrame

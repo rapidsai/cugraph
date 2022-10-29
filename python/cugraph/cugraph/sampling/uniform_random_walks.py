@@ -26,7 +26,7 @@ def uniform_random_walks(G, start_vertices, max_depth=None, use_padding=False):
 
     parameters
     ----------
-    G : cuGraph.Graph
+    G : cuGraph.Graph or networkx.Graph
         The graph can be either directed or undirected.
 
     start_vertices : int or list or cudf.Series or cudf.DataFrame
@@ -60,6 +60,15 @@ def uniform_random_walks(G, start_vertices, max_depth=None, use_padding=False):
     >>> _, _, _, _ = cugraph.random_walks(G, M, 3)
 
     """
+    if max_depth is None:
+        raise TypeError("must specify a 'max_depth'")
+
+    # FIXME: supporting Nx types should mean having a return type that better
+    # matches Nx expectations (eg. data on the CPU, possibly using a different
+    # data struct like a dictionary, etc.). The 2nd value is ignored here,
+    # which is typically named isNx and used to convert the return type.
+    # Consider a different return type if Nx types are passed in.
+    G, _ = ensure_cugraph_obj_for_nx(G)
 
     if isinstance(start_vertices, int):
         start_vertices = [start_vertices]
