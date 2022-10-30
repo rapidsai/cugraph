@@ -189,7 +189,7 @@ void decompress_edge_partition_to_edgelist(
   raft::handle_t const& handle,
   edge_partition_device_view_t<vertex_t, edge_t, multi_gpu> edge_partition,
   std::optional<edge_partition_edge_property_device_view_t<edge_t, weight_t const*>>
-    edge_partition_weights,
+    edge_partition_weight_view,
   vertex_t* edgelist_majors /* [OUT] */,
   vertex_t* edgelist_minors /* [OUT] */,
   std::optional<weight_t*> edgelist_weights /* [OUT] */,
@@ -203,10 +203,11 @@ void decompress_edge_partition_to_edgelist(
                edge_partition.indices(),
                edge_partition.indices() + number_of_edges,
                edgelist_minors);
-  if (edgelist_weights) {
+  if (edge_partition_weight_view) {
+    assert(edgelist_weights.has_value());
     thrust::copy(handle.get_thrust_policy(),
-                 *(edge_partition.weights()),
-                 *(edge_partition.weights()) + number_of_edges,
+                 (*edge_partition_weight_view).value_first(),
+                 (*edge_partition_weight_view).value_first() + number_of_edges,
                  (*edgelist_weights));
   }
 }

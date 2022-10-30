@@ -681,6 +681,14 @@ std::pair<size_t, weight_t> louvain(
   size_t max_level    = 100,
   weight_t resolution = weight_t{1});
 
+template <typename vertex_t, typename edge_t, typename weight_t>
+std::pair<size_t, weight_t> louvain(
+  raft::handle_t const& handle,
+  legacy::GraphCSRView<vertex_t, edge_t, weight_t> const& graph_view,
+  vertex_t* clustering,
+  size_t max_level    = 100,
+  weight_t resolution = weight_t{1});
+
 /**
  * @brief      Louvain implementation, returning dendrogram
  *
@@ -1428,17 +1436,17 @@ extract_ego(raft::handle_t const& handle,
  * sizes. Note: if the graph is un-weighted the edge (weight) paths consists of `weight_t{1}`
  * entries;
  */
-template <typename graph_t, typename index_t>
-std::tuple<rmm::device_uvector<typename graph_t::vertex_type>,
-           rmm::device_uvector<typename graph_t::weight_type>,
-           rmm::device_uvector<index_t>>
-random_walks(raft::handle_t const& handle,
-             graph_t const& graph,
-             typename graph_t::vertex_type const* ptr_d_start,
-             index_t num_paths,
-             index_t max_depth,
-             bool use_padding                                     = false,
-             std::unique_ptr<sampling_params_t> sampling_strategy = nullptr);
+template <typename vertex_t, typename edge_t, typename weight_t, typename index_t, bool multi_gpu>
+std::
+  tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<weight_t>, rmm::device_uvector<index_t>>
+  random_walks(raft::handle_t const& handle,
+               graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+               std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
+               vertex_t const* ptr_d_start,
+               index_t num_paths,
+               index_t max_depth,
+               bool use_padding                                     = false,
+               std::unique_ptr<sampling_params_t> sampling_strategy = nullptr);
 
 /**
  * @brief returns uniform random walks from starting sources, where each path is of given
@@ -1599,13 +1607,12 @@ node2vec_random_walks(raft::handle_t const& handle,
  * Tuple consisting of two arrays representing the offsets and indices of
  * the sub-sampled graph.
  */
-template <typename graph_t>
-std::tuple<rmm::device_uvector<typename graph_t::edge_type>,
-           rmm::device_uvector<typename graph_t::vertex_type>>
+template <typename vertex_t, typename edge_t>
+std::tuple<rmm::device_uvector<edge_t>, rmm::device_uvector<vertex_t>>
 sample_neighbors_adjacency_list(raft::handle_t const& handle,
                                 raft::random::RngState& rng_state,
-                                graph_t const& graph,
-                                typename graph_t::vertex_type const* ptr_d_start,
+                                graph_view_t<vertex_t, edge_t, false, false> const& graph_view,
+                                vertex_t const* ptr_d_start,
                                 size_t num_start_vertices,
                                 size_t sampling_size,
                                 ops::gnn::graph::SamplingAlgoT sampling_algo);
@@ -1630,16 +1637,15 @@ sample_neighbors_adjacency_list(raft::handle_t const& handle,
  * Tuple consisting of two arrays representing the source and destination nodes of
  * the sub-sampled graph.
  */
-template <typename graph_t>
-std::tuple<rmm::device_uvector<typename graph_t::vertex_type>,
-           rmm::device_uvector<typename graph_t::vertex_type>>
-sample_neighbors_edgelist(raft::handle_t const& handle,
-                          raft::random::RngState& rng_state,
-                          graph_t const& graph,
-                          typename graph_t::vertex_type const* ptr_d_start,
-                          size_t num_start_vertices,
-                          size_t sampling_size,
-                          ops::gnn::graph::SamplingAlgoT sampling_algo);
+template <typename vertex_t, typename edge_t>
+std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> sample_neighbors_edgelist(
+  raft::handle_t const& handle,
+  raft::random::RngState& rng_state,
+  graph_view_t<vertex_t, edge_t, false, false> const& graph_view,
+  vertex_t const* ptr_d_start,
+  size_t num_start_vertices,
+  size_t sampling_size,
+  ops::gnn::graph::SamplingAlgoT sampling_algo);
 #endif
 
 /**

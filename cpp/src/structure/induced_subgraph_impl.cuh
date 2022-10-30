@@ -16,6 +16,7 @@
 #pragma once
 
 #include <cugraph/edge_partition_device_view.cuh>
+#include <cugraph/edge_partition_edge_property_device_view.cuh>
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/utilities/error.hpp>
@@ -57,7 +58,8 @@ std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<size_t>>
 extract_induced_subgraphs(
   raft::handle_t const& handle,
-  graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> const& graph_view,
+  graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
+  std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
   raft::device_span<size_t const> subgraph_offsets,
   raft::device_span<vertex_t const> subgraph_vertices,
   bool do_expensive_check)
@@ -147,7 +149,7 @@ extract_induced_subgraphs(
       num_aggregate_subgraph_vertices + 1,
       handle.get_stream());  // for each element of subgraph_vertices
 
-    auto edge_partition = edge_partition_device_view_t<vertex_t, edge_t, weight_t, multi_gpu>(
+    auto edge_partition = edge_partition_device_view_t<vertex_t, edge_t, multi_gpu>(
       graph_view.local_edge_partition_view());
     // count the numbers of the induced subgraph edges for each vertex in the aggregate subgraph
     // vertex list.
@@ -162,10 +164,11 @@ extract_induced_subgraphs(
                            thrust::upper_bound(
                              thrust::seq, subgraph_offsets.begin(), subgraph_offsets.end() - 1, i));
         vertex_t const* indices{nullptr};
-        thrust::optional<weight_t const*> weights{thrust::nullopt};
+        [[maybe_unused]] edge_t local_edge_offset{};
         edge_t local_degree{};
         auto major_offset = edge_partition.major_offset_from_major_nocheck(subgraph_vertices[i]);
-        thrust::tie(indices, weights, local_degree) = edge_partition.local_edges(major_offset);
+        thrust::tie(indices, local_edge_offset, local_degree) =
+          edge_partition.local_edges(major_offset);
         // FIXME: this is inefficient for high local degree vertices
         return thrust::count_if(
           thrust::seq,
@@ -191,12 +194,18 @@ extract_induced_subgraphs(
 
     // 2-2. Phase 2: find the edges in the induced subgraphs
 
+    auto edge_partition_weight_view =
+      edge_weight_view
+        ? std::make_optional<
+            detail::edge_partition_edge_property_device_view_t<edge_t, weight_t const*>>(
+            *edge_weight_view, 0)
+        : std::nullopt;
+
     rmm::device_uvector<vertex_t> edge_majors(num_aggregate_edges, handle.get_stream());
     rmm::device_uvector<vertex_t> edge_minors(num_aggregate_edges, handle.get_stream());
-    auto edge_weights = graph_view.is_weighted()
-                          ? std::make_optional<rmm::device_uvector<weight_t>>(num_aggregate_edges,
-                                                                              handle.get_stream())
-                          : std::nullopt;
+    auto edge_weights = edge_weight_view ? std::make_optional<rmm::device_uvector<weight_t>>(
+                                             num_aggregate_edges, handle.get_stream())
+                                         : std::nullopt;
 
     // fill the edge list buffer (to be returned) for each vetex in the aggregate subgraph vertex
     // list (use the offsets computed in the Phase 1)
@@ -207,6 +216,7 @@ extract_induced_subgraphs(
       [subgraph_offsets,
        subgraph_vertices,
        edge_partition,
+       edge_partition_weight_view,
        subgraph_vertex_output_offsets = subgraph_vertex_output_offsets.data(),
        edge_majors                    = edge_majors.data(),
        edge_minors                    = edge_minors.data(),
@@ -217,13 +227,16 @@ extract_induced_subgraphs(
           thrust::upper_bound(
             thrust::seq, subgraph_offsets.begin(), subgraph_offsets.end() - 1, size_t{i}));
         vertex_t const* indices{nullptr};
-        thrust::optional<weight_t const*> weights{thrust::nullopt};
+        edge_t local_edge_offset{};
         edge_t local_degree{};
         auto major_offset = edge_partition.major_offset_from_major_nocheck(subgraph_vertices[i]);
-        thrust::tie(indices, weights, local_degree) = edge_partition.local_edges(major_offset);
-        if (weights) {
-          auto triplet_first = thrust::make_zip_iterator(thrust::make_tuple(
-            thrust::make_constant_iterator(subgraph_vertices[i]), indices, *weights));
+        thrust::tie(indices, local_edge_offset, local_degree) =
+          edge_partition.local_edges(major_offset);
+        if (edge_partition_weight_view) {
+          auto triplet_first = thrust::make_zip_iterator(
+            thrust::make_tuple(thrust::make_constant_iterator(subgraph_vertices[i]),
+                               indices,
+                               (*edge_partition_weight_view).get_iter(local_edge_offset)));
           // FIXME: this is inefficient for high local degree vertices
           thrust::copy_if(
             thrust::seq,

@@ -66,14 +66,15 @@ count_and_remove_duplicates(raft::handle_t const& handle,
  * gpus in the column communicator
  * @return A tuple of device vector containing the majors, minors and weights gathered locally
  */
-template <typename GraphViewType>
-std::tuple<rmm::device_uvector<typename GraphViewType::vertex_type>,
-           rmm::device_uvector<typename GraphViewType::vertex_type>,
-           std::optional<rmm::device_uvector<typename GraphViewType::weight_type>>>
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+std::tuple<rmm::device_uvector<vertex_t>,
+           rmm::device_uvector<vertex_t>,
+           std::optional<rmm::device_uvector<weight_t>>>
 gather_one_hop_edgelist(
   raft::handle_t const& handle,
-  GraphViewType const& graph_view,
-  const rmm::device_uvector<typename GraphViewType::vertex_type>& active_majors,
+  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+  std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
+  const rmm::device_uvector<vertex_t>& active_majors,
   bool do_expensive_check = false);
 
 /**
@@ -91,14 +92,15 @@ gather_one_hop_edgelist(
  * @param invalid_vertex_id Value to use for an invalid vertex
  * @return A tuple of device vector containing the majors, minors and weights gathered locally
  */
-template <typename GraphViewType>
-std::tuple<rmm::device_uvector<typename GraphViewType::vertex_type>,
-           rmm::device_uvector<typename GraphViewType::vertex_type>,
-           std::optional<rmm::device_uvector<typename GraphViewType::weight_type>>>
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+std::tuple<rmm::device_uvector<vertex_t>,
+           rmm::device_uvector<vertex_t>,
+           std::optional<rmm::device_uvector<weight_t>>>
 sample_edges(raft::handle_t const& handle,
-             GraphViewType const& graph_view,
+             graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+             std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
              raft::random::RngState& rng_state,
-             rmm::device_uvector<typename GraphViewType::vertex_type> const& active_majors,
+             rmm::device_uvector<vertex_t> const& active_majors,
              size_t fanout,
              bool with_replacement);
 

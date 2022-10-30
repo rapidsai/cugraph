@@ -65,7 +65,8 @@ std::tuple<rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<weight_t>>,
            rmm::device_uvector<size_t>>
 extract(raft::handle_t const& handle,
-        cugraph::graph_view_t<vertex_t, edge_t, weight_t, false, false> const& csr_view,
+        cugraph::graph_view_t<vertex_t, edge_t, false, false> const& csr_view,
+        std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
         vertex_t* source_vertex,
         vertex_t n_subgraphs,
         vertex_t radius)
@@ -108,14 +109,14 @@ extract(raft::handle_t const& handle,
     thrust::fill(
       rmm::exec_policy(worker_stream_view), reached[i].begin(), reached[i].begin() + 100, 1.0);
 
-    cugraph::bfs<vertex_t, edge_t, weight_t, false>(light_handle,
-                                                    csr_view,
-                                                    reached[i].data(),
-                                                    predecessors.data(),
-                                                    source_vertex + i,
-                                                    1,
-                                                    direction_optimizing,
-                                                    radius);
+    cugraph::bfs<vertex_t, edge_t, false>(light_handle,
+                                          csr_view,
+                                          reached[i].data(),
+                                          predecessors.data(),
+                                          source_vertex + i,
+                                          1,
+                                          direction_optimizing,
+                                          radius);
 
     // identify reached vertex ids from distance array
     thrust::transform(rmm::exec_policy(worker_stream_view),
@@ -176,6 +177,7 @@ extract(raft::handle_t const& handle,
   return cugraph::extract_induced_subgraphs(
     handle,
     csr_view,
+    edge_weight_view,
     raft::device_span<size_t const>(neighbors_offsets.data().get(), neighbors_offsets.size()),
     raft::device_span<vertex_t const>(neighbors.data().get(), neighbors.size()),
     false);
@@ -191,7 +193,8 @@ std::tuple<rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<weight_t>>,
            rmm::device_uvector<size_t>>
 extract_ego(raft::handle_t const& handle,
-            graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
+            graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+            std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
             vertex_t* source_vertex,
             vertex_t n_subgraphs,
             vertex_t radius)
@@ -211,7 +214,7 @@ extract_ego(raft::handle_t const& handle,
   // source_vertex range is checked in bfs.
 
   return extract<vertex_t, edge_t, weight_t>(
-    handle, graph_view, source_vertex, n_subgraphs, radius);
+    handle, graph_view, edge_weight_view, source_vertex, n_subgraphs, radius);
 }
 
 // SG FP32
@@ -220,7 +223,8 @@ template std::tuple<rmm::device_uvector<int32_t>,
                     std::optional<rmm::device_uvector<float>>,
                     rmm::device_uvector<size_t>>
 extract_ego(raft::handle_t const&,
-            graph_view_t<int32_t, int32_t, float, false, false> const&,
+            graph_view_t<int32_t, int32_t, false, false> const&,
+            std::optional<edge_property_view_t<int32_t, float const*>> edge_weight_view,
             int32_t*,
             int32_t,
             int32_t);
@@ -229,7 +233,8 @@ template std::tuple<rmm::device_uvector<int32_t>,
                     std::optional<rmm::device_uvector<float>>,
                     rmm::device_uvector<size_t>>
 extract_ego(raft::handle_t const&,
-            graph_view_t<int32_t, int64_t, float, false, false> const&,
+            graph_view_t<int32_t, int64_t, false, false> const&,
+            std::optional<edge_property_view_t<int64_t, float const*>> edge_weight_view,
             int32_t*,
             int32_t,
             int32_t);
@@ -238,7 +243,8 @@ template std::tuple<rmm::device_uvector<int64_t>,
                     std::optional<rmm::device_uvector<float>>,
                     rmm::device_uvector<size_t>>
 extract_ego(raft::handle_t const&,
-            graph_view_t<int64_t, int64_t, float, false, false> const&,
+            graph_view_t<int64_t, int64_t, false, false> const&,
+            std::optional<edge_property_view_t<int64_t, float const*>> edge_weight_view,
             int64_t*,
             int64_t,
             int64_t);
@@ -249,7 +255,8 @@ template std::tuple<rmm::device_uvector<int32_t>,
                     std::optional<rmm::device_uvector<double>>,
                     rmm::device_uvector<size_t>>
 extract_ego(raft::handle_t const&,
-            graph_view_t<int32_t, int32_t, double, false, false> const&,
+            graph_view_t<int32_t, int32_t, false, false> const&,
+            std::optional<edge_property_view_t<int32_t, double const*>> edge_weight_view,
             int32_t*,
             int32_t,
             int32_t);
@@ -258,7 +265,8 @@ template std::tuple<rmm::device_uvector<int32_t>,
                     std::optional<rmm::device_uvector<double>>,
                     rmm::device_uvector<size_t>>
 extract_ego(raft::handle_t const&,
-            graph_view_t<int32_t, int64_t, double, false, false> const&,
+            graph_view_t<int32_t, int64_t, false, false> const&,
+            std::optional<edge_property_view_t<int64_t, double const*>> edge_weight_view,
             int32_t*,
             int32_t,
             int32_t);
@@ -267,7 +275,8 @@ template std::tuple<rmm::device_uvector<int64_t>,
                     std::optional<rmm::device_uvector<double>>,
                     rmm::device_uvector<size_t>>
 extract_ego(raft::handle_t const&,
-            graph_view_t<int64_t, int64_t, double, false, false> const&,
+            graph_view_t<int64_t, int64_t, false, false> const&,
+            std::optional<edge_property_view_t<int64_t, double const*>> edge_weight_view,
             int64_t*,
             int64_t,
             int64_t);
