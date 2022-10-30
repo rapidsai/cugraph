@@ -26,6 +26,21 @@ class CuFeatureStorage:
     def __init__(
         self, pg, columns, storage_type, backend_lib="torch", indices_offset=0
     ):
+        """
+        Parameters
+        ----------
+        pg : PropertyGraph
+            PropertyGraph holding the nodes, edges and properties
+        columns : DataFrame
+            contains list of properties to store
+        storage_type : str
+            Either edge or node
+        backend_lib : string, (default=torch)
+            Determines the supported backend to use. Can be one of torch, tf,
+            or cupy.
+        indices_offset : int (default=0)
+            starting number for contiguous node or edge ids.
+        """
         self.pg = pg
         self.columns = columns
         if backend_lib == "torch":
@@ -48,7 +63,8 @@ class CuFeatureStorage:
         self.indices_offset = indices_offset
 
     def fetch(self, indices, device=None, pin_memory=False, **kwargs):
-        """Fetch the features of the given node/edge IDs to the
+        """
+        Fetch the features of the given node/edge IDs to the
         given device.
 
         Parameters
@@ -56,8 +72,12 @@ class CuFeatureStorage:
         indices : Tensor
             Node or edge IDs.
         device : Device
-            Device context.
-        pin_memory :
+            Device context. Either a tensor or nd.array.
+            Can't transfer from a cupy array.
+        pin_memory : bool (default=False)
+            Not used.
+        kwargs : kewword value pairs
+            None currently used.
 
         Returns
         -------
