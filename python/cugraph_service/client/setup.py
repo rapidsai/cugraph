@@ -14,80 +14,28 @@
 import os
 import shutil
 
-from setuptools import find_packages, Command
-from skbuild import setup
-
-from setuputils import get_environment_option
-
+from setuptools import setup, find_packages
 import versioneer
 
-
-INSTALL_REQUIRES = ["thriftpy2"]
-
-CUDA_HOME = get_environment_option("CUDA_HOME")
-
-if not CUDA_HOME:
-    path_to_cuda_gdb = shutil.which("cuda-gdb")
-    if path_to_cuda_gdb is None:
-        raise OSError(
-            "Could not locate CUDA. "
-            "Please set the environment variable "
-            "CUDA_HOME to the path to the CUDA installation "
-            "and try again."
-        )
-    CUDA_HOME = os.path.dirname(os.path.dirname(path_to_cuda_gdb))
-
-if not os.path.isdir(CUDA_HOME):
-    raise OSError("Invalid CUDA_HOME: " "directory does not exist: {CUDA_HOME}")
-
-
-class CleanCommand(Command):
-    """Custom clean command to tidy up the project root."""
-
-    user_options = [
-        ("all", None, None),
-    ]
-
-    def initialize_options(self):
-        self.all = None
-
-    def finalize_options(self):
-        pass
-
-    def run(self):
-        setupFileDir = os.path.dirname(os.path.abspath(__file__))
-        os.chdir(setupFileDir)
-        os.system("rm -rf build")
-        os.system("rm -rf dist")
-        os.system("rm -rf dask-worker-space")
-        os.system('find . -name "__pycache__" -type d -exec rm -rf {} +')
-        os.system("rm -rf *.egg-info")
-        os.system('find . -name "*.cpp" -type f -delete')
-        os.system('find . -name "*.cpython*.so" -type f -delete')
-        os.system("rm -rf _skbuild")
-
-
 cmdclass = versioneer.get_cmdclass()
-cmdclass["clean"] = CleanCommand
+
+install_requires = [
+    "thriftpy2",
+]
 
 setup(
     name="cugraph_service_client",
-    description="cuGraph Service: Client -  cuGraph Graph-as-a-Service client side module",
+    description="cuGraph Service client",
     version=versioneer.get_version(),
     classifiers=[
-        # "Development Status :: 4 - Beta",
         "Intended Audience :: Developers",
-        # "Operating System :: OS Independent",
         "Programming Language :: Python",
-        "Programming Language :: Python :: 3.8",
-        "Programming Language :: Python :: 3.9",
     ],
-    # Include the separately-compiled shared library
     author="NVIDIA Corporation",
+    url="https://github.com/rapidsai/cugraph",
     packages=find_packages(include=["cugraph_service_client"]),
-    include_package_data=False,
-    install_requires=INSTALL_REQUIRES,
+    install_requires=install_requires,
     license="Apache",
     cmdclass=cmdclass,
-    zip_safe=False,
+    zip_safe=True,
 )

@@ -7,17 +7,14 @@
 
 -----
 
-## Server
-(description)
-### Installing `cugraph_service_server` conda package
-
-    TBD
-
-## Client
-(description)
-### Installing the `cugraph_service_client` conda package
-
-    TBD
+## Build & Install
+Build and install the client first, then the server. This is necessary because the server depends on shared modules provided by the client.
+```
+$> cd cugraph_repo/python/cugraph_service/client
+$> python setup.py install
+$> cd ../server
+$> python setup.py install
+```
 
 ### Example
 Starting a server for single-GPU-only cuGraph, using server extensions in `/my/cugraph_service/extensions`:
