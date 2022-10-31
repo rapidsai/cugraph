@@ -24,6 +24,7 @@ from . import data
 ###############################################################################
 # fixtures
 
+
 @pytest.fixture(scope="module")
 def mg_handler():
     """
@@ -33,13 +34,17 @@ def mg_handler():
 
     dask_scheduler_file = os.environ.get("SCHEDULER_FILE")
     if dask_scheduler_file is None:
-        raise EnvironmentError("Environment variable SCHEDULER_FILE must be "
-                               "set to the path to a dask scheduler json file")
+        raise EnvironmentError(
+            "Environment variable SCHEDULER_FILE must be "
+            "set to the path to a dask scheduler json file"
+        )
     dask_scheduler_file = Path(dask_scheduler_file)
     if not dask_scheduler_file.exists():
-        raise FileNotFoundError("env var SCHEDULER_FILE is set to "
-                                f"{dask_scheduler_file}, which does not "
-                                "exist.")
+        raise FileNotFoundError(
+            "env var SCHEDULER_FILE is set to "
+            f"{dask_scheduler_file}, which does not "
+            "exist."
+        )
 
     handler = CugraphHandler()
     handler.initialize_dask_client(dask_scheduler_file)
@@ -61,16 +66,17 @@ def handler_with_karate_edgelist_loaded(mg_handler):
     for gid in mg_handler.get_graph_ids():
         mg_handler.delete_graph(gid)
 
-    mg_handler.load_csv_as_edge_data(test_data["csv_file_name"],
-                                     delimiter=" ",
-                                     dtypes=test_data["dtypes"],
-                                     header=None,
-                                     vertex_col_names=["0", "1"],
-                                     type_name="",
-                                     property_columns=[],
-                                     names=[],
-                                     graph_id=defaults.graph_id,
-                                     )
+    mg_handler.load_csv_as_edge_data(
+        test_data["csv_file_name"],
+        delimiter=" ",
+        dtypes=test_data["dtypes"],
+        header=None,
+        vertex_col_names=["0", "1"],
+        type_name="",
+        property_columns=[],
+        names=[],
+        graph_id=defaults.graph_id,
+    )
     assert mg_handler.get_graph_ids() == [0]
 
     yield (mg_handler, test_data)
@@ -84,9 +90,9 @@ def handler_with_karate_edgelist_loaded(mg_handler):
 
 # FIXME: consolidate this with the SG version of this test.
 def test_get_graph_data_large_vertex_ids(
-        mg_handler,
-        graph_creation_extension_big_vertex_ids,
-        ):
+    mg_handler,
+    graph_creation_extension_big_vertex_ids,
+):
     """
     Test that graphs with large vertex ID values (>int32) are handled.
     """
@@ -94,35 +100,38 @@ def test_get_graph_data_large_vertex_ids(
     extension_dir = graph_creation_extension_big_vertex_ids
 
     # Load the extension and ensure it can be called.
-    handler.load_graph_creation_extensions(extension_dir)
+    handler.load_graph_creation_extensions(extension_dir.name)
     new_graph_id = handler.call_graph_creation_extension(
-        "graph_creation_function_vert_and_edge_data_big_vertex_ids",
-        "()", "{}")
+        "graph_creation_function_vert_and_edge_data_big_vertex_ids", "()", "{}"
+    )
 
     invalid_vert_id = 2
     vert_data = handler.get_graph_vertex_data(
         id_or_ids=invalid_vert_id,
         null_replacement_value=0,
         graph_id=new_graph_id,
-        property_keys=None)
+        property_keys=None,
+    )
 
     assert len(pickle.loads(vert_data)) == 0
 
-    large_vert_id = (2**32)+1
+    large_vert_id = (2**32) + 1
     vert_data = handler.get_graph_vertex_data(
         id_or_ids=large_vert_id,
         null_replacement_value=0,
         graph_id=new_graph_id,
-        property_keys=None)
+        property_keys=None,
+    )
 
     assert len(pickle.loads(vert_data)) == 1
 
-    invalid_edge_id = (2**32)+1
+    invalid_edge_id = (2**32) + 1
     edge_data = handler.get_graph_edge_data(
         id_or_ids=invalid_edge_id,
         null_replacement_value=0,
         graph_id=new_graph_id,
-        property_keys=None)
+        property_keys=None,
+    )
 
     assert len(pickle.loads(edge_data)) == 0
 
@@ -131,16 +140,17 @@ def test_get_graph_data_large_vertex_ids(
         id_or_ids=small_edge_id,
         null_replacement_value=0,
         graph_id=new_graph_id,
-        property_keys=None)
+        property_keys=None,
+    )
 
     assert len(pickle.loads(edge_data)) == 1
 
 
 # FIXME: consolidate this with the SG version of this test.
 def test_get_graph_data_empty_graph(
-        mg_handler,
-        graph_creation_extension_empty_graph,
-        ):
+    mg_handler,
+    graph_creation_extension_empty_graph,
+):
     """
     Tests that get_graph_*_data() handles empty graphs correctly.
     """
@@ -148,16 +158,18 @@ def test_get_graph_data_empty_graph(
     extension_dir = graph_creation_extension_empty_graph
 
     # Load the extension and ensure it can be called.
-    handler.load_graph_creation_extensions(extension_dir)
+    handler.load_graph_creation_extensions(extension_dir.name)
     new_graph_id = handler.call_graph_creation_extension(
-        "graph_creation_function", "()", "{}")
+        "graph_creation_function", "()", "{}"
+    )
 
     invalid_vert_id = 2
     vert_data = handler.get_graph_vertex_data(
         id_or_ids=invalid_vert_id,
         null_replacement_value=0,
         graph_id=new_graph_id,
-        property_keys=None)
+        property_keys=None,
+    )
 
     assert len(pickle.loads(vert_data)) == 0
 
@@ -166,7 +178,8 @@ def test_get_graph_data_empty_graph(
         id_or_ids=invalid_edge_id,
         null_replacement_value=0,
         graph_id=new_graph_id,
-        property_keys=None)
+        property_keys=None,
+    )
 
     assert len(pickle.loads(edge_data)) == 0
 
@@ -179,20 +192,20 @@ def test_get_edge_IDs_for_vertices(handler_with_karate_edgelist_loaded):
     # Use the test/debug API to ensure the correct type was created
     assert "MG" in handler.get_graph_type(defaults.graph_id)
 
-    extracted_graph_id = handler.extract_subgraph(create_using=None,
-                                                  selection=None,
-                                                  edge_weight_property=None,
-                                                  default_edge_weight=1.0,
-                                                  allow_multi_edges=True,
-                                                  renumber_graph=True,
-                                                  add_edge_data=True,
-                                                  graph_id=defaults.graph_id)
+    extracted_graph_id = handler.extract_subgraph(
+        create_using=None,
+        selection=None,
+        edge_weight_property=None,
+        default_edge_weight=1.0,
+        allow_multi_edges=True,
+        renumber_graph=True,
+        add_edge_data=True,
+        graph_id=defaults.graph_id,
+    )
 
     # FIXME: this assumes these are always the first 3 edges in karate, which
     # may not be a safe assumption.
-    eIDs = handler.get_edge_IDs_for_vertices([1, 2, 3],
-                                             [0, 0, 0],
-                                             extracted_graph_id)
+    eIDs = handler.get_edge_IDs_for_vertices([1, 2, 3], [0, 0, 0], extracted_graph_id)
     assert eIDs == [0, 1, 2]
 
 
@@ -208,19 +221,24 @@ def test_get_graph_info(handler_with_karate_edgelist_loaded):
     # A common use of get_graph_info() is to get the "shape" of the data,
     # meaning the number of vertices/edges by the number of properites per
     # edge/vertex.
-    info = handler.get_graph_info(["num_edges", "num_edge_properties"],
-                                  defaults.graph_id)
+    info = handler.get_graph_info(
+        ["num_edges", "num_edge_properties"], defaults.graph_id
+    )
     # info is a dictionary containing cugraph_service_client.types.Value objs,
     # so access the int32 member directly for easy comparison.
-    shape = (ValueWrapper(info["num_edges"]).get_py_obj(),
-             ValueWrapper(info["num_edge_properties"]).get_py_obj())
+    shape = (
+        ValueWrapper(info["num_edges"]).get_py_obj(),
+        ValueWrapper(info["num_edge_properties"]).get_py_obj(),
+    )
     assert shape == (156, 1)  # The single edge property is the weight
 
-    info = handler.get_graph_info(["num_vertices_from_vertex_data",
-                                   "num_vertex_properties"],
-                                  defaults.graph_id)
-    shape = (ValueWrapper(info["num_vertices_from_vertex_data"]).get_py_obj(),
-             ValueWrapper(info["num_vertex_properties"]).get_py_obj())
+    info = handler.get_graph_info(
+        ["num_vertices_from_vertex_data", "num_vertex_properties"], defaults.graph_id
+    )
+    shape = (
+        ValueWrapper(info["num_vertices_from_vertex_data"]).get_py_obj(),
+        ValueWrapper(info["num_vertex_properties"]).get_py_obj(),
+    )
     assert shape == (0, 0)
 
 
@@ -236,14 +254,14 @@ def test_get_graph_info_defaults(mg_handler):
 
     info = handler.get_graph_info([], graph_id=defaults.graph_id)
 
-    expected = {"num_vertices": 0,
-                "num_vertices_from_vertex_data": 0,
-                "num_edges": 0,
-                "num_vertex_properties": 0,
-                "num_edge_properties": 0,
-                }
-    actual = {key: ValueWrapper(val).get_py_obj()
-              for (key, val) in info.items()}
+    expected = {
+        "num_vertices": 0,
+        "num_vertices_from_vertex_data": 0,
+        "num_edges": 0,
+        "num_vertex_properties": 0,
+        "num_edge_properties": 0,
+    }
+    actual = {key: ValueWrapper(val).get_py_obj() for (key, val) in info.items()}
 
     assert expected == actual
 
@@ -260,26 +278,36 @@ def test_uniform_neighbor_sampling(handler_with_karate_edgelist_loaded):
 
     # invalid graph type - default graph is a PG, needs an extracted subgraph
     with pytest.raises(CugraphServiceError):
-        handler.uniform_neighbor_sample(start_list=start_list,
-                                        fanout_vals=fanout_vals,
-                                        with_replacement=with_replacement,
-                                        graph_id=defaults.graph_id)
+        handler.uniform_neighbor_sample(
+            start_list=start_list,
+            fanout_vals=fanout_vals,
+            with_replacement=with_replacement,
+            graph_id=defaults.graph_id,
+            result_host=None,
+            result_port=None,
+        )
 
     # FIXME: add test coverage for specifying the edge ID as the
     # edge_weight_property, then ensuring the edge ID is returned properly with
     # the uniform_neighbor_sample results.
     # See: https://github.com/rapidsai/cugraph/issues/2654
-    extracted_gid = handler.extract_subgraph(create_using=None,
-                                             selection=None,
-                                             edge_weight_property=None,
-                                             default_edge_weight=1.0,
-                                             allow_multi_edges=True,
-                                             renumber_graph=True,
-                                             add_edge_data=True,
-                                             graph_id=defaults.graph_id)
+    extracted_gid = handler.extract_subgraph(
+        create_using=None,
+        selection=None,
+        edge_weight_property=None,
+        default_edge_weight=1.0,
+        allow_multi_edges=True,
+        renumber_graph=True,
+        add_edge_data=True,
+        graph_id=defaults.graph_id,
+    )
 
     # Ensure call can be made, assume results verified in other tests
-    handler.uniform_neighbor_sample(start_list=start_list,
-                                    fanout_vals=fanout_vals,
-                                    with_replacement=with_replacement,
-                                    graph_id=extracted_gid)
+    handler.uniform_neighbor_sample(
+        start_list=start_list,
+        fanout_vals=fanout_vals,
+        with_replacement=with_replacement,
+        graph_id=extracted_gid,
+        result_host=None,
+        result_port=None,
+    )

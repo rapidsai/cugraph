@@ -25,6 +25,7 @@ import pytest
 ###############################################################################
 # tests
 
+
 def test_load_and_call_graph_creation_extension(graph_creation_extension2):
     """
     Ensures load_extensions reads the extensions and makes the new APIs they
@@ -46,35 +47,35 @@ def test_load_and_call_graph_creation_extension(graph_creation_extension2):
         handler.load_graph_creation_extensions(__file__)
 
     # Load the extension and call the function defined in it
-    num_files_read = handler.load_graph_creation_extensions(extension_dir)
+    num_files_read = handler.load_graph_creation_extensions(extension_dir.name)
     assert num_files_read == 1
 
     # Private function should not be callable
     with pytest.raises(CugraphServiceError):
-        handler.call_graph_creation_extension("__my_private_function",
-                                              "()", "{}")
+        handler.call_graph_creation_extension("__my_private_function", "()", "{}")
 
     # Function which DNE in the extension
     with pytest.raises(CugraphServiceError):
-        handler.call_graph_creation_extension("bad_function_name",
-                                              "()", "{}")
+        handler.call_graph_creation_extension("bad_function_name", "()", "{}")
 
     # Wrong number of args
     with pytest.raises(CugraphServiceError):
-        handler.call_graph_creation_extension("my_graph_creation_function",
-                                              "('a',)", "{}")
+        handler.call_graph_creation_extension(
+            "my_graph_creation_function", "('a',)", "{}"
+        )
 
     # This call should succeed and should result in a new PropertyGraph present
     # in the handler instance.
     new_graph_ID = handler.call_graph_creation_extension(
-        "my_graph_creation_function", "('a', 'b', 'c')", "{}")
+        "my_graph_creation_function", "('a', 'b', 'c')", "{}"
+    )
 
     assert new_graph_ID in handler.get_graph_ids()
 
     # Inspect the PG and ensure it was created from my_graph_creation_function
     pG = handler._get_graph(new_graph_ID)
     edge_props = pG.edge_property_names
-    assert ("c" in edge_props)
+    assert "c" in edge_props
 
 
 def test_load_and_unload_graph_creation_extension(graph_creation_extension2):
@@ -89,9 +90,10 @@ def test_load_and_unload_graph_creation_extension(graph_creation_extension2):
     extension_dir = graph_creation_extension2
 
     # Load the extensions and ensure it can be called.
-    handler.load_graph_creation_extensions(extension_dir)
+    handler.load_graph_creation_extensions(extension_dir.name)
     new_graph_ID = handler.call_graph_creation_extension(
-        "my_graph_creation_function", "('a', 'b', 'c')", "{}")
+        "my_graph_creation_function", "('a', 'b', 'c')", "{}"
+    )
     assert new_graph_ID in handler.get_graph_ids()
 
     # Unload then try to run the same call again, which should fail
@@ -99,45 +101,51 @@ def test_load_and_unload_graph_creation_extension(graph_creation_extension2):
 
     with pytest.raises(CugraphServiceError):
         handler.call_graph_creation_extension(
-            "my_graph_creation_function", "('a', 'b', 'c')", "{}")
+            "my_graph_creation_function", "('a', 'b', 'c')", "{}"
+        )
 
 
-def test_load_and_unload_graph_creation_extension_no_args(
-        graph_creation_extension1):
+def test_load_and_unload_graph_creation_extension_no_args(graph_creation_extension1):
     """
     Test graph_creation_extension1 which contains an extension with no args.
     """
     from cugraph_service_server.cugraph_handler import CugraphHandler
+
     handler = CugraphHandler()
 
     extension_dir = graph_creation_extension1
 
     # Load the extensions and ensure it can be called.
-    handler.load_graph_creation_extensions(extension_dir)
+    handler.load_graph_creation_extensions(extension_dir.name)
     new_graph_ID = handler.call_graph_creation_extension(
-        "custom_graph_creation_function", "()", "{}")
+        "custom_graph_creation_function", "()", "{}"
+    )
     assert new_graph_ID in handler.get_graph_ids()
 
 
 def test_load_and_unload_graph_creation_extension_no_facade_arg(
-        graph_creation_extension_no_facade_arg):
+    graph_creation_extension_no_facade_arg,
+):
     """
     Test an extension that has no facade arg.
     """
     from cugraph_service_server.cugraph_handler import CugraphHandler
+
     handler = CugraphHandler()
 
     extension_dir = graph_creation_extension_no_facade_arg
 
     # Load the extensions and ensure it can be called.
-    handler.load_graph_creation_extensions(extension_dir)
+    handler.load_graph_creation_extensions(extension_dir.name)
     new_graph_ID = handler.call_graph_creation_extension(
-        "graph_creation_function", "('a')", "{'arg2':33}")
+        "graph_creation_function", "('a')", "{'arg2':33}"
+    )
     assert new_graph_ID in handler.get_graph_ids()
 
 
 def test_load_and_unload_graph_creation_extension_bad_arg_order(
-        graph_creation_extension_bad_arg_order):
+    graph_creation_extension_bad_arg_order,
+):
     """
     Test an extension that has the facade arg in the wrong position.
     """
@@ -149,14 +157,14 @@ def test_load_and_unload_graph_creation_extension_bad_arg_order(
     extension_dir = graph_creation_extension_bad_arg_order
 
     # Load the extensions and ensure it can be called.
-    handler.load_graph_creation_extensions(extension_dir)
+    handler.load_graph_creation_extensions(extension_dir.name)
     with pytest.raises(CugraphServiceError):
         handler.call_graph_creation_extension(
-            "graph_creation_function", "('a', 'b')", "{}")
+            "graph_creation_function", "('a', 'b')", "{}"
+        )
 
 
-def test_get_graph_data_large_vertex_ids(
-        graph_creation_extension_big_vertex_ids):
+def test_get_graph_data_large_vertex_ids(graph_creation_extension_big_vertex_ids):
     """
     Test that graphs with large vertex ID values (>int32) are handled.
     """
@@ -167,35 +175,38 @@ def test_get_graph_data_large_vertex_ids(
     extension_dir = graph_creation_extension_big_vertex_ids
 
     # Load the extension and ensure it can be called.
-    handler.load_graph_creation_extensions(extension_dir)
+    handler.load_graph_creation_extensions(extension_dir.name)
     new_graph_id = handler.call_graph_creation_extension(
-        "graph_creation_function_vert_and_edge_data_big_vertex_ids",
-        "()", "{}")
+        "graph_creation_function_vert_and_edge_data_big_vertex_ids", "()", "{}"
+    )
 
     invalid_vert_id = 2
     vert_data = handler.get_graph_vertex_data(
         id_or_ids=invalid_vert_id,
         null_replacement_value=0,
         graph_id=new_graph_id,
-        property_keys=None)
+        property_keys=None,
+    )
 
     assert len(pickle.loads(vert_data)) == 0
 
-    large_vert_id = (2**32)+1
+    large_vert_id = (2**32) + 1
     vert_data = handler.get_graph_vertex_data(
         id_or_ids=large_vert_id,
         null_replacement_value=0,
         graph_id=new_graph_id,
-        property_keys=None)
+        property_keys=None,
+    )
 
     assert len(pickle.loads(vert_data)) == 1
 
-    invalid_edge_id = (2**32)+1
+    invalid_edge_id = (2**32) + 1
     edge_data = handler.get_graph_edge_data(
         id_or_ids=invalid_edge_id,
         null_replacement_value=0,
         graph_id=new_graph_id,
-        property_keys=None)
+        property_keys=None,
+    )
 
     assert len(pickle.loads(edge_data)) == 0
 
@@ -204,7 +215,8 @@ def test_get_graph_data_large_vertex_ids(
         id_or_ids=small_edge_id,
         null_replacement_value=0,
         graph_id=new_graph_id,
-        property_keys=None)
+        property_keys=None,
+    )
 
     assert len(pickle.loads(edge_data)) == 1
 
@@ -220,16 +232,18 @@ def test_get_graph_data_empty_graph(graph_creation_extension_empty_graph):
     extension_dir = graph_creation_extension_empty_graph
 
     # Load the extension and ensure it can be called.
-    handler.load_graph_creation_extensions(extension_dir)
+    handler.load_graph_creation_extensions(extension_dir.name)
     new_graph_id = handler.call_graph_creation_extension(
-        "graph_creation_function", "()", "{}")
+        "graph_creation_function", "()", "{}"
+    )
 
     invalid_vert_id = 2
     vert_data = handler.get_graph_vertex_data(
         id_or_ids=invalid_vert_id,
         null_replacement_value=0,
         graph_id=new_graph_id,
-        property_keys=None)
+        property_keys=None,
+    )
 
     assert len(pickle.loads(vert_data)) == 0
 
@@ -238,6 +252,7 @@ def test_get_graph_data_empty_graph(graph_creation_extension_empty_graph):
         id_or_ids=invalid_edge_id,
         null_replacement_value=0,
         graph_id=new_graph_id,
-        property_keys=None)
+        property_keys=None,
+    )
 
     assert len(pickle.loads(edge_data)) == 0

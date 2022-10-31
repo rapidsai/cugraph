@@ -210,8 +210,9 @@ class key_bucket_t {
         tags_     = std::move(merged_tags);
       } else {
         auto cur_size = vertices_.size();
-        vertices_.resize(cur_size + thrust::distance(key_first, key_last));
-        tags_.resize(vertices_.size());
+        vertices_.resize(cur_size + thrust::distance(key_first, key_last),
+                         handle_ptr_->get_stream());
+        tags_.resize(vertices_.size(), handle_ptr_->get_stream());
         thrust::copy(
           handle_ptr_->get_thrust_policy(),
           key_first,

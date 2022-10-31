@@ -27,7 +27,6 @@ extract_induced_subgraphs(raft::handle_t const& handle,
                           graph_view_t<int32_t, int32_t, float, true, true> const& graph_view,
                           raft::device_span<size_t const> subgraph_offsets,
                           raft::device_span<int32_t const> subgraph_vertices,
-                          size_t num_subgraphs,
                           bool do_expensive_check);
 
 template std::tuple<rmm::device_uvector<int32_t>,
@@ -38,7 +37,6 @@ extract_induced_subgraphs(raft::handle_t const& handle,
                           graph_view_t<int32_t, int32_t, float, false, true> const& graph_view,
                           raft::device_span<size_t const> subgraph_offsets,
                           raft::device_span<int32_t const> subgraph_vertices,
-                          size_t num_subgraphs,
                           bool do_expensive_check);
 
 template std::tuple<rmm::device_uvector<int32_t>,
@@ -49,7 +47,6 @@ extract_induced_subgraphs(raft::handle_t const& handle,
                           graph_view_t<int32_t, int32_t, double, true, true> const& graph_view,
                           raft::device_span<size_t const> subgraph_offsets,
                           raft::device_span<int32_t const> subgraph_vertices,
-                          size_t num_subgraphs,
                           bool do_expensive_check);
 
 template std::tuple<rmm::device_uvector<int32_t>,
@@ -60,7 +57,6 @@ extract_induced_subgraphs(raft::handle_t const& handle,
                           graph_view_t<int32_t, int32_t, double, false, true> const& graph_view,
                           raft::device_span<size_t const> subgraph_offsets,
                           raft::device_span<int32_t const> subgraph_vertices,
-                          size_t num_subgraphs,
                           bool do_expensive_check);
 
 template std::tuple<rmm::device_uvector<int32_t>,
@@ -71,7 +67,6 @@ extract_induced_subgraphs(raft::handle_t const& handle,
                           graph_view_t<int32_t, int64_t, float, true, true> const& graph_view,
                           raft::device_span<size_t const> subgraph_offsets,
                           raft::device_span<int32_t const> subgraph_vertices,
-                          size_t num_subgraphs,
                           bool do_expensive_check);
 
 template std::tuple<rmm::device_uvector<int32_t>,
@@ -82,7 +77,6 @@ extract_induced_subgraphs(raft::handle_t const& handle,
                           graph_view_t<int32_t, int64_t, float, false, true> const& graph_view,
                           raft::device_span<size_t const> subgraph_offsets,
                           raft::device_span<int32_t const> subgraph_vertices,
-                          size_t num_subgraphs,
                           bool do_expensive_check);
 
 template std::tuple<rmm::device_uvector<int32_t>,
@@ -93,7 +87,6 @@ extract_induced_subgraphs(raft::handle_t const& handle,
                           graph_view_t<int32_t, int64_t, double, true, true> const& graph_view,
                           raft::device_span<size_t const> subgraph_offsets,
                           raft::device_span<int32_t const> subgraph_vertices,
-                          size_t num_subgraphs,
                           bool do_expensive_check);
 
 template std::tuple<rmm::device_uvector<int32_t>,
@@ -104,7 +97,6 @@ extract_induced_subgraphs(raft::handle_t const& handle,
                           graph_view_t<int32_t, int64_t, double, false, true> const& graph_view,
                           raft::device_span<size_t const> subgraph_offsets,
                           raft::device_span<int32_t const> subgraph_vertices,
-                          size_t num_subgraphs,
                           bool do_expensive_check);
 
 template std::tuple<rmm::device_uvector<int64_t>,
@@ -115,7 +107,6 @@ extract_induced_subgraphs(raft::handle_t const& handle,
                           graph_view_t<int64_t, int64_t, float, true, true> const& graph_view,
                           raft::device_span<size_t const> subgraph_offsets,
                           raft::device_span<int64_t const> subgraph_vertices,
-                          size_t num_subgraphs,
                           bool do_expensive_check);
 
 template std::tuple<rmm::device_uvector<int64_t>,
@@ -126,7 +117,6 @@ extract_induced_subgraphs(raft::handle_t const& handle,
                           graph_view_t<int64_t, int64_t, float, false, true> const& graph_view,
                           raft::device_span<size_t const> subgraph_offsets,
                           raft::device_span<int64_t const> subgraph_vertices,
-                          size_t num_subgraphs,
                           bool do_expensive_check);
 
 template std::tuple<rmm::device_uvector<int64_t>,
@@ -137,7 +127,6 @@ extract_induced_subgraphs(raft::handle_t const& handle,
                           graph_view_t<int64_t, int64_t, double, true, true> const& graph_view,
                           raft::device_span<size_t const> subgraph_offsets,
                           raft::device_span<int64_t const> subgraph_vertices,
-                          size_t num_subgraphs,
                           bool do_expensive_check);
 
 template std::tuple<rmm::device_uvector<int64_t>,
@@ -148,7 +137,6 @@ extract_induced_subgraphs(raft::handle_t const& handle,
                           graph_view_t<int64_t, int64_t, double, false, true> const& graph_view,
                           raft::device_span<size_t const> subgraph_offsets,
                           raft::device_span<int64_t const> subgraph_vertices,
-                          size_t num_subgraphs,
                           bool do_expensive_check);
 
 }  // namespace cugraph

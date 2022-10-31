@@ -11,14 +11,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import gc
+import random
+
 import pytest
-import cugraph
 import cudf
+
+import cugraph
 from cugraph.testing import utils
 from cugraph import uniform_neighbor_sample
-from cugraph.experimental.datasets import (
-    DATASETS_UNDIRECTED, email_Eu_core, small_tree)
-import random
+from cugraph.experimental.datasets import DATASETS_UNDIRECTED, email_Eu_core, small_tree
 
 
 # =============================================================================
@@ -39,8 +40,8 @@ fixture_params = utils.genFixtureParamsProduct(
     (datasets, "graph_file"),
     (IS_DIRECTED, "directed"),
     ([False, True], "with_replacement"),
-    (["int32", "float32"], "indices_type")
-    )
+    (["int32", "float32"], "indices_type"),
+)
 
 
 @pytest.fixture(scope="module", params=fixture_params)
@@ -49,10 +50,12 @@ def input_combo(request):
     Simply return the current combination of params as a dictionary for use in
     tests or other parameterized fixtures.
     """
-    parameters = dict(zip(("graph_file",
-                           "directed",
-                           "with_replacement",
-                           "indices_type"), request.param))
+    parameters = dict(
+        zip(
+            ("graph_file", "directed", "with_replacement", "indices_type"),
+            request.param,
+        )
+    )
 
     indices_type = parameters["indices_type"]
 
@@ -64,12 +67,12 @@ def input_combo(request):
         delimiter=" ",
         names=["src", "dst", "value"],
         dtype=["int32", "int32", indices_type],
-        )
+    )
 
     G = cugraph.Graph(directed=directed)
     G.from_cudf_edgelist(
-        df, source='src', destination='dst',
-        edge_attr='value', legacy_renum_only=True)
+        df, source="src", destination="dst", edge_attr="value", legacy_renum_only=True
+    )
 
     parameters["Graph"] = G
 
@@ -96,6 +99,34 @@ def input_combo(request):
     return parameters
 
 
+@pytest.fixture(scope="module")
+def simple_unweighted_input_expected_output(request):
+    """
+    Fixture for providing the input for a uniform_neighbor_sample test using a
+    small/simple unweighted graph and the corresponding expected output.
+    """
+    test_data = {}
+
+    df = cudf.DataFrame(
+        {"src": [0, 1, 2, 2, 0, 1, 4, 4], "dst": [3, 2, 1, 4, 1, 3, 1, 2]}
+    )
+
+    G = cugraph.Graph()
+    G.from_cudf_edgelist(df, source="src", destination="dst")
+    test_data["Graph"] = G
+    test_data["start_list"] = cudf.Series([0], dtype="int32")
+    test_data["fanout_vals"] = [-1]
+    test_data["with_replacement"] = True
+
+    test_data["expected_src"] = [0, 0]
+    test_data["expected_dst"] = [3, 1]
+
+    return test_data
+
+
+# =============================================================================
+# Tests
+# =============================================================================
 def test_uniform_neighbor_sample_simple(input_combo):
 
     G = input_combo["Graph"]
@@ -114,10 +145,12 @@ def test_uniform_neighbor_sample_simple(input_combo):
     # should be 'None' if the datasets was never renumbered
     input_df = G.edgelist.edgelist_df
 
-    result_nbr = uniform_neighbor_sample(G,
-                                         input_combo["start_list"],
-                                         input_combo["fanout_vals"],
-                                         input_combo["with_replacement"])
+    result_nbr = uniform_neighbor_sample(
+        G,
+        input_combo["start_list"],
+        input_combo["fanout_vals"],
+        input_combo["with_replacement"],
+    )
 
     # multi edges are dropped to easily verify that each edge in the
     # results is present in the input dataframe
@@ -127,30 +160,39 @@ def test_uniform_neighbor_sample_simple(input_combo):
     # value are intermittently retuned. This observation is observed
     # when passing float weights
     join = result_nbr.merge(
-        input_df, left_on=[*result_nbr.columns[:2]],
-        right_on=[*input_df.columns[:2]])
+        input_df, left_on=[*result_nbr.columns[:2]], right_on=[*input_df.columns[:2]]
+    )
 
     if len(result_nbr) != len(join):
         join2 = input_df.merge(
-            result_nbr, how='right', left_on=[*input_df.columns],
-            right_on=[*result_nbr.columns])
+            result_nbr,
+            how="right",
+            left_on=[*input_df.columns],
+            right_on=[*result_nbr.columns],
+        )
         # The left part of the datasets shows which edge is missing from the
         # right part where the left and right part are respectively the
         # uniform-neighbor-sample results and the input dataframe.
-        difference = join2.sort_values([*result_nbr.columns]) \
-            .to_pandas().query(
-                'src.isnull()', engine='python')
+        difference = (
+            join2.sort_values([*result_nbr.columns])
+            .to_pandas()
+            .query("src.isnull()", engine="python")
+        )
 
         invalid_edge = difference[difference.columns[:3]]
-        raise Exception(f"\nThe edges below from uniform-neighbor-sample "
-                        f"are invalid\n {invalid_edge}")
+        raise Exception(
+            f"\nThe edges below from uniform-neighbor-sample "
+            f"are invalid\n {invalid_edge}"
+        )
 
     # Ensure the right indices type is returned
-    assert result_nbr['indices'].dtype == input_combo["indices_type"]
+    assert result_nbr["indices"].dtype == input_combo["indices_type"]
 
-    sampled_vertex_result = cudf.concat(
-        [result_nbr["sources"], result_nbr["destinations"]]). \
-        drop_duplicates().reset_index(drop=True)
+    sampled_vertex_result = (
+        cudf.concat([result_nbr["sources"], result_nbr["destinations"]])
+        .drop_duplicates()
+        .reset_index(drop=True)
+    )
 
     sampled_vertex_result = sampled_vertex_result.to_pandas()
     start_list = input_combo["start_list"].to_pandas()
@@ -164,8 +206,10 @@ def test_uniform_neighbor_sample_simple(input_combo):
         # If the missing vertices have outgoing edges, return an error
         if len(out_degree) != 0:
             missing_vertex = out_degree["vertex"].to_pandas().to_list()
-            raise Exception(f"vertex {missing_vertex} is missing from "
-                            f"uniform neighbor sampling results")
+            raise Exception(
+                f"vertex {missing_vertex} is missing from "
+                f"uniform neighbor sampling results"
+            )
 
 
 @pytest.mark.parametrize("directed", IS_DIRECTED)
@@ -178,7 +222,7 @@ def test_uniform_neighbor_sample_tree(directed):
         delimiter=" ",
         names=["src", "dst", "value"],
         dtype=["int32", "int32", "float32"],
-        )
+    )
 
     G = cugraph.Graph(directed=directed)
     G.from_cudf_edgelist(df, "src", "dst", "value", legacy_renum_only=True)
@@ -203,59 +247,45 @@ def test_uniform_neighbor_sample_tree(directed):
     start_list = cudf.Series([0, 0], dtype="int32")
     fanout_vals = [4, 1, 3]
     with_replacement = True
-    result_nbr = uniform_neighbor_sample(G,
-                                         start_list,
-                                         fanout_vals,
-                                         with_replacement)
+    result_nbr = uniform_neighbor_sample(G, start_list, fanout_vals, with_replacement)
 
     result_nbr = result_nbr.drop_duplicates()
 
     join = result_nbr.merge(
-        input_df, left_on=[*result_nbr.columns[:2]],
-        right_on=[*input_df.columns[:2]])
+        input_df, left_on=[*result_nbr.columns[:2]], right_on=[*input_df.columns[:2]]
+    )
 
     assert len(join) == len(result_nbr)
     # Since the validity of results have (probably) been tested at both the C++
     # and C layers, simply test that the python interface and conversions were
     # done correctly.
-    assert result_nbr['sources'].dtype == "int32"
-    assert result_nbr['destinations'].dtype == "int32"
-    assert result_nbr['indices'].dtype == "float32"
+    assert result_nbr["sources"].dtype == "int32"
+    assert result_nbr["destinations"].dtype == "int32"
+    assert result_nbr["indices"].dtype == "float32"
 
-    result_nbr_vertices = cudf.concat(
-        [result_nbr["sources"], result_nbr["destinations"]]). \
-        drop_duplicates().reset_index(drop=True)
-
-    assert set(
-        start_list.to_pandas()).issubset(set(result_nbr_vertices.to_pandas()))
-
-
-def test_uniform_neighbor_sample_unweighted():
-    df = cudf.DataFrame({
-        'src': [0, 1, 2, 2, 0, 1, 4, 4],
-        'dst': [3, 2, 1, 4, 1, 3, 1, 2]
-    })
-
-    G = cugraph.Graph()
-    G.from_cudf_edgelist(df, source='src', destination='dst')
-
-    start_list = cudf.Series([0], dtype="int32")
-    fanout_vals = [-1]
-    with_replacement = True
-
-    sampling_results = uniform_neighbor_sample(
-        G,
-        start_list,
-        fanout_vals,
-        with_replacement
+    result_nbr_vertices = (
+        cudf.concat([result_nbr["sources"], result_nbr["destinations"]])
+        .drop_duplicates()
+        .reset_index(drop=True)
     )
 
-    expected_src = [0, 0]
+    assert set(start_list.to_pandas()).issubset(set(result_nbr_vertices.to_pandas()))
+
+
+def test_uniform_neighbor_sample_unweighted(simple_unweighted_input_expected_output):
+    test_data = simple_unweighted_input_expected_output
+
+    sampling_results = uniform_neighbor_sample(
+        test_data["Graph"],
+        test_data["start_list"],
+        test_data["fanout_vals"],
+        test_data["with_replacement"],
+    )
+
     actual_src = sampling_results.sources
     actual_src = actual_src.to_arrow().to_pylist()
-    assert sorted(actual_src) == sorted(expected_src)
+    assert sorted(actual_src) == sorted(test_data["expected_src"])
 
-    expected_dst = [3, 1]
     actual_dst = sampling_results.destinations
     actual_dst = actual_dst.to_arrow().to_pylist()
-    assert sorted(actual_dst) == sorted(expected_dst)
+    assert sorted(actual_dst) == sorted(test_data["expected_dst"])

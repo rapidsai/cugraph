@@ -12,10 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from pathlib import Path
-from tempfile import TemporaryDirectory
-
 import pytest
+
+from . import utils
 
 graph_creation_extension1_file_contents = """
 import cudf
@@ -94,7 +93,6 @@ def graph_creation_function(server):
 """
 
 graph_creation_extension_big_vertex_ids_file_contents = """
-import time
 import cudf
 import cupy
 import dask_cudf
@@ -125,110 +123,109 @@ def graph_creation_function_vert_and_edge_data_big_vertex_ids(server):
    return pG
 """
 
+graph_creation_extension_large_property_graph_file_contents = """
+import cudf
+import cupy
+import dask_cudf
+from cugraph.experimental import PropertyGraph, MGPropertyGraph
+
+def graph_creation_extension_large_property_graph(server):
+   if server.is_mg:
+      pG = MGPropertyGraph()
+   else:
+      pG = PropertyGraph()
+
+   num_verts = 10e6
+   df = cudf.DataFrame({"vert_id":cupy.arange(num_verts, dtype="int32"),
+                        "vert_prop":cupy.arange(num_verts, dtype="int32"),
+                        })
+   if server.is_mg:
+      df = dask_cudf.from_cudf(df, npartitions=2)
+   pG.add_vertex_data(df, vertex_col_name="vert_id")
+
+   df = cudf.DataFrame({"src":cupy.arange(num_verts, dtype="int32"),
+                        "dst":cupy.arange(1, num_verts+1, dtype="int32"),
+                        "edge_prop":cupy.arange(num_verts, dtype="int32"),
+                        })
+   if server.is_mg:
+      df = dask_cudf.from_cudf(df, npartitions=2)
+   pG.add_edge_data(df, vertex_col_names=["src", "dst"])
+
+   return pG
+"""
+
 
 ###############################################################################
 # module scope fixtures
 
+
 @pytest.fixture(scope="module")
 def graph_creation_extension1():
-    with TemporaryDirectory() as tmp_extension_dir:
-        # write graph creation extension .py file
-        graph_creation_extension_file = open(
-            Path(tmp_extension_dir) /
-            "custom_graph_creation_extension.py",
-            "w")
-        print(graph_creation_extension1_file_contents,
-              file=graph_creation_extension_file,
-              flush=True)
+    tmp_extension_dir = utils.create_tmp_extension_dir(
+        graph_creation_extension1_file_contents
+    )
 
-        yield tmp_extension_dir
+    yield tmp_extension_dir
 
 
 @pytest.fixture(scope="module")
 def graph_creation_extension2():
-    with TemporaryDirectory() as tmp_extension_dir:
-        # write graph creation extension .py file
-        graph_creation_extension_file = open(
-            Path(tmp_extension_dir) /
-            "my_graph_creation_extension.py",
-            "w")
-        print(graph_creation_extension2_file_contents,
-              file=graph_creation_extension_file,
-              flush=True)
+    tmp_extension_dir = utils.create_tmp_extension_dir(
+        graph_creation_extension2_file_contents
+    )
 
-        yield tmp_extension_dir
+    yield tmp_extension_dir
 
 
 @pytest.fixture(scope="module")
 def graph_creation_extension_long_running():
-    with TemporaryDirectory() as tmp_extension_dir:
-        # write graph creation extension .py file
-        graph_creation_extension_file = open(
-            Path(tmp_extension_dir) /
-            "long_running_graph_creation_extension.py",
-            "w")
-        print(graph_creation_extension_long_running_file_contents,
-              file=graph_creation_extension_file,
-              flush=True)
+    tmp_extension_dir = utils.create_tmp_extension_dir(
+        graph_creation_extension_long_running_file_contents
+    )
 
-        yield tmp_extension_dir
+    yield tmp_extension_dir
 
 
 @pytest.fixture(scope="module")
 def graph_creation_extension_no_facade_arg():
-    with TemporaryDirectory() as tmp_extension_dir:
-        # write graph creation extension .py file
-        graph_creation_extension_file = open(
-            Path(tmp_extension_dir) /
-            "graph_creation_no_facade_arg_extension.py",
-            "w")
-        print(graph_creation_extension_no_facade_arg_file_contents,
-              file=graph_creation_extension_file,
-              flush=True)
+    tmp_extension_dir = utils.create_tmp_extension_dir(
+        graph_creation_extension_no_facade_arg_file_contents
+    )
 
-        yield tmp_extension_dir
+    yield tmp_extension_dir
 
 
 @pytest.fixture(scope="module")
 def graph_creation_extension_bad_arg_order():
-    with TemporaryDirectory() as tmp_extension_dir:
-        # write graph creation extension .py file
-        graph_creation_extension_file = open(
-            Path(tmp_extension_dir) /
-            "graph_creation_bad_arg_order_extension.py",
-            "w")
-        print(graph_creation_extension_bad_arg_order_file_contents,
-              file=graph_creation_extension_file,
-              flush=True)
+    tmp_extension_dir = utils.create_tmp_extension_dir(
+        graph_creation_extension_bad_arg_order_file_contents
+    )
 
-        yield tmp_extension_dir
+    yield tmp_extension_dir
 
 
 @pytest.fixture(scope="module")
 def graph_creation_extension_big_vertex_ids():
-    with TemporaryDirectory() as tmp_extension_dir:
-        # write graph creation extension .py file
-        graph_creation_extension_file = open(
-            Path(tmp_extension_dir) /
-            "graph_creation_big_vertex_ids_extension.py",
-            "w")
-        print(graph_creation_extension_big_vertex_ids_file_contents,
-              file=graph_creation_extension_file,
-              flush=True)
+    tmp_extension_dir = utils.create_tmp_extension_dir(
+        graph_creation_extension_big_vertex_ids_file_contents
+    )
 
-        yield tmp_extension_dir
+    yield tmp_extension_dir
 
 
 @pytest.fixture(scope="module")
 def graph_creation_extension_empty_graph():
-    with TemporaryDirectory() as tmp_extension_dir:
-        # write graph creation extension .py file
-        graph_creation_extension_file = open(
-            Path(tmp_extension_dir) /
-            "graph_creation_empty_graph_extension.py",
-            "w")
-        print(graph_creation_extension_empty_graph_file_contents,
-              file=graph_creation_extension_file,
-              flush=True)
+    tmp_extension_dir = utils.create_tmp_extension_dir(
+        graph_creation_extension_empty_graph_file_contents
+    )
 
-        yield tmp_extension_dir
+    yield tmp_extension_dir
+
+
+@pytest.fixture(scope="module")
+def graph_creation_extension_large_property_graph():
+    tmp_extension_dir = utils.create_tmp_extension_dir(
+        graph_creation_extension_large_property_graph_file_contents
+    )
+
+    yield tmp_extension_dir

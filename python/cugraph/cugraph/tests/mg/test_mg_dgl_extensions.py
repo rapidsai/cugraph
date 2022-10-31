@@ -39,7 +39,12 @@ def basic_mg_gs(dask_client):
 
     df_1 = dask_cudf.from_cudf(df_1, npartitions=2)
 
-    gs.add_edge_data(df_1, vertex_col_names=["src", "dst"], feat_name="edge_w")
+    gs.add_edge_data(
+        df_1,
+        node_col_names=["src", "dst"],
+        feat_name="edge_w",
+        contains_vector_features=True,
+    )
 
     df_2 = cudf.DataFrame(
         {
@@ -52,13 +57,14 @@ def basic_mg_gs(dask_client):
     df_2 = df_2.astype(np.int32)
 
     df_2 = dask_cudf.from_cudf(df_2, npartitions=2)
-    gs.add_node_data(df_2, node_col_name="id", feat_name="prop")
+    gs.add_node_data(
+        df_2, node_col_name="id", feat_name="prop", contains_vector_features=True
+    )
     return gs
 
 
-# @pytest.fixture(scope="module")
-# def gs_heterogeneous_dgl_eg(dask_client):
-def create_gs_heterogeneous_dgl_eg(dask_client):
+@pytest.fixture(scope="module")
+def gs_heterogeneous_dgl_eg(dask_client):
     pg = MGPropertyGraph()
     gs = CuGraphStore(pg)
     # Changing npartitions is leading to errors
@@ -87,14 +93,13 @@ def create_gs_heterogeneous_dgl_eg(dask_client):
     df = df.astype(np.int32)
     df = dask_cudf.from_cudf(df, npartitions=npartitions)
     for e in df["etype"].unique().compute().values_host:
-        subset_df = df[df["etype"] == e][
-            ["src", "dst", "edge_feat"]
-        ].reset_index(drop=True)
+        subset_df = df[df["etype"] == e][["src", "dst", "edge_feat"]].reset_index(
+            drop=True
+        )
         gs.add_edge_data(
             subset_df,
             ["src", "dst"],
-            feat_name="edge_feat",
-            etype=etype_map[e],
+            canonical_etype=etype_map[e],
         )
 
     # Add Node Data
@@ -107,9 +112,7 @@ def create_gs_heterogeneous_dgl_eg(dask_client):
     df = dask_cudf.from_cudf(df, npartitions=npartitions)
     for n in df["ntype"].unique().compute().values_host:
         subset_df = df[df["ntype"] == n][["node_id", "node_feat"]]
-        gs.add_node_data(
-            subset_df, "node_id", feat_name="node_feat", ntype=str(n)
-        )
+        gs.add_node_data(subset_df, "node_id", ntype=str(n))
 
     return gs
 
@@ -130,18 +133,14 @@ def test_sampling(basic_mg_gs):
 
 
 def test_get_node_storage(basic_mg_gs):
-    result = basic_mg_gs.get_node_storage(feat_name="prop").fetch(
-        indices=[2, 3]
-    )
+    result = basic_mg_gs.get_node_storage(key="prop").fetch(indices=[2, 3])
     expected_result = cp.asarray([[300, 3], [400, 2]]).astype(cp.int32)
 
     cp.testing.assert_array_equal(result, expected_result)
 
 
 def test_get_edge_storage(basic_mg_gs):
-    result = basic_mg_gs.get_edge_storage(feat_name="edge_w").fetch(
-        indices=[1, 2]
-    )
+    result = basic_mg_gs.get_edge_storage(key="edge_w").fetch(indices=[1, 2])
     expected_result = cp.asarray([[20, 21], [40, 41]]).astype(cp.int32)
 
     cp.testing.assert_array_equal(result, expected_result)
@@ -158,7 +157,7 @@ def test_sampling_homogeneous_gs_in_dir(dask_client):
 
     pg = MGPropertyGraph()
     gs = CuGraphStore(pg)
-    gs.add_edge_data(df, ["src", "dst"], feat_name="edges")
+    gs.add_edge_data(df, ["src", "dst"])
 
     # below are obtained from dgl runs on the same graph
     expected_in = {
@@ -204,7 +203,7 @@ def test_sampling_homogeneous_gs_out_dir(dask_client):
 
     pg = MGPropertyGraph()
     gs = CuGraphStore(pg)
-    gs.add_edge_data(df, ["src", "dst"], feat_name="edges")
+    gs.add_edge_data(df, ["src", "dst"])
 
     # below are obtained from dgl runs on the same graph
     expected_out = {
@@ -250,7 +249,7 @@ def test_sampling_homogeneous_gs_neg_one_fanout(dask_client):
 
     pg = MGPropertyGraph()
     gs = CuGraphStore(pg)
-    gs.add_edge_data(df, ["src", "dst"], feat_name="edges")
+    gs.add_edge_data(df, ["src", "dst"])
 
     # Results obtained by running DGL
     # sample_neighbors on the same graph
@@ -282,8 +281,8 @@ def test_sampling_homogeneous_gs_neg_one_fanout(dask_client):
 # Test against DGLs output
 # See below notebook
 # https://gist.github.com/VibhuJawa/f85fda8e1183886078f2a34c28c4638c
-def test_sampling_dgl_heterogeneous_gs_m_fanouts(dask_client):
-    gs = create_gs_heterogeneous_dgl_eg(dask_client)
+def test_sampling_dgl_heterogeneous_gs_m_fanouts(gs_heterogeneous_dgl_eg):
+    gs = gs_heterogeneous_dgl_eg
     expected_output = {
         1: {
             "('nt.a', 'connects', 'nt.b')": 0,
@@ -295,15 +294,11 @@ def test_sampling_dgl_heterogeneous_gs_m_fanouts(dask_client):
             "('nt.a', 'connects', 'nt.c')": 1,
             "('nt.c', 'connects', 'nt.c')": 2,
         },
-        # TODO: replace=False
-        # leads to 4 neighbors
-        # instead of 3 with dask.UniformSampling
-        # Raise issue and link here
-        # 3: {
-        #     "('nt.a', 'connects', 'nt.b')": 0,
-        #     "('nt.a', 'connects', 'nt.c')": 1,
-        #     "('nt.c', 'connects', 'nt.c')": 3,
-        # },
+        3: {
+            "('nt.a', 'connects', 'nt.b')": 0,
+            "('nt.a', 'connects', 'nt.c')": 1,
+            "('nt.c', 'connects', 'nt.c')": 3,
+        },
         -1: {
             "('nt.a', 'connects', 'nt.b')": 0,
             "('nt.a', 'connects', 'nt.c')": 1,
@@ -316,16 +311,14 @@ def test_sampling_dgl_heterogeneous_gs_m_fanouts(dask_client):
         sampled_node = [6]
         sampled_node_p = cudf.Series(sampled_node).astype(np.int32).to_dlpack()
 
-        sampled_g = gs.sample_neighbors(
-            {"nt.c": sampled_node_p}, fanout=fanout
-        )
+        sampled_g = gs.sample_neighbors({"nt.c": sampled_node_p}, fanout=fanout)
         sampled_g = convert_dlpack_dict_to_df(sampled_g)
         for etype, output_df in sampled_g.items():
             assert expected_output[fanout][etype] == len(output_df)
 
 
-def test_sampling_gs_heterogeneous_in_dir(dask_client):
-    gs = create_gs_heterogeneous_dgl_eg(dask_client)
+def test_sampling_gs_heterogeneous_in_dir(gs_heterogeneous_dgl_eg):
+    gs = gs_heterogeneous_dgl_eg
     # DGL expected_output from
     # https://gist.github.com/VibhuJawa/f85fda8e1183886078f2a34c28c4638c
     expeced_val_d = {
@@ -382,8 +375,8 @@ def test_sampling_gs_heterogeneous_in_dir(dask_client):
             cudf.testing.assert_frame_equal(output_df, expected_df)
 
 
-def test_sampling_gs_heterogeneous_out_dir(dask_client):
-    gs = create_gs_heterogeneous_dgl_eg(dask_client)
+def test_sampling_gs_heterogeneous_out_dir(gs_heterogeneous_dgl_eg):
+    gs = gs_heterogeneous_dgl_eg
     # DGL expected_output from
     # https://gist.github.com/VibhuJawa/f85fda8e1183886078f2a34c28c4638c
     expeced_val_d = {
@@ -449,6 +442,48 @@ def test_sampling_gs_heterogeneous_out_dir(dask_client):
                 }
             ).astype(np.int32)
             cudf.testing.assert_frame_equal(output_df, expected_df)
+
+
+def test_sampling_with_out_of_index_seed(dask_client):
+    pg = MGPropertyGraph()
+    gs = CuGraphStore(pg)
+    node_df = cudf.DataFrame()
+    node_df["node_id"] = cudf.Series([0, 1, 2, 3, 4, 5]).astype("int32")
+    node_df = dask_cudf.from_cudf(node_df, npartitions=2)
+    gs.add_node_data(node_df, "node_id", "_N")
+
+    edge_df = cudf.DataFrame()
+    edge_df["src"] = cudf.Series([0, 1, 2]).astype("int32")
+    edge_df["dst"] = cudf.Series([0, 0, 0]).astype("int32")
+    edge_df = dask_cudf.from_cudf(edge_df, npartitions=2)
+    gs.add_edge_data(edge_df, ["src", "dst"], canonical_etype="('_N', 'con.a', '_N')")
+
+    edge_df = cudf.DataFrame()
+    edge_df["src"] = cudf.Series([3, 4, 5]).astype("int32")
+    edge_df["dst"] = cudf.Series([3, 3, 3]).astype("int32")
+    edge_df = dask_cudf.from_cudf(edge_df, npartitions=2)
+    gs.add_edge_data(edge_df, ["src", "dst"], canonical_etype="('_N', 'con.b', '_N')")
+
+    output = gs.sample_neighbors(
+        {"_N": cudf.Series([0, 1, 3, 5], "int32").to_dlpack()}, fanout=3
+    )
+    output_e1 = (
+        cudf.from_dlpack(output["('_N', 'con.a', '_N')"][0])
+        .sort_values()
+        .reset_index(drop=True)
+    )
+    output_e2 = (
+        cudf.from_dlpack(output["('_N', 'con.b', '_N')"][0])
+        .sort_values()
+        .reset_index(drop=True)
+    )
+
+    cudf.testing.assert_series_equal(
+        output_e1, cudf.Series([0, 1, 2], dtype="int32", name=0)
+    )
+    cudf.testing.assert_series_equal(
+        output_e2, cudf.Series([3, 4, 5], dtype="int32", name=0)
+    )
 
 
 # Util to help testing

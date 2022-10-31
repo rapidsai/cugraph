@@ -66,5 +66,53 @@ template std::tuple<std::vector<int64_t>, std::vector<int64_t>, std::optional<st
 graph_to_host_coo(raft::handle_t const& handle,
                   cugraph::graph_view_t<int64_t, int64_t, double, true, false> const& graph_view);
 
+template std::tuple<std::vector<int32_t>, std::vector<int32_t>, std::optional<std::vector<float>>>
+graph_to_host_csr(raft::handle_t const& handle,
+                  cugraph::graph_view_t<int32_t, int32_t, float, false, false> const& graph_view);
+
+template std::tuple<std::vector<int64_t>, std::vector<int32_t>, std::optional<std::vector<float>>>
+graph_to_host_csr(raft::handle_t const& handle,
+                  cugraph::graph_view_t<int32_t, int64_t, float, false, false> const& graph_view);
+
+template std::tuple<std::vector<int64_t>, std::vector<int64_t>, std::optional<std::vector<float>>>
+graph_to_host_csr(raft::handle_t const& handle,
+                  cugraph::graph_view_t<int64_t, int64_t, float, false, false> const& graph_view);
+
+template std::tuple<std::vector<int32_t>, std::vector<int32_t>, std::optional<std::vector<double>>>
+graph_to_host_csr(raft::handle_t const& handle,
+                  cugraph::graph_view_t<int32_t, int32_t, double, false, false> const& graph_view);
+
+template std::tuple<std::vector<int64_t>, std::vector<int32_t>, std::optional<std::vector<double>>>
+graph_to_host_csr(raft::handle_t const& handle,
+                  cugraph::graph_view_t<int32_t, int64_t, double, false, false> const& graph_view);
+
+template std::tuple<std::vector<int64_t>, std::vector<int64_t>, std::optional<std::vector<double>>>
+graph_to_host_csr(raft::handle_t const& handle,
+                  cugraph::graph_view_t<int64_t, int64_t, double, false, false> const& graph_view);
+
+template std::tuple<std::vector<int32_t>, std::vector<int32_t>, std::optional<std::vector<float>>>
+graph_to_host_csr(raft::handle_t const& handle,
+                  cugraph::graph_view_t<int32_t, int32_t, float, true, false> const& graph_view);
+
+template std::tuple<std::vector<int64_t>, std::vector<int32_t>, std::optional<std::vector<float>>>
+graph_to_host_csr(raft::handle_t const& handle,
+                  cugraph::graph_view_t<int32_t, int64_t, float, true, false> const& graph_view);
+
+template std::tuple<std::vector<int64_t>, std::vector<int64_t>, std::optional<std::vector<float>>>
+graph_to_host_csr(raft::handle_t const& handle,
+                  cugraph::graph_view_t<int64_t, int64_t, float, true, false> const& graph_view);
+
+template std::tuple<std::vector<int32_t>, std::vector<int32_t>, std::optional<std::vector<double>>>
+graph_to_host_csr(raft::handle_t const& handle,
+                  cugraph::graph_view_t<int32_t, int32_t, double, true, false> const& graph_view);
+
+template std::tuple<std::vector<int64_t>, std::vector<int32_t>, std::optional<std::vector<double>>>
+graph_to_host_csr(raft::handle_t const& handle,
+                  cugraph::graph_view_t<int32_t, int64_t, double, true, false> const& graph_view);
+
+template std::tuple<std::vector<int64_t>, std::vector<int64_t>, std::optional<std::vector<double>>>
+graph_to_host_csr(raft::handle_t const& handle,
+                  cugraph::graph_view_t<int64_t, int64_t, double, true, false> const& graph_view);
+
 }  // namespace test
 }  // namespace cugraph

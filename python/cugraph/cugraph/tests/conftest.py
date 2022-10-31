@@ -26,6 +26,7 @@ from cugraph.dask.common.mg_utils import get_visible_devices
 
 # module-wide fixtures
 
+
 @pytest.fixture(scope="module")
 def dask_client():
     dask_scheduler_file = os.environ.get("SCHEDULER_FILE")
@@ -35,15 +36,15 @@ def dask_client():
 
     if dask_scheduler_file:
         # Env var UCX_MAX_RNDV_RAILS=1 must be set too.
-        initialize(enable_tcp_over_ucx=True,
-                   enable_nvlink=True,
-                   enable_infiniband=True,
-                   enable_rdmacm=True,
-                   # net_devices="mlx5_0:1",
-                   )
+        initialize(
+            enable_tcp_over_ucx=True,
+            enable_nvlink=True,
+            enable_infiniband=True,
+            enable_rdmacm=True,
+            # net_devices="mlx5_0:1",
+        )
         client = Client(scheduler_file=dask_scheduler_file)
-        print("\ndask_client fixture: client created using "
-              f"{dask_scheduler_file}")
+        print("\ndask_client fixture: client created using " f"{dask_scheduler_file}")
     else:
         # The tempdir created by tempdir_object should be cleaned up once
         # tempdir_object goes out-of-scope and is deleted.

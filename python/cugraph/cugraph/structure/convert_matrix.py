@@ -27,8 +27,14 @@ except ModuleNotFoundError:
     pd = None
 
 
-def from_edgelist(df, source='source', destination='destination',
-                  edge_attr=None, create_using=Graph, renumber=True):
+def from_edgelist(
+    df,
+    source="source",
+    destination="destination",
+    edge_attr=None,
+    create_using=Graph,
+    renumber=True,
+):
     """
     Return a new graph created from the edge list representaion.
 
@@ -70,12 +76,14 @@ def from_edgelist(df, source='source', destination='destination',
     df_type = type(df)
 
     if df_type is cudf.DataFrame:
-        return from_cudf_edgelist(df, source, destination,
-                                  edge_attr, create_using, renumber)
+        return from_cudf_edgelist(
+            df, source, destination, edge_attr, create_using, renumber
+        )
 
     elif (pd is not None) and (df_type is pd.DataFrame):
-        return from_pandas_edgelist(df, source, destination,
-                                    edge_attr, create_using, renumber)
+        return from_pandas_edgelist(
+            df, source, destination, edge_attr, create_using, renumber
+        )
 
     elif df_type is dask_cudf.core.DataFrame:
         if create_using is None:
@@ -88,9 +96,11 @@ def from_edgelist(df, source='source', destination='destination',
         elif type(create_using) is type(Graph):
             G = create_using()
         else:
-            raise TypeError("create_using must be a cugraph.Graph "
-                            "(or subclass) type or instance, got: "
-                            f"{type(create_using)}")
+            raise TypeError(
+                "create_using must be a cugraph.Graph "
+                "(or subclass) type or instance, got: "
+                f"{type(create_using)}"
+            )
         G.from_dask_cudf_edgelist(df, source, destination, edge_attr, renumber)
         return G
 
@@ -134,13 +144,15 @@ def from_adjlist(offsets, indices, values=None, create_using=Graph):
     offsets_type = type(offsets)
     indices_type = type(indices)
     if offsets_type != indices_type:
-        raise TypeError(f"'offsets' type {offsets_type} != 'indices' "
-                        f"type {indices_type}")
+        raise TypeError(
+            f"'offsets' type {offsets_type} != 'indices' " f"type {indices_type}"
+        )
     if values is not None:
         values_type = type(values)
         if values_type != offsets_type:
-            raise TypeError(f"'values' type {values_type} != 'offsets' "
-                            f"type {offsets_type}")
+            raise TypeError(
+                f"'values' type {values_type} != 'offsets' " f"type {offsets_type}"
+            )
 
     if create_using is None:
         G = Graph()
@@ -152,16 +164,21 @@ def from_adjlist(offsets, indices, values=None, create_using=Graph):
     elif type(create_using) is type(Graph):
         G = create_using()
     else:
-        raise TypeError("create_using must be a cugraph.Graph "
-                        "(or subclass) type or instance, got: "
-                        f"{type(create_using)}")
+        raise TypeError(
+            "create_using must be a cugraph.Graph "
+            "(or subclass) type or instance, got: "
+            f"{type(create_using)}"
+        )
 
     if offsets_type is cudf.Series:
         G.from_cudf_adjlist(offsets, indices, values)
 
     elif (pd is not None) and (offsets_type is pd.Series):
-        G.from_cudf_adjlist(cudf.Series(offsets), cudf.Series(indices),
-                            None if values is None else cudf.Series(values))
+        G.from_cudf_adjlist(
+            cudf.Series(offsets),
+            cudf.Series(indices),
+            None if values is None else cudf.Series(values),
+        )
 
     else:
         raise TypeError(f"obj of type {offsets_type} is not supported.")
@@ -169,8 +186,14 @@ def from_adjlist(offsets, indices, values=None, create_using=Graph):
     return G
 
 
-def from_cudf_edgelist(df, source='source', destination='destination',
-                       edge_attr=None, create_using=Graph, renumber=True):
+def from_cudf_edgelist(
+    df,
+    source="source",
+    destination="destination",
+    edge_attr=None,
+    create_using=Graph,
+    renumber=True,
+):
     """
     Return a new graph created from the edge list representaion. This function
     is added for NetworkX compatibility (this function is a RAPIDS version of
@@ -222,22 +245,31 @@ def from_cudf_edgelist(df, source='source', destination='destination',
     elif type(create_using) is type(Graph):
         G = create_using()
     else:
-        raise TypeError("create_using must be a cugraph.Graph "
-                        "(or subclass) type or instance, got: "
-                        f"{type(create_using)}")
+        raise TypeError(
+            "create_using must be a cugraph.Graph "
+            "(or subclass) type or instance, got: "
+            f"{type(create_using)}"
+        )
 
-    G.from_cudf_edgelist(df, source=source, destination=destination,
-                         edge_attr=edge_attr, renumber=renumber)
+    G.from_cudf_edgelist(
+        df,
+        source=source,
+        destination=destination,
+        edge_attr=edge_attr,
+        renumber=renumber,
+    )
 
     return G
 
 
-def from_pandas_edgelist(df,
-                         source="source",
-                         destination="destination",
-                         edge_attr=None,
-                         create_using=Graph,
-                         renumber=True):
+def from_pandas_edgelist(
+    df,
+    source="source",
+    destination="destination",
+    edge_attr=None,
+    create_using=Graph,
+    renumber=True,
+):
     """
     Initialize a graph from the edge list. It is an error to call this
     method on an initialized Graph object. Source argument is source
@@ -300,16 +332,23 @@ def from_pandas_edgelist(df,
     elif type(create_using) is type(Graph):
         G = create_using()
     else:
-        raise TypeError("create_using must be a cugraph.Graph "
-                        "(or subclass) type or instance, got: "
-                        f"{type(create_using)}")
+        raise TypeError(
+            "create_using must be a cugraph.Graph "
+            "(or subclass) type or instance, got: "
+            f"{type(create_using)}"
+        )
 
-    G.from_pandas_edgelist(df, source=source, destination=destination,
-                           edge_attr=edge_attr, renumber=renumber)
+    G.from_pandas_edgelist(
+        df,
+        source=source,
+        destination=destination,
+        edge_attr=edge_attr,
+        renumber=renumber,
+    )
     return G
 
 
-def to_pandas_edgelist(G, source='src', destination='dst'):
+def to_pandas_edgelist(G, source="src", destination="dst"):
     """
     Returns the graph edge list as a Pandas DataFrame.
 
@@ -357,9 +396,11 @@ def from_pandas_adjacency(df, create_using=Graph):
     elif type(create_using) is type(Graph):
         G = create_using()
     else:
-        raise TypeError("create_using must be a cugraph.Graph "
-                        "(or subclass) type or instance, got: "
-                        f"{type(create_using)}")
+        raise TypeError(
+            "create_using must be a cugraph.Graph "
+            "(or subclass) type or instance, got: "
+            f"{type(create_using)}"
+        )
 
     G.from_pandas_adjacency(df)
     return G
@@ -402,9 +443,11 @@ def from_numpy_array(A, create_using=Graph):
     elif type(create_using) is type(Graph):
         G = create_using()
     else:
-        raise TypeError("create_using must be a cugraph.Graph "
-                        "(or subclass) type or instance, got: "
-                        f"{type(create_using)}")
+        raise TypeError(
+            "create_using must be a cugraph.Graph "
+            "(or subclass) type or instance, got: "
+            f"{type(create_using)}"
+        )
 
     G.from_numpy_array(A)
     return G
@@ -446,9 +489,11 @@ def from_numpy_matrix(A, create_using=Graph):
     elif type(create_using) is type(Graph):
         G = create_using()
     else:
-        raise TypeError("create_using must be a cugraph.Graph "
-                        "(or subclass) type or instance, got: "
-                        f"{type(create_using)}")
+        raise TypeError(
+            "create_using must be a cugraph.Graph "
+            "(or subclass) type or instance, got: "
+            f"{type(create_using)}"
+        )
 
     G.from_numpy_matrix(A)
     return G
