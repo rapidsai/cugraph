@@ -83,6 +83,28 @@ class CuFeatureStorage:
         -------
         Tensor
             Feature data stored in PyTorch Tensor.
+
+        Examples
+        >>> import cugraph
+        >>> import cudf
+        >>> from cugraph.experimental import PropertyGraph
+        >>> from cugraph.gnn import CuGraphStore
+        >>> from cugraph.experimental.datasets import karate_disjoint
+        >>> import cupy as cp
+        >>> cu_M = karate_disjoint.get_edgelist(fetch=True).rename(
+        ...         columns={"src": "0", "dst": "1", "wgt": "2"}
+        ...     )
+        >>> pG = PropertyGraph()
+        >>> gstore = cugraph.gnn.CuGraphStore(graph=pG, backend_lib="cupy")
+        >>> gstore.add_edge_data(
+        ...         cu_M,
+        ...         node_col_names=("0", "1"),
+        ...         feat_name="edge_feat",
+        ...     )
+        >>> edata_f = gstore.get_edge_storage("edge_feat")
+        >>> edata = edata_f.fetch(indices=[0, 1], device="cuda")
+        >>> print(edata)
+        [1. 1.]
         """
         # Default implementation uses synchronous fetch.
 

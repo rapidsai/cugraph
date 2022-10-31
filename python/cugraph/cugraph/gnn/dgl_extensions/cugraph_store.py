@@ -46,6 +46,16 @@ class CuGraphStore:
     """
 
     def __init__(self, graph, backend_lib="torch"):
+        """
+        Parameters
+        ----------
+        graph : PropertyGraph or MGPropertyGraph
+            Contains nodes, edges and their properties
+        backend_lib : string (default="torch")
+            Contains the supported backend to use. Can be one of torch, tf,
+            or cupy.
+
+        """
         if isinstance(graph, (PropertyGraph, MGPropertyGraph)):
             self.__G = graph
         else:
@@ -93,6 +103,18 @@ class CuGraphStore:
         Returns
         -------
         None
+        >>> import cudf
+        >>> from cugraph.experimental import PropertyGraph
+        >>> from cugraph.gnn import CuGraphStore
+        >>> pg = PropertyGraph()
+        >>> gs = CuGraphStore(pg, backend_lib="cupy")
+        >>> df = cudf.DataFrame()
+        >>> df["node_id"] = [1, 2, 3]
+        >>> df["node_scaler_feat_1"] = [10, 20, 30]
+        >>> df["node_scaler_feat_2"] = [15, 25, 35]
+        >>> gs.add_node_data(df, "node_id", contains_vector_features=False)
+        >>> print(gs.get_node_storage("node_scaler_feat_1").fetch([1, 3]))
+        [10 30]
         """
         self.gdata.add_vertex_data(df, vertex_col_name=node_col_name, type_name=ntype)
         columns = [col for col in list(df.columns) if col != node_col_name]
@@ -138,6 +160,23 @@ class CuGraphStore:
         Returns
         -------
         None
+
+        Examples
+        --------
+        >>> import cugraph
+        >>> import cudf
+        >>> import numpy as np
+        >>> from cugraph.experimental import PropertyGraph
+        >>> from cugraph.gnn import CuGraphStore
+        >>> src_ser = cudf.Series([1, 1, 1, 1, 1, 2, 2, 3])
+        >>> dst_ser = cudf.Series([2, 3, 4, 5, 6, 3, 4, 7])
+        >>> df = cudf.DataFrame(
+        ...     {"src": src_ser, "dst": dst_ser, "edge_id": np.arange(len(src_ser))})
+        >>> pg = PropertyGraph()
+        >>> gs = CuGraphStore(pg)
+        >>> gs.add_edge_data(df, ["src", "dst"])
+        >>> gs.num_edges()
+        8
         """
         self.gdata.add_edge_data(
             df, vertex_col_names=node_col_names, type_name=canonical_etype
@@ -151,6 +190,33 @@ class CuGraphStore:
         self.__clear_cached_properties()
 
     def get_node_storage(self, key, ntype=None, indices_offset=0):
+        """
+        Parameters
+        ----------
+        key : str
+            Name of the edge property to return
+        ntype : str, optional
+            The type of nodes to return. Required
+            if there is more than one edge type.
+        indices_offset : int (default=0)
+            Starting value for the contiguous node id
+            values.gi
+
+        Examples
+        --------
+        >>> import cudf
+        >>> from cugraph.experimental import PropertyGraph
+        >>> from cugraph.gnn import CuGraphStore
+        >>> pg = PropertyGraph()
+        >>> gs = CuGraphStore(pg, backend_lib="cupy")
+        >>> df = cudf.DataFrame()
+        >>> df["node_id"] = [1, 2, 3]
+        >>> df["node_scaler_feat_1"] = [10, 20, 30]
+        >>> df["node_scaler_feat_2"] = [15, 25, 35]
+        >>> gs.add_node_data(df, "node_id", contains_vector_features=False)
+        >>> print(gs.get_node_storage("node_scaler_feat_1").fetch([1, 3]))
+        [10 30]
+        """
         if ntype is None:
             ntypes = self.ntypes
             if len(self.ntypes) > 1:
@@ -178,6 +244,31 @@ class CuGraphStore:
         )
 
     def get_edge_storage(self, key, etype=None, indices_offset=0):
+        """
+        Gets the property data from edges in the graph
+
+        Parameters
+        ----------
+        key : str
+            Name of the edge property to return
+        etype : str, optional
+            The type of the edge to return. Required
+            if there is more than one edge type.
+        indices_offset : int (default=0)
+            Starting value for the contiguous edge id
+            values.
+
+        Returns
+        -------
+        CuFeatureStorage
+            Storage of an edge column feature in the existing
+            background lib.
+        Examples
+        --------
+        CuFeatureStorage
+            Storage containing the edge property of the edge
+            type specified.
+        """
         if etype is None:
             etypes = self.etypes
             if len(self.etypes) > 1:
