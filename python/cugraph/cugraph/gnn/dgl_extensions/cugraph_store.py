@@ -47,12 +47,14 @@ class CuGraphStore:
 
     def __init__(self, graph, backend_lib="torch"):
         """
+        Creates a store for properties in a PropertyGraph
+        
         Parameters
         ----------
         graph : PropertyGraph or MGPropertyGraph
             Contains nodes, edges and their properties
         backend_lib : string (default="torch")
-            Contains the supported backend to use. Can be one of torch, tf,
+            Determines the supported backend to use. Can be one of torch, tf,
             or cupy.
 
         """
@@ -157,6 +159,7 @@ class CuGraphStore:
         contains_vector_features : False
             Whether to treat the columns of the dataframe being added as
             as 2d features
+        
         Returns
         -------
         None
@@ -191,6 +194,8 @@ class CuGraphStore:
 
     def get_node_storage(self, key, ntype=None, indices_offset=0):
         """
+        
+        
         Parameters
         ----------
         key : str
@@ -201,6 +206,11 @@ class CuGraphStore:
         indices_offset : int (default=0)
             Starting value for the contiguous node id
             values.gi
+
+        Returns
+        -------
+        CuFeatureStorage
+            Storage containing the values for the property.
 
         Examples
         --------
@@ -263,6 +273,7 @@ class CuGraphStore:
         CuFeatureStorage
             Storage of an edge column feature in the existing
             background lib.
+
         Examples
         --------
         CuFeatureStorage
@@ -296,25 +307,64 @@ class CuGraphStore:
         )
 
     def num_nodes(self, ntype=None):
+        """
+        The number of nodes of the specified type or all
+
+        Parameters
+        ----------
+        ntype : string, optional
+            the type of node to count, or count all by default.
+
+        Returns
+        -------
+        int
+            The number of nodes.
+
+        """
         return self.gdata.get_num_vertices(ntype)
 
     def num_edges(self, etype=None):
+        """
+        The number of edges of the specified type or all
+
+        Parameters
+        ----------
+        etype : string, optional
+            the type of edge to count, or count all by default.
+
+        Returns
+        -------
+        int
+            The number of edges.
+        """
         return self.gdata.get_num_edges(etype)
 
     @cached_property
     def has_multiple_etypes(self):
+        """
+        True if the graph has multiple edge types
+        """
         return len(self.etypes) > 1
 
     @property
     def ntypes(self):
+        """
+        True if the graph has multiple vertex types
+        """
         return sorted(self.gdata.vertex_types)
 
     @property
     def etypes(self):
+        """
+        List of the edge types in the graph
+        """
         return sorted(self.gdata.edge_types)
 
     @property
     def is_mg(self):
+        """
+        True if the underlying graph spans multiple GPUs
+        """
         return isinstance(self.gdata, MGPropertyGraph)
 
     @property
@@ -517,21 +567,24 @@ class CuGraphStore:
         return self._sg_node_dtype
 
     def find_edges(self, edge_ids_cap, etype):
-        """Return the source and destination node IDs given the edge IDs within
+        """
+        Return the source and destination node IDs given the edge IDs within
         the given edge type.
 
         Parameters
         ----------
-        edge_ids_cap :  Dlpack of Node IDs (single dimension)
-            The edge ids  to find
+        edge_ids_cap : Dlpack of Node IDs (single dimension)
+            The edge ids to find
+        etype : string
+            The edge type(s) to include
 
         Returns
         -------
         DLPack capsule
-            The src nodes for the given ids
+            The source nodes for the given ids
 
         DLPack capsule
-            The dst nodes for the given ids
+            The destination nodes for the given ids
         """
         edge_ids = cudf.from_dlpack(edge_ids_cap)
         subset_df = self.gdata.get_edge_data(
