@@ -4,10 +4,7 @@
 #   conda build -c nvidia -c rapidsai -c conda-forge  .
 {% set version = environ.get('GIT_DESCRIBE_TAG', '0.0.0.dev').lstrip('v') + environ.get('VERSION_SUFFIX', '') %}
 {% set minor_version =  version.split('.')[0] + '.' + version.split('.')[1] %}
-{% set cuda_version='.'.join(environ.get('CUDA', 'unknown').split('.')[:2]) %}
-{% set cuda_major=cuda_version.split('.')[0] %}
-{% set py_version=environ.get('CONDA_PY', 36) %}
-{% set ucx_py_version=environ.get('UCX_PY_VERSION') %}
+
 
 package:
   name: cugraph-service-split
@@ -15,66 +12,19 @@ package:
 source:
   git_url: ../../..
 
-build:
-  script_env:
-    - PARALLEL_LEVEL
-    - VERSION_SUFFIX
-    - CMAKE_GENERATOR
-    - CMAKE_C_COMPILER_LAUNCHER
-    - CMAKE_CXX_COMPILER_LAUNCHER
-    - CMAKE_CUDA_COMPILER_LAUNCHER
-    - SCCACHE_S3_KEY_PREFIX=libcugraph-aarch64 # [aarch64]
-    - SCCACHE_S3_KEY_PREFIX=libcugraph-linux64 # [linux64]
-    - SCCACHE_BUCKET=rapids-sccache
-    - SCCACHE_REGION=us-west-2
-    - SCCACHE_IDLE_TIMEOUT=32768
 
 requirements:
-  build:
-    - cmake {{ cmake_version }}
-    - {{ compiler('c') }}
-    - {{ compiler('cxx') }}
-    - {{ compiler('cuda') }} {{ cuda_version }}
-    - sysroot_{{ target_platform }} {{ sysroot_version }}
   host:
     - python x.x
-    - cython>=0.29,<0.30
-    - scikit-build>=0.13.1
-    - libcugraph={{ version }}
-    - libraft-headers={{ minor_version }}
-    - libraft-distance {{ minor_version }}
-    - ucx-py {{ ucx_py_version }}
-    - ucx-proc=*=gpu
-    - cudatoolkit {{ cuda_version }}.*
-    - rmm {{ minor_version }}.*
     # FIXME: this pin can be removed once we move to the GitHub Actions build process
     - setuptools<=65.2.0
   run:
     - python x.x
-    - libcugraph={{ version }}
-    - {{ pin_compatible('cudatoolkit', max_pin='x', min_pin='x') }}
+    - thriftpy2
 
 outputs:
   - name: cugraph-service-client
     version: {{ version }}
-    script: install_cugraph_service_client.sh
-    build:
-      number: {{ GIT_DESCRIBE_NUMBER }}
-      string: cuda{{ cuda_major }}_{{ GIT_DESCRIBE_HASH }}_{{ GIT_DESCRIBE_NUMBER }}
-      ignore_run_exports_from:
-        - {{ compiler('cuda') }}
-    requirements:
-      build:
-        - cmake {{ cmake_version }}
-      run:
-        - cudatoolkit {{ cuda_spec }}
-        - libraft-headers {{ minor_version }}
-        - libraft-distance {{ minor_version }}
-        - librmm {{ minor_version }}
-        - nccl {{ nccl_version }}
-        - ucx-proc=*=gpu
-        - libcugraphops {{ minor_version }}
-        - libcusolver {{ libcusolver_version }}
     about:
       home: http://rapids.ai/
       license: Apache-2.0
@@ -82,23 +32,17 @@ outputs:
       summary: libcugraph library
   - name:  cugraph-service-server
     version: {{ version }}
-    script: install_libcugraph_etl.sh
-    build:
-      number: {{ GIT_DESCRIBE_NUMBER }}
-      string: cuda{{ cuda_major }}_{{ GIT_DESCRIBE_HASH }}_{{ GIT_DESCRIBE_NUMBER }}
-      ignore_run_exports_from:
-        - {{ compiler('cuda') }}
     requirements:
-      build:
-        - cmake {{ cmake_version }}
       run:
-        - {{ pin_subpackage('libcugraph', exact=True) }}
-        - cudatoolkit {{ cuda_spec }}
-        - libcudf {{ minor_version }}
-        - librmm {{ minor_version }}
+	- {{ pin_subpackage('cugraph-service-client', exact=True) }}
+        - {{ pin_subpackage('cugraph', exact=True) }}
+        - cupy
+	- numpy
+	- ucx-py
+	- distributed>=2022.9.2
+	- dask-cuda
     about:
       home: http://rapids.ai/
       license: Apache-2.0
       license_file: ../../../LICENSE
       summary: libcugraph_etl library
-
