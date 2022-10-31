@@ -79,7 +79,7 @@ def random_walks(G, start_vertices, max_depth=None, use_padding=False):
     # of vertices with no outgoing link
     vertex_set = vertex_set.dropna().reset_index(drop=True)
     # Compress the 'edge_set' by dropping 'NA'
-    edge_set.replace(0.0, None, inplace=True)  # np.nan
+    edge_set.replace(0.0, None, inplace=True)
     edge_set = edge_set.dropna().reset_index(drop=True)
     return vertex_set, edge_set, sizes
 
