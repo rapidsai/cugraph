@@ -12,7 +12,10 @@
 # limitations under the License.
 
 from pylibcugraph import ResourceHandle
-from pylibcugraph import uniform_random_walks as pylibcugraph_uniform_random_walks
+from pylibcugraph.experimental import (
+    uniform_random_walks as pylibcugraph_uniform_random_walks,
+)
+
 from cugraph.utilities import ensure_cugraph_obj_for_nx
 
 import cudf

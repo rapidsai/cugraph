@@ -49,3 +49,7 @@ find_bicliques = deprecated_warning_wrapper(
 )
 
 from cugraph.experimental.datasets.dataset import Dataset
+
+from cugraph.experimental.sampling.uniform_random_walks import uniform_random_walks
+
+uniform_random_walks = experimental_warning_wrapper(uniform_random_walks)

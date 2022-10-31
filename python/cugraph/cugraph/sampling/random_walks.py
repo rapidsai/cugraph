@@ -1,5 +1,6 @@
 import cudf
-from cugraph.sampling.uniform_random_walks import uniform_random_walks
+from cugraph.experimental.sampling.uniform_random_walks import uniform_random_walks
+
 import warnings
 
 
