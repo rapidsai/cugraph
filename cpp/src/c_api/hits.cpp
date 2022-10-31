@@ -99,8 +99,8 @@ struct hits_functor : public cugraph::c_api::abstract_functor {
         if (error_code_ != CUGRAPH_SUCCESS) return;
       }
 
-      auto graph = reinterpret_cast<cugraph::graph_t<vertex_t, edge_t, weight_t, true, multi_gpu>*>(
-        graph_->graph_);
+      auto graph =
+        reinterpret_cast<cugraph::graph_t<vertex_t, edge_t, true, multi_gpu>*>(graph_->graph_);
 
       auto graph_view = graph->view();
 

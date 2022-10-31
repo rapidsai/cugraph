@@ -103,8 +103,9 @@ struct two_hop_neighbors_functor : public cugraph::c_api::abstract_functor {
     if constexpr (!cugraph::is_candidate<vertex_t, edge_t, weight_t>::value) {
       unsupported();
     } else {
-      auto graph = reinterpret_cast<
-        cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>*>(graph_->graph_);
+      auto graph =
+        reinterpret_cast<cugraph::graph_t<vertex_t, edge_t, store_transposed, multi_gpu>*>(
+          graph_->graph_);
 
       auto graph_view = graph->view();
 

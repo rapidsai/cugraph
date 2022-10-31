@@ -79,8 +79,7 @@ struct bfs_functor : public abstract_functor {
       }
 
       auto graph =
-        reinterpret_cast<cugraph::graph_t<vertex_t, edge_t, weight_t, false, multi_gpu>*>(
-          graph_->graph_);
+        reinterpret_cast<cugraph::graph_t<vertex_t, edge_t, false, multi_gpu>*>(graph_->graph_);
 
       auto graph_view = graph->view();
 
@@ -113,7 +112,7 @@ struct bfs_functor : public abstract_functor {
                                                  graph_view.local_vertex_partition_range_last(),
                                                  do_expensive_check_);
 
-      cugraph::bfs<vertex_t, edge_t, weight_t, multi_gpu>(
+      cugraph::bfs<vertex_t, edge_t, multi_gpu>(
         handle_,
         graph_view,
         distances.data(),
