@@ -88,7 +88,7 @@ def uniform_random_walks(ResourceHandle resource_handle,
     Returns
     -------
     A tuple containing two device arrays and an size_t which are respectively
-    the vertices path, the edge path weights and path sizes
+    the vertices path, the edge path weights and the maximum path length
 
     """
     cdef cugraph_resource_handle_t* c_resource_handle_ptr = \

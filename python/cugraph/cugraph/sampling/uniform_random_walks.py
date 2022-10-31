@@ -15,13 +15,12 @@ from pylibcugraph import ResourceHandle
 from pylibcugraph import uniform_random_walks as pylibcugraph_uniform_random_walks
 from cugraph.utilities import ensure_cugraph_obj_for_nx
 
-# FIXME: get rid of this call as it is using 'cython.cu'
-from cugraph.sampling import random_walks_wrapper
-
 import cudf
 
 
-def uniform_random_walks(G, start_vertices, max_depth=None, use_padding=False):
+# FIXME: PLC uniform random walks returns a padded results.
+# Should we also support the unpadded option?
+def uniform_random_walks(G, start_vertices, max_depth=None):
     """
     compute random walks for each nodes in 'start_vertices'
 
@@ -38,9 +37,6 @@ def uniform_random_walks(G, start_vertices, max_depth=None, use_padding=False):
     max_depth : int
         The maximum depth of the random walks
 
-    use_padding : bool, optional (default=False)
-        If True, padded paths are returned else coalesced paths are returned.
-
     Returns
     -------
     vertex_paths : cudf.Series or cudf.DataFrame
@@ -50,15 +46,15 @@ def uniform_random_walks(G, start_vertices, max_depth=None, use_padding=False):
         Series containing the edge weights of edges represented by the
         returned vertex_paths
 
-    sizes: int
-        The path size in case of coalesced paths.
+    max_path_length : int
+        The maximum path length
 
     Examples
     --------
     >>> from cugraph.experimental.datasets import karate
     >>> M = karate.get_edgelist(fetch=True)
     >>> G = karate.get_graph()
-    >>> _, _, _, _ = cugraph.random_walks(G, M, 3)
+    >>> _, _, _ = cugraph.uniform_random_walks(G, M, 3)
 
     """
     if max_depth is None:
@@ -74,9 +70,8 @@ def uniform_random_walks(G, start_vertices, max_depth=None, use_padding=False):
     if isinstance(start_vertices, int):
         start_vertices = [start_vertices]
 
-    # FIXME: Match the start_vertices type to the edgelist type
     if isinstance(start_vertices, list):
-        start_vertices = cudf.Series(start_vertices, dtype="int32")
+        start_vertices = cudf.Series(start_vertices)
 
     if G.renumbered is True:
         if isinstance(start_vertices, cudf.DataFrame):
@@ -86,7 +81,6 @@ def uniform_random_walks(G, start_vertices, max_depth=None, use_padding=False):
         else:
             start_vertices = G.lookup_internal_vertex_id(start_vertices)
 
-    sizes = None
     vertex_set, edge_set, max_path_length = pylibcugraph_uniform_random_walks(
         resource_handle=ResourceHandle(),
         input_graph=G._plc_graph,
@@ -100,44 +94,6 @@ def uniform_random_walks(G, start_vertices, max_depth=None, use_padding=False):
         df_ = G.unrenumber(df_, "vertex_set", preserve_order=True)
         vertex_set = cudf.Series(df_["vertex_set"])
 
-    # FIXME: The call below is from the legacy implementation
-    # What difference does this make?
-    if use_padding:
-        edge_set_sz = (max_depth - 1) * len(start_vertices)
-        return vertex_set, edge_set[:edge_set_sz], sizes
+    edge_set = cudf.Series(edge_set)
 
-    # FIXME: What is the use of this?
-    """
-    vertex_set_sz = sizes.sum()
-    edge_set_sz = vertex_set_sz - len(start_vertices)
-    """
-    # FIXME: wouldn't 'vertex_set_sz' and 'edge_set_sz' always be the
-    # size of 'vertex_set' and 'edge_set'?
-    # return vertex_set[:vertex_set_sz], edge_set[:edge_set_sz], sizes
     return vertex_set, edge_set, max_path_length
-
-
-def rw_path(num_paths, sizes):
-    """
-    Retrieve more information on the obtained paths in case use_padding
-    is False.
-
-    parameters
-    ----------
-    num_paths: int
-        Number of paths in the random walk output.
-
-    sizes: int
-        Path size returned in random walk output.
-
-    Returns
-    -------
-    path_data : cudf.DataFrame
-        Dataframe containing vetex path offsets, edge weight offsets and
-        edge weight sizes for each path.
-    """
-    # FIXME: leverage dask to get these metrics since the call below
-    # lives in cython.cu ?
-    # Is the below code generic, or does it retrieve/leverage the results
-    # from 'random_walks'?
-    return random_walks_wrapper.rw_path_retrieval(num_paths, sizes)
