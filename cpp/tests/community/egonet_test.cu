@@ -74,11 +74,17 @@ class Tests_InducedEgo : public ::testing::TestWithParam<InducedEgo_Usecase> {
     auto stream_pool = std::make_shared<rmm::cuda_stream_pool>(n_streams);
     raft::handle_t handle(rmm::cuda_stream_per_thread, stream_pool);
 
-    cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed, false> graph(handle);
-    std::tie(graph, std::ignore) = cugraph::test::
+    cugraph::graph_t<vertex_t, edge_t, store_transposed, false> graph(handle);
+    std::optional<
+      cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, store_transposed, false>,
+                               weight_t>>
+      edge_weights{std::nullopt};
+    std::tie(graph, edge_weights, std::ignore) = cugraph::test::
       read_graph_from_matrix_market_file<vertex_t, edge_t, weight_t, store_transposed, false>(
         handle, configuration.graph_file_full_path, configuration.test_weighted, false);
     auto graph_view = graph.view();
+    auto edge_weight_view =
+      edge_weights ? std::make_optional((*edge_weights).view()) : std::nullopt;
 
     rmm::device_uvector<vertex_t> d_ego_sources(configuration.ego_sources.size(),
                                                 handle.get_stream());
@@ -94,6 +100,7 @@ class Tests_InducedEgo : public ::testing::TestWithParam<InducedEgo_Usecase> {
     auto [d_ego_edgelist_src, d_ego_edgelist_dst, d_ego_edgelist_weights, d_ego_edge_offsets] =
       cugraph::extract_ego(handle,
                            graph_view,
+                           edge_weight_view,
                            d_ego_sources.data(),
                            static_cast<vertex_t>(configuration.ego_sources.size()),
                            configuration.radius);

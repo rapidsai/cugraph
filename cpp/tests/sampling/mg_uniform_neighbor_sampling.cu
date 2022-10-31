@@ -57,7 +57,7 @@ class Tests_MGNbrSampling
 
     constexpr bool sort_adjacency_list = true;
 
-    auto [mg_graph, mg_renumber_map_labels] =
+    auto [mg_graph, mg_edge_weights, mg_renumber_map_labels] =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, true>(
         *handle_, input_usecase, true, true, false, sort_adjacency_list);
 
@@ -70,6 +70,8 @@ class Tests_MGNbrSampling
     }
 
     auto mg_graph_view                        = mg_graph.view();
+    auto mg_edge_weight_view = mg_edge_weights ? std::make_optional((*mg_edge_weights).view()) : std::nullopt;
+
     constexpr edge_t indices_per_source       = 2;
     constexpr vertex_t repetitions_per_vertex = 5;
     constexpr vertex_t source_sample_count    = 3;
@@ -91,6 +93,7 @@ class Tests_MGNbrSampling
     EXPECT_THROW(cugraph::uniform_nbr_sample(
                    *handle_,
                    mg_graph_view,
+                   mg_edge_weight_view,
                    raft::device_span<vertex_t>(random_sources.data(), random_sources.size()),
                    raft::host_span<const int>(h_fan_out.data(), h_fan_out.size()),
                    prims_usecase.flag_replacement),
@@ -99,6 +102,7 @@ class Tests_MGNbrSampling
     auto&& [d_src_out, d_dst_out, d_indices, d_counts] = cugraph::uniform_nbr_sample(
       *handle_,
       mg_graph_view,
+      mg_edge_weight_view,
       raft::device_span<vertex_t>(random_sources.data(), random_sources.size()),
       raft::host_span<const int>(h_fan_out.data(), h_fan_out.size()),
       prims_usecase.flag_replacement);

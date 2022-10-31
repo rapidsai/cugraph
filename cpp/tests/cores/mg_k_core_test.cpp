@@ -115,7 +115,7 @@ class Tests_KCore : public ::testing::TestWithParam<std::tuple<KCore_Usecase, in
       hr_clock.start();
     }
 
-    auto [graph, d_renumber_map_labels] =
+    auto [sg_graph, sg_edge_weights, d_sg_renumber_map_labels] =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, false>(
         handle, input_usecase, false, renumber, true, true);
 
@@ -125,13 +125,16 @@ class Tests_KCore : public ::testing::TestWithParam<std::tuple<KCore_Usecase, in
       hr_clock.stop(&elapsed_time);
       std::cout << "construct_graph took " << elapsed_time * 1e-6 << " s.\n";
     }
-    auto graph_view = graph.view();
 
-    rmm::device_uvector<edge_t> d_core_numbers(graph_view.number_of_vertices(),
+    auto sg_graph_view = sg_graph.view();
+    auto sg_edge_weight_view =
+      sg_edge_weights ? std::make_optional((*sg_edge_weights).view()) : std::nullopt;
+
+    rmm::device_uvector<edge_t> d_core_numbers(sg_graph_view.number_of_vertices(),
                                                handle.get_stream());
 
     cugraph::core_number(handle,
-                         graph_view,
+                         sg_graph_view,
                          d_core_numbers.data(),
                          k_core_usecase.degree_type,
                          k_core_usecase.k,
@@ -146,12 +149,15 @@ class Tests_KCore : public ::testing::TestWithParam<std::tuple<KCore_Usecase, in
 
 #if 0
     auto subgraph = cugraph::k_core(
-                                    handle, graph_view, k_core_usecase.k, std::nullopt, std::nullopt, std::make_optional(core_number_span));
+                                    handle, sg_graph_view, k_core_usecase.k, std::nullopt, std::nullopt, std::make_optional(core_number_span));
 #else
-    EXPECT_THROW(
-      cugraph::k_core(
-        handle, graph_view, k_core_usecase.k, std::nullopt, std::make_optional(core_number_span)),
-      cugraph::logic_error);
+    EXPECT_THROW(cugraph::k_core(handle,
+                                 sg_graph_view,
+                                 sg_edge_weight_view,
+                                 k_core_usecase.k,
+                                 std::nullopt,
+                                 std::make_optional(core_number_span)),
+                 cugraph::logic_error);
 #endif
 
     if (cugraph::test::g_perf) {

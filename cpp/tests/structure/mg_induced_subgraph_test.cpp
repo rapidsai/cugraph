@@ -70,7 +70,7 @@ class Tests_MGInducedSubgraph
       hr_clock.start();
     }
 
-    auto [mg_graph, d_renumber_map_labels] =
+    auto [mg_graph, mg_edge_weights, d_renumber_map_labels] =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, true>(
         *handle_, input_usecase, induced_subgraph_usecase.test_weighted, true);
 
@@ -82,6 +82,8 @@ class Tests_MGInducedSubgraph
     }
 
     auto mg_graph_view = mg_graph.view();
+    auto mg_edge_weight_view =
+      mg_edge_weights ? std::make_optional((*mg_edge_weights).view()) : std::nullopt;
 
     int my_rank = handle_->get_comms().get_rank();
 
@@ -162,6 +164,7 @@ class Tests_MGInducedSubgraph
       cugraph::extract_induced_subgraphs(
         *handle_,
         mg_graph_view,
+        mg_edge_weight_view,
         raft::device_span<size_t const>(d_subgraph_offsets.data(),
                                         induced_subgraph_usecase.subgraph_sizes.size()),
         raft::device_span<vertex_t const>(d_subgraph_vertices.data(), d_subgraph_vertices.size()),
@@ -171,6 +174,7 @@ class Tests_MGInducedSubgraph
       cugraph::extract_induced_subgraphs(
         *handle_,
         mg_graph_view,
+        mg_edge_weight_view,
         raft::device_span<size_t const>(d_subgraph_offsets.data(),
                                         induced_subgraph_usecase.subgraph_sizes.size()),
         raft::device_span<vertex_t const>(d_subgraph_vertices.data(), d_subgraph_vertices.size()),
@@ -211,8 +215,8 @@ class Tests_MGInducedSubgraph
         raft::device_span<size_t const>(d_subgraph_edge_offsets.data(),
                                         d_subgraph_edge_offsets.size()));
 
-      auto [sg_graph, sg_number_map] =
-        cugraph::test::mg_graph_to_sg_graph(*handle_, mg_graph_view, d_renumber_map_labels, true);
+      auto [sg_graph, sg_edge_weights, sg_number_map] =
+        cugraph::test::mg_graph_to_sg_graph(*handle_, mg_graph_view, mg_edge_weight_view, d_renumber_map_labels, true);
 
       if (my_rank == 0) {
         auto h_subgraph_vertices = cugraph::test::to_host(*handle_, d_subgraph_vertices);
@@ -224,6 +228,7 @@ class Tests_MGInducedSubgraph
           cugraph::extract_induced_subgraphs(
             *handle_,
             sg_graph.view(),
+            sg_edge_weights ? std::make_optional((*sg_edge_weights).view()) : std::nullopt,
             raft::device_span<size_t const>(d_subgraph_offsets.data(),
                                             induced_subgraph_usecase.subgraph_sizes.size()),
             raft::device_span<vertex_t const>(d_subgraph_vertices.data(),

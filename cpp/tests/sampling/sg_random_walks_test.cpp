@@ -37,11 +37,13 @@ struct UniformRandomWalks_Usecase {
   template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
   std::tuple<rmm::device_uvector<vertex_t>, std::optional<rmm::device_uvector<weight_t>>>
   operator()(raft::handle_t const& handle,
-             cugraph::graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
+             cugraph::graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+             std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
              raft::device_span<vertex_t const> start_vertices,
              size_t num_paths)
   {
-    return cugraph::uniform_random_walks(handle, graph_view, start_vertices, num_paths, seed);
+    return cugraph::uniform_random_walks(
+      handle, graph_view, edge_weight_view, start_vertices, num_paths, seed);
   }
 
   bool expect_throw() { return false; }
@@ -55,11 +57,13 @@ struct BiasedRandomWalks_Usecase {
   template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
   std::tuple<rmm::device_uvector<vertex_t>, std::optional<rmm::device_uvector<weight_t>>>
   operator()(raft::handle_t const& handle,
-             cugraph::graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
+             cugraph::graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+             std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
              raft::device_span<vertex_t const> start_vertices,
              size_t num_paths)
   {
-    return cugraph::biased_random_walks(handle, graph_view, start_vertices, num_paths, seed);
+    return cugraph::biased_random_walks(
+      handle, graph_view, *edge_weight_view, start_vertices, num_paths, seed);
   }
 
   // FIXME: Not currently implemented
@@ -76,12 +80,14 @@ struct Node2VecRandomWalks_Usecase {
   template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
   std::tuple<rmm::device_uvector<vertex_t>, std::optional<rmm::device_uvector<weight_t>>>
   operator()(raft::handle_t const& handle,
-             cugraph::graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
+             cugraph::graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+             std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
              raft::device_span<vertex_t const> start_vertices,
              size_t num_paths)
   {
     return cugraph::node2vec_random_walks(handle,
                                           graph_view,
+                                          edge_weight_view,
                                           start_vertices,
                                           num_paths,
                                           static_cast<weight_t>(p),
@@ -117,7 +123,7 @@ class Tests_RandomWalks : public ::testing::TestWithParam<tuple_t> {
     }
 
     bool renumber{true};
-    auto [graph, d_renumber_map_labels] =
+    auto [graph, edge_weights, d_renumber_map_labels] =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, false>(
         handle, input_usecase, randomwalks_usecase.test_weighted, renumber);
 
@@ -128,7 +134,10 @@ class Tests_RandomWalks : public ::testing::TestWithParam<tuple_t> {
       std::cout << "construct_graph took " << elapsed_time * 1e-6 << " s.\n";
     }
 
-    auto graph_view   = graph.view();
+    auto graph_view = graph.view();
+    auto edge_weight_view =
+      edge_weights ? std::make_optional((*edge_weights).view()) : std::nullopt;
+
     edge_t num_paths  = std::min(edge_t{10}, graph_view.number_of_vertices());
     edge_t max_length = 10;
     rmm::device_uvector<vertex_t> d_start(num_paths, handle.get_stream());
@@ -145,6 +154,7 @@ class Tests_RandomWalks : public ::testing::TestWithParam<tuple_t> {
       EXPECT_THROW(
         randomwalks_usecase(handle,
                             graph_view,
+                            edge_weight_view,
                             raft::device_span<vertex_t const>{d_start.data(), d_start.size()},
                             max_length),
         std::exception);
@@ -152,6 +162,7 @@ class Tests_RandomWalks : public ::testing::TestWithParam<tuple_t> {
       auto [d_vertices, d_weights] =
         randomwalks_usecase(handle,
                             graph_view,
+                            edge_weight_view,
                             raft::device_span<vertex_t const>{d_start.data(), d_start.size()},
                             max_length);
 
@@ -165,6 +176,7 @@ class Tests_RandomWalks : public ::testing::TestWithParam<tuple_t> {
       if (randomwalks_usecase.check_correctness) {
         cugraph::test::random_walks_validate(handle,
                                              graph_view,
+                                             edge_weight_view,
                                              std::move(d_start),
                                              std::move(d_vertices),
                                              std::move(d_weights),

@@ -28,7 +28,6 @@ add_library(cugraphtestutil STATIC
             link_prediction/similarity_compare.cpp
             centrality/betweenness_centrality_validate.cu
 	    structure/induced_subgraph_validate.cu
-            components/wcc_graphs.cu
             sampling/random_walks_check_sg.cu
             ../../thirdparty/mmio/mmio.c)
 
