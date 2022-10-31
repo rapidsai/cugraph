@@ -32,6 +32,7 @@ set(cython_sources
     triangle_count.pyx
     uniform_neighbor_sample.pyx
     utils.pyx
+    weakly_connected_components.pyx
 )
 set(linked_libraries cugraph::cugraph;cugraph_c)
 
