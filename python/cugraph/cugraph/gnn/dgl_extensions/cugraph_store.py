@@ -18,7 +18,8 @@ from .base_cugraph_store import BaseCuGraphStore
 from functools import cached_property
 from .utils.find_edges import find_edges
 from .utils.node_subgraph import node_subgraph
-from .utils.add_data import _update_feature_map
+from .utils.feature_map import _update_feature_map
+from .utils.add_data import add_edge_data_from_parquet, add_node_data_from_parquet
 from .utils.sampling import sample_pg, get_subgraph_and_src_range_from_pg
 from .utils.sampling import get_underlying_dtype_from_sg
 from .feature_storage import CuFeatureStorage
@@ -138,6 +139,107 @@ class CuGraphStore(BaseCuGraphStore):
         )
 
         # Clear properties if set as data has changed
+        self.__clear_cached_properties()
+
+    def add_node_data_from_parquet(
+        self,
+        file_path,
+        node_col_name,
+        ntype=None,
+        node_offset=0,
+        feat_name=None,
+        contains_vector_features=False,
+    ):
+        """
+        Add a dataframe describing node properties to the PropertyGraph.
+
+        Parameters
+        ----------
+        file_path: string
+            Path of the files on the server
+        node_col_name : string
+            The column name that contains the values to be used as vertex IDs.
+        ntype : string
+            The node type to be added.
+            For example, if dataframe contains data about users, ntype
+            might be "users".
+            If not specified, the type of properties will be added as
+            an empty string.
+        feat_name : {} or string
+            A map of feature names under which we should save the added
+            properties like {"feat_1":[f1, f2], "feat_2":[f3, f4]}
+            (ignored if contains_vector_features=False and the col names of
+            the dataframe are treated as corresponding feature names)
+        contains_vector_features : False
+            Whether to treat the columns of the dataframe being added as
+            as 2d features
+        Returns
+        -------
+        None
+        """
+        loaded_columns = add_node_data_from_parquet(
+            file_path=file_path,
+            node_col_name=node_col_name,
+            node_offset=node_offset,
+            ntype=ntype,
+            pG=self.gdata,
+        )
+        columns = [col for col in loaded_columns if col != node_col_name]
+        _update_feature_map(
+            self.ndata_feat_col_d, feat_name, contains_vector_features, columns
+        )
+        # Clear properties if set as data has changed
+        self.__clear_cached_properties()
+
+    def add_edge_data_from_parquet(
+        self,
+        file_path,
+        node_col_names,
+        src_offset=0,
+        dst_offset=0,
+        canonical_etype=None,
+        feat_name=None,
+        contains_vector_features=False,
+    ):
+        """
+        Add a dataframe describing edge properties to the PropertyGraph.
+
+        Parameters
+        ----------
+        file_path : string
+            Path of file on server
+        node_col_names : string
+            The column names that contain the values to be used as the source
+            and destination vertex IDs for the edges.
+        canonical_etype : string
+            The edge type to be added. This should follow the string format
+            '(src_type),(edge_type),(dst_type)'
+            If not specified, the type of properties will be added as
+            an empty string.
+        feat_name : string or dict {}
+            The feature name under which we should save the added properties
+            (ignored if contains_vector_features=False and the col names of
+            the dataframe are treated as corresponding feature names)
+        contains_vector_features : False
+            Whether to treat the columns of the dataframe being added as
+            as 2d features
+        Returns
+        -------
+        None
+        """
+
+        loaded_columns = add_edge_data_from_parquet(
+            file_path=file_path,
+            node_col_names=node_col_names,
+            canonical_etype=canonical_etype,
+            src_offset=src_offset,
+            dst_offset=dst_offset,
+            pG=self.gdata,
+        )
+        columns = [col for col in loaded_columns if col not in node_col_names]
+        _update_feature_map(
+            self.edata_feat_col_d, feat_name, contains_vector_features, columns
+        )
         self.__clear_cached_properties()
 
     def get_node_storage(self, key, ntype=None, indices_offset=0):

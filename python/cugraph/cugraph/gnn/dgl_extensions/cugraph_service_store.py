@@ -14,8 +14,7 @@
 from collections import defaultdict
 from .base_cugraph_store import BaseCuGraphStore
 from functools import cached_property
-from cugraph.gnn.dgl_extensions.utils.add_data import _update_feature_map
-from cugraph.gnn.dgl_extensions.utils.add_data import deserialize_strings_from_char_ars
+from cugraph.gnn.dgl_extensions.utils.feature_map import _update_feature_map
 from cugraph.gnn.dgl_extensions.feature_storage import CuFeatureStorage
 
 # TODO: Make this optional in next release
@@ -172,16 +171,15 @@ class CuGraphRemoteStore(BaseCuGraphStore):
         -------
         None
         """
-        # TODO: Use PR 2850: https://github.com/rapidsai/cugraph/pull/2850
         c_ar, len_ar = self.client.call_extension(
-            func_name="add_node_data_from_parquet",
+            func_name="add_node_data_from_parquet_remote",
             file_path=file_path,
             node_col_name=node_col_name,
             node_offset=node_offset,
             ntype=ntype,
             graph_id=self.gdata._graph_id,
         )
-        loaded_columns = deserialize_strings_from_char_ars(c_ar, len_ar)
+        loaded_columns = _deserialize_strings_from_char_ars(c_ar, len_ar)
 
         columns = [col for col in loaded_columns if col != node_col_name]
         _update_feature_map(
@@ -227,9 +225,8 @@ class CuGraphRemoteStore(BaseCuGraphStore):
         None
         """
 
-        # TODO: Use PR 2850: https://github.com/rapidsai/cugraph/pull/2850
         c_ar, len_ar = self.client.call_extension(
-            func_name="add_edge_data_from_parquet",
+            func_name="add_edge_data_from_parquet_remote",
             file_path=file_path,
             node_col_names=node_col_names,
             canonical_etype=canonical_etype,
@@ -237,7 +234,7 @@ class CuGraphRemoteStore(BaseCuGraphStore):
             dst_offset=dst_offset,
             graph_id=self.gdata._graph_id,
         )
-        loaded_columns = deserialize_strings_from_char_ars(c_ar, len_ar)
+        loaded_columns = _deserialize_strings_from_char_ars(c_ar, len_ar)
         columns = [col for col in loaded_columns if col not in node_col_names]
         _update_feature_map(
             self.edata_feat_col_d, feat_name, contains_vector_features, columns
@@ -544,3 +541,23 @@ def create_dlpack_results_from_arrays(sampled_result_arrays, etypes: list[str]):
                 s, d, e_id = None, None, None
             result_d[etype] = (s, d, e_id)
         return result_d
+
+
+def _deserialize_strings_from_char_ars(char_ar, len_ar):
+    string_start = 0
+    string_list = []
+    for string_offset in len_ar:
+        string_end = string_start + string_offset
+        s = char_ar[string_start:string_end]
+
+        # Check of cupy array
+        if type(s).__module__ == "cupy":
+            s = s.get()
+
+        # Check for numpy
+        if type(s).__module__ == "numpy":
+            s = s.tolist()
+        s = "".join([chr(i) for i in s])
+        string_list.append(s)
+        string_start = string_end
+    return string_list

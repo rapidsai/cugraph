@@ -11,44 +11,32 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import cudf
-import dask_cudf
 import cupy as cp
-from cugraph.experimental import MGPropertyGraph
+from cugraph.gnn.dgl_extensions.utils.add_data import (
+    add_edge_data_from_parquet,
+    add_node_data_from_parquet,
+)
 
 
-def add_node_data_from_parquet(
+def add_node_data_from_parquet_remote(
     file_path, node_col_name, node_offset, ntype, graph_id, server
 ):
     pG = server.get_graph(graph_id)
-    if isinstance(pG, MGPropertyGraph):
-        df = dask_cudf.read_parquet(file_path)
-    else:
-        df = cudf.read_parquet(file_path)
 
-    df[node_col_name] = df[node_col_name] + node_offset
-    pG.add_vertex_data(df, vertex_col_name=node_col_name, type_name=ntype)
-
-    columns_list = list(df.columns)
-
+    columns_list = add_node_data_from_parquet(
+        file_path, node_col_name, node_offset, ntype, pG
+    )
     return serialize_strings_to_array(columns_list)
 
 
-def add_edge_data_from_parquet(
+def add_edge_data_from_parquet_remote(
     file_path, node_col_names, canonical_etype, src_offset, dst_offset, graph_id, server
 ):
     pG = server.get_graph(graph_id)
-    if isinstance(pG, MGPropertyGraph):
-        df = dask_cudf.read_parquet(file_path)
-    else:
-        df = cudf.read_parquet(file_path)
 
-    df[node_col_names[0]] = df[node_col_names[0]] + src_offset
-    df[node_col_names[1]] = df[node_col_names[1]] + dst_offset
-    pG.add_edge_data(df, vertex_col_names=node_col_names, type_name=canonical_etype)
-
-    columns_list = list(df.columns)
-
+    columns_list = add_edge_data_from_parquet(
+        file_path, node_col_names, canonical_etype, src_offset, dst_offset, pG
+    )
     return serialize_strings_to_array(columns_list)
 
 
