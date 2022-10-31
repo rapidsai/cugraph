@@ -821,7 +821,7 @@ create_graph_from_edgelist_impl(
   if (weights) {
     std::vector<rmm::device_uvector<weight_t>> buffers{};
     buffers.push_back(std::move(*weights));
-    *edge_weights =
+    edge_weights =
       edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, weight_t>(
         std::move(buffers));
   }
@@ -833,7 +833,7 @@ create_graph_from_edgelist_impl(
     std::vector<std::tuple<rmm::device_uvector<edge_t>, rmm::device_uvector<edge_type_t>>>
       buffers{};
     buffers.push_back(std::move(*id_type_pairs));
-    *edge_id_type_pairs =
+    edge_id_type_pairs =
       edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>,
                       thrust::tuple<edge_t, edge_type_t>>(std::move(buffers));
   }
