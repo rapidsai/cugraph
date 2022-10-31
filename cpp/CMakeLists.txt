@@ -196,7 +196,8 @@ set(CUGRAPH_SOURCES
     src/community/legacy/ktruss.cu
     src/community/legacy/ecg.cu
     src/community/legacy/extract_subgraph_by_vertex.cu
-    src/community/legacy/egonet.cu
+    src/community/egonet_sg.cu
+    src/community/egonet_mg.cu
     src/sampling/random_walks.cu
     src/sampling/random_walks_sg.cu
     src/sampling/detail/sampling_utils_mg.cu
