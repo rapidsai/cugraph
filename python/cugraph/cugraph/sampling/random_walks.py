@@ -2,6 +2,7 @@ import cudf
 from cugraph.sampling.uniform_random_walks import uniform_random_walks
 import warnings
 
+
 def random_walks(G, start_vertices, max_depth=None, use_padding=False):
     """
     compute random walks for each nodes in 'start_vertices'
@@ -42,46 +43,45 @@ def random_walks(G, start_vertices, max_depth=None, use_padding=False):
     >>> _, _, _ = cugraph.random_walks(G, M, 3)
 
     """
-    warning_msg = ("This call is deprecated and will be refactored "
-                   "in the next release: use 'uniform_random_walks' instead")
+    warning_msg = (
+        "This call is deprecated and will be refactored "
+        "in the next release: use 'uniform_random_walks' instead"
+    )
     warnings.warn(warning_msg, PendingDeprecationWarning)
 
-
-    vertex_set, edge_set, _ = uniform_random_walks(
-        G, start_vertices, max_depth)
-
+    vertex_set, edge_set, _ = uniform_random_walks(G, start_vertices, max_depth)
 
     # The PLC uniform random walks returns an extra vertex along with an extra
     # edge per path. In fact, the max depth is relative to the number of vertices
     # for the legacy implementation and edges for the PLC implementation
 
     # Get a list of extra vertex and edge index to drop
-    drop_vertex = [i for i in range(max_depth, len(vertex_set), max_depth+1)]
-    drop_edge_wgt = [i-1 for i in range(max_depth, len(edge_set), max_depth)]
+    drop_vertex = [i for i in range(max_depth, len(vertex_set), max_depth + 1)]
+    drop_edge_wgt = [i - 1 for i in range(max_depth, len(edge_set), max_depth)]
 
-    vertex_set = vertex_set.drop(
-        vertex_set.index[drop_vertex]).reset_index(drop=True)
+    vertex_set = vertex_set.drop(vertex_set.index[drop_vertex]).reset_index(drop=True)
 
-    edge_set = edge_set.drop(
-        edge_set.index[drop_edge_wgt]).reset_index(drop=True)
-    
+    edge_set = edge_set.drop(edge_set.index[drop_edge_wgt]).reset_index(drop=True)
+
     if use_padding:
         sizes = None
         edge_set_sz = (max_depth - 1) * len(start_vertices)
         return vertex_set, edge_set[:edge_set_sz], sizes
-    
+
     # If 'use_padding' is False, compute the sizes of the unpadded results
-    sizes = [len(vertex_set.iloc[i:i+max_depth].dropna()) for i in range(0, len(vertex_set), max_depth)]
+    sizes = [
+        len(vertex_set.iloc[i : i + max_depth].dropna())
+        for i in range(0, len(vertex_set), max_depth)
+    ]
     sizes = cudf.Series(sizes, dtype=vertex_set.dtype)
-    
-    # Compress the 'vertex_set' by dropping 'NA' values which is representative of vertices with
-    # no outgoing link
+
+    # Compress the 'vertex_set' by dropping 'NA' values which is representative
+    # of vertices with no outgoing link
     vertex_set = vertex_set.dropna().reset_index(drop=True)
     # Compress the 'edge_set' by dropping 'NA'
-    edge_set.replace(0.0, None, inplace=True) #np.nan
+    edge_set.replace(0.0, None, inplace=True)  # np.nan
     edge_set = edge_set.dropna().reset_index(drop=True)
     return vertex_set, edge_set, sizes
-
 
 
 def rw_path(num_paths, sizes):
@@ -105,13 +105,17 @@ def rw_path(num_paths, sizes):
     """
 
     vertex_offsets = cudf.Series(0, dtype=sizes.dtype)
-    vertex_offsets = cudf.concat([vertex_offsets, sizes.cumsum()[:-1]], ignore_index=True)
+    vertex_offsets = cudf.concat(
+        [vertex_offsets, sizes.cumsum()[:-1]], ignore_index=True
+    )
     weight_sizes = sizes - 1
 
     weight_offsets = cudf.Series(0, dtype=sizes.dtype)
     num_edges = vertex_offsets.diff()[1:] - 1
 
-    weight_offsets = cudf.concat([weight_offsets, num_edges.cumsum()], ignore_index=True)
+    weight_offsets = cudf.concat(
+        [weight_offsets, num_edges.cumsum()], ignore_index=True
+    )
     # FIXME: CUDF bug. concatenating 2 series of type int32 but get a CUDF of type in64
     # have to cast the results
     weight_offsets = weight_offsets.astype(sizes.dtype)
@@ -123,5 +127,4 @@ def rw_path(num_paths, sizes):
 
     return path_data
 
-
-    #return random_walks_wrapper.rw_path_retrieval(num_paths, sizes)
+    # return random_walks_wrapper.rw_path_retrieval(num_paths, sizes)
