@@ -11,14 +11,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from cugraph.gnn.dgl_extensions.cugraph_service_store import CuGraphRemoteStore
-from cugraph_service_client.client import CugraphServiceClient as Client
-import cudf
 import numpy as np
 
+# Add Path for cugraph_service_client
+# import sys
+# sys.path.append("/home/nfs/vjawa/dgl/cugraph/python/cugraph_service")
+from cugraph_service_client.client import CugraphServiceClient as Client
 
-def create_gs(client):
-    gs = CuGraphRemoteStore(client.graph(), client)
+
+def create_gs(client, device_id=None):
+    from cugraph.gnn.dgl_extensions.cugraph_service_store import CuGraphRemoteStore
+
+    gs = CuGraphRemoteStore(client.graph(), client, device_id, backend_lib="cupy")
     gs.add_node_data_from_parquet(
         file_path="nt.a.parquet", node_col_name="node_id", ntype="nt.a", node_offset=0
     )
@@ -63,32 +67,50 @@ def create_gs(client):
     return gs
 
 
-def assert_correct_gs(gs):
+def assert_valid_device(cp_ar, device_id):
+    import cupy as cp
+
+    if device_id is None:
+        return True
+    else:
+        device_n = cp.cuda.Device(device_id)
+        if cp_ar.device != device_n:
+            print(f"device = {cp_ar.device}, expected_device = {device_n}")
+
+
+def assert_valid_gs(gs):
+    import cudf
+
     assert gs.etypes[0] == "('nt.a', 'connects', 'nt.b')"
     assert gs.ntypes[0] == "nt.a"
     assert gs.num_nodes_dict["nt.a"] == 3
     assert gs.num_edges_dict["('nt.a', 'connects', 'nt.b')"] == 3
     assert gs.num_nodes("nt.c") == 5
 
+    print("Verified ntypes, etypes, num_nodes")
+
     # Test Get Node Storage
     result = gs.get_node_storage(key="node_feat", ntype="nt.a", indices_offset=0).fetch(
         [0, 1, 2]
     )
-    result = result.cpu().numpy()
+    assert_valid_device(result, gs.device_id)
+    result = result.get()
     expected_result = np.asarray([0, 10, 20], dtype=np.int32)
     np.testing.assert_equal(result, expected_result)
 
     result = gs.get_node_storage(key="node_feat", ntype="nt.b", indices_offset=3).fetch(
         [0, 1, 2]
     )
-    result = result.cpu().numpy()
+    assert_valid_device(result, gs.device_id)
+    result = result.get()
     expected_result = np.asarray([30, 40, 50], dtype=np.int32)
     np.testing.assert_equal(result, expected_result)
 
     result = gs.get_node_storage(key="node_feat", ntype="nt.c", indices_offset=5).fetch(
         [1, 2, 3]
     )
-    result = result.cpu().numpy()
+    assert_valid_device(result, gs.device_id)
+    result = result.get()
     expected_result = np.asarray([60, 70, 80], dtype=np.int32)
     np.testing.assert_equal(result, expected_result)
 
@@ -96,23 +118,28 @@ def assert_correct_gs(gs):
     result = gs.get_edge_storage(
         key="edge_feat", etype="('nt.a', 'connects', 'nt.b')", indices_offset=0
     ).fetch([0, 1, 2])
-    result = result.cpu().numpy()
+    assert_valid_device(result, gs.device_id)
+    result = result.get()
     expected_result = np.asarray([10, 11, 12], dtype=np.int32)
     np.testing.assert_equal(result, expected_result)
 
     result = gs.get_edge_storage(
         key="edge_feat", etype="('nt.a', 'connects', 'nt.c')", indices_offset=0
     ).fetch([4, 5])
-    result = result.cpu().numpy()
+    assert_valid_device(result, gs.device_id)
+    result = result.get()
     expected_result = np.asarray([14, 15], dtype=np.int32)
     np.testing.assert_equal(result, expected_result)
 
     result = gs.get_edge_storage(
         key="edge_feat", etype="('nt.c', 'connects', 'nt.c')", indices_offset=0
     ).fetch([6, 8])
-    result = result.cpu().numpy()
+    assert_valid_device(result, gs.device_id)
+    result = result.get()
     expected_result = np.asarray([16, 18], dtype=np.int32)
     np.testing.assert_equal(result, expected_result)
+
+    print("Verified edge_feat, node_feat")
 
     # Verify set_sg_dtype
     # verify extracted_reverse_subgraph
@@ -120,7 +147,7 @@ def assert_correct_gs(gs):
     dtype = gs.set_sg_node_dtype(subgraph)
     assert dtype == "int32"
 
-    # Verify Sampling Results
+    # Sampling Results
     nodes_cap = {"nt.c": cudf.Series([6]).to_dlpack()}
     result = gs.sample_neighbors(nodes_cap)
     result = {
@@ -134,6 +161,7 @@ def assert_correct_gs(gs):
         for k, v in result.items()
         if v[0] is not None
     }
+
     src_vals = result["('nt.c', 'connects', 'nt.c')"]["src"].values.get()
     sorted(src_vals)
     expected_vals = np.asarray([7, 8, 9], dtype=np.int32)
@@ -142,6 +170,9 @@ def assert_correct_gs(gs):
 
 def test_remote_wrappers():
     # TODO: Check with rick on how to test it
+    # Can only be tested after the packages land
     c = Client()
-    gs = create_gs(c)
-    assert_correct_gs(gs)
+    device_ls = [None, 0, 1]
+    for d in device_ls:
+        gs = create_gs(c)
+        assert_valid_gs(gs)

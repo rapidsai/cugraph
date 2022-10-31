@@ -165,6 +165,9 @@ class CuGraphStore(BaseCuGraphStore):
             might be "users".
             If not specified, the type of properties will be added as
             an empty string.
+        node_offset: int,
+            The offset to add for the particular ntype
+            defaults to zero
         feat_name : {} or string
             A map of feature names under which we should save the added
             properties like {"feat_1":[f1, f2], "feat_2":[f3, f4]}
@@ -220,6 +223,13 @@ class CuGraphStore(BaseCuGraphStore):
             The feature name under which we should save the added properties
             (ignored if contains_vector_features=False and the col names of
             the dataframe are treated as corresponding feature names)
+
+        src_offset: int,
+            The offset to add for the source node type
+            defaults to zero
+        dst_offset: int,
+            The offset to add for the dst node type
+            defaults to zero
         contains_vector_features : False
             Whether to treat the columns of the dataframe being added as
             as 2d features

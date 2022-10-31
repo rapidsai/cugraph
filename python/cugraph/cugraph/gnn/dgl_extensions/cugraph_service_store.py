@@ -31,17 +31,24 @@ class CuGraphRemoteStore(BaseCuGraphStore):
     This class return dlpack types and has additional functional arguments.
     """
 
-    def __init__(self, graph, graph_client, backend_lib="torch"):
+    def __init__(self, graph, graph_client, device_id=None, backend_lib="torch"):
+
         if type(graph).__name__ in ["RemotePropertyGraph", "RemoteMGPropertyGraph"]:
+            if device_id is not None:
+                import numba.cuda as cuda
+
+                cuda.select_device(device_id)
+                cp.cuda.runtime.setDevice(device_id)
+
             self.__G = graph
             self.client = graph_client
+            self.device_id = device_id
 
             add_data_module = "cugraph.gnn.dgl_extensions.service_extensions.add_data"
             _ = self.client.load_extensions(add_data_module)
             sampling_module = "cugraph.gnn.dgl_extensions.service_extensions.sampling"
             _ = self.client.load_extensions(sampling_module)
             del _
-
         else:
             raise ValueError("graph must be a RemoteGraph")
 
@@ -91,7 +98,7 @@ class CuGraphRemoteStore(BaseCuGraphStore):
         None
         """
         raise NotImplementedError(
-            "Adding Node Data From Local is not yet supported"
+            "Adding Node Data From Local is not yet supported "
             "Please Use `add_node_data_from_parquet`"
         )
 
@@ -159,6 +166,9 @@ class CuGraphRemoteStore(BaseCuGraphStore):
             might be "users".
             If not specified, the type of properties will be added as
             an empty string.
+        node_offset: int,
+            The offset to add for the current node type
+            defaults to zero
         feat_name : {} or string
             A map of feature names under which we should save the added
             properties like {"feat_1":[f1, f2], "feat_2":[f3, f4]}
@@ -171,6 +181,7 @@ class CuGraphRemoteStore(BaseCuGraphStore):
         -------
         None
         """
+
         c_ar, len_ar = self.client.call_extension(
             func_name="add_node_data_from_parquet_remote",
             file_path=file_path,
@@ -178,6 +189,7 @@ class CuGraphRemoteStore(BaseCuGraphStore):
             node_offset=node_offset,
             ntype=ntype,
             graph_id=self.gdata._graph_id,
+            result_device=self.device_id,
         )
         loaded_columns = _deserialize_strings_from_char_ars(c_ar, len_ar)
 
@@ -213,6 +225,12 @@ class CuGraphRemoteStore(BaseCuGraphStore):
             '(src_type),(edge_type),(dst_type)'
             If not specified, the type of properties will be added as
             an empty string.
+        src_offset: int,
+            The offset to add for the source node type
+            defaults to zero
+        dst_offset: int,
+            The offset to add for the dst node type
+            defaults to zero
         feat_name : string or dict {}
             The feature name under which we should save the added properties
             (ignored if contains_vector_features=False and the col names of
@@ -224,7 +242,6 @@ class CuGraphRemoteStore(BaseCuGraphStore):
         -------
         None
         """
-
         c_ar, len_ar = self.client.call_extension(
             func_name="add_edge_data_from_parquet_remote",
             file_path=file_path,
@@ -233,6 +250,7 @@ class CuGraphRemoteStore(BaseCuGraphStore):
             src_offset=src_offset,
             dst_offset=dst_offset,
             graph_id=self.gdata._graph_id,
+            result_device=self.device_id,
         )
         loaded_columns = _deserialize_strings_from_char_ars(c_ar, len_ar)
         columns = [col for col in loaded_columns if col not in node_col_names]
@@ -371,6 +389,7 @@ class CuGraphRemoteStore(BaseCuGraphStore):
 
         sampled_result_arrays = self.client.call_extension(
             "sample_pg_remote",
+            result_device=self.device_id,
             graph_id=self.gdata._graph_id,
             has_multiple_etypes=self.has_multiple_etypes,
             etypes=self.etypes,
