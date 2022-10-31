@@ -1,20 +1,6 @@
-# Copyright (c) 2021-2022, NVIDIA CORPORATION.
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
 import cudf
-from cugraph.sampling import random_walks_wrapper
-from cugraph.utilities import ensure_cugraph_obj_for_nx
-
+from cugraph.sampling.uniform_random_walks import uniform_random_walks
+import warnings
 
 def random_walks(G, start_vertices, max_depth=None, use_padding=False):
     """
@@ -56,47 +42,46 @@ def random_walks(G, start_vertices, max_depth=None, use_padding=False):
     >>> _, _, _ = cugraph.random_walks(G, M, 3)
 
     """
-    if max_depth is None:
-        raise TypeError("must specify a 'max_depth'")
+    warning_msg = ("This call is deprecated and will be refactored "
+                   "in the next release: use 'uniform_random_walks' instead")
+    warnings.warn(warning_msg, PendingDeprecationWarning)
 
-    # FIXME: supporting Nx types should mean having a return type that better
-    # matches Nx expectations (eg. data on the CPU, possibly using a different
-    # data struct like a dictionary, etc.). The 2nd value is ignored here,
-    # which is typically named isNx and used to convert the return type.
-    # Consider a different return type if Nx types are passed in.
-    G, _ = ensure_cugraph_obj_for_nx(G)
 
-    if start_vertices is int:
-        start_vertices = [start_vertices]
+    vertex_set, edge_set, _ = uniform_random_walks(
+        G, start_vertices, max_depth)
 
-    if isinstance(start_vertices, list):
-        start_vertices = cudf.Series(start_vertices)
 
-    if G.renumbered is True:
-        if isinstance(start_vertices, cudf.DataFrame):
-            start_vertices = G.lookup_internal_vertex_id(
-                start_vertices, start_vertices.columns
-            )
-        else:
-            start_vertices = G.lookup_internal_vertex_id(start_vertices)
+    # The PLC uniform random walks returns an extra vertex along with an extra
+    # edge per path. In fact, the max depth is relative to the number of vertices
+    # for the legacy implementation and edges for the PLC implementation
 
-    vertex_set, edge_set, sizes = random_walks_wrapper.random_walks(
-        G, start_vertices, max_depth, use_padding
-    )
+    # Get a list of extra vertex and edge index to drop
+    drop_vertex = [i for i in range(max_depth, len(vertex_set), max_depth+1)]
+    drop_edge_wgt = [i-1 for i in range(max_depth, len(edge_set), max_depth)]
 
-    if G.renumbered:
-        df_ = cudf.DataFrame()
-        df_["vertex_set"] = vertex_set
-        df_ = G.unrenumber(df_, "vertex_set", preserve_order=True)
-        vertex_set = cudf.Series(df_["vertex_set"])
+    vertex_set = vertex_set.drop(
+        vertex_set.index[drop_vertex]).reset_index(drop=True)
 
+    edge_set = edge_set.drop(
+        edge_set.index[drop_edge_wgt]).reset_index(drop=True)
+    
     if use_padding:
+        sizes = None
         edge_set_sz = (max_depth - 1) * len(start_vertices)
         return vertex_set, edge_set[:edge_set_sz], sizes
+    
+    # If 'use_padding' is False, compute the sizes of the unpadded results
+    sizes = [len(vertex_set.iloc[i:i+max_depth].dropna()) for i in range(0, len(vertex_set), max_depth)]
+    sizes = cudf.Series(sizes, dtype=vertex_set.dtype)
+    
+    # Compress the 'vertex_set' by dropping 'NA' values which is representative of vertices with
+    # no outgoing link
+    vertex_set = vertex_set.dropna().reset_index(drop=True)
+    # Compress the 'edge_set' by dropping 'NA'
+    edge_set.replace(0.0, None, inplace=True) #np.nan
+    edge_set = edge_set.dropna().reset_index(drop=True)
+    return vertex_set, edge_set, sizes
 
-    vertex_set_sz = sizes.sum()
-    edge_set_sz = vertex_set_sz - len(start_vertices)
-    return vertex_set[:vertex_set_sz], edge_set[:edge_set_sz], sizes
 
 
 def rw_path(num_paths, sizes):
@@ -109,7 +94,7 @@ def rw_path(num_paths, sizes):
     num_paths: int
         Number of paths in the random walk output.
 
-    sizes: int
+    sizes: cudf.Series
         Path size returned in random walk output.
 
     Returns
@@ -118,4 +103,25 @@ def rw_path(num_paths, sizes):
         Dataframe containing vetex path offsets, edge weight offsets and
         edge weight sizes for each path.
     """
-    return random_walks_wrapper.rw_path_retrieval(num_paths, sizes)
+
+    vertex_offsets = cudf.Series(0, dtype=sizes.dtype)
+    vertex_offsets = cudf.concat([vertex_offsets, sizes.cumsum()[:-1]], ignore_index=True)
+    weight_sizes = sizes - 1
+
+    weight_offsets = cudf.Series(0, dtype=sizes.dtype)
+    num_edges = vertex_offsets.diff()[1:] - 1
+
+    weight_offsets = cudf.concat([weight_offsets, num_edges.cumsum()], ignore_index=True)
+    # FIXME: CUDF bug. concatenating 2 series of type int32 but get a CUDF of type in64
+    # have to cast the results
+    weight_offsets = weight_offsets.astype(sizes.dtype)
+
+    path_data = cudf.DataFrame()
+    path_data["vertex_offsets"] = vertex_offsets
+    path_data["weight_sizes"] = weight_sizes
+    path_data["weight_offsets"] = weight_offsets
+
+    return path_data
+
+
+    #return random_walks_wrapper.rw_path_retrieval(num_paths, sizes)
