@@ -1009,11 +1009,11 @@ struct coo_convertor_t {
  * sizes. Note: if the graph is un-weighted the edge (weight) paths consists of `weight_t{1}`
  * entries;
  */
-template <typename vertex_t, typename edge_t, typename weight_t, typename index_t>
+template <typename vertex_t, typename edge_t, typename weight_t, typename index_t, bool multi_gpu>
 std::
   tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<weight_t>, rmm::device_uvector<index_t>>
   random_walks(raft::handle_t const& handle,
-               graph_view_t<vertex_t, edge_t, false, false> const& graph_view,
+               graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
                std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
                vertex_t const* ptr_d_start,
                index_t num_paths,
@@ -1023,6 +1023,8 @@ std::
 {
   using real_t = float;  // random engine type;
   // FIXME: this should not be hardcoded; at least tag-dispatched
+
+  if constexpr (multi_gpu) { CUGRAPH_FAIL("unimplemented."); }
 
   // 0-copy const device view:
   //
