@@ -4,6 +4,8 @@ from cugraph.experimental.sampling.uniform_random_walks import uniform_random_wa
 import warnings
 
 
+# legacy_result_type = True
+# deprecating this option
 def random_walks(G, start_vertices, max_depth=None, use_padding=False):
     """
     compute random walks for each nodes in 'start_vertices'

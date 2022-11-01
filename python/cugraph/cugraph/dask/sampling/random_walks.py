@@ -94,6 +94,7 @@ def random_walks(input_graph, start_vertices, max_depth=None, use_padding=False)
         # but verify that. If not retrieve the type and cast it when creating
         # the dask_cudf from a cudf
         start_vertices = input_graph.lookup_internal_vertex_id(start_vertices).compute()
+        start_vertices_type = input_graph.edgelist.edgelist_df.dtypes[0]
     else:
         # FIXME: Get the 'src' column names instead and retrieve the type
         start_vertices_type = input_graph.input_df.dtypes[0]
