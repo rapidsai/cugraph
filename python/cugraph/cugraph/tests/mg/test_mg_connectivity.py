@@ -32,7 +32,8 @@ def setup_function():
     gc.collect()
 
 
-IS_DIRECTED = [True, False]
+# Directed graph is not currently supported
+IS_DIRECTED = [False]
 
 
 # @pytest.mark.skipif(
