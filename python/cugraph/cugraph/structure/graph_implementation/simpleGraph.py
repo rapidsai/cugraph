@@ -589,8 +589,7 @@ class simpleGraphImpl:
                                 self.edgelist.edgelist_df["dst"],
                             ]
                         )
-                        .unique()
-                        .count()
+                        .nunique()
                     )
             else:
                 raise RuntimeError("Graph is Empty")
