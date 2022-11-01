@@ -103,5 +103,5 @@ add_subdirectory(cugraph/tree)
 add_subdirectory(cugraph/utilities)
 
 if(DEFINED cython_lib_dir)
-  rapids_cython_add_rpath_entries(TARGET cuml PATHS "${cython_lib_dir}")
+  rapids_cython_add_rpath_entries(TARGET cugraph PATHS "${cython_lib_dir}")
 endif()
