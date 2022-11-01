@@ -429,10 +429,21 @@ def test_extract_subgraph(
     sg = pG.extract_subgraph(
         create_using=create_using[0],
         selection=None if selection is None else pG.select_edges(selection),
+        renumber_graph=False,
     )
-    remote_sg = rpG.extract_subgraph(create_using=create_using[1], selection=selection)
+    remote_sg = rpG.extract_subgraph(
+        create_using=create_using[1], selection=selection, renumber_graph=False
+    )
 
     assert remote_sg.number_of_vertices() == sg.number_of_vertices()
+    print(sg.edgelist.edgelist_df)
+    assert set(remote_sg.vertices_ids().to_cupy().tolist()) == set(
+        cudf.concat([sg.edgelist.edgelist_df["src"], sg.edgelist.edgelist_df["dst"]])
+        .unique()
+        .to_cupy()
+        .tolist()
+    )
+    # assert remote_sg.edgelist.edgelist_df == sg.edgelist()
 
 
 def test_backend_pandas(client_with_property_csvs_loaded, pG_with_property_csvs_loaded):

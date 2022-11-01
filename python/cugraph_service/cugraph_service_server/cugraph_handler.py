@@ -605,7 +605,8 @@ class CugraphHandler:
                 ).unique()
                 df = cudf.DataFrame()
                 df["id"] = s
-            df = G.unrenumber(df, "id", preserve_order=True)
+            if G.is_renumbered():
+                df = G.unrenumber(df, "id", preserve_order=True)
 
         return self.__get_graph_data_as_numpy_bytes(df, null_replacement_value)
 

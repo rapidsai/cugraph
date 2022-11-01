@@ -15,23 +15,11 @@
 import numpy as np
 import importlib
 
-
-class MissingModule:
-    """
-    Raises RuntimeError when any attribute is accessed on instances of this
-    class.
-
-    Instances of this class are returned by import_optional() when a module
-    cannot be found, which allows for code to import optional dependencies, and
-    have only the code paths that use the module affected.
-    """
-
-    def __init__(self, mod_name):
-        self.name = mod_name
-
-    def __getattr__(self, attr):
-        raise RuntimeError(f"This feature requires the {self.name} " "package/module")
-
+from cugraph_service_client.remote_graph_utils import (
+    _transform_to_backend_dtype,
+    _transform_to_backend_dtype_1d,
+    MissingModule,
+)
 
 try:
     cudf = importlib.import_module("cudf")
@@ -54,90 +42,13 @@ except ModuleNotFoundError:
     torch = MissingModule("torch")
 
 
-def _transform_to_backend_dtype(data, column_names, backend="numpy", dtypes=None):
-    """
-    Supports method-by-method selection of backend type (cupy, cudf, etc.)
-    to avoid costly conversion such as row-major to column-major transformation.
-    If using an array or tensor backend, this method will likely be followed with
-    one or more stack() operations to create a matrix or matrices.
-
-    Note: If using inferred dtypes, the returned dataframes, arrays, or tensors may
-    infer a different dtype than what was originally on the server (i.e promotion
-    of int32 to int64).  In the future, the server may also return dtype to prevent
-    this from occurring.
-
-    data : numpy.ndarray
-        The raw ndarray that will be transformed to the backend type.
-    column_names : list[string]
-        The names of the columns, if creating a dataframe.
-    backend : ('numpy', 'pandas', 'cupy', 'cudf', 'torch', 'torch:<device>')
-              [default = 'cudf']
-        The data backend to convert the provided data to.
-    dtypes : ('int32', 'int64', 'float32', etc.)
-        Optional.  The data type to use when storing data in a dataframe or array.
-        If not set, it will be inferred for dataframe backends, and assumed as float64
-        for array and tensor backends.
-        May be a list, or dictionary corresponding to column names.  Unspecified
-        columns in the dictionary will have their dtype inferred.  Note: for array
-        and tensor backends, the inferred type is always 'float64' which will result
-        in a error for non-numeric inputs.
-        i.e. ['int32', 'int64', 'int32', 'float64']
-        i.e. {'col1':'int32', 'col2': 'int64', 'col3': 'float64'}
-    """
-
-    default_dtype = None if backend in ["cudf", "pandas"] else "float64"
-
-    if dtypes is None:
-        dtypes = [default_dtype] * data.shape[1]
-    elif isinstance(dtypes, (list, tuple)):
-        if len(dtypes) != data.shape[1]:
-            raise ValueError("Datatype array length must match number of columns!")
-    elif isinstance(dtypes, dict):
-        dtypes = [
-            dtypes[name] if name in dtypes else default_dtype for name in column_names
-        ]
-    else:
-        raise ValueError("dtypes must be None, a list/tuple, or a dict")
-
-    if not isinstance(data, np.ndarray):
-        raise TypeError("Numpy ndarray expected")
-
-    if backend == "cupy":
-        return [cupy.array(data[:, c], dtype=dtypes[c]) for c in range(data.shape[1])]
-    elif backend == "numpy":
-        return [np.array(data[:, c], dtype=dtypes[c]) for c in range(data.shape[1])]
-
-    elif backend == "pandas" or backend == "cudf":
-        from_records = (
-            pandas.DataFrame.from_records
-            if backend == "pandas"
-            else cudf.DataFrame.from_records
-        )
-        df = from_records(data, columns=column_names)
-        for i, t in enumerate(dtypes):
-            if t is not None:
-                df[column_names[i]] = df[column_names[i]].astype(t)
-        return df
-    elif backend == "torch":
-        return [
-            torch.tensor(data[:, c].astype(dtypes[c])) for c in range(data.shape[1])
-        ]
-
-    backend = backend.split(":")
-    if backend[0] == "torch":
-        try:
-            device = int(backend[1])
-        except ValueError:
-            device = backend[1]
-        return [
-            torch.tensor(data[:, c].astype(dtypes[c]), device=device)
-            for c in range(data.shape[1])
-        ]
-
-    raise ValueError(f"invalid backend {backend[0]}")
-
-
 class RemoteGraph:
+    vertex_col_name = "vertex"
+    src_col_name = "source"
+    dst_col_name = "destination"
+    edge_id_col_name = "edge_id"
+    edge_type_col_name = "edge_type"
+
     def __init__(
         self,
         cgs_client,
@@ -190,10 +101,7 @@ class RemoteGraph:
             ]
         else:
             raise ValueError(f"Invalid edgelist shape {data.shape}")
-        return _transform_to_backend_dtype(
-            data,
-            cols,
-        )
+        return _transform_to_backend_dtype(data, column_names=cols, backend=backend)
 
     @property
     def adjlist(self):
@@ -201,12 +109,12 @@ class RemoteGraph:
 
     def get_vertices(self, backend="cudf"):
         vdata = self.__client.get_graph_vertex_data(graph_id=self.__graph_id)[:, 0]
-        if backend == "cudf":
-            return cudf.Series(vdata)
-        return cupy.array(vdata)
+        return _transform_to_backend_dtype_1d(
+            vdata, series_name=self.vertex_col_name, backend=backend, dtype="int64"
+        )
 
     def vertices_ids(self, backend="cudf"):
-        return self.get_vertices()
+        return self.get_vertices(backend)
 
     def number_of_vertices(self):
         """
@@ -382,9 +290,9 @@ class RemotePropertyGraph:
                 " not available for remote property graph."
             )
         vdata = self.__client.get_graph_vertex_data()[:, 0]
-        if backend == "cudf":
-            return cudf.Series(vdata)
-        return cupy.array(vdata)
+        return _transform_to_backend_dtype_1d(
+            vdata, backend=backend, dtype="int64", series_name=self.vertex_col_name
+        )
 
     def vertices_ids(self):
         """
