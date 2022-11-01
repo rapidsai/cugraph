@@ -34,12 +34,13 @@ def convert_to_cudf(cupy_vertex, cupy_partition):
     return df
 
 
-def _call_plc_louvain(sID, mg_graph_x, max_iter, resolution, do_expensive_check):
+def _call_plc_louvain(sID, mg_graph_x, max_iter, resolution, p, q):
     return pylibcugraph_louvain(
         resource_handle=ResourceHandle(Comms.get_handle(sID).getHandle()),
         graph=mg_graph_x,
         max_level=max_iter,
         resolution=resolution,
+        p=
         do_expensive_check=do_expensive_check,
     )
 
@@ -81,20 +82,14 @@ def louvain(input_graph, max_iter=100, resolution=1.0):
         GPU data frame of size V containing two columns the vertex id and the
         partition id it is assigned to.
 
-        ddf['vertex'] : cudf.Series
+        ddf['vertex'] : dask_cudf.Series
             Contains the vertex identifiers
-        ddf['partition'] : cudf.Series
+        ddf['partition'] : dask_cudf.Series
             Contains the partition assigned to the vertices
 
     modularity_score : float
         a floating point number containing the global modularity score of the
         partitioning.
-
-    Examples
-    --------
-    >>> from cugraph.experimental.datasets import karate
-    >>> G = karate.get_graph(fetch=True)
-    >>> parts = cugraph.louvain(G)
 
     """
 
