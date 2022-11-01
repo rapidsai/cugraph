@@ -76,7 +76,7 @@ def node2vec(G, start_vertices, max_depth=1, compress_result=True, p=1.0, q=1.0)
         Series containing the edge weights of edges represented by the
         returned vertex_paths
 
-    sizes: int or cudf.Series
+    sizes: cudf.Series
         The path size or sizes in case of coalesced paths.
 
     Examples
