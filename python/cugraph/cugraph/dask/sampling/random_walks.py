@@ -35,7 +35,7 @@ def convert_to_cudf(cp_paths):
 
     print("the cupy paths is \n", cp_paths)
 
-    return cudf.Series(cp_paths[0])
+    return cudf.Series(cp_paths)
 
 
 def _call_plc_uniform_random_walks(sID, mg_graph_x, st_x, max_depth):
@@ -130,12 +130,12 @@ def random_walks(input_graph, start_vertices, max_depth=None, use_padding=False)
 
     cudf_vertex_paths = [
         client.submit(convert_to_cudf, cp_vertex_paths)
-        for cp_vertex_paths in zip(result_vertex_paths)
+        for cp_vertex_paths in result_vertex_paths
     ]
 
     cudf_edge_wgt_paths = [
         client.submit(convert_to_cudf, cp_edge_wgt_paths)
-        for cp_edge_wgt_paths in zip(result_edge_wgt_paths)
+        for cp_edge_wgt_paths in result_edge_wgt_paths
     ]
 
     wait([cudf_vertex_paths, cudf_edge_wgt_paths])
