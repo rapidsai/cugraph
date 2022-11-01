@@ -509,6 +509,20 @@ def test_number_of_vertices(graph_file):
     assert G.number_of_vertices() == Gnx.number_of_nodes()
 
 
+def test_number_of_vertices_unrenumber():
+    df = cudf.DataFrame(
+        {
+            "source": [9001, 9002, 9003],
+            "destination": [9003, 9002, 9001],
+        }
+    )
+
+    G = cugraph.Graph()
+    G.from_cudf_edgelist(df, source="source", destination="destination", renumber=False)
+
+    assert 3 == G.number_of_vertices()
+
+
 # Test
 @pytest.mark.parametrize("graph_file", utils.DATASETS_SMALL)
 def test_to_directed(graph_file):

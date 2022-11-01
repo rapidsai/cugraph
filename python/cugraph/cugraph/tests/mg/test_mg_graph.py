@@ -248,3 +248,39 @@ def test_graph_repartition(dask_client):
 
     num_futures = len(ddf.worker_to_parts.values())
     assert num_futures == num_workers
+
+
+def test_number_of_vertices(dask_client):
+    input_data_path = (utils.RAPIDS_DATASET_ROOT_DIR_PATH / "karate.csv").as_posix()
+    print(f"dataset={input_data_path}")
+    chunksize = dcg.get_chunksize(input_data_path)
+
+    ddf = dask_cudf.read_csv(
+        input_data_path,
+        chunksize=chunksize,
+        delimiter=" ",
+        names=["src", "dst", "value"],
+        dtype=["int32", "int32", "float32"],
+    )
+
+    G = cugraph.Graph()
+    G.from_dask_cudf_edgelist(ddf, source="src", destination="dst", edge_attr="value")
+
+    assert G.number_of_vertices() == 34
+
+
+def test_number_of_vertices_unrenumber(dask_client):
+    df = dask_cudf.from_cudf(
+        cudf.DataFrame(
+            {
+                "source": [9001, 9002, 9003],
+                "destination": [9003, 9002, 9001],
+            }
+        ),
+        npartitions=3,
+    )
+
+    G = cugraph.Graph()
+    G.from_dask_cudf_edgelist(df, source="source", destination="destination")
+
+    assert 3 == G.number_of_vertices()

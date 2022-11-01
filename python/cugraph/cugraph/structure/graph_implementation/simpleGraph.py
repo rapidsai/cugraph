@@ -576,8 +576,22 @@ class simpleGraphImpl:
             elif self.transposedadjlist is not None:
                 self.properties.node_count = len(self.transposedadjlist.offsets) - 1
             elif self.edgelist is not None:
-                df = self.edgelist.edgelist_df[["src", "dst"]]
-                self.properties.node_count = df.max().max() + 1
+                if self.properties.renumbered:
+                    # If renumbering has occurred, then the vertices have been
+                    # given sequential ids starting from 0
+                    df = self.edgelist.edgelist_df[["src", "dst"]]
+                    self.properties.node_count = df.max().max() + 1
+                else:
+                    self.properties.node_count = (
+                        cudf.concat(
+                            [
+                                self.edgelist.edgelist_df["src"],
+                                self.edgelist.edgelist_df["dst"],
+                            ]
+                        )
+                        .unique()
+                        .count()
+                    )
             else:
                 raise RuntimeError("Graph is Empty")
         return self.properties.node_count

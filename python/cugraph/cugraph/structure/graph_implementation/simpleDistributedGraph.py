@@ -332,8 +332,22 @@ class simpleDistributedGraphImpl:
         """
         if self.properties.node_count is None:
             if self.edgelist is not None:
-                ddf = self.edgelist.edgelist_df[["src", "dst"]]
-                self.properties.node_count = ddf.max().max().compute() + 1
+                src_col_name = self.renumber_map.renumbered_src_col_name
+                dst_col_name = self.renumber_map.renumbered_dst_col_name
+                if self.properties.renumbered:
+                    ddf = self.edgelist.edgelist_df[[src_col_name, dst_col_name]]
+                    self.properties.node_count = ddf.max().max().compute() + 1
+                else:
+                    self.properties.node_count = (
+                        dask_cudf.concat(
+                            [
+                                self.edgelist.edgelist_df[src_col_name],
+                                self.edgelist.edgelist_df[dst_col_name],
+                            ]
+                        )
+                        .unique()
+                        .count()
+                    )
             else:
                 raise RuntimeError("Graph is Empty")
         return self.properties.node_count
