@@ -22,7 +22,7 @@ import threading
 import cupy as cp
 
 from cugraph_service_client import defaults
-from cugraph_service_client.remote_graph import RemotePropertyGraph
+from cugraph_service_client.remote_graph import RemoteGraph
 from cugraph_service_client.types import (
     ValueWrapper,
     GraphVertexEdgeID,
@@ -397,9 +397,9 @@ class CugraphServiceClient:
 
     def graph(self):
         """
-        Constructs an empty RemotePropertyGraph object.
+        Constructs a new RemoteGraph object wrapping a remote PropertyGraph.
         """
-        return RemotePropertyGraph(self, self.create_graph())
+        return RemoteGraph(self, self.create_graph())
 
     @__server_connection
     def get_graph_ids(self):
@@ -861,7 +861,7 @@ class CugraphServiceClient:
     def is_vertex_property(self, property_key, graph_id=defaults.graph_id):
         """
         Returns True if the given property key is for a valid vertex property
-        in the given graph, false otherwise.e
+        in the given graph, False otherwise.
 
         Parameters
         ----------

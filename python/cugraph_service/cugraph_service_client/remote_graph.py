@@ -43,11 +43,14 @@ except ModuleNotFoundError:
 
 
 class RemoteGraph:
-    vertex_col_name = "vertex"
-    src_col_name = "source"
-    dst_col_name = "destination"
-    edge_id_col_name = "edge_id"
-    edge_type_col_name = "edge_type"
+    # column name constants used in internal DataFrames
+    vertex_col_name = "_VERTEX_"
+    src_col_name = "_SRC_"
+    dst_col_name = "_DST_"
+    type_col_name = "_TYPE_"
+    edge_id_col_name = "_EDGE_ID_"
+    weight_col_name = "_WEIGHT_"
+    _default_type_name = ""
 
     def __init__(
         self,
@@ -56,6 +59,8 @@ class RemoteGraph:
     ):
         self.__client = cgs_client
         self.__graph_id = cgs_graph_id
+        self.__vertex_categorical_dtype = None
+        self.__edge_categorical_dtype = None
 
     def __del__(self):
         self.__client.delete_graph(self.__graph_id)
@@ -86,80 +91,6 @@ class RemoteGraph:
 
     def to_undirected(self):
         raise NotImplementedError("not implemented")
-
-    @property
-    def edgelist(self, backend="cudf"):
-        data = self.__client.get_graph_edge_data(graph_id=self.__graph_id)
-        if data.shape(1) == 2:
-            cols = [self.src_col_name, self.dst_col_name]
-        elif data.shape(1) == 4:
-            cols = [
-                self.src_col_name,
-                self.dst_col_name,
-                self.edge_id_col_name,
-                self.edge_type_col_name,
-            ]
-        else:
-            raise ValueError(f"Invalid edgelist shape {data.shape}")
-        return _transform_to_backend_dtype(data, column_names=cols, backend=backend)
-
-    @property
-    def adjlist(self):
-        raise NotImplementedError("not implemented")
-
-    def get_vertices(self, backend="cudf"):
-        vdata = self.__client.get_graph_vertex_data(graph_id=self.__graph_id)[:, 0]
-        return _transform_to_backend_dtype_1d(
-            vdata, series_name=self.vertex_col_name, backend=backend, dtype="int64"
-        )
-
-    def vertices_ids(self, backend="cudf"):
-        return self.get_vertices(backend)
-
-    def number_of_vertices(self):
-        """
-        Returns the number of vertices in this graph.
-        """
-        return len(self.get_vertices())
-
-    def number_of_nodes(self):
-        """
-        Alias for number_of_vertices()
-        """
-        return self.number_of_vertices()
-
-    def number_of_edges(self):
-        """
-        Returns the number of edges in this graph.
-        """
-        return len(self.edgelist)
-
-    def _graph_id(self):
-        return self.__graph_id
-
-
-class RemotePropertyGraph:
-    # column name constants used in internal DataFrames
-    vertex_col_name = "_VERTEX_"
-    src_col_name = "_SRC_"
-    dst_col_name = "_DST_"
-    type_col_name = "_TYPE_"
-    edge_id_col_name = "_EDGE_ID_"
-    weight_col_name = "_WEIGHT_"
-    _default_type_name = ""
-
-    def __init__(
-        self,
-        cgs_client,
-        cgs_graph_id,
-    ):
-        self.__client = cgs_client
-        self.__graph_id = cgs_graph_id
-        self.__vertex_categorical_dtype = None
-        self.__edge_categorical_dtype = None
-
-    def __del__(self):
-        self.__client.delete_graph(self.__graph_id)
 
     @property
     def _vertex_categorical_dtype(self):
@@ -289,7 +220,7 @@ class RemotePropertyGraph:
                 "Use of get_vertices() with selection"
                 " not available for remote property graph."
             )
-        vdata = self.__client.get_graph_vertex_data()[:, 0]
+        vdata = self.__client.get_graph_vertex_data(graph_id=self.__graph_id)[:, 0]
         return _transform_to_backend_dtype_1d(
             vdata, backend=backend, dtype="int64", series_name=self.vertex_col_name
         )

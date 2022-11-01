@@ -710,8 +710,10 @@ class CugraphHandler:
                     type=vertex_type, include_edge_data=include_edge_data
                 )
 
-        raise CugraphServiceError("Graph does not contain properties")
-        # FIXME this should be valid for a graph without properties (but not by type)
+        else:
+            if vertex_type != "":
+                raise CugraphServiceError("Graph does not support vertex types")
+            return G.number_of_vertices()
 
     def get_num_edges(self, edge_type, graph_id):
         G = self._get_graph(graph_id)
@@ -721,7 +723,12 @@ class CugraphHandler:
             else:
                 return G.get_num_edges(type=edge_type)
 
-        raise CugraphServiceError("Graph does not contain properties")
+        else:
+            if edge_type == "":
+                return G.number_of_edges()
+            else:
+                mask = G.edgelist.edgelist_df[G.edgeTypeCol] == edge_type
+                return G.edgelist.edgelist_df[mask].count()
         # FIXME this should be valid for a graph without properties
 
     ###########################################################################

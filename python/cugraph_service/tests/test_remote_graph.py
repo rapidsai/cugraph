@@ -27,7 +27,7 @@ import numpy as np
 
 import cugraph
 from cugraph.experimental import PropertyGraph
-from cugraph_service_client import RemotePropertyGraph
+from cugraph_service_client import RemoteGraph
 
 ###############################################################################
 # fixtures
@@ -208,7 +208,7 @@ def pG_with_property_csvs_loaded():
 
 
 def test_graph_info(client_with_property_csvs_loaded, pG_with_property_csvs_loaded):
-    rpG = RemotePropertyGraph(client_with_property_csvs_loaded, 0)
+    rpG = RemoteGraph(client_with_property_csvs_loaded, 0)
     pG = pG_with_property_csvs_loaded
     graph_info = rpG.graph_info
 
@@ -227,7 +227,7 @@ def test_graph_info(client_with_property_csvs_loaded, pG_with_property_csvs_load
 
 def test_edges(client_with_property_csvs_loaded, pG_with_property_csvs_loaded):
     # FIXME update this when edges() method issue is resolved.
-    rpG = RemotePropertyGraph(client_with_property_csvs_loaded, 0)
+    rpG = RemoteGraph(client_with_property_csvs_loaded, 0)
     pG = pG_with_property_csvs_loaded
 
     edges = pG.get_edge_data(
@@ -247,7 +247,7 @@ def test_edges(client_with_property_csvs_loaded, pG_with_property_csvs_loaded):
 def test_property_type_names(
     client_with_property_csvs_loaded, pG_with_property_csvs_loaded
 ):
-    rpG = RemotePropertyGraph(client_with_property_csvs_loaded, 0)
+    rpG = RemoteGraph(client_with_property_csvs_loaded, 0)
     pG = pG_with_property_csvs_loaded
 
     assert rpG.vertex_property_names == pG.vertex_property_names
@@ -257,7 +257,7 @@ def test_property_type_names(
 
 
 def test_num_elements(client_with_property_csvs_loaded, pG_with_property_csvs_loaded):
-    rpG = RemotePropertyGraph(client_with_property_csvs_loaded, 0)
+    rpG = RemoteGraph(client_with_property_csvs_loaded, 0)
     pG = pG_with_property_csvs_loaded
 
     assert rpG.get_num_vertices() == pG.get_num_vertices()
@@ -278,7 +278,7 @@ def test_num_elements(client_with_property_csvs_loaded, pG_with_property_csvs_lo
 def test_get_vertex_data(
     client_with_property_csvs_loaded, pG_with_property_csvs_loaded
 ):
-    rpG = RemotePropertyGraph(client_with_property_csvs_loaded, 0)
+    rpG = RemoteGraph(client_with_property_csvs_loaded, 0)
     pG = pG_with_property_csvs_loaded
 
     vd = rpG.get_vertex_data()
@@ -321,7 +321,7 @@ def test_get_vertex_data(
 
 
 def test_get_edge_data(client_with_property_csvs_loaded, pG_with_property_csvs_loaded):
-    rpG = RemotePropertyGraph(client_with_property_csvs_loaded, 0)
+    rpG = RemoteGraph(client_with_property_csvs_loaded, 0)
     pG = pG_with_property_csvs_loaded
 
     ed = rpG.get_edge_data()
@@ -380,7 +380,7 @@ def test_add_edge_data(client_with_property_csvs_loaded, pG_with_property_csvs_l
 
 
 def test_get_vertices(client_with_property_csvs_loaded, pG_with_property_csvs_loaded):
-    rpG = RemotePropertyGraph(client_with_property_csvs_loaded, 0)
+    rpG = RemoteGraph(client_with_property_csvs_loaded, 0)
     pG = pG_with_property_csvs_loaded
 
     assert set(rpG.get_vertices().to_cupy().tolist()) == set(
@@ -423,7 +423,7 @@ def test_extract_subgraph(
     if mg_only and create_using[0] is not None and not create_using[0].is_multigraph():
         pytest.skip()
 
-    rpG = RemotePropertyGraph(client_with_property_csvs_loaded, 0)
+    rpG = RemoteGraph(client_with_property_csvs_loaded, 0)
     pG = pG_with_property_csvs_loaded
 
     sg = pG.extract_subgraph(
@@ -435,7 +435,7 @@ def test_extract_subgraph(
         create_using=create_using[1], selection=selection, renumber_graph=False
     )
 
-    assert remote_sg.number_of_vertices() == sg.number_of_vertices()
+    assert remote_sg.get_num_vertices() == sg.number_of_vertices()
     print(sg.edgelist.edgelist_df)
     assert set(remote_sg.vertices_ids().to_cupy().tolist()) == set(
         cudf.concat([sg.edgelist.edgelist_df["src"], sg.edgelist.edgelist_df["dst"]])
@@ -447,7 +447,7 @@ def test_extract_subgraph(
 
 
 def test_backend_pandas(client_with_property_csvs_loaded, pG_with_property_csvs_loaded):
-    rpG = RemotePropertyGraph(client_with_property_csvs_loaded, 0)
+    rpG = RemoteGraph(client_with_property_csvs_loaded, 0)
     pG = pG_with_property_csvs_loaded
 
     # edges()
@@ -491,7 +491,7 @@ def test_backend_pandas(client_with_property_csvs_loaded, pG_with_property_csvs_
 
 
 def test_backend_cupy(client_with_property_csvs_loaded, pG_with_property_csvs_loaded):
-    rpG = RemotePropertyGraph(client_with_property_csvs_loaded, 0)
+    rpG = RemoteGraph(client_with_property_csvs_loaded, 0)
     pG = pG_with_property_csvs_loaded
 
     # edges()
@@ -551,7 +551,7 @@ def test_backend_cupy(client_with_property_csvs_loaded, pG_with_property_csvs_lo
 
 
 def test_backend_numpy(client_with_property_csvs_loaded, pG_with_property_csvs_loaded):
-    rpG = RemotePropertyGraph(client_with_property_csvs_loaded, 0)
+    rpG = RemoteGraph(client_with_property_csvs_loaded, 0)
     pG = pG_with_property_csvs_loaded
 
     # edges()
@@ -618,7 +618,7 @@ except ModuleNotFoundError:
 def test_backend_torch(
     client_with_property_csvs_loaded, pG_with_property_csvs_loaded, torch_backend
 ):
-    rpG = RemotePropertyGraph(client_with_property_csvs_loaded, 0)
+    rpG = RemoteGraph(client_with_property_csvs_loaded, 0)
     pG = pG_with_property_csvs_loaded
 
     # edges()
