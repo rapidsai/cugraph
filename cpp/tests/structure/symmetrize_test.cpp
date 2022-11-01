@@ -19,6 +19,7 @@
 #include <utilities/test_utilities.hpp>
 
 #include <cugraph/graph.hpp>
+#include <cugraph/graph_functions.hpp>
 
 #include <raft/cudart_utils.h>
 #include <raft/handle.hpp>
@@ -212,8 +213,12 @@ class Tests_Symmetrize
     rmm::device_uvector<vertex_t> d_org_dsts(0, handle.get_stream());
     std::optional<rmm::device_uvector<weight_t>> d_org_weights{std::nullopt};
     if (symmetrize_usecase.check_correctness) {
-      std::tie(d_org_srcs, d_org_dsts, d_org_weights) =
-        graph.decompress_to_edgelist(handle, d_renumber_map_labels, false);
+      std::tie(d_org_srcs, d_org_dsts, d_org_weights) = cugraph::decompress_to_edgelist(
+        handle,
+        graph.view(),
+        d_renumber_map_labels ? std::make_optional<raft::device_span<vertex_t const>>(
+                                  (*d_renumber_map_labels).data(), (*d_renumber_map_labels).size())
+                              : std::nullopt);
     }
 
     if (cugraph::test::g_perf) {
@@ -221,8 +226,8 @@ class Tests_Symmetrize
       hr_clock.start();
     }
 
-    d_renumber_map_labels =
-      graph.symmetrize(handle, std::move(d_renumber_map_labels), symmetrize_usecase.reciprocal);
+    std::tie(graph, d_renumber_map_labels) = cugraph::symmetrize_graph(
+      handle, std::move(graph), std::move(d_renumber_map_labels), symmetrize_usecase.reciprocal);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -232,8 +237,12 @@ class Tests_Symmetrize
     }
 
     if (symmetrize_usecase.check_correctness) {
-      auto [d_symm_srcs, d_symm_dsts, d_symm_weights] =
-        graph.decompress_to_edgelist(handle, d_renumber_map_labels, false);
+      auto [d_symm_srcs, d_symm_dsts, d_symm_weights] = cugraph::decompress_to_edgelist(
+        handle,
+        graph.view(),
+        d_renumber_map_labels ? std::make_optional<raft::device_span<vertex_t const>>(
+                                  (*d_renumber_map_labels).data(), (*d_renumber_map_labels).size())
+                              : std::nullopt);
 
       auto h_org_srcs    = cugraph::test::to_host(handle, d_org_srcs);
       auto h_org_dsts    = cugraph::test::to_host(handle, d_org_dsts);
