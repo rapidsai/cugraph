@@ -220,7 +220,7 @@ class EXPERIMENTAL__PropertyGraph:
     @property
     def edge_property_names(self):
         """
-        Names of custom edge property names defined in the graph data
+        List containing each edge property name in the PropertyGraph instance.
         """
         if self.__edge_prop_dataframe is not None:
             props = list(self.__edge_prop_dataframe.columns)
@@ -485,7 +485,7 @@ class EXPERIMENTAL__PropertyGraph:
 
         See Also
         --------
-        PropertyGraph.get_vertices()
+        PropertyGraph.get_vertices
         """
         return self.get_vertices()
 
@@ -510,7 +510,7 @@ class EXPERIMENTAL__PropertyGraph:
             the empty string, "".
         property_columns : list of strings, optional
             List of column names in dataframe to be added as properties. All
-            other columns in dataframe will be ignored. If not specified, all
+            other columns in the dataframe will be ignored. If not specified, all
             columns in dataframe are added.
 
         Returns
@@ -991,15 +991,16 @@ class EXPERIMENTAL__PropertyGraph:
 
     def get_edge_data(self, edge_ids=None, types=None, columns=None):
         """
-        Create a dataframe containing edge properties for only the specified
+        Return a dataframe containing edge properties for only the specified
         edge_ids, columns, and/or edge type, or all edge IDs if not specified.
 
         Parameters
         ----------
-        edge_ids : int or collection of int
+        edge_ids : int or collection of int, optional
             The list of edges to include in the edge data
-        types : list of edge types to include in returned dataframe, optional
-            None is the default and will return all edge types
+        types : list, optional
+            List of edge types to include in returned dataframe.
+            None is the default and will return all edge types.
         columns : which edge columns will be returned, optional
             None is the default and will result in all columns being returned
 
@@ -1382,26 +1383,26 @@ class EXPERIMENTAL__PropertyGraph:
         >>> import cudf
         >>> from cugraph.experimental import PropertyGraph
         >>> df = cudf.DataFrame(columns=["src", "dst", "some_property"],
-        ...                              data=[(99, 22, "a"),
-        ...                                    (98, 34, "b"),
-        ...                                    (97, 56, "c"),
-        ...                                    (96, 88, "d"),
-        ...                                  ])
+        ...                                       data=[(99, 22, "a"),
+        ...                                             (98, 34, "b"),
+        ...                                             (97, 56, "c"),
+        ...                                             (96, 88, "d"),
+        ...                                            ])
         >>> pG = PropertyGraph()
         >>> pG.add_edge_data(df, type_name="etype", vertex_col_names=("src", "dst"))
         >>> G = pG.extract_subgraph(create_using=cugraph.Graph(directed=True))
         >>> algo_result = cudf.DataFrame({"from":df.src,
         ...                               "to":df.dst,
         ...                               "result": range(len(df.src))})
-        >>> new_algo_result = pG.annotate_dataframe(
-        ...     algo_result, G, edge_vertex_col_names=("from", "to"))
+        >>> new_algo_result = pG.annotate_dataframe(algo_result,
+        ...                                     G,
+        ...                                     edge_vertex_col_names=("from", "to"))
         >>> print (new_algo_result)
         from  to  result  _EDGE_ID_ _TYPE_ some_property
         0    99  22       0          0  etype             a
         1    98  34       1          1  etype             b
         2    97  56       2          2  etype             c
-        3    96  88       3          3  etype             d
-        """
+        3    96  88       3          3  etype             d"""
         # FIXME: check all args
         (src_col_name, dst_col_name) = edge_vertex_col_names
 
@@ -1593,37 +1594,28 @@ class EXPERIMENTAL__PropertyGraph:
 
         Examples
         --------
-        >>> >>> import cugraph
+        >>> import cugraph
+        >>> import cudf
         >>> import cudf
         >>> from cugraph.experimental import PropertyGraph
         >>> df = cudf.DataFrame(columns=["src", "dst", "some_property"],
-        ...                                       data=[(99, 22, "a"),
-        ...                                             (98, 34, "b"),
-        ...                                             (97, 56, "c"),
-        ...                                             (96, 88, "d"),
-        ...                                           ])
+        ...                                                data=[(99, 22, "a"),
+        ...                                                      (98, 34, "b"),
+        ...                                                      (97, 56, "c"),
+        ...                                                      (96, 88, "d"),
+        ...                                                     ])
         >>> pG = PropertyGraph()
         >>> pG.add_edge_data(df, type_name="etype", vertex_col_names=("src", "dst"))
         >>> vert_df1 = cudf.DataFrame({"vert_id": [99, 22, 98, 34],
-        ...                           "v_prop": [1 ,2 ,3, 4]})
+        ...                                    "v_prop": [1 ,2 ,3, 4]})
         >>> pG.add_vertex_data(vert_df1, type_name="vtype1", vertex_col_name="vert_id")
         >>> vert_df2 = cudf.DataFrame({"vert_id": [97, 56, 96, 88],
-        ...                           "v_prop": [ 5, 6, 7, 8]})
+        ...                            "v_prop": [ 5, 6, 7, 8]})
         >>> pG.add_vertex_data(vert_df2, type_name="vtype2", vertex_col_name="vert_id")
         >>> pG.renumber_vertices_by_type()
                 start  stop
         vtype1      0     3
         vtype2      4     7
-        >>> pG.get_vertex_data()
-        _VERTEX_  _TYPE_  v_prop
-        0         0  vtype1       1
-        1         1  vtype1       2
-        2         2  vtype1       3
-        3         3  vtype1       4
-        4         4  vtype2       5
-        5         5  vtype2       6
-        6         6  vtype2       7
-        7         7  vtype2       8
         """
         # Check if some vertex IDs exist only in edge data
         TCN = self.type_col_name
@@ -1772,7 +1764,7 @@ class EXPERIMENTAL__PropertyGraph:
     @classmethod
     def has_duplicate_edges(cls, df, columns=None):
         """
-        Tests for duplicate edges in the graph
+        Return True if df has rows with the same src, dst, type, and columns
 
         Parameters
         ----------
