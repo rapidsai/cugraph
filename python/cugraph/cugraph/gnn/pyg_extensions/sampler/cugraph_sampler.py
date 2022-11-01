@@ -15,9 +15,9 @@ from cugraph.utilities.utils import MissingModule, import_optional
 from cugraph.gnn.pyg_extensions.loader.dispatch import call_cugraph_algorithm
 
 import cudf
-import cupy
 
 dask_cudf = import_optional("dask_cudf")
+torch_geometric = import_optional("torch_geometric")
 
 
 class EXPERIMENTAL__CuGraphSampler:
@@ -40,12 +40,27 @@ class EXPERIMENTAL__CuGraphSampler:
         self.__feature_store = fs
         self.__graph_store = gs
 
-    def sample_from_nodes(self, index):
+    def sample_from_nodes(self, sampler_input):
         """
-        index: input node tensor
+        Performs sampling based on this sampler's sampling method
+        and the input node data passed to this function.  Matches
+        the interface provided by PyG's NodeSamplerInput.
+
+        sampler_input: tuple(index, input_nodes, input_time)
+            index.index: The sample indices to store as metadata
+            index.input_nodes: Input nodes to pass to the sampler
+            index.input_time: Node timestamps (if performing temporal
+            sampling which is currently not supported)
         """
+        index, input_nodes, input_time = sampler_input
+
+        if input_time is not None:
+            raise ValueError("Temporal sampling is currently" " unsupported in cuGraph")
+
         if self.__method == self.UNIFORM_NEIGHBOR:
-            return self.__neighbor_sample(index, **self.__sampling_args)
+            return self.__neighbor_sample(
+                input_nodes, **self.__sampling_args, metadata=index
+            )
 
     def sample_from_edges(self, index):
         raise NotImplementedError("Edge sampling currently unsupported")
@@ -69,10 +84,11 @@ class EXPERIMENTAL__CuGraphSampler:
         replace=True,
         directed=True,
         edge_types=None,
+        metadata=None,
         **kwargs,
     ):
         is_mg = self.__graph_store.is_mg
-        if is_mg and dask_cudf == MissingModule:
+        if is_mg and isinstance(dask_cudf, MissingModule):
             raise ImportError("Cannot use a multi-GPU store without dask_cudf")
         if is_mg != self.__feature_store.is_mg:
             raise ValueError(
@@ -104,12 +120,11 @@ class EXPERIMENTAL__CuGraphSampler:
         # FIXME eventually get uniform neighbor sample to accept longs
         if backend == "torch" and not index.is_cuda:
             index = index.cuda()
-        index = cupy.from_dlpack(index.__dlpack__())
 
         # FIXME resolve the directed/undirected issue
         G = self.__graph_store._subgraph([et[1] for et in edge_types])
 
-        index = cudf.Series(index)
+        index = cudf.from_dlpack(index.__dlpack__())
 
         sampling_results = call_cugraph_algorithm(
             "uniform_neighbor_sample",
@@ -129,16 +144,19 @@ class EXPERIMENTAL__CuGraphSampler:
         if is_mg:
             nodes_of_interest = nodes_of_interest.compute()
 
-        # Get the node index (for creating the edge index),
-        # the node type groupings, and the node properties.
-        noi_index = self.__feature_store._get_renumbered_vertex_data_from_sample(
-            nodes_of_interest
-        )
+        # Get the grouped node index (for creating the renumbered grouped edge index)
+        noi_index = self.__graph_store._get_vertex_groups_from_sample(nodes_of_interest)
 
         # Get the new edge index (by type as expected for HeteroData)
-        # FIXME handle edge ids
-        row_dict, col_dict = self.__graph_store._get_renumbered_edges_from_sample(
+        # FIXME handle edge ids/types after the C++ updates
+        row_dict, col_dict = self.__graph_store._get_renumbered_edge_groups_from_sample(
             sampling_results, noi_index
         )
 
-        return (noi_index, row_dict, col_dict, None)
+        out = (noi_index, row_dict, col_dict, None)
+        if isinstance(torch_geometric, MissingModule):
+            return out
+        else:
+            return torch_geometric.sampler.base.HeteroSamplerOutput(
+                *out, metadata=metadata
+            )

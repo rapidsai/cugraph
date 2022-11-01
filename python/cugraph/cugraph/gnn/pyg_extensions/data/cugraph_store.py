@@ -184,16 +184,19 @@ class EXPERIMENTAL__CuGraphStore:
             from torch.utils.dlpack import from_dlpack
             from torch import int64 as vertex_dtype
             from torch import float32 as property_dtype
+            from torch import searchsorted as searchsorted
         elif backend == "cupy":
             from cupy import from_dlpack
             from cupy import int64 as vertex_dtype
             from cupy import float32 as property_dtype
+            from cupy import searchsorted as searchsorted
         else:
             raise ValueError(f"Invalid backend {backend}.")
         self.__backend = backend
         self.from_dlpack = from_dlpack
         self.vertex_dtype = vertex_dtype
         self.property_dtype = property_dtype
+        self.searchsorted = searchsorted
 
         self.__graph = G
         self.__subgraphs = {}
@@ -257,6 +260,22 @@ class EXPERIMENTAL__CuGraphStore:
     @property
     def is_mg(self):
         return isinstance(self.__graph, MGPropertyGraph)
+
+    def get_vertex_index(self, vtypes):
+        # TODO force the graph to use offsets and
+        # return these values based on offsets
+
+        if isinstance(vtypes, str):
+            vtypes = [vtypes]
+
+        ix = self.__graph.get_vertex_data(types=vtypes, columns=[])[
+            self.__graph.vertex_col_name
+        ]
+
+        if self.is_mg:
+            ix = ix.compute()
+
+        return self.from_dlpack(ix.to_dlpack())
 
     def put_edge_index(self, edge_index, edge_attr):
         raise NotImplementedError("Adding indices not supported.")
@@ -409,7 +428,7 @@ class EXPERIMENTAL__CuGraphStore:
                 edge_weight_property=self.__graph.edge_id_col_name,
                 default_edge_weight=1.0,
                 check_multi_edges=True,
-                renumber_graph=True,
+                renumber_graph=False,
                 add_edge_data=False,
             )
             self.__subgraphs[edge_types] = sg
@@ -434,9 +453,13 @@ class EXPERIMENTAL__CuGraphStore:
                 # store the renumbering for this vertex type
                 # renumbered vertex id is the index of the old id
                 noi_index[t] = (
-                    noi_t[self.__graph.vertex_col_name].compute().to_cupy()
+                    self.from_dlpack(
+                        noi_t[self.__graph.vertex_col_name].compute().to_dlpack()
+                    )
                     if self.is_mg
-                    else noi_t[self.__graph.vertex_col_name].to_cupy()
+                    else self.from_dlpack(
+                        noi_t[self.__graph.vertex_col_name].to_dlpack()
+                    )
                 )
 
         return noi_index
@@ -465,22 +488,20 @@ class EXPERIMENTAL__CuGraphStore:
 
                 sources = eoi_t[self.__graph.src_col_name]
                 if self.is_mg:
-                    sources = sources.compute()
+                    sources = self.sources.compute()
+                sources = self.from_dlpack(sources.to_dlpack())
                 src_id_table = noi_index[src_type]
 
-                src = self.from_dlpack(
-                    cupy.searchsorted(src_id_table, sources.to_cupy()).toDlpack()
-                )
+                src = self.searchsorted(src_id_table, sources)
                 row_dict[t_pyg_type] = src
 
                 destinations = eoi_t[self.__graph.dst_col_name]
                 if self.is_mg:
                     destinations = destinations.compute()
+                destinations = self.from_dlpack(destinations.to_dlpack())
                 dst_id_table = noi_index[dst_type]
 
-                dst = self.from_dlpack(
-                    cupy.searchsorted(dst_id_table, destinations.to_cupy()).toDlpack()
-                )
+                dst = self.searchsorted(dst_id_table, destinations)
                 col_dict[t_pyg_type] = dst
 
         return row_dict, col_dict
