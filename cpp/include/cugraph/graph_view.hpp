@@ -40,9 +40,6 @@
 #include <vector>
 
 namespace cugraph {
-namespace serializer {
-class serializer_t;  // forward...
-}
 
 /**
  * @brief store vertex partitioning map
@@ -301,8 +298,6 @@ class graph_base_t : public graph_envelope_t::base_graph_t /*<- visitor logic*/ 
   }
 
  protected:
-  friend class cugraph::serializer::serializer_t;
-
   raft::handle_t const* handle_ptr() const { return handle_ptr_; };
   graph_properties_t graph_properties() const { return properties_; }
 
@@ -671,16 +666,8 @@ class graph_view_t<vertex_t,
   rmm::device_uvector<edge_t> compute_in_degrees(raft::handle_t const& handle) const;
   rmm::device_uvector<edge_t> compute_out_degrees(raft::handle_t const& handle) const;
 
-  rmm::device_uvector<weight_t> compute_in_weight_sums(raft::handle_t const& handle) const;
-  rmm::device_uvector<weight_t> compute_out_weight_sums(raft::handle_t const& handle) const;
-
   edge_t compute_max_in_degree(raft::handle_t const& handle) const;
   edge_t compute_max_out_degree(raft::handle_t const& handle) const;
-
-  weight_t compute_max_in_weight_sum(raft::handle_t const& handle) const;
-  weight_t compute_max_out_weight_sum(raft::handle_t const& handle) const;
-
-  weight_t compute_total_edge_weight(raft::handle_t const& handle) const;
 
   edge_t count_self_loops(raft::handle_t const& handle) const;
   edge_t count_multi_edges(raft::handle_t const& handle) const;
@@ -774,12 +761,6 @@ class graph_view_t<vertex_t,
   {
     return local_sorted_unique_edge_dst_vertex_partition_offsets_;
   }
-
-  std::tuple<rmm::device_uvector<vertex_t>,
-             rmm::device_uvector<vertex_t>,
-             std::optional<rmm::device_uvector<weight_t>>>
-  decompress_to_edgelist(raft::handle_t const& handle,
-                         std::optional<rmm::device_uvector<vertex_t>> const& renumber_map) const;
 
  private:
   std::vector<edge_t const*> edge_partition_offsets_{};
@@ -980,16 +961,8 @@ class graph_view_t<vertex_t,
   rmm::device_uvector<edge_t> compute_in_degrees(raft::handle_t const& handle) const;
   rmm::device_uvector<edge_t> compute_out_degrees(raft::handle_t const& handle) const;
 
-  rmm::device_uvector<weight_t> compute_in_weight_sums(raft::handle_t const& handle) const;
-  rmm::device_uvector<weight_t> compute_out_weight_sums(raft::handle_t const& handle) const;
-
   edge_t compute_max_in_degree(raft::handle_t const& handle) const;
   edge_t compute_max_out_degree(raft::handle_t const& handle) const;
-
-  weight_t compute_max_in_weight_sum(raft::handle_t const& handle) const;
-  weight_t compute_max_out_weight_sum(raft::handle_t const& handle) const;
-
-  weight_t compute_total_edge_weight(raft::handle_t const& handle) const;
 
   edge_t count_self_loops(raft::handle_t const& handle) const;
   edge_t count_multi_edges(raft::handle_t const& handle) const;
@@ -1071,12 +1044,6 @@ class graph_view_t<vertex_t,
   {
     return std::nullopt;
   }
-
-  std::tuple<rmm::device_uvector<vertex_t>,
-             rmm::device_uvector<vertex_t>,
-             std::optional<rmm::device_uvector<weight_t>>>
-  decompress_to_edgelist(raft::handle_t const& handle,
-                         std::optional<rmm::device_uvector<vertex_t>> const& renumber_map) const;
 
  private:
   edge_t const* offsets_{nullptr};

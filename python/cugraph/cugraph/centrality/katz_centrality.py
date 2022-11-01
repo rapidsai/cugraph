@@ -109,7 +109,7 @@ def katz_centrality(
     >>> kc = cugraph.katz_centrality(G)
 
     """
-    G, isNx = ensure_cugraph_obj_for_nx(G)
+    G, isNx = ensure_cugraph_obj_for_nx(G, store_transposed=True)
 
     if G.store_transposed is False:
         warning_msg = (

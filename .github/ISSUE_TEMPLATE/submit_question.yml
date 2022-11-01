@@ -1,0 +1,45 @@
+# SPDX-FileCopyrightText: Copyright (c) 2022, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: Submit Question
+description: Ask a general question about cuGraph
+title: "[QST]: "
+labels: ["question"]
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to ask us a question!
+
+  - type: textarea
+    id: question
+    attributes:
+      label: What is your question?
+      description: Please be specific and we will answer your question as soon as possible.
+      placeholder: Does cuGraph integrate with XYZ software?
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Code of Conduct
+      description: By submitting this issue, you agree to follow our [Code of Conduct](https://docs.rapids.ai/resources/conduct/)
+      options:
+        - label: I agree to follow cuGraph's Code of Conduct
+          required: true
+        - label: I have searched the [open issues](https://github.com/rapidsai/cugraph/issues) and have found no duplicates for this question
+          required: true

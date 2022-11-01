@@ -19,6 +19,7 @@
 #include <utilities/test_utilities.hpp>
 
 #include <cugraph/graph.hpp>
+#include <cugraph/graph_functions.hpp>
 
 #include <raft/cudart_utils.h>
 #include <raft/handle.hpp>
@@ -77,8 +78,12 @@ class Tests_TransposeStorage
     rmm::device_uvector<vertex_t> d_org_dsts(0, handle.get_stream());
     std::optional<rmm::device_uvector<weight_t>> d_org_weights{std::nullopt};
     if (transpose_storage_usecase.check_correctness) {
-      std::tie(d_org_srcs, d_org_dsts, d_org_weights) =
-        graph.decompress_to_edgelist(handle, d_renumber_map_labels, false);
+      std::tie(d_org_srcs, d_org_dsts, d_org_weights) = cugraph::decompress_to_edgelist(
+        handle,
+        graph.view(),
+        d_renumber_map_labels ? std::make_optional<raft::device_span<vertex_t const>>(
+                                  (*d_renumber_map_labels).data(), (*d_renumber_map_labels).size())
+                              : std::nullopt);
     }
 
     if (cugraph::test::g_perf) {
@@ -89,7 +94,7 @@ class Tests_TransposeStorage
     cugraph::graph_t<vertex_t, edge_t, weight_t, !store_transposed, false> storage_transposed_graph(
       handle);
     std::tie(storage_transposed_graph, d_renumber_map_labels) =
-      graph.transpose_storage(handle, std::move(d_renumber_map_labels));
+      transpose_graph_storage(handle, std::move(graph), std::move(d_renumber_map_labels));
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -100,7 +105,13 @@ class Tests_TransposeStorage
 
     if (transpose_storage_usecase.check_correctness) {
       auto [d_storage_transposed_srcs, d_storage_transposed_dsts, d_storage_transposed_weights] =
-        storage_transposed_graph.decompress_to_edgelist(handle, d_renumber_map_labels, false);
+        cugraph::decompress_to_edgelist(
+          handle,
+          storage_transposed_graph.view(),
+          d_renumber_map_labels
+            ? std::make_optional<raft::device_span<vertex_t const>>((*d_renumber_map_labels).data(),
+                                                                    (*d_renumber_map_labels).size())
+            : std::nullopt);
 
       std::vector<vertex_t> h_org_srcs = cugraph::test::to_host(handle, d_org_srcs);
       std::vector<vertex_t> h_org_dsts = cugraph::test::to_host(handle, d_org_dsts);

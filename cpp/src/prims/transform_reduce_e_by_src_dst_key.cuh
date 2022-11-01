@@ -328,9 +328,12 @@ __global__ void transform_reduce_by_src_dst_key_high_degree(
 }
 
 // FIXME: better derive value_t from BufferType
-template <typename vertex_t, typename value_t, typename BufferType>
+template <typename vertex_t, typename value_t, typename BufferType, typename ReduceOp>
 std::tuple<rmm::device_uvector<vertex_t>, BufferType> reduce_to_unique_kv_pairs(
-  rmm::device_uvector<vertex_t>&& keys, BufferType&& value_buffer, cudaStream_t stream)
+  rmm::device_uvector<vertex_t>&& keys,
+  BufferType&& value_buffer,
+  ReduceOp reduce_op,
+  cudaStream_t stream)
 {
   thrust::sort_by_key(
     rmm::exec_policy(stream), keys.begin(), keys.end(), get_dataframe_buffer_begin(value_buffer));
@@ -349,7 +352,9 @@ std::tuple<rmm::device_uvector<vertex_t>, BufferType> reduce_to_unique_kv_pairs(
                         keys.end(),
                         get_dataframe_buffer_begin(value_buffer),
                         unique_keys.begin(),
-                        get_dataframe_buffer_begin(value_for_unique_key_buffer));
+                        get_dataframe_buffer_begin(value_for_unique_key_buffer),
+                        thrust::equal_to<vertex_t>{},
+                        reduce_op);
 
   return std::make_tuple(std::move(unique_keys), std::move(value_for_unique_key_buffer));
 }
@@ -360,6 +365,7 @@ template <bool edge_src_key,
           typename EdgeDstValueInputWrapper,
           typename EdgeSrcDstKeyInputWrapper,
           typename EdgeOp,
+          typename ReduceOp,
           typename T>
 std::tuple<rmm::device_uvector<typename GraphViewType::vertex_type>,
            decltype(allocate_dataframe_buffer<T>(0, cudaStream_t{nullptr}))>
@@ -369,7 +375,8 @@ transform_reduce_e_by_src_dst_key(raft::handle_t const& handle,
                                   EdgeDstValueInputWrapper edge_dst_value_input,
                                   EdgeSrcDstKeyInputWrapper edge_src_dst_key_input,
                                   EdgeOp e_op,
-                                  T init)
+                                  T init,
+                                  ReduceOp reduce_op)
 {
   static_assert(is_arithmetic_or_thrust_tuple_of_arithmetic<T>::value);
   static_assert(std::is_same<typename EdgeSrcDstKeyInputWrapper::value_type,
@@ -547,7 +554,7 @@ transform_reduce_e_by_src_dst_key(raft::handle_t const& handle,
       }
     }
     std::tie(tmp_keys, tmp_value_buffer) = reduce_to_unique_kv_pairs<vertex_t, T>(
-      std::move(tmp_keys), std::move(tmp_value_buffer), handle.get_stream());
+      std::move(tmp_keys), std::move(tmp_value_buffer), reduce_op, handle.get_stream());
 
     if (GraphViewType::is_multi_gpu) {
       auto& comm           = handle.get_comms();
@@ -565,8 +572,11 @@ transform_reduce_e_by_src_dst_key(raft::handle_t const& handle,
             auto val) { return key_func(val); },
           handle.get_stream());
 
-      std::tie(tmp_keys, tmp_value_buffer) = reduce_to_unique_kv_pairs<vertex_t, T>(
-        std::move(rx_unique_keys), std::move(rx_value_for_unique_key_buffer), handle.get_stream());
+      std::tie(tmp_keys, tmp_value_buffer) =
+        reduce_to_unique_kv_pairs<vertex_t, T>(std::move(rx_unique_keys),
+                                               std::move(rx_value_for_unique_key_buffer),
+                                               reduce_op,
+                                               handle.get_stream());
     }
 
     auto cur_size = keys.size();
@@ -591,7 +601,7 @@ transform_reduce_e_by_src_dst_key(raft::handle_t const& handle,
 
   if (GraphViewType::is_multi_gpu) {
     std::tie(keys, value_buffer) = reduce_to_unique_kv_pairs<vertex_t, T>(
-      std::move(keys), std::move(value_buffer), handle.get_stream());
+      std::move(keys), std::move(value_buffer), reduce_op, handle.get_stream());
   }
 
   // FIXME: add init
@@ -634,6 +644,12 @@ transform_reduce_e_by_src_dst_key(raft::handle_t const& handle,
  * transformed value to be reduced to (source key, value) pairs.
  * @param init Initial value to be added to the value in each transform-reduced (source key, value)
  * pair.
+ * @param reduce_op Binary operator that takes two input arguments and reduce the two values to one.
+ * There are pre-defined reduction operators in src/prims/reduce_op.cuh. It is recommended to use
+ * the pre-defined reduction operators whenever possible as the current (and future) implementations
+ * of graph primitives may check whether @p ReduceOp is a known type (or has known member variables)
+ * to take a more optimized code path. See the documentation in the reduce_op.cuh file for
+ * instructions on writing custom reduction operators.
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  * @return std::tuple Tuple of rmm::device_uvector<typename GraphView::vertex_type> and
  * rmm::device_uvector<T> (if T is arithmetic scalar) or a tuple of rmm::device_uvector objects (if
@@ -645,6 +661,7 @@ template <typename GraphViewType,
           typename EdgeDstValueInputWrapper,
           typename EdgeSrcKeyInputWrapper,
           typename EdgeOp,
+          typename ReduceOp,
           typename T>
 auto transform_reduce_e_by_src_key(raft::handle_t const& handle,
                                    GraphViewType const& graph_view,
@@ -653,18 +670,26 @@ auto transform_reduce_e_by_src_key(raft::handle_t const& handle,
                                    EdgeSrcKeyInputWrapper edge_src_key_input,
                                    EdgeOp e_op,
                                    T init,
+                                   ReduceOp reduce_op,
                                    bool do_expensive_check = false)
 {
   static_assert(is_arithmetic_or_thrust_tuple_of_arithmetic<T>::value);
   static_assert(std::is_same<typename EdgeSrcKeyInputWrapper::value_type,
                              typename GraphViewType::vertex_type>::value);
+  static_assert(ReduceOp::pure_function, "ReduceOp should be a pure function.");
 
   if (do_expensive_check) {
     // currently, nothing to do
   }
 
-  return detail::transform_reduce_e_by_src_dst_key<true>(
-    handle, graph_view, edge_src_value_input, edge_dst_value_input, edge_src_key_input, e_op, init);
+  return detail::transform_reduce_e_by_src_dst_key<true>(handle,
+                                                         graph_view,
+                                                         edge_src_value_input,
+                                                         edge_dst_value_input,
+                                                         edge_src_key_input,
+                                                         e_op,
+                                                         init,
+                                                         reduce_op);
 }
 
 /**
@@ -700,6 +725,12 @@ auto transform_reduce_e_by_src_key(raft::handle_t const& handle,
  * transformed value to be reduced to (destination key, value) pairs.
  * @param init Initial value to be added to the value in each transform-reduced (destination key,
  * value) pair.
+ * @param reduce_op Binary operator that takes two input arguments and reduce the two values to one.
+ * There are pre-defined reduction operators in src/prims/reduce_op.cuh. It is recommended to use
+ * the pre-defined reduction operators whenever possible as the current (and future) implementations
+ * of graph primitives may check whether @p ReduceOp is a known type (or has known member variables)
+ * to take a more optimized code path. See the documentation in the reduce_op.cuh file for
+ * instructions on writing custom reduction operators.
  * @param do_expensive_check A flag to run expensive checks for input arguments (if set to `true`).
  * @return std::tuple Tuple of rmm::device_uvector<typename GraphView::vertex_type> and
  * rmm::device_uvector<T> (if T is arithmetic scalar) or a tuple of rmm::device_uvector objects (if
@@ -711,6 +742,7 @@ template <typename GraphViewType,
           typename EdgeDstValueInputWrapper,
           typename EdgeDstKeyInputWrapper,
           typename EdgeOp,
+          typename ReduceOp,
           typename T>
 auto transform_reduce_e_by_dst_key(raft::handle_t const& handle,
                                    GraphViewType const& graph_view,
@@ -719,18 +751,26 @@ auto transform_reduce_e_by_dst_key(raft::handle_t const& handle,
                                    EdgeDstKeyInputWrapper edge_dst_key_input,
                                    EdgeOp e_op,
                                    T init,
+                                   ReduceOp reduce_op,
                                    bool do_expensive_check = false)
 {
   static_assert(is_arithmetic_or_thrust_tuple_of_arithmetic<T>::value);
   static_assert(std::is_same<typename EdgeDstKeyInputWrapper::value_type,
                              typename GraphViewType::vertex_type>::value);
+  static_assert(ReduceOp::pure_function, "ReduceOp should be a pure function.");
 
   if (do_expensive_check) {
     // currently, nothing to do
   }
 
-  return detail::transform_reduce_e_by_src_dst_key<false>(
-    handle, graph_view, edge_src_value_input, edge_dst_value_input, edge_dst_key_input, e_op, init);
+  return detail::transform_reduce_e_by_src_dst_key<false>(handle,
+                                                          graph_view,
+                                                          edge_src_value_input,
+                                                          edge_dst_value_input,
+                                                          edge_dst_key_input,
+                                                          e_op,
+                                                          init,
+                                                          reduce_op);
 }
 
 }  // namespace cugraph
