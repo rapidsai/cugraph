@@ -577,8 +577,11 @@ class simpleGraphImpl:
                 self.properties.node_count = len(self.transposedadjlist.offsets) - 1
             elif self.edgelist is not None:
                 if self.properties.renumbered:
-                    # If renumbering has occurred, then the vertices have been
-                    # given sequential ids starting from 0
+                    # Simply use the largest vertex ID (+1) if renumbered to
+                    # compute the count, since renumbering guarantees
+                    # the vertices have been given sequential ids starting
+                    # from 0. Otherwise, the number of unique IDs represents
+                    # the number of vertices (below).
                     df = self.edgelist.edgelist_df[["src", "dst"]]
                     self.properties.node_count = df.max().max() + 1
                 else:
