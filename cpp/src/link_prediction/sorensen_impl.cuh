@@ -52,7 +52,7 @@ rmm::device_uvector<weight_t> sorensen_coefficients(
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
   std::tuple<raft::device_span<vertex_t const>, raft::device_span<vertex_t const>> vertex_pairs)
 {
-  if (edge_weight_view)
+  if (!edge_weight_view)
     return detail::similarity(
       handle, graph_view, edge_weight_view, vertex_pairs, detail::sorensen_functor_t{});
   else

@@ -89,12 +89,13 @@ struct KCore_Usecase {
 };
 
 template <typename input_usecase_t>
-class Tests_KCore : public ::testing::TestWithParam<std::tuple<KCore_Usecase, input_usecase_t>> {
+class Tests_MGKCore : public ::testing::TestWithParam<std::tuple<KCore_Usecase, input_usecase_t>> {
  public:
-  Tests_KCore() {}
+  Tests_MGKCore() {}
 
-  static void SetUpTestCase() {}
-  static void TearDownTestCase() {}
+  static void SetUpTestCase() { handle_ = cugraph::test::initialize_mg_handle(); }
+
+  static void TearDownTestCase() { handle_.reset(); }
 
   virtual void SetUp() {}
   virtual void TearDown() {}
@@ -107,7 +108,6 @@ class Tests_KCore : public ::testing::TestWithParam<std::tuple<KCore_Usecase, in
 
     using weight_t = float;
 
-    raft::handle_t handle{};
     HighResClock hr_clock{};
 
     if (cugraph::test::g_perf) {
@@ -117,7 +117,7 @@ class Tests_KCore : public ::testing::TestWithParam<std::tuple<KCore_Usecase, in
 
     auto [sg_graph, sg_edge_weights, d_sg_renumber_map_labels] =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, false>(
-        handle, input_usecase, false, renumber, true, true);
+        *handle_, input_usecase, false, renumber, true, true);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -131,9 +131,9 @@ class Tests_KCore : public ::testing::TestWithParam<std::tuple<KCore_Usecase, in
       sg_edge_weights ? std::make_optional((*sg_edge_weights).view()) : std::nullopt;
 
     rmm::device_uvector<edge_t> d_core_numbers(sg_graph_view.number_of_vertices(),
-                                               handle.get_stream());
+                                               handle_->get_stream());
 
-    cugraph::core_number(handle,
+    cugraph::core_number(*handle_,
                          sg_graph_view,
                          d_core_numbers.data(),
                          k_core_usecase.degree_type,
@@ -149,9 +149,9 @@ class Tests_KCore : public ::testing::TestWithParam<std::tuple<KCore_Usecase, in
 
 #if 0
     auto subgraph = cugraph::k_core(
-                                    handle, sg_graph_view, k_core_usecase.k, std::nullopt, std::nullopt, std::make_optional(core_number_span));
+                                    *handle_, sg_graph_view, k_core_usecase.k, std::nullopt, std::nullopt, std::make_optional(core_number_span));
 #else
-    EXPECT_THROW(cugraph::k_core(handle,
+    EXPECT_THROW(cugraph::k_core(*handle_,
                                  sg_graph_view,
                                  sg_edge_weight_view,
                                  k_core_usecase.k,
@@ -169,38 +169,44 @@ class Tests_KCore : public ::testing::TestWithParam<std::tuple<KCore_Usecase, in
 
     if (k_core_usecase.check_correctness) {
 #if 0
-      check_correctness(handle, graph_view, d_core_numbers, subgraph, k_core_usecase.k);
+      check_correctness(*handle_, graph_view, d_core_numbers, subgraph, k_core_usecase.k);
 #endif
     }
   }
+
+ private:
+  static std::unique_ptr<raft::handle_t> handle_;
 };
 
-using Tests_KCore_File = Tests_KCore<cugraph::test::File_Usecase>;
-using Tests_KCore_Rmat = Tests_KCore<cugraph::test::Rmat_Usecase>;
+template <typename input_usecase_t>
+std::unique_ptr<raft::handle_t> Tests_MGKCore<input_usecase_t>::handle_ = nullptr;
 
-TEST_P(Tests_KCore_File, CheckInt32Int32)
+using Tests_MGKCore_File = Tests_MGKCore<cugraph::test::File_Usecase>;
+using Tests_MGKCore_Rmat = Tests_MGKCore<cugraph::test::Rmat_Usecase>;
+
+TEST_P(Tests_MGKCore_File, CheckInt32Int32)
 {
   run_current_test<int32_t, int32_t>(override_File_Usecase_with_cmd_line_arguments(GetParam()));
 }
 
-TEST_P(Tests_KCore_Rmat, CheckInt32Int32)
+TEST_P(Tests_MGKCore_Rmat, CheckInt32Int32)
 {
   run_current_test<int32_t, int32_t>(override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
 }
 
-TEST_P(Tests_KCore_Rmat, CheckInt32Int64)
+TEST_P(Tests_MGKCore_Rmat, CheckInt32Int64)
 {
   run_current_test<int32_t, int64_t>(override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
 }
 
-TEST_P(Tests_KCore_Rmat, CheckInt64Int64)
+TEST_P(Tests_MGKCore_Rmat, CheckInt64Int64)
 {
   run_current_test<int64_t, int64_t>(override_Rmat_Usecase_with_cmd_line_arguments(GetParam()));
 }
 
 INSTANTIATE_TEST_SUITE_P(
   file_test,
-  Tests_KCore_File,
+  Tests_MGKCore_File,
   ::testing::Combine(
     // enable correctness checks
     testing::Values(KCore_Usecase{3, cugraph::k_core_degree_type_t::IN},
@@ -212,7 +218,7 @@ INSTANTIATE_TEST_SUITE_P(
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_small_test,
-  Tests_KCore_Rmat,
+  Tests_MGKCore_Rmat,
   ::testing::Combine(
     // enable correctness checks
     testing::Values(KCore_Usecase{3, cugraph::k_core_degree_type_t::IN},
@@ -226,10 +232,10 @@ INSTANTIATE_TEST_SUITE_P(
                           vertex & edge type combination) by command line arguments and do not
                           include more than one Rmat_Usecase that differ only in scale or edge
                           factor (to avoid running same benchmarks more than once) */
-  Tests_KCore_Rmat,
+  Tests_MGKCore_Rmat,
   ::testing::Combine(
     // disable correctness checks for large graphs
     testing::Values(KCore_Usecase{3, cugraph::k_core_degree_type_t::OUT, false}),
     testing::Values(cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, true, false))));
 
-CUGRAPH_TEST_PROGRAM_MAIN()
+CUGRAPH_MG_TEST_PROGRAM_MAIN()
