@@ -585,15 +585,12 @@ class simpleGraphImpl:
                     df = self.edgelist.edgelist_df[["src", "dst"]]
                     self.properties.node_count = df.max().max() + 1
                 else:
-                    self.properties.node_count = (
-                        cudf.concat(
-                            [
-                                self.edgelist.edgelist_df["src"],
-                                self.edgelist.edgelist_df["dst"],
-                            ]
-                        )
-                        .nunique()
-                    )
+                    self.properties.node_count = cudf.concat(
+                        [
+                            self.edgelist.edgelist_df["src"],
+                            self.edgelist.edgelist_df["dst"],
+                        ]
+                    ).nunique()
             else:
                 raise RuntimeError("Graph is Empty")
         return self.properties.node_count
