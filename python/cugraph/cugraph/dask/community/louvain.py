@@ -34,13 +34,12 @@ def convert_to_cudf(cupy_vertex, cupy_partition):
     return df
 
 
-def _call_plc_louvain(sID, mg_graph_x, max_iter, resolution, p, q):
+def _call_plc_louvain(sID, mg_graph_x, max_iter, resolution, do_expensive_check):
     return pylibcugraph_louvain(
         resource_handle=ResourceHandle(Comms.get_handle(sID).getHandle()),
         graph=mg_graph_x,
         max_level=max_iter,
         resolution=resolution,
-        p=
         do_expensive_check=do_expensive_check,
     )
 
