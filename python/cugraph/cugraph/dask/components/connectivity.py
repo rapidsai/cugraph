@@ -17,7 +17,6 @@ from dask.distributed import wait
 import cugraph.dask.comms.comms as Comms
 import dask_cudf
 import cudf
-import operator as op
 
 from pylibcugraph import ResourceHandle
 from pylibcugraph import weakly_connected_components as pylibcugraph_wcc
@@ -55,7 +54,7 @@ def weakly_connected_components(input_graph):
         and weights. The adjacency list will be computed if not already
         present.
         The current implementation only supports undirected graphs.
-    
+
     Returns
     -------
     result : dask_cudf.DataFrame
@@ -107,7 +106,6 @@ def weakly_connected_components(input_graph):
 
     wait(result)
 
-    
     cudf_result = [client.submit(convert_to_cudf, cp_arrays) for cp_arrays in result]
 
     wait(cudf_result)
