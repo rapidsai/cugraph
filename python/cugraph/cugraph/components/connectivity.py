@@ -26,6 +26,7 @@ import cudf
 from pylibcugraph import weakly_connected_components as pylibcugraph_wcc
 from pylibcugraph import ResourceHandle
 
+
 def _ensure_args(api_name, G, directed, connection, return_labels):
     """
     Ensures the args passed in are usable for the API api_name and returns the
@@ -195,8 +196,8 @@ def weakly_connected_components(G, directed=None, connection=None, return_labels
     df = cudf.DataFrame()
     df["vertex"] = vertex
     df["labels"] = labels
-    
-    #df = connectivity_wrapper.weakly_connected_components(G)
+
+    # df = connectivity_wrapper.weakly_connected_components(G)
 
     if G.renumbered:
         df = G.unrenumber(df, "vertex")

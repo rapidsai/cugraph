@@ -108,7 +108,9 @@ def networkx_strong_call(graph_file):
     return (G, dataset_path, nx_labels, nx_n_components, lst_nx_components, "strong")
 
 
-def cugraph_call(gpu_benchmark_callable, cugraph_algo, input_G_or_matrix, directed=None):
+def cugraph_call(
+    gpu_benchmark_callable, cugraph_algo, input_G_or_matrix, directed=None
+):
     """
     Test helper that calls cugraph_algo (which is either
     weakly_connected_components() or strongly_connected_components()) on the
@@ -253,10 +255,14 @@ def assert_scipy_api_compat(G, dataset_path, api_type):
 
     # Invalid for the API
     with pytest.raises(TypeError):
-        (n_components, labels) = api_call(input_coo_matrix, directed=False, connection=wrong_connection)
+        (n_components, labels) = api_call(
+            input_coo_matrix, directed=False, connection=wrong_connection
+        )
 
     (n_components, labels) = api_call(input_coo_matrix, directed=False)
-    (n_components, labels) = api_call(input_coo_matrix, directed=False, connection=connection)
+    (n_components, labels) = api_call(
+        input_coo_matrix, directed=False, connection=connection
+    )
     n_components = api_call(input_coo_matrix, directed=False, return_labels=False)
     assert type(n_components) is int
 
@@ -467,5 +473,7 @@ def test_scipy_api_compat(connection_type):
     (n_components, labels) = cugraph.connected_components(
         input_coo_matrix, directed=False
     )
-    n_components = cugraph.connected_components(input_coo_matrix, directed=False, return_labels=False)
+    n_components = cugraph.connected_components(
+        input_coo_matrix, directed=False, return_labels=False
+    )
     assert type(n_components) is int
