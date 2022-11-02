@@ -1375,7 +1375,6 @@ class EXPERIMENTAL__PropertyGraph:
         -------
         A copy of df with additional columns corresponding to properties for
         the edge in the row.
-        FIXME: also provide the ability to annotate vertex data.
 
         Examples
         --------
@@ -1402,8 +1401,10 @@ class EXPERIMENTAL__PropertyGraph:
         0    99  22       0          0  etype             a
         1    98  34       1          1  etype             b
         2    97  56       2          2  etype             c
-        3    96  88       3          3  etype             d"""
+        3    96  88       3          3  etype             d
+        """
         # FIXME: check all args
+        # FIXME: also provide the ability to annotate vertex data.
         (src_col_name, dst_col_name) = edge_vertex_col_names
 
         df_type = type(df)
@@ -1485,6 +1486,24 @@ class EXPERIMENTAL__PropertyGraph:
         -------
         A CuGraph or Networkx Graph
             contains the edges in edge_prop_df
+
+        Examples
+        --------
+        >>> import cugraph
+        >>> import cudf
+        >>> from cugraph.experimental import PropertyGraph
+        >>> df = cudf.DataFrame(columns=["src", "dst", "some_property"],
+        ...                                                data=[(99, 22, "a"),
+        ...                                                      (98, 34, "b"),
+        ...                                                      (97, 56, "c"),
+        ...                                                      (96, 88, "d"),
+        ...                                                     ])
+        >>> pG = PropertyGraph()
+        >>> pG.add_edge_data(df, type_name="etype", vertex_col_names=("src", "dst"))
+        >>> G = pG.edge_props_to_graph(pG.edges,
+        ...                        create_using=cugraph.Graph(),
+        ...                        renumber_graph=False)
+        >>> G.edges()
         """
         # FIXME: check default_edge_weight is valid
         if edge_weight_property:
@@ -1765,7 +1784,7 @@ class EXPERIMENTAL__PropertyGraph:
     def has_duplicate_edges(cls, df, columns=None):
         """
         Return True if df has rows with the same src, dst, type, and columns
-        
+
         Parameters
         ----------
         df : dataframe
