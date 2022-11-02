@@ -194,12 +194,12 @@ class CuGraphStore:
 
     def get_node_storage(self, key, ntype=None, indices_offset=0):
         """
-        
+        Returns a storage for an node property
         
         Parameters
         ----------
         key : str
-            Name of the edge property to return
+            Name of the node property to return
         ntype : str, optional
             The type of nodes to return. Required
             if there is more than one edge type.
@@ -276,9 +276,28 @@ class CuGraphStore:
 
         Examples
         --------
-        CuFeatureStorage
-            Storage containing the edge property of the edge
-            type specified.
+        >>> import cugraph
+        >>> from cugraph.experimental import PropertyGraph
+        >>> import numpy as np
+        >>> import cudf
+        >>> import cupy as cp
+        >>> from cugraph.gnn import CuGraphStore
+        >>> from cugraph.experimental.datasets import karate_disjoint
+        >>> cu_M = karate_disjoint.get_edgelist().rename(
+        ...         columns={"src": "0", "dst": "1", "wgt": "2"}
+        ...     )
+        >>> pG = PropertyGraph()
+        >>> gstore = cugraph.gnn.CuGraphStore(graph=pG, backend_lib="cupy")
+        >>> gstore.add_edge_data(
+        ...         cu_M,
+        ...         node_col_names=("0", "1"),
+        ...         feat_name="edge_feat",
+        ...         contains_vector_features=True,
+        ... )
+        >>> edata_f = gstore.get_edge_storage("edge_feat")
+        >>> edata = edata_f.fetch(indices=[0, 1], device="cuda")
+        >>> edata
+        array([1., 1.], dtype=float32)
         """
         if etype is None:
             etypes = self.etypes
@@ -320,6 +339,28 @@ class CuGraphStore:
         int
             The number of nodes.
 
+        Examples
+        --------
+        >>> import cugraph
+        >>> from cugraph.experimental import PropertyGraph
+        >>> import numpy as np
+        >>> import cudf
+        >>> import cupy as cp
+        >>> from cugraph.gnn import CuGraphStore
+        >>> from cugraph.experimental.datasets import karate_disjoint
+        >>> cu_M = karate_disjoint.get_edgelist().rename(
+        ...         columns={"src": "0", "dst": "1", "wgt": "2"}
+        ...     )
+        >>> pG = PropertyGraph()
+        >>> gstore = cugraph.gnn.CuGraphStore(graph=pG, backend_lib="cupy")
+        >>> gstore.add_edge_data(
+        ...         cu_M,
+        ...         node_col_names=("0", "1"),
+        ...         feat_name="edge_feat",
+        ...         contains_vector_features=True,
+        ... )
+        >>> gstore.num_nodes()
+        68
         """
         return self.gdata.get_num_vertices(ntype)
 
@@ -336,6 +377,29 @@ class CuGraphStore:
         -------
         int
             The number of edges.
+
+        Examples
+        --------
+        >>> import cugraph
+        >>> from cugraph.experimental import PropertyGraph
+        >>> import numpy as np
+        >>> import cudf
+        >>> import cupy as cp
+        >>> from cugraph.gnn import CuGraphStore
+        >>> from cugraph.experimental.datasets import karate_disjoint
+        >>> cu_M = karate_disjoint.get_edgelist().rename(
+        ...         columns={"src": "0", "dst": "1", "wgt": "2"}
+        ...     )
+        >>> pG = PropertyGraph()
+        >>> gstore = cugraph.gnn.CuGraphStore(graph=pG, backend_lib="cupy")
+        >>> gstore.add_edge_data(
+        ...         cu_M,
+        ...         node_col_names=("0", "1"),
+        ...         feat_name="edge_feat",
+        ...         contains_vector_features=True,
+        ... )
+        >>> gstore.num_edges()
+        312
         """
         return self.gdata.get_num_edges(etype)
 

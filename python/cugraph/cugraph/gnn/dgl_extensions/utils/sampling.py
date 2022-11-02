@@ -27,6 +27,19 @@ vid_n = PropertyGraph.vertex_col_name
 
 
 def get_subgraph_and_src_range_from_edgelist(edge_list, is_mg, reverse_edges=False):
+    """
+    Return 
+
+    Parameters
+    ----------
+    edgelist : Dataframe
+        Contains the edges of the graph
+    is_mg : bool
+        True if graph is multi-gpu
+    reverse : bool (default=False)
+        True if edges are reversed direction
+
+    """
     if reverse_edges:
         edge_list = edge_list.rename(columns={src_n: dst_n, dst_n: src_n})
 
