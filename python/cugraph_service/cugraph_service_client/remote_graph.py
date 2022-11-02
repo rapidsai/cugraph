@@ -68,6 +68,9 @@ class RemoteGraph:
     def is_remote(self):
         return True
 
+    def is_multi_gpu(self):
+        return self.graph_info["is_multi_gpu"]
+
     def is_bipartite(self):
         return False
 
@@ -111,8 +114,19 @@ class RemoteGraph:
         return self.__client.get_graph_info(graph_id=self.__graph_id)
 
     @property
+    def has_properties(self):
+        return (
+            self.graph_info["num_vertex_properties"] == 0
+            and self.graph_info["num_edge_properties"] == 0
+        )
+
+    @property
     def _graph_id(self):
         return self.__graph_id
+
+    @property
+    def _client(self):
+        return self.__client
 
     def edges(self, backend=("cudf" if cudf is not None else "numpy")):
         """
@@ -393,6 +407,7 @@ class RemoteGraph:
             self.dst_col_name,
             self.type_col_name,
         ] + list(columns)
+
         return _transform_to_backend_dtype(
             edge_data,
             column_names,

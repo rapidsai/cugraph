@@ -11,23 +11,70 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from cugraph.structure.graph_implementation import (
-    simpleDistributedGraphImpl,
-    simpleGraphImpl,
-)
+try:
+    from cugraph_service_client.remote_graph_utils import _transform_to_backend_dtype_1d
+except ImportError:
+    _transform_to_backend_dtype_1d = None
 
 
-def call_cugraph_algorithm(name, graph, *args, **kwargs):
+def call_cugraph_algorithm(name, graph, *args, backend="numpy", **kwargs):
+    """
+    Calls a cugraph algorithm for a remote, sg, or mg graph.
+    Requires either cuGraph or cuGraph-Service to be installed.
+
+    name : string
+        The name of the cuGraph algorithm to run (i.e. uniform_neighbor_sample)
+    graph : Graph (cuGraph) or RemoteGraph (cuGraph-Service)
+        The graph to call the algorithm on.
+    backend : ('cudf', 'pandas', 'cupy', 'numpy', 'torch', 'torch:<device>')
+              [default = 'numpy']
+        The backend where the algorithm results will be stored.  Only used
+        if the graph is a remote graph.
+    """
+
+    if graph.is_remote():
+        # If the graph is remote, cuGraph-Service must be installed
+        # Therefore we do not explicitly check that it is available
+        if name != "uniform_neighbor_sample":
+            raise ValueError(
+                f"cuGraph algorithm {name} is not yet supported for RemoteGraph"
+            )
+        else:
+            # TODO eventually replace this with a "call_algorithm call"
+            sample_result = graph._client.uniform_neighbor_sample(
+                *args, **kwargs, graph_id=graph._graph_id
+            )
+
+            if backend == "cudf":
+                try:
+                    import cudf
+                except ImportError:
+                    raise ValueError("cudf backend requires cudf")
+                df = cudf.DataFrame()
+            elif backend == "pandas":
+                try:
+                    import pandas
+                except ImportError:
+                    raise ValueError("pandas backend requires pandas")
+                df = pandas.DataFrame()
+            else:
+                df = {}
+
+            for k, v in sample_result.__dict__.items():
+                df[k] = _transform_to_backend_dtype_1d(
+                    v, series_name=k, backend=backend
+                )
+
+            return df
+
     # TODO check using graph property in a future PR
-    if isinstance(graph._Impl, simpleDistributedGraphImpl):
+    elif graph.is_multi_gpu():
         import cugraph.dask
 
         return getattr(cugraph.dask, name)(graph, *args, **kwargs)
 
     # TODO check using graph property in a future PR
-    elif isinstance(graph._Impl, simpleGraphImpl):
+    else:
         import cugraph
 
         return getattr(cugraph, name)(graph, *args, **kwargs)
-
-    # TODO Properly dispatch for cugraph-service.
