@@ -481,7 +481,10 @@ class EXPERIMENTAL__PropertyGraph:
 
         Returns
         -------
-        cudf series or pandas series containing matching vertices
+        cudf Series or pandas Series
+            Containins vertex IDs. Return type is based on if the
+            PropertyGraph instance was created/updated
+            using cudf or pandas DataFrames.
 
         See Also
         --------
