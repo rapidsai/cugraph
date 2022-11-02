@@ -85,6 +85,8 @@ elif hasArg "--run-cpp-tests"; then
 fi
 
 if hasArg "--run-python-tests"; then
+    # install 'py' which is a dependency of 'pytest-benchmark'
+    mamba install py
     echo "Python pytest for pylibcugraph..."
     cd ${CUGRAPH_ROOT}/python/pylibcugraph/pylibcugraph
     pytest --cache-clear --junitxml=${CUGRAPH_ROOT}/junit-pylibcugraph-pytests.xml -v --cov-config=.coveragerc --cov=pylibcugraph --cov-report=xml:${WORKSPACE}/python/pylibcugraph/pylibcugraph-coverage.xml --cov-report term --ignore=raft --benchmark-disable
