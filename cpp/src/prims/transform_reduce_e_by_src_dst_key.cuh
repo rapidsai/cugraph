@@ -81,16 +81,16 @@ __device__ void update_buffer_element(
     ((GraphViewType::is_storage_transposed != edge_partition_src_key) ? major_offset
                                                                       : minor_offset));
   *value_iter = evaluate_edge_op<GraphViewType,
-                                  vertex_t,
-                                  EdgePartitionSrcValueInputWrapper,
-                                  EdgePartitionDstValueInputWrapper,
-                                  EdgeOp>()
-                   .compute(src,
-                            dst,
-                            weight,
-                            edge_partition_src_value_input.get(src_offset),
-                            edge_partition_dst_value_input.get(dst_offset),
-                            e_op);
+                                 vertex_t,
+                                 EdgePartitionSrcValueInputWrapper,
+                                 EdgePartitionDstValueInputWrapper,
+                                 EdgeOp>()
+                  .compute(src,
+                           dst,
+                           weight,
+                           edge_partition_src_value_input.get(src_offset),
+                           edge_partition_dst_value_input.get(dst_offset),
+                           e_op);
 }
 
 template <bool edge_partition_src_key,
