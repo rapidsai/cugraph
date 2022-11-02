@@ -91,7 +91,7 @@ gpuci_mamba_retry install -c rapidsai-nightly/label/testing -y \
       "ucx-proc=*=gpu" \
       "rapids-build-env=$MINOR_VERSION.*" \
       "rapids-notebook-env=$MINOR_VERSION.*" \
-      "py"
+      "py" \
       rapids-pytest-benchmark
 
 # https://docs.rapids.ai/maintainers/depmgmt/
