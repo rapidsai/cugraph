@@ -456,10 +456,9 @@ def test_extract_subgraph(
     if renumber:
         expected_edgelist = sg.unrenumber(expected_edgelist, "src")
         expected_edgelist = sg.unrenumber(expected_edgelist, "dst")
-    print(expected_edgelist)
+
     expected_edgelist = expected_edgelist.sort_values(["src", "dst"])
 
-    print(remote_sg.get_edge_data())
     edge_data = remote_sg.get_edge_data().sort_values(
         [remote_sg.src_col_name, remote_sg.dst_col_name]
     )
@@ -736,9 +735,6 @@ def test_remote_graph_neighbor_sample(
         backend="cudf",
     )
 
-    print(res_local)
-    print(res_remote)
-
     assert (res_local["sources"] == res_remote["sources"]).all()
     assert (res_local["destinations"] == res_remote["destinations"]).all()
     assert (res_local["indices"] == res_remote["indices"]).all()
@@ -772,8 +768,6 @@ def test_remote_graph_neighbor_sample_implicit_subgraph(
         backend="cudf",
     )
 
-    print(res_local)
-    print(res_remote)
     assert (res_local["sources"] == res_remote["sources"]).all()
     assert (res_local["destinations"] == res_remote["destinations"]).all()
     assert (res_local["indices"] == res_remote["indices"]).all()
