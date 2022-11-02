@@ -235,7 +235,7 @@ class EXPERIMENTAL__PropertyGraph:
     @property
     def vertex_types(self):
         """
-        Set of vertex type names
+        The set of vertex type names
         """
         value_counts = self._vertex_type_value_counts
         if value_counts is None:
@@ -1182,8 +1182,8 @@ class EXPERIMENTAL__PropertyGraph:
         >>> pG.add_edge_data(df, type_name="etype", vertex_col_names=("src", "dst"))
         >>> vert_df = cudf.DataFrame({"vert_id": [99, 22, 98, 34, 97, 56, 96, 88],
         ...                           "v_prop": [1 ,2 ,3, 4, 5, 6, 7, 8]})
-        >>> pG.add_vertex_data(vert_df, type_name="etype", vertex_col_name="vert_id")
-        >>> selection = pG.select_edges("(_TYPE_ == 'etype') &
+        >>> pG.add_vertex_data(vert_df, type_name="vtype", vertex_col_name="vert_id")
+        >>> selection = pG.select_edges("(_TYPE_ == 'vtype') &
         ...                              (some_property == 'd')")
         >>> G = pG.extract_subgraph(selection=selection,
                                     create_using=cugraph.Graph(directed=True),
@@ -1267,7 +1267,7 @@ class EXPERIMENTAL__PropertyGraph:
         >>> pG.add_edge_data(df, type_name="etype", vertex_col_names=("src", "dst"))
         >>> vert_df = cudf.DataFrame({"vert_id": [99, 22, 98, 34, 97, 56, 96, 88],
         ...                           "v_prop": [1 ,2 ,3, 4, 5, 6, 7, 8]})
-        >>> pG.add_vertex_data(vert_df, type_name="etype", vertex_col_name="vert_id")
+        >>> pG.add_vertex_data(vert_df, type_name="vtype", vertex_col_name="vert_id")
         >>> selection = pG.select_edges("(_TYPE_ == 'etype') &
         ...                              (some_property == 'd')")
         >>> G = pG.extract_subgraph(selection=selection,
@@ -1765,7 +1765,7 @@ class EXPERIMENTAL__PropertyGraph:
     def has_duplicate_edges(cls, df, columns=None):
         """
         Return True if df has rows with the same src, dst, type, and columns
-
+        
         Parameters
         ----------
         df : dataframe
