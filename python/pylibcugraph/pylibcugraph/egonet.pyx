@@ -90,8 +90,8 @@ def ego_graph(ResourceHandle resource_handle,
 
     Returns
     -------
-    A tuple of device arrays containing the heirarchical clustering vertices, clusters and
-    modularity score
+    A tuple of device arrays containing the sources, destinations, edge_weights
+    and the subgraph_offsets(if there are more than one seeds)
 
     Examples
     --------
