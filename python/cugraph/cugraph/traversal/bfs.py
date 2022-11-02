@@ -224,7 +224,8 @@ def bfs(
         if is_dataframe:
             start = start[start.columns[0]]
         else:
-            start = cudf.Series(start, name="starts")
+            vertex_dtype = G.nodes().dtype
+            start = cudf.Series(start, dtype=vertex_dtype)
 
     distances, predecessors, vertices = pylibcugraph_bfs(
         handle=ResourceHandle(),
