@@ -1,9 +1,9 @@
 name: cugraph_dev
 channels:
 - rapidsai
-- nvidia
 - rapidsai-nightly
 - conda-forge
+- nvidia
 dependencies:
 - c-compiler
 - cxx-compiler
@@ -16,7 +16,7 @@ dependencies:
 - libraft-headers=22.12.*
 - raft-dask=22.12.*
 - pylibraft=22.12.*
-- cuda-python>=11.5,<11.7.1
+- cuda-python>=11.7.1,<12.0
 - dask-cuda=22.12.*
 - dask-cudf=22.12.*
 - dask>=2022.9.2
