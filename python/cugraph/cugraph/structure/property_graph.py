@@ -1480,7 +1480,7 @@ class EXPERIMENTAL__PropertyGraph:
             Value used to replace NA in the specified weight column
         check_multi_edges : bool, optional (default=True)
             Prevent duplicate edges (if not allowed)
-        renumber_graph : bool, optinal (default=True)
+        renumber_graph : bool, optional (default=True)
             If True renumber edge Ids to start at 0, otherwise
             maintain the original ids
         add_edge_data bool, optional(default=True)
