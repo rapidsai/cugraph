@@ -1504,6 +1504,11 @@ class EXPERIMENTAL__PropertyGraph:
         ...                        create_using=cugraph.Graph(),
         ...                        renumber_graph=False)
         >>> G.edges()
+        src  dst
+        0   88   96
+        1   22   99
+        2   56   97
+        3   34   98
         """
         # FIXME: check default_edge_weight is valid
         if edge_weight_property:
