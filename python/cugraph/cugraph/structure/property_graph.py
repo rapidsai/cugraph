@@ -1109,9 +1109,7 @@ class EXPERIMENTAL__PropertyGraph:
         ...                                       "v_prop": [1 ,2 ,3, 4, 5, 6, 7, 8]})
         >>> pG.add_vertex_data(vert_df, type_name="vtype", vertex_col_name="vert_id")
         >>> selection = pG.select_vertices("(_TYPE_ == 'vtype') & (v_prop > 4)")
-        >>> G = pG.extract_subgraph(selection=selection,
-        ...                         create_using=cugraph.Graph(directed=True),
-        ...                         renumber_graph=True)
+        >>> G = pG.extract_subgraph(selection=selection)
         >>> print (G.number_of_vertices())
         4
         """
@@ -1393,6 +1391,7 @@ class EXPERIMENTAL__PropertyGraph:
         >>> pG = PropertyGraph()
         >>> pG.add_edge_data(df, type_name="etype", vertex_col_names=("src", "dst"))
         >>> G = pG.extract_subgraph(create_using=cugraph.Graph(directed=True))
+        >>> # Represents results of an algorithm run on the graph returning a dataframe
         >>> algo_result = cudf.DataFrame({"from":df.src,
         ...                               "to":df.dst,
         ...                               "result": range(len(df.src))})
