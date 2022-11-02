@@ -581,4 +581,31 @@ auto view_concat(detail::edge_major_property_view_t<vertex_t, Ts> const&... view
   }
 }
 
+//
+template <typename vertex_t, typename... Ts>
+auto view_concat(detail::edge_minor_property_view_t<vertex_t, Ts> const&... views)
+{
+  using concat_value_iterator = decltype(
+    thrust::make_zip_iterator(thrust_tuple_cat(detail::to_thrust_tuple(views.value_first())...)));
+
+  concat_value_iterator edge_partition_concat_value_first{};
+
+  auto first_view = detail::get_first_of_pack(views...);
+
+  edge_partition_concat_value_first =
+    thrust::make_zip_iterator(thrust_tuple_cat(detail::to_thrust_tuple(views.value_first())...));
+
+  if (first_view.key_chunk_size()) {
+    return detail::edge_minor_property_view_t<vertex_t, concat_value_iterator>(
+      *(first_view.keys()),
+      *(first_view.key_chunk_start_offsets()),
+      *(first_view.key_chunk_size()),
+      edge_partition_concat_value_first,
+      first_view.minor_range_first());
+  } else {
+    return detail::edge_minor_property_view_t<vertex_t, concat_value_iterator>(
+      edge_partition_concat_value_first, first_view.minor_range_first());
+  }
+}
+
 }  // namespace cugraph

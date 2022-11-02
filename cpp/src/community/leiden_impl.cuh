@@ -17,6 +17,7 @@
 //#define TIMING
 
 #include <community/detail/common_methods.hpp>
+#include <community/detail/refine.hpp>
 #include <community/flatten_dendrogram.hpp>
 
 // FIXME:  Only outstanding items preventing this becoming a .hpp file
@@ -410,18 +411,18 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
     }
 
     auto [refined_leiden_partition, leiden_to_louvain_map] =
-      detail::refine_clustering(handle,
-                                current_graph_view,
-                                total_edge_weight,
-                                resolution,
-                                vertex_weights,
-                                std::move(cluster_keys),
-                                std::move(cluster_weights),
-                                std::move(louvain_assignment_for_vertices),
-                                src_vertex_weights_cache,
-                                src_vertex_cluster_assignment_cache,
-                                dst_vertex_cluster_assignment_cache,
-                                up_down);
+      detail::refine_clustering_2(handle,
+                                  current_graph_view,
+                                  total_edge_weight,
+                                  resolution,
+                                  vertex_weights,
+                                  std::move(cluster_keys),
+                                  std::move(cluster_weights),
+                                  std::move(louvain_assignment_for_vertices),
+                                  src_vertex_weights_cache,
+                                  src_vertex_cluster_assignment_cache,
+                                  dst_vertex_cluster_assignment_cache,
+                                  up_down);
 
     ///---------///
     //

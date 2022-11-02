@@ -449,20 +449,25 @@ refine_clustering(
 
   rmm::device_uvector<weight_t> refined_community_cuts(0, handle.get_stream());
 
-  auto zipped_src_louvain_and_leiden_device_view =
+  auto src_input_property_values =
     graph_view_t::is_multi_gpu
       ? view_concat(src_clusters_cache.view(), src_leiden_cluster_cache.view())
       : view_concat(
           detail::edge_major_property_view_t<vertex_t, vertex_t const*>(next_clusters_v.data()),
           detail::edge_major_property_view_t<vertex_t, vertex_t const*>(leiden_assignment.data()));
 
-  auto zipped_dst_louvain_and_leiden_device_view =
-    graph_view_t::is_multi_gpu
-      ? view_concat(dst_clusters_cache.view(), dst_leiden_cluster_cache.view())
-      : view_concat(detail::edge_minor_property_view_t<vertex_t, vertex_t const*>(
-                      next_clusters_v.data(), vertex_t{0}),
-                    detail::edge_minor_property_view_t<vertex_t, vertex_t const*>(
-                      leiden_assignment.data(), vertex_t{0}));
+  auto zipped_dst_louvain_leiden = thrust::make_zip_iterator(
+    thrust::make_tuple(next_clusters_v.cbegin(), leiden_assignment.cbegin()));
+
+  edge_dst_property_t<graph_view_t, thrust::tuple<vertex_t, vertex_t>> dst_louvain_leiden_cache(
+    handle);
+
+  if constexpr (graph_view_t::is_multi_gpu) {
+    dst_louvain_leiden_cache =
+      edge_dst_property_t<graph_view_t, thrust::tuple<vertex_t, vertex_t>>(handle, graph_view);
+    update_edge_dst_property(
+      handle, graph_view, zipped_dst_louvain_leiden, dst_louvain_leiden_cache);
+  }
 
   //
   // Generate and shuffle Leiden cluster keys to aggregate volumes and cuts
@@ -481,14 +486,24 @@ refine_clustering(
       shuffle_ext_vertices_and_values_by_gpu_id(handle, std::move(leiden_cluster_keys));
   }
 
+  auto dst_input_property_values =
+    graph_view_t::is_multi_gpu
+      ? dst_louvain_leiden_cache.view()
+      : view_concat(detail::edge_minor_property_view_t<vertex_t, vertex_t const*>(
+                      next_clusters_v.data(), vertex_t{0}),
+                    detail::edge_minor_property_view_t<vertex_t, vertex_t const*>(
+                      leiden_assignment.data(), vertex_t{0}));
+
   std::forward_as_tuple(leiden_cluster_keys,
                         std::tie(refined_community_volumes, refined_community_cuts)) =
     cugraph::transform_reduce_e_by_dst_key(
       handle,
       graph_view,
-      zipped_src_louvain_and_leiden_device_view,
-      zipped_dst_louvain_and_leiden_device_view,
-      leiden_cluster_keys,
+      src_input_property_values,
+      dst_input_property_values,
+      graph_view_t::is_multi_gpu ? dst_leiden_cluster_cache.view()
+                                 : detail::edge_minor_property_view_t<vertex_t, vertex_t const*>(
+                                     leiden_assignment.data(), vertex_t{0}),
       [] __device__(auto src,
                     auto dst,
                     auto wt,
@@ -513,7 +528,9 @@ refine_clustering(
         return thrust::make_tuple(refined_partition_volume_contribution,
                                   refined_partition_cut_contribution);
       },
-      thrust::make_tuple(weight_t{0}, weight_t{0}));
+      thrust::make_tuple(weight_t{0}, weight_t{0}),
+      reduce_op::plus<thrust::tuple<weight_t, weight_t>>{});
+
   //
   // Mask to indicate if a vertex is singleton
   // FIXME: When Primitive get updated to take set of active vertices
@@ -550,9 +567,9 @@ refine_clustering(
             weighted_degree_of_vertices.data()),
           detail::edge_major_property_view_t<vertex_t, weight_t const*>(
             weighted_cut_of_vertices.data()),
-          detail::edge_major_property_view_t<vertex_t, vertex_t const*>(
+          detail::edge_major_property_view_t<vertex_t, weight_t const*>(
             vertex_cluster_weights_v.data()),
-          detail::edge_major_property_view_t<vertex_t, vertex_t const*>(singleton_mask.data()),
+          detail::edge_major_property_view_t<vertex_t, uint8_t const*>(singleton_mask.data()),
           detail::edge_major_property_view_t<vertex_t, vertex_t const*>(leiden_assignment.data()),
           detail::edge_major_property_view_t<vertex_t, vertex_t const*>(next_clusters_v.data()));
 
@@ -665,7 +682,7 @@ refine_clustering(
   //
   // Decide best/positive move for each vertex
   //
-
+  /*
   per_v_transform_reduce_dst_key_aggregated_outgoing_e(
     handle,
     graph_view,
@@ -675,7 +692,7 @@ refine_clustering(
                                    leiden_assignment.data(), vertex_t{0}),
     leiden_cluster_keys.begin(),
     leiden_cluster_keys.end(),
-    values_for_leiden_cluster_keys.begin(),
+    values_for_leiden_cluster_keys,
     invalid_vertex_id<vertex_t>::value,
     thrust::make_tuple(std::numeric_limits<weight_t>::max(),
                        std::numeric_limits<weight_t>::max(),
@@ -685,7 +702,7 @@ refine_clustering(
     thrust::make_tuple(vertex_t{-1}, weight_t{0}),
     detail::reduce_op_t<vertex_t, weight_t>{},
     cugraph::get_dataframe_buffer_begin(output_buffer));
-
+*/
   //
   // Move singleton vertex to other singleton/non-singleton Leiden community
   //
@@ -779,6 +796,13 @@ refine_clustering(
   return std::make_tuple(
     std::move(leiden_assignment),
     std::make_pair(std::move(keys_to_read_value_for), std::move(lovain_of_refined_comms)));
+  rmm::device_uvector<vertex_t> temp1 = rmm::device_uvector<vertex_t>(
+    graph_view.local_vertex_partition_range_size(), handle.get_stream());
+  rmm::device_uvector<vertex_t> temp2 = rmm::device_uvector<vertex_t>(
+    graph_view.local_vertex_partition_range_size(), handle.get_stream());
+
+  return std::make_tuple(std::move(leiden_assignment),
+                         std::make_pair(std::move(temp1), std::move(temp2)));
 }
 
 template <typename graph_view_t>

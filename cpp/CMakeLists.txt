@@ -170,6 +170,7 @@ set(CUGRAPH_SOURCES
     src/sampling/random_walks_mg.cu
     src/community/detail/common_methods_mg.cu
     src/community/detail/common_methods_sg.cu
+    src/community/detail/refine_sg.cu
     src/detail/utility_wrappers.cu
     src/structure/graph_view_mg.cu
     src/utilities/cython.cu
