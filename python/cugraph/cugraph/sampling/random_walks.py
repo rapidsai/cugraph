@@ -134,7 +134,7 @@ def random_walks(
         df_ = cudf.DataFrame()
         df_["vertex_set"] = vertex_set
         df_ = G.unrenumber(df_, "vertex_set", preserve_order=True)
-        vertex_set = cudf.Series(df_["vertex_set"])
+        vertex_set = cudf.Series(df_["vertex_set"]).fillna(-1)
 
     edge_set = cudf.Series(edge_set)
 
