@@ -17,13 +17,48 @@ from dask.distributed import wait
 
 import dask_cudf
 import cudf
+import cupy as cp
 
 from pylibcugraph import ResourceHandle
 
 from pylibcugraph import uniform_neighbor_sample as pylibcugraph_uniform_neighbor_sample
 
 from cugraph.dask.comms import comms as Comms
-from cugraph.dask.common.input_utils import get_distributed_data
+
+src_n = "sources"
+dst_n = "destinations"
+indices_n = "indices"
+
+
+def create_iterable_args(
+    session_id, input_graph, start_list, fanout_vals, with_replacement, weight_t
+):
+    npartitions = input_graph._npartitions
+    session_id_it = [session_id] * npartitions
+    graph_it = input_graph._plc_graph.values()
+    start_list_it = cp.array_split(start_list.values, npartitions)
+    fanout_vals_it = [fanout_vals] * npartitions
+    with_replacement_it = [with_replacement] * npartitions
+    weight_t_it = [weight_t] * npartitions
+    return [
+        session_id_it,
+        graph_it,
+        start_list_it,
+        fanout_vals_it,
+        with_replacement_it,
+        weight_t_it,
+    ]
+
+
+def create_empty_df(indices_t, weight_t):
+    df = cudf.DataFrame(
+        {
+            src_n: numpy.empty(shape=0, dtype=indices_t),
+            dst_n: numpy.empty(shape=0, dtype=indices_t),
+            indices_n: numpy.empty(shape=0, dtype=weight_t),
+        }
+    )
+    return df
 
 
 def convert_to_cudf(cp_arrays, weight_t):
@@ -33,9 +68,9 @@ def convert_to_cudf(cp_arrays, weight_t):
     cupy_sources, cupy_destinations, cupy_indices = cp_arrays
 
     df = cudf.DataFrame()
-    df["sources"] = cupy_sources
-    df["destinations"] = cupy_destinations
-    df["indices"] = cupy_indices
+    df[src_n] = cupy_sources
+    df[dst_n] = cupy_destinations
+    df[indices_n] = cupy_indices
 
     if weight_t == "int32":
         df.indices = df.indices.astype("int32")
@@ -46,9 +81,9 @@ def convert_to_cudf(cp_arrays, weight_t):
 
 
 def _call_plc_uniform_neighbor_sample(
-    sID, mg_graph_x, st_x, fanout_vals, with_replacement
+    sID, mg_graph_x, st_x, fanout_vals, with_replacement, weight_t
 ):
-    return pylibcugraph_uniform_neighbor_sample(
+    cp_arrays = pylibcugraph_uniform_neighbor_sample(
         resource_handle=ResourceHandle(Comms.get_handle(sID).getHandle()),
         input_graph=mg_graph_x,
         start_list=st_x,
@@ -57,6 +92,7 @@ def _call_plc_uniform_neighbor_sample(
         # FIXME: should we add this parameter as an option?
         do_expensive_check=True,
     )
+    return convert_to_cudf(cp_arrays, weight_t)
 
 
 def uniform_neighbor_sample(
@@ -123,47 +159,32 @@ def uniform_neighbor_sample(
     else:
         weight_t = "float32"
 
-    # start_list uses "external" vertex IDs, but if the graph has been
-    # renumbered, the start vertex IDs must also be renumbered.
+    if "_SRC_" in input_graph.edgelist.edgelist_df:
+        indices_t = input_graph.edgelist.edgelist_df["_SRC_"].dtype
+    elif src_n in input_graph.edgelist.edgelist_df:
+        indices_t = input_graph.edgelist.edgelist_df[src_n].dtype
+    else:
+        indices_t = numpy.int32
+
     if input_graph.renumbered:
         start_list = input_graph.lookup_internal_vertex_id(start_list).compute()
 
-    start_list = dask_cudf.from_cudf(
-        start_list, npartitions=min(input_graph._npartitions, len(start_list))
-    )
-    start_list = get_distributed_data(start_list)
-    wait(start_list)
-    start_list = start_list.worker_to_parts
-
     client = input_graph._client
 
-    result = [
-        client.submit(
-            _call_plc_uniform_neighbor_sample,
-            Comms.get_session_id(),
-            input_graph._plc_graph[w],
-            start_list[w][0],
-            fanout_vals,
-            with_replacement,
-            workers=[w],
-            allow_other_workers=False,
-        )
-        for w in Comms.get_workers()
-    ]
+    session_id = Comms.get_session_id()
 
-    wait(result)
-
-    cudf_result = [
-        client.submit(convert_to_cudf, cp_arrays, weight_t) for cp_arrays in result
-    ]
-
-    wait(cudf_result)
-
-    ddf = dask_cudf.from_delayed(cudf_result).persist()
+    # Send tasks all at once
+    result = client.map(
+        _call_plc_uniform_neighbor_sample,
+        *create_iterable_args(
+            session_id, input_graph, start_list, fanout_vals, with_replacement, weight_t
+        ),
+    )
+    ddf = dask_cudf.from_delayed(
+        result, meta=create_empty_df(indices_t, weight_t), verify_meta=False
+    ).persist()
     wait(ddf)
-
-    # Wait until the inactive futures are released
-    wait([(r.release(), c_r.release()) for r, c_r in zip(result, cudf_result)])
+    wait([r.release() for r in result])
 
     if input_graph.renumbered:
         ddf = input_graph.unrenumber(ddf, "sources", preserve_order=True)
