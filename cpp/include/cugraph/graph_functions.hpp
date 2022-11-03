@@ -589,8 +589,7 @@ void relabel(raft::handle_t const& handle,
  * handles to various CUDA libraries) to run graph algorithms.
  * @param graph_view Graph view object, we extract induced subgraphs from @p graph_view.
  * @param subgraph_offsets Span pointing to subgraph vertex offsets
- * @param subgraph_vertices Span pointing to subgraph vertices The elements of @p subgraph_vertices
- *        for each subgraph should be sorted in ascending order and unique.
+ * @param subgraph_vertices Span pointing to subgraph vertices.
  *        @p subgraph_offsets and @p subgraph_vertices provide vertex sets (or local vertex sets in
  * multi-GPU) for @p subgraph_offsets.size() - 1 subgraphs to extract.  For the i'th subgraph to
  * extract, one can extract the (local-)vertex set by accessing a subset of @p subgraph_vertices,
