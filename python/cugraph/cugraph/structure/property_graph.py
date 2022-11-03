@@ -521,6 +521,7 @@ class EXPERIMENTAL__PropertyGraph:
                 ascontiguousarray = cupy.ascontiguousarray
             else:
                 ascontiguousarray = np.ascontiguousarray
+            # Make each vector contigous and 1-d
             vectors = {
                 key: [
                     np.squeeze(vec, 0)
