@@ -48,7 +48,7 @@ class CuGraphStore:
     def __init__(self, graph, backend_lib="torch"):
         """
         Creates a store for properties in a PropertyGraph
-        
+
         Parameters
         ----------
         graph : PropertyGraph or MGPropertyGraph
@@ -159,7 +159,7 @@ class CuGraphStore:
         contains_vector_features : False
             Whether to treat the columns of the dataframe being added as
             as 2d features
-        
+
         Returns
         -------
         None
@@ -195,7 +195,7 @@ class CuGraphStore:
     def get_node_storage(self, key, ntype=None, indices_offset=0):
         """
         Returns a storage for an node property
-        
+
         Parameters
         ----------
         key : str
@@ -205,7 +205,7 @@ class CuGraphStore:
             if there is more than one edge type.
         indices_offset : int (default=0)
             Starting value for the contiguous node id
-            values.gi
+            values.
 
         Returns
         -------

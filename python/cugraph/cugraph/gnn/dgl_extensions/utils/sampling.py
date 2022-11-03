@@ -28,7 +28,8 @@ vid_n = PropertyGraph.vertex_col_name
 
 def get_subgraph_and_src_range_from_edgelist(edge_list, is_mg, reverse_edges=False):
     """
-    Return 
+    Returns a single or multi gpu cuGraph containing edge list and the range of
+    of the starting edge ids.
 
     Parameters
     ----------
@@ -39,6 +40,12 @@ def get_subgraph_and_src_range_from_edgelist(edge_list, is_mg, reverse_edges=Fal
     reverse : bool (default=False)
         True if edges are reversed direction
 
+    Returns
+    -------
+    subgraph : a single or multi gpu cuGraph
+        Contains the edgelist provided
+    src_range : int tuple
+        min and max values of the edge starting ids
     """
     if reverse_edges:
         edge_list = edge_list.rename(columns={src_n: dst_n, dst_n: src_n})
@@ -83,6 +90,37 @@ def sample_multiple_sgs(
     fanout,
     with_replacement,
 ):
+    """
+    Returns samples from all the stored properties in the graph
+
+    Parameters
+    ----------
+    sgs : dict
+        Extracted subgraph per type. Key is type name and value is
+        subgraph of the type.
+    sample_f : function
+        The sampling function to use
+    start_list_d : dict
+        Dictionary containing the start list for sampling
+    start_list_dtype : string
+        contains the name of the datatype of this start type
+    edge_dir : string
+        Edge direction must be in or out
+    fanout : int
+        The number of edges to be sampled for each node on each edge type.
+        If -1 is given all the neighboring edges for each node on
+        each edge type will be selected.
+    with_replacement : bool
+            If True, sample with replacement.
+
+    Returns
+    -------
+    cudf or dask DataFrame
+
+    Examples
+    --------
+    >>>
+    """
     start_list_types = list(start_list_d.keys())
     output_dfs = []
     for can_etype, (sg, start_list_range) in sgs.items():
@@ -121,6 +159,34 @@ def sample_single_sg(
     fanout,
     with_replacement,
 ):
+    """
+    Returns samples from a stored property in the graph
+
+    Parameters
+    ----------
+    sg : cuStorage
+        Extracted subgraph of the storage.
+    sample_f : function
+        The sampling function to use
+    start_list : cuStorage
+        contains the start list for sampling
+    start_list_dtype : string
+        contains the name of the datatype of this start type
+    start_list_range : int tuple
+        start id high and low for the subgraph
+
+    fanout : int
+        The number of edges to be sampled for each node on each edge type.
+        If -1 is given all the neighboring edges for each node on
+        each edge type will be selected.
+    with_replacement : bool
+            If True, sample with replacement.
+
+    Returns
+    -------
+    cudf or dask DataFrame
+
+    """
     if isinstance(start_list, dict):
         start_list = cudf.concat(list(start_list.values()))
 
@@ -161,6 +227,14 @@ def _convert_can_etype_s_to_tup(canonical_etype_s):
 
 
 def create_dlpack_d(d):
+    """
+    Creates a dlpack in dictionary form
+
+    Parameter
+    ---------
+    d :
+
+    """
     dlpack_d = {}
     for k, df in d.items():
         if len(df) == 0:
@@ -178,6 +252,16 @@ def create_dlpack_d(d):
 def get_underlying_dtype_from_sg(sg):
     """
     Returns the underlying dtype of the subgraph
+
+    Parameters
+    ----------
+    sg : storage class
+        Contains edges of a storage
+
+    Returns
+    -------
+    str
+        data type of the storage property
     """
     # FIXME: Remove after we have consistent naming
     # https://github.com/rapidsai/cugraph/issues/2618
