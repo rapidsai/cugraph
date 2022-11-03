@@ -52,7 +52,9 @@ def random_walks(
     input_graph, random_walks_type="uniform", start_vertices=None, max_depth=None,
     use_padding=None, legacy_result_type=None):
     """
-    compute random walks for each nodes in 'start_vertices'
+    compute random walks for each nodes in 'start_vertices' and returns a
+    padded result along with the maximum path length. Vertices with no outgoing
+    edges will be padded with -1. 
 
     parameters
     ----------

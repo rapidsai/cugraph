@@ -36,7 +36,11 @@ def random_walks(
     G, random_walks_type="uniform", start_vertices=None, max_depth=None,
     use_padding=False, legacy_result_type=True):
     """
-    compute random walks for each nodes in 'start_vertices'
+    # FIXME: make the padded value for vertices with outgoing edges
+    # consistent in both SG and MG implementation.
+    compute random walks for each nodes in 'start_vertices' and returns
+    either a padded or a coalesced result. For the padded case, vertices
+    with no outgoing edges will be padded with NA
 
     parameters
     ----------
