@@ -56,7 +56,9 @@ def _ensure_args(G, start, i_start, directed):
             if not isinstance(start, cudf.DataFrame):
                 if not isinstance(start, dask_cudf.DataFrame):
                     vertex_dtype = G.nodes().dtype
-                    start = cudf.DataFrame({"starts": cudf.Series(start, dtype=vertex_dtype)})
+                    start = cudf.DataFrame(
+                        {"starts": cudf.Series(start, dtype=vertex_dtype)}
+                    )
 
             if G.is_renumbered():
                 validlen = len(
