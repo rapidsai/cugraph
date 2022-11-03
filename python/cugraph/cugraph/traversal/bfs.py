@@ -55,7 +55,10 @@ def _ensure_args(G, start, i_start, directed):
         else:
             if not isinstance(start, cudf.DataFrame):
                 if not isinstance(start, dask_cudf.DataFrame):
-                    start = cudf.DataFrame({"starts": cudf.Series(start)})
+                    vertex_dtype = G.nodes().dtype
+                    start = cudf.DataFrame(
+                        {"starts": cudf.Series(start, dtype=vertex_dtype)}
+                    )
 
             if G.is_renumbered():
                 validlen = len(
@@ -224,7 +227,8 @@ def bfs(
         if is_dataframe:
             start = start[start.columns[0]]
         else:
-            start = cudf.Series(start, name="starts")
+            vertex_dtype = G.nodes().dtype
+            start = cudf.Series(start, dtype=vertex_dtype)
 
     distances, predecessors, vertices = pylibcugraph_bfs(
         handle=ResourceHandle(),
