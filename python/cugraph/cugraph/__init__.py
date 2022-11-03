@@ -114,7 +114,6 @@ from cugraph.sampling import (
     rw_path,
     node2vec,
     uniform_neighbor_sample,
-    uniform_random_walks,
 )
 
 
