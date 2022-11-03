@@ -12,6 +12,7 @@
 # limitations under the License.
 
 import cudf
+import cupy
 import numpy as np
 
 import cugraph
@@ -130,6 +131,10 @@ class EXPERIMENTAL__PropertyGraph:
         # values (eg. int64 to float64, since NaN is a float).
         self.__vertex_prop_dtypes = {}
         self.__edge_prop_dtypes = {}
+
+        # Lengths of the properties that are vectors
+        self.__vertex_vector_property_lengths = {}
+        self.__edge_vector_property_lengths = {}
 
         # Add unique edge IDs to the __edge_prop_dataframe by simply
         # incrementing this counter. Remains None if user provides edge IDs.
@@ -332,7 +337,12 @@ class EXPERIMENTAL__PropertyGraph:
         return self.get_vertices()
 
     def add_vertex_data(
-        self, dataframe, vertex_col_name, type_name=None, property_columns=None
+        self,
+        dataframe,
+        vertex_col_name,
+        type_name=None,
+        property_columns=None,
+        vector_properties=None,
     ):
         """
         Add a dataframe describing vertex properties to the PropertyGraph.
@@ -353,6 +363,7 @@ class EXPERIMENTAL__PropertyGraph:
             List of column names in dataframe to be added as properties. All
             other columns in dataframe will be ignored. If not specified, all
             columns in dataframe are added.
+        vector_properties : dict of list of strings
 
         Returns
         -------
@@ -388,6 +399,14 @@ class EXPERIMENTAL__PropertyGraph:
                     "found in dataframe: "
                     f"{list(invalid_columns)}"
                 )
+            existing_vectors = (
+                set(property_columns) & self.__vertex_vector_property_lengths.keys()
+            )
+            if existing_vectors:
+                raise ValueError("TODO")
+        # else:
+        # TODO: check if any columns that will become non-vector properties are vectors
+        # Or, this may be done in __update_dataframe_dtypes
 
         # Save the DataFrame and Series types for future instantiations
         if (self.__dataframe_type is None) or (self.__series_type is None):
@@ -400,6 +419,30 @@ class EXPERIMENTAL__PropertyGraph:
                     "the PropertyGraph was already initialized "
                     f"using type {self.__dataframe_type}"
                 )
+        TCN = self.type_col_name
+        if vector_properties is not None:
+            invalid_keys = {self.vertex_col_name, TCN}
+            if property_columns:
+                invalid_keys.update(property_columns)
+            df_cols = set(dataframe.columns)
+            for key, columns in vector_properties.items():
+                if key in invalid_keys:
+                    raise ValueError("TODO")
+                if isinstance(columns, str):
+                    # TODO: check if valid type instead
+                    raise TypeError("TODO")
+                if not df_cols.issuperset(columns):
+                    raise ValueError("TODO")
+                if self.__vertex_vector_property_lengths.get(key, len(columns)) != len(
+                    columns
+                ):
+                    raise ValueError("TODO")
+            for key, columns in vector_properties.items():
+                self.__vertex_vector_property_lengths[key] = len(columns)
+            # XXX: to get a cupy array back from a Series of a vector property, do:
+            # >>> cupy.array(s.to_arrow().values).reshape(len(s), length)
+            # I think `to_arrow` may copy from device to host.
+            # How should we handle empty rows? 0? raise? Get from .offsets
 
         # Clear the cached values related to the number of vertices since more
         # could be added in this method.
@@ -408,7 +451,6 @@ class EXPERIMENTAL__PropertyGraph:
 
         # Initialize the __vertex_prop_dataframe if necessary using the same
         # type as the incoming dataframe.
-        TCN = self.type_col_name
         default_vertex_columns = [self.vertex_col_name, TCN]
         if self.__vertex_prop_dataframe is None:
             self.__vertex_prop_dataframe = self.__dataframe_type(
@@ -467,6 +509,30 @@ class EXPERIMENTAL__PropertyGraph:
             )
         else:
             column_names_to_drop = {vertex_col_name}
+        if vector_properties:
+            # Drop vector property source columns by default
+            more_to_drop = set().union(*vector_properties.values())
+            if property_columns is not None:
+                more_to_drop.difference_update(property_columns)
+            column_names_to_drop |= more_to_drop
+            column_names_to_drop -= vector_properties.keys()
+
+            if self.__series_type is cudf.Series:
+                ascontiguousarray = cupy.ascontiguousarray
+            else:
+                ascontiguousarray = np.ascontiguousarray
+            vectors = {
+                key: [
+                    np.squeeze(vec, 0)
+                    for vec in np.split(
+                        ascontiguousarray(tmp_df[columns].values), len(tmp_df)
+                    )
+                ]
+                for key, columns in vector_properties.items()
+            }
+            for key, vec in vectors.items():
+                tmp_df[key] = vec
+
         tmp_df.drop(labels=column_names_to_drop, axis=1, inplace=True)
 
         # Save the original dtypes for each new column so they can be restored
