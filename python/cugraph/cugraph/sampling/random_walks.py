@@ -44,7 +44,7 @@ def random_walks(
         The graph can be either directed or undirected.
     
     random_walks_type : str, optional (default='uniform')
-        Type of random walks: 'uniform', 'biased', 'node2vec'
+        Type of random walks: 'uniform', 'biased', 'node2vec'.
         Only 'uniform' random walks is currently supported
 
     start_vertices : int or list or cudf.Series or cudf.DataFrame

@@ -48,7 +48,9 @@ def _call_plc_uniform_random_walks(sID, mg_graph_x, st_x, max_depth):
     )
 
 
-def random_walks(input_graph, start_vertices, max_depth=None, use_padding=False):
+def random_walks(
+    input_graph, random_walks_type="uniform", start_vertices=None, max_depth=None,
+    use_padding=None, legacy_result_type=None):
     """
     compute random walks for each nodes in 'start_vertices'
 
@@ -56,6 +58,10 @@ def random_walks(input_graph, start_vertices, max_depth=None, use_padding=False)
     ----------
     input_graph : cuGraph.Graph
         The graph can be either directed or undirected.
+    
+    random_walks_type : str, optional (default='uniform')
+        Type of random walks: 'uniform', 'biased', 'node2vec'.
+        Only 'uniform' random walks is currently supported
 
     start_vertices : int or list or cudf.Series or cudf.DataFrame
         A single node or a list or a cudf.Series of nodes from which to run
@@ -65,8 +71,11 @@ def random_walks(input_graph, start_vertices, max_depth=None, use_padding=False)
     max_depth : int
         The maximum depth of the random walks
 
-    use_padding : bool, optional (default=False)
-        If True, padded paths are returned else coalesced paths are returned.
+    use_padding : bool
+        This parameter is here for SG compatibility and ignored
+    
+    legacy_result_type : bool
+        This parameter is here for SG compatibility and ignored
 
     Returns
     -------
