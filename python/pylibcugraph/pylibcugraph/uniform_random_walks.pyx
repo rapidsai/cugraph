@@ -61,10 +61,10 @@ from pylibcugraph.utils cimport (
 )
 
 
-def EXPERIMENTAL__uniform_random_walks(ResourceHandle resource_handle,
-                                       _GPUGraph input_graph,
-                                       start_vertices,
-                                       size_t max_length):
+def uniform_random_walks(ResourceHandle resource_handle,
+                         _GPUGraph input_graph,
+                         start_vertices,
+                         size_t max_length):
     """
     Compute uniform random walks for each nodes in 'start_vertices'
 
