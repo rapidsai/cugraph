@@ -76,6 +76,8 @@ template void scalar_fill(raft::handle_t const& handle,
                           size_t size,
                           int64_t value);
 
+template void scalar_fill(raft::handle_t const& handle, size_t* d_value, size_t size, size_t value);
+
 template void scalar_fill(raft::handle_t const& handle, float* d_value, size_t size, float value);
 
 template void scalar_fill(raft::handle_t const& handle, double* d_value, size_t size, double value);

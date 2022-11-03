@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#include <structure/detail/structure_utils.cuh>
 #include <structure/induced_subgraph_validate.hpp>
 
 #include <utilities/base_fixture.hpp>
@@ -31,6 +32,8 @@
 #include <raft/handle.hpp>
 #include <rmm/device_scalar.hpp>
 #include <rmm/device_uvector.hpp>
+
+#include <thrust/sort.h>
 
 #include <gtest/gtest.h>
 
@@ -87,6 +90,8 @@ class Tests_MGInducedSubgraph
 
     // Construct random subgraph vertex lists
     std::vector<size_t> h_subgraph_offsets(induced_subgraph_usecase.subgraph_sizes.size() + 1, 0);
+    std::vector<size_t> h_sg_subgraph_offsets(induced_subgraph_usecase.subgraph_sizes.size() + 1,
+                                              0);
 
     size_t max_subgraph_vertices_size =
       std::accumulate(induced_subgraph_usecase.subgraph_sizes.begin(),
@@ -96,6 +101,8 @@ class Tests_MGInducedSubgraph
     rmm::device_uvector<vertex_t> all_vertices(0, handle_->get_stream());
     rmm::device_uvector<vertex_t> d_subgraph_vertices(max_subgraph_vertices_size,
                                                       handle_->get_stream());
+    rmm::device_uvector<vertex_t> d_sg_subgraph_vertices(max_subgraph_vertices_size,
+                                                         handle_->get_stream());
 
     if (my_rank == 0) {
       // NOTE: This limits the size graph we can run in a test.  All of the
@@ -117,19 +124,23 @@ class Tests_MGInducedSubgraph
     for (size_t i = 0; i < induced_subgraph_usecase.subgraph_sizes.size(); ++i) {
       auto subgraph_size = induced_subgraph_usecase.subgraph_sizes[i];
       auto start         = h_subgraph_offsets[i];
+      auto sg_start      = h_sg_subgraph_offsets[i];
 
       ASSERT_TRUE(subgraph_size <= mg_graph_view.number_of_vertices()) << "Invalid subgraph size.";
       rmm::device_uvector<vertex_t> vertices(0, handle_->get_stream());
 
       if (my_rank == 0) {
         vertices = cugraph::test::randomly_select(*handle_, all_vertices, subgraph_size, true);
+        raft::copy(d_sg_subgraph_vertices.data() + sg_start,
+                   vertices.data(),
+                   vertices.size(),
+                   handle_->get_stream());
+        h_sg_subgraph_offsets[i + 1] = sg_start + vertices.size();
       }
 
-      vertices = cugraph::detail::shuffle_ext_vertices_by_gpu_id(*handle_, std::move(vertices));
+      vertices = cugraph::detail::shuffle_int_vertices_by_gpu_id(
+        *handle_, std::move(vertices), mg_graph_view.vertex_partition_range_lasts());
 
-      // NOTE: Shouldn't need a sort here.  Vertices were sorted before the shuffle,
-      // and everything is on GPU 0.  Our shuffle implementations  guarantee that the
-      // blocks moved between GPUs are stable.
       raft::copy(d_subgraph_vertices.data() + start,
                  vertices.data(),
                  vertices.size(),
@@ -141,6 +152,8 @@ class Tests_MGInducedSubgraph
     d_subgraph_vertices.shrink_to_fit(handle_->get_stream());
 
     if (my_rank == 0) {
+      d_sg_subgraph_vertices.resize(h_sg_subgraph_offsets.back(), handle_->get_stream());
+      d_sg_subgraph_vertices.shrink_to_fit(handle_->get_stream());
       all_vertices.resize(0, handle_->get_stream());
       all_vertices.shrink_to_fit(handle_->get_stream());
     }
@@ -154,7 +167,6 @@ class Tests_MGInducedSubgraph
       hr_clock.start();
     }
 
-#if 0
     auto [d_subgraph_edgelist_majors,
           d_subgraph_edgelist_minors,
           d_subgraph_edgelist_weights,
@@ -162,21 +174,9 @@ class Tests_MGInducedSubgraph
       cugraph::extract_induced_subgraphs(
         *handle_,
         mg_graph_view,
-        raft::device_span<size_t const>(d_subgraph_offsets.data(),
-                                        induced_subgraph_usecase.subgraph_sizes.size()),
+        raft::device_span<size_t const>(d_subgraph_offsets.data(), d_subgraph_offsets.size()),
         raft::device_span<vertex_t const>(d_subgraph_vertices.data(), d_subgraph_vertices.size()),
-        false);
-#else
-    EXPECT_THROW(
-      cugraph::extract_induced_subgraphs(
-        *handle_,
-        mg_graph_view,
-        raft::device_span<size_t const>(d_subgraph_offsets.data(),
-                                        induced_subgraph_usecase.subgraph_sizes.size()),
-        raft::device_span<vertex_t const>(d_subgraph_vertices.data(), d_subgraph_vertices.size()),
-        false),
-      cugraph::logic_error);
-#endif
+        true);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -187,10 +187,6 @@ class Tests_MGInducedSubgraph
     }
 
     if (induced_subgraph_usecase.check_correctness) {
-#if 0
-      d_subgraph_vertices = cugraph::test::device_gatherv(
-        *handle_,
-        raft::device_span<vertex_t const>(d_subgraph_vertices.data(), d_subgraph_vertices.size()));
       d_subgraph_edgelist_majors = cugraph::test::device_gatherv(
         *handle_,
         raft::device_span<vertex_t const>(d_subgraph_edgelist_majors.data(),
@@ -206,16 +202,46 @@ class Tests_MGInducedSubgraph
           raft::device_span<weight_t const>(d_subgraph_edgelist_weights->data(),
                                             d_subgraph_edgelist_weights->size()));
 
-      d_subgraph_edge_offsets = cugraph::test::device_gatherv(
-        *handle_,
+      auto graph_ids_v = cugraph::detail::expand_sparse_offsets(
         raft::device_span<size_t const>(d_subgraph_edge_offsets.data(),
-                                        d_subgraph_edge_offsets.size()));
+                                        d_subgraph_edge_offsets.size()),
+        vertex_t{0},
+        handle_->get_stream());
 
-      auto [sg_graph, sg_number_map] =
-        cugraph::test::mg_graph_to_sg_graph(*handle_, mg_graph_view, d_renumber_map_labels, true);
+      graph_ids_v = cugraph::test::device_gatherv(
+        *handle_, raft::device_span<vertex_t const>(graph_ids_v.data(), graph_ids_v.size()));
+
+      if (d_subgraph_edgelist_weights) {
+        thrust::sort_by_key(
+          handle_->get_thrust_policy(),
+          thrust::make_zip_iterator(graph_ids_v.begin(),
+                                    d_subgraph_edgelist_majors.begin(),
+                                    d_subgraph_edgelist_minors.begin()),
+          thrust::make_zip_iterator(
+            graph_ids_v.end(), d_subgraph_edgelist_majors.end(), d_subgraph_edgelist_minors.end()),
+          d_subgraph_edgelist_weights->begin());
+      } else {
+        thrust::sort(
+          handle_->get_thrust_policy(),
+          thrust::make_zip_iterator(graph_ids_v.begin(),
+                                    d_subgraph_edgelist_majors.begin(),
+                                    d_subgraph_edgelist_minors.begin()),
+          thrust::make_zip_iterator(
+            graph_ids_v.end(), d_subgraph_edgelist_majors.end(), d_subgraph_edgelist_minors.end()));
+      }
+
+      auto d_subgraph_edgelist_offsets =
+        cugraph::detail::compute_sparse_offsets<size_t>(graph_ids_v.begin(),
+                                                        graph_ids_v.end(),
+                                                        size_t{0},
+                                                        size_t{d_subgraph_offsets.size() - 1},
+                                                        handle_->get_stream());
+
+      auto [sg_graph, sg_number_map] = cugraph::test::mg_graph_to_sg_graph(
+        *handle_, mg_graph_view, std::optional<rmm::device_uvector<vertex_t>>{std::nullopt}, false);
 
       if (my_rank == 0) {
-        auto h_subgraph_vertices = cugraph::test::to_host(*handle_, d_subgraph_vertices);
+        auto d_sg_subgraph_offsets = cugraph::test::to_device(*handle_, h_sg_subgraph_offsets);
 
         auto [d_reference_subgraph_edgelist_majors,
               d_reference_subgraph_edgelist_minors,
@@ -224,24 +250,22 @@ class Tests_MGInducedSubgraph
           cugraph::extract_induced_subgraphs(
             *handle_,
             sg_graph.view(),
-            raft::device_span<size_t const>(d_subgraph_offsets.data(),
-                                            induced_subgraph_usecase.subgraph_sizes.size()),
-            raft::device_span<vertex_t const>(d_subgraph_vertices.data(),
-                                              d_subgraph_vertices.size()),
+            raft::device_span<size_t const>(d_sg_subgraph_offsets.data(),
+                                            d_sg_subgraph_offsets.size()),
+            raft::device_span<vertex_t const>(d_sg_subgraph_vertices.data(),
+                                              d_sg_subgraph_vertices.size()),
             false);
 
-        // FIXME: Might need to pass in MG and SG number maps to properly compare
         induced_subgraph_validate(*handle_,
                                   d_subgraph_edgelist_majors,
                                   d_subgraph_edgelist_minors,
                                   d_subgraph_edgelist_weights,
-                                  d_subgraph_edge_offsets,
+                                  d_subgraph_edgelist_offsets,
                                   d_reference_subgraph_edgelist_majors,
                                   d_reference_subgraph_edgelist_minors,
                                   d_reference_subgraph_edgelist_weights,
                                   d_reference_subgraph_edge_offsets);
       }
-#endif
     }
   }
 
