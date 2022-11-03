@@ -396,7 +396,7 @@ class CuGraphStore(BaseCuGraphStore):
             del self.extracted_reverse_subgraphs_per_type
 
 
-def create_dlpack_results_from_arrays(sampled_result_arrays, etypes: list[str]):
+def create_dlpack_results_from_arrays(sampled_result_arrays, etypes):
     # TODO: Extend to pytorch/numpy/etc
     import cupy as cp
 
