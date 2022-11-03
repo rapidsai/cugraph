@@ -20,7 +20,7 @@ import operator as op
 
 from pylibcugraph import ResourceHandle
 
-from pylibcugraph.experimental import (
+from pylibcugraph import (
     uniform_random_walks as pylibcugraph_uniform_random_walks,
 )
 
