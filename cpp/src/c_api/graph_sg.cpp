@@ -23,6 +23,7 @@
 #include <c_api/array.hpp>
 #include <c_api/error.hpp>
 #include <c_api/graph.hpp>
+#include <c_api/graph_helper.hpp>
 #include <c_api/resource_handle.hpp>
 
 #include <limits>
@@ -252,7 +253,7 @@ struct create_graph_csr_functor : public cugraph::c_api::abstract_functor {
       rmm::device_uvector<vertex_t> edgelist_srcs(0, handle_.get_stream());
       rmm::device_uvector<vertex_t> edgelist_dsts(indices_->size_, handle_.get_stream());
 
-      edgelist_srcs = cugraph::detail::expand_sparse_offsets(
+      edgelist_srcs = cugraph::c_api::expand_sparse_offsets(
         raft::device_span<edge_t const>{offsets_->as_type<edge_t>(), offsets_->size_},
         vertex_t{0},
         handle_.get_stream());
