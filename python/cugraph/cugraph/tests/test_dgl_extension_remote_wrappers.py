@@ -12,11 +12,7 @@
 # limitations under the License.
 
 import numpy as np
-
-# Add Path for cugraph_service_client
-# import sys
-# sys.path.append("/home/nfs/vjawa/dgl/cugraph/python/cugraph_service")
-from cugraph_service_client.client import CugraphServiceClient as Client
+import pytest
 
 
 def create_gs(client, device_id=None):
@@ -168,7 +164,10 @@ def assert_valid_gs(gs):
     np.testing.assert_equal(src_vals, expected_vals)
 
 
+@pytest.mark.skip(reason="Enable when cughraph-service lands in the CI")
 def test_remote_wrappers():
+    from cugraph_service_client.client import CugraphServiceClient as Client
+
     # TODO: Check with rick on how to test it
     # Can only be tested after the packages land
     c = Client()
