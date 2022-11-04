@@ -22,10 +22,23 @@ import cugraph
 from cugraph.testing import utils
 from cugraph.dask import uniform_neighbor_sample
 
+# If the rapids-pytest-benchmark plugin is installed, the "gpubenchmark"
+# fixture will be available automatically. Check that this fixture is available
+# by trying to import rapids_pytest_benchmark, and if that fails, set
+# "gpubenchmark" to the standard "benchmark" fixture provided by
+# pytest-benchmark.
+try:
+    import rapids_pytest_benchmark  # noqa: F401
+except ImportError:
+    import pytest_benchmark
+
+    gpubenchmark = pytest_benchmark.plugin.benchmark
 
 # =============================================================================
 # Pytest Setup / Teardown - called for each test function
 # =============================================================================
+
+
 def setup_function():
     gc.collect()
 
@@ -300,3 +313,42 @@ def test_mg_uniform_neighbor_sample_ensure_no_duplicates(dask_client):
     )
 
     assert len(output_df.compute()) == 3
+
+
+# =============================================================================
+# Benchmarks
+# =============================================================================
+
+
+@pytest.mark.slow
+@pytest.mark.parametrize("n_samples", [1_000, 5_000, 10_000])
+def bench_uniform_neigbour_sample_email_eu_core(gpubenchmark, dask_client, n_samples):
+    input_data_path = utils.RAPIDS_DATASET_ROOT_DIR_PATH / "email-Eu-core.csv"
+    chunksize = dcg.get_chunksize(input_data_path)
+
+    ddf = dask_cudf.read_csv(
+        input_data_path,
+        chunksize=chunksize,
+        delimiter=" ",
+        names=["src", "dst", "value"],
+        dtype=["int32", "int32", "int32"],
+    )
+
+    dg = cugraph.Graph(directed=False)
+    dg.from_dask_cudf_edgelist(
+        ddf,
+        source="src",
+        destination="dst",
+        edge_attr="value",
+        store_transposed=False,
+        legacy_renum_only=True,
+    )
+    # Partition the dataframe to add in chunks
+    srcs = dg.input_df["src"]
+    start_list = srcs[:n_samples].compute()
+
+    def func():
+        _ = cugraph.dask.uniform_neighbor_sample(dg, start_list, [10])
+        del _
+
+    gpubenchmark(func)
