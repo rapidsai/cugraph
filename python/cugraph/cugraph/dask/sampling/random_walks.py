@@ -28,12 +28,20 @@ from cugraph.dask.comms import comms as Comms
 from cugraph.dask.common.input_utils import get_distributed_data
 
 
-def convert_to_cudf(cp_paths):
+def convert_to_cudf(cp_paths, number_map=None, is_vertex_paths=False):
     """
     Creates cudf Series from cupy arrays from pylibcugraph wrapper
     """
 
-    print("the cupy paths is \n", cp_paths)
+    if is_vertex_paths and len(cp_paths) > 0:
+        if number_map.implementation.numbered:
+            df_ = cudf.DataFrame()
+            df_["vertex_paths"] = cp_paths
+            df_ = number_map.unrenumber(
+                df_, "vertex_paths", preserve_order=True).compute()
+            vertex_paths = cudf.Series(df_["vertex_paths"]).fillna(-1)
+
+            return vertex_paths
 
     return cudf.Series(cp_paths)
 
@@ -41,7 +49,8 @@ def convert_to_cudf(cp_paths):
 def _call_plc_uniform_random_walks(sID, mg_graph_x, st_x, max_depth):
 
     return pylibcugraph_uniform_random_walks(
-        resource_handle=ResourceHandle(Comms.get_handle(sID).getHandle()),
+        resource_handle=ResourceHandle(
+            Comms.get_handle(sID).getHandle()),
         input_graph=mg_graph_x,
         start_vertices=st_x,
         max_length=max_depth,
@@ -49,8 +58,8 @@ def _call_plc_uniform_random_walks(sID, mg_graph_x, st_x, max_depth):
 
 
 def random_walks(
-    input_graph, random_walks_type="uniform", start_vertices=None, max_depth=None,
-    use_padding=None, legacy_result_type=None):
+    input_graph,random_walks_type="uniform", start_vertices=None,
+    max_depth=None, use_padding=None, legacy_result_type=None):
     """
     compute random walks for each nodes in 'start_vertices' and returns a
     padded result along with the maximum path length. Vertices with no outgoing
@@ -104,14 +113,15 @@ def random_walks(
         # FIXME: This should match start_vertices type to the renumbered df type
         # but verify that. If not retrieve the type and cast it when creating
         # the dask_cudf from a cudf
-        start_vertices = input_graph.lookup_internal_vertex_id(start_vertices).compute()
+        start_vertices = input_graph.lookup_internal_vertex_id(
+            start_vertices).compute()
         start_vertices_type = input_graph.edgelist.edgelist_df.dtypes[0]
     else:
         # FIXME: Get the 'src' column names instead and retrieve the type
         start_vertices_type = input_graph.input_df.dtypes[0]
-
     start_vertices = dask_cudf.from_cudf(
-        start_vertices, npartitions=min(input_graph._npartitions, len(start_vertices))
+        start_vertices, npartitions=min(
+            input_graph._npartitions, len(start_vertices))
     )
     start_vertices = start_vertices.astype(start_vertices_type)
     start_vertices = get_distributed_data(start_vertices)
@@ -140,7 +150,7 @@ def random_walks(
     max_path_length = [client.submit(op.getitem, f, 2) for f in result]
 
     cudf_vertex_paths = [
-        client.submit(convert_to_cudf, cp_vertex_paths)
+        client.submit(convert_to_cudf, cp_vertex_paths, input_graph.renumber_map, True)
         for cp_vertex_paths in result_vertex_paths
     ]
 
@@ -164,12 +174,5 @@ def random_walks(
             for r, c_v, c_e in zip(result, cudf_vertex_paths, cudf_edge_wgt_paths)
         ]
     )
-
-    # FIXME: Fix the unrenumbering call below
-    if input_graph.renumbered:
-        ddf_ = ddf_vertex_paths.to_frame()
-        ddf_ = ddf_.rename(columns={ddf_.columns[0]: "vertex_set"})
-        ddf_ = input_graph.unrenumber(ddf_, "vertex_set")
-        ddf_vertex_paths = ddf_[["vertex_set"]]
 
     return ddf_vertex_paths, ddf_edge_wgt_paths, max_path_length
