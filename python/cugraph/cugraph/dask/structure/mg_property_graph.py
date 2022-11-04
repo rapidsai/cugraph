@@ -395,9 +395,6 @@ class EXPERIMENTAL__MGPropertyGraph:
             )
             if existing_vectors:
                 raise ValueError("TODO")
-        # else:
-        # TODO: check if any columns that will become non-vector properties are vectors
-        # Or, this may be done in __update_dataframe_dtypes
 
         TCN = self.type_col_name
         if vector_properties is not None:
@@ -412,6 +409,8 @@ class EXPERIMENTAL__MGPropertyGraph:
                     # TODO: check if valid type instead
                     raise TypeError("TODO")
                 if not df_cols.issuperset(columns):
+                    raise ValueError("TODO")
+                if not columns:
                     raise ValueError("TODO")
                 if self.__vertex_vector_property_lengths.get(key, len(columns)) != len(
                     columns
@@ -1233,6 +1232,33 @@ class EXPERIMENTAL__MGPropertyGraph:
         rv["stop"] -= 1  # Make inclusive
         return rv[["start", "stop"]]
 
+    def vertex_vector_property_to_array(self, df, col_name, *, ignore_empty=True):
+        """ """
+        if col_name not in self.__vertex_vector_property_lengths:
+            raise ValueError(f"{col_name!r} is not a known vertex vector property")
+        length = self.__vertex_vector_property_lengths[col_name]
+        return self._get_vector_property(df, col_name, length, ignore_empty)
+
+    def edge_vector_property_to_array(self, df, col_name, *, ignore_empty=True):
+        """ """
+        if col_name not in self.__edge_vector_property_lengths:
+            raise ValueError(f"{col_name!r} is not a known edge vector property")
+        length = self.__edge_vector_property_lengths[col_name]
+        return self._get_vector_property(df, col_name, length, ignore_empty)
+
+    def _get_vector_property(self, df, col_name, length, ignore_empty):
+        if type(df) is not self.__dataframe_type:
+            raise TypeError("TODO")
+        if col_name not in df.columns:
+            raise ValueError("TODO")
+        if df.dtypes[col_name] != "list":
+            raise TypeError("TODO")
+        s = df[col_name]
+        meta = self._vector_series_to_array(s._meta, length, True)
+        return s.map_partitions(
+            self._vector_series_to_array, length, ignore_empty, meta=meta
+        )
+
     @classmethod
     def is_multigraph(cls, df):
         """
@@ -1351,3 +1377,17 @@ class EXPERIMENTAL__MGPropertyGraph:
                     dtype=dtype,
                 )
         return df.assign(**new_cols)
+
+    @staticmethod
+    def _vector_series_to_array(s, length, ignore_empty):
+        # This returns a writable view (i.e., no copies!)
+        if len(s) == 0:
+            # TODO: fix bug in cudf; operating on dask_cudf dataframes nests list dtype
+            dtype = s.dtype
+            while dtype == "list":
+                dtype = dtype.element_type
+            return cupy.empty((0, length), dtype=dtype)
+        rv = s._data.columns[0].children[-1].values.reshape(-1, length)
+        if not ignore_empty and rv.shape[0] != len(s):
+            raise RuntimeError("TODO")
+        return rv

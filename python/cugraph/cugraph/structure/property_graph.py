@@ -404,9 +404,6 @@ class EXPERIMENTAL__PropertyGraph:
             )
             if existing_vectors:
                 raise ValueError("TODO")
-        # else:
-        # TODO: check if any columns that will become non-vector properties are vectors
-        # Or, this may be done in __update_dataframe_dtypes
 
         # Save the DataFrame and Series types for future instantiations
         if (self.__dataframe_type is None) or (self.__series_type is None):
@@ -433,16 +430,14 @@ class EXPERIMENTAL__PropertyGraph:
                     raise TypeError("TODO")
                 if not df_cols.issuperset(columns):
                     raise ValueError("TODO")
+                if not columns:
+                    raise ValueError("TODO")
                 if self.__vertex_vector_property_lengths.get(key, len(columns)) != len(
                     columns
                 ):
                     raise ValueError("TODO")
             for key, columns in vector_properties.items():
                 self.__vertex_vector_property_lengths[key] = len(columns)
-            # XXX: to get a cupy array back from a Series of a vector property, do:
-            # >>> cupy.array(s.to_arrow().values).reshape(len(s), length)
-            # I think `to_arrow` may copy from device to host.
-            # How should we handle empty rows? 0? raise? Get from .offsets
 
         # Clear the cached values related to the number of vertices since more
         # could be added in this method.
@@ -1350,6 +1345,39 @@ class EXPERIMENTAL__PropertyGraph:
         rv["start"] = rv["stop"].shift(1, fill_value=0)
         rv["stop"] -= 1  # Make inclusive
         return rv[["start", "stop"]]
+
+    def vertex_vector_property_to_array(self, df, col_name, *, ignore_empty=True):
+        """ """
+        if col_name not in self.__vertex_vector_property_lengths:
+            raise ValueError(f"{col_name!r} is not a known vertex vector property")
+        length = self.__vertex_vector_property_lengths[col_name]
+        return self._get_vector_property(df, col_name, length, ignore_empty)
+
+    def edge_vector_property_to_array(self, df, col_name, *, ignore_empty=True):
+        """ """
+        if col_name not in self.__edge_vector_property_lengths:
+            raise ValueError(f"{col_name!r} is not a known edge vector property")
+        length = self.__edge_vector_property_lengths[col_name]
+        return self._get_vector_property(df, col_name, length, ignore_empty)
+
+    def _get_vector_property(self, df, col_name, length, ignore_empty):
+        if type(df) is not self.__dataframe_type:
+            raise TypeError("TODO")
+        if col_name not in df.columns:
+            raise ValueError("TODO")
+        if self.__series_type is cudf.Series:
+            if df.dtypes[col_name] != "list":
+                raise TypeError("TODO")
+            # This returns a writable view (i.e., no copies!)
+            rv = df[col_name]._data.columns[0].children[-1].values.reshape(-1, length)
+        else:
+            if df.dtypes[col_name] != object:
+                raise TypeError("TODO")
+            s = df[col_name]
+            rv = np.vstack(s[s.notnull()].to_numpy())
+        if not ignore_empty and rv.shape[0] != len(df):
+            raise RuntimeError("TODO")
+        return rv
 
     @classmethod
     def is_multigraph(cls, df):
