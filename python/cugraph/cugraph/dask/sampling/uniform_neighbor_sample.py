@@ -88,7 +88,7 @@ def _call_plc_uniform_neighbor_sample(
         input_graph=mg_graph_x,
         start_list=st_x,
         h_fan_out=fanout_vals,
-        with_replacement=with_replacement
+        with_replacement=with_replacement,
     )
     return convert_to_cudf(cp_arrays, weight_t)
 
