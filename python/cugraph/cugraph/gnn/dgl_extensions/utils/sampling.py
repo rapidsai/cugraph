@@ -221,6 +221,7 @@ def sample_pg(
     fanout,
     edge_dir,
 ):
+
     if isinstance(nodes_ar, dict):
         nodes = {t: create_cudf_series_from_node_ar(n) for t, n in nodes_ar.items()}
     else:

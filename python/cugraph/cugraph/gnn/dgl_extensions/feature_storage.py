@@ -57,6 +57,7 @@ def _convert_ar_list_to_dlpack(ar_ls):
     return cap
 
 
+
 class CuFeatureStorage:
     """
     Storage for node/edge feature data.
@@ -108,6 +109,7 @@ class CuFeatureStorage:
             Feature data stored in PyTorch Tensor.
         """
         # Default implementation uses synchronous fetch.
+
         # Handle remote case
         if type(self.pg).__name__ in ["RemotePropertyGraph", "RemoteMGPropertyGraph"]:
             indices = _convert_ar_to_numpy(indices)
@@ -133,6 +135,7 @@ class CuFeatureStorage:
                 indices = cudf.Series(indices)
 
             indices = indices + self.indices_offset
+
 
         if self.storage_type == "node":
             result = self.pg.get_vertex_data(vertex_ids=indices, columns=self.columns)

@@ -40,8 +40,7 @@ class CuGraphStore(BaseCuGraphStore):
             self.__G = graph
         else:
             raise ValueError("graph must be a PropertyGraph or MGPropertyGraph")
-
-        BaseCuGraphStore.__init__(self, graph)
+        super().__init__(graph)
         # dict to map column names corresponding to edge features
         # of each type
         self.edata_feat_col_d = defaultdict(list)
@@ -378,7 +377,7 @@ class CuGraphStore(BaseCuGraphStore):
             sgs_obj=sgs_obj,
             sgs_src_range_obj=sgs_src_range_obj,
             sg_node_dtype=self._sg_node_dtype,
-            nodes_ar=nodes_cap,
+            nodes_cap=nodes_cap,
             replace=replace,
             fanout=fanout,
             edge_dir=edge_dir,
@@ -508,7 +507,7 @@ class CuGraphStore(BaseCuGraphStore):
             del self.extracted_reverse_subgraphs_per_type
 
 
-def create_dlpack_results_from_arrays(sampled_result_arrays, etypes: list[str]):
+def create_dlpack_results_from_arrays(sampled_result_arrays, etypes):
     # TODO: Extend to pytorch/numpy/etc
     import cupy as cp
 
