@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Copyright (c) 2021, NVIDIA CORPORATION
+# Copyright (c) 2021-2022, NVIDIA CORPORATION
 
 set -xe
 
