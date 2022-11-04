@@ -17,7 +17,7 @@
 
 <img alt="Conda" src="https://img.shields.io/conda/pn/rapidsai/cugraph" />
 
-<a href="https://rapids.ai/"><img src="img/rapids_logo.png" alt="RAPIDS" width="100"></a>
+<a href="https://rapids.ai/"><img src="img/rapids_logo.png" alt="RAPIDS" width="125"></a>
 
 </div>
 
@@ -29,30 +29,31 @@
 
 [Gettintg cuGraph](./readme_pages/getting_cugraph.md) *
 [Graph Algorithms](./readme_pages/algorithms.md) *
-[cugraph-service]() *
+[Graph Service]() *
 [Property Graph]() *
-[GNNs]()
+[GNN Support]()
 
 </div>
 
 -----
 
 ## Table of content
-- cuGraph Packages and Features
+- Getting packages
+  - [Gettintg cuGraph Packages](./readme_pages/getting_cugraph.md)
+  - [Contributing to cuGraph](./readme_pages/CONTRIBUTING.md)
   - General
     - [Latest News](./readme_pages/news.md)
     - [Current list of algorithms](./readme_pages/algorithms.md)
     - [BLOGs and Presentation](./docs/cugraph/source/basics/cugraph_blogs.rst)
     - [Performance](./readme_pages/performance/performance.md)
+- Packages 
   - [cuGraph Python](./readme_pages/cugraph_python.md)
     - [Property Graph](./readme_pages/Property_graph.md)
     - [External Data Types](./readme_pages/data_types.md)
   - [pylibcugraph](./readme_pages/pylibcugraph.md)
-  - cugraph-service - _coming soon_
   - [libcugraph (C/C++/CUDA)](./readme_pages/libcugraph.md)
-- Getting cuGraph
-  - [Gettintg cuGraph](./readme_pages/getting_cugraph.md)
-  - [Contributing to cuGraph](./readme_pages/CONTRIBUTING.md)
+  - [cugraph-service]()
+  - [cugraph-dgl]()
 - API Docs
   - Python
     - [Python Nightly](https://docs.rapids.ai/api/cugraph/nightly/)
@@ -61,8 +62,9 @@
     - [C++ Nightly](https://docs.rapids.ai/api/libcugraph/nightly/)
     - [C++ Stable](https://docs.rapids.ai/api/libcugraph/stable/)
 - References
-  - [RAPIDS](#rapids)
-  - [ARROW](#arrow)
+  - [RAPIDS](https://rapids.ai/)
+  - [ARROW](https://arrow.apache.org/)
+  - [DASK](https://www.dask.org/)
 
 <br><br>
 
