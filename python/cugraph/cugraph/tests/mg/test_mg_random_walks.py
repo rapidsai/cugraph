@@ -41,7 +41,7 @@ IS_DIRECTED = [True]
 # =============================================================================
 
 datasets = DATASETS_SMALL + [karate_asymmetric]
-#datasets = [karate_asymmetric]
+# datasets = [karate_asymmetric]
 
 fixture_params = utils.genFixtureParamsProduct(
     (datasets, "graph_file"),
@@ -72,10 +72,10 @@ def calc_random_walks(G):
 
     max_path_length : int
         The maximum path length
-    
+
     start_vertices : list
         Roots for the random walks
-    
+
     max_depth : int
     """
     k = random.randint(1, 4)
@@ -99,37 +99,35 @@ def check_random_walks(G, path_data, seeds, max_depth, df_G=None):
 
     max_path_length = path_data[2]
     sizes = max_path_length
-    
+
     for _ in range(len(seeds)):
         for i in range(next_path_idx, next_path_idx + sizes - 1):
             src, dst = v_paths.iloc[i], v_paths.iloc[i + 1]
 
             if i == next_path_idx and src not in seeds.values:
                 invalid_seeds += 1
-                print(
-                    "[ERR] Invalid seed: "
-                    " src {} != src {}".format(src, seeds)
-                )
+                print("[ERR] Invalid seed: " " src {} != src {}".format(src, seeds))
 
             else:
                 # If everything is good proceed to the next part
                 # now check the destination
-         
+
                 # find the src out_degree to ensure it effectively has no outgoing edges
                 # No need to check for -1 values, move to the next iteration
                 if src != -1:
                     src_degree = G.out_degree([src])["degree"].compute()[0]
-                    if dst == -1  and src_degree == 0:
+                    if dst == -1 and src_degree == 0:
                         # No need to check the next element as 'dst' will become 'src'
                         i += 1
                     else:
-                        exp_edge = df_G.loc[(df_G["src"] == (src)) & (df_G["dst"] == (dst))].\
-                            reset_index(drop=True)
+                        exp_edge = df_G.loc[
+                            (df_G["src"] == (src)) & (df_G["dst"] == (dst))
+                        ].reset_index(drop=True)
 
                         if len(exp_edge) == 0:
                             print(
-                                "[ERR] Invalid edge: " "There is no edge src {} dst {}".\
-                                    format(src, dst)
+                                "[ERR] Invalid edge: "
+                                "There is no edge src {} dst {}".format(src, dst)
                             )
                             invalid_edge += 1
 
@@ -177,5 +175,3 @@ def test_dask_random_walks(dask_client, benchmark, input_graph):
     path_data, seeds, max_depth = calc_random_walks(input_graph)
     df_G = input_graph.input_df.compute().reset_index(drop=True)
     check_random_walks(input_graph, path_data, seeds, max_depth, df_G)
-
-

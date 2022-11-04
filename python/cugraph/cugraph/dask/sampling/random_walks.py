@@ -38,7 +38,8 @@ def convert_to_cudf(cp_paths, number_map=None, is_vertex_paths=False):
             df_ = cudf.DataFrame()
             df_["vertex_paths"] = cp_paths
             df_ = number_map.unrenumber(
-                df_, "vertex_paths", preserve_order=True).compute()
+                df_, "vertex_paths", preserve_order=True
+            ).compute()
             vertex_paths = cudf.Series(df_["vertex_paths"]).fillna(-1)
 
             return vertex_paths
@@ -49,8 +50,7 @@ def convert_to_cudf(cp_paths, number_map=None, is_vertex_paths=False):
 def _call_plc_uniform_random_walks(sID, mg_graph_x, st_x, max_depth):
 
     return pylibcugraph_uniform_random_walks(
-        resource_handle=ResourceHandle(
-            Comms.get_handle(sID).getHandle()),
+        resource_handle=ResourceHandle(Comms.get_handle(sID).getHandle()),
         input_graph=mg_graph_x,
         start_vertices=st_x,
         max_length=max_depth,
@@ -58,18 +58,23 @@ def _call_plc_uniform_random_walks(sID, mg_graph_x, st_x, max_depth):
 
 
 def random_walks(
-    input_graph,random_walks_type="uniform", start_vertices=None,
-    max_depth=None, use_padding=None, legacy_result_type=None):
+    input_graph,
+    random_walks_type="uniform",
+    start_vertices=None,
+    max_depth=None,
+    use_padding=None,
+    legacy_result_type=None,
+):
     """
     compute random walks for each nodes in 'start_vertices' and returns a
     padded result along with the maximum path length. Vertices with no outgoing
-    edges will be padded with -1. 
+    edges will be padded with -1.
 
     parameters
     ----------
     input_graph : cuGraph.Graph
         The graph can be either directed or undirected.
-    
+
     random_walks_type : str, optional (default='uniform')
         Type of random walks: 'uniform', 'biased', 'node2vec'.
         Only 'uniform' random walks is currently supported
@@ -84,7 +89,7 @@ def random_walks(
 
     use_padding : bool
         This parameter is here for SG compatibility and ignored
-    
+
     legacy_result_type : bool
         This parameter is here for SG compatibility and ignored
 
@@ -113,15 +118,13 @@ def random_walks(
         # FIXME: This should match start_vertices type to the renumbered df type
         # but verify that. If not retrieve the type and cast it when creating
         # the dask_cudf from a cudf
-        start_vertices = input_graph.lookup_internal_vertex_id(
-            start_vertices).compute()
+        start_vertices = input_graph.lookup_internal_vertex_id(start_vertices).compute()
         start_vertices_type = input_graph.edgelist.edgelist_df.dtypes[0]
     else:
         # FIXME: Get the 'src' column names instead and retrieve the type
         start_vertices_type = input_graph.input_df.dtypes[0]
     start_vertices = dask_cudf.from_cudf(
-        start_vertices, npartitions=min(
-            input_graph._npartitions, len(start_vertices))
+        start_vertices, npartitions=min(input_graph._npartitions, len(start_vertices))
     )
     start_vertices = start_vertices.astype(start_vertices_type)
     start_vertices = get_distributed_data(start_vertices)

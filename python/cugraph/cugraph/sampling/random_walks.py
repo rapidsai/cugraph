@@ -33,8 +33,13 @@ def uniform_random_walks(G, start_vertices, max_depth):
 
 
 def random_walks(
-    G, random_walks_type="uniform", start_vertices=None, max_depth=None,
-    use_padding=False, legacy_result_type=True):
+    G,
+    random_walks_type="uniform",
+    start_vertices=None,
+    max_depth=None,
+    use_padding=False,
+    legacy_result_type=True,
+):
     """
     # FIXME: make the padded value for vertices with outgoing edges
     # consistent in both SG and MG implementation.
@@ -46,7 +51,7 @@ def random_walks(
     ----------
     G : cuGraph.Graph or networkx.Graph
         The graph can be either directed or undirected.
-    
+
     random_walks_type : str, optional (default='uniform')
         Type of random walks: 'uniform', 'biased', 'node2vec'.
         Only 'uniform' random walks is currently supported
@@ -61,9 +66,9 @@ def random_walks(
 
     use_padding : bool, optional (default=False)
         If True, padded paths are returned else coalesced paths are returned.
-    
+
     legacy_result_type : bool, optional (default=True)
-        If True, will return a tuple of vertex_paths, edge_weight_paths and 
+        If True, will return a tuple of vertex_paths, edge_weight_paths and
         sizes. If False, will return a tuple of vertex_paths, vertex_paths and
         max_path_length
 
@@ -76,10 +81,10 @@ def random_walks(
         Series containing the edge weights of edges represented by the
         returned vertex_paths
 
-    and 
+    and
     sizes: int
         The path size in case of coalesced paths.
-    or 
+    or
     max_path_length : int
         The maximum path length
 
@@ -125,8 +130,9 @@ def random_walks(
 
     if random_walks_type == "uniform":
         vertex_paths, edge_wgt_paths, max_path_length = uniform_random_walks(
-            G, start_vertices, max_depth)
-    
+            G, start_vertices, max_depth
+        )
+
     else:
         raise ValueError("Only 'uniform' random walks is currently supported")
 
@@ -149,18 +155,22 @@ def random_walks(
         warning_msg = (
             "The 'max_depth' is relative to the number of vertices and will be "
             "deprecated in the next release. For non legacy result type, it is "
-            "relative to the number of edges which will only be supported." 
+            "relative to the number of edges which will only be supported."
         )
         warnings.warn(warning_msg, PendingDeprecationWarning)
 
         drop_vertex = [i for i in range(max_depth, len(vertex_paths), max_depth + 1)]
-        drop_edge_wgt = [i - 1 for i in range(max_depth, len(edge_wgt_paths), max_depth)]
+        drop_edge_wgt = [
+            i - 1 for i in range(max_depth, len(edge_wgt_paths), max_depth)
+        ]
 
-        vertex_paths = vertex_paths.drop(
-            vertex_paths.index[drop_vertex]).reset_index(drop=True)
+        vertex_paths = vertex_paths.drop(vertex_paths.index[drop_vertex]).reset_index(
+            drop=True
+        )
 
         edge_wgt_paths = edge_wgt_paths.drop(
-            edge_wgt_paths.index[drop_edge_wgt]).reset_index(drop=True)
+            edge_wgt_paths.index[drop_edge_wgt]
+        ).reset_index(drop=True)
 
         if use_padding:
             sizes = None
@@ -191,7 +201,11 @@ def random_walks(
         vertex_paths_sz = sizes.sum()
         edge_wgt_paths_sz = vertex_paths_sz - len(start_vertices)
         # FIXME: Is it necessary to bound the 'vertex_paths' and 'edge_wgt_paths'?
-        return vertex_paths[:vertex_paths_sz], edge_wgt_paths[:edge_wgt_paths_sz], max_path_length
+        return (
+            vertex_paths[:vertex_paths_sz],
+            edge_wgt_paths[:edge_wgt_paths_sz],
+            max_path_length,
+        )
 
 
 def rw_path(num_paths, sizes):
