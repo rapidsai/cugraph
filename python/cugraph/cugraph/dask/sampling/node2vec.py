@@ -44,7 +44,9 @@ def _call_plc_node2vec(sID, mg_graph_x, st_vtx, max_depth, compress_result, p, q
     )
 
 
-def node2vec(input_graph, start_vertices, max_depth=1, compress_result=True, p=1.0, q=1.0):
+def node2vec(
+    input_graph, start_vertices, max_depth=1, compress_result=True, p=1.0, q=1.0
+):
     """
     Computes random walks for each node in 'start_vertices', under the
     node2vec sampling framework.
@@ -126,7 +128,7 @@ def node2vec(input_graph, start_vertices, max_depth=1, compress_result=True, p=1
 
     if isinstance(start_vertices, list):
         start_vertices = cudf.Series(start_vertices)
-    
+
     if input_graph.renumbered is True:
         start_vertices = input_graph.lookup_internal_vertex_id(start_vertices).compute()
         start_vertices_type = input_graph.edgelist.edgelist_df.dtypes[0]
@@ -134,7 +136,8 @@ def node2vec(input_graph, start_vertices, max_depth=1, compress_result=True, p=1
         # FIXME: Get the 'src' column names instead and retrieve the type
         start_vertices_type = input_graph.input_df.dtypes[0]
 
-    # FIXME: No need to recreate a dask_cudf since start_vertices was already a dask_cudf
+    # FIXME: No need to recreate a dask_cudf since start_vertices was already
+    # a dask_cudf
     start_vertices = dask_cudf.from_cudf(
         start_vertices, npartitions=min(input_graph._npartitions, len(start_vertices))
     )
@@ -142,7 +145,6 @@ def node2vec(input_graph, start_vertices, max_depth=1, compress_result=True, p=1
     start_vertices = get_distributed_data(start_vertices)
     wait(start_vertices)
     start_vertices = start_vertices.worker_to_parts
-
 
     result = [
         client.submit(
@@ -171,7 +173,6 @@ def node2vec(input_graph, start_vertices, max_depth=1, compress_result=True, p=1
     result_vertex_paths = [client.submit(op.getitem, f, 0) for f in result]
     result_edge_wgt_paths = [client.submit(op.getitem, f, 1) for f in result]
     result_sizes = [client.submit(op.getitem, f, 2) for f in result]
-    
 
     cudf_vertex_paths = [
         client.submit(convert_to_cudf, cp_vertex_paths)
@@ -183,12 +184,9 @@ def node2vec(input_graph, start_vertices, max_depth=1, compress_result=True, p=1
         for cp_edge_wgt_paths in result_edge_wgt_paths
     ]
 
-    cudf_edge_sizes = [
-        client.submit(convert_to_cudf, cp_sizes)
-        for cp_sizes in result_sizes
-    ]
+    cudf_sizes = [client.submit(convert_to_cudf, cp_sizes) for cp_sizes in result_sizes]
 
-    wait([cudf_vertex_paths, cudf_edge_wgt_paths, cudf_edge_sizes])
+    wait([cudf_vertex_paths, cudf_edge_wgt_paths, cudf_sizes])
 
     ddf_vertex_paths = dask_cudf.from_delayed(cudf_vertex_paths).persist()
     ddf_edge_wgt_paths = dask_cudf.from_delayed(cudf_edge_wgt_paths).persist()
@@ -198,7 +196,9 @@ def node2vec(input_graph, start_vertices, max_depth=1, compress_result=True, p=1
     wait(
         [
             (r.release(), c_v.release(), c_e.release(), c_s.release())
-            for r, c_v, c_e, c_s in zip(result, cudf_vertex_paths, cudf_edge_wgt_paths, cudf_sizes)
+            for r, c_v, c_e, c_s in zip(
+                result, cudf_vertex_paths, cudf_edge_wgt_paths, cudf_sizes
+            )
         ]
     )
 
