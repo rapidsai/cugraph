@@ -18,12 +18,28 @@ import cudf
 import cupy as cp
 import dask_cudf
 from cugraph.experimental import PropertyGraph
+from cugraph.experimental import MGPropertyGraph
+
 
 src_n = PropertyGraph.src_col_name
 dst_n = PropertyGraph.dst_col_name
 type_n = PropertyGraph.type_col_name
 eid_n = PropertyGraph.edge_id_col_name
 vid_n = PropertyGraph.vertex_col_name
+
+
+def get_subgraph_and_src_range_from_pg(pg, reverse_edges, etype=None):
+    if etype:
+        edge_list = pg.get_edge_data(columns=[src_n, dst_n, type_n], types=[etype])
+    else:
+        edge_list = pg.get_edge_data(columns=[src_n, dst_n, type_n])
+
+    edge_list = edge_list.reset_index(drop=True)
+
+    is_mg = isinstance(pg, MGPropertyGraph)
+    return get_subgraph_and_src_range_from_edgelist(
+        edge_list, is_mg, reverse_edges=reverse_edges
+    )
 
 
 def get_subgraph_and_src_range_from_edgelist(edge_list, is_mg, reverse_edges=False):
@@ -63,6 +79,7 @@ def get_subgraph_and_src_range_from_edgelist(edge_list, is_mg, reverse_edges=Fal
 
 def sample_multiple_sgs(
     sgs,
+    sgs_src_range_obj,
     sample_f,
     start_list_d,
     start_list_dtype,
@@ -72,7 +89,8 @@ def sample_multiple_sgs(
 ):
     start_list_types = list(start_list_d.keys())
     output_dfs = []
-    for can_etype, (sg, start_list_range) in sgs.items():
+    for can_etype, sg in sgs.items():
+        start_list_range = sgs_src_range_obj[can_etype]
         can_etype = _convert_can_etype_s_to_tup(can_etype)
         if _edge_types_contains_canonical_etype(can_etype, start_list_types, edge_dir):
             if edge_dir == "in":
@@ -147,19 +165,18 @@ def _convert_can_etype_s_to_tup(canonical_etype_s):
     return (src_type, etype, dst_type)
 
 
-def create_dlpack_d(d):
-    dlpack_d = {}
+def create_cp_result_ls(d):
+    cupy_result_ls = []
     for k, df in d.items():
         if len(df) == 0:
-            dlpack_d[k] = (None, None, None)
+            cupy_result_ls.append(cp.empty(shape=0, dtype=cp.int32))
+            cupy_result_ls.append(cp.empty(shape=0, dtype=cp.int32))
+            cupy_result_ls.append(cp.empty(shape=0, dtype=cp.int32))
         else:
-            dlpack_d[k] = (
-                df[src_n].to_dlpack(),
-                df[dst_n].to_dlpack(),
-                df[eid_n].to_dlpack(),
-            )
-
-    return dlpack_d
+            cupy_result_ls.append(df[src_n].values)
+            cupy_result_ls.append(df[dst_n].values)
+            cupy_result_ls.append(df[eid_n].values)
+    return cupy_result_ls
 
 
 def get_underlying_dtype_from_sg(sg):
@@ -179,3 +196,87 @@ def get_underlying_dtype_from_sg(sg):
         raise ValueError(f"Source column {src_n} not found in the subgraph")
 
     return sg_node_dtype
+
+
+def get_edgeid_type_d(pg, edge_ids, etypes):
+    if isinstance(edge_ids, cudf.Series):
+        # Work around for below issue
+        # https://github.com/rapidsai/cudf/issues/11877
+        edge_ids = edge_ids.values_host
+    df = pg.get_edge_data(edge_ids=edge_ids, columns=[type_n])
+    if isinstance(df, dask_cudf.DataFrame):
+        df = df.compute()
+    return {etype: df[df[type_n] == etype] for etype in etypes}
+
+
+def sample_pg(
+    pg,
+    has_multiple_etypes,
+    etypes,
+    sgs_obj,
+    sgs_src_range_obj,
+    sg_node_dtype,
+    nodes_cap,
+    replace,
+    fanout,
+    edge_dir,
+):
+    if isinstance(nodes_cap, dict):
+        nodes = {t: cudf.from_dlpack(n) for t, n in nodes_cap.items()}
+    else:
+        nodes = cudf.from_dlpack(nodes_cap)
+
+    if isinstance(pg, MGPropertyGraph):
+        sample_f = cugraph.dask.uniform_neighbor_sample
+    else:
+        sample_f = cugraph.uniform_neighbor_sample
+
+    if has_multiple_etypes:
+        # TODO: Convert into a single call when
+        # https://github.com/rapidsai/cugraph/issues/2696 lands
+        # Uniform sampling fails when the dtype
+        # of the seed dtype is not same as the node dtype
+        sampled_df = sample_multiple_sgs(
+            sgs=sgs_obj,
+            sgs_src_range_obj=sgs_src_range_obj,
+            start_list_dtype=sg_node_dtype,
+            sample_f=sample_f,
+            start_list_d=nodes,
+            edge_dir=edge_dir,
+            fanout=fanout,
+            with_replacement=replace,
+        )
+    else:
+        sampled_df = sample_single_sg(
+            sg=sgs_obj,
+            start_list_range=sgs_src_range_obj,
+            start_list_dtype=sg_node_dtype,
+            sample_f=sample_f,
+            start_list=nodes,
+            fanout=fanout,
+            with_replacement=replace,
+        )
+
+    # we reverse directions when directions=='in'
+    if edge_dir == "in":
+        sampled_df = sampled_df.rename(
+            columns={"destinations": src_n, "sources": dst_n}
+        )
+    else:
+        sampled_df = sampled_df.rename(
+            columns={"sources": src_n, "destinations": dst_n}
+        )
+    # Transfer data to client
+    if isinstance(sampled_df, dask_cudf.DataFrame):
+        sampled_df = sampled_df.compute()
+
+    if has_multiple_etypes:
+        # Heterogeneous graph case
+        d = get_edgeid_type_d(pg, sampled_df["indices"], etypes)
+        return create_cp_result_ls(d)
+    else:
+        return (
+            sampled_df[src_n].values,
+            sampled_df[dst_n].values,
+            sampled_df["indices"].values,
+        )
