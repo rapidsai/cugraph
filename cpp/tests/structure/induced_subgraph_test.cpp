@@ -49,7 +49,7 @@ extract_induced_subgraph_reference(std::vector<edge_t> const& offsets,
   std::vector<vertex_t> edgelist_majors{};
   std::vector<vertex_t> edgelist_minors{};
   auto edgelist_weights = weights ? std::make_optional<std::vector<weight_t>>(0) : std::nullopt;
-  std::vector<size_t> subgraph_edge_offsets{0};
+  std::vector<size_t> subgraph_edge_offsets({0});
 
   for (size_t i = 0; i < (subgraph_offsets.size() - 1); ++i) {
     std::for_each(subgraph_vertices.data() + subgraph_offsets[i],

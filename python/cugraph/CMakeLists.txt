@@ -57,6 +57,8 @@ else()
   set(cugraph_FOUND OFF)
 endif()
 
+include(rapids-cython)
+
 if(NOT cugraph_FOUND)
   # TODO: This will not be necessary once we upgrade to CMake 3.22, which will pull in the required
   # languages for the C++ project even if this project does not require those languges.
@@ -76,10 +78,10 @@ if(NOT cugraph_FOUND)
 
   add_subdirectory(../../cpp cugraph-cpp)
 
-  install(TARGETS cugraph DESTINATION cugraph/library)
+  set(cython_lib_dir cugraph)
+  install(TARGETS cugraph DESTINATION ${cython_lib_dir})
 endif()
 
-include(rapids-cython)
 rapids_cython_init()
 
 add_subdirectory(cugraph/centrality)
@@ -98,3 +100,7 @@ add_subdirectory(cugraph/sampling)
 add_subdirectory(cugraph/structure)
 add_subdirectory(cugraph/tree)
 add_subdirectory(cugraph/utilities)
+
+if(DEFINED cython_lib_dir)
+  rapids_cython_add_rpath_entries(TARGET cugraph PATHS "${cython_lib_dir}")
+endif()
