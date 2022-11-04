@@ -204,7 +204,7 @@ def client_of_sg_server_on_device_1_large_property_graph_loaded(
     client = client_of_sg_server_on_device_1
     server_extension_dir = graph_creation_extension_large_property_graph
 
-    client.load_graph_creation_extensions(server_extension_dir.name)
+    ext_mod_names = client.load_graph_creation_extensions(server_extension_dir)
 
     # Assume fixture that starts server on device 1 has the extension loaded
     # for creating large property graphs.
@@ -218,12 +218,12 @@ def client_of_sg_server_on_device_1_large_property_graph_loaded(
     yield (client, new_graph_id)
 
     client.delete_graph(new_graph_id)
-    client.unload_graph_creation_extensions()
+    for mod_name in ext_mod_names:
+        client.unload_extension_module(mod_name)
 
 
-# Because pytest does not allow mixing fixtures and parametrization decorators
-# for test functions, this fixture is parametrized for different device IDs to
-# test against, and simply returns the param value to the test using it.
+# This fixture is parametrized for different device IDs to test against, and
+# simply returns the param value to the test using it.
 @pytest.fixture(scope="module", params=[None, 0], ids=lambda p: f"device={p}")
 def result_device_id(request):
     return request.param
@@ -249,7 +249,6 @@ def test_get_default_graph_info(client_of_mg_server_with_edgelist_csv_loaded):
 
 
 def test_get_edge_IDs_for_vertices(client_of_mg_server_with_edgelist_csv_loaded):
-    """ """
     (client_of_mg_server, test_data) = client_of_mg_server_with_edgelist_csv_loaded
 
     # get_graph_type() is a test/debug API which returns a string repr of the
@@ -293,7 +292,32 @@ def test_device_transfer(
         assert bytes_returned.device == device_n
 
 
-def test_uniform_neighbor_sampling_result_device(
+def test_uniform_neighbor_sampling_result_on_device_error(
+    client_of_sg_server_on_device_1_large_property_graph_loaded,
+):
+    """
+    Ensure errors are handled properly when using device transfer
+    """
+    from cugraph_service_client.exceptions import CugraphServiceError
+
+    (client, graph_id) = client_of_sg_server_on_device_1_large_property_graph_loaded
+    extracted_graph_id = client.extract_subgraph(graph_id=graph_id)
+
+    start_list = [0, 1, 2]
+    fanout_vals = []  # should raise an exception
+    with_replacement = False
+
+    with pytest.raises(CugraphServiceError):
+        client.uniform_neighbor_sample(
+            start_list=start_list,
+            fanout_vals=fanout_vals,
+            with_replacement=with_replacement,
+            graph_id=extracted_graph_id,
+            result_device=0,
+        )
+
+
+def test_uniform_neighbor_sampling_result_on_device(
     benchmark,
     result_device_id,
     client_of_sg_server_on_device_1_large_property_graph_loaded,
@@ -329,3 +353,126 @@ def test_uniform_neighbor_sampling_result_device(
         assert dtype is cp.ndarray
         device_n = cp.cuda.Device(result_device_id)
         assert result.sources.device == device_n
+
+
+def test_call_extension_result_on_device_error(
+    extension1, client_of_sg_server_on_device_1
+):
+    """
+    Ensure errors are handled properly when using device transfer
+    """
+    from cugraph_service_client.exceptions import CugraphServiceError
+
+    client = client_of_sg_server_on_device_1
+    extension_dir = extension1
+    array1_len = 1.23  # should raise an exception
+    array2_len = 10
+
+    ext_mod_names = client.load_extensions(extension_dir)
+
+    with pytest.raises(CugraphServiceError):
+        client.call_extension(
+            "my_nines_function",
+            array1_len,
+            "int32",
+            array2_len,
+            "float64",
+            result_device=0,
+        )
+
+    for mod_name in ext_mod_names:
+        client.unload_extension_module(mod_name)
+
+
+def test_call_extension_result_on_device(
+    benchmark, extension1, result_device_id, client_of_sg_server_on_device_1
+):
+    client = client_of_sg_server_on_device_1
+    extension_dir = extension1
+    array1_len = int(1e5)
+    array2_len = int(1e5)
+
+    ext_mod_names = client.load_extensions(extension_dir)
+
+    # my_nines_function in extension1 returns a list of two lists of 9's with
+    # sizes and dtypes based on args.
+    results = benchmark(
+        client.call_extension,
+        "my_nines_function",
+        array1_len,
+        "int32",
+        array2_len,
+        "float64",
+        result_device=result_device_id,
+    )
+
+    if result_device_id is None:
+        assert len(results) == 2
+        assert len(results[0]) == array1_len
+        assert len(results[1]) == array2_len
+        assert type(results[0][0]) == int
+        assert type(results[1][0]) == float
+        assert results[0][0] == 9
+        assert results[1][0] == 9.0
+    else:
+        # results will be a n-tuple where n is the number of arrays returned. The
+        # n-tuple contains each array as a device array on result_device_id.
+        assert isinstance(results, list)
+        assert len(results) == 2
+
+        device_n = cp.cuda.Device(result_device_id)
+        assert isinstance(results[0], cp.ndarray)
+        assert results[0].device == device_n
+        assert results[0].tolist() == [9] * array1_len
+
+        assert isinstance(results[1], cp.ndarray)
+        assert results[1].device == device_n
+        assert results[1].tolist() == [9.0] * array2_len
+
+    for mod_name in ext_mod_names:
+        client.unload_extension_module(mod_name)
+
+
+def test_extension_adds_graph(
+    extension_adds_graph, result_device_id, client_of_sg_server_on_device_1
+):
+    """
+    Ensures an extension can create and add a graph to the server and return the
+    new graph ID and other data.
+    """
+    extension_dir = extension_adds_graph
+    client = client_of_sg_server_on_device_1
+
+    ext_mod_names = client.load_extensions(extension_dir)
+
+    # The extension will add a graph, compute a value based on the graph data,
+    # and return the new graph ID and the result.
+    graph_ids_before = client.get_graph_ids()
+
+    val1 = 22
+    val2 = 33.1
+    results = client.call_extension(
+        "my_extension", val1, val2, result_device=result_device_id
+    )
+
+    graph_ids_after = client.get_graph_ids()
+
+    assert len(graph_ids_after) - len(graph_ids_before) == 1
+    new_gid = (set(graph_ids_after) - set(graph_ids_before)).pop()
+    assert len(results) == 2
+    assert results[0] == new_gid
+    expected_edge_ids = [0, 1, 2]
+    expected_val = [n + val1 + val2 for n in expected_edge_ids]
+
+    if result_device_id is None:
+        assert results[1] == expected_val
+    else:
+        device_n = cp.cuda.Device(result_device_id)
+        assert results[0].device == device_n
+        assert results[1].device == device_n
+        assert results[1].tolist() == expected_val
+
+    # FIXME: much of this test could be in a fixture which ensures the extension
+    # is unloaded from the server before returning
+    for mod_name in ext_mod_names:
+        client.unload_extension_module(mod_name)

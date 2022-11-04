@@ -10,12 +10,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-
-import cudf
-import dask_cudf
 import cupy as cp
-from cugraph.experimental import MGPropertyGraph
 
 
 class CuFeatureStorage:
@@ -67,11 +62,13 @@ class CuFeatureStorage:
         # Default implementation uses synchronous fetch.
 
         indices = cp.asarray(indices)
-        if isinstance(self.pg, MGPropertyGraph):
+        if type(self.pg).__name__ == "MGPropertyGraph":
             # dask_cudf loc breaks if we provide cudf series/cupy array
             # https://github.com/rapidsai/cudf/issues/11877
             indices = indices.get()
         else:
+            import cudf
+
             indices = cudf.Series(indices)
 
         indices = indices + self.indices_offset
@@ -85,7 +82,7 @@ class CuFeatureStorage:
 
         subset_df = subset_df[self.columns]
 
-        if isinstance(subset_df, dask_cudf.DataFrame):
+        if hasattr(subset_df, "compute"):
             subset_df = subset_df.compute()
 
         if len(subset_df) == 0:

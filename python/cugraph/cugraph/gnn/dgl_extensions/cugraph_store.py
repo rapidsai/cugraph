@@ -13,30 +13,18 @@
 
 from collections import defaultdict
 
-import cudf
-import dask_cudf
-import cugraph
-from cugraph.experimental import PropertyGraph, MGPropertyGraph
-from functools import cached_property
+from .base_cugraph_store import BaseCuGraphStore
 
+from functools import cached_property
+from .utils.find_edges import find_edges
+from .utils.node_subgraph import node_subgraph
 from .utils.add_data import _update_feature_map
-from .utils.sampling import sample_multiple_sgs, sample_single_sg
-from .utils.sampling import (
-    get_subgraph_and_src_range_from_edgelist,
-    get_underlying_dtype_from_sg,
-)
-from .utils.sampling import create_dlpack_d
+from .utils.sampling import sample_pg, get_subgraph_and_src_range_from_pg
+from .utils.sampling import get_underlying_dtype_from_sg
 from .feature_storage import CuFeatureStorage
 
 
-src_n = PropertyGraph.src_col_name
-dst_n = PropertyGraph.dst_col_name
-type_n = PropertyGraph.type_col_name
-eid_n = PropertyGraph.edge_id_col_name
-vid_n = PropertyGraph.vertex_col_name
-
-
-class CuGraphStore:
+class CuGraphStore(BaseCuGraphStore):
     """
     A wrapper around a cuGraph Property Graph that
     then adds functions to basically match the DGL GraphStorage API.
@@ -46,10 +34,13 @@ class CuGraphStore:
     """
 
     def __init__(self, graph, backend_lib="torch"):
-        if isinstance(graph, (PropertyGraph, MGPropertyGraph)):
+
+        if type(graph).__name__ in ["PropertyGraph", "MGPropertyGraph"]:
             self.__G = graph
         else:
             raise ValueError("graph must be a PropertyGraph or MGPropertyGraph")
+
+        super().__init__(graph)
         # dict to map column names corresponding to edge features
         # of each type
         self.edata_feat_col_d = defaultdict(list)
@@ -101,7 +92,6 @@ class CuGraphStore:
             self.ndata_feat_col_d, feat_name, contains_vector_features, columns
         )
         # Clear properties if set as data has changed
-
         self.__clear_cached_properties()
 
     def add_edge_data(
@@ -168,7 +158,6 @@ class CuGraphStore:
             )
 
         columns = self.ndata_feat_col_d[key]
-
         return CuFeatureStorage(
             pg=self.gdata,
             columns=columns,
@@ -203,32 +192,6 @@ class CuGraphStore:
             backend_lib=self.backend_lib,
             indices_offset=indices_offset,
         )
-
-    def num_nodes(self, ntype=None):
-        return self.gdata.get_num_vertices(ntype)
-
-    def num_edges(self, etype=None):
-        return self.gdata.get_num_edges(etype)
-
-    @cached_property
-    def has_multiple_etypes(self):
-        return len(self.etypes) > 1
-
-    @property
-    def ntypes(self):
-        return sorted(self.gdata.vertex_types)
-
-    @property
-    def etypes(self):
-        return sorted(self.gdata.edge_types)
-
-    @property
-    def is_mg(self):
-        return isinstance(self.gdata, MGPropertyGraph)
-
-    @property
-    def gdata(self):
-        return self.__G
 
     ######################################
     # Sampling APIs
@@ -276,76 +239,39 @@ class CuGraphStore:
                 f"edge_dir must be either 'in' or 'out' got {edge_dir} instead"
             )
 
-        if isinstance(nodes_cap, dict):
-            nodes = {t: cudf.from_dlpack(n) for t, n in nodes_cap.items()}
-        else:
-            nodes = cudf.from_dlpack(nodes_cap)
-
-        if self.is_mg:
-            sample_f = cugraph.dask.uniform_neighbor_sample
-        else:
-            sample_f = cugraph.uniform_neighbor_sample
-
         if self.has_multiple_etypes:
             # TODO: Convert into a single call when
             # https://github.com/rapidsai/cugraph/issues/2696 lands
             if edge_dir == "in":
-                sgs = self.extracted_reverse_subgraphs_per_type
+                sgs_obj, sgs_src_range_obj = self.extracted_reverse_subgraphs_per_type
             else:
-                sgs = self.extracted_subgraphs_per_type
-            # Uniform sampling fails when the dtype
-            # of the seed dtype is not same as the node dtype
-
-            self.set_sg_node_dtype(list(sgs.values())[0][0])
-            sampled_df = sample_multiple_sgs(
-                sgs,
-                sample_f,
-                nodes,
-                self._sg_node_dtype,
-                edge_dir,
-                fanout,
-                replace,
-            )
+                sgs_obj, sgs_src_range_obj = self.extracted_subgraphs_per_type
+            first_sg = list(sgs_obj.values())[0]
         else:
             if edge_dir == "in":
-                sg, start_list_range = self.extracted_reverse_subgraph
+                sgs_obj, sgs_src_range_obj = self.extracted_reverse_subgraph
             else:
-                sg, start_list_range = self.extracted_subgraph
-            self.set_sg_node_dtype(sg)
-            sampled_df = sample_single_sg(
-                sg,
-                sample_f,
-                nodes,
-                self._sg_node_dtype,
-                start_list_range,
-                fanout,
-                replace,
-            )
+                sgs_obj, sgs_src_range_obj = self.extracted_subgraph
 
-        # we reverse directions when directions=='in'
-        if edge_dir == "in":
-            sampled_df = sampled_df.rename(
-                columns={"destinations": src_n, "sources": dst_n}
-            )
-        else:
-            sampled_df = sampled_df.rename(
-                columns={"sources": src_n, "destinations": dst_n}
-            )
-        # Transfer data to client
-        if isinstance(sampled_df, dask_cudf.DataFrame):
-            sampled_df = sampled_df.compute()
+            first_sg = sgs_obj
+        # Uniform sampling fails when the dtype
+        # of the seed dtype is not same as the node dtype
+        self.set_sg_node_dtype(first_sg)
 
-        if self.has_multiple_etypes:
-            # Heterogeneous graph case
-            d = self._get_edgeid_type_d(sampled_df["indices"], self.etypes)
-            d = create_dlpack_d(d)
-            return d
-        else:
-            return (
-                sampled_df[src_n].to_dlpack(),
-                sampled_df[dst_n].to_dlpack(),
-                sampled_df["indices"].to_dlpack(),
-            )
+        # Below will be called from remote storage
+        sampled_result_arrays = sample_pg(
+            self.gdata,
+            has_multiple_etypes=self.has_multiple_etypes,
+            etypes=self.etypes,
+            sgs_obj=sgs_obj,
+            sgs_src_range_obj=sgs_src_range_obj,
+            sg_node_dtype=self._sg_node_dtype,
+            nodes_cap=nodes_cap,
+            replace=replace,
+            fanout=fanout,
+            edge_dir=edge_dir,
+        )
+        return create_dlpack_results_from_arrays(sampled_result_arrays, self.etypes)
 
     ######################################
     # Utilities
@@ -357,66 +283,37 @@ class CuGraphStore:
     def get_vertex_ids(self):
         return self.gdata.vertices_ids()
 
-    def _get_edgeid_type_d(self, edge_ids, etypes):
-        if isinstance(edge_ids, cudf.Series):
-            # Work around for below issue
-            # https://github.com/rapidsai/cudf/issues/11877
-            edge_ids = edge_ids.values_host
-        df = self.gdata.get_edge_data(edge_ids=edge_ids, columns=[type_n])
-        if isinstance(df, dask_cudf.DataFrame):
-            df = df.compute()
-        return {etype: df[df[type_n] == etype] for etype in etypes}
-
     @cached_property
     def extracted_subgraph(self):
-        edge_list = self.gdata.get_edge_data(columns=[src_n, dst_n, type_n])
-        edge_list = edge_list.reset_index(drop=True)
-
-        return get_subgraph_and_src_range_from_edgelist(
-            edge_list, self.is_mg, reverse_edges=False
+        return get_subgraph_and_src_range_from_pg(
+            self.gdata, reverse_edges=False, etype=None
         )
 
     @cached_property
     def extracted_reverse_subgraph(self):
-        edge_list = self.gdata.get_edge_data(columns=[src_n, dst_n, type_n])
-        return get_subgraph_and_src_range_from_edgelist(
-            edge_list, self.is_mg, reverse_edges=True
+        return get_subgraph_and_src_range_from_pg(
+            self.gdata, reverse_edges=True, etype=None
         )
 
     @cached_property
     def extracted_subgraphs_per_type(self):
         sg_d = {}
+        sg_src_range_d = {}
         for etype in self.etypes:
-            edge_list = self.gdata.get_edge_data(
-                columns=[src_n, dst_n, type_n], types=[etype]
+            sg_d[etype], sg_src_range_d[etype] = get_subgraph_and_src_range_from_pg(
+                self.gdata, reverse_edges=False, etype=etype
             )
-            sg_d[etype] = get_subgraph_and_src_range_from_edgelist(
-                edge_list, self.is_mg, reverse_edges=False
-            )
-        return sg_d
+        return sg_d, sg_src_range_d
 
     @cached_property
     def extracted_reverse_subgraphs_per_type(self):
         sg_d = {}
+        sg_src_range_d = {}
         for etype in self.etypes:
-            edge_list = self.gdata.get_edge_data(
-                columns=[src_n, dst_n, type_n], types=[etype]
+            sg_d[etype], sg_src_range_d[etype] = get_subgraph_and_src_range_from_pg(
+                self.gdata, reverse_edges=True, etype=etype
             )
-            sg_d[etype] = get_subgraph_and_src_range_from_edgelist(
-                edge_list, self.is_mg, reverse_edges=True
-            )
-        return sg_d
-
-    @cached_property
-    def num_nodes_dict(self):
-        """
-        Return num_nodes_dict of the graph
-        """
-        return {ntype: self.num_nodes(ntype) for ntype in self.ntypes}
-
-    @cached_property
-    def num_edges_dict(self):
-        return {etype: self.num_edges(etype) for etype in self.etypes}
+        return sg_d, sg_src_range_d
 
     def set_sg_node_dtype(self, sg):
         if hasattr(self, "_sg_node_dtype"):
@@ -442,18 +339,12 @@ class CuGraphStore:
         DLPack capsule
             The dst nodes for the given ids
         """
-        edge_ids = cudf.from_dlpack(edge_ids_cap)
-        subset_df = self.gdata.get_edge_data(
-            edge_ids=edge_ids, columns=type_n, types=[etype]
-        )
-        if isinstance(subset_df, dask_cudf.DataFrame):
-            subset_df = subset_df.compute()
-        return subset_df[src_n].to_dlpack(), subset_df[dst_n].to_dlpack()
+        return find_edges(edge_ids_cap, etype)
 
     def node_subgraph(
         self,
         nodes=None,
-        create_using=cugraph.MultiGraph,
+        create_using=None,
     ):
         """
         Return a subgraph induced on the given nodes.
@@ -472,22 +363,19 @@ class CuGraphStore:
             The sampled subgraph with the same node ID space with the original
             graph.
         """
-        _g = self.gdata.extract_subgraph(
-            create_using=create_using, check_multi_edges=True
-        )
-
-        if nodes is None:
-            return _g
-        else:
-            _n = cudf.Series(nodes)
-            _subg = cugraph.subgraph(_g, _n)
-            return _subg
+        return node_subgraph(self.gdata, nodes, create_using)
 
     def __clear_cached_properties(self):
         # Check for cached properties using self.__dict__ because calling
         # hasattr() accesses the attribute and forces computation
         if "has_multiple_etypes" in self.__dict__:
             del self.has_multiple_etypes
+
+        if "etypes" in self.__dict__:
+            del self.etypes
+
+        if "ntypes" in self.__dict__:
+            del self.ntypes
 
         if "num_nodes_dict" in self.__dict__:
             del self.num_nodes_dict
@@ -506,3 +394,29 @@ class CuGraphStore:
 
         if "extracted_reverse_subgraphs_per_type" in self.__dict__:
             del self.extracted_reverse_subgraphs_per_type
+
+
+def create_dlpack_results_from_arrays(sampled_result_arrays, etypes):
+    # TODO: Extend to pytorch/numpy/etc
+    import cupy as cp
+
+    if len(etypes) <= 1:
+        s, d, e_id = sampled_result_arrays
+        # Handle numpy array, cupy array, lists etc
+        s, d, e_id = cp.asarray(s), cp.asarray(d), cp.asarray(e_id)
+        return s.toDlpack(), d.toDlpack(), e_id.toDlpack()
+    else:
+        result_d = {}
+        array_start_offset = 0
+        for etype in etypes:
+            s = sampled_result_arrays[array_start_offset]
+            d = sampled_result_arrays[array_start_offset + 1]
+            e_id = sampled_result_arrays[array_start_offset + 2]
+            s, d, e_id = cp.asarray(s), cp.asarray(d), cp.asarray(e_id)
+            array_start_offset = array_start_offset + 3
+            if s is not None and len(s) >= 0:
+                s, d, e_id = s.toDlpack(), d.toDlpack(), e_id.toDlpack()
+            else:
+                s, d, e_id = None, None, None
+            result_d[etype] = (s, d, e_id)
+        return result_d
