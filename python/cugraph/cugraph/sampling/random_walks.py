@@ -124,7 +124,7 @@ def random_walks(
             start_vertices = G.lookup_internal_vertex_id(start_vertices)
 
     if random_walks_type == "uniform":
-        vertex_set, edge_set, max_path_length = uniform_random_walks(
+        vertex_paths, edge_wgt_paths, max_path_length = uniform_random_walks(
             G, start_vertices, max_depth)
     
     else:
@@ -132,11 +132,11 @@ def random_walks(
 
     if G.renumbered:
         df_ = cudf.DataFrame()
-        df_["vertex_set"] = vertex_set
-        df_ = G.unrenumber(df_, "vertex_set", preserve_order=True)
-        vertex_set = cudf.Series(df_["vertex_set"]).fillna(-1)
+        df_["vertex_paths"] = vertex_paths
+        df_ = G.unrenumber(df_, "vertex_paths", preserve_order=True)
+        vertex_paths = cudf.Series(df_["vertex_paths"]).fillna(-1)
 
-    edge_set = cudf.Series(edge_set)
+    edge_wgt_paths = cudf.Series(edge_wgt_paths)
 
     # FIXME: Also add a warning here saying that the lesser path will
     # be no longer be supported
@@ -153,45 +153,45 @@ def random_walks(
         )
         warnings.warn(warning_msg, PendingDeprecationWarning)
 
-        drop_vertex = [i for i in range(max_depth, len(vertex_set), max_depth + 1)]
-        drop_edge_wgt = [i - 1 for i in range(max_depth, len(edge_set), max_depth)]
+        drop_vertex = [i for i in range(max_depth, len(vertex_paths), max_depth + 1)]
+        drop_edge_wgt = [i - 1 for i in range(max_depth, len(edge_wgt_paths), max_depth)]
 
-        vertex_set = vertex_set.drop(
-            vertex_set.index[drop_vertex]).reset_index(drop=True)
+        vertex_paths = vertex_paths.drop(
+            vertex_paths.index[drop_vertex]).reset_index(drop=True)
 
-        edge_set = edge_set.drop(
-            edge_set.index[drop_edge_wgt]).reset_index(drop=True)
+        edge_wgt_paths = edge_wgt_paths.drop(
+            edge_wgt_paths.index[drop_edge_wgt]).reset_index(drop=True)
 
         if use_padding:
             sizes = None
-            edge_set_sz = (max_depth - 1) * len(start_vertices)
-            # FIXME: Is it necessary to bound the 'edge_set'?
-            return vertex_set, edge_set[:edge_set_sz], sizes
+            edge_wgt_paths_sz = (max_depth - 1) * len(start_vertices)
+            # FIXME: Is it necessary to bound the 'edge_wgt_paths'?
+            return vertex_paths, edge_wgt_paths[:edge_wgt_paths_sz], sizes
 
         # If 'use_padding' is False, compute the sizes of the unpadded results
         sizes = [
-            len(vertex_set.iloc[i : i + max_depth].dropna())
-            for i in range(0, len(vertex_set), max_depth)
+            len(vertex_paths.iloc[i : i + max_depth].dropna())
+            for i in range(0, len(vertex_paths), max_depth)
         ]
-        sizes = cudf.Series(sizes, dtype=vertex_set.dtype)
+        sizes = cudf.Series(sizes, dtype=vertex_paths.dtype)
 
-        # Compress the 'vertex_set' by dropping 'NA' values which is
+        # Compress the 'vertex_paths' by dropping 'NA' values which is
         # representative of vertices with no outgoing link
-        vertex_set = vertex_set.dropna().reset_index(drop=True)
-        # Compress the 'edge_set' by dropping 'NA'
-        edge_set.replace(0.0, None, inplace=True)
-        edge_set = edge_set.dropna().reset_index(drop=True)
+        vertex_paths = vertex_paths.dropna().reset_index(drop=True)
+        # Compress the 'edge_wgt_paths' by dropping 'NA'
+        edge_wgt_paths.replace(0.0, None, inplace=True)
+        edge_wgt_paths = edge_wgt_paths.dropna().reset_index(drop=True)
 
-        vertex_set_sz = sizes.sum()
-        edge_set_sz = vertex_set_sz - len(start_vertices)
-        # FIXME: Is it necessary to bound the 'vertex_set' and 'edge_set'?
-        return vertex_set[:vertex_set_sz], edge_set[:edge_set_sz], sizes
+        vertex_paths_sz = sizes.sum()
+        edge_wgt_paths_sz = vertex_paths_sz - len(start_vertices)
+        # FIXME: Is it necessary to bound the 'vertex_paths' and 'edge_wgt_paths'?
+        return vertex_paths[:vertex_paths_sz], edge_wgt_paths[:edge_wgt_paths_sz], sizes
 
     else:
-        vertex_set_sz = sizes.sum()
-        edge_set_sz = vertex_set_sz - len(start_vertices)
-        # FIXME: Is it necessary to bound the 'vertex_set' and 'edge_set'?
-        return vertex_set[:vertex_set_sz], edge_set[:edge_set_sz], max_path_length
+        vertex_paths_sz = sizes.sum()
+        edge_wgt_paths_sz = vertex_paths_sz - len(start_vertices)
+        # FIXME: Is it necessary to bound the 'vertex_paths' and 'edge_wgt_paths'?
+        return vertex_paths[:vertex_paths_sz], edge_wgt_paths[:edge_wgt_paths_sz], max_path_length
 
 
 def rw_path(num_paths, sizes):
