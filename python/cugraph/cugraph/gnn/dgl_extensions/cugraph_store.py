@@ -47,7 +47,7 @@ class CuGraphStore:
 
     def __init__(self, graph, backend_lib="torch"):
         """
-        Creates a store for properties in a PropertyGraph
+        Creates a cuGraphStore for properties in a PropertyGraph
 
         Parameters
         ----------
@@ -444,6 +444,7 @@ class CuGraphStore:
     ):
         """
         Sample neighboring edges of the given nodes and return the subgraph.
+        Wraps the single and multiple GPU cuGraph neig
 
         Parameters
         ----------

@@ -117,9 +117,10 @@ def sample_multiple_sgs(
     -------
     cudf or dask DataFrame
 
+
     Examples
     --------
-    >>>
+
     """
     start_list_types = list(start_list_d.keys())
     output_dfs = []
@@ -185,7 +186,6 @@ def sample_single_sg(
     Returns
     -------
     cudf or dask DataFrame
-
     """
     if isinstance(start_list, dict):
         start_list = cudf.concat(list(start_list.values()))
@@ -232,8 +232,13 @@ def create_dlpack_d(d):
 
     Parameter
     ---------
-    d :
+    d : dict
+        dictionary contains keys with the DataFrames as values
 
+    Returns
+    -------
+    dict
+        Contains tensors for each supplied DataFrame
     """
     dlpack_d = {}
     for k, df in d.items():
@@ -255,13 +260,13 @@ def get_underlying_dtype_from_sg(sg):
 
     Parameters
     ----------
-    sg : storage class
-        Contains edges of a storage
+    sg : CuGraphStore
+        Contains edges with an edge type
 
     Returns
     -------
     str
-        data type of the storage property
+        data type of the edge
     """
     # FIXME: Remove after we have consistent naming
     # https://github.com/rapidsai/cugraph/issues/2618
