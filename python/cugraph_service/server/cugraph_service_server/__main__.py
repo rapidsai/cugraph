@@ -52,5 +52,6 @@ start_server_blocking(
     args.dask_scheduler_file,
     args.host,
     args.port,
-    console_message="Starting the cugraph_service server...")
+    console_message="Starting the cugraph_service server...",
+)
 print("done.")

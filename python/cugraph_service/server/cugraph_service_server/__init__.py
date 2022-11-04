@@ -34,11 +34,13 @@ def create_handler(graph_creation_extension_dir=None, dask_scheduler_file=None):
     return handler
 
 
-def start_server_blocking(graph_creation_extension_dir=None,
-                          dask_scheduler_file=None,
-                          host=defaults.host,
-                          port=defaults.port,
-                          console_message=""):
+def start_server_blocking(
+    graph_creation_extension_dir=None,
+    dask_scheduler_file=None,
+    host=defaults.host,
+    port=defaults.port,
+    console_message="",
+):
     """
     Start the cugraph_service server on host/port, with graph creation
     extensions in graph_creation_extension_dir preloaded if specified, and a
