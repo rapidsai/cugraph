@@ -273,6 +273,7 @@ if buildAll || hasArg cugraph_service; then
 	python setup.py ${PYTHON_INSTALL}
         cd ${REPODIR}/python/cugraph_service/server
 	python setup.py ${PYTHON_INSTALL}
+    fi
 fi
 
 # Build the docs

@@ -22,16 +22,16 @@ cmdclass = versioneer.get_cmdclass()
 install_requires = [
     "cugraph_service_client",
     "cugraph",
-    "cupy",
+    "cupy >=9.5.0,<12.0.0a0",
     "numpy",
     "ucx-py",
-    "distributed>=2022.9.2",
+    "distributed >=2022.9.2",
     "dask-cuda",
     "thriftpy2",
 ]
 
 setup(
-    name="cugraph_service_server",
+    name="cugraph-service-server",
     description="cuGraph Service server",
     version=versioneer.get_version(),
     classifiers=[

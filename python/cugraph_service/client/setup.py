@@ -24,7 +24,7 @@ install_requires = [
 ]
 
 setup(
-    name="cugraph_service_client",
+    name="cugraph-service-client",
     description="cuGraph Service client",
     version=versioneer.get_version(),
     classifiers=[
