@@ -48,7 +48,7 @@ def start_server_subprocess(
     # Import modules under test here to prevent pytest collection errors if
     # code changes prevent these from being imported.
     # Also check here that cugraph_service_server can be imported
-    import cugraph_service_server
+    import cugraph_service_server  # noqa: F401
     from cugraph_service_client import CugraphServiceClient
     from cugraph_service_client.exceptions import CugraphServiceError
 
