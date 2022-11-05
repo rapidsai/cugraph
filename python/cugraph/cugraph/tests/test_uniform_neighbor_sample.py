@@ -77,7 +77,7 @@ def input_combo(request):
     parameters["Graph"] = G
 
     # sample k vertices from the cuGraph graph
-    k = random.randint(1, 10)
+    k = random.randint(1, 3)
     srcs = G.view_edge_list()["src"]
     dsts = G.view_edge_list()["dst"]
 

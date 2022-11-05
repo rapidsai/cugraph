@@ -17,6 +17,7 @@
 
 #include <cugraph/graph.hpp>
 #include <cugraph/utilities/dataframe_buffer.hpp>
+#include <cugraph/utilities/host_scalar_comm.hpp>
 #include <cugraph/utilities/shuffle_comm.cuh>
 
 #include <cuco/static_map.cuh>
@@ -391,6 +392,24 @@ collect_values_for_vertices(
                     });
 
   return value_buffer;
+}
+
+template <typename T>
+rmm::device_uvector<T> device_allgatherv(raft::handle_t const& handle,
+                                         raft::comms::comms_t const& comms,
+                                         raft::device_span<T const> d_input)
+{
+  auto rx_sizes = cugraph::host_scalar_allgather(comms, d_input.size(), handle.get_stream());
+  std::vector<size_t> rx_displs(static_cast<size_t>(comms.get_size()));
+  std::partial_sum(rx_sizes.begin(), rx_sizes.end() - 1, rx_displs.begin() + 1);
+
+  rmm::device_uvector<T> gathered_v(std::reduce(rx_sizes.begin(), rx_sizes.end()),
+                                    handle.get_stream());
+
+  cugraph::device_allgatherv(
+    comms, d_input.data(), gathered_v.data(), rx_sizes, rx_displs, handle.get_stream());
+
+  return gathered_v;
 }
 
 }  // namespace cugraph
