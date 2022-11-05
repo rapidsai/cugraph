@@ -94,7 +94,6 @@ def check_random_walks(G, path_data, seeds, max_depth, df_G=None):
     invalid_edge = 0
     invalid_edge_wgt_path = 0
     invalid_seeds = 0
-    offsets_idx = 0
     next_path_idx = 0
     invalid_edge_wgt_path = 0
     e_wgt_path_idx = 0
