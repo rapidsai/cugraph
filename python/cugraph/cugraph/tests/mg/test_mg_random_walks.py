@@ -41,7 +41,6 @@ IS_DIRECTED = [True, False]
 # =============================================================================
 
 datasets = DATASETS_SMALL + [karate_asymmetric]
-# datasets = [karate_asymmetric]
 
 fixture_params = utils.genFixtureParamsProduct(
     (datasets, "graph_file"),
