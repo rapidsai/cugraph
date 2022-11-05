@@ -93,7 +93,7 @@ def random_walks(
     >>> from cugraph.experimental.datasets import karate
     >>> M = karate.get_edgelist(fetch=True)
     >>> G = karate.get_graph()
-    >>> _, _, _ = cugraph.random_walks(G, M, 3)
+    >>> _, _, _ = cugraph.random_walks(G, "uniform", M, 3)
 
     """
     if legacy_result_type:
