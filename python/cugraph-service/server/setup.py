@@ -17,7 +17,7 @@ import versioneer
 cmdclass = versioneer.get_cmdclass()
 
 install_requires = [
-    "cugraph_service_client",
+    "cugraph-service-client",
     "cugraph",
     "cupy >=9.5.0,<12.0.0a0",
     "numpy",
@@ -39,7 +39,9 @@ setup(
     url="https://github.com/rapidsai/cugraph",
     packages=find_packages(include=["cugraph_service_server"]),
     entry_points={
-        "console_scripts": ["cugraph-service-server=cugraph_service_server.__main__"],
+        "console_scripts": [
+            "cugraph-service-server=cugraph_service_server.__main__:main"
+        ],
     },
     install_requires=install_requires,
     license="Apache",

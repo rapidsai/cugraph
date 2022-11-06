@@ -11,15 +11,6 @@ package:
 source:
   path: ../../..
 
-requirements:
-  host:
-    - python x.x
-    # FIXME: this pin can be removed once we move to the GitHub Actions build process
-    - setuptools<=65.2.0
-  run:
-    - python x.x
-    - thriftpy2
-
 outputs:
   - name: cugraph-service-client
     version: {{ version }}
@@ -28,10 +19,34 @@ outputs:
       license: Apache-2.0
       license_file: ../../../LICENSE
       summary: cugraph-service client
+    script: install_cugraph-service-client.sh
+    requirements:
+      host:
+        - python x.x
+        - pip
+        # FIXME: this pin can be removed once we move to the GitHub Actions build process
+        - setuptools<=65.2.0
+      run:
+        - python x.x
+        - thriftpy2
+
   - name: cugraph-service-server
     version: {{ version }}
+    about:
+      home: http://rapids.ai/
+      license: Apache-2.0
+      license_file: ../../../LICENSE
+      summary: cugraph-service server
+    script: install_cugraph-service-server.sh
     requirements:
+      host:
+        - python x.x
+        - pip
+        # FIXME: this pin can be removed once we move to the GitHub Actions build process
+        - setuptools<=65.2.0
       run:
+        - python x.x
+        - thriftpy2
         - {{ pin_compatible('cugraph-service-client', exact=True) }}
         - {{ pin_compatible('cugraph', exact=True) }}
         - cupy >=9.5.0,<12.0.0a0
@@ -40,8 +55,3 @@ outputs:
         - distributed >=2022.9.2
         - dask-cuda
         - dask-cudf {{ minor_version }}.*
-    about:
-      home: http://rapids.ai/
-      license: Apache-2.0
-      license_file: ../../../LICENSE
-      summary: cugraph-service server

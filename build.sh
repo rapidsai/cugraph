@@ -20,7 +20,7 @@ REPODIR=$(cd $(dirname $0); pwd)
 LIBCUGRAPH_BUILD_DIR=${LIBCUGRAPH_BUILD_DIR:=${REPODIR}/cpp/build}
 LIBCUGRAPH_ETL_BUILD_DIR=${LIBCUGRAPH_ETL_BUILD_DIR:=${REPODIR}/cpp/libcugraph_etl/build}
 
-VALIDARGS="clean uninstall uninstall_cmake_deps libcugraph libcugraph_etl cugraph cugraph_service pylibcugraph cpp-mgtests docs -v -g -n --pydevelop --allgpuarch --skip_cpp_tests --cmake_default_generator -h --help"
+VALIDARGS="clean uninstall uninstall_cmake_deps libcugraph libcugraph_etl cugraph cugraph-service pylibcugraph cpp-mgtests docs -v -g -n --pydevelop --allgpuarch --skip_cpp_tests --cmake_default_generator -h --help"
 HELP="$0 [<target> ...] [<flag> ...]
  where <target> is:
    clean                      - remove all existing build artifacts and configuration (start over)
@@ -30,7 +30,7 @@ HELP="$0 [<target> ...] [<flag> ...]
    libcugraph_etl             - build libcugraph_etl.so and SG test binaries
    pylibcugraph               - build the pylibcugraph Python package
    cugraph                    - build the cugraph Python package
-   cugraph_service            - build the cugraph_service_client and cugraph_service_server Python package
+   cugraph-service            - build the cugraph-service_client and cugraph-service_server Python package
    cpp-mgtests                - build libcugraph and libcugraph_etl MG tests. Builds MPI communicator, adding MPI as a dependency.
    docs                       - build the docs
  and <flag> is:
@@ -43,7 +43,7 @@ HELP="$0 [<target> ...] [<flag> ...]
    --cmake_default_generator  - use the default cmake generator instead of ninja
    -h                         - print this text
 
- default action (no args) is to build and install 'libcugraph' then 'libcugraph_etl' then 'pylibcugraph' then 'cugraph' then 'cugraph_service' targets
+ default action (no args) is to build and install 'libcugraph' then 'libcugraph_etl' then 'pylibcugraph' then 'cugraph' then 'cugraph-service' targets
 
  libcugraph build dir is: ${LIBCUGRAPH_BUILD_DIR}
 
@@ -266,12 +266,12 @@ if buildAll || hasArg cugraph; then
     fi
 fi
 
-# Build and install the cugraph_service_client and cugraph_service_server Python packages
-if buildAll || hasArg cugraph_service; then
+# Install the cugraph-service-client and cugraph-service-server Python packages
+if buildAll || hasArg cugraph-service; then
     if [[ ${INSTALL_TARGET} != "" ]]; then
-        cd ${REPODIR}/python/cugraph_service/client
+        cd ${REPODIR}/python/cugraph-service/client
 	python setup.py ${PYTHON_INSTALL}
-        cd ${REPODIR}/python/cugraph_service/server
+        cd ${REPODIR}/python/cugraph-service/server
 	python setup.py ${PYTHON_INSTALL}
     fi
 fi
