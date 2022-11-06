@@ -197,8 +197,6 @@ def weakly_connected_components(G, directed=None, connection=None, return_labels
     df["vertex"] = vertex
     df["labels"] = labels
 
-    # df = connectivity_wrapper.weakly_connected_components(G)
-
     if G.renumbered:
         df = G.unrenumber(df, "vertex")
 
