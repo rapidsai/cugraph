@@ -13,12 +13,11 @@
 
 from pylibcugraph.components._connectivity import (
     strongly_connected_components,
-    weakly_connected_components,
 )
 
 from pylibcugraph import experimental
 
-from pylibcugraph.graphs import SGGraph, MGGraph
+from pylibcugraph.graphs import SGGraph, MGGraph, SGGraph_From_CSR
 
 from pylibcugraph.resource_handle import ResourceHandle
 
