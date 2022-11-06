@@ -17,6 +17,7 @@ outputs:
     about:
       home: http://rapids.ai/
       license: Apache-2.0
+      license_family: APACHE
       license_file: ../../../LICENSE
       summary: cugraph-service client
     script: install_cugraph-service-client.sh
@@ -35,6 +36,7 @@ outputs:
     about:
       home: http://rapids.ai/
       license: Apache-2.0
+      license_family: APACHE
       license_file: ../../../LICENSE
       summary: cugraph-service server
     script: install_cugraph-service-server.sh
@@ -54,4 +56,5 @@ outputs:
         - ucx-py
         - distributed >=2022.9.2
         - dask-cuda
+        - cudf {{ minor_version }}.*
         - dask-cudf {{ minor_version }}.*
