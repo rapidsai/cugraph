@@ -190,6 +190,9 @@ def weakly_connected_components(G, directed=None, connection=None, return_labels
     vertex, labels = pylibcugraph_wcc(
         resource_handle=ResourceHandle(),
         graph=G._plc_graph,
+        offsets=None,
+        indices=None,
+        weights=None,
         do_expensive_check=False,
     )
 

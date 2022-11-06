@@ -38,6 +38,9 @@ def _call_plc_wcc(sID, mg_graph_x, do_expensive_check):
     return pylibcugraph_wcc(
         resource_handle=ResourceHandle(Comms.get_handle(sID).getHandle()),
         graph=mg_graph_x,
+        offsets=None,
+        indices=None,
+        weights=None,
         do_expensive_check=do_expensive_check,
     )
 
