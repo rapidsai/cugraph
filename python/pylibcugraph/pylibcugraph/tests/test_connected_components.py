@@ -18,6 +18,7 @@ import numpy as np
 import pandas as pd
 import cupy as cp
 from scipy.sparse import coo_matrix, csr_matrix
+from pylibcugraph import ResourceHandle, GraphProperties, SGGraph_From_CSR
 
 from pylibcugraph.testing import utils
 
@@ -198,12 +199,10 @@ def input_and_expected_output(request):
         num_verts = csr.get_shape()[0]
         num_edges = csr.nnz
 
-    offsets = cp.asarray(csr.indptr, dtype=np.int32)
-    indices = cp.asarray(csr.indices, dtype=np.int32)
     labels_to_populate = cp.zeros(num_verts, dtype=np.int32)
 
     return (
-        (offsets, indices, labels_to_populate, num_verts, num_edges),
+        (csr, labels_to_populate, num_verts, num_edges),
         expected_output_dict,
     )
 
@@ -264,9 +263,13 @@ def test_scc(input_and_expected_output):
     import pylibcugraph
 
     (
-        (cupy_offsets, cupy_indices, cupy_labels_to_populate, num_verts, num_edges),
+        (csr, cupy_labels_to_populate, num_verts, num_edges),
         expected_output_dict,
     ) = input_and_expected_output
+
+    cupy_offsets = cp.asarray(csr.indptr, dtype=np.int32)
+    cupy_indices = cp.asarray(csr.indices, dtype=np.int32)
+    cupy_weights = cp.asarray(csr.data, dtype=np.float32)
 
     pylibcugraph.strongly_connected_components(
         cupy_offsets, cupy_indices, None, num_verts, num_edges, cupy_labels_to_populate
@@ -284,16 +287,37 @@ def test_wcc(input_and_expected_output):
     import pylibcugraph
 
     (
-        (cupy_offsets, cupy_indices, cupy_labels_to_populate, num_verts, num_edges),
+        (csr, _, num_verts, num_edges),
         expected_output_dict,
     ) = input_and_expected_output
 
-    pylibcugraph.weakly_connected_components(
-        cupy_offsets, cupy_indices, None, num_verts, num_edges, cupy_labels_to_populate
+    # Symmetrize CSR matrix. WCC requires a symmetrized datasets
+    rows, cols = csr.nonzero()
+    csr[cols, rows] = csr[rows, cols]
+
+    cupy_offsets = cp.asarray(csr.indptr, dtype=np.int32)
+    cupy_indices = cp.asarray(csr.indices, dtype=np.int32)
+    cupy_weights = cp.asarray(csr.data, dtype=np.float32)
+    cupy_weights = None
+
+    resource_handle = ResourceHandle()
+    graph_props = GraphProperties(is_symmetric=True, is_multigraph=False)
+    G = SGGraph_From_CSR(
+        resource_handle,
+        graph_props,
+        cupy_offsets,
+        cupy_indices,
+        cupy_weights,
+        store_transposed=False,
+        renumber=False,
+        do_expensive_check=True,
     )
 
+    cupy_vertices, cupy_labels = pylibcugraph.weakly_connected_components(
+        resource_handle, G, False)
+
     _check_labels(
-        cupy_labels_to_populate.tolist(), expected_output_dict["wcc_comp_vertices"]
+        cupy_labels.tolist(), expected_output_dict["wcc_comp_vertices"]
     )
 
 
