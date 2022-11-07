@@ -45,10 +45,9 @@ class CuGraphRemoteStore(BaseCuGraphStore):
             self.device_id = device_id
 
             add_data_module = "cugraph.gnn.dgl_extensions.service_extensions.add_data"
-            _ = self.client.load_extensions(add_data_module)
+            self.client.load_extensions(add_data_module)
             sampling_module = "cugraph.gnn.dgl_extensions.service_extensions.sampling"
-            _ = self.client.load_extensions(sampling_module)
-            del _
+            self.client.load_extensions(sampling_module)
         else:
             raise ValueError("graph must be a RemoteGraph")
 
