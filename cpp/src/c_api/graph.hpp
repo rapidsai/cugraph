@@ -31,7 +31,7 @@ struct cugraph_graph_t {
   data_type_id_t vertex_type_;
   data_type_id_t edge_type_;
   data_type_id_t weight_type_;
-  data_type_id_t edge_type_type_;
+  data_type_id_t edge_type_id_type_;
   bool store_transposed_;
   bool multi_gpu_;
 
@@ -39,7 +39,7 @@ struct cugraph_graph_t {
   void* number_map_;       // rmm::device_uvector<vertex_t>*
   void* edge_properties_;  // edge_property_t<
                            //    graph_view_t<vertex_t, edge_t, weight_t, store_transposed,
-                           //    multi_gpu>, thrust::tuple<edge_t, edge_type_t>>>
+                           //    multi_gpu>, thrust::tuple<edge_t, edge_type_id_t>>>
 };
 
 template <typename vertex_t,
