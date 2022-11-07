@@ -18,6 +18,7 @@ import pytest
 import pandas as pd
 import numpy as np
 import cudf
+import cupy
 from cudf.testing import assert_frame_equal, assert_series_equal
 from cugraph.experimental.datasets import cyber
 
@@ -1868,6 +1869,137 @@ def test_vertex_ids_different_type(df_type):
     pg.add_edge_data(edge_df, ["src", "dst"], type_name="_E")
 
     assert pg.get_num_vertices() == 3
+
+
+@pytest.mark.parametrize("df_type", df_types, ids=df_type_id)
+def test_vertex_vector_property(df_type):
+    from cugraph.experimental import PropertyGraph
+
+    (
+        merchants,
+        users,
+        taxpayers,
+        transactions,
+        relationships,
+        referrals,
+    ) = dataset1.values()
+    if df_type is cudf.DataFrame:
+        assert_array_equal = cupy.testing.assert_array_equal
+    else:
+        assert_array_equal = np.testing.assert_array_equal
+
+    pG = PropertyGraph()
+    merchants_df = df_type(columns=merchants[0], data=merchants[1])
+    with pytest.raises(ValueError):
+        # Column doesn't exist
+        pG.add_vertex_data(
+            merchants_df,
+            type_name="merchants",
+            vertex_col_name="merchant_id",
+            vector_properties={"vec1": ["merchant_location", "BAD_NAME"]},
+        )
+    with pytest.raises(ValueError):
+        # Using reserved name
+        pG.add_vertex_data(
+            merchants_df,
+            type_name="merchants",
+            vertex_col_name="merchant_id",
+            vector_properties={
+                pG.type_col_name: ["merchant_location", "merchant_size"]
+            },
+        )
+    with pytest.raises(TypeError):
+        # String value invalid
+        pG.add_vertex_data(
+            merchants_df,
+            type_name="merchants",
+            vertex_col_name="merchant_id",
+            vector_properties={"vec1": "merchant_location"},
+        )
+    with pytest.raises(ValueError):
+        # Length-0 vector not allowed
+        pG.add_vertex_data(
+            merchants_df,
+            type_name="merchants",
+            vertex_col_name="merchant_id",
+            vector_properties={"vec1": []},
+        )
+    pG.add_vertex_data(
+        merchants_df,
+        type_name="merchants",
+        vertex_col_name="merchant_id",
+        vector_properties={
+            "vec1": ["merchant_location", "merchant_size", "merchant_num_employees"]
+        },
+    )
+    df = pG.get_vertex_data()
+    expected_columns = {
+        pG.vertex_col_name,
+        pG.type_col_name,
+        "merchant_sales",
+        "merchant_name",
+        "vec1",
+    }
+    assert set(df.columns) == expected_columns
+    expected = merchants_df[
+        ["merchant_location", "merchant_size", "merchant_num_employees"]
+    ].values
+
+    vec1 = pG.vertex_vector_property_to_array(df, "vec1")
+    assert_array_equal(expected, vec1)
+    vec1 = pG.vertex_vector_property_to_array(df, "vec1", ignore_empty=False)
+    assert_array_equal(expected, vec1)
+    with pytest.raises(ValueError):
+        pG.vertex_vector_property_to_array(df, "BAD_NAME")
+
+    users_df = df_type(columns=users[0], data=users[1])
+    with pytest.raises(ValueError):
+        # Length doesn't match existing vector
+        pG.add_vertex_data(
+            users_df,
+            type_name="users",
+            vertex_col_name="user_id",
+            property_columns=["vertical"],
+            vector_properties={"vec1": ["user_location", "vertical"]},
+        )
+    with pytest.raises(ValueError):
+        # Can't assign property to existing vector column
+        pG.add_vertex_data(
+            users_df.assign(vec1=users_df["user_id"]),
+            type_name="users",
+            vertex_col_name="user_id",
+            property_columns=["vec1"],
+        )
+
+    pG.add_vertex_data(
+        users_df,
+        type_name="users",
+        vertex_col_name="user_id",
+        property_columns=["vertical"],
+        vector_properties={"vec2": ["user_location", "vertical"]},
+    )
+    expected_columns.update({"vec2", "vertical"})
+    df = pG.get_vertex_data()
+    assert set(df.columns) == expected_columns
+    vec1 = pG.vertex_vector_property_to_array(df, "vec1")
+    assert_array_equal(expected, vec1)
+    with pytest.raises(RuntimeError):
+        pG.vertex_vector_property_to_array(df, "vec1", ignore_empty=False)
+
+    vec2 = pG.vertex_vector_property_to_array(df, "vec2")
+    expected = users_df[["user_location", "vertical"]].values
+    assert_array_equal(expected, vec2)
+    with pytest.raises(TypeError):
+        # Column is wrong type to be a vector
+        pG.vertex_vector_property_to_array(
+            df.rename(columns={"vec1": "vertical", "vertical": "vec1"}), "vec1"
+        )
+    with pytest.raises(ValueError):
+        # Vector column doesn't exist in dataframe
+        pG.vertex_vector_property_to_array(df.rename(columns={"vec1": "moved"}), "vec1")
+    with pytest.raises(TypeError):
+        # Bad type
+        pG.vertex_vector_property_to_array(42, "vec1")
 
 
 @pytest.mark.skip(reason="feature not implemented")

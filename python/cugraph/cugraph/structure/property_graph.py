@@ -403,7 +403,10 @@ class EXPERIMENTAL__PropertyGraph:
                 set(property_columns) & self.__vertex_vector_property_lengths.keys()
             )
             if existing_vectors:
-                raise ValueError("TODO")
+                raise ValueError(
+                    "Non-vector property columns cannot be added to existing "
+                    f"vector properties: {', '.join(sorted(existing_vectors))}"
+                )
 
         # Save the DataFrame and Series types for future instantiations
         if (self.__dataframe_type is None) or (self.__series_type is None):
@@ -424,18 +427,33 @@ class EXPERIMENTAL__PropertyGraph:
             df_cols = set(dataframe.columns)
             for key, columns in vector_properties.items():
                 if key in invalid_keys:
-                    raise ValueError("TODO")
+                    raise ValueError(
+                        "Cannot assign new vector property to existing "
+                        f"non-vector property: {key}"
+                    )
                 if isinstance(columns, str):
                     # TODO: check if valid type instead
-                    raise TypeError("TODO")
+                    raise TypeError(
+                        f"vector property columns for {key!r} should be a list; "
+                        f"got a str ({columns!r})"
+                    )
                 if not df_cols.issuperset(columns):
-                    raise ValueError("TODO")
+                    missing = ", ".join(set(columns) - df_cols)
+                    raise ValueError(
+                        f"Dataframe does not have columns for vector property {key!r}:"
+                        f"{missing}"
+                    )
                 if not columns:
-                    raise ValueError("TODO")
+                    raise ValueError("Empty vector property columns for {key!r}!")
                 if self.__vertex_vector_property_lengths.get(key, len(columns)) != len(
                     columns
                 ):
-                    raise ValueError("TODO")
+                    prev_length = self.__vertex_vector_property_lengths[key]
+                    new_length = len(columns)
+                    raise ValueError(
+                        f"Wrong size for vector property {key}; got {new_length}, but "
+                        f"this vector property already exists with size {prev_length}"
+                    )
             for key, columns in vector_properties.items():
                 self.__vertex_vector_property_lengths[key] = len(columns)
 
@@ -1362,21 +1380,32 @@ class EXPERIMENTAL__PropertyGraph:
 
     def _get_vector_property(self, df, col_name, length, ignore_empty):
         if type(df) is not self.__dataframe_type:
-            raise TypeError("TODO")
+            raise TypeError(
+                f"Expected type {self.__dataframe_type}; got type {type(df)}"
+            )
         if col_name not in df.columns:
-            raise ValueError("TODO")
+            raise ValueError(f"Column name {col_name} is not in the columns of df")
         if self.__series_type is cudf.Series:
             if df.dtypes[col_name] != "list":
-                raise TypeError("TODO")
+                raise TypeError(
+                    "Wrong dtype for vector property; expected 'list', "
+                    f"got {df.dtypes[col_name]}"
+                )
             # This returns a writable view (i.e., no copies!)
             rv = df[col_name]._data.columns[0].children[-1].values.reshape(-1, length)
         else:
             if df.dtypes[col_name] != object:
-                raise TypeError("TODO")
+                raise TypeError(
+                    "Wrong dtype for vector property; expected 'object', "
+                    f"got {df.dtypes[col_name]}"
+                )
             s = df[col_name]
             rv = np.vstack(s[s.notnull()].to_numpy())
         if not ignore_empty and rv.shape[0] != len(df):
-            raise RuntimeError("TODO")
+            raise RuntimeError(
+                f"Vector property {col_name!r} has empty rows! "
+                "Use `ignore_empty=False` to ignore empty rows."
+            )
         return rv
 
     @classmethod
