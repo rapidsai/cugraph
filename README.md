@@ -52,9 +52,9 @@
     - [External Data Types](./readme_pages/data_types.md)
   - [pylibcugraph](./readme_pages/pylibcugraph.md)
   - [libcugraph (C/C++/CUDA)](./readme_pages/libcugraph.md)
-  - [cugraph-service]()
-  - [cugraph-dgl]()
-  - [cugraph-ops]() - coming in 23.02
+  - [cugraph-service](./readme_pages/cugraph_service.md)
+  - [cugraph-dgl](./readme_pages/cugraph_dgl.md)
+  - [cugraph-ops](./readme_pages/cugraph_ops.md)
 - API Docs
   - Python
     - [Python Nightly](https://docs.rapids.ai/api/cugraph/nightly/)
