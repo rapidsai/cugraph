@@ -121,8 +121,6 @@ def k_core(G, k=None, core_number=None, degree_type=None):
         core_number = core_number.rename(columns={"core_number": "values"}, copy=False)
 
     if k is None:
-        # FIXME: update this with the max core_number value
-        # k = 5
         k = core_number["values"].max()
 
     src_vertices, dst_vertices, weights = \
