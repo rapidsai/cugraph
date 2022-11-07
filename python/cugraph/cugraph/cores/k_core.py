@@ -12,17 +12,6 @@
 # limitations under the License.
 
 import cudf
-<<<<<<< HEAD
-from pylibcugraph import (k_core as pylibcugraph_k_core,
-                          ResourceHandle
-                          )
-from cugraph.utilities import (ensure_cugraph_obj_for_nx,
-                               cugraph_to_nx,
-                               )
-
-
-def k_core(G, k=None, degree_type=None, core_number=None):
-=======
 from pylibcugraph import core_number as pylibcugraph_core_number, ResourceHandle
 from cugraph.utilities import (
     ensure_cugraph_obj_for_nx,
@@ -45,7 +34,6 @@ def _call_plc_core_number(G):
 
 
 def k_core(G, k=None, core_number=None):
->>>>>>> upstream/branch-22.12
     """
     Compute the k-core of the graph G based on the out degree of its nodes. A
     k-core of a graph is a maximal subgraph that contains nodes of degree k or
