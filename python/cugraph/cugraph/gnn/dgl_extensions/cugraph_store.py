@@ -275,6 +275,7 @@ class CuGraphStore(BaseCuGraphStore):
             storage_type="node",
             indices_offset=indices_offset,
             backend_lib=self.backend_lib,
+            types_to_fetch=[ntype],
         )
 
     def get_edge_storage(self, key, etype=None, indices_offset=0):
@@ -302,6 +303,7 @@ class CuGraphStore(BaseCuGraphStore):
             storage_type="edge",
             backend_lib=self.backend_lib,
             indices_offset=indices_offset,
+            types_to_fetch=[etype],
         )
 
     ######################################
@@ -377,7 +379,7 @@ class CuGraphStore(BaseCuGraphStore):
             sgs_obj=sgs_obj,
             sgs_src_range_obj=sgs_src_range_obj,
             sg_node_dtype=self._sg_node_dtype,
-            nodes_cap=nodes_cap,
+            nodes_ar=nodes_cap,
             replace=replace,
             fanout=fanout,
             edge_dir=edge_dir,

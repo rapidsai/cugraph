@@ -63,7 +63,13 @@ class CuFeatureStorage:
     """
 
     def __init__(
-        self, pg, columns, storage_type, backend_lib="torch", indices_offset=0
+        self,
+        pg,
+        columns,
+        storage_type,
+        backend_lib="torch",
+        indices_offset=0,
+        types_to_fetch=None,
     ):
         self.pg = pg
         self.columns = columns
@@ -89,6 +95,7 @@ class CuFeatureStorage:
 
         self.from_dlpack = from_dlpack
         self.indices_offset = indices_offset
+        self.types_to_fetch = types_to_fetch
 
     def fetch(self, indices, device=None, pin_memory=False, **kwargs):
         """Fetch the features of the given node/edge IDs to the
@@ -136,10 +143,13 @@ class CuFeatureStorage:
             indices = indices + self.indices_offset
 
         if self.storage_type == "node":
-            result = self.pg.get_vertex_data(vertex_ids=indices, columns=self.columns)
+            result = self.pg.get_vertex_data(
+                vertex_ids=indices, columns=self.columns, types=self.types_to_fetch
+            )
         else:
-            result = self.pg.get_edge_data(edge_ids=indices, columns=self.columns)
-
+            result = self.pg.get_edge_data(
+                edge_ids=indices, columns=self.columns, types=self.types_to_fetch
+            )
         if type(result).__name__ == "DataFrame":
             result = result[self.columns]
             if hasattr(result, "compute"):

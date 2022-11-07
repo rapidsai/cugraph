@@ -283,6 +283,7 @@ class CuGraphRemoteStore(BaseCuGraphStore):
             storage_type="node",
             indices_offset=indices_offset,
             backend_lib=self.backend_lib,
+            types_to_fetch=[ntype],
         )
 
     def get_edge_storage(self, key, etype=None, indices_offset=0):
@@ -310,6 +311,7 @@ class CuGraphRemoteStore(BaseCuGraphStore):
             storage_type="edge",
             backend_lib=self.backend_lib,
             indices_offset=indices_offset,
+            types_to_fetch=[etype],
         )
 
     ######################################
