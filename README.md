@@ -29,9 +29,9 @@
 
 [Gettintg cuGraph](./readme_pages/getting_cugraph.md) *
 [Graph Algorithms](./readme_pages/algorithms.md) *
-[Graph Service]() *
-[Property Graph]() *
-[GNN Support]()
+[Graph Service](./readme_pages/cugraph_service.md) *
+[Property Graph](./readme_pages/Property_graph.md) *
+[GNN Support](./readme_pages/gnn_support.md)
 
 </div>
 
@@ -54,6 +54,7 @@
   - [libcugraph (C/C++/CUDA)](./readme_pages/libcugraph.md)
   - [cugraph-service]()
   - [cugraph-dgl]()
+  - [cugraph-ops]() - coming in 23.02
 - API Docs
   - Python
     - [Python Nightly](https://docs.rapids.ai/api/cugraph/nightly/)
