@@ -12,6 +12,7 @@
 # limitations under the License.
 
 import cudf
+import warnings
 
 from pylibcugraph import (
     core_number as pylibcugraph_core_number,
@@ -57,7 +58,7 @@ def k_core(G, k=None, core_number=None, degree_type=None):
     k : int, optional (default=None)
         Order of the core. This value must not be negative. If set to None, the
         main core is returned.
-    
+
     degree_type: str
         This option determines if the core number computation should be based
         on input, output, or both directed edges, with valid values being
@@ -94,7 +95,7 @@ def k_core(G, k=None, core_number=None, degree_type=None):
     if degree_type is not None:
         warning_msg = "The 'degree_type' parameter is ignored in this release."
         warnings.warn(warning_msg, Warning)
-    
+
     # FIXME: enable this check once 'degree_type' is supported
     """
     if degree_type not in ["incoming", "outgoing", "bidirectional"]:
@@ -115,7 +116,7 @@ def k_core(G, k=None, core_number=None, degree_type=None):
             else:
                 cols = "vertex"
             core_number = G.add_internal_vertex_id(core_number, "vertex", cols)
-    
+
     else:
         core_number = _call_plc_core_number(G)
         core_number = core_number.rename(columns={"core_number": "values"}, copy=False)
@@ -123,15 +124,14 @@ def k_core(G, k=None, core_number=None, degree_type=None):
     if k is None:
         k = core_number["values"].max()
 
-    src_vertices, dst_vertices, weights = \
-        pylibcugraph_k_core(
-            resource_handle=ResourceHandle(),
-            graph=G._plc_graph,
-            degree_type=degree_type,
-            k=k,
-            core_result=core_number,
-            do_expensive_check=False
-        )
+    src_vertices, dst_vertices, weights = pylibcugraph_k_core(
+        resource_handle=ResourceHandle(),
+        graph=G._plc_graph,
+        degree_type=degree_type,
+        k=k,
+        core_result=core_number,
+        do_expensive_check=False,
+    )
 
     df = cudf.DataFrame()
     df["src"] = src_vertices
@@ -139,10 +139,8 @@ def k_core(G, k=None, core_number=None, degree_type=None):
     df["weight"] = weights
 
     if G.renumbered:
-        k_core_df, src_names = G.unrenumber(df, "src",
-                                            get_column_names=True)
-        k_core_df, dst_names = G.unrenumber(df, "dst",
-                                            get_column_names=True)
+        k_core_df, src_names = G.unrenumber(df, "src", get_column_names=True)
+        k_core_df, dst_names = G.unrenumber(df, "dst", get_column_names=True)
 
     if G.edgelist.weights:
         KCoreGraph.from_cudf_edgelist(

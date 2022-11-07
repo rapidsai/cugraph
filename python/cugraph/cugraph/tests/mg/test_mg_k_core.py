@@ -34,16 +34,21 @@ def setup_function():
 datasets = utils.DATASETS_UNDIRECTED
 core_number = [False, True]
 
-fixture_params = utils.genFixtureParamsProduct((datasets, "graph_file"),
-                                               (core_number, "core_number"),
-                                               )
+fixture_params = utils.genFixtureParamsProduct(
+    (datasets, "graph_file"),
+    (core_number, "core_number"),
+)
 
 
 def compare_edges(k_core_results, expected_k_core_results):
     k_core_df = k_core_results.view_edge_list()
 
-    expected_k_core_df = expected_k_core_results.view_edge_list().compute(). \
-        sort_values("src").reset_index(drop=True)
+    expected_k_core_df = (
+        expected_k_core_results.view_edge_list()
+        .compute()
+        .sort_values("src")
+        .reset_index(drop=True)
+    )
 
     """
     # FIXME: check this test
@@ -64,8 +69,7 @@ def input_combo(request):
     Simply return the current combination of params as a dictionary for use in
     tests or other parameterized fixtures.
     """
-    parameters = dict(zip(("graph_file",
-                           "core_number"), request.param))
+    parameters = dict(zip(("graph_file", "core_number"), request.param))
 
     return parameters
 
@@ -79,7 +83,8 @@ def input_expected_output(dask_client, input_combo):
     core_number = input_combo["core_number"]
     input_data_path = input_combo["graph_file"]
     G = utils.generate_cugraph_graph_from_file(
-        input_data_path, directed=False, edgevals=True)
+        input_data_path, directed=False, edgevals=True
+    )
 
     if core_number:
         # compute the core_number
@@ -92,8 +97,7 @@ def input_expected_output(dask_client, input_combo):
     input_combo["SGGraph"] = G
 
     sg_k_core_results = cugraph.k_core(G, core_number)
-    sg_k_core_results = sg_k_core_results.sort_values(
-        "src").reset_index(drop=True)
+    sg_k_core_results = sg_k_core_results.sort_values("src").reset_index(drop=True)
 
     input_combo["sg_k_core_results"] = sg_k_core_results
 
@@ -109,8 +113,13 @@ def input_expected_output(dask_client, input_combo):
 
     dg = cugraph.Graph(directed=False)
     dg.from_dask_cudf_edgelist(
-        ddf, source='src', destination='dst',
-        edge_attr="value", renumber=True, legacy_renum_only=True)
+        ddf,
+        source="src",
+        destination="dst",
+        edge_attr="value",
+        renumber=True,
+        legacy_renum_only=True,
+    )
 
     input_combo["MGGraph"] = dg
 
@@ -143,8 +152,9 @@ def test_k_core(dask_client, benchmark, input_expected_output):
 
 
 def test_k_core_invalid_input(input_expected_output):
-    input_data_path = (utils.RAPIDS_DATASET_ROOT_DIR_PATH /
-                       "karate-asymmetric.csv").as_posix()
+    input_data_path = (
+        utils.RAPIDS_DATASET_ROOT_DIR_PATH / "karate-asymmetric.csv"
+    ).as_posix()
 
     chunksize = dcg.get_chunksize(input_data_path)
     ddf = dask_cudf.read_csv(
@@ -157,8 +167,8 @@ def test_k_core_invalid_input(input_expected_output):
 
     dg = cugraph.Graph(directed=True)
     dg.from_dask_cudf_edgelist(
-        ddf, source='src', destination='dst',
-        edge_attr="value", renumber=True)
+        ddf, source="src", destination="dst", edge_attr="value", renumber=True
+    )
 
     with pytest.raises(ValueError):
         dcg.k_core(dg)
