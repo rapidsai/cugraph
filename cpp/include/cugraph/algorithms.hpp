@@ -36,7 +36,6 @@
 #include <tuple>
 #include <variant>
 
-#include <tuple>
 
 /** @ingroup cpp_api
  *  @{

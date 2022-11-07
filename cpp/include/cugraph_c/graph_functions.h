@@ -87,11 +87,7 @@ void cugraph_vertex_pairs_free(cugraph_vertex_pairs_t* vertex_pairs);
  * @param [in]  start_vertices Optional type erased array of starting vertices
  *                             If NULL use all, if specified compute two-hop
  *                             neighbors for these starting vertices
-<<<<<<< HEAD
- * @param [out] vertex_pairs   Opaque pointer to resulting vertex pairs
-=======
  * @param [out] result         Opaque pointer to resulting vertex pairs
->>>>>>> upstream/branch-22.12
  * @param [out] error          Pointer to an error object storing details of any error.  Will
  *                             be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
@@ -103,8 +99,6 @@ cugraph_error_code_t cugraph_two_hop_neighbors(
   cugraph_vertex_pairs_t** result,
   cugraph_error_t** error);
 
-<<<<<<< HEAD
-=======
 /**
  * @brief       Opaque induced subgraph type
  */
@@ -187,7 +181,6 @@ cugraph_error_code_t cugraph_extract_induced_subgraph(
   cugraph_induced_subgraph_result_t** result,
   cugraph_error_t** error);
 
->>>>>>> upstream/branch-22.12
 #ifdef __cplusplus
 }
 #endif
