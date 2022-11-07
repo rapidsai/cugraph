@@ -89,7 +89,16 @@ cdef extern from "cugraph_c/core_algorithms.h":
     
     cdef void \
         cugraph_k_core_result_free(
-            cugraph_core_result_t* result
+            cugraph_k_core_result_t* result
+        )
+    
+    cdef cugraph_error_code_t \
+        cugraph_core_result_create(
+            const cugraph_resource_handle_t* handle,
+            cugraph_type_erased_device_array_view_t* vertices,
+            cugraph_type_erased_device_array_view_t* core_numbers,
+            cugraph_core_result_t** core_result,
+            cugraph_error_t** error
         )
     
     cdef cugraph_error_code_t \
