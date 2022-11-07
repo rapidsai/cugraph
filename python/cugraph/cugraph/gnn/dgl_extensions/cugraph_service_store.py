@@ -32,7 +32,8 @@ class CuGraphRemoteStore(BaseCuGraphStore):
     """
 
     def __init__(self, graph, graph_client, device_id=None, backend_lib="torch"):
-
+        # not using isinstance to check type to prevent
+        # on adding dependency of  Remote graphs to cugraph
         if type(graph).__name__ in ["RemotePropertyGraph", "RemoteMGPropertyGraph"]:
             if device_id is not None:
                 import numba.cuda as cuda
@@ -45,10 +46,9 @@ class CuGraphRemoteStore(BaseCuGraphStore):
             self.device_id = device_id
 
             add_data_module = "cugraph.gnn.dgl_extensions.service_extensions.add_data"
-            _ = self.client.load_extensions(add_data_module)
+            self.client.load_extensions(add_data_module)
             sampling_module = "cugraph.gnn.dgl_extensions.service_extensions.sampling"
-            _ = self.client.load_extensions(sampling_module)
-            del _
+            self.client.load_extensions(sampling_module)
         else:
             raise ValueError("graph must be a RemoteGraph")
 
@@ -299,7 +299,7 @@ class CuGraphRemoteStore(BaseCuGraphStore):
             etype = etypes[0]
         if key not in self.edata_feat_col_d:
             raise ValueError(
-                f"key {key} not found in CuGraphStore" " edge features",
+                f"key {key} not found in CuGraphStore edge features",
                 f" {list(self.edata_feat_col_d.keys())}",
             )
         columns = self.edata_feat_col_d[key]

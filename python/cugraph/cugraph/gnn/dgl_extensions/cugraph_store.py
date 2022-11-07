@@ -291,7 +291,7 @@ class CuGraphStore(BaseCuGraphStore):
             etype = etypes[0]
         if key not in self.edata_feat_col_d:
             raise ValueError(
-                f"key {key} not found in CuGraphStore" " edge features",
+                f"key {key} not found in CuGraphStore edge features",
                 f" {list(self.edata_feat_col_d.keys())}",
             )
         columns = self.edata_feat_col_d[key]
