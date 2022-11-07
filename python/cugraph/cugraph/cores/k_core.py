@@ -12,7 +12,13 @@
 # limitations under the License.
 
 import cudf
-from pylibcugraph import core_number as pylibcugraph_core_number, ResourceHandle
+
+from pylibcugraph import (
+    core_number as pylibcugraph_core_number,
+    k_core as pylibcugraph_k_core,
+    ResourceHandle,
+)
+
 from cugraph.utilities import (
     ensure_cugraph_obj_for_nx,
     cugraph_to_nx,
@@ -33,7 +39,7 @@ def _call_plc_core_number(G):
     return df
 
 
-def k_core(G, k=None, core_number=None):
+def k_core(G, k=None, core_number=None, degree_type=None):
     """
     Compute the k-core of the graph G based on the out degree of its nodes. A
     k-core of a graph is a maximal subgraph that contains nodes of degree k or
@@ -85,6 +91,17 @@ def k_core(G, k=None, core_number=None):
 
     G, isNx = ensure_cugraph_obj_for_nx(G)
 
+    if degree_type is not None:
+        warning_msg = "The 'degree_type' parameter is ignored in this release."
+        warnings.warn(warning_msg, Warning)
+    
+    # FIXME: enable this check once 'degree_type' is supported
+    """
+    if degree_type not in ["incoming", "outgoing", "bidirectional"]:
+        raise ValueError(f"'degree_type' must be either incoming, "
+                         f"outgoing or bidirectional, got: {degree_type}")
+    """
+
     mytype = type(G)
     KCoreGraph = mytype()
 
@@ -98,11 +115,15 @@ def k_core(G, k=None, core_number=None):
             else:
                 cols = "vertex"
             core_number = G.add_internal_vertex_id(core_number, "vertex", cols)
+    
+    else:
+        core_number = _call_plc_core_number(G)
+        core_number = core_number.rename(columns={"core_number": "values"}, copy=False)
 
     if k is None:
         # FIXME: update this with the max core_number value
-        k = 5
-        # k = core_number["values"].max()
+        # k = 5
+        k = core_number["values"].max()
 
     src_vertices, dst_vertices, weights = \
         pylibcugraph_k_core(
