@@ -37,14 +37,14 @@ from pylibcugraph._cugraph_c.graph cimport (
 from pylibcugraph._cugraph_c.core_algorithms cimport (   
     cugraph_core_result_t,
     cugraph_k_core_result_t,
-    cugraph_core_number,
+    cugraph_core_result_create,
     cugraph_k_core,
     cugraph_k_core_degree_type_t,
     cugraph_k_core_result_get_src_vertices,
     cugraph_k_core_result_get_dst_vertices,
     cugraph_k_core_result_get_weights,
     cugraph_k_core_result_free,
-    cugraph_core_result_free
+    cugraph_core_result_free,
 )
 from pylibcugraph.resource_handle cimport (
     ResourceHandle,
@@ -57,6 +57,7 @@ from pylibcugraph.utils cimport (
     copy_to_cupy_array,
     assert_CAI_type,
     get_c_type_from_numpy_type,
+    create_cugraph_type_erased_device_array_view_from_py_obj,
 )
 
 def k_core(ResourceHandle resource_handle,
@@ -123,37 +124,46 @@ def k_core(ResourceHandle resource_handle,
     
     # FIXME: You can't compute the parameter k in pylibcugraph because
     # of the MG implementation
-    if core_result is None:
-        # compute core_number
-        degree_type = "bidirectional"
+    #if core_result is None:
+    # compute core_number
+    degree_type = "bidirectional"
 
-        degree_type_map = {
-            "incoming": cugraph_k_core_degree_type_t.K_CORE_DEGREE_TYPE_IN,
-            "outgoing": cugraph_k_core_degree_type_t.K_CORE_DEGREE_TYPE_OUT,
-            "bidirectional": cugraph_k_core_degree_type_t.K_CORE_DEGREE_TYPE_INOUT}
+    degree_type_map = {
+        "incoming": cugraph_k_core_degree_type_t.K_CORE_DEGREE_TYPE_IN,
+        "outgoing": cugraph_k_core_degree_type_t.K_CORE_DEGREE_TYPE_OUT,
+        "bidirectional": cugraph_k_core_degree_type_t.K_CORE_DEGREE_TYPE_INOUT}
 
-        error_code = cugraph_core_number(c_resource_handle_ptr,
-                                         c_graph_ptr,
-                                         degree_type_map[degree_type],
-                                         do_expensive_check,
-                                         &core_result_ptr,
-                                         &error_ptr)
-        assert_success(error_code, error_ptr, "cugraph_core_number")
-
-        # compute k_core
-        error_code = cugraph_k_core(c_resource_handle_ptr,
-                                    c_graph_ptr,
-                                    k,
-                                    degree_type_map[degree_type],
-                                    core_result_ptr,
-                                    do_expensive_check,
-                                    &k_core_result_ptr,
-                                    &error_ptr)
-        assert_success(error_code, error_ptr, "cugraph_k_core_number")
+    # crete 'cugraph_type_erased_device_array_view_t' of vertices and core_numbers
+    cdef cugraph_type_erased_device_array_view_t* \
+        vertices_view_ptr = \
+            create_cugraph_type_erased_device_array_view_from_py_obj(
+                core_result["vertex"])
     
-    else:
-        # not supported yet
-        raise NotImplementedError("core_result must be None for now")
+    cdef cugraph_type_erased_device_array_view_t* \
+        core_numbers_view_ptr = \
+            create_cugraph_type_erased_device_array_view_from_py_obj(
+                core_result["values"])
+    
+    # Create a core_number result
+    error_code = cugraph_core_result_create(c_resource_handle_ptr,
+                                            vertices_view_ptr,
+                                            core_numbers_view_ptr,
+                                            &core_result_ptr,
+                                            &error_ptr)
+    assert_success(error_code, error_ptr, "cugraph_core_result_create")
+
+
+    # compute k_core
+    error_code = cugraph_k_core(c_resource_handle_ptr,
+                                c_graph_ptr,
+                                k,
+                                degree_type_map[degree_type],
+                                core_result_ptr,
+                                do_expensive_check,
+                                &k_core_result_ptr,
+                                &error_ptr)
+    assert_success(error_code, error_ptr, "cugraph_k_core_number")
+
 
     cdef cugraph_type_erased_device_array_view_t* src_vertices_ptr = \
         cugraph_k_core_result_get_src_vertices(k_core_result_ptr)
@@ -165,5 +175,8 @@ def k_core(ResourceHandle resource_handle,
     cupy_src_vertices = copy_to_cupy_array(c_resource_handle_ptr, src_vertices_ptr)
     cupy_dst_vertices = copy_to_cupy_array(c_resource_handle_ptr, dst_vertices_ptr)
     cupy_weights = copy_to_cupy_array(c_resource_handle_ptr, weigths_ptr)
+
+    cugraph_k_core_result_free(k_core_result_ptr)
+    cugraph_core_result_free(core_result_ptr)
 
     return (cupy_src_vertices, cupy_src_vertices, cupy_weights)
