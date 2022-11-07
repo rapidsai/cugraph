@@ -13,6 +13,8 @@
 # =============================================================================
 add_subdirectory(components)
 add_subdirectory(raft/common)
+add_subdirectory(internal_types)
+add_subdirectory(testing)
 set(cython_sources
     bfs.pyx
     core_number.pyx
@@ -22,6 +24,7 @@ set(cython_sources
     hits.pyx
     k_core.pyx
     katz_centrality.pyx
+    louvain.pyx
     node2vec.pyx
     pagerank.pyx
     personalized_pagerank.pyx
@@ -37,8 +40,5 @@ rapids_cython_create_modules(
   CXX
   SOURCE_FILES "${cython_sources}"
   LINKED_LIBRARIES ${linked_libraries}
+  ASSOCIATED_TARGETS cugraph
 )
-
-foreach(cython_module IN LISTS RAPIDS_CYTHON_CREATED_TARGETS)
-  set_target_properties(${cython_module} PROPERTIES INSTALL_RPATH "\$ORIGIN;\$ORIGIN/library")
-endforeach()

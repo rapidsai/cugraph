@@ -12,7 +12,7 @@ Random Walks
 
    cugraph.random_walks
    cugraph.ego_graph
-   cugraph.experimental.dask.uniform_neighborhood_sampling
+   cugraph.uniform_neighbor_sample
 
 Node2Vec
 ---------

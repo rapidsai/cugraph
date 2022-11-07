@@ -17,6 +17,7 @@ import pytest
 
 import cugraph
 from cugraph.testing import utils
+from cugraph.experimental.datasets import DATASETS_UNDIRECTED
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
 # (Using or importing the ABCs from 'collections' instead of from
@@ -43,19 +44,19 @@ def setup_function():
 def calc_k_cores(graph_file, directed=True):
     # directed is used to create either a Graph or DiGraph so the returned
     # cugraph can be compared to nx graph of same type.
-    cu_M = utils.read_csv_file(graph_file)
-    NM = utils.read_csv_for_nx(graph_file)
+    dataset_path = graph_file.get_path()
+    NM = utils.read_csv_for_nx(dataset_path)
+    G = graph_file.get_graph(
+        create_using=cugraph.Graph(directed=directed), ignore_weights=True
+    )
     if directed:
-        G = cugraph.DiGraph()
         Gnx = nx.from_pandas_edgelist(
             NM, source="0", target="1", create_using=nx.DiGraph()
         )
     else:
-        G = cugraph.Graph()
         Gnx = nx.from_pandas_edgelist(
             NM, source="0", target="1", create_using=nx.Graph()
         )
-    G.from_cudf_edgelist(cu_M, source="0", destination="1")
     ck = cugraph.k_core(G)
     nk = nx.k_core(Gnx)
     return ck, nk
@@ -71,7 +72,7 @@ def compare_edges(cg, nxg):
     return True
 
 
-@pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
+@pytest.mark.parametrize("graph_file", DATASETS_UNDIRECTED)
 def test_k_core_Graph(graph_file):
 
     cu_kcore, nx_kcore = calc_k_cores(graph_file, False)
@@ -79,39 +80,37 @@ def test_k_core_Graph(graph_file):
     assert compare_edges(cu_kcore, nx_kcore)
 
 
-@pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
+@pytest.mark.parametrize("graph_file", DATASETS_UNDIRECTED)
 def test_k_core_Graph_nx(graph_file):
-
-    NM = utils.read_csv_for_nx(graph_file)
-    Gnx = nx.from_pandas_edgelist(
-        NM, source="0", target="1", create_using=nx.Graph()
-    )
+    dataset_path = graph_file.get_path()
+    NM = utils.read_csv_for_nx(dataset_path)
+    Gnx = nx.from_pandas_edgelist(NM, source="0", target="1", create_using=nx.Graph())
     nc = nx.k_core(Gnx)
     cc = cugraph.k_core(Gnx)
 
     assert nx.is_isomorphic(nc, cc)
 
 
-@pytest.mark.parametrize("graph_file", utils.DATASETS_UNDIRECTED)
+@pytest.mark.parametrize("graph_file", DATASETS_UNDIRECTED)
 def test_k_core_corenumber_multicolumn(graph_file):
-
-    cu_M = utils.read_csv_file(graph_file)
-    cu_M.rename(columns={'0': 'src_0', '1': 'dst_0'}, inplace=True)
-    cu_M['src_1'] = cu_M['src_0'] + 1000
-    cu_M['dst_1'] = cu_M['dst_0'] + 1000
+    dataset_path = graph_file.get_path()
+    cu_M = utils.read_csv_file(dataset_path)
+    cu_M.rename(columns={"0": "src_0", "1": "dst_0"}, inplace=True)
+    cu_M["src_1"] = cu_M["src_0"] + 1000
+    cu_M["dst_1"] = cu_M["dst_0"] + 1000
 
     G1 = cugraph.Graph()
-    G1.from_cudf_edgelist(cu_M, source=["src_0", "src_1"],
-                          destination=["dst_0", "dst_1"])
+    G1.from_cudf_edgelist(
+        cu_M, source=["src_0", "src_1"], destination=["dst_0", "dst_1"]
+    )
 
     corenumber_G1 = cugraph.core_number(G1)
-    corenumber_G1.rename(columns={'core_number': 'values'}, inplace=True)
-    corenumber_G1 = corenumber_G1[['0_vertex', '1_vertex', 'values']]
+    corenumber_G1.rename(columns={"core_number": "values"}, inplace=True)
+    corenumber_G1 = corenumber_G1[["0_vertex", "1_vertex", "values"]]
 
     ck_res = cugraph.k_core(G1, core_number=corenumber_G1)
     G2 = cugraph.Graph()
-    G2.from_cudf_edgelist(cu_M, source="src_0",
-                          destination="dst_0")
+    G2.from_cudf_edgelist(cu_M, source="src_0", destination="dst_0")
     ck_exp = cugraph.k_core(G2)
 
     # FIXME: Replace with multi-column view_edge_list()
@@ -119,5 +118,6 @@ def test_k_core_corenumber_multicolumn(graph_file):
     edgelist_df_res = ck_res.unrenumber(edgelist_df, "src")
     edgelist_df_res = ck_res.unrenumber(edgelist_df_res, "dst")
     for i in range(len(edgelist_df_res)):
-        assert ck_exp.has_edge(edgelist_df_res["0_src"].iloc[i],
-                               edgelist_df_res["0_dst"].iloc[i])
+        assert ck_exp.has_edge(
+            edgelist_df_res["0_src"].iloc[i], edgelist_df_res["0_dst"].iloc[i]
+        )

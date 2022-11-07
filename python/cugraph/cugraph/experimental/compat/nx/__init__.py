@@ -76,10 +76,7 @@ def _import_submodules_recursively(obj, mod_path):
                 _import_submodules_recursively(sub_obj, sub_mod_path)
 
 
-_import_submodules_recursively(
-
-
-    importlib.import_module("networkx"), __name__)
+_import_submodules_recursively(importlib.import_module("networkx"), __name__)
 
 del _visited
 del _import_submodules_recursively

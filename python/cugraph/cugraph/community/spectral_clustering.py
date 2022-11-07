@@ -12,9 +12,10 @@
 # limitations under the License.
 
 from cugraph.community import spectral_clustering_wrapper
-from cugraph.utilities import (ensure_cugraph_obj_for_nx,
-                               df_score_to_dictionary,
-                               )
+from cugraph.utilities import (
+    ensure_cugraph_obj_for_nx,
+    df_score_to_dictionary,
+)
 
 
 def spectralBalancedCutClustering(
@@ -183,9 +184,9 @@ def spectralModularityMaximizationClustering(
     return df
 
 
-def analyzeClustering_modularity(G, n_clusters, clustering,
-                                 vertex_col_name='vertex',
-                                 cluster_col_name='cluster'):
+def analyzeClustering_modularity(
+    G, n_clusters, clustering, vertex_col_name="vertex", cluster_col_name="cluster"
+):
     """
     Compute the modularity score for a given partitioning/clustering.
     The assumption is that “clustering” is the results from a call
@@ -236,12 +237,11 @@ def analyzeClustering_modularity(G, n_clusters, clustering,
     G, isNx = ensure_cugraph_obj_for_nx(G)
 
     if G.renumbered:
-        clustering = G.add_internal_vertex_id(clustering,
-                                              'vertex',
-                                              vertex_col_name,
-                                              drop=True)
+        clustering = G.add_internal_vertex_id(
+            clustering, "vertex", vertex_col_name, drop=True
+        )
 
-    clustering = clustering.sort_values('vertex')
+    clustering = clustering.sort_values("vertex")
 
     score = spectral_clustering_wrapper.analyzeClustering_modularity(
         G, n_clusters, clustering[cluster_col_name]
@@ -250,9 +250,9 @@ def analyzeClustering_modularity(G, n_clusters, clustering,
     return score
 
 
-def analyzeClustering_edge_cut(G, n_clusters, clustering,
-                               vertex_col_name='vertex',
-                               cluster_col_name='cluster'):
+def analyzeClustering_edge_cut(
+    G, n_clusters, clustering, vertex_col_name="vertex", cluster_col_name="cluster"
+):
     """
     Compute the edge cut score for a partitioning/clustering
     The assumption is that “clustering” is the results from a call
@@ -303,12 +303,11 @@ def analyzeClustering_edge_cut(G, n_clusters, clustering,
     G, isNx = ensure_cugraph_obj_for_nx(G)
 
     if G.renumbered:
-        clustering = G.add_internal_vertex_id(clustering,
-                                              'vertex',
-                                              vertex_col_name,
-                                              drop=True)
+        clustering = G.add_internal_vertex_id(
+            clustering, "vertex", vertex_col_name, drop=True
+        )
 
-    clustering = clustering.sort_values('vertex').reset_index(drop=True)
+    clustering = clustering.sort_values("vertex").reset_index(drop=True)
 
     score = spectral_clustering_wrapper.analyzeClustering_edge_cut(
         G, n_clusters, clustering[cluster_col_name]
@@ -317,9 +316,9 @@ def analyzeClustering_edge_cut(G, n_clusters, clustering,
     return score
 
 
-def analyzeClustering_ratio_cut(G, n_clusters, clustering,
-                                vertex_col_name='vertex',
-                                cluster_col_name='cluster'):
+def analyzeClustering_ratio_cut(
+    G, n_clusters, clustering, vertex_col_name="vertex", cluster_col_name="cluster"
+):
     """
     Compute the ratio cut score for a partitioning/clustering
 
@@ -366,12 +365,11 @@ def analyzeClustering_ratio_cut(G, n_clusters, clustering,
         raise Exception("cluster_col_name must be a string")
 
     if G.renumbered:
-        clustering = G.add_internal_vertex_id(clustering,
-                                              'vertex',
-                                              vertex_col_name,
-                                              drop=True)
+        clustering = G.add_internal_vertex_id(
+            clustering, "vertex", vertex_col_name, drop=True
+        )
 
-    clustering = clustering.sort_values('vertex')
+    clustering = clustering.sort_values("vertex")
 
     score = spectral_clustering_wrapper.analyzeClustering_ratio_cut(
         G, n_clusters, clustering[cluster_col_name]

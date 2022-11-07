@@ -34,9 +34,10 @@ def setup_function():
 # Pytest fixtures
 # =============================================================================
 datasets = utils.DATASETS_UNDIRECTED
-fixture_params = utils.genFixtureParamsProduct((datasets, "graph_file"),
-                                               ([True, False], "start_list"),
-                                               )
+fixture_params = utils.genFixtureParamsProduct(
+    (datasets, "graph_file"),
+    ([True, False], "start_list"),
+)
 
 
 @pytest.fixture(scope="module", params=fixture_params)
@@ -45,9 +46,7 @@ def input_combo(request):
     Simply return the current combination of params as a dictionary for use in
     tests or other parameterized fixtures.
     """
-    parameters = dict(zip(("graph_file",
-                           "start_list",
-                           "edgevals"), request.param))
+    parameters = dict(zip(("graph_file", "start_list", "edgevals"), request.param))
 
     return parameters
 
@@ -61,7 +60,8 @@ def input_expected_output(dask_client, input_combo):
     start_list = input_combo["start_list"]
     input_data_path = input_combo["graph_file"]
     G = utils.generate_cugraph_graph_from_file(
-        input_data_path, directed=False, edgevals=True)
+        input_data_path, directed=False, edgevals=True
+    )
 
     input_combo["SGGraph"] = G
 
@@ -76,8 +76,9 @@ def input_expected_output(dask_client, input_combo):
         start_list = None
 
     sg_triangle_results = cugraph.triangle_count(G, start_list)
-    sg_triangle_results = sg_triangle_results.sort_values(
-        "vertex").reset_index(drop=True)
+    sg_triangle_results = sg_triangle_results.sort_values("vertex").reset_index(
+        drop=True
+    )
 
     input_combo["sg_triangle_results"] = sg_triangle_results
     input_combo["start_list"] = start_list
@@ -94,8 +95,8 @@ def input_expected_output(dask_client, input_combo):
 
     dg = cugraph.Graph(directed=False)
     dg.from_dask_cudf_edgelist(
-        ddf, source='src', destination='dst',
-        edge_attr="value", renumber=True)
+        ddf, source="src", destination="dst", edge_attr="value", renumber=True
+    )
 
     input_combo["MGGraph"] = dg
 
@@ -121,15 +122,19 @@ def test_triangles(dask_client, benchmark, input_expected_output):
 
     result_counts = benchmark(dcg.triangle_count, dg, start_list)
 
-    result_counts = result_counts.drop_duplicates().compute().sort_values(
-        "vertex").reset_index(drop=True).rename(
-            columns={"counts": "mg_counts"})
+    result_counts = (
+        result_counts.drop_duplicates()
+        .compute()
+        .sort_values("vertex")
+        .reset_index(drop=True)
+        .rename(columns={"counts": "mg_counts"})
+    )
 
     expected_output = input_expected_output["sg_triangle_results"]
 
     # Update the mg triangle count with sg triangle count results
     # for easy comparison using cuDF DataFrame methods.
-    result_counts["sg_counts"] = expected_output['counts']
-    counts_diffs = result_counts.query('mg_counts != sg_counts')
+    result_counts["sg_counts"] = expected_output["counts"]
+    counts_diffs = result_counts.query("mg_counts != sg_counts")
 
     assert len(counts_diffs) == 0

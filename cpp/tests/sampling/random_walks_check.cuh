@@ -15,6 +15,9 @@
  */
 #include <sampling/random_walks_check.hpp>
 
+#include <cugraph/graph.hpp>
+#include <cugraph/graph_functions.hpp>
+
 #include <utilities/device_comm_wrapper.hpp>
 
 #include <thrust/sort.h>
@@ -33,15 +36,13 @@ void random_walks_validate(
   std::optional<rmm::device_uvector<typename graph_view_type::weight_type>>&& d_weights,
   size_t max_length)
 {
-  // FIXME: The sampling functions should use the standard version, not number_of_vertices
-  auto invalid_vertex_id = graph_view.number_of_vertices();
+  using vertex_t = typename graph_view_type::vertex_type;
+  using weight_t = typename graph_view_type::weight_type;
 
-  auto [d_src, d_dst, d_wgt] = graph_view.decompress_to_edgelist(handle, std::nullopt);
+  auto [d_src, d_dst, d_wgt] = cugraph::decompress_to_edgelist(
+    handle, graph_view, std::optional<raft::device_span<vertex_t const>>{std::nullopt});
 
   if constexpr (graph_view_type::is_multi_gpu) {
-    using vertex_t = typename graph_view_type::vertex_type;
-    using weight_t = typename graph_view_type::weight_type;
-
     d_src = cugraph::test::device_gatherv(
       handle, raft::device_span<vertex_t const>(d_src.data(), d_src.size()));
     d_dst = cugraph::test::device_gatherv(
@@ -79,7 +80,6 @@ void random_walks_validate(
          vertices  = d_vertices.data(),
          weights   = d_weights->data(),
          num_edges = d_src.size(),
-         invalid_vertex_id,
          max_length] __device__(auto i) {
           auto const s = vertices[(i / max_length) * (max_length + 1) + (i % max_length)];
           auto const d = vertices[(i / max_length) * (max_length + 1) + (i % max_length) + 1];
@@ -87,7 +87,7 @@ void random_walks_validate(
 
           // FIXME: if src != invalid_vertex_id and dst == invalid_vertex_id
           //    should add a check to verify that degree(src) == 0
-          if (d != invalid_vertex_id) {
+          if (d != cugraph::invalid_vertex_id<vertex_t>::value) {
             auto iter = thrust::make_zip_iterator(src, dst);
             auto pos  = thrust::find(thrust::seq, iter, iter + num_edges, thrust::make_tuple(s, d));
 
@@ -124,14 +124,13 @@ void random_walks_validate(
          dst       = d_dst.data(),
          vertices  = d_vertices.data(),
          num_edges = d_src.size(),
-         invalid_vertex_id,
          max_length] __device__(auto i) {
           auto const s = vertices[(i / max_length) * (max_length + 1) + (i % max_length)];
           auto const d = vertices[(i / max_length) * (max_length + 1) + (i % max_length) + 1];
 
           // FIXME: if src != invalid_vertex_id and dst == invalid_vertex_id
           //    should add a check to verify that degree(src) == 0
-          if (d != invalid_vertex_id) {
+          if (d != cugraph::invalid_vertex_id<vertex_t>::value) {
             auto iter = thrust::make_zip_iterator(src, dst);
             auto pos  = thrust::find(thrust::seq, iter, iter + num_edges, thrust::make_tuple(s, d));
 

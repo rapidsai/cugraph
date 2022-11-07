@@ -184,6 +184,18 @@ auto std_tuple_to_thrust_tuple(TupleType tup)
     tup, std::make_index_sequence<std::tuple_size_v<TupleType>>{});
 }
 
+template <typename T>
+auto to_thrust_tuple(T scalar_value)
+{
+  return thrust::make_tuple(scalar_value);
+}
+
+template <typename... Ts>
+auto to_thrust_tuple(thrust::tuple<Ts...> tuple_value)
+{
+  return tuple_value;
+}
+
 // a temporary function to emulate thrust::tuple_cat (not supported) using std::tuple_cat (should
 // retire once thrust::tuple is replaced with cuda::std::tuple)
 template <typename... TupleTypes>

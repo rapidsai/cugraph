@@ -29,6 +29,7 @@ from cupyx.scipy.sparse import csc_matrix as cp_csc_matrix
 from scipy.sparse import coo_matrix as sp_coo_matrix
 from scipy.sparse import csr_matrix as sp_csr_matrix
 from scipy.sparse import csc_matrix as sp_csc_matrix
+from cugraph.experimental import datasets
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
 # (Using or importing the ABCs from 'collections' instead of from
@@ -119,13 +120,16 @@ def convert_output_to_cudf(input_G_or_matrix, cugraph_result):
                 assert type(cugraph_result[2]) is np.ndarray
 
         # Get unique verts from input since they are not incuded in output
-        if type(input_G_or_matrix) in [cp_csr_matrix, cp_csc_matrix,
-                                       sp_csr_matrix, sp_csc_matrix]:
+        if type(input_G_or_matrix) in [
+            cp_csr_matrix,
+            cp_csc_matrix,
+            sp_csr_matrix,
+            sp_csc_matrix,
+        ]:
             coo = input_G_or_matrix.tocoo(copy=False)
         else:
             coo = input_G_or_matrix
-        verts = sorted(set([n.item() for n in coo.col] +
-                           [n.item() for n in coo.row]))
+        verts = sorted(set([n.item() for n in coo.col] + [n.item() for n in coo.row]))
         dists = [n.item() for n in cugraph_result[0]]
         preds = [n.item() for n in cugraph_result[1]]
         assert len(verts) == len(dists) == len(preds)
@@ -171,8 +175,7 @@ def compare_bfs(benchmark_callable, G, nx_values, start_vertex, depth_limit):
 
         def func_to_benchmark():
             for sv in start_vertex:
-                cugraph_df = cugraph.bfs_edges(
-                    G, sv, depth_limit=depth_limit)
+                cugraph_df = cugraph.bfs_edges(G, sv, depth_limit=depth_limit)
                 all_cugraph_distances.append(cugraph_df)
 
         benchmark_callable(func_to_benchmark)
@@ -207,8 +210,7 @@ def _compare_bfs(cugraph_df, nx_distances, source):
     cu_predecessors = {
         vertex: dist
         for vertex, dist in zip(
-                cugraph_df["vertex"].to_numpy(),
-                cugraph_df["predecessor"].to_numpy()
+            cugraph_df["vertex"].to_numpy(), cugraph_df["predecessor"].to_numpy()
         )
     }
 
@@ -228,9 +230,7 @@ def _compare_bfs(cugraph_df, nx_distances, source):
             if result != expected:
                 print(
                     "[ERR] Mismatch on distances: "
-                    "vid = {}, cugraph = {}, nx = {}".format(
-                        vertex, result, expected
-                    )
+                    "vid = {}, cugraph = {}, nx = {}".format(vertex, result, expected)
                 )
                 distance_mismatch_error += 1
             if vertex not in cu_predecessors:
@@ -256,25 +256,34 @@ def _compare_bfs(cugraph_df, nx_distances, source):
     assert invalid_predecessor_error == 0, "There are invalid predecessors"
 
 
-def get_nx_graph_and_params(dataset, directed):
+def get_cu_graph_nx_graph_and_params(dataset, directed):
     """
     Helper for fixtures returning a Nx graph obj and params.
     """
-    return (dataset, directed,
-            utils.generate_nx_graph_from_file(dataset, directed))
+    # create graph
+    G = dataset.get_graph(create_using=cugraph.Graph(directed=directed))
+    dataset_path = dataset.get_path()
+
+    return (
+        G,
+        dataset_path,
+        directed,
+        utils.generate_nx_graph_from_file(dataset_path, directed),
+    )
 
 
-def get_nx_results_and_params(seed, depth_limit, dataset, directed, Gnx):
+def get_cu_graph_nx_results_and_params(seed, depth_limit, G, dataset, directed, Gnx):
     """
     Helper for fixtures returning Nx results and params.
     """
     random.seed(seed)
     start_vertex = random.sample(Gnx.nodes(), 1)[0]
 
-    nx_values = nx.single_source_shortest_path_length(Gnx, start_vertex,
-                                                      cutoff=depth_limit)
+    nx_values = nx.single_source_shortest_path_length(
+        Gnx, start_vertex, cutoff=depth_limit
+    )
 
-    return (dataset, directed, nx_values, start_vertex, depth_limit)
+    return (G, dataset, directed, nx_values, start_vertex, depth_limit)
 
 
 # =============================================================================
@@ -282,8 +291,8 @@ def get_nx_results_and_params(seed, depth_limit, dataset, directed, Gnx):
 # =============================================================================
 SEEDS = [pytest.param(s) for s in SUBSET_SEED_OPTIONS]
 DIRECTED = [pytest.param(d) for d in DIRECTED_GRAPH_OPTIONS]
-DATASETS = [pytest.param(d) for d in utils.DATASETS]
-DATASETS_SMALL = [pytest.param(d) for d in utils.DATASETS_SMALL]
+DATASETS = [pytest.param(d) for d in datasets.DATASETS]
+DATASETS_SMALL = [pytest.param(d) for d in datasets.DATASETS_SMALL]
 DEPTH_LIMIT = [pytest.param(d) for d in DEPTH_LIMITS]
 
 # Call genFixtureParamsProduct() to caluculate the cartesian product of
@@ -292,27 +301,27 @@ DEPTH_LIMIT = [pytest.param(d) for d in DEPTH_LIMITS]
 # item in the tuple is a label for the param value used when displaying the
 # full test name.
 algo_test_fixture_params = utils.genFixtureParamsProduct(
-    (SEEDS, "seed"),
-    (DEPTH_LIMIT, "depth_limit"))
+    (SEEDS, "seed"), (DEPTH_LIMIT, "depth_limit")
+)
 
 graph_fixture_params = utils.genFixtureParamsProduct(
-    (DATASETS, "ds"),
-    (DIRECTED, "dirctd"))
+    (DATASETS, "ds"), (DIRECTED, "dirctd")
+)
 
 small_graph_fixture_params = utils.genFixtureParamsProduct(
-    (DATASETS_SMALL, "ds"),
-    (DIRECTED, "dirctd"))
+    (DATASETS_SMALL, "ds"), (DIRECTED, "dirctd")
+)
 
 # The single param list variants are used when only 1 param combination is
 # needed (eg. testing non-native input types where tests for other combinations
 # was covered elsewhere).
 single_algo_test_fixture_params = utils.genFixtureParamsProduct(
-    ([SEEDS[0]], "seed"),
-    ([DEPTH_LIMIT[0]], "depth_limit"))
+    ([SEEDS[0]], "seed"), ([DEPTH_LIMIT[0]], "depth_limit")
+)
 
 single_small_graph_fixture_params = utils.genFixtureParamsProduct(
-    ([DATASETS_SMALL[0]], "ds"),
-    (DIRECTED, "dirctd"))
+    ([DATASETS_SMALL[0]], "ds"), (DIRECTED, "dirctd")
+)
 
 
 # Fixtures that result in a test-per (dataset X directed/undirected)
@@ -320,17 +329,17 @@ single_small_graph_fixture_params = utils.genFixtureParamsProduct(
 # directed graph is being used, and the Nx graph object.
 @pytest.fixture(scope="module", params=graph_fixture_params)
 def dataset_nx_graph(request):
-    return get_nx_graph_and_params(*request.param)
+    return get_cu_graph_nx_graph_and_params(*request.param)
 
 
 @pytest.fixture(scope="module", params=small_graph_fixture_params)
 def small_dataset_nx_graph(request):
-    return get_nx_graph_and_params(*request.param)
+    return get_cu_graph_nx_graph_and_params(*request.param)
 
 
 @pytest.fixture(scope="module", params=single_small_graph_fixture_params)
 def single_small_dataset_nx_graph(request):
-    return get_nx_graph_and_params(*request.param)
+    return get_cu_graph_nx_graph_and_params(*request.param)
 
 
 # Fixtures that result in a test-per (dataset_nx_graph combinations X algo_test
@@ -340,14 +349,14 @@ def single_small_dataset_nx_graph(request):
 # used.
 @pytest.fixture(scope="module", params=algo_test_fixture_params)
 def dataset_nxresults_startvertex_spc(dataset_nx_graph, request):
-    return get_nx_results_and_params(*request.param, *dataset_nx_graph)
+    return get_cu_graph_nx_results_and_params(*request.param, *dataset_nx_graph)
 
 
 @pytest.fixture(scope="module", params=single_algo_test_fixture_params)
-def single_dataset_nxresults_startvertex_spc(single_small_dataset_nx_graph,
-                                             request):
-    return get_nx_results_and_params(*request.param,
-                                     *single_small_dataset_nx_graph)
+def single_dataset_nxresults_startvertex_spc(single_small_dataset_nx_graph, request):
+    return get_cu_graph_nx_results_and_params(
+        *request.param, *single_small_dataset_nx_graph
+    )
 
 
 @pytest.fixture(scope="module")
@@ -360,8 +369,9 @@ def dataset_nxresults_allstartvertices_spc(small_dataset_nx_graph):
 
     all_nx_values = []
     for start_vertex in start_vertices:
-        _, _, nx_sp_counter = \
-            nxacb._single_source_shortest_path_basic(Gnx, start_vertex)
+        _, _, nx_sp_counter = nxacb._single_source_shortest_path_basic(
+            Gnx, start_vertex
+        )
         nx_values = nx_sp_counter
         all_nx_values.append(nx_values)
 
@@ -372,13 +382,18 @@ def dataset_nxresults_allstartvertices_spc(small_dataset_nx_graph):
 # Tests
 # =============================================================================
 @pytest.mark.parametrize("cugraph_input_type", utils.CUGRAPH_INPUT_TYPES)
-def test_bfs(gpubenchmark, dataset_nxresults_startvertex_spc,
-             cugraph_input_type):
+def test_bfs(gpubenchmark, dataset_nxresults_startvertex_spc, cugraph_input_type):
     """
     Test BFS traversal on random source with distance and predecessors
     """
-    (dataset, directed, nx_values, start_vertex, depth_limit) = \
-        dataset_nxresults_startvertex_spc
+    (
+        G,
+        dataset,
+        directed,
+        nx_values,
+        start_vertex,
+        depth_limit,
+    ) = dataset_nxresults_startvertex_spc
 
     # special case: ensure cugraph and Nx Graph types are DiGraphs if
     # "directed" is set, since the graph type parameterization is currently
@@ -390,59 +405,54 @@ def test_bfs(gpubenchmark, dataset_nxresults_startvertex_spc,
         elif cugraph_input_type is nx.Graph:
             cugraph_input_type = nx.DiGraph
 
-    G_or_matrix = utils.create_obj_from_csv(dataset, cugraph_input_type)
+    if not isinstance(cugraph_input_type, (cugraph.Graph, cugraph.DiGraph)):
+        G_or_matrix = utils.create_obj_from_csv(dataset, cugraph_input_type)
+    else:
+        G_or_matrix = G
 
-    compare_bfs(
-        gpubenchmark,
-        G_or_matrix, nx_values, start_vertex, depth_limit)
+    compare_bfs(gpubenchmark, G_or_matrix, nx_values, start_vertex, depth_limit)
 
 
-@pytest.mark.parametrize("cugraph_input_type",
-                         utils.NX_INPUT_TYPES + utils.MATRIX_INPUT_TYPES)
-def test_bfs_nonnative_inputs(gpubenchmark,
-                              single_dataset_nxresults_startvertex_spc,
-                              cugraph_input_type):
-    test_bfs(gpubenchmark,
-             single_dataset_nxresults_startvertex_spc,
-             cugraph_input_type)
+@pytest.mark.parametrize(
+    "cugraph_input_type", utils.NX_INPUT_TYPES + utils.MATRIX_INPUT_TYPES
+)
+def test_bfs_nonnative_inputs(
+    gpubenchmark, single_dataset_nxresults_startvertex_spc, cugraph_input_type
+):
+    test_bfs(gpubenchmark, single_dataset_nxresults_startvertex_spc, cugraph_input_type)
 
 
 @pytest.mark.parametrize("cugraph_input_type", utils.CUGRAPH_INPUT_TYPES)
-def test_bfs_invalid_start(gpubenchmark,
-                           dataset_nxresults_startvertex_spc,
-                           cugraph_input_type):
-    (dataset, directed, nx_values, start_vertex, depth_limit) = \
-        dataset_nxresults_startvertex_spc
-
-    # renumber the dataset so that start vertex is no longer a valid vertex
-    el = cudf.read_csv(
+def test_bfs_invalid_start(
+    gpubenchmark, dataset_nxresults_startvertex_spc, cugraph_input_type
+):
+    (
+        G,
         dataset,
-        sep=' ',
-        names=['src', 'tar', 'w'],
-        dtype=['int32', 'int32', 'float32']
-    ).dropna()
-    newval = max(el.src.max(), el.tar.max()) + 1
-    el.src = el.src.replace(start_vertex, newval)
-    el.tar = el.tar.replace(start_vertex, newval)
-    G = cugraph.from_cudf_edgelist(
-        el,
-        source='src',
-        destination='tar',
-        edge_attr='w',
-        renumber=True
-    )
+        directed,
+        nx_values,
+        start_vertex,
+        depth_limit,
+    ) = dataset_nxresults_startvertex_spc
+
+    el = G.view_edge_list()
+
+    newval = max(el.src.max(), el.dst.max()) + 1
+    start_vertex = newval
 
     with pytest.raises(ValueError):
         cugraph.bfs(G, start_vertex, depth_limit=depth_limit)
 
 
 def test_scipy_api_compat():
-    graph_file = utils.DATASETS[0]
+    graph_file = datasets.DATASETS[0]
+    dataset_path = graph_file.get_path()
 
-    input_cugraph_graph = utils.create_obj_from_csv(graph_file, cugraph.Graph,
-                                                    edgevals=True)
-    input_coo_matrix = utils.create_obj_from_csv(graph_file, cp_coo_matrix,
-                                                 edgevals=True)
+    input_cugraph_graph = graph_file.get_graph(ignore_weights=True)
+
+    input_coo_matrix = utils.create_obj_from_csv(
+        dataset_path, cp_coo_matrix, edgevals=True
+    )
     # Ensure scipy-only options are rejected for cugraph inputs
     with pytest.raises(TypeError):
         cugraph.bfs(input_cugraph_graph, start=0, directed=False)

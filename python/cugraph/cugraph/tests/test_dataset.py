@@ -17,8 +17,7 @@ import yaml
 import os
 from pathlib import Path
 from tempfile import NamedTemporaryFile, TemporaryDirectory
-from cugraph.experimental.datasets import (ALL_DATASETS, ALL_DATASETS_WGT,
-                                           SMALL_DATASETS)
+from cugraph.experimental.datasets import ALL_DATASETS, ALL_DATASETS_WGT, SMALL_DATASETS
 from cugraph.structure import Graph
 
 
@@ -33,6 +32,7 @@ dataset_path = Path(__file__).parents[4] / "datasets"
 @pytest.fixture
 def datasets():
     from cugraph.experimental import datasets
+
     yield datasets
     del datasets
     clear_locals()
@@ -54,10 +54,10 @@ def create_config(custom_path="custom_storage_location"):
                     download_dir: None
                     """
     c = yaml.safe_load(config_yaml)
-    c['download_dir'] = custom_path
+    c["download_dir"] = custom_path
 
     outfile = NamedTemporaryFile()
-    with open(outfile.name, 'w') as f:
+    with open(outfile.name, "w") as f:
         yaml.dump(c, f, sort_keys=False)
 
     return outfile
@@ -65,13 +65,13 @@ def create_config(custom_path="custom_storage_location"):
 
 # setting download_dir to None effectively re-initialized the default
 def test_env_var(datasets):
-    os.environ['RAPIDS_DATASET_ROOT_DIR'] = 'custom_storage_location'
+    os.environ["RAPIDS_DATASET_ROOT_DIR"] = "custom_storage_location"
     datasets.set_download_dir(None)
 
     expected_path = Path("custom_storage_location").absolute()
     assert datasets.get_download_dir() == expected_path
 
-    del os.environ['RAPIDS_DATASET_ROOT_DIR']
+    del os.environ["RAPIDS_DATASET_ROOT_DIR"]
 
 
 def test_home_dir(datasets):
@@ -85,8 +85,7 @@ def test_set_config(datasets):
     cfg = create_config()
     datasets.set_config(cfg.name)
 
-    assert datasets.get_download_dir() == \
-           Path("custom_storage_location").absolute()
+    assert datasets.get_download_dir() == Path("custom_storage_location").absolute()
 
     cfg.close()
 
@@ -100,6 +99,9 @@ def test_set_download_dir(datasets):
     tmpd.cleanup()
 
 
+@pytest.mark.skip(
+    reason="Timeout errors; see: https://github.com/rapidsai/cugraph/issues/2810"
+)
 def test_load_all(datasets):
     tmpd = TemporaryDirectory()
     cfg = create_config(custom_path=tmpd.name)
@@ -107,8 +109,9 @@ def test_load_all(datasets):
     datasets.load_all()
 
     for data in datasets.ALL_DATASETS:
-        file_path = Path(tmpd.name) / (data.metadata['name'] +
-                                       data.metadata['file_type'])
+        file_path = Path(tmpd.name) / (
+            data.metadata["name"] + data.metadata["file_type"]
+        )
         assert file_path.is_file()
 
     tmpd.cleanup()
@@ -159,13 +162,6 @@ def test_get_path(dataset, datasets):
 
     assert dataset.get_path().is_file()
     tmpd.cleanup()
-
-
-# Path is None until a dataset initializes its edgelist
-@pytest.mark.parametrize("dataset", ALL_DATASETS)
-def test_get_path_raises(dataset):
-    with pytest.raises(RuntimeError):
-        dataset.get_path()
 
 
 @pytest.mark.parametrize("dataset", ALL_DATASETS_WGT)

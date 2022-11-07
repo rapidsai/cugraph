@@ -12,6 +12,7 @@
 # limitations under the License.
 
 import cudf
+<<<<<<< HEAD
 from pylibcugraph import (k_core as pylibcugraph_k_core,
                           ResourceHandle
                           )
@@ -21,6 +22,30 @@ from cugraph.utilities import (ensure_cugraph_obj_for_nx,
 
 
 def k_core(G, k=None, degree_type=None, core_number=None):
+=======
+from pylibcugraph import core_number as pylibcugraph_core_number, ResourceHandle
+from cugraph.utilities import (
+    ensure_cugraph_obj_for_nx,
+    cugraph_to_nx,
+)
+
+
+def _call_plc_core_number(G):
+    vertex, core_number = pylibcugraph_core_number(
+        resource_handle=ResourceHandle(),
+        graph=G._plc_graph,
+        degree_type=None,
+        do_expensive_check=False,
+    )
+
+    df = cudf.DataFrame()
+    df["vertex"] = vertex
+    df["core_number"] = core_number
+    return df
+
+
+def k_core(G, k=None, core_number=None):
+>>>>>>> upstream/branch-22.12
     """
     Compute the k-core of the graph G based on the out degree of its nodes. A
     k-core of a graph is a maximal subgraph that contains nodes of degree k or
@@ -83,9 +108,8 @@ def k_core(G, k=None, degree_type=None, core_number=None):
             if len(G.renumber_map.implementation.col_names) > 1:
                 cols = core_number.columns[:-1].to_list()
             else:
-                cols = 'vertex'
-            core_number = G.add_internal_vertex_id(core_number, 'vertex',
-                                                   cols)
+                cols = "vertex"
+            core_number = G.add_internal_vertex_id(core_number, "vertex", cols)
 
     if k is None:
         # FIXME: update this with the max core_number value
@@ -115,12 +139,13 @@ def k_core(G, k=None, degree_type=None, core_number=None):
 
     if G.edgelist.weights:
         KCoreGraph.from_cudf_edgelist(
-            k_core_df, source=src_names, destination=dst_names,
-            edge_attr="weight"
+            k_core_df, source=src_names, destination=dst_names, edge_attr="weight"
         )
     else:
         KCoreGraph.from_cudf_edgelist(
-            k_core_df, source=src_names, destination=dst_names,
+            k_core_df,
+            source=src_names,
+            destination=dst_names,
         )
 
     if isNx is True:

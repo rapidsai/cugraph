@@ -17,9 +17,11 @@ import pytest
 import cudf
 import dask_cudf
 
-from cugraph.dask.common.mg_utils import (is_single_gpu,
-                                          setup_local_dask_cluster,
-                                          teardown_local_dask_cluster)
+from cugraph.dask.common.mg_utils import (
+    is_single_gpu,
+    setup_local_dask_cluster,
+    teardown_local_dask_cluster,
+)
 from cugraph.generators import rmat
 import cugraph
 
@@ -34,8 +36,7 @@ _scale_test_ids = [f"scale={x}" for x in _scale_values]
 _mg_values = [False, True]
 _mg_test_ids = [f"mg={x}" for x in _mg_values]
 _graph_types = [cugraph.Graph, None, int]
-_graph_test_ids = [f"create_using={getattr(x,'__name__',str(x))}"
-                   for x in _graph_types]
+_graph_test_ids = [f"create_using={getattr(x,'__name__',str(x))}" for x in _graph_types]
 
 
 def _call_rmat(scale, num_edges, create_using, mg):
@@ -43,16 +44,18 @@ def _call_rmat(scale, num_edges, create_using, mg):
     Simplifies calling RMAT by requiring only specific args that are varied by
     these tests and hard-coding all others.
     """
-    return rmat(scale=scale,
-                num_edges=num_edges,
-                a=0.57,  # from Graph500
-                b=0.19,  # from Graph500
-                c=0.19,  # from Graph500
-                seed=24,
-                clip_and_flip=False,
-                scramble_vertex_ids=True,
-                create_using=create_using,
-                mg=mg)
+    return rmat(
+        scale=scale,
+        num_edges=num_edges,
+        a=0.57,  # from Graph500
+        b=0.19,  # from Graph500
+        c=0.19,  # from Graph500
+        seed=24,
+        clip_and_flip=False,
+        scramble_vertex_ids=True,
+        create_using=create_using,
+        mg=mg,
+    )
 
 
 ###############################################################################
@@ -62,7 +65,7 @@ def setup_module():
     global _visible_devices
     if not _is_single_gpu:
         (_cluster, _client) = setup_local_dask_cluster(p2p=True)
-        _visible_devices = _client.scheduler_info()['workers']
+        _visible_devices = _client.scheduler_info()["workers"]
 
 
 def teardown_module():
@@ -80,7 +83,7 @@ def test_rmat_edgelist(scale, mg):
     if mg and _is_single_gpu:
         pytest.skip("skipping MG testing on Single GPU system")
 
-    num_edges = (2**scale)*4
+    num_edges = (2**scale) * 4
     create_using = None  # Returns the edgelist from RMAT
 
     df = _call_rmat(scale, num_edges, create_using, mg)
@@ -105,10 +108,9 @@ def test_rmat_return_type(graph_type, mg):
         pytest.skip("skipping MG testing on Single GPU system")
 
     scale = 2
-    num_edges = (2**scale)*4
+    num_edges = (2**scale) * 4
 
-    if (mg and (graph_type is not None)) or \
-       (graph_type not in [cugraph.Graph, None]):
+    if (mg and (graph_type is not None)) or (graph_type not in [cugraph.Graph, None]):
         with pytest.raises(TypeError):
             _call_rmat(scale, num_edges, graph_type, mg)
 
@@ -116,7 +118,6 @@ def test_rmat_return_type(graph_type, mg):
         G_or_df = _call_rmat(scale, num_edges, graph_type, mg)
 
         if graph_type is None:
-            assert type(G_or_df) is dask_cudf.DataFrame if mg \
-                                 else cudf.DataFrame
+            assert type(G_or_df) is dask_cudf.DataFrame if mg else cudf.DataFrame
         else:
             assert type(G_or_df) is graph_type

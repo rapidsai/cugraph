@@ -18,10 +18,7 @@ from pylibcugraph.components._connectivity import (
 
 from pylibcugraph import experimental
 
-from pylibcugraph.graphs import (
-    SGGraph,
-    MGGraph
-)
+from pylibcugraph.graphs import SGGraph, MGGraph
 
 from pylibcugraph.resource_handle import ResourceHandle
 
@@ -48,5 +45,7 @@ from pylibcugraph.uniform_neighbor_sample import uniform_neighbor_sample
 from pylibcugraph.core_number import core_number
 
 from pylibcugraph.k_core import k_core
+
+from pylibcugraph.louvain import louvain
 
 from pylibcugraph.triangle_count import triangle_count

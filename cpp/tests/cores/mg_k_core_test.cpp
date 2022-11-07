@@ -149,7 +149,8 @@ class Tests_KCore : public ::testing::TestWithParam<std::tuple<KCore_Usecase, in
                                     handle, graph_view, k_core_usecase.k, std::nullopt, std::nullopt, std::make_optional(core_number_span));
 #else
     EXPECT_THROW(
-      cugraph::k_core(handle, graph_view, k_core_usecase.k, std::nullopt, std::make_optional(core_number_span)),
+      cugraph::k_core(
+        handle, graph_view, k_core_usecase.k, std::nullopt, std::make_optional(core_number_span)),
       cugraph::logic_error);
 #endif
 
