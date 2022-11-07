@@ -2002,6 +2002,62 @@ def test_vertex_vector_property(df_type):
         pG.vertex_vector_property_to_array(42, "vec1")
 
 
+@pytest.mark.parametrize("df_type", df_types, ids=df_type_id)
+def test_edge_vector_property(df_type):
+    from cugraph.experimental import PropertyGraph
+
+    if df_type is cudf.DataFrame:
+        assert_array_equal = cupy.testing.assert_array_equal
+    else:
+        assert_array_equal = np.testing.assert_array_equal
+    df1 = df_type(
+        {
+            "src": [0, 1],
+            "dst": [1, 2],
+            "feat_0": [1, 2],
+            "feat_1": [10, 20],
+            "feat_2": [10, 20],
+        }
+    )
+    df2 = df_type(
+        {
+            "src": [2, 3],
+            "dst": [1, 2],
+            "feat_0": [0.5, 0.2],
+            "feat_1": [1.5, 1.2],
+        }
+    )
+    pG = PropertyGraph()
+    pG.add_edge_data(
+        df1, ("src", "dst"), vector_properties={"vec1": ["feat_0", "feat_1", "feat_2"]}
+    )
+    df = pG.get_edge_data()
+    expected_columns = {
+        pG.edge_id_col_name,
+        pG.src_col_name,
+        pG.dst_col_name,
+        pG.type_col_name,
+        "vec1",
+    }
+    assert set(df.columns) == expected_columns
+    expected = df1[["feat_0", "feat_1", "feat_2"]].values
+    vec1 = pG.edge_vector_property_to_array(df, "vec1")
+    assert_array_equal(vec1, expected)
+    vec1 = pG.edge_vector_property_to_array(df, "vec1", ignore_empty=False)
+    assert_array_equal(vec1, expected)
+    pG.add_edge_data(
+        df2, ("src", "dst"), vector_properties={"vec2": ["feat_0", "feat_1"]}
+    )
+    df = pG.get_edge_data()
+    expected_columns.add("vec2")
+    assert set(df.columns) == expected_columns
+    expected = df2[["feat_0", "feat_1"]].values
+    vec2 = pG.edge_vector_property_to_array(df, "vec2")
+    assert_array_equal(vec2, expected)
+    with pytest.raises(RuntimeError):
+        pG.edge_vector_property_to_array(df, "vec2", ignore_empty=False)
+
+
 @pytest.mark.skip(reason="feature not implemented")
 def test_single_csv_multi_vertex_edge_attrs():
     """

@@ -363,7 +363,14 @@ class EXPERIMENTAL__PropertyGraph:
             List of column names in dataframe to be added as properties. All
             other columns in dataframe will be ignored. If not specified, all
             columns in dataframe are added.
-        vector_properties : dict of list of strings
+        vector_properties : dict of string to list of strings, optional
+            A dict of vector properties to create from columns in the dataframe.
+            Each vector property stores an array for each vertex.
+            The dict keys are the new vector property names, and the dict values
+            should be Python lists of column names from which to create the vector
+            property. Columns used to create vector properties won't be added to
+            the property graph by default, but may be included as properties by
+            including them in the property_columns argument.
 
         Returns
         -------
@@ -424,38 +431,12 @@ class EXPERIMENTAL__PropertyGraph:
             invalid_keys = {self.vertex_col_name, TCN}
             if property_columns:
                 invalid_keys.update(property_columns)
-            df_cols = set(dataframe.columns)
-            for key, columns in vector_properties.items():
-                if key in invalid_keys:
-                    raise ValueError(
-                        "Cannot assign new vector property to existing "
-                        f"non-vector property: {key}"
-                    )
-                if isinstance(columns, str):
-                    # TODO: check if valid type instead
-                    raise TypeError(
-                        f"vector property columns for {key!r} should be a list; "
-                        f"got a str ({columns!r})"
-                    )
-                if not df_cols.issuperset(columns):
-                    missing = ", ".join(set(columns) - df_cols)
-                    raise ValueError(
-                        f"Dataframe does not have columns for vector property {key!r}:"
-                        f"{missing}"
-                    )
-                if not columns:
-                    raise ValueError("Empty vector property columns for {key!r}!")
-                if self.__vertex_vector_property_lengths.get(key, len(columns)) != len(
-                    columns
-                ):
-                    prev_length = self.__vertex_vector_property_lengths[key]
-                    new_length = len(columns)
-                    raise ValueError(
-                        f"Wrong size for vector property {key}; got {new_length}, but "
-                        f"this vector property already exists with size {prev_length}"
-                    )
-            for key, columns in vector_properties.items():
-                self.__vertex_vector_property_lengths[key] = len(columns)
+            self._check_vector_properties(
+                dataframe,
+                vector_properties,
+                self.__vertex_vector_property_lengths,
+                invalid_keys,
+            )
 
         # Clear the cached values related to the number of vertices since more
         # could be added in this method.
@@ -529,23 +510,7 @@ class EXPERIMENTAL__PropertyGraph:
                 more_to_drop.difference_update(property_columns)
             column_names_to_drop |= more_to_drop
             column_names_to_drop -= vector_properties.keys()
-
-            if self.__series_type is cudf.Series:
-                ascontiguousarray = cupy.ascontiguousarray
-            else:
-                ascontiguousarray = np.ascontiguousarray
-            # Make each vector contigous and 1-d
-            vectors = {
-                key: [
-                    np.squeeze(vec, 0)
-                    for vec in np.split(
-                        ascontiguousarray(tmp_df[columns].values), len(tmp_df)
-                    )
-                ]
-                for key, columns in vector_properties.items()
-            }
-            for key, vec in vectors.items():
-                tmp_df[key] = vec
+            self._create_vector_properties(tmp_df, vector_properties)
 
         tmp_df.drop(labels=column_names_to_drop, axis=1, inplace=True)
 
@@ -621,6 +586,7 @@ class EXPERIMENTAL__PropertyGraph:
         edge_id_col_name=None,
         type_name=None,
         property_columns=None,
+        vector_properties=None,
     ):
         """
         Add a dataframe describing edge properties to the PropertyGraph.
@@ -647,6 +613,14 @@ class EXPERIMENTAL__PropertyGraph:
             List of column names in dataframe to be added as properties. All
             other columns in dataframe will be ignored. If not specified, all
             columns in dataframe are added.
+        vector_properties : dict of string to list of strings, optional
+            A dict of vector properties to create from columns in the dataframe.
+            Each vector property stores an array for each edge.
+            The dict keys are the new vector property names, and the dict values
+            should be Python lists of column names from which to create the vector
+            property. Columns used to create vector properties won't be added to
+            the property graph by default, but may be included as properties by
+            including them in the property_columns argument.
 
         Returns
         -------
@@ -699,6 +673,14 @@ class EXPERIMENTAL__PropertyGraph:
                     "found in dataframe: "
                     f"{list(invalid_columns)}"
                 )
+            existing_vectors = (
+                set(property_columns) & self.__vertex_vector_property_lengths.keys()
+            )
+            if existing_vectors:
+                raise ValueError(
+                    "Non-vector property columns cannot be added to existing "
+                    f"vector properties: {', '.join(sorted(existing_vectors))}"
+                )
 
         # Save the DataFrame and Series types for future instantiations
         if (self.__dataframe_type is None) or (self.__series_type is None):
@@ -724,12 +706,23 @@ class EXPERIMENTAL__PropertyGraph:
                 "edge data must be added using automatically generated IDs."
             )
 
+        TCN = self.type_col_name
+        if vector_properties is not None:
+            invalid_keys = {self.src_col_name, self.dst_col_name, TCN}
+            if property_columns:
+                invalid_keys.update(property_columns)
+            self._check_vector_properties(
+                dataframe,
+                vector_properties,
+                self.__edge_vector_property_lengths,
+                invalid_keys,
+            )
+
         # Clear the cached value for num_vertices since more could be added in
         # this method. This method cannot affect __node_type_value_counts
         self.__num_vertices = None
         self.__edge_type_value_counts = None  # Could update instead
 
-        TCN = self.type_col_name
         default_edge_columns = [self.src_col_name, self.dst_col_name, TCN]
         if self.__edge_prop_dataframe is None:
             self.__edge_prop_dataframe = self.__dataframe_type(
@@ -804,6 +797,16 @@ class EXPERIMENTAL__PropertyGraph:
             )
         else:
             column_names_to_drop = {vertex_col_names[0], vertex_col_names[1]}
+
+        if vector_properties:
+            # Drop vector property source columns by default
+            more_to_drop = set().union(*vector_properties.values())
+            if property_columns is not None:
+                more_to_drop.difference_update(property_columns)
+            column_names_to_drop |= more_to_drop
+            column_names_to_drop -= vector_properties.keys()
+            self._create_vector_properties(tmp_df, vector_properties)
+
         tmp_df.drop(labels=column_names_to_drop, axis=1, inplace=True)
 
         # Save the original dtypes for each new column so they can be restored
@@ -1377,6 +1380,57 @@ class EXPERIMENTAL__PropertyGraph:
             raise ValueError(f"{col_name!r} is not a known edge vector property")
         length = self.__edge_vector_property_lengths[col_name]
         return self._get_vector_property(df, col_name, length, ignore_empty)
+
+    def _check_vector_properties(
+        self, df, vector_properties, vector_property_lengths, invalid_keys
+    ):
+        """Check if vector_properties is valid and update vector_property_lengths"""
+        df_cols = set(df.columns)
+        for key, columns in vector_properties.items():
+            if key in invalid_keys:
+                raise ValueError(
+                    "Cannot assign new vector property to existing "
+                    f"non-vector property: {key}"
+                )
+            if isinstance(columns, str):
+                # If df[columns] is a ListDtype column, should we allow it?
+                raise TypeError(
+                    f"vector property columns for {key!r} should be a list; "
+                    f"got a str ({columns!r})"
+                )
+            if not df_cols.issuperset(columns):
+                missing = ", ".join(set(columns) - df_cols)
+                raise ValueError(
+                    f"Dataframe does not have columns for vector property {key!r}:"
+                    f"{missing}"
+                )
+            if not columns:
+                raise ValueError("Empty vector property columns for {key!r}!")
+            if vector_property_lengths.get(key, len(columns)) != len(columns):
+                prev_length = vector_property_lengths[key]
+                new_length = len(columns)
+                raise ValueError(
+                    f"Wrong size for vector property {key}; got {new_length}, but "
+                    f"this vector property already exists with size {prev_length}"
+                )
+        for key, columns in vector_properties.items():
+            vector_property_lengths[key] = len(columns)
+
+    def _create_vector_properties(self, df, vector_properties):
+        if self.__series_type is cudf.Series:
+            ascontiguousarray = cupy.ascontiguousarray
+        else:
+            ascontiguousarray = np.ascontiguousarray
+        # Make each vector contigous and 1-d
+        vectors = {
+            key: [
+                np.squeeze(vec, 0)
+                for vec in np.split(ascontiguousarray(df[columns].values), len(df))
+            ]
+            for key, columns in vector_properties.items()
+        }
+        for key, vec in vectors.items():
+            df[key] = vec
 
     def _get_vector_property(self, df, col_name, length, ignore_empty):
         if type(df) is not self.__dataframe_type:
