@@ -540,7 +540,7 @@ class CuGraphRemoteStore(BaseCuGraphStore):
             del self.extracted_reverse_subgraphs_per_type
 
 
-def create_dlpack_results_from_arrays(sampled_result_arrays, etypes: list[str]):
+def create_dlpack_results_from_arrays(sampled_result_arrays, etypes):
     # TODO: Extend to pytorch/numpy/etc
     if len(etypes) <= 1:
         s, d, e_id = sampled_result_arrays
