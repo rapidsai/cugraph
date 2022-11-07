@@ -12,9 +12,9 @@
 # the License.
 # =============================================================================
 
-cmake_minimum_required(VERSION 3.20.1 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.23.1 FATAL_ERROR)
 
-set(pylibcugraph_version 22.10.00)
+set(pylibcugraph_version 22.12.00)
 
 include(../../fetch_rapids.cmake)
 
@@ -38,12 +38,29 @@ option(FIND_CUGRAPH_CPP "Search for existing CUGRAPH C++ installations before de
 
 if(FIND_CUGRAPH_CPP)
   message(STATUS "Trying to find the package")
+  include(rapids-cpm)
+  rapids_cpm_init()
+  include(rapids-cuda)
+  rapids_cuda_init_architectures(pylibcugraph-python)
+  enable_language(CUDA)
+
+  set(CUGRAPH_VERSION_MAJOR "${pylibcugraph-python_VERSION_MAJOR}")
+  set(CUGRAPH_VERSION_MINOR "${pylibcugraph-python_VERSION_MINOR}")
+
+
+  # We need to call get_raft due to cuML asking for raft::nn and
+  # raft::distance targets
+  # see issue https://github.com/rapidsai/cuml/issues/4843
+  include(../../cpp/cmake/thirdparty/get_raft.cmake)
+
   find_package(cugraph ${cugraph_version} REQUIRED)
 else()
   set(cugraph_FOUND OFF)
 endif()
 
 message(STATUS "check if it was found ${cugraph_FOUND}")
+
+include(rapids-cython)
 
 if(NOT cugraph_FOUND)
   # TODO: This will not be necessary once we upgrade to CMake 3.22, which will pull in the required
@@ -57,13 +74,21 @@ if(NOT cugraph_FOUND)
   
   include("${CMAKE_PROJECT_pylibcugraph-python_INCLUDE}")
 
+  set(CUGRAPH_VERSION_MAJOR "${pylibcugraph-python_VERSION_MAJOR}")
+  set(CUGRAPH_VERSION_MINOR "${pylibcugraph-python_VERSION_MINOR}")
+
+  include(../../cpp/cmake/thirdparty/get_raft.cmake)
+
   add_subdirectory(../../cpp cugraph-cpp)
 
-  install(TARGETS cugraph DESTINATION pylibcugraph/library)
+  set(cython_lib_dir pylibcugraph)
+  install(TARGETS cugraph DESTINATION ${cython_lib_dir})
 endif()
 
-
-include(rapids-cython)
 rapids_cython_init()
 
 add_subdirectory(pylibcugraph)
+
+if(DEFINED cython_lib_dir)
+  rapids_cython_add_rpath_entries(TARGET cugraph PATHS "${cython_lib_dir}")
+endif()

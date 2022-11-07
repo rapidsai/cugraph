@@ -48,7 +48,7 @@ export DATASETS_DIR=${WORKSPACE}/datasets
 export BENCHMARKS_DIR=${WORKSPACE}/benchmarks
 
 # ucx-py version
-export UCX_PY_VERSION='0.28.*'
+export UCX_PY_VERSION='0.29.*'
 
 ##########################################
 # Environment Setup                      #
@@ -71,7 +71,7 @@ CUGRAPH_DEPS=(cudf rmm)
 LIBCUGRAPH_DEPS=(cudf rmm)
 
 gpuci_logger "Install required packages"
-gpuci_mamba_retry install -c nvidia -c rapidsai -c rapidsai-nightly -c conda-forge \
+gpuci_mamba_retry install -c rapidsai -c rapidsai-nightly -c conda-forge -c nvidia \
       "cudf=${MINOR_VERSION}" \
       "rmm=${MINOR_VERSION}" \
       "cudatoolkit=$CUDA_REL" \

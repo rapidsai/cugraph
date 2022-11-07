@@ -23,7 +23,7 @@ from libcpp.vector cimport vector
 
 from rmm._lib.device_buffer cimport device_buffer
 
-from raft.common.handle cimport handle_t
+from pylibraft.common.handle cimport handle_t
 
 
 # C++ graph utilities
@@ -62,22 +62,6 @@ cdef extern from "cugraph/utilities/cython.hpp" namespace "cugraph::cython":
         LegacyCSR "cugraph::cython::graphTypeEnum::LegacyCSR"
         LegacyCSC "cugraph::cython::graphTypeEnum::LegacyCSC"
         LegacyCOO "cugraph::cython::graphTypeEnum::LegacyCOO"
-
-    cdef void populate_graph_container_legacy(
-        graph_container_t &graph_container,
-        graphTypeEnum legacyType,
-        const handle_t &handle,
-        void *offsets,
-        void *indices,
-        void *weights,
-        numberTypeEnum offsetType,
-        numberTypeEnum indexType,
-        numberTypeEnum weightType,
-        size_t num_global_vertices,
-        size_t num_global_edges,
-        int *local_vertices,
-        int *local_edges,
-        int *local_offsets) except +
 
     cdef cppclass cy_multi_edgelists_t:
         size_t number_of_vertices

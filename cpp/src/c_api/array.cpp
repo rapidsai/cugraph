@@ -21,15 +21,57 @@
 namespace cugraph {
 namespace c_api {
 
-cugraph::visitors::DTypes dtypes_mapping[] = {cugraph::visitors::DTypes::INT32,
-                                              cugraph::visitors::DTypes::INT64,
-                                              cugraph::visitors::DTypes::FLOAT32,
-                                              cugraph::visitors::DTypes::FLOAT64};
+cugraph::visitors::DTypes dtypes_mapping[] = {
+  cugraph::visitors::DTypes::INT32,
+  cugraph::visitors::DTypes::INT64,
+  cugraph::visitors::DTypes::FLOAT32,
+  cugraph::visitors::DTypes::FLOAT64,
+  cugraph::visitors::DTypes::SIZE_T,
+};
 
-size_t data_type_sz[] = {4, 8, 4, 8};
+size_t data_type_sz[] = {4, 8, 4, 8, 8};
 
 }  // namespace c_api
 }  // namespace cugraph
+
+extern "C" cugraph_error_code_t cugraph_type_erased_device_array_create_from_view(
+  const cugraph_resource_handle_t* handle,
+  const cugraph_type_erased_device_array_view_t* view,
+  cugraph_type_erased_device_array_t** array,
+  cugraph_error_t** error)
+{
+  *array = nullptr;
+  *error = nullptr;
+
+  try {
+    if (!handle) {
+      *error = reinterpret_cast<cugraph_error_t*>(
+        new cugraph::c_api::cugraph_error_t{"invalid resource handle"});
+      return CUGRAPH_INVALID_HANDLE;
+    }
+
+    auto p_handle = reinterpret_cast<cugraph::c_api::cugraph_resource_handle_t const*>(handle);
+    auto internal_pointer =
+      reinterpret_cast<cugraph::c_api::cugraph_type_erased_device_array_view_t const*>(view);
+
+    size_t n_bytes =
+      internal_pointer->size_ * (cugraph::c_api::data_type_sz[internal_pointer->type_]);
+
+    auto ret_value = new cugraph::c_api::cugraph_type_erased_device_array_t(
+      internal_pointer->size_, n_bytes, internal_pointer->type_, p_handle->handle_->get_stream());
+
+    raft::copy(reinterpret_cast<byte_t*>(ret_value->data_.data()),
+               reinterpret_cast<byte_t const*>(internal_pointer->data_),
+               internal_pointer->num_bytes(),
+               p_handle->handle_->get_stream());
+
+    *array = reinterpret_cast<cugraph_type_erased_device_array_t*>(ret_value);
+    return CUGRAPH_SUCCESS;
+  } catch (std::exception const& ex) {
+    *error = reinterpret_cast<cugraph_error_t*>(new cugraph::c_api::cugraph_error_t{ex.what()});
+    return CUGRAPH_UNKNOWN_ERROR;
+  }
+}
 
 extern "C" cugraph_error_code_t cugraph_type_erased_device_array_create(
   const cugraph_resource_handle_t* handle,

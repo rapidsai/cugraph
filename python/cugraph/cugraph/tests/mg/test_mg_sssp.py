@@ -14,10 +14,12 @@
 import pytest
 import cugraph.dask as dcg
 import gc
+
 # import pytest
 import cugraph
 import dask_cudf
 import cudf
+
 # from cugraph.dask.common.mg_utils import is_single_gpu
 from cugraph.testing.utils import RAPIDS_DATASET_ROOT_DIR_PATH
 
@@ -39,8 +41,7 @@ IS_DIRECTED = [True, False]
 @pytest.mark.parametrize("directed", IS_DIRECTED)
 def test_dask_sssp(dask_client, directed):
 
-    input_data_path = (RAPIDS_DATASET_ROOT_DIR_PATH /
-                       "netscience.csv").as_posix()
+    input_data_path = (RAPIDS_DATASET_ROOT_DIR_PATH / "netscience.csv").as_posix()
     print(f"dataset={input_data_path}")
     chunksize = dcg.get_chunksize(input_data_path)
 
@@ -63,7 +64,7 @@ def test_dask_sssp(dask_client, directed):
     g.from_cudf_edgelist(df, "src", "dst", "value", renumber=True)
 
     dg = cugraph.Graph(directed=directed)
-    dg.from_dask_cudf_edgelist(ddf, "src", "dst", "value")
+    dg.from_dask_cudf_edgelist(ddf, "src", "dst", "value", legacy_renum_only=True)
 
     expected_dist = cugraph.sssp(g, 0)
     print(expected_dist)

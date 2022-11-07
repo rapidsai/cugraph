@@ -166,7 +166,8 @@ class Tests_EigenvectorCentrality
     }
 
     if (eigenvector_usecase.check_correctness) {
-      auto [dst_v, src_v, opt_wgt_v] = graph_view.decompress_to_edgelist(handle, std::nullopt);
+      auto [dst_v, src_v, opt_wgt_v] = cugraph::decompress_to_edgelist(
+        handle, graph_view, std::optional<raft::device_span<vertex_t const>>{std::nullopt});
 
       auto h_src     = cugraph::test::to_host(handle, src_v);
       auto h_dst     = cugraph::test::to_host(handle, dst_v);

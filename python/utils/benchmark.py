@@ -1,4 +1,4 @@
-# Copyright (c) 2018-2020, NVIDIA CORPORATION.
+# Copyright (c) 2018-2022, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -57,7 +57,7 @@ class Benchmark:
 
             for i in range(n):
                 if n > 1:
-                    print(i+1, end="...", flush=True)
+                    print(i + 1, end="...", flush=True)
                 gpuPollObj = startGpuMetricPolling()
                 # st = process_time_ns()
                 st = clock_gettime(CLOCK_MONOTONIC_RAW)
@@ -74,8 +74,13 @@ class Benchmark:
 
         except Exception as e:
             funcResultsDict["ERROR"] = str(e)
-            print("   %s | %s" % ("ERROR".ljust(self.metricNameCellWidth),
-                                  str(e).ljust(self.valueCellWidth)))
+            print(
+                "   %s | %s"
+                % (
+                    "ERROR".ljust(self.metricNameCellWidth),
+                    str(e).ljust(self.valueCellWidth),
+                )
+            )
             stopGpuMetricPolling(gpuPollObj)
             return
 
@@ -85,9 +90,14 @@ class Benchmark:
 
         for metricName in ["exeTime", "maxGpuUtil", "maxGpuMemUsed"]:
             val = funcResultsDict[metricName]
-            print("   %s | %s" % (metricName.ljust(self.metricNameCellWidth),
-                                  str(val).ljust(self.valueCellWidth)),
-                  flush=True)
+            print(
+                "   %s | %s"
+                % (
+                    metricName.ljust(self.metricNameCellWidth),
+                    str(val).ljust(self.valueCellWidth),
+                ),
+                flush=True,
+            )
 
         return retVal
 
@@ -98,9 +108,8 @@ class Benchmark:
         """
         avg = np.mean(vals)
         std = np.std(vals)
-        filtered = [x for x in vals if
-                    ((avg - (2*std)) <= x <= (avg + (2*std)))]
-        if(len(filtered) != len(vals)):
+        filtered = [x for x in vals if ((avg - (2 * std)) <= x <= (avg + (2 * std)))]
+        if len(filtered) != len(vals):
             print("filtered outliers: %s" % (set(vals) - set(filtered)))
 
         return np.average(filtered)

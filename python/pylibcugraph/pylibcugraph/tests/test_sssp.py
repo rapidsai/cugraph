@@ -22,69 +22,276 @@ import numpy as np
 
 # Map the names of input data to expected pagerank output
 # The result names correspond to the datasets defined in conftest.py
-_test_data = {"karate.csv": {
-                  "start_vertex": 1,
-                  "vertex": cp.asarray(range(34), dtype=np.int32),
-                  "distance": cp.asarray(
-                      [1., 0., 1., 1., 2., 2., 2., 1., 2., 2., 2., 2., 2., 1.,
-                       3., 3., 3., 1., 3., 1., 3., 1., 3., 3., 3., 3., 3., 2.,
-                       2., 3., 1., 2., 2., 2.,
-                       ],
-                      dtype=np.float32),
-                  "predecessor": cp.asarray(
-                      [1, -1, 1, 1, 0, 0, 0, 1, 0, 2, 0, 0, 0, 1, 32,
-                       32, 5, 1, 32, 1, 32, 1, 32, 32, 27, 31, 33, 2, 2, 32,
-                       1, 0, 2, 13,
-                       ],
-                      dtype=np.int32),
-                  },
-              "dolphins.csv": {
-                  "start_vertex": 1,
-                  "vertex": cp.asarray(range(62), dtype=np.int32),
-                  "distance": cp.asarray(
-                      [3., 0., 4., 3., 4., 3., 2., 2., 2., 2., 3., 4., 4., 2.,
-                       3., 3., 3., 1., 3., 1., 2., 3., 2., 2., 4., 2., 1., 1.,
-                       1., 4., 2., 2., 3., 3., 3., 5., 1., 2., 3., 2., 2., 1.,
-                       3., 3., 3., 3., 4., 2., 3., 4., 3., 3., 3., 4., 1., 4.,
-                       3., 2., 4., 2., 4., 3.,
-                       ],
-                      dtype=np.float32),
-                  "predecessor": cp.asarray(
-                      [40, -1, 10, 59, 51, 13, 54, 54, 28, 41, 47, 51, 33, 41,
-                       37, 40, 37, 1, 20, 1, 28, 37, 17, 36, 45, 17, 1, 1,
-                       1, 10, 19, 17, 9, 37, 37, 29, 1, 36, 20, 36, 36, 1,
-                       30, 37, 20, 23, 43, 28, 57, 34, 20, 23, 40, 43, 1, 51,
-                       6, 41, 38, 36, 32, 37,
-                       ],
-                      dtype=np.int32),
-                   },
-              "Simple_1": {
-                  "start_vertex": 1,
-                  "vertex": cp.asarray(range(4), dtype=np.int32),
-                  "distance": cp.asarray(
-                      [3.4028235e+38, 0.0000000e+00, 1.0000000e+00,
-                       2.0000000e+00,
-                       ],
-                      dtype=np.float32),
-                  "predecessor": cp.asarray(
-                      [-1, -1,  1,  2,
-                       ],
-                      dtype=np.int32),
-                   },
-              "Simple_2": {
-                  "start_vertex": 1,
-                  "vertex": cp.asarray(range(6), dtype=np.int32),
-                  "distance": cp.asarray(
-                      [3.4028235e+38, 0.0000000e+00, 3.4028235e+38,
-                       2.0999999e+00, 1.1000000e+00, 4.3000002e+00
-                       ],
-                      dtype=np.float32),
-                  "predecessor": cp.asarray(
-                      [-1, -1, -1,  1,  1,  4,
-                       ],
-                      dtype=np.int32),
-                   },
-              }
+_test_data = {
+    "karate.csv": {
+        "start_vertex": 1,
+        "vertex": cp.asarray(range(34), dtype=np.int32),
+        "distance": cp.asarray(
+            [
+                1.0,
+                0.0,
+                1.0,
+                1.0,
+                2.0,
+                2.0,
+                2.0,
+                1.0,
+                2.0,
+                2.0,
+                2.0,
+                2.0,
+                2.0,
+                1.0,
+                3.0,
+                3.0,
+                3.0,
+                1.0,
+                3.0,
+                1.0,
+                3.0,
+                1.0,
+                3.0,
+                3.0,
+                3.0,
+                3.0,
+                3.0,
+                2.0,
+                2.0,
+                3.0,
+                1.0,
+                2.0,
+                2.0,
+                2.0,
+            ],
+            dtype=np.float32,
+        ),
+        "predecessor": cp.asarray(
+            [
+                1,
+                -1,
+                1,
+                1,
+                0,
+                0,
+                0,
+                1,
+                0,
+                2,
+                0,
+                0,
+                0,
+                1,
+                32,
+                32,
+                5,
+                1,
+                32,
+                1,
+                32,
+                1,
+                32,
+                32,
+                27,
+                31,
+                33,
+                2,
+                2,
+                32,
+                1,
+                0,
+                2,
+                13,
+            ],
+            dtype=np.int32,
+        ),
+    },
+    "dolphins.csv": {
+        "start_vertex": 1,
+        "vertex": cp.asarray(range(62), dtype=np.int32),
+        "distance": cp.asarray(
+            [
+                3.0,
+                0.0,
+                4.0,
+                3.0,
+                4.0,
+                3.0,
+                2.0,
+                2.0,
+                2.0,
+                2.0,
+                3.0,
+                4.0,
+                4.0,
+                2.0,
+                3.0,
+                3.0,
+                3.0,
+                1.0,
+                3.0,
+                1.0,
+                2.0,
+                3.0,
+                2.0,
+                2.0,
+                4.0,
+                2.0,
+                1.0,
+                1.0,
+                1.0,
+                4.0,
+                2.0,
+                2.0,
+                3.0,
+                3.0,
+                3.0,
+                5.0,
+                1.0,
+                2.0,
+                3.0,
+                2.0,
+                2.0,
+                1.0,
+                3.0,
+                3.0,
+                3.0,
+                3.0,
+                4.0,
+                2.0,
+                3.0,
+                4.0,
+                3.0,
+                3.0,
+                3.0,
+                4.0,
+                1.0,
+                4.0,
+                3.0,
+                2.0,
+                4.0,
+                2.0,
+                4.0,
+                3.0,
+            ],
+            dtype=np.float32,
+        ),
+        "predecessor": cp.asarray(
+            [
+                40,
+                -1,
+                10,
+                59,
+                51,
+                13,
+                54,
+                54,
+                28,
+                41,
+                47,
+                51,
+                33,
+                41,
+                37,
+                40,
+                37,
+                1,
+                20,
+                1,
+                28,
+                37,
+                17,
+                36,
+                45,
+                17,
+                1,
+                1,
+                1,
+                10,
+                19,
+                17,
+                9,
+                37,
+                37,
+                29,
+                1,
+                36,
+                20,
+                36,
+                36,
+                1,
+                30,
+                37,
+                20,
+                23,
+                43,
+                28,
+                57,
+                34,
+                20,
+                23,
+                40,
+                43,
+                1,
+                51,
+                6,
+                41,
+                38,
+                36,
+                32,
+                37,
+            ],
+            dtype=np.int32,
+        ),
+    },
+    "Simple_1": {
+        "start_vertex": 1,
+        "vertex": cp.asarray(range(4), dtype=np.int32),
+        "distance": cp.asarray(
+            [
+                3.4028235e38,
+                0.0000000e00,
+                1.0000000e00,
+                2.0000000e00,
+            ],
+            dtype=np.float32,
+        ),
+        "predecessor": cp.asarray(
+            [
+                -1,
+                -1,
+                1,
+                2,
+            ],
+            dtype=np.int32,
+        ),
+    },
+    "Simple_2": {
+        "start_vertex": 1,
+        "vertex": cp.asarray(range(6), dtype=np.int32),
+        "distance": cp.asarray(
+            [
+                3.4028235e38,
+                0.0000000e00,
+                3.4028235e38,
+                2.0999999e00,
+                1.1000000e00,
+                4.3000002e00,
+            ],
+            dtype=np.float32,
+        ),
+        "predecessor": cp.asarray(
+            [
+                -1,
+                -1,
+                -1,
+                1,
+                1,
+                4,
+            ],
+            dtype=np.int32,
+        ),
+    },
+}
 
 # =============================================================================
 # Pytest fixtures
@@ -105,21 +312,17 @@ def test_sssp(sg_graph_objs):
 
     (g, resource_handle, ds_name) = sg_graph_objs
 
-    (source,
-     expected_verts,
-     expected_distances,
-     expected_predecessors) = _test_data[ds_name].values()
+    (source, expected_verts, expected_distances, expected_predecessors) = _test_data[
+        ds_name
+    ].values()
 
     cutoff = 999999999  # maximum edge weight sum to consider
     compute_predecessors = True
     do_expensive_check = False
 
-    result = sssp(resource_handle,
-                  g,
-                  source,
-                  cutoff,
-                  compute_predecessors,
-                  do_expensive_check)
+    result = sssp(
+        resource_handle, g, source, cutoff, compute_predecessors, do_expensive_check
+    )
 
     num_expected_verts = len(expected_verts)
     (actual_verts, actual_distances, actual_predecessors) = result
@@ -145,9 +348,9 @@ def test_sssp(sg_graph_objs):
         # predecessor, so only do a closer compare if either the actual or
         # expected are not that MAX value.
         if (actual_distance <= 3.4e38) or (expected_distance <= 3.4e38):
-            assert actual_distance == \
-                pytest.approx(expected_distance, 1e-4), \
-                f"actual != expected for distance result at index {i}"
+            assert actual_distance == pytest.approx(
+                expected_distance, 1e-4
+            ), f"actual != expected for distance result at index {i}"
 
         # The array of predecessors for graphs with multiple paths that are
         # equally short are non-deterministic, so skip those checks for
@@ -155,6 +358,6 @@ def test_sssp(sg_graph_objs):
         # FIXME: add a helper to verify paths are correct when results are
         # valid but non-deterministic
         if ds_name not in ["karate.csv", "dolphins.csv"]:
-            assert actual_predecessors[i] == \
-                pytest.approx(expected_predecessors[actual_verts[i]], 1e-4), \
-                f"actual != expected for predecessor result at index {i}"
+            assert actual_predecessors[i] == pytest.approx(
+                expected_predecessors[actual_verts[i]], 1e-4
+            ), f"actual != expected for predecessor result at index {i}"

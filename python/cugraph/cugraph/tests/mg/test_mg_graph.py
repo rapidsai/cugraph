@@ -18,6 +18,7 @@ import dask_cudf
 from cugraph.testing import utils
 import cugraph
 import random
+import cupy
 
 from pylibcugraph import bfs as pylibcugraph_bfs
 from pylibcugraph import ResourceHandle
@@ -47,8 +48,8 @@ datasets = utils.DATASETS_UNDIRECTED + utils.DATASETS_UNRENUMBERED
 fixture_params = utils.genFixtureParamsProduct(
     (datasets, "graph_file"),
     (IS_DIRECTED, "directed"),
-    ([True, False], "legacy_renum_only")
-    )
+    ([True, False], "legacy_renum_only"),
+)
 
 
 @pytest.fixture(scope="module", params=fixture_params)
@@ -57,9 +58,9 @@ def input_combo(request):
     Simply return the current combination of params as a dictionary for use in
     tests or other parameterized fixtures.
     """
-    parameters = dict(zip(("graph_file",
-                           "directed",
-                           "legacy_renum_only"), request.param))
+    parameters = dict(
+        zip(("graph_file", "directed", "legacy_renum_only"), request.param)
+    )
 
     input_data_path = parameters["graph_file"]
     directed = parameters["directed"]
@@ -77,8 +78,12 @@ def input_combo(request):
 
     dg = cugraph.Graph(directed=directed)
     dg.from_dask_cudf_edgelist(
-        ddf, source='src', destination='dst', edge_attr='value',
-        legacy_renum_only=legacy_renum_only)
+        ddf,
+        source="src",
+        destination="dst",
+        edge_attr="value",
+        legacy_renum_only=legacy_renum_only,
+    )
 
     parameters["MGGraph"] = dg
 
@@ -95,17 +100,20 @@ def test_nodes_functionality(dask_client, input_combo):
     col_name = nodes.columns[0]
     nodes = nodes.rename(columns={col_name: "result_nodes"})
 
-    result_nodes = nodes.compute().sort_values(
-        "result_nodes").reset_index(drop=True)
+    result_nodes = nodes.compute().sort_values("result_nodes").reset_index(drop=True)
 
-    expected_nodes = dask_cudf.concat(
-        [ddf["src"], ddf["dst"]]).drop_duplicates().to_frame().sort_values(0)
+    expected_nodes = (
+        dask_cudf.concat([ddf["src"], ddf["dst"]])
+        .drop_duplicates()
+        .to_frame()
+        .sort_values(0)
+    )
 
     expected_nodes = expected_nodes.compute().reset_index(drop=True)
 
     result_nodes["expected_nodes"] = expected_nodes[0]
 
-    compare = result_nodes.query('result_nodes != expected_nodes')
+    compare = result_nodes.query("result_nodes != expected_nodes")
 
     assert len(compare) == 0
 
@@ -129,7 +137,7 @@ def test_has_node_functionality(dask_client, input_combo):
 
 
 def test_create_mg_graph(dask_client, input_combo):
-    G = input_combo['MGGraph']
+    G = input_combo["MGGraph"]
     ddf = input_combo["input_df"]
     df = ddf.compute()
 
@@ -139,14 +147,10 @@ def test_create_mg_graph(dask_client, input_combo):
     # ensure graph is partitioned correctly
     assert len(G._plc_graph) == len(dask_client.has_what())
 
-    start = dask_cudf.from_cudf(
-        cudf.Series([1], dtype='int32'),
-        len(G._plc_graph)
-    )
+    start = dask_cudf.from_cudf(cudf.Series([1], dtype="int32"), len(G._plc_graph))
 
     if G.renumbered:
-        start = G.lookup_internal_vertex_id(
-                start, None)
+        start = G.lookup_internal_vertex_id(start, None)
     data_start = get_distributed_data(start)
 
     res = [
@@ -158,36 +162,33 @@ def test_create_mg_graph(dask_client, input_combo):
                 False,
                 0,
                 True,
-                False
+                False,
             ),
             Comms.get_session_id(),
             G._plc_graph[w],
             data_start.worker_to_parts[w][0],
-            workers=[w]
+            workers=[w],
         )
         for w in Comms.get_workers()
     ]
 
     wait(res)
 
-    cudf_result = [
-        dask_client.submit(convert_to_cudf, cp_arrays)
-        for cp_arrays in res
-    ]
+    cudf_result = [dask_client.submit(convert_to_cudf, cp_arrays) for cp_arrays in res]
     wait(cudf_result)
 
     result_dist = dask_cudf.from_delayed(cudf_result)
 
     if G.renumbered:
-        result_dist = G.unrenumber(result_dist, 'vertex')
-        result_dist = G.unrenumber(result_dist, 'predecessor')
+        result_dist = G.unrenumber(result_dist, "vertex")
+        result_dist = G.unrenumber(result_dist, "predecessor")
         result_dist = result_dist.fillna(-1)
 
     result_dist = result_dist.compute()
 
     g = cugraph.Graph(directed=G.properties.directed)
     g.from_cudf_edgelist(df, "src", "dst")
-    expected_dist = cugraph.bfs(g, cudf.Series([1], dtype='int32'))
+    expected_dist = cugraph.bfs(g, cudf.Series([1], dtype="int32"))
 
     compare_dist = expected_dist.merge(
         result_dist, on="vertex", suffixes=["_local", "_dask"]
@@ -202,3 +203,48 @@ def test_create_mg_graph(dask_client, input_combo):
         ):
             err = err + 1
     assert err == 0
+
+
+@pytest.mark.parametrize("graph_file", utils.DATASETS)
+def test_create_graph_with_edge_ids(dask_client, graph_file):
+    el = utils.read_csv_file(graph_file)
+    el["id"] = cupy.random.permutation(len(el))
+    el["id"] = el["id"].astype(el["1"].dtype)
+    el["etype"] = cupy.random.random_integers(4, size=len(el))
+    el["etype"] = el["etype"].astype("int32")
+
+    num_workers = len(Comms.get_workers())
+    el = dask_cudf.from_cudf(el, npartitions=num_workers)
+
+    with pytest.raises(ValueError):
+        G = cugraph.Graph()
+        G.from_dask_cudf_edgelist(
+            el, source="0", destination="1", edge_attr=["2", "id", "etype"]
+        )
+
+    G = cugraph.Graph(directed=True)
+    G.from_dask_cudf_edgelist(
+        el, source="0", destination="1", edge_attr=["2", "id", "etype"]
+    )
+
+
+def test_graph_repartition(dask_client):
+    input_data_path = (utils.RAPIDS_DATASET_ROOT_DIR_PATH / "karate.csv").as_posix()
+    print(f"dataset={input_data_path}")
+    chunksize = dcg.get_chunksize(input_data_path)
+
+    num_workers = len(Comms.get_workers())
+
+    ddf = dask_cudf.read_csv(
+        input_data_path,
+        chunksize=chunksize,
+        delimiter=" ",
+        names=["src", "dst", "value"],
+        dtype=["int32", "int32", "float32"],
+    )
+    more_partitions = num_workers * 100
+    ddf = ddf.repartition(npartitions=more_partitions)
+    ddf = get_distributed_data(ddf)
+
+    num_futures = len(ddf.worker_to_parts.values())
+    assert num_futures == num_workers

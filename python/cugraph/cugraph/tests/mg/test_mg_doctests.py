@@ -26,15 +26,7 @@ import cugraph
 import cudf
 from cugraph.testing import utils
 
-from dask.distributed import Client
-from dask_cuda import LocalCUDACluster
-import cugraph.dask.comms.comms as Comms
-
 datasets = utils.RAPIDS_DATASET_ROOT_DIR_PATH
-
-cluster = LocalCUDACluster()
-client = Client(cluster)
-Comms.initialize(p2p=True)
 
 
 def _is_public_name(name):
@@ -42,7 +34,7 @@ def _is_public_name(name):
 
 
 def _is_python_module(member):
-    return os.path.splitext(member.__file__)[1] == '.py'
+    return os.path.splitext(member.__file__)[1] == ".py"
 
 
 def _module_from_library(member, libname):
@@ -80,8 +72,7 @@ def _find_doctests_in_obj(finder, obj, obj_name, criteria=None):
         if criteria is not None and not criteria(name):
             continue
         if inspect.ismodule(member):
-            yield from _find_doctests_in_obj(finder, member, obj_name,
-                                             criteria)
+            yield from _find_doctests_in_obj(finder, member, obj_name, criteria)
         if inspect.isfunction(member):
             yield from _find_doctests_in_docstring(finder, member)
         if inspect.isclass(member):
@@ -91,8 +82,14 @@ def _find_doctests_in_obj(finder, obj, obj_name, criteria=None):
 
 def _fetch_doctests():
     finder = doctest.DocTestFinder()
-    yield from _find_doctests_in_obj(finder, cugraph.dask, 'dask',
-                                     _is_public_name)
+    yield from _find_doctests_in_obj(finder, cugraph.dask, "dask", _is_public_name)
+
+
+@pytest.fixture(
+    scope="module", params=_fetch_doctests(), ids=lambda docstring: docstring.name
+)
+def docstring(request):
+    return request.param
 
 
 class TestDoctests:
@@ -107,10 +104,7 @@ class TestDoctests:
         finally:
             os.chdir(original_directory)
 
-    @pytest.mark.parametrize(
-        "docstring", _fetch_doctests(), ids=lambda docstring: docstring.name,
-    )
-    def test_docstring(self, docstring):
+    def test_docstring(self, dask_client, docstring):
         # We ignore differences in whitespace in the doctest output, and enable
         # the use of an ellipsis "..." to match any string in the doctest
         # output. An ellipsis is useful for, e.g., memory addresses or
@@ -118,9 +112,14 @@ class TestDoctests:
         optionflags = doctest.ELLIPSIS | doctest.NORMALIZE_WHITESPACE
         runner = doctest.DocTestRunner(optionflags=optionflags)
         np.random.seed(6)
-        globs = dict(cudf=cudf, np=np, cugraph=cugraph,
-                     datasets_path=self.abs_datasets_path,
-                     scipy=scipy, pd=pd)
+        globs = dict(
+            cudf=cudf,
+            np=np,
+            cugraph=cugraph,
+            datasets_path=self.abs_datasets_path,
+            scipy=scipy,
+            pd=pd,
+        )
         docstring.globs = globs
 
         # Capture stdout and include failing outputs in the traceback.
@@ -132,9 +131,3 @@ class TestDoctests:
             f"{results.failed} of {results.attempted} doctests failed for "
             f"{docstring.name}:\n{doctest_stdout.getvalue()}"
         )
-
-    def close_comms():
-        Comms.destroy()
-        client.close()
-        if cluster:
-            cluster.close()

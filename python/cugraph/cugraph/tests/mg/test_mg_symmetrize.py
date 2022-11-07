@@ -46,8 +46,7 @@ def compare(ddf1, ddf2, src_col_name, dst_col_name, val_col_name):
     ddf1 = ddf1.add_suffix("_x")
     ddf2 = ddf2.add_suffix("_y")
 
-    if not isinstance(src_col_name, list) and not isinstance(
-       dst_col_name, list):
+    if not isinstance(src_col_name, list) and not isinstance(dst_col_name, list):
         src_col_name = [src_col_name]
         dst_col_name = [dst_col_name]
 
@@ -82,13 +81,18 @@ def compare(ddf1, ddf2, src_col_name, dst_col_name, val_col_name):
         # The code below is for debugging purposes only. It will print
         # edges in the original dataframe that are missing from the symmetrize
         # dataframe
-        join2 = ddf1.merge(ddf2, how='left',
-                           left_on=[*col_names1], right_on=[*col_names2])
+        join2 = ddf1.merge(
+            ddf2, how="left", left_on=[*col_names1], right_on=[*col_names2]
+        )
         # FIXME: Didn't find a cudf alternative for the function below
-        pd.set_option('display.max_rows', 500)
-        print('join2 = \n', join2.sort_values([*col_names1])
-              .compute().to_pandas().query(
-                    f"{src_col_name[0]}_y.isnull()", engine='python'))
+        pd.set_option("display.max_rows", 500)
+        print(
+            "join2 = \n",
+            join2.sort_values([*col_names1])
+            .compute()
+            .to_pandas()
+            .query(f"{src_col_name[0]}_y.isnull()", engine="python"),
+        )
 
     assert len(ddf1) == len(join)
 
@@ -138,15 +142,16 @@ def compare(ddf1, ddf2, src_col_name, dst_col_name, val_col_name):
     #
 
 
-input_data_path = [utils.RAPIDS_DATASET_ROOT_DIR_PATH /
-                   "karate-asymmetric.csv"] + utils.DATASETS_UNDIRECTED
+input_data_path = [
+    utils.RAPIDS_DATASET_ROOT_DIR_PATH / "karate-asymmetric.csv"
+] + utils.DATASETS_UNDIRECTED
 datasets = [pytest.param(d.as_posix()) for d in input_data_path]
 
 fixture_params = utils.genFixtureParamsProduct(
     (datasets, "graph_file"),
     ([True, False], "edgevals"),
     ([True, False], "multi_columns"),
-    )
+)
 
 
 @pytest.fixture(scope="module", params=fixture_params)
@@ -155,8 +160,7 @@ def input_combo(request):
     Simply return the current combination of params as a dictionary for use in
     tests or other parameterized fixtures.
     """
-    return dict(
-        zip(("graph_file", "edgevals", "multi_columns"), request.param))
+    return dict(zip(("graph_file", "edgevals", "multi_columns"), request.param))
 
 
 @pytest.fixture(scope="module")
@@ -211,7 +215,8 @@ def test_mg_symmetrize(dask_client, read_datasets):
 
     if val_col_name is not None:
         sym_src, sym_dst, sym_val = cugraph.symmetrize(
-            ddf, src_col_name, dst_col_name, val_col_name)
+            ddf, src_col_name, dst_col_name, val_col_name
+        )
     else:
         if not isinstance(src_col_name, list):
             vertex_col_names = [src_col_name, dst_col_name]
@@ -243,7 +248,6 @@ def test_mg_symmetrize_df(dask_client, read_datasets):
     dst_col_name = read_datasets["dst_col_name"]
     val_col_name = read_datasets["val_col_name"]
 
-    sym_ddf = cugraph.symmetrize_ddf(
-        ddf, src_col_name, dst_col_name, val_col_name)
+    sym_ddf = cugraph.symmetrize_ddf(ddf, src_col_name, dst_col_name, val_col_name)
 
     compare(ddf, sym_ddf, src_col_name, dst_col_name, val_col_name)

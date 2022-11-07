@@ -13,20 +13,16 @@
 # limitations under the License.
 #
 
-from cugraph.utilities import (ensure_cugraph_obj_for_nx,
-                               df_score_to_dictionary,
-                               )
-from pylibcugraph import (ResourceHandle,
-                          GraphProperties,
-                          SGGraph,
-                          hits as pylibcugraph_hits
-                          )
+from cugraph.utilities import (
+    ensure_cugraph_obj_for_nx,
+    df_score_to_dictionary,
+)
+from pylibcugraph import ResourceHandle, hits as pylibcugraph_hits
 import cudf
+import warnings
 
 
-def hits(
-    G, max_iter=100, tol=1.0e-5, nstart=None, normalized=True
-):
+def hits(G, max_iter=100, tol=1.0e-5, nstart=None, normalized=True):
     """
     Compute HITS hubs and authorities values for each vertex
 
@@ -85,34 +81,33 @@ def hits(
 
     """
 
-    G, isNx = ensure_cugraph_obj_for_nx(G)
+    G, isNx = ensure_cugraph_obj_for_nx(G, store_transposed=True)
+    if G.store_transposed is False:
+        warning_msg = (
+            "HITS expects the 'store_transposed' flag "
+            "to be set to 'True' for optimal performance during "
+            "the graph creation"
+        )
+        warnings.warn(warning_msg, UserWarning)
 
-    srcs = G.edgelist.edgelist_df['src']
-    dsts = G.edgelist.edgelist_df['dst']
-    # edge weights are not used for this algorithm
-    weights = G.edgelist.edgelist_df['src'] * 0.0
-
-    resource_handle = ResourceHandle()
-    graph_props = GraphProperties(is_multigraph=G.is_multigraph())
-    store_transposed = False
-    renumber = False
     do_expensive_check = False
     init_hubs_guess_vertices = None
     init_hubs_guess_values = None
 
     if nstart is not None:
-        init_hubs_guess_vertices = nstart['vertex']
-        init_hubs_guess_values = nstart['values']
+        init_hubs_guess_vertices = nstart["vertex"]
+        init_hubs_guess_values = nstart["values"]
 
-    sg = SGGraph(resource_handle, graph_props, srcs, dsts, weights,
-                 store_transposed, renumber, do_expensive_check)
-
-    vertices, hubs, authorities = pylibcugraph_hits(resource_handle, sg, tol,
-                                                    max_iter,
-                                                    init_hubs_guess_vertices,
-                                                    init_hubs_guess_values,
-                                                    normalized,
-                                                    do_expensive_check)
+    vertices, hubs, authorities = pylibcugraph_hits(
+        resource_handle=ResourceHandle(),
+        graph=G._plc_graph,
+        tol=tol,
+        max_iter=max_iter,
+        initial_hubs_guess_vertices=init_hubs_guess_vertices,
+        initial_hubs_guess_values=init_hubs_guess_values,
+        normalized=normalized,
+        do_expensive_check=do_expensive_check,
+    )
     results = cudf.DataFrame()
     results["vertex"] = cudf.Series(vertices)
     results["hubs"] = cudf.Series(hubs)
@@ -120,8 +115,7 @@ def hits(
 
     if isNx is True:
         d1 = df_score_to_dictionary(results[["vertex", "hubs"]], "hubs")
-        d2 = df_score_to_dictionary(results[["vertex", "authorities"]],
-                                    "authorities")
+        d2 = df_score_to_dictionary(results[["vertex", "authorities"]], "authorities")
         results = (d1, d2)
 
     if G.renumbered:

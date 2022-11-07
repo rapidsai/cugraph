@@ -19,8 +19,9 @@
 #include <cugraph/utilities/dataframe_buffer.hpp>
 #include <cugraph/utilities/thrust_tuple_utils.hpp>
 
-#include <raft/handle.hpp>
-#include <raft/span.hpp>
+#include <raft/core/device_span.hpp>
+#include <raft/core/handle.hpp>
+#include <raft/core/host_span.hpp>
 
 #include <thrust/iterator/iterator_traits.h>
 #include <thrust/iterator/zip_iterator.h>
@@ -577,6 +578,32 @@ auto view_concat(detail::edge_major_property_view_t<vertex_t, Ts> const&... view
   } else {
     return detail::edge_major_property_view_t<vertex_t, concat_value_iterator>(
       edge_partition_concat_value_firsts, first_view.major_range_firsts());
+  }
+}
+
+template <typename vertex_t, typename... Ts>
+auto view_concat(detail::edge_minor_property_view_t<vertex_t, Ts> const&... views)
+{
+  using concat_value_iterator = decltype(
+    thrust::make_zip_iterator(thrust_tuple_cat(detail::to_thrust_tuple(views.value_first())...)));
+
+  concat_value_iterator edge_partition_concat_value_first{};
+
+  auto first_view = detail::get_first_of_pack(views...);
+
+  edge_partition_concat_value_first =
+    thrust::make_zip_iterator(thrust_tuple_cat(detail::to_thrust_tuple(views.value_first())...));
+
+  if (first_view.key_chunk_size()) {
+    return detail::edge_minor_property_view_t<vertex_t, concat_value_iterator>(
+      *(first_view.keys()),
+      *(first_view.key_chunk_start_offsets()),
+      *(first_view.key_chunk_size()),
+      edge_partition_concat_value_first,
+      first_view.minor_range_first());
+  } else {
+    return detail::edge_minor_property_view_t<vertex_t, concat_value_iterator>(
+      edge_partition_concat_value_first, first_view.minor_range_first());
   }
 }
 

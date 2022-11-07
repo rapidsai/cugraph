@@ -19,6 +19,7 @@ import pandas as pd
 import numpy as np
 import cudf
 from cudf.testing import assert_frame_equal, assert_series_equal
+from cugraph.experimental.datasets import cyber
 
 # If the rapids-pytest-benchmark plugin is installed, the "gpubenchmark"
 # fixture will be available automatically. Check that this fixture is available
@@ -29,11 +30,33 @@ try:
     import rapids_pytest_benchmark  # noqa: F401
 except ImportError:
     import pytest_benchmark
+
     gpubenchmark = pytest_benchmark.plugin.benchmark
+
+# FIXME: remove when fully-migrated to pandas 1.5.0
+try:
+    # pandas 1.5.0
+    from pandas.errors import SettingWithCopyWarning as pandas_SettingWithCopyWarning
+except ImportError:
+    # pandas 1.4
+    from pandas.core.common import (
+        SettingWithCopyWarning as pandas_SettingWithCopyWarning,
+    )
 
 import cugraph
 from cugraph.generators import rmat
 from cugraph.testing import utils
+
+
+def type_is_categorical(pG):
+    return (
+        pG._vertex_prop_dataframe is None
+        or pG._vertex_prop_dataframe.dtypes[pG.type_col_name] == "category"
+    ) and (
+        pG._edge_prop_dataframe is None
+        or pG._edge_prop_dataframe.dtypes[pG.type_col_name] == "category"
+    )
+
 
 # =============================================================================
 # Test data
@@ -41,73 +64,120 @@ from cugraph.testing import utils
 
 dataset1 = {
     "merchants": [
-        ["merchant_id", "merchant_location", "merchant_size", "merchant_sales",
-         "merchant_num_employees", "merchant_name"],
-        [(11, 78750, 44, 123.2, 12, "north"),
-         (4, 78757, 112, 234.99, 18, "south"),
-         (21, 44145, 83, 992.1, 27, "east"),
-         (16, 47906, 92, 32.43, 5, "west"),
-         (86, 47906, 192, 2.43, 51, "west"),
-         ]
-     ],
+        [
+            "merchant_id",
+            "merchant_location",
+            "merchant_size",
+            "merchant_sales",
+            "merchant_num_employees",
+            "merchant_name",
+        ],
+        [
+            (11, 78750, 44, 123.2, 12, "north"),
+            (4, 78757, 112, 234.99, 18, "south"),
+            (21, 44145, 83, 992.1, 27, "east"),
+            (16, 47906, 92, 32.43, 5, "west"),
+            (86, 47906, 192, 2.43, 51, "west"),
+        ],
+    ],
     "users": [
         ["user_id", "user_location", "vertical"],
-        [(89021, 78757, 0),
-         (32431, 78750, 1),
-         (89216, 78757, 1),
-         (78634, 47906, 0),
-         ]
-     ],
+        [
+            (89021, 78757, 0),
+            (32431, 78750, 1),
+            (89216, 78757, 1),
+            (78634, 47906, 0),
+        ],
+    ],
     "taxpayers": [
         ["payer_id", "amount"],
-        [(11, 1123.98),
-         (4, 3243.7),
-         (21, 8932.3),
-         (16, 3241.77),
-         (86, 789.2),
-         (89021, 23.98),
-         (78634, 41.77),
-         ]
+        [
+            (11, 1123.98),
+            (4, 3243.7),
+            (21, 8932.3),
+            (16, 3241.77),
+            (86, 789.2),
+            (89021, 23.98),
+            (78634, 41.77),
+        ],
     ],
     "transactions": [
         ["user_id", "merchant_id", "volume", "time", "card_num", "card_type"],
-        [(89021, 11, 33.2, 1639084966.5513437, 123456, "MC"),
-         (89216, 4, None, 1639085163.481217, 8832, "CASH"),
-         (78634, 16, 72.0, 1639084912.567394, 4321, "DEBIT"),
-         (32431, 4, 103.2, 1639084721.354346, 98124, "V"),
-         ]
-     ],
+        [
+            (89021, 11, 33.2, 1639084966.5513437, 123456, "MC"),
+            (89216, 4, None, 1639085163.481217, 8832, "CASH"),
+            (78634, 16, 72.0, 1639084912.567394, 4321, "DEBIT"),
+            (32431, 4, 103.2, 1639084721.354346, 98124, "V"),
+        ],
+    ],
     "relationships": [
         ["user_id_1", "user_id_2", "relationship_type"],
-        [(89216, 89021, 9),
-         (89216, 32431, 9),
-         (32431, 78634, 8),
-         (78634, 89216, 8),
-         ]
-     ],
+        [
+            (89216, 89021, 9),
+            (89216, 32431, 9),
+            (32431, 78634, 8),
+            (78634, 89216, 8),
+        ],
+    ],
     "referrals": [
         ["user_id_1", "user_id_2", "merchant_id", "stars"],
-        [(89216, 78634, 11, 5),
-         (89021, 89216, 4, 4),
-         (89021, 89216, 21, 3),
-         (89021, 89216, 11, 3),
-         (89021, 78634, 21, 4),
-         (78634, 32431, 11, 4),
-         ]
-     ],
+        [
+            (89216, 78634, 11, 5),
+            (89021, 89216, 4, 4),
+            (89021, 89216, 21, 3),
+            (89021, 89216, 11, 3),
+            (89021, 78634, 21, 4),
+            (78634, 32431, 11, 4),
+        ],
+    ],
 }
 
 
 dataset2 = {
     "simple": [
         ["src", "dst", "some_property"],
-        [(99, 22, "a"),
-         (98, 34, "b"),
-         (97, 56, "c"),
-         (96, 88, "d"),
-         ]
+        [
+            (99, 22, "a"),
+            (98, 34, "b"),
+            (97, 56, "c"),
+            (96, 88, "d"),
+        ],
     ],
 }
+
+
+# CSV file contents used for testing various CSV-based use cases.
+# These are to be used for test_single_csv_multi_vertex_edge_attrs()
+edges_edgeprops_vertexprops_csv = """
+src dst edge_attr1 edge_attr2 src_attr1 src_attr2 dst_attr1 dst_attr2
+0 1 87 "a" 3.1 "v0" 1.3 "v1"
+0 2 88 "b" 3.2 "v0" 1.1 "v2"
+2 1 89 "c" 2.3 "v2" 1.9 "v1"
+"""
+
+vertexprops_csv = """
+vertex attr1 attr2
+0 32 dog
+1 54 fish
+2 87 cat
+3 12 snake
+4 901 gecko
+"""
+
+edgeprops_csv = """
+v_src v_dst edge_id
+0 1 123
+0 2 432
+2 1 789
+"""
+
+edgeid_edgeprops_csv = """
+edge_id attr1 attr2
+123 'PUT' 21.32
+432 'POST' 21.44
+789 'GET' 22.03
+"""
+
 
 # Placeholder for a directed Graph instance. This is not constructed here in
 # order to prevent cuGraph code from running on import, which would prevent
@@ -124,7 +194,7 @@ def setup_function():
     gc.collect()
     # Set the global DiGraph_inst. This is used for calls that require a Graph
     # type or instance to be provided for tests that use a directed graph.
-    DiGraph_inst = cugraph.Graph(directed=True)  # noqa: F841
+    DiGraph_inst = cugraph.Graph(directed=True)
 
 
 # =============================================================================
@@ -137,10 +207,7 @@ def raise_on_pandas_warning():
     import warnings
 
     filters = list(warnings.filters)
-    warnings.filterwarnings(
-        "error",
-        category=pd.core.common.SettingWithCopyWarning
-    )
+    warnings.filterwarnings("error", category=pandas_SettingWithCopyWarning)
     yield
     warnings.filters = filters
 
@@ -154,10 +221,10 @@ def df_type_id(dataframe_type):
     """
     s = "df_type="
     if dataframe_type == cudf.DataFrame:
-        return s+"cudf.DataFrame"
+        return s + "cudf.DataFrame"
     if dataframe_type == pd.DataFrame:
-        return s+"pandas.DataFrame"
-    return s+"?"
+        return s + "pandas.DataFrame"
+    return s + "?"
 
 
 df_types_fixture_params = utils.genFixtureParamsProduct((df_types, df_type_id))
@@ -172,8 +239,14 @@ def dataset1_PropertyGraph(request):
     dataframe_type = request.param[0]
     from cugraph.experimental import PropertyGraph
 
-    (merchants, users, taxpayers,
-     transactions, relationships, referrals) = dataset1.values()
+    (
+        merchants,
+        users,
+        taxpayers,
+        transactions,
+        relationships,
+        referrals,
+    ) = dataset1.values()
 
     pG = PropertyGraph()
 
@@ -187,16 +260,18 @@ def dataset1_PropertyGraph(request):
     # property_columns=None (the default) means all columns except
     # vertex_col_name will be used as properties for the vertices/edges.
 
-    pG.add_vertex_data(dataframe_type(columns=merchants[0],
-                                      data=merchants[1]),
-                       type_name="merchants",
-                       vertex_col_name="merchant_id",
-                       property_columns=None)
-    pG.add_vertex_data(dataframe_type(columns=users[0],
-                                      data=users[1]),
-                       type_name="users",
-                       vertex_col_name="user_id",
-                       property_columns=None)
+    pG.add_vertex_data(
+        dataframe_type(columns=merchants[0], data=merchants[1]),
+        type_name="merchants",
+        vertex_col_name="merchant_id",
+        property_columns=None,
+    )
+    pG.add_vertex_data(
+        dataframe_type(columns=users[0], data=users[1]),
+        type_name="users",
+        vertex_col_name="user_id",
+        property_columns=None,
+    )
     # Do not add taxpayers since that may now be considered invalid input (it
     # adds the same vertices under different types, which leads to the same
     # vertex ID appearing in the internal vertex prop table.
@@ -210,23 +285,26 @@ def dataset1_PropertyGraph(request):
                        vertex_col_name="payer_id",
                        property_columns=None)
     """
-    pG.add_edge_data(dataframe_type(columns=transactions[0],
-                                    data=transactions[1]),
-                     type_name="transactions",
-                     vertex_col_names=("user_id", "merchant_id"),
-                     property_columns=None)
-    pG.add_edge_data(dataframe_type(columns=relationships[0],
-                                    data=relationships[1]),
-                     type_name="relationships",
-                     vertex_col_names=("user_id_1", "user_id_2"),
-                     property_columns=None)
-    pG.add_edge_data(dataframe_type(columns=referrals[0],
-                                    data=referrals[1]),
-                     type_name="referrals",
-                     vertex_col_names=("user_id_1",
-                                       "user_id_2"),
-                     property_columns=None)
+    pG.add_edge_data(
+        dataframe_type(columns=transactions[0], data=transactions[1]),
+        type_name="transactions",
+        vertex_col_names=("user_id", "merchant_id"),
+        property_columns=None,
+    )
+    pG.add_edge_data(
+        dataframe_type(columns=relationships[0], data=relationships[1]),
+        type_name="relationships",
+        vertex_col_names=("user_id_1", "user_id_2"),
+        property_columns=None,
+    )
+    pG.add_edge_data(
+        dataframe_type(columns=referrals[0], data=referrals[1]),
+        type_name="referrals",
+        vertex_col_names=("user_id_1", "user_id_2"),
+        property_columns=None,
+    )
 
+    assert type_is_categorical(pG)
     return (pG, dataset1)
 
 
@@ -246,6 +324,7 @@ def dataset2_simple_PropertyGraph(request):
 
     pG.add_edge_data(df, vertex_col_names=("src", "dst"))
 
+    assert type_is_categorical(pG)
     return (pG, simple)
 
 
@@ -259,23 +338,17 @@ def cyber_PropertyGraph(request):
     from cugraph.experimental import PropertyGraph
 
     dataframe_type = request.param[0]
-    cyber_csv = utils.RAPIDS_DATASET_ROOT_DIR_PATH/"cyber.csv"
     source_col_name = "srcip"
     dest_col_name = "dstip"
 
+    df = cyber.get_edgelist()
     if dataframe_type is pd.DataFrame:
-        read_csv = pd.read_csv
-    else:
-        read_csv = cudf.read_csv
-    df = read_csv(cyber_csv, delimiter=",",
-                  dtype={"idx": "int32",
-                         source_col_name: "str",
-                         dest_col_name: "str"},
-                  header=0)
+        df = df.to_pandas()
 
     pG = PropertyGraph()
     pG.add_edge_data(df, (source_col_name, dest_col_name))
 
+    assert type_is_categorical(pG)
     return pG
 
 
@@ -294,23 +367,25 @@ def rmat_PropertyGraph():
     scale = 20
     edgefactor = 16
     seed = 42
-    df = rmat(scale,
-              (2**scale)*edgefactor,
-              0.57,  # from Graph500
-              0.19,  # from Graph500
-              0.19,  # from Graph500
-              seed,
-              clip_and_flip=False,
-              scramble_vertex_ids=True,
-              create_using=None,  # None == return edgelist
-              mg=False
-              )
+    df = rmat(
+        scale,
+        (2**scale) * edgefactor,
+        0.57,  # from Graph500
+        0.19,  # from Graph500
+        0.19,  # from Graph500
+        seed,
+        clip_and_flip=False,
+        scramble_vertex_ids=True,
+        create_using=None,  # None == return edgelist
+        mg=False,
+    )
     rng = np.random.default_rng(seed)
     df[weight_col_name] = rng.random(size=len(df))
 
     pG = PropertyGraph()
     pG.add_edge_data(df, (source_col_name, dest_col_name))
 
+    assert type_is_categorical(pG)
     return (pG, df)
 
 
@@ -325,19 +400,21 @@ def test_add_vertex_data(df_type):
     from cugraph.experimental import PropertyGraph
 
     merchants = dataset1["merchants"]
-    merchants_df = df_type(columns=merchants[0],
-                           data=merchants[1])
+    merchants_df = df_type(columns=merchants[0], data=merchants[1])
 
     pG = PropertyGraph()
-    pG.add_vertex_data(merchants_df,
-                       type_name="merchants",
-                       vertex_col_name="merchant_id",
-                       property_columns=None)
+    pG.add_vertex_data(
+        merchants_df,
+        type_name="merchants",
+        vertex_col_name="merchant_id",
+        property_columns=None,
+    )
     assert pG.get_num_vertices() == 5
-    assert pG.get_num_vertices('merchants') == 5
+    assert pG.get_num_vertices("merchants") == 5
     assert pG.get_num_edges() == 0
-    expected_props = set(merchants[0].copy()) - {'merchant_id'}
+    expected_props = set(merchants[0].copy()) - {"merchant_id"}
     assert sorted(pG.vertex_property_names) == sorted(expected_props)
+    assert type_is_categorical(pG)
 
 
 @pytest.mark.parametrize("df_type", df_types, ids=df_type_id)
@@ -348,17 +425,18 @@ def test_num_vertices(df_type):
     from cugraph.experimental import PropertyGraph
 
     merchants = dataset1["merchants"]
-    merchants_df = df_type(columns=merchants[0],
-                           data=merchants[1])
+    merchants_df = df_type(columns=merchants[0], data=merchants[1])
 
     pG = PropertyGraph()
     assert pG.get_num_vertices() == 0
-    assert pG.get_num_vertices('unknown_type') == 0
-    assert pG.get_num_edges('unknown_type') == 0
-    pG.add_vertex_data(merchants_df,
-                       type_name="merchants",
-                       vertex_col_name="merchant_id",
-                       property_columns=None)
+    assert pG.get_num_vertices("unknown_type") == 0
+    assert pG.get_num_edges("unknown_type") == 0
+    pG.add_vertex_data(
+        merchants_df,
+        type_name="merchants",
+        vertex_col_name="merchant_id",
+        property_columns=None,
+    )
 
     # Test caching - the second retrieval should always be faster
     st = time.time()
@@ -374,33 +452,34 @@ def test_num_vertices(df_type):
     users = dataset1["users"]
     users_df = df_type(columns=users[0], data=users[1])
 
-    pG.add_vertex_data(users_df,
-                       type_name="users",
-                       vertex_col_name="user_id",
-                       property_columns=None)
+    pG.add_vertex_data(
+        users_df, type_name="users", vertex_col_name="user_id", property_columns=None
+    )
 
     assert pG.get_num_vertices() == 9
-    assert pG.get_num_vertices('merchants') == 5
-    assert pG.get_num_vertices('users') == 4
+    assert pG.get_num_vertices("merchants") == 5
+    assert pG.get_num_vertices("users") == 4
     assert pG.get_num_edges() == 0
 
     # The taxpayers table does not add new unique vertices, it only adds
     # properties to vertices already present in the merchants and users
     # tables.
     taxpayers = dataset1["taxpayers"]
-    taxpayers_df = df_type(columns=taxpayers[0],
-                           data=taxpayers[1])
+    taxpayers_df = df_type(columns=taxpayers[0], data=taxpayers[1])
 
-    pG.add_vertex_data(taxpayers_df,
-                       type_name="taxpayers",
-                       vertex_col_name="payer_id",
-                       property_columns=None)
+    pG.add_vertex_data(
+        taxpayers_df,
+        type_name="taxpayers",
+        vertex_col_name="payer_id",
+        property_columns=None,
+    )
 
     assert pG.get_num_vertices() == 9
-    assert pG.get_num_vertices('merchants') == 5
-    assert pG.get_num_vertices('users') == 4
-    assert pG.get_num_vertices('unknown_type') == 0
+    assert pG.get_num_vertices("merchants") == 5
+    assert pG.get_num_vertices("users") == 4
+    assert pG.get_num_vertices("unknown_type") == 0
     assert pG.get_num_edges() == 0
+    assert type_is_categorical(pG)
 
 
 @pytest.mark.parametrize("df_type", df_types, ids=df_type_id)
@@ -411,28 +490,38 @@ def test_type_names(df_type):
     assert pG.edge_types == set()
     assert pG.vertex_types == set()
 
-    df = df_type({"src": [99, 98, 97],
-                  "dst": [22, 34, 56],
-                  "some_property": ["a", "b", "c"],
-                  })
+    df = df_type(
+        {
+            "src": [99, 98, 97],
+            "dst": [22, 34, 56],
+            "some_property": ["a", "b", "c"],
+        }
+    )
     pG.add_edge_data(df, vertex_col_names=("src", "dst"))
     assert pG.edge_types == set([""])
     assert pG.vertex_types == set([""])
 
-    df = df_type({"vertex": [98, 97],
-                  "some_property": ["a", "b"],
-                  })
+    df = df_type(
+        {
+            "vertex": [98, 97],
+            "some_property": ["a", "b"],
+        }
+    )
     pG.add_vertex_data(df, type_name="vtype", vertex_col_name="vertex")
     assert pG.edge_types == set([""])
     assert pG.vertex_types == set(["", "vtype"])
 
-    df = df_type({"src": [199, 98, 197],
-                  "dst": [22, 134, 56],
-                  "some_property": ["a", "b", "c"],
-                  })
+    df = df_type(
+        {
+            "src": [199, 98, 197],
+            "dst": [22, 134, 56],
+            "some_property": ["a", "b", "c"],
+        }
+    )
     pG.add_edge_data(df, type_name="etype", vertex_col_names=("src", "dst"))
     assert pG.edge_types == set(["", "etype"])
     assert pG.vertex_types == set(["", "vtype"])
+    assert type_is_categorical(pG)
 
 
 @pytest.mark.parametrize("df_type", df_types, ids=df_type_id)
@@ -442,37 +531,46 @@ def test_num_vertices_include_edge_data(df_type):
     """
     from cugraph.experimental import PropertyGraph
 
-    (merchants, users, taxpayers,
-     transactions, relationships, referrals) = dataset1.values()
+    (
+        merchants,
+        users,
+        taxpayers,
+        transactions,
+        relationships,
+        referrals,
+    ) = dataset1.values()
 
     pG = PropertyGraph()
     assert pG.get_num_vertices(include_edge_data=False) == 0
     assert pG.get_num_vertices("", include_edge_data=False) == 0
 
-    pG.add_edge_data(df_type(columns=transactions[0],
-                             data=transactions[1]),
-                     type_name="transactions",
-                     vertex_col_names=("user_id", "merchant_id"),
-                     property_columns=None)
+    pG.add_edge_data(
+        df_type(columns=transactions[0], data=transactions[1]),
+        type_name="transactions",
+        vertex_col_names=("user_id", "merchant_id"),
+        property_columns=None,
+    )
 
     assert pG.get_num_vertices(include_edge_data=False) == 0
     assert pG.get_num_vertices("", include_edge_data=False) == 0
     assert pG.get_num_vertices(include_edge_data=True) == 7
     assert pG.get_num_vertices("", include_edge_data=True) == 7
-    pG.add_vertex_data(df_type(columns=merchants[0],
-                               data=merchants[1]),
-                       # type_name="merchants",  # Use default!
-                       vertex_col_name="merchant_id",
-                       property_columns=None)
+    pG.add_vertex_data(
+        df_type(columns=merchants[0], data=merchants[1]),
+        # type_name="merchants",  # Use default!
+        vertex_col_name="merchant_id",
+        property_columns=None,
+    )
     assert pG.get_num_vertices(include_edge_data=False) == 5
     assert pG.get_num_vertices("", include_edge_data=False) == 5
     assert pG.get_num_vertices(include_edge_data=True) == 9
     assert pG.get_num_vertices("", include_edge_data=True) == 9
-    pG.add_vertex_data(df_type(columns=users[0],
-                               data=users[1]),
-                       type_name="users",
-                       vertex_col_name="user_id",
-                       property_columns=None)
+    pG.add_vertex_data(
+        df_type(columns=users[0], data=users[1]),
+        type_name="users",
+        vertex_col_name="user_id",
+        property_columns=None,
+    )
     assert pG.get_num_vertices(include_edge_data=False) == 9
     assert pG.get_num_vertices("", include_edge_data=False) == 5
     assert pG.get_num_vertices("users", include_edge_data=False) == 4
@@ -492,18 +590,24 @@ def test_num_vertices_with_properties(df_type):
     from cugraph.experimental import PropertyGraph
 
     pG = PropertyGraph()
-    df = df_type({"src": [99, 98, 97],
-                  "dst": [22, 34, 56],
-                  "some_property": ["a", "b", "c"],
-                  })
+    df = df_type(
+        {
+            "src": [99, 98, 97],
+            "dst": [22, 34, 56],
+            "some_property": ["a", "b", "c"],
+        }
+    )
     pG.add_edge_data(df, vertex_col_names=("src", "dst"))
 
     assert pG.get_num_vertices() == 6
     assert pG.get_num_vertices(include_edge_data=False) == 0
 
-    df = df_type({"vertex": [98, 97],
-                  "some_property": ["a", "b"],
-                  })
+    df = df_type(
+        {
+            "vertex": [98, 97],
+            "some_property": ["a", "b"],
+        }
+    )
     pG.add_vertex_data(df, vertex_col_name="vertex")
 
     assert pG.get_num_vertices() == 6
@@ -517,14 +621,16 @@ def test_edges_attr(dataset2_simple_PropertyGraph):
     (pG, data) = dataset2_simple_PropertyGraph
 
     # create a DF without the properties (ie. the last column)
-    expected_edges = cudf.DataFrame(columns=[pG.src_col_name, pG.dst_col_name],
-                                    data=[(i, j) for (i, j, k) in data[1]])
+    expected_edges = cudf.DataFrame(
+        columns=[pG.src_col_name, pG.dst_col_name],
+        data=[(i, j) for (i, j, k) in data[1]],
+    )
     actual_edges = pG.edges[[pG.src_col_name, pG.dst_col_name]]
 
-    assert_frame_equal(expected_edges.sort_values(by=pG.src_col_name,
-                                                  ignore_index=True),
-                       actual_edges.sort_values(by=pG.src_col_name,
-                                                ignore_index=True))
+    assert_frame_equal(
+        expected_edges.sort_values(by=pG.src_col_name, ignore_index=True),
+        actual_edges.sort_values(by=pG.src_col_name, ignore_index=True),
+    )
     edge_ids = pG.edges[pG.edge_id_col_name]
     expected_num_edges = len(data[1])
     assert len(edge_ids) == expected_num_edges
@@ -540,8 +646,7 @@ def test_get_vertex_data(dataset1_PropertyGraph):
 
     # Ensure the generated vertex IDs are unique
     all_vertex_data = pG.get_vertex_data()
-    assert all_vertex_data[pG.vertex_col_name].nunique() == \
-        len(all_vertex_data)
+    assert all_vertex_data[pG.vertex_col_name].nunique() == len(all_vertex_data)
 
     # Test getting a subset of data
     # Use the appropriate series type based on input
@@ -563,7 +668,7 @@ def test_get_vertex_data(dataset1_PropertyGraph):
     for d in ["merchants", "users"]:
         for name in data[d][0]:
             expected_columns.add(name)
-    expected_columns -= {'merchant_id', 'user_id'}
+    expected_columns -= {"merchant_id", "user_id"}
     actual_columns = set(some_vertex_data.columns)
     assert actual_columns == expected_columns
 
@@ -576,23 +681,50 @@ def test_get_vertex_data(dataset1_PropertyGraph):
     # vert/type + specified columns
     standard_vert_columns = [pG.vertex_col_name, pG.type_col_name]
     assert len(some_vertex_data) == len(data[vert_type][1])
-    assert (
-        sorted(some_vertex_data.columns) ==
-        sorted(columns + standard_vert_columns)
-    )
+    assert sorted(some_vertex_data.columns) == sorted(columns + standard_vert_columns)
 
     # Test with all params specified
     vert_ids = [11, 4, 21]
     vert_type = "merchants"
     columns = ["merchant_location", "merchant_size"]
 
-    some_vertex_data = pG.get_vertex_data(vertex_ids=vert_ids,
-                                          types=[vert_type],
-                                          columns=columns)
+    some_vertex_data = pG.get_vertex_data(
+        vertex_ids=vert_ids, types=[vert_type], columns=columns
+    )
     # Ensure the returned df is the right length and includes at least the
     # specified columns.
     assert len(some_vertex_data) == len(vert_ids)
     assert set(columns) - set(some_vertex_data.columns) == set()
+
+    # Allow a single vertex type and single vertex id to be passed in
+    df1 = pG.get_vertex_data(vertex_ids=[11], types=[vert_type])
+    df2 = pG.get_vertex_data(vertex_ids=11, types=vert_type)
+    assert len(df1) == 1
+    assert df1.shape == df2.shape
+    # assert_frame_equal(df1, df2, check_like=True)
+
+
+@pytest.mark.parametrize("df_type", df_types, ids=df_type_id)
+def test_get_vertex_data_repeated(df_type):
+    from cugraph.experimental import PropertyGraph
+
+    df = df_type({"vertex": [2, 3, 4, 1], "feat": np.arange(4)})
+    pG = PropertyGraph()
+    pG.add_vertex_data(df, "vertex")
+    df1 = pG.get_vertex_data(vertex_ids=[2, 1, 3, 1], columns=["feat"])
+    expected = df_type(
+        {
+            pG.vertex_col_name: [2, 1, 3, 1],
+            pG.type_col_name: ["", "", "", ""],
+            "feat": [0, 3, 1, 3],
+        }
+    )
+    df1[pG.type_col_name] = df1[pG.type_col_name].astype(str)  # Undo category
+    if df_type is cudf.DataFrame:
+        afe = assert_frame_equal
+    else:
+        afe = pd.testing.assert_frame_equal
+    afe(df1, expected)
 
 
 def test_get_edge_data(dataset1_PropertyGraph):
@@ -615,12 +747,13 @@ def test_get_edge_data(dataset1_PropertyGraph):
     assert sorted(actual_edge_ids) == sorted(edge_ids)
 
     # Create a list of expected column names from the three input tables
-    expected_columns = set([pG.src_col_name, pG.dst_col_name,
-                            pG.edge_id_col_name, pG.type_col_name])
+    expected_columns = set(
+        [pG.src_col_name, pG.dst_col_name, pG.edge_id_col_name, pG.type_col_name]
+    )
     for d in ["transactions", "relationships", "referrals"]:
         for name in data[d][0]:
             expected_columns.add(name)
-    expected_columns -= {'user_id', 'user_id_1', 'user_id_2'}
+    expected_columns -= {"user_id", "user_id_1", "user_id_2"}
 
     actual_columns = set(some_edge_data.columns)
 
@@ -633,13 +766,14 @@ def test_get_edge_data(dataset1_PropertyGraph):
     some_edge_data = pG.get_edge_data(types=[edge_type], columns=columns)
     # Ensure the returned df is the right length and includes only the
     # src/dst/id/type + specified columns
-    standard_edge_columns = [pG.src_col_name, pG.dst_col_name,
-                             pG.edge_id_col_name, pG.type_col_name]
+    standard_edge_columns = [
+        pG.src_col_name,
+        pG.dst_col_name,
+        pG.edge_id_col_name,
+        pG.type_col_name,
+    ]
     assert len(some_edge_data) == len(data[edge_type][1])
-    assert (
-        sorted(some_edge_data.columns) ==
-        sorted(columns + standard_edge_columns)
-    )
+    assert sorted(some_edge_data.columns) == sorted(columns + standard_edge_columns)
 
     # Test with all params specified
     # FIXME: since edge IDs are generated, assume that these are correct based
@@ -647,13 +781,45 @@ def test_get_edge_data(dataset1_PropertyGraph):
     edge_ids = [0, 1, 2]
     edge_type = "transactions"
     columns = ["card_num", "card_type"]
-    some_edge_data = pG.get_edge_data(edge_ids=edge_ids,
-                                      types=[edge_type],
-                                      columns=columns)
+    some_edge_data = pG.get_edge_data(
+        edge_ids=edge_ids, types=[edge_type], columns=columns
+    )
     # Ensure the returned df is the right length and includes at least the
     # specified columns.
     assert len(some_edge_data) == len(edge_ids)
     assert set(columns) - set(some_edge_data.columns) == set()
+
+    # Allow a single edge type and single edge id to be passed in
+    df1 = pG.get_edge_data(edge_ids=[1], types=[edge_type])
+    df2 = pG.get_edge_data(edge_ids=1, types=edge_type)
+    assert len(df1) == 1
+    assert df1.shape == df2.shape
+    # assert_frame_equal(df1, df2, check_like=True)
+
+
+@pytest.mark.parametrize("df_type", df_types, ids=df_type_id)
+def test_get_edge_data_repeated(df_type):
+    from cugraph.experimental import PropertyGraph
+
+    df = df_type({"src": [1, 1, 1, 2], "dst": [2, 3, 4, 1], "edge_feat": np.arange(4)})
+    pG = PropertyGraph()
+    pG.add_edge_data(df, vertex_col_names=["src", "dst"])
+    df1 = pG.get_edge_data(edge_ids=[2, 1, 3, 1], columns=["edge_feat"])
+    expected = df_type(
+        {
+            pG.edge_id_col_name: [2, 1, 3, 1],
+            pG.src_col_name: [1, 1, 2, 1],
+            pG.dst_col_name: [4, 3, 1, 3],
+            pG.type_col_name: ["", "", "", ""],
+            "edge_feat": [2, 1, 3, 1],
+        }
+    )
+    df1[pG.type_col_name] = df1[pG.type_col_name].astype(str)  # Undo category
+    if df_type is cudf.DataFrame:
+        afe = assert_frame_equal
+    else:
+        afe = pd.testing.assert_frame_equal
+    afe(df1, expected)
 
 
 @pytest.mark.parametrize("df_type", df_types, ids=df_type_id)
@@ -668,6 +834,7 @@ def test_null_data(df_type):
     assert pG.get_num_vertices() == 0
     assert pG.get_num_edges() == 0
     assert sorted(pG.vertex_property_names) == sorted([])
+    assert type_is_categorical(pG)
 
 
 @pytest.mark.parametrize("df_type", df_types, ids=df_type_id)
@@ -678,20 +845,22 @@ def test_add_vertex_data_prop_columns(df_type):
     from cugraph.experimental import PropertyGraph
 
     merchants = dataset1["merchants"]
-    merchants_df = df_type(columns=merchants[0],
-                           data=merchants[1])
+    merchants_df = df_type(columns=merchants[0], data=merchants[1])
     expected_props = ["merchant_name", "merchant_sales", "merchant_location"]
 
     pG = PropertyGraph()
-    pG.add_vertex_data(merchants_df,
-                       type_name="merchants",
-                       vertex_col_name="merchant_id",
-                       property_columns=expected_props)
+    pG.add_vertex_data(
+        merchants_df,
+        type_name="merchants",
+        vertex_col_name="merchant_id",
+        property_columns=expected_props,
+    )
 
     assert pG.get_num_vertices() == 5
-    assert pG.get_num_vertices('merchants') == 5
+    assert pG.get_num_vertices("merchants") == 5
     assert pG.get_num_edges() == 0
     assert sorted(pG.vertex_property_names) == sorted(expected_props)
+    assert type_is_categorical(pG)
 
 
 def test_add_vertex_data_bad_args():
@@ -702,36 +871,44 @@ def test_add_vertex_data_bad_args():
     from cugraph.experimental import PropertyGraph
 
     merchants = dataset1["merchants"]
-    merchants_df = cudf.DataFrame(columns=merchants[0],
-                                  data=merchants[1])
+    merchants_df = cudf.DataFrame(columns=merchants[0], data=merchants[1])
 
     pG = PropertyGraph()
     with pytest.raises(TypeError):
-        pG.add_vertex_data(42,
-                           type_name="merchants",
-                           vertex_col_name="merchant_id",
-                           property_columns=None)
+        pG.add_vertex_data(
+            42,
+            type_name="merchants",
+            vertex_col_name="merchant_id",
+            property_columns=None,
+        )
     with pytest.raises(TypeError):
-        pG.add_vertex_data(merchants_df,
-                           type_name=42,
-                           vertex_col_name="merchant_id",
-                           property_columns=None)
+        pG.add_vertex_data(
+            merchants_df,
+            type_name=42,
+            vertex_col_name="merchant_id",
+            property_columns=None,
+        )
     with pytest.raises(ValueError):
-        pG.add_vertex_data(merchants_df,
-                           type_name="merchants",
-                           vertex_col_name="bad_column_name",
-                           property_columns=None)
+        pG.add_vertex_data(
+            merchants_df,
+            type_name="merchants",
+            vertex_col_name="bad_column_name",
+            property_columns=None,
+        )
     with pytest.raises(ValueError):
-        pG.add_vertex_data(merchants_df,
-                           type_name="merchants",
-                           vertex_col_name="merchant_id",
-                           property_columns=["bad_column_name",
-                                             "merchant_name"])
+        pG.add_vertex_data(
+            merchants_df,
+            type_name="merchants",
+            vertex_col_name="merchant_id",
+            property_columns=["bad_column_name", "merchant_name"],
+        )
     with pytest.raises(TypeError):
-        pG.add_vertex_data(merchants_df,
-                           type_name="merchants",
-                           vertex_col_name="merchant_id",
-                           property_columns="merchant_name")
+        pG.add_vertex_data(
+            merchants_df,
+            type_name="merchants",
+            vertex_col_name="merchant_id",
+            property_columns="merchant_name",
+        )
 
 
 @pytest.mark.parametrize("df_type", df_types, ids=df_type_id)
@@ -742,23 +919,25 @@ def test_add_edge_data(df_type):
     from cugraph.experimental import PropertyGraph
 
     transactions = dataset1["transactions"]
-    transactions_df = df_type(columns=transactions[0],
-                              data=transactions[1])
+    transactions_df = df_type(columns=transactions[0], data=transactions[1])
 
     pG = PropertyGraph()
-    pG.add_edge_data(transactions_df,
-                     type_name="transactions",
-                     vertex_col_names=("user_id", "merchant_id"),
-                     property_columns=None)
+    pG.add_edge_data(
+        transactions_df,
+        type_name="transactions",
+        vertex_col_names=("user_id", "merchant_id"),
+        property_columns=None,
+    )
 
     assert pG.get_num_vertices() == 7
     # 'transactions' is edge type, not vertex type
-    assert pG.get_num_vertices('transactions') == 0
+    assert pG.get_num_vertices("transactions") == 0
     assert pG.get_num_edges() == 4
-    assert pG.get_num_edges('transactions') == 4
+    assert pG.get_num_edges("transactions") == 4
     # Original SRC and DST columns no longer include "merchant_id", "user_id"
     expected_props = ["volume", "time", "card_num", "card_type"]
     assert sorted(pG.edge_property_names) == sorted(expected_props)
+    assert type_is_categorical(pG)
 
 
 @pytest.mark.parametrize("df_type", df_types, ids=df_type_id)
@@ -769,22 +948,110 @@ def test_add_edge_data_prop_columns(df_type):
     from cugraph.experimental import PropertyGraph
 
     transactions = dataset1["transactions"]
-    transactions_df = df_type(columns=transactions[0],
-                              data=transactions[1])
+    transactions_df = df_type(columns=transactions[0], data=transactions[1])
     expected_props = ["card_num", "card_type"]
 
     pG = PropertyGraph()
-    pG.add_edge_data(transactions_df,
-                     type_name="transactions",
-                     vertex_col_names=("user_id", "merchant_id"),
-                     property_columns=expected_props)
+    pG.add_edge_data(
+        transactions_df,
+        type_name="transactions",
+        vertex_col_names=("user_id", "merchant_id"),
+        property_columns=expected_props,
+    )
 
     assert pG.get_num_vertices() == 7
     # 'transactions' is edge type, not vertex type
-    assert pG.get_num_vertices('transactions') == 0
+    assert pG.get_num_vertices("transactions") == 0
     assert pG.get_num_edges() == 4
-    assert pG.get_num_edges('transactions') == 4
+    assert pG.get_num_edges("transactions") == 4
     assert sorted(pG.edge_property_names) == sorted(expected_props)
+    assert type_is_categorical(pG)
+
+
+@pytest.mark.parametrize("df_type", df_types, ids=df_type_id)
+def test_add_edge_data_with_ids(df_type):
+    """
+    add_edge_data() on "transactions" table, all properties.
+    """
+    from cugraph.experimental import PropertyGraph
+
+    transactions = dataset1["transactions"]
+    transactions_df = df_type(columns=transactions[0], data=transactions[1])
+    transactions_df["edge_id"] = list(range(10, 10 + len(transactions_df)))
+
+    pG = PropertyGraph()
+    pG.add_edge_data(
+        transactions_df,
+        type_name="transactions",
+        edge_id_col_name="edge_id",
+        vertex_col_names=("user_id", "merchant_id"),
+        property_columns=None,
+    )
+
+    assert pG.get_num_vertices() == 7
+    # 'transactions' is edge type, not vertex type
+    assert pG.get_num_vertices("transactions") == 0
+    assert pG.get_num_edges() == 4
+    assert pG.get_num_edges("transactions") == 4
+    # Original SRC and DST columns no longer include "merchant_id", "user_id"
+    expected_props = ["volume", "time", "card_num", "card_type"]
+    assert sorted(pG.edge_property_names) == sorted(expected_props)
+
+    relationships = dataset1["relationships"]
+    relationships_df = df_type(columns=relationships[0], data=relationships[1])
+
+    # user-provided, then auto-gen (not allowed)
+    with pytest.raises(NotImplementedError):
+        pG.add_edge_data(
+            relationships_df,
+            type_name="relationships",
+            vertex_col_names=("user_id_1", "user_id_2"),
+            property_columns=None,
+        )
+
+    relationships_df["edge_id"] = list(range(30, 30 + len(relationships_df)))
+
+    pG.add_edge_data(
+        relationships_df,
+        type_name="relationships",
+        edge_id_col_name="edge_id",
+        vertex_col_names=("user_id_1", "user_id_2"),
+        property_columns=None,
+    )
+
+    if df_type is cudf.DataFrame:
+        ase = assert_series_equal
+    else:
+        ase = pd.testing.assert_series_equal
+    df = pG.get_edge_data(types="transactions")
+    ase(
+        df[pG.edge_id_col_name].sort_values().reset_index(drop=True),
+        transactions_df["edge_id"],
+        check_names=False,
+    )
+    df = pG.get_edge_data(types="relationships")
+    ase(
+        df[pG.edge_id_col_name].sort_values().reset_index(drop=True),
+        relationships_df["edge_id"],
+        check_names=False,
+    )
+
+    # auto-gen, then user-provided (not allowed)
+    pG = PropertyGraph()
+    pG.add_edge_data(
+        transactions_df,
+        type_name="transactions",
+        vertex_col_names=("user_id", "merchant_id"),
+        property_columns=None,
+    )
+    with pytest.raises(NotImplementedError):
+        pG.add_edge_data(
+            relationships_df,
+            type_name="relationships",
+            edge_id_col_name="edge_id",
+            vertex_col_names=("user_id_1", "user_id_2"),
+            property_columns=None,
+        )
 
 
 def test_add_edge_data_bad_args():
@@ -795,35 +1062,60 @@ def test_add_edge_data_bad_args():
     from cugraph.experimental import PropertyGraph
 
     transactions = dataset1["transactions"]
-    transactions_df = cudf.DataFrame(columns=transactions[0],
-                                     data=transactions[1])
+    transactions_df = cudf.DataFrame(columns=transactions[0], data=transactions[1])
 
     pG = PropertyGraph()
     with pytest.raises(TypeError):
-        pG.add_edge_data(42,
-                         type_name="transactions",
-                         vertex_col_names=("user_id", "merchant_id"),
-                         property_columns=None)
+        pG.add_edge_data(
+            42,
+            type_name="transactions",
+            vertex_col_names=("user_id", "merchant_id"),
+            property_columns=None,
+        )
     with pytest.raises(TypeError):
-        pG.add_edge_data(transactions_df,
-                         type_name=42,
-                         vertex_col_names=("user_id", "merchant_id"),
-                         property_columns=None)
+        pG.add_edge_data(
+            transactions_df,
+            type_name=42,
+            vertex_col_names=("user_id", "merchant_id"),
+            property_columns=None,
+        )
     with pytest.raises(ValueError):
-        pG.add_edge_data(transactions_df,
-                         type_name="transactions",
-                         vertex_col_names=("user_id", "bad_column"),
-                         property_columns=None)
+        pG.add_edge_data(
+            transactions_df,
+            type_name="transactions",
+            vertex_col_names=("user_id", "bad_column"),
+            property_columns=None,
+        )
     with pytest.raises(ValueError):
-        pG.add_edge_data(transactions_df,
-                         type_name="transactions",
-                         vertex_col_names=("user_id", "merchant_id"),
-                         property_columns=["bad_column_name", "time"])
+        pG.add_edge_data(
+            transactions_df,
+            type_name="transactions",
+            vertex_col_names=("user_id", "merchant_id"),
+            property_columns=["bad_column_name", "time"],
+        )
     with pytest.raises(TypeError):
-        pG.add_edge_data(transactions_df,
-                         type_name="transactions",
-                         vertex_col_names=("user_id", "merchant_id"),
-                         property_columns="time")
+        pG.add_edge_data(
+            transactions_df,
+            type_name="transactions",
+            vertex_col_names=("user_id", "merchant_id"),
+            property_columns="time",
+        )
+    with pytest.raises(TypeError):
+        pG.add_edge_data(
+            transactions_df,
+            type_name="transactions",
+            edge_id_col_name=42,
+            vertex_col_names=("user_id", "merchant_id"),
+            property_columns=None,
+        )
+    with pytest.raises(ValueError):
+        pG.add_edge_data(
+            transactions_df,
+            type_name="transactions",
+            edge_id_col_name="MISSING",
+            vertex_col_names=("user_id", "merchant_id"),
+            property_columns=None,
+        )
 
 
 def test_extract_subgraph_vertex_prop_condition_only(dataset1_PropertyGraph):
@@ -833,19 +1125,20 @@ def test_extract_subgraph_vertex_prop_condition_only(dataset1_PropertyGraph):
     # This should result in two users: 78634 and 89216
     selection = pG.select_vertices(
         f"({pG.type_col_name}=='users') "
-        "& ((user_location<78750) | ((user_location==78757) & (vertical==1)))")
-    G = pG.extract_subgraph(selection=selection,
-                            create_using=DiGraph_inst,
-                            edge_weight_property="relationship_type",
-                            default_edge_weight=99)
+        "& ((user_location<78750) | ((user_location==78757) & (vertical==1)))"
+    )
+    G = pG.extract_subgraph(
+        selection=selection,
+        create_using=DiGraph_inst,
+        edge_weight_property="relationship_type",
+        default_edge_weight=99,
+    )
     # Should result in two edges, one a "relationship", the other a "referral"
-    expected_edgelist = cudf.DataFrame({"src": [89216, 78634],
-                                        "dst": [78634, 89216],
-                                        "weights": [99, 8]})
-    actual_edgelist = G.unrenumber(G.edgelist.edgelist_df, "src",
-                                   preserve_order=True)
-    actual_edgelist = G.unrenumber(actual_edgelist, "dst",
-                                   preserve_order=True)
+    expected_edgelist = cudf.DataFrame(
+        {"src": [89216, 78634], "dst": [78634, 89216], "weights": [99, 8]}
+    )
+    actual_edgelist = G.unrenumber(G.edgelist.edgelist_df, "src", preserve_order=True)
+    actual_edgelist = G.unrenumber(actual_edgelist, "dst", preserve_order=True)
 
     assert G.is_directed()
     # check_like=True ignores differences in column/index ordering
@@ -858,19 +1151,15 @@ def test_extract_subgraph_vertex_edge_prop_condition(dataset1_PropertyGraph):
     (pG, data) = dataset1_PropertyGraph
     tcn = PropertyGraph.type_col_name
 
-    selection = pG.select_vertices("(user_location==47906) | "
-                                   "(user_location==78750)")
+    selection = pG.select_vertices("(user_location==47906) | " "(user_location==78750)")
     selection += pG.select_edges(f"{tcn}=='referrals'")
-    G = pG.extract_subgraph(selection=selection,
-                            create_using=DiGraph_inst,
-                            edge_weight_property="stars")
+    G = pG.extract_subgraph(
+        selection=selection, create_using=DiGraph_inst, edge_weight_property="stars"
+    )
 
-    expected_edgelist = cudf.DataFrame({"src": [78634], "dst": [32431],
-                                        "weights": [4]})
-    actual_edgelist = G.unrenumber(G.edgelist.edgelist_df, "src",
-                                   preserve_order=True)
-    actual_edgelist = G.unrenumber(actual_edgelist, "dst",
-                                   preserve_order=True)
+    expected_edgelist = cudf.DataFrame({"src": [78634], "dst": [32431], "weights": [4]})
+    actual_edgelist = G.unrenumber(G.edgelist.edgelist_df, "src", preserve_order=True)
+    actual_edgelist = G.unrenumber(actual_edgelist, "dst", preserve_order=True)
 
     assert G.is_directed()
     assert_frame_equal(expected_edgelist, actual_edgelist, check_like=True)
@@ -883,20 +1172,16 @@ def test_extract_subgraph_edge_prop_condition_only(dataset1_PropertyGraph):
     tcn = PropertyGraph.type_col_name
 
     selection = pG.select_edges(f"{tcn} =='transactions'")
-    G = pG.extract_subgraph(selection=selection,
-                            create_using=DiGraph_inst)
+    G = pG.extract_subgraph(selection=selection, create_using=DiGraph_inst)
 
     # last item is the DataFrame rows
     transactions = dataset1["transactions"][-1]
     (srcs, dsts) = zip(*[(t[0], t[1]) for t in transactions])
     expected_edgelist = cudf.DataFrame({"src": srcs, "dst": dsts})
-    expected_edgelist = expected_edgelist.sort_values(by="src",
-                                                      ignore_index=True)
+    expected_edgelist = expected_edgelist.sort_values(by="src", ignore_index=True)
 
-    actual_edgelist = G.unrenumber(G.edgelist.edgelist_df, "src",
-                                   preserve_order=True)
-    actual_edgelist = G.unrenumber(actual_edgelist, "dst",
-                                   preserve_order=True)
+    actual_edgelist = G.unrenumber(G.edgelist.edgelist_df, "src", preserve_order=True)
+    actual_edgelist = G.unrenumber(actual_edgelist, "dst", preserve_order=True)
     actual_edgelist = actual_edgelist.sort_values(by="src", ignore_index=True)
 
     assert G.is_directed()
@@ -913,8 +1198,7 @@ def test_extract_subgraph_unweighted(dataset1_PropertyGraph):
     tcn = PropertyGraph.type_col_name
 
     selection = pG.select_edges(f"{tcn} == 'transactions'")
-    G = pG.extract_subgraph(selection=selection,
-                            create_using=DiGraph_inst)
+    G = pG.extract_subgraph(selection=selection, create_using=DiGraph_inst)
 
     assert G.is_weighted() is False
 
@@ -930,19 +1214,16 @@ def test_extract_subgraph_specific_query(dataset1_PropertyGraph):
     tcn = PropertyGraph.type_col_name
 
     # _DST_ below used to be referred to as merchant_id
-    selection = pG.select_edges(f"({tcn}=='transactions') & "
-                                "(_DST_==4) & "
-                                "(time>1639085000)")
-    G = pG.extract_subgraph(selection=selection,
-                            create_using=DiGraph_inst,
-                            edge_weight_property="card_num")
+    selection = pG.select_edges(
+        f"({tcn}=='transactions') & " "(_DST_==4) & " "(time>1639085000)"
+    )
+    G = pG.extract_subgraph(
+        selection=selection, create_using=DiGraph_inst, edge_weight_property="card_num"
+    )
 
-    expected_edgelist = cudf.DataFrame({"src": [89216], "dst": [4],
-                                        "weights": [8832]})
-    actual_edgelist = G.unrenumber(G.edgelist.edgelist_df, "src",
-                                   preserve_order=True)
-    actual_edgelist = G.unrenumber(actual_edgelist, "dst",
-                                   preserve_order=True)
+    expected_edgelist = cudf.DataFrame({"src": [89216], "dst": [4], "weights": [8832]})
+    actual_edgelist = G.unrenumber(G.edgelist.edgelist_df, "src", preserve_order=True)
+    actual_edgelist = G.unrenumber(actual_edgelist, "dst", preserve_order=True)
 
     assert G.is_directed()
     assert_frame_equal(expected_edgelist, actual_edgelist, check_like=True)
@@ -962,17 +1243,15 @@ def test_select_vertices_from_previous_selection(dataset1_PropertyGraph):
     # awkward query with separate select calls to test from_previous_selection
     selection = pG.select_vertices(f"{tcn} == 'users'")
     selection = pG.select_vertices(
-        "((user_location == 78757) & (vertical == 1)) "
-        "| (user_location == 47906)",
-        from_previous_selection=selection)
+        "((user_location == 78757) & (vertical == 1)) " "| (user_location == 47906)",
+        from_previous_selection=selection,
+    )
     selection += pG.select_edges(f"{tcn} == 'referrals'")
     G = pG.extract_subgraph(create_using=DiGraph_inst, selection=selection)
 
     expected_edgelist = cudf.DataFrame({"src": [89216], "dst": [78634]})
-    actual_edgelist = G.unrenumber(G.edgelist.edgelist_df, "src",
-                                   preserve_order=True)
-    actual_edgelist = G.unrenumber(actual_edgelist, "dst",
-                                   preserve_order=True)
+    actual_edgelist = G.unrenumber(G.edgelist.edgelist_df, "src", preserve_order=True)
+    actual_edgelist = G.unrenumber(actual_edgelist, "dst", preserve_order=True)
 
     assert G.is_directed()
     assert_frame_equal(expected_edgelist, actual_edgelist, check_like=True)
@@ -990,30 +1269,32 @@ def test_extract_subgraph_graph_without_vert_props():
 
     pG = PropertyGraph()
 
-    pG.add_edge_data(cudf.DataFrame(columns=transactions[0],
-                                    data=transactions[1]),
-                     type_name="transactions",
-                     vertex_col_names=("user_id", "merchant_id"),
-                     property_columns=None)
-    pG.add_edge_data(cudf.DataFrame(columns=relationships[0],
-                                    data=relationships[1]),
-                     type_name="relationships",
-                     vertex_col_names=("user_id_1", "user_id_2"),
-                     property_columns=None)
+    pG.add_edge_data(
+        cudf.DataFrame(columns=transactions[0], data=transactions[1]),
+        type_name="transactions",
+        vertex_col_names=("user_id", "merchant_id"),
+        property_columns=None,
+    )
+    pG.add_edge_data(
+        cudf.DataFrame(columns=relationships[0], data=relationships[1]),
+        type_name="relationships",
+        vertex_col_names=("user_id_1", "user_id_2"),
+        property_columns=None,
+    )
 
     scn = PropertyGraph.src_col_name
-    G = pG.extract_subgraph(selection=pG.select_edges(f"{scn} == 89216"),
-                            create_using=DiGraph_inst,
-                            edge_weight_property="relationship_type",
-                            default_edge_weight=0)
+    G = pG.extract_subgraph(
+        selection=pG.select_edges(f"{scn} == 89216"),
+        create_using=DiGraph_inst,
+        edge_weight_property="relationship_type",
+        default_edge_weight=0,
+    )
 
-    expected_edgelist = cudf.DataFrame({"src": [89216, 89216, 89216],
-                                        "dst": [4, 89021, 32431],
-                                        "weights": [0, 9, 9]})
-    actual_edgelist = G.unrenumber(G.edgelist.edgelist_df, "src",
-                                   preserve_order=True)
-    actual_edgelist = G.unrenumber(actual_edgelist, "dst",
-                                   preserve_order=True)
+    expected_edgelist = cudf.DataFrame(
+        {"src": [89216, 89216, 89216], "dst": [4, 89021, 32431], "weights": [0, 9, 9]}
+    )
+    actual_edgelist = G.unrenumber(G.edgelist.edgelist_df, "src", preserve_order=True)
+    actual_edgelist = G.unrenumber(actual_edgelist, "dst", preserve_order=True)
 
     assert G.is_directed()
     assert_frame_equal(expected_edgelist, actual_edgelist, check_like=True)
@@ -1027,9 +1308,7 @@ def test_extract_subgraph_no_edges(dataset1_PropertyGraph):
 
     # "merchant_id" column is no longer saved; use as "_VERTEX_"
     with pytest.raises(NameError, match="merchant_id"):
-        selection = pG.select_vertices(
-            "(_TYPE_=='merchants') & (merchant_id==86)"
-        )
+        selection = pG.select_vertices("(_TYPE_=='merchants') & (merchant_id==86)")
 
     selection = pG.select_vertices("(_TYPE_=='merchants') & (_VERTEX_==86)")
     G = pG.extract_subgraph(selection=selection)
@@ -1044,12 +1323,13 @@ def test_extract_subgraph_no_query(dataset1_PropertyGraph):
     """
     (pG, data) = dataset1_PropertyGraph
 
-    G = pG.extract_subgraph(create_using=DiGraph_inst, allow_multi_edges=True)
+    G = pG.extract_subgraph(create_using=DiGraph_inst, check_multi_edges=False)
 
-    num_edges = \
-        len(dataset1["transactions"][-1]) + \
-        len(dataset1["relationships"][-1]) + \
-        len(dataset1["referrals"][-1])
+    num_edges = (
+        len(dataset1["transactions"][-1])
+        + len(dataset1["relationships"][-1])
+        + len(dataset1["referrals"][-1])
+    )
     # referrals has 3 edges with the same src/dst, so subtract 2 from
     # the total count since this is not creating a multigraph..
     num_edges -= 2
@@ -1073,8 +1353,9 @@ def test_extract_subgraph_multi_edges(dataset1_PropertyGraph):
 
     # FIXME: use a better exception
     with pytest.raises(RuntimeError):
-        pG.extract_subgraph(selection=selection,
-                            create_using=DiGraph_inst)
+        pG.extract_subgraph(
+            selection=selection, create_using=DiGraph_inst, check_multi_edges=True
+        )
 
 
 def test_extract_subgraph_bad_args(dataset1_PropertyGraph):
@@ -1085,28 +1366,33 @@ def test_extract_subgraph_bad_args(dataset1_PropertyGraph):
 
     # non-PropertySelection selection
     with pytest.raises(TypeError):
-        pG.extract_subgraph(selection=78750,
-                            create_using=DiGraph_inst,
-                            edge_weight_property="stars",
-                            default_edge_weight=1.0)
+        pG.extract_subgraph(
+            selection=78750,
+            create_using=DiGraph_inst,
+            edge_weight_property="stars",
+            default_edge_weight=1.0,
+        )
 
     selection = pG.select_edges(f"{tcn}=='referrals'")
     # bad create_using type
     with pytest.raises(TypeError):
-        pG.extract_subgraph(selection=selection,
-                            create_using=pytest,
-                            edge_weight_property="stars",
-                            default_edge_weight=1.0)
+        pG.extract_subgraph(
+            selection=selection,
+            create_using=pytest,
+            edge_weight_property="stars",
+            default_edge_weight=1.0,
+        )
     # invalid column name
     with pytest.raises(ValueError):
-        pG.extract_subgraph(selection=selection,
-                            edge_weight_property="bad_column",
-                            default_edge_weight=1.0)
+        pG.extract_subgraph(
+            selection=selection,
+            edge_weight_property="bad_column",
+            default_edge_weight=1.0,
+        )
     # column name has None value for all results in subgraph and
     # default_edge_weight is not set.
     with pytest.raises(ValueError):
-        pG.extract_subgraph(selection=selection,
-                            edge_weight_property="card_type")
+        pG.extract_subgraph(selection=selection, edge_weight_property="card_type")
 
 
 def test_extract_subgraph_default_edge_weight(dataset1_PropertyGraph):
@@ -1120,45 +1406,39 @@ def test_extract_subgraph_default_edge_weight(dataset1_PropertyGraph):
     tcn = PropertyGraph.type_col_name
 
     selection = pG.select_edges(f"{tcn}=='transactions'")
-    G = pG.extract_subgraph(create_using=DiGraph_inst,
-                            selection=selection,
-                            edge_weight_property="volume",
-                            default_edge_weight=99)
+    G = pG.extract_subgraph(
+        create_using=DiGraph_inst,
+        selection=selection,
+        edge_weight_property="volume",
+        default_edge_weight=99,
+    )
 
     # last item is the DataFrame rows
     transactions = dataset1["transactions"][-1]
-    (srcs, dsts, weights) = zip(*[(t[0], t[1], t[2])
-                                  for t in transactions])
+    (srcs, dsts, weights) = zip(*[(t[0], t[1], t[2]) for t in transactions])
     # replace None with the expected value (convert to a list to replace)
     weights_list = list(weights)
-    weights_list[weights.index(None)] = 99.
+    weights_list[weights.index(None)] = 99.0
     weights = tuple(weights_list)
-    expected_edgelist = cudf.DataFrame({"src": srcs, "dst": dsts,
-                                        "weights": weights})
-    expected_edgelist = expected_edgelist.sort_values(by="src",
-                                                      ignore_index=True)
+    expected_edgelist = cudf.DataFrame({"src": srcs, "dst": dsts, "weights": weights})
+    expected_edgelist = expected_edgelist.sort_values(by="src", ignore_index=True)
 
-    actual_edgelist = G.unrenumber(G.edgelist.edgelist_df, "src",
-                                   preserve_order=True)
-    actual_edgelist = G.unrenumber(actual_edgelist, "dst",
-                                   preserve_order=True)
-    actual_edgelist = actual_edgelist.sort_values(by="src",
-                                                  ignore_index=True)
+    actual_edgelist = G.unrenumber(G.edgelist.edgelist_df, "src", preserve_order=True)
+    actual_edgelist = G.unrenumber(actual_edgelist, "dst", preserve_order=True)
+    actual_edgelist = actual_edgelist.sort_values(by="src", ignore_index=True)
 
     assert G.is_directed()
     assert_frame_equal(expected_edgelist, actual_edgelist, check_like=True)
 
 
-def test_extract_subgraph_default_edge_weight_no_property(
-        dataset1_PropertyGraph):
+def test_extract_subgraph_default_edge_weight_no_property(dataset1_PropertyGraph):
     """
     Ensure default_edge_weight can be used to provide an edge value when a
     property for the edge weight is not specified.
     """
     (pG, data) = dataset1_PropertyGraph
     edge_weight = 99.2
-    G = pG.extract_subgraph(allow_multi_edges=True,
-                            default_edge_weight=edge_weight)
+    G = pG.extract_subgraph(default_edge_weight=edge_weight)
     assert (G.edgelist.edgelist_df["weights"] == edge_weight).all()
 
 
@@ -1171,23 +1451,29 @@ def test_extract_subgraph_nonrenumbered_noedgedata():
     from cugraph import Graph
 
     pG = PropertyGraph()
-    df = cudf.DataFrame({"src": [99, 98, 97],
-                         "dst": [22, 34, 56],
-                         "some_property": ["a", "b", "c"],
-                         })
+    df = cudf.DataFrame(
+        {
+            "src": [99, 98, 97],
+            "dst": [22, 34, 56],
+            "some_property": ["a", "b", "c"],
+        }
+    )
     pG.add_edge_data(df, vertex_col_names=("src", "dst"))
 
-    G = pG.extract_subgraph(create_using=Graph(directed=True),
-                            renumber_graph=False,
-                            add_edge_data=False)
+    G = pG.extract_subgraph(
+        create_using=Graph(directed=True), renumber_graph=False, add_edge_data=False
+    )
 
-    expected_edgelist = cudf.DataFrame({"src": [99, 98, 97],
-                                        "dst": [22, 34, 56],
-                                        })
-    assert_frame_equal(expected_edgelist.sort_values(by="src",
-                                                     ignore_index=True),
-                       G.edgelist.edgelist_df.sort_values(by="src",
-                                                          ignore_index=True))
+    expected_edgelist = cudf.DataFrame(
+        {
+            "src": [99, 98, 97],
+            "dst": [22, 34, 56],
+        }
+    )
+    assert_frame_equal(
+        expected_edgelist.sort_values(by="src", ignore_index=True),
+        G.edgelist.edgelist_df.sort_values(by="src", ignore_index=True),
+    )
     assert hasattr(G, "edge_data") is False
 
 
@@ -1201,24 +1487,21 @@ def test_graph_edge_data_added(dataset1_PropertyGraph):
     (pG, data) = dataset1_PropertyGraph
     eicn = PropertyGraph.edge_id_col_name
 
-    expected_num_edges = \
-        len(dataset1["transactions"][-1]) + \
-        len(dataset1["relationships"][-1]) + \
-        len(dataset1["referrals"][-1])
+    expected_num_edges = (
+        len(dataset1["transactions"][-1])
+        + len(dataset1["relationships"][-1])
+        + len(dataset1["referrals"][-1])
+    )
 
     assert pG.get_num_edges() == expected_num_edges
-    assert (
-        pG.get_num_edges("transactions") == len(dataset1["transactions"][-1])
-    )
-    assert (
-        pG.get_num_edges("relationships") == len(dataset1["relationships"][-1])
-    )
+    assert pG.get_num_edges("transactions") == len(dataset1["transactions"][-1])
+    assert pG.get_num_edges("relationships") == len(dataset1["relationships"][-1])
     assert pG.get_num_edges("referrals") == len(dataset1["referrals"][-1])
     assert pG.get_num_edges("unknown_type") == 0
 
     # extract_subgraph() should return a directed Graph object with additional
     # meta-data, which includes edge IDs.
-    G = pG.extract_subgraph(create_using=DiGraph_inst, allow_multi_edges=True)
+    G = pG.extract_subgraph(create_using=DiGraph_inst, check_multi_edges=False)
 
     # G.edge_data should be set to a DataFrame with rows for each graph edge.
     assert len(G.edge_data) == expected_num_edges
@@ -1239,8 +1522,7 @@ def test_annotate_dataframe(dataset1_PropertyGraph):
     (pG, data) = dataset1_PropertyGraph
 
     selection = pG.select_edges("(_TYPE_ == 'referrals') & (stars > 3)")
-    G = pG.extract_subgraph(selection=selection,
-                            create_using=DiGraph_inst)
+    G = pG.extract_subgraph(selection=selection, create_using=DiGraph_inst)
 
     df_type = type(pG._edge_prop_dataframe)
     # Create an arbitrary DataFrame meant to represent an algo result,
@@ -1249,26 +1531,31 @@ def test_annotate_dataframe(dataset1_PropertyGraph):
     # Drop duplicate edges since actual results from a Graph object would not
     # have them.
     (srcs, dsts, mids, stars) = zip(*(dataset1["referrals"][1]))
-    algo_result = df_type({"from": srcs, "to": dsts,
-                           "result": range(len(srcs))})
-    algo_result.drop_duplicates(subset=["from", "to"],
-                                inplace=True, ignore_index=True)
+    algo_result = df_type({"from": srcs, "to": dsts, "result": range(len(srcs))})
+    algo_result.drop_duplicates(subset=["from", "to"], inplace=True, ignore_index=True)
 
     new_algo_result = pG.annotate_dataframe(
-        algo_result, G, edge_vertex_col_names=("from", "to"))
-    expected_algo_result = df_type({"from": srcs, "to": dsts,
-                                    "result": range(len(srcs)),
-                                    "merchant_id": mids,
-                                    "stars": stars})
+        algo_result, G, edge_vertex_col_names=("from", "to")
+    )
+    expected_algo_result = df_type(
+        {
+            "from": srcs,
+            "to": dsts,
+            "result": range(len(srcs)),
+            "merchant_id": mids,
+            "stars": stars,
+        }
+    )
     # The integer dtypes of annotated properties are nullable integer dtypes,
     # so convert for proper comparison.
-    expected_algo_result["merchant_id"] = \
-        expected_algo_result["merchant_id"].astype("Int64")
-    expected_algo_result["stars"] = \
-        expected_algo_result["stars"].astype("Int64")
+    expected_algo_result["merchant_id"] = expected_algo_result["merchant_id"].astype(
+        "Int64"
+    )
+    expected_algo_result["stars"] = expected_algo_result["stars"].astype("Int64")
 
-    expected_algo_result.drop_duplicates(subset=["from", "to"],
-                                         inplace=True, ignore_index=True)
+    expected_algo_result.drop_duplicates(
+        subset=["from", "to"], inplace=True, ignore_index=True
+    )
 
     if df_type is cudf.DataFrame:
         ase = assert_series_equal
@@ -1325,12 +1612,20 @@ def test_get_vertices(dataset1_PropertyGraph):
     """
     (pG, data) = dataset1_PropertyGraph
 
-    (merchants, users, taxpayers,
-     transactions, relationships, referrals) = dataset1.values()
+    (
+        merchants,
+        users,
+        taxpayers,
+        transactions,
+        relationships,
+        referrals,
+    ) = dataset1.values()
 
-    expected_vertices = set([t[0] for t in merchants[1]] +
-                            [t[0] for t in users[1]] +
-                            [t[0] for t in taxpayers[1]])
+    expected_vertices = set(
+        [t[0] for t in merchants[1]]
+        + [t[0] for t in users[1]]
+        + [t[0] for t in taxpayers[1]]
+    )
 
     assert sorted(pG.get_vertices().values) == sorted(expected_vertices)
 
@@ -1344,13 +1639,20 @@ def test_get_edges(dataset1_PropertyGraph):
 
     (pG, data) = dataset1_PropertyGraph
 
-    (merchants, users, taxpayers,
-     transactions, relationships, referrals) = dataset1.values()
+    (
+        merchants,
+        users,
+        taxpayers,
+        transactions,
+        relationships,
+        referrals,
+    ) = dataset1.values()
 
-    expected_edges = \
-        [(src, dst) for (src, dst, _, _, _, _) in transactions[1]] + \
-        [(src, dst) for (src, dst, _) in relationships[1]] + \
-        [(src, dst) for (src, dst, _, _) in referrals[1]]
+    expected_edges = (
+        [(src, dst) for (src, dst, _, _, _, _) in transactions[1]]
+        + [(src, dst) for (src, dst, _) in relationships[1]]
+        + [(src, dst) for (src, dst, _, _) in referrals[1]]
+    )
 
     actual_edges = pG.edges
 
@@ -1369,18 +1671,31 @@ def test_property_names_attrs(dataset1_PropertyGraph):
     (pG, data) = dataset1_PropertyGraph
 
     # _VERTEX_ columns: "merchant_id", "user_id"
-    expected_vert_prop_names = ["merchant_location", "merchant_size",
-                                "merchant_sales", "merchant_num_employees",
-                                "user_location", "merchant_name", "vertical"]
+    expected_vert_prop_names = [
+        "merchant_location",
+        "merchant_size",
+        "merchant_sales",
+        "merchant_num_employees",
+        "user_location",
+        "merchant_name",
+        "vertical",
+    ]
     # _SRC_ and _DST_ columns: "user_id", "user_id_1", "user_id_2"
     # Note that "merchant_id" is a property in for type "transactions"
-    expected_edge_prop_names = ["merchant_id", "volume", "time", "card_num",
-                                "card_type", "relationship_type", "stars"]
+    expected_edge_prop_names = [
+        "merchant_id",
+        "volume",
+        "time",
+        "card_num",
+        "card_type",
+        "relationship_type",
+        "stars",
+    ]
 
     # Extracting a subgraph with weights has/had a side-effect of adding a
     # weight column, so call extract_subgraph() to ensure the internal weight
     # column name is not present.
-    pG.extract_subgraph(default_edge_weight=1.0, allow_multi_edges=True)
+    pG.extract_subgraph(default_edge_weight=1.0)
 
     actual_vert_prop_names = pG.vertex_property_names
     actual_edge_prop_names = pG.edge_property_names
@@ -1414,6 +1729,155 @@ def test_get_data_empty_graphs():
     assert pG.get_edge_data([0, 1, 2]) is None
 
 
+def test_renumber_vertices_by_type(dataset1_PropertyGraph):
+    from cugraph.experimental import PropertyGraph
+
+    (pG, data) = dataset1_PropertyGraph
+    df_id_ranges = pG.renumber_vertices_by_type()
+    expected = {
+        "merchants": [0, 4],  # stop is inclusive
+        "users": [5, 8],
+    }
+    for key, (start, stop) in expected.items():
+        assert df_id_ranges.loc[key, "start"] == start
+        assert df_id_ranges.loc[key, "stop"] == stop
+        df = pG.get_vertex_data(types=[key])
+        assert len(df) == stop - start + 1
+        assert (df["_VERTEX_"] == list(range(start, stop + 1))).all()
+
+    # Make sure we renumber vertex IDs in edge data too
+    df = pG.get_edge_data()
+    assert 0 <= df[pG.src_col_name].min() < df[pG.src_col_name].max() < 9
+    assert 0 <= df[pG.dst_col_name].min() < df[pG.dst_col_name].max() < 9
+
+    empty_pG = PropertyGraph()
+    assert empty_pG.renumber_vertices_by_type() is None
+
+    # Test when vertex IDs only exist in edge data
+    df = type(df)({"src": [99998], "dst": [99999]})
+    empty_pG.add_edge_data(df, ["src", "dst"])
+    with pytest.raises(NotImplementedError, match="only exist in edge"):
+        empty_pG.renumber_vertices_by_type()
+
+
+def test_renumber_edges_by_type(dataset1_PropertyGraph):
+    from cugraph.experimental import PropertyGraph
+
+    (pG, data) = dataset1_PropertyGraph
+    df_id_ranges = pG.renumber_edges_by_type()
+    expected = {
+        "transactions": [0, 3],  # stop is inclusive
+        "relationships": [4, 7],
+        "referrals": [8, 13],
+        # Results are no longer alphabetical b/c use of categoricals for types
+        # "referrals": [0, 5],  # stop is inclusive
+        # "relationships": [6, 9],
+        # "transactions": [10, 13],
+    }
+    for key, (start, stop) in expected.items():
+        assert df_id_ranges.loc[key, "start"] == start
+        assert df_id_ranges.loc[key, "stop"] == stop
+        df = pG.get_edge_data(types=[key])
+        assert len(df) == stop - start + 1
+        assert (df[pG.edge_id_col_name] == list(range(start, stop + 1))).all()
+
+    empty_pG = PropertyGraph()
+    assert empty_pG.renumber_edges_by_type() is None
+
+
+@pytest.mark.parametrize("df_type", df_types, ids=df_type_id)
+def test_add_data_noncontiguous(df_type):
+    from cugraph.experimental import PropertyGraph
+
+    df = df_type(
+        {
+            "src": [0, 0, 1, 2, 2, 3, 3, 1, 2, 4],
+            "dst": [1, 2, 4, 3, 3, 1, 2, 4, 4, 3],
+            "edge_type": [
+                "pig",
+                "dog",
+                "cat",
+                "pig",
+                "cat",
+                "pig",
+                "dog",
+                "pig",
+                "cat",
+                "dog",
+            ],
+        }
+    )
+    counts = df["edge_type"].value_counts()
+
+    pG = PropertyGraph()
+    for edge_type in ["cat", "dog", "pig"]:
+        pG.add_edge_data(
+            df[df.edge_type == edge_type],
+            vertex_col_names=["src", "dst"],
+            type_name=edge_type,
+        )
+    if df_type is cudf.DataFrame:
+        ase = assert_series_equal
+    else:
+        ase = pd.testing.assert_series_equal
+    for edge_type in ["cat", "dog", "pig"]:
+        cur_df = pG.get_edge_data(types=edge_type)
+        assert len(cur_df) == counts[edge_type]
+        ase(
+            cur_df[pG.type_col_name].astype(str),
+            cur_df["edge_type"],
+            check_names=False,
+        )
+
+    df["vertex"] = 10 * df["src"] + df["dst"]
+    pG = PropertyGraph()
+    for edge_type in ["cat", "dog", "pig"]:
+        pG.add_vertex_data(
+            df[df.edge_type == edge_type], vertex_col_name="vertex", type_name=edge_type
+        )
+    for edge_type in ["cat", "dog", "pig"]:
+        cur_df = pG.get_vertex_data(types=edge_type)
+        assert len(cur_df) == counts[edge_type]
+        ase(
+            cur_df[pG.type_col_name].astype(str),
+            cur_df["edge_type"],
+            check_names=False,
+        )
+
+
+@pytest.mark.parametrize("df_type", df_types, ids=df_type_id)
+def test_vertex_ids_different_type(df_type):
+    """Getting the number of vertices requires combining vertex ids from multiples columns.
+
+    This tests ensures combining these columns works even if they are different types.
+    """
+    from cugraph.experimental import PropertyGraph
+
+    if df_type is pd.DataFrame:
+        series_type = pd.Series
+    else:
+        series_type = cudf.Series
+    pg = PropertyGraph()
+    node_df = df_type()
+    node_df["node_id"] = series_type([0, 1, 2]).astype("int32")
+    pg.add_vertex_data(node_df, "node_id", type_name="_N")
+
+    edge_df = df_type()
+    edge_df["src"] = series_type([0, 1, 2]).astype("int32")
+    edge_df["dst"] = series_type([0, 1, 2]).astype("int64")
+    pg.add_edge_data(edge_df, ["src", "dst"], type_name="_E")
+
+    assert pg.get_num_vertices() == 3
+
+
+@pytest.mark.skip(reason="feature not implemented")
+def test_single_csv_multi_vertex_edge_attrs():
+    """
+    Read an edgelist CSV that contains both edge and vertex attrs
+    """
+    pass
+
+
 # =============================================================================
 # Benchmarks
 # =============================================================================
@@ -1438,17 +1902,19 @@ def bench_extract_subgraph_for_cyber(gpubenchmark, cyber_PropertyGraph):
 
     # Create a Graph containing only specific src or dst vertices
     verts = ["10.40.182.3", "10.40.182.255", "59.166.0.9", "59.166.0.8"]
-    selected_edges = \
-        pG.select_edges(f"{scn}.isin({verts}) | {dcn}.isin({verts})")
-    gpubenchmark(pG.extract_subgraph,
-                 create_using=cugraph.Graph(directed=True),
-                 selection=selected_edges,
-                 default_edge_weight=1.0,
-                 allow_multi_edges=True)
+    selected_edges = pG.select_edges(f"{scn}.isin({verts}) | {dcn}.isin({verts})")
+    gpubenchmark(
+        pG.extract_subgraph,
+        create_using=cugraph.Graph(directed=True),
+        selection=selected_edges,
+        default_edge_weight=1.0,
+        check_multi_edges=False,
+    )
 
 
 def bench_extract_subgraph_for_cyber_detect_duplicate_edges(
-        gpubenchmark, cyber_PropertyGraph):
+    gpubenchmark, cyber_PropertyGraph
+):
     from cugraph.experimental import PropertyGraph
 
     pG = cyber_PropertyGraph
@@ -1457,15 +1923,16 @@ def bench_extract_subgraph_for_cyber_detect_duplicate_edges(
 
     # Create a Graph containing only specific src or dst vertices
     verts = ["10.40.182.3", "10.40.182.255", "59.166.0.9", "59.166.0.8"]
-    selected_edges = \
-        pG.select_edges(f"{scn}.isin({verts}) | {dcn}.isin({verts})")
+    selected_edges = pG.select_edges(f"{scn}.isin({verts}) | {dcn}.isin({verts})")
 
     def func():
         with pytest.raises(RuntimeError):
-            pG.extract_subgraph(create_using=cugraph.Graph(directed=True),
-                                selection=selected_edges,
-                                default_edge_weight=1.0,
-                                allow_multi_edges=False)
+            pG.extract_subgraph(
+                create_using=cugraph.Graph(directed=True),
+                selection=selected_edges,
+                default_edge_weight=1.0,
+                check_multi_edges=True,
+            )
 
     gpubenchmark(func)
 
@@ -1481,13 +1948,14 @@ def bench_extract_subgraph_for_rmat(gpubenchmark, rmat_PropertyGraph):
     for i in range(0, 10000, 10):
         verts.append(generated_df["src"].iloc[i])
 
-    selected_edges = \
-        pG.select_edges(f"{scn}.isin({verts}) | {dcn}.isin({verts})")
-    gpubenchmark(pG.extract_subgraph,
-                 create_using=cugraph.Graph(directed=True),
-                 selection=selected_edges,
-                 default_edge_weight=1.0,
-                 allow_multi_edges=True)
+    selected_edges = pG.select_edges(f"{scn}.isin({verts}) | {dcn}.isin({verts})")
+    gpubenchmark(
+        pG.extract_subgraph,
+        create_using=cugraph.Graph(directed=True),
+        selection=selected_edges,
+        default_edge_weight=1.0,
+        check_multi_edges=False,
+    )
 
 
 # This test runs for *minutes* with the current implementation, and since
@@ -1495,7 +1963,8 @@ def bench_extract_subgraph_for_rmat(gpubenchmark, rmat_PropertyGraph):
 # test can be ~20 minutes.
 @pytest.mark.slow
 def bench_extract_subgraph_for_rmat_detect_duplicate_edges(
-        gpubenchmark, rmat_PropertyGraph):
+    gpubenchmark, rmat_PropertyGraph
+):
     from cugraph.experimental import PropertyGraph
 
     (pG, generated_df) = rmat_PropertyGraph
@@ -1506,14 +1975,35 @@ def bench_extract_subgraph_for_rmat_detect_duplicate_edges(
     for i in range(0, 10000, 10):
         verts.append(generated_df["src"].iloc[i])
 
-    selected_edges = \
-        pG.select_edges(f"{scn}.isin({verts}) | {dcn}.isin({verts})")
+    selected_edges = pG.select_edges(f"{scn}.isin({verts}) | {dcn}.isin({verts})")
 
     def func():
         with pytest.raises(RuntimeError):
-            pG.extract_subgraph(create_using=cugraph.Graph(directed=True),
-                                selection=selected_edges,
-                                default_edge_weight=1.0,
-                                allow_multi_edges=False)
+            pG.extract_subgraph(
+                create_using=cugraph.Graph(directed=True),
+                selection=selected_edges,
+                default_edge_weight=1.0,
+                check_multi_edges=True,
+            )
+
+    gpubenchmark(func)
+
+
+@pytest.mark.slow
+@pytest.mark.parametrize("N", [1, 3, 10, 30])
+def bench_add_edges_cyber(gpubenchmark, N):
+    from cugraph.experimental import PropertyGraph
+
+    # Partition the dataframe to add in chunks
+    cyber_df = cyber.get_edgelist()
+    chunk = (len(cyber_df) + N - 1) // N
+    dfs = [cyber_df.iloc[i * chunk : (i + 1) * chunk] for i in range(N)]
+
+    def func():
+        pG = PropertyGraph()
+        for df in dfs:
+            pG.add_edge_data(df, ("srcip", "dstip"))
+        df = pG.get_edge_data()
+        assert len(df) == len(cyber_df)
 
     gpubenchmark(func)

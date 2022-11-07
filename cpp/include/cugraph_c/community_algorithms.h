@@ -123,6 +123,12 @@ cugraph_type_erased_device_array_view_t* cugraph_heirarchical_clustering_result_
   cugraph_heirarchical_clustering_result_t* result);
 
 /**
+ * @brief     Get modularity
+ */
+double cugraph_heirarchical_clustering_result_get_modularity(
+  cugraph_heirarchical_clustering_result_t* result);
+
+/**
  * @brief     Free a heirarchical clustering result
  *
  * @param [in] result     The result from a sampling algorithm

@@ -16,15 +16,8 @@
 
 #pragma once
 
-#include <cugraph/edge_src_dst_property.hpp>
-#include <cugraph/utilities/device_functors.cuh>
+#include <cugraph/edge_property.hpp>
 
-#include <raft/span.hpp>
-
-#include <thrust/binary_search.h>
-#include <thrust/distance.h>
-#include <thrust/execution_policy.h>
-#include <thrust/fill.h>
 #include <thrust/iterator/iterator_traits.h>
 #include <thrust/optional.h>
 

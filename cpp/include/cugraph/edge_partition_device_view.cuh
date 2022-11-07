@@ -17,8 +17,9 @@
 
 #include <cugraph/edge_partition_view.hpp>
 #include <cugraph/utilities/error.hpp>
+#include <cugraph/utilities/misc_utils.cuh>
 
-#include <raft/span.hpp>
+#include <raft/core/device_span.hpp>
 #include <rmm/cuda_stream_view.hpp>
 #include <rmm/device_uvector.hpp>
 #include <rmm/exec_policy.hpp>
@@ -54,7 +55,7 @@ __device__ thrust::optional<vertex_t> major_hypersparse_idx_from_major_nocheck_i
            : thrust::nullopt;
 }
 
-template <typename vertex_t, typename edge_t, bool multi_gpu, bool use_dcs>
+template <typename vertex_t, typename edge_t, typename return_type_t, bool multi_gpu, bool use_dcs>
 struct local_degree_op_t {
   raft::device_span<edge_t const> offsets{};
   std::conditional_t<multi_gpu, vertex_t, std::byte /* dummy */> major_range_first{};
@@ -63,30 +64,30 @@ struct local_degree_op_t {
     dcs_nzd_vertices{};
   std::conditional_t<use_dcs, vertex_t, std::byte /* dummy */> major_hypersparse_first{};
 
-  __device__ edge_t operator()(vertex_t major) const
+  __device__ return_type_t operator()(vertex_t major) const
   {
     if constexpr (multi_gpu) {
       vertex_t idx{};
       if constexpr (use_dcs) {
         if (major < major_hypersparse_first) {
           idx = major - major_range_first;
-          return offsets[idx + 1] - offsets[idx];
+          return static_cast<return_type_t>(offsets[idx + 1] - offsets[idx]);
         } else {
           auto major_hypersparse_idx =
             major_hypersparse_idx_from_major_nocheck_impl(dcs_nzd_vertices, major);
           if (major_hypersparse_idx) {
             idx = (major_hypersparse_first - major_range_first) + *major_hypersparse_idx;
-            return offsets[idx + 1] - offsets[idx];
+            return static_cast<return_type_t>(offsets[idx + 1] - offsets[idx]);
           } else {
-            return edge_t{0};
+            return return_type_t{0};
           }
         }
       } else {
         idx = major - major_range_first;
-        return offsets[idx + 1] - offsets[idx];
+        return static_cast<return_type_t>(offsets[idx + 1] - offsets[idx]);
       }
     } else {
-      return offsets[major + 1] - offsets[major];
+      return static_cast<return_type_t>(offsets[major + 1] - offsets[major]);
     }
   }
 };
@@ -165,13 +166,8 @@ class edge_partition_device_view_t<vertex_t,
   edge_partition_device_view_t(edge_partition_view_t<vertex_t, edge_t, weight_t, multi_gpu> view)
     : detail::edge_partition_device_view_base_t<vertex_t, edge_t, weight_t>(
         view.offsets(), view.indices(), view.weights()),
-      dcs_nzd_vertices_(
-        view.dcs_nzd_vertices()
-          ? thrust::optional<raft::device_span<vertex_t const>>{*(view.dcs_nzd_vertices())}
-          : thrust::nullopt),
-      major_hypersparse_first_(view.major_hypersparse_first()
-                                 ? thrust::optional<vertex_t>{*(view.major_hypersparse_first())}
-                                 : thrust::nullopt),
+      dcs_nzd_vertices_(detail::to_thrust_optional(view.dcs_nzd_vertices())),
+      major_hypersparse_first_(detail::to_thrust_optional(view.major_hypersparse_first())),
       major_range_first_(view.major_range_first()),
       major_range_last_(view.major_range_last()),
       minor_range_first_(view.minor_range_first()),
@@ -180,51 +176,62 @@ class edge_partition_device_view_t<vertex_t,
   {
   }
 
-  edge_t compute_number_of_edges(raft::device_span<vertex_t const> majors,
+  size_t compute_number_of_edges(raft::device_span<vertex_t const> majors,
                                  rmm::cuda_stream_view stream) const
   {
     return dcs_nzd_vertices_ ? thrust::transform_reduce(
                                  rmm::exec_policy(stream),
                                  majors.begin(),
                                  majors.end(),
-                                 detail::local_degree_op_t<vertex_t, edge_t, multi_gpu, true>{
-                                   this->offsets_,
-                                   major_range_first_,
-                                   *dcs_nzd_vertices_,
-                                   *major_hypersparse_first_},
-                                 edge_t{0},
-                                 thrust::plus<edge_t>())
+                                 detail::local_degree_op_t<
+                                   vertex_t,
+                                   edge_t,
+                                   size_t /* no limit on majors.size(), so edge_t can overflow */,
+                                   multi_gpu,
+                                   true>{this->offsets_,
+                                         major_range_first_,
+                                         *dcs_nzd_vertices_,
+                                         *major_hypersparse_first_},
+                                 size_t{0},
+                                 thrust::plus<size_t>())
                              : thrust::transform_reduce(
                                  rmm::exec_policy(stream),
                                  majors.begin(),
                                  majors.end(),
-                                 detail::local_degree_op_t<vertex_t, edge_t, multi_gpu, false>{
-                                   this->offsets_,
-                                   major_range_first_,
-                                   std::byte{0} /* dummy */,
-                                   std::byte{0} /* dummy */},
-                                 edge_t{0},
-                                 thrust::plus<edge_t>());
+                                 detail::local_degree_op_t<
+                                   vertex_t,
+                                   edge_t,
+                                   size_t /* no limit on majors.size(), so edge_t can overflow */,
+                                   multi_gpu,
+                                   false>{this->offsets_,
+                                          major_range_first_,
+                                          std::byte{0} /* dummy */,
+                                          std::byte{0} /* dummy */},
+                                 size_t{0},
+                                 thrust::plus<size_t>());
   }
 
   rmm::device_uvector<edge_t> compute_local_degrees(rmm::cuda_stream_view stream) const
   {
     rmm::device_uvector<edge_t> local_degrees(this->major_range_size(), stream);
     if (dcs_nzd_vertices_) {
-      thrust::transform(
-        rmm::exec_policy(stream),
-        thrust::make_counting_iterator(this->major_range_first()),
-        thrust::make_counting_iterator(this->major_range_last()),
-        local_degrees.begin(),
-        detail::local_degree_op_t<vertex_t, edge_t, multi_gpu, true>{
-          this->offsets_, major_range_first_, *dcs_nzd_vertices_, *major_hypersparse_first_});
+      assert(major_hypersparse_first_);
+      thrust::transform(rmm::exec_policy(stream),
+                        thrust::make_counting_iterator(this->major_range_first()),
+                        thrust::make_counting_iterator(this->major_range_last()),
+                        local_degrees.begin(),
+                        detail::local_degree_op_t<vertex_t, edge_t, edge_t, multi_gpu, true>{
+                          this->offsets_,
+                          major_range_first_,
+                          *dcs_nzd_vertices_,
+                          major_hypersparse_first_.value_or(vertex_t{0})});
     } else {
       thrust::transform(
         rmm::exec_policy(stream),
         thrust::make_counting_iterator(this->major_range_first()),
         thrust::make_counting_iterator(this->major_range_last()),
         local_degrees.begin(),
-        detail::local_degree_op_t<vertex_t, edge_t, multi_gpu, false>{
+        detail::local_degree_op_t<vertex_t, edge_t, edge_t, multi_gpu, false>{
           this->offsets_, major_range_first_, std::byte{0} /* dummy */, std::byte{0} /* dummy */});
     }
     return local_degrees;
@@ -235,20 +242,23 @@ class edge_partition_device_view_t<vertex_t,
   {
     rmm::device_uvector<edge_t> local_degrees(majors.size(), stream);
     if (dcs_nzd_vertices_) {
-      thrust::transform(
-        rmm::exec_policy(stream),
-        majors.begin(),
-        majors.end(),
-        local_degrees.begin(),
-        detail::local_degree_op_t<vertex_t, edge_t, multi_gpu, true>{
-          this->offsets_, major_range_first_, *dcs_nzd_vertices_, *major_hypersparse_first_});
+      assert(major_hypersparse_first_);
+      thrust::transform(rmm::exec_policy(stream),
+                        majors.begin(),
+                        majors.end(),
+                        local_degrees.begin(),
+                        detail::local_degree_op_t<vertex_t, edge_t, edge_t, multi_gpu, true>{
+                          this->offsets_,
+                          major_range_first_,
+                          dcs_nzd_vertices_.value(),
+                          major_hypersparse_first_.value_or(vertex_t{0})});
     } else {
       thrust::transform(
         rmm::exec_policy(stream),
         majors.begin(),
         majors.end(),
         local_degrees.begin(),
-        detail::local_degree_op_t<vertex_t, edge_t, multi_gpu, false>{
+        detail::local_degree_op_t<vertex_t, edge_t, edge_t, multi_gpu, false>{
           this->offsets_, major_range_first_, std::byte{0} /* dummy */, std::byte{0} /* dummy */});
     }
     return local_degrees;
@@ -364,33 +374,37 @@ class edge_partition_device_view_t<vertex_t,
   {
   }
 
-  edge_t compute_number_of_edges(raft::device_span<vertex_t const> majors,
+  size_t compute_number_of_edges(raft::device_span<vertex_t const> majors,
                                  rmm::cuda_stream_view stream) const
   {
     return thrust::transform_reduce(
       rmm::exec_policy(stream),
       majors.begin(),
       majors.end(),
-      detail::local_degree_op_t<vertex_t, edge_t, multi_gpu, false>{this->offsets_,
-                                                                    std::byte{0} /* dummy */,
-                                                                    std::byte{0} /* dummy */,
-                                                                    std::byte{0} /* dummy */},
-      edge_t{0},
-      thrust::plus<edge_t>());
+      detail::local_degree_op_t<vertex_t,
+                                edge_t,
+                                size_t /* no limit on majors.size(), so edge_t can overflow */,
+                                multi_gpu,
+                                false>{this->offsets_,
+                                       std::byte{0} /* dummy */,
+                                       std::byte{0} /* dummy */,
+                                       std::byte{0} /* dummy */},
+      size_t{0},
+      thrust::plus<size_t>());
   }
 
   rmm::device_uvector<edge_t> compute_local_degrees(rmm::cuda_stream_view stream) const
   {
     rmm::device_uvector<edge_t> local_degrees(this->major_range_size(), stream);
-    thrust::transform(
-      rmm::exec_policy(stream),
-      thrust::make_counting_iterator(this->major_range_first()),
-      thrust::make_counting_iterator(this->major_range_last()),
-      local_degrees.begin(),
-      detail::local_degree_op_t<vertex_t, edge_t, multi_gpu, false>{this->offsets_,
-                                                                    std::byte{0} /* dummy */,
-                                                                    std::byte{0} /* dummy */,
-                                                                    std::byte{0} /* dummy */});
+    thrust::transform(rmm::exec_policy(stream),
+                      thrust::make_counting_iterator(this->major_range_first()),
+                      thrust::make_counting_iterator(this->major_range_last()),
+                      local_degrees.begin(),
+                      detail::local_degree_op_t<vertex_t, edge_t, edge_t, multi_gpu, false>{
+                        this->offsets_,
+                        std::byte{0} /* dummy */,
+                        std::byte{0} /* dummy */,
+                        std::byte{0} /* dummy */});
     return local_degrees;
   }
 
@@ -398,15 +412,15 @@ class edge_partition_device_view_t<vertex_t,
                                                     rmm::cuda_stream_view stream) const
   {
     rmm::device_uvector<edge_t> local_degrees(majors.size(), stream);
-    thrust::transform(
-      rmm::exec_policy(stream),
-      majors.begin(),
-      majors.end(),
-      local_degrees.begin(),
-      detail::local_degree_op_t<vertex_t, edge_t, multi_gpu, false>{this->offsets_,
-                                                                    std::byte{0} /* dummy */,
-                                                                    std::byte{0} /* dummy */,
-                                                                    std::byte{0} /* dummy */});
+    thrust::transform(rmm::exec_policy(stream),
+                      majors.begin(),
+                      majors.end(),
+                      local_degrees.begin(),
+                      detail::local_degree_op_t<vertex_t, edge_t, edge_t, multi_gpu, false>{
+                        this->offsets_,
+                        std::byte{0} /* dummy */,
+                        std::byte{0} /* dummy */,
+                        std::byte{0} /* dummy */});
     return local_degrees;
   }
 

@@ -24,6 +24,8 @@ from cudf.testing.testing import assert_frame_equal
 import cugraph
 from cugraph.testing import utils
 
+import cupy
+
 # MG
 import cugraph.dask as dcg
 from dask_cuda import LocalCUDACluster
@@ -57,7 +59,7 @@ def setup_function():
 def compare_series(series_1, series_2):
     assert len(series_1) == len(series_2)
     df = cudf.DataFrame({"series_1": series_1, "series_2": series_2})
-    diffs = df.query('series_1 != series_2')
+    diffs = df.query("series_1 != series_2")
 
     if len(diffs) > 0:
         print("diffs:\n", diffs)
@@ -93,29 +95,28 @@ def compare_graphs(nx_graph, cu_graph):
     ds1 = pd.Series(list(cu_to_nx_graph.nodes)).sort_values(ignore_index=True)
 
     if not ds0.equals(ds1):
-        print('ds0 != ds1')
+        print("ds0 != ds1")
         return False
 
     # second compare edges
     diff = nx.difference(nx_graph, cu_to_nx_graph)
 
     if diff.number_of_edges() > 0:
-        print('diff.number_of_edges = ', diff.number_of_edges())
+        print("diff.number_of_edges = ", diff.number_of_edges())
         return False
 
     diff = nx.difference(cu_to_nx_graph, nx_graph)
     if diff.number_of_edges() > 0:
-        print('2: diff.number_of_edges = ', diff.number_of_edges())
+        print("2: diff.number_of_edges = ", diff.number_of_edges())
         return False
 
     if len(edgelist_df.columns) > 2:
         df0 = cudf.from_pandas(nx.to_pandas_edgelist(nx_graph))
-        merge = df.merge(df0, on=["source", "target"],
-                         suffixes=("_cugraph", "_nx"))
+        merge = df.merge(df0, on=["source", "target"], suffixes=("_cugraph", "_nx"))
         print("merge = \n", merge)
         print(merge[merge.weight_cugraph != merge.weight_nx])
         if not merge["weight_cugraph"].equals(merge["weight_nx"]):
-            print('weights different')
+            print("weights different")
             print(merge[merge.weight_cugraph != merge.weight_nx])
             return False
 
@@ -191,9 +192,7 @@ def test_add_edge_list_to_adj_list(graph_file):
 def test_add_adj_list_to_edge_list(graph_file):
     Mnx = utils.read_csv_for_nx(graph_file)
     N = max(max(Mnx["0"]), max(Mnx["1"])) + 1
-    Mcsr = scipy.sparse.csr_matrix(
-        (Mnx.weight, (Mnx["0"], Mnx["1"])), shape=(N, N)
-    )
+    Mcsr = scipy.sparse.csr_matrix((Mnx.weight, (Mnx["0"], Mnx["1"])), shape=(N, N))
 
     offsets = cudf.Series(Mcsr.indptr)
     indices = cudf.Series(Mcsr.indices)
@@ -218,9 +217,7 @@ def test_add_adj_list_to_edge_list(graph_file):
 def test_view_edge_list_from_adj_list(graph_file):
     Mnx = utils.read_csv_for_nx(graph_file)
     N = max(max(Mnx["0"]), max(Mnx["1"])) + 1
-    Mcsr = scipy.sparse.csr_matrix(
-        (Mnx.weight, (Mnx["0"], Mnx["1"])), shape=(N, N)
-    )
+    Mcsr = scipy.sparse.csr_matrix((Mnx.weight, (Mnx["0"], Mnx["1"])), shape=(N, N))
 
     offsets = cudf.Series(Mcsr.indptr)
     indices = cudf.Series(Mcsr.indices)
@@ -243,9 +240,7 @@ def test_delete_edge_list_delete_adj_list(graph_file):
     df["dst"] = cudf.Series(Mnx["1"])
 
     N = max(max(Mnx["0"]), max(Mnx["1"])) + 1
-    Mcsr = scipy.sparse.csr_matrix(
-        (Mnx.weight, (Mnx["0"], Mnx["1"])), shape=(N, N)
-    )
+    Mcsr = scipy.sparse.csr_matrix((Mnx.weight, (Mnx["0"], Mnx["1"])), shape=(N, N))
     offsets = cudf.Series(Mcsr.indptr)
     indices = cudf.Series(Mcsr.indices)
 
@@ -271,9 +266,7 @@ def test_add_edge_or_adj_list_after_add_edge_or_adj_list(graph_file):
     df["dst"] = cudf.Series(Mnx["1"])
 
     N = max(max(Mnx["0"]), max(Mnx["1"])) + 1
-    Mcsr = scipy.sparse.csr_matrix(
-        (Mnx.weight, (Mnx["0"], Mnx["1"])), shape=(N, N)
-    )
+    Mcsr = scipy.sparse.csr_matrix((Mnx.weight, (Mnx["0"], Mnx["1"])), shape=(N, N))
 
     offsets = cudf.Series(Mcsr.indptr)
     indices = cudf.Series(Mcsr.indices)
@@ -307,17 +300,17 @@ def test_edges_for_Graph(graph_file):
     cu_M = utils.read_csv_file(graph_file)
 
     # Create nx Graph
-    pdf = cu_M.to_pandas()[['0', '1']]
-    nx_graph = nx.from_pandas_edgelist(pdf, source='0',
-                                       target='1',
-                                       create_using=nx.Graph)
+    pdf = cu_M.to_pandas()[["0", "1"]]
+    nx_graph = nx.from_pandas_edgelist(
+        pdf, source="0", target="1", create_using=nx.Graph
+    )
     nx_edges = nx_graph.edges()
 
     # Create Cugraph Graph from DataFrame
     # Force it to use renumber_from_cudf
-    G = cugraph.from_cudf_edgelist(cu_M, source=['0'],
-                                   destination=['1'],
-                                   create_using=cugraph.Graph)
+    G = cugraph.from_cudf_edgelist(
+        cu_M, source=["0"], destination=["1"], create_using=cugraph.Graph
+    )
     cu_edge_list = G.edges()
 
     # Check if number of Edges is same
@@ -331,11 +324,11 @@ def test_edges_for_Graph(graph_file):
             edges.append([edge[1], edge[0]])
         else:
             edges.append([edge[0], edge[1]])
-    nx_edge_list = cudf.DataFrame(list(edges), columns=['src', 'dst'])
+    nx_edge_list = cudf.DataFrame(list(edges), columns=["src", "dst"])
     assert_frame_equal(
-        nx_edge_list.sort_values(by=['src', 'dst']).reset_index(drop=True),
-        cu_edge_list.sort_values(by=['src', 'dst']).reset_index(drop=True),
-        check_dtype=False
+        nx_edge_list.sort_values(by=["src", "dst"]).reset_index(drop=True),
+        cu_edge_list.sort_values(by=["src", "dst"]).reset_index(drop=True),
+        check_dtype=False,
     )
 
 
@@ -374,16 +367,12 @@ def test_view_edge_list_for_Graph(graph_file):
 
     # Compare nx and cugraph edges when viewing edgelist
     # assert cu_edge_list.equals(nx_edge_list)
-    assert (
-        cu_edge_list["src"].to_numpy() == nx_edge_list["src"].to_numpy()
-    ).all()
-    assert (
-        cu_edge_list["dst"].to_numpy() == nx_edge_list["dst"].to_numpy()
-    ).all()
+    assert (cu_edge_list["src"].to_numpy() == nx_edge_list["src"].to_numpy()).all()
+    assert (cu_edge_list["dst"].to_numpy() == nx_edge_list["dst"].to_numpy()).all()
 
 
 # Test
-@pytest.mark.parametrize('graph_file', utils.DATASETS)
+@pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_consolidation(graph_file):
     cluster = LocalCUDACluster()
     client = Client(cluster)
@@ -392,23 +381,29 @@ def test_consolidation(graph_file):
     M = utils.read_csv_for_nx(graph_file)
 
     df = pd.DataFrame()
-    df['source'] = pd.Series(M['0'])
-    df['target'] = pd.Series(M['1'])
+    df["source"] = pd.Series(M["0"])
+    df["target"] = pd.Series(M["1"])
 
-    ddf = dask_cudf.read_csv(graph_file, chunksize=chunksize,
-                             delimiter=' ',
-                             names=['source', 'target', 'weight'],
-                             dtype=['int32', 'int32', 'float32'], header=None)
+    ddf = dask_cudf.read_csv(
+        graph_file,
+        chunksize=chunksize,
+        delimiter=" ",
+        names=["source", "target", "weight"],
+        dtype=["int32", "int32", "float32"],
+        header=None,
+    )
 
-    Gnx = nx.from_pandas_edgelist(df, source='source', target='target',
-                                  create_using=nx.DiGraph)
-    G = cugraph.from_cudf_edgelist(ddf, source='source', destination='target',
-                                   create_using=cugraph.DiGraph)
+    Gnx = nx.from_pandas_edgelist(
+        df, source="source", target="target", create_using=nx.DiGraph
+    )
+    G = cugraph.from_cudf_edgelist(
+        ddf, source="source", destination="target", create_using=cugraph.DiGraph
+    )
 
     t1 = time.time()
     assert compare_graphs(Gnx, G)
     t2 = time.time() - t1
-    print('compare_graphs time: ', t2)
+    print("compare_graphs time: ", t2)
 
     Gnx.clear()
     G.clear()
@@ -417,7 +412,7 @@ def test_consolidation(graph_file):
 
 
 # Test
-@pytest.mark.parametrize('graph_file', utils.DATASETS_SMALL)
+@pytest.mark.parametrize("graph_file", utils.DATASETS_SMALL)
 def test_two_hop_neighbors(graph_file):
     cu_M = utils.read_csv_file(graph_file)
 
@@ -427,9 +422,7 @@ def test_two_hop_neighbors(graph_file):
     df = G.get_two_hop_neighbors()
     Mnx = utils.read_csv_for_nx(graph_file)
     N = max(max(Mnx["0"]), max(Mnx["1"])) + 1
-    Mcsr = scipy.sparse.csr_matrix(
-        (Mnx.weight, (Mnx["0"], Mnx["1"])), shape=(N, N)
-    )
+    Mcsr = scipy.sparse.csr_matrix((Mnx.weight, (Mnx["0"], Mnx["1"])), shape=(N, N))
 
     find_two_paths(df, Mcsr)
     check_all_two_hops(df, Mcsr)
@@ -444,9 +437,7 @@ def test_degree_functionality(graph_file):
     G = cugraph.Graph(directed=True)
     G.from_cudf_edgelist(cu_M, source="0", destination="1", edge_attr="2")
 
-    Gnx = nx.from_pandas_edgelist(
-        M, source="0", target="1", create_using=nx.DiGraph()
-    )
+    Gnx = nx.from_pandas_edgelist(M, source="0", target="1", create_using=nx.DiGraph())
 
     df_in_degree = G.in_degree()
     df_out_degree = G.out_degree()
@@ -482,9 +473,7 @@ def test_degrees_functionality(graph_file):
     G = cugraph.Graph(directed=True)
     G.from_cudf_edgelist(cu_M, source="0", destination="1", edge_attr="2")
 
-    Gnx = nx.from_pandas_edgelist(
-        M, source="0", target="1", create_using=nx.DiGraph()
-    )
+    Gnx = nx.from_pandas_edgelist(M, source="0", target="1", create_using=nx.DiGraph())
 
     df = G.degrees()
 
@@ -516,9 +505,7 @@ def test_number_of_vertices(graph_file):
     # cugraph add_edge_list
     G = cugraph.Graph(directed=True)
     G.from_cudf_edgelist(cu_M, source="0", destination="1")
-    Gnx = nx.from_pandas_edgelist(
-        M, source="0", target="1", create_using=nx.DiGraph()
-    )
+    Gnx = nx.from_pandas_edgelist(M, source="0", target="1", create_using=nx.DiGraph())
     assert G.number_of_vertices() == Gnx.number_of_nodes()
 
 
@@ -534,9 +521,7 @@ def test_to_directed(graph_file):
     # cugraph add_edge_list
     G = cugraph.Graph()
     G.from_cudf_edgelist(cu_M, source="0", destination="1")
-    Gnx = nx.from_pandas_edgelist(
-        M, source="0", target="1", create_using=nx.Graph()
-    )
+    Gnx = nx.from_pandas_edgelist(M, source="0", target="1", create_using=nx.Graph())
 
     DiG = G.to_directed()
     DiGnx = Gnx.to_directed()
@@ -547,8 +532,8 @@ def test_to_directed(graph_file):
     assert DiG._plc_graph is not None
 
     for index, row in cu_M.to_pandas().iterrows():
-        assert G.has_edge(row['0'], row['1'])
-        assert G.has_edge(row['1'], row['0'])
+        assert G.has_edge(row["0"], row["1"])
+        assert G.has_edge(row["1"], row["0"])
 
 
 # Test
@@ -571,8 +556,8 @@ def test_to_undirected(graph_file):
     )
 
     for index, row in cu_M.to_pandas().iterrows():
-        assert DiG.has_edge(row['0'], row['1'])
-        assert not DiG.has_edge(row['1'], row['0'])
+        assert DiG.has_edge(row["0"], row["1"])
+        assert not DiG.has_edge(row["1"], row["0"])
 
     G = DiG.to_undirected()
     Gnx = DiGnx.to_undirected()
@@ -583,8 +568,8 @@ def test_to_undirected(graph_file):
     assert G._plc_graph is not None
 
     for index, row in cu_M.to_pandas().iterrows():
-        assert G.has_edge(row['0'], row['1'])
-        assert G.has_edge(row['1'], row['0'])
+        assert G.has_edge(row["0"], row["1"])
+        assert G.has_edge(row["1"], row["0"])
 
 
 # Test
@@ -598,8 +583,8 @@ def test_has_edge(graph_file):
     G.from_cudf_edgelist(cu_M, source="0", destination="1")
 
     for index, row in cu_M.to_pandas().iterrows():
-        assert G.has_edge(row['0'], row['1'])
-        assert G.has_edge(row['1'], row['0'])
+        assert G.has_edge(row["0"], row["1"])
+        assert G.has_edge(row["1"], row["0"])
 
 
 # Test
@@ -625,24 +610,23 @@ def test_invalid_has_node():
     assert not G.has_node(G.number_of_nodes() + 1)
 
 
-@pytest.mark.parametrize('graph_file', utils.DATASETS)
+@pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_bipartite_api(graph_file):
     # This test only tests the functionality of adding set of nodes and
     # retrieving them. The datasets currently used are not truly bipartite.
     cu_M = utils.read_csv_file(graph_file)
-    nodes = cudf.concat([cu_M['0'], cu_M['1']]).unique()
+    nodes = cudf.concat([cu_M["0"], cu_M["1"]]).unique()
 
     # Create set of nodes for partition
-    set1_exp = cudf.Series(nodes[0:int(len(nodes)/2)])
-    set2_exp = cudf.Series(set(nodes.values_host)
-                           - set(set1_exp.values_host))
+    set1_exp = cudf.Series(nodes[0 : int(len(nodes) / 2)])
+    set2_exp = cudf.Series(set(nodes.values_host) - set(set1_exp.values_host))
 
     G = cugraph.BiPartiteGraph()
     assert G.is_bipartite()
 
     # Add a set of nodes present in one partition
-    G.add_nodes_from(set1_exp, bipartite='set1')
-    G.from_cudf_edgelist(cu_M, source='0', destination='1')
+    G.add_nodes_from(set1_exp, bipartite="set1")
+    G.from_cudf_edgelist(cu_M, source="0", destination="1")
 
     # Call sets() to get the bipartite set of nodes.
     set1, set2 = G.sets()
@@ -663,8 +647,7 @@ def test_neighbors(graph_file):
     G = cugraph.Graph()
     G.from_cudf_edgelist(cu_M, source="0", destination="1")
 
-    Gnx = nx.from_pandas_edgelist(M, source='0', target='1',
-                                  create_using=nx.Graph())
+    Gnx = nx.from_pandas_edgelist(M, source="0", target="1", create_using=nx.Graph())
     for n in nodes.values_host:
         cu_neighbors = G.neighbors(n).to_arrow().to_pylist()
         nx_neighbors = [i for i in Gnx.neighbors(n)]
@@ -681,8 +664,8 @@ def test_to_pandas_edgelist(graph_file):
     G = cugraph.Graph()
     G.from_cudf_edgelist(cu_M, source="0", destination="1")
 
-    assert 's' in G.to_pandas_edgelist('s', 'd').columns
-    assert 's' in G.to_pandas_edgelist(source='s', destination='d').columns
+    assert "s" in G.to_pandas_edgelist("s", "d").columns
+    assert "s" in G.to_pandas_edgelist(source="s", destination="d").columns
 
 
 def test_graph_init_with_multigraph():
@@ -708,34 +691,48 @@ def test_graph_init_with_multigraph():
 @pytest.mark.parametrize("graph_file", utils.DATASETS)
 def test_create_sg_graph(graph_file):
     el = utils.read_csv_file(graph_file)
-    G = cugraph.from_cudf_edgelist(
-        el,
-        source='0',
-        destination='1',
-        edge_attr='2'
-    )
+    G = cugraph.from_cudf_edgelist(el, source="0", destination="1", edge_attr="2")
 
     # ensure graph exists
     assert G._plc_graph is not None
 
-    start = cudf.Series([1], dtype='int32')
+    start = cudf.Series([1], dtype="int32")
     start = G.lookup_internal_vertex_id(start)
 
-    if graph_file.name == 'dolphins.csv':
+    if graph_file.name == "dolphins.csv":
         res = pylibcugraph_bfs(
-                ResourceHandle(),
-                G._plc_graph,
-                start,
-                False,
-                0,
-                True,
-                False)
+            ResourceHandle(), G._plc_graph, start, False, 0, True, False
+        )
 
         cdr = convert_to_cudf(res)
-        cdr = G.unrenumber(cdr, column_name='vertex')
-        cdr = G.unrenumber(cdr, column_name='predecessor')
+        cdr = G.unrenumber(cdr, column_name="vertex")
+        cdr = G.unrenumber(cdr, column_name="predecessor")
 
         assert cdr[cdr.vertex == 33].distance.to_numpy()[0] == 3
         assert cdr[cdr.vertex == 33].predecessor.to_numpy()[0] == 37
         assert cdr[cdr.vertex == 11].distance.to_numpy()[0] == 4
         assert cdr[cdr.vertex == 11].predecessor.to_numpy()[0] == 51
+
+
+@pytest.mark.parametrize("graph_file", utils.DATASETS)
+def test_create_graph_with_edge_ids(graph_file):
+    el = utils.read_csv_file(graph_file)
+    el["id"] = cupy.random.permutation(len(el))
+    el["id"] = el["id"].astype(el["1"].dtype)
+    el["etype"] = cupy.random.random_integers(4, size=len(el))
+    el["etype"] = el["etype"].astype("int32")
+
+    with pytest.raises(ValueError):
+        G = cugraph.Graph()
+        G.from_cudf_edgelist(
+            el, source="0", destination="1", edge_attr=["2", "id", "etype"]
+        )
+
+    G = cugraph.Graph(directed=True)
+    G.from_cudf_edgelist(
+        el, source="0", destination="1", edge_attr=["2", "id", "etype"]
+    )
+
+    H = G.to_undirected()
+    assert G.is_directed()
+    assert not H.is_directed()
