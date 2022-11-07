@@ -72,7 +72,7 @@ def _call_plc_jaccard(sID,
         graph=mg_graph_x,
         first=first,
         second=second,
-        use_weight=use_weight
+        use_weight=use_weight,
         do_expensive_check=do_expensive_check
     )
 
@@ -178,7 +178,7 @@ def jaccard(input_graph,
 
     do_expensive_check = False
 
-    if vertex_pair is not None
+    if vertex_pair is not None:
         result = [
             client.submit(
                 _call_plc_jaccard,
