@@ -47,3 +47,5 @@ from pylibcugraph.core_number import core_number
 from pylibcugraph.louvain import louvain
 
 from pylibcugraph.triangle_count import triangle_count
+
+from pylibcugraph.uniform_random_walks import uniform_random_walks
