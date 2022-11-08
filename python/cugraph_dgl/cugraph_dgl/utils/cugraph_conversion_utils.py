@@ -19,6 +19,7 @@ import dask_cudf
 import dgl
 import torch
 from dgl.backend import zerocopy_to_dlpack
+import cugraph_dgl
 
 
 # Feature Tensor to DataFrame Utils
@@ -49,7 +50,7 @@ def create_feature_frame(feat_t_d: dict[str, torch.Tensor]) -> cudf.DataFrame:
 
 # Add ndata utils
 def add_ndata_of_single_type(
-    gs: dgl.contrib.cugraph.CuGraphStorage,
+    gs: cugraph_dgl.CuGraphStorage,
     feat_t_d: Optional[dict[torch.Tensor]],
     ntype: str,
     n_rows: int,
@@ -72,7 +73,7 @@ def add_ndata_of_single_type(
 
 
 def add_nodes_from_dgl_HeteroGraph(
-    gs: dgl.contrib.cugraph.CuGraphStorage,
+    gs: cugraph_dgl.CuGraphStorage,
     graph: dgl.DGLHeteroGraph,
 ):
     if len(graph.ntypes) > 1:
@@ -108,7 +109,7 @@ def add_nodes_from_dgl_HeteroGraph(
 
 # Add edata utils
 def add_edata_of_single_type(
-    gs: dgl.contrib.cugraph.CuGraphStorage,
+    gs: cugraph_dgl.CuGraphStorage,
     feat_t_d: Optional[dict[torch.Tensor]],
     src_t: torch.Tensor,
     dst_t: torch.Tensor,
@@ -151,7 +152,7 @@ def add_edata_of_single_type(
 
 
 def add_edges_from_dgl_HeteroGraph(
-    gs: dgl.contrib.cugraph.CuGraphStorage,
+    gs: cugraph_dgl.CuGraphStorage,
     graph: dgl.DGLHeteroGraph,
 ):
     etype_feat_d = dict()

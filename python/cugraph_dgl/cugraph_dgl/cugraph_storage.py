@@ -46,7 +46,7 @@ class CuGraphStorage:
         """
         Constructor for creating a object of instance CuGraphStorage
 
-        See also ``dgl.contrib.cugraph.cugraph_storage_from_heterograph``
+        See also ``cugraph_dgl.cugraph_storage_from_heterograph``
         to convert from DGLHeteroGraph to CuGraphStorage
 
         Parameters
@@ -73,7 +73,7 @@ class CuGraphStorage:
          --------
          The following example uses `CuGraphStorage` :
 
-            >>> from dgl.contrib.cugraph.cugraph_storage import CuGraphStorage
+            >>> from cugraph_dgl.cugraph_storage import CuGraphStorage
             >>> import cudf
             >>> gs = CuGraphStorage(num_nodes_dict={'drug':3,
                                                     'gene':2,
