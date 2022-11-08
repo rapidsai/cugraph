@@ -164,7 +164,7 @@ def assert_valid_gs(gs):
     np.testing.assert_equal(src_vals, expected_vals)
 
 
-@pytest.mark.skip(reason="Enable when cughraph-service lands in the CI")
+@pytest.mark.skip(reason="Enable when cugraph-service lands in the CI")
 def test_remote_wrappers():
     from cugraph_service_client.client import CugraphServiceClient as Client
 
