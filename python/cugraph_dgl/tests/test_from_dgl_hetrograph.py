@@ -1,0 +1,143 @@
+import pytest
+import dgl
+import dgl.backend as F
+import torch as th
+
+from cugraph_dgl import cugraph_storage_from_heterograph
+from .utils import (
+    assert_same_num_edges_can_etypes,
+    assert_same_num_edges_etypes,
+    assert_same_edge_feats,
+)
+from .utils import assert_same_num_nodes, assert_same_node_feats
+
+device = "cuda"
+ctx = th.device(device)
+
+
+def create_heterograph1(idtype):
+    graph_data = {
+        ("nt.a", "join.1", "nt.a"): (
+            F.tensor([0, 1, 2], dtype=idtype),
+            F.tensor([0, 1, 2], dtype=idtype),
+        ),
+        ("nt.a", "join.2", "nt.a"): (
+            F.tensor([0, 1, 2], dtype=idtype),
+            F.tensor([0, 1, 2], dtype=idtype),
+        ),
+    }
+    g = dgl.heterograph(graph_data, device=ctx)
+    g.nodes["nt.a"].data["h"] = F.copy_to(F.tensor([1, 1, 1], dtype=idtype), ctx=ctx)
+    return g
+
+
+def create_heterograph2(idtype):
+    g = dgl.heterograph(
+        {
+            ("user", "plays", "game"): (
+                F.tensor([0, 1, 1, 2], dtype=idtype),
+                F.tensor([0, 0, 1, 1], dtype=idtype),
+            ),
+            ("developer", "develops", "game"): (
+                F.tensor([0, 1], dtype=idtype),
+                F.tensor([0, 1], dtype=idtype),
+            ),
+            ("developer", "tests", "game"): (
+                F.tensor([0, 1], dtype=idtype),
+                F.tensor([0, 1], dtype=idtype),
+            ),
+        },
+        idtype=idtype,
+        device=ctx,
+    )
+
+    g.nodes["user"].data["h"] = F.copy_to(F.tensor([1, 1, 1], dtype=idtype), ctx=ctx)
+    g.nodes["user"].data["p"] = F.copy_to(F.tensor([1, 1, 1], dtype=idtype), ctx=ctx)
+    g.nodes["game"].data["h"] = F.copy_to(F.tensor([2, 2], dtype=idtype), ctx=ctx)
+    g.nodes["developer"].data["h"] = F.copy_to(F.tensor([3, 3], dtype=idtype), ctx=ctx)
+    g.edges["plays"].data["h"] = F.copy_to(
+        F.tensor([1, 1, 1, 1], dtype=idtype), ctx=ctx
+    )
+    return g
+
+
+def create_heterograph3(idtype):
+    g = dgl.heterograph(
+        {
+            ("user", "follows", "user"): (
+                F.tensor([0, 1, 1, 2, 2, 2], dtype=idtype),
+                F.tensor([0, 0, 1, 1, 2, 2], dtype=idtype),
+            ),
+            ("user", "plays", "game"): (
+                F.tensor([0, 1], dtype=idtype),
+                F.tensor([0, 1], dtype=idtype),
+            ),
+        },
+        idtype=idtype,
+        device=ctx,
+    )
+    g.nodes["user"].data["h"] = F.copy_to(F.tensor([1, 1, 1], dtype=idtype), ctx=ctx)
+    g.nodes["game"].data["h"] = F.copy_to(F.tensor([2, 2], dtype=idtype), ctx=ctx)
+    g.edges["follows"].data["h"] = F.copy_to(
+        F.tensor([10, 20, 30, 40, 50, 60], dtype=idtype), ctx=ctx
+    )
+    g.edges["follows"].data["p"] = F.copy_to(
+        F.tensor([1, 2, 3, 4, 5, 6], dtype=idtype), ctx=ctx
+    )
+    g.edges["plays"].data["h"] = F.copy_to(F.tensor([1, 2], dtype=idtype), ctx=ctx)
+    return g
+
+
+def create_heterograph4(idtype):
+    g = dgl.heterograph(
+        {
+            ("user", "follows", "user"): (
+                F.tensor([1, 2], dtype=idtype),
+                F.tensor([0, 1], dtype=idtype),
+            ),
+            ("user", "plays", "game"): (
+                F.tensor([0, 1], dtype=idtype),
+                F.tensor([0, 1], dtype=idtype),
+            ),
+        },
+        idtype=idtype,
+        device=ctx,
+    )
+    g.nodes["user"].data["h"] = F.copy_to(F.tensor([1, 1, 1], dtype=idtype), ctx=ctx)
+    g.nodes["game"].data["h"] = F.copy_to(F.tensor([2, 2], dtype=idtype), ctx=ctx)
+    g.edges["follows"].data["h"] = F.copy_to(F.tensor([1, 2], dtype=idtype), ctx=ctx)
+    g.edges["plays"].data["h"] = F.copy_to(F.tensor([1, 2], dtype=idtype), ctx=ctx)
+    return g
+
+
+@pytest.mark.parametrize("idxtype", [th.int32, th.int64])
+def test_heterograph_conversion_nodes(idxtype):
+    graph_fs = [
+        create_heterograph1,
+        create_heterograph2,
+        create_heterograph3,
+        create_heterograph4,
+    ]
+    for graph_f in graph_fs:
+        g = graph_f(idxtype)
+        gs = cugraph_storage_from_heterograph(g)
+
+        assert_same_num_nodes(gs, g)
+        assert_same_node_feats(gs, g)
+
+
+@pytest.mark.parametrize("idxtype", [th.int32, th.int64])
+def test_heterograph_conversion_edges(idxtype):
+    graph_fs = [
+        create_heterograph1,
+        create_heterograph2,
+        create_heterograph3,
+        create_heterograph4,
+    ]
+    for graph_f in graph_fs:
+        g = graph_f(idxtype)
+        gs = cugraph_storage_from_heterograph(g)
+
+        assert_same_num_edges_can_etypes(gs, g)
+        assert_same_num_edges_etypes(gs, g)
+        assert_same_edge_feats(gs, g)
