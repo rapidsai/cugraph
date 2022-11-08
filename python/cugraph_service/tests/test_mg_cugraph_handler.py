@@ -100,7 +100,7 @@ def test_get_graph_data_large_vertex_ids(
     extension_dir = graph_creation_extension_big_vertex_ids
 
     # Load the extension and ensure it can be called.
-    handler.load_graph_creation_extensions(extension_dir.name)
+    handler.load_graph_creation_extensions(extension_dir)
     new_graph_id = handler.call_graph_creation_extension(
         "graph_creation_function_vert_and_edge_data_big_vertex_ids", "()", "{}"
     )
@@ -109,8 +109,9 @@ def test_get_graph_data_large_vertex_ids(
     vert_data = handler.get_graph_vertex_data(
         id_or_ids=invalid_vert_id,
         null_replacement_value=0,
-        graph_id=new_graph_id,
         property_keys=None,
+        types=None,
+        graph_id=new_graph_id,
     )
 
     assert len(pickle.loads(vert_data)) == 0
@@ -119,8 +120,9 @@ def test_get_graph_data_large_vertex_ids(
     vert_data = handler.get_graph_vertex_data(
         id_or_ids=large_vert_id,
         null_replacement_value=0,
-        graph_id=new_graph_id,
         property_keys=None,
+        types=None,
+        graph_id=new_graph_id,
     )
 
     assert len(pickle.loads(vert_data)) == 1
@@ -129,8 +131,9 @@ def test_get_graph_data_large_vertex_ids(
     edge_data = handler.get_graph_edge_data(
         id_or_ids=invalid_edge_id,
         null_replacement_value=0,
-        graph_id=new_graph_id,
         property_keys=None,
+        types=None,
+        graph_id=new_graph_id,
     )
 
     assert len(pickle.loads(edge_data)) == 0
@@ -139,8 +142,9 @@ def test_get_graph_data_large_vertex_ids(
     edge_data = handler.get_graph_edge_data(
         id_or_ids=small_edge_id,
         null_replacement_value=0,
-        graph_id=new_graph_id,
         property_keys=None,
+        types=None,
+        graph_id=new_graph_id,
     )
 
     assert len(pickle.loads(edge_data)) == 1
@@ -158,7 +162,7 @@ def test_get_graph_data_empty_graph(
     extension_dir = graph_creation_extension_empty_graph
 
     # Load the extension and ensure it can be called.
-    handler.load_graph_creation_extensions(extension_dir.name)
+    handler.load_graph_creation_extensions(extension_dir)
     new_graph_id = handler.call_graph_creation_extension(
         "graph_creation_function", "()", "{}"
     )
@@ -167,8 +171,9 @@ def test_get_graph_data_empty_graph(
     vert_data = handler.get_graph_vertex_data(
         id_or_ids=invalid_vert_id,
         null_replacement_value=0,
-        graph_id=new_graph_id,
         property_keys=None,
+        types=None,
+        graph_id=new_graph_id,
     )
 
     assert len(pickle.loads(vert_data)) == 0
@@ -177,8 +182,9 @@ def test_get_graph_data_empty_graph(
     edge_data = handler.get_graph_edge_data(
         id_or_ids=invalid_edge_id,
         null_replacement_value=0,
-        graph_id=new_graph_id,
         property_keys=None,
+        types=None,
+        graph_id=new_graph_id,
     )
 
     assert len(pickle.loads(edge_data)) == 0
@@ -214,7 +220,6 @@ def test_get_graph_info(handler_with_karate_edgelist_loaded):
     get_graph_info() for specific args.
     """
     from cugraph_service_client import defaults
-    from cugraph_service_client.types import ValueWrapper
 
     (handler, test_data) = handler_with_karate_edgelist_loaded
 
@@ -224,11 +229,11 @@ def test_get_graph_info(handler_with_karate_edgelist_loaded):
     info = handler.get_graph_info(
         ["num_edges", "num_edge_properties"], defaults.graph_id
     )
-    # info is a dictionary containing cugraph_service_client.types.Value objs,
-    # so access the int32 member directly for easy comparison.
+    # info is a dictionary containing cugraph_service_client.types.ValueWrapper
+    # objs, so access the int32 member directly for easy comparison.
     shape = (
-        ValueWrapper(info["num_edges"]).get_py_obj(),
-        ValueWrapper(info["num_edge_properties"]).get_py_obj(),
+        info["num_edges"].get_py_obj(),
+        info["num_edge_properties"].get_py_obj(),
     )
     assert shape == (156, 1)  # The single edge property is the weight
 
@@ -236,8 +241,8 @@ def test_get_graph_info(handler_with_karate_edgelist_loaded):
         ["num_vertices_from_vertex_data", "num_vertex_properties"], defaults.graph_id
     )
     shape = (
-        ValueWrapper(info["num_vertices_from_vertex_data"]).get_py_obj(),
-        ValueWrapper(info["num_vertex_properties"]).get_py_obj(),
+        info["num_vertices_from_vertex_data"].get_py_obj(),
+        info["num_vertex_properties"].get_py_obj(),
     )
     assert shape == (0, 0)
 
@@ -248,7 +253,6 @@ def test_get_graph_info_defaults(mg_handler):
     keys present for an empty default graph.
     """
     from cugraph_service_client import defaults
-    from cugraph_service_client.types import ValueWrapper
 
     handler = mg_handler
 
@@ -261,7 +265,7 @@ def test_get_graph_info_defaults(mg_handler):
         "num_vertex_properties": 0,
         "num_edge_properties": 0,
     }
-    actual = {key: ValueWrapper(val).get_py_obj() for (key, val) in info.items()}
+    actual = {key: val.get_py_obj() for (key, val) in info.items()}
 
     assert expected == actual
 
