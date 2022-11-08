@@ -443,7 +443,10 @@ class EXPERIMENTAL__MGPropertyGraph:
             # Join on vertex ids (the index)
             # TODO: can we automagically determine when we to use concat?
             df = self.__vertex_prop_dataframe.join(
-                tmp_df, how="outer", rsuffix="_NEW_", npartitions=self.__num_workers
+                tmp_df,
+                how="outer",
+                rsuffix="_NEW_",
+                # npartitions=self.__num_workers  # TODO: see how this behaves
             ).persist()
             cols = self.__vertex_prop_dataframe.columns.intersection(
                 tmp_df.columns
@@ -453,9 +456,9 @@ class EXPERIMENTAL__MGPropertyGraph:
             sub_df = df[new_cols].rename(columns=rename_cols)
             # This only adds data--it doesn't replace existing data
             df = df.drop(columns=new_cols).fillna(sub_df).persist()
-            if df.npartitions > 2 * self.__num_workers:
+            if df.npartitions > 4 * self.__num_workers:
                 # TODO: better understand behavior of npartitions argument in join
-                df = df.repartition(npartitions=self.__num_workers).persist()
+                df = df.repartition(npartitions=2 * self.__num_workers).persist()
             self.__vertex_prop_dataframe = df
 
         # Update the vertex eval dict with the latest column instances
@@ -676,7 +679,10 @@ class EXPERIMENTAL__MGPropertyGraph:
             # Join on edge ids (the index)
             # TODO: can we automagically determine when we to use concat?
             df = self.__edge_prop_dataframe.join(
-                tmp_df, how="outer", rsuffix="_NEW_", npartitions=self.__num_workers
+                tmp_df,
+                how="outer",
+                rsuffix="_NEW_",
+                # npartitions=self.__num_workers  # TODO: see how this behaves
             ).persist()
             cols = self.__edge_prop_dataframe.columns.intersection(
                 tmp_df.columns
@@ -686,9 +692,9 @@ class EXPERIMENTAL__MGPropertyGraph:
             sub_df = df[new_cols].rename(columns=rename_cols)
             # This only adds data--it doesn't replace existing data
             df = df.drop(columns=new_cols).fillna(sub_df).persist()
-            if df.npartitions > 2 * self.__num_workers:
+            if df.npartitions > 4 * self.__num_workers:
                 # TODO: better understand behavior of npartitions argument in join
-                df = df.repartition(npartitions=self.__num_workers).persist()
+                df = df.repartition(npartitions=2 * self.__num_workers).persist()
             self.__edge_prop_dataframe = df
 
         # Update the edge eval dict with the latest column instances
