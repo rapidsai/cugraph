@@ -357,7 +357,14 @@ class EXPERIMENTAL__MGPropertyGraph:
             List of column names in dataframe to be added as properties. All
             other columns in dataframe will be ignored. If not specified, all
             columns in dataframe are added.
-        vector_properties : dict of list of strings
+        vector_properties : dict of string to list of strings, optional
+            A dict of vector properties to create from columns in the dataframe.
+            Each vector property stores an array for each vertex.
+            The dict keys are the new vector property names, and the dict values
+            should be Python lists of column names from which to create the vector
+            property. Columns used to create vector properties won't be added to
+            the property graph by default, but may be included as properties by
+            including them in the property_columns argument.
 
         Returns
         -------
@@ -394,30 +401,22 @@ class EXPERIMENTAL__MGPropertyGraph:
                 set(property_columns) & self.__vertex_vector_property_lengths.keys()
             )
             if existing_vectors:
-                raise ValueError("TODO")
+                raise ValueError(
+                    "Non-vector property columns cannot be added to existing "
+                    f"vector properties: {', '.join(sorted(existing_vectors))}"
+                )
 
         TCN = self.type_col_name
         if vector_properties is not None:
             invalid_keys = {self.vertex_col_name, TCN}
             if property_columns:
                 invalid_keys.update(property_columns)
-            df_cols = set(dataframe.columns)
-            for key, columns in vector_properties.items():
-                if key in invalid_keys:
-                    raise ValueError("TODO")
-                if isinstance(columns, str):
-                    # TODO: check if valid type instead
-                    raise TypeError("TODO")
-                if not df_cols.issuperset(columns):
-                    raise ValueError("TODO")
-                if not columns:
-                    raise ValueError("TODO")
-                if self.__vertex_vector_property_lengths.get(key, len(columns)) != len(
-                    columns
-                ):
-                    raise ValueError("TODO")
-            for key, columns in vector_properties.items():
-                self.__vertex_vector_property_lengths[key] = len(columns)
+            self._check_vector_properties(
+                dataframe,
+                vector_properties,
+                self.__vertex_vector_property_lengths,
+                invalid_keys,
+            )
 
         # Clear the cached values related to the number of vertices since more
         # could be added in this method.
@@ -488,9 +487,7 @@ class EXPERIMENTAL__MGPropertyGraph:
                 more_to_drop.difference_update(property_columns)
             column_names_to_drop |= more_to_drop
             column_names_to_drop -= vector_properties.keys()
-            tmp_df = tmp_df.map_partitions(
-                self._create_vector_properties, vector_properties
-            )
+            tmp_df = self._create_vector_properties(tmp_df, vector_properties)
 
         tmp_df = tmp_df.drop(labels=column_names_to_drop, axis=1)
 
@@ -570,6 +567,7 @@ class EXPERIMENTAL__MGPropertyGraph:
         edge_id_col_name=None,
         type_name=None,
         property_columns=None,
+        vector_properties=None,
     ):
         """
         Add a dataframe describing edge properties to the PropertyGraph.
@@ -596,6 +594,14 @@ class EXPERIMENTAL__MGPropertyGraph:
             List of column names in dataframe to be added as properties. All
             other columns in dataframe will be ignored. If not specified, all
             columns in dataframe are added.
+        vector_properties : dict of string to list of strings, optional
+            A dict of vector properties to create from columns in the dataframe.
+            Each vector property stores an array for each edge.
+            The dict keys are the new vector property names, and the dict values
+            should be Python lists of column names from which to create the vector
+            property. Columns used to create vector properties won't be added to
+            the property graph by default, but may be included as properties by
+            including them in the property_columns argument.
 
         Returns
         -------
@@ -645,6 +651,14 @@ class EXPERIMENTAL__MGPropertyGraph:
                     "found in dataframe: "
                     f"{list(invalid_columns)}"
                 )
+            existing_vectors = (
+                set(property_columns) & self.__vertex_vector_property_lengths.keys()
+            )
+            if existing_vectors:
+                raise ValueError(
+                    "Non-vector property columns cannot be added to existing "
+                    f"vector properties: {', '.join(sorted(existing_vectors))}"
+                )
         if self.__is_edge_id_autogenerated is False and edge_id_col_name is None:
             raise NotImplementedError(
                 "Unable to automatically generate edge IDs. "
@@ -658,12 +672,23 @@ class EXPERIMENTAL__MGPropertyGraph:
                 "edge data must be added using automatically generated IDs."
             )
 
+        TCN = self.type_col_name
+        if vector_properties is not None:
+            invalid_keys = {self.src_col_name, self.dst_col_name, TCN}
+            if property_columns:
+                invalid_keys.update(property_columns)
+            self._check_vector_properties(
+                dataframe,
+                vector_properties,
+                self.__edge_vector_property_lengths,
+                invalid_keys,
+            )
+
         # Clear the cached value for num_vertices since more could be added in
         # this method. This method cannot affect __node_type_value_counts
         self.__num_vertices = None
         self.__edge_type_value_counts = None  # Could update instead
 
-        TCN = self.type_col_name
         default_edge_columns = [self.src_col_name, self.dst_col_name, TCN]
         if self.__edge_prop_dataframe is None:
             temp_dataframe = cudf.DataFrame(columns=default_edge_columns)
@@ -732,6 +757,16 @@ class EXPERIMENTAL__MGPropertyGraph:
             )
         else:
             column_names_to_drop = {vertex_col_names[0], vertex_col_names[1]}
+
+        if vector_properties:
+            # Drop vector property source columns by default
+            more_to_drop = set().union(*vector_properties.values())
+            if property_columns is not None:
+                more_to_drop.difference_update(property_columns)
+            column_names_to_drop |= more_to_drop
+            column_names_to_drop -= vector_properties.keys()
+            tmp_df = self._create_vector_properties(tmp_df, vector_properties)
+
         tmp_df = tmp_df.drop(labels=column_names_to_drop, axis=1)
 
         # Save the original dtypes for each new column so they can be restored
@@ -1246,17 +1281,62 @@ class EXPERIMENTAL__MGPropertyGraph:
         length = self.__edge_vector_property_lengths[col_name]
         return self._get_vector_property(df, col_name, length, ignore_empty)
 
+    def _check_vector_properties(
+        self, df, vector_properties, vector_property_lengths, invalid_keys
+    ):
+        """Check if vector_properties is valid and update vector_property_lengths"""
+        df_cols = set(df.columns)
+        for key, columns in vector_properties.items():
+            if key in invalid_keys:
+                raise ValueError(
+                    "Cannot assign new vector property to existing "
+                    f"non-vector property: {key}"
+                )
+            if isinstance(columns, str):
+                # If df[columns] is a ListDtype column, should we allow it?
+                raise TypeError(
+                    f"vector property columns for {key!r} should be a list; "
+                    f"got a str ({columns!r})"
+                )
+            if not df_cols.issuperset(columns):
+                missing = ", ".join(set(columns) - df_cols)
+                raise ValueError(
+                    f"Dataframe does not have columns for vector property {key!r}:"
+                    f"{missing}"
+                )
+            if not columns:
+                raise ValueError("Empty vector property columns for {key!r}!")
+            if vector_property_lengths.get(key, len(columns)) != len(columns):
+                prev_length = vector_property_lengths[key]
+                new_length = len(columns)
+                raise ValueError(
+                    f"Wrong size for vector property {key}; got {new_length}, but "
+                    f"this vector property already exists with size {prev_length}"
+                )
+        for key, columns in vector_properties.items():
+            vector_property_lengths[key] = len(columns)
+
+    def _create_vector_properties(self, df, vector_properties):
+        return df.map_partitions(
+            self._create_vector_properties_partition, vector_properties
+        )
+
     def _get_vector_property(self, df, col_name, length, ignore_empty):
         if type(df) is not self.__dataframe_type:
-            raise TypeError("TODO")
+            raise TypeError(
+                f"Expected type {self.__dataframe_type}; got type {type(df)}"
+            )
         if col_name not in df.columns:
-            raise ValueError("TODO")
+            raise ValueError(f"Column name {col_name} is not in the columns of df")
         if df.dtypes[col_name] != "list":
-            raise TypeError("TODO")
+            raise TypeError(
+                "Wrong dtype for vector property; expected 'list', "
+                f"got {df.dtypes[col_name]}"
+            )
         s = df[col_name]
-        meta = self._vector_series_to_array(s._meta, length, True)
+        meta = self._vector_series_to_array_partition(s._meta, length, True)
         return s.map_partitions(
-            self._vector_series_to_array, length, ignore_empty, meta=meta
+            self._vector_series_to_array_partition, length, ignore_empty, meta=meta
         )
 
     @classmethod
@@ -1361,7 +1441,7 @@ class EXPERIMENTAL__MGPropertyGraph:
         return df.dtypes[column]
 
     @staticmethod
-    def _create_vector_properties(df, vector_properties):
+    def _create_vector_properties_partition(df, vector_properties):
         # Make each vector contigous and 1-d
         new_cols = {}
         for key, columns in vector_properties.items():
@@ -1379,7 +1459,7 @@ class EXPERIMENTAL__MGPropertyGraph:
         return df.assign(**new_cols)
 
     @staticmethod
-    def _vector_series_to_array(s, length, ignore_empty):
+    def _vector_series_to_array_partition(s, length, ignore_empty):
         # This returns a writable view (i.e., no copies!)
         if len(s) == 0:
             # TODO: fix bug in cudf; operating on dask_cudf dataframes nests list dtype

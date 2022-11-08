@@ -1944,10 +1944,13 @@ def test_vertex_vector_property(df_type):
     expected = merchants_df[
         ["merchant_location", "merchant_size", "merchant_num_employees"]
     ].values
+    expected = expected[np.lexsort(expected.T)]  # may be jumbled, so sort
 
     vec1 = pG.vertex_vector_property_to_array(df, "vec1")
+    vec1 = vec1[np.lexsort(vec1.T)]  # may be jumbled, so sort
     assert_array_equal(expected, vec1)
     vec1 = pG.vertex_vector_property_to_array(df, "vec1", ignore_empty=False)
+    vec1 = vec1[np.lexsort(vec1.T)]  # may be jumbled, so sort
     assert_array_equal(expected, vec1)
     with pytest.raises(ValueError):
         pG.vertex_vector_property_to_array(df, "BAD_NAME")
@@ -1982,12 +1985,15 @@ def test_vertex_vector_property(df_type):
     df = pG.get_vertex_data()
     assert set(df.columns) == expected_columns
     vec1 = pG.vertex_vector_property_to_array(df, "vec1")
+    vec1 = vec1[np.lexsort(vec1.T)]  # may be jumbled, so sort
     assert_array_equal(expected, vec1)
     with pytest.raises(RuntimeError):
         pG.vertex_vector_property_to_array(df, "vec1", ignore_empty=False)
 
     vec2 = pG.vertex_vector_property_to_array(df, "vec2")
+    vec2 = vec2[np.lexsort(vec2.T)]  # may be jumbled, so sort
     expected = users_df[["user_location", "vertical"]].values
+    expected = expected[np.lexsort(expected.T)]  # may be jumbled, so sort
     assert_array_equal(expected, vec2)
     with pytest.raises(TypeError):
         # Column is wrong type to be a vector
@@ -2041,9 +2047,12 @@ def test_edge_vector_property(df_type):
     }
     assert set(df.columns) == expected_columns
     expected = df1[["feat_0", "feat_1", "feat_2"]].values
+    expected = expected[np.lexsort(expected.T)]  # may be jumbled, so sort
     vec1 = pG.edge_vector_property_to_array(df, "vec1")
+    vec1 = vec1[np.lexsort(vec1.T)]  # may be jumbled, so sort
     assert_array_equal(vec1, expected)
     vec1 = pG.edge_vector_property_to_array(df, "vec1", ignore_empty=False)
+    vec1 = vec1[np.lexsort(vec1.T)]  # may be jumbled, so sort
     assert_array_equal(vec1, expected)
     pG.add_edge_data(
         df2, ("src", "dst"), vector_properties={"vec2": ["feat_0", "feat_1"]}
@@ -2052,7 +2061,9 @@ def test_edge_vector_property(df_type):
     expected_columns.add("vec2")
     assert set(df.columns) == expected_columns
     expected = df2[["feat_0", "feat_1"]].values
+    expected = expected[np.lexsort(expected.T)]  # may be jumbled, so sort
     vec2 = pG.edge_vector_property_to_array(df, "vec2")
+    vec2 = vec2[np.lexsort(vec2.T)]  # may be jumbled, so sort
     assert_array_equal(vec2, expected)
     with pytest.raises(RuntimeError):
         pG.edge_vector_property_to_array(df, "vec2", ignore_empty=False)
