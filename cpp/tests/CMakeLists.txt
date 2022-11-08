@@ -52,6 +52,7 @@ target_link_libraries(cugraphtestutil
         NCCL::NCCL
     PRIVATE
         cuco::cuco
+        GTest::gtest
 )
 
 ###################################################################################################
