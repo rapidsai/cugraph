@@ -271,13 +271,11 @@ def test_scc(input_and_expected_output):
     cupy_indices = cp.asarray(csr.indices, dtype=np.int32)
 
     pylibcugraph.strongly_connected_components(
-        cupy_offsets, cupy_indices, None, num_verts,
-        num_edges, cupy_labels_to_populate
+        cupy_offsets, cupy_indices, None, num_verts, num_edges, cupy_labels_to_populate
     )
 
     _check_labels(
-        cupy_labels_to_populate.tolist(),
-        expected_output_dict["scc_comp_vertices"]
+        cupy_labels_to_populate.tolist(), expected_output_dict["scc_comp_vertices"]
     )
 
 
@@ -302,13 +300,18 @@ def test_wcc(input_and_expected_output):
     cupy_weights = None
 
     pylibcugraph.weakly_connected_components(
-        None, None, cupy_offsets, cupy_indices,
-        cupy_weights, cupy_labels_to_populate, False
+        None,
+        None,
+        cupy_offsets,
+        cupy_indices,
+        cupy_weights,
+        cupy_labels_to_populate,
+        False,
     )
 
     _check_labels(
-        cupy_labels_to_populate.tolist(),
-        expected_output_dict["wcc_comp_vertices"])
+        cupy_labels_to_populate.tolist(), expected_output_dict["wcc_comp_vertices"]
+    )
 
 
 # FIXME: scc and wcc no longer have the same API (parameters in the
