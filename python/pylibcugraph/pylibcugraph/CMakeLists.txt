@@ -31,6 +31,7 @@ set(cython_sources
     sssp.pyx
     triangle_count.pyx
     uniform_neighbor_sample.pyx
+    uniform_random_walks.pyx
     utils.pyx
     weakly_connected_components.pyx
 )
