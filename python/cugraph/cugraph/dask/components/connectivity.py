@@ -41,6 +41,7 @@ def _call_plc_wcc(sID, mg_graph_x, do_expensive_check):
         offsets=None,
         indices=None,
         weights=None,
+        labels=None,
         do_expensive_check=do_expensive_check,
     )
 

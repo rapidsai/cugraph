@@ -193,6 +193,7 @@ def weakly_connected_components(G, directed=None, connection=None, return_labels
         offsets=None,
         indices=None,
         weights=None,
+        labels=None,
         do_expensive_check=False,
     )
 
