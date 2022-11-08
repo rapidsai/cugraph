@@ -20,6 +20,18 @@ The RAPIDS Docker containers contain all RAPIDS packages, including all from cuG
 ## Conda 
 It is easy to install cuGraph using conda. You can get a minimal conda installation with [Miniconda](https://conda.io/miniconda.html) or get the full installation with [Anaconda](https://www.anaconda.com/download).
 
+cuGraph Conda packages
+ * cugraph - this will also import:
+   * pylibcugraph
+   * libcugraph
+ * cugraph_service_client
+ * cugraph_service_server
+ * cugraph_dgl
+ * cugraph_pyg
+
+Replace the package name in the example below to the one you want to install.
+
+
 Install and update cuGraph using the conda command:
 
 ```bash
@@ -42,3 +54,5 @@ cuGraph, and all of RAPIDS, is available via pip.
 ```
 pip install cugraph-cu11 --extra-index-url=https://pypi.ngc.nvidia.com
 ```
+
+pip packages for other packages are being worked and should be available in early 2023
