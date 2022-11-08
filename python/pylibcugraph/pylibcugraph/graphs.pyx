@@ -55,6 +55,7 @@ from pylibcugraph.utils cimport (
     assert_success,
     assert_CAI_type,
     get_c_type_from_numpy_type,
+    create_cugraph_type_erased_device_array_view_from_py_obj,
 )
 
 
@@ -163,56 +164,25 @@ cdef class SGGraph(_GPUGraph):
         cdef cugraph_error_t* error_ptr
         cdef cugraph_error_code_t error_code
 
-        cdef uintptr_t cai_srcs_ptr = \
-            src_array.__cuda_array_interface__["data"][0]
         cdef cugraph_type_erased_device_array_view_t* srcs_view_ptr = \
-            cugraph_type_erased_device_array_view_create(
-                <void*>cai_srcs_ptr,
-                len(src_array),
-                get_c_type_from_numpy_type(src_array.dtype))
-
-        cdef uintptr_t cai_dsts_ptr = \
-            dst_array.__cuda_array_interface__["data"][0]
+            create_cugraph_type_erased_device_array_view_from_py_obj(
+                src_array
+            )
         cdef cugraph_type_erased_device_array_view_t* dsts_view_ptr = \
-            cugraph_type_erased_device_array_view_create(
-                <void*>cai_dsts_ptr,
-                len(dst_array),
-                get_c_type_from_numpy_type(dst_array.dtype))
-
-        cdef uintptr_t cai_weights_ptr = \
-            weight_array.__cuda_array_interface__["data"][0]
+            create_cugraph_type_erased_device_array_view_from_py_obj(
+                dst_array
+            )
         cdef cugraph_type_erased_device_array_view_t* weights_view_ptr = \
-            cugraph_type_erased_device_array_view_create(
-                <void*>cai_weights_ptr,
-                len(weight_array),
-                get_c_type_from_numpy_type(weight_array.dtype))
-        
-        cdef cugraph_type_erased_device_array_view_t* edge_id_view_ptr = NULL
-        cdef uintptr_t cai_edge_id_ptr
-        if edge_id_array is not None:
-            cai_edge_id_ptr = (
-                edge_id_array.__cuda_array_interface__["data"][0]
+            create_cugraph_type_erased_device_array_view_from_py_obj(
+                weight_array
             )
-            edge_id_view_ptr = (
-                cugraph_type_erased_device_array_view_create(
-                    <void*>cai_edge_id_ptr,
-                    len(edge_id_array),
-                    get_c_type_from_numpy_type(edge_id_array.dtype)
-                )
+        cdef cugraph_type_erased_device_array_view_t* edge_id_view_ptr = \
+            create_cugraph_type_erased_device_array_view_from_py_obj(
+                edge_id_array
             )
-
-        cdef cugraph_type_erased_device_array_view_t* edge_type_view_ptr = NULL
-        cdef uintptr_t cai_edge_type_ptr
-        if edge_type_array is not None:
-            cai_edge_type_ptr = (
-                edge_type_array.__cuda_array_interface__["data"][0]
-            )
-            edge_type_view_ptr = (
-                cugraph_type_erased_device_array_view_create(
-                    <void*>cai_edge_type_ptr,
-                    len(edge_type_array),
-                    get_c_type_from_numpy_type(edge_type_array.dtype)
-                )
+        cdef cugraph_type_erased_device_array_view_t* edge_type_view_ptr = \
+            create_cugraph_type_erased_device_array_view_from_py_obj(
+                edge_type_array
             )
 
         error_code = cugraph_sg_graph_create(
@@ -335,56 +305,25 @@ cdef class MGGraph(_GPUGraph):
         cdef cugraph_error_t* error_ptr
         cdef cugraph_error_code_t error_code
 
-        cdef uintptr_t cai_srcs_ptr = \
-            src_array.__cuda_array_interface__["data"][0]
         cdef cugraph_type_erased_device_array_view_t* srcs_view_ptr = \
-            cugraph_type_erased_device_array_view_create(
-                <void*>cai_srcs_ptr,
-                len(src_array),
-                get_c_type_from_numpy_type(src_array.dtype))
-
-        cdef uintptr_t cai_dsts_ptr = \
-            dst_array.__cuda_array_interface__["data"][0]
+            create_cugraph_type_erased_device_array_view_from_py_obj(
+                src_array
+            )
         cdef cugraph_type_erased_device_array_view_t* dsts_view_ptr = \
-            cugraph_type_erased_device_array_view_create(
-                <void*>cai_dsts_ptr,
-                len(dst_array),
-                get_c_type_from_numpy_type(dst_array.dtype))
-
-        cdef uintptr_t cai_weights_ptr = \
-            weight_array.__cuda_array_interface__["data"][0]
+            create_cugraph_type_erased_device_array_view_from_py_obj(
+                dst_array
+            )
         cdef cugraph_type_erased_device_array_view_t* weights_view_ptr = \
-            cugraph_type_erased_device_array_view_create(
-                <void*>cai_weights_ptr,
-                len(weight_array),
-                get_c_type_from_numpy_type(weight_array.dtype))
-
-        cdef cugraph_type_erased_device_array_view_t* edge_id_view_ptr = NULL
-        cdef uintptr_t cai_edge_id_ptr
-        if edge_id_array is not None:
-            cai_edge_id_ptr = (
-                edge_id_array.__cuda_array_interface__["data"][0]
+            create_cugraph_type_erased_device_array_view_from_py_obj(
+                weight_array
             )
-            edge_id_view_ptr = (
-                cugraph_type_erased_device_array_view_create(
-                    <void*>cai_edge_id_ptr,
-                    len(edge_id_array),
-                    get_c_type_from_numpy_type(edge_id_array.dtype)
-                )
+        cdef cugraph_type_erased_device_array_view_t* edge_id_view_ptr = \
+            create_cugraph_type_erased_device_array_view_from_py_obj(
+                edge_id_array
             )
-
-        cdef cugraph_type_erased_device_array_view_t* edge_type_view_ptr = NULL
-        cdef uintptr_t cai_edge_type_ptr
-        if edge_type_array is not None:
-            cai_edge_type_ptr = (
-                edge_type_array.__cuda_array_interface__["data"][0]
-            )
-            edge_type_view_ptr = (
-                cugraph_type_erased_device_array_view_create(
-                    <void*>cai_edge_type_ptr,
-                    len(edge_type_array),
-                    get_c_type_from_numpy_type(edge_type_array.dtype)
-                )
+        cdef cugraph_type_erased_device_array_view_t* edge_type_view_ptr = \
+            create_cugraph_type_erased_device_array_view_from_py_obj(
+                edge_type_array
             )
 
         error_code = cugraph_mg_graph_create(
@@ -431,23 +370,17 @@ cdef class SGGraph_From_CSR(_GPUGraph):
     graph_properties : GraphProperties
         Object defining intended properties for the graph.
 
-    src_array : device array type
-        Device array containing the vertex identifiers of the source of each
-        directed edge. The order of the array corresponds to the ordering of the
-        dst_array, where the ith item in src_array and the ith item in dst_array
-        define the ith edge of the graph.
+    offset_array : device array type
+        Device array containing the offsets from the CSR representation.
 
-    dst_array : device array type
-        Device array containing the vertex identifiers of the destination of
-        each directed edge. The order of the array corresponds to the ordering
-        of the src_array, where the ith item in src_array and the ith item in
-        dst_array define the ith edge of the graph.
+    indice_array : device array type
+        Device array containing the indices from the CSR representation.
 
     weight_array : device array type
         Device array containing the weight values of each directed edge. The
-        order of the array corresponds to the ordering of the src_array and
-        dst_array arrays, where the ith item in weight_array is the weight value
-        of the ith edge of the graph.
+        order of the array corresponds to the ordering of the offset_array and
+        indice_array arrays, where the ith item in weight_array is the weight
+        value of the ith edge of the graph.
 
     store_transposed : bool
         Set to True if the graph should be transposed. This is required for some
@@ -475,15 +408,14 @@ cdef class SGGraph_From_CSR(_GPUGraph):
     Examples
     ---------
     >>> import pylibcugraph, cupy, numpy
-    >>> srcs = cupy.asarray([0, 1, 2], dtype=numpy.int32)
-    >>> dsts = cupy.asarray([1, 2, 3], dtype=numpy.int32)
-    >>> seeds = cupy.asarray([0, 0, 1], dtype=numpy.int32)
-    >>> weights = cupy.asarray([1.0, 1.0, 1.0], dtype=numpy.float32)
+    >>> offsets = cupy.asarray([0, 2, 3, 3, 4, 4], dtype=numpy.int32)
+    >>> indices = cupy.asarray([1, 2, 2, 4], dtype=numpy.int32)
+    >>> weights = cupy.asarray([1.0, 1.0, 1.0, 1.0], dtype=numpy.float32)
     >>> resource_handle = pylibcugraph.ResourceHandle()
     >>> graph_props = pylibcugraph.GraphProperties(
     ...     is_symmetric=False, is_multigraph=False)
-    >>> G = pylibcugraph.SGGraph(
-    ...     resource_handle, graph_props, srcs, dsts, weights,
+    >>> G = pylibcugraph.SGGraph_From_CSR(
+    ...     resource_handle, graph_props, offsets, indices, weights,
     ...     store_transposed=False, renumber=False, do_expensive_check=False)
 
     """
@@ -522,59 +454,25 @@ cdef class SGGraph_From_CSR(_GPUGraph):
         cdef cugraph_error_t* error_ptr
         cdef cugraph_error_code_t error_code
 
-        cdef uintptr_t cai_offsets_ptr = \
-            offset_array.__cuda_array_interface__["data"][0]
         cdef cugraph_type_erased_device_array_view_t* offsets_view_ptr = \
-            cugraph_type_erased_device_array_view_create(
-                <void*>cai_offsets_ptr,
-                len(offset_array),
-                get_c_type_from_numpy_type(offset_array.dtype))
-
-        cdef uintptr_t cai_indices_ptr = \
-            indice_array.__cuda_array_interface__["data"][0]
+            create_cugraph_type_erased_device_array_view_from_py_obj(
+                offset_array
+            )
         cdef cugraph_type_erased_device_array_view_t* indices_view_ptr = \
-            cugraph_type_erased_device_array_view_create(
-                <void*>cai_indices_ptr,
-                len(indice_array),
-                get_c_type_from_numpy_type(indice_array.dtype))
-
-        cdef uintptr_t cai_weights_ptr = <uintptr_t>NULL
-        cdef cugraph_type_erased_device_array_view_t* weights_view_ptr = NULL
-
-        if weight_array is not None:
-            cai_weights_ptr = weight_array.__cuda_array_interface__["data"][0]
-            weights_view_ptr = \
-                cugraph_type_erased_device_array_view_create(
-                    <void*>cai_weights_ptr,
-                    len(weight_array),
-                    get_c_type_from_numpy_type(weight_array.dtype))
-        
-        cdef cugraph_type_erased_device_array_view_t* edge_id_view_ptr = NULL
-        cdef uintptr_t cai_edge_id_ptr
-        if edge_id_array is not None:
-            cai_edge_id_ptr = (
-                edge_id_array.__cuda_array_interface__["data"][0]
+            create_cugraph_type_erased_device_array_view_from_py_obj(
+                indice_array
             )
-            edge_id_view_ptr = (
-                cugraph_type_erased_device_array_view_create(
-                    <void*>cai_edge_id_ptr,
-                    len(edge_id_array),
-                    get_c_type_from_numpy_type(edge_id_array.dtype)
-                )
+        cdef cugraph_type_erased_device_array_view_t* weights_view_ptr = \
+            create_cugraph_type_erased_device_array_view_from_py_obj(
+                weight_array
             )
-
-        cdef cugraph_type_erased_device_array_view_t* edge_type_view_ptr = NULL
-        cdef uintptr_t cai_edge_type_ptr
-        if edge_type_array is not None:
-            cai_edge_type_ptr = (
-                edge_type_array.__cuda_array_interface__["data"][0]
+        cdef cugraph_type_erased_device_array_view_t* edge_id_view_ptr = \
+            create_cugraph_type_erased_device_array_view_from_py_obj(
+                edge_id_array
             )
-            edge_type_view_ptr = (
-                cugraph_type_erased_device_array_view_create(
-                    <void*>cai_edge_type_ptr,
-                    len(edge_type_array),
-                    get_c_type_from_numpy_type(edge_type_array.dtype)
-                )
+        cdef cugraph_type_erased_device_array_view_t* edge_type_view_ptr = \
+            create_cugraph_type_erased_device_array_view_from_py_obj(
+                edge_type_array
             )
 
         error_code = cugraph_sg_graph_create_from_csr(
