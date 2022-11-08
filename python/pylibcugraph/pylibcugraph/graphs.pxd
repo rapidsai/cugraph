@@ -32,7 +32,3 @@ cdef class MGGraph(_GPUGraph):
 
 cdef class SGGraph_From_CSR(_GPUGraph):
      pass
-"""
-cdef class MGGraph_From_CSR(_GPUGraph):
-     pass
-"""
