@@ -23,11 +23,11 @@
 
 <br>
 
-[RAPIDS](https://rapids.ai) cuGraph is a monrepo that represents a collection of packages focused on GPU-accelerated graph analytics, including support for property graphs, remote (graph as a service) operations, and graph neural networks (GNNs).  cuGraph supports the creation and manipulation of graphs followed by the execution of scalable fast graph algorithms.
+[RAPIDS](https://rapids.ai) cuGraph is a monorepo that represents a collection of packages focused on GPU-accelerated graph analytics, including support for property graphs, remote (graph as a service) operations, and graph neural networks (GNNs).  cuGraph supports the creation and manipulation of graphs followed by the execution of scalable fast graph algorithms.
 
 <div align="center">
 
-[Gettintg cuGraph](./readme_pages/getting_cugraph.md) *
+[Getting cuGraph](./readme_pages/getting_cugraph.md) *
 [Graph Algorithms](./readme_pages/algorithms.md) *
 [Graph Service](./readme_pages/cugraph_service.md) *
 [Property Graph](./readme_pages/Property_graph.md) *
@@ -39,7 +39,7 @@
 
 ## Table of content
 - Getting packages
-  - [Gettintg cuGraph Packages](./readme_pages/getting_cugraph.md)
+  - [Getting cuGraph Packages](./readme_pages/getting_cugraph.md)
   - [Contributing to cuGraph](./readme_pages/CONTRIBUTING.md)
   - General
     - [Latest News](./readme_pages/news.md)
