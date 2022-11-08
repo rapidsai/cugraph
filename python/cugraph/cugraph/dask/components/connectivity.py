@@ -81,7 +81,7 @@ def weakly_connected_components(input_graph):
     ...                          chunksize=chunksize, delimiter=" ",
     ...                          names=["src", "dst", "value"],
     ...                          dtype=["int32", "int32", "float32"])
-    >>> dg = cugraph.Graph(directed=True)
+    >>> dg = cugraph.Graph(directed=False)
     >>> dg.from_dask_cudf_edgelist(ddf, source='src', destination='dst',
     ...                            edge_attr='value')
     >>> result = dcg.weakly_connected_components(dg)
