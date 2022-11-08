@@ -12,13 +12,18 @@
 # limitations under the License.
 
 import pytest
+
+try:
+    import cugraph_dgl
+except ImportError:
+    pytest.skip("cugraph_dgl not available", allow_module_level=True)
+
 import dgl
 import torch as th
 import cudf
 import numpy as np
 
 from cugraph_dgl import CuGraphStorage
-from cugraph_dgl import cugraph_storage_from_heterograph
 from .utils import assert_same_sampling_len
 
 
@@ -95,7 +100,7 @@ def test_cugraphstore_basic_apis():
 
 
 def test_sampling_heterograph(dgl_graph):
-    cugraph_gs = cugraph_storage_from_heterograph(dgl_graph)
+    cugraph_gs = cugraph_dgl.cugraph_storage_from_heterograph(dgl_graph)
 
     for fanout in [1, 2, 3, -1]:
         for ntype in ["nt.a", "nt.b", "nt.c"]:
@@ -113,7 +118,7 @@ def test_sampling_homogenous():
     src_ar = np.asarray([0, 1, 2, 0, 1, 2, 7, 9, 10, 11], dtype=np.int32)
     dst_ar = np.asarray([3, 4, 5, 6, 7, 8, 6, 6, 6, 6], dtype=np.int32)
     g = dgl.heterograph({("a", "connects", "a"): (src_ar, dst_ar)})
-    cugraph_gs = cugraph_storage_from_heterograph(g)
+    cugraph_gs = cugraph_dgl.cugraph_storage_from_heterograph(g)
     # Convert to homogeneous
     g = dgl.to_homogeneous(g)
     nodes = [6]

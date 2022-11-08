@@ -10,13 +10,17 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 import pytest
+
+try:
+    import cugraph_dgl
+except ImportError:
+    pytest.skip("cugraph_dgl not available", allow_module_level=True)
+
 import dgl
 import dgl.backend as F
 import torch as th
 
-from cugraph_dgl import cugraph_storage_from_heterograph
 from .utils import (
     assert_same_num_edges_can_etypes,
     assert_same_num_edges_etypes,
@@ -133,7 +137,7 @@ def test_heterograph_conversion_nodes(idxtype):
     ]
     for graph_f in graph_fs:
         g = graph_f(idxtype)
-        gs = cugraph_storage_from_heterograph(g)
+        gs = cugraph_dgl.cugraph_storage_from_heterograph(g)
 
         assert_same_num_nodes(gs, g)
         assert_same_node_feats(gs, g)
@@ -149,7 +153,7 @@ def test_heterograph_conversion_edges(idxtype):
     ]
     for graph_f in graph_fs:
         g = graph_f(idxtype)
-        gs = cugraph_storage_from_heterograph(g)
+        gs = cugraph_dgl.cugraph_storage_from_heterograph(g)
 
         assert_same_num_edges_can_etypes(gs, g)
         assert_same_num_edges_etypes(gs, g)
