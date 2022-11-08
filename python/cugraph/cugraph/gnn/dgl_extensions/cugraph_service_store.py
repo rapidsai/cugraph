@@ -379,9 +379,10 @@ class CuGraphRemoteStore(BaseCuGraphStore):
         # of the seed dtype is not same as the node dtype
         self.set_sg_node_dtype(first_sg)
 
-        # TODO: Cant send dlpack or cupy arrays or numpys arrays
+        # Cant send dlpack or cupy arrays or numpys arrays
         # through  extensions
-        # Ask Rick
+        # See issue: https://github.com/rapidsai/cugraph/issues/2863
+
         if isinstance(nodes_cap, dict):
             nodes_ar = {
                 k: cp.from_dlpack(v).get().tolist() for k, v in nodes_cap.items()
