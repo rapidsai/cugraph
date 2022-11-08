@@ -271,11 +271,13 @@ def test_scc(input_and_expected_output):
     cupy_indices = cp.asarray(csr.indices, dtype=np.int32)
 
     pylibcugraph.strongly_connected_components(
-        cupy_offsets, cupy_indices, None, num_verts, num_edges, cupy_labels_to_populate
+        cupy_offsets, cupy_indices, None, num_verts,
+        num_edges, cupy_labels_to_populate
     )
 
     _check_labels(
-        cupy_labels_to_populate.tolist(), expected_output_dict["scc_comp_vertices"]
+        cupy_labels_to_populate.tolist(),
+        expected_output_dict["scc_comp_vertices"]
     )
 
 
@@ -286,7 +288,7 @@ def test_wcc(input_and_expected_output):
     import pylibcugraph
 
     (
-        (csr, _, num_verts, num_edges),
+        (csr, cupy_labels_to_populate, num_verts, num_edges),
         expected_output_dict,
     ) = input_and_expected_output
 
@@ -299,28 +301,18 @@ def test_wcc(input_and_expected_output):
     cupy_weights = cp.asarray(csr.data, dtype=np.float32)
     cupy_weights = None
 
-    resource_handle = ResourceHandle()
-    graph_props = GraphProperties(is_symmetric=True, is_multigraph=False)
-    G = SGGraph_From_CSR(
-        resource_handle,
-        graph_props,
-        cupy_offsets,
-        cupy_indices,
-        cupy_weights,
-        store_transposed=False,
-        renumber=False,
-        do_expensive_check=True,
+    pylibcugraph.weakly_connected_components(
+        None, None, cupy_offsets, cupy_indices,
+        cupy_weights, cupy_labels_to_populate, False
     )
 
-    cupy_vertices, cupy_labels = pylibcugraph.weakly_connected_components(
-        resource_handle, G, None, None, None, False
-    )
-
-    _check_labels(cupy_labels.tolist(), expected_output_dict["wcc_comp_vertices"])
+    _check_labels(
+        cupy_labels_to_populate.tolist(),
+        expected_output_dict["wcc_comp_vertices"])
 
 
-# FIXME: scc and wcc no longer have the same API:
-# refactor this to consolidate both tests once the do
+# FIXME: scc and wcc no longer have the same API (parameters in the
+# function definition): refactor this to consolidate both tests once the do
 @pytest.mark.parametrize("api_name", ["strongly_connected_components"])
 def test_non_CAI_input_scc(api_name):
     """
@@ -372,7 +364,7 @@ def test_non_CAI_input_scc(api_name):
 
 
 # FIXME: scc and wcc no longer have the same API:
-# refactor this to consolidate both tests once the do
+# refactor this to consolidate both tests once they do
 @pytest.mark.parametrize("api_name", ["strongly_connected_components"])
 def test_bad_dtypes_scc(api_name):
     """
