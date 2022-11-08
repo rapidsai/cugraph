@@ -12,7 +12,7 @@
 # limitations under the License.
 
 from collections import defaultdict
-from .base_cugraph_store import BaseCuGraphStore
+from cugraph.gnn.dgl_extensions.base_cugraph_store import BaseCuGraphStore
 from functools import cached_property
 from cugraph.gnn.dgl_extensions.utils.feature_map import _update_feature_map
 from cugraph.gnn.dgl_extensions.feature_storage import CuFeatureStorage

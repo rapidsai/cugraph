@@ -13,16 +13,22 @@
 
 from collections import defaultdict
 
-from .base_cugraph_store import BaseCuGraphStore
+from cugraph.gnn.dgl_extensions.base_cugraph_store import BaseCuGraphStore
 
 from functools import cached_property
-from .utils.find_edges import find_edges
-from .utils.node_subgraph import node_subgraph
-from .utils.feature_map import _update_feature_map
-from .utils.add_data import add_edge_data_from_parquet, add_node_data_from_parquet
-from .utils.sampling import sample_pg, get_subgraph_and_src_range_from_pg
-from .utils.sampling import get_underlying_dtype_from_sg
-from .feature_storage import CuFeatureStorage
+from cugraph.gnn.dgl_extensions.utils.find_edges import find_edges
+from cugraph.gnn.dgl_extensions.utils.node_subgraph import node_subgraph
+from cugraph.gnn.dgl_extensions.utils.feature_map import _update_feature_map
+from cugraph.gnn.dgl_extensions.utils.add_data import (
+    add_edge_data_from_parquet,
+    add_node_data_from_parquet,
+)
+from cugraph.gnn.dgl_extensions.utils.sampling import (
+    sample_pg,
+    get_subgraph_and_src_range_from_pg,
+)
+from cugraph.gnn.dgl_extensions.utils.sampling import get_underlying_dtype_from_sg
+from cugraph.gnn.dgl_extensions.feature_storage import CuFeatureStorage
 
 
 class CuGraphStore(BaseCuGraphStore):
