@@ -22,18 +22,7 @@ from cugraph.structure.graph_utilities cimport *
 
 cdef extern from "cugraph/algorithms.hpp" namespace "cugraph":
 
-    ctypedef enum cugraph_cc_t:
-        CUGRAPH_WEAK "cugraph::cugraph_cc_t::CUGRAPH_WEAK"
-        CUGRAPH_STRONG "cugraph::cugraph_cc_t::CUGRAPH_STRONG"
-        NUM_CONNECTIVITY_TYPES "cugraph::cugraph_cc_t::NUM_CONNECTIVITY_TYPES"
-
     cdef void connected_components[VT,ET,WT](
         const GraphCSRView[VT,ET,WT] &graph,
         cugraph_cc_t connect_type,
         VT *labels) except +
-
-cdef extern from "cugraph/utilities/cython.hpp" namespace "cugraph::cython":
-    cdef void call_wcc[vertex_t, weight_t](
-        const handle_t &handle,
-        const graph_container_t &g,
-        vertex_t *identifiers) except +
