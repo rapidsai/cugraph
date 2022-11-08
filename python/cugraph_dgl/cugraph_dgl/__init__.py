@@ -10,5 +10,5 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from .cugraph_storage import CuGraphStorage
-from .convert import cugraph_storage_from_heterograph
+from cugraph_dgl.cugraph_storage import CuGraphStorage
+from cugraph_dgl.convert import cugraph_storage_from_heterograph

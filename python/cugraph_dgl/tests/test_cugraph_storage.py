@@ -24,7 +24,7 @@ import cudf
 import numpy as np
 
 from cugraph_dgl import CuGraphStorage
-from .utils import assert_same_sampling_len
+from cugraph_dgl.utils.test_utils import assert_same_sampling_len
 
 
 @pytest.fixture()

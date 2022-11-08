@@ -12,11 +12,12 @@
 # limitations under the License.
 
 # NOTE: Requires cuGraph nightly cugraph-22.12.00a220417 or later
+from cugraph_dgl.utils.cugraph_storage_utils import _assert_valid_canonical_etype
+from cugraph_dgl.utils.cugraph_storage_utils import convert_can_etype_s_to_tup
+from cugraph_dgl.utils.cugraph_storage_utils import backend_dtype_to_np_dtype_dict
+
 import dgl
 import dgl.backend as F
-from .utils.cugraph_utils import _assert_valid_canonical_etype
-from .utils.cugraph_utils import convert_can_etype_s_to_tup
-from .utils.cugraph_utils import backend_dtype_to_np_dtype_dict
 from typing import Tuple
 
 
