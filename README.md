@@ -41,11 +41,11 @@
 - Getting packages
   - [Getting cuGraph Packages](./readme_pages/getting_cugraph.md)
   - [Contributing to cuGraph](./readme_pages/CONTRIBUTING.md)
-  - General
-    - [Latest News](./readme_pages/news.md)
-    - [Current list of algorithms](./readme_pages/algorithms.md)
-    - [BLOGs and Presentation](./docs/cugraph/source/basics/cugraph_blogs.rst)
-    - [Performance](./readme_pages/performance/performance.md)
+- General
+  - [Latest News](./readme_pages/news.md)
+  - [Current list of algorithms](./readme_pages/algorithms.md)
+  - [BLOGs and Presentation](./docs/cugraph/source/basics/cugraph_blogs.rst)
+  - [Performance](./readme_pages/performance/performance.md)
 - Packages 
   - [cuGraph Python](./readme_pages/cugraph_python.md)
     - [Property Graph](./readme_pages/Property_graph.md)
