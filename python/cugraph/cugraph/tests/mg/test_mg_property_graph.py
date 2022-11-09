@@ -895,7 +895,7 @@ def test_renumber_edges_by_type(dataset1_MGPropertyGraph):
     assert empty_pG.renumber_edges_by_type() is None
 
 
-def test_add_data_noncontiguous():
+def test_add_data_noncontiguous(dask_client):
     from cugraph.experimental import MGPropertyGraph
 
     df = cudf.DataFrame(
@@ -949,6 +949,50 @@ def test_add_data_noncontiguous():
             cur_df["edge_type"],
             check_names=False,
         )
+
+
+@pytest.mark.parametrize("props_to_fill", ["vertex", "edge", "both"])
+def test_fillna(dask_client, props_to_fill):
+    from cugraph.experimental import MGPropertyGraph
+
+    df_edgelist = dask_cudf.from_cudf(
+        cudf.DataFrame(
+            {
+                "src": [0, 7, 2, 0, 1, 3, 1, 4, 5, 6],
+                "dst": [1, 1, 1, 3, 2, 1, 6, 5, 6, 7],
+                "val": [1, None, 2, None, 3, None, 4, None, 5, None],
+            }
+        ),
+        npartitions=2,
+    )
+
+    df_props = dask_cudf.from_cudf(
+        cudf.DataFrame(
+            {
+                "id": [0, 1, 2, 3, 4, 5, 6, 7],
+                "a": [0, 1, None, 2, None, 4, 1, 8],
+                "b": [None, 1, None, 2, None, 3, 8, 9],
+            }
+        ),
+        npartitions=2,
+    )
+
+    pG = MGPropertyGraph()
+    pG.add_edge_data(df_edgelist, vertex_col_names=["src", "dst"])
+    pG.add_vertex_data(df_props, vertex_col_name="id")
+
+    pG.fillna(0, props_to_fill=props_to_fill)
+    if props_to_fill == "vertex":
+        assert not pG.get_vertex_data(columns=["a", "b"]).compute().isna().any().any()
+        assert pG.get_edge_data(columns=["val"]).compute().isna().any().any()
+
+    elif props_to_fill == "edge":
+        assert not pG.get_edge_data(columns=["val"]).compute().isna().any().any()
+        assert pG.get_vertex_data(columns=["a", "b"]).compute().isna().any().any()
+
+    elif props_to_fill == "both":
+        assert not pG.get_vertex_data(columns=["a", "b"]).compute().isna().any().any()
+        assert not pG.get_edge_data(columns=["val"]).compute().isna().any().any()
 
 
 # =============================================================================

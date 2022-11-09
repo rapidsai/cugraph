@@ -758,6 +758,31 @@ class EXPERIMENTAL__MGPropertyGraph:
 
         return None
 
+    def fillna(self, val=0, props_to_fill="both"):
+        """
+        Fills empty property values with the given value, zero by default.
+        Can fill vertex properties, edge properties or both (default).
+        Fills in-place.
+
+        Parameters
+        ----------
+        val : object
+            The object that will replace "na". Default = 0
+        props_to_fill : 'vertex', 'edge', or 'both' (default)
+            Whether to fill vertex properties only, edge properties only,
+            or both vertex and edge properties (default).
+        """
+        if props_to_fill == "vertex" or props_to_fill == "both":
+            for prop in self.vertex_property_names:
+                self.__vertex_prop_dataframe[prop] = (
+                    self.__vertex_prop_dataframe[prop].fillna(val).persist()
+                )
+        if props_to_fill == "edge" or props_to_fill == "both":
+            for prop in self.edge_property_names:
+                self.__edge_prop_dataframe[prop] = (
+                    self.__edge_prop_dataframe[prop].fillna(val).persist()
+                )
+
     def select_vertices(self, expr, from_previous_selection=None):
         raise NotImplementedError
 
