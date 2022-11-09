@@ -12,4 +12,5 @@
 # limitations under the License.
 
 from .dgl_extensions.cugraph_store import CuGraphStore
+from .dgl_extensions.cugraph_service_store import CuGraphRemoteStore
 from .dgl_extensions.feature_storage import CuFeatureStorage
