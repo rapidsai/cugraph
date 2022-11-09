@@ -5,11 +5,10 @@
 
 
 ## Supported Graph
-| Type            |  Description                                        |
-| --------------- | --------------------------------------------------- |
-| Graph           | An undirected Graph by default                      |
-|                 | directed=True yields a Directed Graph               |
-| Multigraph      | A Graph with multiple edges between a vertex pair   |
+| Type            |  Description                                               |
+| --------------- | ---------------------------------------------------------- |
+| Graph           | A directed or undirected Graph (use directed={True, False} |
+| Multigraph      | A Graph with multiple edges between a vertex pair          |
 |  |  |
 
 ALL Algorithms support Graphs and MultiGraph (directed and undirected)
