@@ -733,10 +733,13 @@ class CugraphHandler:
 
             if G.edgeIdCol in df.columns:
                 if ids is not None:
-                    ids = cudf.Series(ids)
                     if self.is_mg:
-                        ids = dask_cudf.from_cudf(ids, npartitions=self.num_gpus)
-                    df = df.reindex(df[G.edgeIdCol]).loc[ids]
+                        # FIXME use ids = cudf.Series(ids) after dask_cudf fix
+                        ids = np.array(ids)
+                        df = df.reindex(df[G.edgeIdCol]).loc[ids]
+                    else:
+                        ids = cudf.Series(ids)
+                        df = df.reindex(df[G.edgeIdCol]).loc[ids]
             else:
                 if ids is not None:
                     raise CugraphServiceError("Graph does not have edge ids")
