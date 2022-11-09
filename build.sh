@@ -75,7 +75,7 @@ function hasArg {
 }
 
 function buildAll {
-    (( ${NUMARGS} == 0 )) || !(echo " ${ARGS} " | grep -q " [^-]\+ ")
+    (( ${NUMARGS} == 0 )) || !(echo " ${ARGS} " | grep -q " [^-][a-zA-Z0-9\_\-]\+ ")
 }
 
 if hasArg -h || hasArg --help; then

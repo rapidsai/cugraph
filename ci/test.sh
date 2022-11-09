@@ -102,10 +102,10 @@ if hasArg "--run-python-tests"; then
     pytest -v -m "managedmem_on and poolallocator_on and tiny" --benchmark-disable
     echo "Ran Python benchmarks for cuGraph (running as tests) : return code was: $?, test script exit code is now: $EXITCODE"
 
-    echo "Python pytest for cugraph_service (single-GPU only)..."
-    cd ${CUGRAPH_ROOT}/python/cugraph_service
-    pytest --cache-clear --junitxml=${CUGRAPH_ROOT}/junit-cugraph_service-pytests.xml -v --benchmark-disable -k "not mg" ./tests
-    echo "Ran Python pytest for cugraph_service : return code was: $?, test script exit code is now: $EXITCODE"
+    echo "Python pytest for cugraph-service (single-GPU only)..."
+    cd ${CUGRAPH_ROOT}/python/cugraph-service
+    pytest --cache-clear --junitxml=${CUGRAPH_ROOT}/junit-cugraph-service-pytests.xml -v --benchmark-disable -k "not mg" ./tests
+    echo "Ran Python pytest for cugraph-service : return code was: $?, test script exit code is now: $EXITCODE"
 fi
 
 echo "Test script exiting with value: $EXITCODE"
