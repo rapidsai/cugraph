@@ -161,11 +161,6 @@ transpose_graph_storage_impl(
       graph_properties_t{is_symmetric, is_multigraph},
       renumber);
 
-  std::cout << "should have created graph with is_symmetric = " << (is_symmetric ? "TRUE" : "FALSE")
-            << std::endl;
-  std::cout << "  store_transposed_graph is_symmetric = "
-            << (storage_transposed_graph.is_symmetric() ? "TRUE" : "FALSE") << std::endl;
-
   return std::make_tuple(std::move(storage_transposed_graph), std::move(new_renumber_map));
 }
 
