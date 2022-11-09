@@ -27,6 +27,7 @@ add_library(cugraphtestutil STATIC
             utilities/test_utilities_mg.cu
             link_prediction/similarity_compare.cpp
             centrality/betweenness_centrality_validate.cu
+            community/egonet_validate.cu
 	    structure/induced_subgraph_validate.cu
             components/wcc_graphs.cu
             sampling/random_walks_check_sg.cu
@@ -228,7 +229,7 @@ ConfigureTest(BALANCED_TEST community/balanced_edge_test.cpp)
 
 ###################################################################################################
 # - EGO tests --------------------------------------------------------------------------------
-ConfigureTest(EGO_TEST community/egonet_test.cu)
+ConfigureTest(EGO_TEST community/egonet_test.cpp)
 
 ###################################################################################################
 # - FORCE ATLAS 2  tests --------------------------------------------------------------------------
@@ -471,6 +472,10 @@ if(BUILD_CUGRAPH_MG_TESTS)
     ConfigureTestMG(MG_LOUVAIN_TEST
         community/mg_louvain_helper.cu
         community/mg_louvain_test.cpp)
+
+    ###############################################################################################
+    # - MG LOUVAIN tests --------------------------------------------------------------------------
+    ConfigureTestMG(MG_EGO_TEST community/mg_egonet_test.cpp)
 
     ###############################################################################################
     # - MG WEAKLY CONNECTED COMPONENTS tests ------------------------------------------------------

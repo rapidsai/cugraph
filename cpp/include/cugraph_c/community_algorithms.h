@@ -18,6 +18,7 @@
 
 #include <cugraph_c/error.h>
 #include <cugraph_c/graph.h>
+#include <cugraph_c/graph_functions.h>
 #include <cugraph_c/resource_handle.h>
 
 /** @defgroup community Community algorithms
@@ -35,9 +36,6 @@ extern "C" {
 typedef struct {
   int32_t align_;
 } cugraph_triangle_count_result_t;
-
-// FIXME: temporary forward declaration
-struct cugraph_induced_subgraph_result_t;
 
 /**
  * @brief     Triangle Counting
