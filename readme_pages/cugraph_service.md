@@ -19,6 +19,10 @@ Goals
 <br><br>
 
 # Picture
+
+One option on a single DGX 
 <img src="../img/gaas_img_1.png" alt="graph_service_cluster" width="800">
 
+
+Using cugraph-service on multiple DGXs
 <img src="../img/gaas_img_2.png" alt="graph_service_cluster" width="800">
