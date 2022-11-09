@@ -178,10 +178,12 @@ INSTANTIATE_TEST_SUITE_P(
   ::testing::Combine(
     ::testing::Values(Egonet_Usecase{std::vector<int32_t>{0}, 1, false, true},
                       Egonet_Usecase{std::vector<int32_t>{0}, 2, false, true},
-                      Egonet_Usecase{std::vector<int32_t>{1}, 3, false, true}),
+                      Egonet_Usecase{std::vector<int32_t>{1}, 3, false, true},
+                      Egonet_Usecase{std::vector<int32_t>{10, 0, 5}, 2, false, true},
+                      Egonet_Usecase{std::vector<int32_t>{9, 3, 10}, 2, false, true},
+                      Egonet_Usecase{std::vector<int32_t>{5, 9, 3, 10, 12, 13}, 2, true, true}),
     ::testing::Values(cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, true, false))));
 
-#if 0
 INSTANTIATE_TEST_SUITE_P(
   rmat_benchmark_test, /* note that scale & edge factor can be overridden in benchmarking (with
                           --gtest_filter to select only the rmat_benchmark_test with a specific
@@ -193,6 +195,5 @@ INSTANTIATE_TEST_SUITE_P(
   ::testing::Combine(
     ::testing::Values(Egonet_Usecase{std::vector<int32_t>{5, 9, 3, 10, 12, 13}, 2, true, false}),
     ::testing::Values(cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false))));
-#endif
 
 CUGRAPH_TEST_PROGRAM_MAIN()

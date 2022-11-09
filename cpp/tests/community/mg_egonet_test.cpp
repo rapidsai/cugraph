@@ -313,7 +313,12 @@ INSTANTIATE_TEST_SUITE_P(
   Tests_MGEgonet_Rmat,
   ::testing::Combine(
     // disable correctness checks for large graphs
-    ::testing::Values(Egonet_Usecase{std::vector<int32_t>{5, 9, 3, 10, 12, 13}, 2, true, true}),
+    ::testing::Values(Egonet_Usecase{std::vector<int32_t>{0}, 1, false, true},
+                      Egonet_Usecase{std::vector<int32_t>{0}, 2, false, true},
+                      Egonet_Usecase{std::vector<int32_t>{0}, 3, false, true},
+                      Egonet_Usecase{std::vector<int32_t>{10, 0, 5}, 2, false, true},
+                      Egonet_Usecase{std::vector<int32_t>{9, 3, 10}, 2, false, true},
+                      Egonet_Usecase{std::vector<int32_t>{5, 9, 3, 10, 12, 13}, 2, true, true}),
     ::testing::Values(
       cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, true, false, 0, true))));
 
