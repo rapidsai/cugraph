@@ -486,6 +486,7 @@ class EXPERIMENTAL__PropertyGraph:
             vertex and edge property data. Return type is based
             on if the PropertyGraph instance was created/updated
             using cudf or pandas DataFrames.
+
         See Also
         --------
         PropertyGraph.get_vertices
@@ -700,6 +701,7 @@ class EXPERIMENTAL__PropertyGraph:
         columns : str or list of str, optional
             property or properties to include in return.
             Default includes all properties.
+
         Returns
         -------
         DataFrame
@@ -1244,6 +1246,7 @@ class EXPERIMENTAL__PropertyGraph:
         add_edge_data : bool (default True)
             If True, add meta data about the edges contained in the extracted
             graph which are required for future calls to annotate_dataframe().
+
         Returns
         -------
         A Graph instance of the same type as create_using containing only the
@@ -1684,15 +1687,15 @@ class EXPERIMENTAL__PropertyGraph:
 
     def renumber_edges_by_type(self):
         """
-                Renumber edge IDs to be contiguous by type.
+        Renumber edge IDs to be contiguous by type.
 
-                Returns
-                -------
-                DataFrame
-                    with the start and stop IDs for each edge type.Stop is *inclusive*.
+        Returns
+        -------
+        DataFrame
+            with the start and stop IDs for each edge type.Stop is *inclusive*.
 
-                Examples
-                --------
+        Examples
+        --------
         >>> import cugraph
         >>> import cudf
         >>> from cugraph.experimental import PropertyGraph
@@ -1720,7 +1723,6 @@ class EXPERIMENTAL__PropertyGraph:
                 start  stop
         etype1      0     3
         etype2      4     6
-
         """
         TCN = self.type_col_name
 
@@ -1904,7 +1906,6 @@ class EXPERIMENTAL__PropertyGraph:
     def __update_categorical_dtype(self, df, column, val):
         """
         Add a new category to a categorical dtype column of a dataframe.
-
         Returns the new categorical dtype.
         """
         # Add `val` to the categorical dtype if necessary
