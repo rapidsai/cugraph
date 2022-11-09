@@ -5,10 +5,10 @@
 
 
 ## Supported Graph
-| Type            |  Description                                               |
-| --------------- | ---------------------------------------------------------- |
-| Graph           | A directed or undirected Graph (use directed={True, False} |
-| Multigraph      | A Graph with multiple edges between a vertex pair          |
+| Type            |  Description                                                |
+| --------------- | ----------------------------------------------------------- |
+| Graph           | A directed or undirected Graph (use directed={True, False}) |
+| Multigraph      | A Graph with multiple edges between a vertex pair           |
 |  |  |
 
 ALL Algorithms support Graphs and MultiGraph (directed and undirected)
@@ -20,6 +20,9 @@ ALL Algorithms support Graphs and MultiGraph (directed and undirected)
 # Supported Algorithms
 _Italic_ algorithms are planned for future releases.
 
+Note: Multi-GPU, or MG, includes support for Multi-Node Multi-GPU (also called MNMG).  
+
+
 | Category     | Algorithm                              | Scale         |  Notes              |
 | ------------ | -------------------------------------- | ------------- | ------------------- |
 | Centrality   |                                        |               |                     |
@@ -29,7 +32,7 @@ _Italic_ algorithms are planned for future releases.
 |              | Eigenvector Centrality                 | __Multi-GPU__ |                      |
 |              | Degree Centrality                      | __Multi-GPU__ | Python only         |
 | Community    |                                        |               |                     |
-|              | Leiden                                 | Single-GPU    | MG planned for 22.12 |
+|              | Leiden                                 | Single-GPU    | MG planned for 23.02 |
 |              | Louvain                                | __Multi-GPU__ |                     |
 |              | Ensemble Clustering for Graphs         | Single-GPU    |                     |
 |              | Spectral-Clustering - Balanced Cut     | Single-GPU    |                     |
@@ -38,7 +41,7 @@ _Italic_ algorithms are planned for future releases.
 |              | Triangle Counting                      | __Multi-GPU__ |                     |
 |              | K-Truss                                | Single-GPU    |                     |
 | Components   |                                        |               |                     |
-|              | Weakly Connected Components            |__Multi-GPU__ |                     |
+|              | Weakly Connected Components            | __Multi-GPU__ |                     |
 |              | Strongly Connected Components          | Single-GPU    |                     |
 | Core         |                                        |               |                     |
 |              | K-Core                                 | Single-GPU    |                     |
@@ -56,16 +59,17 @@ _Italic_ algorithms are planned for future releases.
 |              | Personal Pagerank                      | __Multi-GPU__ | [C++ README](cpp/src/centrality/README.md#Personalized-Pagerank) |
 |              | HITS                                   | __Multi-GPU__ |                     |
 | Link Prediction |                                     |               |                     |
-|              | Jaccard Similarity                     | Single-GPU    |                     |
-|              | Weighted Jaccard Similarity            | Single-GPU    |                     |
-|              | Overlap Similarity                     | Single-GPU    |                     |
-|              | Sorensen Coefficient                   | Single-GPU    | Python only         |
+|              | Jaccard Similarity                     | Single-GPU    | MG planned for 23.02 |
+|              | Weighted Jaccard Similarity            | Single-GPU    |                      |
+|              | Overlap Similarity                     | Single-GPU    | MG planned for 23.02 |
+|              | Sorensen Coefficient                   | Single-GPU    | MG planned for 23.02 |
 |              | _Local Clustering Coefficient_         |   ---         |                     |
 | Sampling     |                                        |               |                     |
-|              | Random Walks (RW)                      | Single-GPU    | Biased and Uniform  |
-|              | Egonet                                 | Single-GPU    | multi-seed          |
-|              | Node2Vec                               | Single-GPU    |                     |
-|              | Neighborhood sampling                  | __Multi-GPU__ |                     |
+|              | Uniform Random Walks (RW)              | Single-GPU    | MG planned for 22.12 |
+|              | Biased Random Walks (RW)               | Single-GPU    |                     |
+|              | Egonet                                 | Single-GPU    |                     |
+|              | Node2Vec                               | Single-GPU    | MG planned for 22.12 |
+|              | Uniform Neighborhood sampling          | __Multi-GPU__ |                     |
 | Traversal    |                                        |               |                     |
 |              | Breadth First Search (BFS)             | __Multi-GPU__ | with cutoff support <br/> [C++ README](cpp/src/traversal/README.md#BFS) |
 |              | Single Source Shortest Path (SSSP)     | __Multi-GPU__ | [C++ README](cpp/src/traversal/README.md#SSSP) |

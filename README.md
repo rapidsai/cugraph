@@ -30,7 +30,7 @@
 [Getting cuGraph](./readme_pages/getting_cugraph.md) *
 [Graph Algorithms](./readme_pages/algorithms.md) *
 [Graph Service](./readme_pages/cugraph_service.md) *
-[Property Graph](./readme_pages/Property_graph.md) *
+[Property Graph](./readme_pages/property_graph.md) *
 [GNN Support](./readme_pages/gnn_support.md)
 
 </div>
@@ -48,7 +48,7 @@
   - [Performance](./readme_pages/performance/performance.md)
 - Packages 
   - [cuGraph Python](./readme_pages/cugraph_python.md)
-    - [Property Graph](./readme_pages/Property_graph.md)
+    - [Property Graph](./readme_pages/property_graph.md)
     - [External Data Types](./readme_pages/data_types.md)
   - [pylibcugraph](./readme_pages/pylibcugraph.md)
   - [libcugraph (C/C++/CUDA)](./readme_pages/libcugraph.md)
