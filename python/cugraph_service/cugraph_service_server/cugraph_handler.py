@@ -673,8 +673,12 @@ class CugraphHandler:
                 s = (
                     dask_cudf.concat(
                         [
-                            G.edgelist.edgelist_df["renumbered_src"],
-                            G.edgelist.edgelist_df["renumbered_dst"],
+                            G.edgelist.edgelist_df[
+                                G.renumber_map.renumbered_src_col_name
+                            ],
+                            G.edgelist.edgelist_df[
+                                G.renumber_map.renumbered_dst_col_name
+                            ],
                         ]
                     )
                     .unique()
@@ -686,8 +690,8 @@ class CugraphHandler:
             else:
                 s = cudf.concat(
                     [
-                        G.edgelist.edgelist_df["src"],
-                        G.edgelist.edgelist_df["dst"],
+                        G.edgelist.edgelist_df[G.srcCol],
+                        G.edgelist.edgelist_df[G.dstCol],
                     ]
                 ).unique()
                 df = cudf.DataFrame()
@@ -754,10 +758,10 @@ class CugraphHandler:
                 df[G.edgeTypeCol] = ""
 
             src_col_name = (
-                G.renumber_map.renumbered_src_col_name if self.is_mg else "src"
+                G.renumber_map.renumbered_src_col_name if self.is_mg else G.srcCol
             )
             dst_col_name = (
-                G.renumber_map.renumbered_dst_col_name if self.is_mg else "dst"
+                G.renumber_map.renumbered_dst_col_name if self.is_mg else G.dstCol
             )
             if G.is_renumbered():
                 df = G.unrenumber(df, src_col_name, preserve_order=True)
