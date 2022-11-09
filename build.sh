@@ -20,7 +20,7 @@ REPODIR=$(cd $(dirname $0); pwd)
 LIBCUGRAPH_BUILD_DIR=${LIBCUGRAPH_BUILD_DIR:=${REPODIR}/cpp/build}
 LIBCUGRAPH_ETL_BUILD_DIR=${LIBCUGRAPH_ETL_BUILD_DIR:=${REPODIR}/cpp/libcugraph_etl/build}
 
-VALIDARGS="clean uninstall uninstall_cmake_deps libcugraph libcugraph_etl cugraph pylibcugraph cpp-mgtests docs -v -g -n --pydevelop --allgpuarch --skip_cpp_tests --cmake_default_generator -h --help"
+VALIDARGS="clean uninstall uninstall_cmake_deps libcugraph libcugraph_etl cugraph pylibcugraph cpp-mgtests docs -v -g -n --pydevelop --allgpuarch --skip_cpp_tests --without_cugraphops --cmake_default_generator -h --help"
 HELP="$0 [<target> ...] [<flag> ...]
  where <target> is:
    clean                      - remove all existing build artifacts and configuration (start over)
@@ -39,6 +39,7 @@ HELP="$0 [<target> ...] [<flag> ...]
    --pydevelop                - use setup.py develop instead of install
    --allgpuarch               - build for all supported GPU architectures
    --skip_cpp_tests           - do not build the SG test binaries as part of the libcugraph and libcugraph_etl targets
+   --without_cugraphops       - do not build algos that require cugraph-ops
    --cmake_default_generator  - use the default cmake generator instead of ninja
    -h                         - print this text
 
@@ -59,6 +60,7 @@ INSTALL_TARGET="--target install"
 BUILD_CPP_TESTS=ON
 BUILD_CPP_MG_TESTS=OFF
 BUILD_ALL_GPU_ARCH=0
+BUILD_WITH_CUGRAPHOPS=ON
 CMAKE_GENERATOR_OPTION="-G Ninja"
 PYTHON_INSTALL="install"
 
@@ -108,6 +110,9 @@ if hasArg --allgpuarch; then
 fi
 if hasArg --skip_cpp_tests; then
     BUILD_CPP_TESTS=OFF
+fi
+if hasArg --without_cugraphops; then
+    BUILD_WITH_CUGRAPHOPS=OFF
 fi
 if hasArg cpp-mgtests; then
     BUILD_CPP_MG_TESTS=ON
@@ -209,6 +214,7 @@ if buildAll || hasArg libcugraph; then
           -DCMAKE_BUILD_TYPE=${BUILD_TYPE} \
           -DBUILD_TESTS=${BUILD_CPP_TESTS} \
           -DBUILD_CUGRAPH_MG_TESTS=${BUILD_CPP_MG_TESTS} \
+	  -DUSE_CUGRAPH_OPS=${BUILD_WITH_CUGRAPHOPS} \
 	  ${CMAKE_GENERATOR_OPTION} \
           ${CMAKE_VERBOSE_OPTION}
     cmake --build "${LIBCUGRAPH_BUILD_DIR}" -j${PARALLEL_LEVEL} ${INSTALL_TARGET} ${VERBOSE_FLAG}
