@@ -59,10 +59,10 @@ def call_algo(sg_algo_func, G, **kwargs):
     G is SG, sg_algo_func will be called and passed kwargs, otherwise the MG
     version of sg_algo_func will be called with kwargs.
     """
-    is_mg_graph = isinstance(G._Impl, simpleDistributedGraphImpl)
+    is_multi_gpu_graph = isinstance(G._Impl, simpleDistributedGraphImpl)
 
     if sg_algo_func is uniform_neighbor_sample:
-        if is_mg_graph:
+        if is_multi_gpu_graph:
             possible_args = ["start_list", "fanout_vals", "with_replacement"]
             kwargs_to_pass = {a: kwargs[a] for a in possible_args if a in kwargs}
             result_ddf = mg_uniform_neighbor_sample(G, **kwargs_to_pass)
@@ -113,8 +113,8 @@ class ExtensionServerFacade:
         self.__handler = cugraph_handler
 
     @property
-    def is_mg(self):
-        return self.__handler.is_mg
+    def is_multi_gpu(self):
+        return self.__handler.is_multi_gpu
 
     def get_server_info(self):
         # The handler returns objects suitable for serialization over RPC so
@@ -161,7 +161,7 @@ class CugraphHandler:
     ###########################################################################
     # Environment management
     @cached_property
-    def is_mg(self):
+    def is_multi_gpu(self):
         """
         True if the CugraphHandler has multiple GPUs available via a dask
         cluster.
@@ -174,7 +174,11 @@ class CugraphHandler:
         If dask is not available, this returns "1".  Otherwise it returns
         the number of GPUs accessible through dask.
         """
-        return len(self.__dask_client.scheduler_info()["workers"]) if self.is_mg else 1
+        return (
+            len(self.__dask_client.scheduler_info()["workers"])
+            if self.is_multi_gpu
+            else 1
+        )
 
     def uptime(self):
         """
@@ -669,7 +673,7 @@ class CugraphHandler:
         else:
             if (columns is not None) or (ids is not None) or (types is not None):
                 raise CugraphServiceError("Graph does not contain properties")
-            if self.is_mg:
+            if self.is_multi_gpu:
                 s = (
                     dask_cudf.concat(
                         [
@@ -737,7 +741,7 @@ class CugraphHandler:
 
             if G.edgeIdCol in df.columns:
                 if ids is not None:
-                    if self.is_mg:
+                    if self.is_multi_gpu:
                         # FIXME use ids = cudf.Series(ids) after dask_cudf fix
                         ids = np.array(ids)
                         df = df.reindex(df[G.edgeIdCol]).loc[ids]
@@ -758,10 +762,14 @@ class CugraphHandler:
                 df[G.edgeTypeCol] = ""
 
             src_col_name = (
-                G.renumber_map.renumbered_src_col_name if self.is_mg else G.srcCol
+                G.renumber_map.renumbered_src_col_name
+                if self.is_multi_gpu
+                else G.srcCol
             )
             dst_col_name = (
-                G.renumber_map.renumbered_dst_col_name if self.is_mg else G.dstCol
+                G.renumber_map.renumbered_dst_col_name
+                if self.is_multi_gpu
+                else G.dstCol
             )
             if G.is_renumbered():
                 df = G.unrenumber(df, src_col_name, preserve_order=True)
@@ -1135,7 +1143,7 @@ class CugraphHandler:
         gdf = cudf.read_csv(
             csv_file_name, delimiter=delimiter, dtype=dtypes, header=header, names=names
         )
-        if self.is_mg:
+        if self.is_multi_gpu:
             return dask_cudf.from_cudf(gdf, npartitions=self.num_gpus)
 
         return gdf
@@ -1145,7 +1153,7 @@ class CugraphHandler:
         Instantiate a graph object using a type appropriate for the handler (
         either SG or MG)
         """
-        return MGPropertyGraph() if self.is_mg else PropertyGraph()
+        return MGPropertyGraph() if self.is_multi_gpu else PropertyGraph()
 
     # FIXME: consider adding this to PropertyGraph
     def __remove_internal_columns(self, pg_column_names):
@@ -1194,7 +1202,7 @@ class CugraphHandler:
             # FIXME: This will compute the result (if using dask) then transfer
             # to host memory for each iteration - is there a more efficient
             # way?
-            if self.is_mg:
+            if self.is_multi_gpu:
                 value = value.compute()
             edge_IDs.append(value.values_host[0])
 
