@@ -62,6 +62,10 @@ transpose_graph_storage_impl(
   }
 
   auto is_multigraph = graph.is_multigraph();
+  auto is_symmetric = graph.is_symmetric();
+
+  // FIXME: if is_symmetric is true we can do this more efficiently,
+  //        since the graph contents should be exactly the same
 
   auto [edgelist_srcs, edgelist_dsts, edgelist_weights] =
     decompress_to_edgelist(handle,
@@ -89,7 +93,7 @@ transpose_graph_storage_impl(
       std::move(edgelist_dsts),
       std::move(edgelist_weights),
       std::nullopt,
-      graph_properties_t{is_multigraph, false},
+      graph_properties_t{is_symmetric, is_multigraph},
       true);
 
   return std::make_tuple(std::move(storage_transposed_graph), std::move(new_renumber_map));
@@ -123,6 +127,10 @@ transpose_graph_storage_impl(
   auto number_of_vertices = graph.number_of_vertices();
   auto is_multigraph      = graph.is_multigraph();
   bool renumber           = renumber_map.has_value();
+  auto is_symmetric = graph.is_symmetric();
+
+  // FIXME: if is_symmetric is true we can do this more efficiently,
+  //        since the graph contents should be exactly the same
 
   auto [edgelist_srcs, edgelist_dsts, edgelist_weights] =
     decompress_to_edgelist(handle,
@@ -150,8 +158,11 @@ transpose_graph_storage_impl(
       std::move(edgelist_dsts),
       std::move(edgelist_weights),
       std::nullopt,
-      graph_properties_t{is_multigraph, false},
+      graph_properties_t{is_symmetric, is_multigraph},
       renumber);
+
+  std::cout << "should have created graph with is_symmetric = " << (is_symmetric ? "TRUE" : "FALSE") << std::endl;
+  std::cout << "  store_transposed_graph is_symmetric = " << (storage_transposed_graph.is_symmetric() ? "TRUE" : "FALSE") << std::endl;
 
   return std::make_tuple(std::move(storage_transposed_graph), std::move(new_renumber_map));
 }
