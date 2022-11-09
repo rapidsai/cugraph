@@ -11,10 +11,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# cuGraph or cuGraph-Service is required; each has its own version of
+# import_optional and we need to select the correct one.
 try:
-    from cugraph_service_client.remote_graph_utils import _transform_to_backend_dtype_1d
-except ImportError:
-    _transform_to_backend_dtype_1d = None
+    from cugraph_service.client.remote_graph_utils import import_optional
+except ModuleNotFoundError:
+    try:
+        from cugraph.utilities.utils import import_optional
+    except ModuleNotFoundError:
+        raise ModuleNotFoundError(
+            "cuGraph extensions for PyG require cuGraph"
+            "or cuGraph-Service to be installed."
+        )
+
+_transform_to_backend_dtype_1d = import_optional("_transform_to_backend_dtype_1d")
 
 
 def call_cugraph_algorithm(name, graph, *args, backend="numpy", **kwargs):

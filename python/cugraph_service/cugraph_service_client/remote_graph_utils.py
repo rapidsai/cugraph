@@ -33,25 +33,57 @@ class MissingModule:
         raise RuntimeError(f"This feature requires the {self.name} " "package/module")
 
 
-try:
-    cudf = importlib.import_module("cudf")
-except ModuleNotFoundError:
-    cudf = MissingModule("cudf")
+def import_optional(mod, default_mod_class=MissingModule):
+    """
+    import the "optional" module 'mod' and return the module object or object.
+    If the import raises ModuleNotFoundError, returns an instance of
+    default_mod_class.
 
-try:
-    cupy = importlib.import_module("cupy")
-except ModuleNotFoundError:
-    cupy = MissingModule("cupy")
+    This method was written to support importing "optional" dependencies so
+    code can be written to run even if the dependency is not installed.
 
-try:
-    pandas = importlib.import_module("pandas")
-except ModuleNotFoundError:
-    pandas = MissingModule("pandas")
+    Example
+    -------
+    >> from cugraph.utils import import_optional
+    >> nx = import_optional("networkx")  # networkx is not installed
+    >> G = nx.Graph()
+    Traceback (most recent call last):
+      File "<stdin>", line 1, in <module>
+      ...
+    RuntimeError: This feature requires the networkx package/module
 
-try:
-    torch = importlib.import_module("torch")
-except ModuleNotFoundError:
-    torch = MissingModule("torch")
+    Example
+    -------
+    >> class CuDFFallback:
+    ..   def __init__(self, mod_name):
+    ..     assert mod_name == "cudf"
+    ..     warnings.warn("cudf could not be imported, using pandas instead!")
+    ..   def __getattr__(self, attr):
+    ..     import pandas
+    ..     return getattr(pandas, attr)
+    ...
+    >> from cugraph.utils import import_optional
+    >> df_mod = import_optional("cudf", default_mod_class=CuDFFallback)
+    <stdin>:4: UserWarning: cudf could not be imported, using pandas instead!
+    >> df = df_mod.DataFrame()
+    >> df
+    Empty DataFrame
+    Columns: []
+    Index: []
+    >> type(df)
+    <class 'pandas.core.frame.DataFrame'>
+    >>
+    """
+    try:
+        return importlib.import_module(mod)
+    except ModuleNotFoundError:
+        return default_mod_class(mod_name=mod)
+
+
+cudf = import_optional("cudf")
+cupy = import_optional("cupy")
+pandas = import_optional("pandas")
+torch = import_optional("torch")
 
 
 def _transform_to_backend_dtype_1d(data, series_name=None, backend="numpy", dtype=None):
