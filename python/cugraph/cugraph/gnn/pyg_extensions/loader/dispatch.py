@@ -25,6 +25,8 @@ except ModuleNotFoundError:
         )
 
 _transform_to_backend_dtype_1d = import_optional("_transform_to_backend_dtype_1d")
+cudf = import_optional("cudf")
+pandas = import_optional("pandas")
 
 
 def call_cugraph_algorithm(name, graph, *args, backend="numpy", **kwargs):
@@ -56,20 +58,14 @@ def call_cugraph_algorithm(name, graph, *args, backend="numpy", **kwargs):
             )
 
             if backend == "cudf":
-                try:
-                    import cudf
-                except ImportError:
-                    raise ValueError("cudf backend requires cudf")
                 df = cudf.DataFrame()
             elif backend == "pandas":
-                try:
-                    import pandas
-                except ImportError:
-                    raise ValueError("pandas backend requires pandas")
                 df = pandas.DataFrame()
             else:
+                # handle cupy, numpy, torch as dict of arrays/tensors
                 df = {}
 
+            # _transform_to_backend_dtype_1d handles array/Series conversion
             for k, v in sample_result.__dict__.items():
                 df[k] = _transform_to_backend_dtype_1d(
                     v, series_name=k, backend=backend
