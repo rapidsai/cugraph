@@ -1208,6 +1208,13 @@ class EXPERIMENTAL__MGPropertyGraph:
         rv["stop"] -= 1  # Make inclusive
         return rv[["start", "stop"]]
 
+    def is_multi_gpu(self):
+        """
+        Return True if this is a multi-gpu graph.  Always returns True for
+        MGPropertyGraph.
+        """
+        return True
+
     @classmethod
     def is_multigraph(cls, df):
         """

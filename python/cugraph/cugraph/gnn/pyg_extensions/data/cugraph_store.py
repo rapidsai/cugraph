@@ -11,8 +11,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from cugraph.experimental import MGPropertyGraph
-
 from typing import Optional, Tuple, Any
 from enum import Enum
 
@@ -285,7 +283,7 @@ class EXPERIMENTAL__CuGraphStore:
         bool
             True if the backing graph is a multi-gpu graph.
         """
-        return isinstance(self.__graph, MGPropertyGraph)
+        return self.__graph.is_multi_gpu()
 
     def get_vertex_index(self, vtypes):
         # TODO force the graph to use offsets and
