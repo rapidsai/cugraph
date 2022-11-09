@@ -825,6 +825,10 @@ def test_get_edge_data_repeated(dask_client):
         }
     )
     df1[pG.type_col_name] = df1[pG.type_col_name].astype(str)  # Undo category
+
+    # Order and indices don't matter
+    df1 = df1.sort_values(df1.columns).reset_index(drop=True)
+    expected = expected.sort_values(df1.columns).reset_index(drop=True)
     assert_frame_equal(df1, expected)
 
 
@@ -935,7 +939,11 @@ def test_add_data_noncontiguous(dask_client):
             check_names=False,
         )
 
-    df["vertex"] = 10 * df["src"] + df["dst"]
+    df["vertex"] = (
+        100 * df["src"]
+        + df["dst"]
+        + df["edge_type"].map({"pig": 0, "dog": 10, "cat": 20})
+    )
     pG = MGPropertyGraph()
     for edge_type in ["cat", "dog", "pig"]:
         pG.add_vertex_data(

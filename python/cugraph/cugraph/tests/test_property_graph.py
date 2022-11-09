@@ -724,6 +724,7 @@ def test_get_vertex_data_repeated(df_type):
         afe = assert_frame_equal
     else:
         afe = pd.testing.assert_frame_equal
+    expected["feat"] = expected["feat"].astype("Int64")
     afe(df1, expected)
 
 
@@ -819,6 +820,8 @@ def test_get_edge_data_repeated(df_type):
         afe = assert_frame_equal
     else:
         afe = pd.testing.assert_frame_equal
+    for col in ["edge_feat", pG.src_col_name, pG.dst_col_name]:
+        expected[col] = expected[col].astype("Int64")
     afe(df1, expected)
 
 
@@ -1829,7 +1832,11 @@ def test_add_data_noncontiguous(df_type):
             check_names=False,
         )
 
-    df["vertex"] = 10 * df["src"] + df["dst"]
+    df["vertex"] = (
+        100 * df["src"]
+        + df["dst"]
+        + df["edge_type"].map({"pig": 0, "dog": 10, "cat": 20})
+    )
     pG = PropertyGraph()
     for edge_type in ["cat", "dog", "pig"]:
         pG.add_vertex_data(
