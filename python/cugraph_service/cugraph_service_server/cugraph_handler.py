@@ -821,6 +821,7 @@ class CugraphHandler:
         if isinstance(G, (PropertyGraph, MGPropertyGraph)):
             return G.edge_types
         else:
+            # FIXME should call G.vertex_types (See issue #2889)
             if G.edgeTypeCol in G.edgelist.edgelist_df.columns:
                 return (
                     G.edgelist.edgelist_df[G.edgeTypeCol]
