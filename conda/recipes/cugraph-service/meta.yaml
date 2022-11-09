@@ -9,7 +9,7 @@ package:
   name: cugraph-service-split
 
 source:
-  path: ../../..
+  git_url: ../../..
 
 outputs:
   - name: cugraph-service-client
@@ -29,7 +29,7 @@ outputs:
         - setuptools<=65.2.0
       run:
         - python x.x
-        - thriftpy2
+        - thriftpy2 >=0.4.15
 
   - name: cugraph-service-server
     version: {{ version }}
@@ -48,13 +48,18 @@ outputs:
         - setuptools<=65.2.0
       run:
         - python x.x
-        - thriftpy2
+        - thriftpy2 >=0.4.15
         - {{ pin_compatible('cugraph-service-client', exact=True) }}
         - {{ pin_compatible('cugraph', exact=True) }}
         - cupy >=9.5.0,<12.0.0a0
         - numpy
-        - ucx-py
+        - ucx-py 0.29.*
         - distributed >=2022.9.2
-        - dask-cuda
+        - dask-cuda {{ minor_version }}.*
         - cudf {{ minor_version }}.*
         - dask-cudf {{ minor_version }}.*
+
+tests:                                 # [linux64]
+  imports:                             # [linux64]
+    - cugraph_service_server           # [linux64]
+    - cugraph_service_client           # [linux64]
