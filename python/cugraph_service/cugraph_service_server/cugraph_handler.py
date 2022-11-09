@@ -39,6 +39,10 @@ from cugraph.structure.graph_implementation.simpleDistributedGraph import (
 )
 
 from cugraph_service_client import defaults
+from cugraph_service_client import (
+    extension_return_dtype_map,
+    supported_extension_return_dtypes,
+)
 from cugraph_service_client.exceptions import CugraphServiceError
 from cugraph_service_client.types import (
     BatchedEgoGraphsResult,
@@ -55,10 +59,10 @@ def call_algo(sg_algo_func, G, **kwargs):
     G is SG, sg_algo_func will be called and passed kwargs, otherwise the MG
     version of sg_algo_func will be called with kwargs.
     """
-    is_mg_graph = isinstance(G._Impl, simpleDistributedGraphImpl)
+    is_multi_gpu_graph = isinstance(G._Impl, simpleDistributedGraphImpl)
 
     if sg_algo_func is uniform_neighbor_sample:
-        if is_mg_graph:
+        if is_multi_gpu_graph:
             possible_args = ["start_list", "fanout_vals", "with_replacement"]
             kwargs_to_pass = {a: kwargs[a] for a in possible_args if a in kwargs}
             result_ddf = mg_uniform_neighbor_sample(G, **kwargs_to_pass)
@@ -109,8 +113,8 @@ class ExtensionServerFacade:
         self.__handler = cugraph_handler
 
     @property
-    def is_mg(self):
-        return self.__handler.is_mg
+    def is_multi_gpu(self):
+        return self.__handler.is_multi_gpu
 
     def get_server_info(self):
         # The handler returns objects suitable for serialization over RPC so
@@ -120,6 +124,15 @@ class ExtensionServerFacade:
             k: ValueWrapper(v).get_py_obj()
             for (k, v) in self.__handler.get_server_info().items()
         }
+
+    def get_graph_ids(self):
+        return self.__handler.get_graph_ids()
+
+    def get_graph(self, graph_id):
+        return self.__handler._get_graph(graph_id)
+
+    def add_graph(self, G):
+        return self.__handler._add_graph(G)
 
 
 class CugraphHandler:
@@ -135,6 +148,7 @@ class CugraphHandler:
         self.__next_graph_id = defaults.graph_id + 1
         self.__graph_objs = {}
         self.__graph_creation_extensions = {}
+        self.__extensions = {}
         self.__dask_client = None
         self.__dask_cluster = None
         self.__start_time = int(time.time())
@@ -147,7 +161,7 @@ class CugraphHandler:
     ###########################################################################
     # Environment management
     @cached_property
-    def is_mg(self):
+    def is_multi_gpu(self):
         """
         True if the CugraphHandler has multiple GPUs available via a dask
         cluster.
@@ -160,7 +174,11 @@ class CugraphHandler:
         If dask is not available, this returns "1".  Otherwise it returns
         the number of GPUs accessible through dask.
         """
-        return len(self.__dask_client.scheduler_info()["workers"]) if self.is_mg else 1
+        return (
+            len(self.__dask_client.scheduler_info()["workers"])
+            if self.is_multi_gpu
+            else 1
+        )
 
     def uptime(self):
         """
@@ -192,90 +210,158 @@ class CugraphHandler:
         if (not extension_dir.exists()) or (not extension_dir.is_dir()):
             raise CugraphServiceError(f"bad directory: {extension_dir}")
 
-        num_files_read = 0
+        modules_loaded = []
         for ext_file in extension_dir.glob("*_extension.py"):
             module_file_path = ext_file.absolute().as_posix()
             spec = importlib.util.spec_from_file_location(module_file_path, ext_file)
             module = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(module)
             self.__graph_creation_extensions[module_file_path] = module
-            num_files_read += 1
+            modules_loaded.append(module_file_path)
 
-        return num_files_read
+        return modules_loaded
 
-    def unload_graph_creation_extensions(self):
+    def load_extensions(self, extension_dir_or_mod_path):
         """
-        Removes all graph creation extensions.
+        Loads ("imports") all modules matching the pattern *_extension.py in
+        the directory specified by extension_dir_path.
+
+        The modules are searched and their functions are called (if a match is
+        found) when call_extension() is called.
         """
-        self.__graph_creation_extensions.clear()
+        modules_loaded = []
+        extension_path = Path(extension_dir_or_mod_path)
+
+        # extension_dir_path is either a path on disk or an importable module path
+        # (eg. import foo.bar.module)
+        if (not extension_path.exists()) or (not extension_path.is_dir()):
+            try:
+                mod = importlib.import_module(str(extension_path))
+            except ModuleNotFoundError:
+                raise CugraphServiceError(f"bad path: {extension_dir_or_mod_path}")
+
+            mod_file_path = Path(mod.__file__).absolute()
+
+            # If mod is a package, find all the .py files in it
+            if mod_file_path.name == "__init__.py":
+                extension_files = mod_file_path.parent.glob("*.py")
+            else:
+                extension_files = [mod_file_path]
+        else:
+            extension_files = extension_path.glob("*_extension.py")
+
+        for ext_file in extension_files:
+            module_file_path = ext_file.absolute().as_posix()
+            spec = importlib.util.spec_from_file_location(module_file_path, ext_file)
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+            self.__extensions[module_file_path] = module
+            modules_loaded.append(module_file_path)
+
+        return modules_loaded
+
+    def unload_extension_module(self, modname):
+        """
+        Removes all extension functions in modname.
+        """
+        if (self.__graph_creation_extensions.pop(modname, None) is None) and (
+            self.__extensions.pop(modname, None) is None
+        ):
+            raise CugraphServiceError(f"bad extension module {modname}")
 
     def call_graph_creation_extension(
         self, func_name, func_args_repr, func_kwargs_repr
     ):
         """
         Calls the graph creation extension function func_name and passes it the
-        eval'd func_args_repr and func_kwargs_repr objects.
-
-        The arg/kwarg reprs are eval'd prior to calling in order to pass actual
-        python objects to func_name (this is needed to allow arbitrary arg
-        objects to be serialized as part of the RPC call from the
-        client).
+        eval'd func_args_repr and func_kwargs_repr objects.  If successful, it
+        associates the graph returned by the extension function with a new graph
+        ID and returns it.
 
         func_name cannot be a private name (name starting with __).
-
-        All loaded extension modules are checked when searching for func_name,
-        and the first extension module that contains it will have its function
-        called.
         """
-        if not (func_name.startswith("__")):
-            for module in self.__graph_creation_extensions.values():
-                # Ignore private functions
-                func = getattr(module, func_name, None)
-                if func is not None:
-                    func_args = eval(func_args_repr)
-                    func_kwargs = eval(func_kwargs_repr)
-                    func_sig = signature(func)
-                    func_params = list(func_sig.parameters.keys())
-                    facade_param = self.__server_facade_extension_param_name
+        graph_obj = self.__call_extension(
+            self.__graph_creation_extensions,
+            func_name,
+            func_args_repr,
+            func_kwargs_repr,
+        )
+        # FIXME: ensure graph_obj is a graph obj
+        return self._add_graph(graph_obj)
 
-                    # Graph creation extensions that have the last arg named
-                    # self.__server_facade_extension_param_name are passed a
-                    # ExtensionServerFacade instance to allow them to query the
-                    # "server" in a safe way, if needed.
-                    if facade_param in func_params:
-                        if func_params[-1] == facade_param:
-                            func_kwargs[facade_param] = ExtensionServerFacade(self)
-                        else:
-                            raise CugraphServiceError(
-                                f"{facade_param}, if specified, must be the "
-                                "last param."
-                            )
-                    try:
-                        graph_obj = func(*func_args, **func_kwargs)
-                    except Exception:
-                        # FIXME: raise a more detailed error
-                        raise CugraphServiceError(
-                            f"error running {func_name} : " f"{traceback.format_exc()}"
+    def call_extension(
+        self,
+        func_name,
+        func_args_repr,
+        func_kwargs_repr,
+        result_host=None,
+        result_port=None,
+    ):
+        """
+        Calls the extension function func_name and passes it the eval'd
+        func_args_repr and func_kwargs_repr objects. If successful, returns a
+        Value object containing the results returned by the extension function.
+
+        func_name cannot be a private name (name starting with __).
+        """
+        try:
+            result = self.__call_extension(
+                self.__extensions, func_name, func_args_repr, func_kwargs_repr
+            )
+            if self.__check_host_port_args(result_host, result_port):
+                # Ensure result is in list format for calling __ucx_send_results so it
+                # sends the contents as individual arrays.
+                if isinstance(result, (list, tuple)):
+                    result_list = result
+                else:
+                    result_list = [result]
+
+                # Form the meta-data array to send first. This array contains uint8
+                # values which map to dtypes the client uses when converting bytes to
+                # values.
+                meta_data = []
+                for r in result_list:
+                    if hasattr(r, "dtype"):
+                        dtype_str = str(r.dtype)
+                    else:
+                        dtype_str = type(r).__name__
+
+                    dtype_enum_val = extension_return_dtype_map.get(dtype_str)
+                    if dtype_enum_val is None:
+                        raise TypeError(
+                            f"extension {func_name} returned an invalid type "
+                            f"{dtype_str}, only "
+                            f"{supported_extension_return_dtypes} are supported"
                         )
-                    return self.__add_graph(graph_obj)
+                    meta_data.append(dtype_enum_val)
+                # FIXME: meta_data should not need to be a cupy array
+                meta_data = cp.array(meta_data, dtype="uint8")
 
-        raise CugraphServiceError(f"{func_name} is not a graph creation extension")
+                asyncio.run(
+                    self.__ucx_send_results(
+                        result_host,
+                        result_port,
+                        meta_data,
+                        *result_list,
+                    )
+                )
+                # FIXME: Thrift still expects something of the expected type to
+                # be returned to be serialized and sent. Look into a separate
+                # API that uses the Thrift "oneway" modifier when returning
+                # results via client device.
+                return ValueWrapper(None)
+            else:
+                return ValueWrapper(result)
+
+        except Exception:
+            raise CugraphServiceError(f"{traceback.format_exc()}")
 
     def initialize_dask_client(self, dask_scheduler_file=None):
         """
         Initialize a dask client to be used for MG operations.
         """
         if dask_scheduler_file is not None:
-            # FIXME: read the config from user options instead of hardcoding here.
-            # FIXME: for the config below, env var UCX_MAX_RNDV_RAILS=1 must be set too.
-            dask_initialize(
-                create_cuda_context=False,
-                enable_tcp_over_ucx=True,
-                enable_nvlink=True,
-                enable_infiniband=True,
-                enable_rdmacm=True,
-                # net_devices="mlx5_0:1",
-            )
+            dask_initialize()
             self.__dask_client = Client(scheduler_file=dask_scheduler_file)
         else:
             # FIXME: LocalCUDACluster init. Implement when tests are in place.
@@ -306,7 +392,7 @@ class CugraphHandler:
         new graph ID.
         """
         pG = self.__create_graph()
-        return self.__add_graph(pG)
+        return self._add_graph(pG)
 
     def delete_graph(self, graph_id):
         """
@@ -384,7 +470,7 @@ class CugraphHandler:
         except Exception:
             raise CugraphServiceError(f"{traceback.format_exc()}")
 
-        return {key: ValueWrapper(value).union for (key, value) in info.items()}
+        return {key: ValueWrapper(value) for (key, value) in info.items()}
 
     def load_csv_as_vertex_data(
         self,
@@ -551,7 +637,7 @@ class CugraphHandler:
         except Exception:
             raise CugraphServiceError(f"{traceback.format_exc()}")
 
-        return self.__add_graph(G)
+        return self._add_graph(G)
 
     def get_graph_vertex_data(
         self, id_or_ids, null_replacement_value, property_keys, types, graph_id
@@ -587,12 +673,16 @@ class CugraphHandler:
         else:
             if (columns is not None) or (ids is not None) or (types is not None):
                 raise CugraphServiceError("Graph does not contain properties")
-            if self.is_mg:
+            if self.is_multi_gpu:
                 s = (
                     dask_cudf.concat(
                         [
-                            G.edgelist.edgelist_df["renumbered_src"],
-                            G.edgelist.edgelist_df["renumbered_dst"],
+                            G.edgelist.edgelist_df[
+                                G.renumber_map.renumbered_src_col_name
+                            ],
+                            G.edgelist.edgelist_df[
+                                G.renumber_map.renumbered_dst_col_name
+                            ],
                         ]
                     )
                     .unique()
@@ -604,8 +694,8 @@ class CugraphHandler:
             else:
                 s = cudf.concat(
                     [
-                        G.edgelist.edgelist_df["src"],
-                        G.edgelist.edgelist_df["dst"],
+                        G.edgelist.edgelist_df[G.srcCol],
+                        G.edgelist.edgelist_df[G.dstCol],
                     ]
                 ).unique()
                 df = cudf.DataFrame()
@@ -651,10 +741,13 @@ class CugraphHandler:
 
             if G.edgeIdCol in df.columns:
                 if ids is not None:
-                    ids = cudf.Series(ids)
-                    if self.is_mg:
-                        ids = dask_cudf.from_cudf(ids, npartitions=self.num_gpus)
-                    df = df.reindex(df[G.edgeIdCol]).loc[ids]
+                    if self.is_multi_gpu:
+                        # FIXME use ids = cudf.Series(ids) after dask_cudf fix
+                        ids = np.array(ids)
+                        df = df.reindex(df[G.edgeIdCol]).loc[ids]
+                    else:
+                        ids = cudf.Series(ids)
+                        df = df.reindex(df[G.edgeIdCol]).loc[ids]
             else:
                 if ids is not None:
                     raise CugraphServiceError("Graph does not have edge ids")
@@ -669,10 +762,14 @@ class CugraphHandler:
                 df[G.edgeTypeCol] = ""
 
             src_col_name = (
-                G.renumber_map.renumbered_src_col_name if self.is_mg else "src"
+                G.renumber_map.renumbered_src_col_name
+                if self.is_multi_gpu
+                else G.srcCol
             )
             dst_col_name = (
-                G.renumber_map.renumbered_dst_col_name if self.is_mg else "dst"
+                G.renumber_map.renumbered_dst_col_name
+                if self.is_multi_gpu
+                else G.dstCol
             )
             if G.is_renumbered():
                 df = G.unrenumber(df, src_col_name, preserve_order=True)
@@ -724,6 +821,7 @@ class CugraphHandler:
         if isinstance(G, (PropertyGraph, MGPropertyGraph)):
             return G.edge_types
         else:
+            # FIXME should call G.vertex_types (See issue #2889)
             if G.edgeTypeCol in G.edgelist.edgelist_df.columns:
                 return (
                     G.edgelist.edgelist_df[G.edgeTypeCol]
@@ -762,6 +860,7 @@ class CugraphHandler:
             if edge_type == "":
                 return G.number_of_edges()
             else:
+                # FIXME Issue #2899, call get_num_edges() instead.
                 mask = G.edgelist.edgelist_df[G.edgeTypeCol] == edge_type
                 return G.edgelist.edgelist_df[mask].count()
         # FIXME this should be valid for a graph without properties
@@ -868,13 +967,7 @@ class CugraphHandler:
                 fanout_vals=fanout_vals,
                 with_replacement=with_replacement,
             )
-            if (result_host is not None) or (result_port is not None):
-                if (result_host is None) or (result_port is None):
-                    raise ValueError(
-                        "both result_host and result_port must "
-                        "be set if either is set. Got: "
-                        f"{result_host=}, {result_port=}"
-                    )
+            if self.__check_host_port_args(result_host, result_port):
                 asyncio.run(
                     self.__ucx_send_results(
                         result_host,
@@ -957,7 +1050,18 @@ class CugraphHandler:
 
     ###########################################################################
     # "Protected" interface - used for both implementation and test/debug. Will
-    # not be exposed to a cugraph_service client.
+    # not be exposed to a cugraph_service client, but will be used by extensions
+    # via the ExtensionServerFacade.
+    def _add_graph(self, G):
+        """
+        Create a new graph ID for G and add G to the internal mapping of
+        graph ID:graph instance.
+        """
+        gid = self.__next_graph_id
+        self.__graph_objs[gid] = G
+        self.__next_graph_id += 1
+        return gid
+
     def _get_graph(self, graph_id):
         """
         Return the cuGraph Graph object associated with graph_id.
@@ -1008,6 +1112,21 @@ class CugraphHandler:
 
             return graph_type(**args_dict)
 
+    @staticmethod
+    def __check_host_port_args(result_host, result_port):
+        """
+        Return True if host and port are set correctly, False if not set, and raise
+        ValueError if set incorrectly.
+        """
+        if (result_host is not None) or (result_port is not None):
+            if (result_host is None) or (result_port is None):
+                raise ValueError(
+                    "both result_host and result_port must be set if either is set. "
+                    f"Got: {result_host=}, {result_port=}"
+                )
+            return True
+        return False
+
     async def __ucx_send_results(self, result_host, result_port, *results):
         # The cugraph_service_client should have set up a UCX listener waiting
         # for the result. Create an endpoint, send results, and close.
@@ -1017,6 +1136,7 @@ class CugraphHandler:
         await ep.close()
 
     def __get_dataframe_from_csv(self, csv_file_name, delimiter, dtypes, header, names):
+
         """
         Read a CSV into a DataFrame and return it. This will use either a cuDF
         DataFrame or a dask_cudf DataFrame based on if the handler is
@@ -1025,27 +1145,17 @@ class CugraphHandler:
         gdf = cudf.read_csv(
             csv_file_name, delimiter=delimiter, dtype=dtypes, header=header, names=names
         )
-        if self.is_mg:
+        if self.is_multi_gpu:
             return dask_cudf.from_cudf(gdf, npartitions=self.num_gpus)
 
         return gdf
-
-    def __add_graph(self, G):
-        """
-        Create a new graph ID for G and add G to the internal mapping of
-        graph ID:graph instance.
-        """
-        gid = self.__next_graph_id
-        self.__graph_objs[gid] = G
-        self.__next_graph_id += 1
-        return gid
 
     def __create_graph(self):
         """
         Instantiate a graph object using a type appropriate for the handler (
         either SG or MG)
         """
-        return MGPropertyGraph() if self.is_mg else PropertyGraph()
+        return MGPropertyGraph() if self.is_multi_gpu else PropertyGraph()
 
     # FIXME: consider adding this to PropertyGraph
     def __remove_internal_columns(self, pg_column_names):
@@ -1094,7 +1204,7 @@ class CugraphHandler:
             # FIXME: This will compute the result (if using dask) then transfer
             # to host memory for each iteration - is there a more efficient
             # way?
-            if self.is_mg:
+            if self.is_multi_gpu:
                 value = value.compute()
             edge_IDs.append(value.values_host[0])
 
@@ -1122,3 +1232,56 @@ class CugraphHandler:
 
         except Exception:
             raise CugraphServiceError(f"{traceback.format_exc()}")
+
+    def __call_extension(
+        self, extension_dict, func_name, func_args_repr, func_kwargs_repr
+    ):
+        """
+        Calls the extension function func_name and passes it the eval'd
+        func_args_repr and func_kwargs_repr objects. If successful, returns a
+        Value object containing the results returned by the extension function.
+
+        The arg/kwarg reprs are eval'd prior to calling in order to pass actual
+        python objects to func_name (this is needed to allow arbitrary arg
+        objects to be serialized as part of the RPC call from the
+        client).
+
+        func_name cannot be a private name (name starting with __).
+
+        All loaded extension modules are checked when searching for func_name,
+        and the first extension module that contains it will have its function
+        called.
+        """
+        if func_name.startswith("__"):
+            raise CugraphServiceError(f"Cannot call private function {func_name}")
+
+        for module in extension_dict.values():
+            func = getattr(module, func_name, None)
+            if func is not None:
+                # FIXME: look for a way to do this without using eval()
+                func_args = eval(func_args_repr)
+                func_kwargs = eval(func_kwargs_repr)
+                func_sig = signature(func)
+                func_params = list(func_sig.parameters.keys())
+                facade_param = self.__server_facade_extension_param_name
+
+                # Graph creation extensions that have the last arg named
+                # self.__server_facade_extension_param_name are passed a
+                # ExtensionServerFacade instance to allow them to query the
+                # "server" in a safe way, if needed.
+                if facade_param in func_params:
+                    if func_params[-1] == facade_param:
+                        func_kwargs[facade_param] = ExtensionServerFacade(self)
+                    else:
+                        raise CugraphServiceError(
+                            f"{facade_param}, if specified, must be the " "last param."
+                        )
+                try:
+                    return func(*func_args, **func_kwargs)
+                except Exception:
+                    # FIXME: raise a more detailed error
+                    raise CugraphServiceError(
+                        f"error running {func_name} : " f"{traceback.format_exc()}"
+                    )
+
+        raise CugraphServiceError(f"extension {func_name} was not found")

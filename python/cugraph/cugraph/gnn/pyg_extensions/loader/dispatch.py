@@ -11,10 +11,22 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# cuGraph or cuGraph-Service is required; each has its own version of
+# import_optional and we need to select the correct one.
 try:
-    from cugraph_service_client.remote_graph_utils import _transform_to_backend_dtype_1d
-except ImportError:
-    _transform_to_backend_dtype_1d = None
+    from cugraph_service.client.remote_graph_utils import import_optional
+except ModuleNotFoundError:
+    try:
+        from cugraph.utilities.utils import import_optional
+    except ModuleNotFoundError:
+        raise ModuleNotFoundError(
+            "cuGraph extensions for PyG require cuGraph"
+            "or cuGraph-Service to be installed."
+        )
+
+_transform_to_backend_dtype_1d = import_optional("_transform_to_backend_dtype_1d")
+cudf = import_optional("cudf")
+pandas = import_optional("pandas")
 
 
 def call_cugraph_algorithm(name, graph, *args, backend="numpy", **kwargs):
@@ -46,20 +58,14 @@ def call_cugraph_algorithm(name, graph, *args, backend="numpy", **kwargs):
             )
 
             if backend == "cudf":
-                try:
-                    import cudf
-                except ImportError:
-                    raise ValueError("cudf backend requires cudf")
                 df = cudf.DataFrame()
             elif backend == "pandas":
-                try:
-                    import pandas
-                except ImportError:
-                    raise ValueError("pandas backend requires pandas")
                 df = pandas.DataFrame()
             else:
+                # handle cupy, numpy, torch as dict of arrays/tensors
                 df = {}
 
+            # _transform_to_backend_dtype_1d handles array/Series conversion
             for k, v in sample_result.__dict__.items():
                 df[k] = _transform_to_backend_dtype_1d(
                     v, series_name=k, backend=backend

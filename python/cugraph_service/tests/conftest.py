@@ -154,6 +154,76 @@ def graph_creation_extension_large_property_graph(server):
    return pG
 """
 
+extension1_file_contents = """
+import cupy as cp
+
+
+def my_nines_function(array1_size, array1_dtype, array2_size, array2_dtype):
+    '''
+    Returns 2 arrays of size and dtype specified containing only 9s
+    '''
+    array1 = cp.array([9] * array1_size, dtype=array1_dtype)
+    array2 = cp.array([9] * array2_size, dtype=array2_dtype)
+    return (array1, array2)
+"""
+
+
+extension_with_facade_file_contents = """
+import cupy
+
+def my_extension(arg1, arg2, server):
+
+    # This extension assumes the server already has a single PG loaded via
+    # calling graph_creation_extension1
+    gid = server.get_graph_ids()[0]
+    pG = server.get_graph(gid)
+
+    edge_df = pG.get_edge_data()
+
+    # Do an arbitrary operation on the PG based on the args, and return the
+    # result as a cupy array.
+
+    retval = cupy.array(edge_df[pG.edge_id_col_name] + arg1 + arg2)
+    return retval
+"""
+
+
+extension_returns_none_file_contents = """
+
+def my_extension():
+    return None
+"""
+
+
+extension_adds_graph_file_contents = """
+import cupy
+import cudf
+from cugraph.experimental import PropertyGraph
+
+def my_extension(arg1, arg2, server):
+    '''
+    This extension creates a new graph, registers it with the server, and
+    returns the new graph ID and some additional data.
+    '''
+    df = cudf.DataFrame({"src": [0, 1, 2],
+                         "dst": [1, 2, 3],
+                         "edge_prop": ["a", "b", "c"],
+                         })
+    pG = PropertyGraph()
+    pG.add_edge_data(df, vertex_col_names=["src", "dst"])
+
+    pG_gid = server.add_graph(pG)
+
+    edge_df = pG.get_edge_data()
+    values = cupy.array(edge_df[pG.edge_id_col_name] + arg1 + arg2)
+
+    # UCX-Py transfers require cupy types, and cupy types are converted to host
+    # for non-UCX-Py transfers.
+    pG_gid = cupy.int8(pG_gid)
+
+    return (pG_gid, values)
+"""
+
 
 ###############################################################################
 # module scope fixtures
@@ -165,7 +235,7 @@ def graph_creation_extension1():
         graph_creation_extension1_file_contents
     )
 
-    yield tmp_extension_dir
+    yield tmp_extension_dir.name
 
 
 @pytest.fixture(scope="module")
@@ -174,7 +244,7 @@ def graph_creation_extension2():
         graph_creation_extension2_file_contents
     )
 
-    yield tmp_extension_dir
+    yield tmp_extension_dir.name
 
 
 @pytest.fixture(scope="module")
@@ -183,7 +253,7 @@ def graph_creation_extension_long_running():
         graph_creation_extension_long_running_file_contents
     )
 
-    yield tmp_extension_dir
+    yield tmp_extension_dir.name
 
 
 @pytest.fixture(scope="module")
@@ -192,7 +262,7 @@ def graph_creation_extension_no_facade_arg():
         graph_creation_extension_no_facade_arg_file_contents
     )
 
-    yield tmp_extension_dir
+    yield tmp_extension_dir.name
 
 
 @pytest.fixture(scope="module")
@@ -201,7 +271,7 @@ def graph_creation_extension_bad_arg_order():
         graph_creation_extension_bad_arg_order_file_contents
     )
 
-    yield tmp_extension_dir
+    yield tmp_extension_dir.name
 
 
 @pytest.fixture(scope="module")
@@ -210,7 +280,7 @@ def graph_creation_extension_big_vertex_ids():
         graph_creation_extension_big_vertex_ids_file_contents
     )
 
-    yield tmp_extension_dir
+    yield tmp_extension_dir.name
 
 
 @pytest.fixture(scope="module")
@@ -219,7 +289,7 @@ def graph_creation_extension_empty_graph():
         graph_creation_extension_empty_graph_file_contents
     )
 
-    yield tmp_extension_dir
+    yield tmp_extension_dir.name
 
 
 @pytest.fixture(scope="module")
@@ -228,4 +298,41 @@ def graph_creation_extension_large_property_graph():
         graph_creation_extension_large_property_graph_file_contents
     )
 
-    yield tmp_extension_dir
+    yield tmp_extension_dir.name
+
+
+# General (ie. not graph creation) extension
+
+
+@pytest.fixture(scope="module")
+def extension1():
+    tmp_extension_dir = utils.create_tmp_extension_dir(extension1_file_contents)
+
+    yield tmp_extension_dir.name
+
+
+@pytest.fixture(scope="module")
+def extension_with_facade():
+    tmp_extension_dir = utils.create_tmp_extension_dir(
+        extension_with_facade_file_contents
+    )
+
+    yield tmp_extension_dir.name
+
+
+@pytest.fixture(scope="module")
+def extension_returns_none():
+    tmp_extension_dir = utils.create_tmp_extension_dir(
+        extension_returns_none_file_contents
+    )
+
+    yield tmp_extension_dir.name
+
+
+@pytest.fixture(scope="module")
+def extension_adds_graph():
+    tmp_extension_dir = utils.create_tmp_extension_dir(
+        extension_adds_graph_file_contents
+    )
+
+    yield tmp_extension_dir.name
