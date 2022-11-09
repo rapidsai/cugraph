@@ -20,7 +20,7 @@ from tempfile import TemporaryDirectory
 from pathlib import Path
 
 
-def create_tmp_extension_dir(file_contents, file_name="graph_creation_extension.py"):
+def create_tmp_extension_dir(file_contents, file_name="my_extension.py"):
     """
     Create and return a temporary dir to be used as a dir containing extensions
     to be read by a cugraph_service server. file_contents is a string
