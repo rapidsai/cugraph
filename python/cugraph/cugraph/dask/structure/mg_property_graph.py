@@ -1268,14 +1268,50 @@ class EXPERIMENTAL__MGPropertyGraph:
         return rv[["start", "stop"]]
 
     def vertex_vector_property_to_array(self, df, col_name, *, ignore_empty=True):
-        """ """
+        """Convert a known vertex vector property in a DataFrame to an array.
+
+        Parameters
+        ----------
+        df : dask_cudf.DataFrame
+        col_name : str
+            The column name in the DataFrame to convert to an array.
+            This vector property should have been created by MGPropertyGraph.
+        ignore_empty : bool, default True
+            If True, empty or null rows without vector data will be skipped
+            when creating the array, so output array shape will be
+            [# of non-empty rows] by [size of vector property].
+            When ignore_empty is False, RuntimeError will be raised if there
+            are any empty rows.
+
+        Returns
+        -------
+        dask.array (of cupy.ndarray)
+        """
         if col_name not in self.__vertex_vector_property_lengths:
             raise ValueError(f"{col_name!r} is not a known vertex vector property")
         length = self.__vertex_vector_property_lengths[col_name]
         return self._get_vector_property(df, col_name, length, ignore_empty)
 
     def edge_vector_property_to_array(self, df, col_name, *, ignore_empty=True):
-        """ """
+        """Convert a known edge vector property in a DataFrame to an array.
+
+        Parameters
+        ----------
+        df : dask_cudf.DataFrame
+        col_name : str
+            The column name in the DataFrame to convert to an array.
+            This vector property should have been created by MGPropertyGraph.
+        ignore_empty : bool, default True
+            If True, empty or null rows without vector data will be skipped
+            when creating the array, so output array shape will be
+            [# of non-empty rows] by [size of vector property].
+            When ignore_empty is False, RuntimeError will be raised if there
+            are any empty rows.
+
+        Returns
+        -------
+        dask.array (of cupy.ndarray)
+        """
         if col_name not in self.__edge_vector_property_lengths:
             raise ValueError(f"{col_name!r} is not a known edge vector property")
         length = self.__edge_vector_property_lengths[col_name]
