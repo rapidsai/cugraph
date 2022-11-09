@@ -860,6 +860,7 @@ class CugraphHandler:
             if edge_type == "":
                 return G.number_of_edges()
             else:
+                # FIXME Issue #2899, call get_num_edges() instead.
                 mask = G.edgelist.edgelist_df[G.edgeTypeCol] == edge_type
                 return G.edgelist.edgelist_df[mask].count()
         # FIXME this should be valid for a graph without properties
