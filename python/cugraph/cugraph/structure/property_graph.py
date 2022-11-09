@@ -337,7 +337,7 @@ class EXPERIMENTAL__PropertyGraph:
         ...                           (98, 34, "b"),
         ...                           (97, 56, "c"),
         ...                           (96, 88, "d"),
-        ...                           ])
+        ...                          ])
         >>> pG = PropertyGraph()
         >>> pG.add_edge_data(df, vertex_col_names=("src", "dst"))
         >>> pG.get_num_vertices()
@@ -402,11 +402,11 @@ class EXPERIMENTAL__PropertyGraph:
         >>> import cudf
         >>> from cugraph.experimental import PropertyGraph
         >>> df = cudf.DataFrame(columns=["src", "dst", "some_property"],
-        ...                              data=[(99, 22, "a"),
-        ...                                    (98, 34, "b"),
-        ...                                    (97, 56, "c"),
-        ...                                    (96, 88, "d"),
-        ...                                  ])
+        ...                     data=[(99, 22, "a"),
+        ...                           (98, 34, "b"),
+        ...                           (97, 56, "c"),
+        ...                           (96, 88, "d"),
+        ...                          ])
         >>> pG = PropertyGraph()
         >>> pG.add_edge_data(df, type_name="etype", vertex_col_names=("src", "dst"))
         >>> pG.get_num_edges()
@@ -445,11 +445,11 @@ class EXPERIMENTAL__PropertyGraph:
         >>> import cudf
         >>> from cugraph.experimental import PropertyGraph
         >>> df = cudf.DataFrame(columns=["src", "dst", "some_property"],
-        ...                              data=[(99, 22, "a"),
-        ...                                    (98, 34, "b"),
-        ...                                    (97, 56, "c"),
-        ...                                    (96, 88, "d"),
-        ...                                  ])
+        ...                     data=[(99, 22, "a"),
+        ...                           (98, 34, "b"),
+        ...                           (97, 56, "c"),
+        ...                           (96, 88, "d"),
+        ...                          ])
         >>> pG = PropertyGraph()
         >>> pG.add_edge_data(df, type_name="etype", vertex_col_names=("src", "dst"))
         >>> pG.get_vertices()
@@ -482,10 +482,10 @@ class EXPERIMENTAL__PropertyGraph:
         Returns
         -------
         cudf Series or pandas Series
-            Containins vertex IDs. Return type is based on if the
-            PropertyGraph instance was created/updated
+            Series containing the unique vertex IDs in both the
+            vertex and edge property data. Return type is based
+            on if the PropertyGraph instance was created/updated
             using cudf or pandas DataFrames.
-
         See Also
         --------
         PropertyGraph.get_vertices
@@ -526,11 +526,11 @@ class EXPERIMENTAL__PropertyGraph:
         >>> import cudf
         >>> from cugraph.experimental import PropertyGraph
         >>> df = cudf.DataFrame(columns=["src", "dst", "some_property"],
-        ...                                       data=[(99, 22, "a"),
-        ...                                             (98, 34, "b"),
-        ...                                             (97, 56, "c"),
-        ...                                             (96, 88, "d"),
-        ...                                            ])
+        ...                     data=[(99, 22, "a"),
+        ...                           (98, 34, "b"),
+        ...                           (97, 56, "c"),
+        ...                           (96, 88, "d"),
+        ...                          ])
         >>> pG = PropertyGraph()
         >>> pG.add_edge_data(df, type_name="etype", vertex_col_names=("src", "dst"))
         >>> vert_df = cudf.DataFrame({"vert_id": [99, 22, 98, 34, 97, 56, 96, 88],
@@ -712,11 +712,11 @@ class EXPERIMENTAL__PropertyGraph:
         >>> import cudf
         >>> from cugraph.experimental import PropertyGraph
         >>> df = cudf.DataFrame(columns=["src", "dst", "some_property"],
-        ...                                          data=[(99, 22, "a"),
-        ...                                                (98, 34, "b"),
-        ...                                                (97, 56, "c"),
-        ...                                                (96, 88, "d"),
-        ...                                               ])
+        ...                     data=[(99, 22, "a"),
+        ...                           (98, 34, "b"),
+        ...                           (97, 56, "c"),
+        ...                           (96, 88, "d"),
+        ...                          ])
         >>> pG = PropertyGraph()
         >>> pG.add_edge_data(df, type_name="etype", vertex_col_names=("src", "dst"))
         >>> vert_df = cudf.DataFrame({"vert_id": [99, 22, 98, 34, 97, 56, 96, 88],
@@ -810,7 +810,7 @@ class EXPERIMENTAL__PropertyGraph:
         ...                           (98, 34, "b"),
         ...                           (97, 56, "c"),
         ...                           (96, 88, "d"),
-        ...                           ])
+        ...                          ])
         >>> pG = PropertyGraph()
         >>> pG.add_edge_data(df, vertex_col_names=("src", "dst"))
         >>> pG.get_num_vertices()
@@ -1019,11 +1019,11 @@ class EXPERIMENTAL__PropertyGraph:
         >>> import cugraph
         >>> from cugraph.experimental import PropertyGraph
         >>> df = cudf.DataFrame(columns=["src", "dst", "some_property"],
-        ...                              data=[(99, 22, "a"),
-        ...                                    (98, 34, "b"),
-        ...                                    (97, 56, "c"),
-        ...                                    (96, 88, "d"),
-        ...                                  ])
+        ...                     data=[(99, 22, "a"),
+        ...                           (98, 34, "b"),
+        ...                           (97, 56, "c"),
+        ...                           (96, 88, "d"),
+        ...                          ])
         >>> pG = PropertyGraph()
         >>> pG.add_edge_data(df, type_name="etype", vertex_col_names=("src", "dst"))
         >>> pG.get_edge_data(types="etype")
@@ -1098,15 +1098,15 @@ class EXPERIMENTAL__PropertyGraph:
         >>> import cudf
         >>> from cugraph.experimental import PropertyGraph
         >>> df = cudf.DataFrame(columns=["src", "dst", "some_property"],
-        ...                                          data=[(99, 22, "a"),
-        ...                                                (98, 34, "b"),
-        ...                                                (97, 56, "c"),
-        ...                                                (96, 88, "d"),
-        ...                                              ])
+        ...                     data=[(99, 22, "a"),
+        ...                           (98, 34, "b"),
+        ...                           (97, 56, "c"),
+        ...                           (96, 88, "d"),
+        ...                          ])
         >>> pG = PropertyGraph()
         >>> pG.add_edge_data(df, type_name="etype", vertex_col_names=("src", "dst"))
         >>> vert_df = cudf.DataFrame({"vert_id": [99, 22, 98, 34, 97, 56, 96, 88],
-        ...                                       "v_prop": [1, 2, 3, 4, 5, 6, 7, 8]})
+        ...                           "v_prop": [1, 2, 3, 4, 5, 6, 7, 8]})
         >>> pG.add_vertex_data(vert_df, type_name="vtype", vertex_col_name="vert_id")
         >>> selection = pG.select_vertices("(_TYPE_ == 'vtype') & (v_prop > 4)")
         >>> G = pG.extract_subgraph(selection=selection)
@@ -1172,23 +1172,21 @@ class EXPERIMENTAL__PropertyGraph:
         >>> import cudf
         >>> import cugraph
         >>> from cugraph.experimental import PropertyGraph
-        >>> from cugraph.experimental import PropertyGraph
         >>> df = cudf.DataFrame(columns=["src", "dst", "some_property"],
-        ...                              data=[(99, 22, "a"),
-        ...                                    (98, 34, "b"),
-        ...                                    (97, 56, "c"),
-        ...                                    (96, 88, "d"),
-        ...                                  ])
+        ...                     data=[(99, 22, "a"),
+        ...                           (98, 34, "b"),
+        ...                           (97, 56, "c"),
+        ...                           (96, 88, "d"),
+        ...                          ])
         >>> pG = PropertyGraph()
         >>> pG.add_edge_data(df, type_name="etype", vertex_col_names=("src", "dst"))
         >>> vert_df = cudf.DataFrame({"vert_id": [99, 22, 98, 34, 97, 56, 96, 88],
         ...                           "v_prop": [1, 2, 3, 4, 5, 6, 7, 8]})
         >>> pG.add_vertex_data(vert_df, type_name="vtype", vertex_col_name="vert_id")
-        >>> selection = pG.select_edges("(_TYPE_ == 'vtype') &
-        ...                              (some_property == 'd')")
+        >>> selection = pG.select_edges("(_TYPE_ == 'etype') & (some_property == 'd')")
         >>> G = pG.extract_subgraph(selection=selection,
-                                    create_using=cugraph.Graph(directed=True),
-                                    renumber_graph=False)
+        ...                         create_using=cugraph.Graph(directed=True),
+        ...                         renumber_graph=False)
         >>> print (G.edges())
         src  dst
         0   96   88
@@ -1254,26 +1252,24 @@ class EXPERIMENTAL__PropertyGraph:
 
         Examples
         --------
-        >>> import cudf
         >>> import cugraph
         >>> from cugraph.experimental import PropertyGraph
         >>> from cugraph.experimental import PropertyGraph
         >>> df = cudf.DataFrame(columns=["src", "dst", "some_property"],
-        ...                              data=[(99, 22, "a"),
-        ...                                    (98, 34, "b"),
-        ...                                    (97, 56, "c"),
-        ...                                    (96, 88, "d"),
-        ...                                  ])
+        ...                     data=[(99, 22, "a"),
+        ...                           (98, 34, "b"),
+        ...                           (97, 56, "c"),
+        ...                           (96, 88, "d"),
+        ...                          ])
         >>> pG = PropertyGraph()
         >>> pG.add_edge_data(df, type_name="etype", vertex_col_names=("src", "dst"))
         >>> vert_df = cudf.DataFrame({"vert_id": [99, 22, 98, 34, 97, 56, 96, 88],
         ...                           "v_prop": [1, 2, 3, 4, 5, 6, 7, 8]})
         >>> pG.add_vertex_data(vert_df, type_name="vtype", vertex_col_name="vert_id")
-        >>> selection = pG.select_edges("(_TYPE_ == 'etype') &
-        ...                              (some_property == 'd')")
+        >>> selection = pG.select_edges("(_TYPE_ == 'etype') & (some_property == 'd')")
         >>> G = pG.extract_subgraph(selection=selection,
-                                    create_using=cugraph.Graph(directed=True),
-                                    renumber_graph=False)
+        ...                         create_using=cugraph.Graph(directed=True),
+        ...                         renumber_graph=False)
         >>> print (G.edges())
         src  dst
         0   96   88
@@ -1383,11 +1379,11 @@ class EXPERIMENTAL__PropertyGraph:
         >>> import cudf
         >>> from cugraph.experimental import PropertyGraph
         >>> df = cudf.DataFrame(columns=["src", "dst", "some_property"],
-        ...                                       data=[(99, 22, "a"),
-        ...                                             (98, 34, "b"),
-        ...                                             (97, 56, "c"),
-        ...                                             (96, 88, "d"),
-        ...                                            ])
+        ...                     data=[(99, 22, "a"),
+        ...                           (98, 34, "b"),
+        ...                           (97, 56, "c"),
+        ...                           (96, 88, "d"),
+        ...                          ])
         >>> pG = PropertyGraph()
         >>> pG.add_edge_data(df, type_name="etype", vertex_col_names=("src", "dst"))
         >>> G = pG.extract_subgraph(create_using=cugraph.Graph(directed=True))
@@ -1395,10 +1391,10 @@ class EXPERIMENTAL__PropertyGraph:
         >>> algo_result = cudf.DataFrame({"from":df.src,
         ...                               "to":df.dst,
         ...                               "result": range(len(df.src))})
-        >>> new_algo_result = pG.annotate_dataframe(algo_result,
-        ...                                     G,
-        ...                                     edge_vertex_col_names=("from", "to"))
-        >>> print (new_algo_result)
+        >>> algo_result2 = pG.annotate_dataframe(algo_result,
+        ...                                      G,
+        ...                                      edge_vertex_col_names=("from", "to"))
+        >>> print (algo_result2)
         from  to  result  _EDGE_ID_ _TYPE_ some_property
         0    99  22       0          0  etype             a
         1    98  34       1          1  etype             b
@@ -1495,11 +1491,11 @@ class EXPERIMENTAL__PropertyGraph:
         >>> import cudf
         >>> from cugraph.experimental import PropertyGraph
         >>> df = cudf.DataFrame(columns=["src", "dst", "some_property"],
-        ...                                                data=[(99, 22, "a"),
-        ...                                                      (98, 34, "b"),
-        ...                                                      (97, 56, "c"),
-        ...                                                      (96, 88, "d"),
-        ...                                                     ])
+        ...                     data=[(99, 22, "a"),
+        ...                           (98, 34, "b"),
+        ...                           (97, 56, "c"),
+        ...                           (96, 88, "d"),
+        ...                          ])
         >>> pG = PropertyGraph()
         >>> pG.add_edge_data(df, type_name="etype", vertex_col_names=("src", "dst"))
         >>> G = pG.edge_props_to_graph(pG.edges,
@@ -1625,15 +1621,15 @@ class EXPERIMENTAL__PropertyGraph:
         >>> import cudf
         >>> from cugraph.experimental import PropertyGraph
         >>> df = cudf.DataFrame(columns=["src", "dst", "some_property"],
-        ...                                                data=[(99, 22, "a"),
-        ...                                                      (98, 34, "b"),
-        ...                                                      (97, 56, "c"),
-        ...                                                      (96, 88, "d"),
-        ...                                                     ])
+        ...                     data=[(99, 22, "a"),
+        ...                           (98, 34, "b"),
+        ...                           (97, 56, "c"),
+        ...                           (96, 88, "d"),
+        ...                          ])
         >>> pG = PropertyGraph()
         >>> pG.add_edge_data(df, type_name="etype", vertex_col_names=("src", "dst"))
         >>> vert_df1 = cudf.DataFrame({"vert_id": [99, 22, 98, 34],
-        ...                                    "v_prop": [1 ,2 ,3, 4]})
+        ...                            "v_prop": [1 ,2 ,3, 4]})
         >>> pG.add_vertex_data(vert_df1, type_name="vtype1", vertex_col_name="vert_id")
         >>> vert_df2 = cudf.DataFrame({"vert_id": [97, 56, 96, 88],
         ...                            "v_prop": [ 5, 6, 7, 8]})
@@ -1702,16 +1698,16 @@ class EXPERIMENTAL__PropertyGraph:
         >>> from cugraph.experimental import PropertyGraph
         >>> pG = PropertyGraph()
         >>> df = cudf.DataFrame(columns=["src", "dst", "edge_ids" ,"some_property"],
-        ...                                       data=[(99, 22, 3, "a"),
-        ...                                             (98, 34, 5, "b"),
-        ...                                             (97, 56, 7, "c"),
-        ...                                             (96, 88, 11, "d"),
-        ...                                            ])
+        ...                     data=[(99, 22, 3, "a"),
+        ...                           (98, 34, 5, "b"),
+        ...                           (97, 56, 7, "c"),
+        ...                           (96, 88, 11, "d"),
+        ...                          ])
         >>> df2 = cudf.DataFrame(columns=["src", "dst", "edge_ids" ,"some_property"],
-        ...                                       data=[(95, 24, 3, "a"),
-        ...                                             (94, 36, 5, "b"),
-        ...                                             (93, 88, 11, "d"),
-        ...                                            ])
+        ...                      data=[(95, 24, 3, "a"),
+        ...                            (94, 36, 5, "b"),
+        ...                            (93, 88, 11, "d"),
+        ...                           ])
         >>> pG.add_edge_data(df,
         ...                  type_name="etype1",
         ...                  vertex_col_names=("src", "dst"),
@@ -1774,11 +1770,11 @@ class EXPERIMENTAL__PropertyGraph:
         >>> from cugraph.experimental import PropertyGraph
         >>> pG = PropertyGraph()
         >>> df = cudf.DataFrame(columns=["src", "dst", "edge_ids", "some_property"],
-        ...                              data=[(99, 22, 3, "a"),
-        ...                                    (98, 34, 5, "b"),
-        ...                                    (98, 34, 7, "c"),
-        ...                                    (96, 88, 11, "d"),
-        ...                                   ])
+        ...                     data=[(99, 22, 3, "a"),
+        ...                           (98, 34, 5, "b"),
+        ...                           (98, 34, 7, "c"),
+        ...                           (96, 88, 11, "d"),
+        ...                          ])
         >>> pG.add_edge_data(df, type_name="etype",
         ...                  vertex_col_names=("src", "dst"),
         ...                  edge_id_col_name="edge_ids")
@@ -1812,11 +1808,11 @@ class EXPERIMENTAL__PropertyGraph:
         >>> import cudf
         >>> from cugraph.experimental import PropertyGraph
         >>> df = cudf.DataFrame(columns=["src", "dst", "some_property"],
-        ...                              data=[(99, 22, "a"),
-        ...                                    (98, 34, "b"),
-        ...                                    (97, 56, "c"),
-        ...                                    (96, 88, "d"),
-        ...                                  ])
+        ...                     data=[(99, 22, "a"),
+        ...                           (98, 34, "b"),
+        ...                           (97, 56, "c"),
+        ...                           (96, 88, "d"),
+        ...                          ])
         >>> pG = PropertyGraph()
         >>> pG.add_edge_data(df, type_name="etype", vertex_col_names=("src", "dst"))
         >>> PropertyGraph.has_duplicate_edges(pG.get_edge_data())
