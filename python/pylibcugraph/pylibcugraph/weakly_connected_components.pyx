@@ -54,7 +54,6 @@ from pylibcugraph.utils cimport (
     get_c_type_from_numpy_type,
     create_cugraph_type_erased_device_array_view_from_py_obj,
 )
-import warnings
 
 
 def _ensure_arg(graph, offsets, indices, weights):
@@ -73,10 +72,6 @@ def _ensure_arg(graph, offsets, indices, weights):
                         "a combination of 'offsets', 'indices' and 'weights', not both")
     else:
         if input_type == "csr_arrays":
-            warning_msg = ("CSR arrays input is deprecated and will be refactored "
-                           "in the next release. Please use Pylibcugraph Graph "
-                           "constructed from either an edgelist or a CSR representation")
-            warnings.warn(warning_msg, PendingDeprecationWarning)
             assert_CAI_type(offsets, "offsets")
             assert_CAI_type(indices, "indices")
             assert_CAI_type(weights, "weights", True)
