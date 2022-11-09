@@ -365,6 +365,8 @@ class EXPERIMENTAL__MGPropertyGraph:
             property. Columns used to create vector properties won't be added to
             the property graph by default, but may be included as properties by
             including them in the property_columns argument.
+            Use ``MGPropertyGraph.vertex_vector_property_to_array`` to convert a
+            vertex vector property to an array.
 
         Returns
         -------
@@ -602,6 +604,8 @@ class EXPERIMENTAL__MGPropertyGraph:
             property. Columns used to create vector properties won't be added to
             the property graph by default, but may be included as properties by
             including them in the property_columns argument.
+            Use ``MGPropertyGraph.edge_vector_property_to_array`` to convert an
+            edge vector property to an array.
 
         Returns
         -------
