@@ -11,7 +11,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from cugraph.utilities.utils import MissingModule, import_optional
+try:
+    from cugraph_service.client.remote_graph_utils import import_optional, MissingModule
+except ModuleNotFoundError:
+    try:
+        from cugraph.utilities.utils import import_optional, MissingModule
+    except ModuleNotFoundError:
+        raise ModuleNotFoundError(
+            "cuGraph extensions for PyG require cuGraph"
+            "or cuGraph-Service to be installed."
+        )
+
 from cugraph.gnn.pyg_extensions.loader.dispatch import call_cugraph_algorithm
 
 import cudf
@@ -47,9 +57,9 @@ class EXPERIMENTAL__CuGraphSampler:
         the interface provided by PyG's NodeSamplerInput.
 
         sampler_input: tuple(index, input_nodes, input_time)
-            index.index: The sample indices to store as metadata
-            index.input_nodes: Input nodes to pass to the sampler
-            index.input_time: Node timestamps (if performing temporal
+            index: The sample indices to store as metadata
+            input_nodes: Input nodes to pass to the sampler
+            input_time: Node timestamps (if performing temporal
             sampling which is currently not supported)
         """
         index, input_nodes, input_time = sampler_input
@@ -155,7 +165,7 @@ class EXPERIMENTAL__CuGraphSampler:
 
         out = (noi_index, row_dict, col_dict, None)
         if isinstance(torch_geometric, MissingModule):
-            return out
+            return {"out": out, "metadata": metadata}
         else:
             return torch_geometric.sampler.base.HeteroSamplerOutput(
                 *out, metadata=metadata
