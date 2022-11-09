@@ -97,14 +97,14 @@ class EXPERIMENTAL__CuGraphSampler:
         metadata=None,
         **kwargs,
     ):
-        is_mg = self.__graph_store.is_mg
-        if is_mg and isinstance(dask_cudf, MissingModule):
+        is_multi_gpu = self.__graph_store.is_multi_gpu
+        if is_multi_gpu and isinstance(dask_cudf, MissingModule):
             raise ImportError("Cannot use a multi-GPU store without dask_cudf")
-        if is_mg != self.__feature_store.is_mg:
+        if is_multi_gpu != self.__feature_store.is_multi_gpu:
             raise ValueError(
-                f"Graph store multi-GPU is {is_mg}"
+                f"Graph store multi-GPU is {is_multi_gpu}"
                 f" but feature store multi-GPU is "
-                f"{self.__feature_store.is_mg}"
+                f"{self.__feature_store.is_multi_gpu}"
             )
 
         backend = self.__graph_store.backend
@@ -145,13 +145,13 @@ class EXPERIMENTAL__CuGraphSampler:
             replace,
         )
 
-        concat_fn = dask_cudf.concat if is_mg else cudf.concat
+        concat_fn = dask_cudf.concat if is_multi_gpu else cudf.concat
 
         nodes_of_interest = concat_fn(
             [sampling_results.destinations, sampling_results.sources]
         ).unique()
 
-        if is_mg:
+        if is_multi_gpu:
             nodes_of_interest = nodes_of_interest.compute()
 
         # Get the grouped node index (for creating the renumbered grouped edge index)
