@@ -112,7 +112,10 @@ def _transform_to_backend_dtype_1d(data, series_name=None, backend="numpy", dtyp
     """
 
     if backend == "numpy":
-        return np.array(data, dtype=dtype or "float64")
+        if dtype == data.dtype:
+            return data
+        else:
+            return np.array(data, dtype=dtype or "float64")
     elif backend == "cupy":
         return cupy.array(data, dtype=dtype or "float64")
     elif backend == "pandas":
