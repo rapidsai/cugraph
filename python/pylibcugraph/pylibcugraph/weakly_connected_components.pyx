@@ -56,7 +56,7 @@ from pylibcugraph.utils cimport (
 )
 
 
-def _ensure_arg(graph, offsets, indices, weights):
+def _ensure_args(graph, offsets, indices, weights):
     i = 0
     if graph is not None:
         # ensure the remaining parametes are None
@@ -194,7 +194,7 @@ def weakly_connected_components(ResourceHandle resource_handle,
     """
 
     # FIXME: Remove this function once the deprecation is completed
-    input_type = _ensure_arg(graph, offsets, indices, weights)
+    input_type = _ensure_args(graph, offsets, indices, weights)
 
     if resource_handle is None:
         # Get a default handle
