@@ -2,8 +2,7 @@
 
 ## Description
 
-[RAPIDS](https://rapids.ai) cugraph_dgl provides a duck-typed version of the DGLHeteroGraph class made for cuGraph
-    for storing graph structure and node/edge feature data. Using cugraph backend allows users to use GPU accelerated graph algorithms like sampling , traversal etc. 
+[RAPIDS](https://rapids.ai) cugraph_dgl provides a duck-typed version of the [DGLGraph](https://docs.dgl.ai/api/python/dgl.DGLGraph.html#dgl.DGLGraph)  which uses cugraph for storing graph structure and node/edge feature data.  Using cugraph backend allows DGL users access to collection of GPU accelerated algorithms for graph analytics, such as centrality computation and community detection . 
 
 ## Conda
 TODO
