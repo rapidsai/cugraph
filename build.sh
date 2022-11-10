@@ -20,7 +20,7 @@ REPODIR=$(cd $(dirname $0); pwd)
 LIBCUGRAPH_BUILD_DIR=${LIBCUGRAPH_BUILD_DIR:=${REPODIR}/cpp/build}
 LIBCUGRAPH_ETL_BUILD_DIR=${LIBCUGRAPH_ETL_BUILD_DIR:=${REPODIR}/cpp/libcugraph_etl/build}
 
-VALIDARGS="clean uninstall uninstall_cmake_deps libcugraph libcugraph_etl cugraph pylibcugraph cpp-mgtests docs -v -g -n --pydevelop --allgpuarch --skip_cpp_tests --cmake_default_generator -h --help"
+VALIDARGS="clean uninstall uninstall_cmake_deps libcugraph libcugraph_etl cugraph pylibcugraph cugraph_pyg cpp-mgtests docs -v -g -n --pydevelop --allgpuarch --skip_cpp_tests --cmake_default_generator -h --help"
 HELP="$0 [<target> ...] [<flag> ...]
  where <target> is:
    clean                      - remove all existing build artifacts and configuration (start over)
@@ -30,6 +30,7 @@ HELP="$0 [<target> ...] [<flag> ...]
    libcugraph_etl             - build libcugraph_etl.so and SG test binaries
    cugraph                    - build the cugraph Python package
    pylibcugraph               - build the pylibcugraph Python package
+   cugraph_pyg                - build the cugraph_pyg Python package
    cpp-mgtests                - build libcugraph and libcugraph_etl MG tests. Builds MPI communicator, adding MPI as a dependency.
    docs                       - build the docs
  and <flag> is:
@@ -141,7 +142,7 @@ if hasArg uninstall; then
     # FIXME: if multiple versions of these packages are installed, this only
     # removes the latest one and leaves the others installed. build.sh uninstall
     # can be run multiple times to remove all of them, but that is not obvious.
-    pip uninstall -y cugraph pylibcugraph
+    pip uninstall -y cugraph pylibcugraph cugraph_pyg
 fi
 
 if hasArg uninstall_cmake_deps; then
@@ -262,6 +263,15 @@ if buildAll || hasArg cugraph; then
            -Dcugraph_ROOT=${LIBCUGRAPH_BUILD_DIR} -- -j${PARALLEL_LEVEL:-1}
     if [[ ${INSTALL_TARGET} != "" ]]; then
 	env CUGRAPH_BUILD_PATH=${CUGRAPH_BUILD_PATH} python setup.py ${PYTHON_INSTALL}
+    fi
+fi
+
+# Build and install the cugraph_pyg Python package
+if buildAll || hasArg cugraph_pyg; then
+    cd ${REPODIR}/python/cugraph_pyg
+    python setup.py build_ext --inplace -- -j${PARALLEL_LEVEL:-1}
+    if [[ ${INSTALL_TARGET} != "" ]]; then
+	env python setup.py ${PYTHON_INSTALL}
     fi
 fi
 

@@ -1,0 +1,4 @@
+include versioneer.py
+include cugraph/_version.py
+include cugraph/experimental/datasets/*.yaml
+include cugraph/experimental/datasets/metadata/*.yaml
