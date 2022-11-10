@@ -852,8 +852,8 @@ class simpleGraphImpl:
         self._plc_graph = SGGraph(
             resource_handle=ResourceHandle(),
             graph_properties=graph_props,
-            src_array=self.edgelist.edgelist_df["src"],
-            dst_array=self.edgelist.edgelist_df["dst"],
+            src_or_offset_array=self.edgelist.edgelist_df["src"],
+            dst_or_index_array=self.edgelist.edgelist_df["dst"],
             weight_array=weight_col,
             edge_id_array=id_col,
             edge_type_array=type_col,
