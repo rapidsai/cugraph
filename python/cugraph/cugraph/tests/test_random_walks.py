@@ -74,9 +74,10 @@ def calc_random_walks(graph_file, directed=False, max_depth=None, use_padding=Fa
     assert G is not None
 
     k = random.randint(1, 10)
+    random_walks_type = "uniform"
     start_vertices = random.sample(range(G.number_of_vertices()), k)
     vertex_paths, edge_weights, vertex_path_sizes = cugraph.random_walks(
-        G, start_vertices, max_depth, use_padding
+        G, random_walks_type, start_vertices, max_depth, use_padding
     )
 
     return (vertex_paths, edge_weights, vertex_path_sizes), start_vertices

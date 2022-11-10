@@ -14,17 +14,17 @@
  * limitations under the License.
  */
 
-#pragma once
+#include <raft/core/device_span.hpp>
 
-#include <c_api/array.hpp>
+#include <rmm/device_uvector.hpp>
 
 namespace cugraph {
 namespace c_api {
 
-struct cugraph_vertex_pairs_t {
-  cugraph_type_erased_device_array_t* first_;
-  cugraph_type_erased_device_array_t* second_;
-};
+template <typename vertex_t, typename edge_t>
+rmm::device_uvector<vertex_t> expand_sparse_offsets(raft::device_span<edge_t const> offsets,
+                                                    vertex_t base_vertex_id,
+                                                    rmm::cuda_stream_view const& stream);
 
 }  // namespace c_api
 }  // namespace cugraph

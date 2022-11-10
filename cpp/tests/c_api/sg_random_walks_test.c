@@ -69,10 +69,6 @@ int generic_uniform_random_walks_test(vertex_t* h_src,
   ret_code =
     cugraph_uniform_random_walks(handle, graph, d_start_view, max_depth, &result, &ret_error);
 
-#if 0
-  TEST_ASSERT(
-    test_ret_value, ret_code != CUGRAPH_SUCCESS, "uniform_random_walks should have failed")
-#else
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "uniform_random_walks failed.");
 
@@ -112,25 +108,33 @@ int generic_uniform_random_walks_test(vertex_t* h_src,
               cugraph_random_walk_result_get_max_path_length(result) == max_depth,
               "path length does not match");
 
-#if 0
-  // FIXME:  This currently fails if the result has an invalid vertex (if the path stops),
-  //         Need to handle invalid_vtx properly.
   for (int i = 0; (i < num_starts) && (test_ret_value == 0); ++i) {
     TEST_ASSERT(
       test_ret_value, h_start[i] == h_result_verts[i * (max_depth + 1)], "start of path not found");
-    for (size_t j = 0; j < cugraph_random_walk_result_get_max_path_length(result); ++j) {
-      TEST_ASSERT(
-        test_ret_value,
-        M[h_result_verts[i * (max_depth + 1) + j]][h_result_verts[i * (max_depth + 1) + j + 1]] ==
-          h_result_wgts[i * max_depth + j],
-        "uniform_random_walks got edge that doesn't exist");
+    for (size_t j = 0; j < max_depth; ++j) {
+      int src_index = i * (max_depth + 1) + j;
+      int dst_index = src_index + 1;
+      if (h_result_verts[dst_index] < 0) {
+        if (h_result_verts[src_index] >= 0) {
+          int departing_count = 0;
+          for (int k = 0; k < num_vertices; ++k) {
+            if (M[h_result_verts[src_index]][k] >= 0) departing_count++;
+          }
+          TEST_ASSERT(test_ret_value,
+                      departing_count == 0,
+                      "uniform_random_walks found no edge when an edge exists");
+        }
+      } else {
+        TEST_ASSERT(
+          test_ret_value,
+          M[h_result_verts[src_index]][h_result_verts[dst_index]] ==
+            h_result_wgts[i * max_depth + j],
+          "uniform_random_walks got edge that doesn't exist");
+      }
     }
   }
-#endif
 
   cugraph_random_walk_result_free(result);
-#endif
-
   cugraph_sg_graph_free(graph);
   cugraph_free_resource_handle(handle);
   cugraph_error_free(ret_error);
@@ -339,7 +343,7 @@ int generic_node2vec_random_walks_test(vertex_t* h_src,
     TEST_ASSERT(test_ret_value,
                 M[h_start[i]][h_result_verts[i * (max_depth + 1)]] == h_result_wgts[i * max_depth],
                 "node2vec_random_walks got edge that doesn't exist");
-    for (size_t j = 1; j < cugraph_random_walk_result_get_max_path_length(); ++j)
+    for (size_t j = 1; j < max_depth; ++j)
       TEST_ASSERT(
         test_ret_value,
         M[h_start[i * (max_depth + 1) + j - 1]][h_result_verts[i * (max_depth + 1) + j]] ==
