@@ -22,8 +22,8 @@ import threading
 import cupy as cp
 
 from cugraph_service_client import defaults
+from cugraph_service_client.remote_graph import RemoteGraph
 from cugraph_service_client import extension_return_dtype_map
-from cugraph_service_client.remote_graph import RemotePropertyGraph
 from cugraph_service_client.types import (
     ValueWrapper,
     GraphVertexEdgeID,
@@ -515,9 +515,9 @@ class CugraphServiceClient:
 
     def graph(self):
         """
-        Constructs an empty RemotePropertyGraph object.
+        Constructs a new RemoteGraph object wrapping a remote PropertyGraph.
         """
-        return RemotePropertyGraph(self, self.create_graph())
+        return RemoteGraph(self, self.create_graph())
 
     @__server_connection
     def get_graph_ids(self):
@@ -797,7 +797,7 @@ class CugraphServiceClient:
         selection=None,
         edge_weight_property="",
         default_edge_weight=1.0,
-        allow_multi_edges=False,
+        check_multi_edges=True,
         renumber_graph=True,
         add_edge_data=True,
         graph_id=defaults.graph_id,
@@ -811,7 +811,7 @@ class CugraphServiceClient:
         create_using : string, default is None
             String describing the type of Graph object to create from the
             selected subgraph of vertices and edges. The default (None) results
-            in a cugraph.Graph object.
+            in a directed cugraph.MultiGraph object.
 
         selection : int, default is None
             A PropertySelection ID returned from one or more calls to
@@ -830,10 +830,10 @@ class CugraphServiceClient:
             The value to use when an edge property is specified but not present
             on an edge.
 
-        allow_multi_edges : bool
-            If True, multiple edges should be used to create the resulting
-            Graph, otherwise multiple edges will be detected and an exception
-            raised.
+        check_multi_edges : bool (default is True)
+            When True and create_using argument is given and not a MultiGraph,
+            this will perform an expensive check to verify that the edges in
+            the edge dataframe do not form a multigraph with duplicate edges.
 
         graph_id : int, default is defaults.graph_id
            The graph ID to extract the subgraph from. If the ID passed is not
@@ -861,7 +861,7 @@ class CugraphServiceClient:
             selection,
             edge_weight_property,
             default_edge_weight,
-            allow_multi_edges,
+            check_multi_edges,
             renumber_graph,
             add_edge_data,
             graph_id,
@@ -979,7 +979,7 @@ class CugraphServiceClient:
     def is_vertex_property(self, property_key, graph_id=defaults.graph_id):
         """
         Returns True if the given property key is for a valid vertex property
-        in the given graph, false otherwise.e
+        in the given graph, False otherwise.
 
         Parameters
         ----------
