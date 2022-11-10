@@ -11,8 +11,8 @@ Part of [Rapids](https://rapids.ai) cuGraph, Property Graph allows all the great
 
 Property Graph enables:
 
-* Multiple edge and node types
-* Subgraph extractions based on properties and/or edge and node types.
+* Multiple edge and node types as seen in the Property Graph[API]()
+* Subgraph extractions based on properties and/or edge and node types as seen below.
 * Storage of properties either within the graph structure on gpu or using GNN-centric storage extensions on host storage.
 * Adding additional properties, nodes and edges into the property graph to store derived data like analytic results.
 * Client access managed by a remote server allowing shared access and remote operations using[CuGraph Service]().
