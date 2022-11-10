@@ -15,7 +15,7 @@
 # cython: language_level = 3
 
 from libc.stdint cimport uintptr_t
-from pylibcugraph import GraphProperties, SGGraph_From_CSR
+from pylibcugraph import GraphProperties, SGGraph
 
 from pylibcugraph._cugraph_c.resource_handle cimport (
     bool_t,
@@ -79,26 +79,6 @@ def _ensure_args(graph, offsets, indices, weights):
     return input_type
 
 
-def construct_graph_from_csr(resource_handle,
-                             cupy_offsets,
-                             cupy_indices,
-                             cupy_weights):
-
-    graph_props = GraphProperties(
-        is_symmetric=True, is_multigraph=False)
-    G = SGGraph_From_CSR(
-        resource_handle,
-        graph_props,
-        cupy_offsets,
-        cupy_indices,
-        cupy_weights,
-        store_transposed=False,
-        renumber=False,
-        do_expensive_check=True,
-    )
-    return G
-
-
 def weakly_connected_components(ResourceHandle resource_handle,
                                 _GPUGraph graph,
                                 offsets,
@@ -117,7 +97,7 @@ def weakly_connected_components(ResourceHandle resource_handle,
         Handle to the underlying device resources needed for referencing data
         and running algorithms.
 
-    graph : SGGraph or SGGraph_From_CSR, MGGraph
+    graph : SGGraph or MGGraph
         The input graph.
     
     offsets : object supporting a __cuda_array_interface__ interface
@@ -196,13 +176,24 @@ def weakly_connected_components(ResourceHandle resource_handle,
     # FIXME: Remove this function once the deprecation is completed
     input_type = _ensure_args(graph, offsets, indices, weights)
 
-    if resource_handle is None:
-        # Get a default handle
-        resource_handle = ResourceHandle()
-
     if input_type == "csr_arrays":
-        graph = construct_graph_from_csr(
-            resource_handle, offsets, indices, weights)
+        if resource_handle is None:
+            # Get a default handle
+            resource_handle = ResourceHandle()
+
+        graph_props = GraphProperties(
+        is_symmetric=True, is_multigraph=False)
+        graph = SGGraph(
+                resource_handle,
+                graph_props,
+                offsets,
+                indices,
+                weights,
+                store_transposed=False,
+                renumber=False,
+                do_expensive_check=True,
+                input_array_format="CSR"
+            )
 
     cdef cugraph_resource_handle_t* c_resource_handle_ptr = \
         resource_handle.c_resource_handle_ptr
