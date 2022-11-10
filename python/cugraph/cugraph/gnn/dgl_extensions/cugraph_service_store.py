@@ -12,26 +12,17 @@
 # limitations under the License.
 
 from collections import defaultdict
-
 from cugraph.gnn.dgl_extensions.base_cugraph_store import BaseCuGraphStore
-
 from functools import cached_property
-from cugraph.gnn.dgl_extensions.utils.find_edges import find_edges
-from cugraph.gnn.dgl_extensions.utils.node_subgraph import node_subgraph
 from cugraph.gnn.dgl_extensions.utils.feature_map import _update_feature_map
-from cugraph.gnn.dgl_extensions.utils.add_data import (
-    add_edge_data_from_parquet,
-    add_node_data_from_parquet,
-)
-from cugraph.gnn.dgl_extensions.utils.sampling import (
-    sample_pg,
-    get_subgraph_and_src_range_from_pg,
-)
-from cugraph.gnn.dgl_extensions.utils.sampling import get_underlying_dtype_from_sg
 from cugraph.gnn.dgl_extensions.feature_storage import CuFeatureStorage
 
+# TODO: Make this optional in next release
+# Only used cause cant transfer dlpack objects through remote
+import cupy as cp
 
-class CuGraphStore(BaseCuGraphStore):
+
+class CuGraphRemoteStore(BaseCuGraphStore):
     """
     A wrapper around a cuGraph Property Graph that
     then adds functions to basically match the DGL GraphStorage API.
@@ -40,13 +31,28 @@ class CuGraphStore(BaseCuGraphStore):
     This class return dlpack types and has additional functional arguments.
     """
 
-    def __init__(self, graph, backend_lib="torch"):
+    def __init__(self, graph, graph_client, device_id=None, backend_lib="torch"):
+        # not using isinstance to check type to prevent
+        # on adding dependency of  Remote graphs to cugraph
+        if type(graph).__name__ in ["RemotePropertyGraph", "RemoteMGPropertyGraph"]:
+            if device_id is not None:
+                import numba.cuda as cuda
 
-        if type(graph).__name__ in ["PropertyGraph", "MGPropertyGraph"]:
+                cuda.select_device(device_id)
+                cp.cuda.runtime.setDevice(device_id)
+
             self.__G = graph
+            self.client = graph_client
+            self.device_id = device_id
+
+            add_data_module = "cugraph.gnn.dgl_extensions.service_extensions.add_data"
+            self.client.load_extensions(add_data_module)
+            sampling_module = "cugraph.gnn.dgl_extensions.service_extensions.sampling"
+            self.client.load_extensions(sampling_module)
         else:
-            raise ValueError("graph must be a PropertyGraph or MGPropertyGraph")
-        super().__init__(graph)
+            raise ValueError("graph must be a RemoteGraph")
+
+        BaseCuGraphStore.__init__(self, graph)
         # dict to map column names corresponding to edge features
         # of each type
         self.edata_feat_col_d = defaultdict(list)
@@ -91,14 +97,10 @@ class CuGraphStore(BaseCuGraphStore):
         -------
         None
         """
-        self.gdata.add_vertex_data(df, vertex_col_name=node_col_name, type_name=ntype)
-        columns = [col for col in list(df.columns) if col != node_col_name]
-
-        _update_feature_map(
-            self.ndata_feat_col_d, feat_name, contains_vector_features, columns
+        raise NotImplementedError(
+            "Adding Node Data From Local is not yet supported "
+            "Please Use `add_node_data_from_parquet`"
         )
-        # Clear properties if set as data has changed
-        self.__clear_cached_properties()
 
     def add_edge_data(
         self,
@@ -135,16 +137,10 @@ class CuGraphStore(BaseCuGraphStore):
         -------
         None
         """
-        self.gdata.add_edge_data(
-            df, vertex_col_names=node_col_names, type_name=canonical_etype
+        raise NotImplementedError(
+            "Adding Node Data From local is not yet supported for Remote Storage"
+            "Please Use `add_edge_data_from_parquet`"
         )
-        columns = [col for col in list(df.columns) if col not in node_col_names]
-        _update_feature_map(
-            self.edata_feat_col_d, feat_name, contains_vector_features, columns
-        )
-
-        # Clear properties if set as data has changed
-        self.__clear_cached_properties()
 
     def add_node_data_from_parquet(
         self,
@@ -171,7 +167,7 @@ class CuGraphStore(BaseCuGraphStore):
             If not specified, the type of properties will be added as
             an empty string.
         node_offset: int,
-            The offset to add for the particular ntype
+            The offset to add for the current node type
             defaults to zero
         feat_name : {} or string
             A map of feature names under which we should save the added
@@ -185,13 +181,18 @@ class CuGraphStore(BaseCuGraphStore):
         -------
         None
         """
-        loaded_columns = add_node_data_from_parquet(
+
+        c_ar, len_ar = self.client.call_extension(
+            func_name="add_node_data_from_parquet_remote",
             file_path=file_path,
             node_col_name=node_col_name,
             node_offset=node_offset,
             ntype=ntype,
-            pG=self.gdata,
+            graph_id=self.gdata._graph_id,
+            result_device=self.device_id,
         )
+        loaded_columns = _deserialize_strings_from_char_ars(c_ar, len_ar)
+
         columns = [col for col in loaded_columns if col != node_col_name]
         _update_feature_map(
             self.ndata_feat_col_d, feat_name, contains_vector_features, columns
@@ -224,17 +225,16 @@ class CuGraphStore(BaseCuGraphStore):
             '(src_type),(edge_type),(dst_type)'
             If not specified, the type of properties will be added as
             an empty string.
-        feat_name : string or dict {}
-            The feature name under which we should save the added properties
-            (ignored if contains_vector_features=False and the col names of
-            the dataframe are treated as corresponding feature names)
-
         src_offset: int,
             The offset to add for the source node type
             defaults to zero
         dst_offset: int,
             The offset to add for the dst node type
             defaults to zero
+        feat_name : string or dict {}
+            The feature name under which we should save the added properties
+            (ignored if contains_vector_features=False and the col names of
+            the dataframe are treated as corresponding feature names)
         contains_vector_features : False
             Whether to treat the columns of the dataframe being added as
             as 2d features
@@ -242,15 +242,17 @@ class CuGraphStore(BaseCuGraphStore):
         -------
         None
         """
-
-        loaded_columns = add_edge_data_from_parquet(
+        c_ar, len_ar = self.client.call_extension(
+            func_name="add_edge_data_from_parquet_remote",
             file_path=file_path,
             node_col_names=node_col_names,
             canonical_etype=canonical_etype,
             src_offset=src_offset,
             dst_offset=dst_offset,
-            pG=self.gdata,
+            graph_id=self.gdata._graph_id,
+            result_device=self.device_id,
         )
+        loaded_columns = _deserialize_strings_from_char_ars(c_ar, len_ar)
         columns = [col for col in loaded_columns if col not in node_col_names]
         _update_feature_map(
             self.edata_feat_col_d, feat_name, contains_vector_features, columns
@@ -377,15 +379,27 @@ class CuGraphStore(BaseCuGraphStore):
         # of the seed dtype is not same as the node dtype
         self.set_sg_node_dtype(first_sg)
 
-        # Below will be called from remote storage
-        sampled_result_arrays = sample_pg(
-            self.gdata,
+        # Cant send dlpack or cupy arrays or numpys arrays
+        # through  extensions
+        # See issue: https://github.com/rapidsai/cugraph/issues/2863
+
+        if isinstance(nodes_cap, dict):
+            nodes_ar = {
+                k: cp.from_dlpack(v).get().tolist() for k, v in nodes_cap.items()
+            }
+        else:
+            nodes_ar = cp.from_dlpack(nodes_cap).get().tolist()
+
+        sampled_result_arrays = self.client.call_extension(
+            "sample_pg_remote",
+            result_device=self.device_id,
+            graph_id=self.gdata._graph_id,
             has_multiple_etypes=self.has_multiple_etypes,
             etypes=self.etypes,
             sgs_obj=sgs_obj,
             sgs_src_range_obj=sgs_src_range_obj,
             sg_node_dtype=self._sg_node_dtype,
-            nodes_ar=nodes_cap,
+            nodes_ar=nodes_ar,
             replace=replace,
             fanout=fanout,
             edge_dir=edge_dir,
@@ -395,23 +409,22 @@ class CuGraphStore(BaseCuGraphStore):
     ######################################
     # Utilities
     ######################################
-    @property
-    def num_vertices(self):
-        return self.gdata.get_num_vertices()
-
-    def get_vertex_ids(self):
-        return self.gdata.vertices_ids()
-
     @cached_property
     def extracted_subgraph(self):
-        return get_subgraph_and_src_range_from_pg(
-            self.gdata, reverse_edges=False, etype=None
+        return self.client.call_extension(
+            "get_subgraph_and_src_range_from_pg_remote",
+            graph_id=self.gdata._graph_id,
+            reverse_edges=False,
+            etype=None,
         )
 
     @cached_property
     def extracted_reverse_subgraph(self):
-        return get_subgraph_and_src_range_from_pg(
-            self.gdata, reverse_edges=True, etype=None
+        return self.client.call_extension(
+            "get_subgraph_and_src_range_from_pg_remote",
+            graph_id=self.gdata._graph_id,
+            reverse_edges=True,
+            etype=None,
         )
 
     @cached_property
@@ -419,8 +432,11 @@ class CuGraphStore(BaseCuGraphStore):
         sg_d = {}
         sg_src_range_d = {}
         for etype in self.etypes:
-            sg_d[etype], sg_src_range_d[etype] = get_subgraph_and_src_range_from_pg(
-                self.gdata, reverse_edges=False, etype=etype
+            sg_d[etype], sg_src_range_d[etype] = self.client.call_extension(
+                "get_subgraph_and_src_range_from_pg_remote",
+                graph_id=self.gdata._graph_id,
+                reverse_edges=False,
+                etype=etype,
             )
         return sg_d, sg_src_range_d
 
@@ -429,16 +445,26 @@ class CuGraphStore(BaseCuGraphStore):
         sg_d = {}
         sg_src_range_d = {}
         for etype in self.etypes:
-            sg_d[etype], sg_src_range_d[etype] = get_subgraph_and_src_range_from_pg(
-                self.gdata, reverse_edges=True, etype=etype
+            sg_d[etype], sg_src_range_d[etype] = self.client.call_extension(
+                "get_subgraph_and_src_range_from_pg_remote",
+                graph_id=self.gdata._graph_id,
+                reverse_edges=True,
+                etype=etype,
             )
         return sg_d, sg_src_range_d
 
-    def set_sg_node_dtype(self, sg):
+    def set_sg_node_dtype(self, sg_id):
         if hasattr(self, "_sg_node_dtype"):
             return self._sg_node_dtype
         else:
-            self._sg_node_dtype = get_underlying_dtype_from_sg(sg)
+            dtype_nbytes = self.client.call_extension(
+                "get_underlying_dtype_from_sg_remote", sg_id
+            )
+            if dtype_nbytes == 32:
+                dtype = "int32"
+            else:
+                dtype = "int64"
+            self._sg_node_dtype = dtype
         return self._sg_node_dtype
 
     def find_edges(self, edge_ids_cap, etype):
@@ -458,7 +484,7 @@ class CuGraphStore(BaseCuGraphStore):
         DLPack capsule
             The dst nodes for the given ids
         """
-        return find_edges(edge_ids_cap, etype)
+        raise NotImplementedError
 
     def node_subgraph(
         self,
@@ -482,7 +508,7 @@ class CuGraphStore(BaseCuGraphStore):
             The sampled subgraph with the same node ID space with the original
             graph.
         """
-        return node_subgraph(self.gdata, nodes, create_using)
+        raise NotImplementedError
 
     def __clear_cached_properties(self):
         # Check for cached properties using self.__dict__ because calling
@@ -517,8 +543,6 @@ class CuGraphStore(BaseCuGraphStore):
 
 def create_dlpack_results_from_arrays(sampled_result_arrays, etypes):
     # TODO: Extend to pytorch/numpy/etc
-    import cupy as cp
-
     if len(etypes) <= 1:
         s, d, e_id = sampled_result_arrays
         # Handle numpy array, cupy array, lists etc
@@ -533,9 +557,29 @@ def create_dlpack_results_from_arrays(sampled_result_arrays, etypes):
             e_id = sampled_result_arrays[array_start_offset + 2]
             s, d, e_id = cp.asarray(s), cp.asarray(d), cp.asarray(e_id)
             array_start_offset = array_start_offset + 3
-            if s is not None and len(s) >= 0:
+            if s is not None and len(s) > 0:
                 s, d, e_id = s.toDlpack(), d.toDlpack(), e_id.toDlpack()
             else:
                 s, d, e_id = None, None, None
             result_d[etype] = (s, d, e_id)
         return result_d
+
+
+def _deserialize_strings_from_char_ars(char_ar, len_ar):
+    string_start = 0
+    string_list = []
+    for string_offset in len_ar:
+        string_end = string_start + string_offset
+        s = char_ar[string_start:string_end]
+
+        # Check of cupy array
+        if type(s).__module__ == "cupy":
+            s = s.get()
+
+        # Check for numpy
+        if type(s).__module__ == "numpy":
+            s = s.tolist()
+        s = "".join([chr(i) for i in s])
+        string_list.append(s)
+        string_start = string_end
+    return string_list
