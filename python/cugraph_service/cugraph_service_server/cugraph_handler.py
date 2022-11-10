@@ -674,6 +674,7 @@ class CugraphHandler:
             if (columns is not None) or (ids is not None) or (types is not None):
                 raise CugraphServiceError("Graph does not contain properties")
             if self.is_multi_gpu:
+                # FIXME may run out of memory for very lage graphs.
                 s = (
                     dask_cudf.concat(
                         [
