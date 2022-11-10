@@ -537,17 +537,17 @@ class EXPERIMENTAL__PropertyGraph:
         >>> vert_df = cudf.DataFrame({"vert_id": [99, 22, 98, 34, 97, 56, 96, 88],
         ...                           "v_prop": [1, 2, 3, 4, 5, 6, 7, 8]})
         >>> pG.add_vertex_data(vert_df, type_name="vtype", vertex_col_name="vert_id")
-        >>> pG.get_vertex_data()
-        _VERTEX_ _TYPE_  v_prop
-        0        99  vtype       1
-        1        22  vtype       2
-        2        98  vtype       3
-        3        34  vtype       4
-        4        97  vtype       5
-        5        56  vtype       6
-        6        96  vtype       7
-        7        88  vtype       8
-        """
+        >>> pG.get_vertex_data().sort_index(axis=1)
+        _TYPE_  _VERTEX_  v_prop
+        0  vtype        99       1
+        1  vtype        22       2
+        2  vtype        98       3
+        3  vtype        34       4
+        4  vtype        97       5
+        5  vtype        56       6
+        6  vtype        96       7
+        7  vtype        88       8
+       """
         if type(dataframe) not in _dataframe_types:
             raise TypeError(
                 "dataframe must be one of the following types: "
@@ -708,26 +708,26 @@ class EXPERIMENTAL__PropertyGraph:
         >>> import cudf
         >>> from cugraph.experimental import PropertyGraph
         >>> df = cudf.DataFrame(columns=["src", "dst", "some_property"],
-        ...                     data=[(99, 22, "a"),
-        ...                           (98, 34, "b"),
-        ...                           (97, 56, "c"),
-        ...                           (96, 88, "d"),
-        ...                          ])
+        ...                      data=[(99, 22, "a"),
+        ...                            (98, 34, "b"),
+        ...                            (97, 56, "c"),
+        ...                            (96, 88, "d"),
+        ...                           ])
         >>> pG = PropertyGraph()
         >>> pG.add_edge_data(df, type_name="etype", vertex_col_names=("src", "dst"))
         >>> vert_df = cudf.DataFrame({"vert_id": [99, 22, 98, 34, 97, 56, 96, 88],
-        ...                           "v_prop": [1, 2, 3, 4, 5, 6, 7, 8]})
+        ...                            "v_prop": [1, 2, 3, 4, 5, 6, 7, 8]})
         >>> pG.add_vertex_data(vert_df, type_name="vtype", vertex_col_name="vert_id")
-        >>> pG.get_vertex_data()
-        _VERTEX_ _TYPE_  v_prop
-        0        99  vtype       1
-        1        22  vtype       2
-        2        98  vtype       3
-        3        34  vtype       4
-        4        97  vtype       5
-        5        56  vtype       6
-        6        96  vtype       7
-        7        88  vtype       8
+        >>> pG.get_vertex_data().sort_index(axis=1)
+        _TYPE_  _VERTEX_  v_prop
+        0  vtype        99       1
+        1  vtype        22       2
+        2  vtype        98       3
+        3  vtype        34       4
+        4  vtype        97       5
+        5  vtype        56       6
+        6  vtype        96       7
+        7  vtype        88       8
         """
         if self.__vertex_prop_dataframe is not None:
             df = self.__vertex_prop_dataframe
@@ -1019,12 +1019,12 @@ class EXPERIMENTAL__PropertyGraph:
         ...                          ])
         >>> pG = PropertyGraph()
         >>> pG.add_edge_data(df, type_name="etype", vertex_col_names=("src", "dst"))
-        >>> pG.get_edge_data(types="etype")
-        _EDGE_ID_  _SRC_  _DST_ _TYPE_ some_property
-        0          0     99     22  etype             a
-        1          1     98     34  etype             b
-        2          2     97     56  etype             c
-        3          3     96     88  etype             d
+        >>> pG.get_edge_data(types="etype").sort_index(axis=1)
+        _DST_  _EDGE_ID_  _SRC_ _TYPE_ some_property
+        0     22          0     99  etype             a
+        1     34          1     98  etype             b
+        2     56          2     97  etype             c
+        3     88          3     96  etype             d
         """
         if self.__edge_prop_dataframe is not None:
             df = self.__edge_prop_dataframe
@@ -1371,31 +1371,30 @@ class EXPERIMENTAL__PropertyGraph:
 
         Examples
         --------
-        >>> import cugraph
         >>> import cudf
         >>> from cugraph.experimental import PropertyGraph
         >>> df = cudf.DataFrame(columns=["src", "dst", "some_property"],
-        ...                     data=[(99, 22, "a"),
-        ...                           (98, 34, "b"),
-        ...                           (97, 56, "c"),
-        ...                           (96, 88, "d"),
-        ...                          ])
+        ...                      data=[(99, 22, "a"),
+        ...                            (98, 34, "b"),
+        ...                            (97, 56, "c"),
+        ...                            (96, 88, "d"),
+        ...                           ])
         >>> pG = PropertyGraph()
         >>> pG.add_edge_data(df, type_name="etype", vertex_col_names=("src", "dst"))
         >>> G = pG.extract_subgraph(create_using=cugraph.Graph(directed=True))
         >>> # Represents results of an algorithm run on the graph returning a dataframe
         >>> algo_result = cudf.DataFrame({"from":df.src,
-        ...                               "to":df.dst,
-        ...                               "result": range(len(df.src))})
+        ...                                "to":df.dst,
+        ...                                "result": range(len(df.src))})
         >>> algo_result2 = pG.annotate_dataframe(algo_result,
-        ...                                      G,
-        ...                                      edge_vertex_col_names=("from", "to"))
-        >>> print (algo_result2)
-        from  to  result  _EDGE_ID_ _TYPE_ some_property
-        0    99  22       0          0  etype             a
-        1    98  34       1          1  etype             b
-        2    97  56       2          2  etype             c
-        3    96  88       3          3  etype             d
+        ...                                       G,
+        ...                                       edge_vertex_col_names=("from", "to"))
+        >>> print (algo_result2.sort_index(axis=1))
+        _EDGE_ID_ _TYPE_  from  result some_property  to
+        0          0  etype    99       0             a  22
+        1          1  etype    98       1             b  34
+        2          2  etype    97       2             c  56
+        3          3  etype    96       3             d  88
         """
         # FIXME: check all args
         # FIXME: also provide the ability to annotate vertex data.
