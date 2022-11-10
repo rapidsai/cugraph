@@ -1,10 +1,9 @@
 # cugraph_dgl
 
+[RAPIDS](https://rapids.ai) cugraph_dgl enables the ability to use cugraph Property Graphs with DGL.  This cugraph backend allows DGL users access to a collection of GPU-accelerated algorithms for graph analytics, such as sampling, centrality computation, and community detection.
 
-[RAPIDS](https://rapids.ai) cugraph_dgl enables the ability to use cugraph Property Graphs with DGL.  This cugraph backend allows DGL users access to a collection of GPU-accelerated algorithms for graph analytics, such as sampling, centrality computation and community detection.
 
-
-The goal of `cugraph_dgl` is to enable Multi-Node Multi-GPU cugraph accelerated graphs to help train large-scale Graph Neural Networks(GNN) on DGL by proving a duck-typed version ofthe [DGLGraph](https://docs.dgl.ai/api/python/dgl.DGLGraph.html#dgl.DGLGraph)  which uses cugraph for storing graph structure and node/edge feature data. 
+The goal of `cugraph_dgl` is to enable Multi-Node Multi-GPU cugraph accelerated graphs to help train large-scale Graph Neural Networks(GNN) on DGL by providing a duck-typed version of the [DGLGraph](https://docs.dgl.ai/api/python/dgl.DGLGraph.html#dgl.DGLGraph)  which uses cugraph for storing graph structure and node/edge feature data. 
 
 ## Usage
 ```diff
