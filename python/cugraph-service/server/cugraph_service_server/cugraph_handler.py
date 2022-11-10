@@ -12,12 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from functools import cached_property
 from pathlib import Path
 import importlib
 import time
 import traceback
+import re
 from inspect import signature
 import asyncio
+
 
 import numpy as np
 import cupy as cp
@@ -56,10 +59,10 @@ def call_algo(sg_algo_func, G, **kwargs):
     G is SG, sg_algo_func will be called and passed kwargs, otherwise the MG
     version of sg_algo_func will be called with kwargs.
     """
-    is_mg_graph = isinstance(G._Impl, simpleDistributedGraphImpl)
+    is_multi_gpu_graph = isinstance(G._Impl, simpleDistributedGraphImpl)
 
     if sg_algo_func is uniform_neighbor_sample:
-        if is_mg_graph:
+        if is_multi_gpu_graph:
             possible_args = ["start_list", "fanout_vals", "with_replacement"]
             kwargs_to_pass = {a: kwargs[a] for a in possible_args if a in kwargs}
             result_ddf = mg_uniform_neighbor_sample(G, **kwargs_to_pass)
@@ -110,8 +113,8 @@ class ExtensionServerFacade:
         self.__handler = cugraph_handler
 
     @property
-    def is_mg(self):
-        return self.__handler.is_mg
+    def is_multi_gpu(self):
+        return self.__handler.is_multi_gpu
 
     def get_server_info(self):
         # The handler returns objects suitable for serialization over RPC so
@@ -157,13 +160,25 @@ class CugraphHandler:
 
     ###########################################################################
     # Environment management
-    @property
-    def is_mg(self):
+    @cached_property
+    def is_multi_gpu(self):
         """
         True if the CugraphHandler has multiple GPUs available via a dask
         cluster.
         """
         return self.__dask_client is not None
+
+    @cached_property
+    def num_gpus(self):
+        """
+        If dask is not available, this returns "1".  Otherwise it returns
+        the number of GPUs accessible through dask.
+        """
+        return (
+            len(self.__dask_client.scheduler_info()["workers"])
+            if self.is_multi_gpu
+            else 1
+        )
 
     def uptime(self):
         """
@@ -179,15 +194,8 @@ class CugraphHandler:
         "unions" used for RPC serialization.
         """
         # FIXME: expose self.__dask_client.scheduler_info() as needed
-        if self.__dask_client is not None:
-            num_gpus = len(self.__dask_client.scheduler_info()["workers"])
-        else:
-            # The assumption is that cugraph_service server requires at least 1
-            # GPU (ie.  currently there is no CPU-only version of
-            # cugraph_service server)
-            num_gpus = 1
 
-        return {"num_gpus": ValueWrapper(num_gpus)}
+        return {"num_gpus": ValueWrapper(self.num_gpus).union}
 
     def load_graph_creation_extensions(self, extension_dir_path):
         """
@@ -418,6 +426,7 @@ class CugraphHandler:
                 "num_edges",
                 "num_vertex_properties",
                 "num_edge_properties",
+                "is_multi_gpu",
             ]
         )
         if len(keys) == 0:
@@ -442,6 +451,8 @@ class CugraphHandler:
                         info[k] = len(G.vertex_property_names)
                     elif k == "num_edge_properties":
                         info[k] = len(G.edge_property_names)
+                    elif k == "is_multi_gpu":
+                        info[k] = isinstance(G, MGPropertyGraph)
             else:
                 for k in keys:
                     if k == "num_vertices":
@@ -454,6 +465,8 @@ class CugraphHandler:
                         info[k] = 0
                     elif k == "num_edge_properties":
                         info[k] = 0
+                    elif k == "is_multi_gpu":
+                        info[k] = G.is_multi_gpu()
         except Exception:
             raise CugraphServiceError(f"{traceback.format_exc()}")
 
@@ -584,7 +597,7 @@ class CugraphHandler:
         selection,
         edge_weight_property,
         default_edge_weight,
-        allow_multi_edges,
+        check_multi_edges,
         renumber_graph,
         add_edge_data,
         graph_id,
@@ -599,21 +612,27 @@ class CugraphHandler:
             )
         # Convert defaults needed for the RPC API into defaults used by
         # PropertyGraph.extract_subgraph()
-        create_using = create_using or cugraph.Graph
-        selection = selection or None
-        edge_weight_property = edge_weight_property or None
-
-        # FIXME: create_using and selection should not be strings at this point
-
         try:
+            if create_using == "":
+                create_using = None
+            else:
+                create_using = self.__parse_create_using_string(create_using)
+            edge_weight_property = edge_weight_property or None
+            if selection == "":
+                selection = None
+            else:
+                selection = pG.select_edges(selection)
+
+            # FIXME: create_using and selection should not be strings at this point
+
             G = pG.extract_subgraph(
-                create_using,
-                selection,
-                edge_weight_property,
-                default_edge_weight,
-                allow_multi_edges,
-                renumber_graph,
-                add_edge_data,
+                create_using=create_using,
+                selection=selection,
+                edge_weight_property=edge_weight_property,
+                default_edge_weight=default_edge_weight,
+                check_multi_edges=check_multi_edges,
+                renumber_graph=renumber_graph,
+                add_edge_data=add_edge_data,
             )
         except Exception:
             raise CugraphServiceError(f"{traceback.format_exc()}")
@@ -627,8 +646,12 @@ class CugraphHandler:
         Returns the vertex data as a serialized numpy array for the given
         id_or_ids.  null_replacement_value must be provided if the data
         contains NA values, since NA values cannot be serialized.
+
+        If the graph is a structural graph (a graph without properties),
+        this method does not accept the id_or_ids, property_keys, or types
+        arguments, and instead returns a list of valid vertex ids.
         """
-        pG = self._get_graph(graph_id)
+        G = self._get_graph(graph_id)
         ids = GraphVertexEdgeIDWrapper(id_or_ids).get_py_obj()
         if ids == -1:
             ids = None
@@ -640,13 +663,47 @@ class CugraphHandler:
             columns = property_keys
         if types == []:
             types = None
+        if isinstance(G, (PropertyGraph, MGPropertyGraph)):
+            try:
+                df = G.get_vertex_data(vertex_ids=ids, columns=columns, types=types)
+                if isinstance(df, dask_cudf.DataFrame):
+                    df = df.compute()
+            except KeyError:
+                df = None
+        else:
+            if (columns is not None) or (ids is not None) or (types is not None):
+                raise CugraphServiceError("Graph does not contain properties")
+            if self.is_multi_gpu:
+                # FIXME may run out of memory for very lage graphs.
+                s = (
+                    dask_cudf.concat(
+                        [
+                            G.edgelist.edgelist_df[
+                                G.renumber_map.renumbered_src_col_name
+                            ],
+                            G.edgelist.edgelist_df[
+                                G.renumber_map.renumbered_dst_col_name
+                            ],
+                        ]
+                    )
+                    .unique()
+                    .compute()
+                )
+                df = cudf.DataFrame()
+                df["id"] = s
+                df = dask_cudf.from_cudf(df, npartitions=self.num_gpus)
+            else:
+                s = cudf.concat(
+                    [
+                        G.edgelist.edgelist_df[G.srcCol],
+                        G.edgelist.edgelist_df[G.dstCol],
+                    ]
+                ).unique()
+                df = cudf.DataFrame()
+                df["id"] = s
+            if G.is_renumbered():
+                df = G.unrenumber(df, "id", preserve_order=True)
 
-        try:
-            df = pG.get_vertex_data(vertex_ids=ids, columns=columns, types=types)
-            if isinstance(df, dask_cudf.DataFrame):
-                df = df.compute()
-        except KeyError:
-            df = None
         return self.__get_graph_data_as_numpy_bytes(df, null_replacement_value)
 
     def get_graph_edge_data(
@@ -657,7 +714,7 @@ class CugraphHandler:
         id_or_ids.  null_replacement_value must be provided if the data
         contains NA values, since NA values cannot be serialized.
         """
-        pG = self._get_graph(graph_id)
+        G = self._get_graph(graph_id)
         ids = GraphVertexEdgeIDWrapper(id_or_ids).get_py_obj()
         if ids == -1:
             ids = None
@@ -669,13 +726,60 @@ class CugraphHandler:
             columns = property_keys
         if types == []:
             types = None
+        if isinstance(G, (PropertyGraph, MGPropertyGraph)):
+            try:
+                df = G.get_edge_data(edge_ids=ids, columns=columns, types=types)
+            except KeyError:
+                df = None
+        else:
+            if columns is not None:
+                raise CugraphServiceError(
+                    f"Graph does not contain properties. {columns}"
+                )
 
-        try:
-            df = pG.get_edge_data(edge_ids=ids, columns=columns, types=types)
-            if isinstance(df, dask_cudf.DataFrame):
-                df = df.compute()
-        except KeyError:
-            df = None
+            # Get the edgelist; API expects edge id, src, dst, type
+            df = G.edgelist.edgelist_df
+
+            if G.edgeIdCol in df.columns:
+                if ids is not None:
+                    if self.is_multi_gpu:
+                        # FIXME use ids = cudf.Series(ids) after dask_cudf fix
+                        ids = np.array(ids)
+                        df = df.reindex(df[G.edgeIdCol]).loc[ids]
+                    else:
+                        ids = cudf.Series(ids)
+                        df = df.reindex(df[G.edgeIdCol]).loc[ids]
+            else:
+                if ids is not None:
+                    raise CugraphServiceError("Graph does not have edge ids")
+                df[G.edgeIdCol] = df.index
+
+            if G.edgeTypeCol in df.columns:
+                if types is not None:
+                    df = df[df[G.edgeTypeCol].isin(types)]
+            else:
+                if types is not None:
+                    raise CugraphServiceError("Graph does not have typed edges")
+                df[G.edgeTypeCol] = ""
+
+            src_col_name = (
+                G.renumber_map.renumbered_src_col_name
+                if self.is_multi_gpu
+                else G.srcCol
+            )
+            dst_col_name = (
+                G.renumber_map.renumbered_dst_col_name
+                if self.is_multi_gpu
+                else G.dstCol
+            )
+            if G.is_renumbered():
+                df = G.unrenumber(df, src_col_name, preserve_order=True)
+                df = G.unrenumber(df, dst_col_name, preserve_order=True)
+
+            df = df[[G.edgeIdCol, src_col_name, dst_col_name, G.edgeTypeCol]]
+
+        if isinstance(df, dask_cudf.DataFrame):
+            df = df.compute()
         return self.__get_graph_data_as_numpy_bytes(df, null_replacement_value)
 
     def is_vertex_property(self, property_key, graph_id):
@@ -697,30 +801,37 @@ class CugraphHandler:
         if isinstance(G, (PropertyGraph, MGPropertyGraph)):
             return G.vertex_property_names
 
-        raise CugraphServiceError("Graph does not contain properties")
+        return []
 
     def get_graph_edge_property_names(self, graph_id):
         G = self._get_graph(graph_id)
         if isinstance(G, (PropertyGraph, MGPropertyGraph)):
             return G.edge_property_names
 
-        raise CugraphServiceError("Graph does not contain properties")
+        return []
 
     def get_graph_vertex_types(self, graph_id):
         G = self._get_graph(graph_id)
         if isinstance(G, (PropertyGraph, MGPropertyGraph)):
             return G.vertex_types
-
-        raise CugraphServiceError("Graph does not contain properties")
-        # Note: this is currently invalid for a graph without properties
+        else:
+            return [""]
 
     def get_graph_edge_types(self, graph_id):
         G = self._get_graph(graph_id)
         if isinstance(G, (PropertyGraph, MGPropertyGraph)):
             return G.edge_types
-
-        raise CugraphServiceError("Graph does not contain properties")
-        # FIXME this should be valid for a graph without properties
+        else:
+            # FIXME should call G.vertex_types (See issue #2889)
+            if G.edgeTypeCol in G.edgelist.edgelist_df.columns:
+                return (
+                    G.edgelist.edgelist_df[G.edgeTypeCol]
+                    .unique()
+                    .astype("str")
+                    .values_host
+                )
+            else:
+                return [""]
 
     def get_num_vertices(self, vertex_type, include_edge_data, graph_id):
         # FIXME should include_edge_data always be True in the remote case?
@@ -733,8 +844,10 @@ class CugraphHandler:
                     type=vertex_type, include_edge_data=include_edge_data
                 )
 
-        raise CugraphServiceError("Graph does not contain properties")
-        # FIXME this should be valid for a graph without properties (but not by type)
+        else:
+            if vertex_type != "":
+                raise CugraphServiceError("Graph does not support vertex types")
+            return G.number_of_vertices()
 
     def get_num_edges(self, edge_type, graph_id):
         G = self._get_graph(graph_id)
@@ -744,7 +857,13 @@ class CugraphHandler:
             else:
                 return G.get_num_edges(type=edge_type)
 
-        raise CugraphServiceError("Graph does not contain properties")
+        else:
+            if edge_type == "":
+                return G.number_of_edges()
+            else:
+                # FIXME Issue #2899, call get_num_edges() instead.
+                mask = G.edgelist.edgelist_df[G.edgeTypeCol] == edge_type
+                return G.edgelist.edgelist_df[mask].count()
         # FIXME this should be valid for a graph without properties
 
     ###########################################################################
@@ -837,13 +956,9 @@ class CugraphHandler:
     ):
         G = self._get_graph(graph_id)
         if isinstance(G, (MGPropertyGraph, PropertyGraph)):
-            raise CugraphServiceError(
-                "uniform_neighbor_sample() cannot "
-                "operate directly on a graph with "
-                "properties, call extract_subgraph() "
-                "then call uniform_neighbor_sample() "
-                "on the extracted subgraph instead."
-            )
+            # Implicitly extract a subgraph containing the entire multigraph.
+            # G will be garbage collected when this function returns.
+            G = G.extract_subgraph(create_using=cugraph.MultiGraph(directed=True))
 
         try:
             uns_result = call_algo(
@@ -970,6 +1085,34 @@ class CugraphHandler:
 
     ###########################################################################
     # Private
+
+    def __parse_create_using_string(self, create_using):
+        match = re.match(r"([MultiGraph|Graph]+)(\(.*\))?", create_using)
+        if match is None:
+            raise TypeError(f"Invalid graph type {create_using}")
+        else:
+            graph_type, args = match.groups()
+            args_dict = {}
+            if args is not None and args != "" and args != "()":
+                for arg in args[1:-1].replace(" ", "").split(","):
+                    try:
+                        k, v = arg.split("=")
+                        if v == "True":
+                            args_dict[k] = True
+                        elif v == "False":
+                            args_dict[k] = False
+                        else:
+                            raise ValueError(f"Could not parse value {v}")
+                    except Exception as e:
+                        raise ValueError(f"Could not parse argument {arg}", e)
+
+            if graph_type == "Graph":
+                graph_type = cugraph.Graph
+            else:
+                graph_type = cugraph.MultiGraph
+
+            return graph_type(**args_dict)
+
     @staticmethod
     def __check_host_port_args(result_host, result_port):
         """
@@ -1003,9 +1146,8 @@ class CugraphHandler:
         gdf = cudf.read_csv(
             csv_file_name, delimiter=delimiter, dtype=dtypes, header=header, names=names
         )
-        if self.is_mg:
-            num_gpus = len(self.__dask_client.scheduler_info()["workers"])
-            return dask_cudf.from_cudf(gdf, npartitions=num_gpus)
+        if self.is_multi_gpu:
+            return dask_cudf.from_cudf(gdf, npartitions=self.num_gpus)
 
         return gdf
 
@@ -1014,7 +1156,7 @@ class CugraphHandler:
         Instantiate a graph object using a type appropriate for the handler (
         either SG or MG)
         """
-        return MGPropertyGraph() if self.is_mg else PropertyGraph()
+        return MGPropertyGraph() if self.is_multi_gpu else PropertyGraph()
 
     # FIXME: consider adding this to PropertyGraph
     def __remove_internal_columns(self, pg_column_names):
@@ -1063,7 +1205,7 @@ class CugraphHandler:
             # FIXME: This will compute the result (if using dask) then transfer
             # to host memory for each iteration - is there a more efficient
             # way?
-            if self.is_mg:
+            if self.is_multi_gpu:
                 value = value.compute()
             edge_IDs.append(value.values_host[0])
 

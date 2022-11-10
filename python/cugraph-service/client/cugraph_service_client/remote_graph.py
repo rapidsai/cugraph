@@ -15,23 +15,11 @@
 import numpy as np
 import importlib
 
-
-class MissingModule:
-    """
-    Raises RuntimeError when any attribute is accessed on instances of this
-    class.
-
-    Instances of this class are returned by import_optional() when a module
-    cannot be found, which allows for code to import optional dependencies, and
-    have only the code paths that use the module affected.
-    """
-
-    def __init__(self, mod_name):
-        self.name = mod_name
-
-    def __getattr__(self, attr):
-        raise RuntimeError(f"This feature requires the {self.name} " "package/module")
-
+from cugraph_service_client.remote_graph_utils import (
+    _transform_to_backend_dtype,
+    _transform_to_backend_dtype_1d,
+    MissingModule,
+)
 
 try:
     cudf = importlib.import_module("cudf")
@@ -54,94 +42,16 @@ except ModuleNotFoundError:
     torch = MissingModule("torch")
 
 
-def _transform_to_backend_dtype(data, column_names, backend="numpy", dtypes=None):
-    """
-    Supports method-by-method selection of backend type (cupy, cudf, etc.)
-    to avoid costly conversion such as row-major to column-major transformation.
-    If using an array or tensor backend, this method will likely be followed with
-    one or more stack() operations to create a matrix or matrices.
-
-    Note: If using inferred dtypes, the returned dataframes, arrays, or tensors may
-    infer a different dtype than what was originally on the server (i.e promotion
-    of int32 to int64).  In the future, the server may also return dtype to prevent
-    this from occurring.
-
-    data : numpy.ndarray
-        The raw ndarray that will be transformed to the backend type.
-    column_names : list[string]
-        The names of the columns, if creating a dataframe.
-    backend : ('numpy', 'pandas', 'cupy', 'cudf', 'torch', 'torch:<device>')
-              [default = 'cudf']
-        The data backend to convert the provided data to.
-    dtypes : ('int32', 'int64', 'float32', etc.)
-        Optional.  The data type to use when storing data in a dataframe or array.
-        If not set, it will be inferred for dataframe backends, and assumed as float64
-        for array and tensor backends.
-        May be a list, or dictionary corresponding to column names.  Unspecified
-        columns in the dictionary will have their dtype inferred.  Note: for array
-        and tensor backends, the inferred type is always 'float64' which will result
-        in a error for non-numeric inputs.
-        i.e. ['int32', 'int64', 'int32', 'float64']
-        i.e. {'col1':'int32', 'col2': 'int64', 'col3': 'float64'}
-    """
-    default_dtype = None if backend in ["cudf", "pandas"] else "float64"
-
-    if dtypes is None:
-        dtypes = [default_dtype] * data.shape[1]
-    elif isinstance(dtypes, (list, tuple)):
-        if len(dtypes) != data.shape[1]:
-            raise ValueError(
-                f"Datatype array length ({len(dtypes)}) does not match "
-                f"number of columns ({data.shape[1]})"
-            )
-    elif isinstance(dtypes, dict):
-        dtypes = [
-            dtypes[name] if name in dtypes else default_dtype for name in column_names
-        ]
-    else:
-        raise ValueError(
-            "dtypes must be None, a list/tuple, or a dict, got: " f"{type(dtypes)}"
-        )
-
-    if not isinstance(data, np.ndarray):
-        raise TypeError("Numpy ndarray expected")
-
-    if backend == "cupy":
-        return [cupy.array(data[:, c], dtype=dtypes[c]) for c in range(data.shape[1])]
-    elif backend == "numpy":
-        return [np.array(data[:, c], dtype=dtypes[c]) for c in range(data.shape[1])]
-
-    elif backend == "pandas" or backend == "cudf":
-        from_records = (
-            pandas.DataFrame.from_records
-            if backend == "pandas"
-            else cudf.DataFrame.from_records
-        )
-        df = from_records(data, columns=column_names)
-        for i, t in enumerate(dtypes):
-            if t is not None:
-                df[column_names[i]] = df[column_names[i]].astype(t)
-        return df
-    elif backend == "torch":
-        return [
-            torch.tensor(data[:, c].astype(dtypes[c])) for c in range(data.shape[1])
-        ]
-
-    backend = backend.split(":")
-    if backend[0] == "torch":
-        try:
-            device = int(backend[1])
-        except ValueError:
-            device = backend[1]
-        return [
-            torch.tensor(data[:, c].astype(dtypes[c]), device=device)
-            for c in range(data.shape[1])
-        ]
-
-    raise ValueError(f"invalid backend {backend[0]}")
-
-
 class RemoteGraph:
+    # column name constants used in internal DataFrames
+    vertex_col_name = "_VERTEX_"
+    src_col_name = "_SRC_"
+    dst_col_name = "_DST_"
+    type_col_name = "_TYPE_"
+    edge_id_col_name = "_EDGE_ID_"
+    weight_col_name = "_WEIGHT_"
+    _default_type_name = ""
+
     def __init__(
         self,
         cgs_client,
@@ -149,12 +59,17 @@ class RemoteGraph:
     ):
         self.__client = cgs_client
         self.__graph_id = cgs_graph_id
+        self.__vertex_categorical_dtype = None
+        self.__edge_categorical_dtype = None
 
     def __del__(self):
         self.__client.delete_graph(self.__graph_id)
 
     def is_remote(self):
         return True
+
+    def is_multi_gpu(self):
+        return self.graph_info["is_multi_gpu"]
 
     def is_bipartite(self):
         return False
@@ -181,42 +96,6 @@ class RemoteGraph:
         raise NotImplementedError("not implemented")
 
     @property
-    def _graph_id(self):
-        return self.__graph_id
-
-    @property
-    def edgelist(self):
-        raise NotImplementedError("not implemented")
-
-    @property
-    def adjlist(self):
-        raise NotImplementedError("not implemented")
-
-
-class RemotePropertyGraph:
-    # column name constants used in internal DataFrames
-    vertex_col_name = "_VERTEX_"
-    src_col_name = "_SRC_"
-    dst_col_name = "_DST_"
-    type_col_name = "_TYPE_"
-    edge_id_col_name = "_EDGE_ID_"
-    weight_col_name = "_WEIGHT_"
-    _default_type_name = ""
-
-    def __init__(
-        self,
-        cgs_client,
-        cgs_graph_id,
-    ):
-        self.__client = cgs_client
-        self.__graph_id = cgs_graph_id
-        self.__vertex_categorical_dtype = None
-        self.__edge_categorical_dtype = None
-
-    def __del__(self):
-        self.__client.delete_graph(self.__graph_id)
-
-    @property
     def _vertex_categorical_dtype(self):
         if self.__vertex_categorical_dtype is None:
             cats = self.vertex_types
@@ -235,8 +114,19 @@ class RemotePropertyGraph:
         return self.__client.get_graph_info(graph_id=self.__graph_id)
 
     @property
+    def has_properties(self):
+        return (
+            self.graph_info["num_vertex_properties"] == 0
+            and self.graph_info["num_edge_properties"] == 0
+        )
+
+    @property
     def _graph_id(self):
         return self.__graph_id
+
+    @property
+    def _client(self):
+        return self.__client
 
     def edges(self, backend=("cudf" if cudf is not None else "numpy")):
         """
@@ -334,12 +224,20 @@ class RemotePropertyGraph:
         """
         return self.__client.get_num_edges(type, self.__graph_id)
 
-    def get_vertices(self, selection=None):
+    def get_vertices(self, selection=None, backend="cudf"):
         """
         Return a Series containing the unique vertex IDs contained in both
         the vertex and edge property data.
         """
-        raise NotImplementedError("not implemented")
+        if selection is not None:
+            raise NotImplementedError(
+                "Use of get_vertices() with selection"
+                " not available for remote property graph."
+            )
+        vdata = self.__client.get_graph_vertex_data(graph_id=self.__graph_id)[:, 0]
+        return _transform_to_backend_dtype_1d(
+            vdata, backend=backend, dtype="int64", series_name=self.vertex_col_name
+        )
 
     def vertices_ids(self):
         """
@@ -514,6 +412,7 @@ class RemotePropertyGraph:
             self.dst_col_name,
             self.type_col_name,
         ] + list(columns)
+
         return _transform_to_backend_dtype(
             edge_data,
             column_names,
@@ -626,7 +525,18 @@ class RemotePropertyGraph:
         --------
         >>>
         """
-        raise NotImplementedError("not implemented")
+        sg_graph_id = self.__client.extract_subgraph(
+            create_using=create_using,
+            selection=selection,
+            edge_weight_property=edge_weight_property,
+            check_multi_edges=check_multi_edges,
+            renumber_graph=renumber_graph,
+            add_edge_data=add_edge_data,
+            default_edge_weight=default_edge_weight,
+            graph_id=self.__graph_id,
+        )
+
+        return RemoteGraph(self.__client, sg_graph_id)
 
     def annotate_dataframe(self, df, G, edge_vertex_col_names):
         """
