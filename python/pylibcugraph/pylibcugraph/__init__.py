@@ -17,7 +17,7 @@ from pylibcugraph.components._connectivity import (
 
 from pylibcugraph import experimental
 
-from pylibcugraph.graphs import SGGraph, MGGraph, SGGraph_From_CSR
+from pylibcugraph.graphs import SGGraph, MGGraph
 
 from pylibcugraph.resource_handle import ResourceHandle
 
