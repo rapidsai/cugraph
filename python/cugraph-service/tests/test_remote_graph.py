@@ -410,7 +410,7 @@ def test_backend_pandas(client_with_property_csvs_loaded, pG_with_property_csvs_
     rpg_vertex_data = rpG.get_vertex_data(backend="pandas")
     pg_vertex_data = pG.get_vertex_data().fillna(0)
     assert isinstance(rpg_vertex_data, pd.DataFrame)
-    assert list(rpg_vertex_data.columns) == list(pg_vertex_data.columns)
+    assert sorted(list(rpg_vertex_data.columns)) == sorted(list(pg_vertex_data.columns))
     for col in rpg_vertex_data.columns:
         assert rpg_vertex_data[col].tolist() == pg_vertex_data[col].values_host.tolist()
 
@@ -418,7 +418,7 @@ def test_backend_pandas(client_with_property_csvs_loaded, pG_with_property_csvs_
     rpg_edge_data = rpG.get_edge_data(backend="pandas")
     pg_edge_data = pG.get_edge_data().fillna(0)
     assert isinstance(rpg_edge_data, pd.DataFrame)
-    assert list(rpg_edge_data.columns) == list(pg_edge_data.columns)
+    assert sorted(list(rpg_edge_data.columns)) == sorted(list(pg_edge_data.columns))
     for col in rpg_edge_data.columns:
         assert rpg_edge_data[col].tolist() == pg_edge_data[col].values_host.tolist()
 
