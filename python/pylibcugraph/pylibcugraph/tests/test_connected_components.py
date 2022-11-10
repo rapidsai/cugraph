@@ -297,7 +297,7 @@ def test_wcc(input_and_expected_output):
     cupy_offsets = cp.asarray(csr.indptr, dtype=np.int32)
     cupy_indices = cp.asarray(csr.indices, dtype=np.int32)
     cupy_weights = cp.asarray(csr.data, dtype=np.float32)
-    #cupy_weights = None
+    # cupy_weights = None
 
     pylibcugraph.weakly_connected_components(
         None,
@@ -466,7 +466,7 @@ def test_invalid_input_wcc():
         store_transposed=False,
         renumber=False,
         do_expensive_check=True,
-        input_array_format="CSR"
+        input_array_format="CSR",
     )
 
     # cannot set both a graph and csr arrays as input
