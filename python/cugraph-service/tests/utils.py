@@ -115,6 +115,7 @@ def start_server_subprocess(
     except Exception:
         if server_process is not None and server_process.poll() is None:
             server_process.terminate()
+            server_process.wait(timeout=60)
         raise
 
     return server_process

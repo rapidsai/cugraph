@@ -53,6 +53,7 @@ def server():
         # tests are done, now stop the server
         print("\nTerminating server...", end="", flush=True)
         server_process.terminate()
+        server_process.wait(timeout=60)
         print("done.", flush=True)
 
 
