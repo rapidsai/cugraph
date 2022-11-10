@@ -84,20 +84,24 @@ def _transform_to_backend_dtype(data, column_names, backend="numpy", dtypes=None
         i.e. ['int32', 'int64', 'int32', 'float64']
         i.e. {'col1':'int32', 'col2': 'int64', 'col3': 'float64'}
     """
-
     default_dtype = None if backend in ["cudf", "pandas"] else "float64"
 
     if dtypes is None:
         dtypes = [default_dtype] * data.shape[1]
     elif isinstance(dtypes, (list, tuple)):
         if len(dtypes) != data.shape[1]:
-            raise ValueError("Datatype array length must match number of columns!")
+            raise ValueError(
+                f"Datatype array length ({len(dtypes)}) does not match "
+                f"number of columns ({data.shape[1]})"
+            )
     elif isinstance(dtypes, dict):
         dtypes = [
             dtypes[name] if name in dtypes else default_dtype for name in column_names
         ]
     else:
-        raise ValueError("dtypes must be None, a list/tuple, or a dict")
+        raise ValueError(
+            "dtypes must be None, a list/tuple, or a dict, got: " f"{type(dtypes)}"
+        )
 
     if not isinstance(data, np.ndarray):
         raise TypeError("Numpy ndarray expected")
