@@ -18,7 +18,7 @@ import numpy as np
 import pandas as pd
 import cupy as cp
 from scipy.sparse import coo_matrix, csr_matrix
-from pylibcugraph import ResourceHandle, GraphProperties, SGGraph_From_CSR
+from pylibcugraph import ResourceHandle, GraphProperties, SGGraph
 
 from pylibcugraph.testing import utils
 
@@ -297,7 +297,7 @@ def test_wcc(input_and_expected_output):
     cupy_offsets = cp.asarray(csr.indptr, dtype=np.int32)
     cupy_indices = cp.asarray(csr.indices, dtype=np.int32)
     cupy_weights = cp.asarray(csr.data, dtype=np.float32)
-    cupy_weights = None
+    #cupy_weights = None
 
     pylibcugraph.weakly_connected_components(
         None,
@@ -457,7 +457,7 @@ def test_invalid_input_wcc():
     cp_offsets = cp.asarray(scipy_csr.indptr)  # unsupported
     cp_indices = cp.asarray(scipy_csr.indices)  # unsupported
 
-    G = SGGraph_From_CSR(
+    G = SGGraph(
         resource_handle,
         graph_props,
         cp_offsets,
@@ -466,6 +466,7 @@ def test_invalid_input_wcc():
         store_transposed=False,
         renumber=False,
         do_expensive_check=True,
+        input_array_format="CSR"
     )
 
     # cannot set both a graph and csr arrays as input
