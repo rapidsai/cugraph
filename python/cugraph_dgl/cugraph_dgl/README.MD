@@ -15,7 +15,7 @@ TODO
 mamba env create -n cugraph_dgl_dev --file conda/cugraph_dgl_dev_11.6.yml
 ```
 
-### Install  in editable model
+### Install  in editable mode
 ```
 pip install -e . 
 ```
