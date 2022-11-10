@@ -153,7 +153,7 @@ service CugraphService {
                        2:string selection,
                        3:string edge_weight_property,
                        4:double default_edge_weight,
-                       5:bool allow_multi_edges,
+                       5:bool check_multi_edges,
                        6:bool renumber_graph,
                        7:bool add_edge_data,
                        8:i32 graph_id

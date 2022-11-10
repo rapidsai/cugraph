@@ -378,8 +378,7 @@ def test_ntypes(dataset1_CuGraphStore):
 
 def test_get_node_storage_gs(dataset1_CuGraphStore):
     fs = dataset1_CuGraphStore.get_node_storage(key="merchant_k", ntype="merchant")
-    # indices = [11, 4, 21, 316, 11]
-    indices = [11, 4, 21, 316]
+    indices = [11, 4, 21, 316, 11]
 
     merchant_gs = fs.fetch(indices, device="cuda")
     merchant_df = create_df_from_dataset(
@@ -389,8 +388,31 @@ def test_get_node_storage_gs(dataset1_CuGraphStore):
     assert cp.allclose(cudf_ar, merchant_gs)
 
 
+def test_get_node_storage_ntypes():
+    node_ser = cudf.Series([1, 2, 3])
+    feat_ser = cudf.Series([1.0, 1.0, 1.0])
+    df = cudf.DataFrame({"node_ids": node_ser, "feat": feat_ser})
+    pg = PropertyGraph()
+    gs = CuGraphStore(pg, backend_lib="cupy")
+    gs.add_node_data(df, "node_ids", ntype="nt.a")
+
+    node_ser = cudf.Series([4, 5, 6])
+    feat_ser = cudf.Series([2.0, 2.0, 2.0])
+    df = cudf.DataFrame({"node_ids": node_ser, "feat": feat_ser})
+    gs.add_node_data(df, "node_ids", ntype="nt.b")
+
+    # All indices from a single ntype
+    output_ar = gs.get_node_storage(key="feat", ntype="nt.a").fetch([1, 2, 3])
+    cp.testing.assert_array_equal(cp.asarray([1, 1, 1], dtype=cp.float32), output_ar)
+
+    # Indices from other ntype are ignored
+    output_ar = gs.get_node_storage(key="feat", ntype="nt.b").fetch([1, 2, 5])
+    cp.testing.assert_array_equal(cp.asarray([2.0], dtype=cp.float32), output_ar)
+
+
 def test_get_edge_storage_gs(dataset1_CuGraphStore):
-    fs = dataset1_CuGraphStore.get_edge_storage("relationships_k", "relationships")
+    etype = "('user', 'relationship', 'user')"
+    fs = dataset1_CuGraphStore.get_edge_storage("relationships_k", etype)
     relationship_t = fs.fetch([6, 7, 8], device="cuda")
 
     relationships_df = create_df_from_dataset(
