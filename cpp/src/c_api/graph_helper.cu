@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#pragma once
 
 #include <structure/detail/structure_utils.cuh>
 
@@ -40,6 +39,16 @@ template rmm::device_uvector<int32_t> expand_sparse_offsets(
 
 template rmm::device_uvector<int64_t> expand_sparse_offsets(
   raft::device_span<int64_t const> offsets,
+  int64_t base_vertex_id,
+  rmm::cuda_stream_view const& stream);
+
+template rmm::device_uvector<int32_t> expand_sparse_offsets(
+  raft::device_span<size_t const> offsets,
+  int32_t base_vertex_id,
+  rmm::cuda_stream_view const& stream);
+
+template rmm::device_uvector<int64_t> expand_sparse_offsets(
+  raft::device_span<size_t const> offsets,
   int64_t base_vertex_id,
   rmm::cuda_stream_view const& stream);
 
