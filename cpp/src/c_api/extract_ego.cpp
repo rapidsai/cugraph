@@ -18,9 +18,9 @@
 
 #include <c_api/abstract_functor.hpp>
 #include <c_api/graph.hpp>
+#include <c_api/induced_subgraph_result.hpp>
 #include <c_api/resource_handle.hpp>
 #include <c_api/utils.hpp>
-#include <c_api/induced_subgraph_result.hpp>
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/detail/shuffle_wrappers.hpp>
@@ -131,7 +131,8 @@ struct extract_ego_functor : public cugraph::c_api::abstract_functor {
         new cugraph::c_api::cugraph_type_erased_device_array_t(dst, graph_->edge_type_),
         wgt ? new cugraph::c_api::cugraph_type_erased_device_array_t(*wgt, graph_->edge_type_)
             : NULL,
-        new cugraph::c_api::cugraph_type_erased_device_array_t(edge_offsets, data_type_id_t::SIZE_T)};
+        new cugraph::c_api::cugraph_type_erased_device_array_t(edge_offsets,
+                                                               data_type_id_t::SIZE_T)};
     }
   }
 };
