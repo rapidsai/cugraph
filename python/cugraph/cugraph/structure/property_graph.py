@@ -547,7 +547,7 @@ class EXPERIMENTAL__PropertyGraph:
         5  vtype        56       6
         6  vtype        96       7
         7  vtype        88       8
-       """
+        """
         if type(dataframe) not in _dataframe_types:
             raise TypeError(
                 "dataframe must be one of the following types: "
@@ -716,7 +716,7 @@ class EXPERIMENTAL__PropertyGraph:
         >>> pG = PropertyGraph()
         >>> pG.add_edge_data(df, type_name="etype", vertex_col_names=("src", "dst"))
         >>> vert_df = cudf.DataFrame({"vert_id": [99, 22, 98, 34, 97, 56, 96, 88],
-        ...                            "v_prop": [1, 2, 3, 4, 5, 6, 7, 8]})
+        ...                           "v_prop": [1, 2, 3, 4, 5, 6, 7, 8]})
         >>> pG.add_vertex_data(vert_df, type_name="vtype", vertex_col_name="vert_id")
         >>> pG.get_vertex_data().sort_index(axis=1)
         _TYPE_  _VERTEX_  v_prop
