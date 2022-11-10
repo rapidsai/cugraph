@@ -1704,9 +1704,9 @@ class EXPERIMENTAL__PropertyGraph:
         ...                           (96, 88, 11, "d"),
         ...                          ])
         >>> df2 = cudf.DataFrame(columns=["src", "dst", "edge_ids" ,"some_property"],
-        ...                      data=[(95, 24, 3, "a"),
-        ...                            (94, 36, 5, "b"),
-        ...                            (93, 88, 11, "d"),
+        ...                      data=[(95, 24, 2, "a"),
+        ...                            (94, 36, 4, "b"),
+        ...                            (93, 88, 8, "d"),
         ...                           ])
         >>> pG.add_edge_data(df,
         ...                  type_name="etype1",
