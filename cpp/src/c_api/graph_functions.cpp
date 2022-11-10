@@ -121,8 +121,9 @@ struct two_hop_neighbors_functor : public cugraph::c_api::abstract_functor {
         if (error_code_ != CUGRAPH_SUCCESS) return;
       }
 
-      auto graph = reinterpret_cast<
-        cugraph::graph_t<vertex_t, edge_t, weight_t, false, multi_gpu>*>(graph_->graph_);
+      auto graph =
+        reinterpret_cast<cugraph::graph_t<vertex_t, edge_t, weight_t, false, multi_gpu>*>(
+          graph_->graph_);
 
       auto graph_view = graph->view();
       auto number_map = reinterpret_cast<rmm::device_uvector<vertex_t>*>(graph_->number_map_);

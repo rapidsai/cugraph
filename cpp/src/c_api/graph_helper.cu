@@ -42,15 +42,13 @@ template rmm::device_uvector<int64_t> expand_sparse_offsets(
   int64_t base_vertex_id,
   rmm::cuda_stream_view const& stream);
 
-template rmm::device_uvector<int32_t> expand_sparse_offsets(
-  raft::device_span<size_t const> offsets,
-  int32_t base_vertex_id,
-  rmm::cuda_stream_view const& stream);
+template rmm::device_uvector<int32_t> expand_sparse_offsets(raft::device_span<size_t const> offsets,
+                                                            int32_t base_vertex_id,
+                                                            rmm::cuda_stream_view const& stream);
 
-template rmm::device_uvector<int64_t> expand_sparse_offsets(
-  raft::device_span<size_t const> offsets,
-  int64_t base_vertex_id,
-  rmm::cuda_stream_view const& stream);
+template rmm::device_uvector<int64_t> expand_sparse_offsets(raft::device_span<size_t const> offsets,
+                                                            int64_t base_vertex_id,
+                                                            rmm::cuda_stream_view const& stream);
 
 }  // namespace c_api
 }  // namespace cugraph
