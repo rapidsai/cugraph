@@ -30,5 +30,3 @@ cdef class SGGraph(_GPUGraph):
 cdef class MGGraph(_GPUGraph):
      pass
 
-cdef class SGGraph_From_CSR(_GPUGraph):
-     pass
