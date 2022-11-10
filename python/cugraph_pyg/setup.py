@@ -69,19 +69,14 @@ class CleanCommand(Command):
 
 cmdclass = versioneer.get_cmdclass()
 cmdclass["clean"] = CleanCommand
-PACKAGE_DATA = {key: ["*.pxd"] for key in find_packages(include=["cugraph*"])}
-
-PACKAGE_DATA["cugraph.experimental.datasets"].extend(
-    [
-        "cugraph/experimental/datasets/metadata/*.yaml",
-        "cugraph/experimental/datasets/*.yaml",
-    ]
-)
+# FIXME possibly remove this since there is no Cython code in cugraph_pyg
+PACKAGE_DATA = {key: ["*.pxd"] for key in find_packages(include=["cugraph_pyg*"])}
 
 
 setup(
-    name="cugraph",
-    description="cuGraph - RAPIDS GPU Graph Analytics",
+    name="cugraph_pyg",
+    description="cugraph_pyg - PyG support for cuGraph massive-scale,"
+    " ultra-fast GPU graph analytics.",
     version=versioneer.get_version(),
     classifiers=[
         # "Development Status :: 4 - Beta",
@@ -94,7 +89,7 @@ setup(
     # Include the separately-compiled shared library
     author="NVIDIA Corporation",
     setup_requires=["Cython>=0.29,<0.30"],
-    packages=find_packages(include=["cugraph", "cugraph.*"]),
+    packages=find_packages(include=["cugraph_pyg", "cugraph_pyg.*"]),
     package_data=PACKAGE_DATA,
     include_package_data=True,
     install_requires=INSTALL_REQUIRES,

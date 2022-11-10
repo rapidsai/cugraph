@@ -13,8 +13,9 @@
 
 import cugraph
 from cugraph.experimental import PropertyGraph
-from cugraph.experimental.pyg_extensions import to_pyg, CuGraphSampler
-from cugraph.gnn.pyg_extensions.data.cugraph_store import (
+from cugraph_pyg.data import to_pyg
+from cugraph_pyg.sampler import CuGraphSampler
+from cugraph_pyg.data.cugraph_store import (
     CuGraphTensorAttr,
     CuGraphEdgeAttr,
     EdgeLayout,

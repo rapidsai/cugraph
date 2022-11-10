@@ -101,6 +101,14 @@ if hasArg "--run-python-tests"; then
     cd ${CUGRAPH_ROOT}/benchmarks
     pytest -v -m "managedmem_on and poolallocator_on and tiny" --benchmark-disable
     echo "Ran Python benchmarks for cuGraph (running as tests) : return code was: $?, test script exit code is now: $EXITCODE"
+
+    echo "Python pytest for cugraph_pyg (single-GPU only)..."
+    conda list
+    cd ${CUGRAPH_ROOT}/python/cugraph_pyg/cugraph_pyg
+    # rmat is not tested because of MG testing
+    pytest --cache-clear --junitxml=${CUGRAPH_ROOT}/junit-cugraph-pytests.xml -v --cov-config=.coveragerc --cov=cugraph_pyg --cov-report=xml:${WORKSPACE}/python/cugraph_pyg/cugraph-coverage.xml --cov-report term --ignore=raft --ignore=tests/mg --ignore=tests/generators --benchmark-disable
+    echo "Ran Python pytest for cugraph_pyg : return code was: $?, test script exit code is now: $EXITCODE"
+    
 fi
 
 echo "Test script exiting with value: $EXITCODE"
