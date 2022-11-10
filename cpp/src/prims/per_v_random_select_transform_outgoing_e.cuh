@@ -240,6 +240,7 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
                                 std::optional<T> invalid_value,
                                 bool do_expensive_check)
 {
+#ifndef NO_CUGRAPH_OPS
   using vertex_t = typename GraphViewType::vertex_type;
   using edge_t   = typename GraphViewType::edge_type;
   using weight_t = typename GraphViewType::weight_type;
@@ -412,7 +413,6 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
   rmm::device_uvector<edge_t> sample_nbr_indices(frontier.size() * K, handle.get_stream());
   // FIXME: get_sampling_index is inefficient when degree >> K & with_replacement = false
   if (frontier_degrees.size() > 0) {
-#ifndef NO_CUGRAPH_OPS
     cugraph::ops::gnn::graph::get_sampling_index(sample_nbr_indices.data(),
                                                  rng_state,
                                                  frontier_degrees.data(),
@@ -420,9 +420,6 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
                                                  static_cast<int32_t>(K),
                                                  with_replacement,
                                                  handle.get_stream());
-#else
-    CUGRAPH_FAIL("unimplemented.");
-#endif
   }
   frontier_degrees.resize(0, handle.get_stream());
   frontier_degrees.shrink_to_fit(handle.get_stream());
@@ -717,6 +714,9 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
   }
 
   return std::make_tuple(std::move(sample_offsets), std::move(sample_e_op_results));
+#else
+    CUGRAPH_FAIL("unimplemented.");
+#endif
 }
 
 }  // namespace detail
