@@ -216,15 +216,16 @@ def sample_pg(
     sgs_obj,
     sgs_src_range_obj,
     sg_node_dtype,
-    nodes_cap,
+    nodes_ar,
     replace,
     fanout,
     edge_dir,
 ):
-    if isinstance(nodes_cap, dict):
-        nodes = {t: cudf.from_dlpack(n) for t, n in nodes_cap.items()}
+
+    if isinstance(nodes_ar, dict):
+        nodes = {t: create_cudf_series_from_node_ar(n) for t, n in nodes_ar.items()}
     else:
-        nodes = cudf.from_dlpack(nodes_cap)
+        nodes = create_cudf_series_from_node_ar(nodes_ar)
 
     if isinstance(pg, MGPropertyGraph):
         sample_f = cugraph.dask.uniform_neighbor_sample
@@ -280,3 +281,10 @@ def sample_pg(
             sampled_df[dst_n].values,
             sampled_df["indices"].values,
         )
+
+
+def create_cudf_series_from_node_ar(node_ar):
+    if type(node_ar).__name__ == "PyCapsule":
+        return cudf.from_dlpack(node_ar)
+    else:
+        return cudf.Series(node_ar)

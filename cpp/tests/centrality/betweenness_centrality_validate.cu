@@ -32,7 +32,7 @@ void betweenness_centrality_validate(
   std::optional<rmm::device_uvector<vertex_t>>& d_reference_vertex_ids,
   rmm::device_uvector<weight_t>& d_reference_results)
 {
-  auto compare_functor = cugraph::test::nearly_equal<weight_t>{
+  auto compare_functor = cugraph::test::device_nearly_equal<weight_t>{
     weight_t{1e-3},
     weight_t{(weight_t{1} / static_cast<weight_t>(d_cugraph_results.size())) * weight_t{1e-3}}};
 
@@ -69,7 +69,7 @@ void edge_betweenness_centrality_validate(raft::handle_t const& handle,
                                           rmm::device_uvector<vertex_t>& d_reference_dst_vertex_ids,
                                           rmm::device_uvector<weight_t>& d_reference_results)
 {
-  auto compare_functor = cugraph::test::nearly_equal<weight_t>{
+  auto compare_functor = cugraph::test::device_nearly_equal<weight_t>{
     weight_t{1e-3},
     weight_t{(weight_t{1} / static_cast<weight_t>(d_reference_results.size())) * weight_t{1e-3}}};
 

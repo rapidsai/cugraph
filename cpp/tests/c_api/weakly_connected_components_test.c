@@ -117,11 +117,30 @@ int test_weakly_connected_components()
   return generic_wcc_test(h_src, h_dst, h_wgt, h_result, num_vertices, num_edges, FALSE);
 }
 
+int test_weakly_connected_components_transpose()
+{
+  size_t num_edges    = 32;
+  size_t num_vertices = 12;
+
+  vertex_t h_src[]    = {0, 1, 1, 2, 2, 2, 3, 4, 6, 7, 7,  8, 8, 8, 9,  10,
+                      1, 3, 4, 0, 1, 3, 5, 5, 7, 9, 10, 6, 7, 9, 11, 11};
+  vertex_t h_dst[]    = {1, 3, 4, 0, 1, 3, 5, 5, 7, 9, 10, 6, 7, 9, 11, 11,
+                      0, 1, 1, 2, 2, 2, 3, 4, 6, 7, 7,  8, 8, 8, 9,  10};
+  weight_t h_wgt[]    = {1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+                      1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+                      1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
+  vertex_t h_result[] = {0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1};
+
+  // WCC wants store_transposed = FALSE
+  return generic_wcc_test(h_src, h_dst, h_wgt, h_result, num_vertices, num_edges, TRUE);
+}
+
 /******************************************************************************/
 
 int main(int argc, char** argv)
 {
   int result = 0;
   result |= RUN_TEST(test_weakly_connected_components);
+  result |= RUN_TEST(test_weakly_connected_components_transpose);
   return result;
 }
