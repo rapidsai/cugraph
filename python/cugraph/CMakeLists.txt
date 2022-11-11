@@ -33,6 +33,12 @@ project(
 option(FIND_CUGRAPH_CPP "Search for existing CUGRAPH C++ installations before defaulting to local files"
        OFF
 )
+option(USE_CUGRAPH_OPS "Enable all functions that call cugraph-ops" ON)
+
+if(NOT USE_CUGRAPH_OPS)
+    message(STATUS "Disabling libcugraph functions that reference cugraph-ops")
+    add_compile_definitions(NO_CUGRAPH_OPS)
+endif()
 
 # If the user requested it,  we attempt to find CUGRAPH.
 if(FIND_CUGRAPH_CPP)

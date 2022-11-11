@@ -250,8 +250,14 @@ if buildAll || hasArg pylibcugraph; then
     # setup.py references an env var CUGRAPH_BUILD_PATH to find the libcugraph
     # build. If not set by the user, set it to LIBCUGRAPH_BUILD_DIR
     CUGRAPH_BUILD_PATH=${CUGRAPH_BUILD_PATH:=${LIBCUGRAPH_BUILD_DIR}}
-    python setup.py build_ext --inplace -- -DFIND_CUGRAPH_CPP=ON \
-           -Dcugraph_ROOT=${LIBCUGRAPH_BUILD_DIR} -- -j${PARALLEL_LEVEL:-1}
+    python setup.py build_ext \
+	   --inplace \
+	   -- \
+	   -DFIND_CUGRAPH_CPP=ON \
+	   -DUSE_CUGRAPH_OPS=${BUILD_WITH_CUGRAPHOPS} \
+           -Dcugraph_ROOT=${LIBCUGRAPH_BUILD_DIR} \
+	   -- \
+	   -j${PARALLEL_LEVEL:-1}
     if [[ ${INSTALL_TARGET} != "" ]]; then
 	env CUGRAPH_BUILD_PATH=${CUGRAPH_BUILD_PATH} python setup.py ${PYTHON_INSTALL}
     fi
@@ -264,8 +270,14 @@ if buildAll || hasArg cugraph; then
     # setup.py references an env var CUGRAPH_BUILD_PATH to find the libcugraph
     # build. If not set by the user, set it to LIBCUGRAPH_BUILD_DIR
     CUGRAPH_BUILD_PATH=${CUGRAPH_BUILD_PATH:=${LIBCUGRAPH_BUILD_DIR}}
-    python setup.py build_ext --inplace -- -DFIND_CUGRAPH_CPP=ON \
-           -Dcugraph_ROOT=${LIBCUGRAPH_BUILD_DIR} -- -j${PARALLEL_LEVEL:-1}
+    python setup.py build_ext \
+	   --inplace \
+	   -- \
+	   -DFIND_CUGRAPH_CPP=ON \
+	   -DUSE_CUGRAPH_OPS=${BUILD_WITH_CUGRAPHOPS} \
+           -Dcugraph_ROOT=${LIBCUGRAPH_BUILD_DIR} \
+	   -- \
+	   -j${PARALLEL_LEVEL:-1}
     if [[ ${INSTALL_TARGET} != "" ]]; then
 	env CUGRAPH_BUILD_PATH=${CUGRAPH_BUILD_PATH} python setup.py ${PYTHON_INSTALL}
     fi
