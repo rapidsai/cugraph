@@ -715,7 +715,7 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
 
   return std::make_tuple(std::move(sample_offsets), std::move(sample_e_op_results));
 #else
-    CUGRAPH_FAIL("unimplemented.");
+  CUGRAPH_FAIL("unimplemented.");
 #endif
 }
 
