@@ -20,7 +20,7 @@ REPODIR=$(cd $(dirname $0); pwd)
 LIBCUGRAPH_BUILD_DIR=${LIBCUGRAPH_BUILD_DIR:=${REPODIR}/cpp/build}
 LIBCUGRAPH_ETL_BUILD_DIR=${LIBCUGRAPH_ETL_BUILD_DIR:=${REPODIR}/cpp/libcugraph_etl/build}
 
-VALIDARGS="clean uninstall uninstall_cmake_deps libcugraph libcugraph_etl cugraph pylibcugraph cpp-mgtests docs -v -g -n --pydevelop --allgpuarch --skip_cpp_tests --cmake_default_generator -h --help"
+VALIDARGS="clean uninstall uninstall_cmake_deps libcugraph libcugraph_etl cugraph pylibcugraph cpp-mgtests cugraph-dgl docs -v -g -n --pydevelop --allgpuarch --skip_cpp_tests --cmake_default_generator -h --help"
 HELP="$0 [<target> ...] [<flag> ...]
  where <target> is:
    clean                      - remove all existing build artifacts and configuration (start over)
@@ -31,6 +31,7 @@ HELP="$0 [<target> ...] [<flag> ...]
    cugraph                    - build the cugraph Python package
    pylibcugraph               - build the pylibcugraph Python package
    cpp-mgtests                - build libcugraph and libcugraph_etl MG tests. Builds MPI communicator, adding MPI as a dependency.
+   cugraph-dgl                - build the cugraph-dgl extensions for DGL
    docs                       - build the docs
  and <flag> is:
    -v                         - verbose build mode
@@ -262,6 +263,14 @@ if buildAll || hasArg cugraph; then
            -Dcugraph_ROOT=${LIBCUGRAPH_BUILD_DIR} -- -j${PARALLEL_LEVEL:-1}
     if [[ ${INSTALL_TARGET} != "" ]]; then
 	env CUGRAPH_BUILD_PATH=${CUGRAPH_BUILD_PATH} python setup.py ${PYTHON_INSTALL}
+    fi
+fi
+
+# Build and install the cugraph-dgl extensions for DGL
+if buildAll || hasArg cugraph-dgl; then
+    if [[ ${INSTALL_TARGET} != "" ]]; then
+        cd ${REPODIR}/python/cugraph-dgl
+	python setup.py ${PYTHON_INSTALL}
     fi
 fi
 
