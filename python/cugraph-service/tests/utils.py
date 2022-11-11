@@ -47,7 +47,8 @@ def start_server_subprocess(
     """
     # Import modules under test here to prevent pytest collection errors if
     # code changes prevent these from being imported.
-    from cugraph_service_server import server
+    # Also check here that cugraph_service_server can be imported
+    import cugraph_service_server  # noqa: F401
     from cugraph_service_client import CugraphServiceClient
     from cugraph_service_client.exceptions import CugraphServiceError
 
@@ -55,7 +56,6 @@ def start_server_subprocess(
     env_dict = os.environ.copy()
     if env_additions is not None:
         env_dict.update(env_additions)
-    server_file = server.__file__
 
     # pytest will update sys.path based on the tests it discovers, and for this
     # source tree, an entry for the parent of this "tests" directory will be
@@ -67,7 +67,8 @@ def start_server_subprocess(
 
     args = [
         sys.executable,
-        server_file,
+        "-m",
+        "cugraph_service_server",
         "--host",
         host,
         "--port",
@@ -114,6 +115,7 @@ def start_server_subprocess(
     except Exception:
         if server_process is not None and server_process.poll() is None:
             server_process.terminate()
+            server_process.wait(timeout=60)
         raise
 
     return server_process
