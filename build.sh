@@ -20,7 +20,8 @@ REPODIR=$(cd $(dirname $0); pwd)
 LIBCUGRAPH_BUILD_DIR=${LIBCUGRAPH_BUILD_DIR:=${REPODIR}/cpp/build}
 LIBCUGRAPH_ETL_BUILD_DIR=${LIBCUGRAPH_ETL_BUILD_DIR:=${REPODIR}/cpp/libcugraph_etl/build}
 
-VALIDARGS="clean uninstall uninstall_cmake_deps libcugraph libcugraph_etl cugraph pylibcugraph cpp-mgtests cugraph-dgl docs -v -g -n --pydevelop --allgpuarch --skip_cpp_tests --cmake_default_generator -h --help"
+VALIDARGS="clean uninstall uninstall_cmake_deps libcugraph libcugraph_etl cugraph cugraph-service pylibcugraph cpp-mgtests cugraph-dgl docs -v -g -n --pydevelop --allgpuarch --skip_cpp_tests --cmake_default_generator -h --help"
+
 HELP="$0 [<target> ...] [<flag> ...]
  where <target> is:
    clean                      - remove all existing build artifacts and configuration (start over)
@@ -28,8 +29,9 @@ HELP="$0 [<target> ...] [<flag> ...]
    uninstall_cmake_deps       - uninstall headers from external dependencies installed by cmake (raft, rmm, cuco, etc.) (see also -n)
    libcugraph                 - build libcugraph.so and SG test binaries
    libcugraph_etl             - build libcugraph_etl.so and SG test binaries
-   cugraph                    - build the cugraph Python package
    pylibcugraph               - build the pylibcugraph Python package
+   cugraph                    - build the cugraph Python package
+   cugraph-service            - build the cugraph-service_client and cugraph-service_server Python package
    cpp-mgtests                - build libcugraph and libcugraph_etl MG tests. Builds MPI communicator, adding MPI as a dependency.
    cugraph-dgl                - build the cugraph-dgl extensions for DGL
    docs                       - build the docs
@@ -43,7 +45,7 @@ HELP="$0 [<target> ...] [<flag> ...]
    --cmake_default_generator  - use the default cmake generator instead of ninja
    -h                         - print this text
 
- default action (no args) is to build and install 'libcugraph' then 'libcugraph_etl' then 'pylibcugraph' then 'cugraph' targets
+ default action (no args) is to build and install 'libcugraph' then 'libcugraph_etl' then 'pylibcugraph' then 'cugraph' then 'cugraph-service' targets
 
  libcugraph build dir is: ${LIBCUGRAPH_BUILD_DIR}
 
@@ -75,7 +77,7 @@ function hasArg {
 }
 
 function buildAll {
-    (( ${NUMARGS} == 0 )) || !(echo " ${ARGS} " | grep -q " [^-]\+ ")
+    (( ${NUMARGS} == 0 )) || !(echo " ${ARGS} " | grep -q " [^-][a-zA-Z0-9\_\-]\+ ")
 }
 
 if hasArg -h || hasArg --help; then
@@ -263,6 +265,16 @@ if buildAll || hasArg cugraph; then
            -Dcugraph_ROOT=${LIBCUGRAPH_BUILD_DIR} -- -j${PARALLEL_LEVEL:-1}
     if [[ ${INSTALL_TARGET} != "" ]]; then
 	env CUGRAPH_BUILD_PATH=${CUGRAPH_BUILD_PATH} python setup.py ${PYTHON_INSTALL}
+    fi
+fi
+
+# Install the cugraph-service-client and cugraph-service-server Python packages
+if buildAll || hasArg cugraph-service; then
+    if [[ ${INSTALL_TARGET} != "" ]]; then
+        cd ${REPODIR}/python/cugraph-service/client
+	python setup.py ${PYTHON_INSTALL}
+        cd ${REPODIR}/python/cugraph-service/server
+	python setup.py ${PYTHON_INSTALL}
     fi
 fi
 
