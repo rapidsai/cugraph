@@ -912,12 +912,12 @@ renumber_edgelist(
                    handle.get_stream());
 
       kv_store_t<vertex_t, vertex_t, false> renumber_map(
-        handle,
         renumber_map_major_labels.begin(),
         renumber_map_major_labels.begin() + partition.local_edge_partition_major_range_size(i),
         thrust::make_counting_iterator(partition.local_edge_partition_major_range_first(i)),
         locally_unused_vertex_id,
-        invalid_vertex_id<vertex_t>::value);
+        invalid_vertex_id<vertex_t>::value,
+        handle.get_stream());
       auto renumber_map_view = renumber_map.view();
       renumber_map_view.find(edgelist_majors[i],
                              edgelist_majors[i] + edgelist_edge_counts[i],
@@ -947,13 +947,13 @@ renumber_edgelist(
                    handle.get_stream());
 
       kv_store_t<vertex_t, vertex_t, false> renumber_map(
-        handle,
         renumber_map_minor_labels.begin(),
         renumber_map_minor_labels.begin() + segment_size,
         thrust::make_counting_iterator(
           partition.vertex_partition_range_first(col_comm_rank * row_comm_size + i)),
         locally_unused_vertex_id,
-        invalid_vertex_id<vertex_t>::value);
+        invalid_vertex_id<vertex_t>::value,
+        handle.get_stream());
       auto renumber_map_view = renumber_map.view();
       for (size_t j = 0; j < edgelist_minors.size(); ++j) {
         renumber_map_view.find(
@@ -980,12 +980,12 @@ renumber_edgelist(
                       handle.get_stream());
 
     kv_store_t<vertex_t, vertex_t, false> renumber_map(
-      handle,
       renumber_map_minor_labels.begin(),
       renumber_map_minor_labels.begin() + renumber_map_minor_labels.size(),
       thrust::make_counting_iterator(partition.local_edge_partition_minor_range_first()),
       locally_unused_vertex_id,
-      invalid_vertex_id<vertex_t>::value);
+      invalid_vertex_id<vertex_t>::value,
+      handle.get_stream());
     auto renumber_map_view = renumber_map.view();
     for (size_t i = 0; i < edgelist_minors.size(); ++i) {
       renumber_map_view.find(edgelist_minors[i],
@@ -1038,12 +1038,12 @@ renumber_edgelist(raft::handle_t const& handle,
       std::vector<edge_t>{num_edgelist_edges});
 
   kv_store_t<vertex_t, vertex_t, false> renumber_map(
-    handle,
     renumber_map_labels.begin(),
     renumber_map_labels.begin() + renumber_map_labels.size(),
     thrust::make_counting_iterator(vertex_t{0}),
     locally_unused_vertex_id,
-    invalid_vertex_id<vertex_t>::value);
+    invalid_vertex_id<vertex_t>::value,
+    handle.get_stream());
   auto renumber_map_view = renumber_map.view();
   renumber_map_view.find(
     edgelist_majors, edgelist_majors + num_edgelist_edges, edgelist_majors, handle.get_stream());

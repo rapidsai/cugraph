@@ -194,13 +194,13 @@ void unrenumber_local_int_edges(
                    handle.get_stream());
 
       kv_store_t<vertex_t, vertex_t, false> renumber_map(
-        handle,
         thrust::make_counting_iterator(edge_partition_major_range_first),
         thrust::make_counting_iterator(edge_partition_major_range_first) +
           edge_partition_major_range_size,
         renumber_map_major_labels.begin(),
         invalid_vertex_id<vertex_t>::value,
-        invalid_vertex_id<vertex_t>::value);
+        invalid_vertex_id<vertex_t>::value,
+        handle.get_stream());
       auto renumber_map_view = renumber_map.view();
       renumber_map_view.find(edgelist_majors[i],
                              edgelist_majors[i] + edgelist_edge_counts[i],
@@ -245,12 +245,12 @@ void unrenumber_local_int_edges(
                    handle.get_stream());
 
       kv_store_t<vertex_t, vertex_t, false> renumber_map(
-        handle,
         thrust::make_counting_iterator(vertex_partition_minor_range_first),
         thrust::make_counting_iterator(vertex_partition_minor_range_first) + segment_size,
         renumber_map_minor_labels.begin(),
         invalid_vertex_id<vertex_t>::value,
-        invalid_vertex_id<vertex_t>::value);
+        invalid_vertex_id<vertex_t>::value,
+        handle.get_stream());
       auto renumber_map_view = renumber_map.view();
       for (size_t j = 0; j < edgelist_minors.size(); ++j) {
         renumber_map_view.find(
@@ -285,13 +285,13 @@ void unrenumber_local_int_edges(
                       handle.get_stream());
 
     kv_store_t<vertex_t, vertex_t, false> renumber_map(
-      handle,
       thrust::make_counting_iterator(edge_partition_minor_range_first),
       thrust::make_counting_iterator(edge_partition_minor_range_first) +
         renumber_map_minor_labels.size(),
       renumber_map_minor_labels.begin(),
       invalid_vertex_id<vertex_t>::value,
-      invalid_vertex_id<vertex_t>::value);
+      invalid_vertex_id<vertex_t>::value,
+      handle.get_stream());
     auto renumber_map_view = renumber_map.view();
     for (size_t i = 0; i < edgelist_minors.size(); ++i) {
       renumber_map_view.find(edgelist_minors[i],
@@ -366,20 +366,20 @@ void renumber_ext_vertices(raft::handle_t const& handle,
         handle.get_stream());
 
     renumber_map_ptr = std::make_unique<kv_store_t<vertex_t, vertex_t, false>>(
-      handle,
       sorted_unique_ext_vertices.begin(),
       sorted_unique_ext_vertices.begin() + sorted_unique_ext_vertices.size(),
       int_vertices_for_sorted_unique_ext_vertices.begin(),
       invalid_vertex_id<vertex_t>::value,
-      invalid_vertex_id<vertex_t>::value);
+      invalid_vertex_id<vertex_t>::value,
+      handle.get_stream());
   } else {
     renumber_map_ptr = std::make_unique<kv_store_t<vertex_t, vertex_t, false>>(
-      handle,
       renumber_map_labels,
       renumber_map_labels + (local_int_vertex_last - local_int_vertex_first),
       thrust::make_counting_iterator(vertex_t{0}),
       invalid_vertex_id<vertex_t>::value,
-      invalid_vertex_id<vertex_t>::value);
+      invalid_vertex_id<vertex_t>::value,
+      handle.get_stream());
   }
   auto renumber_map_view = renumber_map_ptr->view();
 
@@ -428,12 +428,12 @@ void renumber_local_ext_vertices(raft::handle_t const& handle,
   }
 
   kv_store_t<vertex_t, vertex_t, false> renumber_map(
-    handle,
     renumber_map_labels,
     renumber_map_labels + (local_int_vertex_last - local_int_vertex_first),
     thrust::make_counting_iterator(local_int_vertex_first),
     invalid_vertex_id<vertex_t>::value,
-    invalid_vertex_id<vertex_t>::value);
+    invalid_vertex_id<vertex_t>::value,
+    handle.get_stream());
   auto renumber_map_view = renumber_map.view();
 
   if (do_expensive_check) {
@@ -585,12 +585,12 @@ void unrenumber_int_vertices(raft::handle_t const& handle,
       shuffle_values(comm, tx_ext_vertices.begin(), rx_int_vertex_counts, handle.get_stream());
 
     kv_store_t<vertex_t, vertex_t, false> renumber_map(
-      handle,
       sorted_unique_int_vertices.begin(),
       sorted_unique_int_vertices.begin() + sorted_unique_int_vertices.size(),
       rx_ext_vertices_for_sorted_unique_int_vertices.begin(),
       invalid_vertex_id<vertex_t>::value,
-      invalid_vertex_id<vertex_t>::value);
+      invalid_vertex_id<vertex_t>::value,
+      handle.get_stream());
     auto renumber_map_view = renumber_map.view();
     renumber_map_view.find(vertices, vertices + num_vertices, vertices, handle.get_stream());
   } else {

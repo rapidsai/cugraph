@@ -16,7 +16,6 @@
 #pragma once
 
 #include <cuco/static_map.cuh>
-#include <raft/handle.hpp>
 #include <rmm/device_uvector.hpp>
 #include <rmm/mr/device/polymorphic_allocator.hpp>
 
@@ -147,6 +146,8 @@ struct kv_binary_search_store_view_t {
   using key_iterator   = KeyIterator;
   using value_iterator = ValueIterator;
 
+  static constexpr bool binary_search = false;
+
   kv_binary_search_store_view_t(KeyIterator key_first,
                                 KeyIterator key_last,
                                 ValueIterator value_first,
@@ -196,6 +197,8 @@ struct kv_cuco_store_view_t {
   using key_type       = key_t;
   using value_type     = typename thrust::iterator_traits<ValueIterator>::value_type;
   using value_iterator = ValueIterator;
+
+  static constexpr bool binary_search = false;
 
   using cuco_store_type =
     cuco::static_map<key_t,
@@ -261,15 +264,14 @@ struct kv_binary_search_store_t {
   using key_type   = key_t;
   using value_type = value_t;
 
-  kv_binary_search_store_t(raft::handle_t const& handle)
-    : keys(0, handle.get_stream()),
-      values(allocate_dataframe_buffer<value_t>(0, handle.get_stream()))
+  kv_binary_search_store_t(rmm::cuda_stream_view stream)
+    : keys(0, stream), values(allocate_dataframe_buffer<value_t>(0, stream))
   {
   }
 
-  kv_binary_search_store_t(raft::handle_t const& handle, size_t size, value_t invalid_value)
-    : keys(rmm::device_uvector<key_t>(size, handle.get_stream())),
-      values(allocate_dataframe_buffer<value_t>(size, handle.get_stream()))
+  kv_binary_search_store_t(size_t size, value_t invalid_value, rmm::cuda_stream_view stream)
+    : keys(rmm::device_uvector<key_t>(size, stream)),
+      values(allocate_dataframe_buffer<value_t>(size, stream))
   {
   }
 
@@ -289,35 +291,34 @@ struct kv_cuco_store_t {
                      cuda::thread_scope_device,
                      rmm::mr::stream_allocator_adaptor<rmm::mr::polymorphic_allocator<char>>>;
 
-  kv_cuco_store_t(raft::handle_t const& handle) {}
+  kv_cuco_store_t(rmm::cuda_stream_view stream) {}
 
-  kv_cuco_store_t(raft::handle_t const& handle,
-                  size_t size,
+  kv_cuco_store_t(size_t size,
                   key_t invalid_key,
-                  value_t invalid_value)
+                  value_t invalid_value,
+                  rmm::cuda_stream_view stream)
   {
     double constexpr load_factor = 0.7;
     auto cuco_size =
       std::max(static_cast<size_t>(static_cast<double>(size) / load_factor),
                static_cast<size_t>(size) + 1);  // cuco::static_map requires at least one empty slot
     auto stream_adapter = rmm::mr::make_stream_allocator_adaptor(
-      rmm::mr::polymorphic_allocator<char>(rmm::mr::get_current_device_resource()),
-      handle.get_stream());
+      rmm::mr::polymorphic_allocator<char>(rmm::mr::get_current_device_resource()), stream);
     if constexpr (std::is_arithmetic_v<value_t>) {
       cuco_store =
         std::make_unique<cuco_store_type>(cuco_size,
                                           cuco::sentinel::empty_key<key_t>{invalid_key},
                                           cuco::sentinel::empty_value<value_t>{invalid_value},
                                           stream_adapter,
-                                          handle.get_stream());
+                                          stream);
     } else {
       cuco_store = std::make_unique<cuco_store_type>(
         cuco_size,
         cuco::sentinel::empty_key<key_t>{invalid_key},
         cuco::sentinel::empty_value<size_t>{std::numeric_limits<size_t>::max()},
         stream_adapter,
-        handle.get_stream());
-      values = allocate_dataframe_buffer<value_t>(size, handle.get_stream());
+        stream);
+      values = allocate_dataframe_buffer<value_t>(size, stream);
     }
   }
 
@@ -337,26 +338,26 @@ class kv_store_t {
   static_assert(std::is_arithmetic_v<key_t>);
   static_assert(is_arithmetic_or_thrust_tuple_of_arithmetic<value_t>::value);
 
-  kv_store_t(raft::handle_t const& handle) : store_(handle) {}
+  kv_store_t(rmm::cuda_stream_view stream) : store_(stream) {}
 
   template <typename KeyIterator, typename ValueIterator, bool binary_search = use_binary_search>
-  kv_store_t(raft::handle_t const& handle,
-             KeyIterator key_first,
+  kv_store_t(KeyIterator key_first,
              KeyIterator key_last,
              ValueIterator value_first,
              value_t invalid_value,
              bool key_sorted,
+             rmm::cuda_stream_view stream,
              std::enable_if_t<binary_search, int32_t> = 0)
-    : store_(handle, static_cast<size_t>(thrust::distance(key_first, key_last)), invalid_value)
+    : store_(static_cast<size_t>(thrust::distance(key_first, key_last)), invalid_value, stream)
   {
-    thrust::copy(handle.get_thrust_policy(), key_first, key_last, store_.keys.begin());
+    thrust::copy(rmm::exec_policy(stream), key_first, key_last, store_.keys.begin());
     auto num_keys = static_cast<size_t>(thrust::distance(key_first, key_last));
-    thrust::copy(handle.get_thrust_policy(),
+    thrust::copy(rmm::exec_policy(stream),
                  value_first,
                  value_first + num_keys,
                  get_dataframe_buffer_begin(store_.values));
     if (!key_sorted) {
-      thrust::sort_by_key(handle.get_thrust_policy(),
+      thrust::sort_by_key(rmm::exec_policy(stream),
                           store_.keys.begin(),
                           store_.keys.end(),
                           get_dataframe_buffer_begin(store_.values));
@@ -364,17 +365,17 @@ class kv_store_t {
   }
 
   template <typename KeyIterator, typename ValueIterator, bool binary_search = use_binary_search>
-  kv_store_t(raft::handle_t const& handle,
-             KeyIterator key_first,
+  kv_store_t(KeyIterator key_first,
              KeyIterator key_last,
              ValueIterator value_first,
              key_t invalid_key,
              value_t invalid_value,
+             rmm::cuda_stream_view stream,
              std::enable_if_t<!binary_search, int32_t> = 0)
-    : store_(handle,
-             static_cast<size_t>(thrust::distance(key_first, key_last)),
+    : store_(static_cast<size_t>(thrust::distance(key_first, key_last)),
              invalid_key,
-             invalid_value)
+             invalid_value,
+             stream)
   {
     auto num_keys = static_cast<size_t>(thrust::distance(key_first, key_last));
     if constexpr (std::is_arithmetic_v<value_t>) {
@@ -383,7 +384,7 @@ class kv_store_t {
                                 pair_first + num_keys,
                                 cuco::detail::MurmurHash3_32<key_t>{},
                                 thrust::equal_to<key_t>{},
-                                handle.get_stream());
+                                stream);
     } else {
       auto pair_first = thrust::make_zip_iterator(
         thrust::make_tuple(key_first, thrust::make_counting_iterator(size_t{0})));
@@ -391,8 +392,8 @@ class kv_store_t {
                                 pair_first + num_keys,
                                 cuco::detail::MurmurHash3_32<key_t>{},
                                 thrust::equal_to<key_t>{},
-                                handle.get_stream());
-      thrust::copy(handle.get_thrust_policy(),
+                                stream);
+      thrust::copy(rmm::exec_policy(stream),
                    value_first,
                    value_first + num_keys,
                    get_dataframe_buffer_begin(*(store_.values)));
@@ -400,19 +401,19 @@ class kv_store_t {
   }
 
   template <bool binary_search = use_binary_search>
-  kv_store_t(raft::handle_t const& handle,
-             rmm::device_uvector<key_t>&& keys,
+  kv_store_t(rmm::device_uvector<key_t>&& keys,
              decltype(allocate_dataframe_buffer<value_t>(0, rmm::cuda_stream_view{}))&& values,
              value_t invalid_value,
              bool key_sorted,
+             rmm::cuda_stream_view stream,
              std::enable_if_t<binary_search, int32_t> = 0)
-    : store_(handle)
+    : store_(stream)
   {
     store_.keys          = std::move(keys);
     store_.values        = std::move(values);
     store_.invalid_value = invalid_value;
     if (!key_sorted) {
-      thrust::sort_by_key(handle.get_thrust_policy(),
+      thrust::sort_by_key(rmm::exec_policy(stream),
                           store_.keys.begin(),
                           store_.keys.end(),
                           get_dataframe_buffer_begin(store_.values));

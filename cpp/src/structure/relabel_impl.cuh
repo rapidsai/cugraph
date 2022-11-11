@@ -111,12 +111,12 @@ void relabel(raft::handle_t const& handle,
       // update intermediate relabel map
 
       kv_store_t<vertex_t, vertex_t, false> relabel_map(
-        handle,
         rx_label_pair_old_labels.begin(),
         rx_label_pair_old_labels.begin() + rx_label_pair_old_labels.size(),
         rx_label_pair_new_labels.begin(),
         invalid_vertex_id<vertex_t>::value,
-        invalid_vertex_id<vertex_t>::value);
+        invalid_vertex_id<vertex_t>::value,
+        handle.get_stream());
       auto relabel_map_view = relabel_map.view();
 
       rx_label_pair_old_labels.resize(0, handle.get_stream());
@@ -163,23 +163,23 @@ void relabel(raft::handle_t const& handle,
 
     {
       kv_store_t<vertex_t, vertex_t, false> relabel_map(
-        handle,
         unique_old_labels.begin(),
         unique_old_labels.begin() + unique_old_labels.size(),
         new_labels_for_unique_old_labels.begin(),
         invalid_vertex_id<vertex_t>::value,
-        invalid_vertex_id<vertex_t>::value);
+        invalid_vertex_id<vertex_t>::value,
+        handle.get_stream());
       auto relabel_map_view = relabel_map.view();
       relabel_map_view.find(labels, labels + num_labels, labels, handle.get_stream());
     }
   } else {
     kv_store_t<vertex_t, vertex_t, false> relabel_map(
-      handle,
       std::get<0>(old_new_label_pairs),
       std::get<0>(old_new_label_pairs) + num_label_pairs,
       std::get<1>(old_new_label_pairs),
       invalid_vertex_id<vertex_t>::value,
-      invalid_vertex_id<vertex_t>::value);
+      invalid_vertex_id<vertex_t>::value,
+      handle.get_stream());
     auto relabel_map_view = relabel_map.view();
     if (skip_missing_labels) {
       auto device_view = detail::kv_cuco_store_device_view_t(relabel_map_view);
