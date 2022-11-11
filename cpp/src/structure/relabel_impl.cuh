@@ -16,6 +16,7 @@
 #pragma once
 
 #include <detail/graph_utils.cuh>
+#include <prims/kv_store.cuh>
 
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_functions.hpp>
@@ -23,7 +24,6 @@
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/shuffle_comm.cuh>
 
-#include <cuco/static_map.cuh>
 #include <raft/handle.hpp>
 #include <rmm/device_uvector.hpp>
 #include <rmm/mr/device/per_device_resource.hpp>
@@ -58,8 +58,6 @@ void relabel(raft::handle_t const& handle,
              bool skip_missing_labels,
              bool do_expensive_check)
 {
-  double constexpr load_factor = 0.7;
-
   if (multi_gpu) {
     auto& comm           = handle.get_comms();
     auto const comm_size = comm.get_size();
@@ -112,26 +110,14 @@ void relabel(raft::handle_t const& handle,
 
       // update intermediate relabel map
 
-      auto poly_alloc =
-        rmm::mr::polymorphic_allocator<char>(rmm::mr::get_current_device_resource());
-      auto stream_adapter = rmm::mr::make_stream_allocator_adaptor(poly_alloc, handle.get_stream());
-      cuco::static_map<vertex_t, vertex_t, cuda::thread_scope_device, decltype(stream_adapter)>
-        relabel_map{// cuco::static_map requires at least one empty slot
-                    std::max(static_cast<size_t>(
-                               static_cast<double>(rx_label_pair_old_labels.size()) / load_factor),
-                             rx_label_pair_old_labels.size() + 1),
-                    cuco::sentinel::empty_key<vertex_t>{invalid_vertex_id<vertex_t>::value},
-                    cuco::sentinel::empty_value<vertex_t>{invalid_vertex_id<vertex_t>::value},
-                    stream_adapter,
-                    handle.get_stream()};
-
-      auto pair_first = thrust::make_zip_iterator(
-        thrust::make_tuple(rx_label_pair_old_labels.begin(), rx_label_pair_new_labels.begin()));
-      relabel_map.insert(pair_first,
-                         pair_first + rx_label_pair_old_labels.size(),
-                         cuco::detail::MurmurHash3_32<vertex_t>{},
-                         thrust::equal_to<vertex_t>{},
-                         handle.get_stream());
+      kv_store_t<vertex_t, vertex_t, false> relabel_map(
+        handle,
+        rx_label_pair_old_labels.begin(),
+        rx_label_pair_old_labels.begin() + rx_label_pair_old_labels.size(),
+        rx_label_pair_new_labels.begin(),
+        invalid_vertex_id<vertex_t>::value,
+        invalid_vertex_id<vertex_t>::value);
+      auto relabel_map_view = relabel_map.view();
 
       rx_label_pair_old_labels.resize(0, handle.get_stream());
       rx_label_pair_new_labels.resize(0, handle.get_stream());
@@ -151,24 +137,23 @@ void relabel(raft::handle_t const& handle,
           handle.get_stream());
 
         if (skip_missing_labels) {
-          thrust::transform(handle.get_thrust_policy(),
-                            rx_unique_old_labels.begin(),
-                            rx_unique_old_labels.end(),
-                            rx_unique_old_labels.begin(),
-                            [view = relabel_map.get_device_view()] __device__(auto old_label) {
-                              auto found = view.find(old_label);
-                              return found != view.end() ? view.find(old_label)->second.load(
-                                                             cuda::std::memory_order_relaxed)
-                                                         : old_label;
-                            });
+          auto device_view = detail::kv_cuco_store_device_view_t(relabel_map_view);
+          thrust::transform(
+            handle.get_thrust_policy(),
+            rx_unique_old_labels.begin(),
+            rx_unique_old_labels.end(),
+            rx_unique_old_labels.begin(),
+            [device_view,
+             invalid_value = invalid_vertex_id<vertex_t>::value] __device__(auto old_label) {
+              auto val = device_view.find(old_label);
+              return val != invalid_value ? val : old_label;
+            });
         } else {
-          relabel_map.find(rx_unique_old_labels.begin(),
-                           rx_unique_old_labels.end(),
-                           rx_unique_old_labels.begin(),
-                           cuco::detail::MurmurHash3_32<vertex_t>{},
-                           thrust::equal_to<vertex_t>{},
-                           handle.get_stream());  // now rx_unique_old_lables holds new labels for
-                                                  // the corresponding old labels
+          relabel_map_view.find(rx_unique_old_labels.begin(),
+                                rx_unique_old_labels.end(),
+                                rx_unique_old_labels.begin(),
+                                handle.get_stream());  // now rx_unique_old_lables holds new labels
+                                                       // for the corresponding old labels
         }
 
         std::tie(new_labels_for_unique_old_labels, std::ignore) = shuffle_values(
@@ -177,71 +162,39 @@ void relabel(raft::handle_t const& handle,
     }
 
     {
-      auto poly_alloc =
-        rmm::mr::polymorphic_allocator<char>(rmm::mr::get_current_device_resource());
-      auto stream_adapter = rmm::mr::make_stream_allocator_adaptor(poly_alloc, handle.get_stream());
-      cuco::static_map<vertex_t, vertex_t, cuda::thread_scope_device, decltype(stream_adapter)>
-        relabel_map{
-          // cuco::static_map requires at least one empty slot
-          std::max(static_cast<size_t>(static_cast<double>(unique_old_labels.size()) / load_factor),
-                   unique_old_labels.size() + 1),
-          cuco::sentinel::empty_key<vertex_t>{invalid_vertex_id<vertex_t>::value},
-          cuco::sentinel::empty_value<vertex_t>{invalid_vertex_id<vertex_t>::value},
-          stream_adapter,
-          handle.get_stream()};
-
-      auto pair_first = thrust::make_zip_iterator(
-        thrust::make_tuple(unique_old_labels.begin(), new_labels_for_unique_old_labels.begin()));
-      relabel_map.insert(pair_first,
-                         pair_first + unique_old_labels.size(),
-                         cuco::detail::MurmurHash3_32<vertex_t>{},
-                         thrust::equal_to<vertex_t>{},
-                         handle.get_stream());
-      relabel_map.find(labels,
-                       labels + num_labels,
-                       labels,
-                       cuco::detail::MurmurHash3_32<vertex_t>{},
-                       thrust::equal_to<vertex_t>{},
-                       handle.get_stream());
+      kv_store_t<vertex_t, vertex_t, false> relabel_map(
+        handle,
+        unique_old_labels.begin(),
+        unique_old_labels.begin() + unique_old_labels.size(),
+        new_labels_for_unique_old_labels.begin(),
+        invalid_vertex_id<vertex_t>::value,
+        invalid_vertex_id<vertex_t>::value);
+      auto relabel_map_view = relabel_map.view();
+      relabel_map_view.find(labels, labels + num_labels, labels, handle.get_stream());
     }
   } else {
-    auto poly_alloc = rmm::mr::polymorphic_allocator<char>(rmm::mr::get_current_device_resource());
-    auto stream_adapter = rmm::mr::make_stream_allocator_adaptor(poly_alloc, handle.get_stream());
-    cuco::static_map<vertex_t, vertex_t, cuda::thread_scope_device, decltype(stream_adapter)>
-      relabel_map(
-        // cuco::static_map requires at least one empty slot
-        std::max(static_cast<size_t>(static_cast<double>(num_label_pairs) / load_factor),
-                 static_cast<size_t>(num_label_pairs) + 1),
-        cuco::sentinel::empty_key<vertex_t>{invalid_vertex_id<vertex_t>::value},
-        cuco::sentinel::empty_value<vertex_t>{invalid_vertex_id<vertex_t>::value},
-        stream_adapter,
-        handle.get_stream());
-
-    auto pair_first = thrust::make_zip_iterator(
-      thrust::make_tuple(std::get<0>(old_new_label_pairs), std::get<1>(old_new_label_pairs)));
-    relabel_map.insert(pair_first,
-                       pair_first + num_label_pairs,
-                       cuco::detail::MurmurHash3_32<vertex_t>{},
-                       thrust::equal_to<vertex_t>{},
-                       handle.get_stream());
+    kv_store_t<vertex_t, vertex_t, false> relabel_map(
+      handle,
+      std::get<0>(old_new_label_pairs),
+      std::get<0>(old_new_label_pairs) + num_label_pairs,
+      std::get<1>(old_new_label_pairs),
+      invalid_vertex_id<vertex_t>::value,
+      invalid_vertex_id<vertex_t>::value);
+    auto relabel_map_view = relabel_map.view();
     if (skip_missing_labels) {
-      thrust::transform(handle.get_thrust_policy(),
-                        labels,
-                        labels + num_labels,
-                        labels,
-                        [view = relabel_map.get_device_view()] __device__(auto old_label) {
-                          auto found = view.find(old_label);
-                          return found != view.end() ? view.find(old_label)->second.load(
-                                                         cuda::std::memory_order_relaxed)
-                                                     : old_label;
-                        });
+      auto device_view = detail::kv_cuco_store_device_view_t(relabel_map_view);
+      thrust::transform(
+        handle.get_thrust_policy(),
+        labels,
+        labels + num_labels,
+        labels,
+        [device_view,
+         invalid_value = invalid_vertex_id<vertex_t>::value] __device__(auto old_label) {
+          auto val = device_view.find(old_label);
+          return val != invalid_value ? val : old_label;
+        });
     } else {
-      relabel_map.find(labels,
-                       labels + num_labels,
-                       labels,
-                       cuco::detail::MurmurHash3_32<vertex_t>{},
-                       thrust::equal_to<vertex_t>{},
-                       handle.get_stream());
+      relabel_map_view.find(labels, labels + num_labels, labels, handle.get_stream());
     }
   }
 
