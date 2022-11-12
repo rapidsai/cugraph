@@ -81,11 +81,13 @@ struct kv_binary_search_store_device_view_t {
   using key_type   = typename ViewType::key_type;
   using value_type = typename ViewType::value_type;
 
-  __host__ kv_binary_search_store_device_view_t(ViewType view, value_type invalid_val)
+  static_assert(ViewType::binary_search);
+
+  __host__ kv_binary_search_store_device_view_t(ViewType view)
     : store_key_first(view.store_key_first),
       store_key_last(view.store_key_last),
       store_value_first(view.store_value_first),
-      invalid_value(invalid_val)
+      invalid_value(view.invalid_value)
   {
   }
 
@@ -110,6 +112,8 @@ struct kv_cuco_store_device_view_t {
   using key_type                    = typename ViewType::key_type;
   using value_type                  = typename ViewType::value_type;
   using cuco_store_device_view_type = typename ViewType::cuco_store_type::device_view;
+
+  static_assert(!ViewType::binary_search);
 
   __host__ kv_cuco_store_device_view_t(ViewType view)
     : cuco_store(view.cuco_store->get_device_view()),

@@ -15,6 +15,8 @@
  */
 #pragma once
 
+#include <prims/kv_store.cuh>
+
 #include <cugraph/graph.hpp>
 #include <cugraph/utilities/dataframe_buffer.hpp>
 #include <cugraph/utilities/host_scalar_comm.hpp>
@@ -47,66 +49,25 @@
 
 namespace cugraph {
 
-// for key = [map_key_first, map_key_last), key_to_gpu_id_op(key) should be coincide with
-// comm.get_rank()
-template <typename VertexIterator0,
-          typename VertexIterator1,
-          typename ValueIterator,
-          typename KeyToGPUIdOp>
-decltype(allocate_dataframe_buffer<typename thrust::iterator_traits<ValueIterator>::value_type>(
-  0, cudaStream_t{nullptr}))
+// for the keys in kv_store_view, key_to_gpu_id_op(key) should coincide with comm.get_rank()
+template <typename KVStoreViewType, typename KeyIterator, typename KeyToGPUIdOp>
+decltype(allocate_dataframe_buffer<typename KVStoreViewType::value_type>(0,
+                                                                         rmm::cuda_stream_view{}))
 collect_values_for_keys(raft::comms::comms_t const& comm,
-                        VertexIterator0 map_key_first,
-                        VertexIterator0 map_key_last,
-                        ValueIterator map_value_first,
-                        VertexIterator1 collect_key_first,
-                        VertexIterator1 collect_key_last,
+                        KVStoreViewType kv_store_view,
+                        KeyIterator collect_key_first,
+                        KeyIterator collect_key_last,
                         KeyToGPUIdOp key_to_gpu_id_op,
-#if 1  // FIXME: this is unnecessary if we use a binary tree instead of cuco::static_map, need to
-       // compare the two approaches
-                        typename thrust::iterator_traits<VertexIterator0>::value_type invalid_key,
-                        typename thrust::iterator_traits<ValueIterator>::value_type invalid_value,
-#endif
                         rmm::cuda_stream_view stream_view)
 {
-  using vertex_t = typename thrust::iterator_traits<VertexIterator0>::value_type;
-  static_assert(
-    std::is_same_v<typename thrust::iterator_traits<VertexIterator1>::value_type, vertex_t>);
-  using value_t = typename thrust::iterator_traits<ValueIterator>::value_type;
+  using key_t = typename KVStoreViewType::key_type;
+  static_assert(std::is_same_v<typename thrust::iterator_traits<KeyIterator>::value_type, key_t>);
+  using value_t = typename KVStoreViewType::value_type;
 
-  double constexpr load_factor = 0.7;
+  // 1. collect values for the unique keys in [collect_key_first, collect_key_last)
 
-  // FIXME: we may compare the performance & memory footprint of this hash based approach vs binary
-  // search based approach (especially when thrust::distance(collect_key_first, collect_key_last) <<
-  // thrust::distance(map_key_first, map_key_last)
-
-  // 1. build a cuco::static_map object for the map k, v pairs.
-
-  auto poly_alloc = rmm::mr::polymorphic_allocator<char>(rmm::mr::get_current_device_resource());
-  auto stream_adapter = rmm::mr::make_stream_allocator_adaptor(poly_alloc, stream_view);
-  auto kv_map_ptr     = std::make_unique<
-    cuco::static_map<vertex_t, value_t, cuda::thread_scope_device, decltype(stream_adapter)>>(
-    // cuco::static_map requires at least one empty slot
-    std::max(static_cast<size_t>(
-               static_cast<double>(thrust::distance(map_key_first, map_key_last)) / load_factor),
-             static_cast<size_t>(thrust::distance(map_key_first, map_key_last)) + 1),
-    cuco::sentinel::empty_key<vertex_t>{invalid_key},
-    cuco::sentinel::empty_value<value_t>{invalid_value},
-    stream_adapter,
-    stream_view);
-  {
-    auto pair_first = thrust::make_zip_iterator(thrust::make_tuple(map_key_first, map_value_first));
-    kv_map_ptr->insert(pair_first,
-                       pair_first + thrust::distance(map_key_first, map_key_last),
-                       cuco::detail::MurmurHash3_32<vertex_t>{},
-                       thrust::equal_to<vertex_t>{},
-                       stream_view);
-  }
-
-  // 2. collect values for the unique keys in [collect_key_first, collect_key_last)
-
-  rmm::device_uvector<vertex_t> unique_keys(thrust::distance(collect_key_first, collect_key_last),
-                                            stream_view);
+  rmm::device_uvector<key_t> unique_keys(thrust::distance(collect_key_first, collect_key_last),
+                                         stream_view);
   thrust::copy(
     rmm::exec_policy(stream_view), collect_key_first, collect_key_last, unique_keys.begin());
   thrust::sort(rmm::exec_policy(stream_view), unique_keys.begin(), unique_keys.end());
@@ -116,9 +77,9 @@ collect_values_for_keys(raft::comms::comms_t const& comm,
       thrust::unique(rmm::exec_policy(stream_view), unique_keys.begin(), unique_keys.end())),
     stream_view);
 
-  rmm::device_uvector<value_t> values_for_unique_keys(0, stream_view);
+  auto values_for_unique_keys = allocate_dataframe_buffer<value_t>(0, stream_view);
   {
-    rmm::device_uvector<vertex_t> rx_unique_keys(0, stream_view);
+    rmm::device_uvector<key_t> rx_unique_keys(0, stream_view);
     std::vector<size_t> rx_value_counts{};
     std::tie(rx_unique_keys, rx_value_counts) = groupby_gpu_id_and_shuffle_values(
       comm,
@@ -127,72 +88,67 @@ collect_values_for_keys(raft::comms::comms_t const& comm,
       [key_to_gpu_id_op] __device__(auto val) { return key_to_gpu_id_op(val); },
       stream_view);
 
-    rmm::device_uvector<value_t> values_for_rx_unique_keys(rx_unique_keys.size(), stream_view);
+    auto values_for_rx_unique_keys =
+      allocate_dataframe_buffer<value_t>(rx_unique_keys.size(), stream_view);
 
-    kv_map_ptr->find(rx_unique_keys.begin(),
-                     rx_unique_keys.end(),
-                     values_for_rx_unique_keys.begin(),
-                     cuco::detail::MurmurHash3_32<vertex_t>{},
-                     thrust::equal_to<vertex_t>{},
-                     stream_view);
+    kv_store_view.find(rx_unique_keys.begin(),
+                       rx_unique_keys.end(),
+                       get_dataframe_buffer_begin(values_for_rx_unique_keys),
+                       stream_view);
 
-    rmm::device_uvector<value_t> rx_values_for_unique_keys(0, stream_view);
+    auto rx_values_for_unique_keys = allocate_dataframe_buffer<value_t>(0, stream_view);
     std::tie(rx_values_for_unique_keys, std::ignore) =
       shuffle_values(comm, values_for_rx_unique_keys.begin(), rx_value_counts, stream_view);
 
     values_for_unique_keys = std::move(rx_values_for_unique_keys);
   }
 
-  // 3. re-build a cuco::static_map object for the k, v pairs in unique_keys,
-  // values_for_unique_keys.
+  // 2. build a kv_store_t object for the k, v pairs in unique_keys, values_for_unique_keys.
 
-  kv_map_ptr.reset();
-
-  kv_map_ptr = std::make_unique<
-    cuco::static_map<vertex_t, value_t, cuda::thread_scope_device, decltype(stream_adapter)>>(
-    // cuco::static_map requires at least one empty slot
-    std::max(static_cast<size_t>(static_cast<double>(unique_keys.size()) / load_factor),
-             unique_keys.size() + 1),
-    cuco::sentinel::empty_key<vertex_t>{invalid_key},
-    cuco::sentinel::empty_value<value_t>{invalid_value},
-    stream_adapter,
-    stream_view);
-  {
-    auto pair_first = thrust::make_zip_iterator(
-      thrust::make_tuple(unique_keys.begin(), values_for_unique_keys.begin()));
-    kv_map_ptr->insert(pair_first,
-                       pair_first + unique_keys.size(),
-                       cuco::detail::MurmurHash3_32<vertex_t>{},
-                       thrust::equal_to<vertex_t>{},
-                       stream_view);
+  kv_store_t<key_t, value_t, KVStoreViewType::binary_search> unique_key_value_store(stream_view);
+  if constexpr (KVStoreViewType::binary_search) {
+    unique_key_value_store = kv_store_t<key_t, value_t, true>(std::move(unique_keys),
+                                                              std::move(values_for_unique_keys),
+                                                              kv_store_view.invalid_value,
+                                                              false,
+                                                              stream_view);
+  } else {
+    unique_key_value_store =
+      kv_store_t<key_t, value_t, false>(unique_keys.begin(),
+                                        unique_keys.begin() + unique_keys.size(),
+                                        get_dataframe_buffer_begin(values_for_unique_keys),
+                                        kv_store_view.cuco_store->get_empty_key_sentinel(),
+                                        kv_store_view.cuco_store->get_empty_value_sentinel(),
+                                        stream_view);
   }
+  auto unique_key_value_store_view = unique_key_value_store.view();
 
-  // 4. find values for [collect_key_first, collect_key_last)
+  // 3. find values for [collect_key_first, collect_key_last)
 
   auto value_buffer = allocate_dataframe_buffer<value_t>(
     thrust::distance(collect_key_first, collect_key_last), stream_view);
-  kv_map_ptr->find(collect_key_first,
-                   collect_key_last,
-                   get_dataframe_buffer_begin(value_buffer),
-                   cuco::detail::MurmurHash3_32<vertex_t>{},
-                   thrust::equal_to<vertex_t>{},
-                   stream_view);
+  unique_key_value_store_view.find(
+    collect_key_first, collect_key_last, get_dataframe_buffer_begin(value_buffer), stream_view);
 
   return value_buffer;
 }
 
-// for the keys stored in kv_map, key_to_gpu_id_op(key) should be coincide with comm.get_rank()
-template <typename vertex_t, typename value_t, typename MapAllocator, typename KeyToGPUIdOp>
-std::tuple<rmm::device_uvector<vertex_t>,
-           decltype(allocate_dataframe_buffer<value_t>(0, cudaStream_t{nullptr}))>
+// for the keys in kv_store_view, key_to_gpu_id_op(key) should coincide with comm.get_rank()
+template <typename KVStoreViewType, typename KeyToGPUIdOp>
+std::tuple<rmm::device_uvector<typename KVStoreViewType::key_type>,
+           decltype(allocate_dataframe_buffer<typename KVStoreViewType::value_type>(
+             0, cudaStream_t{nullptr}))>
 collect_values_for_unique_keys(
   raft::comms::comms_t const& comm,
-  cuco::static_map<vertex_t, value_t, cuda::thread_scope_device, MapAllocator>& kv_map,
-  rmm::device_uvector<vertex_t>&& collect_unique_keys,
+  KVStoreViewType kv_store_view,
+  rmm::device_uvector<typename KVStoreViewType::key_type>&& collect_unique_keys,
   KeyToGPUIdOp key_to_gpu_id_op,
   rmm::cuda_stream_view stream_view)
 {
-  rmm::device_uvector<value_t> values_for_collect_unique_keys(0, stream_view);
+  using key_t   = typename KVStoreViewType::key_type;
+  using value_t = typename KVStoreViewType::value_type;
+
+  auto values_for_collect_unique_keys = allocate_dataframe_buffer<value_t>(0, stream_view);
   {
     auto [rx_unique_keys, rx_value_counts] = groupby_gpu_id_and_shuffle_values(
       comm,
@@ -200,79 +156,18 @@ collect_values_for_unique_keys(
       collect_unique_keys.end(),
       [key_to_gpu_id_op] __device__(auto val) { return key_to_gpu_id_op(val); },
       stream_view);
-    rmm::device_uvector<value_t> values_for_rx_unique_keys(rx_unique_keys.size(), stream_view);
-    kv_map.find(rx_unique_keys.begin(),
-                rx_unique_keys.end(),
-                values_for_rx_unique_keys.begin(),
-                cuco::detail::MurmurHash3_32<vertex_t>{},
-                thrust::equal_to<vertex_t>{},
-                stream_view);
+    auto values_for_rx_unique_keys =
+      allocate_dataframe_buffer<value_t>(rx_unique_keys.size(), stream_view);
+    kv_store_view.find(rx_unique_keys.begin(),
+                       rx_unique_keys.end(),
+                       get_dataframe_buffer_begin(values_for_rx_unique_keys),
+                       stream_view);
 
-    std::tie(values_for_collect_unique_keys, std::ignore) =
-      shuffle_values(comm, values_for_rx_unique_keys.begin(), rx_value_counts, stream_view);
+    std::tie(values_for_collect_unique_keys, std::ignore) = shuffle_values(
+      comm, get_dataframe_buffer_begin(values_for_rx_unique_keys), rx_value_counts, stream_view);
   }
 
   return std::make_tuple(std::move(collect_unique_keys), std::move(values_for_collect_unique_keys));
-}
-
-// for key = [map_key_first, map_key_last), key_to_gpu_id_op(key) should be coincide with
-// comm.get_rank()
-template <typename VertexIterator, typename ValueIterator, typename KeyToGPUIdOp>
-std::tuple<
-  rmm::device_uvector<typename thrust::iterator_traits<VertexIterator>::value_type>,
-  decltype(allocate_dataframe_buffer<typename thrust::iterator_traits<ValueIterator>::value_type>(
-    0, cudaStream_t{nullptr}))>
-collect_values_for_unique_keys(
-  raft::comms::comms_t const& comm,
-  VertexIterator map_key_first,
-  VertexIterator map_key_last,
-  ValueIterator map_value_first,
-  rmm::device_uvector<typename thrust::iterator_traits<VertexIterator>::value_type>&&
-    collect_unique_keys,
-  KeyToGPUIdOp key_to_gpu_id_op,
-#if 1  // FIXME: this is unnecessary if we use a binary tree instead of cuco::static_map, need to
-       // compare the two approaches
-  typename thrust::iterator_traits<VertexIterator>::value_type invalid_key,
-  typename thrust::iterator_traits<ValueIterator>::value_type invalid_value,
-#endif
-  rmm::cuda_stream_view stream_view)
-{
-  using vertex_t = typename thrust::iterator_traits<VertexIterator>::value_type;
-  using value_t  = typename thrust::iterator_traits<ValueIterator>::value_type;
-
-  double constexpr load_factor = 0.7;
-
-  // FIXME: we may compare the performance & memory footprint of this hash based approach vs binary
-  // search based approach (especially when thrust::distance(collect_unique_key_first,
-  // collect_unique_key_last) << thrust::distance(map_key_first, map_key_last)
-
-  // 1. build a cuco::static_map object for the map k, v pairs.
-
-  auto poly_alloc = rmm::mr::polymorphic_allocator<char>(rmm::mr::get_current_device_resource());
-  auto stream_adapter = rmm::mr::make_stream_allocator_adaptor(poly_alloc, stream_view);
-  cuco::static_map<vertex_t, value_t, cuda::thread_scope_device, decltype(stream_adapter)> kv_map(
-    // cuco::static_map requires at least one empty slot
-    std::max(static_cast<size_t>(
-               static_cast<double>(thrust::distance(map_key_first, map_key_last)) / load_factor),
-             static_cast<size_t>(thrust::distance(map_key_first, map_key_last)) + 1),
-    cuco::sentinel::empty_key<vertex_t>{invalid_key},
-    cuco::sentinel::empty_value<value_t>{invalid_value},
-    stream_adapter,
-    stream_view);
-  {
-    auto pair_first = thrust::make_zip_iterator(thrust::make_tuple(map_key_first, map_value_first));
-    kv_map.insert(pair_first,
-                  pair_first + thrust::distance(map_key_first, map_key_last),
-                  cuco::detail::MurmurHash3_32<vertex_t>{},
-                  thrust::equal_to<vertex_t>{},
-                  stream_view);
-  }
-
-  // 2. collect values for the unique keys in collect_unique_keys (elements in collect_unique_keys
-  // will be shuffled while colledting the values)
-
-  return collect_values_for_unique_keys<vertex_t, value_t, decltype(stream_adapter), KeyToGPUIdOp>(
-    comm, kv_map, std::move(collect_unique_keys), key_to_gpu_id_op, stream_view);
 }
 
 template <typename vertex_t, typename ValueIterator>

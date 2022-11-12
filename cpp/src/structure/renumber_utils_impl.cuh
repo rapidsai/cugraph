@@ -351,19 +351,22 @@ void renumber_ext_vertices(raft::handle_t const& handle,
                                       sorted_unique_ext_vertices.end())),
       handle.get_stream());
 
+    kv_store_t<vertex_t, vertex_t, false> local_renumber_map(
+      renumber_map_labels,
+      renumber_map_labels + (local_int_vertex_last - local_int_vertex_first),
+      thrust::make_counting_iterator(local_int_vertex_first),
+      invalid_vertex_id<vertex_t>::value,
+      invalid_vertex_id<vertex_t>::value,
+      handle.get_stream());  // map local external vertex IDs to local internal vertex IDs
+
     rmm::device_uvector<vertex_t> int_vertices_for_sorted_unique_ext_vertices(0,
                                                                               handle.get_stream());
     std::tie(sorted_unique_ext_vertices, int_vertices_for_sorted_unique_ext_vertices) =
-      collect_values_for_unique_keys(
-        comm,
-        renumber_map_labels,
-        renumber_map_labels + (local_int_vertex_last - local_int_vertex_first),
-        thrust::make_counting_iterator(local_int_vertex_first),
-        std::move(sorted_unique_ext_vertices),
-        detail::compute_gpu_id_from_ext_vertex_t<vertex_t>{comm_size},
-        invalid_vertex_id<vertex_t>::value,
-        invalid_vertex_id<vertex_t>::value,
-        handle.get_stream());
+      collect_values_for_unique_keys(comm,
+                                     local_renumber_map.view(),
+                                     std::move(sorted_unique_ext_vertices),
+                                     detail::compute_gpu_id_from_ext_vertex_t<vertex_t>{comm_size},
+                                     handle.get_stream());
 
     renumber_map_ptr = std::make_unique<kv_store_t<vertex_t, vertex_t, false>>(
       sorted_unique_ext_vertices.begin(),
