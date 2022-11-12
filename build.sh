@@ -63,7 +63,7 @@ BUILD_CPP_TESTS=ON
 BUILD_CPP_MG_TESTS=OFF
 BUILD_ALL_GPU_ARCH=0
 CMAKE_GENERATOR_OPTION="-G Ninja"
-PYTHON_INSTALL="install"
+PYTHON_ARGS_FOR_INSTALL="-m pip install ."
 
 # Set defaults for vars that may not have been defined externally
 #  FIXME: if PREFIX is not set, check CONDA_PREFIX, but there is no fallback
@@ -119,7 +119,7 @@ if hasArg --cmake_default_generator; then
     CMAKE_GENERATOR_OPTION=""
 fi
 if hasArg --pydevelop; then
-    PYTHON_INSTALL="develop"
+    PYTHON_ARGS_FOR_INSTALL="setup.py develop"
 fi
 
 # If clean or uninstall targets given, run them prior to any other steps
@@ -250,7 +250,7 @@ if buildAll || hasArg pylibcugraph; then
     python setup.py build_ext --inplace -- -DFIND_CUGRAPH_CPP=ON \
            -Dcugraph_ROOT=${LIBCUGRAPH_BUILD_DIR} -- -j${PARALLEL_LEVEL:-1}
     if [[ ${INSTALL_TARGET} != "" ]]; then
-	env CUGRAPH_BUILD_PATH=${CUGRAPH_BUILD_PATH} python setup.py ${PYTHON_INSTALL}
+	env CUGRAPH_BUILD_PATH=${CUGRAPH_BUILD_PATH} python ${PYTHON_ARGS_FOR_INSTALL}
     fi
 fi
 
@@ -264,7 +264,7 @@ if buildAll || hasArg cugraph; then
     python setup.py build_ext --inplace -- -DFIND_CUGRAPH_CPP=ON \
            -Dcugraph_ROOT=${LIBCUGRAPH_BUILD_DIR} -- -j${PARALLEL_LEVEL:-1}
     if [[ ${INSTALL_TARGET} != "" ]]; then
-	env CUGRAPH_BUILD_PATH=${CUGRAPH_BUILD_PATH} python setup.py ${PYTHON_INSTALL}
+	env CUGRAPH_BUILD_PATH=${CUGRAPH_BUILD_PATH} python ${PYTHON_ARGS_FOR_INSTALL}
     fi
 fi
 
@@ -272,9 +272,9 @@ fi
 if buildAll || hasArg cugraph-service; then
     if [[ ${INSTALL_TARGET} != "" ]]; then
         cd ${REPODIR}/python/cugraph-service/client
-	python setup.py ${PYTHON_INSTALL}
+	python ${PYTHON_ARGS_FOR_INSTALL}
         cd ${REPODIR}/python/cugraph-service/server
-	python setup.py ${PYTHON_INSTALL}
+	python ${PYTHON_ARGS_FOR_INSTALL}
     fi
 fi
 
@@ -282,7 +282,7 @@ fi
 if buildAll || hasArg cugraph-dgl; then
     if [[ ${INSTALL_TARGET} != "" ]]; then
         cd ${REPODIR}/python/cugraph-dgl
-	python setup.py ${PYTHON_INSTALL}
+	python ${PYTHON_ARGS_FOR_INSTALL}
     fi
 fi
 
