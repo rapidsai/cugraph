@@ -48,8 +48,6 @@ from pylibcugraph.louvain import louvain
 
 from pylibcugraph.triangle_count import triangle_count
 
-<<<<<<< HEAD
 from pylibcugraph.egonet import ego_graph
-=======
+
 from pylibcugraph.uniform_random_walks import uniform_random_walks
->>>>>>> upstream/branch-22.12
