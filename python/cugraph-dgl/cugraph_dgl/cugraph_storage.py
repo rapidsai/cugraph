@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2022, NVIDIA CORPORATION.
+# Copyright (c) 2022, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -11,14 +11,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Tuple
+
+import dgl
+import dgl.backend as F
+
 # NOTE: Requires cuGraph nightly cugraph-22.12.00a220417 or later
 from cugraph_dgl.utils.cugraph_storage_utils import _assert_valid_canonical_etype
 from cugraph_dgl.utils.cugraph_storage_utils import convert_can_etype_s_to_tup
 from cugraph_dgl.utils.cugraph_storage_utils import backend_dtype_to_np_dtype_dict
-
-import dgl
-import dgl.backend as F
-from typing import Tuple
 
 
 class CuGraphStorage:

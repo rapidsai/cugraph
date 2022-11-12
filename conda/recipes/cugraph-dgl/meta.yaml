@@ -1,4 +1,4 @@
-# Copyright (c) 2018-2022, NVIDIA CORPORATION.
+# Copyright (c) 2022, NVIDIA CORPORATION.
 
 # Usage:
 #   conda build -c rapidsai -c conda-forge -c nvidia .
@@ -14,6 +14,7 @@ source:
 
 build:
   number: {{ GIT_DESCRIBE_NUMBER }}
+  preserve_egg_dir: True
 
 requirements:
   host:
@@ -23,12 +24,15 @@ requirements:
   run:
     - python x.x
     - cugraph={{ version }}
+    - numba >=0.56.2
+    - numpy
     - dgl >=0.8
-    - torch
+    - pytorch
+    - cudatoolkit =11.6
 
 tests:                                 # [linux64]
   imports:                             # [linux64]
-    - cugraph                          # [linux64]
+    - cugraph_dgl                      # [linux64]
 
 about:
   home: http://rapids.ai/
