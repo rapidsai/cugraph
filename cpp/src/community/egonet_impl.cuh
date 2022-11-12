@@ -69,15 +69,15 @@ extract(raft::handle_t const& handle,
         bool do_expensive_check)
 {
   auto user_stream_view = handle.get_stream();
-  rmm::device_vector<size_t> neighbors_offsets(source_vertex.size() + 1);
-  rmm::device_vector<vertex_t> neighbors;
+  rmm::device_uvector<size_t> neighbors_offsets(source_vertex.size() + 1, user_stream_view);
+  rmm::device_uvector<vertex_t> neighbors(0, user_stream_view);
 
   std::vector<size_t> h_neighbors_offsets(source_vertex.size() + 1);
 
   // Streams will allocate concurrently later
   std::vector<rmm::device_uvector<vertex_t>> reached{};
   reached.reserve(source_vertex.size());
-  for (vertex_t i = 0; i < source_vertex.size(); i++) {
+  for (size_t i = 0; i < source_vertex.size(); i++) {
     // Allocations and operations are attached to the worker stream
     rmm::device_uvector<vertex_t> local_reach(graph_view.local_vertex_partition_range_size(),
                                               handle.get_next_usable_stream(i));
@@ -96,10 +96,10 @@ extract(raft::handle_t const& handle,
   // the vertices and search for matches until the frontiers
   // are large enough to use this approach?
 
-  for (vertex_t i = 0; i < source_vertex.size(); i++) {
+  for (size_t i = 0; i < source_vertex.size(); i++) {
     // get light handle from worker pool
     raft::handle_t light_handle(handle.get_next_usable_stream(i));
-    auto worker_stream_view = light_handle.get_stream();
+    auto worker_stream_view = multi_gpu ? handle.get_stream() : light_handle.get_stream();
 
     // BFS with cutoff
     // consider adding a device API to BFS (ie. accept source on the device)
@@ -108,10 +108,8 @@ extract(raft::handle_t const& handle,
                  reached[i].begin(),
                  reached[i].end(),
                  std::numeric_limits<vertex_t>::max());
-    thrust::fill(
-      rmm::exec_policy(worker_stream_view), reached[i].begin(), reached[i].begin() + 100, 1.0);
 
-    cugraph::bfs<vertex_t, edge_t, weight_t, multi_gpu>(light_handle,
+    cugraph::bfs<vertex_t, edge_t, weight_t, multi_gpu>(multi_gpu ? handle : light_handle,
                                                         graph_view,
                                                         reached[i].data(),
                                                         nullptr,
@@ -137,6 +135,7 @@ extract(raft::handle_t const& handle,
                                       reached[i].begin(),
                                       reached[i].end(),
                                       std::numeric_limits<vertex_t>::max());
+
     // release temp storage
     reached[i].resize(thrust::distance(reached[i].begin(), reached_end), worker_stream_view);
     reached[i].shrink_to_fit(worker_stream_view);
@@ -147,18 +146,18 @@ extract(raft::handle_t const& handle,
 
   // Construct neighbors offsets (just a scan on neighborhod vector sizes)
   h_neighbors_offsets[0] = 0;
-  for (vertex_t i = 0; i < source_vertex.size(); i++) {
+  for (size_t i = 0; i < source_vertex.size(); i++) {
     h_neighbors_offsets[i + 1] = h_neighbors_offsets[i] + reached[i].size();
   }
-  raft::update_device(neighbors_offsets.data().get(),
+  raft::update_device(neighbors_offsets.data(),
                       &h_neighbors_offsets[0],
                       source_vertex.size() + 1,
                       user_stream_view.value());
-  neighbors.resize(h_neighbors_offsets[source_vertex.size()]);
+  neighbors.resize(h_neighbors_offsets[source_vertex.size()], user_stream_view.value());
   user_stream_view.synchronize();
 
   // Construct the neighbors list concurrently
-  for (vertex_t i = 0; i < source_vertex.size(); i++) {
+  for (size_t i = 0; i < source_vertex.size(); i++) {
     auto worker_stream_view = handle.get_next_usable_stream(i);
     thrust::copy(rmm::exec_policy(worker_stream_view),
                  reached[i].begin(),
@@ -182,8 +181,8 @@ extract(raft::handle_t const& handle,
   return cugraph::extract_induced_subgraphs(
     handle,
     graph_view,
-    raft::device_span<size_t const>(neighbors_offsets.data().get(), neighbors_offsets.size()),
-    raft::device_span<vertex_t const>(neighbors.data().get(), neighbors.size()),
+    raft::device_span<size_t const>(neighbors_offsets.data(), neighbors_offsets.size()),
+    raft::device_span<vertex_t const>(neighbors.data(), neighbors.size()),
     do_expensive_check);
 }
 
@@ -228,7 +227,7 @@ extract_ego(raft::handle_t const& handle,
             bool do_expensive_check)
 {
   CUGRAPH_EXPECTS(source_vertex.size() > 0, "Need at least one source to extract the egonet from");
-  CUGRAPH_EXPECTS(source_vertex.size() < graph_view.number_of_vertices(),
+  CUGRAPH_EXPECTS(source_vertex.size() < static_cast<size_t>(graph_view.number_of_vertices()),
                   "Can't have more sources to extract from than vertices in the graph");
   CUGRAPH_EXPECTS(radius > 0, "Radius should be at least 1");
   CUGRAPH_EXPECTS(radius < graph_view.number_of_vertices(), "radius is too large");

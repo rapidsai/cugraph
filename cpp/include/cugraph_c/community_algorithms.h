@@ -18,6 +18,7 @@
 
 #include <cugraph_c/error.h>
 #include <cugraph_c/graph.h>
+#include <cugraph_c/graph_functions.h>
 #include <cugraph_c/resource_handle.h>
 
 /** @defgroup community Community algorithms
