@@ -91,7 +91,6 @@ build.sh [<target> ...] [<flag> ...]
  where <target> is:
    clean                      - remove all existing build artifacts and configuration (start over)
    uninstall                  - uninstall libcugraph and cugraph from a prior build/install (see also -n)
-   uninstall_cmake_deps       - uninstall headers from external dependencies installed by cmake (raft, rmm, cuco, etc.) (see also -n)
    libcugraph                 - build libcugraph.so and SG test binaries
    libcugraph_etl             - build libcugraph_etl.so and SG test binaries
    pylibcugraph               - build the pylibcugraph Python package
@@ -108,6 +107,7 @@ build.sh [<target> ...] [<flag> ...]
    --allgpuarch               - build for all supported GPU architectures
    --skip_cpp_tests           - do not build the SG test binaries as part of the libcugraph and libcugraph_etl targets
    --cmake_default_generator  - use the default cmake generator instead of ninja
+   --clean                    - clean an individual target (note: to do a complete rebuild, use the clean target described above)
    -h                         - print this text
 
  default action (no args) is to build and install 'libcugraph' then 'libcugraph_etl' then 'pylibcugraph' then 'cugraph' then 'cugraph-service' targets
