@@ -59,7 +59,7 @@ CUGRAPH_SERVICE_BUILD_DIRS="${REPODIR}/python/cugraph-service/server/build
 CUGRAPH_DGL_BUILD_DIR=${REPODIR}/python/cugraph-dgl/build
 
 # All python build dirs using _skbuild are handled by cleanPythonDir, but
-# adding them here for cpompleteness
+# adding them here for completeness
 BUILD_DIRS="${LIBCUGRAPH_BUILD_DIR}
             ${LIBCUGRAPH_ETL_BUILD_DIR}
             ${PYLIBCUGRAPH_BUILD_DIR}
