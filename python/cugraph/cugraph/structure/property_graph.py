@@ -784,26 +784,34 @@ class EXPERIMENTAL__PropertyGraph:
 
         return None
 
-    def fillna(self, val=0, props_to_fill="both"):
+    def fillna_vertices(self, val=0):
         """
-        Fills empty property values with the given value, zero by default.
-        Can fill vertex properties, edge properties or both (default).
+        Fills empty vertex property values with the given value, zero by default.
         Fills in-place.
 
         Parameters
         ----------
-        val : object
-            The object that will replace "na". Default = 0
-        props_to_fill : 'vertex', 'edge', or 'both' (default)
-            Whether to fill vertex properties only, edge properties only,
-            or both vertex and edge properties (default).
+        val : object, cudf.Series, or dict
+            The object that will replace "na". Default = 0.  If a dict or
+            Series is passed, the index or keys are the columns to fill
+            and the values are the fill value for the corresponding column.
         """
-        if props_to_fill == "vertex" or props_to_fill == "both":
-            for prop in self.vertex_property_names:
-                self.__vertex_prop_dataframe[prop].fillna(val, inplace=True)
-        if props_to_fill == "edge" or props_to_fill == "both":
-            for prop in self.edge_property_names:
-                self.__edge_prop_dataframe[prop].fillna(val, inplace=True)
+        self.__vertex_prop_dataframe = self.__vertex_prop_dataframe.fillna(val)
+
+    def fillna_edges(self, val=0):
+        """
+        Fills empty edge property values with the given value, zero by default.
+        Fills in-place.
+
+        Parameters
+        ----------
+        val : object, cudf.Series, or dict
+            The object that will replace "na". Default = 0.  If a dict or
+            Series is passed, the index or keys are the columns to fill
+            and the values are the fill value for the corresponding column.
+        """
+
+        self.__edge_prop_dataframe = self.__edge_prop_dataframe.fillna(val)
 
     def select_vertices(self, expr, from_previous_selection=None):
         """
