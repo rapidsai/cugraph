@@ -18,6 +18,7 @@ import numpy as np
 import pandas as pd
 import cupy as cp
 from scipy.sparse import coo_matrix, csr_matrix
+from pylibcugraph import ResourceHandle, GraphProperties, SGGraph
 
 from pylibcugraph.testing import utils
 
@@ -198,12 +199,10 @@ def input_and_expected_output(request):
         num_verts = csr.get_shape()[0]
         num_edges = csr.nnz
 
-    offsets = cp.asarray(csr.indptr, dtype=np.int32)
-    indices = cp.asarray(csr.indices, dtype=np.int32)
     labels_to_populate = cp.zeros(num_verts, dtype=np.int32)
 
     return (
-        (offsets, indices, labels_to_populate, num_verts, num_edges),
+        (csr, labels_to_populate, num_verts, num_edges),
         expected_output_dict,
     )
 
@@ -264,9 +263,12 @@ def test_scc(input_and_expected_output):
     import pylibcugraph
 
     (
-        (cupy_offsets, cupy_indices, cupy_labels_to_populate, num_verts, num_edges),
+        (csr, cupy_labels_to_populate, num_verts, num_edges),
         expected_output_dict,
     ) = input_and_expected_output
+
+    cupy_offsets = cp.asarray(csr.indptr, dtype=np.int32)
+    cupy_indices = cp.asarray(csr.indices, dtype=np.int32)
 
     pylibcugraph.strongly_connected_components(
         cupy_offsets, cupy_indices, None, num_verts, num_edges, cupy_labels_to_populate
@@ -284,12 +286,26 @@ def test_wcc(input_and_expected_output):
     import pylibcugraph
 
     (
-        (cupy_offsets, cupy_indices, cupy_labels_to_populate, num_verts, num_edges),
+        (csr, cupy_labels_to_populate, num_verts, num_edges),
         expected_output_dict,
     ) = input_and_expected_output
 
+    # Symmetrize CSR matrix. WCC requires a symmetrized datasets
+    rows, cols = csr.nonzero()
+    csr[cols, rows] = csr[rows, cols]
+
+    cupy_offsets = cp.asarray(csr.indptr, dtype=np.int32)
+    cupy_indices = cp.asarray(csr.indices, dtype=np.int32)
+    cupy_weights = cp.asarray(csr.data, dtype=np.float32)
+
     pylibcugraph.weakly_connected_components(
-        cupy_offsets, cupy_indices, None, num_verts, num_edges, cupy_labels_to_populate
+        None,
+        None,
+        cupy_offsets,
+        cupy_indices,
+        cupy_weights,
+        cupy_labels_to_populate,
+        False,
     )
 
     _check_labels(
@@ -297,10 +313,10 @@ def test_wcc(input_and_expected_output):
     )
 
 
-@pytest.mark.parametrize(
-    "api_name", ["strongly_connected_components", "weakly_connected_components"]
-)
-def test_non_CAI_input(api_name):
+# FIXME: scc and wcc no longer have the same API (parameters in the
+# function definition): refactor this to consolidate both tests once the do
+@pytest.mark.parametrize("api_name", ["strongly_connected_components"])
+def test_non_CAI_input_scc(api_name):
     """
     Ensures that the *_connected_components() APIs only accepts instances of
     objects that have a __cuda_array_interface__
@@ -349,10 +365,10 @@ def test_non_CAI_input(api_name):
         )  # should raise, no __cuda_array_interface__
 
 
-@pytest.mark.parametrize(
-    "api_name", ["strongly_connected_components", "weakly_connected_components"]
-)
-def test_bad_dtypes(api_name):
+# FIXME: scc and wcc no longer have the same API:
+# refactor this to consolidate both tests once they do
+@pytest.mark.parametrize("api_name", ["strongly_connected_components"])
+def test_bad_dtypes_scc(api_name):
     """
     Ensures that only supported dtypes are accepted.
     """
@@ -408,4 +424,52 @@ def test_bad_dtypes(api_name):
             num_verts=num_verts,
             num_edges=num_edges,
             labels=cp_labels,
+        )
+
+
+def test_invalid_input_wcc():
+    """
+    Ensures that only supported dtypes are accepted.
+    """
+    import pylibcugraph
+
+    graph = [
+        [0, 1, 1, 0, 0],
+        [0, 0, 1, 0, 0],
+        [0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 1],
+        [0, 0, 0, 0, 0],
+    ]
+    scipy_csr = csr_matrix(graph)
+
+    sp_offsets = scipy_csr.indptr  # unsupported
+    sp_indices = scipy_csr.indices  # unsupported
+
+    resource_handle = ResourceHandle()
+    graph_props = GraphProperties(is_symmetric=True, is_multigraph=False)
+    with pytest.raises(TypeError):
+        pylibcugraph.weakly_connected_components(
+            resource_handle, None, sp_offsets, sp_indices, None, False
+        )
+
+    resource_handle = ResourceHandle()
+    cp_offsets = cp.asarray(scipy_csr.indptr)  # unsupported
+    cp_indices = cp.asarray(scipy_csr.indices)  # unsupported
+
+    G = SGGraph(
+        resource_handle,
+        graph_props,
+        cp_offsets,
+        cp_indices,
+        None,
+        store_transposed=False,
+        renumber=False,
+        do_expensive_check=True,
+        input_array_format="CSR",
+    )
+
+    # cannot set both a graph and csr arrays as input
+    with pytest.raises(TypeError):
+        pylibcugraph.weakly_connected_components(
+            resource_handle, G, cp_offsets, cp_indices, None, True
         )

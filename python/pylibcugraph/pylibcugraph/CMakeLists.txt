@@ -34,6 +34,7 @@ set(cython_sources
     uniform_neighbor_sample.pyx
     uniform_random_walks.pyx
     utils.pyx
+    weakly_connected_components.pyx
 )
 set(linked_libraries cugraph::cugraph;cugraph_c)
 
