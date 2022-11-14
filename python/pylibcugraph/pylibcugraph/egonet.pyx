@@ -96,27 +96,28 @@ def ego_graph(ResourceHandle resource_handle,
     Examples
     --------
     >>> import pylibcugraph, cupy, numpy
-    >>> srcs = cupy.asarray([0, 1, 2], dtype=numpy.int32)
-    >>> dsts = cupy.asarray([1, 2, 0], dtype=numpy.int32)
-    >>> weights = cupy.asarray([1.0, 1.0, 1.0], dtype=numpy.float32)
-    >>> source_vertices = cupy.asarray([1, 2], dtype=numpy.int32)
+    >>> srcs = cupy.asarray([0, 1, 1, 2, 2, 2, 3, 3, 4], dtype=numpy.int32)
+    >>> dsts = cupy.asarray([1, 3, 4, 0, 1, 3, 4, 5, 5], dtype=numpy.int32)
+    >>> weights = cupy.asarray(
+    ...     [0.1, 2.1, 1.1, 5.1, 3.1, 4.1, 7.2, 3.2, 6.1], dtype=numpy.float32)
+    >>> source_vertices = cupy.asarray([0, 1], dtype=numpy.int32)
     >>> resource_handle = pylibcugraph.ResourceHandle()
     >>> graph_props = pylibcugraph.GraphProperties(
-    ...     is_symmetric=True, is_multigraph=False)
+    ...     is_symmetric=False, is_multigraph=False)
     >>> G = pylibcugraph.SGGraph(
     ...     resource_handle, graph_props, srcs, dsts, weights,
-    ...     store_transposed=True, renumber=False, do_expensive_check=False)
+    ...     store_transposed=False, renumber=False, do_expensive_check=False)
     >>> (sources, destinations, edge_weights, subgraph_offsets) =
-    ...     pylibcugraph.ego_graph(resource_handle, G, source_vertices, 1, False)
+    ...     pylibcugraph.ego_graph(resource_handle, G, source_vertices, 2, False)
     # FIXME: update results
     >>> sources
-    [x, x, x]
+    [0, 1, 1, 3, 1, 1, 3, 3, 4]
     >>> destinations
-    [x, x, x]
+    [1, 3, 4, 4, 3, 4, 4, 5, 5]
     >>> edge_weights
-    [x, x, x]
+    [0.1, 2.1, 1.1, 7.2, 2.1, 1.1, 7.2, 3.2, 6.1]
     >>> subgraph_offsets
-    [x, x, x]
+    [0, 4, 9]
 
     """
 
