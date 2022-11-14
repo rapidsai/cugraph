@@ -434,7 +434,8 @@ class kv_store_t {
     } else {
       return detail::kv_cuco_store_view_t(
         store_.cuco_store.get(),
-        store_.values ? std::make_optional((*(store_.values)).begin()) : std::nullopt);
+        store_.values ? std::make_optional(get_dataframe_buffer_begin(*(store_.values)))
+                      : std::nullopt);
     }
   }
 
