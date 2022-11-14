@@ -37,9 +37,9 @@ SEEDS = [0, 5, 13]
 RADIUS = [1, 2, 3]
 
 
-@pytest.mark.parametrize("graph_file", [karate])
-@pytest.mark.parametrize("seed", [SEEDS[0]])
-@pytest.mark.parametrize("radius", [RADIUS[0]])
+@pytest.mark.parametrize("graph_file", DATASETS)
+@pytest.mark.parametrize("seed", SEEDS)
+@pytest.mark.parametrize("radius", RADIUS)
 def test_ego_graph_nx(graph_file, seed, radius):
     gc.collect()
 
