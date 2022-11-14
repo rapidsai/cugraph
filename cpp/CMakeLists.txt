@@ -41,7 +41,7 @@ endif()
 # cuhornet currently doesn't support
 #
 # >= 90
-set(supported_archs "60" "62" "70" "72" "75" "80" "86")
+set(supported_archs "60" "62" "70" "72" "75" "80" "86" "89" "90")
 foreach( arch IN LISTS CMAKE_CUDA_ARCHITECTURES)
     string(REPLACE "-real" "" arch ${arch})
     if( arch IN_LIST supported_archs )
@@ -199,7 +199,8 @@ set(CUGRAPH_SOURCES
     src/community/legacy/ktruss.cu
     src/community/legacy/ecg.cu
     src/community/legacy/extract_subgraph_by_vertex.cu
-    src/community/legacy/egonet.cu
+    src/community/egonet_sg.cu
+    src/community/egonet_mg.cu
     src/sampling/random_walks.cu
     src/sampling/random_walks_sg.cu
     src/sampling/detail/sampling_utils_mg.cu
@@ -365,9 +366,11 @@ add_library(cugraph_c
         src/c_api/betweenness_centrality.cpp
         src/c_api/core_number.cpp
         src/c_api/core_result.cpp
+        src/c_api/extract_ego.cpp
         src/c_api/k_core.cpp
         src/c_api/induced_subgraph.cpp
         src/c_api/induced_subgraph_helper.cu
+        src/c_api/graph_helper.cu
         src/c_api/induced_subgraph_result.cpp
         src/c_api/hits.cpp
         src/c_api/bfs.cpp
