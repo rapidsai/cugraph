@@ -226,9 +226,6 @@ extract_ego(raft::handle_t const& handle,
             vertex_t radius,
             bool do_expensive_check)
 {
-  CUGRAPH_EXPECTS(source_vertex.size() > 0, "Need at least one source to extract the egonet from");
-  CUGRAPH_EXPECTS(source_vertex.size() < static_cast<size_t>(graph_view.number_of_vertices()),
-                  "Can't have more sources to extract from than vertices in the graph");
   CUGRAPH_EXPECTS(radius > 0, "Radius should be at least 1");
   CUGRAPH_EXPECTS(radius < graph_view.number_of_vertices(), "radius is too large");
 
