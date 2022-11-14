@@ -61,9 +61,9 @@ def ego_graph(G, n, radius=1, center=True, undirected=None, distance=None):
         information. Edge weights, if present, should be single or double
         precision floating point values.
 
-    n : int, list or cudf.Series, cudf.DataFrame
-        A node or a list or cudf.Series of nodes or a cudf.DataFrame if nodes
-        are represented with multiple columns. If a cudf.DataFrame is provided,
+    n : integer or cudf.DataFrame
+        A single node as integer or a cudf.DataFrame if nodes are
+        represented with multiple columns. If a cudf.DataFrame is provided,
         only the first row is taken as the node input.
 
     radius: integer, optional (default=1)
