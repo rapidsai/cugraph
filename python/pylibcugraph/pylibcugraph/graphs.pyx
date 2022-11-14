@@ -119,8 +119,8 @@ cdef class SGGraph(_GPUGraph):
     
     input_array_format: str, optional (default='COO')
         Input representation used to construct a graph
-            COO: edgelist represented as src_array and dst_array
-            CSR: edgelist represented as offset_array and index_array
+            COO: arrays represent src_array and dst_array
+            CSR: arrays represent offset_array and index_array
     
     Examples
     ---------
