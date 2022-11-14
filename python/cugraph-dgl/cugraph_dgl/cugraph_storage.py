@@ -18,7 +18,7 @@ from cugraph_dgl.utils.cugraph_storage_utils import backend_dtype_to_np_dtype_di
 
 import dgl
 import dgl.backend as F
-from typing import Tuple
+from typing import Tuple, Optional, Sequence
 
 
 class CuGraphStorage:
@@ -28,12 +28,10 @@ class CuGraphStorage:
 
     This object is wrapper around cugraph's PropertyGraph and returns samples
     that conform with `DGLHeteroGraph`
-    See: TODO link after https://github.com/rapidsai/cugraph/pull/2826
+    See: (TODO link after https://github.com/rapidsai/cugraph/pull/2826)
 
-
-    Read the user guide chapter :ref:`guide-`CuGraphStorage` for an in-depth
-    explanation about its usage.
-
+    Read the user guide chapter (#TODO link cugraph and DGL documentation)
+    for an in-depth explanation about its usage.
     """
 
     def __init__(
@@ -41,7 +39,7 @@ class CuGraphStorage:
         num_nodes_dict: dict,
         single_gpu: bool = True,
         cugraph_service_client=None,
-        device_id=0,
+        device_id: int = 0,
         idtype=F.int32,
     ):
         """
@@ -52,15 +50,15 @@ class CuGraphStorage:
 
         Parameters
         ----------
-         single_gpu: bool
-            Whether to create the cugraph Property Graph
-            on a single GPU or multiple GPUs
-            single GPU = True creates PropertyGraph
-            single GPU = False creates MGPropertyGraph
          num_nodes_dict: dict[str, int]
             The number of nodes for some node types, which is a
             dictionary mapping a node type T to the number of T-typed nodes.
-        cugraph_service_client: cugraph.Service.Client
+        single_gpu: bool
+            Whether to create the cugraph Property Graph
+            on a single GPU or multiple GPUs
+            single GPU = True
+            single GPU = False
+        cugraph_service_client: cugraph_service.Client
             The remote_client to use to connect to cugraph service if using
             remote storage
         device_id: int
@@ -170,10 +168,10 @@ class CuGraphStorage:
     def add_node_data(
         self,
         df,
-        node_col_name,
-        ntype=None,
-        feat_name=None,
-        contains_vector_features=False,
+        node_col_name: str,
+        ntype: Optional[str] = None,
+        feat_name: Optional[str] = None,
+        contains_vector_features: bool = False,
     ):
         """
         Add a dataframe describing node data to the cugraph graphstore.
@@ -220,10 +218,10 @@ class CuGraphStorage:
     def add_edge_data(
         self,
         df,
-        node_col_names,
-        canonical_etype=None,
-        feat_name=None,
-        contains_vector_features=False,
+        node_col_names: Tuple[str, str],
+        canonical_etype: Optional[Tuple[str, str, str]] = None,
+        feat_name: Optional[str] = None,
+        contains_vector_features: bool = False,
     ):
         """
         Add a dataframe describing node data to the cugraph graphstore.
@@ -273,11 +271,11 @@ class CuGraphStorage:
 
     def add_node_data_from_parquet(
         self,
-        file_path,
-        node_col_name,
-        ntype=None,
-        feat_name=None,
-        contains_vector_features=False,
+        file_path: str,
+        node_col_name: str,
+        ntype: Optional[str] = None,
+        feat_name: Optional[str] = None,
+        contains_vector_features: bool = False,
     ):
         """
         Add a dataframe describing node properties to the PropertyGraph.
@@ -325,11 +323,11 @@ class CuGraphStorage:
 
     def add_edge_data_from_parquet(
         self,
-        file_path,
-        node_col_names,
-        canonical_etype=None,
-        feat_name=None,
-        contains_vector_features=False,
+        file_path: str,
+        node_col_names: Tuple[str, str],
+        canonical_etype: Tuple[str, str, str] = None,
+        feat_name: Optional[str] = None,
+        contains_vector_features: bool = False,
     ):
         """
         Add a dataframe describing edge properties to the PropertyGraph.
@@ -337,7 +335,7 @@ class CuGraphStorage:
         ----------
         file_path : string
             Path of file on server
-        node_col_names : string
+        node_col_names : [src_name, dst_name]
             The column names that contain the values to be used as the source
             and destination vertex IDs for the edges.
         canonical_etype : string
@@ -383,11 +381,11 @@ class CuGraphStorage:
     def sample_neighbors(
         self,
         nodes,
-        fanout,
-        edge_dir="in",
-        prob=None,
+        fanout: int,
+        edge_dir: str = "in",
+        prob: str = None,
         exclude_edges=None,
-        replace=False,
+        replace: bool = False,
         output_device=None,
     ):
         """
@@ -408,8 +406,10 @@ class CuGraphStorage:
             edges for each node for every edge type.
             If -1 is given for a single edge type, all the neighboring edges
             with that edge type will be selected.
+        edge_dir: 'in' or 'out'
+            The direction of edges to import
         prob : str, optional
-            Feature name used as the (unnormalized) probabilities associated
+            Feature name used as the (un-normalized) probabilities associated
             with each neighboring edge of a node.  The feature must have only
             one element for each edge.
             The features must be non-negative floats, and the sum of the
@@ -554,7 +554,7 @@ class CuGraphStorage:
         raise NotImplementedError("edge_subgraph is not implemented yet")
 
     # Required in Link Prediction negative sampler
-    def find_edges(self, eid, etype=None, output_device=None):
+    def find_edges(self, eid, etype: str = None, output_device=None):
         """
         Return the source and destination node ID(s) given the edge ID(s).
 
@@ -609,7 +609,7 @@ class CuGraphStorage:
             "global_uniform_negative_sampling not implemented yet"
         )
 
-    def get_node_storage(self, key, ntype=None):
+    def get_node_storage(self, key: str, ntype: str = None):
         """
         Get storage object of node feature of
         type :attr:`ntype` and name :attr:`key`
@@ -621,7 +621,7 @@ class CuGraphStorage:
 
         return self.graphstore.get_node_storage(key, ntype, indices_offset)
 
-    def get_edge_storage(self, key, etype=None):
+    def get_edge_storage(self, key: str, etype: Optional[Tuple[str, str, str]] = None):
         """
         Get storage object of edge feature of
         type :attr:`ntype` and name :attr:`key`
@@ -638,7 +638,7 @@ class CuGraphStorage:
         return self.graphstore.get_edge_storage(key, etype, indices_offset)
 
     # Number of edges/nodes utils
-    def num_nodes(self, ntype=None):
+    def num_nodes(self, ntype: str = None) -> int:
         """
         Return the number of nodes in the graph.
         Parameters
@@ -659,7 +659,7 @@ class CuGraphStorage:
         else:
             return self.graphstore.num_nodes(ntype)
 
-    def number_of_nodes(self, ntype=None):
+    def number_of_nodes(self, ntype: str = None) -> int:
         """
         Return the number of nodes in the graph.
         Alias of ``num_nodes``
@@ -682,7 +682,7 @@ class CuGraphStorage:
         self.__total_number_of_nodes = None
 
     @property
-    def ntypes(self):
+    def ntypes(self) -> Sequence[str]:
         """
         Return all the node type names in the graph.
 
@@ -695,7 +695,7 @@ class CuGraphStorage:
         return ntypes
 
     @property
-    def etypes(self):
+    def etypes(self) -> Sequence[str]:
         """
         Return all the edge type names in the graph.
 
@@ -707,7 +707,7 @@ class CuGraphStorage:
 
         return [can_etype[1] for can_etype in self.canonical_etypes]
 
-    def num_edges(self, etype=None):
+    def num_edges(self, etype: Optional[str] = None) -> int:
         """
         Return the number of edges in the graph.
         Parameters
@@ -729,17 +729,17 @@ class CuGraphStorage:
 
     # Node Properties
     @property
-    def total_number_of_nodes(self):
+    def total_number_of_nodes(self) -> int:
         if self.__total_number_of_nodes is None:
             self.__total_number_of_nodes = self.num_nodes()
         return self.__total_number_of_nodes
 
     @property
-    def num_canonical_edges_dict(self):
+    def num_canonical_edges_dict(self) -> dict[str, int]:
         return self.graphstore.num_edges_dict
 
     @property
-    def canonical_etypes(self):
+    def canonical_etypes(self) -> Sequence[Tuple[str, str, str]]:
         can_etypes = self.graphstore.etypes
         return [convert_can_etype_s_to_tup(s) for s in can_etypes]
 
@@ -779,16 +779,16 @@ class CuGraphStorage:
 
         return self._edge_id_offset_d[canonical_etype]
 
-    def dgl_n_id_to_cugraph_id(self, index_t, ntype):
+    def dgl_n_id_to_cugraph_id(self, index_t, ntype: str):
         return index_t + self.get_node_id_offset(ntype)
 
-    def cugraph_n_id_to_dgl_id(self, index_t, ntype):
+    def cugraph_n_id_to_dgl_id(self, index_t, ntype: str):
         return index_t - self.get_node_id_offset(ntype)
 
-    def dgl_e_id_to_cugraph_id(self, index_t, canonical_etype):
+    def dgl_e_id_to_cugraph_id(self, index_t, canonical_etype: Tuple[str, str, str]):
         return index_t + self.get_edge_id_offset(canonical_etype)
 
-    def cugraph_e_id_to_dgl_id(self, index_t, canonical_etype):
+    def cugraph_e_id_to_dgl_id(self, index_t, canonical_etype: Tuple[str, str, str]):
         return index_t - self.get_edge_id_offset(canonical_etype)
 
     # Methods for getting the offsets per type
