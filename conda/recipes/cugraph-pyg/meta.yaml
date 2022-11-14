@@ -8,7 +8,7 @@
 {% set cuda_major=cuda_version.split('.')[0] %}
 {% set py_version=environ.get('CONDA_PY', 36) %}
 package:
-  name: cugraph_pyg
+  name: cugraph-pyg
   version: {{ version }}
 
 source:
