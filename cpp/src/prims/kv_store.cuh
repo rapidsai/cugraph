@@ -333,6 +333,9 @@ struct kv_cuco_store_t {
 
 }  // namespace detail
 
+/* a class to store (key, value) pairs, the actual storage can either be implemented based on binary
+ * tree (when use_binary_search == true) or hash-table (cuCollection, when use_binary_search =
+ * false) */
 template <typename key_t, typename value_t, bool use_binary_search = true>
 class kv_store_t {
  public:
@@ -344,14 +347,18 @@ class kv_store_t {
 
   kv_store_t(rmm::cuda_stream_view stream) : store_(stream) {}
 
+  /* when use_binary_search = true */
   template <typename KeyIterator, typename ValueIterator, bool binary_search = use_binary_search>
-  kv_store_t(KeyIterator key_first,
-             KeyIterator key_last,
-             ValueIterator value_first,
-             value_t invalid_value,
-             bool key_sorted,
-             rmm::cuda_stream_view stream,
-             std::enable_if_t<binary_search, int32_t> = 0)
+  kv_store_t(
+    KeyIterator key_first,
+    KeyIterator key_last,
+    ValueIterator value_first,
+    value_t invalid_value /* invalid_value is returned when match fails for the given key */,
+    bool key_sorted /* if set to true, assume that the input data is sorted and skip sorting (which
+                       is necessary for binary-search) */
+    ,
+    rmm::cuda_stream_view stream,
+    std::enable_if_t<binary_search, int32_t> = 0)
     : store_(static_cast<size_t>(thrust::distance(key_first, key_last)), invalid_value, stream)
   {
     thrust::copy(rmm::exec_policy(stream), key_first, key_last, store_.keys.begin());
@@ -368,14 +375,19 @@ class kv_store_t {
     }
   }
 
+  /* when use_binary_search = false */
   template <typename KeyIterator, typename ValueIterator, bool binary_search = use_binary_search>
-  kv_store_t(KeyIterator key_first,
-             KeyIterator key_last,
-             ValueIterator value_first,
-             key_t invalid_key,
-             value_t invalid_value,
-             rmm::cuda_stream_view stream,
-             std::enable_if_t<!binary_search, int32_t> = 0)
+  kv_store_t(
+    KeyIterator key_first,
+    KeyIterator key_last,
+    ValueIterator value_first,
+    key_t invalid_key /* invalid key shouldn't appear in any *iter in [key_first, key_last) */,
+    value_t invalid_value /* invalid_value shouldn't appear in any *iter in [value_first,
+                             value_first + thrust::distance(key_first, key_last)), invalid_value is
+                             returned when match fails for the given key */
+    ,
+    rmm::cuda_stream_view stream,
+    std::enable_if_t<!binary_search, int32_t> = 0)
     : store_(static_cast<size_t>(thrust::distance(key_first, key_last)),
              invalid_key,
              invalid_value,
@@ -404,13 +416,18 @@ class kv_store_t {
     }
   }
 
+  /* when use_binary_search = true */
+  template <typename KeyIterator, typename ValueIterator, bool binary_search = use_binary_search>
   template <bool binary_search = use_binary_search>
-  kv_store_t(rmm::device_uvector<key_t>&& keys,
-             decltype(allocate_dataframe_buffer<value_t>(0, rmm::cuda_stream_view{}))&& values,
-             value_t invalid_value,
-             bool key_sorted,
-             rmm::cuda_stream_view stream,
-             std::enable_if_t<binary_search, int32_t> = 0)
+  kv_store_t(
+    rmm::device_uvector<key_t>&& keys,
+    decltype(allocate_dataframe_buffer<value_t>(0, rmm::cuda_stream_view{}))&& values,
+    value_t invalid_value /* invalid_value is returned when match fails for the given key */,
+    bool key_sorted /* if set to true, assume that the input data is sorted and skip sorting (which
+                       is necessary for binary-search) */
+    ,
+    rmm::cuda_stream_view stream,
+    std::enable_if_t<binary_search, int32_t> = 0)
     : store_(stream)
   {
     store_.keys          = std::move(keys);
