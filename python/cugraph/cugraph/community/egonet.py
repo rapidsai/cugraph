@@ -73,10 +73,10 @@ def ego_graph(G, n, radius=1, center=True, undirected=None, distance=None):
         Defaults to True. False is not supported
 
     undirected: bool, optional
-        Defaults to False. True is not supported
+        This parameter is here for NetworkX compatibility and ignored
 
     distance: key, optional (default=None)
-        Distances are counted in hops from n. Other cases are not supported.
+        This parameter is here for NetworkX compatibility and ignored
 
     Returns
     -------
@@ -102,8 +102,6 @@ def ego_graph(G, n, radius=1, center=True, undirected=None, distance=None):
         )
         warnings.warn(warning_msg, PendingDeprecationWarning)
 
-    if G.is_directed():
-        raise ValueError("input graph must be undirected")
 
     if n is not None:
         if isinstance(n, int):
