@@ -1,4 +1,4 @@
-# Copyright (c) 2021-2022, NVIDIA CORPORATION.
+# Copyright (c) 2019-2022, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -11,13 +11,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from cugraph.community import egonet_wrapper
-import cudf
 from cugraph.utilities import (
     ensure_cugraph_obj,
     is_nx_graph_type,
 )
 from cugraph.utilities import cugraph_to_nx
+
+import cudf
+
+from pylibcugraph import ego_graph as pylibcugraph_ego_graph
+
+from pylibcugraph import ResourceHandle
+import warnings
 
 
 def _convert_graph_to_output_type(G, input_type):
@@ -44,21 +49,21 @@ def _convert_df_series_to_output_type(df, offsets, input_type):
         return df, offsets
 
 
-def ego_graph(G, n, radius=1, center=True, undirected=False, distance=None):
+def ego_graph(G, n, radius=1, center=True, undirected=None, distance=None):
     """
     Compute the induced subgraph of neighbors centered at node n,
     within a given radius.
 
     Parameters
     ----------
-    G : cugraph.Graph, networkx.Graph, CuPy or SciPy sparse matrix
+    G : cugraph.Graph, networkx.Graph
         Graph or matrix object, which should contain the connectivity
         information. Edge weights, if present, should be single or double
         precision floating point values.
 
-    n : integer or cudf.DataFrame
-        A single node as integer or a cudf.DataFrame if nodes are
-        represented with multiple columns. If a cudf.DataFrame is provided,
+    n : int, list or cudf.Series, cudf.DataFrame
+        A node or a list or cudf.Series of nodes or a cudf.DataFrame if nodes
+        are represented with multiple columns. If a cudf.DataFrame is provided,
         only the first row is taken as the node input.
 
     radius: integer, optional (default=1)
@@ -86,33 +91,67 @@ def ego_graph(G, n, radius=1, center=True, undirected=False, distance=None):
     >>> ego_graph = cugraph.ego_graph(G, 1, radius=2)
 
     """
-
     (G, input_type) = ensure_cugraph_obj(G, nx_weight_attr="weight")
+
     result_graph = type(G)()
 
-    if G.renumbered is True:
-        if isinstance(n, cudf.DataFrame):
-            n = G.lookup_internal_vertex_id(n, n.columns)
-        else:
-            n = G.lookup_internal_vertex_id(cudf.Series([n]))
+    if undirected is not None:
+        warning_msg = ("The parameter 'undirected' is depreacted and "
+                       "will be removed in the next release")
+        warnings.warn(warning_msg, PendingDeprecationWarning)
+    
+    if G.is_directed():
+        raise ValueError("input graph must be undirected")
 
-    df, offsets = egonet_wrapper.egonet(G, n, radius)
+
+    if n is not None:
+        if isinstance(n, int):
+            n = [n]
+        if isinstance(n, list):
+            n = cudf.Series(n).astype("int32")
+
+        if G.renumbered is True:
+            if isinstance(n, cudf.DataFrame):
+                n = G.lookup_internal_vertex_id(n, n.columns)
+            else:
+                n = G.lookup_internal_vertex_id(n)
+
+    do_expensive_check = False
+
+    source, destination, weight = pylibcugraph_ego_graph(
+        resource_handle=ResourceHandle(),
+        graph=G._plc_graph,
+        source_vertices=n,
+        radius=radius,
+        do_expensive_check=do_expensive_check,
+    )
+
+
+    df = cudf.DataFrame()
+    df["src"] = source
+    df["dst"] = destination
+    df["weight"] = weight
 
     if G.renumbered:
         df, src_names = G.unrenumber(df, "src", get_column_names=True)
         df, dst_names = G.unrenumber(df, "dst", get_column_names=True)
+    else:
+        # FIXME: THe original 'src' and 'dst' are not stored in 'simpleGraph'
+        src_names = "src"
+        dst_names = "dst"
 
     if G.edgelist.weights:
         result_graph.from_cudf_edgelist(
             df, source=src_names, destination=dst_names, edge_attr="weight"
         )
     else:
-        result_graph.from_cudf_edgelist(df, source=src_names, destination=dst_names)
+        result_graph.from_cudf_edgelist(
+            df, source=src_names, destination=dst_names)
     return _convert_graph_to_output_type(result_graph, input_type)
 
 
 def batched_ego_graphs(
-    G, seeds, radius=1, center=True, undirected=False, distance=None
+    G, seeds, radius=1, center=True, undirected=None, distance=None
 ):
     """
     Compute the induced subgraph of neighbors for each node in seeds
@@ -160,13 +199,34 @@ def batched_ego_graphs(
 
     (G, input_type) = ensure_cugraph_obj(G, nx_weight_attr="weight")
 
-    if G.renumbered is True:
-        if isinstance(seeds, cudf.DataFrame):
-            seeds = G.lookup_internal_vertex_id(seeds, seeds.columns)
-        else:
-            seeds = G.lookup_internal_vertex_id(cudf.Series(seeds))
+    if seeds is not None:
+        if isinstance(seeds, int):
+            seeds = [seeds]
+        if isinstance(seeds, list):
+            seeds = cudf.Series(seeds).astype("int32")
 
-    df, offsets = egonet_wrapper.egonet(G, seeds, radius)
+        if G.renumbered is True:
+            if isinstance(seeds, cudf.DataFrame):
+                seeds = G.lookup_internal_vertex_id(seeds, seeds.columns)
+            else:
+                seeds = G.lookup_internal_vertex_id(seeds)
+
+
+    do_expensive_check = False
+    source, destination, weight, offset = pylibcugraph_ego_graph(
+            resource_handle=ResourceHandle(),
+            graph=G._plc_graph,
+            source_vertices=seeds,
+            radius=radius,
+            do_expensive_check=do_expensive_check,
+    )
+
+    offsets = cudf.Series(offset)
+
+    df = cudf.DataFrame()
+    df["src"] = source
+    df["dst"] = destination
+    df["weight"] = weight
 
     if G.renumbered:
         df = G.unrenumber(df, "src", preserve_order=True)
