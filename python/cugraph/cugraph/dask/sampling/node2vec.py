@@ -24,11 +24,22 @@ from cugraph.dask.common.input_utils import get_distributed_data
 from pylibcugraph import node2vec as pylibcugraph_node2vec
 
 
-def convert_to_cudf(cp_paths, unrenumber=False):
+def convert_to_cudf(cp_paths, number_map=None, is_vertex_paths=False):
     """
     Creates cudf Series from cupy arrays from pylibcugraph wrapper
     """
-    # FIXME: perform the SG unrenumbering at this layer
+
+    if is_vertex_paths and len(cp_paths) > 0:
+        if number_map.implementation.numbered:
+            df_ = cudf.DataFrame()
+            df_["vertex_paths"] = cp_paths
+            df_ = number_map.unrenumber(
+                df_, "vertex_paths", preserve_order=True
+            ).compute()
+            vertex_paths = cudf.Series(df_["vertex_paths"]).fillna(-1)
+
+            return vertex_paths
+
     return cudf.Series(cp_paths)
 
 
@@ -142,6 +153,7 @@ def node2vec(
         start_vertices, npartitions=min(input_graph._npartitions, len(start_vertices))
     )
     start_vertices = start_vertices.astype(start_vertices_type)
+    print("the start_vertices type is \n", start_vertices.dtype)
     start_vertices = get_distributed_data(start_vertices)
     wait(start_vertices)
     start_vertices = start_vertices.worker_to_parts
@@ -175,7 +187,7 @@ def node2vec(
     result_sizes = [client.submit(op.getitem, f, 2) for f in result]
 
     cudf_vertex_paths = [
-        client.submit(convert_to_cudf, cp_vertex_paths)
+        client.submit(convert_to_cudf, cp_vertex_paths, input_graph.renumber_map, True)
         for cp_vertex_paths in result_vertex_paths
     ]
 
