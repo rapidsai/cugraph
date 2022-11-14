@@ -1892,8 +1892,10 @@ def test_vertex_vector_property(df_type):
     ) = dataset1.values()
     if df_type is cudf.DataFrame:
         assert_array_equal = cupy.testing.assert_array_equal
+        zeros = cupy.zeros
     else:
         assert_array_equal = np.testing.assert_array_equal
+        zeros = np.zeros
 
     pG = PropertyGraph()
     merchants_df = df_type(columns=merchants[0], data=merchants[1])
@@ -1956,7 +1958,7 @@ def test_vertex_vector_property(df_type):
     vec1 = pG.vertex_vector_property_to_array(df, "vec1")
     vec1 = vec1[np.lexsort(vec1.T)]  # may be jumbled, so sort
     assert_array_equal(expected, vec1)
-    vec1 = pG.vertex_vector_property_to_array(df, "vec1", ignore_empty=False)
+    vec1 = pG.vertex_vector_property_to_array(df, "vec1", missing="raise")
     vec1 = vec1[np.lexsort(vec1.T)]  # may be jumbled, so sort
     assert_array_equal(expected, vec1)
     with pytest.raises(ValueError):
@@ -1995,7 +1997,19 @@ def test_vertex_vector_property(df_type):
     vec1 = vec1[np.lexsort(vec1.T)]  # may be jumbled, so sort
     assert_array_equal(expected, vec1)
     with pytest.raises(RuntimeError):
-        pG.vertex_vector_property_to_array(df, "vec1", ignore_empty=False)
+        pG.vertex_vector_property_to_array(df, "vec1", missing="raise")
+
+    vec1filled = pG.vertex_vector_property_to_array(df, "vec1", 0, missing="raise")
+    vec1filled = vec1filled[np.lexsort(vec1filled.T)]  # may be jumbled, so sort
+    expectedfilled = np.concatenate([zeros((4, 3), int), expected])
+    assert_array_equal(expectedfilled, vec1filled)
+
+    vec1filled = pG.vertex_vector_property_to_array(df, "vec1", [0, 0, 0])
+    vec1filled = vec1filled[np.lexsort(vec1filled.T)]  # may be jumbled, so sort
+    assert_array_equal(expectedfilled, vec1filled)
+
+    with pytest.raises(ValueError, match="expected 3"):
+        pG.vertex_vector_property_to_array(df, "vec1", [0, 0])
 
     vec2 = pG.vertex_vector_property_to_array(df, "vec2")
     vec2 = vec2[np.lexsort(vec2.T)]  # may be jumbled, so sort
@@ -2058,7 +2072,7 @@ def test_edge_vector_property(df_type):
     vec1 = pG.edge_vector_property_to_array(df, "vec1")
     vec1 = vec1[np.lexsort(vec1.T)]  # may be jumbled, so sort
     assert_array_equal(vec1, expected)
-    vec1 = pG.edge_vector_property_to_array(df, "vec1", ignore_empty=False)
+    vec1 = pG.edge_vector_property_to_array(df, "vec1", missing="raise")
     vec1 = vec1[np.lexsort(vec1.T)]  # may be jumbled, so sort
     assert_array_equal(vec1, expected)
     pG.add_edge_data(
@@ -2073,7 +2087,7 @@ def test_edge_vector_property(df_type):
     vec2 = vec2[np.lexsort(vec2.T)]  # may be jumbled, so sort
     assert_array_equal(vec2, expected)
     with pytest.raises(RuntimeError):
-        pG.edge_vector_property_to_array(df, "vec2", ignore_empty=False)
+        pG.edge_vector_property_to_array(df, "vec2", missing="raise")
 
 
 @pytest.mark.skip(reason="feature not implemented")

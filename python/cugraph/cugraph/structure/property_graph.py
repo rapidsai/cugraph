@@ -1401,7 +1401,9 @@ class EXPERIMENTAL__PropertyGraph:
         rv["stop"] -= 1  # Make inclusive
         return rv[["start", "stop"]]
 
-    def vertex_vector_property_to_array(self, df, col_name, *, ignore_empty=True):
+    def vertex_vector_property_to_array(
+        self, df, col_name, fillvalue=None, *, missing="ignore"
+    ):
         """Convert a known vertex vector property in a DataFrame to an array.
 
         Parameters
@@ -1412,12 +1414,17 @@ class EXPERIMENTAL__PropertyGraph:
         col_name : str
             The column name in the DataFrame to convert to an array.
             This vector property should have been created by PropertyGraph.
-        ignore_empty : bool, default True
-            If True, empty or null rows without vector data will be skipped
+        fillvalue : scalar or list, optional (default None)
+            Fill value for rows with missing vector data.  If it is a list,
+            it must be the correct size of the vector property.  If fillvalue is None,
+            then behavior if missing data is controlled by ``missing`` keyword.
+            Leave this as None for better performance if all rows should have data.
+        missing : {"ignore", "error"}
+            If "ignore", empty or null rows without vector data will be skipped
             when creating the array, so output array shape will be
             [# of non-empty rows] by [size of vector property].
-            When ignore_empty is False, RuntimeError will be raised if there
-            are any empty rows.
+            When "error", RuntimeError will be raised if there are any empty rows.
+            Ignored if fillvalue is given.
 
         Returns
         -------
@@ -1426,9 +1433,11 @@ class EXPERIMENTAL__PropertyGraph:
         if col_name not in self.__vertex_vector_property_lengths:
             raise ValueError(f"{col_name!r} is not a known vertex vector property")
         length = self.__vertex_vector_property_lengths[col_name]
-        return self._get_vector_property(df, col_name, length, ignore_empty)
+        return self._get_vector_property(df, col_name, length, fillvalue, missing)
 
-    def edge_vector_property_to_array(self, df, col_name, *, ignore_empty=True):
+    def edge_vector_property_to_array(
+        self, df, col_name, fillvalue=None, *, missing="ignore"
+    ):
         """Convert a known edge vector property in a DataFrame to an array.
 
         Parameters
@@ -1439,12 +1448,17 @@ class EXPERIMENTAL__PropertyGraph:
         col_name : str
             The column name in the DataFrame to convert to an array.
             This vector property should have been created by PropertyGraph.
-        ignore_empty : bool, default True
-            If True, empty or null rows without vector data will be skipped
+        fillvalue : scalar or list, optional (default None)
+            Fill value for rows with missing vector data.  If it is a list,
+            it must be the correct size of the vector property.  If fillvalue is None,
+            then behavior if missing data is controlled by ``missing`` keyword.
+            Leave this as None for better performance if all rows should have data.
+        missing : {"ignore", "error"}
+            If "ignore", empty or null rows without vector data will be skipped
             when creating the array, so output array shape will be
             [# of non-empty rows] by [size of vector property].
-            When ignore_empty is False, RuntimeError will be raised if there
-            are any empty rows.
+            When "error", RuntimeError will be raised if there are any empty rows.
+            Ignored if fillvalue is given.
 
         Returns
         -------
@@ -1453,7 +1467,7 @@ class EXPERIMENTAL__PropertyGraph:
         if col_name not in self.__edge_vector_property_lengths:
             raise ValueError(f"{col_name!r} is not a known edge vector property")
         length = self.__edge_vector_property_lengths[col_name]
-        return self._get_vector_property(df, col_name, length, ignore_empty)
+        return self._get_vector_property(df, col_name, length, fillvalue, missing)
 
     def _check_vector_properties(
         self, df, vector_properties, vector_property_lengths, invalid_keys
@@ -1506,33 +1520,58 @@ class EXPERIMENTAL__PropertyGraph:
         for key, vec in vectors.items():
             df[key] = vec
 
-    def _get_vector_property(self, df, col_name, length, ignore_empty):
+    def _get_vector_property(self, df, col_name, length, fillvalue, missing):
         if type(df) is not self.__dataframe_type:
             raise TypeError(
                 f"Expected type {self.__dataframe_type}; got type {type(df)}"
             )
         if col_name not in df.columns:
             raise ValueError(f"Column name {col_name} is not in the columns of df")
+        if missing not in {"raise", "ignore"}:
+            raise ValueError(
+                f'missing keyword must be one of "error" or "ignore"; got {missing!r}'
+            )
+        if fillvalue is not None:
+            try:
+                fill = list(fillvalue)
+            except Exception:
+                fill = [fillvalue] * length
+            else:
+                if len(fill) != length:
+                    raise ValueError(
+                        f"Wrong size of list as fill value; got {len(fill)}, "
+                        f"expected {length}"
+                    )
+            s = df[col_name].copy()  # copy b/c we mutate below
+        else:
+            s = df[col_name]
         if self.__series_type is cudf.Series:
             if df.dtypes[col_name] != "list":
                 raise TypeError(
                     "Wrong dtype for vector property; expected 'list', "
                     f"got {df.dtypes[col_name]}"
                 )
+            if fillvalue is not None:
+                s[s.isnull()] = fill
             # This returns a writable view (i.e., no copies!)
-            rv = df[col_name]._data.columns[0].children[-1].values.reshape(-1, length)
+            rv = s._data.columns[0].children[-1].values.reshape(-1, length)
         else:
             if df.dtypes[col_name] != object:
                 raise TypeError(
                     "Wrong dtype for vector property; expected 'object', "
                     f"got {df.dtypes[col_name]}"
                 )
-            s = df[col_name]
-            rv = np.vstack(s[s.notnull()].to_numpy())
-        if not ignore_empty and rv.shape[0] != len(df):
+            if fillvalue is not None:
+                a = np.empty(1, dtype=object)
+                a[0] = np.array(fill)
+                s[s.isnull()] = a
+            else:
+                s = s[s.notnull()]
+            rv = np.vstack(s.to_numpy())
+        if fillvalue is None and missing == "raise" and rv.shape[0] != len(df):
             raise RuntimeError(
                 f"Vector property {col_name!r} has empty rows! "
-                "Use `ignore_empty=False` to ignore empty rows."
+                'Provide a fill value or use `missing="ignore"` to ignore empty rows.'
             )
         return rv
 
