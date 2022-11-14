@@ -159,11 +159,7 @@ cdef copy_to_cupy_array(
         device_array_view_ptr)
     array_size = cugraph_type_erased_device_array_view_size(
         device_array_view_ptr)
-    #print("the cytpe is ", c_type)
-    """
-    cupy_array = cupy.zeros(
-        array_size, dtype="int64")
-    """
+
     cupy_array = cupy.zeros(
         array_size, dtype=get_numpy_type_from_c_type(c_type))
 
@@ -186,59 +182,6 @@ cdef copy_to_cupy_array(
     cugraph_type_erased_device_array_view_free(device_array_view_ptr)
 
     return cupy_array
-
-
-# FIXME: Temporary function to copy the 'weights' with the appropriate
-# type. ctype = 0 for egonet result which is wrong
-cdef copy_to_cupy_array_weights_offsets(
-   cugraph_resource_handle_t* c_resource_handle_ptr,
-   cugraph_type_erased_device_array_view_t* device_array_view_ptr,
-   array_type):
-    """
-    Copy the contents from a device array view as returned by various cugraph_*
-    APIs to a new cupy device array, typically intended to be used as a return
-    value from pylibcugraph APIs.
-    """
-    cdef c_type = cugraph_type_erased_device_array_view_type(
-        device_array_view_ptr)
-    # print("the c_type for ", array_type, "is ", c_type)
-    array_size = cugraph_type_erased_device_array_view_size(
-        device_array_view_ptr)
-
-    # FIXME: hardcoded. Ensure the dtype used to perform the copy
-    # is the right type. If mismatch, there is an error.
-    # if src, dst dtype = int32 , weight must be float32
-    # same logic for int64 vertices
-    if array_type == "weights":
-        cupy_array = cupy.zeros(
-            array_size, dtype="float32")
-    
-    # FIXME. For 'batch_ego_graph' only int32 vertices are supported
-    # otherwise error
-    if array_type == "offsets":
-        cupy_array = cupy.zeros(
-            array_size, dtype="int64")
-
-    cdef uintptr_t cupy_array_ptr = \
-        cupy_array.__cuda_array_interface__["data"][0]
-
-    cdef cugraph_type_erased_device_array_view_t* cupy_array_view_ptr = \
-        cugraph_type_erased_device_array_view_create(
-            <void*>cupy_array_ptr, array_size, c_type)
-
-    cdef cugraph_error_t* error_ptr
-    error_code = cugraph_type_erased_device_array_view_copy(
-        c_resource_handle_ptr,
-        cupy_array_view_ptr,
-        device_array_view_ptr,
-        &error_ptr)
-    assert_success(error_code, error_ptr,
-                   "cugraph_type_erased_device_array_view_copy")
-
-    cugraph_type_erased_device_array_view_free(device_array_view_ptr)
-
-    return cupy_array
-
 
 cdef copy_to_cupy_array_ids(
    cugraph_resource_handle_t* c_resource_handle_ptr,

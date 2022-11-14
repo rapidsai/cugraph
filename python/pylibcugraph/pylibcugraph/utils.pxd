@@ -47,11 +47,6 @@ cdef copy_to_cupy_array(
    cugraph_resource_handle_t* c_resource_handle_ptr,
    cugraph_type_erased_device_array_view_t* device_array_view_ptr)
 
-cdef copy_to_cupy_array_weights_offsets(
-   cugraph_resource_handle_t* c_resource_handle_ptr,
-   cugraph_type_erased_device_array_view_t* device_array_view_ptr,
-   array_type)
-
 cdef copy_to_cupy_array_ids(
    cugraph_resource_handle_t* c_resource_handle_ptr,
    cugraph_type_erased_device_array_view_t* device_array_view_ptr)
