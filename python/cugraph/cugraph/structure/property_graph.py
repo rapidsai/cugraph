@@ -688,12 +688,12 @@ class EXPERIMENTAL__PropertyGraph:
         ----------
         vertex_ids : one or a collection of integers, optional
             single, list, slice, pandas array, or series of integers which
-            are the vertices to include in the returned datafram
+            are the vertices to include in the returned dataframe
         types : str or collection of str, optional
-            types of the vertices to include in the returns data.
+            types of the vertices to include in the returned data.
             Default is to return all vertex types.
         columns : str or list of str, optional
-            property or properties to include in return.
+            property or properties to include in returned data.
             Default includes all properties.
 
         Returns
@@ -1688,7 +1688,7 @@ class EXPERIMENTAL__PropertyGraph:
         Returns
         -------
         DataFrame
-            with the start and stop IDs for each edge type.Stop is *inclusive*.
+            with the start and stop IDs for each edge type. Stop is *inclusive*.
 
         Examples
         --------
