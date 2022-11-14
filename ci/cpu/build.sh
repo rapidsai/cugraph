@@ -115,6 +115,8 @@ if [ "$BUILD_CUGRAPH" == "1" ]; then
     gpuci_conda_retry mambabuild --no-build-id --croot ${CONDA_BLD_DIR} conda/recipes/cugraph --python=$PYTHON
     gpuci_logger "cugraph-service"
     gpuci_conda_retry mambabuild --no-build-id --croot ${CONDA_BLD_DIR} conda/recipes/cugraph-service --python=$PYTHON
+    gpuci_logger "cugraph-pyg"
+    gpuci_conda_retry mambabuild --no-build-id --croot ${CONDA_BLD_DIR} conda/recipes/cugraph-pyg --python=$PYTHON
   else
     gpuci_logger "pylibcugraph"
     gpuci_conda_retry mambabuild --no-build-id --croot ${CONDA_BLD_DIR} conda/recipes/pylibcugraph -c ${CONDA_LOCAL_CHANNEL} --dirty --no-remove-work-dir --python=$PYTHON
@@ -122,6 +124,8 @@ if [ "$BUILD_CUGRAPH" == "1" ]; then
     gpuci_conda_retry mambabuild --no-build-id --croot ${CONDA_BLD_DIR} conda/recipes/cugraph -c ${CONDA_LOCAL_CHANNEL} --dirty --no-remove-work-dir --python=$PYTHON
     gpuci_logger "cugraph-service"
     gpuci_conda_retry mambabuild --no-build-id --croot ${CONDA_BLD_DIR} conda/recipes/cugraph-service -c ${CONDA_LOCAL_CHANNEL} --dirty --no-remove-work-dir --python=$PYTHON
+    gpuci_logger "cugraph-pyg"
+    gpuci_conda_retry mambabuild --no-build-id --croot ${CONDA_BLD_DIR} conda/recipes/cugraph-pyg -c ${CONDA_LOCAL_CHANNEL} --dirty --no-remove-work-dir --python=$PYTHON
     mkdir -p ${CONDA_BLD_DIR}/cugraph
     mv ${CONDA_BLD_DIR}/work ${CONDA_BLD_DIR}/cugraph/work
   fi

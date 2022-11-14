@@ -275,6 +275,9 @@ if buildAll || hasArg cugraph-pyg; then
     python setup.py build_ext --inplace -- -j${PARALLEL_LEVEL:-1}
     if [[ ${INSTALL_TARGET} != "" ]]; then
 	env python setup.py ${PYTHON_INSTALL}
+    fi
+fi
+
 # Install the cugraph-service-client and cugraph-service-server Python packages
 if buildAll || hasArg cugraph-service; then
     if [[ ${INSTALL_TARGET} != "" ]]; then
