@@ -27,7 +27,7 @@ def custom_graph_creation_function(server):
    pG.add_edge_data(edgelist, vertex_col_names=('src', 'dst'))
 
    # smoke test the server object by accesing the "mg" attr
-   server.is_mg
+   server.is_multi_gpu
 
    return pG
 """
@@ -85,7 +85,7 @@ import cudf
 from cugraph.experimental import PropertyGraph, MGPropertyGraph
 
 def graph_creation_function(server):
-   if server.is_mg:
+   if server.is_multi_gpu:
       pG = MGPropertyGraph()
    else:
       pG = PropertyGraph()
@@ -99,7 +99,7 @@ import dask_cudf
 from cugraph.experimental import PropertyGraph, MGPropertyGraph
 
 def graph_creation_function_vert_and_edge_data_big_vertex_ids(server):
-   if server.is_mg:
+   if server.is_multi_gpu:
       pG = MGPropertyGraph()
    else:
       pG = PropertyGraph()
@@ -108,7 +108,7 @@ def graph_creation_function_vert_and_edge_data_big_vertex_ids(server):
                                               dtype="int64"),
                         "vert_prop":cupy.arange(big_num+100, big_num+110,
                                                 dtype="int64")})
-   if server.is_mg:
+   if server.is_multi_gpu:
       df = dask_cudf.from_cudf(df, npartitions=2)
    pG.add_vertex_data(df, vertex_col_name="vert_id")
 
@@ -116,7 +116,7 @@ def graph_creation_function_vert_and_edge_data_big_vertex_ids(server):
                         "dst":cupy.arange(big_num+1,big_num+11, dtype="int64"),
                         "edge_prop":cupy.arange(big_num+100, big_num+110,
                                                 dtype="int64")})
-   if server.is_mg:
+   if server.is_multi_gpu:
       df = dask_cudf.from_cudf(df, npartitions=2)
    pG.add_edge_data(df, vertex_col_names=["src", "dst"])
 
@@ -130,7 +130,7 @@ import dask_cudf
 from cugraph.experimental import PropertyGraph, MGPropertyGraph
 
 def graph_creation_extension_large_property_graph(server):
-   if server.is_mg:
+   if server.is_multi_gpu:
       pG = MGPropertyGraph()
    else:
       pG = PropertyGraph()
@@ -139,7 +139,7 @@ def graph_creation_extension_large_property_graph(server):
    df = cudf.DataFrame({"vert_id":cupy.arange(num_verts, dtype="int32"),
                         "vert_prop":cupy.arange(num_verts, dtype="int32"),
                         })
-   if server.is_mg:
+   if server.is_multi_gpu:
       df = dask_cudf.from_cudf(df, npartitions=2)
    pG.add_vertex_data(df, vertex_col_name="vert_id")
 
@@ -147,7 +147,7 @@ def graph_creation_extension_large_property_graph(server):
                         "dst":cupy.arange(1, num_verts+1, dtype="int32"),
                         "edge_prop":cupy.arange(num_verts, dtype="int32"),
                         })
-   if server.is_mg:
+   if server.is_multi_gpu:
       df = dask_cudf.from_cudf(df, npartitions=2)
    pG.add_edge_data(df, vertex_col_names=["src", "dst"])
 
