@@ -13,7 +13,6 @@
 
 from pylibcugraph.components._connectivity import (
     strongly_connected_components,
-    weakly_connected_components,
 )
 
 from pylibcugraph import experimental
@@ -47,5 +46,7 @@ from pylibcugraph.core_number import core_number
 from pylibcugraph.louvain import louvain
 
 from pylibcugraph.triangle_count import triangle_count
+
+from pylibcugraph.weakly_connected_components import weakly_connected_components
 
 from pylibcugraph.uniform_random_walks import uniform_random_walks

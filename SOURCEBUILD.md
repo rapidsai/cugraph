@@ -91,12 +91,13 @@ build.sh [<target> ...] [<flag> ...]
  where <target> is:
    clean                      - remove all existing build artifacts and configuration (start over)
    uninstall                  - uninstall libcugraph and cugraph from a prior build/install (see also -n)
-   uninstall_cmake_deps       - uninstall headers from external dependencies installed by cmake (raft, rmm, cuco, etc.) (see also -n)
    libcugraph                 - build libcugraph.so and SG test binaries
    libcugraph_etl             - build libcugraph_etl.so and SG test binaries
-   cugraph                    - build the cugraph Python package
    pylibcugraph               - build the pylibcugraph Python package
+   cugraph                    - build the cugraph Python package
+   cugraph-service            - build the cugraph-service_client and cugraph-service_server Python package
    cpp-mgtests                - build libcugraph and libcugraph_etl MG tests. Builds MPI communicator, adding MPI as a dependency.
+   cugraph-dgl                - build the cugraph-dgl extensions for DGL
    docs                       - build the docs
  and <flag> is:
    -v                         - verbose build mode
@@ -107,13 +108,10 @@ build.sh [<target> ...] [<flag> ...]
    --skip_cpp_tests           - do not build the SG test binaries as part of the libcugraph and libcugraph_etl targets
    --without_cugraphops       - do not build algos that require cugraph-ops
    --cmake_default_generator  - use the default cmake generator instead of ninja
+   --clean                    - clean an individual target (note: to do a complete rebuild, use the clean target described above)
    -h                         - print this text
 
- default action (no args) is to build and install 'libcugraph' then 'libcugraph_etl' then 'pylibcugraph' then 'cugraph' targets
-
- libcugraph build dir is: /my/path/to/repos/cugraph/cpp/build
-
- Set env var LIBCUGRAPH_BUILD_DIR to override libcugraph build dir.
+ default action (no args) is to build and install 'libcugraph' then 'libcugraph_etl' then 'pylibcugraph' then 'cugraph' then 'cugraph-service' targets
 
 examples:
 $ ./build.sh clean                        # remove prior build artifacts (start over)
