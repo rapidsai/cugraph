@@ -30,6 +30,10 @@ from pylibcugraph._cugraph_c.graph cimport (
     cugraph_graph_t,
 )
 
+from pylibcugraph._cugraph_c.graph_functions cimport (
+    cugraph_induced_subgraph_result_t,
+)
+
 
 cdef extern from "cugraph_c/community_algorithms.h":
     ###########################################################################
