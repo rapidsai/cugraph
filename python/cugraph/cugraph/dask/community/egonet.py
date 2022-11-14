@@ -106,18 +106,15 @@ def ego_graph(input_graph, n, radius=1, center=True, undirected=None, distance=N
             n = cudf.Series(n)
         if not isinstance(n, cudf.Series):
             raise TypeError(
-                f"'n' must be either a list or a cudf.Series,"
-                f"got: {n.dtype}"
+                f"'n' must be either a list or a cudf.Series," f"got: {n.dtype}"
             )
 
         # n uses "external" vertex IDs, but since the graph has been
         # renumbered, the node ID must also be renumbered.
         if input_graph.renumbered:
             n = input_graph.lookup_internal_vertex_id(n).compute()
-    
-    n = dask_cudf.from_cudf(
-        n, npartitions=min(input_graph._npartitions, len(n))
-    )
+
+    n = dask_cudf.from_cudf(n, npartitions=min(input_graph._npartitions, len(n)))
 
     n = get_distributed_data(n)
 
@@ -152,8 +149,7 @@ def ego_graph(input_graph, n, radius=1, center=True, undirected=None, distance=N
     ]
 
     cudf_offset = [
-        client.submit(convert_to_cudf, cp_offsets)
-        for cp_offsets in result_offset
+        client.submit(convert_to_cudf, cp_offsets) for cp_offsets in result_offset
     ]
 
     wait(cudf_edge)
@@ -164,7 +160,12 @@ def ego_graph(input_graph, n, radius=1, center=True, undirected=None, distance=N
     wait(ddf)
     wait(offsets)
     # Wait until the inactive futures are released
-    wait([(r.release(), c_e.release(), c_o.release()) for r, c_e, c_o in zip(result, cudf_edge, cudf_offset)])
+    wait(
+        [
+            (r.release(), c_e.release(), c_o.release())
+            for r, c_e, c_o in zip(result, cudf_edge, cudf_offset)
+        ]
+    )
 
     if input_graph.renumbered:
         ddf = input_graph.unrenumber(ddf, "src")
