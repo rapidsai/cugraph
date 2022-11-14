@@ -133,12 +133,15 @@ def convert_from_nx(nxG, weight=None, do_renumber=True, store_transposed=False):
             )
         else:
             _gdf = convert_weighted_named_to_gdf(nxG, weight)
+            # FIXME hardcoded dtype
+            _gdf["src"] = _gdf["src"].astype("int32")
+            _gdf["dst"] = _gdf["dst"].astype("int32")
             G.from_cudf_edgelist(
                 _gdf,
                 source="src",
                 destination="dst",
                 edge_attr="weight",
-                renumber=do_renumber,
+                renumber=False,
                 store_transposed=store_transposed,
             )
 
