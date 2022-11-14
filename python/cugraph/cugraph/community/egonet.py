@@ -119,8 +119,8 @@ def ego_graph(G, n, radius=1, center=True, undirected=None, distance=None):
 
 
     # Match the seed to the vertex dtype
-    n_type = input_graph.edgelist.edgelist_df["src"].dtype
-    n = seeds.astype(n_type)
+    n_type = G.edgelist.edgelist_df["src"].dtype
+    n = n.astype(n_type)
     do_expensive_check = False
 
     source, destination, weight, _ = pylibcugraph_ego_graph(
@@ -213,7 +213,7 @@ def batched_ego_graphs(G, seeds, radius=1, center=True, undirected=None, distanc
                 seeds = G.lookup_internal_vertex_id(seeds)
 
     # Match the seed to the vertex dtype
-    seeds_type = input_graph.edgelist.edgelist_df["src"].dtype
+    seeds_type = G.edgelist.edgelist_df["src"].dtype
     seeds = seeds.astype(seeds_type)
 
     do_expensive_check = False
