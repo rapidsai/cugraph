@@ -297,7 +297,6 @@ def test_wcc(input_and_expected_output):
     cupy_offsets = cp.asarray(csr.indptr, dtype=np.int32)
     cupy_indices = cp.asarray(csr.indices, dtype=np.int32)
     cupy_weights = cp.asarray(csr.data, dtype=np.float32)
-    # cupy_weights = None
 
     pylibcugraph.weakly_connected_components(
         None,
