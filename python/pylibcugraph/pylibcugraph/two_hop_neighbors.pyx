@@ -17,6 +17,7 @@
 
 from pylibcugraph._cugraph_c.resource_handle cimport (
     cugraph_resource_handle_t,
+    bool_t,
 )
 from pylibcugraph._cugraph_c.error cimport (
     cugraph_error_code_t,
@@ -54,7 +55,8 @@ from pylibcugraph.utils cimport (
 
 def get_two_hop_neighbors(ResourceHandle resource_handle,
                           _GPUGraph graph,
-                          start_vertices):
+                          start_vertices,
+                          bool_t do_expensive_check):
     """
         Compute vertex pairs that are two hops apart. The resulting pairs are
         sorted before returning.
@@ -96,6 +98,7 @@ def get_two_hop_neighbors(ResourceHandle resource_handle,
     error_code = cugraph_two_hop_neighbors(c_resource_handle_ptr,
                                            c_graph_ptr,
                                            start_vertices_view_ptr,
+                                           do_expensive_check,
                                            &result_ptr,
                                            &error_ptr)
     assert_success(error_code, error_ptr, "two_hop_neighbors")

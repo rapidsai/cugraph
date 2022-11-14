@@ -20,7 +20,8 @@ from pylibcugraph._cugraph_c.error cimport (
 )
 
 from pylibcugraph._cugraph_c.resource_handle cimport (
-    cugraph_resource_handle_t
+    cugraph_resource_handle_t,
+    bool_t,
 )
 #"""
 from pylibcugraph._cugraph_c.similarity_algorithms cimport (
@@ -72,6 +73,7 @@ cdef extern from "cugraph_c/graph_functions.h":
         const cugraph_resource_handle_t* handle,
         const cugraph_graph_t* graph,
         const cugraph_type_erased_device_array_view_t* start_vertices,
+        bool_t do_expensive_check,
         cugraph_vertex_pairs_t** result,
         cugraph_error_t** error
         )
