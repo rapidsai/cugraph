@@ -11,16 +11,33 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from cugraph.utilities import (ensure_cugraph_obj_for_nx,
+                               df_score_to_dictionary,
+                               renumber_vertex_pair
+                               )
 import cudf
-from cugraph.link_prediction import jaccard_wrapper
-from cugraph.utilities import (
-    ensure_cugraph_obj_for_nx,
-    df_edge_score_to_dictionary,
-    renumber_vertex_pair,
-)
+import warnings
+
+from pylibcugraph import (jaccard_coefficients as pylibcugraph_jaccard_coefficients,
+                          ResourceHandle
+                          )
 
 
-def jaccard(input_graph, vertex_pair=None):
+# FIXME: update this function to renumber both 'first' and 'second'
+def renumber_vertices(input_graph, input_df, col_name):
+    if len(input_graph.renumber_map.implementation.col_names) > 1:
+        cols = input_df.columns[:-1].to_list()
+    else:
+        cols = col_name
+    input_df = input_graph.add_internal_vertex_id(
+        input_df, "vertex", cols
+    )
+
+    return input_df
+
+def jaccard(G, vertex_pair=None, use_weight=False):
+    # FIXME: update docstring
+    # FIXME: What happens to the C/C++ implementation if vertex_pair=None
     """
     Compute the Jaccard similarity between each pair of vertices connected by
     an edge, or between arbitrary pairs of vertices specified by the user.
@@ -79,6 +96,8 @@ def jaccard(input_graph, vertex_pair=None):
         given vertex pairs.  If the vertex_pair is not provided then the
         current implementation computes the jaccard coefficient for all
         adjacent vertices in the graph.
+    
+    use_weight
 
     Returns
     -------
@@ -104,23 +123,43 @@ def jaccard(input_graph, vertex_pair=None):
     >>> df = cugraph.jaccard(G)
 
     """
-    if input_graph.is_directed():
+    if G.is_directed():
         raise ValueError("Input must be an undirected Graph.")
-    if type(vertex_pair) == cudf.DataFrame:
-        vertex_pair = renumber_vertex_pair(input_graph, vertex_pair)
-    elif vertex_pair is not None:
-        raise ValueError("vertex_pair must be a cudf dataframe")
 
-    df = jaccard_wrapper.jaccard(input_graph, None, vertex_pair)
+    first = None
+    second = None
 
+    if isinstance(vertex_pair, cudf.DataFrame):
+        # FIXME: handle the case where the datasets was renumbered
+        if G.renumbered is True:
+            vertex_pair = renumber_vertices(G, vertex_pair)
+        first = vertex_pair["first"]
+        second = vertex_pair["second"]
+    else:
+        if vertex_pair is not None:
+            raise ValueError("vertex_pair must be a cudf dataframe")
+    print("first is \n", first)
+    print("second is \n", second)
+
+    jaccard_coeff = \
+        pylibcugraph_jaccard_coefficients(
+            resource_handle=ResourceHandle(),
+            graph=G._plc_graph,
+            first = first,
+            second = second,
+            use_weight=use_weight,
+            do_expensive_check=False
+        )
+    """
     if input_graph.renumbered:
         df = input_graph.unrenumber(df, "source")
         df = input_graph.unrenumber(df, "destination")
+    """
 
-    return df
+    return jaccard_coeff
 
 
-def jaccard_coefficient(G, ebunch=None):
+def jaccard_coefficient(G, vertex_pair=None, use_weight=True):
     """
     For NetworkX Compatability.  See `jaccard`
 
@@ -174,8 +213,9 @@ def jaccard_coefficient(G, ebunch=None):
     df = jaccard(G, vertex_pair)
 
     if isNx is True:
-        df = df_edge_score_to_dictionary(
-            df, k="jaccard_coeff", src="source", dst="destination"
-        )
+        df = df_edge_score_to_dictionary(df,
+                                         k="jaccard_coeff",
+                                         src="source",
+                                         dst="destination")
 
     return df
