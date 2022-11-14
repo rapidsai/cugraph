@@ -62,7 +62,7 @@ fi
 
 # Check for copyright headers in the files modified currently
 #COPYRIGHT=`env PYTHONPATH=ci/utils python ci/checks/copyright.py cpp python benchmarks ci 2>&1`
-COPYRIGHT=`env PYTHONPATH=ci/utils python ci/checks/copyright.py --git-modified-only 2>&1`
+COPYRIGHT=`env PYTHONPATH=ci/utils python ci/checks/copyright.py --git-modified-only --exclude=".*/versioneer.py" 2>&1`
 CR_RETVAL=$?
 ERRORCODE=$((ERRORCODE | ${CR_RETVAL}))
 
