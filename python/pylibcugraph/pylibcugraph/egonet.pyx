@@ -54,7 +54,6 @@ from pylibcugraph.utils cimport (
     assert_success,
     assert_CAI_type,
     copy_to_cupy_array,
-    copy_to_cupy_array_weights_offsets,
     create_cugraph_type_erased_device_array_view_from_py_obj,
 )
 
@@ -119,6 +118,7 @@ def ego_graph(ResourceHandle resource_handle,
     [x, x, x]
 
     """
+
     cdef cugraph_resource_handle_t* c_resource_handle_ptr = \
         resource_handle.c_resource_handle_ptr
     cdef cugraph_graph_t* c_graph_ptr = graph.c_graph_ptr
@@ -148,23 +148,29 @@ def ego_graph(ResourceHandle resource_handle,
         cugraph_induced_subgraph_get_destinations(result_ptr)
     cdef cugraph_type_erased_device_array_view_t* edge_weights_ptr = \
         cugraph_induced_subgraph_get_edge_weights(result_ptr)
-    cdef cugraph_type_erased_device_array_view_t* subgraph_offsets_ptr
+    cdef cugraph_type_erased_device_array_view_t* subgraph_offsets_ptr = \
+        cugraph_induced_subgraph_get_subgraph_offsets(result_ptr)
 
-    cupy_sources = copy_to_cupy_array(c_resource_handle_ptr, sources_ptr)
+    cupy_sources = copy_to_cupy_array(
+        c_resource_handle_ptr, sources_ptr)
+
     cupy_destinations = copy_to_cupy_array(
         c_resource_handle_ptr, destinations_ptr)
-    cupy_edge_weights = copy_to_cupy_array_weights_offsets(
-        c_resource_handle_ptr, edge_weights_ptr, "weights")
-    
-    subgraph_offsets_ptr = cugraph_induced_subgraph_get_subgraph_offsets(
-            result_ptr)
-    
-    # FIXME: The C enum value for offsets is 4. For the rest is 0
-    # which is also a problem for weights
-    cupy_subgraph_offsets = copy_to_cupy_array_weights_offsets(
-        c_resource_handle_ptr, subgraph_offsets_ptr, "offsets")
-    
+
+    cupy_edge_weights = copy_to_cupy_array(
+        c_resource_handle_ptr, edge_weights_ptr)
+
+    cupy_subgraph_offsets = copy_to_cupy_array(
+        c_resource_handle_ptr, subgraph_offsets_ptr)
+
+    # Free pointers
     cugraph_induced_subgraph_result_free(result_ptr)
+
+    cugraph_type_erased_device_array_view_free(sources_ptr)
+    cugraph_type_erased_device_array_view_free(destinations_ptr)
+    cugraph_type_erased_device_array_view_free(edge_weights_ptr)
+    cugraph_type_erased_device_array_view_free(subgraph_offsets_ptr)
+
 
     return (cupy_sources, cupy_destinations,
                 cupy_edge_weights, cupy_subgraph_offsets)
