@@ -129,6 +129,7 @@ def jaccard_coefficients(ResourceHandle resource_handle,
                 second)
 
     # call cugraph_create_vertex_pairs
+    print("creating the vertex pair")
     error_code = cugraph_create_vertex_pairs(c_resource_handle_ptr,
                                              c_graph_ptr,
                                              first_view_ptr,
@@ -136,6 +137,7 @@ def jaccard_coefficients(ResourceHandle resource_handle,
                                              &vertex_pairs_ptr,
                                              &error_ptr)
     assert_success(error_code, error_ptr, "vertex_pairs")
+    print("done creating the vertex pair")
 
     error_code = cugraph_jaccard_coefficients(c_resource_handle_ptr,
                                               c_graph_ptr,
@@ -156,6 +158,7 @@ def jaccard_coefficients(ResourceHandle resource_handle,
     # Free all pointers
     cugraph_similarity_result_free(result_ptr)
     cugraph_vertex_pairs_free(vertex_pairs_ptr)
+    # FIXME: deallocate the device array view for all algos
     cugraph_type_erased_device_array_view_free(first_view_ptr)
     cugraph_type_erased_device_array_view_free(second_view_ptr)
 
