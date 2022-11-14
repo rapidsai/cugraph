@@ -57,9 +57,6 @@ def test_ego_graph_nx(graph_file, seed, radius):
     assert nx.is_isomorphic(ego_nx, ego_cugraph)
 
 
-# FIXME: Batch ego_graph is returning different results
-# if inversing the seeds in the list
-@pytest.mark.skip("debugging")
 @pytest.mark.parametrize("graph_file", DATASETS)
 @pytest.mark.parametrize("seeds", [[0, 5, 13]])
 @pytest.mark.parametrize("radius", [1, 2, 3])
