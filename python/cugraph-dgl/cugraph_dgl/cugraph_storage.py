@@ -36,7 +36,7 @@ class CuGraphStorage:
 
     def __init__(
         self,
-        num_nodes_dict: dict,
+        num_nodes_dict: dict[str, int],
         single_gpu: bool = True,
         cugraph_service_client=None,
         device_id: int = 0,
@@ -383,7 +383,7 @@ class CuGraphStorage:
         nodes,
         fanout: int,
         edge_dir: str = "in",
-        prob: str = None,
+        prob: Optional[str] = None,
         exclude_edges=None,
         replace: bool = False,
         output_device=None,
