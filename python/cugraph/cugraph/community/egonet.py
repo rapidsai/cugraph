@@ -109,7 +109,7 @@ def ego_graph(G, n, radius=1, center=True, undirected=None, distance=None):
         if isinstance(n, int):
             n = [n]
         if isinstance(n, list):
-            n = cudf.Series(n).astype("int32")
+            n = cudf.Series(n)
 
         if G.renumbered is True:
             if isinstance(n, cudf.DataFrame):
@@ -117,6 +117,10 @@ def ego_graph(G, n, radius=1, center=True, undirected=None, distance=None):
             else:
                 n = G.lookup_internal_vertex_id(n)
 
+
+    # Match the seed to the vertex dtype
+    n_type = input_graph.edgelist.edgelist_df["src"].dtype
+    n = seeds.astype(n_type)
     do_expensive_check = False
 
     source, destination, weight, _ = pylibcugraph_ego_graph(
@@ -200,13 +204,17 @@ def batched_ego_graphs(G, seeds, radius=1, center=True, undirected=None, distanc
         if isinstance(seeds, int):
             seeds = [seeds]
         if isinstance(seeds, list):
-            seeds = cudf.Series(seeds).astype("int32")
+            seeds = cudf.Series(seeds)
 
         if G.renumbered is True:
             if isinstance(seeds, cudf.DataFrame):
                 seeds = G.lookup_internal_vertex_id(seeds, seeds.columns)
             else:
                 seeds = G.lookup_internal_vertex_id(seeds)
+
+    # Match the seed to the vertex dtype
+    seeds_type = input_graph.edgelist.edgelist_df["src"].dtype
+    seeds = seeds.astype(seeds_type)
 
     do_expensive_check = False
     source, destination, weight, offset = pylibcugraph_ego_graph(
