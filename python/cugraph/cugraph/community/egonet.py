@@ -96,13 +96,14 @@ def ego_graph(G, n, radius=1, center=True, undirected=None, distance=None):
     result_graph = type(G)()
 
     if undirected is not None:
-        warning_msg = ("The parameter 'undirected' is depreacted and "
-                       "will be removed in the next release")
+        warning_msg = (
+            "The parameter 'undirected' is depreacted and "
+            "will be removed in the next release"
+        )
         warnings.warn(warning_msg, PendingDeprecationWarning)
-    
+
     if G.is_directed():
         raise ValueError("input graph must be undirected")
-
 
     if n is not None:
         if isinstance(n, int):
@@ -126,7 +127,6 @@ def ego_graph(G, n, radius=1, center=True, undirected=None, distance=None):
         do_expensive_check=do_expensive_check,
     )
 
-
     df = cudf.DataFrame()
     df["src"] = source
     df["dst"] = destination
@@ -145,14 +145,11 @@ def ego_graph(G, n, radius=1, center=True, undirected=None, distance=None):
             df, source=src_names, destination=dst_names, edge_attr="weight"
         )
     else:
-        result_graph.from_cudf_edgelist(
-            df, source=src_names, destination=dst_names)
+        result_graph.from_cudf_edgelist(df, source=src_names, destination=dst_names)
     return _convert_graph_to_output_type(result_graph, input_type)
 
 
-def batched_ego_graphs(
-    G, seeds, radius=1, center=True, undirected=None, distance=None
-):
+def batched_ego_graphs(G, seeds, radius=1, center=True, undirected=None, distance=None):
     """
     Compute the induced subgraph of neighbors for each node in seeds
     within a given radius.
@@ -211,14 +208,13 @@ def batched_ego_graphs(
             else:
                 seeds = G.lookup_internal_vertex_id(seeds)
 
-
     do_expensive_check = False
     source, destination, weight, offset = pylibcugraph_ego_graph(
-            resource_handle=ResourceHandle(),
-            graph=G._plc_graph,
-            source_vertices=seeds,
-            radius=radius,
-            do_expensive_check=do_expensive_check,
+        resource_handle=ResourceHandle(),
+        graph=G._plc_graph,
+        source_vertices=seeds,
+        radius=radius,
+        do_expensive_check=do_expensive_check,
     )
 
     offsets = cudf.Series(offset)
