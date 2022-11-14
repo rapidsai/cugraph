@@ -119,7 +119,7 @@ def ego_graph(G, n, radius=1, center=True, undirected=None, distance=None):
 
     do_expensive_check = False
 
-    source, destination, weight = pylibcugraph_ego_graph(
+    source, destination, weight, _ = pylibcugraph_ego_graph(
         resource_handle=ResourceHandle(),
         graph=G._plc_graph,
         source_vertices=n,
