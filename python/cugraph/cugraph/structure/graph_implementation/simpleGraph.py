@@ -896,12 +896,14 @@ class simpleGraphImpl:
                 weight_col, id_col, type_col = value_col[0], None, None
         else:
             raise ValueError(f"Illegal value col {type(value_col)}")
-
+        
+        """
         if weight_col is None:
             weight_col = cudf.Series(
                 cupy.ones(len(self.edgelist.edgelist_df), dtype="float32")
             )
-        else:
+        """
+        if weight_col is not None:
             weight_t = weight_col.dtype
 
             if weight_t == "int32":
@@ -913,6 +915,8 @@ class simpleGraphImpl:
             is_multigraph=self.properties.multi_edge,
             is_symmetric=not self.properties.directed,
         )
+
+        print("the weight column is\n", weight_col)
 
         self._plc_graph = SGGraph(
             resource_handle=ResourceHandle(),

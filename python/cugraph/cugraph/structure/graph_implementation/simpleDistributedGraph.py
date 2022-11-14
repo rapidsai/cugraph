@@ -86,7 +86,8 @@ class simpleDistributedGraphImpl:
             elif values.dtype == "int64":
                 values = values.astype("float64")
         else:
-            values = cudf.Series(cupy.ones(len(edata_x[0]), dtype="float32"))
+            #values = cudf.Series(cupy.ones(len(edata_x[0]), dtype="float32"))
+            values = None
 
         if simpleDistributedGraphImpl.edgeIdCol in edata_x[0]:
             if simpleDistributedGraphImpl.edgeTypeCol not in edata_x[0]:
