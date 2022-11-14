@@ -150,7 +150,7 @@ struct kv_binary_search_store_view_t {
   using key_iterator   = KeyIterator;
   using value_iterator = ValueIterator;
 
-  static constexpr bool binary_search = false;
+  static constexpr bool binary_search = true;
 
   kv_binary_search_store_view_t(KeyIterator key_first,
                                 KeyIterator key_last,

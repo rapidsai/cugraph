@@ -33,7 +33,6 @@
 #include <cugraph/utilities/thrust_tuple_utils.hpp>
 #include <cugraph/vertex_partition_device_view.cuh>
 
-#include <cuco/static_map.cuh>
 #include <raft/handle.hpp>
 #include <rmm/mr/device/per_device_resource.hpp>
 #include <rmm/mr/device/polymorphic_allocator.hpp>
@@ -540,18 +539,8 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
         tmp_key_aggregated_edge_weights.begin());
     }
 
-#if 1
     std::unique_ptr<kv_store_t<vertex_t, value_t, KVStoreViewType::binary_search>>
       multi_gpu_kv_map_ptr{nullptr};
-#else
-    auto multi_gpu_kv_map_ptr = std::make_unique<
-      cuco::static_map<vertex_t, value_t, cuda::thread_scope_device, decltype(stream_adapter)>>(
-      size_t{0},
-      cuco::sentinel::empty_key<vertex_t>{invalid_key},
-      cuco::sentinel::empty_value<value_t>{invalid_value},
-      stream_adapter,
-      handle.get_stream());  // relevant only when GraphViewType::is_multi_gpu is true
-#endif
     if constexpr (GraphViewType::is_multi_gpu) {
       auto& comm           = handle.get_comms();
       auto const comm_size = comm.get_size();

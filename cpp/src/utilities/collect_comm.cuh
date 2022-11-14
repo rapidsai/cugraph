@@ -22,7 +22,6 @@
 #include <cugraph/utilities/host_scalar_comm.hpp>
 #include <cugraph/utilities/shuffle_comm.cuh>
 
-#include <cuco/static_map.cuh>
 #include <raft/handle.hpp>
 #include <rmm/device_uvector.hpp>
 #include <rmm/exec_policy.hpp>
@@ -170,19 +169,23 @@ collect_values_for_unique_keys(
   return std::make_tuple(std::move(collect_unique_keys), std::move(values_for_collect_unique_keys));
 }
 
-template <typename vertex_t, typename ValueIterator>
+template <typename VertexIterator, typename ValueIterator>
 decltype(allocate_dataframe_buffer<typename thrust::iterator_traits<ValueIterator>::value_type>(
   0, cudaStream_t{nullptr}))
-collect_values_for_sorted_unique_vertices(raft::comms::comms_t const& comm,
-                                          vertex_t const* collect_unique_vertex_first,
-                                          vertex_t num_vertices,
-                                          ValueIterator local_value_first,
-                                          std::vector<vertex_t> const& vertex_partition_range_lasts,
-                                          rmm::cuda_stream_view stream_view)
+collect_values_for_sorted_unique_int_vertices(
+  raft::comms::comms_t const& comm,
+  VertexIterator collect_sorted_unique_vertex_first,
+  VertexIterator collect_sorted_unique_vertex_last,
+  ValueIterator local_value_first,
+  std::vector<typename thrust::iterator_traits<VertexIterator>::value_type> const&
+    vertex_partition_range_lasts,
+  rmm::cuda_stream_view stream_view)
 {
-  using value_t = typename thrust::iterator_traits<ValueIterator>::value_type;
+  using vertex_t = typename thrust::iterator_traits<VertexIterator>::value_type;
+  using value_t  = typename thrust::iterator_traits<ValueIterator>::value_type;
 
   // 1: Compute bounds of values
+
   rmm::device_uvector<vertex_t> d_vertex_partition_range_lasts(vertex_partition_range_lasts.size(),
                                                                stream_view);
   rmm::device_uvector<size_t> d_local_counts(vertex_partition_range_lasts.size(), stream_view);
@@ -193,8 +196,8 @@ collect_values_for_sorted_unique_vertices(raft::comms::comms_t const& comm,
              stream_view);
 
   thrust::lower_bound(rmm::exec_policy(stream_view),
-                      collect_unique_vertex_first,
-                      collect_unique_vertex_first + num_vertices,
+                      collect_sorted_unique_vertex_first,
+                      collect_sorted_unique_vertex_last,
                       d_vertex_partition_range_lasts.begin(),
                       d_vertex_partition_range_lasts.end(),
                       d_local_counts.begin());
@@ -210,12 +213,14 @@ collect_values_for_sorted_unique_vertices(raft::comms::comms_t const& comm,
     h_local_counts.data(), d_local_counts.data(), d_local_counts.size(), stream_view);
 
   // 2: Shuffle data
+
   auto [shuffled_vertices, shuffled_counts] =
-    shuffle_values(comm, collect_unique_vertex_first, h_local_counts, stream_view);
+    shuffle_values(comm, collect_sorted_unique_vertex_first, h_local_counts, stream_view);
 
   auto value_buffer = allocate_dataframe_buffer<value_t>(shuffled_vertices.size(), stream_view);
 
   // 3: Lookup return values
+
   thrust::transform(rmm::exec_policy(stream_view),
                     shuffled_vertices.begin(),
                     shuffled_vertices.end(),
@@ -229,6 +234,7 @@ collect_values_for_sorted_unique_vertices(raft::comms::comms_t const& comm,
                     });
 
   // 4: Shuffle results back to original GPU
+
   std::tie(value_buffer, std::ignore) =
     shuffle_values(comm, value_buffer.begin(), shuffled_counts, stream_view);
 
@@ -238,7 +244,7 @@ collect_values_for_sorted_unique_vertices(raft::comms::comms_t const& comm,
 template <typename VertexIterator, typename ValueIterator>
 decltype(allocate_dataframe_buffer<typename thrust::iterator_traits<ValueIterator>::value_type>(
   0, cudaStream_t{nullptr}))
-collect_values_for_vertices(
+collect_values_for_int_vertices(
   raft::comms::comms_t const& comm,
   VertexIterator collect_vertex_first,
   VertexIterator collect_vertex_last,
@@ -252,39 +258,40 @@ collect_values_for_vertices(
 
   size_t input_size = thrust::distance(collect_vertex_first, collect_vertex_last);
 
-  rmm::device_uvector<vertex_t> input_vertices(input_size, stream_view);
-  auto value_buffer = allocate_dataframe_buffer<value_t>(input_size, stream_view);
+  rmm::device_uvector<vertex_t> sorted_unique_vertices(input_size, stream_view);
 
-  raft::copy(input_vertices.data(), collect_vertex_first, input_size, stream_view);
+  raft::copy(sorted_unique_vertices.data(), collect_vertex_first, input_size, stream_view);
 
   // FIXME:  It's possible that the input data might already be sorted and unique in
   //         which case we could skip these steps.
-  thrust::sort(rmm::exec_policy(stream_view), input_vertices.begin(), input_vertices.end());
-  auto input_end =
-    thrust::unique(rmm::exec_policy(stream_view), input_vertices.begin(), input_vertices.end());
-  input_vertices.resize(thrust::distance(input_vertices.begin(), input_end), stream_view);
+  thrust::sort(
+    rmm::exec_policy(stream_view), sorted_unique_vertices.begin(), sorted_unique_vertices.end());
+  auto last = thrust::unique(
+    rmm::exec_policy(stream_view), sorted_unique_vertices.begin(), sorted_unique_vertices.end());
+  sorted_unique_vertices.resize(thrust::distance(sorted_unique_vertices.begin(), last),
+                                stream_view);
 
   auto tmp_value_buffer =
-    collect_values_for_sorted_unique_vertices(comm,
-                                              input_vertices.data(),
-                                              static_cast<vertex_t>(input_vertices.size()),
-                                              local_value_first,
-                                              vertex_partition_range_lasts,
-                                              stream_view);
+    collect_values_for_sorted_unique_int_vertices(comm,
+                                                  sorted_unique_vertices.begin(),
+                                                  sorted_unique_vertices.end(),
+                                                  local_value_first,
+                                                  vertex_partition_range_lasts,
+                                                  stream_view);
 
+  kv_store_t<vertex_t, value_t, true> kv_map(std::move(sorted_unique_vertices),
+                                             std::move(tmp_value_buffer),
+                                             invalid_vertex_id<vertex_t>::value,
+                                             false,
+                                             stream_view);
+  auto device_view = detail::kv_binary_search_store_device_view_t(kv_map.view());
+
+  auto value_buffer = allocate_dataframe_buffer<value_t>(input_size, stream_view);
   thrust::transform(rmm::exec_policy(stream_view),
                     collect_vertex_first,
                     collect_vertex_last,
                     value_buffer.begin(),
-                    [num_vertices = input_vertices.size(),
-                     d_vertices   = input_vertices.data(),
-                     d_values     = tmp_value_buffer.data()] __device__(auto v) {
-                      auto pos =
-                        thrust::find(thrust::seq, d_vertices, d_vertices + num_vertices, v);
-                      auto offset = thrust::distance(d_vertices, pos);
-
-                      return d_values[offset];
-                    });
+                    [device_view] __device__(auto v) { return device_view.find(v); });
 
   return value_buffer;
 }
