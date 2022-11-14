@@ -31,7 +31,6 @@ def _call_ego_graph(
     radius,
     do_expensive_check,
 ):
-    print("the source in ego_graph is \n", n)
     return pylibcugraph_ego_graph(
         resource_handle=ResourceHandle(Comms.get_handle(sID).getHandle()),
         graph=mg_graph_x,
@@ -113,8 +112,12 @@ def ego_graph(input_graph, n, radius=1, center=True, undirected=None, distance=N
         # renumbered, the node ID must also be renumbered.
         if input_graph.renumbered:
             n = input_graph.lookup_internal_vertex_id(n).compute()
+            n_type = input_graph.edgelist.edgelist_df.dtypes[0]
+        else:
+            n_type = input_graph.input_df.dtypes[0]
 
     n = dask_cudf.from_cudf(n, npartitions=min(input_graph._npartitions, len(n)))
+    n = n.astype(n_type)
 
     n = get_distributed_data(n)
 
@@ -171,5 +174,5 @@ def ego_graph(input_graph, n, radius=1, center=True, undirected=None, distance=N
         ddf = input_graph.unrenumber(ddf, "src")
         ddf = input_graph.unrenumber(ddf, "dst")
 
-    # FIXME: fix the return type
+    # FIXME: Temporary return.
     return ddf, offsets
