@@ -164,14 +164,8 @@ def ego_graph(ResourceHandle resource_handle,
     cupy_subgraph_offsets = copy_to_cupy_array(
         c_resource_handle_ptr, subgraph_offsets_ptr)
 
-    # Free pointers
+    # Free pointer
     cugraph_induced_subgraph_result_free(result_ptr)
-
-    cugraph_type_erased_device_array_view_free(sources_ptr)
-    cugraph_type_erased_device_array_view_free(destinations_ptr)
-    cugraph_type_erased_device_array_view_free(edge_weights_ptr)
-    cugraph_type_erased_device_array_view_free(subgraph_offsets_ptr)
-
 
     return (cupy_sources, cupy_destinations,
                 cupy_edge_weights, cupy_subgraph_offsets)
