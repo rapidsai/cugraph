@@ -57,7 +57,7 @@ def convert_to_cudf(*cp_arrays):
         return df
 
 
-def ego_graph(input_graph, n, radius=1, center=True, undirected=None, distance=None):
+def ego_graph(input_graph, n, radius=1, center=True):
     """
     Compute the induced subgraph of neighbors centered at node n,
     within a given radius.
@@ -80,21 +80,13 @@ def ego_graph(input_graph, n, radius=1, center=True, undirected=None, distance=N
     center: bool, optional
         Defaults to True. False is not supported
 
-    undirected: bool, optional
-        Defaults to False. True is not supported
-
-    distance: key, optional (default=None)
-        Distances are counted in hops from n. Other cases are not supported.
-
     Returns
     -------
     G_ego : cuGraph.Graph
         A graph descriptor with a minimum spanning tree or forest.
-        The networkx graph will not have all attributes copied over
 
     """
-    if input_graph.is_directed():
-        raise ValueError("input graph must be undirected")
+
     # Initialize dask client
     client = input_graph._client
 
