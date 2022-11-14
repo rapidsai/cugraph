@@ -155,19 +155,16 @@ def ego_graph(ResourceHandle resource_handle,
         c_resource_handle_ptr, destinations_ptr)
     cupy_edge_weights = copy_to_cupy_array_weights_offsets(
         c_resource_handle_ptr, edge_weights_ptr, "weights")
-
-    if len(source_vertices) > 1:
-        subgraph_offsets_ptr = cugraph_induced_subgraph_get_subgraph_offsets(
+    
+    subgraph_offsets_ptr = cugraph_induced_subgraph_get_subgraph_offsets(
             result_ptr)
-        # FIXME: The C enum value for offsets is 4. For the rest is 0
-        # which is also a problem for weights
-        cupy_subgraph_offsets = copy_to_cupy_array_weights_offsets(
-            c_resource_handle_ptr, subgraph_offsets_ptr, "offsets")
-
-        cugraph_induced_subgraph_result_free(result_ptr)
-        return (cupy_sources, cupy_destinations,
-                cupy_edge_weights, cupy_subgraph_offsets)
-
+    
+    # FIXME: The C enum value for offsets is 4. For the rest is 0
+    # which is also a problem for weights
+    cupy_subgraph_offsets = copy_to_cupy_array_weights_offsets(
+        c_resource_handle_ptr, subgraph_offsets_ptr, "offsets")
+    
     cugraph_induced_subgraph_result_free(result_ptr)
 
-    return (cupy_sources, cupy_destinations, cupy_edge_weights)
+    return (cupy_sources, cupy_destinations,
+                cupy_edge_weights, cupy_subgraph_offsets)
