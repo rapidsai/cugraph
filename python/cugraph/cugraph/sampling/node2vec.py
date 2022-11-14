@@ -107,13 +107,7 @@ def node2vec(G, start_vertices, max_depth=1, compress_result=True, p=1.0, q=1.0)
         start_vertices = [start_vertices]
 
     if isinstance(start_vertices, list):
-        start_vertices = cudf.Series(start_vertices, dtype="int32")
-        # FIXME: Verify if this condition still holds
-        if start_vertices.dtype != "int32":
-            raise ValueError(
-                f"'start_vertices' must have int32 values, "
-                f"got: {start_vertices.dtype}"
-            )
+        start_vertices = cudf.Series(start_vertices)
 
     if G.renumbered is True:
         if isinstance(start_vertices, cudf.DataFrame):
@@ -122,6 +116,10 @@ def node2vec(G, start_vertices, max_depth=1, compress_result=True, p=1.0, q=1.0)
             )
         else:
             start_vertices = G.lookup_internal_vertex_id(start_vertices)
+
+    # Match the seed to the vertex dtype
+    start_vertices_type = G.edgelist.edgelist_df["src"].dtype
+    start_vertices = start_vertices.astype(start_vertices_type)
 
     vertex_set, edge_set, sizes = pylibcugraph_node2vec(
         resource_handle=ResourceHandle(),
