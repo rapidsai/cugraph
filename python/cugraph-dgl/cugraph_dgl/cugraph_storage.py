@@ -53,7 +53,7 @@ class CuGraphStorage:
         Parameters
         ----------
          single_gpu: bool
-            Wether to create the cugraph Property Graph
+            Whether to create the cugraph Property Graph
             on a single GPU or multiple GPUs
             single GPU = True creates PropertyGraph
             single GPU = False creates MGPropertyGraph
@@ -197,7 +197,7 @@ class CuGraphStorage:
             (ignored if contains_vector_features=False and the col names of
             the dataframe are treated as corresponding feature names)
         contains_vector_features : True
-            Wether to treat the columns of the dataframe being added as
+            Whether to treat the columns of the dataframe being added as
             as 2d features
         Returns
         -------
@@ -243,7 +243,7 @@ class CuGraphStorage:
             (ignored if contains_vector_features=False and the col names of
             the dataframe are treated as corresponding feature names)
         contains_vector_features : True
-            Wether to treat the columns of the dataframe being added as
+            Whether to treat the columns of the dataframe being added as
             as 2d features
         Returns
         -------
