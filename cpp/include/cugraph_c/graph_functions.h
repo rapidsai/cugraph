@@ -87,6 +87,8 @@ void cugraph_vertex_pairs_free(cugraph_vertex_pairs_t* vertex_pairs);
  * @param [in]  start_vertices Optional type erased array of starting vertices
  *                             If NULL use all, if specified compute two-hop
  *                             neighbors for these starting vertices
+ * @param [in]  do_expensive_check
+ *                             A flag to run expensive checks for input arguments (if set to true)
  * @param [out] result         Opaque pointer to resulting vertex pairs
  * @param [out] error          Pointer to an error object storing details of any error.  Will
  *                             be populated if error code is not CUGRAPH_SUCCESS
@@ -94,8 +96,9 @@ void cugraph_vertex_pairs_free(cugraph_vertex_pairs_t* vertex_pairs);
  */
 cugraph_error_code_t cugraph_two_hop_neighbors(
   const cugraph_resource_handle_t* handle,
-  const cugraph_graph_t* graph,
+  cugraph_graph_t* graph,
   const cugraph_type_erased_device_array_view_t* start_vertices,
+  bool_t do_expensive_check,
   cugraph_vertex_pairs_t** result,
   cugraph_error_t** error);
 

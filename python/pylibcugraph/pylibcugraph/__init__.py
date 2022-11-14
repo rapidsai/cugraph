@@ -51,3 +51,5 @@ from pylibcugraph.two_hop_neighbors import get_two_hop_neighbors
 from pylibcugraph.louvain import louvain
 
 from pylibcugraph.triangle_count import triangle_count
+
+from pylibcugraph.uniform_random_walks import uniform_random_walks
