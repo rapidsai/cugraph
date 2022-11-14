@@ -117,7 +117,6 @@ def ego_graph(G, n, radius=1, center=True, undirected=None, distance=None):
             else:
                 n = G.lookup_internal_vertex_id(n)
 
-
     # Match the seed to the vertex dtype
     n_type = G.edgelist.edgelist_df["src"].dtype
     n = n.astype(n_type)
