@@ -417,7 +417,6 @@ class kv_store_t {
   }
 
   /* when use_binary_search = true */
-  template <typename KeyIterator, typename ValueIterator, bool binary_search = use_binary_search>
   template <bool binary_search = use_binary_search>
   kv_store_t(
     rmm::device_uvector<key_t>&& keys,
