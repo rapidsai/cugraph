@@ -1,7 +1,10 @@
 # Example from
 # https://github.com/dmlc/dgl/blob/master/examples/pytorch/graphsage/node_classification.py
 
-# Cugraph specific imports
+# Create cugraph_context first
+# because of cleanup issue
+# https://github.com/rapidsai/cugraph/issues/2718
+import cugraph
 import cugraph_dgl
 
 # Timing Imports
@@ -17,6 +20,9 @@ from dgl.dataloading import DataLoader, NeighborSampler, MultiLayerFullNeighborS
 from ogb.nodeproppred import DglNodePropPredDataset
 import tqdm
 import argparse
+
+# force creating cugraph context
+cugraph.Graph()
 
 
 class SAGE(nn.Module):
