@@ -271,7 +271,6 @@ def test_edge_types(graph):
         assert attr_name == attr_repr.edge_type[1]
 
 
-@pytest.mark.skip(reason="broken")
 def test_get_subgraph(graph):
     pG = graph
     feature_store, graph_store = to_pyg(pG, backend="cupy")
@@ -437,7 +436,7 @@ def test_renumber_edges(graph):
     row, col = graph_store._get_renumbered_edge_groups_from_sample(sdf, noi_index)
 
     for etype in row:
-        stype, ctype, dtype = etype.split("__")
+        stype, ctype, dtype = etype
         src = noi_index[stype][row[etype]]
         dst = noi_index[dtype][col[etype]]
         assert len(src) == len(dst)
