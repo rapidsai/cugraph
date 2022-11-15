@@ -53,6 +53,7 @@ def server():
         # tests are done, now stop the server
         print("\nTerminating server...", end="", flush=True)
         server_process.terminate()
+        server_process.wait(timeout=60)
         print("done.", flush=True)
 
 
@@ -252,7 +253,7 @@ def test_extract_subgraph(client_with_edgelist_csv_loaded):
         selection=None,
         edge_weight_property="2",
         default_edge_weight=None,
-        allow_multi_edges=False,
+        check_multi_edges=False,
     )
     # FIXME: consider a more thorough test
     assert Gid in client.get_graph_ids()
@@ -488,7 +489,6 @@ def test_get_edge_IDs_for_vertices(client_with_edgelist_csv_loaded):
 
 
 def test_uniform_neighbor_sampling(client_with_edgelist_csv_loaded):
-    from cugraph_service_client.exceptions import CugraphServiceError
     from cugraph_service_client import defaults
 
     (client, test_data) = client_with_edgelist_csv_loaded
@@ -497,14 +497,13 @@ def test_uniform_neighbor_sampling(client_with_edgelist_csv_loaded):
     fanout_vals = [2, 2, 2]
     with_replacement = True
 
-    # invalid graph type - default graph is a PG, needs an extracted subgraph
-    with pytest.raises(CugraphServiceError):
-        client.uniform_neighbor_sample(
-            start_list=start_list,
-            fanout_vals=fanout_vals,
-            with_replacement=with_replacement,
-            graph_id=defaults.graph_id,
-        )
+    # default graph is a PG, ensure it extracts a subgraph automatically
+    client.uniform_neighbor_sample(
+        start_list=start_list,
+        fanout_vals=fanout_vals,
+        with_replacement=with_replacement,
+        graph_id=defaults.graph_id,
+    )
 
     extracted_gid = client.extract_subgraph(renumber_graph=True)
     # Ensure call can be made, assume results verified in other tests
@@ -519,10 +518,10 @@ def test_uniform_neighbor_sampling(client_with_edgelist_csv_loaded):
 def test_create_property_graph(client):
     old_ids = set(client.get_graph_ids())
     pG = client.graph()
-    assert pG._RemotePropertyGraph__graph_id not in old_ids
+    assert pG._RemoteGraph__graph_id not in old_ids
 
     new_ids = set(client.get_graph_ids())
-    assert pG._RemotePropertyGraph__graph_id in new_ids
+    assert pG._RemoteGraph__graph_id in new_ids
     assert len(old_ids) + 1 == len(new_ids)
 
     del pG

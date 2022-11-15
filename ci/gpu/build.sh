@@ -114,7 +114,7 @@ conda list --show-channel-urls
 
 if [[ -z "$PROJECT_FLASH" || "$PROJECT_FLASH" == "0" ]]; then
     gpuci_logger "Build from source"
-    $WORKSPACE/build.sh -v clean libcugraph pylibcugraph cugraph
+    $WORKSPACE/build.sh -v clean libcugraph pylibcugraph cugraph cugraph-service-server cugraph-service-client
 else
     gpuci_logger "Installing libcugraph-tests"
     gpuci_mamba_retry install -c ${CONDA_ARTIFACT_PATH} libcugraph libcugraph_etl libcugraph-tests
@@ -125,11 +125,15 @@ else
     gpuci_logger "Building and installing pylibcugraph and cugraph..."
     export CONDA_BLD_DIR="${WORKSPACE}/.conda-bld"
     export VERSION_SUFFIX=""
+    gpuci_logger "pylibcugraph"
     gpuci_conda_retry mambabuild conda/recipes/pylibcugraph --no-build-id --croot ${CONDA_BLD_DIR} -c ${CONDA_ARTIFACT_PATH} --python=${PYTHON}
+    gpuci_logger "cugraph"
     gpuci_conda_retry mambabuild conda/recipes/cugraph --no-build-id --croot ${CONDA_BLD_DIR} -c ${CONDA_ARTIFACT_PATH} --python=${PYTHON}
+    gpuci_logger "cugraph-service"
+    gpuci_conda_retry mambabuild conda/recipes/cugraph-service --no-build-id --croot ${CONDA_BLD_DIR} -c ${CONDA_ARTIFACT_PATH} --python=${PYTHON}
 
-    gpuci_logger "Installing pylibcugraph and cugraph from build / artifact dirs"
-    gpuci_mamba_retry install -c ${CONDA_BLD_DIR} -c ${CONDA_ARTIFACT_PATH} --strict-channel-priority pylibcugraph cugraph
+    gpuci_logger "Installing pylibcugraph, cugraph, and cugraph-service from build / artifact dirs"
+    gpuci_mamba_retry install -c ${CONDA_BLD_DIR} -c ${CONDA_ARTIFACT_PATH} --strict-channel-priority pylibcugraph cugraph cugraph-service-server cugraph-service-client
 fi
 
 ################################################################################
