@@ -314,6 +314,20 @@ def test_load_and_call_graph_creation_extension(
     assert new_graph_id in client.get_graph_ids()
 
 
+def test_async_graph_creation_extension(
+    client_with_graph_creation_extension_loaded, graph_creation_extension2
+):
+    # The graph_creation_extension returns the tmp dir created which contains
+    # the extension
+    extension_dir = graph_creation_extension2
+    client = client_with_graph_creation_extension_loaded
+
+    async def run():
+        await client.load_graph_creation_extensions(extension_dir)
+
+    run()
+
+
 def test_load_and_call_graph_creation_long_running_extension(
     client_with_graph_creation_extension_loaded, graph_creation_extension_long_running
 ):
