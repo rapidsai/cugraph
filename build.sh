@@ -313,10 +313,13 @@ fi
 
 # Build and install the cugraph-pyg Python package
 if buildAll || hasArg cugraph-pyg; then
-    cd ${REPODIR}/python/cugraph-pyg
-    python setup.py build_ext --inplace -- -j${PARALLEL_LEVEL:-1}
-    if [[ ${INSTALL_TARGET} != "" ]]; then
-	env python setup.py ${PYTHON_INSTALL}
+    if hasArg --clean; then
+        cleanPythonDir ${REPODIR}/python/cugraph-pyg
+    else
+        if [[ ${INSTALL_TARGET} != "" ]]; then
+            cd ${REPODIR}/python/cugraph-pyg
+            python ${PYTHON_ARGS_FOR_INSTALL}
+        fi
     fi
 fi
 
