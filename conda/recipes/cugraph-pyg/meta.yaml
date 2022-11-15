@@ -40,7 +40,6 @@ requirements:
 
 tests:                                 # [linux64]
   imports:                             # [linux64]
-    - cugraph                          # [linux64]
     - cugraph_pyg                      # [linux64]
     # - cugraph_service (uncomment once cugraph-service int. tests ready)
 
