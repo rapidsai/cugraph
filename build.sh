@@ -18,6 +18,7 @@ ARGS=$*
 # script, and that this script resides in the repo dir!
 REPODIR=$(cd $(dirname $0); pwd)
 
+# Valid args to this script (all possible targets and options) - only one per line
 VALIDARGS="
    clean
    uninstall
@@ -137,7 +138,7 @@ fi
 # Check for valid usage
 if (( ${NUMARGS} != 0 )); then
     for a in ${ARGS}; do
-        if ! (echo " ${VALIDARGS} " | grep -q " ${a} "); then
+        if ! (echo "${VALIDARGS}" | grep -q "^[[:blank:]]*${a}$"); then
             echo "Invalid option: ${a}"
             exit 1
         fi
