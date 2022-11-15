@@ -32,16 +32,20 @@ requirements:
     - setuptools<=65.2.0
   run:
     - distributed>=2022.9.2
+    - numba>=0.56.2
+    - numpy
+    - pytorch
+    - cudatoolkit=11.6
+    # - pyg (uncomment once pyg 2.2 is released)
 
 tests:                                 # [linux64]
-  requirements:                        # [linux64]
-    - cudatoolkit {{ cuda_version }}.* # [linux64]
   imports:                             # [linux64]
     - cugraph                          # [linux64]
     - cugraph_pyg                      # [linux64]
+    # - cugraph_service (uncomment once cugraph-service int. tests ready)
 
 about:
   home: http://rapids.ai/
   license: Apache-2.0
   license_file: ../../../LICENSE
-  summary: cuGraph_pyg library
+  summary: cuGraph-pyg library
