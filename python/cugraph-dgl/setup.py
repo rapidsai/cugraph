@@ -15,7 +15,7 @@ from setuptools import setup, find_packages
 
 install_requires = [
     "cugraph",
-    "dgl-cuda11.6>=0.8",
+    "dgl>=0.8",
     "numba>=0.56.2",
     "numpy",
     "torch",
