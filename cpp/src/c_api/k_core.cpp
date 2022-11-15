@@ -37,7 +37,7 @@ struct k_core_functor : public cugraph::c_api::abstract_functor {
   cugraph_k_core_degree_type_t degree_type_;
   cugraph::c_api::cugraph_core_result_t const* core_result_{};
   bool do_expensive_check_{};
-  cugraph::c_api::cugraph_core_result_t* result_{};
+  cugraph::c_api::cugraph_k_core_result_t* result_{};
 
   k_core_functor(cugraph_resource_handle_t const* handle,
                  cugraph_graph_t* graph,
@@ -88,28 +88,40 @@ struct k_core_functor : public cugraph::c_api::abstract_functor {
 
       auto degree_type = reinterpret_cast<cugraph::k_core_degree_type_t>(degree_type);
 
-      // FIXME:  calling `view()` on an array returns an object allocated on the host heap.
-      //         This needs to be freed (memory leak)
-      cugraph::k_core<vertex_t, edge_t, weight_t, multi_gpu>(
+      auto [result_src, result_dst, result_wgt] =
+        cugraph::k_core<vertex_t, edge_t, weight_t, multi_gpu>(
+          handle_,
+          graph_view,
+          k_,
+          std::make_optional(degree_type),
+          (core_result_ == nullptr) ? std::nullopt
+                                    : std::make_optional<raft::device_span<edge_t const>>(
+                                        core_result_->core_numbers_->as_type<edge_t const>(),
+                                        core_result_->core_numbers_->size_),
+          do_expensive_check_);
+
+      cugraph::unrenumber_int_vertices<vertex_t, multi_gpu>(
         handle_,
-        graph_view,
-        k_,
-        std::make_optional(degree_type),
-        (core_result_ == nullptr)
-          ? std::nullopt
-          : std::make_optional<raft::device_span<edge_t const>>(
-              // reinterpret_cast<edge_t const*>(core_result_->core_numbers_->data_.data()),
-              core_result_->core_numbers_->as_type<edge_t const>(),
-              core_result_->core_numbers_->size_),
+        result_src.data(),
+        result_src.size(),
+        number_map->data(),
+        graph_view.vertex_partition_range_lasts(),
         do_expensive_check_);
 
-      rmm::device_uvector<vertex_t> vertex_ids(graph_view.local_vertex_partition_range_size(),
-                                               handle_.get_stream());
-      raft::copy(vertex_ids.data(), number_map->data(), vertex_ids.size(), handle_.get_stream());
+      cugraph::unrenumber_int_vertices<vertex_t, multi_gpu>(
+        handle_,
+        result_dst.data(),
+        result_dst.size(),
+        number_map->data(),
+        graph_view.vertex_partition_range_lasts(),
+        do_expensive_check_);
 
-      result_ = new cugraph::c_api::cugraph_core_result_t{
-        new cugraph::c_api::cugraph_type_erased_device_array_t(vertex_ids, graph_->vertex_type_),
-        new cugraph::c_api::cugraph_type_erased_device_array_t(k_cores, graph_->edge_type_)};
+      result_ = new cugraph::c_api::cugraph_k_core_result_t{
+        new cugraph::c_api::cugraph_type_erased_device_array_t(result_src, graph_->vertex_type_),
+        new cugraph::c_api::cugraph_type_erased_device_array_t(result_dst, graph_->vertex_type_),
+        result_wgt ? new cugraph::c_api::cugraph_type_erased_device_array_t(*result_wgt,
+                                                                            graph_->weight_type_)
+                   : NULL};
     }
   }
 };
