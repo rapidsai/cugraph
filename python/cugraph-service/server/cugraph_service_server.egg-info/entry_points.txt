@@ -1,0 +1,2 @@
+[console_scripts]
+cugraph-service-server = cugraph_service_server.__main__:main

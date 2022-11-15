@@ -314,20 +314,6 @@ def test_load_and_call_graph_creation_extension(
     assert new_graph_id in client.get_graph_ids()
 
 
-def test_async_graph_creation_extension(
-    client_with_graph_creation_extension_loaded, graph_creation_extension2
-):
-    # The graph_creation_extension returns the tmp dir created which contains
-    # the extension
-    extension_dir = graph_creation_extension2
-    client = client_with_graph_creation_extension_loaded
-
-    async def run():
-        await client.load_graph_creation_extensions(extension_dir)
-
-    run()
-
-
 def test_load_and_call_graph_creation_long_running_extension(
     client_with_graph_creation_extension_loaded, graph_creation_extension_long_running
 ):
@@ -527,6 +513,29 @@ def test_uniform_neighbor_sampling(client_with_edgelist_csv_loaded):
         with_replacement=with_replacement,
         graph_id=extracted_gid,
     )
+
+
+def test_inside_asyncio_event_loop(client_with_edgelist_csv_loaded):
+    import asyncio
+    from cugraph_service_client import defaults
+
+    client, test_data = client_with_edgelist_csv_loaded
+
+    start_list = [1, 2, 3]
+    fanout_vals = [2, 2, 2]
+    with_replacement = True
+
+    async def uns():
+        return client.uniform_neighbor_sample(
+            start_list=start_list,
+            fanout_vals=fanout_vals,
+            with_replacement=with_replacement,
+            graph_id=defaults.graph_id,
+            result_device=0,
+        )
+
+    # ensure call succeeds; have confirmed this fails without fix in client
+    assert asyncio.run(uns()) is not None
 
 
 def test_create_property_graph(client):

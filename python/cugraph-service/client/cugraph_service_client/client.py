@@ -32,6 +32,32 @@ from cugraph_service_client.types import (
 from cugraph_service_client.cugraph_service_thrift import create_client
 
 
+class RunAsyncioThread(threading.Thread):
+    def __init__(self, func, args, kwargs):
+        self.func = func
+        self.args = args
+        self.kwargs = kwargs
+        self.result = None
+        super().__init__()
+
+    def run(self):
+        self.result = asyncio.run(self.func(*self.args, **self.kwargs))
+
+
+def run_async(func, *args, **kwargs):
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        loop = None
+    if loop and loop.is_running():
+        thread = RunAsyncioThread(func, args, kwargs)
+        thread.start()
+        thread.join()
+        return thread.result
+    else:
+        return asyncio.run(func(*args, **kwargs))
+
+
 class DeviceArrayAllocator:
     """
     This class is used to create a callable instance for allocating a cupy
@@ -1197,12 +1223,17 @@ class CugraphServiceClient:
             result.indices: CuPy array
                 Contains the indices from the sampling result for path reconstruction
         """
+
         if result_device is not None:
-            result_obj = asyncio.run(
-                self.__uniform_neighbor_sample_to_device(
-                    start_list, fanout_vals, with_replacement, graph_id, result_device
-                )
+            result_obj = run_async(
+                self.__uniform_neighbor_sample_to_device,
+                start_list,
+                fanout_vals,
+                with_replacement,
+                graph_id,
+                result_device,
             )
+
         else:
             result_obj = self.__client.uniform_neighbor_sample(
                 start_list,
