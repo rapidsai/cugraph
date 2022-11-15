@@ -11,14 +11,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# NOTE: Requires cuGraph nightly cugraph-22.12.00a220417 or later
-from cugraph_dgl.utils.cugraph_storage_utils import _assert_valid_canonical_etype
-from cugraph_dgl.utils.cugraph_storage_utils import convert_can_etype_s_to_tup
-from cugraph_dgl.utils.cugraph_storage_utils import backend_dtype_to_np_dtype_dict
+from typing import Optional, Sequence, Tuple
 
-import dgl
-import dgl.backend as F
-from typing import Tuple, Optional, Sequence
+# NOTE: Requires cuGraph nightly cugraph-22.12.00a220417 or later
+from cugraph.utilities.utils import import_optional
+
+from cugraph_dgl.utils.cugraph_storage_utils import (
+    _assert_valid_canonical_etype,
+    backend_dtype_to_np_dtype_dict,
+    convert_can_etype_s_to_tup,
+)
+
+dgl = import_optional("dgl")
+F = import_optional("dgl.backend")
 
 
 class CuGraphStorage:
@@ -146,9 +151,8 @@ class CuGraphStorage:
             import numba.cuda as cuda
 
             cuda.select_device(device_id)
+            from cugraph.experimental import MGPropertyGraph, PropertyGraph
             from cugraph.gnn import CuGraphStore
-            from cugraph.experimental import PropertyGraph
-            from cugraph.experimental import MGPropertyGraph
 
             if single_gpu:
                 pg = PropertyGraph()

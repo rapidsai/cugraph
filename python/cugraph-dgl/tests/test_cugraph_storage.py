@@ -18,13 +18,14 @@ try:
 except ModuleNotFoundError:
     pytest.skip("cugraph_dgl not available", allow_module_level=True)
 
-import dgl
-import torch as th
+from cugraph.utilities.utils import import_optional
 import cudf
 import numpy as np
-
 from cugraph_dgl import CuGraphStorage
 from .utils import assert_same_sampling_len
+
+th = import_optional("torch")
+dgl = import_optional("dgl")
 
 
 @pytest.fixture()

@@ -10,13 +10,14 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-import dgl
+from cugraph.utilities.utils import import_optional
 from cugraph_dgl import CuGraphStorage
 from cugraph_dgl.utils.cugraph_conversion_utils import (
-    add_nodes_from_dgl_HeteroGraph,
     add_edges_from_dgl_HeteroGraph,
+    add_nodes_from_dgl_HeteroGraph,
 )
+
+dgl = import_optional("dgl")
 
 
 def cugraph_storage_from_heterograph(

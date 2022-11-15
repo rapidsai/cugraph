@@ -10,9 +10,11 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import dgl
 import numpy as np
-import dgl.backend as F
+from cugraph.utilities.utils import import_optional
+
+dgl = import_optional("dgl")
+F = import_optional("dgl.backend")
 
 
 def convert_can_etype_s_to_tup(canonical_etype_s):

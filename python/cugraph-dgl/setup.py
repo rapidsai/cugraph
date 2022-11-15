@@ -11,14 +11,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from setuptools import setup, find_packages
+from setuptools import find_packages, setup
 
 install_requires = [
     "cugraph",
-    "dgl>=0.8",
     "numba>=0.56.2",
     "numpy",
-    "torch",
 ]
 
 setup(

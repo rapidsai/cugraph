@@ -13,13 +13,17 @@
 
 # Utils to convert b/w dgl heterograph to cugraph GraphStore
 from typing import Optional
+
 import cudf
 import cupy as cp
 import dask_cudf
-import dgl
-import torch
-from dgl.backend import zerocopy_to_dlpack
+from cugraph.utilities.utils import import_optional
+
 import cugraph_dgl
+
+dgl = import_optional("dgl")
+F = import_optional("dgl.backend")
+torch = import_optional("torch")
 
 
 # Feature Tensor to DataFrame Utils
@@ -36,7 +40,7 @@ def create_feature_frame(feat_t_d: dict[str, torch.Tensor]) -> cudf.DataFrame:
     for feat_key, feat_t in feat_t_d.items():
         feat_t = feat_t.to("cuda")
         feat_t = convert_to_column_major(feat_t)
-        ar = cp.from_dlpack(zerocopy_to_dlpack(feat_t))
+        ar = cp.from_dlpack(F.zerocopy_to_dlpack(feat_t))
         del feat_t
         df = cudf.DataFrame(ar)
         feat_columns = [f"{feat_key}_{i}" for i in range(len(df.columns))]
@@ -57,7 +61,7 @@ def add_ndata_of_single_type(
     idtype=torch.int64,
 ):
     node_ids = dgl.backend.arange(0, n_rows, idtype, ctx="cuda")
-    node_ids = cp.from_dlpack(zerocopy_to_dlpack(node_ids))
+    node_ids = cp.from_dlpack(F.zerocopy_to_dlpack(node_ids))
     df, feat_name_map = create_feature_frame(feat_t_d)
     df["node_id"] = node_ids
     if not gs.single_gpu:
@@ -121,8 +125,8 @@ def add_edata_of_single_type(
 
     df = cudf.DataFrame(
         {
-            "src": cudf.from_dlpack(zerocopy_to_dlpack(src_t)),
-            "dst": cudf.from_dlpack(zerocopy_to_dlpack(dst_t)),
+            "src": cudf.from_dlpack(F.zerocopy_to_dlpack(src_t)),
+            "dst": cudf.from_dlpack(F.zerocopy_to_dlpack(dst_t)),
         }
     )
     if feat_t_d:
