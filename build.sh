@@ -18,7 +18,29 @@ ARGS=$*
 # script, and that this script resides in the repo dir!
 REPODIR=$(cd $(dirname $0); pwd)
 
-VALIDARGS="clean uninstall libcugraph libcugraph_etl cugraph cugraph-service pylibcugraph cpp-mgtests cugraph-dgl docs -v -g -n --pydevelop --allgpuarch --skip_cpp_tests --cmake_default_generator --clean -h --help"
+# Valid args to this script (all possible targets and options) - only one per line
+VALIDARGS="
+   clean
+   uninstall
+   libcugraph
+   libcugraph_etl
+   cugraph
+   cugraph-service
+   pylibcugraph
+   cpp-mgtests
+   cugraph-dgl
+   docs
+   -v
+   -g
+   -n
+   --pydevelop
+   --allgpuarch
+   --skip_cpp_tests
+   --cmake_default_generator
+   --clean
+   -h
+   --help
+"
 
 HELP="$0 [<target> ...] [<flag> ...]
  where <target> is:
@@ -39,6 +61,7 @@ HELP="$0 [<target> ...] [<flag> ...]
    --pydevelop                - use setup.py develop instead of install
    --allgpuarch               - build for all supported GPU architectures
    --skip_cpp_tests           - do not build the SG test binaries as part of the libcugraph and libcugraph_etl targets
+   --without_cugraphops       - do not build algos that require cugraph-ops
    --cmake_default_generator  - use the default cmake generator instead of ninja
    --clean                    - clean an individual target (note: to do a complete rebuild, use the clean target described above)
    -h                         - print this text
@@ -76,6 +99,7 @@ INSTALL_TARGET="--target install"
 BUILD_CPP_TESTS=ON
 BUILD_CPP_MG_TESTS=OFF
 BUILD_ALL_GPU_ARCH=0
+BUILD_WITH_CUGRAPHOPS=ON
 CMAKE_GENERATOR_OPTION="-G Ninja"
 PYTHON_ARGS_FOR_INSTALL="-m pip install ."
 
@@ -114,7 +138,7 @@ fi
 # Check for valid usage
 if (( ${NUMARGS} != 0 )); then
     for a in ${ARGS}; do
-        if ! (echo " ${VALIDARGS} " | grep -q " ${a} "); then
+        if ! (echo "${VALIDARGS}" | grep -q "^[[:blank:]]*${a}$"); then
             echo "Invalid option: ${a}"
             exit 1
         fi
@@ -137,6 +161,9 @@ if hasArg --allgpuarch; then
 fi
 if hasArg --skip_cpp_tests; then
     BUILD_CPP_TESTS=OFF
+fi
+if hasArg --without_cugraphops; then
+    BUILD_WITH_CUGRAPHOPS=OFF
 fi
 if hasArg cpp-mgtests; then
     BUILD_CPP_MG_TESTS=ON
