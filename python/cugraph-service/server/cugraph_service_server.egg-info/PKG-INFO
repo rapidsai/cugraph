@@ -1,9 +1,0 @@
-Metadata-Version: 2.1
-Name: cugraph-service-server
-Version: 22.6.0a0+462.g0a2bf881
-Summary: cuGraph Service server
-Home-page: https://github.com/rapidsai/cugraph
-Author: NVIDIA Corporation
-License: Apache
-Classifier: Intended Audience :: Developers
-Classifier: Programming Language :: Python
