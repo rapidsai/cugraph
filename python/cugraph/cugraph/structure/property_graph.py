@@ -12,7 +12,6 @@
 # limitations under the License.
 
 import cudf
-import cupy
 import numpy as np
 
 import cugraph
@@ -2032,18 +2031,15 @@ class EXPERIMENTAL__PropertyGraph:
             vector_property_lengths[key] = len(columns)
 
     def _create_vector_properties(self, df, vector_properties):
-        if self.__series_type is cudf.Series:
-            ascontiguousarray = cupy.ascontiguousarray
-        else:
-            ascontiguousarray = np.ascontiguousarray
         # Make each vector contigous and 1-d
-        vectors = {
-            key: [
+        vectors = {}
+        for key, columns in vector_properties.items():
+            values = df[columns].values
+            vectors[key] = [
                 np.squeeze(vec, 0)
-                for vec in np.split(ascontiguousarray(df[columns].values), len(df))
+                for vec in np.split(np.ascontiguousarray(values, like=values), len(df))
             ]
-            for key, columns in vector_properties.items()
-        }
+        # Create all vectors before assigning in case column names are reused
         for key, vec in vectors.items():
             df[key] = vec
 
