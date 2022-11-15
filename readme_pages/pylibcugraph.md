@@ -6,7 +6,8 @@
   <br>
 CuGraph pylibcugraph
 </h1>
-Part of [Rapids](https://rapids.ai) cuGraph, pylibcugraph is a wrapper around the cuGraph C API. It is aimed more at integrators instead of Algorithm writers or end users like Data Scientists. Much of the cuGraph python API relies on pylibcugraph to efficiently run algorithms removes much of the overhead of more python-centric implementation relying more on cython.
+
+Part of [Rapids](https://rapids.ai) cuGraph, pylibcugraph is a wrapper around the cuGraph C API. It is aimed more at integrators instead of algorithm writers or end users like Data Scientists. Much of the cuGraph python API relies on pylibcugraph to efficiently run algorithms removes much of the overhead of more python-centric implementation relying more on cython.Pylibcugraph is intended for applications that require a tighter integration with cuGraph at the Python layer with fewer dependencies.
 
 Here is an example of calling the Louvain algorithm using pylibcugraph directly.
 
