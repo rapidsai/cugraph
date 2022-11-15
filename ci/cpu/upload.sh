@@ -48,6 +48,7 @@ if [[ "$BUILD_CUGRAPH" == "1" ]]; then
   gpuci_retry anaconda -t ${MY_UPLOAD_KEY} upload -u ${CONDA_USERNAME:-rapidsai} ${LABEL_OPTION} --skip-existing ${CUGRAPH_FILE} --no-progress
   
   CUGRAPH_SERVICE_FILES=$(conda build --croot ${CONDA_BLD_DIR} conda/recipes/cugraph-service --python=$PYTHON --output)
+  # no test -e since CUGRAPH_SERVICE_FILES has multiple files
   echo "Upload cugraph-server files: ${CUGRAPH_SERVICE_FILES}"
   gpuci_retry anaconda -t ${MY_UPLOAD_KEY} upload -u ${CONDA_USERNAME:-rapidsai} ${LABEL_OPTION} --skip-existing --no-progress ${CUGRAPH_SERVICE_FILES}
   
@@ -55,4 +56,9 @@ if [[ "$BUILD_CUGRAPH" == "1" ]]; then
   test -e ${CUGRAPH_PYG_FILE}
   echo "Upload cugraph file: ${CUGRAPH_PYG_FILE}"
   gpuci_retry anaconda -t ${MY_UPLOAD_KEY} upload -u ${CONDA_USERNAME:-rapidsai} ${LABEL_OPTION} --skip-existing ${CUGRAPH_PYG_FILE} --no-progress
+
+  CUGRAPH_DGL_FILE=$(conda build --croot ${CONDA_BLD_DIR} conda/recipes/cugraph-dgl --python=$PYTHON --output)
+  test -e ${CUGRAPH_DGL_FILE}
+  echo "Upload cugraph-dgl file: ${CUGRAPH_DGL_FILE}"
+  gpuci_retry anaconda -t ${MY_UPLOAD_KEY} upload -u ${CONDA_USERNAME:-rapidsai} ${LABEL_OPTION} --skip-existing ${CUGRAPH_DGL_FILE} --no-progress
 fi

@@ -11,22 +11,27 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Have cython use python 3 syntax
-# cython: language_level = 3
+from setuptools import setup, find_packages
 
-from pylibcugraph._cugraph_c.graph cimport (
-    cugraph_graph_t,
+install_requires = [
+    "cugraph",
+    "dgl>=0.8",
+    "numba>=0.56.2",
+    "numpy",
+    "torch",
+]
+
+setup(
+    name="cugraph-dgl",
+    description="cugraph wrappers around DGL",
+    classifiers=[
+        "Intended Audience :: Developers",
+        "Programming Language :: Python",
+    ],
+    author="NVIDIA Corporation",
+    url="https://github.com/rapidsai/cugraph",
+    packages=find_packages(include=["cugraph_dgl*"]),
+    install_requires=install_requires,
+    license="Apache",
+    zip_safe=True,
 )
-
-
-# Base class allowing functions to accept either SGGraph or MGGraph
-# This is not visible in python
-cdef class _GPUGraph:
-    cdef cugraph_graph_t* c_graph_ptr
-
-cdef class SGGraph(_GPUGraph):
-    pass
-
-cdef class MGGraph(_GPUGraph):
-     pass
-
