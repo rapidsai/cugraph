@@ -45,7 +45,7 @@ HELP="$0 [<target> ...] [<flag> ...]
    --clean                    - clean an individual target (note: to do a complete rebuild, use the clean target described above)
    -h                         - print this text
 
- default action (no args) is to build and install 'libcugraph' then 'libcugraph_etl' then 'pylibcugraph' then 'cugraph' then 'cugraph-service' targets
+ default action (no args) is to build and install 'libcugraph' then 'libcugraph_etl' then 'pylibcugraph' then 'cugraph' then 'cugraph-service' then 'cugraph-pyg' then 'cugraph-dgl' targets
 
  libcugraph build dir is: ${LIBCUGRAPH_BUILD_DIR}
 
@@ -297,15 +297,6 @@ if buildAll || hasArg cugraph; then
     fi
 fi
 
-# Build and install the cugraph-pyg Python package
-if buildAll || hasArg cugraph-pyg; then
-    cd ${REPODIR}/python/cugraph-pyg
-    python setup.py build_ext --inplace -- -j${PARALLEL_LEVEL:-1}
-    if [[ ${INSTALL_TARGET} != "" ]]; then
-	env python setup.py ${PYTHON_INSTALL}
-    fi
-fi
-
 # Install the cugraph-service-client and cugraph-service-server Python packages
 if buildAll || hasArg cugraph-service; then
     if hasArg --clean; then
@@ -317,6 +308,15 @@ if buildAll || hasArg cugraph-service; then
             cd ${REPODIR}/python/cugraph-service/server
             python ${PYTHON_ARGS_FOR_INSTALL}
         fi
+    fi
+fi
+
+# Build and install the cugraph-pyg Python package
+if buildAll || hasArg cugraph-pyg; then
+    cd ${REPODIR}/python/cugraph-pyg
+    python setup.py build_ext --inplace -- -j${PARALLEL_LEVEL:-1}
+    if [[ ${INSTALL_TARGET} != "" ]]; then
+	env python setup.py ${PYTHON_INSTALL}
     fi
 fi
 
