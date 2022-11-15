@@ -29,7 +29,7 @@ struct jaccard_functor_t {
                                     weight_t cardinality_b,
                                     weight_t cardinality_a_intersect_b) const
   {
-    return cardinality_a_intersect_b / cardinality_a + cardinality_b - cardinality_a_intersect_b;
+    return cardinality_a_intersect_b / (cardinality_a + cardinality_b - cardinality_a_intersect_b);
   }
 };
 
@@ -54,10 +54,10 @@ rmm::device_uvector<weight_t> jaccard_coefficients(
 {
   if (use_weights)
     return detail::similarity(
-      handle, graph_view, vertex_pairs, use_weights, detail::jaccard_functor_t{});
+      handle, graph_view, vertex_pairs, use_weights, detail::weighted_jaccard_functor_t{});
   else
     return detail::similarity(
-      handle, graph_view, vertex_pairs, use_weights, detail::weighted_jaccard_functor_t{});
+      handle, graph_view, vertex_pairs, use_weights, detail::jaccard_functor_t{});
 }
 
 }  // namespace cugraph

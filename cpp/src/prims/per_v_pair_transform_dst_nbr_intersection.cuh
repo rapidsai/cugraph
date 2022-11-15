@@ -249,12 +249,12 @@ void per_v_pair_transform_dst_nbr_intersection(
               handle.get_stream());
 
     property_buffer_for_unique_vertices =
-      collect_values_for_sorted_unique_vertices(handle.get_comms(),
-                                                (*unique_vertices).data(),
-                                                static_cast<vertex_t>((*unique_vertices).size()),
-                                                vertex_value_input_first,
-                                                graph_view.vertex_partition_range_lasts(),
-                                                handle.get_stream());
+      collect_values_for_sorted_unique_int_vertices(handle.get_comms(),
+                                                    (*unique_vertices).begin(),
+                                                    (*unique_vertices).end(),
+                                                    vertex_value_input_first,
+                                                    graph_view.vertex_partition_range_lasts(),
+                                                    handle.get_stream());
   }
 
   rmm::device_uvector<size_t> vertex_pair_indices(num_input_pairs, handle.get_stream());
