@@ -21,12 +21,7 @@
 #include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
 #include <cugraph/utilities/error.hpp>
-
-#include <cstddef>
-#include <cugraph/algorithms.hpp>
-#include <memory>
-#include <tuple>
-#include <utility>
+#include <cugraph/utilities/host_scalar_comm.hpp>
 
 #include <rmm/cuda_stream_view.hpp>
 #include <rmm/device_vector.hpp>
@@ -41,6 +36,13 @@
 #include <thrust/transform.h>
 
 #include <utilities/high_res_timer.hpp>
+
+#include <cstddef>
+#include <cugraph/algorithms.hpp>
+#include <memory>
+#include <numeric>
+#include <tuple>
+#include <utility>
 
 namespace {
 
@@ -69,20 +71,25 @@ extract(raft::handle_t const& handle,
         bool do_expensive_check)
 {
   auto user_stream_view = handle.get_stream();
-  rmm::device_uvector<size_t> neighbors_offsets(source_vertex.size() + 1, user_stream_view);
+
+  size_t num_sources = source_vertex.size();
+  [[maybe_unused]] std::vector<size_t> source_start{{0}};
+
+  if constexpr (multi_gpu) {
+    source_start =
+      cugraph::host_scalar_allgather(handle.get_comms(), num_sources, handle.get_stream());
+    num_sources = std::reduce(source_start.begin(), source_start.end());
+    std::exclusive_scan(source_start.begin(), source_start.end(), source_start.begin(), size_t{0});
+  }
+
+  rmm::device_uvector<size_t> neighbors_offsets(num_sources + 1, user_stream_view);
   rmm::device_uvector<vertex_t> neighbors(0, user_stream_view);
 
-  std::vector<size_t> h_neighbors_offsets(source_vertex.size() + 1);
+  std::vector<size_t> h_neighbors_offsets(num_sources + 1);
 
   // Streams will allocate concurrently later
   std::vector<rmm::device_uvector<vertex_t>> reached{};
-  reached.reserve(source_vertex.size());
-  for (size_t i = 0; i < source_vertex.size(); i++) {
-    // Allocations and operations are attached to the worker stream
-    rmm::device_uvector<vertex_t> local_reach(graph_view.local_vertex_partition_range_size(),
-                                              handle.get_next_usable_stream(i));
-    reached.push_back(std::move(local_reach));
-  }
+  reached.reserve(num_sources);
 
   user_stream_view.synchronize();
 #ifdef TIMING
@@ -96,10 +103,14 @@ extract(raft::handle_t const& handle,
   // the vertices and search for matches until the frontiers
   // are large enough to use this approach?
 
-  for (size_t i = 0; i < source_vertex.size(); i++) {
+  for (size_t i = 0; i < num_sources; i++) {
     // get light handle from worker pool
     raft::handle_t light_handle(handle.get_next_usable_stream(i));
     auto worker_stream_view = multi_gpu ? handle.get_stream() : light_handle.get_stream();
+
+    rmm::device_uvector<vertex_t> local_reach(graph_view.local_vertex_partition_range_size(),
+                                              worker_stream_view);
+    reached.push_back(std::move(local_reach));
 
     // BFS with cutoff
     // consider adding a device API to BFS (ie. accept source on the device)
@@ -109,12 +120,24 @@ extract(raft::handle_t const& handle,
                  reached[i].end(),
                  std::numeric_limits<vertex_t>::max());
 
+    raft::device_span<vertex_t const> source{source_vertex.data() + i, 1};
+
+    if constexpr (multi_gpu) {
+      auto it  = std::upper_bound(source_start.begin(), source_start.end(), i);
+      auto gpu = thrust::distance(source_start.begin(), it) - 1;
+
+      if (gpu == handle.get_comms().get_rank())
+        source = raft::device_span<vertex_t const>{source_vertex.data() + i - source_start[gpu], 1};
+      else
+        source = raft::device_span<vertex_t const>{source_vertex.data(), size_t{0}};
+    }
+
     cugraph::bfs<vertex_t, edge_t, weight_t, multi_gpu>(multi_gpu ? handle : light_handle,
                                                         graph_view,
                                                         reached[i].data(),
                                                         nullptr,
-                                                        source_vertex.data() + i,
-                                                        1,
+                                                        source.data(),
+                                                        source.size(),
                                                         direction_optimizing,
                                                         radius,
                                                         do_expensive_check);
@@ -146,18 +169,16 @@ extract(raft::handle_t const& handle,
 
   // Construct neighbors offsets (just a scan on neighborhod vector sizes)
   h_neighbors_offsets[0] = 0;
-  for (size_t i = 0; i < source_vertex.size(); i++) {
+  for (size_t i = 0; i < num_sources; i++) {
     h_neighbors_offsets[i + 1] = h_neighbors_offsets[i] + reached[i].size();
   }
-  raft::update_device(neighbors_offsets.data(),
-                      &h_neighbors_offsets[0],
-                      source_vertex.size() + 1,
-                      user_stream_view.value());
-  neighbors.resize(h_neighbors_offsets[source_vertex.size()], user_stream_view.value());
+  raft::update_device(
+    neighbors_offsets.data(), &h_neighbors_offsets[0], num_sources + 1, user_stream_view.value());
+  neighbors.resize(h_neighbors_offsets[num_sources], user_stream_view.value());
   user_stream_view.synchronize();
 
   // Construct the neighbors list concurrently
-  for (size_t i = 0; i < source_vertex.size(); i++) {
+  for (size_t i = 0; i < num_sources; i++) {
     auto worker_stream_view = handle.get_next_usable_stream(i);
     thrust::copy(rmm::exec_policy(worker_stream_view),
                  reached[i].begin(),

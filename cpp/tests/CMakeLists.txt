@@ -476,7 +476,7 @@ if(BUILD_CUGRAPH_MG_TESTS)
 
     ###############################################################################################
     # - MG LOUVAIN tests --------------------------------------------------------------------------
-    ConfigureTestMG(MG_EGO_TEST community/mg_egonet_test.cpp)
+    ConfigureTestMG(MG_EGO_TEST community/mg_egonet_test.cu)
 
     ###############################################################################################
     # - MG WEAKLY CONNECTED COMPONENTS tests ------------------------------------------------------
