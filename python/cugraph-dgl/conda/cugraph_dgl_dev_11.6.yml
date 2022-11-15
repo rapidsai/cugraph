@@ -1,0 +1,16 @@
+name: cugraph_dgl_dev
+channels:
+- rapidsai-nightly
+- rapidsai
+- pytorch
+- conda-forge
+- nvidia
+- dglteam
+
+dependencies:
+- cudatoolkit=11.6
+- cugraph=22.12.*
+- pytorch=1.12.0
+- dgl-cuda11.6
+- setuptools
+- pytest

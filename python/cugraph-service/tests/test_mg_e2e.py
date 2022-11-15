@@ -79,6 +79,7 @@ def mg_server():
 
         print("\nTerminating server...", end="", flush=True)
         server_process.terminate()
+        server_process.wait(timeout=60)
         print("done.", flush=True)
 
 
@@ -113,6 +114,7 @@ def sg_server_on_device_1():
 
         print("\nTerminating server...", end="", flush=True)
         server_process.terminate()
+        server_process.wait(timeout=60)
         print("done.", flush=True)
 
 
