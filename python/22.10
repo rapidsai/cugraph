@@ -1,0 +1,14 @@
+Transaction
+
+  Prefix: /opt/conda/envs/rapids
+
+  All requested packages already installed
+
+
+Looking for: ['dask-cudf']
+
+
+Pinned packages:
+  - python 3.9.*
+
+
