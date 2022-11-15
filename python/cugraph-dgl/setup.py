@@ -16,6 +16,8 @@ from setuptools import setup, find_packages
 install_requires = [
     "cugraph",
     "dgl>=0.8",
+    "numba>=0.56.2",
+    "numpy",
     "torch",
 ]
 
@@ -28,7 +30,7 @@ setup(
     ],
     author="NVIDIA Corporation",
     url="https://github.com/rapidsai/cugraph",
-    packages=find_packages(include=["cugraph_dgl"]),
+    packages=find_packages(include=["cugraph_dgl*"]),
     install_requires=install_requires,
     license="Apache",
     zip_safe=True,

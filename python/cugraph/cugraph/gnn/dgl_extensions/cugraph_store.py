@@ -13,15 +13,22 @@
 
 from collections import defaultdict
 
-from .base_cugraph_store import BaseCuGraphStore
+from cugraph.gnn.dgl_extensions.base_cugraph_store import BaseCuGraphStore
 
 from functools import cached_property
-from .utils.find_edges import find_edges
-from .utils.node_subgraph import node_subgraph
-from .utils.add_data import _update_feature_map
-from .utils.sampling import sample_pg, get_subgraph_and_src_range_from_pg
-from .utils.sampling import get_underlying_dtype_from_sg
-from .feature_storage import CuFeatureStorage
+from cugraph.gnn.dgl_extensions.utils.find_edges import find_edges
+from cugraph.gnn.dgl_extensions.utils.node_subgraph import node_subgraph
+from cugraph.gnn.dgl_extensions.utils.feature_map import _update_feature_map
+from cugraph.gnn.dgl_extensions.utils.add_data import (
+    add_edge_data_from_parquet,
+    add_node_data_from_parquet,
+)
+from cugraph.gnn.dgl_extensions.utils.sampling import (
+    sample_pg,
+    get_subgraph_and_src_range_from_pg,
+)
+from cugraph.gnn.dgl_extensions.utils.sampling import get_underlying_dtype_from_sg
+from cugraph.gnn.dgl_extensions.feature_storage import CuFeatureStorage
 
 
 class CuGraphStore(BaseCuGraphStore):
@@ -39,7 +46,6 @@ class CuGraphStore(BaseCuGraphStore):
             self.__G = graph
         else:
             raise ValueError("graph must be a PropertyGraph or MGPropertyGraph")
-
         super().__init__(graph)
         # dict to map column names corresponding to edge features
         # of each type
@@ -140,6 +146,117 @@ class CuGraphStore(BaseCuGraphStore):
         # Clear properties if set as data has changed
         self.__clear_cached_properties()
 
+    def add_node_data_from_parquet(
+        self,
+        file_path,
+        node_col_name,
+        ntype=None,
+        node_offset=0,
+        feat_name=None,
+        contains_vector_features=False,
+    ):
+        """
+        Add a dataframe describing node properties to the PropertyGraph.
+
+        Parameters
+        ----------
+        file_path: string
+            Path of the files on the server
+        node_col_name : string
+            The column name that contains the values to be used as vertex IDs.
+        ntype : string
+            The node type to be added.
+            For example, if dataframe contains data about users, ntype
+            might be "users".
+            If not specified, the type of properties will be added as
+            an empty string.
+        node_offset: int,
+            The offset to add for the particular ntype
+            defaults to zero
+        feat_name : {} or string
+            A map of feature names under which we should save the added
+            properties like {"feat_1":[f1, f2], "feat_2":[f3, f4]}
+            (ignored if contains_vector_features=False and the col names of
+            the dataframe are treated as corresponding feature names)
+        contains_vector_features : False
+            Whether to treat the columns of the dataframe being added as
+            as 2d features
+        Returns
+        -------
+        None
+        """
+        loaded_columns = add_node_data_from_parquet(
+            file_path=file_path,
+            node_col_name=node_col_name,
+            node_offset=node_offset,
+            ntype=ntype,
+            pG=self.gdata,
+        )
+        columns = [col for col in loaded_columns if col != node_col_name]
+        _update_feature_map(
+            self.ndata_feat_col_d, feat_name, contains_vector_features, columns
+        )
+        # Clear properties if set as data has changed
+        self.__clear_cached_properties()
+
+    def add_edge_data_from_parquet(
+        self,
+        file_path,
+        node_col_names,
+        src_offset=0,
+        dst_offset=0,
+        canonical_etype=None,
+        feat_name=None,
+        contains_vector_features=False,
+    ):
+        """
+        Add a dataframe describing edge properties to the PropertyGraph.
+
+        Parameters
+        ----------
+        file_path : string
+            Path of file on server
+        node_col_names : string
+            The column names that contain the values to be used as the source
+            and destination vertex IDs for the edges.
+        canonical_etype : string
+            The edge type to be added. This should follow the string format
+            '(src_type),(edge_type),(dst_type)'
+            If not specified, the type of properties will be added as
+            an empty string.
+        feat_name : string or dict {}
+            The feature name under which we should save the added properties
+            (ignored if contains_vector_features=False and the col names of
+            the dataframe are treated as corresponding feature names)
+
+        src_offset: int,
+            The offset to add for the source node type
+            defaults to zero
+        dst_offset: int,
+            The offset to add for the dst node type
+            defaults to zero
+        contains_vector_features : False
+            Whether to treat the columns of the dataframe being added as
+            as 2d features
+        Returns
+        -------
+        None
+        """
+
+        loaded_columns = add_edge_data_from_parquet(
+            file_path=file_path,
+            node_col_names=node_col_names,
+            canonical_etype=canonical_etype,
+            src_offset=src_offset,
+            dst_offset=dst_offset,
+            pG=self.gdata,
+        )
+        columns = [col for col in loaded_columns if col not in node_col_names]
+        _update_feature_map(
+            self.edata_feat_col_d, feat_name, contains_vector_features, columns
+        )
+        self.__clear_cached_properties()
+
     def get_node_storage(self, key, ntype=None, indices_offset=0):
         if ntype is None:
             ntypes = self.ntypes
@@ -164,6 +281,7 @@ class CuGraphStore(BaseCuGraphStore):
             storage_type="node",
             indices_offset=indices_offset,
             backend_lib=self.backend_lib,
+            types_to_fetch=[ntype],
         )
 
     def get_edge_storage(self, key, etype=None, indices_offset=0):
@@ -180,7 +298,7 @@ class CuGraphStore(BaseCuGraphStore):
             etype = etypes[0]
         if key not in self.edata_feat_col_d:
             raise ValueError(
-                f"key {key} not found in CuGraphStore" " edge features",
+                f"key {key} not found in CuGraphStore edge features",
                 f" {list(self.edata_feat_col_d.keys())}",
             )
         columns = self.edata_feat_col_d[key]
@@ -191,6 +309,7 @@ class CuGraphStore(BaseCuGraphStore):
             storage_type="edge",
             backend_lib=self.backend_lib,
             indices_offset=indices_offset,
+            types_to_fetch=[etype],
         )
 
     ######################################
@@ -266,7 +385,7 @@ class CuGraphStore(BaseCuGraphStore):
             sgs_obj=sgs_obj,
             sgs_src_range_obj=sgs_src_range_obj,
             sg_node_dtype=self._sg_node_dtype,
-            nodes_cap=nodes_cap,
+            nodes_ar=nodes_cap,
             replace=replace,
             fanout=fanout,
             edge_dir=edge_dir,

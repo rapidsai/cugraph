@@ -22,6 +22,9 @@ from cugraph.utilities import (
 )
 from cugraph.structure import Graph, DiGraph
 from cugraph.components import connectivity_wrapper
+import cudf
+from pylibcugraph import weakly_connected_components as pylibcugraph_wcc
+from pylibcugraph import ResourceHandle
 
 
 def _ensure_args(api_name, G, directed, connection, return_labels):
@@ -112,7 +115,7 @@ def weakly_connected_components(G, directed=None, connection=None, return_labels
         The adjacency list will be computed if not already present.  The number
         of vertices should fit into a 32b int.
 
-    directed : bool, optional (default=True)
+    directed : bool, optional (default=None)
 
         NOTE
             For non-Graph-type (eg. sparse matrix) values of G only.
@@ -171,6 +174,7 @@ def weakly_connected_components(G, directed=None, connection=None, return_labels
     >>> df = cugraph.weakly_connected_components(G)
 
     """
+
     (directed, connection, return_labels) = _ensure_args(
         "weakly_connected_components", G, directed, connection, return_labels
     )
@@ -180,7 +184,22 @@ def weakly_connected_components(G, directed=None, connection=None, return_labels
         G, nx_weight_attr="weight", matrix_graph_type=Graph(directed=directed)
     )
 
-    df = connectivity_wrapper.weakly_connected_components(G)
+    if G.is_directed():
+        raise ValueError("input graph must be undirected")
+
+    vertex, labels = pylibcugraph_wcc(
+        resource_handle=ResourceHandle(),
+        graph=G._plc_graph,
+        offsets=None,
+        indices=None,
+        weights=None,
+        labels=None,
+        do_expensive_check=False,
+    )
+
+    df = cudf.DataFrame()
+    df["vertex"] = vertex
+    df["labels"] = labels
 
     if G.renumbered:
         df = G.unrenumber(df, "vertex")
