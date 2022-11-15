@@ -15,7 +15,7 @@ import pytest
 
 try:
     import cugraph_dgl
-except ImportError:
+except ModuleNotFoundError:
     pytest.skip("cugraph_dgl not available", allow_module_level=True)
 
 import dgl
@@ -24,7 +24,7 @@ import cudf
 import numpy as np
 
 from cugraph_dgl import CuGraphStorage
-from cugraph_dgl.utils.test_utils import assert_same_sampling_len
+from .utils import assert_same_sampling_len
 
 
 @pytest.fixture()

@@ -14,19 +14,19 @@ import pytest
 
 try:
     import cugraph_dgl
-except ImportError:
+except ModuleNotFoundError:
     pytest.skip("cugraph_dgl not available", allow_module_level=True)
 
 import dgl
 import dgl.backend as F
 import torch as th
 
-from cugraph_dgl.utils.test_utils import (
+from .utils import (
     assert_same_num_edges_can_etypes,
     assert_same_num_edges_etypes,
     assert_same_edge_feats,
 )
-from cugraph_dgl.utils.test_utils import assert_same_num_nodes, assert_same_node_feats
+from .utils import assert_same_num_nodes, assert_same_node_feats
 
 device = "cuda"
 ctx = th.device(device)
