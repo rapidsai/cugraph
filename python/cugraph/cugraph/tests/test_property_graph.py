@@ -18,7 +18,7 @@ import pytest
 import pandas as pd
 import numpy as np
 import cudf
-import cupy
+import cupy as cp
 from cudf.testing import assert_frame_equal, assert_series_equal
 from cugraph.experimental.datasets import cyber
 
@@ -1891,8 +1891,8 @@ def test_vertex_vector_property(df_type):
         referrals,
     ) = dataset1.values()
     if df_type is cudf.DataFrame:
-        assert_array_equal = cupy.testing.assert_array_equal
-        zeros = cupy.zeros
+        assert_array_equal = cp.testing.assert_array_equal
+        zeros = cp.zeros
     else:
         assert_array_equal = np.testing.assert_array_equal
         zeros = np.zeros
@@ -2049,7 +2049,7 @@ def test_edge_vector_property(df_type):
     from cugraph.experimental import PropertyGraph
 
     if df_type is cudf.DataFrame:
-        assert_array_equal = cupy.testing.assert_array_equal
+        assert_array_equal = cp.testing.assert_array_equal
     else:
         assert_array_equal = np.testing.assert_array_equal
     df1 = df_type(
@@ -2198,6 +2198,20 @@ def bench_extract_subgraph_for_rmat(gpubenchmark, rmat_PropertyGraph):
         default_edge_weight=1.0,
         check_multi_edges=False,
     )
+
+
+@pytest.mark.parametrize("n_rows", [15_000_000, 30_000_000, 60_000_000, 120_000_000])
+def bench_add_edge_data(gpubenchmark, n_rows):
+    from cugraph.experimental import PropertyGraph
+
+    def func():
+        pg = PropertyGraph()
+        src = cp.arange(n_rows)
+        dst = src - 1
+        df = cudf.DataFrame({"src": src, "dst": dst})
+        pg.add_edge_data(df, ["src", "dst"], type_name="('_N', '_E', '_N')")
+
+    gpubenchmark(func)
 
 
 # This test runs for *minutes* with the current implementation, and since
