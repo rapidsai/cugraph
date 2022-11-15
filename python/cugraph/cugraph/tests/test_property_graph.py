@@ -1958,7 +1958,7 @@ def test_vertex_vector_property(df_type):
     vec1 = pG.vertex_vector_property_to_array(df, "vec1")
     vec1 = vec1[np.lexsort(vec1.T)]  # may be jumbled, so sort
     assert_array_equal(expected, vec1)
-    vec1 = pG.vertex_vector_property_to_array(df, "vec1", missing="raise")
+    vec1 = pG.vertex_vector_property_to_array(df, "vec1", missing="error")
     vec1 = vec1[np.lexsort(vec1.T)]  # may be jumbled, so sort
     assert_array_equal(expected, vec1)
     with pytest.raises(ValueError):
@@ -1997,9 +1997,24 @@ def test_vertex_vector_property(df_type):
     vec1 = vec1[np.lexsort(vec1.T)]  # may be jumbled, so sort
     assert_array_equal(expected, vec1)
     with pytest.raises(RuntimeError):
-        pG.vertex_vector_property_to_array(df, "vec1", missing="raise")
+        pG.vertex_vector_property_to_array(df, "vec1", missing="error")
 
-    vec1filled = pG.vertex_vector_property_to_array(df, "vec1", 0, missing="raise")
+    pGusers = PropertyGraph()
+    pGusers.add_vertex_data(
+        users_df,
+        type_name="users",
+        vertex_col_name="user_id",
+        vector_property="vec3",
+    )
+    vec2 = pG.vertex_vector_property_to_array(df, "vec2")
+    vec2 = vec2[np.lexsort(vec2.T)]  # may be jumbled, so sort
+    df2 = pGusers.get_vertex_data()
+    assert set(df2.columns) == {pG.vertex_col_name, pG.type_col_name, "vec3"}
+    vec3 = pGusers.vertex_vector_property_to_array(df2, "vec3")
+    vec3 = vec3[np.lexsort(vec3.T)]  # may be jumbled, so sort
+    assert_array_equal(vec2, vec3)
+
+    vec1filled = pG.vertex_vector_property_to_array(df, "vec1", 0, missing="error")
     vec1filled = vec1filled[np.lexsort(vec1filled.T)]  # may be jumbled, so sort
     expectedfilled = np.concatenate([zeros((4, 3), int), expected])
     assert_array_equal(expectedfilled, vec1filled)
@@ -2069,12 +2084,19 @@ def test_edge_vector_property(df_type):
     assert set(df.columns) == expected_columns
     expected = df1[["feat_0", "feat_1", "feat_2"]].values
     expected = expected[np.lexsort(expected.T)]  # may be jumbled, so sort
-    vec1 = pG.edge_vector_property_to_array(df, "vec1")
-    vec1 = vec1[np.lexsort(vec1.T)]  # may be jumbled, so sort
-    assert_array_equal(vec1, expected)
-    vec1 = pG.edge_vector_property_to_array(df, "vec1", missing="raise")
-    vec1 = vec1[np.lexsort(vec1.T)]  # may be jumbled, so sort
-    assert_array_equal(vec1, expected)
+
+    pGalt = PropertyGraph()
+    pGalt.add_edge_data(df1, ("src", "dst"), vector_property="vec1")
+    dfalt = pG.get_edge_data()
+
+    for cur_pG, cur_df in [(pG, df), (pGalt, dfalt)]:
+        vec1 = cur_pG.edge_vector_property_to_array(cur_df, "vec1")
+        vec1 = vec1[np.lexsort(vec1.T)]  # may be jumbled, so sort
+        assert_array_equal(vec1, expected)
+        vec1 = cur_pG.edge_vector_property_to_array(cur_df, "vec1", missing="error")
+        vec1 = vec1[np.lexsort(vec1.T)]  # may be jumbled, so sort
+        assert_array_equal(vec1, expected)
+
     pG.add_edge_data(
         df2, ("src", "dst"), vector_properties={"vec2": ["feat_0", "feat_1"]}
     )
@@ -2087,7 +2109,7 @@ def test_edge_vector_property(df_type):
     vec2 = vec2[np.lexsort(vec2.T)]  # may be jumbled, so sort
     assert_array_equal(vec2, expected)
     with pytest.raises(RuntimeError):
-        pG.edge_vector_property_to_array(df, "vec2", missing="raise")
+        pG.edge_vector_property_to_array(df, "vec2", missing="error")
 
 
 @pytest.mark.skip(reason="feature not implemented")

@@ -343,6 +343,7 @@ class EXPERIMENTAL__PropertyGraph:
         type_name=None,
         property_columns=None,
         vector_properties=None,
+        vector_property=None,
     ):
         """
         Add a dataframe describing vertex properties to the PropertyGraph.
@@ -373,6 +374,11 @@ class EXPERIMENTAL__PropertyGraph:
             including them in the property_columns argument.
             Use ``PropertyGraph.vertex_vector_property_to_array`` to convert a
             vertex vector property to an array.
+        vector_property : string, optional
+            If provided, all columns not included in other arguments will be used
+            to create a vector property with the given name. This is often used
+            for convenience instead of ``vector_properties`` when all input
+            properties should be converted to a vector property.
 
         Returns
         -------
@@ -438,6 +444,27 @@ class EXPERIMENTAL__PropertyGraph:
                 self.__vertex_vector_property_lengths,
                 invalid_keys,
             )
+        if vector_property is not None:
+            invalid_keys = {self.vertex_col_name, TCN, vertex_col_name}
+            if property_columns:
+                invalid_keys.update(property_columns)
+            if vector_properties:
+                invalid_keys.update(*vector_properties.values())
+            d = {
+                vector_property: [
+                    col for col in dataframe.columns if col not in invalid_keys
+                ]
+            }
+            self._check_vector_properties(
+                dataframe,
+                d,
+                self.__vertex_vector_property_lengths,
+                invalid_keys,
+            )
+            # Update vector_properties, but don't mutate the original
+            if vector_properties is not None:
+                d.update(vector_properties)
+            vector_properties = d
 
         # Clear the cached values related to the number of vertices since more
         # could be added in this method.
@@ -599,6 +626,7 @@ class EXPERIMENTAL__PropertyGraph:
         type_name=None,
         property_columns=None,
         vector_properties=None,
+        vector_property=None,
     ):
         """
         Add a dataframe describing edge properties to the PropertyGraph.
@@ -635,6 +663,11 @@ class EXPERIMENTAL__PropertyGraph:
             including them in the property_columns argument.
             Use ``PropertyGraph.edge_vector_property_to_array`` to convert an
             edge vector property to an array.
+        vector_property : string, optional
+            If provided, all columns not included in other arguments will be used
+            to create a vector property with the given name. This is often used
+            for convenience instead of ``vector_properties`` when all input
+            properties should be converted to a vector property.
 
         Returns
         -------
@@ -730,6 +763,33 @@ class EXPERIMENTAL__PropertyGraph:
                 self.__edge_vector_property_lengths,
                 invalid_keys,
             )
+        if vector_property is not None:
+            invalid_keys = {
+                self.src_col_name,
+                self.dst_col_name,
+                TCN,
+                vertex_col_names[0],
+                vertex_col_names[1],
+            }
+            if property_columns:
+                invalid_keys.update(property_columns)
+            if vector_properties:
+                invalid_keys.update(*vector_properties.values())
+            d = {
+                vector_property: [
+                    col for col in dataframe.columns if col not in invalid_keys
+                ]
+            }
+            self._check_vector_properties(
+                dataframe,
+                d,
+                self.__edge_vector_property_lengths,
+                invalid_keys,
+            )
+            # Update vector_properties, but don't mutate the original
+            if vector_properties is not None:
+                d.update(vector_properties)
+            vector_properties = d
 
         # Clear the cached value for num_vertices since more could be added in
         # this method. This method cannot affect __node_type_value_counts
@@ -1527,7 +1587,7 @@ class EXPERIMENTAL__PropertyGraph:
             )
         if col_name not in df.columns:
             raise ValueError(f"Column name {col_name} is not in the columns of df")
-        if missing not in {"raise", "ignore"}:
+        if missing not in {"error", "ignore"}:
             raise ValueError(
                 f'missing keyword must be one of "error" or "ignore"; got {missing!r}'
             )
@@ -1568,7 +1628,7 @@ class EXPERIMENTAL__PropertyGraph:
             else:
                 s = s[s.notnull()]
             rv = np.vstack(s.to_numpy())
-        if fillvalue is None and missing == "raise" and rv.shape[0] != len(df):
+        if fillvalue is None and missing == "error" and rv.shape[0] != len(df):
             raise RuntimeError(
                 f"Vector property {col_name!r} has empty rows! "
                 'Provide a fill value or use `missing="ignore"` to ignore empty rows.'

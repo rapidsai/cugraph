@@ -337,6 +337,7 @@ class EXPERIMENTAL__MGPropertyGraph:
         type_name=None,
         property_columns=None,
         vector_properties=None,
+        vector_property=None,
     ):
         """
         Add a dataframe describing vertex properties to the PropertyGraph.
@@ -367,6 +368,11 @@ class EXPERIMENTAL__MGPropertyGraph:
             including them in the property_columns argument.
             Use ``MGPropertyGraph.vertex_vector_property_to_array`` to convert a
             vertex vector property to an array.
+        vector_property : string, optional
+            If provided, all columns not included in other arguments will be used
+            to create a vector property with the given name. This is often used
+            for convenience instead of ``vector_properties`` when all input
+            properties should be converted to a vector property.
 
         Returns
         -------
@@ -418,6 +424,27 @@ class EXPERIMENTAL__MGPropertyGraph:
                 self.__vertex_vector_property_lengths,
                 invalid_keys,
             )
+        if vector_property is not None:
+            invalid_keys = {self.vertex_col_name, TCN, vertex_col_name}
+            if property_columns:
+                invalid_keys.update(property_columns)
+            if vector_properties:
+                invalid_keys.update(*vector_properties.values())
+            d = {
+                vector_property: [
+                    col for col in dataframe.columns if col not in invalid_keys
+                ]
+            }
+            self._check_vector_properties(
+                dataframe,
+                d,
+                self.__vertex_vector_property_lengths,
+                invalid_keys,
+            )
+            # Update vector_properties, but don't mutate the original
+            if vector_properties is not None:
+                d.update(vector_properties)
+            vector_properties = d
 
         # Clear the cached values related to the number of vertices since more
         # could be added in this method.
@@ -580,6 +607,7 @@ class EXPERIMENTAL__MGPropertyGraph:
         type_name=None,
         property_columns=None,
         vector_properties=None,
+        vector_property=None,
     ):
         """
         Add a dataframe describing edge properties to the PropertyGraph.
@@ -616,6 +644,11 @@ class EXPERIMENTAL__MGPropertyGraph:
             including them in the property_columns argument.
             Use ``MGPropertyGraph.edge_vector_property_to_array`` to convert an
             edge vector property to an array.
+        vector_property : string, optional
+            If provided, all columns not included in other arguments will be used
+            to create a vector property with the given name. This is often used
+            for convenience instead of ``vector_properties`` when all input
+            properties should be converted to a vector property.
 
         Returns
         -------
@@ -696,6 +729,33 @@ class EXPERIMENTAL__MGPropertyGraph:
                 self.__edge_vector_property_lengths,
                 invalid_keys,
             )
+        if vector_property is not None:
+            invalid_keys = {
+                self.src_col_name,
+                self.dst_col_name,
+                TCN,
+                vertex_col_names[0],
+                vertex_col_names[1],
+            }
+            if property_columns:
+                invalid_keys.update(property_columns)
+            if vector_properties:
+                invalid_keys.update(*vector_properties.values())
+            d = {
+                vector_property: [
+                    col for col in dataframe.columns if col not in invalid_keys
+                ]
+            }
+            self._check_vector_properties(
+                dataframe,
+                d,
+                self.__edge_vector_property_lengths,
+                invalid_keys,
+            )
+            # Update vector_properties, but don't mutate the original
+            if vector_properties is not None:
+                d.update(vector_properties)
+            vector_properties = d
 
         # Clear the cached value for num_vertices since more could be added in
         # this method. This method cannot affect __node_type_value_counts
@@ -1287,7 +1347,9 @@ class EXPERIMENTAL__MGPropertyGraph:
         rv["stop"] -= 1  # Make inclusive
         return rv[["start", "stop"]]
 
-    def vertex_vector_property_to_array(self, df, col_name, *, ignore_empty=True):
+    def vertex_vector_property_to_array(
+        self, df, col_name, fillvalue=None, *, missing="ignore"
+    ):
         """Convert a known vertex vector property in a DataFrame to an array.
 
         Parameters
@@ -1296,12 +1358,17 @@ class EXPERIMENTAL__MGPropertyGraph:
         col_name : str
             The column name in the DataFrame to convert to an array.
             This vector property should have been created by MGPropertyGraph.
-        ignore_empty : bool, default True
-            If True, empty or null rows without vector data will be skipped
+        fillvalue : scalar or list, optional (default None)
+            Fill value for rows with missing vector data.  If it is a list,
+            it must be the correct size of the vector property.  If fillvalue is None,
+            then behavior if missing data is controlled by ``missing`` keyword.
+            Leave this as None for better performance if all rows should have data.
+        missing : {"ignore", "error"}
+            If "ignore", empty or null rows without vector data will be skipped
             when creating the array, so output array shape will be
             [# of non-empty rows] by [size of vector property].
-            When ignore_empty is False, RuntimeError will be raised if there
-            are any empty rows.
+            When "error", RuntimeError will be raised if there are any empty rows.
+            Ignored if fillvalue is given.
 
         Returns
         -------
@@ -1310,9 +1377,11 @@ class EXPERIMENTAL__MGPropertyGraph:
         if col_name not in self.__vertex_vector_property_lengths:
             raise ValueError(f"{col_name!r} is not a known vertex vector property")
         length = self.__vertex_vector_property_lengths[col_name]
-        return self._get_vector_property(df, col_name, length, ignore_empty)
+        return self._get_vector_property(df, col_name, length, fillvalue, missing)
 
-    def edge_vector_property_to_array(self, df, col_name, *, ignore_empty=True):
+    def edge_vector_property_to_array(
+        self, df, col_name, fillvalue=None, *, missing="ignore"
+    ):
         """Convert a known edge vector property in a DataFrame to an array.
 
         Parameters
@@ -1321,12 +1390,17 @@ class EXPERIMENTAL__MGPropertyGraph:
         col_name : str
             The column name in the DataFrame to convert to an array.
             This vector property should have been created by MGPropertyGraph.
-        ignore_empty : bool, default True
-            If True, empty or null rows without vector data will be skipped
+        fillvalue : scalar or list, optional (default None)
+            Fill value for rows with missing vector data.  If it is a list,
+            it must be the correct size of the vector property.  If fillvalue is None,
+            then behavior if missing data is controlled by ``missing`` keyword.
+            Leave this as None for better performance if all rows should have data.
+        missing : {"ignore", "error"}
+            If "ignore", empty or null rows without vector data will be skipped
             when creating the array, so output array shape will be
             [# of non-empty rows] by [size of vector property].
-            When ignore_empty is False, RuntimeError will be raised if there
-            are any empty rows.
+            When "error", RuntimeError will be raised if there are any empty rows.
+            Ignored if fillvalue is given.
 
         Returns
         -------
@@ -1335,7 +1409,7 @@ class EXPERIMENTAL__MGPropertyGraph:
         if col_name not in self.__edge_vector_property_lengths:
             raise ValueError(f"{col_name!r} is not a known edge vector property")
         length = self.__edge_vector_property_lengths[col_name]
-        return self._get_vector_property(df, col_name, length, ignore_empty)
+        return self._get_vector_property(df, col_name, length, fillvalue, missing)
 
     def _check_vector_properties(
         self, df, vector_properties, vector_property_lengths, invalid_keys
@@ -1377,22 +1451,43 @@ class EXPERIMENTAL__MGPropertyGraph:
             self._create_vector_properties_partition, vector_properties
         )
 
-    def _get_vector_property(self, df, col_name, length, ignore_empty):
+    def _get_vector_property(self, df, col_name, length, fillvalue, missing):
         if type(df) is not self.__dataframe_type:
             raise TypeError(
                 f"Expected type {self.__dataframe_type}; got type {type(df)}"
             )
         if col_name not in df.columns:
             raise ValueError(f"Column name {col_name} is not in the columns of df")
+        if missing not in {"error", "ignore"}:
+            raise ValueError(
+                f'missing keyword must be one of "error" or "ignore"; got {missing!r}'
+            )
+        if fillvalue is not None:
+            try:
+                fillvalue = list(fillvalue)
+            except Exception:
+                fillvalue = [fillvalue] * length
+            else:
+                if len(fillvalue) != length:
+                    raise ValueError(
+                        f"Wrong size of list as fill value; got {len(fillvalue)}, "
+                        f"expected {length}"
+                    )
         if df.dtypes[col_name] != "list":
             raise TypeError(
                 "Wrong dtype for vector property; expected 'list', "
                 f"got {df.dtypes[col_name]}"
             )
         s = df[col_name]
-        meta = self._vector_series_to_array_partition(s._meta, length, True)
+        meta = self._vector_series_to_array_partition(
+            s._meta, length, fillvalue, "ignore"
+        )
         return s.map_partitions(
-            self._vector_series_to_array_partition, length, ignore_empty, meta=meta
+            self._vector_series_to_array_partition,
+            length,
+            fillvalue,
+            missing,
+            meta=meta,
         )
 
     @classmethod
@@ -1517,7 +1612,7 @@ class EXPERIMENTAL__MGPropertyGraph:
         return df.assign(**new_cols)
 
     @staticmethod
-    def _vector_series_to_array_partition(s, length, ignore_empty):
+    def _vector_series_to_array_partition(s, length, fillvalue, missing):
         # This returns a writable view (i.e., no copies!)
         if len(s) == 0:
             # TODO: fix bug in cudf; operating on dask_cudf dataframes nests list dtype
@@ -1525,7 +1620,13 @@ class EXPERIMENTAL__MGPropertyGraph:
             while dtype == "list":
                 dtype = dtype.element_type
             return cupy.empty((0, length), dtype=dtype)
+        if fillvalue is not None:
+            s = s.copy()  # copy b/c we mutate below
+            s[s.isnull()] = fillvalue
         rv = s._data.columns[0].children[-1].values.reshape(-1, length)
-        if not ignore_empty and rv.shape[0] != len(s):
-            raise RuntimeError("TODO")
+        if fillvalue is None and missing == "error" and rv.shape[0] != len(s):
+            raise RuntimeError(
+                f"Vector property {s.name!r} has empty rows! "
+                'Provide a fill value or use `missing="ignore"` to ignore empty rows.'
+            )
         return rv

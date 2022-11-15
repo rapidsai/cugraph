@@ -1028,7 +1028,7 @@ def test_vertex_vector_property(dask_client):
     vec1 = pG.vertex_vector_property_to_array(df, "vec1").compute()
     vec1 = vec1[np.lexsort(vec1.T)]  # may be jumbled, so sort
     assert_array_equal(expected, vec1)
-    vec1 = pG.vertex_vector_property_to_array(df, "vec1", ignore_empty=False).compute()
+    vec1 = pG.vertex_vector_property_to_array(df, "vec1", missing="error").compute()
     vec1 = vec1[np.lexsort(vec1.T)]  # may be jumbled, so sort
     assert_array_equal(expected, vec1)
     with pytest.raises(ValueError):
@@ -1068,7 +1068,7 @@ def test_vertex_vector_property(dask_client):
     vec1 = vec1[np.lexsort(vec1.T)]  # may be jumbled, so sort
     assert_array_equal(expected, vec1)
     with pytest.raises(RuntimeError):
-        pG.vertex_vector_property_to_array(df, "vec1", ignore_empty=False).compute()
+        pG.vertex_vector_property_to_array(df, "vec1", missing="error").compute()
 
     vec2 = pG.vertex_vector_property_to_array(df, "vec2").compute()
     vec2 = vec2[np.lexsort(vec2.T)]  # may be jumbled, so sort
@@ -1128,7 +1128,7 @@ def test_edge_vector_property(dask_client):
     vec1 = pG.edge_vector_property_to_array(df, "vec1").compute()
     vec1 = vec1[np.lexsort(vec1.T)]  # may be jumbled, so sort
     assert_array_equal(vec1, expected)
-    vec1 = pG.edge_vector_property_to_array(df, "vec1", ignore_empty=False).compute()
+    vec1 = pG.edge_vector_property_to_array(df, "vec1", missing="error").compute()
     vec1 = vec1[np.lexsort(vec1.T)]  # may be jumbled, so sort
     assert_array_equal(vec1, expected)
     pG.add_edge_data(
@@ -1143,7 +1143,7 @@ def test_edge_vector_property(dask_client):
     vec2 = vec2[np.lexsort(vec2.T)]  # may be jumbled, so sort
     assert_array_equal(vec2, expected)
     with pytest.raises(RuntimeError):
-        pG.edge_vector_property_to_array(df, "vec2", ignore_empty=False).compute()
+        pG.edge_vector_property_to_array(df, "vec2", missing="error").compute()
 
 
 # =============================================================================
