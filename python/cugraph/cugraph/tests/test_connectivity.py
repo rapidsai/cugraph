@@ -25,6 +25,7 @@ from scipy.sparse import coo_matrix as sp_coo_matrix
 from scipy.sparse import csr_matrix as sp_csr_matrix
 from scipy.sparse import csc_matrix as sp_csc_matrix
 from cugraph.experimental.datasets import DATASETS, STRONGDATASETS
+from cugraph.utilities import is_nx_graph_type
 
 import cudf
 import cugraph
@@ -107,7 +108,9 @@ def networkx_strong_call(graph_file):
     return (G, dataset_path, nx_labels, nx_n_components, lst_nx_components, "strong")
 
 
-def cugraph_call(gpu_benchmark_callable, cugraph_algo, input_G_or_matrix):
+def cugraph_call(
+    gpu_benchmark_callable, cugraph_algo, input_G_or_matrix, directed=None
+):
     """
     Test helper that calls cugraph_algo (which is either
     weakly_connected_components() or strongly_connected_components()) on the
@@ -118,7 +121,7 @@ def cugraph_call(gpu_benchmark_callable, cugraph_algo, input_G_or_matrix):
     """
     # if benchmarking is enabled, this call will be benchmarked (ie. run
     # repeatedly, run time averaged, etc.)
-    result = gpu_benchmark_callable(cugraph_algo, input_G_or_matrix)
+    result = gpu_benchmark_callable(cugraph_algo, input_G_or_matrix, directed)
 
     # dict of labels to list of vertices with that label
     label_vertex_dict = defaultdict(list)
@@ -247,15 +250,20 @@ def assert_scipy_api_compat(G, dataset_path, api_type):
 
     # Setting connection to strong for strongly_* and weak for weakly_* is
     # redundant, but valid
+
     api_call(input_cugraph_graph, connection=connection)
 
     # Invalid for the API
     with pytest.raises(TypeError):
-        (n_components, labels) = api_call(input_coo_matrix, connection=wrong_connection)
+        (n_components, labels) = api_call(
+            input_coo_matrix, directed=False, connection=wrong_connection
+        )
 
     (n_components, labels) = api_call(input_coo_matrix, directed=False)
-    (n_components, labels) = api_call(input_coo_matrix, connection=connection)
-    n_components = api_call(input_coo_matrix, return_labels=False)
+    (n_components, labels) = api_call(
+        input_coo_matrix, directed=False, connection=connection
+    )
+    n_components = api_call(input_coo_matrix, directed=False, return_labels=False)
     assert type(n_components) is int
 
 
@@ -296,14 +304,20 @@ def test_weak_cc(gpubenchmark, dataset_nxresults_weak, cugraph_input_type):
         api_type,
     ) = dataset_nxresults_weak
 
+    # cuGraph or nx 'input_type' should have this parameter set to None
+    directed = None
     if not isinstance(cugraph_input_type, (cugraph.Graph, cugraph.DiGraph)):
         input_G_or_matrix = utils.create_obj_from_csv(
             dataset_path, cugraph_input_type, edgevals=True
         )
+        if not is_nx_graph_type(cugraph_input_type):
+            # directed should be set to False when creating a cuGraph from
+            # neither a cuGraph nor nx type
+            directed = False
     else:
         input_G_or_matrix = G
     cugraph_labels = cugraph_call(
-        gpubenchmark, cugraph.weakly_connected_components, input_G_or_matrix
+        gpubenchmark, cugraph.weakly_connected_components, input_G_or_matrix, directed
     )
 
     # while cugraph returns a component label for each vertex;
@@ -453,11 +467,13 @@ def test_scipy_api_compat(connection_type):
         cugraph.connected_components(input_cugraph_graph, connection="invalid")
 
     (n_components, labels) = cugraph.connected_components(
-        input_coo_matrix, connection=connection_type
+        input_coo_matrix, directed=False, connection=connection_type
     )
     # FIXME: connection should default to "weak", need to test that
     (n_components, labels) = cugraph.connected_components(
         input_coo_matrix, directed=False
     )
-    n_components = cugraph.connected_components(input_coo_matrix, return_labels=False)
+    n_components = cugraph.connected_components(
+        input_coo_matrix, directed=False, return_labels=False
+    )
     assert type(n_components) is int
