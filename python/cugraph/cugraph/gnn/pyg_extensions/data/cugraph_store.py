@@ -469,6 +469,19 @@ class EXPERIMENTAL__CuGraphStore:
         return self.__subgraphs[edge_types]
 
     def _get_vertex_groups_from_sample(self, nodes_of_interest):
+        """
+        Given a cudf (NOT dask_cudf) Series of nodes of interest, this
+        method a single dictionary, noi_index.
+
+        noi_index is the original vertex ids grouped by vertex type.
+
+        Example Input: [5, 2, 10, 11, 8]
+        Output: {'red_vertex': [5, 8], 'blue_vertex': [2], 'green_vertex': [10, 11]}
+
+        Note: "renumbering" here refers to generating a new set of vertex
+        and edge ids for the outputted subgraph that
+        follow PyG's conventions, allowing easy construction of a HeteroData object.
+        """
         nodes_of_interest = nodes_of_interest.sort_values()
 
         # noi contains all property values
@@ -498,6 +511,46 @@ class EXPERIMENTAL__CuGraphStore:
         return noi_index
 
     def _get_renumbered_edge_groups_from_sample(self, sampling_results, noi_index):
+        """
+        Given a cudf or dask_cudf Series of sampling results and a dictionary
+        of non-renumbered vertex ids grouped by vertex type, this method
+        outputs two dictionaries:
+            1. row_dict
+            2. col_dict
+        (1) row_dict corresponds to the renumbered source vertex ids grouped
+            by PyG edge type - (src, type, dst) tuple.
+        (2) col_dict corresponds to the renumbered destination vertex ids grouped
+            by PyG edge type (src, type, dst) tuple.
+        * The two outputs combined make a PyG "edge index".
+        * The ith element of each array corresponds to the same edge.
+        * The _get_vertex_groups_from_sample() method is usually called
+          before this one to get the noi_index.
+
+        Example Input: Series({
+                'sources': [0, 5, 11, 3],
+                'destinations': [8, 2, 3, 5]},
+                'indices': [1, 3, 5, 14]
+            }),
+            {
+                'blue_vertex': [0, 5],
+                'red_vertex': [3, 11],
+                'green_vertex': [2, 8]
+            }
+        Output: {
+                ('blue', 'etype1', 'green'): [0, 1],
+                ('red', 'etype2', 'red'): [1],
+                ('red', 'etype3', 'blue'): [0]
+            },
+            {
+                ('blue', 'etype1', 'green'): [1, 0],
+                ('red', 'etype2', 'red'): [0],
+                ('red', 'etype3', 'blue'): [1]
+            }
+
+        Note: "renumbering" here refers to generating a new set of vertex and edge ids
+        for the outputted subgraph that follow PyG's conventions, allowing easy
+        construction of a HeteroData object.
+        """
         eoi = self.__graph.get_edge_data(
             edge_ids=(
                 sampling_results.indices.compute().values_host
@@ -536,157 +589,6 @@ class EXPERIMENTAL__CuGraphStore:
 
                 dst = self.searchsorted(dst_id_table, destinations)
                 col_dict[t_pyg_type] = dst
-
-        return row_dict, col_dict
-
-    def _get_renumbered_vertex_data_from_sample(self, nodes_of_interest):
-        """
-        Given a cudf (NOT dask_cudf) Series of nodes of interest, this
-        method outputs three dictionaries:
-            1. noi_index
-            2. noi_groups
-            3. noi_tensors
-        (1) noi_index is the original vertex ids grouped by vertex type.
-        (2) noi_groups is the vertex ids renumbered from zero from each vertex type.
-        (3) noi_tensors is the corresponding tensor properties for each vertex,
-            grouped by vertex type.
-        The ith element of each of array refers to the same vertex.
-
-        Example Input: [5, 2, 10, 11, 8]
-        Output: {'red_vertex': [5, 8], 'blue_vertex': [2], 'green_vertex': [10, 11]},
-                {'red_vertex': [0, 1], 'blue_vertex': [0], 'green_vertex': [0, 1]},
-                {
-                  'red_vertex': [[5.0, 2.0], [3.0, 5.0]],
-                  'blue_vertex': [[6.2, 2.1]],
-                  'green_vertex': [[5.9, 2.0], [3.0, 1.0]]
-                }
-
-        Note: "renumbering" here refers to generating a new set of vertex
-        and edge ids for the outputted subgraph that
-        follow PyG's conventions, allowing easy construction of a HeteroData object.
-        """
-        nodes_of_interest = nodes_of_interest.sort_values()
-
-        # noi contains all property values
-        noi = self.__graph.get_vertex_data(
-            nodes_of_interest.values_host if self.is_multi_gpu else nodes_of_interest
-        )
-        noi_types = noi[self.__graph.type_col_name].cat.categories.values_host
-
-        noi_index = {}
-        noi_groups = {}
-        noi_tensors = {}
-        for t_code, t in enumerate(noi_types):
-            noi_t = noi[noi[self.__graph.type_col_name].cat.codes == t_code]
-            # noi_t should be sorted since the input nodes of interest were
-
-            if len(noi_t) > 0:
-                # store the renumbering for this vertex type
-                # renumbered vertex id is the index of the old id
-                noi_index[t] = (
-                    noi_t[self.__graph.vertex_col_name].compute().to_cupy()
-                    if self.is_multi_gpu
-                    else noi_t[self.__graph.vertex_col_name].to_cupy()
-                )
-
-                # renumber for each noi group
-
-                noi_groups[t] = self.from_dlpack(cupy.arange(len(noi_t)).toDlpack())
-
-                # store the property data
-                attrs = self._tensor_attr_dict[t]
-                noi_tensors[t] = {
-                    attr.attr_name: (self.__get_tensor_from_dataframe(noi_t, attr))
-                    for attr in attrs
-                }
-
-        return noi_index, noi_groups, noi_tensors
-
-    def _get_renumbered_edges_from_sample(self, sampling_results, noi_index):
-        """
-        Given a cudf or dask_cudf Series of sampling results and a dictionary
-        of non-renumbered vertex ids grouped by vertex type, this method
-        outputs two dictionaries:
-            1. row_dict
-            2. col_dict
-        (1) row_dict corresponds to the renumbered source vertex ids grouped
-            by edge type
-        (2) col_dict corresponds to the renumbered destination vertex ids grouped
-            by edge type
-        * The two outputs combined make a PyG "edge index".
-        * The ith element of each array corresponds to the same edge.
-        * The _get_renumbered_vertex_data_from_sample() method is usually called
-          before this one to get the noi_index.
-
-        Example Input: Series({
-                'sources': [0, 5, 11, 3],
-                'destinations': [8, 2, 3, 5]},
-                'indices': [1, 3, 5, 14]
-            }),
-            {
-                'blue_vertex': [0, 5],
-                'red_vertex': [3, 11],
-                'green_vertex': [2, 8]
-            }
-        Output: {
-                'blue__etype1__green': [0, 1],
-                'red__etype2__red': [1],
-                'red__etype3__blue': [0]
-            },
-            {
-                'blue__etype1__green': [1, 0],
-                'red__etype2__red': [0],
-                'red__etype3__blue': [1]
-            }
-
-        Note: "renumbering" here refers to generating a new set of vertex and edge ids
-        for the outputted subgraph that follow PyG's conventions, allowing easy
-        construction of a HeteroData object.
-        """
-        eoi = self.__graph.get_edge_data(
-            edge_ids=(
-                sampling_results.indices.compute().values_host
-                if self.is_multi_gpu
-                else sampling_results.indices
-            ),
-            columns=[self.__graph.src_col_name, self.__graph.dst_col_name],
-        )
-        eoi_types = eoi[self.__graph.type_col_name].cat.categories.values_host
-
-        # PyG expects these to be pre-renumbered;
-        # the pre-renumbering must match
-        # the auto-renumbering
-        row_dict = {}
-        col_dict = {}
-        for t_code, t in enumerate(eoi_types):
-            t_pyg_type = self.__edge_types_to_attrs[t].edge_type
-            src_type, edge_type, dst_type = t_pyg_type
-            t_pyg_c_type = edge_type_to_str(t_pyg_type)
-
-            eoi_t = eoi[eoi[self.__graph.type_col_name].cat.codes == t_code]
-
-            if len(eoi_t) > 0:
-                eoi_t = eoi_t.drop(self.__graph.edge_id_col_name, axis=1)
-
-                sources = eoi_t[self.__graph.src_col_name]
-                if self.is_multi_gpu:
-                    sources = sources.compute()
-                src_id_table = noi_index[src_type]
-
-                src = self.from_dlpack(
-                    cupy.searchsorted(src_id_table, sources.to_cupy()).toDlpack()
-                )
-                row_dict[t_pyg_c_type] = src
-
-                destinations = eoi_t[self.__graph.dst_col_name]
-                if self.is_multi_gpu:
-                    destinations = destinations.compute()
-                dst_id_table = noi_index[dst_type]
-
-                dst = self.from_dlpack(
-                    cupy.searchsorted(dst_id_table, destinations.to_cupy()).toDlpack()
-                )
-                col_dict[t_pyg_c_type] = dst
 
         return row_dict, col_dict
 
