@@ -1074,7 +1074,7 @@ class EXPERIMENTAL__PropertyGraph:
             Series is passed, the index or keys are the columns to fill
             and the values are the fill value for the corresponding column.
         """
-        self.__vertex_prop_dataframe = self.__vertex_prop_dataframe.fillna(val)
+        self.__vertex_prop_dataframe.fillna(val, inplace=True)
 
     def fillna_edges(self, val=0):
         """
@@ -1089,7 +1089,7 @@ class EXPERIMENTAL__PropertyGraph:
             and the values are the fill value for the corresponding column.
         """
 
-        self.__edge_prop_dataframe = self.__edge_prop_dataframe.fillna(val)
+        self.__edge_prop_dataframe.fillna(val, inplace=True)
 
     def select_vertices(self, expr, from_previous_selection=None):
         """
