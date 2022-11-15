@@ -59,12 +59,11 @@ decompress_to_edgelist_impl(
   std::optional<raft::device_span<vertex_t const>> renumber_map,
   bool do_expensive_check)
 {
-  CUGRAPH_EXPECTS(renumber_map.has_value(),
-                  "Invalid input arguments: renumber_map.has_value() should be true if multi-GPU.");
-  CUGRAPH_EXPECTS(
-    (*renumber_map).size() == static_cast<size_t>(graph_view.local_vertex_partition_range_size()),
-    "Invalid input arguments: (*renumber_map).size() should match with the local "
-    "vertex partition range size.");
+  CUGRAPH_EXPECTS(!renumber_map.has_value() ||
+                    ((*renumber_map).size() ==
+                     static_cast<size_t>(graph_view.local_vertex_partition_range_size())),
+                  "Invalid input arguments: (*renumber_map).size() should match with the local "
+                  "vertex partition range size.");
 
   if (do_expensive_check) { /* currently, nothing to do */
   }
