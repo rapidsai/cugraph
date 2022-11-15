@@ -13,9 +13,9 @@ Rapids offers support to GNN (Graph Neural Networks). Several components of the 
 
 <div align="center">
 
-[Rapids cuDF](https://https://docs.rapids.ai/api/cudf/stable/) *
-[Rapids cuGraph](./readme_pages/cugraph_service.md) *
-[Property Graph](./readme_pages/property_graph.md) *
+[Rapids cuDF](https://docs.rapids.ai/api/cudf/stable/) *
+[Rapids cuGraph](./cugraph_service.md) *
+[Property Graph](./property_graph.md) *
 [NVTabular](https://developer.nvidia.com/nvidia-merlin/nvtabular)
 
 </div>
