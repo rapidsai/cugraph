@@ -11,7 +11,15 @@ Rapids offers support to GNN (Graph Neural Networks). Several components of the 
   <img src="../img/gnn_framework.png" alt="cuGraph" width="500">
 </h1>
 
+<div align="center">
+
+[Rapids cuDF](https://https://docs.rapids.ai/api/cudf/stable/) *
+[Rapids cuGraph](./readme_pages/cugraph_service.md) *
+[Property Graph](./readme_pages/property_graph.md) *
+[NVTabular](https://developer.nvidia.com/nvidia-merlin/nvtabular)
+
+</div>
+
 Rapids also has elements specifically geared to GNN's. Due to the degree distribution of nodes, memory bottlenecks are the pain point for large scale graphs. To solve this problem, sampling operations form the backbone for Graph Neural Networks (GNN) training. However, current sampling methods provided by other libraries are not optimized enough for the whole process of GNN training, the main limit to performance is moving data between the hosts and devices. In cuGraph, we provide an end-to-end solution from data loading to training all on the GPUs.
 
-CuGraph now supports compatibility with DGL and PyTorch Geometric (PyG) by allowing conversion between a cuGraph object and a DGL or PyG object, making it possible for DGL and PyG users to access efficient data loader and graph operations (such as uniformed sampling) implementations in cuGraph, as well as keep their models unchanged in DGL or PyG. We achieved XXX times speedup compare with the original implementation in DGL and PyG.
-
+CuGraph now supports compatibility with [Deep Graph Library](https://www.dgl.ai/) (DGL) and [PyTorch Geometric](https://pytorch-geometric.readthedocs.io/en/latest/) (PyG) by allowing conversion between a cuGraph object and a DGL or PyG object, making it possible for DGL and PyG users to access efficient data loader and graph operations (such as uniformed sampling) implementations in cuGraph, as well as keep their models unchanged in DGL or PyG. We have considerable speedup compared with the original implementation in DGL and PyG.
