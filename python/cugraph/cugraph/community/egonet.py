@@ -97,7 +97,7 @@ def ego_graph(G, n, radius=1, center=True, undirected=None, distance=None):
 
     if undirected is not None:
         warning_msg = (
-            "The parameter 'undirected' is depreacted and "
+            "The parameter 'undirected' is deprecated and "
             "will be removed in the next release"
         )
         warnings.warn(warning_msg, PendingDeprecationWarning)
