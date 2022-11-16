@@ -11,17 +11,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from cugraph.utilities import (ensure_cugraph_obj_for_nx,
-                               df_score_to_dictionary,
-                               df_edge_score_to_dictionary,
-                               renumber_vertex_pair
-                               )
+from cugraph.utilities import (
+    ensure_cugraph_obj_for_nx,
+    df_edge_score_to_dictionary,
+    renumber_vertex_pair,
+)
 import cudf
-import warnings
 
-from pylibcugraph import (jaccard_coefficients as pylibcugraph_jaccard_coefficients,
-                          ResourceHandle
-                          )
+from pylibcugraph import (
+    jaccard_coefficients as pylibcugraph_jaccard_coefficients,
+    ResourceHandle,
+)
 
 
 # FIXME: update this function to renumber both 'first' and 'second'
@@ -30,11 +30,10 @@ def renumber_vertices(input_graph, input_df, col_name):
         cols = input_df.columns[:-1].to_list()
     else:
         cols = col_name
-    input_df = input_graph.add_internal_vertex_id(
-        input_df, "vertex", cols
-    )
+    input_df = input_graph.add_internal_vertex_id(input_df, "vertex", cols)
 
     return input_df
+
 
 def jaccard(G, vertex_pair=None):
     # FIXME: update docstring
@@ -132,7 +131,7 @@ def jaccard(G, vertex_pair=None):
     if vertex_pair is None:
         # Call two_hop neighbor of the entire graph
         vertex_pair = G.get_two_hop_neighbors()
-    
+
     v_p_num_col = len(vertex_pair.columns)
 
     if isinstance(vertex_pair, cudf.DataFrame):
@@ -144,29 +143,29 @@ def jaccard(G, vertex_pair=None):
 
     elif vertex_pair is not None:
         raise ValueError("vertex_pair must be a cudf dataframe")
-    
+
     # 'use_weight' is set tp False by default for jaccard and True
     # for 'wjaccard'
     use_weight = False
-    first, second, jaccard_coeff = \
-        pylibcugraph_jaccard_coefficients(
-            resource_handle=ResourceHandle(),
-            graph=G._plc_graph,
-            first = first,
-            second = second,
-            use_weight=use_weight,
-            do_expensive_check=False
-        )
- 
+    first, second, jaccard_coeff = pylibcugraph_jaccard_coefficients(
+        resource_handle=ResourceHandle(),
+        graph=G._plc_graph,
+        first=first,
+        second=second,
+        use_weight=use_weight,
+        do_expensive_check=False,
+    )
+
     if G.renumbered:
         vertex_pair = G.unrenumber(vertex_pair, src_col_name, preserve_order=True)
         vertex_pair = G.unrenumber(vertex_pair, dst_col_name, preserve_order=True)
-    
+
     # FIXME can use 'G.vertex_column_size' instead
     if v_p_num_col == 2:
         # single column vertex
         vertex_pair = vertex_pair.rename(
-            columns={src_col_name:"source", dst_col_name:"destination"})
+            columns={src_col_name: "source", dst_col_name: "destination"}
+        )
 
     df = vertex_pair
     df["jaccard_coeff"] = cudf.Series(jaccard_coeff)
@@ -228,9 +227,8 @@ def jaccard_coefficient(G, ebunch=None):
     df = jaccard(G, vertex_pair)
 
     if isNx is True:
-        df = df_edge_score_to_dictionary(df,
-                                         k="jaccard_coeff",
-                                         src="source",
-                                         dst="destination")
+        df = df_edge_score_to_dictionary(
+            df, k="jaccard_coeff", src="source", dst="destination"
+        )
 
     return df
