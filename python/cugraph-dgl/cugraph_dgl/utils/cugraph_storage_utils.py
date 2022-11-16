@@ -52,7 +52,7 @@ def _is_valid_canonical_etype(canonical_etype):
 
 
 if isinstance(F, MissingModule):
-    backend_dtype_to_np_dtype_dict = None
+    backend_dtype_to_np_dtype_dict = MissingModule("dgl")
 else:
     backend_dtype_to_np_dtype_dict = {
         F.bool: np.bool,

@@ -18,7 +18,7 @@ from typing import Optional, Dict
 import cudf
 import cupy as cp
 import dask_cudf
-from cugraph.utilities.utils import import_optional
+from cugraph.utilities.utils import import_optional, MissingModule
 
 import cugraph_dgl
 
@@ -59,10 +59,8 @@ def add_ndata_of_single_type(
     feat_t_d: Optional[Dict[torch.Tensor]],
     ntype: str,
     n_rows: int,
-    idtype=None,
+    idtype=None if isinstance(F, MissingModule) else F.int64,
 ):
-    if idtype is None:
-        idtype = F.int64
 
     node_ids = dgl.backend.arange(0, n_rows, idtype, ctx="cuda")
     node_ids = cp.from_dlpack(F.zerocopy_to_dlpack(node_ids))

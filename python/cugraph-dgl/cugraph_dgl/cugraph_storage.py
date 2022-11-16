@@ -13,10 +13,7 @@
 
 from __future__ import annotations
 from typing import Optional, Sequence, Tuple, Dict
-
-
-# NOTE: Requires cuGraph nightly cugraph-22.12.00a220417 or later
-from cugraph.utilities.utils import import_optional
+from cugraph.utilities.utils import import_optional, MissingModule
 
 from cugraph_dgl.utils.cugraph_storage_utils import (
     _assert_valid_canonical_etype,
@@ -47,7 +44,7 @@ class CuGraphStorage:
         single_gpu: bool = True,
         cugraph_service_client=None,
         device_id: int = 0,
-        idtype=None,
+        idtype=None if isinstance(F, MissingModule) else F.int64,
     ):
         """
         Constructor for creating a object of instance CuGraphStorage
@@ -75,6 +72,7 @@ class CuGraphStorage:
             The data type for storing the structure-related graph
             information this can be ``torch.int32`` or ``torch.int64``
             for PyTorch.
+            Defaults to ``torch.int64`` if pytorch is installed
          Examples
          --------
          The following example uses `CuGraphStorage` :
@@ -163,19 +161,7 @@ class CuGraphStorage:
             self.graphstore = CuGraphStore(graph=pg)
             self.single_gpu = single_gpu
 
-        # can not set default idtype as an arg to prevent
-        # dgl import dependency
-        if idtype is None:
-            idtype = F.int64
         self.idtype = idtype
-
-        if backend_dtype_to_np_dtype_dict is None:
-            raise ModuleNotFoundError(
-                "This feature requires the dgl package, "
-                "for installation instructions, See: "
-                "https://github.com/rapidsai/cugraph/blob/branch-22.12/"
-                "python/cugraph-dgl/README.MD"
-            )
         self.id_np_type = backend_dtype_to_np_dtype_dict[idtype]
         self.num_nodes_dict = num_nodes_dict
         self._node_id_offset_d = self.__get_node_id_offset_d(num_nodes_dict)
@@ -841,9 +827,11 @@ class CuGraphStorage:
             )
         return can_etypes[0]
 
-    def __convert_pycap_to_dgl_tensor_d(self, graph_data_cap_d, o_dtype=None):
-        if o_dtype is None:
-            o_dtype = F.int64
+    def __convert_pycap_to_dgl_tensor_d(
+        self,
+        graph_data_cap_d,
+        o_dtype=None if isinstance(F, MissingModule) else F.int64,
+    ):
 
         graph_data_d = {}
         graph_eid_d = {}
