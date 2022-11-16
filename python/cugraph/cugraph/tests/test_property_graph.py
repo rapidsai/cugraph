@@ -1912,7 +1912,7 @@ def test_fillna_vertices():
 
     assert not pG.get_vertex_data(columns=["a", "b"]).isna().any().any()
     assert pG.get_edge_data(columns=["val"]).isna().any().any()
-    
+
     expected_values_prop_a = [
         0,
         1,
@@ -1926,7 +1926,7 @@ def test_fillna_vertices():
     assert pG.get_vertex_data(columns=["a"])["a"].values_host.tolist() == (
         expected_values_prop_a
     )
-    
+
     expected_values_prop_b = [
         3,
         1,
@@ -1969,7 +1969,7 @@ def test_fillna_edges():
 
     assert not pG.get_edge_data(columns=["val"]).isna().any().any()
     assert pG.get_vertex_data(columns=["a", "b"]).isna().any().any()
-    
+
     expected_values_prop_val = [
         1,
         2,
