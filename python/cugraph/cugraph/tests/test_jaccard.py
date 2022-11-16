@@ -80,8 +80,8 @@ def cugraph_call(benchmark_callable, graph_file, edgevals=False, input_df=None):
     # entire graph while nx compute with the one_hop_neighbor. For better
     # comparaison, get the one_hop_neighbor of the entire graph for 'cugraph.jaccard'
     # and pass it as vertex_pair
-    vertex_pair = input_df.rename(columns={'0':'first', '1':'second'})
-    vertex_pair = vertex_pair[['first', 'second']]
+    vertex_pair = input_df.rename(columns={"0": "first", "1": "second"})
+    vertex_pair = vertex_pair[["first", "second"]]
 
     # cugraph Jaccard Call
     df = benchmark_callable(cugraph.jaccard, G, vertex_pair=vertex_pair)
@@ -194,7 +194,9 @@ def test_jaccard_edgevals(gpubenchmark, graph_file):
     dataset_path = netscience.get_path()
     M = utils.read_csv_for_nx(dataset_path)
     M_cu = utils.read_csv_file(dataset_path)
-    cu_src, cu_dst, cu_coeff = cugraph_call(gpubenchmark, netscience, edgevals=True, input_df=M_cu)
+    cu_src, cu_dst, cu_coeff = cugraph_call(
+        gpubenchmark, netscience, edgevals=True, input_df=M_cu
+    )
     nx_src, nx_dst, nx_coeff = networkx_call(M)
 
     # Calculating mismatch
@@ -241,8 +243,8 @@ def test_jaccard_nx(read_csv):
     nx_j = nx.jaccard_coefficient(Gnx)
     nv_js = sorted(nx_j, key=len, reverse=True)
 
-    ebunch = M_cu.rename(columns={'0':'first', '1':'second'})
-    ebunch = ebunch[['first', 'second']]
+    ebunch = M_cu.rename(columns={"0": "first", "1": "second"})
+    ebunch = ebunch[["first", "second"]]
     cg_j = cugraph.jaccard_coefficient(Gnx, ebunch=ebunch)
 
     assert len(nv_js) > len(cg_j)
