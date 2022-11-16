@@ -47,7 +47,7 @@ class CuGraphStorage:
         single_gpu: bool = True,
         cugraph_service_client=None,
         device_id: int = 0,
-        idtype=F.int32,
+        idtype=None,
     ):
         """
         Constructor for creating a object of instance CuGraphStorage
@@ -163,7 +163,12 @@ class CuGraphStorage:
             self.graphstore = CuGraphStore(graph=pg)
             self.single_gpu = single_gpu
 
+        # can not set default idtype as an arg to prevent
+        # dgl import dependency
+        if idtype is None:
+            idtype = F.int64
         self.idtype = idtype
+
         if backend_dtype_to_np_dtype_dict is None:
             raise ModuleNotFoundError(
                 "This feature requires the dgl package, "
@@ -836,7 +841,10 @@ class CuGraphStorage:
             )
         return can_etypes[0]
 
-    def __convert_pycap_to_dgl_tensor_d(self, graph_data_cap_d, o_dtype=F.int64):
+    def __convert_pycap_to_dgl_tensor_d(self, graph_data_cap_d, o_dtype=None):
+        if o_dtype is None:
+            o_dtype = F.int64
+
         graph_data_d = {}
         graph_eid_d = {}
         for canonical_etype_s, (

@@ -59,8 +59,11 @@ def add_ndata_of_single_type(
     feat_t_d: Optional[Dict[torch.Tensor]],
     ntype: str,
     n_rows: int,
-    idtype=torch.int64,
+    idtype=None,
 ):
+    if idtype is None:
+        idtype = F.int64
+
     node_ids = dgl.backend.arange(0, n_rows, idtype, ctx="cuda")
     node_ids = cp.from_dlpack(F.zerocopy_to_dlpack(node_ids))
     df, feat_name_map = create_feature_frame(feat_t_d)
