@@ -85,9 +85,8 @@ def jaccard_coefficients(ResourceHandle resource_handle,
     vertex_pairs :
         Vertex pair for input
     
-    use_weight : bool, optional (default=True)
-        If true consider the edge weight in the graph, if false use an
-        edge weight of 1
+    use_weight : bool, optional (default=False)
+        Currently not supported
 
     do_expensive_check : bool
         If True, performs more extensive tests on the inputs to ensure
@@ -128,8 +127,6 @@ def jaccard_coefficients(ResourceHandle resource_handle,
             create_cugraph_type_erased_device_array_view_from_py_obj(
                 second)
 
-    # call cugraph_create_vertex_pairs
-    print("creating the vertex pair")
     error_code = cugraph_create_vertex_pairs(c_resource_handle_ptr,
                                              c_graph_ptr,
                                              first_view_ptr,
@@ -137,7 +134,6 @@ def jaccard_coefficients(ResourceHandle resource_handle,
                                              &vertex_pairs_ptr,
                                              &error_ptr)
     assert_success(error_code, error_ptr, "vertex_pairs")
-    print("done creating the vertex pair")
 
     error_code = cugraph_jaccard_coefficients(c_resource_handle_ptr,
                                               c_graph_ptr,
@@ -158,8 +154,8 @@ def jaccard_coefficients(ResourceHandle resource_handle,
     # Free all pointers
     cugraph_similarity_result_free(result_ptr)
     cugraph_vertex_pairs_free(vertex_pairs_ptr)
-    # FIXME: deallocate the device array view for all algos
+
     cugraph_type_erased_device_array_view_free(first_view_ptr)
     cugraph_type_erased_device_array_view_free(second_view_ptr)
 
-    return cupy_similarity
+    return first, second, cupy_similarity
