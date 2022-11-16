@@ -46,7 +46,7 @@ datasets = utils.DATASETS_UNDIRECTED + [
 fixture_params = utils.genFixtureParamsProduct(
     (datasets, "graph_file"),
     (IS_DIRECTED, "directed"),
-    (HAS_VERTEX_PAIR, "has_vertex_pair")
+    (HAS_VERTEX_PAIR, "has_vertex_pair"),
 )
 
 
@@ -56,8 +56,7 @@ def input_combo(request):
     Simply return the current combination of params as a dictionary for use in
     tests or other parameterized fixtures.
     """
-    parameters = dict(zip(
-        ("graph_file", "directed", "has_vertex_pair"), request.param))
+    parameters = dict(zip(("graph_file", "directed", "has_vertex_pair"), request.param))
 
     return parameters
 
@@ -127,17 +126,13 @@ def test_dask_jaccard(dask_client, benchmark, input_expected_output):
 
     dg = input_expected_output["MGGraph"]
 
-    result_jaccard = benchmark(
-        dcg.jaccard, dg, input_expected_output["vertex_pair"]
-    )
+    result_jaccard = benchmark(dcg.jaccard, dg, input_expected_output["vertex_pair"])
 
     result_jaccard = (
         result_jaccard.compute()
         .sort_values(["source", "destination"])
         .reset_index(drop=True)
-        .rename(
-            columns={"jaccard_coeff": "mg_cugraph_jaccard_coeff"}
-        )
+        .rename(columns={"jaccard_coeff": "mg_cugraph_jaccard_coeff"})
     )
 
     expected_output = (
@@ -151,10 +146,11 @@ def test_dask_jaccard(dask_client, benchmark, input_expected_output):
     result_jaccard["sg_cugraph_jaccard_coeff"] = expected_output["jaccard_coeff"]
 
     jaccard_coeff_diffs1 = result_jaccard.query(
-        "mg_cugraph_jaccard_coeff - sg_cugraph_jaccard_coeff > 0.00001")
+        "mg_cugraph_jaccard_coeff - sg_cugraph_jaccard_coeff > 0.00001"
+    )
     jaccard_coeff_diffs2 = result_jaccard.query(
-        "mg_cugraph_jaccard_coeff - sg_cugraph_jaccard_coeff < -0.00001")
-
+        "mg_cugraph_jaccard_coeff - sg_cugraph_jaccard_coeff < -0.00001"
+    )
 
     assert len(jaccard_coeff_diffs1) == 0
-    assert len(jaccard_coeff_diffs1) == 0
+    assert len(jaccard_coeff_diffs2) == 0
