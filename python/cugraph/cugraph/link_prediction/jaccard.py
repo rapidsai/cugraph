@@ -13,6 +13,7 @@
 
 from cugraph.utilities import (ensure_cugraph_obj_for_nx,
                                df_score_to_dictionary,
+                               df_edge_score_to_dictionary,
                                renumber_vertex_pair
                                )
 import cudf
@@ -35,7 +36,7 @@ def renumber_vertices(input_graph, input_df, col_name):
 
     return input_df
 
-def jaccard(G, vertex_pair=None, use_weight=False):
+def jaccard(G, vertex_pair=None):
     # FIXME: update docstring
     # FIXME: What happens to the C/C++ implementation if vertex_pair=None
     """
@@ -83,7 +84,7 @@ def jaccard(G, vertex_pair=None, use_weight=False):
 
     Parameters
     ----------
-    graph : cugraph.Graph
+    G : cugraph.Graph
         cuGraph Graph instance, should contain the connectivity information
         as an edge list (edge weights are not used for this algorithm). The
         graph should be undirected where an undirected edge is represented by a
@@ -96,8 +97,6 @@ def jaccard(G, vertex_pair=None, use_weight=False):
         given vertex pairs.  If the vertex_pair is not provided then the
         current implementation computes the jaccard coefficient for all
         adjacent vertices in the graph.
-    
-    use_weight
 
     Returns
     -------
@@ -126,22 +125,30 @@ def jaccard(G, vertex_pair=None, use_weight=False):
     if G.is_directed():
         raise ValueError("Input must be an undirected Graph.")
 
-    first = None
-    second = None
+    # FIXME: Add warning if there are weight in the PLC stating that
+    # they will not be used, to called wjaccard instead
+
+    # FIXME: Update docstrings explaining that and the implication
+    if vertex_pair is None:
+        # Call two_hop neighbor of the entire graph
+        vertex_pair = G.get_two_hop_neighbors()
+    
+    v_p_num_col = len(vertex_pair.columns)
 
     if isinstance(vertex_pair, cudf.DataFrame):
-        # FIXME: handle the case where the datasets was renumbered
-        if G.renumbered is True:
-            vertex_pair = renumber_vertices(G, vertex_pair)
-        first = vertex_pair["first"]
-        second = vertex_pair["second"]
-    else:
-        if vertex_pair is not None:
-            raise ValueError("vertex_pair must be a cudf dataframe")
-    print("first is \n", first)
-    print("second is \n", second)
+        vertex_pair = renumber_vertex_pair(G, vertex_pair)
+        src_col_name = vertex_pair.columns[0]
+        dst_col_name = vertex_pair.columns[1]
+        first = vertex_pair[src_col_name]
+        second = vertex_pair[dst_col_name]
 
-    jaccard_coeff = \
+    elif vertex_pair is not None:
+        raise ValueError("vertex_pair must be a cudf dataframe")
+    
+    # 'use_weight' is set tp False by default for jaccard and True
+    # for 'wjaccard'
+    use_weight = False
+    first, second, jaccard_coeff = \
         pylibcugraph_jaccard_coefficients(
             resource_handle=ResourceHandle(),
             graph=G._plc_graph,
@@ -150,16 +157,24 @@ def jaccard(G, vertex_pair=None, use_weight=False):
             use_weight=use_weight,
             do_expensive_check=False
         )
-    """
-    if input_graph.renumbered:
-        df = input_graph.unrenumber(df, "source")
-        df = input_graph.unrenumber(df, "destination")
-    """
+ 
+    if G.renumbered:
+        vertex_pair = G.unrenumber(vertex_pair, src_col_name, preserve_order=True)
+        vertex_pair = G.unrenumber(vertex_pair, dst_col_name, preserve_order=True)
+    
+    # FIXME can use 'G.vertex_column_size' instead
+    if v_p_num_col == 2:
+        # single column vertex
+        vertex_pair = vertex_pair.rename(
+            columns={src_col_name:"source", dst_col_name:"destination"})
 
-    return jaccard_coeff
+    df = vertex_pair
+    df["jaccard_coeff"] = cudf.Series(jaccard_coeff)
+
+    return df
 
 
-def jaccard_coefficient(G, vertex_pair=None, use_weight=True):
+def jaccard_coefficient(G, ebunch=None):
     """
     For NetworkX Compatability.  See `jaccard`
 
