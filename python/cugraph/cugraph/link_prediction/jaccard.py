@@ -26,7 +26,6 @@ from pylibcugraph import (
 
 def jaccard(G, vertex_pair=None):
     # FIXME: update docstring
-    # FIXME: What happens to the C/C++ implementation if vertex_pair=None
     """
     Compute the Jaccard similarity between each pair of vertices connected by
     an edge, or between arbitrary pairs of vertices specified by the user.
