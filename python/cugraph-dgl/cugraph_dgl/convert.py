@@ -12,7 +12,6 @@
 # limitations under the License.
 
 import dgl
-
 from cugraph_dgl import CuGraphStorage
 from cugraph_dgl.utils.cugraph_conversion_utils import (
     add_nodes_from_dgl_HeteroGraph,
@@ -21,7 +20,7 @@ from cugraph_dgl.utils.cugraph_conversion_utils import (
 
 
 def cugraph_storage_from_heterograph(
-    g: dgl.DGLHeteroGraph, single_gpu=True
+    g: dgl.DGLHeteroGraph, single_gpu: bool = True
 ) -> CuGraphStorage:
     """
     Convert DGL Graph to CuGraphStorage graph
