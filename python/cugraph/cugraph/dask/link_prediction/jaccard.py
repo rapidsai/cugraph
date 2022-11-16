@@ -41,18 +41,6 @@ def convert_to_cudf(cp_arrays):
     return df
 
 
-# FIXME: leverage 'renumber_vertex_pair' in 'utils'
-def renumber_vertices(input_graph, input_df):
-    # FIXME: Do not compute
-    input_df = input_graph.add_internal_vertex_id(input_df, "first", "first").compute()
-
-    input_df = input_graph.add_internal_vertex_id(
-        input_df, "second", "second"
-    ).compute()
-
-    return input_df
-
-
 def _call_plc_jaccard(
     sID, mg_graph_x, vertex_pair, use_weight, do_expensive_check, vertex_pair_col_name
 ):
