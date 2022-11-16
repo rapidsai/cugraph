@@ -83,7 +83,6 @@ def ego_graph(ResourceHandle resource_handle,
     radius: size_t
         The number of hops to go out from each source vertex
 
-
     do_expensive_check : bool_t
         If True, performs more extensive tests on the inputs to ensure
         validitity, at the expense of increased run time.
@@ -153,15 +152,14 @@ def ego_graph(ResourceHandle resource_handle,
     cdef cugraph_type_erased_device_array_view_t* subgraph_offsets_ptr = \
         cugraph_induced_subgraph_get_subgraph_offsets(result_ptr)
 
+    # FIXME: Get ownership of the result data instead of performing a copy
+    # for perfomance improvement
     cupy_sources = copy_to_cupy_array(
         c_resource_handle_ptr, sources_ptr)
-
     cupy_destinations = copy_to_cupy_array(
         c_resource_handle_ptr, destinations_ptr)
-
     cupy_edge_weights = copy_to_cupy_array(
         c_resource_handle_ptr, edge_weights_ptr)
-
     cupy_subgraph_offsets = copy_to_cupy_array(
         c_resource_handle_ptr, subgraph_offsets_ptr)
 
