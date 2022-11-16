@@ -145,7 +145,7 @@ def read_csv(request):
     return M_cu, M, graph_file
 
 
-def test_jaccard_1(read_csv, gpubenchmark):
+def test_jaccard(read_csv, gpubenchmark):
 
     M_cu, M, graph_file = read_csv
     cu_src, cu_dst, cu_coeff = cugraph_call(gpubenchmark, graph_file, input_df=M_cu)
