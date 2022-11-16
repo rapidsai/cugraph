@@ -42,7 +42,7 @@ def jaccard(G, vertex_pair=None):
     networkx.jaccard_coefficient.
 
     cugraph.jaccard, in the absence of a specified vertex pair list, will
-    compute the two_hop_neighbors of the entire graph to construct a vertex pair 
+    compute the two_hop_neighbors of the entire graph to construct a vertex pair
     list and will return the jaccard coefficient for those vertex pairs. This is
     not advisable as the vertex_pairs can grow exponentially with respect to the
     size of the datasets

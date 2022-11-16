@@ -98,6 +98,7 @@ def cugraph_call(benchmark_callable, graph_file, edgevals=False, input_df=None):
         df["sorensen_coeff"].to_numpy(),
     )
 
+
 def networkx_call(M, benchmark_callable=None):
 
     sources = M["0"]

@@ -24,7 +24,6 @@ from pylibcugraph import (
 )
 
 
-
 def sorensen(G, vertex_pair=None):
     """
     Compute the Sorensen coefficient between each pair of vertices connected by
@@ -35,7 +34,7 @@ def sorensen(G, vertex_pair=None):
     be thrown.
 
     cugraph.sorensen, in the absence of a specified vertex pair list, will
-    compute the two_hop_neighbors of the entire graph to construct a vertex pair 
+    compute the two_hop_neighbors of the entire graph to construct a vertex pair
     list and will return the sorensen coefficient for those vertex pairs. This is
     not advisable as the vertex_pairs can grow exponentially with respect to the
     size of the datasets
