@@ -17,6 +17,7 @@ import dask_cudf
 import pytest
 import pandas as pd
 import cudf
+import cupy as cp
 import numpy as np
 from cudf.testing import assert_frame_equal, assert_series_equal
 from cupy.testing import assert_array_equal
@@ -1070,6 +1071,35 @@ def test_vertex_vector_property(dask_client):
     with pytest.raises(RuntimeError):
         pG.vertex_vector_property_to_array(df, "vec1", missing="error").compute()
 
+    pGusers = MGPropertyGraph()
+    pGusers.add_vertex_data(
+        users_df,
+        type_name="users",
+        vertex_col_name="user_id",
+        vector_property="vec3",
+    )
+    vec2 = pG.vertex_vector_property_to_array(df, "vec2").compute()
+    vec2 = vec2[np.lexsort(vec2.T)]  # may be jumbled, so sort
+    df2 = pGusers.get_vertex_data()
+    assert set(df2.columns) == {pG.vertex_col_name, pG.type_col_name, "vec3"}
+    vec3 = pGusers.vertex_vector_property_to_array(df2, "vec3").compute()
+    vec3 = vec3[np.lexsort(vec3.T)]  # may be jumbled, so sort
+    assert_array_equal(vec2, vec3)
+
+    vec1filled = pG.vertex_vector_property_to_array(
+        df, "vec1", 0, missing="error"
+    ).compute()
+    vec1filled = vec1filled[np.lexsort(vec1filled.T)]  # may be jumbled, so sort
+    expectedfilled = np.concatenate([cp.zeros((4, 3), int), expected])
+    assert_array_equal(expectedfilled, vec1filled)
+
+    vec1filled = pG.vertex_vector_property_to_array(df, "vec1", [0, 0, 0]).compute()
+    vec1filled = vec1filled[np.lexsort(vec1filled.T)]  # may be jumbled, so sort
+    assert_array_equal(expectedfilled, vec1filled)
+
+    with pytest.raises(ValueError, match="expected 3"):
+        pG.vertex_vector_property_to_array(df, "vec1", [0, 0]).compute()
+
     vec2 = pG.vertex_vector_property_to_array(df, "vec2").compute()
     vec2 = vec2[np.lexsort(vec2.T)]  # may be jumbled, so sort
     expected = u_df[["user_location", "vertical"]].values
@@ -1125,12 +1155,21 @@ def test_edge_vector_property(dask_client):
     assert set(df.columns) == expected_columns
     expected = df1[["feat_0", "feat_1", "feat_2"]].values
     expected = expected[np.lexsort(expected.T)]  # may be jumbled, so sort
-    vec1 = pG.edge_vector_property_to_array(df, "vec1").compute()
-    vec1 = vec1[np.lexsort(vec1.T)]  # may be jumbled, so sort
-    assert_array_equal(vec1, expected)
-    vec1 = pG.edge_vector_property_to_array(df, "vec1", missing="error").compute()
-    vec1 = vec1[np.lexsort(vec1.T)]  # may be jumbled, so sort
-    assert_array_equal(vec1, expected)
+
+    pGalt = MGPropertyGraph()
+    pGalt.add_edge_data(dd1, ("src", "dst"), vector_property="vec1")
+    dfalt = pG.get_edge_data()
+
+    for cur_pG, cur_df in [(pG, df), (pGalt, dfalt)]:
+        vec1 = cur_pG.edge_vector_property_to_array(cur_df, "vec1").compute()
+        vec1 = vec1[np.lexsort(vec1.T)]  # may be jumbled, so sort
+        assert_array_equal(vec1, expected)
+        vec1 = cur_pG.edge_vector_property_to_array(
+            cur_df, "vec1", missing="error"
+        ).compute()
+        vec1 = vec1[np.lexsort(vec1.T)]  # may be jumbled, so sort
+        assert_array_equal(vec1, expected)
+
     pG.add_edge_data(
         dd2, ("src", "dst"), vector_properties={"vec2": ["feat_0", "feat_1"]}
     )

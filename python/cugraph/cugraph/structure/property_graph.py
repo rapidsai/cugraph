@@ -640,6 +640,7 @@ class EXPERIMENTAL__PropertyGraph:
                     col for col in dataframe.columns if col not in invalid_keys
                 ]
             }
+            invalid_keys.remove(vertex_col_name)
             self._check_vector_properties(
                 dataframe,
                 d,
@@ -1022,6 +1023,7 @@ class EXPERIMENTAL__PropertyGraph:
                     col for col in dataframe.columns if col not in invalid_keys
                 ]
             }
+            invalid_keys.difference_update(vertex_col_names)
             self._check_vector_properties(
                 dataframe,
                 d,
