@@ -75,11 +75,20 @@ def compare_sorensen_two_hop(G, Gnx):
         assert diff < 1.0e-6
 
 
-def cugraph_call(benchamrk_callable, graph_file, edgevals=False):
+def cugraph_call(benchmark_callable, graph_file, edgevals=False, input_df=None):
+    G = cugraph.Graph()
     G = graph_file.get_graph(ignore_weights=not edgevals)
 
-    # cugraph sorensen Call
-    df = benchamrk_callable(cugraph.sorensen, G)
+    # If no vertex_pair is passed as input, 'cugraph.sorensen' will
+    # compute the 'sorensen_similarity' with the two_hop_neighbor of the
+    # entire graph while nx compute with the one_hop_neighbor. For better
+    # comparaison, get the one_hop_neighbor of the entire graph for 'cugraph.sorensen'
+    # and pass it as vertex_pair
+    vertex_pair = input_df.rename(columns={"0": "first", "1": "second"})
+    vertex_pair = vertex_pair[["first", "second"]]
+
+    # cugraph Sorensen Call
+    df = benchmark_callable(cugraph.sorensen, G, vertex_pair=vertex_pair)
 
     df = df.sort_values(["source", "destination"]).reset_index(drop=True)
 
@@ -88,7 +97,6 @@ def cugraph_call(benchamrk_callable, graph_file, edgevals=False):
         df["destination"].to_numpy(),
         df["sorensen_coeff"].to_numpy(),
     )
-
 
 def networkx_call(M, benchmark_callable=None):
 
@@ -138,14 +146,15 @@ def read_csv(request):
     graph_file = request.param
     dataset_path = graph_file.get_path()
     M = utils.read_csv_for_nx(dataset_path)
+    M_cu = utils.read_csv_file(dataset_path)
 
-    return M, graph_file
+    return M_cu, M, graph_file
 
 
 def test_sorensen(gpubenchmark, read_csv):
 
-    M, graph_file = read_csv
-    cu_src, cu_dst, cu_coeff = cugraph_call(gpubenchmark, graph_file)
+    M_cu, M, graph_file = read_csv
+    cu_src, cu_dst, cu_coeff = cugraph_call(gpubenchmark, graph_file, input_df=M_cu)
     nx_src, nx_dst, nx_coeff = networkx_call(M)
 
     # Calculating mismatch
@@ -163,16 +172,18 @@ def test_sorensen(gpubenchmark, read_csv):
 
 def test_nx_sorensen_time(gpubenchmark, read_csv):
 
-    M, _ = read_csv
+    _, M, _ = read_csv
     nx_src, nx_dst, nx_coeff = networkx_call(M, gpubenchmark)
 
 
 @pytest.mark.parametrize("graph_file", [netscience])
 def test_sorensen_edgevals(gpubenchmark, graph_file):
-    dataset_path = graph_file.get_path()
+    dataset_path = netscience.get_path()
     M = utils.read_csv_for_nx(dataset_path)
-
-    cu_src, cu_dst, cu_coeff = cugraph_call(gpubenchmark, graph_file, edgevals=True)
+    M_cu = utils.read_csv_file(dataset_path)
+    cu_src, cu_dst, cu_coeff = cugraph_call(
+        gpubenchmark, netscience, edgevals=True, input_df=M_cu
+    )
     nx_src, nx_dst, nx_coeff = networkx_call(M)
 
     # Calculating mismatch
@@ -190,7 +201,7 @@ def test_sorensen_edgevals(gpubenchmark, graph_file):
 
 def test_sorensen_two_hop(read_csv):
 
-    M, graph_file = read_csv
+    _, M, graph_file = read_csv
 
     Gnx = nx.from_pandas_edgelist(M, source="0", target="1", create_using=nx.Graph())
     G = graph_file.get_graph(ignore_weights=True)
@@ -200,11 +211,12 @@ def test_sorensen_two_hop(read_csv):
 
 def test_sorensen_two_hop_edge_vals(read_csv):
 
-    M, graph_file = read_csv
+    _, M, graph_file = read_csv
 
     Gnx = nx.from_pandas_edgelist(
         M, source="0", target="1", edge_attr="weight", create_using=nx.Graph()
     )
+
     G = graph_file.get_graph()
 
     compare_sorensen_two_hop(G, Gnx)
@@ -212,7 +224,7 @@ def test_sorensen_two_hop_edge_vals(read_csv):
 
 def test_sorensen_multi_column(read_csv):
 
-    M, _ = read_csv
+    _, M, _ = read_csv
 
     cu_M = cudf.DataFrame()
     cu_M["src_0"] = cudf.Series(M["0"])
@@ -234,6 +246,6 @@ def test_sorensen_multi_column(read_csv):
     df_exp = cugraph.sorensen(G2, vertex_pair[["src_0", "dst_0"]])
 
     # Calculating mismatch
-    actual = df_res.sort_values("0_source").reset_index()
+    actual = df_res.sort_values("0_src").reset_index()
     expected = df_exp.sort_values("source").reset_index()
     assert_series_equal(actual["sorensen_coeff"], expected["sorensen_coeff"])
