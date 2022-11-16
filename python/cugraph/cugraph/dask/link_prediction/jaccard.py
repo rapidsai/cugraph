@@ -21,9 +21,10 @@ import warnings
 from cugraph.dask.common.input_utils import get_distributed_data
 from cugraph.utilities import renumber_vertex_pair
 
-from pylibcugraph import (ResourceHandle,
-                          jaccard_coefficients as pylibcugraph_jaccard_coefficients
-                          )
+from pylibcugraph import (
+    ResourceHandle,
+    jaccard_coefficients as pylibcugraph_jaccard_coefficients,
+)
 
 
 def convert_to_cudf(cp_arrays):
@@ -44,41 +45,33 @@ def convert_to_cudf(cp_arrays):
 # FIXME: leverage 'renumber_vertex_pair' in 'utils'
 def renumber_vertices(input_graph, input_df):
     # FIXME: Do not compute
+    input_df = input_graph.add_internal_vertex_id(input_df, "first", "first").compute()
+
     input_df = input_graph.add_internal_vertex_id(
-        input_df, "first", "first").compute()
-    
-    input_df = input_graph.add_internal_vertex_id(
-        input_df, "second", "second").compute()
+        input_df, "second", "second"
+    ).compute()
 
     return input_df
 
 
-def _call_plc_jaccard(sID,
-                      mg_graph_x,
-                      vertex_pair,
-                      use_weight,
-                      do_expensive_check,
-                      vertex_pair_col_name):
-    
+def _call_plc_jaccard(
+    sID, mg_graph_x, vertex_pair, use_weight, do_expensive_check, vertex_pair_col_name
+):
 
     first = vertex_pair[vertex_pair_col_name[0]]
     second = vertex_pair[vertex_pair_col_name[1]]
 
     return pylibcugraph_jaccard_coefficients(
-        resource_handle=ResourceHandle(
-            Comms.get_handle(sID).getHandle()
-        ),
+        resource_handle=ResourceHandle(Comms.get_handle(sID).getHandle()),
         graph=mg_graph_x,
         first=first,
         second=second,
         use_weight=use_weight,
-        do_expensive_check=do_expensive_check
+        do_expensive_check=do_expensive_check,
     )
 
 
-def jaccard(input_graph,
-            vertex_pair=None,
-            use_weight=False):
+def jaccard(input_graph, vertex_pair=None, use_weight=False):
     """
     Compute the Jaccard similarity between each pair of vertices connected by
     an edge, or between arbitrary pairs of vertices specified by the user.
@@ -132,7 +125,7 @@ def jaccard(input_graph,
         given vertex pairs.  If the vertex_pair is not provided then the
         current implementation computes the jaccard coefficient for all
         adjacent vertices in the graph.
-    
+
     use_weight
 
     Returns
@@ -156,29 +149,26 @@ def jaccard(input_graph,
     if vertex_pair is None:
         # Call two_hop neighbor of the entire graph
         vertex_pair = input_graph.get_two_hop_neighbors()
-    
+
     vertex_pair_col_name = vertex_pair.columns
 
     # FIXME: or weight were passed when creating the PLC graph
     if use_weight:
         raise ValueError("weights are currently not supported")
 
-
     if isinstance(vertex_pair, (dask_cudf.DataFrame, cudf.DataFrame)):
         vertex_pair = renumber_vertex_pair(input_graph, vertex_pair)
-        src_col_name = vertex_pair.columns[0]
-        dst_col_name = vertex_pair.columns[1]
 
     elif vertex_pair is not None:
         raise ValueError("vertex_pair must be a dask_cudf or cudf dataframe")
-    
+
     if not isinstance(vertex_pair, (dask_cudf.DataFrame)):
         vertex_pair = dask_cudf.from_cudf(
-                vertex_pair, npartitions=len(Comms.get_workers()))
+            vertex_pair, npartitions=len(Comms.get_workers())
+        )
     vertex_pair = get_distributed_data(vertex_pair)
     wait(vertex_pair)
     vertex_pair = vertex_pair.worker_to_parts
-
 
     # Initialize dask client
     client = input_graph._client
@@ -201,26 +191,20 @@ def jaccard(input_graph,
             for w in Comms.get_workers()
         ]
 
-
     wait(result)
 
-    cudf_result = [client.submit(convert_to_cudf,
-                                 cp_arrays)
-                   for cp_arrays in result]
+    cudf_result = [client.submit(convert_to_cudf, cp_arrays) for cp_arrays in result]
 
     wait(cudf_result)
-
 
     ddf = dask_cudf.from_delayed(cudf_result).persist()
     wait(ddf)
 
     # Wait until the inactive futures are released
-    wait([(r.release(), c_r.release())
-         for r, c_r in zip(result, cudf_result)])
+    wait([(r.release(), c_r.release()) for r, c_r in zip(result, cudf_result)])
 
     if input_graph.renumbered:
         ddf = input_graph.unrenumber(ddf, "source")
         ddf = input_graph.unrenumber(ddf, "destination")
 
     return ddf
-
