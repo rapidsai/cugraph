@@ -45,24 +45,25 @@ def consolidate_results(ddf, offsets, num_seeds):
     offset_array = [0]
     for s in range(num_seeds):
         start_ofst = s
-        end_ofst = s+2
+        end_ofst = s + 2
         for p in range(ddf.npartitions):
             offsets_tmp = offsets.get_partition(p).compute()
 
             start = offsets_tmp[start_ofst:end_ofst].reset_index(drop=True)[0]
             end = offsets_tmp[start_ofst:end_ofst].reset_index(drop=True)[1]
-    
+
             ddf_tmp = ddf.get_partition(p).compute()
             df_tmp = ddf_tmp
 
             df_tmp = df_tmp[start:end]
             df = df.append(df_tmp)
-        
+
         offset_array.append(len(df))
-    
+
     offset_array = cudf.Series(offset_array)
     df = df.reset_index(drop=True)
     return df, offset_array
+
 
 def convert_to_cudf(*cp_arrays):
     """
@@ -197,9 +198,9 @@ def ego_graph(input_graph, n, radius=1, center=True):
     # FIXME: optimize this function with 'dask map_partitions'
     df, offset_array = consolidate_results(ddf, offsets, num_seeds)
 
-    ddf = dask_cudf.from_cudf(
-        df, npartitions=min(input_graph._npartitions, len(n)))
+    ddf = dask_cudf.from_cudf(df, npartitions=min(input_graph._npartitions, len(n)))
     offsets = dask_cudf.from_cudf(
-        offset_array, npartitions=min(input_graph._npartitions, len(n)))
+        offset_array, npartitions=min(input_graph._npartitions, len(n))
+    )
 
     return ddf, offsets

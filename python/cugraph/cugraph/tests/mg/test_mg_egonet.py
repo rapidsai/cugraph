@@ -58,8 +58,7 @@ def input_combo(request):
     Simply return the current combination of params as a dictionary for use in
     tests or other parameterized fixtures.
     """
-    parameters = dict(
-        zip(("graph_file", "directed", "seeds", "radius"), request.param))
+    parameters = dict(zip(("graph_file", "directed", "seeds", "radius"), request.param))
 
     return parameters
 
@@ -122,7 +121,10 @@ def test_dask_hits(dask_client, benchmark, input_expected_output):
     dg = input_expected_output["MGGraph"]
 
     result_ego_graph = benchmark(
-        dcg.ego_graph, dg, input_expected_output["seeds"], input_expected_output["radius"]
+        dcg.ego_graph,
+        dg,
+        input_expected_output["seeds"],
+        input_expected_output["radius"],
     )
 
     mg_df, mg_offsets = result_ego_graph
@@ -136,11 +138,8 @@ def test_dask_hits(dask_client, benchmark, input_expected_output):
     # slice array from offsets, sort the df by src dst and compare
     for i in range(len(sg_offsets) - 1):
         start = sg_offsets[i]
-        end = sg_offsets[i+1]
-        mg_df_part = mg_df[start:end].sort_values(
-            ["src", "dst"]).reset_index(drop=True)
-        sg_df_part = sg_df[start:end].sort_values(
-            ["src", "dst"]).reset_index(drop=True)
+        end = sg_offsets[i + 1]
+        mg_df_part = mg_df[start:end].sort_values(["src", "dst"]).reset_index(drop=True)
+        sg_df_part = sg_df[start:end].sort_values(["src", "dst"]).reset_index(drop=True)
 
-        assert_frame_equal(
-            mg_df_part, sg_df_part, check_dtype=False, check_like=True)
+        assert_frame_equal(mg_df_part, sg_df_part, check_dtype=False, check_like=True)
