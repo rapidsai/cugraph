@@ -12,6 +12,9 @@
 # limitations under the License.
 
 from setuptools import find_packages, setup
+import versioneer
+
+cmdclass = versioneer.get_cmdclass()
 
 install_requires = [
     "cugraph",
@@ -22,6 +25,7 @@ install_requires = [
 setup(
     name="cugraph-dgl",
     description="cugraph wrappers around DGL",
+    version=versioneer.get_version(),
     classifiers=[
         "Intended Audience :: Developers",
         "Programming Language :: Python",
@@ -31,5 +35,6 @@ setup(
     packages=find_packages(include=["cugraph_dgl*"]),
     install_requires=install_requires,
     license="Apache",
+    cmdclass=cmdclass,
     zip_safe=True,
 )

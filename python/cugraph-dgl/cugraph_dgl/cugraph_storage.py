@@ -11,7 +11,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional, Sequence, Tuple
+from __future__ import annotations
+from typing import Optional, Sequence, Tuple, Dict
+
 
 # NOTE: Requires cuGraph nightly cugraph-22.12.00a220417 or later
 from cugraph.utilities.utils import import_optional
@@ -41,7 +43,7 @@ class CuGraphStorage:
 
     def __init__(
         self,
-        num_nodes_dict: dict[str, int],
+        num_nodes_dict: Dict[str, int],
         single_gpu: bool = True,
         cugraph_service_client=None,
         device_id: int = 0,

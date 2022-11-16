@@ -12,7 +12,8 @@
 # limitations under the License.
 
 # Utils to convert b/w dgl heterograph to cugraph GraphStore
-from typing import Optional
+from __future__ import annotations
+from typing import Optional, Dict
 
 import cudf
 import cupy as cp
@@ -31,7 +32,7 @@ def convert_to_column_major(t: torch.Tensor):
     return t.t().contiguous().t()
 
 
-def create_feature_frame(feat_t_d: dict[str, torch.Tensor]) -> cudf.DataFrame:
+def create_feature_frame(feat_t_d: Dict[str, torch.Tensor]) -> cudf.DataFrame:
     """
     Convert a feature_tensor_d to a dataframe
     """
@@ -55,7 +56,7 @@ def create_feature_frame(feat_t_d: dict[str, torch.Tensor]) -> cudf.DataFrame:
 # Add ndata utils
 def add_ndata_of_single_type(
     gs: cugraph_dgl.CuGraphStorage,
-    feat_t_d: Optional[dict[torch.Tensor]],
+    feat_t_d: Optional[Dict[torch.Tensor]],
     ntype: str,
     n_rows: int,
     idtype=torch.int64,
@@ -114,7 +115,7 @@ def add_nodes_from_dgl_HeteroGraph(
 # Add edata utils
 def add_edata_of_single_type(
     gs: cugraph_dgl.CuGraphStorage,
-    feat_t_d: Optional[dict[torch.Tensor]],
+    feat_t_d: Optional[Dict[torch.Tensor]],
     src_t: torch.Tensor,
     dst_t: torch.Tensor,
     can_etype: tuple([str, str, str]),
