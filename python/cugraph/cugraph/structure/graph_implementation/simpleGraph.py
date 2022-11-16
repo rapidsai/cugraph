@@ -16,7 +16,6 @@ from cugraph.structure.graph_primtypes_wrapper import Direction
 from cugraph.structure.symmetrize import symmetrize
 from cugraph.structure.number_map import NumberMap
 import cugraph.dask.common.mg_utils as mg_utils
-import cupy
 import cudf
 import dask_cudf
 import cugraph.dask.comms.comms as Comms
@@ -566,7 +565,7 @@ class simpleGraphImpl:
     # FIXME: Not implemented yet
     def _replicate_transposed_adjlist(self):
         self.batch_transposed_adjlists = True
-    
+
     def get_two_hop_neighbors(self, start_vertices=None):
         """two_
         Compute vertex pairs that are two hops apart. The resulting pairs are
@@ -591,9 +590,7 @@ class simpleGraphImpl:
 
         if self.properties.renumbered is True:
             if start_vertices is not None:
-                start_vertices = self.renumber_map.to_internal_vertex_id(
-                    start_vertices
-                )
+                start_vertices = self.renumber_map.to_internal_vertex_id(start_vertices)
                 start_vertices_type = self.edgelist.edgelist_df["src"].dtype
                 start_vertices = start_vertices.astype(start_vertices_type)
         do_expensive_check = False
@@ -601,7 +598,8 @@ class simpleGraphImpl:
             resource_handle=ResourceHandle(),
             graph=self._plc_graph,
             start_vertices=start_vertices,
-            do_expensive_check=do_expensive_check)
+            do_expensive_check=do_expensive_check,
+        )
 
         df = cudf.DataFrame()
         df["first"] = first
@@ -612,7 +610,6 @@ class simpleGraphImpl:
             df = self.renumber_map.unrenumber(df, "second")
 
         return df
-
 
     def number_of_vertices(self):
         """
@@ -881,13 +878,7 @@ class simpleGraphImpl:
                 weight_col, id_col, type_col = value_col[0], None, None
         else:
             raise ValueError(f"Illegal value col {type(value_col)}")
-        
-        """
-        if weight_col is None:
-            weight_col = cudf.Series(
-                cupy.ones(len(self.edgelist.edgelist_df), dtype="float32")
-            )
-        """
+
         if weight_col is not None:
             weight_t = weight_col.dtype
 
