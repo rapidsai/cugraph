@@ -408,6 +408,8 @@ class EXPERIMENTAL__MGPropertyGraph:
         tmp_df[self.vertex_col_name] = tmp_df[vertex_col_name]
         # FIXME: handle case of a type_name column already being in tmp_df
 
+        # FIXME: We should do categorization first
+        # Related issue: https://github.com/rapidsai/cugraph/issues/2903
         tmp_df[TCN] = type_name
         tmp_df[TCN] = tmp_df[TCN].astype(cat_dtype)
 
@@ -625,6 +627,9 @@ class EXPERIMENTAL__MGPropertyGraph:
         tmp_df = dataframe.copy()
         tmp_df[self.src_col_name] = tmp_df[vertex_col_names[0]]
         tmp_df[self.dst_col_name] = tmp_df[vertex_col_names[1]]
+
+        # FIXME: We should do categorization first
+        # Related issue: https://github.com/rapidsai/cugraph/issues/2903
 
         tmp_df[TCN] = type_name
         tmp_df[TCN] = tmp_df[TCN].astype(cat_dtype)

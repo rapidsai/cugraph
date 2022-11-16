@@ -618,7 +618,8 @@ class EXPERIMENTAL__PropertyGraph:
         if self.__series_type is cudf.Series:
             # cudf does not yet support initialization with a scalar
             tmp_df[TCN] = cudf.Series(
-                np.repeat(type_name, len(tmp_df)), index=tmp_df.index, dtype=cat_dtype
+                cudf.Series([type_name], dtype=cat_dtype).repeat(len(tmp_df)),
+                index=tmp_df.index,
             )
         else:
             # pandas is oddly slow if dtype is passed to the constructor here
@@ -909,7 +910,8 @@ class EXPERIMENTAL__PropertyGraph:
         if self.__series_type is cudf.Series:
             # cudf does not yet support initialization with a scalar
             tmp_df[TCN] = cudf.Series(
-                np.repeat(type_name, len(tmp_df)), index=tmp_df.index, dtype=cat_dtype
+                cudf.Series([type_name], dtype=cat_dtype).repeat(len(tmp_df)),
+                index=tmp_df.index,
             )
         else:
             # pandas is oddly slow if dtype is passed to the constructor here
