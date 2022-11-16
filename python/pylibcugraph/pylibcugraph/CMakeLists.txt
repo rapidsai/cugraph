@@ -23,6 +23,7 @@ set(cython_sources
     graphs.pyx
     hits.pyx
     jaccard_coefficients.pyx
+    sorensen_coefficients.pyx
     katz_centrality.pyx
     louvain.pyx
     node2vec.pyx
