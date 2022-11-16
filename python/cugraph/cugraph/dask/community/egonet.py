@@ -51,7 +51,7 @@ def consolidate_results(ddf, offsets, num_seeds):
 
     Returns: consolidated ego_graph dataframe and offsets array
     """
-    
+
     df = cudf.DataFrame()
     offset_array = [0]
     for s in range(num_seeds):
@@ -151,8 +151,7 @@ def ego_graph(input_graph, n, radius=1, center=True):
         n_type = input_graph.input_df.dtypes[0]
 
     if isinstance(n, (cudf.Series, cudf.DataFrame)):
-        n = dask_cudf.from_cudf(
-            n, npartitions=min(input_graph._npartitions, len(n)))
+        n = dask_cudf.from_cudf(n, npartitions=min(input_graph._npartitions, len(n)))
 
     n = n.astype(n_type)
 

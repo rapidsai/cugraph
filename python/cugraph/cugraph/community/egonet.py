@@ -102,7 +102,6 @@ def ego_graph(G, n, radius=1, center=True, undirected=None, distance=None):
         )
         warnings.warn(warning_msg, PendingDeprecationWarning)
 
-  
     if isinstance(n, int):
         n = [n]
     if isinstance(n, list):
