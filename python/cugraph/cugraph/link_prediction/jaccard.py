@@ -24,17 +24,6 @@ from pylibcugraph import (
 )
 
 
-# FIXME: update this function to renumber both 'first' and 'second'
-def renumber_vertices(input_graph, input_df, col_name):
-    if len(input_graph.renumber_map.implementation.col_names) > 1:
-        cols = input_df.columns[:-1].to_list()
-    else:
-        cols = col_name
-    input_df = input_graph.add_internal_vertex_id(input_df, "vertex", cols)
-
-    return input_df
-
-
 def jaccard(G, vertex_pair=None):
     # FIXME: update docstring
     # FIXME: What happens to the C/C++ implementation if vertex_pair=None
