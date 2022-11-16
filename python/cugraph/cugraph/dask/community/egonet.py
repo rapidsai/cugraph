@@ -40,6 +40,30 @@ def _call_ego_graph(
     )
 
 
+def consolidate_results(ddf, offsets, num_seeds):
+    df = cudf.DataFrame()
+    offset_array = [0]
+    for s in range(num_seeds):
+        start_ofst = s
+        end_ofst = s+2
+        for p in range(ddf.npartitions):
+            offsets_tmp = offsets.get_partition(p).compute()
+
+            start = offsets_tmp[start_ofst:end_ofst].reset_index(drop=True)[0]
+            end = offsets_tmp[start_ofst:end_ofst].reset_index(drop=True)[1]
+    
+            ddf_tmp = ddf.get_partition(p).compute()
+            df_tmp = ddf_tmp
+
+            df_tmp = df_tmp[start:end]
+            df = df.append(df_tmp)
+        
+        offset_array.append(len(df))
+    
+    offset_array = cudf.Series(offset_array)
+    df = df.reset_index(drop=True)
+    return df, offset_array
+
 def convert_to_cudf(*cp_arrays):
     """
     Creates a cudf DataFrame from cupy arrays from pylibcugraph wrapper
@@ -82,8 +106,12 @@ def ego_graph(input_graph, n, radius=1, center=True):
 
     Returns
     -------
-    G_ego : cuGraph.Graph
-        A graph descriptor with a minimum spanning tree or forest.
+    ego_edge_lists : dask_cudf.DataFrame
+        Distributed GPU data frame containing all induced sources identifiers,
+        destination identifiers, edge weights
+    seeds_offsets: dask_cudf.Series
+        Distributed Series containing the starting offset in the returned edge list
+        for each seed.
 
     """
 
@@ -166,33 +194,12 @@ def ego_graph(input_graph, n, radius=1, center=True):
         ddf = input_graph.unrenumber(ddf, "src")
         ddf = input_graph.unrenumber(ddf, "dst")
 
-    df = cudf.DataFrame()
-    offset_array = [0]
-    for s in range(num_seeds):
-        start_ofst = s
-        end_ofst = s+2
-        for p in range(ddf.npartitions):
-            offsets_tmp = offsets.get_partition(p).compute()
-            # The offsets range determine where to stop in the ego_df
-
-            start = offsets_tmp[start_ofst:end_ofst].reset_index(drop=True)[0]
-            end = offsets_tmp[start_ofst:end_ofst].reset_index(drop=True)[1]
-    
-            ddf_tmp = ddf.get_partition(p).compute()
-            df_tmp = ddf_tmp
-
-            df_tmp = df_tmp[start:end]
-            df = df.append(df_tmp)
-        
-        offset_array.append(len(df))
-    
-    offset_array = cudf.Series(offset_array)
-    df = df.reset_index(drop=True)
+    # FIXME: optimize this function with 'dask map_partitions'
+    df, offset_array = consolidate_results(ddf, offsets, num_seeds)
 
     ddf = dask_cudf.from_cudf(
         df, npartitions=min(input_graph._npartitions, len(n)))
     offsets = dask_cudf.from_cudf(
         offset_array, npartitions=min(input_graph._npartitions, len(n)))
 
-    # FIXME: Temporary return.
     return ddf, offsets
