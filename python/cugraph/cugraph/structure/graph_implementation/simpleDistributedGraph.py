@@ -652,25 +652,64 @@ class simpleDistributedGraphImpl:
                 the second vertex id of a pair, if an external vertex id
                 is defined by only one column
         """
-        if self.renumbered:
-            start_vertices = self.lookup_internal_vertex_id(
-                start_vertices).compute()
+
+        if isinstance(start_vertices, int):
+            start_vertices = [start_vertices]
+
+        if isinstance(start_vertices, list):
+            start_vertices = cudf.Series(start_vertices)
+
+        if start_vertices is not None:
+            if self.renumbered:
+                start_vertices = self.renumber_map.to_internal_vertex_id(
+                    start_vertices
+                )
+                start_vertices_type = self.edgelist.edgelist_df.dtypes[0]
+            else:
+                start_vertices_type = input_graph.input_df.dtypes[0]
+
+            if not isinstance(start_vertices, (dask_cudf.Series)):
+                start_vertices = dask_cudf.from_cudf(
+                start_vertices, npartitions=min(input_graph._npartitions, len(start_vertices))
+                )
+                start_vertices = start_vertices.astype(start_vertices_type)
+
+            start_vertices = get_distributed_data(start_vertices)
+            wait(start_vertices)
+            start_vertices = start_vertices.worker_to_parts
+
         def _call_plc_two_hop_neighbors(sID, mg_graph_x, start_vertices):
             return pylibcugraph_get_two_hop_neighbors(
-                resource_handle=ResourceHandle(),
+                resource_handle=ResourceHandle(Comms.get_handle(sID).getHandle()),
                 graph=mg_graph_x,
-                start_vertices=start_vertices)
+                start_vertices=start_vertices,
+                do_expensive_check=False)
 
-        result = [
-            client.submit(
-                _call_plc_two_hop_neighbors,
-                Comms.get_session_id(),
-                self._plc_graph[w],
-                workers=[w],
-                allow_other_workers=False,
-            )
-            for w in Comms.get_workers()
-        ]
+        if start_vertices is not None:
+            result = [
+                self._client.submit(
+                    _call_plc_two_hop_neighbors,
+                    Comms.get_session_id(),
+                    self._plc_graph[w],
+                    start_vertices[w][0],
+                    workers=[w],
+                    allow_other_workers=False,
+                )
+                for w in Comms.get_workers()
+            ]
+        else:
+            result = [
+                self._client.submit(
+                    _call_plc_two_hop_neighbors,
+                    Comms.get_session_id(),
+                    self._plc_graph[w],
+                    start_vertices,
+                    workers=[w],
+                    allow_other_workers=False,
+                )
+                for w in Comms.get_workers()
+            ]
+
         wait(result)
 
         def convert_to_cudf(cp_arrays):
@@ -683,7 +722,7 @@ class simpleDistributedGraphImpl:
             df["second"] = second
             return df
 
-        cudf_result = [client.submit(convert_to_cudf,
+        cudf_result = [self._client.submit(convert_to_cudf,
                                  cp_arrays)
                    for cp_arrays in result]
         
@@ -695,9 +734,9 @@ class simpleDistributedGraphImpl:
         wait([(r.release(), c_r.release())
             for r, c_r in zip(result, cudf_result)])
         
-        if self.renumbered:
-            ddf = self.unrenumber(ddf, "first")
-            ddf = self.unrenumber(ddf, "second")
+        if self.properties.renumbered:
+            ddf = self.renumber_map.unrenumber(ddf, "first")
+            ddf = self.renumber_map.unrenumber(ddf, "second")
         
         return ddf
 
