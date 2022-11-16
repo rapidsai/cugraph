@@ -11,17 +11,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import cudf
-from cugraph.structure.graph_classes import Graph
-from cugraph.link_prediction import jaccard_wrapper
 from cugraph.utilities import (
     ensure_cugraph_obj_for_nx,
     df_edge_score_to_dictionary,
     renumber_vertex_pair,
 )
+import cudf
+
+from pylibcugraph import (
+    sorensen_coefficients as pylibcugraph_sorensen_coefficients,
+    ResourceHandle,
+)
 
 
-def sorensen(input_graph, vertex_pair=None):
+
+def sorensen(G, vertex_pair=None):
     """
     Compute the Sorensen coefficient between each pair of vertices connected by
     an edge, or between arbitrary pairs of vertices specified by the user.
@@ -31,12 +35,14 @@ def sorensen(input_graph, vertex_pair=None):
     be thrown.
 
     cugraph.sorensen, in the absence of a specified vertex pair list, will
-    use the edges of the graph to construct a vertex pair list and will
-    return the sorensen coefficient for those vertex pairs.
+    compute the two_hop_neighbors of the entire graph to construct a vertex pair 
+    list and will return the sorensen coefficient for those vertex pairs. This is
+    not advisable as the vertex_pairs can grow exponentially with respect to the
+    size of the datasets
 
     Parameters
     ----------
-    input_graph : cugraph.Graph
+    G : cugraph.Graph
         cuGraph Graph instance, should contain the connectivity information
         as an edge list (edge weights are not used for this algorithm). The
         graph should be undirected where an undirected edge is represented by a
@@ -74,20 +80,54 @@ def sorensen(input_graph, vertex_pair=None):
     >>> df = cugraph.sorensen(G)
 
     """
-    if type(input_graph) is not Graph:
-        raise TypeError("input graph must a Graph")
+    if G.is_directed():
+        raise ValueError("Input must be an undirected Graph.")
 
-    if type(vertex_pair) == cudf.DataFrame:
-        vertex_pair = renumber_vertex_pair(input_graph, vertex_pair)
+    # FIXME: Add warning if there are weight in the PLC stating that
+    # they will not be used, to called wsorensen instead
+
+    # FIXME: Update docstrings explaining that and the implication
+    if vertex_pair is None:
+        # Call two_hop neighbor of the entire graph
+        vertex_pair = G.get_two_hop_neighbors()
+
+    v_p_num_col = len(vertex_pair.columns)
+
+    if isinstance(vertex_pair, cudf.DataFrame):
+        vertex_pair = renumber_vertex_pair(G, vertex_pair)
+        src_col_name = vertex_pair.columns[0]
+        dst_col_name = vertex_pair.columns[1]
+        first = vertex_pair[src_col_name]
+        second = vertex_pair[dst_col_name]
+
     elif vertex_pair is not None:
         raise ValueError("vertex_pair must be a cudf dataframe")
 
-    df = jaccard_wrapper.jaccard(input_graph, None, vertex_pair)
-    df.jaccard_coeff = (2 * df.jaccard_coeff) / (1 + df.jaccard_coeff)
-    df.rename({"jaccard_coeff": "sorensen_coeff"}, axis=1, inplace=True)
-    if input_graph.renumbered:
-        df = input_graph.unrenumber(df, "source")
-        df = input_graph.unrenumber(df, "destination")
+    # 'use_weight' is set tp False by default for sorensen and True
+    # for 'wsorensen'
+    use_weight = False
+    first, second, sorensen_coeff = pylibcugraph_sorensen_coefficients(
+        resource_handle=ResourceHandle(),
+        graph=G._plc_graph,
+        first=first,
+        second=second,
+        use_weight=use_weight,
+        do_expensive_check=False,
+    )
+
+    if G.renumbered:
+        vertex_pair = G.unrenumber(vertex_pair, src_col_name, preserve_order=True)
+        vertex_pair = G.unrenumber(vertex_pair, dst_col_name, preserve_order=True)
+
+    # FIXME can use 'G.vertex_column_size' instead
+    if v_p_num_col == 2:
+        # single column vertex
+        vertex_pair = vertex_pair.rename(
+            columns={src_col_name: "source", dst_col_name: "destination"}
+        )
+
+    df = vertex_pair
+    df["sorensen_coeff"] = cudf.Series(sorensen_coeff)
 
     return df
 
