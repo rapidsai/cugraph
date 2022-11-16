@@ -19,6 +19,7 @@ import dask_cudf
 import cudf
 import warnings
 from cugraph.dask.common.input_utils import get_distributed_data
+from cugraph.utilities import renumber_vertex_pair
 
 from pylibcugraph import (ResourceHandle,
                           jaccard_coefficients as pylibcugraph_jaccard_coefficients
@@ -29,16 +30,15 @@ def convert_to_cudf(cp_arrays):
     """
     Creates a cudf DataFrame from cupy arrays from pylibcugraph wrapper
     """
-    # FXME: So far, the function only returns the cupy_similarity
-    cupy_similarity = cp_arrays
-    cudf_similarity = cudf.Series(cupy_similarity)
-    """
-    df = cudf.DataFrame()
-    df["vertex"] = cupy_vertices
-    df["core_number"] = cupy_core_number
-    """
 
-    return cudf_similarity
+    cupy_source, cupy_destination, cupy_similarity = cp_arrays
+
+    df = cudf.DataFrame()
+    df["source"] = cupy_source
+    df["destination"] = cupy_destination
+    df["jaccard_coeff"] = cupy_similarity
+
+    return df
 
 
 # FIXME: leverage 'renumber_vertex_pair' in 'utils'
@@ -57,14 +57,13 @@ def _call_plc_jaccard(sID,
                       mg_graph_x,
                       vertex_pair,
                       use_weight,
-                      do_expensive_check):
+                      do_expensive_check,
+                      vertex_pair_col_name):
     
-    if vertex_pair is None:
-        first = None
-        second = None
-    else:
-        first = vertex_pair["src"]
-        second = vertex_pair["dst"]
+
+    first = vertex_pair[vertex_pair_col_name[0]]
+    second = vertex_pair[vertex_pair_col_name[1]]
+
     return pylibcugraph_jaccard_coefficients(
         resource_handle=ResourceHandle(
             Comms.get_handle(sID).getHandle()
@@ -153,25 +152,33 @@ def jaccard(input_graph,
 
     if input_graph.is_directed():
         raise ValueError("input graph must be undirected")
+
+    if vertex_pair is None:
+        # Call two_hop neighbor of the entire graph
+        vertex_pair = input_graph.get_two_hop_neighbors()
     
-    first = None
-    second = None
+    vertex_pair_col_name = vertex_pair.columns
 
-    if vertex_pair is not None:
-        # FIXME: support dask_cudf to distribute the vertex_pair accross GPUs
-        if isinstance(vertex_pair, cudf.DataFrame):
-            if input_graph.renumbered is True:
-                vertex_pair = renumber_vertices(input_graph, vertex_pair)
+    # FIXME: or weight were passed when creating the PLC graph
+    if use_weight:
+        raise ValueError("weights are currently not supported")
 
-        else:
-            raise ValueError("vertex_pair must be a cudf dataframe")
-        
-        # FIXME: if 'compute' in the function 'renumber_vertices' is removed
-        # remove the call below, persist and do a 'repartition'
-        vertex_pair_ddf = dask_cudf.from_cudf(
-            vertex_pair, npartitions=len(Comms.get_workers()))
 
-        data_vertex_pair = get_distributed_data(vertex_pair_ddf)
+    if isinstance(vertex_pair, (dask_cudf.DataFrame, cudf.DataFrame)):
+        vertex_pair = renumber_vertex_pair(input_graph, vertex_pair)
+        src_col_name = vertex_pair.columns[0]
+        dst_col_name = vertex_pair.columns[1]
+
+    elif vertex_pair is not None:
+        raise ValueError("vertex_pair must be a dask_cudf or cudf dataframe")
+    
+    if not isinstance(vertex_pair, (dask_cudf.DataFrame)):
+        vertex_pair = dask_cudf.from_cudf(
+                vertex_pair, npartitions=len(Comms.get_workers()))
+    vertex_pair = get_distributed_data(vertex_pair)
+    wait(vertex_pair)
+    vertex_pair = vertex_pair.worker_to_parts
+
 
     # Initialize dask client
     client = input_graph._client
@@ -184,23 +191,10 @@ def jaccard(input_graph,
                 _call_plc_jaccard,
                 Comms.get_session_id(),
                 input_graph._plc_graph[w],
-                vrtx_pair[0],
+                vertex_pair[w][0],
                 use_weight,
                 do_expensive_check,
-                workers=[w],
-                allow_other_workers=False,
-            )
-            for w, vrtx_pair in data_vertex_pair.worker_to_parts.items()
-        ]
-    else:
-        result = [
-            client.submit(
-                _call_plc_jaccard,
-                Comms.get_session_id(),
-                input_graph._plc_graph[w],
-                vertex_pair,
-                use_weight,
-                do_expensive_check,
+                vertex_pair_col_name,
                 workers=[w],
                 allow_other_workers=False,
             )
@@ -216,7 +210,7 @@ def jaccard(input_graph,
 
     wait(cudf_result)
 
-    """
+
     ddf = dask_cudf.from_delayed(cudf_result).persist()
     wait(ddf)
 
@@ -225,7 +219,8 @@ def jaccard(input_graph,
          for r, c_r in zip(result, cudf_result)])
 
     if input_graph.renumbered:
-        ddf = input_graph.unrenumber(ddf, "vertex")
+        ddf = input_graph.unrenumber(ddf, "source")
+        ddf = input_graph.unrenumber(ddf, "destination")
 
     return ddf
-    """
+
