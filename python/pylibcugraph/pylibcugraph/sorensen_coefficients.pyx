@@ -67,7 +67,7 @@ def sorensen_coefficients(ResourceHandle resource_handle,
     """
     Compute the similarity for the specified vertex_pairs
     
-    Note that sorensen similarity must run on a symmetric graph
+    Note that Sorensen similarity must run on a symmetric graph
 
     The HITS algorithm computes two numbers for a node.  Authorities
     estimates the node value based on the incoming links.  Hubs estimates
