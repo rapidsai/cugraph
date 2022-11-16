@@ -132,9 +132,8 @@ def test_dask_hits(dask_client, benchmark, input_expected_output):
 
     sg_df, sg_offsets = input_expected_output["sg_cugraph_results"]
 
-    # slice array from offsets, sort the df by src dst and compare
-    # compare the offsets instead of just checcking the length
     assert_series_equal(sg_offsets, mg_offsets, check_dtype=False)
+    # slice array from offsets, sort the df by src dst and compare
     for i in range(len(sg_offsets) - 1):
         start = sg_offsets[i]
         end = sg_offsets[i+1]
