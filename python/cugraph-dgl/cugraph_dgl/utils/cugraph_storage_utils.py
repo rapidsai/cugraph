@@ -11,7 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import numpy as np
-from cugraph.utilities.utils import import_optional
+from cugraph.utilities.utils import import_optional, MissingModule
 
 dgl = import_optional("dgl")
 F = import_optional("dgl.backend")
@@ -51,14 +51,17 @@ def _is_valid_canonical_etype(canonical_etype):
     return True
 
 
-backend_dtype_to_np_dtype_dict = {
-    F.bool: np.bool,
-    F.uint8: np.uint8,
-    F.int8: np.int8,
-    F.int16: np.int16,
-    F.int32: np.int32,
-    F.int64: np.int64,
-    F.float16: np.float16,
-    F.float32: np.float32,
-    F.float64: np.float64,
-}
+if isinstance(F, MissingModule):
+    backend_dtype_to_np_dtype_dict = None
+else:
+    backend_dtype_to_np_dtype_dict = {
+        F.bool: np.bool,
+        F.uint8: np.uint8,
+        F.int8: np.int8,
+        F.int16: np.int16,
+        F.int32: np.int32,
+        F.int64: np.int64,
+        F.float16: np.float16,
+        F.float32: np.float32,
+        F.float64: np.float64,
+    }

@@ -164,6 +164,13 @@ class CuGraphStorage:
             self.single_gpu = single_gpu
 
         self.idtype = idtype
+        if backend_dtype_to_np_dtype_dict is None:
+            raise ModuleNotFoundError(
+                "This feature requires the dgl package, "
+                "for installation instructions, See: "
+                "https://github.com/rapidsai/cugraph/blob/branch-22.12/"
+                "python/cugraph-dgl/README.MD"
+            )
         self.id_np_type = backend_dtype_to_np_dtype_dict[idtype]
         self.num_nodes_dict = num_nodes_dict
         self._node_id_offset_d = self.__get_node_id_offset_d(num_nodes_dict)
