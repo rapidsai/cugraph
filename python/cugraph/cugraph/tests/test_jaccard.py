@@ -61,6 +61,7 @@ def compare_jaccard_two_hop(G, Gnx):
     preds = nx.jaccard_coefficient(Gnx, nx_pairs)
     nx_coeff = []
     for u, v, p in preds:
+        # print(u, " ", v, " ", p)
         nx_coeff.append(p)
     df = cugraph.jaccard(G, pairs)
     df = df.sort_values(by=["source", "destination"]).reset_index(drop=True)
@@ -70,11 +71,20 @@ def compare_jaccard_two_hop(G, Gnx):
         assert diff < 1.0e-6
 
 
-def cugraph_call(benchmark_callable, graph_file, edgevals=False):
+def cugraph_call(benchmark_callable, graph_file, edgevals=False, input_df=None):
     G = cugraph.Graph()
     G = graph_file.get_graph(ignore_weights=not edgevals)
+
+    # If no vertex_pair is passed as input, 'cugraph.jaccard' will
+    # compute the 'jaccard_similarity' with the two_hop_neighbor of the
+    # entire graph while nx compute with the one_hop_neighbor. For better
+    # comparaison, get the one_hop_neighbor of the entire graph for 'cugraph.jaccard'
+    # and pass it as vertex_pair
+    vertex_pair = input_df.rename(columns={'0':'first', '1':'second'})
+    vertex_pair = vertex_pair[['first', 'second']]
+
     # cugraph Jaccard Call
-    df = benchmark_callable(cugraph.jaccard, G)
+    df = benchmark_callable(cugraph.jaccard, G, vertex_pair=vertex_pair)
 
     df = df.sort_values(["source", "destination"]).reset_index(drop=True)
 
@@ -130,14 +140,15 @@ def read_csv(request):
     graph_file = request.param
     dataset_path = graph_file.get_path()
     M = utils.read_csv_for_nx(dataset_path)
+    M_cu = utils.read_csv_file(dataset_path)
 
-    return M, graph_file
+    return M_cu, M, graph_file
 
 
-def test_jaccard(read_csv, gpubenchmark):
+def test_jaccard_1(read_csv, gpubenchmark):
 
-    M, graph_file = read_csv
-    cu_src, cu_dst, cu_coeff = cugraph_call(gpubenchmark, graph_file)
+    M_cu, M, graph_file = read_csv
+    cu_src, cu_dst, cu_coeff = cugraph_call(gpubenchmark, graph_file, input_df=M_cu)
     nx_src, nx_dst, nx_coeff = networkx_call(M)
 
     # Calculating mismatch
@@ -154,7 +165,7 @@ def test_jaccard(read_csv, gpubenchmark):
 
 
 def test_directed_graph_check(read_csv):
-    M, _ = read_csv
+    _, M, _ = read_csv
 
     cu_M = cudf.DataFrame()
     cu_M["src_0"] = cudf.Series(M["0"])
@@ -174,7 +185,7 @@ def test_directed_graph_check(read_csv):
 
 def test_nx_jaccard_time(read_csv, gpubenchmark):
 
-    M, _ = read_csv
+    _, M, _ = read_csv
     nx_src, nx_dst, nx_coeff = networkx_call(M, gpubenchmark)
 
 
@@ -182,7 +193,8 @@ def test_nx_jaccard_time(read_csv, gpubenchmark):
 def test_jaccard_edgevals(gpubenchmark, graph_file):
     dataset_path = netscience.get_path()
     M = utils.read_csv_for_nx(dataset_path)
-    cu_src, cu_dst, cu_coeff = cugraph_call(gpubenchmark, netscience, edgevals=True)
+    M_cu = utils.read_csv_file(dataset_path)
+    cu_src, cu_dst, cu_coeff = cugraph_call(gpubenchmark, netscience, edgevals=True, input_df=M_cu)
     nx_src, nx_dst, nx_coeff = networkx_call(M)
 
     # Calculating mismatch
@@ -200,7 +212,7 @@ def test_jaccard_edgevals(gpubenchmark, graph_file):
 
 def test_jaccard_two_hop(read_csv):
 
-    M, graph_file = read_csv
+    _, M, graph_file = read_csv
 
     Gnx = nx.from_pandas_edgelist(M, source="0", target="1", create_using=nx.Graph())
     G = graph_file.get_graph(ignore_weights=True)
@@ -210,7 +222,7 @@ def test_jaccard_two_hop(read_csv):
 
 def test_jaccard_two_hop_edge_vals(read_csv):
 
-    M, graph_file = read_csv
+    _, M, graph_file = read_csv
 
     Gnx = nx.from_pandas_edgelist(
         M, source="0", target="1", edge_attr="weight", create_using=nx.Graph()
@@ -223,13 +235,15 @@ def test_jaccard_two_hop_edge_vals(read_csv):
 
 def test_jaccard_nx(read_csv):
 
-    M, _ = read_csv
+    M_cu, M, _ = read_csv
     Gnx = nx.from_pandas_edgelist(M, source="0", target="1", create_using=nx.Graph())
 
     nx_j = nx.jaccard_coefficient(Gnx)
     nv_js = sorted(nx_j, key=len, reverse=True)
 
-    cg_j = cugraph.jaccard_coefficient(Gnx)
+    ebunch = M_cu.rename(columns={'0':'first', '1':'second'})
+    ebunch = ebunch[['first', 'second']]
+    cg_j = cugraph.jaccard_coefficient(Gnx, ebunch=ebunch)
 
     assert len(nv_js) > len(cg_j)
 
@@ -240,7 +254,7 @@ def test_jaccard_nx(read_csv):
 
 def test_jaccard_multi_column(read_csv):
 
-    M, _ = read_csv
+    _, M, _ = read_csv
 
     cu_M = cudf.DataFrame()
     cu_M["src_0"] = cudf.Series(M["0"])
@@ -262,6 +276,6 @@ def test_jaccard_multi_column(read_csv):
     df_exp = cugraph.jaccard(G2, vertex_pair[["src_0", "dst_0"]])
 
     # Calculating mismatch
-    actual = df_res.sort_values("0_source").reset_index()
+    actual = df_res.sort_values("0_src").reset_index()
     expected = df_exp.sort_values("source").reset_index()
     assert_series_equal(actual["jaccard_coeff"], expected["jaccard_coeff"])
