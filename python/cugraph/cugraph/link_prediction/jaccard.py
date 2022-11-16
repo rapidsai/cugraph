@@ -42,8 +42,10 @@ def jaccard(G, vertex_pair=None):
     networkx.jaccard_coefficient.
 
     cugraph.jaccard, in the absence of a specified vertex pair list, will
-    use the edges of the graph to construct a vertex pair list and will
-    return the jaccard coefficient for those vertex pairs.
+    compute the two_hop_neighbors of the entire graph to construct a vertex pair 
+    list and will return the jaccard coefficient for those vertex pairs. This is
+    not advisable as the vertex_pairs can grow exponentially with respect to the
+    size of the datasets
 
     networkx.jaccard_coefficient, in the absence of a specified vertex
     pair list, will return an upper triangular dense matrix, excluding
