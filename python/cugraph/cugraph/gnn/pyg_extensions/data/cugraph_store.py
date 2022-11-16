@@ -17,9 +17,6 @@ from typing import Optional, Tuple, Any
 from enum import Enum
 
 import cupy
-import cudf
-import dask_cudf
-import cugraph
 
 from dataclasses import dataclass
 from collections import defaultdict
@@ -244,7 +241,7 @@ class EXPERIMENTAL__CuGraphStore:
                 edge_type=pyg_edge_type,
                 layout=EdgeLayout.COO,
                 is_sorted=False,
-                size=len(edges),
+                size=(len(edges), len(edges)),
             )
 
             self._edge_attr_cls = CuGraphEdgeAttr
@@ -419,60 +416,32 @@ class EXPERIMENTAL__CuGraphStore:
 
         return self.__subgraphs[edge_types]
 
-    def neighbor_sample(self, index, num_neighbors, replace, directed, edge_types):
+    def _get_renumbered_vertex_data_from_sample(self, nodes_of_interest):
+        """
+        Given a cudf (NOT dask_cudf) Series of nodes of interest, this
+        method outputs three dictionaries:
+            1. noi_index
+            2. noi_groups
+            3. noi_tensors
+        (1) noi_index is the original vertex ids grouped by vertex type.
+        (2) noi_groups is the vertex ids renumbered from zero from each vertex type.
+        (3) noi_tensors is the corresponding tensor properties for each vertex,
+            grouped by vertex type.
+        The ith element of each of array refers to the same vertex.
 
-        if isinstance(num_neighbors, dict):
-            # FIXME support variable num neighbors per edge type
-            num_neighbors = list(num_neighbors.values())[0]
+        Example Input: [5, 2, 10, 11, 8]
+        Output: {'red_vertex': [5, 8], 'blue_vertex': [2], 'green_vertex': [10, 11]},
+                {'red_vertex': [0, 1], 'blue_vertex': [0], 'green_vertex': [0, 1]},
+                {
+                  'red_vertex': [[5.0, 2.0], [3.0, 5.0]],
+                  'blue_vertex': [[6.2, 2.1]],
+                  'green_vertex': [[5.9, 2.0], [3.0, 1.0]]
+                }
 
-        # FIXME eventually get uniform neighbor sample to accept longs
-        if self.__backend == "torch" and not index.is_cuda:
-            index = index.cuda()
-        index = cupy.from_dlpack(index.__dlpack__())
-
-        # FIXME resolve the directed/undirected issue
-        G = self._subgraph([et[1] for et in edge_types])
-
-        index = cudf.Series(index)
-        if self.is_mg:
-            uniform_neighbor_sample = cugraph.dask.uniform_neighbor_sample
-        else:
-            uniform_neighbor_sample = cugraph.uniform_neighbor_sample
-
-        sampling_results = uniform_neighbor_sample(
-            G,
-            index,
-            # conversion required by cugraph api
-            list(num_neighbors),
-            replace,
-        )
-
-        concat_fn = dask_cudf.concat if self.is_mg else cudf.concat
-
-        nodes_of_interest = concat_fn(
-            [sampling_results.destinations, sampling_results.sources]
-        ).unique()
-
-        if self.is_mg:
-            nodes_of_interest = nodes_of_interest.compute()
-
-        # Get the node index (for creating the edge index),
-        # the node type groupings, and the node properties.
-        (
-            noi_index,
-            noi_groups,
-            noi_tensors,
-        ) = self.__get_renumbered_vertex_data_from_sample(nodes_of_interest)
-
-        # Get the new edge index (by type as expected for HeteroData)
-        # FIXME handle edge ids
-        row_dict, col_dict = self.__get_renumbered_edges_from_sample(
-            sampling_results, noi_index
-        )
-
-        return (noi_groups, row_dict, col_dict, noi_tensors)
-
-    def __get_renumbered_vertex_data_from_sample(self, nodes_of_interest):
+        Note: "renumbering" here refers to generating a new set of vertex
+        and edge ids for the outputted subgraph that
+        follow PyG's conventions, allowing easy construction of a HeteroData object.
+        """
         nodes_of_interest = nodes_of_interest.sort_values()
 
         # noi contains all property values
@@ -510,7 +479,47 @@ class EXPERIMENTAL__CuGraphStore:
 
         return noi_index, noi_groups, noi_tensors
 
-    def __get_renumbered_edges_from_sample(self, sampling_results, noi_index):
+    def _get_renumbered_edges_from_sample(self, sampling_results, noi_index):
+        """
+        Given a cudf or dask_cudf Series of sampling results and a dictionary
+        of non-renumbered vertex ids grouped by vertex type, this method
+        outputs two dictionaries:
+            1. row_dict
+            2. col_dict
+        (1) row_dict corresponds to the renumbered source vertex ids grouped
+            by edge type
+        (2) col_dict corresponds to the renumbered destination vertex ids grouped
+            by edge type
+        * The two outputs combined make a PyG "edge index".
+        * The ith element of each array corresponds to the same edge.
+        * The _get_renumbered_vertex_data_from_sample() method is usually called
+          before this one to get the noi_index.
+
+        Example Input: Series({
+                'sources': [0, 5, 11, 3],
+                'destinations': [8, 2, 3, 5]},
+                'indices': [1, 3, 5, 14]
+            }),
+            {
+                'blue_vertex': [0, 5],
+                'red_vertex': [3, 11],
+                'green_vertex': [2, 8]
+            }
+        Output: {
+                'blue__etype1__green': [0, 1],
+                'red__etype2__red': [1],
+                'red__etype3__blue': [0]
+            },
+            {
+                'blue__etype1__green': [1, 0],
+                'red__etype2__red': [0],
+                'red__etype3__blue': [1]
+            }
+
+        Note: "renumbering" here refers to generating a new set of vertex and edge ids
+        for the outputted subgraph that follow PyG's conventions, allowing easy
+        construction of a HeteroData object.
+        """
         eoi = self.__graph.get_edge_data(
             edge_ids=(
                 sampling_results.indices.compute().values_host

@@ -11,13 +11,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import gc
+import random
+
 import pytest
-import cugraph
 import cudf
+
+import cugraph
 from cugraph.testing import utils
 from cugraph import uniform_neighbor_sample
 from cugraph.experimental.datasets import DATASETS_UNDIRECTED, email_Eu_core, small_tree
-import random
 
 
 # =============================================================================
@@ -75,7 +77,7 @@ def input_combo(request):
     parameters["Graph"] = G
 
     # sample k vertices from the cuGraph graph
-    k = random.randint(1, 10)
+    k = random.randint(1, 3)
     srcs = G.view_edge_list()["src"]
     dsts = G.view_edge_list()["dst"]
 
@@ -97,6 +99,34 @@ def input_combo(request):
     return parameters
 
 
+@pytest.fixture(scope="module")
+def simple_unweighted_input_expected_output(request):
+    """
+    Fixture for providing the input for a uniform_neighbor_sample test using a
+    small/simple unweighted graph and the corresponding expected output.
+    """
+    test_data = {}
+
+    df = cudf.DataFrame(
+        {"src": [0, 1, 2, 2, 0, 1, 4, 4], "dst": [3, 2, 1, 4, 1, 3, 1, 2]}
+    )
+
+    G = cugraph.Graph()
+    G.from_cudf_edgelist(df, source="src", destination="dst")
+    test_data["Graph"] = G
+    test_data["start_list"] = cudf.Series([0], dtype="int32")
+    test_data["fanout_vals"] = [-1]
+    test_data["with_replacement"] = True
+
+    test_data["expected_src"] = [0, 0]
+    test_data["expected_dst"] = [3, 1]
+
+    return test_data
+
+
+# =============================================================================
+# Tests
+# =============================================================================
 def test_uniform_neighbor_sample_simple(input_combo):
 
     G = input_combo["Graph"]
@@ -242,28 +272,20 @@ def test_uniform_neighbor_sample_tree(directed):
     assert set(start_list.to_pandas()).issubset(set(result_nbr_vertices.to_pandas()))
 
 
-def test_uniform_neighbor_sample_unweighted():
-    df = cudf.DataFrame(
-        {"src": [0, 1, 2, 2, 0, 1, 4, 4], "dst": [3, 2, 1, 4, 1, 3, 1, 2]}
-    )
-
-    G = cugraph.Graph()
-    G.from_cudf_edgelist(df, source="src", destination="dst")
-
-    start_list = cudf.Series([0], dtype="int32")
-    fanout_vals = [-1]
-    with_replacement = True
+def test_uniform_neighbor_sample_unweighted(simple_unweighted_input_expected_output):
+    test_data = simple_unweighted_input_expected_output
 
     sampling_results = uniform_neighbor_sample(
-        G, start_list, fanout_vals, with_replacement
+        test_data["Graph"],
+        test_data["start_list"],
+        test_data["fanout_vals"],
+        test_data["with_replacement"],
     )
 
-    expected_src = [0, 0]
     actual_src = sampling_results.sources
     actual_src = actual_src.to_arrow().to_pylist()
-    assert sorted(actual_src) == sorted(expected_src)
+    assert sorted(actual_src) == sorted(test_data["expected_src"])
 
-    expected_dst = [3, 1]
     actual_dst = sampling_results.destinations
     actual_dst = actual_dst.to_arrow().to_pylist()
-    assert sorted(actual_dst) == sorted(expected_dst)
+    assert sorted(actual_dst) == sorted(test_data["expected_dst"])

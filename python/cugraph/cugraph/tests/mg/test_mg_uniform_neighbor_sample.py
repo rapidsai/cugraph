@@ -11,14 +11,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import gc
+import random
+
 import pytest
+import cudf
+import dask_cudf
+
 import cugraph.dask as dcg
 import cugraph
-import dask_cudf
-import cudf
 from cugraph.testing import utils
 from cugraph.dask import uniform_neighbor_sample
-import random
 
 
 # =============================================================================
@@ -85,7 +87,7 @@ def input_combo(request):
     parameters["MGGraph"] = dg
 
     # sample k vertices from the cuGraph graph
-    k = random.randint(1, 10)
+    k = random.randint(1, 3)
     srcs = dg.input_df["src"]
     dsts = dg.input_df["dst"]
 
@@ -106,6 +108,9 @@ def input_combo(request):
     return parameters
 
 
+# =============================================================================
+# Tests
+# =============================================================================
 def test_mg_uniform_neighbor_sample_simple(dask_client, input_combo):
 
     dg = input_combo["MGGraph"]

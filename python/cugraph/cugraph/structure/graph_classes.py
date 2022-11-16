@@ -587,6 +587,19 @@ class Graph:
         """
         return self.properties.isolated_vertices
 
+    def is_remote(self):
+        """
+        Returns True if the graph is remote; otherwise returns False.
+        """
+        return False
+
+    def is_multi_gpu(self):
+        """
+        Returns True if the graph is a multi-gpu graph; otherwise
+        returns False.
+        """
+        return isinstance(self._Impl, simpleDistributedGraphImpl)
+
     def to_directed(self):
         """
         Return a directed representation of the graph.

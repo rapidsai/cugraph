@@ -2,9 +2,94 @@
 
 Please see https://github.com/rapidsai/cugraph/releases/tag/v22.12.00a for the latest changes to this development branch.
 
-# cuGraph 22.10.00 (Date TBD)
+# cuGraph 22.10.00 (12 Oct 2022)
 
-Please see https://github.com/rapidsai/cugraph/releases/tag/v22.10.00a for the latest changes to this development branch.
+## 🚨 Breaking Changes
+
+- Add `is_multigraph` to PG and change `has_duplicate_edges` to use types ([#2708](https://github.com/rapidsai/cugraph/pull/2708)) [@eriknw](https://github.com/eriknw)
+- Enable PLC algos to leverage the PLC graph ([#2682](https://github.com/rapidsai/cugraph/pull/2682)) [@jnke2016](https://github.com/jnke2016)
+- Reduce cuGraph Sampling Overhead for PyG ([#2653](https://github.com/rapidsai/cugraph/pull/2653)) [@alexbarghi-nv](https://github.com/alexbarghi-nv)
+- Code cleanup ([#2617](https://github.com/rapidsai/cugraph/pull/2617)) [@seunghwak](https://github.com/seunghwak)
+- Update vertex_frontier_t to take unsorted (tagged-)vertex list with possible duplicates ([#2584](https://github.com/rapidsai/cugraph/pull/2584)) [@seunghwak](https://github.com/seunghwak)
+- CuGraph+PyG Wrappers and Loaders ([#2567](https://github.com/rapidsai/cugraph/pull/2567)) [@alexbarghi-nv](https://github.com/alexbarghi-nv)
+- Rename multiple .cuh (.cu) files to .hpp (.cpp) ([#2501](https://github.com/rapidsai/cugraph/pull/2501)) [@seunghwak](https://github.com/seunghwak)
+
+## 🐛 Bug Fixes
+
+- Properly Distribute Start Vertices for MG Uniform Neighbor Sample ([#2765](https://github.com/rapidsai/cugraph/pull/2765)) [@alexbarghi-nv](https://github.com/alexbarghi-nv)
+- Removes unneeded test dependency on cugraph from pylibcugraph tests ([#2738](https://github.com/rapidsai/cugraph/pull/2738)) [@rlratzel](https://github.com/rlratzel)
+- Add modularity to return result for louvain ([#2706](https://github.com/rapidsai/cugraph/pull/2706)) [@ChuckHastings](https://github.com/ChuckHastings)
+- Fixes bug in `NumberMap` preventing use of string vertex IDs for MG graphs ([#2688](https://github.com/rapidsai/cugraph/pull/2688)) [@rlratzel](https://github.com/rlratzel)
+- Release all inactive futures ([#2659](https://github.com/rapidsai/cugraph/pull/2659)) [@jnke2016](https://github.com/jnke2016)
+- Fix MG PLC algos intermittent hang ([#2607](https://github.com/rapidsai/cugraph/pull/2607)) [@jnke2016](https://github.com/jnke2016)
+- Fix MG Louvain C API test ([#2588](https://github.com/rapidsai/cugraph/pull/2588)) [@ChuckHastings](https://github.com/ChuckHastings)
+
+## 📖 Documentation
+
+- Adding new classes to api docs ([#2754](https://github.com/rapidsai/cugraph/pull/2754)) [@acostadon](https://github.com/acostadon)
+- Removed reference to hard limit of 2 billion vertices for dask cugraph ([#2680](https://github.com/rapidsai/cugraph/pull/2680)) [@acostadon](https://github.com/acostadon)
+- updated list of conferences ([#2672](https://github.com/rapidsai/cugraph/pull/2672)) [@BradReesWork](https://github.com/BradReesWork)
+- Refactor Sampling, Structure and Traversal Notebooks ([#2628](https://github.com/rapidsai/cugraph/pull/2628)) [@acostadon](https://github.com/acostadon)
+
+## 🚀 New Features
+
+- Implement a vertex pair intersection primitive ([#2728](https://github.com/rapidsai/cugraph/pull/2728)) [@seunghwak](https://github.com/seunghwak)
+- Implement a random selection primitive ([#2703](https://github.com/rapidsai/cugraph/pull/2703)) [@seunghwak](https://github.com/seunghwak)
+- adds mechanism to skip notebook directories for different run types ([#2693](https://github.com/rapidsai/cugraph/pull/2693)) [@acostadon](https://github.com/acostadon)
+- Create graph with edge property values ([#2660](https://github.com/rapidsai/cugraph/pull/2660)) [@seunghwak](https://github.com/seunghwak)
+- Reduce cuGraph Sampling Overhead for PyG ([#2653](https://github.com/rapidsai/cugraph/pull/2653)) [@alexbarghi-nv](https://github.com/alexbarghi-nv)
+- Primitive to support gathering one hop neighbors ([#2623](https://github.com/rapidsai/cugraph/pull/2623)) [@seunghwak](https://github.com/seunghwak)
+- Define a selection primtive API ([#2586](https://github.com/rapidsai/cugraph/pull/2586)) [@seunghwak](https://github.com/seunghwak)
+- Leiden C++ API ([#2569](https://github.com/rapidsai/cugraph/pull/2569)) [@naimnv](https://github.com/naimnv)
+- CuGraph+PyG Wrappers and Loaders ([#2567](https://github.com/rapidsai/cugraph/pull/2567)) [@alexbarghi-nv](https://github.com/alexbarghi-nv)
+- create a graph with additional edge properties ([#2521](https://github.com/rapidsai/cugraph/pull/2521)) [@seunghwak](https://github.com/seunghwak)
+
+## 🛠️ Improvements
+
+- Add missing entries in `update-version.sh` ([#2763](https://github.com/rapidsai/cugraph/pull/2763)) [@galipremsagar](https://github.com/galipremsagar)
+- Pin `dask` and `distributed` for release ([#2758](https://github.com/rapidsai/cugraph/pull/2758)) [@galipremsagar](https://github.com/galipremsagar)
+- Allow users to provide their own edge IDS to PropertyGraph ([#2757](https://github.com/rapidsai/cugraph/pull/2757)) [@eriknw](https://github.com/eriknw)
+- Raise a warning for certain algorithms ([#2756](https://github.com/rapidsai/cugraph/pull/2756)) [@jnke2016](https://github.com/jnke2016)
+- Fix cuGraph compile-time warnings. ([#2755](https://github.com/rapidsai/cugraph/pull/2755)) [@seunghwak](https://github.com/seunghwak)
+- Use new sampling primitives ([#2751](https://github.com/rapidsai/cugraph/pull/2751)) [@ChuckHastings](https://github.com/ChuckHastings)
+- C++ implementation for unweighted Jaccard/Sorensen/Overlap ([#2750](https://github.com/rapidsai/cugraph/pull/2750)) [@ChuckHastings](https://github.com/ChuckHastings)
+- suppress expansion of unused raft spectral templates ([#2739](https://github.com/rapidsai/cugraph/pull/2739)) [@cjnolet](https://github.com/cjnolet)
+- Update unit tests to leverage the datasets API ([#2733](https://github.com/rapidsai/cugraph/pull/2733)) [@jnke2016](https://github.com/jnke2016)
+- Update raft import ([#2729](https://github.com/rapidsai/cugraph/pull/2729)) [@jnke2016](https://github.com/jnke2016)
+- Document that minimum required CMake version is now 3.23.1 ([#2725](https://github.com/rapidsai/cugraph/pull/2725)) [@robertmaynard](https://github.com/robertmaynard)
+- fix Comms import ([#2717](https://github.com/rapidsai/cugraph/pull/2717)) [@BradReesWork](https://github.com/BradReesWork)
+- added tests for triangle count on unweighted graphs and graphs with int64 vertex types ([#2716](https://github.com/rapidsai/cugraph/pull/2716)) [@acostadon](https://github.com/acostadon)
+- Define k-core API and tests ([#2712](https://github.com/rapidsai/cugraph/pull/2712)) [@ChuckHastings](https://github.com/ChuckHastings)
+- Add `is_multigraph` to PG and change `has_duplicate_edges` to use types ([#2708](https://github.com/rapidsai/cugraph/pull/2708)) [@eriknw](https://github.com/eriknw)
+- Refactor louvain ([#2705](https://github.com/rapidsai/cugraph/pull/2705)) [@jnke2016](https://github.com/jnke2016)
+- new notebook for loading mag240m ([#2701](https://github.com/rapidsai/cugraph/pull/2701)) [@BradReesWork](https://github.com/BradReesWork)
+- PG allow get_vertex_data to accept single type or id ([#2698](https://github.com/rapidsai/cugraph/pull/2698)) [@eriknw](https://github.com/eriknw)
+- Renumber PG to be contiguous per type ([#2697](https://github.com/rapidsai/cugraph/pull/2697)) [@eriknw](https://github.com/eriknw)
+- Added `SamplingResult` cdef class to return cupy &quot;views&quot; for PLC sampling algos instead of copying result data ([#2684](https://github.com/rapidsai/cugraph/pull/2684)) [@rlratzel](https://github.com/rlratzel)
+- Enable PLC algos to leverage the PLC graph ([#2682](https://github.com/rapidsai/cugraph/pull/2682)) [@jnke2016](https://github.com/jnke2016)
+- `graph_mask_t` and separating raft includes for `host_span` and `device_span` ([#2679](https://github.com/rapidsai/cugraph/pull/2679)) [@cjnolet](https://github.com/cjnolet)
+- Promote triangle count from experimental ([#2671](https://github.com/rapidsai/cugraph/pull/2671)) [@jnke2016](https://github.com/jnke2016)
+- Small fix to the MG PyG Test to Account for Current Sampling Behavior ([#2666](https://github.com/rapidsai/cugraph/pull/2666)) [@alexbarghi-nv](https://github.com/alexbarghi-nv)
+- Move GaaS sources, tests, docs, scripts from the rapidsai/GaaS repo to the cugraph repo ([#2661](https://github.com/rapidsai/cugraph/pull/2661)) [@rlratzel](https://github.com/rlratzel)
+- C, Pylibcugraph, and Python API Updates for Edge Types ([#2629](https://github.com/rapidsai/cugraph/pull/2629)) [@alexbarghi-nv](https://github.com/alexbarghi-nv)
+- Add coverage for uniform neighbor sampling ([#2625](https://github.com/rapidsai/cugraph/pull/2625)) [@jnke2016](https://github.com/jnke2016)
+- Define C and C++ APIs for Jaccard/Sorensen/Overlap ([#2624](https://github.com/rapidsai/cugraph/pull/2624)) [@ChuckHastings](https://github.com/ChuckHastings)
+- Code cleanup ([#2617](https://github.com/rapidsai/cugraph/pull/2617)) [@seunghwak](https://github.com/seunghwak)
+- Branch 22.10 merge 22.08 ([#2599](https://github.com/rapidsai/cugraph/pull/2599)) [@rlratzel](https://github.com/rlratzel)
+- Restructure Louvain to be more like other algorithms ([#2594](https://github.com/rapidsai/cugraph/pull/2594)) [@ChuckHastings](https://github.com/ChuckHastings)
+- Hetrograph and dask_cudf support ([#2592](https://github.com/rapidsai/cugraph/pull/2592)) [@VibhuJawa](https://github.com/VibhuJawa)
+- remove pagerank from cython.cu ([#2587](https://github.com/rapidsai/cugraph/pull/2587)) [@ChuckHastings](https://github.com/ChuckHastings)
+- MG uniform random walk implementation ([#2585](https://github.com/rapidsai/cugraph/pull/2585)) [@ChuckHastings](https://github.com/ChuckHastings)
+- Update vertex_frontier_t to take unsorted (tagged-)vertex list with possible duplicates ([#2584](https://github.com/rapidsai/cugraph/pull/2584)) [@seunghwak](https://github.com/seunghwak)
+- Use edge_ids directly in uniform sampling call to prevent cost of edge_id lookup ([#2550](https://github.com/rapidsai/cugraph/pull/2550)) [@VibhuJawa](https://github.com/VibhuJawa)
+- PropertyGraph set index to vertex and edge ids ([#2523](https://github.com/rapidsai/cugraph/pull/2523)) [@eriknw](https://github.com/eriknw)
+- Use rapids-cmake 22.10 best practice for RAPIDS.cmake location ([#2518](https://github.com/rapidsai/cugraph/pull/2518)) [@robertmaynard](https://github.com/robertmaynard)
+- Unpin `dask` and `distributed` for development ([#2517](https://github.com/rapidsai/cugraph/pull/2517)) [@galipremsagar](https://github.com/galipremsagar)
+- Use category dtype for type in PropertyGraph ([#2510](https://github.com/rapidsai/cugraph/pull/2510)) [@eriknw](https://github.com/eriknw)
+- Split edge_partition_src_dst_property.cuh to .hpp and .cuh files. ([#2503](https://github.com/rapidsai/cugraph/pull/2503)) [@seunghwak](https://github.com/seunghwak)
+- Rename multiple .cuh (.cu) files to .hpp (.cpp) ([#2501](https://github.com/rapidsai/cugraph/pull/2501)) [@seunghwak](https://github.com/seunghwak)
+- Fix Forward-Merger Conflicts ([#2474](https://github.com/rapidsai/cugraph/pull/2474)) [@ajschmidt8](https://github.com/ajschmidt8)
+- Add tests for reading edge and vertex data from single input in PG, implementation to follow. ([#2154](https://github.com/rapidsai/cugraph/pull/2154)) [@rlratzel](https://github.com/rlratzel)
 
 # cuGraph 22.08.00 (17 Aug 2022)
 
