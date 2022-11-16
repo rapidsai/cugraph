@@ -17,7 +17,6 @@ from dask.distributed import wait
 import cugraph.dask.comms.comms as Comms
 import dask_cudf
 import cudf
-import warnings
 from cugraph.dask.common.input_utils import get_distributed_data
 from cugraph.utilities import renumber_vertex_pair
 
