@@ -581,7 +581,6 @@ auto view_concat(detail::edge_major_property_view_t<vertex_t, Ts> const&... view
   }
 }
 
-//
 template <typename vertex_t, typename... Ts>
 auto view_concat(detail::edge_minor_property_view_t<vertex_t, Ts> const&... views)
 {

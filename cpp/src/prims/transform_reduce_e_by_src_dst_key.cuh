@@ -66,7 +66,7 @@ __device__ void update_buffer_element(
   EdgePartitionSrcDstKeyInputWrapper edge_partition_src_dst_key_input,
   EdgeOp e_op,
   typename GraphViewType::vertex_type* key,
-  ValueIterator value_first)
+  ValueIterator value_iter)
 {
   using vertex_t = typename GraphViewType::vertex_type;
 
@@ -80,17 +80,17 @@ __device__ void update_buffer_element(
   *key = edge_partition_src_dst_key_input.get(
     ((GraphViewType::is_storage_transposed != edge_partition_src_key) ? major_offset
                                                                       : minor_offset));
-  *value_first = evaluate_edge_op<GraphViewType,
-                                  vertex_t,
-                                  EdgePartitionSrcValueInputWrapper,
-                                  EdgePartitionDstValueInputWrapper,
-                                  EdgeOp>()
-                   .compute(src,
-                            dst,
-                            weight,
-                            edge_partition_src_value_input.get(src_offset),
-                            edge_partition_dst_value_input.get(dst_offset),
-                            e_op);
+  *value_iter = evaluate_edge_op<GraphViewType,
+                                 vertex_t,
+                                 EdgePartitionSrcValueInputWrapper,
+                                 EdgePartitionDstValueInputWrapper,
+                                 EdgeOp>()
+                  .compute(src,
+                           dst,
+                           weight,
+                           edge_partition_src_value_input.get(src_offset),
+                           edge_partition_dst_value_input.get(dst_offset),
+                           e_op);
 }
 
 template <bool edge_partition_src_key,
@@ -110,7 +110,7 @@ __global__ void transform_reduce_by_src_dst_key_hypersparse(
   EdgePartitionSrcDstKeyInputWrapper edge_partition_src_dst_key_input,
   EdgeOp e_op,
   typename GraphViewType::vertex_type* keys,
-  ValueIterator value_first)
+  ValueIterator value_iter)
 {
   using vertex_t = typename GraphViewType::vertex_type;
   using edge_t   = typename GraphViewType::edge_type;
@@ -145,7 +145,7 @@ __global__ void transform_reduce_by_src_dst_key_hypersparse(
         edge_partition_src_dst_key_input,
         e_op,
         keys + local_offset + i,
-        value_first + local_offset + i);
+        value_iter + local_offset + i);
     }
 
     idx += gridDim.x * blockDim.x;
@@ -171,7 +171,7 @@ __global__ void transform_reduce_by_src_dst_key_low_degree(
   EdgePartitionSrcDstKeyInputWrapper edge_partition_src_dst_key_input,
   EdgeOp e_op,
   typename GraphViewType::vertex_type* keys,
-  ValueIterator value_first)
+  ValueIterator value_iter)
 {
   using vertex_t = typename GraphViewType::vertex_type;
   using edge_t   = typename GraphViewType::edge_type;
@@ -203,7 +203,7 @@ __global__ void transform_reduce_by_src_dst_key_low_degree(
         edge_partition_src_dst_key_input,
         e_op,
         keys + local_offset + i,
-        value_first + local_offset + i);
+        value_iter + local_offset + i);
     }
 
     idx += gridDim.x * blockDim.x;
@@ -229,7 +229,7 @@ __global__ void transform_reduce_by_src_dst_key_mid_degree(
   EdgePartitionSrcDstKeyInputWrapper edge_partition_src_dst_key_input,
   EdgeOp e_op,
   typename GraphViewType::vertex_type* keys,
-  ValueIterator value_first)
+  ValueIterator value_iter)
 {
   using vertex_t = typename GraphViewType::vertex_type;
   using edge_t   = typename GraphViewType::edge_type;
@@ -263,7 +263,7 @@ __global__ void transform_reduce_by_src_dst_key_mid_degree(
         edge_partition_src_dst_key_input,
         e_op,
         keys + local_offset + i,
-        value_first + local_offset + i);
+        value_iter + local_offset + i);
     }
 
     idx += gridDim.x * (blockDim.x / raft::warp_size());
@@ -289,7 +289,7 @@ __global__ void transform_reduce_by_src_dst_key_high_degree(
   EdgePartitionSrcDstKeyInputWrapper edge_partition_src_dst_key_input,
   EdgeOp e_op,
   typename GraphViewType::vertex_type* keys,
-  ValueIterator value_first)
+  ValueIterator value_iter)
 {
   using vertex_t = typename GraphViewType::vertex_type;
   using edge_t   = typename GraphViewType::edge_type;
@@ -320,7 +320,7 @@ __global__ void transform_reduce_by_src_dst_key_high_degree(
         edge_partition_src_dst_key_input,
         e_op,
         keys + local_offset + i,
-        value_first + local_offset + i);
+        value_iter + local_offset + i);
     }
 
     idx += gridDim.x;

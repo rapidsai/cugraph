@@ -54,10 +54,10 @@ rmm::device_uvector<weight_t> overlap_coefficients(
 {
   if (use_weights)
     return detail::similarity(
-      handle, graph_view, vertex_pairs, use_weights, detail::overlap_functor_t{});
+      handle, graph_view, vertex_pairs, use_weights, detail::weighted_overlap_functor_t{});
   else
     return detail::similarity(
-      handle, graph_view, vertex_pairs, use_weights, detail::weighted_overlap_functor_t{});
+      handle, graph_view, vertex_pairs, use_weights, detail::overlap_functor_t{});
 }
 
 }  // namespace cugraph

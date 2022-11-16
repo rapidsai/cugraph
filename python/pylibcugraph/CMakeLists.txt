@@ -33,6 +33,12 @@ project(
 option(FIND_CUGRAPH_CPP "Search for existing CUGRAPH C++ installations before defaulting to local files"
        OFF
 )
+option(USE_CUGRAPH_OPS "Enable all functions that call cugraph-ops" ON)
+
+if(NOT USE_CUGRAPH_OPS)
+    message(STATUS "Disabling libcugraph functions that reference cugraph-ops")
+    add_compile_definitions(NO_CUGRAPH_OPS)
+endif()
 
 # If the user requested it we attempt to find CUGRAPH.
 
@@ -60,6 +66,8 @@ endif()
 
 message(STATUS "check if it was found ${cugraph_FOUND}")
 
+include(rapids-cython)
+
 if(NOT cugraph_FOUND)
   # TODO: This will not be necessary once we upgrade to CMake 3.22, which will pull in the required
   # languages for the C++ project even if this project does not require those languges.
@@ -79,10 +87,14 @@ if(NOT cugraph_FOUND)
 
   add_subdirectory(../../cpp cugraph-cpp)
 
-  install(TARGETS cugraph DESTINATION pylibcugraph/library)
+  set(cython_lib_dir pylibcugraph)
+  install(TARGETS cugraph DESTINATION ${cython_lib_dir})
 endif()
 
-include(rapids-cython)
 rapids_cython_init()
 
 add_subdirectory(pylibcugraph)
+
+if(DEFINED cython_lib_dir)
+  rapids_cython_add_rpath_entries(TARGET cugraph PATHS "${cython_lib_dir}")
+endif()

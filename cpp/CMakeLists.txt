@@ -41,7 +41,7 @@ endif()
 # cuhornet currently doesn't support
 #
 # >= 90
-set(supported_archs "60" "62" "70" "72" "75" "80" "86")
+set(supported_archs "60" "62" "70" "72" "75" "80" "86" "89" "90")
 foreach( arch IN LISTS CMAKE_CUDA_ARCHITECTURES)
     string(REPLACE "-real" "" arch ${arch})
     if( arch IN_LIST supported_archs )
@@ -166,7 +166,10 @@ endif()
 #       which should give us a better parallel schedule.
 
 set(CUGRAPH_SOURCES
-    src/detail/shuffle_wrappers.cu
+    src/detail/shuffle_vertices.cu
+    src/detail/shuffle_edgelist.cu
+    src/detail/collect_local_vertex_values.cu
+    src/detail/groupby_and_count.cu
     src/sampling/random_walks_mg.cu
     src/community/detail/common_methods_mg.cu
     src/community/detail/common_methods_sg.cu
@@ -197,7 +200,8 @@ set(CUGRAPH_SOURCES
     src/community/legacy/ktruss.cu
     src/community/legacy/ecg.cu
     src/community/legacy/extract_subgraph_by_vertex.cu
-    src/community/legacy/egonet.cu
+    src/community/egonet_sg.cu
+    src/community/egonet_mg.cu
     src/sampling/random_walks.cu
     src/sampling/random_walks_sg.cu
     src/sampling/detail/sampling_utils_mg.cu
@@ -219,8 +223,18 @@ set(CUGRAPH_SOURCES
     src/structure/graph_sg.cu
     src/structure/graph_mg.cu
     src/structure/graph_view_sg.cu
+    src/structure/decompress_to_edgelist_sg.cu
+    src/structure/decompress_to_edgelist_mg.cu
+    src/structure/symmetrize_graph_sg.cu
+    src/structure/symmetrize_graph_mg.cu
+    src/structure/transpose_graph_sg.cu
+    src/structure/transpose_graph_mg.cu
+    src/structure/transpose_graph_storage_sg.cu
+    src/structure/transpose_graph_storage_mg.cu
     src/structure/coarsen_graph_sg.cu
     src/structure/coarsen_graph_mg.cu
+    src/structure/graph_weight_utils_mg.cu
+    src/structure/graph_weight_utils_sg.cu
     src/structure/renumber_edgelist_sg.cu
     src/structure/renumber_edgelist_mg.cu
     src/structure/renumber_utils_sg.cu
@@ -243,6 +257,8 @@ set(CUGRAPH_SOURCES
     src/centrality/katz_centrality_mg.cu
     src/centrality/eigenvector_centrality_sg.cu
     src/centrality/eigenvector_centrality_mg.cu
+    src/centrality/betweenness_centrality_sg.cu
+    src/centrality/betweenness_centrality_mg.cu
     src/tree/legacy/mst.cu
     src/components/weakly_connected_components_sg.cu
     src/components/weakly_connected_components_mg.cu
@@ -348,9 +364,15 @@ add_library(cugraph_c
         src/c_api/katz.cpp
         src/c_api/centrality_result.cpp
         src/c_api/eigenvector_centrality.cpp
+        src/c_api/betweenness_centrality.cpp
         src/c_api/core_number.cpp
         src/c_api/core_result.cpp
+        src/c_api/extract_ego.cpp
         src/c_api/k_core.cpp
+        src/c_api/induced_subgraph.cpp
+        src/c_api/induced_subgraph_helper.cu
+        src/c_api/graph_helper.cu
+        src/c_api/induced_subgraph_result.cpp
         src/c_api/hits.cpp
         src/c_api/bfs.cpp
         src/c_api/sssp.cpp
@@ -374,12 +396,22 @@ set_target_properties(cugraph_c
                # set target compile options
                CXX_STANDARD                        17
                CXX_STANDARD_REQUIRED               ON
+               CUDA_STANDARD                       17
+               CUDA_STANDARD_REQUIRED              ON
+               POSITION_INDEPENDENT_CODE           ON
                INTERFACE_POSITION_INDEPENDENT_CODE ON
 )
 
 target_compile_options(cugraph_c
-            PRIVATE "$<$<COMPILE_LANGUAGE:CXX>:${CUGRAPH_CXX_FLAGS}>"
+             PRIVATE "$<$<COMPILE_LANGUAGE:CXX>:${CUGRAPH_CXX_FLAGS}>"
+                     "$<$<COMPILE_LANGUAGE:CUDA>:${CUGRAPH_CUDA_FLAGS}>"
 )
+
+# Per-thread default stream option see https://docs.nvidia.com/cuda/cuda-runtime-api/stream-sync-behavior.html
+# The per-thread default stream does not synchronize with other streams
+target_compile_definitions(cugraph_c PUBLIC CUDA_API_PER_THREAD_DEFAULT_STREAM)
+
+target_link_options(cugraph_c PRIVATE "${CUGRAPH_BINARY_DIR}/fatbin.ld")
 
 ################################################################################
 # - C-API include paths --------------------------------------------------------
