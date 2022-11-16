@@ -15,7 +15,6 @@ from cugraph.structure import graph_primtypes_wrapper
 from cugraph.structure.graph_primtypes_wrapper import Direction
 from cugraph.structure.number_map import NumberMap
 from cugraph.structure.symmetrize import symmetrize
-import cupy
 import cudf
 import dask_cudf
 
@@ -86,7 +85,7 @@ class simpleDistributedGraphImpl:
             elif values.dtype == "int64":
                 values = values.astype("float64")
         else:
-            #values = cudf.Series(cupy.ones(len(edata_x[0]), dtype="float32"))
+            # values = cudf.Series(cupy.ones(len(edata_x[0]), dtype="float32"))
             values = None
 
         if simpleDistributedGraphImpl.edgeIdCol in edata_x[0]:
@@ -636,7 +635,7 @@ class simpleDistributedGraphImpl:
             df = df[df["vertex"].isin(vertex_subset)]
 
         return df
-    
+
     def get_two_hop_neighbors(self, start_vertices=None):
         """two_
         Compute vertex pairs that are two hops apart. The resulting pairs are
@@ -661,16 +660,15 @@ class simpleDistributedGraphImpl:
 
         if start_vertices is not None:
             if self.renumbered:
-                start_vertices = self.renumber_map.to_internal_vertex_id(
-                    start_vertices
-                )
+                start_vertices = self.renumber_map.to_internal_vertex_id(start_vertices)
                 start_vertices_type = self.edgelist.edgelist_df.dtypes[0]
             else:
-                start_vertices_type = input_graph.input_df.dtypes[0]
+                start_vertices_type = self.input_df.dtypes[0]
 
             if not isinstance(start_vertices, (dask_cudf.Series)):
                 start_vertices = dask_cudf.from_cudf(
-                start_vertices, npartitions=min(input_graph._npartitions, len(start_vertices))
+                    start_vertices,
+                    npartitions=min(self._npartitions, len(start_vertices)),
                 )
                 start_vertices = start_vertices.astype(start_vertices_type)
 
@@ -683,7 +681,8 @@ class simpleDistributedGraphImpl:
                 resource_handle=ResourceHandle(Comms.get_handle(sID).getHandle()),
                 graph=mg_graph_x,
                 start_vertices=start_vertices,
-                do_expensive_check=False)
+                do_expensive_check=False,
+            )
 
         if start_vertices is not None:
             result = [
@@ -722,22 +721,21 @@ class simpleDistributedGraphImpl:
             df["second"] = second
             return df
 
-        cudf_result = [self._client.submit(convert_to_cudf,
-                                 cp_arrays)
-                   for cp_arrays in result]
-        
+        cudf_result = [
+            self._client.submit(convert_to_cudf, cp_arrays) for cp_arrays in result
+        ]
+
         wait(cudf_result)
         ddf = dask_cudf.from_delayed(cudf_result).persist()
         wait(ddf)
 
         # Wait until the inactive futures are released
-        wait([(r.release(), c_r.release())
-            for r, c_r in zip(result, cudf_result)])
-        
+        wait([(r.release(), c_r.release()) for r, c_r in zip(result, cudf_result)])
+
         if self.properties.renumbered:
             ddf = self.renumber_map.unrenumber(ddf, "first")
             ddf = self.renumber_map.unrenumber(ddf, "second")
-        
+
         return ddf
 
     def to_directed(self, DiG):
