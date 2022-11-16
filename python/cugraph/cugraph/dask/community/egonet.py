@@ -41,6 +41,17 @@ def _call_ego_graph(
 
 
 def consolidate_results(ddf, offsets, num_seeds):
+    """
+    Each rank returns its ego_graph dataframe with its corresponding
+    offsets array. This is ideal if the user operates on distributed memory
+    but when attempting to bring the result into a single machine,
+    the ego_graph dataframes generated from each seed cannot be extracted
+    using the offsets array. This function consolidate the final result by
+    performing segmented copies.
+
+    Returns: consolidated ego_graph dataframe and offsets array
+    """
+    
     df = cudf.DataFrame()
     offset_array = [0]
     for s in range(num_seeds):
@@ -94,7 +105,7 @@ def ego_graph(input_graph, n, radius=1, center=True):
         information. Edge weights, if present, should be single or double
         precision floating point values.
 
-    n : int, list or cudf.Series, cudf.DataFrame
+    n : int, list or cudf Series or Dataframe, dask_cudf Series or DataFrame
         A node or a list or cudf.Series of nodes or a cudf.DataFrame if nodes
         are represented with multiple columns. If a cudf.DataFrame is provided,
         only the first row is taken as the node input.
@@ -119,25 +130,30 @@ def ego_graph(input_graph, n, radius=1, center=True):
     # Initialize dask client
     client = input_graph._client
 
-    if n is not None:
-        if isinstance(n, int):
-            n = [n]
-        if isinstance(n, list):
-            n = cudf.Series(n)
-        if not isinstance(n, cudf.Series):
+    if isinstance(n, int):
+        n = [n]
+    if isinstance(n, list):
+        n = cudf.Series(n)
+    elif not isinstance(n, (cudf.Series, dask_cudf.Series)):
+        if not isinstance(n, (cudf.DataFrame, dask_cudf.DataFrame)):
             raise TypeError(
-                f"'n' must be either a list or a cudf.Series," f"got: {n.dtype}"
+                f"'n' must be either an integer or a list or a "
+                f"cudf or dask_cudf Series or DataFrame, got: {type(n)}"
             )
-        num_seeds = len(n)
-        # n uses "external" vertex IDs, but since the graph has been
-        # renumbered, the node ID must also be renumbered.
-        if input_graph.renumbered:
-            n = input_graph.lookup_internal_vertex_id(n).compute()
-            n_type = input_graph.edgelist.edgelist_df.dtypes[0]
-        else:
-            n_type = input_graph.input_df.dtypes[0]
 
-    n = dask_cudf.from_cudf(n, npartitions=min(input_graph._npartitions, len(n)))
+    num_seeds = len(n)
+    # n uses "external" vertex IDs, but since the graph has been
+    # renumbered, the node ID must also be renumbered.
+    if input_graph.renumbered:
+        n = input_graph.lookup_internal_vertex_id(n)
+        n_type = input_graph.edgelist.edgelist_df.dtypes[0]
+    else:
+        n_type = input_graph.input_df.dtypes[0]
+
+    if isinstance(n, (cudf.Series, cudf.DataFrame)):
+        n = dask_cudf.from_cudf(
+            n, npartitions=min(input_graph._npartitions, len(n)))
+
     n = n.astype(n_type)
 
     n = get_distributed_data(n)

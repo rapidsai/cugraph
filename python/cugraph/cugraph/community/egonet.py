@@ -61,7 +61,7 @@ def ego_graph(G, n, radius=1, center=True, undirected=None, distance=None):
         information. Edge weights, if present, should be single or double
         precision floating point values.
 
-    n : integer or cudf.DataFrame
+    n : integer or list, cudf.Series, cudf.DataFrame
         A single node as integer or a cudf.DataFrame if nodes are
         represented with multiple columns. If a cudf.DataFrame is provided,
         only the first row is taken as the node input.
@@ -73,10 +73,10 @@ def ego_graph(G, n, radius=1, center=True, undirected=None, distance=None):
         Defaults to True. False is not supported
 
     undirected: bool, optional
-        This parameter is here for NetworkX compatibility and ignored
+        This parameter is here for NetworkX compatibility and is ignored
 
     distance: key, optional (default=None)
-        This parameter is here for NetworkX compatibility and ignored
+        This parameter is here for NetworkX compatibility and is ignored
 
     Returns
     -------
@@ -93,7 +93,7 @@ def ego_graph(G, n, radius=1, center=True, undirected=None, distance=None):
     """
     (G, input_type) = ensure_cugraph_obj(G, nx_weight_attr="weight")
 
-    result_graph = type(G)()
+    result_graph = type(G)(directed=G.is_directed())
 
     if undirected is not None:
         warning_msg = (
@@ -102,17 +102,22 @@ def ego_graph(G, n, radius=1, center=True, undirected=None, distance=None):
         )
         warnings.warn(warning_msg, PendingDeprecationWarning)
 
-    if n is not None:
-        if isinstance(n, int):
-            n = [n]
-        if isinstance(n, list):
-            n = cudf.Series(n)
-
+  
+    if isinstance(n, int):
+        n = [n]
+    if isinstance(n, list):
+        n = cudf.Series(n)
+    if isinstance(n, cudf.Series):
         if G.renumbered is True:
-            if isinstance(n, cudf.DataFrame):
-                n = G.lookup_internal_vertex_id(n, n.columns)
-            else:
-                n = G.lookup_internal_vertex_id(n)
+            n = G.lookup_internal_vertex_id(n)
+    elif isinstance(n, cudf.DataFrame):
+        if G.renumbered is True:
+            n = G.lookup_internal_vertex_id(n, n.columns)
+    else:
+        raise TypeError(
+            f"'n' must be either an integer or a list or a cudf.Series"
+            f" or a cudf.DataFrame, got: {type(n)}"
+        )
 
     # Match the seed to the vertex dtype
     n_type = G.edgelist.edgelist_df["src"].dtype
