@@ -1,8 +1,7 @@
 
+from ogb.nodeproppred import NodePropPredDataset
+
 def create_mag(server):
-    import torch
-    import torch_geometric
-    from ogb.nodeproppred import NodePropPredDataset
     dataset = NodePropPredDataset(name = 'ogbn-mag') 
 
     data = dataset[0]
