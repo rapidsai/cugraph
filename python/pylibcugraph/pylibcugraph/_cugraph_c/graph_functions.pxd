@@ -15,8 +15,8 @@
 # cython: language_level = 3
 
 from pylibcugraph._cugraph_c.resource_handle cimport (
-    bool_t,
     cugraph_resource_handle_t,
+    bool_t,
 )
 from pylibcugraph._cugraph_c.error cimport (
     cugraph_error_code_t,
@@ -24,91 +24,90 @@ from pylibcugraph._cugraph_c.error cimport (
 )
 from pylibcugraph._cugraph_c.array cimport (
     cugraph_type_erased_device_array_view_t,
-    cugraph_type_erased_host_array_view_t,
 )
 from pylibcugraph._cugraph_c.graph cimport (
     cugraph_graph_t,
 )
 
-from pylibcugraph._cugraph_c.graph_functions cimport (
-    cugraph_induced_subgraph_result_t,
-)
 
-
-cdef extern from "cugraph_c/community_algorithms.h":
+cdef extern from "cugraph_c/graph_functions.h":
     ###########################################################################
-    # triangle_count
-    ctypedef struct cugraph_triangle_count_result_t:
+    # vertex_pairs
+    ctypedef struct cugraph_vertex_pairs_t:
         pass
-
+    
     cdef cugraph_type_erased_device_array_view_t* \
-        cugraph_triangle_count_result_get_vertices(
-            cugraph_triangle_count_result_t* result
+        cugraph_vertex_pairs_get_first(
+            cugraph_vertex_pairs_t* vertex_pairs
         )
     
     cdef cugraph_type_erased_device_array_view_t* \
-        cugraph_triangle_count_result_get_counts(
-            cugraph_triangle_count_result_t* result
+        cugraph_vertex_pairs_get_second(
+            cugraph_vertex_pairs_t* vertex_pairs
         )
     
     cdef void \
-        cugraph_triangle_count_result_free(
-            cugraph_triangle_count_result_t* result
+        cugraph_vertex_pairs_free(
+            cugraph_vertex_pairs_t* vertex_pairs
         )
     
     cdef cugraph_error_code_t \
-        cugraph_triangle_count(
+        cugraph_create_vertex_pairs(
             const cugraph_resource_handle_t* handle,
             cugraph_graph_t* graph,
-            const cugraph_type_erased_device_array_view_t* start,
-            bool_t do_expensive_check,
-            cugraph_triangle_count_result_t** result,
+            const cugraph_type_erased_device_array_view_t* first,
+            const cugraph_type_erased_device_array_view_t* second,
+            cugraph_vertex_pairs_t** vertex_pairs,
             cugraph_error_t** error
         )
 
+    cdef cugraph_error_code_t \
+        cugraph_two_hop_neighbors(
+            const cugraph_resource_handle_t* handle,
+            const cugraph_graph_t* graph,
+            const cugraph_type_erased_device_array_view_t* start_vertices,
+            cugraph_vertex_pairs_t** result,
+            cugraph_error_t** error
+        )
+    
     ###########################################################################
-    # louvain
-    ctypedef struct cugraph_heirarchical_clustering_result_t:
+    # induced_subgraph
+    ctypedef struct cugraph_induced_subgraph_result_t:
         pass
 
     cdef cugraph_type_erased_device_array_view_t* \
-        cugraph_heirarchical_clustering_result_get_vertices(
-            cugraph_heirarchical_clustering_result_t* result
+        cugraph_induced_subgraph_get_sources(
+            cugraph_induced_subgraph_result_t* induced_subgraph
         )
-
+    
     cdef cugraph_type_erased_device_array_view_t* \
-        cugraph_heirarchical_clustering_result_get_clusters(
-            cugraph_heirarchical_clustering_result_t* result
+        cugraph_induced_subgraph_get_destinations(
+            cugraph_induced_subgraph_result_t* induced_subgraph
         )
     
-    cdef double cugraph_heirarchical_clustering_result_get_modularity(
-        cugraph_heirarchical_clustering_result_t* result
+    cdef cugraph_type_erased_device_array_view_t* \
+        cugraph_induced_subgraph_get_edge_weights(
+            cugraph_induced_subgraph_result_t* induced_subgraph
         )
-
+    
+    cdef cugraph_type_erased_device_array_view_t* \
+        cugraph_induced_subgraph_get_subgraph_offsets(
+            cugraph_induced_subgraph_result_t* induced_subgraph
+        )
+    
     cdef void \
-        cugraph_heirarchical_clustering_result_free(
-            cugraph_heirarchical_clustering_result_t* result
-        )
-
-    cdef cugraph_error_code_t \
-        cugraph_louvain(
-            const cugraph_resource_handle_t* handle,
-            cugraph_graph_t* graph,
-            size_t max_level,
-            double resolution,
-            bool_t do_expensive_check,
-            cugraph_heirarchical_clustering_result_t** result,
-            cugraph_error_t** error
+        cugraph_induced_subgraph_result_free(
+            cugraph_induced_subgraph_result_t* induced_subgraph
         )
     
-    # extract_ego
     cdef cugraph_error_code_t \
-        cugraph_extract_ego(
+        cugraph_extract_induced_subgraph(
             const cugraph_resource_handle_t* handle,
             cugraph_graph_t* graph,
-            const cugraph_type_erased_device_array_view_t* source_vertices,
-            size_t radius,
+            const cugraph_type_erased_device_array_view_t* subgraph_offsets,
+            const cugraph_type_erased_device_array_view_t* subgraph_vertices,
             bool_t do_expensive_check,
             cugraph_induced_subgraph_result_t** result,
             cugraph_error_t** error
         )
+
