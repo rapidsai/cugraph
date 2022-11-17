@@ -133,8 +133,8 @@ def ego_graph(input_graph, n, radius=1, center=True):
     n = n.astype(n_type)
 
     n = get_distributed_data(n)
-
     wait(n)
+
     n = n.worker_to_parts
 
     do_expensive_check = False
