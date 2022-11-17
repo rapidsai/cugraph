@@ -112,7 +112,6 @@ def k_core(G, k=None, core_number=None, degree_type=None):
 
     if core_number is None:
         core_number = _call_plc_core_number(G)
-        core_number = core_number.rename(columns={"core_number": "values"}, copy=False)
     else:
         if G.renumbered:
             if len(G.renumber_map.implementation.col_names) > 1:
@@ -123,6 +122,7 @@ def k_core(G, k=None, core_number=None, degree_type=None):
             core_number = G.add_internal_vertex_id(
                 core_number, "vertex", cols, preserve_order=True)
 
+    core_number = core_number.rename(columns={"core_number": "values"}, copy=False)
     if k is None:
         k = core_number["values"].max()
 
