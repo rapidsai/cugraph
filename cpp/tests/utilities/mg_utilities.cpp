@@ -44,11 +44,9 @@ int query_mpi_comm_world_size()
   return comm_size;
 }
 
-std::unique_ptr<raft::handle_t> initialize_mg_handle()
+std::unique_ptr<raft::handle_t> initialize_mg_handle(size_t pool_size)
 {
   std::unique_ptr<raft::handle_t> handle{nullptr};
-
-  auto constexpr pool_size = 64;  // FIXME: tuning parameter
 
   handle = std::make_unique<raft::handle_t>(rmm::cuda_stream_per_thread,
                                             std::make_shared<rmm::cuda_stream_pool>(pool_size));

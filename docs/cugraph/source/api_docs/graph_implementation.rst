@@ -5,7 +5,7 @@ Graph Implementation
 
 
 Graph Implementation
--------------------------
+--------------------
 .. autosummary::
     :toctree: api/
 

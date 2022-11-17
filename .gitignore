@@ -32,7 +32,7 @@ test-results
 dask-worker-space/
 htmlcov
 dist/
-cugraph.egg-info/
+*.egg-info/
 python/build
 python/cugraph/bindings/*.cpp
 wheels/

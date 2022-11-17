@@ -21,20 +21,20 @@ from libc.stdint cimport uintptr_t
 from libcpp.utility cimport move
 
 from rmm._lib.device_buffer cimport DeviceBuffer
-from cudf.core.buffer import Buffer
+from cudf.core.buffer import as_buffer
 import cudf
 
 
 cdef move_device_buffer_to_column(
     unique_ptr[device_buffer] device_buffer_unique_ptr, dtype):
     """
-    Transfers ownership of device_buffer_unique_ptr to a cuDF Buffer which is
+    Transfers ownership of device_buffer_unique_ptr to a cuDF buffer which is
     used to construct a cudf column object, which is then returned. If the
-    intermediate Buffer is empty, the device_buffer_unique_ptr is still
+    intermediate buffer is empty, the device_buffer_unique_ptr is still
     transfered but None is returned.
     """
     buff = DeviceBuffer.c_from_unique_ptr(move(device_buffer_unique_ptr))
-    buff = Buffer(buff)
+    buff = as_buffer(buff)
     if buff.nbytes != 0:
         column = cudf.core.column.build_column(buff, dtype=dtype)
         return column
@@ -44,9 +44,9 @@ cdef move_device_buffer_to_column(
 cdef move_device_buffer_to_series(
     unique_ptr[device_buffer] device_buffer_unique_ptr, dtype, series_name):
     """
-    Transfers ownership of device_buffer_unique_ptr to a cuDF Buffer which is
+    Transfers ownership of device_buffer_unique_ptr to a cuDF buffer which is
     used to construct a cudf.Series object with name series_name, which is then
-    returned. If the intermediate Buffer is empty, the device_buffer_unique_ptr
+    returned. If the intermediate buffer is empty, the device_buffer_unique_ptr
     is still transfered but None is returned.
     """
     column = move_device_buffer_to_column(move(device_buffer_unique_ptr), dtype)
