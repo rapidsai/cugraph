@@ -1886,6 +1886,108 @@ def test_single_csv_multi_vertex_edge_attrs():
     pass
 
 
+def test_fillna_vertices():
+    from cugraph.experimental import PropertyGraph
+
+    df_edgelist = cudf.DataFrame(
+        {
+            "src": [0, 7, 2, 0, 1, 3, 1, 4, 5, 6],
+            "dst": [1, 1, 1, 3, 2, 1, 6, 5, 6, 7],
+            "val": [1, None, 2, None, 3, None, 4, None, 5, None],
+        }
+    )
+
+    df_props = cudf.DataFrame(
+        {
+            "id": [0, 1, 2, 3, 4, 5, 6, 7],
+            "a": [0, 1, None, 2, None, 4, 1, 8],
+            "b": [None, 1, None, 2, None, 3, 8, 9],
+        }
+    )
+
+    pG = PropertyGraph()
+    pG.add_edge_data(df_edgelist, vertex_col_names=["src", "dst"])
+    pG.add_vertex_data(df_props, vertex_col_name="id")
+
+    pG.fillna_vertices({"a": 2, "b": 3})
+
+    assert not pG.get_vertex_data(columns=["a", "b"]).isna().any().any()
+    assert pG.get_edge_data(columns=["val"]).isna().any().any()
+
+    expected_values_prop_a = [
+        0,
+        1,
+        2,
+        2,
+        2,
+        4,
+        1,
+        8,
+    ]
+    assert pG.get_vertex_data(columns=["a"])["a"].values_host.tolist() == (
+        expected_values_prop_a
+    )
+
+    expected_values_prop_b = [
+        3,
+        1,
+        3,
+        2,
+        3,
+        3,
+        8,
+        9,
+    ]
+    assert pG.get_vertex_data(columns=["b"])["b"].values_host.tolist() == (
+        expected_values_prop_b
+    )
+
+
+def test_fillna_edges():
+    from cugraph.experimental import PropertyGraph
+
+    df_edgelist = cudf.DataFrame(
+        {
+            "src": [0, 7, 2, 0, 1, 3, 1, 4, 5, 6],
+            "dst": [1, 1, 1, 3, 2, 1, 6, 5, 6, 7],
+            "val": [1, None, 2, None, 3, None, 4, None, 5, None],
+        }
+    )
+
+    df_props = cudf.DataFrame(
+        {
+            "id": [0, 1, 2, 3, 4, 5, 6, 7],
+            "a": [0, 1, None, 2, None, 4, 1, 8],
+            "b": [None, 1, None, 2, None, 3, 8, 9],
+        }
+    )
+
+    pG = PropertyGraph()
+    pG.add_edge_data(df_edgelist, vertex_col_names=["src", "dst"])
+    pG.add_vertex_data(df_props, vertex_col_name="id")
+
+    pG.fillna_edges(2)
+
+    assert not pG.get_edge_data(columns=["val"]).isna().any().any()
+    assert pG.get_vertex_data(columns=["a", "b"]).isna().any().any()
+
+    expected_values_prop_val = [
+        1,
+        2,
+        2,
+        2,
+        3,
+        2,
+        4,
+        2,
+        5,
+        2,
+    ]
+    assert pG.get_edge_data(columns=["val"])["val"].values_host.tolist() == (
+        expected_values_prop_val
+    )
+
+
 # =============================================================================
 # Benchmarks
 # =============================================================================
