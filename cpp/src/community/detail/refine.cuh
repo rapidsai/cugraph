@@ -82,7 +82,7 @@ struct cluster_update_op_t {
 };
 
 // a workaround for cudaErrorInvalidDeviceFunction error when device lambda is used
-template <typename vertex_t, typename weight_t>
+template <typename vertex_t, typename weight_t, typename cluster_value_t>
 struct leiden_key_aggregated_edge_op_t {
   weight_t total_edge_weight{};
   weight_t resolution{};
@@ -91,7 +91,7 @@ struct leiden_key_aggregated_edge_op_t {
     vertex_t neighboring_leiden_cluster,
     weight_t aggregated_weight_to_neighboring_leiden_cluster,
     thrust::tuple<weight_t, weight_t, weight_t, uint8_t, vertex_t, vertex_t> src_info,
-    thrust::tuple<weight_t, weight_t, vertex_t, vertex_t> keyed_data) const
+    cluster_value_t keyed_data) const
   {
     //
     // Data associated with src vertex
@@ -162,6 +162,7 @@ refine_clustering_2(
   // FIXME: put duplicated code in a function
   using vertex_t = typename graph_view_t::vertex_type;
   using weight_t = typename graph_view_t::weight_type;
+  using edge_t   = typename graph_view_t::edge_type;
 
   //--------------duplicated code
   rmm::device_uvector<weight_t> vertex_cluster_weights_v(0, handle.get_stream());
@@ -547,6 +548,18 @@ refine_clustering_2(
                                                  leiden_assignment.begin(),
                                                  lovain_of_refined_comms.begin()));
 
+  using value_t = thrust::tuple<weight_t, weight_t, vertex_t, vertex_t>;
+  kv_store_t<vertex_t, value_t, true> leiden_cluster_key_values_map(
+    leiden_cluster_keys.begin(),
+    leiden_cluster_keys.begin() + leiden_cluster_keys.size(),
+    values_for_leiden_cluster_keys,
+    thrust::make_tuple(std::numeric_limits<weight_t>::max(),
+                       std::numeric_limits<weight_t>::max(),
+                       invalid_vertex_id<vertex_t>::value,
+                       invalid_vertex_id<vertex_t>::value),
+    false,
+    handle.get_stream());
+
   //
   // Decide best/positive move for each vertex
   //
@@ -558,19 +571,60 @@ refine_clustering_2(
     graph_view_t::is_multi_gpu ? dst_leiden_cluster_cache.view()
                                : detail::edge_minor_property_view_t<vertex_t, vertex_t const*>(
                                    leiden_assignment.data(), vertex_t{0}),
-    leiden_cluster_keys.begin(),
-    leiden_cluster_keys.end(),
-    values_for_leiden_cluster_keys,
-    invalid_vertex_id<vertex_t>::value,
-    thrust::make_tuple(std::numeric_limits<weight_t>::max(),
-                       std::numeric_limits<weight_t>::max(),
-                       invalid_vertex_id<vertex_t>::value,
-                       invalid_vertex_id<vertex_t>::value),
-    detail::leiden_key_aggregated_edge_op_t<vertex_t, weight_t>{total_edge_weight, resolution},
+    leiden_cluster_key_values_map.view(),
+    detail::leiden_key_aggregated_edge_op_t<vertex_t, weight_t, value_t>{total_edge_weight,
+                                                                         resolution},
     thrust::make_tuple(vertex_t{-1}, weight_t{0}),
     detail::reduce_op_t<vertex_t, weight_t>{},
     cugraph::get_dataframe_buffer_begin(output_buffer));
 
+  //
+  // Create graph from (community, target community, modulraity gain) tuple
+  //
+
+  size_t num_vertices = graph_view.local_vertex_partition_range_size();
+
+  rmm::device_uvector<vertex_t> d_srcs(num_vertices, handle.get_stream());
+  rmm::device_uvector<vertex_t> d_dsts(num_vertices, handle.get_stream());
+  std::optional<rmm::device_uvector<weight_t>> d_weights =
+    std::make_optional(rmm::device_uvector<weight_t>(num_vertices, handle.get_stream()));
+
+  auto d_dst_weight_iterator =
+    thrust::make_zip_iterator(thrust::make_tuple(d_dsts.begin(), (*d_weights).begin()));
+
+  thrust::sequence(handle.get_thrust_policy(),
+                   d_srcs.begin(),
+                   d_srcs.end(),
+                   graph_view.local_vertex_partition_range_first());
+
+  thrust::copy(handle.get_thrust_policy(),
+               cugraph::get_dataframe_buffer_cbegin(output_buffer),
+               cugraph::get_dataframe_buffer_cend(output_buffer),
+               d_dst_weight_iterator);
+
+  constexpr bool storage_transposed = false;
+  constexpr bool multi_gpu          = graph_view_t::is_multi_gpu;
+
+  cugraph::graph_t<vertex_t, edge_t, weight_t, storage_transposed, multi_gpu> decision_graph(
+    handle);
+
+  std::optional<rmm::device_uvector<vertex_t>> d_vertices =
+    std::make_optional(rmm::device_uvector<vertex_t>(num_vertices, handle.get_stream()));
+
+  std::optional<rmm::device_uvector<vertex_t>> renumber_map{std::nullopt};
+
+  std::tie(decision_graph, std::ignore, renumber_map) =
+    create_graph_from_edgelist<vertex_t, edge_t, weight_t, int32_t, storage_transposed, multi_gpu>(
+      handle,
+      std::nullopt,
+      std::move(d_srcs),
+      std::move(d_dsts),
+      std::move(d_weights),
+      std::nullopt,
+      cugraph::graph_properties_t{false, false},
+      multi_gpu ? true : false);
+
+  //
   //
   // Move singleton vertex to other singleton/non-singleton Leiden community
   //

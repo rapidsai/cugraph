@@ -154,7 +154,7 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
   HighResTimer hr_timer;
 
   weight_t best_modularity   = weight_t{-1.0};
-  weight_t total_edge_weight = current_graph_view.compute_total_edge_weight(handle);
+  weight_t total_edge_weight = compute_total_edge_weight(handle, current_graph_view);
 
   //
   // Bookkeeping per cluster
@@ -195,7 +195,7 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
     detail::timer_start<graph_view_t::is_multi_gpu>(
       handle, hr_timer, "compute_vertex_and_cluster_weights");
 
-    vertex_weights = current_graph_view.compute_out_weight_sums(handle);
+    vertex_weights = compute_out_weight_sums(handle, current_graph_view);
     cluster_keys.resize(vertex_weights.size(), handle.get_stream());
     cluster_weights.resize(vertex_weights.size(), handle.get_stream());
 
