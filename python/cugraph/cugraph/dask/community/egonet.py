@@ -131,15 +131,16 @@ def ego_graph(input_graph, n, radius=1, center=True):
     client = input_graph._client
 
     if isinstance(n, int):
-        n = [n]
-    if isinstance(n, list):
         n = cudf.Series(n)
-    elif not isinstance(n, (cudf.Series, dask_cudf.Series)):
-        if not isinstance(n, (cudf.DataFrame, dask_cudf.DataFrame)):
-            raise TypeError(
-                f"'n' must be either an integer or a list or a "
-                f"cudf or dask_cudf Series or DataFrame, got: {type(n)}"
-            )
+    elif isinstance(n, list):
+        n = cudf.Series(n)
+    elif not isinstance(
+        n, (cudf.Series, dask_cudf.Series, cudf.DataFrame, dask_cudf.DataFrame)
+    ):
+        raise TypeError(
+            f"'n' must be either an integer or a list or a "
+            f"cudf or dask_cudf Series or DataFrame, got: {type(n)}"
+        )
 
     num_seeds = len(n)
     # n uses "external" vertex IDs, but since the graph has been
