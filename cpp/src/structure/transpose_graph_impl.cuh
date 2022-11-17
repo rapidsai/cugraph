@@ -89,7 +89,7 @@ transpose_graph_impl(raft::handle_t const& handle,
       std::move(edgelist_srcs),
       std::move(edgelist_weights),
       std::nullopt,
-      graph_properties_t{is_multigraph, false},
+      graph_properties_t{false, is_multigraph},
       true);
 
   return std::make_tuple(std::move(transposed_graph), std::move(new_renumber_map));
@@ -150,7 +150,7 @@ transpose_graph_impl(raft::handle_t const& handle,
       std::move(edgelist_srcs),
       std::move(edgelist_weights),
       std::nullopt,
-      graph_properties_t{is_multigraph, false},
+      graph_properties_t{false, is_multigraph},
       renumber);
 
   return std::make_tuple(std::move(transposed_graph), std::move(new_renumber_map));

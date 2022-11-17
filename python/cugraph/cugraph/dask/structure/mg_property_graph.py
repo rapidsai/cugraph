@@ -363,20 +363,19 @@ class EXPERIMENTAL__MGPropertyGraph:
                 f"{vertex_col_name} is not a column in "
                 f"dataframe: {dataframe.columns}"
             )
-        if (type_name is not None) and not isinstance(type_name, str):
-            raise TypeError("type_name must be a string, got: " f"{type(type_name)}")
+        if type_name is not None and not isinstance(type_name, str):
+            raise TypeError(f"type_name must be a string, got: {type(type_name)}")
         if type_name is None:
             type_name = self._default_type_name
         if property_columns:
             if type(property_columns) is not list:
                 raise TypeError(
-                    "property_columns must be a list, got: " f"{type(property_columns)}"
+                    f"property_columns must be a list, got: {type(property_columns)}"
                 )
             invalid_columns = set(property_columns).difference(dataframe.columns)
             if invalid_columns:
                 raise ValueError(
-                    "property_columns contains column(s) not "
-                    "found in dataframe: "
+                    "property_columns contains column(s) not found in dataframe: "
                     f"{list(invalid_columns)}"
                 )
 
@@ -385,52 +384,32 @@ class EXPERIMENTAL__MGPropertyGraph:
         self.__num_vertices = None
         self.__vertex_type_value_counts = None  # Could update instead
 
-        # Initialize the __vertex_prop_dataframe if necessary using the same
-        # type as the incoming dataframe.
+        # Add `type_name` to the TYPE categorical dtype if necessary
         TCN = self.type_col_name
-        default_vertex_columns = [self.vertex_col_name, TCN]
-        if self.__vertex_prop_dataframe is None:
-            temp_dataframe = cudf.DataFrame(columns=default_vertex_columns)
-            self.__vertex_prop_dataframe = dask_cudf.from_cudf(
-                temp_dataframe, npartitions=self.__num_workers
-            )
-            # Initialize the new columns to the same dtype as the appropriate
-            # column in the incoming dataframe, since the initial merge may not
-            # result in the same dtype. (see
-            # https://github.com/rapidsai/cudf/issues/9981)
-            self.__update_dataframe_dtypes(
-                self.__vertex_prop_dataframe,
-                {self.vertex_col_name: dataframe[vertex_col_name].dtype},
-            )
-            self.__vertex_prop_dataframe = self.__vertex_prop_dataframe.set_index(
-                self.vertex_col_name
-            )
-
-            # Use categorical dtype for the type column
+        is_first_data = self.__vertex_prop_dataframe is None
+        if is_first_data:
             if self.__series_type is dask_cudf.Series:
                 cat_class = cudf.CategoricalDtype
             else:
                 cat_class = pd.CategoricalDtype
             cat_dtype = cat_class([type_name], ordered=False)
-            self.__vertex_prop_dataframe[TCN] = self.__vertex_prop_dataframe[
-                TCN
-            ].astype(cat_dtype)
-
-        # Ensure that both the predetermined vertex ID column name and vertex
-        # type column name are present for proper merging.
+        else:
+            cat_dtype = self.__update_categorical_dtype(
+                self.__vertex_prop_dataframe, TCN, type_name
+            )
 
         # NOTE: This copies the incoming DataFrame in order to add the new
         # columns. The copied DataFrame is then merged (another copy) and then
         # deleted when out-of-scope.
+
+        # Ensure that both the predetermined vertex ID column name and vertex
+        # type column name are present for proper merging.
         tmp_df = dataframe.copy()
         tmp_df[self.vertex_col_name] = tmp_df[vertex_col_name]
         # FIXME: handle case of a type_name column already being in tmp_df
 
-        # Add `type_name` to the categorical dtype if necessary
-        cat_dtype = self.__update_categorical_dtype(
-            self.__vertex_prop_dataframe, TCN, type_name
-        )
-
+        # FIXME: We should do categorization first
+        # Related issue: https://github.com/rapidsai/cugraph/issues/2903
         tmp_df[TCN] = type_name
         tmp_df[TCN] = tmp_df[TCN].astype(cat_dtype)
 
@@ -439,7 +418,7 @@ class EXPERIMENTAL__MGPropertyGraph:
             column_names_to_drop = set(tmp_df.columns)
             # remove the ones to keep
             column_names_to_drop.difference_update(
-                property_columns + default_vertex_columns
+                property_columns + [self.vertex_col_name, TCN]
             )
         else:
             column_names_to_drop = {vertex_col_name}
@@ -448,27 +427,41 @@ class EXPERIMENTAL__MGPropertyGraph:
         # Save the original dtypes for each new column so they can be restored
         # prior to constructing subgraphs (since column dtypes may get altered
         # during merge to accommodate NaN values).
-        new_col_info = self.__get_new_column_dtypes(
-            tmp_df, self.__vertex_prop_dataframe
-        )
+        if is_first_data:
+            new_col_info = tmp_df.dtypes.items()
+        else:
+            new_col_info = self.__get_new_column_dtypes(
+                tmp_df, self.__vertex_prop_dataframe
+            )
         self.__vertex_prop_dtypes.update(new_col_info)
 
-        # Join on shared columns and the indices
+        # TODO: allow tmp_df to come in with vertex id already as index
         tmp_df = tmp_df.persist().set_index(self.vertex_col_name).persist()
-        cols = self.__vertex_prop_dataframe.columns.intersection(
-            tmp_df.columns
-        ).to_list()
-        cols.append(self.vertex_col_name)
-        # FIXME: workaround for: https://github.com/rapidsai/cudf/issues/11550
-        self.__vertex_prop_dataframe = (
-            self.__vertex_prop_dataframe.reset_index()
-            .merge(tmp_df.reset_index(), on=cols, how="outer")
-            .persist()
-            .set_index(self.vertex_col_name)
-            .persist()
-        )
-        # self.__vertex_prop_dataframe = \
-        #     self.__vertex_prop_dataframe.merge(tmp_df, on=cols, how="outer")
+        self.__update_dataframe_dtypes(tmp_df, self.__vertex_prop_dtypes)
+
+        if is_first_data:
+            self.__vertex_prop_dataframe = tmp_df
+        else:
+            # Join on vertex ids (the index)
+            # TODO: can we automagically determine when we to use concat?
+            df = self.__vertex_prop_dataframe.join(
+                tmp_df,
+                how="outer",
+                rsuffix="_NEW_",
+                # npartitions=self.__num_workers  # TODO: see how this behaves
+            ).persist()
+            cols = self.__vertex_prop_dataframe.columns.intersection(
+                tmp_df.columns
+            ).to_list()
+            rename_cols = {f"{col}_NEW_": col for col in cols}
+            new_cols = list(rename_cols)
+            sub_df = df[new_cols].rename(columns=rename_cols)
+            # This only adds data--it doesn't replace existing data
+            df = df.drop(columns=new_cols).fillna(sub_df).persist()
+            if df.npartitions > 4 * self.__num_workers:
+                # TODO: better understand behavior of npartitions argument in join
+                df = df.repartition(npartitions=2 * self.__num_workers).persist()
+            self.__vertex_prop_dataframe = df
 
         # Update the vertex eval dict with the latest column instances
         latest = {
@@ -580,20 +573,19 @@ class EXPERIMENTAL__MGPropertyGraph:
                 "vertex_col_names contains column(s) not found "
                 f"in dataframe: {list(invalid_columns)}"
             )
-        if (type_name is not None) and not isinstance(type_name, str):
-            raise TypeError("type_name must be a string, got: " f"{type(type_name)}")
+        if type_name is not None and not isinstance(type_name, str):
+            raise TypeError(f"type_name must be a string, got: {type(type_name)}")
         if type_name is None:
             type_name = self._default_type_name
         if property_columns:
             if type(property_columns) is not list:
                 raise TypeError(
-                    "property_columns must be a list, got: " f"{type(property_columns)}"
+                    f"property_columns must be a list, got: {type(property_columns)}"
                 )
             invalid_columns = set(property_columns).difference(dataframe.columns)
             if invalid_columns:
                 raise ValueError(
-                    "property_columns contains column(s) not "
-                    "found in dataframe: "
+                    "property_columns contains column(s) not found in dataframe: "
                     f"{list(invalid_columns)}"
                 )
         if self.__is_edge_id_autogenerated is False and edge_id_col_name is None:
@@ -614,31 +606,20 @@ class EXPERIMENTAL__MGPropertyGraph:
         self.__num_vertices = None
         self.__edge_type_value_counts = None  # Could update instead
 
+        # Add `type_name` to the categorical dtype if necessary
         TCN = self.type_col_name
-        default_edge_columns = [self.src_col_name, self.dst_col_name, TCN]
-        if self.__edge_prop_dataframe is None:
-            temp_dataframe = cudf.DataFrame(columns=default_edge_columns)
-            self.__update_dataframe_dtypes(
-                temp_dataframe,
-                {
-                    self.src_col_name: dataframe[vertex_col_names[0]].dtype,
-                    self.dst_col_name: dataframe[vertex_col_names[1]].dtype,
-                },
-            )
-            temp_dataframe.index.name = self.edge_id_col_name
-
-            # Use categorical dtype for the type column
+        is_first_data = self.__edge_prop_dataframe is None
+        if is_first_data:
             if self.__series_type is dask_cudf.Series:
                 cat_class = cudf.CategoricalDtype
             else:
                 cat_class = pd.CategoricalDtype
             cat_dtype = cat_class([type_name], ordered=False)
-            temp_dataframe[TCN] = temp_dataframe[TCN].astype(cat_dtype)
-
-            self.__edge_prop_dataframe = dask_cudf.from_cudf(
-                temp_dataframe, npartitions=self.__num_workers
-            )
             self.__is_edge_id_autogenerated = edge_id_col_name is None
+        else:
+            cat_dtype = self.__update_categorical_dtype(
+                self.__edge_prop_dataframe, TCN, type_name
+            )
 
         # NOTE: This copies the incoming DataFrame in order to add the new
         # columns. The copied DataFrame is then merged (another copy) and then
@@ -647,10 +628,8 @@ class EXPERIMENTAL__MGPropertyGraph:
         tmp_df[self.src_col_name] = tmp_df[vertex_col_names[0]]
         tmp_df[self.dst_col_name] = tmp_df[vertex_col_names[1]]
 
-        # Add `type_name` to the categorical dtype if necessary
-        cat_dtype = self.__update_categorical_dtype(
-            self.__edge_prop_dataframe, TCN, type_name
-        )
+        # FIXME: We should do categorization first
+        # Related issue: https://github.com/rapidsai/cugraph/issues/2903
 
         tmp_df[TCN] = type_name
         tmp_df[TCN] = tmp_df[TCN].astype(cat_dtype)
@@ -679,7 +658,7 @@ class EXPERIMENTAL__MGPropertyGraph:
             column_names_to_drop = set(tmp_df.columns)
             # remove the ones to keep
             column_names_to_drop.difference_update(
-                property_columns + default_edge_columns
+                property_columns + [self.src_col_name, self.dst_col_name, TCN]
             )
         else:
             column_names_to_drop = {vertex_col_names[0], vertex_col_names[1]}
@@ -688,22 +667,40 @@ class EXPERIMENTAL__MGPropertyGraph:
         # Save the original dtypes for each new column so they can be restored
         # prior to constructing subgraphs (since column dtypes may get altered
         # during merge to accommodate NaN values).
-        new_col_info = self.__get_new_column_dtypes(tmp_df, self.__edge_prop_dataframe)
+        if is_first_data:
+            new_col_info = tmp_df.dtypes.items()
+        else:
+            new_col_info = self.__get_new_column_dtypes(
+                tmp_df, self.__edge_prop_dataframe
+            )
         self.__edge_prop_dtypes.update(new_col_info)
 
-        # Join on shared columns and the indices
-        cols = self.__edge_prop_dataframe.columns.intersection(tmp_df.columns).to_list()
-        cols.append(self.edge_id_col_name)
-        # FIXME: workaround for: https://github.com/rapidsai/cudf/issues/11550
-        self.__edge_prop_dataframe = (
-            self.__edge_prop_dataframe.reset_index()
-            .merge(tmp_df.reset_index(), on=cols, how="outer")
-            .persist()
-            .set_index(self.edge_id_col_name)
-            .persist()
-        )
-        # self.__edge_prop_dataframe = \
-        #     self.__edge_prop_dataframe.merge(tmp_df, on=cols, how="outer")
+        # TODO: allow tmp_df to come in with edge id already as index
+        self.__update_dataframe_dtypes(tmp_df, self.__edge_prop_dtypes)
+
+        if is_first_data:
+            self.__edge_prop_dataframe = tmp_df
+        else:
+            # Join on edge ids (the index)
+            # TODO: can we automagically determine when we to use concat?
+            df = self.__edge_prop_dataframe.join(
+                tmp_df,
+                how="outer",
+                rsuffix="_NEW_",
+                # npartitions=self.__num_workers  # TODO: see how this behaves
+            ).persist()
+            cols = self.__edge_prop_dataframe.columns.intersection(
+                tmp_df.columns
+            ).to_list()
+            rename_cols = {f"{col}_NEW_": col for col in cols}
+            new_cols = list(rename_cols)
+            sub_df = df[new_cols].rename(columns=rename_cols)
+            # This only adds data--it doesn't replace existing data
+            df = df.drop(columns=new_cols).fillna(sub_df).persist()
+            if df.npartitions > 4 * self.__num_workers:
+                # TODO: better understand behavior of npartitions argument in join
+                df = df.repartition(npartitions=2 * self.__num_workers).persist()
+            self.__edge_prop_dataframe = df
 
         # Update the edge eval dict with the latest column instances
         latest = dict(
@@ -843,7 +840,7 @@ class EXPERIMENTAL__MGPropertyGraph:
         --------
         >>>
         """
-        if (selection is not None) and not isinstance(
+        if selection is not None and not isinstance(
             selection, EXPERIMENTAL__MGPropertySelection
         ):
             raise TypeError(
@@ -857,14 +854,14 @@ class EXPERIMENTAL__MGPropertyGraph:
         # dtypes (eg. int64 to float64 in order to add NaN entries). This
         # should not be a problem since the conversions do not change the
         # values.
-        if (selection is not None) and (selection.vertex_selections is not None):
+        if selection is not None and selection.vertex_selections is not None:
             selected_vertex_dataframe = self.__vertex_prop_dataframe[
                 selection.vertex_selections
             ]
         else:
             selected_vertex_dataframe = None
 
-        if (selection is not None) and (selection.edge_selections is not None):
+        if selection is not None and selection.edge_selections is not None:
             selected_edge_dataframe = self.__edge_prop_dataframe[
                 selection.edge_selections
             ]
@@ -877,7 +874,8 @@ class EXPERIMENTAL__MGPropertyGraph:
         # selected verts in both src and dst
         if (
             selected_vertex_dataframe is not None
-        ) and not selected_vertex_dataframe.empty:
+            and not selected_vertex_dataframe.empty
+        ):
             has_srcs = selected_edge_dataframe[self.src_col_name].isin(
                 selected_vertex_dataframe.index
             )
@@ -958,8 +956,7 @@ class EXPERIMENTAL__MGPropertyGraph:
             if prop_col.count().compute() != prop_col.size:
                 if default_edge_weight is None:
                     raise ValueError(
-                        "edge_weight_property "
-                        f'"{edge_weight_property}" '
+                        f'edge_weight_property "{edge_weight_property}" '
                         "contains NA values in the subgraph and "
                         "default_edge_weight is not set"
                     )
@@ -1023,7 +1020,7 @@ class EXPERIMENTAL__MGPropertyGraph:
         # take place. The C renumbering only occurs for pylibcugraph algos,
         # hence the reason these extracted subgraphs only work with PLC algos.
         if renumber_graph is False:
-            raise ValueError("currently, renumber_graph must be set to True " "for MG")
+            raise ValueError("currently, renumber_graph must be set to True for MG")
         legacy_renum_only = True
 
         col_names = [self.src_col_name, self.dst_col_name]
@@ -1075,7 +1072,7 @@ class EXPERIMENTAL__MGPropertyGraph:
         else:
             cat_class = pd.CategoricalDtype
 
-        is_cat = isinstance(self.__vertex_prop_dataframe[TCN].dtype, cat_class)
+        is_cat = isinstance(self.__vertex_prop_dataframe.dtypes[TCN], cat_class)
         if not is_cat:
             cat_dtype = cat_class([TCN], ordered=False)
             self.__vertex_prop_dataframe[TCN] = self.__vertex_prop_dataframe[
@@ -1124,12 +1121,8 @@ class EXPERIMENTAL__MGPropertyGraph:
         cat_dtype = df.index.dtype
         df.index = df.index.astype(str)
 
-        rv = (
-            # self._vertex_type_value_counts
-            df.sort_index()
-            .cumsum()
-            .to_frame("stop")
-        )
+        # self._vertex_type_value_counts
+        rv = df.sort_index().cumsum().to_frame("stop")
 
         # FIXME DASK_CUDF: https://github.com/rapidsai/cudf/issues/11795
         df.index = df.index.astype(cat_dtype)
@@ -1169,12 +1162,8 @@ class EXPERIMENTAL__MGPropertyGraph:
         assert df.index.dtype == cat_dtype
         df.index = df.index.astype(str)
 
-        rv = (
-            # self._edge_type_value_counts
-            df.sort_index()
-            .cumsum()
-            .to_frame("stop")
-        )
+        # self._edge_type_value_counts
+        rv = df.sort_index().cumsum().to_frame("stop")
 
         # FIXME DASK_CUDF: https://github.com/rapidsai/cudf/issues/11795
         df.index = df.index.astype(cat_dtype)
@@ -1249,7 +1238,7 @@ class EXPERIMENTAL__MGPropertyGraph:
         column in from_df that is not present in to_df.
         """
         new_cols = set(from_df.columns) - set(to_df.columns)
-        return [(col, from_df[col].dtype) for col in new_cols]
+        return [(col, from_df.dtypes[col]) for col in new_cols]
 
     @staticmethod
     def __update_dataframe_dtypes(df, column_dtype_dict):
@@ -1259,6 +1248,8 @@ class EXPERIMENTAL__MGPropertyGraph:
         integer dtypes, needed to accommodate NA values in columns.
         """
         for (col, dtype) in column_dtype_dict.items():
+            if col not in df.columns:
+                continue
             # If the DataFrame is Pandas and the dtype is an integer type,
             # ensure a nullable integer array is used by specifying the correct
             # dtype. The alias for these dtypes is simply a capitalized string
@@ -1267,7 +1258,7 @@ class EXPERIMENTAL__MGPropertyGraph:
             dtype_str = str(dtype)
             if dtype_str in ["int32", "int64"]:
                 dtype_str = dtype_str.title()
-            if str(df[col].dtype) != dtype_str:
+            if str(df.dtypes[col]) != dtype_str:
                 df[col] = df[col].astype(dtype_str)
 
     def __update_categorical_dtype(self, df, column, val):
