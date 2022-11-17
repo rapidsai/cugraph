@@ -3,7 +3,10 @@
   <img src="../img/gnn_blog.png" alt="cuGraph" width="500">
 </h1>
 
+<h1 align="left";>
+  <br>
 GNN Support
+</h1>
 
 Rapids offers support to GNN (Graph Neural Networks). Several components of the Rapids ecosystem fit into a typical GNN framework as shown below.
 An overview of GNN's and how they are used is found in this excellent [blog](https://blogs.nvidia.com/blog/2022/10/24/what-are-graph-neural-networks/).
