@@ -1213,7 +1213,7 @@ class EXPERIMENTAL__MGPropertyGraph:
         if prev_id_column is None:
             df = df.sort_values(by=self.type_col_name, ignore_index=True)
         else:
-            df.index.name = prev_id_column
+            df.index = df.index.rename(prev_id_column)
             df = df.sort_values(by=self.type_col_name).reset_index()
 
         # FIXME DASK_CUDF: https://github.com/rapidsai/cudf/issues/11795
