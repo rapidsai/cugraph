@@ -478,3 +478,26 @@ def test_extension_adds_graph(
     # is unloaded from the server before returning
     for mod_name in ext_mod_names:
         client.unload_extension_module(mod_name)
+
+
+def test_inside_asyncio_event_loop(client_with_edgelist_csv_loaded, result_device_id):
+    import asyncio
+    from cugraph_service_client import defaults
+
+    client, test_data = client_with_edgelist_csv_loaded
+
+    start_list = [1, 2, 3]
+    fanout_vals = [2, 2, 2]
+    with_replacement = True
+
+    async def uns():
+        return client.uniform_neighbor_sample(
+            start_list=start_list,
+            fanout_vals=fanout_vals,
+            with_replacement=with_replacement,
+            graph_id=defaults.graph_id,
+            result_device=result_device_id,
+        )
+
+    # ensure call succeeds; have confirmed this fails without fix in client
+    assert asyncio.run(uns()) is not None
