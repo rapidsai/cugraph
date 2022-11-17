@@ -11,14 +11,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# NOTE: Requires cuGraph nightly cugraph-22.12.00a220417 or later
-from cugraph_dgl.utils.cugraph_storage_utils import _assert_valid_canonical_etype
-from cugraph_dgl.utils.cugraph_storage_utils import convert_can_etype_s_to_tup
-from cugraph_dgl.utils.cugraph_storage_utils import backend_dtype_to_np_dtype_dict
+from __future__ import annotations
+from typing import Optional, Sequence, Tuple, Dict
+from cugraph.utilities.utils import import_optional, MissingModule
 
-import dgl
-import dgl.backend as F
-from typing import Tuple, Optional, Sequence
+from cugraph_dgl.utils.cugraph_storage_utils import (
+    _assert_valid_canonical_etype,
+    backend_dtype_to_np_dtype_dict,
+    convert_can_etype_s_to_tup,
+)
+
+dgl = import_optional("dgl")
+F = import_optional("dgl.backend")
 
 
 class CuGraphStorage:
@@ -36,11 +40,11 @@ class CuGraphStorage:
 
     def __init__(
         self,
-        num_nodes_dict: dict[str, int],
+        num_nodes_dict: Dict[str, int],
         single_gpu: bool = True,
         cugraph_service_client=None,
         device_id: int = 0,
-        idtype=F.int32,
+        idtype=None if isinstance(F, MissingModule) else F.int64,
     ):
         """
         Constructor for creating a object of instance CuGraphStorage
@@ -68,6 +72,7 @@ class CuGraphStorage:
             The data type for storing the structure-related graph
             information this can be ``torch.int32`` or ``torch.int64``
             for PyTorch.
+            Defaults to ``torch.int64`` if pytorch is installed
          Examples
          --------
          The following example uses `CuGraphStorage` :
@@ -146,9 +151,8 @@ class CuGraphStorage:
             import numba.cuda as cuda
 
             cuda.select_device(device_id)
+            from cugraph.experimental import MGPropertyGraph, PropertyGraph
             from cugraph.gnn import CuGraphStore
-            from cugraph.experimental import PropertyGraph
-            from cugraph.experimental import MGPropertyGraph
 
             if single_gpu:
                 pg = PropertyGraph()
@@ -823,7 +827,12 @@ class CuGraphStorage:
             )
         return can_etypes[0]
 
-    def __convert_pycap_to_dgl_tensor_d(self, graph_data_cap_d, o_dtype=F.int64):
+    def __convert_pycap_to_dgl_tensor_d(
+        self,
+        graph_data_cap_d,
+        o_dtype=None if isinstance(F, MissingModule) else F.int64,
+    ):
+
         graph_data_d = {}
         graph_eid_d = {}
         for canonical_etype_s, (
