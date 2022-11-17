@@ -49,7 +49,7 @@ def run_async(func, *args, **kwargs):
         loop = asyncio.get_running_loop()
     except RuntimeError:
         loop = None
-    if loop and loop.is_running():
+    if loop is not None:
         thread = RunAsyncioThread(func, args, kwargs)
         thread.start()
         thread.join()
