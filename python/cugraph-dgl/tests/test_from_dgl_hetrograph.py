@@ -17,22 +17,22 @@ try:
 except ModuleNotFoundError:
     pytest.skip("cugraph_dgl not available", allow_module_level=True)
 
-import dgl
-import dgl.backend as F
-import torch as th
-
+from cugraph.utilities.utils import import_optional
 from .utils import (
+    assert_same_edge_feats,
+    assert_same_node_feats,
     assert_same_num_edges_can_etypes,
     assert_same_num_edges_etypes,
-    assert_same_edge_feats,
+    assert_same_num_nodes,
 )
-from .utils import assert_same_num_nodes, assert_same_node_feats
 
-device = "cuda"
-ctx = th.device(device)
+th = import_optional("torch")
+dgl = import_optional("dgl")
+F = import_optional("dgl.backend")
 
 
 def create_heterograph1(idtype):
+    ctx = th.device("cuda")
     graph_data = {
         ("nt.a", "join.1", "nt.a"): (
             F.tensor([0, 1, 2], dtype=idtype),
@@ -43,12 +43,14 @@ def create_heterograph1(idtype):
             F.tensor([0, 1, 2], dtype=idtype),
         ),
     }
-    g = dgl.heterograph(graph_data, device=ctx)
+    g = dgl.heterograph(graph_data, device=th.device("cuda"))
     g.nodes["nt.a"].data["h"] = F.copy_to(F.tensor([1, 1, 1], dtype=idtype), ctx=ctx)
     return g
 
 
 def create_heterograph2(idtype):
+    ctx = th.device("cuda")
+
     g = dgl.heterograph(
         {
             ("user", "plays", "game"): (
@@ -65,7 +67,7 @@ def create_heterograph2(idtype):
             ),
         },
         idtype=idtype,
-        device=ctx,
+        device=th.device("cuda"),
     )
 
     g.nodes["user"].data["h"] = F.copy_to(F.tensor([1, 1, 1], dtype=idtype), ctx=ctx)
@@ -79,6 +81,8 @@ def create_heterograph2(idtype):
 
 
 def create_heterograph3(idtype):
+    ctx = th.device("cuda")
+
     g = dgl.heterograph(
         {
             ("user", "follows", "user"): (
@@ -91,7 +95,7 @@ def create_heterograph3(idtype):
             ),
         },
         idtype=idtype,
-        device=ctx,
+        device=th.device("cuda"),
     )
     g.nodes["user"].data["h"] = F.copy_to(F.tensor([1, 1, 1], dtype=idtype), ctx=ctx)
     g.nodes["game"].data["h"] = F.copy_to(F.tensor([2, 2], dtype=idtype), ctx=ctx)
@@ -106,6 +110,8 @@ def create_heterograph3(idtype):
 
 
 def create_heterograph4(idtype):
+    ctx = th.device("cuda")
+
     g = dgl.heterograph(
         {
             ("user", "follows", "user"): (
@@ -118,7 +124,7 @@ def create_heterograph4(idtype):
             ),
         },
         idtype=idtype,
-        device=ctx,
+        device=th.device("cuda"),
     )
     g.nodes["user"].data["h"] = F.copy_to(F.tensor([1, 1, 1], dtype=idtype), ctx=ctx)
     g.nodes["game"].data["h"] = F.copy_to(F.tensor([2, 2], dtype=idtype), ctx=ctx)
