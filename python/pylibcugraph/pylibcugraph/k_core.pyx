@@ -179,4 +179,4 @@ def k_core(ResourceHandle resource_handle,
     cugraph_k_core_result_free(k_core_result_ptr)
     cugraph_core_result_free(core_result_ptr)
 
-    return (cupy_src_vertices, cupy_src_vertices, cupy_weights)
+    return (cupy_src_vertices, cupy_dst_vertices, cupy_weights)
