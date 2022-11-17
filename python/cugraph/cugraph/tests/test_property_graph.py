@@ -1913,7 +1913,8 @@ def test_fillna_vertices():
 
     assert not pG.get_vertex_data(columns=["a", "b"]).isna().any().any()
     assert pG.get_edge_data(columns=["val"]).isna().any().any()
-    assert pG.get_vertex_data(columns=["a"])["a"].values_host.tolist() == [
+
+    expected_values_prop_a = [
         0,
         1,
         2,
@@ -1923,7 +1924,11 @@ def test_fillna_vertices():
         1,
         8,
     ]
-    assert pG.get_vertex_data(columns=["b"])["b"].values_host.tolist() == [
+    assert pG.get_vertex_data(columns=["a"])["a"].values_host.tolist() == (
+        expected_values_prop_a
+    )
+
+    expected_values_prop_b = [
         3,
         1,
         3,
@@ -1933,6 +1938,9 @@ def test_fillna_vertices():
         8,
         9,
     ]
+    assert pG.get_vertex_data(columns=["b"])["b"].values_host.tolist() == (
+        expected_values_prop_b
+    )
 
 
 def test_fillna_edges():
@@ -1962,7 +1970,8 @@ def test_fillna_edges():
 
     assert not pG.get_edge_data(columns=["val"]).isna().any().any()
     assert pG.get_vertex_data(columns=["a", "b"]).isna().any().any()
-    assert pG.get_edge_data(columns=["val"])["val"].values_host.tolist() == [
+
+    expected_values_prop_val = [
         1,
         2,
         2,
@@ -1974,6 +1983,9 @@ def test_fillna_edges():
         5,
         2,
     ]
+    assert pG.get_edge_data(columns=["val"])["val"].values_host.tolist() == (
+        expected_values_prop_val
+    )
 
 
 # =============================================================================

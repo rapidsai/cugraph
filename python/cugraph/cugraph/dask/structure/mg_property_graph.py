@@ -762,7 +762,7 @@ class EXPERIMENTAL__MGPropertyGraph:
 
         Parameters
         ----------
-        val : object, cudf.Series, or dict
+        val : object, Series, or dict
             The object that will replace "na". Default = 0.  If a dict or
             Series is passed, the index or keys are the columns to fill
             and the values are the fill value for the corresponding column.
@@ -778,7 +778,7 @@ class EXPERIMENTAL__MGPropertyGraph:
 
         Parameters
         ----------
-        val : object, cudf.Series, or dict
+        val : object, Series, or dict
             The object that will replace "na". Default = 0.  If a dict or
             Series is passed, the index or keys are the columns to fill
             and the values are the fill value for the corresponding column.
