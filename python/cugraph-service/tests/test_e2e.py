@@ -395,6 +395,12 @@ def test_extension_returns_none(client, extension_returns_none):
 
 @pytest.mark.parametrize("vert_ids", [[11, 86, 89021], np.array([11, 86, 89021])])
 def test_get_graph_vertex_data(client_with_property_csvs_loaded, vert_ids):
+    """
+    This test ensures that the get_graph_vertex_data call from the client
+    is working as expected.  It tests both a Python list and numpy array
+    as input.  The numpy array check was added after a bug was found where
+    the client did not properly construct a GraphVertexEdgeID thrift union.
+    """
     (client, test_data) = client_with_property_csvs_loaded
 
     # FIXME: do not hardcode the shape values, get them from the input data.
