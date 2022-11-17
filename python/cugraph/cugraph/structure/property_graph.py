@@ -1245,6 +1245,35 @@ class EXPERIMENTAL__PropertyGraph:
 
         return None
 
+    def fillna_vertices(self, val=0):
+        """
+        Fills empty vertex property values with the given value, zero by default.
+        Fills in-place.
+
+        Parameters
+        ----------
+        val : object, Series, or dict
+            The object that will replace "na". Default = 0.  If a dict or
+            Series is passed, the index or keys are the columns to fill
+            and the values are the fill value for the corresponding column.
+        """
+        self.__vertex_prop_dataframe.fillna(val, inplace=True)
+
+    def fillna_edges(self, val=0):
+        """
+        Fills empty edge property values with the given value, zero by default.
+        Fills in-place.
+
+        Parameters
+        ----------
+        val : object, Series, or dict
+            The object that will replace "na". Default = 0.  If a dict or
+            Series is passed, the index or keys are the columns to fill
+            and the values are the fill value for the corresponding column.
+        """
+
+        self.__edge_prop_dataframe.fillna(val, inplace=True)
+
     def select_vertices(self, expr, from_previous_selection=None):
         """
         Evaluate expr and return a PropertySelection object representing the
@@ -2101,6 +2130,13 @@ class EXPERIMENTAL__PropertyGraph:
                 'Provide a fill value or use `missing="ignore"` to ignore empty rows.'
             )
         return rv
+
+    def is_multi_gpu(self):
+        """
+        Return True if this is a multi-gpu graph.  Always returns False for
+        PropertyGraph.
+        """
+        return False
 
     @classmethod
     def is_multigraph(cls, df):

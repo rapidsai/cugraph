@@ -902,7 +902,7 @@ def test_renumber_edges_by_type(dataset1_MGPropertyGraph):
     assert empty_pG.renumber_edges_by_type() is None
 
 
-def test_add_data_noncontiguous():
+def test_add_data_noncontiguous(dask_client):
     from cugraph.experimental import MGPropertyGraph
 
     df = cudf.DataFrame(
@@ -1183,6 +1183,120 @@ def test_edge_vector_property(dask_client):
     assert_array_equal(vec2, expected)
     with pytest.raises(RuntimeError):
         pG.edge_vector_property_to_array(df, "vec2", missing="error").compute()
+
+
+def test_fillna_vertices():
+    from cugraph.experimental import MGPropertyGraph
+
+    df_edgelist = dask_cudf.from_cudf(
+        cudf.DataFrame(
+            {
+                "src": [0, 7, 2, 0, 1, 3, 1, 4, 5, 6],
+                "dst": [1, 1, 1, 3, 2, 1, 6, 5, 6, 7],
+                "val": [1, None, 2, None, 3, None, 4, None, 5, None],
+            }
+        ),
+        npartitions=2,
+    )
+
+    df_props = dask_cudf.from_cudf(
+        cudf.DataFrame(
+            {
+                "id": [0, 1, 2, 3, 4, 5, 6, 7],
+                "a": [0, 1, None, 2, None, 4, 1, 8],
+                "b": [None, 1, None, 2, None, 3, 8, 9],
+            }
+        ),
+        npartitions=2,
+    )
+
+    pG = MGPropertyGraph()
+    pG.add_edge_data(df_edgelist, vertex_col_names=["src", "dst"])
+    pG.add_vertex_data(df_props, vertex_col_name="id")
+
+    pG.fillna_vertices({"a": 2, "b": 3})
+
+    assert not pG.get_vertex_data(columns=["a", "b"]).compute().isna().any().any()
+    assert pG.get_edge_data(columns=["val"]).compute().isna().any().any()
+
+    expected_values_prop_a = [
+        0,
+        1,
+        2,
+        2,
+        2,
+        4,
+        1,
+        8,
+    ]
+    assert pG.get_vertex_data(columns=["a"])["a"].compute().values_host.tolist() == (
+        expected_values_prop_a
+    )
+
+    expected_values_prop_b = [
+        3,
+        1,
+        3,
+        2,
+        3,
+        3,
+        8,
+        9,
+    ]
+    assert pG.get_vertex_data(columns=["b"])["b"].compute().values_host.tolist() == (
+        expected_values_prop_b
+    )
+
+
+def test_fillna_edges():
+    from cugraph.experimental import MGPropertyGraph
+
+    df_edgelist = dask_cudf.from_cudf(
+        cudf.DataFrame(
+            {
+                "src": [0, 7, 2, 0, 1, 3, 1, 4, 5, 6],
+                "dst": [1, 1, 1, 3, 2, 1, 6, 5, 6, 7],
+                "val": [1, None, 2, None, 3, None, 4, None, 5, None],
+            }
+        ),
+        npartitions=2,
+    )
+
+    df_props = dask_cudf.from_cudf(
+        cudf.DataFrame(
+            {
+                "id": [0, 1, 2, 3, 4, 5, 6, 7],
+                "a": [0, 1, None, 2, None, 4, 1, 8],
+                "b": [None, 1, None, 2, None, 3, 8, 9],
+            }
+        ),
+        npartitions=2,
+    )
+
+    pG = MGPropertyGraph()
+    pG.add_edge_data(df_edgelist, vertex_col_names=["src", "dst"])
+    pG.add_vertex_data(df_props, vertex_col_name="id")
+
+    pG.fillna_edges(2)
+
+    assert not pG.get_edge_data(columns=["val"]).compute().isna().any().any()
+    assert pG.get_vertex_data(columns=["a", "b"]).compute().isna().any().any()
+
+    expected_values_prop_val = [
+        1,
+        2,
+        2,
+        2,
+        3,
+        2,
+        4,
+        2,
+        5,
+        2,
+    ]
+    assert pG.get_edge_data(columns=["val"])["val"].compute().values_host.tolist() == (
+        expected_values_prop_val
+    )
 
 
 # =============================================================================

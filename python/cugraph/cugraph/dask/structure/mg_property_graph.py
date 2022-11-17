@@ -937,6 +937,37 @@ class EXPERIMENTAL__MGPropertyGraph:
 
         return None
 
+    def fillna_vertices(self, val=0):
+        """
+        Fills empty vertex property values with the given value, zero by default.
+        Fills in-place.
+
+        Parameters
+        ----------
+        val : object, Series, or dict
+            The object that will replace "na". Default = 0.  If a dict or
+            Series is passed, the index or keys are the columns to fill
+            and the values are the fill value for the corresponding column.
+        """
+        self.__vertex_prop_dataframe = self.__vertex_prop_dataframe.fillna(
+            val
+        ).persist()
+
+    def fillna_edges(self, val=0):
+        """
+        Fills empty edge property values with the given value, zero by default.
+        Fills in-place.
+
+        Parameters
+        ----------
+        val : object, Series, or dict
+            The object that will replace "na". Default = 0.  If a dict or
+            Series is passed, the index or keys are the columns to fill
+            and the values are the fill value for the corresponding column.
+        """
+
+        self.__edge_prop_dataframe = self.__edge_prop_dataframe.fillna(val).persist()
+
     def select_vertices(self, expr, from_previous_selection=None):
         raise NotImplementedError
 
@@ -1496,6 +1527,13 @@ class EXPERIMENTAL__MGPropertyGraph:
             missing,
             meta=meta,
         )
+
+    def is_multi_gpu(self):
+        """
+        Return True if this is a multi-gpu graph.  Always returns True for
+        MGPropertyGraph.
+        """
+        return True
 
     @classmethod
     def is_multigraph(cls, df):
