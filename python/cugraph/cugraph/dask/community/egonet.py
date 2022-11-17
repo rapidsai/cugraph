@@ -40,7 +40,7 @@ def _call_ego_graph(
     )
 
 
-def consolidate_results(ddf, offsets, num_seeds):
+def consolidate_results(df, offsets):
     """
     Each rank returns its ego_graph dataframe with its corresponding
     offsets array. This is ideal if the user operates on distributed memory
@@ -49,48 +49,29 @@ def consolidate_results(ddf, offsets, num_seeds):
     using the offsets array. This function consolidate the final result by
     performing segmented copies.
 
-    Returns: consolidated ego_graph dataframe and offsets array
+    Returns: consolidated ego_graph dataframe
     """
+    for i in range(len(offsets) - 1):
+        df_tmp = df[offsets[i]:offsets[i+1]]
+        df_tmp["labels"] = i
+        if i == 0:
+            df_consolidate = df_tmp
+        else:
+            df_consolidate = cudf.concat([df_consolidate, df_tmp])
+    return df_consolidate
+
+
+def convert_to_cudf(cp_arrays):
+    cp_src, cp_dst, cp_weight, cp_offsets = cp_arrays
 
     df = cudf.DataFrame()
-    offset_array = [0]
-    for s in range(num_seeds):
-        start_ofst = s
-        end_ofst = s + 2
-        for p in range(ddf.npartitions):
-            offsets_tmp = offsets.get_partition(p).compute()
+    df["src"] = cp_src
+    df["dst"] = cp_dst
+    df["weight"] = cp_weight
 
-            start = offsets_tmp[start_ofst:end_ofst].reset_index(drop=True)[0]
-            end = offsets_tmp[start_ofst:end_ofst].reset_index(drop=True)[1]
+    offsets = cudf.Series(cp_offsets)
 
-            ddf_tmp = ddf.get_partition(p).compute()
-            df_tmp = ddf_tmp
-
-            df_tmp = df_tmp[start:end]
-            df = df.append(df_tmp)
-
-        offset_array.append(len(df))
-
-    offset_array = cudf.Series(offset_array)
-    df = df.reset_index(drop=True)
-    return df, offset_array
-
-
-def convert_to_cudf(*cp_arrays):
-    """
-    Creates a cudf DataFrame from cupy arrays from pylibcugraph wrapper
-    """
-    if len(cp_arrays) == 1:
-        # offsets array
-        return cudf.Series(cp_arrays[0])
-    else:
-        cupy_src, cupy_dst, cupy_weight = cp_arrays
-        df = cudf.DataFrame()
-        df["src"] = cupy_src
-        df["dst"] = cupy_dst
-        df["weight"] = cupy_weight
-
-        return df
+    return consolidate_results(df, offsets)
 
 
 def ego_graph(input_graph, n, radius=1, center=True):
@@ -105,7 +86,7 @@ def ego_graph(input_graph, n, radius=1, center=True):
         information. Edge weights, if present, should be single or double
         precision floating point values.
 
-    n : int, list or cudf Series or Dataframe, dask_cudf Series or DataFrame
+    n : int, list or cudf.Series, cudf.DataFrame
         A node or a list or cudf.Series of nodes or a cudf.DataFrame if nodes
         are represented with multiple columns. If a cudf.DataFrame is provided,
         only the first row is taken as the node input.
@@ -130,28 +111,25 @@ def ego_graph(input_graph, n, radius=1, center=True):
     # Initialize dask client
     client = input_graph._client
 
-    if isinstance(n, (int, list)):
-        n = cudf.Series(n)
-    elif not isinstance(
-        n, (cudf.Series, dask_cudf.Series, cudf.DataFrame, dask_cudf.DataFrame)
-    ):
-        raise TypeError(
-            f"'n' must be either an integer or a list or a "
-            f"cudf or dask_cudf Series or DataFrame, got: {type(n)}"
-        )
+    if n is not None:
+        if isinstance(n, int):
+            n = [n]
+        if isinstance(n, list):
+            n = cudf.Series(n)
+        if not isinstance(n, cudf.Series):
+            raise TypeError(
+                f"'n' must be either a list or a cudf.Series," f"got: {n.dtype}"
+            )
+        num_seeds = len(n)
+        # n uses "external" vertex IDs, but since the graph has been
+        # renumbered, the node ID must also be renumbered.
+        if input_graph.renumbered:
+            n = input_graph.lookup_internal_vertex_id(n).compute()
+            n_type = input_graph.edgelist.edgelist_df.dtypes[0]
+        else:
+            n_type = input_graph.input_df.dtypes[0]
 
-    num_seeds = len(n)
-    # n uses "external" vertex IDs, but since the graph has been
-    # renumbered, the node ID must also be renumbered.
-    if input_graph.renumbered:
-        n = input_graph.lookup_internal_vertex_id(n)
-        n_type = input_graph.edgelist.edgelist_df.dtypes[0]
-    else:
-        n_type = input_graph.input_df.dtypes[0]
-
-    if isinstance(n, (cudf.Series, cudf.DataFrame)):
-        n = dask_cudf.from_cudf(n, npartitions=min(input_graph._npartitions, len(n)))
-
+    n = dask_cudf.from_cudf(n, npartitions=min(input_graph._npartitions, len(n)))
     n = n.astype(n_type)
 
     n = get_distributed_data(n)
@@ -176,45 +154,25 @@ def ego_graph(input_graph, n, radius=1, center=True):
     ]
     wait(result)
 
-    result_src = [client.submit(op.getitem, f, 0) for f in result]
-    result_dst = [client.submit(op.getitem, f, 1) for f in result]
-    result_wgt = [client.submit(op.getitem, f, 2) for f in result]
-    result_offset = [client.submit(op.getitem, f, 3) for f in result]
+    cudf_result = [client.submit(convert_to_cudf, cp_arrays) for cp_arrays in result]
 
-    cudf_edge = [
-        client.submit(convert_to_cudf, cp_src, cp_dst, cp_wgt)
-        for cp_src, cp_dst, cp_wgt in zip(result_src, result_dst, result_wgt)
-    ]
+    wait(cudf_result)
 
-    cudf_offset = [
-        client.submit(convert_to_cudf, cp_offsets) for cp_offsets in result_offset
-    ]
-
-    wait(cudf_edge)
-    wait(cudf_offset)
-
-    ddf = dask_cudf.from_delayed(cudf_edge).persist()
-    offsets = dask_cudf.from_delayed(cudf_offset).persist()
+    ddf = dask_cudf.from_delayed(cudf_result).persist()
     wait(ddf)
-    wait(offsets)
-    # Wait until the inactive futures are released
+
     wait(
-        [
-            (r.release(), c_e.release(), c_o.release())
-            for r, c_e, c_o in zip(result, cudf_edge, cudf_offset)
-        ]
-    )
+        [(r.release(), c_r.release()) for r, c_r in zip(result, cudf_result)])
 
-    if input_graph.renumbered:
-        ddf = input_graph.unrenumber(ddf, "src")
-        ddf = input_graph.unrenumber(ddf, "dst")
+    ddf = ddf.sort_values("labels")
 
-    # FIXME: optimize this function with 'dask map_partitions'
-    df, offset_array = consolidate_results(ddf, offsets, num_seeds)
-
-    ddf = dask_cudf.from_cudf(df, npartitions=min(input_graph._npartitions, len(n)))
+    # extract offsets from segmented ego_graph dataframes
+    offsets = ddf["labels"].value_counts().compute().sort_index()
+    offsets = cudf.concat([cudf.Series(0), offsets])
     offsets = dask_cudf.from_cudf(
-        offset_array, npartitions=min(input_graph._npartitions, len(n))
-    )
+        offsets, npartitions=min(
+            input_graph._npartitions, len(n))).cumsum().astype(n_type)
+
+    ddf = ddf.drop(columns="labels")
 
     return ddf, offsets
