@@ -64,7 +64,7 @@ def uniform_neighbor_sample(
 
     if isinstance(start_list, list):
         start_list = cudf.Series(
-            start_list, dtype=G.edgelist.edgelist_df["sources"].dtype
+            start_list, dtype=G.edgelist.edgelist_df[G.srcCol].dtype
         )
 
     # fanout_vals must be a host array!
