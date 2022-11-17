@@ -30,26 +30,6 @@ dst_n = "destinations"
 indices_n = "indices"
 
 
-def create_iterable_args(
-    session_id, input_graph, start_list, fanout_vals, with_replacement, weight_t
-):
-    npartitions = input_graph._npartitions
-    session_id_it = [session_id] * npartitions
-    graph_it = input_graph._plc_graph.values()
-    start_list_it = cp.array_split(start_list.values, npartitions)
-    fanout_vals_it = [fanout_vals] * npartitions
-    with_replacement_it = [with_replacement] * npartitions
-    weight_t_it = [weight_t] * npartitions
-    return [
-        session_id_it,
-        graph_it,
-        start_list_it,
-        fanout_vals_it,
-        with_replacement_it,
-        weight_t_it,
-    ]
-
-
 def create_empty_df(indices_t, weight_t):
     df = cudf.DataFrame(
         {
@@ -134,7 +114,6 @@ def uniform_neighbor_sample(
             Contains the indices from the sampling result for path
             reconstruction
     """
-
     if isinstance(start_list, int):
         start_list = [start_list]
 
@@ -171,14 +150,24 @@ def uniform_neighbor_sample(
     client = input_graph._client
 
     session_id = Comms.get_session_id()
+    start_list = cp.array_split(start_list.values, input_graph._npartitions)
 
-    # Send tasks all at once
-    result = client.map(
-        _call_plc_uniform_neighbor_sample,
-        *create_iterable_args(
-            session_id, input_graph, start_list, fanout_vals, with_replacement, weight_t
-        ),
-    )
+    result = [
+        client.submit(
+            _call_plc_uniform_neighbor_sample,
+            session_id,
+            input_graph._plc_graph[w],
+            start_list[i],
+            fanout_vals,
+            with_replacement,
+            weight_t=weight_t,
+            workers=[w],
+            allow_other_workers=False,
+            pure=False,
+        )
+        for i, w in enumerate(Comms.get_workers())
+    ]
+
     ddf = dask_cudf.from_delayed(
         result, meta=create_empty_df(indices_t, weight_t), verify_meta=False
     ).persist()
