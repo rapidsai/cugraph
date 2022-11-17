@@ -102,9 +102,7 @@ def ego_graph(G, n, radius=1, center=True, undirected=None, distance=None):
         )
         warnings.warn(warning_msg, PendingDeprecationWarning)
 
-    if isinstance(n, int):
-        n = [n]
-    if isinstance(n, list):
+    if isinstance(n, (int, list)):
         n = cudf.Series(n)
     if isinstance(n, cudf.Series):
         if G.renumbered is True:

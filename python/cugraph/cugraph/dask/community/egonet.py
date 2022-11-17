@@ -130,9 +130,7 @@ def ego_graph(input_graph, n, radius=1, center=True):
     # Initialize dask client
     client = input_graph._client
 
-    if isinstance(n, int):
-        n = cudf.Series(n)
-    elif isinstance(n, list):
+    elif isinstance(n, (int, list)):
         n = cudf.Series(n)
     elif not isinstance(
         n, (cudf.Series, dask_cudf.Series, cudf.DataFrame, dask_cudf.DataFrame)
