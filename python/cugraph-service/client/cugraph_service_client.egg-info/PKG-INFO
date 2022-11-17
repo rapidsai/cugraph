@@ -1,9 +1,0 @@
-Metadata-Version: 2.1
-Name: cugraph-service-client
-Version: 22.6.0a0+388.g25c66bca.dirty
-Summary: cuGraph Service client
-Home-page: https://github.com/rapidsai/cugraph
-Author: NVIDIA Corporation
-License: Apache
-Classifier: Intended Audience :: Developers
-Classifier: Programming Language :: Python
