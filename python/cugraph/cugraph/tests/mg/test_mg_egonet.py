@@ -129,7 +129,7 @@ def test_dask_ego_graphs(dask_client, benchmark, input_expected_output):
     mg_df, mg_offsets = result_ego_graph
 
     mg_df = mg_df.compute()
-    mg_offsets = mg_offsets.compute()
+    mg_offsets = mg_offsets.compute().reset_index(drop=True)
 
     sg_df, sg_offsets = input_expected_output["sg_cugraph_results"]
 
