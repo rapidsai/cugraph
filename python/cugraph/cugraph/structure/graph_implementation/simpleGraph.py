@@ -103,6 +103,7 @@ class simpleGraphImpl:
     # FIXME: Change to public function
     # FIXME: Make function more modular
     # edge_attr: None, weight, or (weight, id, type)
+    # FIXME: Remove legacy renum
     def __from_edgelist(
         self,
         input_df,
