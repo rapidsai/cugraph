@@ -12,6 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from cugraph_service_client.remote_graph_utils import import_optional, MissingModule
+
+import numpy as np
+
 from functools import wraps
 from collections.abc import Sequence
 import pickle
@@ -19,7 +23,6 @@ import ucp
 import asyncio
 import threading
 
-import cupy as cp
 
 from cugraph_service_client import defaults
 from cugraph_service_client.remote_graph import RemoteGraph
@@ -30,6 +33,10 @@ from cugraph_service_client.types import (
     UniformNeighborSampleResult,
 )
 from cugraph_service_client.cugraph_service_thrift import create_client
+
+cp = import_optional("cupy")
+cudf = import_optional("cudf")
+pandas = import_optional("pandas")
 
 
 class DeviceArrayAllocator:
@@ -1433,9 +1440,26 @@ class CugraphServiceClient:
 
     @staticmethod
     def __get_vertex_edge_id_obj(id_or_ids):
-        # FIXME: do not assume all values are int32
+        # Force np.ndarray
+        if not isinstance(id_or_ids, (int, Sequence, np.ndarray)):
+            if not isinstance(cp, MissingModule) and isinstance(id_or_ids, cp.ndarray):
+                id_or_ids = id_or_ids.get()
+            elif not isinstance(cudf, MissingModule) and isinstance(
+                id_or_ids, cudf.Series
+            ):
+                id_or_ids = id_or_ids.values_host
+            elif not isinstance(pandas, MissingModule) and isinstance(
+                id_or_ids, pandas.Series
+            ):
+                id_or_ids = id_or_ids.to_numpy()
+
         if isinstance(id_or_ids, Sequence):
-            vert_edge_id_obj = GraphVertexEdgeID(int32_ids=id_or_ids)
+            vert_edge_id_obj = GraphVertexEdgeID(int64_ids=id_or_ids)
+        elif isinstance(id_or_ids, np.ndarray):
+            if id_or_ids.dtype == "int32":
+                vert_edge_id_obj = GraphVertexEdgeID(int32_ids=id_or_ids)
+            elif id_or_ids.dtype == "int64":
+                vert_edge_id_obj = GraphVertexEdgeID(int64_ids=id_or_ids)
         else:
-            vert_edge_id_obj = GraphVertexEdgeID(int32_id=id_or_ids)
+            vert_edge_id_obj = GraphVertexEdgeID(int64_id=id_or_ids)
         return vert_edge_id_obj

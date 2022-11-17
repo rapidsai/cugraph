@@ -128,7 +128,9 @@ class RemoteGraph:
     def _client(self):
         return self.__client
 
-    def edges(self, backend=("cudf" if cudf is not None else "numpy")):
+    def edges(
+        self, backend=("cudf" if not isinstance(cudf, MissingModule) else "numpy")
+    ):
         """
         Returns the edge list for this property graph as a dataframe,
         array, or tensor containing edge ids, source vertex,
@@ -283,15 +285,18 @@ class RemoteGraph:
         vertex_ids=None,
         types=None,
         columns=None,
-        backend=("cudf" if cudf is not None else "numpy"),
+        backend=("cudf" if not isinstance(cudf, MissingModule) else "numpy"),
     ):
         # FIXME expose na handling
 
         if columns is None:
             columns = self.vertex_property_names
 
+        if vertex_ids is None:
+            vertex_ids = -1
+
         vertex_data = self.__client.get_graph_vertex_data(
-            id_or_ids=vertex_ids or -1,
+            id_or_ids=vertex_ids,
             property_keys=columns,
             types=types,
             graph_id=self.__graph_id,
@@ -312,7 +317,20 @@ class RemoteGraph:
                 self._vertex_categorical_dtype.keys(), ordered=True
             )
 
+        print("get_vertex_data:")
+        print("graph id:", self.__graph_id)
+        print("types:", types)
+        print("ids:", vertex_ids)
+        print(columns)
+        print(vertex_data)
+
+        columns = set(columns)
+        if self.type_col_name in columns:
+            columns.remove(self.type_col_name)
+        if self.vertex_col_name in columns:
+            columns.remove(self.vertex_col_name)
         column_names = [self.vertex_col_name, self.type_col_name] + list(columns)
+
         return _transform_to_backend_dtype(
             vertex_data,
             column_names,
@@ -369,7 +387,7 @@ class RemoteGraph:
         edge_ids=None,
         types=None,
         columns=None,
-        backend=("cudf" if cudf is not None else "numpy"),
+        backend=("cudf" if not isinstance(cudf, MissingModule) else "numpy"),
     ):
         """
         Return a dataframe containing edge properties for only the specified
@@ -377,6 +395,13 @@ class RemoteGraph:
         """
 
         # FIXME expose na handling
+
+        base_columns = [
+            self.edge_id_col_name,
+            self.src_col_name,
+            self.dst_col_name,
+            self.type_col_name,
+        ]
 
         if columns is None:
             columns = self.edge_property_names
@@ -406,12 +431,11 @@ class RemoteGraph:
                 self._edge_categorical_dtype.keys(), ordered=True
             )
 
-        column_names = [
-            self.edge_id_col_name,
-            self.src_col_name,
-            self.dst_col_name,
-            self.type_col_name,
-        ] + list(columns)
+        columns = set(columns)
+        for c in base_columns:
+            if c in columns:
+                columns.remove(c)
+        column_names = base_columns + list(columns)
 
         return _transform_to_backend_dtype(
             edge_data,
