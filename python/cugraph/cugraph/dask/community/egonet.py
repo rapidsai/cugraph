@@ -19,7 +19,6 @@ import cugraph.dask.comms.comms as Comms
 import dask_cudf
 import cudf
 from cugraph.dask.common.input_utils import get_distributed_data
-import operator as op
 
 from pylibcugraph import ResourceHandle, ego_graph as pylibcugraph_ego_graph
 
@@ -52,7 +51,7 @@ def consolidate_results(df, offsets):
     Returns: consolidated ego_graph dataframe
     """
     for i in range(len(offsets) - 1):
-        df_tmp = df[offsets[i]:offsets[i+1]]
+        df_tmp = df[offsets[i] : offsets[i + 1]]
         df_tmp["labels"] = i
         if i == 0:
             df_consolidate = df_tmp
@@ -120,7 +119,6 @@ def ego_graph(input_graph, n, radius=1, center=True):
             raise TypeError(
                 f"'n' must be either a list or a cudf.Series," f"got: {n.dtype}"
             )
-        num_seeds = len(n)
         # n uses "external" vertex IDs, but since the graph has been
         # renumbered, the node ID must also be renumbered.
         if input_graph.renumbered:
@@ -161,17 +159,18 @@ def ego_graph(input_graph, n, radius=1, center=True):
     ddf = dask_cudf.from_delayed(cudf_result).persist()
     wait(ddf)
 
-    wait(
-        [(r.release(), c_r.release()) for r, c_r in zip(result, cudf_result)])
+    wait([(r.release(), c_r.release()) for r, c_r in zip(result, cudf_result)])
 
     ddf = ddf.sort_values("labels")
 
     # extract offsets from segmented ego_graph dataframes
     offsets = ddf["labels"].value_counts().compute().sort_index()
     offsets = cudf.concat([cudf.Series(0), offsets])
-    offsets = dask_cudf.from_cudf(
-        offsets, npartitions=min(
-            input_graph._npartitions, len(n))).cumsum().astype(n_type)
+    offsets = (
+        dask_cudf.from_cudf(offsets, npartitions=min(input_graph._npartitions, len(n)))
+        .cumsum()
+        .astype(n_type)
+    )
 
     ddf = ddf.drop(columns="labels")
 
