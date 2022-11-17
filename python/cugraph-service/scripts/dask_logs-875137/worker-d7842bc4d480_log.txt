@@ -1,7 +1,0 @@
-RUNNING: "python -m dask_cuda.cli.dask_cuda_worker --rmm-pool-size=12G
-             --local-directory=/tmp/
-             --scheduler-file=/dask-scheduler.json
-             --memory-limit=auto
-             --device-memory-limit=auto
-            "
-./run-dask-process.sh: line 235: dask-cuda-worker: command not found
