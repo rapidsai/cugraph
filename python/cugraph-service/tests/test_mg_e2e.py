@@ -257,7 +257,7 @@ def test_get_edge_IDs_for_vertices(client_of_mg_server_with_edgelist_csv_loaded)
     # graph type. Ideally, users should not need to know the graph type.
     assert "MG" in client_of_mg_server._get_graph_type()
 
-    graph_id = client_of_mg_server.extract_subgraph(allow_multi_edges=True)
+    graph_id = client_of_mg_server.extract_subgraph(check_multi_edges=True)
     client_of_mg_server.get_edge_IDs_for_vertices([1, 2, 3], [0, 0, 0], graph_id)
 
 
@@ -480,11 +480,12 @@ def test_extension_adds_graph(
         client.unload_extension_module(mod_name)
 
 
-def test_inside_asyncio_event_loop(client_with_edgelist_csv_loaded, result_device_id):
+def test_inside_asyncio_event_loop(
+    client_of_sg_server_on_device_1_large_property_graph_loaded, result_device_id
+):
     import asyncio
-    from cugraph_service_client import defaults
 
-    client, test_data = client_with_edgelist_csv_loaded
+    client, graph_id = client_of_sg_server_on_device_1_large_property_graph_loaded
 
     start_list = [1, 2, 3]
     fanout_vals = [2, 2, 2]
@@ -495,7 +496,7 @@ def test_inside_asyncio_event_loop(client_with_edgelist_csv_loaded, result_devic
             start_list=start_list,
             fanout_vals=fanout_vals,
             with_replacement=with_replacement,
-            graph_id=defaults.graph_id,
+            graph_id=graph_id,
             result_device=result_device_id,
         )
 

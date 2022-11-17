@@ -1,0 +1,116 @@
+RUNNING: "python -m dask_cuda.cli.dask_cuda_worker --rmm-pool-size=12G
+             --local-directory=/tmp/
+             --scheduler-file=/dask-scheduler.json
+             --memory-limit=auto
+             --device-memory-limit=auto
+            "
+2022-11-17 02:26:41,273 - distributed.nanny - INFO -         Start Nanny at: 'tcp://172.17.0.2:38709'
+2022-11-17 02:26:41,282 - distributed.nanny - INFO -         Start Nanny at: 'tcp://172.17.0.2:35179'
+2022-11-17 02:26:42,298 - distributed.diskutils - INFO - Found stale lock file and directory '/tmp/dask-worker-space/worker-3_7s8026', purging
+2022-11-17 02:26:42,298 - distributed.diskutils - INFO - Found stale lock file and directory '/tmp/dask-worker-space/worker-2j3wyhka', purging
+2022-11-17 02:26:42,298 - distributed.preloading - INFO - Creating preload: dask_cuda.initialize
+2022-11-17 02:26:42,299 - distributed.preloading - INFO - Import preload module: dask_cuda.initialize
+2022-11-17 02:26:42,314 - distributed.preloading - INFO - Creating preload: dask_cuda.initialize
+2022-11-17 02:26:42,314 - distributed.preloading - INFO - Import preload module: dask_cuda.initialize
+2022-11-17 02:26:42,498 - distributed.preloading - INFO - Run preload setup: dask_cuda.initialize
+2022-11-17 02:26:42,516 - distributed.preloading - INFO - Run preload setup: dask_cuda.initialize
+2022-11-17 02:26:42,724 - distributed.worker - INFO -       Start worker at:     tcp://172.17.0.2:32841
+2022-11-17 02:26:42,724 - distributed.worker - INFO -          Listening to:     tcp://172.17.0.2:32841
+2022-11-17 02:26:42,724 - distributed.worker - INFO -          dashboard at:           172.17.0.2:43509
+2022-11-17 02:26:42,724 - distributed.worker - INFO - Waiting to connect to:      tcp://172.17.0.2:8792
+2022-11-17 02:26:42,724 - distributed.worker - INFO - -------------------------------------------------
+2022-11-17 02:26:42,724 - distributed.worker - INFO -               Threads:                          1
+2022-11-17 02:26:42,724 - distributed.worker - INFO -                Memory:                  31.31 GiB
+2022-11-17 02:26:42,724 - distributed.worker - INFO -       Local Directory: /tmp/dask-worker-space/worker-2auh99so
+2022-11-17 02:26:42,725 - distributed.worker - INFO - Starting Worker plugin RMMSetup-87624fdf-4d26-434d-b8ed-2578e89fc7f8
+2022-11-17 02:26:42,737 - distributed.worker - INFO -       Start worker at:     tcp://172.17.0.2:43779
+2022-11-17 02:26:42,737 - distributed.worker - INFO -          Listening to:     tcp://172.17.0.2:43779
+2022-11-17 02:26:42,737 - distributed.worker - INFO -          dashboard at:           172.17.0.2:39245
+2022-11-17 02:26:42,737 - distributed.worker - INFO - Waiting to connect to:      tcp://172.17.0.2:8792
+2022-11-17 02:26:42,737 - distributed.worker - INFO - -------------------------------------------------
+2022-11-17 02:26:42,737 - distributed.worker - INFO -               Threads:                          1
+2022-11-17 02:26:42,737 - distributed.worker - INFO -                Memory:                  31.31 GiB
+2022-11-17 02:26:42,737 - distributed.worker - INFO -       Local Directory: /tmp/dask-worker-space/worker-vn29fu6h
+2022-11-17 02:26:42,737 - distributed.worker - INFO - Starting Worker plugin RMMSetup-f9fc8667-a5f5-4369-a105-c78b5395ccca
+2022-11-17 02:26:42,782 - distributed.worker - INFO - Starting Worker plugin PreImport-00bb1178-b92d-47a1-8218-62cf9137d253
+2022-11-17 02:26:42,782 - distributed.worker - INFO - Starting Worker plugin CPUAffinity-6df1386b-91f6-4441-88ad-866d2db282e1
+2022-11-17 02:26:42,782 - distributed.worker - INFO - -------------------------------------------------
+2022-11-17 02:26:42,801 - distributed.worker - INFO - Starting Worker plugin CPUAffinity-7db721b1-d215-40b1-b50d-13dfa45ac732
+2022-11-17 02:26:42,801 - distributed.worker - INFO - Starting Worker plugin PreImport-ae1e55f9-c504-4b38-bcb2-f24787e7886d
+2022-11-17 02:26:42,801 - distributed.worker - INFO - -------------------------------------------------
+2022-11-17 02:26:42,821 - distributed.worker - INFO -         Registered to:      tcp://172.17.0.2:8792
+2022-11-17 02:26:42,821 - distributed.worker - INFO - -------------------------------------------------
+2022-11-17 02:26:42,822 - distributed.core - INFO - Starting established connection to tcp://172.17.0.2:8792
+2022-11-17 02:26:42,826 - distributed.worker - INFO -         Registered to:      tcp://172.17.0.2:8792
+2022-11-17 02:26:42,826 - distributed.worker - INFO - -------------------------------------------------
+2022-11-17 02:26:42,827 - distributed.core - INFO - Starting established connection to tcp://172.17.0.2:8792
+2022-11-17 02:27:06,835 - distributed.worker - INFO - Run out-of-band function '_func_ucp_listener_port'
+2022-11-17 02:27:06,838 - distributed.worker - INFO - Run out-of-band function '_func_ucp_listener_port'
+2022-11-17 02:27:07,472 - distributed.worker - INFO - Run out-of-band function '_func_init_all'
+2022-11-17 02:27:07,472 - distributed.worker - INFO - Run out-of-band function '_func_init_all'
+2022-11-17 02:27:11,320 - distributed.worker - INFO - Run out-of-band function '_subcomm_init'
+2022-11-17 02:27:11,383 - distributed.worker - INFO - Run out-of-band function '_subcomm_init'
+2022-11-17 02:27:13,630 - distributed.core - INFO - Event loop was unresponsive in Worker for 5.95s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2022-11-17 02:27:13,630 - distributed.core - INFO - Event loop was unresponsive in Worker for 5.95s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2022-11-17 02:27:17,454 - distributed.worker - INFO - Run out-of-band function '_func_ucp_listener_port'
+2022-11-17 02:27:17,454 - distributed.worker - INFO - Run out-of-band function '_func_ucp_listener_port'
+2022-11-17 02:28:05,198 - distributed.worker - INFO - Run out-of-band function '_func_ucp_listener_port'
+2022-11-17 02:28:05,198 - distributed.worker - INFO - Run out-of-band function '_func_ucp_listener_port'
+2022-11-17 02:28:06,393 - distributed.worker - INFO - Run out-of-band function '_func_ucp_listener_port'
+2022-11-17 02:28:06,393 - distributed.worker - INFO - Run out-of-band function '_func_ucp_listener_port'
+2022-11-17 02:28:06,470 - distributed.worker - INFO - Run out-of-band function '_func_ucp_listener_port'
+2022-11-17 02:28:06,470 - distributed.worker - INFO - Run out-of-band function '_func_ucp_listener_port'
+2022-11-17 02:28:06,623 - distributed.worker - INFO - Run out-of-band function '_func_ucp_listener_port'
+2022-11-17 02:28:06,623 - distributed.worker - INFO - Run out-of-band function '_func_ucp_listener_port'
+2022-11-17 02:28:06,772 - distributed.worker - INFO - Run out-of-band function '_func_ucp_listener_port'
+2022-11-17 02:28:06,772 - distributed.worker - INFO - Run out-of-band function '_func_ucp_listener_port'
+2022-11-17 02:28:16,665 - distributed.worker - INFO - Run out-of-band function '_func_ucp_listener_port'
+2022-11-17 02:28:16,665 - distributed.worker - INFO - Run out-of-band function '_func_ucp_listener_port'
+2022-11-17 02:32:05,320 - distributed.worker - INFO - Run out-of-band function '_func_ucp_listener_port'
+2022-11-17 02:32:05,320 - distributed.worker - INFO - Run out-of-band function '_func_ucp_listener_port'
+2022-11-17 02:32:05,325 - distributed.worker - INFO - Run out-of-band function '_func_init_all'
+2022-11-17 02:32:05,327 - distributed.worker - INFO - Run out-of-band function '_func_init_all'
+2022-11-17 02:32:05,434 - distributed.worker - INFO - Run out-of-band function '_subcomm_init'
+2022-11-17 02:32:05,434 - distributed.worker - INFO - Run out-of-band function '_subcomm_init'
+2022-11-17 02:32:08,628 - distributed.worker - INFO - Run out-of-band function '_func_ucp_listener_port'
+2022-11-17 02:32:08,629 - distributed.worker - INFO - Run out-of-band function '_func_ucp_listener_port'
+2022-11-17 02:32:50,143 - distributed.worker - INFO - Run out-of-band function '_func_ucp_listener_port'
+2022-11-17 02:32:50,143 - distributed.worker - INFO - Run out-of-band function '_func_ucp_listener_port'
+2022-11-17 02:32:51,633 - distributed.worker - INFO - Run out-of-band function '_func_ucp_listener_port'
+2022-11-17 02:32:51,633 - distributed.worker - INFO - Run out-of-band function '_func_ucp_listener_port'
+2022-11-17 02:32:51,702 - distributed.worker - INFO - Run out-of-band function '_func_ucp_listener_port'
+2022-11-17 02:32:51,702 - distributed.worker - INFO - Run out-of-band function '_func_ucp_listener_port'
+2022-11-17 02:32:51,858 - distributed.worker - INFO - Run out-of-band function '_func_ucp_listener_port'
+2022-11-17 02:32:51,858 - distributed.worker - INFO - Run out-of-band function '_func_ucp_listener_port'
+2022-11-17 02:32:52,022 - distributed.worker - INFO - Run out-of-band function '_func_ucp_listener_port'
+2022-11-17 02:32:52,022 - distributed.worker - INFO - Run out-of-band function '_func_ucp_listener_port'
+2022-11-17 02:33:02,148 - distributed.worker - INFO - Run out-of-band function '_func_ucp_listener_port'
+2022-11-17 02:33:02,148 - distributed.worker - INFO - Run out-of-band function '_func_ucp_listener_port'
+2022-11-17 02:33:02,237 - distributed.worker - INFO - Run out-of-band function '_func_ucp_listener_port'
+2022-11-17 02:33:02,237 - distributed.worker - INFO - Run out-of-band function '_func_ucp_listener_port'
+2022-11-17 02:33:03,047 - distributed.worker - INFO - Run out-of-band function '_func_ucp_listener_port'
+2022-11-17 02:33:03,047 - distributed.worker - INFO - Run out-of-band function '_func_ucp_listener_port'
+2022-11-17 02:34:42,654 - distributed.worker - INFO - Run out-of-band function '_func_ucp_listener_port'
+2022-11-17 02:34:42,654 - distributed.worker - INFO - Run out-of-band function '_func_ucp_listener_port'
+2022-11-17 02:34:42,659 - distributed.worker - INFO - Run out-of-band function '_func_init_all'
+2022-11-17 02:34:42,659 - distributed.worker - INFO - Run out-of-band function '_func_init_all'
+2022-11-17 02:34:42,765 - distributed.worker - INFO - Run out-of-band function '_subcomm_init'
+2022-11-17 02:34:42,765 - distributed.worker - INFO - Run out-of-band function '_subcomm_init'
+2022-11-17 02:34:45,927 - distributed.worker - INFO - Run out-of-band function '_func_ucp_listener_port'
+2022-11-17 02:34:45,927 - distributed.worker - INFO - Run out-of-band function '_func_ucp_listener_port'
+2022-11-17 02:35:27,674 - distributed.worker - INFO - Run out-of-band function '_func_ucp_listener_port'
+2022-11-17 02:35:27,674 - distributed.worker - INFO - Run out-of-band function '_func_ucp_listener_port'
+2022-11-17 02:35:29,062 - distributed.worker - INFO - Run out-of-band function '_func_ucp_listener_port'
+2022-11-17 02:35:29,062 - distributed.worker - INFO - Run out-of-band function '_func_ucp_listener_port'
+2022-11-17 02:35:29,135 - distributed.worker - INFO - Run out-of-band function '_func_ucp_listener_port'
+2022-11-17 02:35:29,135 - distributed.worker - INFO - Run out-of-band function '_func_ucp_listener_port'
+2022-11-17 02:35:29,294 - distributed.worker - INFO - Run out-of-band function '_func_ucp_listener_port'
+2022-11-17 02:35:29,294 - distributed.worker - INFO - Run out-of-band function '_func_ucp_listener_port'
+2022-11-17 02:35:29,427 - distributed.worker - INFO - Run out-of-band function '_func_ucp_listener_port'
+2022-11-17 02:35:29,427 - distributed.worker - INFO - Run out-of-band function '_func_ucp_listener_port'
+2022-11-17 02:35:39,576 - distributed.worker - INFO - Run out-of-band function '_func_ucp_listener_port'
+2022-11-17 02:35:39,576 - distributed.worker - INFO - Run out-of-band function '_func_ucp_listener_port'
+2022-11-17 02:35:39,655 - distributed.worker - INFO - Run out-of-band function '_func_ucp_listener_port'
+2022-11-17 02:35:39,655 - distributed.worker - INFO - Run out-of-band function '_func_ucp_listener_port'
+2022-11-17 02:35:40,516 - distributed.worker - INFO - Run out-of-band function '_func_ucp_listener_port'
+2022-11-17 02:35:40,517 - distributed.worker - INFO - Run out-of-band function '_func_ucp_listener_port'

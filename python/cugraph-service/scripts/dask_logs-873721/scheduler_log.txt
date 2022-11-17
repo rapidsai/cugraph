@@ -1,0 +1,35 @@
+RUNNING: "python -m distributed.cli.dask_scheduler --protocol=tcp
+                    --port=8792
+                    --scheduler-file /dask-scheduler.json
+                "
+/opt/conda/envs/rapids/lib/python3.9/site-packages/distributed/cli/dask_scheduler.py:140: FutureWarning: dask-scheduler is deprecated and will be removed in a future release; use `dask scheduler` instead
+  warnings.warn(
+2022-11-17 02:25:34,414 - distributed.scheduler - INFO - -----------------------------------------------
+2022-11-17 02:25:34,955 - distributed.scheduler - INFO - State start
+2022-11-17 02:25:34,964 - distributed.scheduler - INFO - -----------------------------------------------
+2022-11-17 02:25:34,965 - distributed.scheduler - INFO -   Scheduler at:     tcp://172.17.0.2:8792
+2022-11-17 02:25:34,965 - distributed.scheduler - INFO -   dashboard at:                     :8787
+2022-11-17 02:26:42,806 - distributed.scheduler - INFO - Register worker <WorkerState 'tcp://172.17.0.2:32841', status: init, memory: 0, processing: 0>
+2022-11-17 02:26:42,821 - distributed.scheduler - INFO - Starting worker compute stream, tcp://172.17.0.2:32841
+2022-11-17 02:26:42,821 - distributed.core - INFO - Starting established connection to tcp://172.17.0.2:58422
+2022-11-17 02:26:42,826 - distributed.scheduler - INFO - Register worker <WorkerState 'tcp://172.17.0.2:43779', status: init, memory: 0, processing: 0>
+2022-11-17 02:26:42,826 - distributed.scheduler - INFO - Starting worker compute stream, tcp://172.17.0.2:43779
+2022-11-17 02:26:42,826 - distributed.core - INFO - Starting established connection to tcp://172.17.0.2:58436
+2022-11-17 02:27:06,826 - distributed.scheduler - INFO - Receive client connection: Client-548ff28b-661f-11ed-9f16-0242ac110002
+2022-11-17 02:27:06,827 - distributed.core - INFO - Starting established connection to tcp://172.17.0.2:60214
+2022-11-17 02:27:07,257 - distributed.worker - INFO - Run out-of-band function '_func_set_scheduler_as_nccl_root'
+2022-11-17 02:28:17,013 - distributed.core - INFO - Connection to tcp://172.17.0.2:60214 has been closed.
+2022-11-17 02:28:17,013 - distributed.scheduler - INFO - Remove client Client-548ff28b-661f-11ed-9f16-0242ac110002
+2022-11-17 02:28:17,016 - distributed.scheduler - INFO - Close client connection: Client-548ff28b-661f-11ed-9f16-0242ac110002
+2022-11-17 02:32:05,315 - distributed.scheduler - INFO - Receive client connection: Client-067c510d-6620-11ed-aa33-0242ac110002
+2022-11-17 02:32:05,316 - distributed.core - INFO - Starting established connection to tcp://172.17.0.2:52968
+2022-11-17 02:32:05,322 - distributed.worker - INFO - Run out-of-band function '_func_set_scheduler_as_nccl_root'
+2022-11-17 02:33:03,426 - distributed.core - INFO - Connection to tcp://172.17.0.2:52968 has been closed.
+2022-11-17 02:33:03,426 - distributed.scheduler - INFO - Remove client Client-067c510d-6620-11ed-aa33-0242ac110002
+2022-11-17 02:33:03,430 - distributed.scheduler - INFO - Close client connection: Client-067c510d-6620-11ed-aa33-0242ac110002
+2022-11-17 02:34:42,649 - distributed.scheduler - INFO - Receive client connection: Client-64422201-6620-11ed-b880-0242ac110002
+2022-11-17 02:34:42,649 - distributed.core - INFO - Starting established connection to tcp://172.17.0.2:51084
+2022-11-17 02:34:42,656 - distributed.worker - INFO - Run out-of-band function '_func_set_scheduler_as_nccl_root'
+2022-11-17 02:35:40,821 - distributed.core - INFO - Connection to tcp://172.17.0.2:51084 has been closed.
+2022-11-17 02:35:40,821 - distributed.scheduler - INFO - Remove client Client-64422201-6620-11ed-b880-0242ac110002
+2022-11-17 02:35:40,825 - distributed.scheduler - INFO - Close client connection: Client-64422201-6620-11ed-b880-0242ac110002
