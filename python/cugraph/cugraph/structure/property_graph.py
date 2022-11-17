@@ -1606,9 +1606,14 @@ class EXPERIMENTAL__PropertyGraph:
 
         return G
 
-    def renumber_vertices_by_type(self):
+    def renumber_vertices_by_type(self, prev_id_column=None):
         """
         Renumber vertex IDs to be contiguous by type.
+
+        Parameters
+        ----------
+        prev_id_column : str, optional
+            Column name to save the vertex ID before renumbering.
 
         Returns
         -------
@@ -1652,6 +1657,13 @@ class EXPERIMENTAL__PropertyGraph:
             )
         if self.__vertex_prop_dataframe is None:
             return None
+        if (
+            prev_id_column is not None
+            and prev_id_column in self.__vertex_prop_dataframe
+        ):
+            raise ValueError(
+                f"Can't save previous IDs to existing column {prev_id_column!r}"
+            )
 
         # Use categorical dtype for the type column
         if self.__series_type is cudf.Series:
@@ -1675,7 +1687,10 @@ class EXPERIMENTAL__PropertyGraph:
             self.__edge_prop_dataframe[self.dst_col_name] = self.__edge_prop_dataframe[
                 self.dst_col_name
             ].map(mapper)
-        df.drop(columns=[self.vertex_col_name], inplace=True)
+        if prev_id_column is None:
+            df.drop(columns=[self.vertex_col_name], inplace=True)
+        else:
+            df.rename(columns={self.vertex_col_name: prev_id_column}, inplace=True)
         df.index.name = self.vertex_col_name
         self.__vertex_prop_dataframe = df
         rv = self._vertex_type_value_counts.sort_index().cumsum().to_frame("stop")
@@ -1683,9 +1698,14 @@ class EXPERIMENTAL__PropertyGraph:
         rv["stop"] -= 1  # Make inclusive
         return rv[["start", "stop"]]
 
-    def renumber_edges_by_type(self):
+    def renumber_edges_by_type(self, prev_id_column=None):
         """
         Renumber edge IDs to be contiguous by type.
+
+        Parameters
+        ----------
+        prev_id_column : str, optional
+            Column name to save the edge ID before renumbering.
 
         Returns
         -------
@@ -1724,9 +1744,12 @@ class EXPERIMENTAL__PropertyGraph:
         """
         TCN = self.type_col_name
 
-        # TODO: keep track if edges are already numbered correctly.
         if self.__edge_prop_dataframe is None:
             return None
+        if prev_id_column is not None and prev_id_column in self.__edge_prop_dataframe:
+            raise ValueError(
+                f"Can't save previous IDs to existing column {prev_id_column!r}"
+            )
 
         # Use categorical dtype for the type column
         if self.__series_type is cudf.Series:
@@ -1741,10 +1764,15 @@ class EXPERIMENTAL__PropertyGraph:
                 cat_dtype
             )
 
-        self.__edge_prop_dataframe = self.__edge_prop_dataframe.sort_values(
-            by=TCN, ignore_index=True
-        )
-        self.__edge_prop_dataframe.index.name = self.edge_id_col_name
+        df = self.__edge_prop_dataframe
+        if prev_id_column is None:
+            df = df.sort_values(by=TCN, ignore_index=True)
+        else:
+            df = df.sort_values(by=TCN)
+            df.index.name = prev_id_column
+            df.reset_index(inplace=True)
+        df.index.name = self.edge_id_col_name
+        self.__edge_prop_dataframe = df
         rv = self._edge_type_value_counts.sort_index().cumsum().to_frame("stop")
         rv["start"] = rv["stop"].shift(1, fill_value=0)
         rv["stop"] -= 1  # Make inclusive
