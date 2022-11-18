@@ -47,6 +47,8 @@ from pylibcugraph.jaccard_coefficients import jaccard_coefficients
 
 from pylibcugraph.sorensen_coefficients import sorensen_coefficients
 
+from pylibcugraph.overlap_coefficients import overlap_coefficients
+
 from pylibcugraph.two_hop_neighbors import get_two_hop_neighbors
 
 from pylibcugraph.louvain import louvain

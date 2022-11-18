@@ -24,6 +24,7 @@ set(cython_sources
     hits.pyx
     jaccard_coefficients.pyx
     sorensen_coefficients.pyx
+    overlap_coefficients.pyx
     katz_centrality.pyx
     louvain.pyx
     node2vec.pyx
