@@ -100,7 +100,7 @@ def k_core(input_graph, k=None, core_number=None, degree_type="bidirectional"):
         
         and/or
         
-        ddf['weight']: dask_cudf.Series
+        ddf['weights']: dask_cudf.Series
             Contains weights of the K Core
 
 
