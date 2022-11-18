@@ -120,9 +120,9 @@ def k_core(G, k=None, core_number=None, degree_type=None):
                 cols = "vertex"
 
             core_number = G.add_internal_vertex_id(
-                core_number, "vertex", cols, preserve_order=True)
+                core_number, "vertex", cols)
 
-    core_number = core_number.rename(columns={"core_number": "values"}, copy=False)
+    core_number = core_number.rename(columns={"core_number": "values"})
     if k is None:
         k = core_number["values"].max()
 
@@ -138,6 +138,7 @@ def k_core(G, k=None, core_number=None, degree_type=None):
     k_core_df = cudf.DataFrame()
     k_core_df["src"] = src_vertices
     k_core_df["dst"] = dst_vertices
+    k_core_df["weight"] = weights
 
     if G.renumbered:
         k_core_df, src_names = G.unrenumber(k_core_df, "src", get_column_names=True)
