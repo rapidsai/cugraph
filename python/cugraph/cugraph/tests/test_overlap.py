@@ -50,7 +50,7 @@ def compare_overlap(cu_coeff, cpu_coeff):
 def cugraph_call(benchmark_callable, graph_file, pairs, edgevals=False):
     # Device data
     G = graph_file.get_graph(
-        create_using=cugraph.Graph(directed=True), ignore_weights=not edgevals
+        create_using=cugraph.Graph(directed=False), ignore_weights=not edgevals
     )
     # cugraph Overlap Call
     df = benchmark_callable(cugraph.overlap, G, pairs)
@@ -113,6 +113,7 @@ def read_csv(request):
     graph_file = request.param
     dataset_path = graph_file.get_path()
     Mnx = utils.read_csv_for_nx(dataset_path)
+
     N = max(max(Mnx["0"]), max(Mnx["1"])) + 1
     M = scipy.sparse.csr_matrix((Mnx.weight, (Mnx["0"], Mnx["1"])), shape=(N, N))
 
@@ -131,6 +132,7 @@ def extract_two_hop(read_csv):
         .sort_values(["first", "second"])
         .reset_index(drop=True)
     )
+
     return pairs
 
 
@@ -183,6 +185,6 @@ def test_overlap_multi_column(graph_file):
     df_exp = cugraph.overlap(G2, vertex_pair[["src_0", "dst_0"]])
 
     # Calculating mismatch
-    actual = df_res.sort_values("0_source").reset_index()
+    actual = df_res.sort_values("0_src").reset_index()
     expected = df_exp.sort_values("source").reset_index()
     assert_series_equal(actual["overlap_coeff"], expected["overlap_coeff"])
