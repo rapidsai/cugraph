@@ -369,6 +369,7 @@ class simpleGraphImpl:
                 edgelist_df, simpleGraphImpl.dstCol
             )
 
+        # FIXME: revisit this approach
         if not self.properties.directed:
             edgelist_df = edgelist_df[
                 edgelist_df[simpleGraphImpl.srcCol]
