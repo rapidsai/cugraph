@@ -62,6 +62,8 @@ struct BiasedRandomWalks_Usecase {
              raft::device_span<vertex_t const> start_vertices,
              size_t num_paths)
   {
+    CUGRAPH_EXPECTS(edge_weight_view.has_value(), "Biased random walk requires edge weights.");
+
     return cugraph::biased_random_walks(
       handle, graph_view, *edge_weight_view, start_vertices, num_paths, seed);
   }
