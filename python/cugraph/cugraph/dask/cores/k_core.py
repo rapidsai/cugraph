@@ -120,8 +120,6 @@ def k_core(input_graph, k=None, core_number=None, degree_type="bidirectional"):
     >>> KCore_df = dcg.k_core(dg)
     """
 
-    mytype = type(input_graph)
-
     if degree_type not in ["incoming", "outgoing", "bidirectional"]:
         raise ValueError(
             f"'degree_type' must be either incoming, "
