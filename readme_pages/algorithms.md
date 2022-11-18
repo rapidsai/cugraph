@@ -41,7 +41,7 @@ Note: Multi-GPU, or MG, includes support for Multi-Node Multi-GPU (also called M
 |                   | Weakly Connected Components        | __Multi-GPU__ |                                                                 |
 |                   | Strongly Connected Components      | Single-GPU          |                                                                 |
 | Core              |                                    |                     |                                                                 |
-|                   | K-Core                             | Single-GPU          | MG planned for 22.12                                            |
+|                   | K-Core                             | **Multi-GPU** |                                                                 |
 |                   | Core Number                        | **Multi-GPU** |                                                                 |
 | _Flow_          |                                    |                     |                                                                 |
 |                   | _MaxFlow_                        | ---                 |                                                                 |
@@ -64,7 +64,7 @@ Note: Multi-GPU, or MG, includes support for Multi-Node Multi-GPU (also called M
 | Sampling          |                                    |                     |                                                                 |
 |                   | Uniform Random Walks (RW)          | **Multi-GPU** |                                                                 |
 |                   | *Biased Random Walks (RW)*       | ---                 |                                                                 |
-|                   | Egonet                             | Single-GPU          | MG planned for 22.12                                            |
+|                   | Egonet                             | **Multi-GPU** |                                                                 |
 |                   | Node2Vec                           | Single-GPU          | MG planned for 23.02                                            |
 |                   | Uniform Neighborhood sampling      | __Multi-GPU__ |                                                                 |
 | Traversal         |                                    |                     |                                                                 |
@@ -78,7 +78,7 @@ Note: Multi-GPU, or MG, includes support for Multi-Node Multi-GPU (also called M
 |                   | Renumbering                        | __Multi-GPU__ | multiple columns, any data type                                 |
 |                   | Symmetrize                         | __Multi-GPU__ |                                                                 |
 |                   | Path Extraction                    |                     | Extract paths from BFS/SSP results in parallel                  |
-|                   |Two Hop Neighbors                   | __Multi-GPU__       | Extract two-hop neighborhoods                               |
+|                   | Two Hop Neighbors                  | __Multi-GPU__ | Extract two-hop neighborhoods                                   |
 | Data Generator    |                                    |                     |                                                                 |
 |                   | RMAT                               | __Multi-GPU__ |                                                                 |
 |                   | _Barabasi-Albert_                | ---                 |                                                                 |
