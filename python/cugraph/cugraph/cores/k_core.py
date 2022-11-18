@@ -40,7 +40,7 @@ def _call_plc_core_number(G):
     return df
 
 
-def k_core(G, k=None, core_number=None, degree_type=None):
+def k_core(G, k=None, core_number=None, degree_type="bidirectional"):
     """
     Compute the k-core of the graph G based on the out degree of its nodes. A
     k-core of a graph is a maximal subgraph that contains nodes of degree k or
@@ -59,12 +59,10 @@ def k_core(G, k=None, core_number=None, degree_type=None):
         Order of the core. This value must not be negative. If set to None, the
         main core is returned.
 
-    degree_type: str
+    degree_type: str (default=""bidirectional"")
         This option determines if the core number computation should be based
         on input, output, or both directed edges, with valid values being
         "incoming", "outgoing", and "bidirectional" respectively.
-        This option is currently ignored in this release, and setting it will
-        result in a warning.
 
     core_number : cudf.DataFrame, optional (default=None)
         Precomputed core number of the nodes of the graph G containing two
@@ -97,11 +95,11 @@ def k_core(G, k=None, core_number=None, degree_type=None):
         warnings.warn(warning_msg, Warning)
 
     # FIXME: enable this check once 'degree_type' is supported
-    """
+
     if degree_type not in ["incoming", "outgoing", "bidirectional"]:
         raise ValueError(f"'degree_type' must be either incoming, "
                          f"outgoing or bidirectional, got: {degree_type}")
-    """
+
     mytype = type(G)
 
     KCoreGraph = mytype()
