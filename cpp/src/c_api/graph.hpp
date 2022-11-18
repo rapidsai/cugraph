@@ -20,6 +20,7 @@
 #include <cugraph_c/graph.h>
 
 #include <cugraph/graph.hpp>
+#include <cugraph/graph_functions.hpp>
 
 #include <memory>
 
@@ -30,7 +31,7 @@ struct cugraph_graph_t {
   data_type_id_t vertex_type_;
   data_type_id_t edge_type_;
   data_type_id_t weight_type_;
-  data_type_id_t edge_type_type_;
+  data_type_id_t edge_type_id_type_;
   bool store_transposed_;
   bool multi_gpu_;
 
@@ -38,7 +39,7 @@ struct cugraph_graph_t {
   void* number_map_;       // rmm::device_uvector<vertex_t>*
   void* edge_properties_;  // edge_property_t<
                            //    graph_view_t<vertex_t, edge_t, weight_t, store_transposed,
-                           //    multi_gpu>, thrust::tuple<edge_t, edge_type_t>>>
+                           //    multi_gpu>, thrust::tuple<edge_t, edge_type_id_t>>>
 };
 
 template <typename vertex_t,
@@ -60,10 +61,12 @@ cugraph_error_code_t transpose_storage(raft::handle_t const& handle,
     auto graph_transposed =
       new cugraph::graph_t<vertex_t, edge_t, weight_t, !store_transposed, multi_gpu>(handle);
 
-    std::optional<rmm::device_uvector<vertex_t>> new_number_map;
+    std::optional<rmm::device_uvector<vertex_t>> new_number_map{};
 
-    std::tie(*graph_transposed, new_number_map) =
-      p_graph->transpose_storage(handle, std::move(*number_map), true);
+    std::tie(*graph_transposed, new_number_map) = cugraph::transpose_graph_storage(
+      handle,
+      std::move(*p_graph),
+      std::make_optional<rmm::device_uvector<vertex_t>>(std::move(*number_map)));
 
     *number_map = std::move(new_number_map.value());
 

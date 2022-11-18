@@ -20,6 +20,7 @@ add_subdirectory(testing)
 set(cython_sources
     bfs.pyx
     core_number.pyx
+    egonet.pyx
     eigenvector_centrality.pyx
     graph_properties.pyx
     graphs.pyx
@@ -33,7 +34,9 @@ set(cython_sources
     sssp.pyx
     triangle_count.pyx
     uniform_neighbor_sample.pyx
+    uniform_random_walks.pyx
     utils.pyx
+    weakly_connected_components.pyx
 )
 set(linked_libraries cugraph::cugraph;cugraph::cugraph_c)
 
@@ -41,8 +44,5 @@ rapids_cython_create_modules(
   CXX
   SOURCE_FILES "${cython_sources}"
   LINKED_LIBRARIES ${linked_libraries}
+  ASSOCIATED_TARGETS cugraph
 )
-
-foreach(cython_module IN LISTS RAPIDS_CYTHON_CREATED_TARGETS)
-  set_target_properties(${cython_module} PROPERTIES INSTALL_RPATH "\$ORIGIN;")
-endforeach()

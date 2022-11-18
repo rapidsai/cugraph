@@ -14,10 +14,12 @@
 import pytest
 import cugraph.dask as dcg
 import gc
+
 # import pytest
 import cugraph
 import dask_cudf
 import cudf
+
 from cugraph.dask.common.mg_utils import is_single_gpu
 from cugraph.testing.utils import RAPIDS_DATASET_ROOT_DIR_PATH
 
@@ -39,8 +41,7 @@ IS_DIRECTED = [True, False]
 @pytest.mark.parametrize("directed", IS_DIRECTED)
 def test_dask_bfs(dask_client, directed):
 
-    input_data_path = (RAPIDS_DATASET_ROOT_DIR_PATH /
-                       "netscience.csv").as_posix()
+    input_data_path = (RAPIDS_DATASET_ROOT_DIR_PATH / "netscience.csv").as_posix()
 
     print(f"dataset={input_data_path}")
     chunksize = dcg.get_chunksize(input_data_path)
@@ -55,9 +56,9 @@ def test_dask_bfs(dask_client, directed):
 
     def modify_dataset(df):
         temp_df = cudf.DataFrame()
-        temp_df['src'] = df['src']+1000
-        temp_df['dst'] = df['dst']+1000
-        temp_df['value'] = df['value']
+        temp_df["src"] = df["src"] + 1000
+        temp_df["dst"] = df["dst"] + 1000
+        temp_df["value"] = df["value"]
         return cudf.concat([df, temp_df])
 
     meta = ddf._meta
@@ -103,8 +104,7 @@ def test_dask_bfs(dask_client, directed):
 @pytest.mark.parametrize("directed", IS_DIRECTED)
 def test_dask_bfs_invalid_start(dask_client, directed):
     source_vertex = 10
-    input_data_path = (RAPIDS_DATASET_ROOT_DIR_PATH /
-                       "netscience.csv").as_posix()
+    input_data_path = (RAPIDS_DATASET_ROOT_DIR_PATH / "netscience.csv").as_posix()
 
     print(f"dataset={input_data_path}")
     chunksize = dcg.get_chunksize(input_data_path)
@@ -121,15 +121,14 @@ def test_dask_bfs_invalid_start(dask_client, directed):
     el.dst = el.dst.replace(source_vertex, newval)
 
     G = cugraph.Graph(directed=directed)
-    G.from_dask_cudf_edgelist(el, 'src', 'dst')
+    G.from_dask_cudf_edgelist(el, "src", "dst")
 
     with pytest.raises(ValueError):
         dcg.bfs(G, source_vertex).compute()
 
     # invalid dtype (the default cudf.Series() dtype is int64)
     source_vertex = cudf.Series([0, 1])
-    warning_msg = ("The 'start' values dtype must match "
-                   "the graph's vertices dtype.")
+    warning_msg = "The 'start' values dtype must match " "the graph's vertices dtype."
     with pytest.warns(UserWarning, match=warning_msg):
         dcg.bfs(G, source_vertex).compute()
 
@@ -142,8 +141,7 @@ def test_dask_bfs_invalid_start(dask_client, directed):
 def test_dask_bfs_multi_column_depthlimit(dask_client, directed):
     gc.collect()
 
-    input_data_path = (RAPIDS_DATASET_ROOT_DIR_PATH /
-                       "netscience.csv").as_posix()
+    input_data_path = (RAPIDS_DATASET_ROOT_DIR_PATH / "netscience.csv").as_posix()
     print(f"dataset={input_data_path}")
     chunksize = dcg.get_chunksize(input_data_path)
 
@@ -154,8 +152,8 @@ def test_dask_bfs_multi_column_depthlimit(dask_client, directed):
         names=["src_a", "dst_a", "value"],
         dtype=["int32", "int32", "float32"],
     )
-    ddf['src_b'] = ddf['src_a'] + 1000
-    ddf['dst_b'] = ddf['dst_a'] + 1000
+    ddf["src_b"] = ddf["src_a"] + 1000
+    ddf["dst_b"] = ddf["dst_a"] + 1000
 
     df = cudf.read_csv(
         input_data_path,
@@ -163,8 +161,8 @@ def test_dask_bfs_multi_column_depthlimit(dask_client, directed):
         names=["src_a", "dst_a", "value"],
         dtype=["int32", "int32", "float32"],
     )
-    df['src_b'] = df['src_a'] + 1000
-    df['dst_b'] = df['dst_a'] + 1000
+    df["src_b"] = df["src_a"] + 1000
+    df["dst_b"] = df["dst_a"] + 1000
 
     g = cugraph.Graph(directed=directed)
     g.from_cudf_edgelist(df, ["src_a", "src_b"], ["dst_a", "dst_b"])
@@ -173,8 +171,8 @@ def test_dask_bfs_multi_column_depthlimit(dask_client, directed):
     dg.from_dask_cudf_edgelist(ddf, ["src_a", "src_b"], ["dst_a", "dst_b"])
 
     start = cudf.DataFrame()
-    start['a'] = [0]
-    start['b'] = [1000]
+    start["a"] = [0]
+    start["b"] = [1000]
 
     depth_limit = 18
     expected_dist = cugraph.bfs(g, start, depth_limit=depth_limit)
@@ -188,9 +186,9 @@ def test_dask_bfs_multi_column_depthlimit(dask_client, directed):
     err = 0
     for i in range(len(compare_dist)):
         if (
-            compare_dist["distance_local"].iloc[i] <= depth_limit and
-            compare_dist["distance_dask"].iloc[i] <= depth_limit and
-            compare_dist["distance_local"].iloc[i]
+            compare_dist["distance_local"].iloc[i] <= depth_limit
+            and compare_dist["distance_dask"].iloc[i] <= depth_limit
+            and compare_dist["distance_local"].iloc[i]
             != compare_dist["distance_dask"].iloc[i]
         ):
             err = err + 1

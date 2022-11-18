@@ -54,7 +54,8 @@ from cugraph.structure import (
     is_directed,
     is_multigraph,
     is_bipartite,
-    is_multipartite)
+    is_multipartite,
+)
 
 from cugraph.centrality import (
     betweenness_centrality,

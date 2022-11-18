@@ -34,8 +34,7 @@ def experimental_warning_wrapper(obj):
     """
     obj_type = type(obj)
     if not callable(obj):
-        raise TypeError("obj must be a class or a function type, got "
-                        f"{obj_type}")
+        raise TypeError("obj must be a class or a function type, got " f"{obj_type}")
 
     obj_name = obj.__name__
     obj_name = obj_name.lstrip(experimental_prefix)
@@ -49,8 +48,10 @@ def experimental_warning_wrapper(obj):
     ns_name = calling_frame.f_locals.get("__name__")
     dot = "." if ns_name is not None else ""
 
-    warning_msg = (f"{ns_name}{dot}{obj_name} is experimental and will "
-                   "change or be removed in a future release.")
+    warning_msg = (
+        f"{ns_name}{dot}{obj_name} is experimental and will "
+        "change or be removed in a future release."
+    )
 
     # If obj is a class, create a wrapper class which 1) inherits from the
     # incoming class, and 2) has a ctor that simply prints the warning and
@@ -60,6 +61,7 @@ def experimental_warning_wrapper(obj):
     # the new __init__, but #2 is necessary since assigning attributes cannot
     # be done to a builtin type (such as a class defined in cython).
     if obj_type is type:
+
         class WarningWrapperClass(obj):
             def __init__(self, *args, **kwargs):
                 warnings.warn(warning_msg, PendingDeprecationWarning)
@@ -70,6 +72,7 @@ def experimental_warning_wrapper(obj):
                     super(WarningWrapperClass, self).__init__(*args, **kwargs)
                 else:
                     self = obj(*args, **kwargs)
+
         WarningWrapperClass.__module__ = ns_name
         WarningWrapperClass.__qualname__ = obj_name
         WarningWrapperClass.__name__ = obj_name
@@ -83,6 +86,7 @@ def experimental_warning_wrapper(obj):
     def warning_wrapper_function(*args, **kwargs):
         warnings.warn(warning_msg, PendingDeprecationWarning)
         return obj(*args, **kwargs)
+
     warning_wrapper_function.__module__ = ns_name
     warning_wrapper_function.__qualname__ = obj_name
     warning_wrapper_function.__name__ = obj_name
@@ -103,8 +107,7 @@ def promoted_experimental_warning_wrapper(obj):
     """
     obj_type = type(obj)
     if not callable(obj):
-        raise TypeError("obj must be a class or a function type, got "
-                        f"{obj_type}")
+        raise TypeError("obj must be a class or a function type, got " f"{obj_type}")
 
     obj_name = obj.__name__
     obj_name = obj_name.lstrip(experimental_prefix)
@@ -115,11 +118,14 @@ def promoted_experimental_warning_wrapper(obj):
     ns_name = calling_frame.f_locals.get("__name__")
     dot = "." if ns_name is not None else ""
 
-    warning_msg = (f"{ns_name}{dot}{obj_name} has been promoted out of "
-                   "experimental. Use the non-experimental version instead, "
-                   "as this one will be removed in a future release.")
+    warning_msg = (
+        f"{ns_name}{dot}{obj_name} has been promoted out of "
+        "experimental. Use the non-experimental version instead, "
+        "as this one will be removed in a future release."
+    )
 
     if obj_type is type:
+
         class WarningWrapperClass(obj):
             def __init__(self, *args, **kwargs):
                 warnings.warn(warning_msg, DeprecationWarning)
@@ -130,6 +136,7 @@ def promoted_experimental_warning_wrapper(obj):
                     super(WarningWrapperClass, self).__init__(*args, **kwargs)
                 else:
                     self = obj(*args, **kwargs)
+
         WarningWrapperClass.__module__ = ns_name
         WarningWrapperClass.__qualname__ = obj_name
         WarningWrapperClass.__name__ = obj_name
@@ -140,6 +147,7 @@ def promoted_experimental_warning_wrapper(obj):
     def warning_wrapper_function(*args, **kwargs):
         warnings.warn(warning_msg, DeprecationWarning)
         return obj(*args, **kwargs)
+
     warning_wrapper_function.__module__ = ns_name
     warning_wrapper_function.__qualname__ = obj_name
     warning_wrapper_function.__name__ = obj_name
@@ -155,8 +163,7 @@ def deprecated_warning_wrapper(obj):
     """
     obj_type = type(obj)
     if not callable(obj):
-        raise TypeError("obj must be a class or a function type, got "
-                        f"{obj_type}")
+        raise TypeError("obj must be a class or a function type, got " f"{obj_type}")
 
     obj_name = obj.__name__
     call_stack = inspect.stack()
@@ -164,11 +171,14 @@ def deprecated_warning_wrapper(obj):
     ns_name = calling_frame.f_locals.get("__name__")
     dot = "." if ns_name is not None else ""
 
-    warning_msg = (f"{ns_name}{dot}{obj_name} has been deprecated and will "
-                   "be removed next release. If an experimental version "
-                   "exists, it may replace this version in a future release.")
+    warning_msg = (
+        f"{ns_name}{dot}{obj_name} has been deprecated and will "
+        "be removed next release. If an experimental version "
+        "exists, it may replace this version in a future release."
+    )
 
     if obj_type is type:
+
         class WarningWrapperClass(obj):
             def __init__(self, *args, **kwargs):
                 warnings.warn(warning_msg, DeprecationWarning)
@@ -179,6 +189,7 @@ def deprecated_warning_wrapper(obj):
                     super(WarningWrapperClass, self).__init__(*args, **kwargs)
                 else:
                     self = obj(*args, **kwargs)
+
         WarningWrapperClass.__module__ = ns_name
         WarningWrapperClass.__qualname__ = obj_name
         WarningWrapperClass.__name__ = obj_name
@@ -189,6 +200,7 @@ def deprecated_warning_wrapper(obj):
     def warning_wrapper_function(*args, **kwargs):
         warnings.warn(warning_msg, DeprecationWarning)
         return obj(*args, **kwargs)
+
     warning_wrapper_function.__module__ = ns_name
     warning_wrapper_function.__qualname__ = obj_name
     warning_wrapper_function.__name__ = obj_name

@@ -14,21 +14,10 @@
 
 cmake_minimum_required(VERSION 3.23.1 FATAL_ERROR)
 
-if(POLICY CMP0094)
-  # Make FindPython{,2,3} modules use LOCATION for lookup strategy.
-  # https://cmake.org/cmake/help/latest/policy/CMP0094.html#policy:CMP0094
-  cmake_policy(SET CMP0094 NEW)
-  set(CMAKE_POLICY_DEFAULT_CMP0094 NEW)
-endif()
 
 include(../../fetch_rapids.cmake)
 
-include(rapids-cuda)
-# TODO: This will not be necessary once we upgrade to CMake 3.22, which will pull in the required
-# languages for the C++ project even if this project does not require those languges.
-rapids_cuda_init_architectures(pylibcugraph-python)
-
-set(pylibcugraph_version 22.10.00)
+set(pylibcugraph_version 22.12.00)
 
 project(
   pylibcugraph-python
@@ -37,7 +26,7 @@ project(
             # language to be enabled here. The test project that is built in scikit-build to verify
             # various linking options for the python library is hardcoded to build with C, so until
             # that is fixed we need to keep C.
-            C CXX CUDA
+            C CXX
 )
 
 ################################################################################
@@ -46,52 +35,59 @@ option(FIND_CUGRAPH_CPP "Search for existing CUGRAPH C++ installations before de
        OFF
 )
 option(CUGRAPH_BUILD_WHEELS "Whether we're building a wheel for pypi" OFF)
+option(USE_CUGRAPH_OPS "Enable all functions that call cugraph-ops" ON)
 
-set(CUGRAPH_VERSION_MAJOR "${pylibcugraph-python_VERSION_MAJOR}")
-set(CUGRAPH_VERSION_MINOR "${pylibcugraph-python_VERSION_MINOR}")
-
-# get_raft.cmake requires rapids-cpm to be initialized.
-include(rapids-cpm)
-rapids_cpm_init()
-
-# We need to manually get raft because we need the distance component and
-# even though libcugraph exports it rapids-cmake's export commands do not yet
-# actually support components.
-include(../../cpp/cmake/thirdparty/get_raft.cmake)
-
+if(NOT USE_CUGRAPH_OPS)
+    message(STATUS "Disabling libcugraph functions that reference cugraph-ops")
+    add_compile_definitions(NO_CUGRAPH_OPS)
+endif()
 
 # If the user requested it we attempt to find CUGRAPH.
 if(FIND_CUGRAPH_CPP)
-  message(STATUS "Trying to find the package")
   find_package(cugraph ${pylibcugraph_version} REQUIRED)
 else()
   set(cugraph_FOUND OFF)
 endif()
 
-message(STATUS "check if it was found ${cugraph_FOUND}")
+include(rapids-cython)
 
 if (NOT cugraph_FOUND)
+  # TODO: This will not be necessary once we upgrade to CMake 3.22, which will pull in the required
+  # languages for the C++ project even if this project does not require those languges.
+  include(rapids-cuda)
+  rapids_cuda_init_architectures(pylibcugraph-python)
+  enable_language(CUDA)
+
+  # Since cugraph only enables CUDA optionally, we need to manually include the file that
+  # rapids_cuda_init_architectures relies on `project` including.
+  
+  include("${CMAKE_PROJECT_pylibcugraph-python_INCLUDE}")
+
   set(BUILD_TESTS OFF)
   set(BUILD_CUGRAPH_MG_TESTS OFF)
   set(BUILD_CUGRAPH_OPS_CPP_TESTS OFF)
 
-  # Statically link dependencies if building wheels
-  set(CUDA_STATIC_RUNTIME ${CUGRAPH_BUILD_WHEELS})
-  set(CUGRAPH_USE_CUGRAPH_OPS_STATIC ${CUGRAPH_BUILD_WHEELS})
-  set(CUGRAPH_EXCLUDE_CUGRAPH_OPS_FROM_ALL ${CUGRAPH_BUILD_WHEELS})
-
   set(_exclude_from_all "")
   if(CUGRAPH_BUILD_WHEELS)
+    # Statically link dependencies if building wheels
+    set(CUDA_STATIC_RUNTIME ON)
+    set(CUGRAPH_USE_CUGRAPH_OPS_STATIC ON)
+    set(CUGRAPH_EXCLUDE_CUGRAPH_OPS_FROM_ALL ON)
+
     # Don't install the cuML C++ targets into wheels
     set(_exclude_from_all EXCLUDE_FROM_ALL)
   endif()
 
   add_subdirectory(../../cpp cugraph-cpp ${_exclude_from_all})
 
-  install(TARGETS cugraph cugraph_c DESTINATION pylibcugraph)
+  set(cython_lib_dir pylibcugraph)
+  install(TARGETS cugraph DESTINATION ${cython_lib_dir})
 endif()
 
-include(rapids-cython)
 rapids_cython_init()
 
 add_subdirectory(pylibcugraph)
+
+if(DEFINED cython_lib_dir)
+  rapids_cython_add_rpath_entries(TARGET cugraph PATHS "${cython_lib_dir}")
+endif()

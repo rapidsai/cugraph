@@ -23,6 +23,7 @@
 #include <utilities/thrust_wrapper.hpp>
 
 #include <cugraph/algorithms.hpp>
+#include <cugraph/graph_functions.hpp>
 #include <cugraph/partition_manager.hpp>
 
 #include <raft/comms/comms.hpp>
@@ -88,8 +89,13 @@ class Tests_MGSymmetrize
       hr_clock.start();
     }
 
-    *d_mg_renumber_map_labels = mg_graph.symmetrize(
-      *handle_, std::move(*d_mg_renumber_map_labels), symmetrize_usecase.reciprocal);
+    std::tie(mg_graph, d_mg_renumber_map_labels) = cugraph::symmetrize_graph(
+      *handle_,
+      std::move(mg_graph),
+      d_mg_renumber_map_labels
+        ? std::optional<rmm::device_uvector<vertex_t>>(std::move(*d_mg_renumber_map_labels))
+        : std::nullopt,
+      symmetrize_usecase.reciprocal);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -104,8 +110,13 @@ class Tests_MGSymmetrize
     if (symmetrize_usecase.check_correctness) {
       // 3-1. decompress MG results
 
-      auto [d_mg_srcs, d_mg_dsts, d_mg_weights] =
-        mg_graph.decompress_to_edgelist(*handle_, d_mg_renumber_map_labels, false);
+      auto [d_mg_srcs, d_mg_dsts, d_mg_weights] = cugraph::decompress_to_edgelist(
+        *handle_,
+        mg_graph.view(),
+        d_mg_renumber_map_labels
+          ? std::make_optional<raft::device_span<vertex_t const>>(
+              (*d_mg_renumber_map_labels).data(), (*d_mg_renumber_map_labels).size())
+          : std::nullopt);
 
       // 3-2. aggregate MG results
 
@@ -129,14 +140,20 @@ class Tests_MGSymmetrize
 
         // 3-4. run SG symmetrize
 
-        auto d_sg_renumber_map_labels =
-          sg_graph.symmetrize(*handle_, std::nullopt, symmetrize_usecase.reciprocal);
+        std::optional<rmm::device_uvector<vertex_t>> d_sg_renumber_map_labels{};
+        std::tie(sg_graph, d_sg_renumber_map_labels) =
+          cugraph::symmetrize_graph(*handle_,
+                                    std::move(sg_graph),
+                                    std::optional<rmm::device_uvector<vertex_t>>{std::nullopt},
+                                    symmetrize_usecase.reciprocal);
         ASSERT_FALSE(d_sg_renumber_map_labels.has_value());
 
         // 3-5. decompress SG results
 
-        auto [d_sg_srcs, d_sg_dsts, d_sg_weights] =
-          sg_graph.decompress_to_edgelist(*handle_, std::nullopt, false);
+        auto [d_sg_srcs, d_sg_dsts, d_sg_weights] = cugraph::decompress_to_edgelist(
+          *handle_,
+          sg_graph.view(),
+          std::optional<raft::device_span<vertex_t const>>{std::nullopt});
 
         // 3-6. compare
 

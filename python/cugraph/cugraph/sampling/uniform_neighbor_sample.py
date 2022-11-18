@@ -12,19 +12,16 @@
 # limitations under the License.
 
 from pylibcugraph import ResourceHandle
-from pylibcugraph import uniform_neighbor_sample as \
-    pylibcugraph_uniform_neighbor_sample
+from pylibcugraph import uniform_neighbor_sample as pylibcugraph_uniform_neighbor_sample
 
 import numpy
 
 import cudf
 
 
-def uniform_neighbor_sample(G,
-                            start_list,
-                            fanout_vals,
-                            with_replacement=True,
-                            is_edge_ids=False):
+def uniform_neighbor_sample(
+    G, start_list, fanout_vals, with_replacement=True, is_edge_ids=False
+):
     """
     Does neighborhood sampling, which samples nodes from a graph based on the
     current node's neighbors, with a corresponding fanout value at each hop.
@@ -66,41 +63,36 @@ def uniform_neighbor_sample(G,
         start_list = [start_list]
 
     if isinstance(start_list, list):
-        start_list = cudf.Series(start_list, dtype="int32")
-        # FIXME: ensure other sequence types (eg. cudf Series) can be handled.
-        if start_list.dtype != "int32":
-            raise ValueError(f"'start_list' must have int32 values, "
-                             f"got: {start_list.dtype}")
+        start_list = cudf.Series(
+            start_list, dtype=G.edgelist.edgelist_df[G.srcCol].dtype
+        )
 
     # fanout_vals must be a host array!
     # FIXME: ensure other sequence types (eg. cudf Series) can be handled.
     if isinstance(fanout_vals, list):
         fanout_vals = numpy.asarray(fanout_vals, dtype="int32")
     else:
-        raise TypeError("fanout_vals must be a list, "
-                        f"got: {type(fanout_vals)}")
+        raise TypeError("fanout_vals must be a list, " f"got: {type(fanout_vals)}")
 
-    if 'weights' in G.edgelist.edgelist_df:
-        weight_t = G.edgelist.edgelist_df['weights'].dtype
+    if "weights" in G.edgelist.edgelist_df:
+        weight_t = G.edgelist.edgelist_df["weights"].dtype
     else:
-        weight_t = 'float32'
+        weight_t = "float32"
 
     if G.renumbered is True:
         if isinstance(start_list, cudf.DataFrame):
-            start_list = G.lookup_internal_vertex_id(
-                start_list, start_list.columns)
+            start_list = G.lookup_internal_vertex_id(start_list, start_list.columns)
         else:
             start_list = G.lookup_internal_vertex_id(start_list)
 
-    sources, destinations, indices = \
-        pylibcugraph_uniform_neighbor_sample(
-            resource_handle=ResourceHandle(),
-            input_graph=G._plc_graph,
-            start_list=start_list,
-            h_fan_out=fanout_vals,
-            with_replacement=with_replacement,
-            do_expensive_check=False
-        )
+    sources, destinations, indices = pylibcugraph_uniform_neighbor_sample(
+        resource_handle=ResourceHandle(),
+        input_graph=G._plc_graph,
+        start_list=start_list,
+        h_fan_out=fanout_vals,
+        with_replacement=with_replacement,
+        do_expensive_check=False,
+    )
 
     df = cudf.DataFrame()
     df["sources"] = sources

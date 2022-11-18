@@ -21,7 +21,7 @@ from setuputils import get_environment_option
 
 import versioneer
 
-CUDA_HOME = get_environment_option('CUDA_HOME')
+CUDA_HOME = get_environment_option("CUDA_HOME")
 
 if not CUDA_HOME:
     path_to_cuda_gdb = shutil.which("cuda-gdb")
@@ -35,14 +35,15 @@ if not CUDA_HOME:
     CUDA_HOME = os.path.dirname(os.path.dirname(path_to_cuda_gdb))
 
 if not os.path.isdir(CUDA_HOME):
-    raise OSError(
-        "Invalid CUDA_HOME: " "directory does not exist: {CUDA_HOME}"
-    )
+    raise OSError("Invalid CUDA_HOME: " "directory does not exist: {CUDA_HOME}")
 
 
 class CleanCommand(Command):
     """Custom clean command to tidy up the project root."""
-    user_options = [('all', None, None), ]
+
+    user_options = [
+        ("all", None, None),
+    ]
 
     def initialize_options(self):
         self.all = None
@@ -53,14 +54,14 @@ class CleanCommand(Command):
     def run(self):
         setupFileDir = os.path.dirname(os.path.abspath(__file__))
         os.chdir(setupFileDir)
-        os.system('rm -rf build')
-        os.system('rm -rf dist')
-        os.system('rm -rf dask-worker-space')
+        os.system("rm -rf build")
+        os.system("rm -rf dist")
+        os.system("rm -rf dask-worker-space")
         os.system('find . -name "__pycache__" -type d -exec rm -rf {} +')
-        os.system('rm -rf *.egg-info')
+        os.system("rm -rf *.egg-info")
         os.system('find . -name "*.cpp" -type f -delete')
         os.system('find . -name "*.cpython*.so" -type f -delete')
-        os.system('rm -rf _skbuild')
+        os.system("rm -rf _skbuild")
 
 
 cmdclass = versioneer.get_cmdclass()
@@ -70,44 +71,46 @@ cmdclass["clean"] = CleanCommand
 def exclude_libcxx_symlink(cmake_manifest):
     return list(filter(lambda name: not ('include/rapids/libcxx/include' in name), cmake_manifest))
 
-setup(name='pylibcugraph'+os.getenv("PYTHON_PACKAGE_CUDA_SUFFIX", default=""),
-      version=os.getenv("RAPIDS_PY_WHEEL_VERSIONEER_OVERRIDE",
-                        default=versioneer.get_version()),
-      description="pylibcuGraph - RAPIDS GPU Graph Analytics",
-      author="NVIDIA Corporation",
-      license="Apache",
-      classifiers=[
-          # "Development Status :: 4 - Beta",
-          "Intended Audience :: Developers",
-          # "Operating System :: OS Independent",
-          "Programming Language :: Python",
-          "Programming Language :: Python :: 3.8",
-          "Programming Language :: Python :: 3.9"
-      ],
-      cmdclass=cmdclass,
-      include_package_data=True,
-      packages=find_packages(include=['pylibcugraph', 'pylibcugraph.*']),
-      package_data={
-        key: ["*.pxd"] for key in find_packages(include=["pylibcugraph*"])
-      },
-      setup_requires=[
-        f"rmm{os.getenv('PYTHON_PACKAGE_CUDA_SUFFIX', default='')}",
-        f"pylibraft{os.getenv('PYTHON_PACKAGE_CUDA_SUFFIX', default='')}",
-      ],
-      install_requires=[
-        f"cudf{os.getenv('PYTHON_PACKAGE_CUDA_SUFFIX', default='')}",
-        f"pylibraft{os.getenv('PYTHON_PACKAGE_CUDA_SUFFIX', default='')}",
-      ],
-      extras_require = {
-          "test": [
-              "pytest",
-              "pytest-xdist",
-              "pytest-benchmark",
-              "scipy",
-              "pandas",
-              "numpy",
-              "networkx>=2.5.1",
-              "scikit-learn>=0.23.1",
-          ]
-      },
-      zip_safe=False)
+setup(
+    name=f'pylibcugraph{os.getenv("PYTHON_PACKAGE_CUDA_SUFFIX", default="")}',
+    description="pylibcuGraph - RAPIDS GPU Graph Analytics",
+    version=os.getenv("RAPIDS_PY_WHEEL_VERSIONEER_OVERRIDE",
+                      default=versioneer.get_version()),
+    classifiers=[
+        # "Development Status :: 4 - Beta",
+        "Intended Audience :: Developers",
+        # "Operating System :: OS Independent",
+        "Programming Language :: Python",
+        "Programming Language :: Python :: 3.8",
+        "Programming Language :: Python :: 3.9",
+    ],
+    # Include the separately-compiled shared library
+    author="NVIDIA Corporation",
+    packages=find_packages(include=["pylibcugraph", "pylibcugraph.*"]),
+    package_data={key: ["*.pxd"] for key in find_packages(include=["pylibcugraph*"])},
+    include_package_data=True,
+    setup_requires=[
+      f"rmm{os.getenv('PYTHON_PACKAGE_CUDA_SUFFIX', default='')}",
+      f"pylibraft{os.getenv('PYTHON_PACKAGE_CUDA_SUFFIX', default='')}",
+    ],
+    install_requires=[
+      f"cudf{os.getenv('PYTHON_PACKAGE_CUDA_SUFFIX', default='')}",
+      f"pylibraft{os.getenv('PYTHON_PACKAGE_CUDA_SUFFIX', default='')}",
+    ],
+    extras_require = {
+        "test": [
+            "pytest",
+            "pytest-xdist",
+            "pytest-benchmark",
+            "scipy",
+            "pandas",
+            "numpy",
+            "networkx>=2.5.1",
+            "scikit-learn>=0.23.1",
+        ]
+    },
+    cmake_process_manifest_hook=exclude_libcxx_symlink,
+    license="Apache 2.0",
+    cmdclass=cmdclass,
+    zip_safe=False,
+)
