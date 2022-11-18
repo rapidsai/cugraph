@@ -77,11 +77,11 @@ def core_number(input_graph, degree_type="bidirectional"):
     if input_graph.is_directed():
         raise ValueError("input graph must be undirected")
 
-
     if degree_type not in ["incoming", "outgoing", "bidirectional"]:
-        raise ValueError(f"'degree_type' must be either incoming, "
-                         f"outgoing or bidirectional, got: {degree_type}")
-
+        raise ValueError(
+            f"'degree_type' must be either incoming, "
+            f"outgoing or bidirectional, got: {degree_type}"
+        )
 
     # Initialize dask client
     client = input_graph._client

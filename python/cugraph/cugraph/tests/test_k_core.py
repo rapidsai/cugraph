@@ -110,9 +110,7 @@ def test_k_core_corenumber_multicolumn(graph_file):
     corenumber_G1 = None
     ck_res = cugraph.k_core(G1, core_number=corenumber_G1)
     G2 = cugraph.Graph()
-    G2.from_cudf_edgelist(
-        cu_M, source="src_0", destination="dst_0", renumber=False)
-
+    G2.from_cudf_edgelist(cu_M, source="src_0", destination="dst_0", renumber=False)
 
     corenumber_G2 = cugraph.core_number(G2)
     corenumber_G2.rename(columns={"core_number": "values"}, inplace=True)

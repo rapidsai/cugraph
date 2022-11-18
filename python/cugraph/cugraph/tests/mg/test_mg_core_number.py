@@ -116,9 +116,6 @@ def test_core_number(dask_client, benchmark, input_expected_output):
     dg = input_expected_output["MGGraph"]
     degree_type = input_expected_output["degree_type"]
 
-    
-
-
     result_core_number = benchmark(dcg.core_number, dg, degree_type)
 
     result_core_number = (
@@ -167,4 +164,3 @@ def test_core_number_invalid_input(input_expected_output):
     dg = input_expected_output["MGGraph"]
     with pytest.raises(ValueError):
         dcg.core_number(dg, invalid_degree_type)
-

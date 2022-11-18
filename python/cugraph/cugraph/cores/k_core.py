@@ -90,10 +90,11 @@ def k_core(G, k=None, core_number=None, degree_type="bidirectional"):
 
     G, isNx = ensure_cugraph_obj_for_nx(G)
 
-
     if degree_type not in ["incoming", "outgoing", "bidirectional"]:
-        raise ValueError(f"'degree_type' must be either incoming, "
-                         f"outgoing or bidirectional, got: {degree_type}")
+        raise ValueError(
+            f"'degree_type' must be either incoming, "
+            f"outgoing or bidirectional, got: {degree_type}"
+        )
 
     mytype = type(G)
 
@@ -111,8 +112,7 @@ def k_core(G, k=None, core_number=None, degree_type="bidirectional"):
             else:
                 cols = "vertex"
 
-            core_number = G.add_internal_vertex_id(
-                core_number, "vertex", cols)
+            core_number = G.add_internal_vertex_id(core_number, "vertex", cols)
 
     core_number = core_number.rename(columns={"core_number": "values"})
     if k is None:

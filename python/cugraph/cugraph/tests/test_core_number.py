@@ -79,8 +79,6 @@ def test_core_number(input_combo):
         drop=True
     )
 
-    warning_msg = "The 'degree_type' parameter is ignored in this release."
-
     core_number_results = (
         cugraph.core_number(G, degree_type)
         .sort_values("vertex")
@@ -110,9 +108,8 @@ def test_core_number_invalid_input(input_combo):
 
     with pytest.raises(ValueError):
         cugraph.core_number(G)
- 
+
     invalid_degree_type = "invalid"
     G = input_combo["G"]
     with pytest.raises(ValueError):
         cugraph.core_number(G, invalid_degree_type)
-

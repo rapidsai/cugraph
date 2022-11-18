@@ -20,11 +20,9 @@ import dask_cudf
 import cudf
 
 import cugraph.dask as dcg
-from pylibcugraph import (ResourceHandle, k_core as pylibcugraph_k_core
-    )
+from pylibcugraph import ResourceHandle, k_core as pylibcugraph_k_core
 
 from cugraph.structure.symmetrize import symmetrize_ddf
-
 
 
 def convert_to_cudf(cp_arrays):
@@ -71,7 +69,7 @@ def k_core(input_graph, k=None, core_number=None, degree_type="bidirectional"):
     k : int, optional (default=None)
         Order of the core. This value must not be negative. If set to None, the
         main core is returned.
-    
+
     degree_type: str (default=""bidirectional"")
         This option determines if the core number computation should be based
         on input, output, or both directed edges, with valid values being
@@ -97,9 +95,9 @@ def k_core(input_graph, k=None, core_number=None, degree_type="bidirectional"):
             Contains sources of the K Core
         ddf['dst']: dask_cudf.Series
             Contains destinations of the K Core
-        
+
         and/or
-        
+
         ddf['weights']: dask_cudf.Series
             Contains weights of the K Core
 
@@ -123,34 +121,35 @@ def k_core(input_graph, k=None, core_number=None, degree_type="bidirectional"):
     """
 
     mytype = type(input_graph)
-    KCoreGraph = mytype()
 
     if degree_type not in ["incoming", "outgoing", "bidirectional"]:
-        raise ValueError(f"'degree_type' must be either incoming, "
-                         f"outgoing or bidirectional, got: {degree_type}")
+        raise ValueError(
+            f"'degree_type' must be either incoming, "
+            f"outgoing or bidirectional, got: {degree_type}"
+        )
 
     if input_graph.is_directed():
         raise ValueError("input graph must be undirected")
 
     if core_number is None:
         core_number = dcg.core_number(input_graph)
-    
 
     if input_graph.renumbered is True:
 
         if len(input_graph.renumber_map.implementation.col_names) > 1:
-                cols = core_number.columns[:-1].to_list()
+            cols = core_number.columns[:-1].to_list()
         else:
             cols = "vertex"
 
             core_number = input_graph.add_internal_vertex_id(
-                core_number, "vertex", cols)
+                core_number, "vertex", cols
+            )
 
     if not isinstance(core_number, dask_cudf.DataFrame):
         if isinstance(core_number, cudf.DataFrame):
             # convert to dask_cudf in order to distribute the edges
             core_number = dask_cudf.from_cudf(core_number, input_graph._npartitions)
-            
+
         else:
             raise TypeError(
                 f"'core_number' must be either None or of"
@@ -204,7 +203,7 @@ def k_core(input_graph, k=None, core_number=None, degree_type="bidirectional"):
     if input_graph.renumbered:
         ddf = input_graph.unrenumber(ddf, "src")
         ddf = input_graph.unrenumber(ddf, "dst")
-    
+
     # FIXME: symmetrize the final result. This should
     # be done at the C++/CAPI layer
     ddf = symmetrize_ddf(ddf, "src", "dst", "weights")
