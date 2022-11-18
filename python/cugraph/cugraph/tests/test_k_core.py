@@ -73,7 +73,7 @@ def compare_edges(cg, nxg):
 
 
 @pytest.mark.parametrize("graph_file", DATASETS_UNDIRECTED)
-def test_k_core_Graph_1(graph_file):
+def test_k_core_Graph(graph_file):
 
     cu_kcore, nx_kcore = calc_k_cores(graph_file, False)
 
