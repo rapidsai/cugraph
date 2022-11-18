@@ -19,7 +19,12 @@ from cugraph.dask.common.input_utils import get_distributed_data
 import dask_cudf
 import cudf
 
-from pylibcugraph import ResourceHandle, core_number as pylibcugraph_k_core
+import cugraph.dask as dcg
+from pylibcugraph import (ResourceHandle, k_core as pylibcugraph_k_core
+    )
+
+from cugraph.structure.symmetrize import symmetrize_ddf
+
 
 
 def convert_to_cudf(cp_arrays):
@@ -36,6 +41,7 @@ def convert_to_cudf(cp_arrays):
 
 
 def _call_plc_k_core(sID, mg_graph_x, k, degree_type, core_result, do_expensive_check):
+
     return pylibcugraph_k_core(
         resource_handle=ResourceHandle(Comms.get_handle(sID).getHandle()),
         graph=mg_graph_x,
@@ -55,7 +61,7 @@ def k_core(input_graph, k=None, degree_type=None, core_number=None):
 
     Parameters
     ----------
-    G : cuGraph.Graph
+    input_graph : cuGraph.Graph
         cuGraph graph descriptor with connectivity information. The graph
         should contain undirected edges where undirected edges are represented
         as directed edges in both directions. While this graph can contain edge
@@ -79,7 +85,7 @@ def k_core(input_graph, k=None, degree_type=None, core_number=None):
     Returns
     -------
     KCoreGraph : cuGraph.Graph
-        K Core of the input graph
+        A dask_cudf dataframe containing the K Core of the input graph
 
     Examples
     --------
@@ -105,34 +111,42 @@ def k_core(input_graph, k=None, degree_type=None, core_number=None):
     if input_graph.is_directed():
         raise ValueError("input graph must be undirected")
 
+    if core_number is None:
+        core_number = dcg.core_number(input_graph)
+    
+
+    if input_graph.renumbered is True:
+
+        if len(input_graph.renumber_map.implementation.col_names) > 1:
+                cols = core_number.columns[:-1].to_list()
+        else:
+            cols = "vertex"
+
+            core_number = input_graph.add_internal_vertex_id(
+                core_number, "vertex", cols)
+
     if not isinstance(core_number, dask_cudf.DataFrame):
         if isinstance(core_number, cudf.DataFrame):
             # convert to dask_cudf in order to distribute the edges
             core_number = dask_cudf.from_cudf(core_number, input_graph._npartitions)
-        elif core_number is not None:
+            
+        else:
             raise TypeError(
                 f"'core_number' must be either None or of"
-                f"type cudf/dask_cudf, got type{core_number}"
+                f"type cudf/dask_cudf, got: {type(core_number)}"
             )
 
-    if isinstance(core_number, dask_cudf.DataFrame):
-        if input_graph.renumbered is True:
-            core_number = input_graph.add_internal_vertex_id(
-                core_number, "vertex", "vertex"
-            )
+    core_number = core_number.rename(columns={"core_number": "values"})
+    if k is None:
+        k = core_number["values"].max().compute()
 
-        data_core_number = get_distributed_data(core_number)
-        data_core_number = data_core_number.worker_to_parts
-    else:
-        # core_number is None
-        worker_list = Comms.get_workers()
-        # map each worker to None
-        data_core_number = dict.fromkeys(worker_list)
+    core_number = get_distributed_data(core_number)
+    wait(core_number)
+    core_number = core_number.worker_to_parts
 
-    # Initialize dask client
     client = input_graph._client
 
-    do_expensive_check = False
+    do_expensive_check = True
 
     result = [
         client.submit(
@@ -141,12 +155,12 @@ def k_core(input_graph, k=None, degree_type=None, core_number=None):
             input_graph._plc_graph[w],
             k,
             degree_type,
-            core_number,
+            core_number[w][0],
             do_expensive_check,
             workers=[w],
             allow_other_workers=False,
         )
-        for w, core_number in data_core_number.items()
+        for w in Comms.get_workers()
     ]
 
     wait(result)
@@ -167,18 +181,11 @@ def k_core(input_graph, k=None, degree_type=None, core_number=None):
     del cudf_result
 
     if input_graph.renumbered:
-        ddf, src_names = input_graph.unrenumber(ddf, "src", get_column_names=True)
-        ddf, dst_names = input_graph.unrenumber(ddf, "dst", get_column_names=True)
+        ddf = input_graph.unrenumber(ddf, "src")
+        ddf = input_graph.unrenumber(ddf, "dst")
+    
+    # FIXME: symmetrize the final result. This should
+    # be done at the C++/CAPI layer
+    ddf = symmetrize_ddf(ddf, "src", "dst", "weights")
 
-    if input_graph.edgelist.weights:
-        KCoreGraph.from_dask_cudf_edgelist(
-            ddf, source=src_names, destination=dst_names, edge_attr="weight"
-        )
-    else:
-        KCoreGraph.from_dask_cudf_edgelist(
-            ddf,
-            source=src_names,
-            destination=dst_names,
-        )
-
-    return KCoreGraph
+    return ddf
