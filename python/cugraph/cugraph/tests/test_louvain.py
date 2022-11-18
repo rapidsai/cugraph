@@ -80,34 +80,10 @@ def networkx_call(M):
 
 
 @pytest.mark.parametrize("graph_file", DATASETS_UNDIRECTED)
-def test_louvain_with_edgevals(graph_file):
-    dataset_path = graph_file.get_path()
-    M = utils.read_csv_for_nx(dataset_path)
-    cu_parts, cu_mod = cugraph_call(graph_file, edgevals=True)
-    nx_parts = networkx_call(M)
-    # Calculating modularity scores for comparison
-    Gnx = nx.from_pandas_edgelist(
-        M, source="0", target="1", edge_attr="weight", create_using=nx.Graph()
-    )
-
-    cu_parts = cu_parts.to_pandas()
-    cu_map = dict(zip(cu_parts["vertex"], cu_parts["partition"]))
-
-    assert set(nx_parts.keys()) == set(cu_map.keys())
-
-    cu_mod_nx = community.modularity(cu_map, Gnx)
-    nx_mod = community.modularity(nx_parts, Gnx)
-
-    assert len(cu_parts) == len(nx_parts)
-    assert cu_mod > (0.82 * nx_mod)
-    assert abs(cu_mod - cu_mod_nx) < 0.0001
-
-
-@pytest.mark.parametrize("graph_file", DATASETS_UNDIRECTED)
 def test_louvain(graph_file):
     dataset_path = graph_file.get_path()
     M = utils.read_csv_for_nx(dataset_path)
-    cu_parts, cu_mod = cugraph_call(graph_file)
+    cu_parts, cu_mod = cugraph_call(graph_file, edgevals=True)
     nx_parts = networkx_call(M)
 
     # Calculating modularity scores for comparison
@@ -130,4 +106,10 @@ def test_louvain(graph_file):
 
 def test_louvain_directed_graph():
     with pytest.raises(ValueError):
-        cugraph_call(karate_asymmetric, directed=True)
+        cugraph_call(karate_asymmetric, edgevals=True, directed=True)
+
+
+@pytest.mark.parametrize("graph_file", DATASETS_UNDIRECTED)
+def test_louvain_with_no_edgevals(graph_file):
+    with pytest.raises(RuntimeError):
+        cugraph_call(karate_asymmetric, edgevals=False)
