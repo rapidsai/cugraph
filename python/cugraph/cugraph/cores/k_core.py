@@ -104,7 +104,6 @@ def k_core(G, k=None, core_number=None, degree_type=None):
     """
     mytype = type(G)
 
-    # FIXME: Do like egonet to create the appropriate graph directed or undirected
     KCoreGraph = mytype()
 
     if G.is_directed():
