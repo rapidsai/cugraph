@@ -47,7 +47,8 @@ struct UniformRandomWalks_Usecase {
              raft::device_span<vertex_t const> start_vertices,
              size_t max_depth)
   {
-    return cugraph::uniform_random_walks(handle, graph_view, edge_weight_view,start_vertices, max_depth, seed);
+    return cugraph::uniform_random_walks(
+      handle, graph_view, edge_weight_view, start_vertices, max_depth, seed);
   }
 
   bool expect_throw() { return false; }
@@ -66,7 +67,8 @@ struct BiasedRandomWalks_Usecase {
              raft::device_span<vertex_t const> start_vertices,
              size_t max_depth)
   {
-    return cugraph::biased_random_walks(handle, graph_view, *edge_weight_view,start_vertices, max_depth, seed);
+    return cugraph::biased_random_walks(
+      handle, graph_view, *edge_weight_view, start_vertices, max_depth, seed);
   }
 
   // FIXME: Not currently implemented
@@ -89,7 +91,8 @@ struct Node2VecRandomWalks_Usecase {
              size_t max_depth)
   {
     return cugraph::node2vec_random_walks(handle,
-                                          graph_view, edge_weight_view,
+                                          graph_view,
+                                          edge_weight_view,
                                           start_vertices,
                                           max_depth,
                                           static_cast<weight_t>(p),
@@ -137,8 +140,9 @@ class Tests_MGRandomWalks : public ::testing::TestWithParam<tuple_t> {
       std::cout << "construct_graph took " << elapsed_time * 1e-6 << " s.\n";
     }
 
-    auto mg_graph_view   = mg_graph.view();
-    auto mg_edge_weight_view = mg_edge_weights ? std::make_optional((*mg_edge_weights).view()) : std::nullopt;
+    auto mg_graph_view = mg_graph.view();
+    auto mg_edge_weight_view =
+      mg_edge_weights ? std::make_optional((*mg_edge_weights).view()) : std::nullopt;
 
     edge_t num_paths  = 10;
     edge_t max_length = 10;
@@ -163,14 +167,16 @@ class Tests_MGRandomWalks : public ::testing::TestWithParam<tuple_t> {
       // biased and node2vec currently throw since they are not implemented
       EXPECT_THROW(
         randomwalks_usecase(*handle_,
-                            mg_graph_view, mg_edge_weight_view,
+                            mg_graph_view,
+                            mg_edge_weight_view,
                             raft::device_span<vertex_t const>{d_start.data(), d_start.size()},
                             max_length),
         std::exception);
     } else {
       auto [d_vertices, d_weights] =
         randomwalks_usecase(*handle_,
-                            mg_graph_view, mg_edge_weight_view,
+                            mg_graph_view,
+                            mg_edge_weight_view,
                             raft::device_span<vertex_t const>{d_start.data(), d_start.size()},
                             max_length);
 

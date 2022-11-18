@@ -92,11 +92,14 @@ class Tests_TransposeStorage
       hr_clock.start();
     }
 
-    cugraph::graph_t<vertex_t, edge_t, !store_transposed, false> storage_transposed_graph(
-      handle);
-    std::optional<cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, !store_transposed, false>, weight_t>> storage_transposed_edge_weights{std::nullopt};
+    cugraph::graph_t<vertex_t, edge_t, !store_transposed, false> storage_transposed_graph(handle);
+    std::optional<
+      cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, !store_transposed, false>,
+                               weight_t>>
+      storage_transposed_edge_weights{std::nullopt};
     std::tie(storage_transposed_graph, storage_transposed_edge_weights, d_renumber_map_labels) =
-      transpose_graph_storage(handle, std::move(graph), std::move(edge_weights), std::move(d_renumber_map_labels));
+      transpose_graph_storage(
+        handle, std::move(graph), std::move(edge_weights), std::move(d_renumber_map_labels));
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -110,7 +113,9 @@ class Tests_TransposeStorage
         cugraph::decompress_to_edgelist(
           handle,
           storage_transposed_graph.view(),
-          storage_transposed_edge_weights ? std::make_optional((*storage_transposed_edge_weights).view()) : std::nullopt,
+          storage_transposed_edge_weights
+            ? std::make_optional((*storage_transposed_edge_weights).view())
+            : std::nullopt,
           d_renumber_map_labels
             ? std::make_optional<raft::device_span<vertex_t const>>((*d_renumber_map_labels).data(),
                                                                     (*d_renumber_map_labels).size())

@@ -127,7 +127,8 @@ class Tests_InducedSubgraph
     }
 
     auto graph_view = graph.view();
-    auto edge_weight_view = edge_weights ? std::make_optional((*edge_weights).view()) : std::nullopt;
+    auto edge_weight_view =
+      edge_weights ? std::make_optional((*edge_weights).view()) : std::nullopt;
 
     // Construct random subgraph vertex lists
     std::vector<size_t> h_subgraph_offsets(induced_subgraph_usecase.subgraph_sizes.size() + 1, 0);
@@ -185,7 +186,8 @@ class Tests_InducedSubgraph
     if (induced_subgraph_usecase.check_correctness) {
       auto h_subgraph_vertices = cugraph::test::to_host(handle, d_subgraph_vertices);
 
-      auto [h_offsets, h_indices, h_weights] = cugraph::test::graph_to_host_csr(handle, graph_view, edge_weight_view);
+      auto [h_offsets, h_indices, h_weights] =
+        cugraph::test::graph_to_host_csr(handle, graph_view, edge_weight_view);
 
       auto [h_reference_subgraph_edgelist_majors,
             h_reference_subgraph_edgelist_minors,

@@ -227,8 +227,12 @@ class Tests_Symmetrize
       hr_clock.start();
     }
 
-    std::tie(graph, edge_weights, d_renumber_map_labels) = cugraph::symmetrize_graph(
-      handle, std::move(graph), std::move(edge_weights), std::move(d_renumber_map_labels), symmetrize_usecase.reciprocal);
+    std::tie(graph, edge_weights, d_renumber_map_labels) =
+      cugraph::symmetrize_graph(handle,
+                                std::move(graph),
+                                std::move(edge_weights),
+                                std::move(d_renumber_map_labels),
+                                symmetrize_usecase.reciprocal);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement

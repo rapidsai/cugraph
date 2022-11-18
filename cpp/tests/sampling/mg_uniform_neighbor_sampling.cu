@@ -69,8 +69,9 @@ class Tests_MGNbrSampling
       std::cout << "MG construct_graph took " << elapsed_time * 1e-6 << " s.\n";
     }
 
-    auto mg_graph_view                        = mg_graph.view();
-    auto mg_edge_weight_view = mg_edge_weights ? std::make_optional((*mg_edge_weights).view()) : std::nullopt;
+    auto mg_graph_view = mg_graph.view();
+    auto mg_edge_weight_view =
+      mg_edge_weights ? std::make_optional((*mg_edge_weights).view()) : std::nullopt;
 
     constexpr edge_t indices_per_source       = 2;
     constexpr vertex_t repetitions_per_vertex = 5;
