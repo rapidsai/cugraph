@@ -63,12 +63,9 @@ def uniform_neighbor_sample(
         start_list = [start_list]
 
     if isinstance(start_list, list):
-        start_list = cudf.Series(start_list, dtype="int32")
-        # FIXME: ensure other sequence types (eg. cudf Series) can be handled.
-        if start_list.dtype != "int32":
-            raise ValueError(
-                f"'start_list' must have int32 values, " f"got: {start_list.dtype}"
-            )
+        start_list = cudf.Series(
+            start_list, dtype=G.edgelist.edgelist_df[G.srcCol].dtype
+        )
 
     # fanout_vals must be a host array!
     # FIXME: ensure other sequence types (eg. cudf Series) can be handled.
