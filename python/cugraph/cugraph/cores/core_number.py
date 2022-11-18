@@ -36,6 +36,7 @@ def core_number(G, degree_type="bidirectional"):
         represented as directed edges in both directions. While this graph
         can contain edge weights, they don't participate in the calculation
         of the core numbers.
+        The current implementation only supports undirected graphs.
 
     degree_type: str
         This option determines if the core number computation should be based
