@@ -58,8 +58,8 @@ Note: Multi-GPU, or MG, includes support for Multi-Node Multi-GPU (also called M
 | Link Prediction   |                                    |                     |                                                                 |
 |                   | Jaccard Similarity                 | Single-GPU          | MG planned for 22.12<br />Directed graph only                   |
 |                   | Weighted Jaccard Similarity        | Single-GPU          |                                                                 |
-|                   | Overlap Similarity                 | Single-GPU          | MG planned for 22.12                                            |
-|                   | Sorensen Coefficient               | Single-GPU          | MG planned for 22.12                                            |
+|                   | Overlap Similarity                 | **Multi-GPU** | MG as of 22.12                                                  |
+|                   | Sorensen Coefficient               | **Multi-GPU** | MG as of 22.12                                                  |
 |                   | _Local Clustering Coefficient_   | ---                 |                                                                 |
 | Sampling          |                                    |                     |                                                                 |
 |                   | Uniform Random Walks (RW)          | **Multi-GPU** |                                                                 |
@@ -78,7 +78,7 @@ Note: Multi-GPU, or MG, includes support for Multi-Node Multi-GPU (also called M
 |                   | Renumbering                        | __Multi-GPU__ | multiple columns, any data type                                 |
 |                   | Symmetrize                         | __Multi-GPU__ |                                                                 |
 |                   | Path Extraction                    |                     | Extract paths from BFS/SSP results in parallel                  |
-|                   | Two Hop Neighbors                  | __Multi-GPU__ | Extract two-hop neighborhoods                                   |
+|                   | Two Hop Neighbors                  | __Multi-GPU__ |                                                                 |
 | Data Generator    |                                    |                     |                                                                 |
 |                   | RMAT                               | __Multi-GPU__ |                                                                 |
 |                   | _Barabasi-Albert_                | ---                 |                                                                 |
