@@ -25,11 +25,11 @@ from cugraph.utilities import (
 )
 
 
-def _call_plc_core_number(G):
+def _call_plc_core_number(G, degree_type):
     vertex, core_number = pylibcugraph_core_number(
         resource_handle=ResourceHandle(),
         graph=G._plc_graph,
-        degree_type=None,
+        degree_type=degree_type,
         do_expensive_check=False,
     )
 
@@ -104,7 +104,7 @@ def k_core(G, k=None, core_number=None, degree_type="bidirectional"):
         raise ValueError("G must be an undirected Graph instance")
 
     if core_number is None:
-        core_number = _call_plc_core_number(G)
+        core_number = _call_plc_core_number(G, degree_type=degree_type)
     else:
         if G.renumbered:
             if len(G.renumber_map.implementation.col_names) > 1:
