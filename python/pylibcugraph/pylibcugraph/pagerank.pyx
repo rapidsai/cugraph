@@ -180,14 +180,14 @@ def pagerank(ResourceHandle resource_handle,
     cdef cugraph_graph_t* c_graph_ptr = graph.c_graph_ptr
 
     cdef cugraph_type_erased_device_array_view_t* \
-        precomputed_vertex_out_weight_vertices_ptr = \
+        precomputed_vertex_out_weight_vertices_view_ptr = \
             create_cugraph_type_erased_device_array_view_from_py_obj(
                 precomputed_vertex_out_weight_vertices)
 
     # FIXME: assert that precomputed_vertex_out_weight_sums
     # type == weight type
     cdef cugraph_type_erased_device_array_view_t* \
-        precomputed_vertex_out_weight_sums_ptr = \
+        precomputed_vertex_out_weight_sums_view_ptr = \
             create_cugraph_type_erased_device_array_view_from_py_obj(
                 precomputed_vertex_out_weight_sums)
 
@@ -197,8 +197,8 @@ def pagerank(ResourceHandle resource_handle,
 
     error_code = cugraph_pagerank(c_resource_handle_ptr,
                                   c_graph_ptr,
-                                  precomputed_vertex_out_weight_vertices_ptr,
-                                  precomputed_vertex_out_weight_sums_ptr,
+                                  precomputed_vertex_out_weight_vertices_view_ptr,
+                                  precomputed_vertex_out_weight_sums_view_ptr,
                                   initial_guess_vertices_view_ptr,
                                   initial_guess_values_view_ptr,
                                   alpha,
