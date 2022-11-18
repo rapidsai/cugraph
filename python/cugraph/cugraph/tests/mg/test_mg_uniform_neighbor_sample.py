@@ -87,7 +87,7 @@ def input_combo(request):
     parameters["MGGraph"] = dg
 
     # sample k vertices from the cuGraph graph
-    k = random.randint(1, 10)
+    k = random.randint(1, 3)
     srcs = dg.input_df["src"]
     dsts = dg.input_df["dst"]
 

@@ -44,6 +44,8 @@ rmm::device_uvector<weight_t> similarity(
 
   CUGRAPH_EXPECTS(std::get<0>(vertex_pairs).size() == std::get<1>(vertex_pairs).size(),
                   "vertex pairs have mismatched sizes");
+  CUGRAPH_EXPECTS(graph_view.is_symmetric(),
+                  "similarity algorithms require an undirected(symmetric) graph");
 
   size_t num_vertex_pairs = std::get<0>(vertex_pairs).size();
   auto vertex_pairs_begin =

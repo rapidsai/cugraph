@@ -67,8 +67,6 @@ struct core_number_functor : public cugraph::c_api::abstract_functor {
         if (error_code_ != CUGRAPH_SUCCESS)
           ;
       }
-      // FIXME: Transpose_storage may have a bug, since if store_transposed is True it can reverse
-      // the bool value of is_symmetric
       auto graph =
         reinterpret_cast<cugraph::graph_t<vertex_t, edge_t, false, multi_gpu>*>(graph_->graph_);
 

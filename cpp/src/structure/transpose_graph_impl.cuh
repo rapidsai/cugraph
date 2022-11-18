@@ -104,7 +104,7 @@ transpose_graph_impl(
       std::move(edgelist_srcs),
       std::move(edgelist_weights),
       std::nullopt,
-      graph_properties_t{is_multigraph, false},
+      graph_properties_t{false, is_multigraph},
       true);
 
   return std::make_tuple(
@@ -181,7 +181,7 @@ transpose_graph_impl(
       std::move(edgelist_srcs),
       std::move(edgelist_weights),
       std::nullopt,
-      graph_properties_t{is_multigraph, false},
+      graph_properties_t{false, is_multigraph},
       renumber);
 
   return std::make_tuple(

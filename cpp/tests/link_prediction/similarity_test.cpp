@@ -301,7 +301,7 @@ INSTANTIATE_TEST_SUITE_P(
     //::testing::Values(Similarity_Usecase{true, true, 20, 100}, Similarity_Usecase{false, true, 20,
     // 100}),
     ::testing::Values(Similarity_Usecase{false, true, 20, 100}),
-    ::testing::Values(cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, false, false))));
+    ::testing::Values(cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, true, false))));
 
 INSTANTIATE_TEST_SUITE_P(
   file_benchmark_test, /* note that the test filename can be overridden in benchmarking (with
@@ -328,6 +328,6 @@ INSTANTIATE_TEST_SUITE_P(
     // disable correctness checks for large graphs
     //::testing::Values(Similarity_Usecase{false, false}, Similarity_Usecase{true, false}),
     ::testing::Values(Similarity_Usecase{false, false}),
-    ::testing::Values(cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, false, false))));
+    ::testing::Values(cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, true, false))));
 
 CUGRAPH_TEST_PROGRAM_MAIN()

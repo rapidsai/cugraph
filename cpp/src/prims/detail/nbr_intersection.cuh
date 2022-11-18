@@ -15,6 +15,8 @@
  */
 #pragma once
 
+#include <prims/kv_store.cuh>
+
 #include <cugraph/edge_partition_device_view.cuh>
 #include <cugraph/graph.hpp>
 #include <cugraph/partition_manager.hpp>
@@ -23,7 +25,6 @@
 #include <cugraph/utilities/shuffle_comm.cuh>
 #include <cugraph/utilities/thrust_tuple_utils.hpp>
 
-#include <cuco/static_map.cuh>
 #include <raft/core/device_span.hpp>
 #include <raft/handle.hpp>
 #include <rmm/device_uvector.hpp>
@@ -270,10 +271,7 @@ struct pick_min_degree_t {
           edge_partition.local_degree(edge_partition.major_offset_from_major_nocheck(major0));
       }
     } else {
-      auto idx =
-        first_element_to_idx_map
-          .find(major0, cuco::detail::MurmurHash3_32<vertex_t>{}, thrust::equal_to<vertex_t>{})
-          ->second.load(cuda::memory_order_relaxed);
+      auto idx = first_element_to_idx_map.find(major0);
       local_degree0 =
         static_cast<edge_t>(first_element_offsets[idx + 1] - first_element_offsets[idx]);
     }
@@ -301,10 +299,7 @@ struct pick_min_degree_t {
           edge_partition.local_degree(edge_partition.major_offset_from_major_nocheck(major1));
       }
     } else {
-      auto idx =
-        second_element_to_idx_map
-          .find(major1, cuco::detail::MurmurHash3_32<vertex_t>{}, thrust::equal_to<vertex_t>{})
-          ->second.load(cuda::memory_order_relaxed);
+      auto idx = second_element_to_idx_map.find(major1);
       local_degree1 =
         static_cast<edge_t>(second_element_offsets[idx + 1] - second_element_offsets[idx]);
     }
@@ -364,11 +359,7 @@ struct copy_intersecting_nbrs_and_update_intersection_size_t {
           edge_partition.local_edges(edge_partition.major_offset_from_major_nocheck(major));
       }
     } else {
-      auto idx = first_element_to_idx_map
-                   .find(thrust::get<0>(pair),
-                         cuco::detail::MurmurHash3_32<vertex_t>{},
-                         thrust::equal_to<vertex_t>{})
-                   ->second.load(cuda::memory_order_relaxed);
+      auto idx = first_element_to_idx_map.find(thrust::get<0>(pair));
       local_degree0 =
         static_cast<edge_t>(first_element_offsets[idx + 1] - first_element_offsets[idx]);
       indices0 = first_element_indices + first_element_offsets[idx];
@@ -398,11 +389,7 @@ struct copy_intersecting_nbrs_and_update_intersection_size_t {
           edge_partition.local_edges(edge_partition.major_offset_from_major_nocheck(major));
       }
     } else {
-      auto idx = second_element_to_idx_map
-                   .find(thrust::get<1>(pair),
-                         cuco::detail::MurmurHash3_32<vertex_t>{},
-                         thrust::equal_to<vertex_t>{})
-                   ->second.load(cuda::memory_order_relaxed);
+      auto idx = second_element_to_idx_map.find(thrust::get<1>(pair));
       local_degree1 =
         static_cast<edge_t>(second_element_offsets[idx + 1] - second_element_offsets[idx]);
       indices1 = second_element_indices + second_element_offsets[idx];
@@ -570,8 +557,6 @@ nbr_intersection(raft::handle_t const& handle,
   using vertex_t = typename GraphViewType::vertex_type;
   using edge_t   = typename GraphViewType::edge_type;
 
-  double constexpr load_factor = 0.7;
-
   static_assert(std::is_same_v<typename thrust::iterator_traits<VertexPairIterator>::value_type,
                                thrust::tuple<vertex_t, vertex_t>>);
 
@@ -603,13 +588,8 @@ nbr_intersection(raft::handle_t const& handle,
   // range for this GPU); Note that no need to collect for first pair elements as they already
   // locally reside.
 
-  auto poly_alloc = rmm::mr::polymorphic_allocator<char>(rmm::mr::get_current_device_resource());
-  [[maybe_unused]] auto stream_adapter =
-    rmm::mr::make_stream_allocator_adaptor(poly_alloc, handle.get_stream());
-
-  std::optional<std::unique_ptr<
-    cuco::static_map<vertex_t, vertex_t, cuda::thread_scope_device, decltype(stream_adapter)>>>
-    major_to_idx_map_ptr{std::nullopt};
+  std::optional<std::unique_ptr<kv_store_t<vertex_t, vertex_t, false>>> major_to_idx_map_ptr{
+    std::nullopt};
   std::optional<rmm::device_uvector<size_t>> major_nbr_offsets{std::nullopt};
   std::optional<rmm::device_uvector<vertex_t>> major_nbr_indices{std::nullopt};
 
@@ -859,31 +839,20 @@ nbr_intersection(raft::handle_t const& handle,
       std::tie(*major_nbr_indices, std::ignore) = shuffle_values(
         row_comm, local_nbrs_for_rx_majors.begin(), local_nbr_counts, handle.get_stream());
 
-      major_to_idx_map_ptr = std::make_unique<
-        cuco::static_map<vertex_t, vertex_t, cuda::thread_scope_device, decltype(stream_adapter)>>(
-        // cuco::static_map requires at least one empty slot
-        std::max(static_cast<size_t>(static_cast<double>(unique_majors.size()) / load_factor),
-                 static_cast<size_t>(unique_majors.size()) + 1),
-        cuco::sentinel::empty_key<vertex_t>{invalid_vertex_id<vertex_t>::value},
-        cuco::sentinel::empty_value<vertex_t>{invalid_vertex_id<vertex_t>::value},
-        stream_adapter,
+      major_to_idx_map_ptr = std::make_unique<kv_store_t<vertex_t, vertex_t, false>>(
+        unique_majors.begin(),
+        unique_majors.end(),
+        thrust::make_counting_iterator(vertex_t{0}),
+        invalid_vertex_id<vertex_t>::value,
+        invalid_vertex_id<vertex_t>::value,
         handle.get_stream());
-      auto pair_first = thrust::make_zip_iterator(unique_majors.begin(),
-                                                  thrust::make_counting_iterator(vertex_t{0}));
-      (*major_to_idx_map_ptr)
-        ->insert(pair_first,
-                 pair_first + unique_majors.size(),
-                 cuco::detail::MurmurHash3_32<vertex_t>{},
-                 thrust::equal_to<vertex_t>{},
-                 handle.get_stream());
     }
   }
 
   // 3. Collect neighbor list for minors (for the neighbors within the minor range for this GPU)
 
-  std::optional<std::unique_ptr<
-    cuco::static_map<vertex_t, vertex_t, cuda::thread_scope_device, decltype(stream_adapter)>>>
-    minor_to_idx_map_ptr{std::nullopt};
+  std::optional<std::unique_ptr<kv_store_t<vertex_t, vertex_t, false>>> minor_to_idx_map_ptr{
+    std::nullopt};
   std::optional<rmm::device_uvector<size_t>> minor_nbr_offsets{std::nullopt};
   std::optional<rmm::device_uvector<vertex_t>> minor_nbr_indices{std::nullopt};
 
@@ -982,7 +951,8 @@ nbr_intersection(raft::handle_t const& handle,
           handle
             .get_stream());  // initially store minimum degrees (upper bound for intersection sizes)
         if (intersect_minor_nbr[0] && intersect_minor_nbr[1]) {
-          auto second_element_to_idx_map = (*major_to_idx_map_ptr)->get_device_view();
+          auto second_element_to_idx_map =
+            detail::kv_cuco_store_device_view_t((*major_to_idx_map_ptr)->view());
           thrust::transform(
             handle.get_thrust_policy(),
             get_dataframe_buffer_begin(vertex_pair_buffer),
@@ -1011,7 +981,8 @@ nbr_intersection(raft::handle_t const& handle,
           rx_v_pair_nbr_intersection_offsets.back_element(handle.get_stream()),
           handle.get_stream());
         if (intersect_minor_nbr[0] && intersect_minor_nbr[1]) {
-          auto second_element_to_idx_map = (*major_to_idx_map_ptr)->get_device_view();
+          auto second_element_to_idx_map =
+            detail::kv_cuco_store_device_view_t((*major_to_idx_map_ptr)->view());
           thrust::tabulate(handle.get_thrust_policy(),
                            rx_v_pair_nbr_intersection_sizes.begin(),
                            rx_v_pair_nbr_intersection_sizes.end(),

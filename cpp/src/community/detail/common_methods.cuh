@@ -244,17 +244,19 @@ rmm::device_uvector<vertex_t> update_clustering_by_delta_modularity(
     cugraph::detail::compute_gpu_id_from_ext_vertex_t<vertex_t> vertex_to_gpu_id_op{
       handle.get_comms().get_size()};
 
-    vertex_cluster_weights_v =
-      cugraph::collect_values_for_keys(handle.get_comms(),
-                                       cluster_keys_v.begin(),
-                                       cluster_keys_v.end(),
-                                       cluster_weights_v.data(),
-                                       next_clusters_v.begin(),
-                                       next_clusters_v.end(),
-                                       vertex_to_gpu_id_op,
-                                       invalid_vertex_id<vertex_t>::value,
-                                       std::numeric_limits<weight_t>::max(),
-                                       handle.get_stream());
+    kv_store_t<vertex_t, weight_t, false> cluster_key_weight_map(
+      cluster_keys_v.begin(),
+      cluster_keys_v.end(),
+      cluster_weights_v.data(),
+      invalid_vertex_id<vertex_t>::value,
+      std::numeric_limits<weight_t>::max(),
+      handle.get_stream());
+    vertex_cluster_weights_v = cugraph::collect_values_for_keys(handle.get_comms(),
+                                                                cluster_key_weight_map.view(),
+                                                                next_clusters_v.begin(),
+                                                                next_clusters_v.end(),
+                                                                vertex_to_gpu_id_op,
+                                                                handle.get_stream());
 
     src_cluster_weights =
       edge_src_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>, weight_t>(handle,
@@ -354,6 +356,13 @@ rmm::device_uvector<vertex_t> update_clustering_by_delta_modularity(
                                              decltype(cluster_old_sum_subtract_pair_first)>(
             cluster_old_sum_subtract_pair_first));
 
+  kv_store_t<vertex_t, weight_t, false> cluster_key_weight_map(
+    cluster_keys_v.begin(),
+    cluster_keys_v.begin() + cluster_keys_v.size(),
+    cluster_weights_v.begin(),
+    invalid_vertex_id<vertex_t>::value,
+    std::numeric_limits<weight_t>::max(),
+    handle.get_stream());
   per_v_transform_reduce_dst_key_aggregated_outgoing_e(
     handle,
     graph_view,
@@ -362,11 +371,7 @@ rmm::device_uvector<vertex_t> update_clustering_by_delta_modularity(
     multi_gpu ? dst_clusters_cache.view()
               : detail::edge_minor_property_view_t<vertex_t, vertex_t const*>(
                   next_clusters_v.data(), vertex_t{0}),
-    cluster_keys_v.begin(),
-    cluster_keys_v.end(),
-    cluster_weights_v.begin(),
-    invalid_vertex_id<vertex_t>::value,
-    std::numeric_limits<weight_t>::max(),
+    cluster_key_weight_map.view(),
     detail::key_aggregated_edge_op_t<vertex_t, weight_t>{total_edge_weight, resolution},
     thrust::make_tuple(vertex_t{-1}, weight_t{0}),
     detail::reduce_op_t<vertex_t, weight_t>{},

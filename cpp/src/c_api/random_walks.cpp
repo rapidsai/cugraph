@@ -185,8 +185,6 @@ struct uniform_random_walks_functor : public cugraph::c_api::abstract_functor {
     // FIXME: Think about how to handle SG vice MG
     if constexpr (!cugraph::is_candidate<vertex_t, edge_t, weight_t>::value) {
       unsupported();
-    } else if constexpr (multi_gpu) {
-      unsupported();
     } else {
       // random walks expects store_transposed == false
       if constexpr (store_transposed) {
@@ -236,8 +234,13 @@ struct uniform_random_walks_functor : public cugraph::c_api::abstract_functor {
       //
       // Need to unrenumber the vertices in the resulting paths
       //
-      cugraph::unrenumber_local_int_vertices<vertex_t>(
-        handle_, paths.data(), paths.size(), number_map->data(), 0, paths.size() - 1, false);
+      cugraph::unrenumber_int_vertices<vertex_t, multi_gpu>(
+        handle_,
+        paths.data(),
+        paths.size(),
+        number_map->data(),
+        graph_view.vertex_partition_range_lasts(),
+        false);
 
       result_ = new cugraph::c_api::cugraph_random_walk_result_t{
         false,

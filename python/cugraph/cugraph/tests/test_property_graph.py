@@ -18,6 +18,7 @@ import pytest
 import pandas as pd
 import numpy as np
 import cudf
+import cupy as cp
 from cudf.testing import assert_frame_equal, assert_series_equal
 from cugraph.experimental.datasets import cyber
 
@@ -724,6 +725,7 @@ def test_get_vertex_data_repeated(df_type):
         afe = assert_frame_equal
     else:
         afe = pd.testing.assert_frame_equal
+    expected["feat"] = expected["feat"].astype("Int64")
     afe(df1, expected)
 
 
@@ -819,6 +821,8 @@ def test_get_edge_data_repeated(df_type):
         afe = assert_frame_equal
     else:
         afe = pd.testing.assert_frame_equal
+    for col in ["edge_feat", pG.src_col_name, pG.dst_col_name]:
+        expected[col] = expected[col].astype("Int64")
     afe(df1, expected)
 
 
@@ -1829,7 +1833,11 @@ def test_add_data_noncontiguous(df_type):
             check_names=False,
         )
 
-    df["vertex"] = 10 * df["src"] + df["dst"]
+    df["vertex"] = (
+        100 * df["src"]
+        + df["dst"]
+        + df["edge_type"].map({"pig": 0, "dog": 10, "cat": 20})
+    )
     pG = PropertyGraph()
     for edge_type in ["cat", "dog", "pig"]:
         pG.add_vertex_data(
@@ -1876,6 +1884,108 @@ def test_single_csv_multi_vertex_edge_attrs():
     Read an edgelist CSV that contains both edge and vertex attrs
     """
     pass
+
+
+def test_fillna_vertices():
+    from cugraph.experimental import PropertyGraph
+
+    df_edgelist = cudf.DataFrame(
+        {
+            "src": [0, 7, 2, 0, 1, 3, 1, 4, 5, 6],
+            "dst": [1, 1, 1, 3, 2, 1, 6, 5, 6, 7],
+            "val": [1, None, 2, None, 3, None, 4, None, 5, None],
+        }
+    )
+
+    df_props = cudf.DataFrame(
+        {
+            "id": [0, 1, 2, 3, 4, 5, 6, 7],
+            "a": [0, 1, None, 2, None, 4, 1, 8],
+            "b": [None, 1, None, 2, None, 3, 8, 9],
+        }
+    )
+
+    pG = PropertyGraph()
+    pG.add_edge_data(df_edgelist, vertex_col_names=["src", "dst"])
+    pG.add_vertex_data(df_props, vertex_col_name="id")
+
+    pG.fillna_vertices({"a": 2, "b": 3})
+
+    assert not pG.get_vertex_data(columns=["a", "b"]).isna().any().any()
+    assert pG.get_edge_data(columns=["val"]).isna().any().any()
+
+    expected_values_prop_a = [
+        0,
+        1,
+        2,
+        2,
+        2,
+        4,
+        1,
+        8,
+    ]
+    assert pG.get_vertex_data(columns=["a"])["a"].values_host.tolist() == (
+        expected_values_prop_a
+    )
+
+    expected_values_prop_b = [
+        3,
+        1,
+        3,
+        2,
+        3,
+        3,
+        8,
+        9,
+    ]
+    assert pG.get_vertex_data(columns=["b"])["b"].values_host.tolist() == (
+        expected_values_prop_b
+    )
+
+
+def test_fillna_edges():
+    from cugraph.experimental import PropertyGraph
+
+    df_edgelist = cudf.DataFrame(
+        {
+            "src": [0, 7, 2, 0, 1, 3, 1, 4, 5, 6],
+            "dst": [1, 1, 1, 3, 2, 1, 6, 5, 6, 7],
+            "val": [1, None, 2, None, 3, None, 4, None, 5, None],
+        }
+    )
+
+    df_props = cudf.DataFrame(
+        {
+            "id": [0, 1, 2, 3, 4, 5, 6, 7],
+            "a": [0, 1, None, 2, None, 4, 1, 8],
+            "b": [None, 1, None, 2, None, 3, 8, 9],
+        }
+    )
+
+    pG = PropertyGraph()
+    pG.add_edge_data(df_edgelist, vertex_col_names=["src", "dst"])
+    pG.add_vertex_data(df_props, vertex_col_name="id")
+
+    pG.fillna_edges(2)
+
+    assert not pG.get_edge_data(columns=["val"]).isna().any().any()
+    assert pG.get_vertex_data(columns=["a", "b"]).isna().any().any()
+
+    expected_values_prop_val = [
+        1,
+        2,
+        2,
+        2,
+        3,
+        2,
+        4,
+        2,
+        5,
+        2,
+    ]
+    assert pG.get_edge_data(columns=["val"])["val"].values_host.tolist() == (
+        expected_values_prop_val
+    )
 
 
 # =============================================================================
@@ -1956,6 +2066,20 @@ def bench_extract_subgraph_for_rmat(gpubenchmark, rmat_PropertyGraph):
         default_edge_weight=1.0,
         check_multi_edges=False,
     )
+
+
+@pytest.mark.parametrize("n_rows", [15_000_000, 30_000_000, 60_000_000, 120_000_000])
+def bench_add_edge_data(gpubenchmark, n_rows):
+    from cugraph.experimental import PropertyGraph
+
+    def func():
+        pg = PropertyGraph()
+        src = cp.arange(n_rows)
+        dst = src - 1
+        df = cudf.DataFrame({"src": src, "dst": dst})
+        pg.add_edge_data(df, ["src", "dst"], type_name="('_N', '_E', '_N')")
+
+    gpubenchmark(func)
 
 
 # This test runs for *minutes* with the current implementation, and since
