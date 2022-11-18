@@ -19,6 +19,8 @@ import cugraph
 from cugraph.testing import utils
 import cugraph.dask as dcg
 import dask_cudf
+from cugraph.structure.symmetrize import symmetrize_df
+from cudf.testing.testing import assert_frame_equal
 
 
 # =============================================================================
@@ -31,36 +33,13 @@ def setup_function():
 # =============================================================================
 # Pytest fixtures
 # =============================================================================
-datasets = utils.DATASETS_UNDIRECTED
+datasets = [utils.DATASETS_UNDIRECTED[0]]
 core_number = [False, True]
 
 fixture_params = utils.genFixtureParamsProduct(
     (datasets, "graph_file"),
     (core_number, "core_number"),
 )
-
-
-def compare_edges(k_core_results, expected_k_core_results):
-    k_core_df = k_core_results.view_edge_list()
-
-    expected_k_core_df = (
-        expected_k_core_results.view_edge_list()
-        .compute()
-        .sort_values("src")
-        .reset_index(drop=True)
-    )
-
-    """
-    # FIXME: check this test
-    k_core_df = k_core_df[["src", "dst"]].sort_values("src").\
-        reset_index(drop=True).rename(
-            columns={"src": "expected_src", "dst":"expected_dst"})
-    expected_k_core_df = expected_k_core_results.view_edge_list().compute(). \
-        sort_values("src").reset_index(drop=True).rename(
-            columns={"src": "expected_src", "dst":"expected_dst"})
-    expected_k_core_df = expected_k_core_df[["expected_src", "expected_dst"]]
-    """
-    return expected_k_core_df.equals(k_core_df)
 
 
 @pytest.fixture(scope="module", params=fixture_params)
@@ -96,8 +75,13 @@ def input_expected_output(dask_client, input_combo):
 
     input_combo["SGGraph"] = G
 
-    sg_k_core_results = cugraph.k_core(G, core_number)
-    sg_k_core_results = sg_k_core_results.sort_values("src").reset_index(drop=True)
+    sg_k_core_graph = cugraph.k_core(G, core_number=core_number)
+    sg_k_core_results = sg_k_core_graph.view_edge_list()
+    # FIXME: The result will come asymetric. Symmetrize the results
+    sg_k_core_results = symmetrize_df(
+        sg_k_core_results, "src", "dst", "weights").sort_values(
+            ["src", "dst"]).reset_index(drop=True)
+
 
     input_combo["sg_k_core_results"] = sg_k_core_results
 
@@ -144,31 +128,12 @@ def test_k_core(dask_client, benchmark, input_expected_output):
     dg = input_expected_output["MGGraph"]
     core_number = input_expected_output["core_number"]
 
-    k_core_results = benchmark(dcg.k_core, dg, core_number)
+    k_core_results = benchmark(dcg.k_core, dg, core_number=core_number)
 
     expected_k_core_results = input_expected_output["sg_k_core_results"]
 
-    assert compare_edges(k_core_results, expected_k_core_results)
+    k_core_results = k_core_results.compute().sort_values(
+            ["src", "dst"]).reset_index(drop=True)
 
-
-def test_k_core_invalid_input(input_expected_output):
-    input_data_path = (
-        utils.RAPIDS_DATASET_ROOT_DIR_PATH / "karate-asymmetric.csv"
-    ).as_posix()
-
-    chunksize = dcg.get_chunksize(input_data_path)
-    ddf = dask_cudf.read_csv(
-        input_data_path,
-        chunksize=chunksize,
-        delimiter=" ",
-        names=["src", "dst", "value"],
-        dtype=["int32", "int32", "float32"],
-    )
-
-    dg = cugraph.Graph(directed=True)
-    dg.from_dask_cudf_edgelist(
-        ddf, source="src", destination="dst", edge_attr="value", renumber=True
-    )
-
-    with pytest.raises(ValueError):
-        dcg.k_core(dg)
+    assert_frame_equal(
+        expected_k_core_results, k_core_results, check_dtype=False, check_like=True)
