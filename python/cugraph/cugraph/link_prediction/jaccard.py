@@ -134,7 +134,7 @@ def jaccard(G, vertex_pair=None):
     elif vertex_pair is not None:
         raise ValueError("vertex_pair must be a cudf dataframe")
 
-    # 'use_weight' is set tp False by default for jaccard and True
+    # 'use_weight' is set to False by default for jaccard and True
     # for 'wjaccard'
     use_weight = False
     first, second, jaccard_coeff = pylibcugraph_jaccard_coefficients(
