@@ -123,7 +123,7 @@ struct call_key_aggregated_e_op_t {
       major,
       key,
       edge_partition_src_value_input.get(edge_partition.major_offset_from_major_nocheck(major)),
-      kv_store_device_view.find(key));
+      kv_store_device_view.find(key),
       aggregated_edge_value);
   }
 };
@@ -256,7 +256,7 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
   using vertex_t        = typename GraphViewType::vertex_type;
   using edge_t          = typename GraphViewType::edge_type;
   using edge_value_t    = typename EdgeValueInputWrapper::value_type;
-  using kv_pair_value_t = typename std::iterator_traits<ValueIterator>::value_type;
+  using kv_pair_value_t = typename KVStoreViewType::value_type;
   static_assert(
     std::is_arithmetic_v<edge_value_t>,
     "Currently only scalar values are supported, should be extended to support thrust::tuple of "
@@ -599,14 +599,14 @@ void per_v_transform_reduce_dst_key_aggregated_outgoing_e(
         handle.get_stream());
 
       if constexpr (KVStoreViewType::binary_search) {
-        multi_gpu_kv_map_ptr =
-          std::make_unique<kv_store_t<vertex_t, value_t, true>>(std::move(unique_minor_keys),
-                                                                std::move(values_for_unique_keys),
-                                                                kv_store_view.invalid_value,
-                                                                false,
-                                                                handle.get_stream());
+        multi_gpu_kv_map_ptr = std::make_unique<kv_store_t<vertex_t, kv_pair_value_t, true>>(
+          std::move(unique_minor_keys),
+          std::move(values_for_unique_keys),
+          kv_store_view.invalid_value,
+          false,
+          handle.get_stream());
       } else {
-        multi_gpu_kv_map_ptr = std::make_unique<kv_store_t<vertex_t, value_t, false>>(
+        multi_gpu_kv_map_ptr = std::make_unique<kv_store_t<vertex_t, kv_pair_value_t, false>>(
           unique_minor_keys.begin(),
           unique_minor_keys.begin() + unique_minor_keys.size(),
           get_dataframe_buffer_begin(values_for_unique_keys),

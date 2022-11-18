@@ -192,7 +192,8 @@ struct create_graph_functor : public cugraph::c_api::abstract_functor {
         multi_gpu,
         graph,
         number_map,
-        edge_properties};
+        new_edge_weights ? edge_weights : nullptr,
+        new_edge_properties ? edge_properties : nullptr};
 
       result_ = reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(result);
     }
@@ -252,9 +253,14 @@ struct create_graph_csr_functor : public cugraph::c_api::abstract_functor {
       std::optional<rmm::device_uvector<vertex_t>> new_number_map;
 
       std::optional<cugraph::edge_property_t<
-        cugraph::graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>,
+        cugraph::graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>,
+        weight_t>>
+        new_edge_weights{std::nullopt};
+
+      std::optional<cugraph::edge_property_t<
+        cugraph::graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>,
         thrust::tuple<edge_t, edge_type_id_t>>>
-        new_edge_properties;
+        new_edge_properties{std::nullopt};
 
       rmm::device_uvector<vertex_t> edgelist_srcs(0, handle_.get_stream());
       rmm::device_uvector<vertex_t> edgelist_dsts(indices_->size_, handle_.get_stream());
@@ -302,17 +308,20 @@ struct create_graph_csr_functor : public cugraph::c_api::abstract_functor {
           std::make_tuple(std::move(edgelist_edge_ids), std::move(edgelist_edge_type_ids));
       }
 
-      auto graph =
-        new cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>(handle_);
+      auto graph = new cugraph::graph_t<vertex_t, edge_t, store_transposed, multi_gpu>(handle_);
 
       rmm::device_uvector<vertex_t>* number_map =
         new rmm::device_uvector<vertex_t>(0, handle_.get_stream());
 
+      auto edge_weights = new cugraph::edge_property_t<
+        cugraph::graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>,
+        weight_t>(handle_);
+
       auto edge_properties = new cugraph::edge_property_t<
-        cugraph::graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>,
+        cugraph::graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>,
         thrust::tuple<edge_t, edge_type_id_t>>(handle_);
 
-      std::tie(*graph, std::ignore, new_number_map) =
+      std::tie(*graph, new_edge_weights, new_edge_properties, new_number_map) =
         cugraph::create_graph_from_edgelist<vertex_t,
                                             edge_t,
                                             weight_t,
@@ -338,6 +347,8 @@ struct create_graph_csr_functor : public cugraph::c_api::abstract_functor {
                                        number_map->size(),
                                        graph->view().local_vertex_partition_range_first());
       }
+
+      if (new_edge_weights) { *edge_weights = std::move(new_edge_weights.value()); }
 
       if (new_edge_properties) { *edge_properties = std::move(new_edge_properties.value()); }
 

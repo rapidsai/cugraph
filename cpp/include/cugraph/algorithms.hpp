@@ -1420,6 +1420,7 @@ extract_ego(raft::handle_t const& handle,
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms. Must have at least one worker stream.
  * @param graph_view Graph view object of, we extract induced egonet subgraphs from @p graph_view.
+ * @param edge_weight_view Optional view object holding edge weights for @p graph_view.
  * @param source_vertex Pointer to egonet center vertices (size == @p n_subgraphs).
  * @param n_subgraphs Number of induced EgoNet subgraphs to extract (ie. number of elements in @p
  * source_vertex).
@@ -1434,7 +1435,8 @@ std::tuple<rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<weight_t>>,
            rmm::device_uvector<size_t>>
 extract_ego(raft::handle_t const& handle,
-            graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
+            graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+            std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
             raft::device_span<vertex_t const> source_vertices,
             vertex_t radius,
             bool do_expensive_check = false);
