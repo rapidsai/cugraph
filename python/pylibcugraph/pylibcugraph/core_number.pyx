@@ -103,13 +103,6 @@ def core_number(ResourceHandle resource_handle,
     cdef cugraph_error_code_t error_code
     cdef cugraph_error_t* error_ptr
 
-    if degree_type is not None:
-        warning_msg = (
-            "The 'degree_type' parameter is ignored in this release.")
-        warnings.warn(warning_msg, Warning)
-    
-    degree_type = "bidirectional"
-
     degree_type_map = {
         "incoming": cugraph_k_core_degree_type_t.K_CORE_DEGREE_TYPE_IN,
         "outgoing": cugraph_k_core_degree_type_t.K_CORE_DEGREE_TYPE_OUT,
