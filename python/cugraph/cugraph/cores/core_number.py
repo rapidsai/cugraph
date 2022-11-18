@@ -16,7 +16,6 @@ from cugraph.utilities import (
     df_score_to_dictionary,
 )
 import cudf
-import warnings
 
 from pylibcugraph import core_number as pylibcugraph_core_number, ResourceHandle
 

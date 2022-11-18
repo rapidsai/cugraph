@@ -12,7 +12,6 @@
 # limitations under the License.
 
 import cudf
-import warnings
 
 from pylibcugraph import (
     core_number as pylibcugraph_core_number,

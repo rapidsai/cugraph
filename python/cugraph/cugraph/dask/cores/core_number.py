@@ -17,7 +17,6 @@ from dask.distributed import wait
 import cugraph.dask.comms.comms as Comms
 import dask_cudf
 import cudf
-import warnings
 
 from pylibcugraph import ResourceHandle, core_number as pylibcugraph_core_number
 

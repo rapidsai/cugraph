@@ -15,7 +15,6 @@
 # cython: language_level = 3
 
 from libc.stdint cimport uintptr_t
-import warnings
 
 from pylibcugraph._cugraph_c.resource_handle cimport (
     bool_t,
