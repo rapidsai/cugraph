@@ -66,6 +66,7 @@ def k_core(input_graph, k=None, core_number=None, degree_type="bidirectional"):
         should contain undirected edges where undirected edges are represented
         as directed edges in both directions. While this graph can contain edge
         weights, they don't participate in the calculation of the k-core.
+        The current implementation only supports undirected graphs.
 
     k : int, optional (default=None)
         Order of the core. This value must not be negative. If set to None, the

@@ -54,6 +54,7 @@ def k_core(G, k=None, core_number=None, degree_type="bidirectional"):
         should contain undirected edges where undirected edges are represented
         as directed edges in both directions. While this graph can contain edge
         weights, they don't participate in the calculation of the k-core.
+        The current implementation only supports undirected graphs.
 
     k : int, optional (default=None)
         Order of the core. This value must not be negative. If set to None, the
@@ -90,11 +91,6 @@ def k_core(G, k=None, core_number=None, degree_type="bidirectional"):
 
     G, isNx = ensure_cugraph_obj_for_nx(G)
 
-    if degree_type is not None:
-        warning_msg = "The 'degree_type' parameter is ignored in this release."
-        warnings.warn(warning_msg, Warning)
-
-    # FIXME: enable this check once 'degree_type' is supported
 
     if degree_type not in ["incoming", "outgoing", "bidirectional"]:
         raise ValueError(f"'degree_type' must be either incoming, "

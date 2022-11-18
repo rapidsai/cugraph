@@ -128,7 +128,6 @@ def k_core(ResourceHandle resource_handle,
         "outgoing": cugraph_k_core_degree_type_t.K_CORE_DEGREE_TYPE_OUT,
         "bidirectional": cugraph_k_core_degree_type_t.K_CORE_DEGREE_TYPE_INOUT}
 
-    # crete 'cugraph_type_erased_device_array_view_t' of vertices and core_numbers
     cdef cugraph_type_erased_device_array_view_t* \
         vertices_view_ptr = \
             create_cugraph_type_erased_device_array_view_from_py_obj(
