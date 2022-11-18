@@ -121,12 +121,7 @@ def k_core(ResourceHandle resource_handle,
     cdef cugraph_k_core_result_t* k_core_result_ptr
     cdef cugraph_error_code_t error_code
     cdef cugraph_error_t* error_ptr
-    
-    # FIXME: You can't compute the parameter k in pylibcugraph because
-    # of the MG implementation
-    #if core_result is None:
-    # compute core_number
-    degree_type = "bidirectional"
+
 
     degree_type_map = {
         "incoming": cugraph_k_core_degree_type_t.K_CORE_DEGREE_TYPE_IN,

@@ -52,7 +52,7 @@ def _call_plc_k_core(sID, mg_graph_x, k, degree_type, core_result, do_expensive_
     )
 
 
-def k_core(input_graph, k=None, degree_type=None, core_number=None):
+def k_core(input_graph, k=None, core_number=None, degree_type="bidirectional"):
     """
     Compute the k-core of the graph G based on the out degree of its nodes. A
     k-core of a graph is a maximal subgraph that contains nodes of degree k or
@@ -70,22 +70,38 @@ def k_core(input_graph, k=None, degree_type=None, core_number=None):
     k : int, optional (default=None)
         Order of the core. This value must not be negative. If set to None, the
         main core is returned.
+    
+    degree_type: str (default=""bidirectional"")
+        This option determines if the core number computation should be based
+        on input, output, or both directed edges, with valid values being
+        "incoming", "outgoing", and "bidirectional" respectively.
 
-    core_number : cudf.DataFrame, optional (default=None)
+    core_number : cudf.DataFrame or das_cudf.DataFrame, optional (default=None)
         Precomputed core number of the nodes of the graph G containing two
         cudf.Series of size V: the vertex identifiers and the corresponding
         core number values. If set to None, the core numbers of the nodes are
         calculated internally.
 
-        core_number['vertex'] : cudf.Series
+        core_number['vertex'] : cudf.Series or dask_cudf.Series
             Contains the vertex identifiers
-        core_number['values'] : cudf.Series
+        core_number['values'] : cudf.Series or dask_cudf.Series
             Contains the core number of vertices
 
     Returns
     -------
-    KCoreGraph : cuGraph.Graph
-        A dask_cudf dataframe containing the K Core of the input graph
+    result : dask_cudf.DataFrame
+        GPU distributed data frame containing the K Core of the input graph
+
+        ddf['src']: dask_cudf.Series
+            Contains sources of the K Core
+        ddf['dst']: dask_cudf.Series
+            Contains destinations of the K Core
+        
+        and/or
+        
+        ddf['weight']: dask_cudf.Series
+            Contains weights of the K Core
+
 
     Examples
     --------
@@ -102,7 +118,7 @@ def k_core(input_graph, k=None, degree_type=None, core_number=None):
     >>> dg = cugraph.Graph(directed=True)
     >>> dg.from_dask_cudf_edgelist(ddf, source='src', destination='dst',
     ...                            edge_attr='value')
-    >>> KCoreGraph = dcg.k_core(dg)
+    >>> KCore_df = dcg.k_core(dg)
     """
 
     mytype = type(input_graph)
