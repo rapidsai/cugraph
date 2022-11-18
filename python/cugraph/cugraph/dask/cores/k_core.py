@@ -125,6 +125,10 @@ def k_core(input_graph, k=None, core_number=None, degree_type="bidirectional"):
     mytype = type(input_graph)
     KCoreGraph = mytype()
 
+    if degree_type not in ["incoming", "outgoing", "bidirectional"]:
+        raise ValueError(f"'degree_type' must be either incoming, "
+                         f"outgoing or bidirectional, got: {degree_type}")
+
     if input_graph.is_directed():
         raise ValueError("input graph must be undirected")
 

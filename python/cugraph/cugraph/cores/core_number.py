@@ -66,6 +66,10 @@ def core_number(G, degree_type="bidirectional"):
     if G.is_directed():
         raise ValueError("input graph must be undirected")
 
+    if degree_type not in ["incoming", "outgoing", "bidirectional"]:
+        raise ValueError(f"'degree_type' must be either incoming, "
+                         f"outgoing or bidirectional, got: {degree_type}")
+
     vertex, core_number = pylibcugraph_core_number(
         resource_handle=ResourceHandle(),
         graph=G._plc_graph,
