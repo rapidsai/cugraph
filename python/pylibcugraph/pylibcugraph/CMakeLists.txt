@@ -18,6 +18,7 @@ add_subdirectory(testing)
 set(cython_sources
     bfs.pyx
     core_number.pyx
+    egonet.pyx
     eigenvector_centrality.pyx
     graph_properties.pyx
     graphs.pyx

@@ -16,6 +16,7 @@
 #pragma once
 
 #include <detail/graph_utils.cuh>
+#include <prims/kv_store.cuh>
 #include <utilities/collect_comm.cuh>
 
 #include <cugraph/graph.hpp>
@@ -23,7 +24,6 @@
 #include <cugraph/utilities/error.hpp>
 #include <cugraph/utilities/host_scalar_comm.hpp>
 
-#include <cuco/static_map.cuh>
 #include <rmm/mr/device/per_device_resource.hpp>
 #include <rmm/mr/device/polymorphic_allocator.hpp>
 
@@ -55,8 +55,6 @@ void unrenumber_local_int_edges(
   std::optional<std::vector<std::vector<size_t>>> const& edgelist_intra_partition_segment_offsets,
   bool do_expensive_check)
 {
-  double constexpr load_factor = 0.7;
-
   auto& comm               = handle.get_comms();
   auto const comm_size     = comm.get_size();
   auto const comm_rank     = comm.get_rank();
@@ -195,32 +193,19 @@ void unrenumber_local_int_edges(
                    i,
                    handle.get_stream());
 
-      auto poly_alloc =
-        rmm::mr::polymorphic_allocator<char>(rmm::mr::get_current_device_resource());
-      auto stream_adapter = rmm::mr::make_stream_allocator_adaptor(poly_alloc, handle.get_stream());
-      cuco::static_map<vertex_t, vertex_t, cuda::thread_scope_device, decltype(stream_adapter)>
-        renumber_map{// cuco::static_map requires at least one empty slot
-                     std::max(static_cast<size_t>(
-                                static_cast<double>(edge_partition_major_range_size) / load_factor),
-                              static_cast<size_t>(edge_partition_major_range_size) + 1),
-                     cuco::sentinel::empty_key<vertex_t>{invalid_vertex_id<vertex_t>::value},
-                     cuco::sentinel::empty_value<vertex_t>{invalid_vertex_id<vertex_t>::value},
-                     stream_adapter,
-                     handle.get_stream()};
-      auto pair_first = thrust::make_zip_iterator(
-        thrust::make_tuple(thrust::make_counting_iterator(edge_partition_major_range_first),
-                           renumber_map_major_labels.begin()));
-      renumber_map.insert(pair_first,
-                          pair_first + edge_partition_major_range_size,
-                          cuco::detail::MurmurHash3_32<vertex_t>{},
-                          thrust::equal_to<vertex_t>{},
-                          handle.get_stream());
-      renumber_map.find(edgelist_majors[i],
-                        edgelist_majors[i] + edgelist_edge_counts[i],
-                        edgelist_majors[i],
-                        cuco::detail::MurmurHash3_32<vertex_t>{},
-                        thrust::equal_to<vertex_t>{},
-                        handle.get_stream());
+      kv_store_t<vertex_t, vertex_t, false> renumber_map(
+        thrust::make_counting_iterator(edge_partition_major_range_first),
+        thrust::make_counting_iterator(edge_partition_major_range_first) +
+          edge_partition_major_range_size,
+        renumber_map_major_labels.begin(),
+        invalid_vertex_id<vertex_t>::value,
+        invalid_vertex_id<vertex_t>::value,
+        handle.get_stream());
+      auto renumber_map_view = renumber_map.view();
+      renumber_map_view.find(edgelist_majors[i],
+                             edgelist_majors[i] + edgelist_edge_counts[i],
+                             edgelist_majors[i],
+                             handle.get_stream());
     }
   }
 
@@ -259,32 +244,19 @@ void unrenumber_local_int_edges(
                    i,
                    handle.get_stream());
 
-      auto poly_alloc =
-        rmm::mr::polymorphic_allocator<char>(rmm::mr::get_current_device_resource());
-      auto stream_adapter = rmm::mr::make_stream_allocator_adaptor(poly_alloc, handle.get_stream());
-      cuco::static_map<vertex_t, vertex_t, cuda::thread_scope_device, decltype(stream_adapter)>
-        renumber_map{// cuco::static_map requires at least one empty slot
-                     std::max(static_cast<size_t>(static_cast<double>(segment_size) / load_factor),
-                              static_cast<size_t>(segment_size) + 1),
-                     cuco::sentinel::empty_key<vertex_t>{invalid_vertex_id<vertex_t>::value},
-                     cuco::sentinel::empty_value<vertex_t>{invalid_vertex_id<vertex_t>::value},
-                     stream_adapter,
-                     handle.get_stream()};
-      auto pair_first = thrust::make_zip_iterator(
-        thrust::make_tuple(thrust::make_counting_iterator(vertex_partition_minor_range_first),
-                           renumber_map_minor_labels.begin()));
-      renumber_map.insert(pair_first,
-                          pair_first + segment_size,
-                          cuco::detail::MurmurHash3_32<vertex_t>{},
-                          thrust::equal_to<vertex_t>{},
-                          handle.get_stream());
+      kv_store_t<vertex_t, vertex_t, false> renumber_map(
+        thrust::make_counting_iterator(vertex_partition_minor_range_first),
+        thrust::make_counting_iterator(vertex_partition_minor_range_first) + segment_size,
+        renumber_map_minor_labels.begin(),
+        invalid_vertex_id<vertex_t>::value,
+        invalid_vertex_id<vertex_t>::value,
+        handle.get_stream());
+      auto renumber_map_view = renumber_map.view();
       for (size_t j = 0; j < edgelist_minors.size(); ++j) {
-        renumber_map.find(
+        renumber_map_view.find(
           edgelist_minors[j] + (*edgelist_intra_partition_segment_offsets)[j][i],
           edgelist_minors[j] + (*edgelist_intra_partition_segment_offsets)[j][i + 1],
           edgelist_minors[j] + (*edgelist_intra_partition_segment_offsets)[j][i],
-          cuco::detail::MurmurHash3_32<vertex_t>{},
-          thrust::equal_to<vertex_t>{},
           handle.get_stream());
       }
     }
@@ -312,32 +284,20 @@ void unrenumber_local_int_edges(
                       displacements,
                       handle.get_stream());
 
-    auto poly_alloc = rmm::mr::polymorphic_allocator<char>(rmm::mr::get_current_device_resource());
-    auto stream_adapter = rmm::mr::make_stream_allocator_adaptor(poly_alloc, handle.get_stream());
-    cuco::static_map<vertex_t, vertex_t, cuda::thread_scope_device, decltype(stream_adapter)>
-      renumber_map{// cuco::static_map requires at least one empty slot
-                   std::max(static_cast<size_t>(
-                              static_cast<double>(renumber_map_minor_labels.size()) / load_factor),
-                            renumber_map_minor_labels.size() + 1),
-                   cuco::sentinel::empty_key<vertex_t>{invalid_vertex_id<vertex_t>::value},
-                   cuco::sentinel::empty_value<vertex_t>{invalid_vertex_id<vertex_t>::value},
-                   stream_adapter,
-                   handle.get_stream()};
-    auto pair_first = thrust::make_zip_iterator(
-      thrust::make_tuple(thrust::make_counting_iterator(edge_partition_minor_range_first),
-                         renumber_map_minor_labels.begin()));
-    renumber_map.insert(pair_first,
-                        pair_first + renumber_map_minor_labels.size(),
-                        cuco::detail::MurmurHash3_32<vertex_t>{},
-                        thrust::equal_to<vertex_t>{},
-                        handle.get_stream());
+    kv_store_t<vertex_t, vertex_t, false> renumber_map(
+      thrust::make_counting_iterator(edge_partition_minor_range_first),
+      thrust::make_counting_iterator(edge_partition_minor_range_first) +
+        renumber_map_minor_labels.size(),
+      renumber_map_minor_labels.begin(),
+      invalid_vertex_id<vertex_t>::value,
+      invalid_vertex_id<vertex_t>::value,
+      handle.get_stream());
+    auto renumber_map_view = renumber_map.view();
     for (size_t i = 0; i < edgelist_minors.size(); ++i) {
-      renumber_map.find(edgelist_minors[i],
-                        edgelist_minors[i] + edgelist_edge_counts[i],
-                        edgelist_minors[i],
-                        cuco::detail::MurmurHash3_32<vertex_t>{},
-                        thrust::equal_to<vertex_t>{},
-                        handle.get_stream());
+      renumber_map_view.find(edgelist_minors[i],
+                             edgelist_minors[i] + edgelist_edge_counts[i],
+                             edgelist_minors[i],
+                             handle.get_stream());
     }
   }
 }
@@ -353,8 +313,6 @@ void renumber_ext_vertices(raft::handle_t const& handle,
                            vertex_t local_int_vertex_last,
                            bool do_expensive_check)
 {
-  double constexpr load_factor = 0.7;
-
   if (do_expensive_check) {
     rmm::device_uvector<vertex_t> labels(local_int_vertex_last - local_int_vertex_first,
                                          handle.get_stream());
@@ -368,15 +326,7 @@ void renumber_ext_vertices(raft::handle_t const& handle,
       "Invalid input arguments: renumber_map_labels have duplicate elements.");
   }
 
-  auto poly_alloc = rmm::mr::polymorphic_allocator<char>(rmm::mr::get_current_device_resource());
-  auto stream_adapter   = rmm::mr::make_stream_allocator_adaptor(poly_alloc, handle.get_stream());
-  auto renumber_map_ptr = std::make_unique<
-    cuco::static_map<vertex_t, vertex_t, cuda::thread_scope_device, decltype(stream_adapter)>>(
-    size_t{0},
-    cuco::sentinel::empty_key<vertex_t>{invalid_vertex_id<vertex_t>::value},
-    cuco::sentinel::empty_value<vertex_t>{invalid_vertex_id<vertex_t>::value},
-    stream_adapter,
-    handle.get_stream());
+  std::unique_ptr<kv_store_t<vertex_t, vertex_t, false>> renumber_map_ptr{nullptr};
   if (multi_gpu) {
     auto& comm           = handle.get_comms();
     auto const comm_size = comm.get_size();
@@ -401,66 +351,45 @@ void renumber_ext_vertices(raft::handle_t const& handle,
                                       sorted_unique_ext_vertices.end())),
       handle.get_stream());
 
+    kv_store_t<vertex_t, vertex_t, false> local_renumber_map(
+      renumber_map_labels,
+      renumber_map_labels + (local_int_vertex_last - local_int_vertex_first),
+      thrust::make_counting_iterator(local_int_vertex_first),
+      invalid_vertex_id<vertex_t>::value,
+      invalid_vertex_id<vertex_t>::value,
+      handle.get_stream());  // map local external vertex IDs to local internal vertex IDs
+
     rmm::device_uvector<vertex_t> int_vertices_for_sorted_unique_ext_vertices(0,
                                                                               handle.get_stream());
     std::tie(sorted_unique_ext_vertices, int_vertices_for_sorted_unique_ext_vertices) =
-      collect_values_for_unique_keys(
-        comm,
-        renumber_map_labels,
-        renumber_map_labels + (local_int_vertex_last - local_int_vertex_first),
-        thrust::make_counting_iterator(local_int_vertex_first),
-        std::move(sorted_unique_ext_vertices),
-        detail::compute_gpu_id_from_ext_vertex_t<vertex_t>{comm_size},
-        invalid_vertex_id<vertex_t>::value,
-        invalid_vertex_id<vertex_t>::value,
-        handle.get_stream());
+      collect_values_for_unique_keys(comm,
+                                     local_renumber_map.view(),
+                                     std::move(sorted_unique_ext_vertices),
+                                     detail::compute_gpu_id_from_ext_vertex_t<vertex_t>{comm_size},
+                                     handle.get_stream());
 
-    renumber_map_ptr.reset();
-
-    renumber_map_ptr = std::make_unique<
-      cuco::static_map<vertex_t, vertex_t, cuda::thread_scope_device, decltype(stream_adapter)>>(
-      // cuco::static_map requires at least one empty slot
-      std::max(
-        static_cast<size_t>(static_cast<double>(sorted_unique_ext_vertices.size()) / load_factor),
-        sorted_unique_ext_vertices.size() + 1),
-      cuco::sentinel::empty_key<vertex_t>{invalid_vertex_id<vertex_t>::value},
-      cuco::sentinel::empty_value<vertex_t>{invalid_vertex_id<vertex_t>::value},
-      stream_adapter,
+    renumber_map_ptr = std::make_unique<kv_store_t<vertex_t, vertex_t, false>>(
+      sorted_unique_ext_vertices.begin(),
+      sorted_unique_ext_vertices.begin() + sorted_unique_ext_vertices.size(),
+      int_vertices_for_sorted_unique_ext_vertices.begin(),
+      invalid_vertex_id<vertex_t>::value,
+      invalid_vertex_id<vertex_t>::value,
       handle.get_stream());
-
-    auto kv_pair_first = thrust::make_zip_iterator(thrust::make_tuple(
-      sorted_unique_ext_vertices.begin(), int_vertices_for_sorted_unique_ext_vertices.begin()));
-    renumber_map_ptr->insert(kv_pair_first,
-                             kv_pair_first + sorted_unique_ext_vertices.size(),
-                             cuco::detail::MurmurHash3_32<vertex_t>{},
-                             thrust::equal_to<vertex_t>{},
-                             handle.get_stream());
   } else {
-    renumber_map_ptr.reset();
-
-    renumber_map_ptr = std::make_unique<
-      cuco::static_map<vertex_t, vertex_t, cuda::thread_scope_device, decltype(stream_adapter)>>(
-      // cuco::static_map requires at least one empty slot
-      std::max(static_cast<size_t>(
-                 static_cast<double>(local_int_vertex_last - local_int_vertex_first) / load_factor),
-               static_cast<size_t>(local_int_vertex_last - local_int_vertex_first) + 1),
-      cuco::sentinel::empty_key<vertex_t>{invalid_vertex_id<vertex_t>::value},
-      cuco::sentinel::empty_value<vertex_t>{invalid_vertex_id<vertex_t>::value},
-      stream_adapter,
+    renumber_map_ptr = std::make_unique<kv_store_t<vertex_t, vertex_t, false>>(
+      renumber_map_labels,
+      renumber_map_labels + (local_int_vertex_last - local_int_vertex_first),
+      thrust::make_counting_iterator(vertex_t{0}),
+      invalid_vertex_id<vertex_t>::value,
+      invalid_vertex_id<vertex_t>::value,
       handle.get_stream());
-
-    auto pair_first = thrust::make_zip_iterator(
-      thrust::make_tuple(renumber_map_labels, thrust::make_counting_iterator(vertex_t{0})));
-    renumber_map_ptr->insert(pair_first,
-                             pair_first + (local_int_vertex_last - local_int_vertex_first),
-                             cuco::detail::MurmurHash3_32<vertex_t>{},
-                             thrust::equal_to<vertex_t>{},
-                             handle.get_stream());
   }
+  auto renumber_map_view = renumber_map_ptr->view();
 
   if (do_expensive_check) {
     rmm::device_uvector<bool> contains(num_vertices, handle.get_stream());
-    renumber_map_ptr->contains(vertices, vertices + num_vertices, contains.begin());
+    renumber_map_view.contains(
+      vertices, vertices + num_vertices, contains.begin(), handle.get_stream());
     auto vc_pair_first = thrust::make_zip_iterator(thrust::make_tuple(vertices, contains.begin()));
     CUGRAPH_EXPECTS(thrust::count_if(handle.get_thrust_policy(),
                                      vc_pair_first,
@@ -476,7 +405,7 @@ void renumber_ext_vertices(raft::handle_t const& handle,
                     "(aggregate) renumber_map_labels.");
   }
 
-  renumber_map_ptr->find(vertices, vertices + num_vertices, vertices);
+  renumber_map_view.find(vertices, vertices + num_vertices, vertices, handle.get_stream());
 }
 
 template <typename vertex_t, bool multi_gpu>
@@ -488,8 +417,6 @@ void renumber_local_ext_vertices(raft::handle_t const& handle,
                                  vertex_t local_int_vertex_last,
                                  bool do_expensive_check)
 {
-  double constexpr load_factor = 0.7;
-
   if (do_expensive_check) {
     rmm::device_uvector<vertex_t> labels(local_int_vertex_last - local_int_vertex_first,
                                          handle.get_stream());
@@ -503,29 +430,19 @@ void renumber_local_ext_vertices(raft::handle_t const& handle,
       "Invalid input arguments: renumber_map_labels have duplicate elements.");
   }
 
-  auto poly_alloc = rmm::mr::polymorphic_allocator<char>(rmm::mr::get_current_device_resource());
-  auto stream_adapter   = rmm::mr::make_stream_allocator_adaptor(poly_alloc, handle.get_stream());
-  auto renumber_map_ptr = std::make_unique<
-    cuco::static_map<vertex_t, vertex_t, cuda::thread_scope_device, decltype(stream_adapter)>>(
-    std::max(static_cast<size_t>(
-               static_cast<double>(local_int_vertex_last - local_int_vertex_first) / load_factor),
-             static_cast<size_t>(local_int_vertex_last - local_int_vertex_first) + 1),
-    cuco::sentinel::empty_key<vertex_t>{invalid_vertex_id<vertex_t>::value},
-    cuco::sentinel::empty_value<vertex_t>{invalid_vertex_id<vertex_t>::value},
-    stream_adapter,
+  kv_store_t<vertex_t, vertex_t, false> renumber_map(
+    renumber_map_labels,
+    renumber_map_labels + (local_int_vertex_last - local_int_vertex_first),
+    thrust::make_counting_iterator(local_int_vertex_first),
+    invalid_vertex_id<vertex_t>::value,
+    invalid_vertex_id<vertex_t>::value,
     handle.get_stream());
-
-  auto pair_first = thrust::make_zip_iterator(thrust::make_tuple(
-    renumber_map_labels, thrust::make_counting_iterator(local_int_vertex_first)));
-  renumber_map_ptr->insert(pair_first,
-                           pair_first + (local_int_vertex_last - local_int_vertex_first),
-                           cuco::detail::MurmurHash3_32<vertex_t>{},
-                           thrust::equal_to<vertex_t>{},
-                           handle.get_stream());
+  auto renumber_map_view = renumber_map.view();
 
   if (do_expensive_check) {
     rmm::device_uvector<bool> contains(num_vertices, handle.get_stream());
-    renumber_map_ptr->contains(vertices, vertices + num_vertices, contains.begin());
+    renumber_map_view.contains(
+      vertices, vertices + num_vertices, contains.begin(), handle.get_stream());
     auto vc_pair_first = thrust::make_zip_iterator(thrust::make_tuple(vertices, contains.begin()));
     CUGRAPH_EXPECTS(thrust::count_if(handle.get_thrust_policy(),
                                      vc_pair_first,
@@ -541,7 +458,7 @@ void renumber_local_ext_vertices(raft::handle_t const& handle,
                     "(aggregate) renumber_map_labels.");
   }
 
-  renumber_map_ptr->find(vertices, vertices + num_vertices, vertices);
+  renumber_map_view.find(vertices, vertices + num_vertices, vertices, handle.get_stream());
 }
 
 template <typename vertex_t>
@@ -586,8 +503,6 @@ void unrenumber_int_vertices(raft::handle_t const& handle,
                              std::vector<vertex_t> const& vertex_partition_range_lasts,
                              bool do_expensive_check)
 {
-  double constexpr load_factor = 0.7;
-
   if (do_expensive_check) {
     CUGRAPH_EXPECTS(
       thrust::count_if(handle.get_thrust_policy(),
@@ -672,31 +587,15 @@ void unrenumber_int_vertices(raft::handle_t const& handle,
     std::tie(rx_ext_vertices_for_sorted_unique_int_vertices, std::ignore) =
       shuffle_values(comm, tx_ext_vertices.begin(), rx_int_vertex_counts, handle.get_stream());
 
-    auto poly_alloc = rmm::mr::polymorphic_allocator<char>(rmm::mr::get_current_device_resource());
-    auto stream_adapter = rmm::mr::make_stream_allocator_adaptor(poly_alloc, handle.get_stream());
-    cuco::static_map<vertex_t, vertex_t, cuda::thread_scope_device, decltype(stream_adapter)>
-      renumber_map{// cuco::static_map requires at least one empty slot
-                   std::max(static_cast<size_t>(
-                              static_cast<double>(sorted_unique_int_vertices.size()) / load_factor),
-                            sorted_unique_int_vertices.size() + 1),
-                   cuco::sentinel::empty_key<vertex_t>{invalid_vertex_id<vertex_t>::value},
-                   cuco::sentinel::empty_value<vertex_t>{invalid_vertex_id<vertex_t>::value},
-                   stream_adapter,
-                   handle.get_stream()};
-
-    auto pair_first = thrust::make_zip_iterator(thrust::make_tuple(
-      sorted_unique_int_vertices.begin(), rx_ext_vertices_for_sorted_unique_int_vertices.begin()));
-    renumber_map.insert(pair_first,
-                        pair_first + sorted_unique_int_vertices.size(),
-                        cuco::detail::MurmurHash3_32<vertex_t>{},
-                        thrust::equal_to<vertex_t>{},
-                        handle.get_stream());
-    renumber_map.find(vertices,
-                      vertices + num_vertices,
-                      vertices,
-                      cuco::detail::MurmurHash3_32<vertex_t>{},
-                      thrust::equal_to<vertex_t>{},
-                      handle.get_stream());
+    kv_store_t<vertex_t, vertex_t, false> renumber_map(
+      sorted_unique_int_vertices.begin(),
+      sorted_unique_int_vertices.begin() + sorted_unique_int_vertices.size(),
+      rx_ext_vertices_for_sorted_unique_int_vertices.begin(),
+      invalid_vertex_id<vertex_t>::value,
+      invalid_vertex_id<vertex_t>::value,
+      handle.get_stream());
+    auto renumber_map_view = renumber_map.view();
+    renumber_map_view.find(vertices, vertices + num_vertices, vertices, handle.get_stream());
   } else {
     unrenumber_local_int_vertices(handle,
                                   vertices,

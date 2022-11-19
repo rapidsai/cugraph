@@ -176,9 +176,9 @@ function(ConfigureCTestMG CMAKE_TEST_NAME)
 endfunction()
 
 if(NOT USE_CUGRAPH_OPS)
-    list(APPEND CMAKE_C_FLAGS -DNO_CUGRAPH_OPS)
-    list(APPEND CMAKE_CXX_FLAGS -DNO_CUGRAPH_OPS)
-    list(APPEND CMAKE_CUDA_FLAGS -DNO_CUGRAPH_OPS)
+    string(CONCAT CMAKE_C_FLAGS ${CMAKE_C_FLAGS} " -DNO_CUGRAPH_OPS")
+    string(CONCAT CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS} " -DNO_CUGRAPH_OPS")
+    string(CONCAT CMAKE_CUDA_FLAGS ${CMAKE_CUDA_FLAGS} " -DNO_CUGRAPH_OPS")
 endif()
 
 ###################################################################################################
@@ -476,7 +476,7 @@ if(BUILD_CUGRAPH_MG_TESTS)
 
     ###############################################################################################
     # - MG LOUVAIN tests --------------------------------------------------------------------------
-    ConfigureTestMG(MG_EGO_TEST community/mg_egonet_test.cpp)
+    ConfigureTestMG(MG_EGO_TEST community/mg_egonet_test.cu)
 
     ###############################################################################################
     # - MG WEAKLY CONNECTED COMPONENTS tests ------------------------------------------------------
