@@ -23,7 +23,9 @@ cuda_suffix = os.getenv("RAPIDS_PY_WHEEL_CUDA_SUFFIX", default="")
 
 INSTALL_REQUIRES = [
     "numba",
-    "dask-cuda>=22.10",
+    # TODO: Temporary pinning because the latest dask-cuda requires
+    # changes to distributed that are only available on main.
+    "dask-cuda==22.10.00",
     f"rmm{cuda_suffix}",
     f"cudf{cuda_suffix}",
     f"raft-dask{cuda_suffix}",
