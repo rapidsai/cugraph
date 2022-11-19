@@ -123,10 +123,5 @@ setup(
     license="Apache 2.0",
     cmdclass=cmdclass,
     zip_safe=False,
-    setup_requires=[
-      f"rmm{os.getenv('PYTHON_PACKAGE_CUDA_SUFFIX', default='')}",
-      f"raft-dask{os.getenv('PYTHON_PACKAGE_CUDA_SUFFIX', default='')}",
-      f"pylibcugraph{os.getenv('PYTHON_PACKAGE_CUDA_SUFFIX', default='')}",
-    ],
     extras_require=extras_require,
 )
