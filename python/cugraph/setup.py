@@ -84,12 +84,24 @@ PACKAGE_DATA["cugraph.experimental.datasets"].extend(
 )
 
 
+# Ensure that wheel version patching works for nightlies.
+if "RAPIDS_PY_WHEEL_VERSIONEER_OVERRIDE" in os.environ:
+    orig_get_versions = versioneer.get_versions
+
+    version_override = os.environ["RAPIDS_PY_WHEEL_VERSIONEER_OVERRIDE"]
+
+    def get_versions():
+        data = orig_get_versions()
+        data["version"] = version_override
+        return data
+
+    versioneer.get_versions = get_versions
+
+
 setup(
     name=f"cugraph{cuda_suffix}",
     description="cuGraph - RAPIDS GPU Graph Analytics",
-    version=os.getenv(
-        "RAPIDS_PY_WHEEL_VERSIONEER_OVERRIDE", default=versioneer.get_version()
-    ),
+    version=versioneer.get_version(),
     classifiers=[
         # "Development Status :: 4 - Beta",
         "Intended Audience :: Developers",
