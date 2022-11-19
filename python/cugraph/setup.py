@@ -24,6 +24,7 @@ cuda_suffix = os.getenv("RAPIDS_PY_WHEEL_CUDA_SUFFIX", default="")
 INSTALL_REQUIRES = [
     "numba",
     "dask-cuda>=22.10",
+    f"rmm{cuda_suffix}",
     f"cudf{cuda_suffix}",
     f"raft-dask{cuda_suffix}",
     f"dask-cudf{cuda_suffix}",
@@ -41,7 +42,6 @@ extras_require = {
         "pandas",
         "networkx>=2.5.1",
         "scikit-learn>=0.23.1",
-        f"rmm{cuda_suffix}",
         "python-louvain",
         "asvdb @ git+https://github.com/rapidsai/asvdb.git@main",
         # TODO: This dependency is currently correct but is incompatible
