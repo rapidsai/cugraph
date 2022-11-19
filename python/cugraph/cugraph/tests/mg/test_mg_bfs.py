@@ -134,8 +134,7 @@ def test_dask_bfs_invalid_start(dask_client, directed):
 
 
 @pytest.mark.skipif(
-   is_single_gpu(),
-   reason="Temporarily skipping failing MG test on SG wheel builds"
+    is_single_gpu(), reason="Temporarily skipping failing MG test on SG wheel builds"
 )
 @pytest.mark.parametrize("directed", IS_DIRECTED)
 def test_dask_bfs_multi_column_depthlimit(dask_client, directed):

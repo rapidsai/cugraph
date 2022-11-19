@@ -28,22 +28,24 @@ INSTALL_REQUIRES = [
     f"cudf{os.getenv('PYTHON_PACKAGE_CUDA_SUFFIX', default='')}",
     f"raft-dask{os.getenv('PYTHON_PACKAGE_CUDA_SUFFIX', default='')}",
     f"dask-cudf{os.getenv('PYTHON_PACKAGE_CUDA_SUFFIX', default='')}",
-    f"pylibcugraph{os.getenv('PYTHON_PACKAGE_CUDA_SUFFIX', default='')}"
+    f"pylibcugraph{os.getenv('PYTHON_PACKAGE_CUDA_SUFFIX', default='')}",
 ]
 
-extras_require = {
-    "test": [
-        "pytest",
-        "pytest-xdist",
-        "pytest-benchmark",
-        "scipy",
-        "numpy",
-        "pandas",
-        "networkx>=2.5.1",
-        "scikit-learn>=0.23.1",
-        f"rmm{os.getenv('PYTHON_PACKAGE_CUDA_SUFFIX', default='')}"
-    ]
-},
+extras_require = (
+    {
+        "test": [
+            "pytest",
+            "pytest-xdist",
+            "pytest-benchmark",
+            "scipy",
+            "numpy",
+            "pandas",
+            "networkx>=2.5.1",
+            "scikit-learn>=0.23.1",
+            f"rmm{os.getenv('PYTHON_PACKAGE_CUDA_SUFFIX', default='')}",
+        ]
+    },
+)
 
 CUDA_HOME = get_environment_option("CUDA_HOME")
 
@@ -104,8 +106,9 @@ PACKAGE_DATA["cugraph.experimental.datasets"].extend(
 setup(
     name=f'cugraph{os.getenv("PYTHON_PACKAGE_CUDA_SUFFIX", default="")}',
     description="cuGraph - RAPIDS GPU Graph Analytics",
-    version=os.getenv("RAPIDS_PY_WHEEL_VERSIONEER_OVERRIDE",
-                      default=versioneer.get_version()),
+    version=os.getenv(
+        "RAPIDS_PY_WHEEL_VERSIONEER_OVERRIDE", default=versioneer.get_version()
+    ),
     classifiers=[
         # "Development Status :: 4 - Beta",
         "Intended Audience :: Developers",

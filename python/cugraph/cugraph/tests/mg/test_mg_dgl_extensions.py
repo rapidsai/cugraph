@@ -134,8 +134,7 @@ def test_sampling(basic_mg_gs):
 
 
 @pytest.mark.skipif(
-   is_single_gpu(),
-   reason="Temporarily skipping failing MG test on SG wheel builds"
+    is_single_gpu(), reason="Temporarily skipping failing MG test on SG wheel builds"
 )
 def test_get_node_storage(basic_mg_gs):
     result = basic_mg_gs.get_node_storage(key="prop").fetch(indices=[2, 3])
@@ -145,8 +144,7 @@ def test_get_node_storage(basic_mg_gs):
 
 
 @pytest.mark.skipif(
-   is_single_gpu(),
-   reason="Temporarily skipping failing MG test on SG wheel builds"
+    is_single_gpu(), reason="Temporarily skipping failing MG test on SG wheel builds"
 )
 def test_get_edge_storage(basic_mg_gs):
     result = basic_mg_gs.get_edge_storage(key="edge_w").fetch(indices=[1, 2])
@@ -291,8 +289,7 @@ def test_sampling_homogeneous_gs_neg_one_fanout(dask_client):
 # See below notebook
 # https://gist.github.com/VibhuJawa/f85fda8e1183886078f2a34c28c4638c
 @pytest.mark.skipif(
-   is_single_gpu(),
-   reason="Temporarily skipping failing MG test on SG wheel builds"
+    is_single_gpu(), reason="Temporarily skipping failing MG test on SG wheel builds"
 )
 def test_sampling_dgl_heterogeneous_gs_m_fanouts(gs_heterogeneous_dgl_eg):
     gs = gs_heterogeneous_dgl_eg
@@ -331,8 +328,7 @@ def test_sampling_dgl_heterogeneous_gs_m_fanouts(gs_heterogeneous_dgl_eg):
 
 
 @pytest.mark.skipif(
-   is_single_gpu(),
-   reason="Temporarily skipping failing MG test on SG wheel builds"
+    is_single_gpu(), reason="Temporarily skipping failing MG test on SG wheel builds"
 )
 def test_sampling_gs_heterogeneous_in_dir(gs_heterogeneous_dgl_eg):
     gs = gs_heterogeneous_dgl_eg
@@ -393,8 +389,7 @@ def test_sampling_gs_heterogeneous_in_dir(gs_heterogeneous_dgl_eg):
 
 
 @pytest.mark.skipif(
-   is_single_gpu(),
-   reason="Temporarily skipping failing MG test on SG wheel builds"
+    is_single_gpu(), reason="Temporarily skipping failing MG test on SG wheel builds"
 )
 def test_sampling_gs_heterogeneous_out_dir(gs_heterogeneous_dgl_eg):
     gs = gs_heterogeneous_dgl_eg

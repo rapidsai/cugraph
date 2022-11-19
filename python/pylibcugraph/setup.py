@@ -68,14 +68,21 @@ cmdclass = versioneer.get_cmdclass()
 cmdclass.update(versioneer.get_cmdclass())
 cmdclass["clean"] = CleanCommand
 
+
 def exclude_libcxx_symlink(cmake_manifest):
-    return list(filter(lambda name: not ('include/rapids/libcxx/include' in name), cmake_manifest))
+    return list(
+        filter(
+            lambda name: not ("include/rapids/libcxx/include" in name), cmake_manifest
+        )
+    )
+
 
 setup(
     name=f'pylibcugraph{os.getenv("PYTHON_PACKAGE_CUDA_SUFFIX", default="")}',
     description="pylibcuGraph - RAPIDS GPU Graph Analytics",
-    version=os.getenv("RAPIDS_PY_WHEEL_VERSIONEER_OVERRIDE",
-                      default=versioneer.get_version()),
+    version=os.getenv(
+        "RAPIDS_PY_WHEEL_VERSIONEER_OVERRIDE", default=versioneer.get_version()
+    ),
     classifiers=[
         # "Development Status :: 4 - Beta",
         "Intended Audience :: Developers",
@@ -90,10 +97,10 @@ setup(
     package_data={key: ["*.pxd"] for key in find_packages(include=["pylibcugraph*"])},
     include_package_data=True,
     install_requires=[
-      f"cudf{os.getenv('PYTHON_PACKAGE_CUDA_SUFFIX', default='')}",
-      f"pylibraft{os.getenv('PYTHON_PACKAGE_CUDA_SUFFIX', default='')}",
+        f"cudf{os.getenv('PYTHON_PACKAGE_CUDA_SUFFIX', default='')}",
+        f"pylibraft{os.getenv('PYTHON_PACKAGE_CUDA_SUFFIX', default='')}",
     ],
-    extras_require = {
+    extras_require={
         "test": [
             "pytest",
             "pytest-xdist",

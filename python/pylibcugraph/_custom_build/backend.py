@@ -18,7 +18,7 @@ def replace_requirements(func):
     @wraps(func)
     def wrapper(config_settings=None):
         orig_list = getattr(_orig, func.__name__)(config_settings)
-        cuda_suffix = os.getenv('RAPIDS_PY_WHEEL_CUDA_SUFFIX', default='')
+        cuda_suffix = os.getenv("RAPIDS_PY_WHEEL_CUDA_SUFFIX", default="")
         append_list = [
             f"rmm{cuda_suffix}",
             f"pylibraft{cuda_suffix}",
@@ -28,12 +28,8 @@ def replace_requirements(func):
     return wrapper
 
 
-get_requires_for_build_wheel = replace_requirements(
-    _orig.get_requires_for_build_wheel
-)
-get_requires_for_build_sdist = replace_requirements(
-    _orig.get_requires_for_build_sdist
-)
+get_requires_for_build_wheel = replace_requirements(_orig.get_requires_for_build_wheel)
+get_requires_for_build_sdist = replace_requirements(_orig.get_requires_for_build_sdist)
 get_requires_for_build_editable = replace_requirements(
     _orig.get_requires_for_build_editable
 )
