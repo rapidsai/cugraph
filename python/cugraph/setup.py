@@ -28,21 +28,19 @@ INSTALL_REQUIRES = [
     f"pylibcugraph{os.getenv('PYTHON_PACKAGE_CUDA_SUFFIX', default='')}",
 ]
 
-extras_require = (
-    {
-        "test": [
-            "pytest",
-            "pytest-xdist",
-            "pytest-benchmark",
-            "scipy",
-            "numpy",
-            "pandas",
-            "networkx>=2.5.1",
-            "scikit-learn>=0.23.1",
-            f"rmm{os.getenv('PYTHON_PACKAGE_CUDA_SUFFIX', default='')}",
-        ]
-    },
-)
+extras_require = {
+    "test": [
+        "pytest",
+        "pytest-xdist",
+        "pytest-benchmark",
+        "scipy",
+        "numpy",
+        "pandas",
+        "networkx>=2.5.1",
+        "scikit-learn>=0.23.1",
+        f"rmm{os.getenv('PYTHON_PACKAGE_CUDA_SUFFIX', default='')}",
+    ]
+}
 
 
 class CleanCommand(Command):
