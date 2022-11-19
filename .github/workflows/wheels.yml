@@ -48,13 +48,7 @@ jobs:
 
       skbuild-configure-options: "-DCUGRAPH_RAFT_REPOSITORY=https://github.com/vyasr/raft.git -DCUGRAPH_RAFT_BRANCH=feat/cibuildwheel -DCPM_DOWNLOAD_ALL=ON -DDETECT_CONDA_ENV=OFF -DCUGRAPH_BUILD_WHEELS=ON -DUSE_CUGRAPH_OPS=OFF"
 
-      # Need to install a patched version of the benchmark repo that has the
-      # rmm package name patched to rmm-cu11. As a result, we also need to
-      # install asvdb (rather than relying on install_requires) here since it
-      # is a dependency of benchmark. We need to reinstall awscli to ensure a
-      # compatible version of boto3 is installed for that and asvdb.
-      test-before-amd64: "pip install awscli git+https://github.com/rapidsai/asvdb.git@main git+https://github.com/vyasr/benchmark.git@versioned_rmm_req#subdirectory=rapids_pytest_benchmark"
-      test-before-arm64: "pip install cupy-cuda11x -f https://pip.cupy.dev/aarch64 && pip install awscli git+https://github.com/rapidsai/asvdb.git@main git+https://github.com/vyasr/benchmark.git@versioned_rmm_req#subdirectory=rapids_pytest_benchmark"
+      test-before-arm64: "pip install cupy-cuda11x -f https://pip.cupy.dev/aarch64"
       test-extras: test
 
       test-unittest: "RAPIDS_DATASET_ROOT_DIR=`pwd`/datasets pytest -v ./python/pylibcugraph/pylibcugraph/tests -m 'not cugraph_ops'"
@@ -79,12 +73,7 @@ jobs:
 
       skbuild-configure-options: "-DCUGRAPH_RAFT_REPOSITORY=https://github.com/vyasr/raft.git -DCUGRAPH_RAFT_BRANCH=feat/cibuildwheel -DCPM_DOWNLOAD_ALL=ON -DDETECT_CONDA_ENV=OFF -DCUGRAPH_BUILD_WHEELS=ON -DUSE_CUGRAPH_OPS=OFF"
 
-      # Need to install a patched version of the benchmark repo that has the
-      # rmm package name patched to rmm-cu11. As a result, we also need to
-      # install asvdb (rather than relying on install_requires) here since it
-      # is a dependency of benchmark.
-      test-before-amd64: "pip install git+https://github.com/rapidsai/asvdb.git@main && pip install git+https://github.com/vyasr/benchmark.git@versioned_rmm_req#subdirectory=rapids_pytest_benchmark"
-      test-before-arm64: "pip install cupy-cuda11x -f https://pip.cupy.dev/aarch64 && pip install git+https://github.com/rapidsai/asvdb.git@main && pip install git+https://github.com/vyasr/benchmark.git@versioned_rmm_req#subdirectory=rapids_pytest_benchmark"
+      test-before-arm64: "pip install cupy-cuda11x -f https://pip.cupy.dev/aarch64"
       test-extras: test
-      test-unittest: "RAPIDS_DATASET_ROOT_DIR=`pwd`/datasets pytest -v ./python/cugraph/cugraph/tests --benchmark-gpu-disable"
+      test-unittest: "RAPIDS_DATASET_ROOT_DIR=`pwd`/datasets pytest -v ./python/cugraph/cugraph/tests"
     secrets: inherit

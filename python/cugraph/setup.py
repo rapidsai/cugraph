@@ -43,11 +43,6 @@ extras_require = {
         "networkx>=2.5.1",
         "scikit-learn>=0.23.1",
         "python-louvain",
-        "asvdb @ git+https://github.com/rapidsai/asvdb.git@main",
-        # TODO: This dependency is currently correct but is incompatible
-        # with the rmm requirement. We should rework the benchmarks to not
-        # require gpubenchmark at all so that it (and asvdb) can be removed.
-        # "rapids_pytest_benchmark @ git+https://github.com/rapidsai/benchmark.git@main#subdirectory=rapids_pytest_benchmark",  # noqa:E501
     ]
 }
 
