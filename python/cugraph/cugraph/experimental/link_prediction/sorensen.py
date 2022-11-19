@@ -181,7 +181,7 @@ def EXPERIMENTAL__sorensen_coefficient(G, ebunch=None):
     if isNx is True and ebunch is not None:
         vertex_pair = cudf.DataFrame(ebunch)
 
-    df = sorensen(G, vertex_pair)
+    df = EXPERIMENTAL__sorensen(G, vertex_pair)
 
     if isNx is True:
         df = df_edge_score_to_dictionary(
