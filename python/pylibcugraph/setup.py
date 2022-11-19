@@ -94,6 +94,8 @@ setup(
     install_requires=[
         f"cudf{cuda_suffix}",
         "cupy-cuda11x",
+        f"pylibraft{cuda_suffix}",
+        f"rmm{cuda_suffix}",
     ],
     extras_require={
         "test": [
