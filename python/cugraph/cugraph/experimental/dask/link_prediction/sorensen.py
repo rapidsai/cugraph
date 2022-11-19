@@ -20,10 +20,10 @@ import cudf
 from cugraph.dask.common.input_utils import get_distributed_data
 from cugraph.utilities import renumber_vertex_pair
 
-from pylibcugraph import (
-    ResourceHandle,
+from pylibcugraph.experimental import (
     sorensen_coefficients as pylibcugraph_sorensen_coefficients,
 )
+from pylibcugraph import ResourceHandle
 
 
 def convert_to_cudf(cp_arrays):
@@ -58,7 +58,7 @@ def _call_plc_sorensen(
     )
 
 
-def sorensen(input_graph, vertex_pair=None, use_weight=False):
+def EXPERIMENTAL__sorensen(input_graph, vertex_pair=None, use_weight=False):
     """
     Compute the Sorensen coefficient between each pair of vertices connected by
     an edge, or between arbitrary pairs of vertices specified by the user.

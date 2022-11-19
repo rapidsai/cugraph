@@ -20,10 +20,10 @@ import cudf
 from cugraph.dask.common.input_utils import get_distributed_data
 from cugraph.utilities import renumber_vertex_pair
 
-from pylibcugraph import (
-    ResourceHandle,
+from pylibcugraph.experimental import (
     jaccard_coefficients as pylibcugraph_jaccard_coefficients,
 )
+from pylibcugraph import ResourceHandle
 
 
 def convert_to_cudf(cp_arrays):
@@ -58,7 +58,7 @@ def _call_plc_jaccard(
     )
 
 
-def jaccard(input_graph, vertex_pair=None, use_weight=False):
+def EXPERIMENTAL__jaccard(input_graph, vertex_pair=None, use_weight=False):
     """
     Compute the Jaccard similarity between each pair of vertices connected by
     an edge, or between arbitrary pairs of vertices specified by the user.

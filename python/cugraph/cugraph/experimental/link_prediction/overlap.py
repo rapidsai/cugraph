@@ -18,13 +18,13 @@ from cugraph.utilities import (
 )
 import cudf
 
-from pylibcugraph import (
+from pylibcugraph.experimental import (
     overlap_coefficients as pylibcugraph_overlap_coefficients,
-    ResourceHandle,
 )
+from pylibcugraph import ResourceHandle
 
 
-def overlap_coefficient(G, ebunch=None):
+def EXPERIMENTAL__overlap_coefficient(G, ebunch=None):
     """
     For NetworkX Compatability.  See `overlap`
 
@@ -84,7 +84,7 @@ def overlap_coefficient(G, ebunch=None):
     return df
 
 
-def overlap(G, vertex_pair=None):
+def EXPERIMENTAL__overlap(G, vertex_pair=None):
     """
     Compute the Overlap Coefficient between each pair of vertices connected by
     an edge, or between arbitrary pairs of vertices specified by the user.
