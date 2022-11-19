@@ -82,6 +82,7 @@ if (NOT cugraph_FOUND)
 
   set(cython_lib_dir pylibcugraph)
   install(TARGETS cugraph DESTINATION ${cython_lib_dir})
+  install(TARGETS cugraph_c DESTINATION ${cython_lib_dir})
 endif()
 
 rapids_cython_init()
