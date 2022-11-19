@@ -15,10 +15,12 @@ import gc
 import pytest
 
 import cudf
-from cudf.testing import assert_series_equal
+from cudf.testing import assert_series_equal, assert_frame_equal
 
 import cugraph
 from cugraph.testing import utils
+from cugraph.experimental import sorensen_coefficient
+from cugraph.experimental import sorensen as exp_sorensen
 from cugraph.experimental.datasets import DATASETS_UNDIRECTED, netscience
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
@@ -68,7 +70,10 @@ def compare_sorensen_two_hop(G, Gnx):
         # No networkX equivalent
         nx_coeff.append((2 * p) / (1 + p))
     df = cugraph.sorensen(G, pairs)
+    df_exp = exp_sorensen(G, pairs)
     df = df.sort_values(by=["source", "destination"]).reset_index(drop=True)
+    df_exp = df_exp.sort_values(by=["source", "destination"]).reset_index(drop=True)
+    assert_frame_equal(df, df_exp, check_dtype=False, check_like=True)
     assert len(nx_coeff) == len(df)
     for i in range(len(df)):
         diff = abs(nx_coeff[i] - df["sorensen_coeff"].iloc[i])
@@ -241,12 +246,17 @@ def test_sorensen_multi_column(read_csv):
     vertex_pair = vertex_pair[:5]
 
     df_res = cugraph.sorensen(G1, vertex_pair)
+    df_plc_exp = exp_sorensen(G1, vertex_pair)
+
+    df_plc_exp = df_plc_exp.rename(
+        columns={"0_src":"0_source", "0_dst":"0_destination", "1_src":"1_source", "1_dst":"1_destination"})
+    assert_frame_equal(df_res, df_plc_exp, check_dtype=False, check_like=True)
 
     G2 = cugraph.Graph()
     G2.from_cudf_edgelist(cu_M, source="src_0", destination="dst_0")
     df_exp = cugraph.sorensen(G2, vertex_pair[["src_0", "dst_0"]])
 
     # Calculating mismatch
-    actual = df_res.sort_values("0_src").reset_index()
+    actual = df_res.sort_values("0_source").reset_index()
     expected = df_exp.sort_values("source").reset_index()
     assert_series_equal(actual["sorensen_coeff"], expected["sorensen_coeff"])
