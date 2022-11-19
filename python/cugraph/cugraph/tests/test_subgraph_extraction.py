@@ -175,7 +175,7 @@ def test_subgraph_extraction_graph_not_renumbered():
     assert Sg.number_of_edges() == 3
 
 
-def test_sssp_with_no_edgevals():
+def test_subgraph_with_no_edgevals():
     G = karate.get_graph(ignore_weights=True)
     with pytest.raises(RuntimeError):
         cugraph.subgraph(G, 1)
