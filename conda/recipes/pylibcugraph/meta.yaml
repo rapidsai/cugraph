@@ -37,6 +37,7 @@ requirements:
     - libcugraph={{ version }}
     - libraft-headers={{ minor_version }}
     - libraft-distance {{ minor_version }}
+    - pylibraft {{ minor_version}}
     - ucx-py {{ ucx_py_version }}
     - ucx-proc=*=gpu
     - cudatoolkit {{ cuda_version }}.*
