@@ -19,13 +19,15 @@ from skbuild import setup
 import versioneer
 
 
+cuda_suffix = os.getenv("RAPIDS_PY_WHEEL_CUDA_SUFFIX", default="")
+
 INSTALL_REQUIRES = [
     "numba",
     "dask-cuda>=22.10",
-    f"cudf{os.getenv('PYTHON_PACKAGE_CUDA_SUFFIX', default='')}",
-    f"raft-dask{os.getenv('PYTHON_PACKAGE_CUDA_SUFFIX', default='')}",
-    f"dask-cudf{os.getenv('PYTHON_PACKAGE_CUDA_SUFFIX', default='')}",
-    f"pylibcugraph{os.getenv('PYTHON_PACKAGE_CUDA_SUFFIX', default='')}",
+    f"cudf{cuda_suffix}",
+    f"raft-dask{cuda_suffix}",
+    f"dask-cudf{cuda_suffix}",
+    f"pylibcugraph{cuda_suffix}",
 ]
 
 extras_require = {
@@ -38,7 +40,7 @@ extras_require = {
         "pandas",
         "networkx>=2.5.1",
         "scikit-learn>=0.23.1",
-        f"rmm{os.getenv('PYTHON_PACKAGE_CUDA_SUFFIX', default='')}",
+        f"rmm{cuda_suffix}",
     ]
 }
 
@@ -83,7 +85,7 @@ PACKAGE_DATA["cugraph.experimental.datasets"].extend(
 
 
 setup(
-    name=f'cugraph{os.getenv("PYTHON_PACKAGE_CUDA_SUFFIX", default="")}',
+    name=f"cugraph{cuda_suffix}",
     description="cuGraph - RAPIDS GPU Graph Analytics",
     version=os.getenv(
         "RAPIDS_PY_WHEEL_VERSIONEER_OVERRIDE", default=versioneer.get_version()

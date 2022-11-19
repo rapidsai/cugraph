@@ -58,8 +58,11 @@ def exclude_libcxx_symlink(cmake_manifest):
     )
 
 
+cuda_suffix = os.getenv("RAPIDS_PY_WHEEL_CUDA_SUFFIX", default="")
+
+
 setup(
-    name=f'pylibcugraph{os.getenv("PYTHON_PACKAGE_CUDA_SUFFIX", default="")}',
+    name=f"pylibcugraph{cuda_suffix}",
     description="pylibcuGraph - RAPIDS GPU Graph Analytics",
     version=os.getenv(
         "RAPIDS_PY_WHEEL_VERSIONEER_OVERRIDE", default=versioneer.get_version()
@@ -78,8 +81,8 @@ setup(
     package_data={key: ["*.pxd"] for key in find_packages(include=["pylibcugraph*"])},
     include_package_data=True,
     install_requires=[
-        f"cudf{os.getenv('PYTHON_PACKAGE_CUDA_SUFFIX', default='')}",
-        f"pylibraft{os.getenv('PYTHON_PACKAGE_CUDA_SUFFIX', default='')}",
+        f"cudf{cuda_suffix}",
+        f"pylibraft{cuda_suffix}",
     ],
     extras_require={
         "test": [
