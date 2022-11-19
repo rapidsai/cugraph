@@ -51,12 +51,12 @@ function(find_and_configure_raft)
       GLOBAL_TARGETS      raft::raft
       BUILD_EXPORT_SET    cugraph-exports
       INSTALL_EXPORT_SET  cugraph-exports
+      COMPONENTS distance
         CPM_ARGS
             EXCLUDE_FROM_ALL TRUE
             GIT_REPOSITORY ${PKG_REPO}
             GIT_TAG        ${PKG_PINNED_TAG}
             SOURCE_SUBDIR  cpp
-            FIND_PACKAGE_ARGUMENTS "COMPONENTS distance"
             OPTIONS
                 "RAFT_COMPILE_LIBRARIES OFF"
                 "RAFT_COMPILE_DIST_LIBRARY ON"
