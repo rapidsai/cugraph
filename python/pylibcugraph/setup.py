@@ -93,7 +93,7 @@ setup(
     include_package_data=True,
     install_requires=[
         f"cudf{cuda_suffix}",
-        f"pylibraft{cuda_suffix}",
+        "cupy-cuda11x",
     ],
     extras_require={
         "test": [
@@ -105,6 +105,11 @@ setup(
             "numpy",
             "networkx>=2.5.1",
             "scikit-learn>=0.23.1",
+            "dask",
+            "distributed",
+            "dask-cuda",
+            "asvdb @ git+https://github.com/rapidsai/asvdb.git@main",
+            "rapids_pytest_benchmark @ git+https://github.com/rapidsai/benchmark.git@main#subdirectory=rapids_pytest_benchmark",  # noqa:E501
         ]
     },
     cmake_process_manifest_hook=exclude_libcxx_symlink,

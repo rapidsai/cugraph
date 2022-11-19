@@ -4,40 +4,82 @@ on:
   push:
     branches:
       - 'pull-request/[0-9]+'
+  workflow_call:
+    inputs:
+      versioneer-override:
+        type: string
+        default: ''
+      build-tag:
+        type: string
+        default: ''
+      branch:
+        required: true
+        type: string
+      date:
+        required: true
+        type: string
+      sha:
+        required: true
+        type: string
+      build-type:
+        type: string
+        default: nightly
 
 concurrency:
-  group: "${{ github.workflow }}-${{ github.ref }}"
+  group: "cugraph-${{ github.workflow }}-${{ github.ref }}"
   cancel-in-progress: true
 
 jobs:
   pylibcugraph-wheel:
-    uses: rapidsai/shared-action-workflows/.github/workflows/wheels-manylinux.yml@feat/wheel-ci-actions-2
+    uses: rapidsai/shared-action-workflows/.github/workflows/wheels-manylinux.yml@main
     with:
-      package-name: pylibcugraph
+      repo: rapidsai/cugraph
+
+      build-type: ${{ inputs.build-type }}
+      branch: ${{ inputs.branch }}
+      sha: ${{ inputs.sha }}
+      date: ${{ inputs.date }}
+
       package-dir: python/pylibcugraph
-      python-package-versioneer-override: "22.10.00"
-  
-      skbuild-configure-options: "--log-level=DEBUG -DCUGRAPH_RAFT_REPOSITORY=https://github.com/sevagh/raft.git -DCUGRAPH_RAFT_BRANCH=feat/cibuildwheel -DCUGRAPH_CUGRAPH_OPS_BRANCH=feat/cibuildwheel -DCPM_DOWNLOAD_ALL=ON -DDETECT_CONDA_ENV=OFF -DCUGRAPH_BUILD_WHEELS=ON -DCMAKE_CUDA_ARCHITECTURES=ALL"
-  
-      test-extras:  "test"
-      test-requires: "dask[distributed,dataframe] dask-cuda"
-      test-before-amd64: "pip install rmm-cu11 cudf-cu11 raft-dask-cu11 pylibraft-cu11 dask-cudf-cu11 --index-url https://pypi.k8s.rapids.ai/simple && pip install cupy-cuda115 && pip install git+https://github.com/rapidsai/asvdb.git@main && pip install git+https://github.com/vyasr/benchmark.git@versioned_rmm_req#subdirectory=rapids_pytest_benchmark"
-      test-before-arm64: "pip install rmm-cu11 cudf-cu11 raft-dask-cu11 pylibraft-cu11 dask-cudf-cu11 --index-url https://pypi.k8s.rapids.ai/simple && pip install cupy-cuda11x -f https://pip.cupy.dev/aarch64 && pip install git+https://github.com/rapidsai/asvdb.git@main && pip install git+https://github.com/vyasr/benchmark.git@versioned_rmm_req#subdirectory=rapids_pytest_benchmark"
+      package-name: pylibcugraph
+
+      python-package-versioneer-override: ${{ inputs.versioneer-override }}
+      python-package-build-tag: ${{ inputs.build-tag }}
+
+      skbuild-configure-options: "-DCUGRAPH_RAFT_REPOSITORY=https://github.com/vyasr/raft.git -DCUGRAPH_RAFT_BRANCH=feat/cibuildwheel -DCPM_DOWNLOAD_ALL=ON -DDETECT_CONDA_ENV=OFF -DCUGRAPH_BUILD_WHEELS=ON -DUSE_CUGRAPH_OPS=OFF"
+
+      # Need to install a patched version of the benchmark repo that has the
+      # rmm package name patched to rmm-cu11.
+      test-before-amd64: "pip install git+https://github.com/vyasr/benchmark.git@versioned_rmm_req#subdirectory=rapids_pytest_benchmark"
+      test-before-arm64: "pip install cupy-cuda11x -f https://pip.cupy.dev/aarch64 && pip install git+https://github.com/vyasr/benchmark.git@versioned_rmm_req#subdirectory=rapids_pytest_benchmark"
+      test-extras: test
+
       test-unittest: "RAPIDS_DATASET_ROOT_DIR=`pwd`/datasets pytest -v ./python/pylibcugraph/pylibcugraph/tests"
     secrets: inherit
+
   cugraph-wheel:
     needs: pylibcugraph-wheel
-    uses: rapidsai/shared-action-workflows/.github/workflows/wheels-manylinux.yml@feat/wheel-ci-actions-2
+    uses: rapidsai/shared-action-workflows/.github/workflows/wheels-manylinux.yml@main
     with:
-      package-name: cugraph
+      repo: rapidsai/cugraph
+
+      build-type: ${{ inputs.build-type }}
+      branch: ${{ inputs.branch }}
+      sha: ${{ inputs.sha }}
+      date: ${{ inputs.date }}
+
       package-dir: python/cugraph
-      python-package-versioneer-override: "22.10.00"
+      package-name: cugraph
 
-      skbuild-configure-options: "--log-level=DEBUG -DCUGRAPH_RAFT_REPOSITORY=https://github.com/sevagh/raft.git -DCUGRAPH_RAFT_BRANCH=feat/cibuildwheel -DCUGRAPH_CUGRAPH_OPS_BRANCH=feat/cibuildwheel -DCPM_DOWNLOAD_ALL=ON -DDETECT_CONDA_ENV=OFF -DCUGRAPH_BUILD_WHEELS=ON -DCMAKE_CUDA_ARCHITECTURES=ALL"
+      python-package-versioneer-override: ${{ inputs.versioneer-override }}
+      python-package-build-tag: ${{ inputs.build-tag }}
 
-      test-before-amd64: "pip install rmm-cu11 cudf-cu11 dask-cudf-cu11 raft-dask-cu11 pylibraft-cu11 pylibcugraph-cu11 ucx-py-cu11 --index-url https://pypi.k8s.rapids.ai/simple && pip install cupy-cuda115 python-louvain requests aiohttp && pip install git+https://github.com/rapidsai/asvdb.git@main && pip install git+https://github.com/vyasr/benchmark.git@versioned_rmm_req#subdirectory=rapids_pytest_benchmark"
-      test-before-arm64: "pip install rmm-cu11 cudf-cu11 dask-cudf-cu11 raft-dask-cu11 pylibraft-cu11 pylibcugraph-cu11 ucx-py-cu11 --index-url https://pypi.k8s.rapids.ai/simple && pip install cupy-cuda11x -f https://pip.cupy.dev/aarch64 && pip install python-louvain requests aiohttp && pip install git+https://github.com/rapidsai/asvdb.git@main && pip install git+https://github.com/vyasr/benchmark.git@versioned_rmm_req#subdirectory=rapids_pytest_benchmark"
-      test-extras:  "test"
-      test-requires: "dask[distributed,dataframe] dask-cuda"
-        #test-unittest: "RAPIDS_DATASET_ROOT_DIR=`pwd`/datasets pytest -v ./python/cugraph/cugraph/tests --benchmark-gpu-disable"
+      skbuild-configure-options: "-DCUGRAPH_RAFT_REPOSITORY=https://github.com/vyasr/raft.git -DCUGRAPH_RAFT_BRANCH=feat/cibuildwheel -DCPM_DOWNLOAD_ALL=ON -DDETECT_CONDA_ENV=OFF -DCUGRAPH_BUILD_WHEELS=ON -DUSE_CUGRAPH_OPS=OFF"
+
+      # Need to install a patched version of the benchmark repo that has the
+      # rmm package name patched to rmm-cu11.
+      test-before-amd64: "pip install git+https://github.com/vyasr/benchmark.git@versioned_rmm_req#subdirectory=rapids_pytest_benchmark"
+      test-before-arm64: "pip install cupy-cuda11x -f https://pip.cupy.dev/aarch64 && pip install git+https://github.com/vyasr/benchmark.git@versioned_rmm_req#subdirectory=rapids_pytest_benchmark"
+      test-extras: test
+      test-unittest: "RAPIDS_DATASET_ROOT_DIR=`pwd`/datasets pytest -v ./python/cugraph/cugraph/tests --benchmark-gpu-disable"
     secrets: inherit

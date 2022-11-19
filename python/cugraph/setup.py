@@ -28,6 +28,7 @@ INSTALL_REQUIRES = [
     f"raft-dask{cuda_suffix}",
     f"dask-cudf{cuda_suffix}",
     f"pylibcugraph{cuda_suffix}",
+    "cupy-cuda11x",
 ]
 
 extras_require = {
@@ -41,6 +42,8 @@ extras_require = {
         "networkx>=2.5.1",
         "scikit-learn>=0.23.1",
         f"rmm{cuda_suffix}",
+        "python-louvain" "asvdb @ git+https://github.com/rapidsai/asvdb.git@main",
+        "rapids_pytest_benchmark @ git+https://github.com/rapidsai/benchmark.git@main#subdirectory=rapids_pytest_benchmark",  # noqa:E501
     ]
 }
 
