@@ -57,7 +57,7 @@ jobs:
       test-before-arm64: "pip install cupy-cuda11x -f https://pip.cupy.dev/aarch64 && pip install awscli git+https://github.com/rapidsai/asvdb.git@main git+https://github.com/vyasr/benchmark.git@versioned_rmm_req#subdirectory=rapids_pytest_benchmark"
       test-extras: test
 
-      test-unittest: "RAPIDS_DATASET_ROOT_DIR=`pwd`/datasets pytest -v ./python/pylibcugraph/pylibcugraph/tests"
+      test-unittest: "RAPIDS_DATASET_ROOT_DIR=`pwd`/datasets pytest -v ./python/pylibcugraph/pylibcugraph/tests -m 'not cugraph_ops'"
     secrets: inherit
 
   cugraph-wheel:

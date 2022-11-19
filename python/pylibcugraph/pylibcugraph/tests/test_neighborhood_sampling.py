@@ -178,6 +178,7 @@ def test_neighborhood_sampling_cudf(
     )
 
 
+@pytest.mark.cugraph_ops
 def test_neighborhood_sampling_large_sg_graph(gpubenchmark):
     """
     Use a large SG graph and set input args accordingly to test/benchmark
