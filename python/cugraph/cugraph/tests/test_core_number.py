@@ -14,10 +14,11 @@
 import gc
 
 import pytest
-
 import cudf
-import cugraph
+from pylibcugraph.testing.utils import gen_fixture_params_product
 import networkx as nx
+
+import cugraph
 from cugraph.testing import utils
 from cugraph.experimental.datasets import DATASETS_UNDIRECTED
 
@@ -35,7 +36,7 @@ def setup_function():
 datasets = DATASETS_UNDIRECTED
 degree_type = ["incoming", "outgoing"]
 
-fixture_params = utils.genFixtureParamsProduct(
+fixture_params = gen_fixture_params_product(
     (datasets, "graph_file"),
     (degree_type, "degree_type"),
 )

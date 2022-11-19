@@ -18,11 +18,11 @@ import pytest
 import pandas as pd
 import cudf
 from cudf.testing import assert_frame_equal, assert_series_equal
+from pylibcugraph.testing.utils import gen_fixture_params_product
 
 import cugraph.dask as dcg
 from cugraph.experimental.datasets import cyber
-from cugraph.testing.utils import RAPIDS_DATASET_ROOT_DIR_PATH
-from cugraph.testing import utils
+from cugraph.experimental.datasets import netscience
 
 # If the rapids-pytest-benchmark plugin is installed, the "gpubenchmark"
 # fixture will be available automatically. Check that this fixture is available
@@ -162,7 +162,7 @@ def df_type_id(dataframe_type):
     return s + "?"
 
 
-df_types_fixture_params = utils.genFixtureParamsProduct((df_types, df_type_id))
+df_types_fixture_params = gen_fixture_params_product((df_types, df_type_id))
 
 
 @pytest.fixture(scope="module", params=df_types_fixture_params)
@@ -175,7 +175,7 @@ def net_PropertyGraph(request):
     from cugraph.experimental import PropertyGraph
 
     dataframe_type = request.param[0]
-    netscience_csv = utils.RAPIDS_DATASET_ROOT_DIR_PATH / "netscience.csv"
+    netscience_csv = netscience.get_path()
     source_col_name = "src"
     dest_col_name = "dst"
 
@@ -365,7 +365,7 @@ def net_MGPropertyGraph(dask_client):
     """
     from cugraph.experimental import MGPropertyGraph
 
-    input_data_path = (RAPIDS_DATASET_ROOT_DIR_PATH / "netscience.csv").as_posix()
+    input_data_path = str(netscience.get_path())
     print(f"dataset={input_data_path}")
     chunksize = dcg.get_chunksize(input_data_path)
     ddf = dask_cudf.read_csv(

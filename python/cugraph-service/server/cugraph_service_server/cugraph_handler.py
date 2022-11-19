@@ -954,13 +954,13 @@ class CugraphHandler:
         result_host,
         result_port,
     ):
-        G = self._get_graph(graph_id)
-        if isinstance(G, (MGPropertyGraph, PropertyGraph)):
-            # Implicitly extract a subgraph containing the entire multigraph.
-            # G will be garbage collected when this function returns.
-            G = G.extract_subgraph(create_using=cugraph.MultiGraph(directed=True))
-
         try:
+            G = self._get_graph(graph_id)
+            if isinstance(G, (MGPropertyGraph, PropertyGraph)):
+                # Implicitly extract a subgraph containing the entire multigraph.
+                # G will be garbage collected when this function returns.
+                G = G.extract_subgraph(create_using=cugraph.MultiGraph(directed=True))
+
             uns_result = call_algo(
                 uniform_neighbor_sample,
                 G,

@@ -32,7 +32,7 @@ def read_csv_file(csv_file, weights_dtype="float32"):
     )
 
 
-def genFixtureParamsProduct(*args):
+def gen_fixture_params_product(*args):
     """
     Returns the cartesian product of the param lists passed in. The lists must
     be flat lists of pytest.param objects, and the result will be a flat list
@@ -41,12 +41,12 @@ def genFixtureParamsProduct(*args):
     properly recognize the params. The combinations also include ids generated
     from the param values and id names associated with each list. For example:
 
-    genFixtureParamsProduct( ([pytest.param(True, marks=[pytest.mark.A_good]),
-                               pytest.param(False, marks=[pytest.mark.A_bad])],
-                              "A"),
-                             ([pytest.param(True, marks=[pytest.mark.B_good]),
-                               pytest.param(False, marks=[pytest.mark.B_bad])],
-                              "B") )
+    gen_fixture_params_product( ([pytest.param(True, marks=[pytest.mark.A_good]),
+                                  pytest.param(False, marks=[pytest.mark.A_bad])],
+                                 "A"),
+                                ([pytest.param(True, marks=[pytest.mark.B_good]),
+                                  pytest.param(False, marks=[pytest.mark.B_bad])],
+                                 "B") )
 
     results in fixture param combinations:
 
@@ -69,19 +69,25 @@ def genFixtureParamsProduct(*args):
     paramLists = []
     ids = []
     paramType = pytest.param().__class__
-    for (paramList, id) in args:
+    for (paramList, paramId) in args:
+        paramListCopy = paramList[:]  # do not modify the incoming lists!
         for i in range(len(paramList)):
             if not isinstance(paramList[i], paramType):
-                paramList[i] = pytest.param(paramList[i])
-        paramLists.append(paramList)
-        ids.append(id)
+                paramListCopy[i] = pytest.param(paramList[i])
+        paramLists.append(paramListCopy)
+        ids.append(paramId)
 
     retList = []
     for paramCombo in product(*paramLists):
         values = [p.values[0] for p in paramCombo]
         marks = [m for p in paramCombo for m in p.marks]
-        comboid = ",".join(
-            ["%s=%s" % (id, p.values[0]) for (p, id) in zip(paramCombo, ids)]
-        )
+        id_strings = []
+        for (p, paramId) in zip(paramCombo, ids):
+            # Assume paramId is either a string or a callable
+            if isinstance(paramId, str):
+                id_strings.append("%s=%s" % (paramId, p.values[0]))
+            else:
+                id_strings.append(paramId(p.values[0]))
+        comboid = ",".join(id_strings)
         retList.append(pytest.param(values, marks=marks, id=comboid))
     return retList
