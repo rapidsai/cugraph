@@ -46,7 +46,6 @@ class CleanCommand(Command):
 
 
 cmdclass = versioneer.get_cmdclass()
-cmdclass.update(versioneer.get_cmdclass())
 cmdclass["clean"] = CleanCommand
 
 
@@ -61,12 +60,24 @@ def exclude_libcxx_symlink(cmake_manifest):
 cuda_suffix = os.getenv("RAPIDS_PY_WHEEL_CUDA_SUFFIX", default="")
 
 
+# Ensure that wheel version patching works for nightlies.
+if "RAPIDS_PY_WHEEL_VERSIONEER_OVERRIDE" in os.environ:
+    orig_get_versions = versioneer.get_versions
+
+    version_override = os.environ["RAPIDS_PY_WHEEL_VERSIONEER_OVERRIDE"]
+
+    def get_versions():
+        data = orig_get_versions()
+        data["version"] = version_override
+        return data
+
+    versioneer.get_versions = get_versions
+
+
 setup(
     name=f"pylibcugraph{cuda_suffix}",
     description="pylibcuGraph - RAPIDS GPU Graph Analytics",
-    version=os.getenv(
-        "RAPIDS_PY_WHEEL_VERSIONEER_OVERRIDE", default=versioneer.get_version()
-    ),
+    version=versioneer.get_version(),
     classifiers=[
         # "Development Status :: 4 - Beta",
         "Intended Audience :: Developers",
