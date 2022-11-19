@@ -52,13 +52,12 @@ from pylibcugraph.utils cimport (
     assert_success,
     assert_CAI_type,
     copy_to_cupy_array,
-    get_c_type_from_numpy_type, #************might delete this if unused
+    get_c_type_from_numpy_type,
     create_cugraph_type_erased_device_array_view_from_py_obj,
 )
 
 
-# FIXME: user can't pass 'vertex_pairs', they need to pass 'first' and 'second'
-def overlap_coefficients(ResourceHandle resource_handle,
+def EXPERIMENTAL__overlap_coefficients(ResourceHandle resource_handle,
         _GPUGraph graph,
         first,
         second,
@@ -82,8 +81,11 @@ def overlap_coefficients(ResourceHandle resource_handle,
     graph : SGGraph or MGGraph
         The input graph, for either Single or Multi-GPU operations.
     
-    vertex_pairs :
-        Vertex pair for input
+    first :
+        Source of the vertex pair.
+    
+    second :
+        Destination of the vertex pair.
     
     use_weight : bool, optional (default=False)
         Currently not supported
