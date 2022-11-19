@@ -109,7 +109,10 @@ setup(
             "distributed",
             "dask-cuda",
             "asvdb @ git+https://github.com/rapidsai/asvdb.git@main",
-            "rapids_pytest_benchmark @ git+https://github.com/rapidsai/benchmark.git@main#subdirectory=rapids_pytest_benchmark",  # noqa:E501
+            # TODO: This dependency is currently correct but is incompatible
+            # with the rmm requirement. We should rework the benchmarks to not
+            # require gpubenchmark at all so that it (and asvdb) can be removed.
+            # "rapids_pytest_benchmark @ git+https://github.com/rapidsai/benchmark.git@main#subdirectory=rapids_pytest_benchmark",  # noqa:E501
         ]
     },
     cmake_process_manifest_hook=exclude_libcxx_symlink,
