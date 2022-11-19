@@ -12,30 +12,11 @@
 # limitations under the License.
 
 import os
-import shutil
 
 from setuptools import find_packages, Command
 from skbuild import setup
 
-from setuputils import get_environment_option
-
 import versioneer
-
-CUDA_HOME = get_environment_option("CUDA_HOME")
-
-if not CUDA_HOME:
-    path_to_cuda_gdb = shutil.which("cuda-gdb")
-    if path_to_cuda_gdb is None:
-        raise OSError(
-            "Could not locate CUDA. "
-            "Please set the environment variable "
-            "CUDA_HOME to the path to the CUDA installation "
-            "and try again."
-        )
-    CUDA_HOME = os.path.dirname(os.path.dirname(path_to_cuda_gdb))
-
-if not os.path.isdir(CUDA_HOME):
-    raise OSError("Invalid CUDA_HOME: " "directory does not exist: {CUDA_HOME}")
 
 
 class CleanCommand(Command):
