@@ -19,7 +19,6 @@ import scipy
 import cudf
 from cudf.testing import assert_series_equal, assert_frame_equal
 
-from cugraph.experimental import overlap_coefficient
 from cugraph.experimental import overlap as exp_overlap
 
 import cugraph
@@ -189,7 +188,13 @@ def test_overlap_multi_column(graph_file):
     df_plc_exp = exp_overlap(G1, vertex_pair)
 
     df_plc_exp = df_plc_exp.rename(
-        columns={"0_src":"0_source", "0_dst":"0_destination", "1_src":"1_source", "1_dst":"1_destination"})
+        columns={
+            "0_src": "0_source",
+            "0_dst": "0_destination",
+            "1_src": "1_source",
+            "1_dst": "1_destination",
+        }
+    )
     assert_frame_equal(df_res, df_plc_exp, check_dtype=False, check_like=True)
 
     G2 = cugraph.Graph()

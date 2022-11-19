@@ -23,7 +23,6 @@ from pylibcugraph.experimental import (
 from pylibcugraph import ResourceHandle
 
 
-
 def EXPERIMENTAL__sorensen(G, vertex_pair=None):
     """
     Compute the Sorensen coefficient between each pair of vertices connected by

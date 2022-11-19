@@ -19,7 +19,6 @@ from cudf.testing import assert_series_equal, assert_frame_equal
 
 import cugraph
 from cugraph.testing import utils
-from cugraph.experimental import sorensen_coefficient
 from cugraph.experimental import sorensen as exp_sorensen
 from cugraph.experimental.datasets import DATASETS_UNDIRECTED, netscience
 
@@ -249,7 +248,13 @@ def test_sorensen_multi_column(read_csv):
     df_plc_exp = exp_sorensen(G1, vertex_pair)
 
     df_plc_exp = df_plc_exp.rename(
-        columns={"0_src":"0_source", "0_dst":"0_destination", "1_src":"1_source", "1_dst":"1_destination"})
+        columns={
+            "0_src": "0_source",
+            "0_dst": "0_destination",
+            "1_src": "1_source",
+            "1_dst": "1_destination",
+        }
+    )
     assert_frame_equal(df_res, df_plc_exp, check_dtype=False, check_like=True)
 
     G2 = cugraph.Graph()

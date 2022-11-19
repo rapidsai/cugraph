@@ -158,7 +158,7 @@ def EXPERIMENTAL__overlap(G, vertex_pair=None):
         dst_col_name = vertex_pair.columns[1]
         first = vertex_pair[src_col_name]
         second = vertex_pair[dst_col_name]
-    
+
     # FIXME: Match vertex_pair type to edgelist type and set renumber=False
     # to check
 

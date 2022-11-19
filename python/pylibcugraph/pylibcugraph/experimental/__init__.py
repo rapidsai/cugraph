@@ -86,4 +86,6 @@ overlap_coefficients = experimental_warning_wrapper(EXPERIMENTAL__overlap_coeffi
 
 from pylibcugraph.sorensen_coefficients import EXPERIMENTAL__sorensen_coefficients
 
-sorensen_coefficients = experimental_warning_wrapper(EXPERIMENTAL__sorensen_coefficients)
+sorensen_coefficients = experimental_warning_wrapper(
+    EXPERIMENTAL__sorensen_coefficients
+)

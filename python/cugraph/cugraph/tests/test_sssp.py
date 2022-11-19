@@ -221,11 +221,11 @@ def single_dataset_source_nxresults_weighted(request):
 def test_sssp(gpubenchmark, dataset_source_nxresults, cugraph_input_type):
     # Extract the params generated from the fixture
     (G, dataset_path, source, nx_paths, Gnx) = dataset_source_nxresults
-    
 
     if not isinstance(cugraph_input_type, (cugraph.Graph, cugraph.DiGraph)):
         input_G_or_matrix = utils.create_obj_from_csv(
-            dataset_path, cugraph_input_type, edgevals=True)
+            dataset_path, cugraph_input_type, edgevals=True
+        )
     else:
         input_G_or_matrix = G
 
@@ -445,4 +445,3 @@ def test_sssp_with_no_edgevals():
     G = datasets.karate.get_graph(ignore_weights=True)
     with pytest.raises(RuntimeError):
         cugraph.sssp(G, 1)
-

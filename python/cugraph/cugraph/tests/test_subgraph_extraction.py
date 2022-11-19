@@ -108,7 +108,9 @@ def test_subgraph_extraction_Graph_nx(graph_file):
             M, source="0", target="1", edge_attr="weight", create_using=nx.DiGraph()
         )
     else:
-        G = nx.from_pandas_edgelist(M, source="0", target="1", edge_attr="weight", create_using=nx.Graph())
+        G = nx.from_pandas_edgelist(
+            M, source="0", target="1", edge_attr="weight", create_using=nx.Graph()
+        )
 
     nx_sub = nx.subgraph(G, verts)
 
@@ -132,7 +134,10 @@ def test_subgraph_extraction_multi_column(graph_file):
     cu_M["dst_1"] = cu_M["dst_0"] + 1000
     G1 = cugraph.Graph()
     G1.from_cudf_edgelist(
-        cu_M, source=["src_0", "src_1"], destination=["dst_0", "dst_1"], edge_attr="weight"
+        cu_M,
+        source=["src_0", "src_1"],
+        destination=["dst_0", "dst_1"],
+        edge_attr="weight",
     )
 
     verts = cudf.Series([0, 1, 17])
@@ -168,7 +173,8 @@ def test_subgraph_extraction_graph_not_renumbered():
     sverts = cudf.Series(verts)
     G = cugraph.Graph()
     G.from_cudf_edgelist(
-        gdf, source="src", destination="dst", edge_attr="wgt", renumber=False)
+        gdf, source="src", destination="dst", edge_attr="wgt", renumber=False
+    )
     Sg = cugraph.subgraph(G, sverts)
 
     assert Sg.number_of_vertices() == 3
@@ -179,4 +185,3 @@ def test_subgraph_with_no_edgevals():
     G = karate.get_graph(ignore_weights=True)
     with pytest.raises(RuntimeError):
         cugraph.subgraph(G, 1)
-
