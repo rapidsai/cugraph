@@ -14,7 +14,7 @@
 
 cmake_minimum_required(VERSION 3.23.1 FATAL_ERROR)
 
-set(cugraph_version 22.12.00)
+set(cugraph_version 23.02.00)
 
 include(../../fetch_rapids.cmake)
 
@@ -94,7 +94,6 @@ add_subdirectory(cugraph/centrality)
 add_subdirectory(cugraph/community)
 add_subdirectory(cugraph/components)
 add_subdirectory(cugraph/cores)
-add_subdirectory(cugraph/dask/centrality)
 add_subdirectory(cugraph/dask/comms)
 add_subdirectory(cugraph/dask/structure)
 add_subdirectory(cugraph/generators)

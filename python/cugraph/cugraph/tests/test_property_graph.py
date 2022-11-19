@@ -1878,12 +1878,348 @@ def test_vertex_ids_different_type(df_type):
     assert pg.get_num_vertices() == 3
 
 
+@pytest.mark.parametrize("df_type", df_types, ids=df_type_id)
+def test_vertex_vector_property(df_type):
+    from cugraph.experimental import PropertyGraph
+
+    (
+        merchants,
+        users,
+        taxpayers,
+        transactions,
+        relationships,
+        referrals,
+    ) = dataset1.values()
+    if df_type is cudf.DataFrame:
+        assert_array_equal = cp.testing.assert_array_equal
+        zeros = cp.zeros
+    else:
+        assert_array_equal = np.testing.assert_array_equal
+        zeros = np.zeros
+
+    pG = PropertyGraph()
+    merchants_df = df_type(columns=merchants[0], data=merchants[1])
+    with pytest.raises(ValueError):
+        # Column doesn't exist
+        pG.add_vertex_data(
+            merchants_df,
+            type_name="merchants",
+            vertex_col_name="merchant_id",
+            vector_properties={"vec1": ["merchant_location", "BAD_NAME"]},
+        )
+    with pytest.raises(ValueError):
+        # Using reserved name
+        pG.add_vertex_data(
+            merchants_df,
+            type_name="merchants",
+            vertex_col_name="merchant_id",
+            vector_properties={
+                pG.type_col_name: ["merchant_location", "merchant_size"]
+            },
+        )
+    with pytest.raises(TypeError):
+        # String value invalid
+        pG.add_vertex_data(
+            merchants_df,
+            type_name="merchants",
+            vertex_col_name="merchant_id",
+            vector_properties={"vec1": "merchant_location"},
+        )
+    with pytest.raises(ValueError):
+        # Length-0 vector not allowed
+        pG.add_vertex_data(
+            merchants_df,
+            type_name="merchants",
+            vertex_col_name="merchant_id",
+            vector_properties={"vec1": []},
+        )
+    pG.add_vertex_data(
+        merchants_df,
+        type_name="merchants",
+        vertex_col_name="merchant_id",
+        vector_properties={
+            "vec1": ["merchant_location", "merchant_size", "merchant_num_employees"]
+        },
+    )
+    df = pG.get_vertex_data()
+    expected_columns = {
+        pG.vertex_col_name,
+        pG.type_col_name,
+        "merchant_sales",
+        "merchant_name",
+        "vec1",
+    }
+    assert set(df.columns) == expected_columns
+    expected = merchants_df[
+        ["merchant_location", "merchant_size", "merchant_num_employees"]
+    ].values
+    expected = expected[np.lexsort(expected.T)]  # may be jumbled, so sort
+
+    vec1 = pG.vertex_vector_property_to_array(df, "vec1")
+    vec1 = vec1[np.lexsort(vec1.T)]  # may be jumbled, so sort
+    assert_array_equal(expected, vec1)
+    vec1 = pG.vertex_vector_property_to_array(df, "vec1", missing="error")
+    vec1 = vec1[np.lexsort(vec1.T)]  # may be jumbled, so sort
+    assert_array_equal(expected, vec1)
+    with pytest.raises(ValueError):
+        pG.vertex_vector_property_to_array(df, "BAD_NAME")
+
+    users_df = df_type(columns=users[0], data=users[1])
+    with pytest.raises(ValueError):
+        # Length doesn't match existing vector
+        pG.add_vertex_data(
+            users_df,
+            type_name="users",
+            vertex_col_name="user_id",
+            property_columns=["vertical"],
+            vector_properties={"vec1": ["user_location", "vertical"]},
+        )
+    with pytest.raises(ValueError):
+        # Can't assign property to existing vector column
+        pG.add_vertex_data(
+            users_df.assign(vec1=users_df["user_id"]),
+            type_name="users",
+            vertex_col_name="user_id",
+            property_columns=["vec1"],
+        )
+
+    pG.add_vertex_data(
+        users_df,
+        type_name="users",
+        vertex_col_name="user_id",
+        property_columns=["vertical"],
+        vector_properties={"vec2": ["user_location", "vertical"]},
+    )
+    expected_columns.update({"vec2", "vertical"})
+    df = pG.get_vertex_data()
+    assert set(df.columns) == expected_columns
+    vec1 = pG.vertex_vector_property_to_array(df, "vec1")
+    vec1 = vec1[np.lexsort(vec1.T)]  # may be jumbled, so sort
+    assert_array_equal(expected, vec1)
+    with pytest.raises(RuntimeError):
+        pG.vertex_vector_property_to_array(df, "vec1", missing="error")
+
+    pGusers = PropertyGraph()
+    pGusers.add_vertex_data(
+        users_df,
+        type_name="users",
+        vertex_col_name="user_id",
+        vector_property="vec3",
+    )
+    vec2 = pG.vertex_vector_property_to_array(df, "vec2")
+    vec2 = vec2[np.lexsort(vec2.T)]  # may be jumbled, so sort
+    df2 = pGusers.get_vertex_data()
+    assert set(df2.columns) == {pG.vertex_col_name, pG.type_col_name, "vec3"}
+    vec3 = pGusers.vertex_vector_property_to_array(df2, "vec3")
+    vec3 = vec3[np.lexsort(vec3.T)]  # may be jumbled, so sort
+    assert_array_equal(vec2, vec3)
+
+    vec1filled = pG.vertex_vector_property_to_array(df, "vec1", 0, missing="error")
+    vec1filled = vec1filled[np.lexsort(vec1filled.T)]  # may be jumbled, so sort
+    expectedfilled = np.concatenate([zeros((4, 3), int), expected])
+    assert_array_equal(expectedfilled, vec1filled)
+
+    vec1filled = pG.vertex_vector_property_to_array(df, "vec1", [0, 0, 0])
+    vec1filled = vec1filled[np.lexsort(vec1filled.T)]  # may be jumbled, so sort
+    assert_array_equal(expectedfilled, vec1filled)
+
+    with pytest.raises(ValueError, match="expected 3"):
+        pG.vertex_vector_property_to_array(df, "vec1", [0, 0])
+
+    vec2 = pG.vertex_vector_property_to_array(df, "vec2")
+    vec2 = vec2[np.lexsort(vec2.T)]  # may be jumbled, so sort
+    expected = users_df[["user_location", "vertical"]].values
+    expected = expected[np.lexsort(expected.T)]  # may be jumbled, so sort
+    assert_array_equal(expected, vec2)
+    with pytest.raises(TypeError):
+        # Column is wrong type to be a vector
+        pG.vertex_vector_property_to_array(
+            df.rename(columns={"vec1": "vertical", "vertical": "vec1"}), "vec1"
+        )
+    with pytest.raises(ValueError):
+        # Vector column doesn't exist in dataframe
+        pG.vertex_vector_property_to_array(df.rename(columns={"vec1": "moved"}), "vec1")
+    with pytest.raises(TypeError):
+        # Bad type
+        pG.vertex_vector_property_to_array(42, "vec1")
+
+
+@pytest.mark.parametrize("df_type", df_types, ids=df_type_id)
+def test_edge_vector_property(df_type):
+    from cugraph.experimental import PropertyGraph
+
+    if df_type is cudf.DataFrame:
+        assert_array_equal = cp.testing.assert_array_equal
+    else:
+        assert_array_equal = np.testing.assert_array_equal
+    df1 = df_type(
+        {
+            "src": [0, 1],
+            "dst": [1, 2],
+            "feat_0": [1, 2],
+            "feat_1": [10, 20],
+            "feat_2": [10, 20],
+        }
+    )
+    df2 = df_type(
+        {
+            "src": [2, 3],
+            "dst": [1, 2],
+            "feat_0": [0.5, 0.2],
+            "feat_1": [1.5, 1.2],
+        }
+    )
+    pG = PropertyGraph()
+    pG.add_edge_data(
+        df1, ("src", "dst"), vector_properties={"vec1": ["feat_0", "feat_1", "feat_2"]}
+    )
+    df = pG.get_edge_data()
+    expected_columns = {
+        pG.edge_id_col_name,
+        pG.src_col_name,
+        pG.dst_col_name,
+        pG.type_col_name,
+        "vec1",
+    }
+    assert set(df.columns) == expected_columns
+    expected = df1[["feat_0", "feat_1", "feat_2"]].values
+    expected = expected[np.lexsort(expected.T)]  # may be jumbled, so sort
+
+    pGalt = PropertyGraph()
+    pGalt.add_edge_data(df1, ("src", "dst"), vector_property="vec1")
+    dfalt = pG.get_edge_data()
+
+    for cur_pG, cur_df in [(pG, df), (pGalt, dfalt)]:
+        vec1 = cur_pG.edge_vector_property_to_array(cur_df, "vec1")
+        vec1 = vec1[np.lexsort(vec1.T)]  # may be jumbled, so sort
+        assert_array_equal(vec1, expected)
+        vec1 = cur_pG.edge_vector_property_to_array(cur_df, "vec1", missing="error")
+        vec1 = vec1[np.lexsort(vec1.T)]  # may be jumbled, so sort
+        assert_array_equal(vec1, expected)
+
+    pG.add_edge_data(
+        df2, ("src", "dst"), vector_properties={"vec2": ["feat_0", "feat_1"]}
+    )
+    df = pG.get_edge_data()
+    expected_columns.add("vec2")
+    assert set(df.columns) == expected_columns
+    expected = df2[["feat_0", "feat_1"]].values
+    expected = expected[np.lexsort(expected.T)]  # may be jumbled, so sort
+    vec2 = pG.edge_vector_property_to_array(df, "vec2")
+    vec2 = vec2[np.lexsort(vec2.T)]  # may be jumbled, so sort
+    assert_array_equal(vec2, expected)
+    with pytest.raises(RuntimeError):
+        pG.edge_vector_property_to_array(df, "vec2", missing="error")
+
+
 @pytest.mark.skip(reason="feature not implemented")
 def test_single_csv_multi_vertex_edge_attrs():
     """
     Read an edgelist CSV that contains both edge and vertex attrs
     """
     pass
+
+
+def test_fillna_vertices():
+    from cugraph.experimental import PropertyGraph
+
+    df_edgelist = cudf.DataFrame(
+        {
+            "src": [0, 7, 2, 0, 1, 3, 1, 4, 5, 6],
+            "dst": [1, 1, 1, 3, 2, 1, 6, 5, 6, 7],
+            "val": [1, None, 2, None, 3, None, 4, None, 5, None],
+        }
+    )
+
+    df_props = cudf.DataFrame(
+        {
+            "id": [0, 1, 2, 3, 4, 5, 6, 7],
+            "a": [0, 1, None, 2, None, 4, 1, 8],
+            "b": [None, 1, None, 2, None, 3, 8, 9],
+        }
+    )
+
+    pG = PropertyGraph()
+    pG.add_edge_data(df_edgelist, vertex_col_names=["src", "dst"])
+    pG.add_vertex_data(df_props, vertex_col_name="id")
+
+    pG.fillna_vertices({"a": 2, "b": 3})
+
+    assert not pG.get_vertex_data(columns=["a", "b"]).isna().any().any()
+    assert pG.get_edge_data(columns=["val"]).isna().any().any()
+
+    expected_values_prop_a = [
+        0,
+        1,
+        2,
+        2,
+        2,
+        4,
+        1,
+        8,
+    ]
+    assert pG.get_vertex_data(columns=["a"])["a"].values_host.tolist() == (
+        expected_values_prop_a
+    )
+
+    expected_values_prop_b = [
+        3,
+        1,
+        3,
+        2,
+        3,
+        3,
+        8,
+        9,
+    ]
+    assert pG.get_vertex_data(columns=["b"])["b"].values_host.tolist() == (
+        expected_values_prop_b
+    )
+
+
+def test_fillna_edges():
+    from cugraph.experimental import PropertyGraph
+
+    df_edgelist = cudf.DataFrame(
+        {
+            "src": [0, 7, 2, 0, 1, 3, 1, 4, 5, 6],
+            "dst": [1, 1, 1, 3, 2, 1, 6, 5, 6, 7],
+            "val": [1, None, 2, None, 3, None, 4, None, 5, None],
+        }
+    )
+
+    df_props = cudf.DataFrame(
+        {
+            "id": [0, 1, 2, 3, 4, 5, 6, 7],
+            "a": [0, 1, None, 2, None, 4, 1, 8],
+            "b": [None, 1, None, 2, None, 3, 8, 9],
+        }
+    )
+
+    pG = PropertyGraph()
+    pG.add_edge_data(df_edgelist, vertex_col_names=["src", "dst"])
+    pG.add_vertex_data(df_props, vertex_col_name="id")
+
+    pG.fillna_edges(2)
+
+    assert not pG.get_edge_data(columns=["val"]).isna().any().any()
+    assert pG.get_vertex_data(columns=["a", "b"]).isna().any().any()
+
+    expected_values_prop_val = [
+        1,
+        2,
+        2,
+        2,
+        3,
+        2,
+        4,
+        2,
+        5,
+        2,
+    ]
+    assert pG.get_edge_data(columns=["val"])["val"].values_host.tolist() == (
+        expected_values_prop_val
+    )
 
 
 # =============================================================================
