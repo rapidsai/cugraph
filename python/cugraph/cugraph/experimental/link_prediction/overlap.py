@@ -24,7 +24,7 @@ from pylibcugraph.experimental import (
 from pylibcugraph import ResourceHandle
 
 
-def EXPERIMENTAL__overlap_coefficient(G, ebunch=None):
+def EXPERIMENTAL__overlap_coefficient(G, ebunch=None, use_weight=False):
     """
     For NetworkX Compatability.  See `overlap`
 
@@ -43,6 +43,9 @@ def EXPERIMENTAL__overlap_coefficient(G, ebunch=None):
         given vertex pairs.  If the vertex_pair is not provided then the
         current implementation computes the overlap coefficient for all
         adjacent vertices in the graph.
+    
+    use_weight : bool, optional (default=False)
+        Currently not supported
 
     Returns
     -------
@@ -72,6 +75,8 @@ def EXPERIMENTAL__overlap_coefficient(G, ebunch=None):
 
     G, isNx = ensure_cugraph_obj_for_nx(G)
 
+    # FIXME: What is the logic behind this since the docstrings mention that 'G' and
+    # 'ebunch'(if not None) are respectively of type cugraph.Graph and cudf.DataFrame?
     if isNx is True and ebunch is not None:
         vertex_pair = cudf.DataFrame(ebunch)
 
@@ -85,7 +90,7 @@ def EXPERIMENTAL__overlap_coefficient(G, ebunch=None):
     return df
 
 
-def EXPERIMENTAL__overlap(G, vertex_pair=None):
+def EXPERIMENTAL__overlap(G, vertex_pair=None, use_weight=False):
     """
     Compute the Overlap Coefficient between each pair of vertices connected by
     an edge, or between arbitrary pairs of vertices specified by the user.
@@ -116,6 +121,9 @@ def EXPERIMENTAL__overlap(G, vertex_pair=None):
         A GPU dataframe consisting of two columns representing pairs of
         vertices. If provided, the overlap coefficient is computed for the
         given vertex pairs, else, it is computed for all vertex pairs.
+    
+    use_weight : bool, optional (default=False)
+        Currently not supported
 
     Returns
     -------
@@ -148,6 +156,10 @@ def EXPERIMENTAL__overlap(G, vertex_pair=None):
 
     if G.edgelist.weights:
         raise RuntimeError("input graph must be unweighted")
+
+    if use_weight:
+        raise ValueError(
+            "'use_weight' is currentlynot supported and must be set to 'False'")
 
 
     if vertex_pair is None:
