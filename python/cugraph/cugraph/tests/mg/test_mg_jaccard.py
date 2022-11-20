@@ -189,7 +189,6 @@ def test_dask_weighted_jaccard():
         store_transposed=True,
     )
 
-    use_weight=True
+    use_weight = True
     with pytest.raises(ValueError):
         dcg.jaccard(dg, use_weight=use_weight)
-

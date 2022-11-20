@@ -276,6 +276,6 @@ def test_weighted_exp_sorensen():
         exp_sorensen(G)
 
     G = karate.get_graph(ignore_weights=True)
-    use_weight=True
+    use_weight = True
     with pytest.raises(ValueError):
         exp_sorensen(G, use_weight=use_weight)

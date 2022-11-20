@@ -43,7 +43,7 @@ def EXPERIMENTAL__overlap_coefficient(G, ebunch=None, use_weight=False):
         given vertex pairs.  If the vertex_pair is not provided then the
         current implementation computes the overlap coefficient for all
         adjacent vertices in the graph.
-    
+
     use_weight : bool, optional (default=False)
         Currently not supported
 
@@ -114,14 +114,14 @@ def EXPERIMENTAL__overlap(G, vertex_pair=None, use_weight=False):
         cuGraph Graph instance, should contain the connectivity information
         as an edge list (edge weights are not used for this algorithm). The
         adjacency list will be computed if not already present.
-        
-        This implementation only supports undirected, unweighted Graph. 
+
+        This implementation only supports undirected, unweighted Graph.
 
     vertex_pair : cudf.DataFrame, optional (default=None)
         A GPU dataframe consisting of two columns representing pairs of
         vertices. If provided, the overlap coefficient is computed for the
         given vertex pairs, else, it is computed for all vertex pairs.
-    
+
     use_weight : bool, optional (default=False)
         Currently not supported
 
@@ -159,8 +159,8 @@ def EXPERIMENTAL__overlap(G, vertex_pair=None, use_weight=False):
 
     if use_weight:
         raise ValueError(
-            "'use_weight' is currently not supported and must be set to 'False'")
-
+            "'use_weight' is currently not supported and must be set to 'False'"
+        )
 
     if vertex_pair is None:
         # Call two_hop neighbor of the entire graph

@@ -87,7 +87,7 @@ def EXPERIMENTAL__jaccard(G, vertex_pair=None, use_weight=False):
         given vertex pairs.  If the vertex_pair is not provided then the
         current implementation computes the jaccard coefficient for all
         adjacent vertices in the graph.
-    
+
     use_weight : bool, optional (default=False)
         Currently not supported
 
@@ -124,7 +124,8 @@ def EXPERIMENTAL__jaccard(G, vertex_pair=None, use_weight=False):
 
     if use_weight:
         raise ValueError(
-            "'use_weight' is currently not supported and must be set to 'False'")
+            "'use_weight' is currently not supported and must be set to 'False'"
+        )
 
     if vertex_pair is None:
         # Call two_hop neighbor of the entire graph
@@ -187,7 +188,7 @@ def EXPERIMENTAL__jaccard_coefficient(G, ebunch=None, use_weight=False):
         given vertex pairs.  If the vertex_pair is not provided then the
         current implementation computes the jaccard coefficient for all
         adjacent vertices in the graph.
-    
+
     use_weight : bool, optional (default=False)
         Currently not supported
 

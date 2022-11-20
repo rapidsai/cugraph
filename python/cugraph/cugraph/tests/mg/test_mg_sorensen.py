@@ -189,6 +189,6 @@ def test_dask_weighted_sorensen():
         store_transposed=True,
     )
 
-    use_weight=True
+    use_weight = True
     with pytest.raises(ValueError):
         dcg.sorensen(dg, use_weight=use_weight)

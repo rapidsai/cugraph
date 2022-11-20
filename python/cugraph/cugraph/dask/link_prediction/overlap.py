@@ -124,7 +124,8 @@ def overlap(input_graph, vertex_pair=None, use_weight=False):
 
     if use_weight:
         raise ValueError(
-            "'use_weight' is currently not supported and must be set to 'False'")
+            "'use_weight' is currently not supported and must be set to 'False'"
+        )
 
     # FIXME: Implement a better way to check if the graph is weighted similar
     # to 'simpleGraph'

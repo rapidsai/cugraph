@@ -240,7 +240,6 @@ def test_jaccard_two_hop_edge_vals(read_csv):
 
     G = graph_file.get_graph()
 
-
     compare_jaccard_two_hop(G, Gnx, edgevals=True)
 
 
@@ -312,6 +311,6 @@ def test_weighted_exp_jaccard():
         exp_jaccard(G)
 
     G = karate.get_graph(ignore_weights=True)
-    use_weight=True
+    use_weight = True
     with pytest.raises(ValueError):
         exp_jaccard(G, use_weight=use_weight)
