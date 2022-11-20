@@ -255,9 +255,9 @@ def personalized_pagerank(ResourceHandle resource_handle,
     if initial_guess_values is not None:
         cugraph_type_erased_device_array_view_free(initial_guess_values_view_ptr)
     if precomputed_vertex_out_weight_vertices is not None:
-        cugraph_type_erased_device_array_view_free(precomputed_vertex_out_weight_vertices_ptr)
+        cugraph_type_erased_device_array_view_free(precomputed_vertex_out_weight_vertices_view_ptr)
     if precomputed_vertex_out_weight_sums is not None:
-        cugraph_type_erased_device_array_view_free(precomputed_vertex_out_weight_sums_ptr)
+        cugraph_type_erased_device_array_view_free(precomputed_vertex_out_weight_sums_view_ptr)
     if personalization_vertices is not None:
         cugraph_type_erased_device_array_view_free(personalization_vertices_view_ptr)
     if personalization_values is not None:
