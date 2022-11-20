@@ -149,7 +149,6 @@ def EXPERIMENTAL__jaccard(G, vertex_pair=None):
         vertex_pair = G.unrenumber(vertex_pair, src_col_name, preserve_order=True)
         vertex_pair = G.unrenumber(vertex_pair, dst_col_name, preserve_order=True)
 
-    # FIXME can use 'G.vertex_column_size' instead
     if v_p_num_col == 2:
         # single column vertex
         vertex_pair = vertex_pair.rename(
