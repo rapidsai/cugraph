@@ -56,11 +56,13 @@ def cugraph_call(benchmark_callable, graph_file, pairs, edgevals=False):
     )
     # cugraph Overlap Call
     df = benchmark_callable(cugraph.overlap, G, pairs)
-    df_exp = exp_overlap(G, pairs)
     df = df.sort_values(by=["source", "destination"]).reset_index(drop=True)
-    df_exp = df_exp.sort_values(by=["source", "destination"]).reset_index(drop=True)
-
-    assert_frame_equal(df, df_exp, check_dtype=False, check_like=True)
+    if not edgevals:
+        # experimental overlap currently only supports unweighted graphs
+        df_exp = exp_overlap(G, pairs)
+        df_exp = df_exp.sort_values(by=["source", "destination"]).reset_index(drop=True)
+        assert_frame_equal(df, df_exp, check_dtype=False, check_like=True)
+    
     return df["overlap_coeff"].to_numpy()
 
 
@@ -205,3 +207,15 @@ def test_overlap_multi_column(graph_file):
     actual = df_res.sort_values("0_source").reset_index()
     expected = df_exp.sort_values("source").reset_index()
     assert_series_equal(actual["overlap_coeff"], expected["overlap_coeff"])
+
+
+def test_weighted_exp_overlap():
+    karate = DATASETS_UNDIRECTED[0]
+    G = karate.get_graph()
+    with pytest.raises(RuntimeError):
+        exp_overlap(G)
+
+    G = karate.get_graph(ignore_weights=True)
+    use_weight=True
+    with pytest.raises(ValueError):
+        exp_overlap(G, use_weight=use_weight)

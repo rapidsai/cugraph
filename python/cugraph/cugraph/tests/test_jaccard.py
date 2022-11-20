@@ -48,7 +48,7 @@ def setup_function():
 # =============================================================================
 # Helper functions
 # =============================================================================
-def compare_jaccard_two_hop(G, Gnx):
+def compare_jaccard_two_hop(G, Gnx, edgevals=True):
     """
     Compute both cugraph and nx jaccard after extracting the two hop neighbors
     from G and compare both results
@@ -66,12 +66,12 @@ def compare_jaccard_two_hop(G, Gnx):
         # print(u, " ", v, " ", p)
         nx_coeff.append(p)
     df = cugraph.jaccard(G, pairs)
-    df_exp = exp_jaccard(G, pairs)
-
     df = df.sort_values(by=["source", "destination"]).reset_index(drop=True)
-    df_exp = df_exp.sort_values(by=["source", "destination"]).reset_index(drop=True)
-
-    assert_frame_equal(df, df_exp, check_dtype=False, check_like=True)
+    if not edgevals:
+        # experimental jaccard currently only supports unweighted graphs
+        df_exp = exp_jaccard(G, pairs)
+        df_exp = df_exp.sort_values(by=["source", "destination"]).reset_index(drop=True)
+        assert_frame_equal(df, df_exp, check_dtype=False, check_like=True)
 
     assert len(nx_coeff) == len(df)
     for i in range(len(df)):
@@ -240,7 +240,8 @@ def test_jaccard_two_hop_edge_vals(read_csv):
 
     G = graph_file.get_graph()
 
-    compare_jaccard_two_hop(G, Gnx)
+
+    compare_jaccard_two_hop(G, Gnx, edgevals=True)
 
 
 def test_jaccard_nx(read_csv):
@@ -302,3 +303,15 @@ def test_jaccard_multi_column(read_csv):
     actual = df_res.sort_values("0_source").reset_index()
     expected = df_exp.sort_values("source").reset_index()
     assert_series_equal(actual["jaccard_coeff"], expected["jaccard_coeff"])
+
+
+def test_weighted_exp_jaccard():
+    karate = DATASETS_UNDIRECTED[0]
+    G = karate.get_graph()
+    with pytest.raises(RuntimeError):
+        exp_jaccard(G)
+
+    G = karate.get_graph(ignore_weights=True)
+    use_weight=True
+    with pytest.raises(ValueError):
+        exp_jaccard(G, use_weight=use_weight)

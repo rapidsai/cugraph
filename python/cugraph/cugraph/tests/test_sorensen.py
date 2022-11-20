@@ -47,7 +47,7 @@ def setup_function():
 # =============================================================================
 # Helper functions
 # =============================================================================
-def compare_sorensen_two_hop(G, Gnx):
+def compare_sorensen_two_hop(G, Gnx, edgevals=False):
     """
     Compute both cugraph and nx sorensen after extracting the two hop neighbors
     from G and compare both results
@@ -69,10 +69,12 @@ def compare_sorensen_two_hop(G, Gnx):
         # No networkX equivalent
         nx_coeff.append((2 * p) / (1 + p))
     df = cugraph.sorensen(G, pairs)
-    df_exp = exp_sorensen(G, pairs)
     df = df.sort_values(by=["source", "destination"]).reset_index(drop=True)
-    df_exp = df_exp.sort_values(by=["source", "destination"]).reset_index(drop=True)
-    assert_frame_equal(df, df_exp, check_dtype=False, check_like=True)
+    if not edgevals:
+        # experimental sorensen currently only supports unweighted graphs
+        df_exp = exp_sorensen(G, pairs)
+        df_exp = df_exp.sort_values(by=["source", "destination"]).reset_index(drop=True)
+        assert_frame_equal(df, df_exp, check_dtype=False, check_like=True)
     assert len(nx_coeff) == len(df)
     for i in range(len(df)):
         diff = abs(nx_coeff[i] - df["sorensen_coeff"].iloc[i])
@@ -224,7 +226,7 @@ def test_sorensen_two_hop_edge_vals(read_csv):
 
     G = graph_file.get_graph()
 
-    compare_sorensen_two_hop(G, Gnx)
+    compare_sorensen_two_hop(G, Gnx, edgevals=True)
 
 
 def test_sorensen_multi_column(read_csv):
@@ -265,3 +267,15 @@ def test_sorensen_multi_column(read_csv):
     actual = df_res.sort_values("0_source").reset_index()
     expected = df_exp.sort_values("source").reset_index()
     assert_series_equal(actual["sorensen_coeff"], expected["sorensen_coeff"])
+
+
+def test_weighted_exp_sorensen():
+    karate = DATASETS_UNDIRECTED[0]
+    G = karate.get_graph()
+    with pytest.raises(RuntimeError):
+        exp_sorensen(G)
+
+    G = karate.get_graph(ignore_weights=True)
+    use_weight=True
+    with pytest.raises(ValueError):
+        exp_sorensen(G, use_weight=use_weight)
