@@ -9,8 +9,11 @@ from functools import wraps
 
 from setuptools import build_meta as _orig
 
-# Alias the required bits
-prepare_metadata_for_build_wheel = _orig.prepare_metadata_for_build_wheel
+# Alias the required bits. We need the legacy prepare metadata so that
+# versioneer is on the path (this is temporary until we switch to not vendoring
+# versioneer).
+legacy = _orig._BuildMetaLegacyBackend()
+prepare_metadata_for_build_wheel = legacy.prepare_metadata_for_build_wheel
 build_wheel = _orig.build_wheel
 build_sdist = _orig.build_sdist
 
