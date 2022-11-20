@@ -64,8 +64,9 @@ def EXPERIMENTAL__overlap_coefficient(G, ebunch=None):
     Examples
     --------
     >>> from cugraph.experimental.datasets import karate
+    >>> from cugraph.experimental import overlap_coefficient as exp_overlap_coefficient
     >>> G = karate.get_graph(fetch=True)
-    >>> df = cugraph.overlap_coefficient(G)
+    >>> df = exp_overlap_coefficient(G)
     """
     vertex_pair = None
 
@@ -134,8 +135,9 @@ def EXPERIMENTAL__overlap(G, vertex_pair=None):
     Examples
     --------
     >>> from cugraph.experimental.datasets import karate
+    >>> from cugraph.experimental import overlap as exp_overlap
     >>> G = karate.get_graph(fetch=True)
-    >>> df = cugraph.overlap(G)
+    >>> df = exp_overlap(G)
 
     """
 

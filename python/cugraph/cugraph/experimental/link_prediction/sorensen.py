@@ -74,8 +74,9 @@ def EXPERIMENTAL__sorensen(G, vertex_pair=None):
     Examples
     --------
     >>> from cugraph.experimental.datasets import karate
+    >>> from cugraph.experimental import sorensen as exp_sorensen
     >>> G = karate.get_graph(fetch=True)
-    >>> df = cugraph.sorensen(G)
+    >>> df = exp_sorensen(G)
 
     """
     if G.is_directed():
@@ -169,8 +170,9 @@ def EXPERIMENTAL__sorensen_coefficient(G, ebunch=None):
     Examples
     --------
     >>> from cugraph.experimental.datasets import karate
+    >>> from cugraph.experimental import sorensen_coefficient as exp_sorensen_coefficient
     >>> G = karate.get_graph(fetch=True)
-    >>> df = cugraph.sorensen_coefficient(G)
+    >>> df = exp_sorensen_coefficient(G)
 
     """
     vertex_pair = None

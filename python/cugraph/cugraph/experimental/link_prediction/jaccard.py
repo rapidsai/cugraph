@@ -25,7 +25,6 @@ from pylibcugraph import ResourceHandle
 
 
 def EXPERIMENTAL__jaccard(G, vertex_pair=None):
-    # FIXME: update docstring
     """
     Compute the Jaccard similarity between each pair of vertices connected by
     an edge, or between arbitrary pairs of vertices specified by the user.
@@ -107,8 +106,9 @@ def EXPERIMENTAL__jaccard(G, vertex_pair=None):
     Examples
     --------
     >>> from cugraph.experimental.datasets import karate
+    >>> from cugraph.experimental import jaccard as exp_jaccard
     >>> G = karate.get_graph(fetch=True)
-    >>> df = cugraph.jaccard(G)
+    >>> df = exp_jaccard(G)
 
     """
     if G.is_directed():
@@ -203,8 +203,9 @@ def EXPERIMENTAL__jaccard_coefficient(G, ebunch=None):
     Examples
     --------
     >>> from cugraph.experimental.datasets import karate
+    >>> from cugraph.experimental import jaccard_coefficient as exp_jaccard_coefficient
     >>> G = karate.get_graph(fetch=True)
-    >>> df = cugraph.jaccard_coefficient(G)
+    >>> df = exp_jaccard_coefficient(G)
 
     """
     vertex_pair = None
