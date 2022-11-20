@@ -61,7 +61,7 @@ def EXPERIMENTAL__jaccard(G, vertex_pair=None, use_weight=False):
     solution by doing the following:
 
     >>> from cugraph.experimental.datasets import karate
-    >>> G = karate.get_graph(fetch=True)
+    >>> G = karate.get_graph(fetch=True, ignore_weights=True)
     >>> pairs = G.get_two_hop_neighbors()
     >>> df = cugraph.jaccard(G, pairs)
 
@@ -112,7 +112,7 @@ def EXPERIMENTAL__jaccard(G, vertex_pair=None, use_weight=False):
     --------
     >>> from cugraph.experimental.datasets import karate
     >>> from cugraph.experimental import jaccard as exp_jaccard
-    >>> G = karate.get_graph(fetch=True)
+    >>> G = karate.get_graph(fetch=True, ignore_weights=True)
     >>> df = exp_jaccard(G)
 
     """
@@ -213,7 +213,7 @@ def EXPERIMENTAL__jaccard_coefficient(G, ebunch=None, use_weight=False):
     --------
     >>> from cugraph.experimental.datasets import karate
     >>> from cugraph.experimental import jaccard_coefficient as exp_jaccard_coefficient
-    >>> G = karate.get_graph(fetch=True)
+    >>> G = karate.get_graph(fetch=True, ignore_weights=True)
     >>> df = exp_jaccard_coefficient(G)
 
     """
