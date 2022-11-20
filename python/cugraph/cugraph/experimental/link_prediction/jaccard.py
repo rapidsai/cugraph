@@ -79,6 +79,8 @@ def EXPERIMENTAL__jaccard(G, vertex_pair=None):
         directed edge in both direction. The adjacency list will be computed if
         not already present.
 
+        This implementation only supports undirected, unweighted Graph.
+
     vertex_pair : cudf.DataFrame, optional (default=None)
         A GPU dataframe consisting of two columns representing pairs of
         vertices. If provided, the jaccard coefficient is computed for the
@@ -114,8 +116,8 @@ def EXPERIMENTAL__jaccard(G, vertex_pair=None):
     if G.is_directed():
         raise ValueError("Input must be an undirected Graph.")
 
-    # FIXME: Add warning if there are weight in the PLC stating that
-    # they will not be used, to called wjaccard instead
+    if G.edgelist.weights:
+        raise RuntimeError("input graph must be unweighted")
 
     if vertex_pair is None:
         # Call two_hop neighbor of the entire graph
@@ -133,8 +135,6 @@ def EXPERIMENTAL__jaccard(G, vertex_pair=None):
     elif vertex_pair is not None:
         raise ValueError("vertex_pair must be a cudf dataframe")
 
-    # 'use_weight' is set to False by default for jaccard and True
-    # for 'wjaccard'
     use_weight = False
     first, second, jaccard_coeff = pylibcugraph_jaccard_coefficients(
         resource_handle=ResourceHandle(),

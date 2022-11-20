@@ -109,6 +109,8 @@ def EXPERIMENTAL__overlap(G, vertex_pair=None):
         cuGraph Graph instance, should contain the connectivity information
         as an edge list (edge weights are not used for this algorithm). The
         adjacency list will be computed if not already present.
+        
+        This implementation only supports undirected, unweighted Graph. 
 
     vertex_pair : cudf.DataFrame, optional (default=None)
         A GPU dataframe consisting of two columns representing pairs of
@@ -144,8 +146,9 @@ def EXPERIMENTAL__overlap(G, vertex_pair=None):
     if G.is_directed():
         raise ValueError("Input must be an undirected Graph.")
 
-    # FIXME: Add warning if there are weight in the PLC stating that
-    # they will not be used, to called woverlap instead
+    if G.edgelist.weights:
+        raise RuntimeError("input graph must be unweighted")
+
 
     if vertex_pair is None:
         # Call two_hop neighbor of the entire graph
@@ -160,14 +163,9 @@ def EXPERIMENTAL__overlap(G, vertex_pair=None):
         first = vertex_pair[src_col_name]
         second = vertex_pair[dst_col_name]
 
-    # FIXME: Match vertex_pair type to edgelist type and set renumber=False
-    # to check
-
     elif vertex_pair is not None:
         raise ValueError("vertex_pair must be a cudf dataframe")
 
-    # 'use_weight' is set to False by default for overlap and True
-    # for 'woverlap'
     use_weight = False
     first, second, overlap_coeff = pylibcugraph_overlap_coefficients(
         resource_handle=ResourceHandle(),
