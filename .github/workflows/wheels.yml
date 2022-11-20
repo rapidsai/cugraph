@@ -75,5 +75,5 @@ jobs:
 
       test-before-arm64: "pip install cupy-cuda11x -f https://pip.cupy.dev/aarch64"
       test-extras: test
-      test-unittest: "RAPIDS_DATASET_ROOT_DIR=`pwd`/datasets pytest -v ./python/cugraph/cugraph/tests"
+      test-unittest: "RAPIDS_DATASET_ROOT_DIR=`pwd`/datasets pytest -v ./python/cugraph/cugraph/tests -m 'not cugraph_ops'"
     secrets: inherit

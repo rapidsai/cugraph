@@ -126,6 +126,7 @@ def test_num_edges(basic_mg_gs):
     assert basic_mg_gs.num_edges() == 6
 
 
+@pytest.mark.cugraph_ops
 def test_sampling(basic_mg_gs):
     seed_cap = cudf.Series([1], dtype="int32").to_dlpack()
     cap = basic_mg_gs.sample_neighbors(seed_cap)
@@ -153,6 +154,7 @@ def test_get_edge_storage(basic_mg_gs):
     cp.testing.assert_array_equal(result, expected_result)
 
 
+@pytest.mark.cugraph_ops
 def test_sampling_homogeneous_gs_in_dir(dask_client):
     src_ser = cudf.Series([1, 1, 1, 1, 1, 2, 2, 3])
     dst_ser = cudf.Series([2, 3, 4, 5, 6, 3, 4, 7])
@@ -199,6 +201,7 @@ def test_sampling_homogeneous_gs_in_dir(dask_client):
         cudf.testing.assert_frame_equal(output_df, expected_df)
 
 
+@pytest.mark.cugraph_ops
 def test_sampling_homogeneous_gs_out_dir(dask_client):
     src_ser = cudf.Series([1, 1, 1, 1, 1, 2, 2, 3])
     dst_ser = cudf.Series([2, 3, 4, 5, 6, 3, 4, 7])
@@ -244,6 +247,7 @@ def test_sampling_homogeneous_gs_out_dir(dask_client):
         cudf.testing.assert_frame_equal(output_df, expected_df)
 
 
+@pytest.mark.cugraph_ops
 def test_sampling_homogeneous_gs_neg_one_fanout(dask_client):
 
     src_ser = cudf.Series([1, 1, 1, 1, 1, 2, 2, 3])
@@ -460,6 +464,7 @@ def test_sampling_gs_heterogeneous_out_dir(gs_heterogeneous_dgl_eg):
             cudf.testing.assert_frame_equal(output_df, expected_df)
 
 
+@pytest.mark.cugraph_ops
 def test_sampling_with_out_of_index_seed(dask_client):
     pg = MGPropertyGraph()
     gs = CuGraphStore(pg)
