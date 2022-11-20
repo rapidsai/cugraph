@@ -83,7 +83,7 @@ def input_expected_output(input_combo):
         vertex_pair = None
 
     input_combo["vertex_pair"] = vertex_pair
-    sg_cugraph_overlap = cugraph.overlap(G, input_combo["vertex_pair"])
+    sg_cugraph_overlap = cugraph.experimental.overlap(G, input_combo["vertex_pair"])
     # Save the results back to the input_combo dictionary to prevent redundant
     # cuGraph runs. Other tests using the input_combo fixture will look for
     # them, and if not present they will have to re-run the same cuGraph call.
@@ -103,7 +103,6 @@ def input_expected_output(input_combo):
         ddf,
         source="src",
         destination="dst",
-        edge_attr="value",
         renumber=True,
         legacy_renum_only=True,
         store_transposed=True,
@@ -154,3 +153,42 @@ def test_dask_overlap(dask_client, benchmark, input_expected_output):
 
     assert len(overlap_coeff_diffs1) == 0
     assert len(overlap_coeff_diffs2) == 0
+
+
+def test_dask_weighted_overlap():
+    input_data_path = datasets[0]
+    chunksize = dcg.get_chunksize(input_data_path)
+    ddf = dask_cudf.read_csv(
+        input_data_path,
+        chunksize=chunksize,
+        delimiter=" ",
+        names=["src", "dst", "value"],
+        dtype=["int32", "int32", "float32"],
+    )
+
+    dg = cugraph.Graph(directed=False)
+    dg.from_dask_cudf_edgelist(
+        ddf,
+        source="src",
+        destination="dst",
+        edge_attr="value",
+        renumber=True,
+        legacy_renum_only=True,
+        store_transposed=True,
+    )
+    with pytest.raises(RuntimeError):
+        dcg.overlap(dg)
+
+    dg = cugraph.Graph(directed=False)
+    dg.from_dask_cudf_edgelist(
+        ddf,
+        source="src",
+        destination="dst",
+        edge_attr="value",
+        legacy_renum_only=True,
+        store_transposed=True,
+    )
+
+    use_weight=True
+    with pytest.raises(ValueError):
+        dcg.overlap(dg, use_weight=use_weight)
