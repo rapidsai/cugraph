@@ -147,7 +147,6 @@ def EXPERIMENTAL__overlap(G, vertex_pair=None):
     # FIXME: Add warning if there are weight in the PLC stating that
     # they will not be used, to called woverlap instead
 
-    # FIXME: Update docstrings explaining that and the implication
     if vertex_pair is None:
         # Call two_hop neighbor of the entire graph
         vertex_pair = G.get_two_hop_neighbors()
