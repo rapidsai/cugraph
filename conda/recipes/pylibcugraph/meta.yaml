@@ -42,6 +42,7 @@ requirements:
     - ucx-proc=*=gpu
     - cudatoolkit {{ cuda_version }}.*
     - rmm {{ minor_version }}.*
+    - cudf {{ minor_version }}.*
     - setuptools
   run:
     - python x.x
