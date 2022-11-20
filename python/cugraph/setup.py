@@ -45,6 +45,9 @@ extras_require = {
         "networkx>=2.5.1",
         "scikit-learn>=0.23.1",
         "python-louvain",
+        # cudf will use fsspec but is protocol independent. cugraph tests
+        # specifically require http for the test files it asks cudf to read.
+        "fsspec[http]>=0.6.0",
     ]
 }
 
