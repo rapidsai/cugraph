@@ -567,7 +567,7 @@ class simpleGraphImpl:
         self.batch_transposed_adjlists = True
 
     def get_two_hop_neighbors(self, start_vertices=None):
-        """two_
+        """
         Compute vertex pairs that are two hops apart. The resulting pairs are
         sorted before returning.
 
