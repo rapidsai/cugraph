@@ -86,6 +86,8 @@ def overlap(input_graph, vertex_pair=None, use_weight=False):
         directed edge in both direction. The adjacency list will be computed if
         not already present.
 
+        This implementation only supports undirected, unweighted Graph.
+
     vertex_pair : cudf.DataFrame, optional (default=None)
         A GPU dataframe consisting of two columns representing pairs of
         vertices. If provided, the Overlap coefficient is computed for the
@@ -93,7 +95,8 @@ def overlap(input_graph, vertex_pair=None, use_weight=False):
         current implementation computes the Overlap coefficient for all
         adjacent vertices in the graph.
 
-    use_weight
+    use_weight : bool, optional (default=False)
+        Currently not supported
 
     Returns
     -------
@@ -125,7 +128,7 @@ def overlap(input_graph, vertex_pair=None, use_weight=False):
 
     # FIXME: Implement a better way to check if the graph is weighted similar
     # to 'simpleGraph'
-    if input_graph.edgelist.edgelist_df == 3:
+    if len(input_graph.edgelist.edgelist_df.columns) == 3:
         raise RuntimeError("input graph must be unweighted")
 
     if isinstance(vertex_pair, (dask_cudf.DataFrame, cudf.DataFrame)):
