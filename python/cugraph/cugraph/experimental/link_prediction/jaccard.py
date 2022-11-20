@@ -124,7 +124,7 @@ def EXPERIMENTAL__jaccard(G, vertex_pair=None, use_weight=False):
 
     if use_weight:
         raise ValueError(
-            "'use_weight' is currentlynot supported and must be set to 'False'")
+            "'use_weight' is currently not supported and must be set to 'False'")
 
     if vertex_pair is None:
         # Call two_hop neighbor of the entire graph
