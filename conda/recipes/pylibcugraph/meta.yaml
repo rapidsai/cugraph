@@ -42,8 +42,7 @@ requirements:
     - ucx-proc=*=gpu
     - cudatoolkit {{ cuda_version }}.*
     - rmm {{ minor_version }}.*
-    # FIXME: this pin can be removed once we move to the GitHub Actions build process
-    - setuptools<=65.2.0
+    - setuptools
   run:
     - python x.x
     - libcugraph={{ version }}
