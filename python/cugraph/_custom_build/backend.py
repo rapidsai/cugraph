@@ -32,6 +32,6 @@ def replace_requirements(func):
 
 get_requires_for_build_wheel = replace_requirements(_orig.get_requires_for_build_wheel)
 get_requires_for_build_sdist = replace_requirements(_orig.get_requires_for_build_sdist)
-get_requires_for_build_editable = replace_requirements(
-    _orig.get_requires_for_build_editable
-)
+# get_requires_for_build_editable = replace_requirements(
+#     _orig.get_requires_for_build_editable
+# )
