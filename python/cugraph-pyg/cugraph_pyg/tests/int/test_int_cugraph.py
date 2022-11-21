@@ -23,7 +23,6 @@ dask_cudf
 ogb
 torch_geometric
 """
-import rmm
 import cudf
 import dask_cudf
 from cugraph.experimental import PropertyGraph, MGPropertyGraph
@@ -36,12 +35,7 @@ from torch_geometric.loader import NodeLoader
 
 
 @pytest.fixture(scope="module")
-def rmmc():
-    rmm.reinitialize(pool_allocator=True, initial_pool_size=5e9, maximum_pool_size=20e9)
-
-
-@pytest.fixture(scope="module")
-def loader_hetero_mag(rmmc):
+def loader_hetero_mag():
     # Load MAG into CPU memory
     dataset = NodePropPredDataset(name="ogbn-mag")
 
