@@ -33,13 +33,15 @@ def setup_function():
 # =============================================================================
 # Pytest fixtures
 # =============================================================================
-datasets = [utils.DATASETS_UNDIRECTED[0]]
-# FIXME: Fails when somputing the core_number by setting core_number=True
-core_number = [False]
+datasets = utils.DATASETS_UNDIRECTED
+
+core_number = [True, False]
+degree_type= ["bidirectional", "outgoing", "incoming"]
 
 fixture_params = utils.genFixtureParamsProduct(
     (datasets, "graph_file"),
     (core_number, "core_number"),
+    (degree_type, "degree_type")
 )
 
 
@@ -49,7 +51,8 @@ def input_combo(request):
     Simply return the current combination of params as a dictionary for use in
     tests or other parameterized fixtures.
     """
-    parameters = dict(zip(("graph_file", "core_number"), request.param))
+    parameters = dict(
+        zip(("graph_file", "core_number", "degree_type"), request.param))
 
     return parameters
 
@@ -61,6 +64,7 @@ def input_expected_output(dask_client, input_combo):
     algo.
     """
     core_number = input_combo["core_number"]
+    degree_type = input_combo["degree_type"]
     input_data_path = input_combo["graph_file"]
     G = utils.generate_cugraph_graph_from_file(
         input_data_path, directed=False, edgevals=True
@@ -68,7 +72,7 @@ def input_expected_output(dask_client, input_combo):
 
     if core_number:
         # compute the core_number
-        core_number = cugraph.core_number(G)
+        core_number = cugraph.core_number(G, degree_type=degree_type)
     else:
         core_number = None
 
@@ -76,7 +80,8 @@ def input_expected_output(dask_client, input_combo):
 
     input_combo["SGGraph"] = G
 
-    sg_k_core_graph = cugraph.k_core(G, core_number=core_number)
+    sg_k_core_graph = cugraph.k_core(
+        G, core_number=core_number, degree_type=degree_type)
     sg_k_core_results = sg_k_core_graph.view_edge_list()
     # FIXME: The result will come asymetric. Symmetrize the results
     sg_k_core_results = (
@@ -121,12 +126,14 @@ def test_sg_k_core(dask_client, benchmark, input_expected_output):
     sg_k_core = None
     G = input_expected_output["SGGraph"]
     core_number = input_expected_output["core_number"]
+    degree_type = input_expected_output["degree_type"]
 
-    sg_k_core = benchmark(cugraph.k_core, G, core_number)
+    sg_k_core = benchmark(
+        cugraph.k_core, G, core_number=core_number, degree_type=degree_type)
     assert sg_k_core is not None
 
 
-def test_k_core(dask_client, benchmark, input_expected_output):
+def test_dask_k_core(dask_client, benchmark, input_expected_output):
 
     dg = input_expected_output["MGGraph"]
     core_number = input_expected_output["core_number"]
@@ -142,3 +149,42 @@ def test_k_core(dask_client, benchmark, input_expected_output):
     assert_frame_equal(
         expected_k_core_results, k_core_results, check_dtype=False, check_like=True
     )
+
+
+def test_dask_k_core_invalid_input(dask_client):
+    input_data_path = datasets[0]
+    chunksize = dcg.get_chunksize(input_data_path)
+    ddf = dask_cudf.read_csv(
+        input_data_path,
+        chunksize=chunksize,
+        delimiter=" ",
+        names=["src", "dst", "value"],
+        dtype=["int32", "int32", "float32"],
+    )
+
+    dg = cugraph.Graph(directed=True)
+    dg.from_dask_cudf_edgelist(
+        ddf,
+        source="src",
+        destination="dst",
+        edge_attr="value",
+        renumber=True,
+        legacy_renum_only=True,
+        store_transposed=True,
+    )
+    with pytest.raises(ValueError):
+        dcg.k_core(dg)
+
+    dg = cugraph.Graph(directed=False)
+    dg.from_dask_cudf_edgelist(
+        ddf,
+        source="src",
+        destination="dst",
+        edge_attr="value",
+        legacy_renum_only=True,
+        store_transposed=True,
+    )
+
+    degree_type = "invalid"
+    with pytest.raises(ValueError):
+        dcg.k_core(dg, degree_type=degree_type)
