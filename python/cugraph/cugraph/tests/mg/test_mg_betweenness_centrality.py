@@ -143,7 +143,7 @@ def test_dask_betweenness_centrality(dask_client, benchmark, input_expected_outp
         dg,
         vertex_list=vertex_list,
         normalized=normalized,
-        endpoints=normalized,
+        endpoints=endpoints,
     )
 
     result_betweenness_centrality = (
@@ -161,8 +161,8 @@ def test_dask_betweenness_centrality(dask_client, benchmark, input_expected_outp
         .reset_index(drop=True)
     )
 
-    # Update the dask cugraph betweenness_centrality results with sg cugraph results for easy
-    # comparison using cuDF DataFrame methods.
+    # Update the dask cugraph betweenness_centrality results with sg cugraph results
+    # for easy comparison using cuDF DataFrame methods.
     result_betweenness_centrality["sg_cugraph_hubs"] = expected_output["hubs"]
     result_betweenness_centrality["sg_cugraph_authorities"] = expected_output[
         "authorities"
