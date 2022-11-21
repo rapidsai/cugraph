@@ -21,6 +21,7 @@ cugraph_pyg
 cudf
 dask_cudf
 ogb
+torch_geometric
 """
 import rmm
 import cudf
