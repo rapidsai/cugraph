@@ -3,11 +3,11 @@ cuGraph, for the most part, is an open-source project where we encourage communi
 
 There are multiple ways to be involved and contribute to the cuGraph community, the top paths are listed below:
 
-* [File an Issue](#issue)
-* [Implement a New Feature](#implement)
-* [Work on an Existing Issue](#bugfix)
+* [File an Issue](https://github.com/rapidsai/docs/issues/new)
+* [Implement a New Feature](https://docs.rapids.ai/contributing/code/#your-first-issue)
+* [Work on an Existing Issue](#F)
 
-If you are ready to contribute, jump right to the [Contribute Code](#code) section.
+If you are ready to contribute, jump right to the [Contribute Code](https://docs.rapids.ai/contributing/issues/) section.
 
 
 __Style Formatting Tools:__
@@ -16,9 +16,13 @@ __Style Formatting Tools:__
 
 
 
-## 1) File an Issue for the RAPIDS cuGraph team to work  <a name="issue"></a>
+
+## New Issue
+1) File an Issue for the RAPIDS cuGraph team to work  <a name="issue"></a>
 To file an issue, go to the RAPIDS cuGraph [issue](https://github.com/rapidsai/cugraph/issues/new/choose) page an select the appropriate issue type.  Once an issue is filed the RAPIDS cuGraph team will evaluate and triage the issue.  If you believe the issue needs priority attention, please include that in the issue to notify the team.
 
+
+## Find a Bug
 ***Bug Report***</pr>
 If you notice something not working please file an issue
 -	Select **Bug** Report
@@ -46,13 +50,13 @@ We love when people want to get involved, and if you have a suggestion for a new
 - Submit a New Feature Issue (see above) and state that you are working on it.
 - The team will give feedback on the issue and happy to make suggestions
 - Once we agree that the plan looks good, go ahead and implement it
-- Follow the [code contributions](#code-contributions) guide below.
+- Follow the [code contributions](#so-you-want-to-contribute-code) guide below.
 
 
 ## 3) You want to implement a feature or bug-fix for an outstanding issue <a name="bugfix"></a>
 - Find an open Issue, and post that you would like to work that issues
 - Once we agree that the plan looks good, go ahead and implement it
-- Follow the [code contributions](#code-contributions) guide below.
+- Follow the [code contributions](#so-you-want-to-contribute-code) guide below.
 
 If you need more context on a particular issue, please ask.
 
@@ -60,7 +64,8 @@ If you need more context on a particular issue, please ask.
 
 ----
 
-# So you want to contribute code <a name="code"></a>
+
+# So you want to contribute code
 
 **TL;DR General Development Process**
 1. Read the documentation on [building from source](./SOURCEBUILD.md) to learn how to setup, and validate, the development environment

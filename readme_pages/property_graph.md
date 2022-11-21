@@ -7,15 +7,15 @@
 Property Graph
 </h1>
 
-Part of [Rapids](https://rapids.ai) cuGraph, Property Graph allows all the great benefits of cuGraph to be applied to property-rich datasets stored in a graph structure. A Property Graph is really a data model rather than a type of graph.  Within the cuGraph ecosystem, a Property Graph is a meta-graph that can encapsulate and instantiate all the other graph types.  That view stems from property graphs being originally created for database systems.  Conceptually a Property Graph can be viewed as a property rich structure that can be projected onto any graph types.  The Dataversity, has a good definition of [Property Graph](https://www.dataversity.net/what-is-a-property-graph) which contains definitions from a collection of resources.
+Part of [RAPIDS](https://rapids.ai) cuGraph, Property Graph allows all the great benefits of cuGraph to be applied to property-rich datasets stored in a graph structure. A Property Graph is really a data model rather than a type of graph.  Within the cuGraph ecosystem, a Property Graph is a meta-graph that can encapsulate and instantiate all the other graph types.  That view stems from property graphs being originally created for database systems.  Conceptually a Property Graph can be viewed as a property rich structure that can be projected onto any graph types.  The Dataversity, has a good definition of [Property Graph](https://www.dataversity.net/what-is-a-property-graph) which contains definitions from a collection of resources.
 
 Property Graph enables:
 
-* Multiple edge and node types as seen in the Property Graph[API]()
+* Multiple edge and node types as seen in the Property Graph API
 * Subgraph extractions based on properties and/or edge and node types as seen below.
 * Storage of properties either within the graph structure on gpu or using GNN-centric storage extensions on host storage.
 * Adding additional properties, nodes and edges into the property graph to store derived data like analytic results.
-* Client access managed by a remote server allowing shared access and remote operations using [CuGraph Service](cugraph_service.md).
+* Client access managed by a remote server allowing shared access and remote operations using [CuGraph Service](./cugraph_service.md).
 
 This is an example of using the cuGraph Property Graph in a two stage analysis.
 

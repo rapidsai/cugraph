@@ -5,7 +5,7 @@ There are 4 ways to get cuGraph packages:
 1. [Quick start with Docker Repo](#docker)
 2. [Conda Installation](#conda)
 3. [Pip Installation](#pip)
-4. [Build from Source](./SOURCEBUILD.md)
+4. [Build from Source](#SOURCE)
 
 Or checkout the [RAPIDS install selector](https://rapids.ai/start.html) for a pick list of install options.
 
@@ -49,10 +49,16 @@ Note: This conda installation only applies to Linux and Python versions 3.8/3.9.
 <br>
 
 ## PIP
-cuGraph, and all of RAPIDS, is available via pip.  
+cuGraph, and all of RAPIDS, is available via pip.
 
 ```
 pip install cugraph-cu11 --extra-index-url=https://pypi.ngc.nvidia.com
 ```
 
 pip packages for other packages are being worked and should be available in early 2023
+
+<br>
+
+## SOURCE
+cuGraph can be build directly from source. First check to make sure you have or can configure a supported environment. Details are in our [getting started](https://rapids.ai/start.html) page.
+Instructions for building from source is in our [source build](./SOURCEBUILD.md) page.
