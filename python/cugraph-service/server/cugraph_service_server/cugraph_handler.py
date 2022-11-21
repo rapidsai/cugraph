@@ -679,13 +679,12 @@ class CugraphHandler:
                     f"ID key {G.vertex_col_name} is not allowed for property query. "
                     f"Vertex IDs are always returned in query."
                 )
-            print("input to vertex_data: ", ids, columns, types)
+
             try:
                 df = G.get_vertex_data(vertex_ids=ids, columns=columns, types=types)
                 if isinstance(df, dask_cudf.DataFrame):
                     df = df.compute()
-            except KeyError as ex:
-                print("KeyError: ", ex)
+            except KeyError:
                 df = None
         else:
             if (columns is not None) or (ids is not None) or (types is not None):
