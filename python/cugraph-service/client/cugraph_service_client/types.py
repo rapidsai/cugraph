@@ -181,7 +181,7 @@ class GraphVertexEdgeIDWrapper(UnionWrapper):
             for a in dir(self.union)
             if not (a.startswith("_")) and a not in self.non_attrs
         ]
-        print(attrs)
+
         # Much like a C union, only one field will be set. Return the first
         # non-None value encountered.
         for a in attrs:
