@@ -5,7 +5,7 @@ There are 4 ways to get cuGraph packages:
 1. [Quick start with Docker Repo](#docker)
 2. [Conda Installation](#conda)
 3. [Pip Installation](#pip)
-4. [Build from Source](SOURCEBUILD.md)
+4. [Build from Source](./SOURCEBUILD.md)
 
 Or checkout the [RAPIDS install selector](https://rapids.ai/start.html) for a pick list of install options.
 
