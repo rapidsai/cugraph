@@ -153,7 +153,7 @@ def test_dask_hits(dask_client, benchmark, input_expected_output):
     assert len(authorities_diffs2) == 0
 
 
-def test_dask_hots_transposed_false(dask_client):
+def test_dask_hits_transposed_false(dask_client):
     input_data_path = (utils.RAPIDS_DATASET_ROOT_DIR_PATH / "karate.csv").as_posix()
 
     chunksize = dcg.get_chunksize(input_data_path)
