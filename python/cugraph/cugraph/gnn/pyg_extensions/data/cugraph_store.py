@@ -499,7 +499,7 @@ class EXPERIMENTAL__CuGraphStore:
         # cudf Series into a host Series as required by MG PropertyGraph.
         noi = self.__graph.get_vertex_data(
             nodes_of_interest.values_host
-            if (self._compute_required)
+            if self._compute_required
             else nodes_of_interest
         )
         noi_types = noi[self.__graph.type_col_name].cat.categories.values_host
@@ -516,7 +516,7 @@ class EXPERIMENTAL__CuGraphStore:
                     self.from_dlpack(
                         noi_t[self.__graph.vertex_col_name].compute().to_dlpack()
                     )
-                    if (self._compute_required)
+                    if self._compute_required
                     else self.from_dlpack(
                         noi_t[self.__graph.vertex_col_name].to_dlpack()
                     )
@@ -568,7 +568,7 @@ class EXPERIMENTAL__CuGraphStore:
         eoi = self.__graph.get_edge_data(
             edge_ids=(
                 sampling_results.indices.compute().values_host
-                if (self._compute_required)
+                if self._compute_required
                 else sampling_results.indices
             ),
             columns=[self.__graph.src_col_name, self.__graph.dst_col_name],
