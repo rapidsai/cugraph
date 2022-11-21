@@ -13,7 +13,7 @@
 
 from pylibcugraph import (
     betweenness_centrality as pylibcugraph_betweenness_centrality,
-    ResourceHandle
+    ResourceHandle,
 )
 
 from cugraph.utilities import (
@@ -22,6 +22,7 @@ from cugraph.utilities import (
 )
 import cudf
 import warnings
+import numpy as np
 
 
 def betweenness_centrality(
@@ -124,7 +125,7 @@ def betweenness_centrality(
             "weighted implementation of betweenness "
             "centrality not currently supported"
         )
-    
+
     if G.store_transposed is True:
         warning_msg = (
             "Betweenness centrality expects the 'store_transposed' flag "
@@ -136,15 +137,17 @@ def betweenness_centrality(
     if result_dtype not in [np.float32, np.float64]:
         raise TypeError("result type can only be np.float32 or np.float64")
     else:
-        warning_msg = ("This parameter is deprecated and will be remove "
-                       "in the next release.")
+        warning_msg = (
+            "This parameter is deprecated and will be remove " "in the next release."
+        )
         warnings.warn(warning_msg, PendingDeprecationWarning)
-    
+
     if seed is not None:
-        warning_msg = ("This parameter is deprecated and will be remove "
-                       "in the next release.")
+        warning_msg = (
+            "This parameter is deprecated and will be remove " "in the next release."
+        )
         warnings.warn(warning_msg, PendingDeprecationWarning)
-    
+
     # Sampling is done internally. Just provide the number of vertices to
     # sample
     # vertices = _initialize_vertices(G, k, seed)
@@ -163,10 +166,10 @@ def betweenness_centrality(
         vertex_list = cudf.Series(vertex_list)
     elif not isinstance(vertex_list, (cudf.Series, cudf.DataFrame)):
         raise TypeError(
-                f"'vertex_list' must be either a list or a cudf.Series or "
-                f"cudf.DataFrame, got: {type(vertex_list)}"
-            )
-    
+            f"'vertex_list' must be either a list or a cudf.Series or "
+            f"cudf.DataFrame, got: {type(vertex_list)}"
+        )
+
     if vertex_list is not None:
         if G.renumbered is True:
             if isinstance(vertex_list, cudf.DataFrame):
