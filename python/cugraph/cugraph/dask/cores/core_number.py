@@ -57,7 +57,7 @@ def core_number(input_graph, degree_type="bidirectional"):
         (edge weights are not used in this algorithm).
         The current implementation only supports undirected graphs.
 
-    degree_type: str
+    degree_type: str, (default="bidirectional")
         This option determines if the core number computation should be based
         on input, output, or both directed edges, with valid values being
         "incoming", "outgoing", and "bidirectional" respectively.
