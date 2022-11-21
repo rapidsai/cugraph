@@ -52,7 +52,8 @@ class EXPERIMENTAL__CuGraphSampler:
 
     def sample_from_nodes(self, sampler_input):
         """
-        Performs sampling based on this sampler's sampling method
+        Sample nodes using this CuGraphSampler's sampling method
+        (which is set at initialization)
         and the input node data passed to this function.  Matches
         the interface provided by PyG's NodeSamplerInput.
 
