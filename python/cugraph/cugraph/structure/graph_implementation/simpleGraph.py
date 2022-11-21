@@ -895,7 +895,7 @@ class simpleGraphImpl:
 
         graph_props = GraphProperties(
             is_multigraph=self.properties.multi_edge,
-            is_symmetric=not self.properties.directed
+            is_symmetric=not self.properties.directed,
         )
 
         self._plc_graph = SGGraph(
