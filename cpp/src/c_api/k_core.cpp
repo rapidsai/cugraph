@@ -24,6 +24,7 @@
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/detail/utility_wrappers.hpp>
+#include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/graph_functions.hpp>
 
 #include <optional>
@@ -89,6 +90,35 @@ struct k_core_functor : public cugraph::c_api::abstract_functor {
       rmm::device_uvector<edge_t> k_cores(graph_view.local_vertex_partition_range_size(),
                                           handle_.get_stream());
 
+      rmm::device_uvector<edge_t> core_result_values(0, handle_.get_stream());
+
+      if (core_result_ != nullptr) {
+        rmm::device_uvector<vertex_t> core_result_vertices(core_result_->core_numbers_->size_,
+                                                           handle_.get_stream());
+        core_result_values.resize(core_result_->core_numbers_->size_, handle_.get_stream());
+
+        raft::copy(core_result_vertices.data(),
+                   core_result_->vertex_ids_->as_type<vertex_t>(),
+                   core_result_->vertex_ids_->size_,
+                   handle_.get_stream());
+
+        raft::copy(core_result_values.data(),
+                   core_result_->core_numbers_->as_type<edge_t>(),
+                   core_result_->core_numbers_->size_,
+                   handle_.get_stream());
+
+        core_result_values = cugraph::detail::
+          collect_local_vertex_values_from_ext_vertex_value_pairs<vertex_t, edge_t, multi_gpu>(
+            handle_,
+            std::move(core_result_vertices),
+            std::move(core_result_values),
+            *number_map,
+            graph_view.local_vertex_partition_range_first(),
+            graph_view.local_vertex_partition_range_last(),
+            vertex_t{0},
+            do_expensive_check_);
+      }
+
       auto degree_type = reinterpret_cast<cugraph::k_core_degree_type_t>(degree_type);
 
       auto [result_src, result_dst, result_wgt] =
@@ -100,8 +130,7 @@ struct k_core_functor : public cugraph::c_api::abstract_functor {
           std::make_optional(degree_type),
           (core_result_ == nullptr) ? std::nullopt
                                     : std::make_optional<raft::device_span<edge_t const>>(
-                                        core_result_->core_numbers_->as_type<edge_t const>(),
-                                        core_result_->core_numbers_->size_),
+                                        core_result_values.data(), core_result_values.size()),
           do_expensive_check_);
 
       cugraph::unrenumber_int_vertices<vertex_t, multi_gpu>(
