@@ -45,6 +45,7 @@ requirements:
     - rmm {{ minor_version }}.*
     - cudf {{ minor_version }}.*
     - setuptools
+    - versioneer
   run:
     - python x.x
     - libcugraph={{ version }}
