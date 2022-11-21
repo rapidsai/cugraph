@@ -67,8 +67,7 @@ struct wcc_functor : public cugraph::c_api::abstract_functor {
       }
 
       auto graph =
-        reinterpret_cast<cugraph::graph_t<vertex_t, edge_t, weight_t, false, multi_gpu>*>(
-          graph_->graph_);
+        reinterpret_cast<cugraph::graph_t<vertex_t, edge_t, false, multi_gpu>*>(graph_->graph_);
 
       auto graph_view = graph->view();
 
@@ -77,7 +76,7 @@ struct wcc_functor : public cugraph::c_api::abstract_functor {
       rmm::device_uvector<vertex_t> components(graph_view.local_vertex_partition_range_size(),
                                                handle_.get_stream());
 
-      cugraph::weakly_connected_components<vertex_t, edge_t, weight_t, multi_gpu>(
+      cugraph::weakly_connected_components<vertex_t, edge_t, multi_gpu>(
         handle_, graph_view, components.data(), do_expensive_check_);
 
       rmm::device_uvector<vertex_t> vertex_ids(graph_view.local_vertex_partition_range_size(),

@@ -123,7 +123,9 @@ class Tests_TriangleCount
       hr_clock.start();
     }
 
-    auto [graph, d_renumber_map_labels] =
+    cugraph::graph_t<vertex_t, edge_t, false, false> graph(handle);
+    std::optional<rmm::device_uvector<vertex_t>> d_renumber_map_labels{std::nullopt};
+    std::tie(graph, std::ignore, d_renumber_map_labels) =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, false>(
         handle, input_usecase, false, renumber, false, true);
 
@@ -170,7 +172,7 @@ class Tests_TriangleCount
       hr_clock.start();
     }
 
-    cugraph::triangle_count<vertex_t, edge_t, weight_t, false>(
+    cugraph::triangle_count<vertex_t, edge_t, false>(
       handle,
       graph_view,
       d_vertices ? std::make_optional<raft::device_span<vertex_t const>>((*d_vertices).begin(),
@@ -187,9 +189,9 @@ class Tests_TriangleCount
     }
 
     if (triangle_count_usecase.check_correctness) {
-      cugraph::graph_t<vertex_t, edge_t, weight_t, false, false> unrenumbered_graph(handle);
+      cugraph::graph_t<vertex_t, edge_t, false, false> unrenumbered_graph(handle);
       if (renumber) {
-        std::tie(unrenumbered_graph, std::ignore) =
+        std::tie(unrenumbered_graph, std::ignore, std::ignore) =
           cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, false>(
             handle, input_usecase, false, false, false, true);
       }
