@@ -63,9 +63,6 @@ def betweenness_centrality(
         to estimate betweenness.  Vertices obtained through sampling or
         defined as a list will be used assources for traversals inside the
         algorithm.
-    
-    vertex_list: list, cudf.Series or cudf.DataFrame
-        specify a list of vertices to use as seeds for BFS
 
     normalized : bool, optional (default=True)
         If true, the betweenness values are normalized by
@@ -151,8 +148,16 @@ def betweenness_centrality(
     # Sampling is done internally. Just provide the number of vertices to
     # sample
     # vertices = _initialize_vertices(G, k, seed)
+    """
     num_vertices = k
     if isinstance(k)
+    """
+    num_vertices = None
+    vertex_list = None
+    if isinstance(k, int):
+        num_vertices = k
+    elif isinstance(k, (cudf.Series, cudf.DataFrame)):
+        vertex_list = k
 
     if isinstance(vertex_list, list):
         vertex_list = cudf.Series(vertex_list)
