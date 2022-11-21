@@ -61,7 +61,7 @@ def create_mag(server):
 
     for i, (edge_key, eidx) in enumerate(data[0]['edge_index_dict'].items()):
         node_type_src, edge_type, node_type_dst = edge_key
-        print(node_type_src, edge_type, node_type_dst)
+        
         vertex_offset_src = vertex_offsets[node_type_src]
         vertex_offset_dst = vertex_offsets[node_type_dst]
         eidx = [n + vertex_offset_src for n in eidx[0]], [n + vertex_offset_dst for n in eidx[1]]
