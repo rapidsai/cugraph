@@ -43,15 +43,22 @@ jobs:
       package-dir: python/pylibcugraph
       package-name: pylibcugraph
 
+      # Note that this approach to cloning repos obviates any modification to
+      # the CMake variables in get_cumlprims_mg.cmake since CMake will just use
+      # the clone as is.
+      extra-repo: rapidsai/cugraph-ops
+      extra-repo-sha: branch-22.12
+      extra-repo-deploy-key: CUGRAPH_OPS_SSH_PRIVATE_DEPLOY_KEY
+
       python-package-versioneer-override: ${{ inputs.versioneer-override }}
       python-package-build-tag: ${{ inputs.build-tag }}
 
-      skbuild-configure-options: "-DCUGRAPH_RAFT_REPOSITORY=https://github.com/vyasr/raft.git -DCUGRAPH_RAFT_BRANCH=feat/cibuildwheel -DCPM_DOWNLOAD_ALL=ON -DDETECT_CONDA_ENV=OFF -DCUGRAPH_BUILD_WHEELS=ON -DUSE_CUGRAPH_OPS=OFF"
+      skbuild-configure-options: "-DCUGRAPH_RAFT_REPOSITORY=https://github.com/vyasr/raft.git -DCUGRAPH_RAFT_BRANCH=feat/cibuildwheel -DCPM_DOWNLOAD_ALL=ON -DDETECT_CONDA_ENV=OFF -DCUGRAPH_BUILD_WHEELS=ON -DUSE_CUGRAPH_OPS=OFF -DCPM_cugraph-ops_SOURCE=/project/cugraph-ops/"
 
       test-before-arm64: "pip install cupy-cuda11x -f https://pip.cupy.dev/aarch64"
       test-extras: test
 
-      test-unittest: "RAPIDS_DATASET_ROOT_DIR=`pwd`/datasets pytest -v ./python/pylibcugraph/pylibcugraph/tests -m 'not cugraph_ops'"
+      test-unittest: "RAPIDS_DATASET_ROOT_DIR=`pwd`/datasets pytest -v ./python/pylibcugraph/pylibcugraph/tests"
     secrets: inherit
 
   cugraph-wheel:
@@ -68,12 +75,19 @@ jobs:
       package-dir: python/cugraph
       package-name: cugraph
 
+      # Note that this approach to cloning repos obviates any modification to
+      # the CMake variables in get_cumlprims_mg.cmake since CMake will just use
+      # the clone as is.
+      extra-repo: rapidsai/cugraph-ops
+      extra-repo-sha: branch-22.12
+      extra-repo-deploy-key: CUGRAPH_OPS_SSH_PRIVATE_DEPLOY_KEY
+
       python-package-versioneer-override: ${{ inputs.versioneer-override }}
       python-package-build-tag: ${{ inputs.build-tag }}
 
-      skbuild-configure-options: "-DCUGRAPH_RAFT_REPOSITORY=https://github.com/vyasr/raft.git -DCUGRAPH_RAFT_BRANCH=feat/cibuildwheel -DCPM_DOWNLOAD_ALL=ON -DDETECT_CONDA_ENV=OFF -DCUGRAPH_BUILD_WHEELS=ON -DUSE_CUGRAPH_OPS=OFF"
+      skbuild-configure-options: "-DCUGRAPH_RAFT_REPOSITORY=https://github.com/vyasr/raft.git -DCUGRAPH_RAFT_BRANCH=feat/cibuildwheel -DCPM_DOWNLOAD_ALL=ON -DDETECT_CONDA_ENV=OFF -DCUGRAPH_BUILD_WHEELS=ON -DUSE_CUGRAPH_OPS=OFF -DCPM_cugraph-ops_SOURCE=/project/cugraph-ops/"
 
       test-before-arm64: "pip install cupy-cuda11x -f https://pip.cupy.dev/aarch64"
       test-extras: test
-      test-unittest: "RAPIDS_DATASET_ROOT_DIR=`pwd`/datasets pytest -v ./python/cugraph/cugraph/tests -m 'not cugraph_ops'"
+      test-unittest: "RAPIDS_DATASET_ROOT_DIR=`pwd`/datasets pytest -v ./python/cugraph/cugraph/tests"
     secrets: inherit
