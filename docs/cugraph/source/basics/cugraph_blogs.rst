@@ -68,4 +68,6 @@ Other BLOGS
 * `Running Large-Scale Graph Analytics with Memgraph and NVIDIA cuGraph Algorithms <https://developer.nvidia.com/blog/running-large-scale-graph-analytics-with-memgraph-and-nvidia-cugraph-algorithms/>`_
 * `Dev Blog Repost: Similarity in Graphs: Jaccard Versus the Overlap Coefficient <https://developer.nvidia.com/blog/similarity-in-graphs-jaccard-versus-the-overlap-coefficient-2/>`_
 
-
+RAPIDS Notebooks
+================
+* `Jupyter notebooks from Past Conferences containing great RAPIDS examples. <https://github.com/rapidsai-community/event-notebooks/>`_
