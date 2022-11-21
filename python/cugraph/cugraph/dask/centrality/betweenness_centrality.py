@@ -14,15 +14,25 @@
 #
 
 from dask.distributed import wait
-from pylibcugraph import ResourceHandle, betweenness_centrality as pylibcugraph_betweenness
+from pylibcugraph import (
+    ResourceHandle,
+    betweenness_centrality as pylibcugraph_betweenness_centrality,
+)
 import cugraph.dask.comms.comms as Comms
+from cugraph.dask.common.input_utils import get_distributed_data
 import dask_cudf
 import cudf
 import warnings
 
 
 def _call_plc_betweenness_centrality(
-    sID, mg_graph_x, num_vertices, vertex_list, normalized, endpoints, do_expensive_check
+    sID,
+    mg_graph_x,
+    num_vertices,
+    vertex_list,
+    normalized,
+    endpoints,
+    do_expensive_check,
 ):
 
     return pylibcugraph_betweenness_centrality(
@@ -48,11 +58,7 @@ def convert_to_cudf(cp_arrays):
 
 
 def betweenness_centrality(
-    input_graph,
-    num_vertices=None,
-    vertex_list=None,
-    normalized=True,
-    endpoints=False
+    input_graph, num_vertices=None, vertex_list=None, normalized=True, endpoints=False
 ):
     """
     Compute the betweenness centrality for all vertices of the graph G.
@@ -127,14 +133,14 @@ def betweenness_centrality(
 
     if not isinstance(vertex_list, (dask_cudf.DataFrame, dask_cudf.Series)):
         if not isinstance(vertex_list, (cudf.DataFrame, cudf.Series)):
-            if isintance(vertex_list, list):
+            if isinstance(vertex_list, list):
                 vertex_list_dtype = input_graph.nodes().dtype
                 vertex_list = cudf.Series(vertex_list, dtype=vertex_list_dtype)
             else:
                 raise TypeError(
                     f"'vertex_list' must be either a list or a cudf or "
                     f"dask_cudf object cudf.DataFrame, got: {type(vertex_list)}"
-            )
+                )
         # convert into a dask_cudf
         vertex_list = dask_cudf.from_cudf(vertex_list, input_graph._npartitions)
 
@@ -145,9 +151,8 @@ def betweenness_centrality(
         elif isinstance(vertex_list, dask_cudf.Series):
             tmp_col_names = None
 
-        vertex_list = input_graph.lookup_internal_vertex_id(
-            vertex_list, tmp_col_names)
-    
+        vertex_list = input_graph.lookup_internal_vertex_id(vertex_list, tmp_col_names)
+
     vertex_list = get_distributed_data(vertex_list)
     # FIXME: should we add this parameter as an option?
     do_expensive_check = False
