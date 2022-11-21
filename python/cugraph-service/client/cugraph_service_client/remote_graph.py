@@ -132,9 +132,17 @@ class RemoteGraph:
         self, backend=("cudf" if not isinstance(cudf, MissingModule) else "numpy")
     ):
         """
+        Parameters
+        ----------
+        backend : ('numpy', 'pandas', 'cupy', 'cudf', 'torch', 'torch:<device>')
+            Defaults to cudf if available, otherwise falls back to numpy.
+
+        Returns
+        -------
         Returns the edge list for this property graph as a dataframe,
         array, or tensor containing edge ids, source vertex,
         destination vertex, and edge type.
+
         """
         np_edges = self.__client.get_graph_edge_data(
             -1,
@@ -228,6 +236,17 @@ class RemoteGraph:
 
     def get_vertices(self, selection=None, backend="cudf"):
         """
+        Parameters
+        ----------
+        selection : PropertySelection, optional
+            A PropertySelection returned from one or more calls to
+            select_vertices() and/or select_edges()
+
+        backend : ('numpy', 'pandas', 'cupy', 'cudf', 'torch', 'torch:<device>')
+            Defaults to cudf if available, otherwise falls back to numpy.
+
+        Returns
+        -------
         Return a Series containing the unique vertex IDs contained in both
         the vertex and edge property data.
         """
@@ -287,6 +306,30 @@ class RemoteGraph:
         columns=None,
         backend=("cudf" if not isinstance(cudf, MissingModule) else "numpy"),
     ):
+        """
+        Gets a DataFrame containing vertex properties
+
+        Parameters
+        ----------
+        vertex_ids : one or a collection of integers, optional
+            single, list, slice, pandas array, or series of integers which
+            are the vertices to include in the returned dataframe
+        types : str or collection of str, optional
+            types of the vertices to include in the returned data.
+            Default is to return all vertex types.
+        columns : str or list of str, optional
+            property or properties to include in returned data.
+            Default includes all properties.
+        backend : ('numpy', 'pandas', 'cupy', 'cudf', 'torch', 'torch:<device>')
+            Defaults to cudf if available, otherwise falls back to numpy.
+
+        Returns
+        -------
+        DataFrame
+            containing vertex properties for only the specified
+            vertex_ids, columns, and/or types, or all vertex IDs if not specified.
+        """
+
         # FIXME expose na handling
 
         if columns is None:
@@ -385,6 +428,24 @@ class RemoteGraph:
         """
         Return a dataframe containing edge properties for only the specified
         edge_ids, columns, and/or edge type, or all edge IDs if not specified.
+
+        Parameters
+        ----------
+        edge_ids : int or collection of int, optional
+            The list of edges to include in the edge data
+        types : list, optional
+            List of edge types to include in returned dataframe.
+            None is the default and will return all edge types.
+        columns : which edge columns will be returned, optional
+            None is the default and will result in all columns being returned
+        backend : ('numpy', 'pandas', 'cupy', 'cudf', 'torch', 'torch:<device>')
+            Defaults to cudf if available, otherwise falls back to numpy.
+
+        Returns
+        -------
+        Dataframe
+            Containing edge ids, type edge source, destination
+            and all the columns specified in the columns parameter
         """
 
         # FIXME expose na handling
