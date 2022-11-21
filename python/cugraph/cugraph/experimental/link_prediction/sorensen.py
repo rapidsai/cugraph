@@ -88,7 +88,7 @@ def EXPERIMENTAL__sorensen(G, vertex_pair=None, use_weight=False):
         raise ValueError("Input must be an undirected Graph.")
 
     if G.edgelist.weights:
-        raise RuntimeError("input graph must be unweighted")
+        raise ValueError("input graph must be unweighted")
 
     if use_weight:
         raise ValueError(

@@ -272,7 +272,7 @@ def test_sorensen_multi_column(read_csv):
 def test_weighted_exp_sorensen():
     karate = DATASETS_UNDIRECTED[0]
     G = karate.get_graph()
-    with pytest.raises(RuntimeError):
+    with pytest.raises(ValueError):
         exp_sorensen(G)
 
     G = karate.get_graph(ignore_weights=True)

@@ -307,7 +307,7 @@ def test_jaccard_multi_column(read_csv):
 def test_weighted_exp_jaccard():
     karate = DATASETS_UNDIRECTED[0]
     G = karate.get_graph()
-    with pytest.raises(RuntimeError):
+    with pytest.raises(ValueError):
         exp_jaccard(G)
 
     G = karate.get_graph(ignore_weights=True)
