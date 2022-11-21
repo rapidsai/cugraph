@@ -71,18 +71,18 @@ class Tests_Louvain
     RAFT_CUDA_TRY(cudaGetDeviceProperties(&device_prop, 0));
 
     if (device_prop.major < 7) {
-      EXPECT_THROW(louvain(graph_view,
-                           graph_view.get_number_of_vertices(),
-                           louvain_usecase.check_correctness_,
-                           louvain_usecase.expected_level_,
-                           louvain_usecase.expected_modularity_),
+      EXPECT_THROW(louvain_legacy(graph_view,
+                                  graph_view.get_number_of_vertices(),
+                                  louvain_usecase.check_correctness_,
+                                  louvain_usecase.expected_level_,
+                                  louvain_usecase.expected_modularity_),
                    cugraph::logic_error);
     } else {
-      louvain(graph_view,
-              graph_view.get_number_of_vertices(),
-              louvain_usecase.check_correctness_,
-              louvain_usecase.expected_level_,
-              louvain_usecase.expected_modularity_);
+      louvain_legacy(graph_view,
+                     graph_view.get_number_of_vertices(),
+                     louvain_usecase.check_correctness_,
+                     louvain_usecase.expected_level_,
+                     louvain_usecase.expected_modularity_);
     }
   }
 
@@ -103,7 +103,7 @@ class Tests_Louvain
       hr_clock.start();
     }
 
-    auto [graph, d_renumber_map_labels] =
+    auto [graph, edge_weights, d_renumber_map_labels] =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, false>(
         handle, input_usecase, true, renumber);
 
@@ -115,6 +115,8 @@ class Tests_Louvain
     }
 
     auto graph_view = graph.view();
+    auto edge_weight_view =
+      edge_weights ? std::make_optional((*edge_weights).view()) : std::nullopt;
 
     // "FIXME": remove this check once we drop support for Pascal
     //
@@ -131,6 +133,7 @@ class Tests_Louvain
 
     if (device_prop.major < 7) {
       EXPECT_THROW(louvain(graph_view,
+                           edge_weight_view,
                            graph_view.local_vertex_partition_range_size(),
                            louvain_usecase.check_correctness_,
                            louvain_usecase.expected_level_,
@@ -138,6 +141,7 @@ class Tests_Louvain
                    cugraph::logic_error);
     } else {
       louvain(graph_view,
+              edge_weight_view,
               graph_view.local_vertex_partition_range_size(),
               louvain_usecase.check_correctness_,
               louvain_usecase.expected_level_,
@@ -152,16 +156,13 @@ class Tests_Louvain
     }
   }
 
-  template <typename graph_t>
-  void louvain(graph_t const& graph_view,
-               typename graph_t::vertex_type num_vertices,
-               bool check_correctness,
-               int expected_level,
-               float expected_modularity)
+  template <typename vertex_t, typename edge_t, typename weight_t>
+  void louvain_legacy(cugraph::legacy::GraphCSRView<vertex_t, edge_t, weight_t> const& graph_view,
+                      vertex_t num_vertices,
+                      bool check_correctness,
+                      int expected_level,
+                      float expected_modularity)
   {
-    using vertex_t = typename graph_t::vertex_type;
-    using weight_t = typename graph_t::weight_type;
-
     raft::handle_t handle{};
 
     rmm::device_uvector<vertex_t> clustering_v(num_vertices, handle.get_stream());
@@ -170,6 +171,34 @@ class Tests_Louvain
 
     std::tie(level, modularity) =
       cugraph::louvain(handle, graph_view, clustering_v.data(), size_t{100}, weight_t{1});
+
+    RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
+
+    float compare_modularity = static_cast<float>(modularity);
+
+    if (check_correctness) {
+      ASSERT_FLOAT_EQ(compare_modularity, expected_modularity);
+      ASSERT_EQ(level, expected_level);
+    }
+  }
+
+  template <typename vertex_t, typename edge_t, typename weight_t>
+  void louvain(
+    cugraph::graph_view_t<vertex_t, edge_t, false, false> const& graph_view,
+    std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
+    vertex_t num_vertices,
+    bool check_correctness,
+    int expected_level,
+    float expected_modularity)
+  {
+    raft::handle_t handle{};
+
+    rmm::device_uvector<vertex_t> clustering_v(num_vertices, handle.get_stream());
+    size_t level;
+    weight_t modularity;
+
+    std::tie(level, modularity) = cugraph::louvain(
+      handle, graph_view, edge_weight_view, clustering_v.data(), size_t{100}, weight_t{1});
 
     RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
 

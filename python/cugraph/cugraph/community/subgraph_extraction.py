@@ -32,6 +32,7 @@ def subgraph(G, vertices):
     ----------
     G : cugraph.Graph
         cuGraph graph descriptor
+        The current implementation only supports weighted graphs.
 
     vertices : cudf.Series or cudf.DataFrame
         Specifies the vertices of the induced subgraph. For multi-column
@@ -56,6 +57,9 @@ def subgraph(G, vertices):
     """
 
     G, isNx = ensure_cugraph_obj_for_nx(G)
+
+    if not G.edgelist.weights:
+        raise RuntimeError("input graph must be weighted")
 
     if G.renumbered:
         if isinstance(vertices, cudf.DataFrame):

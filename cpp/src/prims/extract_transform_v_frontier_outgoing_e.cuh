@@ -37,6 +37,7 @@ namespace cugraph {
  * @tparam GraphViewType Type of the passed non-owning graph object.
  * @tparam EdgeSrcValueInputWrapper Type of the wrapper for edge source property values.
  * @tparam EdgeDstValueInputWrapper Type of the wrapper for edge destination property values.
+ * @tparam EdgeValueInputWrapper Type of the wrapper for edge property values.
  * @tparam EdgeOp Type of the quaternary (or quinary) edge operator.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
@@ -51,6 +52,10 @@ namespace cugraph {
  * cugraph::edge_dst_property_t::view() (if @p e_op needs to access destination property values) or
  * cugraph::edge_dst_dummy_property_t::view() (if @p e_op does not access destination property
  * values). Use update_edge_dst_property to fill the wrapper.
+ * @param edge_value_input Wrapper used to access edge input property values (for the edges assigned
+ * to this process in multi-GPU). Use either cugraph::edge_property_t::view() (if @p e_op needs to
+ * access edge property values) or cugraph::edge_dummy_property_t::view() (if @p e_op does not
+ * access edge property values).
  * @param e_op Quaternary (or quinary) operator takes edge source, edge destination, (optional edge
  * weight), property values for the source, and property values for the destination and returns a
  * thrust::nullopt (if the return value is to be discarded) or a valid @p e_op output to be
@@ -62,12 +67,14 @@ template <typename GraphViewType,
           typename VertexFrontierBucketType,
           typename EdgeSrcValueInputWrapper,
           typename EdgeDstValueInputWrapper,
+          typename EdgeValueInputWrapper,
           typename EdgeOp>
 decltype(
   allocate_dataframe_buffer<typename evaluate_edge_op<GraphViewType,
                                                       typename VertexFrontierBucketType::key_type,
                                                       EdgeSrcValueInputWrapper,
                                                       EdgeDstValueInputWrapper,
+                                                      EdgeValueInputWrapper,
                                                       EdgeOp>::result_type::value_type>(
     size_t{0}, rmm::cuda_stream_view{}))
 extract_transform_v_frontier_outgoing_e(raft::handle_t const& handle,
@@ -75,6 +82,7 @@ extract_transform_v_frontier_outgoing_e(raft::handle_t const& handle,
                                         VertexFrontierBucketType const& frontier,
                                         EdgeSrcValueInputWrapper edge_src_value_input,
                                         EdgeDstValueInputWrapper edge_dst_value_input,
+                                        EdgeValueInputWrapper edge_value_input,
                                         EdgeOp e_op,
                                         bool do_expensive_check = false)
 {
@@ -84,6 +92,7 @@ extract_transform_v_frontier_outgoing_e(raft::handle_t const& handle,
                                                   typename VertexFrontierBucketType::key_type,
                                                   EdgeSrcValueInputWrapper,
                                                   EdgeDstValueInputWrapper,
+                                                  EdgeValueInputWrapper,
                                                   EdgeOp>::result_type;
   static_assert(!std::is_same_v<e_op_result_t, void>);
   using payload_t = typename e_op_result_t::value_type;
@@ -95,6 +104,7 @@ extract_transform_v_frontier_outgoing_e(raft::handle_t const& handle,
                                                                    frontier,
                                                                    edge_src_value_input,
                                                                    edge_dst_value_input,
+                                                                   edge_value_input,
                                                                    e_op,
                                                                    do_expensive_check);
 

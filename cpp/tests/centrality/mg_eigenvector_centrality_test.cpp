@@ -70,7 +70,7 @@ class Tests_MGEigenvectorCentrality
       hr_clock.start();
     }
 
-    auto [mg_graph, d_mg_renumber_map_labels] =
+    auto [mg_graph, mg_edge_weights, d_mg_renumber_map_labels] =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, true, true>(
         *handle_, input_usecase, eigenvector_usecase.test_weighted, true);
 
@@ -83,6 +83,8 @@ class Tests_MGEigenvectorCentrality
     }
 
     auto mg_graph_view = mg_graph.view();
+    auto mg_edge_weight_view =
+      mg_edge_weights ? std::make_optional((*mg_edge_weights).view()) : std::nullopt;
 
     // 2. run MG Eigenvector Centrality
 
@@ -100,6 +102,7 @@ class Tests_MGEigenvectorCentrality
     d_mg_centralities = cugraph::eigenvector_centrality(
       *handle_,
       mg_graph_view,
+      mg_edge_weight_view,
       std::optional<raft::device_span<weight_t const>>{},
       // std::make_optional(raft::device_span<weight_t
       // const>{d_mg_centralities.data(), d_mg_centralities.size()}),
@@ -131,11 +134,13 @@ class Tests_MGEigenvectorCentrality
           *handle_, d_mg_aggregate_renumber_map_labels, d_mg_aggregate_centralities);
 
         // 3-3. create SG graph
-        auto [sg_graph, d_sg_renumber_map_labels] =
+        auto [sg_graph, sg_edge_weights, d_sg_renumber_map_labels] =
           cugraph::test::construct_graph<vertex_t, edge_t, weight_t, true, false>(
             *handle_, input_usecase, eigenvector_usecase.test_weighted, true);
 
         auto sg_graph_view = sg_graph.view();
+        auto sg_edge_weight_view =
+          sg_edge_weights ? std::make_optional((*sg_edge_weights).view()) : std::nullopt;
 
         ASSERT_TRUE(mg_graph_view.number_of_vertices() == sg_graph_view.number_of_vertices());
 
@@ -146,6 +151,7 @@ class Tests_MGEigenvectorCentrality
         d_sg_centralities = cugraph::eigenvector_centrality(
           *handle_,
           sg_graph_view,
+          sg_edge_weight_view,
           std::optional<raft::device_span<weight_t const>>{},
           // std::make_optional(raft::device_span<weight_t const>{d_sg_centralities.data(),
           // d_sg_centralities.size()}),

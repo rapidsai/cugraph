@@ -71,7 +71,7 @@ class Tests_KCore : public ::testing::TestWithParam<std::tuple<KCore_Usecase, in
       hr_clock.start();
     }
 
-    auto [graph, d_renumber_map_labels] =
+    auto [graph, edge_weights, d_renumber_map_labels] =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, false>(
         handle, input_usecase, false, renumber, true, true);
 
@@ -82,6 +82,8 @@ class Tests_KCore : public ::testing::TestWithParam<std::tuple<KCore_Usecase, in
       std::cout << "construct_graph took " << elapsed_time * 1e-6 << " s.\n";
     }
     auto graph_view = graph.view();
+    auto edge_weight_view =
+      edge_weights ? std::make_optional((*edge_weights).view()) : std::nullopt;
 
     rmm::device_uvector<edge_t> d_core_numbers(graph_view.number_of_vertices(),
                                                handle.get_stream());
@@ -100,8 +102,12 @@ class Tests_KCore : public ::testing::TestWithParam<std::tuple<KCore_Usecase, in
 
     raft::device_span<edge_t const> core_number_span{d_core_numbers.data(), d_core_numbers.size()};
 
-    auto subgraph = cugraph::k_core(
-      handle, graph_view, k_core_usecase.k, std::nullopt, std::make_optional(core_number_span));
+    auto subgraph = cugraph::k_core(handle,
+                                    graph_view,
+                                    edge_weight_view,
+                                    k_core_usecase.k,
+                                    std::nullopt,
+                                    std::make_optional(core_number_span));
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -112,7 +118,7 @@ class Tests_KCore : public ::testing::TestWithParam<std::tuple<KCore_Usecase, in
 
     if (k_core_usecase.check_correctness) {
       cugraph::test::check_correctness(
-        handle, graph_view, d_core_numbers, subgraph, k_core_usecase.k);
+        handle, graph_view, edge_weight_view, d_core_numbers, subgraph, k_core_usecase.k);
     }
   }
 };

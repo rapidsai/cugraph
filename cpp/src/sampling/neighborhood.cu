@@ -24,18 +24,17 @@
 
 namespace cugraph {
 
-template <typename graph_t>
-std::tuple<rmm::device_uvector<typename graph_t::edge_type>,
-           rmm::device_uvector<typename graph_t::vertex_type>>
+template <typename vertex_t, typename edge_t>
+std::tuple<rmm::device_uvector<edge_t>, rmm::device_uvector<vertex_t>>
 sample_neighbors_adjacency_list(raft::handle_t const& handle,
                                 raft::random::RngState& rng_state,
-                                graph_t const& graph,
-                                typename graph_t::vertex_type const* ptr_d_start,
+                                graph_view_t<vertex_t, edge_t, false, false> const& graph_view,
+                                vertex_t const* ptr_d_start,
                                 size_t num_start_vertices,
                                 size_t sampling_size,
                                 ops::gnn::graph::SamplingAlgoT sampling_algo)
 {
-  const auto [ops_graph, max_degree] = detail::get_graph_and_max_degree(graph);
+  const auto [ops_graph, max_degree] = detail::get_graph_and_max_degree(graph_view);
   return ops::gnn::graph::uniform_sample_csr(rng_state,
                                              ops_graph,
                                              ptr_d_start,
@@ -46,18 +45,17 @@ sample_neighbors_adjacency_list(raft::handle_t const& handle,
                                              handle.get_stream());
 }
 
-template <typename graph_t>
-std::tuple<rmm::device_uvector<typename graph_t::vertex_type>,
-           rmm::device_uvector<typename graph_t::vertex_type>>
-sample_neighbors_edgelist(raft::handle_t const& handle,
-                          raft::random::RngState& rng_state,
-                          graph_t const& graph,
-                          typename graph_t::vertex_type const* ptr_d_start,
-                          size_t num_start_vertices,
-                          size_t sampling_size,
-                          ops::gnn::graph::SamplingAlgoT sampling_algo)
+template <typename vertex_t, typename edge_t>
+std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<vertex_t>> sample_neighbors_edgelist(
+  raft::handle_t const& handle,
+  raft::random::RngState& rng_state,
+  graph_view_t<vertex_t, edge_t, false, false> const& graph_view,
+  vertex_t const* ptr_d_start,
+  size_t num_start_vertices,
+  size_t sampling_size,
+  ops::gnn::graph::SamplingAlgoT sampling_algo)
 {
-  const auto [ops_graph, max_degree] = detail::get_graph_and_max_degree(graph);
+  const auto [ops_graph, max_degree] = detail::get_graph_and_max_degree(graph_view);
   return ops::gnn::graph::uniform_sample_coo(rng_state,
                                              ops_graph,
                                              ptr_d_start,
@@ -72,46 +70,42 @@ sample_neighbors_edgelist(raft::handle_t const& handle,
 //
 // CSR SG FP32{
 template std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>>
-sample_neighbors_adjacency_list<graph_view_t<int32_t, int32_t, float, false, false>>(
-  raft::handle_t const& handle,
-  raft::random::RngState& rng_state,
-  graph_view_t<int32_t, int32_t, float, false, false> const& gview,
-  int32_t const* ptr_d_start,
-  size_t num_start_vertices,
-  size_t sampling_size,
-  ops::gnn::graph::SamplingAlgoT sampling_algo);
+sample_neighbors_adjacency_list(raft::handle_t const& handle,
+                                raft::random::RngState& rng_state,
+                                graph_view_t<int32_t, int32_t, false, false> const& gview,
+                                int32_t const* ptr_d_start,
+                                size_t num_start_vertices,
+                                size_t sampling_size,
+                                ops::gnn::graph::SamplingAlgoT sampling_algo);
 
 template std::tuple<rmm::device_uvector<int64_t>, rmm::device_uvector<int64_t>>
-sample_neighbors_adjacency_list<graph_view_t<int64_t, int64_t, float, false, false>>(
-  raft::handle_t const& handle,
-  raft::random::RngState& rng_state,
-  graph_view_t<int64_t, int64_t, float, false, false> const& gview,
-  int64_t const* ptr_d_start,
-  size_t num_start_vertices,
-  size_t sampling_size,
-  ops::gnn::graph::SamplingAlgoT sampling_algo);
+sample_neighbors_adjacency_list(raft::handle_t const& handle,
+                                raft::random::RngState& rng_state,
+                                graph_view_t<int64_t, int64_t, false, false> const& gview,
+                                int64_t const* ptr_d_start,
+                                size_t num_start_vertices,
+                                size_t sampling_size,
+                                ops::gnn::graph::SamplingAlgoT sampling_algo);
 //}
 //
 // COO SG FP32{
 template std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>>
-sample_neighbors_edgelist<graph_view_t<int32_t, int32_t, float, false, false>>(
-  raft::handle_t const& handle,
-  raft::random::RngState& rng_state,
-  graph_view_t<int32_t, int32_t, float, false, false> const& gview,
-  int32_t const* ptr_d_start,
-  size_t num_start_vertices,
-  size_t sampling_size,
-  ops::gnn::graph::SamplingAlgoT sampling_algo);
+sample_neighbors_edgelist(raft::handle_t const& handle,
+                          raft::random::RngState& rng_state,
+                          graph_view_t<int32_t, int32_t, false, false> const& gview,
+                          int32_t const* ptr_d_start,
+                          size_t num_start_vertices,
+                          size_t sampling_size,
+                          ops::gnn::graph::SamplingAlgoT sampling_algo);
 
 template std::tuple<rmm::device_uvector<int64_t>, rmm::device_uvector<int64_t>>
-sample_neighbors_edgelist<graph_view_t<int64_t, int64_t, float, false, false>>(
-  raft::handle_t const& handle,
-  raft::random::RngState& rng_state,
-  graph_view_t<int64_t, int64_t, float, false, false> const& gview,
-  int64_t const* ptr_d_start,
-  size_t num_start_vertices,
-  size_t sampling_size,
-  ops::gnn::graph::SamplingAlgoT sampling_algo);
+sample_neighbors_edgelist(raft::handle_t const& handle,
+                          raft::random::RngState& rng_state,
+                          graph_view_t<int64_t, int64_t, false, false> const& gview,
+                          int64_t const* ptr_d_start,
+                          size_t num_start_vertices,
+                          size_t sampling_size,
+                          ops::gnn::graph::SamplingAlgoT sampling_algo);
 //}
 
 }  // namespace cugraph

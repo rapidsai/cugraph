@@ -68,7 +68,7 @@ class Tests_Egonet : public ::testing::TestWithParam<std::tuple<Egonet_Usecase, 
       hr_clock.start();
     }
 
-    auto [graph, d_renumber_map_labels] =
+    auto [graph, edge_weights, d_renumber_map_labels] =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, false>(
         handle, input_usecase, egonet_usecase.test_weighted_, renumber);
 
@@ -80,6 +80,8 @@ class Tests_Egonet : public ::testing::TestWithParam<std::tuple<Egonet_Usecase, 
     }
 
     auto graph_view = graph.view();
+    auto edge_weight_view =
+      edge_weights ? std::make_optional((*edge_weights).view()) : std::nullopt;
 
     rmm::device_uvector<vertex_t> d_ego_sources(egonet_usecase.ego_sources_.size(),
                                                 handle.get_stream());
@@ -105,6 +107,7 @@ class Tests_Egonet : public ::testing::TestWithParam<std::tuple<Egonet_Usecase, 
       cugraph::extract_ego(
         handle,
         graph_view,
+        edge_weight_view,
         raft::device_span<vertex_t const>{d_ego_sources.data(), egonet_usecase.ego_sources_.size()},
         egonet_usecase.radius_);
 
@@ -120,6 +123,7 @@ class Tests_Egonet : public ::testing::TestWithParam<std::tuple<Egonet_Usecase, 
         cugraph::test::egonet_reference(
           handle,
           graph_view,
+          edge_weight_view,
           raft::device_span<vertex_t const>{d_ego_sources.data(), d_ego_sources.size()},
           egonet_usecase.radius_);
 

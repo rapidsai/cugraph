@@ -32,6 +32,75 @@ from cugraph_service_client.types import (
 from cugraph_service_client.cugraph_service_thrift import create_client
 
 
+class RunAsyncioThread(threading.Thread):
+    """
+    This class provides a thread whose purpose is to start a new
+    event loop and call the provided function.
+    """
+
+    def __init__(self, func, args, kwargs):
+        """
+        Parameters
+        ----------
+        func : function
+            The function that will be run.
+        *args : args
+            The arguments to the given function.
+        **kwargs : kwargs
+            The keyword arguments to the given function.
+        """
+        self.func = func
+        self.args = args
+        self.kwargs = kwargs
+        self.result = None
+        super().__init__()
+
+    def run(self):
+        """
+        Runs this thread's previously-provided function inside
+        a new event loop.  Returns the result.
+
+        Returns
+        -------
+        The returned object of the previously-provided function.
+        """
+        self.result = asyncio.run(self.func(*self.args, **self.kwargs))
+
+
+def run_async(func, *args, **kwargs):
+    """
+    If no loop is running on the current thread,
+    this method calls func using a new event
+    loop using asyncio.run.  If a loop is running, this
+    method starts a new thread, and calls func on a new
+    event loop in the new thread.
+
+    Parameters
+    ----------
+    func : function
+        The function that will be run.
+    *args : args
+        The arguments to the given function.
+    **kwargs : kwargs
+        The keyword arguments to the given function.
+
+    Returns
+    -------
+    The output of the given function.
+    """
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        loop = None
+    if loop is not None:
+        thread = RunAsyncioThread(func, args, kwargs)
+        thread.start()
+        thread.join()
+        return thread.result
+    else:
+        return asyncio.run(func(*args, **kwargs))
+
+
 class DeviceArrayAllocator:
     """
     This class is used to create a callable instance for allocating a cupy
@@ -1197,12 +1266,17 @@ class CugraphServiceClient:
             result.indices: CuPy array
                 Contains the indices from the sampling result for path reconstruction
         """
+
         if result_device is not None:
-            result_obj = asyncio.run(
-                self.__uniform_neighbor_sample_to_device(
-                    start_list, fanout_vals, with_replacement, graph_id, result_device
-                )
+            result_obj = run_async(
+                self.__uniform_neighbor_sample_to_device,
+                start_list,
+                fanout_vals,
+                with_replacement,
+                graph_id,
+                result_device,
             )
+
         else:
             result_obj = self.__client.uniform_neighbor_sample(
                 start_list,
