@@ -52,8 +52,8 @@ def betweenness_centrality(
     G : cuGraph.Graph or networkx.Graph
         The graph can be either directed (Graph(directed=True)) or undirected.
         Weights in the graph are ignored, the current implementation uses
-        BFS traversals. Use weight parameter if weights need to be considered
-        (currently not supported)
+        BFS traversals. If weights are provided in the edgelist, they will be
+        used.
 
     k : int or list or None, optional (default=None)
         If k is not None, use k node samples to estimate betweenness.  Higher
@@ -64,7 +64,7 @@ def betweenness_centrality(
         defined as a list will be used assources for traversals inside the
         algorithm.
     
-    vertex_list: list, cudf.Series
+    vertex_list: list, cudf.Series or cudf.DataFrame
         specify a list of vertices to use as seeds for BFS
 
     normalized : bool, optional (default=True)
@@ -117,14 +117,24 @@ def betweenness_centrality(
     >>> bc = cugraph.betweenness_centrality(G)
 
     """
-    # vertex_list is intended to be a cuDF series that contains a sampling
-    # of k vertices out of the graph.
+    # vertex_list is intended to be a cuDF series or dataframe that contains a
+    # sampling of k vertices out of the graph.
+
+    G, isNx = ensure_cugraph_obj_for_nx(G)
 
     if weight is not None:
         raise NotImplementedError(
             "weighted implementation of betweenness "
             "centrality not currently supported"
         )
+    
+    if G.store_transposed is True:
+        warning_msg = (
+            "Betweenness centrality expects the 'store_transposed' flag "
+            "to be set to 'False' for optimal performance during "
+            "the graph creation"
+        )
+        warnings.warn(warning_msg, UserWarning)
 
     if result_dtype not in [np.float32, np.float64]:
         raise TypeError("result type can only be np.float32 or np.float64")
@@ -138,26 +148,33 @@ def betweenness_centrality(
                        "in the next release.")
         warnings.warn(warning_msg, PendingDeprecationWarning)
     
-    G, isNx = ensure_cugraph_obj_for_nx(G)
-
     # Sampling is done internally. Just provide the number of vertices to
     # sample
     # vertices = _initialize_vertices(G, k, seed)
     num_vertices = k
+    if isinstance(k)
 
-    if nstart is not None:
+    if isinstance(vertex_list, list):
+        vertex_list = cudf.Series(vertex_list)
+    elif not isinstance(vertex_list, (cudf.Series, cudf.DataFrame)):
+        raise TypeError(
+                f"'vertex_list' must be either a list or a cudf.Series or "
+                f"cudf.DataFrame, got: {type(vertex_list)}"
+            )
+    
+    if vertex_list is not None:
         if G.renumbered is True:
-            if len(G.renumber_map.implementation.col_names) > 1:
-                cols = nstart.columns[:-1].to_list()
+            if isinstance(vertex_list, cudf.DataFrame):
+                vertex_list = G.lookup_internal_vertex_id(
+                    vertex_list, vertex_list.columns
+                )
             else:
-                cols = "vertex"
-            nstart = G.add_internal_vertex_id(nstart, "vertex", cols)
-            nstart = nstart[nstart.columns[0]]
+                vertex_list = G.lookup_internal_vertex_id(vertex_list)
 
     vertices, values = pylibcugraph_betweenness_centrality(
         resource_handle=ResourceHandle(),
         graph=G._plc_graph,
-        num_vertices=nstart,
+        num_vertices=num_vertices,
         vertex_list=vertex_list,
         normalized=normalized,
         include_endpoints=endpoints,
@@ -179,44 +196,3 @@ def betweenness_centrality(
         return dict
     else:
         return df
-
-
-# In order to compare with pre-set sources,
-# k can either be a list or an integer or None
-#  int: Generate an random sample with k elements
-# list: k become the length of the list and vertices become the content
-# None: All the vertices are considered
-def _initialize_vertices(G, k, seed):
-    vertices = None
-    numpy_vertices = None
-    if k is not None:
-        if isinstance(k, int):
-            vertices = _initialize_vertices_from_indices_sampling(G, k, seed)
-        elif isinstance(k, list):
-            vertices = _initialize_vertices_from_identifiers_list(G, k)
-        numpy_vertices = np.array(vertices, dtype=np.int32)
-    else:
-        numpy_vertices = np.arange(G.number_of_vertices(), dtype=np.int32)
-    return numpy_vertices
-
-
-# NOTE: We do not renumber in case k is an int, the sampling is
-#       not operating on the valid vertices identifiers but their
-#       indices:
-# Example:
-# - vertex '2' is missing
-# - vertices '0' '1' '3' '4' exist
-# - There is a vertex at index 2 (there is not guarantee that it is
-#   vertice '3' )
-def _initialize_vertices_from_indices_sampling(G, k, seed):
-    random.seed(seed)
-    vertices = random.sample(range(G.number_of_vertices()), k)
-    return vertices
-
-
-def _initialize_vertices_from_identifiers_list(G, identifiers):
-    vertices = identifiers
-    if G.renumbered:
-        vertices = G.lookup_internal_vertex_id(cudf.Series(vertices)).to_numpy()
-
-    return vertices
