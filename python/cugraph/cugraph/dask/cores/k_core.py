@@ -70,7 +70,7 @@ def k_core(input_graph, k=None, core_number=None, degree_type="bidirectional"):
         Order of the core. This value must not be negative. If set to None, the
         main core is returned.
 
-    degree_type: str (default=""bidirectional"")
+    degree_type: str (default="bidirectional")
         This option determines if the core number computation should be based
         on input, output, or both directed edges, with valid values being
         "incoming", "outgoing", and "bidirectional" respectively.
@@ -201,9 +201,5 @@ def k_core(input_graph, k=None, core_number=None, degree_type="bidirectional"):
     if input_graph.renumbered:
         ddf = input_graph.unrenumber(ddf, "src")
         ddf = input_graph.unrenumber(ddf, "dst")
-
-    # FIXME: symmetrize the final result. This should
-    # be done at the C++/CAPI layer
-    ddf = symmetrize_ddf(ddf, "src", "dst", "weights")
 
     return ddf
