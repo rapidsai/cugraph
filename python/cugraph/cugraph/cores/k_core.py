@@ -59,7 +59,7 @@ def k_core(G, k=None, core_number=None, degree_type="bidirectional"):
         Order of the core. This value must not be negative. If set to None, the
         main core is returned.
 
-    degree_type: str (default=""bidirectional"")
+    degree_type: str, (default="bidirectional")
         This option determines if the core number computation should be based
         on input, output, or both directed edges, with valid values being
         "incoming", "outgoing", and "bidirectional" respectively.
