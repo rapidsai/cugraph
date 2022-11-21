@@ -16,6 +16,7 @@ add_subdirectory(raft/common)
 add_subdirectory(internal_types)
 add_subdirectory(testing)
 set(cython_sources
+    betweenness_centrality.pyx
     bfs.pyx
     core_number.pyx
     egonet.pyx

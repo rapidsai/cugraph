@@ -153,3 +153,19 @@ cdef extern from "cugraph_c/centrality_algorithms.h":
             cugraph_hits_result_t** result,
             cugraph_error_t** error
         )
+
+    ###########################################################################
+    # betweenness centrality
+
+    cdef cugraph_error_code_t \
+        cugraph_betweenness_centrality(
+            const cugraph_resource_handle_t* handle,
+            cugraph_graph_t* graph,
+            size_t num_vertices,
+            const cugraph_type_erased_device_array_view_t* vertex_list,
+            bool_t normalized,
+            bool_t include_endpoints,
+            bool_t do_expensive_check,
+            cugraph_centrality_result_t** result,
+            cugraph_error_t** error
+        )
