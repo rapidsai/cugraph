@@ -674,7 +674,7 @@ class CugraphHandler:
         if types == []:
             types = None
         if isinstance(G, (PropertyGraph, MGPropertyGraph)):
-            if G.vertex_col_name in property_keys:
+            if columns is not None and G.vertex_col_name in columns:
                 raise CugraphServiceError(
                     f"ID key {G.vertex_col_name} is not allowed for property query. "
                     f"Vertex IDs are always returned in query."
