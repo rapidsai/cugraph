@@ -145,7 +145,7 @@ def extract_two_hop(read_csv):
 
 
 # Test
-def test_overlap_1(gpubenchmark, read_csv, extract_two_hop):
+def test_overlap(gpubenchmark, read_csv, extract_two_hop):
 
     M, graph_file = read_csv
     pairs = extract_two_hop
