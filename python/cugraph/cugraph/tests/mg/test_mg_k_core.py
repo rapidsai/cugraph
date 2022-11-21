@@ -36,12 +36,10 @@ def setup_function():
 datasets = utils.DATASETS_UNDIRECTED
 
 core_number = [True, False]
-degree_type= ["bidirectional", "outgoing", "incoming"]
+degree_type = ["bidirectional", "outgoing", "incoming"]
 
 fixture_params = utils.genFixtureParamsProduct(
-    (datasets, "graph_file"),
-    (core_number, "core_number"),
-    (degree_type, "degree_type")
+    (datasets, "graph_file"), (core_number, "core_number"), (degree_type, "degree_type")
 )
 
 
@@ -51,8 +49,7 @@ def input_combo(request):
     Simply return the current combination of params as a dictionary for use in
     tests or other parameterized fixtures.
     """
-    parameters = dict(
-        zip(("graph_file", "core_number", "degree_type"), request.param))
+    parameters = dict(zip(("graph_file", "core_number", "degree_type"), request.param))
 
     return parameters
 
@@ -81,7 +78,8 @@ def input_expected_output(dask_client, input_combo):
     input_combo["SGGraph"] = G
 
     sg_k_core_graph = cugraph.k_core(
-        G, core_number=core_number, degree_type=degree_type)
+        G, core_number=core_number, degree_type=degree_type
+    )
     sg_k_core_results = sg_k_core_graph.view_edge_list()
     # FIXME: The result will come asymetric. Symmetrize the results
     sg_k_core_results = (
@@ -129,7 +127,8 @@ def test_sg_k_core(dask_client, benchmark, input_expected_output):
     degree_type = input_expected_output["degree_type"]
 
     sg_k_core = benchmark(
-        cugraph.k_core, G, core_number=core_number, degree_type=degree_type)
+        cugraph.k_core, G, core_number=core_number, degree_type=degree_type
+    )
     assert sg_k_core is not None
 
 
