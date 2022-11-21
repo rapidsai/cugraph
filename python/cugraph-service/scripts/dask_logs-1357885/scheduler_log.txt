@@ -1,0 +1,35 @@
+RUNNING: "python -m distributed.cli.dask_scheduler --protocol=ucx
+            --port=40859
+            --scheduler-file /dask-scheduler.json
+            "
+/opt/conda/envs/rapids/lib/python3.9/site-packages/distributed/cli/dask_scheduler.py:140: FutureWarning: dask-scheduler is deprecated and will be removed in a future release; use `dask scheduler` instead
+  warnings.warn(
+2022-11-17 17:15:53,758 - distributed.scheduler - INFO - -----------------------------------------------
+2022-11-17 17:15:54,297 - distributed.scheduler - INFO - State start
+2022-11-17 17:15:54,306 - distributed.scheduler - INFO - -----------------------------------------------
+2022-11-17 17:15:54,852 - distributed.scheduler - INFO -   Scheduler at:    ucx://172.17.0.2:40859
+2022-11-17 17:15:54,852 - distributed.scheduler - INFO -   dashboard at:                     :8787
+2022-11-17 17:16:04,256 - distributed.scheduler - INFO - Register worker <WorkerState 'ucx://172.17.0.2:45055', status: init, memory: 0, processing: 0>
+2022-11-17 17:16:04,283 - distributed.scheduler - INFO - Starting worker compute stream, ucx://172.17.0.2:45055
+2022-11-17 17:16:04,283 - distributed.core - INFO - Starting established connection to ucx://:40859
+2022-11-17 17:16:04,319 - distributed.scheduler - INFO - Register worker <WorkerState 'ucx://172.17.0.2:55145', status: init, memory: 0, processing: 0>
+2022-11-17 17:16:04,320 - distributed.scheduler - INFO - Starting worker compute stream, ucx://172.17.0.2:55145
+2022-11-17 17:16:04,320 - distributed.core - INFO - Starting established connection to ucx://:40859
+2022-11-17 17:16:32,775 - distributed.scheduler - INFO - Receive client connection: Client-9524d252-669b-11ed-ba4a-0242ac110002
+2022-11-17 17:16:32,775 - distributed.core - INFO - Starting established connection to ucx://:40859
+2022-11-17 17:16:32,797 - distributed.worker - INFO - Run out-of-band function '_func_set_scheduler_as_nccl_root'
+2022-11-17 17:17:36,890 - distributed.core - INFO - Connection to ucx://:40859 has been closed.
+2022-11-17 17:17:36,891 - distributed.scheduler - INFO - Remove client Client-9524d252-669b-11ed-ba4a-0242ac110002
+2022-11-17 17:17:36,893 - distributed.scheduler - INFO - Close client connection: Client-9524d252-669b-11ed-ba4a-0242ac110002
+2022-11-18 14:35:44,333 - distributed._signals - INFO - Received signal SIGINT (2)
+2022-11-18 14:35:44,333 - distributed.scheduler - INFO - Scheduler closing...
+2022-11-18 14:35:44,334 - distributed.scheduler - INFO - Scheduler closing all comms
+2022-11-18 14:35:44,336 - distributed.core - INFO - Connection to ucx://:40859 has been closed.
+2022-11-18 14:35:44,336 - distributed.scheduler - INFO - Remove worker <WorkerState 'ucx://172.17.0.2:45055', status: running, memory: 0, processing: 0>
+2022-11-18 14:35:44,336 - distributed.core - INFO - Removing comms to ucx://172.17.0.2:45055
+2022-11-18 14:35:44,336 - distributed.core - INFO - Connection to ucx://:40859 has been closed.
+2022-11-18 14:35:44,336 - distributed.scheduler - INFO - Remove worker <WorkerState 'ucx://172.17.0.2:55145', status: running, memory: 0, processing: 0>
+2022-11-18 14:35:44,336 - distributed.core - INFO - Removing comms to ucx://172.17.0.2:55145
+2022-11-18 14:35:44,336 - distributed.scheduler - INFO - Lost all workers
+2022-11-18 14:35:44,339 - distributed.scheduler - INFO - Stopped scheduler at 'ucx://172.17.0.2:40859'
+2022-11-18 14:35:44,339 - distributed.scheduler - INFO - End scheduler

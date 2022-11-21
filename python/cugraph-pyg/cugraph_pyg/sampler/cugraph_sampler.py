@@ -65,7 +65,7 @@ class EXPERIMENTAL__CuGraphSampler:
         index, input_nodes, input_time = sampler_input
 
         if input_time is not None:
-            raise ValueError("Temporal sampling is currently" " unsupported in cuGraph")
+            raise ValueError("Temporal sampling is currently unsupported in cuGraph")
 
         if self.__method == self.UNIFORM_NEIGHBOR:
             return self.__neighbor_sample(

@@ -37,6 +37,7 @@ VALIDARGS="
    --pydevelop
    --allgpuarch
    --skip_cpp_tests
+   --without_cugraphops
    --cmake_default_generator
    --clean
    -h
@@ -252,6 +253,7 @@ if buildAll || hasArg libcugraph; then
               -DCMAKE_BUILD_TYPE=${BUILD_TYPE} \
               -DBUILD_TESTS=${BUILD_CPP_TESTS} \
               -DBUILD_CUGRAPH_MG_TESTS=${BUILD_CPP_MG_TESTS} \
+	      -DUSE_CUGRAPH_OPS=${BUILD_WITH_CUGRAPHOPS} \
               ${CMAKE_GENERATOR_OPTION} \
               ${CMAKE_VERBOSE_OPTION}
         cmake --build "${LIBCUGRAPH_BUILD_DIR}" -j${PARALLEL_LEVEL} ${INSTALL_TARGET} ${VERBOSE_FLAG}
@@ -298,8 +300,14 @@ if buildAll || hasArg pylibcugraph; then
         # setup.py references an env var CUGRAPH_BUILD_PATH to find the libcugraph
         # build. If not set by the user, set it to LIBCUGRAPH_BUILD_DIR
         CUGRAPH_BUILD_PATH=${CUGRAPH_BUILD_PATH:=${LIBCUGRAPH_BUILD_DIR}}
-        python setup.py build_ext --inplace -- -DFIND_CUGRAPH_CPP=ON \
-               -Dcugraph_ROOT=${LIBCUGRAPH_BUILD_DIR} -- -j${PARALLEL_LEVEL:-1}
+        python setup.py build_ext \
+	       --inplace \
+	       -- \
+	       -DFIND_CUGRAPH_CPP=ON \
+	       -DUSE_CUGRAPH_OPS=${BUILD_WITH_CUGRAPHOPS} \
+               -Dcugraph_ROOT=${LIBCUGRAPH_BUILD_DIR} \
+	       -- \
+	       -j${PARALLEL_LEVEL:-1}
         if [[ ${INSTALL_TARGET} != "" ]]; then
             env CUGRAPH_BUILD_PATH=${CUGRAPH_BUILD_PATH} python ${PYTHON_ARGS_FOR_INSTALL}
         fi
@@ -316,8 +324,14 @@ if buildAll || hasArg cugraph; then
         # setup.py references an env var CUGRAPH_BUILD_PATH to find the libcugraph
         # build. If not set by the user, set it to LIBCUGRAPH_BUILD_DIR
         CUGRAPH_BUILD_PATH=${CUGRAPH_BUILD_PATH:=${LIBCUGRAPH_BUILD_DIR}}
-        python setup.py build_ext --inplace -- -DFIND_CUGRAPH_CPP=ON \
-               -Dcugraph_ROOT=${LIBCUGRAPH_BUILD_DIR} -- -j${PARALLEL_LEVEL:-1}
+        python setup.py build_ext \
+	       --inplace \
+	       -- \
+	       -DFIND_CUGRAPH_CPP=ON \
+	       -DUSE_CUGRAPH_OPS=${BUILD_WITH_CUGRAPHOPS} \
+               -Dcugraph_ROOT=${LIBCUGRAPH_BUILD_DIR} \
+	       -- \
+	       -j${PARALLEL_LEVEL:-1}
         if [[ ${INSTALL_TARGET} != "" ]]; then
             env CUGRAPH_BUILD_PATH=${CUGRAPH_BUILD_PATH} python ${PYTHON_ARGS_FOR_INSTALL}
         fi

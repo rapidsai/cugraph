@@ -349,23 +349,10 @@ def test_renumber_vertices(graph):
 
     nodes_of_interest = pG.get_vertices().sample(3)
     vc_actual = pG.get_vertex_data(nodes_of_interest)[pG.type_col_name].value_counts()
-    index, groups, tensors = graph_store._get_renumbered_vertex_data_from_sample(
-        nodes_of_interest
-    )
+    index = graph_store._get_vertex_groups_from_sample(nodes_of_interest)
 
     for vtype in index:
         assert len(index[vtype]) == vc_actual[vtype]
-        assert len(index[vtype]) == len(groups[vtype])
-        assert groups[vtype].tolist() == cupy.arange(len(index[vtype])).tolist()
-
-        assert (
-            tensors[vtype]["x"].tolist()
-            == pG.get_vertex_data(index[vtype])
-            .drop(pG.vertex_col_name, axis=1)
-            .drop(pG.type_col_name, axis=1)
-            .to_cupy(dtype="float")
-            .tolist()
-        )
 
 
 def test_renumber_edges(graph):
@@ -392,10 +379,10 @@ def test_renumber_edges(graph):
             "indices": eoi_df[pG.edge_id_col_name],
         }
     )
-    row, col = graph_store._get_renumbered_edges_from_sample(sdf, noi_index)
+    row, col = graph_store._get_renumbered_edge_groups_from_sample(sdf, noi_index)
 
     for etype in row:
-        stype, ctype, dtype = etype.split("__")
+        stype, ctype, dtype = etype
         src = noi_index[stype][row[etype]]
         dst = noi_index[dtype][col[etype]]
         assert len(src) == len(dst)
