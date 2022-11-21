@@ -6,8 +6,6 @@
 
 ## Conda
 
-It is easy to install cuGraph using conda. You can get a minimal conda installation with Miniconda or get the full installation with Anaconda.
-
 Install and update cugraph-dgl and the required dependencies using the command:
 
 ```
