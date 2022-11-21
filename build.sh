@@ -69,7 +69,7 @@ HELP="$0 [<target> ...] [<flag> ...]
    --clean                    - clean an individual target (note: to do a complete rebuild, use the clean target described above)
    -h                         - print this text
 
- default action (no args) is to build and install 'libcugraph' then 'libcugraph_etl' then 'pylibcugraph' then 'cugraph' then 'cugraph-service' then 'cugraph-pyg' then 'cugraph-dgl' targets
+ default action (no args) is to build and install 'libcugraph' then 'libcugraph_etl' then 'pylibcugraph' then 'cugraph' then 'cugraph-service' targets
 
  libcugraph build dir is: ${LIBCUGRAPH_BUILD_DIR}
 
@@ -353,7 +353,7 @@ if buildAll || hasArg cugraph-service; then
 fi
 
 # Build and install the cugraph-pyg Python package
-if buildAll || hasArg cugraph-pyg; then
+if hasArg cugraph-pyg; then
     if hasArg --clean; then
         cleanPythonDir ${REPODIR}/python/cugraph-pyg
     else
@@ -365,7 +365,7 @@ if buildAll || hasArg cugraph-pyg; then
 fi
 
 # Install the cugraph-dgl extensions for DGL
-if buildAll || hasArg cugraph-dgl; then
+if hasArg cugraph-dgl; then
     if hasArg --clean; then
         cleanPythonDir ${REPODIR}/python/cugraph-dgl
     else
