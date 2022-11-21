@@ -63,10 +63,11 @@ def betweenness_centrality(ResourceHandle resource_handle,
                            bool_t include_endpoints,
                            bool_t do_expensive_check):
     """
-    # FIXME: fix docstrings
-    Compute the Betweenness centrality for the nodes of the graph. This implementation
-    is based on a relaxed version of Katz defined by Foster with a reduced
-    computational complexity of O(n+m)
+    Compute the betweenness centrality for all vertices of the graph G.
+    Betweenness centrality is a measure of the number of shortest paths that
+    pass through a vertex.  A vertex with a high betweenness centrality score
+    has more paths passing through it and is therefore believed to be more
+    important.
 
     Parameters
     ----------
@@ -77,24 +78,14 @@ def betweenness_centrality(ResourceHandle resource_handle,
     graph : SGGraph or MGGraph
         The input graph, for either Single or Multi-GPU operations.
 
-    betas : device array type
-        Device array containing the values to be added to each vertex's new
-        Katz Centrality score in every iteration. If set to None then beta is
-        used for all vertices.
+    num_vertices : size_t
+        Number of vertices to randomly sample.
+    
+    normalized : bool_t
+        Normalization will ensure that values are in [0, 1].
 
-    alpha : double
-        The attenuation factor, should be smaller than the inverse of the
-        maximum eigenvalue of the graph
-
-    beta : double
-        Constant value to be added to each vertex's new Katz Centrality score
-        in every iteration. Relevant only when betas is None
-
-    epsilon : double
-        Error tolerance to check convergence
-
-    max_iterations: size_t
-        Maximum number of Katz Centrality iterations
+    include_endpoints : bool_t
+        If true, include the endpoints in the shortest path counts.
 
     do_expensive_check : bool_t
         A flag to run expensive checks for input arguments if True.
