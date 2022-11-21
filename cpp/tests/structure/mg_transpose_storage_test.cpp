@@ -68,7 +68,7 @@ class Tests_MGTransposeStorage
       hr_clock.start();
     }
 
-    auto [mg_graph, d_mg_renumber_map_labels] =
+    auto [mg_graph, mg_edge_weights, d_mg_renumber_map_labels] =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, store_transposed, true>(
         *handle_, input_usecase, transpose_storage_usecase.test_weighted, true);
 
@@ -91,12 +91,18 @@ class Tests_MGTransposeStorage
       hr_clock.start();
     }
 
-    cugraph::graph_t<vertex_t, edge_t, weight_t, !store_transposed, true>
-      mg_storage_transposed_graph(*handle_);
-    std::tie(mg_storage_transposed_graph, d_mg_renumber_map_labels) =
+    cugraph::graph_t<vertex_t, edge_t, !store_transposed, true> mg_storage_transposed_graph(
+      *handle_);
+    std::optional<
+      cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, !store_transposed, true>,
+                               weight_t>>
+      mg_storage_transposed_edge_weights{std::nullopt};
+    std::tie(
+      mg_storage_transposed_graph, mg_storage_transposed_edge_weights, d_mg_renumber_map_labels) =
       cugraph::transpose_graph_storage(
         *handle_,
         std::move(mg_graph),
+        std::move(mg_edge_weights),
         d_mg_renumber_map_labels
           ? std::optional<rmm::device_uvector<vertex_t>>{std::move(*d_mg_renumber_map_labels)}
           : std::nullopt);
@@ -117,6 +123,9 @@ class Tests_MGTransposeStorage
       auto [d_mg_srcs, d_mg_dsts, d_mg_weights] = cugraph::decompress_to_edgelist(
         *handle_,
         mg_storage_transposed_graph.view(),
+        mg_storage_transposed_edge_weights
+          ? std::make_optional((*mg_storage_transposed_edge_weights).view())
+          : std::nullopt,
         d_mg_renumber_map_labels
           ? std::make_optional<raft::device_span<vertex_t const>>(
               (*d_mg_renumber_map_labels).data(), (*d_mg_renumber_map_labels).size())
@@ -137,8 +146,12 @@ class Tests_MGTransposeStorage
       if (handle_->get_comms().get_rank() == int{0}) {
         // 3-3. create SG graph
 
-        cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed, false> sg_graph(*handle_);
-        std::tie(sg_graph, std::ignore) =
+        cugraph::graph_t<vertex_t, edge_t, store_transposed, false> sg_graph(*handle_);
+        std::optional<
+          cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, store_transposed, false>,
+                                   weight_t>>
+          sg_edge_weights{std::nullopt};
+        std::tie(sg_graph, sg_edge_weights, std::ignore) =
           cugraph::test::construct_graph<vertex_t, edge_t, weight_t, store_transposed, false>(
             *handle_, input_usecase, transpose_storage_usecase.test_weighted, false);
 
@@ -147,6 +160,7 @@ class Tests_MGTransposeStorage
         auto [d_sg_srcs, d_sg_dsts, d_sg_weights] = cugraph::decompress_to_edgelist(
           *handle_,
           sg_graph.view(),
+          sg_edge_weights ? std::make_optional((*sg_edge_weights).view()) : std::nullopt,
           std::optional<raft::device_span<vertex_t const>>{std::nullopt});
 
         // 3-5. compare

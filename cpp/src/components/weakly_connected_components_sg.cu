@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2022, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,39 +19,22 @@
 namespace cugraph {
 
 // SG instantiations
+
 template void weakly_connected_components(
   raft::handle_t const& handle,
-  graph_view_t<int32_t, int32_t, float, false, false> const& graph_view,
+  graph_view_t<int32_t, int32_t, false, false> const& graph_view,
   int32_t* components,
   bool do_expensive_check);
 
 template void weakly_connected_components(
   raft::handle_t const& handle,
-  graph_view_t<int32_t, int32_t, double, false, false> const& graph_view,
+  graph_view_t<int32_t, int64_t, false, false> const& graph_view,
   int32_t* components,
   bool do_expensive_check);
 
 template void weakly_connected_components(
   raft::handle_t const& handle,
-  graph_view_t<int32_t, int64_t, float, false, false> const& graph_view,
-  int32_t* components,
-  bool do_expensive_check);
-
-template void weakly_connected_components(
-  raft::handle_t const& handle,
-  graph_view_t<int32_t, int64_t, double, false, false> const& graph_view,
-  int32_t* components,
-  bool do_expensive_check);
-
-template void weakly_connected_components(
-  raft::handle_t const& handle,
-  graph_view_t<int64_t, int64_t, float, false, false> const& graph_view,
-  int64_t* components,
-  bool do_expensive_check);
-
-template void weakly_connected_components(
-  raft::handle_t const& handle,
-  graph_view_t<int64_t, int64_t, double, false, false> const& graph_view,
+  graph_view_t<int64_t, int64_t, false, false> const& graph_view,
   int64_t* components,
   bool do_expensive_check);
 
