@@ -22,7 +22,7 @@ import warnings
 
 
 def _call_plc_betweenness_centrality(
-    sID, mg_graph_x, num_vertices, vertex_list, normalized, do_expensive_check
+    sID, mg_graph_x, num_vertices, vertex_list, normalized, endpoints, do_expensive_check
 ):
 
     return pylibcugraph_betweenness_centrality(
@@ -31,6 +31,7 @@ def _call_plc_betweenness_centrality(
         num_vertices=num_vertices,
         vertex_list=vertex_list,
         normalized=normalized,
+        include_endpoints=endpoints,
         do_expensive_check=do_expensive_check,
     )
 
