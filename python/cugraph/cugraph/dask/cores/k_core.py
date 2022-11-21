@@ -22,8 +22,6 @@ import cudf
 import cugraph.dask as dcg
 from pylibcugraph import ResourceHandle, k_core as pylibcugraph_k_core
 
-from cugraph.structure.symmetrize import symmetrize_ddf
-
 
 def convert_to_cudf(cp_arrays):
     """
