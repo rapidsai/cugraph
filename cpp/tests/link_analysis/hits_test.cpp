@@ -160,7 +160,9 @@ class Tests_Hits : public ::testing::TestWithParam<std::tuple<Hits_Usecase, inpu
       hr_clock.start();
     }
 
-    auto [graph, d_renumber_map_labels] =
+    cugraph::graph_t<vertex_t, edge_t, true, false> graph(handle);
+    std::optional<rmm::device_uvector<vertex_t>> d_renumber_map_labels{std::nullopt};
+    std::tie(graph, std::ignore, d_renumber_map_labels) =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, true, false>(
         handle, input_usecase, false, renumber);
 
@@ -214,8 +216,8 @@ class Tests_Hits : public ::testing::TestWithParam<std::tuple<Hits_Usecase, inpu
     }
 
     if (hits_usecase.check_correctness) {
-      cugraph::graph_t<vertex_t, edge_t, weight_t, false, false> unrenumbered_graph(handle);
-      std::tie(unrenumbered_graph, std::ignore) =
+      cugraph::graph_t<vertex_t, edge_t, false, false> unrenumbered_graph(handle);
+      std::tie(unrenumbered_graph, std::ignore, std::ignore) =
         cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, false>(
           handle, input_usecase, false, false);
       auto unrenumbered_graph_view = unrenumbered_graph.view();

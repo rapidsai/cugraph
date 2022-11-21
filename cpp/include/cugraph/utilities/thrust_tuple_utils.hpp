@@ -58,6 +58,12 @@ struct compute_thrust_tuple_element_sizes_impl<TupleType, I, I> {
 };
 
 template <typename TupleType, std::size_t... Is>
+size_t sum_thrust_tuple_element_sizes(std::index_sequence<Is...>)
+{
+  return (... + sizeof(typename thrust::tuple_element<Is, TupleType>::type));
+}
+
+template <typename TupleType, std::size_t... Is>
 auto thrust_tuple_to_std_tuple(TupleType tup, std::index_sequence<Is...>)
 {
   return std::make_tuple(thrust::get<Is>(tup)...);
@@ -167,6 +173,13 @@ struct compute_thrust_tuple_element_sizes {
     return ret;
   }
 };
+
+template <typename TupleType>
+constexpr size_t sum_thrust_tuple_element_sizes()
+{
+  return detail::sum_thrust_tuple_element_sizes<TupleType>(
+    std::make_index_sequence<thrust::tuple_size<TupleType>::value>());
+}
 
 template <typename TupleType>
 auto thrust_tuple_to_std_tuple(TupleType tup)

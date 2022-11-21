@@ -30,7 +30,8 @@ std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<weight_t>>>
 k_core(raft::handle_t const& handle,
-       graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
+       graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+       std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
        size_t k,
        std::optional<k_core_degree_type_t> degree_type,
        std::optional<raft::device_span<edge_t const>> core_numbers,
@@ -85,6 +86,7 @@ k_core(raft::handle_t const& handle,
   auto [src, dst, wgt, offsets] = extract_induced_subgraphs(
     handle,
     graph_view,
+    edge_weight_view,
     raft::device_span<size_t const>{subgraph_offsets.data(), subgraph_offsets.size()},
     raft::device_span<vertex_t const>{subgraph_vertices.data(), subgraph_vertices.size()},
     do_expensive_check);

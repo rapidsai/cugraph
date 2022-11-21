@@ -88,10 +88,13 @@ struct similarity_functor : public cugraph::c_api::abstract_functor {
       }
 
       auto graph =
-        reinterpret_cast<cugraph::graph_t<vertex_t, edge_t, weight_t, false, multi_gpu>*>(
-          graph_->graph_);
+        reinterpret_cast<cugraph::graph_t<vertex_t, edge_t, false, multi_gpu>*>(graph_->graph_);
 
       auto graph_view = graph->view();
+
+      auto edge_weights = reinterpret_cast<
+        cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, true, multi_gpu>,
+                                 weight_t>*>(graph_->edge_weights_);
 
       auto number_map = reinterpret_cast<rmm::device_uvector<vertex_t>*>(graph_->number_map_);
 
@@ -126,6 +129,7 @@ struct similarity_functor : public cugraph::c_api::abstract_functor {
       auto similarity_coefficients =
         call_similarity_(handle_,
                          graph_view,
+                         use_weight_ ? std::make_optional(edge_weights->view()) : std::nullopt,
                          std::make_tuple(raft::device_span<vertex_t const>{v1.data(), v1.size()},
                                          raft::device_span<vertex_t const>{v2.data(), v2.size()}),
                          use_weight_);
@@ -141,11 +145,12 @@ struct jaccard_functor {
   template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
   rmm::device_uvector<weight_t> operator()(
     raft::handle_t const& handle,
-    cugraph::graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
+    cugraph::graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+    std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
     std::tuple<raft::device_span<vertex_t const>, raft::device_span<vertex_t const>> vertex_pairs,
     bool use_weights)
   {
-    return cugraph::jaccard_coefficients(handle, graph_view, vertex_pairs, use_weights);
+    return cugraph::jaccard_coefficients(handle, graph_view, edge_weight_view, vertex_pairs);
   }
 };
 
@@ -153,11 +158,12 @@ struct sorensen_functor {
   template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
   rmm::device_uvector<weight_t> operator()(
     raft::handle_t const& handle,
-    cugraph::graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
+    cugraph::graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+    std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
     std::tuple<raft::device_span<vertex_t const>, raft::device_span<vertex_t const>> vertex_pairs,
     bool use_weights)
   {
-    return cugraph::sorensen_coefficients(handle, graph_view, vertex_pairs, use_weights);
+    return cugraph::sorensen_coefficients(handle, graph_view, edge_weight_view, vertex_pairs);
   }
 };
 
@@ -165,11 +171,12 @@ struct overlap_functor {
   template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
   rmm::device_uvector<weight_t> operator()(
     raft::handle_t const& handle,
-    cugraph::graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
+    cugraph::graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+    std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
     std::tuple<raft::device_span<vertex_t const>, raft::device_span<vertex_t const>> vertex_pairs,
     bool use_weights)
   {
-    return cugraph::overlap_coefficients(handle, graph_view, vertex_pairs, use_weights);
+    return cugraph::overlap_coefficients(handle, graph_view, edge_weight_view, vertex_pairs);
   }
 };
 
@@ -199,6 +206,13 @@ extern "C" cugraph_error_code_t cugraph_jaccard_coefficients(
   cugraph_similarity_result_t** result,
   cugraph_error_t** error)
 {
+  if (use_weight) {
+    CAPI_EXPECTS(
+      reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph)->edge_weights_ != nullptr,
+      CUGRAPH_INVALID_INPUT,
+      "use_weight is true but edge weights are not provided.",
+      *error);
+  }
   similarity_functor functor(
     handle, graph, vertex_pairs, jaccard_functor{}, use_weight, do_expensive_check);
 
@@ -214,6 +228,13 @@ extern "C" cugraph_error_code_t cugraph_sorensen_coefficients(
   cugraph_similarity_result_t** result,
   cugraph_error_t** error)
 {
+  if (use_weight) {
+    CAPI_EXPECTS(
+      reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph)->edge_weights_ != nullptr,
+      CUGRAPH_INVALID_INPUT,
+      "use_weight is true but edge weights are not provided.",
+      *error);
+  }
   similarity_functor functor(
     handle, graph, vertex_pairs, sorensen_functor{}, use_weight, do_expensive_check);
 
@@ -229,6 +250,13 @@ extern "C" cugraph_error_code_t cugraph_overlap_coefficients(
   cugraph_similarity_result_t** result,
   cugraph_error_t** error)
 {
+  if (use_weight) {
+    CAPI_EXPECTS(
+      reinterpret_cast<cugraph::c_api::cugraph_graph_t*>(graph)->edge_weights_ != nullptr,
+      CUGRAPH_INVALID_INPUT,
+      "use_weight is true but edge weights are not provided.",
+      *error);
+  }
   similarity_functor functor(
     handle, graph, vertex_pairs, overlap_functor{}, use_weight, do_expensive_check);
 

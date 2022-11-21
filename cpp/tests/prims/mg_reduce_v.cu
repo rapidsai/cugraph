@@ -129,7 +129,9 @@ class Tests_MGReduceV
       hr_clock.start();
     }
 
-    auto [mg_graph, d_mg_renumber_map_labels] =
+    cugraph::graph_t<vertex_t, edge_t, store_transposed, true> mg_graph(*handle_);
+    std::optional<rmm::device_uvector<vertex_t>> d_mg_renumber_map_labels{std::nullopt};
+    std::tie(mg_graph, std::ignore, d_mg_renumber_map_labels) =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, store_transposed, true>(
         *handle_, input_usecase, true, true);
 
@@ -205,8 +207,8 @@ class Tests_MGReduceV
     // 3. compare SG & MG results
 
     if (prims_usecase.check_correctness) {
-      cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed, false> sg_graph(*handle_);
-      std::tie(sg_graph, std::ignore) =
+      cugraph::graph_t<vertex_t, edge_t, store_transposed, false> sg_graph(*handle_);
+      std::tie(sg_graph, std::ignore, std::ignore) =
         cugraph::test::construct_graph<vertex_t, edge_t, weight_t, store_transposed, false>(
           *handle_, input_usecase, true, false);
       auto sg_graph_view = sg_graph.view();

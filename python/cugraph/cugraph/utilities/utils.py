@@ -87,7 +87,7 @@ def get_traversed_path(df, id):
     >>> gdf = cudf.read_csv(datasets_path / 'karate.csv', delimiter=' ',
     ...                     dtype=['int32', 'int32', 'float32'], header=None)
     >>> G = cugraph.Graph()
-    >>> G.from_cudf_edgelist(gdf, source='0', destination='1')
+    >>> G.from_cudf_edgelist(gdf, source='0', destination='1', edge_attr='2')
     >>> sssp_df = cugraph.sssp(G, 1)
     >>> path = cugraph.utils.get_traversed_path(sssp_df, 32)
     >>> path
@@ -159,7 +159,7 @@ def get_traversed_path_list(df, id):
     >>> gdf = cudf.read_csv(datasets_path / 'karate.csv', delimiter=' ',
     ...                     dtype=['int32', 'int32', 'float32'], header=None)
     >>> G = cugraph.Graph()
-    >>> G.from_cudf_edgelist(gdf, source='0', destination='1')
+    >>> G.from_cudf_edgelist(gdf, source='0', destination='1', edge_attr='2')
     >>> sssp_df = cugraph.sssp(G, 1)
     >>> path = cugraph.utils.get_traversed_path_list(sssp_df, 32)
 

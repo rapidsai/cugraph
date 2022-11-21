@@ -29,7 +29,6 @@ add_library(cugraphtestutil STATIC
             community/egonet_validate.cu
             cores/k_core_validate.cu
 	    structure/induced_subgraph_validate.cu
-            components/wcc_graphs.cu
             sampling/random_walks_check_sg.cu
             ../../thirdparty/mmio/mmio.c)
 

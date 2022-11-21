@@ -32,13 +32,15 @@ namespace cugraph {
 namespace test {
 
 template <typename vertex_t, typename edge_t, typename weight_t>
-void check_correctness(raft::handle_t const& handle,
-                       graph_view_t<vertex_t, edge_t, weight_t, false, false> const& graph_view,
-                       rmm::device_uvector<edge_t> const& core_numbers,
-                       std::tuple<rmm::device_uvector<vertex_t>,
-                                  rmm::device_uvector<vertex_t>,
-                                  std::optional<rmm::device_uvector<weight_t>>> const& subgraph,
-                       size_t k)
+void check_correctness(
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, false, false> const& graph_view,
+  std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
+  rmm::device_uvector<edge_t> const& core_numbers,
+  std::tuple<rmm::device_uvector<vertex_t>,
+             rmm::device_uvector<vertex_t>,
+             std::optional<rmm::device_uvector<weight_t>>> const& subgraph,
+  size_t k)
 {
   auto const& [subgraph_src, subgraph_dst, subgraph_wgt] = subgraph;
 
@@ -59,8 +61,12 @@ void check_correctness(raft::handle_t const& handle,
 
   EXPECT_EQ(error_count, 0) << "destination error count is non-zero";
 
-  auto [graph_src, graph_dst, graph_wgt] = cugraph::decompress_to_edgelist(
-    handle, graph_view, std::optional<raft::device_span<vertex_t const>>{std::nullopt}, false);
+  auto [graph_src, graph_dst, graph_wgt] =
+    cugraph::decompress_to_edgelist(handle,
+                                    graph_view,
+                                    edge_weight_view,
+                                    std::optional<raft::device_span<vertex_t const>>{std::nullopt},
+                                    false);
 
   // Now we'll count how many edges should be in the subgraph
   auto expected_edge_count =
@@ -78,7 +84,8 @@ void check_correctness(raft::handle_t const& handle,
 
 template void check_correctness(
   raft::handle_t const& handle,
-  graph_view_t<int32_t, int32_t, float, false, false> const& graph_view,
+  graph_view_t<int32_t, int32_t, false, false> const& graph_view,
+  std::optional<edge_property_view_t<int32_t, float const*>> edge_weight_view,
   rmm::device_uvector<int32_t> const& core_numbers,
   std::tuple<rmm::device_uvector<int32_t>,
              rmm::device_uvector<int32_t>,
@@ -87,7 +94,8 @@ template void check_correctness(
 
 template void check_correctness(
   raft::handle_t const& handle,
-  graph_view_t<int32_t, int64_t, float, false, false> const& graph_view,
+  graph_view_t<int32_t, int64_t, false, false> const& graph_view,
+  std::optional<edge_property_view_t<int64_t, float const*>> edge_weight_view,
   rmm::device_uvector<int64_t> const& core_numbers,
   std::tuple<rmm::device_uvector<int32_t>,
              rmm::device_uvector<int32_t>,
@@ -96,7 +104,8 @@ template void check_correctness(
 
 template void check_correctness(
   raft::handle_t const& handle,
-  graph_view_t<int64_t, int64_t, float, false, false> const& graph_view,
+  graph_view_t<int64_t, int64_t, false, false> const& graph_view,
+  std::optional<edge_property_view_t<int64_t, float const*>> edge_weight_view,
   rmm::device_uvector<int64_t> const& core_numbers,
   std::tuple<rmm::device_uvector<int64_t>,
              rmm::device_uvector<int64_t>,
