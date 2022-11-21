@@ -257,7 +257,7 @@ def dataset1_PropertyGraph(request):
     return (pG, dataset1)
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="function")
 def dataset1_MGPropertyGraph(dask_client):
     """
     Fixture which returns an instance of a PropertyGraph with vertex and edge
@@ -849,11 +849,14 @@ def test_get_data_empty_graphs(dask_client):
     assert pG.get_edge_data([0, 1, 2]) is None
 
 
-def test_renumber_vertices_by_type(dataset1_MGPropertyGraph):
+@pytest.mark.parametrize("prev_id_column", [None, "prev_id"])
+def test_renumber_vertices_by_type(dataset1_MGPropertyGraph, prev_id_column):
     from cugraph.experimental import MGPropertyGraph
 
     (pG, data) = dataset1_MGPropertyGraph
-    df_id_ranges = pG.renumber_vertices_by_type()
+    with pytest.raises(ValueError, match="existing column"):
+        pG.renumber_vertices_by_type("merchant_size")
+    df_id_ranges = pG.renumber_vertices_by_type(prev_id_column)
     expected = {
         "merchants": [0, 4],  # stop is inclusive
         "users": [5, 8],
@@ -864,28 +867,34 @@ def test_renumber_vertices_by_type(dataset1_MGPropertyGraph):
         df = pG.get_vertex_data(types=[key]).compute()
         assert len(df) == stop - start + 1
         assert (df["_VERTEX_"] == list(range(start, stop + 1))).all()
-
+        if prev_id_column is not None:
+            cur = df[prev_id_column].sort_values()
+            expected = sorted(x for x, *args in data[key][1])
+            assert (cur == expected).all()
     # Make sure we renumber vertex IDs in edge data too
     df = pG.get_edge_data().compute()
     assert 0 <= df[pG.src_col_name].min() < df[pG.src_col_name].max() < 9
     assert 0 <= df[pG.dst_col_name].min() < df[pG.dst_col_name].max() < 9
 
     empty_pG = MGPropertyGraph()
-    assert empty_pG.renumber_vertices_by_type() is None
+    assert empty_pG.renumber_vertices_by_type(prev_id_column) is None
 
     # Test when vertex IDs only exist in edge data
     df = cudf.DataFrame({"src": [99998], "dst": [99999]})
     df = dask_cudf.from_cudf(df, npartitions=1)
     empty_pG.add_edge_data(df, ["src", "dst"])
     with pytest.raises(NotImplementedError, match="only exist in edge"):
-        empty_pG.renumber_vertices_by_type()
+        empty_pG.renumber_vertices_by_type(prev_id_column)
 
 
-def test_renumber_edges_by_type(dataset1_MGPropertyGraph):
+@pytest.mark.parametrize("prev_id_column", [None, "prev_id"])
+def test_renumber_edges_by_type(dataset1_MGPropertyGraph, prev_id_column):
     from cugraph.experimental import MGPropertyGraph
 
     (pG, data) = dataset1_MGPropertyGraph
-    df_id_ranges = pG.renumber_edges_by_type()
+    with pytest.raises(ValueError, match="existing column"):
+        pG.renumber_edges_by_type("time")
+    df_id_ranges = pG.renumber_edges_by_type(prev_id_column)
     expected = {
         "referrals": [0, 5],  # stop is inclusive
         "relationships": [6, 9],
@@ -897,9 +906,11 @@ def test_renumber_edges_by_type(dataset1_MGPropertyGraph):
         df = pG.get_edge_data(types=[key]).compute()
         assert len(df) == stop - start + 1
         assert (df[pG.edge_id_col_name] == list(range(start, stop + 1))).all()
+        if prev_id_column is not None:
+            assert prev_id_column in df.columns
 
     empty_pG = MGPropertyGraph()
-    assert empty_pG.renumber_edges_by_type() is None
+    assert empty_pG.renumber_edges_by_type(prev_id_column) is None
 
 
 def test_add_data_noncontiguous(dask_client):
