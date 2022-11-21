@@ -16,6 +16,7 @@ import gc
 import pytest
 import cugraph
 import dask_cudf
+import random
 
 # from cugraph.dask.common.mg_utils import is_single_gpu
 from cugraph.testing import utils
@@ -56,8 +57,12 @@ def input_combo(request):
     Simply return the current combination of params as a dictionary for use in
     tests or other parameterized fixtures.
     """
-    parameters = dict(zip((
-        "graph_file", "has_vertex_list", "normalized", "endpoints", "directed"), request.param))
+    parameters = dict(
+        zip(
+            ("graph_file", "has_vertex_list", "normalized", "endpoints", "directed"),
+            request.param,
+        )
+    )
 
     return parameters
 
@@ -75,16 +80,18 @@ def input_expected_output(input_combo):
     normalized = input_combo["normalized"]
     endpoints = input_combo["endpoints"]
     vertex_list = None
+
+    input_combo["vertex_list"] = vertex_list
+    G = utils.generate_cugraph_graph_from_file(input_data_path, directed=directed)
+
     if input_combo["has_vertex_list"]:
         # Sample vertices from the graph
         k = random.randint(1, 4)
         vertex_list = G.nodes().compute().sample(k).reset_index(drop=True)
 
-    input_combo["vertex_list"] = vertex_list
-    G = utils.generate_cugraph_graph_from_file(input_data_path, directed=directed)
-
     sg_cugraph_bc = cugraph.betweenness_centrality(
-        G, vertex_list=vertex_list, normalized=normalized, endpoints=endpoints)
+        G, vertex_list=vertex_list, normalized=normalized, endpoints=endpoints
+    )
     # Save the results back to the input_combo dictionary to prevent redundant
     # cuGraph runs. Other tests using the input_combo fixture will look for
     # them, and if not present they will have to re-run the same cuGraph call.
@@ -134,9 +141,9 @@ def test_dask_betweenness_centrality(dask_client, benchmark, input_expected_outp
     result_betweenness_centrality = benchmark(
         dcg.betweenness_centrality,
         dg,
-        vertex_pair=vertex_pair,
+        vertex_list=vertex_list,
         normalized=normalized,
-        endpoints=normalized
+        endpoints=normalized,
     )
 
     result_betweenness_centrality = (
@@ -157,10 +164,16 @@ def test_dask_betweenness_centrality(dask_client, benchmark, input_expected_outp
     # Update the dask cugraph betweenness_centrality results with sg cugraph results for easy
     # comparison using cuDF DataFrame methods.
     result_betweenness_centrality["sg_cugraph_hubs"] = expected_output["hubs"]
-    result_betweenness_centrality["sg_cugraph_authorities"] = expected_output["authorities"]
+    result_betweenness_centrality["sg_cugraph_authorities"] = expected_output[
+        "authorities"
+    ]
 
-    hubs_diffs1 = result_betweenness_centrality.query("mg_cugraph_hubs - sg_cugraph_hubs > 0.00001")
-    hubs_diffs2 = result_betweenness_centrality.query("mg_cugraph_hubs - sg_cugraph_hubs < -0.00001")
+    hubs_diffs1 = result_betweenness_centrality.query(
+        "mg_cugraph_hubs - sg_cugraph_hubs > 0.00001"
+    )
+    hubs_diffs2 = result_betweenness_centrality.query(
+        "mg_cugraph_hubs - sg_cugraph_hubs < -0.00001"
+    )
     authorities_diffs1 = result_betweenness_centrality.query(
         "mg_cugraph_authorities - sg_cugraph_authorities > 0.0001"
     )
