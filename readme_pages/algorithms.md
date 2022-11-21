@@ -24,8 +24,8 @@ Note: Multi-GPU, or MG, includes support for Multi-Node Multi-GPU (also called M
 | ----------------- | ---------------------------------- | ------------------- | --------------------------------------------------------------- |
 | Centrality        |                                    |                     |                                                                 |
 |                   | Katz                               | __Multi-GPU__ |                                                                 |
-|                   | Betweenness Centrality             | Single-GPU          | MG planned for 22.12                                            |
-|                   | Edge Betweenness Centrality        | Single-GPU          | MG planned for 22.12                                            |
+|                   | Betweenness Centrality             | Single-GPU          | MG planned for 23.02                                            |
+|                   | Edge Betweenness Centrality        | Single-GPU          | MG planned for 23.02                                            |
 |                   | Eigenvector Centrality             | __Multi-GPU__ |                                                                 |
 |                   | Degree Centrality                  | __Multi-GPU__ | Python only                                                     |
 | Community         |                                    |                     |                                                                 |
@@ -56,7 +56,7 @@ Note: Multi-GPU, or MG, includes support for Multi-Node Multi-GPU (also called M
 |                   | Personal Pagerank                  | __Multi-GPU__ | [C++ README](cpp/src/centrality/README.md#Personalized-Pagerank)   |
 |                   | HITS                               | __Multi-GPU__ |                                                                 |
 | Link Prediction   |                                    |                     |                                                                 |
-|                   | Jaccard Similarity                 | Single-GPU          | MG planned for 22.12<br />Directed graph only                   |
+|                   | Jaccard Similarity                 | Single-GPU          | MG as of 22.12<br />Directed graph only                         |
 |                   | Weighted Jaccard Similarity        | Single-GPU          |                                                                 |
 |                   | Overlap Similarity                 | **Multi-GPU** | MG as of 22.12                                                  |
 |                   | Sorensen Coefficient               | **Multi-GPU** | MG as of 22.12                                                  |
