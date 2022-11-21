@@ -46,7 +46,7 @@ if [[ "$BUILD_CUGRAPH" == "1" ]]; then
   test -e ${CUGRAPH_FILE}
   echo "Upload cugraph file: ${CUGRAPH_FILE}"
   gpuci_retry anaconda -t ${MY_UPLOAD_KEY} upload -u ${CONDA_USERNAME:-rapidsai} ${LABEL_OPTION} --skip-existing ${CUGRAPH_FILE} --no-progress
-  
+ 
   CUGRAPH_SERVICE_FILES=$(conda build --croot ${CONDA_BLD_DIR} conda/recipes/cugraph-service --python=$PYTHON --output)
   # no test -e since CUGRAPH_SERVICE_FILES has multiple files
   echo "Upload cugraph-server files: ${CUGRAPH_SERVICE_FILES}"
