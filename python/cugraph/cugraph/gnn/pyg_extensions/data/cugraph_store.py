@@ -54,7 +54,8 @@ class CuGraphEdgeAttr:
     @classmethod
     def cast(cls, *args, **kwargs):
         """
-        Casts to a CuGraphTensorAttr from a tuple, list, or dict
+        Cast to a CuGraphTensorAttr from a tuple, list, or dict.
+        
         Returns
         -------
         CuGraphTensorAttr
