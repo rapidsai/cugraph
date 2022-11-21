@@ -317,13 +317,6 @@ class RemoteGraph:
                 self._vertex_categorical_dtype.keys(), ordered=True
             )
 
-        print("get_vertex_data:")
-        print("graph id:", self.__graph_id)
-        print("types:", types)
-        print("ids:", vertex_ids)
-        print(columns)
-        print(vertex_data)
-
         columns = set(columns)
         if self.type_col_name in columns:
             columns.remove(self.type_col_name)
