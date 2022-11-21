@@ -879,11 +879,11 @@ class simpleGraphImpl:
             elif len(value_col) == 1:
                 weight_col, id_col, type_col = value_col[0], None, None
         else:
-            raise ValueError(f'Illegal value col {type(value_col)}')
+            raise ValueError(f"Illegal value col {type(value_col)}")
 
         if weight_col is None:
             weight_col = cudf.Series(
-                cupy.ones(len(self.edgelist.edgelist_df), dtype='float32')
+                cupy.ones(len(self.edgelist.edgelist_df), dtype="float32")
             )
         else:
             weight_t = weight_col.dtype
