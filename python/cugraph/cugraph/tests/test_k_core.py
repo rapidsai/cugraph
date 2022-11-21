@@ -126,3 +126,15 @@ def test_k_core_corenumber_multicolumn(graph_file):
         assert ck_exp.has_edge(
             edgelist_df_res["0_src"].iloc[i], edgelist_df_res["0_dst"].iloc[i]
         )
+
+
+def test_k_core_invalid_input():
+    karate = DATASETS_UNDIRECTED[0]
+    G = karate.get_graph(create_using=cugraph.Graph(directed=True))
+    with pytest.raises(ValueError):
+        cugraph.k_core(G)
+
+    G = karate.get_graph()
+    degree_type = "invalid"
+    with pytest.raises(ValueError):
+        cugraph.k_core(G, degree_type=degree_type)
