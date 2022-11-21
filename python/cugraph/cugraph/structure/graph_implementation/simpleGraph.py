@@ -16,6 +16,7 @@ from cugraph.structure.graph_primtypes_wrapper import Direction
 from cugraph.structure.symmetrize import symmetrize
 from cugraph.structure.number_map import NumberMap
 import cugraph.dask.common.mg_utils as mg_utils
+import cupy
 import cudf
 import dask_cudf
 import cugraph.dask.comms.comms as Comms
@@ -878,9 +879,13 @@ class simpleGraphImpl:
             elif len(value_col) == 1:
                 weight_col, id_col, type_col = value_col[0], None, None
         else:
-            raise ValueError(f"Illegal value col {type(value_col)}")
+            raise ValueError(f'Illegal value col {type(value_col)}')
 
-        if weight_col is not None:
+        if weight_col is None:
+            weight_col = cudf.Series(
+                cupy.ones(len(self.edgelist.edgelist_df), dtype='float32')
+            )
+        else:
             weight_t = weight_col.dtype
 
             if weight_t == "int32":
@@ -890,7 +895,7 @@ class simpleGraphImpl:
 
         graph_props = GraphProperties(
             is_multigraph=self.properties.multi_edge,
-            is_symmetric=not self.properties.directed,
+            is_symmetric=not self.properties.directed
         )
 
         self._plc_graph = SGGraph(
