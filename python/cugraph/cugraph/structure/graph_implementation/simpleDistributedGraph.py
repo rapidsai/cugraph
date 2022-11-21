@@ -15,7 +15,7 @@ from cugraph.structure import graph_primtypes_wrapper
 from cugraph.structure.graph_primtypes_wrapper import Direction
 from cugraph.structure.number_map import NumberMap
 from cugraph.structure.symmetrize import symmetrize
-import cudf
+import cupy
 import cudf
 import dask_cudf
 
@@ -86,9 +86,7 @@ class simpleDistributedGraphImpl:
             elif values.dtype == "int64":
                 values = values.astype("float64")
         else:
-            values = cudf.Series(
-                cupy.ones(len(edata_x[0]), dtype="float32")
-            )
+            values = cudf.Series(cupy.ones(len(edata_x[0]), dtype="float32"))
 
         if simpleDistributedGraphImpl.edgeIdCol in edata_x[0]:
             if simpleDistributedGraphImpl.edgeTypeCol not in edata_x[0]:
