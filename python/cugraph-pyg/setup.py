@@ -86,6 +86,7 @@ setup(
     ],
     # Include the separately-compiled shared library
     author="NVIDIA Corporation",
+    setup_requires=[],
     packages=find_packages(include=["cugraph_pyg", "cugraph_pyg.*"]),
     package_data=PACKAGE_DATA,
     include_package_data=True,
