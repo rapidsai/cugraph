@@ -50,64 +50,6 @@ void check_clustering(
     CUGRAPH_EXPECTS(clustering != nullptr, "Invalid input argument: clustering is null");
 }
 
-// template <typename vertex_t,
-//           typename edge_t,
-//           typename weight_t,
-//           bool multi_gpu,
-//           bool store_transposed = false>
-// void move_node_fast(
-//   raft::handle_t const& handle,
-//   graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>& current_graph_view,
-//   std::unique_ptr<Dendrogram<vertex_t>>& dendrogram)
-// {
-//   // Allocate queue to hold vertices assigned to this GPU
-//   // vertex_frontier_t<vertex_t, void, multi_gpu> vertex_frontier(
-//   //   handle_, graph_view.local_vertex_partition_range_size());
-//   return;
-// }
-
-template <typename vertex_t,
-          typename edge_t,
-          typename weight_t,
-          bool multi_gpu,
-          bool store_transposed = false>
-std::unique_ptr<rmm::device_uvector<vertex_t>> refine_partition(
-  raft::handle_t const& handle,
-  graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> const& graph_view,
-  rmm::device_uvector<vertex_t>& partition,
-  std::unique_ptr<Dendrogram<vertex_t>>& dendrogram)
-{
-  //
-  // Every vertex starts as a singleton cluster in the refined partition
-  //
-
-  rmm::device_uvector<vertex_t> partition_r(graph_view.local_vertex_partition_range_size(),
-                                            handle.get_stream());
-
-  detail::sequence_fill(handle.get_stream(),
-                        partition_r.begin(),
-                        partition_r.size(),
-                        graph_view.local_vertex_partition_range_first());
-
-  // TODO: Refine incoming partition
-
-  return std::move(partition_r);
-}
-
-template <typename vertex_t,
-          typename edge_t,
-          typename weight_t,
-          bool multi_gpu,
-          bool store_transposed = false>
-void merge_nodes_subset(
-  raft::handle_t const& handle,
-  graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> const& graph_view,
-  rmm::device_uvector<vertex_t>& partition,
-  std::unique_ptr<Dendrogram<vertex_t>>& dendrogram)
-{
-  // Changes must be reflected in partition
-}
-
 template <typename vertex_t,
           typename edge_t,
           typename weight_t,

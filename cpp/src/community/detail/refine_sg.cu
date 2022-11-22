@@ -42,7 +42,6 @@ refine_clustering_2(
     dst_clusters_cache,
   bool up_down);
 
-/*
 template std::tuple<rmm::device_uvector<int64_t>,
                     std::pair<rmm::device_uvector<int64_t>, rmm::device_uvector<int64_t>>>
 refine_clustering_2(
@@ -61,9 +60,7 @@ refine_clustering_2(
   edge_dst_property_t<cugraph::graph_view_t<int64_t, int64_t, float, false, false>, int64_t> const&
     dst_clusters_cache,
   bool up_down);
-*/
 
-/*
 template std::tuple<rmm::device_uvector<int32_t>,
                     std::pair<rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>>>
 refine_clustering_2(
@@ -82,7 +79,6 @@ refine_clustering_2(
   edge_dst_property_t<cugraph::graph_view_t<int32_t, int32_t, double, false, false>, int32_t> const&
     dst_clusters_cache,
   bool up_down);
-
 
 template std::tuple<rmm::device_uvector<int32_t>,
                     std::pair<rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>>>
@@ -121,6 +117,6 @@ refine_clustering_2(
   edge_dst_property_t<cugraph::graph_view_t<int64_t, int64_t, double, false, false>, int64_t> const&
     dst_clusters_cache,
   bool up_down);
-  */
+
 }  // namespace detail
 }  // namespace cugraph

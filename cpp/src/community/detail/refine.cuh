@@ -17,6 +17,8 @@
 
 #include <community/detail/common_methods.hpp>
 
+#include <community/detail/mis.hpp>
+
 #include <detail/graph_utils.cuh>
 #include <prims/per_v_transform_reduce_dst_key_aggregated_outgoing_e.cuh>
 #include <prims/per_v_transform_reduce_incoming_outgoing_e.cuh>
@@ -30,12 +32,15 @@
 #include <cugraph/graph_functions.hpp>
 
 #include <thrust/binary_search.h>
+#include <thrust/distance.h>
 #include <thrust/execution_policy.h>
 #include <thrust/functional.h>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/optional.h>
 #include <thrust/sequence.h>
+#include <thrust/shuffle.h>
 #include <thrust/sort.h>
+#include <thrust/tabulate.h>
 #include <thrust/transform.h>
 #include <thrust/transform_reduce.h>
 #include <thrust/tuple.h>
@@ -45,6 +50,15 @@ CUCO_DECLARE_BITWISE_COMPARABLE(double)
 
 namespace cugraph {
 namespace detail {
+
+// a workaround for cudaErrorInvalidDeviceFunction error when device lambda is used
+template <typename vertex_t, typename weight_t>
+struct filter_negative_gain_moves {
+  __device__ auto operator()(thrust::tuple<vertex_t, vertex_t, weight_t> src_dst_weight) const
+  {
+    return (thrust::get<2>(src_dst_weight)) > 0.0;
+  }
+};
 
 // a workaround for cudaErrorInvalidDeviceFunction error when device lambda is used
 template <typename vertex_t, typename weight_t>
@@ -139,6 +153,34 @@ struct leiden_key_aggregated_edge_op_t {
     return thrust::make_tuple(neighboring_leiden_cluster, theta);
   }
 };
+
+template <typename vertex_t>
+rmm::device_uvector<vertex_t> select_a_radom_set_of_vetices(raft::handle_t const& handle,
+                                                            vertex_t begin,
+                                                            vertex_t end,
+                                                            vertex_t count,
+                                                            uint64_t seed,
+                                                            int repetitions_per_vertex = 0)
+{
+#if 0
+  auto& comm                  = handle.get_comms();
+  auto const comm_rank        = comm.get_rank();
+#endif
+  vertex_t number_of_vertices = end - begin;
+
+  rmm::device_uvector<vertex_t> vertices(
+    std::max((repetitions_per_vertex + 1) * number_of_vertices, count), handle.get_stream());
+  thrust::tabulate(
+    handle.get_thrust_policy(),
+    vertices.begin(),
+    vertices.end(),
+    [begin, number_of_vertices] __device__(auto v) { return begin + (v % number_of_vertices); });
+  thrust::default_random_engine g;
+  g.seed(seed);
+  thrust::shuffle(handle.get_thrust_policy(), vertices.begin(), vertices.end(), g);
+  vertices.resize(count, handle.get_stream());
+  return vertices;
+}
 
 template <typename graph_view_t>
 std::tuple<rmm::device_uvector<typename graph_view_t::vertex_type>,
@@ -462,14 +504,14 @@ refine_clustering_2(
                                                                 handle.get_stream());
 
   thrust::copy(handle.get_thrust_policy(),
-               next_clusters_v.begin(),
-               next_clusters_v.end(),
-               values_of_leiden_to_louvain_map.begin());
-
-  thrust::copy(handle.get_thrust_policy(),
                leiden_assignment.begin(),
                leiden_assignment.end(),
                keys_of_leiden_to_louvain_map.begin());
+
+  thrust::copy(handle.get_thrust_policy(),
+               next_clusters_v.begin(),
+               next_clusters_v.end(),
+               values_of_leiden_to_louvain_map.begin());
 
   auto louvain_leiden_zipped_begin = thrust::make_zip_iterator(thrust::make_tuple(
     values_of_leiden_to_louvain_map.begin(), keys_of_leiden_to_louvain_map.begin()));
@@ -584,23 +626,50 @@ refine_clustering_2(
 
   size_t num_vertices = graph_view.local_vertex_partition_range_size();
 
+  rmm::device_uvector<vertex_t> all_srcs(num_vertices, handle.get_stream());
   rmm::device_uvector<vertex_t> d_srcs(num_vertices, handle.get_stream());
   rmm::device_uvector<vertex_t> d_dsts(num_vertices, handle.get_stream());
   std::optional<rmm::device_uvector<weight_t>> d_weights =
     std::make_optional(rmm::device_uvector<weight_t>(num_vertices, handle.get_stream()));
 
-  auto d_dst_weight_iterator =
-    thrust::make_zip_iterator(thrust::make_tuple(d_dsts.begin(), (*d_weights).begin()));
-
   thrust::sequence(handle.get_thrust_policy(),
-                   d_srcs.begin(),
-                   d_srcs.end(),
+                   all_srcs.begin(),
+                   all_srcs.end(),
                    graph_view.local_vertex_partition_range_first());
 
-  thrust::copy(handle.get_thrust_policy(),
-               cugraph::get_dataframe_buffer_cbegin(output_buffer),
-               cugraph::get_dataframe_buffer_cend(output_buffer),
-               d_dst_weight_iterator);
+  auto d_src_dst_weight_iterator = thrust::make_zip_iterator(
+    thrust::make_tuple(d_srcs.begin(), d_dsts.begin(), (*d_weights).begin()));
+
+  // auto edge_begin = thrust::make_transform_iterator(
+  //   thrust::make_zip_iterator(
+  //     thrust::make_tuple(all_srcs.begin(), cugraph::get_dataframe_buffer_cbegin(output_buffer))),
+  //   make_edges<vertex_t, weight_t>{});
+
+  // auto edge_end = thrust::make_transform_iterator(
+  //   thrust::make_zip_iterator(
+  //     thrust::make_tuple(all_srcs.end(), cugraph::get_dataframe_buffer_cend(output_buffer))),
+  //   make_edges<vertex_t, weight_t>{});
+
+  ///
+
+  auto output_first = get_dataframe_buffer_cbegin(output_buffer);
+  auto edge_begin   = thrust::make_zip_iterator(
+    thrust::make_tuple(all_srcs.begin(),
+                       thrust::get<0>(output_first.get_iterator_tuple()),
+                       thrust::get<1>(output_first.get_iterator_tuple())));
+
+  auto output_last = cugraph::get_dataframe_buffer_cend(output_buffer);
+  auto edge_end =
+    thrust::make_zip_iterator(thrust::make_tuple(all_srcs.end(),
+                                                 thrust::get<0>(output_last.get_iterator_tuple()),
+                                                 thrust::get<1>(output_last.get_iterator_tuple())));
+
+  ///
+  thrust::copy_if(handle.get_thrust_policy(),
+                  edge_begin,
+                  edge_end,
+                  d_src_dst_weight_iterator,
+                  filter_negative_gain_moves<vertex_t, weight_t>{});
 
   constexpr bool storage_transposed = false;
   constexpr bool multi_gpu          = graph_view_t::is_multi_gpu;
@@ -608,10 +677,13 @@ refine_clustering_2(
   cugraph::graph_t<vertex_t, edge_t, weight_t, storage_transposed, multi_gpu> decision_graph(
     handle);
 
-  std::optional<rmm::device_uvector<vertex_t>> d_vertices =
-    std::make_optional(rmm::device_uvector<vertex_t>(num_vertices, handle.get_stream()));
+  // std::optional<rmm::device_uvector<vertex_t>> d_vertices =
+  //   std::make_optional(rmm::device_uvector<vertex_t>(num_vertices, handle.get_stream()));
 
   std::optional<rmm::device_uvector<vertex_t>> renumber_map{std::nullopt};
+
+  using decision_graph_view_t =
+    cugraph::graph_view_t<vertex_t, edge_t, weight_t, false, graph_view_t::is_multi_gpu>;
 
   std::tie(decision_graph, std::ignore, renumber_map) =
     create_graph_from_edgelist<vertex_t, edge_t, weight_t, int32_t, storage_transposed, multi_gpu>(
@@ -624,17 +696,17 @@ refine_clustering_2(
       cugraph::graph_properties_t{false, false},
       multi_gpu ? true : false);
 
+  auto decision_graph_view = decision_graph.view();
+
   //
-  //
-  // Move singleton vertex to other singleton/non-singleton Leiden community
+  // Determine a set of moves using MIS of the decision_graph
   //
 
-  thrust::transform(handle.get_thrust_policy(),
-                    leiden_assignment.begin(),
-                    leiden_assignment.end(),
-                    cugraph::get_dataframe_buffer_begin(output_buffer),
-                    leiden_assignment.begin(),
-                    detail::cluster_update_op_t<vertex_t, weight_t>{up_down});
+  auto chosen_vertices = compute_mis(handle, decision_graph_view);
+
+  // TODO
+
+  // Apply Renumber map
 
   //
   // TODO: Make sure that the moves make sense?
