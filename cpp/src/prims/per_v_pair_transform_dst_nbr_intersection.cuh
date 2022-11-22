@@ -103,7 +103,6 @@ template <typename GraphViewType,
 struct call_intersection_op_t {
   edge_partition_device_view_t<typename GraphViewType::vertex_type,
                                typename GraphViewType::edge_type,
-                               typename GraphViewType::weight_type,
                                GraphViewType::is_multi_gpu>
     edge_partition{};
   thrust::optional<raft::device_span<typename GraphViewType::vertex_type const>> unique_vertices;
@@ -208,7 +207,6 @@ void per_v_pair_transform_dst_nbr_intersection(
 
   using vertex_t   = typename GraphViewType::vertex_type;
   using edge_t     = typename GraphViewType::edge_type;
-  using weight_t   = typename GraphViewType::weight_type;
   using property_t = typename thrust::iterator_traits<VertexValueInputIterator>::value_type;
   using result_t   = typename thrust::iterator_traits<VertexPairValueOutputIterator>::value_type;
 
@@ -249,12 +247,12 @@ void per_v_pair_transform_dst_nbr_intersection(
               handle.get_stream());
 
     property_buffer_for_unique_vertices =
-      collect_values_for_sorted_unique_vertices(handle.get_comms(),
-                                                (*unique_vertices).data(),
-                                                static_cast<vertex_t>((*unique_vertices).size()),
-                                                vertex_value_input_first,
-                                                graph_view.vertex_partition_range_lasts(),
-                                                handle.get_stream());
+      collect_values_for_sorted_unique_int_vertices(handle.get_comms(),
+                                                    (*unique_vertices).begin(),
+                                                    (*unique_vertices).end(),
+                                                    vertex_value_input_first,
+                                                    graph_view.vertex_partition_range_lasts(),
+                                                    handle.get_stream());
   }
 
   rmm::device_uvector<size_t> vertex_pair_indices(num_input_pairs, handle.get_stream());
@@ -297,7 +295,7 @@ void per_v_pair_transform_dst_nbr_intersection(
 
   for (size_t i = 0; i < graph_view.number_of_local_edge_partitions(); ++i) {
     auto edge_partition =
-      edge_partition_device_view_t<vertex_t, edge_t, weight_t, GraphViewType::is_multi_gpu>(
+      edge_partition_device_view_t<vertex_t, edge_t, GraphViewType::is_multi_gpu>(
         graph_view.local_edge_partition_view(i));
 
     auto edge_partition_vertex_pair_index_first =

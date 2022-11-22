@@ -49,6 +49,7 @@ struct e_op_t {
   __device__ thrust::optional<size_t> operator()(thrust::tuple<vertex_t, size_t> tagged_src,
                                                  vertex_t,
                                                  thrust::nullopt_t,
+                                                 thrust::nullopt_t,
                                                  thrust::nullopt_t) const
   {
     return thrust::get<1>(tagged_src);
@@ -149,6 +150,7 @@ k_hop_nbrs(raft::handle_t const& handle,
                                                     frontier.bucket(bucket_idx_cur),
                                                     edge_src_dummy_property_t{}.view(),
                                                     edge_dst_dummy_property_t{}.view(),
+                                                    edge_dummy_property_t{}.view(),
                                                     e_op_t<vertex_t>{},
                                                     reduce_op::null{},
                                                     do_expensive_check);
@@ -221,10 +223,10 @@ k_hop_nbrs(raft::handle_t const& handle,
 
 }  // namespace detail
 
-template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+template <typename vertex_t, typename edge_t, bool multi_gpu>
 std::tuple<rmm::device_uvector<size_t>, rmm::device_uvector<vertex_t>> k_hop_nbrs(
   raft::handle_t const& handle,
-  graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
+  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   raft::device_span<vertex_t const> start_vertices,
   size_t k,
   bool do_expensive_check)

@@ -228,7 +228,9 @@ class Tests_CoreNumber
       hr_clock.start();
     }
 
-    auto [graph, d_renumber_map_labels] =
+    cugraph::graph_t<vertex_t, edge_t, false, false> graph(handle);
+    std::optional<rmm::device_uvector<vertex_t>> d_renumber_map_labels{std::nullopt};
+    std::tie(graph, std::ignore, d_renumber_map_labels) =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, false>(
         handle, input_usecase, false, renumber, true, true);
 
@@ -266,9 +268,9 @@ class Tests_CoreNumber
     }
 
     if (core_number_usecase.check_correctness) {
-      cugraph::graph_t<vertex_t, edge_t, weight_t, false, false> unrenumbered_graph(handle);
+      cugraph::graph_t<vertex_t, edge_t, false, false> unrenumbered_graph(handle);
       if (renumber) {
-        std::tie(unrenumbered_graph, std::ignore) =
+        std::tie(unrenumbered_graph, std::ignore, std::ignore) =
           cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, false>(
             handle, input_usecase, true, false, true, true);
       }

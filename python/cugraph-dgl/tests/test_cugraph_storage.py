@@ -15,16 +15,17 @@ import pytest
 
 try:
     import cugraph_dgl
-except ImportError:
+except ModuleNotFoundError:
     pytest.skip("cugraph_dgl not available", allow_module_level=True)
 
-import dgl
-import torch as th
+from cugraph.utilities.utils import import_optional
 import cudf
 import numpy as np
-
 from cugraph_dgl import CuGraphStorage
-from cugraph_dgl.utils.test_utils import assert_same_sampling_len
+from .utils import assert_same_sampling_len
+
+th = import_optional("torch")
+dgl = import_optional("dgl")
 
 
 @pytest.fixture()
@@ -139,5 +140,14 @@ def test_sampling_homogenous():
     cu_src, cu_dst = cu_g.edges()
     cu_src, cu_dst = cu_src.to("cpu").numpy(), cu_dst.to("cpu").numpy()
 
-    np.testing.assert_equal(exp_src, cu_src)
+    # Assert same values sorted by src
+    exp_src_perm = exp_src.argsort()
+    exp_src = exp_src[exp_src_perm]
+    exp_dst = exp_dst[exp_src_perm]
+
+    cu_src_perm = cu_src.argsort()
+    cu_src = cu_src[cu_src_perm]
+    cu_dst = cu_dst[cu_src_perm]
+
     np.testing.assert_equal(exp_dst, cu_dst)
+    np.testing.assert_equal(exp_src, cu_src)

@@ -10,8 +10,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+from cugraph.utilities.utils import import_optional
 
-import torch as th
+th = import_optional("torch")
 
 
 def assert_same_node_feats(gs, g):

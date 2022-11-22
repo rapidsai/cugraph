@@ -62,7 +62,7 @@ class Tests_MGSimilarity
       hr_clock.start();
     }
 
-    auto [mg_graph, d_mg_renumber_map_labels] =
+    auto [mg_graph, mg_edge_weights, d_mg_renumber_map_labels] =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, true>(
         *handle_, input_usecase, false, true);
 
@@ -77,6 +77,8 @@ class Tests_MGSimilarity
     // 2. run similarity
 
     auto mg_graph_view = mg_graph.view();
+    auto mg_edge_weight_view =
+      mg_edge_weights ? std::make_optional((*mg_edge_weights).view()) : std::nullopt;
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -93,7 +95,8 @@ class Tests_MGSimilarity
     rmm::device_uvector<vertex_t> d_v2(0, handle_->get_stream());
 
     if (handle_->get_comms().get_rank() == 0) {
-      auto [src, dst, wgt] = cugraph::test::graph_to_host_coo(*handle_, mg_graph_view);
+      auto [src, dst, wgt] =
+        cugraph::test::graph_to_host_coo(*handle_, mg_graph_view, mg_edge_weight_view);
 
       size_t max_vertices = std::min(static_cast<size_t>(mg_graph_view.number_of_vertices()),
                                      similarity_usecase.max_seeds);
@@ -158,8 +161,8 @@ class Tests_MGSimilarity
     std::tuple<raft::device_span<vertex_t const>, raft::device_span<vertex_t const>> vertex_pairs{
       {d_v1.data(), d_v1.size()}, {d_v2.data(), d_v2.size()}};
 
-    auto result_score =
-      test_functor.run(*handle_, mg_graph_view, vertex_pairs, similarity_usecase.use_weights);
+    auto result_score = test_functor.run(
+      *handle_, mg_graph_view, mg_edge_weight_view, vertex_pairs, similarity_usecase.use_weights);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -172,7 +175,8 @@ class Tests_MGSimilarity
     // 3. compare SG & MG results
 
     if (similarity_usecase.check_correctness) {
-      auto [src, dst, wgt] = cugraph::test::graph_to_host_coo(*handle_, mg_graph_view);
+      auto [src, dst, wgt] =
+        cugraph::test::graph_to_host_coo(*handle_, mg_graph_view, mg_edge_weight_view);
 
       d_v1 = cugraph::test::device_gatherv(*handle_, d_v1.data(), d_v1.size());
       d_v2 = cugraph::test::device_gatherv(*handle_, d_v2.data(), d_v2.size());
@@ -313,7 +317,7 @@ INSTANTIATE_TEST_SUITE_P(
     // 100}),
     ::testing::Values(Similarity_Usecase{false, true, 20, 100}),
     ::testing::Values(
-      cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, false, false, 0, true))));
+      cugraph::test::Rmat_Usecase(10, 16, 0.57, 0.19, 0.19, 0, true, false, 0, true))));
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_benchmark_test, /* note that scale & edge factor can be overridden in benchmarking (with
@@ -326,6 +330,6 @@ INSTANTIATE_TEST_SUITE_P(
     // disable correctness checks for large graphs
     ::testing::Values(Similarity_Usecase{false, false, 20}),
     ::testing::Values(
-      cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, false, false, 0, true))));
+      cugraph::test::Rmat_Usecase(20, 32, 0.57, 0.19, 0.19, 0, true, false, 0, true))));
 
 CUGRAPH_MG_TEST_PROGRAM_MAIN()
