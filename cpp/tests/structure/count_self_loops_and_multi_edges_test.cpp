@@ -90,7 +90,9 @@ class Tests_CountSelfLoopsAndMultiEdges
       hr_clock.start();
     }
 
-    auto [graph, d_renumber_map_labels] =
+    cugraph::graph_t<vertex_t, edge_t, store_transposed, false> graph(handle);
+    std::optional<rmm::device_uvector<vertex_t>> d_renumber_map_labels{std::nullopt};
+    std::tie(graph, std::ignore, d_renumber_map_labels) =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, store_transposed, false>(
         handle, input_usecase, false, renumber);
 
@@ -132,10 +134,9 @@ class Tests_CountSelfLoopsAndMultiEdges
     }
 
     if (count_self_loops_and_multi_edges_usecase.check_correctness) {
-      cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed, false> unrenumbered_graph(
-        handle);
+      cugraph::graph_t<vertex_t, edge_t, store_transposed, false> unrenumbered_graph(handle);
       if (renumber) {
-        std::tie(unrenumbered_graph, std::ignore) =
+        std::tie(unrenumbered_graph, std::ignore, std::ignore) =
           cugraph::test::construct_graph<vertex_t, edge_t, weight_t, store_transposed, false>(
             handle, input_usecase, false, false);
       }

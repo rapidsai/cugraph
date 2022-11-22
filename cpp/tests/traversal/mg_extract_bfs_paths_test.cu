@@ -78,7 +78,9 @@ class Tests_MGExtractBFSPaths
       hr_clock.start();
     }
 
-    auto [mg_graph, d_mg_renumber_map_labels] =
+    cugraph::graph_t<vertex_t, edge_t, false, true> mg_graph(*handle_);
+    std::optional<rmm::device_uvector<vertex_t>> d_mg_renumber_map_labels{std::nullopt};
+    std::tie(mg_graph, std::ignore, d_mg_renumber_map_labels) =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, true>(
         *handle_, input_usecase, true, renumber);
 
@@ -155,7 +157,9 @@ class Tests_MGExtractBFSPaths
     }
 
     if (extract_bfs_paths_usecase.check_correctness) {
-      auto [sg_graph, d_sg_renumber_map_labels] =
+      cugraph::graph_t<vertex_t, edge_t, false, false> sg_graph(*handle_);
+      std::optional<rmm::device_uvector<vertex_t>> d_sg_renumber_map_labels{std::nullopt};
+      std::tie(sg_graph, std::ignore, d_sg_renumber_map_labels) =
         cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, false>(
           *handle_, input_usecase, true, false);
 

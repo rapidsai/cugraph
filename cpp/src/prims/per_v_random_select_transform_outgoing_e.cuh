@@ -18,6 +18,7 @@
 #include <prims/property_op_utils.cuh>
 
 #include <cugraph/edge_partition_device_view.cuh>
+#include <cugraph/edge_partition_edge_property_device_view.cuh>
 #include <cugraph/edge_partition_endpoint_property_device_view.cuh>
 #include <cugraph/utilities/dataframe_buffer.hpp>
 #include <cugraph/utilities/host_scalar_comm.hpp>
@@ -97,16 +98,15 @@ template <typename GraphViewType,
           typename OutputCountIterator,
           typename EdgePartitionSrcValueInputWrapper,
           typename EdgePartitionDstValueInputWrapper,
+          typename EdgePartitionEdgeValueInputWrapper,
           typename EdgeOp,
           typename T>
 struct transform_and_count_local_nbr_indices_t {
   using key_t    = typename thrust::iterator_traits<KeyIterator>::value_type;
   using vertex_t = typename GraphViewType::vertex_type;
   using edge_t   = typename GraphViewType::edge_type;
-  using weight_t = typename GraphViewType::weight_type;
 
-  edge_partition_device_view_t<vertex_t, edge_t, weight_t, GraphViewType::is_multi_gpu>
-    edge_partition{};
+  edge_partition_device_view_t<vertex_t, edge_t, GraphViewType::is_multi_gpu> edge_partition{};
   UniqueKeyIdxIterator unique_key_idx_first{};
   KeyIterator key_first{};
   OffsetIterator offset_first{};
@@ -115,6 +115,7 @@ struct transform_and_count_local_nbr_indices_t {
   thrust::optional<OutputCountIterator> output_count_first{};
   EdgePartitionSrcValueInputWrapper edge_partition_src_value_input;
   EdgePartitionDstValueInputWrapper edge_partition_dst_value_input;
+  EdgePartitionEdgeValueInputWrapper edge_partition_e_value_input;
   EdgeOp e_op{};
   edge_t invalid_idx{};
   thrust::optional<T> invalid_value{thrust::nullopt};
@@ -131,22 +132,22 @@ struct transform_and_count_local_nbr_indices_t {
     }
     auto major_offset = edge_partition.major_offset_from_major_nocheck(major);
     vertex_t const* indices{nullptr};
-    thrust::optional<weight_t const*> weights{thrust::nullopt};
+    edge_t edge_offset{0};
     [[maybe_unused]] edge_t local_degree{0};
     if constexpr (GraphViewType::is_multi_gpu) {
       auto major_hypersparse_first = edge_partition.major_hypersparse_first();
       if (major_hypersparse_first && (major >= *major_hypersparse_first)) {
         auto major_hypersparse_idx = edge_partition.major_hypersparse_idx_from_major_nocheck(major);
         if (major_hypersparse_idx) {
-          thrust::tie(indices, weights, local_degree) = edge_partition.local_edges(
+          thrust::tie(indices, edge_offset, local_degree) = edge_partition.local_edges(
             edge_partition.major_offset_from_major_nocheck(*major_hypersparse_first) +
             *major_hypersparse_idx);
         }
       } else {
-        thrust::tie(indices, weights, local_degree) = edge_partition.local_edges(major_offset);
+        thrust::tie(indices, edge_offset, local_degree) = edge_partition.local_edges(major_offset);
       }
     } else {
-      thrust::tie(indices, weights, local_degree) = edge_partition.local_edges(major_offset);
+      thrust::tie(indices, edge_offset, local_degree) = edge_partition.local_edges(major_offset);
     }
     auto start_offset = *(offset_first + i);
     auto end_offset   = *(offset_first + (i + 1));
@@ -172,17 +173,19 @@ struct transform_and_count_local_nbr_indices_t {
         }
         auto src_offset = GraphViewType::is_storage_transposed ? minor_offset : major_offset;
         auto dst_offset = GraphViewType::is_storage_transposed ? major_offset : minor_offset;
-        *(output_value_first + i) = evaluate_edge_op<GraphViewType,
-                                                     key_t,
-                                                     EdgePartitionSrcValueInputWrapper,
-                                                     EdgePartitionDstValueInputWrapper,
-                                                     EdgeOp>()
-                                      .compute(key_or_src,
-                                               key_or_dst,
-                                               weights ? (*weights)[local_nbr_idx] : weight_t{1.0},
-                                               edge_partition_src_value_input.get(src_offset),
-                                               edge_partition_dst_value_input.get(dst_offset),
-                                               e_op);
+        *(output_value_first + i) =
+          evaluate_edge_op<GraphViewType,
+                           key_t,
+                           EdgePartitionSrcValueInputWrapper,
+                           EdgePartitionDstValueInputWrapper,
+                           EdgePartitionEdgeValueInputWrapper,
+                           EdgeOp>()
+            .compute(key_or_src,
+                     key_or_dst,
+                     edge_partition_src_value_input.get(src_offset),
+                     edge_partition_dst_value_input.get(dst_offset),
+                     edge_partition_e_value_input.get(edge_offset + local_nbr_idx),
+                     e_op);
         ++num_valid_local_nbr_indices;
       } else if (invalid_value) {
         *(output_value_first + i) = *invalid_value;
@@ -220,6 +223,7 @@ template <bool incoming,
           typename VertexFrontierBucketType,
           typename EdgeSrcValueInputWrapper,
           typename EdgeDstValueInputWrapper,
+          typename EdgeValueInputWrapper,
           typename EdgeOp,
           typename T>
 std::tuple<std::optional<rmm::device_uvector<size_t>>,
@@ -229,10 +233,7 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
                                 VertexFrontierBucketType const& frontier,
                                 EdgeSrcValueInputWrapper edge_src_value_input,
                                 EdgeDstValueInputWrapper edge_dst_value_input,
-#if 0  // FIXME: This will be necessary to include edge IDs in the output.
-       // Primitives API should be updated to support this in a consistent way.
-                               EdgeValueInputWrapper egde_value_input,
-#endif
+                                EdgeValueInputWrapper edge_value_input,
                                 EdgeOp e_op,
                                 raft::random::RngState& rng_state,
                                 size_t K,
@@ -243,7 +244,6 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
 #ifndef NO_CUGRAPH_OPS
   using vertex_t = typename GraphViewType::vertex_type;
   using edge_t   = typename GraphViewType::edge_type;
-  using weight_t = typename GraphViewType::weight_type;
   using key_t    = typename VertexFrontierBucketType::key_type;
   using key_buffer_t =
     decltype(allocate_dataframe_buffer<key_t>(size_t{0}, rmm::cuda_stream_view{}));
@@ -268,12 +268,19 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
                        edge_partition_endpoint_property_device_view_t<
                          vertex_t,
                          typename EdgeDstValueInputWrapper::value_iterator>>>;
+  using edge_partition_e_input_device_view_t = std::conditional_t<
+    std::is_same_v<typename EdgeValueInputWrapper::value_type, thrust::nullopt_t>,
+    detail::edge_partition_edge_dummy_property_device_view_t<vertex_t>,
+    detail::edge_partition_edge_property_device_view_t<
+      edge_t,
+      typename EdgeValueInputWrapper::value_iterator>>;
 
   static_assert(GraphViewType::is_storage_transposed == incoming);
   static_assert(std::is_same_v<typename evaluate_edge_op<GraphViewType,
                                                          key_t,
                                                          EdgeSrcValueInputWrapper,
                                                          EdgeDstValueInputWrapper,
+                                                         EdgeValueInputWrapper,
                                                          EdgeOp>::result_type,
                                T>);
 
@@ -353,7 +360,7 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
   rmm::device_uvector<edge_t> frontier_degrees(frontier.size(), handle.get_stream());
   for (size_t i = 0; i < graph_view.number_of_local_edge_partitions(); ++i) {
     auto edge_partition =
-      edge_partition_device_view_t<vertex_t, edge_t, weight_t, GraphViewType::is_multi_gpu>(
+      edge_partition_device_view_t<vertex_t, edge_t, GraphViewType::is_multi_gpu>(
         graph_view.local_edge_partition_view(i));
 
     vertex_t const* edge_partition_frontier_major_first{nullptr};
@@ -515,7 +522,7 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
     handle.get_stream());
   for (size_t i = 0; i < graph_view.number_of_local_edge_partitions(); ++i) {
     auto edge_partition =
-      edge_partition_device_view_t<vertex_t, edge_t, weight_t, GraphViewType::is_multi_gpu>(
+      edge_partition_device_view_t<vertex_t, edge_t, GraphViewType::is_multi_gpu>(
         graph_view.local_edge_partition_view(i));
 
     auto edge_partition_frontier_key_first =
@@ -539,6 +546,7 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
         edge_partition_src_input_device_view_t(edge_src_value_input, i);
       edge_partition_dst_value_input = edge_partition_dst_input_device_view_t(edge_dst_value_input);
     }
+    auto edge_partition_e_value_input = edge_partition_e_input_device_view_t(edge_value_input, i);
 
     if constexpr (GraphViewType::is_multi_gpu) {
       thrust::sort_by_key(handle.get_thrust_policy(),
@@ -584,6 +592,7 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
                                                 size_t*,
                                                 edge_partition_src_input_device_view_t,
                                                 edge_partition_dst_input_device_view_t,
+                                                edge_partition_e_input_device_view_t,
                                                 EdgeOp,
                                                 T>{edge_partition,
                                                    unique_key_indices.begin(),
@@ -594,6 +603,7 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
                                                    thrust::nullopt,
                                                    edge_partition_src_value_input,
                                                    edge_partition_dst_value_input,
+                                                   edge_partition_e_value_input,
                                                    e_op,
                                                    cugraph::ops::gnn::graph::INVALID_ID<edge_t>,
                                                    to_thrust_optional(invalid_value)});
@@ -614,6 +624,7 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
           size_t*,
           edge_partition_src_input_device_view_t,
           edge_partition_dst_input_device_view_t,
+          edge_partition_e_input_device_view_t,
           EdgeOp,
           T>{edge_partition,
              thrust::make_counting_iterator(size_t{0}),
@@ -624,6 +635,7 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
              sample_counts ? thrust::optional<size_t*>((*sample_counts).data()) : thrust::nullopt,
              edge_partition_src_value_input,
              edge_partition_dst_value_input,
+             edge_partition_e_value_input,
              e_op,
              cugraph::ops::gnn::graph::INVALID_ID<edge_t>,
              to_thrust_optional(invalid_value)});
@@ -729,6 +741,7 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
  * current (tagged-)vertex frontier.
  * @tparam EdgeSrcValueInputWrapper Type of the wrapper for edge source property values.
  * @tparam EdgeDstValueInputWrapper Type of the wrapper for edge destination property values.
+ * @tparam EdgeValueInputWrapper Type of the wrapper for edge property values.
  * @tparam EdgeBiasOp Type of the quaternary (or quinary) edge operator to set-up selection bias
  * values.
  * @tparam EdgeOp Type of the quaternary (or quinary) edge operator.
@@ -748,12 +761,16 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
  * cugraph::edge_dst_property_t::view() (if @p e_op needs to access destination property values) or
  * cugraph::edge_dst_dummy_property_t::view() (if @p e_op does not access destination property
  * values). Use update_edge_dst_property to fill the wrapper.
- * @param e_bias_op Quaternary (or quinary) operator takes edge source, edge destination, (optional
- * edge weight), property values for the source, and property values for the destination and returns
- * a graph weight type bias value to be used in biased random selection.
- * @param e_op Quaternary (or quinary) operator takes edge source, edge destination, (optional edge
- * weight), property values for the source, and property values for the destination and returns a
- * value to be collected in the output. This function is called only for the selected edges.
+ * @param edge_value_input Wrapper used to access edge input property values (for the edges assigned
+ * to this process in multi-GPU). Use either cugraph::edge_property_t::view() (if @p e_op needs to
+ * access edge property values) or cugraph::edge_dummy_property_t::view() (if @p e_op does not
+ * access edge property values).
+ * @param e_bias_op Quinary operator takes edge source, edge destination, property values for the
+ * source, destination, and edge and returns a floating point bias value to be used in biased random
+ * selection.
+ * @param e_op Quinary operator takes edge source, edge destination, property values for the source,
+ * destination, and edge and returns a value to be collected in the output. This function is called
+ * only for the selected edges.
  * @param K Number of outgoing edges to select per (tagged-)vertex.
  * @param with_replacement A flag to specify whether a single outgoing edge can be selected multiple
  * times (if @p with_replacement = true) or can be selected only once (if @p with_replacement =
@@ -774,6 +791,7 @@ template <typename GraphViewType,
           typename VertexFrontierBucketType,
           typename EdgeSrcValueInputWrapper,
           typename EdgeDstValueInputWrapper,
+          typename EdgeValueInputWrapper,
           typename EdgeBiasOp,
           typename EdgeOp,
           typename T>
@@ -784,10 +802,7 @@ per_v_random_select_transform_outgoing_e(raft::handle_t const& handle,
                                          VertexFrontierBucketType const& frontier,
                                          EdgeSrcValueInputWrapper edge_src_value_input,
                                          EdgeDstValueInputWrapper edge_dst_value_input,
-#if 0  // FIXME: This will be necessary to include edge IDs in the output.
-       // Primitives API should be updated to support this in a consistent way.
-                               EdgeValueInputWrapper egde_value_input,
-#endif
+                                         EdgeValueInputWrapper egde_value_input,
                                          EdgeBiasOp e_bias_op,
                                          EdgeOp e_op,
                                          raft::random::RngState& rng_state,
@@ -813,6 +828,7 @@ per_v_random_select_transform_outgoing_e(raft::handle_t const& handle,
  * current (tagged-)vertex frontier.
  * @tparam EdgeSrcValueInputWrapper Type of the wrapper for edge source property values.
  * @tparam EdgeDstValueInputWrapper Type of the wrapper for edge destination property values.
+ * @tparam EdgeValueInputWrapper Type of the wrapper for edge property values.
  * @tparam EdgeOp Type of the quaternary (or quinary) edge operator.
  * @tparam T Type of the selected and transformed edge output values.
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
@@ -830,9 +846,13 @@ per_v_random_select_transform_outgoing_e(raft::handle_t const& handle,
  * cugraph::edge_dst_property_t::view() (if @p e_op needs to access destination property values) or
  * cugraph::edge_dst_dummy_property_t::view() (if @p e_op does not access destination property
  * values). Use update_edge_dst_property to fill the wrapper.
- * @param e_op Quaternary (or quinary) operator takes edge source, edge destination, (optional edge
- * weight), property values for the source, and property values for the destination and returns a
- * value to be collected in the output. This function is called only for the selected edges.
+ * @param edge_value_input Wrapper used to access edge input property values (for the edges assigned
+ * to this process in multi-GPU). Use either cugraph::edge_property_t::view() (if @p e_op needs to
+ * access edge property values) or cugraph::edge_dummy_property_t::view() (if @p e_op does not
+ * access edge property values).
+ * @param e_op Quinary operator takes edge source, edge destination, property values for the source,
+ * destination, and edge and returns a value to be collected in the output. This function is called
+ * only for the selected edges.
  * @param K Number of outgoing edges to select per (tagged-)vertex.
  * @param with_replacement A flag to specify whether a single outgoing edge can be selected multiple
  * times (if @p with_replacement = true) or can be selected only once (if @p with_replacement =
@@ -853,6 +873,7 @@ template <typename GraphViewType,
           typename VertexFrontierBucketType,
           typename EdgeSrcValueInputWrapper,
           typename EdgeDstValueInputWrapper,
+          typename EdgeValueInputWrapper,
           typename EdgeOp,
           typename T>
 std::tuple<std::optional<rmm::device_uvector<size_t>>,
@@ -862,10 +883,7 @@ per_v_random_select_transform_outgoing_e(raft::handle_t const& handle,
                                          VertexFrontierBucketType const& frontier,
                                          EdgeSrcValueInputWrapper edge_src_value_input,
                                          EdgeDstValueInputWrapper edge_dst_value_input,
-#if 0  // FIXME: This will be necessary to include edge IDs in the output.
-       // Primitives API should be updated to support this in a consistent way.
-                               EdgeValueInputWrapper egde_value_input,
-#endif
+                                         EdgeValueInputWrapper edge_value_input,
                                          EdgeOp e_op,
                                          raft::random::RngState& rng_state,
                                          size_t K,
@@ -878,6 +896,7 @@ per_v_random_select_transform_outgoing_e(raft::handle_t const& handle,
                                                         frontier,
                                                         edge_src_value_input,
                                                         edge_dst_value_input,
+                                                        edge_value_input,
                                                         e_op,
                                                         rng_state,
                                                         K,

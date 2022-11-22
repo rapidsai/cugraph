@@ -125,7 +125,9 @@ class Tests_MGTransformReduceE
       handle_->get_comms().barrier();
       hr_clock.start();
     }
-    auto [mg_graph, d_mg_renumber_map_labels] =
+    cugraph::graph_t<vertex_t, edge_t, store_transposed, true> mg_graph(*handle_);
+    std::optional<rmm::device_uvector<vertex_t>> d_mg_renumber_map_labels{std::nullopt};
+    std::tie(mg_graph, std::ignore, d_mg_renumber_map_labels) =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, store_transposed, true>(
         *handle_, input_usecase, prims_usecase.test_weighted, true);
 
@@ -164,7 +166,8 @@ class Tests_MGTransformReduceE
       mg_graph_view,
       mg_src_prop.view(),
       mg_dst_prop.view(),
-      [] __device__(auto src, auto dst, weight_t wt, auto src_property, auto dst_property) {
+      cugraph::edge_dummy_property_t{}.view(),
+      [] __device__(auto src, auto dst, auto src_property, auto dst_property, thrust::nullopt_t) {
         if (src_property < dst_property) {
           return src_property;
         } else {
@@ -184,10 +187,11 @@ class Tests_MGTransformReduceE
     // 3. compare SG & MG results
 
     if (prims_usecase.check_correctness) {
-      cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed, false> sg_graph(*handle_);
-      std::tie(sg_graph, std::ignore) =
+      cugraph::graph_t<vertex_t, edge_t, store_transposed, false> sg_graph(*handle_);
+      std::tie(sg_graph, std::ignore, std::ignore) =
         cugraph::test::construct_graph<vertex_t, edge_t, weight_t, store_transposed, false>(
           *handle_, input_usecase, true, false);
+
       auto sg_graph_view = sg_graph.view();
 
       auto sg_vertex_prop = cugraph::test::generate<vertex_t, result_t>::vertex_property(
@@ -205,7 +209,8 @@ class Tests_MGTransformReduceE
         sg_graph_view,
         sg_src_prop.view(),
         sg_dst_prop.view(),
-        [] __device__(auto src, auto dst, weight_t wt, auto src_property, auto dst_property) {
+        cugraph::edge_dummy_property_t{}.view(),
+        [] __device__(auto src, auto dst, auto src_property, auto dst_property, thrust::nullopt_t) {
           if (src_property < dst_property) {
             return src_property;
           } else {
