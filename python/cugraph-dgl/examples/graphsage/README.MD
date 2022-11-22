@@ -10,7 +10,7 @@ Requirements
 ------------
 
 ```bash
-pip install requests torchmetrics
+mamba install ogb torchmetrics -c conda-forge
 ```
 
 How to run

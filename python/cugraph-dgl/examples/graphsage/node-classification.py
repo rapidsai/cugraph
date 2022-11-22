@@ -110,7 +110,6 @@ def layerwise_infer(device, graph, nid, model, batch_size):
             .fetch(nid.to(device), device=device)
             .to(pred.device)
         )
-        # label = graph.ndata['label'][nid].to(pred.device)
         return MF.accuracy(pred, label)
 
 
@@ -199,7 +198,7 @@ if __name__ == "__main__":
     # load and preprocess dataset
     print("Loading data")
     dataset = AsNodePredDataset(DglNodePropPredDataset("ogbn-products"))
-    g = dataset.g
+    g = dataset[0]
     if args.mode == "cugraph_storage":
         if args.use_rmm:
             import rmm
