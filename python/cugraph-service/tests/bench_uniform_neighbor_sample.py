@@ -166,7 +166,7 @@ def get_edgelist(graph_data, gpu_config):
             0.19,  # from Graph500
             seed,
             clip_and_flip=False,
-            scramble_vertex_ids=True,
+            scramble_vertex_ids=False,  # FIXME: need to understand relevance of this
             create_using=None,  # None == return edgelist
             mg=is_mg,
         )
@@ -183,7 +183,9 @@ def get_edgelist(graph_data, gpu_config):
         )
 
 
-def get_uniform_neighbor_sample_args(G, seed, start_list_len, fanout_list_len):
+def get_uniform_neighbor_sample_args(
+    G, seed, start_list_len, fanout_list_len, with_replacement
+):
     """
     Return a dictionary containing the args for uniform_neighbor_sample based
     on the graph and desired args passed in. For example, if a large start list
@@ -198,14 +200,31 @@ def get_uniform_neighbor_sample_args(G, seed, start_list_len, fanout_list_len):
         raise ValueError(f"got unexpected value {start_list_len=}")
     if fanout_list_len not in ["SMALL", "LARGE"]:
         raise ValueError(f"got unexpected value {fanout_list_len=}")
+    if with_replacement not in [True, False]:
+        raise ValueError(f"got unexpected value {with_replacement=}")
 
     rng = np.random.default_rng(seed)
     num_verts = G.number_of_vertices()
 
     if start_list_len == "LARGE":
-        start_list = rng.choice(num_verts, min(1000, int(num_verts * 0.5)))
+        num_start_verts = min(1000, int(num_verts * 0.25))
     else:
-        start_list = rng.choice(num_verts, 2)
+        num_start_verts = 2
+
+    # start_list = rng.choice(num_verts, min(1000, int(num_verts * 0.25)))
+    # FIXME: need a better way to get unique starting verts
+    starts = set()
+    edgelist = G.edges()
+    for _ in range(num_start_verts):
+        i = rng.choice(num_verts, 1)[0]
+        # FIXME: must be "src" even though input edgelist used "source"
+        col = "src"
+        v = edgelist[col].loc[i]
+        while v in starts:
+            i = rng.choice(num_verts, 1)[0]
+            v = edgelist[col].loc[i]
+        starts.add(v)
+    start_list = list(starts)
 
     if fanout_list_len == "LARGE":
         num_edges = G.number_of_edges()
@@ -222,7 +241,7 @@ def get_uniform_neighbor_sample_args(G, seed, start_list_len, fanout_list_len):
     return {
         "start_list": list(start_list),
         "fanout_vals": list(fanout_list),
-        "with_replacement": True,
+        "with_replacement": with_replacement,
     }
 
 
@@ -273,37 +292,40 @@ def graph_objs(request):
 
 ################################################################################
 # Benchmarks
-"""
 @pytest.mark.parametrize("start_list_len", [small_start_list_pv, large_start_list_pv])
 @pytest.mark.parametrize(
     "fanout_vals_len", [small_fanout_list_pv, large_fanout_list_pv]
+)
+@pytest.mark.parametrize(
+    "with_replacement", [True, False], ids=lambda v: f"with_replacement={v}"
 )
 def bench_uniform_neighbor_sample(
-    gpubenchmark, graph_objs, start_list_len, fanout_vals_len
+    gpubenchmark, graph_objs, start_list_len, fanout_vals_len, with_replacement
 ):
-"""
-
-
-@pytest.mark.parametrize("start_list_len", [small_start_list_pv, large_start_list_pv])
-@pytest.mark.parametrize(
-    "fanout_vals_len", [small_fanout_list_pv, large_fanout_list_pv]
-)
-def bench_uniform_neighbor_sample(graph_objs, start_list_len, fanout_vals_len):
-    """ """
+    """
+    @pytest.mark.parametrize("start_list_len",
+                             [small_start_list_pv, large_start_list_pv])
+    @pytest.mark.parametrize(
+        "fanout_vals_len", [small_fanout_list_pv, large_fanout_list_pv]
+    )
+    @pytest.mark.parametrize("with_replacement", [True, False])
+    def bench_uniform_neighbor_sample(
+        graph_objs, start_list_len, fanout_vals_len, with_replacement):
+    """
     (G, uniform_neighbor_sample_func) = graph_objs
 
     uns_args = get_uniform_neighbor_sample_args(
-        G, seed, start_list_len, fanout_vals_len
+        G, seed, start_list_len, fanout_vals_len, with_replacement
     )
-    print(f"\n{uns_args}")
+    # print(f"\n{uns_args}")
     # FIXME: uniform_neighbor_sample cannot take a np.ndarray for start_list
-    """
-    gpubenchmark(uniform_neighbor_sample_func,
-                 G,
-                 start_list=uns_args["start_list"],
-                 fanout_vals=uns_args["fanout_vals"],
-                 with_replacement=uns_args["with_replacement"],
-                 )
+    gpubenchmark(
+        uniform_neighbor_sample_func,
+        G,
+        start_list=uns_args["start_list"],
+        fanout_vals=uns_args["fanout_vals"],
+        with_replacement=uns_args["with_replacement"],
+    )
     """
     uniform_neighbor_sample_func(
         G,
@@ -311,3 +333,4 @@ def bench_uniform_neighbor_sample(graph_objs, start_list_len, fanout_vals_len):
         fanout_vals=uns_args["fanout_vals"],
         with_replacement=uns_args["with_replacement"],
     )
+    """
