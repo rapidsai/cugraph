@@ -33,7 +33,9 @@ cugraph-service
 """
 
 import pytest
+import numpy as np
 from pylibcugraph.testing.utils import gen_fixture_params
+import dask_cudf
 
 # If the rapids-pytest-benchmark plugin is installed, the "gpubenchmark"
 # fixture will be available automatically. Check that this fixture is available
@@ -48,10 +50,10 @@ except ImportError:
     gpubenchmark = pytest_benchmark.plugin.benchmark
 
 from cugraph import Graph
-from cugraph_service_client import RemoteGraph
 from cugraph.experimental import datasets
+from cugraph.generators import rmat
 
-# from cugraph.generators import rmat
+from cugraph_service_client import RemoteGraph
 
 # pytest param values ("pv" suffix) used for defining input combinations. These
 # also include markers for easily running specific combinations.
@@ -145,29 +147,67 @@ graph_obj_fixture_params = gen_fixture_params(
 )
 
 
+def get_edgelist(graph_data, gpu_config):
+    is_mg = gpu_config in ["SNMG", "MNMG"]
+
+    if isinstance(graph_data, datasets.Dataset):
+        edgelist_df = graph_data.get_edgelist()
+        if is_mg:
+            return dask_cudf.from_cudf(edgelist_df)
+        else:
+            return edgelist_df
+    # Assume dictionary contains RMAT params
+    elif isinstance(graph_data, dict):
+        scale = graph_data["scale"]
+        num_edges = (2**scale) * graph_data["edgefactor"]
+        seed = graph_data["seed"]
+        edgelist_df = rmat(
+            scale,
+            num_edges,
+            0.57,  # from Graph500
+            0.19,  # from Graph500
+            0.19,  # from Graph500
+            seed,
+            clip_and_flip=False,
+            scramble_vertex_ids=True,
+            create_using=None,  # None == return edgelist
+            mg=is_mg,
+        )
+        rng = np.random.default_rng(seed)
+        edgelist_df["weight"] = rng.random(size=len(edgelist_df))
+        return edgelist_df
+    else:
+        raise TypeError(
+            "graph_data can only be Dataset or dict, " f"got {type(graph_data)}"
+        )
+
+
 @pytest.fixture(scope="module", params=graph_obj_fixture_params)
 def graph_obj(request):
-    """
-    (graph_type, gpu_config) = request.param
+    (graph_type, gpu_config, graph_data) = request.param
     if graph_type is Graph:
-        G = cugraph.Graph()
-        if config == "SG":
-            # G.from_cudf_edgelist()
-        elif config == "SNMG":
-            # G.from_dask_cudf_edgelist()
+        G = Graph()
+        edgelist_df = get_edgelist(graph_data, gpu_config)
+        if gpu_config == "SG":
+            G.from_cudf_edgelist(edgelist_df)
+        elif gpu_config == "SNMG":
+            G.from_dask_cudf_edgelist(edgelist_df)
+        elif gpu_config == "MNMG":
+            raise NotImplementedError("config=MNMG")
         else:
-            raise RuntimeError(f"got unexpected config value for Graph: {config}")
+            raise RuntimeError(
+                f"got unexpected gpu_config value for Graph: {gpu_config}"
+            )
 
     elif graph_type is RemoteGraph:
-        if config == "SG":
-            client = create_sg_client()
+        raise NotImplementedError
+        if gpu_config == "SG":
+            # client = create_sg_client()
             G = RemoteGraph()
-
 
     else:
         raise RuntimeError(f"{graph_type} is invalid")
-    """
-    G = None
+
     yield G
 
 
@@ -178,11 +218,9 @@ def graph_obj(request):
 def bench_uniform_neighbor_sample(
     gpubenchmark, graph_obj, start_list_len, fanout_vals_len
 ):
-    """
-    The graph_obj fixture is parameterized to be one of the following: "local
-    SG", "local MG", "remote SG", "remote MG"
-    """
-    # (start_list, fanout_vals) = start_list__fanout_vals
+    """ """
+    # G = graph_obj
+    # breakpoint()
     import time
 
     def f():
