@@ -94,6 +94,7 @@ def experimental_warning_wrapper(obj):
 
     return warning_wrapper_function
 
+# Implementation of promoted_experimental_warning_wrapper taken from:  https://github.com/rapidsai/cugraph/blob/main/python/pylibcugraph/pylibcugraph/utilities/api_tools.py
 
 def promoted_experimental_warning_wrapper(obj):
     """
