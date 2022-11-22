@@ -59,18 +59,6 @@ namespace detail {
 
 int32_t constexpr per_v_transform_reduce_e_kernel_block_size = 512;
 
-template <typename vertex_t, typename T, typename OutputValueIterator, typename ReduceOp>
-struct scatter_reduce_t {
-  OutputValueIterator output_value_first{};
-  ReduceOp reduce_op{};
-
-  __device__ void operator()(thrust::tuple<vertex_t, T> pair) const
-  {
-    *(output_value_first + thrust::get<0>(pair)) =
-      reduce_op(*(output_value_first + thrust::get<0>(pair)), thrust::get<1>(pair));
-  }
-};
-
 template <bool update_major,
           typename GraphViewType,
           typename EdgePartitionSrcValueInputWrapper,
@@ -854,79 +842,6 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
 
       if (segment_offsets && stream_pool_indices) {
         if (edge_partition.dcs_nzd_vertex_count()) {
-#if 0  // FIXME: P2P when expected local degree << col_comm_size, haven't confirmed this actually
-       // improves performance
-          auto exec_stream = handle.get_stream_from_stream_pool((i * max_segments) %
-                                                                (*stream_pool_indices).size());
-
-          auto tx_size         = (col_comm_rank == static_cast<int>(i))
-                                   ? size_t{0}
-                                   : static_cast<size_t>(*(edge_partition.dcs_nzd_vertex_count()));
-          auto tx_value_buffer = allocate_dataframe_buffer<T>(tx_size, exec_stream);
-
-          if (tx_size > size_t{0}) {
-            auto map_first = thrust::make_transform_iterator(
-              *(edge_partition.dcs_nzd_vertices()),
-              shift_left_t<vertex_t>{edge_partition.major_range_first()});
-            thrust::gather(rmm::exec_policy(exec_stream),
-                           map_first,
-                           map_first + tx_size,
-                           major_buffer_first,
-                           get_dataframe_buffer_begin(tx_value_buffer));
-          }
-
-          auto rx_counts =
-            host_scalar_gather(col_comm, tx_size, static_cast<int>(i), exec_stream);
-          std::vector<size_t> rx_displs(rx_counts.size());
-          std::exclusive_scan(rx_counts.begin(), rx_counts.end(), rx_displs.begin(), size_t{0});
-
-          // we may do this in multiple rounds if allocating the rx buffer becomes the memory
-          // bottleneck.
-          auto rx_size = (col_comm_rank == static_cast<int>(i))
-                           ? rx_displs.back() + rx_counts.back()
-                           : size_t{0};
-
-          rmm::device_uvector<vertex_t> rx_vertices(rx_size, exec_stream);
-          device_gatherv(col_comm,
-                         *(edge_partition.dcs_nzd_vertices()),
-                         rx_vertices.begin(),
-                         tx_size,
-                         rx_counts,
-                         rx_displs,
-                         static_cast<int>(i),
-                         exec_stream);
-          auto rx_value_buffer = allocate_dataframe_buffer<T>(rx_size, exec_stream);
-          device_gatherv(col_comm,
-                         get_dataframe_buffer_begin(tx_value_buffer),
-                         get_dataframe_buffer_begin(rx_value_buffer),
-                         tx_size,
-                         rx_counts,
-                         rx_displs,
-                         static_cast<int>(i),
-                         exec_stream);
-
-          if (rx_size > size_t{0}) {
-            auto pair_first = thrust::make_zip_iterator(thrust::make_tuple(
-              thrust::make_transform_iterator(
-                rx_vertices.begin(), shift_left_t<vertex_t>{edge_partition.major_range_first()}),
-              get_dataframe_buffer_begin(rx_value_buffer)));
-            thrust::for_each(rmm::exec_policy(exec_stream),
-                             pair_first,
-                             pair_first + rx_size,
-                             scatter_reduce_t<vertex_t,
-                                              T,
-                                              decltype(major_buffer_first),
-                                              property_op<T, thrust::plus>>{
-                               major_buffer_first, property_op<T, thrust::plus>{}});
-          }
-
-          if (col_comm_rank == static_cast<int>(i)) {
-            thrust::copy(rmm::exec_policy(exec_stream),
-                         major_buffer_first + (*segment_offsets)[3],
-                         major_buffer_first + (*segment_offsets)[4],
-                         vertex_value_output_first + (*segment_offsets)[3]);
-          }
-#else
           device_reduce(
             col_comm,
             major_buffer_first + (*segment_offsets)[3],
@@ -935,7 +850,6 @@ void per_v_transform_reduce_e(raft::handle_t const& handle,
             raft::comms::op_t::SUM,
             static_cast<int>(i),
             handle.get_stream_from_stream_pool((i * max_segments) % (*stream_pool_indices).size()));
-#endif
         }
         if ((*segment_offsets)[3] - (*segment_offsets)[2] > 0) {
           device_reduce(col_comm,
