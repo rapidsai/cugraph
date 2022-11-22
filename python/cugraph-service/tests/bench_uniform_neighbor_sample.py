@@ -49,44 +49,135 @@ except ImportError:
 
 from cugraph import Graph
 from cugraph_service_client import RemoteGraph
+from cugraph.experimental import datasets
 
+# from cugraph.generators import rmat
 
-# pytest param values used for defining input combinations. These also include
-# markers for easily running specific combinations.
-_sg_param_val = pytest.param("SG", marks=[pytest.mark.sg])
-_snmg_param_val = pytest.param("SNMG", marks=[pytest.mark.snmg, pytest.mark.mg])
-_mnmg_param_val = pytest.param("MNMG", marks=[pytest.mark.mnmg, pytest.mark.mg])
-_graph_param_val = pytest.param(Graph, marks=[pytest.mark.local])
-_remotegraph_param_val = pytest.param(RemoteGraph, marks=[pytest.mark.remote])
-
+# pytest param values ("pv" suffix) used for defining input combinations. These
+# also include markers for easily running specific combinations.
+sg_pv = pytest.param(
+    "SG",
+    marks=[pytest.mark.sg],
+    id="config=SG",
+)
+snmg_pv = pytest.param(
+    "SNMG",
+    marks=[pytest.mark.snmg, pytest.mark.mg],
+    id="config=SNMG",
+)
+mnmg_pv = pytest.param(
+    "MNMG",
+    marks=[pytest.mark.mnmg, pytest.mark.mg],
+    id="config=MNMG",
+)
+graph_pv = pytest.param(
+    Graph,
+    marks=[pytest.mark.local],
+    id="type=Graph",
+)
+remotegraph_pv = pytest.param(
+    RemoteGraph,
+    marks=[pytest.mark.remote],
+    id="type=RemoteGraph",
+)
+karate_pv = pytest.param(
+    datasets.karate,
+    id="dataset=karate",
+)
+small_low_degree_rmat_pv = pytest.param(
+    {"scale": 16, "edgefactor": 4, "seed": 42},
+    id="dataset=rmat_16_4",
+)
+small_high_degree_rmat_pv = pytest.param(
+    {"scale": 16, "edgefactor": 32, "seed": 42},
+    id="dataset=rmat_16_32",
+)
+large_low_degree_rmat_pv = pytest.param(
+    {"scale": 24, "edgefactor": 4, "seed": 42},
+    id="dataset=rmat_24_4",
+)
+large_high_degree_rmat_pv = pytest.param(
+    {"scale": 24, "edgefactor": 32, "seed": 42},
+    id="dataset=rmat_24_32",
+)
+huge_low_degree_rmat_pv = pytest.param(
+    {"scale": 30, "edgefactor": 4, "seed": 42},
+    id="dataset=rmat_30_4",
+)
+huge_high_degree_rmat_pv = pytest.param(
+    {"scale": 30, "edgefactor": 32, "seed": 42},
+    id="dataset=rmat_30_32",
+)
+large_start_list_pv = pytest.param(
+    "LARGE",
+    marks=[pytest.mark.start_list_large],
+    id="start_list_len=LARGE",
+)
+small_start_list_pv = pytest.param(
+    "SMALL",
+    marks=[pytest.mark.start_list_small],
+    id="start_list_len=SMALL",
+)
+large_fanout_list_pv = pytest.param(
+    "LARGE",
+    marks=[pytest.mark.fanout_list_large],
+    id="fanout_list_len=LARGE",
+)
+small_fanout_list_pv = pytest.param(
+    "SMALL",
+    marks=[pytest.mark.fanout_list_small],
+    id="fanout_list_len=SMALL",
+)
 # Define/generate the combinations to run.
-_graph_obj_fixture_params = gen_fixture_params(
-    (_graph_param_val, _sg_param_val),
-    (_graph_param_val, _snmg_param_val),
-    (_remotegraph_param_val, _sg_param_val),
-    (_remotegraph_param_val, _snmg_param_val),
-    (_remotegraph_param_val, _mnmg_param_val),
-    ids=lambda params: f"class={params[0].__name__},config={params[1]}",
+graph_obj_fixture_params = gen_fixture_params(
+    (graph_pv, sg_pv, karate_pv),
+    (graph_pv, sg_pv, small_low_degree_rmat_pv),
+    (graph_pv, sg_pv, small_high_degree_rmat_pv),
+    (graph_pv, snmg_pv, large_low_degree_rmat_pv),
+    (graph_pv, snmg_pv, large_high_degree_rmat_pv),
+    (remotegraph_pv, sg_pv, karate_pv),
+    (remotegraph_pv, sg_pv, small_low_degree_rmat_pv),
+    (remotegraph_pv, sg_pv, small_high_degree_rmat_pv),
+    (remotegraph_pv, snmg_pv, large_low_degree_rmat_pv),
+    (remotegraph_pv, snmg_pv, large_high_degree_rmat_pv),
+    (remotegraph_pv, mnmg_pv, huge_low_degree_rmat_pv),
+    (remotegraph_pv, mnmg_pv, huge_high_degree_rmat_pv),
 )
 
 
-@pytest.fixture(scope="module", params=_graph_obj_fixture_params)
+@pytest.fixture(scope="module", params=graph_obj_fixture_params)
 def graph_obj(request):
+    """
     (graph_type, gpu_config) = request.param
     if graph_type is Graph:
-        pass
+        G = cugraph.Graph()
+        if config == "SG":
+            # G.from_cudf_edgelist()
+        elif config == "SNMG":
+            # G.from_dask_cudf_edgelist()
+        else:
+            raise RuntimeError(f"got unexpected config value for Graph: {config}")
+
     elif graph_type is RemoteGraph:
-        pass
+        if config == "SG":
+            client = create_sg_client()
+            G = RemoteGraph()
+
+
     else:
         raise RuntimeError(f"{graph_type} is invalid")
-
+    """
     G = None
     yield G
 
 
-# @pytest.mark.parametrize("start_list__fanout_vals", [([0, 1, 2], [1, 2, 1])])
-# def bench_uniform_neighbor_sample(gpubenchmark, graph_obj, start_list__fanout_vals):
-def bench_uniform_neighbor_sample(gpubenchmark, graph_obj):
+@pytest.mark.parametrize("start_list_len", [small_start_list_pv, large_start_list_pv])
+@pytest.mark.parametrize(
+    "fanout_vals_len", [small_fanout_list_pv, large_fanout_list_pv]
+)
+def bench_uniform_neighbor_sample(
+    gpubenchmark, graph_obj, start_list_len, fanout_vals_len
+):
     """
     The graph_obj fixture is parameterized to be one of the following: "local
     SG", "local MG", "remote SG", "remote MG"
@@ -95,6 +186,6 @@ def bench_uniform_neighbor_sample(gpubenchmark, graph_obj):
     import time
 
     def f():
-        time.sleep(0.1)
+        time.sleep(0.01)
 
     gpubenchmark(f)
