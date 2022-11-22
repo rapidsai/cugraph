@@ -118,18 +118,11 @@ __global__ void per_v_transform_reduce_e_hypersparse(
       auto dst          = GraphViewType::is_storage_transposed ? major : minor;
       auto src_offset   = GraphViewType::is_storage_transposed ? minor_offset : major_offset;
       auto dst_offset   = GraphViewType::is_storage_transposed ? major_offset : minor_offset;
-      return evaluate_edge_op<GraphViewType,
-                              vertex_t,
-                              EdgePartitionSrcValueInputWrapper,
-                              EdgePartitionDstValueInputWrapper,
-                              EdgePartitionEdgeValueInputWrapper,
-                              EdgeOp>()
-        .compute(src,
-                 dst,
-                 edge_partition_src_value_input.get(src_offset),
-                 edge_partition_dst_value_input.get(dst_offset),
-                 edge_partition_e_value_input.get(edge_offset + i),
-                 e_op);
+      return e_op(src,
+                  dst,
+                  edge_partition_src_value_input.get(src_offset),
+                  edge_partition_dst_value_input.get(dst_offset),
+                  edge_partition_e_value_input.get(edge_offset + i));
     };
 
     if constexpr (update_major) {
@@ -231,18 +224,11 @@ __global__ void per_v_transform_reduce_e_low_degree(
         GraphViewType::is_storage_transposed ? minor_offset : static_cast<vertex_t>(major_offset);
       auto dst_offset =
         GraphViewType::is_storage_transposed ? static_cast<vertex_t>(major_offset) : minor_offset;
-      return evaluate_edge_op<GraphViewType,
-                              vertex_t,
-                              EdgePartitionSrcValueInputWrapper,
-                              EdgePartitionDstValueInputWrapper,
-                              EdgePartitionEdgeValueInputWrapper,
-                              EdgeOp>()
-        .compute(src,
-                 dst,
-                 edge_partition_src_value_input.get(src_offset),
-                 edge_partition_dst_value_input.get(dst_offset),
-                 edge_partition_e_value_input.get(edge_offset + i),
-                 e_op);
+      return e_op(src,
+                  dst,
+                  edge_partition_src_value_input.get(src_offset),
+                  edge_partition_dst_value_input.get(dst_offset),
+                  edge_partition_e_value_input.get(edge_offset + i));
     };
 
     if constexpr (update_major) {
@@ -346,18 +332,11 @@ __global__ void per_v_transform_reduce_e_mid_degree(
         GraphViewType::is_storage_transposed ? minor_offset : static_cast<vertex_t>(major_offset);
       auto dst_offset =
         GraphViewType::is_storage_transposed ? static_cast<vertex_t>(major_offset) : minor_offset;
-      auto e_op_result = evaluate_edge_op<GraphViewType,
-                                          vertex_t,
-                                          EdgePartitionSrcValueInputWrapper,
-                                          EdgePartitionDstValueInputWrapper,
-                                          EdgePartitionEdgeValueInputWrapper,
-                                          EdgeOp>()
-                           .compute(src,
-                                    dst,
-                                    edge_partition_src_value_input.get(src_offset),
-                                    edge_partition_dst_value_input.get(dst_offset),
-                                    edge_partition_e_value_input.get(edge_offset + i),
-                                    e_op);
+      auto e_op_result = e_op(src,
+                              dst,
+                              edge_partition_src_value_input.get(src_offset),
+                              edge_partition_dst_value_input.get(dst_offset),
+                              edge_partition_e_value_input.get(edge_offset + i));
       if constexpr (update_major) {
         e_op_result_sum = edge_property_add(e_op_result_sum, e_op_result);
       } else {
@@ -437,18 +416,11 @@ __global__ void per_v_transform_reduce_e_high_degree(
         GraphViewType::is_storage_transposed ? minor_offset : static_cast<vertex_t>(major_offset);
       auto dst_offset =
         GraphViewType::is_storage_transposed ? static_cast<vertex_t>(major_offset) : minor_offset;
-      auto e_op_result = evaluate_edge_op<GraphViewType,
-                                          vertex_t,
-                                          EdgePartitionSrcValueInputWrapper,
-                                          EdgePartitionDstValueInputWrapper,
-                                          EdgePartitionEdgeValueInputWrapper,
-                                          EdgeOp>()
-                           .compute(src,
-                                    dst,
-                                    edge_partition_src_value_input.get(src_offset),
-                                    edge_partition_dst_value_input.get(dst_offset),
-                                    edge_partition_e_value_input.get(edge_offset + i),
-                                    e_op);
+      auto e_op_result = e_op(src,
+                              dst,
+                              edge_partition_src_value_input.get(src_offset),
+                              edge_partition_dst_value_input.get(dst_offset),
+                              edge_partition_e_value_input.get(edge_offset + i));
       if constexpr (update_major) {
         e_op_result_sum = edge_property_add(e_op_result_sum, e_op_result);
       } else {

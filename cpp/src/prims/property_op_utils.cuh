@@ -126,35 +126,6 @@ struct atomic_accumulate_thrust_tuple_impl<Iterator, TupleType, I, I> {
 }  // namespace detail
 
 template <typename GraphViewType,
-          typename key_t,
-          typename EdgePartitionSrcValueInputWrapper,
-          typename EdgePartitionDstValueInputWrapper,
-          typename EdgePartitionEdgeValueInputWrapper,
-          typename EdgeOp>
-struct evaluate_edge_op {
-  using vertex_type    = typename GraphViewType::vertex_type;
-  using src_value_type = typename EdgePartitionSrcValueInputWrapper::value_type;
-  using dst_value_type = typename EdgePartitionDstValueInputWrapper::value_type;
-  using e_value_type   = typename EdgePartitionEdgeValueInputWrapper::value_type;
-  using result_type    = typename detail::
-    edge_op_result_type<key_t, vertex_type, src_value_type, dst_value_type, e_value_type, EdgeOp>::
-      type;
-
-  template <typename K  = key_t,
-            typename V  = vertex_type,
-            typename SV = src_value_type,
-            typename DV = dst_value_type,
-            typename EV = e_value_type,
-            typename E  = EdgeOp>
-  __device__ std::enable_if_t<std::is_invocable_v<E, K, V, SV, DV, EV>,
-                              typename std::invoke_result<E, K, V, SV, DV, EV>::type>
-  compute(K s, V d, SV sv, DV dv, EV ev, E e) const
-  {
-    return e(s, d, sv, dv, ev);
-  }
-};
-
-template <typename GraphViewType,
           typename src_value_t,
           typename dst_value_t,
           typename IntersectionOp>

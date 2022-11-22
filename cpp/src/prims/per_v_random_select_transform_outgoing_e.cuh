@@ -174,18 +174,11 @@ struct transform_and_count_local_nbr_indices_t {
         auto src_offset = GraphViewType::is_storage_transposed ? minor_offset : major_offset;
         auto dst_offset = GraphViewType::is_storage_transposed ? major_offset : minor_offset;
         *(output_value_first + i) =
-          evaluate_edge_op<GraphViewType,
-                           key_t,
-                           EdgePartitionSrcValueInputWrapper,
-                           EdgePartitionDstValueInputWrapper,
-                           EdgePartitionEdgeValueInputWrapper,
-                           EdgeOp>()
-            .compute(key_or_src,
-                     key_or_dst,
-                     edge_partition_src_value_input.get(src_offset),
-                     edge_partition_dst_value_input.get(dst_offset),
-                     edge_partition_e_value_input.get(edge_offset + local_nbr_idx),
-                     e_op);
+          e_op(key_or_src,
+               key_or_dst,
+               edge_partition_src_value_input.get(src_offset),
+               edge_partition_dst_value_input.get(dst_offset),
+               edge_partition_e_value_input.get(edge_offset + local_nbr_idx));
         ++num_valid_local_nbr_indices;
       } else if (invalid_value) {
         *(output_value_first + i) = *invalid_value;
@@ -276,13 +269,14 @@ per_v_random_select_transform_e(raft::handle_t const& handle,
       typename EdgeValueInputWrapper::value_iterator>>;
 
   static_assert(GraphViewType::is_storage_transposed == incoming);
-  static_assert(std::is_same_v<typename evaluate_edge_op<GraphViewType,
-                                                         key_t,
-                                                         EdgeSrcValueInputWrapper,
-                                                         EdgeDstValueInputWrapper,
-                                                         EdgeValueInputWrapper,
-                                                         EdgeOp>::result_type,
-                               T>);
+  static_assert(std::is_same_v<
+                typename detail::edge_op_result_type<key_t,
+                                                     vertex_t,
+                                                     typename EdgeSrcValueInputWrapper::value_type,
+                                                     typename EdgeDstValueInputWrapper::value_type,
+                                                     typename EdgeValueInputWrapper::value_type,
+                                                     EdgeOp>::type,
+                T>);
 
   CUGRAPH_EXPECTS(K >= size_t{1},
                   "Invalid input argument: invalid K, K should be a positive integer.");
