@@ -160,7 +160,7 @@ class Tests_MGTransformReduceV
     auto property_initial_value =
       cugraph::test::generate<vertex_t, result_t>::initial_value(initial_value);
     enum class reduction_type_t { PLUS, MINIMUM, MAXIMUM };
-    reduction_type_t reduction_types[] = {
+    std::array<reduction_type_t, 3> reduction_types = {
       reduction_type_t::PLUS, reduction_type_t::MINIMUM, reduction_type_t::MAXIMUM};
 
     std::unordered_map<reduction_type_t, result_t> results;
