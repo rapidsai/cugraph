@@ -62,8 +62,6 @@ class CleanCommand(Command):
         os.system("rm -rf dask-worker-space")
         os.system('find . -name "__pycache__" -type d -exec rm -rf {} +')
         os.system("rm -rf *.egg-info")
-        os.system('find . -name "*.cpp" -type f -delete')
-        os.system('find . -name "*.cpython*.so" -type f -delete')
         os.system("rm -rf _skbuild")
 
 
@@ -88,7 +86,6 @@ setup(
     ],
     # Include the separately-compiled shared library
     author="NVIDIA Corporation",
-    setup_requires=["Cython>=0.29,<0.30"],
     packages=find_packages(include=["cugraph_pyg", "cugraph_pyg.*"]),
     package_data=PACKAGE_DATA,
     include_package_data=True,
