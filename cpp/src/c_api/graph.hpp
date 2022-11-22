@@ -104,7 +104,7 @@ cugraph_error_code_t transpose_storage(raft::handle_t const& handle,
         cugraph::graph_view_t<vertex_t, edge_t, !store_transposed, multi_gpu>,
         weight_t>(handle);
 
-      *new_edge_weights = std::move(new_optional_edge_weights.value());
+      *new_edge_weights    = std::move(new_optional_edge_weights.value());
       graph->edge_weights_ = new_edge_weights;
     }
 
