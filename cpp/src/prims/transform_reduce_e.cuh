@@ -127,7 +127,7 @@ __global__ void trasnform_reduce_e_hypersparse(
   }
 
   e_op_result_sum = BlockReduce(temp_storage).Reduce(e_op_result_sum, edge_property_add);
-  if (threadIdx.x == 0) { atomic_accumulate_edge_op_result(result_iter, e_op_result_sum); }
+  if (threadIdx.x == 0) { atomic_add_edge_op_result(result_iter, e_op_result_sum); }
 }
 
 template <typename GraphViewType,
@@ -206,7 +206,7 @@ __global__ void trasnform_reduce_e_low_degree(
   }
 
   e_op_result_sum = BlockReduce(temp_storage).Reduce(e_op_result_sum, edge_property_add);
-  if (threadIdx.x == 0) { atomic_accumulate_edge_op_result(result_iter, e_op_result_sum); }
+  if (threadIdx.x == 0) { atomic_add_edge_op_result(result_iter, e_op_result_sum); }
 }
 
 template <typename GraphViewType,
@@ -272,7 +272,7 @@ __global__ void trasnform_reduce_e_mid_degree(
   }
 
   e_op_result_sum = BlockReduce(temp_storage).Reduce(e_op_result_sum, edge_property_add);
-  if (threadIdx.x == 0) { atomic_accumulate_edge_op_result(result_iter, e_op_result_sum); }
+  if (threadIdx.x == 0) { atomic_add_edge_op_result(result_iter, e_op_result_sum); }
 }
 
 template <typename GraphViewType,
@@ -335,7 +335,7 @@ __global__ void trasnform_reduce_e_high_degree(
   }
 
   e_op_result_sum = BlockReduce(temp_storage).Reduce(e_op_result_sum, edge_property_add);
-  if (threadIdx.x == 0) { atomic_accumulate_edge_op_result(result_iter, e_op_result_sum); }
+  if (threadIdx.x == 0) { atomic_add_edge_op_result(result_iter, e_op_result_sum); }
 }
 
 }  // namespace detail
