@@ -189,7 +189,14 @@ if __name__ == "__main__":
         " 'cugraph_storage' for pure-GPU training.",
     )
 
-    parser.add_argument("--use_rmm", action="store_true")
+    parser.add_argument(
+        "--use_rmm",
+        action="store_true",
+        help="Enable the RMM memory pool used by RAPIDS libraries "
+        "to enable faster memory allocation. "
+        "This allocator is not shared with PyTorch,"
+        "which has its own caching allocator. ",
+    )
     args = parser.parse_args()
     if not torch.cuda.is_available():
         args.mode = "cpu"
