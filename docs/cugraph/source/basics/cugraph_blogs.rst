@@ -70,4 +70,4 @@ Other BLOGS
 
 RAPIDS Notebooks
 ================
-* `Jupyter notebooks from Past Conferences containing great RAPIDS examples. <https://github.com/rapidsai-community/event-notebooks/>`_
+* `Jupyter notebooks from Past Events containing great RAPIDS examples. <https://github.com/rapidsai-community/event-notebooks/>`_

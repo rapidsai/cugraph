@@ -24,7 +24,7 @@ Note: Multi-GPU, or MG, includes support for Multi-Node Multi-GPU (also called M
 | ----------------- | ---------------------------------- | ------------------- | --------------------------------------------------------------- |
 | Centrality        |                                    |                     |                                                                 |
 |                   | Katz                               | __Multi-GPU__ |                                                                 |
-|                   | Betweenness Centrality             | Single-GPU          | MG planned for 23.02                                            |
+|                   | Betweenness Centrality             | **Multi-GPU** | MG as of 22.12                                                  |
 |                   | Edge Betweenness Centrality        | Single-GPU          | MG planned for 23.02                                            |
 |                   | Eigenvector Centrality             | __Multi-GPU__ |                                                                 |
 |                   | Degree Centrality                  | __Multi-GPU__ | Python only                                                     |
