@@ -231,7 +231,7 @@ def df_type_id(dataframe_type):
 df_types_fixture_params = utils.genFixtureParamsProduct((df_types, df_type_id))
 
 
-@pytest.fixture(scope="module", params=df_types_fixture_params)
+@pytest.fixture(scope="function", params=df_types_fixture_params)
 def dataset1_PropertyGraph(request):
     """
     Fixture which returns an instance of a PropertyGraph with vertex and edge
@@ -1733,11 +1733,14 @@ def test_get_data_empty_graphs():
     assert pG.get_edge_data([0, 1, 2]) is None
 
 
-def test_renumber_vertices_by_type(dataset1_PropertyGraph):
+@pytest.mark.parametrize("prev_id_column", [None, "prev_id"])
+def test_renumber_vertices_by_type(dataset1_PropertyGraph, prev_id_column):
     from cugraph.experimental import PropertyGraph
 
     (pG, data) = dataset1_PropertyGraph
-    df_id_ranges = pG.renumber_vertices_by_type()
+    with pytest.raises(ValueError, match="existing column"):
+        pG.renumber_vertices_by_type("merchant_size")
+    df_id_ranges = pG.renumber_vertices_by_type(prev_id_column)
     expected = {
         "merchants": [0, 4],  # stop is inclusive
         "users": [5, 8],
@@ -1748,27 +1751,33 @@ def test_renumber_vertices_by_type(dataset1_PropertyGraph):
         df = pG.get_vertex_data(types=[key])
         assert len(df) == stop - start + 1
         assert (df["_VERTEX_"] == list(range(start, stop + 1))).all()
-
+        if prev_id_column is not None:
+            cur = df[prev_id_column].sort_values()
+            expected = sorted(x for x, *args in data[key][1])
+            assert (cur == expected).all()
     # Make sure we renumber vertex IDs in edge data too
     df = pG.get_edge_data()
     assert 0 <= df[pG.src_col_name].min() < df[pG.src_col_name].max() < 9
     assert 0 <= df[pG.dst_col_name].min() < df[pG.dst_col_name].max() < 9
 
     empty_pG = PropertyGraph()
-    assert empty_pG.renumber_vertices_by_type() is None
+    assert empty_pG.renumber_vertices_by_type(prev_id_column) is None
 
     # Test when vertex IDs only exist in edge data
     df = type(df)({"src": [99998], "dst": [99999]})
     empty_pG.add_edge_data(df, ["src", "dst"])
     with pytest.raises(NotImplementedError, match="only exist in edge"):
-        empty_pG.renumber_vertices_by_type()
+        empty_pG.renumber_vertices_by_type(prev_id_column)
 
 
-def test_renumber_edges_by_type(dataset1_PropertyGraph):
+@pytest.mark.parametrize("prev_id_column", [None, "prev_id"])
+def test_renumber_edges_by_type(dataset1_PropertyGraph, prev_id_column):
     from cugraph.experimental import PropertyGraph
 
     (pG, data) = dataset1_PropertyGraph
-    df_id_ranges = pG.renumber_edges_by_type()
+    with pytest.raises(ValueError, match="existing column"):
+        pG.renumber_edges_by_type("time")
+    df_id_ranges = pG.renumber_edges_by_type(prev_id_column)
     expected = {
         "transactions": [0, 3],  # stop is inclusive
         "relationships": [4, 7],
@@ -1784,9 +1793,11 @@ def test_renumber_edges_by_type(dataset1_PropertyGraph):
         df = pG.get_edge_data(types=[key])
         assert len(df) == stop - start + 1
         assert (df[pG.edge_id_col_name] == list(range(start, stop + 1))).all()
+        if prev_id_column is not None:
+            assert prev_id_column in df.columns
 
     empty_pG = PropertyGraph()
-    assert empty_pG.renumber_edges_by_type() is None
+    assert empty_pG.renumber_edges_by_type(prev_id_column) is None
 
 
 @pytest.mark.parametrize("df_type", df_types, ids=df_type_id)
@@ -2302,6 +2313,7 @@ def bench_extract_subgraph_for_rmat(gpubenchmark, rmat_PropertyGraph):
     )
 
 
+@pytest.mark.slow
 @pytest.mark.parametrize("n_rows", [15_000_000, 30_000_000, 60_000_000, 120_000_000])
 def bench_add_edge_data(gpubenchmark, n_rows):
     from cugraph.experimental import PropertyGraph

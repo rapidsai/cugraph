@@ -56,7 +56,7 @@ def createGraph(csvFileName, graphType=None):
 
     return cugraph.from_cudf_edgelist(
         utils.read_csv_file(csvFileName),
-        source="0", destination="1",
+        source="0", destination="1", edge_attr="2",
         create_using=graphType,
         renumber=True)
 

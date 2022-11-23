@@ -48,16 +48,16 @@ struct weighted_sorensen_functor_t {
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 rmm::device_uvector<weight_t> sorensen_coefficients(
   raft::handle_t const& handle,
-  graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view,
-  std::tuple<raft::device_span<vertex_t const>, raft::device_span<vertex_t const>> vertex_pairs,
-  bool use_weights)
+  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+  std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
+  std::tuple<raft::device_span<vertex_t const>, raft::device_span<vertex_t const>> vertex_pairs)
 {
-  if (use_weights)
+  if (!edge_weight_view)
     return detail::similarity(
-      handle, graph_view, vertex_pairs, use_weights, detail::weighted_sorensen_functor_t{});
+      handle, graph_view, edge_weight_view, vertex_pairs, detail::sorensen_functor_t{});
   else
     return detail::similarity(
-      handle, graph_view, vertex_pairs, use_weights, detail::sorensen_functor_t{});
+      handle, graph_view, edge_weight_view, vertex_pairs, detail::weighted_sorensen_functor_t{});
 }
 
 }  // namespace cugraph

@@ -75,7 +75,7 @@ def daskGraphFromDataset(request, dask_client):
     )
 
     dg = cugraph.Graph(directed=True)
-    dg.from_dask_cudf_edgelist(ddf, "src", "dst")
+    dg.from_dask_cudf_edgelist(ddf, "src", "dst", "value")
     return dg
 
 
@@ -104,7 +104,7 @@ def uddaskGraphFromDataset(request, dask_client):
     )
 
     dg = cugraph.Graph(directed=False)
-    dg.from_dask_cudf_edgelist(ddf, "src", "dst")
+    dg.from_dask_cudf_edgelist(ddf, "src", "dst", "value")
     return dg
 
 

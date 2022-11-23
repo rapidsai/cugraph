@@ -27,8 +27,6 @@
 
 namespace cugraph {
 
-namespace detail {
-
 template <typename edge_t, typename ValueIterator>
 class edge_property_view_t {
  public:
@@ -58,8 +56,6 @@ class edge_dummy_property_view_t {
   using value_type     = thrust::nullopt_t;
   using value_iterator = void*;
 };
-
-}  // namespace detail
 
 template <typename GraphViewType, typename T>
 class edge_property_t {
@@ -98,8 +94,8 @@ class edge_property_t {
       edge_partition_edge_counts[i]  = size_dataframe_buffer(buffers_[i]);
     }
 
-    return detail::edge_property_view_t<edge_type, const_value_iterator>(
-      edge_partition_value_firsts, edge_partition_edge_counts);
+    return edge_property_view_t<edge_type, const_value_iterator>(edge_partition_value_firsts,
+                                                                 edge_partition_edge_counts);
   }
 
   auto mutable_view()
@@ -113,8 +109,8 @@ class edge_property_t {
       edge_partition_edge_counts[i]  = size_dataframe_buffer(buffers_[i]);
     }
 
-    return detail::edge_property_view_t<edge_type, value_iterator>(edge_partition_value_firsts,
-                                                                   edge_partition_edge_counts);
+    return edge_property_view_t<edge_type, value_iterator>(edge_partition_value_firsts,
+                                                           edge_partition_edge_counts);
   }
 
  private:
@@ -125,7 +121,7 @@ class edge_dummy_property_t {
  public:
   using value_type = thrust::nullopt_t;
 
-  auto view() const { return detail::edge_dummy_property_view_t{}; }
+  auto view() const { return edge_dummy_property_view_t{}; }
 };
 
 }  // namespace cugraph

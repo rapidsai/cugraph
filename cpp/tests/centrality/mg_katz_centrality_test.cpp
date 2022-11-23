@@ -68,7 +68,7 @@ class Tests_MGKatzCentrality
       hr_clock.start();
     }
 
-    auto [mg_graph, d_mg_renumber_map_labels] =
+    auto [mg_graph, mg_edge_weights, d_mg_renumber_map_labels] =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, true, true>(
         *handle_, input_usecase, katz_usecase.test_weighted, true);
 
@@ -81,6 +81,8 @@ class Tests_MGKatzCentrality
     }
 
     auto mg_graph_view = mg_graph.view();
+    auto mg_edge_weight_view =
+      mg_edge_weights ? std::make_optional((*mg_edge_weights).view()) : std::nullopt;
 
     // 2. compute max in-degree
 
@@ -103,6 +105,7 @@ class Tests_MGKatzCentrality
 
     cugraph::katz_centrality(*handle_,
                              mg_graph_view,
+                             mg_edge_weight_view,
                              static_cast<result_t*>(nullptr),
                              d_mg_katz_centralities.data(),
                              alpha,
@@ -137,12 +140,17 @@ class Tests_MGKatzCentrality
 
         // 4-3. create SG graph
 
-        cugraph::graph_t<vertex_t, edge_t, weight_t, true, false> sg_graph(*handle_);
-        std::tie(sg_graph, std::ignore) =
+        cugraph::graph_t<vertex_t, edge_t, true, false> sg_graph(*handle_);
+        std::optional<
+          cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, true, false>, weight_t>>
+          sg_edge_weights{std::nullopt};
+        std::tie(sg_graph, sg_edge_weights, std::ignore) =
           cugraph::test::construct_graph<vertex_t, edge_t, weight_t, true, false>(
             *handle_, input_usecase, katz_usecase.test_weighted, false);
 
         auto sg_graph_view = sg_graph.view();
+        auto sg_edge_weight_view =
+          sg_edge_weights ? std::make_optional((*sg_edge_weights).view()) : std::nullopt;
 
         ASSERT_TRUE(mg_graph_view.number_of_vertices() == sg_graph_view.number_of_vertices());
 
@@ -153,6 +161,7 @@ class Tests_MGKatzCentrality
 
         cugraph::katz_centrality(*handle_,
                                  sg_graph_view,
+                                 sg_edge_weight_view,
                                  static_cast<result_t*>(nullptr),
                                  d_sg_katz_centralities.data(),
                                  alpha,
