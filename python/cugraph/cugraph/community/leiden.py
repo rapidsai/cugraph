@@ -75,7 +75,10 @@ def leiden(G, max_iter=100, resolution=1.0):
     G, isNx = ensure_cugraph_obj_for_nx(G)
 
     if not G.edgelist.weights:
-        raise ValueError("input graph must be weighted")
+        warning_msg = (
+            "'Leiden' requires the input graph to be weighted: Unweighted "
+            "graphs will not be supported in the next release.")
+        warnings.warn(warning_msg, PendingDeprecationWarning)
 
     if G.is_directed():
         raise ValueError("input graph must be undirected")

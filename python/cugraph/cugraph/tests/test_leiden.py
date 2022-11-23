@@ -105,6 +105,9 @@ def test_leiden_unweighted_graph():
     G = karate_asymmetric.get_graph(
         create_using=cugraph.Graph(directed=True), ignore_weights=True
     )
-
-    with pytest.raises(ValueError):
+    warning_msg = (
+            "'Leiden' requires the input graph to be weighted: Unweighted "
+            "graphs will not be supported in the next release.")
+        warnings.warn(warning_msg, PendingDeprecationWarning)
+    with pytest.warns(PendingDeprecationWarning, match=warning_msg):
         parts, mod = cugraph_leiden(G)

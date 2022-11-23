@@ -19,6 +19,7 @@ import cugraph.dask.comms.comms as Comms
 import dask_cudf
 import cudf
 from cugraph.dask.common.input_utils import get_distributed_data
+import warnings
 
 from pylibcugraph import ResourceHandle, ego_graph as pylibcugraph_ego_graph
 
@@ -109,6 +110,14 @@ def ego_graph(input_graph, n, radius=1, center=True):
 
     # Initialize dask client
     client = input_graph._client
+
+    # FIXME: Implement a better way to check if the graph is weighted similar
+    # to 'simpleGraph'
+    if len(input_graph.edgelist.edgelist_df.columns) != 3:
+        warning_msg = (
+            "'Ego_graph' requires the input graph to be weighted: Unweighted "
+            "graphs will not be supported in the next release.")
+        warnings.warn(warning_msg, PendingDeprecationWarning)
 
     if isinstance(n, (int, list)):
         n = cudf.Series(n)

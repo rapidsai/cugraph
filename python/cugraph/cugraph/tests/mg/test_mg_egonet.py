@@ -16,6 +16,7 @@ import gc
 import pytest
 import cugraph
 import dask_cudf
+import warnings
 from cugraph.dask.common.mg_utils import is_single_gpu
 
 # from cugraph.dask.common.mg_utils import is_single_gpu
@@ -142,3 +143,30 @@ def test_dask_ego_graphs(dask_client, benchmark, input_expected_output):
         sg_df_part = sg_df[start:end].sort_values(["src", "dst"]).reset_index(drop=True)
 
         assert_frame_equal(mg_df_part, sg_df_part, check_dtype=False, check_like=True)
+
+
+def test_dask_unweighted_ego_graph(dask_client):
+    input_data_path = utils.DATASETS_UNDIRECTED[0]
+    chunksize = dcg.get_chunksize(input_data_path)
+    ddf = dask_cudf.read_csv(
+        input_data_path,
+        chunksize=chunksize,
+        delimiter=" ",
+        names=["src", "dst", "value"],
+        dtype=["int32", "int32", "float32"],
+    )
+
+    dg = cugraph.Graph(directed=False)
+    dg.from_dask_cudf_edgelist(
+        ddf,
+        source="src",
+        destination="dst",
+        legacy_renum_only=True,
+        store_transposed=True,
+    )
+
+    warning_msg = (
+            "'Ego_graph' requires the input graph to be weighted: Unweighted "
+            "graphs will not be supported in the next release.")
+    with pytest.warns(PendingDeprecationWarning, match=warning_msg):
+        dcg.ego_graph(dg, 5)

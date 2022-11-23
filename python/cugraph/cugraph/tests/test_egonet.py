@@ -122,6 +122,8 @@ def test_ego_graph_unweighted_graph():
     dolphins = DATASETS[0]
 
     G = dolphins.get_graph(ignore_weights=True)
-
-    with pytest.raises(ValueError):
+    warning_msg = (
+            "'Ego_graph' requires the input graph to be weighted: Unweighted "
+            "graphs will not be supported in the next release.")
+    with pytest.warns(PendingDeprecationWarning, match=warning_msg):
         cugraph.ego_graph(G, 5)
