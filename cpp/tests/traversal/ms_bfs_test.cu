@@ -23,8 +23,8 @@
 #include <cugraph/graph_generators.hpp>
 #include <cugraph/graph_view.hpp>
 
-#include <raft/cudart_utils.h>
-#include <raft/handle.hpp>
+#include <raft/util/cudart_utils.hpp>
+#include <raft/core/handle.hpp>
 #include <rmm/device_scalar.hpp>
 #include <rmm/device_uvector.hpp>
 #include <rmm/exec_policy.hpp>

@@ -15,7 +15,7 @@
  */
 #pragma once
 
-#include <raft/error.hpp>
+#include <raft/core/error.hpp>
 
 namespace cugraph {
 

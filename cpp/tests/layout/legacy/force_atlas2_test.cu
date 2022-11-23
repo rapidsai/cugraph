@@ -20,7 +20,7 @@
 #include <cugraph/legacy/graph.hpp>
 #include <layout/legacy/trust_worthiness.h>
 
-#include <raft/error.hpp>
+#include <raft/core/error.hpp>
 #include <rmm/exec_policy.hpp>
 
 #include <cuda_profiler_api.h>

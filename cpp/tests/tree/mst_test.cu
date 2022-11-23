@@ -24,8 +24,8 @@
 #include <cugraph/algorithms.hpp>
 #include <cugraph/legacy/graph.hpp>
 
-#include <raft/error.hpp>
-#include <raft/handle.hpp>
+#include <raft/core/error.hpp>
+#include <raft/core/handle.hpp>
 
 #include <cuda_profiler_api.h>
 

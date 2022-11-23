@@ -16,8 +16,8 @@
 #include <cugraph/algorithms.hpp>
 #include <cugraph/graph.hpp>
 
-#include <raft/cudart_utils.h>
-#include <raft/handle.hpp>
+#include <raft/util/cudart_utils.hpp>
+#include <raft/core/handle.hpp>
 #include <rmm/device_uvector.hpp>
 #include <rmm/mr/device/cuda_memory_resource.hpp>
 
