@@ -12,7 +12,6 @@
 # limitations under the License.
 
 import cudf
-import warnings
 
 from cugraph.community import subgraph_extraction_wrapper
 from cugraph.utilities import (
@@ -58,13 +57,6 @@ def subgraph(G, vertices):
     """
 
     G, isNx = ensure_cugraph_obj_for_nx(G)
-
-    if not G.edgelist.weights:
-        warning_msg = (
-            "'Subgraph_extraction' requires the input graph to be weighted: Unweighted "
-            "graphs will not be supported in the next release."
-        )
-        warnings.warn(warning_msg, PendingDeprecationWarning)
 
     if G.renumbered:
         if isinstance(vertices, cudf.DataFrame):

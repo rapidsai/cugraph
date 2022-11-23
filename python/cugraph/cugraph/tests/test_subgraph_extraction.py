@@ -180,12 +180,3 @@ def test_subgraph_extraction_graph_not_renumbered():
     assert Sg.number_of_vertices() == 3
     assert Sg.number_of_edges() == 3
 
-
-def test_subgraph_with_no_edgevals():
-    G = karate.get_graph(ignore_weights=True)
-    warning_msg = (
-        "'Subgraph_extraction' requires the input graph to be weighted: Unweighted "
-        "graphs will not be supported in the next release."
-    )
-    with pytest.warns(PendingDeprecationWarning, match=warning_msg):
-        cugraph.subgraph(G, cudf.Series(1))
