@@ -260,7 +260,7 @@ def test_get_edge_IDs_for_vertices(client_of_mg_server_with_edgelist_csv_loaded)
     graph_id = client_of_mg_server.extract_subgraph(check_multi_edges=True)
     client_of_mg_server.get_edge_IDs_for_vertices([1, 2, 3], [0, 0, 0], graph_id)
 
-
+@pytest.mark.skip()
 def test_device_transfer(
     benchmark,
     result_device_id,

@@ -1,0 +1,359 @@
+RUNNING: "python -m dask_cuda.cli.dask_cuda_worker --enable-tcp-over-ucx
+                --enable-nvlink
+                --disable-infiniband
+                --disable-rdmacm
+                --rmm-pool-size=12G
+                --rmm-maximum-pool-size=12G
+                --local-directory=/tmp/abarghi
+                --scheduler-file=/home/nfs/abarghi/cugraph3/python/cugraph-service/scripts/../dask-scheduler.json
+                --memory-limit=auto
+                --device-memory-limit=auto
+                "
+2022-11-23 08:25:12,423 - distributed.nanny - INFO -         Start Nanny at: 'ucx://10.33.227.169:32953'
+2022-11-23 08:25:12,439 - distributed.nanny - INFO -         Start Nanny at: 'ucx://10.33.227.169:42765'
+2022-11-23 08:25:12,459 - distributed.nanny - INFO -         Start Nanny at: 'ucx://10.33.227.169:43717'
+2022-11-23 08:25:12,462 - distributed.nanny - INFO -         Start Nanny at: 'ucx://10.33.227.169:34107'
+2022-11-23 08:25:12,471 - distributed.nanny - INFO -         Start Nanny at: 'ucx://10.33.227.169:40573'
+2022-11-23 08:25:12,480 - distributed.nanny - INFO -         Start Nanny at: 'ucx://10.33.227.169:45725'
+2022-11-23 08:25:12,485 - distributed.nanny - INFO -         Start Nanny at: 'ucx://10.33.227.169:45977'
+2022-11-23 08:25:12,513 - distributed.nanny - INFO -         Start Nanny at: 'ucx://10.33.227.169:37393'
+2022-11-23 08:25:14,203 - distributed.diskutils - INFO - Found stale lock file and directory '/tmp/abarghi/dask-worker-space/worker-6mls42_o', purging
+2022-11-23 08:25:14,203 - distributed.diskutils - INFO - Found stale lock file and directory '/tmp/abarghi/dask-worker-space/worker-dqjk7xgg', purging
+2022-11-23 08:25:14,204 - distributed.diskutils - INFO - Found stale lock file and directory '/tmp/abarghi/dask-worker-space/worker-gx174wuy', purging
+2022-11-23 08:25:14,204 - distributed.diskutils - INFO - Found stale lock file and directory '/tmp/abarghi/dask-worker-space/worker-xpco52qe', purging
+2022-11-23 08:25:14,204 - distributed.diskutils - INFO - Found stale lock file and directory '/tmp/abarghi/dask-worker-space/worker-5cohxg37', purging
+2022-11-23 08:25:14,205 - distributed.diskutils - INFO - Found stale lock file and directory '/tmp/abarghi/dask-worker-space/worker-7z0a7nf0', purging
+2022-11-23 08:25:14,205 - distributed.diskutils - INFO - Found stale lock file and directory '/tmp/abarghi/dask-worker-space/worker-85y5w6l7', purging
+2022-11-23 08:25:14,205 - distributed.diskutils - INFO - Found stale lock file and directory '/tmp/abarghi/dask-worker-space/worker-kg678wsp', purging
+2022-11-23 08:25:14,206 - distributed.preloading - INFO - Creating preload: dask_cuda.initialize
+2022-11-23 08:25:14,206 - distributed.preloading - INFO - Import preload module: dask_cuda.initialize
+2022-11-23 08:25:14,209 - distributed.preloading - INFO - Creating preload: dask_cuda.initialize
+2022-11-23 08:25:14,209 - distributed.preloading - INFO - Import preload module: dask_cuda.initialize
+2022-11-23 08:25:14,217 - distributed.preloading - INFO - Creating preload: dask_cuda.initialize
+2022-11-23 08:25:14,217 - distributed.preloading - INFO - Import preload module: dask_cuda.initialize
+2022-11-23 08:25:14,254 - distributed.preloading - INFO - Creating preload: dask_cuda.initialize
+2022-11-23 08:25:14,254 - distributed.preloading - INFO - Import preload module: dask_cuda.initialize
+2022-11-23 08:25:14,254 - distributed.preloading - INFO - Creating preload: dask_cuda.initialize
+2022-11-23 08:25:14,254 - distributed.preloading - INFO - Import preload module: dask_cuda.initialize
+2022-11-23 08:25:14,266 - distributed.preloading - INFO - Creating preload: dask_cuda.initialize
+2022-11-23 08:25:14,266 - distributed.preloading - INFO - Import preload module: dask_cuda.initialize
+2022-11-23 08:25:14,278 - distributed.preloading - INFO - Creating preload: dask_cuda.initialize
+2022-11-23 08:25:14,278 - distributed.preloading - INFO - Import preload module: dask_cuda.initialize
+2022-11-23 08:25:14,280 - distributed.preloading - INFO - Creating preload: dask_cuda.initialize
+2022-11-23 08:25:14,281 - distributed.preloading - INFO - Import preload module: dask_cuda.initialize
+2022-11-23 08:25:16,413 - distributed.preloading - INFO - Run preload setup: dask_cuda.initialize
+2022-11-23 08:25:16,423 - distributed.worker - INFO -       Start worker at:  ucx://10.33.227.169:44743
+2022-11-23 08:25:16,423 - distributed.worker - INFO -          Listening to:  ucx://10.33.227.169:44743
+2022-11-23 08:25:16,424 - distributed.worker - INFO -          dashboard at:        10.33.227.169:36467
+2022-11-23 08:25:16,424 - distributed.worker - INFO - Waiting to connect to:   ucx://10.33.227.169:8792
+2022-11-23 08:25:16,424 - distributed.worker - INFO - -------------------------------------------------
+2022-11-23 08:25:16,424 - distributed.worker - INFO -               Threads:                          1
+2022-11-23 08:25:16,424 - distributed.worker - INFO -                Memory:                  62.97 GiB
+2022-11-23 08:25:16,424 - distributed.worker - INFO -       Local Directory: /tmp/abarghi/dask-worker-space/worker-_t3pw8qm
+2022-11-23 08:25:16,424 - distributed.worker - INFO - Starting Worker plugin RMMSetup-e6fd2c0b-ac9d-48fa-9876-ab0a611dbbb2
+2022-11-23 08:25:16,439 - distributed.preloading - INFO - Run preload setup: dask_cuda.initialize
+2022-11-23 08:25:16,441 - distributed.worker - INFO - Starting Worker plugin PreImport-41192c51-4a72-4e89-a237-5e822cb20e6f
+2022-11-23 08:25:16,441 - distributed.worker - INFO - Starting Worker plugin CPUAffinity-98155a53-ea68-45a5-8720-c3cd892a6a4e
+2022-11-23 08:25:16,441 - distributed.worker - INFO - -------------------------------------------------
+2022-11-23 08:25:16,444 - distributed.worker - INFO -       Start worker at:  ucx://10.33.227.169:45013
+2022-11-23 08:25:16,444 - distributed.worker - INFO -          Listening to:  ucx://10.33.227.169:45013
+2022-11-23 08:25:16,445 - distributed.worker - INFO -          dashboard at:        10.33.227.169:36919
+2022-11-23 08:25:16,445 - distributed.worker - INFO - Waiting to connect to:   ucx://10.33.227.169:8792
+2022-11-23 08:25:16,445 - distributed.worker - INFO - -------------------------------------------------
+2022-11-23 08:25:16,445 - distributed.worker - INFO -               Threads:                          1
+2022-11-23 08:25:16,445 - distributed.worker - INFO -                Memory:                  62.97 GiB
+2022-11-23 08:25:16,446 - distributed.worker - INFO -       Local Directory: /tmp/abarghi/dask-worker-space/worker-dkof7jk4
+2022-11-23 08:25:16,446 - distributed.worker - INFO - Starting Worker plugin CPUAffinity-d81f0fc8-7fb0-466f-a605-0caa231fce25
+2022-11-23 08:25:16,446 - distributed.worker - INFO - Starting Worker plugin RMMSetup-d17e004f-2b42-4190-b03f-024fb86a716a
+2022-11-23 08:25:16,447 - distributed.preloading - INFO - Run preload setup: dask_cuda.initialize
+2022-11-23 08:25:16,462 - distributed.worker - INFO - Starting Worker plugin PreImport-10571044-677c-4a98-a4fc-8b51bce4eb5d
+2022-11-23 08:25:16,462 - distributed.worker - INFO - -------------------------------------------------
+2022-11-23 08:25:16,463 - distributed.preloading - INFO - Run preload setup: dask_cuda.initialize
+2022-11-23 08:25:16,465 - distributed.preloading - INFO - Run preload setup: dask_cuda.initialize
+2022-11-23 08:25:16,466 - distributed.worker - INFO -       Start worker at:  ucx://10.33.227.169:36145
+2022-11-23 08:25:16,466 - distributed.preloading - INFO - Run preload setup: dask_cuda.initialize
+2022-11-23 08:25:16,466 - distributed.worker - INFO -          Listening to:  ucx://10.33.227.169:36145
+2022-11-23 08:25:16,466 - distributed.worker - INFO -          dashboard at:        10.33.227.169:33373
+2022-11-23 08:25:16,467 - distributed.worker - INFO - Waiting to connect to:   ucx://10.33.227.169:8792
+2022-11-23 08:25:16,467 - distributed.worker - INFO - -------------------------------------------------
+2022-11-23 08:25:16,467 - distributed.worker - INFO -               Threads:                          1
+2022-11-23 08:25:16,467 - distributed.worker - INFO -                Memory:                  62.97 GiB
+2022-11-23 08:25:16,467 - distributed.worker - INFO -       Local Directory: /tmp/abarghi/dask-worker-space/worker-rz85asx5
+2022-11-23 08:25:16,467 - distributed.preloading - INFO - Run preload setup: dask_cuda.initialize
+2022-11-23 08:25:16,468 - distributed.worker - INFO - Starting Worker plugin RMMSetup-f25ac095-f342-45cc-83d3-2ad534e9a4fe
+2022-11-23 08:25:16,468 - distributed.preloading - INFO - Run preload setup: dask_cuda.initialize
+2022-11-23 08:25:16,471 - distributed.worker - INFO -       Start worker at:  ucx://10.33.227.169:41559
+2022-11-23 08:25:16,471 - distributed.worker - INFO -          Listening to:  ucx://10.33.227.169:41559
+2022-11-23 08:25:16,472 - distributed.worker - INFO -          dashboard at:        10.33.227.169:45619
+2022-11-23 08:25:16,472 - distributed.worker - INFO - Waiting to connect to:   ucx://10.33.227.169:8792
+2022-11-23 08:25:16,472 - distributed.worker - INFO - -------------------------------------------------
+2022-11-23 08:25:16,472 - distributed.worker - INFO -               Threads:                          1
+2022-11-23 08:25:16,472 - distributed.worker - INFO -                Memory:                  62.97 GiB
+2022-11-23 08:25:16,472 - distributed.worker - INFO -       Local Directory: /tmp/abarghi/dask-worker-space/worker-rxp_2zkj
+2022-11-23 08:25:16,472 - distributed.worker - INFO - Starting Worker plugin RMMSetup-3360bcc5-aa53-438c-98d8-815f89099c30
+2022-11-23 08:25:16,487 - distributed.worker - INFO - Starting Worker plugin PreImport-59d96056-4bf6-49fc-a357-86ae6b553f32
+2022-11-23 08:25:16,487 - distributed.worker - INFO - Starting Worker plugin CPUAffinity-35a31fed-b0fa-46fa-9c31-ba52eeb471a3
+2022-11-23 08:25:16,487 - distributed.worker - INFO - -------------------------------------------------
+2022-11-23 08:25:16,499 - distributed.worker - INFO -       Start worker at:  ucx://10.33.227.169:40165
+2022-11-23 08:25:16,499 - distributed.worker - INFO -          Listening to:  ucx://10.33.227.169:40165
+2022-11-23 08:25:16,499 - distributed.worker - INFO -          dashboard at:        10.33.227.169:40313
+2022-11-23 08:25:16,500 - distributed.worker - INFO - Waiting to connect to:   ucx://10.33.227.169:8792
+2022-11-23 08:25:16,500 - distributed.worker - INFO - -------------------------------------------------
+2022-11-23 08:25:16,500 - distributed.worker - INFO -               Threads:                          1
+2022-11-23 08:25:16,500 - distributed.worker - INFO -                Memory:                  62.97 GiB
+2022-11-23 08:25:16,500 - distributed.worker - INFO -       Local Directory: /tmp/abarghi/dask-worker-space/worker-vgiacvze
+2022-11-23 08:25:16,500 - distributed.worker - INFO - Starting Worker plugin RMMSetup-03be1c43-0073-4c29-ac48-a9771a969c8f
+2022-11-23 08:25:16,503 - distributed.worker - INFO - Starting Worker plugin CPUAffinity-9aaa2388-424a-4c30-9e26-7a426bc396da
+2022-11-23 08:25:16,503 - distributed.worker - INFO - Starting Worker plugin PreImport-6194d1d2-eefb-4387-bb96-6be7f10e9ad5
+2022-11-23 08:25:16,503 - distributed.worker - INFO - -------------------------------------------------
+2022-11-23 08:25:16,519 - distributed.worker - INFO - Starting Worker plugin PreImport-1248781b-e0dc-4bad-902c-f425c9fe88b1
+2022-11-23 08:25:16,520 - distributed.worker - INFO - Starting Worker plugin CPUAffinity-6759ca33-bc17-4272-b321-6b97d4b0209f
+2022-11-23 08:25:16,520 - distributed.worker - INFO - -------------------------------------------------
+2022-11-23 08:25:16,523 - distributed.worker - INFO -         Registered to:   ucx://10.33.227.169:8792
+2022-11-23 08:25:16,524 - distributed.worker - INFO - -------------------------------------------------
+2022-11-23 08:25:16,526 - distributed.core - INFO - Starting established connection to ucx://10.33.227.169:8792
+2022-11-23 08:25:16,526 - distributed.worker - INFO -         Registered to:   ucx://10.33.227.169:8792
+2022-11-23 08:25:16,526 - distributed.worker - INFO - -------------------------------------------------
+2022-11-23 08:25:16,527 - distributed.worker - INFO -       Start worker at:  ucx://10.33.227.169:38443
+2022-11-23 08:25:16,527 - distributed.worker - INFO -          Listening to:  ucx://10.33.227.169:38443
+2022-11-23 08:25:16,527 - distributed.worker - INFO -          dashboard at:        10.33.227.169:44917
+2022-11-23 08:25:16,527 - distributed.worker - INFO - Waiting to connect to:   ucx://10.33.227.169:8792
+2022-11-23 08:25:16,527 - distributed.worker - INFO - -------------------------------------------------
+2022-11-23 08:25:16,527 - distributed.worker - INFO -               Threads:                          1
+2022-11-23 08:25:16,527 - distributed.worker - INFO -         Registered to:   ucx://10.33.227.169:8792
+2022-11-23 08:25:16,528 - distributed.worker - INFO -                Memory:                  62.97 GiB
+2022-11-23 08:25:16,528 - distributed.worker - INFO -       Local Directory: /tmp/abarghi/dask-worker-space/worker-vrg291pm
+2022-11-23 08:25:16,528 - distributed.worker - INFO - -------------------------------------------------
+2022-11-23 08:25:16,528 - distributed.worker - INFO - Starting Worker plugin RMMSetup-84d48e50-a511-4933-8798-b3e0dec04e2d
+2022-11-23 08:25:16,528 - distributed.core - INFO - Starting established connection to ucx://10.33.227.169:8792
+2022-11-23 08:25:16,528 - distributed.worker - INFO -       Start worker at:  ucx://10.33.227.169:41521
+2022-11-23 08:25:16,529 - distributed.worker - INFO -          Listening to:  ucx://10.33.227.169:41521
+2022-11-23 08:25:16,529 - distributed.worker - INFO -          dashboard at:        10.33.227.169:35635
+2022-11-23 08:25:16,529 - distributed.worker - INFO - Waiting to connect to:   ucx://10.33.227.169:8792
+2022-11-23 08:25:16,529 - distributed.worker - INFO - -------------------------------------------------
+2022-11-23 08:25:16,529 - distributed.worker - INFO -               Threads:                          1
+2022-11-23 08:25:16,530 - distributed.worker - INFO -                Memory:                  62.97 GiB
+2022-11-23 08:25:16,530 - distributed.worker - INFO -       Local Directory: /tmp/abarghi/dask-worker-space/worker-wgi2gptq
+2022-11-23 08:25:16,530 - distributed.core - INFO - Starting established connection to ucx://10.33.227.169:8792
+2022-11-23 08:25:16,530 - distributed.worker - INFO - Starting Worker plugin RMMSetup-59d2c7b2-952f-4417-b550-ed4ae8f9bff5
+2022-11-23 08:25:16,545 - distributed.worker - INFO - Starting Worker plugin PreImport-22bcf2bc-5dce-4ba3-936b-d6bb75a0bf24
+2022-11-23 08:25:16,545 - distributed.worker - INFO - Starting Worker plugin CPUAffinity-6d254ba5-5735-4aca-bff7-1648042d940e
+2022-11-23 08:25:16,545 - distributed.worker - INFO - -------------------------------------------------
+2022-11-23 08:25:16,557 - distributed.worker - INFO -       Start worker at:  ucx://10.33.227.169:41495
+2022-11-23 08:25:16,557 - distributed.worker - INFO -          Listening to:  ucx://10.33.227.169:41495
+2022-11-23 08:25:16,557 - distributed.worker - INFO -          dashboard at:        10.33.227.169:45375
+2022-11-23 08:25:16,558 - distributed.worker - INFO - Waiting to connect to:   ucx://10.33.227.169:8792
+2022-11-23 08:25:16,558 - distributed.worker - INFO - -------------------------------------------------
+2022-11-23 08:25:16,558 - distributed.worker - INFO -               Threads:                          1
+2022-11-23 08:25:16,558 - distributed.worker - INFO - Starting Worker plugin PreImport-ae33d9fe-d316-4022-ae3e-223b3d74bc1f
+2022-11-23 08:25:16,558 - distributed.worker - INFO -                Memory:                  62.97 GiB
+2022-11-23 08:25:16,558 - distributed.worker - INFO -       Local Directory: /tmp/abarghi/dask-worker-space/worker-q_r3zaxt
+2022-11-23 08:25:16,558 - distributed.worker - INFO - Starting Worker plugin CPUAffinity-7ab2436c-8e06-4ced-b7f3-df2cfa81e2e6
+2022-11-23 08:25:16,558 - distributed.worker - INFO - Starting Worker plugin RMMSetup-7132fca8-0bda-4a84-a928-5cd4df61dec3
+2022-11-23 08:25:16,558 - distributed.worker - INFO - -------------------------------------------------
+2022-11-23 08:25:16,561 - distributed.worker - INFO -         Registered to:   ucx://10.33.227.169:8792
+2022-11-23 08:25:16,561 - distributed.worker - INFO - -------------------------------------------------
+2022-11-23 08:25:16,562 - distributed.worker - INFO -         Registered to:   ucx://10.33.227.169:8792
+2022-11-23 08:25:16,562 - distributed.worker - INFO - -------------------------------------------------
+2022-11-23 08:25:16,562 - distributed.core - INFO - Starting established connection to ucx://10.33.227.169:8792
+2022-11-23 08:25:16,564 - distributed.core - INFO - Starting established connection to ucx://10.33.227.169:8792
+2022-11-23 08:25:16,572 - distributed.worker - INFO - Starting Worker plugin PreImport-d56f7480-88ce-41a9-ae84-b03315a59ab0
+2022-11-23 08:25:16,572 - distributed.worker - INFO - Starting Worker plugin CPUAffinity-e74b06ed-b44b-4ae3-bbbb-804d50ab7164
+2022-11-23 08:25:16,573 - distributed.worker - INFO - -------------------------------------------------
+2022-11-23 08:25:16,577 - distributed.worker - INFO -         Registered to:   ucx://10.33.227.169:8792
+2022-11-23 08:25:16,577 - distributed.worker - INFO - -------------------------------------------------
+2022-11-23 08:25:16,579 - distributed.core - INFO - Starting established connection to ucx://10.33.227.169:8792
+2022-11-23 08:25:16,593 - distributed.worker - INFO -         Registered to:   ucx://10.33.227.169:8792
+2022-11-23 08:25:16,593 - distributed.worker - INFO - -------------------------------------------------
+2022-11-23 08:25:16,595 - distributed.core - INFO - Starting established connection to ucx://10.33.227.169:8792
+2022-11-23 08:25:16,606 - distributed.worker - INFO -         Registered to:   ucx://10.33.227.169:8792
+2022-11-23 08:25:16,606 - distributed.worker - INFO - -------------------------------------------------
+2022-11-23 08:25:16,608 - distributed.core - INFO - Starting established connection to ucx://10.33.227.169:8792
+2022-11-23 08:26:21,834 - distributed.worker - INFO - Run out-of-band function '_func_ucp_listener_port'
+2022-11-23 08:26:21,834 - distributed.worker - INFO - Run out-of-band function '_func_ucp_listener_port'
+2022-11-23 08:26:21,834 - distributed.worker - INFO - Run out-of-band function '_func_ucp_listener_port'
+2022-11-23 08:26:21,834 - distributed.worker - INFO - Run out-of-band function '_func_ucp_listener_port'
+2022-11-23 08:26:21,834 - distributed.worker - INFO - Run out-of-band function '_func_ucp_listener_port'
+2022-11-23 08:26:21,835 - distributed.worker - INFO - Run out-of-band function '_func_ucp_listener_port'
+2022-11-23 08:26:21,835 - distributed.worker - INFO - Run out-of-band function '_func_ucp_listener_port'
+2022-11-23 08:26:21,838 - distributed.worker - INFO - Run out-of-band function '_func_ucp_listener_port'
+2022-11-23 08:26:22,063 - distributed.worker - INFO - Run out-of-band function '_func_init_all'
+2022-11-23 08:26:22,063 - distributed.worker - INFO - Run out-of-band function '_func_init_all'
+2022-11-23 08:26:22,065 - distributed.worker - INFO - Run out-of-band function '_func_init_all'
+2022-11-23 08:26:22,065 - distributed.worker - INFO - Run out-of-band function '_func_init_all'
+2022-11-23 08:26:22,065 - distributed.worker - INFO - Run out-of-band function '_func_init_all'
+2022-11-23 08:26:22,065 - distributed.worker - INFO - Run out-of-band function '_func_init_all'
+2022-11-23 08:26:22,066 - distributed.worker - INFO - Run out-of-band function '_func_init_all'
+2022-11-23 08:26:22,067 - distributed.worker - INFO - Run out-of-band function '_func_init_all'
+libibverbs: Warning: no userspace device-specific driver found for /sys/class/infiniband_verbs/uverbs1
+libibverbs: Warning: no userspace device-specific driver found for /sys/class/infiniband_verbs/uverbs3
+libibverbs: Warning: no userspace device-specific driver found for /sys/class/infiniband_verbs/uverbs0
+libibverbs: Warning: no userspace device-specific driver found for /sys/class/infiniband_verbs/uverbs2
+libibverbs: Warning: no userspace device-specific driver found for /sys/class/infiniband_verbs/uverbs1
+libibverbs: Warning: no userspace device-specific driver found for /sys/class/infiniband_verbs/uverbs3
+libibverbs: Warning: no userspace device-specific driver found for /sys/class/infiniband_verbs/uverbs0
+libibverbs: Warning: no userspace device-specific driver found for /sys/class/infiniband_verbs/uverbs2
+libibverbs: Warning: no userspace device-specific driver found for /sys/class/infiniband_verbs/uverbs1
+libibverbs: Warning: no userspace device-specific driver found for /sys/class/infiniband_verbs/uverbs3
+libibverbs: Warning: no userspace device-specific driver found for /sys/class/infiniband_verbs/uverbs0
+libibverbs: Warning: no userspace device-specific driver found for /sys/class/infiniband_verbs/uverbs2
+libibverbs: Warning: no userspace device-specific driver found for /sys/class/infiniband_verbs/uverbs1
+libibverbs: Warning: no userspace device-specific driver found for /sys/class/infiniband_verbs/uverbs3
+libibverbs: Warning: no userspace device-specific driver found for /sys/class/infiniband_verbs/uverbs0
+libibverbs: Warning: no userspace device-specific driver found for /sys/class/infiniband_verbs/uverbs2
+libibverbs: Warning: no userspace device-specific driver found for /sys/class/infiniband_verbs/uverbs1
+libibverbs: Warning: no userspace device-specific driver found for /sys/class/infiniband_verbs/uverbs3
+libibverbs: Warning: no userspace device-specific driver found for /sys/class/infiniband_verbs/uverbs0
+libibverbs: Warning: no userspace device-specific driver found for /sys/class/infiniband_verbs/uverbs2
+libibverbs: Warning: no userspace device-specific driver found for /sys/class/infiniband_verbs/uverbs1
+libibverbs: Warning: no userspace device-specific driver found for /sys/class/infiniband_verbs/uverbs3
+libibverbs: Warning: no userspace device-specific driver found for /sys/class/infiniband_verbs/uverbs0
+libibverbs: Warning: no userspace device-specific driver found for /sys/class/infiniband_verbs/uverbs2
+libibverbs: Warning: no userspace device-specific driver found for /sys/class/infiniband_verbs/uverbs1
+libibverbs: Warning: no userspace device-specific driver found for /sys/class/infiniband_verbs/uverbs3
+libibverbs: Warning: no userspace device-specific driver found for /sys/class/infiniband_verbs/uverbs0
+libibverbs: Warning: no userspace device-specific driver found for /sys/class/infiniband_verbs/uverbs2
+libibverbs: Warning: no userspace device-specific driver found for /sys/class/infiniband_verbs/uverbs1
+libibverbs: Warning: no userspace device-specific driver found for /sys/class/infiniband_verbs/uverbs3
+libibverbs: Warning: no userspace device-specific driver found for /sys/class/infiniband_verbs/uverbs0
+libibverbs: Warning: no userspace device-specific driver found for /sys/class/infiniband_verbs/uverbs2
+2022-11-23 08:26:29,313 - distributed.worker - INFO - Run out-of-band function '_subcomm_init'
+2022-11-23 08:26:29,407 - distributed.worker - INFO - Run out-of-band function '_subcomm_init'
+2022-11-23 08:26:29,468 - distributed.worker - INFO - Run out-of-band function '_subcomm_init'
+2022-11-23 08:26:29,469 - distributed.worker - INFO - Run out-of-band function '_subcomm_init'
+2022-11-23 08:26:29,664 - distributed.worker - INFO - Run out-of-band function '_subcomm_init'
+2022-11-23 08:26:29,670 - distributed.worker - INFO - Run out-of-band function '_subcomm_init'
+2022-11-23 08:26:29,740 - distributed.worker - INFO - Run out-of-band function '_subcomm_init'
+2022-11-23 08:26:29,745 - distributed.worker - INFO - Run out-of-band function '_subcomm_init'
+2022-11-23 08:26:34,648 - distributed.core - INFO - Event loop was unresponsive in Worker for 11.34s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2022-11-23 08:26:34,649 - distributed.core - INFO - Event loop was unresponsive in Worker for 11.33s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2022-11-23 08:26:34,649 - distributed.core - INFO - Event loop was unresponsive in Worker for 11.33s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2022-11-23 08:26:34,650 - distributed.core - INFO - Event loop was unresponsive in Worker for 11.34s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2022-11-23 08:26:34,650 - distributed.core - INFO - Event loop was unresponsive in Worker for 11.35s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2022-11-23 08:26:34,651 - distributed.core - INFO - Event loop was unresponsive in Worker for 11.34s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2022-11-23 08:26:34,652 - distributed.core - INFO - Event loop was unresponsive in Worker for 11.34s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2022-11-23 08:26:34,658 - distributed.core - INFO - Event loop was unresponsive in Worker for 11.34s.  This is often caused by long-running GIL-holding functions or moving large chunks of data. This can cause timeouts and instability.
+2022-11-23 08:29:44,841 - distributed.worker - INFO - Stopping worker at ucx://10.33.227.169:40165. Reason: worker-close
+2022-11-23 08:29:44,841 - distributed.worker - INFO - Stopping worker at ucx://10.33.227.169:44743. Reason: worker-close
+2022-11-23 08:29:44,842 - distributed.worker - INFO - Stopping worker at ucx://10.33.227.169:41495. Reason: worker-close
+2022-11-23 08:29:44,843 - distributed.core - INFO - Connection to ucx://10.33.227.169:8792 has been closed.
+2022-11-23 08:29:44,843 - distributed.core - INFO - Connection to ucx://10.33.227.169:8792 has been closed.
+2022-11-23 08:29:44,844 - distributed.worker - INFO - Stopping worker at ucx://10.33.227.169:41521. Reason: worker-handle-scheduler-connection-broken
+2022-11-23 08:29:44,843 - distributed.nanny - INFO - Closing Nanny at 'ucx://10.33.227.169:42765'. Reason: nanny-close
+2022-11-23 08:29:44,844 - distributed.core - INFO - Connection to ucx://10.33.227.169:8792 has been closed.
+2022-11-23 08:29:44,844 - distributed.core - INFO - Connection to ucx://10.33.227.169:8792 has been closed.
+2022-11-23 08:29:44,844 - distributed.core - INFO - Connection to ucx://10.33.227.169:8792 has been closed.
+2022-11-23 08:29:44,844 - distributed.worker - INFO - Stopping worker at ucx://10.33.227.169:38443. Reason: worker-handle-scheduler-connection-broken
+2022-11-23 08:29:44,844 - distributed.core - INFO - Connection to ucx://10.33.227.169:8792 has been closed.
+2022-11-23 08:29:44,844 - distributed.worker - INFO - Stopping worker at ucx://10.33.227.169:36145. Reason: worker-handle-scheduler-connection-broken
+2022-11-23 08:29:44,844 - distributed.worker - INFO - Stopping worker at ucx://10.33.227.169:45013. Reason: worker-handle-scheduler-connection-broken
+2022-11-23 08:29:44,844 - distributed.core - INFO - Connection to ucx://10.33.227.169:8792 has been closed.
+2022-11-23 08:29:44,844 - distributed.core - INFO - Connection to ucx://10.33.227.169:8792 has been closed.
+2022-11-23 08:29:44,844 - distributed.worker - INFO - Stopping worker at ucx://10.33.227.169:41559. Reason: worker-handle-scheduler-connection-broken
+2022-11-23 08:29:44,844 - distributed.nanny - INFO - Nanny asking worker to close. Reason: nanny-close
+2022-11-23 08:29:44,845 - distributed.nanny - INFO - Closing Nanny at 'ucx://10.33.227.169:32953'. Reason: nanny-close
+2022-11-23 08:29:44,847 - distributed.nanny - INFO - Nanny asking worker to close. Reason: nanny-close
+2022-11-23 08:29:44,847 - distributed.nanny - INFO - Closing Nanny at 'ucx://10.33.227.169:45725'. Reason: nanny-close
+2022-11-23 08:29:44,847 - distributed.nanny - INFO - Nanny asking worker to close. Reason: nanny-close
+2022-11-23 08:29:44,848 - distributed.nanny - INFO - Closing Nanny at 'ucx://10.33.227.169:43717'. Reason: nanny-close
+2022-11-23 08:29:44,849 - distributed.nanny - INFO - Nanny asking worker to close. Reason: nanny-close
+2022-11-23 08:29:44,849 - distributed.nanny - INFO - Closing Nanny at 'ucx://10.33.227.169:34107'. Reason: nanny-close
+[dgx19:24393:a:24545] Caught signal 11 (Segmentation fault: address not mapped to object at address 0x160)
+2022-11-23 08:29:44,846 - distributed.batched - INFO - Batched Comm Closed <UCX (closed) Worker->Scheduler local= remote=ucx://10.33.227.169:8792>
+Traceback (most recent call last):
+  File "/home/nfs/abarghi/anaconda3/envs/rapids/lib/python3.9/asyncio/runners.py", line 44, in run
+    return loop.run_until_complete(main)
+  File "/home/nfs/abarghi/anaconda3/envs/rapids/lib/python3.9/asyncio/base_events.py", line 634, in run_until_complete
+    self.run_forever()
+  File "/home/nfs/abarghi/anaconda3/envs/rapids/lib/python3.9/asyncio/base_events.py", line 601, in run_forever
+    self._run_once()
+  File "/home/nfs/abarghi/anaconda3/envs/rapids/lib/python3.9/asyncio/base_events.py", line 1869, in _run_once
+    event_list = self._selector.select(timeout)
+  File "/home/nfs/abarghi/anaconda3/envs/rapids/lib/python3.9/selectors.py", line 469, in select
+    fd_event_list = self._selector.poll(timeout, max_ev)
+KeyboardInterrupt
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/nfs/abarghi/anaconda3/envs/rapids/lib/python3.9/site-packages/distributed/batched.py", line 115, in _background_send
+    nbytes = yield coro
+  File "/home/nfs/abarghi/anaconda3/envs/rapids/lib/python3.9/site-packages/tornado/gen.py", line 762, in run
+    value = future.result()
+  File "/home/nfs/abarghi/anaconda3/envs/rapids/lib/python3.9/site-packages/distributed/utils.py", line 742, in wrapper
+    return await func(*args, **kwargs)
+  File "/home/nfs/abarghi/anaconda3/envs/rapids/lib/python3.9/site-packages/distributed/comm/ucx.py", line 289, in write
+    raise CommClosedError("Endpoint is closed -- unable to send message")
+distributed.comm.core.CommClosedError: Endpoint is closed -- unable to send message
+==== backtrace (tid:  24545) ====
+ 0  /home/nfs/abarghi/anaconda3/envs/rapids/lib/python3.9/site-packages/ucp/_libs/../../../../libucs.so.0(ucs_handle_error+0x2fd) [0x7f7c14036b3d]
+ 1  /home/nfs/abarghi/anaconda3/envs/rapids/lib/python3.9/site-packages/ucp/_libs/../../../../libucs.so.0(+0x2bd44) [0x7f7c14036d44]
+ 2  /home/nfs/abarghi/anaconda3/envs/rapids/lib/python3.9/site-packages/ucp/_libs/../../../../libucs.so.0(+0x2bf0a) [0x7f7c14036f0a]
+ 3  /lib/x86_64-linux-gnu/libpthread.so.0(+0x12980) [0x7f7f2251b980]
+ 4  /home/nfs/abarghi/anaconda3/envs/rapids/lib/python3.9/site-packages/ucp/_libs/../../../../libucp.so.0(ucp_cm_server_conn_request_cb+0xb4) [0x7f7c08eea424]
+ 5  /home/nfs/abarghi/anaconda3/envs/rapids/lib/python3.9/site-packages/ucp/_libs/../../../.././libuct.so.0(+0x2c64e) [0x7f7c08df564e]
+ 6  /home/nfs/abarghi/anaconda3/envs/rapids/lib/python3.9/site-packages/ucp/_libs/../../../.././libuct.so.0(uct_tcp_sockcm_ep_recv+0x15f) [0x7f7c08df71ff]
+ 7  /home/nfs/abarghi/anaconda3/envs/rapids/lib/python3.9/site-packages/ucp/_libs/../../../.././libuct.so.0(uct_tcp_sa_data_handler+0x89) [0x7f7c08df43d9]
+ 8  /home/nfs/abarghi/anaconda3/envs/rapids/lib/python3.9/site-packages/ucp/_libs/../../../../libucs.so.0(+0x15ea5) [0x7f7c14020ea5]
+ 9  /home/nfs/abarghi/anaconda3/envs/rapids/lib/python3.9/site-packages/ucp/_libs/../../../../libucs.so.0(+0x16c5f) [0x7f7c14021c5f]
+10  /home/nfs/abarghi/anaconda3/envs/rapids/lib/python3.9/site-packages/ucp/_libs/../../../../libucs.so.0(ucs_async_dispatch_handlers+0x2b) [0x7f7c14021ddb]
+11  /home/nfs/abarghi/anaconda3/envs/rapids/lib/python3.9/site-packages/ucp/_libs/../../../../libucs.so.0(+0x19fcf) [0x7f7c14024fcf]
+12  /home/nfs/abarghi/anaconda3/envs/rapids/lib/python3.9/site-packages/ucp/_libs/../../../../libucs.so.0(ucs_event_set_wait+0x101) [0x7f7c14040461]
+13  /home/nfs/abarghi/anaconda3/envs/rapids/lib/python3.9/site-packages/ucp/_libs/../../../../libucs.so.0(+0x1a824) [0x7f7c14025824]
+14  /lib/x86_64-linux-gnu/libpthread.so.0(+0x76db) [0x7f7f225106db]
+15  /lib/x86_64-linux-gnu/libc.so.6(clone+0x3f) [0x7f7f2188c61f]
+=================================
+2022-11-23 08:29:44,849 - distributed.batched - INFO - Batched Comm Closed <UCX (closed) Worker->Scheduler local= remote=ucx://10.33.227.169:8792>
+Traceback (most recent call last):
+  File "/home/nfs/abarghi/anaconda3/envs/rapids/lib/python3.9/asyncio/runners.py", line 44, in run
+    return loop.run_until_complete(main)
+  File "/home/nfs/abarghi/anaconda3/envs/rapids/lib/python3.9/asyncio/base_events.py", line 634, in run_until_complete
+    self.run_forever()
+  File "/home/nfs/abarghi/anaconda3/envs/rapids/lib/python3.9/asyncio/base_events.py", line 601, in run_forever
+    self._run_once()
+  File "/home/nfs/abarghi/anaconda3/envs/rapids/lib/python3.9/asyncio/base_events.py", line 1869, in _run_once
+    event_list = self._selector.select(timeout)
+  File "/home/nfs/abarghi/anaconda3/envs/rapids/lib/python3.9/selectors.py", line 469, in select
+    fd_event_list = self._selector.poll(timeout, max_ev)
+KeyboardInterrupt
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/nfs/abarghi/anaconda3/envs/rapids/lib/python3.9/site-packages/distributed/batched.py", line 115, in _background_send
+    nbytes = yield coro
+  File "/home/nfs/abarghi/anaconda3/envs/rapids/lib/python3.9/site-packages/tornado/gen.py", line 762, in run
+    value = future.result()
+  File "/home/nfs/abarghi/anaconda3/envs/rapids/lib/python3.9/site-packages/distributed/utils.py", line 742, in wrapper
+    return await func(*args, **kwargs)
+  File "/home/nfs/abarghi/anaconda3/envs/rapids/lib/python3.9/site-packages/distributed/comm/ucx.py", line 289, in write
+    raise CommClosedError("Endpoint is closed -- unable to send message")
+distributed.comm.core.CommClosedError: Endpoint is closed -- unable to send message
+2022-11-23 08:29:44,849 - distributed.batched - INFO - Batched Comm Closed <UCX (closed) Worker->Scheduler local= remote=ucx://10.33.227.169:8792>
+Traceback (most recent call last):
+  File "/home/nfs/abarghi/anaconda3/envs/rapids/lib/python3.9/asyncio/runners.py", line 44, in run
+    return loop.run_until_complete(main)
+  File "/home/nfs/abarghi/anaconda3/envs/rapids/lib/python3.9/asyncio/base_events.py", line 634, in run_until_complete
+    self.run_forever()
+  File "/home/nfs/abarghi/anaconda3/envs/rapids/lib/python3.9/asyncio/base_events.py", line 601, in run_forever
+    self._run_once()
+  File "/home/nfs/abarghi/anaconda3/envs/rapids/lib/python3.9/asyncio/base_events.py", line 1869, in _run_once
+    event_list = self._selector.select(timeout)
+  File "/home/nfs/abarghi/anaconda3/envs/rapids/lib/python3.9/selectors.py", line 469, in select
+    fd_event_list = self._selector.poll(timeout, max_ev)
+KeyboardInterrupt
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/nfs/abarghi/anaconda3/envs/rapids/lib/python3.9/site-packages/distributed/batched.py", line 115, in _background_send
+    nbytes = yield coro
+  File "/home/nfs/abarghi/anaconda3/envs/rapids/lib/python3.9/site-packages/tornado/gen.py", line 762, in run
+    value = future.result()
+  File "/home/nfs/abarghi/anaconda3/envs/rapids/lib/python3.9/site-packages/distributed/utils.py", line 742, in wrapper
+    return await func(*args, **kwargs)
+  File "/home/nfs/abarghi/anaconda3/envs/rapids/lib/python3.9/site-packages/distributed/comm/ucx.py", line 289, in write
+    raise CommClosedError("Endpoint is closed -- unable to send message")
+distributed.comm.core.CommClosedError: Endpoint is closed -- unable to send message
+/home/nfs/abarghi/anaconda3/envs/rapids/lib/python3.9/multiprocessing/resource_tracker.py:216: UserWarning: resource_tracker: There appear to be 48 leaked semaphore objects to clean up at shutdown
+  warnings.warn('resource_tracker: There appear to be %d '

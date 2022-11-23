@@ -1,0 +1,72 @@
+RUNNING: "python -m distributed.cli.dask_scheduler --protocol=ucx
+            --port=8792
+            --scheduler-file /home/nfs/abarghi/cugraph3/python/cugraph-service/scripts/../dask-scheduler.json
+            "
+/home/nfs/abarghi/anaconda3/envs/rapids/lib/python3.9/site-packages/distributed/cli/dask_scheduler.py:140: FutureWarning: dask-scheduler is deprecated and will be removed in a future release; use `dask scheduler` instead
+  warnings.warn(
+2022-11-23 08:25:05,035 - distributed.scheduler - INFO - -----------------------------------------------
+2022-11-23 08:25:06,601 - distributed.http.proxy - INFO - To route to workers diagnostics web server please install jupyter-server-proxy: python -m pip install jupyter-server-proxy
+2022-11-23 08:25:06,641 - distributed.scheduler - INFO - State start
+2022-11-23 08:25:06,652 - distributed.scheduler - INFO - -----------------------------------------------
+2022-11-23 08:25:08,175 - distributed.scheduler - INFO -   Scheduler at:  ucx://10.33.227.169:8792
+2022-11-23 08:25:08,175 - distributed.scheduler - INFO -   dashboard at:                     :8787
+2022-11-23 08:25:16,502 - distributed.scheduler - INFO - Register worker <WorkerState 'ucx://10.33.227.169:44743', status: init, memory: 0, processing: 0>
+2022-11-23 08:25:16,523 - distributed.scheduler - INFO - Starting worker compute stream, ucx://10.33.227.169:44743
+2022-11-23 08:25:16,523 - distributed.core - INFO - Starting established connection to ucx://:8792
+2022-11-23 08:25:16,525 - distributed.scheduler - INFO - Register worker <WorkerState 'ucx://10.33.227.169:45013', status: init, memory: 0, processing: 0>
+2022-11-23 08:25:16,526 - distributed.scheduler - INFO - Starting worker compute stream, ucx://10.33.227.169:45013
+2022-11-23 08:25:16,526 - distributed.core - INFO - Starting established connection to ucx://:8792
+2022-11-23 08:25:16,526 - distributed.scheduler - INFO - Register worker <WorkerState 'ucx://10.33.227.169:36145', status: init, memory: 0, processing: 0>
+2022-11-23 08:25:16,527 - distributed.scheduler - INFO - Starting worker compute stream, ucx://10.33.227.169:36145
+2022-11-23 08:25:16,527 - distributed.core - INFO - Starting established connection to ucx://:8792
+2022-11-23 08:25:16,559 - distributed.scheduler - INFO - Register worker <WorkerState 'ucx://10.33.227.169:41559', status: init, memory: 0, processing: 0>
+2022-11-23 08:25:16,560 - distributed.scheduler - INFO - Starting worker compute stream, ucx://10.33.227.169:41559
+2022-11-23 08:25:16,560 - distributed.core - INFO - Starting established connection to ucx://:8792
+2022-11-23 08:25:16,561 - distributed.scheduler - INFO - Register worker <WorkerState 'ucx://10.33.227.169:40165', status: init, memory: 0, processing: 0>
+2022-11-23 08:25:16,561 - distributed.scheduler - INFO - Starting worker compute stream, ucx://10.33.227.169:40165
+2022-11-23 08:25:16,562 - distributed.core - INFO - Starting established connection to ucx://:8792
+2022-11-23 08:25:16,576 - distributed.scheduler - INFO - Register worker <WorkerState 'ucx://10.33.227.169:38443', status: init, memory: 0, processing: 0>
+2022-11-23 08:25:16,577 - distributed.scheduler - INFO - Starting worker compute stream, ucx://10.33.227.169:38443
+2022-11-23 08:25:16,577 - distributed.core - INFO - Starting established connection to ucx://:8792
+2022-11-23 08:25:16,592 - distributed.scheduler - INFO - Register worker <WorkerState 'ucx://10.33.227.169:41521', status: init, memory: 0, processing: 0>
+2022-11-23 08:25:16,593 - distributed.scheduler - INFO - Starting worker compute stream, ucx://10.33.227.169:41521
+2022-11-23 08:25:16,593 - distributed.core - INFO - Starting established connection to ucx://:8792
+2022-11-23 08:25:16,605 - distributed.scheduler - INFO - Register worker <WorkerState 'ucx://10.33.227.169:41495', status: init, memory: 0, processing: 0>
+2022-11-23 08:25:16,605 - distributed.scheduler - INFO - Starting worker compute stream, ucx://10.33.227.169:41495
+2022-11-23 08:25:16,605 - distributed.core - INFO - Starting established connection to ucx://:8792
+2022-11-23 08:26:21,779 - distributed.scheduler - INFO - Receive client connection: Client-90f98be5-6b4b-11ed-a37b-d8c49778ced7
+2022-11-23 08:26:21,780 - distributed.core - INFO - Starting established connection to ucx://:8792
+2022-11-23 08:26:21,851 - distributed.worker - INFO - Run out-of-band function '_func_set_scheduler_as_nccl_root'
+2022-11-23 08:26:35,095 - distributed.core - INFO - Connection to ucx://:8792 has been closed.
+2022-11-23 08:26:35,096 - distributed.scheduler - INFO - Remove client Client-90f98be5-6b4b-11ed-a37b-d8c49778ced7
+2022-11-23 08:26:35,097 - distributed.scheduler - INFO - Close client connection: Client-90f98be5-6b4b-11ed-a37b-d8c49778ced7
+2022-11-23 08:29:44,842 - distributed._signals - INFO - Received signal SIGINT (2)
+2022-11-23 08:29:44,845 - distributed.core - INFO - Connection to ucx://:8792 has been closed.
+2022-11-23 08:29:44,845 - distributed.scheduler - INFO - Remove worker <WorkerState 'ucx://10.33.227.169:45013', status: running, memory: 0, processing: 0>
+2022-11-23 08:29:44,845 - distributed.core - INFO - Removing comms to ucx://10.33.227.169:45013
+2022-11-23 08:29:44,846 - distributed.core - INFO - Connection to ucx://:8792 has been closed.
+2022-11-23 08:29:44,846 - distributed.scheduler - INFO - Remove worker <WorkerState 'ucx://10.33.227.169:41495', status: running, memory: 0, processing: 0>
+2022-11-23 08:29:44,847 - distributed.core - INFO - Removing comms to ucx://10.33.227.169:41495
+2022-11-23 08:29:44,847 - distributed.core - INFO - Connection to ucx://:8792 has been closed.
+2022-11-23 08:29:44,847 - distributed.scheduler - INFO - Remove worker <WorkerState 'ucx://10.33.227.169:36145', status: running, memory: 0, processing: 0>
+2022-11-23 08:29:44,847 - distributed.core - INFO - Removing comms to ucx://10.33.227.169:36145
+2022-11-23 08:29:44,848 - distributed.core - INFO - Connection to ucx://:8792 has been closed.
+2022-11-23 08:29:44,848 - distributed.scheduler - INFO - Remove worker <WorkerState 'ucx://10.33.227.169:41559', status: running, memory: 0, processing: 0>
+2022-11-23 08:29:44,848 - distributed.core - INFO - Removing comms to ucx://10.33.227.169:41559
+2022-11-23 08:29:44,849 - distributed.core - INFO - Connection to ucx://:8792 has been closed.
+2022-11-23 08:29:44,849 - distributed.scheduler - INFO - Remove worker <WorkerState 'ucx://10.33.227.169:44743', status: running, memory: 0, processing: 0>
+2022-11-23 08:29:44,849 - distributed.core - INFO - Removing comms to ucx://10.33.227.169:44743
+2022-11-23 08:29:44,850 - distributed.core - INFO - Connection to ucx://:8792 has been closed.
+2022-11-23 08:29:44,850 - distributed.scheduler - INFO - Remove worker <WorkerState 'ucx://10.33.227.169:40165', status: running, memory: 0, processing: 0>
+2022-11-23 08:29:44,850 - distributed.core - INFO - Removing comms to ucx://10.33.227.169:40165
+2022-11-23 08:29:44,851 - distributed.core - INFO - Connection to ucx://:8792 has been closed.
+2022-11-23 08:29:44,851 - distributed.scheduler - INFO - Remove worker <WorkerState 'ucx://10.33.227.169:38443', status: running, memory: 0, processing: 0>
+2022-11-23 08:29:44,851 - distributed.core - INFO - Removing comms to ucx://10.33.227.169:38443
+2022-11-23 08:29:44,851 - distributed.core - INFO - Connection to ucx://:8792 has been closed.
+2022-11-23 08:29:44,851 - distributed.scheduler - INFO - Remove worker <WorkerState 'ucx://10.33.227.169:41521', status: running, memory: 0, processing: 0>
+2022-11-23 08:29:44,851 - distributed.core - INFO - Removing comms to ucx://10.33.227.169:41521
+2022-11-23 08:29:44,852 - distributed.scheduler - INFO - Lost all workers
+2022-11-23 08:29:44,852 - distributed.scheduler - INFO - Scheduler closing...
+2022-11-23 08:29:44,853 - distributed.scheduler - INFO - Scheduler closing all comms
+2022-11-23 08:29:45,251 - distributed.scheduler - INFO - Stopped scheduler at 'ucx://10.33.227.169:8792'
+2022-11-23 08:29:45,252 - distributed.scheduler - INFO - End scheduler
