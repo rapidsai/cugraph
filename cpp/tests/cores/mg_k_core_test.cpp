@@ -14,10 +14,13 @@
  * limitations under the License.
  */
 
+#include "k_core_validate.hpp"
+
 #include <utilities/base_fixture.hpp>
+#include <utilities/device_comm_wrapper.hpp>
 #include <utilities/high_res_clock.h>
+#include <utilities/mg_utilities.hpp>
 #include <utilities/test_graphs.hpp>
-#include <utilities/test_utilities.hpp>
 #include <utilities/thrust_wrapper.hpp>
 
 #include <cugraph/algorithms.hpp>
@@ -36,52 +39,6 @@
 #include <numeric>
 #include <vector>
 
-template <typename graph_view_t>
-void check_correctness(
-  raft::handle_t const& handle,
-  graph_view_t const& graph_view,
-  rmm::device_uvector<typename graph_view_t::edge_type> const& d_core_numbers,
-  std::tuple<rmm::device_uvector<typename graph_view_t::vertex_type>,
-             rmm::device_uvector<typename graph_view_t::vertex_type>,
-             std::optional<rmm::device_uvector<typename graph_view_t::weight_type>>> const&
-    subgraph,
-  size_t k)
-{
-#if 0
-  auto [graph_src, graph_dst, graph_wgt] = cugraph::test::graph_to_host_coo(handle, graph_view);
-
-  auto h_core_numbers = cugraph::test::to_host(handle, d_core_numbers.data(), d_core_number.size());
-
-  auto [d_subgraph_src, d_subgraph_dst, d_subgraph_wgt] = subgraph;
-
-  auto h_subgraph_src =
-    cugraph::test::to_host(handle, d_subgraph_src.data(), d_subgraph_src.size());
-  auto h_subgraph_dst =
-    cugraph::test::to_host(handle, d_subgraph_dst.data(), d_subgraph_dst.size());
-
-  std::optional<std::vector<weight_t>> h_subgraph_wgt{std::nullopt};
-  if (d_subgraph_wgt)
-    h_subgraph_wgt = std::make_optional(
-      cugraph::test::to_host(handle, d_subgraph_wgt->data(), d_subgraph_wgt->size()));
-
-  // Check that all edges in the subgraph are appropriate
-  std::for_each(h_subgraph_src.begin(), h_subgraph_src.end(), [&h_core_numbers](auto v) {
-    EXPECT_GE(h_core_numbers[v], k);
-  });
-  std::for_each(h_subgraph_dst.begin(), h_subgraph_dst.end(), [&h_core_numbers](auto v) {
-    EXPECT_GE(h_core_numbers[v], k);
-  });
-
-  // Now we'll count how many edges should be in the subgraph
-  size_t counter = 0;
-  for (size_t i = 0; i < graph_src.size(); ++i)
-    if ((h_core_numbers[graph_src[i]] >= k) && (h_core_numbers[graph_dst[i]] >= k)) ++counter;
-
-  EXPECT_EQ(counter, h_subgraph.size());
-
-#endif
-}
-
 struct KCore_Usecase {
   size_t k;
   cugraph::k_core_degree_type_t degree_type{cugraph::k_core_degree_type_t::OUT};
@@ -94,7 +51,6 @@ class Tests_MGKCore : public ::testing::TestWithParam<std::tuple<KCore_Usecase, 
   Tests_MGKCore() {}
 
   static void SetUpTestCase() { handle_ = cugraph::test::initialize_mg_handle(); }
-
   static void TearDownTestCase() { handle_.reset(); }
 
   virtual void SetUp() {}
@@ -115,8 +71,8 @@ class Tests_MGKCore : public ::testing::TestWithParam<std::tuple<KCore_Usecase, 
       hr_clock.start();
     }
 
-    auto [sg_graph, sg_edge_weights, d_sg_renumber_map_labels] =
-      cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, false>(
+    auto [graph, edge_weights, d_renumber_map_labels] =
+      cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, true>(
         *handle_, input_usecase, false, renumber, true, true);
 
     if (cugraph::test::g_perf) {
@@ -126,15 +82,15 @@ class Tests_MGKCore : public ::testing::TestWithParam<std::tuple<KCore_Usecase, 
       std::cout << "construct_graph took " << elapsed_time * 1e-6 << " s.\n";
     }
 
-    auto sg_graph_view = sg_graph.view();
-    auto sg_edge_weight_view =
-      sg_edge_weights ? std::make_optional((*sg_edge_weights).view()) : std::nullopt;
+    auto graph_view = graph.view();
+    auto edge_weight_view =
+      edge_weights ? std::make_optional((*edge_weights).view()) : std::nullopt;
 
-    rmm::device_uvector<edge_t> d_core_numbers(sg_graph_view.number_of_vertices(),
+    rmm::device_uvector<edge_t> d_core_numbers(graph_view.local_vertex_partition_range_size(),
                                                handle_->get_stream());
 
     cugraph::core_number(*handle_,
-                         sg_graph_view,
+                         graph_view,
                          d_core_numbers.data(),
                          k_core_usecase.degree_type,
                          k_core_usecase.k,
@@ -147,18 +103,13 @@ class Tests_MGKCore : public ::testing::TestWithParam<std::tuple<KCore_Usecase, 
 
     raft::device_span<edge_t const> core_number_span{d_core_numbers.data(), d_core_numbers.size()};
 
-#if 0
-    auto subgraph = cugraph::k_core(
-                                    *handle_, sg_graph_view, k_core_usecase.k, std::nullopt, std::nullopt, std::make_optional(core_number_span));
-#else
-    EXPECT_THROW(cugraph::k_core(*handle_,
-                                 sg_graph_view,
-                                 sg_edge_weight_view,
-                                 k_core_usecase.k,
-                                 std::nullopt,
-                                 std::make_optional(core_number_span)),
-                 cugraph::logic_error);
-#endif
+    auto [subgraph_src, subgraph_dst, subgraph_wgt] =
+      cugraph::k_core(*handle_,
+                      graph_view,
+                      edge_weight_view,
+                      k_core_usecase.k,
+                      std::nullopt,
+                      std::make_optional(core_number_span));
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -168,9 +119,39 @@ class Tests_MGKCore : public ::testing::TestWithParam<std::tuple<KCore_Usecase, 
     }
 
     if (k_core_usecase.check_correctness) {
-#if 0
-      check_correctness(*handle_, graph_view, d_core_numbers, subgraph, k_core_usecase.k);
-#endif
+      auto [sg_graph, sg_edge_weights, sg_number_map] = cugraph::test::mg_graph_to_sg_graph(
+        *handle_,
+        graph_view,
+        edge_weight_view,
+        std::optional<rmm::device_uvector<vertex_t>>{std::nullopt},
+        false);
+
+      auto sg_edge_weight_view =
+        sg_edge_weights ? std::make_optional((*sg_edge_weights).view()) : std::nullopt;
+
+      d_core_numbers = cugraph::test::device_gatherv(
+        *handle_, raft::device_span<edge_t const>(d_core_numbers.data(), d_core_numbers.size()));
+
+      subgraph_src = cugraph::test::device_gatherv(
+        *handle_, raft::device_span<vertex_t const>(subgraph_src.data(), subgraph_src.size()));
+
+      subgraph_dst = cugraph::test::device_gatherv(
+        *handle_, raft::device_span<vertex_t const>(subgraph_dst.data(), subgraph_dst.size()));
+
+      if (subgraph_wgt)
+        *subgraph_wgt = cugraph::test::device_gatherv(
+          *handle_, raft::device_span<weight_t const>(subgraph_wgt->data(), subgraph_wgt->size()));
+
+      if (handle_->get_comms().get_rank() == 0) {
+        cugraph::test::check_correctness(
+          *handle_,
+          sg_graph.view(),
+          sg_edge_weight_view,
+          d_core_numbers,
+          std::make_tuple(
+            std::move(subgraph_src), std::move(subgraph_dst), std::move(subgraph_wgt)),
+          k_core_usecase.k);
+      }
     }
   }
 
