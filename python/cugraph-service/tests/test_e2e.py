@@ -17,8 +17,6 @@ from pathlib import Path
 
 import pytest
 
-import numpy as np
-
 from . import data
 from . import utils
 
@@ -393,14 +391,7 @@ def test_extension_returns_none(client, extension_returns_none):
         client.unload_extension_module(mod_name)
 
 
-@pytest.mark.parametrize("vert_ids", [[11, 86, 89021], np.array([11, 86, 89021])])
-def test_get_graph_vertex_data(client_with_property_csvs_loaded, vert_ids):
-    """
-    This test ensures that the get_graph_vertex_data call from the client
-    is working as expected.  It tests both a Python list and numpy array
-    as input.  The numpy array check was added after a bug was found where
-    the client did not properly construct a GraphVertexEdgeID thrift union.
-    """
+def test_get_graph_vertex_data(client_with_property_csvs_loaded):
     (client, test_data) = client_with_property_csvs_loaded
 
     # FIXME: do not hardcode the shape values, get them from the input data.
@@ -409,6 +400,7 @@ def test_get_graph_vertex_data(client_with_property_csvs_loaded, vert_ids):
 
     # The remaining tests get individual vertex data - compare those to the
     # all_vertex_data retrieved earlier.
+    vert_ids = [11, 86, 89021]
     np_array = client.get_graph_vertex_data(vert_ids)
     assert np_array.shape == (3, 9)
     # The 1st element is the vert ID
