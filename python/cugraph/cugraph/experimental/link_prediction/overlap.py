@@ -155,13 +155,14 @@ def EXPERIMENTAL__overlap(G, vertex_pair=None, use_weight=False):
         raise ValueError("Input must be an undirected Graph.")
 
     if G.edgelist.weights:
-        raise ValueError("Weighted graphs are currently not supported "
-                         "but will be in the next release.")
+        raise ValueError(
+            "Weighted graphs are currently not supported "
+            "but will be in the next release."
+        )
 
     if use_weight:
         raise ValueError(
-            "'use_weight' is currently not supported but will "
-            "be in the next release"
+            "'use_weight' is currently not supported but will " "be in the next release"
         )
 
     if vertex_pair is None:
