@@ -37,7 +37,10 @@ from cugraph.generators import rmat
 from cugraph.experimental import datasets
 from cugraph.dask import uniform_neighbor_sample as uniform_neighbor_sample_mg
 
+from cugraph_service_client import CugraphServiceClient
+from cugraph_service_client.exceptions import CugraphServiceError
 from cugraph_service_client import RemoteGraph
+from . import utils
 
 seed = 42
 
@@ -133,25 +136,28 @@ graph_obj_fixture_params = gen_fixture_params(
 )
 
 
-def get_edgelist(graph_data, gpu_config):
+def create_graph(graph_data, gpu_config):
     """
-    Return an edgelist DataFrame based on the data to be loaded/generated and
+    Create a graph instance based on the data to be loaded/generated and
     the GPU configuration (single-GPU, multi-GPU, etc.)
     """
     is_mg = gpu_config in ["SNMG", "MNMG"]
+    # FIXME: need to consider directed/undirected?
+    G = Graph()
 
     if isinstance(graph_data, datasets.Dataset):
         edgelist_df = graph_data.get_edgelist()
         # FIXME: edgelist_df should have column names that match the defaults
         # for G.from_cudf_edgelist()
-        edgelist_df.rename(
-            columns={"src": "source", "dst": "destination", "wgt": "weight"},
-            inplace=True,
-        )
         if is_mg:
-            return dask_cudf.from_cudf(edgelist_df)
+            edgelist_df = dask_cudf.from_cudf(edgelist_df)
+            G.from_dask_cudf_edgelist(
+                edgelist_df, source="src", destination="dst", edge_attr="wgt"
+            )
         else:
-            return edgelist_df
+            G.from_cudf_edgelist(
+                edgelist_df, source="src", destination="dst", edge_attr="wgt"
+            )
 
     # Assume dictionary contains RMAT params
     elif isinstance(graph_data, dict):
@@ -172,15 +178,46 @@ def get_edgelist(graph_data, gpu_config):
         )
         rng = np.random.default_rng(seed)
         edgelist_df["weight"] = rng.random(size=len(edgelist_df))
-        edgelist_df.rename(
-            columns={"src": "source", "dst": "destination"}, inplace=True
-        )
-        return edgelist_df
+
+        if is_mg:
+            G.from_dask_cudf_edgelist(
+                edgelist_df, source="src", destination="dst", edge_attr="weight"
+            )
+        else:
+            G.from_cudf_edgelist(
+                edgelist_df, source="src", destination="dst", edge_attr="weight"
+            )
 
     else:
         raise TypeError(
             "graph_data can only be Dataset or dict, " f"got {type(graph_data)}"
         )
+
+    return G
+
+
+def create_remote_graph(graph_data, client):
+    """
+    Create a remote graph instance based on the data to be loaded/generated,
+    relying on server-side graph creation extensions.
+    """
+    if isinstance(graph_data, datasets.Dataset):
+        # breakpoint()
+        gid = client.call_graph_creation_extension(
+            "create_graph_from_dataset", graph_data.meta_data["name"]
+        )
+
+    # Assume dictionary contains RMAT params
+    elif isinstance(graph_data, dict):
+        gid = client.call_graph_creation_extension("create_graph_from_rmat", graph_data)
+
+    else:
+        raise TypeError(
+            "graph_data can only be Dataset or dict, " f"got {type(graph_data)}"
+        )
+
+    G = RemoteGraph(client, gid)
+    return G
 
 
 def get_uniform_neighbor_sample_args(
@@ -245,6 +282,29 @@ def get_uniform_neighbor_sample_args(
     }
 
 
+def ensure_running_service():
+    """
+    Returns a tuple containing a Popen object for the running cugraph-service
+    server subprocess, and a client object connected to it.  If a server was
+    detected already running, the Popen object will be None.
+    """
+    host = "localhost"
+    port = 9090
+    client = CugraphServiceClient(host, port)
+    server_process = None
+
+    try:
+        client.uptime()
+        print("FOUND RUNNING SERVER, ASSUMING IT SHOULD BE USED FOR TESTING!")
+
+    except CugraphServiceError:
+        # A server was not found, so start one for testing then stop it when
+        # testing is done.
+        server_process = utils.start_server_subprocess(host=host, port=port)
+
+    return (server_process, client)
+
+
 @pytest.fixture(scope="module", params=graph_obj_fixture_params)
 def graph_objs(request):
     """
@@ -256,38 +316,41 @@ def graph_objs(request):
     "remote" algo API).
     """
     (graph_type, gpu_config, graph_data) = request.param
+    server_process = None
 
     if gpu_config not in ["SG", "SNMG", "MNMG"]:
         raise RuntimeError(f"got unexpected gpu_config value: {gpu_config}")
 
     if graph_type is Graph:
-        # FIXME: need to consider directed/undirected?
-        G = Graph()
-        edgelist_df = get_edgelist(graph_data, gpu_config)
+        G = create_graph(graph_data, gpu_config)
         if gpu_config == "SG":
-            G.from_cudf_edgelist(edgelist_df)
             uns_func = uniform_neighbor_sample
         else:
-            G.from_dask_cudf_edgelist(edgelist_df)
             uns_func = uniform_neighbor_sample_mg
 
     elif graph_type is RemoteGraph:
-        raise NotImplementedError
+        # Ensure a server is running
         if gpu_config == "SG":
-            # Ensure SG server is running
-            # client = create_sg_client()
-            G = RemoteGraph()
+            (server_process, client) = ensure_running_service()
+
         elif gpu_config == "SNMG":
-            # Ensure SNMG server is running
             pass
         else:
-            # Ensure MNMG server is running
             pass
+
+        G = create_remote_graph(graph_data, client)
 
     else:
         raise RuntimeError(f"{graph_type=} is invalid")
 
     yield (G, uns_func)
+
+    del G  # is this necessary?
+    if server_process is not None:
+        print("\nTerminating server...", end="", flush=True)
+        server_process.terminate()
+        server_process.wait(timeout=60)
+        print("done.", flush=True)
 
 
 ################################################################################
