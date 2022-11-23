@@ -54,9 +54,6 @@ uniform_nbr_sample_impl(
 
   CUGRAPH_EXPECTS(h_fan_out.size() > 0,
                   "Invalid input argument: number of levels must be non-zero.");
-  CUGRAPH_EXPECTS(
-    edge_weight_view.has_value(),
-    "Invalid input argument: the current implementation does not support unweighted graphs.");
 
   rmm::device_uvector<vertex_t> d_result_src(0, handle.get_stream());
   rmm::device_uvector<vertex_t> d_result_dst(0, handle.get_stream());
