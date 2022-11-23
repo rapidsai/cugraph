@@ -444,7 +444,8 @@ def test_scipy_api_compat():
 def test_sssp_with_no_edgevals():
     G = datasets.karate.get_graph(ignore_weights=True)
     warning_msg = (
-            "'SSSP' requires the input graph to be weighted: Unweighted "
-            "graphs will not be supported in the next release.")
+        "'SSSP' requires the input graph to be weighted: Unweighted "
+        "graphs will not be supported in the next release."
+    )
     with pytest.warns(PendingDeprecationWarning, match=warning_msg):
         cugraph.sssp(G, 1)

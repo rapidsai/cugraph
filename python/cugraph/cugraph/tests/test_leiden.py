@@ -19,7 +19,6 @@ import pytest
 import networkx as nx
 import cugraph
 from cugraph.testing import utils
-import warnings
 from cugraph.experimental.datasets import DATASETS, karate_asymmetric
 
 # Temporarily suppress warnings till networkX fixes deprecation warnings
@@ -106,7 +105,8 @@ def test_leiden_unweighted_graph():
     dolphins = DATASETS[0]
     G = dolphins.get_graph(ignore_weights=True)
     warning_msg = (
-            "'Leiden' requires the input graph to be weighted: Unweighted "
-            "graphs will not be supported in the next release.")
+        "'Leiden' requires the input graph to be weighted: Unweighted "
+        "graphs will not be supported in the next release."
+    )
     with pytest.warns(PendingDeprecationWarning, match=warning_msg):
         parts, mod = cugraph_leiden(G)

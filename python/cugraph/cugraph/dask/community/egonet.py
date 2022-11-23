@@ -116,7 +116,8 @@ def ego_graph(input_graph, n, radius=1, center=True):
     if len(input_graph.edgelist.edgelist_df.columns) != 3:
         warning_msg = (
             "'Ego_graph' requires the input graph to be weighted: Unweighted "
-            "graphs will not be supported in the next release.")
+            "graphs will not be supported in the next release."
+        )
         warnings.warn(warning_msg, PendingDeprecationWarning)
 
     if isinstance(n, (int, list)):

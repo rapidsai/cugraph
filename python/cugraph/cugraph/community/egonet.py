@@ -98,7 +98,8 @@ def ego_graph(G, n, radius=1, center=True, undirected=None, distance=None):
     if not G.edgelist.weights:
         warning_msg = (
             "'Ego_graph' requires the input graph to be weighted: Unweighted "
-            "graphs will not be supported in the next release.")
+            "graphs will not be supported in the next release."
+        )
         warnings.warn(warning_msg, PendingDeprecationWarning)
 
     if undirected is not None:

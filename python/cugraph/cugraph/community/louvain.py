@@ -81,7 +81,8 @@ def louvain(G, max_iter=100, resolution=1.0):
     if not G.edgelist.weights:
         warning_msg = (
             "'Louvain' requires the input graph to be weighted: Unweighted "
-            "graphs will not be supported in the next release.")
+            "graphs will not be supported in the next release."
+        )
         warnings.warn(warning_msg, PendingDeprecationWarning)
 
     if G.is_directed():

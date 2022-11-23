@@ -112,7 +112,8 @@ def test_louvain_directed_graph():
 def test_louvain_with_no_edgevals():
     karate = DATASETS_UNDIRECTED[0]
     warning_msg = (
-            "'Louvain' requires the input graph to be weighted: Unweighted "
-            "graphs will not be supported in the next release.")
+        "'Louvain' requires the input graph to be weighted: Unweighted "
+        "graphs will not be supported in the next release."
+    )
     with pytest.warns(PendingDeprecationWarning, match=warning_msg):
         cugraph_call(karate, edgevals=False)

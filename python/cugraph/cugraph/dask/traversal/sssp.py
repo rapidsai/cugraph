@@ -105,7 +105,8 @@ def sssp(input_graph, source, cutoff=None, check_source=True):
     if len(input_graph.edgelist.edgelist_df.columns) != 3:
         warning_msg = (
             "'SSSP' requires the input graph to be weighted: Unweighted "
-            "graphs will not be supported in the next release.")
+            "graphs will not be supported in the next release."
+        )
         warnings.warn(warning_msg, PendingDeprecationWarning)
 
     client = input_graph._client

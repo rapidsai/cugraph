@@ -16,7 +16,6 @@ import gc
 import pytest
 import cugraph
 import dask_cudf
-import warnings
 from cugraph.dask.common.mg_utils import is_single_gpu
 
 # from cugraph.dask.common.mg_utils import is_single_gpu
@@ -166,7 +165,8 @@ def test_dask_unweighted_ego_graph(dask_client):
     )
 
     warning_msg = (
-            "'Ego_graph' requires the input graph to be weighted: Unweighted "
-            "graphs will not be supported in the next release.")
+        "'Ego_graph' requires the input graph to be weighted: Unweighted "
+        "graphs will not be supported in the next release."
+    )
     with pytest.warns(PendingDeprecationWarning, match=warning_msg):
         dcg.ego_graph(dg, 5)

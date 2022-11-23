@@ -18,7 +18,6 @@ import cugraph.dask as dcg
 import cugraph
 import dask_cudf
 from cugraph.testing import utils
-import warnings
 
 # from cugraph.dask.common.mg_utils import is_single_gpu
 
@@ -138,6 +137,7 @@ def test_mg_louvain_with_edgevals_undirected_graph(uddaskGraphFromDataset):
     print(mod)
     print()
 
+
 def test_dask_unweighted_louvain(dask_client):
     input_data_path = utils.DATASETS_UNDIRECTED[0]
     chunksize = dcg.get_chunksize(input_data_path)
@@ -159,7 +159,8 @@ def test_dask_unweighted_louvain(dask_client):
     )
 
     warning_msg = (
-            "'Louvain' requires the input graph to be weighted: Unweighted "
-            "graphs will not be supported in the next release.")
+        "'Louvain' requires the input graph to be weighted: Unweighted "
+        "graphs will not be supported in the next release."
+    )
     with pytest.warns(PendingDeprecationWarning, match=warning_msg):
         dcg.louvain(dg)
