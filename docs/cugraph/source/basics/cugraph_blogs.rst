@@ -68,6 +68,8 @@ Other BLOGS
 * `Running Large-Scale Graph Analytics with Memgraph and NVIDIA cuGraph Algorithms <https://developer.nvidia.com/blog/running-large-scale-graph-analytics-with-memgraph-and-nvidia-cugraph-algorithms/>`_
 * `Dev Blog Repost: Similarity in Graphs: Jaccard Versus the Overlap Coefficient <https://developer.nvidia.com/blog/similarity-in-graphs-jaccard-versus-the-overlap-coefficient-2/>`_
 
-RAPIDS Notebooks
-================
-* `Jupyter notebooks from Past Events containing great RAPIDS examples. <https://github.com/rapidsai-community/event-notebooks/>`_
+RAPIDS Event Notebooks
+======================
+* `KDD 2022 Notebook that demonstates using cuDF for ETL/data cleaning and XGBoost for training a fraud predection model.  <https://github.com/rapidsai-community/event-notebooks/blob/main/KDD_2022/notebooks/NonGNN-Graph.ipynb>`_
+* `SciPy 22 Notebook comparing cuGraph to NetworkX  <https://github.com/rapidsai-community/event-notebooks/blob/8a9b660fada8186615a642b52b5ca78f20205838/SCIPY_2022/cugraph_presentation/SciPy_cuGraph_comparison.ipynb>`_
+* `KDD 2020 Tutorial Notebooks - Accelerating and Expanding End-to-End Data Science Workflows with DL/ML Interoperability Using RAPIDS  <https://github.com/rapidsai-community/event-notebooks/tree/8a9b660fada8186615a642b52b5ca78f20205838/KDD_2020/notebooks>`_

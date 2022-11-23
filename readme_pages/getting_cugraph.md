@@ -60,5 +60,5 @@ pip packages for other packages are being worked and should be available in earl
 <br>
 
 ## SOURCE
-cuGraph can be build directly from source. First check to make sure you have or can configure a supported environment. Details are in our [getting started](https://rapids.ai/start.html) page.
+cuGraph can be build directly from source. First check to make sure you have or can configure a supported environment. 
 Instructions for building from source is in our [source build](./SOURCEBUILD.md) page.
