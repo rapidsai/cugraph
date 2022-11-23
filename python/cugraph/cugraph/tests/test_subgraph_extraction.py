@@ -179,4 +179,3 @@ def test_subgraph_extraction_graph_not_renumbered():
 
     assert Sg.number_of_vertices() == 3
     assert Sg.number_of_edges() == 3
-
