@@ -53,7 +53,7 @@ jobs:
       python-package-versioneer-override: ${{ inputs.versioneer-override }}
       python-package-build-tag: ${{ inputs.build-tag }}
 
-      skbuild-configure-options: "-DCUGRAPH_RAFT_REPOSITORY=https://github.com/vyasr/raft.git -DCUGRAPH_RAFT_BRANCH=feat/cibuildwheel -DCPM_DOWNLOAD_ALL=ON -DDETECT_CONDA_ENV=OFF -DCUGRAPH_BUILD_WHEELS=ON -DCPM_cugraph-ops_SOURCE=/project/cugraph-ops/"
+      skbuild-configure-options: "-DDETECT_CONDA_ENV=OFF -DCUGRAPH_BUILD_WHEELS=ON -DCPM_cugraph-ops_SOURCE=/project/cugraph-ops/"
 
       test-before-arm64: "pip install cupy-cuda11x -f https://pip.cupy.dev/aarch64"
       test-extras: test
@@ -85,7 +85,7 @@ jobs:
       python-package-versioneer-override: ${{ inputs.versioneer-override }}
       python-package-build-tag: ${{ inputs.build-tag }}
 
-      skbuild-configure-options: "-DCUGRAPH_RAFT_REPOSITORY=https://github.com/vyasr/raft.git -DCUGRAPH_RAFT_BRANCH=feat/cibuildwheel -DCPM_DOWNLOAD_ALL=ON -DDETECT_CONDA_ENV=OFF -DCUGRAPH_BUILD_WHEELS=ON -DCPM_cugraph-ops_SOURCE=/project/cugraph-ops/"
+      skbuild-configure-options: "-DDETECT_CONDA_ENV=OFF -DCUGRAPH_BUILD_WHEELS=ON -DCPM_cugraph-ops_SOURCE=/project/cugraph-ops/"
 
       test-before-arm64: "pip install cupy-cuda11x -f https://pip.cupy.dev/aarch64"
       test-extras: test
