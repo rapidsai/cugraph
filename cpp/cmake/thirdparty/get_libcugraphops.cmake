@@ -72,7 +72,7 @@ find_and_configure_cugraph_ops(VERSION      ${CUGRAPH_MIN_VERSION_cugraph_ops}
                                PINNED_TAG   ${CUGRAPH_CUGRAPH_OPS_BRANCH}
                                BUILD_STATIC     ${CUGRAPH_USE_CUGRAPH_OPS_STATIC}
                                EXCLUDE_FROM_ALL ${CUGRAPH_EXCLUDE_CUGRAPH_OPS_FROM_ALL}
-                              # When PINNED_TAG above doesn't match cuml,
+                               # When PINNED_TAG above doesn't match cugraph,
                                # force local cugraph-ops clone in build directory
                                # even if it's already installed.
                                CLONE_ON_PIN ON)

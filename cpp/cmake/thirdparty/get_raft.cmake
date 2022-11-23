@@ -15,36 +15,24 @@
 #=============================================================================
 
 set(CUGRAPH_MIN_VERSION_raft "${CUGRAPH_VERSION_MAJOR}.${CUGRAPH_VERSION_MINOR}.00")
-
-if(NOT DEFINED CUGRAPH_RAFT_VERSION)
-  set(CUGRAPH_RAFT_VERSION "${CUGRAPH_VERSION_MAJOR}.${CUGRAPH_VERSION_MINOR}")
-endif()
-
-if(NOT DEFINED CUGRAPH_RAFT_BRANCH)
-  set(CUGRAPH_RAFT_BRANCH "branch-${CUGRAPH_RAFT_VERSION}")
-endif()
-
-if(NOT DEFINED CUGRAPH_RAFT_REPOSITORY)
-  set(CUGRAPH_RAFT_REPOSITORY "https://github.com/rapidsai/raft.git")
-endif()
-
-if(CUGRAPH_BUILD_WHEELS)
-    set(BUILD_RAFT_SHARED OFF)
-else()
-    set(BUILD_RAFT_SHARED ON)
-endif()
+set(CUGRAPH_BRANCH_VERSION_raft "${CUGRAPH_VERSION_MAJOR}.${CUGRAPH_VERSION_MINOR}")
 
 function(find_and_configure_raft)
 
-    set(oneValueArgs VERSION REPO PINNED_TAG CLONE_ON_PIN)
+    set(oneValueArgs VERSION REPO PINNED_TAG CLONE_ON_PIN USE_RAFT_STATIC)
     cmake_parse_arguments(PKG "" "${oneValueArgs}" "" ${ARGN} )
 
-    if(PKG_CLONE_ON_PIN AND NOT PKG_PINNED_TAG STREQUAL "branch-${CUGRAPH_RAFT_VERSION}")
+    if(PKG_CLONE_ON_PIN AND NOT PKG_PINNED_TAG STREQUAL "branch-${CUGRAPH_BRANCH_VERSION_raft}")
         message("Pinned tag found: ${PKG_PINNED_TAG}. Cloning raft locally.")
         set(CPM_DOWNLOAD_raft ON)
     elseif(PKG_USE_RAFT_STATIC AND (NOT CPM_raft_SOURCE))
       message(STATUS "CUGRAPH: Cloning raft locally to build static libraries.")
       set(CPM_DOWNLOAD_raft ON)
+    endif()
+
+    set(BUILD_RAFT_SHARED ON)
+    if(PKG_BUILD_STATIC)
+      set(BUILD_RAFT_SHARED OFF)
     endif()
 
     rapids_cpm_find(raft ${PKG_VERSION}
@@ -54,7 +42,7 @@ function(find_and_configure_raft)
       COMPONENTS distance
         CPM_ARGS
             EXCLUDE_FROM_ALL TRUE
-            GIT_REPOSITORY ${PKG_REPO}
+            GIT_REPOSITORY https://github.com/${PKG_FORK}/raft.git
             GIT_TAG        ${PKG_PINNED_TAG}
             SOURCE_SUBDIR  cpp
             OPTIONS
@@ -78,11 +66,12 @@ endfunction()
 # To use a different RAFT locally, set the CMake variable
 # CPM_raft_SOURCE=/path/to/local/raft
 find_and_configure_raft(VERSION    ${CUGRAPH_MIN_VERSION_raft}
-                        REPO       ${CUGRAPH_RAFT_REPOSITORY}
-                        PINNED_TAG ${CUGRAPH_RAFT_BRANCH}
+                        FORK       rapidsai
+                        PINNED_TAG branch-${CUGRAPH_BRANCH_VERSION_raft}
 
                         # When PINNED_TAG above doesn't match cugraph,
                         # force local raft clone in build directory
                         # even if it's already installed.
                         CLONE_ON_PIN     ON
+                        USE_RAFT_STATIC ${USE_RAFT_STATIC}
                         )
