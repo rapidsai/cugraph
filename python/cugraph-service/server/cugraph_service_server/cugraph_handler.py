@@ -975,8 +975,7 @@ class CugraphHandler:
             # Implicitly extract a subgraph containing the entire multigraph.
             # G will be garbage collected when this function returns.
             G = G.extract_subgraph(
-                create_using=cugraph.MultiGraph(directed=True),
-                default_edge_weight=1.0
+                create_using=cugraph.MultiGraph(directed=True), default_edge_weight=1.0
             )
 
         try:
