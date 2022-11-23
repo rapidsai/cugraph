@@ -19,7 +19,8 @@ import types
 experimental_prefix = "EXPERIMENTAL"
 
 
-# Implementation of experimental_warning_wrapper taken from:  https://github.com/rapidsai/cugraph/blob/main/python/pylibcugraph/pylibcugraph/utilities/api_tools.py
+# Implementation of experimental_warning_wrapper taken from:
+# pylibcugraph/pylibcugraph/utilities/api_tools.py (branch-22.12)
 def experimental_warning_wrapper(obj):
     """
     Wrap obj in a function or class that prints a warning about it being
