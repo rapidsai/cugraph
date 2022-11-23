@@ -98,9 +98,6 @@ def louvain(input_graph, max_iter=100, resolution=1.0):
 
     """
 
-    if input_graph.is_directed():
-        raise ValueError("input graph must be undirected")
-
     # Initialize dask client
     client = input_graph._client
 
