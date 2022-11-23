@@ -58,9 +58,6 @@ def subgraph(G, vertices):
     """
 
     G, isNx = ensure_cugraph_obj_for_nx(G)
-
-    if not G.edgelist.weights:
-        raise ValueError("input graph must be weighted")
     
     if not G.edgelist.weights:
         warning_msg = (

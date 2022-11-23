@@ -188,4 +188,4 @@ def test_subgraph_with_no_edgevals():
             "'Subgraph_extraction' requires the input graph to be weighted: Unweighted "
             "graphs will not be supported in the next release.")
     with pytest.warns(PendingDeprecationWarning, match=warning_msg):
-        cugraph.subgraph(G, 1)
+        cugraph.subgraph(G, cudf.Series(1))
