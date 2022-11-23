@@ -19,7 +19,7 @@ set(CUGRAPH_BRANCH_VERSION_raft "${CUGRAPH_VERSION_MAJOR}.${CUGRAPH_VERSION_MINO
 
 function(find_and_configure_raft)
 
-    set(oneValueArgs VERSION REPO PINNED_TAG CLONE_ON_PIN USE_RAFT_STATIC)
+    set(oneValueArgs VERSION FORK PINNED_TAG CLONE_ON_PIN USE_RAFT_STATIC)
     cmake_parse_arguments(PKG "" "${oneValueArgs}" "" ${ARGN} )
 
     if(PKG_CLONE_ON_PIN AND NOT PKG_PINNED_TAG STREQUAL "branch-${CUGRAPH_BRANCH_VERSION_raft}")
