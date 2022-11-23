@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from pathlib import Path
+
 import pytest
 import numpy as np
 from pylibcugraph.testing.utils import gen_fixture_params
@@ -303,6 +305,24 @@ def ensure_running_service():
         server_process = utils.start_server_subprocess(host=host, port=port)
 
     # Ensure the extensions needed for these benchmarks are loaded
+    required_graph_creation_extension_module = "benchmark_server_extension"
+    server_data = client.get_server_info()
+    # .stem excludes .py extensions, so it can match a python module name
+    loaded_graph_creation_extension_modules = [
+        Path(m).stem for m in server_data["graph_creation_extensions"]
+    ]
+    if (
+        required_graph_creation_extension_module
+        not in loaded_graph_creation_extension_modules
+    ):
+        modules_loaded = client.load_graph_creation_extensions(
+            "cugraph_service_server.testing.benchmark_server_extension"
+        )
+        if len(modules_loaded) < 1:
+            raise RuntimeError(
+                "failed to load graph creation extension "
+                f"{required_graph_creation_extension_module}"
+            )
 
     return (server_process, client)
 

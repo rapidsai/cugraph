@@ -203,21 +203,27 @@ class CugraphHandler:
             ).union,
         }
 
-    def load_graph_creation_extensions(self, extension_dir_path):
+    def load_graph_creation_extensions(self, extension_dir_or_mod_path):
         """
-        Loads ("imports") all modules matching the pattern *_extension.py in
-        the directory specified by extension_dir_path.
+        Loads ("imports") all modules matching the pattern *_extension.py in the
+        directory specified by extension_dir_or_mod_path. extension_dir_or_mod_path
+        can be either a path to a directory on disk, or a python import path to a
+        package.
 
         The modules are searched and their functions are called (if a match is
         found) when call_graph_creation_extension() is called.
+
+        The extensions loaded are to be used for graph creation, and the server assumes
+        the return value of the extension functions is a Graph-like object which is
+        registered and assigned a unique graph ID.
         """
-        extension_dir = Path(extension_dir_path)
-
-        if (not extension_dir.exists()) or (not extension_dir.is_dir()):
-            raise CugraphServiceError(f"bad directory: {extension_dir}")
-
         modules_loaded = []
-        for ext_file in extension_dir.glob("*_extension.py"):
+
+        extension_files = self.__get_extension_files_from_path(
+            extension_dir_or_mod_path
+        )
+
+        for ext_file in extension_files:
             module_file_path = ext_file.absolute().as_posix()
             spec = importlib.util.spec_from_file_location(module_file_path, ext_file)
             module = importlib.util.module_from_spec(spec)
@@ -229,32 +235,19 @@ class CugraphHandler:
 
     def load_extensions(self, extension_dir_or_mod_path):
         """
-        Loads ("imports") all modules matching the pattern *_extension.py in
-        the directory specified by extension_dir_path.
+        Loads ("imports") all modules matching the pattern *_extension.py in the
+        directory specified by extension_dir_or_mod_path. extension_dir_or_mod_path
+        can be either a path to a directory on disk, or a python import path to a
+        package.
 
         The modules are searched and their functions are called (if a match is
-        found) when call_extension() is called.
+        found) when call_graph_creation_extension() is called.
         """
         modules_loaded = []
-        extension_path = Path(extension_dir_or_mod_path)
 
-        # extension_dir_path is either a path on disk or an importable module path
-        # (eg. import foo.bar.module)
-        if (not extension_path.exists()) or (not extension_path.is_dir()):
-            try:
-                mod = importlib.import_module(str(extension_path))
-            except ModuleNotFoundError:
-                raise CugraphServiceError(f"bad path: {extension_dir_or_mod_path}")
-
-            mod_file_path = Path(mod.__file__).absolute()
-
-            # If mod is a package, find all the .py files in it
-            if mod_file_path.name == "__init__.py":
-                extension_files = mod_file_path.parent.glob("*.py")
-            else:
-                extension_files = [mod_file_path]
-        else:
-            extension_files = extension_path.glob("*_extension.py")
+        extension_files = self.__get_extension_files_from_path(
+            extension_dir_or_mod_path
+        )
 
         for ext_file in extension_files:
             module_file_path = ext_file.absolute().as_posix()
@@ -1134,6 +1127,29 @@ class CugraphHandler:
             return True
         return False
 
+    @staticmethod
+    def __get_extension_files_from_path(extension_dir_or_mod_path):
+        extension_path = Path(extension_dir_or_mod_path)
+        # extension_dir_path is either a path on disk or an importable module path
+        # (eg. import foo.bar.module)
+        if (not extension_path.exists()) or (not extension_path.is_dir()):
+            try:
+                mod = importlib.import_module(str(extension_path))
+            except ModuleNotFoundError:
+                raise CugraphServiceError(f"bad path: {extension_dir_or_mod_path}")
+
+            mod_file_path = Path(mod.__file__).absolute()
+
+            # If mod is a package, find all the .py files in it
+            if mod_file_path.name == "__init__.py":
+                extension_files = mod_file_path.parent.glob("*.py")
+            else:
+                extension_files = [mod_file_path]
+        else:
+            extension_files = extension_path.glob("*_extension.py")
+
+        return extension_files
+
     async def __ucx_send_results(self, result_host, result_port, *results):
         # The cugraph_service_client should have set up a UCX listener waiting
         # for the result. Create an endpoint, send results, and close.
@@ -1281,14 +1297,14 @@ class CugraphHandler:
                         func_kwargs[facade_param] = ExtensionServerFacade(self)
                     else:
                         raise CugraphServiceError(
-                            f"{facade_param}, if specified, must be the " "last param."
+                            f"{facade_param}, if specified, must be the last param."
                         )
                 try:
                     return func(*func_args, **func_kwargs)
                 except Exception:
                     # FIXME: raise a more detailed error
                     raise CugraphServiceError(
-                        f"error running {func_name} : " f"{traceback.format_exc()}"
+                        f"error running {func_name} : {traceback.format_exc()}"
                     )
 
         raise CugraphServiceError(f"extension {func_name} was not found")
