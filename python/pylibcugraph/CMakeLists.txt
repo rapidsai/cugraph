@@ -14,10 +14,9 @@
 
 cmake_minimum_required(VERSION 3.23.1 FATAL_ERROR)
 
+set(pylibcugraph_version 22.12.00)
 
 include(../../fetch_rapids.cmake)
-
-set(pylibcugraph_version 22.12.00)
 
 project(
   pylibcugraph-python

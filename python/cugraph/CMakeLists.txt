@@ -14,9 +14,9 @@
 
 cmake_minimum_required(VERSION 3.23.1 FATAL_ERROR)
 
-include(../../fetch_rapids.cmake)
-
 set(cugraph_version 22.12.00)
+
+include(../../fetch_rapids.cmake)
 
 project(
   cugraph-python
@@ -57,6 +57,8 @@ if(NOT cugraph_FOUND)
   rapids_cuda_init_architectures(cugraph-python)
   enable_language(CUDA)
 
+  # Since cugraph only enables CUDA optionally, we need to manually include the file that
+  # rapids_cuda_init_architectures relies on `project` including.
   include("${CMAKE_PROJECT_cugraph-python_INCLUDE}")
 
   set(BUILD_TESTS OFF)
