@@ -302,6 +302,8 @@ def ensure_running_service():
         # testing is done.
         server_process = utils.start_server_subprocess(host=host, port=port)
 
+    # Ensure the extensions needed for these benchmarks are loaded
+
     return (server_process, client)
 
 

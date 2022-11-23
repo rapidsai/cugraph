@@ -472,3 +472,15 @@ def test_create_property_graph(client):
 
     del pG
     assert set(client.get_graph_ids()) == old_ids
+
+
+def test_get_server_info(client_with_graph_creation_extension_loaded):
+    """
+    Ensures the server meta-data from get_server_info() is correct. This
+    includes information about loaded extensions, so the fixture which
+    pre-loads extensions into the server is used.
+    """
+    client = client_with_graph_creation_extension_loaded
+    meta_data = client.get_server_info()
+    assert isinstance(meta_data["num_gpus"], int)
+    assert Path(meta_data["graph_creation_extensions"][0]).exists()

@@ -414,3 +414,32 @@ def test_get_graph_data_empty_graph(graph_creation_extension_empty_graph):
     )
 
     assert len(pickle.loads(edge_data)) == 0
+
+
+def test_get_server_info(graph_creation_extension1, extension1):
+    """
+    Ensures the server meta-data from get_server_info() is correct. This
+    includes information about loaded extensions, so fixtures that provide
+    extensions to be loaded are used.
+    """
+    from cugraph_service_server.cugraph_handler import CugraphHandler
+
+    handler = CugraphHandler()
+
+    handler.load_graph_creation_extensions(graph_creation_extension1)
+    handler.load_extensions(extension1)
+
+    meta_data = handler.get_server_info()
+    assert meta_data["num_gpus"].int32_value is not None
+    assert (
+        str(
+            Path(
+                meta_data["graph_creation_extensions"].list_value[0].get_py_obj()
+            ).parent
+        )
+        == graph_creation_extension1
+    )
+    assert (
+        str(Path(meta_data["extensions"].list_value[0].get_py_obj()).parent)
+        == extension1
+    )

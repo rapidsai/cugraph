@@ -195,7 +195,13 @@ class CugraphHandler:
         """
         # FIXME: expose self.__dask_client.scheduler_info() as needed
 
-        return {"num_gpus": ValueWrapper(self.num_gpus).union}
+        return {
+            "num_gpus": ValueWrapper(self.num_gpus).union,
+            "extensions": ValueWrapper(list(self.__extensions.keys())).union,
+            "graph_creation_extensions": ValueWrapper(
+                list(self.__graph_creation_extensions.keys())
+            ).union,
+        }
 
     def load_graph_creation_extensions(self, extension_dir_path):
         """
