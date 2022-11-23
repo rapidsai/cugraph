@@ -60,14 +60,7 @@ option(CUDA_STATIC_RUNTIME "Statically link the CUDA toolkit runtime and librari
 
 set(_ctk_static_suffix "")
 if(CUDA_STATIC_RUNTIME)
-  # If we're statically linking CTK cuBLAS,
-  # we also want to statically link BLAS
-  set(BLA_STATIC ON)
   set(_ctk_static_suffix "_static")
-  # Control legacy FindCUDA.cmake behavior too
-  # Remove this after we push it into rapids-cmake:
-  # https://github.com/rapidsai/rapids-cmake/pull/259
-  set(CUDA_USE_STATIC_CUDA_RUNTIME ON)
 endif()
 
 # CUDA runtime
