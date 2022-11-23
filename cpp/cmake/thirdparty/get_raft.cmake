@@ -31,10 +31,11 @@ function(find_and_configure_raft)
     endif()
 
     set(BUILD_RAFT_SHARED ON)
-    if(PKG_BUILD_STATIC)
+    if(PKG_USE_RAFT_STATIC)
       set(BUILD_RAFT_SHARED OFF)
     endif()
 
+    message("The value of PKG_FORK is ${PKG_FORK}")
     rapids_cpm_find(raft ${PKG_VERSION}
       GLOBAL_TARGETS      raft::raft
       BUILD_EXPORT_SET    cugraph-exports
@@ -42,7 +43,7 @@ function(find_and_configure_raft)
       COMPONENTS distance
         CPM_ARGS
             EXCLUDE_FROM_ALL TRUE
-            GIT_REPOSITORY https://github.com/${PKG_FORK}/raft.git
+            GIT_REPOSITORY https://github.com/rapidsai/raft.git
             GIT_TAG        ${PKG_PINNED_TAG}
             SOURCE_SUBDIR  cpp
             OPTIONS
