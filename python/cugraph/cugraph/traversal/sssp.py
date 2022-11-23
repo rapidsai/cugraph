@@ -12,6 +12,7 @@
 # limitations under the License.
 
 import numpy as np
+import warnings
 
 import cudf
 from cugraph.structure import Graph, DiGraph, MultiGraph, MultiDiGraph
@@ -216,7 +217,10 @@ def sssp(
     )
 
     if not G.edgelist.weights:
-        raise ValueError("input graph must be weighted")
+        warning_msg = (
+            "'SSSP' requires the input graph to be weighted: Unweighted "
+            "graphs will not be supported in the next release.")
+        warnings.warn(warning_msg, PendingDeprecationWarning)
 
     if G.renumbered:
         if isinstance(source, cudf.DataFrame):

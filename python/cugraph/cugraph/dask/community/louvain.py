@@ -21,6 +21,7 @@ import operator as op
 
 from pylibcugraph import ResourceHandle
 from pylibcugraph import louvain as pylibcugraph_louvain
+import warnings
 
 
 def convert_to_cudf(cupy_vertex, cupy_partition):
@@ -98,8 +99,19 @@ def louvain(input_graph, max_iter=100, resolution=1.0):
 
     """
 
+    if input_graph.is_directed():
+        raise ValueError("input graph must be undirected")
+
     # Initialize dask client
     client = input_graph._client
+
+    # FIXME: Implement a better way to check if the graph is weighted similar
+    # to 'simpleGraph'
+    if len(input_graph.edgelist.edgelist_df.columns) != 3:
+        warning_msg = (
+            "'Louvain' requires the input graph to be weighted: Unweighted "
+            "graphs will not be supported in the next release.")
+        warnings.warn(warning_msg, PendingDeprecationWarning)
 
     do_expensive_check = False
 
