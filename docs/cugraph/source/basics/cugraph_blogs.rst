@@ -1,5 +1,5 @@
 
-cuGraph BLOGS and Presentations
+cuGraph Blogs and Presentations
 ************************************************
 
 The RAPIDS team blogs at https://medium.com/rapids-ai, and many of
@@ -7,7 +7,7 @@ these blog posts provide deeper dives into features from cuGraph.
 Here, we've selected just a few that are of particular interest to cuGraph users:
 
 
-BLOGS & Conferences
+Blogs & Conferences
 ====================
 2022
 ------
@@ -59,7 +59,7 @@ Academic Papers
  * Richardson, B., Rees, B., Drabas, T., Oldridge, E., Bader, D. A., & Allen, R. (2020, August). Accelerating and Expanding End-to-End Data Science Workflows with DL/ML Interoperability Using RAPIDS. In Proceedings of the 26th ACM SIGKDD International Conference on Knowledge Discovery & Data Mining (pp. 3503-3504).
 
 
-Other BLOGS 
+Other Blogs
 ========================
 * `4 graph algorithms on steroids for data scientists with cugraph <https://towardsdatascience.com/4-graph-algorithms-on-steroids-for-data-scientists-with-cugraph-43d784de8d0e>`_
 * `Where should I walk <https://towardsdatascience.com/where-should-i-walk-e66b26735de5>`_
