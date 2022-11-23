@@ -124,7 +124,7 @@ def k_core(G, k=None, core_number=None, degree_type="bidirectional"):
         degree_type=degree_type,
         k=k,
         core_result=core_number,
-        do_expensive_check=True,
+        do_expensive_check=False,
     )
 
     k_core_df = cudf.DataFrame()

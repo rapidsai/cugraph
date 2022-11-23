@@ -162,7 +162,7 @@ def k_core(input_graph, k=None, core_number=None, degree_type="bidirectional"):
 
     client = input_graph._client
 
-    do_expensive_check = True
+    do_expensive_check = False
 
     result = [
         client.submit(
