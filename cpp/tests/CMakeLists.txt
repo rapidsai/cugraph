@@ -77,18 +77,11 @@ function(ConfigureTest CMAKE_TEST_NAME)
         ${CMAKE_TEST_NAME}
             PROPERTIES INSTALL_RPATH "\$ORIGIN/../../../lib")
 
-    if(SKBUILD)
-        install(
-            TARGETS ${CMAKE_TEST_NAME}
-            COMPONENT testing
-            DESTINATION bin/gtests/libcugraph)
-    else()
-        install(
-            TARGETS ${CMAKE_TEST_NAME}
-            COMPONENT testing
-            DESTINATION bin/gtests/libcugraph
-            EXCLUDE_FROM_ALL)
-    endif()
+    install(
+        TARGETS ${CMAKE_TEST_NAME}
+        COMPONENT testing
+        DESTINATION bin/gtests/libcugraph
+        EXCLUDE_FROM_ALL)
 endfunction()
 
 function(ConfigureTestMG CMAKE_TEST_NAME)
@@ -118,18 +111,11 @@ function(ConfigureTestMG CMAKE_TEST_NAME)
         ${CMAKE_TEST_NAME}
             PROPERTIES INSTALL_RPATH "\$ORIGIN/../../../lib")
 
-        if(SKBUILD)
-            install(
-                TARGETS ${CMAKE_TEST_NAME}
-                COMPONENT testing
-                DESTINATION bin/gtests/libcugraph_mg)
-        else()
-            install(
-                TARGETS ${CMAKE_TEST_NAME}
-                COMPONENT testing
-                DESTINATION bin/gtests/libcugraph_mg
-                EXCLUDE_FROM_ALL)
-        endif()
+    install(
+        TARGETS ${CMAKE_TEST_NAME}
+        COMPONENT testing
+        DESTINATION bin/gtests/libcugraph_mg
+        EXCLUDE_FROM_ALL)
 endfunction()
 
 function(ConfigureCTest CMAKE_TEST_NAME)
@@ -149,18 +135,11 @@ function(ConfigureCTest CMAKE_TEST_NAME)
         ${CMAKE_TEST_NAME}
             PROPERTIES INSTALL_RPATH "\$ORIGIN/../../../lib")
 
-        if(SKBUILD)
-            install(
-                TARGETS ${CMAKE_TEST_NAME}
-                COMPONENT testing
-                DESTINATION bin/gtests/libcugraph_c)
-        else()
-            install(
-                TARGETS ${CMAKE_TEST_NAME}
-                COMPONENT testing
-                DESTINATION bin/gtests/libcugraph_c
-                EXCLUDE_FROM_ALL)
-        endif()
+    install(
+        TARGETS ${CMAKE_TEST_NAME}
+        COMPONENT testing
+        DESTINATION bin/gtests/libcugraph_c
+        EXCLUDE_FROM_ALL)
 endfunction()
 
 function(ConfigureCTestMG CMAKE_TEST_NAME)
@@ -189,18 +168,11 @@ function(ConfigureCTestMG CMAKE_TEST_NAME)
         ${CMAKE_TEST_NAME}
             PROPERTIES INSTALL_RPATH "\$ORIGIN/../../../lib")
 
-        if(SKBUILD)
-            install(
-                TARGETS ${CMAKE_TEST_NAME}
-                COMPONENT testing
-                DESTINATION bin/gtests/libcugraph_c)
-        else()
-            install(
-                TARGETS ${CMAKE_TEST_NAME}
-                COMPONENT testing
-                DESTINATION bin/gtests/libcugraph_c
-                EXCLUDE_FROM_ALL)
-        endif()
+    install(
+        TARGETS ${CMAKE_TEST_NAME}
+        COMPONENT testing
+        DESTINATION bin/gtests/libcugraph_c
+        EXCLUDE_FROM_ALL)
 endfunction()
 
 if(NOT USE_CUGRAPH_OPS)
