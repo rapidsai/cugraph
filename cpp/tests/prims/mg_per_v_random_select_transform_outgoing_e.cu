@@ -34,8 +34,8 @@
 
 #include <cugraph/graph_view.hpp>
 
-#include <raft/core/comms.hpp>
 #include <raft/comms/mpi_comms.hpp>
+#include <raft/core/comms.hpp>
 #include <raft/core/handle.hpp>
 #include <rmm/device_uvector.hpp>
 #include <thrust/iterator/counting_iterator.h>

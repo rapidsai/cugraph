@@ -25,8 +25,8 @@
 #include <cugraph/algorithms.hpp>
 #include <cugraph/partition_manager.hpp>
 
-#include <raft/core/comms.hpp>
 #include <raft/comms/mpi_comms.hpp>
+#include <raft/core/comms.hpp>
 #include <raft/core/handle.hpp>
 #include <rmm/device_scalar.hpp>
 #include <rmm/device_uvector.hpp>

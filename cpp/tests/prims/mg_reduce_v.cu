@@ -33,8 +33,8 @@
 #include <cuco/detail/hash_functions.cuh>
 #include <cugraph/graph_view.hpp>
 
-#include <raft/core/comms.hpp>
 #include <raft/comms/mpi_comms.hpp>
+#include <raft/core/comms.hpp>
 #include <raft/core/handle.hpp>
 #include <rmm/device_scalar.hpp>
 #include <rmm/device_uvector.hpp>
