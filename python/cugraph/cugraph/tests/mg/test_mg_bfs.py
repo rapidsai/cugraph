@@ -20,7 +20,7 @@ import cugraph
 import dask_cudf
 import cudf
 
-from cugraph.dask.common.mg_utils import is_single_gpu
+# from cugraph.dask.common.mg_utils import is_single_gpu
 from cugraph.testing.utils import RAPIDS_DATASET_ROOT_DIR_PATH
 
 # =============================================================================
@@ -133,9 +133,9 @@ def test_dask_bfs_invalid_start(dask_client, directed):
         dcg.bfs(G, source_vertex).compute()
 
 
-@pytest.mark.skipif(
-    is_single_gpu(), reason="Temporarily skipping failing MG test on SG wheel builds"
-)
+# @pytest.mark.skipif(
+#     is_single_gpu(), reason="skipping MG testing on Single GPU system"
+# )
 @pytest.mark.parametrize("directed", IS_DIRECTED)
 def test_dask_bfs_multi_column_depthlimit(dask_client, directed):
     gc.collect()
