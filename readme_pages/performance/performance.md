@@ -4,4 +4,4 @@
 alt="RAPIDS" width="500"></a>
 
 We are working on a new nightly benchmarking system that will produce performance numbers.
-This is a splash page for where the performance numbers will be posted in early 2023
+This is a splash page for where the performance numbers will be posted in early 2023.
