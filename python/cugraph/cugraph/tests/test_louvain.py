@@ -111,5 +111,5 @@ def test_louvain_directed_graph():
 
 @pytest.mark.parametrize("graph_file", DATASETS_UNDIRECTED)
 def test_louvain_with_no_edgevals(graph_file):
-    with pytest.raises(RuntimeError):
+    with pytest.raises(ValueError):
         cugraph_call(karate_asymmetric, edgevals=False)

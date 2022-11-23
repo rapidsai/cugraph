@@ -95,6 +95,9 @@ def ego_graph(G, n, radius=1, center=True, undirected=None, distance=None):
 
     result_graph = type(G)(directed=G.is_directed())
 
+    if not G.edgelist.weights:
+        raise ValueError("input graph must be weighted")
+
     if undirected is not None:
         warning_msg = (
             "The parameter 'undirected' is deprecated and "

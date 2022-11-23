@@ -216,7 +216,7 @@ def sssp(
     )
 
     if not G.edgelist.weights:
-        raise RuntimeError("input graph must be weighted")
+        raise ValueError("input graph must be weighted")
 
     if G.renumbered:
         if isinstance(source, cudf.DataFrame):

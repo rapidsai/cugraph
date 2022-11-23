@@ -183,5 +183,5 @@ def test_subgraph_extraction_graph_not_renumbered():
 
 def test_subgraph_with_no_edgevals():
     G = karate.get_graph(ignore_weights=True)
-    with pytest.raises(RuntimeError):
+    with pytest.raises(ValueError):
         cugraph.subgraph(G, 1)

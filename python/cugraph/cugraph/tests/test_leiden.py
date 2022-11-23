@@ -106,5 +106,5 @@ def test_leiden_unweighted_graph():
         create_using=cugraph.Graph(directed=True), ignore_weights=True
     )
 
-    with pytest.raises(RuntimeError):
+    with pytest.raises(ValueError):
         parts, mod = cugraph_leiden(G)

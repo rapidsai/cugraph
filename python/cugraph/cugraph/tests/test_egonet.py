@@ -116,3 +116,12 @@ def test_multi_column_ego_graph(graph_file, seed, radius):
         assert ego_cugraph_exp.has_edge(
             edgelist_df_res["0_src"].iloc[i], edgelist_df_res["0_dst"].iloc[i]
         )
+
+
+def test_ego_graph_unweighted_graph():
+    dolphins = DATASETS[0]
+
+    G = dolphins.get_graph(ignore_weights=True)
+
+    with pytest.raises(ValueError):
+        cugraph.ego_graph(G, 5)

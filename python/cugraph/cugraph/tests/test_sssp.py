@@ -443,5 +443,5 @@ def test_scipy_api_compat():
 
 def test_sssp_with_no_edgevals():
     G = datasets.karate.get_graph(ignore_weights=True)
-    with pytest.raises(RuntimeError):
+    with pytest.raises(ValueError):
         cugraph.sssp(G, 1)
