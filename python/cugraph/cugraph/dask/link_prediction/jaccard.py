@@ -146,13 +146,15 @@ def jaccard(input_graph, vertex_pair=None, use_weight=False):
 
     if use_weight:
         raise ValueError(
-            "'use_weight' is currently not supported and must be set to 'False'"
+            "'use_weight' is currently not supported but will "
+            "be in the next release"
         )
 
     # FIXME: Implement a better way to check if the graph is weighted similar
     # to 'simpleGraph'
     if len(input_graph.edgelist.edgelist_df.columns) == 3:
-        raise ValueError("input graph must be unweighted")
+        raise ValueError("Weighted graphs are currently not supported "
+                         "but will be in the next release.")
 
     if isinstance(vertex_pair, (dask_cudf.DataFrame, cudf.DataFrame)):
         vertex_pair = renumber_vertex_pair(input_graph, vertex_pair)
