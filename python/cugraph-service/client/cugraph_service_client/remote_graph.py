@@ -209,6 +209,9 @@ class RemoteGraph:
         """
         return self.__client.get_num_vertices(type, include_edge_data, self.__graph_id)
 
+    def number_of_vertices(self):
+        return self.get_num_vertices(type=None, include_edge_data=True)
+
     def get_num_edges(self, type=None):
         """Return the number of all edges or edges of a given type.
 
@@ -223,6 +226,9 @@ class RemoteGraph:
         PropertyGraph.get_num_vertices
         """
         return self.__client.get_num_edges(type, self.__graph_id)
+
+    def number_of_edges(self):
+        return self.get_num_edges(type=None)
 
     def get_vertices(self, selection=None, backend="cudf"):
         """

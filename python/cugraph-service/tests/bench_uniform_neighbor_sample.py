@@ -206,13 +206,20 @@ def create_remote_graph(graph_data, client):
     if isinstance(graph_data, datasets.Dataset):
         # breakpoint()
         gid = client.call_graph_creation_extension(
-            "create_graph_from_dataset", graph_data.meta_data["name"]
+            "create_graph_from_builtin_dataset", graph_data.metadata["name"]
         )
 
     # Assume dictionary contains RMAT params
     elif isinstance(graph_data, dict):
-        gid = client.call_graph_creation_extension("create_graph_from_rmat", graph_data)
-
+        scale = graph_data["scale"]
+        num_edges = (2**scale) * graph_data["edgefactor"]
+        seed = graph_data["seed"]
+        gid = client.call_graph_creation_extension(
+            "create_graph_from_rmat_generator",
+            scale=scale,
+            num_edges=num_edges,
+            seed=seed,
+        )
     else:
         raise TypeError(
             "graph_data can only be Dataset or dict, " f"got {type(graph_data)}"
@@ -258,6 +265,13 @@ def get_uniform_neighbor_sample_args(
         i = rng.choice(num_verts, 1)[0]
         # FIXME: must be "src" even though input edgelist used "source"
         col = "src"
+        # FIXME: havong to access columns like this is not good
+        if col not in edgelist.columns:
+            col = "_SRC_"
+            if col not in edgelist.columns:
+                raise RuntimeError(
+                    "graph edges() edgelist does not contain expected " "column names"
+                )
         v = edgelist[col].loc[i]
         while v in starts:
             i = rng.choice(num_verts, 1)[0]
@@ -327,6 +341,14 @@ def ensure_running_service():
     return (server_process, client)
 
 
+def remote_uniform_neighbor_sample(G, start_list, fanout_vals, with_replacement=True):
+    """ """
+    assert G.is_remote()
+    return G._client.uniform_neighbor_sample(
+        start_list, fanout_vals, with_replacement, graph_id=G._graph_id, result_device=1
+    )
+
+
 @pytest.fixture(scope="module", params=graph_obj_fixture_params)
 def graph_objs(request):
     """
@@ -354,11 +376,11 @@ def graph_objs(request):
         # Ensure a server is running
         if gpu_config == "SG":
             (server_process, client) = ensure_running_service()
-
+            uns_func = remote_uniform_neighbor_sample
         elif gpu_config == "SNMG":
-            pass
+            raise NotImplementedError
         else:
-            pass
+            raise NotImplementedError
 
         G = create_remote_graph(graph_data, client)
 
@@ -387,16 +409,6 @@ def graph_objs(request):
 def bench_uniform_neighbor_sample(
     gpubenchmark, graph_objs, start_list_len, fanout_vals_len, with_replacement
 ):
-    """
-    @pytest.mark.parametrize("start_list_len",
-                             [small_start_list_pv, large_start_list_pv])
-    @pytest.mark.parametrize(
-        "fanout_vals_len", [small_fanout_list_pv, large_fanout_list_pv]
-    )
-    @pytest.mark.parametrize("with_replacement", [True, False])
-    def bench_uniform_neighbor_sample(
-        graph_objs, start_list_len, fanout_vals_len, with_replacement):
-    """
     (G, uniform_neighbor_sample_func) = graph_objs
 
     uns_args = get_uniform_neighbor_sample_args(

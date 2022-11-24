@@ -15,7 +15,7 @@
 import numpy as np
 import dask_cudf
 
-import cugraph
+from cugraph.experimental import PropertyGraph, MGPropertyGraph
 from cugraph.experimental import datasets
 from cugraph.generators import rmat
 
@@ -24,16 +24,14 @@ from cugraph.generators import rmat
 def create_graph_from_builtin_dataset(dataset_name, mg=False, server=None):
     dataset_obj = getattr(datasets, dataset_name)
     edgelist_df = dataset_obj.get_edgelist(fetch=True)
-    G = cugraph.Graph()
+
     if mg and (server is not None) and server.is_multi_gpu():
+        G = MGPropertyGraph()
         edgelist_df = dask_cudf.from_cudf(edgelist_df)
-        G.from_dask_cudf_edgelist(
-            edgelist_df, source="src", destination="dst", edge_attr="wgt"
-        )
     else:
-        G.from_cudf_edgelist(
-            edgelist_df, source="src", destination="dst", edge_attr="wgt"
-        )
+        G = PropertyGraph()
+
+    G.add_edge_data(edgelist_df, vertex_col_names=["src", "dst"])
     return G
 
 
@@ -54,7 +52,6 @@ def create_graph_from_rmat_generator(
     else:
         is_mg = False
 
-    G = cugraph.Graph()
     edgelist_df = rmat(
         scale,
         num_edges,
@@ -71,12 +68,9 @@ def create_graph_from_rmat_generator(
     edgelist_df["weight"] = rng.random(size=len(edgelist_df))
 
     if is_mg:
-        G.from_dask_cudf_edgelist(
-            edgelist_df, source="src", destination="dst", edge_attr="weight"
-        )
+        G = MGPropertyGraph()
     else:
-        G.from_cudf_edgelist(
-            edgelist_df, source="src", destination="dst", edge_attr="weight"
-        )
+        G = PropertyGraph()
 
+    G.add_edge_data(edgelist_df, vertex_col_names=["src", "dst"])
     return G
