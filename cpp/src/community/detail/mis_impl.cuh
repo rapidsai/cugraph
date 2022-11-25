@@ -16,6 +16,7 @@
  */
 #pragma once
 
+#include <cugraph/edge_property.hpp>
 #include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph_view.hpp>
 #include <prims/fill_edge_src_dst_property.cuh>
@@ -79,9 +80,10 @@ rmm::device_uvector<vertex_t> select_a_random_set_of_vetices(raft::handle_t cons
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 rmm::device_uvector<vertex_t> compute_mis(
   raft::handle_t const& handle,
-  cugraph::graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu> const& graph_view)
+  cugraph::graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+  std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>> edge_weight_view)
 {
-  using GraphViewType = cugraph::graph_view_t<vertex_t, edge_t, weight_t, false, multi_gpu>;
+  using GraphViewType = cugraph::graph_view_t<vertex_t, edge_t, false, multi_gpu>;
 
   size_t number_of_vertices = graph_view.local_vertex_partition_range_size();
 
@@ -162,7 +164,7 @@ rmm::device_uvector<vertex_t> compute_mis(
     // As there is only one outedge, compute_out_weight_sums would return weight of
     // outgoing edge.
 
-    auto ranks = compute_out_weight_sums(handle, graph_view);
+    auto ranks = compute_out_weight_sums(handle, graph_view, *edge_weight_view);
 
     edge_src_property_t<GraphViewType, weight_t> src_rank_cache(handle);
     edge_dst_property_t<GraphViewType, weight_t> dst_rank_cache(handle);

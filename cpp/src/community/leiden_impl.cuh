@@ -37,14 +37,9 @@ namespace detail {
 
 // FIXME: Can we have a common check_clustering to be used by both
 // Louvain and Leiden, and possibly other clustering methods?
-template <typename vertex_t,
-          typename edge_t,
-          typename weight_t,
-          bool multi_gpu,
-          bool store_transposed = false>
-void check_clustering(
-  graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> const& graph_view,
-  vertex_t* clustering)
+template <typename vertex_t, typename edge_t, bool multi_gpu>
+void check_clustering(graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+                      vertex_t* clustering)
 {
   if (graph_view.local_vertex_partition_range_size() > 0)
     CUGRAPH_EXPECTS(clustering != nullptr, "Invalid input argument: clustering is null");
@@ -57,17 +52,24 @@ template <typename vertex_t,
           bool store_transposed = false>
 std::optional<rmm::device_uvector<vertex_t>> aggregate_graph(
   raft::handle_t const& handle,
-  graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>& current_graph_view,
-  graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>& current_graph,
+  graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>& current_graph_view,
+  std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weights_view,
+  graph_t<vertex_t, edge_t, store_transposed, multi_gpu>& current_graph,
   // std::unique_ptr<Dendrogram<vertex_t>>& dendrogram)
   rmm::device_uvector<vertex_t>& refined_partition)
 {
   std::optional<rmm::device_uvector<vertex_t>> leiden_of_coarsen_graph{std::nullopt};
 
-  std::tie(current_graph, leiden_of_coarsen_graph) = cugraph::detail::graph_contraction(
-    handle,
-    current_graph_view,
-    raft::device_span<vertex_t>{refined_partition.begin(), refined_partition.size()});
+  std::optional<
+    edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, weight_t>>
+    coarsen_graph_edge_property{std::nullopt};
+
+  std::tie(current_graph, coarsen_graph_edge_property, leiden_of_coarsen_graph) =
+    cugraph::detail::graph_contraction(
+      handle,
+      current_graph_view,
+      edge_weights_view,
+      raft::device_span<vertex_t>{refined_partition.begin(), refined_partition.size()});
   current_graph_view = current_graph.view();
 
   return leiden_of_coarsen_graph;
@@ -80,13 +82,13 @@ template <typename vertex_t,
           bool store_transposed = false>
 std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
   raft::handle_t const& handle,
-  graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> const& graph_view,
+  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+  std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
   size_t max_level,
   weight_t resolution)
 {
-  using graph_t = cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>;
-  using graph_view_t =
-    cugraph::graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>;
+  using graph_t      = cugraph::graph_t<vertex_t, edge_t, store_transposed, multi_gpu>;
+  using graph_view_t = cugraph::graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>;
 
   std::unique_ptr<Dendrogram<vertex_t>> dendrogram = std::make_unique<Dendrogram<vertex_t>>();
 
@@ -95,8 +97,9 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
 
   HighResTimer hr_timer;
 
-  weight_t best_modularity   = weight_t{-1.0};
-  weight_t total_edge_weight = compute_total_edge_weight(handle, current_graph_view);
+  weight_t best_modularity = weight_t{-1.0};
+  weight_t total_edge_weight =
+    compute_total_edge_weight(handle, current_graph_view, *edge_weight_view);
 
   //
   // Bookkeeping per cluster
@@ -137,7 +140,7 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
     detail::timer_start<graph_view_t::is_multi_gpu>(
       handle, hr_timer, "compute_vertex_and_cluster_weights");
 
-    vertex_weights = compute_out_weight_sums(handle, current_graph_view);
+    vertex_weights = compute_out_weight_sums(handle, current_graph_view, *edge_weight_view);
     cluster_keys.resize(vertex_weights.size(), handle.get_stream());
     cluster_weights.resize(vertex_weights.size(), handle.get_stream());
 
@@ -204,6 +207,7 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
 
     weight_t new_Q = detail::compute_modularity(handle,
                                                 current_graph_view,
+                                                edge_weight_view,
                                                 src_vertex_cluster_assignment_cache,
                                                 dst_vertex_cluster_assignment_cache,
                                                 louvain_assignment_for_vertices,
@@ -240,6 +244,7 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
       louvain_assignment_for_vertices =
         detail::update_clustering_by_delta_modularity(handle,
                                                       current_graph_view,
+                                                      edge_weight_view,
                                                       total_edge_weight,
                                                       resolution,
                                                       vertex_weights,
@@ -265,6 +270,7 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
       std::tie(cluster_keys, cluster_weights) =
         detail::compute_cluster_keys_and_values(handle,
                                                 current_graph_view,
+                                                edge_weight_view,
                                                 louvain_assignment_for_vertices,
                                                 src_vertex_cluster_assignment_cache);
 
@@ -272,6 +278,7 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
 
       new_Q = detail::compute_modularity(handle,
                                          current_graph_view,
+                                         edge_weight_view,
                                          src_vertex_cluster_assignment_cache,
                                          dst_vertex_cluster_assignment_cache,
                                          louvain_assignment_for_vertices,
@@ -355,6 +362,7 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
     auto [refined_leiden_partition, leiden_to_louvain_map] =
       detail::refine_clustering_2(handle,
                                   current_graph_view,
+                                  edge_weight_view,
                                   total_edge_weight,
                                   resolution,
                                   vertex_weights,
@@ -385,8 +393,8 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
     src_vertex_cluster_assignment_cache.clear(handle);
     dst_vertex_cluster_assignment_cache.clear(handle);
 
-    auto leiden_of_coarse_graph =
-      aggregate_graph(handle, current_graph_view, current_graph, refined_leiden_partition);
+    auto leiden_of_coarse_graph = aggregate_graph(
+      handle, current_graph_view, edge_weight_view, current_graph, refined_leiden_partition);
 
     relabel<vertex_t, multi_gpu>(
       handle,
@@ -410,16 +418,11 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
 
 // FIXME: Can we have a common flatten_dendrogram to be used by both
 // Louvain and Leiden, and possibly other clustering methods?
-template <typename vertex_t,
-          typename edge_t,
-          typename weight_t,
-          bool multi_gpu,
-          bool store_transposed = false>
-void flatten_dendrogram(
-  raft::handle_t const& handle,
-  graph_view_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> const& graph_view,
-  Dendrogram<vertex_t> const& dendrogram,
-  vertex_t* clustering)
+template <typename vertex_t, typename edge_t, bool multi_gpu>
+void flatten_dendrogram(raft::handle_t const& handle,
+                        graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+                        Dendrogram<vertex_t> const& dendrogram,
+                        vertex_t* clustering)
 {
   rmm::device_uvector<vertex_t> vertex_ids_v(graph_view.number_of_vertices(), handle.get_stream());
 
@@ -434,22 +437,22 @@ void flatten_dendrogram(
 
 }  // namespace detail
 
-template <typename GraphViewType>
-std::pair<std::unique_ptr<Dendrogram<typename GraphViewType::vertex_type>>,
-          typename GraphViewType::weight_type>
-leiden(raft::handle_t const& handle,
-       GraphViewType const& graph_view,
-       size_t max_level,
-       typename GraphViewType::weight_type resolution)
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+  std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
+  size_t max_level,
+  weight_t resolution)
 {
-  return detail::leiden(handle, graph_view, max_level, resolution);
+  return detail::leiden(handle, graph_view, edge_weight_view, max_level, resolution);
 }
 
-template <typename GraphViewType>
+template <typename vertex_t, typename edge_t, bool multi_gpu>
 void flatten_dendrogram(raft::handle_t const& handle,
-                        GraphViewType const& graph_view,
-                        Dendrogram<typename GraphViewType::vertex_type> const& dendrogram,
-                        typename GraphViewType::vertex_type* clustering)
+                        graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+                        Dendrogram<vertex_t> const& dendrogram,
+                        vertex_t* clustering)
 {
   detail::flatten_dendrogram(handle, graph_view, dendrogram, clustering);
 }

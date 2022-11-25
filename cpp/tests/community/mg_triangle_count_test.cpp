@@ -73,7 +73,9 @@ class Tests_MGTriangleCount
       hr_clock.start();
     }
 
-    auto [mg_graph, d_mg_renumber_map_labels] =
+    cugraph::graph_t<vertex_t, edge_t, false, true> mg_graph(*handle_);
+    std::optional<rmm::device_uvector<vertex_t>> d_mg_renumber_map_labels{std::nullopt};
+    std::tie(mg_graph, std::ignore, d_mg_renumber_map_labels) =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, true>(
         *handle_, input_usecase, false, true, false, true);
 
@@ -130,7 +132,7 @@ class Tests_MGTriangleCount
       hr_clock.start();
     }
 
-    cugraph::triangle_count<vertex_t, edge_t, weight_t, true>(
+    cugraph::triangle_count<vertex_t, edge_t, true>(
       *handle_,
       mg_graph_view,
       d_mg_vertices ? std::make_optional<raft::device_span<vertex_t const>>(
@@ -181,8 +183,8 @@ class Tests_MGTriangleCount
 
         // 4-3. create SG graph
 
-        cugraph::graph_t<vertex_t, edge_t, weight_t, false, false> sg_graph(*handle_);
-        std::tie(sg_graph, std::ignore) =
+        cugraph::graph_t<vertex_t, edge_t, false, false> sg_graph(*handle_);
+        std::tie(sg_graph, std::ignore, std::ignore) =
           cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, false>(
             *handle_, input_usecase, false, false, false, true);
 
@@ -197,7 +199,7 @@ class Tests_MGTriangleCount
                                                            : sg_graph_view.number_of_vertices(),
                                                          handle_->get_stream());
 
-        cugraph::triangle_count<vertex_t, edge_t, weight_t>(
+        cugraph::triangle_count<vertex_t, edge_t, false>(
           *handle_,
           sg_graph_view,
           d_mg_aggregate_vertices

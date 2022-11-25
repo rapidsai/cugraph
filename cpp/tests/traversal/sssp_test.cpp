@@ -111,7 +111,7 @@ class Tests_SSSP : public ::testing::TestWithParam<std::tuple<SSSP_Usecase, inpu
       hr_clock.start();
     }
 
-    auto [graph, d_renumber_map_labels] =
+    auto [graph, edge_weights, d_renumber_map_labels] =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, false>(
         handle, input_usecase, true, renumber);
 
@@ -123,6 +123,8 @@ class Tests_SSSP : public ::testing::TestWithParam<std::tuple<SSSP_Usecase, inpu
     }
 
     auto graph_view = graph.view();
+    auto edge_weight_view =
+      edge_weights ? std::make_optional((*edge_weights).view()) : std::nullopt;
 
     ASSERT_TRUE(static_cast<vertex_t>(sssp_usecase.source) >= 0 &&
                 static_cast<vertex_t>(sssp_usecase.source) < graph_view.number_of_vertices());
@@ -138,6 +140,7 @@ class Tests_SSSP : public ::testing::TestWithParam<std::tuple<SSSP_Usecase, inpu
 
     cugraph::sssp(handle,
                   graph_view,
+                  *edge_weight_view,
                   d_distances.data(),
                   d_predecessors.data(),
                   static_cast<vertex_t>(sssp_usecase.source),
@@ -152,20 +155,30 @@ class Tests_SSSP : public ::testing::TestWithParam<std::tuple<SSSP_Usecase, inpu
     }
 
     if (sssp_usecase.check_correctness) {
-      cugraph::graph_t<vertex_t, edge_t, weight_t, false, false> unrenumbered_graph(handle);
+      cugraph::graph_t<vertex_t, edge_t, false, false> unrenumbered_graph(handle);
+      std::optional<
+        cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, false, false>, weight_t>>
+        unrenumbered_edge_weights{std::nullopt};
       if (renumber) {
-        std::tie(unrenumbered_graph, std::ignore) =
+        std::tie(unrenumbered_graph, unrenumbered_edge_weights, std::ignore) =
           cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, false>(
             handle, input_usecase, true, false);
       }
       auto unrenumbered_graph_view = renumber ? unrenumbered_graph.view() : graph_view;
+      auto unrenumbered_edge_weight_view =
+        renumber
+          ? (unrenumbered_edge_weights ? std::make_optional((*unrenumbered_edge_weights).view())
+                                       : std::nullopt)
+          : edge_weight_view;
 
       auto h_offsets = cugraph::test::to_host(
         handle, unrenumbered_graph_view.local_edge_partition_view().offsets());
       auto h_indices = cugraph::test::to_host(
         handle, unrenumbered_graph_view.local_edge_partition_view().indices());
       auto h_weights = cugraph::test::to_host(
-        handle, *(unrenumbered_graph_view.local_edge_partition_view().weights()));
+        handle,
+        raft::device_span<weight_t const>((*unrenumbered_edge_weight_view).value_firsts()[0],
+                                          (*unrenumbered_edge_weight_view).edge_counts()[0]));
 
       auto unrenumbered_source = static_cast<vertex_t>(sssp_usecase.source);
       if (renumber) {

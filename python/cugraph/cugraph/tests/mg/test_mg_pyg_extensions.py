@@ -25,7 +25,6 @@ import dask_cudf
 import cupy
 
 import pytest
-import re
 
 
 @pytest.fixture(scope="module")
@@ -306,9 +305,18 @@ def test_neighbor_sample(basic_property_graph_1):
         edge_types=[v.edge_type for v in graph_store._edge_types_to_attrs.values()],
     )
 
-    noi_groups, row_dict, col_dict, _ = sampler.sample_from_nodes(
-        index=cupy.array([0, 1, 2, 3, 4], dtype="int32"),
+    out_dict = sampler.sample_from_nodes(
+        (
+            cupy.arange(6, dtype="int32"),
+            cupy.array([0, 1, 2, 3, 4], dtype="int32"),
+            None,
+        )
     )
+
+    noi_groups, row_dict, col_dict, _ = out_dict["out"]
+    metadata = out_dict["metadata"]
+
+    assert metadata.get().tolist() == list(range(6))
 
     for node_type, node_ids in noi_groups.items():
         actual_vertex_ids = (
@@ -324,7 +332,7 @@ def test_neighbor_sample(basic_property_graph_1):
     for edge_type, row in row_dict.items():
         col = col_dict[edge_type]
         df = cudf.DataFrame({pG.src_col_name: row, pG.dst_col_name: col})
-        df[pG.type_col_name] = edge_type.replace("__", "")
+        df[pG.type_col_name] = edge_type[1]
         combined_df = cudf.concat([combined_df, df])
 
     base_df = pG.get_edge_data().compute()
@@ -361,14 +369,21 @@ def test_neighbor_sample_multi_vertex(multi_edge_multi_vertex_property_graph_1):
         edge_types=[v.edge_type for v in graph_store._edge_types_to_attrs.values()],
     )
 
-    ex = re.compile(r"[A-z]+__([A-z]+)__[A-z]+")
-
-    noi_groups, row_dict, col_dict, _ = sampler.sample_from_nodes(
-        index=cupy.array([0, 1, 2, 3, 4], dtype="int32"),
+    out_dict = sampler.sample_from_nodes(
+        (
+            cupy.arange(6, dtype="int32"),
+            cupy.array([0, 1, 2, 3, 4], dtype="int32"),
+            None,
+        )
     )
 
-    for pyg_cpp_edge_type, srcs in row_dict.items():
-        cugraph_edge_type = ex.match(pyg_cpp_edge_type).groups()[0]
+    _, row_dict, _, _ = out_dict["out"]
+    metadata = out_dict["metadata"]
+
+    assert metadata.get().tolist() == list(range(6))
+
+    for pyg_can_edge_type, srcs in row_dict.items():
+        cugraph_edge_type = pyg_can_edge_type[1]
         num_edges = len(pG.get_edge_data(types=[cugraph_edge_type]).compute())
         assert num_edges == len(srcs)
 
@@ -383,24 +398,10 @@ def test_renumber_vertices(graph):
         .compute()
         .value_counts()
     )
-    index, groups, tensors = graph_store._get_renumbered_vertex_data_from_sample(
-        nodes_of_interest
-    )
+    index = graph_store._get_vertex_groups_from_sample(nodes_of_interest)
 
     for vtype in index:
         assert len(index[vtype]) == vc_actual[vtype]
-        assert len(index[vtype]) == len(groups[vtype])
-        assert groups[vtype].tolist() == cupy.arange(len(index[vtype])).tolist()
-
-        assert (
-            tensors[vtype]["x"].tolist()
-            == pG.get_vertex_data(index[vtype].get())
-            .drop(pG.vertex_col_name, axis=1)
-            .drop(pG.type_col_name, axis=1)
-            .compute()
-            .to_cupy(dtype="float")
-            .tolist()
-        )
 
 
 def test_renumber_edges(graph):
@@ -432,10 +433,10 @@ def test_renumber_edges(graph):
         ),
         npartitions=2,
     )
-    row, col = graph_store._get_renumbered_edges_from_sample(sdf, noi_index)
+    row, col = graph_store._get_renumbered_edge_groups_from_sample(sdf, noi_index)
 
     for etype in row:
-        stype, ctype, dtype = etype.split("__")
+        stype, ctype, dtype = etype
         src = noi_index[stype][row[etype]]
         dst = noi_index[dtype][col[etype]]
         assert len(src) == len(dst)

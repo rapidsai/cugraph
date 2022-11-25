@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2022, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,7 +20,8 @@ namespace cugraph {
 // SG instantiation
 
 template void sssp(raft::handle_t const& handle,
-                   graph_view_t<int32_t, int32_t, float, false, false> const& graph_view,
+                   graph_view_t<int32_t, int32_t, false, false> const& graph_view,
+                   edge_property_view_t<int32_t, float const*> edge_weight_view,
                    float* distances,
                    int32_t* predecessors,
                    int32_t source_vertex,
@@ -28,7 +29,8 @@ template void sssp(raft::handle_t const& handle,
                    bool do_expensive_check);
 
 template void sssp(raft::handle_t const& handle,
-                   graph_view_t<int32_t, int32_t, double, false, false> const& graph_view,
+                   graph_view_t<int32_t, int32_t, false, false> const& graph_view,
+                   edge_property_view_t<int32_t, double const*> edge_weight_view,
                    double* distances,
                    int32_t* predecessors,
                    int32_t source_vertex,
@@ -36,7 +38,8 @@ template void sssp(raft::handle_t const& handle,
                    bool do_expensive_check);
 
 template void sssp(raft::handle_t const& handle,
-                   graph_view_t<int32_t, int64_t, float, false, false> const& graph_view,
+                   graph_view_t<int32_t, int64_t, false, false> const& graph_view,
+                   edge_property_view_t<int64_t, float const*> edge_weight_view,
                    float* distances,
                    int32_t* predecessors,
                    int32_t source_vertex,
@@ -44,7 +47,8 @@ template void sssp(raft::handle_t const& handle,
                    bool do_expensive_check);
 
 template void sssp(raft::handle_t const& handle,
-                   graph_view_t<int32_t, int64_t, double, false, false> const& graph_view,
+                   graph_view_t<int32_t, int64_t, false, false> const& graph_view,
+                   edge_property_view_t<int64_t, double const*> edge_weight_view,
                    double* distances,
                    int32_t* predecessors,
                    int32_t source_vertex,
@@ -52,7 +56,8 @@ template void sssp(raft::handle_t const& handle,
                    bool do_expensive_check);
 
 template void sssp(raft::handle_t const& handle,
-                   graph_view_t<int64_t, int64_t, float, false, false> const& graph_view,
+                   graph_view_t<int64_t, int64_t, false, false> const& graph_view,
+                   edge_property_view_t<int64_t, float const*> edge_weight_view,
                    float* distances,
                    int64_t* predecessors,
                    int64_t source_vertex,
@@ -60,7 +65,8 @@ template void sssp(raft::handle_t const& handle,
                    bool do_expensive_check);
 
 template void sssp(raft::handle_t const& handle,
-                   graph_view_t<int64_t, int64_t, double, false, false> const& graph_view,
+                   graph_view_t<int64_t, int64_t, false, false> const& graph_view,
+                   edge_property_view_t<int64_t, double const*> edge_weight_view,
                    double* distances,
                    int64_t* predecessors,
                    int64_t source_vertex,

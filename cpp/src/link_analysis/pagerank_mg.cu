@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2022, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,7 +19,8 @@ namespace cugraph {
 
 // MG instantiation
 template void pagerank(raft::handle_t const& handle,
-                       graph_view_t<int32_t, int32_t, float, true, true> const& graph_view,
+                       graph_view_t<int32_t, int32_t, true, true> const& graph_view,
+                       std::optional<edge_property_view_t<int32_t, float const*>> edge_weight_view,
                        std::optional<float const*> precomputed_vertex_out_weight_sums,
                        std::optional<int32_t const*> personalization_vertices,
                        std::optional<float const*> personalization_values,
@@ -32,7 +33,8 @@ template void pagerank(raft::handle_t const& handle,
                        bool do_expensive_check);
 
 template void pagerank(raft::handle_t const& handle,
-                       graph_view_t<int32_t, int32_t, double, true, true> const& graph_view,
+                       graph_view_t<int32_t, int32_t, true, true> const& graph_view,
+                       std::optional<edge_property_view_t<int32_t, double const*>> edge_weight_view,
                        std::optional<double const*> precomputed_vertex_out_weight_sums,
                        std::optional<int32_t const*> personalization_vertices,
                        std::optional<double const*> personalization_values,
@@ -45,7 +47,8 @@ template void pagerank(raft::handle_t const& handle,
                        bool do_expensive_check);
 
 template void pagerank(raft::handle_t const& handle,
-                       graph_view_t<int32_t, int64_t, float, true, true> const& graph_view,
+                       graph_view_t<int32_t, int64_t, true, true> const& graph_view,
+                       std::optional<edge_property_view_t<int64_t, float const*>> edge_weight_view,
                        std::optional<float const*> precomputed_vertex_out_weight_sums,
                        std::optional<int32_t const*> personalization_vertices,
                        std::optional<float const*> personalization_values,
@@ -58,7 +61,8 @@ template void pagerank(raft::handle_t const& handle,
                        bool do_expensive_check);
 
 template void pagerank(raft::handle_t const& handle,
-                       graph_view_t<int32_t, int64_t, double, true, true> const& graph_view,
+                       graph_view_t<int32_t, int64_t, true, true> const& graph_view,
+                       std::optional<edge_property_view_t<int64_t, double const*>> edge_weight_view,
                        std::optional<double const*> precomputed_vertex_out_weight_sums,
                        std::optional<int32_t const*> personalization_vertices,
                        std::optional<double const*> personalization_values,
@@ -71,7 +75,8 @@ template void pagerank(raft::handle_t const& handle,
                        bool do_expensive_check);
 
 template void pagerank(raft::handle_t const& handle,
-                       graph_view_t<int64_t, int64_t, float, true, true> const& graph_view,
+                       graph_view_t<int64_t, int64_t, true, true> const& graph_view,
+                       std::optional<edge_property_view_t<int64_t, float const*>> edge_weight_view,
                        std::optional<float const*> precomputed_vertex_out_weight_sums,
                        std::optional<int64_t const*> personalization_vertices,
                        std::optional<float const*> personalization_values,
@@ -84,7 +89,8 @@ template void pagerank(raft::handle_t const& handle,
                        bool do_expensive_check);
 
 template void pagerank(raft::handle_t const& handle,
-                       graph_view_t<int64_t, int64_t, double, true, true> const& graph_view,
+                       graph_view_t<int64_t, int64_t, true, true> const& graph_view,
+                       std::optional<edge_property_view_t<int64_t, double const*>> edge_weight_view,
                        std::optional<double const*> precomputed_vertex_out_weight_sums,
                        std::optional<int64_t const*> personalization_vertices,
                        std::optional<double const*> personalization_values,

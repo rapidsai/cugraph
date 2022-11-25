@@ -123,7 +123,7 @@ class Tests_KatzCentrality
       hr_clock.start();
     }
 
-    auto [graph, d_renumber_map_labels] =
+    auto [graph, edge_weights, d_renumber_map_labels] =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, true, false>(
         handle, input_usecase, katz_usecase.test_weighted, renumber);
 
@@ -135,6 +135,8 @@ class Tests_KatzCentrality
     }
 
     auto graph_view = graph.view();
+    auto edge_weight_view =
+      edge_weights ? std::make_optional((*edge_weights).view()) : std::nullopt;
 
     auto degrees   = graph_view.compute_in_degrees(handle);
     auto h_degrees = cugraph::test::to_host(handle, degrees);
@@ -154,6 +156,7 @@ class Tests_KatzCentrality
 
     cugraph::katz_centrality(handle,
                              graph_view,
+                             edge_weight_view,
                              static_cast<result_t*>(nullptr),
                              d_katz_centralities.data(),
                              alpha,
@@ -171,20 +174,32 @@ class Tests_KatzCentrality
     }
 
     if (katz_usecase.check_correctness) {
-      cugraph::graph_t<vertex_t, edge_t, weight_t, true, false> unrenumbered_graph(handle);
+      cugraph::graph_t<vertex_t, edge_t, true, false> unrenumbered_graph(handle);
+      std::optional<
+        cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, true, false>, weight_t>>
+        unrenumbered_edge_weights{std::nullopt};
       if (renumber) {
-        std::tie(unrenumbered_graph, std::ignore) =
+        std::tie(unrenumbered_graph, unrenumbered_edge_weights, std::ignore) =
           cugraph::test::construct_graph<vertex_t, edge_t, weight_t, true, false>(
             handle, input_usecase, katz_usecase.test_weighted, false);
       }
       auto unrenumbered_graph_view = renumber ? unrenumbered_graph.view() : graph_view;
+      auto unrenumbered_edge_weight_view =
+        renumber
+          ? (unrenumbered_edge_weights ? std::make_optional((*unrenumbered_edge_weights).view())
+                                       : std::nullopt)
+          : edge_weight_view;
 
       auto h_offsets = cugraph::test::to_host(
         handle, unrenumbered_graph_view.local_edge_partition_view().offsets());
       auto h_indices = cugraph::test::to_host(
         handle, unrenumbered_graph_view.local_edge_partition_view().indices());
       auto h_weights = cugraph::test::to_host(
-        handle, unrenumbered_graph_view.local_edge_partition_view().weights());
+        handle,
+        unrenumbered_edge_weight_view ? std::make_optional(raft::device_span<weight_t const>(
+                                          (*unrenumbered_edge_weight_view).value_firsts()[0],
+                                          (*unrenumbered_edge_weight_view).edge_counts()[0]))
+                                      : std::nullopt);
 
       std::vector<result_t> h_reference_katz_centralities(
         unrenumbered_graph_view.number_of_vertices());

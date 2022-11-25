@@ -51,10 +51,8 @@ struct e_op_t {
                                                       cugraph::to_thrust_tuple(property_t{}),
                                                       cugraph::to_thrust_tuple(property_t{})));
 
-  __device__ result_t operator()(vertex_t src,
-                                 vertex_t dst,
-                                 property_t src_prop,
-                                 property_t dst_prop) const
+  __device__ result_t operator()(
+    vertex_t src, vertex_t dst, property_t src_prop, property_t dst_prop, thrust::nullopt_t) const
   {
     if constexpr (cugraph::is_thrust_tuple_of_arithmetic<property_t>::value) {
       static_assert(thrust::tuple_size<property_t>::value == size_t{2});
@@ -108,7 +106,9 @@ class Tests_MGPerVRandomSelectTransformOutgoingE
       hr_clock.start();
     }
 
-    auto [mg_graph, d_mg_renumber_map_labels] =
+    cugraph::graph_t<vertex_t, edge_t, false, true> mg_graph(*handle_);
+    std::optional<rmm::device_uvector<vertex_t>> d_mg_renumber_map_labels{std::nullopt};
+    std::tie(mg_graph, std::ignore, d_mg_renumber_map_labels) =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, true>(
         *handle_, input_usecase, prims_usecase.test_weighted, true);
 
@@ -174,6 +174,7 @@ class Tests_MGPerVRandomSelectTransformOutgoingE
                                                         mg_vertex_frontier.bucket(bucket_idx_cur),
                                                         mg_src_prop.view(),
                                                         mg_dst_prop.view(),
+                                                        cugraph::edge_dummy_property_t{}.view(),
                                                         e_op_t<vertex_t, property_t>{},
                                                         rng_state,
                                                         prims_usecase.K,
@@ -196,8 +197,8 @@ class Tests_MGPerVRandomSelectTransformOutgoingE
         *handle_, (*d_mg_renumber_map_labels).data(), (*d_mg_renumber_map_labels).size());
       auto out_degrees = mg_graph_view.compute_out_degrees(*handle_);
 
-      cugraph::graph_t<vertex_t, edge_t, weight_t, false, false> unrenumbered_graph(*handle_);
-      std::tie(unrenumbered_graph, std::ignore) =
+      cugraph::graph_t<vertex_t, edge_t, false, false> unrenumbered_graph(*handle_);
+      std::tie(unrenumbered_graph, std::ignore, std::ignore) =
         cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, false>(
           *handle_, input_usecase, prims_usecase.test_weighted, false);
       auto unrenumbered_graph_view = unrenumbered_graph.view();

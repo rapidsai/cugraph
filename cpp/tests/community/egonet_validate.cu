@@ -36,14 +36,19 @@ std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<weight_t>>,
            rmm::device_uvector<size_t>>
-egonet_reference(raft::handle_t const& handle,
-                 cugraph::graph_view_t<vertex_t, edge_t, weight_t, false, false> const& graph_view,
-                 raft::device_span<vertex_t const> ego_sources,
-                 int radius)
+egonet_reference(
+  raft::handle_t const& handle,
+  cugraph::graph_view_t<vertex_t, edge_t, false, false> const& graph_view,
+  std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
+  raft::device_span<vertex_t const> ego_sources,
+  int radius)
 {
 #if 1
-  auto [d_coo_src, d_coo_dst, d_coo_wgt] = cugraph::decompress_to_edgelist(
-    handle, graph_view, std::optional<raft::device_span<vertex_t const>>{std::nullopt});
+  auto [d_coo_src, d_coo_dst, d_coo_wgt] =
+    cugraph::decompress_to_edgelist(handle,
+                                    graph_view,
+                                    edge_weight_view,
+                                    std::optional<raft::device_span<vertex_t const>>{std::nullopt});
 #else
   // FIXME: This should be faster (smaller list of edges to operate on), but uniform_nbr_sample
   // doesn't preserve multi-edges (which is probably a bug)
@@ -55,6 +60,7 @@ egonet_reference(raft::handle_t const& handle,
   auto [d_coo_src, d_coo_dst, d_coo_wgt, d_coo_counts] = cugraph::uniform_nbr_sample(
     handle,
     graph_view,
+    edge_weight_view,
     raft::device_span<vertex_t>{local_ego_sources.data(), local_ego_sources.size()},
     raft::host_span<const int>{fan_out.data(), fan_out.size()},
     false);
@@ -67,9 +73,8 @@ egonet_reference(raft::handle_t const& handle,
   rmm::device_uvector<vertex_t> d_reference_dst(0, handle.get_stream());
 
   auto d_reference_wgt =
-    graph_view.is_weighted()
-      ? std::make_optional(rmm::device_uvector<weight_t>(0, handle.get_stream()))
-      : std::nullopt;
+    edge_weight_view ? std::make_optional(rmm::device_uvector<weight_t>(0, handle.get_stream()))
+                     : std::nullopt;
 
   std::vector<size_t> h_reference_offsets;
 
@@ -98,7 +103,7 @@ egonet_reference(raft::handle_t const& handle,
       d_reference_src.resize(old_size + new_entries, handle.get_stream());
       d_reference_dst.resize(old_size + new_entries, handle.get_stream());
 
-      if (graph_view.is_weighted()) {
+      if (edge_weight_view) {
         d_reference_wgt->resize(old_size + new_entries, handle.get_stream());
 
         thrust::copy_if(
@@ -172,7 +177,7 @@ egonet_reference(raft::handle_t const& handle,
       d_reference_src.resize(old_size + new_entries, handle.get_stream());
       d_reference_dst.resize(old_size + new_entries, handle.get_stream());
 
-      if (graph_view.is_weighted()) {
+      if (edge_weight_view) {
         d_reference_wgt->resize(old_size + new_entries, handle.get_stream());
 
         thrust::copy_if(
@@ -344,10 +349,12 @@ template std::tuple<rmm::device_uvector<int32_t>,
                     rmm::device_uvector<int32_t>,
                     std::optional<rmm::device_uvector<float>>,
                     rmm::device_uvector<size_t>>
-egonet_reference(raft::handle_t const& handle,
-                 cugraph::graph_view_t<int32_t, int32_t, float, false, false> const& graph_view,
-                 raft::device_span<int32_t const> ego_sources,
-                 int radius);
+egonet_reference(
+  raft::handle_t const& handle,
+  cugraph::graph_view_t<int32_t, int32_t, false, false> const& graph_view,
+  std::optional<cugraph::edge_property_view_t<int32_t, float const*>> edge_weight_view,
+  raft::device_span<int32_t const> ego_sources,
+  int radius);
 
 template void egonet_validate(raft::handle_t const& handle,
                               rmm::device_uvector<int32_t>& d_cugraph_egonet_src,
@@ -378,6 +385,7 @@ std::tuple<rmm::device_uvector<int32_t>,
            rmm::device_uvector<size_t>>
 egonet_reference(raft::handle_t const& handle,
                  cugraph::graph_view_t<int32_t, int64_t, float, false, false> const& graph_view,
+                 std::optional<cugraph::edge_property_view_t<int64_t, float const*>> edge_weight_view,
                  raft::device_span<int32_t const> ego_sources,
                  int radius);
 
@@ -388,6 +396,7 @@ std::tuple<rmm::device_uvector<int64_t>,
            rmm::device_uvector<size_t>>
 egonet_reference(raft::handle_t const& handle,
                  cugraph::graph_view_t<int64_t, int64_t, float, false, false> const& graph_view,
+                 std::optional<cugraph::edge_property_view_t<int64_t, float const*>> edge_weight_view,
                  raft::device_span<int64_t const> ego_sources,
                  int radius);
 
@@ -398,6 +407,7 @@ std::tuple<rmm::device_uvector<int32_t>,
            rmm::device_uvector<size_t>>
 egonet_reference(raft::handle_t const& handle,
                  cugraph::graph_view_t<int32_t, int32_t, double, false, false> const& graph_view,
+                 std::optional<cugraph::edge_property_view_t<int32_t, double const*>> edge_weight_view,
                  raft::device_span<int32_t const> ego_sources,
                  int radius);
 
@@ -408,6 +418,7 @@ std::tuple<rmm::device_uvector<int32_t>,
            rmm::device_uvector<size_t>>
 egonet_reference(raft::handle_t const& handle,
                  cugraph::graph_view_t<int32_t, int64_t, double, false, false> const& graph_view,
+                 std::optional<cugraph::edge_property_view_t<int64_t, double const*>> edge_weight_view,
                  raft::device_span<int32_t const> ego_sources,
                  int radius);
 
@@ -418,6 +429,7 @@ std::tuple<rmm::device_uvector<int64_t>,
            rmm::device_uvector<size_t>>
 egonet_reference(raft::handle_t const& handle,
                  cugraph::graph_view_t<int64_t, int64_t, double, false, false> const& graph_view,
+                 std::optional<cugraph::edge_property_view_t<int64_t, double const*>> edge_weight_view,
                  raft::device_span<int64_t const> ego_sources,
                  int radius);
 
