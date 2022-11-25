@@ -1,7 +1,5 @@
 #pragma once
 #include <community/detail/mis_impl.cuh>
-#include <cugraph/edge_property.hpp>
-#include <cugraph/graph_view.hpp>
 
 namespace cugraph {
 namespace detail {

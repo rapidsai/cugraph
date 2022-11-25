@@ -707,7 +707,7 @@ refine_clustering_2(
   // Determine a set of moves using MIS of the decision_graph
   //
 
-  // auto chosen_vertices = compute_mis(handle, decision_graph_view, coarse_edge_weights.view());
+  auto chosen_vertices = compute_mis(handle, decision_graph_view, (*coarse_edge_weights).view());
 
   // TODO
 
