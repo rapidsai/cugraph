@@ -15,6 +15,7 @@
 import numpy as np
 import dask_cudf
 
+import cugraph
 from cugraph.experimental import PropertyGraph, MGPropertyGraph
 from cugraph.experimental import datasets
 from cugraph.generators import rmat
@@ -22,6 +23,11 @@ from cugraph.generators import rmat
 
 # Graph creation extensions
 def create_graph_from_builtin_dataset(dataset_name, mg=False, server=None):
+    dataset_obj = getattr(datasets, dataset_name)
+    return dataset_obj.get_graph(fetch=True)
+
+
+def create_property_graph_from_builtin_dataset(dataset_name, mg=False, server=None):
     dataset_obj = getattr(datasets, dataset_name)
     edgelist_df = dataset_obj.get_edgelist(fetch=True)
 
@@ -67,10 +73,24 @@ def create_graph_from_rmat_generator(
     rng = np.random.default_rng(seed)
     edgelist_df["weight"] = rng.random(size=len(edgelist_df))
 
-    if is_mg:
-        G = MGPropertyGraph()
-    else:
-        G = PropertyGraph()
+    # For PropertyGraph, uncomment:
+    # if is_mg:
+    #     G = MGPropertyGraph()
+    # else:
+    #     G = PropertyGraph()
+    #
+    # G.add_edge_data(edgelist_df, vertex_col_names=["src", "dst"])
 
-    G.add_edge_data(edgelist_df, vertex_col_names=["src", "dst"])
+    # For Graph, uncomment:
+    G = cugraph.Graph()
+    if is_mg:
+        edgelist_df = dask_cudf.from_cudf(edgelist_df)
+        G.from_dask_cudf_edgelist(
+            edgelist_df, source="src", destination="dst", edge_attr="weight"
+        )
+    else:
+        G.from_cudf_edgelist(
+            edgelist_df, source="src", destination="dst", edge_attr="weight"
+        )
+
     return G

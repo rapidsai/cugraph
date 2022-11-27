@@ -64,17 +64,17 @@ mnmg_pv = pytest.param(
     id="config=MNMG",
 )
 graph_pv = pytest.param(
-    Graph,
+    "Graph",
     marks=[pytest.mark.local],
     id="type=Graph",
 )
 remotegraph_pv = pytest.param(
-    RemoteGraph,
+    "RemoteGraph",
     marks=[pytest.mark.remote],
     id="type=RemoteGraph",
 )
 karate_pv = pytest.param(
-    datasets.karate,
+    "karate",
     id="dataset=karate",
 )
 small_low_degree_rmat_pv = pytest.param(
@@ -147,8 +147,10 @@ def create_graph(graph_data, gpu_config):
     # FIXME: need to consider directed/undirected?
     G = Graph()
 
-    if isinstance(graph_data, datasets.Dataset):
-        edgelist_df = graph_data.get_edgelist()
+    # Assume strings are names of datasets in the datasets package
+    if isinstance(graph_data, str):
+        ds = getattr(datasets, graph_data)
+        edgelist_df = ds.get_edgelist()
         # FIXME: edgelist_df should have column names that match the defaults
         # for G.from_cudf_edgelist()
         if is_mg:
@@ -191,9 +193,7 @@ def create_graph(graph_data, gpu_config):
             )
 
     else:
-        raise TypeError(
-            "graph_data can only be Dataset or dict, " f"got {type(graph_data)}"
-        )
+        raise TypeError(f"graph_data can only be str or dict, got {type(graph_data)}")
 
     return G
 
@@ -203,10 +203,10 @@ def create_remote_graph(graph_data, client):
     Create a remote graph instance based on the data to be loaded/generated,
     relying on server-side graph creation extensions.
     """
-    if isinstance(graph_data, datasets.Dataset):
-        # breakpoint()
+    # Assume strings are names of datasets in the datasets package
+    if isinstance(graph_data, str):
         gid = client.call_graph_creation_extension(
-            "create_graph_from_builtin_dataset", graph_data.metadata["name"]
+            "create_graph_from_builtin_dataset", graph_data
         )
 
     # Assume dictionary contains RMAT params
@@ -221,9 +221,7 @@ def create_remote_graph(graph_data, client):
             seed=seed,
         )
     else:
-        raise TypeError(
-            "graph_data can only be Dataset or dict, " f"got {type(graph_data)}"
-        )
+        raise TypeError(f"graph_data can only be str or dict, got {type(graph_data)}")
 
     G = RemoteGraph(client, gid)
     return G
@@ -270,7 +268,7 @@ def get_uniform_neighbor_sample_args(
             col = "_SRC_"
             if col not in edgelist.columns:
                 raise RuntimeError(
-                    "graph edges() edgelist does not contain expected " "column names"
+                    "graph edges() edgelist does not contain expected column names"
                 )
         v = edgelist[col].loc[i]
         while v in starts:
@@ -344,9 +342,10 @@ def ensure_running_service():
 def remote_uniform_neighbor_sample(G, start_list, fanout_vals, with_replacement=True):
     """ """
     assert G.is_remote()
-    return G._client.uniform_neighbor_sample(
+    result = G._client.uniform_neighbor_sample(
         start_list, fanout_vals, with_replacement, graph_id=G._graph_id, result_device=1
     )
+    return result
 
 
 @pytest.fixture(scope="module", params=graph_obj_fixture_params)
@@ -365,14 +364,14 @@ def graph_objs(request):
     if gpu_config not in ["SG", "SNMG", "MNMG"]:
         raise RuntimeError(f"got unexpected gpu_config value: {gpu_config}")
 
-    if graph_type is Graph:
+    if graph_type == "Graph":
         G = create_graph(graph_data, gpu_config)
         if gpu_config == "SG":
             uns_func = uniform_neighbor_sample
         else:
             uns_func = uniform_neighbor_sample_mg
 
-    elif graph_type is RemoteGraph:
+    elif graph_type == "RemoteGraph":
         # Ensure a server is running
         if gpu_config == "SG":
             (server_process, client) = ensure_running_service()
