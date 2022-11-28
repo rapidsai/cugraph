@@ -1526,6 +1526,10 @@ class CugraphServiceClient:
                 id_or_ids, pandas.Series
             ):
                 id_or_ids = id_or_ids.to_numpy()
+            else:
+                raise ValueError(
+                    f"No available module for processing {type(id_or_ids)}"
+                )
 
         if isinstance(id_or_ids, Sequence):
             vert_edge_id_obj = GraphVertexEdgeID(int64_ids=id_or_ids)
