@@ -27,6 +27,41 @@ except ModuleNotFoundError:
 _transform_to_backend_dtype_1d = import_optional("_transform_to_backend_dtype_1d")
 cudf = import_optional("cudf")
 pandas = import_optional("pandas")
+cupy = import_optional("cupy")
+torch = import_optional("torch")
+
+# Set the devices that are always None
+# For torch, no device specified defaults to CPU which is None.
+# For torch:<device> it is determined at runtime.
+__cached_result_devices = {"pandas": None, "numpy": None, "torch": None}
+
+
+def __get_result_device(backend):
+    """
+    Gets the device id of the GPU device where results should be stored.
+    """
+    if backend not in __cached_result_devices:
+        result_device = None
+        if backend == "cudf":
+            df = cudf.DataFrame()
+            result_device = df.values.device.id
+        else:
+            # handle cupy, numpy, torch as dict of arrays/tensors
+            if backend == "cupy":
+                result_device = cupy.array([]).device.id
+            else:
+                backend = backend.split(":")
+                if backend[0] == "torch":
+                    try:
+                        result_device = int(backend[1])
+                    except ValueError:
+                        if backend[1] == "cuda":
+                            result_device = torch.tensor([]).cuda().device.index
+                else:
+                    raise ValueError(f"Invalid backend {backend}")
+        __cached_result_devices[backend] = result_device
+
+    return __cached_result_devices[backend]
 
 
 def call_cugraph_algorithm(name, graph, *args, backend="numpy", **kwargs):
@@ -52,11 +87,6 @@ def call_cugraph_algorithm(name, graph, *args, backend="numpy", **kwargs):
                 f"cuGraph algorithm {name} is not yet supported for RemoteGraph"
             )
         else:
-            # TODO eventually replace this with a "call_algorithm call"
-            sample_result = graph._client.uniform_neighbor_sample(
-                *args, **kwargs, graph_id=graph._graph_id
-            )
-
             if backend == "cudf":
                 df = cudf.DataFrame()
             elif backend == "pandas":
@@ -64,6 +94,14 @@ def call_cugraph_algorithm(name, graph, *args, backend="numpy", **kwargs):
             else:
                 # handle cupy, numpy, torch as dict of arrays/tensors
                 df = {}
+
+            # TODO eventually replace this with a "call_algorithm call"
+            sample_result = graph._client.uniform_neighbor_sample(
+                *args,
+                **kwargs,
+                graph_id=graph._graph_id,
+                result_device=__get_result_device(backend),
+            )
 
             # _transform_to_backend_dtype_1d handles array/Series conversion
             for k, v in sample_result.__dict__.items():
