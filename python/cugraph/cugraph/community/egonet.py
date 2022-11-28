@@ -22,6 +22,7 @@ import cudf
 from pylibcugraph import ego_graph as pylibcugraph_ego_graph
 
 from pylibcugraph import ResourceHandle
+import warnings
 
 
 def _convert_graph_to_output_type(G, input_type):
