@@ -19,6 +19,7 @@ import cupy
 from dataclasses import dataclass
 from collections import defaultdict
 from itertools import chain
+from functools import cached_property
 
 
 class EdgeLayout(Enum):
@@ -53,7 +54,8 @@ class CuGraphEdgeAttr:
     @classmethod
     def cast(cls, *args, **kwargs):
         """
-        Casts to a CuGraphTensorAttr from a tuple, list, or dict
+        Cast to a CuGraphTensorAttr from a tuple, list, or dict.
+
         Returns
         -------
         CuGraphTensorAttr
@@ -209,6 +211,7 @@ class EXPERIMENTAL__CuGraphStore:
             from cupy import searchsorted as searchsorted
         else:
             raise ValueError(f"Invalid backend {backend}.")
+
         self.__backend = backend
         self.from_dlpack = from_dlpack
         self.vertex_dtype = vertex_dtype
@@ -233,7 +236,7 @@ class EXPERIMENTAL__CuGraphStore:
             dsts = edges[self.__graph.dst_col_name].unique()
             srcs = edges[self.__graph.src_col_name].unique()
 
-            if self.is_multi_gpu:
+            if self._is_delayed:
                 dsts = dsts.compute()
                 srcs = srcs.compute()
 
@@ -245,7 +248,7 @@ class EXPERIMENTAL__CuGraphStore:
                 vertex_ids=srcs.values_host, columns=[self.__graph.type_col_name]
             )[self.__graph.type_col_name].unique()
 
-            if self.is_multi_gpu:
+            if self._is_delayed:
                 dst_types = dst_types.compute()
                 src_types = src_types.compute()
 
@@ -274,7 +277,7 @@ class EXPERIMENTAL__CuGraphStore:
     def backend(self):
         return self.__backend
 
-    @property
+    @cached_property
     def is_multi_gpu(self):
         """
         Whether the backing cugraph is a multi-gpu instance.
@@ -285,6 +288,14 @@ class EXPERIMENTAL__CuGraphStore:
         """
         return self.__graph.is_multi_gpu()
 
+    @cached_property
+    def is_remote(self):
+        return self.__graph.is_remote()
+
+    @cached_property
+    def _is_delayed(self):
+        return self.is_multi_gpu and not self.is_remote
+
     def get_vertex_index(self, vtypes):
         # TODO force the graph to use offsets and
         # return these values based on offsets
@@ -292,11 +303,11 @@ class EXPERIMENTAL__CuGraphStore:
         if isinstance(vtypes, str):
             vtypes = [vtypes]
 
-        ix = self.__graph.get_vertex_data(types=vtypes, columns=[])[
-            self.__graph.vertex_col_name
-        ]
+        ix = self.__graph.get_vertex_data(
+            types=vtypes, columns=[self.__graph.type_col_name]
+        )[self.__graph.vertex_col_name]
 
-        if self.is_multi_gpu:
+        if self._is_delayed:
             ix = ix.compute()
 
         return self.from_dlpack(ix.to_dlpack())
@@ -375,7 +386,7 @@ class EXPERIMENTAL__CuGraphStore:
                 columns=[self.__graph.src_col_name, self.__graph.dst_col_name],
             )
 
-        if self.is_multi_gpu:
+        if self._is_delayed:
             df = df.compute()
 
         src = self.from_dlpack(df[self.__graph.src_col_name].to_dlpack())
@@ -485,8 +496,10 @@ class EXPERIMENTAL__CuGraphStore:
         nodes_of_interest = nodes_of_interest.sort_values()
 
         # noi contains all property values
+        # compute should not be called below, just values_host to convert the
+        # cudf Series into a host Series as required by MG PropertyGraph.
         noi = self.__graph.get_vertex_data(
-            nodes_of_interest.values_host if self.is_multi_gpu else nodes_of_interest
+            nodes_of_interest.values_host if self._is_delayed else nodes_of_interest
         )
         noi_types = noi[self.__graph.type_col_name].cat.categories.values_host
 
@@ -502,7 +515,7 @@ class EXPERIMENTAL__CuGraphStore:
                     self.from_dlpack(
                         noi_t[self.__graph.vertex_col_name].compute().to_dlpack()
                     )
-                    if self.is_multi_gpu
+                    if self._is_delayed
                     else self.from_dlpack(
                         noi_t[self.__graph.vertex_col_name].to_dlpack()
                     )
@@ -554,7 +567,7 @@ class EXPERIMENTAL__CuGraphStore:
         eoi = self.__graph.get_edge_data(
             edge_ids=(
                 sampling_results.indices.compute().values_host
-                if self.is_multi_gpu
+                if self._is_delayed
                 else sampling_results.indices
             ),
             columns=[self.__graph.src_col_name, self.__graph.dst_col_name],
@@ -573,7 +586,7 @@ class EXPERIMENTAL__CuGraphStore:
                 eoi_t = eoi_t.drop(self.__graph.edge_id_col_name, axis=1)
 
                 sources = eoi_t[self.__graph.src_col_name]
-                if self.is_multi_gpu:
+                if self._is_delayed:
                     sources = sources.compute()
                 sources = self.from_dlpack(sources.to_dlpack())
                 src_id_table = noi_index[src_type]
@@ -582,7 +595,7 @@ class EXPERIMENTAL__CuGraphStore:
                 row_dict[t_pyg_type] = src
 
                 destinations = eoi_t[self.__graph.dst_col_name]
-                if self.is_multi_gpu:
+                if self._is_delayed:
                     destinations = destinations.compute()
                 destinations = self.from_dlpack(destinations.to_dlpack())
                 dst_id_table = noi_index[dst_type]
@@ -622,35 +635,24 @@ class EXPERIMENTAL__CuGraphStore:
     def __infer_x_and_y_tensors(self):
         """
         Infers the x and y default tensor attributes/features.
+        Currently unable to handle cases where properties differ across
+        vertex types due to the high amount of computation overhead
+        required.  Will resolve with future updates to PropertyGraph.
+        See issue #2942 for more details.
         """
+        prop_names = self.__graph.vertex_property_names
+        add_y_property = False
+        if "y" in prop_names:
+            prop_names.remove("y")
+            add_y_property = True
+
         for vtype in self.__graph.vertex_types:
-            df = self.__graph.get_vertex_data(types=[vtype])
-            for rk in self.__reserved_keys:
-                df = df.drop(rk, axis=1)
+            if add_y_property:
+                self.create_named_tensor("y", ["y"], vtype, self.vertex_dtype)
 
-            if "y" in df.columns:
-                if df.y.isnull().values.any():
-                    print(
-                        f"Skipping definition of feature y"
-                        f" for type {vtype} (null encountered)"
-                    )
-                else:
-                    self.create_named_tensor("y", ["y"], vtype, self.vertex_dtype)
-                df.drop("y", axis=1, inplace=True)
-
-            x_cols = []
-            for col in df.columns:
-                if not df[col].isnull().values.any():
-                    x_cols.append(col)
-
-            if len(x_cols) == 0:
-                print(
-                    f"Skipping definition of feature"
-                    f" x for type {vtype}"
-                    f" (null encountered for all properties)"
-                )
-            else:
-                self.create_named_tensor("x", x_cols, vtype, self.property_dtype)
+            # FIXME use the new vector property feature in PropertyGraph
+            # (graph_dl issue #96)
+            self.create_named_tensor("x", prop_names, vtype, self.property_dtype)
 
     def get_all_tensor_attrs(self):
         r"""Obtains all tensor attributes stored in this feature store."""
@@ -661,7 +663,7 @@ class EXPERIMENTAL__CuGraphStore:
     def __get_tensor_from_dataframe(self, df, attr):
         df = df[attr.properties]
 
-        if self.is_multi_gpu:
+        if self._is_delayed:
             df = df.compute()
 
         # FIXME handle vertices without properties

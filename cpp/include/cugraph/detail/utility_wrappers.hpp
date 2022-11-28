@@ -130,7 +130,7 @@ vertex_t compute_maximum_vertex_id(rmm::cuda_stream_view const& stream_view,
  * @brief Filter zero degree vertices from this frontier
  *
  * @tparam vertex_t vertex type
- * @tparam vertex_t edge type
+ * @tparam edge_t edge type
  * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
  * handles to various CUDA libraries) to run graph algorithms.
  * @param d_vertices The input list of vertices
