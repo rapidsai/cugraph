@@ -22,7 +22,6 @@ import cudf
 from pylibcugraph import ego_graph as pylibcugraph_ego_graph
 
 from pylibcugraph import ResourceHandle
-import warnings
 
 
 def _convert_graph_to_output_type(G, input_type):
@@ -94,13 +93,6 @@ def ego_graph(G, n, radius=1, center=True, undirected=None, distance=None):
     (G, input_type) = ensure_cugraph_obj(G, nx_weight_attr="weight")
 
     result_graph = type(G)(directed=G.is_directed())
-
-    if not G.edgelist.weights:
-        warning_msg = (
-            "'Ego_graph' requires the input graph to be weighted: Unweighted "
-            "graphs will not be supported in the next release."
-        )
-        warnings.warn(warning_msg, PendingDeprecationWarning)
 
     if undirected is not None:
         warning_msg = (

@@ -98,15 +98,3 @@ def test_leiden_directed_graph():
 
     with pytest.raises(ValueError):
         parts, mod = cugraph_leiden(G)
-
-
-def test_leiden_unweighted_graph():
-
-    dolphins = DATASETS[0]
-    G = dolphins.get_graph(ignore_weights=True)
-    warning_msg = (
-        "'Leiden' requires the input graph to be weighted: Unweighted "
-        "graphs will not be supported in the next release."
-    )
-    with pytest.warns(PendingDeprecationWarning, match=warning_msg):
-        parts, mod = cugraph_leiden(G)
