@@ -131,6 +131,7 @@ function buildUCXWithInfinibandArgs {
                 --scheduler-file=$SCHEDULER_FILE
                 --memory-limit=$DASK_HOST_MEMORY_LIMIT
                 --device-memory-limit=$DASK_DEVICE_MEMORY_LIMIT
+                --jit-unspill
                 "
 }
 
@@ -165,6 +166,7 @@ function buildUCXwithoutInfinibandArgs {
                 --scheduler-file=$SCHEDULER_FILE
                 --memory-limit=$DASK_HOST_MEMORY_LIMIT
                 --device-memory-limit=$DASK_DEVICE_MEMORY_LIMIT
+                --jit-unspill
                 "
 }
 
