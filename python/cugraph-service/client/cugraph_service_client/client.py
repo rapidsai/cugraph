@@ -38,6 +38,10 @@ cp = import_optional("cupy")
 cudf = import_optional("cudf")
 pandas = import_optional("pandas")
 
+cupy_installed = not isinstance(cp, MissingModule)
+cudf_installed = not isinstance(cudf, MissingModule)
+pandas_installed = not isinstance(pandas, MissingModule)
+
 
 class RunAsyncioThread(threading.Thread):
     """
@@ -1516,15 +1520,11 @@ class CugraphServiceClient:
     def __get_vertex_edge_id_obj(id_or_ids):
         # Force np.ndarray
         if not isinstance(id_or_ids, (int, Sequence, np.ndarray)):
-            if not isinstance(cp, MissingModule) and isinstance(id_or_ids, cp.ndarray):
+            if cupy_installed and isinstance(id_or_ids, cp.ndarray):
                 id_or_ids = id_or_ids.get()
-            elif not isinstance(cudf, MissingModule) and isinstance(
-                id_or_ids, cudf.Series
-            ):
+            elif cudf_installed and isinstance(id_or_ids, cudf.Series):
                 id_or_ids = id_or_ids.values_host
-            elif not isinstance(pandas, MissingModule) and isinstance(
-                id_or_ids, pandas.Series
-            ):
+            elif pandas_installed and isinstance(id_or_ids, pandas.Series):
                 id_or_ids = id_or_ids.to_numpy()
             else:
                 raise ValueError(
