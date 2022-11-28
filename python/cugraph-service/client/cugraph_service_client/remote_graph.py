@@ -41,6 +41,8 @@ try:
 except ModuleNotFoundError:
     torch = MissingModule("torch")
 
+cudf_installed = not isinstance(cudf, MissingModule)
+
 
 class RemoteGraph:
     # column name constants used in internal DataFrames
@@ -128,9 +130,7 @@ class RemoteGraph:
     def _client(self):
         return self.__client
 
-    def edges(
-        self, backend=("cudf" if not isinstance(cudf, MissingModule) else "numpy")
-    ):
+    def edges(self, backend=("cudf" if cudf_installed else "numpy")):
         """
         Parameters
         ----------
@@ -304,7 +304,7 @@ class RemoteGraph:
         vertex_ids=None,
         types=None,
         columns=None,
-        backend=("cudf" if not isinstance(cudf, MissingModule) else "numpy"),
+        backend=("cudf" if cudf_installed else "numpy"),
     ):
         """
         Gets a DataFrame containing vertex properties
@@ -423,7 +423,7 @@ class RemoteGraph:
         edge_ids=None,
         types=None,
         columns=None,
-        backend=("cudf" if not isinstance(cudf, MissingModule) else "numpy"),
+        backend=("cudf" if cudf_installed else "numpy"),
     ):
         """
         Return a dataframe containing edge properties for only the specified
