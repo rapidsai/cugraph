@@ -24,12 +24,11 @@ add_library(cugraphtestutil STATIC
             utilities/thrust_wrapper.cu
             utilities/misc_utilities.cpp
             utilities/test_utilities_sg.cu
-            utilities/test_utilities_mg.cu
             link_prediction/similarity_compare.cpp
             centrality/betweenness_centrality_validate.cu
             community/egonet_validate.cu
+            cores/k_core_validate.cu
 	    structure/induced_subgraph_validate.cu
-            components/wcc_graphs.cu
             sampling/random_walks_check_sg.cu
             ../../thirdparty/mmio/mmio.c)
 
@@ -387,6 +386,7 @@ if(BUILD_CUGRAPH_MG_TESTS)
     add_library(cugraphmgtestutil STATIC
                 utilities/device_comm_wrapper.cu
                 utilities/mg_utilities.cpp
+                utilities/test_utilities_mg.cu
                 sampling/random_walks_check_mg.cu
                 )
 
@@ -402,6 +402,7 @@ if(BUILD_CUGRAPH_MG_TESTS)
         "${CMAKE_CURRENT_SOURCE_DIR}/../../thirdparty/mmio"
         "${CMAKE_CURRENT_SOURCE_DIR}/../include"
         "${CMAKE_CURRENT_SOURCE_DIR}"
+        "${CUGRAPH_SOURCE_DIR}/src"
     )
 
     target_link_libraries(cugraphmgtestutil

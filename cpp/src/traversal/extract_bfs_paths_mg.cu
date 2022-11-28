@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2022, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,7 +22,7 @@ namespace cugraph {
 
 template std::tuple<rmm::device_uvector<int32_t>, int32_t> extract_bfs_paths(
   raft::handle_t const& handle,
-  graph_view_t<int32_t, int32_t, float, false, true> const& graph_view,
+  graph_view_t<int32_t, int32_t, false, true> const& graph_view,
   int32_t const* distances,
   int32_t const* predecessors,
   int32_t const* destinations,
@@ -30,7 +30,7 @@ template std::tuple<rmm::device_uvector<int32_t>, int32_t> extract_bfs_paths(
 
 template std::tuple<rmm::device_uvector<int32_t>, int32_t> extract_bfs_paths(
   raft::handle_t const& handle,
-  graph_view_t<int32_t, int64_t, float, false, true> const& graph_view,
+  graph_view_t<int32_t, int64_t, false, true> const& graph_view,
   int32_t const* distances,
   int32_t const* predecessors,
   int32_t const* destinations,
@@ -38,31 +38,7 @@ template std::tuple<rmm::device_uvector<int32_t>, int32_t> extract_bfs_paths(
 
 template std::tuple<rmm::device_uvector<int64_t>, int64_t> extract_bfs_paths(
   raft::handle_t const& handle,
-  graph_view_t<int64_t, int64_t, float, false, true> const& graph_view,
-  int64_t const* distances,
-  int64_t const* predecessors,
-  int64_t const* destinations,
-  size_t n_destinations);
-
-template std::tuple<rmm::device_uvector<int32_t>, int32_t> extract_bfs_paths(
-  raft::handle_t const& handle,
-  graph_view_t<int32_t, int32_t, double, false, true> const& graph_view,
-  int32_t const* distances,
-  int32_t const* predecessors,
-  int32_t const* destinations,
-  size_t n_destinations);
-
-template std::tuple<rmm::device_uvector<int32_t>, int32_t> extract_bfs_paths(
-  raft::handle_t const& handle,
-  graph_view_t<int32_t, int64_t, double, false, true> const& graph_view,
-  int32_t const* distances,
-  int32_t const* predecessors,
-  int32_t const* destinations,
-  size_t n_destinations);
-
-template std::tuple<rmm::device_uvector<int64_t>, int64_t> extract_bfs_paths(
-  raft::handle_t const& handle,
-  graph_view_t<int64_t, int64_t, double, false, true> const& graph_view,
+  graph_view_t<int64_t, int64_t, false, true> const& graph_view,
   int64_t const* distances,
   int64_t const* predecessors,
   int64_t const* destinations,

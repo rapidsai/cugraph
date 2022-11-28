@@ -283,8 +283,14 @@ def test_neighbor_sample(basic_property_graph_1):
         )
     )
 
-    noi_groups, row_dict, col_dict, _ = out_dict["out"]
-    metadata = out_dict["metadata"]
+    if isinstance(out_dict, dict):
+        noi_groups, row_dict, col_dict, _ = out_dict["out"]
+        metadata = out_dict["metadata"]
+    else:
+        noi_groups = out_dict.node
+        row_dict = out_dict.row
+        col_dict = out_dict.col
+        metadata = out_dict.metadata
 
     assert metadata.get().tolist() == list(range(6))
 
@@ -332,8 +338,12 @@ def test_neighbor_sample_multi_vertex(multi_edge_multi_vertex_property_graph_1):
         )
     )
 
-    _, row_dict, _, _ = out_dict["out"]
-    metadata = out_dict["metadata"]
+    if isinstance(out_dict, dict):
+        _, row_dict, _, _ = out_dict["out"]
+        metadata = out_dict["metadata"]
+    else:
+        row_dict = out_dict.row
+        metadata = out_dict.metadata
 
     assert metadata.get().tolist() == list(range(6))
 

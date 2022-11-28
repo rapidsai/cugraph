@@ -79,9 +79,6 @@ int generic_k_core_test(vertex_t* h_src,
                             &k_core_result,
                             &ret_error);
 
-#if 1
-  TEST_ASSERT(test_ret_value, ret_code != CUGRAPH_SUCCESS, "expected failure");
-#else
   cugraph_type_erased_device_array_view_t* src_vertices;
   cugraph_type_erased_device_array_view_t* dst_vertices;
   cugraph_type_erased_device_array_view_t* weights;
@@ -108,13 +105,25 @@ int generic_k_core_test(vertex_t* h_src,
     resource_handle, (byte_t*)h_weights, weights, &ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "copy_to_host failed.");
 
+  TEST_ASSERT(test_ret_value,
+              number_of_result_edges == num_result_edges,
+              "Number of resulting edges does not match.");
+
+  weight_t M[num_vertices][num_vertices];
+  for (int i = 0; i < num_vertices; ++i)
+    for (int j = 0; j < num_vertices; ++j)
+      M[i][j] = 0;
+
+  for (int i = 0; i < num_result_edges; ++i)
+    M[h_result_src[i]][h_result_dst[i]] = h_result_wgt[i];
+
   for (int i = 0; (i < number_of_result_edges) && (test_ret_value == 0); ++i) {
-    // Fill In comparison logic
+    TEST_ASSERT(test_ret_value,
+                M[h_src_vertices[i]][h_dst_vertices[i]] == h_weights[i],
+                "edge does not match");
   }
 
   cugraph_k_core_result_free(k_core_result);
-#endif
-
   cugraph_core_result_free(core_result);
   cugraph_sg_graph_free(graph);
   cugraph_free_resource_handle(resource_handle);

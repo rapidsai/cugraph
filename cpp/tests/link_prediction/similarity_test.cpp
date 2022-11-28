@@ -64,9 +64,9 @@ class Tests_Similarity
       hr_clock.start();
     }
 
-    auto [graph, d_renumber_map_labels] =
+    auto [graph, edge_weights, d_renumber_map_labels] =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, false>(
-        handle, input_usecase, true, renumber);
+        handle, input_usecase, similarity_usecase.use_weights, renumber);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -78,6 +78,8 @@ class Tests_Similarity
     // 3. run similarity
 
     auto graph_view = graph.view();
+    auto edge_weight_view =
+      edge_weights ? std::make_optional((*edge_weights).view()) : std::nullopt;
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -93,7 +95,7 @@ class Tests_Similarity
     rmm::device_uvector<vertex_t> d_v2(0, handle.get_stream());
 
     {
-      auto [src, dst, wgt] = cugraph::test::graph_to_host_coo(handle, graph_view);
+      auto [src, dst, wgt] = cugraph::test::graph_to_host_coo(handle, graph_view, edge_weight_view);
 
       size_t max_vertices = std::min(static_cast<size_t>(graph_view.number_of_vertices()),
                                      similarity_usecase.max_seeds);
@@ -163,8 +165,8 @@ class Tests_Similarity
     std::tuple<raft::device_span<vertex_t const>, raft::device_span<vertex_t const>> vertex_pairs{
       {d_v1.data(), d_v1.size()}, {d_v2.data(), d_v2.size()}};
 
-    auto result_score =
-      test_functor.run(handle, graph_view, vertex_pairs, similarity_usecase.use_weights);
+    auto result_score = test_functor.run(
+      handle, graph_view, edge_weight_view, vertex_pairs, similarity_usecase.use_weights);
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
@@ -174,7 +176,7 @@ class Tests_Similarity
     }
 
     if (similarity_usecase.check_correctness) {
-      auto [src, dst, wgt] = cugraph::test::graph_to_host_coo(handle, graph_view);
+      auto [src, dst, wgt] = cugraph::test::graph_to_host_coo(handle, graph_view, edge_weight_view);
 
       size_t check_size = std::min(d_v1.size(), similarity_usecase.max_vertex_pairs_to_check);
 
