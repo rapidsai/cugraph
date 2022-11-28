@@ -236,7 +236,7 @@ class EXPERIMENTAL__CuGraphStore:
             dsts = edges[self.__graph.dst_col_name].unique()
             srcs = edges[self.__graph.src_col_name].unique()
 
-            if self._compute_required:
+            if self._is_delayed:
                 dsts = dsts.compute()
                 srcs = srcs.compute()
 
@@ -248,7 +248,7 @@ class EXPERIMENTAL__CuGraphStore:
                 vertex_ids=srcs.values_host, columns=[self.__graph.type_col_name]
             )[self.__graph.type_col_name].unique()
 
-            if self._compute_required:
+            if self._is_delayed:
                 dst_types = dst_types.compute()
                 src_types = src_types.compute()
 
@@ -293,7 +293,7 @@ class EXPERIMENTAL__CuGraphStore:
         return self.__graph.is_remote()
 
     @cached_property
-    def _compute_required(self):
+    def _is_delayed(self):
         return self.is_multi_gpu and not self.is_remote
 
     def get_vertex_index(self, vtypes):
@@ -307,7 +307,7 @@ class EXPERIMENTAL__CuGraphStore:
             types=vtypes, columns=[self.__graph.type_col_name]
         )[self.__graph.vertex_col_name]
 
-        if self._compute_required:
+        if self._is_delayed:
             ix = ix.compute()
 
         return self.from_dlpack(ix.to_dlpack())
@@ -386,7 +386,7 @@ class EXPERIMENTAL__CuGraphStore:
                 columns=[self.__graph.src_col_name, self.__graph.dst_col_name],
             )
 
-        if self._compute_required:
+        if self._is_delayed:
             df = df.compute()
 
         src = self.from_dlpack(df[self.__graph.src_col_name].to_dlpack())
@@ -499,9 +499,7 @@ class EXPERIMENTAL__CuGraphStore:
         # compute should not be called below, just values_host to convert the
         # cudf Series into a host Series as required by MG PropertyGraph.
         noi = self.__graph.get_vertex_data(
-            nodes_of_interest.values_host
-            if self._compute_required
-            else nodes_of_interest
+            nodes_of_interest.values_host if self._is_delayed else nodes_of_interest
         )
         noi_types = noi[self.__graph.type_col_name].cat.categories.values_host
 
@@ -517,7 +515,7 @@ class EXPERIMENTAL__CuGraphStore:
                     self.from_dlpack(
                         noi_t[self.__graph.vertex_col_name].compute().to_dlpack()
                     )
-                    if self._compute_required
+                    if self._is_delayed
                     else self.from_dlpack(
                         noi_t[self.__graph.vertex_col_name].to_dlpack()
                     )
@@ -569,7 +567,7 @@ class EXPERIMENTAL__CuGraphStore:
         eoi = self.__graph.get_edge_data(
             edge_ids=(
                 sampling_results.indices.compute().values_host
-                if self._compute_required
+                if self._is_delayed
                 else sampling_results.indices
             ),
             columns=[self.__graph.src_col_name, self.__graph.dst_col_name],
@@ -588,7 +586,7 @@ class EXPERIMENTAL__CuGraphStore:
                 eoi_t = eoi_t.drop(self.__graph.edge_id_col_name, axis=1)
 
                 sources = eoi_t[self.__graph.src_col_name]
-                if self._compute_required:
+                if self._is_delayed:
                     sources = sources.compute()
                 sources = self.from_dlpack(sources.to_dlpack())
                 src_id_table = noi_index[src_type]
@@ -597,7 +595,7 @@ class EXPERIMENTAL__CuGraphStore:
                 row_dict[t_pyg_type] = src
 
                 destinations = eoi_t[self.__graph.dst_col_name]
-                if self._compute_required:
+                if self._is_delayed:
                     destinations = destinations.compute()
                 destinations = self.from_dlpack(destinations.to_dlpack())
                 dst_id_table = noi_index[dst_type]
@@ -665,7 +663,7 @@ class EXPERIMENTAL__CuGraphStore:
     def __get_tensor_from_dataframe(self, df, attr):
         df = df[attr.properties]
 
-        if self._compute_required:
+        if self._is_delayed:
             df = df.compute()
 
         # FIXME handle vertices without properties
