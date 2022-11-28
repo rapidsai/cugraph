@@ -114,7 +114,7 @@ conda list --show-channel-urls
 
 if [[ -z "$PROJECT_FLASH" || "$PROJECT_FLASH" == "0" ]]; then
     gpuci_logger "Build from source"
-    $WORKSPACE/build.sh -v clean libcugraph pylibcugraph cugraph cugraph-service-server cugraph-service-client
+    $WORKSPACE/build.sh -v clean libcugraph pylibcugraph cugraph cugraph-service-server cugraph-service-client cugraph-pyg
 else
     gpuci_logger "Installing libcugraph-tests"
     gpuci_mamba_retry install -c ${CONDA_ARTIFACT_PATH} libcugraph libcugraph_etl libcugraph-tests
