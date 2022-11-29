@@ -882,6 +882,7 @@ class simpleGraphImpl:
             raise ValueError(f"Illegal value col {type(value_col)}")
 
         if weight_col is None:
+            # Some algos require the graph to be weighted
             weight_col = cudf.Series(
                 cupy.ones(len(self.edgelist.edgelist_df), dtype="float32")
             )

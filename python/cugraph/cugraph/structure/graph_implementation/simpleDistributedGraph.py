@@ -86,6 +86,7 @@ class simpleDistributedGraphImpl:
             elif values.dtype == "int64":
                 values = values.astype("float64")
         else:
+            # Some algos require the graph to be weighted
             values = cudf.Series(cupy.ones(len(edata_x[0]), dtype="float32"))
 
         if simpleDistributedGraphImpl.edgeIdCol in edata_x[0]:
