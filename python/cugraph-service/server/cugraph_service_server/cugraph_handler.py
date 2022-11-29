@@ -14,6 +14,12 @@
 
 from functools import cached_property
 from pathlib import Path
+
+# FIXME This optional import is required to support graph creation
+# extensions that use OGB.  It should be removed when a better
+# workaround is found.
+from cugraph.utilities.utils import import_optional
+
 import importlib
 import time
 import traceback
@@ -54,6 +60,8 @@ from cugraph_service_client.types import (
     ValueWrapper,
     GraphVertexEdgeIDWrapper,
 )
+
+ogb = import_optional("ogb")
 
 
 def call_algo(sg_algo_func, G, **kwargs):
@@ -659,6 +667,8 @@ class CugraphHandler:
         """
         G = self._get_graph(graph_id)
         ids = GraphVertexEdgeIDWrapper(id_or_ids).get_py_obj()
+        null_replacement_value = ValueWrapper(null_replacement_value).get_py_obj()
+
         if ids == -1:
             ids = None
         elif not isinstance(ids, list):
@@ -670,6 +680,12 @@ class CugraphHandler:
         if types == []:
             types = None
         if isinstance(G, (PropertyGraph, MGPropertyGraph)):
+            if columns is not None and G.vertex_col_name in columns:
+                raise CugraphServiceError(
+                    f"ID key {G.vertex_col_name} is not allowed for property query. "
+                    f"Vertex IDs are always returned in query."
+                )
+
             try:
                 df = G.get_vertex_data(vertex_ids=ids, columns=columns, types=types)
                 if isinstance(df, dask_cudf.DataFrame):
@@ -965,7 +981,10 @@ class CugraphHandler:
             if isinstance(G, (MGPropertyGraph, PropertyGraph)):
                 # Implicitly extract a subgraph containing the entire multigraph.
                 # G will be garbage collected when this function returns.
-                G = G.extract_subgraph(create_using=cugraph.MultiGraph(directed=True))
+                G = G.extract_subgraph(
+                    create_using=cugraph.MultiGraph(directed=True),
+                    default_edge_weight=1.0,
+                )
 
             uns_result = call_algo(
                 uniform_neighbor_sample,
