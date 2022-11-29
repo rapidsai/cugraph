@@ -74,9 +74,6 @@ def leiden(G, max_iter=100, resolution=1.0):
     """
     G, isNx = ensure_cugraph_obj_for_nx(G)
 
-    if not G.edgelist.weights:
-        raise RuntimeError("input graph must be weighted")
-
     if G.is_directed():
         raise ValueError("input graph must be undirected")
 

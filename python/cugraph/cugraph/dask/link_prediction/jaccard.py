@@ -103,7 +103,7 @@ def jaccard(input_graph, vertex_pair=None, use_weight=False):
     ----------
     input_graph : cugraph.Graph
         cuGraph Graph instance, should contain the connectivity information
-        as an edge list (edge weights are not used for this algorithm). The
+        as an edge list (edge weights are not supported yet for this algorithm). The
         graph should be undirected where an undirected edge is represented by a
         directed edge in both direction. The adjacency list will be computed if
         not already present.
@@ -145,14 +145,10 @@ def jaccard(input_graph, vertex_pair=None, use_weight=False):
     vertex_pair_col_name = vertex_pair.columns
 
     if use_weight:
-        raise ValueError(
-            "'use_weight' is currently not supported and must be set to 'False'"
-        )
+        raise ValueError("'use_weight' is currently not supported.")
 
-    # FIXME: Implement a better way to check if the graph is weighted similar
-    # to 'simpleGraph'
-    if len(input_graph.edgelist.edgelist_df.columns) == 3:
-        raise RuntimeError("input graph must be unweighted")
+    if input_graph.is_weighted():
+        raise ValueError("Weighted graphs are currently not supported.")
 
     if isinstance(vertex_pair, (dask_cudf.DataFrame, cudf.DataFrame)):
         vertex_pair = renumber_vertex_pair(input_graph, vertex_pair)

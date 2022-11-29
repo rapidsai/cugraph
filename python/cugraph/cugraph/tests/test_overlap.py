@@ -145,7 +145,7 @@ def extract_two_hop(read_csv):
 
 
 # Test
-def test_overlap_1(gpubenchmark, read_csv, extract_two_hop):
+def test_overlap(gpubenchmark, read_csv, extract_two_hop):
 
     M, graph_file = read_csv
     pairs = extract_two_hop
@@ -197,7 +197,9 @@ def test_overlap_multi_column(graph_file):
             "1_dst": "1_destination",
         }
     )
-    assert_frame_equal(df_res, df_plc_exp, check_dtype=False, check_like=True)
+    overlap_res = df_res["overlap_coeff"].sort_values().reset_index(drop=True)
+    overlap_plc_exp = df_plc_exp["overlap_coeff"].sort_values().reset_index(drop=True)
+    assert_series_equal(overlap_res, overlap_plc_exp)
 
     G2 = cugraph.Graph()
     G2.from_cudf_edgelist(cu_M, source="src_0", destination="dst_0")
@@ -212,7 +214,7 @@ def test_overlap_multi_column(graph_file):
 def test_weighted_exp_overlap():
     karate = DATASETS_UNDIRECTED[0]
     G = karate.get_graph()
-    with pytest.raises(RuntimeError):
+    with pytest.raises(ValueError):
         exp_overlap(G)
 
     G = karate.get_graph(ignore_weights=True)
