@@ -188,6 +188,7 @@ typedef struct {
 
 /**
  * @brief     Uniform Neighborhood Sampling
+ * @deprecated This call should be replaced with cugraph_uniforrm_neighborhood_sampling
  *
  * @param [in]  handle       Handle for accessing resources
  * @param [in]  graph        Pointer to graph.  NOTE: Graph might be modified if the storage
@@ -208,6 +209,38 @@ cugraph_error_code_t cugraph_uniform_neighbor_sample(
   const cugraph_resource_handle_t* handle,
   cugraph_graph_t* graph,
   const cugraph_type_erased_device_array_view_t* start,
+  const cugraph_type_erased_host_array_view_t* fan_out,
+  bool_t with_replacement,
+  bool_t do_expensive_check,
+  cugraph_sample_result_t** result,
+  cugraph_error_t** error);
+
+/**
+ * @brief     Uniform Neighborhood Sampling
+ *
+ * @param [in]  handle       Handle for accessing resources
+ * @param [in]  graph        Pointer to graph.  NOTE: Graph might be modified if the storage
+ *                           needs to be transposed
+ * @param [in]  start        Device array of start vertices for the sampling
+ * @param [in]  label        Device array of start labels for the sampling.  The labels associated with
+ *                           each start vertex will be included in the output associated with results
+ *                           that were derived from that start vertex.
+ * @param [in]  fanout       Host array defining the fan out at each step in the sampling algorithm
+ * @param [in]  with_replacement
+ *                           Boolean value.  If true selection of edges is done with
+ *                           replacement.  If false selection is done without replacement.
+ * @param [in]  do_expensive_check
+ *                           A flag to run expensive checks for input arguments (if set to true)
+ * @param [in]  result       Output from the uniform_neighbor_sample call
+ * @param [out] error        Pointer to an error object storing details of any error.  Will
+ *                           be populated if error code is not CUGRAPH_SUCCESS
+ * @return error code
+ */
+cugraph_error_code_t cugraph_uniform_neighborhood_sample(
+  const cugraph_resource_handle_t* handle,
+  cugraph_graph_t* graph,
+  const cugraph_type_erased_device_array_view_t* start,
+  const cugraph_type_erased_device_array_view_t* label,
   const cugraph_type_erased_host_array_view_t* fan_out,
   bool_t with_replacement,
   bool_t do_expensive_check,
@@ -238,8 +271,43 @@ cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_destinations(
  * @param [in]   result   The result from a sampling algorithm
  * @return type erased array pointing to the start labels
  */
-// FIXME:  This will be obsolete when the older mechanism is removed
 cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_start_labels(
+  const cugraph_sample_result_t* result);
+
+/**
+ * @brief     Get the edge_id from the sampling algorithm result
+ *
+ * @param [in]   result   The result from a sampling algorithm
+ * @return type erased array pointing to the edge_id
+ */
+cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_edge_id(
+  const cugraph_sample_result_t* result);
+
+/**
+ * @brief     Get the edge_type from the sampling algorithm result
+ *
+ * @param [in]   result   The result from a sampling algorithm
+ * @return type erased array pointing to the edge_type
+ */
+cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_edge_type(
+  const cugraph_sample_result_t* result);
+
+/**
+ * @brief     Get the edge_weight from the sampling algorithm result
+ *
+ * @param [in]   result   The result from a sampling algorithm
+ * @return type erased array pointing to the edge_weight
+ */
+cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_edge_weight(
+  const cugraph_sample_result_t* result);
+
+/**
+ * @brief     Get the hop from the sampling algorithm result
+ *
+ * @param [in]   result   The result from a sampling algorithm
+ * @return type erased array pointing to the hop
+ */
+cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_hop(
   const cugraph_sample_result_t* result);
 
 /**
@@ -289,6 +357,36 @@ cugraph_error_code_t cugraph_test_sample_result_create(
   const cugraph_type_erased_device_array_view_t* dsts,
   const cugraph_type_erased_device_array_view_t* weights,
   const cugraph_type_erased_device_array_view_t* counts,
+  cugraph_sample_result_t** result,
+  cugraph_error_t** error);
+
+/**
+ * @brief     Create a sampling result (testing API)
+ *
+ * @param [in]   handle         Handle for accessing resources
+ * @param [in]   srcs           Device array view to populate srcs
+ * @param [in]   dsts           Device array view to populate dsts
+ * @param [in]   edge_id        Device array view to populate edge_id
+ * @param [in]   edge_type      Device array view to populate edge_type
+ * @param [in]   weight         Device array view to populate weight
+ * @param [in]   hop            Device array view to populate hop
+ * @param [in]   label          Device array view to populate label
+ * @param [out]  result         Pointer to the location to store the
+ *                              cugraph_sample_result_t*
+ * @param [out]  error          Pointer to an error object storing details of
+ *                              any error.  Will be populated if error code is
+ *                              not CUGRAPH_SUCCESS
+ * @return error code
+ */
+cugraph_error_code_t cugraph_test_uniform_neighborhood_sample_result_create(
+  const cugraph_resource_handle_t* handle,
+  const cugraph_type_erased_device_array_view_t* srcs,
+  const cugraph_type_erased_device_array_view_t* dsts,
+  const cugraph_type_erased_device_array_view_t* edge_id,
+  const cugraph_type_erased_device_array_view_t* edge_type,
+  const cugraph_type_erased_device_array_view_t* weight,
+  const cugraph_type_erased_device_array_view_t* hop,
+  const cugraph_type_erased_device_array_view_t* label,
   cugraph_sample_result_t** result,
   cugraph_error_t** error);
 
