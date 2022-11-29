@@ -94,10 +94,9 @@ class Tests_MGSimilarity
     rmm::device_uvector<vertex_t> d_v1(0, handle_->get_stream());
     rmm::device_uvector<vertex_t> d_v2(0, handle_->get_stream());
 
+    auto [src, dst, wgt] =
+      cugraph::test::graph_to_host_coo(*handle_, mg_graph_view, mg_edge_weight_view);
     if (handle_->get_comms().get_rank() == 0) {
-      auto [src, dst, wgt] =
-        cugraph::test::graph_to_host_coo(*handle_, mg_graph_view, mg_edge_weight_view);
-
       size_t max_vertices = std::min(static_cast<size_t>(mg_graph_view.number_of_vertices()),
                                      similarity_usecase.max_seeds);
       std::vector<vertex_t> h_v1;
@@ -305,7 +304,7 @@ INSTANTIATE_TEST_SUITE_P(
     // 100}),
     ::testing::Values(Similarity_Usecase{false, true, 20, 100}),
     ::testing::Values(cugraph::test::File_Usecase("test/datasets/karate.mtx"),
-                      cugraph::test::File_Usecase("test/datasets/web-Google.mtx"))));
+                      cugraph::test::File_Usecase("test/datasets/netscience.mtx"))));
 
 INSTANTIATE_TEST_SUITE_P(
   rmat_small_test,
