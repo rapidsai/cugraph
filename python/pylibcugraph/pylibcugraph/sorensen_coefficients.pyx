@@ -50,7 +50,6 @@ from pylibcugraph.graphs cimport (
 )
 from pylibcugraph.utils cimport (
     assert_success,
-    assert_CAI_type,
     copy_to_cupy_array,
     create_cugraph_type_erased_device_array_view_from_py_obj
 )
