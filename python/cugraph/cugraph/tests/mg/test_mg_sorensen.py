@@ -176,7 +176,7 @@ def test_dask_weighted_sorensen():
         legacy_renum_only=True,
         store_transposed=True,
     )
-    with pytest.raises(RuntimeError):
+    with pytest.raises(ValueError):
         dcg.sorensen(dg)
 
     dg = cugraph.Graph(directed=False)
