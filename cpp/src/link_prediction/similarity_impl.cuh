@@ -37,10 +37,10 @@ rmm::device_uvector<weight_t> similarity(
   graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
   std::tuple<raft::device_span<vertex_t const>, raft::device_span<vertex_t const>> vertex_pairs,
-  functor_t functor)
+  functor_t functor,
+  bool do_expensive_check = false)
 {
-  using GraphViewType               = graph_view_t<vertex_t, edge_t, false, multi_gpu>;
-  constexpr bool do_expensive_check = false;
+  using GraphViewType = graph_view_t<vertex_t, edge_t, false, multi_gpu>;
 
   CUGRAPH_EXPECTS(std::get<0>(vertex_pairs).size() == std::get<1>(vertex_pairs).size(),
                   "vertex pairs have mismatched sizes");
