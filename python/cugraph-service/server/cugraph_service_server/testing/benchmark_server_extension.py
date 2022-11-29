@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import numpy as np
+import cudf
 import dask_cudf
 
 import cugraph
@@ -94,3 +95,37 @@ def create_graph_from_rmat_generator(
         )
 
     return G
+
+
+def gen_vertex_list(graph_id, num_start_verts, seed, server=None):
+
+    rng = np.random.default_rng(seed)
+
+    G = server.get_graph(graph_id)
+    assert G.renumbered
+    num_verts = G.number_of_vertices()
+
+    start_list_set = set()
+    max_tries = 10000
+    try_num = 0
+    while (len(start_list_set) < num_start_verts) and (try_num < max_tries):
+        internal_vertex_ids_start_list = rng.choice(
+            num_verts, size=num_start_verts, replace=False
+        )
+        start_list_df = cudf.DataFrame({"vid": internal_vertex_ids_start_list})
+        start_list_df = G.unrenumber(start_list_df, "vid")
+
+        if G.is_multi_gpu():
+            start_list_series = start_list_df.compute()["vid"]
+        else:
+            start_list_series = start_list_df["vid"]
+
+        start_list_series.dropna(inplace=True)
+        start_list_set.update(set(start_list_series.values_host.tolist()))
+        try_num += 1
+
+    start_list = list(start_list_set)
+    start_list = start_list[:num_start_verts]
+    assert len(start_list) == num_start_verts
+
+    return start_list

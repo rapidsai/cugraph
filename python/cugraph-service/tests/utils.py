@@ -38,6 +38,7 @@ def start_server_subprocess(
     host="localhost",
     port=9090,
     graph_creation_extension_dir=None,
+    start_local_cuda_cluster=False,
     dask_scheduler_file=None,
     env_additions=None,
 ):
@@ -84,6 +85,8 @@ def start_server_subprocess(
             "--dask-scheduler-file",
             dask_scheduler_file,
         ]
+    if start_local_cuda_cluster:
+        args += ["--start-local-cuda-cluster"]
 
     try:
         server_process = subprocess.Popen(
@@ -100,7 +103,7 @@ def start_server_subprocess(
             flush=True,
         )
         client = CugraphServiceClient(host, port)
-        max_retries = 20
+        max_retries = 60
         retries = 0
         while retries < max_retries:
             try:

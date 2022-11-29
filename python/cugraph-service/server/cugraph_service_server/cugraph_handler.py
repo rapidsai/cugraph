@@ -20,6 +20,7 @@ import traceback
 import re
 from inspect import signature
 import asyncio
+import tempfile
 
 
 import numpy as np
@@ -29,6 +30,7 @@ import cudf
 import dask_cudf
 import cugraph
 from dask.distributed import Client
+from dask_cuda import LocalCUDACluster
 from dask_cuda.initialize import initialize as dask_initialize
 from cugraph.experimental import PropertyGraph, MGPropertyGraph
 from cugraph.dask.comms import comms as Comms
@@ -37,6 +39,7 @@ from cugraph.dask import uniform_neighbor_sample as mg_uniform_neighbor_sample
 from cugraph.structure.graph_implementation.simpleDistributedGraph import (
     simpleDistributedGraphImpl,
 )
+from cugraph.dask.common.mg_utils import get_visible_devices
 
 from cugraph_service_client import defaults
 from cugraph_service_client import (
@@ -363,8 +366,12 @@ class CugraphHandler:
             dask_initialize()
             self.__dask_client = Client(scheduler_file=dask_scheduler_file)
         else:
-            # FIXME: LocalCUDACluster init. Implement when tests are in place.
-            raise NotImplementedError
+            # The tempdir created by tempdir_object should be cleaned up once
+            # tempdir_object goes out-of-scope and is deleted.
+            tempdir_object = tempfile.TemporaryDirectory()
+            cluster = LocalCUDACluster(local_directory=tempdir_object.name)
+            self.__dask_client = Client(cluster)
+            self.__dask_client.wait_for_workers(len(get_visible_devices()))
 
         if not Comms.is_initialized():
             Comms.initialize(p2p=True)

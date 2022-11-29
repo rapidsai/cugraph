@@ -12,11 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import os
 from pathlib import Path
 
 import pytest
 import numpy as np
+import cupy as cp
 from pylibcugraph.testing.utils import gen_fixture_params
+from cugraph.testing.mg_utils import start_dask_client, stop_dask_client
+import cudf
 import dask_cudf
 
 # If the rapids-pytest-benchmark plugin is installed, the "gpubenchmark"
@@ -86,12 +90,12 @@ small_high_degree_rmat_pv = pytest.param(
     id="dataset=rmat_16_32",
 )
 large_low_degree_rmat_pv = pytest.param(
-    {"scale": 24, "edgefactor": 4, "seed": seed},
-    id="dataset=rmat_24_4",
+    {"scale": 23, "edgefactor": 4, "seed": seed},
+    id="dataset=rmat_23_4",
 )
 large_high_degree_rmat_pv = pytest.param(
-    {"scale": 24, "edgefactor": 32, "seed": seed},
-    id="dataset=rmat_24_32",
+    {"scale": 23, "edgefactor": 32, "seed": seed},
+    id="dataset=rmat_23_32",
 )
 huge_low_degree_rmat_pv = pytest.param(
     {"scale": 30, "edgefactor": 4, "seed": seed},
@@ -138,12 +142,10 @@ graph_obj_fixture_params = gen_fixture_params(
 )
 
 
-def create_graph(graph_data, gpu_config):
+def create_graph(graph_data):
     """
-    Create a graph instance based on the data to be loaded/generated and
-    the GPU configuration (single-GPU, multi-GPU, etc.)
+    Create a graph instance based on the data to be loaded/generated.
     """
-    is_mg = gpu_config in ["SNMG", "MNMG"]
     # FIXME: need to consider directed/undirected?
     G = Graph()
 
@@ -153,15 +155,9 @@ def create_graph(graph_data, gpu_config):
         edgelist_df = ds.get_edgelist()
         # FIXME: edgelist_df should have column names that match the defaults
         # for G.from_cudf_edgelist()
-        if is_mg:
-            edgelist_df = dask_cudf.from_cudf(edgelist_df)
-            G.from_dask_cudf_edgelist(
-                edgelist_df, source="src", destination="dst", edge_attr="wgt"
-            )
-        else:
-            G.from_cudf_edgelist(
-                edgelist_df, source="src", destination="dst", edge_attr="wgt"
-            )
+        G.from_cudf_edgelist(
+            edgelist_df, source="src", destination="dst", edge_attr="wgt", renumber=True
+        )
 
     # Assume dictionary contains RMAT params
     elif isinstance(graph_data, dict):
@@ -178,24 +174,80 @@ def create_graph(graph_data, gpu_config):
             clip_and_flip=False,
             scramble_vertex_ids=False,  # FIXME: need to understand relevance of this
             create_using=None,  # None == return edgelist
-            mg=is_mg,
+            mg=False,
         )
-        rng = np.random.default_rng(seed)
-        edgelist_df["weight"] = rng.random(size=len(edgelist_df))
+        edgelist_df["weight"] = cp.float32(1)
 
-        if is_mg:
-            G.from_dask_cudf_edgelist(
-                edgelist_df, source="src", destination="dst", edge_attr="weight"
-            )
-        else:
-            G.from_cudf_edgelist(
-                edgelist_df, source="src", destination="dst", edge_attr="weight"
-            )
+        G.from_cudf_edgelist(
+            edgelist_df,
+            source="src",
+            destination="dst",
+            edge_attr="weight",
+            renumber=True,
+        )
 
     else:
         raise TypeError(f"graph_data can only be str or dict, got {type(graph_data)}")
 
     return G
+
+
+def create_mg_graph(graph_data):
+    """
+    Create a graph instance based on the data to be loaded/generated.
+    """
+    (client, cluster) = start_dask_client(
+        enable_tcp_over_ucx=True,
+        enable_nvlink=True,
+        enable_infiniband=False,
+        enable_rdmacm=False,
+        net_devices=None,
+    )
+    # FIXME: need to consider directed/undirected?
+    G = Graph()
+
+    # Assume strings are names of datasets in the datasets package
+    if isinstance(graph_data, str):
+        ds = getattr(datasets, graph_data)
+        edgelist_df = ds.get_edgelist()
+        # FIXME: edgelist_df should have column names that match the defaults
+        # for G.from_cudf_edgelist()
+        edgelist_df = dask_cudf.from_cudf(edgelist_df)
+        G.from_dask_cudf_edgelist(
+            edgelist_df, source="src", destination="dst", edge_attr="wgt", renumber=True
+        )
+
+    # Assume dictionary contains RMAT params
+    elif isinstance(graph_data, dict):
+        scale = graph_data["scale"]
+        num_edges = (2**scale) * graph_data["edgefactor"]
+        seed = graph_data["seed"]
+        edgelist_df = rmat(
+            scale,
+            num_edges,
+            0.57,  # from Graph500
+            0.19,  # from Graph500
+            0.19,  # from Graph500
+            seed,
+            clip_and_flip=False,
+            scramble_vertex_ids=False,  # FIXME: need to understand relevance of this
+            create_using=None,  # None == return edgelist
+            mg=True,
+        )
+        edgelist_df["weight"] = np.float32(1)
+
+        G.from_dask_cudf_edgelist(
+            edgelist_df,
+            source="src",
+            destination="dst",
+            edge_attr="weight",
+            renumber=True,
+        )
+
+    else:
+        raise TypeError(f"graph_data can only be str or dict, got {type(graph_data)}")
+
+    return (G, client, cluster)
 
 
 def create_remote_graph(graph_data, client):
@@ -249,34 +301,46 @@ def get_uniform_neighbor_sample_args(
 
     rng = np.random.default_rng(seed)
     num_verts = G.number_of_vertices()
+    num_edges = G.number_of_edges()
 
     if start_list_len == "LARGE":
         num_start_verts = min(1000, int(num_verts * 0.25))
     else:
         num_start_verts = 2
 
-    # start_list = rng.choice(num_verts, min(1000, int(num_verts * 0.25)))
-    # FIXME: need a better way to get unique starting verts
-    starts = set()
-    edgelist = G.edges()
-    for _ in range(num_start_verts):
-        i = rng.choice(num_verts, 1)[0]
-        # FIXME: must be "src" even though input edgelist used "source"
-        col = "src"
-        # FIXME: havong to access columns like this is not good
-        if col not in edgelist.columns:
-            col = "_SRC_"
-            if col not in edgelist.columns:
-                raise RuntimeError(
-                    "graph edges() edgelist does not contain expected column names"
-                )
-        v = edgelist[col].loc[i]
-        while v in starts:
-            i = rng.choice(num_verts, 1)[0]
-            v = edgelist[col].loc[i]
-        starts.add(v)
-    start_list = list(starts)
+    # Create the start_list by...then unrenumbering them to get actual IDs.
+    if isinstance(G, RemoteGraph):
+        start_list = G._client.call_extension(
+            "gen_vertex_list", G._graph_id, num_start_verts, seed
+        )
 
+    else:
+        assert G.renumbered
+        start_list_set = set()
+        max_tries = 10000
+        try_num = 0
+        while (len(start_list_set) < num_start_verts) and (try_num < max_tries):
+            internal_vertex_ids_start_list = rng.choice(
+                num_verts, size=num_start_verts, replace=False
+            )
+            start_list_df = cudf.DataFrame({"vid": internal_vertex_ids_start_list})
+            start_list_df = G.unrenumber(start_list_df, "vid")
+
+            if G.is_multi_gpu():
+                start_list_series = start_list_df.compute()["vid"]
+            else:
+                start_list_series = start_list_df["vid"]
+
+            start_list_series.dropna(inplace=True)
+            start_list_set.update(set(start_list_series.values_host.tolist()))
+            try_num += 1
+
+        start_list = list(start_list_set)
+        start_list = start_list[:num_start_verts]
+        assert len(start_list) == num_start_verts
+
+    # Generate a fanout list based on degree if the list is to be large,
+    # otherwise just use a small list of fixed numbers.
     if fanout_list_len == "LARGE":
         num_edges = G.number_of_edges()
         avg_degree = num_edges // num_verts
@@ -296,7 +360,7 @@ def get_uniform_neighbor_sample_args(
     }
 
 
-def ensure_running_service():
+def ensure_running_service(dask_scheduler_file=None, start_local_cuda_cluster=False):
     """
     Returns a tuple containing a Popen object for the running cugraph-service
     server subprocess, and a client object connected to it.  If a server was
@@ -314,7 +378,12 @@ def ensure_running_service():
     except CugraphServiceError:
         # A server was not found, so start one for testing then stop it when
         # testing is done.
-        server_process = utils.start_server_subprocess(host=host, port=port)
+        server_process = utils.start_server_subprocess(
+            host=host,
+            port=port,
+            start_local_cuda_cluster=start_local_cuda_cluster,
+            dask_scheduler_file=dask_scheduler_file,
+        )
 
     # Ensure the extensions needed for these benchmarks are loaded
     required_graph_creation_extension_module = "benchmark_server_extension"
@@ -333,6 +402,17 @@ def ensure_running_service():
         if len(modules_loaded) < 1:
             raise RuntimeError(
                 "failed to load graph creation extension "
+                f"{required_graph_creation_extension_module}"
+            )
+
+    loaded_extension_modules = [Path(m).stem for m in server_data["extensions"]]
+    if required_graph_creation_extension_module not in loaded_extension_modules:
+        modules_loaded = client.load_extensions(
+            "cugraph_service_server.testing.benchmark_server_extension"
+        )
+        if len(modules_loaded) < 1:
+            raise RuntimeError(
+                "failed to load extension "
                 f"{required_graph_creation_extension_module}"
             )
 
@@ -360,28 +440,40 @@ def graph_objs(request):
     """
     (graph_type, gpu_config, graph_data) = request.param
     server_process = None
+    dask_client = None
+    dask_cluster = None
 
     if gpu_config not in ["SG", "SNMG", "MNMG"]:
         raise RuntimeError(f"got unexpected gpu_config value: {gpu_config}")
 
     if graph_type == "Graph":
-        G = create_graph(graph_data, gpu_config)
         if gpu_config == "SG":
+            G = create_graph(graph_data)
             uns_func = uniform_neighbor_sample
         else:
+            (G, dask_client, dask_cluster) = create_mg_graph(graph_data)
             uns_func = uniform_neighbor_sample_mg
 
     elif graph_type == "RemoteGraph":
-        # Ensure a server is running
+        # Ensure the appropriate server is running
         if gpu_config == "SG":
-            (server_process, client) = ensure_running_service()
-            uns_func = remote_uniform_neighbor_sample
+            (server_process, cgs_client) = ensure_running_service()
         elif gpu_config == "SNMG":
-            raise NotImplementedError
+            dask_scheduler_file = os.environ.get("SCHEDULER_FILE")
+            if dask_scheduler_file is None:
+                (server_process, cgs_client) = ensure_running_service(
+                    start_local_cuda_cluster=True
+                )
+            else:
+                assert Path(dask_scheduler_file).exists()
+                (server_process, cgs_client) = ensure_running_service(
+                    dask_scheduler_file=dask_scheduler_file
+                )
         else:
             raise NotImplementedError
 
-        G = create_remote_graph(graph_data, client)
+        G = create_remote_graph(graph_data, cgs_client)
+        uns_func = remote_uniform_neighbor_sample
 
     else:
         raise RuntimeError(f"{graph_type=} is invalid")
@@ -394,6 +486,9 @@ def graph_objs(request):
         server_process.terminate()
         server_process.wait(timeout=60)
         print("done.", flush=True)
+
+    if dask_client is not None:
+        stop_dask_client(dask_client, dask_cluster)
 
 
 ################################################################################
@@ -415,7 +510,7 @@ def bench_uniform_neighbor_sample(
     )
     # print(f"\n{uns_args}")
     # FIXME: uniform_neighbor_sample cannot take a np.ndarray for start_list
-    gpubenchmark(
+    result = gpubenchmark(
         uniform_neighbor_sample_func,
         G,
         start_list=uns_args["start_list"],
@@ -423,10 +518,14 @@ def bench_uniform_neighbor_sample(
         with_replacement=uns_args["with_replacement"],
     )
     """
-    uniform_neighbor_sample_func(
+    result = uniform_neighbor_sample_func(
         G,
         start_list=uns_args["start_list"],
         fanout_vals=uns_args["fanout_vals"],
         with_replacement=uns_args["with_replacement"],
     )
     """
+    dtmap = {"int32": 32 // 8, "int64": 64 // 8}
+    dt = str(result.sources.dtype)
+    llen = len(result.sources)
+    print(f"\nresult list len: {llen} (x3), dtype={dt}, total bytes={3*llen*dtmap[dt]}")
