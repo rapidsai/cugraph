@@ -21,6 +21,8 @@ from collections import defaultdict
 from itertools import chain
 from functools import cached_property
 
+import warnings
+
 
 class EdgeLayout(Enum):
     COO = "coo"
@@ -178,7 +180,7 @@ class EXPERIMENTAL__CuGraphStore:
     Duck-typed version of PyG's GraphStore and FeatureStore.
     """
 
-    def __init__(self, G, reserved_keys=[], backend="torch"):
+    def __init__(self, G, reserved_keys=[], backend="torch", renumber_vertices=None):
         """
         Constructs a new CuGraphStore from the provided
         arguments.
@@ -188,10 +190,16 @@ class EXPERIMENTAL__CuGraphStore:
         G : PropertyGraph or MGPropertyGraph
             The cuGraph property graph where the
             data is being stored.
-        reserved_keys : Properties in the graph that are not used for
+        reserved_keys : list[str]
+            Properties in the graph that are not used for
             training (the 'x' attribute will ignore these properties).
-        backend : The backend that manages tensors (default = 'torch')
+        backend : ('torch', 'cupy')
+            The backend that manages tensors (default = 'torch')
             Should usually be 'torch' ('torch', 'cupy' supported).
+        renumber_vertices : bool
+            If True, will renumber vertices to have contiguous vertex ids per
+            vertex type.  If False, will not renumber vertices.  If not
+            specified, will renumber and raise a warning.
         """
 
         # TODO ensure all x properties are float32 type
@@ -221,10 +229,7 @@ class EXPERIMENTAL__CuGraphStore:
         self.__graph = G
         self.__subgraphs = {}
 
-        self.__reserved_keys = [
-            self.__graph.type_col_name,
-            self.__graph.vertex_col_name,
-        ] + list(reserved_keys)
+        self.__renumber_vertices(renumber_vertices)
 
         self._tensor_attr_cls = CuGraphTensorAttr
         self._tensor_attr_dict = defaultdict(list)
@@ -268,6 +273,35 @@ class EXPERIMENTAL__CuGraphStore:
             )
 
             self._edge_attr_cls = CuGraphEdgeAttr
+
+    def __renumber_vertices(self, renumber_vertices):
+        offsets = {}
+
+        if renumber_vertices is None:
+            old_idx_name = f"{self.__graph._vertex_col_name}_old"
+            warnings.warn(
+                f"renumber_vertices not specified; renumbering by default"
+                f"and saving as {old_idx_name}"
+            )
+
+            t_offsets = self.__graph.renumber_vertices_by_type(
+                prev_id_column=old_idx_name
+            )
+
+            for vertex_type in self.__graph.vertex_types:
+                offsets[vertex_type] = t_offsets[vertex_type]["start"]
+        elif renumber_vertices:
+            t_offsets = self.__graph.renumber_vertices
+        else:
+            cummulative_sum = 0
+            for vertex_type in self.__graph.vertex_types:
+                num_vertices_type = self.__graph.get_num_vertices(vertex_type)
+                offsets[vertex_type] = {
+                    "start": cummulative_sum,
+                    "end": vertex_type + cummulative_sum - 1,  # inclusive
+                }
+
+                cummulative_sum += num_vertices_type
 
     @property
     def _edge_types_to_attrs(self):
