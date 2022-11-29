@@ -26,7 +26,6 @@
 namespace cugraph {
 namespace test {
 
-// if multi-GPU, only the rank 0 GPU holds the valid data
 template <typename vertex_t,
           typename edge_t,
           typename weight_t,
@@ -104,6 +103,16 @@ graph_to_host_csr(
     if (d_wgt)
       *d_wgt = cugraph::test::device_gatherv(
         handle, raft::device_span<weight_t const>{d_wgt->data(), d_wgt->size()});
+    if (handle.get_comms().get_rank() != 0) {
+      d_src.resize(0, handle.get_stream());
+      d_src.shrink_to_fit(handle.get_stream());
+      d_dst.resize(0, handle.get_stream());
+      d_dst.shrink_to_fit(handle.get_stream());
+      if (d_wgt) {
+        (*d_wgt).resize(0, handle.get_stream());
+        (*d_wgt).shrink_to_fit(handle.get_stream());
+      }
+    }
   }
 
   rmm::device_uvector<edge_t> d_offsets(0, handle.get_stream());
@@ -179,6 +188,16 @@ mg_graph_to_sg_graph(
   if (d_wgt)
     *d_wgt = cugraph::test::device_gatherv(
       handle, raft::device_span<weight_t const>{d_wgt->data(), d_wgt->size()});
+  if (handle.get_comms().get_rank() != 0) {
+    d_src.resize(0, handle.get_stream());
+    d_src.shrink_to_fit(handle.get_stream());
+    d_dst.resize(0, handle.get_stream());
+    d_dst.shrink_to_fit(handle.get_stream());
+    if (d_wgt) {
+      (*d_wgt).resize(0, handle.get_stream());
+      (*d_wgt).shrink_to_fit(handle.get_stream());
+    }
+  }
 
   graph_t<vertex_t, edge_t, store_transposed, false> graph(handle);
   std::optional<edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, false>, weight_t>>
