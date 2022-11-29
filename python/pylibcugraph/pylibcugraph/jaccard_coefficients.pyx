@@ -62,13 +62,9 @@ def EXPERIMENTAL__jaccard_coefficients(ResourceHandle resource_handle,
         bool_t use_weight,
         bool_t do_expensive_check):
     """
-    Compute the similarity for the specified vertex_pairs
+    Compute the Jaccard coefficients for the specified vertex_pairs.
     
-    Note that Jaccard similarity must run on a symmetric graph
-
-    The HITS algorithm computes two numbers for a node.  Authorities
-    estimates the node value based on the incoming links.  Hubs estimates
-    the node value based on outgoing links.
+    Note that Jaccard similarity must run on a symmetric graph.
 
     Parameters
     ----------
@@ -94,10 +90,8 @@ def EXPERIMENTAL__jaccard_coefficients(ResourceHandle resource_handle,
 
     Returns
     -------
-    A tuple of device arrays, where the third item in the tuple is a device
-    array containing the vertex identifiers, the first and second items are device
-    arrays containing respectively the hubs and authorities values for the corresponding
-    vertices 
+    A tuple of device arrays containing the sources and destinations with
+    their corresponding Jaccard coefficient scores.
 
     Examples
     --------
