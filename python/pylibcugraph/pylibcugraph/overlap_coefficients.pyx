@@ -91,7 +91,7 @@ def EXPERIMENTAL__overlap_coefficients(ResourceHandle resource_handle,
 
     Returns
     -------
-    A tuple of device arrays containing the sources and destinations with
+    A tuple of device arrays containing the vertex pairs with
     their corresponding Overlap coefficient scores.
 
     Examples

@@ -90,7 +90,7 @@ def EXPERIMENTAL__sorensen_coefficients(ResourceHandle resource_handle,
 
     Returns
     -------
-    A tuple of device arrays containing the sources and destinations with
+    A tuple of device arrays containing the vertex pairs with
     their corresponding Sorensen coefficient scores.
 
     Examples
