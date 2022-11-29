@@ -76,18 +76,16 @@ def k_core(ResourceHandle resource_handle,
     graph : SGGraph or MGGraph
         The input graph, for either Single or Multi-GPU operations.
     
+    k : size_t (default=None)
+        Order of the core. This value must not be negative. If set to None
+        the main core is returned.
+    
     degree_type: str
         This option determines if the core number computation should be based
         on input, output, or both directed edges, with valid values being
         "incoming", "outgoing", and "bidirectional" respectively.
         This option is currently ignored in this release, and setting it will
         result in a warning.
-
-        This implementation only supports bidirectional edges.
-    
-    k : size_t (default=None)
-        Order of the core. This value must not be negative. If set to None
-        the main core is returned.
     
     core_result : device array type
         Precomputed core number of the nodes of the graph G

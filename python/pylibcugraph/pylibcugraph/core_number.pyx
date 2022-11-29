@@ -76,8 +76,6 @@ def core_number(ResourceHandle resource_handle,
         "incoming", "outgoing", and "bidirectional" respectively.
         This option is currently ignored in this release, and setting it will
         result in a warning.
-
-        This implementation only supports bidirectional edges.
     
     do_expensive_check: bool
         If True, performs more extensive tests on the inputs to ensure
