@@ -81,6 +81,12 @@ union Value {
   6:list<Value> list_value
 }
 
+union Offsets {
+  1:list<string> type
+  2:list<i32> start
+  3:list<i32> stop
+}
+
 service CugraphService {
 
   ##############################################################################
@@ -148,6 +154,16 @@ service CugraphService {
                                       2:list<i32> dst_vert_IDs,
                                       3:i32 graph_id
                              ) throws (1:CugraphServiceError e),
+
+  Offsets
+  renumber_vertices_by_type(1:string prev_id_column,
+                            2:i32 graph_id
+                            ) throws (1:CugraphServiceError e),
+
+  Offsets
+  renumber_edges_by_type(1:string prev_id_column,
+                         2:i32 graph_id
+                         ) throws (1:CugraphServiceError e),
 
   i32 extract_subgraph(1:string create_using,
                        2:string selection,

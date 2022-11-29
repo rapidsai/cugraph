@@ -871,6 +871,28 @@ class CugraphServiceClient:
         )
 
     @__server_connection
+    def renumber_vertices_by_type(
+        self, prev_id_column=None, graph_id=defaults.graph_id
+    ):
+        """
+        Renumbers the vertices in the graph referenced by graph id to be contiguous
+        by vertex type.  Returns the start and end vertex id ranges for each type.
+        """
+        if prev_id_column is None:
+            prev_id_column = ""
+        return self.__client.renumber_vertices_by_type(prev_id_column, graph_id)
+
+    @__server_connection
+    def renumber_edges_by_type(self, prev_id_column=None, graph_id=defaults.graph_id):
+        """
+        Renumbers the edges in the graph referenced by graph id to be contiguous
+        by edge type.  Returns the start and end edge id ranges for each type.
+        """
+        if prev_id_column is None:
+            prev_id_column = ""
+        return self.__client.renumber_edges_by_type(prev_id_column, graph_id)
+
+    @__server_connection
     def extract_subgraph(
         self,
         create_using=None,

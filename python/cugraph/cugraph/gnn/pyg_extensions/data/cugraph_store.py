@@ -14,14 +14,31 @@
 from typing import Optional, Tuple, Any
 from enum import Enum
 
-import cupy
-
 from dataclasses import dataclass
 from collections import defaultdict
 from itertools import chain
 from functools import cached_property
 
 import warnings
+
+# numpy is always available
+import numpy as np
+
+# cuGraph or cuGraph-Service is required; each has its own version of
+# import_optional and we need to select the correct one.
+try:
+    from cugraph_service.client.remote_graph_utils import import_optional
+except ModuleNotFoundError:
+    try:
+        from cugraph.utilities.utils import import_optional
+    except ModuleNotFoundError:
+        raise ModuleNotFoundError(
+            "cuGraph-PyG requires cuGraph" "or cuGraph-Service to be installed."
+        )
+
+# TODO drop cupy support and make torch the only backend
+cupy = import_optional("cupy")
+torch = import_optional("torch")
 
 
 class EdgeLayout(Enum):
@@ -275,33 +292,57 @@ class EXPERIMENTAL__CuGraphStore:
             self._edge_attr_cls = CuGraphEdgeAttr
 
     def __renumber_vertices(self, renumber_vertices):
-        offsets = {}
+        """
+        Renumbers the vertices in this store's property graph
+        and sets the vertex offsets.
+        If renumber_vertices is False, then renumber_vertices_by_type()
+        is not called and the offsets are inferred from vertex counts.
+
+        If renumber_vertices is None, it defaults to True, warns the
+        user of this default behavior, and saves the current ids as
+        <vertex_col>_old.
+
+        If renumber_vertices is True, it calls renumber_vertices_by_type(),
+        overwriting the current vertex ids without saving them.
+        """
+        old_idx_name = None
 
         if renumber_vertices is None:
-            old_idx_name = f"{self.__graph._vertex_col_name}_old"
+            renumber_vertices = True
+            old_idx_name = f"{self.__graph.vertex_col_name}_old"
             warnings.warn(
                 f"renumber_vertices not specified; renumbering by default"
                 f"and saving as {old_idx_name}"
             )
 
-            t_offsets = self.__graph.renumber_vertices_by_type(
-                prev_id_column=old_idx_name
-            )
-
-            for vertex_type in self.__graph.vertex_types:
-                offsets[vertex_type] = t_offsets[vertex_type]["start"]
-        elif renumber_vertices:
-            t_offsets = self.__graph.renumber_vertices
+        if renumber_vertices:
+            if self.is_remote and self.backend == "torch":
+                self.__offsets = self.__graph.renumber_vertices_by_type(
+                    prev_id_column=old_idx_name,
+                    backend="torch:cuda" if torch.has_cuda else "torch",
+                )
+            else:
+                self.__offsets = self.__graph.renumber_vertices_by_type(
+                    prev_id_column=old_idx_name
+                )
+                if self._is_delayed:
+                    self.__offsets = self.__offsets.compute()
         else:
-            cummulative_sum = 0
-            for vertex_type in self.__graph.vertex_types:
-                num_vertices_type = self.__graph.get_num_vertices(vertex_type)
-                offsets[vertex_type] = {
-                    "start": cummulative_sum,
-                    "end": vertex_type + cummulative_sum - 1,  # inclusive
-                }
+            self.__offsets = {}
+            self.__offsets["stop"] = [
+                self.__graph.get_num_vertices(vt) for vt in self.__graph.vertex_types
+            ]
+            if self.__backend == "cupy":
+                self.__offsets["stop"] = cupy.array(self.__offsets["stop"])
+            else:
+                self.__offsets["stop"] = torch.tensor(self.__offsets["stop"])
+                if torch.has_cuda:
+                    self.__offsets["stop"] = self.__offsets["stop"].cuda()
 
-                cummulative_sum += num_vertices_type
+            cumsum = self.__offsets["stop"].cumsum(0)
+            self.__offsets["start"] = self.__offsets["stop"] - cumsum
+            self.__offsets["stop"] -= 1
+            self.__offsets["type"] = np.array(self.__graph.vertex_types)
 
     @property
     def _edge_types_to_attrs(self):

@@ -56,6 +56,7 @@ from cugraph_service_client.types import (
     UniformNeighborSampleResult,
     ValueWrapper,
     GraphVertexEdgeIDWrapper,
+    Offsets,
 )
 
 ogb = import_optional("ogb")
@@ -598,6 +599,38 @@ class CugraphHandler:
             )
 
         return self.__get_edge_IDs_from_graph_edge_data(G, src_vert_IDs, dst_vert_IDs)
+
+    def renumber_vertices_by_type(self, prev_id_column: str, graph_id: int) -> Offsets:
+        if prev_id_column == "":
+            prev_id_column = None
+
+        offset_df = self.__graph.renumber_vertices_by_type(prev_id_column)
+        if self.is_multi_gpu:
+            offset_df = offset_df.compute()
+
+        offsets_obj = Offsets(
+            type=offset_df.index.to_numpy(),
+            start=offset_df.start.to_numpy(),
+            stop=offset_df.stop.to_numpy(),
+        )
+
+        return offsets_obj
+
+    def renumber_edges_by_type(self, prev_id_column: str, graph_id: int) -> Offsets:
+        if prev_id_column == "":
+            prev_id_column = None
+
+        offset_df = self.__graph.renumber_edges_by_type(prev_id_column)
+        if self.is_multi_gpu:
+            offset_df = offset_df.compute()
+
+        offsets_obj = Offsets(
+            type=offset_df.index.to_numpy(),
+            start=offset_df.start.to_numpy(),
+            stop=offset_df.stop.to_numpy(),
+        )
+
+        return offsets_obj
 
     def extract_subgraph(
         self,
