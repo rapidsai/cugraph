@@ -46,78 +46,6 @@ CUCO_DECLARE_BITWISE_COMPARABLE(double)
 namespace cugraph {
 namespace detail {
 
-template <typename vertex_t>
-struct compare_leiden_louvain_pair {
-  __device__ auto operator()(thrust::tuple<vertex_t, vertex_t> a,
-                             thrust::tuple<vertex_t, vertex_t> b)
-  {
-    auto leiden_a  = thrust::get<1>(a);
-    auto louvain_a = thrust::get<0>(a);
-    auto leiden_b  = thrust::get<1>(b);
-    auto louvain_b = thrust::get<0>(b);
-    return louvain_a < louvain_b ? true : (louvain_a > louvain_b ? false : leiden_a <= leiden_b);
-  }
-};
-
-// a workaround for cudaErrorInvalidDeviceFunction error when device lambda is used
-template <typename vertex_t, typename weight_t>
-struct leiden_key_aggregated_edge_op_t {
-  weight_t total_edge_weight{};
-  weight_t resolution{};
-  __device__ auto operator()(
-    vertex_t src,
-    vertex_t neighboring_leiden_cluster,
-    weight_t aggregated_weight_to_neighboring_leiden_cluster,
-    thrust::tuple<weight_t, weight_t, weight_t, uint8_t, vertex_t, vertex_t> src_info,
-    thrust::tuple<weight_t, weight_t, vertex_t, vertex_t> keyed_data) const
-  {
-    //
-    // Data associated with src vertex
-    //
-    auto src_weighted_deg           = thrust::get<0>(src_info);
-    auto src_vertex_cut             = thrust::get<1>(src_info);
-    auto src_louvain_cluster_volume = thrust::get<2>(src_info);
-    auto src_singleton_flag         = thrust::get<3>(src_info);
-    auto src_leiden_cluster         = thrust::get<4>(src_info);
-    auto src_louvain_cluster        = thrust::get<5>(src_info);
-
-    //
-    // Data associated with target leiden (aka refined) community
-    //
-
-    auto dst_refined_cluster_volume   = thrust::get<0>(keyed_data);
-    auto dst_refined_cluster_cut      = thrust::get<1>(keyed_data);
-    auto leiden_of_refined_community  = thrust::get<2>(keyed_data);
-    auto louvain_of_refined_community = thrust::get<3>(keyed_data);
-
-    // neighboring_leiden_cluster, leiden_of_refined_cluster
-
-    // E(v, S-v) > ||v||*(||S|| -||v||)
-    bool is_src_well_connected =
-      src_vertex_cut > src_weighted_deg * (src_louvain_cluster_volume - src_weighted_deg);
-
-    // E(Cr, S-Cr) > ||Cr||*(||S|| -||Cr||)
-    bool is_refined_cluster_well_connected =
-      dst_refined_cluster_cut >
-      dst_refined_cluster_volume * (src_louvain_cluster_volume - dst_refined_cluster_volume);
-
-    // E(v, Cr-v) - ||v||* ||Cr-v||/||V(G)||
-    // aggregated_weight_to_neighboring_leiden_cluster == E(v, Cr-v)?
-
-    weight_t theta = -1.0;
-
-    if (src_singleton_flag && is_src_well_connected) {
-      if (louvain_of_refined_community == src_louvain_cluster &&
-          is_refined_cluster_well_connected) {
-        theta = aggregated_weight_to_neighboring_leiden_cluster -
-                src_weighted_deg * dst_refined_cluster_volume / total_edge_weight;
-      }
-    }
-
-    return thrust::make_tuple(neighboring_leiden_cluster, theta);
-  }
-};
-
 // a workaround for cudaErrorInvalidDeviceFunction error when device lambda is used
 template <typename vertex_t, typename weight_t>
 struct key_aggregated_edge_op_t {
@@ -260,6 +188,58 @@ weight_t compute_modularity(
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+rmm::device_uvector<weight_t>&& lookup_cluster_weights_for_cluster_keys(
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+  rmm::device_uvector<vertex_t>& cluster_keys_v,
+  rmm::device_uvector<weight_t>& cluster_weights_v,
+  rmm::device_uvector<vertex_t>& next_clusters_v)
+{
+  rmm::device_uvector<weight_t> vertex_cluster_weights_v(0, handle.get_stream());
+
+  if constexpr (multi_gpu) {
+    cugraph::detail::compute_gpu_id_from_ext_vertex_t<vertex_t> vertex_to_gpu_id_op{
+      handle.get_comms().get_size()};
+
+    kv_store_t<vertex_t, weight_t, false> cluster_key_weight_map(
+      cluster_keys_v.begin(),
+      cluster_keys_v.end(),
+      cluster_weights_v.data(),
+      invalid_vertex_id<vertex_t>::value,
+      std::numeric_limits<weight_t>::max(),
+      handle.get_stream());
+    vertex_cluster_weights_v = cugraph::collect_values_for_keys(handle.get_comms(),
+                                                                cluster_key_weight_map.view(),
+                                                                next_clusters_v.begin(),
+                                                                next_clusters_v.end(),
+                                                                vertex_to_gpu_id_op,
+                                                                handle.get_stream());
+  } else {
+    // sort so we can use lower_bound in the transform function
+    thrust::sort_by_key(handle.get_thrust_policy(),
+                        cluster_keys_v.begin(),
+                        cluster_keys_v.end(),
+                        cluster_weights_v.begin());
+
+    // for each vertex, look up the vertex weight of the current cluster it is assigned to
+    vertex_cluster_weights_v.resize(next_clusters_v.size(), handle.get_stream());
+    thrust::transform(handle.get_thrust_policy(),
+                      next_clusters_v.begin(),
+                      next_clusters_v.end(),
+                      vertex_cluster_weights_v.begin(),
+                      [d_cluster_weights = cluster_weights_v.data(),
+                       d_cluster_keys    = cluster_keys_v.data(),
+                       num_clusters      = cluster_keys_v.size()] __device__(vertex_t cluster) {
+                        auto pos = thrust::lower_bound(
+                          thrust::seq, d_cluster_keys, d_cluster_keys + num_clusters, cluster);
+                        return d_cluster_weights[pos - d_cluster_keys];
+                      });
+  }
+
+  return std::move(vertex_cluster_weights_v);
+}
+
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 std::tuple<
   cugraph::graph_t<vertex_t, edge_t, false, multi_gpu>,
   std::optional<edge_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>, weight_t>>,
@@ -312,29 +292,13 @@ rmm::device_uvector<vertex_t> update_clustering_by_delta_modularity(
   bool up_down)
 {
   CUGRAPH_EXPECTS(edge_weight_view.has_value(), "Graph must be weighted.");
+  rmm::device_uvector<weight_t> vertex_cluster_weights_v = lookup_cluster_weights_for_cluster_keys(
+    handle, graph_view, cluster_keys_v, cluster_weights_v, next_clusters_v);
 
-  rmm::device_uvector<weight_t> vertex_cluster_weights_v(0, handle.get_stream());
   edge_src_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>, weight_t>
     src_cluster_weights(handle);
 
   if constexpr (multi_gpu) {
-    cugraph::detail::compute_gpu_id_from_ext_vertex_t<vertex_t> vertex_to_gpu_id_op{
-      handle.get_comms().get_size()};
-
-    kv_store_t<vertex_t, weight_t, false> cluster_key_weight_map(
-      cluster_keys_v.begin(),
-      cluster_keys_v.end(),
-      cluster_weights_v.data(),
-      invalid_vertex_id<vertex_t>::value,
-      std::numeric_limits<weight_t>::max(),
-      handle.get_stream());
-    vertex_cluster_weights_v = cugraph::collect_values_for_keys(handle.get_comms(),
-                                                                cluster_key_weight_map.view(),
-                                                                next_clusters_v.begin(),
-                                                                next_clusters_v.end(),
-                                                                vertex_to_gpu_id_op,
-                                                                handle.get_stream());
-
     src_cluster_weights =
       edge_src_property_t<graph_view_t<vertex_t, edge_t, false, multi_gpu>, weight_t>(handle,
                                                                                       graph_view);
@@ -342,26 +306,6 @@ rmm::device_uvector<vertex_t> update_clustering_by_delta_modularity(
       handle, graph_view, vertex_cluster_weights_v.begin(), src_cluster_weights);
     vertex_cluster_weights_v.resize(0, handle.get_stream());
     vertex_cluster_weights_v.shrink_to_fit(handle.get_stream());
-  } else {
-    // sort so we can use lower_bound in the transform function
-    thrust::sort_by_key(handle.get_thrust_policy(),
-                        cluster_keys_v.begin(),
-                        cluster_keys_v.end(),
-                        cluster_weights_v.begin());
-
-    // for each vertex, look up the vertex weight of the current cluster it is assigned to
-    vertex_cluster_weights_v.resize(next_clusters_v.size(), handle.get_stream());
-    thrust::transform(handle.get_thrust_policy(),
-                      next_clusters_v.begin(),
-                      next_clusters_v.end(),
-                      vertex_cluster_weights_v.begin(),
-                      [d_cluster_weights = cluster_weights_v.data(),
-                       d_cluster_keys    = cluster_keys_v.data(),
-                       num_clusters      = cluster_keys_v.size()] __device__(vertex_t cluster) {
-                        auto pos = thrust::lower_bound(
-                          thrust::seq, d_cluster_keys, d_cluster_keys + num_clusters, cluster);
-                        return d_cluster_weights[pos - d_cluster_keys];
-                      });
   }
 
   rmm::device_uvector<weight_t> old_cluster_sum_v(graph_view.local_vertex_partition_range_size(),

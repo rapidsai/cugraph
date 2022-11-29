@@ -16,6 +16,7 @@
  */
 #pragma once
 
+#include <community/detail/mis.hpp>
 #include <cugraph/edge_property.hpp>
 #include <cugraph/edge_src_dst_property.hpp>
 #include <cugraph/graph_view.hpp>

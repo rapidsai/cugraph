@@ -18,6 +18,48 @@
 namespace cugraph {
 namespace detail {
 
+template rmm::device_uvector<float>&& lookup_cluster_weights_for_cluster_keys(
+  raft::handle_t const& handle,
+  graph_view_t<int32_t, int32_t, false, false> const& graph_view,
+  rmm::device_uvector<int32_t>& cluster_keys_v,
+  rmm::device_uvector<float>& cluster_weights_v,
+  rmm::device_uvector<int32_t>& next_clusters_v);
+
+template rmm::device_uvector<double>&& lookup_cluster_weights_for_cluster_keys(
+  raft::handle_t const& handle,
+  graph_view_t<int32_t, int32_t, false, false> const& graph_view,
+  rmm::device_uvector<int32_t>& cluster_keys_v,
+  rmm::device_uvector<double>& cluster_weights_v,
+  rmm::device_uvector<int32_t>& next_clusters_v);
+
+template rmm::device_uvector<float>&& lookup_cluster_weights_for_cluster_keys(
+  raft::handle_t const& handle,
+  graph_view_t<int32_t, int64_t, false, false> const& graph_view,
+  rmm::device_uvector<int32_t>& cluster_keys_v,
+  rmm::device_uvector<float>& cluster_weights_v,
+  rmm::device_uvector<int32_t>& next_clusters_v);
+
+template rmm::device_uvector<double>&& lookup_cluster_weights_for_cluster_keys(
+  raft::handle_t const& handle,
+  graph_view_t<int32_t, int64_t, false, false> const& graph_view,
+  rmm::device_uvector<int32_t>& cluster_keys_v,
+  rmm::device_uvector<double>& cluster_weights_v,
+  rmm::device_uvector<int32_t>& next_clusters_v);
+
+template rmm::device_uvector<float>&& lookup_cluster_weights_for_cluster_keys(
+  raft::handle_t const& handle,
+  graph_view_t<int64_t, int64_t, false, false> const& graph_view,
+  rmm::device_uvector<int64_t>& cluster_keys_v,
+  rmm::device_uvector<float>& cluster_weights_v,
+  rmm::device_uvector<int64_t>& next_clusters_v);
+
+template rmm::device_uvector<double>&& lookup_cluster_weights_for_cluster_keys(
+  raft::handle_t const& handle,
+  graph_view_t<int64_t, int64_t, false, false> const& graph_view,
+  rmm::device_uvector<int64_t>& cluster_keys_v,
+  rmm::device_uvector<double>& cluster_weights_v,
+  rmm::device_uvector<int64_t>& next_clusters_v);
+
 template float compute_modularity(
   raft::handle_t const& handle,
   cugraph::graph_view_t<int32_t, int32_t, false, false> const& graph_view,

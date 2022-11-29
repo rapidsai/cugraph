@@ -65,8 +65,9 @@ template <typename vertex_t, typename weight_t>
 struct reduce_op_t {
   using type                          = thrust::tuple<vertex_t, weight_t>;
   static constexpr bool pure_function = true;  // this can be called from any process
-  inline static type const identity_element =
-    thrust::make_tuple(std::numeric_limits<weight_t>::lowest(), invalid_vertex_id<vertex_t>::value);
+  // inline static type const identity_element =
+  //   thrust::make_tuple(std::numeric_limits<weight_t>::lowest(),
+  //   invalid_vertex_id<vertex_t>::value);
 
   __device__ auto operator()(thrust::tuple<vertex_t, weight_t> p0,
                              thrust::tuple<vertex_t, weight_t> p1) const
@@ -77,21 +78,6 @@ struct reduce_op_t {
     auto wt1 = thrust::get<1>(p1);
 
     return (wt0 < wt1) ? p1 : ((wt0 > wt1) ? p0 : ((id0 < id1) ? p0 : p1));
-  }
-};
-
-// a workaround for cudaErrorInvalidDeviceFunction error when device lambda is used
-template <typename vertex_t, typename weight_t>
-struct cluster_update_op_t {
-  bool up_down{};
-  __device__ auto operator()(vertex_t old_cluster, thrust::tuple<vertex_t, weight_t> p) const
-  {
-    vertex_t new_cluster      = thrust::get<0>(p);
-    weight_t delta_modularity = thrust::get<1>(p);
-
-    return (delta_modularity > weight_t{0})
-             ? (((new_cluster > old_cluster) != up_down) ? old_cluster : new_cluster)
-             : old_cluster;
   }
 };
 
@@ -202,58 +188,22 @@ refine_clustering_2(
   edge_dst_property_t<GraphViewType, typename GraphViewType::vertex_type> const& dst_clusters_cache,
   bool up_down)
 {
-  // FIXME: put duplicated code in a function
   using vertex_t = typename GraphViewType::vertex_type;
   using edge_t   = typename GraphViewType::edge_type;
 
-  //--------------duplicated code
-  rmm::device_uvector<weight_t> vertex_cluster_weights_v(0, handle.get_stream());
+  rmm::device_uvector<weight_t> vertex_cluster_weights_v = lookup_cluster_weights_for_cluster_keys(
+    handle, graph_view, cluster_keys_v, cluster_weights_v, next_clusters_v);
+
   edge_src_property_t<GraphViewType, weight_t> src_cluster_weights(handle);
 
-  if constexpr (GraphViewType::is_multi_gpu) {
-    cugraph::detail::compute_gpu_id_from_ext_vertex_t<vertex_t> vertex_to_gpu_id_op{
-      handle.get_comms().get_size()};
-
-    vertex_cluster_weights_v =
-      cugraph::collect_values_for_keys(handle.get_comms(),
-                                       cluster_keys_v.begin(),
-                                       cluster_keys_v.end(),
-                                       cluster_weights_v.data(),
-                                       next_clusters_v.begin(),
-                                       next_clusters_v.end(),
-                                       vertex_to_gpu_id_op,
-                                       invalid_vertex_id<vertex_t>::value,
-                                       std::numeric_limits<weight_t>::max(),
-                                       handle.get_stream());
-
+  if (GraphViewType::is_multi_gpu) {
     src_cluster_weights = edge_src_property_t<GraphViewType, weight_t>(handle, graph_view);
     update_edge_src_property(
       handle, graph_view, vertex_cluster_weights_v.begin(), src_cluster_weights);
     vertex_cluster_weights_v.resize(0, handle.get_stream());
     vertex_cluster_weights_v.shrink_to_fit(handle.get_stream());
-  } else {
-    // sort so we can use lower_bound in the transform function
-    thrust::sort_by_key(handle.get_thrust_policy(),
-                        cluster_keys_v.begin(),
-                        cluster_keys_v.end(),
-                        cluster_weights_v.begin());
-
-    // for each vertex, look up the vertex weight of the current cluster it is assigned to
-    vertex_cluster_weights_v.resize(next_clusters_v.size(), handle.get_stream());
-    thrust::transform(handle.get_thrust_policy(),
-                      next_clusters_v.begin(),
-                      next_clusters_v.end(),
-                      vertex_cluster_weights_v.begin(),
-                      [d_cluster_weights = cluster_weights_v.data(),
-                       d_cluster_keys    = cluster_keys_v.data(),
-                       num_clusters      = cluster_keys_v.size()] __device__(vertex_t cluster) {
-                        auto pos = thrust::lower_bound(
-                          thrust::seq, d_cluster_keys, d_cluster_keys + num_clusters, cluster);
-                        return d_cluster_weights[pos - d_cluster_keys];
-                      });
   }
 
-  //-------------duplicated code
   //
   // For each vertex, compute its weighted degree
   // and cut between itself and its Louvain community
@@ -707,7 +657,10 @@ refine_clustering_2(
   // Determine a set of moves using MIS of the decision_graph
   //
 
-  auto chosen_vertices = compute_mis(handle, decision_graph_view, (*coarse_edge_weights).view());
+  auto chosen_vertices = compute_mis(
+    handle,
+    decision_graph_view,
+    coarse_edge_weights ? std::make_optional(coarse_edge_weights->view()) : std::nullopt);
 
   // TODO
 
