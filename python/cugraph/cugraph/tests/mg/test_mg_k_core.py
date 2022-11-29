@@ -19,6 +19,8 @@ import cugraph
 from cugraph.testing import utils
 import cugraph.dask as dcg
 import dask_cudf
+from cugraph.structure.symmetrize import symmetrize_df
+from cudf.testing.testing import assert_frame_equal
 
 
 # =============================================================================
@@ -32,11 +34,12 @@ def setup_function():
 # Pytest fixtures
 # =============================================================================
 datasets = utils.DATASETS_UNDIRECTED
-degree_type = ["incoming", "outgoing", "bidirectional"]
+
+core_number = [True, False]
+degree_type = ["bidirectional", "outgoing", "incoming"]
 
 fixture_params = utils.genFixtureParamsProduct(
-    (datasets, "graph_file"),
-    (degree_type, "degree_type"),
+    (datasets, "graph_file"), (core_number, "core_number"), (degree_type, "degree_type")
 )
 
 
@@ -46,7 +49,7 @@ def input_combo(request):
     Simply return the current combination of params as a dictionary for use in
     tests or other parameterized fixtures.
     """
-    parameters = dict(zip(("graph_file", "degree_type"), request.param))
+    parameters = dict(zip(("graph_file", "core_number", "degree_type"), request.param))
 
     return parameters
 
@@ -57,21 +60,35 @@ def input_expected_output(dask_client, input_combo):
     This fixture returns the inputs and expected results from the Core number
     algo.
     """
+    core_number = input_combo["core_number"]
     degree_type = input_combo["degree_type"]
     input_data_path = input_combo["graph_file"]
     G = utils.generate_cugraph_graph_from_file(
         input_data_path, directed=False, edgevals=True
     )
 
+    if core_number:
+        # compute the core_number
+        core_number = cugraph.core_number(G, degree_type=degree_type)
+    else:
+        core_number = None
+
+    input_combo["core_number"] = core_number
+
     input_combo["SGGraph"] = G
 
-    sg_core_number_results = cugraph.core_number(G, degree_type)
-    sg_core_number_results = sg_core_number_results.sort_values("vertex").reset_index(
-        drop=True
+    sg_k_core_graph = cugraph.k_core(
+        G, core_number=core_number, degree_type=degree_type
+    )
+    sg_k_core_results = sg_k_core_graph.view_edge_list()
+    # FIXME: The result will come asymetric. Symmetrize the results
+    sg_k_core_results = (
+        symmetrize_df(sg_k_core_results, "src", "dst", "weights")
+        .sort_values(["src", "dst"])
+        .reset_index(drop=True)
     )
 
-    input_combo["sg_core_number_results"] = sg_core_number_results
-    input_combo["degree_type"] = degree_type
+    input_combo["sg_k_core_results"] = sg_k_core_results
 
     # Creating an edgelist from a dask cudf dataframe
     chunksize = dcg.get_chunksize(input_data_path)
@@ -84,6 +101,7 @@ def input_expected_output(dask_client, input_combo):
     )
 
     dg = cugraph.Graph(directed=False)
+    # FIXME: False when renumbering (C++ and python renumbering)
     dg.from_dask_cudf_edgelist(
         ddf,
         source="src",
@@ -101,46 +119,39 @@ def input_expected_output(dask_client, input_combo):
 # =============================================================================
 # Tests
 # =============================================================================
-def test_sg_core_number(dask_client, benchmark, input_expected_output):
+def test_sg_k_core(dask_client, benchmark, input_expected_output):
     # This test is only for benchmark purposes.
-    sg_core_number_results = None
+    sg_k_core = None
     G = input_expected_output["SGGraph"]
+    core_number = input_expected_output["core_number"]
     degree_type = input_expected_output["degree_type"]
 
-    sg_core_number_results = benchmark(cugraph.core_number, G, degree_type)
-    assert sg_core_number_results is not None
+    sg_k_core = benchmark(
+        cugraph.k_core, G, core_number=core_number, degree_type=degree_type
+    )
+    assert sg_k_core is not None
 
 
-def test_core_number(dask_client, benchmark, input_expected_output):
+def test_dask_k_core(dask_client, benchmark, input_expected_output):
 
     dg = input_expected_output["MGGraph"]
-    degree_type = input_expected_output["degree_type"]
+    core_number = input_expected_output["core_number"]
 
-    result_core_number = benchmark(dcg.core_number, dg, degree_type)
+    k_core_results = benchmark(dcg.k_core, dg, core_number=core_number)
 
-    result_core_number = (
-        result_core_number.drop_duplicates()
-        .compute()
-        .sort_values("vertex")
-        .reset_index(drop=True)
-        .rename(columns={"core_number": "mg_core_number"})
+    expected_k_core_results = input_expected_output["sg_k_core_results"]
+
+    k_core_results = (
+        k_core_results.compute().sort_values(["src", "dst"]).reset_index(drop=True)
     )
 
-    expected_output = input_expected_output["sg_core_number_results"]
-
-    # Update the mg core number with sg core number results
-    # for easy comparison using cuDF DataFrame methods.
-    result_core_number["sg_core_number"] = expected_output["core_number"]
-    counts_diffs = result_core_number.query("mg_core_number != sg_core_number")
-
-    assert len(counts_diffs) == 0
+    assert_frame_equal(
+        expected_k_core_results, k_core_results, check_dtype=False, check_like=True
+    )
 
 
-def test_core_number_invalid_input(input_expected_output):
-    input_data_path = (
-        utils.RAPIDS_DATASET_ROOT_DIR_PATH / "karate-asymmetric.csv"
-    ).as_posix()
-
+def test_dask_k_core_invalid_input(dask_client):
+    input_data_path = datasets[0]
     chunksize = dcg.get_chunksize(input_data_path)
     ddf = dask_cudf.read_csv(
         input_data_path,
@@ -158,9 +169,21 @@ def test_core_number_invalid_input(input_expected_output):
         edge_attr="value",
         renumber=True,
         legacy_renum_only=True,
+        store_transposed=True,
+    )
+    with pytest.raises(ValueError):
+        dcg.k_core(dg)
+
+    dg = cugraph.Graph(directed=False)
+    dg.from_dask_cudf_edgelist(
+        ddf,
+        source="src",
+        destination="dst",
+        edge_attr="value",
+        legacy_renum_only=True,
+        store_transposed=True,
     )
 
-    invalid_degree_type = 3
-    dg = input_expected_output["MGGraph"]
+    degree_type = "invalid"
     with pytest.raises(ValueError):
-        dcg.core_number(dg, invalid_degree_type)
+        dcg.k_core(dg, degree_type=degree_type)

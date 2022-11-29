@@ -20,6 +20,7 @@ import cupy
 import cudf
 import dask_cudf
 from pylibcugraph import sssp as pylibcugraph_sssp, ResourceHandle
+import warnings
 
 
 def _call_plc_sssp(
@@ -98,6 +99,15 @@ def sssp(input_graph, source, cutoff=None, check_source=True):
     >>> df = dcg.sssp(dg, 0)
 
     """
+
+    # FIXME: Implement a better way to check if the graph is weighted similar
+    # to 'simpleGraph'
+    if len(input_graph.edgelist.edgelist_df.columns) != 3:
+        warning_msg = (
+            "'SSSP' requires the input graph to be weighted: Unweighted "
+            "graphs will not be supported in the next release."
+        )
+        warnings.warn(warning_msg, PendingDeprecationWarning)
 
     client = input_graph._client
 

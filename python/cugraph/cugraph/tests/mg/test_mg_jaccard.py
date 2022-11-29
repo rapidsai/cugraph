@@ -176,7 +176,7 @@ def test_dask_weighted_jaccard():
         legacy_renum_only=True,
         store_transposed=True,
     )
-    with pytest.raises(RuntimeError):
+    with pytest.raises(ValueError):
         dcg.jaccard(dg)
 
     dg = cugraph.Graph(directed=False)
