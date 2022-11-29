@@ -122,9 +122,7 @@ def sorensen(input_graph, vertex_pair=None, use_weight=False):
         raise ValueError("'use_weight' is currently not supported.")
 
     if input_graph.is_weighted():
-        raise ValueError(
-            "Weighted graphs are currently not supported."
-        )
+        raise ValueError("Weighted graphs are currently not supported.")
 
     if isinstance(vertex_pair, (dask_cudf.DataFrame, cudf.DataFrame)):
         vertex_pair = renumber_vertex_pair(input_graph, vertex_pair)
