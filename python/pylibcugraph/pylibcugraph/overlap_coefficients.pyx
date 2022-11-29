@@ -50,7 +50,6 @@ from pylibcugraph.graphs cimport (
 )
 from pylibcugraph.utils cimport (
     assert_success,
-    assert_CAI_type,
     copy_to_cupy_array,
     create_cugraph_type_erased_device_array_view_from_py_obj
 )
@@ -63,13 +62,10 @@ def EXPERIMENTAL__overlap_coefficients(ResourceHandle resource_handle,
         bool_t use_weight,
         bool_t do_expensive_check):
     """
-    Compute the similarity for the specified vertex_pairs
+    Compute the Overlap coefficients for the specified vertex_pairs.
     
-    Note that Overlap similarity must run on a symmetric graph
+    Note that Overlap similarity must run on a symmetric graph.
 
-    The HITS algorithm computes two numbers for a node.  Authorities
-    estimates the node value based on the incoming links.  Hubs estimates
-    the node value based on outgoing links.
 
     Parameters
     ----------
@@ -95,10 +91,8 @@ def EXPERIMENTAL__overlap_coefficients(ResourceHandle resource_handle,
 
     Returns
     -------
-    A tuple of device arrays, where the third item in the tuple is a device
-    array containing the vertex identifiers, the first and second items are device
-    arrays containing respectively the hubs and authorities values for the corresponding
-    vertices 
+    A tuple of device arrays containing the vertex pairs with
+    their corresponding Overlap coefficient scores.
 
     Examples
     --------
