@@ -213,7 +213,8 @@ void per_v_pair_transform_dst_nbr_intersection(
   if (do_expensive_check) {
     auto num_invalids =
       detail::count_invalid_vertex_pairs(handle, graph_view, vertex_pair_first, vertex_pair_last);
-    CUGRAPH_EXPECTS(num_invalids == 0, "");
+    CUGRAPH_EXPECTS(num_invalids == 0,
+                    "Invalid input arguments: there are invalid input vertex pairs.");
   }
 
   auto num_input_pairs = static_cast<size_t>(thrust::distance(vertex_pair_first, vertex_pair_last));
