@@ -167,7 +167,7 @@ endif()
 
 set(CUGRAPH_SOURCES
     src/detail/shuffle_vertices.cu
-    src/detail/shuffle_edgelist.cu
+    src/detail/shuffle_vertex_pairs.cu
     src/detail/collect_local_vertex_values.cu
     src/detail/groupby_and_count.cu
     src/sampling/random_walks_mg.cu
