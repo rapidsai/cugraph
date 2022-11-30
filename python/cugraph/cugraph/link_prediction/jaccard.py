@@ -66,7 +66,7 @@ def jaccard(input_graph, vertex_pair=None):
 
     Parameters
     ----------
-    graph : cugraph.Graph
+    input_graph : cugraph.Graph
         cuGraph Graph instance, should contain the connectivity information
         as an edge list (edge weights are not used for this algorithm). The
         graph should be undirected where an undirected edge is represented by a

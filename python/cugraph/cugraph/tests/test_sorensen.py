@@ -257,7 +257,9 @@ def test_sorensen_multi_column(read_csv):
             "1_dst": "1_destination",
         }
     )
-    assert_frame_equal(df_res, df_plc_exp, check_dtype=False, check_like=True)
+    sorensen_res = df_res["sorensen_coeff"].sort_values().reset_index(drop=True)
+    sorensen_plc_exp = df_plc_exp["sorensen_coeff"].sort_values().reset_index(drop=True)
+    assert_series_equal(sorensen_res, sorensen_plc_exp)
 
     G2 = cugraph.Graph()
     G2.from_cudf_edgelist(cu_M, source="src_0", destination="dst_0")
@@ -272,7 +274,7 @@ def test_sorensen_multi_column(read_csv):
 def test_weighted_exp_sorensen():
     karate = DATASETS_UNDIRECTED[0]
     G = karate.get_graph()
-    with pytest.raises(RuntimeError):
+    with pytest.raises(ValueError):
         exp_sorensen(G)
 
     G = karate.get_graph(ignore_weights=True)
