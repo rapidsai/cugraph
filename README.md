@@ -46,7 +46,7 @@
   - [Current list of algorithms](./readme_pages/algorithms.md)
   - [Blogs and Presentation](./docs/cugraph/source/basics/cugraph_blogs.rst)
   - [Performance](./readme_pages/performance/performance.md)
-- Packages 
+- Packages
   - [cuGraph Python](./readme_pages/cugraph_python.md)
     - [Property Graph](./readme_pages/property_graph.md)
     - [External Data Types](./readme_pages/data_types.md)
@@ -72,9 +72,6 @@
 -----
 
 <img src="img/Stack2.png" alt="Stack" width="800">
-
----
-
 
 [RAPIDS](https://rapids.ai) cuGraph is a collection of GPU-accelerated graph algorithms and services. At the Python layer, cuGraph operates on [GPU DataFrames](https://github.com/rapidsai/cudf), thereby allowing for seamless passing of data between ETL tasks in [cuDF](https://github.com/rapidsai/cudf) and machine learning tasks in [cuML](https://github.com/rapidsai/cuml). Data scientists familiar with Python will quickly pick up how cuGraph integrates with the Pandas-like API of cuDF.  Likewise, users familiar with NetworkX will quickly recognize the NetworkX-like API provided in cuGraph, with the goal to allow existing code to be ported with minimal effort into RAPIDS. To similfy integration, cuGraph also support data found in [Pandas DataFrame](https://pandas.pydata.org/), [NetworkX Graph Objects](https://networkx.org/) and several other formats.
 
@@ -120,7 +117,7 @@ df_page.sort_values('pagerank', ascending=False).head(10)
 * CuPy - "NumPy/SciPy-compatible Array Library for GPU-accelerated Computing with Python" -  https://cupy.dev/
 * Memgraph - In-memory Graph database - https://memgraph.com/
 * ScanPy - a scalable toolkit for analyzing single-cell gene expression data - https://scanpy.readthedocs.io/en/stable/
-  
+
 (please post an issue if you have a project to add to this list)
 
 
