@@ -12,6 +12,7 @@
 # limitations under the License.
 
 import numpy as np
+import warnings
 
 import cudf
 from cugraph.structure import Graph, DiGraph, MultiGraph, MultiDiGraph
@@ -157,6 +158,7 @@ def sssp(
         matrix object, which should contain the connectivity information. Edge
         weights, if present, should be single or double precision floating
         point values.
+        The current implementation only supports weighted graphs.
     source : int
         Index of the source vertex.
     cutoff : double, optional (default = None)
@@ -213,6 +215,13 @@ def sssp(
     (G, input_type) = ensure_cugraph_obj(
         G, nx_weight_attr="weight", matrix_graph_type=Graph(directed=directed)
     )
+
+    if not G.edgelist.weights:
+        warning_msg = (
+            "'SSSP' requires the input graph to be weighted: Unweighted "
+            "graphs will not be supported in the next release."
+        )
+        warnings.warn(warning_msg, PendingDeprecationWarning)
 
     if G.renumbered:
         if isinstance(source, cudf.DataFrame):

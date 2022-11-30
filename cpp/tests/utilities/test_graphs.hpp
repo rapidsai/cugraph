@@ -598,7 +598,10 @@ template <typename vertex_t,
           bool store_transposed,
           bool multi_gpu,
           typename input_usecase_t>
-std::tuple<cugraph::graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu>,
+std::tuple<cugraph::graph_t<vertex_t, edge_t, store_transposed, multi_gpu>,
+           std::optional<cugraph::edge_property_t<
+             cugraph::graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>,
+             weight_t>>,
            std::optional<rmm::device_uvector<vertex_t>>>
 construct_graph(raft::handle_t const& handle,
                 input_usecase_t const& input_usecase,
@@ -617,9 +620,12 @@ construct_graph(raft::handle_t const& handle,
 
   if (drop_multi_edges) { sort_and_remove_multi_edges(handle, d_src_v, d_dst_v, d_weights_v); }
 
-  graph_t<vertex_t, edge_t, weight_t, store_transposed, multi_gpu> graph(handle);
+  graph_t<vertex_t, edge_t, store_transposed, multi_gpu> graph(handle);
+  std::optional<
+    edge_property_t<graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu>, weight_t>>
+    edge_weights{std::nullopt};
   std::optional<rmm::device_uvector<vertex_t>> renumber_map{std::nullopt};
-  std::tie(graph, std::ignore, renumber_map) = cugraph::
+  std::tie(graph, edge_weights, std::ignore, renumber_map) = cugraph::
     create_graph_from_edgelist<vertex_t, edge_t, weight_t, int32_t, store_transposed, multi_gpu>(
       handle,
       std::move(d_vertices_v),
@@ -630,7 +636,7 @@ construct_graph(raft::handle_t const& handle,
       cugraph::graph_properties_t{is_symmetric, drop_multi_edges ? false : true},
       renumber);
 
-  return std::make_tuple(std::move(graph), std::move(renumber_map));
+  return std::make_tuple(std::move(graph), std::move(edge_weights), std::move(renumber_map));
 }
 
 namespace legacy {

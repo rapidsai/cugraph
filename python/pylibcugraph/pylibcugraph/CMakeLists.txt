@@ -25,6 +25,10 @@ set(cython_sources
     graph_properties.pyx
     graphs.pyx
     hits.pyx
+    k_core.pyx
+    jaccard_coefficients.pyx
+    sorensen_coefficients.pyx
+    overlap_coefficients.pyx
     katz_centrality.pyx
     louvain.pyx
     node2vec.pyx
@@ -33,6 +37,7 @@ set(cython_sources
     resource_handle.pyx
     sssp.pyx
     triangle_count.pyx
+    two_hop_neighbors.pyx
     uniform_neighbor_sample.pyx
     uniform_random_walks.pyx
     utils.pyx

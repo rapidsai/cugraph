@@ -1260,8 +1260,13 @@ class EXPERIMENTAL__MGPropertyGraph:
 
         return G
 
-    def renumber_vertices_by_type(self):
+    def renumber_vertices_by_type(self, prev_id_column=None):
         """Renumber vertex IDs to be contiguous by type.
+
+        Parameters
+        ----------
+        prev_id_column : str, optional
+            Column name to save the vertex ID before renumbering.
 
         Returns a DataFrame with the start and stop IDs for each vertex type.
         Stop is *inclusive*.
@@ -1278,6 +1283,13 @@ class EXPERIMENTAL__MGPropertyGraph:
             )
         if self.__vertex_prop_dataframe is None:
             return None
+        if (
+            prev_id_column is not None
+            and prev_id_column in self.__vertex_prop_dataframe
+        ):
+            raise ValueError(
+                f"Can't save previous IDs to existing column {prev_id_column!r}"
+            )
 
         # Use categorical dtype for the type column
         if self.__series_type is dask_cudf.Series:
@@ -1318,10 +1330,22 @@ class EXPERIMENTAL__MGPropertyGraph:
                 .drop(columns=[self.dst_col_name])
                 .rename(columns={new_name: self.dst_col_name})
             )
-            df[self.vertex_col_name] = df[new_name]
-            del df[new_name]
+            if prev_id_column is None:
+                df[self.vertex_col_name] = df[new_name]
+                del df[new_name]
+            else:
+                df = df.rename(
+                    columns={
+                        new_name: self.vertex_col_name,
+                        self.vertex_col_name: prev_id_column,
+                    }
+                )
         else:
-            df = df.sort_values(by=self.type_col_name, ignore_index=True)
+            if prev_id_column is None:
+                df = df.sort_values(by=self.type_col_name, ignore_index=True)
+            else:
+                df.index.name = prev_id_column
+                df = df.sort_values(by=self.type_col_name).reset_index()
             df[self.vertex_col_name] = 1
             df[self.vertex_col_name] = df[self.vertex_col_name].cumsum() - 1
 
@@ -1344,8 +1368,13 @@ class EXPERIMENTAL__MGPropertyGraph:
         rv["stop"] -= 1  # Make inclusive
         return rv[["start", "stop"]]
 
-    def renumber_edges_by_type(self):
+    def renumber_edges_by_type(self, prev_id_column=None):
         """Renumber edge IDs to be contiguous by type.
+
+        Parameters
+        ----------
+        prev_id_column : str, optional
+            Column name to save the edge ID before renumbering.
 
         Returns a DataFrame with the start and stop IDs for each edge type.
         Stop is *inclusive*.
@@ -1353,13 +1382,21 @@ class EXPERIMENTAL__MGPropertyGraph:
         # TODO: keep track if edges are already numbered correctly.
         if self.__edge_prop_dataframe is None:
             return None
+        if prev_id_column is not None and prev_id_column in self.__edge_prop_dataframe:
+            raise ValueError(
+                f"Can't save previous IDs to existing column {prev_id_column!r}"
+            )
         df = self.__edge_prop_dataframe
 
         # FIXME DASK_CUDF: https://github.com/rapidsai/cudf/issues/11795
         cat_dtype = df.dtypes[self.type_col_name]
         df[self.type_col_name] = df[self.type_col_name].astype(str)
 
-        df = df.sort_values(by=self.type_col_name, ignore_index=True)
+        if prev_id_column is None:
+            df = df.sort_values(by=self.type_col_name, ignore_index=True)
+        else:
+            df.index = df.index.rename(prev_id_column)
+            df = df.sort_values(by=self.type_col_name).reset_index()
 
         # FIXME DASK_CUDF: https://github.com/rapidsai/cudf/issues/11795
         df[self.type_col_name] = df[self.type_col_name].astype(cat_dtype)

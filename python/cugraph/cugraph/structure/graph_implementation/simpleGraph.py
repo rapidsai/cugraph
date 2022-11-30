@@ -23,6 +23,7 @@ import cugraph.dask.comms.comms as Comms
 import pandas as pd
 import numpy as np
 from cugraph.dask.structure import replication
+from pylibcugraph import get_two_hop_neighbors as pylibcugraph_get_two_hop_neighbors
 
 from pylibcugraph import (
     ResourceHandle,
@@ -369,6 +370,7 @@ class simpleGraphImpl:
                 edgelist_df, simpleGraphImpl.dstCol
             )
 
+        # FIXME: revisit this approach
         if not self.properties.directed:
             edgelist_df = edgelist_df[
                 edgelist_df[simpleGraphImpl.srcCol]
@@ -566,7 +568,7 @@ class simpleGraphImpl:
     def _replicate_transposed_adjlist(self):
         self.batch_transposed_adjlists = True
 
-    def get_two_hop_neighbors(self):
+    def get_two_hop_neighbors(self, start_vertices=None):
         """
         Compute vertex pairs that are two hops apart. The resulting pairs are
         sorted before returning.
@@ -582,7 +584,28 @@ class simpleGraphImpl:
                 is defined by only one column
         """
 
-        df = graph_primtypes_wrapper.get_two_hop_neighbors(self)
+        if isinstance(start_vertices, int):
+            start_vertices = [start_vertices]
+
+        if isinstance(start_vertices, list):
+            start_vertices = cudf.Series(start_vertices)
+
+        if self.properties.renumbered is True:
+            if start_vertices is not None:
+                start_vertices = self.renumber_map.to_internal_vertex_id(start_vertices)
+                start_vertices_type = self.edgelist.edgelist_df["src"].dtype
+                start_vertices = start_vertices.astype(start_vertices_type)
+        do_expensive_check = False
+        first, second = pylibcugraph_get_two_hop_neighbors(
+            resource_handle=ResourceHandle(),
+            graph=self._plc_graph,
+            start_vertices=start_vertices,
+            do_expensive_check=do_expensive_check,
+        )
+
+        df = cudf.DataFrame()
+        df["first"] = first
+        df["second"] = second
 
         if self.properties.renumbered is True:
             df = self.renumber_map.unrenumber(df, "first")
@@ -859,6 +882,7 @@ class simpleGraphImpl:
             raise ValueError(f"Illegal value col {type(value_col)}")
 
         if weight_col is None:
+            # Some algos require the graph to be weighted
             weight_col = cudf.Series(
                 cupy.ones(len(self.edgelist.edgelist_df), dtype="float32")
             )
