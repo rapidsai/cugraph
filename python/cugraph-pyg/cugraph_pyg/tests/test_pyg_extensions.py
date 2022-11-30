@@ -264,6 +264,7 @@ def test_get_subgraph(graph):
     assert sg.number_of_edges() == num_edges
 
 
+@pytest.mark.cugraph_ops
 def test_neighbor_sample(basic_property_graph_1):
     pG = basic_property_graph_1
     feature_store, graph_store = to_pyg(pG, backend="cupy")
@@ -319,6 +320,7 @@ def test_neighbor_sample(basic_property_graph_1):
     assert combined_df.to_arrow().to_pylist() == base_df.to_arrow().to_pylist()
 
 
+@pytest.mark.cugraph_ops
 def test_neighbor_sample_multi_vertex(multi_edge_multi_vertex_property_graph_1):
     pG = multi_edge_multi_vertex_property_graph_1
     feature_store, graph_store = to_pyg(pG, backend="cupy")
