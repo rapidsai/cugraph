@@ -23,6 +23,7 @@ set(cython_sources
     graph_properties.pyx
     graphs.pyx
     hits.pyx
+    k_core.pyx
     jaccard_coefficients.pyx
     sorensen_coefficients.pyx
     overlap_coefficients.pyx
