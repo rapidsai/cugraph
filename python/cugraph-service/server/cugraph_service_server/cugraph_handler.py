@@ -606,7 +606,7 @@ class CugraphHandler:
             if prev_id_column == "":
                 prev_id_column = None
 
-            offset_df = G.renumber_vertices_by_type(prev_id_column)
+            offset_df = G.renumber_vertices_by_type(prev_id_column=prev_id_column)
             if self.is_multi_gpu:
                 offset_df = offset_df.compute()
 
@@ -629,7 +629,7 @@ class CugraphHandler:
             if prev_id_column == "":
                 prev_id_column = None
 
-            offset_df = G.renumber_edges_by_type(prev_id_column)
+            offset_df = G.renumber_edges_by_type(prev_id_column=prev_id_column)
             if self.is_multi_gpu:
                 offset_df = offset_df.compute()
 
