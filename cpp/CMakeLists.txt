@@ -83,6 +83,7 @@ option(USE_RAFT_STATIC "Build raft as a static library" OFF)
 option(CUDA_STATIC_RUNTIME "Statically link the CUDA toolkit runtime and libraries" OFF)
 option(CUGRAPH_USE_CUGRAPH_OPS_STATIC "Build and statically link the cugraph-ops library" OFF)
 option(CUGRAPH_EXCLUDE_CUGRAPH_OPS_FROM_ALL "Exclude cugraph-ops targets from cuGraph's 'all' target" OFF)
+option(ALLOW_CLONE_CUGRAPH_OPS "Whether to attempt to clone cugraph-ops when a local version is not available" OFF)
 
 message(VERBOSE "CUGRAPH: CUDA_STATIC_RUNTIME=${CUDA_STATIC_RUNTIME}")
 message(VERBOSE "CUGRAPH: CUGRAPH_USE_CUGRAPH_OPS_STATIC=${CUGRAPH_USE_CUGRAPH_OPS_STATIC}")

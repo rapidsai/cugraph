@@ -72,6 +72,7 @@ if (NOT cugraph_FOUND)
     set(USE_RAFT_STATIC ON)
     set(CUGRAPH_USE_CUGRAPH_OPS_STATIC ON)
     set(CUGRAPH_EXCLUDE_CUGRAPH_OPS_FROM_ALL ON)
+    set(ALLOW_CLONE_CUGRAPH_OPS ON)
 
     # Don't install the cuML C++ targets into wheels
     set(_exclude_from_all EXCLUDE_FROM_ALL)
