@@ -327,7 +327,8 @@ std::tuple<rmm::device_uvector<vertex_t>, std::vector<vertex_t>, vertex_t> compu
 
     if constexpr (multi_gpu) {
       sorted_local_vertices =
-        cugraph::detail::shuffle_ext_vertices_by_gpu_id(handle, std::move(sorted_local_vertices));
+        cugraph::detail::shuffle_ext_vertices_to_local_gpu_by_vertex_partitioning(
+          handle, std::move(sorted_local_vertices));
       thrust::sort(
         handle.get_thrust_policy(), sorted_local_vertices.begin(), sorted_local_vertices.end());
       sorted_local_vertices.resize(thrust::distance(sorted_local_vertices.begin(),

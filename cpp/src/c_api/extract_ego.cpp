@@ -92,8 +92,8 @@ struct extract_ego_functor : public cugraph::c_api::abstract_functor {
                  handle_.get_stream());
 
       if constexpr (multi_gpu) {
-        source_vertices =
-          cugraph::detail::shuffle_ext_vertices_by_gpu_id(handle_, std::move(source_vertices));
+        source_vertices = cugraph::detail::shuffle_ext_vertices_to_local_gpu_by_vertex_partitioning(
+          handle_, std::move(source_vertices));
       }
 
       cugraph::renumber_ext_vertices<vertex_t, multi_gpu>(

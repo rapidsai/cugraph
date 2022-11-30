@@ -206,8 +206,9 @@ void triangle_count(raft::handle_t const& handle,
                                      is_not_self_loop_t<vertex_t>{});
 
     if constexpr (multi_gpu) {
-      std::tie(srcs, dsts, std::ignore) = detail::shuffle_edgelist_by_gpu_id<vertex_t, weight_t>(
-        handle, std::move(srcs), std::move(dsts), std::nullopt);
+      std::tie(srcs, dsts, std::ignore) =
+        detail::shuffle_ext_vertex_pairs_to_local_gpu_by_edge_partitioning<vertex_t, weight_t>(
+          handle, std::move(srcs), std::move(dsts), std::nullopt);
     }
 
     std::tie(*modified_graph, std::ignore, std::ignore, renumber_map) =
@@ -261,8 +262,9 @@ void triangle_count(raft::handle_t const& handle,
                                      in_two_core_t<vertex_t>{});
 
     if constexpr (multi_gpu) {
-      std::tie(srcs, dsts, std::ignore) = detail::shuffle_edgelist_by_gpu_id<vertex_t, weight_t>(
-        handle, std::move(srcs), std::move(dsts), std::nullopt);
+      std::tie(srcs, dsts, std::ignore) =
+        detail::shuffle_ext_vertex_pairs_to_local_gpu_by_edge_partitioning<vertex_t, weight_t>(
+          handle, std::move(srcs), std::move(dsts), std::nullopt);
     }
 
     std::optional<rmm::device_uvector<vertex_t>> tmp_renumber_map{std::nullopt};
@@ -313,8 +315,9 @@ void triangle_count(raft::handle_t const& handle,
                                      low_to_high_degree_t<vertex_t, edge_t>{});
 
     if constexpr (multi_gpu) {
-      std::tie(srcs, dsts, std::ignore) = detail::shuffle_edgelist_by_gpu_id<vertex_t, weight_t>(
-        handle, std::move(srcs), std::move(dsts), std::nullopt);
+      std::tie(srcs, dsts, std::ignore) =
+        detail::shuffle_ext_vertex_pairs_to_local_gpu_by_edge_partitioning<vertex_t, weight_t>(
+          handle, std::move(srcs), std::move(dsts), std::nullopt);
     }
 
     std::optional<rmm::device_uvector<vertex_t>> tmp_renumber_map{std::nullopt};

@@ -86,10 +86,11 @@ transpose_graph_impl(
   std::tie(store_transposed ? edgelist_srcs : edgelist_dsts,
            store_transposed ? edgelist_dsts : edgelist_srcs,
            edgelist_weights) =
-    detail::shuffle_edgelist_by_gpu_id(handle,
-                                       std::move(store_transposed ? edgelist_srcs : edgelist_dsts),
-                                       std::move(store_transposed ? edgelist_dsts : edgelist_srcs),
-                                       std::move(edgelist_weights));
+    detail::shuffle_ext_vertex_pairs_to_local_gpu_by_edge_partitioning(
+      handle,
+      std::move(store_transposed ? edgelist_srcs : edgelist_dsts),
+      std::move(store_transposed ? edgelist_dsts : edgelist_srcs),
+      std::move(edgelist_weights));
 
   graph_t<vertex_t, edge_t, store_transposed, multi_gpu> transposed_graph(handle);
   std::optional<

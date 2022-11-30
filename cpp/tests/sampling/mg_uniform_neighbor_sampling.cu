@@ -136,7 +136,7 @@ class Tests_MGNbrSampling
         thrust::unique(handle_->get_thrust_policy(), d_vertices.begin(), d_vertices.end());
       d_vertices.resize(thrust::distance(d_vertices.begin(), vertices_end), handle_->get_stream());
 
-      d_vertices = cugraph::detail::shuffle_int_vertices_by_gpu_id(*handle_, std::move(d_vertices), mg_graph_view.vertex_partition_range_lasts());
+      d_vertices = cugraph::detail::shuffle_int_vertices_to_local_gpu_by_vertex_partitioning(*handle_, std::move(d_vertices), mg_graph_view.vertex_partition_range_lasts());
 
       thrust::sort(handle_->get_thrust_policy(), d_vertices.begin(), d_vertices.end());
 

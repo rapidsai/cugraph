@@ -140,7 +140,7 @@ class Tests_MGInducedSubgraph
         h_sg_subgraph_offsets[i + 1] = sg_start + vertices.size();
       }
 
-      vertices = cugraph::detail::shuffle_int_vertices_by_gpu_id(
+      vertices = cugraph::detail::shuffle_int_vertices_to_local_gpu_by_vertex_partitioning(
         *handle_, std::move(vertices), mg_graph_view.vertex_partition_range_lasts());
 
       raft::copy(d_subgraph_vertices.data() + start,

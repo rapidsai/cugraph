@@ -141,7 +141,7 @@ struct pagerank_functor : public cugraph::c_api::abstract_functor {
 
         if constexpr (multi_gpu) {
           std::tie(personalization_vertices, personalization_values) =
-            cugraph::detail::shuffle_ext_vertices_and_values_by_gpu_id(
+            cugraph::detail::shuffle_ext_vertex_value_pairs_to_local_gpu_by_vertex_partitioning(
               handle_, std::move(personalization_vertices), std::move(personalization_values));
         }
         //

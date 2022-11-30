@@ -33,10 +33,11 @@ template <typename vertex_t, typename weight_t>
 std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<weight_t>>>
-shuffle_edgelist_by_gpu_id(raft::handle_t const& handle,
-                           rmm::device_uvector<vertex_t>&& d_edgelist_majors,
-                           rmm::device_uvector<vertex_t>&& d_edgelist_minors,
-                           std::optional<rmm::device_uvector<weight_t>>&& d_edgelist_weights)
+shuffle_ext_vertex_pairs_to_local_gpu_by_edge_partitioning(
+  raft::handle_t const& handle,
+  rmm::device_uvector<vertex_t>&& majors,
+  rmm::device_uvector<vertex_t>&& minors,
+  std::optional<rmm::device_uvector<weight_t>>&& weights)
 {
   auto& comm               = handle.get_comms();
   auto const comm_size     = comm.get_size();
@@ -46,7 +47,7 @@ shuffle_edgelist_by_gpu_id(raft::handle_t const& handle,
   auto const col_comm_size = col_comm.get_size();
 
   auto total_global_mem = handle.get_device_properties().totalGlobalMem;
-  auto element_size = sizeof(vertex_t) * 2 + (d_edgelist_weights ? sizeof(weight_t) : size_t{0});
+  auto element_size     = sizeof(vertex_t) * 2 + (weights ? sizeof(weight_t) : size_t{0});
   auto constexpr mem_frugal_ratio =
     0.1;  // if the expected temporary buffer size exceeds the mem_frugal_ratio of the
           // total_global_mem, switch to the memory frugal approach (thrust::sort is used to
@@ -57,7 +58,7 @@ shuffle_edgelist_by_gpu_id(raft::handle_t const& handle,
 
   auto mem_frugal_flag =
     host_scalar_allreduce(comm,
-                          d_edgelist_majors.size() > mem_frugal_threshold ? int{1} : int{0},
+                          majors.size() > mem_frugal_threshold ? int{1} : int{0},
                           raft::comms::op_t::MAX,
                           handle.get_stream());
 
@@ -68,16 +69,16 @@ shuffle_edgelist_by_gpu_id(raft::handle_t const& handle,
   // buffer in a single chunk, and the pool allocator  often cannot handle a large single allocation
   // (due to fragmentation) even when the remaining free memory in aggregate is significantly larger
   // than the requested size).
-  rmm::device_uvector<vertex_t> d_rx_edgelist_majors(0, handle.get_stream());
-  rmm::device_uvector<vertex_t> d_rx_edgelist_minors(0, handle.get_stream());
-  std::optional<rmm::device_uvector<weight_t>> d_rx_edgelist_weights{std::nullopt};
-  if (d_edgelist_weights) {
-    auto edge_first = thrust::make_zip_iterator(thrust::make_tuple(
-      d_edgelist_majors.begin(), d_edgelist_minors.begin(), (*d_edgelist_weights).begin()));
+  rmm::device_uvector<vertex_t> rx_majors(0, handle.get_stream());
+  rmm::device_uvector<vertex_t> rx_minors(0, handle.get_stream());
+  std::optional<rmm::device_uvector<weight_t>> rx_weights{std::nullopt};
+  if (weights) {
+    auto edge_first = thrust::make_zip_iterator(
+      thrust::make_tuple(majors.begin(), minors.begin(), (*weights).begin()));
 
     auto d_tx_value_counts = cugraph::groupby_and_count(
       edge_first,
-      edge_first + d_edgelist_majors.size(),
+      edge_first + majors.size(),
       [key_func =
          cugraph::detail::compute_gpu_id_from_ext_edge_endpoints_t<vertex_t>{
            comm_size, row_comm_size, col_comm_size}] __device__(auto val) {
@@ -95,38 +96,36 @@ shuffle_edgelist_by_gpu_id(raft::handle_t const& handle,
     handle.sync_stream();
 
     if (mem_frugal_flag) {  // trade-off potential parallelism to lower peak memory
-      std::tie(d_rx_edgelist_majors, std::ignore) =
-        shuffle_values(comm, d_edgelist_majors.begin(), h_tx_value_counts, handle.get_stream());
-      d_edgelist_majors.resize(0, handle.get_stream());
-      d_edgelist_majors.shrink_to_fit(handle.get_stream());
+      std::tie(rx_majors, std::ignore) =
+        shuffle_values(comm, majors.begin(), h_tx_value_counts, handle.get_stream());
+      majors.resize(0, handle.get_stream());
+      majors.shrink_to_fit(handle.get_stream());
 
-      std::tie(d_rx_edgelist_minors, std::ignore) =
-        shuffle_values(comm, d_edgelist_minors.begin(), h_tx_value_counts, handle.get_stream());
-      d_edgelist_minors.resize(0, handle.get_stream());
-      d_edgelist_minors.shrink_to_fit(handle.get_stream());
+      std::tie(rx_minors, std::ignore) =
+        shuffle_values(comm, minors.begin(), h_tx_value_counts, handle.get_stream());
+      minors.resize(0, handle.get_stream());
+      minors.shrink_to_fit(handle.get_stream());
 
-      std::tie(d_rx_edgelist_weights, std::ignore) =
-        shuffle_values(comm, (*d_edgelist_weights).begin(), h_tx_value_counts, handle.get_stream());
-      (*d_edgelist_weights).resize(0, handle.get_stream());
-      (*d_edgelist_weights).shrink_to_fit(handle.get_stream());
+      std::tie(rx_weights, std::ignore) =
+        shuffle_values(comm, (*weights).begin(), h_tx_value_counts, handle.get_stream());
+      (*weights).resize(0, handle.get_stream());
+      (*weights).shrink_to_fit(handle.get_stream());
     } else {
-      std::forward_as_tuple(
-        std::tie(d_rx_edgelist_majors, d_rx_edgelist_minors, d_rx_edgelist_weights), std::ignore) =
+      std::forward_as_tuple(std::tie(rx_majors, rx_minors, rx_weights), std::ignore) =
         shuffle_values(comm, edge_first, h_tx_value_counts, handle.get_stream());
-      d_edgelist_majors.resize(0, handle.get_stream());
-      d_edgelist_majors.shrink_to_fit(handle.get_stream());
-      d_edgelist_minors.resize(0, handle.get_stream());
-      d_edgelist_minors.shrink_to_fit(handle.get_stream());
-      (*d_edgelist_weights).resize(0, handle.get_stream());
-      (*d_edgelist_weights).shrink_to_fit(handle.get_stream());
+      majors.resize(0, handle.get_stream());
+      majors.shrink_to_fit(handle.get_stream());
+      minors.resize(0, handle.get_stream());
+      minors.shrink_to_fit(handle.get_stream());
+      (*weights).resize(0, handle.get_stream());
+      (*weights).shrink_to_fit(handle.get_stream());
     }
   } else {
-    auto edge_first = thrust::make_zip_iterator(
-      thrust::make_tuple(d_edgelist_majors.begin(), d_edgelist_minors.begin()));
+    auto edge_first = thrust::make_zip_iterator(thrust::make_tuple(majors.begin(), minors.begin()));
 
     auto d_tx_value_counts = cugraph::groupby_and_count(
       edge_first,
-      edge_first + d_edgelist_majors.size(),
+      edge_first + majors.size(),
       [key_func =
          cugraph::detail::compute_gpu_id_from_ext_edge_endpoints_t<vertex_t>{
            comm_size, row_comm_size, col_comm_size}] __device__(auto val) {
@@ -144,61 +143,63 @@ shuffle_edgelist_by_gpu_id(raft::handle_t const& handle,
     handle.sync_stream();
 
     if (mem_frugal_flag) {  // trade-off potential parallelism to lower peak memory
-      std::tie(d_rx_edgelist_majors, std::ignore) =
-        shuffle_values(comm, d_edgelist_majors.begin(), h_tx_value_counts, handle.get_stream());
-      d_edgelist_majors.resize(0, handle.get_stream());
-      d_edgelist_majors.shrink_to_fit(handle.get_stream());
+      std::tie(rx_majors, std::ignore) =
+        shuffle_values(comm, majors.begin(), h_tx_value_counts, handle.get_stream());
+      majors.resize(0, handle.get_stream());
+      majors.shrink_to_fit(handle.get_stream());
 
-      std::tie(d_rx_edgelist_minors, std::ignore) =
-        shuffle_values(comm, d_edgelist_minors.begin(), h_tx_value_counts, handle.get_stream());
-      d_edgelist_minors.resize(0, handle.get_stream());
-      d_edgelist_minors.shrink_to_fit(handle.get_stream());
+      std::tie(rx_minors, std::ignore) =
+        shuffle_values(comm, minors.begin(), h_tx_value_counts, handle.get_stream());
+      minors.resize(0, handle.get_stream());
+      minors.shrink_to_fit(handle.get_stream());
     } else {
-      std::forward_as_tuple(std::tie(d_rx_edgelist_majors, d_rx_edgelist_minors), std::ignore) =
+      std::forward_as_tuple(std::tie(rx_majors, rx_minors), std::ignore) =
         shuffle_values(comm, edge_first, h_tx_value_counts, handle.get_stream());
-      d_edgelist_majors.resize(0, handle.get_stream());
-      d_edgelist_majors.shrink_to_fit(handle.get_stream());
-      d_edgelist_minors.resize(0, handle.get_stream());
-      d_edgelist_minors.shrink_to_fit(handle.get_stream());
+      majors.resize(0, handle.get_stream());
+      majors.shrink_to_fit(handle.get_stream());
+      minors.resize(0, handle.get_stream());
+      minors.shrink_to_fit(handle.get_stream());
     }
   }
 
-  return std::make_tuple(std::move(d_rx_edgelist_majors),
-                         std::move(d_rx_edgelist_minors),
-                         std::move(d_rx_edgelist_weights));
+  return std::make_tuple(std::move(rx_majors), std::move(rx_minors), std::move(rx_weights));
 }
 
 template std::tuple<rmm::device_uvector<int32_t>,
                     rmm::device_uvector<int32_t>,
                     std::optional<rmm::device_uvector<float>>>
-shuffle_edgelist_by_gpu_id(raft::handle_t const& handle,
-                           rmm::device_uvector<int32_t>&& d_edgelist_majors,
-                           rmm::device_uvector<int32_t>&& d_edgelist_minors,
-                           std::optional<rmm::device_uvector<float>>&& d_edgelist_weights);
+shuffle_ext_vertex_pairs_to_local_gpu_by_edge_partitioning(
+  raft::handle_t const& handle,
+  rmm::device_uvector<int32_t>&& majors,
+  rmm::device_uvector<int32_t>&& minors,
+  std::optional<rmm::device_uvector<float>>&& weights);
 
 template std::tuple<rmm::device_uvector<int32_t>,
                     rmm::device_uvector<int32_t>,
                     std::optional<rmm::device_uvector<double>>>
-shuffle_edgelist_by_gpu_id(raft::handle_t const& handle,
-                           rmm::device_uvector<int32_t>&& d_edgelist_majors,
-                           rmm::device_uvector<int32_t>&& d_edgelist_minors,
-                           std::optional<rmm::device_uvector<double>>&& d_edgelist_weights);
+shuffle_ext_vertex_pairs_to_local_gpu_by_edge_partitioning(
+  raft::handle_t const& handle,
+  rmm::device_uvector<int32_t>&& majors,
+  rmm::device_uvector<int32_t>&& minors,
+  std::optional<rmm::device_uvector<double>>&& weights);
 
 template std::tuple<rmm::device_uvector<int64_t>,
                     rmm::device_uvector<int64_t>,
                     std::optional<rmm::device_uvector<float>>>
-shuffle_edgelist_by_gpu_id(raft::handle_t const& handle,
-                           rmm::device_uvector<int64_t>&& d_edgelist_majors,
-                           rmm::device_uvector<int64_t>&& d_edgelist_minors,
-                           std::optional<rmm::device_uvector<float>>&& d_edgelist_weights);
+shuffle_ext_vertex_pairs_to_local_gpu_by_edge_partitioning(
+  raft::handle_t const& handle,
+  rmm::device_uvector<int64_t>&& majors,
+  rmm::device_uvector<int64_t>&& minors,
+  std::optional<rmm::device_uvector<float>>&& weights);
 
 template std::tuple<rmm::device_uvector<int64_t>,
                     rmm::device_uvector<int64_t>,
                     std::optional<rmm::device_uvector<double>>>
-shuffle_edgelist_by_gpu_id(raft::handle_t const& handle,
-                           rmm::device_uvector<int64_t>&& d_edgelist_majors,
-                           rmm::device_uvector<int64_t>&& d_edgelist_minors,
-                           std::optional<rmm::device_uvector<double>>&& d_edgelist_weights);
+shuffle_ext_vertex_pairs_to_local_gpu_by_edge_partitioning(
+  raft::handle_t const& handle,
+  rmm::device_uvector<int64_t>&& majors,
+  rmm::device_uvector<int64_t>&& minors,
+  std::optional<rmm::device_uvector<double>>&& weights);
 
 }  // namespace detail
 }  // namespace cugraph

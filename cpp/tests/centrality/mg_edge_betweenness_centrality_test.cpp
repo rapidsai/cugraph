@@ -95,7 +95,8 @@ class Tests_MGEdgeBetweennessCentrality
       d_seeds = cugraph::test::randomly_select(*handle_, d_seeds, betweenness_usecase.num_seeds);
     }
 
-    d_seeds = cugraph::detail::shuffle_ext_vertices_by_gpu_id(*handle_, std::move(d_seeds));
+    d_seeds = cugraph::detail::shuffle_ext_vertices_to_local_gpu_by_vertex_partitioning(
+      *handle_, std::move(d_seeds));
 
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement

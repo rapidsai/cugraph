@@ -71,7 +71,7 @@ uniform_nbr_sample_impl(
   for (auto&& k_level : h_fan_out) {
     // prep step for extracting out-degs(sources):
     if constexpr (multi_gpu) {
-      d_in = shuffle_int_vertices_by_gpu_id(
+      d_in = shuffle_int_vertices_to_local_gpu_by_vertex_partitioning(
         handle, std::move(d_in), graph_view.vertex_partition_range_lasts());
     }
 

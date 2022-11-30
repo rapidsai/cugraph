@@ -291,10 +291,11 @@ symmetrize_edgelist(raft::handle_t const& handle,
 
   if constexpr (multi_gpu) {
     std::tie(upper_triangular_minors, upper_triangular_majors, upper_triangular_weights) =
-      detail::shuffle_edgelist_by_gpu_id(handle,
-                                         std::move(upper_triangular_minors),
-                                         std::move(upper_triangular_majors),
-                                         std::move(upper_triangular_weights));
+      detail::shuffle_ext_vertex_pairs_to_local_gpu_by_edge_partitioning(
+        handle,
+        std::move(upper_triangular_minors),
+        std::move(upper_triangular_majors),
+        std::move(upper_triangular_weights));
   }
 
   // 3. merge the lower triangular and the (flipped) upper triangular edges
@@ -467,10 +468,11 @@ symmetrize_edgelist(raft::handle_t const& handle,
 
   if constexpr (multi_gpu) {
     std::tie(upper_triangular_majors, upper_triangular_minors, upper_triangular_weights) =
-      detail::shuffle_edgelist_by_gpu_id(handle,
-                                         std::move(upper_triangular_majors),
-                                         std::move(upper_triangular_minors),
-                                         std::move(upper_triangular_weights));
+      detail::shuffle_ext_vertex_pairs_to_local_gpu_by_edge_partitioning(
+        handle,
+        std::move(upper_triangular_majors),
+        std::move(upper_triangular_minors),
+        std::move(upper_triangular_weights));
   }
 
   edgelist_majors  = std::move(merged_lower_triangular_majors);
