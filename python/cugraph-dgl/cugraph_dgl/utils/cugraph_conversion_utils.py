@@ -68,11 +68,6 @@ def add_ndata_of_single_type(
     df["node_id"] = node_ids
     if not gs.single_gpu:
         df = dask_cudf.from_cudf(df, npartitions=16)
-    file_path = (
-        f"datasets/vjawa/gnn/ntype_{ntype}_feat_name_{str(feat_name_map)}.parquet"
-    )
-    print(file_path, flush=True)
-    df.to_parquet("test.parquet")
     gs.add_node_data(
         df,
         "node_id",
