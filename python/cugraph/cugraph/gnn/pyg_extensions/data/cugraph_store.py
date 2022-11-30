@@ -93,7 +93,7 @@ class CuGraphEdgeAttr:
         return cls(*args, **kwargs)
 
 
-def EXPERIMENTAL__to_pyg(G, backend="torch"):
+def EXPERIMENTAL__to_pyg(G, backend="torch", renumber_vertices=None):
     """
         Returns the PyG wrappers for the provided PropertyGraph or
         MGPropertyGraph.
@@ -102,13 +102,20 @@ def EXPERIMENTAL__to_pyg(G, backend="torch"):
     ----------
     G : PropertyGraph or MGPropertyGraph
         The graph to produce PyG wrappers for.
+    renumber_vertices: bool
+        Should usually be set to True.  If True, the vertices in the
+        provided property graph will be renumbered so that they are
+        contiguous by type.  If the vertices are already contiguously
+        renumbered by type, then this can be set to False.
 
     Returns
     -------
     Tuple (CuGraphStore, CuGraphStore)
         Wrappers for the provided property graph.
     """
-    store = EXPERIMENTAL__CuGraphStore(G, backend=backend)
+    store = EXPERIMENTAL__CuGraphStore(
+        G, backend=backend, renumber_vertices=renumber_vertices
+    )
     return (store, store)
 
 
@@ -197,7 +204,7 @@ class EXPERIMENTAL__CuGraphStore:
     Duck-typed version of PyG's GraphStore and FeatureStore.
     """
 
-    def __init__(self, G, reserved_keys=[], backend="torch", renumber_vertices=None):
+    def __init__(self, G, backend="torch", renumber_vertices=None):
         """
         Constructs a new CuGraphStore from the provided
         arguments.
@@ -207,9 +214,6 @@ class EXPERIMENTAL__CuGraphStore:
         G : PropertyGraph or MGPropertyGraph
             The cuGraph property graph where the
             data is being stored.
-        reserved_keys : list[str]
-            Properties in the graph that are not used for
-            training (the 'x' attribute will ignore these properties).
         backend : ('torch', 'cupy')
             The backend that manages tensors (default = 'torch')
             Should usually be 'torch' ('torch', 'cupy' supported).
