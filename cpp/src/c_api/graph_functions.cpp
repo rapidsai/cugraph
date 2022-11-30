@@ -76,8 +76,8 @@ struct create_vertex_pairs_functor : public cugraph::c_api::abstract_functor {
             handle_,
             std::move(first_copy),
             std::move(second_copy),
-            std::nullopt); // vertex pairs should be shuffled based on the edge partitioning, so we
-                           // can use this edge shuffling function to shuffle vertex pairs.
+            std::nullopt);  // vertex pairs should be shuffled based on the edge partitioning, so we
+                            // can use this edge shuffling function to shuffle vertex pairs.
       }
 
       result_ = new cugraph::c_api::cugraph_vertex_pairs_t{
