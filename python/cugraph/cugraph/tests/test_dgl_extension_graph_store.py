@@ -342,12 +342,11 @@ def dataset1_CuGraphStore():
         "relationships_k",
         True,
     )
+    # single row with nulls not supported as vector properties
     graph.add_edge_data(
         transactions_df,
         ("user_id", "merchant_id"),
         "('user', 'transactions', 'merchant')",
-        "transactions_k",
-        True,
     )
 
     return graph
@@ -401,7 +400,7 @@ def test_get_node_storage_ntypes():
     df = cudf.DataFrame({"node_ids": node_ser, "feat": feat_ser})
     gs.add_node_data(df, "node_ids", ntype="nt.b")
 
-    # All indices from a single ntype
+    # g All indices from a single ntype
     output_ar = gs.get_node_storage(key="feat", ntype="nt.a").fetch([1, 2, 3])
     cp.testing.assert_array_equal(cp.asarray([1, 1, 1], dtype=cp.float32), output_ar)
 
@@ -817,7 +816,7 @@ def test_add_node_data_vector_feats():
         feat_name={
             "vec1": ["vec1_1", "vec1_2"],
             "vec2": ["vec2_1"],
-            "vec3": "vec3",
+            "vec3": ["vec3"],
         },
         contains_vector_features=True,
     )

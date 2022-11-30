@@ -17,7 +17,7 @@ import numpy as np
 import cugraph
 import dask_cudf
 import cugraph.dask as dcg
-from cugraph.utilities.utils import import_optional
+from cugraph.utilities.utils import import_optional, create_list_series_from_2d_ar
 
 pd = import_optional("pandas")
 
@@ -1677,20 +1677,10 @@ class EXPERIMENTAL__MGPropertyGraph:
 
     @staticmethod
     def _create_vector_properties_partition(df, vector_properties):
-        # Make each vector contigous and 1-d
         new_cols = {}
         for key, columns in vector_properties.items():
-            values = cupy.ascontiguousarray(df[columns].values)
-            dtype = cudf.ListDtype(values.dtype)
-            if len(df) == 0:
-                # cudf doesn't like making empty Series with list dtype
-                new_cols[key] = cudf.Series([[0]], dtype=dtype).iloc[0:0]
-            else:
-                new_cols[key] = cudf.Series(
-                    [cupy.squeeze(x, 0) for x in cupy.split(values, len(df))],
-                    df.index,
-                    dtype=dtype,
-                )
+            values = df[columns].values
+            new_cols[key] = create_list_series_from_2d_ar(values, index=df.index)
         return df.assign(**new_cols)
 
     @staticmethod

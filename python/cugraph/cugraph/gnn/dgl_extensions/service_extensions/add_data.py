@@ -19,7 +19,14 @@ from cugraph.gnn.dgl_extensions.utils.add_data import (
 
 
 def add_node_data_from_parquet_remote(
-    file_path, node_col_name, node_offset, ntype, graph_id, server
+    file_path,
+    node_col_name,
+    node_offset,
+    ntype,
+    feat_name,
+    contains_vector_features,
+    graph_id,
+    server,
 ):
     pG = server.get_graph(graph_id)
 
@@ -30,7 +37,15 @@ def add_node_data_from_parquet_remote(
 
 
 def add_edge_data_from_parquet_remote(
-    file_path, node_col_names, canonical_etype, src_offset, dst_offset, graph_id, server
+    file_path,
+    node_col_names,
+    canonical_etype,
+    src_offset,
+    dst_offset,
+    feat_name,
+    contains_vector_features,
+    graph_id,
+    server,
 ):
     pG = server.get_graph(graph_id)
 

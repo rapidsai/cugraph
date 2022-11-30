@@ -16,6 +16,7 @@ import importlib
 from numba import cuda
 
 import cudf
+from cudf.core.column import as_column
 
 from cuda.cudart import cudaDeviceAttr
 from rmm._cuda.gpu import getDeviceAttribute
@@ -366,6 +367,28 @@ def is_cugraph_graph_type(g):
 
     # FIXME: Remove DiGraph when support is dropped
     return g in [Graph, DiGraph, MultiGraph, MultiDiGraph]
+
+
+def create_list_series_from_2d_ar(ar, index):
+    """
+    Create a cudf list series  from 2d arrays
+    """
+    n_rows, n_cols = ar.shape
+    data = as_column(ar.flatten())
+    offset_col = as_column(
+        cp.arange(start=0, stop=len(data) + 1, step=n_cols), dtype="int32"
+    )
+    mask_col = cp.full(shape=n_rows, fill_value=True)
+    mask = cudf._lib.transform.bools_to_mask(as_column(mask_col))
+    lc = cudf.core.column.ListColumn(
+        size=n_rows,
+        dtype=cudf.ListDtype(data.dtype),
+        mask=mask,
+        offset=0,
+        null_count=0,
+        children=(offset_col, data),
+    )
+    return cudf.Series(lc, index=index)
 
 
 def renumber_vertex_pair(input_graph, vertex_pair):

@@ -15,7 +15,11 @@ import cudf
 import numpy as np
 
 import cugraph
-from cugraph.utilities.utils import import_optional, MissingModule
+from cugraph.utilities.utils import (
+    import_optional,
+    MissingModule,
+    create_list_series_from_2d_ar,
+)
 
 pd = import_optional("pandas")
 
@@ -508,7 +512,7 @@ class EXPERIMENTAL__PropertyGraph:
     ):
         """
         Add a dataframe describing vertex properties to the PropertyGraph.
-        Can contain additional vertices that will not have associatede edges.
+        Can contain additional vertices that will not have associated edges.
 
         Parameters
         ----------
@@ -2091,16 +2095,20 @@ class EXPERIMENTAL__PropertyGraph:
         for key, columns in vector_properties.items():
             vector_property_lengths[key] = len(columns)
 
-    def _create_vector_properties(self, df, vector_properties):
-        # Make each vector contigous and 1-d
+    @staticmethod
+    def _create_vector_properties(df, vector_properties):
         vectors = {}
         for key, columns in vector_properties.items():
             values = df[columns].values
-            vectors[key] = [
-                np.squeeze(vec, 0)
-                for vec in np.split(np.ascontiguousarray(values, like=values), len(df))
-            ]
-        # Create all vectors before assigning in case column names are reused
+            if isinstance(df, cudf.DataFrame):
+                vectors[key] = create_list_series_from_2d_ar(values, index=df.index)
+            else:
+                vectors[key] = [
+                    np.squeeze(vec, 0)
+                    for vec in np.split(
+                        np.ascontiguousarray(values, like=values), len(df)
+                    )
+                ]
         for key, vec in vectors.items():
             df[key] = vec
 
