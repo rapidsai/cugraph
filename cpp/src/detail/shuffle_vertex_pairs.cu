@@ -27,24 +27,21 @@
 #include <tuple>
 
 namespace cugraph {
-namespace detail {
 
-template <typename vertex_t, typename weight_t>
+namespace {
+
+template <typename vertex_t, typename weight_t, typename func_t>
 std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
            std::optional<rmm::device_uvector<weight_t>>>
-shuffle_ext_vertex_pairs_to_local_gpu_by_edge_partitioning(
-  raft::handle_t const& handle,
-  rmm::device_uvector<vertex_t>&& majors,
-  rmm::device_uvector<vertex_t>&& minors,
-  std::optional<rmm::device_uvector<weight_t>>&& weights)
+shuffle_vertex_pairs_by_gpu_id_impl(raft::handle_t const& handle,
+                                    rmm::device_uvector<vertex_t>&& majors,
+                                    rmm::device_uvector<vertex_t>&& minors,
+                                    std::optional<rmm::device_uvector<weight_t>>&& weights,
+                                    func_t func)
 {
-  auto& comm               = handle.get_comms();
-  auto const comm_size     = comm.get_size();
-  auto& row_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
-  auto const row_comm_size = row_comm.get_size();
-  auto& col_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
-  auto const col_comm_size = col_comm.get_size();
+  auto& comm           = handle.get_comms();
+  auto const comm_size = comm.get_size();
 
   auto total_global_mem = handle.get_device_properties().totalGlobalMem;
   auto element_size     = sizeof(vertex_t) * 2 + (weights ? sizeof(weight_t) : size_t{0});
@@ -79,11 +76,7 @@ shuffle_ext_vertex_pairs_to_local_gpu_by_edge_partitioning(
     auto d_tx_value_counts = cugraph::groupby_and_count(
       edge_first,
       edge_first + majors.size(),
-      [key_func =
-         cugraph::detail::compute_gpu_id_from_ext_edge_endpoints_t<vertex_t>{
-           comm_size, row_comm_size, col_comm_size}] __device__(auto val) {
-        return key_func(thrust::get<0>(val), thrust::get<1>(val));
-      },
+      [func] __device__(auto val) { return func(thrust::get<0>(val), thrust::get<1>(val)); },
       comm_size,
       mem_frugal_threshold,
       handle.get_stream());
@@ -126,11 +119,7 @@ shuffle_ext_vertex_pairs_to_local_gpu_by_edge_partitioning(
     auto d_tx_value_counts = cugraph::groupby_and_count(
       edge_first,
       edge_first + majors.size(),
-      [key_func =
-         cugraph::detail::compute_gpu_id_from_ext_edge_endpoints_t<vertex_t>{
-           comm_size, row_comm_size, col_comm_size}] __device__(auto val) {
-        return key_func(thrust::get<0>(val), thrust::get<1>(val));
-      },
+      [func] __device__(auto val) { return func(thrust::get<0>(val), thrust::get<1>(val)); },
       comm_size,
       mem_frugal_threshold,
       handle.get_stream());
@@ -163,6 +152,74 @@ shuffle_ext_vertex_pairs_to_local_gpu_by_edge_partitioning(
   }
 
   return std::make_tuple(std::move(rx_majors), std::move(rx_minors), std::move(rx_weights));
+}
+
+}  // namespace
+
+namespace detail {
+
+template <typename vertex_t, typename weight_t>
+std::tuple<rmm::device_uvector<vertex_t>,
+           rmm::device_uvector<vertex_t>,
+           std::optional<rmm::device_uvector<weight_t>>>
+shuffle_ext_vertex_pairs_to_local_gpu_by_edge_partitioning(
+  raft::handle_t const& handle,
+  rmm::device_uvector<vertex_t>&& majors,
+  rmm::device_uvector<vertex_t>&& minors,
+  std::optional<rmm::device_uvector<weight_t>>&& weights)
+{
+  auto& comm               = handle.get_comms();
+  auto const comm_size     = comm.get_size();
+  auto& row_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
+  auto const row_comm_size = row_comm.get_size();
+  auto& col_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
+  auto const col_comm_size = col_comm.get_size();
+
+  return shuffle_vertex_pairs_by_gpu_id_impl(
+    handle,
+    std::move(majors),
+    std::move(minors),
+    std::move(weights),
+    cugraph::detail::compute_gpu_id_from_ext_edge_endpoints_t<vertex_t>{
+      comm_size, row_comm_size, col_comm_size});
+}
+
+template <typename vertex_t, typename weight_t>
+std::tuple<rmm::device_uvector<vertex_t>,
+           rmm::device_uvector<vertex_t>,
+           std::optional<rmm::device_uvector<weight_t>>>
+shuffle_int_vertex_pairs_to_local_gpu_by_edge_partitioning(
+  raft::handle_t const& handle,
+  rmm::device_uvector<vertex_t>&& majors,
+  rmm::device_uvector<vertex_t>&& minors,
+  std::optional<rmm::device_uvector<weight_t>>&& weights,
+  std::vector<vertex_t> const& vertex_partition_range_lasts)
+{
+  auto& comm               = handle.get_comms();
+  auto const comm_size     = comm.get_size();
+  auto& row_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().row_name());
+  auto const row_comm_size = row_comm.get_size();
+  auto& col_comm           = handle.get_subcomm(cugraph::partition_2d::key_naming_t().col_name());
+  auto const col_comm_size = col_comm.get_size();
+
+  rmm::device_uvector<vertex_t> d_vertex_partition_range_lasts(vertex_partition_range_lasts.size(),
+                                                               handle.get_stream());
+  raft::update_device(d_vertex_partition_range_lasts.data(),
+                      vertex_partition_range_lasts.data(),
+                      vertex_partition_range_lasts.size(),
+                      handle.get_stream());
+
+  return shuffle_vertex_pairs_by_gpu_id_impl(
+    handle,
+    std::move(majors),
+    std::move(minors),
+    std::move(weights),
+    cugraph::detail::compute_gpu_id_from_int_edge_endpoints_t<vertex_t>{
+      raft::device_span<vertex_t const>(d_vertex_partition_range_lasts.data(),
+                                        d_vertex_partition_range_lasts.size()),
+      comm_size,
+      row_comm_size,
+      col_comm_size});
 }
 
 template std::tuple<rmm::device_uvector<int32_t>,
@@ -200,6 +257,46 @@ shuffle_ext_vertex_pairs_to_local_gpu_by_edge_partitioning(
   rmm::device_uvector<int64_t>&& majors,
   rmm::device_uvector<int64_t>&& minors,
   std::optional<rmm::device_uvector<double>>&& weights);
+
+template std::tuple<rmm::device_uvector<int32_t>,
+                    rmm::device_uvector<int32_t>,
+                    std::optional<rmm::device_uvector<float>>>
+shuffle_int_vertex_pairs_to_local_gpu_by_edge_partitioning(
+  raft::handle_t const& handle,
+  rmm::device_uvector<int32_t>&& majors,
+  rmm::device_uvector<int32_t>&& minors,
+  std::optional<rmm::device_uvector<float>>&& weights,
+  std::vector<int32_t> const& vertex_partition_range_lasts);
+
+template std::tuple<rmm::device_uvector<int32_t>,
+                    rmm::device_uvector<int32_t>,
+                    std::optional<rmm::device_uvector<double>>>
+shuffle_int_vertex_pairs_to_local_gpu_by_edge_partitioning(
+  raft::handle_t const& handle,
+  rmm::device_uvector<int32_t>&& majors,
+  rmm::device_uvector<int32_t>&& minors,
+  std::optional<rmm::device_uvector<double>>&& weights,
+  std::vector<int32_t> const& vertex_partition_range_lasts);
+
+template std::tuple<rmm::device_uvector<int64_t>,
+                    rmm::device_uvector<int64_t>,
+                    std::optional<rmm::device_uvector<float>>>
+shuffle_int_vertex_pairs_to_local_gpu_by_edge_partitioning(
+  raft::handle_t const& handle,
+  rmm::device_uvector<int64_t>&& majors,
+  rmm::device_uvector<int64_t>&& minors,
+  std::optional<rmm::device_uvector<float>>&& weights,
+  std::vector<int64_t> const& vertex_partition_range_lasts);
+
+template std::tuple<rmm::device_uvector<int64_t>,
+                    rmm::device_uvector<int64_t>,
+                    std::optional<rmm::device_uvector<double>>>
+shuffle_int_vertex_pairs_to_local_gpu_by_edge_partitioning(
+  raft::handle_t const& handle,
+  rmm::device_uvector<int64_t>&& majors,
+  rmm::device_uvector<int64_t>&& minors,
+  std::optional<rmm::device_uvector<double>>&& weights,
+  std::vector<int64_t> const& vertex_partition_range_lasts);
 
 }  // namespace detail
 }  // namespace cugraph

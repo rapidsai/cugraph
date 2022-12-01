@@ -52,6 +52,37 @@ shuffle_ext_vertex_pairs_to_local_gpu_by_edge_partitioning(
   std::optional<rmm::device_uvector<weight_t>>&& weights);
 
 /**
+ * @brief Shuffle internal (i.e. renumbered) vertex pairs (which can be edge end points) to their
+ * local GPUs based on edge partitioning.
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam weight_t Type of edge weights. Needs to be a floating point type.
+ *
+ * @param[in] handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator,
+ * and handles to various CUDA libraries) to run graph algorithms.
+ * @param[in] majors Vector of first elemetns in vertex pairs. To determine the local GPU of a
+ * (major, minor) pair, we assume there exists an edge from major=>minor (if we store edges in the
+ * sparse 2D matrix using sources as major indices) or minor=>major (otherwise) and apply the edge
+ * partitioning to determine the local GPU.
+ * @param[in] minors Vector of second elements in vertex pairs.
+ * @param[in] weights Optional vector of vertex pair weight values.
+ * @param[in] vertex_partition_range_lasts Vector of each GPU's vertex partition range's last
+ * (exclusive) vertex ID.
+ *
+ * @return Tuple of vectors storing shuffled major vertices, minor vertices and optional weights.
+ */
+template <typename vertex_t, typename weight_t>
+std::tuple<rmm::device_uvector<vertex_t>,
+           rmm::device_uvector<vertex_t>,
+           std::optional<rmm::device_uvector<weight_t>>>
+shuffle_int_vertex_pairs_to_local_gpu_by_edge_partitioning(
+  raft::handle_t const& handle,
+  rmm::device_uvector<vertex_t>&& majors,
+  rmm::device_uvector<vertex_t>&& minors,
+  std::optional<rmm::device_uvector<weight_t>>&& weights,
+  std::vector<vertex_t> const& vertex_partition_range_lasts);
+
+/**
  * @brief Shuffle external (i.e. before renumbering) vertices to their local GPU based on vertex
  * partitioning.
  *
@@ -97,7 +128,8 @@ shuffle_ext_vertex_value_pairs_to_local_gpu_by_vertex_partitioning(
  * @param[in] handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator,
  * and handles to various CUDA libraries) to run graph algorithms.
  * @param[in] vertices Vertices to shuffle.
- * @param[in] vertex_partition_range_lasts From graph view, vector of last vertex ID for each gpu.
+ * @param[in] vertex_partition_range_lasts Vector of each GPU's vertex partition range's last
+ * (exclusive) vertex ID.
  *
  * @return Vector of shuffled vertices.
  */
