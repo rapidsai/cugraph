@@ -58,9 +58,9 @@ requirements:
     - cudf={{ minor_version }}
     - cupy >=9.5.0,<12.0.0a0
     - dask-cudf {{ minor_version }}
-    - dask-c2022.11.1nor_version }}
-    - dask==2022.112022.11.1
-    - distributed==2022.11.0
+    - dask-cuda {{ minor_version }}
+    - dask==2022.11.1
+    - distributed==2022.11.1
     - ucx-py {{ ucx_py_version }}
     - ucx-proc=*=gpu
     - {{ pin_compatible('cudatoolkit', max_pin='x', min_pin='x') }}
