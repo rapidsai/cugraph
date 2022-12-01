@@ -1,9 +1,6 @@
 name: cuGraph wheels
 
 on:
-  push:
-    branches:
-      - 'pull-request/[0-9]+'
   workflow_call:
     inputs:
       versioneer-override:
@@ -35,7 +32,7 @@ jobs:
     with:
       repo: rapidsai/cugraph
 
-      build-type: ${{ inputs.build-type || 'pull-request' }}
+      build-type: ${{ inputs.build-type }}
       branch: ${{ inputs.branch }}
       sha: ${{ inputs.sha }}
       date: ${{ inputs.date }}
@@ -68,7 +65,7 @@ jobs:
     with:
       repo: rapidsai/cugraph
 
-      build-type: ${{ inputs.build-type || 'pull-request' }}
+      build-type: ${{ inputs.build-type }}
       branch: ${{ inputs.branch }}
       sha: ${{ inputs.sha }}
       date: ${{ inputs.date }}
@@ -89,9 +86,9 @@ jobs:
       skbuild-configure-options: "-DDETECT_CONDA_ENV=OFF -DCUGRAPH_BUILD_WHEELS=ON -DCPM_cugraph-ops_SOURCE=/project/cugraph-ops/"
 
       # Always want to test against latest dask/distributed.
-      test-before-amd64: "pip install git+https://github.com/dask/dask.git@main git+https://github.com/dask/distributed.git@main"
+      test-before-amd64: "pip install git+https://github.com/dask/dask.git@main git+https://github.com/dask/distributed.git@main git+https://github.com/rapidsai/dask-cuda.git@branch-22.12"
       # On arm also need to install cupy from the specific webpage.
-      test-before-arm64: "pip install cupy-cuda11x -f https://pip.cupy.dev/aarch64 && pip install git+https://github.com/dask/dask.git@main git+https://github.com/dask/distributed.git@main"
+      test-before-arm64: "pip install cupy-cuda11x -f https://pip.cupy.dev/aarch64 && pip install git+https://github.com/dask/dask.git@main git+https://github.com/dask/distributed.git@main git+https://github.com/rapidsai/dask-cuda.git@branch-22.12"
       test-extras: test
       test-unittest: "RAPIDS_DATASET_ROOT_DIR=`pwd`/datasets pytest -v ./python/cugraph/cugraph/tests"
     secrets: inherit
