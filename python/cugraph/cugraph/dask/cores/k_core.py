@@ -112,7 +112,7 @@ def k_core(input_graph, k=None, core_number=None, degree_type="bidirectional"):
     ...                          chunksize=chunksize, delimiter=" ",
     ...                          names=["src", "dst", "value"],
     ...                          dtype=["int32", "int32", "float32"])
-    >>> dg = cugraph.Graph(directed=True)
+    >>> dg = cugraph.Graph(directed=False)
     >>> dg.from_dask_cudf_edgelist(ddf, source='src', destination='dst',
     ...                            edge_attr='value')
     >>> KCore_df = dcg.k_core(dg)
