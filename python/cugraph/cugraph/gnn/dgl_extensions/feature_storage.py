@@ -157,4 +157,8 @@ class CuFeatureStorage:
             if type(tensor).__module__ == "torch":
                 # Can only transfer to different device for pytorch
                 tensor = tensor.to(device)
-        return tensor.squeeze()
+
+        if tensor.shape[1] == 1:
+            tensor = tensor.squeeze()
+
+        return tensor
