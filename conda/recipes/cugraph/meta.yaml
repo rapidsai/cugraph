@@ -58,8 +58,8 @@ requirements:
     - cudf={{ minor_version }}
     - cupy >=9.5.0,<12.0.0a0
     - dask-cudf {{ minor_version }}
-    - dask-cuda {{ minor_version }}
-    - dask==2022.11.0
+    - dask-c2022.11.1nor_version }}
+    - dask==2022.112022.11.1
     - distributed==2022.11.0
     - ucx-py {{ ucx_py_version }}
     - ucx-proc=*=gpu
