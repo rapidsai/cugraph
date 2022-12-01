@@ -43,9 +43,15 @@ from pylibcugraph.uniform_neighbor_sample import uniform_neighbor_sample
 
 from pylibcugraph.core_number import core_number
 
+from pylibcugraph.k_core import k_core
+
+from pylibcugraph.two_hop_neighbors import get_two_hop_neighbors
+
 from pylibcugraph.louvain import louvain
 
 from pylibcugraph.triangle_count import triangle_count
+
+from pylibcugraph.egonet import ego_graph
 
 from pylibcugraph.weakly_connected_components import weakly_connected_components
 

@@ -32,6 +32,7 @@ def subgraph(G, vertices):
     ----------
     G : cugraph.Graph
         cuGraph graph descriptor
+        The current implementation only supports weighted graphs.
 
     vertices : cudf.Series or cudf.DataFrame
         Specifies the vertices of the induced subgraph. For multi-column

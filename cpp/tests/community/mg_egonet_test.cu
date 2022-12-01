@@ -71,7 +71,7 @@ class Tests_MGEgonet
       hr_clock.start();
     }
 
-    auto [mg_graph, d_renumber_map_labels] =
+    auto [mg_graph, mg_edge_weights, d_renumber_map_labels] =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, true>(
         *handle_, input_usecase, egonet_usecase.test_weighted_, true);
 
@@ -84,6 +84,8 @@ class Tests_MGEgonet
     }
 
     auto mg_graph_view = mg_graph.view();
+    auto mg_edge_weight_view =
+      mg_edge_weights ? std::make_optional((*mg_edge_weights).view()) : std::nullopt;
 
     int my_rank = handle_->get_comms().get_rank();
 
@@ -129,6 +131,7 @@ class Tests_MGEgonet
       cugraph::extract_ego(
         *handle_,
         mg_graph_view,
+        mg_edge_weight_view,
         raft::device_span<vertex_t const>{d_ego_sources.data(), d_ego_sources.size()},
         static_cast<vertex_t>(egonet_usecase.radius_));
 
@@ -185,8 +188,12 @@ class Tests_MGEgonet
       d_ego_edgelist_offsets = cugraph::detail::compute_sparse_offsets<size_t>(
         graph_ids_v.begin(), graph_ids_v.end(), size_t{0}, offsets_size - 1, handle_->get_stream());
 
-      auto [sg_graph, sg_number_map] = cugraph::test::mg_graph_to_sg_graph(
-        *handle_, mg_graph_view, std::optional<rmm::device_uvector<vertex_t>>{std::nullopt}, false);
+      auto [sg_graph, sg_edge_weights, sg_number_map] = cugraph::test::mg_graph_to_sg_graph(
+        *handle_,
+        mg_graph_view,
+        mg_edge_weight_view,
+        std::optional<rmm::device_uvector<vertex_t>>{std::nullopt},
+        false);
 
       d_ego_sources = cugraph::test::device_gatherv(
         *handle_, raft::device_span<vertex_t const>(d_ego_sources.data(), d_ego_sources.size()));
@@ -196,6 +203,7 @@ class Tests_MGEgonet
           cugraph::extract_ego(
             *handle_,
             sg_graph.view(),
+            sg_edge_weights ? std::make_optional((*sg_edge_weights).view()) : std::nullopt,
             raft::device_span<vertex_t const>{d_ego_sources.data(), d_ego_sources.size()},
             static_cast<vertex_t>(egonet_usecase.radius_));
 

@@ -5,7 +5,13 @@
 [RAPIDS](https://rapids.ai) cugraph_dgl provides a duck-typed version of the [DGLGraph](https://docs.dgl.ai/api/python/dgl.DGLGraph.html#dgl.DGLGraph) class, which uses cugraph for storing graph structure and node/edge feature data.  Using cugraph as the backend allows DGL users to access a collection of GPU accelerated algorithms for graph analytics, such as centrality computation and community detection. 
 
 ## Conda
-TODO
+
+Install and update cugraph-dgl and the required dependencies using the command:
+
+```
+conda install mamba -n base -c conda-forge
+mamba install cugraph-dgl -c rapidsai-nightly -c rapidsai -c pytorch -c conda-forge -c nvidia -c dglteam
+```
 
 ## Build from Source
 

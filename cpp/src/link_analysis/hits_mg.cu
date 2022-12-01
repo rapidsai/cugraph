@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2022, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,7 +21,7 @@ namespace cugraph {
 // MG instantiation
 template std::tuple<float, size_t> hits(
   raft::handle_t const& handle,
-  graph_view_t<int32_t, int32_t, float, true, true> const& graph_view,
+  graph_view_t<int32_t, int32_t, true, true> const& graph_view,
   float* const hubs,
   float* const authorities,
   float epsilon,
@@ -32,7 +32,7 @@ template std::tuple<float, size_t> hits(
 
 template std::tuple<double, size_t> hits(
   raft::handle_t const& handle,
-  graph_view_t<int32_t, int32_t, double, true, true> const& graph_view,
+  graph_view_t<int32_t, int32_t, true, true> const& graph_view,
   double* const hubs,
   double* const authorities,
   double epsilon,
@@ -43,7 +43,7 @@ template std::tuple<double, size_t> hits(
 
 template std::tuple<float, size_t> hits(
   raft::handle_t const& handle,
-  graph_view_t<int32_t, int64_t, float, true, true> const& graph_view,
+  graph_view_t<int32_t, int64_t, true, true> const& graph_view,
   float* const hubs,
   float* const authorities,
   float epsilon,
@@ -54,7 +54,7 @@ template std::tuple<float, size_t> hits(
 
 template std::tuple<double, size_t> hits(
   raft::handle_t const& handle,
-  graph_view_t<int32_t, int64_t, double, true, true> const& graph_view,
+  graph_view_t<int32_t, int64_t, true, true> const& graph_view,
   double* const hubs,
   double* const authorities,
   double epsilon,
@@ -65,7 +65,7 @@ template std::tuple<double, size_t> hits(
 
 template std::tuple<float, size_t> hits(
   raft::handle_t const& handle,
-  graph_view_t<int64_t, int64_t, float, true, true> const& graph_view,
+  graph_view_t<int64_t, int64_t, true, true> const& graph_view,
   float* const hubs,
   float* const authorities,
   float epsilon,
@@ -76,7 +76,7 @@ template std::tuple<float, size_t> hits(
 
 template std::tuple<double, size_t> hits(
   raft::handle_t const& handle,
-  graph_view_t<int64_t, int64_t, double, true, true> const& graph_view,
+  graph_view_t<int64_t, int64_t, true, true> const& graph_view,
   double* const hubs,
   double* const authorities,
   double epsilon,

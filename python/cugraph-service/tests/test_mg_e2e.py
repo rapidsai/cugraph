@@ -42,7 +42,7 @@ def mg_server():
     from cugraph_service_client.exceptions import CugraphServiceError
 
     server_process = None
-    host = "localhost"
+    host = "0.0.0.0"
     port = 9090
     client = CugraphServiceClient(host, port)
 
@@ -257,7 +257,7 @@ def test_get_edge_IDs_for_vertices(client_of_mg_server_with_edgelist_csv_loaded)
     # graph type. Ideally, users should not need to know the graph type.
     assert "MG" in client_of_mg_server._get_graph_type()
 
-    graph_id = client_of_mg_server.extract_subgraph(allow_multi_edges=True)
+    graph_id = client_of_mg_server.extract_subgraph(check_multi_edges=True)
     client_of_mg_server.get_edge_IDs_for_vertices([1, 2, 3], [0, 0, 0], graph_id)
 
 
@@ -478,3 +478,27 @@ def test_extension_adds_graph(
     # is unloaded from the server before returning
     for mod_name in ext_mod_names:
         client.unload_extension_module(mod_name)
+
+
+def test_inside_asyncio_event_loop(
+    client_of_sg_server_on_device_1_large_property_graph_loaded, result_device_id
+):
+    import asyncio
+
+    client, graph_id = client_of_sg_server_on_device_1_large_property_graph_loaded
+
+    start_list = [1, 2, 3]
+    fanout_vals = [2, 2, 2]
+    with_replacement = True
+
+    async def uns():
+        return client.uniform_neighbor_sample(
+            start_list=start_list,
+            fanout_vals=fanout_vals,
+            with_replacement=with_replacement,
+            graph_id=graph_id,
+            result_device=result_device_id,
+        )
+
+    # ensure call succeeds; have confirmed this fails without fix in client
+    assert asyncio.run(uns()) is not None

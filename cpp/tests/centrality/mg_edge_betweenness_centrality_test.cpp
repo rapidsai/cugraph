@@ -69,7 +69,7 @@ class Tests_MGEdgeBetweennessCentrality
       hr_clock.start();
     }
 
-    auto [graph, d_renumber_map_labels] =
+    auto [mg_graph, mg_edge_weights, d_renumber_map_labels] =
       cugraph::test::construct_graph<vertex_t, edge_t, weight_t, false, true>(
         *handle_, input_usecase, betweenness_usecase.test_weighted, renumber);
 
@@ -80,12 +80,15 @@ class Tests_MGEdgeBetweennessCentrality
       std::cout << "construct_graph took " << elapsed_time * 1e-6 << " s.\n";
     }
 
-    auto graph_view = graph.view();
+    auto mg_graph_view = mg_graph.view();
+    auto mg_edge_weight_view =
+      mg_edge_weights ? std::make_optional((*mg_edge_weights).view()) : std::nullopt;
 
     rmm::device_uvector<vertex_t> d_seeds(0, handle_->get_stream());
 
     if (handle_->get_comms().get_rank() == 0) {
-      rmm::device_uvector<vertex_t> d_seeds(graph_view.number_of_vertices(), handle_->get_stream());
+      rmm::device_uvector<vertex_t> d_seeds(mg_graph_view.number_of_vertices(),
+                                            handle_->get_stream());
       cugraph::detail::sequence_fill(
         handle_->get_stream(), d_seeds.data(), d_seeds.size(), vertex_t{0});
 
@@ -102,7 +105,8 @@ class Tests_MGEdgeBetweennessCentrality
 #if 0
     auto d_centralities = cugraph::edge_betweenness_centrality(
       *handle_,
-      graph_view,
+      mg_graph_view,
+      mg_edge_weight_view,
       std::make_optional<std::variant<vertex_t, raft::device_span<vertex_t const>>>(
         raft::device_span<vertex_t const>{d_seeds.data(), d_seeds.size()}),
       betweenness_usecase.normalized,
@@ -110,7 +114,8 @@ class Tests_MGEdgeBetweennessCentrality
 #else
     EXPECT_THROW(cugraph::edge_betweenness_centrality(
                    *handle_,
-                   graph_view,
+                   mg_graph_view,
+                   mg_edge_weight_view,
                    std::make_optional<std::variant<vertex_t, raft::device_span<vertex_t const>>>(
                      raft::device_span<vertex_t const>{d_seeds.data(), d_seeds.size()}),
                    betweenness_usecase.normalized,

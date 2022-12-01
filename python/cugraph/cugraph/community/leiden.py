@@ -34,7 +34,7 @@ def leiden(G, max_iter=100, resolution=1.0):
     G : cugraph.Graph
         cuGraph graph descriptor of type Graph
 
-        The current implementation only supports undirected graphs.
+        The current implementation only supports undirected weighted graphs.
 
         The adjacency list will be computed if not already present.
 

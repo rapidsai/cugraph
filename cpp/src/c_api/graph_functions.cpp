@@ -71,7 +71,13 @@ struct create_vertex_pairs_functor : public cugraph::c_api::abstract_functor {
         second_copy.data(), second_->as_type<vertex_t>(), second_->size_, handle_.get_stream());
 
       if constexpr (multi_gpu) {
-        // FIXME: shuffle first_copy/second_copy
+        std::tie(first_copy, second_copy, std::ignore) =
+          cugraph::detail::shuffle_edgelist_by_gpu_id<vertex_t, weight_t>(
+            handle_,
+            std::move(first_copy),
+            std::move(second_copy),
+            std::nullopt);  // vertex pairs should be shuffled based on the edge partitioning, so we
+                            // can use this edge shuffling function to shuffle vertex pairs.
       }
 
       result_ = new cugraph::c_api::cugraph_vertex_pairs_t{
@@ -122,8 +128,7 @@ struct two_hop_neighbors_functor : public cugraph::c_api::abstract_functor {
       }
 
       auto graph =
-        reinterpret_cast<cugraph::graph_t<vertex_t, edge_t, weight_t, false, multi_gpu>*>(
-          graph_->graph_);
+        reinterpret_cast<cugraph::graph_t<vertex_t, edge_t, false, multi_gpu>*>(graph_->graph_);
 
       auto graph_view = graph->view();
       auto number_map = reinterpret_cast<rmm::device_uvector<vertex_t>*>(graph_->number_map_);
