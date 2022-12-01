@@ -142,7 +142,12 @@ fi
 
 fnames=()
 # Initialize all the run variables to true, as we want to run all the tests if the build_mode is NOT a pull-request
-run_cpp_tests="true" run_python_tests="true" run_nb_tests="true"
+run_libcugraph_tests="true"
+run_pylibcugraph_tests="true"
+run_cugraph_tests="true"
+run_service_tests="true"
+run_nb_tests="true"
+
 if [ "$BUILD_MODE" == "pull-request" ]; then
     PR_ENDPOINT="https://api.github.com/repos/rapidsai/cugraph/pulls/${PR_ID}/files"
     fnames=(
@@ -156,28 +161,58 @@ if [ "$BUILD_MODE" == "pull-request" ]; then
       )
     )
     # Initialize all the run variables to false, for pull-requests only, later, based on what's changed, these variables will be set to true
-    run_cpp_tests="false" run_python_tests="false" run_nb_tests="false"
+    run_libcugraph_tests="false"
+    run_pylibcugraph_tests="false"
+    run_cugraph_tests="false"
+    run_service_tests="false"
+    run_nb_tests="false"
 fi
+
 # this will not do anything if the 'fnames' array is empty
 for fname in "${fnames[@]}"
 do
    if [[ "$fname" == *"cpp/"* && "$fname" != *"cpp/docs/"* && "$fname" != *"cpp/doxygen/"* ]]; then
-      run_cpp_tests="true" run_python_tests="true" run_nb_tests="true"
+      run_libcugraph_tests="true"
    fi
-   if [[ "$fname" == *"python/"* ]]; then
-      run_python_tests="true" run_nb_tests="true"
+   if [[ "$fname" == *"python/pylibcugraph/"* ]]; then
+      run_pylibcugraph_tests="true"
+   fi
+   if [[ "$fname" == *"python/cugraph/"* ]]; then
+      run_cugraph_tests="true"
+   fi
+   if [[ "$fname" == *"python/cugraph-service/"* ]]; then
+      run_service_tests="true"
    fi
    if [[ "$fname" == *"notebooks/"* ]]; then
       run_nb_tests="true"
    fi
 done
-################################################################################
-# PRINT SUMMARY OF TESTS to BE EXECUTED
-################################################################################
+
 gpuci_logger "Summary of CI tests to be executed"
-gpuci_logger "Run cpp tests=$run_cpp_tests"
-gpuci_logger "Run python tests=$run_python_tests"
+gpuci_logger "Run libcugraph tests=$run_libcugraph_tests"
+gpuci_logger "Run pylibcugraph tests=$run_pylibcugraph_tests"
+gpuci_logger "Run cugraph tests=$run_cugraph_tests"
+gpuci_logger "Run cugraph-service tests=$run_service_tests"
 gpuci_logger "Run notebook tests=$run_nb_tests"
+
+TEST_SCRIPT_ARGS=""
+DATASET_OPTION="--skip-download"
+NOTEBOOK_TEST_MODE="ci"
+
+if [[ $run_libcugraph_tests == "true" ]]; then
+    TEST_SCRIPT_ARGS="libcugraph pylibcugraph cugraph cugraph-service"
+    run_nb_tests="true"
+    DATASET_OPTION=""
+elif [[ $run_pylibcugraph_tests == "true" ]]; then
+    TEST_SCRIPT_ARGS="pylibcugraph cugraph cugraph-service"
+    run_nb_tests="true"
+elif [[ $run_cugraph_tests == "true" ]]; then
+    TEST_SCRIPT_ARGS="cugraph cugraph-service"
+    run_nb_tests="true"
+elif [[ $run_service_tests == "true" ]]; then
+    # Add NB tests once there are NBs that use cugraph-service
+    TEST_SCRIPT_ARGS="cugraph-servce"
+fi
 
 ################################################################################
 # TEST
@@ -207,27 +242,25 @@ else
         TEST_MODE_FLAG=""
     fi
 
-    NOTEBOOK_TEST_MODE="ci"
-
-    gpuci_logger "Running cuGraph test.sh..."
-    if [[ $run_cpp_tests == "true" ]]; then
-        ${WORKSPACE}/ci/test.sh ${TEST_MODE_FLAG} --run-cpp-tests --run-python-tests | tee testoutput.txt
-    elif [[ $run_python_tests == "true" ]]; then
-        ${WORKSPACE}/ci/test.sh ${TEST_MODE_FLAG} --run-python-tests | tee testoutput.txt
+    if [[ $TEST_SCRIPT_ARGS == "" ]]; then
+	gpuci_logger "Skipping test.sh"
     else
-        ${WORKSPACE}/ci/test.sh ${TEST_MODE_FLAG} | tee testoutput.txt
+	gpuci_logger "Running test.sh..."
+        ${WORKSPACE}/ci/test.sh $TEST_MODE_FLAG $DATASET_OPTION $TEST_SCRIPT_ARGS | tee testoutput.txt
+        gpuci_logger "Ran cuGraph test.sh : return code was: $?, gpu/build.sh exit code is now: $EXITCODE"
     fi
-    gpuci_logger "Ran cuGraph test.sh : return code was: $?, gpu/build.sh exit code is now: $EXITCODE"
 
     if [[ $run_nb_tests == "true" ]]; then
-        gpuci_logger "Running cuGraph notebook test script..."
+        gpuci_logger "Running notebook test script..."
         ${WORKSPACE}/ci/gpu/test-notebooks.sh ${NOTEBOOK_TEST_MODE} 2>&1 | tee nbtest.log
         gpuci_logger "Ran cuGraph notebook test script : return code was: $?, gpu/build.sh exit code is now: $EXITCODE"
         python ${WORKSPACE}/ci/utils/nbtestlog2junitxml.py nbtest.log
+    else
+        gpuci_logger "Skipping notebook test script"
     fi
 fi
 
-if [[ -n "${CODECOV_TOKEN}" && $run_python_tests == "true" ]]; then
+if [[ -n "${CODECOV_TOKEN}" && $run_cugraph_tests == "true" ]]; then
     codecov -t $CODECOV_TOKEN
 fi
 

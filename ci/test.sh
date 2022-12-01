@@ -65,7 +65,7 @@ set +e
 
 if (python ${CUGRAPH_ROOT}/ci/utils/is_pascal.py); then
     echo "WARNING: skipping C++ tests on Pascal GPU arch."
-elif hasArg "--run-cpp-tests"; then
+elif hasArg "libcugraph"; then
     echo "C++ gtests for cuGraph (single-GPU only)..."
     for gt in "${CONDA_PREFIX}/bin/gtests/libcugraph/"*_TEST; do
         test_name=$(basename $gt)
@@ -84,14 +84,15 @@ elif hasArg "--run-cpp-tests"; then
     done
 fi
 
-if hasArg "--run-python-tests"; then
+if hasArg "pylibcugraph"; then
     echo "Python pytest for pylibcugraph..."
     cd ${CUGRAPH_ROOT}/python/pylibcugraph/pylibcugraph
     pytest -sv --cache-clear --junitxml=${CUGRAPH_ROOT}/junit-pylibcugraph-pytests.xml --cov-config=.coveragerc --cov=pylibcugraph --cov-report=xml:${WORKSPACE}/python/pylibcugraph/pylibcugraph-coverage.xml --cov-report term --ignore=raft --benchmark-disable
     echo "Ran Python pytest for pylibcugraph : return code was: $?, test script exit code is now: $EXITCODE"
+fi
 
+if hasArg "cugraph"; then
     echo "Python pytest for cuGraph (single-GPU only)..."
-    conda list
     cd ${CUGRAPH_ROOT}/python/cugraph/cugraph
     # rmat is not tested because of MG testing
     pytest -sv --cache-clear --junitxml=${CUGRAPH_ROOT}/junit-cugraph-pytests.xml --cov-config=.coveragerc --cov=cugraph --cov-report=xml:${WORKSPACE}/python/cugraph/cugraph-coverage.xml --cov-report term --ignore=raft --ignore=tests/mg --ignore=tests/generators --benchmark-disable
@@ -101,7 +102,9 @@ if hasArg "--run-python-tests"; then
     cd ${CUGRAPH_ROOT}/benchmarks
     pytest -sv -m "managedmem_on and poolallocator_on and tiny" --benchmark-disable
     echo "Ran Python benchmarks for cuGraph (running as tests) : return code was: $?, test script exit code is now: $EXITCODE"
+fi
 
+if hasArg "cugraph-service"; then
     echo "Python pytest for cugraph-service (single-GPU only)..."
     cd ${CUGRAPH_ROOT}/python/cugraph-service
     pytest -sv --cache-clear --junitxml=${CUGRAPH_ROOT}/junit-cugraph-service-pytests.xml --benchmark-disable -k "not mg" ./tests
