@@ -112,7 +112,7 @@ def layerwise_infer(device, graph, nid, model, batch_size):
             .fetch(nid.to(device), device=device)
             .to(pred.device)
         )
-        num_classes = label.shape[1]
+        num_classes = pred.shape[1]
         return MF.accuracy(pred, label, task='multiclass', num_classes=num_classes)
 
 
