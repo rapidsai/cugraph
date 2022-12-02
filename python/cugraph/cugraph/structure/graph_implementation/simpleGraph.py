@@ -392,7 +392,13 @@ class simpleGraphImpl:
         self.edgelist = None
 
     def __from_adjlist(
-        self, offset_col, index_col, value_col=None, renumber=True, store_transposed=False):
+        self,
+        offset_col,
+        index_col,
+        value_col=None,
+        renumber=True,
+        store_transposed=False,
+    ):
 
         self.adjlist = simpleGraphImpl.AdjList(offset_col, index_col, value_col)
         if value_col is not None:
@@ -918,7 +924,9 @@ class simpleGraphImpl:
             dst_or_index_array = self.adjlist.indices
             weight_col = value_col
         else:
-            raise TypeError("Edges need to be represented in either in COO or CSR format.")
+            raise TypeError(
+                "Edges need to be represented in either in COO or CSR format."
+            )
 
         self._plc_graph = SGGraph(
             resource_handle=ResourceHandle(),
