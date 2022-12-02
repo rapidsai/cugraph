@@ -53,9 +53,18 @@ option(BUILD_SHARED_LIBS "Build cuGraph shared libraries" ON)
 option(BUILD_CUGRAPH_ETL_MG_TESTS "Build cuGraph multigpu algorithm tests" OFF)
 option(CMAKE_CUDA_LINEINFO "Enable the -lineinfo option for nvcc (useful for cuda-memcheck / profiler" OFF)
 option(BUILD_TESTS "Configure CMake to build tests" ON)
+option(CUDA_STATIC_RUNTIME "Statically link the CUDA toolkit runtime and libraries" OFF)
 
 ################################################################################
 # - compiler options -----------------------------------------------------------
+
+set(_ctk_static_suffix "")
+if(CUDA_STATIC_RUNTIME)
+  set(_ctk_static_suffix "_static")
+endif()
+
+# CUDA runtime
+rapids_cuda_init_runtime(USE_STATIC ${CUDA_STATIC_RUNTIME})
 
 rapids_find_package(CUDAToolkit REQUIRED
     BUILD_EXPORT_SET    cugraph_etl-exports
@@ -137,10 +146,10 @@ target_include_directories(cugraph_etl
 # - ETL link libraries -------------------------------------------------------
 target_link_libraries(cugraph_etl
         PUBLIC
-                CUDA::cublas
-                CUDA::curand
-                CUDA::cusolver
-                CUDA::cusparse
+                CUDA::cublas${_ctk_static_suffix}
+                CUDA::curand${_ctk_static_suffix}
+                CUDA::cusolver${_ctk_static_suffix}
+                CUDA::cusparse${_ctk_static_suffix}
         PRIVATE
                 cugraph::cugraph
                 cudf::cudf

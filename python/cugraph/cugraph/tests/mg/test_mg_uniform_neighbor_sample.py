@@ -124,6 +124,7 @@ def input_combo(request):
 # =============================================================================
 # Tests
 # =============================================================================
+@pytest.mark.cugraph_ops
 def test_mg_uniform_neighbor_sample_simple(dask_client, input_combo):
 
     dg = input_combo["MGGraph"]
@@ -199,6 +200,7 @@ def test_mg_uniform_neighbor_sample_simple(dask_client, input_combo):
             )
 
 
+@pytest.mark.cugraph_ops
 @pytest.mark.parametrize("directed", IS_DIRECTED)
 def test_mg_uniform_neighbor_sample_tree(dask_client, directed):
 
@@ -257,6 +259,7 @@ def test_mg_uniform_neighbor_sample_tree(dask_client, directed):
     assert set(start_list).issubset(set(result_nbr_vertices))
 
 
+@pytest.mark.cugraph_ops
 def test_mg_uniform_neighbor_sample_unweighted(dask_client):
     df = cudf.DataFrame(
         {
@@ -291,6 +294,7 @@ def test_mg_uniform_neighbor_sample_unweighted(dask_client):
     assert sorted(actual_dst) == sorted(expected_dst)
 
 
+@pytest.mark.cugraph_ops
 def test_mg_uniform_neighbor_sample_ensure_no_duplicates(dask_client):
     # See issue #2760
     # This ensures that the starts are properly distributed

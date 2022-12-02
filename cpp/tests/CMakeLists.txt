@@ -110,11 +110,11 @@ function(ConfigureTestMG CMAKE_TEST_NAME)
         ${CMAKE_TEST_NAME}
             PROPERTIES INSTALL_RPATH "\$ORIGIN/../../../lib")
 
-        install(
-            TARGETS ${CMAKE_TEST_NAME}
-            COMPONENT testing
-            DESTINATION bin/gtests/libcugraph_mg
-            EXCLUDE_FROM_ALL)
+    install(
+        TARGETS ${CMAKE_TEST_NAME}
+        COMPONENT testing
+        DESTINATION bin/gtests/libcugraph_mg
+        EXCLUDE_FROM_ALL)
 endfunction()
 
 function(ConfigureCTest CMAKE_TEST_NAME)
@@ -134,11 +134,11 @@ function(ConfigureCTest CMAKE_TEST_NAME)
         ${CMAKE_TEST_NAME}
             PROPERTIES INSTALL_RPATH "\$ORIGIN/../../../lib")
 
-        install(
-            TARGETS ${CMAKE_TEST_NAME}
-            COMPONENT testing
-            DESTINATION bin/gtests/libcugraph_c
-            EXCLUDE_FROM_ALL)
+    install(
+        TARGETS ${CMAKE_TEST_NAME}
+        COMPONENT testing
+        DESTINATION bin/gtests/libcugraph_c
+        EXCLUDE_FROM_ALL)
 endfunction()
 
 function(ConfigureCTestMG CMAKE_TEST_NAME)
@@ -167,11 +167,11 @@ function(ConfigureCTestMG CMAKE_TEST_NAME)
         ${CMAKE_TEST_NAME}
             PROPERTIES INSTALL_RPATH "\$ORIGIN/../../../lib")
 
-        install(
-            TARGETS ${CMAKE_TEST_NAME}
-            COMPONENT testing
-            DESTINATION bin/gtests/libcugraph_c
-            EXCLUDE_FROM_ALL)
+    install(
+        TARGETS ${CMAKE_TEST_NAME}
+        COMPONENT testing
+        DESTINATION bin/gtests/libcugraph_c
+        EXCLUDE_FROM_ALL)
 endfunction()
 
 if(NOT USE_CUGRAPH_OPS)
@@ -351,7 +351,7 @@ ConfigureTest(RANDOM_WALKS_TEST sampling/sg_random_walks_test.cpp)
 # - NBR SAMPLING tests -----------------------------------------------------------------
 ConfigureTest(UNIFORM_NEIGHBOR_SAMPLING_TEST sampling/sg_uniform_neighbor_sampling.cu)
 target_link_libraries(UNIFORM_NEIGHBOR_SAMPLING_TEST PRIVATE cuco::cuco)
-        
+
 ###################################################################################################
 # - Renumber tests --------------------------------------------------------------------------------
 set(RENUMBERING_TEST_SRCS
@@ -410,6 +410,8 @@ if(BUILD_CUGRAPH_MG_TESTS)
             cugraph::cugraph
             NCCL::NCCL
             MPI::MPI_CXX
+        PRIVATE
+            GTest::gtest
     )
 
     # Set the GPU count to 1.  If the caller wants to execute MG tests using
