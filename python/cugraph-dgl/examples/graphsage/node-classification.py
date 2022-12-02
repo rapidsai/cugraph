@@ -96,7 +96,6 @@ def evaluate(model, graph, dataloader):
             x = blocks[0].srcdata["feat"]
             ys.append(blocks[-1].dstdata["label"])
             y_hats.append(model(blocks, x))
-              
     num_classes = y_hats[0].shape[1]
     return MF.accuracy(torch.cat(y_hats), torch.cat(ys), task='multiclass', num_classes=num_classes)
 
