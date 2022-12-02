@@ -36,17 +36,18 @@ dist/
 python/build
 python/cugraph/bindings/*.cpp
 wheels/
+wheelhouse/
 _skbuild/
 cufile.log
 
 ## pylibcugraph build directories & artifacts
 python/pylibcugraph/pylibcugraph.egg-info
-	
+
 ## Patching
 *.diff
 *.orig
 *.rej
-	
+
 ## C++ build directories & artifacts
 CMakeFiles/
 Debug
@@ -54,7 +55,7 @@ build/
 cpp/build/
 cpp/include/cugraph/ipc_generated/*.h
 cpp/thirdparty/googletest/
-	
+
 ## Eclipse IDE
 .project
 .cproject
@@ -92,4 +93,3 @@ python/cugraph/cugraph/tests/dask-worker-space
 
 # Sphinx docs & build artifacts
 docs/cugraph/source/api_docs/api/*
-
