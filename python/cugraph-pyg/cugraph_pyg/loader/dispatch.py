@@ -14,7 +14,7 @@
 # cuGraph or cuGraph-Service is required; each has its own version of
 # import_optional and we need to select the correct one.
 try:
-    from cugraph_service.client.remote_graph_utils import import_optional
+    from cugraph_service_client.remote_graph_utils import import_optional
 except ModuleNotFoundError:
     try:
         from cugraph.utilities.utils import import_optional
@@ -24,7 +24,9 @@ except ModuleNotFoundError:
             "or cuGraph-Service to be installed."
         )
 
-_transform_to_backend_dtype_1d = import_optional("_transform_to_backend_dtype_1d")
+_transform_to_backend_dtype_1d = import_optional(
+    "cugraph_service_client.remote_graph_utils._transform_to_backend_dtype_1d"
+)
 cudf = import_optional("cudf")
 pandas = import_optional("pandas")
 cupy = import_optional("cupy")

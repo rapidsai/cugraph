@@ -20,6 +20,18 @@ import pytest
 from pylibcugraph.testing import utils
 
 
+# Spoof the gpubenchmark fixture if it's not available so that asvdb and
+# rapids-pytest-benchmark do not need to be installed to run tests.
+if "gpubenchmark" not in globals():
+
+    def benchmark_func(func, *args, **kwargs):
+        return func(*args, **kwargs)
+
+    @pytest.fixture
+    def gpubenchmark():
+        return benchmark_func
+
+
 # =============================================================================
 # Fixture parameters
 # =============================================================================

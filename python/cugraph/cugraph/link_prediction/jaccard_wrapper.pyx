@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2021, NVIDIA CORPORATION.
+# Copyright (c) 2019-2022, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -86,8 +86,8 @@ def jaccard(input_graph, weights_arr=None, vertex_pair=None):
         second = vertex_pair[cols[1]].astype(np.int32)
 
         # FIXME: multi column support
-        df['source'] = first
-        df['destination'] = second
+        df['first'] = first
+        df['second'] = second
         c_first_col = first.__cuda_array_interface__['data'][0]
         c_second_col = second.__cuda_array_interface__['data'][0]
 
@@ -116,10 +116,10 @@ def jaccard(input_graph, weights_arr=None, vertex_pair=None):
         assert vertex_pair is None
 
         df = cudf.DataFrame()
-        df['source'] = cudf.Series(np.zeros(num_edges, indices.dtype))
-        df['destination'] = indices
+        df['first'] = cudf.Series(np.zeros(num_edges, indices.dtype))
+        df['second'] = indices
 
-        c_src_index_col = df['source'].__cuda_array_interface__['data'][0]
+        c_src_index_col = df['first'].__cuda_array_interface__['data'][0]
 
         if weight_type == np.float32:
             df['jaccard_coeff'] = cudf.Series(np.ones(num_edges, dtype=np.float32),
