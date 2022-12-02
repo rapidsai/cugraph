@@ -72,12 +72,9 @@ struct create_vertex_pairs_functor : public cugraph::c_api::abstract_functor {
 
       if constexpr (multi_gpu) {
         std::tie(first_copy, second_copy, std::ignore) =
-          cugraph::detail::shuffle_edgelist_by_gpu_id<vertex_t, weight_t>(
-            handle_,
-            std::move(first_copy),
-            std::move(second_copy),
-            std::nullopt);  // vertex pairs should be shuffled based on the edge partitioning, so we
-                            // can use this edge shuffling function to shuffle vertex pairs.
+          cugraph::detail::shuffle_ext_vertex_pairs_to_local_gpu_by_edge_partitioning<vertex_t,
+                                                                                      weight_t>(
+            handle_, std::move(first_copy), std::move(second_copy), std::nullopt);
       }
 
       result_ = new cugraph::c_api::cugraph_vertex_pairs_t{
