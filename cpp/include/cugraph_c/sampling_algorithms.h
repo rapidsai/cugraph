@@ -218,14 +218,23 @@ cugraph_error_code_t cugraph_uniform_neighbor_sample(
 /**
  * @brief     Uniform Neighborhood Sampling
  *
+ * Returns a sample of the neighborhood around specified start vertices.  Optionally, each
+ * start vertex can be associated with a label, allowing the caller to specify multiple batches
+ * of sampling requests in the same function call - which should improve GPU utilization.
+ *
+ * If label is NULL then all start vertices will be considered part of the same batch and the
+ * return value will not have a label column.
+ *
  * @param [in]  handle       Handle for accessing resources
  * @param [in]  graph        Pointer to graph.  NOTE: Graph might be modified if the storage
  *                           needs to be transposed
  * @param [in]  start        Device array of start vertices for the sampling
  * @param [in]  label        Device array of start labels for the sampling.  The labels associated with
  *                           each start vertex will be included in the output associated with results
- *                           that were derived from that start vertex.
- * @param [in]  fanout       Host array defining the fan out at each step in the sampling algorithm
+ *                           that were derived from that start vertex.  We only support label of type INT32.
+ *                           If label is NULL, the return data will not be labeled.
+ * @param [in]  fanout       Host array defining the fan out at each step in the sampling algorithm.
+ *                           We only support fanout values of type INT32
  * @param [in]  with_replacement
  *                           Boolean value.  If true selection of edges is done with
  *                           replacement.  If false selection is done without replacement.
@@ -236,7 +245,7 @@ cugraph_error_code_t cugraph_uniform_neighbor_sample(
  *                           be populated if error code is not CUGRAPH_SUCCESS
  * @return error code
  */
-cugraph_error_code_t cugraph_uniform_neighborhood_sample(
+cugraph_error_code_t cugraph_uniform_neighbor_sample_with_edge_properties(
   const cugraph_resource_handle_t* handle,
   cugraph_graph_t* graph,
   const cugraph_type_erased_device_array_view_t* start,

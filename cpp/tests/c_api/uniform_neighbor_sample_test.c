@@ -113,7 +113,8 @@ int create_test_graph_with_edge_ids(const cugraph_resource_handle_t* p_handle,
   return test_ret_value;
 }
 
-int generic_uniform_neighbor_sample_test(vertex_t* h_src,
+int generic_uniform_neighbor_sample_test(const cugraph_resource_handle_t* handle,
+                                         vertex_t* h_src,
                                          vertex_t* h_dst,
                                          edge_t* h_ids,
                                          size_t num_vertices,
@@ -131,16 +132,12 @@ int generic_uniform_neighbor_sample_test(vertex_t* h_src,
   cugraph_error_code_t ret_code = CUGRAPH_SUCCESS;
   cugraph_error_t* ret_error    = NULL;
 
-  cugraph_resource_handle_t* handle = NULL;
-  cugraph_graph_t* graph            = NULL;
-  cugraph_sample_result_t* result   = NULL;
+  cugraph_graph_t* graph          = NULL;
+  cugraph_sample_result_t* result = NULL;
 
   cugraph_type_erased_device_array_t* d_start           = NULL;
   cugraph_type_erased_device_array_view_t* d_start_view = NULL;
   cugraph_type_erased_host_array_view_t* h_fan_out_view = NULL;
-
-  handle = cugraph_create_resource_handle(NULL);
-  TEST_ASSERT(test_ret_value, handle != NULL, "resource handle creation failed.");
 
   ret_code = create_test_graph_with_edge_ids(
     handle, h_src, h_dst, h_ids, num_edges, store_transposed, renumber, FALSE, &graph, &ret_error);
@@ -218,13 +215,12 @@ int generic_uniform_neighbor_sample_test(vertex_t* h_src,
 
   cugraph_type_erased_host_array_view_free(h_fan_out_view);
   cugraph_sg_graph_free(graph);
-  cugraph_free_resource_handle(handle);
   cugraph_error_free(ret_error);
 
   return test_ret_value;
 }
 
-int test_uniform_neighbor_sample()
+int test_uniform_neighbor_sample(const cugraph_resource_handle_t* handle)
 {
   size_t num_edges    = 8;
   size_t num_vertices = 6;
@@ -237,7 +233,8 @@ int test_uniform_neighbor_sample()
   vertex_t start[]  = {2, 2};
   int fan_out[]     = {1, 2};
 
-  return generic_uniform_neighbor_sample_test(src,
+  return generic_uniform_neighbor_sample_test(handle,
+                                              src,
                                               dst,
                                               edge_ids,
                                               num_vertices,
@@ -251,7 +248,7 @@ int test_uniform_neighbor_sample()
                                               FALSE);
 }
 
-int test_uniform_neighbor_sample_all_neighbors()
+int test_uniform_neighbor_sample_all_neighbors(const cugraph_resource_handle_t* handle)
 {
   size_t num_edges    = 8;
   size_t num_vertices = 6;
@@ -264,7 +261,8 @@ int test_uniform_neighbor_sample_all_neighbors()
   vertex_t start[]  = {2};
   int fan_out[]     = {-1};
 
-  return generic_uniform_neighbor_sample_test(src,
+  return generic_uniform_neighbor_sample_test(handle,
+                                              src,
                                               dst,
                                               edge_ids,
                                               num_vertices,
@@ -278,10 +276,71 @@ int test_uniform_neighbor_sample_all_neighbors()
                                               FALSE);
 }
 
+int test_uniform_neighbor_sample_with_properties(const cugraph_resource_handle_t* handle)
+{
+  data_type_id_t vertex_tid    = INT32;
+  data_type_id_t edge_tid      = INT32;
+  data_type_id_t weight_tid    = FLOAT64;
+  data_type_id_t edge_id_tid   = INT32;
+  data_type_id_t edge_type_tid = INT32;
+
+  size_t num_edges    = 8;
+  size_t num_vertices = 6;
+  size_t fan_out_size = 1;
+  size_t num_starts   = 2;
+
+  vertex_t src[]       = {0, 1, 1, 2, 2, 2, 3, 4};
+  vertex_t dst[]       = {1, 3, 4, 0, 1, 3, 5, 5};
+  edge_t edge_ids[]    = {0, 1, 2, 3, 4, 5, 6, 7};
+  weight_t weight[]    = {0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8};
+  int32_t edge_types[] = {7, 6, 5, 4, 3, 2, 1, 0};
+  vertex_t start[]     = {2};
+  int fan_out[]        = {-1};
+
+  // Create graph
+  int test_ret_value = 0;
+  cugraph_error_code_t ret_code = CUGRAPH_SUCCESS;
+  cugraph_error_t* ret_error    = NULL;
+  cugraph_graph_t* graph        = NULL;
+
+  ret_code = create_sg_test_graph(handle,
+                                  vertex_tid,
+                                  src,
+                                  dst,
+                                  weight_tid,
+                                  weight,
+                                  edge_type_tid,
+                                  edge_types,
+                                  edge_id_tid,
+                                  edge_ids,
+                                  num_edges,
+                                  FALSE,
+                                  TRUE,
+                                  FALSE,
+                                  FALSE,
+                                  &graph,
+                                  &ret_error);
+
+  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "graph creation failed.");
+
+  // FIXME:  Now that we have a graph, run some tests...
+
+  cugraph_sg_graph_free(graph);
+  cugraph_error_free(ret_error);
+}
+
 int main(int argc, char** argv)
 {
+  cugraph_resource_handle_t* handle = NULL;
+
+  handle = cugraph_create_resource_handle(NULL);
+
   int result = 0;
-  result |= RUN_TEST(test_uniform_neighbor_sample);
-  result |= RUN_TEST(test_uniform_neighbor_sample_all_neighbors);
+  result |= RUN_TEST_NEW(test_uniform_neighbor_sample, handle);
+  result |= RUN_TEST_NEW(test_uniform_neighbor_sample_all_neighbors, handle);
+  result |= RUN_TEST_NEW(test_uniform_neighbor_sample_all_neighbors, handle);
+
+  cugraph_free_resource_handle(handle);
+
   return result;
 }

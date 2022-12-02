@@ -1780,6 +1780,9 @@ k_core(raft::handle_t const& handle,
 /**
  * @brief Uniform Neighborhood Sampling.
  *
+ * @deprecated This function should be replaced with uniform_neighbor_sample.  Input of the
+ * new function adds an optional parameter, output has a number of extra fields.
+ *
  * This function traverses from a set of starting vertices, traversing outgoing edges and
  * randomly selects from these outgoing neighbors to extract a subgraph.
  *
@@ -1821,6 +1824,63 @@ uniform_nbr_sample(raft::handle_t const& handle,
                    raft::host_span<const int> fan_out,
                    bool with_replacement = true,
                    uint64_t seed         = 0);
+
+/**
+ * @brief Uniform Neighborhood Sampling.
+ *
+ * This function traverses from a set of starting vertices, traversing outgoing edges and
+ * randomly selects from these outgoing neighbors to extract a subgraph.
+ *
+ * Output from this function a set of tuples (src, dst, edge_id, edge_type, weight, hop, label),
+ * identifying the randomly selected edges.  src is the source vertex, dst is the destination
+ * vertex, edge_id identifies the edge id, edge_type identifies the edge type, weight is the edge
+ * weight, hop identifies which hop the edge was encountered in.  Label is optional, if input labels
+ * are associated with the start vertices then the output label is provided correlating the
+ * extracted edges with the label that they were extracted from.
+ *
+ * @tparam vertex_t Type of vertex identifiers. Needs to be an integral type.
+ * @tparam edge_t Type of edge identifiers. Needs to be an integral type.
+ * @tparam weight_t Type of edge weights. Needs to be a floating point type.
+ * @tparam multi_gpu Flag indicating whether template instantiation should target single-GPU (false)
+ * @param handle RAFT handle object to encapsulate resources (e.g. CUDA stream, communicator, and
+ * handles to various CUDA libraries) to run graph algorithms.
+ * @param graph_view Graph View object to generate NBR Sampling on.
+ * @param edge_weight_view Optional view object holding edge weights for @p graph_view.
+ * @param edge_type_view Optional view object holding edge types for @p graph_view.
+ * @param starting_vertices Device span of starting vertex IDs for the sampling.
+ * @param starting_labels Optional device span of starting vertex labels for the sampling.
+ * @param fan_out Host span defining branching out (fan-out) degree per source vertex for each
+ * level
+ * @param with_replacement boolean flag specifying if random sampling is done with replacement
+ * (true); or, without replacement (false); default = true;
+ * @param seed A seed to initialize the random number generator
+ * @return tuple device vectors (vertex_t source_vertex, vertex_t destination_vertex,
+ * edge_t edge it, optional edge_type_t edge type, optional weight_t weight, int32 hop,
+ * optional int32_t label)
+ */
+template <typename vertex_t,
+          typename edge_t,
+          typename weight_t,
+          typename edge_type_type_t,
+          bool store_transposed,
+          bool multi_gpu>
+std::tuple<rmm::device_uvector<vertex_t>,
+           rmm::device_uvector<vertex_t>,
+           rmm::device_uvector<edge_t>,
+           std::optional<rmm::device_uvector<edge_type_type_t>>,
+           std::optional<rmm::device_uvector<weight_t>>,
+           rmm::device_uvector<int32_t>,
+           std::optional<rmm::device_uvector<int32_t>>>
+uniform_neighbor_sample(
+  raft::handle_t const& handle,
+  graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
+  std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
+  std::optional<edge_property_view_t<edge_t, edge_type_type_t const*>> edge_type_view,
+  raft::device_span<vertex_t const> starting_vertices,
+  std::optional<raft::device_span<int32_t const>> starting_labels,
+  raft::host_span<int const> fan_out,
+  bool with_replacement = true,
+  uint64_t seed         = 0);
 
 /*
  * @brief Compute triangle counts.
