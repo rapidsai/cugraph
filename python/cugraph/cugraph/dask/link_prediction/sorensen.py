@@ -31,11 +31,11 @@ def convert_to_cudf(cp_arrays):
     Creates a cudf DataFrame from cupy arrays from pylibcugraph wrapper
     """
 
-    cupy_source, cupy_destination, cupy_similarity = cp_arrays
+    cupy_first, cupy_second, cupy_similarity = cp_arrays
 
     df = cudf.DataFrame()
-    df["source"] = cupy_source
-    df["destination"] = cupy_destination
+    df["first"] = cupy_first
+    df["second"] = cupy_second
     df["sorensen_coeff"] = cupy_similarity
 
     return df
@@ -99,14 +99,14 @@ def sorensen(input_graph, vertex_pair=None, use_weight=False):
     result : dask_cudf.DataFrame
         GPU distributed data frame containing 2 dask_cudf.Series
 
-        ddf['source']: dask_cudf.Series
-            The source vertex ID (will be identical to first if specified)
-        ddf['destination']: dask_cudf.Series
-            The destination vertex ID (will be identical to second if
-            specified)
+        ddf['first']: dask_cudf.Series
+            The first vertex ID of each pair(will be identical to first if specified).
+        ddf['second']: dask_cudf.Series
+            The second vertex ID of each pair(will be identical to second if
+            specified).
         ddf['sorensen_coeff']: dask_cudf.Series
-            The computed sorensen coefficient between the source and destination
-            vertices
+            The computed sorensen coefficient between the first and the second
+            vertex ID.
     """
 
     if input_graph.is_directed():
@@ -172,7 +172,7 @@ def sorensen(input_graph, vertex_pair=None, use_weight=False):
     wait([(r.release(), c_r.release()) for r, c_r in zip(result, cudf_result)])
 
     if input_graph.renumbered:
-        ddf = input_graph.unrenumber(ddf, "source")
-        ddf = input_graph.unrenumber(ddf, "destination")
+        ddf = input_graph.unrenumber(ddf, "first")
+        ddf = input_graph.unrenumber(ddf, "second")
 
     return ddf
