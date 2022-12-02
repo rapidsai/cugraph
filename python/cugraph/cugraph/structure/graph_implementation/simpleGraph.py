@@ -16,6 +16,7 @@ from cugraph.structure.graph_primtypes_wrapper import Direction
 from cugraph.structure.symmetrize import symmetrize
 from cugraph.structure.number_map import NumberMap
 import cugraph.dask.common.mg_utils as mg_utils
+import cupy
 import cudf
 import dask_cudf
 import cugraph.dask.comms.comms as Comms
@@ -369,6 +370,7 @@ class simpleGraphImpl:
                 edgelist_df, simpleGraphImpl.dstCol
             )
 
+        # FIXME: revisit this approach
         if not self.properties.directed:
             edgelist_df = edgelist_df[
                 edgelist_df[simpleGraphImpl.srcCol]
@@ -879,7 +881,12 @@ class simpleGraphImpl:
         else:
             raise ValueError(f"Illegal value col {type(value_col)}")
 
-        if weight_col is not None:
+        if weight_col is None:
+            # Some algos require the graph to be weighted
+            weight_col = cudf.Series(
+                cupy.ones(len(self.edgelist.edgelist_df), dtype="float32")
+            )
+        else:
             weight_t = weight_col.dtype
 
             if weight_t == "int32":

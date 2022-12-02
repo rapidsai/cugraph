@@ -127,6 +127,7 @@ def test_random_walks_invalid_max_dept(graph_file, directed, max_depth):
         )
 
 
+@pytest.mark.cugraph_ops
 @pytest.mark.parametrize("graph_file", DATASETS_SMALL)
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
 def test_random_walks_coalesced(graph_file, directed):
@@ -145,6 +146,7 @@ def test_random_walks_coalesced(graph_file, directed):
     assert df["weight_offsets"].to_numpy().tolist() == w_offsets
 
 
+@pytest.mark.cugraph_ops
 @pytest.mark.parametrize("graph_file", DATASETS_SMALL)
 @pytest.mark.parametrize("directed", DIRECTED_GRAPH_OPTIONS)
 def test_random_walks_padded(graph_file, directed):

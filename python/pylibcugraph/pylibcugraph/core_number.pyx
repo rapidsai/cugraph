@@ -15,7 +15,6 @@
 # cython: language_level = 3
 
 from libc.stdint cimport uintptr_t
-import warnings
 
 from pylibcugraph._cugraph_c.resource_handle cimport (
     bool_t,
@@ -28,8 +27,6 @@ from pylibcugraph._cugraph_c.error cimport (
 )
 from pylibcugraph._cugraph_c.array cimport (
     cugraph_type_erased_device_array_view_t,
-    cugraph_type_erased_device_array_view_create,
-    cugraph_type_erased_device_array_view_free,
 )
 from pylibcugraph._cugraph_c.graph cimport (
     cugraph_graph_t,
@@ -51,7 +48,6 @@ from pylibcugraph.graphs cimport (
 from pylibcugraph.utils cimport (
     assert_success,
     copy_to_cupy_array,
-    assert_CAI_type,
     get_c_type_from_numpy_type,
 )
 
@@ -77,8 +73,6 @@ def core_number(ResourceHandle resource_handle,
         "incoming", "outgoing", and "bidirectional" respectively.
         This option is currently ignored in this release, and setting it will
         result in a warning.
-
-        This implementation only supports bidirectional edges.
     
     do_expensive_check: bool
         If True, performs more extensive tests on the inputs to ensure
@@ -102,13 +96,6 @@ def core_number(ResourceHandle resource_handle,
     cdef cugraph_core_result_t* result_ptr
     cdef cugraph_error_code_t error_code
     cdef cugraph_error_t* error_ptr
-
-    if degree_type is not None:
-        warning_msg = (
-            "The 'degree_type' parameter is ignored in this release.")
-        warnings.warn(warning_msg, Warning)
-    
-    degree_type = "bidirectional"
 
     degree_type_map = {
         "incoming": cugraph_k_core_degree_type_t.K_CORE_DEGREE_TYPE_IN,
