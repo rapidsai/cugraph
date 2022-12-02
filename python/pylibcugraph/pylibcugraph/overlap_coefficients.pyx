@@ -30,6 +30,8 @@ from pylibcugraph._cugraph_c.array cimport (
 )
 from pylibcugraph._cugraph_c.graph_functions cimport (
     cugraph_vertex_pairs_t,
+    cugraph_vertex_pairs_get_first,
+    cugraph_vertex_pairs_get_second,
     cugraph_vertex_pairs_free,
     cugraph_create_vertex_pairs
 )
@@ -146,6 +148,16 @@ def EXPERIMENTAL__overlap_coefficients(ResourceHandle resource_handle,
 
     cupy_similarity = copy_to_cupy_array(c_resource_handle_ptr, similarity_ptr)
 
+    cdef cugraph_type_erased_device_array_view_t* first_ptr = \
+        cugraph_vertex_pairs_get_first(vertex_pairs_ptr)
+
+    cupy_first = copy_to_cupy_array(c_resource_handle_ptr, first_ptr)
+
+    cdef cugraph_type_erased_device_array_view_t* second_ptr = \
+        cugraph_vertex_pairs_get_second(vertex_pairs_ptr)
+
+    cupy_second = copy_to_cupy_array(c_resource_handle_ptr, second_ptr)
+
     # Free all pointers
     cugraph_similarity_result_free(result_ptr)
     cugraph_vertex_pairs_free(vertex_pairs_ptr)
@@ -153,4 +165,4 @@ def EXPERIMENTAL__overlap_coefficients(ResourceHandle resource_handle,
     cugraph_type_erased_device_array_view_free(first_view_ptr)
     cugraph_type_erased_device_array_view_free(second_view_ptr)
 
-    return first, second, cupy_similarity
+    return cupy_first, cupy_second, cupy_similarity

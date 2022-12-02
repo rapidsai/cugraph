@@ -21,8 +21,8 @@ dependencies:
 - cuda-python>=11.7.1,<12.0
 - dask-cuda=22.12.*
 - dask-cudf=22.12.*
-- dask>=2022.9.2
-- distributed>=2022.9.2
+- dask==2022.11.1
+- distributed==2022.11.1
 - nccl>=2.9.9
 - ucx-py=0.29.*
 - ucx-proc=*=gpu
