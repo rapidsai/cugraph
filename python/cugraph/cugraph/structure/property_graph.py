@@ -829,10 +829,8 @@ class EXPERIMENTAL__PropertyGraph:
             if vertex_ids is not None:
                 if isinstance(vertex_ids, int):
                     vertex_ids = [vertex_ids]
-                elif not isinstance(
-                    vertex_ids, (list, slice, np.ndarray, self.__series_type)
-                ):
-                    vertex_ids = list(vertex_ids)
+                elif not isinstance(vertex_ids, self.__series_type):
+                    vertex_ids = cudf.Series(vertex_ids)
                 df = df.loc[vertex_ids]
 
             if types is not None:

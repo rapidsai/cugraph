@@ -13,13 +13,13 @@
 
 # Utils to convert b/w dgl heterograph to cugraph GraphStore
 from __future__ import annotations
-from typing import Optional, Dict
-
+from typing import Optional, Dict, Union
+import numpy as np
 import cudf
-import cupy as cp
 import dask_cudf
 from cugraph.utilities.utils import import_optional, MissingModule
-
+from cugraph_dgl.utils.utils import create_ar_from_tensor, create_df_from_ar
+from cugraph_dgl.utils.cugraph_storage_utils import backend_dtype_to_np_dtype_dict
 import cugraph_dgl
 
 dgl = import_optional("dgl")
@@ -27,47 +27,74 @@ F = import_optional("dgl.backend")
 torch = import_optional("torch")
 
 
-# Feature Tensor to DataFrame Utils
-def convert_to_column_major(t: torch.Tensor):
-    return t.t().contiguous().t()
+def _create_edge_frame(src_t: torch.Tensor, dst_t: torch.Tensor, single_gpu: bool):
+    """
+    Create a edge dataframe from src_t and dst_t
+    """
+    src_ar = create_ar_from_tensor(src_t)
+    dst_ar = create_ar_from_tensor(dst_t)
+    edge_ar = np.stack([src_ar, dst_ar], axis=1)
+    edge_df, edge_columns = create_df_from_ar(edge_ar, single_gpu=single_gpu)
+    edge_df = edge_df.rename(columns={edge_columns[0]: "src", edge_columns[1]: "dst"})
+    return edge_df
 
 
-def create_feature_frame(feat_t_d: Dict[str, torch.Tensor]) -> cudf.DataFrame:
+def _create_feature_frame(
+    feat_t_d: Dict[str, torch.Tensor],
+    single_gpu: bool = True,
+    frame_type: str = "node",
+    idtype=None if isinstance(F, MissingModule) else F.int64,
+    src_t: Optional[torch.Tensor] = None,
+    dst_t: Optional[torch.Tensor] = None,
+) -> Union[cudf.DataFrame, dask_cudf.DataFrame]:
     """
     Convert a feature_tensor_d to a dataframe
     """
     df_ls = []
     feat_name_map = {}
     for feat_key, feat_t in feat_t_d.items():
-        feat_t = feat_t.to("cuda")
-        feat_t = convert_to_column_major(feat_t)
-        ar = cp.from_dlpack(F.zerocopy_to_dlpack(feat_t))
+        feat_ar = create_ar_from_tensor(feat_t)
         del feat_t
-        df = cudf.DataFrame(ar)
-        feat_columns = [f"{feat_key}_{i}" for i in range(len(df.columns))]
-        df.columns = feat_columns
+        df, feat_columns = create_df_from_ar(feat_ar, feat_key, single_gpu=single_gpu)
         feat_name_map[feat_key] = feat_columns
         df_ls.append(df)
 
-    df = cudf.concat(df_ls, axis=1)
+    if single_gpu:
+        df = cudf.concat(df_ls, axis=1)
+    else:
+        df = dask_cudf.concat(df_ls, axis=1)
+
+    if frame_type == "node":
+        # Append node_ids to the node dataframe
+        np_dtype = backend_dtype_to_np_dtype_dict[idtype]
+        df["node_id"] = np_dtype(1)
+        df["node_id"] = df["node_id"].cumsum() - 1
+    else:
+        # Append edges to the feature dataframe
+        edge_df = _create_edge_frame(src_t, dst_t, single_gpu)
+        if single_gpu:
+            df = cudf.concat([df, edge_df], axis=1)
+        else:
+            df = dask_cudf.concat([df, edge_df], axis=1)
+
     return df, feat_name_map
 
 
 # Add ndata utils
-def add_ndata_of_single_type(
+def _add_ndata_of_single_type(
     gs: cugraph_dgl.CuGraphStorage,
     feat_t_d: Optional[Dict[torch.Tensor]],
     ntype: str,
-    n_rows: int,
     idtype=None if isinstance(F, MissingModule) else F.int64,
 ):
 
-    node_ids = dgl.backend.arange(0, n_rows, idtype, ctx="cuda")
-    node_ids = cp.from_dlpack(F.zerocopy_to_dlpack(node_ids))
-    df, feat_name_map = create_feature_frame(feat_t_d)
-    df["node_id"] = node_ids
-    if not gs.single_gpu:
-        df = dask_cudf.from_cudf(df, npartitions=16)
+    df, feat_name_map = _create_feature_frame(
+        feat_t_d,
+        single_gpu=gs.single_gpu,
+        frame_type="node",
+        idtype=idtype,
+    )
+
     gs.add_node_data(
         df,
         "node_id",
@@ -93,28 +120,26 @@ def add_nodes_from_dgl_HeteroGraph(
         for ntype in gs.num_nodes_dict.keys():
             feat_t_d = ntype_feat_d.get(ntype, None)
             if feat_t_d is not None:
-                gs = add_ndata_of_single_type(
+                gs = _add_ndata_of_single_type(
                     gs=gs,
                     feat_t_d=feat_t_d,
                     ntype=ntype,
-                    n_rows=gs.num_nodes_dict[ntype],
                     idtype=graph.idtype,
                 )
     else:
         ntype = graph.ntypes[0]
         if graph.ndata:
-            gs = add_ndata_of_single_type(
+            gs = _add_ndata_of_single_type(
                 gs,
                 feat_t_d=graph.ndata,
                 ntype=ntype,
-                n_rows=graph.number_of_nodes(),
                 idtype=graph.idtype,
             )
     return gs
 
 
 # Add edata utils
-def add_edata_of_single_type(
+def _add_edata_of_single_type(
     gs: cugraph_dgl.CuGraphStorage,
     feat_t_d: Optional[Dict[torch.Tensor]],
     src_t: torch.Tensor,
@@ -122,38 +147,28 @@ def add_edata_of_single_type(
     can_etype: tuple([str, str, str]),
 ):
 
-    src_t = src_t.to("cuda")
-    dst_t = dst_t.to("cuda")
-
-    df = cudf.DataFrame(
-        {
-            "src": cudf.from_dlpack(F.zerocopy_to_dlpack(src_t)),
-            "dst": cudf.from_dlpack(F.zerocopy_to_dlpack(dst_t)),
-        }
-    )
     if feat_t_d:
-        feat_df, feat_name_map = create_feature_frame(feat_t_d)
-        df = cudf.concat([df, feat_df], axis=1)
-        if not gs.single_gpu:
-            df = dask_cudf.from_cudf(df, npartitions=16)
-
-        gs.add_edge_data(
-            df,
-            ["src", "dst"],
-            canonical_etype=can_etype,
-            feat_name=feat_name_map,
-            contains_vector_features=True,
+        df, feat_name_map = _create_feature_frame(
+            feat_t_d,
+            single_gpu=gs.single_gpu,
+            frame_type="edge",
+            src_t=src_t,
+            dst_t=dst_t,
         )
+        feat_name = feat_name_map
+        contains_vector_features = True
     else:
-        if not gs.single_gpu:
-            df = dask_cudf.from_cudf(df, npartitions=16)
+        df = _create_edge_frame(src_t, dst_t, gs.single_gpu)
+        feat_name = None
+        contains_vector_features = False
 
-        gs.add_edge_data(
-            df,
-            ["src", "dst"],
-            canonical_etype=can_etype,
-            contains_vector_features=False,
-        )
+    gs.add_edge_data(
+        df,
+        ["src", "dst"],
+        canonical_etype=can_etype,
+        feat_name=feat_name,
+        contains_vector_features=contains_vector_features,
+    )
     return gs
 
 
@@ -171,4 +186,4 @@ def add_edges_from_dgl_HeteroGraph(
     for can_etype in graph.canonical_etypes:
         src_t, dst_t = graph.edges(form="uv", etype=can_etype)
         feat_t_d = etype_feat_d.get(can_etype, None)
-        add_edata_of_single_type(gs, feat_t_d, src_t, dst_t, can_etype)
+        _add_edata_of_single_type(gs, feat_t_d, src_t, dst_t, can_etype)

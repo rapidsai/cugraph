@@ -251,9 +251,9 @@ class CuGraphStorage:
         -------
         None
         """
+        src_n, dst_n = node_col_names
         if canonical_etype:
             _assert_valid_canonical_etype(canonical_etype)
-            src_n, dst_n = node_col_names
             src_type, dst_type = canonical_etype[0], canonical_etype[2]
             df[src_n] = df[src_n] + self.get_node_id_offset(src_type)
             df[dst_n] = df[dst_n] + self.get_node_id_offset(dst_type)
