@@ -105,7 +105,7 @@ rmm::device_uvector<vertex_t> compute_mis(
   thrust::uninitialized_fill(
     handle.get_thrust_policy(), discard_flags.begin(), discard_flags.end(), uint8_t{0});
 
-  auto random_vs = abc(handle,
+  auto random_vs = call_a_function_that_does_not_exists(handle,
                        graph_view.local_vertex_partition_range_first(),
                        graph_view.local_vertex_partition_range_last(),
                        static_cast<vertex_t>(0.2 * graph_view.local_vertex_partition_range_size()),
