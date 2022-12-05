@@ -18,7 +18,6 @@ from pathlib import Path
 import pytest
 import numpy as np
 import cupy as cp
-from pylibcugraph.testing.utils import gen_fixture_params
 from cugraph.testing.mg_utils import start_dask_client, stop_dask_client
 import cudf
 import dask_cudf
@@ -46,100 +45,11 @@ from cugraph.dask import uniform_neighbor_sample as uniform_neighbor_sample_mg
 from cugraph_service_client import CugraphServiceClient
 from cugraph_service_client.exceptions import CugraphServiceError
 from cugraph_service_client import RemoteGraph
-from . import utils
+from cugraph_service_server.testing import utils
 
-seed = 42
+import params
 
-# pytest param values ("pv" suffix) used for defining input combinations. These
-# also include markers for easily running specific combinations.
-sg_pv = pytest.param(
-    "SG",
-    marks=[pytest.mark.sg],
-    id="config=SG",
-)
-snmg_pv = pytest.param(
-    "SNMG",
-    marks=[pytest.mark.snmg, pytest.mark.mg],
-    id="config=SNMG",
-)
-mnmg_pv = pytest.param(
-    "MNMG",
-    marks=[pytest.mark.mnmg, pytest.mark.mg],
-    id="config=MNMG",
-)
-graph_pv = pytest.param(
-    "Graph",
-    marks=[pytest.mark.local],
-    id="type=Graph",
-)
-remotegraph_pv = pytest.param(
-    "RemoteGraph",
-    marks=[pytest.mark.remote],
-    id="type=RemoteGraph",
-)
-karate_pv = pytest.param(
-    "karate",
-    id="dataset=karate",
-)
-small_low_degree_rmat_pv = pytest.param(
-    {"scale": 16, "edgefactor": 4, "seed": seed},
-    id="dataset=rmat_16_4",
-)
-small_high_degree_rmat_pv = pytest.param(
-    {"scale": 16, "edgefactor": 32, "seed": seed},
-    id="dataset=rmat_16_32",
-)
-large_low_degree_rmat_pv = pytest.param(
-    {"scale": 23, "edgefactor": 4, "seed": seed},
-    id="dataset=rmat_23_4",
-)
-large_high_degree_rmat_pv = pytest.param(
-    {"scale": 23, "edgefactor": 32, "seed": seed},
-    id="dataset=rmat_23_32",
-)
-huge_low_degree_rmat_pv = pytest.param(
-    {"scale": 30, "edgefactor": 4, "seed": seed},
-    id="dataset=rmat_30_4",
-)
-huge_high_degree_rmat_pv = pytest.param(
-    {"scale": 30, "edgefactor": 32, "seed": seed},
-    id="dataset=rmat_30_32",
-)
-large_start_list_pv = pytest.param(
-    "LARGE",
-    marks=[pytest.mark.start_list_large],
-    id="start_list_len=LARGE",
-)
-small_start_list_pv = pytest.param(
-    "SMALL",
-    marks=[pytest.mark.start_list_small],
-    id="start_list_len=SMALL",
-)
-large_fanout_list_pv = pytest.param(
-    "LARGE",
-    marks=[pytest.mark.fanout_list_large],
-    id="fanout_list_len=LARGE",
-)
-small_fanout_list_pv = pytest.param(
-    "SMALL",
-    marks=[pytest.mark.fanout_list_small],
-    id="fanout_list_len=SMALL",
-)
-# Define/generate the combinations to run.
-graph_obj_fixture_params = gen_fixture_params(
-    (graph_pv, sg_pv, karate_pv),
-    (graph_pv, sg_pv, small_low_degree_rmat_pv),
-    (graph_pv, sg_pv, small_high_degree_rmat_pv),
-    (graph_pv, snmg_pv, large_low_degree_rmat_pv),
-    (graph_pv, snmg_pv, large_high_degree_rmat_pv),
-    (remotegraph_pv, sg_pv, karate_pv),
-    (remotegraph_pv, sg_pv, small_low_degree_rmat_pv),
-    (remotegraph_pv, sg_pv, small_high_degree_rmat_pv),
-    (remotegraph_pv, snmg_pv, large_low_degree_rmat_pv),
-    (remotegraph_pv, snmg_pv, large_high_degree_rmat_pv),
-    (remotegraph_pv, mnmg_pv, huge_low_degree_rmat_pv),
-    (remotegraph_pv, mnmg_pv, huge_high_degree_rmat_pv),
-)
+_seed = 42
 
 
 def create_graph(graph_data):
@@ -163,7 +73,7 @@ def create_graph(graph_data):
     elif isinstance(graph_data, dict):
         scale = graph_data["scale"]
         num_edges = (2**scale) * graph_data["edgefactor"]
-        seed = graph_data["seed"]
+        seed = _seed
         edgelist_df = rmat(
             scale,
             num_edges,
@@ -221,7 +131,7 @@ def create_mg_graph(graph_data):
     elif isinstance(graph_data, dict):
         scale = graph_data["scale"]
         num_edges = (2**scale) * graph_data["edgefactor"]
-        seed = graph_data["seed"]
+        seed = _seed
         edgelist_df = rmat(
             scale,
             num_edges,
@@ -265,7 +175,7 @@ def create_remote_graph(graph_data, client):
     elif isinstance(graph_data, dict):
         scale = graph_data["scale"]
         num_edges = (2**scale) * graph_data["edgefactor"]
-        seed = graph_data["seed"]
+        seed = _seed
         gid = client.call_graph_creation_extension(
             "create_graph_from_rmat_generator",
             scale=scale,
@@ -428,7 +338,7 @@ def remote_uniform_neighbor_sample(G, start_list, fanout_vals, with_replacement=
     return result
 
 
-@pytest.fixture(scope="module", params=graph_obj_fixture_params)
+@pytest.fixture(scope="module", params=params.graph_obj_fixture_params)
 def graph_objs(request):
     """
     Fixture that returns a Graph object and algo callable based on the
@@ -493,9 +403,10 @@ def graph_objs(request):
 
 ################################################################################
 # Benchmarks
-@pytest.mark.parametrize("start_list_len", [small_start_list_pv, large_start_list_pv])
+@pytest.mark.parametrize("start_list_len", [params.small_start_list,
+                                            params.large_start_list])
 @pytest.mark.parametrize(
-    "fanout_vals_len", [small_fanout_list_pv, large_fanout_list_pv]
+    "fanout_vals_len", [params.small_fanout_list, params.large_fanout_list]
 )
 @pytest.mark.parametrize(
     "with_replacement", [True, False], ids=lambda v: f"with_replacement={v}"
@@ -506,7 +417,7 @@ def bench_uniform_neighbor_sample(
     (G, uniform_neighbor_sample_func) = graph_objs
 
     uns_args = get_uniform_neighbor_sample_args(
-        G, seed, start_list_len, fanout_vals_len, with_replacement
+        G, _seed, start_list_len, fanout_vals_len, with_replacement
     )
     # print(f"\n{uns_args}")
     # FIXME: uniform_neighbor_sample cannot take a np.ndarray for start_list
@@ -517,14 +428,6 @@ def bench_uniform_neighbor_sample(
         fanout_vals=uns_args["fanout_vals"],
         with_replacement=uns_args["with_replacement"],
     )
-    """
-    result = uniform_neighbor_sample_func(
-        G,
-        start_list=uns_args["start_list"],
-        fanout_vals=uns_args["fanout_vals"],
-        with_replacement=uns_args["with_replacement"],
-    )
-    """
     dtmap = {"int32": 32 // 8, "int64": 64 // 8}
     dt = str(result.sources.dtype)
     llen = len(result.sources)

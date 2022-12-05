@@ -200,7 +200,7 @@ def test_load_call_unload_testing_extensions():
         "create_graph_from_rmat_generator",
         "()",
         f"{{'scale': {scale}, 'num_edges': {(scale**2) * edgefactor}, "
-        "'seed': 42, 'mg': False}}",
+        "'seed': 42, 'mg': False}",
     )
     assert gid1 != gid2
 
