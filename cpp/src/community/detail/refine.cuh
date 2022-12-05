@@ -227,7 +227,7 @@ template <typename GraphViewType, typename weight_t>
 std::tuple<rmm::device_uvector<typename GraphViewType::vertex_type>,
            std::pair<rmm::device_uvector<typename GraphViewType::vertex_type>,
                      rmm::device_uvector<typename GraphViewType::vertex_type>>>
-refine_clustering_2(
+refine_clustering(
   raft::handle_t const& handle,
   GraphViewType const& graph_view,
   std::optional<edge_property_view_t<typename GraphViewType::edge_type, weight_t const*>>

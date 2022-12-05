@@ -360,7 +360,7 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
     }
 
     auto [refined_leiden_partition, leiden_to_louvain_map] =
-      detail::refine_clustering_2(handle,
+      detail::refine_clustering(handle,
                                   current_graph_view,
                                   edge_weight_view,
                                   total_edge_weight,

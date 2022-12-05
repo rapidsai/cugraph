@@ -6,7 +6,7 @@ namespace detail {
 
 template std::tuple<rmm::device_uvector<int32_t>,
                     std::pair<rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>>>
-refine_clustering_2(
+refine_clustering(
   raft::handle_t const& handle,
   cugraph::graph_view_t<int32_t, int32_t, false, false> const& graph_view,
   std::optional<edge_property_view_t<int32_t, float const*>> edge_weight_view,
@@ -26,7 +26,7 @@ refine_clustering_2(
 
 template std::tuple<rmm::device_uvector<int32_t>,
                     std::pair<rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>>>
-refine_clustering_2(
+refine_clustering(
   raft::handle_t const& handle,
   cugraph::graph_view_t<int32_t, int64_t, false, false> const& graph_view,
   std::optional<edge_property_view_t<int64_t, float const*>> edge_weight_view,
@@ -46,7 +46,7 @@ refine_clustering_2(
 
 template std::tuple<rmm::device_uvector<int64_t>,
                     std::pair<rmm::device_uvector<int64_t>, rmm::device_uvector<int64_t>>>
-refine_clustering_2(
+refine_clustering(
   raft::handle_t const& handle,
   cugraph::graph_view_t<int64_t, int64_t, false, false> const& graph_view,
   std::optional<edge_property_view_t<int64_t, float const*>> edge_weight_view,
@@ -66,7 +66,7 @@ refine_clustering_2(
 
 template std::tuple<rmm::device_uvector<int32_t>,
                     std::pair<rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>>>
-refine_clustering_2(
+refine_clustering(
   raft::handle_t const& handle,
   cugraph::graph_view_t<int32_t, int32_t, false, false> const& graph_view,
   std::optional<edge_property_view_t<int32_t, double const*>> edge_weight_view,
@@ -86,7 +86,7 @@ refine_clustering_2(
 
 template std::tuple<rmm::device_uvector<int32_t>,
                     std::pair<rmm::device_uvector<int32_t>, rmm::device_uvector<int32_t>>>
-refine_clustering_2(
+refine_clustering(
   raft::handle_t const& handle,
   cugraph::graph_view_t<int32_t, int64_t, false, false> const& graph_view,
   std::optional<edge_property_view_t<int64_t, double const*>> edge_weight_view,
@@ -106,7 +106,7 @@ refine_clustering_2(
 
 template std::tuple<rmm::device_uvector<int64_t>,
                     std::pair<rmm::device_uvector<int64_t>, rmm::device_uvector<int64_t>>>
-refine_clustering_2(
+refine_clustering(
   raft::handle_t const& handle,
   cugraph::graph_view_t<int64_t, int64_t, false, false> const& graph_view,
   std::optional<edge_property_view_t<int64_t, double const*>> edge_weight_view,
