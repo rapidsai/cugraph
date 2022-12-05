@@ -98,7 +98,7 @@ rmm::device_uvector<vertex_t> compute_mis(
     handle.get_thrust_policy(), mis_inclusion_flags.begin(), mis_inclusion_flags.end(), uint8_t{0});
 
   //
-  // Fals to indicate if a vertex should be discarded from consideration, either
+  // Falg to indicate if a vertex should be discarded from consideration, either
   // because it's already in MIS or or one of its neighbor is in the MIS
   //
   rmm::device_uvector<uint8_t> discard_flags(number_of_vertices, handle.get_stream());

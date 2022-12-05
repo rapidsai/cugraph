@@ -117,8 +117,8 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
   // Edge source cache
   //
   edge_src_property_t<graph_view_t, weight_t> src_vertex_weights_cache(handle);
-  edge_src_property_t<graph_view_t, vertex_t> src_vertex_cluster_assignment_cache(handle);
-  edge_dst_property_t<graph_view_t, vertex_t> dst_vertex_cluster_assignment_cache(handle);
+  edge_src_property_t<graph_view_t, vertex_t> src_louvain_assignment_cache(handle);
+  edge_dst_property_t<graph_view_t, vertex_t> dst_louvain_assignment_cache(handle);
 
   while (dendrogram->num_levels() < max_level) {
     //
@@ -189,18 +189,18 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
                handle.get_stream());
 
     if constexpr (multi_gpu) {
-      src_vertex_cluster_assignment_cache =
+      src_louvain_assignment_cache =
         edge_src_property_t<graph_view_t, vertex_t>(handle, current_graph_view);
       update_edge_src_property(handle,
                                current_graph_view,
                                louvain_assignment_for_vertices.begin(),
-                               src_vertex_cluster_assignment_cache);
-      dst_vertex_cluster_assignment_cache =
+                               src_louvain_assignment_cache);
+      dst_louvain_assignment_cache =
         edge_dst_property_t<graph_view_t, vertex_t>(handle, current_graph_view);
       update_edge_dst_property(handle,
                                current_graph_view,
                                louvain_assignment_for_vertices.begin(),
-                               dst_vertex_cluster_assignment_cache);
+                               dst_louvain_assignment_cache);
 
       // Couldn't we clear louvain_assignment_for_vertices here?
     }
@@ -208,8 +208,8 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
     weight_t new_Q = detail::compute_modularity(handle,
                                                 current_graph_view,
                                                 edge_weight_view,
-                                                src_vertex_cluster_assignment_cache,
-                                                dst_vertex_cluster_assignment_cache,
+                                                src_louvain_assignment_cache,
+                                                dst_louvain_assignment_cache,
                                                 louvain_assignment_for_vertices,
                                                 cluster_weights,
                                                 total_edge_weight,
@@ -252,19 +252,19 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
                                                       std::move(cluster_weights),
                                                       std::move(louvain_assignment_for_vertices),
                                                       src_vertex_weights_cache,
-                                                      src_vertex_cluster_assignment_cache,
-                                                      dst_vertex_cluster_assignment_cache,
+                                                      src_louvain_assignment_cache,
+                                                      dst_louvain_assignment_cache,
                                                       up_down);
 
       if constexpr (graph_view_t::is_multi_gpu) {
         update_edge_src_property(handle,
                                  current_graph_view,
                                  louvain_assignment_for_vertices.begin(),
-                                 src_vertex_cluster_assignment_cache);
+                                 src_louvain_assignment_cache);
         update_edge_dst_property(handle,
                                  current_graph_view,
                                  louvain_assignment_for_vertices.begin(),
-                                 dst_vertex_cluster_assignment_cache);
+                                 dst_louvain_assignment_cache);
       }
 
       std::tie(cluster_keys, cluster_weights) =
@@ -272,15 +272,15 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
                                                 current_graph_view,
                                                 edge_weight_view,
                                                 louvain_assignment_for_vertices,
-                                                src_vertex_cluster_assignment_cache);
+                                                src_louvain_assignment_cache);
 
       up_down = !up_down;
 
       new_Q = detail::compute_modularity(handle,
                                          current_graph_view,
                                          edge_weight_view,
-                                         src_vertex_cluster_assignment_cache,
-                                         dst_vertex_cluster_assignment_cache,
+                                         src_louvain_assignment_cache,
+                                         dst_louvain_assignment_cache,
                                          louvain_assignment_for_vertices,
                                          cluster_weights,
                                          total_edge_weight,
@@ -352,11 +352,11 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
       update_edge_src_property(handle,
                                current_graph_view,
                                louvain_assignment_for_vertices.begin(),
-                               src_vertex_cluster_assignment_cache);
+                               src_louvain_assignment_cache);
       update_edge_dst_property(handle,
                                current_graph_view,
                                louvain_assignment_for_vertices.begin(),
-                               dst_vertex_cluster_assignment_cache);
+                               dst_louvain_assignment_cache);
     }
 
     auto [refined_leiden_partition, leiden_to_louvain_map] =
@@ -370,8 +370,8 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
                                   std::move(cluster_weights),
                                   std::move(louvain_assignment_for_vertices),
                                   src_vertex_weights_cache,
-                                  src_vertex_cluster_assignment_cache,
-                                  dst_vertex_cluster_assignment_cache,
+                                  src_louvain_assignment_cache,
+                                  dst_louvain_assignment_cache,
                                   up_down);
 
     ///---------///
@@ -390,8 +390,8 @@ std::pair<std::unique_ptr<Dendrogram<vertex_t>>, weight_t> leiden(
     vertex_weights.shrink_to_fit(handle.get_stream());
     louvain_assignment_for_vertices.shrink_to_fit(handle.get_stream());
     src_vertex_weights_cache.clear(handle);
-    src_vertex_cluster_assignment_cache.clear(handle);
-    dst_vertex_cluster_assignment_cache.clear(handle);
+    src_louvain_assignment_cache.clear(handle);
+    dst_louvain_assignment_cache.clear(handle);
 
     auto leiden_of_coarse_graph = aggregate_graph(
       handle, current_graph_view, edge_weight_view, current_graph, refined_leiden_partition);
