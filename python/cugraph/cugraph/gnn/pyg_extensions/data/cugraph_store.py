@@ -36,7 +36,7 @@ except ModuleNotFoundError:
             "cuGraph-PyG requires cuGraph" "or cuGraph-Service to be installed."
         )
 
-# TODO drop cupy support and make torch the only backend
+# FIXME drop cupy support and make torch the only backend (#2995)
 cupy = import_optional("cupy")
 torch = import_optional("torch")
 
@@ -223,21 +223,26 @@ class EXPERIMENTAL__CuGraphStore:
             specified, will renumber and raise a warning.
         """
 
-        # TODO ensure all x properties are float32 type
-        # TODO ensure y is of long type
+        # FIXME ensure all x properties are float32 type
+        # FIXME ensure y is of long type
         if None in G.edge_types:
             raise ValueError("Unspecified edge types not allowed in PyG")
 
+        # FIXME drop the cupy backend and remove these checks (#2995)
         if backend == "torch":
             from torch.utils.dlpack import from_dlpack
             from torch import int64 as vertex_dtype
             from torch import float32 as property_dtype
             from torch import searchsorted as searchsorted
+            from torch import concatenate as concatenate
+            from torch import arange as arange
         elif backend == "cupy":
             from cupy import from_dlpack
             from cupy import int64 as vertex_dtype
             from cupy import float32 as property_dtype
             from cupy import searchsorted as searchsorted
+            from cupy import concatenate as concatenate
+            from cupy import arange as arange
         else:
             raise ValueError(f"Invalid backend {backend}.")
 
@@ -246,6 +251,8 @@ class EXPERIMENTAL__CuGraphStore:
         self.vertex_dtype = vertex_dtype
         self.property_dtype = property_dtype
         self.searchsorted = searchsorted
+        self.concatenate = concatenate
+        self.arange = arange
 
         self.__graph = G
         self.__subgraphs = {}
@@ -376,18 +383,18 @@ class EXPERIMENTAL__CuGraphStore:
         return self.is_multi_gpu and not self.is_remote
 
     def get_vertex_index(self, vtypes):
-        # TODO force the graph to use offsets and
-        # return these values based on offsets
-
         if isinstance(vtypes, str):
             vtypes = [vtypes]
 
-        ix = self.__graph.get_vertex_data(
-            types=vtypes, columns=[self.__graph.type_col_name]
-        )[self.__graph.vertex_col_name]
-
-        if self._is_delayed:
-            ix = ix.compute()
+        # FIXME always use torch, drop cupy (#2995)
+        if self.__backend == "torch":
+            ix = torch.tensor()
+        else:
+            ix = cupy.array()
+        for vtype in vtypes:
+            start = self.__offsets["start"][vtype]
+            stop = self.__offsets["stop"][vtype]
+            ix = self.concatenate(ix, self.arange(start, stop + 1, 1))
 
         return self.from_dlpack(ix.to_dlpack())
 
