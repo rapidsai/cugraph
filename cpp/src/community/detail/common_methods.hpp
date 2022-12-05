@@ -72,13 +72,13 @@ void timer_display(raft::handle_t const& handle, HighResTimer const& hr_timer, s
 #endif
 }
 
-template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
-rmm::device_uvector<weight_t>&& lookup_cluster_weights_for_cluster_keys(
+template <typename map_key_t, typename map_value_t, bool multi_gpu>
+rmm::device_uvector<map_value_t> lookup_primitive_values_for_keys(
   raft::handle_t const& handle,
-  graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
-  rmm::device_uvector<vertex_t>& cluster_keys_v,
-  rmm::device_uvector<weight_t>& cluster_weights_v,
-  rmm::device_uvector<vertex_t>& next_clusters_v);
+
+  rmm::device_uvector<map_key_t>& map_keys,
+  rmm::device_uvector<map_value_t>& map_values,
+  rmm::device_uvector<map_key_t>& keys_to_lookup);
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
 weight_t compute_modularity(

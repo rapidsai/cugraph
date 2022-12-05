@@ -16,12 +16,17 @@
  */
 #pragma once
 
+#include <prims/fill_edge_src_dst_property.cuh>
+#include <prims/per_v_transform_reduce_incoming_outgoing_e.cuh>
+#include <prims/update_edge_src_dst_property.cuh>
+
 #include <community/detail/mis.hpp>
 #include <cugraph/edge_property.hpp>
 #include <cugraph/edge_src_dst_property.hpp>
+#include <cugraph/graph_functions.hpp>
 #include <cugraph/graph_view.hpp>
-#include <prims/fill_edge_src_dst_property.cuh>
 
+#include <cugraph/utilities/host_scalar_comm.hpp>
 #include <cugraph/utilities/thrust_tuple_utils.hpp>
 
 #include <raft/cudart_utils.h>
@@ -34,10 +39,16 @@
 #include <thrust/distance.h>
 
 #include <thrust/binary_search.h>
+#include <thrust/execution_policy.h>
 #include <thrust/fill.h>
+#include <thrust/functional.h>
 #include <thrust/iterator/counting_iterator.h>
+#include <thrust/iterator/zip_iterator.h>
+#include <thrust/optional.h>
+#include <thrust/sequence.h>
 #include <thrust/shuffle.h>
 #include <thrust/sort.h>
+#include <thrust/transform.h>
 #include <thrust/transform_reduce.h>
 #include <thrust/tuple.h>
 #include <thrust/unique.h>
@@ -50,32 +61,14 @@ namespace cugraph {
 
 namespace detail {
 
-template <typename vertex_t>
-rmm::device_uvector<vertex_t> select_a_random_set_of_vetices(raft::handle_t const& handle,
-                                                             vertex_t begin,
-                                                             vertex_t end,
-                                                             vertex_t count,
-                                                             uint64_t seed,
-                                                             int repetitions_per_vertex = 0)
+template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
+rmm::device_uvector<weight_t> rank_vertices(
+  raft::handle_t const& handle,
+  cugraph::graph_view_t<vertex_t, edge_t, false, multi_gpu> const& graph_view,
+  std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>> edge_weight_view)
 {
-#if 0
-  auto& comm                  = handle.get_comms();
-  auto const comm_rank        = comm.get_rank();
-#endif
-  vertex_t number_of_vertices = end - begin;
-
-  rmm::device_uvector<vertex_t> vertices(
-    std::max((repetitions_per_vertex + 1) * number_of_vertices, count), handle.get_stream());
-  thrust::tabulate(
-    handle.get_thrust_policy(),
-    vertices.begin(),
-    vertices.end(),
-    [begin, number_of_vertices] __device__(auto v) { return begin + (v % number_of_vertices); });
-  thrust::default_random_engine g;
-  g.seed(seed);
-  thrust::shuffle(handle.get_thrust_policy(), vertices.begin(), vertices.end(), g);
-  vertices.resize(count, handle.get_stream());
-  return vertices;
+  return compute_out_weight_sums<vertex_t, edge_t, weight_t, false, multi_gpu>(
+    handle, graph_view, *edge_weight_view);
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t, bool multi_gpu>
@@ -85,103 +78,211 @@ rmm::device_uvector<vertex_t> compute_mis(
   std::optional<cugraph::edge_property_view_t<edge_t, weight_t const*>> edge_weight_view)
 {
   using GraphViewType = cugraph::graph_view_t<vertex_t, edge_t, false, multi_gpu>;
+  using FlagType      = vertex_t;
 
-  size_t number_of_vertices = graph_view.local_vertex_partition_range_size();
+  vertex_t number_of_vertices = graph_view.local_vertex_partition_range_size();
 
   rmm::device_uvector<vertex_t> mis(number_of_vertices, handle.get_stream());
 
+  bool debug = graph_view.local_vertex_partition_range_size() < 40;
+  if (debug) {
+    auto offsets = graph_view.local_edge_partition_view(0).offsets();
+    auto indices = graph_view.local_edge_partition_view(0).indices();
+    cudaDeviceSynchronize();
+    std::cout << "---- MIS Graph -----" << std::endl;
+    raft::print_device_vector("offsets: ", offsets.data(), offsets.size(), std::cout);
+    raft::print_device_vector("indices: ", indices.data(), indices.size(), std::cout);
+  }
   //
-  // Flag to indicate if a vertex is included in MIS
+  // Flag to indicate if a vertex is included in the MIS
   //
-  rmm::device_uvector<uint8_t> mis_inclusion_flags(number_of_vertices, handle.get_stream());
+  rmm::device_uvector<FlagType> mis_inclusion_flags(number_of_vertices, handle.get_stream());
+  thrust::uninitialized_fill(handle.get_thrust_policy(),
+                             mis_inclusion_flags.begin(),
+                             mis_inclusion_flags.end(),
+                             FlagType{0});
+
+  //
+  // Falg to indicate if a vertex should be discarded from consideration, either
+  // because itself or one of its neighbor is included in the MIS
+  //
+  rmm::device_uvector<FlagType> discard_flags(number_of_vertices, handle.get_stream());
   thrust::uninitialized_fill(
-    handle.get_thrust_policy(), mis_inclusion_flags.begin(), mis_inclusion_flags.end(), uint8_t{0});
+    handle.get_thrust_policy(), discard_flags.begin(), discard_flags.end(), FlagType{0});
 
-  //
-  // Fals to indicate if a vertex should be discarded from consideration, either
-  // because it's already in MIS or or one of its neighbor is in the MIS
-  //
-  rmm::device_uvector<uint8_t> discard_flags(number_of_vertices, handle.get_stream());
-  thrust::uninitialized_fill(
-    handle.get_thrust_policy(), discard_flags.begin(), discard_flags.end(), uint8_t{0});
+  rmm::device_uvector<vertex_t> remaining_candidates(0, handle.get_stream());
 
-  auto random_vs = abc(handle,
-                       graph_view.local_vertex_partition_range_first(),
-                       graph_view.local_vertex_partition_range_last(),
-                       static_cast<vertex_t>(0.2 * graph_view.local_vertex_partition_range_size()),
-                       0);
+  auto vertex_begin =
+    thrust::make_counting_iterator(graph_view.local_vertex_partition_range_first());
+  auto vertex_end = thrust::make_counting_iterator(graph_view.local_vertex_partition_range_last());
 
-  auto random_vs2 = select_a_random_set_of_vetices_10(
-    handle,
-    graph_view.local_vertex_partition_range_first(),
-    graph_view.local_vertex_partition_range_last(),
-    static_cast<vertex_t>(0.2 * graph_view.local_vertex_partition_range_size()),
-    0);
+  rmm::device_uvector<vertex_t> included_list(graph_view.local_vertex_partition_range_size(),
+                                              handle.get_stream());
+  rmm::device_uvector<vertex_t> discard_list(graph_view.local_vertex_partition_range_size(),
+                                             handle.get_stream());
 
+  auto out_degrees = graph_view.compute_out_degrees(handle);
+
+  if (debug) {
+    cudaDeviceSynchronize();
+    raft::print_device_vector("degrees: ", out_degrees.data(), out_degrees.size(), std::cout);
+  }
+
+  size_t loop_counter = 0;
   while (true) {
-    //
-    // Select a random set of vertices
-    //
+    // if (debug) {
+    cudaDeviceSynchronize();
+    loop_counter++;
+    std::cout << "Mis loop, counter: " << loop_counter << std::endl;
+    // }
+    // Select a random set of eligible vertices
 
-    auto random_vertices = select_a_random_set_of_vetices(
-      handle,
-      graph_view.local_vertex_partition_range_first(),
-      graph_view.local_vertex_partition_range_last(),
-      static_cast<vertex_t>(0.2 * graph_view.local_vertex_partition_range_size()),
-      0);
+    vertex_t nr_remaining_candidates =
+      thrust::count_if(handle.get_thrust_policy(),
+                       thrust::make_zip_iterator(thrust::make_tuple(
+                         mis_inclusion_flags.begin(), discard_flags.begin(), out_degrees.begin())),
+                       thrust::make_zip_iterator(thrust::make_tuple(
+                         mis_inclusion_flags.end(), discard_flags.end(), out_degrees.end())),
+                       [] __device__(auto flags) {
+                         return (thrust::get<0>(flags) == 0) && (thrust::get<1>(flags) == 0) &&
+                                (thrust::get<2>(flags) > 0);
+                       });
 
-    thrust::sort(handle.get_thrust_policy(),
-                 random_vertices.begin(),
-                 random_vertices.end(),
-                 thrust::less<vertex_t>());
-    random_vertices.resize(
-      static_cast<vertex_t>(thrust::distance(thrust::unique(handle.get_thrust_policy(),
-                                                            random_vertices.begin(),
-                                                            random_vertices.end(),
-                                                            thrust::less<vertex_t>()),
-                                             random_vertices.begin())),
+    remaining_candidates.resize(nr_remaining_candidates, handle.get_stream());
+
+    thrust::copy_if(handle.get_thrust_policy(),
+                    vertex_begin,
+                    vertex_end,
+                    thrust::make_zip_iterator(thrust::make_tuple(
+                      mis_inclusion_flags.begin(), discard_flags.begin(), out_degrees.begin())),
+                    remaining_candidates.begin(),
+                    [] __device__(auto flags) {
+                      return (thrust::get<0>(flags) == 0) && (thrust::get<1>(flags) == 0) &&
+                             (thrust::get<2>(flags) > 0);
+                    });
+
+    if (debug) {
+      cudaDeviceSynchronize();
+      raft::print_device_vector("remaining_candidates: ",
+                                remaining_candidates.data(),
+                                remaining_candidates.size(),
+                                std::cout);
+    }
+
+    thrust::default_random_engine g;
+    g.seed(0);
+    thrust::shuffle(
+      handle.get_thrust_policy(), remaining_candidates.begin(), remaining_candidates.end(), g);
+    remaining_candidates.resize(
+      std::max(vertex_t{1}, static_cast<vertex_t>(0.50 * nr_remaining_candidates)),
       handle.get_stream());
 
-    rmm::device_uvector<uint8_t> selection_flags(graph_view.local_vertex_partition_range_size(),
+    if (debug) {
+      cudaDeviceSynchronize();
+      raft::print_device_vector("remaining_candidates: (shuffle and picked 50%) ",
+                                remaining_candidates.data(),
+                                remaining_candidates.size(),
+                                std::cout);
+    }
+
+    thrust::sort(
+      handle.get_thrust_policy(), remaining_candidates.begin(), remaining_candidates.end());
+
+    if (debug) {
+      cudaDeviceSynchronize();
+      raft::print_device_vector("remaining_candidates(sorted): ",
+                                remaining_candidates.data(),
+                                remaining_candidates.size(),
+                                std::cout);
+    }
+
+    remaining_candidates.resize(thrust::distance(remaining_candidates.begin(),
+                                                 thrust::unique(handle.get_thrust_policy(),
+                                                                remaining_candidates.begin(),
+                                                                remaining_candidates.end())),
+                                handle.get_stream());
+
+    if (debug) {
+      cudaDeviceSynchronize();
+      raft::print_device_vector("remaining_candidates: unique ",
+                                remaining_candidates.data(),
+                                remaining_candidates.size(),
+                                std::cout);
+    }
+
+    // Flag vertices that are selected to be part of the MIS upon validity checks
+    rmm::device_uvector<FlagType> selection_flags(graph_view.local_vertex_partition_range_size(),
+                                                  handle.get_stream());
+
+    thrust::uninitialized_fill(
+      handle.get_thrust_policy(), selection_flags.begin(), selection_flags.end(), FlagType{0});
+
+    thrust::transform(handle.get_thrust_policy(),
+                      vertex_begin,
+                      vertex_end,
+                      selection_flags.begin(),
+                      [selected_nodes    = remaining_candidates.data(),
+                       nr_selected_nodes = remaining_candidates.size()] __device__(auto node) {
+                        return thrust::binary_search(
+                          thrust::seq, selected_nodes, selected_nodes + nr_selected_nodes, node);
+                      });
+
+    vertex_t nr_selected_vertices = thrust::count_if(handle.get_thrust_policy(),
+                                                     selection_flags.begin(),
+                                                     selection_flags.end(),
+                                                     [] __device__(auto flag) { return flag > 0; });
+
+    rmm::device_uvector<vertex_t> selection_list(graph_view.local_vertex_partition_range_size(),
                                                  handle.get_stream());
 
-    thrust::transform(
+    if (debug) {
+      thrust::copy_if(handle.get_thrust_policy(),
+                      vertex_begin,
+                      vertex_end,
+                      selection_flags.begin(),
+                      selection_list.begin(),
+                      [] __device__(auto flag) { return flag > 0; });
+
+      selection_list.resize(nr_selected_vertices, handle.get_stream());
+      CUDA_TRY(cudaDeviceSynchronize());
+
+      raft::print_device_vector(
+        "slected vertices ", selection_list.data(), selection_list.size(), std::cout);
+    }
+
+    edge_src_property_t<GraphViewType, FlagType> src_inclusion_flag_cache(handle);
+    edge_dst_property_t<GraphViewType, FlagType> dst_inclusion_flag_cache(handle);
+
+    edge_src_property_t<GraphViewType, FlagType> src_selection_flag_cache(handle);
+    edge_dst_property_t<GraphViewType, FlagType> dst_selection_flag_cache(handle);
+
+    auto ranks = compute_out_weight_sums<vertex_t, edge_t, weight_t, false, multi_gpu>(
+      handle, graph_view, *edge_weight_view);
+    // rank_vertices<vertex_t, edge_t, weight_t, multi_gpu>(handle, graph_view, edge_weight_view);
+
+    vertex_t pos_rank_but_zero_outdeg = thrust::count_if(
       handle.get_thrust_policy(),
-      thrust::make_counting_iterator(graph_view.local_vertex_partition_range_first()),
-      thrust::make_counting_iterator(graph_view.local_vertex_partition_range_last()),
-      selection_flags.begin(),
-      [selected_nodes    = random_vertices.data(),
-       nr_selected_nodes = random_vertices.size()] __device__(auto node) {
-        return thrust::binary_search(
-          thrust::device, selected_nodes, selected_nodes + nr_selected_nodes, node);
+      thrust::make_zip_iterator(thrust::make_tuple(ranks.begin(), out_degrees.begin())),
+      thrust::make_zip_iterator(thrust::make_tuple(ranks.begin(), out_degrees.end())),
+      [] __device__(auto flags) {
+        return (thrust::get<0>(flags) > 0.0) && (thrust::get<1>(flags) == 0);
       });
 
-    edge_src_property_t<GraphViewType, uint8_t> src_inclusion_flag_cache(handle);
-    edge_dst_property_t<GraphViewType, uint8_t> dst_inclusion_flag_cache(handle);
-
-    edge_src_property_t<GraphViewType, uint8_t> src_selection_flag_cache(handle);
-    edge_dst_property_t<GraphViewType, uint8_t> dst_selection_flag_cache(handle);
-
-    // As there is only one outedge, compute_out_weight_sums would return weight of
-    // outgoing edge.
-
-    auto ranks = compute_out_weight_sums(handle, graph_view, *edge_weight_view);
+    std::cout << "pos_rank_but_zero_outdeg: " << pos_rank_but_zero_outdeg << std::endl;
 
     edge_src_property_t<GraphViewType, weight_t> src_rank_cache(handle);
     edge_dst_property_t<GraphViewType, weight_t> dst_rank_cache(handle);
 
-    if constexpr (GraphViewType::is_multi_gpu) {
-      src_inclusion_flag_cache = edge_src_property_t<GraphViewType, uint8_t>(handle, graph_view);
-      dst_inclusion_flag_cache = edge_dst_property_t<GraphViewType, uint8_t>(handle, graph_view);
-
+    if constexpr (multi_gpu) {
+      src_inclusion_flag_cache = edge_src_property_t<GraphViewType, FlagType>(handle, graph_view);
+      dst_inclusion_flag_cache = edge_dst_property_t<GraphViewType, FlagType>(handle, graph_view);
       update_edge_src_property(
         handle, graph_view, mis_inclusion_flags.begin(), src_inclusion_flag_cache);
-
       update_edge_dst_property(
         handle, graph_view, mis_inclusion_flags.begin(), dst_inclusion_flag_cache);
 
-      src_selection_flag_cache = edge_src_property_t<GraphViewType, uint8_t>(handle, graph_view);
-      dst_selection_flag_cache = edge_dst_property_t<GraphViewType, uint8_t>(handle, graph_view);
+      src_selection_flag_cache = edge_src_property_t<GraphViewType, FlagType>(handle, graph_view);
+      dst_selection_flag_cache = edge_dst_property_t<GraphViewType, FlagType>(handle, graph_view);
       update_edge_src_property(
         handle, graph_view, selection_flags.begin(), src_selection_flag_cache);
       update_edge_dst_property(
@@ -193,30 +294,44 @@ rmm::device_uvector<vertex_t> compute_mis(
       update_edge_dst_property(handle, graph_view, ranks.begin(), dst_rank_cache);
     }
 
-    rmm::device_uvector<uint8_t> updated_selection_flags(
+    rmm::device_uvector<FlagType> de_selection_flags(graph_view.local_vertex_partition_range_size(),
+                                                     handle.get_stream());
+
+    rmm::device_uvector<FlagType> newly_discarded_flags(
       graph_view.local_vertex_partition_range_size(), handle.get_stream());
+
+    thrust::uninitialized_fill(handle.get_thrust_policy(),
+                               de_selection_flags.begin(),
+                               de_selection_flags.end(),
+                               FlagType{0});
+
+    thrust::uninitialized_fill(handle.get_thrust_policy(),
+                               newly_discarded_flags.begin(),
+                               newly_discarded_flags.end(),
+                               FlagType{0});
 
     per_v_transform_reduce_outgoing_e(
       handle,
       graph_view,
-      GraphViewType::is_multi_gpu
+      multi_gpu
         ? view_concat(
             src_inclusion_flag_cache.view(), src_selection_flag_cache.view(), src_rank_cache.view())
         : view_concat(
-            detail::edge_major_property_view_t<vertex_t, uint8_t const*>(
+            detail::edge_major_property_view_t<vertex_t, FlagType const*>(
               mis_inclusion_flags.data()),
-            detail::edge_major_property_view_t<vertex_t, uint8_t const*>(selection_flags.data()),
+            detail::edge_major_property_view_t<vertex_t, FlagType const*>(selection_flags.data()),
             detail::edge_major_property_view_t<vertex_t, weight_t const*>(ranks.data())),
-      GraphViewType::is_multi_gpu
+      multi_gpu
         ? view_concat(
             dst_inclusion_flag_cache.view(), dst_selection_flag_cache.view(), dst_rank_cache.view())
-        : view_concat(detail::edge_minor_property_view_t<vertex_t, uint8_t const*>(
+        : view_concat(detail::edge_minor_property_view_t<vertex_t, FlagType const*>(
                         mis_inclusion_flags.data(), vertex_t{0}),
-                      detail::edge_minor_property_view_t<vertex_t, uint8_t const*>(
+                      detail::edge_minor_property_view_t<vertex_t, FlagType const*>(
                         selection_flags.data(), vertex_t{0}),
                       detail::edge_minor_property_view_t<vertex_t, weight_t const*>(ranks.data(),
                                                                                     vertex_t{0})),
-      [] __device__(auto src, auto dst, auto wt, auto src_info, auto dst_info) {
+      edge_dummy_property_t{}.view(),
+      [] __device__(auto src, auto dst, auto src_info, auto dst_info, auto wt) {
         auto is_src_selected = thrust::get<1>(src_info);
         auto src_rank        = thrust::get<2>(src_info);
 
@@ -224,69 +339,165 @@ rmm::device_uvector<vertex_t> compute_mis(
         auto is_dst_selected = thrust::get<1>(dst_info);
         auto dst_rank        = thrust::get<2>(dst_info);
 
-        // If a neighbor is already included into MIS,
-        // then it can't be included, discard if forever.
+        // If a neighbor of a vertex is already included in the MIS,
+        // then the vertex can't be included.
 
-        if (is_dst_included) return thrust::make_tuple(uint8_t{0}, uint8_t{1});
+        // printf(
+        //   "\n(outgoing) src = %d, is_src_selected = %d, src_rank = %f : dst = %d, is_dst_selected
+        //   "
+        //   "= %d, "
+        //   "is_dst_included = %d, dst_rank = %f",
+        //   src,
+        //   uint32_t{is_src_selected},
+        //   src_rank,
+        //   dst,
+        //   uint32_t{is_dst_selected},
+        //   uint32_t{is_dst_included},
+        //   dst_rank);
 
-        //
-        // Give priority to high rank, high id vertex
-        //
-
-        // if (is_src_selected && is_dst_selected)
-        //   return thrust::make_tuple(src_rank, src) > thrust::make_tuple(dst_rank, dst);
+        if (is_dst_included) {
+          // deselect and discard
+          return thrust::make_tuple(FlagType{1}, FlagType{1});
+        }
 
         if (is_src_selected && is_dst_selected) {
+          // printf("\n (src=%d ---> dst=%d)  ss=%d ds=%d,  sr=%f dr=%f",
+          //        uint32_t{src},
+          //        uint32_t{dst},
+          //        uint32_t{is_src_selected},
+          //        uint32_t{is_dst_selected},
+          //        src_rank,
+          //        dst_rank);
+          // Give priority to high rank, high id vertex
           if (src_rank < dst_rank) {
-            return thrust::make_tuple(uint8_t{0}, uint8_t{0});  // unselect v
-          } else if (fabs(src_rank - dst_rank) < 1e-8) {
+            // smaller rank, deselect it
+            return thrust::make_tuple(FlagType{1}, FlagType{0});
+          } else if (fabs(src_rank - dst_rank) < 1e-9) {
             if (src < dst) {
-              return thrust::make_tuple(uint8_t{0}, uint8_t{0});  // unselect v
+              // equal rank, but smaller id
+              return thrust::make_tuple(FlagType{1}, FlagType{0});
             }
           }
         }
 
-        return thrust::make_tuple(is_src_selected, uint8_t{0});
+        // printf("\n (src=%d ---> dst=%d) returning %d %d",
+        //        uint32_t{src},
+        //        uint32_t{dst},
+        //        uint32_t{0},
+        //        uint32_t{0});
+        return thrust::make_tuple(FlagType{0}, FlagType{0});
       },
-      thrust::make_tuple(uint8_t{0}, uint8_t{0}),
+      thrust::make_tuple(FlagType{0}, FlagType{0}),
       thrust::make_zip_iterator(
-        thrust::make_tuple(updated_selection_flags.begin(), discard_flags.begin())));
+        thrust::make_tuple(de_selection_flags.begin(), newly_discarded_flags.begin())));
 
-    if constexpr (GraphViewType::is_multi_gpu) {
-      src_selection_flag_cache = edge_src_property_t<GraphViewType, uint8_t>(handle, graph_view);
-      dst_selection_flag_cache = edge_dst_property_t<GraphViewType, uint8_t>(handle, graph_view);
-      update_edge_src_property(
-        handle, graph_view, updated_selection_flags.begin(), src_selection_flag_cache);
-      update_edge_dst_property(
-        handle, graph_view, updated_selection_flags.begin(), dst_selection_flag_cache);
+    // Update selection flags
+    thrust::transform(
+      handle.get_thrust_policy(),
+      selection_flags.begin(),
+      selection_flags.end(),
+      de_selection_flags.begin(),
+      selection_flags.begin(),
+      [] __device__(auto status, auto deselected) { return (status > 0) && (!(deselected > 0)); });
+
+    if (debug) {
+      vertex_t nr_deselected = thrust::count_if(handle.get_thrust_policy(),
+                                                de_selection_flags.begin(),
+                                                de_selection_flags.end(),
+                                                [] __device__(auto flag) { return flag > 0; });
+
+      rmm::device_uvector<vertex_t> de_selection_list(nr_deselected, handle.get_stream());
+
+      thrust::copy_if(handle.get_thrust_policy(),
+                      vertex_begin,
+                      vertex_end,
+                      de_selection_flags.begin(),
+                      de_selection_list.begin(),
+                      [] __device__(auto flag) { return flag > 0; });
+
+      CUDA_TRY(cudaDeviceSynchronize());
+
+      raft::print_device_vector(
+        "\nde_selection_list ", de_selection_list.data(), de_selection_list.size(), std::cout);
     }
 
-    rmm::device_uvector<uint8_t> final_selection_flags(
-      graph_view.local_vertex_partition_range_size(), handle.get_stream());
+    thrust::transform(
+      handle.get_thrust_policy(),
+      discard_flags.begin(),
+      discard_flags.end(),
+      newly_discarded_flags.begin(),
+      discard_flags.begin(),
+      [] __device__(auto prev, auto current) { return (prev > 0) || (current > 0); });
+
+    vertex_t nr_discarded_vertices =
+      thrust::count_if(handle.get_thrust_policy(),
+                       discard_flags.begin(),
+                       discard_flags.end(),
+                       [] __device__(auto flag) { return flag > 0; });
+
+    if (debug) {
+      thrust::copy_if(handle.get_thrust_policy(),
+                      vertex_begin,
+                      vertex_end,
+                      discard_flags.begin(),
+                      discard_list.begin(),
+                      [] __device__(auto flag) { return flag > 0; });
+
+      discard_list.resize(nr_discarded_vertices, handle.get_stream());
+      CUDA_TRY(cudaDeviceSynchronize());
+
+      raft::print_device_vector(
+        "\nupdated discarded vertices ", discard_list.data(), discard_list.size(), std::cout);
+
+      thrust::copy_if(handle.get_thrust_policy(),
+                      vertex_begin,
+                      vertex_end,
+                      selection_flags.begin(),
+                      selection_list.begin(),
+                      [] __device__(auto flag) { return flag > 0; });
+
+      nr_selected_vertices = thrust::count_if(handle.get_thrust_policy(),
+                                              selection_flags.begin(),
+                                              selection_flags.end(),
+                                              [] __device__(auto flag) { return flag > 0; });
+
+      selection_list.resize(nr_selected_vertices, handle.get_stream());
+
+      raft::print_device_vector(
+        "updated slected vertices ", selection_list.data(), selection_list.size(), std::cout);
+    }
+
+    if constexpr (multi_gpu) {
+      update_edge_src_property(
+        handle, graph_view, selection_flags.begin(), src_selection_flag_cache);
+      update_edge_dst_property(
+        handle, graph_view, selection_flags.begin(), dst_selection_flag_cache);
+    }
 
     per_v_transform_reduce_incoming_e(
       handle,
       graph_view,
-      GraphViewType::is_multi_gpu
+      multi_gpu
         ? view_concat(
             src_inclusion_flag_cache.view(), src_selection_flag_cache.view(), src_rank_cache.view())
-        : view_concat(detail::edge_major_property_view_t<vertex_t, uint8_t const*>(
-                        mis_inclusion_flags.data()),
-                      detail::edge_major_property_view_t<vertex_t, uint8_t const*>(
-                        updated_selection_flags.data()),
-                      detail::edge_major_property_view_t<vertex_t, weight_t const*>(ranks.data())),
-      GraphViewType::is_multi_gpu
+        : view_concat(
+            detail::edge_major_property_view_t<vertex_t, FlagType const*>(
+              mis_inclusion_flags.data()),
+            detail::edge_major_property_view_t<vertex_t, FlagType const*>(selection_flags.data()),
+            detail::edge_major_property_view_t<vertex_t, weight_t const*>(ranks.data())),
+      multi_gpu
         ? view_concat(
             dst_inclusion_flag_cache.view(), dst_selection_flag_cache.view(), dst_rank_cache.view())
         : view_concat(
 
-            detail::edge_minor_property_view_t<vertex_t, uint8_t const*>(mis_inclusion_flags.data(),
-                                                                         vertex_t{0}),
-            detail::edge_minor_property_view_t<vertex_t, uint8_t const*>(
-              updated_selection_flags.data(), vertex_t{0}),
+            detail::edge_minor_property_view_t<vertex_t, FlagType const*>(
+              mis_inclusion_flags.data(), vertex_t{0}),
+            detail::edge_minor_property_view_t<vertex_t, FlagType const*>(selection_flags.data(),
+                                                                          vertex_t{0}),
             detail::edge_minor_property_view_t<vertex_t, weight_t const*>(ranks.data(),
                                                                           vertex_t{0})),
-      [] __device__(auto src, auto dst, auto wt, auto src_info, auto dst_info) {
+      edge_dummy_property_t{}.view(),
+      [] __device__(auto src, auto dst, auto src_info, auto dst_info, auto wt) {
         auto is_src_included = thrust::get<0>(src_info);
         auto is_src_selected = thrust::get<1>(src_info);
         auto src_rank        = thrust::get<2>(src_info);
@@ -294,62 +505,201 @@ rmm::device_uvector<vertex_t> compute_mis(
         auto is_dst_selected = thrust::get<1>(dst_info);
         auto dst_rank        = thrust::get<2>(dst_info);
 
-        if (is_src_included) thrust::make_tuple(uint8_t{0}, uint8_t{0});
+        // printf(
+        //   "\n (incoming) src = %d, is_src_selected = %d, is_src_included = %d, src_rank = %f :
+        //   dst "
+        //   "= %d, "
+        //   "is_dst_selected = %d,  dst_rank = %f",
+        //   src,
+        //   uint32_t{is_src_selected},
+        //   uint32_t{is_src_included},
+        //   src_rank,
+        //   dst,
+        //   uint32_t{is_dst_selected},
+        //   dst_rank);
+
+        if (is_src_included) {
+          // deselect and discard
+          return thrust::make_tuple(FlagType{1}, FlagType{1});
+        }
 
         // Give priority to high rank, high id vertex
-        if (is_src_selected && is_dst_selected)
-          return thrust::make_tuple(static_cast<uint8_t>(thrust::make_tuple(dst_rank, dst) >
-                                                         thrust::make_tuple(src_rank, src)),
-                                    uint8_t{0});
+        if (is_src_selected && is_dst_selected) {
+          // printf("\n (in) (src=%d ---> dst=%d)  ss=%d ds=%d,  sr=%f dr=%f",
+          //        uint32_t{src},
+          //        uint32_t{dst},
+          //        uint32_t{is_src_selected},
+          //        uint32_t{is_dst_selected},
+          //        src_rank,
+          //        dst_rank);
+          return thrust::make_tuple(static_cast<FlagType>(thrust::make_tuple(src_rank, src) >
+                                                          thrust::make_tuple(dst_rank, dst)),
+                                    FlagType{0});
+        }
 
-        return thrust::make_tuple(is_dst_selected, uint8_t{0});
+        // printf("\n(src=%d ---> dst=%d) returning %d %d",
+        //        uint32_t{src},
+        //        uint32_t{dst},
+        //        uint32_t{0},
+        //        uint32_t{0});
+        return thrust::make_tuple(FlagType{0}, FlagType{0});
       },
-      thrust::make_tuple(uint8_t{0}, uint8_t{0}),
+      thrust::make_tuple(FlagType{0}, FlagType{0}),
       thrust::make_zip_iterator(
-        thrust::make_tuple(final_selection_flags.begin(), discard_flags.begin())));
+        thrust::make_tuple(de_selection_flags.begin(), newly_discarded_flags.begin())));
 
-    // Add selected vertices to MIS and discard in the next selection round
+    if (debug) {
+      vertex_t nr_deselected = thrust::count_if(handle.get_thrust_policy(),
+                                                de_selection_flags.begin(),
+                                                de_selection_flags.end(),
+                                                [] __device__(auto flag) { return flag > 0; });
+
+      rmm::device_uvector<vertex_t> de_selection_list(nr_deselected, handle.get_stream());
+
+      thrust::copy_if(handle.get_thrust_policy(),
+                      vertex_begin,
+                      vertex_end,
+                      de_selection_flags.begin(),
+                      de_selection_list.begin(),
+                      [] __device__(auto flag) { return flag > 0; });
+
+      CUDA_TRY(cudaDeviceSynchronize());
+
+      raft::print_device_vector(
+        "\n(in)de_selection_list ", de_selection_list.data(), de_selection_list.size(), std::cout);
+    }
+
+    // Update selection flags
+    thrust::transform(
+      handle.get_thrust_policy(),
+      selection_flags.begin(),
+      selection_flags.end(),
+      de_selection_flags.begin(),
+      selection_flags.begin(),
+      [] __device__(auto status, auto deselected) { return (status > 0) && (!(deselected > 0)); });
+
+    thrust::transform(
+      handle.get_thrust_policy(),
+      discard_flags.begin(),
+      discard_flags.end(),
+      newly_discarded_flags.begin(),
+      discard_flags.begin(),
+      [] __device__(auto prev, auto current) { return (prev > 0) || (current > 0); });
+
+    // Add selected vertices to the MIS and discard in the next selection round
     thrust::transform(handle.get_thrust_policy(),
-                      final_selection_flags.begin(),
-                      final_selection_flags.end(),
-                      thrust::make_zip_iterator(
-                        thrust::make_tuple(mis_inclusion_flags.begin(), discard_flags.begin())),
-                      thrust::make_zip_iterator(
-                        thrust::make_tuple(mis_inclusion_flags.begin(), discard_flags.begin())),
-                      [] __device__(auto selection_flag, auto prev_flag_pair) {
-                        auto prev_inclusion_flag = thrust::get<0>(prev_flag_pair);
-                        auto prev_discard_flag   = thrust::get<1>(prev_flag_pair);
-
-                        return thrust::make_tuple(
-                          static_cast<uint8_t>(selection_flag || prev_inclusion_flag),
-                          static_cast<uint8_t>(selection_flag || prev_discard_flag));
+                      selection_flags.begin(),
+                      selection_flags.end(),
+                      mis_inclusion_flags.begin(),
+                      mis_inclusion_flags.begin(),
+                      [] __device__(auto selected, auto prev_inclusion_flag) {
+                        return static_cast<FlagType>(selected || prev_inclusion_flag);
                       });
 
-    size_t nr_include_vertices   = thrust::count_if(handle.get_thrust_policy(),
-                                                  mis_inclusion_flags.begin(),
-                                                  mis_inclusion_flags.end(),
-                                                  [] __device__(auto flag) { return flag > 0; });
-    size_t nr_discarded_vertices = thrust::count_if(handle.get_thrust_policy(),
-                                                    discard_flags.begin(),
-                                                    discard_flags.end(),
+    vertex_t nr_include_vertices = thrust::count_if(handle.get_thrust_policy(),
+                                                    mis_inclusion_flags.begin(),
+                                                    mis_inclusion_flags.end(),
                                                     [] __device__(auto flag) { return flag > 0; });
 
-    if ((number_of_vertices - nr_include_vertices - nr_discarded_vertices) == 0) break;
+    if (debug) {
+      thrust::copy_if(handle.get_thrust_policy(),
+                      vertex_begin,
+                      vertex_end,
+                      mis_inclusion_flags.begin(),
+                      included_list.begin(),
+                      [] __device__(auto flag) { return flag > 0; });
+
+      included_list.resize(nr_include_vertices, handle.get_stream());
+
+      CUDA_TRY(cudaDeviceSynchronize());
+
+      raft::print_device_vector(
+        "included vertices: ", included_list.data(), included_list.size(), std::cout);
+    }
+
+    nr_discarded_vertices = thrust::count_if(handle.get_thrust_policy(),
+                                             discard_flags.begin(),
+                                             discard_flags.end(),
+                                             [] __device__(auto flag) { return flag > 0; });
+
+    if (debug) {
+      thrust::copy_if(handle.get_thrust_policy(),
+                      vertex_begin,
+                      vertex_end,
+                      discard_flags.begin(),
+                      discard_list.begin(),
+                      [] __device__(auto flag) { return flag > 0; });
+
+      discard_list.resize(nr_discarded_vertices, handle.get_stream());
+      CUDA_TRY(cudaDeviceSynchronize());
+
+      raft::print_device_vector(
+        "discarded vertices ", discard_list.data(), discard_list.size(), std::cout);
+    }
+
+    vertex_t nr_remaining_vertices_to_check =
+      thrust::count_if(handle.get_thrust_policy(),
+                       thrust::make_zip_iterator(thrust::make_tuple(
+                         mis_inclusion_flags.begin(), discard_flags.begin(), out_degrees.begin())),
+                       thrust::make_zip_iterator(thrust::make_tuple(
+                         mis_inclusion_flags.end(), discard_flags.end(), out_degrees.end())),
+                       [] __device__(auto flags) {
+                         return (thrust::get<0>(flags) == 0) && (thrust::get<1>(flags) == 0) &&
+                                (thrust::get<2>(flags) > 0);
+                       });
+
+    if (multi_gpu) {
+      nr_remaining_vertices_to_check = host_scalar_allreduce(handle.get_comms(),
+                                                             nr_remaining_vertices_to_check,
+                                                             raft::comms::op_t::SUM,
+                                                             handle.get_stream());
+    }
+
+    vertex_t nr_discared_and_included =
+      thrust::count_if(handle.get_thrust_policy(),
+                       thrust::make_zip_iterator(thrust::make_tuple(
+                         mis_inclusion_flags.begin(), discard_flags.begin(), out_degrees.begin())),
+                       thrust::make_zip_iterator(thrust::make_tuple(
+                         mis_inclusion_flags.end(), discard_flags.end(), out_degrees.end())),
+                       [] __device__(auto flags) {
+                         return (thrust::get<0>(flags) > 0) && (thrust::get<1>(flags) > 0) &&
+                                (thrust::get<2>(flags) > 0);
+                       });
+
+    cudaDeviceSynchronize();
+
+    std::cout << " number_of_vertices:       " << number_of_vertices << std::endl;
+    std::cout << " nr_discared_and_included: " << nr_discared_and_included << std::endl;
+    std::cout << " included : discarded:     " << nr_include_vertices << ":"
+              << nr_discarded_vertices << std::endl;
+    std::cout << " included + discarded:     " << (nr_include_vertices + nr_discarded_vertices)
+              << std::endl;
+
+    std::cout << "remaining_vts_to_check:   " << nr_remaining_vertices_to_check << std::endl;
+
+    if (nr_remaining_vertices_to_check == 0) { break; }
   }
 
-  size_t nr_vertices_in_mis = thrust::count_if(handle.get_thrust_policy(),
-                                               mis_inclusion_flags.begin(),
-                                               mis_inclusion_flags.end(),
-                                               [] __device__(auto flag) { return flag > 0; });
+  vertex_t nr_vertices_in_mis = thrust::count_if(handle.get_thrust_policy(),
+                                                 mis_inclusion_flags.begin(),
+                                                 mis_inclusion_flags.end(),
+                                                 [] __device__(auto flag) { return flag > 0; });
 
   thrust::copy_if(handle.get_thrust_policy(),
-                  thrust::make_counting_iterator(graph_view.local_vertex_partition_range_first()),
-                  thrust::make_counting_iterator(graph_view.local_vertex_partition_range_last()),
+                  vertex_begin,
+                  vertex_end,
                   mis_inclusion_flags.begin(),
                   mis.begin(),
                   [] __device__(auto flag) { return flag > 0; });
 
   mis.resize(nr_vertices_in_mis, handle.get_stream());
+
+  // if (debug) {
+  cudaDeviceSynchronize();
+  std::cout << "Found mis of size " << mis.size() << std::endl;
+  cudaDeviceSynchronize();
+  // raft::print_device_vector("mis", mis.data(), mis.size(), std::cout);
+  // }
 
   return mis;
 }

@@ -31,7 +31,7 @@ template <typename graph_view_t, typename weight_t>
 std::tuple<rmm::device_uvector<typename graph_view_t::vertex_type>,
            std::pair<rmm::device_uvector<typename graph_view_t::vertex_type>,
                      rmm::device_uvector<typename graph_view_t::vertex_type>>>
-refine_clustering_2(
+refine_clustering(
   raft::handle_t const& handle,
   graph_view_t const& graph_view,
   std::optional<edge_property_view_t<typename graph_view_t::edge_type, weight_t const*>>
