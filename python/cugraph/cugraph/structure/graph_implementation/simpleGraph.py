@@ -67,8 +67,6 @@ class simpleGraphImpl:
             self.offsets = offsets
             self.indices = indices
             self.weights = value  # Should be a dataframe for multiple weights
-            if value is not None:
-                self.weights = True
 
     class transposedAdjList:
         def __init__(self, offsets, indices, value=None):
