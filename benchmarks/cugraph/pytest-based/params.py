@@ -68,16 +68,6 @@ mnmg = pytest.param(
     marks=[pytest.mark.mnmg, pytest.mark.mg],
     id="gpu_config=MNMG",
 )
-graph = pytest.param(
-    "Graph",
-    marks=[pytest.mark.local],
-    id="type=Graph",
-)
-remotegraph = pytest.param(
-    "RemoteGraph",
-    marks=[pytest.mark.remote],
-    id="type=RemoteGraph",
-)
 karate = pytest.param(
     "karate",
     id="dataset=karate",
@@ -129,19 +119,19 @@ small_fanout_list = pytest.param(
 
 # Define/generate the combinations to run.
 graph_obj_fixture_params = gen_fixture_params(
-    (graph, sg, karate),
-    (graph, sg, small_low_degree_rmat),
-    (graph, sg, small_high_degree_rmat),
-    (graph, snmg, large_low_degree_rmat),
-    (graph, snmg, large_high_degree_rmat),
+    (sg, karate),
+    (sg, small_low_degree_rmat),
+    (sg, small_high_degree_rmat),
+    (snmg, large_low_degree_rmat),
+    (snmg, large_high_degree_rmat),
 )
 
 remote_graph_obj_fixture_params = gen_fixture_params(
-    (remotegraph, sg, karate),
-    (remotegraph, sg, small_low_degree_rmat),
-    (remotegraph, sg, small_high_degree_rmat),
-    (remotegraph, snmg, large_low_degree_rmat),
-    (remotegraph, snmg, large_high_degree_rmat),
-    (remotegraph, mnmg, huge_low_degree_rmat),
-    (remotegraph, mnmg, huge_high_degree_rmat),
+    (sg, karate),
+    (sg, small_low_degree_rmat),
+    (sg, small_high_degree_rmat),
+    (snmg, large_low_degree_rmat),
+    (snmg, large_high_degree_rmat),
+    (mnmg, huge_low_degree_rmat),
+    (mnmg, huge_high_degree_rmat),
 )

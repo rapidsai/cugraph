@@ -12,9 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import os
-from pathlib import Path
-
 import pytest
 import numpy as np
 import cupy as cp
@@ -41,11 +38,6 @@ from cugraph import (
 from cugraph.generators import rmat
 from cugraph.experimental import datasets
 from cugraph.dask import uniform_neighbor_sample as uniform_neighbor_sample_mg
-
-from cugraph_service_client import CugraphServiceClient
-from cugraph_service_client.exceptions import CugraphServiceError
-from cugraph_service_client import RemoteGraph
-from cugraph_service_server.testing import utils
 
 import params
 
@@ -160,35 +152,6 @@ def create_mg_graph(graph_data):
     return (G, client, cluster)
 
 
-def create_remote_graph(graph_data, client):
-    """
-    Create a remote graph instance based on the data to be loaded/generated,
-    relying on server-side graph creation extensions.
-    """
-    # Assume strings are names of datasets in the datasets package
-    if isinstance(graph_data, str):
-        gid = client.call_graph_creation_extension(
-            "create_graph_from_builtin_dataset", graph_data
-        )
-
-    # Assume dictionary contains RMAT params
-    elif isinstance(graph_data, dict):
-        scale = graph_data["scale"]
-        num_edges = (2**scale) * graph_data["edgefactor"]
-        seed = _seed
-        gid = client.call_graph_creation_extension(
-            "create_graph_from_rmat_generator",
-            scale=scale,
-            num_edges=num_edges,
-            seed=seed,
-        )
-    else:
-        raise TypeError(f"graph_data can only be str or dict, got {type(graph_data)}")
-
-    G = RemoteGraph(client, gid)
-    return G
-
-
 def get_uniform_neighbor_sample_args(
     G, seed, start_list_len, fanout_list_len, with_replacement
 ):
@@ -218,36 +181,29 @@ def get_uniform_neighbor_sample_args(
     else:
         num_start_verts = 2
 
-    # Create the start_list by...then unrenumbering them to get actual IDs.
-    if isinstance(G, RemoteGraph):
-        start_list = G._client.call_extension(
-            "gen_vertex_list", G._graph_id, num_start_verts, seed
+    assert G.renumbered
+    start_list_set = set()
+    max_tries = 10000
+    try_num = 0
+    while (len(start_list_set) < num_start_verts) and (try_num < max_tries):
+        internal_vertex_ids_start_list = rng.choice(
+            num_verts, size=num_start_verts, replace=False
         )
+        start_list_df = cudf.DataFrame({"vid": internal_vertex_ids_start_list})
+        start_list_df = G.unrenumber(start_list_df, "vid")
 
-    else:
-        assert G.renumbered
-        start_list_set = set()
-        max_tries = 10000
-        try_num = 0
-        while (len(start_list_set) < num_start_verts) and (try_num < max_tries):
-            internal_vertex_ids_start_list = rng.choice(
-                num_verts, size=num_start_verts, replace=False
-            )
-            start_list_df = cudf.DataFrame({"vid": internal_vertex_ids_start_list})
-            start_list_df = G.unrenumber(start_list_df, "vid")
+        if G.is_multi_gpu():
+            start_list_series = start_list_df.compute()["vid"]
+        else:
+            start_list_series = start_list_df["vid"]
 
-            if G.is_multi_gpu():
-                start_list_series = start_list_df.compute()["vid"]
-            else:
-                start_list_series = start_list_df["vid"]
+        start_list_series.dropna(inplace=True)
+        start_list_set.update(set(start_list_series.values_host.tolist()))
+        try_num += 1
 
-            start_list_series.dropna(inplace=True)
-            start_list_set.update(set(start_list_series.values_host.tolist()))
-            try_num += 1
-
-        start_list = list(start_list_set)
-        start_list = start_list[:num_start_verts]
-        assert len(start_list) == num_start_verts
+    start_list = list(start_list_set)
+    start_list = start_list[:num_start_verts]
+    assert len(start_list) == num_start_verts
 
     # Generate a fanout list based on degree if the list is to be large,
     # otherwise just use a small list of fixed numbers.
@@ -270,132 +226,28 @@ def get_uniform_neighbor_sample_args(
     }
 
 
-def ensure_running_service(dask_scheduler_file=None, start_local_cuda_cluster=False):
-    """
-    Returns a tuple containing a Popen object for the running cugraph-service
-    server subprocess, and a client object connected to it.  If a server was
-    detected already running, the Popen object will be None.
-    """
-    host = "localhost"
-    port = 9090
-    client = CugraphServiceClient(host, port)
-    server_process = None
-
-    try:
-        client.uptime()
-        print("FOUND RUNNING SERVER, ASSUMING IT SHOULD BE USED FOR TESTING!")
-
-    except CugraphServiceError:
-        # A server was not found, so start one for testing then stop it when
-        # testing is done.
-        server_process = utils.start_server_subprocess(
-            host=host,
-            port=port,
-            start_local_cuda_cluster=start_local_cuda_cluster,
-            dask_scheduler_file=dask_scheduler_file,
-        )
-
-    # Ensure the extensions needed for these benchmarks are loaded
-    required_graph_creation_extension_module = "benchmark_server_extension"
-    server_data = client.get_server_info()
-    # .stem excludes .py extensions, so it can match a python module name
-    loaded_graph_creation_extension_modules = [
-        Path(m).stem for m in server_data["graph_creation_extensions"]
-    ]
-    if (
-        required_graph_creation_extension_module
-        not in loaded_graph_creation_extension_modules
-    ):
-        modules_loaded = client.load_graph_creation_extensions(
-            "cugraph_service_server.testing.benchmark_server_extension"
-        )
-        if len(modules_loaded) < 1:
-            raise RuntimeError(
-                "failed to load graph creation extension "
-                f"{required_graph_creation_extension_module}"
-            )
-
-    loaded_extension_modules = [Path(m).stem for m in server_data["extensions"]]
-    if required_graph_creation_extension_module not in loaded_extension_modules:
-        modules_loaded = client.load_extensions(
-            "cugraph_service_server.testing.benchmark_server_extension"
-        )
-        if len(modules_loaded) < 1:
-            raise RuntimeError(
-                "failed to load extension "
-                f"{required_graph_creation_extension_module}"
-            )
-
-    return (server_process, client)
-
-
-def remote_uniform_neighbor_sample(G, start_list, fanout_vals, with_replacement=True):
-    """ """
-    assert G.is_remote()
-    result = G._client.uniform_neighbor_sample(
-        start_list, fanout_vals, with_replacement, graph_id=G._graph_id, result_device=1
-    )
-    return result
-
-
 @pytest.fixture(scope="module", params=params.graph_obj_fixture_params)
 def graph_objs(request):
     """
-    Fixture that returns a Graph object and algo callable based on the
-    parameters. This handles instantiating the correct type (Graph or
-    RemoteGraph) and populating it with graph data. This also ensures a
-    cugraph-service server is running in the case of a RemoteGraph. The
-    callable returned will be appropriate for the graph type (ie. "local" or
-    "remote" algo API).
+    Fixture that returns a Graph object and algo callable (SG or MG) based on
+    the parameters. This handles instantiating the correct type (SG or MG) and
+    populating it with graph data.
     """
-    (graph_type, gpu_config, graph_data) = request.param
-    server_process = None
+    (gpu_config, graph_data) = request.param
     dask_client = None
     dask_cluster = None
 
     if gpu_config not in ["SG", "SNMG", "MNMG"]:
         raise RuntimeError(f"got unexpected gpu_config value: {gpu_config}")
 
-    if graph_type == "Graph":
-        if gpu_config == "SG":
-            G = create_graph(graph_data)
-            uns_func = uniform_neighbor_sample
-        else:
-            (G, dask_client, dask_cluster) = create_mg_graph(graph_data)
-            uns_func = uniform_neighbor_sample_mg
-
-    elif graph_type == "RemoteGraph":
-        # Ensure the appropriate server is running
-        if gpu_config == "SG":
-            (server_process, cgs_client) = ensure_running_service()
-        elif gpu_config == "SNMG":
-            dask_scheduler_file = os.environ.get("SCHEDULER_FILE")
-            if dask_scheduler_file is None:
-                (server_process, cgs_client) = ensure_running_service(
-                    start_local_cuda_cluster=True
-                )
-            else:
-                assert Path(dask_scheduler_file).exists()
-                (server_process, cgs_client) = ensure_running_service(
-                    dask_scheduler_file=dask_scheduler_file
-                )
-        else:
-            raise NotImplementedError
-
-        G = create_remote_graph(graph_data, cgs_client)
-        uns_func = remote_uniform_neighbor_sample
-
+    if gpu_config == "SG":
+        G = create_graph(graph_data)
+        uns_func = uniform_neighbor_sample
     else:
-        raise RuntimeError(f"{graph_type=} is invalid")
+        (G, dask_client, dask_cluster) = create_mg_graph(graph_data)
+        uns_func = uniform_neighbor_sample_mg
 
     yield (G, uns_func)
-
-    del G  # is this necessary?
-    if server_process is not None:
-        print("\nTerminating server...", end="", flush=True)
-        server_process.terminate()
-        server_process.wait(timeout=60)
-        print("done.", flush=True)
 
     if dask_client is not None:
         stop_dask_client(dask_client, dask_cluster)
