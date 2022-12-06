@@ -153,7 +153,7 @@ def create_mg_graph(graph_data):
 
 
 def get_uniform_neighbor_sample_args(
-    G, seed, start_list_len, fanout_list_len, with_replacement
+    G, seed, start_list_len, fanout, with_replacement
 ):
     """
     Return a dictionary containing the args for uniform_neighbor_sample based
@@ -165,10 +165,8 @@ def get_uniform_neighbor_sample_args(
     The dictionary return value allows for easily supporting other args without
     having to maintain an order of values in a return tuple, for example.
     """
-    if start_list_len not in ["SMALL", "LARGE"]:
-        raise ValueError(f"got unexpected value {start_list_len=}")
-    if fanout_list_len not in ["SMALL", "LARGE"]:
-        raise ValueError(f"got unexpected value {fanout_list_len=}")
+    if fanout not in ["SMALL", "LARGE"]:
+        raise ValueError(f"got unexpected value {fanout=}")
     if with_replacement not in [True, False]:
         raise ValueError(f"got unexpected value {with_replacement=}")
 
@@ -176,10 +174,10 @@ def get_uniform_neighbor_sample_args(
     num_verts = G.number_of_vertices()
     num_edges = G.number_of_edges()
 
-    if start_list_len == "LARGE":
-        num_start_verts = min(1000, int(num_verts * 0.25))
+    if start_list_len > num_verts:
+        num_start_verts = int(num_verts * 0.25)
     else:
-        num_start_verts = 2
+        num_start_verts = start_list_len
 
     assert G.renumbered
     start_list_set = set()
@@ -207,7 +205,7 @@ def get_uniform_neighbor_sample_args(
 
     # Generate a fanout list based on degree if the list is to be large,
     # otherwise just use a small list of fixed numbers.
-    if fanout_list_len == "LARGE":
+    if fanout == "LARGE":
         num_edges = G.number_of_edges()
         avg_degree = num_edges // num_verts
         max_fanout = min(avg_degree, 5)
@@ -255,21 +253,18 @@ def graph_objs(request):
 
 ################################################################################
 # Benchmarks
-@pytest.mark.parametrize("start_list_len", [params.small_start_list,
-                                            params.large_start_list])
+@pytest.mark.parametrize("start_list_len", params.start_list.values())
+@pytest.mark.parametrize("fanout", [params.fanout_small, params.fanout_large])
 @pytest.mark.parametrize(
-    "fanout_vals_len", [params.small_fanout_list, params.large_fanout_list]
-)
-@pytest.mark.parametrize(
-    "with_replacement", [True, False], ids=lambda v: f"with_replacement={v}"
+    "with_replacement", [False], ids=lambda v: f"with_replacement={v}"
 )
 def bench_cugraph_uniform_neighbor_sample(
-    gpubenchmark, graph_objs, start_list_len, fanout_vals_len, with_replacement
+    gpubenchmark, graph_objs, start_list_len, fanout, with_replacement
 ):
     (G, uniform_neighbor_sample_func) = graph_objs
 
     uns_args = get_uniform_neighbor_sample_args(
-        G, _seed, start_list_len, fanout_vals_len, with_replacement
+        G, _seed, start_list_len, fanout, with_replacement
     )
     # print(f"\n{uns_args}")
     # FIXME: uniform_neighbor_sample cannot take a np.ndarray for start_list

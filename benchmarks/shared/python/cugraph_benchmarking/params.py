@@ -68,70 +68,59 @@ mnmg = pytest.param(
     marks=[pytest.mark.mnmg, pytest.mark.mg],
     id="gpu_config=MNMG",
 )
+
 karate = pytest.param(
     "karate",
     id="dataset=karate",
 )
-small_low_degree_rmat = pytest.param(
-    {"scale": 16, "edgefactor": 4},
-    id="dataset=rmat_16_4",
-)
-small_high_degree_rmat = pytest.param(
-    {"scale": 16, "edgefactor": 32},
-    id="dataset=rmat_16_32",
-)
-large_low_degree_rmat = pytest.param(
-    {"scale": 23, "edgefactor": 4},
-    id="dataset=rmat_23_4",
-)
-large_high_degree_rmat = pytest.param(
-    {"scale": 23, "edgefactor": 32},
-    id="dataset=rmat_23_32",
-)
-huge_low_degree_rmat = pytest.param(
-    {"scale": 30, "edgefactor": 4},
-    id="dataset=rmat_30_4",
-)
-huge_high_degree_rmat = pytest.param(
-    {"scale": 30, "edgefactor": 32},
-    id="dataset=rmat_30_32",
-)
-large_start_list = pytest.param(
-    "LARGE",
-    marks=[pytest.mark.start_list_large],
-    id="start_list_len=LARGE",
-)
-small_start_list = pytest.param(
+
+# RMAT-generated graph options
+_rmat_scales = range(16, 31)
+_rmat_edgefactors = [4, 32]
+rmat = {}
+for scale in _rmat_scales:
+    for edgefactor in _rmat_edgefactors:
+        rmat[f"{scale}_{edgefactor}"] = (
+            pytest.param({"scale": scale, "edgefactor": edgefactor},
+                         id=f"dataset=rmat_{scale}_{edgefactor}",
+            )
+        )
+
+# sampling algos length of start list
+_start_list_len = [100, 500, 1000, 2500, 5000,
+                   10000, 20000, 30000, 40000,
+                   50000, 60000, 70000, 80000,
+                   90000, 100000]
+start_list = {}
+for sll in _start_list_len:
+    start_list[sll] = (
+        pytest.param(sll,
+                     id=f"start_list_len={sll}",
+        )
+    )
+
+# sampling algos fanout size
+fanout_small = pytest.param(
     "SMALL",
-    marks=[pytest.mark.start_list_small],
-    id="start_list_len=SMALL",
+    marks=[pytest.mark.fanout_small],
+    id="fanout=SMALL",
 )
-large_fanout_list = pytest.param(
+fanout_large = pytest.param(
     "LARGE",
-    marks=[pytest.mark.fanout_list_large],
-    id="fanout_list_len=LARGE",
-)
-small_fanout_list = pytest.param(
-    "SMALL",
-    marks=[pytest.mark.fanout_list_small],
-    id="fanout_list_len=SMALL",
+    marks=[pytest.mark.fanout_large],
+    id="fanout=LARGE",
 )
 
-# Define/generate the combinations to run.
+# Parameters for Graph generation fixture
 graph_obj_fixture_params = gen_fixture_params(
     (sg, karate),
-    (sg, small_low_degree_rmat),
-    (sg, small_high_degree_rmat),
-    (snmg, large_low_degree_rmat),
-    (snmg, large_high_degree_rmat),
-)
-
-remote_graph_obj_fixture_params = gen_fixture_params(
-    (sg, karate),
-    (sg, small_low_degree_rmat),
-    (sg, small_high_degree_rmat),
-    (snmg, large_low_degree_rmat),
-    (snmg, large_high_degree_rmat),
-    (mnmg, huge_low_degree_rmat),
-    (mnmg, huge_high_degree_rmat),
+    (sg, rmat["16_4"]),
+    (sg, rmat["18_4"]),
+    (sg, rmat["20_4"]),
+    (sg, rmat["25_4"]),
+    (snmg, rmat["26_4"]),
+    (snmg, rmat["27_4"]),
+    (snmg, rmat["28_4"]),
+    (mnmg, rmat["29_4"]),
+    (mnmg, rmat["30_4"]),
 )

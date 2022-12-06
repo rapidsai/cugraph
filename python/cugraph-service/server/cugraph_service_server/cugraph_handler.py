@@ -14,12 +14,6 @@
 
 from functools import cached_property
 from pathlib import Path
-
-# FIXME This optional import is required to support graph creation
-# extensions that use OGB.  It should be removed when a better
-# workaround is found.
-from cugraph.utilities.utils import import_optional
-
 import importlib
 import time
 import traceback
@@ -28,19 +22,28 @@ from inspect import signature
 import asyncio
 import tempfile
 
+# FIXME This optional import is required to support graph creation
+# extensions that use OGB.  It should be removed when a better
+# workaround is found.
+from cugraph.utilities.utils import import_optional
 
 import numpy as np
 import cupy as cp
 import ucp
 import cudf
 import dask_cudf
-import cugraph
+from cugraph import (
+    batched_ego_graphs,
+    uniform_neighbor_sample,
+    node2vec,
+    Graph,
+    MultiGraph,
+)
 from dask.distributed import Client
 from dask_cuda import LocalCUDACluster
 from dask_cuda.initialize import initialize as dask_initialize
 from cugraph.experimental import PropertyGraph, MGPropertyGraph
 from cugraph.dask.comms import comms as Comms
-from cugraph import uniform_neighbor_sample
 from cugraph.dask import uniform_neighbor_sample as mg_uniform_neighbor_sample
 from cugraph.structure.graph_implementation.simpleDistributedGraph import (
     simpleDistributedGraphImpl,
@@ -229,20 +232,25 @@ class CugraphHandler:
         registered and assigned a unique graph ID.
         """
         modules_loaded = []
+        try:
+            extension_files = self.__get_extension_files_from_path(
+                extension_dir_or_mod_path
+            )
 
-        extension_files = self.__get_extension_files_from_path(
-            extension_dir_or_mod_path
-        )
+            for ext_file in extension_files:
+                module_file_path = ext_file.absolute().as_posix()
+                spec = importlib.util.spec_from_file_location(
+                    module_file_path, ext_file
+                )
+                module = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(module)
+                self.__graph_creation_extensions[module_file_path] = module
+                modules_loaded.append(module_file_path)
 
-        for ext_file in extension_files:
-            module_file_path = ext_file.absolute().as_posix()
-            spec = importlib.util.spec_from_file_location(module_file_path, ext_file)
-            module = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(module)
-            self.__graph_creation_extensions[module_file_path] = module
-            modules_loaded.append(module_file_path)
+            return modules_loaded
 
-        return modules_loaded
+        except Exception:
+            raise CugraphServiceError(f"{traceback.format_exc()}")
 
     def load_extensions(self, extension_dir_or_mod_path):
         """
@@ -256,19 +264,25 @@ class CugraphHandler:
         """
         modules_loaded = []
 
-        extension_files = self.__get_extension_files_from_path(
-            extension_dir_or_mod_path
-        )
+        try:
+            extension_files = self.__get_extension_files_from_path(
+                extension_dir_or_mod_path
+            )
 
-        for ext_file in extension_files:
-            module_file_path = ext_file.absolute().as_posix()
-            spec = importlib.util.spec_from_file_location(module_file_path, ext_file)
-            module = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(module)
-            self.__extensions[module_file_path] = module
-            modules_loaded.append(module_file_path)
+            for ext_file in extension_files:
+                module_file_path = ext_file.absolute().as_posix()
+                spec = importlib.util.spec_from_file_location(
+                    module_file_path, ext_file
+                )
+                module = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(module)
+                self.__extensions[module_file_path] = module
+                modules_loaded.append(module_file_path)
 
-        return modules_loaded
+            return modules_loaded
+
+        except Exception:
+            raise CugraphServiceError(f"{traceback.format_exc()}")
 
     def unload_extension_module(self, modname):
         """
@@ -909,9 +923,7 @@ class CugraphHandler:
             # FIXME: this should not be needed, need to update
             # cugraph.batched_ego_graphs to also accept a list
             seeds = cudf.Series(seeds, dtype="int32")
-            (ego_edge_list, seeds_offsets) = cugraph.batched_ego_graphs(
-                G, seeds, radius
-            )
+            (ego_edge_list, seeds_offsets) = batched_ego_graphs(G, seeds, radius)
 
             # batched_ego_graphs_result = BatchedEgoGraphsResult(
             #     src_verts=ego_edge_list["src"].values_host.tobytes(), #i32
@@ -953,9 +965,7 @@ class CugraphHandler:
             # to also accept a list
             start_vertices = cudf.Series(start_vertices, dtype="int32")
 
-            (paths, weights, path_sizes) = cugraph.node2vec(
-                G, start_vertices, max_depth
-            )
+            (paths, weights, path_sizes) = node2vec(G, start_vertices, max_depth)
 
             node2vec_result = Node2vecResult(
                 vertex_paths=paths.values_host,
@@ -982,7 +992,7 @@ class CugraphHandler:
                 # Implicitly extract a subgraph containing the entire multigraph.
                 # G will be garbage collected when this function returns.
                 G = G.extract_subgraph(
-                    create_using=cugraph.MultiGraph(directed=True),
+                    create_using=MultiGraph(directed=True),
                     default_edge_weight=1.0,
                 )
 
@@ -1132,9 +1142,9 @@ class CugraphHandler:
                         raise ValueError(f"Could not parse argument {arg}", e)
 
             if graph_type == "Graph":
-                graph_type = cugraph.Graph
+                graph_type = Graph
             else:
-                graph_type = cugraph.MultiGraph
+                graph_type = MultiGraph
 
             return graph_type(**args_dict)
 
