@@ -53,3 +53,4 @@ dependencies:
 - gtest=1.10.0
 - gmock=1.10.0
 - py
+- versioneer
