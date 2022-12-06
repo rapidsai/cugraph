@@ -39,7 +39,7 @@ from cugraph.generators import rmat
 from cugraph.experimental import datasets
 from cugraph.dask import uniform_neighbor_sample as uniform_neighbor_sample_mg
 
-import params
+from cugraph_benchmarking import params
 
 _seed = 42
 
@@ -263,7 +263,7 @@ def graph_objs(request):
 @pytest.mark.parametrize(
     "with_replacement", [True, False], ids=lambda v: f"with_replacement={v}"
 )
-def bench_uniform_neighbor_sample(
+def bench_cugraph_uniform_neighbor_sample(
     gpubenchmark, graph_objs, start_list_len, fanout_vals_len, with_replacement
 ):
     (G, uniform_neighbor_sample_func) = graph_objs

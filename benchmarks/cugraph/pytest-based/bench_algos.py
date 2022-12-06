@@ -32,17 +32,18 @@ except ImportError:
 import cugraph
 from cugraph.structure.number_map import NumberMap
 from cugraph.testing import utils
+from pylibcugraph.testing import gen_fixture_params_product
 from cugraph.utilities.utils import is_device_version_less_than
 import rmm
 
-from .params import (
+from cugraph_benchmarking.params import (
     directed_datasets,
     undirected_datasets,
     managed_memory,
     pool_allocator,
 )
 
-fixture_params = utils.genFixtureParamsProduct(
+fixture_params = gen_fixture_params_product(
     (directed_datasets + undirected_datasets, "ds"),
     (managed_memory, "mm"),
     (pool_allocator, "pa"))
