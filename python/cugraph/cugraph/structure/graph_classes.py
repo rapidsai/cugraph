@@ -179,7 +179,7 @@ class Graph:
         index_col,
         value_col=None,
         renumber=True,
-        store_transposed=False
+        store_transposed=False,
     ):
         """
         Initialize a graph from the adjacency list. It is an error to call this
@@ -209,7 +209,7 @@ class Graph:
             gdf_column of size E (E: number of edges).  The gdf column contains
             the weight value for each edge.  The expected type of
             the gdf_column element is floating point number.
-        
+
         renumber : bool, optional (default=True)
             Indicate whether or not to renumber the source and destination
             vertex IDs.
