@@ -15,21 +15,20 @@
  */
 #pragma once
 
+//#define TIMING
+
 #include <cugraph/legacy/graph.hpp>
 
 #include <converters/legacy/COOtoCSR.cuh>
 #include <utilities/graph_utils.cuh>
 
 #include <cugraph/dendrogram.hpp>
+#ifdef TIMING
+#include <cugraph/utilities/high_res_timer.hpp>
+#endif
 
 #include <rmm/device_uvector.hpp>
 #include <rmm/exec_policy.hpp>
-
-//#define TIMING
-
-#ifdef TIMING
-#include <utilities/high_res_timer.hpp>
-#endif
 
 #include <thrust/copy.h>
 #include <thrust/distance.h>

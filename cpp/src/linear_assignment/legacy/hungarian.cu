@@ -13,8 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+//#define TIMING
+
 #include <cugraph/legacy/graph.hpp>
 #include <cugraph/utilities/error.hpp>
+#ifdef TIMING
+#include <cugraph/utilities/high_res_timer.hpp>
+#endif
 
 #include <raft/solver/linear_assignment.cuh>
 
@@ -34,12 +39,6 @@
 
 #include <iostream>
 #include <limits>
-
-//#define TIMING
-
-#ifdef TIMING
-#include <utilities/high_res_timer.hpp>
-#endif
 
 namespace cugraph {
 namespace detail {
