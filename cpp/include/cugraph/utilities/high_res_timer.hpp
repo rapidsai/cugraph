@@ -32,7 +32,7 @@ class HighResTimer {
     start_stack.push(std::make_tuple(label, std::chrono::steady_clock::now()));
   }
 
-  void stop()
+  double stop()
   {
     auto stop_time           = std::chrono::steady_clock::now();
     auto [label, start_time] = start_stack.top();
@@ -49,6 +49,8 @@ class HighResTimer {
     auto& timer = it->second;
     std::get<0>(timer) += 1;
     std::get<1>(timer) += diff.count();
+
+    return diff.count();
   }
 
   void display(std::ostream& os)

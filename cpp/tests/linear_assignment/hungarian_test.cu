@@ -9,11 +9,11 @@
  *
  */
 
-#include <utilities/high_res_timer.hpp>
 #include <utilities/test_utilities.hpp>
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/legacy/graph.hpp>
+#include <cugraph/utilities/high_res_timer.hpp>
 
 #include <raft/handle.hpp>
 

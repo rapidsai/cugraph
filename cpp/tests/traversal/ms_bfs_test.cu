@@ -15,13 +15,13 @@
  */
 
 #include <utilities/base_fixture.hpp>
-#include <utilities/high_res_timer.hpp>
 #include <utilities/test_utilities.hpp>
 
 #include <cugraph/algorithms.hpp>
 #include <cugraph/graph.hpp>
 #include <cugraph/graph_generators.hpp>
 #include <cugraph/graph_view.hpp>
+#include <cugraph/utilities/high_res_timer.hpp>
 
 #include <raft/cudart_utils.h>
 #include <raft/handle.hpp>
