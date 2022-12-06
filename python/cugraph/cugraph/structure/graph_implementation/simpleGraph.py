@@ -896,19 +896,6 @@ class simpleGraphImpl:
         else:
             raise ValueError(f"Illegal value col {type(value_col)}")
 
-        if weight_col is None:
-            # Some algos require the graph to be weighted
-            weight_col = cudf.Series(
-                cupy.ones(len(self.edgelist.edgelist_df), dtype="float32")
-            )
-        else:
-            weight_t = weight_col.dtype
-
-            if weight_t == "int32":
-                weight_col = weight_col.astype("float32")
-            if weight_t == "int64":
-                weight_col = weight_col.astype("float64")
-
         graph_props = GraphProperties(
             is_multigraph=self.properties.multi_edge,
             is_symmetric=not self.properties.directed,
@@ -918,15 +905,32 @@ class simpleGraphImpl:
             input_array_format = "COO"
             src_or_offset_array = self.edgelist.edgelist_df[simpleGraphImpl.srcCol]
             dst_or_index_array = self.edgelist.edgelist_df[simpleGraphImpl.dstCol]
+            if weight_col is None:
+                # Some algos require the graph to be weighted
+                weight_col = cudf.Series(
+                    cupy.ones(len(self.edgelist.edgelist_df), dtype="float32")
+                )
         elif self.adjlist is not None:
             input_array_format = "CSR"
             src_or_offset_array = self.adjlist.offsets
             dst_or_index_array = self.adjlist.indices
-            weight_col = value_col
+            if weight_col is None:
+                # Some algos require the graph to be weighted
+                weight_col = cudf.Series(
+                    cupy.ones(len(self.adjlist.indices), dtype="float32")
+                )
         else:
             raise TypeError(
                 "Edges need to be represented in either in COO or CSR format."
             )
+
+        if weight_col is not None:
+            weight_t = weight_col.dtype
+
+            if weight_t == "int32":
+                weight_col = weight_col.astype("float32")
+            if weight_t == "int64":
+                weight_col = weight_col.astype("float64")
 
         self._plc_graph = SGGraph(
             resource_handle=ResourceHandle(),
