@@ -444,6 +444,31 @@ def test_get_x(graph):
         base_x = (
             base_df.drop(pG.vertex_col_name, axis=1)
             .drop(pG.type_col_name, axis=1)
+            .drop(graph_store._old_vertex_col_name, axis=1)
+            .compute()
+            .to_cupy()
+            .astype("float32")
+        )
+
+        vertex_ids = base_df[pG.vertex_col_name].compute().to_cupy()
+
+        tsr = feature_store.get_tensor(vertex_type, "x", vertex_ids)
+
+        for t, b in zip(tsr, base_x):
+            assert list(t) == list(b)
+
+
+def test_get_x_with_pre_renumber(graph):
+    pG = graph
+    feature_store, graph_store = to_pyg(pG, backend="cupy")
+
+    vertex_types = pG.vertex_types
+    for vertex_type in vertex_types:
+        base_df = pG.get_vertex_data(types=[vertex_type])
+
+        base_x = (
+            base_df.drop(pG.vertex_col_name, axis=1)
+            .drop(pG.type_col_name, axis=1)
             .compute()
             .to_cupy()
             .astype("float32")

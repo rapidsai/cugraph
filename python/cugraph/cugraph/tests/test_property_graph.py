@@ -1749,12 +1749,16 @@ def test_renumber_vertices_by_type(dataset1_PropertyGraph, prev_id_column):
         assert df_id_ranges.loc[key, "start"] == start
         assert df_id_ranges.loc[key, "stop"] == stop
         df = pG.get_vertex_data(types=[key])
+        if isinstance(df, cudf.DataFrame):
+            df = df.to_pandas()
         assert len(df) == stop - start + 1
-        assert (df["_VERTEX_"] == list(range(start, stop + 1))).all()
+        # print(df["_VERTEX_"].tolist())
+        # print(list(range(start, stop + 1)))
+        assert df["_VERTEX_"].tolist() == list(range(start, stop + 1))
         if prev_id_column is not None:
             cur = df[prev_id_column].sort_values()
             expected = sorted(x for x, *args in data[key][1])
-            assert (cur == expected).all()
+            assert cur.tolist() == expected
     # Make sure we renumber vertex IDs in edge data too
     df = pG.get_edge_data()
     assert 0 <= df[pG.src_col_name].min() < df[pG.src_col_name].max() < 9
@@ -1791,8 +1795,11 @@ def test_renumber_edges_by_type(dataset1_PropertyGraph, prev_id_column):
         assert df_id_ranges.loc[key, "start"] == start
         assert df_id_ranges.loc[key, "stop"] == stop
         df = pG.get_edge_data(types=[key])
+        if isinstance(df, cudf.DataFrame):
+            df = df.to_pandas()
+
         assert len(df) == stop - start + 1
-        assert (df[pG.edge_id_col_name] == list(range(start, stop + 1))).all()
+        assert df[pG.edge_id_col_name].tolist() == list(range(start, stop + 1))
         if prev_id_column is not None:
             assert prev_id_column in df.columns
 

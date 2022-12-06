@@ -257,11 +257,14 @@ class EXPERIMENTAL__CuGraphStore:
         self.__graph = G
         self.__subgraphs = {}
 
-        self.__renumber_vertices(renumber_vertices)
-
         self._tensor_attr_cls = CuGraphTensorAttr
         self._tensor_attr_dict = defaultdict(list)
         self.__infer_x_and_y_tensors()
+
+        # Must be called after __infer_x_and_y_tensors to
+        # avoid adding the old vertex id as a property when
+        # users do not specify it.
+        self.__renumber_vertices(renumber_vertices)
 
         self.__edge_types_to_attrs = {}
         for edge_type in self.__graph.edge_types:
@@ -316,25 +319,25 @@ class EXPERIMENTAL__CuGraphStore:
         If renumber_vertices is True, it calls renumber_vertices_by_type(),
         overwriting the current vertex ids without saving them.
         """
-        old_idx_name = None
+        self.__old_vertex_col_name = None
 
         if renumber_vertices is None:
             renumber_vertices = True
-            old_idx_name = f"{self.__graph.vertex_col_name}_old"
+            self.__old_vertex_col_name = f"{self.__graph.vertex_col_name}_old"
             warnings.warn(
                 f"renumber_vertices not specified; renumbering by default"
-                f"and saving as {old_idx_name}"
+                f"and saving as {self.__old_vertex_col_name}"
             )
 
         if renumber_vertices:
             if self.is_remote and self.backend == "torch":
                 self.__offsets = self.__graph.renumber_vertices_by_type(
-                    prev_id_column=old_idx_name,
+                    prev_id_column=self.__old_vertex_col_name,
                     backend="torch:cuda" if torch.has_cuda else "torch",
                 )
             else:
                 self.__offsets = self.__graph.renumber_vertices_by_type(
-                    prev_id_column=old_idx_name
+                    prev_id_column=self.__old_vertex_col_name
                 )
                 if self._is_delayed:
                     self.__offsets = self.__offsets.compute()
@@ -354,6 +357,14 @@ class EXPERIMENTAL__CuGraphStore:
             self.__offsets["start"] = self.__offsets["stop"] - cumsum
             self.__offsets["stop"] -= 1
             self.__offsets["type"] = np.array(self.__graph.vertex_types)
+
+    @property
+    def _old_vertex_col_name(self):
+        """
+        Returns the name of the new property in the wrapped property graph where
+        the original vertex ids were stored, if this store did its own renumbering.
+        """
+        return self.__old_vertex_col_name
 
     @property
     def _edge_types_to_attrs(self):
