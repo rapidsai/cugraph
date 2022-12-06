@@ -55,11 +55,7 @@ def input_combo(request):
     This fixture returns a dictionary containing all input params required to
     run a Core number algo
     """
-    return dict(zip(("graph_file", "degree_type"), request.param))
-
-
-def preprocess_params(parameters):
-    parameters = parameters.copy()
+    parameters = dict(zip(("graph_file", "degree_type"), request.param))
 
     graph_file = Dataset(parameters["graph_file"])
     G = graph_file.get_graph()
@@ -79,7 +75,6 @@ def preprocess_params(parameters):
 # Tests
 # =============================================================================
 def test_core_number(input_combo):
-    input_combo = preprocess_params(input_combo)
     G = input_combo["G"]
     Gnx = input_combo["Gnx"]
     degree_type = input_combo["degree_type"]
@@ -107,7 +102,6 @@ def test_core_number(input_combo):
 
 
 def test_core_number_invalid_input(input_combo):
-    input_combo = preprocess_params(input_combo)
     input_data_path = (
         utils.RAPIDS_DATASET_ROOT_DIR_PATH / "karate-asymmetric.csv"
     ).as_posix()
