@@ -18,6 +18,18 @@ from cugraph.testing.mg_utils import start_dask_client, stop_dask_client
 # module-wide fixtures
 
 
+# Spoof the gpubenchmark fixture if it's not available so that asvdb and
+# rapids-pytest-benchmark do not need to be installed to run tests.
+if "gpubenchmark" not in globals():
+
+    def benchmark_func(func, *args, **kwargs):
+        return func(*args, **kwargs)
+
+    @pytest.fixture
+    def gpubenchmark():
+        return benchmark_func
+
+
 @pytest.fixture(scope="module")
 def dask_client():
     client = start_dask_client(

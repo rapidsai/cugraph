@@ -130,14 +130,14 @@ def test_dask_sorensen(dask_client, benchmark, input_expected_output):
 
     result_sorensen = (
         result_sorensen.compute()
-        .sort_values(["source", "destination"])
+        .sort_values(["first", "second"])
         .reset_index(drop=True)
         .rename(columns={"sorensen_coeff": "mg_cugraph_sorensen_coeff"})
     )
 
     expected_output = (
         input_expected_output["sg_cugraph_results"]
-        .sort_values(["source", "destination"])
+        .sort_values(["first", "second"])
         .reset_index(drop=True)
     )
 

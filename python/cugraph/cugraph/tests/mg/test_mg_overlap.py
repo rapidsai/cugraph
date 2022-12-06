@@ -130,14 +130,14 @@ def test_dask_overlap(dask_client, benchmark, input_expected_output):
 
     result_overlap = (
         result_overlap.compute()
-        .sort_values(["source", "destination"])
+        .sort_values(["first", "second"])
         .reset_index(drop=True)
         .rename(columns={"overlap_coeff": "mg_cugraph_overlap_coeff"})
     )
 
     expected_output = (
         input_expected_output["sg_cugraph_results"]
-        .sort_values(["source", "destination"])
+        .sort_values(["first", "second"])
         .reset_index(drop=True)
     )
 

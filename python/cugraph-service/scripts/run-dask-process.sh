@@ -98,7 +98,6 @@ function buildTcpArgs {
     export DASK_DISTRIBUTED__WORKER__MEMORY__Terminate="False"
 
     SCHEDULER_ARGS="--protocol=tcp
-                    --port=$DASK_SCHEDULER_PORT
                     --scheduler-file $SCHEDULER_FILE
                 "
 
@@ -119,7 +118,6 @@ function buildUCXWithInfinibandArgs {
     export DASK_DISTRIBUTED__COMM__UCX__CREATE_CUDA_CONTEXT=True
 
     SCHEDULER_ARGS="--protocol=ucx
-                --port=$DASK_SCHEDULER_PORT
                 --interface=$DASK_CUDA_INTERFACE
                 --scheduler-file $SCHEDULER_FILE
                "
@@ -152,7 +150,6 @@ function buildUCXwithoutInfinibandArgs {
 
 
     SCHEDULER_ARGS="--protocol=ucx
-            --port=$DASK_SCHEDULER_PORT
             --scheduler-file $SCHEDULER_FILE
             "
 
