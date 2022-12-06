@@ -19,7 +19,8 @@ import cudf
 import cugraph
 import networkx as nx
 from cugraph.testing import utils
-from cugraph.experimental.datasets import DATASETS_UNDIRECTED
+from cugraph.experimental.datasets.dataset import Dataset
+from pathlib import Path
 
 
 # =============================================================================
@@ -32,11 +33,18 @@ def setup_function():
 # =============================================================================
 # Pytest fixtures
 # =============================================================================
-datasets = DATASETS_UNDIRECTED
+# datasets = DATASETS_UNDIRECTED
 degree_type = ["incoming", "outgoing"]
 
 fixture_params = utils.genFixtureParamsProduct(
-    (datasets, "graph_file"),
+    (
+        [
+            Path(__file__).parent.parent / "experimental/datasets/metadata/karate.yaml",
+            Path(__file__).parent.parent
+            / "experimental/datasets/metadata/dolphins.yaml",
+        ],
+        "graph_file",
+    ),
     (degree_type, "degree_type"),
 )
 
@@ -47,9 +55,13 @@ def input_combo(request):
     This fixture returns a dictionary containing all input params required to
     run a Core number algo
     """
-    parameters = dict(zip(("graph_file", "degree_type"), request.param))
+    return dict(zip(("graph_file", "degree_type"), request.param))
 
-    graph_file = parameters["graph_file"]
+
+def preprocess_params(parameters):
+    parameters = parameters.copy()
+
+    graph_file = Dataset(parameters["graph_file"])
     G = graph_file.get_graph()
     input_data_path = graph_file.get_path()
 
@@ -67,6 +79,7 @@ def input_combo(request):
 # Tests
 # =============================================================================
 def test_core_number(input_combo):
+    input_combo = preprocess_params(input_combo)
     G = input_combo["G"]
     Gnx = input_combo["Gnx"]
     degree_type = input_combo["degree_type"]
@@ -94,6 +107,7 @@ def test_core_number(input_combo):
 
 
 def test_core_number_invalid_input(input_combo):
+    input_combo = preprocess_params(input_combo)
     input_data_path = (
         utils.RAPIDS_DATASET_ROOT_DIR_PATH / "karate-asymmetric.csv"
     ).as_posix()
