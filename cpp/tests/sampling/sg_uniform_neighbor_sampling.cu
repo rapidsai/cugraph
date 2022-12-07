@@ -57,7 +57,7 @@ class Tests_Uniform_Neighbor_Sampling
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       hr_timer.stop();
-      hr_timer.display(std::cout);
+      hr_timer.display_and_clear(std::cout);
     }
 
     auto graph_view = graph.view();

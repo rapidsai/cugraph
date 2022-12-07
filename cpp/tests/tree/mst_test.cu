@@ -125,7 +125,7 @@ class Tests_Mst : public ::testing::TestWithParam<Mst_Usecase> {
 
     cudaDeviceSynchronize();
     hr_timer.stop();
-    hr_timer.display(std::cout);
+    hr_timer.display_and_clear(std::cout);
 
     auto expected_mst_weight = thrust::reduce(
       thrust::device_pointer_cast(G_unique->view().edge_data),

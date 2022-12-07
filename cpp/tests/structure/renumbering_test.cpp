@@ -90,7 +90,7 @@ class Tests_Renumbering
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       hr_timer.stop();
-      hr_timer.display(std::cout);
+      hr_timer.display_and_clear(std::cout);
     }
 
     if (renumbering_usecase.check_correctness) {

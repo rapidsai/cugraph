@@ -169,7 +169,7 @@ class Tests_Hits : public ::testing::TestWithParam<std::tuple<Hits_Usecase, inpu
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       hr_timer.stop();
-      hr_timer.display(std::cout);
+      hr_timer.display_and_clear(std::cout);
     }
 
     // 3. run hits
@@ -210,7 +210,7 @@ class Tests_Hits : public ::testing::TestWithParam<std::tuple<Hits_Usecase, inpu
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       hr_timer.stop();
-      hr_timer.display(std::cout);
+      hr_timer.display_and_clear(std::cout);
     }
 
     if (hits_usecase.check_correctness) {

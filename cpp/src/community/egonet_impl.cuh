@@ -199,7 +199,7 @@ extract(raft::handle_t const& handle,
 
 #ifdef TIMING
   hr_timer.stop();
-  hr_timer.display(std::cout);
+  hr_timer.display_and_clear(std::cout);
 #endif
 
   // extract

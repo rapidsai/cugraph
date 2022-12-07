@@ -205,7 +205,7 @@ class Tests_Symmetrize
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       hr_timer.stop();
-      hr_timer.display(std::cout);
+      hr_timer.display_and_clear(std::cout);
     }
 
     rmm::device_uvector<vertex_t> d_org_srcs(0, handle.get_stream());
@@ -236,7 +236,7 @@ class Tests_Symmetrize
     if (cugraph::test::g_perf) {
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       hr_timer.stop();
-      hr_timer.display(std::cout);
+      hr_timer.display_and_clear(std::cout);
     }
 
     if (symmetrize_usecase.check_correctness) {

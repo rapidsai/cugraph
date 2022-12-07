@@ -76,7 +76,7 @@ class Tests_MGTransposeStorage
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle_->get_comms().barrier();
       hr_timer.stop();
-      hr_timer.display(std::cout);
+      hr_timer.display_and_clear(std::cout);
     }
 
     // 2. run MG transpose storage
@@ -110,7 +110,7 @@ class Tests_MGTransposeStorage
       RAFT_CUDA_TRY(cudaDeviceSynchronize());  // for consistent performance measurement
       handle_->get_comms().barrier();
       hr_timer.stop();
-      hr_timer.display(std::cout);
+      hr_timer.display_and_clear(std::cout);
     }
 
     // 3. copmare SG & MG results
