@@ -83,6 +83,10 @@ bool check_symmetric(raft::handle_t const& handle,
                                                           std::move(symmetrized_weights),
                                                           true);
 
+  if (symmetrized_srcs.size() != org_srcs.size()) {
+    return false;
+  }
+
   if (edgelist_weights) {
     auto org_first = thrust::make_zip_iterator(
       thrust::make_tuple(org_srcs.begin(), org_dsts.begin(), (*org_weights).begin()));
