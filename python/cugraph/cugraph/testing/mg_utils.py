@@ -24,7 +24,7 @@ from cugraph.dask.common.mg_utils import get_visible_devices
 
 def start_dask_client(
     enable_tcp_over_ucx=True,
-    enable_nvlink=False,
+    enable_nvlink=True,
     enable_infiniband=False,
     enable_rdmacm=False,
     net_devices=None,
@@ -49,7 +49,13 @@ def start_dask_client(
         # The tempdir created by tempdir_object should be cleaned up once
         # tempdir_object goes out-of-scope and is deleted.
         tempdir_object = tempfile.TemporaryDirectory()
-        cluster = LocalCUDACluster(local_directory=tempdir_object.name)
+        cluster = LocalCUDACluster(
+            local_directory=tempdir_object.name,
+            enable_tcp_over_ucx=enable_tcp_over_ucx,
+            enable_infiniband=enable_infiniband,
+            enable_nvlink=enable_nvlink,
+            enable_rdmacm=enable_rdmacm,
+        )
         client = Client(cluster)
         client.wait_for_workers(len(get_visible_devices()))
         print("\ndask_client created using LocalCUDACluster")

@@ -76,7 +76,7 @@ karate = pytest.param(
 
 # RMAT-generated graph options
 _rmat_scales = range(16, 31)
-_rmat_edgefactors = [4, 32]
+_rmat_edgefactors = [4, 16, 32]
 rmat = {}
 for scale in _rmat_scales:
     for edgefactor in _rmat_edgefactors:
@@ -87,37 +87,52 @@ for scale in _rmat_scales:
         )
 
 # sampling algos length of start list
-_start_list_len = [100, 500, 1000, 2500, 5000,
-                   10000, 20000, 30000, 40000,
-                   50000, 60000, 70000, 80000,
-                   90000, 100000]
-start_list = {}
-for sll in _start_list_len:
-    start_list[sll] = (
-        pytest.param(sll,
-                     id=f"start_list_len={sll}",
+_batch_sizes = [100, 500, 1000, 2500, 5000,
+                10000, 20000, 30000, 40000,
+                50000, 60000, 70000, 80000,
+                90000, 100000]
+batch_sizes = {}
+for bs in _batch_sizes:
+    batch_sizes[bs] = (
+        pytest.param(bs,
+                     id=f"batch_size={bs}",
+                     marks=[getattr(pytest.mark, f"batch_size_{bs}")],
         )
     )
 
 # sampling algos fanout size
-fanout_small = pytest.param(
-    "SMALL",
-    marks=[pytest.mark.fanout_small],
-    id="fanout=SMALL",
+fanout_10_25 = pytest.param(
+    [10, 25],
+    marks=[pytest.mark.fanout_10_25],
+    id="fanout=10_25",
 )
-fanout_large = pytest.param(
-    "LARGE",
-    marks=[pytest.mark.fanout_large],
-    id="fanout=LARGE",
+fanout_5_10_15 = pytest.param(
+    [5, 10, 15],
+    marks=[pytest.mark.fanout_5_10_15],
+    id="fanout=5_10_15",
 )
 
 # Parameters for Graph generation fixture
+# graph_obj_fixture_params = gen_fixture_params(
+#     (sg, karate),
+#     (sg, rmat["16_16"]),
+#     (sg, rmat["18_16"]),
+#     (sg, rmat["20_16"]),
+#     (sg, rmat["25_16"]),
+#     (sg, rmat["26_16"]),
+#     (snmg, rmat["26_16"]),
+#     (snmg, rmat["27_16"]),
+#     (snmg, rmat["28_16"]),
+#     (mnmg, rmat["29_16"]),
+#     (mnmg, rmat["30_16"]),
+# )
 graph_obj_fixture_params = gen_fixture_params(
     (sg, karate),
     (sg, rmat["16_4"]),
     (sg, rmat["18_4"]),
     (sg, rmat["20_4"]),
     (sg, rmat["25_4"]),
+    (sg, rmat["26_4"]),
     (snmg, rmat["26_4"]),
     (snmg, rmat["27_4"]),
     (snmg, rmat["28_4"]),

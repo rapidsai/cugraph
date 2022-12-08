@@ -37,7 +37,7 @@ def create_handler(
     if graph_creation_extension_dir is not None:
         handler.load_graph_creation_extensions(graph_creation_extension_dir)
     if dask_scheduler_file is not None:
-        handler.initialize_dask_client(dask_scheduler_file)
+        handler.initialize_dask_client(dask_scheduler_file=dask_scheduler_file)
     elif start_local_cuda_cluster:
         handler.initialize_dask_client()
 

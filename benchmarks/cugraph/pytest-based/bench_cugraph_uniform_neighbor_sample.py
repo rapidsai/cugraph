@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import time
 import pytest
 import numpy as np
 import cupy as cp
@@ -49,7 +50,7 @@ def create_graph(graph_data):
     Create a graph instance based on the data to be loaded/generated.
     """
     # FIXME: need to consider directed/undirected?
-    G = Graph()
+    G = Graph(directed=True)
 
     # Assume strings are names of datasets in the datasets package
     if isinstance(graph_data, str):
@@ -99,14 +100,14 @@ def create_mg_graph(graph_data):
     Create a graph instance based on the data to be loaded/generated.
     """
     (client, cluster) = start_dask_client(
-        enable_tcp_over_ucx=True,
-        enable_nvlink=True,
+        enable_tcp_over_ucx=False,
         enable_infiniband=False,
+        enable_nvlink=False,
         enable_rdmacm=False,
         net_devices=None,
     )
     # FIXME: need to consider directed/undirected?
-    G = Graph()
+    G = Graph(directed=True)
 
     # Assume strings are names of datasets in the datasets package
     if isinstance(graph_data, str):
@@ -153,7 +154,7 @@ def create_mg_graph(graph_data):
 
 
 def get_uniform_neighbor_sample_args(
-    G, seed, start_list_len, fanout, with_replacement
+    G, seed, batch_size, fanout, with_replacement
 ):
     """
     Return a dictionary containing the args for uniform_neighbor_sample based
@@ -165,20 +166,21 @@ def get_uniform_neighbor_sample_args(
     The dictionary return value allows for easily supporting other args without
     having to maintain an order of values in a return tuple, for example.
     """
-    if fanout not in ["SMALL", "LARGE"]:
-        raise ValueError(f"got unexpected value {fanout=}")
     if with_replacement not in [True, False]:
         raise ValueError(f"got unexpected value {with_replacement=}")
 
     rng = np.random.default_rng(seed)
     num_verts = G.number_of_vertices()
-    num_edges = G.number_of_edges()
 
-    if start_list_len > num_verts:
+    if batch_size > num_verts:
         num_start_verts = int(num_verts * 0.25)
     else:
-        num_start_verts = start_list_len
+        num_start_verts = batch_size
 
+    # Create the list of starting vertices by picking num_start_verts random
+    # ints between 0 and num_verts, then map those to actual vertex IDs.  Since
+    # the randomly-chosen IDs may not map to actual IDs, keep trying until
+    # num_start_verts have been picked, or max_tries is reached.
     assert G.renumbered
     start_list_set = set()
     max_tries = 10000
@@ -203,23 +205,9 @@ def get_uniform_neighbor_sample_args(
     start_list = start_list[:num_start_verts]
     assert len(start_list) == num_start_verts
 
-    # Generate a fanout list based on degree if the list is to be large,
-    # otherwise just use a small list of fixed numbers.
-    if fanout == "LARGE":
-        num_edges = G.number_of_edges()
-        avg_degree = num_edges // num_verts
-        max_fanout = min(avg_degree, 5)
-        if max_fanout == 1:
-            fanout_choices = [1]
-        else:
-            fanout_choices = np.arange(1, max_fanout)
-        fanout_list = [rng.choice(fanout_choices, 1)[0] for _ in range(5)]
-    else:
-        fanout_list = [2, 1]
-
     return {
         "start_list": list(start_list),
-        "fanout_vals": list(fanout_list),
+        "fanout": fanout,
         "with_replacement": with_replacement,
     }
 
@@ -238,12 +226,28 @@ def graph_objs(request):
     if gpu_config not in ["SG", "SNMG", "MNMG"]:
         raise RuntimeError(f"got unexpected gpu_config value: {gpu_config}")
 
+    print("creating graph...")
+    st = time.perf_counter_ns()
     if gpu_config == "SG":
         G = create_graph(graph_data)
         uns_func = uniform_neighbor_sample
     else:
         (G, dask_client, dask_cluster) = create_mg_graph(graph_data)
         uns_func = uniform_neighbor_sample_mg
+        def uns_func(*args, **kwargs):
+            print("running sampling...")
+            st = time.perf_counter_ns()
+            result_ddf = uniform_neighbor_sample_mg(*args, **kwargs)
+            print(f"done running sampling, took {((time.perf_counter_ns() - st) / 1e9)}s")
+            print("dask compute() results...")
+            st = time.perf_counter_ns()
+            sources = result_ddf["sources"].compute().to_cupy()
+            destinations = result_ddf["destinations"].compute().to_cupy()
+            indices = result_ddf["indices"].compute().to_cupy()
+            print(f"done dask compute() results, took {((time.perf_counter_ns() - st) / 1e9)}s")
+            return (sources, destinations, indices)
+
+    print(f"done creating graph, took {((time.perf_counter_ns() - st) / 1e9)}s")
 
     yield (G, uns_func)
 
@@ -253,18 +257,18 @@ def graph_objs(request):
 
 ################################################################################
 # Benchmarks
-@pytest.mark.parametrize("start_list_len", params.start_list.values())
-@pytest.mark.parametrize("fanout", [params.fanout_small, params.fanout_large])
+@pytest.mark.parametrize("batch_size", params.batch_sizes.values())
+@pytest.mark.parametrize("fanout", [params.fanout_10_25, params.fanout_5_10_15])
 @pytest.mark.parametrize(
     "with_replacement", [False], ids=lambda v: f"with_replacement={v}"
 )
 def bench_cugraph_uniform_neighbor_sample(
-    gpubenchmark, graph_objs, start_list_len, fanout, with_replacement
+    gpubenchmark, graph_objs, batch_size, fanout, with_replacement
 ):
     (G, uniform_neighbor_sample_func) = graph_objs
 
     uns_args = get_uniform_neighbor_sample_args(
-        G, _seed, start_list_len, fanout, with_replacement
+        G, _seed, batch_size, fanout, with_replacement
     )
     # print(f"\n{uns_args}")
     # FIXME: uniform_neighbor_sample cannot take a np.ndarray for start_list
@@ -272,10 +276,14 @@ def bench_cugraph_uniform_neighbor_sample(
         uniform_neighbor_sample_func,
         G,
         start_list=uns_args["start_list"],
-        fanout_vals=uns_args["fanout_vals"],
+        fanout_vals=uns_args["fanout"],
         with_replacement=uns_args["with_replacement"],
     )
     dtmap = {"int32": 32 // 8, "int64": 64 // 8}
-    dt = str(result.sources.dtype)
-    llen = len(result.sources)
+    if isinstance(result, tuple):
+        dt = str(result[0].dtype)
+        llen = len(result[0])
+    else:
+        dt = str(result.sources.dtype)
+        llen = len(result.sources)
     print(f"\nresult list len: {llen} (x3), dtype={dt}, total bytes={3*llen*dtmap[dt]}")

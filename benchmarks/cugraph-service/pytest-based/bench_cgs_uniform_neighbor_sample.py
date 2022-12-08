@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import time
 import os
 from pathlib import Path
 
@@ -40,7 +41,7 @@ from cugraph_benchmarking import params
 _seed = 42
 
 
-def create_remote_graph(graph_data, client):
+def create_remote_graph(graph_data, is_mg, client):
     """
     Create a remote graph instance based on the data to be loaded/generated,
     relying on server-side graph creation extensions.
@@ -65,6 +66,7 @@ def create_remote_graph(graph_data, client):
             scale=scale,
             num_edges=num_edges,
             seed=seed,
+            mg=is_mg,
         )
     else:
         raise TypeError(f"graph_data can only be str or dict, got {type(graph_data)}")
@@ -74,7 +76,7 @@ def create_remote_graph(graph_data, client):
 
 
 def get_uniform_neighbor_sample_args(
-    G, seed, start_list_len, fanout, with_replacement
+    G, seed, batch_size, fanout, with_replacement
 ):
     """
     Return a dictionary containing the args for uniform_neighbor_sample based
@@ -86,42 +88,25 @@ def get_uniform_neighbor_sample_args(
     The dictionary return value allows for easily supporting other args without
     having to maintain an order of values in a return tuple, for example.
     """
-    if fanout not in ["SMALL", "LARGE"]:
-        raise ValueError(f"got unexpected value {fanout=}")
     if with_replacement not in [True, False]:
         raise ValueError(f"got unexpected value {with_replacement=}")
 
-    rng = np.random.default_rng(seed)
     num_verts = G.number_of_vertices()
-    num_edges = G.number_of_edges()
 
-    if start_list_len > num_verts:
+    if batch_size > num_verts:
         num_start_verts = int(num_verts * 0.25)
     else:
-        num_start_verts = start_list_len
+        num_start_verts = batch_size
 
-    # Create the start_list on the server
+    # Create the start_list on the server, since generating a list of actual
+    # IDs requires unrenumbering steps that cannot be easily done remotely.
     start_list = G._client.call_extension(
         "gen_vertex_list", G._graph_id, num_start_verts, seed
     )
 
-    # Generate a fanout list based on degree if the list is to be large,
-    # otherwise just use a small list of fixed numbers.
-    if fanout == "LARGE":
-        num_edges = G.number_of_edges()
-        avg_degree = num_edges // num_verts
-        max_fanout = min(avg_degree, 5)
-        if max_fanout == 1:
-            fanout_choices = [1]
-        else:
-            fanout_choices = np.arange(1, max_fanout)
-        fanout_list = [rng.choice(fanout_choices, 1)[0] for _ in range(5)]
-    else:
-        fanout_list = [2, 1]
-
     return {
         "start_list": list(start_list),
-        "fanout_vals": list(fanout_list),
+        "fanout": fanout,
         "with_replacement": with_replacement,
     }
 
@@ -214,6 +199,8 @@ def remote_graph_objs(request):
     # Ensure the appropriate server is running
     if gpu_config == "SG":
         (server_process, cgs_client) = ensure_running_service_for_sampling()
+        is_mg = False
+
     elif gpu_config == "SNMG":
         dask_scheduler_file = os.environ.get("SCHEDULER_FILE")
         if dask_scheduler_file is None:
@@ -225,10 +212,16 @@ def remote_graph_objs(request):
             (server_process, cgs_client) = ensure_running_service_for_sampling(
                 dask_scheduler_file=dask_scheduler_file
             )
-    else:
-        raise NotImplementedError
+        is_mg = True
 
-    G = create_remote_graph(graph_data, cgs_client)
+    else:
+        raise NotImplementedError(f"{gpu_config=}")
+
+    print("creating graph...")
+    st = time.perf_counter_ns()
+    G = create_remote_graph(graph_data, is_mg, cgs_client)
+    print(f"done creating graph, took {((time.perf_counter_ns() - st) / 1e9)}s")
+
     uns_func = remote_uniform_neighbor_sample
 
     yield (G, uns_func)
@@ -243,18 +236,18 @@ def remote_graph_objs(request):
 
 ################################################################################
 # Benchmarks
-@pytest.mark.parametrize("start_list_len", params.start_list.values())
-@pytest.mark.parametrize("fanout", [params.fanout_small, params.fanout_large])
+@pytest.mark.parametrize("batch_size", params.batch_sizes.values())
+@pytest.mark.parametrize("fanout", [params.fanout_10_25, params.fanout_5_10_15])
 @pytest.mark.parametrize(
     "with_replacement", [False], ids=lambda v: f"with_replacement={v}"
 )
 def bench_cgs_uniform_neighbor_sample(
-    gpubenchmark, remote_graph_objs, start_list_len, fanout, with_replacement
+    gpubenchmark, remote_graph_objs, batch_size, fanout, with_replacement
 ):
     (G, uniform_neighbor_sample_func) = remote_graph_objs
 
     uns_args = get_uniform_neighbor_sample_args(
-        G, _seed, start_list_len, fanout, with_replacement
+        G, _seed, batch_size, fanout, with_replacement
     )
     # print(f"\n{uns_args}")
     # FIXME: uniform_neighbor_sample cannot take a np.ndarray for start_list
@@ -262,7 +255,7 @@ def bench_cgs_uniform_neighbor_sample(
         uniform_neighbor_sample_func,
         G,
         start_list=uns_args["start_list"],
-        fanout_vals=uns_args["fanout_vals"],
+        fanout_vals=uns_args["fanout"],
         with_replacement=uns_args["with_replacement"],
     )
     dtmap = {"int32": 32 // 8, "int64": 64 // 8}

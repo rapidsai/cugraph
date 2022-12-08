@@ -22,7 +22,7 @@ from cugraph.experimental import datasets
 from cugraph.generators import rmat
 
 
-# Graph creation extensions
+# Graph creation extensions (these are assumed to return a Graph object)
 def create_graph_from_builtin_dataset(dataset_name, mg=False, server=None):
     dataset_obj = getattr(datasets, dataset_name)
     return dataset_obj.get_graph(fetch=True)
@@ -54,7 +54,7 @@ def create_graph_from_rmat_generator(
     mg=False,
     server=None,
 ):
-    if mg and (server is not None) and server.is_multi_gpu():
+    if mg and (server is not None) and server.is_multi_gpu:
         is_mg = True
     else:
         is_mg = False
@@ -71,8 +71,7 @@ def create_graph_from_rmat_generator(
         create_using=None,  # None == return edgelist
         mg=is_mg,
     )
-    rng = np.random.default_rng(seed)
-    edgelist_df["weight"] = rng.random(size=len(edgelist_df))
+    edgelist_df["weight"] = np.float32(1)
 
     # For PropertyGraph, uncomment:
     # if is_mg:
@@ -83,9 +82,8 @@ def create_graph_from_rmat_generator(
     # G.add_edge_data(edgelist_df, vertex_col_names=["src", "dst"])
 
     # For Graph, uncomment:
-    G = cugraph.Graph()
+    G = cugraph.Graph(directed=True)
     if is_mg:
-        edgelist_df = dask_cudf.from_cudf(edgelist_df)
         G.from_dask_cudf_edgelist(
             edgelist_df, source="src", destination="dst", edge_attr="weight"
         )
@@ -97,8 +95,14 @@ def create_graph_from_rmat_generator(
     return G
 
 
+# General-purpose extensions
 def gen_vertex_list(graph_id, num_start_verts, seed, server=None):
-
+    """
+    Create the list of starting vertices by picking num_start_verts random ints
+    between 0 and num_verts, then map those to actual vertex IDs.  Since the
+    randomly-chosen IDs may not map to actual IDs, keep trying until
+    num_start_verts have been picked, or max_tries is reached.
+    """
     rng = np.random.default_rng(seed)
 
     G = server.get_graph(graph_id)

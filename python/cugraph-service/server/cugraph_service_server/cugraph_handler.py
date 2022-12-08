@@ -380,7 +380,15 @@ class CugraphHandler:
         except Exception:
             raise CugraphServiceError(f"{traceback.format_exc()}")
 
-    def initialize_dask_client(self, dask_scheduler_file=None):
+    def initialize_dask_client(
+        self,
+        dask_scheduler_file=None,
+        enable_tcp_over_ucx=False,
+        enable_infiniband=False,
+        enable_nvlink=False,
+        enable_rdmacm=False,
+        net_devices=None,
+    ):
         """
         Initialize a dask client to be used for MG operations.
         """
@@ -391,7 +399,13 @@ class CugraphHandler:
             # The tempdir created by tempdir_object should be cleaned up once
             # tempdir_object goes out-of-scope and is deleted.
             tempdir_object = tempfile.TemporaryDirectory()
-            cluster = LocalCUDACluster(local_directory=tempdir_object.name)
+            cluster = LocalCUDACluster(
+                local_directory=tempdir_object.name,
+                enable_tcp_over_ucx=enable_tcp_over_ucx,
+                enable_infiniband=enable_infiniband,
+                enable_nvlink=enable_nvlink,
+                enable_rdmacm=enable_rdmacm,
+            )
             self.__dask_client = Client(cluster)
             self.__dask_client.wait_for_workers(len(get_visible_devices()))
 
@@ -996,6 +1010,8 @@ class CugraphHandler:
                     default_edge_weight=1.0,
                 )
 
+            print("SERVER: starting sampling...")
+            st = time.perf_counter_ns()
             uns_result = call_algo(
                 uniform_neighbor_sample,
                 G,
@@ -1003,7 +1019,13 @@ class CugraphHandler:
                 fanout_vals=fanout_vals,
                 with_replacement=with_replacement,
             )
+            print(
+                f"SERVER: done sampling, took {((time.perf_counter_ns() - st) / 1e9)}s"
+            )
+
             if self.__check_host_port_args(result_host, result_port):
+                print("SERVER: calling ucx_send_results...")
+                st = time.perf_counter_ns()
                 asyncio.run(
                     self.__ucx_send_results(
                         result_host,
@@ -1012,6 +1034,10 @@ class CugraphHandler:
                         uns_result.destinations,
                         uns_result.indices,
                     )
+                )
+                print(
+                    "SERVER: done ucx_send_results, took "
+                    f"{((time.perf_counter_ns() - st) / 1e9)}s"
                 )
                 # FIXME: Thrift still expects something of the expected type to
                 # be returned to be serialized and sent. Look into a separate
