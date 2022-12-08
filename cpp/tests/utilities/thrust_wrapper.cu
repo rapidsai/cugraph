@@ -106,6 +106,11 @@ template std::tuple<rmm::device_uvector<int64_t>, rmm::device_uvector<double>> s
   rmm::device_uvector<int64_t> const& keys,
   rmm::device_uvector<double> const& values);
 
+template std::tuple<rmm::device_uvector<int64_t>, rmm::device_uvector<int32_t>> sort_by_key(
+  raft::handle_t const& handle,
+  rmm::device_uvector<int64_t> const& keys,
+  rmm::device_uvector<int32_t> const& values);
+
 template std::tuple<rmm::device_uvector<int64_t>, rmm::device_uvector<int64_t>> sort_by_key(
   raft::handle_t const& handle,
   rmm::device_uvector<int64_t> const& keys,
@@ -115,6 +120,12 @@ template std::tuple<rmm::device_uvector<int32_t>,
                     std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<float>>>
 sort_by_key(raft::handle_t const& handle,
             rmm::device_uvector<int32_t> const& keys,
+            std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<float>> const& values);
+
+template std::tuple<rmm::device_uvector<int64_t>,
+                    std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<float>>>
+sort_by_key(raft::handle_t const& handle,
+            rmm::device_uvector<int64_t> const& keys,
             std::tuple<rmm::device_uvector<int32_t>, rmm::device_uvector<float>> const& values);
 
 template <typename vertex_t>
