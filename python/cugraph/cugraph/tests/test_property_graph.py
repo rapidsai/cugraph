@@ -1866,9 +1866,10 @@ def test_add_data_noncontiguous(df_type):
 
 @pytest.mark.parametrize("df_type", df_types, ids=df_type_id)
 def test_vertex_ids_different_type(df_type):
-    """Getting the number of vertices requires combining vertex ids from multiples columns.
+    """Getting the number of vertices requires combining vertex ids from
+    multiple columns.
 
-    This tests ensures combining these columns works even if they are different types.
+    This test ensures combining these columns works even if they are different types.
     """
     from cugraph.experimental import PropertyGraph
 
