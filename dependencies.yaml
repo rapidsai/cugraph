@@ -60,12 +60,12 @@ dependencies:
               arch: x86_64
               cuda: "11.5"
             packages:
-              - &nvcc_amd64_115 nvcc_linux-64=11.5
+              - nvcc_linux-64=11.5
           - matrix:
               arch: aarch64
               cuda: "11.5"
             packages:
-              - &nvcc_aarch64_115 nvcc_linux-aarch64=11.5
+              - nvcc_linux-aarch64=11.5
   py_version:
     specific:
       - output_types: conda
