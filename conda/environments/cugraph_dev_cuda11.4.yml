@@ -54,3 +54,5 @@ dependencies:
 - gmock=1.10.0
 - py
 - versioneer
+- pip:
+    - cupy-cuda11x

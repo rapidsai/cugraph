@@ -58,3 +58,5 @@ dependencies:
 - pytorch=1.12.0
 - dgl-cuda11.6
 - versioneer
+- pip:
+    - cupy-cuda11x
