@@ -1,4 +1,4 @@
-# Copyright (c) 2020-2021, NVIDIA CORPORATION.
+# Copyright (c) 2020-2022, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -20,24 +20,24 @@ from cugraph.structure.graph_primtypes cimport *
 
 cdef extern from "cugraph/algorithms.hpp" namespace "cugraph":
 
-    cdef weight_t hungarian[vertex_t,edge_t,weight_t](
+    cdef weight_t hungarian[vertex_t, edge_t, weight_t](
         const handle_t &handle,
-        const GraphCOOView[vertex_t,edge_t,weight_t] &graph,
+        const GraphCOOView[vertex_t, edge_t, weight_t] &graph,
         vertex_t num_workers,
         const vertex_t *workers,
         vertex_t *assignments,
         weight_t epsilon) except +
 
-    cdef weight_t hungarian[vertex_t,edge_t,weight_t](
+    cdef weight_t hungarian[vertex_t, edge_t, weight_t](
         const handle_t &handle,
-        const GraphCOOView[vertex_t,edge_t,weight_t] &graph,
+        const GraphCOOView[vertex_t, edge_t, weight_t] &graph,
         vertex_t num_workers,
         const vertex_t *workers,
         vertex_t *assignments) except +
 
 cdef extern from "cugraph/algorithms.hpp":
 
-    cdef weight_t dense_hungarian "cugraph::dense::hungarian" [vertex_t,weight_t](
+    cdef weight_t dense_hungarian "cugraph::dense::hungarian" [vertex_t, weight_t](
         const handle_t &handle,
         const weight_t *costs,
         vertex_t num_rows,
@@ -45,7 +45,7 @@ cdef extern from "cugraph/algorithms.hpp":
         vertex_t *assignments,
         weight_t epsilon) except +
 
-    cdef weight_t dense_hungarian "cugraph::dense::hungarian" [vertex_t,weight_t](
+    cdef weight_t dense_hungarian "cugraph::dense::hungarian" [vertex_t, weight_t](
         const handle_t &handle,
         const weight_t *costs,
         vertex_t num_rows,

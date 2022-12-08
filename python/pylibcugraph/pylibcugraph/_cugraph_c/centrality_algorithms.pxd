@@ -56,8 +56,8 @@ cdef extern from "cugraph_c/centrality_algorithms.h":
         cugraph_pagerank(
             const cugraph_resource_handle_t* handle,
             cugraph_graph_t* graph,
-            const cugraph_type_erased_device_array_view_t* precomputed_vertex_out_weight_vertices,
-            const cugraph_type_erased_device_array_view_t* precomputed_vertex_out_weight_sums,
+            const cugraph_type_erased_device_array_view_t* precomputed_vertex_out_weight_vertices,  # noqa: E501
+            const cugraph_type_erased_device_array_view_t* precomputed_vertex_out_weight_sums,  # noqa: E501
             const cugraph_type_erased_device_array_view_t* initial_guess_vertices,
             const cugraph_type_erased_device_array_view_t* initial_guess_values,
             double alpha,
@@ -72,8 +72,8 @@ cdef extern from "cugraph_c/centrality_algorithms.h":
         cugraph_personalized_pagerank(
             const cugraph_resource_handle_t* handle,
             cugraph_graph_t* graph,
-            const cugraph_type_erased_device_array_view_t* precomputed_vertex_out_weight_vertices,
-            const cugraph_type_erased_device_array_view_t* precomputed_vertex_out_weight_sums,
+            const cugraph_type_erased_device_array_view_t* precomputed_vertex_out_weight_vertices,  # noqa: E501
+            const cugraph_type_erased_device_array_view_t* precomputed_vertex_out_weight_sums,  # noqa: E501
             const cugraph_type_erased_device_array_view_t* initial_guess_vertices,
             const cugraph_type_erased_device_array_view_t* initial_guess_values,
             const cugraph_type_erased_device_array_view_t* personalization_vertices,
@@ -98,7 +98,7 @@ cdef extern from "cugraph_c/centrality_algorithms.h":
             cugraph_centrality_result_t** result,
             cugraph_error_t** error
         )
-    
+
     ###########################################################################
     # katz centrality
     cdef cugraph_error_code_t \
@@ -124,17 +124,17 @@ cdef extern from "cugraph_c/centrality_algorithms.h":
         cugraph_hits_result_get_vertices(
             cugraph_hits_result_t* result
         )
-    
+
     cdef cugraph_type_erased_device_array_view_t* \
         cugraph_hits_result_get_hubs(
             cugraph_hits_result_t* result
         )
-    
+
     cdef cugraph_type_erased_device_array_view_t* \
         cugraph_hits_result_get_authorities(
             cugraph_hits_result_t* result
         )
-    
+
     cdef void \
         cugraph_hits_result_free(
             cugraph_hits_result_t* result

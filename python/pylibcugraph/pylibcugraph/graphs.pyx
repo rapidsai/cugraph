@@ -74,7 +74,7 @@ cdef class SGGraph(_GPUGraph):
         Object defining intended properties for the graph.
 
     src_or_offset_array : device array type
-        Device array containing either the vertex identifiers of the source of 
+        Device array containing either the vertex identifiers of the source of
         each directed edge if represented in COO format or the offset if
         CSR format. In the case of a COO, the order of the array corresponds to
         the ordering of the dst_or_index_array, where the ith item in
@@ -106,22 +106,22 @@ cdef class SGGraph(_GPUGraph):
     do_expensive_check : bool
         If True, performs more extensive tests on the inputs to ensure
         validitity, at the expense of increased run time.
-    
+
     edge_id_array : device array type
         Device array containing the edge ids of each directed edge.  Must match
         the ordering of the src/dst arrays.  Optional (may be null).  If
         provided, edge_type_array must also be provided.
-    
+
     edge_type_array : device array type
         Device array containing the edge types of each directed edge.  Must
         match the ordering of the src/dst/edge_id arrays.  Optional (may be
         null).  If provided, edge_id_array must be provided.
-    
+
     input_array_format: str, optional (default='COO')
         Input representation used to construct a graph
             COO: arrays represent src_array and dst_array
             CSR: arrays represent offset_array and index_array
-    
+
     Examples
     ---------
     >>> import pylibcugraph, cupy, numpy
@@ -168,7 +168,8 @@ cdef class SGGraph(_GPUGraph):
         if edge_type_array is not None:
             assert_CAI_type(edge_type_array, "edge_type_array")
 
-        # FIXME: assert that src_or_offset_array and dst_or_index_array have the same type
+        # FIXME: assert that src_or_offset_array and dst_or_index_array have
+        # the same type
 
         cdef cugraph_error_t* error_ptr
         cdef cugraph_error_code_t error_code
@@ -210,7 +211,7 @@ cdef class SGGraph(_GPUGraph):
                 &error_ptr)
 
             assert_success(error_code, error_ptr,
-                       "cugraph_sg_graph_create()")
+                           "cugraph_sg_graph_create()")
 
         elif input_array_format == "CSR":
             error_code = cugraph_sg_graph_create_from_csr(
@@ -228,11 +229,12 @@ cdef class SGGraph(_GPUGraph):
                 &error_ptr)
 
             assert_success(error_code, error_ptr,
-                       "cugraph_sg_graph_create_from_csr()")
-        
+                           "cugraph_sg_graph_create_from_csr()")
+
         else:
-            raise ValueError("invalid 'input_array_format'. Only "
-                "'COO' and 'CSR' format are supported."
+            raise ValueError(
+                "invalid 'input_array_format'. Only 'COO' and 'CSR' format "
+                "are supported."
             )
 
         cugraph_type_erased_device_array_view_free(srcs_or_offsets_view_ptr)
@@ -283,10 +285,10 @@ cdef class MGGraph(_GPUGraph):
     store_transposed : bool
         Set to True if the graph should be transposed. This is required for some
         algorithms, such as pagerank.
-    
+
     num_edges : int
         Number of edges
-    
+
     do_expensive_check : bool
         If True, performs more extensive tests on the inputs to ensure
         validitity, at the expense of increased run time.
@@ -295,7 +297,7 @@ cdef class MGGraph(_GPUGraph):
         Device array containing the edge ids of each directed edge.  Must match
         the ordering of the src/dst arrays.  Optional (may be null).  If
         provided, edge_type_array must also be provided.
-    
+
     edge_type_array : device array type
         Device array containing the edge types of each directed edge.  Must
         match the ordering of the src/dst/edge_id arrays.  Optional (may be
@@ -331,7 +333,7 @@ cdef class MGGraph(_GPUGraph):
         if edge_id_array is not None:
             assert_CAI_type(edge_id_array, "edge_id_array")
         if edge_type_array is not None:
-            assert_CAI_type(edge_type_array, "edge_type_array")        
+            assert_CAI_type(edge_type_array, "edge_type_array")
 
         # FIXME: assert that src_array and dst_array have the same type
 

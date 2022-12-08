@@ -26,7 +26,7 @@ cdef class GraphProperties:
     def __getnewargs_ex__(self):
         is_symmetric = self.c_graph_properties.is_symmetric
         is_multigraph = self.c_graph_properties.is_multigraph
-        return ((),{"is_symmetric":is_symmetric, "is_multigraph":is_multigraph})
+        return ((), {"is_symmetric": is_symmetric, "is_multigraph": is_multigraph})
 
     def __getstate__(self):
         return ()

@@ -55,13 +55,15 @@ from pylibcugraph.utils cimport (
 )
 
 
-def node2vec(ResourceHandle resource_handle,
-            _GPUGraph graph,
-            seed_array,
-            size_t max_depth,
-            bool_t compress_result,
-            double p,
-            double q):
+def node2vec(
+    ResourceHandle resource_handle,
+    _GPUGraph graph,
+    seed_array,
+    size_t max_depth,
+    bool_t compress_result,
+    double p,
+    double q
+):
     """
     Computes random walks under node2vec sampling procedure.
 
@@ -172,8 +174,8 @@ def node2vec(ResourceHandle resource_handle,
     cupy_paths = copy_to_cupy_array(c_resource_handle_ptr, paths_ptr)
     cupy_weights = copy_to_cupy_array(c_resource_handle_ptr, weights_ptr)
     cupy_path_sizes = copy_to_cupy_array(c_resource_handle_ptr,
-                                           path_sizes_ptr)
-    
+                                         path_sizes_ptr)
+
     cugraph_random_walk_result_free(result_ptr)
     cugraph_type_erased_device_array_view_free(seed_view_ptr)
 

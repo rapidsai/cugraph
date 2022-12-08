@@ -39,7 +39,9 @@ def _ensure_arg_types(**kwargs):
                 raise TypeError(f"{arg_name} array must have a dtype of int32")
 
 
-def strongly_connected_components(offsets, indices, weights, num_verts, num_edges, labels):
+def strongly_connected_components(
+    offsets, indices, weights, num_verts, num_edges, labels
+):
     """
     Generate the Strongly Connected Components and attach a component label to
     each vertex.
@@ -122,10 +124,10 @@ def strongly_connected_components(offsets, indices, weights, num_verts, num_edge
     cdef uintptr_t c_edge_weights = <uintptr_t>NULL
     cdef uintptr_t c_labels = labels.__cuda_array_interface__['data'][0]
 
-    cdef GraphCSRView[int,int,float] g
+    cdef GraphCSRView[int, int, float] g
 
-    g = GraphCSRView[int,int,float](<int*>c_offsets, <int*>c_indices, <float*>NULL, num_verts, num_edges)
+    g = GraphCSRView[int, int, float](
+        <int*>c_offsets, <int*>c_indices, <float*>NULL, num_verts, num_edges)
 
     cdef cugraph_cc_t connect_type=CUGRAPH_STRONG
     connected_components(g, <cugraph_cc_t>connect_type, <int *>c_labels)
-

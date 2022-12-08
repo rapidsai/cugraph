@@ -1,4 +1,4 @@
-# Copyright (c) 2020-2021, NVIDIA CORPORATION.
+# Copyright (c) 2020-2022, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -43,9 +43,10 @@ def create_csr_float(source_col, dest_col, weights):
     if weights is not None:
         c_weights = weights.__cuda_array_interface__['data'][0]
 
-    cdef GraphCOOView[int,int,float] in_graph
-    in_graph = GraphCOOView[int,int,float](<int*>c_src, <int*>c_dst, <float*>c_weights, num_verts, num_edges)
-    return csr_to_series(move(c_utils.coo_to_csr[int,int,float](in_graph)))
+    cdef GraphCOOView[int, int, float] in_graph
+    in_graph = GraphCOOView[int, int, float](
+        <int*>c_src, <int*>c_dst, <float*>c_weights, num_verts, num_edges)
+    return csr_to_series(move(c_utils.coo_to_csr[int, int, float](in_graph)))
 
 
 def create_csr_double(source_col, dest_col, weights):
@@ -59,14 +60,16 @@ def create_csr_double(source_col, dest_col, weights):
     if weights is not None:
         c_weights = weights.__cuda_array_interface__['data'][0]
 
-    cdef GraphCOOView[int,int,double] in_graph
-    in_graph = GraphCOOView[int,int,double](<int*>c_src, <int*>c_dst, <double*>c_weights, num_verts, num_edges)
-    return csr_to_series(move(c_utils.coo_to_csr[int,int,double](in_graph)))
+    cdef GraphCOOView[int, int, double] in_graph
+    in_graph = GraphCOOView[int, int, double](
+        <int*>c_src, <int*>c_dst, <double*>c_weights, num_verts, num_edges)
+    return csr_to_series(move(c_utils.coo_to_csr[int, int, double](in_graph)))
 
 
 def coo2csr(source_col, dest_col, weights=None):
     if len(source_col) != len(dest_col):
-        raise Exception("source_col and dest_col should have the same number of elements")
+        raise Exception(
+            "source_col and dest_col should have the same number of elements")
 
     if source_col.dtype != dest_col.dtype:
         raise Exception("source_col and dest_col should be the same type")
@@ -75,7 +78,11 @@ def coo2csr(source_col, dest_col, weights=None):
         raise Exception("source_col and dest_col must be type np.int32")
 
     if len(source_col) == 0:
-        return cudf.Series(np.zeros(1, dtype=np.int32)), cudf.Series(np.zeros(1, dtype=np.int32)), weights
+        return (
+            cudf.Series(np.zeros(1, dtype=np.int32)),
+            cudf.Series(np.zeros(1, dtype=np.int32)),
+            weights,
+        )
 
     if weight_type(weights) == np.float64:
         return create_csr_double(source_col, dest_col, weights)

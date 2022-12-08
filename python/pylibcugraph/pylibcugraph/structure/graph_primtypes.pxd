@@ -39,9 +39,9 @@ cdef extern from "cugraph/legacy/graph.hpp" namespace "cugraph::legacy":
         bool tree
         PropType has_negative_edges
 
-    cdef cppclass GraphViewBase[VT,ET,WT]:
+    cdef cppclass GraphViewBase[VT, ET, WT]:
         WT *edge_data
-        handle_t *handle;
+        handle_t *handle
         GraphProperties prop
         VT number_of_vertices
         ET number_of_edges
@@ -52,30 +52,31 @@ cdef extern from "cugraph/legacy/graph.hpp" namespace "cugraph::legacy":
         void set_local_data(VT* local_vertices_, ET* local_edges_, VT* local_offsets_)
         void get_vertex_identifiers(VT *) const
 
-        GraphViewBase(WT*,VT,ET)
+        GraphViewBase(WT*, VT, ET)
 
-    cdef cppclass GraphCOOView[VT,ET,WT](GraphViewBase[VT,ET,WT]):
+    cdef cppclass GraphCOOView[VT, ET, WT](GraphViewBase[VT, ET, WT]):
         VT *src_indices
         VT *dst_indices
 
-        void degree(ET *,DegreeDirection) const
+        void degree(ET *, DegreeDirection) const
 
         GraphCOOView()
         GraphCOOView(const VT *, const ET *, const WT *, size_t, size_t)
 
-    cdef cppclass GraphCompressedSparseBaseView[VT,ET,WT](GraphViewBase[VT,ET,WT]):
+    cdef cppclass GraphCompressedSparseBaseView[VT, ET, WT](GraphViewBase[VT, ET, WT]):
         ET *offsets
         VT *indices
 
         void get_source_indices(VT *) const
-        void degree(ET *,DegreeDirection) const
+        void degree(ET *, DegreeDirection) const
 
-        GraphCompressedSparseBaseView(const VT *, const ET *, const WT *, size_t, size_t)
+        GraphCompressedSparseBaseView(
+            const VT *, const ET *, const WT *, size_t, size_t)
 
-    cdef cppclass GraphCSRView[VT,ET,WT](GraphCompressedSparseBaseView[VT,ET,WT]):
+    cdef cppclass GraphCSRView[VT, ET, WT](GraphCompressedSparseBaseView[VT, ET, WT]):
         GraphCSRView()
         GraphCSRView(const VT *, const ET *, const WT *, size_t, size_t)
 
-    cdef cppclass GraphCSCView[VT,ET,WT](GraphCompressedSparseBaseView[VT,ET,WT]):
+    cdef cppclass GraphCSCView[VT, ET, WT](GraphCompressedSparseBaseView[VT, ET, WT]):
         GraphCSCView()
         GraphCSCView(const VT *, const ET *, const WT *, size_t, size_t)

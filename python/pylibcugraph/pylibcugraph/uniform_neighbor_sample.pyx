@@ -62,6 +62,7 @@ from pylibcugraph.internal_types.sampling_result cimport (
     SamplingResult,
 )
 
+
 def uniform_neighbor_sample(ResourceHandle resource_handle,
                             _GPUGraph input_graph,
                             start_list,

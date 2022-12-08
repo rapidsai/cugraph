@@ -45,17 +45,17 @@ cdef extern from "cugraph_c/community_algorithms.h":
         cugraph_triangle_count_result_get_vertices(
             cugraph_triangle_count_result_t* result
         )
-    
+
     cdef cugraph_type_erased_device_array_view_t* \
         cugraph_triangle_count_result_get_counts(
             cugraph_triangle_count_result_t* result
         )
-    
+
     cdef void \
         cugraph_triangle_count_result_free(
             cugraph_triangle_count_result_t* result
         )
-    
+
     cdef cugraph_error_code_t \
         cugraph_triangle_count(
             const cugraph_resource_handle_t* handle,
@@ -80,10 +80,10 @@ cdef extern from "cugraph_c/community_algorithms.h":
         cugraph_heirarchical_clustering_result_get_clusters(
             cugraph_heirarchical_clustering_result_t* result
         )
-    
+
     cdef double cugraph_heirarchical_clustering_result_get_modularity(
         cugraph_heirarchical_clustering_result_t* result
-        )
+    )
 
     cdef void \
         cugraph_heirarchical_clustering_result_free(
@@ -100,7 +100,7 @@ cdef extern from "cugraph_c/community_algorithms.h":
             cugraph_heirarchical_clustering_result_t** result,
             cugraph_error_t** error
         )
-    
+
     # extract_ego
     cdef cugraph_error_code_t \
         cugraph_extract_ego(

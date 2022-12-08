@@ -55,16 +55,18 @@ from pylibcugraph.utils cimport (
 )
 
 
-def pagerank(ResourceHandle resource_handle,
-            _GPUGraph graph,
-            precomputed_vertex_out_weight_vertices,
-            precomputed_vertex_out_weight_sums,
-            initial_guess_vertices,
-            initial_guess_values,
-            double alpha,
-            double epsilon,
-            size_t max_iterations,
-            bool_t do_expensive_check):
+def pagerank(
+    ResourceHandle resource_handle,
+    _GPUGraph graph,
+    precomputed_vertex_out_weight_vertices,
+    precomputed_vertex_out_weight_sums,
+    initial_guess_vertices,
+    initial_guess_values,
+    double alpha,
+    double epsilon,
+    size_t max_iterations,
+    bool_t do_expensive_check
+):
     """
     Find the PageRank score for every vertex in a graph by computing an
     approximation of the Pagerank eigenvector using the power method. The
@@ -166,15 +168,11 @@ def pagerank(ResourceHandle resource_handle,
         raise RuntimeError("pagerank requires the numpy package, which could "
                            "not be imported")
 
-    cdef cugraph_type_erased_device_array_view_t* \
-        initial_guess_vertices_view_ptr = \
-            create_cugraph_type_erased_device_array_view_from_py_obj(
-                initial_guess_vertices)
+    cdef cugraph_type_erased_device_array_view_t* initial_guess_vertices_view_ptr = \
+        create_cugraph_type_erased_device_array_view_from_py_obj(initial_guess_vertices)
 
-    cdef cugraph_type_erased_device_array_view_t* \
-        initial_guess_values_view_ptr = \
-            create_cugraph_type_erased_device_array_view_from_py_obj(
-                initial_guess_values)
+    cdef cugraph_type_erased_device_array_view_t* initial_guess_values_view_ptr = \
+        create_cugraph_type_erased_device_array_view_from_py_obj(initial_guess_values)
 
     cdef cugraph_resource_handle_t* c_resource_handle_ptr = \
         resource_handle.c_resource_handle_ptr
@@ -182,15 +180,15 @@ def pagerank(ResourceHandle resource_handle,
 
     cdef cugraph_type_erased_device_array_view_t* \
         precomputed_vertex_out_weight_vertices_view_ptr = \
-            create_cugraph_type_erased_device_array_view_from_py_obj(
-                precomputed_vertex_out_weight_vertices)
+        create_cugraph_type_erased_device_array_view_from_py_obj(
+            precomputed_vertex_out_weight_vertices)
 
     # FIXME: assert that precomputed_vertex_out_weight_sums
     # type == weight type
     cdef cugraph_type_erased_device_array_view_t* \
         precomputed_vertex_out_weight_sums_view_ptr = \
-            create_cugraph_type_erased_device_array_view_from_py_obj(
-                precomputed_vertex_out_weight_sums)
+        create_cugraph_type_erased_device_array_view_from_py_obj(
+            precomputed_vertex_out_weight_sums)
 
     cdef cugraph_centrality_result_t* result_ptr
     cdef cugraph_error_code_t error_code
@@ -227,8 +225,10 @@ def pagerank(ResourceHandle resource_handle,
     if initial_guess_values is not None:
         cugraph_type_erased_device_array_view_free(initial_guess_values_view_ptr)
     if precomputed_vertex_out_weight_vertices is not None:
-        cugraph_type_erased_device_array_view_free(precomputed_vertex_out_weight_vertices_view_ptr)
+        cugraph_type_erased_device_array_view_free(
+            precomputed_vertex_out_weight_vertices_view_ptr)
     if precomputed_vertex_out_weight_sums is not None:
-        cugraph_type_erased_device_array_view_free(precomputed_vertex_out_weight_sums_view_ptr)
+        cugraph_type_erased_device_array_view_free(
+            precomputed_vertex_out_weight_sums_view_ptr)
 
     return (cupy_vertices, cupy_pageranks)

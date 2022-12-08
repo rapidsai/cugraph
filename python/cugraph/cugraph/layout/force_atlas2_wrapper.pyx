@@ -51,7 +51,7 @@ def force_atlas2(input_graph,
 
     cdef unique_ptr[handle_t] handle_ptr
     handle_ptr.reset(new handle_t())
-    handle_ = handle_ptr.get();
+    handle_ = handle_ptr.get()
 
     if not input_graph.edgelist:
         input_graph.view_edge_list()
@@ -59,8 +59,8 @@ def force_atlas2(input_graph,
     num_verts = input_graph.number_of_vertices()
     num_edges = len(input_graph.edgelist.edgelist_df['src'])
 
-    cdef GraphCOOView[int,int,float] graph_float
-    cdef GraphCOOView[int,int,double] graph_double
+    cdef GraphCOOView[int, int, float] graph_float
+    cdef GraphCOOView[int, int, double] graph_double
 
     df = cudf.DataFrame()
     df['vertex'] = cudf.Series(np.arange(num_verts, dtype=np.int32))
@@ -76,7 +76,8 @@ def force_atlas2(input_graph,
 
     if input_graph.edgelist.weights:
         weights = input_graph.edgelist.edgelist_df["weights"]
-        [weights] = graph_primtypes_wrapper.datatype_cast([weights], [np.float32, np.float64])
+        [weights] = graph_primtypes_wrapper.datatype_cast(
+            [weights], [np.float32, np.float64])
         c_weights = weights.__cuda_array_interface__['data'][0]
 
     cdef uintptr_t x_start = <uintptr_t>NULL
@@ -97,60 +98,68 @@ def force_atlas2(input_graph,
     if callback:
         callback_ptr = callback.get_native_callback()
 
-
     # We keep np.float32 as results for both cases
     pos = cuda.device_array(
-            (num_verts, 2),
-            order="F",
-            dtype=np.float32)
+        (num_verts, 2),
+        order="F",
+        dtype=np.float32)
 
     pos_ptr = pos.device_ctypes_pointer.value
 
     if input_graph.edgelist.weights \
             and input_graph.edgelist.edgelist_df['weights'].dtype == np.float64:
-        graph_double = GraphCOOView[int,int, double](<int*>c_src_indices,
-                        <int*>c_dst_indices, <double*>c_weights, num_verts, num_edges)
+        graph_double = GraphCOOView[int, int, double](
+            <int*>c_src_indices,
+            <int*>c_dst_indices,
+            <double*>c_weights,
+            num_verts,
+            num_edges)
 
-        c_force_atlas2[int, int, double](handle_[0],
-                        graph_double,
-                        <float*>pos_ptr,
-                        <int>max_iter,
-                        <float*>x_start,
-                        <float*>y_start,
-                        <bool>outbound_attraction_distribution,
-                        <bool>lin_log_mode,
-                        <bool>prevent_overlapping,
-                        <float>edge_weight_influence,
-                        <float>jitter_tolerance,
-                        <bool>barnes_hut_optimize,
-                        <float>barnes_hut_theta,
-                        <float>scaling_ratio,
-                        <bool> strong_gravity_mode,
-                        <float>gravity,
-                        <bool> verbose,
-                        <GraphBasedDimRedCallback*>callback_ptr)
+        c_force_atlas2[int, int, double](
+            handle_[0],
+            graph_double,
+            <float*>pos_ptr,
+            <int>max_iter,
+            <float*>x_start,
+            <float*>y_start,
+            <bool>outbound_attraction_distribution,
+            <bool>lin_log_mode,
+            <bool>prevent_overlapping,
+            <float>edge_weight_influence,
+            <float>jitter_tolerance,
+            <bool>barnes_hut_optimize,
+            <float>barnes_hut_theta,
+            <float>scaling_ratio,
+            <bool> strong_gravity_mode,
+            <float>gravity,
+            <bool> verbose,
+            <GraphBasedDimRedCallback*>callback_ptr)
     else:
-        graph_float = GraphCOOView[int,int,float](<int*>c_src_indices,
-                <int*>c_dst_indices, <float*>c_weights, num_verts,
-                num_edges)
-        c_force_atlas2[int, int, float](handle_[0],
-                graph_float,
-                <float*>pos_ptr,
-                <int>max_iter,
-                <float*>x_start,
-                <float*>y_start,
-                <bool>outbound_attraction_distribution,
-                <bool>lin_log_mode,
-                <bool>prevent_overlapping,
-                <float>edge_weight_influence,
-                <float>jitter_tolerance,
-                <bool>barnes_hut_optimize,
-                <float>barnes_hut_theta,
-                <float>scaling_ratio,
-                <bool> strong_gravity_mode,
-                <float>gravity,
-                <bool> verbose,
-                <GraphBasedDimRedCallback*>callback_ptr)
+        graph_float = GraphCOOView[int, int, float](
+            <int*>c_src_indices,
+            <int*>c_dst_indices,
+            <float*>c_weights,
+            num_verts,
+            num_edges)
+        c_force_atlas2[int, int, float](
+            handle_[0],
+            graph_float,
+            <float*>pos_ptr,
+            <int>max_iter,
+            <float*>x_start,
+            <float*>y_start,
+            <bool>outbound_attraction_distribution,
+            <bool>lin_log_mode,
+            <bool>prevent_overlapping,
+            <float>edge_weight_influence,
+            <float>jitter_tolerance,
+            <bool>barnes_hut_optimize,
+            <float>barnes_hut_theta,
+            <float>scaling_ratio,
+            <bool> strong_gravity_mode,
+            <float>gravity,
+            <bool> verbose,
+            <GraphBasedDimRedCallback*>callback_ptr)
 
     pos_df = cudf.DataFrame(pos, columns=['x', 'y'])
     df['x'] = pos_df['x']

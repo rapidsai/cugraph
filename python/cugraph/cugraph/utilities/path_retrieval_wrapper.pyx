@@ -1,4 +1,4 @@
-# Copyright (c) 2021, NVIDIA CORPORATION.
+# Copyright (c) 2021-2022, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -38,7 +38,7 @@ def get_traversed_cost(input_df, stop_vertex):
 
     cdef unique_ptr[handle_t] handle_ptr
     handle_ptr.reset(new handle_t())
-    handle_ = handle_ptr.get();
+    handle_ = handle_ptr.get()
 
     cdef uintptr_t vertices = <uintptr_t>NULL
     cdef uintptr_t preds = <uintptr_t>NULL
@@ -51,7 +51,8 @@ def get_traversed_cost(input_df, stop_vertex):
     out = df['info'].__cuda_array_interface__['data'][0]
 
     if weight_t == np.float32:
-        c_get_traversed_cost(handle_[0],
+        c_get_traversed_cost(
+            handle_[0],
             <int *> vertices,
             <int *> preds,
             <float *> info_weights,
@@ -59,7 +60,8 @@ def get_traversed_cost(input_df, stop_vertex):
             <int> stop_vertex,
             <int> num_verts)
     elif weight_t == np.float64:
-        c_get_traversed_cost(handle_[0],
+        c_get_traversed_cost(
+            handle_[0],
             <int *> vertices,
             <int *> preds,
             <double *> info_weights,

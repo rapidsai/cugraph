@@ -40,7 +40,8 @@ cdef extern from "cugraph/utilities/cython.hpp" namespace "cugraph::cython":
         bool clip_and_flip,
         bool scramble_vertex_ids) except +
 
-    cdef vector[pair[unique_ptr[device_buffer], unique_ptr[device_buffer]]] call_generate_rmat_edgelists[vertex_t](
+    cdef vector[pair[unique_ptr[device_buffer], unique_ptr[device_buffer]]] \
+        call_generate_rmat_edgelists[vertex_t](
         const handle_t &handle,
         size_t n_edgelists,
         size_t min_scale,

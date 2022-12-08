@@ -47,7 +47,7 @@ from pylibcugraph._cugraph_c.array cimport (
 
 
 def create_sampling_result(ResourceHandle resource_handle,
-		           device_sources,
+                           device_sources,
                            device_destinations,
                            device_indices):
     """

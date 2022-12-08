@@ -61,26 +61,28 @@ def generate_rmat_edgelist(
 
     cdef unique_ptr[graph_generator_t] gg_ret_ptr
 
-    if (vertex_t==np.dtype("int32")):
-        gg_ret_ptr = move(call_generate_rmat_edgelist[int]( deref(handle_),
-                                                    scale,
-                                                    num_edges,
-                                                    a,
-                                                    b,
-                                                    c,
-                                                    seed,
-                                                    clip_and_flip,
-                                                    scramble_vertex_ids))
-    else: # (vertex_t == np.dtype("int64"))
-        gg_ret_ptr = move(call_generate_rmat_edgelist[long]( deref(handle_),
-                                                    scale,
-                                                    num_edges,
-                                                    a,
-                                                    b,
-                                                    c,
-                                                    seed,
-                                                    clip_and_flip,
-                                                    scramble_vertex_ids))
+    if vertex_t == np.dtype("int32"):
+        gg_ret_ptr = move(call_generate_rmat_edgelist[int](
+            deref(handle_),
+            scale,
+            num_edges,
+            a,
+            b,
+            c,
+            seed,
+            clip_and_flip,
+            scramble_vertex_ids))
+    else:  # (vertex_t == np.dtype("int64"))
+        gg_ret_ptr = move(call_generate_rmat_edgelist[long](
+            deref(handle_),
+            scale,
+            num_edges,
+            a,
+            b,
+            c,
+            seed,
+            clip_and_flip,
+            scramble_vertex_ids))
 
     gg_ret = move(gg_ret_ptr.get()[0])
 
@@ -104,7 +106,7 @@ def generate_rmat_edgelists(
     seed,
     clip_and_flip,
     scramble_vertex_ids
-    ):
+):
 
     vertex_t = np.dtype("int32")
     if (2**max_scale) > (2**31 - 1):
@@ -128,32 +130,35 @@ def generate_rmat_edgelists(
     cdef vector[pair[unique_ptr[device_buffer], unique_ptr[device_buffer]]] gg_ret_ptr
 
     if (vertex_t==np.dtype("int32")):
-         gg_ret_ptr = move(call_generate_rmat_edgelists[int]( deref(handle_),
-                                                    n_edgelists,
-                                                    min_scale,
-                                                    max_scale,
-                                                    edge_factor,
-                                                    <generator_distribution_t>s_distribution,
-                                                    <generator_distribution_t>e_distribution,
-                                                    seed,
-                                                    clip_and_flip,
-                                                    scramble_vertex_ids))
-    else: # (vertex_t == np.dtype("int64"))
-         gg_ret_ptr = move(call_generate_rmat_edgelists[long]( deref(handle_),
-                                                    n_edgelists,
-                                                    min_scale,
-                                                    max_scale,
-                                                    edge_factor,
-                                                    <generator_distribution_t>s_distribution,
-                                                    <generator_distribution_t>e_distribution,
-                                                    seed,
-                                                    clip_and_flip,
-                                                    scramble_vertex_ids))
+        gg_ret_ptr = move(call_generate_rmat_edgelists[int](
+            deref(handle_),
+            n_edgelists,
+            min_scale,
+            max_scale,
+            edge_factor,
+            <generator_distribution_t>s_distribution,
+            <generator_distribution_t>e_distribution,
+            seed,
+            clip_and_flip,
+            scramble_vertex_ids))
+    else:  # (vertex_t == np.dtype("int64"))
+        gg_ret_ptr = move(call_generate_rmat_edgelists[long](
+            deref(handle_),
+            n_edgelists,
+            min_scale,
+            max_scale,
+            edge_factor,
+            <generator_distribution_t>s_distribution,
+            <generator_distribution_t>e_distribution,
+            seed,
+            clip_and_flip,
+            scramble_vertex_ids))
     list_df = []
 
     for i in range(n_edgelists):
         set_source = move_device_buffer_to_column(move(gg_ret_ptr[i].first), vertex_t)
-        set_destination = move_device_buffer_to_column(move(gg_ret_ptr[i].second), vertex_t)
+        set_destination = move_device_buffer_to_column(
+            move(gg_ret_ptr[i].second), vertex_t)
 
         df = cudf.DataFrame()
         df['src'] = set_source
@@ -161,5 +166,5 @@ def generate_rmat_edgelists(
 
         list_df.append(df)
 
-    #Return a list of dataframes
+    # Return a list of dataframes
     return list_df

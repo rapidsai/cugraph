@@ -135,7 +135,7 @@ cdef extern from "cugraph_c/algorithms.h":
         cugraph_random_walk_result_get_path_sizes(
             cugraph_random_walk_result_t* result
         )
-    
+
     cdef size_t \
         cugraph_random_walk_result_get_max_path_length(
             cugraph_random_walk_result_t* result
@@ -159,7 +159,6 @@ cdef extern from "cugraph_c/algorithms.h":
             cugraph_random_walk_result_t** result,
             cugraph_error_t** error
         )
-
 
     ###########################################################################
     # sampling
@@ -222,7 +221,7 @@ cdef extern from "cugraph_c/algorithms.h":
             cugraph_random_walk_result_t** result,
             cugraph_error_t** error
         )
-    
+
     # biased random walks
     cdef cugraph_error_code_t \
         cugraph_based_random_walks(

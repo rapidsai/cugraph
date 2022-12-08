@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2021, NVIDIA CORPORATION.
+# Copyright (c) 2019-2022, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -27,8 +27,8 @@ cdef extern from "cugraph/algorithms.hpp" namespace "cugraph":
         CUGRAPH_STRONG "cugraph::cugraph_cc_t::CUGRAPH_STRONG"
         NUM_CONNECTIVITY_TYPES "cugraph::cugraph_cc_t::NUM_CONNECTIVITY_TYPES"
 
-    cdef void connected_components[VT,ET,WT](
-        const GraphCSRView[VT,ET,WT] &graph,
+    cdef void connected_components[VT, ET, WT](
+        const GraphCSRView[VT, ET, WT] &graph,
         cugraph_cc_t connect_type,
         VT *labels) except +
 
@@ -37,4 +37,3 @@ cdef extern from "cugraph/utilities/cython.hpp" namespace "cugraph::cython":
         const handle_t &handle,
         const graph_container_t &g,
         vertex_t *identifiers) except +
-

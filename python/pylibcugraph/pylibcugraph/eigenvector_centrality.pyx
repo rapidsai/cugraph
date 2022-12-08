@@ -127,7 +127,7 @@ def eigenvector_centrality(ResourceHandle resource_handle,
         cugraph_centrality_result_get_vertices(result_ptr)
     cdef cugraph_type_erased_device_array_view_t* values_ptr = \
         cugraph_centrality_result_get_values(result_ptr)
-    
+
     cupy_vertices = copy_to_cupy_array(c_resource_handle_ptr, vertices_ptr)
     cupy_values = copy_to_cupy_array(c_resource_handle_ptr, values_ptr)
 

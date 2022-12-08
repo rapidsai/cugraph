@@ -36,17 +36,14 @@ cdef extern from "cugraph_c/resource_handle.h":
         pass
 
     # FIXME: the void* raft_handle arg will change in a future release
-    cdef cugraph_resource_handle_t* \
-        cugraph_create_resource_handle(
-	    void* raft_handle
-	)
+    cdef cugraph_resource_handle_t* cugraph_create_resource_handle(
+        void* raft_handle
+    )
 
-    cdef int \
-        cugraph_resource_handle_get_rank(
-	    const cugraph_resource_handle_t* handle
-	)
+    cdef int cugraph_resource_handle_get_rank(
+        const cugraph_resource_handle_t* handle
+    )
 
-    cdef void \
-        cugraph_free_resource_handle(
-            cugraph_resource_handle_t* p_handle
-        )
+    cdef void cugraph_free_resource_handle(
+        cugraph_resource_handle_t* p_handle
+    )

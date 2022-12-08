@@ -14,9 +14,7 @@
 # Have cython use python 3 syntax
 # cython: language_level = 3
 
-from pylibcugraph._cugraph_c.graph cimport (
-     cugraph_graph_properties_t,
-)
+from pylibcugraph._cugraph_c.graph cimport cugraph_graph_properties_t
 
 
 cdef class GraphProperties:

@@ -36,7 +36,7 @@ cdef extern from "cugraph/utilities/cython.hpp" namespace "cugraph::cython":
         doubleType "cugraph::cython::numberTypeEnum::doubleType"
 
     cdef cppclass graph_container_t:
-       pass
+        pass
 
     cdef void populate_graph_container(
         graph_container_t &graph_container,
@@ -145,14 +145,16 @@ cdef extern from "cugraph/utilities/cython.hpp" namespace "cugraph::cython":
         pair[vertex_t, vertex_t] get_part_local_vertex_range()
         vertex_t get_part_local_vertex_first()
         vertex_t get_part_local_vertex_last()
-        pair[vertex_t, vertex_t] get_part_vertex_partition_range(size_t vertex_partition_idx)
+        pair[vertex_t, vertex_t] get_part_vertex_partition_range(
+            size_t vertex_partition_idx)
         vertex_t get_part_vertex_partition_first(size_t vertex_partition_idx)
         vertex_t get_part_vertex_partition_last(size_t vertex_partition_idx)
         vertex_t get_part_vertex_partition_size(size_t vertex_partition_idx)
         size_t get_part_number_of_matrix_partitions()
         vertex_t get_part_matrix_partition_major_first(size_t partition_idx)
         vertex_t get_part_matrix_partition_major_last(size_t partition_idx)
-        vertex_t get_part_matrix_partition_major_value_start_offset(size_t partition_idx)
+        vertex_t get_part_matrix_partition_major_value_start_offset(
+            size_t partition_idx)
         pair[vertex_t, vertex_t] get_part_matrix_partition_minor_range()
         vertex_t get_part_matrix_partition_minor_first()
         vertex_t get_part_matrix_partition_minor_last()
@@ -161,7 +163,8 @@ cdef extern from "cugraph/utilities/cython.hpp" namespace "cugraph::cython":
 #
 cdef extern from "cugraph/utilities/cython.hpp" namespace "cugraph::cython":
 
-    cdef unique_ptr[major_minor_weights_t[vertex_t, edge_t, weight_t]] call_shuffle[vertex_t, edge_t, weight_t](
+    cdef unique_ptr[major_minor_weights_t[vertex_t, edge_t, weight_t]] \
+        call_shuffle[vertex_t, edge_t, weight_t](
         const handle_t &handle,
         vertex_t *edgelist_major_vertices,
         vertex_t *edgelist_minor_vertices,

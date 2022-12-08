@@ -65,8 +65,7 @@ def _ensure_args(graph, offsets, indices, weights):
     else:
         invalid_input = [i for p in [offsets, indices] if p is None]
         input_type = "csr_arrays"
-        
-    
+
     if len(invalid_input) != 0:
         raise TypeError("Invalid input combination: Must set either 'graph' or "
                         "a combination of 'offsets', 'indices' and 'weights', not both")
@@ -75,7 +74,7 @@ def _ensure_args(graph, offsets, indices, weights):
             assert_CAI_type(offsets, "offsets")
             assert_CAI_type(indices, "indices")
             assert_CAI_type(weights, "weights", True)
-    
+
     return input_type
 
 
@@ -99,7 +98,7 @@ def weakly_connected_components(ResourceHandle resource_handle,
 
     graph : SGGraph or MGGraph
         The input graph.
-    
+
     offsets : object supporting a __cuda_array_interface__ interface
         Array containing the offsets values of a Compressed Sparse Row matrix
         that represents the graph.
@@ -137,7 +136,7 @@ def weakly_connected_components(ResourceHandle resource_handle,
     ...     store_transposed=False, renumber=True, do_expensive_check=False)
     >>> (vertices, labels) = weakly_connected_components(
     ...     resource_handle, G, None, None, None, None, False)
-    
+
     >>> vertices
     [0, 1, 2]
     >>> labels
@@ -182,18 +181,20 @@ def weakly_connected_components(ResourceHandle resource_handle,
             resource_handle = ResourceHandle()
 
         graph_props = GraphProperties(
-        is_symmetric=True, is_multigraph=False)
+            is_symmetric=True,
+            is_multigraph=False,
+        )
         graph = SGGraph(
-                resource_handle,
-                graph_props,
-                offsets,
-                indices,
-                weights,
-                store_transposed=False,
-                renumber=False,
-                do_expensive_check=True,
-                input_array_format="CSR"
-            )
+            resource_handle,
+            graph_props,
+            offsets,
+            indices,
+            weights,
+            store_transposed=False,
+            renumber=False,
+            do_expensive_check=True,
+            input_array_format="CSR",
+        )
 
     cdef cugraph_resource_handle_t* c_resource_handle_ptr = \
         resource_handle.c_resource_handle_ptr

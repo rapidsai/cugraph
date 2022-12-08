@@ -21,5 +21,5 @@ from pylibraft.common.handle cimport *
 
 cdef extern from "cugraph/utilities/cython.hpp" namespace "cugraph::cython":
 
-   cdef void init_subcomms(handle_t &handle,
-                           size_t row_comm_size)
+    cdef void init_subcomms(handle_t &handle,
+                            size_t row_comm_size)

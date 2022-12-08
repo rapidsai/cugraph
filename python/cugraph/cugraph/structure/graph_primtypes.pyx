@@ -25,8 +25,8 @@ from cudf.core.buffer import as_buffer
 import cudf
 
 
-cdef move_device_buffer_to_column(
-    unique_ptr[device_buffer] device_buffer_unique_ptr, dtype):
+cdef move_device_buffer_to_column(unique_ptr[device_buffer] device_buffer_unique_ptr,
+                                  dtype):
     """
     Transfers ownership of device_buffer_unique_ptr to a cuDF buffer which is
     used to construct a cudf column object, which is then returned. If the
@@ -41,8 +41,8 @@ cdef move_device_buffer_to_column(
     return None
 
 
-cdef move_device_buffer_to_series(
-    unique_ptr[device_buffer] device_buffer_unique_ptr, dtype, series_name):
+cdef move_device_buffer_to_series(unique_ptr[device_buffer] device_buffer_unique_ptr,
+                                  dtype, series_name):
     """
     Transfers ownership of device_buffer_unique_ptr to a cuDF buffer which is
     used to construct a cudf.Series object with name series_name, which is then
@@ -101,12 +101,18 @@ cdef csr_to_series(GraphCSRPtrType graph):
     return (csr_offsets, csr_indices, csr_weights)
 
 
-cdef GraphCSRViewType get_csr_graph_view(input_graph, bool weighted=True, GraphCSRViewType* dummy=NULL):
+cdef GraphCSRViewType get_csr_graph_view(
+    input_graph,
+    bool weighted=True,
+    GraphCSRViewType* dummy=NULL
+):
     if not input_graph.adjlist:
         input_graph.view_adj_list()
 
-    cdef uintptr_t c_off = input_graph.adjlist.offsets.__cuda_array_interface__['data'][0]
-    cdef uintptr_t c_ind = input_graph.adjlist.indices.__cuda_array_interface__['data'][0]
+    cdef uintptr_t c_off = \
+        input_graph.adjlist.offsets.__cuda_array_interface__['data'][0]
+    cdef uintptr_t c_ind = \
+        input_graph.adjlist.indices.__cuda_array_interface__['data'][0]
     cdef uintptr_t c_weights = <uintptr_t>NULL
 
     if input_graph.adjlist.weights is not None and weighted:
@@ -116,13 +122,19 @@ cdef GraphCSRViewType get_csr_graph_view(input_graph, bool weighted=True, GraphC
     num_edges = input_graph.number_of_edges(directed_edges=True)
     cdef GraphCSRViewType in_graph
     if GraphCSRViewType is GraphCSRViewFloat:
-        in_graph = GraphCSRViewFloat(<int*>c_off, <int*>c_ind, <float*>c_weights, num_verts, num_edges)
+        in_graph = GraphCSRViewFloat(
+            <int*>c_off, <int*>c_ind, <float*>c_weights, num_verts, num_edges)
     elif GraphCSRViewType is GraphCSRViewDouble:
-        in_graph = GraphCSRViewDouble(<int*>c_off, <int*>c_ind, <double*>c_weights, num_verts, num_edges)
+        in_graph = GraphCSRViewDouble(
+            <int*>c_off, <int*>c_ind, <double*>c_weights, num_verts, num_edges)
     return in_graph
 
 
-cdef GraphCOOViewType get_coo_graph_view(input_graph, bool weighted=True, GraphCOOViewType* dummy=NULL):
+cdef GraphCOOViewType get_coo_graph_view(
+    input_graph,
+    bool weighted=True,
+    GraphCOOViewType* dummy=NULL
+):
     # FIXME: this function assumes columns named "src" and "dst" and can only
     # be used for SG graphs due to that assumption.
     if not input_graph.edgelist:
@@ -131,23 +143,32 @@ cdef GraphCOOViewType get_coo_graph_view(input_graph, bool weighted=True, GraphC
     num_edges = input_graph.number_of_edges(directed_edges=True)
     num_verts = input_graph.number_of_vertices()
 
-    cdef uintptr_t c_src = input_graph.edgelist.edgelist_df['src'].__cuda_array_interface__['data'][0]
-    cdef uintptr_t c_dst = input_graph.edgelist.edgelist_df['dst'].__cuda_array_interface__['data'][0]
+    cdef uintptr_t c_src = \
+        input_graph.edgelist.edgelist_df['src'].__cuda_array_interface__['data'][0]
+    cdef uintptr_t c_dst = \
+        input_graph.edgelist.edgelist_df['dst'].__cuda_array_interface__['data'][0]
     cdef uintptr_t c_weights = <uintptr_t>NULL
 
     # FIXME explicit check for None fails, different behavior than get_csr_graph_view
     if input_graph.edgelist.weights and weighted:
-        c_weights = input_graph.edgelist.edgelist_df['weights'].__cuda_array_interface__['data'][0]
+        c_weights = \
+            input_graph.edgelist.edgelist_df['weights'].__cuda_array_interface__['data'][0]  # noqa: E501
 
     cdef GraphCOOViewType in_graph
     if GraphCOOViewType is GraphCOOViewFloat:
-        in_graph = GraphCOOViewFloat(<int*>c_src, <int*>c_dst, <float*>c_weights, num_verts, num_edges)
+        in_graph = GraphCOOViewFloat(
+            <int*>c_src, <int*>c_dst, <float*>c_weights, num_verts, num_edges)
     elif GraphCOOViewType is GraphCOOViewDouble:
-        in_graph = GraphCOOViewDouble(<int*>c_src, <int*>c_dst, <double*>c_weights, num_verts, num_edges)
+        in_graph = GraphCOOViewDouble(
+            <int*>c_src, <int*>c_dst, <double*>c_weights, num_verts, num_edges)
     return in_graph
 
 
-cdef GraphViewType get_graph_view(input_graph, bool weighted = True, GraphViewType* dummy=NULL):
+cdef GraphViewType get_graph_view(
+    input_graph,
+    bool weighted=True,
+    GraphViewType* dummy=NULL
+):
     if GraphViewType is GraphCOOViewFloat:
         return get_coo_graph_view[GraphCOOViewFloat](input_graph, weighted, dummy)
     elif GraphViewType is GraphCOOViewDouble:

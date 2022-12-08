@@ -57,15 +57,17 @@ from pylibcugraph.utils cimport (
 )
 
 
-def EXPERIMENTAL__sorensen_coefficients(ResourceHandle resource_handle,
-        _GPUGraph graph,
-        first,
-        second,
-        bool_t use_weight,
-        bool_t do_expensive_check):
+def EXPERIMENTAL__sorensen_coefficients(
+    ResourceHandle resource_handle,
+    _GPUGraph graph,
+    first,
+    second,
+    bool_t use_weight,
+    bool_t do_expensive_check
+):
     """
     Compute the Sorensen coefficients for the specified vertex_pairs.
-    
+
     Note that Sorensen similarity must run on a symmetric graph.
 
     Parameters
@@ -76,13 +78,13 @@ def EXPERIMENTAL__sorensen_coefficients(ResourceHandle resource_handle,
 
     graph : SGGraph or MGGraph
         The input graph, for either Single or Multi-GPU operations.
-    
+
     first :
         Source of the vertex pair.
-    
+
     second :
         Destination of the vertex pair.
-    
+
     use_weight : bool, optional (default=False)
         Currently not supported
 
@@ -112,16 +114,12 @@ def EXPERIMENTAL__sorensen_coefficients(ResourceHandle resource_handle,
     cdef cugraph_error_t* error_ptr
 
     # 'first' is a required parameter
-    cdef cugraph_type_erased_device_array_view_t* \
-        first_view_ptr = \
-            create_cugraph_type_erased_device_array_view_from_py_obj(
-                first)
+    cdef cugraph_type_erased_device_array_view_t* first_view_ptr = \
+        create_cugraph_type_erased_device_array_view_from_py_obj(first)
 
     # 'second' is a required parameter
-    cdef cugraph_type_erased_device_array_view_t* \
-        second_view_ptr = \
-            create_cugraph_type_erased_device_array_view_from_py_obj(
-                second)
+    cdef cugraph_type_erased_device_array_view_t* second_view_ptr = \
+        create_cugraph_type_erased_device_array_view_from_py_obj(second)
 
     error_code = cugraph_create_vertex_pairs(c_resource_handle_ptr,
                                              c_graph_ptr,
@@ -132,12 +130,12 @@ def EXPERIMENTAL__sorensen_coefficients(ResourceHandle resource_handle,
     assert_success(error_code, error_ptr, "vertex_pairs")
 
     error_code = cugraph_sorensen_coefficients(c_resource_handle_ptr,
-                                              c_graph_ptr,
-                                              vertex_pairs_ptr,
-                                              use_weight,
-                                              do_expensive_check,
-                                              &result_ptr,
-                                              &error_ptr)
+                                               c_graph_ptr,
+                                               vertex_pairs_ptr,
+                                               use_weight,
+                                               do_expensive_check,
+                                               &result_ptr,
+                                               &error_ptr)
     assert_success(error_code, error_ptr, "cugraph_sorensen_coefficients")
 
     # Extract individual device array pointers from result and copy to cupy

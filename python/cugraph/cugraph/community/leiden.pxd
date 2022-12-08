@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2021, NVIDIA CORPORATION.
+# Copyright (c) 2019-2022, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -23,9 +23,9 @@ from cugraph.structure.graph_primtypes cimport *
 
 cdef extern from "cugraph/algorithms.hpp" namespace "cugraph":
 
-    cdef pair[size_t, weight_t] leiden[vertex_t,edge_t,weight_t](
+    cdef pair[size_t, weight_t] leiden[vertex_t, edge_t, weight_t](
         const handle_t &handle,
-        const GraphCSRView[vertex_t,edge_t,weight_t] &graph,
+        const GraphCSRView[vertex_t, edge_t, weight_t] &graph,
         vertex_t *leiden_parts,
         size_t max_level,
         weight_t resolution) except +

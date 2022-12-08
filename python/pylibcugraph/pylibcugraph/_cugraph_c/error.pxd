@@ -26,7 +26,7 @@ cdef extern from "cugraph_c/error.h":
         CUGRAPH_UNSUPPORTED_TYPE_COMBINATION
 
     ctypedef struct cugraph_error_t:
-       pass
+        pass
 
     const char* \
         cugraph_error_message(

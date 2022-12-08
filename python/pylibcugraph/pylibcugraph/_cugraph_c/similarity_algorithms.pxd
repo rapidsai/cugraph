@@ -36,21 +36,21 @@ from pylibcugraph._cugraph_c.graph_functions cimport (
 
 cdef extern from "cugraph_c/similarity_algorithms.h":
     ###########################################################################
-    #"""
+    # """
     ctypedef struct cugraph_similarity_result_t:
         pass
-    #"""
+    # """
 
     cdef cugraph_type_erased_device_array_view_t* \
         cugraph_similarity_result_get_similarity(
             cugraph_similarity_result_t* result
         )
-    
+
     cdef void \
         cugraph_similarity_result_free(
             cugraph_similarity_result_t* result
         )
-    
+
     ###########################################################################
     # jaccard coefficients
     cdef cugraph_error_code_t \

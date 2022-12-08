@@ -30,7 +30,7 @@ cdef extern from "cugraph/utilities/cython.hpp" namespace "cugraph::cython":
         doubleType "cugraph::cython::numberTypeEnum::doubleType"
 
     cdef cppclass graph_container_t:
-       pass
+        pass
 
     cdef void populate_graph_container(
         graph_container_t &graph_container,

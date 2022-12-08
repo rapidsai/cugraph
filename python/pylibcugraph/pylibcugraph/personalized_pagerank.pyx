@@ -90,19 +90,19 @@ def personalized_pagerank(ResourceHandle resource_handle,
     precomputed_vertex_out_weight_sums : device array type
         Corresponding precomputed sum of outgoing vertices weight
         (a performance optimization)
-    
+
     initial_guess_vertices : device array type
         Subset of vertices of graph for initial guess for pagerank values
         (a performance optimization)
-    
+
     initial_guess_values : device array type
         Pagerank values for vertices
         (a performance optimization)
-    
+
     personalization_vertices : device array type
         Subset of vertices of graph for personalization
         (a performance optimization)
-    
+
     personalization_values : device array type
         Personalization values for vertices
         (a performance optimization)
@@ -184,13 +184,13 @@ def personalized_pagerank(ResourceHandle resource_handle,
 
     cdef cugraph_type_erased_device_array_view_t* \
         initial_guess_vertices_view_ptr = \
-            create_cugraph_type_erased_device_array_view_from_py_obj(
-                initial_guess_vertices)
+        create_cugraph_type_erased_device_array_view_from_py_obj(
+            initial_guess_vertices)
 
     cdef cugraph_type_erased_device_array_view_t* \
         initial_guess_values_view_ptr = \
-            create_cugraph_type_erased_device_array_view_from_py_obj(
-                initial_guess_values)
+        create_cugraph_type_erased_device_array_view_from_py_obj(
+            initial_guess_values)
 
     cdef cugraph_resource_handle_t* c_resource_handle_ptr = \
         resource_handle.c_resource_handle_ptr
@@ -198,44 +198,45 @@ def personalized_pagerank(ResourceHandle resource_handle,
 
     cdef cugraph_type_erased_device_array_view_t* \
         precomputed_vertex_out_weight_vertices_view_ptr = \
-            create_cugraph_type_erased_device_array_view_from_py_obj(
-                precomputed_vertex_out_weight_vertices)
+        create_cugraph_type_erased_device_array_view_from_py_obj(
+            precomputed_vertex_out_weight_vertices)
 
     # FIXME: assert that precomputed_vertex_out_weight_sums
     # type == weight type
     cdef cugraph_type_erased_device_array_view_t* \
         precomputed_vertex_out_weight_sums_view_ptr = \
-            create_cugraph_type_erased_device_array_view_from_py_obj(
-                precomputed_vertex_out_weight_sums)
-    
+        create_cugraph_type_erased_device_array_view_from_py_obj(
+            precomputed_vertex_out_weight_sums)
+
     cdef cugraph_type_erased_device_array_view_t* \
         personalization_vertices_view_ptr = \
-            create_cugraph_type_erased_device_array_view_from_py_obj(
-                personalization_vertices)
-    
+        create_cugraph_type_erased_device_array_view_from_py_obj(
+            personalization_vertices)
+
     cdef cugraph_type_erased_device_array_view_t* \
         personalization_values_view_ptr = \
-            create_cugraph_type_erased_device_array_view_from_py_obj(
-                personalization_values)
+        create_cugraph_type_erased_device_array_view_from_py_obj(
+            personalization_values)
 
     cdef cugraph_centrality_result_t* result_ptr
     cdef cugraph_error_code_t error_code
     cdef cugraph_error_t* error_ptr
 
-    error_code = cugraph_personalized_pagerank(c_resource_handle_ptr,
-                                               c_graph_ptr,
-                                               precomputed_vertex_out_weight_vertices_view_ptr,
-                                               precomputed_vertex_out_weight_sums_view_ptr,
-                                               initial_guess_vertices_view_ptr,
-                                               initial_guess_values_view_ptr,
-                                               personalization_vertices_view_ptr,
-                                               personalization_values_view_ptr,
-                                               alpha,
-                                               epsilon,
-                                               max_iterations,
-                                               do_expensive_check,
-                                               &result_ptr,
-                                               &error_ptr)
+    error_code = cugraph_personalized_pagerank(
+        c_resource_handle_ptr,
+        c_graph_ptr,
+        precomputed_vertex_out_weight_vertices_view_ptr,
+        precomputed_vertex_out_weight_sums_view_ptr,
+        initial_guess_vertices_view_ptr,
+        initial_guess_values_view_ptr,
+        personalization_vertices_view_ptr,
+        personalization_values_view_ptr,
+        alpha,
+        epsilon,
+        max_iterations,
+        do_expensive_check,
+        &result_ptr,
+        &error_ptr)
     assert_success(error_code, error_ptr, "cugraph_personalized_pagerank")
 
     # Extract individual device array pointers from result and copy to cupy
@@ -255,9 +256,11 @@ def personalized_pagerank(ResourceHandle resource_handle,
     if initial_guess_values is not None:
         cugraph_type_erased_device_array_view_free(initial_guess_values_view_ptr)
     if precomputed_vertex_out_weight_vertices is not None:
-        cugraph_type_erased_device_array_view_free(precomputed_vertex_out_weight_vertices_view_ptr)
+        cugraph_type_erased_device_array_view_free(
+            precomputed_vertex_out_weight_vertices_view_ptr)
     if precomputed_vertex_out_weight_sums is not None:
-        cugraph_type_erased_device_array_view_free(precomputed_vertex_out_weight_sums_view_ptr)
+        cugraph_type_erased_device_array_view_free(
+            precomputed_vertex_out_weight_sums_view_ptr)
     if personalization_vertices is not None:
         cugraph_type_erased_device_array_view_free(personalization_vertices_view_ptr)
     if personalization_values is not None:

@@ -68,7 +68,7 @@ cdef assert_success(cugraph_error_code_t code,
             raise ValueError(error_msg)
         elif code == cugraph_error_code_t.CUGRAPH_NOT_IMPLEMENTED:
             code_str = "CUGRAPH_NOT_IMPLEMENTED"
-            error_msg = f"non-success value returned from {api_name}: {code_str}\ "\
+            error_msg = f"non-success value returned from {api_name}: {code_str} "\
                         f"{c_error}"
             raise NotImplementedError(error_msg)
         elif code == cugraph_error_code_t.CUGRAPH_UNSUPPORTED_TYPE_COMBINATION:
@@ -133,8 +133,10 @@ cdef get_c_type_from_numpy_type(numpy_type):
     elif numpy_type == numpy.float64:
         return data_type_id_t.FLOAT64
     else:
-        raise RuntimeError("Internal error: got invalid data type enum value "
-                          f"from Numpy: {numpy_type}")
+        raise RuntimeError(
+            "Internal error: got invalid data type enum value from Numpy: "
+            f"{numpy_type}"
+        )
 
 cdef get_c_weight_type_from_numpy_edge_ids_type(numpy_type):
     if numpy_type == numpy.int32:
@@ -150,8 +152,9 @@ cdef get_numpy_edge_ids_type_from_c_weight_type(data_type_id_t c_weight_type):
 
 
 cdef copy_to_cupy_array(
-   cugraph_resource_handle_t* c_resource_handle_ptr,
-   cugraph_type_erased_device_array_view_t* device_array_view_ptr):
+    cugraph_resource_handle_t* c_resource_handle_ptr,
+    cugraph_type_erased_device_array_view_t* device_array_view_ptr
+):
     """
     Copy the contents from a device array view as returned by various cugraph_*
     APIs to a new cupy device array, typically intended to be used as a return
@@ -186,8 +189,9 @@ cdef copy_to_cupy_array(
     return cupy_array
 
 cdef copy_to_cupy_array_ids(
-   cugraph_resource_handle_t* c_resource_handle_ptr,
-   cugraph_type_erased_device_array_view_t* device_array_view_ptr):
+    cugraph_resource_handle_t* c_resource_handle_ptr,
+    cugraph_type_erased_device_array_view_t* device_array_view_ptr
+):
     """
     Copy the contents from a device array view as returned by various cugraph_*
     APIs to a new cupy device array, typically intended to be used as a return
@@ -207,7 +211,9 @@ cdef copy_to_cupy_array_ids(
 
     cdef cugraph_type_erased_device_array_view_t* cupy_array_view_ptr = \
         cugraph_type_erased_device_array_view_create(
-            <void*>cupy_array_ptr, array_size, get_c_type_from_numpy_type(cupy_array.dtype))
+            <void*>cupy_array_ptr,
+            array_size,
+            get_c_type_from_numpy_type(cupy_array.dtype))
 
     cdef cugraph_error_t* error_ptr
     error_code = cugraph_type_erased_device_array_view_copy(
@@ -223,21 +229,21 @@ cdef copy_to_cupy_array_ids(
     return cupy_array
 
 cdef cugraph_type_erased_device_array_view_t* \
-    create_cugraph_type_erased_device_array_view_from_py_obj(python_obj):
-        cdef uintptr_t cai_ptr = <uintptr_t>NULL
-        cdef cugraph_type_erased_device_array_view_t* view_ptr = NULL
-        if python_obj is not None:
-            cai_ptr = python_obj.__cuda_array_interface__["data"][0]
-            view_ptr = cugraph_type_erased_device_array_view_create(
-                <void*>cai_ptr,
-                len(python_obj),
-                get_c_type_from_numpy_type(python_obj.dtype))
+        create_cugraph_type_erased_device_array_view_from_py_obj(python_obj):
+    cdef uintptr_t cai_ptr = <uintptr_t>NULL
+    cdef cugraph_type_erased_device_array_view_t* view_ptr = NULL
+    if python_obj is not None:
+        cai_ptr = python_obj.__cuda_array_interface__["data"][0]
+        view_ptr = cugraph_type_erased_device_array_view_create(
+            <void*>cai_ptr,
+            len(python_obj),
+            get_c_type_from_numpy_type(python_obj.dtype))
 
-        return view_ptr
+    return view_ptr
 
 cdef create_cupy_array_view_for_device_ptr(
-    cugraph_type_erased_device_array_view_t* device_array_view_ptr,
-    owning_py_object):
+        cugraph_type_erased_device_array_view_t* device_array_view_ptr,
+        owning_py_object):
 
     if device_array_view_ptr == NULL:
         raise ValueError("device_array_view_ptr cannot be NULL")

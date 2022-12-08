@@ -73,7 +73,7 @@ def ego_graph(ResourceHandle resource_handle,
 
     graph : SGGraph or MGGraph
         The input graph.
-    
+
     source_vertices : cudf.Series
         The centered nodes from which the induced subgraph will be extracted
 
@@ -124,10 +124,8 @@ def ego_graph(ResourceHandle resource_handle,
     cdef cugraph_error_code_t error_code
     cdef cugraph_error_t* error_ptr
 
-    cdef cugraph_type_erased_device_array_view_t* \
-        source_vertices_view_ptr = \
-            create_cugraph_type_erased_device_array_view_from_py_obj(
-                source_vertices)
+    cdef cugraph_type_erased_device_array_view_t* source_vertices_view_ptr = \
+        create_cugraph_type_erased_device_array_view_from_py_obj(source_vertices)
 
     error_code = cugraph_extract_ego(c_resource_handle_ptr,
                                      c_graph_ptr,
@@ -164,4 +162,4 @@ def ego_graph(ResourceHandle resource_handle,
     cugraph_induced_subgraph_result_free(result_ptr)
 
     return (cupy_sources, cupy_destinations,
-                cupy_edge_weights, cupy_subgraph_offsets)
+            cupy_edge_weights, cupy_subgraph_offsets)

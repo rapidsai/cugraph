@@ -49,12 +49,14 @@ from pylibcugraph.utils cimport (
 )
 
 
-def sssp(ResourceHandle resource_handle,
-        _GPUGraph graph,
-        size_t source,
-        double cutoff,
-        bool_t compute_predecessors,
-        bool_t do_expensive_check):
+def sssp(
+    ResourceHandle resource_handle,
+    _GPUGraph graph,
+    size_t source,
+    double cutoff,
+    bool_t compute_predecessors,
+    bool_t do_expensive_check
+):
     """
     Compute the distance and predecessors for shortest paths from the specified
     source to all the vertices in the graph. The returned distances array will

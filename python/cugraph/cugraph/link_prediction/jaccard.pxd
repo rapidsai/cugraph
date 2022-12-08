@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2021, NVIDIA CORPORATION.
+# Copyright (c) 2019-2022, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -21,13 +21,13 @@ from cugraph.structure.graph_primtypes cimport *
 
 cdef extern from "cugraph/algorithms.hpp" namespace "cugraph":
 
-    cdef void jaccard[VT,ET,WT](
-        const GraphCSRView[VT,ET,WT] &graph,
+    cdef void jaccard[VT, ET, WT](
+        const GraphCSRView[VT, ET, WT] &graph,
         const WT *weights,
         WT *result) except +
 
-    cdef void jaccard_list[VT,ET,WT](
-        const GraphCSRView[VT,ET,WT] &graph,
+    cdef void jaccard_list[VT, ET, WT](
+        const GraphCSRView[VT, ET, WT] &graph,
         const WT *weights,
         ET num_pairs,
         const VT *first,

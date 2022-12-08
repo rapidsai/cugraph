@@ -22,10 +22,10 @@ from libcpp.memory cimport unique_ptr
 
 cdef extern from "cugraph/legacy/functions.hpp" namespace "cugraph":
 
-    cdef unique_ptr[GraphCSR[VT,ET,WT]] coo_to_csr[VT,ET,WT](
-            const GraphCOOView[VT,ET,WT] &graph) except +
+    cdef unique_ptr[GraphCSR[VT, ET, WT]] coo_to_csr[VT, ET, WT](
+        const GraphCOOView[VT, ET, WT] &graph) except +
 
     cdef void comms_bcast[value_t](
-            const handle_t &handle,
-            value_t *dst,
-            size_t size) except +
+        const handle_t &handle,
+        value_t *dst,
+        size_t size) except +

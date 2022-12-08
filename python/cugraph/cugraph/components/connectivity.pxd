@@ -25,7 +25,7 @@ cdef extern from "cugraph/algorithms.hpp" namespace "cugraph":
     ctypedef enum cugraph_cc_t:
         CUGRAPH_STRONG "cugraph::cugraph_cc_t::CUGRAPH_STRONG"
 
-    cdef void connected_components[VT,ET,WT](
-        const GraphCSRView[VT,ET,WT] &graph,
+    cdef void connected_components[VT, ET, WT](
+        const GraphCSRView[VT, ET, WT] &graph,
         cugraph_cc_t connect_type,
         VT *labels) except +

@@ -16,7 +16,9 @@
 # cython: embedsignature = True
 # cython: language_level = 3
 
-from cugraph.centrality.betweenness_centrality cimport betweenness_centrality as c_betweenness_centrality
+from cugraph.centrality.betweenness_centrality cimport (
+    betweenness_centrality as c_betweenness_centrality
+)
 from cugraph.structure.graph_primtypes cimport *
 from libc.stdint cimport uintptr_t
 from libcpp cimport bool
@@ -37,7 +39,7 @@ def get_output_df(number_of_vertices, result_dtype):
 
 def get_batch(sources, number_of_workers, current_worker):
     batch_size = len(sources) // number_of_workers
-    begin =  current_worker * batch_size
+    begin = current_worker * batch_size
     end = (current_worker + 1) * batch_size
     if current_worker == (number_of_workers - 1):
         end = len(sources)
@@ -55,23 +57,25 @@ cdef void run_c_betweenness_centrality(uintptr_t c_handle,
                                        uintptr_t c_batch,
                                        result_dtype):
     if result_dtype == np.float64:
-        c_betweenness_centrality[int, int, double, double]((<handle_t *> c_handle)[0],
-                                                           (<GraphCSRView[int, int, double] *> c_graph)[0],
-                                                           <double *> c_betweenness,
-                                                           normalized,
-                                                           endpoints,
-                                                           <double *> c_weights,
-                                                           number_of_sources_in_batch,
-                                                           <int *> c_batch)
+        c_betweenness_centrality[int, int, double, double](
+            (<handle_t *> c_handle)[0],
+            (<GraphCSRView[int, int, double] *> c_graph)[0],
+            <double *> c_betweenness,
+            normalized,
+            endpoints,
+            <double *> c_weights,
+            number_of_sources_in_batch,
+            <int *> c_batch)
     elif result_dtype == np.float32:
-        c_betweenness_centrality[int, int, float, float]((<handle_t *> c_handle)[0],
-                                                         (<GraphCSRView[int, int, float] *> c_graph)[0],
-                                                         <float *> c_betweenness,
-                                                         normalized,
-                                                         endpoints,
-                                                         <float *> c_weights,
-                                                         number_of_sources_in_batch,
-                                                         <int *> c_batch)
+        c_betweenness_centrality[int, int, float, float](
+            (<handle_t *> c_handle)[0],
+            (<GraphCSRView[int, int, float] *> c_graph)[0],
+            <float *> c_betweenness,
+            normalized,
+            endpoints,
+            <float *> c_weights,
+            number_of_sources_in_batch,
+            <int *> c_batch)
     else:
         raise ValueError("result_dtype can only be np.float64 or np.float32")
 
@@ -127,7 +131,8 @@ def run_internal_work(handle, input_data, normalized, endpoints,
         raise ValueError("result_dtype can only be np.float64 or np.float32")
 
     c_identifier = result_df['vertex'].__cuda_array_interface__['data'][0]
-    c_betweenness = result_df['betweenness_centrality'].__cuda_array_interface__['data'][0]
+    c_betweenness = \
+        result_df['betweenness_centrality'].__cuda_array_interface__['data'][0]
     if weights is not None:
         c_weights = weights.__cuda_array_interface__['data'][0]
 
@@ -152,6 +157,7 @@ def run_internal_work(handle, input_data, normalized, endpoints,
 
     return result_df
 
+
 def run_mg_work(input_data, normalized, endpoints,
                 weights, sources,
                 result_dtype, session_id):
@@ -170,20 +176,20 @@ def run_mg_work(input_data, normalized, endpoints,
 
 
 def batch_betweenness_centrality(input_graph, normalized, endpoints,
-                                    weights, vertices, result_dtype):
+                                 weights, vertices, result_dtype):
     df = None
     client = get_client()
     comms = Comms.get_comms()
     replicated_adjlists = input_graph.batch_adjlists
-    work_futures =  [client.submit(run_mg_work,
-                                   (data, input_graph.is_directed()),
-                                   normalized,
-                                   endpoints,
-                                   weights,
-                                   vertices,
-                                   result_dtype,
-                                   comms.sessionId,
-                                   workers=[worker]) for
+    work_futures = [client.submit(run_mg_work,
+                                  (data, input_graph.is_directed()),
+                                  normalized,
+                                  endpoints,
+                                  weights,
+                                  vertices,
+                                  result_dtype,
+                                  comms.sessionId,
+                                  workers=[worker]) for
                     idx, (worker, data) in enumerate(replicated_adjlists.items())]
     dask.distributed.wait(work_futures)
     df = work_futures[0].result()
@@ -215,13 +221,13 @@ def betweenness_centrality(input_graph, normalized, endpoints, weights,
     if not input_graph.adjlist:
         input_graph.view_adj_list()
 
-    if Comms.is_initialized() and input_graph.batch_enabled == True:
+    if Comms.is_initialized() and input_graph.batch_enabled is True:
         df = batch_betweenness_centrality(input_graph,
-                                             normalized,
-                                             endpoints,
-                                             weights,
-                                             vertices,
-                                             result_dtype)
+                                          normalized,
+                                          endpoints,
+                                          weights,
+                                          vertices,
+                                          result_dtype)
     else:
         df = sg_betweenness_centrality(input_graph,
                                        normalized,

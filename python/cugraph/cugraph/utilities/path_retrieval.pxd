@@ -1,4 +1,4 @@
-# Copyright (c) 2021, NVIDIA CORPORATION.
+# Copyright (c) 2021-2022, NVIDIA CORPORATION.
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -20,10 +20,11 @@ from cugraph.structure.graph_primtypes cimport *
 
 cdef extern from "cugraph/utilities/path_retrieval.hpp" namespace "cugraph":
 
-    cdef void get_traversed_cost[vertex_t, weight_t](const handle_t &handle,
-            const vertex_t *vertices,
-            const vertex_t *preds,
-            const weight_t *info_weights,
-            weight_t *out,
-            vertex_t stop_vertex,
-            vertex_t num_vertices) except +
+    cdef void get_traversed_cost[vertex_t, weight_t](
+        const handle_t &handle,
+        const vertex_t *vertices,
+        const vertex_t *preds,
+        const weight_t *info_weights,
+        weight_t *out,
+        vertex_t stop_vertex,
+        vertex_t num_vertices) except +

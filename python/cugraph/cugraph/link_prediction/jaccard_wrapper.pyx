@@ -33,20 +33,21 @@ def jaccard(input_graph, weights_arr=None, vertex_pair=None):
     indices = None
 
     if input_graph.adjlist:
-        [offsets, indices] = graph_primtypes_wrapper.datatype_cast([input_graph.adjlist.offsets,
-                                                                    input_graph.adjlist.indices], [np.int32])
+        [offsets, indices] = graph_primtypes_wrapper.datatype_cast(
+            [input_graph.adjlist.offsets, input_graph.adjlist.indices], [np.int32])
     elif input_graph.transposedadjlist:
-        #
-        # NOTE: jaccard ONLY operates on an undirected graph, so CSR and CSC should be
-        #       equivalent.  The undirected check has already happened, so we'll just use
-        #       the CSC as if it were CSR.
-        #
-        [offsets, indices] = graph_primtypes_wrapper.datatype_cast([input_graph.transposedadjlist.offsets,
-                                                                    input_graph.transposedadjlist.indices], [np.int32])
+        # NOTE: jaccard ONLY operates on an undirected graph, so CSR and CSC
+        # should be equivalent.  The undirected check has already happened, so
+        # we'll just use the CSC as if it were CSR.
+        [offsets, indices] = graph_primtypes_wrapper.datatype_cast(
+            [
+                input_graph.transposedadjlist.offsets,
+                input_graph.transposedadjlist.indices,
+            ], [np.int32])
     else:
         input_graph.view_adj_list()
-        [offsets, indices] = graph_primtypes_wrapper.datatype_cast([input_graph.adjlist.offsets,
-                                                                    input_graph.adjlist.indices], [np.int32])
+        [offsets, indices] = graph_primtypes_wrapper.datatype_cast(
+            [input_graph.adjlist.offsets, input_graph.adjlist.indices], [np.int32])
 
     num_verts = input_graph.number_of_vertices()
     num_edges = input_graph.number_of_edges(directed_edges=True)
@@ -63,13 +64,14 @@ def jaccard(input_graph, weights_arr=None, vertex_pair=None):
     cdef uintptr_t c_offsets = offsets.__cuda_array_interface__['data'][0]
     cdef uintptr_t c_indices = indices.__cuda_array_interface__['data'][0]
 
-    cdef GraphCSRView[int,int,float] graph_float
-    cdef GraphCSRView[int,int,double] graph_double
+    cdef GraphCSRView[int, int, float] graph_float
+    cdef GraphCSRView[int, int, double] graph_double
 
     weight_type = np.float32
 
     if weights_arr is not None:
-        [weights] = graph_primtypes_wrapper.datatype_cast([weights_arr], [np.float32, np.float64])
+        [weights] = graph_primtypes_wrapper.datatype_cast(
+            [weights_arr], [np.float32, np.float64])
         c_weights = weights.__cuda_array_interface__['data'][0]
         weight_type = weights.dtype
 
@@ -92,23 +94,25 @@ def jaccard(input_graph, weights_arr=None, vertex_pair=None):
         c_second_col = second.__cuda_array_interface__['data'][0]
 
         if weight_type == np.float32:
-            graph_float = GraphCSRView[int,int,float](<int*>c_offsets, <int*>c_indices,
-                                                  <float*>c_weights, num_verts, num_edges)
-            c_jaccard_list[int,int,float](graph_float,
-                                          <float*>c_weights,
-                                          result_size,
-                                          <int*>c_first_col,
-                                          <int*>c_second_col,
-                                          <float*>c_result_col)
+            graph_float = GraphCSRView[int, int, float](
+                <int*>c_offsets, <int*>c_indices, <float*>c_weights,
+                num_verts, num_edges)
+            c_jaccard_list[int, int, float](graph_float,
+                                            <float*>c_weights,
+                                            result_size,
+                                            <int*>c_first_col,
+                                            <int*>c_second_col,
+                                            <float*>c_result_col)
         else:
-            graph_double = GraphCSRView[int,int,double](<int*>c_offsets, <int*>c_indices,
-                                                    <double*>c_weights, num_verts, num_edges)
-            c_jaccard_list[int,int,double](graph_double,
-                                           <double*>c_weights,
-                                           result_size,
-                                           <int*>c_first_col,
-                                           <int*>c_second_col,
-                                           <double*>c_result_col)
+            graph_double = GraphCSRView[int, int, double](
+                <int*>c_offsets, <int*>c_indices, <double*>c_weights,
+                num_verts, num_edges)
+            c_jaccard_list[int, int, double](graph_double,
+                                             <double*>c_weights,
+                                             result_size,
+                                             <int*>c_first_col,
+                                             <int*>c_second_col,
+                                             <double*>c_result_col)
 
         return df
     else:
@@ -126,14 +130,14 @@ def jaccard(input_graph, weights_arr=None, vertex_pair=None):
                                               nan_as_null=False)
             c_result_col = df['jaccard_coeff'].__cuda_array_interface__['data'][0]
 
-            graph_float = GraphCSRView[int,int,float](<int*>c_offsets,
-                                                  <int*>c_indices,
-                                                  <float*>c_weights,
-                                                  num_verts,
-                                                  num_edges)
-            c_jaccard[int,int,float](graph_float,
-                                     <float*>c_weights,
-                                     <float*>c_result_col)
+            graph_float = GraphCSRView[int, int, float](<int*>c_offsets,
+                                                        <int*>c_indices,
+                                                        <float*>c_weights,
+                                                        num_verts,
+                                                        num_edges)
+            c_jaccard[int, int, float](graph_float,
+                                       <float*>c_weights,
+                                       <float*>c_result_col)
 
             graph_float.get_source_indices(<int*>c_src_index_col)
         else:
@@ -141,14 +145,14 @@ def jaccard(input_graph, weights_arr=None, vertex_pair=None):
                                               nan_as_null=False)
             c_result_col = df['jaccard_coeff'].__cuda_array_interface__['data'][0]
 
-            graph_double = GraphCSRView[int,int,double](<int*>c_offsets,
-                                                    <int*>c_indices,
-                                                    <double*>c_weights,
-                                                    num_verts,
-                                                    num_edges)
-            c_jaccard[int,int,double](graph_double,
-                                      <double*>c_weights,
-                                      <double*>c_result_col)
+            graph_double = GraphCSRView[int, int, double](<int*>c_offsets,
+                                                          <int*>c_indices,
+                                                          <double*>c_weights,
+                                                          num_verts,
+                                                          num_edges)
+            c_jaccard[int, int, double](graph_double,
+                                        <double*>c_weights,
+                                        <double*>c_result_col)
 
             graph_double.get_source_indices(<int*>c_src_index_col)
 

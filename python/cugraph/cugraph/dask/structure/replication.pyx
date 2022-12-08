@@ -38,15 +38,20 @@ def replicate_cudf_dataframe(cudf_dataframe, client=None, comms=None):
     dask_cudf_df = dask_cudf.from_cudf(cudf_dataframe, npartitions=1)
     df_length = len(dask_cudf_df)
 
-    _df_data =  get_mg_batch_data(dask_cudf_df, batch_enabled=True)
-    df_data =  mg_utils.prepare_worker_to_parts(_df_data, client)
+    _df_data = get_mg_batch_data(dask_cudf_df, batch_enabled=True)
+    df_data = mg_utils.prepare_worker_to_parts(_df_data, client)
 
-    workers_to_futures = {worker: client.submit(_replicate_cudf_dataframe,
-                          (data, cudf_dataframe.columns.values, cudf_dataframe.dtypes, df_length),
-                          comms.sessionId,
-                          workers=[worker]) for
-                          (worker, data) in
-                          df_data.worker_to_parts.items()}
+    workers_to_futures = {
+        worker: client.submit(_replicate_cudf_dataframe,
+                              (
+                                  data,
+                                  cudf_dataframe.columns.values,
+                                  cudf_dataframe.dtypes,
+                                  df_length
+                              ),
+                              comms.sessionId,
+                              workers=[worker])
+        for worker, data in df_data.worker_to_parts.items()}
     dd.wait(workers_to_futures)
     return workers_to_futures
 
@@ -72,7 +77,7 @@ def _replicate_cudf_dataframe(input_data, session_id):
             dtype = dtypes[idx]
             series = cudf.Series(np.zeros(df_length), dtype=dtype)
             df_data[column] = series
-        c_series =  series.__cuda_array_interface__['data'][0]
+        c_series = series.__cuda_array_interface__['data'][0]
         comms_bcast(c_handle, c_series, df_length, series.dtype)
 
     if has_data:
@@ -87,8 +92,8 @@ def replicate_cudf_series(cudf_series, client=None, comms=None):
         raise TypeError("Expected a cudf.Series to replicate")
     client = mg_utils.get_client() if client is None else client
     comms = Comms.get_comms() if comms is None else comms
-    dask_cudf_series =  dask_cudf.from_cudf(cudf_series,
-                                            npartitions=1)
+    dask_cudf_series = dask_cudf.from_cudf(cudf_series,
+                                           npartitions=1)
     series_length = len(dask_cudf_series)
     _series_data = get_mg_batch_data(dask_cudf_series, batch_enabled=True)
     series_data = mg_utils.prepare_worker_to_parts(_series_data)
@@ -98,9 +103,9 @@ def replicate_cudf_series(cudf_series, client=None, comms=None):
                           client.submit(_replicate_cudf_series,
                                         (data, series_length, dtype),
                                         comms.sessionId,
-                                         workers=[worker]) for
-                           (worker, data) in
-                           series_data.worker_to_parts.items()}
+                                        workers=[worker]) for
+                          (worker, data) in
+                          series_data.worker_to_parts.items()}
     dd.wait(workers_to_futures)
     return workers_to_futures
 
@@ -134,7 +139,7 @@ cdef comms_bcast(uintptr_t handle,
                  uintptr_t value_ptr,
                  size_t count,
                  dtype):
-    if dtype ==  np.int32:
+    if dtype == np.int32:
         c_utils.comms_bcast((<handle_t*> handle)[0], <int*> value_ptr, count)
     elif dtype == np.float32:
         c_utils.comms_bcast((<handle_t*> handle)[0], <float*> value_ptr, count)

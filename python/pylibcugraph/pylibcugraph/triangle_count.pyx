@@ -74,11 +74,11 @@ def triangle_count(ResourceHandle resource_handle,
     start_list: device array type
         Device array containing the list of vertices for triangle counting.
         If 'None' the entire set of vertices in the graph is processed
-    
+
     do_expensive_check: bool
         If True, performs more extensive tests on the inputs to ensure
         validitity, at the expense of increased run time.
-    
+
     Returns
     -------
     A tuple of device arrays, where the first item in the tuple is a device
@@ -112,7 +112,7 @@ def triangle_count(ResourceHandle resource_handle,
                 get_c_type_from_numpy_type(start_list.dtype))
     else:
         start_ptr = NULL
-    
+
     error_code = cugraph_triangle_count(c_resource_handle_ptr,
                                         c_graph_ptr,
                                         start_ptr,
@@ -133,5 +133,5 @@ def triangle_count(ResourceHandle resource_handle,
 
     if start_list is not None:
         cugraph_type_erased_device_array_view_free(start_ptr)
-    
+
     return (cupy_vertices, cupy_counts)

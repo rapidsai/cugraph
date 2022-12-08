@@ -35,7 +35,8 @@ def strongly_connected_components(input_graph):
     if not input_graph.adjlist:
         input_graph.view_adj_list()
 
-    [offsets, indices] = graph_primtypes_wrapper.datatype_cast([input_graph.adjlist.offsets, input_graph.adjlist.indices], [np.int32])
+    [offsets, indices] = graph_primtypes_wrapper.datatype_cast(
+        [input_graph.adjlist.offsets, input_graph.adjlist.indices], [np.int32])
 
     num_verts = input_graph.number_of_vertices()
     num_edges = input_graph.number_of_edges(directed_edges=True)
@@ -44,14 +45,15 @@ def strongly_connected_components(input_graph):
     df['vertex'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
     df['labels'] = cudf.Series(np.zeros(num_verts, dtype=np.int32))
 
-    cdef uintptr_t c_offsets    = offsets.__cuda_array_interface__['data'][0]
-    cdef uintptr_t c_indices    = indices.__cuda_array_interface__['data'][0]
-    cdef uintptr_t c_identifier = df['vertex'].__cuda_array_interface__['data'][0];
-    cdef uintptr_t c_labels_val = df['labels'].__cuda_array_interface__['data'][0];
+    cdef uintptr_t c_offsets = offsets.__cuda_array_interface__['data'][0]
+    cdef uintptr_t c_indices = indices.__cuda_array_interface__['data'][0]
+    cdef uintptr_t c_identifier = df['vertex'].__cuda_array_interface__['data'][0]
+    cdef uintptr_t c_labels_val = df['labels'].__cuda_array_interface__['data'][0]
 
-    cdef GraphCSRView[int,int,float] g
+    cdef GraphCSRView[int, int, float] g
 
-    g = GraphCSRView[int,int,float](<int*>c_offsets, <int*>c_indices, <float*>NULL, num_verts, num_edges)
+    g = GraphCSRView[int, int, float](
+        <int*>c_offsets, <int*>c_indices, <float*>NULL, num_verts, num_edges)
 
     cdef cugraph_cc_t connect_type=CUGRAPH_STRONG
     connected_components(g, <cugraph_cc_t>connect_type, <int *>c_labels_val)

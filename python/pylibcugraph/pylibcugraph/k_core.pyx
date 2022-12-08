@@ -31,7 +31,7 @@ from pylibcugraph._cugraph_c.array cimport (
 from pylibcugraph._cugraph_c.graph cimport (
     cugraph_graph_t,
 )
-from pylibcugraph._cugraph_c.core_algorithms cimport (   
+from pylibcugraph._cugraph_c.core_algorithms cimport (
     cugraph_core_result_t,
     cugraph_k_core_result_t,
     cugraph_core_result_create,
@@ -55,6 +55,7 @@ from pylibcugraph.utils cimport (
     create_cugraph_type_erased_device_array_view_from_py_obj,
 )
 
+
 def k_core(ResourceHandle resource_handle,
            _GPUGraph graph,
            size_t k,
@@ -72,21 +73,21 @@ def k_core(ResourceHandle resource_handle,
     resource_handle: ResourceHandle
         Handle to the underlying device and host resource needed for
         referencing data and running algorithms.
-    
+
     graph : SGGraph or MGGraph
         The input graph, for either Single or Multi-GPU operations.
-    
+
     k : size_t (default=None)
         Order of the core. This value must not be negative. If set to None
         the main core is returned.
-    
+
     degree_type: str
         This option determines if the core number computation should be based
         on input, output, or both directed edges, with valid values being
         "incoming", "outgoing", and "bidirectional" respectively.
         This option is currently ignored in this release, and setting it will
         result in a warning.
-    
+
     core_result : device array type
         Precomputed core number of the nodes of the graph G
         If set to None, the core numbers of the nodes are calculated
@@ -115,22 +116,17 @@ def k_core(ResourceHandle resource_handle,
     cdef cugraph_error_code_t error_code
     cdef cugraph_error_t* error_ptr
 
-
     degree_type_map = {
         "incoming": cugraph_k_core_degree_type_t.K_CORE_DEGREE_TYPE_IN,
         "outgoing": cugraph_k_core_degree_type_t.K_CORE_DEGREE_TYPE_OUT,
         "bidirectional": cugraph_k_core_degree_type_t.K_CORE_DEGREE_TYPE_INOUT}
 
-    cdef cugraph_type_erased_device_array_view_t* \
-        vertices_view_ptr = \
-            create_cugraph_type_erased_device_array_view_from_py_obj(
-                core_result["vertex"])
-    
-    cdef cugraph_type_erased_device_array_view_t* \
-        core_numbers_view_ptr = \
-            create_cugraph_type_erased_device_array_view_from_py_obj(
-                core_result["values"])
-    
+    cdef cugraph_type_erased_device_array_view_t* vertices_view_ptr = \
+        create_cugraph_type_erased_device_array_view_from_py_obj(core_result["vertex"])
+
+    cdef cugraph_type_erased_device_array_view_t* core_numbers_view_ptr = \
+        create_cugraph_type_erased_device_array_view_from_py_obj(core_result["values"])
+
     # Create a core_number result
     error_code = cugraph_core_result_create(c_resource_handle_ptr,
                                             vertices_view_ptr,
@@ -138,7 +134,6 @@ def k_core(ResourceHandle resource_handle,
                                             &core_result_ptr,
                                             &error_ptr)
     assert_success(error_code, error_ptr, "cugraph_core_result_create")
-
 
     # compute k_core
     error_code = cugraph_k_core(c_resource_handle_ptr,
@@ -150,7 +145,6 @@ def k_core(ResourceHandle resource_handle,
                                 &k_core_result_ptr,
                                 &error_ptr)
     assert_success(error_code, error_ptr, "cugraph_k_core_number")
-
 
     cdef cugraph_type_erased_device_array_view_t* src_vertices_ptr = \
         cugraph_k_core_result_get_src_vertices(k_core_result_ptr)
