@@ -342,6 +342,7 @@ void pagerank(raft::handle_t const& handle,
               bool has_initial_guess,
               bool do_expensive_check)
 {
+  std::cout << "hi" << std::endl;
   detail::pagerank(handle,
                    graph_view,
                    edge_weight_view,
