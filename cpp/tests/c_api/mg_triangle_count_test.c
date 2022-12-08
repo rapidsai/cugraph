@@ -95,7 +95,7 @@ int generic_triangle_count_test(const cugraph_resource_handle_t* handle,
     TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "copy_to_host failed.");
 
     for (int i = 0; (i < num_local_results) && (test_ret_value == 0); ++i) {
-      for (int j = 0 ; j < num_results ; ++j) {
+      for (int j = 0; j < num_results; ++j) {
         if (h_vertices[i] == h_verts[j]) {
           TEST_ASSERT(test_ret_value, h_counts[i] == h_result[j], "counts results don't match");
         }

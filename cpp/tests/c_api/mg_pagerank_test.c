@@ -50,8 +50,18 @@ int generic_pagerank_test(const cugraph_resource_handle_t* handle,
 
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "create_mg_test_graph failed.");
 
-  ret_code = cugraph_pagerank(
-                              handle, p_graph, NULL, NULL, NULL, NULL, alpha, epsilon, max_iterations, FALSE, &p_result, &ret_error);
+  ret_code = cugraph_pagerank(handle,
+                              p_graph,
+                              NULL,
+                              NULL,
+                              NULL,
+                              NULL,
+                              alpha,
+                              epsilon,
+                              max_iterations,
+                              FALSE,
+                              &p_result,
+                              &ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "cugraph_pagerank failed.");
 
   // NOTE: Because we get back vertex ids and pageranks, we can simply compare
@@ -90,7 +100,7 @@ int generic_pagerank_test(const cugraph_resource_handle_t* handle,
   return test_ret_value;
 }
 
-int generic_personalized_pagerank_test(const cugraph_resource_handle_t *handle,
+int generic_personalized_pagerank_test(const cugraph_resource_handle_t* handle,
                                        vertex_t* h_src,
                                        vertex_t* h_dst,
                                        weight_t* h_wgt,
@@ -126,9 +136,7 @@ int generic_personalized_pagerank_test(const cugraph_resource_handle_t *handle,
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "create_test_graph failed.");
   TEST_ALWAYS_ASSERT(ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
 
-  if (cugraph_resource_handle_get_rank(handle) != 0) {
-    num_personalization_vertices = 0;
-  }
+  if (cugraph_resource_handle_get_rank(handle) != 0) { num_personalization_vertices = 0; }
 
   ret_code = cugraph_type_erased_device_array_create(
     handle, num_personalization_vertices, vertex_tid, &personalization_vertices, &ret_error);
@@ -200,7 +208,6 @@ int generic_personalized_pagerank_test(const cugraph_resource_handle_t *handle,
 
   return test_ret_value;
 }
-
 
 int test_pagerank(const cugraph_resource_handle_t* handle)
 {

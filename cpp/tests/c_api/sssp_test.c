@@ -102,15 +102,15 @@ int generic_sssp_test(vertex_t* h_src,
 }
 
 int generic_sssp_test_double(vertex_t* h_src,
-                      vertex_t* h_dst,
-                      double* h_wgt,
-                      vertex_t source,
-                      double const* expected_distances,
-                      vertex_t const* expected_predecessors,
-                      size_t num_vertices,
-                      size_t num_edges,
-                      double cutoff,
-                      bool_t store_transposed)
+                             vertex_t* h_dst,
+                             double* h_wgt,
+                             vertex_t source,
+                             double const* expected_distances,
+                             vertex_t const* expected_predecessors,
+                             size_t num_vertices,
+                             size_t num_edges,
+                             double cutoff,
+                             bool_t store_transposed)
 {
   int test_ret_value = 0;
 
@@ -182,8 +182,8 @@ int test_sssp()
 
   vertex_t src[]                   = {0, 1, 1, 2, 2, 2, 3, 4};
   vertex_t dst[]                   = {1, 3, 4, 0, 1, 3, 5, 5};
-  float wgt[]                   = {0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
-  float expected_distances[]    = {0.0f, 0.1f, FLT_MAX, 2.2f, 1.2f, 4.4f};
+  float wgt[]                      = {0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
+  float expected_distances[]       = {0.0f, 0.1f, FLT_MAX, 2.2f, 1.2f, 4.4f};
   vertex_t expected_predecessors[] = {-1, 0, -1, 1, 1, 4};
 
   // Bfs wants store_transposed = FALSE
@@ -206,8 +206,8 @@ int test_sssp_with_transpose()
 
   vertex_t src[]                   = {0, 1, 1, 2, 2, 2, 3, 4};
   vertex_t dst[]                   = {1, 3, 4, 0, 1, 3, 5, 5};
-  float wgt[]                   = {0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
-  float expected_distances[]    = {0.0f, 0.1f, FLT_MAX, 2.2f, 1.2f, 4.4f};
+  float wgt[]                      = {0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
+  float expected_distances[]       = {0.0f, 0.1f, FLT_MAX, 2.2f, 1.2f, 4.4f};
   vertex_t expected_predecessors[] = {-1, 0, -1, 1, 1, 4};
 
   // Bfs wants store_transposed = FALSE
@@ -223,8 +223,8 @@ int test_sssp_with_transpose_double()
 
   vertex_t src[]                   = {0, 1, 1, 2, 2, 2, 3, 4};
   vertex_t dst[]                   = {1, 3, 4, 0, 1, 3, 5, 5};
-  double wgt[]                   = {0.1d, 2.1d, 1.1d, 5.1d, 3.1d, 4.1d, 7.2d, 3.2d};
-  double expected_distances[]    = {0.0d, 0.1d, DBL_MAX, 2.2d, 1.2d, 4.4d};
+  double wgt[]                     = {0.1d, 2.1d, 1.1d, 5.1d, 3.1d, 4.1d, 7.2d, 3.2d};
+  double expected_distances[]      = {0.0d, 0.1d, DBL_MAX, 2.2d, 1.2d, 4.4d};
   vertex_t expected_predecessors[] = {-1, 0, -1, 1, 1, 4};
 
   // Bfs wants store_transposed = FALSE

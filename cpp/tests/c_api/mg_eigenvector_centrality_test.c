@@ -101,20 +101,12 @@ int test_eigenvector_centrality(const cugraph_resource_handle_t* handle)
     0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f, 0.1f, 2.1f, 1.1f, 5.1f, 3.1f, 4.1f, 7.2f, 3.2f};
   weight_t h_result[] = {0.236374, 0.292046, 0.458369, 0.605472, 0.190544, 0.495814};
 
-  double epsilon      = 1e-6;
+  double epsilon        = 1e-6;
   size_t max_iterations = 200;
 
   // Eigenvector centrality wants store_transposed = TRUE
-  return generic_eigenvector_centrality_test(handle,
-                                             h_src,
-                                             h_dst,
-                                             h_wgt,
-                                             h_result,
-                                             num_vertices,
-                                             num_edges,
-                                             TRUE,
-                                             epsilon,
-                                             max_iterations);
+  return generic_eigenvector_centrality_test(
+    handle, h_src, h_dst, h_wgt, h_result, num_vertices, num_edges, TRUE, epsilon, max_iterations);
 }
 
 /******************************************************************************/

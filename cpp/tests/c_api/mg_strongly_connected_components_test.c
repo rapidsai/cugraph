@@ -48,7 +48,8 @@ int generic_scc_test(const cugraph_resource_handle_t* handle,
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "create_mg_test_graph failed.");
 
   ret_code = cugraph_strongly_connected_components(handle, p_graph, FALSE, &p_result, &ret_error);
-  TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_NOT_IMPLEMENTED, "SCC should not be implemented, but is");
+  TEST_ASSERT(
+    test_ret_value, ret_code == CUGRAPH_NOT_IMPLEMENTED, "SCC should not be implemented, but is");
 
 #if 0
   // FIXME: Actual implementation will be something like this

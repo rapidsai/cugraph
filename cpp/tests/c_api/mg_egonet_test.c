@@ -68,9 +68,7 @@ int generic_egonet_test(const cugraph_resource_handle_t* resource_handle,
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "create_test_graph failed.");
   TEST_ALWAYS_ASSERT(ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
 
-  if (rank != 0) {
-    num_seeds = 0;
-  }
+  if (rank != 0) { num_seeds = 0; }
 
   ret_code =
     cugraph_type_erased_device_array_create(resource_handle, num_seeds, INT32, &seeds, &ret_error);
@@ -134,15 +132,17 @@ int generic_egonet_test(const cugraph_resource_handle_t* resource_handle,
     weight_t M[num_vertices][num_vertices];
 
     for (int i = 0; (i < num_seeds) && (test_ret_value == 0); ++i) {
-      for (int r = 0 ; r < num_vertices ; ++r)
-        for (int c = 0 ; c < num_vertices ; ++c)
+      for (int r = 0; r < num_vertices; ++r)
+        for (int c = 0; c < num_vertices; ++c)
           M[r][c] = 0;
 
-      for (size_t e = h_expected_offsets[i] ; e < h_expected_offsets[i+1] ; ++e)
+      for (size_t e = h_expected_offsets[i]; e < h_expected_offsets[i + 1]; ++e)
         M[h_expected_src[e]][h_expected_dst[e]] = 1;
 
-      for (size_t e = h_result_offsets[i] ; (e < h_result_offsets[i+1]) && (test_ret_value == 0) ; ++e) {
-        TEST_ASSERT(test_ret_value, (M[h_result_src[e]][h_result_dst[e]] > 0), "found different edges");
+      for (size_t e = h_result_offsets[i]; (e < h_result_offsets[i + 1]) && (test_ret_value == 0);
+           ++e) {
+        TEST_ASSERT(
+          test_ret_value, (M[h_result_src[e]][h_result_dst[e]] > 0), "found different edges");
       }
     }
 
@@ -159,7 +159,7 @@ int generic_egonet_test(const cugraph_resource_handle_t* resource_handle,
   return test_ret_value;
 }
 
-int test_egonet(const cugraph_resource_handle_t *resource_handle)
+int test_egonet(const cugraph_resource_handle_t* resource_handle)
 {
   size_t num_edges    = 9;
   size_t num_vertices = 6;

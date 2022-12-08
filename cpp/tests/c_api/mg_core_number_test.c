@@ -48,7 +48,8 @@ int generic_core_number_test(const cugraph_resource_handle_t* p_handle,
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "create_test_graph failed.");
   TEST_ALWAYS_ASSERT(ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
 
-  ret_code = cugraph_core_number(p_handle, p_graph, K_CORE_DEGREE_TYPE_IN, FALSE, &p_result, &ret_error);
+  ret_code =
+    cugraph_core_number(p_handle, p_graph, K_CORE_DEGREE_TYPE_IN, FALSE, &p_result, &ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "cugraph_core_number failed.");
   TEST_ALWAYS_ASSERT(ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
 

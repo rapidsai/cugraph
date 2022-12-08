@@ -55,7 +55,9 @@ int generic_betweenness_centrality_test(vertex_t* h_src,
   ret_code = cugraph_betweenness_centrality(
     p_handle, p_graph, num_vertices_to_sample, NULL, FALSE, FALSE, FALSE, &p_result, &ret_error);
 #if 1
-  TEST_ASSERT(test_ret_value, ret_code != CUGRAPH_SUCCESS, "cugraph_betweenness_centrality should have failed");
+  TEST_ASSERT(test_ret_value,
+              ret_code != CUGRAPH_SUCCESS,
+              "cugraph_betweenness_centrality should have failed");
 #else
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
   TEST_ASSERT(

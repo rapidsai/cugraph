@@ -793,8 +793,8 @@ struct renumber_functor {
 
     cudaStream_t exec_strm = handle.get_stream();
 
-    auto mr = rmm::mr::new_delete_resource();
-    size_t hist_size = sizeof(accum_type) * 32;
+    auto mr                         = rmm::mr::new_delete_resource();
+    size_t hist_size                = sizeof(accum_type) * 32;
     accum_type* hist_insert_counter = static_cast<accum_type*>(mr.allocate(hist_size));
     *hist_insert_counter            = 0;
 

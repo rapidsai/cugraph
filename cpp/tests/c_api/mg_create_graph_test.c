@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#include "c_test_utils.h" /* RUN_TEST */
+#include "c_test_utils.h"  /* RUN_TEST */
 #include "mg_test_utils.h" /* RUN_TEST */
 
 #include <math.h>

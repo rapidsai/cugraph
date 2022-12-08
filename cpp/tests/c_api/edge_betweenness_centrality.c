@@ -26,13 +26,13 @@ typedef int32_t edge_t;
 typedef float weight_t;
 
 int generic_edge_betweenness_centrality_test(vertex_t* h_src,
-                                        vertex_t* h_dst,
-                                        weight_t* h_wgt,
-                                        weight_t* h_result,
-                                        size_t num_vertices,
-                                        size_t num_edges,
-                                        bool_t store_transposed,
-                                        size_t num_vertices_to_sample)
+                                             vertex_t* h_dst,
+                                             weight_t* h_wgt,
+                                             weight_t* h_result,
+                                             size_t num_vertices,
+                                             size_t num_edges,
+                                             bool_t store_transposed,
+                                             size_t num_vertices_to_sample)
 {
   int test_ret_value = 0;
 

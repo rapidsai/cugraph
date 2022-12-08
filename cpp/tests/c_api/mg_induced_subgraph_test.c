@@ -57,9 +57,9 @@ int generic_induced_subgraph_test(const cugraph_resource_handle_t* handle,
 
   cugraph_induced_subgraph_result_t* result = NULL;
 
-  data_type_id_t vertex_tid = INT32;
-  data_type_id_t size_t_tid = SIZE_T;
-  size_t num_subgraph_vertices = h_subgraph_offsets[num_subgraph_offsets-1];
+  data_type_id_t vertex_tid    = INT32;
+  data_type_id_t size_t_tid    = SIZE_T;
+  size_t num_subgraph_vertices = h_subgraph_offsets[num_subgraph_offsets - 1];
 
   ret_code = create_mg_test_graph(
     handle, h_src, h_dst, h_wgt, num_edges, store_transposed, FALSE, &graph, &ret_error);
@@ -69,7 +69,7 @@ int generic_induced_subgraph_test(const cugraph_resource_handle_t* handle,
 
   if (cugraph_resource_handle_get_rank(handle) != 0) {
     num_subgraph_vertices = 0;
-    for (int i = 0 ; i < num_subgraph_offsets ; ++i) {
+    for (int i = 0; i < num_subgraph_offsets; ++i) {
       h_subgraph_offsets[i] = 0;
     }
   }
@@ -78,11 +78,8 @@ int generic_induced_subgraph_test(const cugraph_resource_handle_t* handle,
     handle, num_subgraph_offsets, size_t_tid, &subgraph_offsets, &ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "subgraph_offsets create failed.");
 
-  ret_code = cugraph_type_erased_device_array_create(handle,
-                                                     num_subgraph_vertices,
-                                                     vertex_tid,
-                                                     &subgraph_vertices,
-                                                     &ret_error);
+  ret_code = cugraph_type_erased_device_array_create(
+    handle, num_subgraph_vertices, vertex_tid, &subgraph_vertices, &ret_error);
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "subgraph_offsets create failed.");
 
   subgraph_offsets_view  = cugraph_type_erased_device_array_view(subgraph_offsets);
@@ -102,7 +99,7 @@ int generic_induced_subgraph_test(const cugraph_resource_handle_t* handle,
                                               graph,
                                               subgraph_offsets_view,
                                               subgraph_vertices_view,
-                                              //FALSE,
+                                              // FALSE,
                                               TRUE,
                                               &result,
                                               &ret_error);
@@ -115,9 +112,9 @@ int generic_induced_subgraph_test(const cugraph_resource_handle_t* handle,
   cugraph_type_erased_device_array_view_t* extracted_wgt;
   cugraph_type_erased_device_array_view_t* extracted_graph_offsets;
 
-  extracted_src      = cugraph_induced_subgraph_get_sources(result);
-  extracted_dst      = cugraph_induced_subgraph_get_destinations(result);
-  extracted_wgt      = cugraph_induced_subgraph_get_edge_weights(result);
+  extracted_src           = cugraph_induced_subgraph_get_sources(result);
+  extracted_dst           = cugraph_induced_subgraph_get_destinations(result);
+  extracted_wgt           = cugraph_induced_subgraph_get_edge_weights(result);
   extracted_graph_offsets = cugraph_induced_subgraph_get_subgraph_offsets(result);
 
   size_t extracted_size = cugraph_type_erased_device_array_view_size(extracted_src);

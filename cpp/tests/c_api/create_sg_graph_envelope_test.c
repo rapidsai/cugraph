@@ -29,8 +29,8 @@ int test_create_sg_graph_simple()
   typedef float weight_t;
 
   cugraph_error_code_t ret_code = CUGRAPH_SUCCESS;
-  size_t num_edges         = 8;
-  size_t num_vertices      = 6;
+  size_t num_edges              = 8;
+  size_t num_vertices           = 6;
 
   vertex_t h_src[] = {0, 1, 1, 2, 2, 2, 3, 4};
   vertex_t h_dst[] = {1, 3, 4, 0, 1, 3, 5, 5};

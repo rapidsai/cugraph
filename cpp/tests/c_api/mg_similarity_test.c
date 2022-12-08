@@ -42,7 +42,7 @@ int generic_similarity_test(const cugraph_resource_handle_t* handle,
                             bool_t use_weight,
                             similarity_t test_type)
 {
-  int test_ret_value = 0;
+  int test_ret_value        = 0;
   data_type_id_t vertex_tid = INT32;
 
   cugraph_error_code_t ret_code = CUGRAPH_SUCCESS;
@@ -62,9 +62,7 @@ int generic_similarity_test(const cugraph_resource_handle_t* handle,
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "create_test_graph failed.");
   TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
 
-  if (cugraph_resource_handle_get_rank(handle) != 0) {
-    num_pairs = 0;
-  }
+  if (cugraph_resource_handle_get_rank(handle) != 0) { num_pairs = 0; }
 
   ret_code =
     cugraph_type_erased_device_array_create(handle, num_pairs, vertex_tid, &v1, &ret_error);
@@ -328,9 +326,9 @@ int main(int argc, char** argv)
     result |= RUN_MG_TEST(test_jaccard, handle);
     result |= RUN_MG_TEST(test_sorensen, handle);
     result |= RUN_MG_TEST(test_overlap, handle);
-    //result |= RUN_MG_TEST(test_weighted_jaccard, handle);
-    //result |= RUN_MG_TEST(test_weighted_sorensen, handle);
-    //result |= RUN_MG_TEST(test_weighted_overlap, handle);
+    // result |= RUN_MG_TEST(test_weighted_jaccard, handle);
+    // result |= RUN_MG_TEST(test_weighted_sorensen, handle);
+    // result |= RUN_MG_TEST(test_weighted_overlap, handle);
 
     cugraph_free_resource_handle(handle);
   }

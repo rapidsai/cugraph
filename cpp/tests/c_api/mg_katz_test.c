@@ -43,8 +43,8 @@ int generic_katz_test(const cugraph_resource_handle_t* handle,
   cugraph_error_code_t ret_code = CUGRAPH_SUCCESS;
   cugraph_error_t* ret_error;
 
-  cugraph_graph_t* p_graph            = NULL;
-  cugraph_centrality_result_t* p_result = NULL;
+  cugraph_graph_t* p_graph                            = NULL;
+  cugraph_centrality_result_t* p_result               = NULL;
   cugraph_type_erased_device_array_view_t* betas_view = NULL;
 
   ret_code = create_mg_test_graph(
@@ -71,7 +71,7 @@ int generic_katz_test(const cugraph_resource_handle_t* handle,
   cugraph_type_erased_device_array_view_t* vertices;
   cugraph_type_erased_device_array_view_t* centralities;
 
-  vertices  = cugraph_centrality_result_get_vertices(p_result);
+  vertices     = cugraph_centrality_result_get_vertices(p_result);
   centralities = cugraph_centrality_result_get_values(p_result);
 
   vertex_t h_vertices[num_vertices];

@@ -128,15 +128,17 @@ int generic_egonet_test(vertex_t* h_src,
     weight_t M[num_vertices][num_vertices];
 
     for (int i = 0; (i < num_seeds) && (test_ret_value == 0); ++i) {
-      for (int r = 0 ; r < num_vertices ; ++r)
-        for (int c = 0 ; c < num_vertices ; ++c)
+      for (int r = 0; r < num_vertices; ++r)
+        for (int c = 0; c < num_vertices; ++c)
           M[r][c] = 0;
 
-      for (size_t e = h_expected_offsets[i] ; e < h_expected_offsets[i+1] ; ++e)
+      for (size_t e = h_expected_offsets[i]; e < h_expected_offsets[i + 1]; ++e)
         M[h_expected_src[e]][h_expected_dst[e]] = 1;
 
-      for (size_t e = h_result_offsets[i] ; (e < h_result_offsets[i+1]) && (test_ret_value == 0) ; ++e) {
-        TEST_ASSERT(test_ret_value, (M[h_result_src[e]][h_result_dst[e]] > 0), "found different edges");
+      for (size_t e = h_result_offsets[i]; (e < h_result_offsets[i + 1]) && (test_ret_value == 0);
+           ++e) {
+        TEST_ASSERT(
+          test_ret_value, (M[h_result_src[e]][h_result_dst[e]] > 0), "found different edges");
       }
     }
 

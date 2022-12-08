@@ -121,11 +121,10 @@ int generic_uniform_random_walks_test(const cugraph_resource_handle_t* handle,
                       "uniform_random_walks found no edge when an edge exists");
         }
       } else {
-        TEST_ASSERT(
-          test_ret_value,
-          M[h_result_verts[src_index]][h_result_verts[dst_index]] ==
-            h_result_wgts[i * max_depth + j],
-          "uniform_random_walks got edge that doesn't exist");
+        TEST_ASSERT(test_ret_value,
+                    M[h_result_verts[src_index]][h_result_verts[dst_index]] ==
+                      h_result_wgts[i * max_depth + j],
+                    "uniform_random_walks got edge that doesn't exist");
       }
     }
   }
