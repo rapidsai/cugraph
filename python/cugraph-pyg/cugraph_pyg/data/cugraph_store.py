@@ -325,7 +325,7 @@ class EXPERIMENTAL__CuGraphStore:
             renumber_vertices = True
             self.__old_vertex_col_name = f"{self.__graph.vertex_col_name}_old"
             warnings.warn(
-                f"renumber_vertices not specified; renumbering by default"
+                f"renumber_vertices not specified; renumbering by default "
                 f"and saving as {self.__old_vertex_col_name}"
             )
 
@@ -339,8 +339,6 @@ class EXPERIMENTAL__CuGraphStore:
                 self.__offsets = self.__graph.renumber_vertices_by_type(
                     prev_id_column=self.__old_vertex_col_name
                 )
-                if self._is_delayed:
-                    self.__offsets = self.__offsets.compute()
         else:
             self.__offsets = {}
             self.__offsets["stop"] = [
@@ -357,6 +355,8 @@ class EXPERIMENTAL__CuGraphStore:
             self.__offsets["start"] = self.__offsets["stop"] - cumsum
             self.__offsets["stop"] -= 1
             self.__offsets["type"] = np.array(self.__graph.vertex_types)
+
+        self.__graph.renumber_edges_by_type()
 
     @property
     def _old_vertex_col_name(self):
@@ -558,12 +558,15 @@ class EXPERIMENTAL__CuGraphStore:
         edge_types = tuple(sorted(edge_types))
 
         if edge_types not in self.__subgraphs:
-            query = f'(_TYPE_=="{edge_types[0]}")'
+            TCN = self.__graph.type_col_name
+            query = f'({TCN}=="{edge_types[0]}")'
             for t in edge_types[1:]:
-                query += f' | (_TYPE_=="{t}")'
+                query += f' | ({TCN}=="{t}")'
             selection = self.__graph.select_edges(query)
 
             # FIXME enforce int type
+            print(query)
+            print(self.__graph.edge_id_col_name)
             sg = self.__graph.extract_subgraph(
                 selection=selection,
                 edge_weight_property=self.__graph.edge_id_col_name,

@@ -35,6 +35,7 @@ def basic_property_graph_1(dask_client):
             npartitions=2,
         ),
         vertex_col_names=["src", "dst"],
+        type_name="et1",
     )
 
     pG.add_vertex_data(
@@ -49,6 +50,7 @@ def basic_property_graph_1(dask_client):
             npartitions=2,
         ),
         vertex_col_name="id",
+        type_name="t1",
     )
 
     return pG
@@ -171,7 +173,7 @@ def test_neighbor_sample(basic_property_graph_1):
     base_df = base_df.sort_values(cols)
     base_df = base_df.reset_index().drop("index", axis=1)
 
-    numbering = noi_groups[""]
+    numbering = noi_groups["t1"]
     renumber_df = cudf.Series(range(len(numbering)), index=numbering)
 
     combined_df[pG.src_col_name] = renumber_df.loc[
@@ -222,19 +224,3 @@ def test_neighbor_sample_multi_vertex(multi_edge_multi_vertex_property_graph_1):
         cugraph_edge_type = pyg_can_edge_type[1]
         num_edges = len(pG.get_edge_data(types=[cugraph_edge_type]).compute())
         assert num_edges == len(srcs)
-
-
-def test_renumber_vertices(graph):
-    pG = graph
-    feature_store, graph_store = to_pyg(pG, backend="cupy")
-
-    nodes_of_interest = pG.get_vertices().compute().sample(4)
-    vc_actual = (
-        pG.get_vertex_data(nodes_of_interest.values_host)[pG.type_col_name]
-        .compute()
-        .value_counts()
-    )
-    index = graph_store._get_vertex_groups_from_sample(nodes_of_interest)
-
-    for vtype in index:
-        assert len(index[vtype]) == vc_actual[vtype]

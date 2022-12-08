@@ -291,6 +291,22 @@ def test_get_subgraph(graph):
     assert sg.number_of_edges() == num_edges
 
 
+def test_renumber_vertices(graph):
+    pG = graph
+    feature_store, graph_store = to_pyg(pG, backend="cupy")
+
+    nodes_of_interest = pG.get_vertices().compute().sample(4)
+    vc_actual = (
+        pG.get_vertex_data(nodes_of_interest.values_host)[pG.type_col_name]
+        .compute()
+        .value_counts()
+    )
+    index = graph_store._get_vertex_groups_from_sample(nodes_of_interest)
+
+    for vtype in index:
+        assert len(index[vtype]) == vc_actual[vtype]
+
+
 def test_renumber_edges(graph):
     pG = graph
     feature_store, graph_store = to_pyg(pG, backend="cupy")

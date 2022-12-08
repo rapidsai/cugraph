@@ -4,7 +4,7 @@
 
 Based on https://setuptools.pypa.io/en/latest/build_meta.html
 """
-# import os
+import os
 from functools import wraps
 
 from setuptools import build_meta as _orig
@@ -19,10 +19,10 @@ def replace_requirements(func):
     @wraps(func)
     def wrapper(config_settings=None):
         orig_list = getattr(_orig, func.__name__)(config_settings)
-        # cuda_suffix = os.getenv("RAPIDS_PY_WHEEL_CUDA_SUFFIX", default="")
+        cuda_suffix = os.getenv("RAPIDS_PY_WHEEL_CUDA_SUFFIX", default="")
         append_list = [
-            # f"rmm{cuda_suffix}",
-            # f"pylibraft{cuda_suffix}",
+            f"rmm{cuda_suffix}",
+            f"pylibraft{cuda_suffix}",
         ]
         return orig_list + append_list
 
