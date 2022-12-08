@@ -108,6 +108,7 @@ setup(
             "dask",
             "distributed",
             "dask-cuda",
+            f"cudf{cuda_suffix}",
         ]
     },
     cmake_process_manifest_hook=exclude_libcxx_symlink,
