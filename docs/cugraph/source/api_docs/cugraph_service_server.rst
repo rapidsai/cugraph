@@ -1,10 +1,9 @@
 ~~~~~~~~~~~~~~~~~~~~~~
-cugraph_service_client
+cugraph_service_server
 ~~~~~~~~~~~~~~~~~~~~~~
 
 
-.. currentmodule:: cugraph-service.client
+.. currentmodule:: cugraph-service.server
 
 .. autosummary::
    :toctree: api/
-

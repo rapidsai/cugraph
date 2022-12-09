@@ -13,4 +13,4 @@ This page provides a list of all publicly accessible modules, methods and classe
     cugraph_dgl.rst
     cugraph_pyg.rst
     cugraph_service_client.rst
-    cugraph-service-server.rst
+    cugraph_service_server.rst
