@@ -35,14 +35,12 @@ API
 ###
 .. toctree::
    :maxdepth: 2
-   :caption: Python API:
 
    api_docs/index.rst
 
 
 .. toctree::
    :maxdepth: 2
-   :caption: C/C++ API:
 
    api_docs/c_and_cpp.rst
 
