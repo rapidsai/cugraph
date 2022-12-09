@@ -66,13 +66,12 @@ std::unique_ptr<raft::handle_t> initialize_mg_handle(size_t pool_size)
   return std::move(handle);
 }
 
-void enforce_p2p_initialization(raft::handle_t const& handle)
+void enforce_p2p_initialization(raft::comms::comms_t const& comm, rmm::cuda_stream_view stream)
 {
-  auto& comm           = handle.get_comms();
   auto const comm_size = comm.get_size();
 
-  rmm::device_uvector<int32_t> tx_ints(comm_size, handle.get_stream());
-  rmm::device_uvector<int32_t> rx_ints(comm_size, handle.get_stream());
+  rmm::device_uvector<int32_t> tx_ints(comm_size, stream);
+  rmm::device_uvector<int32_t> rx_ints(comm_size, stream);
   std::vector<size_t> tx_sizes(comm_size, size_t{1});
   std::vector<size_t> tx_offsets(comm_size);
   std::iota(tx_offsets.begin(), tx_offsets.end(), size_t{0});
@@ -90,9 +89,9 @@ void enforce_p2p_initialization(raft::handle_t const& handle)
                                  rx_sizes,
                                  rx_offsets,
                                  rx_ranks,
-                                 handle.get_stream());
+                                 stream);
 
-  handle.sync_stream();
+  CUDA_TRY(cudaStreamSynchronize(stream));
 }
 
 }  // namespace test

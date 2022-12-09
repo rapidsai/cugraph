@@ -33,7 +33,7 @@ std::unique_ptr<raft::handle_t> initialize_mg_handle(size_t pool_size = 64);
 
 // NCCL lazily initializes for P2P, and this enforces P2P initialization for better performance
 // measurements
-void enforce_p2p_initialization(raft::handle_t const& handle);
+void enforce_p2p_initialization(raft::comms::comms_t const& comm, rmm::cuda_stream_view stream);
 
 }  // namespace test
 }  // namespace cugraph
