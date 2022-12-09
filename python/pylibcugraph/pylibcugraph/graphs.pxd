@@ -28,4 +28,5 @@ cdef class SGGraph(_GPUGraph):
     pass
 
 cdef class MGGraph(_GPUGraph):
-    pass
+     pass
+

@@ -56,9 +56,8 @@ from pylibcugraph.graphs cimport (
     _GPUGraph,
 )
 
-
-def bfs(ResourceHandle handle, _GPUGraph graph,
-        sources, bool_t direction_optimizing, int32_t depth_limit,
+def bfs(ResourceHandle handle, _GPUGraph graph, 
+        sources, bool_t direction_optimizing, int32_t depth_limit, 
         bool_t compute_predecessors, bool_t do_expensive_check):
     """
     Performs a Breadth-first search starting from the provided sources.
@@ -109,10 +108,10 @@ def bfs(ResourceHandle handle, _GPUGraph graph,
     weights = G.edgelist.edgelist_df['weights']
 
     sg = SGGraph(
-        resource_handle = handle,
-        graph_properties = GraphProperties(is_multigraph=G.is_multigraph()),
-        src_array = srcs,
-        dst_array = dsts,
+        resource_handle = handle, 
+        graph_properties = GraphProperties(is_multigraph=G.is_multigraph()), 
+        src_array = srcs, 
+        dst_array = dsts, 
         weight_array = weights,
         store_transposed=False,
         renumber=False,
@@ -120,7 +119,7 @@ def bfs(ResourceHandle handle, _GPUGraph graph,
     )
 
     res = pylibcugraph_bfs(
-            handle,
+            handle,    
             sg,
             cudf.Series([0], dtype='int32'),
             False,
@@ -130,7 +129,7 @@ def bfs(ResourceHandle handle, _GPUGraph graph,
     )
 
     distances, predecessors, vertices = res
-
+    
     final_results = cudf.DataFrame({
         'distance': cudf.Series(distances),
         'vertex': cudf.Series(vertices),
@@ -164,7 +163,7 @@ def bfs(ResourceHandle handle, _GPUGraph graph,
             <void*>cai_sources_ptr,
             len(sources),
             get_c_type_from_numpy_type(sources.dtype))
-
+    
     cdef cugraph_paths_result_t* result_ptr
 
     error_code = cugraph_bfs(
@@ -186,7 +185,7 @@ def bfs(ResourceHandle handle, _GPUGraph graph,
 
     cdef cugraph_type_erased_device_array_view_t* predecessors_ptr = \
         cugraph_paths_result_get_predecessors(result_ptr)
-
+    
     cdef cugraph_type_erased_device_array_view_t* vertices_ptr = \
         cugraph_paths_result_get_vertices(result_ptr)
 
@@ -194,7 +193,7 @@ def bfs(ResourceHandle handle, _GPUGraph graph,
     cupy_distances = copy_to_cupy_array(c_resource_handle_ptr, distances_ptr)
     cupy_predecessors = copy_to_cupy_array(c_resource_handle_ptr, predecessors_ptr)
     cupy_vertices = copy_to_cupy_array(c_resource_handle_ptr, vertices_ptr)
-
+    
     # deallocate the no-longer needed result struct
     cugraph_paths_result_free(result_ptr)
 

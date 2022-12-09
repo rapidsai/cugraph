@@ -16,9 +16,7 @@
 # cython: embedsignature = True
 # cython: language_level = 3
 
-from cugraph.centrality.betweenness_centrality cimport (
-    edge_betweenness_centrality as c_edge_betweenness_centrality
-)
+from cugraph.centrality.betweenness_centrality cimport edge_betweenness_centrality as c_edge_betweenness_centrality
 from cugraph.structure import graph_primtypes_wrapper
 from cugraph.structure.graph_primtypes cimport *
 from libc.stdint cimport uintptr_t
@@ -42,7 +40,7 @@ def get_output_df(indices, result_dtype):
 
 def get_batch(sources, number_of_workers, current_worker):
     batch_size = len(sources) // number_of_workers
-    begin = current_worker * batch_size
+    begin =  current_worker * batch_size
     end = (current_worker + 1) * batch_size
     if current_worker == (number_of_workers - 1):
         end = len(sources)
@@ -51,7 +49,7 @@ def get_batch(sources, number_of_workers, current_worker):
 
 
 def run_mg_work(input_data, normalized, weights, sources,
-                result_dtype, session_id):
+             result_dtype, session_id):
     result = None
 
     number_of_workers = Comms.get_n_workers(session_id)
@@ -82,7 +80,7 @@ def run_internal_work(handle, input_data, normalized, weights, batch,
     cdef GraphCSRViewDouble graph_double
     cdef GraphCSRViewFloat graph_float
 
-    (offsets, indices, graph_weights), is_directed = input_data
+    (offsets, indices, graph_weights), is_directed =  input_data
 
     if graph_weights is not None:
         c_graph_weights = graph_weights.__cuda_array_interface__['data'][0]
@@ -95,8 +93,7 @@ def run_internal_work(handle, input_data, normalized, weights, batch,
     result_df = get_output_df(indices, result_dtype)
     c_src_identifier = result_df['src'].__cuda_array_interface__['data'][0]
     c_dst_identifier = result_df['dst'].__cuda_array_interface__['data'][0]
-    c_betweenness = \
-        result_df['betweenness_centrality'].__cuda_array_interface__['data'][0]
+    c_betweenness = result_df['betweenness_centrality'].__cuda_array_interface__['data'][0]
 
     number_of_sources_in_batch = len(batch)
     if result_dtype == np.float64:
@@ -143,41 +140,38 @@ cdef void run_c_edge_betweenness_centrality(uintptr_t c_handle,
                                             uintptr_t c_batch,
                                             result_dtype):
     if result_dtype == np.float64:
-        c_edge_betweenness_centrality[int, int, double, double](
-            (<handle_t *> c_handle)[0],
-            (<GraphCSRView[int, int, double] *> c_graph)[0],
-            <double *> c_betweenness,
-            normalized,
-            <double *> c_weights,
-            number_of_sources_in_batch,
-            <int *> c_batch)
+        c_edge_betweenness_centrality[int, int, double, double]((<handle_t *> c_handle)[0],
+                                                                (<GraphCSRView[int, int, double] *> c_graph)[0],
+                                                                <double *> c_betweenness,
+                                                                normalized,
+                                                                <double *> c_weights,
+                                                                number_of_sources_in_batch,
+                                                                <int *> c_batch)
     elif result_dtype == np.float32:
-        c_edge_betweenness_centrality[int, int, float, float](
-            (<handle_t *> c_handle)[0],
-            (<GraphCSRView[int, int, float] *> c_graph)[0],
-            <float *> c_betweenness,
-            normalized,
-            <float *> c_weights,
-            number_of_sources_in_batch,
-            <int *> c_batch)
+        c_edge_betweenness_centrality[int, int, float, float]((<handle_t *> c_handle)[0],
+                                                              (<GraphCSRView[int, int, float] *> c_graph)[0],
+                                                              <float *> c_betweenness,
+                                                              normalized,
+                                                              <float *> c_weights,
+                                                              number_of_sources_in_batch,
+                                                              <int *> c_batch)
     else:
         raise ValueError("result_dtype can only be np.float64 or np.float32")
 
-
 def batch_edge_betweenness_centrality(input_graph,
-                                      normalized,
-                                      weights, vertices, result_dtype):
+                                         normalized,
+                                         weights, vertices, result_dtype):
     client = get_client()
     comms = Comms.get_comms()
     replicated_adjlists = input_graph.batch_adjlists
-    work_futures = [client.submit(run_mg_work,
-                                  (data, input_graph.is_directed()),
-                                  normalized,
-                                  weights,
-                                  vertices,
-                                  result_dtype,
-                                  comms.sessionId,
-                                  workers=[worker]) for
+    work_futures =  [client.submit(run_mg_work,
+                                   (data, input_graph.is_directed()),
+                                   normalized,
+                                   weights,
+                                   vertices,
+                                   result_dtype,
+                                   comms.sessionId,
+                                   workers=[worker]) for
                     (worker, data) in replicated_adjlists.items()]
     dask.distributed.wait(work_futures)
     df = work_futures[0].result()
@@ -206,26 +200,25 @@ def edge_betweenness_centrality(input_graph, normalized, weights,
     cdef GraphCSRViewDouble graph_double
     cdef GraphCSRViewFloat graph_float
 
+
     df = None
 
     if not input_graph.adjlist:
         input_graph.view_adj_list()
 
-    if Comms.is_initialized() and input_graph.batch_enabled is True:
+    if Comms.is_initialized() and input_graph.batch_enabled == True:
         df = batch_edge_betweenness_centrality(input_graph, normalized,
-                                               weights, vertices,
-                                               result_dtype)
+                                                  weights, vertices,
+                                                  result_dtype)
     else:
         df = sg_edge_betweenness_centrality(input_graph, normalized,
                                             weights, vertices, result_dtype)
 
     if result_dtype == np.float64:
         graph_double = get_graph_view[GraphCSRViewDouble](input_graph)
-        graph_double.get_source_indices(
-            <int*>(<uintptr_t>df['src'].__cuda_array_interface__['data'][0]))
+        graph_double.get_source_indices(<int*>(<uintptr_t>df['src'].__cuda_array_interface__['data'][0]))
     elif result_dtype == np.float32:
         graph_float = get_graph_view[GraphCSRViewFloat](input_graph)
-        graph_float.get_source_indices(
-            <int*>(<uintptr_t>df['src'].__cuda_array_interface__['data'][0]))
+        graph_float.get_source_indices(<int*>(<uintptr_t>df['src'].__cuda_array_interface__['data'][0]))
 
     return df
