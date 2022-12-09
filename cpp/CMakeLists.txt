@@ -349,6 +349,7 @@ if (USE_CUGRAPH_OPS)
     target_link_libraries(cugraph
         PUBLIC
             rmm::rmm
+            rt
             cugraph-ops::cugraph-ops++
             $<$<NOT:$<BOOL:${CUDA_STATIC_RUNTIME}>>:raft::raft>
             $<$<NOT:$<BOOL:${CUDA_STATIC_RUNTIME}>>:raft::distance>
@@ -363,6 +364,7 @@ else()
     target_link_libraries(cugraph
         PUBLIC
             rmm::rmm
+            rt
             $<$<NOT:$<BOOL:${CUDA_STATIC_RUNTIME}>>:raft::raft>
             $<$<NOT:$<BOOL:${CUDA_STATIC_RUNTIME}>>:raft::distance>
         PRIVATE

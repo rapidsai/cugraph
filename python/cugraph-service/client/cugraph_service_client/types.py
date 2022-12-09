@@ -29,6 +29,7 @@ GraphVertexEdgeID = spec.GraphVertexEdgeID
 BatchedEgoGraphsResult = spec.BatchedEgoGraphsResult
 Node2vecResult = spec.Node2vecResult
 UniformNeighborSampleResult = spec.UniformNeighborSampleResult
+Offsets = spec.Offsets
 
 
 class UnionWrapper:

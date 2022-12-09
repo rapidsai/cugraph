@@ -34,6 +34,13 @@ def create_tmp_extension_dir(file_contents, file_name="my_extension.py"):
     return tmp_extension_dir
 
 
+_failed_subproc_err_msg = (
+    f"\n{'*' * 21} cugraph-service-server STDOUT/STDERR {'*' * 22}\n"
+    "%s"
+    f"{'*' * 80}\n"
+)
+
+
 def start_server_subprocess(
     host="localhost",
     port=9090,
@@ -123,12 +130,24 @@ def start_server_subprocess(
             except CugraphServiceError:
                 time.sleep(1)
                 retries += 1
-        if retries >= max_retries:
-            raise RuntimeError("error starting server")
+
+            # poll() returns exit code, or None if still running
+            if (server_process is not None) and (server_process.poll() is not None):
+                err_output = _failed_subproc_err_msg % server_process.stdout.read()
+                server_process = None
+                raise RuntimeError(f"error starting server: {err_output}")
+
+            if retries >= max_retries:
+                raise RuntimeError("timed out waiting for server to respond")
+
     except Exception:
-        if server_process is not None and server_process.poll() is None:
-            server_process.terminate()
-            server_process.wait(timeout=60)
+        # Stop the server if still running
+        if server_process is not None:
+            if server_process.poll() is None:
+                server_process.terminate()
+                server_process.wait(timeout=60)
+            print(_failed_subproc_err_msg % server_process.stdout.read())
+
         raise
 
     return server_process

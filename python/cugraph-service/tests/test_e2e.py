@@ -461,6 +461,36 @@ def test_uniform_neighbor_sampling(client_with_edgelist_csv_loaded):
     )
 
 
+def test_renumber_vertices_by_type(client_with_property_csvs_loaded):
+    client, _ = client_with_property_csvs_loaded
+    re = client.renumber_vertices_by_type(prev_id_column="old_vid")
+    assert re.start == [0, 5]
+    assert re.stop == [4, 8]
+    print(client.get_graph_vertex_data(property_keys=["old_vid"]))
+    assert client.get_graph_vertex_data(property_keys=["old_vid"])[:, -1].tolist() == [
+        11,
+        4,
+        21,
+        16,
+        86,
+        89021,
+        32431,
+        89216,
+        78634,
+    ]
+
+
+def test_renumber_edges_by_type(client_with_property_csvs_loaded):
+    client, _ = client_with_property_csvs_loaded
+    re = client.renumber_edges_by_type(prev_id_column="old_eid")
+    assert re.start == [0, 4, 9]
+    assert re.stop == [3, 8, 16]
+    print(client.get_graph_edge_data(property_keys=["old_eid"]))
+    assert client.get_graph_edge_data(property_keys=["old_eid"])[
+        :, -1
+    ].tolist() == list(range(17))
+
+
 def test_create_property_graph(client):
     old_ids = set(client.get_graph_ids())
     pG = client.graph()
