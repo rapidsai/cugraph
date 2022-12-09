@@ -17,6 +17,7 @@
 #pragma once
 
 #include <cugraph/utilities/dataframe_buffer.hpp>
+#include <cugraph/utilities/thrust_tuple_utils.hpp>
 
 #include <raft/handle.hpp>
 
@@ -123,5 +124,23 @@ class edge_dummy_property_t {
 
   auto view() const { return edge_dummy_property_view_t{}; }
 };
+
+template <typename edge_t, typename... Ts>
+auto view_concat(edge_property_view_t<edge_t, Ts> const&... views)
+{
+  using concat_value_iterator = decltype(thrust::make_zip_iterator(
+    thrust_tuple_cat(detail::to_thrust_tuple(views.value_firsts()[0])...)));
+
+  std::vector<concat_value_iterator> edge_partition_concat_value_firsts{};
+  auto first_view = detail::get_first_of_pack(views...);
+  edge_partition_concat_value_firsts.resize(first_view.value_firsts().size());
+  for (size_t i = 0; i < edge_partition_concat_value_firsts.size(); ++i) {
+    edge_partition_concat_value_firsts[i] = thrust::make_zip_iterator(
+      thrust_tuple_cat(detail::to_thrust_tuple(views.value_firsts()[i])...));
+  }
+
+  return edge_property_view_t<edge_t, concat_value_iterator>(
+    edge_partition_concat_value_firsts, first_view.edge_counts());
+}
 
 }  // namespace cugraph

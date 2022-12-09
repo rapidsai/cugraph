@@ -78,7 +78,7 @@ struct uniform_neighbor_sampling_functor_deprecate : public cugraph::c_api::abst
   template <typename vertex_t,
             typename edge_t,
             typename weight_t,
-            typename edge_type_type_t,
+            typename edge_type_t,
             bool store_transposed,
             bool multi_gpu>
   void operator()()
@@ -148,9 +148,10 @@ struct uniform_neighbor_sampling_functor_deprecate : public cugraph::c_api::abst
       result_ = new cugraph::c_api::cugraph_sample_result_t{
         new cugraph::c_api::cugraph_type_erased_device_array_t(srcs, graph_->vertex_type_),
         new cugraph::c_api::cugraph_type_erased_device_array_t(dsts, graph_->vertex_type_),
+        new cugraph::c_api::cugraph_type_erased_device_array_t(
+          weights, graph_->weight_type_),  // needs to be edge id...
         nullptr,
         nullptr,
-        new cugraph::c_api::cugraph_type_erased_device_array_t(weights, graph_->weight_type_),
         nullptr,
         nullptr,
         nullptr};
@@ -192,7 +193,7 @@ struct uniform_neighbor_sampling_functor : public cugraph::c_api::abstract_funct
   template <typename vertex_t,
             typename edge_t,
             typename weight_t,
-            typename edge_type_type_t,
+            typename edge_type_t,
             bool store_transposed,
             bool multi_gpu>
   void operator()()
@@ -215,12 +216,12 @@ struct uniform_neighbor_sampling_functor : public cugraph::c_api::abstract_funct
       auto graph_view = graph->view();
 
       auto edge_weights = reinterpret_cast<
-        cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, false, multi_gpu>,
+        cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, true, multi_gpu>,
                                  weight_t>*>(graph_->edge_weights_);
 
-      auto edge_types = reinterpret_cast<
+      auto edge_properties = reinterpret_cast<
         cugraph::edge_property_t<cugraph::graph_view_t<vertex_t, edge_t, false, multi_gpu>,
-                                 edge_type_type_t>*>(graph_->edge_type_);
+                                 thrust::tuple<edge_t, edge_type_t>>*>(graph_->edge_properties_);
 
       auto number_map = reinterpret_cast<rmm::device_uvector<vertex_t>*>(graph_->number_map_);
 
@@ -248,14 +249,16 @@ struct uniform_neighbor_sampling_functor : public cugraph::c_api::abstract_funct
         raft::copy(label.data(), label_->as_type<int32_t>(), label.size(), handle_.get_stream());
       }
 
-      auto&& [src, dst, edge_id, edge_type, wgt, hop, edge_label] = cugraph::
-        uniform_neighbor_sample<vertex_t, edge_t, weight_t, edge_type_type_t, false, multi_gpu>(
+      auto&& [src, dst, edge_id, edge_type, wgt, hop, edge_label] =
+        cugraph::uniform_neighbor_sample<vertex_t, edge_t, weight_t, edge_type_t, false, multi_gpu>(
           handle_,
           graph_view,
           (edge_weights != nullptr) ? std::make_optional(edge_weights->view()) : std::nullopt,
-          (edge_types != nullptr) ? std::make_optional(edge_types->view()) : std::nullopt,
+          (edge_properties != nullptr) ? std::make_optional(edge_properties->view()) : std::nullopt,
           raft::device_span<vertex_t const>(start.data(), start.size()),
-          (label_ != nullptr) ? std::make_optional(raft::device_span<int32_t const>(label.data(), label.size())) : std::nullopt,
+          (label_ != nullptr)
+            ? std::make_optional(raft::device_span<int32_t>(label.data(), label.size()))
+            : std::nullopt,
           raft::host_span<const int>(fan_out_->as_type<const int>(), fan_out_->size_),
           with_replacement_);
 
@@ -342,8 +345,50 @@ extern "C" cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_st
   const cugraph_sample_result_t* result)
 {
   auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_sample_result_t const*>(result);
-  return reinterpret_cast<cugraph_type_erased_device_array_view_t*>(
-    internal_pointer->label_->view());
+  return internal_pointer->label_ != nullptr
+           ? reinterpret_cast<cugraph_type_erased_device_array_view_t*>(
+               internal_pointer->label_->view())
+           : NULL;
+}
+
+extern "C" cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_edge_id(
+  const cugraph_sample_result_t* result)
+{
+  auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_sample_result_t const*>(result);
+  return internal_pointer->edge_id_ != nullptr
+           ? reinterpret_cast<cugraph_type_erased_device_array_view_t*>(
+               internal_pointer->edge_id_->view())
+           : NULL;
+}
+
+extern "C" cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_edge_type(
+  const cugraph_sample_result_t* result)
+{
+  auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_sample_result_t const*>(result);
+  return internal_pointer->edge_type_ != nullptr
+           ? reinterpret_cast<cugraph_type_erased_device_array_view_t*>(
+               internal_pointer->edge_type_->view())
+           : NULL;
+}
+
+extern "C" cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_edge_weight(
+  const cugraph_sample_result_t* result)
+{
+  auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_sample_result_t const*>(result);
+  return internal_pointer->wgt_ != nullptr
+           ? reinterpret_cast<cugraph_type_erased_device_array_view_t*>(
+               internal_pointer->wgt_->view())
+           : NULL;
+}
+
+extern "C" cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_hop(
+  const cugraph_sample_result_t* result)
+{
+  auto internal_pointer = reinterpret_cast<cugraph::c_api::cugraph_sample_result_t const*>(result);
+  return internal_pointer->hop_ != nullptr
+           ? reinterpret_cast<cugraph_type_erased_device_array_view_t*>(
+               internal_pointer->hop_->view())
+           : NULL;
 }
 
 extern "C" cugraph_type_erased_device_array_view_t* cugraph_sample_result_get_index(

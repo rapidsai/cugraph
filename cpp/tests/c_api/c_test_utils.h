@@ -84,6 +84,7 @@ int create_test_graph_double(const cugraph_resource_handle_t* p_handle,
 
 int create_sg_test_graph(const cugraph_resource_handle_t* handle,
                          data_type_id_t vertex_tid,
+                         data_type_id_t edge_tid,
                          void* h_src,
                          void* h_dst,
                          data_type_id_t weight_tid,

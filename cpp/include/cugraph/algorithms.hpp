@@ -1861,13 +1861,13 @@ uniform_nbr_sample(raft::handle_t const& handle,
 template <typename vertex_t,
           typename edge_t,
           typename weight_t,
-          typename edge_type_type_t,
+          typename edge_type_t,
           bool store_transposed,
           bool multi_gpu>
 std::tuple<rmm::device_uvector<vertex_t>,
            rmm::device_uvector<vertex_t>,
            rmm::device_uvector<edge_t>,
-           std::optional<rmm::device_uvector<edge_type_type_t>>,
+           std::optional<rmm::device_uvector<edge_type_t>>,
            std::optional<rmm::device_uvector<weight_t>>,
            rmm::device_uvector<int32_t>,
            std::optional<rmm::device_uvector<int32_t>>>
@@ -1875,7 +1875,10 @@ uniform_neighbor_sample(
   raft::handle_t const& handle,
   graph_view_t<vertex_t, edge_t, store_transposed, multi_gpu> const& graph_view,
   std::optional<edge_property_view_t<edge_t, weight_t const*>> edge_weight_view,
-  std::optional<edge_property_view_t<edge_t, edge_type_type_t const*>> edge_type_view,
+  std::optional<
+    edge_property_view_t<edge_t,
+                         thrust::zip_iterator<thrust::tuple<edge_t const*, edge_type_t const*>>>>
+    edge_type_view,
   raft::device_span<vertex_t const> starting_vertices,
   std::optional<raft::device_span<int32_t const>> starting_labels,
   raft::host_span<int const> fan_out,

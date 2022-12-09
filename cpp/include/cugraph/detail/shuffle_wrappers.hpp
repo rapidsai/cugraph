@@ -117,7 +117,7 @@ std::tuple<rmm::device_uvector<vertex_t>, rmm::device_uvector<value_t>>
 shuffle_int_vertices_and_values_by_gpu_id(
   raft::handle_t const& handle,
   rmm::device_uvector<vertex_t>&& d_vertices,
-  rmm::device_uvector<vertex_t>&& d_values,
+  rmm::device_uvector<value_t>&& d_values,
   std::vector<vertex_t> const& vertex_partition_range_lasts);
 
 /**
