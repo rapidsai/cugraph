@@ -118,24 +118,8 @@ def ensure_running_service_for_sampling(dask_scheduler_file=None,
     server subprocess, and a client object connected to it.  If a server was
     detected already running, the Popen object will be None.
     """
-    host = "localhost"
-    port = 9090
-    client = CugraphServiceClient(host, port)
-    server_process = None
-
-    try:
-        client.uptime()
-        print("FOUND RUNNING SERVER, ASSUMING IT SHOULD BE USED FOR TESTING!")
-
-    except CugraphServiceError:
-        # A server was not found, so start one for testing then stop it when
-        # testing is done.
-        server_process = utils.start_server_subprocess(
-            host=host,
-            port=port,
-            start_local_cuda_cluster=start_local_cuda_cluster,
-            dask_scheduler_file=dask_scheduler_file,
-        )
+    (client, server_process) = utils.ensure_running_server(
+        dask_scheduler_file, start_local_cuda_cluster)
 
     # Ensure the extensions needed for these benchmarks are loaded
     required_graph_creation_extension_module = "benchmark_server_extension"

@@ -19,6 +19,12 @@ import time
 from tempfile import TemporaryDirectory
 from pathlib import Path
 
+from cugraph_service_client import (
+    CugraphServiceClient,
+    defaults,
+)
+from cugraph_service_client.exceptions import CugraphServiceError
+
 
 def create_tmp_extension_dir(file_contents, file_name="my_extension.py"):
     """
@@ -35,8 +41,8 @@ def create_tmp_extension_dir(file_contents, file_name="my_extension.py"):
 
 
 def start_server_subprocess(
-    host="localhost",
-    port=9090,
+    host=defaults.host,
+    port=defaults.port,
     graph_creation_extension_dir=None,
     start_local_cuda_cluster=False,
     dask_scheduler_file=None,
@@ -46,13 +52,6 @@ def start_server_subprocess(
     Start a cugraph_service server as a subprocess. Returns the Popen object
     for the server.
     """
-    # Import modules under test here to prevent pytest collection errors if
-    # code changes prevent these from being imported.
-    # Also check here that cugraph_service_server can be imported
-    import cugraph_service_server  # noqa: F401
-    from cugraph_service_client import CugraphServiceClient
-    from cugraph_service_client.exceptions import CugraphServiceError
-
     server_process = None
     env_dict = os.environ.copy()
     if env_additions is not None:
@@ -132,3 +131,36 @@ def start_server_subprocess(
         raise
 
     return server_process
+
+
+def ensure_running_server(
+    host=defaults.host,
+    port=defaults.port,
+    dask_scheduler_file=None,
+    start_local_cuda_cluster=False,
+):
+    """
+    Returns a tuple containg a CugraphService instance and a Popen instance for
+    the server subprocess. If a server is found running, the Popen instance
+    will be None and no attempt will be made to start a subprocess.
+    """
+    host = "localhost"
+    port = 9090
+    client = CugraphServiceClient(host, port)
+    server_process = None
+
+    try:
+        client.uptime()
+        print("FOUND RUNNING SERVER, ASSUMING IT SHOULD BE USED FOR TESTING!")
+
+    except CugraphServiceError:
+        # A server was not found, so start one for testing then stop it when
+        # testing is done.
+        server_process = start_server_subprocess(
+            host=host,
+            port=port,
+            start_local_cuda_cluster=start_local_cuda_cluster,
+            dask_scheduler_file=dask_scheduler_file,
+        )
+
+    return (client, server_process)
