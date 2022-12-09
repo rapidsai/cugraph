@@ -517,5 +517,11 @@ struct device_nearly_equal {
   }
 };
 
+template <typename vertex_t, bool store_transposed>
+rmm::device_uvector<vertex_t> random_ext_vertex_ids(raft::handle_t const& handle,
+                                                    rmm::device_uvector<vertex_t> const& number_map,
+                                                    vertex_t count,
+                                                    uint64_t seed);
+
 }  // namespace test
 }  // namespace cugraph

@@ -19,9 +19,17 @@
 #include <utilities/device_comm_wrapper.hpp>
 #include <utilities/test_utilities.hpp>
 
+#include <cugraph/detail/shuffle_wrappers.hpp>
 #include <cugraph/graph_functions.hpp>
+#include <cugraph/utilities/host_scalar_comm.hpp>
 
 #include <raft/core/device_span.hpp>
+#include <raft/random/rng.cuh>
+#ifndef NO_CUGRAPH_OPS
+#include <cugraph-ops/graph/sampling.hpp>
+#endif
+
+#include <rmm/device_scalar.hpp>
 
 namespace cugraph {
 namespace test {
@@ -185,6 +193,62 @@ mg_graph_to_sg_graph(
       renumber);
 
   return std::make_tuple(std::move(graph), std::move(edge_weights), std::move(new_number_map));
+}
+
+template <typename vertex_t, bool multi_gpu>
+rmm::device_uvector<vertex_t> random_ext_vertex_ids(raft::handle_t const& handle,
+                                                    rmm::device_uvector<vertex_t> const& number_map,
+                                                    vertex_t count,
+                                                    uint64_t seed)
+{
+  rmm::device_uvector<vertex_t> vertex_ids(0, handle.get_stream());
+  std::vector<vertex_t> vertex_ends;
+
+  vertex_t number_of_vertices = static_cast<vertex_t>(number_map.size());
+  vertex_t base_index{0};
+
+  if constexpr (multi_gpu) {
+    auto vertex_sizes =
+      host_scalar_allgather(handle.get_comms(), number_of_vertices, handle.get_stream());
+
+    vertex_ends.resize(vertex_sizes.size());
+
+    std::inclusive_scan(vertex_sizes.begin(), vertex_sizes.end(), vertex_ends.begin());
+
+    number_of_vertices = vertex_ends.back();
+    int rank           = handle.get_comms().get_rank();
+    if (rank > 0) base_index = vertex_ends[rank - 1];
+  }
+
+  if (!multi_gpu || (handle.get_comms().get_rank() == 0)) {
+    vertex_ids.resize(count, handle.get_stream());
+
+    rmm::device_scalar<vertex_t> d_num_vertices(number_of_vertices, handle.get_stream());
+    raft::random::RngState rng_state(seed);
+
+    cugraph::ops::gnn::graph::get_sampling_index(vertex_ids.data(),
+                                                 rng_state,
+                                                 d_num_vertices.data(),
+                                                 vertex_t{1},
+                                                 count,
+                                                 false,  // with_replacement
+                                                 handle.get_stream());
+  }
+
+  if constexpr (multi_gpu) {
+    vertex_ids =
+      cugraph::detail::shuffle_int_vertices_by_gpu_id(handle, std::move(vertex_ids), vertex_ends);
+  }
+
+  thrust::transform(handle.get_thrust_policy(),
+                    vertex_ids.begin(),
+                    vertex_ids.end(),
+                    vertex_ids.begin(),
+                    [d_number_map    = number_map.data(),
+                     number_map_size = number_map.size(),
+                     base_index] __device__(auto id) { return d_number_map[id - base_index]; });
+
+  return vertex_ids;
 }
 
 }  // namespace test

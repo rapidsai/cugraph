@@ -53,6 +53,7 @@ target_link_libraries(cugraphtestutil
     PRIVATE
         cuco::cuco
         GTest::gtest
+	rt
 )
 
 ###################################################################################################
@@ -68,6 +69,7 @@ function(ConfigureTest CMAKE_TEST_NAME)
             GTest::gtest
             GTest::gtest_main
             NCCL::NCCL
+	    rt
     )
 
     add_test(NAME ${CMAKE_TEST_NAME} COMMAND ${CMAKE_TEST_NAME})
@@ -95,6 +97,7 @@ function(ConfigureTestMG CMAKE_TEST_NAME)
         GTest::gtest_main
         NCCL::NCCL
         MPI::MPI_CXX
+	rt
     )
 
     add_test(NAME ${CMAKE_TEST_NAME}
@@ -126,6 +129,7 @@ function(ConfigureCTest CMAKE_TEST_NAME)
             cugraph_c_testutil
             GTest::gtest
             GTest::gtest_main
+	    rt
     )
 
     add_test(NAME ${CMAKE_TEST_NAME} COMMAND ${CMAKE_TEST_NAME})
@@ -152,6 +156,7 @@ function(ConfigureCTestMG CMAKE_TEST_NAME)
             GTest::gtest_main
             NCCL::NCCL
             MPI::MPI_CXX
+	    rt
     )
 
     add_test(NAME ${CMAKE_TEST_NAME}
@@ -412,6 +417,7 @@ if(BUILD_CUGRAPH_MG_TESTS)
             MPI::MPI_CXX
         PRIVATE
             GTest::gtest
+	    rt
     )
 
     # Set the GPU count to 1.  If the caller wants to execute MG tests using
@@ -581,6 +587,7 @@ if(BUILD_CUGRAPH_MG_TESTS)
 
     ###############################################################################################
     # - MG C API tests ----------------------------------------------------------------------------
+    ConfigureCTestMG(MG_CAPI_UNIFORM_NEIGHBOR_SAMPLE_BENCHMARK c_api/mg_uniform_neighbor_sample_benchmark.cpp c_api/mg_test_utils.cpp)
     ConfigureCTestMG(MG_CAPI_CREATE_GRAPH_TEST c_api/mg_create_graph_test.c c_api/mg_test_utils.cpp)
     ConfigureCTestMG(MG_CAPI_PAGERANK_TEST c_api/mg_pagerank_test.c c_api/mg_test_utils.cpp)
     ConfigureCTestMG(MG_CAPI_BFS_TEST c_api/mg_bfs_test.c c_api/mg_test_utils.cpp)
@@ -610,6 +617,8 @@ endif()
 # - common C API test utils -----------------------------------------------------------------------
 
 add_library(cugraph_c_testutil STATIC
+            utilities/thrust_wrapper.cu
+            utilities/test_utilities_mg.cu
             c_api/test_utils.cpp)
 
 target_compile_options(cugraph_c_testutil
@@ -621,6 +630,7 @@ set_property(TARGET cugraph_c_testutil PROPERTY POSITION_INDEPENDENT_CODE ON)
 
 target_include_directories(cugraph_c_testutil
     PUBLIC
+        "${CMAKE_CURRENT_SOURCE_DIR}/../../thirdparty/mmio"
         "${CMAKE_CURRENT_SOURCE_DIR}"
         "${CUGRAPH_SOURCE_DIR}/src"
 )

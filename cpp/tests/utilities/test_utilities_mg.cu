@@ -294,5 +294,13 @@ mg_graph_to_sg_graph(
   std::optional<rmm::device_uvector<int64_t>> const& number_map,
   bool renumber);
 
+template rmm::device_uvector<int64_t> random_ext_vertex_ids<int64_t, true>(
+  raft::handle_t const& handle,
+  rmm::device_uvector<int64_t> const& number_map,
+  int64_t count,
+  uint64_t seed);
+
+// FIXME: Need more random_ext_vertex_ids
+
 }  // namespace test
 }  // namespace cugraph

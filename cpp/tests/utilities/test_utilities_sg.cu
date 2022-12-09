@@ -162,5 +162,13 @@ graph_to_host_csr(
   cugraph::graph_view_t<int64_t, int64_t, true, false> const& graph_view,
   std::optional<cugraph::edge_property_view_t<int64_t, double const*>> edge_weight_view);
 
+template rmm::device_uvector<int64_t> random_ext_vertex_ids<int64_t, false>(
+  raft::handle_t const& handle,
+  rmm::device_uvector<int64_t> const& number_map,
+  int64_t count,
+  uint64_t seed);
+
+// FIXME: Need more random_ext_vertex_ids
+
 }  // namespace test
 }  // namespace cugraph
