@@ -18,6 +18,7 @@
 
 #include <utilities/cxxopts.hpp>
 #include <utilities/high_res_timer.hpp>
+#include <utilities/mg_utilities.hpp>
 #include <utilities/test_graphs.hpp>
 
 #include <c_api/graph.hpp>
@@ -105,6 +106,13 @@ int main(int argc, char** argv)
   raft::handle_t* raft_handle = static_cast<raft::handle_t*>(create_raft_handle(prows));
   handle                      = cugraph_create_resource_handle(raft_handle);
 
+#ifdef AFTER_3601_MERGES
+  cugraph::test::enforce_p2p_initialization(raft_handle->get_comms(), raft_handle->get_stream());
+  cugraph::test::enforce_p2p_initialization(
+    raft_handle->get_subcomm(cugraph::partition_2d::key_naming_t().col_name()),
+    raft_handle->get_stream());
+#endif
+
   std::vector<int32_t> fan_out;
 
   std::stringstream fanout_stream(fanout_str);
@@ -176,12 +184,20 @@ int main(int argc, char** argv)
     d_start_view = cugraph_type_erased_device_array_view_create(
       start_vertices.data(), start_vertices.size(), vertex_tid);
 
+#ifdef AFTER_3601_MERGES
+    if (comm_rank == 0) timer.start("cugraph_uniform_neighbor_sample");
+#else
     if ((i > 0) && (comm_rank == 0)) timer.start("cugraph_uniform_neighbor_sample");
+#endif
 
     ret_code = cugraph_uniform_neighbor_sample(
       handle, graph, d_start_view, h_fan_out_view, with_replacement, FALSE, &result, &ret_error);
 
+#ifdef AFTER_3601_MERGES
+    if (comm_rank == 0) timer.stop();
+#else
     if ((i > 0) && (comm_rank == 0)) timer.stop();
+#endif
 
     TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, cugraph_error_message(ret_error));
     TEST_ASSERT(test_ret_value, ret_code == CUGRAPH_SUCCESS, "uniform_neighbor_sample failed.");
